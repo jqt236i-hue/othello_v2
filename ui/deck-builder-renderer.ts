@@ -417,6 +417,8 @@ function createSlotBadgeElement(slotIndex: any): HTMLElement | null {
 }
 
 function createActiveStripElement(): HTMLElement {
+  // Kept as alias for callers that still need a "this is active" marker;
+  // visually the wax seal is now the primary active indicator via createActiveSealElement.
   const strip = document.createElement('div');
   strip.className = 'deck-builder-active-strip';
   strip.setAttribute('aria-hidden', 'true');
@@ -424,10 +426,92 @@ function createActiveStripElement(): HTMLElement {
   return strip;
 }
 
+function createActiveSealElement(deckName: any): HTMLElement {
+  const seal = document.createElement('div');
+  seal.className = 'deck-builder-active-seal';
+  seal.setAttribute('role', 'img');
+  seal.setAttribute('aria-label', `${String(deckName || 'このデッキ')} は現在使用中です`);
+  seal.setAttribute('aria-hidden', 'false');
+  const inner = document.createElement('div');
+  inner.className = 'deck-builder-active-seal-inner';
+  inner.setAttribute('aria-hidden', 'true');
+  inner.textContent = 'IN USE';
+  seal.appendChild(inner);
+  return seal;
+}
+
+function createSlotLabelEnElement(label: any): HTMLElement | null {
+  const text = String(label || '').trim();
+  if (!text) return null;
+  const el = document.createElement('div');
+  el.className = 'deck-builder-slot-label-en';
+  el.setAttribute('aria-hidden', 'true');
+  el.textContent = text;
+  return el;
+}
+
+function createCountOrbElement(deckSize: any): HTMLElement {
+  const orb = document.createElement('div');
+  orb.className = 'deck-builder-slot-count-orb';
+  const value = Math.max(0, Math.floor(Number(deckSize) || 0));
+  const valueEl = document.createElement('div');
+  valueEl.className = 'deck-builder-slot-count-value';
+  valueEl.textContent = String(value);
+  const unitEl = document.createElement('small');
+  unitEl.className = 'deck-builder-slot-count-unit';
+  unitEl.textContent = '枚';
+  valueEl.appendChild(unitEl);
+  orb.appendChild(valueEl);
+  return orb;
+}
+
+function createTypeSwatchBarElement(breakdown: any[]): HTMLElement | null {
+  if (!Array.isArray(breakdown) || breakdown.length === 0) return null;
+  const segments: Array<{ typeKey: string; proportion: number }> = [];
+  for (const entry of breakdown) {
+    if (!entry || typeof entry !== 'object') continue;
+    const typeKey = String(entry.typeKey || '').trim();
+    const proportion = Number(entry.proportion) || 0;
+    if (!typeKey || proportion <= 0) continue;
+    segments.push({ typeKey, proportion });
+    if (segments.length >= 6) break;
+  }
+  if (segments.length === 0) return null;
+
+  const bar = document.createElement('div');
+  bar.className = 'deck-builder-slot-type-bar';
+  bar.setAttribute('aria-hidden', 'true');
+  for (const seg of segments) {
+    const span = document.createElement('span');
+    span.className = `deck-builder-slot-type-seg is-${seg.typeKey}`;
+    span.style.flexGrow = String(Math.max(0.5, seg.proportion * 100));
+    bar.appendChild(span);
+  }
+  return bar;
+}
+
+function createEmptySlotCtaElements() {
+  const halo = document.createElement('div');
+  halo.className = 'deck-builder-empty-halo';
+  halo.setAttribute('aria-hidden', 'true');
+
+  const plus = document.createElement('div');
+  plus.className = 'deck-builder-empty-plus';
+  plus.setAttribute('aria-hidden', 'true');
+  plus.textContent = '+';
+
+  const cta = document.createElement('div');
+  cta.className = 'deck-builder-empty-cta';
+  cta.setAttribute('aria-hidden', 'true');
+  cta.textContent = 'クリックして構築';
+
+  return { halo, plus, cta };
+}
+
 function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTMLElement {
   const opts = (options && typeof options === 'object') ? options : {};
   const presetCard = document.createElement('div');
-  presetCard.className = 'deck-builder-preset-card';
+  presetCard.className = 'deck-builder-preset-card deck-builder-save-slot-card';
   const slotState = classifyPresetSlotState(preset);
   presetCard.classList.add(`is-${slotState}`);
   if (preset.isActive) {
@@ -444,25 +528,70 @@ function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTM
   }
   presetCard.dataset.slotState = slotState;
 
-  const slotBadge = createSlotBadgeElement(opts.slotIndex);
-  if (slotBadge) {
+  // Slot index dataset (used by JS hooks/tests even if badge isn't shown)
+  if (typeof opts.slotIndex === 'number') {
     presetCard.dataset.slotIndex = String(opts.slotIndex);
-    presetCard.appendChild(slotBadge);
   }
 
-  if (preset.isActive) {
+  // Empty slot — halo + plus + cta + slot number label only
+  if (slotState === 'empty') {
+    const { halo, plus, cta } = createEmptySlotCtaElements();
+
+    // Hidden title for back-compat with old test/a11y expectations ("空きスロット N")
+    if (typeof opts.slotIndex === 'number') {
+      const hiddenTitle = document.createElement('div');
+      hiddenTitle.className = 'deck-builder-preset-title deck-builder-empty-sr-title';
+      hiddenTitle.textContent = `空きスロット ${opts.slotIndex + 1}`;
+      presetCard.appendChild(hiddenTitle);
+    }
+
+    presetCard.appendChild(halo);
+    presetCard.appendChild(plus);
+    presetCard.appendChild(cta);
+    presetCard.appendChild(actions);
+    return presetCard;
+  }
+
+  // Filled slot — wax seal (active) + meta column + count orb + swatch bar + actions
+  if (preset.isActive && slotState === 'active') {
+    presetCard.appendChild(createActiveSealElement(preset.displayName));
+  } else if (preset.isActive) {
+    // Active but canUse === false (rare) — fall back to strip for accessibility
     presetCard.appendChild(createActiveStripElement());
   }
+
+  // Meta column (label-en + title + summary)
+  const meta = document.createElement('div');
+  meta.className = 'deck-builder-slot-meta';
+
+  const labelEnText = `${preset.slotNumberLabel || ''}${preset.isActive ? ' · IN USE' : ''}`;
+  const labelEn = createSlotLabelEnElement(labelEnText);
+  if (labelEn) meta.appendChild(labelEn);
 
   const title = document.createElement('div');
   title.className = 'deck-builder-preset-title';
   title.textContent = preset.displayName;
-  presetCard.appendChild(title);
+  meta.appendChild(title);
 
   const summary = document.createElement('div');
   summary.className = 'deck-builder-preset-summary';
   summary.textContent = preset.summaryText;
-  presetCard.appendChild(summary);
+  meta.appendChild(summary);
+
+  presetCard.appendChild(meta);
+
+  // Count orb on the right (filled only)
+  if (slotState === 'filled' || slotState === 'active') {
+    if (typeof preset.deckSize === 'number') {
+      presetCard.appendChild(createCountOrbElement(preset.deckSize));
+    }
+  }
+
+  // Type swatch bar (filled only)
+  if (slotState === 'filled' || slotState === 'active') {
+    const swatchBar = createTypeSwatchBarElement(preset.typeBreakdown);
+    if (swatchBar) presetCard.appendChild(swatchBar);
+  }
 
   if (preset.noteText) {
     const note = document.createElement('div');
@@ -473,6 +602,87 @@ function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTM
 
   presetCard.appendChild(actions);
   return presetCard;
+}
+
+function createBuiltInPresetCard(preset: any, actions: HTMLElement): HTMLElement {
+  const card = document.createElement('div');
+  card.className = 'deck-builder-preset-card deck-builder-builtin-card';
+  const slotState = classifyPresetSlotState(preset);
+  card.classList.add(`is-${slotState}`);
+  if (preset.isActive) {
+    card.classList.add('is-active');
+  }
+  const dominantTypeKey = preset && typeof preset.dominantTypeKey === 'string'
+    ? preset.dominantTypeKey.trim()
+    : '';
+  if (dominantTypeKey) {
+    card.classList.add(`is-${dominantTypeKey}`);
+  }
+  if (typeof preset.id === 'string' && preset.id) {
+    card.dataset.presetId = preset.id;
+  }
+  card.dataset.slotState = slotState;
+
+  const gem = document.createElement('div');
+  gem.className = 'deck-builder-builtin-gem';
+  gem.setAttribute('aria-hidden', 'true');
+  card.appendChild(gem);
+
+  const meta = document.createElement('div');
+  meta.className = 'deck-builder-builtin-meta';
+
+  const title = document.createElement('div');
+  title.className = 'deck-builder-preset-title';
+  title.textContent = preset.displayName;
+  meta.appendChild(title);
+
+  const sub = document.createElement('div');
+  sub.className = 'deck-builder-preset-summary';
+  sub.textContent = preset.summaryText;
+  meta.appendChild(sub);
+
+  card.appendChild(meta);
+  card.appendChild(actions);
+  return card;
+}
+
+function createDefaultDeckHero(viewModel: any, onUse: any): HTMLElement {
+  const card = document.createElement('div');
+  card.className = 'deck-builder-preset-card deck-builder-standard-card deck-builder-default-hero is-filled';
+  card.dataset.slotState = 'standard';
+
+  const sigil = document.createElement('div');
+  sigil.className = 'deck-builder-hero-sigil';
+  sigil.setAttribute('aria-hidden', 'true');
+  sigil.textContent = 'DEFAULT HERALD';
+  card.appendChild(sigil);
+
+  const title = document.createElement('div');
+  title.className = 'deck-builder-preset-title';
+  title.textContent = 'デフォルトデッキ';
+  card.appendChild(title);
+
+  const sub = document.createElement('div');
+  sub.className = 'deck-builder-preset-summary';
+  sub.innerHTML = '<b>30枚</b> · 有効カードから重複なしランダム';
+  card.appendChild(sub);
+
+  const metaRow = document.createElement('div');
+  metaRow.className = 'deck-builder-hero-meta';
+  const pill = document.createElement('span');
+  pill.className = 'deck-builder-format-pill';
+  pill.textContent = 'STANDARD';
+  metaRow.appendChild(pill);
+  const metaText = document.createElement('span');
+  metaText.className = 'deck-builder-hero-meta-text';
+  metaText.textContent = 'フォーマット: スタンダード';
+  metaRow.appendChild(metaText);
+  card.appendChild(metaRow);
+
+  const cta = createButton('使 用', 'btn-small deck-builder-hero-cta', typeof onUse === 'function' ? onUse : undefined);
+  card.appendChild(cta);
+
+  return card;
 }
 
 function createSectionIcon(svgInner: string): HTMLElement {
@@ -499,21 +709,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   const defaultPresetRow = document.createElement('div');
   defaultPresetRow.className = 'deck-builder-default-preset-row';
 
-  const standardCard = document.createElement('div');
-  standardCard.className = 'deck-builder-preset-card deck-builder-standard-card is-filled';
-  standardCard.dataset.slotState = 'standard';
-  const standardTitle = document.createElement('div');
-  standardTitle.className = 'deck-builder-preset-title';
-  standardTitle.textContent = 'デフォルトデッキ';
-  standardCard.appendChild(standardTitle);
-  const standardSummary = document.createElement('div');
-  standardSummary.className = 'deck-builder-preset-summary';
-  standardSummary.textContent = viewModel.standardSummaryText;
-  standardCard.appendChild(standardSummary);
-  const standardActions = document.createElement('div');
-  standardActions.className = 'deck-builder-actions-row';
-  standardActions.appendChild(createButton('使用', 'btn-small', handlers.onUseStandard));
-  standardCard.appendChild(standardActions);
+  const standardCard = createDefaultDeckHero(viewModel, handlers.onUseStandard);
   defaultPresetRow.appendChild(standardCard);
 
   const builtInPresets = Array.isArray(viewModel.builtInPresets) ? viewModel.builtInPresets : [];
@@ -537,7 +733,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
       actions.className = 'deck-builder-actions-row';
       actions.appendChild(createButton('使用', 'btn-small', () => handlers.onUseBuiltInPreset(preset.id), { disabled: !preset.canUse }));
       actions.appendChild(createButton('編集', 'btn-small', () => handlers.onEditBuiltInPreset(preset.id), { disabled: !preset.canUse }));
-      builtInGrid.appendChild(createPresetCard(preset, actions));
+      builtInGrid.appendChild(createBuiltInPresetCard(preset, actions));
     });
     builtInSection.appendChild(builtInGrid);
     defaultPresetRow.appendChild(builtInSection);

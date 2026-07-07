@@ -357,7 +357,10 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
         }
 
         function summarizeDeckTypeBreakdown(deckSpec: any) {
-            const emptyResult = { dominantTypeKey: '' };
+            const emptyResult = {
+                dominantTypeKey: '',
+                breakdown: [] as Array<{ typeKey: string; label: string; count: number; proportion: number }>
+            };
             if (!deckSpec || typeof deckSpec !== 'object' || !Array.isArray(deckSpec.cards)) {
                 return emptyResult;
             }
@@ -366,7 +369,8 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 ? DeckSpecHelpers.getEnabledCardDefMap()
                 : new Map<string, any>();
 
-            const typeStatsMap = new Map<string, { typeKey: string; count: number }>();
+            const typeStatsMap = new Map<string, { typeKey: string; label: string; count: number }>();
+            let totalCount = 0;
 
             for (const entry of deckSpec.cards) {
                 if (!entry || typeof entry !== 'object') continue;
@@ -378,12 +382,14 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
 
                 const typeKey = getCardDisplayTypeKeyFromDef(def);
                 if (!typeKey) continue;
+                const label = getCardDisplayTypeLabelFromDef(def) || typeKey;
                 const existing = typeStatsMap.get(typeKey);
                 if (existing) {
                     existing.count += count;
                 } else {
-                    typeStatsMap.set(typeKey, { typeKey, count: count });
+                    typeStatsMap.set(typeKey, { typeKey, label, count });
                 }
+                totalCount += count;
             }
 
             const ordered = Array.from(typeStatsMap.values())
@@ -392,8 +398,15 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                     return String(left.typeKey || '').localeCompare(String(right.typeKey || ''), 'en');
                 });
 
+            const breakdown = ordered.map((entry) => ({
+                typeKey: entry.typeKey,
+                label: entry.label,
+                count: entry.count,
+                proportion: totalCount > 0 ? entry.count / totalCount : 0
+            }));
+
             const dominantTypeKey = ordered.length > 0 ? ordered[0].typeKey : '';
-            return { dominantTypeKey };
+            return { dominantTypeKey, breakdown };
         }
 
         function createChoiceFromDeckCode(deckCode: any, context: any) {
@@ -1016,16 +1029,20 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
 
         function buildPresetViewModel() {
             return state.presetState.presets.map((preset: any, index: any) => {
+                const slotNumberLabel = `No.${String(index + 1).padStart(2, '0')}`;
                 if (!preset.deckCode) {
                     return {
                         id: preset.id,
-                        displayName: getPresetDisplayName(preset, index),
-                        summaryText: '未保存',
+                        displayName: '空きスロット',
+                        summaryText: 'クリックして構築',
                         noteText: '',
                         noteIsError: false,
                         canUse: false,
-                        isActive: preset.id === state.presetState.activePresetId,
-                        dominantTypeKey: ''
+                        isActive: false,
+                        dominantTypeKey: '',
+                        typeBreakdown: [],
+                        slotNumberLabel,
+                        isEmpty: true
                     };
                 }
 
@@ -1039,21 +1056,30 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                         noteIsError: true,
                         canUse: false,
                         isActive: false,
-                        dominantTypeKey: ''
+                        dominantTypeKey: '',
+                        typeBreakdown: [],
+                        slotNumberLabel,
+                        isEmpty: false
                     };
                 }
 
                 const summary = DeckSpecHelpers.summarizeDeckSpec(deckSpec);
                 const breakdown = summarizeDeckTypeBreakdown(deckSpec);
+                const isActive = preset.id === state.presetState.activePresetId;
                 return {
                     id: preset.id,
                     displayName: getPresetDisplayName(preset, index),
                     summaryText: `${summary.deckSize}枚 / ${summary.distinctCount}種`,
-                    noteText: preset.id === state.presetState.activePresetId ? '現在使用中' : '',
+                    noteText: '',
                     noteIsError: false,
                     canUse: true,
-                    isActive: preset.id === state.presetState.activePresetId,
-                    dominantTypeKey: breakdown.dominantTypeKey
+                    isActive,
+                    dominantTypeKey: breakdown.dominantTypeKey,
+                    typeBreakdown: breakdown.breakdown,
+                    deckSize: summary.deckSize,
+                    distinctCount: summary.distinctCount,
+                    slotNumberLabel,
+                    isEmpty: false
                 };
             });
         }
@@ -1075,7 +1101,8 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                         noteIsError: true,
                         canUse: false,
                         isActive: false,
-                        dominantTypeKey: ''
+                        dominantTypeKey: '',
+                        typeBreakdown: []
                     };
                 }
 
@@ -1092,7 +1119,8 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                     noteIsError: false,
                     canUse: true,
                     isActive: active,
-                    dominantTypeKey: breakdown.dominantTypeKey
+                    dominantTypeKey: breakdown.dominantTypeKey,
+                    typeBreakdown: breakdown.breakdown
                 };
             });
         }
