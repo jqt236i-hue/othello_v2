@@ -45,6 +45,13 @@ type ListPlayerHistoryInput = {
     limit?: unknown;
 };
 
+type UpdatePublicProfileInput = {
+    playerId?: unknown;
+    playerName?: unknown;
+    avatarStoneType?: unknown;
+    bio?: unknown;
+};
+
 function asRecord(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
@@ -495,6 +502,46 @@ export function createMatchWorkerRatingHelpers(config: RatingHelpersConfig = {})
         return { ok: true, store: { ...store, activeMatches, updatedAt: now() } };
     }
 
+    function updatePublicProfile(storeValue: unknown, input: UpdatePublicProfileInput): any {
+        const store = loadStore(storeValue);
+        const playerId = normalizePlayerId(input && input.playerId);
+        if (!playerId) return { ok: false, reason: 'PLAYER_ID_REQUIRED', store };
+
+        const updatedAt = now();
+        const profile = createPublicProfile(playerId, {
+            playerName: input.playerName,
+            avatarStoneType: input.avatarStoneType,
+            bio: input.bio,
+            updatedAt
+        }, updatedAt);
+        const activeMatches = { ...store.activeMatches };
+        Object.keys(activeMatches).forEach((activePlayerId) => {
+            const active = activeMatches[activePlayerId];
+            if (!active || !active.playerIds.includes(playerId)) return;
+            activeMatches[activePlayerId] = {
+                ...active,
+                publicProfiles: {
+                    ...active.publicProfiles,
+                    [playerId]: profile
+                }
+            };
+        });
+
+        return {
+            ok: true,
+            store: {
+                ...store,
+                publicProfiles: {
+                    ...store.publicProfiles,
+                    [playerId]: profile
+                },
+                activeMatches,
+                updatedAt
+            },
+            payload: { ok: true, playerId, profile, updatedAt }
+        };
+    }
+
     return {
         createEmptyStore,
         loadStore,
@@ -503,6 +550,7 @@ export function createMatchWorkerRatingHelpers(config: RatingHelpersConfig = {})
         listLeaderboard,
         listPlayerHistory,
         claimActiveRatedMatch,
-        releaseActiveRatedMatch
+        releaseActiveRatedMatch,
+        updatePublicProfile
     };
 }

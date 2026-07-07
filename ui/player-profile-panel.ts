@@ -191,6 +191,9 @@ function setupPlayerProfilePanel(opts?: any): any {
       if (leaderboard && typeof leaderboard.setPlayerName === 'function') {
         leaderboard.setPlayerName(saved.displayName);
       }
+      if (leaderboard && typeof leaderboard.updatePublicProfile === 'function') {
+        void Promise.resolve(leaderboard.updatePublicProfile()).catch(() => undefined);
+      }
     } catch (e) { /* ignore */ }
     setStatus(refs.status, 'プロフィールを保存しました');
   }

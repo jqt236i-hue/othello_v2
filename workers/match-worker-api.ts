@@ -287,6 +287,28 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
             return forwardJsonToRoom(env, getPlayerIdentityRoomId(), pathname, parsed.body || {});
         }
 
+        if (request.method === 'POST' && pathname === '/api/player/profile') {
+            const parsed = await parsePostBody(request);
+            if (!parsed.ok) return parsed.response;
+            const body = parsed.body || {};
+            const verified = await verifyPlayerIdentityForPublicApi(env, body);
+            if (!verified.ok) return verified.response;
+            if (!verified.playerId) {
+                return cfg.jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
+            }
+            const profilePayload: Record<string, unknown> = {
+                ...body,
+                playerId: verified.playerId
+            };
+            delete profilePayload.playerToken;
+            delete profilePayload.recoveryCode;
+            const leaderboardResponse = await forwardJsonToLeaderboard(env, '/api/leaderboard/profile', profilePayload);
+            if (!leaderboardResponse.ok) return leaderboardResponse;
+            const ratingResponse = await forwardJsonToRatingPool(env, '/api/rating/profile', profilePayload);
+            if (!ratingResponse.ok) return ratingResponse;
+            return cfg.jsonResponse(200, { ok: true, playerId: verified.playerId });
+        }
+
         if (request.method === 'POST' && pathname === '/api/match/create') {
             const parsed = await parsePostBody(request);
             if (!parsed.ok) return parsed.response;

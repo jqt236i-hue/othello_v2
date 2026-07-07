@@ -165,4 +165,63 @@ describe('leaderboard client shortest turns category', () => {
       rank: 1
     });
   });
+
+  test('getPlayerName prefers profile display name over stale shared leaderboard name', () => {
+    storage.set('shared_leaderboard_player_name_v1', '旧名');
+    storage.set('card_reversi_player_profile_v1', JSON.stringify({
+      version: 1,
+      displayName: '新名',
+      avatarStoneType: 'LIGHTNING',
+      bio: '',
+      updatedAt: 2000
+    }));
+
+    const client = require('../ui/leaderboard-client.js');
+
+    expect(client.getPlayerName()).toBe('新名');
+  });
+
+  test('setPlayerName also updates profile display name', () => {
+    const client = require('../ui/leaderboard-client.js');
+
+    expect(client.setPlayerName('統一名')).toBe('統一名');
+
+    const storedProfile = JSON.parse(storage.get('card_reversi_player_profile_v1') || '{}');
+    expect(storedProfile.displayName).toBe('統一名');
+    expect(storage.get('shared_leaderboard_player_name_v1')).toBe('統一名');
+  });
+
+  test('updatePublicProfile posts verified display name and profile fields', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001'
+      })
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001'
+      })
+    });
+
+    const client = require('../ui/leaderboard-client.js');
+    const result = await client.updatePublicProfile();
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/player/identity/verify');
+    const [, requestInit] = fetchMock.mock.calls[1];
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/player/profile');
+    expect(JSON.parse(requestInit.body)).toMatchObject({
+      playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+      playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
+      playerName: 'アルファ',
+      avatarStoneType: 'LIGHTNING',
+      bio: 'よろしくお願いします'
+    });
+    expect(result).toMatchObject({ ok: true });
+  });
 });

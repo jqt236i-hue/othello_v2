@@ -627,6 +627,72 @@ describe('match worker leaderboard helpers', () => {
     });
   });
 
+  test('同じプレイヤーIDの名前更新は別ランキング種別の既存記録にも同期する', () => {
+    const helpers = createHelpers();
+    let store = helpers.createEmptyStore();
+
+    const timeAttack = helpers.applySubmit(store, {
+      category: 'timeAttack',
+      playerId: 'player_alpha_0001',
+      playerName: '旧名',
+      elapsedMs: 180000,
+      mode: 'cpu',
+      cpuLevel: 6
+    });
+    expect(timeAttack.ok).toBe(true);
+    if (!timeAttack.ok) return;
+    store = timeAttack.store;
+
+    const score = helpers.applySubmit(store, {
+      playerId: 'player_alpha_0001',
+      playerName: '新名',
+      score: 9000,
+      mode: 'cpu',
+      cpuLevel: 9
+    });
+    expect(score.ok).toBe(true);
+    if (!score.ok) return;
+
+    const timeEntries = helpers.listEntries(score.store, 10, 'cpu', 6, 'timeAttack');
+    expect(timeEntries[0]).toMatchObject({
+      bestTimeMs: 180000,
+      playerName: '新名'
+    });
+  });
+
+  test('プロフィール単体更新は既存記録の表示名と公開プロフィールだけを同期する', () => {
+    const helpers = createHelpers();
+    let store = helpers.createEmptyStore();
+
+    const score = helpers.applySubmit(store, {
+      playerId: 'player_alpha_0001',
+      playerName: '旧名',
+      score: 9000,
+      mode: 'cpu',
+      cpuLevel: 9
+    });
+    expect(score.ok).toBe(true);
+    if (!score.ok) return;
+    store = score.store;
+
+    const updated = helpers.updatePublicProfile(store, {
+      playerId: 'player_alpha_0001',
+      playerName: '新名',
+      avatarStoneType: 'GHOST',
+      bio: '更新後'
+    });
+    expect(updated.ok).toBe(true);
+
+    const entries = helpers.listEntries(updated.store, 10, 'cpu', 9);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      bestScore: 9000,
+      playerName: '新名',
+      avatarStoneType: 'GHOST',
+      bio: '更新後'
+    });
+  });
+
   test('Lv9とLv6はCPUレベル別ランキングで混在しない', () => {
     const helpers = createHelpers();
     let store = helpers.createEmptyStore();

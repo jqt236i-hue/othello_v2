@@ -85,7 +85,8 @@ describe('player profile panel controller', () => {
   test('opens, saves profile fields, and updates identity controls', async () => {
     const panel = require('../ui/player-profile-panel.js');
     (window as any).LeaderboardClient = {
-      setPlayerName: jest.fn()
+      setPlayerName: jest.fn(),
+      updatePublicProfile: jest.fn(async () => ({ ok: true }))
     };
     panel.setupPlayerProfilePanel({ root: window });
 
@@ -103,6 +104,7 @@ describe('player profile panel controller', () => {
     expect((document.getElementById('leaderboardNameInput') as HTMLInputElement).value).toBe('さかな');
     expect((document.getElementById('networkPlayerNameInput') as HTMLInputElement).value).toBe('さかな');
     expect((window as any).LeaderboardClient.setPlayerName).toHaveBeenCalledWith('さかな');
+    expect((window as any).LeaderboardClient.updatePublicProfile).toHaveBeenCalled();
 
     document.getElementById('profileEnsureIdentityBtn')!.click();
     await Promise.resolve();

@@ -4,6 +4,9 @@ type MatchWorkerLeaderboardRoomHelpers = {
     loadStore: (raw: unknown) => MatchWorkerLeaderboardStore;
     serializeStore: (store: MatchWorkerLeaderboardStore, category?: unknown) => Record<string, unknown>;
     listEntries: (store: MatchWorkerLeaderboardStore, limit: unknown, mode?: unknown, cpuLevel?: unknown, category?: unknown) => Array<Record<string, unknown>>;
+    updatePublicProfile: (store: MatchWorkerLeaderboardStore, body: Record<string, unknown>) =>
+        | { ok: true; store: MatchWorkerLeaderboardStore; payload: Record<string, unknown> }
+        | { ok: false; reason: 'PLAYER_ID_REQUIRED' };
     applySubmit: (store: MatchWorkerLeaderboardStore, body: Record<string, unknown>) =>
         | { ok: true; store: MatchWorkerLeaderboardStore; payload: Record<string, unknown> }
         | { ok: false; reason: 'PLAYER_ID_REQUIRED' | 'TIME_ATTACK_INELIGIBLE' | 'TIME_DEFENSE_INELIGIBLE' | 'SHORTEST_TURNS_INELIGIBLE' | 'SCORE_INELIGIBLE' | 'BOARD_NOT_ELIGIBLE' };
@@ -69,6 +72,21 @@ export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLe
         return cfg.jsonResponse(200, submitResult.payload);
     }
 
+    async function handleLeaderboardProfileUpdate(body: Record<string, unknown>): Promise<Response> {
+        const categories = ['score', 'timeAttack', 'timeDefense', 'shortestTurns'] as const;
+        let payload: Record<string, unknown> | null = null;
+        for (const category of categories) {
+            const store = await loadLeaderboardStore(category);
+            const updateResult = cfg.helpers.updatePublicProfile(store, body);
+            if (!updateResult.ok) {
+                return cfg.jsonResponse(400, { ok: false, reason: updateResult.reason });
+            }
+            await saveLeaderboardStore(updateResult.store, category);
+            payload = updateResult.payload;
+        }
+        return cfg.jsonResponse(200, payload || { ok: true });
+    }
+
     async function handleLeaderboardList(urlObj: URL): Promise<Response> {
         const limit = cfg.helpers.normalizeLimit(
             urlObj && urlObj.searchParams ? urlObj.searchParams.get('limit') : cfg.defaultLimit
@@ -103,6 +121,7 @@ export function createMatchWorkerLeaderboardRoomController(config: MatchWorkerLe
         saveLeaderboardStore,
         listLeaderboardEntries,
         handleLeaderboardSubmit,
+        handleLeaderboardProfileUpdate,
         handleLeaderboardList
     };
 }

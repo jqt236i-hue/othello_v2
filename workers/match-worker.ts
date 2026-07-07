@@ -4009,6 +4009,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return this.getLeaderboardRoomController().handleLeaderboardSubmit(body);
     }
 
+    async handleLeaderboardProfileUpdate(body: Record<string, unknown>): Promise<Response> {
+        return this.getLeaderboardRoomController().handleLeaderboardProfileUpdate(body);
+    }
+
     async handleLeaderboardList(urlObj: URL): Promise<Response> {
         return this.getLeaderboardRoomController().handleLeaderboardList(urlObj);
     }
@@ -4051,6 +4055,14 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return jsonResponse(200, result);
     }
 
+    async handleRatingProfileUpdate(body: Record<string, unknown>): Promise<Response> {
+        const store = await this.loadRatingStore();
+        const result = this.getRatingHelpers().updatePublicProfile(store, body as any);
+        if (!result.ok) return jsonResponse(400, result);
+        await this.saveRatingStore(result.store);
+        return jsonResponse(200, result.payload);
+    }
+
     async handleInternalRatingFinalize(body: Record<string, unknown>): Promise<Response> {
         const store = await this.loadRatingStore();
         const result = this.getRatingHelpers().applyRatedResult(store, body as any);
@@ -4088,6 +4100,12 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             return this.handleLeaderboardSubmit(parsed || {});
         }
 
+        if (request.method === 'POST' && pathname === '/api/leaderboard/profile') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleLeaderboardProfileUpdate(parsed || {});
+        }
+
         if (request.method === 'GET' && pathname === '/api/leaderboard/list') {
             return this.handleLeaderboardList(urlObj);
         }
@@ -4102,6 +4120,12 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
         if (request.method === 'GET' && pathname === '/api/rating/history') {
             return this.handleRatingHistory(urlObj);
+        }
+
+        if (request.method === 'POST' && pathname === '/api/rating/profile') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleRatingProfileUpdate(parsed || {});
         }
 
         if (request.method === 'POST' && pathname === '/internal/rating/finalize') {
@@ -4288,7 +4312,7 @@ const matchWorkerEntrypoint: MatchWorkerEntrypoint = assertMatchWorkerEntrypoint
             return handleMatchApi(request, env);
         }
 
-        if (urlObj.pathname.startsWith('/api/player/identity/')) {
+        if (urlObj.pathname.startsWith('/api/player/identity/') || urlObj.pathname === '/api/player/profile') {
             return handleMatchApi(request, env);
         }
 

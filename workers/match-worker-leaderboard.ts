@@ -32,11 +32,20 @@ type MatchWorkerLeaderboardSubmitRejected = {
 type MatchWorkerLeaderboardSubmitResult =
     | MatchWorkerLeaderboardSubmitOk
     | MatchWorkerLeaderboardSubmitRejected;
+type MatchWorkerLeaderboardProfileUpdateResult =
+    | MatchWorkerLeaderboardSubmitOk
+    | { ok: false; reason: 'PLAYER_ID_REQUIRED' };
 
 type MatchWorkerLeaderboardListMode = 'all' | MatchWorkerLeaderboardMode;
 type MatchWorkerPublicProfile = {
     avatarStoneType: string;
     bio: string;
+};
+type MatchWorkerPublicProfileUpdateInput = {
+    playerId?: unknown;
+    playerName?: unknown;
+    avatarStoneType?: unknown;
+    bio?: unknown;
 };
 const TIME_ATTACK_LIMIT_MS = 900000;
 
@@ -84,6 +93,42 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
             avatarStoneType: profile.avatarStoneType,
             bio: profile.bio
         };
+    }
+
+    function applyPlayerName(entry: MatchWorkerLeaderboardEntry, playerName: string): MatchWorkerLeaderboardEntry {
+        return {
+            ...entry,
+            playerName
+        };
+    }
+
+    function syncPlayerNameForPlayer(store: MatchWorkerLeaderboardStore, playerId: string, playerName: string): void {
+        const categories = [
+            [store.players, store.playerModes, store.playerCpuLevels],
+            [store.timeAttackPlayers, store.timeAttackPlayerModes, store.timeAttackPlayerCpuLevels],
+            [store.timeDefensePlayers, store.timeDefensePlayerModes, store.timeDefensePlayerCpuLevels],
+            [store.shortestTurnsPlayers, store.shortestTurnsPlayerModes, store.shortestTurnsPlayerCpuLevels]
+        ] as const;
+
+        categories.forEach(([playersMap, modeMap, cpuLevelsMap]) => {
+            if (playersMap && playersMap[playerId]) {
+                playersMap[playerId] = applyPlayerName(playersMap[playerId], playerName);
+            }
+            const modeEntries = modeMap && modeMap[playerId];
+            if (modeEntries) {
+                (['cpu', 'network'] as MatchWorkerLeaderboardMode[]).forEach((modeKey) => {
+                    if (modeEntries[modeKey]) {
+                        modeEntries[modeKey] = applyPlayerName(modeEntries[modeKey] as MatchWorkerLeaderboardEntry, playerName);
+                    }
+                });
+            }
+            const levelEntries = cpuLevelsMap && cpuLevelsMap[playerId];
+            if (levelEntries) {
+                Object.keys(levelEntries).forEach((levelKey) => {
+                    levelEntries[levelKey] = applyPlayerName(levelEntries[levelKey], playerName);
+                });
+            }
+        });
     }
 
     function syncPublicProfileForPlayer(store: MatchWorkerLeaderboardStore, playerId: string, profile: MatchWorkerPublicProfile): void {
@@ -728,6 +773,39 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         }));
     }
 
+    function updatePublicProfile(store: MatchWorkerLeaderboardStore, input: MatchWorkerPublicProfileUpdateInput): MatchWorkerLeaderboardProfileUpdateResult {
+        const playerId = normalizePlayerId(input && input.playerId);
+        if (!playerId) {
+            return { ok: false, reason: 'PLAYER_ID_REQUIRED' };
+        }
+        const playerName = normalizePlayerName(input && input.playerName);
+        const publicProfile = normalizePublicProfile(input);
+        const nextStore: MatchWorkerLeaderboardStore = {
+            version: storageVersion,
+            players: { ...((store && store.players) || {}) },
+            playerModes: { ...((store && store.playerModes) || {}) },
+            playerCpuLevels: { ...((store && store.playerCpuLevels) || {}) },
+            timeAttackPlayers: { ...((store && store.timeAttackPlayers) || {}) },
+            timeAttackPlayerModes: { ...((store && store.timeAttackPlayerModes) || {}) },
+            timeAttackPlayerCpuLevels: { ...((store && store.timeAttackPlayerCpuLevels) || {}) },
+            timeDefensePlayers: { ...((store && store.timeDefensePlayers) || {}) },
+            timeDefensePlayerModes: { ...((store && store.timeDefensePlayerModes) || {}) },
+            timeDefensePlayerCpuLevels: { ...((store && store.timeDefensePlayerCpuLevels) || {}) },
+            shortestTurnsPlayers: { ...((store && store.shortestTurnsPlayers) || {}) },
+            shortestTurnsPlayerModes: { ...((store && store.shortestTurnsPlayerModes) || {}) },
+            shortestTurnsPlayerCpuLevels: { ...((store && store.shortestTurnsPlayerCpuLevels) || {}) },
+            updatedAt: now()
+        };
+        syncPlayerNameForPlayer(nextStore, playerId, playerName);
+        syncPublicProfileForPlayer(nextStore, playerId, publicProfile);
+
+        return {
+            ok: true,
+            store: nextStore,
+            payload: { ok: true, playerId, playerName, ...publicProfile, updatedAt: nextStore.updatedAt }
+        };
+    }
+
     function applySubmit(store: MatchWorkerLeaderboardStore, body: Record<string, unknown>): MatchWorkerLeaderboardSubmitResult {
         const playerId = normalizePlayerId(body && body.playerId);
         if (!playerId) {
@@ -884,6 +962,7 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
             playersMap[playerId] = nextOverall;
             modeMap[playerId] = profileSyncedModeEntries;
         }
+        syncPlayerNameForPlayer(nextStore, playerId, playerName);
         if (profileSubmitted) {
             syncPublicProfileForPlayer(nextStore, playerId, publicProfile);
         }
@@ -954,6 +1033,7 @@ export function createMatchWorkerLeaderboardHelpers(config: MatchWorkerLeaderboa
         loadStore,
         serializeStore,
         listEntries,
+        updatePublicProfile,
         applySubmit
     };
 }

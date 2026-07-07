@@ -214,6 +214,45 @@ describe('match worker rating helpers', () => {
     }));
   });
 
+  test('rated public profile update changes existing leaderboard display for same playerId', () => {
+    const helpers = createMatchWorkerRatingHelpers({ now: () => nowIso });
+    const claimed = helpers.claimActiveRatedMatch(helpers.createEmptyStore(), {
+      matchId: 'm-profile-update',
+      roomId: 'AAA',
+      blackPlayerId: 'black-player',
+      whitePlayerId: 'white-player',
+      blackPlayerName: '旧名',
+      whitePlayerName: '白名',
+      startedAt: nowIso
+    });
+    const applied = helpers.applyRatedResult(claimed.store, {
+      matchId: 'm-profile-update',
+      pool: 'card_ranked_v1',
+      blackPlayerId: 'black-player',
+      whitePlayerId: 'white-player',
+      result: 'BLACK_WIN',
+      rulesetVersion: 'card-ranked-v1',
+      catalogVersion: 'catalog-test'
+    });
+
+    const updated = helpers.updatePublicProfile(applied.store, {
+      playerId: 'black-player',
+      playerName: '新名',
+      avatarStoneType: 'GHOST',
+      bio: '更新後'
+    });
+    const list = helpers.listLeaderboard(updated.store, { limit: 10 });
+
+    expect(updated.ok).toBe(true);
+    expect(list.entries[0]).toEqual(expect.objectContaining({
+      playerId: 'black-player',
+      playerName: '新名',
+      avatarStoneType: 'GHOST',
+      bio: '更新後',
+      displayRating: 1662
+    }));
+  });
+
   test('rating durable object API returns initial rating and rated leaderboard', () => {
     const result = runRatingWorkerScenario();
 

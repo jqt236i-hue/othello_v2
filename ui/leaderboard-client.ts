@@ -58,6 +58,21 @@ function resolveServerBaseUrl(options?: any): string {
 }
 
 function getPlayerName(): string {
+  try {
+    if (PlayerProfile && typeof PlayerProfile.readPlayerProfile === 'function') {
+      const profile = PlayerProfile.readPlayerProfile();
+      const displayName = normalizePlayerName(profile && profile.displayName);
+      if (displayName && displayName !== DEFAULT_PLAYER_NAME) {
+        if (canUseStorage()) {
+          try {
+            localStorage.setItem(PLAYER_NAME_STORAGE_KEY, displayName);
+          } catch (e) { /* ignore */ }
+        }
+        return displayName;
+      }
+    }
+  } catch (e) { /* ignore */ }
+
   if (!canUseStorage()) return DEFAULT_PLAYER_NAME;
   try {
     const raw = localStorage.getItem(PLAYER_NAME_STORAGE_KEY);
@@ -72,6 +87,11 @@ function setPlayerName(value: string): string {
   if (!canUseStorage()) return name;
   try {
     localStorage.setItem(PLAYER_NAME_STORAGE_KEY, name);
+  } catch (e) { /* ignore */ }
+  try {
+    if (PlayerProfile && typeof PlayerProfile.savePlayerProfile === 'function') {
+      PlayerProfile.savePlayerProfile({ displayName: name });
+    }
   } catch (e) { /* ignore */ }
   return name;
 }
@@ -202,6 +222,25 @@ async function appendVerifiedIdentity(payload: Record<string, any>, options?: an
   } catch (e) {
     return false;
   }
+}
+
+async function updatePublicProfile(options?: any): Promise<any> {
+  const payload: Record<string, any> = {
+    playerName: getPlayerName()
+  };
+  appendPublicPlayerProfile(payload);
+  if (!await appendVerifiedIdentity(payload, options || {})) {
+    return { ok: false, reason: 'PLAYER_IDENTITY_UNAVAILABLE' };
+  }
+
+  const res = await requestJson('POST', '/api/player/profile', payload, options || {});
+  if (!res.ok) {
+    return { ok: false, reason: res.reason || 'PROFILE_UPDATE_FAILED' };
+  }
+  return {
+    ok: true,
+    playerId: res.data && res.data.playerId ? String(res.data.playerId) : payload.playerId
+  };
 }
 
 function normalizeBoardConfig(value: any): any {
@@ -464,6 +503,7 @@ const LeaderboardClient = {
   setPlayerName,
   getPlayerId,
   getPublicPlayerProfile,
+  updatePublicProfile,
   fetchLeaderboard,
   getRatedLeaderboard,
   submitScore,

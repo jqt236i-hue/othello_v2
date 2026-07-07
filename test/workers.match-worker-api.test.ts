@@ -275,6 +275,71 @@ describe('match worker api controller', () => {
     expect(seen).toEqual([]);
   });
 
+  test('player profile update は本人確認後に leaderboard と rating へ転送する', async () => {
+    const seen: Array<{ roomId: string; pathname: string; body: any }> = [];
+    const controller = createMatchWorkerApiController({
+      corsHeaders: { 'Access-Control-Allow-Origin': '*' },
+      leaderboardRoomId: '__leaderboard__',
+      ratingPoolRoomId: '__rating_pool__',
+      normalizeRoomId: (value) => String(value || '').trim().toUpperCase(),
+      jsonResponse,
+      withCORS,
+      handleCreate: async () => jsonResponse(200, { ok: true, created: true })
+    });
+
+    const env = createEnv(async (roomId, request) => {
+      const pathname = new URL(request.url).pathname;
+      const body = JSON.parse(String(await request.text() || '{}'));
+      seen.push({ roomId, pathname, body });
+      return jsonResponse(200, { ok: true, playerId: body.playerId });
+    });
+
+    const response = await controller.handleMatchApi(new Request('https://worker/api/player/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+        playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
+        playerName: '新名',
+        avatarStoneType: 'GHOST',
+        bio: '更新後'
+      })
+    }), env as any);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ ok: true, playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001' });
+    expect(seen).toEqual([
+      {
+        roomId: '__player_identity__',
+        pathname: '/api/player/identity/verify',
+        body: {
+          playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+          playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12'
+        }
+      },
+      {
+        roomId: '__leaderboard__',
+        pathname: '/api/leaderboard/profile',
+        body: {
+          playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+          playerName: '新名',
+          avatarStoneType: 'GHOST',
+          bio: '更新後'
+        }
+      },
+      {
+        roomId: '__rating_pool__',
+        pathname: '/api/rating/profile',
+        body: {
+          playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+          playerName: '新名',
+          avatarStoneType: 'GHOST',
+          bio: '更新後'
+        }
+      }
+    ]);
+  });
+
   test('invalid json と roomId不足を fail-closed で返す', async () => {
     const handleCreate = jest.fn(async () => jsonResponse(200, { ok: true, created: true }));
     const controller = createMatchWorkerApiController({
