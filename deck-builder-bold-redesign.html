@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デッキ構築 — 大幅リデザイン案 (Bold Redesign)</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  /* ======== Tokens ======== */
+  :root {
+    --bg-page: #060a10;
+    --bg-modal: #0d141d;
+    --bg-modal-hi: #161d28;
+    --line: #8a6a3a;
+    --line-soft: rgba(138, 106, 58, 0.32);
+    --line-faint: rgba(138, 106, 58, 0.18);
+    --text-bright: #f4e8c5;
+    --text-body: #d8c8a0;
+    --text-muted: rgba(216, 200, 160, 0.55);
+    --text-dim: rgba(216, 200, 160, 0.35);
+
+    --t-mining: #4dffa0;
+    --t-guard: #5dc8ff;
+    --t-battle: #ff6b6b;
+    --t-judgment: #ffce5e;
+    --t-taboo: #c47aff;
+    --t-annihilation: #ff8b3d;
+    --t-prosperity: #ffe680;
+    --t-special: #e0e0e0;
+
+    --gold: #d4a647;
+    --gold-hi: #ffce5e;
+    --brass: #b08854;
+
+    --font-display: 'DM Serif Display', 'Times New Roman', serif;
+    --font-body: 'Outfit', -apple-system, system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background:
+      radial-gradient(ellipse 800px 500px at 50% 0%, rgba(212, 169, 122, 0.04), transparent 70%),
+      var(--bg-page);
+    color: var(--text-body);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { padding: 40px 32px 80px; }
+
+  /* ======== Layout ======== */
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  header.head {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  header.head .small-label {
+    font-size: 10px;
+    letter-spacing: 0.36em;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  header.head h1 {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 400;
+    color: var(--text-bright);
+    letter-spacing: -0.005em;
+    margin-bottom: 6px;
+  }
+  header.head p {
+    font-size: 12px;
+    color: var(--text-muted);
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  /* ======== Modal ======== */
+  .modal {
+    position: relative;
+    background:
+      radial-gradient(ellipse 700px 280px at 50% 0%, rgba(212, 169, 122, 0.10), transparent 65%),
+      radial-gradient(ellipse 600px 200px at 50% 100%, rgba(93, 200, 255, 0.05), transparent 65%),
+      linear-gradient(180deg, var(--bg-modal-hi) 0%, var(--bg-modal) 100%);
+    border-radius: 16px;
+    border: 1px solid rgba(138, 106, 58, 0.4);
+    box-shadow:
+      inset 0 1px 0 rgba(212, 169, 122, 0.35),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.6),
+      0 24px 64px rgba(0, 0, 0, 0.7),
+      0 0 80px rgba(212, 169, 122, 0.06);
+    overflow: hidden;
+  }
+  /* Modal grain overlay */
+  .modal::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+      radial-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+    background-size: 3px 3px, 5px 5px;
+    background-position: 0 0, 1px 2px;
+    pointer-events: none;
+    opacity: 0.6;
+    z-index: 0;
+  }
+
+  /* ======== Modal head ======== */
+  .modal-head {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    padding: 18px 28px;
+    gap: 16px;
+    border-bottom: 1px solid var(--line-soft);
+    background: linear-gradient(180deg, rgba(212, 169, 122, 0.06), transparent);
+  }
+  .head-title-group { display: flex; align-items: baseline; gap: 14px; }
+  .head-jp {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 400;
+    color: var(--text-bright);
+    letter-spacing: -0.005em;
+  }
+  .head-en {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    padding-bottom: 2px;
+  }
+  .head-rule {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--line-soft), transparent);
+  }
+  .head-chip {
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 10.5px;
+    color: var(--text-body);
+    letter-spacing: 0.04em;
+  }
+  .head-close {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .modal-body {
+    position: relative;
+    z-index: 1;
+    padding: 22px 28px 32px;
+  }
+
+  /* ======== Top notice ======== */
+  .top-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: linear-gradient(90deg, rgba(93, 200, 255, 0.10), rgba(93, 200, 255, 0.02));
+    border: 1px solid rgba(93, 200, 255, 0.25);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--text-body);
+    margin-bottom: 10px;
+  }
+  .top-notice::before {
+    content: "◆";
+    color: var(--gold-hi);
+    font-size: 10px;
+  }
+
+  .info-line {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    padding-left: 18px;
+    position: relative;
+  }
+  .info-line::before {
+    content: "i";
+    position: absolute;
+    left: 0; top: -2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--text-muted);
+    text-align: center;
+    line-height: 12px;
+    font-size: 10px;
+    font-style: italic;
+    font-family: var(--font-display);
+  }
+
+  /* ======== Section header ======== */
+  .sec-h {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .sec-h-mark {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 14px;
+    letter-spacing: 0.04em;
+  }
+  .sec-h-title {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.24em;
+    color: var(--text-bright);
+    text-transform: uppercase;
+  }
+  .sec-h-rule {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--line-soft), transparent);
+  }
+  .sec-h-counter {
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(212, 169, 122, 0.22), rgba(212, 169, 122, 0.04));
+    border: 1px solid var(--line);
+    color: var(--text-bright);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  /* ======== Hero default deck ======== */
+  .hero-row {
+    display: grid;
+    grid-template-columns: 1.1fr 2fr;
+    gap: 18px;
+    margin-bottom: 28px;
+  }
+
+  /* Default deck tile — larger, heraldic */
+  .card-hero {
+    position: relative;
+    padding: 22px 24px 20px;
+    background:
+      radial-gradient(ellipse 300px 80px at 50% 0%, rgba(212, 169, 122, 0.28), transparent 70%),
+      linear-gradient(160deg, rgba(50, 36, 22, 0.95) 0%, rgba(28, 18, 10, 0.95) 100%);
+    border: 1.5px solid var(--gold);
+    border-radius: 12px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 220, 150, 0.45),
+      inset 8px 0 0 rgba(212, 169, 122, 0.32),
+      0 8px 24px rgba(0, 0, 0, 0.55),
+      0 0 36px rgba(255, 200, 110, 0.18);
+    overflow: hidden;
+  }
+  .card-hero::after {
+    content: "";
+    position: absolute;
+    top: 10px; right: 12px;
+    width: 22px; height: 22px;
+    background:
+      radial-gradient(circle, rgba(255, 220, 150, 0.95) 0%, rgba(255, 220, 150, 0.4) 40%, transparent 70%);
+    border-radius: 50%;
+    filter: blur(2px);
+  }
+  .card-hero::before {
+    content: "";
+    position: absolute;
+    left: 12px; top: 12px; bottom: 12px; right: 12px;
+    border: 1px solid rgba(255, 220, 150, 0.18);
+    border-radius: 8px;
+    pointer-events: none;
+  }
+  .hero-sigil {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9.5px;
+    letter-spacing: 0.3em;
+    color: var(--gold-hi);
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .hero-sigil::before { content: "✦"; font-size: 10px; }
+  .hero-title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    color: var(--text-bright);
+    line-height: 1.1;
+    margin-bottom: 6px;
+    letter-spacing: -0.005em;
+  }
+  .hero-sub {
+    font-size: 11.5px;
+    color: var(--text-body);
+    margin-bottom: 18px;
+  }
+  .hero-sub b { color: var(--gold-hi); font-weight: 700; }
+  .hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .hero-meta .pill {
+    padding: 2px 9px;
+    border-radius: 4px;
+    background: rgba(255, 220, 150, 0.15);
+    border: 1px solid var(--gold);
+    color: var(--gold-hi);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+  .hero-cta {
+    width: 100%;
+    padding: 10px 0;
+    border-radius: 8px;
+    background: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 100%);
+    border: 1px solid #fff2cc;
+    color: #1d1308;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-align: center;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Built-in 4-up grid */
+  .builtin-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .card-builtin {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background:
+      linear-gradient(120deg, rgba(83, 214, 209, 0.10) 0%, rgba(83, 214, 209, 0.02) 60%, transparent 100%),
+      linear-gradient(180deg, rgba(16, 24, 30, 0.85), rgba(10, 16, 20, 0.85));
+    border: 1px solid rgba(83, 214, 209, 0.32);
+    border-radius: 8px;
+    box-shadow:
+      inset 5px 0 0 var(--accent-color, rgba(83, 214, 209, 0.6)),
+      0 2px 6px rgba(0, 0, 0, 0.35);
+  }
+  .card-builtin .gem {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--accent-color, rgba(83, 214, 209, 0.6));
+    box-shadow:
+      inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      0 0 12px var(--accent-glow, rgba(83, 214, 209, 0.3));
+  }
+  .card-builtin .name {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--text-bright);
+    line-height: 1.1;
+    margin-bottom: 2px;
+  }
+  .card-builtin .sub {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+  }
+  .card-builtin .btn-pair {
+    display: flex; gap: 4px;
+  }
+  .card-builtin .btn {
+    padding: 5px 11px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    border-radius: 5px;
+    border: 1px solid;
+  }
+  .btn-mini-use {
+    background: linear-gradient(180deg, rgba(86, 226, 210, 0.22), rgba(86, 226, 210, 0.06));
+    border-color: rgba(86, 226, 210, 0.4) !important;
+    color: #e0fffa;
+  }
+  .btn-mini-edit {
+    background: linear-gradient(180deg, rgba(124, 184, 255, 0.16), rgba(124, 184, 255, 0.04));
+    border-color: rgba(124, 184, 255, 0.32) !important;
+    color: #dfeaff;
+  }
+
+  /* ======== Save slots ======== */
+  .saves-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .save {
+    position: relative;
+    padding: 16px 16px 14px 22px;
+    background:
+      linear-gradient(165deg, rgba(28, 36, 48, 0.92) 0%, rgba(14, 20, 28, 0.92) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 6px 20px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    min-height: 156px;
+  }
+  /* Spine — bright type color, 8px wide, with gem on top */
+  .save::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 8px;
+    background: linear-gradient(180deg, var(--spine-color, rgba(255, 255, 255, 0.2)) 0%, var(--spine-color-deep, rgba(255, 255, 255, 0.15)) 100%);
+    box-shadow: 0 0 14px var(--spine-glow, rgba(255, 255, 255, 0.2));
+    border-radius: 0 3px 3px 0;
+  }
+  /* Spine gem top */
+  .save::after {
+    content: "";
+    position: absolute;
+    left: 3px; top: 6px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--spine-color, rgba(255, 255, 255, 0.4));
+    box-shadow: 0 0 6px var(--spine-glow, rgba(255, 255, 255, 0.3));
+  }
+
+  .save-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .save-head .meta {
+    flex: 1;
+    min-width: 0;
+  }
+  .save .title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--text-bright);
+    line-height: 1.15;
+    margin-bottom: 4px;
+    letter-spacing: -0.005em;
+  }
+  .save .sub {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+  }
+  .save .count-orb {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, var(--spine-color, #ffce5e) 0%, var(--spine-color-deep, #aa7820) 90%);
+    box-shadow:
+      inset 0 -3px 0 rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      0 0 16px var(--spine-glow, rgba(255, 200, 110, 0.35));
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .save .count-orb .v {
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: #1d1308;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .save .count-orb .v small {
+    font-size: 6px;
+    letter-spacing: 0.2em;
+    color: rgba(0, 0, 0, 0.55);
+    display: block;
+    font-family: var(--font-body);
+    margin-top: 1px;
+    font-weight: 600;
+  }
+  .save .swatch-row {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .save .swatch {
+    width: 22px; height: 4px;
+    border-radius: 999px;
+    background: var(--swatch-color, var(--t-mining));
+    box-shadow: 0 0 6px var(--swatch-color, var(--t-mining));
+  }
+  .save .actions {
+    display: flex; gap: 6px;
+  }
+  .save .btn {
+    flex: 1;
+    padding: 7px 0;
+    border-radius: 6px;
+    background: linear-gradient(180deg, rgba(86, 226, 210, 0.18), rgba(86, 226, 210, 0.04));
+    border: 1px solid rgba(86, 226, 210, 0.32);
+    color: #e0fffa;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+  .save .btn.edit {
+    background: linear-gradient(180deg, rgba(124, 184, 255, 0.16), rgba(124, 184, 255, 0.04));
+    border-color: rgba(124, 184, 255, 0.28);
+    color: #dfeaff;
+  }
+
+  /* Slot variants */
+  .save.use { /* filled, not active */
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  .save.use:hover {
+    border-color: rgba(212, 169, 122, 0.3);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 8px 22px rgba(0, 0, 0, 0.6);
+    transform: translateY(-2px);
+  }
+
+  .save.active {
+    border: 1.5px solid var(--gold);
+    background:
+      linear-gradient(165deg, rgba(48, 32, 18, 0.92) 0%, rgba(22, 14, 8, 0.92) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 220, 150, 0.4),
+      0 0 0 1px rgba(255, 220, 150, 0.4),
+      0 0 36px rgba(255, 200, 110, 0.22),
+      0 8px 22px rgba(0, 0, 0, 0.6);
+  }
+
+  /* Active wax seal */
+  .save.active .seal {
+    position: absolute;
+    top: -6px; right: 8px;
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 35% 30%, #ffe6a3 0%, var(--gold) 45%, #6a4818 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #2a1d0a;
+    font-size: 7.5px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-align: center;
+    line-height: 1;
+    box-shadow:
+      inset 0 -3px 0 rgba(0, 0, 0, 0.35),
+      inset 0 2px 0 rgba(255, 255, 255, 0.5),
+      0 4px 12px rgba(0, 0, 0, 0.5),
+      0 0 16px rgba(255, 200, 110, 0.5);
+    transform: rotate(-8deg);
+    z-index: 3;
+  }
+  .save.active .seal::after {
+    content: "IN USE";
+    display: block;
+    font-size: 7.5px;
+  }
+
+  /* Empty slot */
+  .save.empty {
+    background:
+      radial-gradient(ellipse 200px 100px at 50% 35%, rgba(212, 169, 122, 0.12), transparent 70%),
+      linear-gradient(165deg, rgba(20, 14, 10, 0.85) 0%, rgba(12, 18, 24, 0.85) 100%);
+    border: 1.5px dashed rgba(212, 169, 122, 0.7);
+    padding-top: 30px;
+  }
+  .save.empty::before, .save.empty::after {
+    display: none;
+  }
+  .save .plus-halo {
+    position: absolute;
+    top: 30%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle, rgba(255, 220, 150, 0.45) 0%, rgba(255, 220, 150, 0.1) 50%, transparent 80%);
+    box-shadow: 0 0 24px rgba(255, 200, 110, 0.4);
+  }
+  .save .plus-icon {
+    position: absolute;
+    top: 30%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-display);
+    font-size: 42px;
+    color: var(--gold-hi);
+    line-height: 1;
+    text-shadow: 0 0 16px rgba(255, 200, 110, 0.7);
+    z-index: 2;
+  }
+  .save .empty-cta {
+    position: absolute;
+    top: calc(30% + 44px); left: 50%;
+    transform: translateX(-50%);
+    font-size: 10.5px;
+    color: var(--text-body);
+    letter-spacing: 0.14em;
+    white-space: nowrap;
+    z-index: 2;
+  }
+  .save .empty-cta::before { content: "▸ "; color: var(--gold-hi); }
+  .save .empty-actions {
+    position: absolute;
+    bottom: 12px; left: 12px; right: 12px;
+    display: flex; gap: 6px;
+  }
+  .save .btn.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  /* ======== Color swatches ======== */
+  .palette-row {
+    display: flex;
+    gap: 14px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .swatch-mini {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 6px 6px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .swatch-mini .dot {
+    width: 20px; height: 20px;
+    border-radius: 6px;
+    box-shadow:
+      inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      0 0 12px currentColor;
+  }
+
+  /* ======== Layout extras ======== */
+  .legend {
+    background: rgba(20, 28, 38, 0.4);
+    border: 1px solid rgba(138, 106, 58, 0.22);
+    border-radius: 12px;
+    padding: 22px 26px;
+    margin-top: 32px;
+  }
+  .legend h2 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    color: var(--text-bright);
+    margin-bottom: 14px;
+  }
+  .legend-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px 32px;
+  }
+  .legend-grid .item .h {
+    color: var(--gold-hi);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .legend-grid .item .b {
+    font-size: 12.5px;
+    color: var(--text-body);
+    line-height: 1.55;
+  }
+  .legend-grid .item .b b { color: var(--text-bright); font-weight: 600; }
+
+  footer.foot {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-top: 36px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .label-en {
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    font-weight: 700;
+    color: var(--gold-hi);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div class="small-label">DECK BUILDER · PROPOSAL V2</div>
+    <h1>デッキ構築 — 大幅リデザイン案</h1>
+    <p>装飾ゼロ・色温度冷たい・情報密度低いを全部やり直し。Hearthstone / MTG Arena の deck list を参考にした装飾ベース + アトモスフィア・background でゲーム画面を作り直す。</p>
+  </header>
+
+  <div class="modal">
+
+    <div class="modal-head">
+      <div class="head-title-group">
+        <div>
+          <div class="label-en">DECK BUILDER</div>
+          <div class="head-jp">デッキ構築</div>
+        </div>
+      </div>
+      <div class="head-rule"></div>
+      <div class="head-chip">ローカル設定 · URL デッキ / 1枚</div>
+      <div class="head-close">×</div>
+    </div>
+
+    <div class="modal-body">
+
+      <div class="top-notice">実対局に使うデッキ: <b style="color:var(--text-bright)">URL デッキ / 1枚</b> · 退出後はローカル設定へ戻ります</div>
+      <div class="info-line">6つまで保存できます。使用で即時切替、編集で構築画面を開きます。</div>
+
+      <!-- Hero: default + 4 built-in -->
+      <div class="sec-h">
+        <div class="sec-h-mark">◆</div>
+        <div class="sec-h-title">DEFAULT &amp; PRESETS</div>
+        <div class="sec-h-rule"></div>
+      </div>
+
+      <div class="hero-row">
+        <!-- Hero default card -->
+        <div class="card-hero">
+          <div class="hero-sigil">DEFAULT HERALD</div>
+          <div class="hero-title">デフォルトデッキ</div>
+          <div class="hero-sub"><b>30枚</b> · 有効カードから重複なしランダム</div>
+          <div class="hero-meta">
+            <span class="pill">STANDARD</span>
+            <span>フォーマット: スタンダード</span>
+          </div>
+          <div class="hero-cta">使 用</div>
+        </div>
+
+        <!-- Built-in 2x2 -->
+        <div class="builtin-grid">
+          <div class="card-builtin" style="--accent-color: #5dc8ff; --accent-glow: rgba(93,200,255,0.32);">
+            <div class="gem"></div>
+            <div>
+              <div class="name">観測</div>
+              <div class="sub">30枚 · 30種</div>
+            </div>
+            <div class="btn-pair">
+              <div class="btn btn-mini-use">使用</div>
+              <div class="btn btn-mini-edit">編集</div>
+            </div>
+          </div>
+          <div class="card-builtin" style="--accent-color: #ffce5e; --accent-glow: rgba(255,206,94,0.32);">
+            <div class="gem"></div>
+            <div>
+              <div class="name">執行</div>
+              <div class="sub">30枚 · 30種</div>
+            </div>
+            <div class="btn-pair">
+              <div class="btn btn-mini-use">使用</div>
+              <div class="btn btn-mini-edit">編集</div>
+            </div>
+          </div>
+          <div class="card-builtin" style="--accent-color: #ff8b3d; --accent-glow: rgba(255,139,61,0.32);">
+            <div class="gem"></div>
+            <div>
+              <div class="name">弾詠</div>
+              <div class="sub">30枚 · 30種</div>
+            </div>
+            <div class="btn-pair">
+              <div class="btn btn-mini-use">使用</div>
+              <div class="btn btn-mini-edit">編集</div>
+            </div>
+          </div>
+          <div class="card-builtin" style="--accent-color: #c47aff; --accent-glow: rgba(196,122,255,0.32);">
+            <div class="gem"></div>
+            <div>
+              <div class="name">冥灰</div>
+              <div class="sub">30枚 · 22種</div>
+            </div>
+            <div class="btn-pair">
+              <div class="btn btn-mini-use">使用</div>
+              <div class="btn btn-mini-edit">編集</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Save slots section -->
+      <div class="sec-h" style="margin-top: 8px;">
+        <div class="sec-h-mark">◆</div>
+        <div class="sec-h-title">SAVED DECKS</div>
+        <div class="sec-h-rule"></div>
+        <div class="sec-h-counter">2 / 6 使用中</div>
+      </div>
+
+      <div class="saves-grid">
+
+        <!-- Filled active (judgment) -->
+        <div class="save active" style="--spine-color: #ffce5e; --spine-color-deep: #a08020; --spine-glow: rgba(255,206,94,0.55);">
+          <div class="seal"></div>
+          <div class="save-head">
+            <div class="meta">
+              <div class="label-en">No.01 · ACTIVE</div>
+              <div class="title">弾詠の匣</div>
+              <div class="sub">30枚 · 29種</div>
+            </div>
+            <div class="count-orb">
+              <div class="v">30<small>枚</small></div>
+            </div>
+          </div>
+          <div class="swatch-row">
+            <div class="swatch" style="background: var(--t-judgment); --swatch-color: var(--t-judgment); box-shadow: 0 0 6px var(--t-judgment); flex: 4;"></div>
+            <div class="swatch" style="background: var(--t-battle); --swatch-color: var(--t-battle); box-shadow: 0 0 6px var(--t-battle); flex: 3;"></div>
+            <div class="swatch" style="background: var(--t-mining); --swatch-color: var(--t-mining); box-shadow: 0 0 6px var(--t-mining); flex: 2;"></div>
+          </div>
+          <div class="actions">
+            <div class="btn">使用</div>
+            <div class="btn edit">編集</div>
+          </div>
+        </div>
+
+        <!-- Filled (battle) -->
+        <div class="save use" style="--spine-color: #ff6b6b; --spine-color-deep: #a83838; --spine-glow: rgba(255,107,107,0.5);">
+          <div class="save-head">
+            <div class="meta">
+              <div class="label-en">No.04</div>
+              <div class="title">殻縛の匣</div>
+              <div class="sub">30枚 · 19種</div>
+            </div>
+            <div class="count-orb">
+              <div class="v">30<small>枚</small></div>
+            </div>
+          </div>
+          <div class="swatch-row">
+            <div class="swatch" style="background: var(--t-battle); --swatch-color: var(--t-battle); box-shadow: 0 0 6px var(--t-battle); flex: 5;"></div>
+            <div class="swatch" style="background: var(--t-taboo); --swatch-color: var(--t-taboo); box-shadow: 0 0 6px var(--t-taboo); flex: 2;"></div>
+            <div class="swatch" style="background: var(--t-annihilation); --swatch-color: var(--t-annihilation); box-shadow: 0 0 6px var(--t-annihilation); flex: 1;"></div>
+          </div>
+          <div class="actions">
+            <div class="btn">使用</div>
+            <div class="btn edit">編集</div>
+          </div>
+        </div>
+
+        <!-- Empty -->
+        <div class="save empty">
+          <div class="plus-halo"></div>
+          <div class="plus-icon">+</div>
+          <div class="empty-cta">クリックして構築</div>
+          <div class="empty-actions">
+            <div class="btn disabled">使用</div>
+            <div class="btn edit">編集</div>
+          </div>
+        </div>
+
+        <!-- Empty -->
+        <div class="save empty">
+          <div class="plus-halo"></div>
+          <div class="plus-icon">+</div>
+          <div class="empty-cta">クリックして構築</div>
+          <div class="empty-actions">
+            <div class="btn disabled">使用</div>
+            <div class="btn edit">編集</div>
+          </div>
+        </div>
+
+        <!-- Empty -->
+        <div class="save empty">
+          <div class="plus-halo"></div>
+          <div class="plus-icon">+</div>
+          <div class="empty-cta">クリックして構築</div>
+          <div class="empty-actions">
+            <div class="btn disabled">使用</div>
+            <div class="btn edit">編集</div>
+          </div>
+        </div>
+
+        <!-- Empty -->
+        <div class="save empty">
+          <div class="plus-halo"></div>
+          <div class="plus-icon">+</div>
+          <div class="empty-cta">クリックして構築</div>
+          <div class="empty-actions">
+            <div class="btn disabled">使用</div>
+            <div class="btn edit">編集</div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Legend / explanation -->
+  <section class="legend">
+    <h2>前回から何を変えたか (批判的差分)</h2>
+    <div class="legend-grid">
+
+      <div class="item">
+        <div class="h">1. decoration</div>
+        <div class="b">前回: 矩形に枠線だけ = HTML form 状態 / 今回: <b>角丸 brass border, 角金 ornament, 装飾罫線, マナオーブ, wax seal, gem orb</b> を全部入れ直し。ゲーム画面の UI として成立するように装飾を主体で設計し直した</div>
+      </div>
+      <div class="item">
+        <div class="h">2. palette</div>
+        <div class="b">前回: slate-blue (#589cff) + washed gold = admin panel / 今回: <b>深い紺 (`#0d141d`) + 真鍮 (`#d4a647`) + 8色 saturated type accent</b>。タイプ色はマナオーブ・spine・gem・スウォッチで 4 段使い、スクロール前に「どのタイプ寄りか」が判別できる</div>
+      </div>
+      <div class="item">
+        <div class="h">3. typography</div>
+        <div class="b">前回: 全部 Outfit 太さ変化のみ = hierarchy 偏平 / 今回: <b>タイトル系 = DM Serif Display, 本文 = Outfit</b> の二層。カード名は display serif で大きく (18px)、ラベル類は small caps + letter-spacing で格式感を持たせる</div>
+      </div>
+      <div class="item">
+        <div class="h">4. info density</div>
+        <div class="b">前回: デッキ名 + 枚数 + 2ボタン / 今回: <b>デッキ名 (display serif) + 形式 pill (e.g. STANDARD) + 枚数オーブ + タイプスウォッチバー (上に同色発光の細バーで比率可視化) + ボタン列</b>。HS デッキ一覧と同等以上の情報量</div>
+      </div>
+      <div class="item">
+        <div class="h">5. active state</div>
+        <div class="b">前回: 金縁 + IN USE 帯 だけ / 今回: <b>brass border で囲み、右上に wax seal (回転 -8°, embossed text)</b> で「現在使用中」が一目で分かる。ボディは warmer amber に、内側に brass highlight、box-shadow で全体 glow</div>
+      </div>
+      <div class="item">
+        <div class="h">6. empty slot</div>
+        <div class="b">前回: dashed border + 小さい + (opacity 0.78) = 寂しい / 今回: <b>dashed brass 1.5px + 中央に 60px brass halo + display serif の 42px "+" + "クリックして構築" 矢印付き</b>。"ここタップしてね" がはっきり出る</div>
+      </div>
+    </div>
+
+    <h2 style="margin-top: 24px;">タイプアクセント (mna orb + spine + swatch の 3 段)</h2>
+    <div class="palette-row">
+      <div class="swatch-mini" style="color: var(--t-mining);"><span class="dot" style="background: var(--t-mining);"></span>採掘</div>
+      <div class="swatch-mini" style="color: var(--t-guard);"><span class="dot" style="background: var(--t-guard);"></span>守護</div>
+      <div class="swatch-mini" style="color: var(--t-battle);"><span class="dot" style="background: var(--t-battle);"></span>戦闘</div>
+      <div class="swatch-mini" style="color: var(--t-judgment);"><span class="dot" style="background: var(--t-judgment);"></span>執行</div>
+      <div class="swatch-mini" style="color: var(--t-taboo);"><span class="dot" style="background: var(--t-taboo);"></span>禁忌</div>
+      <div class="swatch-mini" style="color: var(--t-annihilation);"><span class="dot" style="background: var(--t-annihilation);"></span>殲滅</div>
+      <div class="swatch-mini" style="color: var(--t-prosperity);"><span class="dot" style="background: var(--t-prosperity);"></span>繁栄</div>
+      <div class="swatch-mini" style="color: var(--t-special);"><span class="dot" style="background: var(--t-special);"></span>特殊</div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <p>方向これで OK 出たら実装 (CSS + 必要なら renderer 軽い変更) + commit + worker mirror。</p>
+    <p style="margin-top: 8px; opacity: 0.6;">装飾盛りすぎ / タイプスウォッチ bar いらん / serif 主張強すぎる / 別の方向 (cooler / neon / minimal) などあれば指摘を。本気で作る気なら来週中に反映します。</p>
+  </footer>
+</div>
+</body>
+</html>

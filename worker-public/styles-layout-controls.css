@@ -5957,3 +5957,244 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
         0 0 calc(8px * var(--layout-stage-scale)) rgba(var(--settings-control-rgb), 0.32),
         0 calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.50);
 }
+
+/* ============================================================
+   Bold Redesign — Compact density (viewport-fitted, no scroll)
+   「スクロールしなくても全体が見える」を絶対ルール化するための
+   Bold Redesign 専用 density 上げ。上書きスコープは #deckBuilderModal 内のみ。
+   ============================================================ */
+
+/* --- modal: viewport 内に確実に収める --- */
+#deckBuilderModal {
+    max-height: min(94vh, 720px) !important;
+    overflow: hidden;
+}
+
+/* --- body: 内部スクロール停止 + flex で残り高さいっぱい --- */
+#deckBuilderBody {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding: 6px 10px 8px !important;
+    gap: 6px !important;
+}
+
+/* --- ヘッダー: 上下 padding 縮小 --- */
+#deckBuilderModalHeader {
+    padding: 8px 14px !important;
+}
+
+/* --- modal タイトル: 22 → 18, small-caps 上段も縮小 --- */
+.deck-builder-title {
+    font-size: calc(18px * var(--layout-stage-scale)) !important;
+    line-height: 1.05 !important;
+}
+.deck-builder-title::before {
+    font-size: calc(8px * var(--layout-stage-scale)) !important;
+    margin-bottom: calc(2px * var(--layout-stage-scale)) !important;
+    letter-spacing: 0.28em !important;
+}
+
+/* --- ステータス pill: 5/10 padding + 10.5px font --- */
+.deck-builder-notice,
+.deck-builder-effective-summary {
+    padding: calc(5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) !important;
+    font-size: calc(10.5px * var(--layout-stage-scale)) !important;
+    line-height: 1.35 !important;
+}
+
+/* --- intro section (DEFAULT HERALD + built-in) の row gap 縮小 --- */
+.deck-builder-default-preset-row {
+    gap: calc(6px * var(--layout-stage-scale)) !important;
+}
+
+/* --- DEFAULT HERALD カード: padding / タイトル / CTA 縮小 --- */
+.deck-builder-default-hero {
+    padding: calc(10px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-hero-sigil {
+    font-size: calc(8px * var(--layout-stage-scale)) !important;
+    margin-bottom: calc(3px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-default-hero .deck-builder-preset-title {
+    font-size: calc(17px * var(--layout-stage-scale)) !important;
+    margin-bottom: calc(2px * var(--layout-stage-scale)) !important;
+    line-height: 1.05 !important;
+}
+.deck-builder-default-hero .deck-builder-preset-summary {
+    font-size: calc(10.5px * var(--layout-stage-scale)) !important;
+    margin-bottom: calc(8px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-hero-meta {
+    margin-bottom: calc(7px * var(--layout-stage-scale)) !important;
+    font-size: calc(10.5px * var(--layout-stage-scale)) !important;
+    gap: calc(8px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-format-pill {
+    padding: calc(2px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) !important;
+    font-size: calc(9px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-hero-cta {
+    padding: calc(6px * var(--layout-stage-scale)) 0 !important;
+    font-size: calc(11px * var(--layout-stage-scale)) !important;
+}
+
+/* --- built-in section 全体: padding / gap 縮小 --- */
+#deckBuilderModal .deck-builder-built-in-preset-section {
+    padding: calc(6px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) !important;
+    gap: calc(4px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-built-in-preset-section .deck-builder-section-title {
+    font-size: calc(8.5px * var(--layout-stage-scale)) !important;
+    margin-bottom: 0 !important;
+    letter-spacing: 0.22em !important;
+}
+.deck-builder-built-in-preset-grid {
+    gap: calc(4px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-builtin-card {
+    padding: calc(6px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) !important;
+    gap: calc(8px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-builtin-gem {
+    width: calc(22px * var(--layout-stage-scale)) !important;
+    height: calc(22px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-builtin-meta .deck-builder-preset-title {
+    font-size: calc(12.5px * var(--layout-stage-scale)) !important;
+    margin-bottom: 0 !important;
+    line-height: 1.1 !important;
+}
+.deck-builder-builtin-meta .deck-builder-preset-summary {
+    font-size: calc(9.5px * var(--layout-stage-scale)) !important;
+    line-height: 1.25 !important;
+}
+.deck-builder-builtin-card .deck-builder-actions-row {
+    gap: calc(3px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-builtin-card .deck-builder-actions-row .btn-small {
+    padding: calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) !important;
+    min-height: calc(20px * var(--layout-stage-scale)) !important;
+    font-size: calc(9.5px * var(--layout-stage-scale)) !important;
+    min-width: calc(40px * var(--layout-stage-scale)) !important;
+}
+
+/* --- 保存スロット 6 個: 3 列 × 2 行 に詰める --- */
+.deck-builder-view-presets {
+    gap: calc(4px * var(--layout-stage-scale)) !important;
+}
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: calc(5px * var(--layout-stage-scale)) !important;
+}
+
+/* 8px type spine 縮小 */
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled::before,
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-active::before {
+    left: calc(2px * var(--layout-stage-scale)) !important;
+    top: calc(6px * var(--layout-stage-scale)) !important;
+    bottom: calc(6px * var(--layout-stage-scale)) !important;
+    width: calc(3px * var(--layout-stage-scale)) !important;
+}
+
+/* slot 本体: min-height 160 → 92, padding 縮小 */
+.deck-builder-save-slot-card {
+    min-height: calc(92px * var(--layout-stage-scale)) !important;
+    padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-slot-meta {
+    gap: calc(1px * var(--layout-stage-scale)) !important;
+    margin-bottom: calc(4px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-slot-label-en {
+    font-size: calc(8px * var(--layout-stage-scale)) !important;
+    letter-spacing: 0.22em !important;
+}
+.deck-builder-slot-meta .deck-builder-preset-title {
+    font-size: calc(13.5px * var(--layout-stage-scale)) !important;
+    line-height: 1.1 !important;
+}
+.deck-builder-slot-meta .deck-builder-preset-summary {
+    font-size: calc(9.5px * var(--layout-stage-scale)) !important;
+    line-height: 1.2 !important;
+}
+
+/* count orb 44 → 30 */
+.deck-builder-slot-count-orb {
+    width: calc(30px * var(--layout-stage-scale)) !important;
+    height: calc(30px * var(--layout-stage-scale)) !important;
+    top: calc(8px * var(--layout-stage-scale)) !important;
+    right: calc(8px * var(--layout-stage-scale)) !important;
+    box-shadow:
+        inset 0 calc(-2px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.5),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.45),
+        0 0 calc(10px * var(--layout-stage-scale)) var(--orb-glow, rgba(255, 200, 110, 0.32)) !important;
+}
+.deck-builder-slot-count-value {
+    font-size: calc(13px * var(--layout-stage-scale)) !important;
+    gap: calc(1px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-slot-count-unit {
+    font-size: calc(5px * var(--layout-stage-scale)) !important;
+    letter-spacing: 0.18em !important;
+    margin-top: 0 !important;
+}
+
+/* type swatch bar 8 → 5 */
+.deck-builder-slot-type-bar {
+    height: calc(5px * var(--layout-stage-scale)) !important;
+    margin-bottom: calc(4px * var(--layout-stage-scale)) !important;
+}
+
+/* slot 内 btn 縮小 */
+#deckBuilderModal .deck-builder-save-slot-card > .deck-builder-actions-row .btn-small {
+    min-height: calc(22px * var(--layout-stage-scale)) !important;
+    padding: calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) !important;
+    font-size: calc(9.5px * var(--layout-stage-scale)) !important;
+}
+
+/* 空スロット: padding 縮小 + プラス / halo 縮小 */
+.deck-builder-save-slot-card.is-empty {
+    padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo {
+    width: calc(38px * var(--layout-stage-scale)) !important;
+    height: calc(38px * var(--layout-stage-scale)) !important;
+    box-shadow: 0 0 calc(14px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.4) !important;
+    margin-bottom: calc(2px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-save-slot-card.is-empty > .deck-builder-empty-plus {
+    font-size: calc(26px * var(--layout-stage-scale)) !important;
+    top: calc(12px * var(--layout-stage-scale)) !important;
+    text-shadow: 0 0 calc(10px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.6) !important;
+}
+.deck-builder-save-slot-card.is-empty > .deck-builder-empty-cta {
+    font-size: calc(9px * var(--layout-stage-scale)) !important;
+    letter-spacing: 0.16em !important;
+    margin: calc(22px * var(--layout-stage-scale)) 0 calc(4px * var(--layout-stage-scale)) !important;
+}
+.deck-builder-save-slot-card.is-empty > .deck-builder-actions-row {
+    margin-top: 0 !important;
+}
+
+/* active wax seal 縮小 */
+.deck-builder-active-seal {
+    width: calc(38px * var(--layout-stage-scale)) !important;
+    height: calc(38px * var(--layout-stage-scale)) !important;
+    top: calc(-6px * var(--layout-stage-scale)) !important;
+    right: calc(6px * var(--layout-stage-scale)) !important;
+    box-shadow:
+        inset 0 calc(-2px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.45),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.55),
+        0 calc(2px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55),
+        0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.45) !important;
+}
+.deck-builder-active-seal-inner {
+    font-size: calc(6px * var(--layout-stage-scale)) !important;
+    letter-spacing: 0.14em !important;
+}
+
+/* section title 縮小 */
+#deckBuilderModal .deck-builder-section-title {
+    font-size: calc(9px * var(--layout-stage-scale)) !important;
+}
