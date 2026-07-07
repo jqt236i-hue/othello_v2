@@ -373,7 +373,9 @@ function _isBgmPlayingForBoardRenderer(engine: any) {
     if (accessModule && typeof accessModule.isBgmPlaying === 'function') {
         return accessModule.isBgmPlaying(engine);
     }
-    return !!(engine && engine.allowBgmPlay === true && engine.bgm && engine.bgm.paused !== true);
+    if (!engine || engine.allowBgmPlay !== true) return false;
+    if (engine.bgm && engine.bgm.paused !== true) return true;
+    return !!(engine._manifestBgm && engine._manifestBgm.paused !== true);
 }
 
 function _isBoardShapeOversizeForPixelSizing(shape: any) {

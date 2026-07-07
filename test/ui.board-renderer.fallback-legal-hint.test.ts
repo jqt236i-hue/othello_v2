@@ -413,6 +413,22 @@ describe('board-renderer fallback legal hints', () => {
     expect(global.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
   });
 
+  test('renderBoard pauses manifestation BGM during time stop and resumes it afterward', () => {
+    global.SoundEngine.bgm.paused = true;
+    global.SoundEngine._manifestBgm = { paused: false };
+    const boardRenderer = require('../ui/board-renderer.js');
+
+    global.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 1, white: 0 };
+    boardRenderer.renderBoard();
+
+    expect(global.SoundEngine.pauseBgm).toHaveBeenCalledTimes(1);
+
+    global.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 0, white: 0 };
+    boardRenderer.renderBoard();
+
+    expect(global.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
+  });
+
   test('renderBoard does not resume BGM if time stop started while BGM was already paused', () => {
     global.SoundEngine.allowBgmPlay = false;
     global.SoundEngine.bgm.paused = true;
