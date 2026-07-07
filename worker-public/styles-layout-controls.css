@@ -2795,20 +2795,20 @@
     color: #ffe0e0;
 }
 
-/* "実対局に使うデッキ" hero pill — premium status display */
+/* "実対局に使うデッキ" hero pill — refined status display (no pulse, muted gold) */
 .deck-builder-effective-summary {
     position: relative;
     background:
-        linear-gradient(180deg, rgba(255, 224, 168, 0.16), rgba(255, 224, 168, 0.04) 60%, rgba(255, 224, 168, 0.02) 100%),
-        linear-gradient(180deg, rgba(38, 28, 20, 0.92), rgba(22, 16, 12, 0.92));
-    border: var(--layout-size-border-thin) solid rgba(255, 224, 168, 0.32);
-    color: #ffe6a8;
+        linear-gradient(180deg, rgba(220, 200, 170, 0.08), rgba(220, 200, 170, 0.02) 60%, rgba(255, 255, 255, 0.01) 100%),
+        linear-gradient(180deg, rgba(38, 32, 26, 0.92), rgba(22, 18, 14, 0.92));
+    border: var(--layout-size-border-thin) solid rgba(180, 160, 120, 0.32);
+    color: #e8dcc0;
     font-weight: 700;
     letter-spacing: 0.02em;
     padding: calc(10px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
     box-shadow:
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 224, 168, 0.18),
-        0 calc(2px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.45);
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(220, 200, 170, 0.1),
+        0 calc(2px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.45);
 }
 
 .deck-builder-effective-summary::before {
@@ -2818,29 +2818,10 @@
     height: calc(7px * var(--layout-stage-scale));
     margin-right: calc(8px * var(--layout-stage-scale));
     border-radius: 50%;
-    background: radial-gradient(circle, #ffe6a8 0%, #d4a44b 80%);
-    box-shadow:
-        0 0 calc(6px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.7),
-        0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.35);
+    background: radial-gradient(circle, #d4bd90 0%, #8a7448 90%);
     vertical-align: middle;
     transform: translateY(calc(-1px * var(--layout-stage-scale)));
-    animation: deckBuilderStatusPulse 2.4s ease-in-out infinite;
 }
-
-@keyframes deckBuilderStatusPulse {
-    0%, 100% {
-        box-shadow:
-            0 0 calc(6px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.7),
-            0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.35);
-    }
-    50% {
-        box-shadow:
-            0 0 calc(9px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.85),
-            0 0 calc(16px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.45);
-    }
-}
-
-/* ----- View container & intro ----- */
 
 .deck-builder-view {
     display: flex;
@@ -3022,73 +3003,45 @@
     border-color: rgba(212, 169, 122, 0.4);
 }
 
-/* Active — "this deck is currently in use" */
+/* Active — "this deck is currently in use" (refined, no pulse, no gold halo) */
 .deck-builder-preset-card.is-active {
-    border-color: rgba(255, 220, 150, 0.7);
+    border-color: rgba(180, 160, 120, 0.55);
     background:
-        linear-gradient(180deg, rgba(255, 220, 150, 0.22), rgba(255, 220, 150, 0.06) 50%, rgba(255, 220, 150, 0.02) 100%),
+        linear-gradient(180deg, rgba(220, 200, 170, 0.08), rgba(220, 200, 170, 0.02) 50%, rgba(255, 255, 255, 0.01) 100%),
         linear-gradient(180deg, rgba(40, 30, 22, 0.85), rgba(22, 16, 12, 0.85)) !important;
     box-shadow:
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 220, 150, 0.32),
-        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.4),
-        0 0 calc(18px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.16),
-        0 calc(6px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.45);
-    animation: deckBuilderActivePulse 2.6s ease-in-out infinite;
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(220, 200, 170, 0.18),
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(180, 160, 120, 0.32),
+        0 calc(4px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5);
 }
 
-@keyframes deckBuilderActivePulse {
-    0%, 100% {
-        box-shadow:
-            inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 220, 150, 0.32),
-            0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.4),
-            0 0 calc(18px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.16),
-            0 calc(6px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.45);
-    }
-    50% {
-        box-shadow:
-            inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 220, 150, 0.42),
-            0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.55),
-            0 0 calc(24px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.22),
-            0 calc(6px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.45);
-    }
-}
-
-/* Empty slot — inviting "tap to build" affordance, full opacity, brighter ornaments */
+/* Empty slot (generic) — softened warm tone (no bright halo glow) */
 .deck-builder-preset-card.is-empty {
-    background:
-        radial-gradient(ellipse at 50% 38%, rgba(212, 169, 122, 0.08), rgba(212, 169, 122, 0.01) 70%),
-        rgba(28, 22, 16, 0.55);
-    border: calc(1px * var(--layout-stage-scale)) dashed rgba(212, 169, 122, 0.6);
-    box-shadow:
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(212, 169, 122, 0.08),
-        inset 0 0 calc(16px * var(--layout-stage-scale)) rgba(212, 169, 122, 0.05);
-    color: rgba(220, 200, 170, 0.78);
+    background: rgba(28, 22, 16, 0.55);
+    border: calc(1px * var(--layout-stage-scale)) dashed rgba(160, 145, 110, 0.4);
+    color: rgba(200, 185, 155, 0.7);
 }
 
 .deck-builder-preset-card.is-empty:hover {
-    border-color: rgba(255, 220, 150, 0.92);
-    background:
-        radial-gradient(ellipse at 50% 38%, rgba(255, 220, 150, 0.16), rgba(255, 220, 150, 0.02) 70%),
-        rgba(36, 28, 20, 0.65);
+    border-color: rgba(180, 160, 120, 0.6);
+    background: rgba(36, 28, 20, 0.65);
     transform: translateY(calc(-1px * var(--layout-stage-scale)));
     box-shadow:
-        0 0 calc(14px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.18),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.2);
+        0 calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5);
 }
 
+/* Generic empty-slot halo (subdued ring only) */
 .deck-builder-preset-card.is-empty::before {
     content: "";
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, calc(-58px * var(--layout-stage-scale)));
-    width: calc(34px * var(--layout-stage-scale));
-    height: calc(34px * var(--layout-stage-scale));
+    width: calc(30px * var(--layout-stage-scale));
+    height: calc(30px * var(--layout-stage-scale));
     border-radius: 50%;
-    background:
-        radial-gradient(circle, rgba(255, 220, 150, 0.85) 0%, rgba(255, 220, 150, 0.15) 60%, rgba(255, 220, 150, 0) 100%);
-    box-shadow: 0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.35);
-    transition: opacity 0.18s ease, transform 0.18s ease;
+    border: 1px solid rgba(180, 160, 120, 0.4);
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .deck-builder-preset-card.is-empty::after {
@@ -3097,32 +3050,29 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, calc(-58px * var(--layout-stage-scale)));
-    font-size: calc(28px * var(--layout-stage-scale));
-    font-weight: 700;
+    font-size: calc(22px * var(--layout-stage-scale));
+    font-weight: 400;
     line-height: 1;
-    color: rgba(255, 232, 178, 0.95);
-    text-shadow: 0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.6);
+    color: rgba(200, 185, 155, 0.85);
     pointer-events: none;
-    transition: transform 0.18s ease;
-}
-
-.deck-builder-preset-card.is-empty:hover::before {
-    transform: translate(-50%, calc(-60px * var(--layout-stage-scale))) scale(1.08);
-}
-
-.deck-builder-preset-card.is-empty:hover::after {
-    transform: translate(-50%, calc(-60px * var(--layout-stage-scale))) scale(1.08);
 }
 
 .deck-builder-preset-card.is-empty .deck-builder-preset-title {
-    color: rgba(255, 232, 178, 0.88);
+    color: rgba(200, 185, 155, 0.85);
     letter-spacing: 0.06em;
     margin-top: calc(28px * var(--layout-stage-scale));
 }
 
 .deck-builder-preset-card.is-empty .deck-builder-preset-summary {
-    color: rgba(220, 200, 170, 0.7);
+    color: rgba(200, 185, 155, 0.65);
     font-style: italic;
+}
+
+/* Save slots already inject their own .deck-builder-empty-halo / plus / cta children —
+   hide the universal ::before/::after so they don't double-render. */
+.deck-builder-save-slot-card.is-empty::before,
+.deck-builder-save-slot-card.is-empty::after {
+    display: none !important;
 }
 
 /* Invalid slot (decode error) — red dashed border */
@@ -3422,19 +3372,20 @@
     pointer-events: none;
 }
 
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-mining::before { background: #4dff8c; box-shadow: 0 0 calc(8px * var(--layout-stage-scale)) rgba(77, 255, 140, 0.45); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-guard::before { background: #7dc4ff; box-shadow: 0 0 calc(8px * var(--layout-stage-scale)) rgba(125, 196, 255, 0.45); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-battle::before { background: #ff7a7a; box-shadow: 0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 122, 122, 0.45); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-judgment::before { background: #ffd680; box-shadow: 0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 214, 128, 0.45); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-taboo::before { background: #d49cff; box-shadow: 0 0 calc(8px * var(--layout-stage-scale)) rgba(212, 156, 255, 0.45); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-annihilation::before { background: #ffac5c; box-shadow: 0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 172, 92, 0.45); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-prosperity::before { background: #ffec88; box-shadow: 0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 236, 136, 0.45); }
-#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-special::before { background: #e8e8e8; box-shadow: 0 0 calc(8px * var(--layout-stage-scale)) rgba(232, 232, 232, 0.4); }
+/* Muted-earth type spines (no glow) */
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-mining::before { background: #84b078; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-guard::before { background: #7a9bb8; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-battle::before { background: #c47a68; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-judgment::before { background: #c8a868; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-taboo::before { background: #9c84a8; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-annihilation::before { background: #b88468; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-prosperity::before { background: #bcb078; }
+#deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-filled.is-special::before { background: #a8a8b0; }
 
 #deckBuilderModal .deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card.is-active::before {
-    box-shadow:
-        0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.5),
-        0 0 calc(14px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.25);
+    /* Refined: spine keeps the type hue, no gold halo */
+    box-shadow: none;
+    filter: brightness(1.08);
 }
 
 /* Compact built-in preset row keeps the same accent treatment */
@@ -3455,24 +3406,25 @@
     pointer-events: none;
 }
 
-#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-mining::before { background: #4dff8c; }
-#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-guard::before { background: #7dc4ff; }
-#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-battle::before { background: #ff7a7a; }
-#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-judgment::before { background: #ffd680; }
-#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-taboo::before { background: #d49cff; }
-#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-annihilation::before { background: #ffac5c; }
-#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-prosperity::before { background: #ffec88; }
-#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-special::before { background: #e8e8e8; }
+/* Muted-earth built-in spines */
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-mining::before { background: #84b078; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-guard::before { background: #7a9bb8; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-battle::before { background: #c47a68; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-judgment::before { background: #c8a868; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-taboo::before { background: #9c84a8; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-annihilation::before { background: #b88468; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-prosperity::before { background: #bcb078; }
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-preset-card.is-filled.is-special::before { background: #a8a8b0; }
 
 /* ----- Bold Redesign (v2): atmospheric modal, display serif, hero/save slots/built-ins ----- */
 
-/* Atmospheric modal body — deep navy with ember top glow + grain */
+/* Atmospheric modal body — deep slate (no gold ember) */
 #deckBuilderModal {
     background:
-        radial-gradient(ellipse 720px 260px at 50% 0%, rgba(255, 200, 110, 0.16), transparent 65%),
-        radial-gradient(ellipse 540px 220px at 50% 100%, rgba(93, 200, 255, 0.07), transparent 65%),
+        radial-gradient(ellipse 720px 220px at 50% 0%, rgba(180, 200, 220, 0.06), transparent 65%),
+        radial-gradient(ellipse 540px 220px at 50% 100%, rgba(110, 130, 160, 0.06), transparent 65%),
         linear-gradient(180deg, #161d28 0%, #0d141d 100%) !important;
-    border-color: rgba(212, 169, 122, 0.45) !important;
+    border-color: rgba(140, 130, 100, 0.4) !important;
 }
 
 /* Grain overlay on modal body */
@@ -3617,17 +3569,17 @@
     margin-top: calc(1px * var(--layout-stage-scale));
 }
 
-/* Type swatch bar (proportional segments) */
+/* Type swatch bar (proportional segments) — muted earth, no neon glow */
 .deck-builder-slot-type-bar {
     display: flex;
     gap: calc(2px * var(--layout-stage-scale));
-    height: calc(8px * var(--layout-stage-scale));
+    height: calc(6px * var(--layout-stage-scale));
     margin-top: auto;
     margin-bottom: calc(8px * var(--layout-stage-scale));
-    border-radius: calc(2px * var(--layout-stage-scale));
+    border-radius: calc(1px * var(--layout-stage-scale));
     overflow: hidden;
-    background: rgba(0, 0, 0, 0.35);
-    box-shadow: inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.4);
+    box-shadow: inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(220, 200, 170, 0.06);
 }
 .deck-builder-slot-type-seg {
     height: 100%;
@@ -3635,29 +3587,28 @@
     flex-shrink: 1;
     flex-basis: 0;
     background: var(--seg-color, #888);
-    box-shadow: 0 0 calc(5px * var(--layout-stage-scale)) var(--seg-glow, transparent);
 }
-.deck-builder-slot-type-seg.is-mining { --seg-color: #4dffa0; --seg-glow: rgba(77, 255, 160, 0.45); }
-.deck-builder-slot-type-seg.is-guard { --seg-color: #5dc8ff; --seg-glow: rgba(93, 200, 255, 0.45); }
-.deck-builder-slot-type-seg.is-battle { --seg-color: #ff7a7a; --seg-glow: rgba(255, 122, 122, 0.45); }
-.deck-builder-slot-type-seg.is-judgment { --seg-color: #ffd680; --seg-glow: rgba(255, 214, 128, 0.45); }
-.deck-builder-slot-type-seg.is-taboo { --seg-color: #c47aff; --seg-glow: rgba(196, 122, 255, 0.45); }
-.deck-builder-slot-type-seg.is-annihilation { --seg-color: #ff8b3d; --seg-glow: rgba(255, 139, 61, 0.45); }
-.deck-builder-slot-type-seg.is-prosperity { --seg-color: #ffe680; --seg-glow: rgba(255, 230, 128, 0.45); }
-.deck-builder-slot-type-seg.is-special { --seg-color: #e0e0e0; --seg-glow: rgba(224, 224, 224, 0.4); }
+.deck-builder-slot-type-seg.is-mining { --seg-color: #84b078; }
+.deck-builder-slot-type-seg.is-guard { --seg-color: #7a9bb8; }
+.deck-builder-slot-type-seg.is-battle { --seg-color: #c47a68; }
+.deck-builder-slot-type-seg.is-judgment { --seg-color: #c8a868; }
+.deck-builder-slot-type-seg.is-taboo { --seg-color: #9c84a8; }
+.deck-builder-slot-type-seg.is-annihilation { --seg-color: #b88468; }
+.deck-builder-slot-type-seg.is-prosperity { --seg-color: #bcb078; }
+.deck-builder-slot-type-seg.is-special { --seg-color: #a8a8b0; }
 
-/* Save slot orb color variants (matching swatch colors) */
-.deck-builder-save-slot-card.is-mining { --orb-color: #6dffb8; --orb-deep: #2a8060; --orb-glow: rgba(77, 255, 160, 0.45); }
-.deck-builder-save-slot-card.is-guard { --orb-color: #84d4ff; --orb-deep: #2a7090; --orb-glow: rgba(93, 200, 255, 0.45); }
-.deck-builder-save-slot-card.is-battle { --orb-color: #ff9494; --orb-deep: #8a3030; --orb-glow: rgba(255, 122, 122, 0.45); }
-.deck-builder-save-slot-card.is-judgment { --orb-color: #ffe28e; --orb-deep: #8a6018; --orb-glow: rgba(255, 214, 128, 0.45); }
-.deck-builder-save-slot-card.is-taboo { --orb-color: #d49cff; --orb-deep: #6a3ea0; --orb-glow: rgba(196, 122, 255, 0.45); }
-.deck-builder-save-slot-card.is-annihilation { --orb-color: #ffb074; --orb-deep: #8a4818; --orb-glow: rgba(255, 139, 61, 0.45); }
-.deck-builder-save-slot-card.is-prosperity { --orb-color: #fff0a0; --orb-deep: #8a7020; --orb-glow: rgba(255, 230, 128, 0.4); }
-.deck-builder-save-slot-card.is-special { --orb-color: #f0f0f0; --orb-deep: #787878; --orb-glow: rgba(224, 224, 224, 0.4); }
-.deck-builder-save-slot-card.is-filled:not(.is-mining):not(.is-guard):not(.is-battle):not(.is-judgment):not(.is-taboo):not(.is-annihilation):not(.is-prosperity):not(.is-special) { --orb-color: #d4a647; --orb-deep: #6a4a1a; --orb-glow: rgba(255, 206, 94, 0.4); }
+/* Save slot orb color variants — muted earth (no halo glow) */
+.deck-builder-save-slot-card.is-mining { --orb-color: #a8c89c; --orb-deep: #4a6450; --orb-glow: transparent; }
+.deck-builder-save-slot-card.is-guard { --orb-color: #a0b8c8; --orb-deep: #3a5a72; --orb-glow: transparent; }
+.deck-builder-save-slot-card.is-battle { --orb-color: #d4a89a; --orb-deep: #6e3c2c; --orb-glow: transparent; }
+.deck-builder-save-slot-card.is-judgment { --orb-color: #d4bd90; --orb-deep: #5e4520; --orb-glow: transparent; }
+.deck-builder-save-slot-card.is-taboo { --orb-color: #b0a0bc; --orb-deep: #4e3f5a; --orb-glow: transparent; }
+.deck-builder-save-slot-card.is-annihilation { --orb-color: #c8a890; --orb-deep: #5e3a26; --orb-glow: transparent; }
+.deck-builder-save-slot-card.is-prosperity { --orb-color: #cabe9c; --orb-deep: #5e5230; --orb-glow: transparent; }
+.deck-builder-save-slot-card.is-special { --orb-color: #b8b8c0; --orb-deep: #5a5a64; --orb-glow: transparent; }
+.deck-builder-save-slot-card.is-filled:not(.is-mining):not(.is-guard):not(.is-battle):not(.is-judgment):not(.is-taboo):not(.is-annihilation):not(.is-prosperity):not(.is-special) { --orb-color: #c8a868; --orb-deep: #5e4520; --orb-glow: transparent; }
 
-/* Active wax seal — replaces the previous strip */
+/* Active wax seal — refined (no outer glow, muted brass) */
 .deck-builder-active-seal {
     position: absolute;
     top: calc(-8px * var(--layout-stage-scale));
@@ -3666,18 +3617,17 @@
     height: calc(54px * var(--layout-stage-scale));
     border-radius: 50%;
     background:
-        radial-gradient(circle at 32% 28%, #ffe6a3 0%, #d4a647 48%, #5e4015 100%);
+        radial-gradient(circle at 32% 28%, #d4bd90 0%, #a88858 50%, #4e3820 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    transform: rotate(-8deg);
+    transform: rotate(-6deg);
     box-shadow:
-        inset 0 calc(-3px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.45),
-        inset 0 calc(2px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.55),
-        0 calc(4px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55),
-        0 0 calc(20px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.55);
+        inset 0 calc(-2px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.4),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 240, 210, 0.35),
+        0 calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5);
     z-index: 3;
-    border: calc(2px * var(--layout-stage-scale)) solid #2a1d08;
+    border: calc(1px * var(--layout-stage-scale)) solid #1a1208;
 }
 .deck-builder-active-seal-inner {
     font-family: 'Outfit', -apple-system, system-ui, sans-serif;
@@ -3688,17 +3638,15 @@
     text-shadow: 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 235, 195, 0.4);
 }
 
-/* Active card — warmer body, brighter border */
+/* Active card — warm body, refined warm border, no outer halo */
 .deck-builder-save-slot-card.is-active {
     background:
-        linear-gradient(160deg, rgba(255, 220, 150, 0.22), rgba(255, 220, 150, 0.05) 55%, rgba(255, 255, 255, 0.01) 100%),
-        linear-gradient(180deg, rgba(48, 32, 18, 0.94), rgba(22, 14, 8, 0.94)) !important;
-    border: 1.5px solid #d4a647 !important;
+        linear-gradient(160deg, rgba(220, 200, 170, 0.08), rgba(220, 200, 170, 0.02) 55%, rgba(255, 255, 255, 0.01) 100%),
+        linear-gradient(180deg, rgba(40, 32, 22, 0.94), rgba(20, 14, 8, 0.94)) !important;
+    border: 1px solid #8a7448 !important;
     box-shadow:
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 220, 150, 0.42),
-        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.45),
-        0 0 calc(36px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.22),
-        0 calc(6px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.6) !important;
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(220, 200, 170, 0.18),
+        0 calc(4px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55) !important;
 }
 
 /* ============================================================
@@ -3712,58 +3660,52 @@
     justify-content: center !important;
     padding: calc(20px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale)) !important;
     background:
-        radial-gradient(ellipse 200px 90px at 50% 30%, rgba(212, 169, 122, 0.16), transparent 70%),
-        linear-gradient(165deg, rgba(20, 14, 10, 0.85) 0%, rgba(12, 18, 24, 0.85) 100%) !important;
-    border: 1.5px dashed rgba(212, 169, 122, 0.7) !important;
-    color: rgba(220, 200, 170, 0.78);
-    box-shadow:
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(212, 169, 122, 0.1),
-        inset 0 0 calc(18px * var(--layout-stage-scale)) rgba(212, 169, 122, 0.06) !important;
+        linear-gradient(165deg, rgba(22, 26, 32, 0.85) 0%, rgba(14, 18, 24, 0.85) 100%) !important;
+    border: 1px dashed rgba(160, 145, 110, 0.4) !important;
+    color: rgba(200, 185, 155, 0.7);
 }
 .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo {
+    /* shrunk to a thin ring (no halo glow) */
     position: relative;
-    width: calc(72px * var(--layout-stage-scale));
-    height: calc(72px * var(--layout-stage-scale));
+    width: calc(34px * var(--layout-stage-scale));
+    height: calc(34px * var(--layout-stage-scale));
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 220, 150, 0.55) 0%, rgba(255, 220, 150, 0.12) 50%, transparent 80%);
-    box-shadow: 0 0 calc(28px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.45);
-    margin-bottom: calc(4px * var(--layout-stage-scale));
+    border: 1px solid rgba(180, 160, 120, 0.45);
+    background: rgba(255, 255, 255, 0.02);
+    margin-bottom: calc(6px * var(--layout-stage-scale));
 }
 .deck-builder-save-slot-card.is-empty > .deck-builder-empty-plus {
     position: absolute;
-    top: calc(20px * var(--layout-stage-scale));
+    top: calc(22px * var(--layout-stage-scale));
     left: 50%;
     transform: translate(-50%, 0);
     font-family: 'DM Serif Display', 'Iowan Old Style', Baskerville, 'Times New Roman', Times, serif;
-    font-size: calc(46px * var(--layout-stage-scale));
+    font-size: calc(28px * var(--layout-stage-scale));
     font-weight: 400;
     line-height: 1;
-    color: #ffce5e;
-    text-shadow: 0 0 calc(18px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.7);
+    color: #b8a888;
     pointer-events: none;
     z-index: 2;
 }
 .deck-builder-save-slot-card.is-empty > .deck-builder-empty-cta {
     font-size: calc(10.5px * var(--layout-stage-scale));
     letter-spacing: 0.18em;
-    color: rgba(220, 200, 170, 0.85);
-    margin: calc(40px * var(--layout-stage-scale)) 0 calc(10px * var(--layout-stage-scale));
+    color: rgba(200, 185, 155, 0.7);
+    margin: calc(20px * var(--layout-stage-scale)) 0 calc(10px * var(--layout-stage-scale));
     text-align: center;
 }
 .deck-builder-save-slot-card.is-empty > .deck-builder-empty-cta::before {
     content: "▸ ";
-    color: #d4a647;
+    color: #b8a888;
     margin-right: 2px;
 }
 .deck-builder-save-slot-card.is-empty:hover {
-    border-color: #ffce5e !important;
+    border-color: rgba(180, 160, 120, 0.65) !important;
     background:
-        radial-gradient(ellipse 220px 100px at 50% 30%, rgba(255, 220, 150, 0.22), transparent 70%),
-        linear-gradient(165deg, rgba(34, 24, 16, 0.85) 0%, rgba(14, 20, 28, 0.85) 100%) !important;
-    transform: translateY(calc(-2px * var(--layout-stage-scale)));
+        linear-gradient(165deg, rgba(32, 28, 22, 0.9) 0%, rgba(18, 22, 28, 0.9) 100%) !important;
+    transform: translateY(calc(-1px * var(--layout-stage-scale)));
     box-shadow:
-        0 calc(8px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.22) !important;
+        0 calc(6px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5) !important;
 }
 
 /* ============================================================
@@ -3774,52 +3716,37 @@
     position: relative;
     padding: calc(20px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale));
     background:
-        radial-gradient(ellipse 280px 90px at 50% 0%, rgba(255, 220, 150, 0.32), transparent 70%),
-        linear-gradient(160deg, rgba(50, 36, 22, 0.95) 0%, rgba(28, 18, 10, 0.95) 100%) !important;
-    border: 1.5px solid #d4a647 !important;
-    border-radius: calc(12px * var(--layout-stage-scale)) !important;
+        linear-gradient(160deg, rgba(42, 38, 32, 0.95) 0%, rgba(26, 22, 18, 0.95) 100%) !important;
+    border: 1px solid #6a5840 !important;
+    border-radius: calc(10px * var(--layout-stage-scale)) !important;
     box-shadow:
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 220, 150, 0.5),
-        inset calc(8px * var(--layout-stage-scale)) 0 0 rgba(212, 169, 122, 0.32),
-        0 calc(8px * var(--layout-stage-scale)) calc(28px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55),
-        0 0 calc(40px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.18) !important;
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(220, 200, 170, 0.12),
+        0 calc(6px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5) !important;
     overflow: hidden;
 }
 .deck-builder-default-hero::before {
-    /* inner brass rule (within border) */
+    /* inner subdued rule (within border) */
     content: "";
     position: absolute;
     inset: calc(6px * var(--layout-stage-scale));
-    border-radius: calc(8px * var(--layout-stage-scale));
-    border: 1px solid rgba(255, 220, 150, 0.22);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    border: 1px solid rgba(220, 200, 170, 0.1);
     pointer-events: none;
 }
-.deck-builder-default-hero::after {
-    /* top-right ember bloom */
-    content: "";
-    position: absolute;
-    top: calc(8px * var(--layout-stage-scale));
-    right: calc(10px * var(--layout-stage-scale));
-    width: calc(28px * var(--layout-stage-scale));
-    height: calc(28px * var(--layout-stage-scale));
-    border-radius: 50%;
-    background:
-        radial-gradient(circle, rgba(255, 220, 150, 0.95) 0%, rgba(255, 220, 150, 0.4) 40%, transparent 75%);
-    filter: blur(2px);
-    pointer-events: none;
-}
+/* Removed ember bloom ::after — was a heavy gilt radial blob */
 .deck-builder-hero-sigil {
     font-family: 'Outfit', -apple-system, system-ui, sans-serif;
     font-size: calc(9px * var(--layout-stage-scale)) !important;
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: 0.32em;
-    color: #d4a647;
+    color: #b8a888;
     text-transform: uppercase;
     margin-bottom: calc(6px * var(--layout-stage-scale));
 }
 .deck-builder-hero-sigil::before {
     content: "✦";
     margin-right: calc(4px * var(--layout-stage-scale));
+    color: #b8a888;
 }
 .deck-builder-default-hero .deck-builder-preset-title {
     font-family: 'DM Serif Display', 'Iowan Old Style', 'Apple Garamond', Baskerville, 'Times New Roman', Times, serif;
@@ -3836,7 +3763,7 @@
     margin: 0 0 calc(14px * var(--layout-stage-scale));
 }
 .deck-builder-default-hero .deck-builder-preset-summary b {
-    color: #ffce5e;
+    color: #d8c8a8;
     font-weight: 700;
 }
 .deck-builder-hero-meta {
@@ -3845,38 +3772,38 @@
     gap: calc(10px * var(--layout-stage-scale));
     margin-bottom: calc(14px * var(--layout-stage-scale));
     font-size: calc(11px * var(--layout-stage-scale));
-    color: rgba(220, 200, 170, 0.7);
+    color: rgba(200, 185, 155, 0.7);
 }
 .deck-builder-format-pill {
     padding: calc(3px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
-    border-radius: calc(4px * var(--layout-stage-scale));
-    background: linear-gradient(180deg, rgba(255, 220, 150, 0.22), rgba(255, 220, 150, 0.06));
-    border: 1px solid rgba(212, 169, 122, 0.5);
-    color: #ffce5e;
-    font-weight: 800;
+    border-radius: calc(3px * var(--layout-stage-scale));
+    background: rgba(220, 200, 170, 0.08);
+    border: 1px solid rgba(180, 160, 120, 0.4);
+    color: #c8b890;
+    font-weight: 700;
     letter-spacing: 0.18em;
     font-size: calc(9.5px * var(--layout-stage-scale)) !important;
 }
 .deck-builder-hero-cta {
     width: 100%;
     padding: calc(10px * var(--layout-stage-scale)) 0;
-    border-radius: calc(8px * var(--layout-stage-scale)) !important;
-    background: linear-gradient(180deg, #ffce5e 0%, #d4a647 100%) !important;
-    border: 1px solid #fff2cc !important;
-    color: #1d1308 !important;
-    font-weight: 800 !important;
+    border-radius: calc(6px * var(--layout-stage-scale)) !important;
+    background: linear-gradient(180deg, #6a5840 0%, #4a3826 100%) !important;
+    border: 1px solid #8a7448 !important;
+    color: #f0e0c0 !important;
+    font-weight: 700 !important;
     font-size: calc(12px * var(--layout-stage-scale)) !important;
     letter-spacing: 0.22em !important;
     box-shadow:
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.6),
-        0 calc(2px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.4) !important;
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(220, 200, 170, 0.25),
+        0 calc(2px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.4) !important;
     cursor: pointer;
 }
 .deck-builder-hero-cta:hover {
-    background: linear-gradient(180deg, #ffe28e 0%, #d4a647 100%) !important;
+    background: linear-gradient(180deg, #7a6850 0%, #5a4830 100%) !important;
     box-shadow:
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.7),
-        0 calc(3px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5) !important;
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(220, 200, 170, 0.32),
+        0 calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5) !important;
 }
 
 /* ============================================================
@@ -3898,20 +3825,20 @@
     width: calc(30px * var(--layout-stage-scale));
     height: calc(30px * var(--layout-stage-scale));
     border-radius: 50%;
-    background: radial-gradient(circle at 30% 28%, var(--gem-color, #5dc8ff) 0%, var(--gem-deep, #2a7090) 90%);
+    background: radial-gradient(circle at 30% 28%, var(--gem-color, #7a9bb8) 0%, var(--gem-deep, #3a5a72) 90%);
     box-shadow:
-        inset 0 calc(-2px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.4),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.4),
-        0 0 calc(14px * var(--layout-stage-scale)) var(--gem-glow, rgba(93, 200, 255, 0.32));
+        inset 0 calc(-2px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.35),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.3);
 }
-.deck-builder-builtin-card.is-mining { --gem-color: #6dffb8; --gem-deep: #2a8060; --gem-glow: rgba(77, 255, 160, 0.4); }
-.deck-builder-builtin-card.is-guard { --gem-color: #84d4ff; --gem-deep: #2a7090; --gem-glow: rgba(93, 200, 255, 0.4); }
-.deck-builder-builtin-card.is-battle { --gem-color: #ff9494; --gem-deep: #8a3030; --gem-glow: rgba(255, 122, 122, 0.4); }
-.deck-builder-builtin-card.is-judgment { --gem-color: #ffe28e; --gem-deep: #8a6018; --gem-glow: rgba(255, 214, 128, 0.4); }
-.deck-builder-builtin-card.is-taboo { --gem-color: #d49cff; --gem-deep: #6a3ea0; --gem-glow: rgba(196, 122, 255, 0.4); }
-.deck-builder-builtin-card.is-annihilation { --gem-color: #ffb074; --gem-deep: #8a4818; --gem-glow: rgba(255, 139, 61, 0.4); }
-.deck-builder-builtin-card.is-prosperity { --gem-color: #fff0a0; --gem-deep: #8a7020; --gem-glow: rgba(255, 230, 128, 0.4); }
-.deck-builder-builtin-card.is-special { --gem-color: #f0f0f0; --gem-deep: #787878; --gem-glow: rgba(224, 224, 224, 0.4); }
+/* Muted-earth gem palette (no halo glow) */
+.deck-builder-builtin-card.is-mining { --gem-color: #a8c89c; --gem-deep: #4a6450; }
+.deck-builder-builtin-card.is-guard { --gem-color: #a0b8c8; --gem-deep: #3a5a72; }
+.deck-builder-builtin-card.is-battle { --gem-color: #d4a89a; --gem-deep: #6e3c2c; }
+.deck-builder-builtin-card.is-judgment { --gem-color: #d4bd90; --gem-deep: #5e4520; }
+.deck-builder-builtin-card.is-taboo { --gem-color: #b0a0bc; --gem-deep: #4e3f5a; }
+.deck-builder-builtin-card.is-annihilation { --gem-color: #c8a890; --gem-deep: #5e3a26; }
+.deck-builder-builtin-card.is-prosperity { --gem-color: #cabe9c; --gem-deep: #5e5230; }
+.deck-builder-builtin-card.is-special { --gem-color: #b8b8c0; --gem-deep: #5a5a64; }
 
 .deck-builder-builtin-meta {
     grid-area: meta;
@@ -3948,11 +3875,11 @@
 
 /* Save slot orb color is also driven by the card's is-{type} class */
 .deck-builder-builtin-card.is-active {
-    border-color: #d4a647 !important;
+    border-color: #8a7448 !important;
     box-shadow:
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 220, 150, 0.35),
-        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 220, 150, 0.3),
-        0 0 calc(20px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.18) !important;
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(220, 200, 170, 0.18),
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(180, 160, 120, 0.18),
+        0 calc(4px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5) !important;
 }
 
 /* Visually-hidden but text-present slot title (back-compat with old test expectations) */
@@ -4416,20 +4343,16 @@ body.time-stop-active {
     left: 0;
     right: 0;
     z-index: 5;
-    height: calc(18px * var(--layout-stage-scale));
+    height: calc(16px * var(--layout-stage-scale));
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: calc(8.5px * var(--layout-stage-scale));
-    font-weight: 900;
-    letter-spacing: 0.28em;
-    color: rgba(60, 38, 18, 0.92);
-    background:
-        linear-gradient(180deg, rgba(255, 236, 179, 0.95), rgba(245, 198, 89, 0.95));
-    box-shadow:
-        inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(120, 70, 20, 0.18),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.4);
-    border-bottom: var(--layout-size-border-thin) solid rgba(120, 70, 20, 0.28);
+    font-weight: 700;
+    letter-spacing: 0.24em;
+    color: rgba(220, 200, 170, 0.85);
+    background: rgba(140, 120, 90, 0.5);
+    border-bottom: var(--layout-size-border-thin) solid rgba(80, 60, 30, 0.5);
     pointer-events: none;
 }
 
@@ -6153,31 +6076,31 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     font-size: calc(9.5px * var(--layout-stage-scale)) !important;
 }
 
-/* 空スロット: padding 縮小 + プラス / halo 縮小 */
+/* 空スロット: padding 縮小 + プラス / halo 縮小 (refined) */
 .deck-builder-save-slot-card.is-empty {
     padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) !important;
 }
 .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo {
-    width: calc(38px * var(--layout-stage-scale)) !important;
-    height: calc(38px * var(--layout-stage-scale)) !important;
-    box-shadow: 0 0 calc(14px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.4) !important;
+    width: calc(34px * var(--layout-stage-scale)) !important;
+    height: calc(34px * var(--layout-stage-scale)) !important;
+    box-shadow: none !important;
     margin-bottom: calc(2px * var(--layout-stage-scale)) !important;
 }
 .deck-builder-save-slot-card.is-empty > .deck-builder-empty-plus {
-    font-size: calc(26px * var(--layout-stage-scale)) !important;
+    font-size: calc(22px * var(--layout-stage-scale)) !important;
     top: calc(12px * var(--layout-stage-scale)) !important;
-    text-shadow: 0 0 calc(10px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.6) !important;
+    text-shadow: none !important;
 }
 .deck-builder-save-slot-card.is-empty > .deck-builder-empty-cta {
     font-size: calc(9px * var(--layout-stage-scale)) !important;
     letter-spacing: 0.16em !important;
-    margin: calc(22px * var(--layout-stage-scale)) 0 calc(4px * var(--layout-stage-scale)) !important;
+    margin: calc(16px * var(--layout-stage-scale)) 0 calc(4px * var(--layout-stage-scale)) !important;
 }
 .deck-builder-save-slot-card.is-empty > .deck-builder-actions-row {
     margin-top: 0 !important;
 }
 
-/* active wax seal 縮小 */
+/* active wax seal 縮小 (no outer halo) */
 .deck-builder-active-seal {
     width: calc(38px * var(--layout-stage-scale)) !important;
     height: calc(38px * var(--layout-stage-scale)) !important;
@@ -6185,9 +6108,8 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     right: calc(6px * var(--layout-stage-scale)) !important;
     box-shadow:
         inset 0 calc(-2px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.45),
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.55),
-        0 calc(2px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.55),
-        0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 200, 110, 0.45) !important;
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 240, 210, 0.35),
+        0 calc(2px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5) !important;
 }
 .deck-builder-active-seal-inner {
     font-size: calc(6px * var(--layout-stage-scale)) !important;
