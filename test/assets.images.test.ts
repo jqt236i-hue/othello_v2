@@ -21,6 +21,11 @@ describe('stone image assets', () => {
     assert.ok(fs.existsSync(path.join(specialStonesDir, 'TIME_STOP_DEITY-white.png')));
   });
 
+  test('includes the ZOMBIE stone PNGs', () => {
+    assert.ok(fs.existsSync(path.join(specialStonesDir, 'ZOMBIE-black.png')));
+    assert.ok(fs.existsSync(path.join(specialStonesDir, 'ZOMBIE-white.png')));
+  });
+
   it('declares CSS variables for the normal stone images', () => {
     const variablesCss = fs.readFileSync(path.join(__dirname, '..', 'styles-variables.css'), 'utf8');
     assert.ok(variablesCss.includes('--normal-stone-black-image'));

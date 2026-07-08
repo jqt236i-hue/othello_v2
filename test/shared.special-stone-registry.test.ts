@@ -26,6 +26,7 @@ describe('special stone registry rule classification', () => {
     'TIME_STOP_DEITY',
     'WILL_HUNTER_KING',
     'SACRIFICE',
+    'ZOMBIE',
     'TRAP',
     'TIME_BOMB'
   ];
@@ -143,7 +144,8 @@ describe('special stone registry rule classification', () => {
       ['udg_01', 'ULTIMATE_DESTROY_GOD', 'ULTIMATE_DESTROY_GOD'],
       ['ultimate_hyperactive_01', 'ULTIMATE_HYPERACTIVE_GOD', 'ULTIMATE_HYPERACTIVE'],
       ['meteor_god_01', 'METEOR_GOD', 'METEOR_GOD'],
-      ['sacrifice_will_01', 'SACRIFICE_WILL', 'SACRIFICE']
+      ['sacrifice_will_01', 'SACRIFICE_WILL', 'SACRIFICE'],
+      ['zombie_will_01', 'ZOMBIE_WILL', 'ZOMBIE']
     ];
 
     for (const [cardId, cardType, markerType] of expected) {
