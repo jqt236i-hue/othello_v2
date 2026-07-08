@@ -316,6 +316,21 @@ describe('visual-effects map shared between game/ui', () => {
     expect(sacrificeMap.imagePathByOwner['-1']).toContain('SACRIFICE_WILL-white.png');
   });
 
+  test('ZOMBIE_WILL と ZOMBIE が屍石画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.ZOMBIE_WILL).toBe('zombieStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.ZOMBIE).toBe('zombieStone');
+
+    const zombieMap = shared.STONE_VISUAL_EFFECTS.zombieStone;
+    expect(zombieMap).toBeTruthy();
+    expect(zombieMap.imagePathByOwner['1']).toContain('ZOMBIE-black.png');
+    expect(zombieMap.imagePathByOwner['-1']).toContain('ZOMBIE-white.png');
+  });
+
   test('shared card art helpers resolve owner-specific and fallback card images', () => {
     require('../game/visual-effects-map');
 
