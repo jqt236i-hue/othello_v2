@@ -143,7 +143,8 @@ const TARGETED_PENDING_PLACE_TYPES = [
   'REINFORCEMENT_WILL',
   'SUPPORT_TROOPS_WILL',
   'EQUALITY_WILL',
-  'FATE_WILL'
+  'FATE_WILL',
+  'ZOMBIE_WILL'
 ] as const;
 
 describe('workers pending place parity smoke for previously uncovered card types', () => {

@@ -724,6 +724,7 @@ const {
     const CardTargetsModule = resolveRequiredCardModule('./cards/targets', 'CardTargets');
     const CardChainModule = resolveRequiredCardModule('./cards/chain', 'CardChain');
     const CardRegenModule = resolveRequiredCardModule('./cards/regen', 'CardRegen');
+    const CardZombieWillModule = resolveRequiredCardModule('./cards/zombie_will', 'CardZombieWill');
     const CardTimeBombModule = resolveRequiredCardModule('./cards/time_bomb', 'CardTimeBomb');
     /** @type {any} */
     const CardBreedingModule = resolveRequiredCardModule('./cards/breeding', 'CardBreeding');
@@ -3726,6 +3727,20 @@ const {
         return CardRegenModule.applyRegenWill(cardState, playerKey, row, col, { addMarker, BLACK, WHITE });
     }
 
+    /**
+     * Build marker data for a ZOMBIE owned by the given player key.
+     */
+    function createZombieMarkerData(playerKey: any) {
+        return CardZombieWillModule.createZombieMarkerData(playerKey);
+    }
+
+    /**
+     * Process a ZOMBIE owner-turn-start anchor and optionally infect an adjacent enemy normal stone.
+     */
+    function processZombieEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, deps: any = {}) {
+        return CardZombieWillModule.processZombieEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prng, deps);
+    }
+
 
     /**
      * Resolve regen behavior for a set of flips (after board has been updated to newColor).
@@ -4772,6 +4787,8 @@ const cardsApi: any = {
         applyRegenWill,
         applyRegenAfterFlips,
         applyLivingWillAfterFlips,
+        createZombieMarkerData,
+        processZombieEffectsAtTurnStartAnchor,
         applyChainWillAfterMove,
         processTimeStopEffectsAtTurnStartAnchor,
         processBreedingEffectsAtTurnStartAnchor,

@@ -306,6 +306,9 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
             case 'time_stop_fizzled':
                 push('時間停石: 親石消失で不発');
                 break;
+            case 'zombie_infected_start':
+                if (_detailCount(ev) > 0) push(`ゾンビの意志: 屍石が感染させた個`);
+                break;
             case 'clone_selected':
                 if (ev.applied) push(`複製の意志: ${_toPosText(ev.target, deps)}から${_detailCount(ev)}個を生成`);
                 break;

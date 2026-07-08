@@ -1113,6 +1113,17 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         effects.afterimagePlaced = true;
     }
 
+    if (pending && pending.type === 'ZOMBIE_WILL' && typeof helpers.addMarker === 'function') {
+        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+            type: 'ZOMBIE',
+            ownerColor: playerKey === 'black' ? BLACK : WHITE,
+            turnsUntilInfection: 3,
+            flipEvadeRemaining: getFlipEvadeDefault('ZOMBIE', 1),
+            destroyEvadeRemaining: getDestroyEvadeDefault('ZOMBIE', 1)
+        });
+        effects.zombiePlaced = true;
+    }
+
     if (pending && (pending.type === 'TIME_STOP_GOD' || pending.type === 'TIME_STOP_DEITY') && typeof helpers.addMarker === 'function') {
         const isDeity = pending.type === 'TIME_STOP_DEITY';
         const turnsSource = isDeity ? constants.TIME_STOP_DEITY_TURNS : constants.TIME_STOP_GOD_TURNS;
