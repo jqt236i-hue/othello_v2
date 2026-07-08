@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-06",
-  "generatedAt": "2026-07-06T12:35:07.315Z",
+  "version": "2026-07-08",
+  "generatedAt": "2026-07-08T14:18:23.921Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -271,6 +271,14 @@
       "sha256": "13be5adc09b13c08580442dcc239466a5d620072e50143706750a703e4cd7037"
     },
     {
+      "path": "assets/images/special-stones/ZOMBIE-black.png",
+      "sha256": "c80b076dbce77340f1fcaa8d91e8019bde78f4913b4c561d66f87f04d18158b5"
+    },
+    {
+      "path": "assets/images/special-stones/ZOMBIE-white.png",
+      "sha256": "c5df45c6f53b6928c8213e22ca0a8c42efa696af18d43f83a96bafbbd75f1035"
+    },
+    {
       "path": "assets/images/stone-skin/default/black.png",
       "sha256": "ff75366f915e2bc1eae15c2dacaa211944b1d38ffd2f9c3529401b2d5413ff62"
     },
@@ -493,6 +501,10 @@
     {
       "path": "assets/images/other/観測石.png",
       "sha256": "4334cb8986c72b2b24c3aad73680f6e7e93a428234a490dc97da800b0de07a07"
+    },
+    {
+      "path": "assets/images/special-cards/backgrounds/zombie_will_background.png",
+      "sha256": "7cca90e6ed8585988ddd4b6db388771aa269172f1bd9a8e93966240ed380f61b"
     },
     {
       "path": "assets/images/special-cards/characters/board_executor.png",

@@ -242,7 +242,16 @@ const GAME_STONE_VISUAL_EFFECTS = {
         },
         dataAttributes: {}
     },
-    hyperactiveStone: {
+    zombieStone: {
+        cssClass: 'hyperactive-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/special-stones/ZOMBIE-black.png',
+            '-1': 'assets/images/special-stones/ZOMBIE-white.png'
+        },
+        dataAttributes: {}
+    },
+        hyperactiveStone: {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
@@ -380,6 +389,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'METEOR_GOD': 'meteorGodStone',
     'GHOST_WILL': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
+    'ZOMBIE_WILL': 'zombieStone',
     'SACRIFICE_WILL': 'sacrificeStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',
     'DESTROY_DRAGON_WILL': 'destroyDragonStone',
@@ -535,6 +545,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'GHOST': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
     'SACRIFICE': 'sacrificeStone',
+    'ZOMBIE': 'zombieStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',
     'DESTROY_DRAGON': 'destroyDragonStone',
     'ULTIMATE_HYPERACTIVE': 'ultimateHyperactiveGod',
@@ -547,8 +558,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'GOLD': 'goldStone',
     'RAINBOW': 'rainbowStone',
     'SILVER': 'silverStone',
-    'WORK': 'workStone'
-    ,
+    'WORK': 'workStone',
     'TIME_BOMB': 'timeBombStone',
     'TIME_STOP': 'timeStopStone',
     'TIME_STOP_DEITY': 'timeStopDeityStone',
