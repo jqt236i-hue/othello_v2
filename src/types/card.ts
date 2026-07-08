@@ -105,7 +105,8 @@ export type CardType =
   | 'REINFORCEMENT_WILL'
   | 'SUPPORT_TROOPS_WILL'
   | 'EQUALITY_WILL'
-  | 'FATE_WILL'
+  | 'FATE_WILL',
+  | 'ZOMBIE_WILL',
   | 'CHAOS_SUMMON';
 
 export interface CardState {
