@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add `ゾンビの意志` as a cost 19 next-stone special card that creates permanent `屍石`, infects adjacent enemy normal stones every third owner turn start, and gives each zombie one flip and one destroy revive.
+**Goal:** Add `ゾンビの意志` as a cost 19 next-stone will card (a next-stone card whose effect creates a permanent `屍石` special stone), infects adjacent enemy normal stones every third owner turn start, and gives each zombie one flip and one destroy revive.
 
 **Architecture:** Model `屍石` as a true special-stone body with marker type `ZOMBIE`, not as a stone status. Reuse the existing special-stone registry, evasion counter system, marker lifecycle, and turn-start anchor processing; keep infection logic in a focused headless card module. Wire the prepared Zombie stone/background assets through the existing visual-effect and asset-manifest paths instead of adding a parallel renderer.
 
