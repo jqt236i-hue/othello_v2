@@ -242,7 +242,16 @@ const GAME_STONE_VISUAL_EFFECTS = {
         },
         dataAttributes: {}
     },
-    hyperactiveStone: {
+    zombieStone: {
+        cssClass: 'hyperactive-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/special-stones/ZOMBIE-black.png',
+            '-1': 'assets/images/special-stones/ZOMBIE-white.png'
+        },
+        dataAttributes: {}
+    },
+        hyperactiveStone: {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
         imagePathByOwner: {
@@ -380,6 +389,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'METEOR_GOD': 'meteorGodStone',
     'GHOST_WILL': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
+    'ZOMBIE_WILL': 'zombieStone',
     'SACRIFICE_WILL': 'sacrificeStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',
     'DESTROY_DRAGON_WILL': 'destroyDragonStone',
@@ -533,7 +543,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'LIGHTNING': 'lightningStone',
     'METEOR_GOD': 'meteorGodStone',
     'GHOST': 'ghostStone',
-    'AFTERIMAGE_WILL': 'afterimageStone',
+    'ZOMBIE': 'zombieStone',
     'SACRIFICE': 'sacrificeStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',
     'DESTROY_DRAGON': 'destroyDragonStone',
