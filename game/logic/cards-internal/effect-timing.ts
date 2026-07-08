@@ -1116,7 +1116,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
     if (pending && pending.type === 'ZOMBIE_WILL' && typeof helpers.addMarker === 'function') {
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'ZOMBIE',
-            ownerColor: playerKey === 'black' ? BLACK : WHITE,
+            ownerColor: playerKey === 'black' ? constants.BLACK : constants.WHITE,
             turnsUntilInfection: 3,
             flipEvadeRemaining: getFlipEvadeDefault('ZOMBIE', 1),
             destroyEvadeRemaining: getDestroyEvadeDefault('ZOMBIE', 1)
