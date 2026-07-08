@@ -4,7 +4,7 @@
 
 **Goal:** Add `ゾンビの意志` as a cost 19 next-stone special card that creates permanent `屍石`, infects adjacent enemy normal stones every third owner turn start, and gives each zombie one flip and one destroy revive.
 
-**Architecture:** Model `屍石` as a true special-stone body with marker type `ZOMBIE`, not as a stone status. Reuse the existing special-stone registry, evasion counter system, marker lifecycle, and turn-start anchor processing; keep infection logic in a focused headless card module. Do not add image references until final special-stone images and card background assets exist, so current renderer fallbacks remain active.
+**Architecture:** Model `屍石` as a true special-stone body with marker type `ZOMBIE`, not as a stone status. Reuse the existing special-stone registry, evasion counter system, marker lifecycle, and turn-start anchor processing; keep infection logic in a focused headless card module. Wire the prepared Zombie stone/background assets through the existing visual-effect and asset-manifest paths instead of adding a parallel renderer.
 
 **Tech Stack:** TypeScript/CommonJS hybrid modules, Jest, existing card catalog/codegen scripts, headless `game/` card logic, shared `SpecialStoneRegistry`, shared `EvasionStatus`.
 
@@ -14,7 +14,7 @@
 - For player-visible rules and card text, update `01-rulebook.md` before implementation.
 - Keep `game/`, pure card logic, and `shared/` headless: no DOM, `window`, audio, timer, network client, or UI handler access.
 - Use existing owner/player/color helpers and marker helpers; do not duplicate normalization logic.
-- `ゾンビの意志` assets are not ready. Do not add `assets/images/special-stones/ZOMBIE-*.png`, card background mappings, or tests that require those image files in this implementation.
+- `ゾンビの意志` assets are ready and committed. Use `assets/images/special-stones/ZOMBIE-black.png`, `assets/images/special-stones/ZOMBIE-white.png`, and `assets/images/special-cards/backgrounds/zombie_will_background.png`. Do not regenerate or overwrite them during implementation.
 - Real browser/game UI operation and Playwright game checks require explicit user instruction. Use source checks, focused Jest, typecheck/build, and network parity for this feature.
 - Pre-existing dirty files at plan creation: `index.html`, `public/module-registry.js`, `public/module-registry.optional.js`, `worker-public/index.html`, `worker-public/public/module-registry.js`, `worker-public/public/module-registry.optional.js`. Do not stage or alter them for this feature unless the implementation intentionally regenerates mirrors in a later task.
 
@@ -29,6 +29,8 @@
 - Modify `cards/card-interaction-effects.ts`: add quick/detail descriptions and tags for `ZOMBIE_WILL`.
 - Modify `shared/special-stone-registry.ts`: register `ZOMBIE`, map `ZOMBIE_WILL` to `ZOMBIE`, and keep it as a true special-stone body.
 - Modify `shared/evasion-status.ts`: add `ZOMBIE` profile with flip and destroy evasion defaults of 1.
+- Modify `game/visual-effects-map.runtime.js` and related UI visual-effect wrappers/tests: map pending `ZOMBIE_WILL` and special type `ZOMBIE` to the prepared special-stone images.
+- Use `assets/images/special-cards/backgrounds/zombie_will_background.png` only through the existing card-art/background descriptor path if the current renderer supports per-card background art outside `assets/images/card`.
 - Create `game/logic/cards/zombie_will.ts`: pure infection candidate selection, marker creation, and turn-start processing.
 - Modify `game/logic/cards.ts` or the local card logic export hub: export zombie helpers to `CardLogic`.
 - Modify placement resolution in the existing next-stone special path, likely `game/cards/effect-resolver.ts` and/or `game/logic/cards/*` helpers: convert pending `ZOMBIE_WILL` placement into a `ZOMBIE` marker.
@@ -104,17 +106,18 @@ git commit -m "docs: define zombie will"
 
 If no `正本` file changed, omit the second `git add`.
 
-## Task 2: Add Card Surface Without New Assets
+## Task 2: Add Card Surface and Asset Manifest Coverage
 
 **Files:**
 - Modify: `cards/catalog.json`
 - Modify/regenerate: `cards/catalog.ts` and generated catalog surfaces required by existing catalog workflow
 - Modify: `cards/card-interaction-effects.ts`
-- Test: `test/cards.zombie-will-surfaces.test.ts`, possibly extend `test/cards.numeric-effect-tags.test.ts`
+- Modify/regenerate: `assets/asset-manifest.json` only if the implementation branch does not already include the committed Zombie asset entries
+- Test: `test/cards.zombie-will-surfaces.test.ts`, possibly extend `test/cards.numeric-effect-tags.test.ts`, `test/assets.manifest.test.ts`
 
 **Interfaces:**
 - Consumes: canonical card id `zombie_will_01`, card type `ZOMBIE_WILL`, marker type `ZOMBIE`.
-- Produces: catalog entry and card help text. No image-path contract is produced in this task.
+- Produces: catalog entry, card help text, and manifest assertions for the prepared Zombie image assets.
 
 - [ ] **Step 1: Write surface tests**
 
@@ -180,6 +183,14 @@ describe('ZOMBIE_WILL catalog/help surfaces', () => {
     expect(rulebook).toContain('ZOMBIE_WILL（ゾンビの意志）');
     expect(rulebook).toContain('屍石');
   });
+
+  test('asset manifest contains prepared zombie assets', () => {
+    const manifest = require('../assets/asset-manifest.json');
+    const paths = (manifest.files || []).map((entry: any) => entry.path);
+    expect(paths).toContain('assets/images/special-stones/ZOMBIE-black.png');
+    expect(paths).toContain('assets/images/special-stones/ZOMBIE-white.png');
+    expect(paths).toContain('assets/images/special-cards/backgrounds/zombie_will_background.png');
+  });
 });
 ```
 
@@ -214,7 +225,23 @@ rg -n "catalog|generate-card|CARD_DEFS|cards/catalog" package.json scripts test
 
 Use the command reported by that search that updates `cards/catalog.ts` and shared constants. Do not hand-edit generated outputs when that generator exists. If the search shows no generator for a required surface, edit only the root source and the checked-in source file that the existing tests import.
 
-- [ ] **Step 4: Add help text and tags**
+- [ ] **Step 4: Verify asset manifest entries**
+
+The Zombie assets should already exist. If `assets/asset-manifest.json` does not contain all three paths, run:
+
+```powershell
+npm run generate:asset-manifest
+```
+
+Expected manifest paths:
+
+```text
+assets/images/special-stones/ZOMBIE-black.png
+assets/images/special-stones/ZOMBIE-white.png
+assets/images/special-cards/backgrounds/zombie_will_background.png
+```
+
+- [ ] **Step 5: Add help text and tags**
 
 In `cards/card-interaction-effects.ts`, add:
 
@@ -234,23 +261,23 @@ Add tags:
 ZOMBIE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(1), destroyEvasionTag(1)]),
 ```
 
-- [ ] **Step 5: Verify surface tests**
+- [ ] **Step 6: Verify surface tests**
 
 ```powershell
-npx jest test/cards.zombie-will-surfaces.test.ts test/cards.numeric-effect-tags.test.ts --runInBand
+npx jest test/cards.zombie-will-surfaces.test.ts test/cards.numeric-effect-tags.test.ts test/assets.manifest.test.ts --runInBand
 ```
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```powershell
 git status --short
-git add cards/catalog.json cards/catalog.ts cards/card-interaction-effects.ts test/cards.zombie-will-surfaces.test.ts
+git add cards/catalog.json cards/catalog.ts cards/card-interaction-effects.ts assets/asset-manifest.json test/cards.zombie-will-surfaces.test.ts
 git commit -m "feat: add zombie will card surfaces"
 ```
 
-Stage generated catalog files only if they were produced by the catalog workflow for this task.
+Stage generated catalog and manifest files only if they were produced by the catalog/asset workflow for this task.
 
 ## Task 3: Register ZOMBIE as a Special Stone and Evasion Type
 
@@ -348,7 +375,115 @@ git add shared/special-stone-registry.ts shared/evasion-status.ts test/game.zomb
 git commit -m "feat: register zombie stone"
 ```
 
-## Task 4: Add Headless Zombie Infection Logic
+## Task 4: Wire Zombie Visual Assets
+
+**Files:**
+- Modify: `game/visual-effects-map.runtime.js`
+- Modify if wrapper tests require it: `ui/visual-effects-map.ts`
+- Test: `test/ui.visual-effects-map.shared.test.ts`, `test/assets.images.test.ts`
+
+**Interfaces:**
+- Consumes:
+  - `assets/images/special-stones/ZOMBIE-black.png`
+  - `assets/images/special-stones/ZOMBIE-white.png`
+  - `assets/images/special-cards/backgrounds/zombie_will_background.png`
+- Produces:
+  - `PENDING_TYPE_TO_EFFECT_KEY.ZOMBIE_WILL === 'zombieStone'`
+  - `SPECIAL_TYPE_TO_EFFECT_KEY.ZOMBIE === 'zombieStone'`
+  - `STONE_VISUAL_EFFECTS.zombieStone.imagePathByOwner['1']` resolves to `ZOMBIE-black.png`
+  - `STONE_VISUAL_EFFECTS.zombieStone.imagePathByOwner['-1']` resolves to `ZOMBIE-white.png`
+
+- [ ] **Step 1: Write failing visual map tests**
+
+Add to `test/ui.visual-effects-map.shared.test.ts` near the other special-stone image tests:
+
+```ts
+test('ZOMBIE_WILL resolves to prepared zombie stone images', async () => {
+  const shared = await import('../game/visual-effects-map.runtime.js');
+  expect(shared.PENDING_TYPE_TO_EFFECT_KEY.ZOMBIE_WILL).toBe('zombieStone');
+  expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.ZOMBIE).toBe('zombieStone');
+  const zombieMap = shared.STONE_VISUAL_EFFECTS.zombieStone;
+  expect(zombieMap.imagePathByOwner['1']).toContain('ZOMBIE-black.png');
+  expect(zombieMap.imagePathByOwner['-1']).toContain('ZOMBIE-white.png');
+  expect(zombieMap.imagePathByOwner['1']).not.toContain('data:image/svg+xml');
+  expect(zombieMap.imagePathByOwner['-1']).not.toContain('data:image/svg+xml');
+});
+```
+
+Add to `test/assets.images.test.ts`:
+
+```ts
+test('includes the ZOMBIE special stone PNGs', () => {
+  assert.ok(fs.existsSync(path.join(specialStonesDir, 'ZOMBIE-black.png')));
+  assert.ok(fs.existsSync(path.join(specialStonesDir, 'ZOMBIE-white.png')));
+});
+```
+
+- [ ] **Step 2: Run failing visual tests**
+
+```powershell
+npx jest test/ui.visual-effects-map.shared.test.ts test/assets.images.test.ts --runInBand
+```
+
+Expected: visual-map test fails because `zombieStone` is not registered. Asset existence test should pass if the committed assets are present.
+
+- [ ] **Step 3: Add zombie visual effect definition**
+
+In `game/visual-effects-map.runtime.js`, add to `GAME_STONE_VISUAL_EFFECTS`:
+
+```js
+    zombieStone: {
+        cssClass: 'hyperactive-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/special-stones/ZOMBIE-black.png',
+            '-1': 'assets/images/special-stones/ZOMBIE-white.png'
+        },
+        dataAttributes: {}
+    },
+```
+
+Add to `PENDING_TYPE_TO_EFFECT_KEY`:
+
+```js
+    'ZOMBIE_WILL': 'zombieStone',
+```
+
+Add to `SPECIAL_TYPE_TO_EFFECT_KEY`:
+
+```js
+    'ZOMBIE': 'zombieStone',
+```
+
+- [ ] **Step 4: Decide whether to wire the card background now**
+
+Search current card background support:
+
+```powershell
+rg -n "card-special-art|characterImage|backgrounds|assets/images/card|card background|CARD_ART" cards ui shared game test -g "*.ts" -g "*.js"
+```
+
+If the existing renderer only supports catalog-order card art from `assets/images/card` or special-card character art, do not invent a new card-background path in this task. Leave `assets/images/special-cards/backgrounds/zombie_will_background.png` available in `assets/asset-manifest.json` and note in the final report that renderer integration needs a separate design if product wants background-only card art. If the renderer already has a per-card background descriptor, add `zombie_will_background.png` through that descriptor and write a focused renderer test matching the nearby existing card-background test.
+
+- [ ] **Step 5: Verify visual tests**
+
+```powershell
+npx jest test/ui.visual-effects-map.shared.test.ts test/assets.images.test.ts --runInBand
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```powershell
+git status --short
+git add game/visual-effects-map.runtime.js test/ui.visual-effects-map.shared.test.ts test/assets.images.test.ts
+git commit -m "feat: wire zombie stone visuals"
+```
+
+Stage card-background descriptor files only if Step 4 found an existing descriptor and the implementation used it.
+
+## Task 5: Add Headless Zombie Infection Logic
 
 **Files:**
 - Create: `game/logic/cards/zombie_will.ts`
@@ -635,7 +770,7 @@ git add game/logic/cards/zombie_will.ts game/logic/cards.ts test/game.zombie-wil
 git commit -m "feat: add zombie infection logic"
 ```
 
-## Task 5: Connect Placement and Turn Start
+## Task 6: Connect Placement and Turn Start
 
 **Files:**
 - Modify: existing next-stone placement resolver, likely `game/cards/effect-resolver.ts`
@@ -748,7 +883,7 @@ git commit -m "feat: connect zombie will lifecycle"
 
 Only stage files actually changed.
 
-## Task 6: Network and Worker Parity
+## Task 7: Network and Worker Parity
 
 **Files:**
 - Modify only if tests reveal a gap: `workers/match-worker.ts`, `scripts/local-match-server.ts`, shared authority helpers
@@ -797,7 +932,7 @@ git commit -m "test: cover zombie will network parity"
 
 Only stage paths that actually changed for this task.
 
-## Task 7: Final Verification
+## Task 8: Final Verification
 
 **Files:**
 - No new source files unless verification reveals a defect.
@@ -843,18 +978,17 @@ git commit -m "fix: stabilize zombie will"
 
 If no changes were required, do not create an empty commit.
 
-## Asset Follow-Up Plan
+## Asset Status
 
-Do this after card art and special-stone images exist:
-
-- Add `assets/images/special-stones/ZOMBIE-black.png` and `assets/images/special-stones/ZOMBIE-white.png`.
-- Add any card background or card art mapping through the existing asset generator, not by hand-editing generated maps.
-- Add focused asset manifest and visual-effect-map tests that assert `ZOMBIE` resolves to the final files.
-- Run the asset manifest generator/check used by the repo.
-- Commit as a separate asset integration change.
+- `assets/images/special-stones/ZOMBIE-black.png` exists and is committed.
+- `assets/images/special-stones/ZOMBIE-white.png` exists and is committed.
+- `assets/images/special-cards/backgrounds/zombie_will_background.png` exists and is committed.
+- `assets/asset-manifest.json` already includes all three Zombie asset paths.
+- The implementation plan now wires the special-stone images through `game/visual-effects-map.runtime.js`.
+- The card background image should be wired only if the existing renderer already supports a per-card background descriptor for this location. Do not create a new renderer path just to consume this background during the first gameplay implementation.
 
 ## Self-Review
 
-- Spec coverage: cost, next-stone conversion, permanent zombie body, third-owner-turn cadence, adjacent enemy normal infection, no buff inheritance, one flip and destroy revive, no asset refs, and network parity are each mapped to tasks.
-- Placeholder scan: no open-ended implementation placeholders are required for the main feature; asset work is explicitly separated because the user said assets do not exist.
+- Spec coverage: cost, next-stone conversion, permanent zombie body, third-owner-turn cadence, adjacent enemy normal infection, no buff inheritance, one flip and destroy revive, prepared assets, visual mapping, and network parity are each mapped to tasks.
+- Placeholder scan: no open-ended implementation placeholders are required for the main feature; card background renderer integration is intentionally conditional on an existing descriptor path to avoid a parallel rendering system.
 - Type consistency: card type is `ZOMBIE_WILL`, marker type is `ZOMBIE`, card id is `zombie_will_01`, and the shared turn counter property is `turnsUntilInfection`.
