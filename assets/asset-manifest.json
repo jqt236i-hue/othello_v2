@@ -1,6 +1,6 @@
 {
   "version": "2026-07-08",
-  "generatedAt": "2026-07-08T14:11:11.805Z",
+  "generatedAt": "2026-07-08T14:18:23.921Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -269,6 +269,14 @@
     {
       "path": "assets/images/special-stones/ZAN-WHITE.png",
       "sha256": "13be5adc09b13c08580442dcc239466a5d620072e50143706750a703e4cd7037"
+    },
+    {
+      "path": "assets/images/special-stones/ZOMBIE-black.png",
+      "sha256": "c80b076dbce77340f1fcaa8d91e8019bde78f4913b4c561d66f87f04d18158b5"
+    },
+    {
+      "path": "assets/images/special-stones/ZOMBIE-white.png",
+      "sha256": "c5df45c6f53b6928c8213e22ca0a8c42efa696af18d43f83a96bafbbd75f1035"
     },
     {
       "path": "assets/images/stone-skin/default/black.png",
