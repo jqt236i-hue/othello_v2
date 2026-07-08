@@ -3,6 +3,7 @@ import * as CardLogic from '../game/logic/cards.js';
 import * as BoardOps from '../game/logic/board_ops.js';
 import * as SpecialStoneRegistry from '../shared/special-stone-registry';
 import * as EvasionStatus from '../shared/evasion-status';
+import * as StoneStatusSnapshot from '../shared/stone-status-snapshot';
 import * as ZombieWill from '../game/logic/cards/zombie_will';
 
 function createPrng(randomValue = 0) {
@@ -39,13 +40,63 @@ describe('ZOMBIE special stone registry', () => {
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('ZOMBIE')).toBe('true_special_stone');
   });
 
-  test('ZOMBIE has one flip and one destroy evasion by default', () => {
-    expect(EvasionStatus.getFlipEvadeDefault('ZOMBIE')).toBe(1);
-    expect(EvasionStatus.getDestroyEvadeDefault('ZOMBIE')).toBe(1);
+  test('ZOMBIE uses revival instead of flip or destroy evasion', () => {
+    expect(EvasionStatus.getEvasionProfile('ZOMBIE')).toBeNull();
+  });
+});
+
+describe('ZOMBIE status display and revival', () => {
+  test('shows turns until infection as the countdown timer', () => {
+    const snapshot = StoneStatusSnapshot.createSpecialStoneStatusSnapshot({
+      type: 'ZOMBIE',
+      turnsUntilInfection: 3,
+      regenRemaining: 1
+    }, { mode: 'raw' });
+
+    expect(snapshot.displayTimer).toBe(3);
+    expect(snapshot.timerClass).toBe('countdown-timer');
   });
 
-  test('ZOMBIE markers do not get pruned when both evasions are depleted', () => {
-    expect(EvasionStatus.shouldPruneEvasionMarker({ type: 'ZOMBIE', flipEvadeRemaining: 0, destroyEvadeRemaining: 0 })).toBe(false);
+  test('revives once after a flip and consumes the zombie marker', () => {
+    const board = Array(8).fill(null).map(() => Array(8).fill(0));
+    board[3][3] = Shared.WHITE;
+    const cardState = {
+      markers: [{
+        id: 1,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 2, regenRemaining: 1 }
+      }],
+      presentationEvents: []
+    };
+
+    const result = CardLogic.applyRegenAfterFlips(cardState, { board }, [{ row: 3, col: 3 }], 'white', false);
+
+    expect(result.regened).toEqual([{ row: 3, col: 3 }]);
+    expect(board[3][3]).toBe(Shared.BLACK);
+    expect(cardState.markers.some((marker) => marker && marker.data && marker.data.type === 'ZOMBIE')).toBe(false);
+  });
+
+  test('revives once after destruction through the normal regen path', () => {
+    const board = Array(8).fill(null).map(() => Array(8).fill(0));
+    board[3][3] = Shared.BLACK;
+    const cardState = CardLogic.createCardState(createPrng());
+    cardState.markers.push({
+      id: 1,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 2, regenRemaining: 1 }
+    });
+
+    const result = BoardOps.destroyAt(cardState, { board }, 3, 3, 'DESTROY_ONE_STONE', 'destroy_selected');
+
+    expect(result).toMatchObject({ kind: 'regenerated', regenerated: true, remaining: 0 });
+    expect(board[3][3]).toBe(Shared.BLACK);
+    expect(cardState.markers.some((marker) => marker && marker.data && marker.data.type === 'ZOMBIE')).toBe(false);
   });
 });
 
@@ -59,7 +110,7 @@ describe('ZOMBIE infection logic', () => {
         col: 1,
         owner: 'black',
         createdSeq: 1,
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, flipEvadeRemaining: 1, destroyEvadeRemaining: 1 }
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
       }],
       _nextMarkerId: 2,
       _nextCreatedSeq: 2
@@ -73,8 +124,7 @@ describe('ZOMBIE infection logic', () => {
     expect(infectedMarker).toBeTruthy();
     expect(infectedMarker.data.type).toBe('ZOMBIE');
     expect(infectedMarker.data.turnsUntilInfection).toBe(3);
-    expect(infectedMarker.data.flipEvadeRemaining).toBe(1);
-    expect(infectedMarker.data.destroyEvadeRemaining).toBe(1);
+    expect(infectedMarker.data.regenRemaining).toBe(1);
     expect(cardState.markers[0].data.turnsUntilInfection).toBe(3);
   });
 
@@ -87,7 +137,7 @@ describe('ZOMBIE infection logic', () => {
         col: 1,
         owner: 'black',
         createdSeq: 1,
-        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 3, flipEvadeRemaining: 1, destroyEvadeRemaining: 1 }
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 3, regenRemaining: 1 }
       }],
       _nextMarkerId: 2,
       _nextCreatedSeq: 2
@@ -110,7 +160,7 @@ describe('ZOMBIE infection logic', () => {
           col: 1,
           owner: 'black',
           createdSeq: 1,
-          data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, flipEvadeRemaining: 1, destroyEvadeRemaining: 1 }
+          data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
         },
         {
           id: 'guard-1',
@@ -132,12 +182,11 @@ describe('ZOMBIE infection logic', () => {
     expect(gameState.board[1][2]).toBe(Shared.WHITE);
   });
 
-  test('createZombieMarkerData produces marker data with type ZOMBIE and the expected evade counts', () => {
+  test('createZombieMarkerData produces marker data with one revival', () => {
     const data = ZombieWill.createZombieMarkerData('white');
     expect(data.type).toBe('ZOMBIE');
     expect(data.ownerColor).toBe(Shared.WHITE);
     expect(data.turnsUntilInfection).toBe(ZombieWill.ZOMBIE_INFECTION_INTERVAL);
-    expect(data.flipEvadeRemaining).toBe(1);
-    expect(data.destroyEvadeRemaining).toBe(1);
+    expect(data.regenRemaining).toBe(1);
   });
 });

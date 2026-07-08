@@ -1,7 +1,7 @@
 /**
  * @file zombie_will.ts
  * @description ZOMBIE_WILL effect helpers (Shared between Browser and Headless)
- *  - Next-stone marker placement (ZOMBIE: permanent, flip/destroy evade 1)
+ *  - Next-stone marker placement (ZOMBIE: permanent, one revival)
  *  - Owner turn-start infection: every 3rd owner turn start, convert one adjacent
  *    enemy normal stone to a fresh ZOMBIE marker owned by the infected owner.
  */
@@ -79,8 +79,7 @@ const CardZombieWill = (function (root: any, factory: any) {
             type: 'ZOMBIE',
             ownerColor: ownerValue(ownerKey),
             turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL,
-            flipEvadeRemaining: 1,
-            destroyEvadeRemaining: 1
+            regenRemaining: 1
         };
     }
 

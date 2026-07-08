@@ -237,7 +237,8 @@ const CardRegen = (function (root: any, factory: any) {
         const markers = Array.isArray(cardState && cardState.markers) ? cardState.markers : [];
         for (const marker of markers) {
             if (!marker || marker.kind !== 'specialStone' || marker.row !== row || marker.col !== col) continue;
-            if (!marker.data || marker.data.type !== 'REGEN') continue;
+            const type = String(marker.data && marker.data.type || '').toUpperCase();
+            if (type !== 'REGEN' && type !== 'ZOMBIE') continue;
             if ((Number(marker.data.regenRemaining) || 0) <= 0) continue;
             return marker;
         }
@@ -294,11 +295,11 @@ const CardRegen = (function (root: any, factory: any) {
         };
     }
 
-    function _removeConsumedRegenMarker(cardState: any, row: any, col: any, owner: any, deps: any = {}) {
+    function _removeConsumedRegenMarker(cardState: any, row: any, col: any, owner: any, markerType: any, deps: any = {}) {
         if (typeof deps.removeMarkersAt === 'function') {
             deps.removeMarkersAt(cardState, row, col, {
                 kind: 'specialStone',
-                type: 'REGEN',
+                type: markerType,
                 owner
             });
             return;
@@ -307,7 +308,7 @@ const CardRegen = (function (root: any, factory: any) {
         if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
             cardMarkers.removeMarkersAt(cardState, row, col, {
                 kind: 'specialStone',
-                type: 'REGEN',
+                type: markerType,
                 owner
             });
             return;
@@ -319,12 +320,12 @@ const CardRegen = (function (root: any, factory: any) {
                 m.row === row &&
                 m.col === col &&
                 m.data &&
-                m.data.type === 'REGEN'
+                String(m.data.type || '').toUpperCase() === markerType
             ));
         }
     }
 
-    function _emitRegenConsumedStatus(cardState: any, row: any, col: any, deps: any = {}) {
+    function _emitRegenConsumedStatus(cardState: any, row: any, col: any, markerType: any, deps: any = {}) {
         const boardOps = deps.BoardOps || null;
         if (boardOps && typeof boardOps.emitPresentationEvent === 'function') {
             boardOps.emitPresentationEvent(cardState, {
@@ -333,7 +334,7 @@ const CardRegen = (function (root: any, factory: any) {
                 col,
                 cause: 'REGEN',
                 reason: 'regen_consumed',
-                meta: { special: 'REGEN', reason: 'regen_consumed' }
+                meta: { special: markerType, reason: 'regen_consumed' }
             });
         }
     }
@@ -395,6 +396,7 @@ const CardRegen = (function (root: any, factory: any) {
     function _triggerRegenAtPosition(cardState: any, gameState: any, row: any, col: any, triggerKind: any, skipCapture: any, deps: any = {}, ctx: any, consumedRegenKeys: any) {
         const regen = findActiveRegenMarkerAt(cardState, row, col);
         if (!regen) return { triggered: false, regened: [], captureFlips: [] };
+        const markerType = String(regen.data && regen.data.type || 'REGEN').toUpperCase();
         const ownerColor = regen.owner === 'black' ? (BLACK || 1) : (WHITE || -1);
         const currentValue = getCellValue(gameState, row, col);
         if (triggerKind !== 'destroy' && currentValue === ownerColor) {
@@ -429,8 +431,8 @@ const CardRegen = (function (root: any, factory: any) {
             const key = `${row},${col}`;
             if (!consumedRegenKeys.has(key)) {
                 consumedRegenKeys.add(key);
-                _removeConsumedRegenMarker(cardState, row, col, regen.owner, deps);
-                _emitRegenConsumedStatus(cardState, row, col, deps);
+                _removeConsumedRegenMarker(cardState, row, col, regen.owner, markerType, deps);
+                _emitRegenConsumedStatus(cardState, row, col, markerType, deps);
             }
         }
 

@@ -83,12 +83,6 @@
             destroyDefault: 2,
             flipCause: 'WILL_HUNTER_KING',
             flipMoveReason: 'will_hunter_king_flip_evade_move'
-        }),
-        ZOMBIE: Object.freeze({
-            flipDefault: 1,
-            destroyDefault: 1,
-            flipCause: 'ZOMBIE',
-            flipMoveReason: 'zombie_flip_revive'
         })
     });
 

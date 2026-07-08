@@ -59,6 +59,7 @@
         destroyEvadeRemaining?: unknown;
         remainingOwnerTurns?: unknown;
         remainingTurns?: unknown;
+        turnsUntilInfection?: unknown;
         flipEvadeRemaining?: unknown;
         regenRemaining?: unknown;
     }
@@ -217,6 +218,7 @@
             if (rawTimer === undefined) {
                 if (Object.prototype.hasOwnProperty.call(obj, 'timer')) rawTimer = obj.timer;
                 else if (Object.prototype.hasOwnProperty.call(obj, 'remainingOwnerTurns')) rawTimer = obj.remainingOwnerTurns;
+                else if (Object.prototype.hasOwnProperty.call(obj, 'turnsUntilInfection')) rawTimer = obj.turnsUntilInfection;
             }
             if (rawRegenRemaining === undefined) rawRegenRemaining = obj.regenRemaining;
         }
@@ -361,7 +363,10 @@
                 kind: visualSpecial.kind,
                 marker: visualSpecial,
                 type: visualSpecial.data && visualSpecial.data.type,
-                timer: visualSpecial.data && visualSpecial.data.remainingOwnerTurns,
+                timer: visualSpecial.data && (
+                    visualSpecial.data.remainingOwnerTurns ??
+                    visualSpecial.data.turnsUntilInfection
+                ),
                 regenRemaining: visualSpecial.data && visualSpecial.data.regenRemaining,
                 flipEvadeRemaining: visualSpecial.data && visualSpecial.data.flipEvadeRemaining,
                 destroyEvadeRemaining: out.destroyEvadeRemaining !== null

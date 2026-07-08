@@ -1118,8 +1118,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
             type: 'ZOMBIE',
             ownerColor: playerKey === 'black' ? constants.BLACK : constants.WHITE,
             turnsUntilInfection: 3,
-            flipEvadeRemaining: getFlipEvadeDefault('ZOMBIE', 1),
-            destroyEvadeRemaining: getDestroyEvadeDefault('ZOMBIE', 1)
+            regenRemaining: 1
         });
         effects.zombiePlaced = true;
     }

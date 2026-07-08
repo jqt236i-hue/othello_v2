@@ -1605,6 +1605,7 @@ function _resolveSpecialDisplayTimerValue(markerData: any): number | null {
         return StoneStatusSnapshot.resolveDisplayTimerValue({
             type: markerData && markerData.type,
             remainingOwnerTurns: markerData && markerData.remainingOwnerTurns,
+            turnsUntilInfection: markerData && markerData.turnsUntilInfection,
             regenRemaining: markerData && markerData.regenRemaining
         });
     }

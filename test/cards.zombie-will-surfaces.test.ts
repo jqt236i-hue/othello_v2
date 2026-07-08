@@ -7,17 +7,17 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: 'ゾンビの意志',
   type: 'ZOMBIE_WILL',
   cost: 19,
-  desc_ja: '次に置く石を屍石化する特殊石。反転回避1回と破壊回避1回を持ち、所有者ターン開始を3回迎えるたびに隣接1マスの敵通常石を屍石に変える感染を起こす。',
+  desc_ja: '次に置く石を屍石化する特殊石。反転または破壊された時に1回だけ復活し、所有者ターン開始を3回迎えるたびに隣接1マスの敵通常石を屍石に変える感染を起こす。',
   display_type_ja: '守護'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: 'ゾンビの意志',
-  desc: '次に置く石を屍石化する特殊石。反転回避1回と破壊回避1回を持ち、所有者ターン開始を3回迎えるたびに隣接1マスの敵通常石を屍石に変える感染を起こす。'
+  desc: '次に置く石を屍石化する特殊石。反転または破壊された時に1回だけ復活し、所有者ターン開始を3回迎えるたびに隣接1マスの敵通常石を屍石に変える感染を起こす。'
 });
 
-const EXPECTED_QUICK_TEXT = '次に置く石を屍石化する特殊石。反転回避1回と破壊回避1回を持ち、所有者ターン開始を3回迎えるたびに隣接1マスの敵通常石を屍石に変える感染を起こす。';
+const EXPECTED_QUICK_TEXT = '次に置く石を屍石化する特殊石。反転または破壊された時に1回だけ復活し、所有者ターン開始を3回迎えるたびに隣接1マスの敵通常石を屍石に変える感染を起こす。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;
@@ -76,7 +76,7 @@ describe('ZOMBIE_WILL catalog/help surfaces', () => {
     expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).toContain('屍石');
     expect(CardInteractionEffects.getQuickCardEffect(cardDef)).toBe(EXPECTED_QUICK_TEXT);
     const tagLabels = CardInteractionEffects.resolveCardEffectTags(cardDef).map((tag) => tag.label);
-    expect(tagLabels).toEqual(expect.arrayContaining(['特殊石', '反転回避', '破壊回避']));
+    expect(tagLabels).toEqual(['特殊石']);
   });
 
   test('shared constants and rulebook keep the zombie will wording in sync', () => {

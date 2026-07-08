@@ -1371,6 +1371,8 @@ function _resolveSpecialDisplayTurnsForBoard(data: any) {
     if (String(data && data.type ? data.type : '').toUpperCase() === 'REGEN') return undefined;
     const primary = Number(data && data.remainingOwnerTurns);
     if (Number.isFinite(primary)) return Math.max(0, Math.trunc(primary));
+    const infection = Number(data && data.turnsUntilInfection);
+    if (Number.isFinite(infection)) return Math.max(0, Math.trunc(infection));
     return undefined;
 }
 
@@ -1639,6 +1641,9 @@ function renderBoardFullLegacy() {
                 remainingOwnerTurns: isManifestType
                     ? m.data.remainingOwnerTurns
                     : _resolveSpecialDisplayTurnsForBoard(m.data),
+                turnsUntilInfection: (!isManifestType && markerTypeUpper === 'ZOMBIE')
+                    ? m.data.turnsUntilInfection
+                    : null,
                 regenRemaining: (!isManifestType && markerTypeUpper === 'REGEN' && Number.isFinite(Number(m.data.regenRemaining)))
                     ? Math.max(0, Math.trunc(Number(m.data.regenRemaining)))
                     : null,
@@ -1785,6 +1790,7 @@ function renderBoardFullLegacy() {
                     const displayTurns = _resolveSpecialDisplayTurnsForBoard({
                         type: special.type,
                         remainingOwnerTurns: special.remainingOwnerTurns,
+                        turnsUntilInfection: special.turnsUntilInfection,
                         regenRemaining: special.regenRemaining
                     });
                     if (displayTurns !== undefined) {
