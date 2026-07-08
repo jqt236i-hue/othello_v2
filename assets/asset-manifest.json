@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-06",
-  "generatedAt": "2026-07-06T12:35:07.315Z",
+  "version": "2026-07-08",
+  "generatedAt": "2026-07-08T14:11:11.805Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -493,6 +493,10 @@
     {
       "path": "assets/images/other/観測石.png",
       "sha256": "4334cb8986c72b2b24c3aad73680f6e7e93a428234a490dc97da800b0de07a07"
+    },
+    {
+      "path": "assets/images/special-cards/backgrounds/zombie_will_background.png",
+      "sha256": "7cca90e6ed8585988ddd4b6db388771aa269172f1bd9a8e93966240ed380f61b"
     },
     {
       "path": "assets/images/special-cards/characters/board_executor.png",
