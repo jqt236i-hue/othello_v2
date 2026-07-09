@@ -405,7 +405,9 @@ const CardRegen = (function (root: any, factory: any) {
 
         const nextRemaining = Math.max(0, Number(regen.data.regenRemaining || 0) - 1);
         regen.data.regenRemaining = nextRemaining;
-        regen.data.remainingOwnerTurns = nextRemaining;
+        if (markerType === 'REGEN') {
+            regen.data.remainingOwnerTurns = nextRemaining;
+        }
 
         if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
             deps.BoardOps.changeAt(

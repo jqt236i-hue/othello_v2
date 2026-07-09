@@ -88,6 +88,8 @@ describe('ZOMBIE status display and revival', () => {
         })
       })
     ]));
+    const revivedZombie = cardState.markers.find((marker) => marker && marker.data && marker.data.type === 'ZOMBIE');
+    expect(revivedZombie.data).not.toHaveProperty('remainingOwnerTurns');
   });
 
   test('revives once after destruction and keeps the zombie infection marker', () => {
@@ -119,6 +121,8 @@ describe('ZOMBIE status display and revival', () => {
         })
       })
     ]));
+    const revivedZombie = cardState.markers.find((marker) => marker && marker.data && marker.data.type === 'ZOMBIE');
+    expect(revivedZombie.data).not.toHaveProperty('remainingOwnerTurns');
   });
 });
 
