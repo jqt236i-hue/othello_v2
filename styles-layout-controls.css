@@ -5893,11 +5893,12 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     overflow: hidden;
 }
 
-/* --- body: 内部スクロール停止 + flex で残り高さいっぱい --- */
+/* --- body: flex で残り高さいっぱい + 内容のみ縦スクロール --- */
 #deckBuilderBody {
     flex: 1 1 auto !important;
     min-height: 0 !important;
-    overflow: hidden !important;
+    overflow-y: auto !important;
+    overflow-x: hidden;
     padding: 6px 10px 8px !important;
     gap: 6px !important;
 }

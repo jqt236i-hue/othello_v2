@@ -2,6 +2,17 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 describe('deck builder layout CSS', () => {
+  test('compact layout keeps the modal body vertically scrollable without horizontal overflow', () => {
+    const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+    const compactSection = css.split('Bold Redesign — Compact density')[1] || '';
+    const compactBodyBlock = compactSection.match(/#deckBuilderBody\s*\{([\s\S]*?)\}/)?.[1] || '';
+
+    expect(compactBodyBlock).toMatch(/overflow-y:\s*auto\s*!important/);
+    expect(compactBodyBlock).toMatch(/overflow-x:\s*hidden/);
+    expect(compactBodyBlock).not.toMatch(/overflow:\s*hidden\s*!important/);
+  });
+
   test('preset screen keeps the existing sections while tightening spacing and grid density', () => {
     const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
     const css = fs.readFileSync(cssPath, 'utf8');
