@@ -179,6 +179,17 @@ describe('deck builder controller', () => {
     expect(body.querySelector('.deck-builder-fixed-library')).toBeTruthy();
   });
 
+  test('デッキ選択画面を観測室アーカイブの専用サーフェスで包む', () => {
+    const body = document.getElementById('body');
+
+    createController().open();
+
+    const atelier = body.querySelector('.deck-builder-atelier-shell');
+    expect(atelier).toBeTruthy();
+    expect(atelier.querySelector('.deck-builder-atelier-stage')).toBeTruthy();
+    expect(atelier.querySelector('.deck-builder-atelier-rail')).toBeTruthy();
+  });
+
   test('候補カードはコスト降順で表示する', () => {
     const DeckBuilderRenderer = require('../ui/deck-builder-renderer');
     const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');

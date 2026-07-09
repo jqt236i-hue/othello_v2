@@ -735,6 +735,27 @@ const BUILT_IN_SECTION_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" xmlns="h
 const SAVE_SLOT_SECTION_ICON_SVG = '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2.2" y="3.2" width="11.6" height="9.6" rx="1.6" stroke="currentColor" stroke-width="1.3"/><path d="M2.2 6.4h11.6" stroke="currentColor" stroke-width="1.3"/><path d="M5 9.4h2.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
 
 function renderPresetView(container: HTMLElement, viewModel: any, handlers: any): void {
+  const atelier = document.createElement('section');
+  atelier.className = 'deck-builder-atelier-shell';
+  atelier.setAttribute('aria-label', 'デッキ構築アーカイブ');
+
+  const rail = document.createElement('aside');
+  rail.className = 'deck-builder-atelier-rail';
+  rail.setAttribute('aria-hidden', 'true');
+  const railMark = document.createElement('div');
+  railMark.className = 'deck-builder-atelier-mark';
+  railMark.textContent = 'CARD\nARCHIVE';
+  rail.appendChild(railMark);
+  const railLine = document.createElement('div');
+  railLine.className = 'deck-builder-atelier-rail-line';
+  rail.appendChild(railLine);
+  const railIndex = document.createElement('div');
+  railIndex.className = 'deck-builder-atelier-index';
+  railIndex.textContent = '01 — DECKS';
+  rail.appendChild(railIndex);
+
+  const stage = document.createElement('div');
+  stage.className = 'deck-builder-atelier-stage';
   const wrapper = document.createElement('div');
   wrapper.className = 'deck-builder-view deck-builder-view-presets';
 
@@ -804,7 +825,10 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   wrapper.appendChild(presetGrid);
   wrapper.appendChild(defaultPresetRow);
 
-  container.appendChild(wrapper);
+  stage.appendChild(wrapper);
+  atelier.appendChild(rail);
+  atelier.appendChild(stage);
+  container.appendChild(atelier);
 }
 
 function renderEditorView(container: HTMLElement, viewModel: any, handlers: any): void {
