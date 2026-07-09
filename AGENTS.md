@@ -94,7 +94,7 @@ othello_v2/
 - Pending selection network publish must stay behind the UI/network signal bridge. Do not make `game/card-effects/selection-flow.ts` discover or publish through a root `NetworkMatchClient` global.
 - Do not let Worker, local server, browser, and headless behavior drift through parallel implementations. Prefer shared contracts, codecs, and authority helpers, and keep runtime-specific differences at the boundary layer.
 - Use existing helpers for owner/player/color normalization, card target/cost checks, constants, Lv6 decision-mode parsing, and training profile handling. Do not add local duplicate parsing.
-- ブラウザ表示に影響する root ソース変更（カード説明文・UI ラベル・タグ定義、表示テキスト・アイコン名など）の検証では、対応データ正本の単体テスト PASS だけでは取りこぼしうる。`npm run build:ts` は `dist/` を更新するが `public/module-registry.js` を再生成しないため、ブラウザ実機経路を意識する場合は単体テスト通過後に `npm run build:browser` を明示的に走らせてから完了報告する。Worker 経路にある `dev` / `deploy` のような自動連結は存在しない。
+- ブラウザ表示に影響する root ソース変更（カード説明文・UI ラベル・タグ定義、表示テキスト・アイコン名など）では、対応データ正本の単体テスト PASS のみでは取りこぼしうる。`npm run build:ts` は `dist/` を更新するが `public/module-registry.js` を再生成しないため、ブラウザ実機経路ではテスト通過後に `npm run build:browser` を必ず明示的に走らせ、走らせた旨を完了報告に含める。Worker 経路の `dev` / `deploy` のような自動連結は browser 経路には存在しない。
 - Choose verification by blast radius. Prefer the smallest check that can reasonably catch regressions in the touched area; verification is required, but adding new tests is not the default outcome.
 - Use this verification scale before deciding whether to add tests:
 
