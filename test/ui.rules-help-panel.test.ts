@@ -283,8 +283,8 @@ describe('rules help panel', () => {
           ? [
             { kind: 'usage-condition', label: '18手後使用可能' },
             { kind: 'special-stone', label: '特殊石' },
-            { kind: 'flip-evasion', value: 3, label: '反転回避' },
-            { kind: 'destroy-evasion', value: 3, label: '破壊回避' }
+            { kind: 'flip-evasion', value: 3, label: '反転回避3回' },
+            { kind: 'destroy-evasion', value: 3, label: '破壊回避3回' }
           ]
           : [
             { kind: 'full-protection', label: '完全保護' },
@@ -292,8 +292,8 @@ describe('rules help panel', () => {
           ],
         numericTags: cardDef.id === 'afterimage_will_01'
           ? [
-            { kind: 'flip-evasion', value: 3, label: '反転回避' },
-            { kind: 'destroy-evasion', value: 3, label: '破壊回避' }
+            { kind: 'flip-evasion', value: 3, label: '反転回避3回' },
+            { kind: 'destroy-evasion', value: 3, label: '破壊回避3回' }
           ]
           : [
             { kind: 'duration-turns', value: 3, label: '3ターン持続' }
@@ -316,7 +316,7 @@ describe('rules help panel', () => {
 
     const cardDescEl = document.getElementById('rules-help-card-desc');
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-section-title')).map((el) => el.textContent)).toContain('効果タグ');
-    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['特殊石', '反転回避', '破壊回避']);
+    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['特殊石', '反転回避3回', '破壊回避3回']);
     expect(cardDescEl.textContent).not.toContain('18手後使用可能');
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).every((el) => el.tagName === 'BUTTON')).toBe(true);
 
@@ -366,7 +366,7 @@ describe('rules help panel', () => {
         <section data-help-page="protection-map" id="rules-help-page-protection-map" class="rules-help-page"></section>
         <section data-help-page="counters" id="rules-help-page-counters" class="rules-help-page"></section>
       </div>
-    </body></html>`);
+</body></html>`);
 
     window.CardInteractionEffects = {
       resolveCardDescriptionTexts: (cardDef) => {
@@ -378,8 +378,8 @@ describe('rules help panel', () => {
               { kind: 'usage-condition', label: '18手後使用可能' },
               { kind: 'special-stone', label: '特殊石' },
               { kind: 'delayed-activation-turns', value: 5, label: '5ターン後に発動' },
-              { kind: 'flip-evasion', value: 3, label: '反転回避' },
-              { kind: 'destroy-evasion', value: 3, label: '破壊回避' }
+              { kind: 'flip-evasion', value: 3, label: '反転回避3回' },
+              { kind: 'destroy-evasion', value: 3, label: '破壊回避3回' }
             ]
           },
           meteor_01: {

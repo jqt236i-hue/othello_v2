@@ -11,9 +11,9 @@ describe('CardInteractionEffects effect tags', () => {
     return CardInteractionEffects.resolveCardNumericTags({ type: cardType }).map((tag) => tag.label);
   }
 
-  test('AFTERIMAGE_WILL returns special stone plus evasion tags without count-specific labels', () => {
-    expect(getEffectTagLabels('AFTERIMAGE_WILL')).toEqual(['特殊石', '反転回避', '破壊回避']);
-    expect(getNumericTagLabels('AFTERIMAGE_WILL')).toEqual(['反転回避', '破壊回避']);
+  test('AFTERIMAGE_WILL returns special stone plus evasion tags with per-stone count labels', () => {
+    expect(getEffectTagLabels('AFTERIMAGE_WILL')).toEqual(['特殊石', '反転回避3回', '破壊回避3回']);
+    expect(getNumericTagLabels('AFTERIMAGE_WILL')).toEqual(['反転回避3回', '破壊回避3回']);
   });
 
   test('ROBOT_VACUUM_WILL returns a special stone tag with duration tags', () => {
@@ -42,8 +42,8 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('TIME_BOMB')).toEqual(['特殊石', '3ターン後に発動']);
     expect(getEffectTagLabels('TIME_STOP_GOD')).toEqual(['特殊石', '5ターン後に発動']);
     expect(getEffectTagLabels('REGEN_WILL')).toEqual(['特殊石']);
-    expect(getEffectTagLabels('HYPERACTIVE_WILL')).toEqual(['特殊石', '反転回避']);
-    expect(getEffectTagLabels('ESCAPE_WILL')).toEqual(['特殊石', '反転回避']);
+    expect(getEffectTagLabels('HYPERACTIVE_WILL')).toEqual(['特殊石', '反転回避1回']);
+    expect(getEffectTagLabels('ESCAPE_WILL')).toEqual(['特殊石', '反転回避1回']);
     expect(getEffectTagLabels('WORK_WILL')).toEqual(['特殊石', '5ターン持続']);
     expect(getEffectTagLabels('STONE_SALVATION_GOD')).toEqual(['特殊石', '12ターン持続', '反転保護']);
 

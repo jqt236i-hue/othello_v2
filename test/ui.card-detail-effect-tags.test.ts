@@ -230,7 +230,7 @@ describe('card detail effect tags', () => {
     expect(document.getElementById('card-detail-more').textContent).toContain('全ての保護を貫通');
   });
 
-  test('AFTERIMAGE_WILL shows flip and destroy evasion tags without count-specific labels', () => {
+  test('AFTERIMAGE_WILL shows flip and destroy evasion tags with per-stone count labels', () => {
     require('../cards/card-interaction.js');
 
     const cardDef = {
@@ -247,7 +247,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['特殊石', '反転回避', '破壊回避']);
+    expect(getTagLabels()).toEqual(['特殊石', '反転回避3回', '破壊回避3回']);
   });
 
   test('TIME_STOP_GOD detail follows rulebook timing text and keeps delayed activation tag', () => {

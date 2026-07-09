@@ -543,7 +543,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   }
 
   function getSearchTerms(): string[] {
-    if (!cardSearchInput) return [];
+if (!cardSearchInput) return [];
     return String(cardSearchInput.value || '')
       .split(/[\s\u3000]+/)
       .map((term) => _normalizeCatalogFilterText(term))
@@ -552,7 +552,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
 
   function cardMatchesActiveTags(card: any): boolean {
     if (activeTagLabels.size === 0) return true;
-    const labels = new Set(getNormalizedCardEffectTags(card).map((tag: any) => tag.label));
+    const labels = new Set(getNormalizedCardEffectTags(card).map((tag: any) => _getCardTagFilterLabel(tag)));
     for (const label of activeTagLabels) {
       if (!labels.has(label)) return false;
     }
@@ -721,7 +721,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
     titleEl.textContent = title;
     section.appendChild(titleEl);
 
-    const bodyEl = document.createElement('div');
+const bodyEl = document.createElement('div');
     bodyEl.className = 'rules-help-card-section-body';
     _renderHelpText(bodyEl, bodyText);
     section.appendChild(bodyEl);
@@ -744,6 +744,17 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
       normalizedTags.push({ kind, label });
     }
     return normalizedTags;
+  }
+
+  // Card detail tags may carry a per-stone count suffix (e.g. `反転回避2回`).
+  // Filter buttons, popover lookup, and tag matching need a stable, count-less
+  // label keyed off the tag kind, so the same filter entry covers every stone
+  // that exposes the same effect, regardless of how many evasions it starts with.
+  function _getCardTagFilterLabel(tag: any): string {
+    const kind = _safeText(tag && tag.kind, '').toLowerCase();
+    if (kind === 'flip-evasion') return '反転回避';
+    if (kind === 'destroy-evasion') return '破壊回避';
+    return _safeText(tag && tag.label, '');
   }
 
   function shouldHideCardTagFromFilter(tag: any): boolean {
@@ -804,11 +815,11 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
       chip.textContent = tag.label;
       chip.setAttribute('data-card-tag-kind', tag.kind || '');
       chip.setAttribute('data-card-tag-label', tag.label);
-      chip.setAttribute('aria-label', `${tag.label}の説明を表示`);
+chip.setAttribute('aria-label', `${tag.label}の説明を表示`);
       chip.addEventListener('click', (event: Event) => {
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
         if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
-        openTagPopover(tag.label);
+        openTagPopover(_getCardTagFilterLabel(tag));
       });
       listEl.appendChild(chip);
     }
@@ -911,18 +922,18 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   }
 
   function renderTagFilters(): void {
-    if (!tagFiltersEl) return;
+if (!tagFiltersEl) return;
     tagFiltersEl.innerHTML = '';
 
     const tagEntries: any[] = [];
     const seen = new Set<string>();
     for (const card of catalogCards) {
       for (const tag of getNormalizedCardEffectTags(card)) {
-        const label = _safeText(tag && tag.label, '');
+        const label = _getCardTagFilterLabel(tag);
         if (!label || seen.has(label) || shouldHideCardTagFromFilter(tag)) continue;
         seen.add(label);
         const count = catalogCards.filter((entry: any) => (
-          getNormalizedCardEffectTags(entry).some((entryTag: any) => entryTag.label === label)
+          getNormalizedCardEffectTags(entry).some((entryTag: any) => _getCardTagFilterLabel(entryTag) === label)
         )).length;
         tagEntries.push({ label, kind: _safeText(tag && tag.kind, ''), count });
       }
