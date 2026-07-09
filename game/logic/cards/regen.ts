@@ -454,17 +454,21 @@ const CardRegen = (function (root: any, factory: any) {
         };
     }
 
-    function _transferDepletedZombieAt(cardState: any, gameState: any, row: any, col: any, ownerKey: any) {
+    function _removeDepletedZombieAt(cardState: any, gameState: any, row: any, col: any, ownerKey: any, deps: any = {}) {
         if (!cardState || !Array.isArray(cardState.markers)) return;
         const ownerColor = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         if (getCellValue(gameState, row, col) !== ownerColor) return;
-        for (const marker of cardState.markers) {
-            if (!marker || marker.kind !== 'specialStone' || marker.row !== row || marker.col !== col) continue;
-            if (String(marker.data && marker.data.type || '').toUpperCase() !== 'ZOMBIE') continue;
-            if ((Number(marker.data.regenRemaining) || 0) > 0) continue;
-            marker.owner = ownerKey;
-            marker.data.ownerColor = ownerColor;
-        }
+        const marker = cardState.markers.find((candidate: any) =>
+            candidate &&
+            candidate.kind === 'specialStone' &&
+            candidate.row === row &&
+            candidate.col === col &&
+            String(candidate.data && candidate.data.type || '').toUpperCase() === 'ZOMBIE' &&
+            (Number(candidate.data.regenRemaining) || 0) <= 0
+        );
+        if (!marker) return;
+        _removeConsumedRegenMarker(cardState, row, col, marker.owner, 'ZOMBIE', deps);
+        _emitRegenConsumedStatus(cardState, row, col, 'ZOMBIE', deps);
     }
 
     function applyRegenAfterFlips(cardState: any, gameState: any, flips: any, flipperKey: any, skipCapture: any, deps: any = {}) {
@@ -489,7 +493,7 @@ const CardRegen = (function (root: any, factory: any) {
                 consumedRegenKeys
             );
             if (!result.triggered) {
-                _transferDepletedZombieAt(cardState, gameState, pos.row, pos.col, flipperKey);
+                _removeDepletedZombieAt(cardState, gameState, pos.row, pos.col, flipperKey, deps);
                 continue;
             }
             regened.push(...result.regened);

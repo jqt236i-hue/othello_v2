@@ -114,9 +114,7 @@ describe('ZOMBIE status display and revival', () => {
     expect(first.regened).toEqual([{ row: 3, col: 3 }]);
     expect(second.regened).toEqual([]);
     expect(board[3][3]).toBe(Shared.WHITE);
-    expect(cardState.markers[0].data.regenRemaining).toBe(0);
-    expect(cardState.markers[0].owner).toBe('white');
-    expect(cardState.markers[0].data.ownerColor).toBe(Shared.WHITE);
+    expect(cardState.markers.some((marker) => marker && marker.data && marker.data.type === 'ZOMBIE')).toBe(false);
   });
 
   test('duplicate zombie markers at one cell still allow only one revival', () => {
@@ -141,8 +139,7 @@ describe('ZOMBIE status display and revival', () => {
     expect(first.regened).toEqual([{ row: 3, col: 3 }]);
     expect(second.regened).toEqual([]);
     expect(board[3][3]).toBe(Shared.WHITE);
-    expect(cardState.markers).toHaveLength(1);
-    expect(cardState.markers[0].data.regenRemaining).toBe(0);
+    expect(cardState.markers).toHaveLength(0);
   });
 
   test('revives once after destruction and keeps the zombie infection marker', () => {
@@ -197,6 +194,7 @@ describe('ZOMBIE status display and revival', () => {
     expect(first).toMatchObject({ kind: 'regenerated', regenerated: true, remaining: 0 });
     expect(second).toMatchObject({ kind: 'destroyed', destroyed: true, regenerated: false });
     expect(board[3][3]).toBe(0);
+    expect(cardState.markers.some((marker) => marker && marker.data && marker.data.type === 'ZOMBIE')).toBe(false);
   });
 });
 
