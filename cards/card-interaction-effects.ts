@@ -37,6 +37,7 @@ const CARD_EFFECT_TAG_KIND = Object.freeze({
   DESTROY_EVASION: 'destroy-evasion',
   DURATION_TURNS: 'duration-turns',
   DELAYED_ACTIVATION_TURNS: 'delayed-activation-turns',
+  REVIVAL: 'revival',
   USAGE_CONDITION: 'usage-condition'
 });
 
@@ -44,7 +45,8 @@ const CARD_NUMERIC_TAG_KIND = Object.freeze({
   FLIP_EVASION: CARD_EFFECT_TAG_KIND.FLIP_EVASION,
   DESTROY_EVASION: CARD_EFFECT_TAG_KIND.DESTROY_EVASION,
   DURATION_TURNS: CARD_EFFECT_TAG_KIND.DURATION_TURNS,
-  DELAYED_ACTIVATION_TURNS: CARD_EFFECT_TAG_KIND.DELAYED_ACTIVATION_TURNS
+  DELAYED_ACTIVATION_TURNS: CARD_EFFECT_TAG_KIND.DELAYED_ACTIVATION_TURNS,
+  REVIVAL: CARD_EFFECT_TAG_KIND.REVIVAL
 });
 
 const CARD_NUMERIC_TAG_KIND_SET = new Set<string>(Object.values(CARD_NUMERIC_TAG_KIND));
@@ -89,6 +91,8 @@ function buildCardEffectTag(kind: string, value?: number) {
     label = `${normalizedValue}ターン持続`;
   } else if (normalizedKind === CARD_EFFECT_TAG_KIND.DELAYED_ACTIVATION_TURNS) {
     label = `${normalizedValue}ターン後に発動`;
+  } else if (normalizedKind === CARD_EFFECT_TAG_KIND.REVIVAL) {
+    label = `復活${normalizedValue}回`;
   } else {
     return null;
   }
@@ -116,6 +120,7 @@ const flipEvasionTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KI
 const destroyEvasionTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.DESTROY_EVASION, value);
 const durationTurnsTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.DURATION_TURNS, value);
 const delayedActivationTurnsTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.DELAYED_ACTIVATION_TURNS, value);
+const revivalTag = (value?: number) => buildCardEffectTag(CARD_EFFECT_TAG_KIND.REVIVAL, value);
 const usageConditionTag = (label: string) => Object.freeze({
   kind: CARD_EFFECT_TAG_KIND.USAGE_CONDITION,
   label
@@ -136,7 +141,7 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   GHOST_WILL: '次に置く石を幽体石化。反転・破壊だけを受け流す',
   SACRIFICE_WILL: '次に置く石を犠牲石にする。盤面にいる間、相手がカードを使用すると自らを犠牲にしてそのカードを無効化する。',
   AFTERIMAGE_WILL: '次に置く石を残像石化。反転回避3回と破壊回避3回を持つ特殊石。',
-  ZOMBIE_WILL: '次に置く石を屍石化する特殊石。反転または破壊された時に1回だけ復活し、所有者ターン開始を3回迎えるたびに隣接1マスの敵通常石を屍石に変える感染を起こす。',
+  ZOMBIE_WILL: '次に置く石を屍石化、3ターンに1回隣接1マスにある敵通常石をランダムで1個噛んで自色の屍石に変える。',
   SWAP_WITH_ENEMY: '相手通常石1つを自分の通常石に交換する。(反転可能)。使用後、手番終了。',
   POSITION_SWAP_WILL: '盤面の石2つを入れ替える',
   ANCHOR_WILL: '次に置く石を完全固定',
@@ -344,7 +349,7 @@ const cardEffectTagsByType = Object.freeze({
   ULTIMATE_REVERSE_DRAGON: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(8), flipProtectionTag()]),
   BREEDING_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5), flipProtectionTag()]),
   PROLIFERATION_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(10)]),
-  ZOMBIE_WILL: freezeCardEffectTags([specialStoneTag()]),
+  ZOMBIE_WILL: freezeCardEffectTags([specialStoneTag(), revivalTag(1)]),
   CELL_TELEPORT_WILL: freezeCardEffectTags([holeCellTag()]),
       SEED_WILL: freezeCardEffectTags([delayedActivationTurnsTag(5)]),
     HYPERACTIVE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(1)]),
