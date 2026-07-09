@@ -598,14 +598,22 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
   });
 
   test('同じターン開始処理で複数の屍石が感染させても噛み音は1回だけ追加する', () => {
-    const base = [{
-      type: 'flip',
-      phase: 8,
-      targets: [
-        { r: 2, col: 2, cause: 'ZOMBIE', reason: 'zombie_infection' },
-        { r: 4, col: 4, cause: 'ZOMBIE', reason: 'zombie_infection' }
-      ]
-    }];
+    const base = [
+      {
+        type: 'flip',
+        phase: 8,
+        targets: [
+          { r: 2, col: 2, cause: 'ZOMBIE', reason: 'zombie_infection' },
+          { r: 4, col: 4, cause: 'ZOMBIE', reason: 'zombie_infection' }
+        ]
+      },
+      {
+        type: 'status_applied',
+        phase: 8,
+        targets: [{ r: 2, col: 2, after: { color: 1, special: 'ZOMBIE' }, reason: 'zombie_infection' }],
+        meta: { special: 'ZOMBIE', reason: 'zombie_infection' }
+      }
+    ];
     const raw = [{
       type: 'zombie_infected_start',
       details: [{ row: 2, col: 2 }, { row: 4, col: 4 }]
@@ -626,6 +634,13 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
         targets: [expect.objectContaining({ soundKey: 'zombie_will_bite' })]
       })
     ]);
+    expect(out.some((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'zombie_will_place'
+    ))).toBe(false);
   });
 
   test('同じ処理で複数の屍石が復活しても専用音は1回だけ追加する', () => {

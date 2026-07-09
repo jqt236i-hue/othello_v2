@@ -62,22 +62,28 @@ function planCoreSoundCues(ctx: any, deps: CoreSoundCueDeps) {
         'breeding_spawn'
     );
 
-    const zombiePlacementPhase = deps.findPhase(
-        ctx.base,
-        (ev: any) => (
+    const isZombiePlacementEvent = (ev: any) => {
+        if (!(
             ev &&
             ev.type === 'status_applied' &&
             ev.meta &&
             String(ev.meta.special || '').toUpperCase() === 'ZOMBIE'
-        ),
+        )) {
+            return false;
+        }
+        const reasons = [
+            ev.reason,
+            ev.meta && ev.meta.reason,
+            ...(Array.isArray(ev.targets) ? ev.targets.map((target: any) => target && target.reason) : [])
+        ].map((reason: any) => String(reason || '').toLowerCase());
+        return !reasons.includes('zombie_infection');
+    };
+    const zombiePlacementPhase = deps.findPhase(
+        ctx.base,
+        (ev: any) => isZombiePlacementEvent(ev),
         ctx.fallbackPhase
     );
-    if (ctx.base.some((ev: any) => (
-        ev &&
-        ev.type === 'status_applied' &&
-        ev.meta &&
-        String(ev.meta.special || '').toUpperCase() === 'ZOMBIE'
-    ))) {
+    if (ctx.base.some((ev: any) => isZombiePlacementEvent(ev))) {
         deps.pushSoundCue(ctx, 'zombie_will_place', zombiePlacementPhase, 'zombie_placed');
     }
 
