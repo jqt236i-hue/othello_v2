@@ -94,6 +94,7 @@ othello_v2/
 - Pending selection network publish must stay behind the UI/network signal bridge. Do not make `game/card-effects/selection-flow.ts` discover or publish through a root `NetworkMatchClient` global.
 - Do not let Worker, local server, browser, and headless behavior drift through parallel implementations. Prefer shared contracts, codecs, and authority helpers, and keep runtime-specific differences at the boundary layer.
 - Use existing helpers for owner/player/color normalization, card target/cost checks, constants, Lv6 decision-mode parsing, and training profile handling. Do not add local duplicate parsing.
+- ブラウザ表示に影響する root ソース変更（カード説明文・UI ラベル・タグ定義、表示テキスト・アイコン名など）の検証では、対応データ正本の単体テスト PASS だけでは取りこぼしうる。`npm run build:ts` は `dist/` を更新するが `public/module-registry.js` を再生成しないため、ブラウザ実機経路を意識する場合は単体テスト通過後に `npm run build:browser` を明示的に走らせてから完了報告する。Worker 経路にある `dev` / `deploy` のような自動連結は存在しない。
 - Choose verification by blast radius. Prefer the smallest check that can reasonably catch regressions in the touched area; verification is required, but adding new tests is not the default outcome.
 - Use this verification scale before deciding whether to add tests:
 
@@ -178,6 +179,7 @@ othello_v2/
 npm run typecheck
 npm run build:ts
 npm run checkall
+npm run build:browser    # public/module-registry.js と index.html のキャッシュバスターを再生成。Worker 経路の worker:prepare のような自動連結はないので、ブラウザ表示に影響する root ソース変更後はテスト通過後に手動で実行する
 npm run test:jest
 npm run test:network:parity
 npm run test:visual
@@ -190,5 +192,6 @@ npm run worker:prepare     # 自動: npm run worker:dev / npm run worker:deploy 
 - `npm test` runs `pretest` → `npm run checkall` before Jest.
 - Network parity has an explicit package script; prefer it over ad-hoc broad runs for publish/snapshot/reconnect changes.
 - Docs-only changes still need role-overlap, reference, frontmatter / `applyTo`, and file-existence checks.
+- ブラウザ経路は `index.html` -> `public/module-registry.js`（`?v=` 付きキャッシュバスター）-> 同梱の catalog / card-interaction-effects バンドルで動く。`npm run build:ts` は `dist/` を更新するだけでこのバンドルは再生成しないので、カード説明文・UI ラベル・タグ定義などブラウザ表示に影響する root ソースを変更したら、テスト通過後に `npm run build:browser` を手動で走らせてからローカルサーバーで確認する。
 - `npm run worker:dev` / `npm run worker:deploy` は内部で `npm run worker:prepare` を走らせるため、root 変更後に手動で `worker:prepare` を呼ぶ必要はない。`npx wrangler dev` / `npx wrangler deploy` を直接叩く時のみ個別実行する。
 - User-facing reports should use Japanese display names from the screen or `01-rulebook.md` first; code IDs are secondary.
