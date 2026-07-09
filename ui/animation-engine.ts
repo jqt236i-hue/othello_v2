@@ -222,18 +222,21 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         return badge;
     }
 
-    function createRegenBadgeForAnimation(value: any) {
+    function createRegenBadgeForAnimation(value: any, specialType: any = null) {
         if (typeof document === 'undefined') return null;
         const remaining = Math.max(0, Math.trunc(Number(value)));
         if (!Number.isFinite(remaining) || remaining <= 0) return null;
         if (SpecialMarkerRenderer && typeof SpecialMarkerRenderer.createSpecialMarkerRenderer === 'function') {
             const renderer = SpecialMarkerRenderer.createSpecialMarkerRenderer({ documentRef: document });
             if (renderer && typeof renderer.createRegenBadgeLabel === 'function') {
-                return renderer.createRegenBadgeLabel(remaining);
+                return renderer.createRegenBadgeLabel(remaining, { specialType });
             }
         }
         const badge = document.createElement('div');
         badge.className = 'stone-regen-badge';
+        if (String(specialType || '').toUpperCase() === 'ZOMBIE') {
+            badge.classList.add('stone-regen-badge--zombie');
+        }
         badge.setAttribute('data-count', String(remaining));
         if (remaining >= 10) badge.classList.add('timer-double-digit');
         const valueLabel = document.createElement('span');
@@ -2379,10 +2382,14 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 disc.appendChild(timerEl);
             };
 
-            if (specialType === 'REGEN' && Number.isFinite(primaryTimerValue) && primaryTimerValue > 0) {
-                const regenBadge = createRegenBadgeForAnimation(primaryTimerValue);
+            const reviveRemaining = specialType === 'REGEN'
+                ? primaryTimerValue
+                : parseCounterOrNaN(state.regenRemaining);
+            if ((specialType === 'REGEN' || specialType === 'ZOMBIE') && Number.isFinite(reviveRemaining) && reviveRemaining > 0) {
+                const regenBadge = createRegenBadgeForAnimation(reviveRemaining, specialType);
                 if (regenBadge) disc.appendChild(regenBadge);
-            } else if (Number.isFinite(primaryTimerValue) && primaryTimerValue > 0) {
+            }
+            if (specialType !== 'REGEN' && Number.isFinite(primaryTimerValue) && primaryTimerValue > 0) {
                 const primaryClass = resolveSpecialTimerClassForAnimation(specialType);
                 appendTimer(primaryClass, primaryTimerValue, undefined);
             }

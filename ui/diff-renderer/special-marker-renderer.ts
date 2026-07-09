@@ -76,9 +76,12 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     return createTimedMarkerLabel('guard-timer', value);
   }
 
-  function createRegenBadgeLabel(value: any) {
+  function createRegenBadgeLabel(value: any, options: any = {}) {
     const badge = doc.createElement('div');
     badge.className = 'stone-regen-badge';
+    if (String(options && options.specialType || '').toUpperCase() === 'ZOMBIE') {
+      badge.classList.add('stone-regen-badge--zombie');
+    }
     const remaining = Math.max(0, Math.trunc(Number(value)));
     badge.setAttribute('data-count', String(remaining));
     const valueLabel = doc.createElement('span');

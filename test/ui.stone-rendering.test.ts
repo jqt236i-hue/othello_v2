@@ -214,6 +214,43 @@ describe('UI stone rendering', () => {
     const extremeDisc = boardEl.querySelector('.cell[data-row="1"][data-col="4"] .disc');
     assert.strictEqual(extremeDisc.querySelector('.flip-evade-timer').textContent, '5');
     assert.strictEqual(extremeDisc.querySelector('.destroy-evade-timer').textContent, '5');
+
+  });
+
+  test('diff-renderer shows zombie infection countdown and purple revival badge together', () => {
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+    gameState.board[3][3] = BLACK;
+    cardState.markers = [{
+      id: 15,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'ZOMBIE', turnsUntilInfection: 3, regenRemaining: 1 }
+    }];
+
+    const diffRenderer = require('../ui/diff-renderer.js');
+    diffRenderer.renderBoardDiff(boardEl);
+
+    const zombieDisc = boardEl.querySelector('.cell[data-row="3"][data-col="3"] .disc');
+    assert.strictEqual(zombieDisc.querySelector('.countdown-timer').textContent, '3');
+    assert.strictEqual(zombieDisc.querySelector('.stone-regen-badge').textContent, '1');
+    assert.strictEqual(zombieDisc.querySelector('.stone-regen-badge').classList.contains('stone-regen-badge--zombie'), true);
+  });
+
+  test('zombie revival badge uses a purple heart while regen keeps the pink heart', () => {
+    const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+
+    assert.match(
+      boardCss,
+      /\.stone-regen-badge--zombie::before\s*\{[\s\S]*?color:\s*#[0-9a-f]{6};/i
+    );
+    assert.match(
+      boardCss,
+      /\.stone-regen-badge::before\s*\{[\s\S]*?color:\s*#ff3f98;/i
+    );
   });
 
   test('diff-renderer shows bomb countdown for unified TIME_BOMB markers', () => {

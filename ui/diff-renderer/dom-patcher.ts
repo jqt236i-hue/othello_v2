@@ -315,7 +315,7 @@ function updateCellDOM(deps: any, cell: any, state: any, row: any, col: any, pre
         );
         const canShowRegenBadge = !!(
             state.special &&
-            String(state.special.type || '').toUpperCase() === 'REGEN' &&
+            ['REGEN', 'ZOMBIE'].includes(String(state.special.type || '').toUpperCase()) &&
             Number.isFinite(Number(state.special.regenRemaining))
         );
         if (canShowRegenBadge) {
@@ -362,11 +362,13 @@ function updateCellDOM(deps: any, cell: any, state: any, row: any, col: any, pre
 
             if (canShowRegenBadge) {
                 const regenRemaining = Math.max(0, Math.trunc(Number(state.special.regenRemaining)));
+                const isZombieRegenBadge = String(state.special.type || '').toUpperCase() === 'ZOMBIE';
                 const regenBadge = markerRenderer
-                    ? markerRenderer.createRegenBadgeLabel(regenRemaining)
+                    ? markerRenderer.createRegenBadgeLabel(regenRemaining, { specialType: state.special.type })
                     : document.createElement('div');
                 if (!markerRenderer) {
                     regenBadge.className = 'stone-regen-badge';
+                    if (isZombieRegenBadge) regenBadge.classList.add('stone-regen-badge--zombie');
                     regenBadge.setAttribute('data-count', String(regenRemaining));
                     const regenValue = document.createElement('span');
                     regenValue.className = 'stone-regen-badge-value';

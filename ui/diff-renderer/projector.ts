@@ -255,7 +255,7 @@ function buildCurrentCellState(deps: any) {
                 remainingOwnerTurns: isManifestType
                     ? m.data.remainingOwnerTurns
                     : _resolveSpecialDisplayTurnsForDiff(m.data),
-                regenRemaining: (!isManifestType && markerTypeUpper === 'REGEN' && _isFiniteTimedLabelValueForDiff(m.data.regenRemaining))
+                regenRemaining: (!isManifestType && (markerTypeUpper === 'REGEN' || markerTypeUpper === 'ZOMBIE') && _isFiniteTimedLabelValueForDiff(m.data.regenRemaining))
                     ? Math.max(0, Math.trunc(Number(m.data.regenRemaining)))
                     : null,
                 destroyEvadeRemaining: (!isManifestType && (

@@ -1644,7 +1644,7 @@ function renderBoardFullLegacy() {
                 turnsUntilInfection: (!isManifestType && markerTypeUpper === 'ZOMBIE')
                     ? m.data.turnsUntilInfection
                     : null,
-                regenRemaining: (!isManifestType && markerTypeUpper === 'REGEN' && Number.isFinite(Number(m.data.regenRemaining)))
+                regenRemaining: (!isManifestType && (markerTypeUpper === 'REGEN' || markerTypeUpper === 'ZOMBIE') && Number.isFinite(Number(m.data.regenRemaining)))
                     ? Math.max(0, Math.trunc(Number(m.data.regenRemaining)))
                     : null,
                 destroyEvadeRemaining: (!isManifestType && _isDestroyEvadeSpecialTypeForBoard(markerTypeUpper))
@@ -1762,7 +1762,7 @@ function renderBoardFullLegacy() {
                 );
                 const specialCanShowRegenBadge = !!(
                     special &&
-                    String(special.type || '').toUpperCase() === 'REGEN' &&
+                    ['REGEN', 'ZOMBIE'].includes(String(special.type || '').toUpperCase()) &&
                     Number.isFinite(Number(special.regenRemaining))
                 );
                 if (specialCanShowRegenBadge) {
@@ -1805,6 +1805,9 @@ function renderBoardFullLegacy() {
                     if (specialCanShowRegenBadge) {
                         const regenBadge = document.createElement('div');
                         regenBadge.className = 'stone-regen-badge';
+                        if (String(special.type || '').toUpperCase() === 'ZOMBIE') {
+                            regenBadge.classList.add('stone-regen-badge--zombie');
+                        }
                         const regenRemaining = Math.max(0, Math.trunc(Number(special.regenRemaining)));
                         regenBadge.setAttribute('data-count', String(regenRemaining));
                         const regenValue = document.createElement('span');
