@@ -226,6 +226,67 @@ describe('ZOMBIE infection logic', () => {
     expect(cardState.markers[0].data.turnsUntilInfection).toBe(3);
   });
 
+  test('passes the zombie source position to the infection change event', () => {
+    const { cardState, gameState, prng } = createState(0, null, {
+      markers: [{
+        id: 'zombie-source',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        createdSeq: 1,
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
+      }]
+    });
+    const changeAt = jest.fn();
+
+    ZombieWill.processZombieEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      1,
+      1,
+      prng,
+      { BoardOps: { changeAt } }
+    );
+
+    expect(changeAt).toHaveBeenCalledWith(
+      cardState,
+      gameState,
+      1,
+      2,
+      'black',
+      'ZOMBIE',
+      'zombie_infection',
+      { sourceRow: 1, sourceCol: 1 }
+    );
+  });
+
+  test('emits the infection change event through the production CardLogic wrapper', () => {
+    const { cardState, gameState, prng } = createState(0, null, {
+      markers: [{
+        id: 'zombie-production-source',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        createdSeq: 1,
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
+      }]
+    });
+
+    CardLogic.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
+
+    expect(cardState.presentationEvents).toContainEqual(expect.objectContaining({
+      type: 'CHANGE',
+      row: 1,
+      col: 2,
+      cause: 'ZOMBIE',
+      reason: 'zombie_infection',
+      meta: expect.objectContaining({ sourceRow: 1, sourceCol: 1 })
+    }));
+  });
+
   test('non-triggering owner turn only decrements infection counter', () => {
     const { cardState, gameState, prng } = createState(0, null, {
       markers: [{

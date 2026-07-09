@@ -86,6 +86,40 @@ describe('turn-start marker ordering', () => {
     expect(destroyEvents[1].details[0]).toMatchObject({ sourceRow: 4, sourceCol: 4, row: 4, col: 5 });
   });
 
+  test('includes the zombie source in the infection turn-start event', () => {
+    const prng = createPrng();
+    const cardState = CardLogic.createCardState(prng);
+    cardState.markers.push({
+      id: 'zombie-anchor',
+      kind: 'specialStone',
+      row: 1,
+      col: 1,
+      owner: 'black',
+      createdSeq: 1,
+      data: { type: 'ZOMBIE', turnsUntilInfection: 1, regenRemaining: 1 }
+    });
+    const gameState = createEmptyGameState();
+    gameState.board[1][1] = Shared.BLACK;
+    gameState.board[1][2] = Shared.WHITE;
+    const events: any[] = [];
+
+    TurnPipelinePhases.applyTurnStartPhase(
+      CardLogic,
+      Core,
+      cardState,
+      gameState,
+      'black',
+      events,
+      prng
+    );
+
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'zombie_infected_start',
+      source: { row: 1, col: 1 },
+      details: [{ row: 1, col: 2 }]
+    }));
+  });
+
   test('processes bombs and special stones through one createdSeq lane', () => {
     const prng = createPrng();
     const cardState = createTurnStartCardState([

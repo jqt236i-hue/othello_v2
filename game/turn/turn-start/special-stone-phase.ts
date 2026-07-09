@@ -374,9 +374,13 @@ if ((typeKey === 'TIME_STOP' || typeKey === 'TIME_STOP_DEITY') && owner === opts
 
     if (typeKey === 'ZOMBIE' && owner === opts.playerKey) {
         const res = opts.CardLogic.processZombieEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
-        pushTurnStartResultDetails(opts.events, res, [
-            { field: 'infected', type: 'zombie_infected_start' }
-        ]);
+        if (res && Array.isArray(res.infected) && res.infected.length > 0) {
+            opts.events.push({
+                type: 'zombie_infected_start',
+                source: { row, col },
+                details: res.infected
+            });
+        }
         return processingState;
     }
 

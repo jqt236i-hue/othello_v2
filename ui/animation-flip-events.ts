@@ -12,6 +12,7 @@ type AnimationFlipEventDeps = {
     eventTypes: any;
     flipMs: any;
     fadeOutMs: any;
+    zombieBiteMs: any;
     isNoAnim: () => boolean;
     getCellEl: (row: any, col: any) => any;
     resolveOwnerColorFromBefore: (ownerBefore: any) => any;
@@ -69,6 +70,76 @@ function dedupeFlipTargets(targets: any[]) {
     return deduped;
 }
 
+function isZombieInfectionTarget(target: any) {
+    return String(target && target.cause || '').toUpperCase() === 'ZOMBIE' &&
+        String(target && target.reason || '').toLowerCase() === 'zombie_infection';
+}
+
+function prefersReducedMotion() {
+    try {
+        return typeof window !== 'undefined' &&
+            typeof window.matchMedia === 'function' &&
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function playZombieBiteAnimation(target: any, targetCell: any, deps: AnimationFlipEventDeps) {
+    if (!isZombieInfectionTarget(target) || deps.isNoAnim() || prefersReducedMotion()) return;
+    const meta = target && target.meta && typeof target.meta === 'object' ? target.meta : {};
+    if (!Number.isInteger(meta.sourceRow) || !Number.isInteger(meta.sourceCol)) return;
+    const sourceCell = deps.getCellEl(meta.sourceRow, meta.sourceCol);
+    const documentRef = getDocumentRef();
+    if (!sourceCell || !targetCell || !documentRef || typeof documentRef.createElement !== 'function') return;
+
+    const layer = targetCell.closest && targetCell.closest('#board, .board, .game-board');
+    const host = layer || documentRef.body;
+    if (!host || typeof host.appendChild !== 'function') return;
+
+    const hostRect = host.getBoundingClientRect();
+    const sourceRect = sourceCell.getBoundingClientRect();
+    const targetRect = targetCell.getBoundingClientRect();
+    const sourceX = sourceRect.left + sourceRect.width / 2 - hostRect.left;
+    const sourceY = sourceRect.top + sourceRect.height / 2 - hostRect.top;
+    const targetX = targetRect.left + targetRect.width / 2 - hostRect.left;
+    const targetY = targetRect.top + targetRect.height / 2 - hostRect.top;
+    const deltaX = targetX - sourceX;
+    const deltaY = targetY - sourceY;
+    const distance = Math.max(1, Math.hypot(deltaX, deltaY));
+    const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+
+    const shadow = documentRef.createElement('div');
+    shadow.className = 'zombie-bite-shadow';
+    shadow.style.left = `${sourceX}px`;
+    shadow.style.top = `${sourceY}px`;
+    shadow.style.width = `${distance}px`;
+    shadow.style.transform = `rotate(${angle}deg)`;
+
+    const upperFang = documentRef.createElement('div');
+    upperFang.className = 'zombie-bite-fang zombie-bite-fang--upper';
+    const lowerFang = documentRef.createElement('div');
+    lowerFang.className = 'zombie-bite-fang zombie-bite-fang--lower';
+    for (const fang of [upperFang, lowerFang]) {
+        fang.style.left = `${targetX}px`;
+        fang.style.top = `${targetY}px`;
+        fang.style.setProperty('--zombie-bite-angle', `${angle}deg`);
+    }
+
+    try {
+        host.appendChild(shadow);
+        host.appendChild(upperFang);
+        host.appendChild(lowerFang);
+        targetCell.classList.add('zombie-bite-active');
+        await deps.sleep(Math.max(1, Number(deps.zombieBiteMs) || 800));
+    } finally {
+        targetCell.classList.remove('zombie-bite-active');
+        for (const element of [shadow, upperFang, lowerFang]) {
+            if (element.parentNode) element.parentNode.removeChild(element);
+        }
+    }
+}
+
 async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
     const targets = dedupeFlipTargets(Array.isArray(ev && ev.targets) ? ev.targets : []);
     const promises = targets.map(async (target: any) => {
@@ -108,6 +179,7 @@ async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
                 return;
             }
 
+            await playZombieBiteAnimation(target, cell, deps);
             deps.syncDiscVisual(disc, after);
             try {
                 PlaybackFlipMarker.markPlaybackFlippedDisc(disc);
@@ -129,5 +201,6 @@ async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
 
 module.exports = {
     dedupeFlipTargets,
+    playZombieBiteAnimation,
     handleFlipEvent
 };

@@ -239,7 +239,16 @@ const CardZombieWill = (function (root: any, factory: any) {
         const target = candidates[targetIdx];
         removeStoneStatusMarkersAt(cardState, target.row, target.col);
         if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-            deps.BoardOps.changeAt(cardState, gameState, target.row, target.col, playerKey, 'ZOMBIE', 'zombie_infection');
+            deps.BoardOps.changeAt(
+                cardState,
+                gameState,
+                target.row,
+                target.col,
+                playerKey,
+                'ZOMBIE',
+                'zombie_infection',
+                { sourceRow: row, sourceCol: col }
+            );
         } else {
             setCell(gameState, target.row, target.col, ownerValue(playerKey));
         }

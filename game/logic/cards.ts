@@ -3738,7 +3738,15 @@ const {
      * Process a ZOMBIE owner-turn-start anchor and optionally infect an adjacent enemy normal stone.
      */
     function processZombieEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, deps: any = {}) {
-        return CardZombieWillModule.processZombieEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prng, deps);
+        return CardZombieWillModule.processZombieEffectsAtTurnStartAnchor(
+            cardState,
+            gameState,
+            playerKey,
+            row,
+            col,
+            prng,
+            Object.assign({ BoardOps: BoardOpsModule }, deps)
+        );
     }
 
 

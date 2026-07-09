@@ -1820,6 +1820,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 eventTypes: EVENT_TYPES,
                 flipMs: FLIP_MS,
                 fadeOutMs: FADE_OUT_MS,
+                zombieBiteMs: 800,
                 isNoAnim: _isNoAnim,
                 getCellEl: (row: any, col: any) => this.getCellEl(row, col),
                 resolveOwnerColorFromBefore: (ownerBefore: any) => this._resolveOwnerColorFromBefore(ownerBefore),
