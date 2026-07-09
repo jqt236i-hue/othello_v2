@@ -427,7 +427,7 @@ const CardRegen = (function (root: any, factory: any) {
             ? []
             : _captureFromRegenOrigin(cardState, gameState, row, col, regen.owner, ownerColor, ctx, deps);
 
-        if ((regen.data.regenRemaining || 0) <= 0) {
+        if ((regen.data.regenRemaining || 0) <= 0 && markerType === 'REGEN') {
             const key = `${row},${col}`;
             if (!consumedRegenKeys.has(key)) {
                 consumedRegenKeys.add(key);

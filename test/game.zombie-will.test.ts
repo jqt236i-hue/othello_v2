@@ -57,7 +57,7 @@ describe('ZOMBIE status display and revival', () => {
     expect(snapshot.timerClass).toBe('countdown-timer');
   });
 
-  test('revives once after a flip and consumes the zombie marker', () => {
+  test('revives once after a flip and keeps the zombie infection marker', () => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][3] = Shared.WHITE;
     const cardState = {
@@ -76,10 +76,21 @@ describe('ZOMBIE status display and revival', () => {
 
     expect(result.regened).toEqual([{ row: 3, col: 3 }]);
     expect(board[3][3]).toBe(Shared.BLACK);
-    expect(cardState.markers.some((marker) => marker && marker.data && marker.data.type === 'ZOMBIE')).toBe(false);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: expect.objectContaining({
+          type: 'ZOMBIE',
+          turnsUntilInfection: 2,
+          regenRemaining: 0
+        })
+      })
+    ]));
   });
 
-  test('revives once after destruction through the normal regen path', () => {
+  test('revives once after destruction and keeps the zombie infection marker', () => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][3] = Shared.BLACK;
     const cardState = CardLogic.createCardState(createPrng());
@@ -96,7 +107,18 @@ describe('ZOMBIE status display and revival', () => {
 
     expect(result).toMatchObject({ kind: 'regenerated', regenerated: true, remaining: 0 });
     expect(board[3][3]).toBe(Shared.BLACK);
-    expect(cardState.markers.some((marker) => marker && marker.data && marker.data.type === 'ZOMBIE')).toBe(false);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: expect.objectContaining({
+          type: 'ZOMBIE',
+          turnsUntilInfection: 2,
+          regenRemaining: 0
+        })
+      })
+    ]));
   });
 });
 

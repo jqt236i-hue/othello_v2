@@ -843,6 +843,32 @@ describe('UI stone rendering', () => {
     assert.ok(document.getElementById('stone-info-desc').textContent.includes('時間停止'));
   });
 
+  test('diff renderer shows the zombie infection countdown', () => {
+    const boardEl = document.getElementById('board') || document.createElement('div');
+    boardEl.id = 'board';
+    global.boardEl = boardEl;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
+    gameState.board[2][2] = BLACK;
+    cardState.markers = [
+      {
+        id: 33,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'ZOMBIE', turnsUntilInfection: 3, regenRemaining: 1 }
+      }
+    ];
+
+    const diffRenderer = require('../ui/diff-renderer.js');
+    diffRenderer.renderBoardDiff(boardEl);
+
+    const timer = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .countdown-timer');
+    assert.ok(timer, 'expected zombie infection countdown');
+    assert.strictEqual(timer.textContent, '3');
+  });
+
   test('board stylesheet references ICE overlay asset for frozen cells', () => {
     const css = fs.readFileSync(path.resolve(__dirname, '..', 'styles-board.css'), 'utf8');
     assert.ok(css.includes("assets/images/other/ICE.png"));

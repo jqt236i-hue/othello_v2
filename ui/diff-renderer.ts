@@ -1635,6 +1635,8 @@ function _resolveSpecialDisplayTurnsForDiff(data: any) {
     if (String(data && data.type ? data.type : '').toUpperCase() === 'REGEN') return undefined;
     const primary = Number(data && data.remainingOwnerTurns);
     if (Number.isFinite(primary)) return Math.max(0, Math.trunc(primary));
+    const infection = Number(data && data.turnsUntilInfection);
+    if (Number.isFinite(infection)) return Math.max(0, Math.trunc(infection));
     return undefined;
 }
 
