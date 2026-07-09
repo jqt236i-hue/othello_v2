@@ -117,6 +117,32 @@ describe('ZOMBIE status display and revival', () => {
     expect(cardState.markers[0].data.regenRemaining).toBe(0);
   });
 
+  test('duplicate zombie markers at one cell still allow only one revival', () => {
+    const board = Array(8).fill(null).map(() => Array(8).fill(0));
+    board[3][3] = Shared.WHITE;
+    const cardState = {
+      markers: [1, 2].map((id) => ({
+        id,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 2, regenRemaining: 1 }
+      })),
+      presentationEvents: []
+    };
+
+    const first = CardLogic.applyRegenAfterFlips(cardState, { board }, [{ row: 3, col: 3 }], 'white', false);
+    board[3][3] = Shared.WHITE;
+    const second = CardLogic.applyRegenAfterFlips(cardState, { board }, [{ row: 3, col: 3 }], 'white', false);
+
+    expect(first.regened).toEqual([{ row: 3, col: 3 }]);
+    expect(second.regened).toEqual([]);
+    expect(board[3][3]).toBe(Shared.WHITE);
+    expect(cardState.markers).toHaveLength(1);
+    expect(cardState.markers[0].data.regenRemaining).toBe(0);
+  });
+
   test('revives once after destruction and keeps the zombie infection marker', () => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][3] = Shared.BLACK;

@@ -407,6 +407,13 @@ const CardRegen = (function (root: any, factory: any) {
         regen.data.regenRemaining = nextRemaining;
         if (markerType === 'REGEN') {
             regen.data.remainingOwnerTurns = nextRemaining;
+        } else if (markerType === 'ZOMBIE' && Array.isArray(cardState.markers)) {
+            cardState.markers = cardState.markers.filter((marker: any) => {
+                if (marker === regen) return true;
+                if (!marker || marker.kind !== 'specialStone') return true;
+                if (marker.row !== row || marker.col !== col || marker.owner !== regen.owner) return true;
+                return String(marker.data && marker.data.type || '').toUpperCase() !== 'ZOMBIE';
+            });
         }
 
         if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
