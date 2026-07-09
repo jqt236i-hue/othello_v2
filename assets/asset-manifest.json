@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-08",
-  "generatedAt": "2026-07-08T14:18:23.921Z",
+  "version": "2026-07-09",
+  "generatedAt": "2026-07-09T03:49:22.287Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -853,6 +853,14 @@
     {
       "path": "assets/audio/sound-effect/カード効果で石が生成されたタイミング.mp3",
       "sha256": "3047f18e6153b2c74c299f95098ffc94ca5b832ce0c3d0bc451aca4b5dcac74a"
+    },
+    {
+      "path": "assets/audio/sound-effect/ゾンビの意志が噛むタイミング.mp3",
+      "sha256": "db03fd748083c03f71f4de7b765c5c95a3639f09718c8bf9bfa97722f8f57c3a"
+    },
+    {
+      "path": "assets/audio/sound-effect/ゾンビの意志を置くタイミング.mp3",
+      "sha256": "5aa324f41fe382db2d374a9e445ef1704d35f4d27d12fcb1da7d0e37fec93d28"
     },
     {
       "path": "assets/audio/sound-effect/テレポート対象の石を選択したタイミング.mp3",

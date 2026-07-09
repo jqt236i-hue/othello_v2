@@ -571,6 +571,78 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     ]);
   });
 
+  test('屍石を置いた phase に通常配置音と重ねる専用 sound_effect を追加する', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 6,
+      targets: [{ r: 3, col: 4, after: { color: 1, special: 'ZOMBIE' } }],
+      meta: { special: 'ZOMBIE' }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cues = out.filter((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'zombie_will_place'
+    ));
+
+    expect(cues).toEqual([
+      expect.objectContaining({
+        phase: 6,
+        targets: [expect.objectContaining({ soundKey: 'zombie_will_place' })]
+      })
+    ]);
+    expect(out[0]).toBe(base[0]);
+  });
+
+  test('同じターン開始処理で複数の屍石が感染させても噛み音は1回だけ追加する', () => {
+    const base = [{
+      type: 'flip',
+      phase: 8,
+      targets: [
+        { r: 2, col: 2, cause: 'ZOMBIE', reason: 'zombie_infection' },
+        { r: 4, col: 4, cause: 'ZOMBIE', reason: 'zombie_infection' }
+      ]
+    }];
+    const raw = [{
+      type: 'zombie_infected_start',
+      details: [{ row: 2, col: 2 }, { row: 4, col: 4 }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cues = out.filter((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'zombie_will_bite'
+    ));
+
+    expect(cues).toEqual([
+      expect.objectContaining({
+        phase: 8,
+        targets: [expect.objectContaining({ soundKey: 'zombie_will_bite' })]
+      })
+    ]);
+  });
+
+  test('屍石の感染対象がなければ噛み音を追加しない', () => {
+    const out = adapter.appendSoundEffectPlaybackEvents([], [{
+      type: 'zombie_infected_start',
+      details: []
+    }]);
+
+    expect(out.some((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'zombie_will_bite'
+    ))).toBe(false);
+  });
+
   test('理論の化身の特殊石出現ルーレットには専用の sound_effect を同じ phase に追加する', () => {
     const base = [{
       type: 'theory_incarnation_spawn_roulette',

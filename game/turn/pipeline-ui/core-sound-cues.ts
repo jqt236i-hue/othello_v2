@@ -62,6 +62,42 @@ function planCoreSoundCues(ctx: any, deps: CoreSoundCueDeps) {
         'breeding_spawn'
     );
 
+    const zombiePlacementPhase = deps.findPhase(
+        ctx.base,
+        (ev: any) => (
+            ev &&
+            ev.type === 'status_applied' &&
+            ev.meta &&
+            String(ev.meta.special || '').toUpperCase() === 'ZOMBIE'
+        ),
+        ctx.fallbackPhase
+    );
+    if (ctx.base.some((ev: any) => (
+        ev &&
+        ev.type === 'status_applied' &&
+        ev.meta &&
+        String(ev.meta.special || '').toUpperCase() === 'ZOMBIE'
+    ))) {
+        deps.pushSoundCue(ctx, 'zombie_will_place', zombiePlacementPhase, 'zombie_placed');
+    }
+
+    const zombieInfectionPhase = deps.findPhase(
+        ctx.base,
+        (ev: any) => (
+            ev &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((target: any) => {
+                const cause = String(target && target.cause || '').toUpperCase();
+                const reason = String(target && target.reason || '').toLowerCase();
+                return cause === 'ZOMBIE' || reason === 'zombie_infection';
+            })
+        ),
+        ctx.fallbackPhase
+    );
+    if (deps.hasRawEvent(ctx.raw, 'zombie_infected_start', (ev: any) => deps.rawDetailCount(ev) > 0)) {
+        deps.pushSoundCue(ctx, 'zombie_will_bite', zombieInfectionPhase, 'zombie_infected');
+    }
+
     const chaosSummonSpawnPhases = deps.collectUniquePhases(
         ctx.base,
         isChaosSummonRouletteEvent
