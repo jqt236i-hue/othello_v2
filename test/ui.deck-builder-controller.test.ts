@@ -162,6 +162,23 @@ describe('deck builder controller', () => {
     ]));
   });
 
+  test('使用中の保存デッキを専用ヒーローで示し、保存スロットと固定プリセットを分けて表示する', () => {
+    const body = document.getElementById('body');
+    const activeDeck = createThirtyCardDeck(0);
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', '理論デッキ', activeDeck.deckCode)));
+
+    createController().open();
+
+    const activeHero = body.querySelector('.deck-builder-active-deck-hero');
+    expect(activeHero).toBeTruthy();
+    expect(activeHero.textContent).toContain('現在使用中');
+    expect(activeHero.textContent).toContain('理論デッキ');
+    expect(Array.from(activeHero.querySelectorAll('button')).map((button) => button.textContent)).not.toContain('使用');
+
+    expect(body.querySelector('.deck-builder-workshop-grid')).toBeTruthy();
+    expect(body.querySelector('.deck-builder-fixed-library')).toBeTruthy();
+  });
+
   test('候補カードはコスト降順で表示する', () => {
     const DeckBuilderRenderer = require('../ui/deck-builder-renderer');
     const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');

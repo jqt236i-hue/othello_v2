@@ -6121,3 +6121,281 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 #deckBuilderModal .deck-builder-section-title {
     font-size: calc(9px * var(--layout-stage-scale)) !important;
 }
+
+/* ============================================================
+   Deck Atelier — hierarchy-first selection surface
+   ============================================================ */
+#deckBuilderModal .deck-builder-view-presets {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: calc(14px * var(--layout-stage-scale));
+    padding-bottom: calc(10px * var(--layout-stage-scale));
+}
+
+#deckBuilderModal .deck-builder-intro {
+    margin: 0 !important;
+    padding: calc(9px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) !important;
+    color: rgba(202, 224, 220, 0.82) !important;
+    background: rgba(20, 59, 62, 0.34) !important;
+    border: 1px solid rgba(86, 226, 210, 0.16) !important;
+    border-radius: calc(10px * var(--layout-stage-scale)) !important;
+    font-size: max(11px, calc(11px * var(--layout-stage-scale))) !important;
+    line-height: 1.45;
+}
+
+#deckBuilderModal .deck-builder-active-deck-hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "eyebrow status"
+        "title status"
+        "summary status";
+    gap: calc(4px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale));
+    padding: calc(18px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale));
+    overflow: hidden;
+    color: #eaf7f1;
+    border: 1px solid rgba(86, 226, 210, 0.42);
+    border-radius: calc(14px * var(--layout-stage-scale));
+    background:
+        radial-gradient(circle at 100% 0%, rgba(86, 226, 210, 0.17), transparent 38%),
+        linear-gradient(125deg, rgba(13, 48, 52, 0.98), rgba(9, 26, 33, 0.98));
+    box-shadow:
+        inset 0 1px 0 rgba(235, 255, 250, 0.12),
+        0 calc(10px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.35);
+}
+#deckBuilderModal .deck-builder-active-deck-hero::after {
+    content: "";
+    position: absolute;
+    inset: calc(7px * var(--layout-stage-scale));
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: calc(9px * var(--layout-stage-scale));
+}
+.deck-builder-active-deck-eyebrow {
+    grid-area: eyebrow;
+    color: #7ee8da;
+    font-size: max(10px, calc(10px * var(--layout-stage-scale)));
+    font-weight: 800;
+    letter-spacing: 0.18em;
+}
+.deck-builder-active-deck-title {
+    grid-area: title;
+    min-width: 0;
+    color: #f4fcf8;
+    font-family: 'DM Serif Display', 'Iowan Old Style', 'Apple Garamond', Baskerville, serif;
+    font-size: max(22px, calc(25px * var(--layout-stage-scale)));
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+.deck-builder-active-deck-summary {
+    grid-area: summary;
+    color: rgba(213, 235, 230, 0.78);
+    font-size: max(12px, calc(12px * var(--layout-stage-scale)));
+}
+.deck-builder-active-deck-status {
+    grid-area: status;
+    align-self: center;
+    padding: calc(8px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
+    color: #dffff8;
+    border: 1px solid rgba(105, 239, 221, 0.48);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: rgba(22, 136, 122, 0.22);
+    font-size: max(11px, calc(11px * var(--layout-stage-scale)));
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+}
+
+#deckBuilderModal .deck-builder-save-slot-title {
+    margin: calc(4px * var(--layout-stage-scale)) 0 calc(-5px * var(--layout-stage-scale)) !important;
+    padding: 0 !important;
+    color: rgba(243, 248, 246, 0.95) !important;
+    font-size: max(12px, calc(12px * var(--layout-stage-scale))) !important;
+    letter-spacing: 0.08em;
+}
+#deckBuilderModal .deck-builder-section-counter {
+    margin-left: auto;
+    padding: calc(3px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
+    color: #93dcd2;
+    border: 1px solid rgba(147, 220, 210, 0.25);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: rgba(18, 61, 65, 0.38);
+    font-size: max(10px, calc(10px * var(--layout-stage-scale)));
+}
+
+#deckBuilderModal .deck-builder-workshop-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: calc(10px * var(--layout-stage-scale)) !important;
+}
+#deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
+    min-height: calc(172px * var(--layout-stage-scale));
+    padding: calc(16px * var(--layout-stage-scale)) !important;
+    border: 1px solid rgba(139, 190, 183, 0.2) !important;
+    border-radius: calc(12px * var(--layout-stage-scale)) !important;
+    background:
+        linear-gradient(145deg, rgba(20, 48, 52, 0.96), rgba(10, 24, 31, 0.98)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+#deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card:hover {
+    transform: translateY(calc(-2px * var(--layout-stage-scale)));
+    border-color: rgba(110, 232, 215, 0.58) !important;
+    background: linear-gradient(145deg, rgba(23, 66, 69, 0.98), rgba(11, 31, 39, 0.99)) !important;
+    box-shadow: 0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28);
+}
+#deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card.is-active {
+    border-color: rgba(255, 203, 101, 0.72) !important;
+    background:
+        linear-gradient(135deg, rgba(107, 79, 28, 0.35), rgba(15, 53, 56, 0.98) 55%, rgba(8, 25, 31, 0.98)) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 218, 142, 0.15), 0 calc(8px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.32) !important;
+}
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-label-en {
+    color: #91ddd3;
+    font-size: max(9px, calc(9px * var(--layout-stage-scale)));
+}
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-meta .deck-builder-preset-title {
+    padding-right: calc(34px * var(--layout-stage-scale));
+    color: #f2faf7;
+    font-size: max(17px, calc(19px * var(--layout-stage-scale)));
+}
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-preset-summary {
+    color: rgba(205, 228, 223, 0.7);
+    font-size: max(11px, calc(11px * var(--layout-stage-scale)));
+}
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-type-bar {
+    height: calc(7px * var(--layout-stage-scale)) !important;
+    margin-top: auto;
+    margin-bottom: calc(10px * var(--layout-stage-scale)) !important;
+    border-radius: calc(999px * var(--layout-stage-scale));
+}
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-count-orb {
+    width: calc(38px * var(--layout-stage-scale)) !important;
+    height: calc(38px * var(--layout-stage-scale)) !important;
+    top: calc(13px * var(--layout-stage-scale)) !important;
+    right: calc(13px * var(--layout-stage-scale)) !important;
+}
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-active-seal {
+    display: none;
+}
+
+#deckBuilderModal .deck-builder-save-slot-card.is-empty {
+    justify-content: center !important;
+    border: 1px dashed rgba(126, 214, 203, 0.48) !important;
+    background: linear-gradient(145deg, rgba(16, 50, 55, 0.55), rgba(9, 23, 31, 0.88)) !important;
+}
+#deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo {
+    width: calc(48px * var(--layout-stage-scale)) !important;
+    height: calc(48px * var(--layout-stage-scale)) !important;
+    border-color: rgba(113, 235, 217, 0.58);
+    background: rgba(34, 122, 116, 0.12);
+}
+#deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-plus {
+    top: calc(20px * var(--layout-stage-scale)) !important;
+    color: #a1f0e4;
+    font-family: system-ui, sans-serif;
+    font-size: calc(29px * var(--layout-stage-scale)) !important;
+}
+#deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-cta {
+    margin-top: calc(20px * var(--layout-stage-scale)) !important;
+    color: #d7faf3;
+    font-size: max(11px, calc(11px * var(--layout-stage-scale))) !important;
+    font-weight: 700;
+    letter-spacing: 0.06em !important;
+}
+#deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-cta::before {
+    content: "";
+}
+
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row {
+    gap: calc(7px * var(--layout-stage-scale));
+}
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row .btn-small {
+    min-height: calc(34px * var(--layout-stage-scale)) !important;
+    border-radius: calc(8px * var(--layout-stage-scale)) !important;
+    font-size: max(11px, calc(11px * var(--layout-stage-scale))) !important;
+    letter-spacing: 0.04em;
+}
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row .btn-small:first-child {
+    background: linear-gradient(180deg, rgba(31, 147, 133, 0.52), rgba(13, 87, 84, 0.56)) !important;
+    border-color: rgba(103, 242, 222, 0.5) !important;
+}
+#deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row .btn-small + .btn-small {
+    background: rgba(66, 112, 138, 0.34) !important;
+    border-color: rgba(143, 194, 234, 0.36) !important;
+}
+#deckBuilderModal .deck-builder-preset-card button:focus-visible,
+#deckBuilderModal .deck-builder-hero-cta:focus-visible {
+    outline: 3px solid #f5d474 !important;
+    outline-offset: 2px;
+}
+
+#deckBuilderModal .deck-builder-fixed-library {
+    display: grid !important;
+    grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.28fr) !important;
+    gap: calc(12px * var(--layout-stage-scale));
+    padding: calc(12px * var(--layout-stage-scale));
+    border: 1px solid rgba(134, 170, 202, 0.17);
+    border-radius: calc(14px * var(--layout-stage-scale));
+    background: rgba(13, 29, 39, 0.54);
+}
+#deckBuilderModal .deck-builder-default-hero {
+    min-height: 100%;
+    padding: calc(17px * var(--layout-stage-scale)) !important;
+    border-color: rgba(218, 181, 100, 0.32) !important;
+    background: linear-gradient(145deg, rgba(66, 51, 23, 0.72), rgba(28, 32, 34, 0.96)) !important;
+}
+#deckBuilderModal .deck-builder-default-hero .deck-builder-preset-title {
+    font-size: max(20px, calc(22px * var(--layout-stage-scale))) !important;
+}
+#deckBuilderModal .deck-builder-hero-cta {
+    min-height: calc(38px * var(--layout-stage-scale));
+    border-radius: calc(8px * var(--layout-stage-scale)) !important;
+    background: linear-gradient(180deg, #896b37, #5a4120) !important;
+}
+#deckBuilderModal .deck-builder-built-in-preset-section {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+#deckBuilderModal .deck-builder-built-in-preset-section .deck-builder-section-title {
+    margin-bottom: calc(9px * var(--layout-stage-scale));
+    color: #c5e8f4 !important;
+    font-size: max(11px, calc(11px * var(--layout-stage-scale))) !important;
+}
+#deckBuilderModal .deck-builder-built-in-preset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: calc(8px * var(--layout-stage-scale)) !important;
+}
+#deckBuilderModal .deck-builder-builtin-card {
+    min-height: calc(76px * var(--layout-stage-scale));
+    border-color: rgba(118, 191, 207, 0.28) !important;
+    border-radius: calc(10px * var(--layout-stage-scale)) !important;
+    background: linear-gradient(145deg, rgba(18, 57, 66, 0.85), rgba(10, 28, 37, 0.94)) !important;
+}
+
+@media (max-width: 760px) {
+    #deckBuilderModal .deck-builder-active-deck-hero {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "eyebrow" "title" "summary" "status";
+        gap: calc(5px * var(--layout-stage-scale));
+    }
+    #deckBuilderModal .deck-builder-active-deck-status {
+        justify-self: start;
+        margin-top: calc(5px * var(--layout-stage-scale));
+    }
+    #deckBuilderModal .deck-builder-workshop-grid,
+    #deckBuilderModal .deck-builder-fixed-library,
+    #deckBuilderModal .deck-builder-built-in-preset-grid {
+        grid-template-columns: 1fr !important;
+    }
+    #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
+        min-height: calc(150px * var(--layout-stage-scale));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
+        transition: none;
+    }
+}

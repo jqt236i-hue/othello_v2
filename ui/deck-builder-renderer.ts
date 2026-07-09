@@ -685,6 +685,43 @@ function createDefaultDeckHero(viewModel: any, onUse: any): HTMLElement {
   return card;
 }
 
+function createActiveDeckHero(viewModel: any): HTMLElement {
+  const savedPresets = Array.isArray(viewModel && viewModel.presets) ? viewModel.presets : [];
+  const builtInPresets = Array.isArray(viewModel && viewModel.builtInPresets) ? viewModel.builtInPresets : [];
+  const activePreset = savedPresets.find((preset: any) => preset && preset.isActive)
+    || builtInPresets.find((preset: any) => preset && preset.isActive)
+    || null;
+  const isStandard = !activePreset;
+
+  const hero = document.createElement('section');
+  hero.className = 'deck-builder-active-deck-hero';
+  hero.setAttribute('aria-label', '現在使用中のデッキ');
+
+  const eyebrow = document.createElement('div');
+  eyebrow.className = 'deck-builder-active-deck-eyebrow';
+  eyebrow.textContent = 'ACTIVE DECK';
+  hero.appendChild(eyebrow);
+
+  const title = document.createElement('div');
+  title.className = 'deck-builder-active-deck-title';
+  title.textContent = isStandard ? 'デフォルトデッキ' : activePreset.displayName;
+  hero.appendChild(title);
+
+  const summary = document.createElement('div');
+  summary.className = 'deck-builder-active-deck-summary';
+  summary.textContent = isStandard
+    ? '30枚 · 有効カードから重複なしランダム'
+    : String(activePreset.summaryText || '構築済みデッキ');
+  hero.appendChild(summary);
+
+  const status = document.createElement('div');
+  status.className = 'deck-builder-active-deck-status';
+  status.textContent = '現在使用中';
+  hero.appendChild(status);
+
+  return hero;
+}
+
 function createSectionIcon(svgInner: string): HTMLElement {
   const wrap = document.createElement('span');
   wrap.className = 'deck-builder-section-icon';
@@ -706,8 +743,10 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   intro.textContent = '6つまで保存できます。使用で即時切替、編集で構築画面を開きます。';
   wrapper.appendChild(intro);
 
+  wrapper.appendChild(createActiveDeckHero(viewModel));
+
   const defaultPresetRow = document.createElement('div');
-  defaultPresetRow.className = 'deck-builder-default-preset-row';
+  defaultPresetRow.className = 'deck-builder-default-preset-row deck-builder-fixed-library';
 
   const standardCard = createDefaultDeckHero(viewModel, handlers.onUseStandard);
   defaultPresetRow.appendChild(standardCard);
@@ -722,7 +761,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
     builtInTitle.appendChild(createSectionIcon(BUILT_IN_SECTION_ICON_SVG));
     const builtInTitleText = document.createElement('span');
     builtInTitleText.className = 'deck-builder-section-title-text';
-    builtInTitleText.textContent = 'デフォルトプリセットデッキ';
+    builtInTitleText.textContent = '固定プリセットライブラリ';
     builtInTitle.appendChild(builtInTitleText);
     builtInSection.appendChild(builtInTitle);
 
@@ -738,8 +777,6 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
     builtInSection.appendChild(builtInGrid);
     defaultPresetRow.appendChild(builtInSection);
   }
-  wrapper.appendChild(defaultPresetRow);
-
   const saveSlotTitle = document.createElement('div');
   saveSlotTitle.className = 'deck-builder-section-title deck-builder-section-title-with-icon deck-builder-save-slot-title';
   saveSlotTitle.appendChild(createSectionIcon(SAVE_SLOT_SECTION_ICON_SVG));
@@ -755,7 +792,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   wrapper.appendChild(saveSlotTitle);
 
   const presetGrid = document.createElement('div');
-  presetGrid.className = 'deck-builder-preset-grid';
+  presetGrid.className = 'deck-builder-preset-grid deck-builder-workshop-grid';
   viewModel.presets.forEach((preset: any, slotIndex: number) => {
     const actions = document.createElement('div');
     actions.className = 'deck-builder-actions-row';
@@ -765,6 +802,7 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
     presetGrid.appendChild(createPresetCard(preset, actions, { slotIndex }));
   });
   wrapper.appendChild(presetGrid);
+  wrapper.appendChild(defaultPresetRow);
 
   container.appendChild(wrapper);
 }
