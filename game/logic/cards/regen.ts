@@ -454,6 +454,19 @@ const CardRegen = (function (root: any, factory: any) {
         };
     }
 
+    function _transferDepletedZombieAt(cardState: any, gameState: any, row: any, col: any, ownerKey: any) {
+        if (!cardState || !Array.isArray(cardState.markers)) return;
+        const ownerColor = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
+        if (getCellValue(gameState, row, col) !== ownerColor) return;
+        for (const marker of cardState.markers) {
+            if (!marker || marker.kind !== 'specialStone' || marker.row !== row || marker.col !== col) continue;
+            if (String(marker.data && marker.data.type || '').toUpperCase() !== 'ZOMBIE') continue;
+            if ((Number(marker.data.regenRemaining) || 0) > 0) continue;
+            marker.owner = ownerKey;
+            marker.data.ownerColor = ownerColor;
+        }
+    }
+
     function applyRegenAfterFlips(cardState: any, gameState: any, flips: any, flipperKey: any, skipCapture: any, deps: any = {}) {
         const regened: Array<{row: number; col: number}> = [];
         const captureFlips: Array<{row: number; col: number}> = [];
@@ -475,7 +488,10 @@ const CardRegen = (function (root: any, factory: any) {
                 ctx,
                 consumedRegenKeys
             );
-            if (!result.triggered) continue;
+            if (!result.triggered) {
+                _transferDepletedZombieAt(cardState, gameState, pos.row, pos.col, flipperKey);
+                continue;
+            }
             regened.push(...result.regened);
             captureFlips.push(...result.captureFlips);
         }

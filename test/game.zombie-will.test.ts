@@ -115,6 +115,8 @@ describe('ZOMBIE status display and revival', () => {
     expect(second.regened).toEqual([]);
     expect(board[3][3]).toBe(Shared.WHITE);
     expect(cardState.markers[0].data.regenRemaining).toBe(0);
+    expect(cardState.markers[0].owner).toBe('white');
+    expect(cardState.markers[0].data.ownerColor).toBe(Shared.WHITE);
   });
 
   test('duplicate zombie markers at one cell still allow only one revival', () => {
