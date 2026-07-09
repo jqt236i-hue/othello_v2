@@ -126,12 +126,16 @@ describe('AnimationFlipEvents', () => {
     expect(triggerFlip).toHaveBeenCalledTimes(1);
   });
 
-  test('plays the zombie bite before syncing the infected stone and removes temporary DOM', async () => {
+  test('plays the zombie bite, syncs the infected stone, and skips the regular flip pathway', async () => {
     const flipEvents = require('../ui/animation-flip-events.js');
+    const playbackFlipMarker = require('../ui/playback-flip-marker.js');
     const calls: string[] = [];
-    const deps = createDeps(jest.fn(() => calls.push('trigger')));
-    deps.syncDiscVisual = jest.fn((_disc: HTMLElement, state: any) => {
+    const triggerFlip = jest.fn(() => calls.push('trigger'));
+    const deps = createDeps(triggerFlip);
+    deps.syncDiscVisual = jest.fn((disc: HTMLElement, state: any) => {
       calls.push(`sync:${state.color}`);
+      disc.classList.toggle('black', state.color === 1);
+      disc.classList.toggle('white', state.color === -1);
     });
     deps.sleep = jest.fn((ms: number) => {
       if (ms === 800) {
@@ -156,15 +160,46 @@ describe('AnimationFlipEvents', () => {
       }]
     }, deps);
 
-    expect(calls).toEqual(['bite', 'sync:1', 'trigger']);
+    expect(calls).toEqual(['bite', 'sync:1']);
+    // Infection must NOT take the regular flip pathway.
+    expect(triggerFlip).not.toHaveBeenCalled();
+    expect(deps.animationShared.removeFlip).not.toHaveBeenCalled();
+    const sleepMsArgs = deps.sleep.mock.calls.map((c) => c[0]);
+    expect(sleepMsArgs).not.toContain(deps.flipMs);
+
+    const disc = document.querySelector('.cell[data-row="2"][data-col="3"] .disc') as HTMLElement;
+    // No playback flip marker should be left behind on the infected disc.
+    expect(disc.dataset.playbackFlipAt).toBeUndefined();
+    expect(playbackFlipMarker.hasRecentPlaybackFlipMarker(disc)).toBe(false);
+    // Visual state should already reflect the infected player's color.
+    expect(disc.classList.contains('black')).toBe(true);
+
     expect(document.querySelector('.zombie-bite-shadow')).toBeNull();
     expect(document.querySelectorAll('.zombie-bite-fang')).toHaveLength(0);
     expect(document.querySelector('.zombie-bite-active')).toBeNull();
   });
 
+  test('keeps the regular flip pathway for non-zombie-infection CHANGE events', async () => {
+    const flipEvents = require('../ui/animation-flip-events.js');
+    const playbackFlipMarker = require('../ui/playback-flip-marker.js');
+    const triggerFlip = jest.fn();
+    const deps = createDeps(triggerFlip);
+
+    await flipEvents.handleFlipEvent({
+      type: 'flip',
+      targets: [{ r: 2, col: 3, ownerBefore: 'black', after: { color: -1 } }]
+    }, deps);
+
+    expect(triggerFlip).toHaveBeenCalledTimes(1);
+    expect(deps.sleep).toHaveBeenCalledWith(deps.flipMs);
+    const disc = document.querySelector('.cell[data-row="2"][data-col="3"] .disc') as HTMLElement;
+    expect(playbackFlipMarker.hasRecentPlaybackFlipMarker(disc)).toBe(true);
+  });
+
   test('skips zombie bite DOM when animations are disabled', async () => {
     const flipEvents = require('../ui/animation-flip-events.js');
-    const deps = createDeps(jest.fn());
+    const triggerFlip = jest.fn();
+    const deps = createDeps(triggerFlip);
     deps.isNoAnim = () => true;
     deps.sleep = jest.fn(() => Promise.resolve());
 
@@ -184,5 +219,6 @@ describe('AnimationFlipEvents', () => {
     expect(document.querySelector('.zombie-bite-fang')).toBeNull();
     expect(deps.sleep).not.toHaveBeenCalledWith(800);
     expect(deps.syncDiscVisual).toHaveBeenCalledTimes(1);
+    expect(triggerFlip).not.toHaveBeenCalled();
   });
 });

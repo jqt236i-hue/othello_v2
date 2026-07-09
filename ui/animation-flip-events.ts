@@ -181,6 +181,16 @@ async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
 
             await playZombieBiteAnimation(target, cell, deps);
             deps.syncDiscVisual(disc, after);
+
+            if (isZombieInfectionTarget(target)) {
+                // Zombie infection (cause ZOMBIE / reason zombie_infection):
+                // the bite animation is the visual story. Skip the regular
+                // flip pathway (no playback flip marker, no triggerFlip,
+                // no flipMs wait / removeFlip cleanup) so the infected
+                // stone settles directly into the player's corpse-stone look.
+                return;
+            }
+
             try {
                 PlaybackFlipMarker.markPlaybackFlippedDisc(disc);
                 if (deps.animationShared && typeof deps.animationShared.triggerFlip === 'function') {
