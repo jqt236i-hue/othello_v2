@@ -92,6 +92,31 @@ describe('ZOMBIE status display and revival', () => {
     expect(revivedZombie.data).not.toHaveProperty('remainingOwnerTurns');
   });
 
+  test('does not revive after the flip revival has been consumed', () => {
+    const board = Array(8).fill(null).map(() => Array(8).fill(0));
+    board[3][3] = Shared.WHITE;
+    const cardState = {
+      markers: [{
+        id: 1,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 2, regenRemaining: 1 }
+      }],
+      presentationEvents: []
+    };
+
+    const first = CardLogic.applyRegenAfterFlips(cardState, { board }, [{ row: 3, col: 3 }], 'white', false);
+    board[3][3] = Shared.WHITE;
+    const second = CardLogic.applyRegenAfterFlips(cardState, { board }, [{ row: 3, col: 3 }], 'white', false);
+
+    expect(first.regened).toEqual([{ row: 3, col: 3 }]);
+    expect(second.regened).toEqual([]);
+    expect(board[3][3]).toBe(Shared.WHITE);
+    expect(cardState.markers[0].data.regenRemaining).toBe(0);
+  });
+
   test('revives once after destruction and keeps the zombie infection marker', () => {
     const board = Array(8).fill(null).map(() => Array(8).fill(0));
     board[3][3] = Shared.BLACK;
@@ -123,6 +148,27 @@ describe('ZOMBIE status display and revival', () => {
     ]));
     const revivedZombie = cardState.markers.find((marker) => marker && marker.data && marker.data.type === 'ZOMBIE');
     expect(revivedZombie.data).not.toHaveProperty('remainingOwnerTurns');
+  });
+
+  test('does not revive after the destruction revival has been consumed', () => {
+    const board = Array(8).fill(null).map(() => Array(8).fill(0));
+    board[3][3] = Shared.BLACK;
+    const cardState = CardLogic.createCardState(createPrng());
+    cardState.markers.push({
+      id: 1,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 2, regenRemaining: 1 }
+    });
+
+    const first = BoardOps.destroyAt(cardState, { board }, 3, 3, 'DESTROY_ONE_STONE', 'destroy_selected');
+    const second = BoardOps.destroyAt(cardState, { board }, 3, 3, 'DESTROY_ONE_STONE', 'destroy_selected');
+
+    expect(first).toMatchObject({ kind: 'regenerated', regenerated: true, remaining: 0 });
+    expect(second).toMatchObject({ kind: 'destroyed', destroyed: true, regenerated: false });
+    expect(board[3][3]).toBe(0);
   });
 });
 
