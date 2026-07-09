@@ -628,6 +628,73 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     ]);
   });
 
+  test('同じ処理で複数の屍石が復活しても専用音は1回だけ追加する', () => {
+    const base = [
+      {
+        type: 'flip',
+        phase: 9,
+        targets: [{
+          r: 2,
+          col: 2,
+          cause: 'REGEN',
+          reason: 'regen_triggered',
+          meta: { special: 'ZOMBIE' }
+        }]
+      },
+      {
+        type: 'flip',
+        phase: 10,
+        targets: [{
+          r: 4,
+          col: 4,
+          cause: 'REGEN',
+          reason: 'regen_triggered',
+          meta: { special: 'ZOMBIE' }
+        }]
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cues = out.filter((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'zombie_will_revive'
+    ));
+
+    expect(cues).toEqual([
+      expect.objectContaining({
+        phase: 9,
+        targets: [expect.objectContaining({ soundKey: 'zombie_will_revive' })]
+      })
+    ]);
+  });
+
+  test('通常の復活石にはゾンビの意志の復活音を追加しない', () => {
+    const base = [{
+      type: 'flip',
+      phase: 9,
+      targets: [{
+        r: 2,
+        col: 2,
+        cause: 'REGEN',
+        reason: 'regen_triggered',
+        meta: { special: 'REGEN' }
+      }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+
+    expect(out.some((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'zombie_will_revive'
+    ))).toBe(false);
+  });
+
   test('屍石の感染対象がなければ噛み音を追加しない', () => {
     const out = adapter.appendSoundEffectPlaybackEvents([], [{
       type: 'zombie_infected_start',

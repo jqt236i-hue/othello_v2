@@ -98,6 +98,32 @@ function planCoreSoundCues(ctx: any, deps: CoreSoundCueDeps) {
         deps.pushSoundCue(ctx, 'zombie_will_bite', zombieInfectionPhase, 'zombie_infected');
     }
 
+    const isZombieReviveTarget = (target: any) => {
+        const reason = String(target && target.reason || '').toLowerCase();
+        const special = String(
+            (target && target.meta && target.meta.special) ||
+            (target && target.after && target.after.special) ||
+            ''
+        ).toUpperCase();
+        return reason === 'regen_triggered' && special === 'ZOMBIE';
+    };
+    const zombieRevivePhase = deps.findPhase(
+        ctx.base,
+        (ev: any) => (
+            ev &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((target: any) => isZombieReviveTarget(target))
+        ),
+        ctx.fallbackPhase
+    );
+    if (ctx.base.some((ev: any) => (
+        ev &&
+        Array.isArray(ev.targets) &&
+        ev.targets.some((target: any) => isZombieReviveTarget(target))
+    ))) {
+        deps.pushSoundCue(ctx, 'zombie_will_revive', zombieRevivePhase, 'zombie_revived');
+    }
+
     const chaosSummonSpawnPhases = deps.collectUniquePhases(
         ctx.base,
         isChaosSummonRouletteEvent

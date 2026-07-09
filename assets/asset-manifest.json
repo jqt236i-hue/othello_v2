@@ -1,6 +1,6 @@
 {
   "version": "2026-07-09",
-  "generatedAt": "2026-07-09T03:49:22.287Z",
+  "generatedAt": "2026-07-09T03:56:41.098Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -857,6 +857,10 @@
     {
       "path": "assets/audio/sound-effect/ゾンビの意志が噛むタイミング.mp3",
       "sha256": "db03fd748083c03f71f4de7b765c5c95a3639f09718c8bf9bfa97722f8f57c3a"
+    },
+    {
+      "path": "assets/audio/sound-effect/ゾンビの意志が復活するタイミング.mp3",
+      "sha256": "1b13cc3e1e92d00c29f6d4aeadbb498703df4992b17157a0c9b7a13125232b41"
     },
     {
       "path": "assets/audio/sound-effect/ゾンビの意志を置くタイミング.mp3",

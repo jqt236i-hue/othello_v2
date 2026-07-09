@@ -82,6 +82,7 @@ describe('assets manifest', () => {
       'assets/audio/sound-effect/observer_will_capture.mp3',
       'assets/audio/sound-effect/ゾンビの意志が噛むタイミング.mp3',
       'assets/audio/sound-effect/ゾンビの意志を置くタイミング.mp3',
+      'assets/audio/sound-effect/ゾンビの意志が復活するタイミング.mp3',
       'assets/images/background/manifest-worlds/理論の世界.png',
       'assets/images/background/manifest-worlds/執行の世界.png',
       'assets/images/background/manifest-worlds/観測の世界.png',

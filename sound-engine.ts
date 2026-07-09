@@ -146,6 +146,7 @@ const SoundEngine = {
         observer_will_capture: 'observer_will_capture.mp3',
         zombie_will_place: 'ゾンビの意志を置くタイミング.mp3',
         zombie_will_bite: 'ゾンビの意志が噛むタイミング.mp3',
+        zombie_will_revive: 'ゾンビの意志が復活するタイミング.mp3',
         loss_will_reset: '意志の喪失で特殊石が解除されたタイミング.mp3',
         living_will_selected: '生きる意志を付与するタイミング.mp3',
         living_will_restored: '生きる意志で復活するタイミング.mp3',

@@ -465,6 +465,7 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.effectSoundFiles.chaos_summon_spawn).toBe('混沌召喚のルーレット効果音.mp3');
     expect(soundEngine.effectSoundFiles.zombie_will_place).toBe('ゾンビの意志を置くタイミング.mp3');
     expect(soundEngine.effectSoundFiles.zombie_will_bite).toBe('ゾンビの意志が噛むタイミング.mp3');
+    expect(soundEngine.effectSoundFiles.zombie_will_revive).toBe('ゾンビの意志が復活するタイミング.mp3');
     expect(soundEngine.effectVolumeScales.board_shrink_selected).toBe(0.7);
     expect(soundEngine.effectVolumeScales.meteor_hole).toBe(0.7);
     expect(soundEngine.effectVolumeScales.causal_replay_restore).toBe(0.7);
