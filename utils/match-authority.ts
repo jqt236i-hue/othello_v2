@@ -200,13 +200,19 @@ const trapVisibility = createTrapVisibilityApi(parseSeatKeyOptional);
 const matchAuthorityProjection = createMatchAuthorityProjectionApi({
     playerKeys: PLAYER_KEYS as readonly PlayerKey[],
     deepClone,
+    now: () => Date.now(),
     parseSeatKeyOptional,
+    normalizeSpectatorId,
     getCurrentPlayerKey,
     getOpponentKey,
     isManifestStoneMarker: ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneMarker === 'function'
         ? (marker: unknown) => ManifestStoneRegistry.isManifestStoneMarker!(marker)
         : null,
     sanitizeOwnerOnlyTrapState,
+    stripTransientPresentationState,
+    computeStableHash: StateHash && typeof StateHash.computeStableHash === 'function'
+        ? (snapshot: unknown) => StateHash.computeStableHash!(snapshot)
+        : null,
     makeHiddenHandToken,
     isHiddenHandTokenLike,
     parseHiddenHandToken,
@@ -1604,81 +1610,33 @@ function projectSnapshotForViewer(
 }
 
 function normalizeViewerIdentity(value: unknown): MatchAuthorityViewer | null {
-    const source = asRecord(value);
-    if (String(source.role || '').trim() === 'spectator') {
-        return {
-            role: 'spectator',
-            spectatorId: normalizeSpectatorId(source.spectatorId)
-        };
-    }
-    const seatKey = parseSeatKeyOptional(source.seatKey || value);
-    return seatKey ? { role: 'seat', seatKey } : null;
+    return matchAuthorityProjection.normalizeViewerIdentity(value);
 }
 
 function getPayloadKeyForViewer(viewerValue: unknown): MatchAuthoritySeatKey | 'spectator' {
-    const viewer = normalizeViewerIdentity(viewerValue);
-    return viewer && viewer.role === 'seat' ? viewer.seatKey : 'spectator';
+    return matchAuthorityProjection.getPayloadKeyForViewer(viewerValue);
 }
 
 function buildPublicSnapshotForViewer(
     room: MatchAuthorityRoomState | null | undefined,
     viewerValue: unknown
 ): MatchAuthorityPublicSnapshot {
-    const viewer = normalizeViewerIdentity(viewerValue);
-    const viewerSeatKey = viewer && viewer.role === 'seat' ? viewer.seatKey : null;
-    const shot = projectSnapshotForViewer(room && room.snapshot ? room.snapshot : {}, viewerSeatKey, {
-        stateVersion: room ? room.stateVersion : 0,
-        updatedAt: room ? room.updatedAt : Date.now(),
-        projectedForSeat: viewerSeatKey,
-        viewerRole: viewer && viewer.role === 'spectator' ? 'spectator' : null,
-        turnStartReconciled: true
-    });
-    stripTransientPresentationState(shot);
-    const projectedSnapshotHash = computeProjectedSnapshotHash(shot);
-    if (!shot._meta || typeof shot._meta !== 'object') {
-        shot._meta = {};
-    }
-    asRecord(shot._meta).projectedSnapshotHash = projectedSnapshotHash;
-    return shot;
+    return matchAuthorityProjection.buildPublicSnapshotForViewer(room, viewerValue);
 }
 
 function buildPublicSnapshot(
     room: MatchAuthorityRoomState | null | undefined,
     viewerSeatKey: PlayerKey | null | undefined
 ): MatchAuthorityPublicSnapshot {
-    const shot = projectSnapshotForViewer(room && room.snapshot ? room.snapshot : {}, viewerSeatKey || null, {
-        stateVersion: room ? room.stateVersion : 0,
-        updatedAt: room ? room.updatedAt : Date.now(),
-        projectedForSeat: viewerSeatKey || null,
-        turnStartReconciled: true
-    });
-    stripTransientPresentationState(shot);
-    const projectedSnapshotHash = computeProjectedSnapshotHash(shot);
-    if (!shot._meta || typeof shot._meta !== 'object') {
-        shot._meta = {};
-    }
-    asRecord(shot._meta).projectedSnapshotHash = projectedSnapshotHash;
-    return shot;
-}
-
-function cloneSnapshotHashSource(snapshotValue: unknown): unknown {
-    const shot = deepClone(snapshotValue || {}) as Record<string, unknown>;
-    if (shot && typeof shot === 'object' && shot._meta && typeof shot._meta === 'object') {
-        const meta = asRecord(shot._meta);
-        delete meta.projectedSnapshotHash;
-        delete meta.authoritativeStateHash;
-    }
-    return shot;
+    return matchAuthorityProjection.buildPublicSnapshot(room, viewerSeatKey);
 }
 
 function computeAuthoritativeStateHash(snapshotValue: unknown): string | null {
-    if (!StateHash || typeof StateHash.computeStableHash !== 'function') return null;
-    return StateHash.computeStableHash(cloneSnapshotHashSource(snapshotValue));
+    return matchAuthorityProjection.computeAuthoritativeStateHash(snapshotValue);
 }
 
 function computeProjectedSnapshotHash(snapshotValue: unknown): string | null {
-    if (!StateHash || typeof StateHash.computeStableHash !== 'function') return null;
-    return StateHash.computeStableHash(cloneSnapshotHashSource(snapshotValue));
+    return matchAuthorityProjection.computeProjectedSnapshotHash(snapshotValue);
 }
 
 function validatePendingSelectionPublish(snapshotValue: unknown, playerKey: unknown, actionValue: unknown): { ok: boolean; pendingEffectId?: string | null; rejectedReason?: string } {

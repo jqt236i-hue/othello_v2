@@ -1,16 +1,26 @@
 import type { GameState, PlayerKey } from '../../src/types';
-import type { MatchAuthorityProjectionMetadata, MatchAuthorityPublicSnapshot, MatchAuthoritySeatKey } from '../match-authority-types';
+import type {
+    MatchAuthorityProjectionMetadata,
+    MatchAuthorityPublicSnapshot,
+    MatchAuthorityRoomState,
+    MatchAuthoritySeatKey,
+    MatchAuthorityViewer
+} from '../match-authority-types';
 
 type RecordValue = Record<string, any>;
 
 interface MatchAuthorityProjectionDeps {
     playerKeys: readonly PlayerKey[];
     deepClone: (value: unknown) => unknown;
+    now: () => number;
     parseSeatKeyOptional: (value: unknown) => MatchAuthoritySeatKey | null;
+    normalizeSpectatorId: (value: unknown) => string;
     getCurrentPlayerKey: (gameState: Partial<GameState> | null | undefined) => PlayerKey;
     getOpponentKey: (playerKey: PlayerKey | null | undefined) => PlayerKey;
     isManifestStoneMarker: ((marker: unknown) => boolean) | null;
     sanitizeOwnerOnlyTrapState: (cardState: unknown, viewerSeatKey: unknown) => unknown;
+    stripTransientPresentationState: (nextSnapshot: unknown) => unknown;
+    computeStableHash: ((value: unknown) => string) | null;
     makeHiddenHandToken: (ownerKey: unknown, handIndex: unknown) => string;
     isHiddenHandTokenLike: (value: unknown) => boolean;
     parseHiddenHandToken: (value: unknown) => { ownerKey: MatchAuthoritySeatKey; handIndex: number } | null;
@@ -266,10 +276,92 @@ export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjection
         return shot;
     }
 
+    function normalizeViewerIdentity(value: unknown): MatchAuthorityViewer | null {
+        const source = asRecord(value);
+        if (String(source.role || '').trim() === 'spectator') {
+            return {
+                role: 'spectator',
+                spectatorId: deps.normalizeSpectatorId(source.spectatorId)
+            };
+        }
+        const seatKey = deps.parseSeatKeyOptional(source.seatKey || value);
+        return seatKey ? { role: 'seat', seatKey } : null;
+    }
+
+    function getPayloadKeyForViewer(viewerValue: unknown): MatchAuthoritySeatKey | 'spectator' {
+        const viewer = normalizeViewerIdentity(viewerValue);
+        return viewer && viewer.role === 'seat' ? viewer.seatKey : 'spectator';
+    }
+
+    function cloneSnapshotHashSource(snapshotValue: unknown): unknown {
+        const shot = deps.deepClone(snapshotValue || {}) as RecordValue;
+        if (shot && typeof shot === 'object' && shot._meta && typeof shot._meta === 'object') {
+            const meta = asRecord(shot._meta);
+            delete meta.projectedSnapshotHash;
+            delete meta.authoritativeStateHash;
+        }
+        return shot;
+    }
+
+    function computeAuthoritativeStateHash(snapshotValue: unknown): string | null {
+        return deps.computeStableHash ? deps.computeStableHash(cloneSnapshotHashSource(snapshotValue)) : null;
+    }
+
+    function computeProjectedSnapshotHash(snapshotValue: unknown): string | null {
+        return deps.computeStableHash ? deps.computeStableHash(cloneSnapshotHashSource(snapshotValue)) : null;
+    }
+
+    function buildPublicSnapshotForViewer(
+        room: MatchAuthorityRoomState | null | undefined,
+        viewerValue: unknown
+    ): MatchAuthorityPublicSnapshot {
+        const viewer = normalizeViewerIdentity(viewerValue);
+        const viewerSeatKey = viewer && viewer.role === 'seat' ? viewer.seatKey : null;
+        const shot = projectSnapshotForViewer(room && room.snapshot ? room.snapshot : {}, viewerSeatKey, {
+            stateVersion: room ? room.stateVersion : 0,
+            updatedAt: room ? room.updatedAt : deps.now(),
+            projectedForSeat: viewerSeatKey,
+            viewerRole: viewer && viewer.role === 'spectator' ? 'spectator' : null,
+            turnStartReconciled: true
+        });
+        deps.stripTransientPresentationState(shot);
+        const projectedSnapshotHash = computeProjectedSnapshotHash(shot);
+        if (!shot._meta || typeof shot._meta !== 'object') {
+            shot._meta = {};
+        }
+        asRecord(shot._meta).projectedSnapshotHash = projectedSnapshotHash;
+        return shot;
+    }
+
+    function buildPublicSnapshot(
+        room: MatchAuthorityRoomState | null | undefined,
+        viewerSeatKey: PlayerKey | null | undefined
+    ): MatchAuthorityPublicSnapshot {
+        const shot = projectSnapshotForViewer(room && room.snapshot ? room.snapshot : {}, viewerSeatKey || null, {
+            stateVersion: room ? room.stateVersion : 0,
+            updatedAt: room ? room.updatedAt : deps.now(),
+            projectedForSeat: viewerSeatKey || null,
+            turnStartReconciled: true
+        });
+        deps.stripTransientPresentationState(shot);
+        const projectedSnapshotHash = computeProjectedSnapshotHash(shot);
+        if (!shot._meta || typeof shot._meta !== 'object') {
+            shot._meta = {};
+        }
+        asRecord(shot._meta).projectedSnapshotHash = projectedSnapshotHash;
+        return shot;
+    }
+
     return {
         getFateWillControllerKey,
         isFateWillControllerForCurrentTurn,
         canViewerInspectOwnerHand,
-        projectSnapshotForViewer
+        projectSnapshotForViewer,
+        normalizeViewerIdentity,
+        getPayloadKeyForViewer,
+        computeAuthoritativeStateHash,
+        computeProjectedSnapshotHash,
+        buildPublicSnapshotForViewer,
+        buildPublicSnapshot
     };
 }
