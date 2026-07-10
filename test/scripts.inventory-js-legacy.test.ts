@@ -140,4 +140,19 @@ describe('JS inventory runtime-authority guard', () => {
       expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.js`))).toBe(false);
     }
   });
+
+  test('rejects reintroducing retired one-off registry debug scripts', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const retiredScripts = [
+      'cross-ref-scripts',
+      'debug-single',
+      'debug-single2',
+      'test-json'
+    ];
+
+    for (const name of retiredScripts) {
+      expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.ts`))).toBe(false);
+      expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.js`))).toBe(false);
+    }
+  });
 });
