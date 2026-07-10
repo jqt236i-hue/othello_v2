@@ -64,6 +64,7 @@ import { createMatchAuthorityRoomLifecycleApi } from './match-authority/room-lif
 import { createTrapVisibilityApi } from './match-authority/trap-visibility';
 import { createMatchAuthorityProjectionApi } from './match-authority/projection';
 import { createMatchAuthorityPublishApi } from './match-authority/publish';
+import { createMatchAuthorityOperationsApi } from './match-authority/operations';
 
 import deepClone from './deepClone';
 
@@ -200,6 +201,13 @@ const matchAuthorityRoomLifecycle = createMatchAuthorityRoomLifecycleApi({
     normalizeSeatPlayerIds
 });
 const trapVisibility = createTrapVisibilityApi(parseSeatKeyOptional);
+const matchAuthorityOperations = createMatchAuthorityOperationsApi({
+    playerKeys: PLAYER_KEYS as readonly MatchAuthoritySeatKey[],
+    acceptedOperationHistoryLimit: ACCEPTED_OPERATION_HISTORY_LIMIT,
+    normalizeOperationId,
+    normalizePlayerKey,
+    normalizeStateVersion
+});
 const matchAuthorityPublish = createMatchAuthorityPublishApi({
     versionRejectionReasons: VERSION_REJECTION_REASONS,
     normalizeOperationId,
@@ -447,76 +455,19 @@ function buildPublicSeatMetadata(value: unknown): {
 }
 
 function hasRequiredOperationId(value: unknown): boolean {
-    return normalizeOperationId(value) !== '';
+    return matchAuthorityOperations.hasRequiredOperationId(value);
 }
 
 function ensureAcceptedOperationsBySeat(room: MatchAuthorityRoomState | null | undefined): MatchAuthorityAcceptedOperationsBySeat {
-    const source = (room && room.lastAcceptedOperationBySeat && typeof room.lastAcceptedOperationBySeat === 'object')
-        ? room.lastAcceptedOperationBySeat
-        : {};
-
-    const normalized: MatchAuthorityAcceptedOperationsBySeat = {
-        black: (source.black && typeof source.black === 'object') ? source.black : null,
-        white: (source.white && typeof source.white === 'object') ? source.white : null
-    };
-
-    if (room && typeof room === 'object') {
-        room.lastAcceptedOperationBySeat = normalized;
-    }
-
-    return normalized;
+    return matchAuthorityOperations.ensureAcceptedOperationsBySeat(room);
 }
 
 function normalizeAcceptedOperationEntry(value: unknown): MatchAuthorityAcceptedOperationEntry | null {
-    if (!value || typeof value !== 'object') return null;
-    const source = asRecord(value);
-    const operationId = normalizeOperationId(source.operationId);
-    if (!operationId) return null;
-    return {
-        operationId,
-        stateVersion: normalizeStateVersion(source.stateVersion),
-        updatedAt: Number.isFinite(Number(source.updatedAt)) ? Number(source.updatedAt) : null
-    };
+    return matchAuthorityOperations.normalizeAcceptedOperationEntry(value);
 }
 
 function ensureAcceptedOperationHistoryBySeat(room: MatchAuthorityRoomState | null | undefined): MatchAuthorityAcceptedOperationHistoryBySeat {
-    const historySource = (room && room.acceptedOperationHistoryBySeat && typeof room.acceptedOperationHistoryBySeat === 'object')
-        ? room.acceptedOperationHistoryBySeat
-        : {};
-    const lastAcceptedBySeat = ensureAcceptedOperationsBySeat(room);
-    const normalized: MatchAuthorityAcceptedOperationHistoryBySeat = {
-        black: [],
-        white: []
-    };
-
-    for (const seatKey of PLAYER_KEYS as readonly MatchAuthoritySeatKey[]) {
-        const sourceEntries = Array.isArray(historySource[seatKey])
-            ? historySource[seatKey]
-            : [];
-        const combined = sourceEntries.slice();
-        if (combined.length === 0 && lastAcceptedBySeat[seatKey]) {
-            combined.push(lastAcceptedBySeat[seatKey]);
-        }
-        const seen = new Set<string>();
-        const entries: MatchAuthorityAcceptedOperationEntry[] = [];
-        for (const entry of combined) {
-            const normalizedEntry = normalizeAcceptedOperationEntry(entry);
-            if (!normalizedEntry || seen.has(normalizedEntry.operationId)) continue;
-            seen.add(normalizedEntry.operationId);
-            entries.push(normalizedEntry);
-        }
-        normalized[seatKey] = entries.slice(-ACCEPTED_OPERATION_HISTORY_LIMIT);
-        lastAcceptedBySeat[seatKey] = normalized[seatKey].length > 0
-            ? normalized[seatKey][normalized[seatKey].length - 1]
-            : null;
-    }
-
-    if (room && typeof room === 'object') {
-        room.acceptedOperationHistoryBySeat = normalized;
-        room.lastAcceptedOperationBySeat = lastAcceptedBySeat;
-    }
-
-    return normalized;
+    return matchAuthorityOperations.ensureAcceptedOperationHistoryBySeat(room);
 }
 
 function findAcceptedOperationBySeat(
@@ -524,17 +475,7 @@ function findAcceptedOperationBySeat(
     seatKey: unknown,
     operationId: unknown
 ): MatchAuthorityAcceptedOperationEntry | null {
-    const normalizedSeat = normalizePlayerKey(seatKey);
-    const normalizedOperationId = normalizeOperationId(operationId);
-    if (!normalizedOperationId) return null;
-    const historyBySeat = ensureAcceptedOperationHistoryBySeat(room);
-    const seatHistory = Array.isArray(historyBySeat[normalizedSeat]) ? historyBySeat[normalizedSeat] : [];
-    for (let index = seatHistory.length - 1; index >= 0; index -= 1) {
-        if (seatHistory[index] && seatHistory[index].operationId === normalizedOperationId) {
-            return seatHistory[index];
-        }
-    }
-    return null;
+    return matchAuthorityOperations.findAcceptedOperationBySeat(room, seatKey, operationId);
 }
 
 function resolveAcceptedOperation(
@@ -543,14 +484,7 @@ function resolveAcceptedOperation(
     operationId: unknown,
     fallbackEntry?: unknown
 ): MatchAuthorityAcceptedOperationEntry | null {
-    const matchedEntry = findAcceptedOperationBySeat(room, seatKey, operationId);
-    if (matchedEntry) return matchedEntry;
-    const normalizedOperationId = normalizeOperationId(operationId);
-    const normalizedFallback = normalizeAcceptedOperationEntry(fallbackEntry);
-    if (!normalizedOperationId || !normalizedFallback) return null;
-    return normalizedFallback.operationId === normalizedOperationId
-        ? normalizedFallback
-        : null;
+    return matchAuthorityOperations.resolveAcceptedOperation(room, seatKey, operationId, fallbackEntry);
 }
 
 function rememberAcceptedOperationBySeat(
@@ -558,22 +492,7 @@ function rememberAcceptedOperationBySeat(
     seatKey: unknown,
     entry: unknown
 ): MatchAuthorityAcceptedOperationEntry | null {
-    const normalizedSeat = normalizePlayerKey(seatKey);
-    const normalizedEntry = normalizeAcceptedOperationEntry(entry);
-    if (!normalizedEntry) return null;
-    const historyBySeat = ensureAcceptedOperationHistoryBySeat(room);
-    const currentEntries = Array.isArray(historyBySeat[normalizedSeat]) ? historyBySeat[normalizedSeat] : [];
-    const nextEntries = currentEntries.filter((one) => !one || one.operationId !== normalizedEntry.operationId);
-    nextEntries.push(normalizedEntry);
-    historyBySeat[normalizedSeat] = nextEntries.slice(-ACCEPTED_OPERATION_HISTORY_LIMIT);
-    if (room && typeof room === 'object') {
-        room.acceptedOperationHistoryBySeat = historyBySeat;
-        room.lastAcceptedOperationBySeat = room.lastAcceptedOperationBySeat && typeof room.lastAcceptedOperationBySeat === 'object'
-            ? room.lastAcceptedOperationBySeat
-            : { black: null, white: null };
-        room.lastAcceptedOperationBySeat[normalizedSeat] = historyBySeat[normalizedSeat][historyBySeat[normalizedSeat].length - 1] || null;
-    }
-    return historyBySeat[normalizedSeat][historyBySeat[normalizedSeat].length - 1] || null;
+    return matchAuthorityOperations.rememberAcceptedOperationBySeat(room, seatKey, entry);
 }
 
 function normalizeStateVersion(value: unknown): number | null {
