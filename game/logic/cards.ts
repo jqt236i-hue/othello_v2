@@ -75,6 +75,7 @@ const CardEffectTargetCountsModule = resolveCardLogicModuleOrGlobal('./cards-int
 const CardSalvationEffectModule = resolveCardLogicModuleOrGlobal('./cards-internal/salvation-effect', 'CardSalvationEffect');
 const CardLossEffectModule = resolveCardLogicModuleOrGlobal('./cards-internal/loss-effect', 'CardLossEffect');
 const CardFateEffectModule = resolveCardLogicModuleOrGlobal('./cards-internal/fate-effect', 'CardFateEffect');
+const CardBoardConfigurationModule = resolveCardLogicModuleOrGlobal('./cards-internal/board-configuration', 'CardBoardConfiguration');
 const CardBoardShapeAccessModule = resolveCardLogicModuleOrGlobal('./cards-internal/board-shape-access', 'CardBoardShapeAccess');
 const CardFlipsModule = resolveCardLogicModuleOrGlobal('./cards/flips', 'CardFlips');
 
@@ -107,6 +108,18 @@ const {
     if (!CardPresentationHelpers || typeof CardPresentationHelpers.getCellVisualPresentationMeta !== 'function') {
         throw new Error('CardPresentationHelpers not loaded');
     }
+    if (!CardBoardConfigurationModule || typeof CardBoardConfigurationModule.createCardBoardConfiguration !== 'function') {
+        throw new Error('CardBoardConfiguration not loaded');
+    }
+    const CardBoardConfiguration = CardBoardConfigurationModule.createCardBoardConfiguration({
+        boardUtils: BoardUtils
+    });
+    const {
+        resolveCardBoardConfig,
+        createStoneIdBoard,
+        getOpeningPlacementsForState,
+        getOpeningCellsForState
+    } = CardBoardConfiguration;
 
     const cardModuleRequire = (typeof require === 'function') ? require : null;
 
@@ -154,77 +167,6 @@ const {
         }
         const typeUpper = String(type || '').toUpperCase();
         return typeUpper === 'GUARD' || typeUpper === 'LIVING_WILL';
-    }
-
-    function resolveCardBoardConfig(boardOrConfig?: any) {
-        if (BoardUtils && typeof BoardUtils.resolveBoardConfig === 'function') {
-            return BoardUtils.resolveBoardConfig(boardOrConfig);
-        }
-        const board = Array.isArray(boardOrConfig)
-            ? boardOrConfig
-            : (boardOrConfig && Array.isArray(boardOrConfig.board)
-                ? boardOrConfig.board
-                : (boardOrConfig && Array.isArray(boardOrConfig.stoneIdMap) ? boardOrConfig.stoneIdMap : null));
-        const rows = Array.isArray(board) && board.length > 0
-            ? board.length
-            : (Number.isInteger(BOARD_SIZE) ? BOARD_SIZE : 8);
-        const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0
-            ? board[0].length
-            : rows;
-        return {
-            rows,
-            cols,
-            standard8x8: rows === 8 && cols === 8,
-            baseBounds: { minRow: 0, maxRow: rows - 1, minCol: 0, maxCol: cols - 1 },
-            outerBounds: { minRow: -1, maxRow: rows, minCol: -1, maxCol: cols }
-        };
-    }
-
-    function createStoneIdBoard(boardOrConfig: any) {
-        const config = resolveCardBoardConfig(boardOrConfig);
-        if (BoardUtils && typeof BoardUtils.createEmptyBoard === 'function') {
-            return BoardUtils.createEmptyBoard(config, null);
-        }
-        return Array.from({ length: config.rows }, () => Array.from({ length: config.cols }, () => null));
-    }
-
-    function getOpeningPlacementsForState(boardOrConfig: any) {
-        if (BoardUtils && typeof BoardUtils.getOpeningPlacements === 'function') {
-            return BoardUtils.getOpeningPlacements(boardOrConfig);
-        }
-        const config = resolveCardBoardConfig(boardOrConfig);
-        const anchorRow = Math.floor((config.rows - 2) / 2);
-        const anchorCol = Math.floor((config.cols - 2) / 2);
-        if (config.rows === 7 && config.cols === 7) {
-            const placements = [];
-            for (let rowOffset = 0; rowOffset < 3; rowOffset += 1) {
-                for (let colOffset = 0; colOffset < 3; colOffset += 1) {
-                    if (rowOffset === 1 && colOffset === 1) continue;
-                    placements.push({
-                        row: anchorRow + rowOffset,
-                        col: anchorCol + colOffset,
-                        owner: ((rowOffset + colOffset) % 2 === 0) ? WHITE : BLACK
-                    });
-                }
-            }
-            return placements;
-        }
-        return [
-            { row: anchorRow, col: anchorCol, owner: WHITE },
-            { row: anchorRow, col: anchorCol + 1, owner: BLACK },
-            { row: anchorRow + 1, col: anchorCol, owner: BLACK },
-            { row: anchorRow + 1, col: anchorCol + 1, owner: WHITE }
-        ];
-    }
-
-    function getOpeningCellsForState(boardOrConfig: any) {
-        if (BoardUtils && typeof BoardUtils.getOpeningCells === 'function') {
-            return BoardUtils.getOpeningCells(boardOrConfig);
-        }
-        return getOpeningPlacementsForState(boardOrConfig).map((stone: any) => ({
-            row: stone.row,
-            col: stone.col
-        }));
     }
 
     function cloneSalvationDestroyedEntries(entries: any) {

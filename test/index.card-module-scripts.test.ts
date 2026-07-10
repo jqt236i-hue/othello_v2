@@ -63,6 +63,7 @@ function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: stri
   const stateFactoryTag = '<script src="game/logic/cards-internal/state-factory.js"></script>';
   const moduleResolverTag = '<script src="game/logic/cards-internal/module-resolver.js"></script>';
   const presentationHelpersTag = '<script src="game/logic/cards-internal/presentation-helpers.js"></script>';
+  const boardConfigurationTag = '<script src="game/logic/cards-internal/board-configuration.js"></script>';
   const selectorsTag = '<script src="game/logic/cards/selectors.js"></script>';
   const prechecksTag = '<script src="game/logic/cards-internal/card-usage-prechecks.js"></script>';
   const orchestratorTag = '<script src="game/logic/cards-internal/selector-orchestrator.js"></script>';
@@ -77,6 +78,7 @@ function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: stri
   expect(html.includes(stateFactoryTag)).toBe(true);
   expect(html.includes(moduleResolverTag)).toBe(true);
   expect(html.includes(presentationHelpersTag)).toBe(true);
+  expect(html.includes(boardConfigurationTag)).toBe(true);
   expect(html.includes(selectorsTag)).toBe(true);
   expect(html.includes(prechecksTag)).toBe(true);
   expect(html.includes(orchestratorTag)).toBe(true);
@@ -88,6 +90,7 @@ function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: stri
   expect(html.indexOf(stateFactoryTag)).toBeGreaterThan(html.indexOf(randomSourceTag));
   expect(html.indexOf(moduleResolverTag)).toBeGreaterThan(html.indexOf(stateFactoryTag));
   expect(html.indexOf(presentationHelpersTag)).toBeGreaterThan(html.indexOf(moduleResolverTag));
+  expect(html.indexOf(boardConfigurationTag)).toBeGreaterThan(html.indexOf(presentationHelpersTag));
   expect(html.indexOf(selectorsTag)).toBeGreaterThan(html.indexOf(presentationHelpersTag));
   expect(html.indexOf(prechecksTag)).toBeGreaterThan(html.indexOf(selectorsTag));
   expect(html.indexOf(orchestratorTag)).toBeGreaterThan(html.indexOf(prechecksTag));
@@ -101,6 +104,7 @@ function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: stri
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/state-factory.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/module-resolver.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/presentation-helpers.js'))).toBe(true);
+  expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/board-configuration.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/card-usage-prechecks.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/selector-orchestrator.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/hand-manager.js'))).toBe(true);
@@ -169,6 +173,15 @@ function expectNoLexicalPendingSelectionGlobals(rootPath: string) {
 function readRuntimeScriptOrder(rootPath: string) {
   const entryPath = path.resolve(__dirname, rootPath, 'entry-browser.js');
   const source = fs.readFileSync(entryPath, 'utf8');
+  const moduleKeys = Array.from(source.matchAll(
+    /\{\s*moduleKey:\s*["']\.\/dist\/([^"']+)["']/g
+  )).map((match) => match[1]);
+  if (moduleKeys.length > 0) {
+    return moduleKeys
+      .map((moduleKey) => `<script src="${moduleKey}.js"></script>`)
+      .join('\n');
+  }
+
   return source
     .split(/\r?\n/)
     .map((line) => {
