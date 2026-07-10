@@ -16,10 +16,8 @@ import type {
     MatchAuthorityBufferedSseReplayEvent,
     MatchAuthorityHeartbeatPayloadFromRoomOptions,
     MatchAuthorityPresencePayloadFromRoomOptions,
-    MatchAuthorityPresentationFramePayload,
     MatchAuthorityPresentationFramePublic,
     MatchAuthorityPresentationJournalEntry,
-    MatchAuthorityPresentationPayloadKey,
     MatchAuthorityProjectionMetadata,
     MatchAuthorityPublicApi,
     MatchAuthorityPublicSnapshot,
@@ -59,6 +57,7 @@ import {
     normalizePlayerKey
 } from './match-authority/identity';
 import { createMatchAuthorityJournalApi } from './match-authority/journal';
+import { createMatchAuthorityPresentationJournalApi } from './match-authority/presentation-journal';
 
 import deepClone from './deepClone';
 
@@ -163,6 +162,17 @@ const matchAuthorityJournal = createMatchAuthorityJournalApi({
     normalizeStateVersion,
     parseSeatKeyOptional,
     getPayloadKeyForViewer
+});
+const matchAuthorityPresentationJournal = createMatchAuthorityPresentationJournalApi({
+    presentationJournalLimit: PRESENTATION_JOURNAL_LIMIT,
+    normalizeViewerIdentity,
+    normalizeOperationId,
+    normalizeStateVersion,
+    parseSeatKeyOptional,
+    normalizePublishActionType,
+    normalizeAcceptedOperationEntry,
+    resolvePlaybackDigest,
+    normalizeEffectLogMessages
 });
 
 function appendAuthorityLog(roomValue: unknown, entryValue: unknown, limitValue: unknown): unknown[] {
@@ -2288,135 +2298,11 @@ function sanitizePendingSelectionActionForAuthority(snapshotValue: unknown, play
     return nextAction;
 }
 
-function toPositiveInteger(value: unknown, fallback: number): number {
-    return Number.isFinite(Number(value)) ? Math.max(0, Math.trunc(Number(value))) : fallback;
-}
-
-function normalizePresentationPayload(value: unknown): MatchAuthorityPresentationFramePayload {
-    const source = asRecord(value);
-    const playbackEvents = Array.isArray(source.playbackEvents) ? deepClone(source.playbackEvents) as unknown[] : [];
-    return {
-        playbackEvents,
-        playbackDigest: resolvePlaybackDigest(playbackEvents, source.playbackDigest),
-        effectLogs: normalizeEffectLogMessages(source.effectLogs),
-        playbackDiagnostics: source.playbackDiagnostics || null
-    };
-}
-
-function ensurePresentationJournal(roomValue: MatchAuthorityRoomState | null | undefined): MatchAuthorityPresentationJournalEntry[] {
-    const room = roomValue && typeof roomValue === 'object' ? roomValue : null;
-    if (!room) return [];
-    if (!Array.isArray(room.presentationJournal)) room.presentationJournal = [];
-    return room.presentationJournal;
-}
-
-function getPresentationPayloadKeyForViewer(viewer: MatchAuthorityViewer | null | undefined): MatchAuthorityPresentationPayloadKey {
-    return viewer && viewer.role === 'seat' ? viewer.seatKey : 'spectator';
-}
-
-function normalizePresentationViewer(viewerValue: unknown): MatchAuthorityViewer | null {
-    const viewer = normalizeViewerIdentity(viewerValue);
-    return viewer || null;
-}
-
 function appendPresentationFrame(
     roomValue: MatchAuthorityRoomState | null | undefined,
     inputValue: unknown
 ): MatchAuthorityPresentationJournalEntry | null {
-    const room = roomValue && typeof roomValue === 'object' ? roomValue : null;
-    if (!room) return null;
-    const input = asRecord(inputValue);
-    const journal = ensurePresentationJournal(room);
-    const visualSeq = toPositiveInteger(room.visualSeq, 0) + 1;
-    const payloadByViewer: Partial<Record<MatchAuthorityPresentationPayloadKey, MatchAuthorityPresentationFramePayload>> = {};
-    const sourcePayloadByViewer = asRecord(input.payloadByViewer);
-    for (const key of ['black', 'white', 'spectator'] as MatchAuthorityPresentationPayloadKey[]) {
-        if (Object.prototype.hasOwnProperty.call(sourcePayloadByViewer, key)) {
-            payloadByViewer[key] = normalizePresentationPayload(sourcePayloadByViewer[key]);
-        }
-    }
-
-    const snapshotAfterByViewer: Partial<Record<MatchAuthorityPresentationPayloadKey, unknown>> = {};
-    const sourceSnapshotAfterByViewer = asRecord(input.snapshotAfterByViewer);
-    for (const key of ['black', 'white', 'spectator'] as MatchAuthorityPresentationPayloadKey[]) {
-        if (Object.prototype.hasOwnProperty.call(sourceSnapshotAfterByViewer, key)) {
-            snapshotAfterByViewer[key] = deepClone(sourceSnapshotAfterByViewer[key]);
-        }
-    }
-
-    const entry: MatchAuthorityPresentationJournalEntry = {
-        visualSeq,
-        stateVersionFrom: toPositiveInteger(input.stateVersionFrom, 0),
-        stateVersionTo: toPositiveInteger(input.stateVersionTo, 0),
-        operationId: normalizeOperationId(input.operationId) || null,
-        actorSeatKey: parseSeatKeyOptional(input.actorSeatKey),
-        actionType: normalizePublishActionType(input.actionType),
-        payloadByViewer,
-        snapshotAfterByViewer,
-        createdAt: Number.isFinite(Number(input.createdAt)) ? Number(input.createdAt) : Date.now()
-    };
-
-    journal.push(entry);
-    if (journal.length > PRESENTATION_JOURNAL_LIMIT) {
-        const removeCount = journal.length - PRESENTATION_JOURNAL_LIMIT;
-        const baseEntry = journal[removeCount - 1];
-        if (baseEntry && typeof baseEntry === 'object') {
-            room.presentationJournalBaseVisualSeq = toPositiveInteger(baseEntry.visualSeq, 0);
-            room.presentationJournalBaseSnapshotByViewer = deepClone(baseEntry.snapshotAfterByViewer || {});
-        }
-        journal.splice(0, removeCount);
-    }
-    room.visualSeq = visualSeq;
-    return entry;
-}
-
-function getMinimumRetainedPresentationBaseSeq(roomValue: MatchAuthorityRoomState | null | undefined): number {
-    const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
-    const journal = Array.isArray(room.presentationJournal) ? room.presentationJournal : [];
-    if (journal.length <= 0) return 0;
-    if (Number.isFinite(Number(room.presentationJournalBaseVisualSeq))) {
-        return Math.max(0, Math.trunc(Number(room.presentationJournalBaseVisualSeq)));
-    }
-    const firstSeq = toPositiveInteger(journal[0] && journal[0].visualSeq, 0);
-    return Math.max(0, firstSeq - 1);
-}
-
-function toPublicPresentationFrame(
-    entryValue: unknown,
-    viewerValue: unknown,
-    roomValue?: MatchAuthorityRoomState | null | undefined
-): MatchAuthorityPresentationFramePublic {
-    const entry = entryValue && typeof entryValue === 'object'
-        ? entryValue as MatchAuthorityPresentationJournalEntry
-        : {} as MatchAuthorityPresentationJournalEntry;
-    const viewer = normalizePresentationViewer(viewerValue);
-    const payloadKey = getPresentationPayloadKeyForViewer(viewer);
-    const payloadByViewer = entry.payloadByViewer && typeof entry.payloadByViewer === 'object' ? entry.payloadByViewer : {};
-    const payload = payloadByViewer[payloadKey] || payloadByViewer.spectator || {};
-    const snapshotAfterByViewer = entry.snapshotAfterByViewer && typeof entry.snapshotAfterByViewer === 'object' ? entry.snapshotAfterByViewer : {};
-    const snapshotAfter = snapshotAfterByViewer[payloadKey] || snapshotAfterByViewer.spectator || null;
-    const snapshotMeta = snapshotAfter && typeof snapshotAfter === 'object'
-        ? asRecord(asRecord(snapshotAfter)._meta)
-        : {};
-    const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
-    const playbackEvents = Array.isArray(payload.playbackEvents) ? deepClone(payload.playbackEvents) as unknown[] : [];
-
-    return {
-        roomId: room.roomId ? String(room.roomId).trim().toUpperCase() : null,
-        visualSeq: toPositiveInteger(entry.visualSeq, 0),
-        stateVersionFrom: toPositiveInteger(entry.stateVersionFrom, 0),
-        stateVersionTo: toPositiveInteger(entry.stateVersionTo, 0),
-        operationId: entry.operationId || null,
-        actorSeatKey: parseSeatKeyOptional(entry.actorSeatKey),
-        actionType: normalizePublishActionType(entry.actionType),
-        playbackEvents,
-        playbackDigest: resolvePlaybackDigest(playbackEvents, payload.playbackDigest),
-        effectLogs: normalizeEffectLogMessages(payload.effectLogs),
-        playbackDiagnostics: payload.playbackDiagnostics || null,
-        projectedSnapshotHash: snapshotMeta.projectedSnapshotHash ? String(snapshotMeta.projectedSnapshotHash) : null,
-        snapshotAfter: snapshotAfter ? deepClone(snapshotAfter) : null,
-        createdAt: Number.isFinite(Number(entry.createdAt)) ? Number(entry.createdAt) : Date.now()
-    };
+    return matchAuthorityPresentationJournal.appendPresentationFrame(roomValue, inputValue);
 }
 
 function getPresentationFramesAfter(
@@ -2424,13 +2310,7 @@ function getPresentationFramesAfter(
     afterVisualSeq: unknown,
     viewerValue: unknown
 ): MatchAuthorityPresentationFramePublic[] {
-    const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
-    const minSeq = toPositiveInteger(afterVisualSeq, 0);
-    const journal = Array.isArray(room.presentationJournal) ? room.presentationJournal : [];
-    return journal
-        .filter((entry) => entry && Number(entry.visualSeq) > minSeq)
-        .sort((a, b) => Number(a.visualSeq) - Number(b.visualSeq))
-        .map((entry) => toPublicPresentationFrame(entry, viewerValue, room));
+    return matchAuthorityPresentationJournal.getPresentationFramesAfter(roomValue, afterVisualSeq, viewerValue);
 }
 
 function findPresentationFrameEntryForOperation(
@@ -2438,113 +2318,36 @@ function findPresentationFrameEntryForOperation(
     operationIdValue: unknown,
     stateVersionValue?: unknown
 ): MatchAuthorityPresentationJournalEntry | null {
-    const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
-    const operationId = normalizeOperationId(operationIdValue);
-    if (!operationId) return null;
-    const stateVersion = normalizeStateVersion(stateVersionValue);
-    const journal = Array.isArray(room.presentationJournal) ? room.presentationJournal : [];
-    for (let index = journal.length - 1; index >= 0; index -= 1) {
-        const entry = journal[index];
-        if (!entry || normalizeOperationId(entry.operationId) !== operationId) continue;
-        if (stateVersion !== null && normalizeStateVersion(entry.stateVersionTo) !== stateVersion) continue;
-        return entry;
-    }
-    return null;
+    return matchAuthorityPresentationJournal.findPresentationFrameEntryForOperation(
+        roomValue,
+        operationIdValue,
+        stateVersionValue
+    );
 }
 
 function findPresentationFrameEntryForAcceptedOperation(
     roomValue: MatchAuthorityRoomState | null | undefined,
     acceptedOperationValue: unknown
 ): MatchAuthorityPresentationJournalEntry | null {
-    const acceptedOperation = normalizeAcceptedOperationEntry(acceptedOperationValue);
-    if (!acceptedOperation) return null;
-    return findPresentationFrameEntryForOperation(
+    return matchAuthorityPresentationJournal.findPresentationFrameEntryForAcceptedOperation(
         roomValue,
-        acceptedOperation.operationId,
-        acceptedOperation.stateVersion
+        acceptedOperationValue
     );
-}
-
-function findBaseSnapshotForVisualSeq(
-    roomValue: MatchAuthorityRoomState | null | undefined,
-    afterVisualSeq: number,
-    viewerValue: unknown
-): unknown {
-    const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
-    const viewer = normalizePresentationViewer(viewerValue);
-    const payloadKey = getPresentationPayloadKeyForViewer(viewer);
-    const retainedBaseSeq = Number.isFinite(Number(room.presentationJournalBaseVisualSeq))
-        ? Math.max(0, Math.trunc(Number(room.presentationJournalBaseVisualSeq)))
-        : null;
-    if (retainedBaseSeq !== null && afterVisualSeq === retainedBaseSeq) {
-        const baseSnapshots = room.presentationJournalBaseSnapshotByViewer && typeof room.presentationJournalBaseSnapshotByViewer === 'object'
-            ? asRecord(room.presentationJournalBaseSnapshotByViewer)
-            : {};
-        return baseSnapshots[payloadKey] || baseSnapshots.spectator || null;
-    }
-    if (afterVisualSeq <= 0) {
-        const initial = room.initialSnapshotByViewer && room.initialSnapshotByViewer[payloadKey];
-        return initial || room.snapshot || null;
-    }
-    const journal = Array.isArray(room.presentationJournal) ? room.presentationJournal : [];
-    const entry = journal.find((item) => Number(item && item.visualSeq) === afterVisualSeq);
-    if (!entry) return null;
-    return (entry.snapshotAfterByViewer && entry.snapshotAfterByViewer[payloadKey])
-        || (entry.snapshotAfterByViewer && entry.snapshotAfterByViewer.spectator)
-        || null;
 }
 
 function buildPresentationJournalResponse(
     roomValue: MatchAuthorityRoomState | null | undefined,
     options?: Record<string, unknown> | null
 ): Record<string, unknown> {
-    const room = roomValue && typeof roomValue === 'object' ? roomValue : {};
-    const opts = asRecord(options);
-    const afterVisualSeq = toPositiveInteger(opts.afterVisualSeq, 0);
-    const currentVisualSeq = toPositiveInteger(room.visualSeq, 0);
-    const currentStateVersion = toPositiveInteger(room.stateVersion, 0);
-    const presentationCursor = { visualSeq: currentVisualSeq, stateVersion: currentStateVersion };
-    const serverTime = Number.isFinite(Number(opts.serverTime)) ? Number(opts.serverTime) : Date.now();
-    const roomId = room.roomId ? String(room.roomId).trim().toUpperCase() : null;
-    const minimumRetainedBaseSeq = getMinimumRetainedPresentationBaseSeq(room);
-    if (afterVisualSeq < minimumRetainedBaseSeq) {
-        return {
-            ok: false,
-            roomId,
-            reason: 'VISUAL_CURSOR_EXPIRED',
-            baseVisualSeq: afterVisualSeq,
-            baseSnapshot: null,
-            presentationCursor,
-            presentationFrames: [],
-            snapshot: room.snapshot || null,
-            serverTime
-        };
-    }
-    const baseSnapshot = findBaseSnapshotForVisualSeq(room, afterVisualSeq, opts.viewer);
+    return matchAuthorityPresentationJournal.buildPresentationJournalResponse(roomValue, options);
+}
 
-    if (!baseSnapshot) {
-        return {
-            ok: false,
-            roomId,
-            reason: 'VISUAL_CURSOR_EXPIRED',
-            baseVisualSeq: afterVisualSeq,
-            baseSnapshot: null,
-            presentationCursor,
-            presentationFrames: [],
-            snapshot: room.snapshot || null,
-            serverTime
-        };
-    }
-
-    return {
-        ok: true,
-        roomId,
-        baseVisualSeq: afterVisualSeq,
-        baseSnapshot: deepClone(baseSnapshot),
-        presentationCursor,
-        presentationFrames: getPresentationFramesAfter(room, afterVisualSeq, opts.viewer),
-        serverTime
-    };
+function toPublicPresentationFrame(
+    entryValue: unknown,
+    viewerValue: unknown,
+    roomValue?: MatchAuthorityRoomState | null | undefined
+): MatchAuthorityPresentationFramePublic {
+    return matchAuthorityPresentationJournal.toPublicPresentationFrame(entryValue, viewerValue, roomValue);
 }
 
 const matchAuthority = assertMatchAuthorityPublicApi({
