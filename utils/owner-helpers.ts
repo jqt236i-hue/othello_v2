@@ -101,6 +101,19 @@ interface OwnerHelpersApi {
 (function (root: OwnerHelpersRoot | undefined) {
     'use strict';
 
+    const PlayerSeatContract = (() => {
+        try {
+            if (typeof require === 'function') {
+                return require('../shared/player-seat-contract');
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            const globalRoot = typeof globalThis !== 'undefined' ? globalThis as { PlayerSeatContract?: unknown } : null;
+            if (globalRoot && globalRoot.PlayerSeatContract) return globalRoot.PlayerSeatContract;
+        } catch (e) { /* ignore */ }
+        throw new Error('PlayerSeatContract is required by OwnerHelpers');
+    })() as typeof import('../shared/player-seat-contract');
+
     const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
 
     function asRecord(value: unknown): Record<string, unknown> {
@@ -112,29 +125,18 @@ interface OwnerHelpersApi {
     }
 
     function getOwnerDisplayName(owner: unknown): OwnerSeatKey | null {
-        if (owner === 1 || owner === '1' || owner === 'black') return 'black';
-        if (owner === -1 || owner === '-1' || owner === 'white') return 'white';
-        return null;
+        if (!(owner === 1 || owner === -1 || owner === '1' || owner === '-1' || owner === 'black' || owner === 'white')) {
+            return null;
+        }
+        return PlayerSeatContract.parsePlayerSeatKey(owner);
     }
 
     function parseSeatKeyOptional(value: unknown): OwnerSeatKey | null {
-        if (value === 1 || value === '1') return 'black';
-        if (value === -1 || value === '-1') return 'white';
-
-        const normalized = (value === null || typeof value === 'undefined')
-            ? ''
-            : String(value).trim().toLowerCase();
-
-        if (normalized === 'black' || normalized === '1' || normalized === '+1') return 'black';
-        if (normalized === 'white' || normalized === '-1') return 'white';
-        return null;
+        return PlayerSeatContract.parsePlayerSeatKey(value);
     }
 
     function normalizePlayerKey(value: unknown, fallbackKey?: unknown): OwnerSeatKey {
-        const parsed = parseSeatKeyOptional(value);
-        if (parsed) return parsed;
-        const fallback = parseSeatKeyOptional(fallbackKey);
-        return fallback || 'black';
+        return PlayerSeatContract.normalizePlayerSeatKey(value, fallbackKey);
     }
 
     function normalizePlayerKeyOptional(value: unknown): OwnerSeatKey | null {
@@ -142,9 +144,7 @@ interface OwnerHelpersApi {
     }
 
     function getOpposingPlayerKey(playerKey: unknown): OwnerSeatKey | null {
-        const ownerKey = normalizePlayerKeyOptional(playerKey);
-        if (!ownerKey) return null;
-        return ownerKey === 'black' ? 'white' : 'black';
+        return PlayerSeatContract.getOpposingPlayerSeatKey(playerKey);
     }
 
     function resolveVisibleOwnerLayout(layout?: OwnerVisibleLayoutInput | null): OwnerVisibleLayout {
@@ -467,7 +467,7 @@ interface OwnerHelpersApi {
     }
 
     function isValidOwner(owner: unknown): boolean {
-        return owner === 1 || owner === -1 || owner === '1' || owner === '-1' || owner === 'black' || owner === 'white';
+        return getOwnerDisplayName(owner) !== null;
     }
 
     const OwnerHelpers: OwnerHelpersApi = {
