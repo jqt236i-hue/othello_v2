@@ -14,6 +14,7 @@ const SubPlacementContinuation = require('../game/turn/sub-placement-continuatio
 const SeededPRNG = require('../game/schema/prng');
 const deepClone = require('../utils/deepClone');
 const MatchAuthority = require('../utils/match-authority');
+const MatchCommandRuntime = require('../utils/match-command-runtime');
 const MatchRoomLobby = require('../shared/match-room-lobby');
 const NetworkActionSchema = require('../shared/network-action-schema');
 const PlaybackEventHelpers = require('../shared/playback-event-helpers');
@@ -687,9 +688,6 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     }
     MatchAuthority.stripTransientChargeDeltaState(currentSnapshot);
 
-    const currentTurnIndex = Number.isFinite(Number(currentSnapshot.cardState && currentSnapshot.cardState.turnIndex))
-        ? Number(currentSnapshot.cardState.turnIndex)
-        : 0;
     if (isNetworkDebugFillHandPayload(body)) {
         if (!toPublicNetworkDebugEnabled(room)) {
             return { ok: false, rejectedReason: 'NETWORK_DEBUG_DISABLED' };
@@ -717,48 +715,36 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
         };
     }
 
-    const builtAction = NetworkActionSchema.buildAction({
-        actionType: body.actionType,
-        actor: body.actor,
-        params: body.params,
-        actionId: body.actionId,
-        turnIndex: body.turnIndex,
-        action: body.action
-    }, playerKey, currentTurnIndex);
-
-    if (!builtAction || !builtAction.action) {
-        return { ok: false, rejectedReason: 'COMMAND_REQUIRED' };
+    const preparedCommand = MatchCommandRuntime.prepareMatchCommandAction({
+        snapshot: currentSnapshot,
+        body,
+        playerKey,
+        buildAction: (input: any, fallbackActor: any, fallbackTurnIndex: any) => NetworkActionSchema.buildAction(input, fallbackActor, fallbackTurnIndex),
+        normalizePlayerKey,
+        validatePendingSelectionPublish: MatchAuthority.validatePendingSelectionPublish,
+        sanitizePendingSelectionActionForAuthority: MatchAuthority.sanitizePendingSelectionActionForAuthority
+    });
+    if (!preparedCommand || preparedCommand.ok !== true) {
+        return preparedCommand;
     }
-    if (normalizePlayerKey(builtAction.actor) !== playerKey) {
-        return { ok: false, rejectedReason: 'SEAT_MISMATCH' };
-    }
-    const pendingValidation = MatchAuthority.validatePendingSelectionPublish(currentSnapshot, playerKey, builtAction.action);
-    if (!pendingValidation || pendingValidation.ok !== true) {
-        return { ok: false, rejectedReason: pendingValidation && pendingValidation.rejectedReason ? pendingValidation.rejectedReason : 'STALE_PENDING_SELECTION' };
-    }
-    const resolvedAction = MatchAuthority.sanitizePendingSelectionActionForAuthority(currentSnapshot, playerKey, builtAction.action);
+    const currentTurnIndex = preparedCommand.currentTurnIndex;
+    const currentCardState = preparedCommand.currentCardState;
+    const resolvedAction = preparedCommand.resolvedAction;
+    const pendingValidation = preparedCommand.pendingValidation;
 
     const prng = createCommandActionPrng(room, currentSnapshot);
-    const currentCardState = currentSnapshot.cardState || {};
-    const skipTurnStartForSubPlacement = (
+    const isSubPlacementTurnActive = (
         SubPlacementContinuation &&
-        typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function' &&
-        SubPlacementContinuation.isSubPlacementTurnActive(currentCardState, playerKey)
-    );
-    const resolvedActionRecord = resolvedAction && typeof resolvedAction === 'object' ? resolvedAction : {};
-    const pendingByPlayer = currentCardState && currentCardState.pendingEffectByPlayer && typeof currentCardState.pendingEffectByPlayer === 'object'
-        ? currentCardState.pendingEffectByPlayer
-        : {};
-    const expectedPendingForPlayer = pendingByPlayer && pendingByPlayer[playerKey] && typeof pendingByPlayer[playerKey] === 'object'
-        ? pendingByPlayer[playerKey]
-        : {};
-    const expectedPendingType = String(expectedPendingForPlayer.type || '').toUpperCase();
-    const skipTurnStartForPendingSelection = !!(
-        resolvedActionRecord.pendingSelectionState &&
-        typeof resolvedActionRecord.pendingSelectionState === 'object' &&
-        expectedPendingType
-    );
-    const skipCommandTurnStart = skipTurnStartForSubPlacement || skipTurnStartForPendingSelection;
+        typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function'
+    )
+        ? ((cardState: any, seatKey: any) => SubPlacementContinuation.isSubPlacementTurnActive(cardState, seatKey))
+        : undefined;
+    const skipCommandTurnStart = MatchCommandRuntime.shouldSkipMatchCommandTurnStart({
+        cardState: currentCardState,
+        playerKey,
+        resolvedAction,
+        isSubPlacementTurnActive
+    });
     const result = TurnPipeline.applyTurnSafe(
         currentCardState,
         currentSnapshot.gameState,

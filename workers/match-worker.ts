@@ -70,6 +70,10 @@ import { createMatchWorkerTimeoutController } from './match-worker-timeout-contr
 import { createMatchWorkerTurnTimerController } from './match-worker-turn-timer-controller';
 import { createMatchWorkerTurnTimerHelpers } from './match-worker-turn-timer';
 import { createMatchWorkerPublishController } from './match-worker-publish-controller';
+import {
+    prepareMatchCommandAction,
+    shouldSkipMatchCommandTurnStart
+} from '../utils/match-command-runtime';
 import deepClone from '../utils/deepClone.js';
 import matchAuthority from '../utils/match-authority.js';
 
@@ -1139,9 +1143,6 @@ async function applyCommandPublishToSnapshot(
     const currentCardState = asRecord(currentSnapshot.cardState);
     MatchAuthority.stripTransientChargeDeltaState(currentSnapshot);
 
-    const currentTurnIndex = Number.isFinite(Number(currentCardState.turnIndex))
-        ? Number(currentCardState.turnIndex)
-        : 0;
     if (isNetworkDebugFillHandPayload(body)) {
         if (!toPublicNetworkDebugEnabled(room)) {
             return { ok: false, rejectedReason: 'NETWORK_DEBUG_DISABLED' };
@@ -1171,26 +1172,27 @@ async function applyCommandPublishToSnapshot(
         };
     }
 
-    const builtAction = NetworkActionSchema.buildAction({
-        actionType: body.actionType,
-        actor: body.actor,
-        params: body.params,
-        actionId: body.actionId,
-        turnIndex: body.turnIndex,
-        action: body.action
-    }, playerKey, currentTurnIndex);
-
-    if (!builtAction || !builtAction.action) {
-        return { ok: false, rejectedReason: 'COMMAND_REQUIRED' };
+    const preparedCommand = prepareMatchCommandAction({
+        snapshot: asRecord(currentSnapshot),
+        body,
+        playerKey,
+        buildAction: (input, fallbackActor, fallbackTurnIndex) => (
+            NetworkActionSchema.buildAction as (
+                input: Record<string, unknown>,
+                fallbackActor: unknown,
+                fallbackTurnIndex: unknown
+            ) => { actor?: unknown; action?: unknown } | null
+        )(input, fallbackActor, fallbackTurnIndex),
+        normalizePlayerKey,
+        validatePendingSelectionPublish: MatchAuthority.validatePendingSelectionPublish,
+        sanitizePendingSelectionActionForAuthority: MatchAuthority.sanitizePendingSelectionActionForAuthority
+    });
+    if (preparedCommand.ok !== true) {
+        return preparedCommand;
     }
-    if (normalizePlayerKey(builtAction.actor) !== playerKey) {
-        return { ok: false, rejectedReason: 'SEAT_MISMATCH' };
-    }
-    const pendingValidation = MatchAuthority.validatePendingSelectionPublish(currentSnapshot, playerKey, builtAction.action);
-    if (!pendingValidation || pendingValidation.ok !== true) {
-        return { ok: false, rejectedReason: pendingValidation && pendingValidation.rejectedReason ? pendingValidation.rejectedReason : 'STALE_PENDING_SELECTION' };
-    }
-    const resolvedAction = MatchAuthority.sanitizePendingSelectionActionForAuthority(currentSnapshot, playerKey, builtAction.action);
+    const currentTurnIndex = preparedCommand.currentTurnIndex;
+    const resolvedAction = preparedCommand.resolvedAction;
+    const pendingValidation = preparedCommand.pendingValidation;
     await repairNetworkDebugProjectedHandForCardUse(room, currentCardState, playerKey, resolvedAction);
 
     const { TurnPipeline, SeededPRNG, TurnPipelineUIAdapter, CardLogic } = await loadTurnPipelineModules();
@@ -1200,21 +1202,23 @@ async function applyCommandPublishToSnapshot(
 
     const prng = createCommandActionPrng(room, currentSnapshot, SeededPRNG);
     const SubPlacementContinuation = getSubPlacementContinuationModule();
-    const skipTurnStartForSubPlacement = (
+    const isSubPlacementTurnActive = (
         SubPlacementContinuation &&
-        typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function' &&
-        SubPlacementContinuation.isSubPlacementTurnActive(currentCardState, playerKey)
-    );
-    const resolvedActionRecord = asRecord(resolvedAction);
-    const pendingByPlayer = asRecord(currentCardState.pendingEffectByPlayer);
-    const expectedPendingForPlayer = asRecord(pendingByPlayer[playerKey]);
-    const expectedPendingType = String(expectedPendingForPlayer.type || '').toUpperCase();
-    const skipTurnStartForPendingSelection = !!(
-        resolvedActionRecord.pendingSelectionState &&
-        typeof resolvedActionRecord.pendingSelectionState === 'object' &&
-        expectedPendingType
-    );
-    const skipCommandTurnStart = skipTurnStartForSubPlacement || skipTurnStartForPendingSelection;
+        typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function'
+    )
+        ? ((cardState: Record<string, unknown>, seatKey: string) => (
+            SubPlacementContinuation.isSubPlacementTurnActive as (
+                cardState: Record<string, unknown>,
+                playerKey: MatchAuthoritySeatKey
+            ) => unknown
+        )(cardState, seatKey as MatchAuthoritySeatKey))
+        : undefined;
+    const skipCommandTurnStart = shouldSkipMatchCommandTurnStart({
+        cardState: preparedCommand.currentCardState,
+        playerKey,
+        resolvedAction,
+        isSubPlacementTurnActive
+    });
     const result = TurnPipeline.applyTurnSafe(
         currentCardState,
         currentSnapshot.gameState,
