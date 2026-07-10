@@ -11,6 +11,7 @@ interface MatchAuthorityJournalDeps {
     authorityLogLimit: number;
     sseResumeBufferLimit: number;
     normalizePendingEffectId: (value: unknown) => string | null;
+    normalizeStateVersion: (value: unknown) => number | null;
     parseSeatKeyOptional: (value: unknown) => MatchAuthoritySeatKey | null;
     getPayloadKeyForViewer: (value: unknown) => MatchAuthoritySeatKey | 'spectator';
 }
@@ -182,10 +183,58 @@ export function createMatchAuthorityJournalApi(deps: MatchAuthorityJournalDeps) 
         });
     }
 
+    function resolveBufferedSnapshotPayloadForViewer(
+        entry: MatchAuthorityBufferedSseEventRecord,
+        viewerSeatKey: unknown
+    ): unknown | null {
+        if (!entry || typeof entry !== 'object') return null;
+        if (String(entry.event || '').trim() !== 'snapshot') return null;
+
+        const viewer = deps.getPayloadKeyForViewer(viewerSeatKey);
+        if (entry.payloadByViewer && typeof entry.payloadByViewer === 'object') {
+            if (!Object.prototype.hasOwnProperty.call(entry.payloadByViewer, viewer)) return null;
+            return entry.payloadByViewer[viewer] || null;
+        }
+        return Object.prototype.hasOwnProperty.call(entry, 'payload') ? (entry.payload || null) : null;
+    }
+
+    function getPayloadStateVersion(payloadValue: unknown): number | null {
+        const payload = asRecord(payloadValue);
+        const directVersion = deps.normalizeStateVersion(payload.stateVersion);
+        if (directVersion !== null) return directVersion;
+
+        const snapshot = asRecord(payload.snapshot);
+        const snapshotVersion = deps.normalizeStateVersion(snapshot.stateVersion);
+        if (snapshotVersion !== null) return snapshotVersion;
+
+        return deps.normalizeStateVersion(asRecord(snapshot._meta).version);
+    }
+
+    function getBufferedSnapshotPayloadForStateVersion(
+        bufferValue: unknown,
+        stateVersionValue: unknown,
+        viewerSeatKey: unknown
+    ): unknown | null {
+        const stateVersion = deps.normalizeStateVersion(stateVersionValue);
+        if (stateVersion === null) return null;
+
+        const buffer: MatchAuthorityBufferedSseEventRecord[] = Array.isArray(bufferValue) ? bufferValue : [];
+        for (let index = buffer.length - 1; index >= 0; index -= 1) {
+            const entry = buffer[index];
+            const payload = resolveBufferedSnapshotPayloadForViewer(entry, viewerSeatKey);
+            if (!payload) continue;
+            if (getPayloadStateVersion(payload) === stateVersion) {
+                return deepClone(payload);
+            }
+        }
+        return null;
+    }
+
     return {
         appendAuthorityLog,
         createBufferedSseEventRecord,
         appendBufferedSseEvent,
-        getBufferedSseReplayEvents
+        getBufferedSseReplayEvents,
+        getBufferedSnapshotPayloadForStateVersion
     };
 }
