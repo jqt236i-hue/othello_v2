@@ -61,6 +61,7 @@ import { createMatchAuthorityPresentationJournalApi } from './match-authority/pr
 import { createMatchAuthoritySnapshotStateApi } from './match-authority/snapshot-state';
 import { createMatchAuthorityHandProjectionApi } from './match-authority/hand-projection';
 import { createMatchAuthorityRoomLifecycleApi } from './match-authority/room-lifecycle';
+import { createTrapVisibilityApi } from './match-authority/trap-visibility';
 
 import deepClone from './deepClone';
 
@@ -194,6 +195,7 @@ const matchAuthorityRoomLifecycle = createMatchAuthorityRoomLifecycleApi({
     getActiveSpectatorEntries,
     parseSeatKeyOptional
 });
+const trapVisibility = createTrapVisibilityApi(parseSeatKeyOptional);
 
 function appendAuthorityLog(roomValue: unknown, entryValue: unknown, limitValue: unknown): unknown[] {
     return matchAuthorityJournal.appendAuthorityLog(roomValue, entryValue, limitValue);
@@ -1554,35 +1556,8 @@ function restoreMissingChargeDeltaEvents(previousSnapshot: unknown, nextSnapshot
     return matchAuthoritySnapshotState.restoreMissingChargeDeltaEvents(previousSnapshot, nextSnapshot);
 }
 
-function isTrapStoneLike(entry: unknown): boolean {
-    if (!entry || typeof entry !== 'object') return false;
-    const source = asRecord(entry);
-    const data = asRecord(source.data);
-    if (data.type === 'TRAP') return true;
-    return source.type === 'TRAP';
-}
-
-function isTrapVisibleToViewer(entry: unknown, viewerSeatKey: unknown): boolean {
-    if (!isTrapStoneLike(entry)) return true;
-    const ownerKey = parseSeatKeyOptional(asRecord(entry).owner);
-    if (!ownerKey) return false;
-    return ownerKey === viewerSeatKey;
-}
-
 function sanitizeOwnerOnlyTrapState(cardState: unknown, viewerSeatKey: unknown): unknown {
-    if (!cardState || typeof cardState !== 'object') return cardState;
-    const state = asRecord(cardState);
-    const viewer = parseSeatKeyOptional(viewerSeatKey);
-
-    if (Array.isArray(state.markers)) {
-        state.markers = state.markers.filter((marker: unknown) => isTrapVisibleToViewer(marker, viewer));
-    }
-
-    if (Array.isArray(state.specialStones)) {
-        state.specialStones = state.specialStones.filter((stone: unknown) => isTrapVisibleToViewer(stone, viewer));
-    }
-
-    return cardState;
+    return trapVisibility.sanitizeOwnerOnlyTrapState(cardState, viewerSeatKey);
 }
 
 /**
