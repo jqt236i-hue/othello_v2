@@ -863,7 +863,7 @@ function combineSummary(shardResults) {
 }
 
 function appendFileToStream(srcPath, outStream) {
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
         const inStream = fs.createReadStream(srcPath, { encoding: 'utf8' });
         const cleanup = () => {
             inStream.off('error', onInError);
@@ -958,7 +958,7 @@ function resolveMergeProgress(partialPath, sourceSizes) {
 
 async function closeWritableStream(stream) {
     if (!stream) return;
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
         let settled = false;
         const cleanup = () => {
             stream.off('error', onError);
@@ -1046,10 +1046,27 @@ async function mergeShardFiles(shardPaths, outPath) {
     try { fs.rmSync(statePath, { force: true }); } catch (err) { /* ignore */ }
 }
 
+type WorkerFailureError = Error & {
+    workerFailureType?: string;
+    shardIndex?: number | null;
+    seed?: number | null;
+    games?: number | null;
+    exitCode?: number | null;
+    signal?: string | null;
+    retriable?: boolean;
+};
+
+type SelfplayRunResult = {
+    summary: any;
+    outPath: string;
+    hardcaseOutPath: string | null;
+    illegalMoveHardcaseOutPath: string | null;
+};
+
 function runShardWorker(task, options) {
     const workerOptions = options || {};
     const shardIndex = Number(task && task.shardIndex);
-    return new Promise((resolve, reject) => {
+    return new Promise<any>((resolve, reject) => {
         const child = fork(__filename, [], {
             env: Object.assign({}, process.env, {
                 [WORKER_ENV_FLAG]: '1',
@@ -1061,13 +1078,13 @@ function runShardWorker(task, options) {
             stdio: ['inherit', 'inherit', 'inherit', 'ipc']
         });
         let done = false;
-        const finish = (err, value) => {
+        const finish = (err: any, value?: any) => {
             if (done) return;
             done = true;
             if (err) reject(err);
             else resolve(value);
         };
-        child.on('message', (msg) => {
+        child.on('message', (msg: any) => {
             if (!msg || typeof msg !== 'object') return;
             if (msg.type === 'progress') {
                 if (typeof workerOptions.onProgress === 'function') {
@@ -1085,7 +1102,7 @@ function runShardWorker(task, options) {
                 if (Number.isFinite(Number(msg.seed))) detailParts.push(`seed=${Number(msg.seed)}`);
                 if (Number.isFinite(Number(msg.games))) detailParts.push(`games=${Number(msg.games)}`);
                 const detailSuffix = detailParts.length > 0 ? ` (${detailParts.join(' ')})` : '';
-                const error = new Error(`${msg.message || 'worker error'}${detailSuffix}`);
+                const error = new Error(`${msg.message || 'worker error'}${detailSuffix}`) as WorkerFailureError;
                 error.workerFailureType = 'message';
                 error.shardIndex = Number.isFinite(shardIndex) ? shardIndex : null;
                 error.seed = Number.isFinite(Number(msg.seed)) ? Number(msg.seed) : null;
@@ -1095,7 +1112,7 @@ function runShardWorker(task, options) {
             }
         });
         child.once('error', (err) => {
-            const error = err instanceof Error ? err : new Error(String(err));
+            const error = (err instanceof Error ? err : new Error(String(err))) as WorkerFailureError;
             error.workerFailureType = 'spawn';
             error.shardIndex = Number.isFinite(shardIndex) ? shardIndex : null;
             error.retriable = true;
@@ -1104,9 +1121,9 @@ function runShardWorker(task, options) {
         child.once('exit', (code, signal) => {
             if (done) return;
             const suffix = Number.isFinite(shardIndex) ? ` shard=${shardIndex}` : '';
-            const error = (code === 0)
+            const error = ((code === 0)
                 ? new Error(`worker exited without result${suffix}`)
-                : new Error(`worker failed code=${code} signal=${signal || 'none'}${suffix}`);
+                : new Error(`worker failed code=${code} signal=${signal || 'none'}${suffix}`)) as WorkerFailureError;
             error.workerFailureType = 'exit';
             error.shardIndex = Number.isFinite(shardIndex) ? shardIndex : null;
             error.exitCode = code;
@@ -1308,7 +1325,7 @@ async function runSelfPlayJob(args, options) {
     }
 
     let nextGlobalLog = 10;
-    const result = await runSelfPlayShard(Object.assign({}, args, {
+    const result = (await runSelfPlayShard(Object.assign({}, args, {
         outPath: args.out,
         hardcaseOutPath: args.hardcaseOut,
         onProgress: (progress) => {
@@ -1321,7 +1338,7 @@ async function runSelfPlayJob(args, options) {
                 while (nextGlobalLog <= progress.completed) nextGlobalLog += 10;
             }
         }
-    }));
+    }))) as SelfplayRunResult;
     return {
         summary: result.summary,
         outPath: result.outPath,
@@ -1380,7 +1397,7 @@ function buildSummaryPayload(args, summary, policyModelPaths, policyModelCount, 
 async function runSelfPlayWithResumeChunks(args) {
     const chunkSize = Math.floor(Number(args.resumeChunkSize) || 0);
     if (!(chunkSize > 0) || chunkSize >= Number(args.games || 0)) {
-        return runSelfPlayJob(args);
+        return runSelfPlayJob(args, {});
     }
 
     const chunkPlan = createChunkPlan(args.games, args.seed, chunkSize, args.gameIndexOffset);
@@ -1470,7 +1487,7 @@ async function runWorkerMain() {
     if (!raw) throw new Error('missing worker task payload');
     const task = JSON.parse(raw);
     const shardIndex = Number(task.shardIndex || 0);
-    const result = await runSelfPlayShard(Object.assign({}, task, {
+    const result = (await runSelfPlayShard(Object.assign({}, task, {
         onProgress: (progress) => {
             if (typeof process.send === 'function') {
                 process.send({
@@ -1482,7 +1499,7 @@ async function runWorkerMain() {
                 });
             }
         }
-    }));
+    }))) as SelfplayRunResult;
     if (typeof process.send === 'function') {
         await new Promise<void>((resolve) => {
             process.send!({
@@ -1494,7 +1511,7 @@ async function runWorkerMain() {
                     illegalMoveHardcaseOutPath: result.illegalMoveHardcaseOutPath,
                     summary: result.summary
                 }
-            }, resolve);
+            }, () => resolve());
         });
     }
 }

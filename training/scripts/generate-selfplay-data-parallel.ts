@@ -372,7 +372,7 @@ async function main() {
 
     const startedAt = Date.now();
     const workers = shardSpecs.map((shard: any, idx: any) => runShard(idx, shard, args, partDir));
-    const parts = await Promise.all(workers);
+    const parts = (await Promise.all(workers)) as Array<{ out: string; summary: string }>;
     mergeNdjson(parts.map((p: any) => p.out), args.out);
 
     const summaryPayload = buildMergedSummary(parts, args, Date.now() - startedAt);

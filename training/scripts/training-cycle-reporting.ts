@@ -243,7 +243,7 @@ function annotateTrainingCycleError(error: any, context: any) {
 }
 
 function buildTrainingCycleSummaryConfig(args: any) {
-    const config = {};
+    const config: any = {};
     for (const key of TRAINING_CYCLE_SUMMARY_CONFIG_KEYS) {
         config[key] = args[key];
     }

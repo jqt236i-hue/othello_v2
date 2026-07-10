@@ -795,7 +795,7 @@ async function runOnnxGate(options: any) {
                 while (!completed && attempt < maxAttempts) {
                     attempt += 1;
                     try {
-                    const payload = await runUiLevelMatch({
+                    const payload: any = await runUiLevelMatch({
                         blackLevel: task.blackLevel,
                         whiteLevel: task.whiteLevel,
                         seed: task.gameSeed,

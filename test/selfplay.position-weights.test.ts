@@ -16,15 +16,24 @@ describe('selfplay position weights', () => {
     ]);
   });
 
-  test('src and training selfplay runners share the same named matrix', () => {
+  test('training selfplay runner paths delegate to the canonical src runner', () => {
+    const rootRunner = require(path.join(__dirname, '..', 'src', 'engine', 'selfplay-runner'));
+    const trainingRunnerModule = require(path.join(__dirname, '..', 'training', 'engine', 'selfplay-runner'));
     const srcRunner = fs.readFileSync(path.join(__dirname, '..', 'src', 'engine', 'selfplay-runner.ts'), 'utf8');
-    const trainingRunner = fs.readFileSync(path.join(__dirname, '..', 'training', 'engine', 'selfplay-runner.ts'), 'utf8');
+    const trainingRunnerTs = fs.readFileSync(path.join(__dirname, '..', 'training', 'engine', 'selfplay-runner.ts'), 'utf8');
+    const trainingRunnerJs = fs.readFileSync(path.join(__dirname, '..', 'training', 'engine', 'selfplay-runner.js'), 'utf8');
 
     expect(srcRunner).toContain("const SelfplayPositionWeights = require('./selfplay-position-weights.js');");
-    expect(trainingRunner).toContain("const SelfplayPositionWeights = require('../../src/engine/selfplay-position-weights.js');");
     expect(srcRunner).toContain('const POSITION_WEIGHTS = SelfplayPositionWeights.SELFPLAY_POSITION_WEIGHTS;');
-    expect(trainingRunner).toContain('const POSITION_WEIGHTS = SelfplayPositionWeights.SELFPLAY_POSITION_WEIGHTS;');
     expect(srcRunner).not.toContain('const POSITION_WEIGHTS = [');
-    expect(trainingRunner).not.toContain('const POSITION_WEIGHTS = [');
+
+    expect(trainingRunnerTs).toContain("_require('../../src/engine/selfplay-runner')");
+    expect(trainingRunnerTs).toContain('export = runner;');
+    expect(trainingRunnerTs).not.toContain('function runSelfPlayGames');
+    expect(trainingRunnerTs).not.toContain('const POSITION_WEIGHTS = SelfplayPositionWeights.SELFPLAY_POSITION_WEIGHTS;');
+    expect(trainingRunnerTs.split(/\r?\n/).filter((line) => line.trim().length > 0).length).toBeLessThanOrEqual(12);
+
+    expect(trainingRunnerJs).toContain('module.exports = require("../../src/engine/selfplay-runner.js");');
+    expect(trainingRunnerModule).toBe(rootRunner);
   });
 });

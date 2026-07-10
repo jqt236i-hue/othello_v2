@@ -1,0 +1,33 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "noImplicitThis": false,
+    "alwaysStrict": false,
+    "moduleDetection": "force",
+    "lib": ["ES2022", "DOM"],
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": false,
+    "outDir": "./dist/scripts",
+    "rootDir": "./training/scripts",
+    "sourceMap": true
+  },
+  "include": [
+    "training/scripts/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "worker-public",
+    "coverage",
+    "dist",
+    "**/__pycache__/**",
+    "training/tests/**/*"
+  ]
+}

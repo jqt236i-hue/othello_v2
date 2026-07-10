@@ -1,12 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { runBenchmark } from './benchmark-selfplay-policy';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+const { runBenchmark }: { runBenchmark: (options: any) => Promise<any> } = _require('./benchmark-selfplay-policy');
 
 function parseAuditArgs(argv: string[]) {
     const options = {
@@ -220,7 +220,7 @@ function recordUseCard(report: any, record: any, cardType: any) {
 }
 
 function finalizeAuditReport(report: any) {
-    const summary = Object.entries(report.byType)
+    const summary = (Object.entries(report.byType) as Array<[string, any]>)
         .map(([type, bucket]) => ({
             type,
             count: bucket.count,

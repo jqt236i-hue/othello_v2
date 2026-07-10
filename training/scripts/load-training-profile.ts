@@ -59,7 +59,7 @@ function makeTimestampTag(date: Date) {
     ].join('');
 }
 
-function makeRunTag(prefix: any, date: any) {
+function makeRunTag(prefix: any, date?: any) {
     return `${sanitizeRunTagFragment(prefix, 'training')}_${makeTimestampTag(date)}`;
 }
 
@@ -380,7 +380,7 @@ function loadCpuLv6SharedTeacherProfile(cwd: string) {
     }
 }
 
-function resolveSharedTeacherSyncConfig(profile: string) {
+function resolveSharedTeacherSyncConfig(profile: any) {
     const explicit = profile && profile.sharedTeacherSync && typeof profile.sharedTeacherSync === 'object' && !Array.isArray(profile.sharedTeacherSync)
         ? profile.sharedTeacherSync
         : null;

@@ -1,10 +1,9 @@
-import * as cpuLv6SharedProfile from '../constants/cpu-lv6-shared-profile';
-
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+const cpuLv6SharedProfile: any = _require('../constants/cpu-lv6-shared-profile');
 
 function readFiniteNumber(value: any, fallback: number): number {
     const num = Number(value);

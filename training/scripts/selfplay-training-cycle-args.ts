@@ -157,7 +157,7 @@ function resolveSelfplayCardUsageRateForIteration(args, iterationIndex) {
     return resolvedRate;
 }
 
-function createSelfplayTrainingCycleDefaults(env) {
+function createSelfplayTrainingCycleDefaults(env = undefined) {
     const runtimeEnv = (env && typeof env === 'object') ? env : {};
     const cwd = runtimeEnv.cwd || process.cwd();
     const defaultJobs = Number.isFinite(runtimeEnv.defaultJobs) ? Math.max(1, Math.floor(runtimeEnv.defaultJobs)) : defaultSelfplayJobs();
@@ -1134,9 +1134,10 @@ function parseSelfplayTrainingCycleArgs(argv) {
             'Consider using --promotion-mode strict for production runs.'
         );
     }
-    if (args.quickSeedCount < 3) {
+    const quickSeedCount = (args as any).quickSeedCount;
+    if (quickSeedCount < 3) {
         console.warn(
-            `[training-cycle] WARNING: quick seed count is ${args.quickSeedCount}. ` +
+            `[training-cycle] WARNING: quick seed count is ${quickSeedCount}. ` +
             'With fewer than 3 seeds, confidence intervals are unreliable. ' +
             'Consider using at least 3 seeds (5+ recommended).'
         );

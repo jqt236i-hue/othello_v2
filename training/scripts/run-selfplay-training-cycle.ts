@@ -512,7 +512,7 @@ function scanTextFileLines(filePath, onLine, options) {
     }
 }
 
-function hasCoordinatePendingSelectionRecords(filePath, options) {
+function hasCoordinatePendingSelectionRecords(filePath, options = undefined) {
     if (!fileExists(filePath)) return false;
     return scanTextFileLines(filePath, lineHasCoordinatePendingSelection, options);
 }

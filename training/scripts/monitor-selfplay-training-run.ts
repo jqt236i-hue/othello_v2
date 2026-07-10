@@ -358,7 +358,7 @@ function deriveConfigFromResolvedPayload(payload: any) {
         : [];
     if (commandArgs.length <= 0) return null;
 
-    const config = {};
+    const config: any = {};
     for (let index = 0; index < commandArgs.length; index += 1) {
         const token = String(commandArgs[index] || '').trim();
         if (!token) continue;

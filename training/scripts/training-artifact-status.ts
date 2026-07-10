@@ -183,7 +183,7 @@ function resolveCheckpointCompatibility(filePath: any, kind: any, expectedCheckp
     };
 }
 
-function classifyTrainingArtifactPath(filePath: any, options: any) {
+function classifyTrainingArtifactPath(filePath: any, options?: any) {
     const kind = options && typeof options.kind === 'string' ? options.kind : null;
     const expectedCheckpointHead = options && options.expectedCheckpointHead
         ? String(options.expectedCheckpointHead)

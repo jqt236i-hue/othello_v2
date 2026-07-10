@@ -4,7 +4,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseArgs as parseAdoptionArgs, buildAdoptionPayload, buildEarlyStopDecision, computeAdoptionDecisionAverage, runSeedEvaluations } from './benchmark-policy-adoption';
 import _policy_gate_result_utils from './policy-gate-result-utils';
 const { buildPolicyGatePayloadHeader, attachPolicyGateDecisionDiagnostics } = _policy_gate_result_utils;
 import _policy_seed_utils from './policy-seed-utils';
@@ -15,6 +14,13 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+const {
+    parseArgs: parseAdoptionArgs,
+    buildAdoptionPayload,
+    buildEarlyStopDecision,
+    computeAdoptionDecisionAverage,
+    runSeedEvaluations
+}: any = _require('./benchmark-policy-adoption');
 
 const DEFAULT_QUALITY_WEIGHTS = Object.freeze({
     qualityWeightCorner: 0.20,
@@ -64,7 +70,7 @@ function parseArgs(argv: string[]) {
         adoptionArgv.push(token);
     }
 
-    const args = parseAdoptionArgs(adoptionArgv);
+    const args: any = parseAdoptionArgs(adoptionArgv);
     args.gatePhase = 'quality';
     if (qualityThresholdOverride !== null) {
         args.threshold = qualityThresholdOverride;
@@ -251,7 +257,7 @@ async function runQualityGate(options: any) {
         maxPossibleSeedUplift,
         decisionSelector: (entry: any) => buildQualitySeedDecision(entry && entry.decision, options.threshold)
     }));
-    const adoptionPayload = buildAdoptionPayload(options, execution.perSeed, execution.startedAt);
+    const adoptionPayload = buildAdoptionPayload(options, execution.perSeed, execution.startedAt, {});
     return buildQualityGatePayload(adoptionPayload, options, execution.earlyStop);
 }
 

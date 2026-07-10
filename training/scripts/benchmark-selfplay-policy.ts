@@ -221,7 +221,7 @@ function withFilteredConsole(enabled, fn) {
 }
 
 function createBenchmarkAbortError(message) {
-    const err = new Error(message || 'benchmark aborted');
+    const err = new Error(message || 'benchmark aborted') as Error & { code?: string };
     err.code = 'BENCHMARK_ABORTED';
     return err;
 }
@@ -821,7 +821,7 @@ function runBenchmarkWorkerTask() {
     const task = JSON.parse(payloadRaw);
     let abortRequested = false;
     if (typeof process.on === 'function') {
-        process.on('message', (msg) => {
+        process.on('message', (msg: any) => {
             if (msg && msg.type === 'abort') abortRequested = true;
         });
     }
@@ -910,14 +910,14 @@ function startBenchmarkChunkInChild(task, onProgress) {
     });
     let finished = false;
     let abortRequested = false;
-    const promise = new Promise((resolve, reject) => {
-        const finish = (err, value) => {
+    const promise = new Promise<any>((resolve, reject) => {
+        const finish = (err: any, value?: any) => {
             if (finished) return;
             finished = true;
             if (err) reject(err);
             else resolve(value);
         };
-        child.on('message', (msg) => {
+        child.on('message', (msg: any) => {
             if (!msg || typeof msg !== 'object') return;
             if (msg.type === 'progress') {
                 if (typeof onProgress === 'function') onProgress(msg);
@@ -997,7 +997,7 @@ async function runBenchmarkParallelExecution(options) {
         onRecord: undefined
     });
 
-    if (process.env.JEST_WORKER_ID && typeof globalThis.expect === 'function') {
+    if (process.env.JEST_WORKER_ID && typeof (globalThis as any).expect === 'function') {
         for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
             if (shouldStop && shouldStop()) throw createBenchmarkAbortError('benchmark aborted');
             const chunk = chunks[chunkIndex];

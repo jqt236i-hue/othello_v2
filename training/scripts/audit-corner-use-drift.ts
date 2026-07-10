@@ -1,12 +1,16 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseArgs as parseBenchmarkArgs, runBenchmark } from './benchmark-selfplay-policy';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+const benchmarkSelfplayPolicy: {
+    parseArgs: (argv: string[]) => any;
+    runBenchmark: (options: any) => Promise<any>;
+} = _require('./benchmark-selfplay-policy');
+const { parseArgs: parseBenchmarkArgs, runBenchmark } = benchmarkSelfplayPolicy;
 
 function parseAuditArgs(argv: string[]) {
     const benchmarkArgv = [];

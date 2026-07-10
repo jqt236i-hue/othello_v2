@@ -621,7 +621,7 @@ function confidenceZScore(confidenceLevel) {
 }
 
 function createPolicyAdoptionAbortError(message) {
-    const err = new Error(message || 'policy adoption aborted');
+    const err = new Error(message || 'policy adoption aborted') as Error & { code?: string };
     err.code = 'POLICY_ADOPTION_ABORTED';
     return err;
 }
@@ -1230,7 +1230,7 @@ function runWorkerSeedTask() {
     const task = JSON.parse(payloadRaw);
     let abortRequested = false;
     if (typeof process.on === 'function') {
-        process.on('message', (msg) => {
+        process.on('message', (msg: any) => {
             if (msg && msg.type === 'abort') abortRequested = true;
         });
     }
@@ -1264,14 +1264,14 @@ function startSeedInChild(task) {
     });
     let done = false;
     let abortRequested = false;
-    const promise = new Promise((resolve, reject) => {
-        const finish = (err, value) => {
+    const promise = new Promise<any>((resolve, reject) => {
+        const finish = (err: any, value?: any) => {
             if (done) return;
             done = true;
             if (err) reject(err);
             else resolve(value);
         };
-        child.on('message', (msg) => {
+        child.on('message', (msg: any) => {
             if (!msg || typeof msg !== 'object') return;
             if (msg.type === 'log' && typeof msg.line === 'string') {
                 console.log(msg.line);

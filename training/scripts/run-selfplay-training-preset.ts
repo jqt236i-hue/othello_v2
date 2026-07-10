@@ -3,13 +3,13 @@
 
 import * as path from 'path';
 import { spawnSync } from 'child_process';
-import * as cpuLv6SharedProfile from '../constants/cpu-lv6-shared-profile';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+const cpuLv6SharedProfile: any = _require('../constants/cpu-lv6-shared-profile');
 
 function parseArgs(argv: string[]) {
     const args = {

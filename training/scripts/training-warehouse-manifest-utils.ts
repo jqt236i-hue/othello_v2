@@ -27,10 +27,10 @@ function fileExists(filePath: string) {
 }
 
 function cloneResolvedPathMap(pathMap: any) {
-    const out = {};
+    const out: Record<string, any> = {};
     if (!pathMap || typeof pathMap !== 'object') return out;
     for (const [key, value] of Object.entries(pathMap)) {
-        out[key] = normalizePath(value);
+        out[key] = normalizePath(value as string);
     }
     return out;
 }
@@ -312,7 +312,7 @@ function resolveRunsCleanupRoot(runsDir: any, options: any) {
     return resolvedDir;
 }
 
-function cleanupWarehouseSelfplayArtifacts(runsDir: any, options: any) {
+function cleanupWarehouseSelfplayArtifacts(runsDir: any, options?: any) {
     const cleanupRoot = resolveRunsCleanupRoot(runsDir, options);
     if (!cleanupRoot || !fs.existsSync(cleanupRoot)) {
         return {

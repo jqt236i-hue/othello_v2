@@ -4,7 +4,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { runAdoptionCheck } from './benchmark-policy-adoption';
 import _benchmark_policy_quality_gate from './benchmark-policy-quality-gate';
 const { runQualityGate } = _benchmark_policy_quality_gate;
 import _policy_seed_utils from './policy-seed-utils';
@@ -17,6 +16,7 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+const { runAdoptionCheck }: any = _require('./benchmark-policy-adoption');
 
 const SUPPORTED_REPLAY_GATE_TYPES = Object.freeze(['quick', 'quality', 'final']);
 
@@ -222,7 +222,7 @@ async function main() {
         printHelp();
         return;
     }
-    const result = await replayGate(args);
+    const result = await replayGate(args, {});
     if (args.out) {
         console.log(`[replay-adoption-gate] wrote: ${args.out}`);
     }

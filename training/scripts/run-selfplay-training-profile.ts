@@ -226,7 +226,7 @@ async function runPreflight(resolved: any, logger: any) {
         ? logger
         : { log: (message: any) => console.log(message) };
     out.log(`[training-profile] preflight: ${resolved.preflightCommand.display}`);
-    const result = await runCommandLogged(resolved.preflightCommand.executable, resolved.preflightCommand.args, {
+    const result: any = await runCommandLogged(resolved.preflightCommand.executable, resolved.preflightCommand.args, {
         cwd: resolved.cwd,
         logger
     });
@@ -249,7 +249,7 @@ async function runTrainCycle(resolved: any, logger: any) {
         ? logger
         : { log: (message: any) => console.log(message) };
     out.log(`[training-profile] launch: ${resolved.command.display}`);
-    const result = await runCommandLogged(resolved.command.executable, resolved.command.args, {
+    const result: any = await runCommandLogged(resolved.command.executable, resolved.command.args, {
         cwd: resolved.cwd,
         logger
     });
@@ -274,7 +274,7 @@ function cleanupResolvedWarehouseArtifacts(resolved: any, logger: any) {
         : { log: (message: any) => console.log(message) };
     const runsDir = resolved && resolved.paths ? resolved.paths.runsDir : null;
     if (!runsDir) return null;
-    const result = cleanupWarehouseSelfplayArtifacts(runsDir);
+    const result: any = cleanupWarehouseSelfplayArtifacts(runsDir, {});
     if (result.removed.length > 0) {
         out.log(
             `[training-profile] cleaned historical selfplay artifacts=${result.removed.length} ` +

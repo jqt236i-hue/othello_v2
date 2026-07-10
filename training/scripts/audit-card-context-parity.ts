@@ -85,9 +85,10 @@ function loadSelfplayRunnerInternals(rootDir: string) {
     const runnerFile = path.join(rootDir, 'src', 'engine', 'selfplay-runner.js');
     let code = fs.readFileSync(runnerFile, 'utf8');
     code += '\nmodule.exports.__cardContextParityInternal = { createInitialState, applyDecisionWithRetry, normalizeOptions, buildCardDecisionContext, getDirectUsableCardIds };';
-    const loaded = new Module(runnerFile, module);
+    const ModuleConstructor: any = Module;
+    const loaded: any = new ModuleConstructor(runnerFile, module);
     loaded.filename = runnerFile;
-    loaded.paths = Module._nodeModulePaths(path.dirname(runnerFile));
+    loaded.paths = ModuleConstructor._nodeModulePaths(path.dirname(runnerFile));
     loaded._compile(code, runnerFile);
     return {
         runner: loaded.exports,
@@ -105,7 +106,7 @@ function compareContexts(liveContext, selfplayContext, fieldNames = FIELD_NAMES)
         const liveValue = liveContext ? liveContext[fieldName] : undefined;
         const selfplayValue = selfplayContext ? selfplayContext[fieldName] : undefined;
         if (!sameFieldValue(liveValue, selfplayValue)) {
-            const one = {};
+            const one: Record<string, any> = {};
             if (liveValue !== undefined) one.live = liveValue;
             if (selfplayValue !== undefined) one.selfplay = selfplayValue;
             diff[fieldName] = one;
@@ -206,7 +207,7 @@ function recordComparison(report: any, comparison: any) {
 }
 
 function finalizeAuditReport(report: any) {
-    const summary = Object.entries(report.byType)
+    const summary = (Object.entries(report.byType) as Array<[string, any]>)
         .map(([type, bucket]) => ({
             type,
             count: bucket.count,

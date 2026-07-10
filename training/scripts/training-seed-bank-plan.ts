@@ -47,7 +47,7 @@ function buildSeedBankGatesFromFlagMap(flagMap: any) {
         getNumericFlagValue(flagMap, '--eval-seed-offset', 500000)
     );
 
-    const gates = {
+    const gates: any = {
         quick: {
             baseSeed: baseSeed + quickSeedOffset,
             seedCount: quickSeedCount,
