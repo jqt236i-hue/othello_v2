@@ -10,7 +10,11 @@ export function createTrapVisibilityApi(parseSeatKeyOptional: (value: unknown) =
         if (!cardState || typeof cardState !== 'object') return cardState;
         const viewer = parseSeatKeyOptional(viewerSeatKey);
         const state = record(cardState);
-        const visible = (entry: unknown) => !isTrapStoneLike(entry) || parseSeatKeyOptional(record(entry).owner) === viewer;
+        const visible = (entry: unknown) => {
+            if (!isTrapStoneLike(entry)) return true;
+            const owner = parseSeatKeyOptional(record(entry).owner);
+            return !!owner && owner === viewer;
+        };
         if (Array.isArray(state.markers)) state.markers = state.markers.filter(visible);
         if (Array.isArray(state.specialStones)) state.specialStones = state.specialStones.filter(visible);
         return cardState;

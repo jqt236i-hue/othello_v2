@@ -97,6 +97,21 @@ describe('match authority public snapshot trap visibility', () => {
     ]));
   });
 
+  test('redacts trap details with an invalid owner from an anonymous viewer snapshot', () => {
+    const snapshot = createSnapshot();
+    snapshot.cardState.markers[0].owner = 'invalid-owner';
+    snapshot.cardState.specialStones[0].owner = 'invalid-owner';
+
+    const projected = MatchAuthority.projectSnapshotForViewer(snapshot, null);
+
+    expect(projected.cardState.markers).toEqual([
+      expect.objectContaining({ id: 11, data: expect.objectContaining({ type: 'BREEDING' }) })
+    ]);
+    expect(projected.cardState.specialStones).toEqual([
+      expect.objectContaining({ type: 'BREEDING' })
+    ]);
+  });
+
   test('stripTransientPresentationState は時間停止状態を保ったまま transient state を除去する', () => {
     const snapshot = {
       stateVersion: 8,
