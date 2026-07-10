@@ -476,6 +476,15 @@ function requireCpuPolicyTimeBombTargets(): any {
 
 const CpuPolicyTimeBombTargetsRequired = requireCpuPolicyTimeBombTargets();
 
+function requireCpuDecisionAction(): any {
+    if (!CpuDecisionActionModule || typeof CpuDecisionActionModule.computeCpuActionWithPolicy !== 'function') {
+        throw new Error('[cpu-decision] CpuDecisionAction.computeCpuActionWithPolicy is required');
+    }
+    return CpuDecisionActionModule;
+}
+
+const CpuDecisionActionRequired = requireCpuDecisionAction();
+
 const CpuDecisionBoardUtils = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.createCpuDecisionBoardUtils === 'function')
     ? CpuDecisionBoardUtilsModule.createCpuDecisionBoardUtils({ sharedBoardUtils: CpuDecisionSharedBoardUtils })
     : (() => { throw new Error('CpuDecisionBoardUtils is required by cpu-decision'); })();
@@ -3190,22 +3199,19 @@ async function cpuSelectCaptureWillWithPolicy(playerKey: any): Promise<any> {
 // { type: 'useCard', cardId, cardDef }
 // { type: 'pass' }
 function computeCpuAction(playerKey: any): any {
-    if (CpuDecisionActionModule && typeof CpuDecisionActionModule.computeCpuActionWithPolicy === 'function') {
-        return CpuDecisionActionModule.computeCpuActionWithPolicy(playerKey, {
-            resolvePlayerValue: (key: any) => (key === 'black'
-                ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-                : (typeof WHITE !== 'undefined' ? WHITE : -1)),
-            getActiveProtectionForPlayer: (playerValue: any) => getActiveProtectionForPlayer(playerValue),
-            getFlipBlockers: () => ((typeof getFlipBlockers === 'function') ? getFlipBlockers() : []),
-            getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
-            getLegalMoves: (gameStateValue: any, protection: any, perma: any) => (
-                (typeof getLegalMoves === 'function') ? (getLegalMoves(gameStateValue, protection, perma) || []) : []
-            ),
-            selectCardToUse: (key: any) => selectCardToUse(key),
-            selectCpuMoveWithPolicy: (legalMoves: any, key: any) => selectCpuMoveWithPolicy(legalMoves, key)
-        });
-    }
-    return { type: 'pass' };
+    return CpuDecisionActionRequired.computeCpuActionWithPolicy(playerKey, {
+        resolvePlayerValue: (key: any) => (key === 'black'
+            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+            : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        getActiveProtectionForPlayer: (playerValue: any) => getActiveProtectionForPlayer(playerValue),
+        getFlipBlockers: () => ((typeof getFlipBlockers === 'function') ? getFlipBlockers() : []),
+        getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+        getLegalMoves: (gameStateValue: any, protection: any, perma: any) => (
+            (typeof getLegalMoves === 'function') ? (getLegalMoves(gameStateValue, protection, perma) || []) : []
+        ),
+        selectCardToUse: (key: any) => selectCardToUse(key),
+        selectCpuMoveWithPolicy: (legalMoves: any, key: any) => selectCpuMoveWithPolicy(legalMoves, key)
+    });
 }
 
 // Node.js環境用エクスポート

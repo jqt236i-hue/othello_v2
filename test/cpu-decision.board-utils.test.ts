@@ -74,6 +74,10 @@ describe('cpu decision board utils composition boundary', () => {
         expect(source).toContain('const CpuPolicyTimeBombTargetsRequired = requireCpuPolicyTimeBombTargets();');
         expect(source).toContain('CpuPolicyTimeBombTargetsRequired.scoreTimeBombTarget(');
         expect(source).toContain('CpuPolicyTimeBombTargetsRequired.chooseTimeBombTargetWithPolicy(');
+        expect(source).toContain('const CpuDecisionActionRequired = requireCpuDecisionAction();');
+        expect(source).toContain('CpuDecisionActionRequired.computeCpuActionWithPolicy(');
+        expect(source).not.toMatch(/if \(CpuPolicy(BoardMarkerPrimitives|PlacementFilters|PendingTargets|TimeBombTargets) &&/);
+        expect(source).not.toMatch(/if \(CpuDecisionActionModule &&/);
         expect(source).not.toMatch(/countBoardEmptiesFallback|isStandardBoard8x8Fallback|isCornerCellFallback|isEdgeCellFallback/);
         expect(source).not.toMatch(/countCornerControlFallback|countEdgeControlFallback/);
         expect(source).not.toContain('function getMarkerPriorityValueFallback');
