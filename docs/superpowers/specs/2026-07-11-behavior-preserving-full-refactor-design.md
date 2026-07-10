@@ -129,6 +129,10 @@ For identical input data, profile, model, seed, and CLI arguments:
 - deleting obsolete scripts or evidence must not delete an active package-script target or deploy dependency;
 - current-tree artifact cleanup and Git-history rewriting are separate operations.
 
+### 5.6 Comparison discipline
+
+Every behavioral comparison must state its normalization rule. Compare canonical state fields, serialized payloads, event arrays, seed consumption, and documented public exports; do not compare stack traces, timestamps, temporary paths, object insertion order that is not serialized, or raw generated cache-buster values. A mismatch in an observed field is a stop condition, not a snapshot-update opportunity.
+
 ## 6. Program Architecture
 
 The program uses one master design, one master execution index, and separate phase plans. Each phase plan is independently reviewable, testable, committable, and revertible.
@@ -145,6 +149,8 @@ existing consumer
 Consumers move one at a time. A compatibility facade may remain while callers migrate, but duplicate business logic and success-shaped fallbacks may not remain at phase completion.
 
 Only one implementation phase may be active in the physical checkout at a time. No branch, tag, or worktree is created unless explicitly requested. No parallel implementation runs in the same checkout.
+
+A phase is a dependency and acceptance boundary, not a single commit. Every independently reviewable responsibility inside a phase is a separate task and commit. The executable task order, file map, and command list are defined in [2026-07-11-behavior-preserving-full-refactor-master-plan.md](../plans/2026-07-11-behavior-preserving-full-refactor-master-plan.md).
 
 ## 7. Universal Phase Protocol
 
@@ -163,7 +169,7 @@ Every normal phase follows this protocol.
 
 1. Add or identify characterization coverage for current behavior.
 2. Run it before implementation and confirm current behavior is captured.
-3. Add a structural guard that fails only for the debt being removed when practical.
+3. Add a structural guard that fails only for the debt being removed. When the debt is observable only through an existing behavior contract, record that exact test and the reason a separate structural guard would be redundant in the phase log.
 4. Move one responsibility behind a stable interface.
 5. Remove the replaced implementation in the same task; do not leave a second fallback authority.
 6. Run focused verification.
@@ -185,6 +191,27 @@ Characterization tests normally pass before the refactor. A new structural guard
 8. Commit only intentional files.
 9. Mark the phase complete only after every phase completion criterion is evidenced.
 
+### 7.4 Baseline record requirements
+
+Before Phase 1, record a baseline ledger containing the starting commit, Node/npm/Python versions, lockfile hash, Git object statistics, tracked artifact count and logical size, source-authority inventory, and every command used for comparison. The ledger also records known pre-refactor failures by exact command and output summary.
+
+Each task must identify the compared fields and normalization rule. Time, stack traces, temporary paths, and generated cache-buster values are excluded unless they are part of an externally consumed protocol. The task must retain the pre-refactor fixture or command output needed to reproduce a mismatch.
+
+### 7.5 Structural-guard requirements
+
+File length and total `any` count are triage metrics only; they are never completion criteria. Every audit item closes through a guard specific to its failure mode:
+
+- dependency-cycle tests for cycles;
+- source-authority inventories for duplicate implementation bodies and runtime JavaScript authorities;
+- export inventories for facades being split;
+- parser/constant matrices for normalization and network contracts;
+- Worker/local parity tests for authority movement;
+- board-writer and import-side-effect structural tests for UI ownership;
+- selector-ownership and exception inventories for CSS;
+- tracked-file retention inventories for artifacts and historical evidence.
+
+An allowlist is valid only when it names an owner, reason, removal phase, and an expiry test. Permanent undocumented allowlists do not close an audit item.
+
 ## 8. Stop Conditions
 
 Work stops immediately when any of these conditions occurs:
@@ -197,6 +224,7 @@ Work stops immediately when any of these conditions occurs:
 - a generated or mirrored file would need to become the source of truth;
 - an extracted module requires a new dependency direction prohibited by the architecture contract;
 - a focused check is flaky and cannot distinguish old from new behavior;
+- the comparison includes nondeterministic fields without an explicit normalization rule;
 - unrelated dirty files appear or overlap the phase;
 - a broad catch, silent no-op, or success-shaped fallback is proposed to preserve compatibility;
 - a phase cannot be reverted without reverting unrelated work;
@@ -237,6 +265,7 @@ When stopped, the executor reports the exact file, command, observed output, exp
 **Work:**
 
 - break the `selection-flow` -> `pass-handler` -> `cpu-decision` cycle through an explicit injected or pure shared dependency;
+- replace the `game/pass-handler.ts` CPU-level `require('./cpu-decision')` fallback with the existing pass runtime's injected resolver, and remove the `selection-flow.ts` `require('../pass-handler')` fallback in favor of its signal bridge;
 - connect `test/refactor.dependency-boundary.test.ts` to the normal check path;
 - add semantic no-emit and build TypeScript configurations for `training/**/*.ts`;
 - replace `transpileModule`-only training build behavior with a compiler `Program` emit;
@@ -288,6 +317,8 @@ When stopped, the executor reports the exact file, command, observed output, exp
 - delete the old route body immediately after both adapters delegate to the shared implementation;
 - verify parity after every migrated route.
 
+Each route migration maintains a route manifest with its Worker symbol, local-server symbol, shared authority symbol, focused tests, parity command, and deletion proof. A route is not considered migrated merely because a helper was extracted.
+
 **Completion:** Worker/local differences are limited to transport, storage, connection, and deployment adapters. No duplicated authority body remains for publish, join, leave, spectate, deck, hand skin, rematch, snapshot, or journal behavior.
 
 ### Phase 5: Split game-core responsibilities
@@ -304,6 +335,8 @@ When stopped, the executor reports the exact file, command, observed output, exp
 - stage-split pre-placement selection, card usage, and turn-pipeline functions into validation, decision, canonical mutation, event creation, and settlement steps;
 - replace core dynamic global/module discovery with explicit dependency input.
 
+For every removed fallback, maintain a short authority inventory that names the old local body, the required replacement dependency, and the test proving that setup supplies it. A required dependency may fail fast at setup; it may not silently recreate the old computation.
+
 **Completion:** Public behavior remains fixture-equivalent; each business rule has one body; core game code has no browser, DOM, sound, timer, network-client, or UI-global dependency.
 
 ### Phase 6: Enforce Single Visual Writer
@@ -318,6 +351,8 @@ When stopped, the executor reports the exact file, command, observed output, exp
 - split projection, DOM patching, interaction binding, and world-level side effects behind focused typed ports;
 - replace oversized callback contexts with capability-specific interfaces;
 - preserve snapshot/playback/busy ownership and ordered event settlement.
+
+The completion guard must prove both that `renderBoardFullLegacy` is absent and that board-cell DOM mutation is owned by the canonical renderer capability, rather than relying on line counts or manual inspection.
 
 **Completion:** Static dependency checks find one board DOM writer, legacy rendering logic is absent, and focused rendering contracts pass. Full visual-equivalence completion additionally requires explicitly authorized playable-browser or visual-regression verification.
 
@@ -335,6 +370,8 @@ When stopped, the executor reports the exact file, command, observed output, exp
 - split long network-button and related handlers into named actions;
 - preserve existing globals only as documented compatibility shims that delegate to initialized services.
 
+Import-side-effect tests must spy on listener installation and global assignment. Compatibility globals are allowed only when explicit initialization installs a delegating shim and the test proves repeated initialization is idempotent.
+
 **Completion:** Importing core controller modules does not mutate DOM or install globals, facade compatibility tests pass, and existing UI/network flows remain ordered identically. Full visual-equivalence completion requires the same explicit browser authorization as Phase 6.
 
 ### Phase 8: Rebuild CSS ownership without redesign
@@ -349,6 +386,8 @@ When stopped, the executor reports the exact file, command, observed output, exp
 - consolidate repeated selectors under one owning file/layer;
 - remove `!important` only when specificity and layer order prove equivalent behavior;
 - do not change DOM structure or visual tokens merely to simplify CSS.
+
+Every remaining repeated selector or `!important` must appear in an explicit exception inventory with its owner and reason. The target is no unclassified override, not an arbitrary zero count.
 
 **Completion:** Repeated-selector and `!important` debt is reduced to an explicit allowlist with documented reasons; feature ownership is mechanically checkable; browser build passes. Full computed-style and screenshot equivalence requires explicit authorization for visual verification.
 
@@ -366,6 +405,8 @@ When stopped, the executor reports the exact file, command, observed output, exp
 - remove tracked volatile current-tree artifacts and add precise ignore rules;
 - keep compact reproducibility fixtures and summaries, not browser profiles, caches, databases, or raw runs.
 
+The mirror decision is made with a recorded criterion: retain `worker-public/` only when a clean-source regeneration and deploy-surface check prove tracking is required for supported deployment; otherwise make it ignored and prove both deploy scripts regenerate it. The artifact policy separately classifies shipped assets, compact fixtures, generated mirrors, and volatile outputs.
+
 **Completion:** Generated and mirror surfaces are reproducible, no source edit points at a generated file, current documentation is unambiguous, and volatile artifacts are absent from the current tree.
 
 ### Phase 10: Convergence audit
@@ -377,6 +418,7 @@ When stopped, the executor reports the exact file, command, observed output, exp
 - rerun the full twenty-finding closure matrix;
 - rerun dependency, global/window, JS inventory, TypeScript, training TypeScript, network parity, browser build, Worker mirror, duplicate-source, and documentation checks;
 - inspect stable facades for duplicate fallback bodies;
+- verify every structural allowlist is empty or has the owner, reason, removal phase, and expiry evidence required by Section 7.5;
 - inspect generated output and final repository status;
 - perform explicitly authorized UI/visual verification if full visual-equivalence completion is requested;
 - produce a residual-risk report; any unresolved scoped item blocks completion.
@@ -499,12 +541,11 @@ The program does not claim that no future refactoring opportunity can exist. It 
 
 ## 15. Plan Deliverables After Spec Approval
 
-After this design is reviewed and approved, planning produces:
+The detailed operational plan is now [2026-07-11-behavior-preserving-full-refactor-master-plan.md](../plans/2026-07-11-behavior-preserving-full-refactor-master-plan.md). It supplies:
 
-1. `docs/superpowers/plans/2026-07-11-behavior-preserving-full-refactor-master-plan.md`;
-2. one detailed implementation plan for each normal phase, Phase 0 through Phase 10;
-3. one isolated Phase H history-repair runbook;
-4. a master checklist mapping every plan task back to the closure matrix;
-5. a final convergence-audit checklist with exact commands and expected results.
+1. a phase-by-phase task order, exact primary paths, focused verification, expected results, and commit boundaries;
+2. a baseline ledger and closure-matrix procedure;
+3. an isolated Phase H history-repair runbook;
+4. an explicit final convergence and visual-verification gate.
 
-The phase plans must contain no placeholders. Each task identifies exact files, consumed and produced interfaces, characterization coverage, implementation steps, focused verification, stop conditions, diff inspection, and a coherent commit step.
+The operational plan must contain no placeholders. Each task identifies exact files, consumed and produced interfaces, characterization coverage, implementation steps, focused verification, stop conditions, diff inspection, and a coherent commit step.
