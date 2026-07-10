@@ -74,6 +74,7 @@ const SpecialCardRegistry = loadRuntimeModule('../../shared/special-card-registr
 const ManifestStoneRegistry = loadRuntimeModule('../../shared/manifest-stone-registry', 'ManifestStoneRegistry', null);
 const CardProtectionContext = loadRuntimeModule('../logic/cards-internal/protection-context', 'CardProtectionContext', null);
 const CardSacrificeWillModule = loadRuntimeModule('../logic/cards/sacrifice_will', 'CardSacrificeWill', null);
+const CardUsageConsumptionStage = loadRuntimeModule('./card-usage-consumption-stage', 'CardUsageConsumptionStage', null);
 
 const {
   CARD_DEFS,
@@ -692,23 +693,24 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
   const condemnOffers = Array.isArray(usagePrecheck.condemnOffers) ? usagePrecheck.condemnOffers : null;
   const observerWillOffers = Array.isArray(usagePrecheck.observerWillOffers) ? usagePrecheck.observerWillOffers : null;
 
-  let removedCard = null;
-  if (!(_opts.noConsume === true)) {
-    if (typeof removeHandCardAt !== 'function') return false;
-    removedCard = removeHandCardAt(cardState, handKey, idx);
-    if (!removedCard || removedCard.cardId !== cardId) return false;
-    if (typeof addCardToDiscard === 'function') {
-      addCardToDiscard(cardState, removedCard.cardId, removedCard.cardCopyId);
-    }
-    if (typeof addChargeValue === 'function') {
-      addChargeValue(cardState, chargeOwnerKey, -cost, 'card_use_cost');
-    }
-    cardState.hasUsedCardThisTurnByPlayer[chargeOwnerKey] = true;
-    cardState.cardUseCountByPlayer = cardState.cardUseCountByPlayer || { black: 0, white: 0 };
-    cardState.cardUseCountByPlayer[chargeOwnerKey] = (cardState.cardUseCountByPlayer[chargeOwnerKey] || 0) + 1;
+  if (!CardUsageConsumptionStage || typeof CardUsageConsumptionStage.consumeCardUsage !== 'function') {
+    throw new Error('[effect-resolver] CardUsageConsumptionStage.consumeCardUsage not available');
   }
-  cardState.lastUsedCardByPlayer[chargeOwnerKey] = cardId;
-  clearUsedSelectedCard(cardState, cardId, handKey);
+  const consumption = CardUsageConsumptionStage.consumeCardUsage({
+    cardState,
+    handKey,
+    chargeOwnerKey,
+    cardId,
+    handIndex: idx,
+    cost,
+    noConsume: _opts.noConsume === true,
+    removeHandCardAt,
+    addCardToDiscard,
+    addChargeValue,
+    clearUsedSelectedCard
+  });
+  if (!consumption || consumption.ok !== true) return false;
+  const removedCard = consumption.removedCard;
 
   const defFn = typeof getCardDefFn === 'function' ? getCardDefFn : getCardDef;
   const usedCardDef = defFn(cardId);
