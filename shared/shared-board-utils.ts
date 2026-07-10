@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/shape-metadata'), require('./board/cell-access'), require('./board/corners'), require('./board/legal-moves'), require('./board/control-counts'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/shape-metadata'), require('./board/cell-access'), require('./board/corners'), require('./board/risk-cells'), require('./board/legal-moves'), require('./board/control-counts'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardRiskCells || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardRiskCells || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardShapeMetadataModule: typeof import('./board/shape-metadata') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardShapeMetadataModule: typeof import('./board/shape-metadata') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardRiskCellsModule: typeof import('./board/risk-cells') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -533,167 +533,23 @@
         return count;
     }
 
-    function buildRiskCellSets(board: unknown): { xKeys: Set<string>; cKeys: Set<string> } {
-        const meta = getBoardShapeMeta(board);
-        if (meta && meta.xKeyCache instanceof Set && meta.cKeyCache instanceof Set) {
-            return { xKeys: meta.xKeyCache, cKeys: meta.cKeyCache };
-        }
-        const coords = collectBoardCoordinates(board);
-        const coordKeys = new Set(coords.map((cell) => toBoardCellKey(cell.row, cell.col)));
-        const quadrants = [
-            { vertical: -1, horizontal: -1 },
-            { vertical: -1, horizontal: 1 },
-            { vertical: 1, horizontal: -1 },
-            { vertical: 1, horizontal: 1 }
-        ];
-        const xKeys = new Set<string>();
-        const cKeys = new Set<string>();
-
-        for (const cell of coords) {
-            for (const quadrant of quadrants) {
-                const verticalKey = toBoardCellKey(cell.row + quadrant.vertical, cell.col);
-                const horizontalKey = toBoardCellKey(cell.row, cell.col + quadrant.horizontal);
-                if (coordKeys.has(verticalKey) || coordKeys.has(horizontalKey)) continue;
-
-                const inwardRow = cell.row - quadrant.vertical;
-                const inwardCol = cell.col - quadrant.horizontal;
-                const xKey = toBoardCellKey(inwardRow, inwardCol);
-                const c1Key = toBoardCellKey(inwardRow, cell.col);
-                const c2Key = toBoardCellKey(cell.row, inwardCol);
-
-                if (coordKeys.has(xKey)) xKeys.add(xKey);
-                if (coordKeys.has(c1Key)) cKeys.add(c1Key);
-                if (coordKeys.has(c2Key)) cKeys.add(c2Key);
-            }
-        }
-
-        if (meta) {
-            meta.xKeyCache = xKeys;
-            meta.cKeyCache = cKeys;
-        }
-        return { xKeys, cKeys };
-    }
-
-    function getCornerProximity(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): { kind: string; corner: [number, number] } | null {
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
-        if (Array.isArray(boardOrRows)) {
-            if (!hasPlayableCell(boardOrRows, row, col)) return null;
-            const isX = isXSquare(row, col, boardOrRows);
-            const isC = !isX && isCSquare(row, col, boardOrRows);
-            if (!isX && !isC) return null;
-            const corners = getCornerCells(boardOrRows);
-            for (const corner of corners) {
-                if (!corner || !Number.isInteger(corner.row) || !Number.isInteger(corner.col)) continue;
-                for (const vertical of [-1, 1]) {
-                    for (const horizontal of [-1, 1]) {
-                        if (
-                            hasPlayableCell(boardOrRows, corner.row + vertical, corner.col) ||
-                            hasPlayableCell(boardOrRows, corner.row, corner.col + horizontal)
-                        ) {
-                            continue;
-                        }
-                        const inwardRow = corner.row - vertical;
-                        const inwardCol = corner.col - horizontal;
-                        if (isX && inwardRow === row && inwardCol === col) {
-                            return { kind: 'X', corner: [corner.row, corner.col] };
-                        }
-                        if (isC && (
-                            (inwardRow === row && corner.col === col) ||
-                            (corner.row === row && inwardCol === col)
-                        )) {
-                            return { kind: 'C', corner: [corner.row, corner.col] };
-                        }
-                    }
-                }
-            }
-            return null;
-        }
-
-        const bounds = resolveBoardBounds(boardOrRows, maybeCols);
-        if (!bounds) return null;
-        const rowNearTop = row === (bounds.minRow + 1);
-        const rowNearBottom = row === (bounds.maxRow - 1);
-        const colNearLeft = col === (bounds.minCol + 1);
-        const colNearRight = col === (bounds.maxCol - 1);
-
-        if ((rowNearTop || rowNearBottom) && (colNearLeft || colNearRight)) {
-            return {
-                kind: 'X',
-                corner: [
-                    rowNearTop ? bounds.minRow : bounds.maxRow,
-                    colNearLeft ? bounds.minCol : bounds.maxCol
-                ]
-            };
-        }
-
-        if ((row === bounds.minRow || row === bounds.maxRow) && (colNearLeft || colNearRight)) {
-            return {
-                kind: 'C',
-                corner: [
-                    row,
-                    colNearLeft ? bounds.minCol : bounds.maxCol
-                ]
-            };
-        }
-
-        if ((col === bounds.minCol || col === bounds.maxCol) && (rowNearTop || rowNearBottom)) {
-            return {
-                kind: 'C',
-                corner: [
-                    rowNearTop ? bounds.minRow : bounds.maxRow,
-                    col
-                ]
-            };
-        }
-
-        return null;
-    }
-
-    function isCorner(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): boolean {
-        return isCornerCell(row, col, boardOrRows, maybeCols);
-    }
-
-    function isEdge(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): boolean {
-        return isEdgeCell(row, col, boardOrRows, maybeCols);
-    }
-
-    function isXSquare(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): boolean {
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-        if (Array.isArray(boardOrRows)) {
-            if (!hasPlayableCell(boardOrRows, row, col)) return false;
-            return buildRiskCellSets(boardOrRows).xKeys.has(toBoardCellKey(row, col));
-        }
-        const bounds = resolveBoardBounds(boardOrRows, maybeCols);
-        if (!bounds) return false;
-        return (
-            (row === (bounds.minRow + 1) || row === (bounds.maxRow - 1)) &&
-            (col === (bounds.minCol + 1) || col === (bounds.maxCol - 1))
-        );
-    }
-
-    function isCSquare(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): boolean {
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-        if (Array.isArray(boardOrRows)) {
-            if (!hasPlayableCell(boardOrRows, row, col)) return false;
-            return buildRiskCellSets(boardOrRows).cKeys.has(toBoardCellKey(row, col));
-        }
-        const bounds = resolveBoardBounds(boardOrRows, maybeCols);
-        if (!bounds) return false;
-        const nearTopBottom = (row === bounds.minRow || row === bounds.maxRow) &&
-            (col === (bounds.minCol + 1) || col === (bounds.maxCol - 1));
-        const nearLeftRight = (col === bounds.minCol || col === bounds.maxCol) &&
-            (row === (bounds.minRow + 1) || row === (bounds.maxRow - 1));
-        return nearTopBottom || nearLeftRight;
-    }
-
-    function getCellType(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): 'unknown' | 'corner' | 'x' | 'c' | 'edge' | 'inner' {
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return 'unknown';
-        if (isCorner(row, col, boardOrRows, maybeCols)) return 'corner';
-        if (isXSquare(row, col, boardOrRows, maybeCols)) return 'x';
-        if (isCSquare(row, col, boardOrRows, maybeCols)) return 'c';
-        if (isEdge(row, col, boardOrRows, maybeCols)) return 'edge';
-        return 'inner';
-    }
+    if (!BoardRiskCellsModule) throw new Error('BoardRiskCells is required by SharedBoardUtils');
+    const BoardRiskCells = BoardRiskCellsModule.createRiskCells({
+        toBoardCellKey,
+        getBoardShapeMeta,
+        collectBoardCoordinates,
+        hasPlayableCell,
+        resolveBoardBounds,
+        getCornerCells,
+        isCornerCell,
+        isEdgeCell
+    });
+    const getCornerProximity = BoardRiskCells.getCornerProximity;
+    const isCorner = BoardRiskCells.isCorner;
+    const isEdge = BoardRiskCells.isEdge;
+    const isXSquare = BoardRiskCells.isXSquare;
+    const isCSquare = BoardRiskCells.isCSquare;
+    const getCellType = BoardRiskCells.getCellType;
 
     if (!BoardLegalMovesModule) throw new Error('BoardLegalMoves is required by SharedBoardUtils');
     const BoardLegalMoves = BoardLegalMovesModule.createLegalMoves({
