@@ -64,6 +64,7 @@ function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: stri
   const moduleResolverTag = '<script src="game/logic/cards-internal/module-resolver.js"></script>';
   const presentationHelpersTag = '<script src="game/logic/cards-internal/presentation-helpers.js"></script>';
   const boardConfigurationTag = '<script src="game/logic/cards-internal/board-configuration.js"></script>';
+  const generatedSpawnFlipResolverTag = '<script src="game/logic/cards-internal/generated-spawn-flip-resolver.js"></script>';
   const selectorsTag = '<script src="game/logic/cards/selectors.js"></script>';
   const prechecksTag = '<script src="game/logic/cards-internal/card-usage-prechecks.js"></script>';
   const orchestratorTag = '<script src="game/logic/cards-internal/selector-orchestrator.js"></script>';
@@ -79,6 +80,7 @@ function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: stri
   expect(html.includes(moduleResolverTag)).toBe(true);
   expect(html.includes(presentationHelpersTag)).toBe(true);
   expect(html.includes(boardConfigurationTag)).toBe(true);
+  expect(html.includes(generatedSpawnFlipResolverTag)).toBe(true);
   expect(html.includes(selectorsTag)).toBe(true);
   expect(html.includes(prechecksTag)).toBe(true);
   expect(html.includes(orchestratorTag)).toBe(true);
@@ -91,6 +93,7 @@ function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: stri
   expect(html.indexOf(moduleResolverTag)).toBeGreaterThan(html.indexOf(stateFactoryTag));
   expect(html.indexOf(presentationHelpersTag)).toBeGreaterThan(html.indexOf(moduleResolverTag));
   expect(html.indexOf(boardConfigurationTag)).toBeGreaterThan(html.indexOf(presentationHelpersTag));
+  expect(html.indexOf(generatedSpawnFlipResolverTag)).toBeGreaterThan(html.indexOf(boardConfigurationTag));
   expect(html.indexOf(selectorsTag)).toBeGreaterThan(html.indexOf(presentationHelpersTag));
   expect(html.indexOf(prechecksTag)).toBeGreaterThan(html.indexOf(selectorsTag));
   expect(html.indexOf(orchestratorTag)).toBeGreaterThan(html.indexOf(prechecksTag));
@@ -105,6 +108,7 @@ function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: stri
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/module-resolver.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/presentation-helpers.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/board-configuration.js'))).toBe(true);
+  expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/generated-spawn-flip-resolver.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/card-usage-prechecks.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/selector-orchestrator.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/hand-manager.js'))).toBe(true);

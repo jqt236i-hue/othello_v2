@@ -85,6 +85,7 @@ installRuntimeModule('CardCaptureSource', () => require('../game/logic/cards-int
 installRuntimeModule('CardProgression', () => require('../game/logic/cards-internal/progression.js'));
 installRuntimeModule('CardRandomBoardSpawn', () => require('../game/logic/cards-internal/random-board-spawn.js'));
 installRuntimeModule('CardSpawnAndFlip', () => require('../game/logic/cards-internal/spawn-and-flip.js'));
+installRuntimeModule('CardGeneratedSpawnFlipResolver', () => require('../game/logic/cards-internal/generated-spawn-flip-resolver.js'));
 installRuntimeModule('CardRiboTimeStop', () => require('../game/logic/cards-internal/ribo-time-stop.js'));
 installRuntimeModule('CardTargetAccess', () => require('../game/logic/cards-internal/target-access.js'));
 installRuntimeModule('CardContextBuilders', () => require('../game/logic/cards-internal/context-builders.js'));
