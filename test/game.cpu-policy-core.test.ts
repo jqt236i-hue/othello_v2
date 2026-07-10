@@ -19,6 +19,14 @@ describe('cpu-policy-core', () => {
         expect(missing).toEqual([]);
     });
 
+    test('neutral card profiles preserve the former no-plan scoring path', () => {
+        for (const cardType of ['SACRIFICE_WILL', 'ZOMBIE_WILL', 'CAUSAL_REPLAY_WILL', 'CHAOS_SUMMON']) {
+            const profile = core.getMovePlanProfileForCardType(cardType);
+            expect(profile).toEqual(expect.objectContaining({ placementWeight: 0 }));
+            expect(Number(profile && profile.stabilityBias || 0)).toBeLessThan(3);
+        }
+    });
+
     test('chooseHighestCostCard picks max-cost card', () => {
         const usable = ['a', 'b', 'c'];
         const costs: Record<string, number> = { a: 5, b: 12, c: 7 };

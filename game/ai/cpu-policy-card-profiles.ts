@@ -26,6 +26,8 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         BOARD_SHRINK_WILL: -3,
         BOARD_SHRINK_GOD: -6,
         BREEDING_WILL: 0,
+        CAUSAL_REPLAY_WILL: 0,
+        CHAOS_SUMMON: 0,
         DOUBLE_CHAIN_WILL: 4,
         TRIPLE_CHAIN_WILL: 6,
         QUAD_CHAIN_WILL: 8,
@@ -62,6 +64,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         GUARD_WILL: 12,
         GUARDIAN_GOD: 14,
         AFTERIMAGE_WILL: 12,
+        SACRIFICE_WILL: 0,
         GHOST_WILL: 11,
         HEAVEN_BLESSING: 6,
         HYPERACTIVE_WILL: 0,
@@ -107,7 +110,8 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         ULTIMATE_REVERSE_DRAGON: 1,
         WILL_HUNTER_KING: 4,
         WORK_WILL: 4,
-        X_BOMB: -2
+        X_BOMB: -2,
+        ZOMBIE_WILL: 0
     });
 
     // Keep an explicit list so newly added cards cannot silently bypass CPU usage tuning.
@@ -118,6 +122,8 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         'BOARD_SHRINK_WILL',
         'BOARD_SHRINK_GOD',
         'BREEDING_WILL',
+        'CAUSAL_REPLAY_WILL',
+        'CHAOS_SUMMON',
         'DOUBLE_CHAIN_WILL',
         'TRIPLE_CHAIN_WILL',
         'QUAD_CHAIN_WILL',
@@ -152,6 +158,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         'GOLD_STONE',
         'CRYSTAL_STONE',
         'RAINBOW_STONE',
+        'SACRIFICE_WILL',
         'GUARDIAN_GOD',
         'GUARD_WILL',
         'AFTERIMAGE_WILL',
@@ -200,7 +207,8 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         'ULTIMATE_REVERSE_DRAGON',
         'WILL_HUNTER_KING',
         'WORK_WILL',
-        'X_BOMB'
+        'X_BOMB',
+        'ZOMBIE_WILL'
     ]);
 
     const cardTypeUsageStyleOverrides = Object.freeze({
@@ -617,6 +625,10 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         BOARD_SHRINK_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 3, edgeBias: 4, oppAdjBias: 3, emptyAdjBias: 1 },
         BOARD_SHRINK_GOD: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 4, edgeBias: 5, oppAdjBias: 4, emptyAdjBias: 1 },
         BREEDING_WILL: { archetype: 'spawnMobile', placementWeight: 3, cornerBias: -1, oppAdjBias: 2 },
+        // These types previously had no plan entry. placementWeight: 0 preserves that
+        // no-op scoring path while making the catalog coverage explicit.
+        CAUSAL_REPLAY_WILL: { archetype: 'economyCycle', placementWeight: 0 },
+        CHAOS_SUMMON: { archetype: 'economyCycle', placementWeight: 0 },
         DOUBLE_CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 4, oppAdjBias: 3 },
         TRIPLE_CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 5, oppAdjBias: 4, bonusBias: 1 },
         QUAD_CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 6, oppAdjBias: 5, bonusBias: 2 },
@@ -650,6 +662,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         GOLD_STONE: { archetype: 'economyCycle', placementWeight: 2, bonusBias: 4, flipBias: 4, stabilityBias: -1 },
         CRYSTAL_STONE: { archetype: 'economyCycle', placementWeight: 2, bonusBias: 8, flipBias: 0, stabilityBias: -1 },
         RAINBOW_STONE: { archetype: 'economyCycle', placementWeight: 2, bonusBias: 6, flipBias: 6, stabilityBias: -2 },
+        SACRIFICE_WILL: { archetype: 'economyCycle', placementWeight: 0 },
         GUARDIAN_GOD: { archetype: 'anchorProtect', placementWeight: 0, cornerBias: 4, stabilityBias: 4 },
         GUARD_WILL: { archetype: 'anchorProtect', placementWeight: 0, edgeBias: 3, ownAdjBias: 3 },
         AFTERIMAGE_WILL: { archetype: 'anchorProtect', placementWeight: 3, cornerBias: 3, stabilityBias: 3, oppAdjBias: 1 },
@@ -699,7 +712,8 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         ULTIMATE_REVERSE_DRAGON: { archetype: 'anchorEngine', placementWeight: 3, innerBias: 1, oppAdjBias: 3, flipBias: 3 },
         WILL_HUNTER_KING: { archetype: 'anchorEngine', placementWeight: 3, cornerBias: 4, stabilityBias: 4, oppAdjBias: -1 },
         WORK_WILL: { archetype: 'anchorEngine', placementWeight: 3, flipBias: 0, emptyAdjBias: -1, stabilityBias: 5 },
-        X_BOMB: { archetype: 'explosiveComeback', placementWeight: 3, innerBias: 2, emptyAdjBias: 3, xPenalty: 0 }
+        X_BOMB: { archetype: 'explosiveComeback', placementWeight: 3, innerBias: 2, emptyAdjBias: 3, xPenalty: 0 },
+        ZOMBIE_WILL: { archetype: 'economyCycle', placementWeight: 0 }
     });
 
     function buildCardTypeMovePlanProfile() {
