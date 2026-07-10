@@ -216,6 +216,13 @@ function isBrowserModule(rel: string): boolean {
     return BROWSER_MODULE_PREFIXES.some(prefix => rel.startsWith(prefix));
 }
 
+function hasRootSourceForDistModule(rootDir: string, rel: string): boolean {
+    const rootJsPath = path.join(rootDir, rel);
+    if (fs.existsSync(rootJsPath)) return true;
+    const rootTsPath = rootJsPath.replace(/\.js$/, '.ts');
+    return fs.existsSync(rootTsPath);
+}
+
 function walkDir(dir: string, base: string, files: string[]): void {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
@@ -348,6 +355,10 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
     for (const rel of jsFiles) {
         if (!isBrowserModule(rel)) {
             skipped.push(rel + ' (non-browser)');
+            continue;
+        }
+        if (!hasRootSourceForDistModule(rootDir, rel)) {
+            skipped.push(rel + ' (stale dist output)');
             continue;
         }
 

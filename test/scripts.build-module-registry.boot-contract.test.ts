@@ -68,6 +68,10 @@ describe('browser module registry boot contract', () => {
       writeFile(path.join(rootDir, 'dist', 'ui', 'network', 'publish-flow.js'), 'module.exports = { publish: true };\n');
       writeFile(path.join(rootDir, 'dist', 'game', 'ai', 'policy-onnx-runtime.js'), 'module.exports = { onnx: true };\n');
       writeFile(path.join(rootDir, 'dist', 'ui', 'gacha', 'gacha-overlay-controller.js'), 'module.exports = { gacha: true };\n');
+      writeFile(path.join(rootDir, 'ui', 'network-client.ts'), 'export = {};\n');
+      writeFile(path.join(rootDir, 'ui', 'network', 'publish-flow.ts'), 'export = {};\n');
+      writeFile(path.join(rootDir, 'game', 'ai', 'policy-onnx-runtime.ts'), 'export = {};\n');
+      writeFile(path.join(rootDir, 'ui', 'gacha', 'gacha-overlay-controller.ts'), 'export = {};\n');
 
       const result = buildRegistry({
         rootDir,
@@ -89,6 +93,19 @@ describe('browser module registry boot contract', () => {
       expect(startup).not.toContain('_r("ui/gacha/gacha-overlay-controller"');
       expect(optional).toContain('_r("game/ai/policy-onnx-runtime"');
       expect(optional).toContain('_r("ui/gacha/gacha-overlay-controller"');
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test('excludes stale dist output whose root source was removed', () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-registry-stale-dist-'));
+    try {
+      writeFile(path.join(rootDir, 'dist', 'game', 'retired-browser-module.js'), 'module.exports = { retired: true };\n');
+
+      const result = buildRegistry({ rootDir, write: false, log: false, syncScriptVersions: false });
+
+      expect(result && result.content).not.toContain('_r("game/retired-browser-module"');
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

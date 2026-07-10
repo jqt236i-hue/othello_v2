@@ -12,6 +12,13 @@ function writeFile(filePath: string, content: string) {
     fs.writeFileSync(filePath, content, 'utf8');
 }
 
+function writeSourceStub(rootDir: string, distRelativePath: string) {
+    writeFile(
+        path.join(rootDir, distRelativePath.replace(/\.js$/, '.ts')),
+        'export = {};\n'
+    );
+}
+
 function writeBrowserIndexFixture(rootDir: string) {
     writeFile(path.join(rootDir, 'public', 'runtime.js'), 'window.__cjsRegister = function() {};\nwindow.__cjsAlias = function() {};\n');
     writeFile(path.join(rootDir, 'index.html'), [
@@ -42,6 +49,7 @@ describe('browser build sync', () => {
 
         writeFile(path.join(rootDir, 'entry-browser.js'), 'console.log("entry-a");\n');
         writeFile(path.join(rootDir, 'dist', 'ui', 'sample.js'), 'module.exports = 1;\n');
+        writeSourceStub(rootDir, path.join('ui', 'sample.js'));
         writeBrowserIndexFixture(rootDir);
 
         buildRegistry({ rootDir, log: false });
@@ -68,6 +76,7 @@ describe('browser build sync', () => {
 
         writeFile(path.join(rootDir, 'entry-browser.js'), 'console.log("entry-a");\n');
         writeFile(path.join(rootDir, 'dist', 'ui', 'sample.js'), 'module.exports = 1;\n');
+        writeSourceStub(rootDir, path.join('ui', 'sample.js'));
         writeBrowserIndexFixture(rootDir);
 
         buildRegistry({ rootDir, log: false });
@@ -86,6 +95,7 @@ describe('browser build sync', () => {
 
         writeFile(path.join(rootDir, 'entry-browser.js'), 'console.log("entry-a");\n');
         writeFile(path.join(rootDir, 'dist', 'ui', 'sample.js'), 'module.exports = 1;\n');
+        writeSourceStub(rootDir, path.join('ui', 'sample.js'));
         writeBrowserIndexFixture(rootDir);
 
         buildRegistry({ rootDir, log: false });
@@ -108,6 +118,8 @@ describe('browser build sync', () => {
         writeFile(path.join(rootDir, 'entry-browser.js'), 'console.log("entry-a");\n');
         writeFile(path.join(rootDir, 'dist', 'game', 'visual-effects-map.js'), 'module.exports = require("./visual-effects-map.runtime");\n');
         writeFile(path.join(rootDir, 'dist', 'game', 'network-turn-handoff.js'), 'module.exports = require("./network-turn-handoff.runtime");\n');
+        writeSourceStub(rootDir, path.join('game', 'visual-effects-map.js'));
+        writeSourceStub(rootDir, path.join('game', 'network-turn-handoff.js'));
         writeFile(path.join(rootDir, 'game', 'visual-effects-map.runtime.js'), 'module.exports = { runtime: "visual" };\n');
         writeFile(path.join(rootDir, 'game', 'network-turn-handoff.runtime.js'), 'module.exports = { runtime: "handoff" };\n');
         writeBrowserIndexFixture(rootDir);
@@ -132,6 +144,7 @@ describe('browser build sync', () => {
             'calls += 1;',
             'module.exports = { calls };'
         ].join('\n'));
+        writeSourceStub(rootDir, path.join('ui', 'stateful.js'));
         writeBrowserIndexFixture(rootDir);
 
         buildRegistry({ rootDir, log: false });
@@ -190,6 +203,7 @@ describe('browser build sync', () => {
             '  : (typeof require !== "undefined" ? require : null);',
             'module.exports = { ok: typeof _require === "function" || _require === null };'
         ].join('\n'));
+        writeSourceStub(rootDir, path.join('game', 'card-effects', 'protection-state.js'));
         writeBrowserIndexFixture(rootDir);
 
         buildRegistry({ rootDir, log: false });
