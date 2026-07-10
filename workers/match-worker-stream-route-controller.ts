@@ -8,6 +8,7 @@ import type {
     MatchWorkerSnapshotPayloadMeta,
     MatchWorkerSseStreamInfo
 } from './match-worker-types';
+import { createMatchStreamPreparationController } from '../utils/match-stream-preparation-controller';
 
 type MatchWorkerCryptoLike = {
     getRandomValues(array: Uint8Array): Uint8Array;
@@ -55,34 +56,32 @@ type MatchWorkerStreamRouteControllerConfig = {
 export function createMatchWorkerStreamRouteController(config: MatchWorkerStreamRouteControllerConfig) {
     const cfg = (config && typeof config === 'object') ? config : {} as MatchWorkerStreamRouteControllerConfig;
     const now = typeof cfg.now === 'function' ? cfg.now : () => Date.now();
+    const preparationController = createMatchStreamPreparationController({
+        loadRoom: () => cfg.loadRoom(),
+        awaitLoadRoom: true,
+        getRoom: () => cfg.getRoom(),
+        expireRoomIfNeeded: () => (
+            typeof cfg.expireRoomIfNeeded === 'function' ? cfg.expireRoomIfNeeded(now()) : false
+        ),
+        awaitExpireRoomIfNeeded: true,
+        applyExpiredTurnTimeoutIfNeeded: () => cfg.applyExpiredTurnTimeoutIfNeeded(),
+        awaitApplyExpiredTurnTimeoutIfNeeded: true,
+        getSearchParam: (urlObj: URL, key: string) => urlObj.searchParams.get(key),
+        getSearchParams: (urlObj: URL) => urlObj.searchParams,
+        parseSeatKeyOptional: cfg.parseSeatKeyOptional,
+        resolveAuthenticatedViewer: cfg.resolveAuthenticatedViewer,
+        classifyViewerTokenRejectionReason: cfg.classifyViewerTokenRejectionReason,
+        getSseEventBuffer: () => cfg.getSseEventBuffer(),
+        getBufferedSseReplayEvents: cfg.getBufferedSseReplayEvents,
+        jsonResponse: cfg.jsonResponse,
+        now
+    });
 
     async function handleStream(request: Request): Promise<Response> {
-        await cfg.loadRoom();
-        const room = cfg.getRoom();
-        if (!room) {
-            return cfg.jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-        if (typeof cfg.expireRoomIfNeeded === 'function' && await cfg.expireRoomIfNeeded(now())) {
-            return cfg.jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-
-        await cfg.applyExpiredTurnTimeoutIfNeeded();
-
         const urlObj = new URL(request.url);
-        const seatKey = cfg.parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
-        const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
-        const resumeEventId = String(urlObj.searchParams.get('lastEventId') || '').trim();
-        const viewer = cfg.resolveAuthenticatedViewer(room, {
-            viewerRole: urlObj.searchParams.get('viewerRole') || '',
-            seatKey,
-            seatToken,
-            spectatorId: urlObj.searchParams.get('spectatorId') || '',
-            spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
-            now: now()
-        });
-        if (!viewer) {
-            return cfg.jsonResponse(403, { ok: false, reason: cfg.classifyViewerTokenRejectionReason(urlObj.searchParams) });
-        }
+        const prepared = await preparationController.prepareStream(urlObj, request.headers.get('Last-Event-ID'));
+        if (prepared.response) return prepared.response;
+        const { room, viewer, replayEvents } = prepared;
 
         const { readable, writable } = new TransformStream<Uint8Array>();
         const writer = writable.getWriter();
@@ -93,10 +92,6 @@ export function createMatchWorkerStreamRouteController(config: MatchWorkerStream
             await cfg.onStreamOpened(streamId);
         }
         cfg.ensureHeartbeatTimer();
-
-        const lastEventId = String(request.headers.get('Last-Event-ID') || resumeEventId).trim();
-        const replayBuffer = Array.isArray(room.sseEventBuffer) ? room.sseEventBuffer : cfg.getSseEventBuffer();
-        const replayEvents = cfg.getBufferedSseReplayEvents(replayBuffer, lastEventId, viewer);
 
         const onAbort = () => {
             cfg.closeStream(streamId).catch(() => {});

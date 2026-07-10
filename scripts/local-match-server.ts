@@ -21,6 +21,7 @@ const { createMatchPublishController } = require('../utils/match-publish-control
 const { createMatchRoomPreferencesController } = require('../utils/match-room-preferences-controller');
 const { createMatchRematchController } = require('../utils/match-rematch-controller');
 const { createMatchStateController } = require('../utils/match-state-controller');
+const { createMatchStreamPreparationController } = require('../utils/match-stream-preparation-controller');
 const { createMatchSpectateController } = require('../utils/match-spectate-controller');
 const MatchRoomLobby = require('../shared/match-room-lobby');
 const NetworkActionSchema = require('../shared/network-action-schema');
@@ -2592,35 +2593,40 @@ async function handlePresentationJournal(req: any, res: any, urlObj: any) {
     writeJson(res, result.status, result.payload);
 }
 
-function handleStream(req: any, res: any, urlObj: any) {
-    const roomId = String((urlObj.searchParams.get('roomId') || '')).trim().toUpperCase();
-    if (!roomId || !rooms.has(roomId)) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-
-    const room = rooms.get(roomId);
-    if (expireRoomIfNeeded(roomId, room, Date.now())) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    applyExpiredTurnTimeoutIfNeeded(room);
-
-    const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
-    const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
-    const resumeEventId = String(urlObj.searchParams.get('lastEventId') || '').trim();
-    const viewer = resolveAuthenticatedViewer(room, {
-        viewerRole: urlObj.searchParams.get('viewerRole') || '',
-        seatKey,
-        seatToken,
-        spectatorId: urlObj.searchParams.get('spectatorId') || '',
-        spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
-        now: Date.now()
+function createLocalMatchStreamPreparationController() {
+    let activeRoom: any = null;
+    let activeRoomId = '';
+    return createMatchStreamPreparationController({
+        loadRoom: (urlObj: any) => {
+            activeRoomId = String((urlObj && urlObj.searchParams.get('roomId')) || '').trim().toUpperCase();
+            activeRoom = rooms.get(activeRoomId) || null;
+            if (activeRoom && expireRoomIfNeeded(activeRoomId, activeRoom, Date.now())) activeRoom = null;
+        },
+        getRoom: () => activeRoom,
+        expireRoomIfNeeded: () => false,
+        applyExpiredTurnTimeoutIfNeeded: (room: any) => applyExpiredTurnTimeoutIfNeeded(room),
+        getSearchParam: (urlObj: any, key: any) => urlObj.searchParams.get(key),
+        getSearchParams: (urlObj: any) => urlObj.searchParams,
+        parseSeatKeyOptional,
+        resolveAuthenticatedViewer,
+        classifyViewerTokenRejectionReason,
+        getSseEventBuffer: () => undefined,
+        getBufferedSseReplayEvents: MatchAuthority.getBufferedSseReplayEvents,
+        jsonResponse: (status: number, payload: any) => ({ status, payload })
     });
-    if (!viewer) {
-        writeJson(res, 403, { ok: false, reason: classifyViewerTokenRejectionReason(urlObj.searchParams) });
+}
+
+async function handleStream(req: any, res: any, urlObj: any) {
+    const prepared = await createLocalMatchStreamPreparationController().prepareStream(
+        urlObj,
+        req && req.headers && req.headers['last-event-id']
+    );
+    if (prepared.response) {
+        writeJson(res, prepared.response.status, prepared.response.payload);
         return;
     }
+    const { room, viewer, replayEvents } = prepared;
+    const roomId = String((urlObj.searchParams.get('roomId') || '')).trim().toUpperCase();
 
     res.writeHead(200, {
         'Content-Type': 'text/event-stream; charset=utf-8',
@@ -2636,9 +2642,6 @@ function handleStream(req: any, res: any, urlObj: any) {
     const cleanupStream = () => {
         removeStream(room, streamId);
     };
-
-    const lastEventId = String((req && req.headers && req.headers['last-event-id']) || resumeEventId).trim();
-    const replayEvents = MatchAuthority.getBufferedSseReplayEvents(room.sseEventBuffer, lastEventId, viewer);
 
     if (Array.isArray(replayEvents)) {
         if (replayEvents.length > 0) {
@@ -2811,7 +2814,7 @@ function createLocalMatchServer() {
             }
 
             if (req.method === 'GET' && pathname === '/api/match/stream') {
-                handleStream(req, res, urlObj);
+                await handleStream(req, res, urlObj);
                 return;
             }
 
