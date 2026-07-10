@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/legal-moves'), require('./board/control-counts'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/legal-moves'), require('./board/control-counts'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -212,20 +212,6 @@
         );
     }
 
-    function isExpansionCoordinate(row: number, col: number, boardOrConfig: unknown, maybeCols?: unknown): boolean {
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-        const outerBounds = resolveOuterBounds(boardOrConfig, maybeCols);
-        if (
-            row < outerBounds.minRow ||
-            row > outerBounds.maxRow ||
-            col < outerBounds.minCol ||
-            col > outerBounds.maxCol
-        ) {
-            return false;
-        }
-        return !isMainBoardCell(row, col, boardOrConfig, maybeCols);
-    }
-
     function isPaddedBoardCoordinate(row: number, col: number): boolean {
         return PaddedBoardCoordinates.isPaddedBoardCoordinate(row, col, {
             min: PADDED_BOARD_MIN,
@@ -247,55 +233,15 @@
         });
     }
 
-    function resolveExpansionSide(side: unknown, row: number, col: number, boardOrConfig: unknown, maybeCols?: unknown): string | null {
-        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side as string;
-        const outerBounds = resolveOuterBounds(boardOrConfig, maybeCols);
-        if (col === outerBounds.minCol) return 'left';
-        if (col === outerBounds.maxCol) return 'right';
-        if (row === outerBounds.minRow) return 'top';
-        if (row === outerBounds.maxRow) return 'bottom';
-        return null;
-    }
-
-    function normalizeExpansionCell(cell: unknown, boardOrConfig: unknown): { side: string; row: number; col: number; owner: number } | null {
-        if (!cell || typeof cell !== 'object') return null;
-        const obj = cell as Record<string, unknown>;
-        const row = Number(obj.row);
-        let col = Number(obj.col);
-        const side = resolveExpansionSide(obj.side, row, col, boardOrConfig);
-        const outerBounds = resolveOuterBounds(boardOrConfig);
-        if (!Number.isInteger(row)) return null;
-        if (!Number.isInteger(col)) {
-            if (side === 'left') col = outerBounds.minCol;
-            else if (side === 'right') col = outerBounds.maxCol;
-        }
-        if (!Number.isInteger(col) || !isExpansionCoordinate(row, col, boardOrConfig)) return null;
-        return {
-            side: resolveExpansionSide(side, row, col, boardOrConfig) as string,
-            row,
-            col,
-            owner: normalizeOwner(obj.owner)
-        };
-    }
-
-    function collectExpansionDescriptors(boardExpansion: unknown, boardOrConfig: unknown): Array<{ side: string; row: number; col: number; owner: number }> {
-        if (!boardExpansion || typeof boardExpansion !== 'object') return [];
-        const out: Array<{ side: string; row: number; col: number; owner: number }> = [];
-        const obj = boardExpansion as Record<string, unknown>;
-        const push = (raw: unknown): void => {
-            const normalized = normalizeExpansionCell(raw, boardOrConfig);
-            if (!normalized) return;
-            if (out.some((one) => one.row === normalized.row && one.col === normalized.col)) return;
-            out.push(normalized);
-        };
-        if (Array.isArray(obj.cells)) {
-            for (const cell of obj.cells) push(cell);
-        }
-        if (out.length === 0 && obj.active === true) {
-            push(boardExpansion);
-        }
-        return out;
-    }
+    if (!BoardExpansionDescriptorsModule) throw new Error('BoardExpansionDescriptors is required by SharedBoardUtils');
+    const BoardExpansionDescriptors = BoardExpansionDescriptorsModule.createExpansionDescriptors({
+        resolveOuterBounds,
+        isMainBoardCell,
+        normalizeOwner
+    });
+    const isExpansionCoordinate = BoardExpansionDescriptors.isExpansionCoordinate;
+    const resolveExpansionSide = BoardExpansionDescriptors.resolveExpansionSide;
+    const collectExpansionDescriptors = BoardExpansionDescriptors.collectExpansionDescriptors;
 
     function resolveBoardShapeSource(boardOrConfig: unknown): { board: unknown[][] | null; boardExpansion: Record<string, unknown> | null } {
         if (Array.isArray(boardOrConfig)) {
