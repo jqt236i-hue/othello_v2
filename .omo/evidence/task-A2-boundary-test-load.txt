@@ -1,4 +1,0 @@
-test.skip: static scan: game/ does not contain globalThis property access
-Patterns: globalThis., (globalThis as any).
-Build: PASS
-Test: pre-existing failure (ts-jest ESM config, unrelated to our changes)

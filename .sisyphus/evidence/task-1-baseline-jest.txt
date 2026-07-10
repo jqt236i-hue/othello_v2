@@ -1,6 +1,0 @@
-# Baseline Jest Evidence
-
-- Command: `npm run test:jest -- --runInBand --testTimeout=60000`
-- Exit code: `timeout` (tool terminated after 10 minutes)
-- Summary: Jest did not reach its final footer before termination. The rerun showed a mix of passing and failing suites, including failures in TypeScript test files and `dist/test/*` transpilation checks; the final visible state was still failing when the process stopped.
-- Notes: The initial plain `npm run test:jest` attempt also timed out after 2 minutes, so this in-band rerun was used to capture more of the baseline output.

@@ -1,6 +1,0 @@
-Playwright dependency present; Wrangler dry-run executed successfully; Cloudflare credentials not required for dry-run validation.
-
-Task 5 verification notes:
-- `node scripts/serve-with-fallback.js --help` -> usage text printed.
-- `node scripts/prepare-worker-assets.js --help` -> exit 0, no stdout.
-- `node scripts/run-all-checks.js --help` -> bundled checks ran and passed.

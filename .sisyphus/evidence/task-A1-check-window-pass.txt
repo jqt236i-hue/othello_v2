@@ -1,3 +1,0 @@
-[globalThis-check] 620 references found in game/ (these will be reduced over time)
-Build: PASS
-check:window: exits 2 (pre-existing window violations)

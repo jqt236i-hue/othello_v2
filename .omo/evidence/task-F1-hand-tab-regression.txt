@@ -1,6 +1,0 @@
-F1 Verification — Hand Tab Regression Check
-1. Click SKIN button → Panel opens
-2. "手" tab is active by default ✅
-3. Hand option "手の見た目 勇者の手" radio button appears and is checked ✅
-4. Button title shows "見た目設定（現在の手: 勇者の手）" ✅
-No regression — hand skin functionality unaffected.

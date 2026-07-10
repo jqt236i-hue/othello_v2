@@ -1,7 +1,0 @@
-F1 Verification — Background Tab
-1. Click SKIN button (#handSkinBtn) → Panel opens with title "見た目"
-2. "背景" tab (#appearanceTabBackground) is visible and selectable ✅
-3. Click "背景" tab → Tab becomes selected, "手" tab becomes unselected ✅
-4. Background option "背景 既定背景" radio button appears and is checked ✅
-5. NOTE: "観測の机" option not visible — see ownership issue below
-Background tab is fully functional.

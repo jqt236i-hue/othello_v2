@@ -1,5 +1,0 @@
-npx tsc --noEmit
-Status: PASS
-Exit code: 0
-Output: (no output - no type errors)
-

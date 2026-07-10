@@ -1,6 +1,0 @@
-=== FINAL REPORT ===
-Build: PASS
-worker-public: 825 files verified
-Game files scanned: 21
-globalThis WRITES remaining: 18 (all @compat exports)
-globalThis READS remaining: 165 (UI/bootstrap dependencies + @compat)

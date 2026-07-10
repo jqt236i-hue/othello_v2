@@ -1,5 +1,0 @@
- - `game/turn/pending-coordinator.ts` and `dist/game/turn/pending-coordinator.js` were both broken stubs that referenced `resolvePendingSelectionContract` before defining anything.
- - `worker-public/game/turn/pending-coordinator.js` already contained the full runtime implementation and matched the required module surface.
- - A small bridge to the intact mirror was enough to restore self-play startup without touching unrelated game logic.
- - `scripts/generate-selfplay-data.js` must explicitly call exported `main()` when invoked directly; simply re-exporting the dist module leaves the CLI inert.
- - `dist/game/cards/effect-resolver.js` was also a broken shim and blocked the real self-play path because `cards.js` expects `getCardHandManagerContext` during card handling.
