@@ -123,4 +123,21 @@ describe('JS inventory runtime-authority guard', () => {
       expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.js`))).toBe(false);
     }
   });
+
+  test('rejects reintroducing retired direct-output migration mutators', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const retiredScripts = [
+      'add-module-tracking',
+      'clean-dist-require',
+      'convert-ui-to-ts',
+      'dedup-require',
+      'remove-fn-require',
+      'remove-local-require'
+    ];
+
+    for (const name of retiredScripts) {
+      expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.ts`))).toBe(false);
+      expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.js`))).toBe(false);
+    }
+  });
 });
