@@ -65,6 +65,9 @@ describe('cpu decision board utils composition boundary', () => {
         expect(source).toContain('const CpuPolicyBoardMarkerPrimitivesRequired = requireCpuPolicyBoardMarkerPrimitives();');
         expect(source).toContain('CpuPolicyBoardMarkerPrimitivesRequired.getBoardCellValueSafe(');
         expect(source).toContain('CpuPolicyBoardMarkerPrimitivesRequired.getMarkerProfileAt(');
+        expect(source).toContain('const CpuPolicyPlacementFiltersRequired = requireCpuPolicyPlacementFilters();');
+        expect(source).toContain('CpuPolicyPlacementFiltersRequired.filterLv6OpenCornerAdjacentMoves(');
+        expect(source).toContain('CpuPolicyPlacementFiltersRequired.filterCloneSplitTargetsForLv6(');
         expect(source).not.toMatch(/countBoardEmptiesFallback|isStandardBoard8x8Fallback|isCornerCellFallback|isEdgeCellFallback/);
         expect(source).not.toMatch(/countCornerControlFallback|countEdgeControlFallback/);
         expect(source).not.toContain('function getMarkerPriorityValueFallback');

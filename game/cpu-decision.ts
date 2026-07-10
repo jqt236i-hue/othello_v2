@@ -418,6 +418,25 @@ function requireCpuPolicyBoardMarkerPrimitives(): any {
 
 const CpuPolicyBoardMarkerPrimitivesRequired = requireCpuPolicyBoardMarkerPrimitives();
 
+const CPU_POLICY_PLACEMENT_FILTER_METHODS = [
+    'filterLv6OpenCornerAdjacentMoves',
+    'filterMovesByLv6PlacementPriority',
+    'isCloneSplitEligibleSource',
+    'filterCloneSplitTargetsForLv6'
+];
+
+function requireCpuPolicyPlacementFilters(): any {
+    const missingMethod = CPU_POLICY_PLACEMENT_FILTER_METHODS.find((methodName) => (
+        !CpuPolicyPlacementFilters || typeof CpuPolicyPlacementFilters[methodName] !== 'function'
+    ));
+    if (missingMethod) {
+        throw new Error(`[cpu-decision] CpuPolicyPlacementFilters.${missingMethod} is required`);
+    }
+    return CpuPolicyPlacementFilters;
+}
+
+const CpuPolicyPlacementFiltersRequired = requireCpuPolicyPlacementFilters();
+
 const CpuDecisionBoardUtils = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.createCpuDecisionBoardUtils === 'function')
     ? CpuDecisionBoardUtilsModule.createCpuDecisionBoardUtils({ sharedBoardUtils: CpuDecisionSharedBoardUtils })
     : (() => { throw new Error('CpuDecisionBoardUtils is required by cpu-decision'); })();
@@ -2662,75 +2681,40 @@ function getMoveOpponentSpecialFlipProfile(playerKey: any, move: any): any {
 }
 
 function filterLv6OpenCornerAdjacentMoves(candidateMoves: any, board: any): any {
-    if (CpuPolicyPlacementFilters && typeof CpuPolicyPlacementFilters.filterLv6OpenCornerAdjacentMoves === 'function') {
-        return CpuPolicyPlacementFilters.filterLv6OpenCornerAdjacentMoves(candidateMoves, board, {
-            placementPriority: CpuDecisionPlacementPriority,
-            getCornerProximity,
-            getBoardCellValueSafe,
-            isCornerCell
-        });
-    }
-    return CpuDecisionPlacementPriority && typeof CpuDecisionPlacementPriority.filterLv6OpenCornerAdjacentMoves === 'function'
-        ? CpuDecisionPlacementPriority.filterLv6OpenCornerAdjacentMoves(candidateMoves, board)
-        : candidateMoves;
+    return CpuPolicyPlacementFiltersRequired.filterLv6OpenCornerAdjacentMoves(candidateMoves, board, {
+        placementPriority: CpuDecisionPlacementPriority,
+        getCornerProximity,
+        getBoardCellValueSafe,
+        isCornerCell
+    });
 }
 
 function filterMovesByLv6PlacementPriority(playerKey: any, level: any, candidateMoves: any): any {
-    if (CpuPolicyPlacementFilters && typeof CpuPolicyPlacementFilters.filterMovesByLv6PlacementPriority === 'function') {
-        return CpuPolicyPlacementFilters.filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves, {
-            placementPriority: CpuDecisionPlacementPriority
-        });
-    }
-    return CpuDecisionPlacementPriority && typeof CpuDecisionPlacementPriority.filterMovesByLv6PlacementPriority === 'function'
-        ? CpuDecisionPlacementPriority.filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves)
-        : candidateMoves;
+    return CpuPolicyPlacementFiltersRequired.filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves, {
+        placementPriority: CpuDecisionPlacementPriority
+    });
 }
 
 function isCloneSplitEligibleSource(playerKey: any, row: any, col: any, markerProfile?: any): any {
-    if (CpuPolicyPlacementFilters && typeof CpuPolicyPlacementFilters.isCloneSplitEligibleSource === 'function') {
-        return CpuPolicyPlacementFilters.isCloneSplitEligibleSource(playerKey, row, col, markerProfile, {
-            getCurrentCpuBoard,
-            resolvePlayerValue: (key: any) => (key === 'black'
-                ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-                : (typeof WHITE !== 'undefined' ? WHITE : -1)),
-            getBoardCellValueSafe,
-            getMarkerProfileAt
-        });
-    }
-    const board = getCurrentCpuBoard();
-    const playerValue = playerKey === 'black'
-        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-        : (typeof WHITE !== 'undefined' ? WHITE : -1);
-    if (getBoardCellValueSafe(board, row, col) !== playerValue) return false;
-
-    const profile = markerProfile || getMarkerProfileAt(playerKey, row, col);
-    if (!profile || typeof profile !== 'object') return false;
-    return (
-        Number(profile.ownSpecialScore || 0) > 0 ||
-        Number(profile.oppSpecialScore || 0) > 0 ||
-        Number(profile.ownBombCount || 0) > 0 ||
-        Number(profile.oppBombCount || 0) > 0
-    );
+    return CpuPolicyPlacementFiltersRequired.isCloneSplitEligibleSource(playerKey, row, col, markerProfile, {
+        getCurrentCpuBoard,
+        resolvePlayerValue: (key: any) => (key === 'black'
+            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+            : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        getBoardCellValueSafe,
+        getMarkerProfileAt
+    });
 }
 
 function filterCloneSplitTargetsForLv6(playerKey: any, targets: any): any {
-    if (CpuPolicyPlacementFilters && typeof CpuPolicyPlacementFilters.filterCloneSplitTargetsForLv6 === 'function') {
-        return CpuPolicyPlacementFilters.filterCloneSplitTargetsForLv6(playerKey, targets, {
-            getCurrentCpuBoard,
-            resolvePlayerValue: (key: any) => (key === 'black'
-                ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-                : (typeof WHITE !== 'undefined' ? WHITE : -1)),
-            getBoardCellValueSafe,
-            getMarkerProfileAt,
-            resolveCpuCardPolicyLevelForPlayer
-        });
-    }
-    if (!Array.isArray(targets) || targets.length <= 0) return [];
-    const level = resolveCpuCardPolicyLevelForPlayer(playerKey);
-    if (level < 6) return targets;
-    return targets.filter((target: any) => {
-        if (!target) return false;
-        return isCloneSplitEligibleSource(playerKey, target.row, target.col);
+    return CpuPolicyPlacementFiltersRequired.filterCloneSplitTargetsForLv6(playerKey, targets, {
+        getCurrentCpuBoard,
+        resolvePlayerValue: (key: any) => (key === 'black'
+            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+            : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        getBoardCellValueSafe,
+        getMarkerProfileAt,
+        resolveCpuCardPolicyLevelForPlayer
     });
 }
 
