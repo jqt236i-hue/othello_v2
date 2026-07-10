@@ -1,3 +1,5 @@
+import DestroySelectionStage = require('./pre-placement-selection-destroy-stage');
+
 type ResolvePrePlacementSelectionActionOptions = {
     CardLogic: any;
     cardState: any;
@@ -22,51 +24,8 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
     const action = opts.action || {};
     const p = opts.prng || undefined;
 
-    if (pending && pending.type === 'DESTROY_ONE_STONE' && action.destroyTarget) {
-        const destroyResult = typeof opts.CardLogic.applyDestroyEffectDetailed === 'function'
-            ? opts.CardLogic.applyDestroyEffectDetailed(
-                opts.cardState,
-                opts.gameState,
-                opts.playerKey,
-                action.destroyTarget.row,
-                action.destroyTarget.col
-            )
-            : {
-                destroyed: !!opts.CardLogic.applyDestroyEffect(
-                    opts.cardState,
-                    opts.gameState,
-                    opts.playerKey,
-                    action.destroyTarget.row,
-                    action.destroyTarget.col
-                )
-            };
-        const normalizedDestroyResult = opts.createDestroyOutcome(destroyResult, null);
-        const applied = opts.isDestroyOutcomeResolved(normalizedDestroyResult);
-        opts.events.push({
-            type: 'destroy_selected',
-            player: opts.playerKey,
-            target: action.destroyTarget,
-            applied,
-            kind: normalizedDestroyResult && normalizedDestroyResult.kind ? normalizedDestroyResult.kind : null,
-            destroyed: !!(normalizedDestroyResult && normalizedDestroyResult.destroyed),
-            regenerated: !!(normalizedDestroyResult && normalizedDestroyResult.regenerated),
-            evaded: !!(normalizedDestroyResult && normalizedDestroyResult.evaded),
-            blockedByGhost: !!(normalizedDestroyResult && normalizedDestroyResult.blockedByGhost),
-            proliferated: !!(normalizedDestroyResult && normalizedDestroyResult.proliferated),
-            reason: normalizedDestroyResult && normalizedDestroyResult.reason ? normalizedDestroyResult.reason : null,
-            from: normalizedDestroyResult && normalizedDestroyResult.from ? normalizedDestroyResult.from : null,
-            to: normalizedDestroyResult && normalizedDestroyResult.to ? normalizedDestroyResult.to : null
-        });
-        opts.applyTrapEffectsAfterSelection();
-        return {
-            handled: true,
-            generatedSpawnFlipResults: Array.isArray(normalizedDestroyResult && normalizedDestroyResult.generatedSpawnFlipResults)
-                ? normalizedDestroyResult.generatedSpawnFlipResults
-                : []
-        };
-    } else if (pending && pending.type === 'DESTROY_ONE_STONE' && action.destroyTarget == null) {
-        throw new Error('DESTROY_ONE_STONE requires destroyTarget before placement');
-    }
+    const destroySelectionResult = DestroySelectionStage.resolveDestroyOneStoneSelection(opts);
+    if (destroySelectionResult) return destroySelectionResult;
 
     if (pending && pending.type === 'REVERSE_WILL' && action.reverseWillTarget) {
         const res = opts.CardLogic.applyReverseWill(
