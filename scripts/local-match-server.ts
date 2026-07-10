@@ -16,6 +16,7 @@ const deepClone = require('../utils/deepClone');
 const MatchAuthority = require('../utils/match-authority');
 const MatchCommandRuntime = require('../utils/match-command-runtime');
 const { createMatchJoinController } = require('../utils/match-join-controller');
+const { createMatchLeaveController } = require('../utils/match-leave-controller');
 const { createMatchPublishController } = require('../utils/match-publish-controller');
 const { createMatchSpectateController } = require('../utils/match-spectate-controller');
 const MatchRoomLobby = require('../shared/match-room-lobby');
@@ -2216,51 +2217,39 @@ function handleRatingHistory(urlObj: URL, res: any) {
     writeJson(res, result.ok ? 200 : 403, result);
 }
 
+function createLocalMatchLeaveController() {
+    let activeRoom: any = null;
+    let activeRoomId = '';
+    return createMatchLeaveController({
+        loadRoom: (body: any) => {
+            activeRoomId = String((body && body.roomId) || '').trim().toUpperCase();
+            activeRoom = rooms.get(activeRoomId) || null;
+            if (activeRoom && expireRoomIfNeeded(activeRoomId, activeRoom, Date.now())) activeRoom = null;
+        },
+        getRoom: () => activeRoom,
+        expireRoomIfNeeded: () => false,
+        normalizePlayerKey,
+        resolveAuthenticatedSeatKey,
+        classifySeatTokenRejectionReason,
+        makeSeatToken,
+        MatchAuthority,
+        refreshTurnTimer,
+        closeStreamsForSeat: (room: any, seatKey: any) => closeSeatStreams(room, seatKey),
+        broadcastPresence: (meta: any) => broadcastPresence(activeRoom, meta),
+        getStreamCount: (room: any) => room.streams.size,
+        removeRoom: () => rooms.delete(activeRoomId),
+        saveRoom: () => undefined,
+        toPublicRoomBoardConfig,
+        toPublicTurnTimer,
+        decorateRoomPayload: (payload: any) => payload,
+        jsonResponse: (status: number, payload: any) => ({ status, payload })
+    });
+}
+
 async function handleLeave(req: any, res: any) {
     const body = await parseBody(req);
-    const roomId = String(body.roomId || '').trim().toUpperCase();
-    const seatKey = normalizePlayerKey(body.seatKey);
-    const seatToken = String(body.seatToken || '').trim();
-    const room = rooms.get(roomId);
-
-    if (!room) {
-        writeJson(res, 200, { ok: true });
-        return;
-    }
-    if (expireRoomIfNeeded(roomId, room, Date.now())) {
-        writeJson(res, 200, { ok: true });
-        return;
-    }
-
-    if (resolveAuthenticatedSeatKey(room, seatKey, seatToken) !== seatKey) {
-        writeJson(res, 403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
-        return;
-    }
-
-    MatchAuthority.applySeatLeaveToRoom(room, seatKey, {
-        makeSeatToken,
-        now: Date.now()
-    });
-    refreshTurnTimer(room, { nowMs: room.updatedAt, forceRestart: false });
-    closeSeatStreams(room, seatKey);
-
-    broadcastPresence(room, {
-        type: 'leave',
-        seatKey,
-        rejoined: false
-    });
-
-    if (MatchAuthority.shouldDisposeRoom(room, room.streams.size)) {
-        rooms.delete(roomId);
-    }
-
-    const serverTime = Date.now();
-    writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-        ok: true,
-        roomBoardConfig: toPublicRoomBoardConfig(room),
-        turnTimer: toPublicTurnTimer(room, serverTime),
-        serverTime
-    }));
+    const result = await createLocalMatchLeaveController().handleLeave(body);
+    writeJson(res, result.status, result.payload);
 }
 
 async function handleSpectate(req: any, res: any) {
@@ -2295,42 +2284,8 @@ async function handleSpectate(req: any, res: any) {
 
 async function handleSpectatorLeave(req: any, res: any) {
     const body = await parseBody(req);
-    const roomId = String(body.roomId || '').trim().toUpperCase();
-    const room = rooms.get(roomId);
-
-    if (!room) {
-        writeJson(res, 200, { ok: true });
-        return;
-    }
-    if (expireRoomIfNeeded(roomId, room, Date.now())) {
-        writeJson(res, 200, { ok: true });
-        return;
-    }
-
-    const result = MatchAuthority.removeSpectatorFromRoom(room, {
-        spectatorId: body.spectatorId,
-        spectatorToken: body.spectatorToken,
-        now: Date.now()
-    });
-    if (!result.ok) {
-        writeJson(res, 403, { ok: false, reason: result.reason });
-        return;
-    }
-
-    broadcastPresence(room, {
-        type: 'spectator_leave',
-        spectatorId: result.spectatorId,
-        spectatorName: result.spectatorName,
-        rejoined: false
-    });
-
-    writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-        ok: true,
-        viewerRole: 'spectator',
-        spectatorCount: result.spectatorCount,
-        maxSpectators: result.maxSpectators,
-        serverTime: Date.now()
-    }));
+    const result = await createLocalMatchLeaveController().handleSpectatorLeave(body);
+    writeJson(res, result.status, result.payload);
 }
 
 async function handleHandSkin(req: any, res: any) {

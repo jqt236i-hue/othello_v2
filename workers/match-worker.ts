@@ -72,6 +72,7 @@ import { createMatchWorkerTurnTimerHelpers } from './match-worker-turn-timer';
 import { createMatchWorkerPublishController } from './match-worker-publish-controller';
 import { createMatchSpectateController } from '../utils/match-spectate-controller';
 import { createMatchJoinController } from '../utils/match-join-controller';
+import { createMatchLeaveController } from '../utils/match-leave-controller';
 import {
     prepareMatchCommandAction,
     shouldSkipMatchCommandTurnStart
@@ -2443,6 +2444,36 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return this.publishController;
     }
 
+    getLeaveController() {
+        return createMatchLeaveController({
+            loadRoom: () => this.loadRoom(),
+            awaitLoadRoom: true,
+            getRoom: () => this.room,
+            expireRoomIfNeeded: () => this.expireRoomIfNeeded(Date.now()),
+            awaitExpireRoomIfNeeded: true,
+            normalizePlayerKey,
+            resolveAuthenticatedSeatKey,
+            classifySeatTokenRejectionReason,
+            makeSeatToken,
+            MatchAuthority,
+            refreshTurnTimer: (_room: MatchWorkerRoomState, options: MatchWorkerTurnTimerOptions | null | undefined) => this.refreshTurnTimer(options),
+            awaitRefreshTurnTimer: true,
+            closeStreamsForSeat: (_room: MatchWorkerRoomState, seatKey: MatchAuthoritySeatKey) => this.closeStreamsForSeat(seatKey),
+            awaitCloseStreamsForSeat: true,
+            broadcastPresence: (meta: MatchWorkerPresencePayloadMeta | null | undefined) => this.broadcastPresence(meta),
+            awaitBroadcastPresence: true,
+            getStreamCount: () => this.streams.size,
+            removeRoom: () => this.removeRoom(),
+            awaitRemoveRoom: true,
+            saveRoom: () => this.saveRoom(),
+            awaitSaveRoom: true,
+            toPublicRoomBoardConfig,
+            toPublicTurnTimer,
+            decorateRoomPayload: withPublicRoomPasswordMetadata,
+            jsonResponse
+        });
+    }
+
     async loadRoom(): Promise<void> {
         if (this.roomLoaded) return;
         this.room = await this.state.storage.get(ROOM_STORAGE_KEY) as MatchWorkerRoomState | null || null;
@@ -3490,53 +3521,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async handleLeave(body: Record<string, unknown>): Promise<Response> {
-        await this.loadRoom();
-        const room = this.room;
-        if (!room) {
-            return jsonResponse(200, { ok: true });
-        }
-        if (await this.expireRoomIfNeeded(Date.now())) {
-            return jsonResponse(200, { ok: true });
-        }
-
-        const seatKey = normalizePlayerKey(body.seatKey);
-        const seatToken = String(body.seatToken || '').trim();
-        const authenticatedSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
-
-        if (authenticatedSeatKey !== seatKey) {
-            return jsonResponse(403, {
-                ok: false,
-                reason: classifySeatTokenRejectionReason(seatToken)
-            });
-        }
-
-        MatchAuthority.applySeatLeaveToRoom(room, seatKey, {
-            makeSeatToken,
-            now: Date.now()
-        });
-        await this.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: false });
-        await this.closeStreamsForSeat(seatKey);
-
-        await this.broadcastPresence({
-            type: 'leave',
-            seatKey,
-            rejoined: false
-        });
-
-        if (MatchAuthority.shouldDisposeRoom(room, this.streams.size)) {
-            await this.removeRoom();
-        } else {
-            await this.saveRoom();
-        }
-
-        const serverTime = Date.now();
-        const responsePayload = withPublicRoomPasswordMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
-            ok: true,
-            roomBoardConfig: toPublicRoomBoardConfig(room),
-            turnTimer: toPublicTurnTimer(room, serverTime),
-            serverTime
-        }), room);
-        return jsonResponse(200, responsePayload);
+        return this.getLeaveController().handleLeave(body);
     }
 
     async handleSpectate(body: Record<string, unknown>): Promise<Response> {
@@ -3562,43 +3547,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async handleSpectatorLeave(body: Record<string, unknown>): Promise<Response> {
-        await this.loadRoom();
-        const room = this.room;
-        if (!room) {
-            return jsonResponse(200, { ok: true });
-        }
-        if (await this.expireRoomIfNeeded(Date.now())) {
-            return jsonResponse(200, { ok: true });
-        }
-
-        const result = MatchAuthority.removeSpectatorFromRoom(room, {
-            spectatorId: body.spectatorId,
-            spectatorToken: body.spectatorToken,
-            now: Date.now()
-        });
-        if (!result.ok) {
-            return jsonResponse(403, {
-                ok: false,
-                reason: result.reason
-            });
-        }
-
-        await this.broadcastPresence({
-            type: 'spectator_leave',
-            spectatorId: result.spectatorId,
-            spectatorName: result.spectatorName,
-            rejoined: false
-        });
-        await this.saveRoom();
-
-        const responsePayload = withPublicRoomPasswordMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
-            ok: true,
-            viewerRole: 'spectator',
-            spectatorCount: result.spectatorCount,
-            maxSpectators: result.maxSpectators,
-            serverTime: Date.now()
-        }), room);
-        return jsonResponse(200, responsePayload);
+        return this.getLeaveController().handleSpectatorLeave(body);
     }
 
     async handleHandSkin(body: Record<string, unknown>): Promise<Response> {
