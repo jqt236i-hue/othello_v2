@@ -71,6 +71,9 @@ describe('cpu decision board utils composition boundary', () => {
         expect(source).toContain('const CpuPolicyPendingTargetsRequired = requireCpuPolicyPendingTargets();');
         expect(source).toContain('CpuPolicyPendingTargetsRequired.getCornerProximity(');
         expect(source).toContain('CpuPolicyPendingTargetsRequired.choosePendingTargetWithPolicyAsync(');
+        expect(source).toContain('const CpuPolicyTimeBombTargetsRequired = requireCpuPolicyTimeBombTargets();');
+        expect(source).toContain('CpuPolicyTimeBombTargetsRequired.scoreTimeBombTarget(');
+        expect(source).toContain('CpuPolicyTimeBombTargetsRequired.chooseTimeBombTargetWithPolicy(');
         expect(source).not.toMatch(/countBoardEmptiesFallback|isStandardBoard8x8Fallback|isCornerCellFallback|isEdgeCellFallback/);
         expect(source).not.toMatch(/countCornerControlFallback|countEdgeControlFallback/);
         expect(source).not.toContain('function getMarkerPriorityValueFallback');

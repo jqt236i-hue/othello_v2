@@ -459,6 +459,23 @@ function requireCpuPolicyPendingTargets(): any {
 
 const CpuPolicyPendingTargetsRequired = requireCpuPolicyPendingTargets();
 
+const CPU_POLICY_TIME_BOMB_TARGET_METHODS = [
+    'scoreTimeBombTarget',
+    'chooseTimeBombTargetWithPolicy'
+];
+
+function requireCpuPolicyTimeBombTargets(): any {
+    const missingMethod = CPU_POLICY_TIME_BOMB_TARGET_METHODS.find((methodName) => (
+        !CpuPolicyTimeBombTargets || typeof CpuPolicyTimeBombTargets[methodName] !== 'function'
+    ));
+    if (missingMethod) {
+        throw new Error(`[cpu-decision] CpuPolicyTimeBombTargets.${missingMethod} is required`);
+    }
+    return CpuPolicyTimeBombTargets;
+}
+
+const CpuPolicyTimeBombTargetsRequired = requireCpuPolicyTimeBombTargets();
+
 const CpuDecisionBoardUtils = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.createCpuDecisionBoardUtils === 'function')
     ? CpuDecisionBoardUtilsModule.createCpuDecisionBoardUtils({ sharedBoardUtils: CpuDecisionSharedBoardUtils })
     : (() => { throw new Error('CpuDecisionBoardUtils is required by cpu-decision'); })();
@@ -3026,103 +3043,35 @@ async function cpuSelectCorrosionWillWithPolicy(playerKey: any): Promise<any> {
 }
 
 function scoreTimeBombTarget(playerKey: any, target: any): any {
-    if (CpuPolicyTimeBombTargets && typeof CpuPolicyTimeBombTargets.scoreTimeBombTarget === 'function') {
-        return CpuPolicyTimeBombTargets.scoreTimeBombTarget(playerKey, target, {
-            getCurrentCpuBoard,
-            getBoardCellValueSafe,
-            resolvePlayerValue: (key: any) => (key === 'black'
-                ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-                : (typeof WHITE !== 'undefined' ? WHITE : -1)),
-            countBoardStatsForPlayer,
-            isCornerCell,
-            isEdgeCell,
-            getMarkerProfileAt,
-            getTimedMarkerProfileAt,
-            random: () => cpuRng.random()
-        });
-    }
-    if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return -Infinity;
-    const board = getCurrentCpuBoard();
-    if (!board) return -Infinity;
-    if (getBoardCellValueSafe(board, target.row, target.col) === null) return -Infinity;
-
-    const playerValue = playerKey === 'black'
-        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-        : (typeof WHITE !== 'undefined' ? WHITE : -1);
-    const stats = countBoardStatsForPlayer(playerValue);
-    let score = 0;
-    let oppCornerHits = 0;
-    let ownCornerHits = 0;
-
-    for (let dr = -1; dr <= 1; dr++) {
-        for (let dc = -1; dc <= 1; dc++) {
-            const r = target.row + dr;
-            const c = target.col + dc;
-            const cell = getBoardCellValueSafe(board, r, c);
-            if (cell === null || cell === 0) continue;
-
-            const corner = isCornerCell(r, c, board);
-            const edge = isEdgeCell(r, c, board);
-            const weight = corner ? 12 : (edge ? 4 : 2);
-            const isOwn = cell === playerValue;
-            const markerProfile = getMarkerProfileAt(playerKey, r, c);
-            const timedProfile = getTimedMarkerProfileAt(playerKey, r, c);
-            if (isOwn) {
-                score -= weight * 100;
-                score -= markerProfile.ownSpecialScore * 0.55;
-                score -= markerProfile.ownBombCount * 160;
-                score -= timedProfile.ownRemainingSum * 36;
-                if (corner) ownCornerHits += 1;
-            } else {
-                score += weight * 100;
-                score += markerProfile.oppSpecialScore * 0.55;
-                score += markerProfile.oppBombCount * 160;
-                score += timedProfile.oppRemainingSum * 36;
-                if (corner) oppCornerHits += 1;
-            }
-        }
-    }
-
-    if (stats.discDiff <= -8) score += 140;
-    if (stats.discDiff <= -14) score += 80;
-    if (stats.discDiff >= 8) score -= 140;
-    if (stats.discDiff >= 12) score -= 70;
-    if (oppCornerHits > 0) score += 2400 * oppCornerHits;
-    if (ownCornerHits > 0) score -= 3200 * ownCornerHits;
-    if (stats.discDiff >= 0 && oppCornerHits <= 0) score -= 220;
-
-    // Deterministic tie-break jitter from injected RNG.
-    score += cpuRng.random() * 0.01;
-    return score;
+    return CpuPolicyTimeBombTargetsRequired.scoreTimeBombTarget(playerKey, target, {
+        getCurrentCpuBoard,
+        getBoardCellValueSafe,
+        resolvePlayerValue: (key: any) => (key === 'black'
+            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+            : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        countBoardStatsForPlayer,
+        isCornerCell,
+        isEdgeCell,
+        getMarkerProfileAt,
+        getTimedMarkerProfileAt,
+        random: () => cpuRng.random()
+    });
 }
 
 function chooseTimeBombTargetWithPolicy(playerKey: any, targets: any): any {
-    if (CpuPolicyTimeBombTargets && typeof CpuPolicyTimeBombTargets.chooseTimeBombTargetWithPolicy === 'function') {
-        return CpuPolicyTimeBombTargets.chooseTimeBombTargetWithPolicy(playerKey, targets, {
-            getCurrentCpuBoard,
-            getBoardCellValueSafe,
-            resolvePlayerValue: (key: any) => (key === 'black'
-                ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-                : (typeof WHITE !== 'undefined' ? WHITE : -1)),
-            countBoardStatsForPlayer,
-            isCornerCell,
-            isEdgeCell,
-            getMarkerProfileAt,
-            getTimedMarkerProfileAt,
-            random: () => cpuRng.random()
-        });
-    }
-    if (!Array.isArray(targets) || targets.length <= 0) return null;
-    let best: any = null;
-    let bestScore = -Infinity;
-    for (const target of targets) {
-        const score = scoreTimeBombTarget(playerKey, target);
-        if (score > bestScore) {
-            bestScore = score;
-            best = target;
-        }
-    }
-    return best || targets[0];
+    return CpuPolicyTimeBombTargetsRequired.chooseTimeBombTargetWithPolicy(playerKey, targets, {
+        getCurrentCpuBoard,
+        getBoardCellValueSafe,
+        resolvePlayerValue: (key: any) => (key === 'black'
+            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+            : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        countBoardStatsForPlayer,
+        isCornerCell,
+        isEdgeCell,
+        getMarkerProfileAt,
+        getTimedMarkerProfileAt,
+        random: () => cpuRng.random()
+    });
 }
 
 /**
