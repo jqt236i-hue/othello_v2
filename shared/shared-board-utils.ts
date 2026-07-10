@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/shape-metadata'), require('./board/cell-access'), require('./board/corners'), require('./board/risk-cells'), require('./board/legal-moves'), require('./board/control-counts'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/shape-metadata'), require('./board/cell-access'), require('./board/corners'), require('./board/edge-runs'), require('./board/risk-cells'), require('./board/legal-moves'), require('./board/control-counts'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardRiskCells || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardRiskCells || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardShapeMetadataModule: typeof import('./board/shape-metadata') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardRiskCellsModule: typeof import('./board/risk-cells') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardShapeMetadataModule: typeof import('./board/shape-metadata') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardEdgeRunsModule: typeof import('./board/edge-runs') | null, BoardRiskCellsModule: typeof import('./board/risk-cells') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -364,174 +364,19 @@
     const isEffectiveCornerCell = BoardCorners.isEffectiveCornerCell;
     const isEffectiveEdgeCell = BoardCorners.isEffectiveEdgeCell;
 
-    function getCornerEdgeLineDescriptors(board: unknown): CornerEdgeLineDescriptor[] {
-        if (!Array.isArray(board)) return [];
-        const corners = getCornerCells(board);
-        const lines: CornerEdgeLineDescriptor[] = [];
-        const directions = [
-            { row: -1, col: 0 },
-            { row: 1, col: 0 },
-            { row: 0, col: -1 },
-            { row: 0, col: 1 }
-        ];
-
-        for (const corner of corners) {
-            if (!corner || !Number.isInteger(corner.row) || !Number.isInteger(corner.col)) continue;
-            for (const direction of directions) {
-                const nextRow = corner.row + direction.row;
-                const nextCol = corner.col + direction.col;
-                if (!hasPlayableCell(board, nextRow, nextCol)) continue;
-                if (!isEdgeCell(nextRow, nextCol, board)) continue;
-
-                const cells: CellCoord[] = [{ row: corner.row, col: corner.col }];
-                let currentRow = nextRow;
-                let currentCol = nextCol;
-                while (hasPlayableCell(board, currentRow, currentCol) && isEdgeCell(currentRow, currentCol, board)) {
-                    cells.push({ row: currentRow, col: currentCol });
-                    if (isCornerCell(currentRow, currentCol, board) && (currentRow !== corner.row || currentCol !== corner.col)) {
-                        break;
-                    }
-                    currentRow += direction.row;
-                    currentCol += direction.col;
-                }
-
-                if (cells.length <= 1) continue;
-                const cellKeys = cells.map((cell) => toBoardCellKey(cell.row, cell.col));
-                lines.push({
-                    key: cellKeys.join('|'),
-                    canonicalKey: cellKeys.slice().sort().join('|'),
-                    corner: { row: corner.row, col: corner.col },
-                    direction: { row: direction.row, col: direction.col },
-                    directionTarget: { row: nextRow, col: nextCol },
-                    cells
-                });
-            }
-        }
-
-        return lines;
-    }
-
-    function collectUniqueCornerEdgeLines(board: unknown): CornerEdgeLineDescriptor[] {
-        if (!Array.isArray(board)) return [];
-        const seen = new Set<string>();
-        const lines: CornerEdgeLineDescriptor[] = [];
-        for (const descriptor of getCornerEdgeLineDescriptors(board)) {
-            if (!descriptor || !Array.isArray(descriptor.cells) || descriptor.cells.length <= 1) continue;
-            const canonicalKey = typeof descriptor.canonicalKey === 'string' && descriptor.canonicalKey
-                ? descriptor.canonicalKey
-                : descriptor.cells.map((cell) => toBoardCellKey(cell.row, cell.col)).slice().sort().join('|');
-            if (seen.has(canonicalKey)) continue;
-            seen.add(canonicalKey);
-            lines.push(descriptor);
-        }
-        return lines;
-    }
-
-    function summarizeEdgeRuns(board: unknown, playerValue: number): EdgeRunSummary {
-        const out: EdgeRunSummary = {
-            totalLines: 0,
-            maxLineLength: 0,
-            totalLineCells: 0,
-            totalOwnedCells: 0,
-            chainStrength: 0,
-            longestRun: 0,
-            longestRunShare: 0,
-            completeLineCount: 0,
-            segmentCount: 0,
-            loneDiscCount: 0
-        };
-        if (!Array.isArray(board)) return out;
-        const owner = normalizeOwner(playerValue);
-        if (!owner) return out;
-        const lines = collectUniqueCornerEdgeLines(board);
-        out.totalLines = lines.length;
-
-        for (const line of lines) {
-            if (!line || !Array.isArray(line.cells) || line.cells.length <= 0) continue;
-            const cells = line.cells;
-            const lineLength = cells.length;
-            out.maxLineLength = Math.max(out.maxLineLength, lineLength);
-            out.totalLineCells += lineLength;
-
-            let lineOwnedCells = 0;
-            let currentRunLength = 0;
-            let runStartIndex = -1;
-
-            const finalizeRun = (): void => {
-                if (currentRunLength <= 0) return;
-                out.chainStrength += (currentRunLength * currentRunLength);
-                out.segmentCount += 1;
-                out.longestRun = Math.max(out.longestRun, currentRunLength);
-                if (currentRunLength === lineLength) out.completeLineCount += 1;
-                if (currentRunLength === 1) {
-                    const loneCell = cells[runStartIndex];
-                    if (loneCell && !isCornerCell(loneCell.row, loneCell.col, board)) {
-                        out.loneDiscCount += 1;
-                    }
-                }
-                currentRunLength = 0;
-                runStartIndex = -1;
-            };
-
-            for (let i = 0; i < cells.length; i++) {
-                const cell = cells[i];
-                const value = getCellValue(board, cell.row, cell.col);
-                if (value === owner) {
-                    lineOwnedCells += 1;
-                    if (currentRunLength <= 0) runStartIndex = i;
-                    currentRunLength += 1;
-                    continue;
-                }
-                finalizeRun();
-            }
-            finalizeRun();
-            out.totalOwnedCells += lineOwnedCells;
-        }
-
-        out.longestRunShare = out.maxLineLength > 0
-            ? Math.max(0, Math.min(1, out.longestRun / out.maxLineLength))
-            : 0;
-        return out;
-    }
-
-    function countAdjacentLoneEdgeDiscs(board: unknown, row: number, col: number, playerValue: number): number {
-        if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return 0;
-        if (!isEdgeCell(row, col, board) || isCornerCell(row, col, board)) return 0;
-        const owner = normalizeOwner(playerValue);
-        if (!owner) return 0;
-
-        const seen = new Set<string>();
-        let count = 0;
-        const lines = collectUniqueCornerEdgeLines(board);
-        for (const line of lines) {
-            if (!line || !Array.isArray(line.cells) || line.cells.length <= 0) continue;
-            const targetIndex = line.cells.findIndex((cell) => cell && cell.row === row && cell.col === col);
-            if (targetIndex < 0) continue;
-            for (const adjacentIndex of [targetIndex - 1, targetIndex + 1]) {
-                if (adjacentIndex < 0 || adjacentIndex >= line.cells.length) continue;
-                const adjacentCell = line.cells[adjacentIndex];
-                if (!adjacentCell || isCornerCell(adjacentCell.row, adjacentCell.col, board)) continue;
-                if (getCellValue(board, adjacentCell.row, adjacentCell.col) !== owner) continue;
-                const adjacentKey = toBoardCellKey(adjacentCell.row, adjacentCell.col);
-                if (seen.has(adjacentKey)) continue;
-
-                let hasSameNeighbor = false;
-                for (const neighborIndex of [adjacentIndex - 1, adjacentIndex + 1]) {
-                    if (neighborIndex < 0 || neighborIndex >= line.cells.length) continue;
-                    const neighborCell = line.cells[neighborIndex];
-                    if (!neighborCell) continue;
-                    if (getCellValue(board, neighborCell.row, neighborCell.col) === owner) {
-                        hasSameNeighbor = true;
-                        break;
-                    }
-                }
-                if (hasSameNeighbor) continue;
-                seen.add(adjacentKey);
-                count += 1;
-            }
-        }
-        return count;
-    }
+    if (!BoardEdgeRunsModule) throw new Error('BoardEdgeRuns is required by SharedBoardUtils');
+    const BoardEdgeRuns = BoardEdgeRunsModule.createEdgeRuns({
+        toBoardCellKey,
+        normalizeOwner,
+        getCornerCells,
+        hasPlayableCell,
+        isCornerCell,
+        isEdgeCell,
+        getCellValue
+    });
+    const getCornerEdgeLineDescriptors = BoardEdgeRuns.getCornerEdgeLineDescriptors;
+    const summarizeEdgeRuns = BoardEdgeRuns.summarizeEdgeRuns;
+    const countAdjacentLoneEdgeDiscs = BoardEdgeRuns.countAdjacentLoneEdgeDiscs;
 
     if (!BoardRiskCellsModule) throw new Error('BoardRiskCells is required by SharedBoardUtils');
     const BoardRiskCells = BoardRiskCellsModule.createRiskCells({
