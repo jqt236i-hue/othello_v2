@@ -46,10 +46,21 @@ import type {
     MatchAuthorityViewer
 } from './match-authority-types';
 import { assertMatchAuthorityPublicApi } from './match-authority-contract';
+import {
+    getCurrentPlayerKey,
+    getOpponentKey,
+    isValidNetworkRoomId,
+    normalizeNetworkPlayerName,
+    normalizeNetworkRoomId,
+    normalizeOperationId,
+    OPERATION_ID_MAX_LENGTH,
+    parseNetworkChatMessage,
+    parseSeatKeyOptional,
+    normalizePlayerKey
+} from './match-authority/identity';
 
 import deepClone from './deepClone';
 
-const PlayerSeatContract = _require('../shared/player-seat-contract') as typeof import('../shared/player-seat-contract');
 const NetworkContract = _require('../shared/network-contract') as typeof import('../shared/network-contract');
 
 interface MatchAuthorityCryptoLike {
@@ -117,7 +128,6 @@ const PlayerIdentityContract = loadOptionalCommonJsModule<{
 const PLAYER_KEYS = Object.freeze(['black', 'white']);
 const HIDDEN_HAND_TOKEN_PREFIX = '__hidden_hand__:';
 const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
-const OPERATION_ID_MAX_LENGTH = 128;
 const HAND_SKIN_ID_MAX_LENGTH = 128;
 const SSE_RESUME_BUFFER_LIMIT = 8;
 const PRESENTATION_JOURNAL_LIMIT = 8;
@@ -215,23 +225,6 @@ function makeSseStreamId(nowValue: unknown, explicitCrypto?: MatchAuthorityCrypt
     return `sse_${timestamp}_${randomFromChars(SSE_ID_SUFFIX_CHARS, SSE_ID_SUFFIX_LENGTH, explicitCrypto)}`;
 }
 
-function parseSeatKeyOptional(value: unknown): MatchAuthoritySeatKey | null {
-    return PlayerSeatContract.parsePlayerSeatKey(value);
-}
-
-function normalizePlayerKey(value: unknown, fallback?: unknown): MatchAuthoritySeatKey {
-    return PlayerSeatContract.normalizePlayerSeatKey(value, fallback);
-}
-
-function getCurrentPlayerKey(gameState: Partial<GameState> | null | undefined): PlayerKey {
-    if (!gameState) return 'black';
-    return normalizePlayerKey(gameState.currentPlayer);
-}
-
-function getOpponentKey(playerKey: PlayerKey | null | undefined): PlayerKey {
-    return PlayerSeatContract.normalizePlayerSeatKey(playerKey) === 'white' ? 'black' : 'white';
-}
-
 function normalizePendingType(value: unknown): string {
     return String(value || '').trim().toUpperCase();
 }
@@ -239,12 +232,6 @@ function normalizePendingType(value: unknown): string {
 function normalizePendingEffectId(value: unknown): string | null {
     const normalized = String(value || '').trim();
     return normalized || null;
-}
-
-function normalizeOperationId(value: unknown): string {
-    const normalized = String(value || '').trim();
-    if (!normalized) return '';
-    return Array.from(normalized).slice(0, OPERATION_ID_MAX_LENGTH).join('');
 }
 
 function normalizeSeatHandSkinId(value: unknown): string {
@@ -281,22 +268,6 @@ function normalizeSeatPlayerIds(value: unknown): MatchAuthoritySeatPlayerIds {
         black: normalizePublicPlayerId(source.black),
         white: normalizePublicPlayerId(source.white)
     };
-}
-
-function normalizeNetworkPlayerName(value: unknown): string {
-    return NetworkContract.normalizeNetworkPlayerName(value);
-}
-
-function normalizeNetworkRoomId(value: unknown): string {
-    return NetworkContract.normalizeNetworkRoomId(value);
-}
-
-function isValidNetworkRoomId(value: unknown): boolean {
-    return NetworkContract.isValidNetworkRoomId(value);
-}
-
-function parseNetworkChatMessage(value: unknown): import('../shared/network-contract').NetworkChatValidationResult {
-    return NetworkContract.validateNetworkChatMessage(value);
 }
 
 function normalizeSpectatorName(value: unknown): string {
