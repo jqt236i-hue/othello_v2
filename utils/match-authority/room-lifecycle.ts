@@ -1,6 +1,8 @@
 import type {
     MatchAuthorityRoomState,
     MatchAuthoritySeatKey,
+    MatchAuthoritySeatLeaveOptions,
+    MatchAuthoritySeatLeaveResult,
     MatchAuthoritySeatTokenRejectionReason,
     MatchAuthoritySpectatorJoinOptions,
     MatchAuthoritySpectatorJoinResult,
@@ -19,6 +21,8 @@ interface MatchAuthorityRoomLifecycleDeps {
     ensureSpectators: (room: MatchAuthorityRoomState) => MatchAuthoritySpectators;
     getActiveSpectatorEntries: (room: MatchAuthorityRoomState) => Array<[string, any]>;
     parseSeatKeyOptional: (value: unknown) => MatchAuthoritySeatKey | null;
+    normalizeSeatHandSkins: (value: unknown) => { black: string; white: string };
+    normalizeSeatPlayerIds: (value: unknown) => { black: string; white: string };
 }
 
 function asRecord(value: unknown): Record<string, any> {
@@ -90,5 +94,107 @@ export function createMatchAuthorityRoomLifecycleApi(deps: MatchAuthorityRoomLif
         return String(value || '').trim() ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED';
     }
 
-    return { resolveAuthenticatedSeatKey, addSpectatorToRoom, removeSpectatorFromRoom, resolveAuthenticatedViewer, classifySeatTokenRejectionReason };
+    function resolveSeatForJoin(
+        roomValue: MatchAuthorityRoomState | null | undefined,
+        requestedSeatKey: unknown,
+        providedToken: unknown
+    ): MatchAuthoritySeatKey | null {
+        const room: MatchAuthorityRoomState | null = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+        if (!room) return null;
+
+        const token = String(providedToken || '').trim();
+        const requested = deps.parseSeatKeyOptional(requestedSeatKey);
+        const seats = (room.seats && typeof room.seats === 'object')
+            ? room.seats
+            : { black: false, white: false };
+        const seatTokens = (room.seatTokens && typeof room.seatTokens === 'object')
+            ? room.seatTokens
+            : null;
+
+        if (requested) {
+            if (token && seatTokens && seatTokens[requested] === token) return requested;
+            if (!seats[requested]) return requested;
+            return null;
+        }
+
+        if (token && seatTokens) {
+            if (seatTokens.black === token) return 'black';
+            if (seatTokens.white === token) return 'white';
+        }
+
+        if (!seats.black) return 'black';
+        if (!seats.white) return 'white';
+        return null;
+    }
+
+    function applySeatLeaveToRoom(
+        roomValue: MatchAuthorityRoomState | null | undefined,
+        seatKeyValue: unknown,
+        options?: MatchAuthoritySeatLeaveOptions | null
+    ): MatchAuthoritySeatLeaveResult | null {
+        const room: MatchAuthorityRoomState | null = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+        const seatKey = deps.parseSeatKeyOptional(seatKeyValue);
+        const opts = (options && typeof options === 'object') ? options : {};
+        if (!room || !seatKey) return null;
+
+        const nextUpdatedAt = Number.isFinite(Number(opts.now)) ? Number(opts.now) : Date.now();
+        const createSeatToken = (typeof opts.makeSeatToken === 'function')
+            ? opts.makeSeatToken
+            : null;
+
+        room.seats = (room.seats && typeof room.seats === 'object')
+            ? room.seats
+            : { black: false, white: false };
+        room.seatNames = (room.seatNames && typeof room.seatNames === 'object')
+            ? room.seatNames
+            : { black: '', white: '' };
+        room.seatHandSkins = deps.normalizeSeatHandSkins(room.seatHandSkins);
+        room.seatPlayerIds = deps.normalizeSeatPlayerIds(room.seatPlayerIds);
+        room.seatTokens = (room.seatTokens && typeof room.seatTokens === 'object')
+            ? room.seatTokens
+            : {};
+
+        room.seats[seatKey] = false;
+        room.seatNames[seatKey] = '';
+        room.seatHandSkins[seatKey] = '';
+        room.seatPlayerIds[seatKey] = '';
+        if (createSeatToken) {
+            room.seatTokens[seatKey] = createSeatToken();
+        }
+        room.updatedAt = nextUpdatedAt;
+
+        return {
+            seatKey,
+            updatedAt: nextUpdatedAt,
+            seatToken: room.seatTokens[seatKey] || '',
+            seats: room.seats,
+            seatNames: room.seatNames,
+            seatHandSkins: room.seatHandSkins,
+            seatPlayerIds: room.seatPlayerIds
+        };
+    }
+
+    function shouldDisposeRoom(roomValue: unknown, streamCountValue: unknown): boolean {
+        const room = (roomValue && typeof roomValue === 'object') ? asRecord(roomValue) : null;
+        if (!room) return false;
+        const seats = asRecord(room.seats);
+        const streamCount = Number.isFinite(Number(streamCountValue))
+            ? Math.max(0, Math.trunc(Number(streamCountValue)))
+            : 0;
+        return !(
+            room.seats
+            && (seats.black || seats.white)
+        ) && streamCount === 0;
+    }
+
+    return {
+        resolveAuthenticatedSeatKey,
+        addSpectatorToRoom,
+        removeSpectatorFromRoom,
+        resolveAuthenticatedViewer,
+        classifySeatTokenRejectionReason,
+        resolveSeatForJoin,
+        applySeatLeaveToRoom,
+        shouldDisposeRoom
+    };
 }
