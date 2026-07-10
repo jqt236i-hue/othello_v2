@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/initial-layout'), require('./board/legal-moves'), require('./board/control-counts'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/legal-moves'), require('./board/control-counts'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.InitialBoardLayout || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.InitialBoardLayout || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -95,8 +95,6 @@
     const PaddedBoardCoordinates = PaddedBoardCoordinatesModule;
     if (!CanonicalBoardEncodingModule) throw new Error('CanonicalBoardEncoding is required by SharedBoardUtils');
     const CanonicalBoardEncoding = CanonicalBoardEncodingModule.createCanonicalBoardEncoding({ resolveBoardBounds, collectBoardCoordinates, getCellValue });
-    if (!BoardNotationModule) throw new Error('BoardNotation is required by SharedBoardUtils');
-    const BoardNotation = BoardNotationModule.createBoardNotation({ resolveBoardConfig });
     const BOARD_SHAPE_META_KEY = '__sharedBoardShapeMeta';
     const EMPTY: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { EMPTY?: unknown }).EMPTY))
         ? Number((SharedConstants as { EMPTY?: unknown }).EMPTY)
@@ -162,223 +160,31 @@
     const normalizeBoardDimensionValue = BoardDimensions.normalizeBoardDimensionValue;
     const stepBoardDimensionValue = BoardDimensions.stepBoardDimensionValue;
 
-    function isNumericBoardDimensionArg(value: unknown): boolean {
-        if (value === null || typeof value === 'undefined') return false;
-        if (Array.isArray(value)) return false;
-        if (typeof value === 'object') return false;
-        return Number.isFinite(Number(value));
-    }
+    if (!BoardConfigurationModule) throw new Error('BoardConfiguration is required by SharedBoardUtils');
+    const BoardConfiguration = BoardConfigurationModule.createBoardConfiguration({
+        defaultRows: DEFAULT_BOARD_ROWS,
+        defaultCols: DEFAULT_BOARD_COLS,
+        minRows: MIN_BOARD_ROWS,
+        maxRows: MAX_BOARD_ROWS,
+        minCols: MIN_BOARD_COLS,
+        maxCols: MAX_BOARD_COLS,
+        outerMin: OUTER_MIN,
+        clampBoardDimension
+    });
+    const buildBoardConfig = BoardConfiguration.buildBoardConfig;
+    const normalizeBoardConfig = BoardConfiguration.normalizeBoardConfig;
+    const extractBoardConfigSource = BoardConfiguration.extractBoardConfigSource;
+    const maybeResolveBoardConfig = BoardConfiguration.maybeResolveBoardConfig;
+    const readBoardGeometry = BoardConfiguration.readBoardGeometry;
+    const compareBoardGeometry = BoardConfiguration.compareBoardGeometry;
+    const resolveBoardConfig = BoardConfiguration.resolveBoardConfig;
+    const resolveBaseBoardBounds = BoardConfiguration.resolveBaseBoardBounds;
+    const resolveOuterBounds = BoardConfiguration.resolveOuterBounds;
+    const getBoardRows = BoardConfiguration.getBoardRows;
+    const getBoardCols = BoardConfiguration.getBoardCols;
 
-    function deriveBoardDimsFromBoard(board: unknown): { rows: number; cols: number } | null {
-        if (!Array.isArray(board) || board.length <= 0) return null;
-        let cols = 0;
-        for (const row of board as unknown[][]) {
-            if (Array.isArray(row)) cols = Math.max(cols, row.length);
-        }
-        if (cols <= 0) return null;
-        return {
-            rows: (board as unknown[][]).length,
-            cols
-        };
-    }
-
-    function readBoundsSpan(bounds: unknown, axis: string): number | null {
-        if (!bounds || typeof bounds !== 'object') return null;
-        const minKey = axis === 'col' ? 'minCol' : 'minRow';
-        const maxKey = axis === 'col' ? 'maxCol' : 'maxRow';
-        const min = Number((bounds as Record<string, unknown>)[minKey]);
-        const max = Number((bounds as Record<string, unknown>)[maxKey]);
-        if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
-        return Math.max(1, Math.floor(max - min + 1));
-    }
-
-    function buildBoardConfig(rows: unknown, cols: unknown): BoardConfig {
-        const normalizedRows = clampBoardDimension(rows, DEFAULT_BOARD_ROWS, MIN_BOARD_ROWS, MAX_BOARD_ROWS);
-        const fallbackCols = Number.isFinite(Number(cols))
-            ? Number(cols)
-            : (Number.isFinite(Number(rows)) ? Number(rows) : DEFAULT_BOARD_COLS);
-        const normalizedCols = clampBoardDimension(fallbackCols, DEFAULT_BOARD_COLS, MIN_BOARD_COLS, MAX_BOARD_COLS);
-        return {
-            rows: normalizedRows,
-            cols: normalizedCols,
-            standard8x8: normalizedRows === DEFAULT_BOARD_ROWS && normalizedCols === DEFAULT_BOARD_COLS,
-            baseBounds: {
-                minRow: 0,
-                maxRow: normalizedRows - 1,
-                minCol: 0,
-                maxCol: normalizedCols - 1
-            },
-            outerBounds: {
-                minRow: OUTER_MIN,
-                maxRow: normalizedRows,
-                minCol: OUTER_MIN,
-                maxCol: normalizedCols
-            }
-        };
-    }
-
-    function normalizeBoardConfig(rawConfig: unknown, fallbackBoard: unknown): BoardConfig {
-        let candidate = rawConfig;
-        let board = Array.isArray(fallbackBoard) ? fallbackBoard as unknown[][] : null;
-
-        if (Array.isArray(candidate)) {
-            board = candidate as unknown[][];
-            candidate = null;
-        }
-
-        if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
-            const obj = candidate as Record<string, unknown>;
-            if (Array.isArray(obj.board)) board = obj.board as unknown[][];
-            if (obj.boardConfig && typeof obj.boardConfig === 'object') {
-                candidate = obj.boardConfig;
-            }
-        }
-
-        const derived = deriveBoardDimsFromBoard(board);
-        let rows: unknown = null;
-        let cols: unknown = null;
-
-        if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
-            const obj = candidate as Record<string, unknown>;
-            rows = obj.rows;
-            cols = obj.cols;
-            if (!Number.isFinite(Number(rows))) rows = readBoundsSpan(obj.baseBounds, 'row');
-            if (!Number.isFinite(Number(cols))) cols = readBoundsSpan(obj.baseBounds, 'col');
-            if (!Number.isFinite(Number(rows)) && obj.outerBounds) {
-                const outerMinRow = Number((obj.outerBounds as Bounds).minRow);
-                const outerMaxRow = Number((obj.outerBounds as Bounds).maxRow);
-                if (Number.isFinite(outerMinRow) && Number.isFinite(outerMaxRow)) rows = Math.max(1, Math.floor(outerMaxRow - outerMinRow - 1));
-            }
-            if (!Number.isFinite(Number(cols)) && obj.outerBounds) {
-                const outerMinCol = Number((obj.outerBounds as Bounds).minCol);
-                const outerMaxCol = Number((obj.outerBounds as Bounds).maxCol);
-                if (Number.isFinite(outerMinCol) && Number.isFinite(outerMaxCol)) cols = Math.max(1, Math.floor(outerMaxCol - outerMinCol - 1));
-            }
-        }
-
-        if (!Number.isFinite(Number(rows)) && derived) rows = derived.rows;
-        if (!Number.isFinite(Number(cols)) && derived) cols = derived.cols;
-
-        return buildBoardConfig(rows, cols);
-    }
-
-    function extractBoardConfigSource(value: unknown): unknown {
-        if (Array.isArray(value)) return value;
-        if (!value || typeof value !== 'object') return null;
-        const obj = value as Record<string, unknown>;
-        if (obj.roomBoardConfig && typeof obj.roomBoardConfig === 'object') return obj.roomBoardConfig;
-        if (Array.isArray(obj.board)) return value;
-        if (obj.boardConfig && typeof obj.boardConfig === 'object') return value;
-        if (
-            isNumericBoardDimensionArg(obj.rows)
-            || isNumericBoardDimensionArg(obj.cols)
-            || (obj.baseBounds && typeof obj.baseBounds === 'object')
-            || (obj.outerBounds && typeof obj.outerBounds === 'object')
-        ) {
-            return value;
-        }
-        return null;
-    }
-
-    function maybeResolveBoardConfig(value: unknown): BoardConfig | null {
-        const source = extractBoardConfigSource(value);
-        return source ? resolveBoardConfig(source) : null;
-    }
-
-    function readBoardGeometry(value: unknown): { rows: number; cols: number } | null {
-        const config = maybeResolveBoardConfig(value);
-        if (!config) return null;
-        const rows = Number(config.rows);
-        const cols = Number(config.cols);
-        if (!Number.isFinite(rows) || !Number.isFinite(cols)) return null;
-        return {
-            rows: Math.trunc(rows),
-            cols: Math.trunc(cols)
-        };
-    }
-
-    function compareBoardGeometry(previousValue: unknown, nextValue: unknown): {
-        previous: { rows: number; cols: number } | null;
-        next: { rows: number; cols: number } | null;
-        changed: boolean;
-    } {
-        const previous = readBoardGeometry(previousValue);
-        const next = readBoardGeometry(nextValue);
-        return {
-            previous,
-            next,
-            changed: !!(
-                previous
-                && next
-                && (previous.rows !== next.rows || previous.cols !== next.cols)
-            )
-        };
-    }
-
-    function resolveBoardConfig(boardOrConfig: unknown, maybeCols?: unknown): BoardConfig {
-        if (typeof boardOrConfig === 'undefined' || boardOrConfig === null) {
-            return buildBoardConfig(DEFAULT_BOARD_ROWS, DEFAULT_BOARD_COLS);
-        }
-        if (Array.isArray(boardOrConfig)) {
-            const derived = deriveBoardDimsFromBoard(boardOrConfig);
-            return derived
-                ? buildBoardConfig(derived.rows, derived.cols)
-                : buildBoardConfig(DEFAULT_BOARD_ROWS, DEFAULT_BOARD_COLS);
-        }
-        if (isNumericBoardDimensionArg(boardOrConfig) || isNumericBoardDimensionArg(maybeCols)) {
-            return buildBoardConfig(boardOrConfig, maybeCols);
-        }
-        if (boardOrConfig && typeof boardOrConfig === 'object' && !Array.isArray(boardOrConfig)) {
-            const obj = boardOrConfig as Record<string, unknown>;
-            const candidate = (obj.boardConfig && typeof obj.boardConfig === 'object')
-                ? obj.boardConfig as Record<string, unknown>
-                : obj;
-            const boardFallback = Array.isArray(obj.board)
-                ? obj.board as unknown[][]
-                : (Array.isArray(candidate.board) ? candidate.board as unknown[][] : null);
-            const derived = deriveBoardDimsFromBoard(boardFallback);
-            let rows: unknown = candidate.rows;
-            let cols: unknown = candidate.cols;
-
-            if (!isNumericBoardDimensionArg(rows)) rows = readBoundsSpan(candidate.baseBounds, 'row');
-            if (!isNumericBoardDimensionArg(cols)) cols = readBoundsSpan(candidate.baseBounds, 'col');
-            if (!isNumericBoardDimensionArg(rows) && candidate.outerBounds) {
-                const outerMinRow = Number((candidate.outerBounds as Bounds).minRow);
-                const outerMaxRow = Number((candidate.outerBounds as Bounds).maxRow);
-                if (Number.isFinite(outerMinRow) && Number.isFinite(outerMaxRow)) {
-                    rows = Math.max(1, Math.floor(outerMaxRow - outerMinRow - 1));
-                }
-            }
-            if (!isNumericBoardDimensionArg(cols) && candidate.outerBounds) {
-                const outerMinCol = Number((candidate.outerBounds as Bounds).minCol);
-                const outerMaxCol = Number((candidate.outerBounds as Bounds).maxCol);
-                if (Number.isFinite(outerMinCol) && Number.isFinite(outerMaxCol)) {
-                    cols = Math.max(1, Math.floor(outerMaxCol - outerMinCol - 1));
-                }
-            }
-            if (!isNumericBoardDimensionArg(rows) && derived) rows = derived.rows;
-            if (!isNumericBoardDimensionArg(cols) && derived) cols = derived.cols;
-            return buildBoardConfig(rows, cols);
-        }
-        return normalizeBoardConfig(boardOrConfig, undefined);
-    }
-
-    function resolveBaseBoardBounds(boardOrConfig: unknown, maybeCols?: unknown): Bounds {
-        return resolveBoardConfig(boardOrConfig, maybeCols).baseBounds;
-    }
-
-    function resolveOuterBounds(boardOrConfig: unknown, maybeCols?: unknown): Bounds {
-        return resolveBoardConfig(boardOrConfig, maybeCols).outerBounds;
-    }
-
-    function getBoardRows(boardOrConfig: unknown, maybeCols?: unknown): number {
-        return resolveBoardConfig(boardOrConfig, maybeCols).rows;
-    }
-
-    function getBoardCols(boardOrConfig: unknown, maybeCols?: unknown): number {
-        return resolveBoardConfig(boardOrConfig, maybeCols).cols;
-    }
-
+    if (!BoardNotationModule) throw new Error('BoardNotation is required by SharedBoardUtils');
+    const BoardNotation = BoardNotationModule.createBoardNotation({ resolveBoardConfig });
     if (!InitialBoardLayoutModule) throw new Error('InitialBoardLayout is required by SharedBoardUtils');
     const InitialBoardLayout = InitialBoardLayoutModule.createInitialLayout({
         empty: EMPTY,
