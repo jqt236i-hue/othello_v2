@@ -1454,6 +1454,14 @@ html.stone-images-loaded .disc.white {
     z-index: 0;
 }
 
+.stone-regen-badge--zombie::before {
+    color: #8739d6;
+    text-shadow:
+        0 0 calc(2px * var(--layout-stage-scale)) rgba(245, 226, 255, 0.92),
+        0 0 calc(5px * var(--layout-stage-scale)) rgba(135, 57, 214, 0.92),
+        0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.76);
+}
+
 .stone-regen-badge-value {
     position: relative;
     z-index: 1;
