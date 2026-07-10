@@ -19,6 +19,7 @@ const { createMatchJoinController } = require('../utils/match-join-controller');
 const { createMatchLeaveController } = require('../utils/match-leave-controller');
 const { createMatchPublishController } = require('../utils/match-publish-controller');
 const { createMatchRoomPreferencesController } = require('../utils/match-room-preferences-controller');
+const { createMatchRematchController } = require('../utils/match-rematch-controller');
 const { createMatchSpectateController } = require('../utils/match-spectate-controller');
 const MatchRoomLobby = require('../shared/match-room-lobby');
 const NetworkActionSchema = require('../shared/network-action-schema');
@@ -2403,93 +2404,76 @@ function validateRematchSeat(room: any, seatKey: any, seatToken: any) {
     return { ok: true, status: 200, reason: '' };
 }
 
+function createLocalMatchRematchController() {
+    let activeRoom: any = null;
+    let activeRoomId = '';
+    return createMatchRematchController({
+        loadRoom: (body: any) => {
+            activeRoomId = String((body && body.roomId) || '').trim().toUpperCase();
+            activeRoom = rooms.get(activeRoomId) || null;
+            if (activeRoom && expireRoomIfNeeded(activeRoomId, activeRoom, Date.now())) activeRoom = null;
+        },
+        getRoom: () => activeRoom,
+        expireRoomIfNeeded: () => false,
+        validateSeat: (room: any, body: any) => {
+            const seatKey = normalizePlayerKey(body && body.seatKey);
+            const seatToken = String((body && body.seatToken) || '').trim();
+            const validation = validateRematchSeat(room, seatKey, seatToken);
+            return validation.ok ? { ok: true, seatKey } : validation;
+        },
+        buildSeatFailurePayload: (room: any, validation: any) => ({
+            ok: false,
+            reason: validation.reason,
+            seats: toPublicSeats(room)
+        }),
+        hasOpponent: (room: any) => !!room.seats.black && !!room.seats.white,
+        buildOpponentRequiredPayload: (room: any) => ({
+            ok: false,
+            reason: 'OPPONENT_REQUIRED',
+            seats: toPublicSeats(room)
+        }),
+        makeRematchRequestId,
+        touchRoom: (room: any) => {
+            room.updatedAt = Date.now();
+        },
+        broadcastPresence: (meta: any) => broadcastPresence(activeRoom, meta),
+        buildRequestPayload: (room: any, value: any) => withPublicSeatState(room, {
+            ok: true,
+            roomId: room.roomId,
+            seatKey: value.seatKey,
+            requestId: value.requestId,
+            roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            turnTimer: toPublicTurnTimer(room, Date.now()),
+            serverTime: Date.now()
+        }),
+        buildResponsePayload: (room: any, value: any) => withPublicSeatState(room, {
+            ok: true,
+            roomId: room.roomId,
+            seatKey: value.seatKey,
+            requestId: value.requestId,
+            accepted: value.accepted,
+            roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            turnTimer: toPublicTurnTimer(room, Date.now()),
+            serverTime: Date.now()
+        }),
+        jsonResponse: (status: number, payload: any) => ({ status, payload })
+    });
+}
+
 async function handleRematchRequest(req: any, res: any) {
     const body = await parseBody(req);
-    const roomId = String(body.roomId || '').trim().toUpperCase();
-    const seatKey = normalizePlayerKey(body.seatKey);
-    const seatToken = String(body.seatToken || '').trim();
-    const room = rooms.get(roomId);
-    if (!room) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    if (expireRoomIfNeeded(roomId, room, Date.now())) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    const validation = validateRematchSeat(room, seatKey, seatToken);
-    if (!validation.ok) {
-        writeJson(res, validation.status, { ok: false, reason: validation.reason, seats: toPublicSeats(room) });
-        return;
-    }
-    if (!room.seats.black || !room.seats.white) {
-        writeJson(res, 409, { ok: false, reason: 'OPPONENT_REQUIRED', seats: toPublicSeats(room) });
-        return;
-    }
-
-    const requestId = makeRematchRequestId();
-    room.updatedAt = Date.now();
-    broadcastPresence(room, {
-        type: 'rematch_request',
-        seatKey,
-        requestId,
-        rejoined: false
-    });
-    writeJson(res, 200, withPublicSeatState(room, {
-        ok: true,
-        roomId: room.roomId,
-        seatKey,
-        requestId,
-        roomDeck: toPublicRoomDeck(room),
-        roomBoardConfig: toPublicRoomBoardConfig(room),
-        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-        turnTimer: toPublicTurnTimer(room, Date.now()),
-        serverTime: Date.now()
-    }));
+    const result = await createLocalMatchRematchController().handleRematchRequest(body);
+    writeJson(res, result.status, result.payload);
 }
 
 async function handleRematchResponse(req: any, res: any) {
     const body = await parseBody(req);
-    const roomId = String(body.roomId || '').trim().toUpperCase();
-    const seatKey = normalizePlayerKey(body.seatKey);
-    const seatToken = String(body.seatToken || '').trim();
-    const room = rooms.get(roomId);
-    if (!room) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    if (expireRoomIfNeeded(roomId, room, Date.now())) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    const validation = validateRematchSeat(room, seatKey, seatToken);
-    if (!validation.ok) {
-        writeJson(res, validation.status, { ok: false, reason: validation.reason, seats: toPublicSeats(room) });
-        return;
-    }
-
-    const requestId = String(body.requestId || '').trim();
-    const accepted = body.accepted === true;
-    room.updatedAt = Date.now();
-    broadcastPresence(room, {
-        type: 'rematch_response',
-        seatKey,
-        requestId,
-        accepted,
-        rejoined: false
-    });
-    writeJson(res, 200, withPublicSeatState(room, {
-        ok: true,
-        roomId: room.roomId,
-        seatKey,
-        requestId,
-        accepted,
-        roomDeck: toPublicRoomDeck(room),
-        roomBoardConfig: toPublicRoomBoardConfig(room),
-        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-        turnTimer: toPublicTurnTimer(room, Date.now()),
-        serverTime: Date.now()
-    }));
+    const result = await createLocalMatchRematchController().handleRematchResponse(body);
+    writeJson(res, result.status, result.payload);
 }
 
 async function handleChat(req: any, res: any) {

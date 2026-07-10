@@ -74,6 +74,7 @@ import { createMatchSpectateController } from '../utils/match-spectate-controlle
 import { createMatchJoinController } from '../utils/match-join-controller';
 import { createMatchLeaveController } from '../utils/match-leave-controller';
 import { createMatchRoomPreferencesController } from '../utils/match-room-preferences-controller';
+import { createMatchRematchController } from '../utils/match-rematch-controller';
 import {
     prepareMatchCommandAction,
     shouldSkipMatchCommandTurnStart
@@ -2509,6 +2510,68 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         });
     }
 
+    getRematchController() {
+        return createMatchRematchController({
+            loadRoom: () => this.loadRoom(),
+            awaitLoadRoom: true,
+            getRoom: () => this.room,
+            expireRoomIfNeeded: () => this.expireRoomIfNeeded(Date.now()),
+            awaitExpireRoomIfNeeded: true,
+            validateSeat: (room: MatchWorkerRoomState, body: Record<string, unknown>) => {
+                const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
+                const seatToken = String(body.seatToken || '').trim();
+                const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
+                if (!seatKey) {
+                    return { ok: false, status: 403, reason: classifySeatTokenRejectionReason(seatToken) };
+                }
+                if (!asRecord(room.seats)[seatKey]) {
+                    return { ok: false, status: 409, reason: 'SEAT_NOT_JOINED' };
+                }
+                return { ok: true, seatKey };
+            },
+            buildSeatFailurePayload: (_room: MatchWorkerRoomState, validation: any) => ({
+                ok: false,
+                reason: validation.reason
+            }),
+            hasOpponent: (room: MatchWorkerRoomState) => !!asRecord(room.seats).black && !!asRecord(room.seats).white,
+            buildOpponentRequiredPayload: () => ({ ok: false, reason: 'OPPONENT_REQUIRED' }),
+            makeRematchRequestId,
+            touchRoom: () => undefined,
+            broadcastPresence: (meta: MatchWorkerPresencePayloadMeta | null | undefined) => this.broadcastPresence(meta),
+            awaitBroadcastPresence: true,
+            buildRequestPayload: (room: MatchWorkerRoomState, value: any) => {
+                const serverTime = Date.now();
+                return MatchAuthority.buildRoomPayloadFromRoom(room, {
+                    ok: true,
+                    seatKey: value.seatKey,
+                    requestId: value.requestId,
+                    roomDeck: toPublicRoomDeck(room),
+                    roomBoardConfig: toPublicRoomBoardConfig(room),
+                    networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+                    networkAutoEnabled: toPublicNetworkAutoEnabled(room),
+                    turnTimer: toPublicTurnTimer(room, serverTime),
+                    serverTime
+                });
+            },
+            buildResponsePayload: (room: MatchWorkerRoomState, value: any) => {
+                const serverTime = Date.now();
+                return MatchAuthority.buildRoomPayloadFromRoom(room, {
+                    ok: true,
+                    seatKey: value.seatKey,
+                    requestId: value.requestId,
+                    accepted: value.accepted,
+                    roomDeck: toPublicRoomDeck(room),
+                    roomBoardConfig: toPublicRoomBoardConfig(room),
+                    networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+                    networkAutoEnabled: toPublicNetworkAutoEnabled(room),
+                    turnTimer: toPublicTurnTimer(room, serverTime),
+                    serverTime
+                });
+            },
+            jsonResponse
+        });
+    }
+
     async loadRoom(): Promise<void> {
         if (this.roomLoaded) return;
         this.room = await this.state.storage.get(ROOM_STORAGE_KEY) as MatchWorkerRoomState | null || null;
@@ -3602,93 +3665,11 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async handleRematchRequest(body: Record<string, unknown>): Promise<Response> {
-        await this.loadRoom();
-        const room = this.room;
-        if (!room) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-        if (await this.expireRoomIfNeeded(Date.now())) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-
-        const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
-        const seatToken = String(body.seatToken || '').trim();
-        const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
-        if (!seatKey) {
-            return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
-        }
-        if (!asRecord(room.seats)[seatKey]) {
-            return jsonResponse(409, { ok: false, reason: 'SEAT_NOT_JOINED' });
-        }
-        if (!asRecord(room.seats).black || !asRecord(room.seats).white) {
-            return jsonResponse(409, { ok: false, reason: 'OPPONENT_REQUIRED' });
-        }
-
-        const requestId = makeRematchRequestId();
-        await this.broadcastPresence({
-            type: 'rematch_request',
-            seatKey,
-            requestId,
-            rejoined: false
-        });
-
-        const serverTime = Date.now();
-        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-            ok: true,
-            seatKey,
-            requestId,
-            roomDeck: toPublicRoomDeck(room),
-            roomBoardConfig: toPublicRoomBoardConfig(room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-            turnTimer: toPublicTurnTimer(room, serverTime),
-            serverTime
-        }));
+        return this.getRematchController().handleRematchRequest(body);
     }
 
     async handleRematchResponse(body: Record<string, unknown>): Promise<Response> {
-        await this.loadRoom();
-        const room = this.room;
-        if (!room) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-        if (await this.expireRoomIfNeeded(Date.now())) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-
-        const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
-        const seatToken = String(body.seatToken || '').trim();
-        const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
-        if (!seatKey) {
-            return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
-        }
-        if (!asRecord(room.seats)[seatKey]) {
-            return jsonResponse(409, { ok: false, reason: 'SEAT_NOT_JOINED' });
-        }
-
-        const requestId = String(body.requestId || '').trim();
-        const accepted = body.accepted === true;
-        await this.broadcastPresence({
-            type: 'rematch_response',
-            seatKey,
-            requestId,
-            accepted,
-            rejoined: false
-        });
-
-        const serverTime = Date.now();
-        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-            ok: true,
-            seatKey,
-            requestId,
-            accepted,
-            roomDeck: toPublicRoomDeck(room),
-            roomBoardConfig: toPublicRoomBoardConfig(room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-            turnTimer: toPublicTurnTimer(room, serverTime),
-            serverTime
-        }));
+        return this.getRematchController().handleRematchResponse(body);
     }
 
     async handleState(urlObj: URL): Promise<Response> {
