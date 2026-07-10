@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -95,6 +95,8 @@
     const PaddedBoardCoordinates = PaddedBoardCoordinatesModule;
     if (!CanonicalBoardEncodingModule) throw new Error('CanonicalBoardEncoding is required by SharedBoardUtils');
     const CanonicalBoardEncoding = CanonicalBoardEncodingModule.createCanonicalBoardEncoding({ resolveBoardBounds, collectBoardCoordinates, getCellValue });
+    if (!BoardNotationModule) throw new Error('BoardNotation is required by SharedBoardUtils');
+    const BoardNotation = BoardNotationModule.createBoardNotation({ resolveBoardConfig });
     const BOARD_SHAPE_META_KEY = '__sharedBoardShapeMeta';
     const EMPTY: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { EMPTY?: unknown }).EMPTY))
         ? Number((SharedConstants as { EMPTY?: unknown }).EMPTY)
@@ -1454,85 +1456,12 @@
         return CanonicalBoardEncoding.makeCanonicalActionKey(move, board, transformId);
     }
 
-    function normalizePosArgs(posOrRow: unknown, maybeCol?: unknown): CellCoord {
-        if (posOrRow && typeof posOrRow === 'object') {
-            return {
-                row: Number((posOrRow as { row?: number }).row),
-                col: Number((posOrRow as { col?: number }).col)
-            };
-        }
-        return {
-            row: Number(posOrRow),
-            col: Number(maybeCol)
-        };
-    }
-
-    function resolveNotationArgs(posOrRow: unknown, maybeCol: unknown, maybeBoardOrConfig: unknown): { pos: CellCoord; boardOrConfig: unknown } {
-        const objectPosWithBoardContext = !!(
-            posOrRow &&
-            typeof posOrRow === 'object' &&
-            !Number.isFinite(Number(maybeCol))
-        );
-        return {
-            pos: objectPosWithBoardContext
-                ? normalizePosArgs(posOrRow)
-                : normalizePosArgs(posOrRow, maybeCol),
-            boardOrConfig: objectPosWithBoardContext ? maybeCol : maybeBoardOrConfig
-        };
-    }
-
     function formatPosTextJa(posOrRow: unknown, maybeCol?: unknown, maybeBoardOrConfig?: unknown): string {
-        const resolved = resolveNotationArgs(posOrRow, maybeCol, maybeBoardOrConfig);
-        const pos = resolved.pos;
-        const config = resolveBoardConfig(resolved.boardOrConfig);
-        const baseBounds = config.baseBounds;
-        const outerBounds = config.outerBounds;
-        const row = pos.row;
-        const col = pos.col;
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return '';
-        if (row === outerBounds.minRow && col === outerBounds.minCol) return '左上外';
-        if (row === outerBounds.minRow && col === outerBounds.maxCol) return '右上外';
-        if (row === outerBounds.maxRow && col === outerBounds.minCol) return '左下外';
-        if (row === outerBounds.maxRow && col === outerBounds.maxCol) return '右下外';
-        if (row === outerBounds.minRow && col >= baseBounds.minCol && col <= baseBounds.maxCol) {
-            return `上外${String.fromCharCode(65 + col)}`;
-        }
-        if (row === outerBounds.maxRow && col >= baseBounds.minCol && col <= baseBounds.maxCol) {
-            return `下外${String.fromCharCode(65 + col)}`;
-        }
-        if (col === outerBounds.minCol && row >= baseBounds.minRow && row <= baseBounds.maxRow) return `左外${row + 1}`;
-        if (col === outerBounds.maxCol && row >= baseBounds.minRow && row <= baseBounds.maxRow) return `右外${row + 1}`;
-        if (row >= baseBounds.minRow && row <= baseBounds.maxRow && col >= baseBounds.minCol && col <= baseBounds.maxCol) {
-            return `${String.fromCharCode(65 + col)}${row + 1}`;
-        }
-        return `(${row},${col})`;
+        return BoardNotation.formatPosTextJa(posOrRow, maybeCol, maybeBoardOrConfig);
     }
 
     function posToNotation(posOrRow: unknown, maybeCol?: unknown, maybeBoardOrConfig?: unknown): string {
-        const resolved = resolveNotationArgs(posOrRow, maybeCol, maybeBoardOrConfig);
-        const pos = resolved.pos;
-        const config = resolveBoardConfig(resolved.boardOrConfig);
-        const baseBounds = config.baseBounds;
-        const outerBounds = config.outerBounds;
-        const row = pos.row;
-        const col = pos.col;
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return '';
-        if (row === outerBounds.minRow && col === outerBounds.minCol) return 'top-left';
-        if (row === outerBounds.minRow && col === outerBounds.maxCol) return 'top-right';
-        if (row === outerBounds.maxRow && col === outerBounds.minCol) return 'bottom-left';
-        if (row === outerBounds.maxRow && col === outerBounds.maxCol) return 'bottom-right';
-        if (row === outerBounds.minRow && col >= baseBounds.minCol && col <= baseBounds.maxCol) {
-            return `top-${String.fromCharCode(97 + col)}`;
-        }
-        if (row === outerBounds.maxRow && col >= baseBounds.minCol && col <= baseBounds.maxCol) {
-            return `bottom-${String.fromCharCode(97 + col)}`;
-        }
-        if (col === outerBounds.minCol && row >= baseBounds.minRow && row <= baseBounds.maxRow) return `left${row + 1}`;
-        if (col === outerBounds.maxCol && row >= baseBounds.minRow && row <= baseBounds.maxRow) return `right${row + 1}`;
-        if (row >= baseBounds.minRow && row <= baseBounds.maxRow && col >= baseBounds.minCol && col <= baseBounds.maxCol) {
-            return `${String.fromCharCode(97 + col)}${row + 1}`;
-        }
-        return `r${row}c${col}`;
+        return BoardNotation.posToNotation(posOrRow, maybeCol, maybeBoardOrConfig);
     }
 
     return {
