@@ -73,6 +73,7 @@ import { createMatchWorkerPublishController } from './match-worker-publish-contr
 import { createMatchSpectateController } from '../utils/match-spectate-controller';
 import { createMatchJoinController } from '../utils/match-join-controller';
 import { createMatchLeaveController } from '../utils/match-leave-controller';
+import { createMatchRoomPreferencesController } from '../utils/match-room-preferences-controller';
 import {
     prepareMatchCommandAction,
     shouldSkipMatchCommandTurnStart
@@ -2474,6 +2475,40 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         });
     }
 
+    getRoomPreferencesController() {
+        return createMatchRoomPreferencesController({
+            loadRoom: () => this.loadRoom(),
+            awaitLoadRoom: true,
+            getRoom: () => this.room,
+            expireRoomIfNeeded: () => this.expireRoomIfNeeded(Date.now()),
+            awaitExpireRoomIfNeeded: true,
+            parseSeatKeyOptional,
+            resolveAuthenticatedSeatKey,
+            classifySeatTokenRejectionReason,
+            isSeatJoined: (room: MatchWorkerRoomState, seatKey: MatchAuthoritySeatKey) => !!asRecord(room.seats)[seatKey],
+            normalizeSeatHandSkinId,
+            toPublicSeatHandSkins,
+            saveRoom: () => this.saveRoom(),
+            awaitSaveRoom: true,
+            broadcastPresence: (meta: MatchWorkerPresencePayloadMeta | null | undefined) => this.broadcastPresence(meta),
+            awaitBroadcastPresence: true,
+            isAllCardsDeckRoom,
+            resolveDeckSelection,
+            awaitResolveDeckSelection: true,
+            assignRoomDeckSelection,
+            MatchAuthority,
+            toPublicRoomDeck,
+            toPublicRoomBoardConfig,
+            toPublicNetworkDebugEnabled,
+            toPublicNetworkAutoEnabled,
+            includeNetworkAutoEnabledForHandSkin: true,
+            includeNetworkAutoEnabledForDeck: true,
+            toPublicTurnTimer,
+            decorateRoomPayload: (payload: Record<string, unknown>) => payload,
+            jsonResponse
+        });
+    }
+
     async loadRoom(): Promise<void> {
         if (this.roomLoaded) return;
         this.room = await this.state.storage.get(ROOM_STORAGE_KEY) as MatchWorkerRoomState | null || null;
@@ -3551,123 +3586,11 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async handleHandSkin(body: Record<string, unknown>): Promise<Response> {
-        await this.loadRoom();
-        const room = this.room;
-
-        if (!room) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-        if (await this.expireRoomIfNeeded(Date.now())) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-
-        const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
-        const seatToken = String(body.seatToken || '').trim();
-        const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
-        if (!seatKey) {
-            return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
-        }
-        if (!asRecord(room.seats)[seatKey]) {
-            return jsonResponse(409, { ok: false, reason: 'SEAT_NOT_JOINED' });
-        }
-
-        const selectedHandSkinId = normalizeSeatHandSkinId(body.selectedHandSkinId);
-        room.seatHandSkins = toPublicSeatHandSkins(room);
-        const previousSkinId = room.seatHandSkins[seatKey] || '';
-        room.seatHandSkins[seatKey] = selectedHandSkinId;
-        room.updatedAt = Date.now();
-        await this.saveRoom();
-
-        if (previousSkinId !== selectedHandSkinId) {
-            await this.broadcastPresence({
-                type: 'hand_skin',
-                seatKey,
-                rejoined: false
-            });
-        }
-
-        const serverTime = Date.now();
-        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-            ok: true,
-            seatKey,
-            selectedHandSkinId,
-            roomDeck: toPublicRoomDeck(room),
-            roomBoardConfig: toPublicRoomBoardConfig(room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-            turnTimer: toPublicTurnTimer(room, serverTime),
-            serverTime
-        }));
+        return this.getRoomPreferencesController().handleHandSkin(body);
     }
 
     async handleDeck(body: Record<string, unknown>): Promise<Response> {
-        await this.loadRoom();
-        const room = this.room;
-
-        if (!room) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-        if (await this.expireRoomIfNeeded(Date.now())) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-
-        const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
-        const seatToken = String(body.seatToken || '').trim();
-        const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
-        if (!seatKey) {
-            return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
-        }
-        if (!asRecord(room.seats)[seatKey]) {
-            return jsonResponse(409, { ok: false, reason: 'SEAT_NOT_JOINED' });
-        }
-
-        if (isAllCardsDeckRoom(room)) {
-            const serverTime = Date.now();
-            return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-                ok: true,
-                seatKey,
-                roomDeck: toPublicRoomDeck(room),
-                roomBoardConfig: toPublicRoomBoardConfig(room),
-                networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-                networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-                turnTimer: toPublicTurnTimer(room, serverTime),
-                serverTime
-            }));
-        }
-
-        const deckSelection = await resolveDeckSelection(body.deckCode);
-        if (!deckSelection.ok) {
-            return jsonResponse(400, {
-                ok: false,
-                reason: deckSelection.reason || 'DECK_CODE_INVALID'
-            });
-        }
-
-        const previousRoomDeckJson = JSON.stringify(toPublicRoomDeck(room) || null);
-        assignRoomDeckSelection(room, seatKey, deckSelection);
-        const nextRoomDeck = toPublicRoomDeck(room);
-        room.updatedAt = Date.now();
-        await this.saveRoom();
-
-        if (previousRoomDeckJson !== JSON.stringify(nextRoomDeck || null)) {
-            await this.broadcastPresence({
-                type: 'deck',
-                seatKey,
-                rejoined: false
-            });
-        }
-
-        const serverTime = Date.now();
-        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-            ok: true,
-            seatKey,
-            roomDeck: nextRoomDeck,
-            roomBoardConfig: toPublicRoomBoardConfig(room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-            turnTimer: toPublicTurnTimer(room, serverTime),
-            serverTime
-        }));
+        return this.getRoomPreferencesController().handleDeck(body);
     }
 
     async handlePublish(body: Record<string, unknown>): Promise<Response> {

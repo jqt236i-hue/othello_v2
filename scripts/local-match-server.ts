@@ -18,6 +18,7 @@ const MatchCommandRuntime = require('../utils/match-command-runtime');
 const { createMatchJoinController } = require('../utils/match-join-controller');
 const { createMatchLeaveController } = require('../utils/match-leave-controller');
 const { createMatchPublishController } = require('../utils/match-publish-controller');
+const { createMatchRoomPreferencesController } = require('../utils/match-room-preferences-controller');
 const { createMatchSpectateController } = require('../utils/match-spectate-controller');
 const MatchRoomLobby = require('../shared/match-room-lobby');
 const NetworkActionSchema = require('../shared/network-action-schema');
@@ -2288,132 +2289,51 @@ async function handleSpectatorLeave(req: any, res: any) {
     writeJson(res, result.status, result.payload);
 }
 
+function createLocalMatchRoomPreferencesController() {
+    let activeRoom: any = null;
+    let activeRoomId = '';
+    return createMatchRoomPreferencesController({
+        loadRoom: (body: any) => {
+            activeRoomId = String((body && body.roomId) || '').trim().toUpperCase();
+            activeRoom = rooms.get(activeRoomId) || null;
+            if (activeRoom && expireRoomIfNeeded(activeRoomId, activeRoom, Date.now())) activeRoom = null;
+        },
+        getRoom: () => activeRoom,
+        expireRoomIfNeeded: () => false,
+        parseSeatKeyOptional,
+        resolveAuthenticatedSeatKey,
+        classifySeatTokenRejectionReason,
+        isSeatJoined: (room: any, seatKey: any) => !!room.seats[seatKey],
+        normalizeSeatHandSkinId,
+        toPublicSeatHandSkins,
+        saveRoom: () => undefined,
+        broadcastPresence: (meta: any) => broadcastPresence(activeRoom, meta),
+        isAllCardsDeckRoom,
+        resolveDeckSelection,
+        assignRoomDeckSelection,
+        MatchAuthority,
+        toPublicRoomDeck,
+        toPublicRoomBoardConfig,
+        toPublicNetworkDebugEnabled,
+        toPublicNetworkAutoEnabled,
+        includeNetworkAutoEnabledForHandSkin: true,
+        includeNetworkAutoEnabledForDeck: false,
+        toPublicTurnTimer,
+        decorateRoomPayload: (payload: any) => payload,
+        jsonResponse: (status: number, payload: any) => ({ status, payload })
+    });
+}
+
 async function handleHandSkin(req: any, res: any) {
     const body = await parseBody(req);
-    const roomId = String(body.roomId || '').trim().toUpperCase();
-    const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
-    const seatToken = String(body.seatToken || '').trim();
-    const selectedHandSkinId = normalizeSeatHandSkinId(body.selectedHandSkinId);
-    const room = rooms.get(roomId);
-
-    if (!room) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    if (expireRoomIfNeeded(roomId, room, Date.now())) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-
-    const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
-    if (!seatKey) {
-        writeJson(res, 403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
-        return;
-    }
-    if (!room.seats[seatKey]) {
-        writeJson(res, 409, { ok: false, reason: 'SEAT_NOT_JOINED' });
-        return;
-    }
-
-    room.seatHandSkins = toPublicSeatHandSkins(room);
-    const previousSkinId = room.seatHandSkins[seatKey] || '';
-    room.seatHandSkins[seatKey] = selectedHandSkinId;
-    room.updatedAt = Date.now();
-
-    if (previousSkinId !== selectedHandSkinId) {
-        broadcastPresence(room, {
-            type: 'hand_skin',
-            seatKey,
-            rejoined: false
-        });
-    }
-
-    const serverTime = Date.now();
-    writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-        ok: true,
-        seatKey,
-        selectedHandSkinId,
-        roomDeck: toPublicRoomDeck(room),
-        roomBoardConfig: toPublicRoomBoardConfig(room),
-        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-        turnTimer: toPublicTurnTimer(room, serverTime),
-        serverTime
-    }));
+    const result = await createLocalMatchRoomPreferencesController().handleHandSkin(body);
+    writeJson(res, result.status, result.payload);
 }
 
 async function handleDeck(req: any, res: any) {
     const body = await parseBody(req);
-    const roomId = String(body.roomId || '').trim().toUpperCase();
-    const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
-    const seatToken = String(body.seatToken || '').trim();
-    const room = rooms.get(roomId);
-
-    if (!room) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    if (expireRoomIfNeeded(roomId, room, Date.now())) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-
-    const seatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, seatToken);
-    if (!seatKey) {
-        writeJson(res, 403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
-        return;
-    }
-    if (!room.seats[seatKey]) {
-        writeJson(res, 409, { ok: false, reason: 'SEAT_NOT_JOINED' });
-        return;
-    }
-
-    if (isAllCardsDeckRoom(room)) {
-        const serverTime = Date.now();
-        writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-            ok: true,
-            seatKey,
-            roomDeck: toPublicRoomDeck(room),
-            roomBoardConfig: toPublicRoomBoardConfig(room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            turnTimer: toPublicTurnTimer(room, serverTime),
-            serverTime
-        }));
-        return;
-    }
-
-    const deckSelection = resolveDeckSelection(body.deckCode);
-    if (!deckSelection.ok) {
-        writeJson(res, 400, {
-            ok: false,
-            reason: deckSelection.reason || 'DECK_CODE_INVALID'
-        });
-        return;
-    }
-
-    const previousRoomDeckJson = JSON.stringify(toPublicRoomDeck(room) || null);
-    assignRoomDeckSelection(room, seatKey, deckSelection);
-    const nextRoomDeck = toPublicRoomDeck(room);
-    room.updatedAt = Date.now();
-
-    if (previousRoomDeckJson !== JSON.stringify(nextRoomDeck || null)) {
-        broadcastPresence(room, {
-            type: 'deck',
-            seatKey,
-            rejoined: false
-        });
-    }
-
-    const serverTime = Date.now();
-    writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-        ok: true,
-        seatKey,
-        roomDeck: nextRoomDeck,
-        roomBoardConfig: toPublicRoomBoardConfig(room),
-        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-        turnTimer: toPublicTurnTimer(room, serverTime),
-        serverTime
-    }));
+    const result = await createLocalMatchRoomPreferencesController().handleDeck(body);
+    writeJson(res, result.status, result.payload);
 }
 
 async function handlePublish(req: any, res: any) {
