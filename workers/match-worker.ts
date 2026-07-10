@@ -801,8 +801,7 @@ function parseJsonBody(raw: string | null | undefined): Record<string, unknown> 
 }
 
 function normalizeRoomId(value: unknown): string {
-    const roomId = String(value || '').trim().toUpperCase();
-    return roomId || '';
+    return MatchAuthority.normalizeNetworkRoomId(value);
 }
 
 function isNetworkDebugFillHandAction(value: unknown): boolean {

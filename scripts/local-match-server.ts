@@ -1084,15 +1084,7 @@ function toPublicChatMessages(room: any) {
 }
 
 function parseChatMessageText(value: any) {
-    const normalized = String(value || '').replace(/[\r\n]+/g, ' ').trim();
-    if (!normalized) {
-        return { ok: false, reason: 'MESSAGE_REQUIRED' };
-    }
-    const chars = Array.from(normalized);
-    if (chars.length > CHAT_MAX_LENGTH) {
-        return { ok: false, reason: 'MESSAGE_TOO_LONG' };
-    }
-    return { ok: true, text: chars.join('') };
+    return MatchAuthority.parseNetworkChatMessage(value);
 }
 
 function writeJson(res: any, statusCode: any, payload: any) {

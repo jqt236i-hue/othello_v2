@@ -45,12 +45,13 @@ function resolveNetworkClientCandidate(readCandidate: () => any): any {
 
 const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const SERVER_URL_STORAGE_KEY = 'network_match_server_url';
-    const ROOM_ID_LENGTH = 3;
-    const ROOM_ID_RE = /^[A-Z0-9]{3}$/;
-    const PLAYER_NAME_MAX = 7;
-    const CHAT_MAX_LENGTH = 20;
-    const CHAT_HISTORY_LIMIT = 40;
-    const TURN_TIMER_DEFAULT_LIMIT = 120;
+    const NetworkContract = resolveNetworkClientModule('../shared/network-contract', root && root.NetworkContract);
+    const ROOM_ID_LENGTH = Number(NetworkContract && NetworkContract.NETWORK_ROOM_ID_LENGTH) || 3;
+    const ROOM_ID_RE = NetworkContract && NetworkContract.NETWORK_ROOM_ID_PATTERN || /^[A-Z0-9]{3}$/;
+    const PLAYER_NAME_MAX = Number(NetworkContract && NetworkContract.NETWORK_PLAYER_NAME_MAX) || 7;
+    const CHAT_MAX_LENGTH = Number(NetworkContract && NetworkContract.NETWORK_CHAT_MAX_LENGTH) || 20;
+    const CHAT_HISTORY_LIMIT = Number(NetworkContract && NetworkContract.NETWORK_CHAT_HISTORY_LIMIT) || 40;
+    const TURN_TIMER_DEFAULT_LIMIT = Number(NetworkContract && NetworkContract.NETWORK_TURN_LIMIT_SECONDS) || 120;
     const RECONNECT_BASE_DELAY_MS = 500;
     const RECONNECT_MIN_DELAY_MS = 250;
     const RECONNECT_MAX_DELAY_MS = 30000;
@@ -243,8 +244,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function normalizeRoomId(value: any) {
-        const roomId = String(value || '').trim().toUpperCase();
-        return roomId;
+        if (NetworkContract && typeof NetworkContract.normalizeNetworkRoomId === 'function') {
+            return NetworkContract.normalizeNetworkRoomId(value);
+        }
+        return String(value || '').trim().toUpperCase();
     }
 
     function normalizeServerUrl(value: any) {

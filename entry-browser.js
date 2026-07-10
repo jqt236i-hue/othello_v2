@@ -177,6 +177,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/game/logic/cards-internal/module-resolver" },
   { moduleKey: "./dist/game/logic/cards-internal/presentation-helpers" },
   { moduleKey: "./dist/game/logic/board_ops", globalNames: ["BoardOps"], lateGlobalNames: ["BoardOps"] },
+  { moduleKey: "./dist/shared/network-contract", globalNames: ["NetworkContract"], lateGlobalNames: ["NetworkContract"] },
   { moduleKey: "./dist/shared/player-seat-contract", globalNames: ["PlayerSeatContract"], lateGlobalNames: ["PlayerSeatContract"] },
   { moduleKey: "./dist/utils/owner-helpers" },
   { moduleKey: "./dist/game/logic/core", globalNames: ["CoreLogic", "Core"] },

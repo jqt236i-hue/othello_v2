@@ -1,5 +1,13 @@
 'use strict';
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+  ? __non_webpack_require__
+  : require;
+
+const NetworkContract = _require('../../shared/network-contract') as typeof import('../../shared/network-contract');
+
 function createNetworkRoomEventsController(config?: any): any {
   const cfg = (config && typeof config === 'object') ? config : {};
   const getState = typeof cfg.getState === 'function' ? cfg.getState : function () { return null; };
@@ -25,7 +33,7 @@ function createNetworkRoomEventsController(config?: any): any {
   }
 
   function normalizeChatText(value: any): string {
-    return String(value || '').replace(/[\r\n]+/g, ' ').trim();
+    return NetworkContract.normalizeNetworkChatText(value);
   }
 
   function countTextChars(value: any): number {

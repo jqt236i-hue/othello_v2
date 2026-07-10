@@ -50,6 +50,7 @@ import { assertMatchAuthorityPublicApi } from './match-authority-contract';
 import deepClone from './deepClone';
 
 const PlayerSeatContract = _require('../shared/player-seat-contract') as typeof import('../shared/player-seat-contract');
+const NetworkContract = _require('../shared/network-contract') as typeof import('../shared/network-contract');
 
 interface MatchAuthorityCryptoLike {
     getRandomValues(array: Uint8Array): Uint8Array;
@@ -121,18 +122,18 @@ const HAND_SKIN_ID_MAX_LENGTH = 128;
 const SSE_RESUME_BUFFER_LIMIT = 8;
 const PRESENTATION_JOURNAL_LIMIT = 8;
 const ACCEPTED_OPERATION_HISTORY_LIMIT = 16;
-const NETWORK_PLAYER_NAME_MAX = 7;
-const CHAT_MAX_LENGTH = 20;
-const CHAT_HISTORY_LIMIT = 40;
-const NETWORK_TURN_LIMIT_SECONDS = 120;
-const NETWORK_TURN_LIMIT_MS = NETWORK_TURN_LIMIT_SECONDS * 1000;
+const NETWORK_PLAYER_NAME_MAX = NetworkContract.NETWORK_PLAYER_NAME_MAX;
+const CHAT_MAX_LENGTH = NetworkContract.NETWORK_CHAT_MAX_LENGTH;
+const CHAT_HISTORY_LIMIT = NetworkContract.NETWORK_CHAT_HISTORY_LIMIT;
+const NETWORK_TURN_LIMIT_SECONDS = NetworkContract.NETWORK_TURN_LIMIT_SECONDS;
+const NETWORK_TURN_LIMIT_MS = NetworkContract.NETWORK_TURN_LIMIT_MS;
 const SSE_HEARTBEAT_INTERVAL_MS = 10000;
 const MAX_SPECTATORS = 4;
 const NETWORK_SPECTATOR_NAME_MAX = NETWORK_PLAYER_NAME_MAX;
 const NETWORK_DEBUG_FILL_HAND_ACTION = 'debug_fill_hand';
 const AUTHORITY_LOG_LIMIT = 64;
 const ROOM_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const ROOM_ID_LENGTH = 3;
+const ROOM_ID_LENGTH = NetworkContract.NETWORK_ROOM_ID_LENGTH;
 const SEAT_TOKEN_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const SEAT_TOKEN_LENGTH = 24;
 const SSE_ID_SUFFIX_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -283,8 +284,19 @@ function normalizeSeatPlayerIds(value: unknown): MatchAuthoritySeatPlayerIds {
 }
 
 function normalizeNetworkPlayerName(value: unknown): string {
-    const normalized = String(value || '').replace(/\s+/g, ' ').trim();
-    return Array.from(normalized).slice(0, NETWORK_PLAYER_NAME_MAX).join('');
+    return NetworkContract.normalizeNetworkPlayerName(value);
+}
+
+function normalizeNetworkRoomId(value: unknown): string {
+    return NetworkContract.normalizeNetworkRoomId(value);
+}
+
+function isValidNetworkRoomId(value: unknown): boolean {
+    return NetworkContract.isValidNetworkRoomId(value);
+}
+
+function parseNetworkChatMessage(value: unknown): import('../shared/network-contract').NetworkChatValidationResult {
+    return NetworkContract.validateNetworkChatMessage(value);
 }
 
 function normalizeSpectatorName(value: unknown): string {
@@ -2748,6 +2760,9 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     NETWORK_DEBUG_FILL_HAND_ACTION,
     ROOM_ID_CHARS,
     ROOM_ID_LENGTH,
+    normalizeNetworkRoomId,
+    isValidNetworkRoomId,
+    parseNetworkChatMessage,
     SEAT_TOKEN_CHARS,
     SEAT_TOKEN_LENGTH,
     VERSION_REJECTION_REASONS,
