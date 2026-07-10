@@ -60,4 +60,23 @@ describe('JS inventory runtime-authority guard', () => {
       expect(projection).not.toContain('GAME_STONE_VISUAL_EFFECTS');
     }
   });
+
+  test('rejects reintroducing copied nested type trees', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const copiedTypeRoots = [
+      'game/src/types',
+      'game/cards/src/types',
+      'game/logic/src/types'
+    ];
+
+    const copiedSourceFiles = copiedTypeRoots.flatMap((relativePath) => {
+      const absolutePath = path.join(repoRoot, relativePath);
+      if (!fs.existsSync(absolutePath)) return [];
+      return fs.readdirSync(absolutePath)
+        .filter((name) => /\.(?:ts|js)$/.test(name))
+        .map((name) => path.join(relativePath, name));
+    });
+
+    expect(copiedSourceFiles).toEqual([]);
+  });
 });
