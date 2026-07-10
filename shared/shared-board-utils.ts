@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/legal-moves'), require('./board/control-counts'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/shape-metadata'), require('./board/legal-moves'), require('./board/control-counts'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardShapeMetadataModule: typeof import('./board/shape-metadata') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -325,148 +325,20 @@
         return { black, white };
     }
 
-    function collectMeteorHoleKeys(cardState: unknown): Set<string> {
-        const out = new Set<string>();
-        const obj = cardState as { markers?: unknown[] } | null;
-        const markers = obj && Array.isArray(obj.markers) ? obj.markers : [];
-        for (const marker of markers) {
-            const m = marker as { kind?: string; data?: { type?: string }; row?: number; col?: number } | null;
-            if (!m || m.kind !== 'specialStone') continue;
-            if (!m.data || String(m.data.type || '').toUpperCase() !== 'METEOR_HOLE') continue;
-            const row = Number(m.row);
-            const col = Number(m.col);
-            if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-            out.add(toBoardCellKey(row, col));
-        }
-        return out;
-    }
-
-    function cloneMeta(meta: unknown): BoardShapeMeta | null {
-        if (!meta || typeof meta !== 'object') return null;
-        const obj = meta as BoardShapeMeta;
-        return {
-            minRow: Number.isInteger(obj.minRow) ? obj.minRow : 0,
-            maxRow: Number.isInteger(obj.maxRow) ? obj.maxRow : -1,
-            minCol: Number.isInteger(obj.minCol) ? obj.minCol : 0,
-            maxCol: Number.isInteger(obj.maxCol) ? obj.maxCol : -1,
-            playableKeys: new Set(obj.playableKeys instanceof Set ? Array.from(obj.playableKeys) : []),
-            meteorHoleKeys: new Set(obj.meteorHoleKeys instanceof Set ? Array.from(obj.meteorHoleKeys) : []),
-            expansionCells: Array.isArray(obj.expansionCells)
-                ? obj.expansionCells.map((cell) => ({
-                    side: cell.side,
-                    row: cell.row,
-                    col: cell.col,
-                    owner: normalizeOwner(cell.owner)
-                }))
-                : [],
-            expansionOwnerByKey: Object.assign(Object.create(null), obj.expansionOwnerByKey || null),
-            standard8x8: obj.standard8x8 === true,
-            coordinateCache: null,
-            cornerKeyCache: null,
-            xKeyCache: null,
-            cKeyCache: null
-        };
-    }
-
-    function setBoardShapeMeta(board: unknown, meta: unknown): unknown[][] {
-        if (!Array.isArray(board)) return board as unknown[][];
-        Object.defineProperty(board, BOARD_SHAPE_META_KEY, {
-            value: meta,
-            writable: true,
-            configurable: true
-        });
-        return board as unknown[][];
-    }
-
-    function getBoardShapeMeta(board: unknown): BoardShapeMeta | null {
-        if (!Array.isArray(board)) return null;
-        const meta = (board as unknown as Record<string, unknown>)[BOARD_SHAPE_META_KEY];
-        return meta && typeof meta === 'object' ? meta as BoardShapeMeta : null;
-    }
-
-    function buildShapeMeta(board: unknown, options?: unknown): BoardShapeMeta | null {
-        if (!Array.isArray(board)) return null;
-        const opts = options && typeof options === 'object' ? options as Record<string, unknown> : {};
-        const boardConfig = resolveBoardConfig((opts.boardConfig) || board);
-        const expansionCells = collectExpansionDescriptors(opts.boardExpansion, boardConfig);
-        const meteorHoleKeys = collectMeteorHoleKeys(opts.cardState);
-        const playableKeys = new Set<string>();
-        let minRow = Infinity;
-        let maxRow = -Infinity;
-        let minCol = Infinity;
-        let maxCol = -Infinity;
-
-        const addCoord = (row: number, col: number): void => {
-            const key = toBoardCellKey(row, col);
-            if (meteorHoleKeys.has(key)) return;
-            playableKeys.add(key);
-            if (row < minRow) minRow = row;
-            if (row > maxRow) maxRow = row;
-            if (col < minCol) minCol = col;
-            if (col > maxCol) maxCol = col;
-        };
-
-        for (let row = 0; row < (board as unknown[][]).length; row++) {
-            const line = Array.isArray((board as unknown[][])[row]) ? (board as unknown[][])[row] : [];
-            for (let col = 0; col < line.length; col++) {
-                addCoord(row, col);
-            }
-        }
-        for (const cell of expansionCells) addCoord(cell.row, cell.col);
-
-        if (!Number.isFinite(minRow) || !Number.isFinite(maxRow) || !Number.isFinite(minCol) || !Number.isFinite(maxCol)) {
-            minRow = 0;
-            maxRow = -1;
-            minCol = 0;
-            maxCol = -1;
-        }
-
-        const expansionOwnerByKey: Record<string, number> = Object.create(null);
-        for (const cell of expansionCells) {
-            expansionOwnerByKey[toBoardCellKey(cell.row, cell.col)] = normalizeOwner(cell.owner);
-        }
-
-        const standard8x8 =
-            (board as unknown[][]).length === DEFAULT_BOARD_ROWS &&
-            (board as unknown[][]).every((row) => Array.isArray(row) && row.length === DEFAULT_BOARD_COLS) &&
-            expansionCells.length === 0 &&
-            meteorHoleKeys.size === 0;
-
-        return {
-            minRow,
-            maxRow,
-            minCol,
-            maxCol,
-            playableKeys,
-            meteorHoleKeys,
-            expansionCells,
-            expansionOwnerByKey,
-            standard8x8,
-            coordinateCache: null,
-            cornerKeyCache: null,
-            xKeyCache: null,
-            cKeyCache: null
-        };
-    }
-
-    function attachBoardShape(board: unknown, options?: unknown): unknown[][] {
-        if (!Array.isArray(board)) return board as unknown[][];
-        if (!options && getBoardShapeMeta(board)) return board as unknown[][];
-        return setBoardShapeMeta(board, buildShapeMeta(board, options || null));
-    }
-
-    function copyBoardShape(fromBoard: unknown, toBoard: unknown): unknown[][] {
-        if (!Array.isArray(toBoard)) return toBoard as unknown[][];
-        const meta = getBoardShapeMeta(fromBoard);
-        if (!meta) return toBoard as unknown[][];
-        return setBoardShapeMeta(toBoard, cloneMeta(meta));
-    }
-
-    function cloneBoard(board: unknown): unknown[][] {
-        if (!Array.isArray(board)) return [];
-        const cloned = (board as unknown[][]).map((row) => Array.isArray(row) ? row.slice() : []);
-        return copyBoardShape(board, cloned);
-    }
+    if (!BoardShapeMetadataModule) throw new Error('BoardShapeMetadata is required by SharedBoardUtils');
+    const BoardShapeMetadata = BoardShapeMetadataModule.createBoardShapeMetadata({
+        metaKey: BOARD_SHAPE_META_KEY,
+        defaultRows: DEFAULT_BOARD_ROWS,
+        defaultCols: DEFAULT_BOARD_COLS,
+        toBoardCellKey,
+        normalizeOwner,
+        resolveBoardConfig,
+        collectExpansionDescriptors
+    });
+    const getBoardShapeMeta = BoardShapeMetadata.getBoardShapeMeta;
+    const attachBoardShape = BoardShapeMetadata.attachBoardShape;
+    const copyBoardShape = BoardShapeMetadata.copyBoardShape;
+    const cloneBoard = BoardShapeMetadata.cloneBoard;
 
     function resolveBoardBounds(boardOrRows: unknown, maybeCols?: unknown): Bounds | null {
         if (Array.isArray(boardOrRows)) {
