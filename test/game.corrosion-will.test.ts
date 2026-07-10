@@ -86,7 +86,8 @@ describe('CORROSION_WILL（腐食の意志）', () => {
 
     expect(workA.data.remainingOwnerTurns).toBe(2);
     expect(guard.data.remainingOwnerTurns).toBe(3);
-    expect(workB.data.remainingOwnerTurns).toBe(1);
+    // The unselected one-turn marker expires in the existing turn-start lifecycle.
+    expect(workB).toBeUndefined();
     expect(hole.data.type).toBe('METEOR_HOLE');
     expect(hole.data.remainingOwnerTurns).toBeUndefined();
     expect(protectedWork.data.remainingOwnerTurns).toBe(7);
