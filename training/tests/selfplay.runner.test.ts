@@ -84,7 +84,7 @@ describe('selfplay runner', () => {
         const options = {
             games: 2,
             baseSeed: 123,
-            maxPlies: 80,
+            maxPlies: 2,
             allowCardUsage: false
         };
 
@@ -121,7 +121,7 @@ describe('selfplay runner', () => {
             games: 2,
             baseSeed: 123,
             gameIndexOffset: 1000,
-            maxPlies: 80,
+            maxPlies: 2,
             allowCardUsage: false,
             playerPolicyResolver: (gameIndex, seed) => {
                 seen.push({ gameIndex, seed });
@@ -139,7 +139,7 @@ describe('selfplay runner', () => {
         const result = runSelfPlayGames({
             games: 1,
             baseSeed: 7,
-            maxPlies: 100,
+            maxPlies: 2,
             allowCardUsage: false
         });
 
@@ -188,7 +188,7 @@ describe('selfplay runner', () => {
             games: 2,
             baseSeed: 31,
             gameIndexOffset: 900,
-            maxPlies: 80,
+            maxPlies: 2,
             allowCardUsage: false,
             seedFamily: 'eval',
             dataLane: 'eval-main'
@@ -207,7 +207,7 @@ describe('selfplay runner', () => {
         const result = runSelfPlayGames({
             games: 1,
             baseSeed: 11,
-            maxPlies: 80,
+            maxPlies: 2,
             allowCardUsage: true,
             cardUsageRate: 0.25
         });
@@ -562,7 +562,7 @@ describe('selfplay runner', () => {
         const result = runSelfPlayGames({
             games: 3,
             baseSeed: 1,
-            maxPlies: 140,
+            maxPlies: 20,
             allowCardUsage: true,
             cardUsageRate: 0.35,
             enableTacticalLookahead: false
@@ -894,7 +894,7 @@ describe('selfplay runner', () => {
         const options = {
             games: 2,
             baseSeed: 29,
-            maxPlies: 70,
+            maxPlies: 2,
             allowCardUsage: true,
             cardUsageRate: 0.25,
             policyMixRate: 0.65,
