@@ -303,7 +303,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/ui/deck-builder-controller", globalNames: ["DeckBuilderControllerModule"] },
   { moduleKey: "./dist/game/timers" },
   { moduleKey: "./dist/game/auto" },
-  { moduleKey: "./dist/game/visual-effects-map" },
+  { moduleKey: "./dist/game/visual-effects-map", globalNames: ["GameVisualEffectsMap"] },
   { moduleKey: "./dist/game/log-messages" },
   { moduleKey: "./dist/game/turn/turn_pipeline_phase_helpers" },
   { moduleKey: "./dist/game/turn/turn_pipeline_phases", globalNames: ["TurnPipelinePhases"] },

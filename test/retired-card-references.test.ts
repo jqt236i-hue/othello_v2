@@ -9,7 +9,7 @@ describe('retired card source references', () => {
     'game/ai/cpu-policy-card-use-decision.ts',
     'game/ai/cpu-policy-core.ts',
     'game/ai/cpu-policy-retention-score.ts',
-    'game/visual-effects-map.runtime.js'
+    'game/visual-effects-map.ts'
   ];
 
   test('legacy retired observer/theory implementation hooks do not remain in active card source', () => {

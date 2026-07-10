@@ -6,6 +6,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+let VisualEffectsMapGlobalPublication: any = null;
+try {
+  VisualEffectsMapGlobalPublication = _require('./visual-effects-map-global-publication');
+} catch (e) { /* optional global compatibility adapter */ }
+
 function shouldLogVisualEffectsBootstrap(): boolean {
   try {
     if (typeof window !== 'undefined' && window) {
@@ -45,6 +50,16 @@ function getSharedVisualEffectsMap(): any {
   return { STONE_VISUAL_EFFECTS: {} };
 }
 
+function installSharedVisualEffectsMapGlobals(): void {
+  const sharedMap = getSharedVisualEffectsMap();
+  if (!sharedMap || !sharedMap.STONE_VISUAL_EFFECTS) return;
+  if (VisualEffectsMapGlobalPublication
+    && typeof VisualEffectsMapGlobalPublication.publishGameVisualEffectsMap === 'function') {
+    VisualEffectsMapGlobalPublication.publishGameVisualEffectsMap(sharedMap);
+  }
+}
+
+installSharedVisualEffectsMapGlobals();
 const SHARED_MAP = getSharedVisualEffectsMap();
 function getUiStoneVisualEffects(): any {
   const map = getSharedVisualEffectsMap();

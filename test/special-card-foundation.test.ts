@@ -102,7 +102,7 @@ describe('special card foundation deck rules', () => {
 describe('special card foundation marker metadata and locks', () => {
   test('future special marker types are inviolable manifestation stones', () => {
     const SpecialStoneRegistry = require('../shared/special-stone-registry.ts');
-    const VisualEffectsMap = require('../game/visual-effects-map.runtime.js');
+    const VisualEffectsMap = require('../game/visual-effects-map');
 
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('THEORY_INCARNATION')).toBe('manifest_stone');
     expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('BOARD_EXECUTOR')).toBe('manifest_stone');

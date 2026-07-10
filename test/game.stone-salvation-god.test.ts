@@ -6,7 +6,7 @@ import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
 declare const require: any;
 const BoardBps: typeof import('../game/logic/board_ops.js') = require('../game/logic/board_ops.js');
 const Core: typeof import('../game/logic/core.js') = require('../game/logic/core.js');
-const VisualEffectsMap: any = require('../game/visual-effects-map.runtime.js');
+const VisualEffectsMap: any = require('../game/visual-effects-map');
 const CardCatalog: any = require('../cards/catalog.json');
 const CardInteractionEffects: any = require('../cards/card-interaction-effects.js');
 

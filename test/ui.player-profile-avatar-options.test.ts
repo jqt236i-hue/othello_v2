@@ -19,13 +19,11 @@ describe('player profile avatar options', () => {
 
   test('offers every implemented special-stone visual marker type as a profile avatar', () => {
     const avatarOptions = require('../ui/player-profile-avatar-options.js');
-    const visualMap = require('../game/visual-effects-map.runtime.js');
+    const visualMap = require('../game/visual-effects-map');
     const optionTypes = avatarOptions.getProfileAvatarOptions().map((option: any) => option.stoneType);
-    const duplicateAliases = new Set(['TRAP_REVEAL']);
-    const requiredTypes = Object.keys(visualMap.SPECIAL_TYPE_TO_EFFECT_KEY)
-      .filter((type) => !duplicateAliases.has(type));
+    const supportedTypes = Object.keys(visualMap.SPECIAL_TYPE_TO_EFFECT_KEY);
 
-    expect(optionTypes).toEqual(expect.arrayContaining(requiredTypes));
+    expect(supportedTypes).toEqual(expect.arrayContaining(optionTypes));
     expect(optionTypes).not.toContain('TRAP_REVEAL');
   });
 

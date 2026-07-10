@@ -332,7 +332,7 @@ describe('visual-effects map shared between game/ui', () => {
   });
 
   test('shared card art helpers resolve owner-specific and fallback card images', () => {
-    require('../game/visual-effects-map');
+    require('../game/visual-effects-map.js');
 
     const shared = window.GameVisualEffectsMap;
     expect(shared).toBeTruthy();
