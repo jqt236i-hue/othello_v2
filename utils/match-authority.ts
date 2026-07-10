@@ -60,6 +60,7 @@ import { createMatchAuthorityJournalApi } from './match-authority/journal';
 import { createMatchAuthorityPresentationJournalApi } from './match-authority/presentation-journal';
 import { createMatchAuthoritySnapshotStateApi } from './match-authority/snapshot-state';
 import { createMatchAuthorityHandProjectionApi } from './match-authority/hand-projection';
+import { createMatchAuthorityRoomLifecycleApi } from './match-authority/room-lifecycle';
 
 import deepClone from './deepClone';
 
@@ -181,6 +182,17 @@ const matchAuthorityHandProjection = createMatchAuthorityHandProjectionApi({
     hiddenHandTokenPrefix: HIDDEN_HAND_TOKEN_PREFIX,
     hiddenHandTokenRe: HIDDEN_HAND_TOKEN_RE,
     normalizePlayerKey
+});
+const matchAuthorityRoomLifecycle = createMatchAuthorityRoomLifecycleApi({
+    maxSpectators: MAX_SPECTATORS,
+    seatTokenChars: SEAT_TOKEN_CHARS,
+    randomFromChars,
+    makeSeatToken,
+    normalizeSpectatorId,
+    normalizeSpectatorName,
+    ensureSpectators,
+    getActiveSpectatorEntries,
+    parseSeatKeyOptional
 });
 
 function appendAuthorityLog(roomValue: unknown, entryValue: unknown, limitValue: unknown): unknown[] {
@@ -1510,139 +1522,24 @@ function buildVisibleHandCostAdjustments(
     );
 }
 
-function resolveAuthenticatedSeatKey(
-    room: MatchAuthorityRoomState | null | undefined,
-    seatKeyValue: unknown,
-    seatTokenValue: unknown
-): MatchAuthoritySeatKey | null {
-    if (!room || !room.seatTokens || !room.seats) return null;
-    const seatToken = String(seatTokenValue || '').trim();
-    if (!seatToken) return null;
-
-    const requestedSeat = parseSeatKeyOptional(seatKeyValue);
-    if (requestedSeat) {
-        return room.seats[requestedSeat] === true && room.seatTokens[requestedSeat] === seatToken
-            ? requestedSeat
-            : null;
-    }
-    if (room.seats.black === true && room.seatTokens.black === seatToken) return 'black';
-    if (room.seats.white === true && room.seatTokens.white === seatToken) return 'white';
-    return null;
+function resolveAuthenticatedSeatKey(room: MatchAuthorityRoomState | null | undefined, seatKeyValue: unknown, seatTokenValue: unknown): MatchAuthoritySeatKey | null {
+    return matchAuthorityRoomLifecycle.resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue);
 }
 
-function addSpectatorToRoom(
-    roomValue: MatchAuthorityRoomState | null | undefined,
-    options?: MatchAuthoritySpectatorJoinOptions | null
-): MatchAuthoritySpectatorJoinResult {
-    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
-    const opts = (options && typeof options === 'object') ? options : {};
-    if (!room) return { ok: false, reason: 'SPECTATOR_FULL' };
-
-    const spectators = ensureSpectators(room);
-    const activeCount = getActiveSpectatorEntries(room).length;
-    if (activeCount >= MAX_SPECTATORS) {
-        return { ok: false, reason: 'SPECTATOR_FULL' };
-    }
-
-    const makeId = typeof opts.makeSpectatorId === 'function'
-        ? opts.makeSpectatorId
-        : () => `spec_${randomFromChars(SEAT_TOKEN_CHARS, 12)}`;
-    const makeToken = typeof opts.makeSpectatorToken === 'function'
-        ? opts.makeSpectatorToken
-        : makeSeatToken;
-    const nowMs = Number.isFinite(Number(opts.now)) ? Math.trunc(Number(opts.now)) : Date.now();
-
-    let spectatorId = '';
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-        const candidate = normalizeSpectatorId(makeId());
-        if (candidate && !spectators[candidate]) {
-            spectatorId = candidate;
-            break;
-        }
-    }
-    if (!spectatorId) {
-        return { ok: false, reason: 'SPECTATOR_ID_COLLISION' };
-    }
-
-    const spectatorToken = String(makeToken() || '').trim();
-    const spectatorName = normalizeSpectatorName(opts.spectatorName) || '観測者';
-    spectators[spectatorId] = {
-        token: spectatorToken,
-        name: spectatorName,
-        joinedAt: nowMs,
-        lastSeenAt: nowMs
-    };
-    room.updatedAt = nowMs;
-
-    return {
-        ok: true,
-        spectatorId,
-        spectatorToken,
-        spectatorName,
-        spectatorCount: activeCount + 1,
-        maxSpectators: MAX_SPECTATORS
-    };
+function addSpectatorToRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: MatchAuthoritySpectatorJoinOptions | null): MatchAuthoritySpectatorJoinResult {
+    return matchAuthorityRoomLifecycle.addSpectatorToRoom(roomValue, options);
 }
 
-function removeSpectatorFromRoom(
-    roomValue: MatchAuthorityRoomState | null | undefined,
-    options?: Record<string, unknown> | null
-): MatchAuthoritySpectatorLeaveResult {
-    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
-    const opts = (options && typeof options === 'object') ? options : {};
-    if (!room) {
-        return { ok: true, spectatorId: '', spectatorName: '', spectatorCount: 0, maxSpectators: MAX_SPECTATORS };
-    }
-
-    const spectatorId = normalizeSpectatorId(opts.spectatorId);
-    const spectatorToken = String(opts.spectatorToken || '').trim();
-    const spectators = ensureSpectators(room);
-    const entry = spectatorId ? spectators[spectatorId] : null;
-    if (!entry || !spectatorToken || entry.token !== spectatorToken) {
-        return {
-            ok: false,
-            reason: spectatorToken ? 'SPECTATOR_TOKEN_MISMATCH' : 'SPECTATOR_TOKEN_REQUIRED'
-        };
-    }
-
-    const spectatorName = normalizeSpectatorName(entry.name) || '観測者';
-    delete spectators[spectatorId];
-    room.updatedAt = Number.isFinite(Number(opts.now)) ? Math.trunc(Number(opts.now)) : Date.now();
-    return {
-        ok: true,
-        spectatorId,
-        spectatorName,
-        spectatorCount: getActiveSpectatorEntries(room).length,
-        maxSpectators: MAX_SPECTATORS
-    };
+function removeSpectatorFromRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: Record<string, unknown> | null): MatchAuthoritySpectatorLeaveResult {
+    return matchAuthorityRoomLifecycle.removeSpectatorFromRoom(roomValue, options);
 }
 
-function resolveAuthenticatedViewer(
-    roomValue: MatchAuthorityRoomState | null | undefined,
-    options?: Record<string, unknown> | null
-): MatchAuthorityViewer | null {
-    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
-    const opts = (options && typeof options === 'object') ? options : {};
-    if (!room) return null;
-
-    if (String(opts.viewerRole || '').trim().toLowerCase() === 'spectator') {
-        const spectatorId = normalizeSpectatorId(opts.spectatorId);
-        const spectatorToken = String(opts.spectatorToken || '').trim();
-        const spectators = ensureSpectators(room);
-        const entry = spectatorId ? spectators[spectatorId] : null;
-        if (!entry || !spectatorToken || entry.token !== spectatorToken) return null;
-        entry.lastSeenAt = Number.isFinite(Number(opts.now)) ? Math.trunc(Number(opts.now)) : Date.now();
-        return { role: 'spectator', spectatorId };
-    }
-
-    const seatKey = resolveAuthenticatedSeatKey(room, opts.seatKey, opts.seatToken);
-    return seatKey ? { role: 'seat', seatKey } : null;
+function resolveAuthenticatedViewer(roomValue: MatchAuthorityRoomState | null | undefined, options?: Record<string, unknown> | null): MatchAuthorityViewer | null {
+    return matchAuthorityRoomLifecycle.resolveAuthenticatedViewer(roomValue, options);
 }
 
 function classifySeatTokenRejectionReason(seatTokenValue: unknown): MatchAuthoritySeatTokenRejectionReason {
-    return String(seatTokenValue || '').trim()
-        ? 'SEAT_TOKEN_MISMATCH'
-        : 'SEAT_TOKEN_REQUIRED';
+    return matchAuthorityRoomLifecycle.classifySeatTokenRejectionReason(seatTokenValue);
 }
 
 function stripTransientPresentationState(nextSnapshot: unknown): unknown {
