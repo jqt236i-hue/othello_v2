@@ -63,6 +63,7 @@ import { createMatchAuthorityHandProjectionApi } from './match-authority/hand-pr
 import { createMatchAuthorityRoomLifecycleApi } from './match-authority/room-lifecycle';
 import { createTrapVisibilityApi } from './match-authority/trap-visibility';
 import { createMatchAuthorityProjectionApi } from './match-authority/projection';
+import { createMatchAuthorityPublishApi } from './match-authority/publish';
 
 import deepClone from './deepClone';
 
@@ -197,6 +198,17 @@ const matchAuthorityRoomLifecycle = createMatchAuthorityRoomLifecycleApi({
     parseSeatKeyOptional
 });
 const trapVisibility = createTrapVisibilityApi(parseSeatKeyOptional);
+const matchAuthorityPublish = createMatchAuthorityPublishApi({
+    versionRejectionReasons: VERSION_REJECTION_REASONS,
+    normalizeOperationId,
+    normalizePlayerKey,
+    computePlaybackDigest: PlaybackDigest && typeof PlaybackDigest.computePlaybackDigest === 'function'
+        ? (playbackEvents: unknown[]) => PlaybackDigest.computePlaybackDigest!(playbackEvents)
+        : null,
+    computeStableHash: StateHash && typeof StateHash.computeStableHash === 'function'
+        ? (value: unknown) => StateHash.computeStableHash!(value)
+        : null
+});
 const matchAuthorityProjection = createMatchAuthorityProjectionApi({
     playerKeys: PLAYER_KEYS as readonly PlayerKey[],
     deepClone,
@@ -552,191 +564,57 @@ function rememberAcceptedOperationBySeat(
 }
 
 function normalizeStateVersion(value: unknown): number | null {
-    return Number.isFinite(Number(value))
-        ? Number(value)
-        : null;
+    return matchAuthorityPublish.normalizeStateVersion(value);
 }
 
 function classifyVersionRejectionReason(receivedBaseVersionValue: unknown, authoritativeStateVersionValue: unknown): string {
-    const receivedMissing = receivedBaseVersionValue === null
-        || receivedBaseVersionValue === undefined
-        || (typeof receivedBaseVersionValue === 'string' && receivedBaseVersionValue.trim() === '');
-    const authoritativeMissing = authoritativeStateVersionValue === null
-        || authoritativeStateVersionValue === undefined
-        || (typeof authoritativeStateVersionValue === 'string' && authoritativeStateVersionValue.trim() === '');
-    if (receivedMissing || authoritativeMissing) {
-        return VERSION_REJECTION_REASONS.GAP;
-    }
-    const receivedBaseVersion = normalizeStateVersion(receivedBaseVersionValue);
-    const authoritativeStateVersion = normalizeStateVersion(authoritativeStateVersionValue);
-    if (receivedBaseVersion === null || authoritativeStateVersion === null) {
-        return VERSION_REJECTION_REASONS.GAP;
-    }
-    if (receivedBaseVersion < authoritativeStateVersion) {
-        return VERSION_REJECTION_REASONS.AHEAD;
-    }
-    if (receivedBaseVersion > authoritativeStateVersion) {
-        return VERSION_REJECTION_REASONS.BEHIND;
-    }
-    return VERSION_REJECTION_REASONS.MISMATCH;
+    return matchAuthorityPublish.classifyVersionRejectionReason(receivedBaseVersionValue, authoritativeStateVersionValue);
 }
 
 function isVersionRejectionReason(reasonValue: unknown): boolean {
-    const normalized = String(reasonValue || '').trim();
-    return normalized === VERSION_REJECTION_REASONS.MISMATCH
-        || normalized === VERSION_REJECTION_REASONS.AHEAD
-        || normalized === VERSION_REJECTION_REASONS.BEHIND
-        || normalized === VERSION_REJECTION_REASONS.GAP;
+    return matchAuthorityPublish.isVersionRejectionReason(reasonValue);
 }
 
 function normalizePublishActionType(value: unknown): string | null {
-    const normalized = String(value || '').trim().toLowerCase();
-    return normalized || null;
+    return matchAuthorityPublish.normalizePublishActionType(value);
 }
 
 function normalizePublishMeta(value: unknown): MatchAuthorityPublishMeta {
-    const source = asRecord(value);
-    const normalizedKind = String(source.kind || '').trim().toLowerCase();
-    const normalized = {
-        kind: normalizedKind || null,
-        operationId: normalizeOperationId(source.operationId),
-        actionType: normalizePublishActionType(source.actionType),
-        receivedBaseVersion: normalizeStateVersion(source.receivedBaseVersion),
-        authoritativeStateVersion: normalizeStateVersion(source.authoritativeStateVersion),
-        replayedStateVersion: normalizeStateVersion(source.replayedStateVersion),
-        rejectedReason: source.rejectedReason ? String(source.rejectedReason).trim() : null
-    };
-
-    if (!normalized.operationId) normalized.operationId = '';
-    return normalized;
+    return matchAuthorityPublish.normalizePublishMeta(value);
 }
 
 function normalizeAutoPassNotice(value: unknown): MatchAuthorityAutoPassNotice | null {
-    if (!value || typeof value !== 'object') return null;
-    const source = asRecord(value);
-    return {
-        playerKey: normalizePlayerKey(source.playerKey || source.player || source.owner),
-        reason: String(source.reason || '').trim() || 'no_legal_moves_or_usable_cards'
-    };
+    return matchAuthorityPublish.normalizeAutoPassNotice(value);
 }
 
 function normalizePlaybackDigestValue(value: unknown): string {
-    return value ? String(value).trim() : '';
-}
-
-function computeAuthoritativePlaybackDigest(playbackEventsValue: unknown): string {
-    const playbackEvents = Array.isArray(playbackEventsValue) ? playbackEventsValue : [];
-    if (PlaybackDigest && typeof PlaybackDigest.computePlaybackDigest === 'function') {
-        const digest = PlaybackDigest.computePlaybackDigest(playbackEvents);
-        return typeof digest === 'string' ? digest : '';
-    }
-    if (StateHash && typeof StateHash.computeStableHash === 'function') {
-        return StateHash.computeStableHash(playbackEvents);
-    }
-    return '';
+    return matchAuthorityPublish.normalizePlaybackDigestValue(value);
 }
 
 function resolvePlaybackDigest(playbackEventsValue: unknown, explicitDigestValue?: unknown): string {
-    const explicitDigest = normalizePlaybackDigestValue(explicitDigestValue);
-    if (explicitDigest) return explicitDigest;
-    return computeAuthoritativePlaybackDigest(playbackEventsValue);
+    return matchAuthorityPublish.resolvePlaybackDigest(playbackEventsValue, explicitDigestValue);
 }
 
 function buildPublishResponseOptions(options: MatchAuthorityPublishResponseOptionInput | null | undefined): MatchAuthorityPublishResponseOptions {
-    const opts = asRecord(options);
-    const response: MatchAuthorityPublishResponseOptions = {
-        ok: opts.ok === true,
-        publishMeta: normalizePublishMeta({
-            kind: opts.publishKind,
-            operationId: opts.operationId,
-            actionType: opts.actionType,
-            receivedBaseVersion: opts.receivedBaseVersion,
-            authoritativeStateVersion: opts.authoritativeStateVersion,
-            replayedStateVersion: opts.replayedStateVersion,
-            rejectedReason: opts.rejectedReason
-        })
-    };
-
-    if (response.ok !== true) {
-        response.rejectedReason = opts.rejectedReason ? String(opts.rejectedReason).trim() : null;
-    }
-    if (opts.idempotentReplay === true) {
-        response.idempotentReplay = true;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'serverTime')) {
-        response.serverTime = opts.serverTime;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'errorMessage')) {
-        response.errorMessage = opts.errorMessage || null;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'playbackEvents')) {
-        response.playbackEvents = opts.playbackEvents;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'playbackDigest')) {
-        response.playbackDigest = opts.playbackDigest;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'effectLogs')) {
-        response.effectLogs = opts.effectLogs;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'playbackDiagnostics')) {
-        response.playbackDiagnostics = opts.playbackDiagnostics || null;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'autoPassNotice')) {
-        const autoPassNotice = normalizeAutoPassNotice(opts.autoPassNotice);
-        if (autoPassNotice) response.autoPassNotice = autoPassNotice;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'presentationCursor')) {
-        response.presentationCursor = opts.presentationCursor || null;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'presentationFrames')) {
-        response.presentationFrames = Array.isArray(opts.presentationFrames) ? opts.presentationFrames : [];
-    }
-    return response;
+    return matchAuthorityPublish.buildPublishResponseOptions(options);
 }
 
 function normalizePublishResponseMode(value: unknown): MatchAuthorityPublishResponseMode {
-    const text = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-    if (text === 'ack_only' || text === 'ackonly') return 'ack_only';
-    return 'snapshot_compat';
+    return matchAuthorityPublish.normalizePublishResponseMode(value);
 }
 
 function shouldUseAckOnlyPublishResponse(
     roomValue: MatchAuthorityRoomState | null | undefined,
     options?: MatchAuthorityPublishResponseOptions | null
 ): boolean {
-    const opts = asRecord(options);
-    if (opts.ok !== true) return false;
-    const room = asRecord(roomValue);
-    const modeValue = Object.prototype.hasOwnProperty.call(opts, 'publishResponseMode')
-        ? opts.publishResponseMode
-        : room.publishResponseMode;
-    return normalizePublishResponseMode(modeValue) === 'ack_only';
+    return matchAuthorityPublish.shouldUseAckOnlyPublishResponse(roomValue, options);
 }
 
 function buildVersionRejectedPublishResponseOptions(
     room: MatchAuthorityRoomState | null | undefined,
     options: MatchAuthorityPublishResponseOptionInput | null | undefined
 ): MatchAuthorityPublishResponseOptions {
-    const opts = asRecord(options);
-    const authoritativeStateVersion = normalizeStateVersion(
-        Object.prototype.hasOwnProperty.call(opts, 'authoritativeStateVersion')
-            ? opts.authoritativeStateVersion
-            : (room && room.stateVersion)
-    );
-    const receivedBaseVersion = normalizeStateVersion(opts.receivedBaseVersion);
-    const rejectedReason = classifyVersionRejectionReason(
-        Object.prototype.hasOwnProperty.call(opts, 'receivedBaseVersion') ? opts.receivedBaseVersion : null,
-        authoritativeStateVersion
-    );
-    return buildPublishResponseOptions({
-        ok: false,
-        rejectedReason,
-        publishKind: 'rejected',
-        operationId: opts.operationId,
-        actionType: opts.actionType,
-        receivedBaseVersion,
-        authoritativeStateVersion
-    });
+    return matchAuthorityPublish.buildVersionRejectedPublishResponseOptions(room, options);
 }
 
 function normalizeEffectLogMessages(values: unknown): string[] {
