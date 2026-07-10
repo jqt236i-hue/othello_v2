@@ -79,4 +79,19 @@ describe('JS inventory runtime-authority guard', () => {
 
     expect(copiedSourceFiles).toEqual([]);
   });
+
+  test('rejects reintroducing retired one-off discovery scripts', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const retiredScripts = [
+      'find-initdom',
+      'find-missing',
+      'find-pc',
+      'find-reset'
+    ];
+
+    for (const name of retiredScripts) {
+      expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.ts`))).toBe(false);
+      expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.js`))).toBe(false);
+    }
+  });
 });
