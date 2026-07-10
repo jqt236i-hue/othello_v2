@@ -20,6 +20,7 @@ const { createMatchLeaveController } = require('../utils/match-leave-controller'
 const { createMatchPublishController } = require('../utils/match-publish-controller');
 const { createMatchRoomPreferencesController } = require('../utils/match-room-preferences-controller');
 const { createMatchRematchController } = require('../utils/match-rematch-controller');
+const { createMatchStateController } = require('../utils/match-state-controller');
 const { createMatchSpectateController } = require('../utils/match-spectate-controller');
 const MatchRoomLobby = require('../shared/match-room-lobby');
 const NetworkActionSchema = require('../shared/network-action-schema');
@@ -2547,97 +2548,48 @@ async function handleChat(req: any, res: any) {
     }));
 }
 
-function handleState(req: any, res: any, urlObj: any) {
-    const roomId = String((urlObj.searchParams.get('roomId') || '')).trim().toUpperCase();
-    if (!roomId || !rooms.has(roomId)) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    const room = rooms.get(roomId);
-    if (expireRoomIfNeeded(roomId, room, Date.now())) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    applyExpiredTurnTimeoutIfNeeded(room);
-
-    const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
-    const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
-    const viewer = resolveAuthenticatedViewer(room, {
-        viewerRole: urlObj.searchParams.get('viewerRole') || '',
-        seatKey,
-        seatToken,
-        spectatorId: urlObj.searchParams.get('spectatorId') || '',
-        spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
-        now: Date.now()
+function createLocalMatchStateController() {
+    let activeRoom: any = null;
+    let activeRoomId = '';
+    return createMatchStateController({
+        loadRoom: (urlObj: any) => {
+            activeRoomId = String((urlObj && urlObj.searchParams.get('roomId')) || '').trim().toUpperCase();
+            activeRoom = rooms.get(activeRoomId) || null;
+            if (activeRoom && expireRoomIfNeeded(activeRoomId, activeRoom, Date.now())) activeRoom = null;
+        },
+        getRoom: () => activeRoom,
+        expireRoomIfNeeded: () => false,
+        applyExpiredTurnTimeoutIfNeeded: (room: any) => applyExpiredTurnTimeoutIfNeeded(room),
+        applyTimeoutForState: true,
+        applyTimeoutForJournal: true,
+        getSearchParam: (urlObj: any, key: any) => urlObj.searchParams.get(key),
+        getSearchParams: (urlObj: any) => urlObj.searchParams,
+        parseSeatKeyOptional,
+        resolveAuthenticatedViewer,
+        classifyViewerTokenRejectionReason,
+        asRecord: (value: any) => value && typeof value === 'object' ? value : {},
+        MatchAuthority,
+        toPublicRoomDeck,
+        toPublicRoomBoardConfig,
+        toPublicNetworkDebugEnabled,
+        toPublicNetworkAutoEnabled,
+        toPublicSnapshotForViewer,
+        toPublicTurnTimer,
+        buildPresentationCursor,
+        normalizePlayerKey,
+        decorateStatePayload: (payload: any) => payload,
+        jsonResponse: (status: number, payload: any) => ({ status, payload })
     });
-    if (!viewer) {
-        writeJson(res, 403, { ok: false, reason: classifyViewerTokenRejectionReason(urlObj.searchParams) });
-        return;
-    }
-
-    const serverTime = Date.now();
-    const recoveredPayload = MatchAuthority.getBufferedSnapshotPayloadForStateVersion(
-        room.sseEventBuffer,
-        room.stateVersion,
-        viewer
-    );
-    const recoveredMeta = (recoveredPayload && typeof recoveredPayload === 'object') ? recoveredPayload : {};
-    writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-        ok: true,
-        stateVersion: room.stateVersion,
-        viewerRole: viewer.role,
-        roomDeck: toPublicRoomDeck(room),
-        roomBoardConfig: toPublicRoomBoardConfig(room),
-        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-        snapshot: toPublicSnapshotForViewer(room, viewer),
-        turnTimer: toPublicTurnTimer(room, serverTime),
-        playbackEvents: Array.isArray((recoveredMeta as any).playbackEvents) ? (recoveredMeta as any).playbackEvents : [],
-        effectLogs: MatchAuthority.normalizeEffectLogMessages((recoveredMeta as any).effectLogs),
-        playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics((recoveredMeta as any).playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
-        presentationCursor: buildPresentationCursor(room),
-        presentationFrames: Array.isArray((recoveredMeta as any).presentationFrames) ? (recoveredMeta as any).presentationFrames : [],
-        operationId: (recoveredMeta as any).operationId ? String((recoveredMeta as any).operationId) : null,
-        playerKey: (recoveredMeta as any).playerKey ? normalizePlayerKey((recoveredMeta as any).playerKey) : null,
-        actionType: (recoveredMeta as any).actionType ? String((recoveredMeta as any).actionType) : null,
-        serverTime
-    }));
 }
 
-function handlePresentationJournal(req: any, res: any, urlObj: any) {
-    const roomId = String((urlObj.searchParams.get('roomId') || '')).trim().toUpperCase();
-    if (!roomId || !rooms.has(roomId)) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    const room = rooms.get(roomId);
-    if (expireRoomIfNeeded(roomId, room, Date.now())) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    applyExpiredTurnTimeoutIfNeeded(room);
+async function handleState(req: any, res: any, urlObj: any) {
+    const result = await createLocalMatchStateController().handleState(urlObj);
+    writeJson(res, result.status, result.payload);
+}
 
-    const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
-    const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
-    const viewer = resolveAuthenticatedViewer(room, {
-        viewerRole: urlObj.searchParams.get('viewerRole') || '',
-        seatKey,
-        seatToken,
-        spectatorId: urlObj.searchParams.get('spectatorId') || '',
-        spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
-        now: Date.now()
-    });
-    if (!viewer) {
-        writeJson(res, 403, { ok: false, reason: classifyViewerTokenRejectionReason(urlObj.searchParams) });
-        return;
-    }
-
-    const payload = MatchAuthority.buildPresentationJournalResponse(room, {
-        afterVisualSeq: urlObj.searchParams.get('afterVisualSeq') || 0,
-        viewer,
-        serverTime: Date.now()
-    });
-    writeJson(res, payload.ok === false ? 409 : 200, payload);
+async function handlePresentationJournal(req: any, res: any, urlObj: any) {
+    const result = await createLocalMatchStateController().handlePresentationJournal(urlObj);
+    writeJson(res, result.status, result.payload);
 }
 
 function handleStream(req: any, res: any, urlObj: any) {
@@ -2844,12 +2796,12 @@ function createLocalMatchServer() {
             }
 
             if (req.method === 'GET' && pathname === '/api/match/state') {
-                handleState(req, res, urlObj);
+                await handleState(req, res, urlObj);
                 return;
             }
 
             if (req.method === 'GET' && pathname === '/api/match/presentation-journal') {
-                handlePresentationJournal(req, res, urlObj);
+                await handlePresentationJournal(req, res, urlObj);
                 return;
             }
 

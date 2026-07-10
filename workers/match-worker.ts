@@ -75,6 +75,7 @@ import { createMatchJoinController } from '../utils/match-join-controller';
 import { createMatchLeaveController } from '../utils/match-leave-controller';
 import { createMatchRoomPreferencesController } from '../utils/match-room-preferences-controller';
 import { createMatchRematchController } from '../utils/match-rematch-controller';
+import { createMatchStateController } from '../utils/match-state-controller';
 import {
     prepareMatchCommandAction,
     shouldSkipMatchCommandTurnStart
@@ -2572,6 +2573,37 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         });
     }
 
+    getStateController() {
+        return createMatchStateController({
+            loadRoom: () => this.loadRoom(),
+            awaitLoadRoom: true,
+            getRoom: () => this.room,
+            expireRoomIfNeeded: () => this.expireRoomIfNeeded(Date.now()),
+            awaitExpireRoomIfNeeded: true,
+            applyExpiredTurnTimeoutIfNeeded: () => this.applyExpiredTurnTimeoutIfNeeded(),
+            awaitApplyExpiredTurnTimeoutIfNeeded: true,
+            applyTimeoutForState: true,
+            applyTimeoutForJournal: false,
+            getSearchParam: (urlObj: URL, key: string) => urlObj.searchParams.get(key),
+            getSearchParams: (urlObj: URL) => urlObj.searchParams,
+            parseSeatKeyOptional,
+            resolveAuthenticatedViewer,
+            classifyViewerTokenRejectionReason,
+            asRecord,
+            MatchAuthority,
+            toPublicRoomDeck,
+            toPublicRoomBoardConfig,
+            toPublicNetworkDebugEnabled,
+            toPublicNetworkAutoEnabled,
+            toPublicSnapshotForViewer,
+            toPublicTurnTimer,
+            buildPresentationCursor,
+            normalizePlayerKey,
+            decorateStatePayload: withPublicRatedMatchMetadata,
+            jsonResponse
+        });
+    }
+
     async loadRoom(): Promise<void> {
         if (this.roomLoaded) return;
         this.room = await this.state.storage.get(ROOM_STORAGE_KEY) as MatchWorkerRoomState | null || null;
@@ -3673,92 +3705,12 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async handleState(urlObj: URL): Promise<Response> {
-        await this.loadRoom();
-        const room = this.room;
-        if (!room) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-        if (await this.expireRoomIfNeeded(Date.now())) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-
-        await this.applyExpiredTurnTimeoutIfNeeded();
-
-        const seatKey = parseSeatKeyOptional(urlObj && urlObj.searchParams ? urlObj.searchParams.get('seatKey') : null);
-        const seatToken = String(urlObj && urlObj.searchParams ? (urlObj.searchParams.get('seatToken') || '') : '').trim();
-        const viewer = resolveAuthenticatedViewer(room, {
-            viewerRole: urlObj.searchParams.get('viewerRole') || '',
-            seatKey,
-            seatToken,
-            spectatorId: urlObj.searchParams.get('spectatorId') || '',
-            spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
-            now: Date.now()
-        });
-        if (!viewer) {
-            return jsonResponse(403, { ok: false, reason: classifyViewerTokenRejectionReason(urlObj.searchParams) });
-        }
-
-        const serverTime = Date.now();
-        const recoveredPayload = MatchAuthority.getBufferedSnapshotPayloadForStateVersion(
-            room.sseEventBuffer,
-            room.stateVersion,
-            viewer
-        );
-        const recoveredMeta = asRecord(recoveredPayload);
-
-        return jsonResponse(200, withPublicRatedMatchMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
-            ok: true,
-            stateVersion: room.stateVersion,
-            viewerRole: viewer.role,
-            roomDeck: toPublicRoomDeck(room),
-            roomBoardConfig: toPublicRoomBoardConfig(room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-            snapshot: toPublicSnapshotForViewer(room, viewer),
-            turnTimer: toPublicTurnTimer(room, serverTime),
-            playbackEvents: Array.isArray(recoveredMeta.playbackEvents) ? recoveredMeta.playbackEvents : [],
-            effectLogs: MatchAuthority.normalizeEffectLogMessages(recoveredMeta.effectLogs),
-            playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(recoveredMeta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
-            presentationCursor: buildPresentationCursor(room),
-            presentationFrames: Array.isArray(recoveredMeta.presentationFrames) ? recoveredMeta.presentationFrames : [],
-            operationId: recoveredMeta.operationId ? String(recoveredMeta.operationId) : null,
-            playerKey: recoveredMeta.playerKey ? normalizePlayerKey(recoveredMeta.playerKey) : null,
-            actionType: recoveredMeta.actionType ? String(recoveredMeta.actionType) : null,
-            serverTime
-        }), room));
+        return this.getStateController().handleState(urlObj);
     }
 
     async handlePresentationJournal(request: Request): Promise<Response> {
-        await this.loadRoom();
         const urlObj = new URL(request.url);
-        const room = this.room;
-        if (!room) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-        if (await this.expireRoomIfNeeded(Date.now())) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-
-        const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey'));
-        const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
-        const viewer = resolveAuthenticatedViewer(room, {
-            viewerRole: urlObj.searchParams.get('viewerRole') || '',
-            seatKey,
-            seatToken,
-            spectatorId: urlObj.searchParams.get('spectatorId') || '',
-            spectatorToken: urlObj.searchParams.get('spectatorToken') || '',
-            now: Date.now()
-        });
-        if (!viewer) {
-            return jsonResponse(403, { ok: false, reason: classifyViewerTokenRejectionReason(urlObj.searchParams) });
-        }
-
-        const payload = MatchAuthority.buildPresentationJournalResponse(room, {
-            afterVisualSeq: urlObj.searchParams.get('afterVisualSeq') || 0,
-            viewer,
-            serverTime: Date.now()
-        });
-        return jsonResponse(payload.ok === false ? 409 : 200, payload);
+        return this.getStateController().handlePresentationJournal(urlObj);
     }
 
     async handleStream(request: Request): Promise<Response> {
