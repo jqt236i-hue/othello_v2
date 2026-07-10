@@ -62,6 +62,7 @@ import { createMatchAuthoritySnapshotStateApi } from './match-authority/snapshot
 import { createMatchAuthorityHandProjectionApi } from './match-authority/hand-projection';
 import { createMatchAuthorityRoomLifecycleApi } from './match-authority/room-lifecycle';
 import { createTrapVisibilityApi } from './match-authority/trap-visibility';
+import { createMatchAuthorityProjectionApi } from './match-authority/projection';
 
 import deepClone from './deepClone';
 
@@ -196,6 +197,24 @@ const matchAuthorityRoomLifecycle = createMatchAuthorityRoomLifecycleApi({
     parseSeatKeyOptional
 });
 const trapVisibility = createTrapVisibilityApi(parseSeatKeyOptional);
+const matchAuthorityProjection = createMatchAuthorityProjectionApi({
+    playerKeys: PLAYER_KEYS as readonly PlayerKey[],
+    deepClone,
+    parseSeatKeyOptional,
+    getCurrentPlayerKey,
+    getOpponentKey,
+    isManifestStoneMarker: ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneMarker === 'function'
+        ? (marker: unknown) => ManifestStoneRegistry.isManifestStoneMarker!(marker)
+        : null,
+    sanitizeOwnerOnlyTrapState,
+    makeHiddenHandToken,
+    isHiddenHandTokenLike,
+    parseHiddenHandToken,
+    normalizeProjectedHandIndex,
+    normalizeCardCopyIdList,
+    normalizeHandCopyIdArray,
+    buildVisibleHandCostAdjustments
+});
 
 function appendAuthorityLog(roomValue: unknown, entryValue: unknown, limitValue: unknown): unknown[] {
     return matchAuthorityJournal.appendAuthorityLog(roomValue, entryValue, limitValue);
@@ -1565,78 +1584,15 @@ function sanitizeOwnerOnlyTrapState(cardState: unknown, viewerSeatKey: unknown):
  * Reads from snapshot.cardState.fateWillControllerByTurnOwner.
  */
 function getFateWillControllerKey(snapshot: unknown, turnOwnerKey: PlayerKey | null | undefined): PlayerKey | null {
-    const snapshotRecord = asRecord(snapshot);
-    const cardState = (snapshotRecord.cardState && typeof snapshotRecord.cardState === 'object')
-        ? asRecord(snapshotRecord.cardState)
-        : null;
-    if (!cardState) return null;
-    const controllerMap = (cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
-        ? asRecord(cardState.fateWillControllerByTurnOwner)
-        : {};
-    const owner = parseSeatKeyOptional(turnOwnerKey);
-    if (!owner) return null;
-    return parseSeatKeyOptional(controllerMap[owner]) || null;
+    return matchAuthorityProjection.getFateWillControllerKey(snapshot, turnOwnerKey);
 }
 
-/**
- * Returns true if seatKey is the authenticated FATE_WILL controller for the current turn owner.
- * Only valid when it is currently the turn owner's turn (gameState.currentPlayer === turnOwnerKey).
- */
 function isFateWillControllerForCurrentTurn(snapshot: unknown, seatKey: PlayerKey | null | undefined): boolean {
-    const seat = parseSeatKeyOptional(seatKey);
-    if (!seat) return false;
-    const snapshotRecord = asRecord(snapshot);
-    const gameState = (snapshotRecord.gameState && typeof snapshotRecord.gameState === 'object')
-        ? snapshotRecord.gameState as Partial<GameState>
-        : null;
-    const currentPlayerKey = getCurrentPlayerKey(gameState);
-    if (seat === currentPlayerKey) return false;
-    const controllerKey = getFateWillControllerKey(snapshot, currentPlayerKey);
-    return controllerKey === seat;
+    return matchAuthorityProjection.isFateWillControllerForCurrentTurn(snapshot, seatKey);
 }
 
 function canViewerInspectOwnerHand(snapshot: unknown, viewerSeatKey: unknown, ownerSeatKey: unknown): boolean {
-    const viewer = parseSeatKeyOptional(viewerSeatKey);
-    const owner = parseSeatKeyOptional(ownerSeatKey);
-    if (!viewer || !owner) return false;
-    if (viewer === owner) return true;
-    const snapshotRecord = asRecord(snapshot);
-    const gameState = (snapshotRecord.gameState && typeof snapshotRecord.gameState === 'object')
-        ? snapshotRecord.gameState as Partial<GameState>
-        : null;
-    const currentPlayerKey = getCurrentPlayerKey(gameState);
-    if (owner !== currentPlayerKey) return false;
-    return getFateWillControllerKey(snapshot, owner) === viewer;
-}
-
-function isObserverWillRevealMarker(markerValue: unknown): boolean {
-    const marker = asRecord(markerValue);
-    const data = marker.data && typeof marker.data === 'object' ? asRecord(marker.data) : {};
-    if (String(data.type || '').toUpperCase() !== 'OBSERVER_WILL') return false;
-    if (ManifestStoneRegistry && typeof ManifestStoneRegistry.isManifestStoneMarker === 'function') {
-        if (!ManifestStoneRegistry.isManifestStoneMarker(markerValue)) return false;
-    } else {
-        const kind = String(marker.kind || '');
-        if (kind !== 'manifestStone' && kind !== 'specialStone') return false;
-    }
-    const remaining = Number(data.remainingOwnerTurns);
-    return !Number.isFinite(remaining) || remaining > 0;
-}
-
-function hasActiveObserverWillReveal(snapshot: unknown, viewerSeatKey: unknown, ownerSeatKey: unknown): boolean {
-    const viewer = parseSeatKeyOptional(viewerSeatKey);
-    const owner = parseSeatKeyOptional(ownerSeatKey);
-    if (!viewer || !owner || viewer === owner) return false;
-    const snapshotRecord = asRecord(snapshot);
-    const cardState = (snapshotRecord.cardState && typeof snapshotRecord.cardState === 'object')
-        ? asRecord(snapshotRecord.cardState)
-        : null;
-    const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
-    return markers.some((markerValue: unknown) => {
-        const marker = asRecord(markerValue);
-        if (parseSeatKeyOptional(marker.owner) !== viewer) return false;
-        return isObserverWillRevealMarker(markerValue);
-    });
+    return matchAuthorityProjection.canViewerInspectOwnerHand(snapshot, viewerSeatKey, ownerSeatKey);
 }
 
 function projectSnapshotForViewer(
@@ -1644,165 +1600,7 @@ function projectSnapshotForViewer(
     viewerSeatKey: PlayerKey | null | undefined,
     metadata?: MatchAuthorityProjectionMetadata
 ): MatchAuthorityPublicSnapshot {
-    const shot = deepClone(snapshotValue || {}) as MatchAuthorityPublicSnapshot;
-    const meta = (metadata && typeof metadata === 'object') ? metadata : {};
-    if (Number.isFinite(Number(meta.stateVersion))) {
-        shot.stateVersion = Number(meta.stateVersion);
-    }
-    if (Number.isFinite(Number(meta.updatedAt))) {
-        shot.updatedAt = Number(meta.updatedAt);
-    }
-
-    const cardState = (shot.cardState && typeof shot.cardState === 'object') ? asRecord(shot.cardState) : null;
-    if (!cardState) return shot;
-
-    const viewer = parseSeatKeyOptional(viewerSeatKey);
-    const spectatorView = String(meta.viewerRole || '').trim() === 'spectator';
-    sanitizeOwnerOnlyTrapState(cardState, viewer);
-    const hands = (cardState.hands && typeof cardState.hands === 'object') ? asRecord(cardState.hands) : {};
-    const sourceHands: Record<PlayerKey, unknown[]> = { black: [], white: [] };
-    const handCopyIdsByPlayer = (cardState._handCopyIdsByPlayer && typeof cardState._handCopyIdsByPlayer === 'object')
-        ? asRecord(cardState._handCopyIdsByPlayer)
-        : {};
-    const revealedHandCopyIdsByViewer = (cardState._revealedHandCopyIdsByViewer && typeof cardState._revealedHandCopyIdsByViewer === 'object')
-        ? asRecord(cardState._revealedHandCopyIdsByViewer)
-        : {};
-    const revealedCopyIdsForViewer = viewer
-        ? new Set(normalizeCardCopyIdList(revealedHandCopyIdsByViewer[viewer]))
-        : new Set();
-    cardState.hands = cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {};
-    const projectedHands = asRecord(cardState.hands);
-    const observedHandSlotsByPlayer: Record<PlayerKey, number[]> = { black: [], white: [] };
-    const handCostAdjustmentsByPlayer: Record<PlayerKey, Array<Record<string, number> | null>> = { black: [], white: [] };
-
-    for (const ownerKey of PLAYER_KEYS as readonly PlayerKey[]) {
-        const ownerHand = Array.isArray(hands[ownerKey])
-            ? hands[ownerKey].map((cardId: unknown, handIndex: number) => (
-                isHiddenHandTokenLike(cardId)
-                    ? makeHiddenHandToken(ownerKey, handIndex)
-                    : cardId
-            ))
-            : [];
-        const ownerHandCopyIds = normalizeHandCopyIdArray(handCopyIdsByPlayer[ownerKey], ownerHand.length);
-        sourceHands[ownerKey] = ownerHand;
-        const observedSlots = new Set<number>();
-        for (const observingSeat of PLAYER_KEYS as readonly PlayerKey[]) {
-            if (observingSeat === ownerKey) continue;
-            if (hasActiveObserverWillReveal(shot, observingSeat, ownerKey)) {
-                for (let handIndex = 0; handIndex < ownerHand.length; handIndex += 1) {
-                    observedSlots.add(handIndex);
-                }
-                continue;
-            }
-            const observedCopyIds = new Set(normalizeCardCopyIdList(revealedHandCopyIdsByViewer[observingSeat]));
-            for (let handIndex = 0; handIndex < ownerHandCopyIds.length; handIndex += 1) {
-                const cardCopyId = ownerHandCopyIds[handIndex];
-                if (typeof cardCopyId === 'number' && Number.isInteger(cardCopyId) && observedCopyIds.has(cardCopyId)) {
-                    observedSlots.add(handIndex);
-                }
-            }
-        }
-        observedHandSlotsByPlayer[ownerKey] = Array.from(observedSlots).sort((a, b) => a - b);
-        let projectedOwnerHand: unknown[];
-        if (spectatorView || canViewerInspectOwnerHand(shot, viewer, ownerKey) || hasActiveObserverWillReveal(shot, viewer, ownerKey)) {
-            projectedOwnerHand = ownerHand.slice();
-        } else {
-            projectedOwnerHand = ownerHand.map((cardId: unknown, handIndex: number) => {
-                const cardCopyId = ownerHandCopyIds[handIndex];
-                const shouldReveal = viewer
-                    && Number.isInteger(cardCopyId)
-                    && revealedCopyIdsForViewer.has(cardCopyId)
-                    && !isHiddenHandTokenLike(cardId);
-                return shouldReveal ? cardId : makeHiddenHandToken(ownerKey, handIndex);
-            });
-        }
-        projectedHands[ownerKey] = projectedOwnerHand;
-        handCostAdjustmentsByPlayer[ownerKey] = buildVisibleHandCostAdjustments(
-            cardState,
-            ownerHandCopyIds,
-            projectedOwnerHand
-        );
-    }
-    cardState.observedHandSlotsByPlayer = observedHandSlotsByPlayer;
-    cardState.handCostAdjustmentsByPlayer = handCostAdjustmentsByPlayer;
-
-    if (Array.isArray(cardState.discard)) {
-        cardState.discard = cardState.discard.filter((cardId) => !isHiddenHandTokenLike(cardId));
-    }
-
-    const selectedOwnerKey = parseSeatKeyOptional(cardState.selectedCardOwnerKey);
-    if (!cardState.selectedCardId) {
-        cardState.selectedCardId = null;
-        cardState.selectedCardOwnerKey = null;
-    }
-    const canViewerInspectSelectedOwnerHand = spectatorView || canViewerInspectOwnerHand(shot, viewer, selectedOwnerKey);
-    if (canViewerInspectSelectedOwnerHand && isHiddenHandTokenLike(cardState.selectedCardId)) {
-        cardState.selectedCardId = null;
-        cardState.selectedCardOwnerKey = null;
-    }
-    if (!canViewerInspectSelectedOwnerHand) {
-        cardState.selectedCardId = null;
-        cardState.selectedCardOwnerKey = null;
-    }
-
-    if (cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object') {
-        const pendingEffectByPlayer = asRecord(cardState.pendingEffectByPlayer);
-        for (const ownerKey of PLAYER_KEYS as readonly PlayerKey[]) {
-            const pending = asRecord(pendingEffectByPlayer[ownerKey]);
-            if (!pending || pending.type !== 'CONDEMN_WILL' || !Array.isArray(pending.offers)) continue;
-            const opponentKey = getOpponentKey(ownerKey);
-            const opponentHand = Array.isArray(sourceHands[opponentKey]) ? sourceHands[opponentKey] : [];
-            const revealToViewer = spectatorView || canViewerInspectOwnerHand(shot, viewer, ownerKey);
-            pending.offers = pending.offers.map((offer: unknown, idx: number) => {
-                const offerRecord = asRecord(offer);
-                const parsedToken = offerRecord.cardId ? parseHiddenHandToken(offerRecord.cardId) : null;
-                const fallbackIndex = parsedToken && Number.isInteger(parsedToken.handIndex) ? parsedToken.handIndex : idx;
-                const handIndex = normalizeProjectedHandIndex(
-                    Number.isInteger(offerRecord.handIndex) ? offerRecord.handIndex : fallbackIndex,
-                    idx,
-                    opponentHand.length
-                );
-                if (revealToViewer) {
-                    const visibleCardId = handIndex === null ? null : opponentHand[handIndex];
-                    return {
-                        handIndex,
-                        cardId: visibleCardId || (handIndex === null ? null : makeHiddenHandToken(opponentKey, handIndex))
-                    };
-                }
-                return {
-                    handIndex,
-                    cardId: handIndex === null ? null : makeHiddenHandToken(opponentKey, handIndex)
-                };
-            });
-        }
-    }
-
-    delete cardState._nextCardCopySeq;
-    delete cardState._handCopyIdsByPlayer;
-    delete cardState._deckCopyIdsByPlayer;
-    delete cardState._discardCopyIds;
-    delete cardState._revealedHandCopyIdsByViewer;
-    delete cardState.cardCostOverridesByCopyId;
-    delete cardState.cardCostModifiersByCopyId;
-
-    const projectedForSeat = parseSeatKeyOptional(
-        Object.prototype.hasOwnProperty.call(meta, 'projectedForSeat')
-            ? meta.projectedForSeat
-            : viewer
-    );
-    shot._meta = {
-        authority: 'server',
-        version: Number.isFinite(Number(meta.stateVersion))
-            ? Number(meta.stateVersion)
-            : (Number.isFinite(Number(shot.stateVersion)) ? Number(shot.stateVersion) : null),
-        projectedForSeat,
-        turnStartReconciled: meta.turnStartReconciled !== false
-    };
-    if (meta.viewerRole === 'spectator') {
-        asRecord(shot._meta).viewerRole = 'spectator';
-    }
-
-    return shot;
+    return matchAuthorityProjection.projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata);
 }
 
 function normalizeViewerIdentity(value: unknown): MatchAuthorityViewer | null {
