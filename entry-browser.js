@@ -172,6 +172,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/shared/board/corners", globalNames: ["BoardCorners"] },
   { moduleKey: "./dist/shared/board/edge-runs", globalNames: ["BoardEdgeRuns"] },
   { moduleKey: "./dist/shared/board/risk-cells", globalNames: ["BoardRiskCells"] },
+  { moduleKey: "./dist/shared/board/shape-iteration", globalNames: ["BoardShapeIteration"] },
   { moduleKey: "./dist/shared/board/legal-moves", globalNames: ["BoardLegalMoves"] },
   { moduleKey: "./dist/shared/board/control-counts", globalNames: ["BoardControlCounts"] },
   { moduleKey: "./dist/shared/board/canonical-encoding", globalNames: ["CanonicalBoardEncoding"] },

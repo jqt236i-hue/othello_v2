@@ -75,7 +75,7 @@ function getAllGlobalNames(entry: BootLoadEntry | undefined): string[] {
 describe('entry-browser boot load table sequence', () => {
   test('preserves classic boot module order and duplicate compatibility loads', () => {
     const entries = extractBootLoadEntries(readEntryBrowserText());
-    expect(entries.slice(0, 26).map((entry) => entry.moduleKey)).toEqual([
+    expect(entries.slice(0, 27).map((entry) => entry.moduleKey)).toEqual([
       './dist/ui/layout-stage',
       './dist/is-env-capable',
       './dist/constants/difficulty-constants',
@@ -92,6 +92,7 @@ describe('entry-browser boot load table sequence', () => {
       './dist/shared/board/corners',
       './dist/shared/board/edge-runs',
       './dist/shared/board/risk-cells',
+      './dist/shared/board/shape-iteration',
       './dist/shared/board/legal-moves',
       './dist/shared/board/control-counts',
       './dist/shared/board/canonical-encoding',
@@ -120,6 +121,7 @@ describe('entry-browser boot load table sequence', () => {
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/corners'))).toContain('BoardCorners');
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/risk-cells'))).toContain('BoardRiskCells');
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/edge-runs'))).toContain('BoardEdgeRuns');
+    expect(getAllGlobalNames(byModule.get('./dist/shared/board/shape-iteration'))).toContain('BoardShapeIteration');
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/legal-moves'))).toContain('BoardLegalMoves');
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/control-counts'))).toContain('BoardControlCounts');
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/canonical-encoding'))).toContain('CanonicalBoardEncoding');
