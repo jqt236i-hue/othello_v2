@@ -1,4 +1,5 @@
 import DestroySelectionStage = require('./pre-placement-selection-destroy-stage');
+import HandSelectionStage = require('./pre-placement-selection-hand-stage');
 import MovementSelectionStage = require('./pre-placement-selection-movement-stage');
 import ReverseSelectionStage = require('./pre-placement-selection-reverse-stage');
 
@@ -35,99 +36,8 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
     const movementSelection = MovementSelectionStage.resolveMovementSelection(opts);
     if (movementSelection && movementSelection.matched) return movementSelection.result;
 
-    if (pending && pending.type === 'HEAVEN_BLESSING' && action.heavenBlessingCardId) {
-        const res = opts.CardLogic.applyHeavenBlessingChoice(
-            opts.cardState,
-            opts.playerKey,
-            action.heavenBlessingCardId
-        );
-        opts.events.push({
-            type: 'heaven_blessing_selected',
-            player: opts.playerKey,
-            selectedCardId: action.heavenBlessingCardId,
-            applied: !!(res && res.applied)
-        });
-        return true;
-    } else if (pending && pending.type === 'HEAVEN_BLESSING' && action.heavenBlessingCardId == null) {
-        throw new Error('HEAVEN_BLESSING requires heavenBlessingCardId before placement');
-    }
-
-    if (pending && pending.type === 'CONDEMN_WILL' && action.condemnTargetIndex != null) {
-        const res = opts.CardLogic.applyCondemnWill(
-            opts.cardState,
-            opts.playerKey,
-            action.condemnTargetIndex
-        );
-        opts.events.push({
-            type: 'condemn_selected',
-            player: opts.playerKey,
-            condemnTargetIndex: action.condemnTargetIndex,
-            applied: !!(res && res.applied),
-            destroyedCardId: (res && res.destroyedCardId) ? res.destroyedCardId : null
-        });
-        if (!res || !res.applied) {
-            throw new Error(`CONDEMN_WILL selection failed: ${(res && res.reason) || 'invalid_target'}`);
-        }
-        if (res && res.applied) {
-            const opponentKey = opts.playerKey === 'black' ? 'white' : 'black';
-            opts.emitHandRemovePresentation({
-                player: opponentKey,
-                count: 1,
-                reason: 'condemn_will',
-                cardId: (res && res.destroyedCardId) ? res.destroyedCardId : null,
-                cardIds: (res && res.destroyedCardId) ? [res.destroyedCardId] : []
-            });
-        }
-        return true;
-    } else if (pending && pending.type === 'CONDEMN_WILL' && action.condemnTargetIndex == null) {
-        throw new Error('CONDEMN_WILL requires condemnTargetIndex before placement');
-    }
-
-    if (pending && pending.type === 'OBSERVER_WILL' && action.observerWillTargetIndex != null) {
-        const res = opts.CardLogic.applyObserverWillChoice(
-            opts.cardState,
-            opts.gameState,
-            opts.playerKey,
-            action.observerWillTargetIndex
-        );
-        opts.events.push({
-            type: 'observer_will_selected',
-            player: opts.playerKey,
-            observerWillTargetIndex: action.observerWillTargetIndex,
-            applied: !!(res && res.applied),
-            stolenCardId: (res && res.stolenCardId) ? res.stolenCardId : null,
-            stolenCardCopyId: (res && Number.isInteger(res.stolenCardCopyId)) ? res.stolenCardCopyId : null,
-            repaymentAmount: (res && Number.isFinite(res.repaymentAmount)) ? Number(res.repaymentAmount) : null
-        });
-        if (!res || !res.applied) {
-            throw new Error(`OBSERVER_WILL selection failed: ${(res && res.reason) || 'invalid_target'}`);
-        }
-        if (res && res.applied) {
-            const opponentKey = opts.playerKey === 'black' ? 'white' : 'black';
-            opts.emitHandRemovePresentation({
-                player: opponentKey,
-                count: 1,
-                reason: 'observer_will',
-                cardId: (res && res.stolenCardId) ? res.stolenCardId : null,
-                cardIds: (res && res.stolenCardId) ? [res.stolenCardId] : []
-            });
-            if (typeof opts.emitHandAddPresentation === 'function') {
-                opts.emitHandAddPresentation({
-                    player: opts.playerKey,
-                    count: 1,
-                    reason: 'observer_will',
-                    cardId: res.stolenCardId || null,
-                    meta: {
-                        sourceType: 'OBSERVER_WILL',
-                        sourceCardId: pending.cardId || null
-                    }
-                });
-            }
-        }
-        return true;
-    } else if (pending && pending.type === 'OBSERVER_WILL' && action.observerWillTargetIndex == null) {
-        throw new Error('OBSERVER_WILL requires observerWillTargetIndex before placement');
-    }
+    const handSelection = HandSelectionStage.resolveHandSelection(opts);
+    if (handSelection && handSelection.matched) return handSelection.result;
 
     if (pending && pending.type === 'TEMPT_WILL' && action.temptTarget) {
         const res = opts.CardLogic.applyTemptWill(
