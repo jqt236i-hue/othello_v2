@@ -29,6 +29,19 @@ function createLazyProcessCpuTurn(runtimeResolvers: any): (...args: any[]) => an
   };
 }
 
+function createLazyCpuDecisionLevelResolver(runtimeResolvers: any): (playerKey: any) => any {
+  return function resolveCpuDecisionLevelFromRuntime(playerKey: any): any {
+    try {
+      const candidate = runtimeResolvers && typeof runtimeResolvers.resolveRuntimeFunction === 'function'
+        ? runtimeResolvers.resolveRuntimeFunction('resolveCpuDecisionLevelForPlayer')
+        : null;
+      return typeof candidate === 'function' ? candidate(playerKey) : undefined;
+    } catch (e: any) {
+      return undefined;
+    }
+  };
+}
+
 export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registeredGlobals: Record<string, any> } {
   const passHandler = deps.requireModule('../game/pass-handler');
   const passGlobals: Record<string, any> = {};
@@ -54,6 +67,7 @@ export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registe
       const runtimeResolvers = deps.runtimeResolvers || {};
       passHandler.setPassHandlerRuntime({
         processCpuTurn: createLazyProcessCpuTurn(runtimeResolvers),
+        resolveCpuDecisionLevelForPlayer: createLazyCpuDecisionLevelResolver(runtimeResolvers),
         readMatchMode: runtimeResolvers.readMatchMode,
         readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
         readNetworkSeatKey: () => {

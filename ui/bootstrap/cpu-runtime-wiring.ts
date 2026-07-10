@@ -50,6 +50,7 @@ function registerCpuRuntimeGlobals(cpu: any, cpuDecision: any, moveGenerator: an
   registerDirectRuntimeFunction(cpuGlobals, 'processAutoBlackTurn', cpu);
   registerDirectRuntimeFunction(cpuGlobals, 'selectMoveFromOnnxPolicyAsync', cpuDecision);
   registerDirectRuntimeFunction(cpuGlobals, 'selectCpuMoveWithPolicy', cpuDecision);
+  registerDirectRuntimeFunction(cpuGlobals, 'resolveCpuDecisionLevelForPlayer', cpuDecision);
 
   if (moveGenerator && typeof moveGenerator.generateMovesForPlayer === 'function') {
     cpuGlobals.generateMovesForPlayer = createGlobalFunctionDelegate(

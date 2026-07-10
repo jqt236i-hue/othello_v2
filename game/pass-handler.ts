@@ -298,12 +298,12 @@ function resolveLv1AwareCpuDelay(baseCpuDelay: any): number {
         return base;
     }
     try {
-        const CpuDecision = (typeof require === 'function') ? require('./cpu-decision') : null;
-        if (CpuDecision && typeof CpuDecision.resolveCpuDecisionLevelForPlayer === 'function') {
-            const level = Number(CpuDecision.resolveCpuDecisionLevelForPlayer('white'));
-            if (Number.isFinite(level) && Math.floor(level) === 1) {
-                return 0;
-            }
+        const resolveCpuDecisionLevelForPlayer = resolvePassHandlerRuntimeFunction('resolveCpuDecisionLevelForPlayer');
+        const level = typeof resolveCpuDecisionLevelForPlayer === 'function'
+            ? Number(resolveCpuDecisionLevelForPlayer('white'))
+            : NaN;
+        if (Number.isFinite(level) && Math.floor(level) === 1) {
+            return 0;
         }
     } catch (e) { /* fall through to base */ }
     return base;

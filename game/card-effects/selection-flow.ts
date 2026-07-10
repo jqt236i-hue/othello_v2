@@ -876,14 +876,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (bridgeFn) return bridgeFn;
         const globalFn = resolveGlobalValue(name);
         if (typeof globalFn === 'function') return globalFn;
-        if (name === 'ensureCurrentPlayerCanActOrPass') {
-            try {
-                const passHandler = _require('../pass-handler');
-                return passHandler && typeof passHandler.ensureCurrentPlayerCanActOrPass === 'function'
-                    ? passHandler.ensureCurrentPlayerCanActOrPass
-                    : null;
-            } catch (e) { /* ignore */ }
-        }
         return null;
     }
 
