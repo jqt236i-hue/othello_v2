@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/initial-layout'), require('./board/legal-moves'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/initial-layout'), require('./board/legal-moves'), require('./board/control-counts'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.InitialBoardLayout || null, root.BoardLegalMoves || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.InitialBoardLayout || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.InitialBoardLayout || null, root.BoardLegalMoves || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.InitialBoardLayout || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -1280,30 +1280,16 @@
     const getFlipsBasic = BoardLegalMoves.getFlipsBasic;
     const getLegalMovesBasic = BoardLegalMoves.getLegalMovesBasic;
 
-    function countCornerControl(board: unknown, playerValue: number): { ownCorners: number; oppCorners: number } {
-        if (!Array.isArray(board)) return { ownCorners: 0, oppCorners: 0 };
-        let ownCorners = 0;
-        let oppCorners = 0;
-        for (const cell of getCornerCells(board)) {
-            const value = getCellValue(board, cell.row, cell.col);
-            if (value === playerValue) ownCorners += 1;
-            else if (value === -playerValue) oppCorners += 1;
-        }
-        return { ownCorners, oppCorners };
-    }
-
-    function countEdgeControl(board: unknown, playerValue: number): { ownEdges: number; oppEdges: number } {
-        if (!Array.isArray(board)) return { ownEdges: 0, oppEdges: 0 };
-        let ownEdges = 0;
-        let oppEdges = 0;
-        for (const cell of collectBoardCoordinates(board)) {
-            if (!isEdgeCell(cell.row, cell.col, board) || isCornerCell(cell.row, cell.col, board)) continue;
-            const value = getCellValue(board, cell.row, cell.col);
-            if (value === playerValue) ownEdges += 1;
-            else if (value === -playerValue) oppEdges += 1;
-        }
-        return { ownEdges, oppEdges };
-    }
+    if (!BoardControlCountsModule) throw new Error('BoardControlCounts is required by SharedBoardUtils');
+    const BoardControlCounts = BoardControlCountsModule.createControlCounts({
+        getCellValue,
+        getCornerCells,
+        collectBoardCoordinates,
+        isEdgeCell,
+        isCornerCell
+    });
+    const countCornerControl = BoardControlCounts.countCornerControl;
+    const countEdgeControl = BoardControlCounts.countEdgeControl;
 
     function toCellChar(value: unknown): string {
         return CanonicalBoardEncoding.toCellChar(value);
