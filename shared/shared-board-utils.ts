@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/initial-layout'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.InitialBoardLayout || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.InitialBoardLayout || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -379,80 +379,19 @@
         return resolveBoardConfig(boardOrConfig, maybeCols).cols;
     }
 
-    function isMainBoardCell(row: number, col: number, boardOrConfig: unknown, maybeCols?: unknown): boolean {
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-        const bounds = resolveBaseBoardBounds(boardOrConfig, maybeCols);
-        return (
-            row >= bounds.minRow &&
-            row <= bounds.maxRow &&
-            col >= bounds.minCol &&
-            col <= bounds.maxCol
-        );
-    }
-
-    function collectMainBoardCoordinates(boardOrConfig: unknown, maybeCols?: unknown): CellCoord[] {
-        const config = resolveBoardConfig(boardOrConfig, maybeCols);
-        const coords: CellCoord[] = [];
-        for (let row = 0; row < config.rows; row++) {
-            for (let col = 0; col < config.cols; col++) {
-                coords.push({ row, col });
-            }
-        }
-        return coords;
-    }
-
-    function createEmptyBoard(boardOrConfig: unknown, maybeCols?: unknown, maybeFillValue?: unknown): number[][] {
-        const looksLikeConfigObject = !!(boardOrConfig && typeof boardOrConfig === 'object');
-        const useNumericArgs = !looksLikeConfigObject
-            && Number.isFinite(Number(boardOrConfig))
-            && Number.isFinite(Number(maybeCols));
-        const config = useNumericArgs
-            ? resolveBoardConfig(boardOrConfig, maybeCols)
-            : resolveBoardConfig(boardOrConfig);
-        const fillValue = useNumericArgs ? maybeFillValue : maybeCols;
-        const normalizedFillValue = (typeof fillValue === 'undefined') ? EMPTY : fillValue;
-        return Array.from({ length: config.rows }, () => Array.from({ length: config.cols }, () => normalizedFillValue as number));
-    }
-
-    function getOpeningAnchor(boardOrConfig: unknown, maybeCols?: unknown): CellCoord {
-        const config = resolveBoardConfig(boardOrConfig, maybeCols);
-        return {
-            row: Math.floor((config.rows - 2) / 2),
-            col: Math.floor((config.cols - 2) / 2)
-        };
-    }
-
-    function getOpeningPlacements(boardOrConfig: unknown, maybeCols?: unknown): Array<{ row: number; col: number; owner: number }> {
-        const config = resolveBoardConfig(boardOrConfig, maybeCols);
-        const anchor = getOpeningAnchor(config);
-        if (config.rows === 7 && config.cols === 7) {
-            const placements: Array<{ row: number; col: number; owner: number }> = [];
-            for (let rowOffset = 0; rowOffset < 3; rowOffset += 1) {
-                for (let colOffset = 0; colOffset < 3; colOffset += 1) {
-                    if (rowOffset === 1 && colOffset === 1) continue;
-                    placements.push({
-                        row: anchor.row + rowOffset,
-                        col: anchor.col + colOffset,
-                        owner: ((rowOffset + colOffset) % 2 === 0) ? WHITE : BLACK
-                    });
-                }
-            }
-            return placements;
-        }
-        return [
-            { row: anchor.row, col: anchor.col, owner: WHITE },
-            { row: anchor.row, col: anchor.col + 1, owner: BLACK },
-            { row: anchor.row + 1, col: anchor.col, owner: BLACK },
-            { row: anchor.row + 1, col: anchor.col + 1, owner: WHITE }
-        ];
-    }
-
-    function getOpeningCells(boardOrConfig: unknown, maybeCols?: unknown): CellCoord[] {
-        return getOpeningPlacements(boardOrConfig, maybeCols).map((placement) => ({
-            row: placement.row,
-            col: placement.col
-        }));
-    }
+    if (!InitialBoardLayoutModule) throw new Error('InitialBoardLayout is required by SharedBoardUtils');
+    const InitialBoardLayout = InitialBoardLayoutModule.createInitialLayout({
+        empty: EMPTY,
+        black: BLACK,
+        white: WHITE,
+        resolveBoardConfig
+    });
+    const isMainBoardCell = InitialBoardLayout.isMainBoardCell;
+    const collectMainBoardCoordinates = InitialBoardLayout.collectMainBoardCoordinates;
+    const createEmptyBoard = InitialBoardLayout.createEmptyBoard;
+    const getOpeningAnchor = InitialBoardLayout.getOpeningAnchor;
+    const getOpeningPlacements = InitialBoardLayout.getOpeningPlacements;
+    const getOpeningCells = InitialBoardLayout.getOpeningCells;
 
     function isRawCellInBounds(board: unknown, row: number, col: number): boolean {
         return (
