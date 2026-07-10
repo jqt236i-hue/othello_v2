@@ -58,6 +58,7 @@ import {
 } from './match-authority/identity';
 import { createMatchAuthorityJournalApi } from './match-authority/journal';
 import { createMatchAuthorityPresentationJournalApi } from './match-authority/presentation-journal';
+import { createMatchAuthoritySnapshotStateApi } from './match-authority/snapshot-state';
 
 import deepClone from './deepClone';
 
@@ -174,6 +175,7 @@ const matchAuthorityPresentationJournal = createMatchAuthorityPresentationJourna
     resolvePlaybackDigest,
     normalizeEffectLogMessages
 });
+const matchAuthoritySnapshotState = createMatchAuthoritySnapshotStateApi({ playerKeys: PLAYER_KEYS });
 
 function appendAuthorityLog(roomValue: unknown, entryValue: unknown, limitValue: unknown): unknown[] {
     return matchAuthorityJournal.appendAuthorityLog(roomValue, entryValue, limitValue);
@@ -1701,93 +1703,15 @@ function classifySeatTokenRejectionReason(seatTokenValue: unknown): MatchAuthori
 }
 
 function stripTransientPresentationState(nextSnapshot: unknown): unknown {
-    const snapshot = asRecord(nextSnapshot);
-    const cardState = (snapshot.cardState && typeof snapshot.cardState === 'object')
-        ? asRecord(snapshot.cardState)
-        : null;
-    if (cardState) {
-        cardState.presentationEvents = [];
-        cardState._presentationEventsPersist = [];
-        delete cardState._currentActionMeta;
-    }
-    if (snapshot.gameState && typeof snapshot.gameState === 'object') {
-        delete asRecord(snapshot.gameState).__resultShown;
-    }
-    return nextSnapshot;
+    return matchAuthoritySnapshotState.stripTransientPresentationState(nextSnapshot);
 }
 
 function stripTransientChargeDeltaState(nextSnapshot: unknown): unknown {
-    const snapshot = asRecord(nextSnapshot);
-    const cardState = (snapshot.cardState && typeof snapshot.cardState === 'object')
-        ? asRecord(snapshot.cardState)
-        : null;
-    if (cardState) {
-        cardState.chargeDeltaEvents = [];
-    }
-    return nextSnapshot;
-}
-
-function normalizeChargeValueForAuthority(value: unknown): number {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return 0;
-    return numeric;
+    return matchAuthoritySnapshotState.stripTransientChargeDeltaState(nextSnapshot);
 }
 
 function restoreMissingChargeDeltaEvents(previousSnapshot: unknown, nextSnapshot: unknown): unknown {
-    const previousSnapshotRecord = asRecord(previousSnapshot);
-    const nextSnapshotRecord = asRecord(nextSnapshot);
-    const previousCardState = (previousSnapshotRecord.cardState && typeof previousSnapshotRecord.cardState === 'object')
-        ? asRecord(previousSnapshotRecord.cardState)
-        : null;
-    const nextCardState = (nextSnapshotRecord.cardState && typeof nextSnapshotRecord.cardState === 'object')
-        ? asRecord(nextSnapshotRecord.cardState)
-        : null;
-    if (!previousCardState || !nextCardState) return nextSnapshot;
-    if (Array.isArray(nextCardState.chargeDeltaEvents) && nextCardState.chargeDeltaEvents.length > 0) {
-        return nextSnapshot;
-    }
-
-    const previousCharge = (previousCardState.charge && typeof previousCardState.charge === 'object')
-        ? asRecord(previousCardState.charge)
-        : null;
-    const nextCharge = (nextCardState.charge && typeof nextCardState.charge === 'object')
-        ? asRecord(nextCardState.charge)
-        : null;
-    if (!previousCharge || !nextCharge) return nextSnapshot;
-
-    const events: Array<{
-        seq: number;
-        player: string;
-        before: number;
-        after: number;
-        delta: number;
-        reason: string;
-    }> = [];
-    let seq = 1;
-    for (const playerKey of PLAYER_KEYS) {
-        const before = normalizeChargeValueForAuthority(previousCharge[playerKey]);
-        const after = normalizeChargeValueForAuthority(nextCharge[playerKey]);
-        const delta = after - before;
-        if (delta === 0) continue;
-        const direction = delta > 0 ? 1 : -1;
-        const steps = Math.abs(delta);
-        let cursor = before;
-        for (let step = 0; step < steps; step += 1) {
-            const next = cursor + direction;
-            events.push({
-                seq,
-                player: playerKey,
-                before: cursor,
-                after: next,
-                delta: direction,
-                reason: 'network_snapshot_charge_sync'
-            });
-            seq += 1;
-            cursor = next;
-        }
-    }
-    nextCardState.chargeDeltaEvents = events;
-    return nextSnapshot;
+    return matchAuthoritySnapshotState.restoreMissingChargeDeltaEvents(previousSnapshot, nextSnapshot);
 }
 
 function isTrapStoneLike(entry: unknown): boolean {
