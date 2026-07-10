@@ -165,6 +165,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/shared-constants" },
   { moduleKey: "./dist/shared/board/dimensions", globalNames: ["BoardDimensions"] },
   { moduleKey: "./dist/shared/board/initial-layout", globalNames: ["InitialBoardLayout"] },
+  { moduleKey: "./dist/shared/board/legal-moves", globalNames: ["BoardLegalMoves"] },
   { moduleKey: "./dist/shared/board/canonical-encoding", globalNames: ["CanonicalBoardEncoding"] },
   { moduleKey: "./dist/shared/board/notation", globalNames: ["BoardNotation"] },
   { moduleKey: "./dist/shared/board/padded-coordinates", globalNames: ["PaddedBoardCoordinates"] },

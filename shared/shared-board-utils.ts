@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/initial-layout'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/initial-layout'), require('./board/legal-moves'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.InitialBoardLayout || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.InitialBoardLayout || null, root.BoardLegalMoves || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.InitialBoardLayout || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.InitialBoardLayout || null, root.BoardLegalMoves || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -1268,47 +1268,17 @@
         return 'inner';
     }
 
-    function getFlipsBasic(board: unknown, row: number, col: number, playerValue: number): CellCoord[] {
-        if (OthelloCore && typeof (OthelloCore as { getFlipsBasic?: (b: unknown, r: number, c: number, p: number) => CellCoord[] }).getFlipsBasic === 'function') {
-            return (OthelloCore as { getFlipsBasic: (b: unknown, r: number, c: number, p: number) => CellCoord[] }).getFlipsBasic(board, row, col, playerValue);
-        }
-        if (!hasPlayableCell(board, row, col)) return [];
-        if (getCellValue(board, row, col) !== EMPTY) return [];
-        const out: CellCoord[] = [];
-        for (const dir of DIRECTIONS) {
-            const temp: CellCoord[] = [];
-            let currentRow = row + dir[0];
-            let currentCol = col + dir[1];
-            while (hasPlayableCell(board, currentRow, currentCol) && getCellValue(board, currentRow, currentCol) === -playerValue) {
-                temp.push({ row: currentRow, col: currentCol });
-                currentRow += dir[0];
-                currentCol += dir[1];
-            }
-            if (
-                temp.length > 0 &&
-                hasPlayableCell(board, currentRow, currentCol) &&
-                getCellValue(board, currentRow, currentCol) === playerValue
-            ) {
-                out.push.apply(out, temp);
-            }
-        }
-        return out;
-    }
-
-    function getLegalMovesBasic(board: unknown, playerValue: number): Array<{ row: number; col: number; flips: CellCoord[] }> {
-        if (OthelloCore && typeof (OthelloCore as { getLegalMovesBasic?: (b: unknown, p: number) => Array<{ row: number; col: number; flips: CellCoord[] }> }).getLegalMovesBasic === 'function') {
-            return (OthelloCore as { getLegalMovesBasic: (b: unknown, p: number) => Array<{ row: number; col: number; flips: CellCoord[] }> }).getLegalMovesBasic(board, playerValue);
-        }
-        if (!Array.isArray(board)) return [];
-        const moves: Array<{ row: number; col: number; flips: CellCoord[] }> = [];
-        for (const cell of collectBoardCoordinates(board)) {
-            const flips = getFlipsBasic(board, cell.row, cell.col, playerValue);
-            if (flips.length > 0) {
-                moves.push({ row: cell.row, col: cell.col, flips });
-            }
-        }
-        return moves;
-    }
+    if (!BoardLegalMovesModule) throw new Error('BoardLegalMoves is required by SharedBoardUtils');
+    const BoardLegalMoves = BoardLegalMovesModule.createLegalMoves({
+        empty: EMPTY,
+        directions: DIRECTIONS,
+        othelloCore: OthelloCore,
+        hasPlayableCell,
+        getCellValue,
+        collectBoardCoordinates
+    });
+    const getFlipsBasic = BoardLegalMoves.getFlipsBasic;
+    const getLegalMovesBasic = BoardLegalMoves.getLegalMovesBasic;
 
     function countCornerControl(board: unknown, playerValue: number): { ownCorners: number; oppCorners: number } {
         if (!Array.isArray(board)) return { ownCorners: 0, oppCorners: 0 };
