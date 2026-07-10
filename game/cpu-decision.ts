@@ -437,6 +437,28 @@ function requireCpuPolicyPlacementFilters(): any {
 
 const CpuPolicyPlacementFiltersRequired = requireCpuPolicyPlacementFilters();
 
+const CPU_POLICY_PENDING_TARGET_METHODS = [
+    'getCornerProximity',
+    'getForcedCornerLaneBonus',
+    'getForcedCornerLaneAntiPatternPenalty',
+    'simulatePendingPlacementBoard',
+    'choosePendingTargetWithPolicy',
+    'buildPendingTargetOnnxContext',
+    'choosePendingTargetWithPolicyAsync'
+];
+
+function requireCpuPolicyPendingTargets(): any {
+    const missingMethod = CPU_POLICY_PENDING_TARGET_METHODS.find((methodName) => (
+        !CpuPolicyPendingTargets || typeof CpuPolicyPendingTargets[methodName] !== 'function'
+    ));
+    if (missingMethod) {
+        throw new Error(`[cpu-decision] CpuPolicyPendingTargets.${missingMethod} is required`);
+    }
+    return CpuPolicyPendingTargets;
+}
+
+const CpuPolicyPendingTargetsRequired = requireCpuPolicyPendingTargets();
+
 const CpuDecisionBoardUtils = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.createCpuDecisionBoardUtils === 'function')
     ? CpuDecisionBoardUtilsModule.createCpuDecisionBoardUtils({ sharedBoardUtils: CpuDecisionSharedBoardUtils })
     : (() => { throw new Error('CpuDecisionBoardUtils is required by cpu-decision'); })();
@@ -2719,137 +2741,32 @@ function filterCloneSplitTargetsForLv6(playerKey: any, targets: any): any {
 }
 
 function getCornerProximity(row: any, col: any, boardOverride: any): any {
-    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.getCornerProximity === 'function') {
-        return CpuPolicyPendingTargets.getCornerProximity(row, col, boardOverride, {
-            resolveSharedBoardUtilsModule,
-            getCurrentCpuBoard,
-            getBoardCellValueSafe
-        });
-    }
-    const board = Array.isArray(boardOverride) ? boardOverride : getCurrentCpuBoard();
-    const boardUtils = resolveSharedBoardUtilsModule();
-    if (!board || !boardUtils) return null;
-    if (typeof boardUtils.getCornerProximity === 'function') {
-        return boardUtils.getCornerProximity(row, col, board);
-    }
-    if (typeof boardUtils.getCornerCells !== 'function') return null;
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
-    const isX = typeof boardUtils.isXSquare === 'function'
-        ? boardUtils.isXSquare(row, col, board)
-        : false;
-    const isC = !isX && typeof boardUtils.isCSquare === 'function'
-        ? boardUtils.isCSquare(row, col, board)
-        : false;
-    if (!isX && !isC) return null;
-
-    const corners = boardUtils.getCornerCells(board);
-    for (const corner of corners) {
-        if (!corner || !Number.isInteger(corner.row) || !Number.isInteger(corner.col)) continue;
-        for (const vertical of [-1, 1]) {
-            for (const horizontal of [-1, 1]) {
-                const verticalCell = getBoardCellValueSafe(board, corner.row + vertical, corner.col);
-                const horizontalCell = getBoardCellValueSafe(board, corner.row, corner.col + horizontal);
-                if (verticalCell !== null || horizontalCell !== null) continue;
-                const inwardRow = corner.row - vertical;
-                const inwardCol = corner.col - horizontal;
-                if (isX && inwardRow === row && inwardCol === col) {
-                    return { kind: 'X', corner: [corner.row, corner.col] };
-                }
-                if (isC && (
-                    (inwardRow === row && corner.col === col) ||
-                    (corner.row === row && inwardCol === col)
-                )) {
-                    return { kind: 'C', corner: [corner.row, corner.col] };
-                }
-            }
-        }
-    }
-    return null;
+    return CpuPolicyPendingTargetsRequired.getCornerProximity(row, col, boardOverride, {
+        resolveSharedBoardUtilsModule,
+        getCurrentCpuBoard,
+        getBoardCellValueSafe
+    });
 }
 
 function getForcedCornerLaneBonus(pendingType: any, row: any, col: any, board: any, playerValue: any): any {
-    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.getForcedCornerLaneBonus === 'function') {
-        return CpuPolicyPendingTargets.getForcedCornerLaneBonus(pendingType, row, col, board, playerValue, {
-            resolveSharedBoardUtilsModule,
-            getBoardCellValueSafe
-        });
-    }
-    if (!Array.isArray(board) || board.length <= 0) return 0;
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
-    const targetCell = getBoardCellValueSafe(board, row, col);
-    if (targetCell !== playerValue) return 0;
-    const boardUtils = resolveSharedBoardUtilsModule();
-    const bounds = boardUtils && typeof boardUtils.resolveBoardBounds === 'function'
-        ? boardUtils.resolveBoardBounds(board)
-        : null;
-    if (!bounds) return 0;
-    if (col !== bounds.minCol && col !== bounds.maxCol) return 0;
-
-    if (String(pendingType || '') === 'BUOYANCY_WILL' || String(pendingType || '') === 'SUPER_BUOYANCY_WILL') {
-        if (row <= bounds.minRow) return 0;
-        return getBoardCellValueSafe(board, bounds.minRow, col) === 0 ? 2600 : 0;
-    }
-    if (String(pendingType || '') === 'GRAVITY_WILL' || String(pendingType || '') === 'SUPER_GRAVITY_WILL') {
-        if (row >= bounds.maxRow) return 0;
-        return getBoardCellValueSafe(board, bounds.maxRow, col) === 0 ? 2600 : 0;
-    }
-    return 0;
+    return CpuPolicyPendingTargetsRequired.getForcedCornerLaneBonus(pendingType, row, col, board, playerValue, {
+        resolveSharedBoardUtilsModule,
+        getBoardCellValueSafe
+    });
 }
 
 function getForcedCornerLaneAntiPatternPenalty(pendingType: any, row: any, col: any, board: any, playerValue: any): any {
-    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.getForcedCornerLaneAntiPatternPenalty === 'function') {
-        return CpuPolicyPendingTargets.getForcedCornerLaneAntiPatternPenalty(pendingType, row, col, board, playerValue, {
-            resolveSharedBoardUtilsModule,
-            getBoardCellValueSafe
-        });
-    }
-    if (!Array.isArray(board) || board.length <= 0) return 0;
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
-    const targetCell = getBoardCellValueSafe(board, row, col);
-    if (targetCell === null || targetCell === playerValue) return 0;
-    const type = String(pendingType || '');
-    const boardUtils = resolveSharedBoardUtilsModule();
-    const bounds = boardUtils && typeof boardUtils.resolveBoardBounds === 'function'
-        ? boardUtils.resolveBoardBounds(board)
-        : null;
-    if (!bounds) return 0;
-
-    if (type === 'BUOYANCY_WILL' || type === 'SUPER_BUOYANCY_WILL') {
-        if (row <= bounds.minRow) return 0;
-        const landingCorner =
-            (col === bounds.minCol) ? [bounds.minRow, bounds.minCol] :
-            (col === bounds.maxCol ? [bounds.minRow, bounds.maxCol] : null);
-        if (!landingCorner) return 0;
-        return getBoardCellValueSafe(board, landingCorner[0], landingCorner[1]) === 0 ? -5200 : 0;
-    }
-    if (type === 'GRAVITY_WILL' || type === 'SUPER_GRAVITY_WILL') {
-        if (row >= bounds.maxRow) return 0;
-        const landingCorner =
-            (col === bounds.minCol) ? [bounds.maxRow, bounds.minCol] :
-            (col === bounds.maxCol ? [bounds.maxRow, bounds.maxCol] : null);
-        if (!landingCorner) return 0;
-        return getBoardCellValueSafe(board, landingCorner[0], landingCorner[1]) === 0 ? -5200 : 0;
-    }
-    return 0;
+    return CpuPolicyPendingTargetsRequired.getForcedCornerLaneAntiPatternPenalty(pendingType, row, col, board, playerValue, {
+        resolveSharedBoardUtilsModule,
+        getBoardCellValueSafe
+    });
 }
 
 function simulatePendingPlacementBoard(board: any, playerValue: any, target: any): any {
-    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.simulatePendingPlacementBoard === 'function') {
-        return CpuPolicyPendingTargets.simulatePendingPlacementBoard(board, playerValue, target, {
-            cloneBoardForCpu,
-            setBoardCellValue
-        });
-    }
-    if (!Array.isArray(board)) return null;
-    if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
-    const next = cloneBoardForCpu(board);
-    if (!setBoardCellValue(next, target.row, target.col, playerValue)) return next;
-    const flips = Array.isArray(target.flips) ? target.flips : [];
-    for (const one of flips) {
-        if (!one || !Number.isInteger(one.row) || !Number.isInteger(one.col)) continue;
-        setBoardCellValue(next, one.row, one.col, playerValue);
-    }
-    return next;
+    return CpuPolicyPendingTargetsRequired.simulatePendingPlacementBoard(board, playerValue, target, {
+        cloneBoardForCpu,
+        setBoardCellValue
+    });
 }
 
 function scorePendingTargetByType(playerKey: any, pendingType: any, target: any, pending: any): any {
@@ -2860,46 +2777,10 @@ function scorePendingTargetByType(playerKey: any, pendingType: any, target: any,
 }
 
 function choosePendingTargetWithPolicy(playerKey: any, pendingType: any, targets: any, pending: any): any {
-    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.choosePendingTargetWithPolicy === 'function') {
-        return CpuPolicyPendingTargets.choosePendingTargetWithPolicy(playerKey, pendingType, targets, pending, {
-            pendingTargetSelector: PendingTargetSelector,
-            scorePendingTargetByType
-        });
-    }
-    if (
-        PendingTargetSelector &&
-        typeof PendingTargetSelector.choosePendingTargetWithPolicy === 'function'
-    ) {
-        return PendingTargetSelector.choosePendingTargetWithPolicy({
-            playerKey,
-            pendingType,
-            pending,
-            targets,
-            scoreTarget: (target: any) => scorePendingTargetByType(playerKey, pendingType, target, pending)
-        });
-    }
-
-    if (!Array.isArray(targets) || targets.length <= 0) return null;
-    let best: any = null;
-    let bestScore = Number.NEGATIVE_INFINITY;
-    for (const one of targets) {
-        const score = scorePendingTargetByType(playerKey, pendingType, one, pending);
-        if (score > bestScore) {
-            bestScore = score;
-            best = one;
-            continue;
-        }
-        if (score === bestScore && best) {
-            const row = Number(one && one.row);
-            const col = Number(one && one.col);
-            const bestRow = Number(best && best.row);
-            const bestCol = Number(best && best.col);
-            if (row < bestRow || (row === bestRow && col < bestCol)) {
-                best = one;
-            }
-        }
-    }
-    return best || targets[0];
+    return CpuPolicyPendingTargetsRequired.choosePendingTargetWithPolicy(playerKey, pendingType, targets, pending, {
+        pendingTargetSelector: PendingTargetSelector,
+        scorePendingTargetByType
+    });
 }
 
 const PENDING_SELECTION_ONNX_TIMEOUT = { kind: 'pending-selection-onnx-timeout' };
@@ -2951,16 +2832,10 @@ function resolveCurrentLegalMovesCountForPlayer(playerKey: any): any {
 }
 
 function buildPendingTargetOnnxContext(playerKey: any, level: any, pendingType: any, targets: any): any {
-    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.buildPendingTargetOnnxContext === 'function') {
-        return CpuPolicyPendingTargets.buildPendingTargetOnnxContext(playerKey, level, pendingType, targets, {
-            cpuDecisionPendingOnnx: CpuDecisionPendingOnnx,
-            resolveCpuCardPolicyLevelFromLevel
-        });
-    }
-    const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
-    return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.buildPendingTargetOnnxContext === 'function'
-        ? CpuDecisionPendingOnnx.buildPendingTargetOnnxContext(playerKey, policyLevel, pendingType, targets)
-        : {};
+    return CpuPolicyPendingTargetsRequired.buildPendingTargetOnnxContext(playerKey, level, pendingType, targets, {
+        cpuDecisionPendingOnnx: CpuDecisionPendingOnnx,
+        resolveCpuCardPolicyLevelFromLevel
+    });
 }
 
 function simulateBoardForPendingTarget(playerKey: any, pendingType: any, target: any): any {
@@ -2996,14 +2871,9 @@ async function rerankOnnxPendingTargetChoice(runtime: any, selectedTarget: any, 
 }
 
 async function choosePendingTargetWithPolicyAsync(playerKey: any, pendingType: any, targets: any, pending: any): Promise<any> {
-    if (CpuPolicyPendingTargets && typeof CpuPolicyPendingTargets.choosePendingTargetWithPolicyAsync === 'function') {
-        return CpuPolicyPendingTargets.choosePendingTargetWithPolicyAsync(playerKey, pendingType, targets, pending, {
-            cpuDecisionPendingOnnx: CpuDecisionPendingOnnx
-        });
-    }
-    return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.choosePendingTargetWithPolicyAsync === 'function'
-        ? CpuDecisionPendingOnnx.choosePendingTargetWithPolicyAsync(playerKey, pendingType, targets, pending)
-        : (Array.isArray(targets) && targets.length ? targets[0] : null);
+    return CpuPolicyPendingTargetsRequired.choosePendingTargetWithPolicyAsync(playerKey, pendingType, targets, pending, {
+        cpuDecisionPendingOnnx: CpuDecisionPendingOnnx
+    });
 }
 
 const CpuDecisionPendingActions = (CpuDecisionPendingActionsModule && typeof CpuDecisionPendingActionsModule.createCpuDecisionPendingActions === 'function')
