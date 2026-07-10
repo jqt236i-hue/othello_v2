@@ -32,3 +32,48 @@ size-garbage: 0 bytes
 - `game/network-turn-handoff.runtime.js`: present
 - `src/engine/selfplay-runner.ts`: present
 - `training/engine/selfplay-runner.ts`: present
+
+## Phase 0 Verification Results
+
+The following results were captured before any gameplay, network, CPU, selfplay, UI, or CSS implementation change. Console warnings emitted by existing negative-path tests are not failures when the Jest suite passes.
+
+| Command | Result | Interpretation |
+| --- | --- | --- |
+| `npx jest --runInBand --runTestsByPath test\refactor.dependency-boundary.test.ts` | Expected failure: one component containing `game/card-effects/selection-flow.ts`, `game/cpu-decision.ts`, and `game/pass-handler.ts` | Audit ID 2 is confirmed and remains open. |
+| `npx jest --runInBand --runTestsByPath test\game.pass-handler.test.ts test\game.pass-clears-pending.test.ts test\game.pending-selection-flow.test.ts test\cpu.turn-handler.retry.test.ts test\cpu.turn-handler.programmed-card-policy.test.ts` | Pass: 5 suites, 126 tests | Pass, pending selection, and CPU retry/card-policy behavior are fixed comparison baselines. |
+| `npm run test:match:parity` | Pass: 11 suites, 141 tests | Worker/local authority behavior is a fixed comparison baseline. |
+| `npm run typecheck` | Pass | Root TypeScript is checked; audit ID 3 remains open because training sources are excluded. |
+| `npm run check:window` | Pass | Static direct `window`/`globalThis` guard baseline; dynamic-resolution debt remains separately audited. |
+| `npm run checkall` | Pass | Known false green: this command does not run the failing dependency-cycle test yet. |
+| `npx jest --runInBand --runTestsByPath test\selfplay.position-weights.test.ts` | Pass: 1 suite, 2 tests | Current mirrored selfplay-weight behavior is fixed before single-source conversion. |
+| `npx jest --runInBand --runTestsByPath training\tests\selfplay.runtime-parity.test.ts` | Pass: 1 suite, 3 tests | Headless/browser policy-table parity is fixed. |
+| `training\tests\selfplay.runner.test.ts` and its deterministic two-game case | Timed out at 120–184 seconds without completion | Known non-passing verification baseline. It must be made bounded or decomposed into deterministic focused cases before Phase 2 can claim full selfplay verification. |
+
+## Structural Inventory and Closure Mapping
+
+| Audit ID | Baseline evidence | Required closure mechanism |
+| --- | --- | --- |
+| 1 | 156,414 tracked artifact files; 65,355,996,045 logical artifact bytes; 5.22 GiB Git pack | Retention inventory, current-tree removal, and separately approved Phase H fresh-clone proof. |
+| 2 | Dependency test reports the three-file cycle | Empty cycle result through the normal `checkall` path. |
+| 3 | `scripts/build-training-cli.ts` uses `ts.transpileModule`; root TypeScript config excludes training runtime sources | Training no-emit/typecheck and compiler-Program build run in normal checks. |
+| 4 | `src/engine/selfplay-runner.ts` and `training/engine/selfplay-runner.ts` are both present | Root implementation plus delegation-only compatibility surface. |
+| 5 | `workers/match-worker.ts` is 4,335 lines and `scripts/local-match-server.ts` is 3,426 lines; parity suite passes | Shared authority core with route-family parity and deletion proof. |
+| 6 | `game/visual-effects-map.runtime.js` and `game/network-turn-handoff.runtime.js` are present behind TS wrappers | TypeScript implementation authority and inventory enforcement. |
+| 7 | `game/logic/cards.ts` is 4,893 lines | Export-compatible composed facade with no duplicate fallback authority. |
+| 8 | `game/cpu-decision.ts` is 3,618 lines and still resolves extracted modules dynamically | Required extracted capabilities and no duplicate fallback bodies. |
+| 9 | `ui/board-renderer.ts` still defines `renderBoardFullLegacy` | Single-writer structural test plus focused renderer contracts. |
+| 10 | `game/turn/pipeline-ui/sound-cues.ts` remains alongside split cue modules | Cue parity and generator-owned registry removal. |
+| 11 | `ui/network-client.ts` is 4,188 lines | API-compatible facade over focused controllers and network parity. |
+| 12 | `ui/diff-renderer.ts` is 3,842 lines | Capability-specific projection, patch, interaction, and side-effect ports. |
+| 13 | `ui/bootstrap.ts` is 2,365 lines and `cards/card-interaction.ts` is 3,342 lines | Import-side-effect and idempotent-initialization tests. |
+| 14 | Pre-placement selection, card resolution, turn phases, and network buttons contain long mixed transactions | Stage-level state/event equivalence tests. |
+| 15 | `utils/match-authority.ts` is 2,858 lines and `shared/shared-board-utils.ts` is 1,725 lines | Focused internal modules behind stable facades. |
+| 16 | Player/owner parsing and network limits are implemented at multiple runtime boundaries | Strict/optional/fallback compatibility matrix and portable constants. |
+| 17 | `train_policy_onnx_v2.py` is 1,581 lines and v3 is 1,499 lines | One CNN trainer core with versioned compatibility entry points. |
+| 18 | Copied `game/**/src/types` trees remain in the JS inventory | Reference proof, deletion, and copied-artifact inventory guard. |
+| 19 | Root CSS ownership/override audit remains open | Selector ownership and exception inventory; visual verification requires explicit authorization. |
+| 20 | Obsolete migration/debug script families, duplicate evidence trees, and unclassified plans remain tracked | Reference inventory, deletion/archive proof, and current-status documentation. |
+
+## Phase 0 Decision
+
+Proceed to Phase 1 only with the successful focused game/network/selfplay-policy baselines above. The dependency cycle and unbounded selfplay-runner suite are explicit open conditions; neither is treated as a passing baseline or hidden by `checkall`.
