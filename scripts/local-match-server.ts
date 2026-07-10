@@ -15,6 +15,7 @@ const SeededPRNG = require('../game/schema/prng');
 const deepClone = require('../utils/deepClone');
 const MatchAuthority = require('../utils/match-authority');
 const MatchCommandRuntime = require('../utils/match-command-runtime');
+const { createMatchPublishController } = require('../utils/match-publish-controller');
 const MatchRoomLobby = require('../shared/match-room-lobby');
 const NetworkActionSchema = require('../shared/network-action-schema');
 const PlaybackEventHelpers = require('../shared/playback-event-helpers');
@@ -2549,327 +2550,59 @@ async function handleDeck(req: any, res: any) {
 
 async function handlePublish(req: any, res: any) {
     const body = await parseBody(req);
-    const roomId = String(body.roomId || '').trim().toUpperCase();
-    const seatKey = normalizePlayerKey(body.seatKey);
-    const playerKey = normalizePlayerKey(body.playerKey || body.actor);
-    const seatToken = String(body.seatToken || '').trim();
-    const baseVersion = Number.isFinite(Number(body.baseVersion)) ? Number(body.baseVersion) : null;
-    const actionType = String(body.actionType || '').trim().toLowerCase();
-    const operationId = normalizeOperationId(body.operationId);
-    const isRematchResetAction = actionType === 'reset_game' || actionType === 'rematch' || actionType === 'restart';
-    const isNetworkDebugAction = isNetworkDebugFillHandPayload(body);
+    let activeRoom: any = null;
 
-    const room = rooms.get(roomId);
-    if (!room) {
-        writeJson(res, 404, { ok: false, rejectedReason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    if (expireRoomIfNeeded(roomId, room, Date.now())) {
-        writeJson(res, 404, { ok: false, rejectedReason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-
-    applyExpiredTurnTimeoutIfNeeded(room);
-
-    const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
-    const acceptedOperationsBySeat = ensureAcceptedOperationsBySeat(room);
-    if (!Array.isArray(room.authorityLog)) room.authorityLog = [];
-    if (!Array.isArray(room.sseEventBuffer)) room.sseEventBuffer = [];
-    if (typeof room.authoritativeStateHash === 'undefined') {
-        room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
-    }
-
-    if (!room.seats[seatKey]) {
-        writeJson(res, 403, buildPublishPayload(room, viewerSeatKey, MatchAuthority.buildPublishResponseOptions({
-            ok: false,
-            rejectedReason: 'SEAT_NOT_JOINED',
-            publishKind: 'rejected',
-            operationId,
-            actionType,
-            receivedBaseVersion: baseVersion,
-            authoritativeStateVersion: room.stateVersion
-        })));
-        return;
-    }
-
-    if (seatKey !== playerKey) {
-        writeJson(res, 403, buildPublishPayload(room, viewerSeatKey, MatchAuthority.buildPublishResponseOptions({
-            ok: false,
-            rejectedReason: 'SEAT_MISMATCH',
-            publishKind: 'rejected',
-            operationId,
-            actionType,
-            receivedBaseVersion: baseVersion,
-            authoritativeStateVersion: room.stateVersion
-        })));
-        return;
-    }
-
-    if (!seatToken || !room.seatTokens || room.seatTokens[seatKey] !== seatToken) {
-        writeJson(res, 403, buildPublishPayload(room, null, MatchAuthority.buildPublishResponseOptions({
-            ok: false,
-            rejectedReason: 'SEAT_TOKEN_MISMATCH',
-            publishKind: 'rejected',
-            operationId,
-            actionType,
-            receivedBaseVersion: baseVersion,
-            authoritativeStateVersion: room.stateVersion
-        })));
-        return;
-    }
-
-    if (!MatchAuthority.hasRequiredOperationId(operationId)) {
-        writeJson(res, 409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
-            ok: false,
-            rejectedReason: 'OPERATION_ID_REQUIRED',
-            publishKind: 'rejected',
-            operationId,
-            actionType,
-            receivedBaseVersion: baseVersion,
-            authoritativeStateVersion: room.stateVersion
-        })));
-        return;
-    }
-
-    const lastAcceptedOperation = MatchAuthority.resolveAcceptedOperation(room, seatKey, operationId, acceptedOperationsBySeat[seatKey]);
-    if (
-        operationId
-        && lastAcceptedOperation
-        && typeof lastAcceptedOperation === 'object'
-    ) {
-        const serverTime = Date.now();
-        MatchAuthority.appendAuthorityLog(room, {
-            kind: 'publish_idempotent_replay',
-            operationId,
-            actionType,
-            baseVersion,
-            committedVersion: room.stateVersion,
-            stateHashBefore: room.authoritativeStateHash,
-            dedupeOutcome: 'replay'
-        });
-        const autoPassNotice = resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
-        const replayPresentationFrameEntry = typeof MatchAuthority.findPresentationFrameEntryForAcceptedOperation === 'function'
-            ? MatchAuthority.findPresentationFrameEntryForAcceptedOperation(room, lastAcceptedOperation)
-            : null;
-        const replayPublicFrame = replayPresentationFrameEntry && typeof MatchAuthority.toPublicPresentationFrame === 'function'
-            ? MatchAuthority.toPublicPresentationFrame(replayPresentationFrameEntry, { role: 'seat', seatKey }, room)
-            : null;
-        const replayPlaybackEvents = replayPublicFrame && Array.isArray(replayPublicFrame.playbackEvents)
-            ? replayPublicFrame.playbackEvents
-            : [];
-        const replayEffectLogs = replayPublicFrame && Array.isArray(replayPublicFrame.effectLogs)
-            ? replayPublicFrame.effectLogs
-            : [];
-        writeJson(res, 200, buildPublishPayload(room, seatKey, Object.assign(
-            MatchAuthority.buildPublishResponseOptions({
-                ok: true,
-                serverTime,
-                idempotentReplay: true,
-                autoPassNotice,
-                playbackEvents: replayPlaybackEvents,
-                effectLogs: replayEffectLogs,
-                playbackDiagnostics: replayPublicFrame ? replayPublicFrame.playbackDiagnostics : null,
-                publishKind: 'idempotent_replay',
-                operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion,
-                replayedStateVersion: lastAcceptedOperation.stateVersion
-            }),
-            { presentationFrameEntry: replayPresentationFrameEntry }
-        )));
-        return;
-    }
-
-    if (baseVersion === null || baseVersion !== room.stateVersion) {
-        const versionRejectedOptions = MatchAuthority.buildVersionRejectedPublishResponseOptions(room, {
-            operationId,
-            actionType,
-            receivedBaseVersion: baseVersion,
-            authoritativeStateVersion: room.stateVersion
-        });
-        const rejectedReason = versionRejectedOptions && versionRejectedOptions.rejectedReason
-            ? versionRejectedOptions.rejectedReason
-            : 'VERSION_MISMATCH';
-        MatchAuthority.appendAuthorityLog(room, {
-            kind: 'publish_rejected',
-            operationId,
-            actionType,
-            baseVersion,
-            committedVersion: room.stateVersion,
-            stateHashBefore: room.authoritativeStateHash,
-            rejectedReason
-        });
-        writeJson(res, 409, buildPublishPayload(room, seatKey, versionRejectedOptions));
-        return;
-    }
-
-    const expectedPlayerKey = getCurrentPlayerKey(room.snapshot && room.snapshot.gameState);
-    if (playerKey !== expectedPlayerKey) {
-        const allowOutOfTurnRematch = isRematchResetAction;
-        const allowOutOfTurnNetworkDebug = isNetworkDebugAction && toPublicNetworkDebugEnabled(room);
-        const allowFateWillController = MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, playerKey);
-        if (!allowOutOfTurnRematch && !allowOutOfTurnNetworkDebug && !allowFateWillController) {
-            writeJson(res, 409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
-                ok: false,
-                rejectedReason: 'OUT_OF_TURN',
-                publishKind: 'rejected',
-                operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion
-            })));
-            return;
-        }
-    }
-
-    const hasCommandPayload = !!(
-        !isRematchResetAction
-        && body
-        && typeof body === 'object'
-        && (
-            (body.params && typeof body.params === 'object')
-            || (body.actor && String(body.actor).trim())
-            || (body.action && typeof body.action === 'object')
-        )
-    );
-
-    const stateHashBefore = MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
-    let nextSnapshot;
-    let serverPlaybackEvents = [];
-    let serverEffectLogs = [];
-    let serverPlaybackDiagnostics = null;
-    let commandAction: any = null;
-    let pendingEffectId = null;
-    if (isRematchResetAction) {
-        const rematchSeed = Date.now();
-        nextSnapshot = makeInitialSnapshot(rematchSeed, buildInitialDeckSnapshotOptions(room));
-        room.seed = rematchSeed;
-    } else if (hasCommandPayload) {
-        const commandResult = applyCommandPublishToSnapshot(room, body, playerKey);
-        if (!commandResult.ok) {
-            MatchAuthority.appendAuthorityLog(room, {
-                kind: 'publish_rejected',
-                operationId,
-                actionType,
-                baseVersion,
-                committedVersion: room.stateVersion,
-                stateHashBefore,
-                pendingEffectId: commandResult.pendingEffectId || null,
-                rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
-            });
-            writeJson(res, 409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
-                ok: false,
-                rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED',
-                errorMessage: commandResult.errorMessage || null,
-                publishKind: 'rejected',
-                operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion
-            })));
-            return;
-        }
-        nextSnapshot = commandResult.snapshot;
-        serverPlaybackEvents = Array.isArray(commandResult.playbackEvents) ? commandResult.playbackEvents : [];
-        serverEffectLogs = Array.isArray(commandResult.effectLogs) ? commandResult.effectLogs : [];
-        serverPlaybackDiagnostics = commandResult.playbackDiagnostics || null;
-        commandAction = commandResult.action || null;
-        pendingEffectId = commandResult.pendingEffectId || null;
-    } else {
-        writeJson(res, 409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
-            ok: false,
-            rejectedReason: 'COMMAND_REQUIRED',
-            publishKind: 'rejected',
-            operationId,
-            actionType,
-            receivedBaseVersion: baseVersion,
-            authoritativeStateVersion: room.stateVersion
-        })));
-        return;
-    }
-
-    const previousSnapshotForChargeDelta = deepClone(room.snapshot);
-
-    ensureInitialPresentationSnapshots(room);
-    const previousStateVersion = room.stateVersion;
-    room.stateVersion += 1;
-    nextSnapshot.stateVersion = room.stateVersion;
-    nextSnapshot.updatedAt = Date.now();
-    room.snapshot = nextSnapshot;
-    room.updatedAt = nextSnapshot.updatedAt;
-    room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
-
-    if (operationId) {
-        const acceptedEntry = {
-            operationId,
-            stateVersion: room.stateVersion,
-            updatedAt: room.updatedAt
-        };
-        MatchAuthority.rememberAcceptedOperationBySeat(room, seatKey, acceptedEntry);
-    }
-
-    refreshTurnTimer(room, { nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
-    const ratedResult = resolveRatedResultFromRoom(room);
-    if (ratedResult) {
-        finalizeLocalRatedMatchIfNeeded(room, ratedResult, 'normal_end');
-    }
-
-    const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey)
-        || resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
-    const presentationFrameEntry = appendPresentationFrameForAcceptedPublish(room, {
-        previousStateVersion,
-        nextStateVersion: room.stateVersion,
-        operationId,
-        actorSeatKey: playerKey,
-        actionType: body.actionType ? String(body.actionType) : actionType,
-        playbackEvents: serverPlaybackEvents,
-        effectLogs: serverEffectLogs,
-        playbackDiagnostics: serverPlaybackDiagnostics,
-        createdAt: room.updatedAt
+    const controller = createMatchPublishController({
+        loadRoom: async (incomingBody: any) => {
+            const roomId = String((incomingBody && incomingBody.roomId) || '').trim().toUpperCase();
+            activeRoom = rooms.get(roomId) || null;
+            if (activeRoom && expireRoomIfNeeded(roomId, activeRoom, Date.now())) {
+                activeRoom = null;
+            }
+        },
+        getRoom: () => activeRoom,
+        applyExpiredTurnTimeoutIfNeeded: () => {
+            if (activeRoom) applyExpiredTurnTimeoutIfNeeded(activeRoom);
+        },
+        normalizePlayerKey,
+        normalizeOperationId,
+        resolveSeatKey: (incomingBody: any) => normalizePlayerKey(incomingBody && incomingBody.seatKey),
+        resolvePlayerKey: (incomingBody: any) => normalizePlayerKey(incomingBody && (incomingBody.playerKey || incomingBody.actor)),
+        allowFateWillOwnerAction: false,
+        isNetworkDebugFillHandPayload,
+        resolveAuthenticatedSeatKey,
+        ensureAcceptedOperationsBySeat,
+        asRecord: (value: any) => value && typeof value === 'object' ? value : {},
+        MatchAuthority,
+        buildPublishPayload,
+        getCurrentPlayerKey,
+        toPublicNetworkDebugEnabled,
+        deepClone,
+        includePreviousSnapshotForChargeDelta: false,
+        catchRematchResetErrors: false,
+        makeInitialSnapshot,
+        buildInitialDeckSnapshotOptions,
+        applyCommandPublishToSnapshot,
+        finalizeRatedMatchAfterAcceptedPublish: async () => {
+            const ratedResult = resolveRatedResultFromRoom(activeRoom);
+            if (ratedResult) finalizeLocalRatedMatchIfNeeded(activeRoom, ratedResult, 'normal_end');
+        },
+        refreshTurnTimer: (options: any) => refreshTurnTimer(activeRoom, options),
+        prepareSnapshotBroadcast: (meta: any) => prepareSnapshotBroadcast(activeRoom, meta),
+        ensureInitialPresentationSnapshots,
+        appendPresentationFrameForAcceptedPublish,
+        saveRoom: async () => undefined,
+        broadcastSnapshot: async (meta: any) => {
+            const prepared = meta && meta.__preparedSnapshot
+                ? meta.__preparedSnapshot
+                : prepareSnapshotBroadcast(activeRoom, meta);
+            broadcastPreparedSnapshot(activeRoom, prepared);
+        },
+        jsonResponse: (status: number, payload: any) => ({ status, payload })
     });
-    const meta = {
-        playerKey,
-        actionType: body.actionType ? String(body.actionType) : null,
-        playbackEvents: serverPlaybackEvents,
-        effectLogs: serverEffectLogs,
-        playbackDiagnostics: serverPlaybackDiagnostics,
-        autoPassNotice,
-        operationId: operationId || null,
-        presentationFrameEntry
-    };
-    const serverTime = Date.now();
-    const preparedSnapshot = prepareSnapshotBroadcast(room, meta);
-    const responsePayload = buildPublishPayload(room, seatKey, Object.assign(
-        MatchAuthority.buildPublishResponseOptions({
-            ok: true,
-            serverTime,
-            playbackEvents: serverPlaybackEvents,
-            effectLogs: serverEffectLogs,
-            playbackDiagnostics: serverPlaybackDiagnostics,
-            autoPassNotice,
-            publishKind: 'accepted',
-            operationId,
-            actionType,
-            receivedBaseVersion: baseVersion,
-            authoritativeStateVersion: room.stateVersion
-        }),
-        { presentationFrameEntry }
-    ));
-    MatchAuthority.appendAuthorityLog(room, {
-        kind: 'publish_accepted',
-        operationId,
-        actionType: actionType || (commandAction && commandAction.type) || null,
-        baseVersion,
-        committedVersion: room.stateVersion,
-        stateHashBefore,
-        stateHashAfter: room.authoritativeStateHash,
-        pendingEffectId,
-        dedupeOutcome: 'accepted'
-    });
-    MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
-    broadcastPreparedSnapshot(room, preparedSnapshot);
-    writeJson(res, 200, responsePayload);
+
+    const result = await controller.handlePublish(body);
+    writeJson(res, result.status, result.payload);
 }
 
 function validateRematchSeat(room: any, seatKey: any, seatToken: any) {
