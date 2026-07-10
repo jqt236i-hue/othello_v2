@@ -94,4 +94,14 @@ describe('JS inventory runtime-authority guard', () => {
       expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.js`))).toBe(false);
     }
   });
+
+  test('rejects reintroducing retired bootstrap print diagnostics', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const retiredScripts = ['check-bootstrap', 'check-init-factory'];
+
+    for (const name of retiredScripts) {
+      expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.ts`))).toBe(false);
+      expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.js`))).toBe(false);
+    }
+  });
 });
