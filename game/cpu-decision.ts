@@ -377,6 +377,7 @@ function requireCpuDecisionModuleOrNull(id: string): any {
 }
 
 const CpuDecisionBoardUtilsModule = requireCpuDecisionModuleOrNull('./cpu-decision-board-utils');
+const CpuDecisionSharedBoardUtils = requireCpuDecisionModuleOrNull('../shared/shared-board-utils');
 const CpuDecisionPlanPressureModule = requireCpuDecisionModuleOrNull('./cpu-decision-plan-pressure');
 const CpuDecisionMovePlanModule = requireCpuDecisionModuleOrNull('./cpu-decision-move-plan');
 const CpuDecisionCardContextModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-context');
@@ -397,43 +398,14 @@ const CpuDecisionPendingPipelineModule = requireCpuDecisionModuleOrNull('./cpu-d
 const CpuDecisionSelectionFlowModule = requireCpuDecisionModuleOrNull('./cpu-decision-selection-flow');
 const CpuDecisionControllerEvents = requireCpuDecisionModuleOrNull('./controller-events');
 
-const countBoardEmpties = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.countBoardEmpties === 'function')
-    ? CpuDecisionBoardUtilsModule.countBoardEmpties
-    : function countBoardEmptiesFallback(board: any) {
-        if (!Array.isArray(board)) return 0;
-        let empties = 0;
-        for (let r = 0; r < board.length; r++) {
-            const row = Array.isArray(board[r]) ? board[r] : [];
-            for (let c = 0; c < row.length; c++) {
-                if (row[c] === 0) empties += 1;
-            }
-        }
-        return empties;
-    };
+const CpuDecisionBoardUtils = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.createCpuDecisionBoardUtils === 'function')
+    ? CpuDecisionBoardUtilsModule.createCpuDecisionBoardUtils({ sharedBoardUtils: CpuDecisionSharedBoardUtils })
+    : (() => { throw new Error('CpuDecisionBoardUtils is required by cpu-decision'); })();
 
-const isStandardBoard8x8 = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.isStandardBoard8x8 === 'function')
-    ? CpuDecisionBoardUtilsModule.isStandardBoard8x8
-    : function isStandardBoard8x8Fallback() { return false; };
-
-const isCornerCell = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.isCornerCell === 'function')
-    ? CpuDecisionBoardUtilsModule.isCornerCell
-    : function isCornerCellFallback(row: any, col: any, board?: any) {
-        const boardUtils = resolveSharedBoardUtilsModule();
-        if (boardUtils && typeof boardUtils.isCornerCell === 'function') {
-            return boardUtils.isCornerCell(row, col, board);
-        }
-        return (row === 0 || row === 7) && (col === 0 || col === 7);
-    };
-
-const isEdgeCell = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.isEdgeCell === 'function')
-    ? CpuDecisionBoardUtilsModule.isEdgeCell
-    : function isEdgeCellFallback(row: any, col: any, board?: any) {
-        const boardUtils = resolveSharedBoardUtilsModule();
-        if (boardUtils && typeof boardUtils.isEdgeCell === 'function') {
-            return boardUtils.isEdgeCell(row, col, board);
-        }
-        return row === 0 || row === 7 || col === 0 || col === 7;
-    };
+const countBoardEmpties = CpuDecisionBoardUtils.countBoardEmpties;
+const isStandardBoard8x8 = CpuDecisionBoardUtils.isStandardBoard8x8;
+const isCornerCell = CpuDecisionBoardUtils.isCornerCell;
+const isEdgeCell = CpuDecisionBoardUtils.isEdgeCell;
 
 function isPlayableBoard(board: any): any {
     if (!Array.isArray(board) || board.length <= 0) return false;
@@ -518,71 +490,18 @@ function setBoardCellValue(board: any, row: any, col: any, value: any): any {
 }
 
 function getBoardBonusValueAt(row: any, col: any): any {
-    if (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.getBoardBonusValueAt === 'function') {
-        const cs = (typeof cardState !== 'undefined') ? cardState : null;
-        return CpuDecisionBoardUtilsModule.getBoardBonusValueAt(row, col, cs);
-    }
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
-    if (!cs) return 0;
-    const key = `${row},${col}`;
-    const consumed = (cs.boardBonusConsumedByCell && cs.boardBonusConsumedByCell[key] === true);
-    if (consumed) return 0;
-    const raw = Number(cs.boardBonusByCell && cs.boardBonusByCell[key] ? cs.boardBonusByCell[key] : 0);
-    return Number.isFinite(raw) && raw > 0 ? raw : 0;
+    return CpuDecisionBoardUtils.getBoardBonusValueAt(row, col, cs);
 }
 
-const countCornerControl = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.countCornerControl === 'function')
-    ? CpuDecisionBoardUtilsModule.countCornerControl
-    : function countCornerControlFallback(board: any, playerValue: any) {
-        if (!isPlayableBoard(board)) return { ownCorners: 0, oppCorners: 0 };
-        const maxRow = board.length - 1;
-        const maxCol = Array.isArray(board[0]) ? (board[0].length - 1) : maxRow;
-        const corners = [
-            [0, 0],
-            [0, maxCol],
-            [maxRow, 0],
-            [maxRow, maxCol]
-        ];
-        let ownCorners = 0;
-        let oppCorners = 0;
-        for (const one of corners) {
-            const row = Array.isArray(board[one[0]]) ? board[one[0]] : null;
-            if (!row || one[1] < 0 || one[1] >= row.length) continue;
-            const v = row[one[1]];
-            if (v === playerValue) ownCorners += 1;
-            else if (v === -playerValue) oppCorners += 1;
-        }
-        return { ownCorners, oppCorners };
-    };
-
-const countEdgeControl = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.countEdgeControl === 'function')
-    ? CpuDecisionBoardUtilsModule.countEdgeControl
-    : function countEdgeControlFallback(board: any, playerValue: any) {
-        if (!isPlayableBoard(board)) return { ownEdges: 0, oppEdges: 0 };
-        const maxRow = board.length - 1;
-        let ownEdges = 0;
-        let oppEdges = 0;
-        for (let row = 0; row <= maxRow; row++) {
-            const cells = Array.isArray(board[row]) ? board[row] : [];
-            for (let col = 0; col < cells.length; col++) {
-                if (!isEdgeCell(row, col, board) || isCornerCell(row, col, board)) continue;
-                const v = cells[col];
-                if (v === playerValue) ownEdges += 1;
-                else if (v === -playerValue) oppEdges += 1;
-            }
-        }
-        return { ownEdges, oppEdges };
-    };
+const countCornerControl = CpuDecisionBoardUtils.countCornerControl;
+const countEdgeControl = CpuDecisionBoardUtils.countEdgeControl;
 
 function isRecoveryCardType(cardType: any): any {
     const type = String(cardType || '');
     if (!type) return false;
     if (CpuPolicyCore && typeof CpuPolicyCore.isCornerRecoveryCardType === 'function') {
         try { return CpuPolicyCore.isCornerRecoveryCardType(type) === true; } catch (e) { /* ignore */ }
-    }
-    if (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.isRecoveryCardType === 'function') {
-        return CpuDecisionBoardUtilsModule.isRecoveryCardType(type);
     }
     return false;
 }
@@ -593,9 +512,6 @@ function isHoldCardType(cardType: any): any {
     if (CpuPolicyCore && typeof CpuPolicyCore.isCornerHoldCardType === 'function') {
         try { return CpuPolicyCore.isCornerHoldCardType(type) === true; } catch (e) { /* ignore */ }
     }
-    if (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.isHoldCardType === 'function') {
-        return CpuDecisionBoardUtilsModule.isHoldCardType(type);
-    }
     return false;
 }
 
@@ -605,25 +521,12 @@ function isChargeRampCardType(cardType: any): any {
     if (CpuPolicyCore && typeof CpuPolicyCore.isChargeRampCardType === 'function') {
         try { return CpuPolicyCore.isChargeRampCardType(type) === true; } catch (e) { /* ignore */ }
     }
-    if (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.isChargeRampCardType === 'function') {
-        return CpuDecisionBoardUtilsModule.isChargeRampCardType(type);
-    }
     return false;
 }
 
 function resolveCardType(cardId: any, cardDef: any): any {
-    if (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.resolveCardType === 'function') {
-        const logic = (typeof CardLogic !== 'undefined') ? CardLogic : null;
-        return CpuDecisionBoardUtilsModule.resolveCardType(cardId, cardDef, logic);
-    }
-    if (cardDef && typeof cardDef.type === 'string' && cardDef.type) return cardDef.type;
-    if (!cardId || typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.getCardDef !== 'function') return '';
-    try {
-        const def = CardLogic.getCardDef(cardId);
-        return (def && typeof def.type === 'string') ? def.type : '';
-    } catch (e) {
-        return '';
-    }
+    const logic = (typeof CardLogic !== 'undefined') ? CardLogic : null;
+    return CpuDecisionBoardUtils.resolveCardType(cardId, cardDef, logic);
 }
 
 const WHITE_LV6_CORNER_SWING_KEEP_TYPES = new Set([
