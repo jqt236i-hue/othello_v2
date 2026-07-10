@@ -3,6 +3,27 @@ import * as path from 'path';
 
 const inventory = require('../scripts/inventory-js-legacy');
 
+const MUTATOR_MAINTENANCE_ALLOWLIST: Record<string, string> = {
+  'scripts/perf/measure-pr2-v2.ts': 'Reproduces the checked-in PR2 v2 performance report.'
+};
+
+const SCRIPT_MUTATOR_PATTERN = /\b(?:writeFileSync|appendFileSync|rmSync|renameSync|unlinkSync|copyFileSync|mkdirSync)\s*\(/;
+
+function collectFiles(root: string, relativeDir: string, extension: string): Array<{ relativePath: string; content: string }> {
+  const absoluteDir = path.join(root, relativeDir);
+  if (!fs.existsSync(absoluteDir)) return [];
+  const files: Array<{ relativePath: string; content: string }> = [];
+  for (const entry of fs.readdirSync(absoluteDir, { withFileTypes: true })) {
+    const relativePath = path.join(relativeDir, entry.name).replace(/\\/g, '/');
+    if (entry.isDirectory()) {
+      files.push(...collectFiles(root, relativePath, extension));
+    } else if (entry.name.endsWith(extension)) {
+      files.push({ relativePath, content: fs.readFileSync(path.join(root, relativePath), 'utf8') });
+    }
+  }
+  return files;
+}
+
 describe('JS inventory runtime-authority guard', () => {
   test('rejects a TypeScript sibling that hides a substantial runtime implementation', () => {
     const content = [
@@ -154,5 +175,46 @@ describe('JS inventory runtime-authority guard', () => {
       expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.ts`))).toBe(false);
       expect(fs.existsSync(path.join(repoRoot, 'scripts', `${name}.js`))).toBe(false);
     }
+  });
+
+  test('rejects copied compiled CommonJS boilerplate in TypeScript source', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const sourceRoots = ['cards', 'constants', 'cpu', 'game', 'scripts', 'shared', 'src', 'training', 'ui', 'utils', 'workers'];
+    const compiledBoilerplate = /Object\.defineProperty\(exports,\s*["']__esModule["']/;
+    const offenders = sourceRoots.flatMap((sourceRoot) => collectFiles(repoRoot, sourceRoot, '.ts'))
+      .filter(({ relativePath, content }) => relativePath !== 'scripts/inventory-js-legacy.ts' && compiledBoilerplate.test(content))
+      .map(({ relativePath }) => relativePath);
+
+    expect(offenders).toEqual([]);
+  });
+
+  test('requires every direct-output mutator to have an active reference or an explicit maintenance reason', () => {
+    const repoRoot = path.resolve(__dirname, '..');
+    const mutators = collectFiles(repoRoot, 'scripts', '.ts')
+      .filter(({ content }) => SCRIPT_MUTATOR_PATTERN.test(content));
+    const activeSources = [
+      { relativePath: 'package.json', content: fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8') },
+      ...collectFiles(repoRoot, 'scripts', '.ts'),
+      ...collectFiles(repoRoot, 'test', '.ts'),
+      ...collectFiles(repoRoot, 'training', '.ts'),
+      ...collectFiles(repoRoot, '.github', '.yml'),
+      ...collectFiles(repoRoot, '.github', '.yaml')
+    ];
+
+    const unreferencedMutators = mutators.filter(({ relativePath }) => {
+      const basename = path.basename(relativePath, '.ts');
+      const adjacentWrapper = relativePath.replace(/\.ts$/, '.js');
+      const hasActiveReference = activeSources.some((source) => (
+        source.relativePath !== relativePath
+        && source.relativePath !== adjacentWrapper
+        && source.content.includes(basename)
+      ));
+      return !hasActiveReference && !(relativePath in MUTATOR_MAINTENANCE_ALLOWLIST);
+    }).map(({ relativePath }) => relativePath);
+
+    const allowlistedMutators = Object.keys(MUTATOR_MAINTENANCE_ALLOWLIST).sort();
+    const knownMutators = mutators.map(({ relativePath }) => relativePath).sort();
+    expect(allowlistedMutators.every((relativePath) => knownMutators.includes(relativePath))).toBe(true);
+    expect(unreferencedMutators).toEqual([]);
   });
 });
