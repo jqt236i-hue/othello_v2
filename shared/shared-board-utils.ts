@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -148,55 +148,19 @@
         return EMPTY;
     }
 
-    function clampBoardDimension(value: unknown, fallbackValue: unknown, minValue: number, maxValue: number): number {
-        const fallback = Number.isFinite(Number(fallbackValue))
-            ? Math.floor(Number(fallbackValue))
-            : minValue;
-        const numeric = Number.isFinite(Number(value))
-            ? Math.floor(Number(value))
-            : fallback;
-        return Math.max(minValue, Math.min(maxValue, numeric));
-    }
-
-    function getBoardDimensionBounds(axis: string): { min: number; max: number } {
-        const normalizedAxis = axis === 'col' || axis === 'cols' || axis === 'column'
-            ? 'col'
-            : 'row';
-        if (normalizedAxis === 'col') {
-            return {
-                min: MIN_BOARD_COLS,
-                max: MAX_BOARD_COLS
-            };
-        }
-        return {
-            min: MIN_BOARD_ROWS,
-            max: MAX_BOARD_ROWS
-        };
-    }
-
-    function normalizeBoardDimensionValue(value: unknown, fallbackValue: unknown, axis: string): number {
-        const bounds = getBoardDimensionBounds(axis);
-        const normalizedAxis = axis === 'col' || axis === 'cols' || axis === 'column'
-            ? 'col'
-            : 'row';
-        const defaultValue = normalizedAxis === 'col'
-            ? DEFAULT_BOARD_COLS
-            : DEFAULT_BOARD_ROWS;
-        const fallback = Number.isFinite(Number(fallbackValue))
-            ? Number(fallbackValue)
-            : defaultValue;
-        return clampBoardDimension(value, fallback, bounds.min, bounds.max);
-    }
-
-    function stepBoardDimensionValue(value: unknown, direction: unknown, fallbackValue: unknown, axis: string): number {
-        const normalizedDirection = Number(direction);
-        const baseValue = normalizeBoardDimensionValue(value, fallbackValue, axis);
-        if (!Number.isFinite(normalizedDirection) || normalizedDirection === 0) {
-            return baseValue;
-        }
-        const step = normalizedDirection > 0 ? 1 : -1;
-        return normalizeBoardDimensionValue(baseValue + step, baseValue, axis);
-    }
+    if (!BoardDimensionsModule) throw new Error('BoardDimensions is required by SharedBoardUtils');
+    const BoardDimensions = BoardDimensionsModule.createBoardDimensions({
+        defaultRows: DEFAULT_BOARD_ROWS,
+        defaultCols: DEFAULT_BOARD_COLS,
+        minRows: MIN_BOARD_ROWS,
+        maxRows: MAX_BOARD_ROWS,
+        minCols: MIN_BOARD_COLS,
+        maxCols: MAX_BOARD_COLS
+    });
+    const clampBoardDimension = BoardDimensions.clampBoardDimension;
+    const getBoardDimensionBounds = BoardDimensions.getBoardDimensionBounds;
+    const normalizeBoardDimensionValue = BoardDimensions.normalizeBoardDimensionValue;
+    const stepBoardDimensionValue = BoardDimensions.stepBoardDimensionValue;
 
     function isNumericBoardDimensionArg(value: unknown): boolean {
         if (value === null || typeof value === 'undefined') return false;
