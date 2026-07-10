@@ -56,7 +56,7 @@ function emitTrainingScripts(configPath = resolveTrainingBuildConfigPath()): str
     throw new Error(formatDiagnostics(emitResult.diagnostics));
   }
 
-  return parsed.fileNames.filter((filePath) => filePath.endsWith('.ts'));
+  return parsed.fileNames.filter((filePath) => filePath.endsWith('.ts') && !filePath.endsWith('.d.ts'));
 }
 
 function main(): void {
