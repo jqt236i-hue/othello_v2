@@ -89,5 +89,31 @@ describe('network authority path hardening', () => {
       rejectedReason: 'COMMAND_PIPELINE_UNAVAILABLE'
     }));
   });
-});
 
+  test('runtime-neutral command port receives the canonical command unchanged', () => {
+    const MatchRuntimeCore = require('../utils/match-runtime-core');
+    const room = {
+      stateVersion: 3,
+      snapshot: { gameState: {}, cardState: {} }
+    };
+    const body = {
+      actionType: 'pass',
+      action: { type: 'pass', forcePass: true }
+    };
+    const execute = jest.fn(() => ({
+      ok: true,
+      snapshot: { gameState: { done: true } }
+    }));
+
+    const result = MatchRuntimeCore.applyCommandToSnapshot(room, body, 'black', {
+      TurnPipeline: { applyTurnSafe: jest.fn() },
+      applyCommandPublishToSnapshot: execute
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      snapshot: { gameState: { done: true } }
+    });
+    expect(execute).toHaveBeenCalledWith(room, body, 'black');
+  });
+});

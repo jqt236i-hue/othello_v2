@@ -1,10 +1,9 @@
-interface MatchRuntimeCommandResult {
-    ok: boolean;
-    rejectedReason?: string;
-    errorMessage?: string | null;
-    snapshot?: Record<string, unknown>;
-    [key: string]: unknown;
-}
+import { executeMatchRuntimeCommand } from './match-command-runtime';
+import type {
+    MatchCommandRuntimePort,
+    MatchRuntimeCommand,
+    MatchRuntimeCommandResult
+} from './match-runtime-ports';
 
 interface MatchRuntimeTurnPipeline {
     applyTurnSafe: (...args: unknown[]) => unknown;
@@ -30,10 +29,19 @@ function applyCommandToSnapshot(
     if (!runtimeDeps.TurnPipeline || typeof runtimeDeps.TurnPipeline.applyTurnSafe !== 'function') {
         return { ok: false, rejectedReason: 'COMMAND_PIPELINE_UNAVAILABLE' };
     }
-    if (typeof runtimeDeps.applyCommandPublishToSnapshot === 'function') {
-        return runtimeDeps.applyCommandPublishToSnapshot(room, body, playerKey);
-    }
-    return { ok: false, rejectedReason: 'COMMAND_PIPELINE_UNAVAILABLE' };
+    const commandPort: MatchCommandRuntimePort<MatchRuntimeCommandResult> | null =
+        typeof runtimeDeps.applyCommandPublishToSnapshot === 'function'
+            ? {
+                execute(command: MatchRuntimeCommand): MatchRuntimeCommandResult {
+                    return runtimeDeps.applyCommandPublishToSnapshot!(
+                        command.room,
+                        command.body,
+                        command.playerKey
+                    );
+                }
+            }
+            : null;
+    return executeMatchRuntimeCommand({ room, body, playerKey }, commandPort);
 }
 
 export = {
