@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -98,6 +98,8 @@
 
     const BoardUtils = BoardUtilsModule || null;
     const OthelloCore = OthelloCoreModule || null;
+    if (!PaddedBoardCoordinatesModule) throw new Error('PaddedBoardCoordinates is required by SharedBoardUtils');
+    const PaddedBoardCoordinates = PaddedBoardCoordinatesModule;
     const BOARD_SHAPE_META_KEY = '__sharedBoardShapeMeta';
     const EMPTY: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { EMPTY?: unknown }).EMPTY))
         ? Number((SharedConstants as { EMPTY?: unknown }).EMPTY)
@@ -519,29 +521,24 @@
     }
 
     function isPaddedBoardCoordinate(row: number, col: number): boolean {
-        return (
-            Number.isInteger(row) &&
-            Number.isInteger(col) &&
-            row >= PADDED_BOARD_MIN &&
-            row <= PADDED_BOARD_MAX &&
-            col >= PADDED_BOARD_MIN &&
-            col <= PADDED_BOARD_MAX
-        );
+        return PaddedBoardCoordinates.isPaddedBoardCoordinate(row, col, {
+            min: PADDED_BOARD_MIN,
+            max: PADDED_BOARD_MAX
+        });
     }
 
     function toPaddedBoardIndex(row: number, col: number): number {
-        if (!isPaddedBoardCoordinate(row, col)) return -1;
-        return ((row - PADDED_BOARD_MIN) * PADDED_BOARD_SIZE) + (col - PADDED_BOARD_MIN);
+        return PaddedBoardCoordinates.toPaddedBoardIndex(row, col, {
+            min: PADDED_BOARD_MIN,
+            max: PADDED_BOARD_MAX
+        });
     }
 
     function fromPaddedBoardIndex(index: number): CellCoord | null {
-        if (!Number.isInteger(index) || index < 0 || index >= (PADDED_BOARD_SIZE * PADDED_BOARD_SIZE)) return null;
-        const rowOffset = Math.floor(index / PADDED_BOARD_SIZE);
-        const colOffset = index % PADDED_BOARD_SIZE;
-        return {
-            row: PADDED_BOARD_MIN + rowOffset,
-            col: PADDED_BOARD_MIN + colOffset
-        };
+        return PaddedBoardCoordinates.fromPaddedBoardIndex(index, {
+            min: PADDED_BOARD_MIN,
+            max: PADDED_BOARD_MAX
+        });
     }
 
     function resolveExpansionSide(side: unknown, row: number, col: number, boardOrConfig: unknown, maybeCols?: unknown): string | null {

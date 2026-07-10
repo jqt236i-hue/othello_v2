@@ -163,6 +163,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/constants/animation-constants" },
   { moduleKey: "./dist/cards/catalog", globalNames: ["CardCatalog"] },
   { moduleKey: "./dist/shared-constants" },
+  { moduleKey: "./dist/shared/board/padded-coordinates", globalNames: ["PaddedBoardCoordinates"] },
   { moduleKey: "./dist/shared/shared-board-utils" },
   { moduleKey: "./dist/shared/deck-spec" },
   { moduleKey: "./dist/shared/deck-codec" },
