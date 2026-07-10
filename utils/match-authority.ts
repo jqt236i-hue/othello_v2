@@ -65,6 +65,7 @@ import { createTrapVisibilityApi } from './match-authority/trap-visibility';
 import { createMatchAuthorityProjectionApi } from './match-authority/projection';
 import { createMatchAuthorityPublishApi } from './match-authority/publish';
 import { createMatchAuthorityOperationsApi } from './match-authority/operations';
+import { createMatchAuthorityPendingSelectionApi } from './match-authority/pending-selection';
 
 import deepClone from './deepClone';
 
@@ -253,6 +254,14 @@ const matchAuthorityProjection = createMatchAuthorityProjectionApi({
     normalizeCardCopyIdList,
     normalizeHandCopyIdArray,
     buildVisibleHandCostAdjustments
+});
+const matchAuthorityPendingSelection = createMatchAuthorityPendingSelectionApi({
+    deepClone,
+    normalizePlayerKey,
+    getCurrentPlayerKey,
+    isFateWillControllerForCurrentTurn,
+    normalizePendingType,
+    normalizePendingEffectId
 });
 
 function appendAuthorityLog(roomValue: unknown, entryValue: unknown, limitValue: unknown): unknown[] {
@@ -1009,158 +1018,16 @@ function computeProjectedSnapshotHash(snapshotValue: unknown): string | null {
     return matchAuthorityProjection.computeProjectedSnapshotHash(snapshotValue);
 }
 
-function validatePendingSelectionPublish(snapshotValue: unknown, playerKey: unknown, actionValue: unknown): { ok: boolean; pendingEffectId?: string | null; rejectedReason?: string } {
-    const action = (actionValue && typeof actionValue === 'object') ? asRecord(actionValue) : null;
-    const pendingSelectionState = (action && action.pendingSelectionState && typeof action.pendingSelectionState === 'object')
-        ? asRecord(action.pendingSelectionState)
-        : null;
-    if (!pendingSelectionState) {
-        return { ok: true };
-    }
-
-    const snapshot = (snapshotValue && typeof snapshotValue === 'object') ? asRecord(snapshotValue) : null;
-    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object') ? asRecord(snapshot.cardState) : null;
-    const pendingByPlayer = (cardState && cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object')
-        ? asRecord(cardState.pendingEffectByPlayer)
-        : null;
-    let expectedPending = pendingByPlayer ? asRecord(pendingByPlayer[normalizePlayerKey(playerKey)]) : null;
-    // FATE_WILL controller publishes a cell-click action on behalf of the owner.
-    // The pending effect is stored under the OWNER side per 正本/カード仕様正本.md 運命の意志
-    // ("石置・反転・カード使用・終端消費・手札消費は相手側の行動として処理").
-    // When playerKey is the FATE_WILL controller for the current turn owner,
-    // fall back to the owner-side pending before falling back to compatibility context.
-    if (!expectedPending || !expectedPending.type) {
-        if (isFateWillControllerForCurrentTurn(snapshotValue, normalizePlayerKey(playerKey))) {
-            const ownerKey = getCurrentPlayerKey(snapshot && snapshot.gameState as Partial<GameState> | null);
-            if (ownerKey) {
-                const ownerPending = pendingByPlayer ? asRecord(pendingByPlayer[ownerKey]) : null;
-                if (ownerPending && ownerPending.type) {
-                    expectedPending = ownerPending;
-                }
-            }
-        }
-    }
-    if (!expectedPending || !expectedPending.type) {
-        const hasCompatibilityCardContext = !!(
-            action
-            && typeof action.useCardId === 'string'
-            && String(action.useCardId).trim()
-            && typeof action.useCardOwnerKey === 'string'
-            && String(action.useCardOwnerKey).trim()
-        );
-        if (hasCompatibilityCardContext) {
-            return { ok: true, pendingEffectId: null };
-        }
-        return { ok: false, rejectedReason: 'STALE_PENDING_SELECTION' };
-    }
-
-    const requestedType = normalizePendingType(pendingSelectionState.type);
-    const expectedType = normalizePendingType(expectedPending.type);
-    if (requestedType && expectedType && requestedType !== expectedType) {
-        return { ok: false, rejectedReason: 'STALE_PENDING_SELECTION' };
-    }
-
-    const requestedCardId = normalizeCardIdOptional(pendingSelectionState.cardId);
-    const expectedCardId = normalizeCardIdOptional(expectedPending.cardId);
-    if (requestedCardId && expectedCardId && requestedCardId !== expectedCardId) {
-        return { ok: false, rejectedReason: 'STALE_PENDING_SELECTION' };
-    }
-
-    const expectedPendingEffectId = normalizePendingEffectId(expectedPending.pendingEffectId);
-    const requestedPendingEffectId = normalizePendingEffectId(pendingSelectionState.pendingEffectId);
-    if (expectedPendingEffectId && requestedPendingEffectId !== expectedPendingEffectId) {
-        return { ok: false, rejectedReason: 'STALE_PENDING_SELECTION' };
-    }
-
-    return {
-        ok: true,
-        pendingEffectId: expectedPendingEffectId
-    };
-}
-
-function normalizeCardIdOptional(value: unknown): string | null {
-    const normalized = String(value || '').trim();
-    return normalized || null;
-}
-
-function hasCardInHandForAuthority(cardState: unknown, ownerKey: unknown, cardId: unknown): boolean {
-    const state = asRecord(cardState);
-    const hands = state.hands && typeof state.hands === 'object'
-        ? asRecord(state.hands)
-        : null;
-    const owner = normalizePlayerKey(ownerKey);
-    const hand = hands && Array.isArray(hands[owner]) ? hands[owner] : [];
-    const normalizedCardId = normalizeCardIdOptional(cardId);
-    if (!normalizedCardId) return false;
-    for (let index = 0; index < hand.length; index += 1) {
-        if (normalizeCardIdOptional(hand[index]) === normalizedCardId) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function hasCardInDiscardForAuthority(cardState: unknown, cardId: unknown): boolean {
-    const state = asRecord(cardState);
-    const discard = Array.isArray(state.discard) ? state.discard : [];
-    const normalizedCardId = normalizeCardIdOptional(cardId);
-    if (!normalizedCardId) return false;
-    for (let index = 0; index < discard.length; index += 1) {
-        if (normalizeCardIdOptional(discard[index]) === normalizedCardId) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function shouldStripCommittedPendingCardUse(cardState: unknown, playerKey: unknown, action: unknown, expectedPending: unknown): boolean {
-    const state = asRecord(cardState);
-    const actionRecord = asRecord(action);
-    const pendingRecord = asRecord(expectedPending);
-    const normalizedPlayerKey = normalizePlayerKey(playerKey);
-    const normalizedUseCardId = normalizeCardIdOptional(actionRecord.useCardId);
-    const normalizedPendingCardId = normalizeCardIdOptional(pendingRecord.cardId);
-    if (!normalizedUseCardId || !normalizedPendingCardId || normalizedUseCardId !== normalizedPendingCardId) {
-        return false;
-    }
-
-    const normalizedHandOwnerKey = normalizePlayerKey(actionRecord.useCardOwnerKey, normalizedPlayerKey);
-    const hasUsedCardThisTurn = !!(
-        state.hasUsedCardThisTurnByPlayer
-        && asRecord(state.hasUsedCardThisTurnByPlayer)[normalizedPlayerKey] === true
-    );
-    const cardStillInHand = hasCardInHandForAuthority(cardState, normalizedHandOwnerKey, normalizedUseCardId);
-    const cardAlreadyInDiscard = hasCardInDiscardForAuthority(cardState, normalizedUseCardId);
-
-    return hasUsedCardThisTurn || cardAlreadyInDiscard || !cardStillInHand;
+function validatePendingSelectionPublish(
+    snapshotValue: unknown,
+    playerKey: unknown,
+    actionValue: unknown
+): { ok: boolean; pendingEffectId?: string | null; rejectedReason?: string } {
+    return matchAuthorityPendingSelection.validatePendingSelectionPublish(snapshotValue, playerKey, actionValue);
 }
 
 function sanitizePendingSelectionActionForAuthority(snapshotValue: unknown, playerKey: unknown, actionValue: unknown): unknown {
-    const action = (actionValue && typeof actionValue === 'object') ? asRecord(actionValue) : null;
-    if (!action) return actionValue;
-
-    const pendingSelectionState = (action.pendingSelectionState && typeof action.pendingSelectionState === 'object')
-        ? asRecord(action.pendingSelectionState)
-        : null;
-    if (!pendingSelectionState) return actionValue;
-
-    const snapshot = (snapshotValue && typeof snapshotValue === 'object') ? asRecord(snapshotValue) : null;
-    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object') ? asRecord(snapshot.cardState) : null;
-    const pendingByPlayer = (cardState && cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object')
-        ? asRecord(cardState.pendingEffectByPlayer)
-        : null;
-    const expectedPending = pendingByPlayer ? asRecord(pendingByPlayer[normalizePlayerKey(playerKey)]) : null;
-    if (!expectedPending || !expectedPending.type) return actionValue;
-
-    if (!shouldStripCommittedPendingCardUse(cardState, playerKey, action, expectedPending)) {
-        return actionValue;
-    }
-
-    const nextAction = deepClone(action) as Record<string, unknown>;
-    delete nextAction.useCardId;
-    delete nextAction.useCardOwnerKey;
-    delete nextAction.useCardHandIndex;
-    return nextAction;
+    return matchAuthorityPendingSelection.sanitizePendingSelectionActionForAuthority(snapshotValue, playerKey, actionValue);
 }
 
 function appendPresentationFrame(
