@@ -29,6 +29,8 @@ type JsCategory =
 interface AllowlistEntry {
   category: JsCategory;
   reason: string;
+  owner?: string;
+  removalPhase?: string;
 }
 
 type AllowlistFile = {
@@ -44,6 +46,12 @@ interface InventoryRow {
   lineCount: number;
   allowlisted: boolean;
   allowlistCategory: JsCategory | null;
+  content?: string;
+}
+
+interface RuntimeAuthorityIssue {
+  file: string;
+  reason: 'missing-expiring-authority-allowlist' | 'incomplete-expiring-authority-allowlist';
 }
 
 const ALLOWLIST_PATHS = [
@@ -168,6 +176,44 @@ function classify(relPath: string, content: string): JsCategory {
   return 'unknown';
 }
 
+function isSubstantialRuntimeImplementation(content: string): boolean {
+  const nonEmptyLines = content.split('\n').filter((line) => line.trim().length > 0);
+  const declarationCount = (content.match(/\b(function|class)\s+\w+\b/g) || []).length;
+  return declarationCount >= 2 || (
+    nonEmptyLines.length > 12
+    && /\b(function|class|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=)\b/.test(content)
+  );
+}
+
+function findHiddenRuntimeAuthorities(
+  results: InventoryRow[],
+  allowlist: Pick<AllowlistFile, 'entries'>
+): RuntimeAuthorityIssue[] {
+  const issues: RuntimeAuthorityIssue[] = [];
+  for (const row of results) {
+    if (!row.hasTs || !row.file.endsWith('.runtime.js')) continue;
+    const fullPath = path.resolve(row.file.replace(/\//g, path.sep));
+    const content = row.content ?? fs.readFileSync(fullPath, 'utf8');
+    if (!isSubstantialRuntimeImplementation(content)) continue;
+
+    const entry = allowlist.entries[row.file];
+    if (!entry) {
+      issues.push({ file: row.file, reason: 'missing-expiring-authority-allowlist' });
+      continue;
+    }
+    if (
+      entry.category !== 'runtime-projection'
+      || typeof entry.owner !== 'string'
+      || entry.owner.trim().length === 0
+      || typeof entry.removalPhase !== 'string'
+      || !/^Phase \d+\.\d+$/.test(entry.removalPhase)
+    ) {
+      issues.push({ file: row.file, reason: 'incomplete-expiring-authority-allowlist' });
+    }
+  }
+  return issues;
+}
+
 function main() {
   const allowlist = loadAllowlist();
   const allJsSet = new Set<string>();
@@ -259,8 +305,9 @@ function main() {
 
   const legacyCount = results.filter(r => r.category === 'legacy-implementation').length;
   const unknownCount = unknown.length;
+  const hiddenRuntimeAuthorities = findHiddenRuntimeAuthorities(results, allowlist);
 
-  if (unknown.length > 0 || legacyNotAllowlisted.length > 0 || badAllowlistCategory.length > 0 || unwrappedWithTs.length > 0 || staleWrappers.length > 0 || missingRuntimeProjectionSources.length > 0) {
+  if (unknown.length > 0 || legacyNotAllowlisted.length > 0 || badAllowlistCategory.length > 0 || unwrappedWithTs.length > 0 || staleWrappers.length > 0 || missingRuntimeProjectionSources.length > 0 || hiddenRuntimeAuthorities.length > 0) {
     console.error('\n[JS-INVENTORY-GATE] FAILED');
     if (unknown.length > 0) {
       console.error(`- unknown files: ${unknown.length}`);
@@ -286,10 +333,23 @@ function main() {
       console.error(`- runtime projections without TS source contract: ${missingRuntimeProjectionSources.length}`);
       missingRuntimeProjectionSources.forEach(r => console.error(`  - ${r.file}`));
     }
+    if (hiddenRuntimeAuthorities.length > 0) {
+      console.error(`- substantial runtime authorities without an expiring owner: ${hiddenRuntimeAuthorities.length}`);
+      hiddenRuntimeAuthorities.forEach((issue) => console.error(`  - ${issue.file} (${issue.reason})`));
+    }
     process.exit(2);
   }
 
   console.log(`\n[JS-INVENTORY-GATE] PASSED: unknown=${unknownCount}, legacy-implementation=${legacyCount}, wrappers and runtime projections are valid.`);
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+export = {
+  classify,
+  findHiddenRuntimeAuthorities,
+  isSubstantialRuntimeImplementation,
+  main
+};
