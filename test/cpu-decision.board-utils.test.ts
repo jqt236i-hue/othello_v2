@@ -62,7 +62,11 @@ describe('cpu decision board utils composition boundary', () => {
         const source = fs.readFileSync(path.resolve(__dirname, '..', 'game', 'cpu-decision.ts'), 'utf8');
 
         expect(source).toContain('createCpuDecisionBoardUtils({ sharedBoardUtils: CpuDecisionSharedBoardUtils })');
+        expect(source).toContain('const CpuPolicyBoardMarkerPrimitivesRequired = requireCpuPolicyBoardMarkerPrimitives();');
+        expect(source).toContain('CpuPolicyBoardMarkerPrimitivesRequired.getBoardCellValueSafe(');
+        expect(source).toContain('CpuPolicyBoardMarkerPrimitivesRequired.getMarkerProfileAt(');
         expect(source).not.toMatch(/countBoardEmptiesFallback|isStandardBoard8x8Fallback|isCornerCellFallback|isEdgeCellFallback/);
         expect(source).not.toMatch(/countCornerControlFallback|countEdgeControlFallback/);
+        expect(source).not.toContain('function getMarkerPriorityValueFallback');
     });
 });

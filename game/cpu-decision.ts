@@ -398,6 +398,26 @@ const CpuDecisionPendingPipelineModule = requireCpuDecisionModuleOrNull('./cpu-d
 const CpuDecisionSelectionFlowModule = requireCpuDecisionModuleOrNull('./cpu-decision-selection-flow');
 const CpuDecisionControllerEvents = requireCpuDecisionModuleOrNull('./controller-events');
 
+const CPU_POLICY_BOARD_MARKER_PRIMITIVE_METHODS = [
+    'getBoardCellValueSafe',
+    'countAdjacentCellsByValue',
+    'getMarkerPriorityValue',
+    'getTimedMarkerProfileAt',
+    'getMarkerProfileAt'
+];
+
+function requireCpuPolicyBoardMarkerPrimitives(): any {
+    const missingMethod = CPU_POLICY_BOARD_MARKER_PRIMITIVE_METHODS.find((methodName) => (
+        !CpuPolicyBoardMarkerPrimitives || typeof CpuPolicyBoardMarkerPrimitives[methodName] !== 'function'
+    ));
+    if (missingMethod) {
+        throw new Error(`[cpu-decision] CpuPolicyBoardMarkerPrimitives.${missingMethod} is required`);
+    }
+    return CpuPolicyBoardMarkerPrimitives;
+}
+
+const CpuPolicyBoardMarkerPrimitivesRequired = requireCpuPolicyBoardMarkerPrimitives();
+
 const CpuDecisionBoardUtils = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.createCpuDecisionBoardUtils === 'function')
     ? CpuDecisionBoardUtilsModule.createCpuDecisionBoardUtils({ sharedBoardUtils: CpuDecisionSharedBoardUtils })
     : (() => { throw new Error('CpuDecisionBoardUtils is required by cpu-decision'); })();
@@ -2449,79 +2469,30 @@ function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
 }
 
 function getBoardCellValueSafe(board: any, row: any, col: any): any {
-    if (CpuPolicyBoardMarkerPrimitives && typeof CpuPolicyBoardMarkerPrimitives.getBoardCellValueSafe === 'function') {
-        return CpuPolicyBoardMarkerPrimitives.getBoardCellValueSafe(resolveSharedBoardUtilsModule(), board, row, col);
-    }
-    if (!Array.isArray(board)) return null;
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
-    return getBoardCellValue(board, row, col);
+    return CpuPolicyBoardMarkerPrimitivesRequired.getBoardCellValueSafe(
+        resolveSharedBoardUtilsModule(),
+        board,
+        row,
+        col
+    );
 }
 
 function countAdjacentCellsByValue(board: any, row: any, col: any, value: any): any {
-    if (CpuPolicyBoardMarkerPrimitives && typeof CpuPolicyBoardMarkerPrimitives.countAdjacentCellsByValue === 'function') {
-        return CpuPolicyBoardMarkerPrimitives.countAdjacentCellsByValue(resolveSharedBoardUtilsModule(), board, row, col, value);
-    }
-    if (!Array.isArray(board)) return 0;
-    let count = 0;
-    for (let dr = -1; dr <= 1; dr++) {
-        for (let dc = -1; dc <= 1; dc++) {
-            if (dr === 0 && dc === 0) continue;
-            const r = row + dr;
-            const c = col + dc;
-            const cell = getBoardCellValueSafe(board, r, c);
-            if (cell === value) count += 1;
-        }
-    }
-    return count;
+    return CpuPolicyBoardMarkerPrimitivesRequired.countAdjacentCellsByValue(
+        resolveSharedBoardUtilsModule(),
+        board,
+        row,
+        col,
+        value
+    );
 }
 
 function getMarkerPriorityValue(type: any): any {
-    if (CpuPolicyBoardMarkerPrimitives && typeof CpuPolicyBoardMarkerPrimitives.getMarkerPriorityValue === 'function') {
-        return CpuPolicyBoardMarkerPrimitives.getMarkerPriorityValue(type);
-    }
-    const t = String(type || '').toUpperCase();
-    if (!t) return 120;
-    if (t === 'GUARD') return 280;
-    if (t === 'WORK') return 320;
-    if (t.includes('ULTIMATE')) return 260;
-    if (t === 'SNIPER' || t === 'ROBOT_VACUUM') return 240;
-    if (t === 'TRAP') return 180;
-    return 140;
+    return CpuPolicyBoardMarkerPrimitivesRequired.getMarkerPriorityValue(type);
 }
 
 function getTimedMarkerProfileAt(playerKey: any, row: any, col: any): any {
-    if (CpuPolicyBoardMarkerPrimitives && typeof CpuPolicyBoardMarkerPrimitives.getTimedMarkerProfileAt === 'function') {
-        return CpuPolicyBoardMarkerPrimitives.getTimedMarkerProfileAt(cardState, playerKey, row, col);
-    }
-    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-    const out = {
-        ownTimedCount: 0,
-        oppTimedCount: 0,
-        ownTimedScore: 0,
-        oppTimedScore: 0,
-        ownRemainingSum: 0,
-        oppRemainingSum: 0,
-        ownCriticalCount: 0,
-        oppCriticalCount: 0
-    };
-    for (const m of markers) {
-        if (!m || m.kind !== 'specialStone' || m.row !== row || m.col !== col) continue;
-        const remaining = Number(m.data && m.data.remainingOwnerTurns);
-        if (!Number.isFinite(remaining) || remaining <= 0) continue;
-        const weight = getMarkerPriorityValue(m.data && m.data.type) + (Math.min(6, remaining) * 28);
-        if (m.owner === playerKey) {
-            out.ownTimedCount += 1;
-            out.ownTimedScore += weight;
-            out.ownRemainingSum += remaining;
-            if (remaining <= 2) out.ownCriticalCount += 1;
-        } else {
-            out.oppTimedCount += 1;
-            out.oppTimedScore += weight;
-            out.oppRemainingSum += remaining;
-            if (remaining <= 2) out.oppCriticalCount += 1;
-        }
-    }
-    return out;
+    return CpuPolicyBoardMarkerPrimitivesRequired.getTimedMarkerProfileAt(cardState, playerKey, row, col);
 }
 
 function isCpuBlockedCell(row: any, col: any): any {
@@ -2646,29 +2617,7 @@ function scoreSeatStrategicValue(playerKey: any, row: any, col: any, markerProfi
 }
 
 function getMarkerProfileAt(playerKey: any, row: any, col: any): any {
-    if (CpuPolicyBoardMarkerPrimitives && typeof CpuPolicyBoardMarkerPrimitives.getMarkerProfileAt === 'function') {
-        return CpuPolicyBoardMarkerPrimitives.getMarkerProfileAt(cardState, playerKey, row, col);
-    }
-    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-    const out = {
-        ownSpecialScore: 0,
-        oppSpecialScore: 0,
-        ownBombCount: 0,
-        oppBombCount: 0
-    };
-    for (const m of markers) {
-        if (!m || m.row !== row || m.col !== col) continue;
-        if (m.kind === 'bomb') {
-            if (m.owner === playerKey) out.ownBombCount += 1;
-            else out.oppBombCount += 1;
-            continue;
-        }
-        if (m.kind !== 'specialStone') continue;
-        const priority = getMarkerPriorityValue(m.data && m.data.type);
-        if (m.owner === playerKey) out.ownSpecialScore += priority;
-        else out.oppSpecialScore += priority;
-    }
-    return out;
+    return CpuPolicyBoardMarkerPrimitivesRequired.getMarkerProfileAt(cardState, playerKey, row, col);
 }
 
 function getMoveOpponentSpecialFlipProfile(playerKey: any, move: any): any {
