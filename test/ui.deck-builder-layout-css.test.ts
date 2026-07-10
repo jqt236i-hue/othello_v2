@@ -62,4 +62,14 @@ describe('deck builder layout CSS', () => {
     expect(block).not.toMatch(/#5d4037|#3e2723|#4a3828|#8d6e63|#6d4c41|#4e342e/);
     expect(css).toMatch(/^\.btn-small:hover:not\(:disabled\),\s*\n\.btn-small:focus-visible\s*\{[\s\S]*rgba\(95,\s*205,\s*220,\s*0\.42\)/m);
   });
+
+  test('tablet landscape fits the selection surface without relying on vertical scrolling', () => {
+    const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+    const tabletFitSection = css.split('Tablet deck atelier — one-screen composition')[1] || '';
+
+    expect(tabletFitSection).toMatch(/@media\s*\(min-width:\s*761px\)\s*and\s*\(max-height:\s*900px\)/);
+    expect(tabletFitSection).toMatch(/\.deck-builder-workshop-grid\s*>\s*\.deck-builder-save-slot-card\s*\{[\s\S]*min-height:\s*calc\(136px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(tabletFitSection).toMatch(/#deckBuilderModal\s+#deckBuilderBody\s*\{[\s\S]*touch-action:\s*pan-y/);
+  });
 });
