@@ -75,7 +75,7 @@ function getAllGlobalNames(entry: BootLoadEntry | undefined): string[] {
 describe('entry-browser boot load table sequence', () => {
   test('preserves classic boot module order and duplicate compatibility loads', () => {
     const entries = extractBootLoadEntries(readEntryBrowserText());
-    expect(entries.slice(0, 13).map((entry) => entry.moduleKey)).toEqual([
+    expect(entries.slice(0, 14).map((entry) => entry.moduleKey)).toEqual([
       './dist/ui/layout-stage',
       './dist/is-env-capable',
       './dist/constants/difficulty-constants',
@@ -83,6 +83,7 @@ describe('entry-browser boot load table sequence', () => {
       './dist/constants/animation-constants',
       './dist/cards/catalog',
       './dist/shared-constants',
+      './dist/shared/board/canonical-encoding',
       './dist/shared/board/padded-coordinates',
       './dist/shared/shared-board-utils',
       './dist/shared/deck-spec',
@@ -98,6 +99,7 @@ describe('entry-browser boot load table sequence', () => {
     const entries = extractBootLoadEntries(readEntryBrowserText());
     const byModule = new Map(entries.map((entry) => [entry.moduleKey, entry]));
     expect(getAllGlobalNames(byModule.get('./dist/cards/catalog'))).toContain('CardCatalog');
+    expect(getAllGlobalNames(byModule.get('./dist/shared/board/canonical-encoding'))).toContain('CanonicalBoardEncoding');
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/padded-coordinates'))).toContain('PaddedBoardCoordinates');
     expect(getAllGlobalNames(byModule.get('./dist/game/logic/board_ops'))).toContain('BoardOps');
     expect(getAllGlobalNames(byModule.get('./dist/game/logic/core'))).toEqual(expect.arrayContaining(['CoreLogic', 'Core']));

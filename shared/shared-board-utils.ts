@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -81,13 +81,6 @@
         loneDiscCount: number;
     }
 
-    interface EnvelopeMatrix {
-        matrix: string[][];
-        size: number;
-        minRow: number;
-        minCol: number;
-    }
-
     interface CanonicalResult {
         boardKey: string;
         transformId: number;
@@ -100,6 +93,8 @@
     const OthelloCore = OthelloCoreModule || null;
     if (!PaddedBoardCoordinatesModule) throw new Error('PaddedBoardCoordinates is required by SharedBoardUtils');
     const PaddedBoardCoordinates = PaddedBoardCoordinatesModule;
+    if (!CanonicalBoardEncodingModule) throw new Error('CanonicalBoardEncoding is required by SharedBoardUtils');
+    const CanonicalBoardEncoding = CanonicalBoardEncodingModule.createCanonicalBoardEncoding({ resolveBoardBounds, collectBoardCoordinates, getCellValue });
     const BOARD_SHAPE_META_KEY = '__sharedBoardShapeMeta';
     const EMPTY: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { EMPTY?: unknown }).EMPTY))
         ? Number((SharedConstants as { EMPTY?: unknown }).EMPTY)
@@ -1436,120 +1431,27 @@
     }
 
     function toCellChar(value: unknown): string {
-        if (value === 1) return 'B';
-        if (value === -1) return 'W';
-        if (value === 0) return '.';
-        return '#';
+        return CanonicalBoardEncoding.toCellChar(value);
     }
 
     function transformCoord(row: number, col: number, size: number, transformId: number): CellCoord {
-        if (transformId === 0) return { row, col };
-        if (transformId === 1) return { row: col, col: size - 1 - row };
-        if (transformId === 2) return { row: size - 1 - row, col: size - 1 - col };
-        if (transformId === 3) return { row: size - 1 - col, col: row };
-        if (transformId === 4) return { row, col: size - 1 - col };
-        if (transformId === 5) return { row: size - 1 - col, col: size - 1 - row };
-        if (transformId === 6) return { row: size - 1 - row, col };
-        if (transformId === 7) return { row: col, col: row };
-        return { row, col };
-    }
-
-    function buildEnvelopeMatrix(board: unknown): EnvelopeMatrix {
-        const bounds = resolveBoardBounds(board);
-        if (!bounds || bounds.maxRow < bounds.minRow || bounds.maxCol < bounds.minCol) {
-            return { matrix: [], size: 0, minRow: 0, minCol: 0 };
-        }
-        const rowSpan = (bounds.maxRow - bounds.minRow) + 1;
-        const colSpan = (bounds.maxCol - bounds.minCol) + 1;
-        const size = Math.max(rowSpan, colSpan);
-        const matrix = Array.from({ length: size }, () => Array.from({ length: size }, () => '#'));
-        for (const cell of collectBoardCoordinates(board)) {
-            const envelopeRow = cell.row - bounds.minRow;
-            const envelopeCol = cell.col - bounds.minCol;
-            matrix[envelopeRow][envelopeCol] = toCellChar(getCellValue(board, cell.row, cell.col));
-        }
-        return {
-            matrix,
-            size,
-            minRow: bounds.minRow,
-            minCol: bounds.minCol
-        };
-    }
-
-    function encodeEnvelopeMatrix(matrix: string[][]): string {
-        if (!Array.isArray(matrix) || matrix.length <= 0) return '';
-        return matrix.map((row) => Array.isArray(row) ? row.join('') : '').join('/');
-    }
-
-    function transformMatrix(matrix: string[][], transformId: number): string[][] {
-        if (!Array.isArray(matrix) || matrix.length <= 0) return [];
-        const size = matrix.length;
-        const out = Array.from({ length: size }, () => Array.from({ length: size }, () => '#'));
-        for (let row = 0; row < size; row++) {
-            for (let col = 0; col < size; col++) {
-                const mapped = transformCoord(row, col, size, transformId);
-                out[mapped.row][mapped.col] = matrix[row][col];
-            }
-        }
-        return out;
+        return CanonicalBoardEncoding.transformCoord(row, col, size, transformId);
     }
 
     function encodeBoard(board: unknown): string {
-        return encodeEnvelopeMatrix(buildEnvelopeMatrix(board).matrix);
+        return CanonicalBoardEncoding.encodeBoard(board);
     }
 
     function canonicalizeBoard(board: unknown): CanonicalResult {
-        const envelope = buildEnvelopeMatrix(board);
-        const raw = encodeEnvelopeMatrix(envelope.matrix);
-        if (!raw) {
-            return {
-                boardKey: raw,
-                transformId: 0,
-                size: envelope.size,
-                minRow: envelope.minRow,
-                minCol: envelope.minCol
-            };
-        }
-        let best: string | null = null;
-        let bestTransform = 0;
-        for (let transformId = 0; transformId < 8; transformId++) {
-            const encoded = encodeEnvelopeMatrix(transformMatrix(envelope.matrix, transformId));
-            if (best === null || encoded < best) {
-                best = encoded;
-                bestTransform = transformId;
-            }
-        }
-        return {
-            boardKey: best || raw,
-            transformId: bestTransform,
-            size: envelope.size,
-            minRow: envelope.minRow,
-            minCol: envelope.minCol
-        };
+        return CanonicalBoardEncoding.canonicalizeBoard(board);
     }
 
     function mapCoordToCanonical(row: number, col: number, board: unknown, transformId: number): CellCoord | null {
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
-        const envelope = buildEnvelopeMatrix(board);
-        if (envelope.size <= 0) return null;
-        const relativeRow = row - envelope.minRow;
-        const relativeCol = col - envelope.minCol;
-        if (
-            relativeRow < 0 ||
-            relativeCol < 0 ||
-            relativeRow >= envelope.size ||
-            relativeCol >= envelope.size
-        ) {
-            return null;
-        }
-        return transformCoord(relativeRow, relativeCol, envelope.size, transformId);
+        return CanonicalBoardEncoding.mapCoordToCanonical(row, col, board, transformId);
     }
 
     function makeCanonicalActionKey(move: unknown, board: unknown, transformId: number): string {
-        if (!move || !Number.isFinite((move as { row?: number }).row) || !Number.isFinite((move as { col?: number }).col)) return '';
-        const mapped = mapCoordToCanonical(Number((move as { row: number }).row), Number((move as { col: number }).col), board, Number(transformId) || 0);
-        if (!mapped) return '';
-        return `place:${mapped.row}:${mapped.col}`;
+        return CanonicalBoardEncoding.makeCanonicalActionKey(move, board, transformId);
     }
 
     function normalizePosArgs(posOrRow: unknown, maybeCol?: unknown): CellCoord {
