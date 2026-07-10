@@ -328,7 +328,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/game/card-effects/tempt" },
   { moduleKey: "./dist/game/card-effects/capture" },
   { moduleKey: "./dist/game/card-effects/time-bomb" },
-  { moduleKey: "./dist/game/network-turn-handoff" },
+  { moduleKey: "./dist/game/network-turn-handoff", globalNames: ["NetworkTurnHandoff"] },
   { moduleKey: "./dist/game/card-effects/trap" },
   { moduleKey: "./dist/game/card-effects/guard" },
   { moduleKey: "./dist/game/card-effects/living-will" },

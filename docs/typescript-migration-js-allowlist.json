@@ -22,12 +22,6 @@
       "category": "dist-wrapper",
       "reason": "Card logic module is TS source-of-truth; JS remains a dist wrapper for CommonJS consumers."
     },
-    "game/network-turn-handoff.runtime.js": {
-      "category": "runtime-projection",
-      "reason": "Browser runtime projection retained until generated from the TS source-of-truth path.",
-      "owner": "game-runtime-authority-refactor",
-      "removalPhase": "Phase 2.3"
-    },
     "game/visual-effects-map.runtime.js": {
       "category": "runtime-projection",
       "reason": "Browser runtime projection retained until generated from the TS source-of-truth path.",
