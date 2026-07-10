@@ -17,8 +17,16 @@ function run(cmd: string, args: string[]): boolean {
   return res.status === 0;
 }
 
+function runNpmScript(scriptName: string): boolean {
+  if (process.platform === 'win32') {
+    return run(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `npm.cmd run --silent ${scriptName}`]);
+  }
+  return run('npm', ['run', '--silent', scriptName]);
+}
+
 let ok = true;
 if (!run('node', ['scripts/check-window-usage.js'])) ok = false;
+if (!runNpmScript('check:dependency-boundaries')) ok = false;
 if (!run('node', ['scripts/check-refactor-safety.js'])) ok = false;
 if (!run('node', ['scripts/check-ts-migration-safety.js'])) ok = false;
 if (!run('node', ['scripts/check-browser-build-up-to-date.js'])) ok = false;

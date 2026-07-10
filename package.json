@@ -29,6 +29,7 @@
     "test:jest:changed": "jest --onlyChanged",
     "test:jest": "jest --runInBand",
     "check:window": "node scripts/check-window-usage.js",
+    "check:dependency-boundaries": "jest --runInBand --runTestsByPath test\\refactor.dependency-boundary.test.ts",
     "check:asset-case": "node scripts/check-asset-file-case.js",
     "test:jest:coverage": "jest --runInBand --coverage",
     "test:jest:noanim": "NOANIM=1 jest --runInBand",
