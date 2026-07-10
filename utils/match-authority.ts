@@ -49,6 +49,8 @@ import { assertMatchAuthorityPublicApi } from './match-authority-contract';
 
 import deepClone from './deepClone';
 
+const PlayerSeatContract = _require('../shared/player-seat-contract') as typeof import('../shared/player-seat-contract');
+
 interface MatchAuthorityCryptoLike {
     getRandomValues(array: Uint8Array): Uint8Array;
 }
@@ -213,20 +215,11 @@ function makeSseStreamId(nowValue: unknown, explicitCrypto?: MatchAuthorityCrypt
 }
 
 function parseSeatKeyOptional(value: unknown): MatchAuthoritySeatKey | null {
-    if (value === 1 || value === '1') return 'black';
-    if (value === -1 || value === '-1') return 'white';
-
-    const normalized = (value === null || typeof value === 'undefined')
-        ? ''
-        : String(value).trim().toLowerCase();
-
-    if (normalized === 'black' || normalized === '1' || normalized === '+1') return 'black';
-    if (normalized === 'white' || normalized === '-1') return 'white';
-    return null;
+    return PlayerSeatContract.parsePlayerSeatKey(value);
 }
 
 function normalizePlayerKey(value: unknown, fallback?: unknown): MatchAuthoritySeatKey {
-    return parseSeatKeyOptional(value) || parseSeatKeyOptional(fallback) || 'black';
+    return PlayerSeatContract.normalizePlayerSeatKey(value, fallback);
 }
 
 function getCurrentPlayerKey(gameState: Partial<GameState> | null | undefined): PlayerKey {
@@ -235,7 +228,7 @@ function getCurrentPlayerKey(gameState: Partial<GameState> | null | undefined): 
 }
 
 function getOpponentKey(playerKey: PlayerKey | null | undefined): PlayerKey {
-    return normalizePlayerKey(playerKey) === 'white' ? 'black' : 'white';
+    return PlayerSeatContract.normalizePlayerSeatKey(playerKey) === 'white' ? 'black' : 'white';
 }
 
 function normalizePendingType(value: unknown): string {
