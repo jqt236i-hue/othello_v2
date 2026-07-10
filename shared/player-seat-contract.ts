@@ -1,8 +1,16 @@
 export type PlayerSeatKey = 'black' | 'white';
 
-export function parsePlayerSeatKey(value: unknown): PlayerSeatKey | null {
+export function parsePlayerSeatKeyStrict(value: unknown): PlayerSeatKey | null {
   if (value === 1 || value === '1') return 'black';
   if (value === -1 || value === '-1') return 'white';
+  if (value === 'black') return 'black';
+  if (value === 'white') return 'white';
+  return null;
+}
+
+export function parsePlayerSeatKey(value: unknown): PlayerSeatKey | null {
+  const strict = parsePlayerSeatKeyStrict(value);
+  if (strict) return strict;
 
   const normalized = (value === null || typeof value === 'undefined')
     ? ''
@@ -10,6 +18,15 @@ export function parsePlayerSeatKey(value: unknown): PlayerSeatKey | null {
 
   if (normalized === 'black' || normalized === '1' || normalized === '+1') return 'black';
   if (normalized === 'white' || normalized === '-1') return 'white';
+  return null;
+}
+
+export function parsePlayerSeatKeyWithShortAliases(value: unknown): PlayerSeatKey | null {
+  const parsed = parsePlayerSeatKey(value);
+  if (parsed) return parsed;
+  const normalized = String(value == null ? '' : value).trim().toLowerCase();
+  if (normalized === 'b') return 'black';
+  if (normalized === 'w') return 'white';
   return null;
 }
 
@@ -38,4 +55,3 @@ export function playerSeatKeyToValue<TBlack = number, TWhite = number>(
 export function playerSeatValueToKey(value: unknown, blackValue: unknown): PlayerSeatKey {
   return value === blackValue ? 'black' : 'white';
 }
-

@@ -26,6 +26,7 @@ function getRuntimeGlobalValue(key: string): any {
 const SharedConstants = safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
 const SpecialStoneRegistry = safeRequire('../../../shared/special-stone-registry') || getRuntimeGlobalValue('SpecialStoneRegistry');
 const ManifestStoneRegistry = safeRequire('../../../shared/manifest-stone-registry') || getRuntimeGlobalValue('ManifestStoneRegistry');
+const PlayerSeatContract = safeRequire('../../../shared/player-seat-contract') || getRuntimeGlobalValue('PlayerSeatContract');
 
 let OwnerHelpersModule: any = null;
 OwnerHelpersModule = safeRequire('../../../utils/owner-helpers') || getRuntimeGlobalValue('OwnerHelpers');
@@ -45,13 +46,11 @@ function normalizePlayerKey(playerKey: any): string | null {
         }
     } catch (e) { /* ignore */ }
 
-    const normalized = String(playerKey == null ? '' : playerKey).trim().toLowerCase();
-    if (playerKey === 1 || normalized === '1' || normalized === '+1' || normalized === 'black' || normalized === 'b') {
-        return 'black';
-    }
-    if (playerKey === -1 || normalized === '-1' || normalized === 'white' || normalized === 'w') {
-        return 'white';
-    }
+    try {
+        if (PlayerSeatContract && typeof PlayerSeatContract.parsePlayerSeatKeyWithShortAliases === 'function') {
+            return PlayerSeatContract.parsePlayerSeatKeyWithShortAliases(playerKey);
+        }
+    } catch (e) { /* ignore */ }
     return null;
 }
 

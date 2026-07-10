@@ -1,11 +1,20 @@
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
+        module.exports = factory(require('./player-seat-contract'));
     } else {
-        root.NetworkActionSchema = factory();
+        const globalScope = typeof globalThis !== 'undefined' ? globalThis as any : root;
+        const playerSeatContract = globalScope && globalScope.PlayerSeatContract
+            || (globalScope && typeof globalScope.require === 'function'
+                ? globalScope.require('shared/player-seat-contract')
+                : null);
+        root.NetworkActionSchema = factory(playerSeatContract);
     }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function () {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (PlayerSeatContract: typeof import('./player-seat-contract')) {
     'use strict';
+
+    if (!PlayerSeatContract) {
+        throw new Error('PlayerSeatContract is required by NetworkActionSchema');
+    }
 
     interface OmittedActionKeys {
         [key: string]: boolean;
@@ -46,20 +55,11 @@
     }
 
     function parseSeatKeyOptional(value: unknown): 'black' | 'white' | null {
-        if (value === 1 || value === '1') return 'black';
-        if (value === -1 || value === '-1') return 'white';
-
-        const normalized = (value === null || typeof value === 'undefined')
-            ? ''
-            : String(value).trim().toLowerCase();
-
-        if (normalized === 'black' || normalized === '1' || normalized === '+1') return 'black';
-        if (normalized === 'white' || normalized === '-1') return 'white';
-        return null;
+        return PlayerSeatContract.parsePlayerSeatKey(value);
     }
 
     function normalizePlayerKey(value: unknown, fallback: unknown): 'black' | 'white' {
-        return parseSeatKeyOptional(value) || parseSeatKeyOptional(fallback) || 'black';
+        return PlayerSeatContract.normalizePlayerSeatKey(value, fallback);
     }
 
     function normalizeActionType(value: unknown, fallback: unknown): string {

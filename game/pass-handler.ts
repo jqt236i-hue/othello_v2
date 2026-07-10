@@ -34,6 +34,7 @@ function getPassHandlerTimerService() {
 // Timers abstraction (injected by UI)
 let timers: any = null;
 let OwnerHelpersModule: any = null;
+let PlayerSeatContractModule: any = null;
 let passHandlerNetworkTurnHandoff: any = null;
 let passHandlerPendingCoordinator: any = null;
 let passHandlerTurnPipelineModule: any = null;
@@ -42,6 +43,7 @@ let passHandlerSpecialEffectsHelpers: any = null;
 if (typeof require === 'function') {
     try { timers = require('./timers'); } catch (e) { /* ignore */ }
     try { OwnerHelpersModule = require('../utils/owner-helpers.js'); } catch (e) { /* ignore */ }
+    try { PlayerSeatContractModule = require('../shared/player-seat-contract'); } catch (e) { /* ignore */ }
     try { passHandlerNetworkTurnHandoff = require('./network-turn-handoff.js'); } catch (e) { /* ignore */ }
     try { passHandlerPendingCoordinator = require('./turn/pending-coordinator.js'); } catch (e) { /* ignore */ }
     try { passHandlerTurnPipelineModule = require('./turn/turn_pipeline.js'); } catch (e) { /* ignore */ }
@@ -215,8 +217,11 @@ function normalizePlayerKeyOptional(value: any) {
             return OwnerHelpersModule.normalizePlayerKeyOptional(value);
         }
     } catch (e) { /* ignore */ }
-    if (value === 'black' || value === 1 || value === '1') return 'black';
-    if (value === 'white' || value === -1 || value === '-1') return 'white';
+    try {
+        if (PlayerSeatContractModule && typeof PlayerSeatContractModule.parsePlayerSeatKeyStrict === 'function') {
+            return PlayerSeatContractModule.parsePlayerSeatKeyStrict(value);
+        }
+    } catch (e) { /* ignore */ }
     return null;
 }
 

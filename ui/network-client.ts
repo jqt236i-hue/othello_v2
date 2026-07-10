@@ -1409,6 +1409,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return ownerHelpers;
     }
 
+    function resolvePlayerSeatContract() {
+        return resolveNetworkClientCandidate(() => _require('../shared/player-seat-contract'))
+            || resolveNetworkClientCandidate(() => root && root.PlayerSeatContract)
+            || resolveNetworkClientCandidate(() => (typeof globalThis !== 'undefined' ? (globalThis as any).PlayerSeatContract : null));
+    }
+
     function normalizePlayerKey(value: any) {
         try {
             const schema = resolveNetworkActionSchemaModule();
@@ -1424,12 +1430,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             }
         } catch (e: any) { /* ignore */ }
 
-        const normalized = (value === null || typeof value === 'undefined')
-            ? ''
-            : String(value).trim().toLowerCase();
+        try {
+            const playerSeatContract = resolvePlayerSeatContract();
+            if (playerSeatContract && typeof playerSeatContract.normalizePlayerSeatKey === 'function') {
+                return playerSeatContract.normalizePlayerSeatKey(value, 'black');
+            }
+        } catch (e: any) { /* ignore */ }
 
-        if (value === -1 || normalized === 'white' || normalized === '-1') return 'white';
-        if (value === 1 || normalized === 'black' || normalized === '1' || normalized === '+1') return 'black';
         return 'black';
     }
 

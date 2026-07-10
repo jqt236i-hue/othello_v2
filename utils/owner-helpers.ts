@@ -128,7 +128,7 @@ interface OwnerHelpersApi {
         if (!(owner === 1 || owner === -1 || owner === '1' || owner === '-1' || owner === 'black' || owner === 'white')) {
             return null;
         }
-        return PlayerSeatContract.parsePlayerSeatKey(owner);
+        return PlayerSeatContract.parsePlayerSeatKeyStrict(owner);
     }
 
     function parseSeatKeyOptional(value: unknown): OwnerSeatKey | null {
