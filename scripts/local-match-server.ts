@@ -16,6 +16,7 @@ const deepClone = require('../utils/deepClone');
 const MatchAuthority = require('../utils/match-authority');
 const MatchCommandRuntime = require('../utils/match-command-runtime');
 const { createMatchPublishController } = require('../utils/match-publish-controller');
+const { createMatchSpectateController } = require('../utils/match-spectate-controller');
 const MatchRoomLobby = require('../shared/match-room-lobby');
 const NetworkActionSchema = require('../shared/network-action-schema');
 const PlaybackEventHelpers = require('../shared/playback-event-helpers');
@@ -2323,61 +2324,32 @@ async function handleLeave(req: any, res: any) {
 
 async function handleSpectate(req: any, res: any) {
     const body = await parseBody(req);
-    const roomId = String(body.roomId || '').trim().toUpperCase();
-    const room = rooms.get(roomId);
-
-    if (!room) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    if (expireRoomIfNeeded(roomId, room, Date.now())) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    if (!MatchRoomLobby.isJoinPasswordAccepted(room, body.roomPassword)) {
-        writeJson(res, 403, { ok: false, reason: 'ROOM_PASSWORD_INVALID' });
-        return;
-    }
-
-    const result = MatchAuthority.addSpectatorToRoom(room, {
-        spectatorName: body.spectatorName || body.playerName,
+    let activeRoom: any = null;
+    const controller = createMatchSpectateController({
+        loadRoom: async (incomingBody: any) => {
+            const roomId = String((incomingBody && incomingBody.roomId) || '').trim().toUpperCase();
+            activeRoom = rooms.get(roomId) || null;
+            if (activeRoom && expireRoomIfNeeded(roomId, activeRoom, Date.now())) activeRoom = null;
+        },
+        getRoom: () => activeRoom,
+        expireRoomIfNeeded: () => false,
+        isJoinPasswordAccepted: MatchRoomLobby.isJoinPasswordAccepted,
+        MatchAuthority,
         makeSpectatorToken,
         makeSpectatorId,
-        now: Date.now()
+        saveRoom: async () => undefined,
+        broadcastPresence: (meta: any) => broadcastPresence(activeRoom, meta),
+        toPublicSnapshotForViewer,
+        toPublicRoomDeck,
+        toPublicRoomBoardConfig,
+        toPublicNetworkDebugEnabled,
+        toPublicNetworkAutoEnabled,
+        toPublicTurnTimer,
+        decorateRoomPayload: (payload: any) => payload,
+        jsonResponse: (status: number, payload: any) => ({ status, payload })
     });
-    if (!result.ok) {
-        writeJson(res, result.reason === 'SPECTATOR_FULL' ? 409 : 500, {
-            ok: false,
-            reason: result.reason
-        });
-        return;
-    }
-
-    broadcastPresence(room, {
-        type: 'spectator_join',
-        spectatorId: result.spectatorId,
-        spectatorName: result.spectatorName,
-        rejoined: false
-    });
-
-    const serverTime = Date.now();
-    writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-        ok: true,
-        viewerRole: 'spectator',
-        spectatorId: result.spectatorId,
-        spectatorToken: result.spectatorToken,
-        spectatorName: result.spectatorName,
-        spectatorCount: result.spectatorCount,
-        maxSpectators: result.maxSpectators,
-        stateVersion: room.stateVersion,
-        snapshot: toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: result.spectatorId }),
-        roomDeck: toPublicRoomDeck(room),
-        roomBoardConfig: toPublicRoomBoardConfig(room),
-        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-        turnTimer: toPublicTurnTimer(room, serverTime),
-        serverTime
-    }));
+    const result = await controller.handleSpectate(body);
+    writeJson(res, result.status, result.payload);
 }
 
 async function handleSpectatorLeave(req: any, res: any) {

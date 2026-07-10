@@ -70,6 +70,7 @@ import { createMatchWorkerTimeoutController } from './match-worker-timeout-contr
 import { createMatchWorkerTurnTimerController } from './match-worker-turn-timer-controller';
 import { createMatchWorkerTurnTimerHelpers } from './match-worker-turn-timer';
 import { createMatchWorkerPublishController } from './match-worker-publish-controller';
+import { createMatchSpectateController } from '../utils/match-spectate-controller';
 import {
     prepareMatchCommandAction,
     shouldSkipMatchCommandTurnStart
@@ -3594,59 +3595,25 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async handleSpectate(body: Record<string, unknown>): Promise<Response> {
-        await this.loadRoom();
-        const room = this.room;
-        if (!room) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-        if (await this.expireRoomIfNeeded(Date.now())) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-        if (!MatchRoomLobby.isJoinPasswordAccepted(room, body.roomPassword)) {
-            return jsonResponse(403, { ok: false, reason: 'ROOM_PASSWORD_INVALID' });
-        }
-
-        const result = MatchAuthority.addSpectatorToRoom(room, {
-            spectatorName: body.spectatorName || body.playerName,
+        return createMatchSpectateController({
+            loadRoom: () => this.loadRoom(),
+            getRoom: () => this.room,
+            expireRoomIfNeeded: () => this.expireRoomIfNeeded(Date.now()),
+            isJoinPasswordAccepted: MatchRoomLobby.isJoinPasswordAccepted,
+            MatchAuthority,
             makeSpectatorToken,
             makeSpectatorId,
-            now: Date.now()
-        });
-        if (!result.ok) {
-            return jsonResponse(result.reason === 'SPECTATOR_FULL' ? 409 : 500, {
-                ok: false,
-                reason: result.reason
-            });
-        }
-
-        await this.saveRoom();
-        await this.broadcastPresence({
-            type: 'spectator_join',
-            spectatorId: result.spectatorId,
-            spectatorName: result.spectatorName,
-            rejoined: false
-        });
-
-        const viewer = { role: 'spectator', spectatorId: result.spectatorId };
-        const serverTime = Date.now();
-        const responsePayload = withPublicRoomPasswordMetadata(MatchAuthority.buildRoomPayloadFromRoom(room, {
-            ok: true,
-            viewerRole: 'spectator',
-            spectatorId: result.spectatorId,
-            spectatorToken: result.spectatorToken,
-            spectatorName: result.spectatorName,
-            spectatorCount: result.spectatorCount,
-            maxSpectators: result.maxSpectators,
-            stateVersion: room.stateVersion,
-            snapshot: toPublicSnapshotForViewer(room, viewer),
-            roomDeck: toPublicRoomDeck(room),
-            roomBoardConfig: toPublicRoomBoardConfig(room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-            turnTimer: toPublicTurnTimer(room, serverTime),
-            serverTime
-        }), room);
-        return jsonResponse(200, responsePayload);
+            saveRoom: () => this.saveRoom(),
+            broadcastPresence: (meta: MatchWorkerPresencePayloadMeta | null | undefined) => this.broadcastPresence(meta),
+            toPublicSnapshotForViewer,
+            toPublicRoomDeck,
+            toPublicRoomBoardConfig,
+            toPublicNetworkDebugEnabled,
+            toPublicNetworkAutoEnabled,
+            toPublicTurnTimer,
+            decorateRoomPayload: withPublicRoomPasswordMetadata,
+            jsonResponse
+        }).handleSpectate(body);
     }
 
     async handleSpectatorLeave(body: Record<string, unknown>): Promise<Response> {
