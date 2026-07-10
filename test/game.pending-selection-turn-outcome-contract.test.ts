@@ -12,6 +12,7 @@ const ACTION_VALUE_BY_FIELD: Record<string, any> = {
   bombTarget: { row: 1, col: 1 },
   buoyancyTarget: { row: 1, col: 1 },
   captureTarget: { row: 1, col: 1 },
+  causalReplayTarget: { row: 1, col: 1 },
   cloneTarget: { row: 1, col: 1 },
   condemnTargetIndex: 0,
   corrosionTarget: { row: 1, col: 1 },
