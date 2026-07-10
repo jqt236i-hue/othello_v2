@@ -15,6 +15,7 @@ const SeededPRNG = require('../game/schema/prng');
 const deepClone = require('../utils/deepClone');
 const MatchAuthority = require('../utils/match-authority');
 const MatchCommandRuntime = require('../utils/match-command-runtime');
+const { createMatchJoinController } = require('../utils/match-join-controller');
 const { createMatchPublishController } = require('../utils/match-publish-controller');
 const { createMatchSpectateController } = require('../utils/match-spectate-controller');
 const MatchRoomLobby = require('../shared/match-room-lobby');
@@ -2121,117 +2122,57 @@ async function handleCreate(req: any, res: any) {
 
 async function handleJoin(req: any, res: any) {
     const body = await parseBody(req);
-    const verifiedIdentity = verifyLocalPlayerIdentityFromBody(body);
-    if (!verifiedIdentity.ok) {
-        writeJson(res, 403, { ok: false, reason: verifiedIdentity.reason });
-        return;
-    }
-    const roomId = String(body.roomId || '').trim().toUpperCase();
-    const requestedSeatKey = parseSeatKeyOptional(body.seatKey);
-    const providedToken = String(body.seatToken || '').trim();
-    const playerName = normalizeNetworkPlayerName(body.playerName);
-    const selectedHandSkinId = normalizeSeatHandSkinId(body.selectedHandSkinId);
-
-    if (!playerName) {
-        writeJson(res, 400, { ok: false, reason: 'PLAYER_NAME_REQUIRED' });
-        return;
-    }
-    if (!roomId || !rooms.has(roomId)) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-    const existingRoom = rooms.get(roomId);
-    if (expireRoomIfNeeded(roomId, existingRoom, Date.now())) {
-        writeJson(res, 404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        return;
-    }
-
-    const deckSelection = resolveDeckSelection(body.deckCode);
-    if (!deckSelection.ok) {
-        writeJson(res, 400, { ok: false, reason: deckSelection.reason || 'DECK_CODE_INVALID' });
-        return;
-    }
-
-    const room = rooms.get(roomId);
-    const authenticatedSeatKey = resolveAuthenticatedSeatKey(room, requestedSeatKey, providedToken);
-    if (!authenticatedSeatKey && !MatchRoomLobby.isJoinPasswordAccepted(room, body.roomPassword)) {
-        writeJson(res, 403, { ok: false, reason: 'ROOM_PASSWORD_INVALID' });
-        return;
-    }
-    const seatKey = resolveSeatForJoin(room, requestedSeatKey, providedToken);
-    if (!seatKey) {
-        writeJson(res, 409, { ok: false, reason: 'ROOM_FULL' });
-        return;
-    }
-
-    if (!room.seatTokens || !room.seatTokens[seatKey]) {
-        room.seatTokens = room.seatTokens || {};
-        room.seatTokens[seatKey] = makeSeatToken();
-    }
-    const seatToken = room.seatTokens[seatKey];
-    const rejoined = providedToken && providedToken === seatToken;
-
-    const hadTwoSeats = hasTwoActiveSeats(room);
-    room.seats[seatKey] = true;
-    room.seatNames[seatKey] = playerName;
-    room.seatHandSkins = toPublicSeatHandSkins(room);
-    room.seatHandSkins[seatKey] = selectedHandSkinId;
-    room.seatPlayerIds = PlayerIdentityContract.normalizeSeatPlayerIds(room.seatPlayerIds);
-    room.seatPlayerIds[seatKey] = verifiedIdentity.playerId;
-    if (!isAllCardsDeckRoom(room) && deckSelection.hasCustomDeck) {
-        assignRoomDeckSelection(room, seatKey, deckSelection);
-    }
-
-    const hasTwoSeatsNow = hasTwoActiveSeats(room);
-    let rebasedInitialSnapshot = false;
-    if (!hadTwoSeats && hasTwoSeatsNow && room.stateVersion === 0) {
-        const nextSnapshot = makeInitialSnapshot(room.seed, buildInitialDeckSnapshotOptions(room));
-        room.stateVersion = 1;
-        nextSnapshot.stateVersion = room.stateVersion;
-        nextSnapshot.updatedAt = Date.now();
-        room.snapshot = nextSnapshot;
-        room.updatedAt = nextSnapshot.updatedAt;
-        rebasedInitialSnapshot = true;
-    } else {
-        room.updatedAt = Date.now();
-    }
-
-    refreshTurnTimer(room, {
-        nowMs: room.updatedAt,
-        forceRestart: !hadTwoSeats && hasTwoSeatsNow
+    let activeRoom: any = null;
+    const controller = createMatchJoinController({
+        verifyIdentity: verifyLocalPlayerIdentityFromBody,
+        validatePlayerNameBeforeRoom: true,
+        normalizeNetworkPlayerName,
+        loadRoom: (incomingBody: any) => {
+            const roomId = String((incomingBody && incomingBody.roomId) || '').trim().toUpperCase();
+            if (!roomId || !rooms.has(roomId)) return;
+            const existingRoom = rooms.get(roomId);
+            if (expireRoomIfNeeded(roomId, existingRoom, Date.now())) return;
+            activeRoom = rooms.get(roomId) || null;
+        },
+        getRoom: () => activeRoom,
+        expireRoomIfNeeded: () => false,
+        resolveDeckSelection,
+        resolvePlayerId: (_incomingBody: any, verifiedIdentity: any) => verifiedIdentity.playerId,
+        normalizeSeatHandSkinId,
+        parseSeatKeyOptional,
+        resolveAuthenticatedSeatKey,
+        isJoinPasswordAccepted: MatchRoomLobby.isJoinPasswordAccepted,
+        resolveSeatForJoin,
+        makeSeatToken,
+        hasTwoActiveSeats,
+        setSeatJoined: (room: any, seatKey: any) => {
+            room.seats[seatKey] = true;
+        },
+        setSeatName: (room: any, seatKey: any, playerName: any) => {
+            room.seatNames[seatKey] = playerName;
+        },
+        toPublicSeatHandSkins,
+        normalizeSeatPlayerIds: PlayerIdentityContract.normalizeSeatPlayerIds,
+        isAllCardsDeckRoom,
+        assignRoomDeckSelection,
+        makeInitialSnapshot,
+        buildInitialDeckSnapshotOptions,
+        refreshTurnTimer,
+        saveRoom: () => undefined,
+        broadcastSnapshot: (meta: any) => broadcastSnapshot(activeRoom, meta),
+        broadcastPresence: (meta: any) => broadcastPresence(activeRoom, meta),
+        MatchAuthority,
+        toPublicRoomDeck,
+        toPublicRoomBoardConfig,
+        toPublicNetworkDebugEnabled,
+        toPublicNetworkAutoEnabled,
+        toPublicSnapshot,
+        toPublicTurnTimer,
+        decorateRoomPayload: (payload: any) => payload,
+        jsonResponse: (status: number, payload: any) => ({ status, payload })
     });
-
-    if (rebasedInitialSnapshot) {
-        broadcastSnapshot(room, {
-            playerKey: seatKey,
-            actionType: 'join_room',
-            playbackEvents: [],
-            operationId: `join_room_${room.stateVersion}`
-        });
-    }
-
-    broadcastPresence(room, {
-        type: 'join',
-        seatKey,
-        rejoined: !!rejoined
-    });
-
-    const serverTime = Date.now();
-    writeJson(res, 200, MatchAuthority.buildRoomPayloadFromRoom(room, {
-        ok: true,
-        seatKey,
-        playerName,
-        seatToken,
-        rejoined: !!rejoined,
-        roomDeck: toPublicRoomDeck(room),
-        roomBoardConfig: toPublicRoomBoardConfig(room),
-        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-        networkAutoEnabled: toPublicNetworkAutoEnabled(room),
-        stateVersion: room.stateVersion,
-        snapshot: toPublicSnapshot(room, seatKey),
-        turnTimer: toPublicTurnTimer(room, serverTime),
-        serverTime
-    }));
+    const result = await controller.handleJoin(body);
+    writeJson(res, result.status, result.payload);
 }
 
 function handleList(_req: any, res: any) {
