@@ -54,6 +54,37 @@ describe('match authority presentation journal', () => {
     expect(room.presentationJournal).toHaveLength(1);
   });
 
+  test('journal snapshot ownership is isolated from artifact and live response mutation', () => {
+    const room = createRoom();
+    const artifactSnapshot = {
+      stateVersion: 2,
+      cardState: { hands: { black: ['black-card'], white: ['__hidden_hand__:white:0'] } },
+      _meta: { projectedSnapshotHash: 'black_hash_2' }
+    };
+    const frame = MatchAuthority.appendPresentationFrame(room, {
+      stateVersionFrom: 1,
+      stateVersionTo: 2,
+      operationId: 'op_owned',
+      actorSeatKey: 'black',
+      actionType: 'place',
+      payloadByViewer: {
+        black: { playbackEvents: [{ type: 'flip', phase: 1 }], effectLogs: ['owned'] }
+      },
+      snapshotAfterByViewer: { black: artifactSnapshot },
+      createdAt: 1000
+    });
+
+    expect(frame.snapshotAfterByViewer.black).not.toBe(artifactSnapshot);
+    artifactSnapshot.cardState.hands.black[0] = 'mutated-live-response';
+    expect(frame.snapshotAfterByViewer.black.cardState.hands.black).toEqual(['black-card']);
+
+    const publicFrame = MatchAuthority.toPublicPresentationFrame(frame, { role: 'seat', seatKey: 'black' }, room);
+    publicFrame.snapshotAfter.cardState.hands.black[0] = 'mutated-public-frame';
+    publicFrame.playbackEvents[0].type = 'mutated-playback';
+    expect(frame.snapshotAfterByViewer.black.cardState.hands.black).toEqual(['black-card']);
+    expect(frame.payloadByViewer.black.playbackEvents).toEqual([{ type: 'flip', phase: 1 }]);
+  });
+
   test('getPresentationFramesAfter returns projection-safe frames for a seat', () => {
     const room = createRoom();
     MatchAuthority.appendPresentationFrame(room, {
@@ -205,5 +236,27 @@ describe('match authority presentation journal', () => {
       'ROOM_9',
       'ROOM_10'
     ]);
+  });
+
+  test('SSE resume buffer owns viewer payloads independently from live payload mutation', () => {
+    const livePayload = {
+      stateVersion: 2,
+      snapshot: { cardState: { hands: { black: ['black-card'] } } }
+    };
+    const buffer = MatchAuthority.appendBufferedSseEvent([], {
+      eventId: 'OWNED_1',
+      eventName: 'snapshot',
+      payloadByViewer: { black: livePayload }
+    });
+
+    livePayload.snapshot.cardState.hands.black[0] = 'mutated-live';
+    expect(buffer[0].payloadByViewer.black.snapshot.cardState.hands.black).toEqual(['black-card']);
+
+    const replay = MatchAuthority.getBufferedSseReplayEvents([
+      { id: 'OWNED_0', event: 'snapshot', payloadByViewer: { black: { stateVersion: 1 } } },
+      ...buffer
+    ], 'OWNED_0', { role: 'seat', seatKey: 'black' });
+    replay[0].payload.snapshot.cardState.hands.black[0] = 'mutated-replay';
+    expect(buffer[0].payloadByViewer.black.snapshot.cardState.hands.black).toEqual(['black-card']);
   });
 });

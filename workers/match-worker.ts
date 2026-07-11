@@ -1084,6 +1084,8 @@ function appendPresentationFrameForAcceptedPublish(room: MatchWorkerRoomState | 
     const playbackEvents = Array.isArray(options.playbackEvents) ? options.playbackEvents : [];
     const effectLogs = MatchAuthority.normalizeEffectLogMessages(options.effectLogs);
     const playbackDiagnostics = options.playbackDiagnostics || null;
+    const publishViewerArtifacts = asRecord(options.publishViewerArtifacts);
+    const artifactSnapshots = asRecord(publishViewerArtifacts.projectedSnapshots);
     return MatchAuthority.appendPresentationFrame(room, {
         stateVersionFrom: options.previousStateVersion,
         stateVersionTo: options.nextStateVersion,
@@ -1096,9 +1098,9 @@ function appendPresentationFrameForAcceptedPublish(room: MatchWorkerRoomState | 
             spectator: { playbackEvents, effectLogs, playbackDiagnostics }
         },
         snapshotAfterByViewer: {
-            black: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
-            white: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
-            spectator: toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
+            black: artifactSnapshots.black || toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
+            white: artifactSnapshots.white || toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
+            spectator: artifactSnapshots.spectator || toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
         },
         createdAt: options.createdAt
     });
@@ -1440,9 +1442,14 @@ function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnaps
     const serverTime = Date.now();
     const metaRecord = asRecord(meta);
     const viewerRole = viewer && viewer.role === 'spectator' ? 'spectator' : 'seat';
+    const publishViewerArtifacts = asRecord(metaRecord.__publishViewerArtifacts);
+    const artifactSnapshots = asRecord(publishViewerArtifacts.projectedSnapshots);
+    const artifactSnapshot = artifactSnapshots[MatchAuthority.getPayloadKeyForViewer(viewer)];
     return withPublicRatedMatchMetadata(MatchAuthority.buildSnapshotPayloadFromRoom(room, {
         viewerRole,
-        snapshot: toPublicSnapshotForViewer(room, viewer),
+        snapshot: artifactSnapshot && typeof artifactSnapshot === 'object'
+            ? deepClone(artifactSnapshot)
+            : toPublicSnapshotForViewer(room, viewer),
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),

@@ -204,6 +204,12 @@ function appendPresentationFrameForAcceptedPublish(room: any, options: any) {
     const playbackEvents = Array.isArray(options && options.playbackEvents) ? options.playbackEvents : [];
     const effectLogs = MatchAuthority.normalizeEffectLogMessages(options && options.effectLogs);
     const playbackDiagnostics = options && options.playbackDiagnostics ? options.playbackDiagnostics : null;
+    const publishViewerArtifacts = options && options.publishViewerArtifacts && typeof options.publishViewerArtifacts === 'object'
+        ? options.publishViewerArtifacts
+        : {};
+    const artifactSnapshots = publishViewerArtifacts.projectedSnapshots && typeof publishViewerArtifacts.projectedSnapshots === 'object'
+        ? publishViewerArtifacts.projectedSnapshots
+        : {};
     return MatchAuthority.appendPresentationFrame(room, {
         stateVersionFrom: options && options.previousStateVersion,
         stateVersionTo: options && options.nextStateVersion,
@@ -216,9 +222,9 @@ function appendPresentationFrameForAcceptedPublish(room: any, options: any) {
             spectator: { playbackEvents, effectLogs, playbackDiagnostics }
         },
         snapshotAfterByViewer: {
-            black: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
-            white: toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
-            spectator: toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
+            black: artifactSnapshots.black || toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'black' }),
+            white: artifactSnapshots.white || toPublicSnapshotForViewer(room, { role: 'seat', seatKey: 'white' }),
+            spectator: artifactSnapshots.spectator || toPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: '' })
         },
         createdAt: options && options.createdAt
     });
@@ -1170,11 +1176,18 @@ function rememberBufferedRoomEvent(room: any, record: any) {
 }
 
 function buildBufferedSnapshotRecord(room: any, meta: any, eventId: any) {
-    const payloadByViewer = {
-        black: buildSnapshotPayload(room, meta, { role: 'seat', seatKey: 'black' }),
-        white: buildSnapshotPayload(room, meta, { role: 'seat', seatKey: 'white' }),
-        spectator: buildSnapshotPayload(room, meta, { role: 'spectator', spectatorId: '' })
-    };
+    const publishViewerArtifacts = meta && meta.__publishViewerArtifacts && typeof meta.__publishViewerArtifacts === 'object'
+        ? meta.__publishViewerArtifacts
+        : {};
+    const cachedPayloads = publishViewerArtifacts.snapshotPayloads && typeof publishViewerArtifacts.snapshotPayloads === 'object'
+        ? publishViewerArtifacts.snapshotPayloads
+        : {};
+    const hasPublishViewerArtifacts = Object.keys(publishViewerArtifacts).length > 0;
+    const payloadByViewer = hasPublishViewerArtifacts ? cachedPayloads : {};
+    if (!payloadByViewer.black) payloadByViewer.black = buildSnapshotPayload(room, meta, { role: 'seat', seatKey: 'black' });
+    if (!payloadByViewer.white) payloadByViewer.white = buildSnapshotPayload(room, meta, { role: 'seat', seatKey: 'white' });
+    if (!payloadByViewer.spectator) payloadByViewer.spectator = buildSnapshotPayload(room, meta, { role: 'spectator', spectatorId: '' });
+    if (hasPublishViewerArtifacts) publishViewerArtifacts.snapshotPayloads = payloadByViewer;
     return {
         record: {
             eventId,
@@ -1192,7 +1205,7 @@ function prepareSnapshotBroadcast(room: any, meta: any) {
         eventId,
         record,
         payloadByViewer,
-        fallbackPayload: buildSnapshotPayload(room, meta, { role: 'spectator', spectatorId: '' })
+        fallbackPayload: payloadByViewer.spectator
     };
 }
 
@@ -1287,9 +1300,18 @@ function ensureHeartbeatLoop() {
 function buildSnapshotPayload(room: any, meta: any, viewer: any) {
     const serverTime = Date.now();
     const viewerRole = viewer && viewer.role === 'spectator' ? 'spectator' : 'seat';
+    const publishViewerArtifacts = meta && meta.__publishViewerArtifacts && typeof meta.__publishViewerArtifacts === 'object'
+        ? meta.__publishViewerArtifacts
+        : {};
+    const artifactSnapshots = publishViewerArtifacts.projectedSnapshots && typeof publishViewerArtifacts.projectedSnapshots === 'object'
+        ? publishViewerArtifacts.projectedSnapshots
+        : {};
+    const artifactSnapshot = artifactSnapshots[MatchAuthority.getPayloadKeyForViewer(viewer)];
     return withPublicRatedMatchMetadata(MatchAuthority.buildSnapshotPayloadFromRoom(room, {
         viewerRole,
-        snapshot: toPublicSnapshotForViewer(room, viewer),
+        snapshot: artifactSnapshot && typeof artifactSnapshot === 'object'
+            ? deepClone(artifactSnapshot)
+            : toPublicSnapshotForViewer(room, viewer),
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),

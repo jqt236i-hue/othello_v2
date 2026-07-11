@@ -37,6 +37,7 @@ interface MatchAuthorityProjectionDeps {
 type PublishViewerKey = MatchAuthoritySeatKey | 'spectator';
 
 type PublishViewerArtifactsOptions = {
+    canonicalHash?: string | null;
     perfCounters?: Record<string, number>;
     onViewerProjected?: (viewerKey: PublishViewerKey, snapshot: MatchAuthorityPublicSnapshot) => void;
 };
@@ -44,6 +45,7 @@ type PublishViewerArtifactsOptions = {
 type PublishViewerArtifacts = {
     canonicalHash: string | null;
     projectedSnapshots: Record<PublishViewerKey, MatchAuthorityPublicSnapshot>;
+    snapshotPayloads: Partial<Record<PublishViewerKey, unknown>>;
 };
 
 function asRecord(value: unknown): RecordValue {
@@ -388,8 +390,11 @@ export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjection
             if (typeof opts.onViewerProjected === 'function') opts.onViewerProjected(spec.key, snapshot);
         }
         return {
-            canonicalHash: computeAuthoritativeStateHash(room && room.snapshot ? room.snapshot : {}),
-            projectedSnapshots
+            canonicalHash: Object.prototype.hasOwnProperty.call(opts, 'canonicalHash')
+                ? (opts.canonicalHash || null)
+                : computeAuthoritativeStateHash(room && room.snapshot ? room.snapshot : {}),
+            projectedSnapshots,
+            snapshotPayloads: {}
         };
     }
 

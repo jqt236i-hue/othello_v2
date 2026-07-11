@@ -63,6 +63,7 @@ describe('match authority publish viewer artifacts', () => {
       viewerProjectionWhite: 1,
       viewerProjectionSpectator: 1
     });
+    expect(artifacts.snapshotPayloads).toEqual({});
     expect(projected.map(([viewerKey]) => viewerKey)).toEqual(['black', 'white', 'spectator']);
     expect(projected[0][1]).toBe(artifacts.projectedSnapshots.black);
     expect(projected[1][1]).toBe(artifacts.projectedSnapshots.white);

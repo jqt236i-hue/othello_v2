@@ -1015,6 +1015,7 @@ function buildPublishViewerArtifacts(
 ): {
     canonicalHash: string | null;
     projectedSnapshots: Record<MatchAuthoritySeatKey | 'spectator', MatchAuthorityPublicSnapshot>;
+    snapshotPayloads: Partial<Record<MatchAuthoritySeatKey | 'spectator', unknown>>;
 } {
     return matchAuthorityProjection.buildPublishViewerArtifacts(room, options);
 }

@@ -136,11 +136,17 @@ function buildMeasuredProtectionContext(cardState: any): { context: any; counts:
   return { context, counts };
 }
 
-function preparePublishArtifacts(fixture: NetworkSpecialStonePerformanceFixture, playbackEvents: any[]): any {
+function preparePublishArtifacts(
+  fixture: NetworkSpecialStonePerformanceFixture,
+  playbackEvents: any[],
+  perfCounters?: Record<string, number>
+): any {
   const room = createAuthorityRoomFromFixture(fixture);
-  const black = MatchAuthority.buildPublicSnapshot(room, 'black');
-  const white = MatchAuthority.buildPublicSnapshot(room, 'white');
-  const spectator = MatchAuthority.buildPublicSnapshotForViewer(room, { role: 'spectator', spectatorId: 'perf' });
+  const artifacts = MatchAuthority.buildPublishViewerArtifacts(room, {
+    canonicalHash: room.authoritativeStateHash,
+    perfCounters
+  });
+  const { black, white, spectator } = artifacts.projectedSnapshots;
   const buildPayload = (snapshot: any) => MatchAuthority.buildPublishPayloadFromRoom(room, {
     ok: true,
     snapshot,
@@ -149,12 +155,12 @@ function preparePublishArtifacts(fixture: NetworkSpecialStonePerformanceFixture,
     serverTime: room.updatedAt
   });
   return {
-    projections: { black, white, spectator },
-    payloads: {
+    projections: artifacts.projectedSnapshots,
+    payloads: Object.assign(artifacts.snapshotPayloads, {
       black: buildPayload(black),
       white: buildPayload(white),
       spectator: buildPayload(spectator)
-    }
+    })
   };
 }
 
@@ -226,7 +232,8 @@ function measureNodeFixture(
     { perfCounters: presentationCounter }
   );
   const fallbackCompiles = countEmptyCells(initialSnapshot.gameState.board);
-  const publishArtifacts = preparePublishArtifacts(fixture, baselineResult.playbackEvents);
+  const publishCounter: Record<string, number> = {};
+  const publishArtifacts = preparePublishArtifacts(fixture, baselineResult.playbackEvents, publishCounter);
 
   const timingsMs = {
     protectionContext: measureRepeated(() => CardLogic.getCardContext(initialSnapshot.cardState), warmup, iterations),
@@ -255,9 +262,9 @@ function measureNodeFixture(
       cardProtectionContextsPerRender: 1,
       legalMoveGenerationsPerRender: 1,
       presentationEventIndexesPerMapping: presentationCounter.presentationEventIndexBuilds || 0,
-      viewerProjectionBlack: 1,
-      viewerProjectionWhite: 1,
-      viewerProjectionSpectator: 1,
+      viewerProjectionBlack: publishCounter.viewerProjectionBlack || 0,
+      viewerProjectionWhite: publishCounter.viewerProjectionWhite || 0,
+      viewerProjectionSpectator: publishCounter.viewerProjectionSpectator || 0,
       acceptedPublishRoomPersists: 2,
       renderSnapshotFullClones: 1
     },

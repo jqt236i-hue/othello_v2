@@ -57,6 +57,19 @@ export function createMatchAuthorityPresentationJournalApi(deps: MatchAuthorityP
         return deps.normalizeViewerIdentity(viewerValue) || null;
     }
 
+    function cloneOwnedSnapshotAfterByViewer(
+        value: unknown
+    ): Partial<Record<MatchAuthorityPresentationPayloadKey, unknown>> {
+        const ownedSnapshots: Partial<Record<MatchAuthorityPresentationPayloadKey, unknown>> = {};
+        const sourceSnapshots = asRecord(value);
+        for (const key of ['black', 'white', 'spectator'] as MatchAuthorityPresentationPayloadKey[]) {
+            if (Object.prototype.hasOwnProperty.call(sourceSnapshots, key)) {
+                ownedSnapshots[key] = deepClone(sourceSnapshots[key]);
+            }
+        }
+        return ownedSnapshots;
+    }
+
     function appendPresentationFrame(
         roomValue: MatchAuthorityRoomState | null | undefined,
         inputValue: unknown
@@ -74,13 +87,7 @@ export function createMatchAuthorityPresentationJournalApi(deps: MatchAuthorityP
             }
         }
 
-        const snapshotAfterByViewer: Partial<Record<MatchAuthorityPresentationPayloadKey, unknown>> = {};
-        const sourceSnapshotAfterByViewer = asRecord(input.snapshotAfterByViewer);
-        for (const key of ['black', 'white', 'spectator'] as MatchAuthorityPresentationPayloadKey[]) {
-            if (Object.prototype.hasOwnProperty.call(sourceSnapshotAfterByViewer, key)) {
-                snapshotAfterByViewer[key] = deepClone(sourceSnapshotAfterByViewer[key]);
-            }
-        }
+        const snapshotAfterByViewer = cloneOwnedSnapshotAfterByViewer(input.snapshotAfterByViewer);
 
         const entry: MatchAuthorityPresentationJournalEntry = {
             visualSeq,

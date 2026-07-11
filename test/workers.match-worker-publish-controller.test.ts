@@ -45,6 +45,7 @@ describe('match worker publish controller', () => {
     };
     let preparedMeta: any = null;
     let broadcastMeta: any = null;
+    let appendedOptions: any = null;
     const publishPerfCounters: Record<string, number> = {};
     const preparedSnapshot = {
       eventId: 'prepared_publish_1',
@@ -109,6 +110,10 @@ describe('match worker publish controller', () => {
         order.push('refreshTurnTimer');
         return true;
       },
+      appendPresentationFrameForAcceptedPublish: (_room: any, options: any) => {
+        appendedOptions = options;
+        return { visualSeq: 1, stateVersionTo: room.stateVersion };
+      },
       prepareSnapshotBroadcast: (meta: any) => {
         order.push('prepareSnapshotBroadcast');
         preparedMeta = meta;
@@ -160,6 +165,8 @@ describe('match worker publish controller', () => {
       effectLogs: ['effect-log'],
       playbackDiagnostics: { accepted: true }
     }));
+    expect(preparedMeta.__publishViewerArtifacts).toBe(appendedOptions.publishViewerArtifacts);
+    expect(preparedMeta.__publishViewerArtifacts.projectedSnapshots.black).toEqual(room.snapshot);
     expect(broadcastMeta).toEqual(expect.objectContaining({
       playerKey: 'black',
       actionType: 'place',

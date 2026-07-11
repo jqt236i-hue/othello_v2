@@ -130,6 +130,34 @@ describe('match worker broadcast controller', () => {
     ]);
   });
 
+  test('publish artifacts cache one snapshot payload per viewer and reuse spectator fallback', () => {
+    let builds = 0;
+    const controller = createMatchWorkerBroadcastController({
+      getRoom: () => ({ roomId: 'CACHE' }) as any,
+      getStreams: () => new Map(),
+      nextSseEventId: () => 'cache_1',
+      rememberBufferedSseEvent: jest.fn(),
+      saveRoom: jest.fn(),
+      sendSse: jest.fn(),
+      buildSnapshotPayload: (_room, _meta, viewer) => {
+        builds += 1;
+        return { viewer, build: builds };
+      },
+      buildPresencePayload: () => ({ ok: true })
+    });
+    const artifacts: any = { projectedSnapshots: { black: {}, white: {}, spectator: {} }, snapshotPayloads: {} };
+
+    const first = controller.prepareSnapshotBroadcast({ __publishViewerArtifacts: artifacts } as any);
+    const second = controller.buildBufferedSnapshotEvent({ __publishViewerArtifacts: artifacts } as any, 'cache_2');
+
+    expect(builds).toBe(3);
+    expect(first.fallbackPayload).toBe(first.payloadByViewer.spectator);
+    expect(second.payloadByViewer.black).toBe(first.payloadByViewer.black);
+    expect(second.payloadByViewer.white).toBe(first.payloadByViewer.white);
+    expect(second.payloadByViewer.spectator).toBe(first.payloadByViewer.spectator);
+    expect(artifacts.snapshotPayloads).toBe(first.payloadByViewer);
+  });
+
   test('broadcastSnapshot reuses prepared snapshot metadata without minting a new event id', async () => {
     const ctx = createController();
     const prepared = {

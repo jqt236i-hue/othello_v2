@@ -321,6 +321,7 @@ export function createMatchPublishController(config?: any): any {
         playbackEvents: serverPlaybackEvents,
         effectLogs: serverEffectLogs,
         playbackDiagnostics: serverPlaybackDiagnostics,
+        publishViewerArtifacts,
         createdAt: room.updatedAt
       })
       : null;
@@ -332,7 +333,8 @@ export function createMatchPublishController(config?: any): any {
       playbackDiagnostics: serverPlaybackDiagnostics,
       autoPassNotice,
       operationId: operationId || null,
-      presentationFrameEntry
+      presentationFrameEntry,
+      __publishViewerArtifacts: publishViewerArtifacts
     };
     const serverTime = Date.now();
     const preparedSnapshot = cfg.prepareSnapshotBroadcast(meta);

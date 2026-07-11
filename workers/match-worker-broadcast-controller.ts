@@ -68,11 +68,15 @@ export function createMatchWorkerBroadcastController(config: MatchWorkerBroadcas
                 payloadByViewer: {}
             };
         }
-        const payloadByViewer = {
-            black: cfg.buildSnapshotPayload(room, meta, { role: 'seat', seatKey: 'black' }),
-            white: cfg.buildSnapshotPayload(room, meta, { role: 'seat', seatKey: 'white' }),
-            spectator: cfg.buildSnapshotPayload(room, meta, { role: 'spectator', spectatorId: '' })
-        };
+        const metaRecord = asRecord(meta);
+        const publishViewerArtifacts = asRecord(metaRecord.__publishViewerArtifacts);
+        const cachedPayloads = asRecord(publishViewerArtifacts.snapshotPayloads);
+        const hasPublishViewerArtifacts = Object.keys(publishViewerArtifacts).length > 0;
+        const payloadByViewer = hasPublishViewerArtifacts ? cachedPayloads : {};
+        if (!payloadByViewer.black) payloadByViewer.black = cfg.buildSnapshotPayload(room, meta, { role: 'seat', seatKey: 'black' });
+        if (!payloadByViewer.white) payloadByViewer.white = cfg.buildSnapshotPayload(room, meta, { role: 'seat', seatKey: 'white' });
+        if (!payloadByViewer.spectator) payloadByViewer.spectator = cfg.buildSnapshotPayload(room, meta, { role: 'spectator', spectatorId: '' });
+        if (hasPublishViewerArtifacts) publishViewerArtifacts.snapshotPayloads = payloadByViewer;
         return {
             record: {
                 eventId,
@@ -91,7 +95,7 @@ export function createMatchWorkerBroadcastController(config: MatchWorkerBroadcas
             eventId,
             record,
             payloadByViewer,
-            fallbackPayload: room ? cfg.buildSnapshotPayload(room, meta, { role: 'spectator', spectatorId: '' }) : {}
+            fallbackPayload: room ? payloadByViewer.spectator : {}
         };
     }
 
