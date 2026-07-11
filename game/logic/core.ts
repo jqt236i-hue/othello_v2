@@ -495,24 +495,55 @@ interface FlipContext {
     protectedStones?: { row: number; col: number }[];
     permaProtectedStones?: { row: number; col: number }[];
     blockedCells?: { row: number; col: number }[];
+    perfCounters?: { flipContextCompiles?: number };
 }
 
-function getFlipsWithContext(state: any, row: number, col: number, player: number, context: FlipContext = {}): [number, number][] {
+const COMPILED_FLIP_CONTEXT: unique symbol = Symbol('compiledFlipContext');
+
+type CompiledFlipContext = {
+    source: FlipContext;
+    protectedSet: Set<string> | null;
+    permaSet: Set<string> | null;
+    blockedSet: Set<string> | null;
+    [COMPILED_FLIP_CONTEXT]: true;
+};
+
+function flipContextCellKey(row: number, col: number): string {
+    return `${row},${col}`;
+}
+
+function compileFlipContext(context: FlipContext | CompiledFlipContext = {}): CompiledFlipContext {
+    if (context && (context as CompiledFlipContext)[COMPILED_FLIP_CONTEXT] === true) {
+        return context as CompiledFlipContext;
+    }
+    const source = (context && typeof context === 'object') ? context as FlipContext : {};
+    const protectedStones = source.protectedStones || [];
+    const permaProtectedStones = source.permaProtectedStones || [];
+    const blockedCells = source.blockedCells || [];
+    if (source.perfCounters && typeof source.perfCounters === 'object') {
+        source.perfCounters.flipContextCompiles = Number(source.perfCounters.flipContextCompiles || 0) + 1;
+    }
+    return {
+        source,
+        protectedSet: protectedStones.length
+            ? new Set(protectedStones.map((position) => flipContextCellKey(position.row, position.col)))
+            : null,
+        permaSet: permaProtectedStones.length
+            ? new Set(permaProtectedStones.map((position) => flipContextCellKey(position.row, position.col)))
+            : null,
+        blockedSet: blockedCells.length
+            ? new Set(blockedCells.map((position) => flipContextCellKey(position.row, position.col)))
+            : null,
+        [COMPILED_FLIP_CONTEXT]: true
+    };
+}
+
+function getFlipsWithContext(state: any, row: number, col: number, player: number, context: FlipContext | CompiledFlipContext = {}): [number, number][] {
     if (getCellValue(state, row, col) !== EMPTY) return [];
 
-    const protectedStones = context.protectedStones || [];
-    const permaProtectedStones = context.permaProtectedStones || [];
-    const blockedCells = context.blockedCells || [];
-    const protectedSet = protectedStones.length
-        ? new Set(protectedStones.map(p => `${p.row},${p.col}`))
-        : null;
-    const permaSet = permaProtectedStones.length
-        ? new Set(permaProtectedStones.map(p => `${p.row},${p.col}`))
-        : null;
-    const blockedSet = blockedCells.length
-        ? new Set(blockedCells.map(p => `${p.row},${p.col}`))
-        : null;
-    if (blockedSet && blockedSet.has(`${row},${col}`)) return [];
+    const compiled = compileFlipContext(context);
+    const { protectedSet, permaSet, blockedSet } = compiled;
+    if (blockedSet && blockedSet.has(flipContextCellKey(row, col))) return [];
 
     const allFlips: [number, number][] = [];
     for (const [dr, dc] of DIRECTIONS) {
@@ -520,12 +551,12 @@ function getFlipsWithContext(state: any, row: number, col: number, player: numbe
         let r = row + dr;
         let c = col + dc;
         while (getCellValue(state, r, c) === -player) {
-            if (blockedSet && blockedSet.has(`${r},${c}`)) {
+            if (blockedSet && blockedSet.has(flipContextCellKey(r, c))) {
                 flips.length = 0;
                 break;
             }
-            if ((protectedSet && protectedSet.has(`${r},${c}`)) ||
-                (permaSet && permaSet.has(`${r},${c}`))) {
+            if ((protectedSet && protectedSet.has(flipContextCellKey(r, c))) ||
+                (permaSet && permaSet.has(flipContextCellKey(r, c)))) {
                 flips.length = 0;
                 break;
             }
@@ -533,7 +564,7 @@ function getFlipsWithContext(state: any, row: number, col: number, player: numbe
             r += dr;
             c += dc;
         }
-        if (blockedSet && blockedSet.has(`${r},${c}`)) continue;
+        if (blockedSet && blockedSet.has(flipContextCellKey(r, c))) continue;
         if (flips.length > 0 && getCellValue(state, r, c) === player) {
             allFlips.push(...flips);
         }
@@ -669,6 +700,7 @@ export = {
     advanceRoundAfterCompletedTurn,
     consumePendingRoundBonus,
     getExpansionCells,
+    compileFlipContext,
     getFlipsWithContext,
     applyMove,
     applyPass,
