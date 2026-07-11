@@ -678,6 +678,11 @@
                 <div id="boardSizeControlSummary" class="board-size-control-summary">8x8</div>
             </div>
             <div id="boardSizeEditor" class="board-size-editor" hidden>
+                <label class="board-size-editor-label" for="boardShapeSelect">形状</label>
+                <select id="boardShapeSelect" class="compact-select">
+                    <option value="rectangle">通常</option>
+                    <option value="circle">円形</option>
+                </select>
                 <label class="board-size-editor-label" for="boardSizeRowsInput">縦</label>
                 <input id="boardSizeRowsInput" class="compact-number-input" type="number" min="4" max="10" step="1" inputmode="numeric" value="8">
                 <span class="board-size-editor-separator">x</span>
@@ -764,6 +769,11 @@
                                     <span id="networkBoardSizeTitle">盤面サイズ</span>
                                     <span id="networkBoardSizeSummary" class="board-size-control-summary">8x8</span>
                                 </div>
+                                <label class="board-size-editor-label" for="networkBoardShapeSelect">形状</label>
+                                <select id="networkBoardShapeSelect" class="compact-select">
+                                    <option value="rectangle">通常</option>
+                                    <option value="circle">円形</option>
+                                </select>
                                 <div id="networkBoardSizeInputs">
                                     <label class="board-size-editor-label" for="networkBoardSizeRowsInput">縦</label>
                                     <input id="networkBoardSizeRowsInput" class="compact-number-input" type="number" min="4" max="10" step="1" inputmode="numeric" value="8" />
@@ -1016,7 +1026,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=266641740896350"></script>
+    <script src="public/module-registry.js?v=22636513247908"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="entry-browser.js?v=179704000904629"></script>
 </body>
