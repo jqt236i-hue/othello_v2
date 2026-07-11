@@ -174,6 +174,14 @@ Lane promotion and root deployment are separate phases:
 `gameState` is the canonical board-and-turn state used by `game/`.
 It owns the board array, current player, turn number, and other pure progression data.
 
+### 6.1.1 Board shape
+
+- `gameState.boardConfig.shape` is the serializable authority for the base board shape. Missing or unknown values normalize to `rectangle` for backward compatibility.
+- A circle board normalizes to a `10x10` envelope. Its 80 playable base coordinates are derived deterministically from cell-center inclusion in the radius-5 circle; the remaining 20 envelope coordinates are void and are not gameplay cells.
+- Playable-coordinate sets and other board-shape metadata are derived caches. They may be attached to in-memory board arrays, but snapshots, Worker storage, reconnect, CPU, browser, and headless runtimes must be able to rebuild them from canonical state.
+- Base-shape void, card-created holes, and expansion cells are distinct. Void cannot be targeted, restored, counted, or traversed; holes remain explicit gameplay state; expansion cells remain explicit canonical additions.
+- Legal moves, flips, counts, card targets, CPU features, and presentation projections consume the shared board-shape contract instead of reconstructing rectangular bounds locally.
+
 ### 6.2 `cardState`
 
 `cardState` is the canonical card-and-marker runtime state used by `game/`.
