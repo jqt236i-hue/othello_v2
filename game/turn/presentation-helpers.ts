@@ -1,3 +1,5 @@
+import PresentationEventIndexModule = require('./pipeline-ui/presentation-event-index');
+
 type TurnPresentationHelperDeps = {
     CardUtilsModule: any;
     OwnerHelpersModule: any;
@@ -440,36 +442,34 @@ function isProliferationTriggeredSpecialStoneBubbleEvent(ev: any, reason: any, c
     );
 }
 
-function findMatchingSpecialStoneStatusRemovedEvent(presentationEvents: any, item: any) {
-    const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+function findMatchingSpecialStoneStatusRemovedEvent(eventIndex: any, item: any) {
     if (!item || !item.type) return null;
-    for (let index = 0; index < events.length; index += 1) {
-        const ev = events[index];
-        if (!ev || ev.type !== 'STATUS_REMOVED') continue;
-        if (Number(ev.row) !== Number(item.row) || Number(ev.col) !== Number(item.col)) continue;
-        const special = String((ev.special || (ev.meta && ev.meta.special) || '')).trim().toUpperCase();
-        if (special !== item.type) continue;
-        return ev;
-    }
-    return null;
+    return eventIndex.findFirst({
+        type: 'STATUS_REMOVED',
+        row: item.row,
+        col: item.col,
+        predicate: (ev: any) => {
+            const special = String((ev.special || (ev.meta && ev.meta.special) || '')).trim().toUpperCase();
+            return special === item.type;
+        }
+    });
 }
 
-function hasMatchingSpecialStoneStatusAppliedEvent(presentationEvents: any, itemOrSpecial: any, rowValue: any, colValue: any) {
-    const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+function hasMatchingSpecialStoneStatusAppliedEvent(eventIndex: any, itemOrSpecial: any, rowValue: any, colValue: any) {
     const item = (itemOrSpecial && typeof itemOrSpecial === 'object')
         ? itemOrSpecial
         : { type: itemOrSpecial, row: rowValue, col: colValue };
     const specialType = String(item && item.type ? item.type : '').trim().toUpperCase();
     if (!specialType) return false;
-    for (let index = 0; index < events.length; index += 1) {
-        const ev = events[index];
-        if (!ev || ev.type !== 'STATUS_APPLIED') continue;
-        if (Number(ev.row) !== Number(item.row) || Number(ev.col) !== Number(item.col)) continue;
-        const special = String((ev.special || (ev.meta && ev.meta.special) || '')).trim().toUpperCase();
-        if (special !== specialType) continue;
-        return true;
-    }
-    return false;
+    return !!eventIndex.findFirst({
+        type: 'STATUS_APPLIED',
+        row: item.row,
+        col: item.col,
+        predicate: (ev: any) => {
+            const special = String((ev.special || (ev.meta && ev.meta.special) || '')).trim().toUpperCase();
+            return special === specialType;
+        }
+    });
 }
 
 function hasMatchingSpecialStoneMovedFromPhaseEvent(phaseEvents: any, item: any) {
@@ -494,30 +494,25 @@ function hasMatchingSpecialStoneMovedFromPhaseEvent(phaseEvents: any, item: any)
     return false;
 }
 
-function hasEscapeExplosionPresentationEventAt(presentationEvents: any, item: any) {
-    const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+function hasEscapeExplosionPresentationEventAt(eventIndex: any, item: any) {
     if (!item) return false;
-    for (let index = 0; index < events.length; index += 1) {
-        const ev = events[index];
-        if (!ev) continue;
-        if (Number(ev.row) !== Number(item.row) || Number(ev.col) !== Number(item.col)) continue;
-        if (isEscapeExplosionSpecialStoneBubbleReason(ev.reason || (ev.meta && ev.meta.reason), ev.cause || (ev.meta && ev.meta.cause))) {
-            return true;
-        }
-    }
-    return false;
+    return !!eventIndex.findFirst({
+        row: item.row,
+        col: item.col,
+        predicate: (ev: any) => isEscapeExplosionSpecialStoneBubbleReason(
+            ev.reason || (ev.meta && ev.meta.reason),
+            ev.cause || (ev.meta && ev.meta.cause)
+        )
+    });
 }
 
-function hasRegenTriggeredPresentationEventAt(presentationEvents: any, row: any, col: any) {
-    const events = Array.isArray(presentationEvents) ? presentationEvents : [];
-    for (let index = 0; index < events.length; index += 1) {
-        const ev = events[index];
-        if (!ev || ev.type !== 'CHANGE') continue;
-        if (Number(ev.row) !== Number(row) || Number(ev.col) !== Number(col)) continue;
-        if (String(ev.reason || (ev.meta && ev.meta.reason) || '').toLowerCase() !== 'regen_triggered') continue;
-        return true;
-    }
-    return false;
+function hasRegenTriggeredPresentationEventAt(eventIndex: any, row: any, col: any) {
+    return !!eventIndex.findFirst({
+        type: 'CHANGE',
+        row,
+        col,
+        predicate: (ev: any) => String(ev.reason || (ev.meta && ev.meta.reason) || '').toLowerCase() === 'regen_triggered'
+    });
 }
 
 function isLivingWillRestorePresentationEvent(ev: any) {
@@ -528,26 +523,19 @@ function isLivingWillRestorePresentationEvent(ev: any) {
     return !!((meta && meta.livingWillRevived === true) || (cause === 'LIVING_WILL' && reason === 'living_will_restored'));
 }
 
-function findMatchingLivingWillRestorePresentationEvent(presentationEvents: any, itemOrSpecial: any, rowValue: any, colValue: any) {
-    const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+function findMatchingLivingWillRestorePresentationEvent(eventIndex: any, itemOrSpecial: any, rowValue: any, colValue: any) {
     const item = (itemOrSpecial && typeof itemOrSpecial === 'object')
         ? itemOrSpecial
         : { type: itemOrSpecial, row: rowValue, col: colValue };
     const sourceRow = Number(item && item.row);
     const sourceCol = Number(item && item.col);
     if (!Number.isInteger(sourceRow) || !Number.isInteger(sourceCol)) return null;
-    for (let index = 0; index < events.length; index += 1) {
-        const ev = events[index];
-        if (!isLivingWillRestorePresentationEvent(ev)) continue;
-        const meta = (ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
-        const destMatches = Number(ev.row) === sourceRow && Number(ev.col) === sourceCol;
-        const sourceMatches =
-            Number(meta.revivedFromRow) === sourceRow &&
-            Number(meta.revivedFromCol) === sourceCol;
-        if (!destMatches && !sourceMatches) continue;
-        return ev;
-    }
-    return null;
+    return eventIndex.findFirst({
+        row: sourceRow,
+        col: sourceCol,
+        includeSourceCell: true,
+        predicate: isLivingWillRestorePresentationEvent
+    });
 }
 
 function emitBoardChargeBubblePresentation(CardLogic: any, cardState: any, payload: any) {
@@ -637,6 +625,10 @@ function emitTheoryIncarnationSpawnPlacementBubble(CardLogic: any, cardState: an
 function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, options: any, deps: TurnPresentationHelperDeps) {
     const opts = (options && typeof options === 'object') ? options : {};
     const presentationEvents = Array.isArray(opts.presentationEvents) ? opts.presentationEvents : [];
+    const presentationEventIndex = PresentationEventIndexModule.createPresentationEventIndex(
+        presentationEvents,
+        { perfCounters: opts.perfCounters }
+    );
     const phaseEvents = Array.isArray(opts.events) ? opts.events : [];
     const beforeSnapshot = Array.isArray(opts.beforeSnapshot) ? opts.beforeSnapshot : [];
     const tracker = createSpecialStoneBubbleTracker(cardState, opts.presentationStartIndex);
@@ -725,13 +717,13 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
             if (!isGenericSpecialStoneBubbleType(special)) continue;
             const durationEnd = isDurationEndSpecialStoneBubbleReason(reason, cause);
             const escapeExploded = isEscapeExplosionSpecialStoneBubbleReason(reason, cause);
-            if (special === 'REGEN' && hasRegenTriggeredPresentationEventAt(presentationEvents, row, col)) {
+            if (special === 'REGEN' && hasRegenTriggeredPresentationEventAt(presentationEventIndex, row, col)) {
                 continue;
             }
-            if (findMatchingLivingWillRestorePresentationEvent(presentationEvents, special, row, col)) {
+            if (findMatchingLivingWillRestorePresentationEvent(presentationEventIndex, special, row, col)) {
                 continue;
             }
-            if (!durationEnd && !escapeExploded && hasMatchingSpecialStoneStatusAppliedEvent(presentationEvents, special, row, col)) {
+            if (!durationEnd && !escapeExploded && hasMatchingSpecialStoneStatusAppliedEvent(presentationEventIndex, special, row, col)) {
                 continue;
             }
             const scenario = escapeExploded && deps.getSpecialStoneBubbleSpeechLines(special, 'escape_exploded')
@@ -763,7 +755,7 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
         }
 
         if (ev.type === 'DESTROY' && isGenericSpecialStoneBubbleType(special)) {
-            if (findMatchingLivingWillRestorePresentationEvent(presentationEvents, special, row, col)) {
+            if (findMatchingLivingWillRestorePresentationEvent(presentationEventIndex, special, row, col)) {
                 continue;
             }
             const scenario = isProliferationTriggeredSpecialStoneBubbleEvent(ev, reason, cause) && deps.getSpecialStoneBubbleSpeechLines(special, 'proliferation_triggered')
@@ -819,12 +811,12 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
     const removed = getRemovedSpecialStoneSpeechMarkers(beforeSnapshot, afterSnapshot);
     for (const item of removed) {
         if (!item || !item.type) continue;
-        if (findMatchingSpecialStoneStatusRemovedEvent(presentationEvents, item)) continue;
+        if (findMatchingSpecialStoneStatusRemovedEvent(presentationEventIndex, item)) continue;
         if (hasMatchingSpecialStoneMovedFromPhaseEvent(phaseEvents, item)) continue;
-        if (item.type === 'REGEN' && hasRegenTriggeredPresentationEventAt(presentationEvents, item.row, item.col)) continue;
-        if (findMatchingLivingWillRestorePresentationEvent(presentationEvents, item, undefined, undefined)) continue;
-        if (hasMatchingSpecialStoneStatusAppliedEvent(presentationEvents, item, undefined, undefined)) continue;
-        const scenario = hasEscapeExplosionPresentationEventAt(presentationEvents, item) && deps.getSpecialStoneBubbleSpeechLines(item.type, 'escape_exploded')
+        if (item.type === 'REGEN' && hasRegenTriggeredPresentationEventAt(presentationEventIndex, item.row, item.col)) continue;
+        if (findMatchingLivingWillRestorePresentationEvent(presentationEventIndex, item, undefined, undefined)) continue;
+        if (hasMatchingSpecialStoneStatusAppliedEvent(presentationEventIndex, item, undefined, undefined)) continue;
+        const scenario = hasEscapeExplosionPresentationEventAt(presentationEventIndex, item) && deps.getSpecialStoneBubbleSpeechLines(item.type, 'escape_exploded')
             ? 'escape_exploded'
             : 'destroy';
         emitBubble({

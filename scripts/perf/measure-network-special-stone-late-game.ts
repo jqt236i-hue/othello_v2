@@ -218,6 +218,13 @@ function measureNodeFixture(
   const legalCounter = { flipContextCompiles: 0 };
   const legalContext = { ...measuredProtection.context, perfCounters: legalCounter };
   Core.getLegalMoves(initialSnapshot.gameState, initialSnapshot.gameState.currentPlayer, legalContext);
+  const presentationCounter: Record<string, number> = {};
+  TurnPipelineUIAdapter.mapToPlaybackEvents(
+    baselineResult.events,
+    baselineResult.snapshot.cardState,
+    baselineResult.snapshot.gameState,
+    { perfCounters: presentationCounter }
+  );
   const fallbackCompiles = countEmptyCells(initialSnapshot.gameState.board);
   const publishArtifacts = preparePublishArtifacts(fixture, baselineResult.playbackEvents);
 
@@ -247,7 +254,7 @@ function measureNodeFixture(
       flipContextCompilesPerGetLegalMoves: legalCounter.flipContextCompiles || fallbackCompiles,
       cardProtectionContextsPerRender: 1,
       legalMoveGenerationsPerRender: 1,
-      presentationEventIndexesPerMapping: 0,
+      presentationEventIndexesPerMapping: presentationCounter.presentationEventIndexBuilds || 0,
       viewerProjectionBlack: 1,
       viewerProjectionWhite: 1,
       viewerProjectionSpectator: 1,

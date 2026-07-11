@@ -40,6 +40,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         './pipeline-ui/playback-utils': 'PipelineUIPlaybackUtils',
         './pipeline-ui/generated-throw-chain-playback': 'PipelineUIGeneratedThrowChainPlayback',
         './pipeline-ui/sound-cue-assembler': 'PipelineUISoundCueAssembler',
+        './pipeline-ui/presentation-event-index': 'PipelineUIPresentationEventIndex',
         '../../shared/destroy-outcome-contract': 'DestroyOutcomeContract',
         '../../shared/special-stone-registry': 'SpecialStoneRegistry',
         '../../shared/manifest-stone-registry': 'ManifestStoneRegistry',
@@ -76,6 +77,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const PipelineUIPlaybackUtilsModule = requireOptionalModule('./pipeline-ui/playback-utils');
     const PipelineUIGeneratedThrowChainPlaybackModule = requireOptionalModule('./pipeline-ui/generated-throw-chain-playback');
     const PipelineUISoundCueAssemblerModule = requireOptionalModule('./pipeline-ui/sound-cue-assembler');
+    const PipelineUIPresentationEventIndexModule = requireOptionalModule('./pipeline-ui/presentation-event-index');
     const DestroyOutcomeContract = requireOptionalModule('../../shared/destroy-outcome-contract');
     const SpecialStoneRegistry = requireOptionalModule('../../shared/special-stone-registry');
     const ManifestStoneRegistry = requireOptionalModule('../../shared/manifest-stone-registry');
@@ -430,46 +432,37 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return !!(ev && ev.type === 'CHANGE' && isLivingWillRestorePresentationEvent(ev));
     }
 
-    function hasLivingWillTriggeredDestroyPresentationEventAt(presentationEvents: any, row: any, col: any) {
-        const events = Array.isArray(presentationEvents) ? presentationEvents : [];
-        for (let index = 0; index < events.length; index += 1) {
-            const ev = events[index];
-            if (!ev || ev.type !== 'DESTROY') continue;
-            if (Number(ev.row) !== Number(row) || Number(ev.col) !== Number(col)) continue;
-            const meta = (ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
-            if (!(meta && meta.livingWillTriggered === true)) continue;
-            return true;
-        }
-        return false;
+    function hasLivingWillTriggeredDestroyPresentationEventAt(eventIndex: any, row: any, col: any) {
+        return !!eventIndex.findFirst({
+            type: 'DESTROY',
+            row,
+            col,
+            predicate: (ev: any) => !!(ev.meta && ev.meta.livingWillTriggered === true)
+        });
     }
 
-    function hasLivingWillRestoreChangePresentationEventAt(presentationEvents: any, row: any, col: any) {
-        const events = Array.isArray(presentationEvents) ? presentationEvents : [];
-        for (let index = 0; index < events.length; index += 1) {
-            const ev = events[index];
-            if (!isLivingWillRestoreChange(ev)) continue;
-            if (Number(ev.row) !== Number(row) || Number(ev.col) !== Number(col)) continue;
-            return true;
-        }
-        return false;
+    function hasLivingWillRestoreChangePresentationEventAt(eventIndex: any, row: any, col: any) {
+        return !!eventIndex.findFirst({
+            type: 'CHANGE',
+            row,
+            col,
+            predicate: isLivingWillRestoreChange
+        });
     }
 
-    function hasLivingWillRestorePresentationEventForSource(presentationEvents: any, row: any, col: any, special: any) {
-        const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+    function hasLivingWillRestorePresentationEventForSource(eventIndex: any, row: any, col: any, special: any) {
         const specialUpper = String(special || '').trim().toUpperCase();
-        for (let index = 0; index < events.length; index += 1) {
-            const ev = events[index];
-            if (!isLivingWillRestorePresentationEvent(ev)) continue;
-            const meta = (ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
-            const restoredSpecial = String(ev.special || meta.special || '').trim().toUpperCase();
-            if (specialUpper && restoredSpecial && restoredSpecial !== specialUpper) continue;
-            const destMatches = Number(ev.row) === Number(row) && Number(ev.col) === Number(col);
-            const sourceMatches =
-                Number(meta.revivedFromRow) === Number(row) &&
-                Number(meta.revivedFromCol) === Number(col);
-            if (destMatches || sourceMatches) return true;
-        }
-        return false;
+        return !!eventIndex.findFirst({
+            row,
+            col,
+            includeSourceCell: true,
+            predicate: (ev: any) => {
+                if (!isLivingWillRestorePresentationEvent(ev)) return false;
+                const meta = (ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
+                const restoredSpecial = String(ev.special || meta.special || '').trim().toUpperCase();
+                return !(specialUpper && restoredSpecial && restoredSpecial !== specialUpper);
+            }
+        });
     }
 
     function isObserverLostBubblePresentationEvent(ev: any) {
@@ -925,14 +918,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             : null;
     }
 
-    function getPipelineUIPassiveEventPlaybackDeps() {
+    function getPipelineUIPassiveEventPlaybackDeps(presentationEventIndex: any) {
         return {
             normalizePlayerKey: _normalizePlayerKey,
             preparePassivePlaybackPhaseState: _preparePassivePlaybackPhaseState,
             isBoardShrinkHoleStatusAppliedPresentationEvent: _isBoardShrinkHoleStatusAppliedPresentationEvent,
             isLivingWillConsumedStatus,
-            hasLivingWillTriggeredDestroyPresentationEventAt,
-            hasLivingWillRestoreChangePresentationEventAt,
+            hasLivingWillTriggeredDestroyPresentationEventAt: (_events: any, row: any, col: any) => (
+                hasLivingWillTriggeredDestroyPresentationEventAt(presentationEventIndex, row, col)
+            ),
+            hasLivingWillRestoreChangePresentationEventAt: (_events: any, row: any, col: any) => (
+                hasLivingWillRestoreChangePresentationEventAt(presentationEventIndex, row, col)
+            ),
             planDestroyPlayback: _planDestroyPlayback,
             livingWillCause: LIVING_WILL_CAUSE,
             livingWillConsumedReason: LIVING_WILL_CONSUMED_REASON,
@@ -943,7 +940,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             resolveWorkIncomeBubbleText: _resolveWorkIncomeBubbleText,
             resolveWorkRemovedBubbleText: _resolveWorkRemovedBubbleText,
             isWorkDurationExpiredPresentationEvent: _isWorkDurationExpiredPresentationEvent,
-            hasLivingWillRestorePresentationEventForSource,
+            hasLivingWillRestorePresentationEventForSource: (_events: any, row: any, col: any, special: any) => (
+                hasLivingWillRestorePresentationEventForSource(presentationEventIndex, row, col, special)
+            ),
             createPlaybackEvent: _createPlaybackEvent,
             hasDurationEndMarker: _hasDurationEndMarker,
             isObserverLostBubblePresentationEvent,
@@ -1039,13 +1038,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         );
     }
 
-    function _mapPassivePresentationEvent(ctx: any) {
+    function _mapPassivePresentationEvent(ctx: any, presentationEventIndex: any) {
         if (!(PipelineUIPassiveEventPlaybackModule && typeof PipelineUIPassiveEventPlaybackModule.mapPassivePresentationEvent === 'function')) {
             throw new Error('PipelineUIAdapter passive event playback module unavailable');
         }
         return PipelineUIPassiveEventPlaybackModule.mapPassivePresentationEvent(
             ctx,
-            getPipelineUIPassiveEventPlaybackDeps()
+            getPipelineUIPassiveEventPlaybackDeps(presentationEventIndex)
         );
     }
 
@@ -1077,16 +1076,24 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
      * Converts presentation events (BoardOps output) into PlaybackEvents.
      * This expects events to be JSON-safe presentationEvents as emitted by BoardOps.
      */
-    function mapToPlaybackEvents(presEvents: any, finalCardState: any, finalGameState: any) {
+    function mapToPlaybackEvents(presEvents: any, finalCardState: any, finalGameState: any, options?: any) {
         if (!(PlaybackPlanner && typeof PlaybackPlanner.planPlaybackEvents === 'function')) {
             throw new Error('PipelineUIAdapter playback planner module unavailable');
         }
-        return PlaybackPlanner.planPlaybackEvents(presEvents, finalCardState, finalGameState, {
+        if (!(PipelineUIPresentationEventIndexModule && typeof PipelineUIPresentationEventIndexModule.createPresentationEventIndex === 'function')) {
+            throw new Error('PipelineUIAdapter presentation event index module unavailable');
+        }
+        const orderedPresentationEvents = _orderDeferredSpawnsForPlayback(Array.isArray(presEvents) ? presEvents : []);
+        const opts = options && typeof options === 'object' ? options : {};
+        const presentationEventIndex = PipelineUIPresentationEventIndexModule.createPresentationEventIndex(
+            orderedPresentationEvents,
+            { perfCounters: opts.perfCounters }
+        );
+        return PlaybackPlanner.planPlaybackEvents(orderedPresentationEvents, finalCardState, finalGameState, {
             createPlaybackPhaseState: _createPlaybackPhaseState,
-            orderDeferredSpawnsForPlayback: _orderDeferredSpawnsForPlayback,
             createPlaybackEventBase: _createPlaybackEventBase,
             createPlaybackEvent: _createPlaybackEvent,
-            mapPassivePresentationEvent: _mapPassivePresentationEvent,
+            mapPassivePresentationEvent: (ctx: any) => _mapPassivePresentationEvent(ctx, presentationEventIndex),
             mapBoardPresentationEvent: _mapBoardPresentationEvent,
             isDeferredSpawnPresentationEvent: _isDeferredSpawnPresentationEvent,
             // NOTE: Do not populate 'after' using a final snapshot. Adapter remains a thin transform.
