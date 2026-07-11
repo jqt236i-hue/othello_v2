@@ -36,6 +36,8 @@
 | --- | --- |
 | `goal-prompter` | 長期的な目的を、現在のメインチャット内で聞き取り・作成・必要なら有効化まで行う、証拠ベースの Codex Goal / `/goal` prompt に変換する時 |
 | `harsh-critic` | コード、文書、デザイン、設定、計画などの具体的な成果物に対して、辛口で欠点を洗い出すレビューを求められた時 |
+| `card-reversi-card-change` | カードの追加・変更・削除を分類し、既存参照の棚卸し、専門 skill への振り分け、仕様・logic・presentation・network・生成物の横断検証を行う時 |
+| `card-reversi-network-contract` | network command、authority、snapshot、reconnect、pending、playback、Worker/local parity を変更・診断・検証する時 |
 | `card-reversi-browser-new-card` | ブラウザ版の新カードを catalog / headless effect / pending selection / CPU / presentation / docs / tests まで end-to-end で追加する時 |
 | `card-reversi-browser-card-change` | ブラウザ版の既存カードの挙動、target、timing、availability、CPU 影響、presentation、rules help を変更する時 |
 | `card-reversi-browser-card-text-change` | ブラウザ版の既存カードの表示名、簡易説明、詳細説明、help copy だけを変え、ゲーム挙動は変えない時 |
@@ -48,6 +50,8 @@
 ## 4. 選び方の近道
 
 - 長期タスクを監査可能な Codex Goal にする: `goal-prompter`
+- カード変更の分類・参照棚卸し・横断検証: `card-reversi-card-change`
+- network authority / snapshot / parity の変更・診断: `card-reversi-network-contract`
 - ブラウザ版の新カード追加: `card-reversi-browser-new-card`
 - ブラウザ版の既存カード仕様変更: `card-reversi-browser-card-change`
 - ブラウザ版の既存カード文言だけ変更: `card-reversi-browser-card-text-change`

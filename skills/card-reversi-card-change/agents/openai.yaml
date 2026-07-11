@@ -1,0 +1,4 @@
+interface:
+  display_name: "Card Reversi Card Change"
+  short_description: "Route and verify Card Reversi card changes safely"
+  default_prompt: "Use $card-reversi-card-change to implement and verify this Card Reversi card change."

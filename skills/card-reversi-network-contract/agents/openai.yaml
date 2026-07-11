@@ -1,0 +1,4 @@
+interface:
+  display_name: "Card Reversi Network Contract"
+  short_description: "Preserve network authority and runtime parity safely"
+  default_prompt: "Use $card-reversi-network-contract to implement and verify this Card Reversi network change."
