@@ -13,4 +13,11 @@ async function copyNetworkRoomName(options: any): Promise<boolean> {
     return false;
 }
 
-export = { copyNetworkRoomName };
+function toggleNetworkRoomSettings(options: any): boolean {
+    const popup = options.popup;
+    const isOpen = !!(popup && popup.classList && popup.classList.contains('is-open'));
+    options.setVisible(!isOpen);
+    return !isOpen;
+}
+
+export = { copyNetworkRoomName, toggleNetworkRoomSettings };

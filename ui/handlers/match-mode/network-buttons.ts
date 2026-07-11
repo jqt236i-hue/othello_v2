@@ -357,11 +357,13 @@ function bindNetworkButtons(context: any) {
 
     if (uiRefs.networkRoomSettingsBtn) {
         uiRefs.networkRoomSettingsBtn.addEventListener('click', () => {
-            const isOpen = !!(
-                uiRefs.networkRoomSettingsPopup
-                && uiRefs.networkRoomSettingsPopup.classList.contains('is-open')
-            );
-            setNetworkRoomSettingsPopupVisible(!isOpen);
+            if (!NetworkButtonActionsModule || typeof NetworkButtonActionsModule.toggleNetworkRoomSettings !== 'function') {
+                throw new Error('NetworkButtonActionsModule unavailable');
+            }
+            NetworkButtonActionsModule.toggleNetworkRoomSettings({
+                popup: uiRefs.networkRoomSettingsPopup,
+                setVisible: setNetworkRoomSettingsPopupVisible
+            });
         });
     }
 
