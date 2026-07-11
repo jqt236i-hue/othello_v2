@@ -77,6 +77,7 @@ const CardSacrificeWillModule = loadRuntimeModule('../logic/cards/sacrifice_will
 const CardUsageConsumptionStage = loadRuntimeModule('./card-usage-consumption-stage', 'CardUsageConsumptionStage', null);
 const CardUsagePendingStage = loadRuntimeModule('./card-usage-pending-stage', 'CardUsagePendingStage', null);
 const CardUsageImmediateStage = loadRuntimeModule('./card-usage-immediate-stage', 'CardUsageImmediateStage', null);
+const CardUsageSacrificeStage = loadRuntimeModule('./card-usage-sacrifice-stage', 'CardUsageSacrificeStage', null);
 
 const {
   CARD_DEFS,
@@ -736,91 +737,35 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     } catch (e) { /* ignore presentation emission failures */ }
   };
 
-  if (
-    CardSacrificeWillModule &&
-    typeof CardSacrificeWillModule.shouldSacrificeNullifyCard === 'function' &&
-    typeof CardSacrificeWillModule.findTriggeringSacrificeMarker === 'function' &&
-    typeof CardSacrificeWillModule.applySacrificeNullification === 'function' &&
-    CardSacrificeWillModule.shouldSacrificeNullifyCard(cardId, cardType, {
-      SpecialCardRegistry: SpecialCardRegistryModule || SpecialCardRegistry
-    })
-  ) {
-    const sacrificeDeps = {
-      BoardOpsModule,
-      SpecialCardRegistry: SpecialCardRegistryModule || SpecialCardRegistry,
-      MARKER_KINDS,
-      getCellValueForCard,
-      getSpecialMarkers,
-      EMPTY,
-      gameState: _gameState
-    };
-    const sacrifice = CardSacrificeWillModule.findTriggeringSacrificeMarker(
-      cardState,
-      chargeOwnerKey,
-      sacrificeDeps
-    );
-    if (sacrifice) {
-      const presentationStartIndex = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
-      const persistStartIndex = Array.isArray(cardState._presentationEventsPersist) ? cardState._presentationEventsPersist.length : 0;
-      const nullificationRes = CardSacrificeWillModule.applySacrificeNullification(
+  if (!CardUsageSacrificeStage || typeof CardUsageSacrificeStage.applySacrificeCardUsageNullification !== 'function') {
+    throw new Error('[effect-resolver] CardUsageSacrificeStage.applySacrificeCardUsageNullification not available');
+  }
+  const sacrificeUsage = CardUsageSacrificeStage.applySacrificeCardUsageNullification({
+    cardState,
+    gameState: _gameState,
+    chargeOwnerKey,
+    cardId,
+    cardType,
+    CardSacrificeWillModule,
+    SpecialCardRegistry: SpecialCardRegistryModule || SpecialCardRegistry,
+    BoardOpsModule,
+    MARKER_KINDS,
+    getCellValueForCard,
+    getSpecialMarkers,
+    EMPTY,
+    writeCardPendingEffect,
+    emitPresentationEvent,
+    emitCardUsedAtEventIndexes: (extraMeta: any, presentationIndex: number, persistIndex: number) => {
+      insertCardUsedPresentationAtEventIndexes(
         cardState,
-        _gameState,
-        {
-          cardId,
-          cardType,
-          cardUserKey: chargeOwnerKey,
-          sacrifice
-        },
-        sacrificeDeps
+        () => emitCardUsedPresentationOnce(extraMeta),
+        presentationIndex,
+        persistIndex
       );
-      if (nullificationRes && nullificationRes.applied === true) {
-        if (typeof writeCardPendingEffect === 'function') {
-          writeCardPendingEffect(cardState, chargeOwnerKey, null, { clearSelectionAction: true });
-        } else if (cardState.pendingEffectByPlayer) {
-          cardState.pendingEffectByPlayer[chargeOwnerKey] = null;
-        }
-        insertCardUsedPresentationAtEventIndexes(
-          cardState,
-          () => emitCardUsedPresentationOnce({
-            nullifiedBySacrificeWill: true,
-            cardUseVanishEffect: CardSacrificeWillModule.SACRIFICE_SEAL_BURN_EFFECT || 'sacrifice_seal_burn',
-            sacrificeWill: {
-              row: sacrifice.row,
-              col: sacrifice.col,
-              owner: sacrifice.owner,
-              special: 'SACRIFICE'
-            }
-          }),
-          presentationStartIndex,
-          persistStartIndex
-        );
-        if (typeof emitPresentationEvent === 'function') {
-          try {
-            emitPresentationEvent(cardState, {
-              type: 'SPECIAL_STONE_BUBBLE',
-              special: 'SACRIFICE',
-              scenario: 'card_nullified',
-              player: sacrifice.owner,
-              row: sacrifice.row,
-              col: sacrifice.col,
-              text: CardSacrificeWillModule.SACRIFICE_TRIGGER_TEXT || 'その一手は、ここで断つ。',
-              reason: 'card_nullified',
-              cause: 'SACRIFICE_WILL',
-              meta: {
-                owner: sacrifice.owner,
-                special: 'SACRIFICE',
-                scenario: 'card_nullified',
-                reason: 'card_nullified',
-                nullifiedCardId: cardId,
-                nullifiedCardType: cardType,
-                nullifiedCardUser: chargeOwnerKey
-              }
-            });
-          } catch (e) { /* ignore presentation emission failures */ }
-        }
-        return true;
-      }
     }
+  });
+  if (sacrificeUsage && sacrificeUsage.nullified === true) {
+    return true;
   }
 
   if (!CardUsageImmediateStage || typeof CardUsageImmediateStage.applyImmediateCardUsage !== 'function') {
