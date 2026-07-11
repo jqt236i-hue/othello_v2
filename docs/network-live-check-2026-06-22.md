@@ -11,7 +11,7 @@ PASS。公開 URL `https://card.reversi-0.workers.dev/` で Chrome を黒 host�
 - roomId: `ZDA`
 - Chrome host: `HeadlessChrome/149.0.0.0`
 - Edge guest: `Edg/149.0.0.0`
-- 証跡 JSON: `artifacts/live-network-check-2026-06-22/live-check-result-v2.json`
+- 2026-07-11 に raw JSON・スクリーンショットを artifact retention policy に従って削除した。以下の本文が保存する結果要約であり、現在の回帰根拠には現行の自動契約テストを用いる。
 
 ## チェック項目
 
@@ -38,20 +38,9 @@ PASS。公開 URL `https://card.reversi-0.workers.dev/` で Chrome を黒 host�
 - turnNumber: `2`
 - final hash: Chrome/Edge 一致
 
-## スクリーンショット
+## 証跡の保持範囲
 
-- Join 後:
-  - `artifacts/live-network-check-2026-06-22/v2-chrome-after-join.png`
-  - `artifacts/live-network-check-2026-06-22/v2-edge-after-join.png`
-- Host 初手後:
-  - `artifacts/live-network-check-2026-06-22/v2-chrome-after-host-move.png`
-  - `artifacts/live-network-check-2026-06-22/v2-edge-after-host-move.png`
-- Reconnect 前:
-  - `artifacts/live-network-check-2026-06-22/v2-chrome-before-reconnect.png`
-  - `artifacts/live-network-check-2026-06-22/v2-edge-before-reconnect.png`
-- Reconnect 後:
-  - `artifacts/live-network-check-2026-06-22/v2-chrome-after-reconnect.png`
-  - `artifacts/live-network-check-2026-06-22/v2-edge-after-reconnect.png`
+当時のスクリーンショットと raw JSON はブラウザ実行時の一時出力であり、2026-07-11 の retention policy により追跡対象から外した。この文書の結果表・canonical state・Console / Network Summary が保存するコンパクトな結論である。現在の挙動確認には `npm run test:network:parity` と関連する契約テストを用いる。
 
 ## Console / Network Summary
 
