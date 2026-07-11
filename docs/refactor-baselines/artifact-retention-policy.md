@@ -14,7 +14,7 @@ Updated: 2026-07-11
 | Test fixture that is an input to an automated test | `test/` or `tests/` |
 | Generated deployment surface | its documented generated location (for example `worker-public/`) |
 
-Browser profiles, caches, databases, screenshots, raw logs, PID files, temporary servers, and intermediate design exports must not be committed under `artifacts/`. The root `.gitignore` ignores the directory, and the closing guard will reject any subsequently tracked path there.
+Browser profiles, caches, databases, screenshots, raw logs, PID files, temporary servers, and intermediate design exports must not be committed under `artifacts/`. The root `.gitignore` ignores the directory, and `npm run check:artifact-retention` rejects any subsequently tracked path there.
 
 ## 2026-07-11 tracked-tree classification
 
@@ -45,6 +45,6 @@ No tracked path in this inventory is a required runtime source, test fixture, or
 2. Copy a genuinely durable item to its canonical location only when no equivalent canonical copy exists.
 3. Remove all tracked `artifacts/**` paths in a dedicated commit.
 4. Run `git ls-files artifacts`; it must produce no paths.
-5. Run the artifact-retention guard and focused script tests. Run `git diff --check` and inspect the deletion summary before staging.
+5. Run `npm run check:artifact-retention` and focused script tests. Run `git diff --check` and inspect the deletion summary before staging.
 
 This cleanup removes historical and local-output material only; it cannot change game rules, runtime assets, browser boot, Worker deployment, or test behavior.
