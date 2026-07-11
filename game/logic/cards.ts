@@ -296,7 +296,10 @@ const {
 
     function resolveChainWillMaxLinks(gameState: any, config: any) {
         return CardProgressionModule.resolveChainWillMaxLinks(gameState, config, {
-            resolveCardBoardConfig
+            resolveCardBoardConfig,
+            collectMainBoardCoordinates: SharedBoardUtils && typeof SharedBoardUtils.collectMainBoardCoordinates === 'function'
+                ? SharedBoardUtils.collectMainBoardCoordinates
+                : null
         });
     }
 

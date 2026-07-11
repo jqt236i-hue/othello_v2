@@ -59,6 +59,7 @@ if (BLACK === undefined) {
 interface BoardConfig {
     rows: number;
     cols: number;
+    shape: 'rectangle' | 'circle';
     standard8x8: boolean;
     baseBounds: { minRow: number; maxRow: number; minCol: number; maxCol: number };
     outerBounds: { minRow: number; maxRow: number; minCol: number; maxCol: number };
@@ -111,10 +112,15 @@ function resolveGameBoardConfig(boardOrConfig: any): BoardConfig {
         : (boardOrConfig && Array.isArray(boardOrConfig.board) ? boardOrConfig.board : null);
     const rows = Array.isArray(board) && board.length > 0 ? board.length : 8;
     const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
+    const requestedShape = boardOrConfig && typeof boardOrConfig === 'object'
+        ? String((boardOrConfig.boardConfig && boardOrConfig.boardConfig.shape) || boardOrConfig.shape || '').toLowerCase()
+        : '';
+    const shape = requestedShape === 'circle' ? 'circle' : 'rectangle';
     return {
         rows,
         cols,
-        standard8x8: rows === 8 && cols === 8,
+        shape,
+        standard8x8: shape === 'rectangle' && rows === 8 && cols === 8,
         baseBounds: { minRow: 0, maxRow: rows - 1, minCol: 0, maxCol: cols - 1 },
         outerBounds: { minRow: -1, maxRow: rows, minCol: -1, maxCol: cols }
     };
@@ -211,6 +217,7 @@ function forEachMainBoardCell(state: any, visitor: (row: number, col: number, va
     for (let row = 0; row < state.board.length; row++) {
         const line = Array.isArray(state.board[row]) ? state.board[row] : [];
         for (let col = 0; col < line.length; col++) {
+            if (!isMainBoardCell(row, col, state)) continue;
             visitor(row, col, line[col]);
         }
     }
@@ -413,6 +420,9 @@ function createGameState(boardConfigInput?: any): any {
     for (const stone of openingPlacements) {
         board[stone.row][stone.col] = stone.owner;
     }
+    if (BoardUtils && typeof BoardUtils.attachBoardShape === 'function') {
+        BoardUtils.attachBoardShape(board, { boardConfig });
+    }
     return {
         board: board,
         boardConfig,
@@ -427,12 +437,14 @@ function createGameState(boardConfigInput?: any): any {
 }
 
 function copyGameState(state: any): any {
-    const newBoard = state.board.map((row: number[]) => row.slice());
+    const newBoard = (BoardUtils && typeof BoardUtils.cloneBoard === 'function')
+        ? BoardUtils.cloneBoard(state.board)
+        : state.board.map((row: number[]) => row.slice());
     const boardConfig = resolveGameBoardConfig(state);
     const sourceExpansion = (state && state.boardExpansion && typeof state.boardExpansion === 'object')
         ? state.boardExpansion
         : null;
-    return {
+    const nextState = {
         board: newBoard,
         boardConfig,
         currentPlayer: state.currentPlayer,
@@ -443,6 +455,13 @@ function copyGameState(state: any): any {
         pendingRoundBonus: clonePendingRoundBonus(state && state.pendingRoundBonus),
         boardExpansion: createBoardExpansionState(sourceExpansion, boardConfig)
     };
+    if (BoardUtils && typeof BoardUtils.attachBoardShape === 'function') {
+        BoardUtils.attachBoardShape(newBoard, {
+            boardConfig,
+            boardExpansion: nextState.boardExpansion
+        });
+    }
+    return nextState;
 }
 
 function getExpansionCell(state: any): ExpansionCell | null {
@@ -602,7 +621,7 @@ function isGameOver(state: any): boolean {
 
 function countDiscs(state: any): DiscCount {
     let black = 0, white = 0;
-    if (NewBoardUtils && typeof NewBoardUtils.countDiscs === 'function') {
+    if (state && state.boardConfig && state.boardConfig.shape === 'rectangle' && NewBoardUtils && typeof NewBoardUtils.countDiscs === 'function') {
         const counts = NewBoardUtils.countDiscs(state.board);
         black = counts.black;
         white = counts.white;

@@ -72,6 +72,7 @@ type ProgressionDeps = {
     addCardToHand?: (cardState: any, playerKey: any, cardId: any) => any;
     emitPresentationEvent?: (cardState: any, event: any) => any;
     resolveCardBoardConfig?: (gameState: any) => any;
+    collectMainBoardCoordinates?: (boardOrConfig: any) => Array<{ row: number; col: number }>;
 };
 
 function getThrowChainConfig(cardType: any) {
@@ -132,11 +133,16 @@ function resolveChainWillMaxLinks(gameState: any, config: any, deps: Progression
         return Number.isFinite(extraLinks) && extraLinks > 0 ? Math.floor(extraLinks) : 0;
     }
     const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
+    const boardConfig = (typeof deps.resolveCardBoardConfig === 'function')
+        ? deps.resolveCardBoardConfig(gameState)
+        : null;
+    if (typeof deps.collectMainBoardCoordinates === 'function') {
+        const playable = deps.collectMainBoardCoordinates(boardConfig || gameState);
+        if (Array.isArray(playable) && playable.length > 0) return playable.length;
+    }
     if (!board || !board.length) {
-        const boardConfig = (typeof deps.resolveCardBoardConfig === 'function')
-            ? deps.resolveCardBoardConfig(gameState)
-            : { rows: 8, cols: 8 };
-        return Math.max(1, boardConfig.rows * boardConfig.cols);
+        const fallbackConfig = boardConfig || { rows: 8, cols: 8 };
+        return Math.max(1, fallbackConfig.rows * fallbackConfig.cols);
     }
     const totalCells = board.reduce((sum: any, row: any) => sum + (Array.isArray(row) ? row.length : 0), 0);
     return Math.max(1, totalCells);

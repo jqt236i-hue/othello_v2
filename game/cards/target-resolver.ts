@@ -387,6 +387,7 @@ const Flips = CardFlips || {};
         const config = resolveBoardConfig(gameState);
         for (let row = 0; row < config.rows; row++) {
             for (let col = 0; col < config.cols; col++) {
+                if (!isMainBoardCell(row, col, gameState)) continue;
                 if (isMeteorHoleCell(cardState, row, col)) continue;
                 cells.push({ row, col });
             }

@@ -5,6 +5,7 @@ export interface ExpansionDescriptor {
   owner: number;
 }
 export interface BoardShapeMeta {
+  playableKeys: Set<string>;
   expansionCells: ExpansionDescriptor[];
 }
 export interface DiscCounts {
@@ -65,11 +66,17 @@ export function createShapeIteration(deps: ShapeIterationDependencies) {
     const source = resolveBoardShapeSource(boardOrConfig);
     const board = source.board,
       config = deps.resolveBoardConfig(boardOrConfig);
+    const meta = deps.getBoardShapeMeta(board);
+    const playableKeys = meta && meta.playableKeys instanceof Set
+      ? meta.playableKeys
+      : null;
     for (let row = 0; row < config.rows; row += 1) {
       const boardRow =
         Array.isArray(board) && Array.isArray(board[row]) ? board[row] : [];
-      for (let col = 0; col < config.cols; col += 1)
+      for (let col = 0; col < config.cols; col += 1) {
+        if (playableKeys && !playableKeys.has(`${row},${col}`)) continue;
         visitor(row, col, boardRow[col], null);
+      }
     }
     const expansionDescriptors = source.boardExpansion
       ? deps.collectExpansionDescriptors(source.boardExpansion, boardOrConfig)

@@ -167,6 +167,7 @@ function collectInitialBoardBonusCandidates(boardOrConfig: any): Array<{ row: nu
     const cells: Array<{ row: number; col: number }> = [];
     for (let row = 0; row < config.rows; row++) {
         for (let col = 0; col < config.cols; col++) {
+            if (!isMainBoardCellForCard(row, col, config)) continue;
             if (blocked.has(`${row},${col}`)) continue;
             cells.push({ row, col });
         }

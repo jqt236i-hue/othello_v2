@@ -21,6 +21,48 @@ function sortMoveKeys(moves) {
 }
 
 describe('custom board config foundations', () => {
+  test('10x10 circle uses 80 playable cells and the normal centered opening', () => {
+    const config = { rows: 10, cols: 10, shape: 'circle' };
+    const gameState = Core.createGameState(config);
+    const cardState = CardLogic.createCardState(createPrng(), { boardConfig: config });
+
+    expect(gameState.boardConfig).toMatchObject({
+      rows: 10,
+      cols: 10,
+      shape: 'circle',
+      standard8x8: false,
+    });
+    expect(SharedBoardUtils.collectMainBoardCoordinates(gameState.boardConfig)).toHaveLength(80);
+    expect(SharedBoardUtils.getBoardShapeMeta(gameState.board).playableKeys.size).toBe(80);
+    expect(gameState.board[4][4]).toBe(Core.WHITE);
+    expect(gameState.board[4][5]).toBe(Core.BLACK);
+    expect(gameState.board[5][4]).toBe(Core.BLACK);
+    expect(gameState.board[5][5]).toBe(Core.WHITE);
+    expect(Core.getLegalMoves(gameState, Core.BLACK, {})).toHaveLength(4);
+    expect(Core.getFreePlacementMoves(gameState, Core.BLACK, {})).toHaveLength(76);
+    expect(Core.getFlipsWithContext(gameState, 0, 0, Core.BLACK, {})).toEqual([]);
+    const bonusKeys = Object.keys(cardState.boardBonusByCell);
+    expect(bonusKeys).toHaveLength(52);
+    expect(bonusKeys.every((key) => {
+      const [row, col] = key.split(',').map(Number);
+      return SharedBoardUtils.isMainBoardCell(row, col, gameState.boardConfig);
+    })).toBe(true);
+    expect(bonusKeys).not.toContain('0,0');
+    expect(bonusKeys).not.toContain('0,1');
+    expect(bonusKeys).not.toContain('1,0');
+    expect(bonusKeys).not.toContain('9,9');
+    expect(cardState.boardConfig).toMatchObject({ shape: 'circle' });
+    const blockadeTargets = CardSelectors.getBlockadeTargets(cardState, gameState);
+    expect(blockadeTargets).toHaveLength(76);
+    expect(blockadeTargets.some((cell) => cell.row === 0 && cell.col === 0)).toBe(false);
+
+    gameState.board[0][0] = Core.BLACK;
+    expect(Core.countDiscs(gameState)).toEqual({ black: 2, white: 2 });
+    const copied = Core.copyGameState(gameState);
+    expect(copied.boardConfig).toMatchObject({ shape: 'circle' });
+    expect(SharedBoardUtils.getBoardShapeMeta(copied.board).playableKeys.size).toBe(80);
+  });
+
   test('7x7 game state uses a centered opening ring with an empty middle and matching card ids', () => {
     const gameState = Core.createGameState({ rows: 7, cols: 7 });
     const cardState = CardLogic.createCardState(createPrng(), { boardConfig: { rows: 7, cols: 7 } });
@@ -302,10 +344,10 @@ describe('custom board config foundations', () => {
     const next = { board: SharedBoardUtils.createEmptyBoard({ rows: 8, cols: 8 }) };
 
     expect(SharedBoardUtils.maybeResolveBoardConfig(null)).toBeNull();
-    expect(SharedBoardUtils.readBoardGeometry(previous)).toEqual({ rows: 7, cols: 9 });
+    expect(SharedBoardUtils.readBoardGeometry(previous)).toEqual({ rows: 7, cols: 9, shape: 'rectangle' });
     expect(SharedBoardUtils.compareBoardGeometry(previous, next)).toEqual({
-      previous: { rows: 7, cols: 9 },
-      next: { rows: 8, cols: 8 },
+      previous: { rows: 7, cols: 9, shape: 'rectangle' },
+      next: { rows: 8, cols: 8, shape: 'rectangle' },
       changed: true
     });
   });

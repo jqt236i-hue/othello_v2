@@ -236,7 +236,21 @@ function isExpansionCoordinate(row: number, col: number, boardOrState: any): boo
     return true;
 }
 
-function isMainBoardCorner(row: number, col: number, boardOrState: any): boolean {
+function isMainBoardCorner(row: number, col: number, boardOrState: any, cardState?: any): boolean {
+    if (
+        BoardUtils &&
+        typeof BoardUtils.attachBoardShape === 'function' &&
+        typeof BoardUtils.isCornerCell === 'function' &&
+        boardOrState &&
+        Array.isArray(boardOrState.board)
+    ) {
+        const shapedBoard = BoardUtils.attachBoardShape(boardOrState.board, {
+            boardConfig: boardOrState.boardConfig,
+            boardExpansion: boardOrState.boardExpansion,
+            cardState
+        });
+        return BoardUtils.isCornerCell(row, col, shapedBoard);
+    }
     const dims = resolveBoardDims(boardOrState, boardOrState);
     return isMainBoardCell(row, col, boardOrState) && (row === 0 || row === dims.rows - 1) && (col === 0 || col === dims.cols - 1);
 }
@@ -2526,7 +2540,7 @@ function changeAt(cardState: any, gameState: any, row: number, col: number, owne
     if (ownerBeforeKey !== null) {
         ensureResultTotals(cardState);
         cardState.totalFlipCountByPlayer[ownerAfterKey] = (cardState.totalFlipCountByPlayer[ownerAfterKey] || 0) + 1;
-        if (ownerBeforeKey !== ownerAfterKey && isMainBoardCorner(row, col, gameState)) {
+        if (ownerBeforeKey !== ownerAfterKey && isMainBoardCorner(row, col, gameState, cardState)) {
             cardState.cornerCaptureCountByPlayer[ownerAfterKey] = (cardState.cornerCaptureCountByPlayer[ownerAfterKey] || 0) + 1;
         }
     }
