@@ -1502,6 +1502,93 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         });
     }
 
+    function applyPrePlacementSelectionStage(ctx: TurnPipelinePhaseContext, presentationStartIndex: number): boolean {
+        const { CardLogic, Core, cardState, gameState, playerKey, action, events } = ctx;
+        const p = ctx.prng;
+        const pending = readPendingForActionPhase(cardState, playerKey);
+        hydrateDeferredPendingSelectionState(pending, action);
+        if (!(ActionPhasePrePlacementSelectionModule && typeof ActionPhasePrePlacementSelectionModule.resolvePrePlacementSelectionAction === 'function')) {
+            return false;
+        }
+        const handledPrePlacementSelection = ActionPhasePrePlacementSelectionModule.resolvePrePlacementSelectionAction({
+            CardLogic,
+            cardState,
+            gameState,
+            playerKey,
+            action,
+            events,
+            prng: p,
+            pending,
+            createDestroyOutcome,
+            isDestroyOutcomeResolved,
+            applyTrapEffectsAfterSelection: () => applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events),
+            handOffTurnAfterSelection: () => {
+                if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffTurnAfterSelection === 'function')) {
+                    throw new Error('TurnPipeline handoff module unavailable');
+                }
+                ActionPhaseTurnHandoffModule.handOffTurnAfterSelection({
+                    Core,
+                    CardLogic,
+                    cardState,
+                    gameState,
+                    playerKey,
+                    advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
+                        if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
+                            throw new Error('TurnPipeline round state module unavailable');
+                        }
+                        return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
+                            Core: nextCore,
+                            gameState: nextGameState,
+                            playerKey: nextPlayerKey,
+                            options,
+                            normalizePlayerKey
+                        });
+                    }
+                });
+            },
+            emitDurationSelectionStatusTick: (target: any, reason: any, highlightTone: any) => (
+                emitDurationSelectionStatusTick(CardLogic, cardState, target, reason, highlightTone, presentationStartIndex)
+            ),
+            emitHandRemovePresentation: (payload: any) => emitHandRemovePresentation(CardLogic, cardState, payload),
+            emitHandAddPresentation: (payload: any) => emitHandAddPresentation(CardLogic, cardState, payload)
+        });
+        if (!handledPrePlacementSelection) return false;
+
+        const immediateSelectionResult = typeof handledPrePlacementSelection === 'object'
+            ? handledPrePlacementSelection.immediateFlipResult
+            : null;
+        if (immediateSelectionResult && Array.isArray(immediateSelectionResult.flipped) && immediateSelectionResult.flipped.length) {
+            applyGeneratedSpawnFlipResultsImmediate(CardLogic, cardState, gameState, events, [{
+                ownerKey: playerKey,
+                cause: 'CLONE_WILL',
+                reason: 'clone_spawn',
+                flipped: immediateSelectionResult.flipped
+            }]);
+        }
+        const generatedSpawnFlipResults = typeof handledPrePlacementSelection === 'object'
+            ? handledPrePlacementSelection.generatedSpawnFlipResults
+            : null;
+        if (Array.isArray(generatedSpawnFlipResults) && generatedSpawnFlipResults.length) {
+            applyGeneratedSpawnFlipResultsImmediate(
+                CardLogic,
+                cardState,
+                gameState,
+                events,
+                generatedSpawnFlipResults
+            );
+        }
+        if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
+            applyGeneratedSpawnFlipResultsImmediate(
+                CardLogic,
+                cardState,
+                gameState,
+                events,
+                CardLogic.consumeGeneratedSpawnFlipResults(cardState)
+            );
+        }
+        return true;
+    }
+
     function applyActionPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, action: any, events: any, prng: any, BoardOps: any) {
         const ctx = createTurnPipelinePhaseContext(CardLogic, Core, cardState, gameState, playerKey, events, prng, BoardOps, action);
         const p = ctx.prng;
@@ -1520,87 +1607,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             applyDestroyHandCardActionStage(ctx);
             return;
         } else if (action.type === 'place') {
-            // 3.5) Optional pre-placement selection effects (for cards that require a target)
-            const pending = readPendingForActionPhase(cardState, playerKey);
-            hydrateDeferredPendingSelectionState(pending, action);
-            if (ActionPhasePrePlacementSelectionModule && typeof ActionPhasePrePlacementSelectionModule.resolvePrePlacementSelectionAction === 'function') {
-                const handledPrePlacementSelection = ActionPhasePrePlacementSelectionModule.resolvePrePlacementSelectionAction({
-                    CardLogic,
-                    cardState,
-                    gameState,
-                    playerKey,
-                    action,
-                    events,
-                    prng: p,
-                    pending,
-                    createDestroyOutcome,
-                    isDestroyOutcomeResolved,
-                    applyTrapEffectsAfterSelection: () => applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events),
-                    handOffTurnAfterSelection: () => {
-                        if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffTurnAfterSelection === 'function')) {
-                            throw new Error('TurnPipeline handoff module unavailable');
-                        }
-                        ActionPhaseTurnHandoffModule.handOffTurnAfterSelection({
-                            Core,
-                            CardLogic,
-                            cardState,
-                            gameState,
-                            playerKey,
-                            advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
-                                if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
-                                    throw new Error('TurnPipeline round state module unavailable');
-                                }
-                                return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
-                                    Core: nextCore,
-                                    gameState: nextGameState,
-                                    playerKey: nextPlayerKey,
-                                    options,
-                                    normalizePlayerKey
-                                });
-                            }
-                        });
-                    },
-                    emitDurationSelectionStatusTick: (target: any, reason: any, highlightTone: any) => (
-                        emitDurationSelectionStatusTick(CardLogic, cardState, target, reason, highlightTone, presentationStartIndex)
-                    ),
-                    emitHandRemovePresentation: (payload: any) => emitHandRemovePresentation(CardLogic, cardState, payload),
-                    emitHandAddPresentation: (payload: any) => emitHandAddPresentation(CardLogic, cardState, payload)
-                });
-                if (handledPrePlacementSelection) {
-                    const immediateSelectionResult = handledPrePlacementSelection && typeof handledPrePlacementSelection === 'object'
-                        ? handledPrePlacementSelection.immediateFlipResult
-                        : null;
-                    if (immediateSelectionResult && Array.isArray(immediateSelectionResult.flipped) && immediateSelectionResult.flipped.length) {
-                        applyGeneratedSpawnFlipResultsImmediate(CardLogic, cardState, gameState, events, [{
-                            ownerKey: playerKey,
-                            cause: 'CLONE_WILL',
-                            reason: 'clone_spawn',
-                            flipped: immediateSelectionResult.flipped
-                        }]);
-                    }
-                    const generatedSpawnFlipResults = handledPrePlacementSelection && typeof handledPrePlacementSelection === 'object'
-                        ? handledPrePlacementSelection.generatedSpawnFlipResults
-                        : null;
-                    if (Array.isArray(generatedSpawnFlipResults) && generatedSpawnFlipResults.length) {
-                        applyGeneratedSpawnFlipResultsImmediate(
-                            CardLogic,
-                            cardState,
-                            gameState,
-                            events,
-                            generatedSpawnFlipResults
-                        );
-                    }
-                    if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
-                        applyGeneratedSpawnFlipResultsImmediate(
-                            CardLogic,
-                            cardState,
-                            gameState,
-                            events,
-                            CardLogic.consumeGeneratedSpawnFlipResults(cardState)
-                        );
-                    }
-                    return;
-                }
+            if (applyPrePlacementSelectionStage(ctx, presentationStartIndex)) {
+                return;
             }
 
             const pendingType = getPendingEffectTypeForActionPhase(CardLogic, cardState, playerKey);
