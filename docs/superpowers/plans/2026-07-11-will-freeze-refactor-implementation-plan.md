@@ -56,7 +56,7 @@ updated: 2026-07-11
 | 0. 実行準備とbaseline | completed | なし | clean worktree、境界・型・focused 8 suites / 107 tests PASS |
 | 1. 仕様正本の確定 | completed | Phase 0 | rulebook・正本diff、docs検証 PASS |
 | 2. 特殊石対象収集の分離 | completed | Phase 1 | collector grouping、LOSS_WILL回帰 3 suites / 21 tests PASS |
-| 3. 凍結セル付与primitiveの分離 | pending | Phase 2 | FREEZE_WILL回帰、primitive tests PASS |
+| 3. 凍結セル付与primitiveの分離 | completed | Phase 2 | FREEZE_WILL回帰、primitive 2 suites / 7 tests PASS |
 | 4. 「意志の凍結」headless実装 | pending | Phase 3 | 使用可否・一括解決・turn tests PASS |
 | 5. カタログ・UI・演出統合 | pending | Phase 4 | catalog生成、UI focused、browser build PASS |
 | 6. CPU・network/runtime parity | pending | Phase 4～5 | CPU focused、network parity、worker mirror検証 PASS |

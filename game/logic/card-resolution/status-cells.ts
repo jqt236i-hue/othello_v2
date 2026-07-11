@@ -14,8 +14,6 @@ function applyStatusCellWill(cardState: CardState, gameState: GameState, playerK
     const removeMarkersAt = deps && deps.removeMarkersAt;
     const addMarker = deps && deps.addMarker;
     const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
-    const emitPresentationEvent = deps && deps.emitPresentationEvent;
-    const MARKER_KINDS = deps && deps.MARKER_KINDS;
     const getTargets = config && config.getTargets;
 
     if (
@@ -35,6 +33,26 @@ function applyStatusCellWill(cardState: CardState, gameState: GameState, playerK
     const targets = getTargets(cardState, gameState, playerKey);
     const allowed = targets.some((t: any) => t.row === row && t.col === col);
     if (!allowed) return { applied: false, reason: 'invalid_target' };
+
+    const result = applyStatusCellMarker(cardState, playerKey, row, col, config, deps);
+    if (!result.applied) return result;
+
+    clearCardPendingEffect(cardState, playerKey);
+    return result;
+}
+
+function applyStatusCellMarker(cardState: CardState, playerKey: PlayerKey, row: number, col: number, config: any, deps: any): Record<string, any> {
+    const removeMarkersAt = deps && deps.removeMarkersAt;
+    const addMarker = deps && deps.addMarker;
+    const emitPresentationEvent = deps && deps.emitPresentationEvent;
+    const MARKER_KINDS = deps && deps.MARKER_KINDS;
+
+    if (typeof removeMarkersAt !== 'function' || typeof addMarker !== 'function') {
+        return { applied: false, reason: 'deps_missing' };
+    }
+    if (!Number.isInteger(row) || !Number.isInteger(col)) {
+        return { applied: false, reason: 'invalid_target' };
+    }
 
     removeMarkersAt(cardState, row, col, {
         kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
@@ -57,8 +75,6 @@ function applyStatusCellWill(cardState: CardState, gameState: GameState, playerK
             }
         });
     }
-
-    clearCardPendingEffect(cardState, playerKey);
     return { applied: true, row, col };
 }
 
@@ -93,6 +109,7 @@ function applySeedWill(cardState: CardState, gameState: GameState, playerKey: Pl
 }
 
     return {
+        applyStatusCellMarker,
         applyBlockadeWill,
         applyFreezeWill,
         applySeedWill
