@@ -73,10 +73,10 @@ describe('selfplay simple simulation choosers module', () => {
 
         const expansionApply = records[0][4];
         const shrinkApply = records[1][4];
-        expansionApply({}, {}, 'black', 0, 0);
+        expansionApply({}, {}, 'black', 0, 0, null, { directionKey: 'up-left' });
         shrinkApply({}, {}, 'white', 0, 0);
 
-        expect(applyBoardExpansionGod).toHaveBeenCalled();
+        expect(applyBoardExpansionGod).toHaveBeenCalledWith({}, {}, 'black', 0, 0, 'up-left');
         expect(applyBoardExpansionWill).not.toHaveBeenCalled();
         expect(applyBoardShrinkGod).toHaveBeenCalled();
         expect(applyBoardShrinkWill).not.toHaveBeenCalled();

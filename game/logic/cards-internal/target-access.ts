@@ -121,20 +121,12 @@ function getBoardExpansionTargets(cardState: any, gameState: any, playerKey: any
     return resolveTargetResolverTargets('getBoardExpansionTargets', [cardState, gameState, playerKey], deps);
 }
 
-function getBoardExpansionGodCornerDescriptorsForCard(gameState: any, deps: TargetAccessDeps) {
-    return deps.CardExpansionModule.getBoardExpansionGodCornerDescriptorsForCard(gameState);
+function getBoardExpansionGodSocketTargets(cardState: any, gameState: any, deps: TargetAccessDeps) {
+    return deps.CardSelectorsModule.getBoardExpansionGodSocketTargets(cardState, gameState);
 }
 
 function getBoardExpansionGodPendingSelectionsForCard(pending: any, deps: TargetAccessDeps) {
     return deps.CardExpansionModule.getBoardExpansionGodPendingSelectionsForCard(pending);
-}
-
-function getBoardExpansionGodAdditionsForCard(row: any, col: any, gameState: any, deps: TargetAccessDeps) {
-    return deps.CardExpansionModule.getBoardExpansionGodAdditionsForCard(row, col, gameState);
-}
-
-function getBoardExpansionWillCellDescriptorsForCard(gameState: any, deps: TargetAccessDeps) {
-    return deps.CardExpansionModule.getBoardExpansionWillCellDescriptorsForCard(gameState);
 }
 
 function ensureExpansionCellForCard(gameState: any, row: any, col: any, owner: any, deps: TargetAccessDeps) {
@@ -261,10 +253,8 @@ module.exports = {
     getTeleportTargets,
     getCloneTargets,
     getBoardExpansionTargets,
-    getBoardExpansionGodCornerDescriptorsForCard,
+    getBoardExpansionGodSocketTargets,
     getBoardExpansionGodPendingSelectionsForCard,
-    getBoardExpansionGodAdditionsForCard,
-    getBoardExpansionWillCellDescriptorsForCard,
     ensureExpansionCellForCard,
     getBoardExpansionGodTargets,
     getBoardExpansionGodRequiredSelectionCount,

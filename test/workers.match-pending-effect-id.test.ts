@@ -419,7 +419,7 @@ function runBoardPendingResolutionScenario(config) {
     "    sourceHandIndex: 0,",
     "    pendingEffectId: 'pending_board_1'",
     "  }, config.pendingExtra || {});",
-    "  const actionTarget = { row: config.target.row, col: config.target.col };",
+    "  const actionTarget = Object.assign({ row: config.target.row, col: config.target.col }, config.target.directionKey ? { directionKey: config.target.directionKey } : {}, Array.isArray(config.target.additions) ? { additions: config.target.additions } : {});",
     "  const pendingSelectionState = Object.assign({}, pending, config.publishPendingSelectionExtra || {});",
     "  const params = { player: 'black', pendingSelectionState };",
     "  params[config.actionKey] = actionTarget;",
@@ -696,7 +696,7 @@ describe('worker pendingEffectId contract', () => {
       cardId: 'board_expand_01',
       pendingType: 'BOARD_EXPANSION_WILL',
       actionKey: 'expansionTarget',
-      target: { row: 3, col: 7 }
+      target: { row: 3, col: 7, directionKey: 'right' }
     });
 
     const expansion = result.internalSnapshot.gameState.boardExpansion;
@@ -723,7 +723,7 @@ describe('worker pendingEffectId contract', () => {
       pendingType: 'BOARD_EXPANSION_WILL',
       actionKey: 'expansionTarget',
       boardConfig: { rows: 10, cols: 10, standard8x8: false },
-      target: { row: 3, col: 9 }
+      target: { row: 3, col: 9, directionKey: 'right' }
     });
 
     const expansion = result.internalSnapshot.gameState.boardExpansion;
@@ -747,7 +747,7 @@ describe('worker pendingEffectId contract', () => {
       pendingType: 'BOARD_EXPANSION_WILL',
       actionKey: 'expansionTarget',
       boardConfig: { rows: 8, cols: 9, standard8x8: false },
-      target: { row: 7, col: 8 }
+      target: { row: 7, col: 8, directionKey: 'right' }
     });
 
     const expansion = result.internalSnapshot.gameState.boardExpansion;
@@ -774,7 +774,7 @@ describe('worker pendingEffectId contract', () => {
       pendingExtra: {
         selectedCount: 1,
         maxSelections: 2,
-        selectedTargets: [{ row: 0, col: 0 }]
+        selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }]
       }
     });
 
@@ -808,11 +808,11 @@ describe('worker pendingEffectId contract', () => {
       pendingType: 'BOARD_EXPANSION_GOD',
       actionKey: 'expansionTarget',
       boardConfig: { rows: 10, cols: 10, standard8x8: false },
-      target: { row: 9, col: 9 },
+      target: { row: 9, col: 9, directionKey: 'down-right' },
       pendingExtra: {
         selectedCount: 1,
         maxSelections: 2,
-        selectedTargets: [{ row: 0, col: 0 }]
+        selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }]
       }
     });
 
@@ -842,11 +842,11 @@ describe('worker pendingEffectId contract', () => {
       pendingType: 'BOARD_EXPANSION_GOD',
       actionKey: 'expansionTarget',
       boardConfig: { rows: 8, cols: 9, standard8x8: false },
-      target: { row: 7, col: 8 },
+      target: { row: 7, col: 8, directionKey: 'down-right' },
       pendingExtra: {
         selectedCount: 1,
         maxSelections: 2,
-        selectedTargets: [{ row: 0, col: 0 }]
+        selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }]
       }
     });
 
@@ -1091,12 +1091,45 @@ describe('worker pendingEffectId contract', () => {
     ]));
   });
 
+  test('board expansion authority distinguishes two directions on the same anchor', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'board_expand_01',
+      pendingType: 'BOARD_EXPANSION_WILL',
+      actionKey: 'expansionTarget',
+      target: { row: 0, col: 0, directionKey: 'up', additions: [{ row: 99, col: 99 }] }
+    });
+    const cells = result.internalSnapshot.gameState.boardExpansion.cells || [];
+
+    expect(result.status).toBe(200);
+    expect(cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: 0, side: 'top', owner: 0 })
+    ]));
+    expect(cells.some((cell) => cell.row === 0 && cell.col === -1)).toBe(false);
+    expect(cells.some((cell) => cell.row === 99 && cell.col === 99)).toBe(false);
+  });
+
+  test('board expansion authority rejects a nonexistent direction without trusting client additions', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'board_expand_01',
+      pendingType: 'BOARD_EXPANSION_WILL',
+      actionKey: 'expansionTarget',
+      target: { row: 0, col: 0, directionKey: 'down', additions: [{ row: 99, col: 99 }] }
+    });
+
+    expect(result.status).toBe(409);
+    expect(result.payload.ok).toBe(false);
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'BOARD_EXPANSION_WILL'
+    }));
+    expect(result.internalSnapshot.gameState.boardExpansion && result.internalSnapshot.gameState.boardExpansion.cells || []).toHaveLength(0);
+  });
+
   test('board shrink final target selection restores prior targets carried by pendingSelectionState', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'board_shrink_01',
       pendingType: 'BOARD_SHRINK_WILL',
       actionKey: 'shrinkTarget',
-      target: { row: 7, col: 7 },
+      target: { row: 7, col: 7, directionKey: 'down-right' },
       pendingExtra: {
         selectedCount: 0,
         maxSelections: 3,

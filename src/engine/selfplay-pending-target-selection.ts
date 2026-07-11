@@ -101,7 +101,7 @@ export function createSelfplayPendingTargetSelection(config?: SelfplayPendingTar
                     ? cardLogic.copyCardState(cardState)
                     : deepClone(cardState);
                 const simRng = clonePrng(rng);
-                const result = applyEffectFn(simCardState, simGameState, playerKey, target.row, target.col, simRng);
+                const result = applyEffectFn(simCardState, simGameState, playerKey, target.row, target.col, simRng, target);
                 if (result && result.applied === true) {
                     score = evaluateBoardForPlayer(simGameState, simCardState, playerKey);
                     if (typeof scoreAdjustFn === 'function') {

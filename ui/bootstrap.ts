@@ -2049,7 +2049,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             const root = roots[index] as unknown as Record<string, any> | null;
                             const handler = root ? root[handlerName] : null;
                             if (typeof handler !== 'function') continue;
-                            handler(payload.row, payload.col, payload.playerKey);
+                            handler(payload.row, payload.col, payload.playerKey, payload.directionKey);
                             return true;
                         }
                         const moduleHandlers: Record<string, { moduleId: string; exportName: string }> = {

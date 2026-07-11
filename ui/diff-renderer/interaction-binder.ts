@@ -75,10 +75,28 @@ function bindBoardCellInteraction(capabilities: any, cell: any, row: any, col: a
         if (isTouchStoneInfoEvent(ev)) {
             showSpecialStoneInfoAt(row, col);
         }
-        handleCellClick(row, col);
+        const directionHint = ev && ev.target && typeof ev.target.closest === 'function'
+            ? ev.target.closest('.board-expansion-direction-hint')
+            : null;
+        const directionKey = directionHint && directionHint.dataset
+            ? directionHint.dataset.direction
+            : undefined;
+        handleCellClick(row, col, directionKey);
     });
 
     cell.addEventListener('pointercancel', () => clearPress());
+    cell.addEventListener('keydown', (ev: any) => {
+        if (!ev || (ev.key !== 'Enter' && ev.key !== ' ')) return;
+        const directionHint = ev.target && typeof ev.target.closest === 'function'
+            ? ev.target.closest('.board-expansion-direction-hint')
+            : null;
+        const directionKey = directionHint && directionHint.dataset
+            ? directionHint.dataset.direction
+            : undefined;
+        if (!directionKey) return;
+        ev.preventDefault();
+        handleCellClick(row, col, directionKey);
+    });
     cell.addEventListener('pointerleave', (ev: any) => {
         if (isHoverPointerEvent(ev)) {
             clearSuperAttractionHoverPreview();

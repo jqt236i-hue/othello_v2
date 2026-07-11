@@ -62,12 +62,12 @@ describe('NetworkCommandPayloadModule', () => {
       action: {
         type: 'place',
         playerKey: 'black',
-        expansionTarget: { row: 7, col: 7 },
+        expansionTarget: { row: 7, col: 7, directionKey: 'down-right' },
         pendingSelectionState: {
           type: 'BOARD_EXPANSION_GOD',
           stage: 'selectTarget',
           cardId: 'board_expand_god_01',
-          selectedTargets: [{ row: 0, col: 0 }],
+          selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }],
           selectedCount: 1,
           maxSelections: 2
         }
@@ -80,12 +80,12 @@ describe('NetworkCommandPayloadModule', () => {
       actionType: 'place',
       actor: 'black',
       params: {
-        expansionTarget: { row: 7, col: 7 },
+        expansionTarget: { row: 7, col: 7, directionKey: 'down-right' },
         pendingSelectionState: {
           type: 'BOARD_EXPANSION_GOD',
           stage: 'selectTarget',
           cardId: 'board_expand_god_01',
-          selectedTargets: [{ row: 0, col: 0 }],
+          selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }],
           selectedCount: 1,
           maxSelections: 2
         }

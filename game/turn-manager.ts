@@ -673,7 +673,7 @@ function captureServerAuthoredCardUseBoardClickForTurnManager(row: number, col: 
     return false;
 }
 
-function handleCellClick(row: number, col: number) {
+function handleCellClick(row: number, col: number, directionKey?: string) {
     if (isTurnManagerDebugAvailable()) {
         logTurnManagerDebug(`[CELL-CLICK] User clicked (${row},${col})`, 'debug', {
             currentPlayer: gameState.currentPlayer,
@@ -705,7 +705,7 @@ function handleCellClick(row: number, col: number) {
     }
 
     if (pendingDispatchKey) {
-        dispatchPendingSelectionForTurnManager(pendingDispatchKey, row, col, playerKey, pending);
+        dispatchPendingSelectionForTurnManager(pendingDispatchKey, row, col, playerKey, pending, directionKey);
         return;
     }
 
@@ -1161,8 +1161,8 @@ function readPendingForTurnManager(playerKey: any) {
     return null;
 }
 
-function dispatchPendingSelectionForTurnManager(dispatchKey: any, row: number, col: number, playerKey: string, pending: any) {
-    const payload = { dispatchKey, row, col, playerKey, pending };
+function dispatchPendingSelectionForTurnManager(dispatchKey: any, row: number, col: number, playerKey: string, pending: any, directionKey?: string) {
+    const payload = { dispatchKey, row, col, playerKey, pending, ...(directionKey ? { directionKey } : {}) };
     try {
         const dispatchFn = resolveTurnManagerRuntimeFunction('dispatchPendingSelection');
         if (typeof dispatchFn === 'function') {
@@ -1176,7 +1176,11 @@ function dispatchPendingSelectionForTurnManager(dispatchKey: any, row: number, c
             ? resolveHandler(dispatchKey, pending, payload)
             : null;
         if (typeof handler === 'function') {
-            handler(row, col, playerKey, pending);
+            if (String(dispatchKey || '') === 'board_expansion') {
+                handler(row, col, playerKey, directionKey, pending);
+            } else {
+                handler(row, col, playerKey, pending);
+            }
             return true;
         }
     } catch (e) { /* ignore */ }

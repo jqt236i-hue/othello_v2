@@ -2619,20 +2619,12 @@ const {
         return CardTargetAccessModule.getBoardExpansionTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
 
-    function getBoardExpansionGodCornerDescriptorsForCard(gameState: any) {
-        return CardTargetAccessModule.getBoardExpansionGodCornerDescriptorsForCard(gameState, getCardTargetAccessDeps());
+    function getBoardExpansionGodSocketTargets(cardState: any, gameState: any) {
+        return CardTargetAccessModule.getBoardExpansionGodSocketTargets(cardState, gameState, getCardTargetAccessDeps());
     }
 
     function getBoardExpansionGodPendingSelectionsForCard(pending: any) {
         return CardTargetAccessModule.getBoardExpansionGodPendingSelectionsForCard(pending, getCardTargetAccessDeps());
-    }
-
-    function getBoardExpansionGodAdditionsForCard(row: any, col: any, gameState: any) {
-        return CardTargetAccessModule.getBoardExpansionGodAdditionsForCard(row, col, gameState, getCardTargetAccessDeps());
-    }
-
-    function getBoardExpansionWillCellDescriptorsForCard(gameState: any) {
-        return CardTargetAccessModule.getBoardExpansionWillCellDescriptorsForCard(gameState, getCardTargetAccessDeps());
     }
 
     function ensureExpansionCellForCard(gameState: any, row: any, col: any, owner: any) {
@@ -2860,11 +2852,10 @@ const {
         });
     }
 
-    function applyBoardExpansionWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        return CardBoardExpansionApplyModule.applyBoardExpansionWill(cardState, gameState, playerKey, row, col, {
+    function applyBoardExpansionWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, directionKey?: any) {
+        return CardBoardExpansionApplyModule.applyBoardExpansionWill(cardState, gameState, playerKey, row, col, directionKey, {
             readCardPendingEffect,
             getBoardExpansionTargets,
-            resolveCardBoardConfig,
             ensureMutableBoardExpansionForCard,
             getExpansionDescriptorsForCard,
             resolveExpansionSideForCard,
@@ -2874,15 +2865,15 @@ const {
         });
     }
 
-    function applyBoardExpansionGod(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        return CardBoardExpansionApplyModule.applyBoardExpansionGod(cardState, gameState, playerKey, row, col, {
+    function applyBoardExpansionGod(cardState: any, gameState: any, playerKey: any, row: any, col: any, directionKey?: any) {
+        return CardBoardExpansionApplyModule.applyBoardExpansionGod(cardState, gameState, playerKey, row, col, directionKey, {
             readCardPendingEffect,
             getBoardExpansionGodTargets,
             getBoardExpansionGodRequiredSelectionCount,
             getBoardExpansionGodPendingSelectionsForCard,
             ensureMutableBoardExpansionForCard,
             getExpansionDescriptorsForCard,
-            getBoardExpansionGodAdditionsForCard,
+            getBoardExpansionGodSocketTargets,
             resolveExpansionSideForCard,
             normalizeExpansionOwnerForCard,
             syncLegacyExpansionFieldsForCard,

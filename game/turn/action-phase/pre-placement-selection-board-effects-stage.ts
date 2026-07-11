@@ -30,7 +30,7 @@ function resolveBoardExpansionSelection(options: BoardEffectsStageOptions): any 
     const applyFn = (isGodExpansion && typeof options.CardLogic.applyBoardExpansionGod === 'function')
         ? options.CardLogic.applyBoardExpansionGod
         : options.CardLogic.applyBoardExpansionWill;
-    const result = applyFn(options.cardState, options.gameState, options.playerKey, selection.target.row, selection.target.col);
+    const result = applyFn(options.cardState, options.gameState, options.playerKey, selection.target.row, selection.target.col, selection.target.directionKey);
     if (isGodExpansion && result && result.applied && result.completed === false) {
         options.events.push({
             type: 'board_expansion_first_selected', player: options.playerKey, cardType: pending.type, target: selection.target,

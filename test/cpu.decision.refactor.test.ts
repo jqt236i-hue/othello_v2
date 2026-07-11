@@ -3609,9 +3609,9 @@ describe('cpu decision refactor helpers', () => {
     global.cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
     global.CardLogic = {
       getSelectableTargets: () => [
-        { row: 0, col: 7, side: 'right' },
-        { row: 2, col: 0, side: 'left' },
-        { row: 0, col: 0, side: 'left' }
+        { row: 0, col: 7, side: 'right', directionKey: 'right' },
+        { row: 2, col: 0, side: 'left', directionKey: 'left' },
+        { row: 0, col: 0, side: 'left', directionKey: 'left' }
       ],
       applyBoardExpansionWill: jest.fn(() => ({ applied: true }))
     };
@@ -3635,7 +3635,47 @@ describe('cpu decision refactor helpers', () => {
 
     expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).toHaveBeenCalled();
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
-    expect(action.expansionTarget).toEqual({ row: 0, col: 0 });
+    expect(action.expansionTarget).toEqual({ row: 0, col: 0, directionKey: 'left' });
+  });
+
+  test('cpuSelectBoardExpansionWillWithPolicy recognizes an enemy pseudo-corner from current shape', async () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.gameState.board[0][1] = 1;
+    global.cardState.markers = [
+      { kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'METEOR_HOLE' } }
+    ];
+    global.cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+    global.CardLogic = {
+      getSelectableTargets: () => [
+        { row: 0, col: 1, side: 'top', directionKey: 'up' },
+        { row: 2, col: 0, side: 'left', directionKey: 'left' }
+      ],
+      applyBoardExpansionWill: jest.fn(() => ({ applied: true }))
+    };
+    global.CpuPolicyOnnxRuntime = {
+      choosePendingTarget: jest.fn(async (targets) => targets[0])
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectBoardExpansionWillWithPolicy('white');
+
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.expansionTarget).toEqual({ row: 0, col: 1, directionKey: 'up' });
   });
 
   test('cpuSelectBoardExpansionWillWithPolicy clears pending when no enemy occupied corner exists', async () => {
@@ -3648,9 +3688,9 @@ describe('cpu decision refactor helpers', () => {
     global.cardState.pendingEffectByPlayer.white = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
     global.CardLogic = {
       getSelectableTargets: () => [
-        { row: 0, col: 0, side: 'left' },
-        { row: 2, col: 0, side: 'left' },
-        { row: 0, col: 7, side: 'right' }
+        { row: 0, col: 0, side: 'left', directionKey: 'left' },
+        { row: 2, col: 0, side: 'left', directionKey: 'left' },
+        { row: 0, col: 7, side: 'right', directionKey: 'right' }
       ],
       applyBoardExpansionWill: jest.fn(() => ({ applied: true }))
     };
@@ -3685,8 +3725,8 @@ describe('cpu decision refactor helpers', () => {
     };
     global.CardLogic = {
       getSelectableTargets: () => [
-        { row: 0, col: 0 },
-        { row: 7, col: 7 }
+        { row: 0, col: 0, directionKey: 'up-left' },
+        { row: 7, col: 7, directionKey: 'down-right' }
       ],
       getBoardExpansionGodRequiredSelectionCount: () => 2,
       applyBoardExpansionGod: jest.fn(() => ({ applied: true }))
@@ -3710,7 +3750,7 @@ describe('cpu decision refactor helpers', () => {
     await cpuDecision.cpuSelectBoardExpansionWillWithPolicy('white');
 
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
-    expect(action.expansionTarget).toEqual({ row: 7, col: 7 });
+    expect(action.expansionTarget).toEqual({ row: 7, col: 7, directionKey: 'down-right' });
   });
 
   test('cpuSelectMeteorWillWithPolicy prefers corner target that promotes adjacent own edge into pseudo-corner', async () => {

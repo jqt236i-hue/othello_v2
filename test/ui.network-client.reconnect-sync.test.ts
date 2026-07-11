@@ -276,11 +276,13 @@ describe('NetworkMatchClient reconnect and resync', () => {
     });
     pendingSnapshot.cardState.turnIndex = 2;
     pendingSnapshot.cardState.pendingEffectByPlayer.black = {
-      type: 'BOARD_SHRINK_GOD',
+      type: 'BOARD_EXPANSION_GOD',
       stage: 'selectTarget',
-      cardId: 'board_shrink_god_01',
+      cardId: 'board_expand_god_01',
       pendingEffectId: 'pending_reconnect_1',
-      firstTarget: { row: 0, col: 0 }
+      selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }],
+      selectedCount: 1,
+      maxSelections: 2
     };
 
     global.fetch = jest.fn(async (url, init = {}) => {
@@ -354,9 +356,9 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(syncResult).toEqual({ ok: true, appliedSnapshot: true });
     expect(client.getStateVersion()).toBe(2);
     expect(global.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
-      type: 'BOARD_SHRINK_GOD',
+      type: 'BOARD_EXPANSION_GOD',
       pendingEffectId: 'pending_reconnect_1',
-      firstTarget: { row: 0, col: 0 }
+      selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }]
     }));
 
     const pendingSelectionState = JSON.parse(JSON.stringify(global.cardState.pendingEffectByPlayer.black));
@@ -370,7 +372,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
         row: 0,
         col: 1,
         turnIndex: 2,
-        shrinkTarget: { row: 0, col: 1 },
+        expansionTarget: { row: 7, col: 7, directionKey: 'down-right' },
         deferNetworkPublish: true,
         pendingSelectionState
       }
@@ -380,11 +382,11 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(publishBodies).toHaveLength(1);
     expect(publishBodies[0].baseVersion).toBe(2);
     expect(publishBodies[0].params.pendingSelectionState).toEqual(expect.objectContaining({
-      type: 'BOARD_SHRINK_GOD',
+      type: 'BOARD_EXPANSION_GOD',
       pendingEffectId: 'pending_reconnect_1',
-      firstTarget: { row: 0, col: 0 }
+      selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }]
     }));
-    expect(publishBodies[0].params.shrinkTarget).toEqual({ row: 0, col: 1 });
+    expect(publishBodies[0].params.expansionTarget).toEqual({ row: 7, col: 7, directionKey: 'down-right' });
   });
 
   test('state sync payload の roomBoardConfig が null でも snapshot の custom boardConfig を保持する', async () => {

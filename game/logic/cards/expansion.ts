@@ -520,98 +520,40 @@ function setCellValueForCard(gameState: GameState, row: number, col: number, val
     return false;
 }
 
-interface CornerDescriptor {
-    row: number;
-    col: number;
-    cells: Array<{ row: number; col: number }>;
+function copyBoardExpansionSelectionForCard(target: any): any {
+    return {
+        row: target.row,
+        col: target.col,
+        ...(typeof target.directionKey === 'string' && target.directionKey ? { directionKey: target.directionKey } : {}),
+        ...(Array.isArray(target.additions) ? {
+            additions: target.additions
+                .filter((cell: any) => cell && Number.isInteger(cell.row) && Number.isInteger(cell.col))
+                .map((cell: any) => ({ row: cell.row, col: cell.col }))
+        } : {})
+    };
 }
 
-function getBoardExpansionGodCornerDescriptorsForCard(boardOrConfig: any): CornerDescriptor[] {
-    const config = resolveCardBoardConfig(boardOrConfig);
-    const lastRow = config.baseBounds.maxRow;
-    const lastCol = config.baseBounds.maxCol;
-    const outerMinRow = config.outerBounds.minRow;
-    const outerMaxRow = config.outerBounds.maxRow;
-    const outerMinCol = config.outerBounds.minCol;
-    const outerMaxCol = config.outerBounds.maxCol;
-    return [
-        {
-            row: 0,
-            col: 0,
-            cells: [
-                { row: outerMinRow, col: 0 },
-                { row: outerMinRow, col: outerMinCol },
-                { row: 0, col: outerMinCol }
-            ]
-        },
-        {
-            row: 0,
-            col: lastCol,
-            cells: [
-                { row: outerMinRow, col: lastCol },
-                { row: outerMinRow, col: outerMaxCol },
-                { row: 0, col: outerMaxCol }
-            ]
-        },
-        {
-            row: lastRow,
-            col: 0,
-            cells: [
-                { row: outerMaxRow, col: 0 },
-                { row: outerMaxRow, col: outerMinCol },
-                { row: lastRow, col: outerMinCol }
-            ]
-        },
-        {
-            row: lastRow,
-            col: lastCol,
-            cells: [
-                { row: lastRow, col: outerMaxCol },
-                { row: outerMaxRow, col: outerMaxCol },
-                { row: outerMaxRow, col: lastCol }
-            ]
-        }
-    ];
-}
-
-function getBoardExpansionGodPendingSelectionsForCard(pending: any): Array<{ row: number; col: number }> {
-    const res: Array<{ row: number; col: number }> = [];
+function getBoardExpansionGodPendingSelectionsForCard(pending: any): any[] {
+    const res: any[] = [];
     if (!pending || pending.type !== 'BOARD_EXPANSION_GOD') return res;
     if (pending.firstTarget && Number.isInteger(pending.firstTarget.row) && Number.isInteger(pending.firstTarget.col)) {
-        res.push({ row: pending.firstTarget.row, col: pending.firstTarget.col });
+        res.push(copyBoardExpansionSelectionForCard(pending.firstTarget));
     }
     if (Array.isArray(pending.selectedTargets)) {
         for (const target of pending.selectedTargets) {
             if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) continue;
-            res.push({ row: target.row, col: target.col });
+            res.push(copyBoardExpansionSelectionForCard(target));
         }
     }
-    const unique: Array<{ row: number; col: number }> = [];
+    const unique: any[] = [];
     const seen = new Set<string>();
     for (const target of res) {
-        const key = `${target.row},${target.col}`;
+        const key = `${target.row},${target.col},${target.directionKey || ''}`;
         if (seen.has(key)) continue;
         seen.add(key);
         unique.push(target);
     }
     return unique;
-}
-
-function getBoardExpansionGodAdditionsForCard(row: number, col: number, boardOrConfig: any): Array<{ row: number; col: number }> | null {
-    const corner = getBoardExpansionGodCornerDescriptorsForCard(boardOrConfig)
-        .find((entry) => entry && entry.row === row && entry.col === col);
-    if (!corner || !Array.isArray(corner.cells)) return null;
-    return corner.cells.map((cell: any) => ({ row: cell.row, col: cell.col }));
-}
-
-function getBoardExpansionWillCellDescriptorsForCard(boardOrConfig: any): Array<{ row: number; col: number; side: string }> {
-    const config = resolveCardBoardConfig(boardOrConfig);
-    const cells: Array<{ row: number; col: number; side: string }> = [];
-    for (let row = 0; row < config.rows; row++) {
-        cells.push({ row, col: config.outerBounds.minCol, side: 'left' });
-        cells.push({ row, col: config.outerBounds.maxCol, side: 'right' });
-    }
-    return cells;
 }
 
 function ensureExpansionCellForCard(gameState: GameState, row: number, col: number, owner: any): boolean {
@@ -624,26 +566,9 @@ function ensureExpansionCellForCard(gameState: GameState, row: number, col: numb
         return setCellValueForCard(gameState, row, col, owner == null ? currentValue : owner);
     }
 
-    const validExpansionTargets: Array<{ row: number; col: number; side: string | null }> = [];
-    validExpansionTargets.push(...getBoardExpansionWillCellDescriptorsForCard(boardConfig));
-    for (const corner of getBoardExpansionGodCornerDescriptorsForCard(boardConfig)) {
-        if (!corner || !Array.isArray(corner.cells)) continue;
-        for (const cell of corner.cells) {
-            if (!cell) continue;
-            validExpansionTargets.push({
-                row: cell.row,
-                col: cell.col,
-                side: resolveExpansionSideForCard(null, cell.row, cell.col, boardConfig)
-            });
-        }
-    }
-
-    const matched = validExpansionTargets.find((cell) => cell && cell.row === row && cell.col === col);
-    if (!matched) return false;
-
     const cells = getExpansionDescriptorsForCard(gameState);
     cells.push({
-        side: resolveExpansionSideForCard(matched.side, row, col, boardConfig),
+        side: resolveExpansionSideForCard(null, row, col, boardConfig),
         row,
         col,
         owner: normalizeExpansionOwnerForCard(owner)
@@ -725,10 +650,7 @@ export = {
     writeExpansionDescriptorsForCard,
     getCellValueForCard,
     setCellValueForCard,
-    getBoardExpansionGodCornerDescriptorsForCard,
     getBoardExpansionGodPendingSelectionsForCard,
-    getBoardExpansionGodAdditionsForCard,
-    getBoardExpansionWillCellDescriptorsForCard,
     ensureExpansionCellForCard,
     buildInitialBoardBonusMap
 };

@@ -352,4 +352,77 @@ describe('Card effects E2E', () => {
 
     await page.close();
   }, 60000);
+
+  test('盤面拡張は同一anchorの方向矢印を区別してcurrent shapeへ追加する', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1&noanim=1`, { waitUntil: 'domcontentloaded' });
+    await closeMaintenanceNoticeIfPresent(page);
+    await closeSidePanelIfPresent(page);
+    await page.waitForFunction(() => !!(
+      window.gameState &&
+      window.cardState &&
+      window.CardLogic &&
+      typeof window.renderBoard === 'function' &&
+      typeof window.handleCellClick === 'function'
+    ), { timeout: 15000 });
+
+    await page.evaluate(() => {
+      window.DEBUG_UNLIMITED_USAGE = true;
+      window.DEBUG_HUMAN_VS_HUMAN = true;
+      window.MATCH_MODE = 'cpu';
+      window.LOCAL_PLAYER_KEY = 'black';
+      for (const key of ['__uiImpl_turn_manager', '__uiImpl_move_executor', '__uiImpl']) {
+        window[key] = window[key] || {};
+        window[key].DEBUG_UNLIMITED_USAGE = true;
+        window[key].DEBUG_HUMAN_VS_HUMAN = true;
+        window[key].MATCH_MODE = 'cpu';
+      }
+      window.gameState.currentPlayer = 1;
+      window.gameState.boardExpansion = {
+        active: false,
+        side: null,
+        row: null,
+        owner: 0,
+        usedByPlayer: { black: false, white: false },
+        cells: []
+      };
+      window.cardState.pendingEffectByPlayer = {
+        black: { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget', cardId: 'board_expand_01' },
+        white: null
+      };
+      window.cardState.hasUsedCardThisTurnByPlayer = { black: true, white: false };
+      window.cardState.lastUsedCardByPlayer = { black: 'board_expand_01', white: null };
+      window.isProcessing = false;
+      window.isCardAnimating = false;
+      window.VisualPlaybackActive = false;
+      window.renderBoard();
+    });
+
+    const anchor = page.locator('.cell[data-row="0"][data-col="0"]');
+    expect(await anchor.locator('.board-expansion-direction-hint').count()).toBe(2);
+    expect(await anchor.locator('.board-expansion-direction-hint[data-direction="up"]').textContent()).toBe('↑');
+    expect(await anchor.locator('.board-expansion-direction-hint[data-direction="left"]').textContent()).toBe('←');
+    const screenshot = await page.screenshot();
+    expect(screenshot.byteLength).toBeGreaterThan(1000);
+
+    await page.evaluate(async () => {
+      await window.handleCellClick(0, 0, 'up');
+    });
+    await page.waitForFunction(() => {
+      const cells = window.gameState && window.gameState.boardExpansion && window.gameState.boardExpansion.cells;
+      return Array.isArray(cells) && cells.some((cell) => cell && cell.row === -1 && cell.col === 0);
+    }, null, { timeout: 10000 });
+
+    const result = await page.evaluate(() => ({
+      pending: window.cardState.pendingEffectByPlayer.black,
+      cells: window.gameState.boardExpansion.cells
+    }));
+    expect(result.pending).toBeNull();
+    expect(result.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: 0 })
+    ]));
+    expect(result.cells.some((cell: any) => cell.row === 0 && cell.col === -1)).toBe(false);
+
+    await page.close();
+  }, 60000);
 });

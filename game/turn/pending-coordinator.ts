@@ -137,7 +137,7 @@ const pendingCoordinatorModule = (function (root: any) {
             : null;
     }
 
-    function buildPendingSelectionTargetPayload(pendingTypes: any, row: any, col: any): any {
+    function buildPendingSelectionTargetPayload(pendingTypes: any, row: any, col: any, targetMeta?: any): any {
         var list = Array.isArray(pendingTypes) ? pendingTypes.slice() : [pendingTypes];
         var missingTypes: any[] = [];
         var fields = list.map(function (pendingType: any) {
@@ -161,7 +161,10 @@ const pendingCoordinatorModule = (function (root: any) {
         var payload: any = {};
         payload[fieldName] = {
             row: Math.trunc(Number(row)),
-            col: Math.trunc(Number(col))
+            col: Math.trunc(Number(col)),
+            ...(targetMeta && typeof targetMeta.directionKey === 'string' && targetMeta.directionKey
+                ? { directionKey: targetMeta.directionKey }
+                : {})
         };
         return payload;
     }
@@ -367,7 +370,13 @@ const pendingCoordinatorModule = (function (root: any) {
 
     function clonePendingSelectionTransportTarget(target: any): any {
         if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
-        return { row: target.row, col: target.col };
+        return {
+            row: target.row,
+            col: target.col,
+            ...(typeof target.directionKey === 'string' && target.directionKey
+                ? { directionKey: target.directionKey }
+                : {})
+        };
     }
 
     function resolveFirstCoordinateTargetFromSelectionPayload(payload: any): any {

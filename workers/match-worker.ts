@@ -925,6 +925,18 @@ async function applyCommandPublishToSnapshot(
             events: result && Array.isArray(result.events) ? result.events : []
         };
     }
+    const authoritativePendingResult = MatchAuthority.validateAuthoritativePendingSelectionResult(
+        resolvedAction,
+        result.events
+    );
+    if (!authoritativePendingResult || authoritativePendingResult.ok !== true) {
+        return {
+            ok: false,
+            rejectedReason: authoritativePendingResult && authoritativePendingResult.rejectedReason
+                ? authoritativePendingResult.rejectedReason
+                : 'INVALID_PENDING_SELECTION_TARGET'
+        };
+    }
     const nextSnapshot = {
         gameState: result.gameState,
         cardState: result.cardState

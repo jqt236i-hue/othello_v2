@@ -391,8 +391,8 @@ describe('DiffRenderer destroy-fade cleanup', () => {
   test('updates BOARD_EXPANSION_WILL direction hints as pending selection changes', () => {
     const diff = require('../ui/diff-renderer.js');
     global.CardLogic.getSelectableTargets = () => [
-      { row: 2, col: 0, side: 'left' },
-      { row: 5, col: 7, side: 'right' }
+      { row: 2, col: 0, side: 'left', directionKey: 'left' },
+      { row: 5, col: 7, side: 'right', directionKey: 'right' }
     ];
 
     diff.renderBoardDiff(boardEl);
@@ -428,7 +428,10 @@ describe('DiffRenderer destroy-fade cleanup', () => {
 
   test('updates BOARD_EXPANSION_GOD direction hints as pending selection changes', () => {
     const diff = require('../ui/diff-renderer.js');
-    global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 0 }];
+    global.CardLogic.getSelectableTargets = () => [
+      { row: 0, col: 0, directionKey: 'up-left' },
+      { row: 0, col: 0, directionKey: 'up' }
+    ];
 
     diff.renderBoardDiff(boardEl);
 
@@ -446,8 +449,9 @@ describe('DiffRenderer destroy-fade cleanup', () => {
 
     diff.renderBoardDiff(boardEl);
 
-    expect(cornerCell.getAttribute('data-board-expansion-direction-hint')).toBe('up-left');
-    expect(cornerCell.querySelector('.board-expansion-direction-hint')?.textContent).toBe('↖');
+    expect(cornerCell.getAttribute('data-board-expansion-direction-hint')).toBe('up-left,up');
+    expect(Array.from(cornerCell.querySelectorAll('.board-expansion-direction-hint')).map((hint: any) => hint.textContent)).toEqual(['↖', '↑']);
+    expect(Array.from(cornerCell.querySelectorAll('.board-expansion-direction-hint')).every((hint: any) => hint.tabIndex === 0)).toBe(true);
   });
 
   test('previews SUPPORT_TROOPS_WILL random spawn candidates and restores legal hints after deselection', () => {

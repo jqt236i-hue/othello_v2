@@ -13,10 +13,30 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
     const { EMPTY } = SharedConstants || {};
 
-function applyBoardExpansionWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
+function resolveExpansionTarget(targets: any[], row: number, col: number, directionKey: any): any {
+    const anchorMatches = (Array.isArray(targets) ? targets : []).filter((target: any) => (
+        target && target.row === row && target.col === col
+    ));
+    const normalizedDirectionKey = typeof directionKey === 'string' ? directionKey : '';
+    if (normalizedDirectionKey) {
+        return anchorMatches.find((target: any) => target.directionKey === normalizedDirectionKey) || null;
+    }
+    if (anchorMatches.length === 1) return anchorMatches[0];
+    const legacyHorizontalMatches = anchorMatches.filter((target: any) => target.side === 'left' || target.side === 'right');
+    return legacyHorizontalMatches.length === 1 ? legacyHorizontalMatches[0] : null;
+}
+
+function copyExpansionTarget(target: any): any {
+    return {
+        row: target.row,
+        col: target.col,
+        directionKey: target.directionKey
+    };
+}
+
+function applyBoardExpansionWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, directionKey: any, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const getBoardExpansionTargets = deps && deps.getBoardExpansionTargets;
-    const resolveCardBoardConfig = deps && deps.resolveCardBoardConfig;
     const ensureMutableBoardExpansionForCard = deps && deps.ensureMutableBoardExpansionForCard;
     const getExpansionDescriptorsForCard = deps && deps.getExpansionDescriptorsForCard;
     const resolveExpansionSideForCard = deps && deps.resolveExpansionSideForCard;
@@ -27,7 +47,6 @@ function applyBoardExpansionWill(cardState: CardState, gameState: GameState, pla
     if (
         typeof readCardPendingEffect !== 'function' ||
         typeof getBoardExpansionTargets !== 'function' ||
-        typeof resolveCardBoardConfig !== 'function' ||
         typeof ensureMutableBoardExpansionForCard !== 'function' ||
         typeof getExpansionDescriptorsForCard !== 'function' ||
         typeof resolveExpansionSideForCard !== 'function' ||
@@ -43,28 +62,17 @@ function applyBoardExpansionWill(cardState: CardState, gameState: GameState, pla
         return { applied: false, reason: 'not_pending' };
     }
     const targets = getBoardExpansionTargets(cardState, gameState, playerKey);
-    const allowed = targets.some((t: any) => t.row === row && t.col === col);
-    if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-    const boardConfig = resolveCardBoardConfig(gameState);
-    const baseBounds = boardConfig && boardConfig.baseBounds ? boardConfig.baseBounds : null;
-    const outerBounds = boardConfig && boardConfig.outerBounds ? boardConfig.outerBounds : null;
-    if (!baseBounds || !outerBounds) {
-        return { applied: false, reason: 'invalid_target' };
-    }
-
-    const side = col === baseBounds.minCol ? 'left' : (col === baseBounds.maxCol ? 'right' : null);
-    if (!side || !Number.isInteger(row) || row < baseBounds.minRow || row > baseBounds.maxRow) {
-        return { applied: false, reason: 'invalid_target' };
-    }
+    const target = resolveExpansionTarget(targets, row, col, directionKey);
+    if (!target || !Array.isArray(target.additions) || target.additions.length !== 1) return { applied: false, reason: 'invalid_target' };
 
     const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
     const cells = getExpansionDescriptorsForCard(gameState);
-    const targetCol = side === 'left' ? outerBounds.minCol : outerBounds.maxCol;
-    const alreadyExists = cells.some((cell: any) => cell && cell.row === row && cell.col === targetCol);
+    const addition = target.additions[0];
+    const side = resolveExpansionSideForCard(target.side, addition.row, addition.col, gameState);
+    const alreadyExists = cells.some((cell: any) => cell && cell.row === addition.row && cell.col === addition.col);
     if (alreadyExists) return { applied: false, reason: 'already_expanded' };
 
-    cells.push({ side, row, col: targetCol, owner: EMPTY });
+    cells.push({ side, row: addition.row, col: addition.col, owner: EMPTY });
 
     boardExpansion.cells = cells.map((cell: any) => ({
         side: resolveExpansionSideForCard(cell.side, cell.row, cell.col, gameState),
@@ -77,17 +85,17 @@ function applyBoardExpansionWill(cardState: CardState, gameState: GameState, pla
     boardExpansion.usedByPlayer[playerKey] = true;
 
     clearCardPendingEffect(cardState, playerKey);
-    return { applied: true, side, row, col: targetCol };
+    return { applied: true, side, row: addition.row, col: addition.col, directionKey: target.directionKey };
 }
 
-function applyBoardExpansionGod(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
+function applyBoardExpansionGod(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, directionKey: any, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const getBoardExpansionGodTargets = deps && deps.getBoardExpansionGodTargets;
     const getBoardExpansionGodRequiredSelectionCount = deps && deps.getBoardExpansionGodRequiredSelectionCount;
     const getBoardExpansionGodPendingSelectionsForCard = deps && deps.getBoardExpansionGodPendingSelectionsForCard;
     const ensureMutableBoardExpansionForCard = deps && deps.ensureMutableBoardExpansionForCard;
     const getExpansionDescriptorsForCard = deps && deps.getExpansionDescriptorsForCard;
-    const getBoardExpansionGodAdditionsForCard = deps && deps.getBoardExpansionGodAdditionsForCard;
+    const getBoardExpansionGodSocketTargets = deps && deps.getBoardExpansionGodSocketTargets;
     const resolveExpansionSideForCard = deps && deps.resolveExpansionSideForCard;
     const normalizeExpansionOwnerForCard = deps && deps.normalizeExpansionOwnerForCard;
     const syncLegacyExpansionFieldsForCard = deps && deps.syncLegacyExpansionFieldsForCard;
@@ -100,7 +108,7 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
         typeof getBoardExpansionGodPendingSelectionsForCard !== 'function' ||
         typeof ensureMutableBoardExpansionForCard !== 'function' ||
         typeof getExpansionDescriptorsForCard !== 'function' ||
-        typeof getBoardExpansionGodAdditionsForCard !== 'function' ||
+        typeof getBoardExpansionGodSocketTargets !== 'function' ||
         typeof resolveExpansionSideForCard !== 'function' ||
         typeof normalizeExpansionOwnerForCard !== 'function' ||
         typeof syncLegacyExpansionFieldsForCard !== 'function' ||
@@ -115,13 +123,13 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
     }
 
     const targets = getBoardExpansionGodTargets(cardState, gameState, playerKey);
-    const allowed = targets.some((target: any) => target && target.row === row && target.col === col);
-    if (!allowed) return { applied: false, reason: 'invalid_target' };
+    const selectedTarget = resolveExpansionTarget(targets, row, col, directionKey);
+    if (!selectedTarget) return { applied: false, reason: 'invalid_target' };
 
     const maxSelections = getBoardExpansionGodRequiredSelectionCount(cardState, gameState, playerKey);
     if (maxSelections <= 0) return { applied: false, reason: 'invalid_target' };
     const selectedTargets = getBoardExpansionGodPendingSelectionsForCard(pending);
-    const nextSelections = selectedTargets.concat({ row, col }).map((target: any) => ({ row: target.row, col: target.col }));
+    const nextSelections = selectedTargets.concat(copyExpansionTarget(selectedTarget));
 
     if (nextSelections.length < maxSelections) {
         pending.selectedTargets = nextSelections;
@@ -133,9 +141,17 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
             selectedCount: pending.selectedCount,
             maxSelections,
             remainingSelections: maxSelections - pending.selectedCount,
-            target: { row, col },
-            selectedTargets: pending.selectedTargets.map((target: any) => ({ row: target.row, col: target.col }))
+            target: copyExpansionTarget(selectedTarget),
+            selectedTargets: pending.selectedTargets.map(copyExpansionTarget)
         };
+    }
+
+    const currentSocketTargets = getBoardExpansionGodSocketTargets(cardState, gameState);
+    const resolvedSelections = [];
+    for (const target of nextSelections) {
+        const resolved = resolveExpansionTarget(currentSocketTargets, target.row, target.col, target.directionKey);
+        if (!resolved) return { applied: false, reason: 'invalid_target' };
+        resolvedSelections.push(resolved);
     }
 
     const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
@@ -143,12 +159,11 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
     const occupied = new Set(cells.map((cell: any) => `${cell.row},${cell.col}`));
     const additions = [];
     const additionKeys = new Set();
-    for (const target of nextSelections) {
-        const targetAdditions = getBoardExpansionGodAdditionsForCard(target.row, target.col, gameState);
-        if (!targetAdditions || targetAdditions.length !== 3) {
+    for (const target of resolvedSelections) {
+        if (!Array.isArray(target.additions) || target.additions.length !== 3) {
             return { applied: false, reason: 'invalid_target' };
         }
-        for (const cell of targetAdditions) {
+        for (const cell of target.additions) {
             const key = `${cell.row},${cell.col}`;
             if (occupied.has(key) || additionKeys.has(key)) {
                 return { applied: false, reason: 'already_expanded' };
@@ -181,9 +196,9 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
     return {
         applied: true,
         completed: true,
-        source: { row, col },
-        sources: nextSelections.map((target: any) => ({ row: target.row, col: target.col })),
-        selectedTargets: nextSelections.map((target: any) => ({ row: target.row, col: target.col })),
+        source: copyExpansionTarget(selectedTarget),
+        sources: resolvedSelections.map(copyExpansionTarget),
+        selectedTargets: resolvedSelections.map(copyExpansionTarget),
         added: additions.map((cell: any) => ({ row: cell.row, col: cell.col }))
     };
 }

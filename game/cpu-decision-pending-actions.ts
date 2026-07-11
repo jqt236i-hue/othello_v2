@@ -173,7 +173,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         const selectedKeys = new Set<string>();
         const addTarget = (target: any) => {
             if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return;
-            selectedKeys.add(`${target.row},${target.col}`);
+            selectedKeys.add(`${target.row},${target.col},${target.directionKey || ''}`);
         };
         addTarget(pending.firstTarget);
         if (Array.isArray(pending.selectedTargets)) {
@@ -245,7 +245,11 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         cfg.cpuDebugLog(`[CPU] ${opts.playerKey}: ${opts.targetLabel} (${target.row}, ${target.col})`);
 
         const payload: any = {
-            [opts.payloadKey]: { row: target.row, col: target.col }
+            [opts.payloadKey]: {
+                row: target.row,
+                col: target.col,
+                ...(typeof target.directionKey === 'string' && target.directionKey ? { directionKey: target.directionKey } : {})
+            }
         };
         if (opts.deferNetworkPublish === true) payload.deferNetworkPublish = true;
 
@@ -501,7 +505,8 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
             noTargetLabel: isGodExpansion ? '盤面拡張神対象なし' : '盤面拡張対象なし',
             targetLabel: isGodExpansion ? '盤面拡張神ターゲット' : '盤面拡張ターゲット',
             payloadKey: 'expansionTarget',
-            applyMethodName: isGodExpansion ? 'applyBoardExpansionGod' : 'applyBoardExpansionWill'
+            applyMethodName: isGodExpansion ? 'applyBoardExpansionGod' : 'applyBoardExpansionWill',
+            extraApplyArgs: (target: any) => [target.directionKey]
         });
     }
 

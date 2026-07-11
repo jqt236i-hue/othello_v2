@@ -187,8 +187,8 @@ const CASES = [
     modulePath: '../game/card-effects/board-expansion',
     handlerName: 'handleBoardExpansionSelection',
     actionField: 'expansionTarget',
-    firstTarget: { row: 0, col: 0 },
-    secondTarget: { row: 6, col: 8 },
+    firstTarget: { row: 0, col: 0, directionKey: 'up-left' },
+    secondTarget: { row: 6, col: 8, directionKey: 'down-right' },
     snapshotGameStateOverrides: {
       board: createBoard(7, 9),
       boardConfig: { rows: 7, cols: 9, standard8x8: false }
@@ -206,7 +206,7 @@ const CASES = [
       stage: 'selectTarget',
       selectedCount: 1,
       maxSelections: 2,
-      selectedTargets: [{ row: 0, col: 0 }]
+      selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }]
     },
     buildFirstResult: (currentSnapshot) => ({
       ok: true,
@@ -216,7 +216,7 @@ const CASES = [
         completed: false,
         selectedCount: 1,
         maxSelections: 2,
-        selectedTargets: [{ row: 0, col: 0 }]
+        selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }]
       }],
       nextCardState: {
         ...cloneJson(currentSnapshot.cardState),
@@ -226,7 +226,7 @@ const CASES = [
             stage: 'selectTarget',
             selectedCount: 1,
             maxSelections: 2,
-            selectedTargets: [{ row: 0, col: 0 }]
+            selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }]
           },
           white: null
         }
@@ -243,7 +243,7 @@ const CASES = [
         applied: true,
         completed: true,
         target,
-        selectedTargets: [{ row: 0, col: 0 }, target],
+        selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }, target],
         sources: [{ row: 0, col: 0 }, target],
         added: [
           { row: -1, col: 0 },
@@ -268,7 +268,7 @@ const CASES = [
     expectedTransportState: {
       type: 'BOARD_EXPANSION_GOD',
       stage: 'selectTarget',
-      selectedTargets: [{ row: 0, col: 0 }],
+      selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }],
       selectedCount: 1,
       maxSelections: 2
     }
@@ -512,7 +512,7 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
     }
 
     const handlers = require(modulePath);
-    const result = await handlers[handlerName](firstTarget.row, firstTarget.col, 'black');
+    const result = await handlers[handlerName](firstTarget.row, firstTarget.col, 'black', firstTarget.directionKey);
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -564,7 +564,7 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
     }
 
     const handlers = require(modulePath);
-    const result = await handlers[handlerName](secondTarget.row, secondTarget.col, 'black');
+    const result = await handlers[handlerName](secondTarget.row, secondTarget.col, 'black', secondTarget.directionKey);
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));

@@ -380,6 +380,8 @@ interface TargetCell {
     col: number;
     side?: string | null;
     direction?: { row: number; col: number } | null;
+    directionKey?: string | null;
+    additions?: { row: number; col: number }[];
     selectedTargets?: { row: number; col: number }[];
     lineCells?: { row: number; col: number }[];
 }
@@ -1005,101 +1007,73 @@ function getExpansionCells(gameState: GameState): ExpansionCell[] {
     return cells;
 }
 
-// Return board-expansion targets: left/right edge cells (same side+row cannot be duplicated).
+function resolveExpansionTargetSide(directionKey: any): string | null {
+    const key = String(directionKey || '').toLowerCase();
+    if (key === 'left') return 'left';
+    if (key === 'right') return 'right';
+    if (key === 'up') return 'top';
+    if (key === 'down') return 'bottom';
+    return null;
+}
+
+function mapExpansionSocketTarget(socket: any): TargetCell | null {
+    if (!socket || !socket.anchor || !Number.isInteger(socket.anchor.row) || !Number.isInteger(socket.anchor.col)) return null;
+    const additions = Array.isArray(socket.additions)
+        ? socket.additions
+            .filter((cell: any) => cell && Number.isInteger(cell.row) && Number.isInteger(cell.col))
+            .map((cell: any) => ({ row: cell.row, col: cell.col }))
+        : [];
+    if (!additions.length || typeof socket.directionKey !== 'string' || !socket.directionKey) return null;
+    return {
+        row: socket.anchor.row,
+        col: socket.anchor.col,
+        side: resolveExpansionTargetSide(socket.directionKey),
+        direction: socket.direction && Number.isInteger(socket.direction.row) && Number.isInteger(socket.direction.col)
+            ? { row: socket.direction.row, col: socket.direction.col }
+            : null,
+        directionKey: socket.directionKey,
+        additions
+    };
+}
+
+function getBoardExpansionSocketTargets(cardState: CardState, gameState: GameState): TargetCell[] {
+    const board = getShapeAwareBoard(cardState, gameState);
+    if (!board || !SharedBoardUtils || typeof SharedBoardUtils.getBoardExpansionEdgeSockets !== 'function') return [];
+    return SharedBoardUtils.getBoardExpansionEdgeSockets(board, gameState)
+        .map(mapExpansionSocketTarget)
+        .filter((target: TargetCell | null): target is TargetCell => !!target);
+}
+
+function getBoardExpansionGodSocketTargets(cardState: CardState, gameState: GameState): TargetCell[] {
+    const board = getShapeAwareBoard(cardState, gameState);
+    if (!board || !SharedBoardUtils || typeof SharedBoardUtils.getBoardExpansionCornerSockets !== 'function') return [];
+    return SharedBoardUtils.getBoardExpansionCornerSockets(board, gameState)
+        .map(mapExpansionSocketTarget)
+        .filter((target: TargetCell | null): target is TargetCell => !!target);
+}
+
 function getBoardExpansionTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): TargetCell[] {
-    const gs = gameState as any;
-    if (!gs || !gs.board) return [];
-    const config = resolveBoardConfig(gameState);
-
-    const blockedEdgeTargets = new Set<string>();
-    const expansionCells = getExpansionCells(gameState);
-    for (const cell of expansionCells) {
-        if (!cell) continue;
-        if (cell.col === config.outerBounds.minCol && Number.isInteger(cell.row) && cell.row >= 0 && cell.row < config.rows) {
-            blockedEdgeTargets.add(`${cell.row},0`);
-        }
-        if (cell.col === config.outerBounds.maxCol && Number.isInteger(cell.row) && cell.row >= 0 && cell.row < config.rows) {
-            blockedEdgeTargets.add(`${cell.row},${config.baseBounds.maxCol}`);
-        }
-    }
-
-    const res: TargetCell[] = [];
-    for (let r = 0; r < config.rows; r++) {
-        if (!blockedEdgeTargets.has(`${r},0`)) {
-            res.push({ row: r, col: 0, side: 'left' });
-        }
-        if (!blockedEdgeTargets.has(`${r},${config.baseBounds.maxCol}`)) {
-            res.push({ row: r, col: config.baseBounds.maxCol, side: 'right' });
-        }
-    }
-    return res;
+    return getBoardExpansionSocketTargets(cardState, gameState);
 }
 
-interface CornerDescriptor {
-    row: number;
-    col: number;
-    cells: { row: number; col: number }[];
-}
-
-function getBoardExpansionGodCornerDescriptors(gameState: GameState): CornerDescriptor[] {
-    const config = resolveBoardConfig(gameState);
-    const lastRow = config.baseBounds.maxRow;
-    const lastCol = config.baseBounds.maxCol;
-    const outerMinRow = config.outerBounds.minRow;
-    const outerMaxRow = config.outerBounds.maxRow;
-    const outerMinCol = config.outerBounds.minCol;
-    const outerMaxCol = config.outerBounds.maxCol;
-    return [
-        {
-            row: 0,
-            col: 0,
-            cells: [
-                { row: outerMinRow, col: 0 },
-                { row: outerMinRow, col: outerMinCol },
-                { row: 0, col: outerMinCol }
-            ]
-        },
-        {
-            row: 0,
-            col: lastCol,
-            cells: [
-                { row: outerMinRow, col: lastCol },
-                { row: outerMinRow, col: outerMaxCol },
-                { row: 0, col: outerMaxCol }
-            ]
-        },
-        {
-            row: lastRow,
-            col: 0,
-            cells: [
-                { row: outerMaxRow, col: 0 },
-                { row: outerMaxRow, col: outerMinCol },
-                { row: lastRow, col: outerMinCol }
-            ]
-        },
-        {
-            row: lastRow,
-            col: lastCol,
-            cells: [
-                { row: lastRow, col: outerMaxCol },
-                { row: outerMaxRow, col: outerMaxCol },
-                { row: outerMaxRow, col: lastCol }
-            ]
-        }
-    ];
+function getExpansionTargetIdentity(target: any): string | null {
+    if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
+    const directionKey = typeof target.directionKey === 'string' ? target.directionKey : '';
+    return `${target.row},${target.col},${directionKey}`;
 }
 
 function getBoardExpansionGodTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): TargetCell[] {
     const gs = gameState as any;
     if (!gs || !gs.board) return [];
 
-    const expansionCells = getExpansionCells(gameState);
-    const occupied = new Set(expansionCells.map((cell: ExpansionCell) => `${cell.row},${cell.col}`));
+    const socketTargets = getBoardExpansionGodSocketTargets(cardState, gameState);
     const cs = cardState as any;
     const pending = cs && cs.pendingEffectByPlayer
         ? cs.pendingEffectByPlayer[playerKey]
         : null;
     const selectedKeys = new Set<string>();
+    const selectedAnchorKeys = new Set<string>();
+    const selectedAdditionKeys = new Set<string>();
     const selectedTargets: any[] = [];
     if (pending && pending.type === 'BOARD_EXPANSION_GOD') {
         if (pending.firstTarget && Number.isInteger(pending.firstTarget.row) && Number.isInteger(pending.firstTarget.col)) {
@@ -1111,18 +1085,29 @@ function getBoardExpansionGodTargets(cardState: CardState, gameState: GameState,
     }
     for (const target of selectedTargets) {
         if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) continue;
-        selectedKeys.add(`${target.row},${target.col}`);
+        const identity = getExpansionTargetIdentity(target);
+        if (identity && typeof target.directionKey === 'string' && target.directionKey) selectedKeys.add(identity);
+        else selectedAnchorKeys.add(`${target.row},${target.col}`);
+        const matchingSocket = socketTargets.find((candidate) => (
+            candidate.row === target.row &&
+            candidate.col === target.col &&
+            (typeof target.directionKey !== 'string' || !target.directionKey || candidate.directionKey === target.directionKey)
+        ));
+        if (matchingSocket && Array.isArray(matchingSocket.additions)) {
+            for (const cell of matchingSocket.additions) {
+                if (cell && Number.isInteger(cell.row) && Number.isInteger(cell.col)) {
+                    selectedAdditionKeys.add(`${cell.row},${cell.col}`);
+                }
+            }
+        }
     }
 
-    const res: TargetCell[] = [];
-    for (const corner of getBoardExpansionGodCornerDescriptors(gameState)) {
-        if (!corner || !Array.isArray(corner.cells)) continue;
-        if (selectedKeys.has(`${corner.row},${corner.col}`)) continue;
-        const hasOccupied = corner.cells.some((cell) => occupied.has(`${cell.row},${cell.col}`));
-        if (hasOccupied) continue;
-        res.push({ row: corner.row, col: corner.col });
-    }
-    return res;
+    return socketTargets.filter((target) => {
+        const identity = getExpansionTargetIdentity(target);
+        if (identity && selectedKeys.has(identity)) return false;
+        if (selectedAnchorKeys.has(`${target.row},${target.col}`)) return false;
+        return !(Array.isArray(target.additions) && target.additions.some((cell) => selectedAdditionKeys.has(`${cell.row},${cell.col}`)));
+    });
 }
 
 function getCellTeleportDestinations(cardState: CardState, gameState: GameState): DestinationCell[] {
@@ -1154,14 +1139,14 @@ function getCellTeleportDestinations(cardState: CardState, gameState: GameState)
         });
     };
 
-    for (const cell of getBoardExpansionWillCellDescriptors(gameState)) {
+    for (const cell of activeExpansionCells) {
         if (!cell) continue;
         pushCandidate(cell.row, cell.col, cell.side);
     }
-    for (const corner of getBoardExpansionGodCornerDescriptors(gameState)) {
-        if (!corner || !Array.isArray(corner.cells)) continue;
-        for (const cell of corner.cells) {
-            if (!cell) continue;
+    const socketTargets = getBoardExpansionSocketTargets(cardState, gameState)
+        .concat(getBoardExpansionGodSocketTargets(cardState, gameState));
+    for (const target of socketTargets) {
+        for (const cell of Array.isArray(target.additions) ? target.additions : []) {
             pushCandidate(cell.row, cell.col, resolveExpansionSide(null, cell.row, cell.col, gameState));
         }
     }
@@ -1453,6 +1438,8 @@ export = {
     getCellTeleportTargets,
     getCellTeleportDestinations,
     getCloneTargets,
+    getBoardExpansionSocketTargets,
+    getBoardExpansionGodSocketTargets,
     getBoardExpansionTargets,
     getBoardExpansionGodTargets,
     getBlockadeTargets,

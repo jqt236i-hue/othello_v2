@@ -346,8 +346,8 @@ describe('board-renderer fallback legal hints', () => {
   test('renderBoardFull shows outward direction hints while selecting board expansion targets', () => {
     global.getLegalMoves.mockReturnValue([]);
     global.CardLogic.getSelectableTargets = jest.fn(() => [
-      { row: 2, col: 0, side: 'left' },
-      { row: 5, col: 7, side: 'right' }
+      { row: 2, col: 0, side: 'left', directionKey: 'left' },
+      { row: 5, col: 7, side: 'right', directionKey: 'right' }
     ]);
     global.cardState.pendingEffectByPlayer.black = {
       type: 'BOARD_EXPANSION_WILL',
@@ -368,7 +368,7 @@ describe('board-renderer fallback legal hints', () => {
 
   test('renderBoardFull shows diagonal outward direction hints while selecting board expansion god corners', () => {
     global.getLegalMoves.mockReturnValue([]);
-    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 0 }]);
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 0, directionKey: 'up-left' }]);
     global.cardState.pendingEffectByPlayer.black = {
       type: 'BOARD_EXPANSION_GOD',
       stage: 'selectTarget',

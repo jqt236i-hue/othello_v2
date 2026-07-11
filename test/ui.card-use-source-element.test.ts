@@ -1087,8 +1087,8 @@ describe('card use source element selection', () => {
     ['TEMPT_WILL', '誘惑する相手の石効果を選んでください', 'none'],
     ['CAPTURE_WILL', '捕獲する相手特殊石を選んでください', 'none'],
     ['CORROSION_WILL', '腐食の対象となる特殊石を選んでください', 'none'],
-    ['BOARD_EXPANSION_WILL', '左右端マスを選んで盤面を拡張してください', 'block'],
-    ['BOARD_EXPANSION_GOD', '角マスを選んで盤面を拡張してください', 'block'],
+    ['BOARD_EXPANSION_WILL', '外周マスの外向き矢印を選んで盤面を拡張してください', 'block'],
+    ['BOARD_EXPANSION_GOD', '角マスの外向き矢印を選んで盤面を拡張してください', 'block'],
     ['SEED_WILL', '種をまく空きマスを選んでください', 'block'],
     ['BLOCKADE_WILL', '封鎖する空きマスを選んでください', 'block'],
     ['FREEZE_WILL', '凍結するマスを選んでください', 'block']

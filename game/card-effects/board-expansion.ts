@@ -19,19 +19,19 @@ function isBoardExpansionSelectionApplied(result: any) {
     return !!(firstSelected || selected);
 }
 
-async function handleBoardExpansionSelection(row: number, col: number, playerKey: string) {
+async function handleBoardExpansionSelection(row: number, col: number, playerKey: string, directionKey?: string) {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
     return PendingSelectionFlow.executePendingSelection({
         row,
         col,
         playerKey,
         pendingTypes: ['BOARD_EXPANSION_WILL', 'BOARD_EXPANSION_GOD'],
-        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(['BOARD_EXPANSION_WILL', 'BOARD_EXPANSION_GOD'], row, col),
+        actionPayload: PendingCoordinator.buildPendingSelectionTargetPayload(['BOARD_EXPANSION_WILL', 'BOARD_EXPANSION_GOD'], row, col, { directionKey }),
         invalidMessage: ({ pendingType }: { pendingType: any }) => pendingType === 'BOARD_EXPANSION_GOD'
-            ? '角マスを選んで盤面を拡張してください'
-            : '左右端マスを選んで盤面を拡張してください',
+            ? '角マスの外向き矢印を選んで盤面を拡張してください'
+            : '外周マスの外向き矢印を選んで盤面を拡張してください',
         validateResult: ({ result }: { result: any }) => isBoardExpansionSelectionApplied(result),
-        buildPlaybackMeta: ({ pendingType }: { pendingType: any }) => ({ cause: pendingType, target: { row, col } })
+        buildPlaybackMeta: ({ pendingType }: { pendingType: any }) => ({ cause: pendingType, target: { row, col, ...(directionKey ? { directionKey } : {}) } })
     });
 }
 

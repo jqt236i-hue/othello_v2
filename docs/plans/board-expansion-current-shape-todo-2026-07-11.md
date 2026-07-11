@@ -2,7 +2,7 @@
 
 **作成日**: 2026-07-11
 **対象**: `盤面拡張`, `盤面拡張神`, playable shape, 穴マス由来の疑似辺・疑似角
-**状態**: 実装前
+**状態**: 完了（2026-07-11）
 **実装単位**: Phase 1（現在のベース盤面＋外周1マス範囲内での汎用化）
 
 ---
@@ -129,76 +129,76 @@ interface BoardExpansionSocket {
 
 ### Phase 2: headless selector / apply の一本化
 
-- [ ] `getBoardExpansionTargets()` をedge socket projectionへ置き換える。
-- [ ] `getBoardExpansionGodTargets()` をcorner socket projectionへ置き換える。
-- [ ] `game/logic/cards/selectors.ts` と `game/logic/cards/expansion.ts` に重複する固定角descriptorを削除し、共通helperへ委譲する。
-- [ ] `getBoardExpansionGodAdditionsForCard()` を `row/col/directionKey` でauthority再解決する。
-- [ ] `applyBoardExpansionWill()` / `applyBoardExpansionGod()` が選択時と同じsocketを再検証してから追加するようにする。
-- [ ] 追加予定セル同士の重複、既存拡張、穴、範囲外への明示的な失敗理由を揃える。
-- [ ] 既存の `events[]`、効果ブロック、ログ、追加時フェード、拡張効果音の順序を維持する。
+- [x] `getBoardExpansionTargets()` をedge socket projectionへ置き換える。
+- [x] `getBoardExpansionGodTargets()` をcorner socket projectionへ置き換える。
+- [x] `game/logic/cards/selectors.ts` と `game/logic/cards/expansion.ts` に重複する固定角descriptorを削除し、共通helperへ委譲する。
+- [x] `getBoardExpansionGodAdditionsForCard()` を `row/col/directionKey` でauthority再解決する。
+- [x] `applyBoardExpansionWill()` / `applyBoardExpansionGod()` が選択時と同じsocketを再検証してから追加するようにする。
+- [x] 追加予定セル同士の重複、既存拡張、穴、範囲外への明示的な失敗理由を揃える。
+- [x] 既存の `events[]`、効果ブロック、ログ、追加時フェード、拡張効果音の順序を維持する。
 
 ### Phase 3: pending / UIヒント
 
-- [ ] pending selection registry とstate managerで `directionKey` を保持・複製・snapshot化できることを確認する。
-- [ ] 同じanchorに複数候補がある場合、UIで方向ごとに選択できる入力表現を追加する。
-- [ ] `shared/board-hint-projection.ts` のベース盤面端による方向再推測を廃止し、canonical targetの `directionKey` を使う。
-- [ ] 外向き矢印、選択済み紫ハイライト、新規セルfade-inをSingle Visual Writer配下で維持する。
-- [ ] 盤面縮小系の方向矢印・予定列プレビューに回帰がないことを確認する。
+- [x] pending selection registry とstate managerで `directionKey` を保持・複製・snapshot化できることを確認する。
+- [x] 同じanchorに複数候補がある場合、UIで方向ごとに選択できる入力表現を追加する。
+- [x] `shared/board-hint-projection.ts` のベース盤面端による方向再推測を廃止し、canonical targetの `directionKey` を使う。
+- [x] 外向き矢印、選択済み紫ハイライト、新規セルfade-inをSingle Visual Writer配下で維持する。
+- [x] 盤面縮小系の方向矢印・予定列プレビューに回帰がないことを確認する。
 
 ### Phase 4: CPU / selfplay
 
-- [ ] CPUが人間と同じ selectable targets / socket identity を取得するようにする。
-- [ ] `chooseBoardExpansionTarget` とpending action payloadが `directionKey` を失わないようにする。
-- [ ] 敵角を優先する既存盤面拡張評価が「ベース盤面の角」と「current shapeの疑似角」を混同していないか確認する。
-- [ ] selfplay chooserのtarget serializationが新しい候補identityに追随することを確認する。
-- [ ] 長時間selfplayは行わず、focused sampleで決定的に解決できることだけを確認する。
+- [x] CPUが人間と同じ selectable targets / socket identity を取得するようにする。
+- [x] `chooseBoardExpansionTarget` とpending action payloadが `directionKey` を失わないようにする。
+- [x] 敵角を優先する既存盤面拡張評価が「ベース盤面の角」と「current shapeの疑似角」を混同していないか確認する。
+- [x] selfplay chooserのtarget serializationが新しい候補identityに追随することを確認する。
+- [x] 長時間selfplayは行わず、focused sampleで決定的に解決できることだけを確認する。
 
 ### Phase 5: network authority / parity
 
-- [ ] publish actionが `directionKey` を送信でき、schema normalizationで欠落しないことを確認する。
-- [ ] Worker/local authorityが受信した `additions` を信用せず、canonical socketを再生成するテストを追加する。
-- [ ] 同じanchorの別方向を別候補として受理し、存在しない方向を拒否することを確認する。
-- [ ] pending snapshot、reconnect、同一version reconciliation後も選択済み方向が一致することを確認する。
-- [ ] authorityイベントからpresentation frame、visual settlement、最終snapshotまで追加セル順が一致することを確認する。
-- [ ] root source完了後にのみWorker mirrorを生成する。
+- [x] publish actionが `directionKey` を送信でき、schema normalizationで欠落しないことを確認する。
+- [x] Worker/local authorityが受信した `additions` を信用せず、canonical socketを再生成するテストを追加する。
+- [x] 同じanchorの別方向を別候補として受理し、存在しない方向を拒否することを確認する。
+- [x] pending snapshot、reconnect、同一version reconciliation後も選択済み方向が一致することを確認する。
+- [x] authorityイベントからpresentation frame、visual settlement、最終snapshotまで追加セル順が一致することを確認する。
+- [x] root source完了後にのみWorker mirrorを生成する。
 
 ### Phase 6: catalog / browser生成物
 
-- [ ] `cards/catalog.json` を変更した場合は `npm run generate:catalog` を実行し、生成差分を確認する。
-- [ ] browser表示に影響するroot sourceのfocused test通過後、`npm run build:browser` を実行する。
-- [ ] `public/module-registry.js` とcachebusterが生成スクリプト由来であることを確認する。
-- [ ] `npm run worker:prepare` で `worker-public/` を同期し、手編集しない。
+- [x] `cards/catalog.json` を変更した場合は `npm run generate:catalog` を実行し、生成差分を確認する。
+- [x] browser表示に影響するroot sourceのfocused test通過後、`npm run build:browser` を実行する。
+- [x] `public/module-registry.js` とcachebusterが生成スクリプト由来であることを確認する。
+- [x] `npm run worker:prepare` で `worker-public/` を同期し、手編集しない。
 
 ## 7. 必須テストケース
 
 ### 共通geometry
 
-- [ ] 通常8x8で従来候補と互換になる。
-- [ ] `盤面拡張` が上・下を含むcurrent outer edgeを候補にできる。
-- [ ] 生成済み拡張セルを含むcurrent shapeから候補を再計算する。
-- [ ] 外周穴で形状が折れた場合に疑似辺・疑似角を検出する。
-- [ ] ただし予定追加座標が穴なら候補から除外し、穴を復元しない。
-- [ ] 盤面中央の閉じた穴の周囲には候補を作らない。
-- [ ] 凹角を外向き凸角として扱わない。
-- [ ] 同じanchorに複数方向がある場合、候補キーが衝突しない。
-- [ ] `outerBounds` 外の候補を生成しない。
+- [x] 通常8x8で従来候補と互換になる。
+- [x] `盤面拡張` が上・下を含むcurrent outer edgeを候補にできる。
+- [x] 生成済み拡張セルを含むcurrent shapeから候補を再計算する。
+- [x] 外周穴で形状が折れた場合に疑似辺・疑似角を検出する。
+- [x] ただし予定追加座標が穴なら候補から除外し、穴を復元しない。
+- [x] 盤面中央の閉じた穴の周囲には候補を作らない。
+- [x] 凹角を外向き凸角として扱わない。
+- [x] 同じanchorに複数方向がある場合、候補キーが衝突しない。
+- [x] `outerBounds` 外の候補を生成しない。
 
 ### カード解決
 
-- [ ] `盤面拡張` は選択したsocketの1マスだけを追加する。
-- [ ] `盤面拡張神` は1候補時3マス、2候補時6マスを同時追加する。
-- [ ] 2つのsocketの追加予定セルが重複する組み合わせを選べない。
-- [ ] 選択後に盤形状が変わった古いsocketをauthorityが拒否する。
-- [ ] 新規拡張セルが配置・反転・移動・周囲参照の対象になる既存契約を維持する。
-- [ ] `盤面縮小` / `盤面縮小神` / `因果再生` と交互に使用してもshape metadataが陳腐化しない。
+- [x] `盤面拡張` は選択したsocketの1マスだけを追加する。
+- [x] `盤面拡張神` は1候補時3マス、2候補時6マスを同時追加する。
+- [x] 2つのsocketの追加予定セルが重複する組み合わせを選べない。
+- [x] 選択後に盤形状が変わった古いsocketをauthorityが拒否する。
+- [x] 新規拡張セルが配置・反転・移動・周囲参照の対象になる既存契約を維持する。
+- [x] `盤面縮小` / `盤面縮小神` / `因果再生` と交互に使用してもshape metadataが陳腐化しない。
 
 ### UI / CPU / network
 
-- [ ] 矢印がsocketの実際の追加方向と一致する。
-- [ ] CPUが同じanchorの複数方向を区別して選択・解決できる。
-- [ ] local/headless/Workerで同じ入力から同じ候補順・追加座標になる。
-- [ ] ネット対戦の両seatとspectatorで最終盤面が一致する。
-- [ ] reconnect中のpending選択が同じ `directionKey` で復元される。
+- [x] 矢印がsocketの実際の追加方向と一致する。
+- [x] CPUが同じanchorの複数方向を区別して選択・解決できる。
+- [x] local/headless/Workerで同じ入力から同じ候補順・追加座標になる。
+- [x] ネット対戦の両seatとspectatorで最終盤面が一致する。
+- [x] reconnect中のpending選択が同じ `directionKey` で復元される。
 
 ## 8. 検証コマンド
 
@@ -224,14 +224,14 @@ npm run check:worker-mirror
 
 ## 9. 完了条件
 
-- [ ] 一次仕様・正本・catalog表示が実装結果と一致している。
-- [ ] 固定された左右端・4角descriptorがcanonical候補生成から除去されている。
-- [ ] edge/corner socket generatorが候補判定とapplyの単一ソースになっている。
-- [ ] 外周穴由来の疑似形状を扱い、内部穴と穴復元を明確に除外できている。
-- [ ] 人間、CPU、headless、local server、Workerで候補と結果が一致している。
-- [ ] 矢印・ハイライト・fade・効果音・`events[]` 順序に回帰がない。
-- [ ] focused tests、typecheck、window境界、network parity、browser build、Worker mirror検証が通る。
-- [ ] task-owned差分だけを確認し、生成物は生成スクリプト由来である。
+- [x] 一次仕様・正本・catalog表示が実装結果と一致している。
+- [x] 固定された左右端・4角descriptorがcanonical候補生成から除去されている。
+- [x] edge/corner socket generatorが候補判定とapplyの単一ソースになっている。
+- [x] 外周穴由来の疑似形状を扱い、内部穴と穴復元を明確に除外できている。
+- [x] 人間、CPU、headless、local server、Workerで候補と結果が一致している。
+- [x] 矢印・ハイライト・fade・効果音・`events[]` 順序に回帰がない。
+- [x] focused tests、typecheck、window境界、network parity、browser build、Worker mirror検証が通る。
+- [x] task-owned差分だけを確認し、生成物は生成スクリプト由来である。
 
 ## 10. 主なリスクと対策
 

@@ -79,15 +79,15 @@ export function createSelfplaySimpleSimulationChoosers(config?: SelfplaySimpleSi
             cardState,
             playerKey,
             rng,
-            (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) => {
+            (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any, _simRng: any, target: any) => {
                 const simPending = (simCardState && simCardState.pendingEffectByPlayer)
                     ? simCardState.pendingEffectByPlayer[onePlayerKey]
                     : null;
                 const simPendingType = simPending && typeof simPending.type === 'string' ? simPending.type : pendingType;
                 if (simPendingType === 'BOARD_EXPANSION_GOD' && typeof cardLogic.applyBoardExpansionGod === 'function') {
-                    return cardLogic.applyBoardExpansionGod(simCardState, simGameState, onePlayerKey, row, col);
+                    return cardLogic.applyBoardExpansionGod(simCardState, simGameState, onePlayerKey, row, col, target && target.directionKey);
                 }
-                return cardLogic.applyBoardExpansionWill(simCardState, simGameState, onePlayerKey, row, col);
+                return cardLogic.applyBoardExpansionWill(simCardState, simGameState, onePlayerKey, row, col, target && target.directionKey);
             },
             (target: any) => {
                 if (target.row === 0 || target.row === 7) return 9000;

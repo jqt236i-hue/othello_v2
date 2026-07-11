@@ -18,10 +18,7 @@ const _exports: any = {
   writeExpansionDescriptorsForCard: ExpansionModule.writeExpansionDescriptorsForCard,
   getCellValueForCard: ExpansionModule.getCellValueForCard,
   setCellValueForCard: ExpansionModule.setCellValueForCard,
-  getBoardExpansionGodCornerDescriptorsForCard: ExpansionModule.getBoardExpansionGodCornerDescriptorsForCard,
   getBoardExpansionGodPendingSelectionsForCard: ExpansionModule.getBoardExpansionGodPendingSelectionsForCard,
-  getBoardExpansionGodAdditionsForCard: ExpansionModule.getBoardExpansionGodAdditionsForCard,
-  getBoardExpansionWillCellDescriptorsForCard: ExpansionModule.getBoardExpansionWillCellDescriptorsForCard,
   ensureExpansionCellForCard: ExpansionModule.ensureExpansionCellForCard,
   buildInitialBoardBonusMap: ExpansionModule.buildInitialBoardBonusMap
 };

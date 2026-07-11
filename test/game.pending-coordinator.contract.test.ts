@@ -293,6 +293,17 @@ describe('PendingCoordinator', () => {
     }
   });
 
+  test('buildPendingSelectionTargetPayload preserves expansion socket direction identity', () => {
+    expect(PendingCoordinator.buildPendingSelectionTargetPayload(
+      ['BOARD_EXPANSION_WILL', 'BOARD_EXPANSION_GOD'],
+      2,
+      3,
+      { directionKey: 'up-left' }
+    )).toEqual({
+      expansionTarget: { row: 2, col: 3, directionKey: 'up-left' }
+    });
+  });
+
   test('buildPendingSelectionTargetPayload rejects mixed pending types with different target fields', () => {
     expect(() => PendingCoordinator.buildPendingSelectionTargetPayload(['FREEZE_WILL', 'SEED_WILL'], 2, 3))
       .toThrow('inconsistent_pending_selection_target_field');

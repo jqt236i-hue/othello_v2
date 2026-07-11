@@ -37,7 +37,7 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
 
     const targetsAfterUse = CardLogic.getBoardExpansionTargets(cardState, gameState, 'black');
-    expect(targetsAfterUse.length).toBe(15);
+    expect(targetsAfterUse.length).toBe(33);
     expect(targetsAfterUse.some((t) => t.row === 2 && t.col === 0)).toBe(false);
     expect(targetsAfterUse.some((t) => t.row === 2 && t.col === 7)).toBe(true);
   });
@@ -51,7 +51,7 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(first && first.applied).toBe(true);
 
     const whiteTargets = CardLogic.getBoardExpansionTargets(cardState, gameState, 'white');
-    expect(whiteTargets.length).toBe(15);
+    expect(whiteTargets.length).toBe(33);
     expect(whiteTargets.some((t) => t.row === 2 && t.col === 0)).toBe(false);
     expect(whiteTargets.some((t) => t.row === 5 && t.col === 7)).toBe(true);
 
@@ -70,8 +70,8 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
 
     const blackTargetsAfterTwo = CardLogic.getBoardExpansionTargets(cardState, gameState, 'black');
     const whiteTargetsAfterTwo = CardLogic.getBoardExpansionTargets(cardState, gameState, 'white');
-    expect(blackTargetsAfterTwo.length).toBe(14);
-    expect(whiteTargetsAfterTwo.length).toBe(14);
+    expect(blackTargetsAfterTwo.length).toBe(34);
+    expect(whiteTargetsAfterTwo.length).toBe(34);
     expect(blackTargetsAfterTwo.some((t) => t.row === 2 && t.col === 0)).toBe(false);
     expect(blackTargetsAfterTwo.some((t) => t.row === 5 && t.col === 7)).toBe(false);
 
@@ -80,7 +80,7 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(third && third.applied).toBe(true);
 
     const blackTargetsAfterThree = CardLogic.getBoardExpansionTargets(cardState, gameState, 'black');
-    expect(blackTargetsAfterThree.length).toBe(13);
+    expect(blackTargetsAfterThree.length).toBe(35);
     expect(blackTargetsAfterThree.some((t) => t.row === 4 && t.col === 0)).toBe(false);
   });
 
@@ -290,10 +290,10 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
 
     const targetsBefore = CardLogic.getBoardExpansionGodTargets(cardState, gameState, 'black');
     expect(targetsBefore).toEqual(expect.arrayContaining([
-      { row: 0, col: 0 },
-      { row: 0, col: 7 },
-      { row: 7, col: 0 },
-      { row: 7, col: 7 }
+      expect.objectContaining({ row: 0, col: 0, directionKey: 'up-left' }),
+      expect.objectContaining({ row: 0, col: 7, directionKey: 'up-right' }),
+      expect.objectContaining({ row: 7, col: 0, directionKey: 'down-left' }),
+      expect.objectContaining({ row: 7, col: 7, directionKey: 'down-right' })
     ]));
 
     const firstSelected = CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 0, 0);
@@ -301,7 +301,9 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(firstSelected && firstSelected.completed).toBe(false);
     expect(firstSelected && firstSelected.selectedCount).toBe(1);
     expect(firstSelected && firstSelected.maxSelections).toBe(2);
-    expect(cardState.pendingEffectByPlayer.black.selectedTargets).toEqual([{ row: 0, col: 0 }]);
+    expect(cardState.pendingEffectByPlayer.black.selectedTargets).toEqual([
+      { row: 0, col: 0, directionKey: 'up-left' }
+    ]);
 
     const targetsAfterFirst = CardLogic.getBoardExpansionGodTargets(cardState, gameState, 'black');
     expect(targetsAfterFirst).toHaveLength(3);
@@ -338,6 +340,82 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(targetsAfter.some((t) => t.row === 7 && t.col === 7)).toBe(false);
   });
 
+  test('BOARD_EXPANSION_GODは追加予定セルが重複するsocketの組み合わせをauthorityで拒否する', () => {
+    const BoardExpansionApply = require('../game/logic/card-resolution/board-expansion-apply.ts');
+    const pending = {
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }]
+    };
+    const sockets = [
+      {
+        row: 0,
+        col: 0,
+        directionKey: 'up-left',
+        additions: [{ row: -1, col: 0 }, { row: 0, col: -1 }, { row: -1, col: -1 }]
+      },
+      {
+        row: 0,
+        col: 0,
+        directionKey: 'up-right',
+        additions: [{ row: -1, col: 0 }, { row: 0, col: 1 }, { row: -1, col: 1 }]
+      }
+    ];
+    const result = BoardExpansionApply.applyBoardExpansionGod(
+      { pendingEffectByPlayer: { black: pending } },
+      { boardExpansion: { cells: [], usedByPlayer: { black: false, white: false } } },
+      'black',
+      0,
+      0,
+      'up-right',
+      {
+        readCardPendingEffect: () => pending,
+        getBoardExpansionGodTargets: () => [sockets[1]],
+        getBoardExpansionGodRequiredSelectionCount: () => 2,
+        getBoardExpansionGodPendingSelectionsForCard: () => pending.selectedTargets,
+        ensureMutableBoardExpansionForCard: (state) => state.boardExpansion,
+        getExpansionDescriptorsForCard: () => [],
+        getBoardExpansionGodSocketTargets: () => sockets,
+        resolveExpansionSideForCard: () => 'mixed',
+        normalizeExpansionOwnerForCard: (owner) => owner,
+        syncLegacyExpansionFieldsForCard: jest.fn(),
+        clearCardPendingEffect: jest.fn()
+      }
+    );
+
+    expect(result).toEqual({ applied: false, reason: 'already_expanded' });
+  });
+
+  test('BOARD_EXPANSION_GODは1回目の選択後に陳腐化したsocketを確定時に拒否する', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      selectedCount: 0,
+      maxSelections: 2,
+      selectedTargets: []
+    };
+
+    expect(CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 0, 0, 'up-left')).toEqual(
+      expect.objectContaining({ applied: true, completed: false })
+    );
+    gameState.boardExpansion = {
+      active: true,
+      side: 'top',
+      row: -1,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: false, white: false },
+      cells: [{ side: 'top', row: -1, col: 0, owner: Core.EMPTY }]
+    };
+
+    expect(CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 7, 7, 'down-right')).toEqual({
+      applied: false,
+      reason: 'invalid_target'
+    });
+    expect(cardState.pendingEffectByPlayer.black).not.toBeNull();
+  });
+
   test('BOARD_EXPANSION_GODは選択可能な角が1つあれば使え、その1角だけで確定する', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'BOARD_EXPANSION_GOD');
     expect(def).toBeTruthy();
@@ -370,18 +448,59 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     }));
 
     const targets = CardLogic.getBoardExpansionGodTargets(cardState, gameState, 'black');
-    expect(targets).toEqual([{ row: 7, col: 7 }]);
+    expect(targets).toEqual([
+      expect.objectContaining({ row: 7, col: 7, directionKey: 'down-right' })
+    ]);
 
     const applied = CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 7, 7);
     expect(applied && applied.applied).toBe(true);
     expect(applied && applied.completed).toBe(true);
-    expect(applied && applied.sources).toEqual([{ row: 7, col: 7 }]);
+    expect(applied && applied.sources).toEqual([{ row: 7, col: 7, directionKey: 'down-right' }]);
     expect(applied && applied.added).toEqual(expect.arrayContaining([
       { row: 7, col: 8 },
       { row: 8, col: 8 },
       { row: 8, col: 7 }
     ]));
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('追加済み拡張マスを起点にcurrent shapeの外側へ連鎖拡張できる', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+
+    cardState.pendingEffectByPlayer.black = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+    const first = CardLogic.applyBoardExpansionWill(cardState, gameState, 'black', 0, 1, 'up');
+    expect(first).toEqual(expect.objectContaining({
+      applied: true,
+      directionKey: 'up',
+      row: -1,
+      col: 1
+    }));
+
+    cardState.pendingEffectByPlayer.black = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+    const second = CardLogic.applyBoardExpansionWill(cardState, gameState, 'black', -1, 1, 'right');
+    expect(second).toEqual(expect.objectContaining({
+      applied: true,
+      directionKey: 'right',
+      row: -1,
+      col: 2
+    }));
+    expect(gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: 1 }),
+      expect.objectContaining({ row: -1, col: 2 })
+    ]));
+  });
+
+  test('存在しない方向のsocketはauthority再検証で拒否する', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.pendingEffectByPlayer.black = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+
+    expect(CardLogic.applyBoardExpansionWill(cardState, gameState, 'black', 0, 0, 'down')).toEqual({
+      applied: false,
+      reason: 'invalid_target'
+    });
+    expect(gameState.boardExpansion.cells || []).toHaveLength(0);
   });
 
   test('BOARD_EXPANSION_GODはpending.maxSelectionsが1なら候補が複数でも1角で確定する', () => {
@@ -403,7 +522,7 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
 
     expect(applied && applied.applied).toBe(true);
     expect(applied && applied.completed).toBe(true);
-    expect(applied && applied.sources).toEqual([{ row: 7, col: 7 }]);
+    expect(applied && applied.sources).toEqual([{ row: 7, col: 7, directionKey: 'down-right' }]);
     expect(applied && applied.added).toEqual(expect.arrayContaining([
       { row: 7, col: 8 },
       { row: 8, col: 8 },
@@ -528,7 +647,9 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
         maxSelections: 2
       })
     ]));
-    expect(first.cardState.pendingEffectByPlayer.black.selectedTargets).toEqual([{ row: 0, col: 0 }]);
+    expect(first.cardState.pendingEffectByPlayer.black.selectedTargets).toEqual([
+      { row: 0, col: 0, directionKey: 'up-left' }
+    ]);
 
     const second = TurnPipeline.applyTurn(first.cardState, first.gameState, 'black', {
       type: 'place',

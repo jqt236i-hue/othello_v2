@@ -779,6 +779,18 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
             errorMessage: result && result.errorMessage ? String(result.errorMessage) : null
         };
     }
+    const authoritativePendingResult = MatchAuthority.validateAuthoritativePendingSelectionResult(
+        resolvedAction,
+        result.events
+    );
+    if (!authoritativePendingResult || authoritativePendingResult.ok !== true) {
+        return {
+            ok: false,
+            rejectedReason: authoritativePendingResult && authoritativePendingResult.rejectedReason
+                ? authoritativePendingResult.rejectedReason
+                : 'INVALID_PENDING_SELECTION_TARGET'
+        };
+    }
 
     const nextSnapshot = {
         gameState: result.gameState,

@@ -2044,11 +2044,11 @@ function _clearBoardExpansionDirectionHintForDiff(cell: any) {
     if (cell.dataset) {
         delete cell.dataset.boardExpansionDirectionHint;
     }
-    const hint = typeof cell.querySelector === 'function'
-        ? cell.querySelector(`.${BOARD_EXPANSION_DIRECTION_HINT_CLASS}`)
-        : null;
-    if (hint && hint.parentNode === cell) {
-        hint.parentNode.removeChild(hint);
+    const hints = typeof cell.querySelectorAll === 'function'
+        ? Array.from(cell.querySelectorAll(`.${BOARD_EXPANSION_DIRECTION_HINT_CLASS}`))
+        : [];
+    for (const hint of hints as any[]) {
+        if (hint && hint.parentNode === cell) hint.parentNode.removeChild(hint);
     }
 }
 
@@ -2142,49 +2142,62 @@ function _ensureBoardShrinkWillDirectionHintForDiff(cell: any, direction: any) {
     hint.style.zIndex = '48';
 }
 
-function _ensureBoardExpansionDirectionHintForDiff(cell: any, direction: any) {
+function _ensureBoardExpansionDirectionHintForDiff(cell: any, rawDirections: any) {
     if (!cell || !cell.classList) return;
-    const arrowText = _getBoardDirectionHintArrowTextForDiff(direction);
-    cell.classList.add(BOARD_EXPANSION_DIRECTION_HINT_TARGET_CLASS, `board-expansion-direction-${direction}`);
+    const directions = (Array.isArray(rawDirections) ? rawDirections : [rawDirections])
+        .map((value: any) => String(value || '').toLowerCase())
+        .filter((value: string, index: number, list: string[]) => !!value && list.indexOf(value) === index);
+    _clearBoardExpansionDirectionHintForDiff(cell);
+    if (!directions.length) return;
+    cell.classList.add(BOARD_EXPANSION_DIRECTION_HINT_TARGET_CLASS, ...directions.map((direction: string) => `board-expansion-direction-${direction}`));
     if (cell.dataset) {
-        cell.dataset.boardExpansionDirectionHint = direction;
+        cell.dataset.boardExpansionDirectionHint = directions.join(',');
     }
-    let hint = typeof cell.querySelector === 'function'
-        ? cell.querySelector(`.${BOARD_EXPANSION_DIRECTION_HINT_CLASS}`)
-        : null;
-    if (!hint && typeof document !== 'undefined') {
-        hint = document.createElement('div');
+    if (typeof document === 'undefined') return;
+    const positions: Record<string, { top: string; left: string }> = {
+        up: { top: '14%', left: '50%' },
+        down: { top: '86%', left: '50%' },
+        left: { top: '50%', left: '14%' },
+        right: { top: '50%', left: '86%' },
+        'up-left': { top: '18%', left: '18%' },
+        'up-right': { top: '18%', left: '82%' },
+        'down-left': { top: '82%', left: '18%' },
+        'down-right': { top: '82%', left: '82%' }
+    };
+    for (const direction of directions) {
+        const hint = document.createElement('div');
         hint.className = BOARD_EXPANSION_DIRECTION_HINT_CLASS;
-        hint.setAttribute('aria-hidden', 'true');
+        hint.setAttribute('role', 'button');
+        hint.tabIndex = 0;
+        hint.setAttribute('aria-label', `盤面を${_getBoardDirectionHintArrowTextForDiff(direction)}方向へ拡張`);
         cell.appendChild(hint);
+        hint.textContent = _getBoardDirectionHintArrowTextForDiff(direction);
+        if (hint.dataset) hint.dataset.direction = direction;
+        const position = positions[direction] || positions.right;
+        hint.style.position = 'absolute';
+        hint.style.top = position.top;
+        hint.style.left = position.left;
+        hint.style.transform = 'translate(-50%, -50%)';
+        hint.style.display = 'flex';
+        hint.style.alignItems = 'center';
+        hint.style.justifyContent = 'center';
+        hint.style.width = 'calc(20px * var(--layout-stage-scale))';
+        hint.style.height = 'calc(20px * var(--layout-stage-scale))';
+        hint.style.borderRadius = '999px';
+        hint.style.border = 'var(--layout-size-border-thin) solid rgba(218, 246, 255, 0.78)';
+        hint.style.background = 'linear-gradient(180deg, rgba(16, 76, 65, 0.94) 0%, rgba(8, 34, 29, 0.92) 100%)';
+        hint.style.boxShadow = '0 0 calc(8px * var(--layout-stage-scale)) rgba(116, 255, 228, 0.35)';
+        hint.style.color = '#f7fffc';
+        hint.style.fontFamily = '"DotGothic16", "MS Gothic", "Osaka-Mono", monospace';
+        hint.style.fontSize = 'calc(13px * var(--layout-stage-scale))';
+        hint.style.fontWeight = '700';
+        hint.style.lineHeight = '1';
+        hint.style.textShadow = '0 0 calc(3px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.28)';
+        hint.style.pointerEvents = 'auto';
+        hint.style.cursor = 'pointer';
+        hint.style.userSelect = 'none';
+        hint.style.zIndex = '48';
     }
-    if (!hint) return;
-    hint.textContent = arrowText;
-    if (hint.dataset) {
-        hint.dataset.direction = direction;
-    }
-    hint.style.position = 'absolute';
-    hint.style.top = '50%';
-    hint.style.left = '50%';
-    hint.style.transform = 'translate(-50%, -50%)';
-    hint.style.display = 'flex';
-    hint.style.alignItems = 'center';
-    hint.style.justifyContent = 'center';
-    hint.style.width = 'calc(24px * var(--layout-stage-scale))';
-    hint.style.height = 'calc(24px * var(--layout-stage-scale))';
-    hint.style.borderRadius = '999px';
-    hint.style.border = 'var(--layout-size-border-thin) solid rgba(218, 246, 255, 0.78)';
-    hint.style.background = 'linear-gradient(180deg, rgba(16, 76, 65, 0.94) 0%, rgba(8, 34, 29, 0.92) 100%)';
-    hint.style.boxShadow = '0 0 calc(8px * var(--layout-stage-scale)) rgba(116, 255, 228, 0.35)';
-    hint.style.color = '#f7fffc';
-    hint.style.fontFamily = '"DotGothic16", "MS Gothic", "Osaka-Mono", monospace';
-    hint.style.fontSize = 'calc(15px * var(--layout-stage-scale))';
-    hint.style.fontWeight = '700';
-    hint.style.lineHeight = '1';
-    hint.style.textShadow = '0 0 calc(3px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.28)';
-    hint.style.pointerEvents = 'none';
-    hint.style.userSelect = 'none';
-    hint.style.zIndex = '48';
 }
 
 function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any) {

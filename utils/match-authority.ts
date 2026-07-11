@@ -1040,6 +1040,26 @@ function sanitizePendingSelectionActionForAuthority(snapshotValue: unknown, play
     return matchAuthorityPendingSelection.sanitizePendingSelectionActionForAuthority(snapshotValue, playerKey, actionValue);
 }
 
+function validateAuthoritativePendingSelectionResult(actionValue: unknown, eventsValue: unknown): { ok: boolean; rejectedReason?: string } {
+    const action = asRecord(actionValue);
+    const pendingSelectionState = asRecord(action.pendingSelectionState);
+    const pendingType = String(pendingSelectionState.type || '').trim().toUpperCase();
+    if (pendingType !== 'BOARD_EXPANSION_WILL' && pendingType !== 'BOARD_EXPANSION_GOD') {
+        return { ok: true };
+    }
+    const events = Array.isArray(eventsValue) ? eventsValue : [];
+    const rejectedExpansion = events.some((eventValue) => {
+        const event = asRecord(eventValue);
+        return (
+            (event.type === 'board_expansion_selected' || event.type === 'board_expansion_first_selected') &&
+            event.applied === false
+        );
+    });
+    return rejectedExpansion
+        ? { ok: false, rejectedReason: 'INVALID_PENDING_SELECTION_TARGET' }
+        : { ok: true };
+}
+
 function appendPresentationFrame(
     roomValue: MatchAuthorityRoomState | null | undefined,
     inputValue: unknown
@@ -1198,6 +1218,7 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     buildPublicSnapshot,
     validatePendingSelectionPublish,
     sanitizePendingSelectionActionForAuthority,
+    validateAuthoritativePendingSelectionResult,
     appendAuthorityLog,
     createBufferedSseEventRecord,
     appendBufferedSseEvent,

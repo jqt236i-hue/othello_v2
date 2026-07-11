@@ -216,37 +216,18 @@ function normalizeBoardExpansionSide(side: any): string | null {
   if (normalized === 'top') return 'up';
   if (normalized === 'bottom') return 'down';
   return normalized === 'left' || normalized === 'right' || normalized === 'up' || normalized === 'down'
+    || normalized === 'up-left' || normalized === 'up-right'
+    || normalized === 'down-left' || normalized === 'down-right'
     ? normalized
     : null;
 }
 
-function resolveBoardExpansionGodDirection(target: any, boardShape: any): string | null {
-  const row = Number(target && target.row);
-  const col = Number(target && target.col);
-  const rows = Number(boardShape && boardShape.rows);
-  const cols = Number(boardShape && boardShape.cols);
-  if (!Number.isInteger(row) || !Number.isInteger(col) || !Number.isInteger(rows) || !Number.isInteger(cols) || rows <= 0 || cols <= 0) {
-    return null;
-  }
-  const vertical = row === 0 ? 'up' : row === rows - 1 ? 'down' : null;
-  const horizontal = col === 0 ? 'left' : col === cols - 1 ? 'right' : null;
-  if (vertical && horizontal) return `${vertical}-${horizontal}`;
-  return vertical || horizontal;
+function resolveBoardExpansionDirection(target: any): string | null {
+  return normalizeBoardExpansionSide(target && target.directionKey);
 }
 
-function resolveBoardExpansionDirection(pending: any, target: any, boardShape: any): string | null {
-  const pendingType = String(pending && pending.type || '').toUpperCase();
-  if (pendingType === 'BOARD_EXPANSION_WILL') {
-    return normalizeBoardExpansionSide(target && target.side);
-  }
-  if (pendingType === 'BOARD_EXPANSION_GOD') {
-    return resolveBoardExpansionGodDirection(target, boardShape);
-  }
-  return null;
-}
-
-function buildBoardExpansionDirectionHintMap(pending: any, selectableTargets: any, boardShape: any): Map<string, string> {
-  const out = new Map<string, string>();
+function buildBoardExpansionDirectionHintMap(pending: any, selectableTargets: any, boardShape: any): Map<string, string[]> {
+  const out = new Map<string, string[]>();
   const pendingType = String(pending && pending.type || '').toUpperCase();
   if (!pending || pending.stage !== 'selectTarget' || (pendingType !== 'BOARD_EXPANSION_WILL' && pendingType !== 'BOARD_EXPANSION_GOD')) {
     return out;
@@ -257,9 +238,11 @@ function buildBoardExpansionDirectionHintMap(pending: any, selectableTargets: an
   for (const target of selectableTargets) {
     const key = normalizePointKey(target);
     if (!key) continue;
-    const direction = resolveBoardExpansionDirection(pending, target, boardShape);
+    const direction = resolveBoardExpansionDirection(target);
     if (!direction) continue;
-    out.set(key, direction);
+    const directions = out.get(key) || [];
+    if (!directions.includes(direction)) directions.push(direction);
+    out.set(key, directions);
   }
   return out;
 }

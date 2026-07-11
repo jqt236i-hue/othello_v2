@@ -129,13 +129,13 @@ describe('board hint projection', () => {
       stage: 'selectTarget'
     };
     const willTargets = [
-      { row: 2, col: 0, side: 'left' },
-      { row: 5, col: 7, side: 'right' }
+      { row: 2, col: 0, side: 'left', directionKey: 'left' },
+      { row: 5, col: 7, side: 'right', directionKey: 'right' }
     ];
 
     expect(Array.from(BoardHintProjection.buildBoardExpansionDirectionHintMap(willPending, willTargets, { rows: 8, cols: 8 }).entries()).sort()).toEqual([
-      ['2,0', 'left'],
-      ['5,7', 'right']
+      ['2,0', ['left']],
+      ['5,7', ['right']]
     ]);
 
     const godPending = {
@@ -143,13 +143,21 @@ describe('board hint projection', () => {
       stage: 'selectTarget'
     };
     const godTargets = [
-      { row: 0, col: 0 },
-      { row: 7, col: 7 }
+      { row: 0, col: 0, directionKey: 'up-left' },
+      { row: 7, col: 7, directionKey: 'down-right' }
     ];
 
     expect(Array.from(BoardHintProjection.buildBoardExpansionDirectionHintMap(godPending, godTargets, { rows: 8, cols: 8 }).entries()).sort()).toEqual([
-      ['0,0', 'up-left'],
-      ['7,7', 'down-right']
+      ['0,0', ['up-left']],
+      ['7,7', ['down-right']]
+    ]);
+
+    const multiDirectionTargets = [
+      { row: 0, col: 0, directionKey: 'up' },
+      { row: 0, col: 0, directionKey: 'left' }
+    ];
+    expect(Array.from(BoardHintProjection.buildBoardExpansionDirectionHintMap(willPending, multiDirectionTargets, { rows: 8, cols: 8 }).entries())).toEqual([
+      ['0,0', ['up', 'left']]
     ]);
   });
 
