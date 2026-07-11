@@ -51,6 +51,18 @@ const HandCardSwipeAction = (() => {
     } catch (e) { /* ignore */ }
     return null;
 })();
+const HandCardSwipeGestureModule = (() => {
+    try {
+        const resolved = _resolveCardInteractionModule({
+            requirePath: './hand-card-swipe-gesture',
+            globalKey: 'HandCardSwipeGestureModule'
+        });
+        return resolved && typeof resolved.createHandCardSwipeGestureAdapter === 'function'
+            ? resolved
+            : null;
+    } catch (e) { /* ignore */ }
+    return null;
+})();
 
 // ===== Card UI State & Interaction (Refactored to use CardLogic) =====
 
@@ -2991,146 +3003,6 @@ function cancelPendingDestroy(specificPlayerKey: any) {
     cancelPendingSelection(specificPlayerKey);
 }
 
-const HAND_CARD_SWIPE_LONG_PRESS_MS = 170;
-const HAND_CARD_SWIPE_ACTION_THRESHOLD_PX = 40;
-const HAND_CARD_SWIPE_DESTROY_ACTION_THRESHOLD_PX = 60;
-const HAND_CARD_SWIPE_PRE_ACTIVATION_CANCEL_PX = 24;
-
-let _handCardSwipeState: any = null;
-let _handCardSwipeOverlayEl: any = null;
-let _handCardSwipeBound = false;
-let _handCardSwipeSuppressClickUntil = 0;
-
-function _getHandCardSwipeEventTime(event: any) {
-    const eventTime = Number(event && event.timeStamp);
-    if (Number.isFinite(eventTime) && eventTime >= 0) return eventTime;
-    try {
-        if (typeof performance !== 'undefined' && performance && typeof performance.now === 'function') {
-            return performance.now();
-        }
-    } catch (e) { /* ignore */ }
-    return Date.now();
-}
-
-function _getHandCardSwipePoint(event: any, fallbackTimeMs?: any) {
-    return {
-        x: Number(event && event.clientX) || 0,
-        y: Number(event && event.clientY) || 0,
-        timeMs: Number.isFinite(Number(fallbackTimeMs)) ? Number(fallbackTimeMs) : _getHandCardSwipeEventTime(event)
-    };
-}
-
-function _resolveHandCardSwipeDestroyThreshold(startPoint: any) {
-    if (
-        HandCardSwipeAction
-        && typeof HandCardSwipeAction.resolveHandCardSwipeDestroyThreshold === 'function'
-        && typeof window !== 'undefined'
-    ) {
-        return HandCardSwipeAction.resolveHandCardSwipeDestroyThreshold(
-            HAND_CARD_SWIPE_DESTROY_ACTION_THRESHOLD_PX,
-            startPoint && startPoint.x,
-            window.innerWidth
-        );
-    }
-    return HAND_CARD_SWIPE_DESTROY_ACTION_THRESHOLD_PX;
-}
-
-function _findHandCardSwipeTarget(event: any) {
-    if (!event || event.button > 0) return null;
-    const rawTarget = event.target || null;
-    const targetEl = rawTarget && rawTarget.nodeType === 1
-        ? rawTarget
-        : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
-    const cardEl = targetEl && typeof targetEl.closest === 'function'
-        ? targetEl.closest('.card-item.visible.clickable[data-card-id]')
-        : null;
-    if (!cardEl || !cardEl.dataset || !cardEl.dataset.cardId) return null;
-    if (typeof cardEl.closest === 'function' && !cardEl.closest('#hand-black, #hand-white')) return null;
-    const ownerKey = _normalizeOwnerKey(cardEl.dataset.ownerKey);
-    const rawActualHandIndex = Number(cardEl.dataset.actualHandIndex);
-    const rawHandIndex = Number.isInteger(rawActualHandIndex) && rawActualHandIndex >= 0
-        ? rawActualHandIndex
-        : Number(cardEl.dataset.handIndex);
-    const handIndex = Number.isInteger(rawHandIndex) && rawHandIndex >= 0 ? rawHandIndex : undefined;
-    return {
-        cardEl,
-        cardId: String(cardEl.dataset.cardId),
-        ownerKey,
-        handIndex
-    };
-}
-
-function _ensureHandCardSwipeOverlay() {
-    if (typeof document === 'undefined') return null;
-    if (_handCardSwipeOverlayEl && _handCardSwipeOverlayEl.parentElement) return _handCardSwipeOverlayEl;
-    const overlay = document.createElement('div');
-    overlay.id = 'hand-card-swipe-action-overlay';
-    overlay.className = 'hand-card-swipe-action-overlay';
-    overlay.setAttribute('aria-hidden', 'true');
-
-    const useZone = document.createElement('div');
-    useZone.className = 'hand-card-swipe-zone hand-card-swipe-zone-use';
-    useZone.textContent = '使用';
-    overlay.appendChild(useZone);
-
-    const destroyZone = document.createElement('div');
-    destroyZone.className = 'hand-card-swipe-zone hand-card-swipe-zone-destroy';
-    destroyZone.textContent = '破壊';
-    overlay.appendChild(destroyZone);
-
-    document.body.appendChild(overlay);
-    _handCardSwipeOverlayEl = overlay;
-    return overlay;
-}
-
-function _setHandCardSwipeOverlayAction(action: any) {
-    const overlay = _ensureHandCardSwipeOverlay();
-    if (!overlay || !overlay.classList) return;
-    overlay.classList.add('is-visible');
-    overlay.classList.toggle('is-use-active', action === 'use');
-    overlay.classList.toggle('is-destroy-active', action === 'destroy');
-}
-
-function _hideHandCardSwipeOverlay() {
-    const overlay = _handCardSwipeOverlayEl;
-    if (!overlay || !overlay.classList) return;
-    overlay.classList.remove('is-visible', 'is-use-active', 'is-destroy-active');
-}
-
-function _setHandCardSwipeCardOffset(state: any, point: any) {
-    if (!state || !state.cardEl || !state.cardEl.style) return;
-    const dx = (Number(point && point.x) || 0) - state.startPoint.x;
-    const dy = (Number(point && point.y) || 0) - state.startPoint.y;
-    state.cardEl.style.setProperty('--hand-card-swipe-x', `${dx}px`);
-    state.cardEl.style.setProperty('--hand-card-swipe-y', `${dy}px`);
-}
-
-function _clearHandCardSwipeCardState(state: any) {
-    if (!state || !state.cardEl) return;
-    try {
-        state.cardEl.classList.remove('hand-card-swipe-pending', 'hand-card-swipe-dragging');
-        state.cardEl.style.removeProperty('--hand-card-swipe-x');
-        state.cardEl.style.removeProperty('--hand-card-swipe-y');
-        if (typeof state.cardEl.releasePointerCapture === 'function' && Number.isFinite(Number(state.pointerId))) {
-            state.cardEl.releasePointerCapture(state.pointerId);
-        }
-    } catch (e) { /* ignore */ }
-}
-
-function _cleanupHandCardSwipeState(suppressClick: any) {
-    const state = _handCardSwipeState;
-    if (state && state.longPressTimer) {
-        clearTimeout(state.longPressTimer);
-        state.longPressTimer = null;
-    }
-    _clearHandCardSwipeCardState(state);
-    _hideHandCardSwipeOverlay();
-    if (suppressClick) {
-        _handCardSwipeSuppressClickUntil = Date.now() + 700;
-    }
-    _handCardSwipeState = null;
-}
-
 function _selectHandCardForSwipeAction(state: any) {
     if (!state || !state.cardId) return false;
     const isDebugUnlimited = _isDebugUnlimitedUsage();
@@ -3175,136 +3047,35 @@ function _selectHandCardForSwipeAction(state: any) {
     return true;
 }
 
-function _activateHandCardSwipeState(state: any) {
-    if (!state || _handCardSwipeState !== state || state.activated) return;
-    const activationPoint = Object.assign({}, state.lastPoint, {
-        timeMs: state.startPoint.timeMs + HAND_CARD_SWIPE_LONG_PRESS_MS
+let _handCardSwipeGestureAdapter: any = null;
+
+function _getHandCardSwipeGestureAdapter() {
+    if (_handCardSwipeGestureAdapter) return _handCardSwipeGestureAdapter;
+    if (
+        !HandCardSwipeGestureModule
+        || typeof HandCardSwipeGestureModule.createHandCardSwipeGestureAdapter !== 'function'
+        || !HandCardSwipeAction
+    ) {
+        return null;
+    }
+    _handCardSwipeGestureAdapter = HandCardSwipeGestureModule.createHandCardSwipeGestureAdapter({
+        actionModule: HandCardSwipeAction,
+        getDocumentRef: () => (typeof document !== 'undefined' ? document : null),
+        getWindowRef: () => (typeof window !== 'undefined' ? window : null),
+        normalizeOwnerKey: _normalizeOwnerKey,
+        isAutoModeActive: _isAutoModeActive,
+        selectCardForAction: _selectHandCardForSwipeAction,
+        runSelectedAction: (action: any) => {
+            if (action === 'use') useSelectedCard();
+            else if (action === 'destroy') destroySelectedHandCard();
+        }
     });
-    const update = HandCardSwipeAction.updateHandCardSwipeGesture(state.gesture, activationPoint);
-    if (!update || update.cancelled) {
-        _cleanupHandCardSwipeState(false);
-        return;
-    }
-    state.activated = true;
-    state.cardEl.classList.remove('hand-card-swipe-pending');
-    state.cardEl.classList.add('hand-card-swipe-dragging');
-    _setHandCardSwipeCardOffset(state, activationPoint);
-    _setHandCardSwipeOverlayAction(update.action);
-    _handCardSwipeSuppressClickUntil = Date.now() + 700;
-}
-
-function _handleHandCardSwipePointerDown(event: any) {
-    if (!HandCardSwipeAction || _isAutoModeActive()) return;
-    const target = _findHandCardSwipeTarget(event);
-    if (!target) return;
-    _cleanupHandCardSwipeState(false);
-    const startPoint = _getHandCardSwipePoint(event);
-    const gesture = HandCardSwipeAction.createHandCardSwipeGesture(startPoint, {
-        longPressMs: HAND_CARD_SWIPE_LONG_PRESS_MS,
-        actionThresholdPx: HAND_CARD_SWIPE_ACTION_THRESHOLD_PX,
-        destroyActionThresholdPx: _resolveHandCardSwipeDestroyThreshold(startPoint),
-        preActivationCancelPx: HAND_CARD_SWIPE_PRE_ACTIVATION_CANCEL_PX
-    });
-    const state: any = {
-        pointerId: event.pointerId,
-        cardEl: target.cardEl,
-        cardId: target.cardId,
-        ownerKey: target.ownerKey,
-        handIndex: target.handIndex,
-        gesture,
-        startPoint,
-        lastPoint: startPoint,
-        activated: false,
-        longPressTimer: null
-    };
-    state.longPressTimer = setTimeout(() => _activateHandCardSwipeState(state), HAND_CARD_SWIPE_LONG_PRESS_MS);
-    _handCardSwipeState = state;
-    try {
-        if (typeof target.cardEl.setPointerCapture === 'function' && Number.isFinite(Number(event.pointerId))) {
-            target.cardEl.setPointerCapture(event.pointerId);
-        }
-    } catch (e) { /* ignore */ }
-}
-
-function _handleHandCardSwipePointerMove(event: any) {
-    const state = _handCardSwipeState;
-    if (!state || (Number.isFinite(Number(state.pointerId)) && event.pointerId !== state.pointerId)) return;
-    const point = _getHandCardSwipePoint(event);
-    state.lastPoint = point;
-    const update = HandCardSwipeAction.updateHandCardSwipeGesture(state.gesture, point);
-    if (!state.activated) {
-        if (update && update.cancelled) {
-            _cleanupHandCardSwipeState(false);
-        }
-        return;
-    }
-    if (event && typeof event.preventDefault === 'function') event.preventDefault();
-    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
-    _setHandCardSwipeCardOffset(state, point);
-    _setHandCardSwipeOverlayAction(update ? update.action : 'pending');
-}
-
-function _handleHandCardSwipePointerUp(event: any) {
-    const state = _handCardSwipeState;
-    if (!state || (Number.isFinite(Number(state.pointerId)) && event.pointerId !== state.pointerId)) return;
-    const point = _getHandCardSwipePoint(event);
-    state.lastPoint = point;
-    const finish = HandCardSwipeAction.finishHandCardSwipeGesture(state.gesture, point);
-    const finishedByPointerUp = !!(finish && finish.active && finish.action !== 'cancel' && finish.action !== 'pending');
-    if (!state.activated && !finishedByPointerUp) {
-        _cleanupHandCardSwipeState(false);
-        return;
-    }
-    const action = finish && finish.action;
-    if (!state.activated && finishedByPointerUp) {
-        state.activated = true;
-        if (state.cardEl && state.cardEl.classList) {
-            state.cardEl.classList.add('hand-card-swipe-dragging');
-        }
-        _setHandCardSwipeCardOffset(state, point);
-        _setHandCardSwipeOverlayAction(action);
-    }
-    if (event && typeof event.preventDefault === 'function') event.preventDefault();
-    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
-    const selected = (action === 'use' || action === 'destroy')
-        ? _selectHandCardForSwipeAction(state)
-        : false;
-    _cleanupHandCardSwipeState(true);
-    if (!selected) return;
-    if (action === 'use') {
-        useSelectedCard();
-    } else if (action === 'destroy') {
-        destroySelectedHandCard();
-    }
-}
-
-function _handleHandCardSwipePointerCancel(event: any) {
-    const state = _handCardSwipeState;
-    if (!state || (Number.isFinite(Number(state.pointerId)) && event.pointerId !== state.pointerId)) return;
-    _cleanupHandCardSwipeState(!!(state && state.activated));
+    return _handCardSwipeGestureAdapter;
 }
 
 function _bindHandCardSwipeActions() {
-    if (_handCardSwipeBound || typeof document === 'undefined') return;
-    document.addEventListener('pointerdown', _handleHandCardSwipePointerDown, true);
-    document.addEventListener('pointermove', _handleHandCardSwipePointerMove, true);
-    document.addEventListener('pointerup', _handleHandCardSwipePointerUp, true);
-    document.addEventListener('pointercancel', _handleHandCardSwipePointerCancel, true);
-    document.addEventListener('click', (event: any) => {
-        if (Date.now() > _handCardSwipeSuppressClickUntil) return;
-        const target = _findHandCardSwipeTarget(event);
-        if (!target) return;
-        event.preventDefault();
-        event.stopPropagation();
-    }, true);
-    document.addEventListener('contextmenu', (event: any) => {
-        if (!_handCardSwipeState || !_handCardSwipeState.activated) return;
-        const target = _findHandCardSwipeTarget(event);
-        if (!target) return;
-        event.preventDefault();
-        event.stopPropagation();
-    }, true);
-    _handCardSwipeBound = true;
+    const adapter = _getHandCardSwipeGestureAdapter();
+    if (adapter && typeof adapter.bind === 'function') adapter.bind();
 }
 
 let _cardInteractionRuntimeInitialized = false;
