@@ -6,6 +6,35 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+type AssetManifest = {
+  files: unknown[];
+  [key: string]: unknown;
+};
+
+type AssetManifestResult =
+  | { status: 'ok'; manifest: AssetManifest }
+  | { status: 'skipped'; reason: string }
+  | { status: 'error'; reason: string; code?: number | null };
+
+type AssetManifestResponse = {
+  ok: boolean;
+  status?: unknown;
+  json: () => Promise<unknown>;
+};
+
+type AssetManifestRoot = {
+  fetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<AssetManifestResponse>;
+  location?: { protocol?: string; origin?: string };
+  UIBootstrap?: AssetManifestBootstrap;
+};
+
+type AssetManifestBootstrap = {
+  setLoadedAssetManifest?: (
+    manifest: AssetManifest,
+    options: { root: AssetManifestRoot; dispatch: boolean }
+  ) => unknown;
+};
+
 function _isDebugAllowed(): boolean {
   try {
     const w = window as any;
@@ -102,8 +131,8 @@ async function initNetworkAndDebug(): Promise<void> {
   const debugAllowed = _isDebugAllowed();
 
   try {
-    const rootRef = typeof window !== 'undefined' ? window : null;
-    const uiBootstrap = rootRef && (rootRef as any).UIBootstrap;
+    const rootRef: AssetManifestRoot | null = typeof window !== 'undefined' ? window : null;
+    const uiBootstrap = rootRef?.UIBootstrap ?? null;
     const manifestResult = await loadAssetManifestForBoot(rootRef, uiBootstrap);
     if (manifestResult.status === 'error') {
       const log = debugAllowed ? console.warn : console.info;
@@ -208,7 +237,14 @@ async function initNetworkAndDebug(): Promise<void> {
  * full-image preload here made cold boot fetch every background, card, and
  * special-stone image before the player had opened the corresponding feature.
  */
-async function loadAssetManifestForBoot(rootRef: any, uiBootstrap: any): Promise<any> {
+function isAssetManifest(value: unknown): value is AssetManifest {
+  return !!value && typeof value === 'object' && Array.isArray((value as AssetManifest).files);
+}
+
+async function loadAssetManifestForBoot(
+  rootRef: AssetManifestRoot | null,
+  uiBootstrap: AssetManifestBootstrap | null
+): Promise<AssetManifestResult> {
   if (!rootRef || typeof rootRef !== 'object') return { status: 'skipped', reason: 'root-unavailable' };
   const fetchFn = typeof rootRef.fetch === 'function'
     ? rootRef.fetch.bind(rootRef)
@@ -231,7 +267,7 @@ async function loadAssetManifestForBoot(rootRef: any, uiBootstrap: any): Promise
       };
     }
     const manifest = await response.json();
-    if (!manifest || !Array.isArray(manifest.files)) {
+    if (!isAssetManifest(manifest)) {
       return { status: 'error', reason: 'invalid-manifest' };
     }
     if (uiBootstrap && typeof uiBootstrap.setLoadedAssetManifest === 'function') {
