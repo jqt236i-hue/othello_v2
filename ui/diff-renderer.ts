@@ -40,6 +40,7 @@ const DiffRendererEquality = _require('./diff-renderer/equality');
 const DiffRendererProjector = _require('./diff-renderer/projector');
 const DiffRendererDomPatcher = _require('./diff-renderer/dom-patcher');
 const DiffRendererInteractionBinder = _require('./diff-renderer/interaction-binder');
+const DiffRendererWorldEffects = _require('./diff-renderer/world-effects');
 const cellStatesEqual = DiffRendererEquality.cellStatesEqual;
 
 /**
@@ -90,10 +91,6 @@ let CardInteractionEffectsModuleForDiff: any = null;
 let GameTermGlossaryModuleForDiff: any = null;
 let ManifestEffectTagPopoverElForDiff: any = null;
 let manifestEffectTagPopoverDismissBoundForDiff = false;
-let lastActiveManifestWorldBackgroundForDiff: any = null;
-let manifestWorldBackgroundEndTimerForDiff: any = null;
-let lastActiveManifestBgmForDiff: any = null;
-let manifestBgmEndTimerForDiff: any = null;
 const FALLBACK_MANIFEST_STONE_TYPES_FOR_DIFF = Object.freeze([
     'THEORY_INCARNATION',
     'BOARD_EXECUTOR',
@@ -1192,101 +1189,35 @@ function _syncManifestEffectPanelForDiff(cardStateValue: any) {
     refs.panel.setAttribute('data-manifest-effect-source', String(panelEntry && panelEntry.source || 'marker'));
 }
 
-function _clearManifestEndingOverlayForDiff() {
-    try {
-        if (typeof document === 'undefined' || !document) return;
-        const overlays = Array.from(document.querySelectorAll('.manifest-ending-overlay'));
-        overlays.forEach((overlay: any) => {
-            try {
-                if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-            } catch (e: any) { /* ignore */ }
-        });
-    } catch (e: any) { /* ignore */ }
+function _getManifestWorldEffectsTimerForDiff() {
+    return (AnimationShared && typeof AnimationShared.getTimer === 'function')
+        ? AnimationShared.getTimer()
+        : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : null);
 }
 
-function _clearManifestWorldBackgroundForDiff(body: HTMLElement) {
-    body.classList.remove('manifest-world-background-active', 'manifest-world-background-ending');
-    body.removeAttribute('data-manifest-world-background-key');
-    body.removeAttribute('data-manifest-world-background-source');
-    body.style.removeProperty('--manifest-world-background');
-}
-
-function _setManifestWorldBackgroundForDiff(active: any) {
-    if (typeof document === 'undefined' || !document || !document.body) return;
-    const body = document.body;
-    if (active && active.imagePath) {
-        const imagePath = String(active.imagePath || '').trim();
-        if (!imagePath) return;
-        _clearManifestEndingOverlayForDiff();
-        if (manifestWorldBackgroundEndTimerForDiff !== null) {
-            try {
-                const timer = (AnimationShared && AnimationShared.getTimer)
-                    ? AnimationShared.getTimer()
-                    : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : null);
-                if (timer && typeof timer.clearTimeout === 'function') timer.clearTimeout(manifestWorldBackgroundEndTimerForDiff);
-                else clearTimeout(manifestWorldBackgroundEndTimerForDiff);
-            } catch (e: any) { /* ignore */ }
-            manifestWorldBackgroundEndTimerForDiff = null;
-        }
-        body.classList.remove('manifest-world-background-ending');
-        body.classList.add('manifest-world-background-active');
-        body.setAttribute('data-manifest-world-background-key', String(active.key || 'manifest_world'));
-        body.setAttribute('data-manifest-world-background-source', String(active.source || 'marker'));
-        body.style.setProperty('--manifest-world-background', `url("${imagePath}")`);
-        lastActiveManifestWorldBackgroundForDiff = {
-            key: active.key || 'manifest_world',
-            imagePath,
-            source: active.source || 'marker'
-        };
-        return;
+function _syncManifestWorldEffectsForDiff(cardStateValue: any) {
+    if (!DiffRendererWorldEffects || typeof DiffRendererWorldEffects.syncManifestWorldEffects !== 'function') {
+        throw new Error('[DiffRenderer] world effects capability unavailable');
     }
-    if (lastActiveManifestWorldBackgroundForDiff && lastActiveManifestWorldBackgroundForDiff.imagePath) {
-        lastActiveManifestWorldBackgroundForDiff = null;
-        _clearManifestWorldBackgroundForDiff(body);
-        return;
+    DiffRendererWorldEffects.syncManifestWorldEffects({
+        cardState: cardStateValue,
+        document: (typeof document !== 'undefined' ? document : null),
+        soundEngine: (typeof SoundEngine !== 'undefined' ? SoundEngine : null),
+        findActiveManifestBgm: _findActiveManifestBgmForDiff,
+        findActiveManifestBackground: _findActiveManifestBackgroundForDiff,
+        getTimer: _getManifestWorldEffectsTimerForDiff
+    });
+}
+
+function _resetManifestWorldEffectsForDiff() {
+    if (!DiffRendererWorldEffects || typeof DiffRendererWorldEffects.resetManifestWorldEffects !== 'function') {
+        throw new Error('[DiffRenderer] world effects reset capability unavailable');
     }
-    _clearManifestWorldBackgroundForDiff(body);
+    DiffRendererWorldEffects.resetManifestWorldEffects({
+        document: (typeof document !== 'undefined' ? document : null),
+        getTimer: _getManifestWorldEffectsTimerForDiff
+    });
 }
-
-function _syncManifestWorldBackgroundForDiff(cardStateValue: any) {
-    try {
-        _setManifestWorldBackgroundForDiff(_findActiveManifestBackgroundForDiff(cardStateValue));
-    } catch (e: any) { /* ignore */ }
-}
-
-function _syncManifestBgmForDiff(cardStateValue: any) {
-    try {
-        if (typeof SoundEngine === 'undefined' || !SoundEngine || typeof SoundEngine.syncManifestBgmOverride !== 'function') {
-            return;
-        }
-        const active = _findActiveManifestBgmForDiff(cardStateValue);
-        if (active) {
-            if (manifestBgmEndTimerForDiff !== null) {
-                try {
-                    const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')
-                        ? AnimationShared.getTimer()
-                        : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : null);
-                    if (timer && typeof timer.clearTimeout === 'function') timer.clearTimeout(manifestBgmEndTimerForDiff);
-                    else clearTimeout(manifestBgmEndTimerForDiff);
-                } catch (e: any) { /* ignore */ }
-                manifestBgmEndTimerForDiff = null;
-            }
-            lastActiveManifestBgmForDiff = {
-                key: active.key,
-                track: active.track
-            };
-            SoundEngine.syncManifestBgmOverride(active.key, active.track);
-        } else {
-            if (manifestBgmEndTimerForDiff !== null) return;
-            if (!lastActiveManifestBgmForDiff) {
-                SoundEngine.syncManifestBgmOverride(null, null);
-                return;
-            }
-            lastActiveManifestBgmForDiff = null;
-        }
-    } catch (e: any) { /* ignore */ }
-}
-
 function _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys: any, boardSignature: any) {
     const keys = Array.isArray(revealExpansionKeys)
         ? revealExpansionKeys.slice()
@@ -3192,7 +3123,12 @@ function attachBoardCellInteraction(cell: any, row: any, col: any) {
         clearSuperAttractionHoverPreview: _clearSuperAttractionHoverPreview,
         showSpecialStoneInfoAt,
         isTouchStoneInfoEvent: _isTouchStoneInfoEvent,
-        handleCellClick,
+        handleCellClick: (targetRow: any, targetCol: any) => {
+            if (typeof handleCellClick !== 'function') {
+                throw new Error('[DiffRenderer] handleCellClick unavailable');
+            }
+            return handleCellClick(targetRow, targetCol);
+        },
         setTimeout: (callback: any, delay: number) => setTimeout(callback, delay),
         clearTimeout: (timer: any) => clearTimeout(timer)
     }, cell, row, col);
@@ -3535,8 +3471,7 @@ function renderBoardDiff(boardEl: any) {
     };
     try {
         const cardStateForManifestSync = _resolveCardStateForDiffRender();
-        _syncManifestBgmForDiff(cardStateForManifestSync);
-    _syncManifestWorldBackgroundForDiff(cardStateForManifestSync);
+        _syncManifestWorldEffectsForDiff(cardStateForManifestSync);
     _syncManifestEffectPanelForDiff(cardStateForManifestSync);
     if (boardEl && boardDomElement && boardDomElement !== boardEl) {
         previousBoardState = null;
@@ -3731,29 +3666,7 @@ function resetRenderStats() {
     boardDomElement = null;
     lastBoardExpansionRevealSoundKey = null;
     superAttractionHoverPreview = null;
-    lastActiveManifestWorldBackgroundForDiff = null;
-    lastActiveManifestBgmForDiff = null;
-    _clearManifestEndingOverlayForDiff();
-    if (manifestWorldBackgroundEndTimerForDiff !== null) {
-        try {
-            const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')
-                ? AnimationShared.getTimer()
-                : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : null);
-            if (timer && typeof timer.clearTimeout === 'function') timer.clearTimeout(manifestWorldBackgroundEndTimerForDiff);
-            else clearTimeout(manifestWorldBackgroundEndTimerForDiff);
-        } catch (e: any) { /* ignore */ }
-        manifestWorldBackgroundEndTimerForDiff = null;
-    }
-    if (manifestBgmEndTimerForDiff !== null) {
-        try {
-            const timer = (AnimationShared && typeof AnimationShared.getTimer === 'function')
-                ? AnimationShared.getTimer()
-                : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : null);
-            if (timer && typeof timer.clearTimeout === 'function') timer.clearTimeout(manifestBgmEndTimerForDiff);
-            else clearTimeout(manifestBgmEndTimerForDiff);
-        } catch (e: any) { /* ignore */ }
-        manifestBgmEndTimerForDiff = null;
-    }
+    _resetManifestWorldEffectsForDiff();
 }
 
 function _isReversiModeForDiffRenderer() {
