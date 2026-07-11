@@ -39,6 +39,7 @@ if (!PerfBenchmarks && typeof globalThis !== 'undefined') {
 const DiffRendererEquality = _require('./diff-renderer/equality');
 const DiffRendererProjector = _require('./diff-renderer/projector');
 const DiffRendererDomPatcher = _require('./diff-renderer/dom-patcher');
+const DiffRendererInteractionBinder = _require('./diff-renderer/interaction-binder');
 const cellStatesEqual = DiffRendererEquality.cellStatesEqual;
 
 /**
@@ -3178,86 +3179,26 @@ function _ensureOutsideCloseHandler() {
 }
 
 function attachBoardCellInteraction(cell: any, row: any, col: any) {
-    if (!cell) return;
-    _showIdleStoneInfoPanel();
-
-    let pressTimer: any = null;
-    let pressActive = false;
-    let longPressed = false;
-    let startX = 0;
-    let startY = 0;
-
-    const clearPress = () => {
-        pressActive = false;
-        if (pressTimer) {
-            clearTimeout(pressTimer);
-            pressTimer = null;
-        }
-    };
-
-    cell.addEventListener('pointerdown', (ev: any) => {
-        if (ev.button !== 0) return;
-        _ensureOutsideCloseHandler();
-        clearPress();
-        longPressed = false;
-        pressActive = true;
-        startX = Number(ev.clientX || 0);
-        startY = Number(ev.clientY || 0);
-        pressTimer = setTimeout(() => {
-            if (!pressActive) return;
-            longPressed = true;
-            showSpecialStoneInfoAt(row, col);
-        }, LONG_PRESS_MS);
-    });
-
-    cell.addEventListener('pointerenter', (ev: any) => {
-        if (!_isHoverPointerEvent(ev)) return;
-        _ensureOutsideCloseHandler();
-        _setSuperAttractionHoverPreview(row, col);
-        showSpecialStoneInfoAt(row, col, { preserveOnEmpty: true });
-    });
-
-    cell.addEventListener('pointermove', (ev: any) => {
-        if (_isHoverPointerEvent(ev)) {
-            _setSuperAttractionHoverPreview(row, col);
-        }
-        if (!pressActive) return;
-        const dx = Math.abs(Number(ev.clientX || 0) - startX);
-        const dy = Math.abs(Number(ev.clientY || 0) - startY);
-        if (dx > LONG_PRESS_MOVE_CANCEL_PX || dy > LONG_PRESS_MOVE_CANCEL_PX) {
-            clearPress();
-        }
-    });
-
-    cell.addEventListener('pointerup', (ev: any) => {
-        if (!pressActive && !longPressed) return;
-        const wasLongPressed = longPressed;
-        clearPress();
-        if (wasLongPressed) {
-            ev.preventDefault();
-            return;
-        }
-        if (_isTouchStoneInfoEvent(ev)) {
-            showSpecialStoneInfoAt(row, col);
-        }
-        handleCellClick(row, col);
-    });
-
-    cell.addEventListener('pointercancel', () => clearPress());
-    cell.addEventListener('pointerleave', (ev: any) => {
-        if (_isHoverPointerEvent(ev)) {
-            _clearSuperAttractionHoverPreview();
-        }
-        clearPress();
-    });
-    cell.addEventListener('mouseleave', () => {
-        _clearSuperAttractionHoverPreview();
-        clearPress();
-    });
+    if (!DiffRendererInteractionBinder || typeof DiffRendererInteractionBinder.bindBoardCellInteraction !== 'function') {
+        throw new Error('[DiffRenderer] interaction binder capability unavailable');
+    }
+    return DiffRendererInteractionBinder.bindBoardCellInteraction({
+        showIdleStoneInfoPanel: _showIdleStoneInfoPanel,
+        ensureOutsideCloseHandler: _ensureOutsideCloseHandler,
+        longPressMs: LONG_PRESS_MS,
+        longPressMoveCancelPx: LONG_PRESS_MOVE_CANCEL_PX,
+        isHoverPointerEvent: _isHoverPointerEvent,
+        setSuperAttractionHoverPreview: _setSuperAttractionHoverPreview,
+        clearSuperAttractionHoverPreview: _clearSuperAttractionHoverPreview,
+        showSpecialStoneInfoAt,
+        isTouchStoneInfoEvent: _isTouchStoneInfoEvent,
+        handleCellClick,
+        setTimeout: (callback: any, delay: number) => setTimeout(callback, delay),
+        clearTimeout: (timer: any) => clearTimeout(timer)
+    }, cell, row, col);
 }
-
 /**
- * 盤面を初期化（最初の1回のみ全レンダリング）
+* 盤面を初期化（最初の1回のみ全レンダリング）
  * Initialize board with full rendering (first time only)
  * @param {HTMLElement} boardEl - 盤面要素
  */
