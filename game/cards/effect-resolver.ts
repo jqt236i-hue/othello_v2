@@ -79,6 +79,7 @@ const CardUsagePendingStage = loadRuntimeModule('./card-usage-pending-stage', 'C
 const CardUsageImmediateStage = loadRuntimeModule('./card-usage-immediate-stage', 'CardUsageImmediateStage', null);
 const CardUsageSacrificeStage = loadRuntimeModule('./card-usage-sacrifice-stage', 'CardUsageSacrificeStage', null);
 const CardUsagePresentationStage = loadRuntimeModule('./card-usage-presentation-stage', 'CardUsagePresentationStage', null);
+const CardUsageValidationStage = loadRuntimeModule('./card-usage-validation-stage', 'CardUsageValidationStage', null);
 
 const {
   CARD_DEFS,
@@ -436,65 +437,9 @@ function clearUsedSelectedCard(cardState: any, cardId: string, ownerKey: string)
  */
 function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps: any) {
   const {
-    gameState,
-    handOwnerKey,
-    opts,
-    getCardCost: getCardCostFn,
-    getHandCopyIdAt,
-    getEffectiveCardCostForCopy,
-    getCardType: getCardTypeFn,
-    buildHeavenBlessingSeedHint,
-    buildHeavenBlessingOffers,
-    buildCondemnOffers,
-    buildObserverWillOffers,
     applyTheoryIncarnationUsage,
     applyChaosSummonUsage,
     applyBoardExecutorUsage,
-    hasStandardLegalMoveForPlayer,
-    canUseLastResortForPlayer,
-    canUseEqualityWillForPlayer,
-    canUseReinforcementWillForPlayer,
-    canUseSupportTroopsWillForPlayer,
-    canUseTimeStopGodForPlayer,
-    canUseTimeStopDeityForPlayer,
-    canUseChaosSummon,
-    countOpponentOccupiedCornersForPlayer,
-    getDestroyTargets,
-    getReverseWillTargets,
-    getTemptWillTargets,
-    getCaptureWillTargets,
-    getStrongWindTargets,
-    getBuoyancyTargets,
-    getSuperBuoyancyTargets,
-    getGravityTargets,
-    getSuperGravityTargets,
-    getSuperAttractionTargets,
-    getTrapTargets,
-    getGuardTargets,
-    getLivingWillTargets,
-    getHyperactiveInheritTargets,
-    getExtendLifeTargets,
-    getCorrosionTargets,
-    getTimeBombTargets,
-    getTeleportTargets,
-    getCellTeleportTargets,
-    getCloneTargets,
-    getSwapTargets,
-    getPositionSwapTargets,
-    getBoardExpansionTargets,
-    getBoardExpansionGodTargets,
-    getBoardShrinkTargets,
-    getBoardShrinkGodTargets,
-    getBlockadeTargets,
-    getMeteorTargets,
-    getCausalReplayTargets,
-    getFreezeTargets,
-    getSeedTargets,
-    getTimeStopGodDestroyableCount,
-    getLossWillRemovableCount,
-    getSalvationWillTargetCount,
-    getExecutionWillTargetCount,
-    getReinforcementWillTargetCount,
     removeHandCardAt,
     addCardToDiscard,
     addChargeValue,
@@ -507,129 +452,43 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     addGeneratedThrowChainCard,
     addGeneratedChainWillCard,
     getCardDef: getCardDefFn,
-    getCardDisplayName: getCardDisplayNameFn,
-    isCardPlayLockedForPlayer,
     BoardOpsModule,
     MARKER_KINDS,
     getCellValueForCard,
     getSpecialMarkers,
-    SpecialCardRegistryModule,
-    CardPendingStateManagerModule: CardPendingStateManagerModuleLocal,
-    CardUsagePrechecksModule: CardUsagePrechecksModuleLocal,
-    CardBoardExecutorResolutionModule,
-    TIME_STOP_GOD_SELF_DESTROY_COUNT: timeStopSelfDestroyCount,
-    RIBO_WILL_UNLOCK_TURN_INDEX: riboUnlockTurnIndex
+    SpecialCardRegistryModule
   } = deps || {};
 
-  const _opts = opts || {};
-  const _gameState = gameState || null;
-  const chargeOwnerKey = playerKey;
-  const handKey = (typeof handOwnerKey === 'string' && handOwnerKey) ? handOwnerKey : playerKey;
-
-  if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[handKey])) return false;
-  const cardPlayLocked = typeof isCardPlayLockedForPlayer === 'function'
-    ? isCardPlayLockedForPlayer(cardState, chargeOwnerKey) === true
-    : !!(CardMarkersModule && typeof CardMarkersModule.isCardPlayLockedForPlayer === 'function' && CardMarkersModule.isCardPlayLockedForPlayer(cardState, chargeOwnerKey));
-  if (cardPlayLocked) return false;
-
-  const idx = CardHandManagerModule && typeof CardHandManagerModule.resolveHandIndexForCard === 'function'
-    ? CardHandManagerModule.resolveHandIndexForCard(cardState, handKey, cardId, _opts)
-    : cardState.hands[handKey].indexOf(cardId);
-  if (idx === -1) return false;
-
-  const costFn = typeof getCardCostFn === 'function' ? getCardCostFn : getCardCost;
-  const cardCopyIdForCost = typeof getHandCopyIdAt === 'function'
-    ? getHandCopyIdAt(cardState, handKey, idx)
-    : null;
-  const cost = typeof getEffectiveCardCostForCopy === 'function'
-    ? getEffectiveCardCostForCopy(cardState, cardId, cardCopyIdForCost)
-    : costFn(cardId);
-
-  if (!(_opts.ignoreCost === true)) {
-    if (!cardState.charge || cardState.charge[chargeOwnerKey] < cost) return false;
+  if (!CardUsageValidationStage || typeof CardUsageValidationStage.prepareCardUsageValidation !== 'function') {
+    throw new Error('[effect-resolver] CardUsageValidationStage.prepareCardUsageValidation not available');
   }
-
-  const typeFn = typeof getCardTypeFn === 'function' ? getCardTypeFn : getCardType;
-  const cardType = typeFn(cardId);
-
-  const heavenSeedHint = typeof buildHeavenBlessingSeedHint === 'function'
-    ? buildHeavenBlessingSeedHint(cardState, chargeOwnerKey)
-    : '';
-  const pendingSelectionTargetContext = PendingSelectionRegistryModule && typeof PendingSelectionRegistryModule.buildPendingSelectionTargetContext === 'function'
-    ? PendingSelectionRegistryModule.buildPendingSelectionTargetContext(deps)
-    : {};
-
-  const precheckModule = CardUsagePrechecksModuleLocal || CardUsagePrechecksModule;
-  const usagePrecheck = precheckModule && typeof precheckModule.validateCardUsagePreconditions === 'function'
-    ? precheckModule.validateCardUsagePreconditions({
-      cardType,
-      cardId,
-      cardState,
-      gameState: _gameState,
-      playerKey: chargeOwnerKey,
-      handKey,
-      turnIndex: cardState.turnIndex,
-      riboUnlockTurnIndex: riboUnlockTurnIndex || RIBO_WILL_UNLOCK_TURN_INDEX,
-      prng: _opts.prng,
-      heavenSeedHint,
-      hasStandardLegalMoveForPlayer,
-      canUseLastResortForPlayer,
-      canUseEqualityWillForPlayer,
-      canUseReinforcementWillForPlayer,
-      canUseSupportTroopsWillForPlayer,
-      canUseTimeStopGodForPlayer,
-    canUseTimeStopDeityForPlayer,
-      canUseChaosSummon,
-      countOpponentOccupiedCornersForPlayer,
-      getDestroyTargets,
-      getReverseWillTargets,
-      buildHeavenBlessingOffers,
-      buildCondemnOffers,
-      buildObserverWillOffers,
-      getTemptWillTargets,
-      getCaptureWillTargets,
-      getStrongWindTargets,
-      getBuoyancyTargets,
-      getSuperBuoyancyTargets,
-      getGravityTargets,
-      getSuperGravityTargets,
-      getSuperAttractionTargets,
-      getTrapTargets,
-      getGuardTargets,
-      getLivingWillTargets,
-      getHyperactiveInheritTargets,
-      getExtendLifeTargets,
-      getCorrosionTargets,
-      getTimeBombTargets,
-      getTeleportTargets,
-      getCellTeleportTargets,
-      getCloneTargets,
-      getSwapTargets,
-      getPositionSwapTargets,
-      getBoardExpansionTargets,
-      getBoardExpansionGodTargets,
-      getBoardShrinkTargets,
-      getBoardShrinkGodTargets,
-      getBlockadeTargets,
-      getMeteorTargets,
-      getCausalReplayTargets,
-      getFreezeTargets,
-      getSeedTargets,
-      ...pendingSelectionTargetContext,
-      getTimeStopGodDestroyableCount,
-      timeStopGodSelfDestroyCount: timeStopSelfDestroyCount || TIME_STOP_GOD_SELF_DESTROY_COUNT,
-      getLossWillRemovableCount,
-      getSalvationWillTargetCount,
-      getExecutionWillTargetCount,
-      getReinforcementWillTargetCount,
-      CardBoardExecutorResolutionModule
-    })
-    : null;
-
-  if (!usagePrecheck || usagePrecheck.ok !== true) return false;
-  const heavenOffers = Array.isArray(usagePrecheck.heavenOffers) ? usagePrecheck.heavenOffers : null;
-  const condemnOffers = Array.isArray(usagePrecheck.condemnOffers) ? usagePrecheck.condemnOffers : null;
-  const observerWillOffers = Array.isArray(usagePrecheck.observerWillOffers) ? usagePrecheck.observerWillOffers : null;
+  const usageValidation = CardUsageValidationStage.prepareCardUsageValidation({
+    cardState,
+    playerKey,
+    cardId,
+    deps,
+    getCardCost,
+    getCardType,
+    CardHandManagerModule,
+    CardMarkersModule,
+    CardUsagePrechecksModule,
+    PendingSelectionRegistryModule,
+    RIBO_WILL_UNLOCK_TURN_INDEX,
+    TIME_STOP_GOD_SELF_DESTROY_COUNT
+  });
+  if (!usageValidation || usageValidation.ok !== true) return false;
+  const {
+    gameState: _gameState,
+    opts: _opts,
+    chargeOwnerKey,
+    handKey,
+    handIndex: idx,
+    cost,
+    cardType,
+    heavenOffers,
+    condemnOffers,
+    observerWillOffers
+  } = usageValidation;
 
   if (!CardUsageConsumptionStage || typeof CardUsageConsumptionStage.consumeCardUsage !== 'function') {
     throw new Error('[effect-resolver] CardUsageConsumptionStage.consumeCardUsage not available');

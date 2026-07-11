@@ -197,6 +197,19 @@ describe('match worker card preload', () => {
     expectRuntimePreloadRegistration(runtimePreloadSource, presentationGlobalKey, presentationImportPath);
   });
 
+  test('worker exposes card usage validation before card effect resolver loads', () => {
+    const workerSource = readRepoFile('workers/match-worker.ts');
+    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
+    const validationImportPath = '../game/cards/card-usage-validation-stage.js';
+    const validationGlobalKey = 'CardUsageValidationStage';
+
+    expect(readRepoFile('game/cards/effect-resolver.ts')).toContain(
+      "loadRuntimeModule('./card-usage-validation-stage', 'CardUsageValidationStage'"
+    );
+    expectWorkerModuleRegistration(workerSource, validationGlobalKey, validationImportPath);
+    expectRuntimePreloadRegistration(runtimePreloadSource, validationGlobalKey, validationImportPath);
+  });
+
   test('runtime preload exposes every turn pipeline phase fallback module', () => {
     const turnPhaseSource = readRepoFile('game/turn/turn_pipeline_phases.ts');
     const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
