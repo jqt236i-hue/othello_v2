@@ -1589,9 +1589,205 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return true;
     }
 
+    function applyPlacementResolutionStage(ctx: TurnPipelinePhaseContext): boolean {
+        const { CardLogic, Core, BoardOps, cardState, gameState, playerKey, action, events } = ctx;
+        const p = ctx.prng;
+        const pendingType = getPendingEffectTypeForActionPhase(CardLogic, cardState, playerKey);
+        const placementResolution = (ActionPhasePlaceResolutionModule && typeof ActionPhasePlaceResolutionModule.resolvePlacementAction === 'function')
+            ? ActionPhasePlaceResolutionModule.resolvePlacementAction({
+                CardLogic,
+                Core,
+                BoardOps,
+                cardState,
+                gameState,
+                playerKey,
+                action,
+                events,
+                prng: p,
+                pendingType,
+                resolveSafeCardContext,
+                getActionCellOwner,
+                getPendingEffectTypeForActionPhase,
+                applyTrapEffectsAfterSelection: () => applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events),
+                handOffTurnAfterSelection: () => {
+                    if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffTurnAfterSelection === 'function')) {
+                        throw new Error('TurnPipeline handoff module unavailable');
+                    }
+                    ActionPhaseTurnHandoffModule.handOffTurnAfterSelection({
+                        Core,
+                        CardLogic,
+                        cardState,
+                        gameState,
+                        playerKey,
+                        advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
+                            if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
+                                throw new Error('TurnPipeline round state module unavailable');
+                            }
+                            return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
+                                Core: nextCore,
+                                gameState: nextGameState,
+                                playerKey: nextPlayerKey,
+                                options,
+                                normalizePlayerKey
+                            });
+                        }
+                    });
+                },
+                resolveBoardBonusGain,
+                applyPlacementBoardBonusGain,
+                applyPostFlipRevives,
+                isOthelloMode: () => isOthelloModeForTurnPipelinePhases()
+            })
+            : null;
+        if (!placementResolution) {
+            throw new Error('TurnPipeline placement resolution module unavailable');
+        }
+        if (placementResolution.completedSelectionOnly) {
+            return true;
+        }
+        const preExtra = placementResolution.preExtra || 0;
+        const turnNumberBeforePlace = Number(placementResolution.turnNumberBeforePlace || 0);
+        const othelloMode = !!placementResolution.othelloMode;
+        const numberCellMultiplierConfig = placementResolution.numberCellMultiplierConfig || null;
+        const boardBonusGained = Number(placementResolution.boardBonusGained || 0);
+        const flipCount = Number(placementResolution.flipCount || 0);
+        const theoryManifestPlaced = placementResolution.theoryManifestPlaced === true;
+
+        const effects = (ActionPhasePlacementEffectsModule && typeof ActionPhasePlacementEffectsModule.resolvePlacementEffects === 'function')
+            ? ActionPhasePlacementEffectsModule.resolvePlacementEffects({
+                CardLogic,
+                cardState,
+                gameState,
+                playerKey,
+                action,
+                flipCount,
+                othelloMode,
+                boardBonusGained,
+                numberCellMultiplierConfig,
+                events
+            })
+            : null;
+        if (!effects) {
+            throw new Error('TurnPipeline placement effects module unavailable');
+        }
+        if (ActionPhasePlacementImmediateEffectsModule && typeof ActionPhasePlacementImmediateEffectsModule.resolvePlacementImmediateEffects === 'function') {
+            ActionPhasePlacementImmediateEffectsModule.resolvePlacementImmediateEffects({
+                CardLogic,
+                cardState,
+                gameState,
+                playerKey,
+                action,
+                events,
+                effects,
+                prng: p,
+                othelloMode,
+                boardBonusGained,
+                flipCount,
+                awardBoardChargeGain,
+                applyPostFlipRevives,
+                buildPlacementChargeBubblePayload,
+                emitBoardChargeBubblePresentation,
+                emitSpecialStonePlacementBubbleFromEffects,
+                emitWorkBubblePresentation,
+                pickRandomLine,
+                workPlaceLines: WORK_PLACE_LINES,
+                pushTrapEvents,
+                emitTrapHandRemoveEvents,
+                debugLog: logTurnPipelinePhasesDebug
+            });
+        }
+        if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
+            applyGeneratedSpawnFlipResultsImmediate(
+                CardLogic,
+                cardState,
+                gameState,
+                events,
+                CardLogic.consumeGeneratedSpawnFlipResults(cardState)
+            );
+        }
+
+        if (
+            !theoryManifestPlaced &&
+            !othelloMode &&
+            CardLogic &&
+            typeof CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement === 'function'
+        ) {
+            const theoryPlacementRes = CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement(cardState, gameState, playerKey, p);
+            if (theoryPlacementRes && theoryPlacementRes.spawned) {
+                if (!TheorySpawnResolutionModule || typeof TheorySpawnResolutionModule.resolveTheorySpawnTurnResult !== 'function') {
+                    throw new Error('TurnPipeline theory spawn resolution module unavailable');
+                }
+                TheorySpawnResolutionModule.resolveTheorySpawnTurnResult({
+                    CardLogic,
+                    cardState,
+                    gameState,
+                    playerKey,
+                    events,
+                    spawned: theoryPlacementRes.spawned,
+                    prng: p,
+                    timing: 'after_owner_placement',
+                    awardBoardChargeGain
+                });
+            }
+            if (theoryPlacementRes && theoryPlacementRes.expired) {
+                events.push({ type: 'theory_incarnation_marker_expired', detail: theoryPlacementRes.expired });
+            }
+        }
+
+        if (ActionPhaseContinuationModule && typeof ActionPhaseContinuationModule.resolvePlacementContinuation === 'function') {
+            ActionPhaseContinuationModule.resolvePlacementContinuation({
+                Core,
+                CardLogic,
+                cardState,
+                gameState,
+                playerKey,
+                pendingType,
+                preExtra,
+                turnNumberBeforePlace,
+                events,
+                resolveSafeCardContext,
+                readPendingForActionPhase,
+                clearPendingForActionPhase,
+                keepTurnActive: () => {
+                    const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+                    gameState.currentPlayer = playerValue;
+                    gameState.consecutivePasses = 0;
+                    gameState.turnNumber = turnNumberBeforePlace;
+                },
+                handOffCompletedTurn: () => {
+                    if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffCompletedTurn === 'function')) {
+                        throw new Error('TurnPipeline handoff module unavailable');
+                    }
+                    ActionPhaseTurnHandoffModule.handOffCompletedTurn({
+                        Core,
+                        CardLogic,
+                        cardState,
+                        gameState,
+                        playerKey,
+                        turnNumberAfterCompletion: turnNumberBeforePlace + 1,
+                        advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
+                            if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
+                                throw new Error('TurnPipeline round state module unavailable');
+                            }
+                            return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
+                                Core: nextCore,
+                                gameState: nextGameState,
+                                playerKey: nextPlayerKey,
+                                options,
+                                normalizePlayerKey
+                            });
+                        }
+                    });
+                }
+            });
+        } else {
+            throw new Error('TurnPipeline continuation module unavailable');
+        }
+        return false;
+    }
+
     function applyActionPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, action: any, events: any, prng: any, BoardOps: any) {
         const ctx = createTurnPipelinePhaseContext(CardLogic, Core, cardState, gameState, playerKey, events, prng, BoardOps, action);
-        const p = ctx.prng;
         const phaseSnapshot = snapshotTurnPhasePresentationStart(ctx);
         const presentationStartIndex = phaseSnapshot.presentationStartIndex;
         try {
@@ -1610,197 +1806,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             if (applyPrePlacementSelectionStage(ctx, presentationStartIndex)) {
                 return;
             }
-
-            const pendingType = getPendingEffectTypeForActionPhase(CardLogic, cardState, playerKey);
-            const placementResolution = (ActionPhasePlaceResolutionModule && typeof ActionPhasePlaceResolutionModule.resolvePlacementAction === 'function')
-                ? ActionPhasePlaceResolutionModule.resolvePlacementAction({
-                    CardLogic,
-                    Core,
-                    BoardOps,
-                    cardState,
-                    gameState,
-                    playerKey,
-                    action,
-                    events,
-                    prng: p,
-                    pendingType,
-                    resolveSafeCardContext,
-                    getActionCellOwner,
-                    getPendingEffectTypeForActionPhase,
-                    applyTrapEffectsAfterSelection: () => applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events),
-                    handOffTurnAfterSelection: () => {
-                        if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffTurnAfterSelection === 'function')) {
-                            throw new Error('TurnPipeline handoff module unavailable');
-                        }
-                        ActionPhaseTurnHandoffModule.handOffTurnAfterSelection({
-                            Core,
-                            CardLogic,
-                            cardState,
-                            gameState,
-                            playerKey,
-                            advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
-                                if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
-                                    throw new Error('TurnPipeline round state module unavailable');
-                                }
-                                return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
-                                    Core: nextCore,
-                                    gameState: nextGameState,
-                                    playerKey: nextPlayerKey,
-                                    options,
-                                    normalizePlayerKey
-                                });
-                            }
-                        });
-                    },
-                    resolveBoardBonusGain,
-                    applyPlacementBoardBonusGain,
-                    applyPostFlipRevives,
-                    isOthelloMode: () => isOthelloModeForTurnPipelinePhases()
-                })
-                : null;
-            if (!placementResolution) {
-                throw new Error('TurnPipeline placement resolution module unavailable');
-            }
-            if (placementResolution.completedSelectionOnly) {
+            if (applyPlacementResolutionStage(ctx)) {
                 return;
-            }
-            const preExtra = placementResolution.preExtra || 0;
-            const turnNumberBeforePlace = Number(placementResolution.turnNumberBeforePlace || 0);
-            const othelloMode = !!placementResolution.othelloMode;
-            const numberCellMultiplierConfig = placementResolution.numberCellMultiplierConfig || null;
-            const boardBonusGained = Number(placementResolution.boardBonusGained || 0);
-            const flipCount = Number(placementResolution.flipCount || 0);
-            const theoryManifestPlaced = placementResolution.theoryManifestPlaced === true;
-
-            const effects = (ActionPhasePlacementEffectsModule && typeof ActionPhasePlacementEffectsModule.resolvePlacementEffects === 'function')
-                ? ActionPhasePlacementEffectsModule.resolvePlacementEffects({
-                    CardLogic,
-                    cardState,
-                    gameState,
-                    playerKey,
-                    action,
-                    flipCount,
-                    othelloMode,
-                    boardBonusGained,
-                    numberCellMultiplierConfig,
-                    events
-                })
-                : null;
-            if (!effects) {
-                throw new Error('TurnPipeline placement effects module unavailable');
-            }
-                if (ActionPhasePlacementImmediateEffectsModule && typeof ActionPhasePlacementImmediateEffectsModule.resolvePlacementImmediateEffects === 'function') {
-                    ActionPhasePlacementImmediateEffectsModule.resolvePlacementImmediateEffects({
-                        CardLogic,
-                    cardState,
-                    gameState,
-                    playerKey,
-                    action,
-                    events,
-                    effects,
-                    prng: p,
-                    othelloMode,
-                    boardBonusGained,
-                    flipCount,
-                    awardBoardChargeGain,
-                    applyPostFlipRevives,
-                    buildPlacementChargeBubblePayload,
-                    emitBoardChargeBubblePresentation,
-                    emitSpecialStonePlacementBubbleFromEffects,
-                    emitWorkBubblePresentation,
-                    pickRandomLine,
-                    workPlaceLines: WORK_PLACE_LINES,
-                    pushTrapEvents,
-                    emitTrapHandRemoveEvents,
-                        debugLog: logTurnPipelinePhasesDebug
-                    });
-                }
-                if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
-                    applyGeneratedSpawnFlipResultsImmediate(
-                        CardLogic,
-                        cardState,
-                        gameState,
-                        events,
-                        CardLogic.consumeGeneratedSpawnFlipResults(cardState)
-                    );
-                }
-
-            if (
-                !theoryManifestPlaced &&
-                !othelloMode &&
-                CardLogic &&
-                typeof CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement === 'function'
-            ) {
-                const theoryPlacementRes = CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement(cardState, gameState, playerKey, p);
-                if (theoryPlacementRes && theoryPlacementRes.spawned) {
-                    if (!TheorySpawnResolutionModule || typeof TheorySpawnResolutionModule.resolveTheorySpawnTurnResult !== 'function') {
-                        throw new Error('TurnPipeline theory spawn resolution module unavailable');
-                    }
-                    TheorySpawnResolutionModule.resolveTheorySpawnTurnResult({
-                        CardLogic,
-                        cardState,
-                        gameState,
-                        playerKey,
-                        events,
-                        spawned: theoryPlacementRes.spawned,
-                        prng: p,
-                        timing: 'after_owner_placement',
-                        awardBoardChargeGain
-                    });
-                }
-                if (theoryPlacementRes && theoryPlacementRes.expired) {
-                    events.push({ type: 'theory_incarnation_marker_expired', detail: theoryPlacementRes.expired });
-                }
-            }
-
-            if (ActionPhaseContinuationModule && typeof ActionPhaseContinuationModule.resolvePlacementContinuation === 'function') {
-                ActionPhaseContinuationModule.resolvePlacementContinuation({
-                    Core,
-                    CardLogic,
-                    cardState,
-                    gameState,
-                    playerKey,
-                    pendingType,
-                    preExtra,
-                    turnNumberBeforePlace,
-                    events,
-                    resolveSafeCardContext,
-                    readPendingForActionPhase,
-                    clearPendingForActionPhase,
-                    keepTurnActive: () => {
-                        const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
-                        gameState.currentPlayer = playerValue;
-                        gameState.consecutivePasses = 0;
-                        gameState.turnNumber = turnNumberBeforePlace;
-                    },
-                    handOffCompletedTurn: () => {
-                        if (!(ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.handOffCompletedTurn === 'function')) {
-                            throw new Error('TurnPipeline handoff module unavailable');
-                        }
-                        ActionPhaseTurnHandoffModule.handOffCompletedTurn({
-                            Core,
-                            CardLogic,
-                            cardState,
-                            gameState,
-                            playerKey,
-                            turnNumberAfterCompletion: turnNumberBeforePlace + 1,
-                            advanceGameRoundAfterCompletedTurn: (nextCore: any, nextGameState: any, nextPlayerKey: any, options: any) => {
-                                if (!(TurnRoundStateModule && typeof TurnRoundStateModule.advanceGameRoundAfterCompletedTurn === 'function')) {
-                                    throw new Error('TurnPipeline round state module unavailable');
-                                }
-                                return TurnRoundStateModule.advanceGameRoundAfterCompletedTurn({
-                                    Core: nextCore,
-                                    gameState: nextGameState,
-                                    playerKey: nextPlayerKey,
-                                    options,
-                                    normalizePlayerKey
-                                });
-                            }
-                        });
-                    }
-                });
-            } else {
-                throw new Error('TurnPipeline continuation module unavailable');
             }
         } else {
             throw new Error('Unknown action.type');
