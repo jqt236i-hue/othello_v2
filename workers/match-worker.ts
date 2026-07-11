@@ -2126,6 +2126,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                     MatchAuthority.buildPublishViewerArtifacts(room, options)
                 ),
                 prepareSnapshotBroadcast: (meta: MatchWorkerSnapshotPayloadMeta | null | undefined) => this.prepareSnapshotBroadcast(meta),
+                stagePreparedSnapshotBroadcast: (preparedSnapshot: MatchWorkerPreparedSnapshotBroadcast) => (
+                    this.getBroadcastController().stagePreparedSnapshotBroadcast(preparedSnapshot)
+                ),
                 ensureInitialPresentationSnapshots,
                 appendPresentationFrameForAcceptedPublish,
                 saveRoom: () => this.saveRoom(),
@@ -3019,6 +3022,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
     prepareSnapshotBroadcast(meta: MatchWorkerSnapshotPayloadMeta | null | undefined): MatchWorkerPreparedSnapshotBroadcast {
         return this.getBroadcastController().prepareSnapshotBroadcast(meta);
+    }
+
+    stagePreparedSnapshotBroadcast(preparedSnapshot: MatchWorkerPreparedSnapshotBroadcast): boolean {
+        return this.getBroadcastController().stagePreparedSnapshotBroadcast(preparedSnapshot);
     }
 
     async broadcastPreparedSnapshot(preparedSnapshot: MatchWorkerPreparedSnapshotBroadcast | null | undefined): Promise<void> {

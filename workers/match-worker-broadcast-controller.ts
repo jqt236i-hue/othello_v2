@@ -99,10 +99,21 @@ export function createMatchWorkerBroadcastController(config: MatchWorkerBroadcas
         };
     }
 
+    function stagePreparedSnapshotBroadcast(
+        preparedSnapshot: MatchWorkerPreparedSnapshotBroadcast | null | undefined
+    ): boolean {
+        if (!cfg.getRoom() || !preparedSnapshot) return false;
+        if (preparedSnapshot.stagedForPersistence === true) return false;
+        cfg.rememberBufferedSseEvent(preparedSnapshot.record);
+        preparedSnapshot.stagedForPersistence = true;
+        return true;
+    }
+
     async function broadcastPreparedSnapshot(preparedSnapshot: MatchWorkerPreparedSnapshotBroadcast | null | undefined): Promise<void> {
         if (!cfg.getRoom() || !preparedSnapshot) return;
-        cfg.rememberBufferedSseEvent(preparedSnapshot.record);
-        await cfg.saveRoom();
+        if (stagePreparedSnapshotBroadcast(preparedSnapshot)) {
+            await cfg.saveRoom();
+        }
         const streamEntries = Array.from(cfg.getStreams().entries());
         if (streamEntries.length === 0) return;
         await Promise.all(streamEntries.map(([streamId, streamInfo]) => {
@@ -161,6 +172,7 @@ export function createMatchWorkerBroadcastController(config: MatchWorkerBroadcas
     return {
         buildBufferedSnapshotEvent,
         prepareSnapshotBroadcast,
+        stagePreparedSnapshotBroadcast,
         broadcastPreparedSnapshot,
         broadcastSnapshot,
         broadcastPresence,

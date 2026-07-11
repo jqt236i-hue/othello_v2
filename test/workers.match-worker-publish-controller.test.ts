@@ -119,6 +119,10 @@ describe('match worker publish controller', () => {
         preparedMeta = meta;
         return preparedSnapshot;
       },
+      stagePreparedSnapshotBroadcast: (prepared: any) => {
+        order.push('stagePreparedSnapshotBroadcast');
+        prepared.stagedForPersistence = true;
+      },
       saveRoom: async () => {
         order.push('saveRoom');
       },
@@ -154,6 +158,7 @@ describe('match worker publish controller', () => {
       'applyCommandPublishToSnapshot',
       'refreshTurnTimer',
       'prepareSnapshotBroadcast',
+      'stagePreparedSnapshotBroadcast',
       'saveRoom',
       'broadcastSnapshot'
     ]);
@@ -290,6 +295,7 @@ describe('match worker publish controller: FATE_WILL controller can publish owne
         }),
         refreshTurnTimer: async () => { order.push('refreshTurnTimer'); return true; },
         prepareSnapshotBroadcast: (meta: any) => { order.push('prepareSnapshotBroadcast'); return null; },
+        stagePreparedSnapshotBroadcast: () => { order.push('stagePreparedSnapshotBroadcast'); },
         saveRoom: async () => { order.push('saveRoom'); },
         broadcastSnapshot: async () => { order.push('broadcastSnapshot'); },
         jsonResponse

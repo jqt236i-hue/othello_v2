@@ -1209,9 +1209,16 @@ function prepareSnapshotBroadcast(room: any, meta: any) {
     };
 }
 
+function stagePreparedSnapshotBroadcast(room: any, preparedSnapshot: any) {
+    if (!room || !preparedSnapshot || preparedSnapshot.stagedForPersistence === true) return false;
+    rememberBufferedRoomEvent(room, preparedSnapshot.record);
+    preparedSnapshot.stagedForPersistence = true;
+    return true;
+}
+
 function broadcastPreparedSnapshot(room: any, preparedSnapshot: any) {
     if (!room || !preparedSnapshot) return;
-    rememberBufferedRoomEvent(room, preparedSnapshot.record);
+    stagePreparedSnapshotBroadcast(room, preparedSnapshot);
     if (!room.streams || room.streams.size === 0) return;
     for (const [streamId, streamInfo] of room.streams.entries()) {
         const viewer = streamInfo && streamInfo.viewer
@@ -2403,6 +2410,7 @@ async function handlePublish(req: any, res: any) {
         refreshTurnTimer: (options: any) => refreshTurnTimer(activeRoom, options),
         buildPublishViewerArtifacts: (room: any, options: any) => MatchAuthority.buildPublishViewerArtifacts(room, options),
         prepareSnapshotBroadcast: (meta: any) => prepareSnapshotBroadcast(activeRoom, meta),
+        stagePreparedSnapshotBroadcast: (preparedSnapshot: any) => stagePreparedSnapshotBroadcast(activeRoom, preparedSnapshot),
         ensureInitialPresentationSnapshots,
         appendPresentationFrameForAcceptedPublish,
         saveRoom: async () => undefined,

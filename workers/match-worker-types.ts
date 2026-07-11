@@ -61,6 +61,7 @@ export interface MatchWorkerPreparedSnapshotBroadcast {
     record: MatchAuthorityBufferedSseEventRecordInput;
     payloadByViewer: Partial<Record<MatchAuthoritySeatKey | 'spectator', unknown>>;
     fallbackPayload: unknown;
+    stagedForPersistence?: boolean;
 }
 
 export interface MatchWorkerLeaderboardStore {

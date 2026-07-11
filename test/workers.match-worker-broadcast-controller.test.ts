@@ -189,6 +189,19 @@ describe('match worker broadcast controller', () => {
     });
   });
 
+  test('staged publish snapshot is saved by the caller and broadcast does not save it again', async () => {
+    const ctx = createController();
+    const prepared = ctx.controller.prepareSnapshotBroadcast({ operationId: 'op_staged' });
+
+    expect(ctx.controller.stagePreparedSnapshotBroadcast(prepared)).toBe(true);
+    expect(ctx.controller.stagePreparedSnapshotBroadcast(prepared)).toBe(false);
+    await ctx.controller.broadcastPreparedSnapshot(prepared);
+
+    expect(ctx.buffered).toHaveLength(1);
+    expect(ctx.getSavedCount()).toBe(0);
+    expect(ctx.sent).toHaveLength(3);
+  });
+
   test('broadcastPresence and broadcastChat buffer, save, and fan-out shared payloads', async () => {
     const ctx = createController();
 

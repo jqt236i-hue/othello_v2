@@ -157,6 +157,9 @@ function createHarness(options: HarnessOptions = {}) {
       });
     },
     prepareSnapshotBroadcast: (meta: any) => broadcastController.prepareSnapshotBroadcast(meta),
+    stagePreparedSnapshotBroadcast: (preparedSnapshot: any) => (
+      broadcastController.stagePreparedSnapshotBroadcast(preparedSnapshot)
+    ),
     saveRoom,
     broadcastSnapshot: (meta: any) => broadcastController.broadcastSnapshot(meta),
     jsonResponse: (status: number, payload: any) => ({ status, payload })
@@ -186,29 +189,27 @@ function createHarness(options: HarnessOptions = {}) {
 }
 
 describe('match worker accepted publish persistence characterization', () => {
-  test('current success path persists accepted state, then resume buffer, before SSE send', async () => {
+  test('success path stages accepted state and resume buffer into one persist before SSE send', async () => {
     const harness = createHarness();
 
     const response = await harness.controller.handlePublish(harness.publishBody);
 
     expect(response.status).toBe(200);
-    expect(harness.getSaveCount()).toBe(2);
+    expect(harness.getSaveCount()).toBe(1);
     expect(harness.events).toEqual([
       'refresh-turn-timer',
       'prepare-sse',
-      'save:1',
       'remember-sse',
-      'save:2',
+      'save:1',
       'send:stream-0'
     ]);
-    expect(harness.persistedRooms[0].sseEventBuffer).toHaveLength(1);
-    expect(harness.persistedRooms[1].sseEventBuffer).toHaveLength(2);
-    expect(harness.persistedRooms[1].stateVersion).toBe(5);
-    expect(harness.persistedRooms[1].presentationJournal[0].stateVersionTo).toBe(5);
-    expect(harness.persistedRooms[1].sseEventBuffer[1].payloadByViewer.black.stateVersion).toBe(5);
+    expect(harness.persistedRooms[0].sseEventBuffer).toHaveLength(2);
+    expect(harness.persistedRooms[0].stateVersion).toBe(5);
+    expect(harness.persistedRooms[0].presentationJournal[0].stateVersionTo).toBe(5);
+    expect(harness.persistedRooms[0].sseEventBuffer[1].payloadByViewer.black.stateVersion).toBe(5);
 
     const replay = MatchAuthority.getBufferedSseReplayEvents(
-      harness.persistedRooms[1].sseEventBuffer,
+      harness.persistedRooms[0].sseEventBuffer,
       'PERSIST_0',
       { role: 'seat', seatKey: 'black' }
     );
@@ -217,21 +218,15 @@ describe('match worker accepted publish persistence characterization', () => {
     expect(replay[0].payload.stateVersion).toBe(5);
   });
 
-  test.each([1, 2])('save failure at write %i rejects success and prevents SSE send', async (failSaveAt) => {
-    const harness = createHarness({ failSaveAt });
+  test('save failure rejects success and prevents SSE send', async () => {
+    const harness = createHarness({ failSaveAt: 1 });
 
-    await expect(harness.controller.handlePublish(harness.publishBody)).rejects.toThrow(`save_failed_${failSaveAt}`);
+    await expect(harness.controller.handlePublish(harness.publishBody)).rejects.toThrow('save_failed_1');
 
     expect(harness.sent).toEqual([]);
-    expect(harness.getSaveCount()).toBe(failSaveAt);
-    if (failSaveAt === 1) {
-      expect(harness.events).not.toContain('remember-sse');
-      expect(harness.persistedRooms).toHaveLength(0);
-    } else {
-      expect(harness.events).toContain('remember-sse');
-      expect(harness.persistedRooms).toHaveLength(1);
-      expect(harness.persistedRooms[0].sseEventBuffer).toHaveLength(1);
-    }
+    expect(harness.getSaveCount()).toBe(1);
+    expect(harness.events).toContain('remember-sse');
+    expect(harness.persistedRooms).toHaveLength(0);
   });
 
   test('SSE failure occurs after resume record is persisted and remains reconnectable', async () => {
@@ -239,8 +234,8 @@ describe('match worker accepted publish persistence characterization', () => {
 
     await expect(harness.controller.handlePublish(harness.publishBody)).rejects.toThrow('sse_send_failed');
 
-    expect(harness.getSaveCount()).toBe(2);
-    const persisted = harness.persistedRooms[1];
+    expect(harness.getSaveCount()).toBe(1);
+    const persisted = harness.persistedRooms[0];
     expect(persisted.sseEventBuffer).toHaveLength(2);
     const replay = MatchAuthority.getBufferedSseReplayEvents(
       persisted.sseEventBuffer,
@@ -251,15 +246,15 @@ describe('match worker accepted publish persistence characterization', () => {
     expect(replay[0].payload.stateVersion).toBe(5);
   });
 
-  test('zero streams still persists the resume record twice and returns success', async () => {
+  test('zero streams persists the resume record once and returns success', async () => {
     const harness = createHarness({ streamCount: 0 });
 
     const response = await harness.controller.handlePublish(harness.publishBody);
 
     expect(response.status).toBe(200);
-    expect(harness.getSaveCount()).toBe(2);
+    expect(harness.getSaveCount()).toBe(1);
     expect(harness.sent).toEqual([]);
-    expect(harness.persistedRooms[1].sseEventBuffer).toHaveLength(2);
+    expect(harness.persistedRooms[0].sseEventBuffer).toHaveLength(2);
   });
 
   test('duplicate operation replay does not persist, broadcast, or advance version twice', async () => {

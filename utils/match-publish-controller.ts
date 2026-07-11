@@ -372,6 +372,7 @@ export function createMatchPublishController(config?: any): any {
       dedupeOutcome: 'accepted'
     }, undefined);
     cfg.MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
+    cfg.stagePreparedSnapshotBroadcast(preparedSnapshot);
     await cfg.saveRoom();
     await cfg.broadcastSnapshot({
       ...meta,

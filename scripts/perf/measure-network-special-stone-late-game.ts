@@ -265,7 +265,7 @@ function measureNodeFixture(
       viewerProjectionBlack: publishCounter.viewerProjectionBlack || 0,
       viewerProjectionWhite: publishCounter.viewerProjectionWhite || 0,
       viewerProjectionSpectator: publishCounter.viewerProjectionSpectator || 0,
-      acceptedPublishRoomPersists: 2,
+      acceptedPublishRoomPersists: 1,
       renderSnapshotFullClones: 1
     },
     payloadBytes: {
@@ -496,7 +496,7 @@ export function renderMarkdown(report: any): string {
   for (const [id, fixture] of Object.entries(report.node.fixtures) as Array<[string, any]>) {
     lines.push(`### ${id}`, '', '```json', JSON.stringify(fixture.operationCounts, null, 2), '```', '');
   }
-  lines.push('## Notes', '', '- Timing values are characterization data, not standalone CI pass/fail gates.', '- `acceptedPublishRoomPersists: 2` records the current accepted Worker path before Phase 5.', '- Browser and Node measurements are intentionally separated.', '');
+  lines.push('## Notes', '', '- Timing values are characterization data, not standalone CI pass/fail gates.', '- `acceptedPublishRoomPersists` records the accepted Worker durability boundary.', '- Browser and Node measurements are intentionally separated.', '');
   return `${lines.join('\n')}\n`;
 }
 
