@@ -18,10 +18,11 @@ updated: 2026-07-11
 
 ## Execution status
 
-- Phases 0–7: completed in behavior-preserving commits.
+- Phases 0–7: completed in behavior-preserving commits. Phase 10 re-opened and then closed the omitted Phase 2.2 trainer consolidation in `566d1fab1`.
 - Phase 8: static ownership work is complete; its required visual-equivalence gate awaits explicit user authorization for `npm run test:visual`.
 - Phase 9: completed. The Worker mirror is guarded, volatile artifacts are untracked and guarded, and dated plans are classified.
-- Phases 10 and H: pending. Phase H still requires separate explicit approval.
+- Phase 10 Task 10.1: completed; Task 10.2 remains user-gated visual verification.
+- Phase H: pending and requires separate explicit approval.
 
 ## Global Constraints
 
@@ -165,7 +166,7 @@ If a task creates browser-visible root changes, run `npm run build:browser` afte
 - Create: `test/training.typecheck-boundary.test.ts`
 - Modify: `test/selfplay.position-weights.test.ts`
 
-**Consumes:** The proven implementation details in `docs/superpowers/plans/2026-06-14-training-typecheck-selfplay-mirror-refactor.md`.
+**Consumes:** The historical implementation details in `docs/archive/2026-06-14-training-typecheck-selfplay-mirror-refactor.md`.
 
 - [ ] Create `tsconfig.training.json` extending `./tsconfig.json` with `allowJs: false`, `noEmit: true`, and includes for `training/scripts/**/*.ts` and `training/engine/**/*.ts`; exclude generated output and `training/tests/**/*`.
 - [ ] Create `tsconfig.training.build.json` extending `./tsconfig.json` with `allowJs: false`, `noEmit: false`, `declaration: false`, `declarationMap: false`, `rootDir: ./training/scripts`, `outDir: ./dist/scripts`, and include only `training/scripts/**/*.ts`.
@@ -650,8 +651,8 @@ If a task creates browser-visible root changes, run `npm run build:browser` afte
 
 The following plans contain useful task detail but must be compared to the current source during their matching task. Their unchecked checkboxes are not evidence of current implementation state:
 
-- `docs/superpowers/plans/2026-06-14-training-typecheck-selfplay-mirror-refactor.md`
-- `docs/superpowers/plans/2026-06-22-critical-game-refactor-master-plan.md`
-- `docs/superpowers/plans/2026-07-04-codebase-refactor-execution-plan.md`
+- `docs/archive/2026-06-14-training-typecheck-selfplay-mirror-refactor.md`
+- `docs/archive/2026-06-22-critical-game-refactor-master-plan.md`
+- `docs/archive/2026-07-04-codebase-refactor-execution-plan.md`
 
 Each task in this master plan supersedes an older instruction only where the two conflict with the master design or current source.

@@ -28,10 +28,12 @@ size-garbage: 0 bytes
 
 ## Known Source-Authority Inventory
 
-- `game/visual-effects-map.runtime.js`: present
-- `game/network-turn-handoff.runtime.js`: present
-- `src/engine/selfplay-runner.ts`: present
-- `training/engine/selfplay-runner.ts`: present
+- `game/visual-effects-map.runtime.js`: documented TypeScript-generated compatibility projection; not an implementation authority.
+- `game/network-turn-handoff.runtime.js`: documented TypeScript-generated compatibility projection; not an implementation authority.
+- `src/engine/selfplay-runner.ts`: sole selfplay runner implementation authority.
+- `training/engine/selfplay-runner.ts`: delegation-only training compatibility adapter.
+- `training/python/policy_trainer_cnn.py`: sole CNN policy-trainer implementation authority.
+- `training/python/train_policy_onnx_v2.py` and `training/python/train_policy_onnx_v3.py`: versioned CLI compatibility entrypoints.
 
 ## Phase 0 Verification Results
 
@@ -77,3 +79,49 @@ The following results were captured before any gameplay, network, CPU, selfplay,
 ## Phase 0 Decision
 
 Proceed to Phase 1 only with the successful focused game/network/selfplay-policy baselines above. The dependency cycle and unbounded selfplay-runner suite are explicit open conditions; neither is treated as a passing baseline or hidden by `checkall`.
+
+## Phase 10 Convergence Audit (2026-07-11)
+
+This closure record covers the normal source/current-tree program at commit `566d1fab1`. It deliberately distinguishes two external gates from code closure: visual equivalence needs explicit authorization, and repository-history rewriting needs separate remote/coordination authorization.
+
+| Audit ID | Closing commits | Removed authority or debt | Replacement authority / guard | Closing evidence | State |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `359c89674`, `ac3fb9bfd` | 156,414 tracked `artifacts/**` paths | Empty tracked allowlist, `.gitignore`, `check:artifact-retention` | `git ls-files artifacts` and `git ls-tree -r --name-only HEAD -- artifacts` both return 0 | Current tree closed; Phase H history gate remains |
+| 2 | `5f9fb4cf0`, `46b46ebd6` | `selection-flow` / pass-handler / CPU dependency cycle | Explicit pass-runtime and selection signal bridge; normal dependency gate | `npm run checkall`: dependency-boundary test passes | Closed |
+| 3 | `c9d0571ce`, `19f5557a1` | Transpile-only training build and unchecked training TS | `tsconfig.training.json` plus compiler-Program build path | `npm run typecheck` passes root and training checks | Closed |
+| 4 | `5792b6911` | Training selfplay runner mirror authority | `src/engine/selfplay-runner.ts` plus delegation-only `training/engine/selfplay-runner.ts` | `training/tests/selfplay.runner.test.ts` passes in the focused structural batch | Closed |
+| 5 | `86597dae9`, `02456a6f4`, `c614e365a`–`fc70bbfec` | Worker/local duplicated command authority | `utils/match-command-runtime.ts` and shared authority modules; Worker/local adapters retain transport only | `npm run test:match:parity`: 11 suites, 142 tests pass; `npm run test:network:parity` passes | Closed |
+| 6 | `17e753a04`, `585d6de49`, `f8bc08c3c` | Runtime JS implementation bodies | TypeScript authorities with documented forwarding projections | `npm run checkall`: JS inventory `unknown=0`, `legacy-implementation=0` | Closed |
+| 7 | `63c6a55f2`, `896f7956b`, `469da3ad9`, `e81b98a16`–`79b1c0edb` | Card logic god facade and fallback bodies | Export-stable composed facade with staged resolvers | Card stage tests in the 88-suite focused run: pass | Closed |
+| 8 | `b07065e6f`, `0dde46b17`, `edc867079` | CPU local fallback policy bodies | Required extracted capability modules and explicit CPU composition | CPU boundary tests and fallback-authority inventory pass | Closed |
+| 9 | `c6a10fb01` | `renderBoardFullLegacy` second board writer | Single `renderBoardFull` writer | `test/ui.board-renderer.single-writer.test.ts` passes | Closed |
+| 10 | `7498f7d60` | `game/turn/pipeline-ui/sound-cues.ts` monolith and registry entry | Split cue modules | Animation/sound tests in network parity pass; monolith path absent | Closed |
+| 11 | `22a2f1993`–`962ee3ba6`, `b72730b2d` | Monolithic network-client and network-button ownership | Presence, diagnostics, lobby inputs, listeners, actions, explicit bootstrap controllers | API/import/runtime tests in 88-suite focused run and network parity pass | Closed |
+| 12 | `f0133c5ec`, `e33a11f97`, `fd3b4b631`, `dad66eb86` | Broad diff-renderer context | Projector, DOM patch, interaction, and world-effect capabilities | Four diff-renderer capability tests pass | Closed |
+| 13 | `7cdc50460`, `92e633147`, `b72730b2d`, `9ff8d987a` | Bootstrap/card-interaction import-time installation | Explicit idempotent runtime initializers and gesture adapter | Import-safety and runtime-initialization tests pass | Closed |
+| 14 | `f10a6c171`–`79b1c0edb`, `a92c012ac`–`962ee3ba6` | Mixed pre-placement/card/network button transactions | Named stage functions and focused UI action controllers | Stage-level tests in the 88-suite focused run pass | Closed |
+| 15 | `505b001e`–`3fd1aec55`, `5bff3e658`–`e2fa4a594` | `shared-board-utils` and match-authority hubs | Focused board modules and match-authority internal modules behind stable facades | Board facade/contract tests and match parity pass | Closed |
+| 16 | `7cb80817d`, `df3ca6ac2`, `6c07b9d37`, `ff4127084`, `635e8346b` | Repeated player/owner parsing and network constants | Portable seat codec and shared network contract constants | `test/player-owner-normalization.contract.test.ts` and `test/shared.network-contract.test.ts` pass | Closed |
+| 17 | `566d1fab1` | Independent v2/v3 CNN trainer bodies | `training/python/policy_trainer_cnn.py`; immutable v2/v3 CLI profiles | `py_compile` passes; compatibility and grouped-split Jest tests: 2 suites, 5 tests pass; both historical `--help` commands retain exit 1 / same argparse conflict | Closed |
+| 18 | `e5be5434f`, `a2e0207b9` | Copied `game/**/src/types` trees | Reference/inventory guard | `rg --files game | rg '/src/types/'` returns 0; inventory gate passes | Closed |
+| 19 | `108d61785` | Unowned CSS override chains | `docs/refactor-baselines/css-ownership.md` ownership and exception baseline | Static ownership checks and `test/ui.match-mode.leaderboard-styles.test.ts` pass | Static closure; visual gate remains |
+| 20 | `dcba12463`–`f9fb08563`, `ac3fb9bfd`, `dfe6b6ad5` | Obsolete scripts/evidence trees/unclassified plans | Source-recurrence guard, empty artifact policy, archive index and plan-status inventory | `.omo`/`.sisyphus` absent, tracked artifacts 0, 77 historical plans classified | Closed |
+
+### Re-run command results
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Pass (root and training semantic checks) |
+| `npm run checkall` | Pass; includes dependency, artifact-retention, Worker mirror, source-boundary, and JS inventory guards |
+| 88 non-E2E structural test paths introduced during the program | Pass: 88 suites, 625 tests |
+| `training/tests/onnx-trainer-compatibility-wrapper.test.ts` + `training/tests/onnx-trainer.grouped-split.test.ts` | Pass: 2 suites, 5 tests |
+| `npm run test:match:parity` | Pass: 11 suites, 142 tests |
+| `npm run test:network:parity` | Pass: 34 suites, 516 tests; existing Jest open-handle warning only, exit 0 |
+| `npm run build:browser` | Pass: 882 registry modules; no generated Git diff |
+| `npm run worker:prepare` | Pass: 893 mirrored source files; no generated Git diff |
+
+### Explicit gates still outside automated source closure
+
+- `npm run test:visual` has not run because it launches visual/browser verification and requires explicit user authorization.
+- Phase H has not begun. Current Git object storage remains 5.26 GiB; history rewriting, a remote force-push, and fresh-clone validation require the separate approval defined in the master plan.
+- Neither gate is hidden as a passing result or treated as a completed action.
