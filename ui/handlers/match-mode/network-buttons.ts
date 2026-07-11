@@ -489,24 +489,22 @@ function bindNetworkButtons(context: any) {
 
     if (uiRefs.networkLeaveBtn) {
         uiRefs.networkLeaveBtn.addEventListener('click', async () => {
-            try {
-                if (root.NetworkMatchClient && typeof root.NetworkMatchClient.leaveRoom === 'function') {
-                    await root.NetworkMatchClient.leaveRoom();
-                }
-            } catch (e) { /* ignore */ }
-            setNetworkRoomDebugEnabled(false);
-            setNetworkRoomAutoEnabled(false);
-            if (uiRefs.networkEnableDebugCheckbox) {
-                uiRefs.networkEnableDebugCheckbox.checked = false;
+            if (!NetworkButtonActionsModule || typeof NetworkButtonActionsModule.leaveNetworkRoom !== 'function') {
+                throw new Error('NetworkButtonActionsModule unavailable');
             }
-            if (uiRefs.networkEnableAutoCheckbox) {
-                uiRefs.networkEnableAutoCheckbox.checked = false;
-            }
-            applyNetworkDebugModeAccess();
-            refreshNetworkAutoModeAccess();
-            await setMode(MODE_CPU, { silentLog: true, skipNetworkLeave: true });
-            renderNetworkDeckInfo(null);
-            refreshBoardUi();
+            await NetworkButtonActionsModule.leaveNetworkRoom({
+                client: root.NetworkMatchClient,
+                setNetworkRoomDebugEnabled,
+                setNetworkRoomAutoEnabled,
+                debugCheckbox: uiRefs.networkEnableDebugCheckbox,
+                autoCheckbox: uiRefs.networkEnableAutoCheckbox,
+                applyNetworkDebugModeAccess,
+                refreshNetworkAutoModeAccess,
+                setMode,
+                cpuMode: MODE_CPU,
+                renderNetworkDeckInfo,
+                refreshBoardUi
+            });
         });
     }
 

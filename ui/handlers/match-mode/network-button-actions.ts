@@ -24,4 +24,21 @@ function refreshNetworkRooms(options: any): any {
     return options.refreshNetworkRoomList();
 }
 
-export = { copyNetworkRoomName, toggleNetworkRoomSettings, refreshNetworkRooms };
+async function leaveNetworkRoom(options: any): Promise<void> {
+    try {
+        if (options.client && typeof options.client.leaveRoom === 'function') {
+            await options.client.leaveRoom();
+        }
+    } catch (e) { /* leave cleanup continues */ }
+    options.setNetworkRoomDebugEnabled(false);
+    options.setNetworkRoomAutoEnabled(false);
+    if (options.debugCheckbox) options.debugCheckbox.checked = false;
+    if (options.autoCheckbox) options.autoCheckbox.checked = false;
+    options.applyNetworkDebugModeAccess();
+    options.refreshNetworkAutoModeAccess();
+    await options.setMode(options.cpuMode, { silentLog: true, skipNetworkLeave: true });
+    options.renderNetworkDeckInfo(null);
+    options.refreshBoardUi();
+}
+
+export = { copyNetworkRoomName, toggleNetworkRoomSettings, refreshNetworkRooms, leaveNetworkRoom };
