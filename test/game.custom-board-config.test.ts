@@ -55,6 +55,18 @@ describe('custom board config foundations', () => {
     const blockadeTargets = CardSelectors.getBlockadeTargets(cardState, gameState);
     expect(blockadeTargets).toHaveLength(76);
     expect(blockadeTargets.some((cell) => cell.row === 0 && cell.col === 0)).toBe(false);
+    const expansionTargets = CardSelectors.getBoardExpansionTargets(cardState, gameState, 'black');
+    expect(expansionTargets).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 0,
+        col: 3,
+        directionKey: 'left',
+        additions: [{ row: 0, col: 2 }],
+      }),
+    ]));
+    expect(expansionTargets.every((target) => (
+      SharedBoardUtils.isMainBoardCell(target.row, target.col, gameState.boardConfig)
+    ))).toBe(true);
 
     gameState.board[0][0] = Core.BLACK;
     expect(Core.countDiscs(gameState)).toEqual({ black: 2, white: 2 });

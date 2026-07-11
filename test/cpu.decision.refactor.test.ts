@@ -3638,6 +3638,48 @@ describe('cpu decision refactor helpers', () => {
     expect(action.expansionTarget).toEqual({ row: 0, col: 0, directionKey: 'left' });
   });
 
+  test('円形盤面でも8x8学習手筋を使わず有効なマスだけを選んで終局できる', () => {
+    const Core = require('../game/logic/core.js');
+    let state = Core.createGameState({ rows: 10, cols: 10, shape: 'circle' });
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: [],
+    };
+    global.CpuPolicyTableRuntime = {
+      chooseMove: jest.fn(() => null),
+      getActionScore: jest.fn(() => 9999),
+    };
+    global.AISystem = null;
+
+    let turns = 0;
+    while (!Core.isGameOver(state) && turns < 200) {
+      global.gameState = state;
+      const playerKey = state.currentPlayer === Core.WHITE ? 'white' : 'black';
+      const legalMoves = Core.getLegalMoves(state, state.currentPlayer, {});
+      if (legalMoves.length === 0) {
+        state = Core.applyPass(state);
+      } else {
+        const selected = cpuDecision.selectCpuMoveWithPolicy(legalMoves, playerKey);
+        expect(legalMoves).toContainEqual(selected);
+        expect(selected.row === 0 && selected.col === 0).toBe(false);
+        state = Core.applyMove(state, selected);
+      }
+      turns += 1;
+    }
+
+    expect(Core.isGameOver(state)).toBe(true);
+    expect(turns).toBeLessThan(200);
+    expect(global.CpuPolicyTableRuntime.chooseMove).not.toHaveBeenCalled();
+    expect(global.CpuPolicyTableRuntime.getActionScore).not.toHaveBeenCalled();
+    const counts = Core.countDiscs(state);
+    expect(counts.black + counts.white).toBeLessThanOrEqual(80);
+  });
+
   test('cpuSelectBoardExpansionWillWithPolicy recognizes an enemy pseudo-corner from current shape', async () => {
     global.cpuSmartness.white = 6;
     global.gameState = {
