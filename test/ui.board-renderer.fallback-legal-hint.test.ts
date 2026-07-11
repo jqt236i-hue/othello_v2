@@ -142,6 +142,7 @@ describe('board-renderer fallback legal hints', () => {
     const playable = global.boardEl.querySelector('.cell[data-row="2"][data-col="4"]');
     expect(global.boardEl.children).toHaveLength(100);
     expect(voidCells).toHaveLength(20);
+    expect(global.boardEl.classList.contains('board-has-void-cells')).toBe(true);
     expect(cornerVoid.getAttribute('aria-hidden')).toBe('true');
     expect(cornerVoid.classList.contains('legal')).toBe(false);
     expect(playable.classList.contains('cell-void')).toBe(false);

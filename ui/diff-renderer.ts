@@ -197,16 +197,6 @@ function _applyBoardCssVarsForDiff(boardEl: any, gameState: any) {
         boardEl.style.setProperty('--board-rows', String(shape.rows));
         boardEl.style.setProperty('--board-cols', String(shape.cols));
     }
-    const circular = String(gameState && gameState.boardConfig && gameState.boardConfig.shape || '').toLowerCase() === 'circle';
-    if (boardEl && boardEl.classList) {
-        boardEl.classList.toggle('board-shape-circle', circular);
-    }
-    const boardFrame = boardEl && typeof boardEl.closest === 'function'
-        ? boardEl.closest('#board-frame')
-        : null;
-    if (boardFrame && boardFrame.classList) {
-        boardFrame.classList.toggle('board-shape-circle', circular);
-    }
     const syncBoardPixelSizing = _getDiscStoneHelperForDiff('syncBoardPixelSizing');
     if (syncBoardPixelSizing) {
         syncBoardPixelSizing(boardEl, shape);
@@ -1392,9 +1382,7 @@ function _getExpansionDescriptorForDiff(gameState: any) {
 
 function _getBoardDomSignatureForDiff(gameState: any) {
     const boardShape = _getBoardShapeForDiff(gameState);
-    const baseShape = String(gameState && gameState.boardConfig && gameState.boardConfig.shape || '').toLowerCase() === 'circle'
-        ? 'circle'
-        : 'rectangle';
+    const baseShape = String(gameState && gameState.boardConfig && gameState.boardConfig.shape || 'rectangle').toLowerCase();
     const descriptors = _getExpansionDescriptorsForDiff(gameState);
     if (!descriptors.length) return `base:${baseShape}:${boardShape.rows}x${boardShape.cols}`;
     const tokens = descriptors
@@ -3175,6 +3163,7 @@ function initializeBoardDOM(boardEl: any) {
     if (expansionLayer) expansionLayer.innerHTML = '';
     cellCache = [];
     cellCacheMap = new Map();
+    let hasVoidCells = false;
 
     boardEl.classList.remove('board-expanded-left', 'board-expanded-right', 'board-expanded-top', 'board-expanded-bottom');
     if (expansions.some((exp) => exp && exp.side === 'left')) boardEl.classList.add('board-expanded-left');
@@ -3193,6 +3182,7 @@ function initializeBoardDOM(boardEl: any) {
                 ? true
                 : sharedBoardUtils.isMainBoardCell(r, c, gameState);
             if (!playable) {
+                hasVoidCells = true;
                 cell.classList.add('cell-void');
                 cell.setAttribute('aria-hidden', 'true');
                 boardEl.appendChild(cell);
@@ -3203,6 +3193,12 @@ function initializeBoardDOM(boardEl: any) {
             boardEl.appendChild(cell);
             _cacheCell(r, c, cell);
         }
+    }
+
+    boardEl.classList.toggle('board-has-void-cells', hasVoidCells);
+    const boardFrame = typeof boardEl.closest === 'function' ? boardEl.closest('#board-frame') : null;
+    if (boardFrame && boardFrame.classList) {
+        boardFrame.classList.toggle('board-has-void-cells', hasVoidCells);
     }
 
     for (const expansion of expansions) {

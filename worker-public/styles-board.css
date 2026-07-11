@@ -128,20 +128,20 @@
     pointer-events: none;
 }
 
-/* 円形盤面では四角い盤面下地を消し、有効セルだけに盤面素材を描画する。 */
-#board.board-shape-circle {
+/* 欠けたマスを持つ特殊盤面では下地を消し、有効セルだけに盤面素材を描画する。 */
+#board.board-has-void-cells {
     background-color: transparent;
     background-image: none;
     border-color: transparent;
     box-shadow: none;
 }
 
-#board.board-shape-circle::before,
-#board.board-shape-circle::after {
+#board.board-has-void-cells::before,
+#board.board-has-void-cells::after {
     display: none;
 }
 
-#board.board-shape-circle .cell:not(.cell-void) {
+#board.board-has-void-cells .cell:not(.cell-void) {
     background-color: var(--board-cell-base-color);
     background-image:
         linear-gradient(180deg, rgba(255, 247, 206, 0.022), rgba(0, 0, 0, 0.065)),
