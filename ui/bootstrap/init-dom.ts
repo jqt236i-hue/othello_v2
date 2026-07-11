@@ -61,6 +61,7 @@ interface InitDomElements {
   boardSizeOpenBtn: HTMLElement | null;
   boardSizeControlSummary: HTMLElement | null;
   boardSizeEditor: HTMLElement | null;
+  boardShapeSelect: HTMLSelectElement | null;
   boardSizeRowsInput: HTMLInputElement | null;
   boardSizeColsInput: HTMLInputElement | null;
   boardSizeCloseBtn: HTMLElement | null;
@@ -72,6 +73,7 @@ interface InitDomElements {
   networkRoomIdInput: HTMLInputElement | null;
   networkBoardSizeRowsInput: HTMLInputElement | null;
   networkBoardSizeColsInput: HTMLInputElement | null;
+  networkBoardShapeSelect: HTMLSelectElement | null;
   networkBoardSizeSummary: HTMLElement | null;
   networkBoardSizeNote: HTMLElement | null;
   networkEnableDebugCheckbox: HTMLInputElement | null;
@@ -156,11 +158,11 @@ function getInitDomElements(): InitDomElements {
     deckBuilderCloseBtn: $('deckBuilderCloseBtn'), deckBuilderHeaderSummary: $('deckBuilderHeaderSummary'),
     deckBuilderBody: $('deckBuilderBody'), boardSizeOpenBtn: $('boardSizeOpenBtn'),
     boardSizeControlSummary: $('boardSizeControlSummary'), boardSizeEditor: $('boardSizeEditor'),
-    boardSizeRowsInput: $('boardSizeRowsInput') as HTMLInputElement | null, boardSizeColsInput: $('boardSizeColsInput') as HTMLInputElement | null,
+    boardShapeSelect: $('boardShapeSelect') as HTMLSelectElement | null, boardSizeRowsInput: $('boardSizeRowsInput') as HTMLInputElement | null, boardSizeColsInput: $('boardSizeColsInput') as HTMLInputElement | null,
     boardSizeCloseBtn: $('boardSizeCloseBtn'), boardSizeEditorNote: $('boardSizeEditorNote'),
     networkPanel: $('networkPanel'), networkAdvancedSettings: $('networkAdvancedSettings'),
     networkServerInput: $('networkServerInput') as HTMLInputElement | null, networkPlayerNameInput: $('networkPlayerNameInput') as HTMLInputElement | null,
-    networkRoomIdInput: $('networkRoomIdInput') as HTMLInputElement | null, networkBoardSizeRowsInput: $('networkBoardSizeRowsInput') as HTMLInputElement | null,
+    networkRoomIdInput: $('networkRoomIdInput') as HTMLInputElement | null, networkBoardShapeSelect: $('networkBoardShapeSelect') as HTMLSelectElement | null, networkBoardSizeRowsInput: $('networkBoardSizeRowsInput') as HTMLInputElement | null,
     networkBoardSizeColsInput: $('networkBoardSizeColsInput') as HTMLInputElement | null, networkBoardSizeSummary: $('networkBoardSizeSummary'),
     networkBoardSizeNote: $('networkBoardSizeNote'), networkEnableDebugCheckbox: $('networkEnableDebugCheckbox') as HTMLInputElement | null,
     networkEnableAutoCheckbox: $('networkEnableAutoCheckbox') as HTMLInputElement | null,

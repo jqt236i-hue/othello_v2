@@ -123,6 +123,11 @@
         inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.18);
 }
 
+.cell.cell-void {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .cell.has-disc {
     z-index: var(--board-layer-occupied-cell);
 }

@@ -13,6 +13,7 @@ export interface CellPosition {
 export interface BoardConfig {
   rows: number;
   cols: number;
+  shape?: 'rectangle' | 'circle';
   standard8x8: boolean;
   baseBounds: {
     minRow: number;

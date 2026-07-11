@@ -126,6 +126,28 @@ describe('board-renderer fallback legal hints', () => {
     boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
   });
 
+  test('renderBoardFull keeps circle void cells invisible and non-interactive', () => {
+    global.gameState = {
+      currentPlayer: global.BLACK,
+      boardConfig: { rows: 10, cols: 10, shape: 'circle', standard8x8: false },
+      board: Array.from({ length: 10 }, () => Array(10).fill(global.EMPTY)),
+    };
+    global.getLegalMoves.mockReturnValue([{ row: 0, col: 0 }, { row: 2, col: 4 }]);
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.renderBoardFull();
+
+    const voidCells = global.boardEl.querySelectorAll('.cell.cell-void');
+    const cornerVoid = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    const playable = global.boardEl.querySelector('.cell[data-row="2"][data-col="4"]');
+    expect(global.boardEl.children).toHaveLength(100);
+    expect(voidCells).toHaveLength(20);
+    expect(cornerVoid.getAttribute('aria-hidden')).toBe('true');
+    expect(cornerVoid.classList.contains('legal')).toBe(false);
+    expect(playable.classList.contains('cell-void')).toBe(false);
+    expect(playable.classList.contains('legal')).toBe(true);
+  });
+
   test('renderBoardFull marks all empty cells as legal-free for UDR pending placement', () => {
     global.getLegalMoves.mockReturnValue([]);
     global.CardLogic.isFreePlacementPendingType = (type) => type === 'ULTIMATE_REVERSE_DRAGON';

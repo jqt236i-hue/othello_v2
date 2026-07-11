@@ -51,7 +51,7 @@ function runRoomDeckScenario(action) {
     "  const blackDeckCode = DeckCodecModule.encodeDeckSpec(blackDeckSpec);",
     "  const whiteDeckCode = DeckCodecModule.encodeDeckSpec(whiteDeckSpec);",
     "  const updatedBlackDeckCode = DeckCodecModule.encodeDeckSpec(updatedBlackDeckSpec);",
-    "  const roomBoardConfig = { rows: 7, cols: 9 };",
+    "  const roomBoardConfig = { rows: 10, cols: 10, shape: 'circle' };",
     "",
     "  function createStateStore() {",
     "    const storage = new Map();",
@@ -428,8 +428,9 @@ describe('match worker room deck', () => {
     expect(result.createPayload.ok).toBe(true);
     expect(result.createPayload.networkDebugEnabled).toBe(false);
     expect(result.createPayload.roomBoardConfig).toMatchObject({
-      rows: 7,
-      cols: 9,
+      rows: 10,
+      cols: 10,
+      shape: 'circle',
       standard8x8: false
     });
     expect(result.createPayload.roomDeck.mode).toBe('perPlayer');
@@ -437,22 +438,25 @@ describe('match worker room deck', () => {
     expect(result.createPayload.roomDeck.deckCodeByPlayer.white).toBe('');
     expect(result.joinPayload.networkDebugEnabled).toBe(false);
     expect(result.joinPayload.roomBoardConfig).toMatchObject({
-      rows: 7,
-      cols: 9,
+      rows: 10,
+      cols: 10,
+      shape: 'circle',
       standard8x8: false
     });
     expect(result.joinPayload.roomDeck.deckCodeByPlayer.black).toBe(result.blackDeckCode);
     expect(result.joinPayload.roomDeck.deckCodeByPlayer.white).toBe(result.whiteDeckCode);
     expect(result.statePayload.networkDebugEnabled).toBe(false);
     expect(result.statePayload.roomBoardConfig).toMatchObject({
-      rows: 7,
-      cols: 9,
+      rows: 10,
+      cols: 10,
+      shape: 'circle',
       standard8x8: false
     });
     expect(result.statePayload.roomDeck.deckCodeByPlayer.black).toBe(result.blackDeckCode);
     expect(result.statePayload.roomDeck.deckCodeByPlayer.white).toBe(result.whiteDeckCode);
-    expect(result.statePayload.snapshot.gameState.board).toHaveLength(7);
-    expect(result.statePayload.snapshot.gameState.board[0]).toHaveLength(9);
+    expect(result.statePayload.snapshot.gameState.board).toHaveLength(10);
+    expect(result.statePayload.snapshot.gameState.board[0]).toHaveLength(10);
+    expect(result.statePayload.snapshot.gameState.boardConfig).toMatchObject({ shape: 'circle' });
     expect(result.statePayload.snapshot.cardState.initialDeckSizeByPlayer.black).toBe(30);
     expect(result.statePayload.snapshot.cardState.initialDeckSizeByPlayer.white).toBe(30);
     expect(countPlayerCopies(cardState, 'black', result.blackMarkerId)).toBe(3);
@@ -471,14 +475,16 @@ describe('match worker room deck', () => {
     expect(result.publishStatus).toBe(200);
     expect(result.publishPayload.ok).toBe(true);
     expect(result.publishPayload.roomBoardConfig).toMatchObject({
-      rows: 7,
-      cols: 9,
+      rows: 10,
+      cols: 10,
+      shape: 'circle',
       standard8x8: false
     });
     expect(result.publishPayload.roomDeck.deckCodeByPlayer.black).toBe(result.blackDeckCode);
     expect(result.publishPayload.roomDeck.deckCodeByPlayer.white).toBe(result.whiteDeckCode);
-    expect(result.publishPayload.snapshot.gameState.board).toHaveLength(7);
-    expect(result.publishPayload.snapshot.gameState.board[0]).toHaveLength(9);
+    expect(result.publishPayload.snapshot.gameState.board).toHaveLength(10);
+    expect(result.publishPayload.snapshot.gameState.board[0]).toHaveLength(10);
+    expect(result.publishPayload.snapshot.gameState.boardConfig).toMatchObject({ shape: 'circle' });
     expect(result.publishPayload.snapshot.cardState.initialDeckSizeByPlayer.black).toBe(30);
     expect(result.publishPayload.snapshot.cardState.initialDeckSizeByPlayer.white).toBe(30);
     expect(blackTotalCards).toBe(30);

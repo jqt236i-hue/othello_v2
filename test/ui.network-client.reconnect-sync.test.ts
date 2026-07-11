@@ -389,7 +389,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(publishBodies[0].params.expansionTarget).toEqual({ row: 7, col: 7, directionKey: 'down-right' });
   });
 
-  test('state sync payload の roomBoardConfig が null でも snapshot の custom boardConfig を保持する', async () => {
+  test('state sync payload の roomBoardConfig が null でも snapshot の円形 boardConfig を保持する', async () => {
     global.fetch = jest.fn(async (url) => {
       const parsedUrl = new URL(String(url));
       const path = parsedUrl.pathname;
@@ -402,10 +402,10 @@ describe('NetworkMatchClient reconnect and resync', () => {
           seatToken: 'token_white',
           seats: { black: true, white: true },
           stateVersion: 1,
-          roomBoardConfig: { rows: 7, cols: 9 },
+          roomBoardConfig: { rows: 10, cols: 10, shape: 'circle' },
           snapshot: createSnapshot(1, {
-            board: createBoard(7, 9),
-            boardConfig: { rows: 7, cols: 9, standard8x8: false }
+            board: createBoard(10, 10),
+            boardConfig: { rows: 10, cols: 10, shape: 'circle', standard8x8: false }
           })
         });
       }
@@ -419,8 +419,8 @@ describe('NetworkMatchClient reconnect and resync', () => {
           roomBoardConfig: null,
           stateVersion: 2,
           snapshot: createSnapshot(2, {
-            board: createBoard(7, 9),
-            boardConfig: { rows: 7, cols: 9, standard8x8: false }
+            board: createBoard(10, 10),
+            boardConfig: { rows: 10, cols: 10, shape: 'circle', standard8x8: false }
           })
         });
       }
@@ -435,12 +435,13 @@ describe('NetworkMatchClient reconnect and resync', () => {
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
     expect(joined.ok).toBe(true);
     expect(client.getRoomBoardConfig()).toMatchObject({
-      rows: 7,
-      cols: 9,
+      rows: 10,
+      cols: 10,
+      shape: 'circle',
       standard8x8: false
     });
-    expect(global.gameState.board).toHaveLength(7);
-    expect(global.gameState.board[0]).toHaveLength(9);
+    expect(global.gameState.board).toHaveLength(10);
+    expect(global.gameState.board[0]).toHaveLength(10);
 
     const firstStream = eventSources[0];
     firstStream.readyState = global.EventSource.CLOSED;
@@ -459,12 +460,13 @@ describe('NetworkMatchClient reconnect and resync', () => {
 
     expect(stateFetchCount).toBe(1);
     expect(client.getRoomBoardConfig()).toMatchObject({
-      rows: 7,
-      cols: 9,
+      rows: 10,
+      cols: 10,
+      shape: 'circle',
       standard8x8: false
     });
-    expect(global.gameState.board).toHaveLength(7);
-    expect(global.gameState.board[0]).toHaveLength(9);
+    expect(global.gameState.board).toHaveLength(10);
+    expect(global.gameState.board[0]).toHaveLength(10);
   });
 
   test('再接続後の state 再同期は一時失敗時に自動リトライする', async () => {

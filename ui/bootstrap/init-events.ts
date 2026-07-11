@@ -64,6 +64,7 @@ interface InitDomElements {
   boardSizeOpenBtn: HTMLElement | null;
   boardSizeControlSummary: HTMLElement | null;
   boardSizeEditor: HTMLElement | null;
+  boardShapeSelect: HTMLSelectElement | null;
   boardSizeRowsInput: HTMLInputElement | null;
   boardSizeColsInput: HTMLInputElement | null;
   boardSizeCloseBtn: HTMLElement | null;
@@ -75,6 +76,7 @@ interface InitDomElements {
   networkRoomIdInput: HTMLInputElement | null;
   networkBoardSizeRowsInput: HTMLInputElement | null;
   networkBoardSizeColsInput: HTMLInputElement | null;
+  networkBoardShapeSelect: HTMLSelectElement | null;
   networkBoardSizeSummary: HTMLElement | null;
   networkBoardSizeNote: HTMLElement | null;
   networkEnableDebugCheckbox: HTMLInputElement | null;
@@ -359,6 +361,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
       networkPlayerNameInput: refs.networkPlayerNameInput,
       networkBoardSizeRowsInput: refs.networkBoardSizeRowsInput,
       networkBoardSizeColsInput: refs.networkBoardSizeColsInput,
+      networkBoardShapeSelect: refs.networkBoardShapeSelect,
       networkBoardSizeSummary: refs.networkBoardSizeSummary,
       networkBoardSizeNote: refs.networkBoardSizeNote,
       networkEnableDebugCheckbox: refs.networkEnableDebugCheckbox,
@@ -405,7 +408,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
       overlay: refs.deckBuilderOverlay, closeBtn: refs.deckBuilderCloseBtn,
       headerSummary: refs.deckBuilderHeaderSummary, body: refs.deckBuilderBody,
       boardSizeOpenBtn: refs.boardSizeOpenBtn, boardSizeControlSummary: refs.boardSizeControlSummary,
-      boardSizeEditor: refs.boardSizeEditor, boardSizeRowsInput: refs.boardSizeRowsInput,
+      boardSizeEditor: refs.boardSizeEditor, boardShapeSelect: refs.boardShapeSelect, boardSizeRowsInput: refs.boardSizeRowsInput,
       boardSizeColsInput: refs.boardSizeColsInput, boardSizeCloseBtn: refs.boardSizeCloseBtn,
       boardSizeEditorNote: refs.boardSizeEditorNote
     });

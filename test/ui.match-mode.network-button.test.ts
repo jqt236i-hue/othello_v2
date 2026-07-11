@@ -71,6 +71,7 @@ describe('match-mode network button behavior', () => {
       networkServerInput: document.getElementById('networkServerInput'),
       networkPlayerNameInput: document.getElementById('networkPlayerNameInput'),
       networkRoomInput: document.getElementById('networkRoomIdInput'),
+      networkBoardShapeSelect: document.getElementById('networkBoardShapeSelect'),
       networkBoardSizeRowsInput: document.getElementById('networkBoardSizeRowsInput'),
       networkBoardSizeColsInput: document.getElementById('networkBoardSizeColsInput'),
       networkBoardSizeSummary: document.getElementById('networkBoardSizeSummary'),
@@ -141,6 +142,7 @@ describe('match-mode network button behavior', () => {
       '<input id="networkRoomIdInput" type="text" />' +
       '<div id="networkBoardSizeRow">' +
       '<div id="networkBoardSizeHeader"><span id="networkBoardSizeTitle">盤面サイズ</span><span id="networkBoardSizeSummary"></span></div>' +
+      '<select id="networkBoardShapeSelect"><option value="rectangle">通常</option><option value="circle">円形</option></select>' +
       '<div id="networkBoardSizeInputs">' +
       '<label for="networkBoardSizeRowsInput">縦</label>' +
       '<input id="networkBoardSizeRowsInput" type="number" value="8" />' +
@@ -1253,7 +1255,7 @@ describe('match-mode network button behavior', () => {
     expect(document.getElementById('networkBoardSizeRowsInput').disabled).toBe(true);
     expect(document.getElementById('networkBoardSizeColsInput').disabled).toBe(true);
     expect(document.getElementById('networkBoardSizeSummary').textContent).toBe('7x8 / 部屋固定');
-    expect(document.getElementById('networkBoardSizeNote').textContent).toBe('ネット対戦中は部屋で決めた盤面サイズを使います');
+    expect(document.getElementById('networkBoardSizeNote').textContent).toBe('ネット対戦中は部屋で決めた盤面形状とサイズを使います');
   });
 
   test('CPUボタン押下ではネット対戦からCPUへ戻る', async () => {

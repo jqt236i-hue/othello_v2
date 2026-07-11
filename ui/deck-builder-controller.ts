@@ -44,6 +44,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             boardSizeOpenBtn: null,
             boardSizeControlSummary: null,
             boardSizeEditor: null,
+            boardShapeSelect: null,
             boardSizeRowsInput: null,
             boardSizeColsInput: null,
             boardSizeCloseBtn: null,
@@ -93,6 +94,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             return {
                 rows: normalized.rows,
                 cols: normalized.cols,
+                shape: normalized.shape === 'circle' ? 'circle' : 'rectangle',
                 standard8x8: normalized.standard8x8 === true,
                 baseBounds: Object.assign({}, normalized.baseBounds || {}),
                 outerBounds: Object.assign({}, normalized.outerBounds || {})
@@ -178,7 +180,9 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
 
         function formatBoardConfigLabel(boardConfig: any) {
             const normalized = normalizeBoardConfig(boardConfig);
-            return `${normalized.rows}x${normalized.cols}`;
+            return normalized.shape === 'circle'
+                ? `円形 ${normalized.rows}x${normalized.cols} / 80マス`
+                : `${normalized.rows}x${normalized.cols}`;
         }
 
         function parseBoardDimensionInput(value: any, fallbackValue: any) {
@@ -224,6 +228,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
         function updateLocalBoardConfigFromInputs() {
             const fallback = getLocalBoardConfig();
             updateLocalBoardConfig({
+                shape: refs.boardShapeSelect ? refs.boardShapeSelect.value : fallback.shape,
                 rows: parseBoardDimensionInput(refs.boardSizeRowsInput && refs.boardSizeRowsInput.value, fallback.rows),
                 cols: parseBoardDimensionInput(refs.boardSizeColsInput && refs.boardSizeColsInput.value, fallback.cols)
             });
@@ -684,8 +689,9 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
         function buildBoardSizeNoteText() {
             const lockReason = resolveBoardConfigLockReason();
             if (lockReason === 'room') {
-                return 'ネット対戦中は部屋で決めた盤面サイズを使います';
+                return 'ネット対戦中は部屋で決めた盤面形状とサイズを使います';
             }
+            if (readBoardConfig().shape === 'circle') return '円形は10x10・80マス固定 / 次のリセットで反映';
             return '次のリセット / 新規対局で反映';
         }
 
@@ -695,6 +701,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 ? activeBoardConfig
                 : getLocalBoardConfig();
             const locked = !!resolveBoardConfigLockReason();
+            const circle = editableBoardConfig.shape === 'circle';
 
             if (refs.boardSizeOpenBtn) {
                 refs.boardSizeOpenBtn.setAttribute('aria-expanded', state.boardSizeEditorOpen ? 'true' : 'false');
@@ -707,15 +714,19 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 refs.boardSizeEditor.hidden = !state.boardSizeEditorOpen;
                 refs.boardSizeEditor.classList.toggle('is-locked', locked);
             }
+            if (refs.boardShapeSelect) {
+                refs.boardShapeSelect.value = circle ? 'circle' : 'rectangle';
+                refs.boardShapeSelect.disabled = locked;
+            }
             if (refs.boardSizeRowsInput) {
                 applyBoardDimensionInputBounds(refs.boardSizeRowsInput, 'row');
                 refs.boardSizeRowsInput.value = String(editableBoardConfig.rows);
-                refs.boardSizeRowsInput.disabled = locked;
+                refs.boardSizeRowsInput.disabled = locked || circle;
             }
             if (refs.boardSizeColsInput) {
                 applyBoardDimensionInputBounds(refs.boardSizeColsInput, 'col');
                 refs.boardSizeColsInput.value = String(editableBoardConfig.cols);
-                refs.boardSizeColsInput.disabled = locked;
+                refs.boardSizeColsInput.disabled = locked || circle;
             }
             if (refs.boardSizeEditorNote) {
                 refs.boardSizeEditorNote.textContent = buildBoardSizeNoteText();
@@ -1570,6 +1581,16 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
 
             bindBoardSizeInput(refs.boardSizeRowsInput, 'row');
             bindBoardSizeInput(refs.boardSizeColsInput, 'col');
+            if (refs.boardShapeSelect && refs.boardShapeSelect.dataset.boardShapeBound !== '1') {
+                refs.boardShapeSelect.addEventListener('change', () => {
+                    if (resolveBoardConfigLockReason()) {
+                        renderBoardSizeControls();
+                        return;
+                    }
+                    updateLocalBoardConfigFromInputs();
+                });
+                refs.boardShapeSelect.dataset.boardShapeBound = '1';
+            }
 
             if (rootRef && typeof rootRef.addEventListener === 'function' && !rootRef.__deckBuilderEscBound) {
                 rootRef.addEventListener('keydown', (event: any) => {

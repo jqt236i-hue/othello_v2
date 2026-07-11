@@ -23,6 +23,7 @@ describe('deck builder controller', () => {
       <button id="boardSizeOpenBtn" type="button"></button>
       <div id="boardSizeControlSummary"></div>
       <div id="boardSizeEditor"></div>
+      <select id="boardShapeSelect"><option value="rectangle">通常</option><option value="circle">円形</option></select>
       <input id="boardSizeRowsInput" type="number" value="8" />
       <input id="boardSizeColsInput" type="number" value="8" />
       <button id="boardSizeCloseBtn" type="button"></button>
@@ -116,6 +117,7 @@ describe('deck builder controller', () => {
         boardSizeOpenBtn: document.getElementById('boardSizeOpenBtn'),
         boardSizeControlSummary: document.getElementById('boardSizeControlSummary'),
         boardSizeEditor: document.getElementById('boardSizeEditor'),
+        boardShapeSelect: document.getElementById('boardShapeSelect'),
         boardSizeRowsInput: document.getElementById('boardSizeRowsInput'),
         boardSizeColsInput: document.getElementById('boardSizeColsInput'),
         boardSizeCloseBtn: document.getElementById('boardSizeCloseBtn'),
@@ -1164,6 +1166,27 @@ describe('deck builder controller', () => {
     expect(options.initialDeckSpecByPlayer).toBeUndefined();
     expect(options.initialChargeByPlayer).toEqual({ white: 99 });
     expect(options.chargeGainMultiplierByPlayer).toEqual({ white: 2 });
+  });
+
+  test('円形を選ぶと10x10・80マスへ固定する', () => {
+    const controller = createController();
+    const shapeSelect = document.getElementById('boardShapeSelect');
+    const rowsInput = document.getElementById('boardSizeRowsInput');
+    const colsInput = document.getElementById('boardSizeColsInput');
+
+    shapeSelect.value = 'circle';
+    shapeSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    expect(controller.getLocalBoardConfig()).toMatchObject({
+      rows: 10,
+      cols: 10,
+      shape: 'circle',
+      standard8x8: false,
+    });
+    expect(rowsInput.disabled).toBe(true);
+    expect(colsInput.disabled).toBe(true);
+    expect(document.getElementById('boardSizeControlSummary').textContent).toBe('円形 10x10 / 80マス');
+    expect(document.getElementById('boardSizeEditorNote').textContent).toContain('80マス固定');
   });
 
   test('CPU Lv9終焉の冥灰を黒に選ぶと黒CPUへ冥灰専用デッキと初期布石99を入れる', () => {

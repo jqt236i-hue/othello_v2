@@ -19,6 +19,7 @@ interface DeckBuilderRefs {
   boardSizeOpenBtn: HTMLElement | null;
   boardSizeControlSummary: HTMLElement | null;
   boardSizeEditor: HTMLElement | null;
+  boardShapeSelect: HTMLSelectElement | null;
   boardSizeRowsInput: HTMLInputElement | null;
   boardSizeColsInput: HTMLInputElement | null;
   boardSizeCloseBtn: HTMLElement | null;
@@ -35,6 +36,7 @@ interface DeckBuilderOptions {
   boardSizeOpenBtn?: HTMLElement | null;
   boardSizeControlSummary?: HTMLElement | null;
   boardSizeEditor?: HTMLElement | null;
+  boardShapeSelect?: HTMLSelectElement | null;
   boardSizeRowsInput?: HTMLInputElement | null;
   boardSizeColsInput?: HTMLInputElement | null;
   boardSizeCloseBtn?: HTMLElement | null;
@@ -70,6 +72,7 @@ function setupDeckBuilderControls(options: DeckBuilderOptions): DeckBuilderContr
     boardSizeOpenBtn: opts.boardSizeOpenBtn || null,
     boardSizeControlSummary: opts.boardSizeControlSummary || null,
     boardSizeEditor: opts.boardSizeEditor || null,
+    boardShapeSelect: opts.boardShapeSelect || null,
     boardSizeRowsInput: opts.boardSizeRowsInput || null,
     boardSizeColsInput: opts.boardSizeColsInput || null,
     boardSizeCloseBtn: opts.boardSizeCloseBtn || null,

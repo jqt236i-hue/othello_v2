@@ -108,6 +108,7 @@ const MODE_OTHELLO = 'othello';
         networkPlayerNameInput: null,
         networkBoardSizeRowsInput: null,
         networkBoardSizeColsInput: null,
+        networkBoardShapeSelect: null,
         networkBoardSizeSummary: null,
         networkBoardSizeNote: null,
         networkEnableDebugCheckbox: null,
@@ -306,6 +307,7 @@ const MODE_OTHELLO = 'othello';
         return {
             rows: 8,
             cols: 8,
+            shape: 'rectangle',
             standard8x8: true
         };
     }
@@ -323,10 +325,14 @@ const MODE_OTHELLO = 'othello';
         const fallbackCols = Number.isFinite(Number(fallback && fallback.cols)) ? Number(fallback.cols) : 8;
         const rows = Number.isFinite(Number(boardConfig && boardConfig.rows)) ? Number(boardConfig.rows) : fallbackRows;
         const cols = Number.isFinite(Number(boardConfig && boardConfig.cols)) ? Number(boardConfig.cols) : fallbackCols;
+        const shape = String(boardConfig && boardConfig.shape || fallback && fallback.shape || '').toLowerCase() === 'circle'
+            ? 'circle'
+            : 'rectangle';
         return {
-            rows,
-            cols,
-            standard8x8: rows === 8 && cols === 8
+            rows: shape === 'circle' ? 10 : rows,
+            cols: shape === 'circle' ? 10 : cols,
+            shape,
+            standard8x8: shape === 'rectangle' && rows === 8 && cols === 8
         };
     }
 
@@ -374,6 +380,7 @@ const MODE_OTHELLO = 'othello';
         }
         if (uiRefs.networkBoardSizeRowsInput || uiRefs.networkBoardSizeColsInput) {
             return normalizeBoardConfig({
+                shape: uiRefs.networkBoardShapeSelect ? uiRefs.networkBoardShapeSelect.value : 'rectangle',
                 rows: uiRefs.networkBoardSizeRowsInput ? uiRefs.networkBoardSizeRowsInput.value : null,
                 cols: uiRefs.networkBoardSizeColsInput ? uiRefs.networkBoardSizeColsInput.value : null
             });
@@ -396,14 +403,16 @@ const MODE_OTHELLO = 'othello';
 
     function formatBoardConfigLabel(boardConfig: any) {
         const normalizedBoardConfig = normalizeBoardConfig(boardConfig);
-        return `${normalizedBoardConfig.rows}x${normalizedBoardConfig.cols}`;
+        return normalizedBoardConfig.shape === 'circle'
+            ? `円形 ${normalizedBoardConfig.rows}x${normalizedBoardConfig.cols} / 80マス`
+            : `${normalizedBoardConfig.rows}x${normalizedBoardConfig.cols}`;
     }
 
     function hasCustomRoomBoardConfig(boardConfig: any) {
         if (!boardConfig || typeof boardConfig !== 'object') return false;
         const rows = Number(boardConfig.rows);
         const cols = Number(boardConfig.cols);
-        return !(rows === 8 && cols === 8);
+        return String(boardConfig.shape || '').toLowerCase() === 'circle' || !(rows === 8 && cols === 8);
     }
 
     function formatPendingRoomDeckText() {
@@ -435,6 +444,7 @@ const MODE_OTHELLO = 'othello';
         const roomBoardConfig = getRoomBoardConfig(roomState);
         const activeBoardConfig = roomBoardConfig || getPendingRoomBoardConfig();
         const locked = !!roomBoardConfig;
+        const circle = activeBoardConfig.shape === 'circle';
 
         if (uiRefs.networkBoardSizeSummary) {
             uiRefs.networkBoardSizeSummary.textContent = locked
@@ -445,17 +455,21 @@ const MODE_OTHELLO = 'othello';
         if (uiRefs.networkBoardSizeRowsInput) {
             applyBoardDimensionInputBounds(uiRefs.networkBoardSizeRowsInput, 'row');
             uiRefs.networkBoardSizeRowsInput.value = String(activeBoardConfig.rows);
-            uiRefs.networkBoardSizeRowsInput.disabled = locked;
+            uiRefs.networkBoardSizeRowsInput.disabled = locked || circle;
         }
         if (uiRefs.networkBoardSizeColsInput) {
             applyBoardDimensionInputBounds(uiRefs.networkBoardSizeColsInput, 'col');
             uiRefs.networkBoardSizeColsInput.value = String(activeBoardConfig.cols);
-            uiRefs.networkBoardSizeColsInput.disabled = locked;
+            uiRefs.networkBoardSizeColsInput.disabled = locked || circle;
+        }
+        if (uiRefs.networkBoardShapeSelect) {
+            uiRefs.networkBoardShapeSelect.value = circle ? 'circle' : 'rectangle';
+            uiRefs.networkBoardShapeSelect.disabled = locked;
         }
         if (uiRefs.networkBoardSizeNote) {
             uiRefs.networkBoardSizeNote.textContent = locked
-                ? 'ネット対戦中は部屋で決めた盤面サイズを使います'
-                : '部屋作成前に変更できます';
+                ? 'ネット対戦中は部屋で決めた盤面形状とサイズを使います'
+                : (circle ? '円形は10x10・80マス固定' : '部屋作成前に変更できます');
             uiRefs.networkBoardSizeNote.classList.toggle('is-room-override', locked);
         }
     }
@@ -463,6 +477,7 @@ const MODE_OTHELLO = 'othello';
     function updatePendingRoomBoardConfigFromInputs() {
         const controller = getDeckBuilderController();
         const nextBoardConfig = normalizeBoardConfig({
+            shape: uiRefs.networkBoardShapeSelect ? uiRefs.networkBoardShapeSelect.value : 'rectangle',
             rows: uiRefs.networkBoardSizeRowsInput ? uiRefs.networkBoardSizeRowsInput.value : null,
             cols: uiRefs.networkBoardSizeColsInput ? uiRefs.networkBoardSizeColsInput.value : null
         }, getPendingRoomBoardConfig());
@@ -1523,6 +1538,7 @@ const MODE_OTHELLO = 'othello';
         uiRefs.networkPlayerNameInput = opts.networkPlayerNameInput || null;
         uiRefs.networkBoardSizeRowsInput = opts.networkBoardSizeRowsInput || null;
         uiRefs.networkBoardSizeColsInput = opts.networkBoardSizeColsInput || null;
+        uiRefs.networkBoardShapeSelect = opts.networkBoardShapeSelect || null;
         uiRefs.networkBoardSizeSummary = opts.networkBoardSizeSummary || null;
         uiRefs.networkBoardSizeNote = opts.networkBoardSizeNote || null;
         uiRefs.networkEnableDebugCheckbox = opts.networkEnableDebugCheckbox || null;

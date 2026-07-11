@@ -152,6 +152,13 @@ function bindNetworkLobbyInputs(options: any): void {
     };
     bindNetworkBoardSizeInput(uiRefs.networkBoardSizeRowsInput, 'row');
     bindNetworkBoardSizeInput(uiRefs.networkBoardSizeColsInput, 'col');
+    if (uiRefs.networkBoardShapeSelect && uiRefs.networkBoardShapeSelect.dataset.networkBoardShapeBound !== '1') {
+        uiRefs.networkBoardShapeSelect.addEventListener('change', () => {
+            if (uiRefs.networkBoardShapeSelect.disabled) return;
+            config.updatePendingRoomBoardConfigFromInputs();
+        });
+        uiRefs.networkBoardShapeSelect.dataset.networkBoardShapeBound = '1';
+    }
 
     if (uiRefs.networkAllCardsDeckCheckbox) {
         uiRefs.networkAllCardsDeckCheckbox.addEventListener('change', () => {

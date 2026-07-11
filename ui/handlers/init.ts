@@ -142,6 +142,7 @@ interface InitDomElements {
   boardSizeOpenBtn: HTMLElement | null;
   boardSizeControlSummary: HTMLElement | null;
   boardSizeEditor: HTMLElement | null;
+  boardShapeSelect: HTMLSelectElement | null;
   boardSizeRowsInput: HTMLInputElement | null;
   boardSizeColsInput: HTMLInputElement | null;
   boardSizeCloseBtn: HTMLElement | null;
@@ -153,6 +154,7 @@ interface InitDomElements {
   networkRoomIdInput: HTMLInputElement | null;
   networkBoardSizeRowsInput: HTMLInputElement | null;
   networkBoardSizeColsInput: HTMLInputElement | null;
+  networkBoardShapeSelect: HTMLSelectElement | null;
   networkBoardSizeSummary: HTMLElement | null;
   networkBoardSizeNote: HTMLElement | null;
   networkEnableDebugCheckbox: HTMLInputElement | null;

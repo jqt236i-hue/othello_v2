@@ -184,10 +184,12 @@ function createNetworkSessionSeatController(config: any): any {
     if (!Number.isFinite(rows) || !Number.isFinite(cols)) return null;
     const normalizedRows = Math.max(1, Math.trunc(rows));
     const normalizedCols = Math.max(1, Math.trunc(cols));
+    const shape = String(source.shape || '').toLowerCase() === 'circle' ? 'circle' : 'rectangle';
     return {
-      rows: normalizedRows,
-      cols: normalizedCols,
-      standard8x8: source.standard8x8 === true || (normalizedRows === 8 && normalizedCols === 8)
+      rows: shape === 'circle' ? 10 : normalizedRows,
+      cols: shape === 'circle' ? 10 : normalizedCols,
+      shape,
+      standard8x8: shape === 'rectangle' && (source.standard8x8 === true || (normalizedRows === 8 && normalizedCols === 8))
     };
   }
 
@@ -200,7 +202,7 @@ function createNetworkSessionSeatController(config: any): any {
     if (Array.isArray(value.board)) {
       const rows = value.board.length;
       const cols = value.board.reduce((max: number, row: any) => Array.isArray(row) ? Math.max(max, row.length) : max, 0);
-      if (rows > 0 && cols > 0) return { rows, cols, standard8x8: rows === 8 && cols === 8 };
+      if (rows > 0 && cols > 0) return { rows, cols, shape: 'rectangle', standard8x8: rows === 8 && cols === 8 };
     }
     return null;
   }

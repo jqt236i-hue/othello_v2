@@ -1382,12 +1382,15 @@ function _getExpansionDescriptorForDiff(gameState: any) {
 
 function _getBoardDomSignatureForDiff(gameState: any) {
     const boardShape = _getBoardShapeForDiff(gameState);
+    const baseShape = String(gameState && gameState.boardConfig && gameState.boardConfig.shape || '').toLowerCase() === 'circle'
+        ? 'circle'
+        : 'rectangle';
     const descriptors = _getExpansionDescriptorsForDiff(gameState);
-    if (!descriptors.length) return `base:${boardShape.rows}x${boardShape.cols}`;
+    if (!descriptors.length) return `base:${baseShape}:${boardShape.rows}x${boardShape.cols}`;
     const tokens = descriptors
         .map((desc) => `${desc.row},${desc.col}`)
         .sort();
-    return `expanded:${boardShape.rows}x${boardShape.cols}:${tokens.join('|')}`;
+    return `expanded:${baseShape}:${boardShape.rows}x${boardShape.cols}:${tokens.join('|')}`;
 }
 
 function _getExpansionStateListForDiff(state: any): any[] {
@@ -3175,6 +3178,16 @@ function initializeBoardDOM(boardEl: any) {
             cell.className = 'cell';
             cell.dataset.row = String(r);
             cell.dataset.col = String(c);
+            const sharedBoardUtils = _getSharedBoardUtilsForDiff();
+            const playable = !sharedBoardUtils || typeof sharedBoardUtils.isMainBoardCell !== 'function'
+                ? true
+                : sharedBoardUtils.isMainBoardCell(r, c, gameState);
+            if (!playable) {
+                cell.classList.add('cell-void');
+                cell.setAttribute('aria-hidden', 'true');
+                boardEl.appendChild(cell);
+                continue;
+            }
             _applyBoardEdgeClassesForDiff(cell, r, c, boardShape);
             attachBoardCellInteraction(cell, r, c);
             boardEl.appendChild(cell);
@@ -3391,6 +3404,7 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
         const cells = _getRenderedCellsForDiff(boardEl);
         cells.forEach((cell: any) => {
             try {
+                if (cell.classList && cell.classList.contains('cell-void')) return;
                 const row = Number(cell && cell.dataset ? cell.dataset.row : NaN);
                 const col = Number(cell && cell.dataset ? cell.dataset.col : NaN);
                 if (!Number.isInteger(row) || !Number.isInteger(col)) return;

@@ -792,21 +792,25 @@ function normalizeRoomBoardConfig(value: unknown, fallbackBoard?: unknown): unkn
     const normalizedCols = Number.isFinite(cols) && cols > 0
         ? Math.trunc(cols)
         : (Number.isFinite(fallbackCols) && fallbackCols > 0 ? Math.trunc(fallbackCols) : 8);
+    const shape = String(valueRecord.shape || '').toLowerCase() === 'circle' ? 'circle' : 'rectangle';
+    const finalRows = shape === 'circle' ? 10 : normalizedRows;
+    const finalCols = shape === 'circle' ? 10 : normalizedCols;
     return {
-        rows: normalizedRows,
-        cols: normalizedCols,
-        standard8x8: normalizedRows === 8 && normalizedCols === 8,
+        rows: finalRows,
+        cols: finalCols,
+        shape,
+        standard8x8: shape === 'rectangle' && finalRows === 8 && finalCols === 8,
         baseBounds: {
             minRow: 0,
-            maxRow: normalizedRows - 1,
+            maxRow: finalRows - 1,
             minCol: 0,
-            maxCol: normalizedCols - 1
+            maxCol: finalCols - 1
         },
         outerBounds: {
             minRow: -1,
-            maxRow: normalizedRows,
+            maxRow: finalRows,
             minCol: -1,
-            maxCol: normalizedCols
+            maxCol: finalCols
         }
     };
 }

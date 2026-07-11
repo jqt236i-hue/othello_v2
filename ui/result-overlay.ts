@@ -637,10 +637,12 @@ function resolveResultBoardConfig(): any {
         if (Number.isFinite(explicitRows) && Number.isFinite(explicitCols)) {
             const rows = Math.trunc(explicitRows);
             const cols = Math.trunc(explicitCols);
+            const shape = String(explicit && explicit.shape || '').toLowerCase() === 'circle' ? 'circle' : 'rectangle';
             return {
                 rows,
                 cols,
-                standard8x8: explicit.standard8x8 === true || (rows === 8 && cols === 8)
+                shape,
+                standard8x8: shape === 'rectangle' && (explicit.standard8x8 === true || (rows === 8 && cols === 8))
             };
         }
 
@@ -654,6 +656,7 @@ function resolveResultBoardConfig(): any {
         return {
             rows: board.length,
             cols,
+            shape: 'rectangle',
             standard8x8: board.length === 8 && cols === 8
         };
     } catch (e: any) { /* ignore */ }

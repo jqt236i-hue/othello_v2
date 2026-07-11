@@ -251,10 +251,12 @@ function normalizeBoardConfig(value: any): any {
   const normalizedRows = Math.trunc(rows);
   const normalizedCols = Math.trunc(cols);
   if (normalizedRows <= 0 || normalizedCols <= 0) return null;
+  const shape = String(value.shape || '').toLowerCase() === 'circle' ? 'circle' : 'rectangle';
   return {
-    rows: normalizedRows,
-    cols: normalizedCols,
-    standard8x8: value.standard8x8 === true || (normalizedRows === 8 && normalizedCols === 8)
+    rows: shape === 'circle' ? 10 : normalizedRows,
+    cols: shape === 'circle' ? 10 : normalizedCols,
+    shape,
+    standard8x8: shape === 'rectangle' && (value.standard8x8 === true || (normalizedRows === 8 && normalizedCols === 8))
   };
 }
 
