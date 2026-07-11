@@ -106,6 +106,9 @@ function applyBootModuleEntry(moduleExports, entry) {
   if (entry.initDebugCardSearch === true && typeof moduleExports.initDebugCardSearch === "function") {
     window.debugCardSearchController = moduleExports.initDebugCardSearch();
   }
+  if (entry.initNetworkMatchClient === true && typeof moduleExports.initializeNetworkMatchClientRuntime === "function") {
+    moduleExports.initializeNetworkMatchClientRuntime(window);
+  }
   if (entry.initCardInteraction === true && typeof moduleExports.initializeCardInteractionRuntime === "function") {
     moduleExports.initializeCardInteractionRuntime(window);
   }
@@ -313,7 +316,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/ui/network/snapshot", lateGlobalNames: ["NetworkSnapshotModule"] },
   { moduleKey: "./dist/ui/network/session-seat", lateGlobalNames: ["NetworkSessionSeatModule"] },
   { moduleKey: "./dist/ui/network/session-lifecycle", lateGlobalNames: ["NetworkSessionLifecycleModule"] },
-  { moduleKey: "./dist/ui/network-client" },
+  { moduleKey: "./dist/ui/network-client", initNetworkMatchClient: true },
   { moduleKey: "./dist/sound-engine", defaultGlobalNames: ["SoundEngine"] },
   { moduleKey: "./dist/cards/card-renderer", globalNames: ["HandAnimationUtilsModule"], lateGlobalNames: ["HandAnimationUtilsModule"] },
   { moduleKey: "./dist/cards/card-interaction-effects" },

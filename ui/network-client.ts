@@ -76,6 +76,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const ResultOverlayModule = resolveNetworkClientModule('./result-overlay', root || null);
     const NetworkPresenceToastModule = resolveNetworkClientModule('./network/presence-toast', null);
     const NetworkDiagnosticsModule = resolveNetworkClientModule('./network/diagnostics', null);
+    const NetworkSelectionSignalBridgeModule = resolveNetworkClientModule('./network/selection-signal-bridge', null);
     const NetworkGameContract = NetworkGameContractAdapterModule
         && typeof NetworkGameContractAdapterModule.createNetworkGameContractAdapter === 'function'
         ? NetworkGameContractAdapterModule.createNetworkGameContractAdapter({ root })
@@ -522,7 +523,6 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         && typeof networkDebugTraceModule.createNetworkDebugTrace === 'function'
         ? networkDebugTraceModule.createNetworkDebugTrace({ limit: 250 })
         : null;
-    installNetworkDebugTraceAccessor();
     animationFeedbackEventsModule = resolveNetworkClientModule('./animation-feedback-events', root.AnimationFeedbackEvents || null);
 
     function resolveNetworkCommentaryModule() {
@@ -1510,7 +1510,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return traceDetails;
     }
 
-    function installNetworkDebugTraceAccessor(): void {
+    function installNetworkDebugTraceAccessor(runtimeRoot?: any): void {
         const accessor = {
             entries: () => networkDebugTrace && typeof networkDebugTrace.entries === 'function'
                 ? networkDebugTrace.entries()
@@ -1527,11 +1527,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 }
             }
         };
+        const target = runtimeRoot || root;
+        try { target.__networkDebugTrace = accessor; } catch (e: any) { /* ignore */ }
         try {
-            root.__networkDebugTrace = accessor;
-        } catch (e: any) { /* ignore */ }
-        try {
-            if (typeof globalThis !== 'undefined') {
+            if (typeof globalThis !== 'undefined' && globalThis !== target) {
                 (globalThis as any).__networkDebugTrace = accessor;
             }
         } catch (e: any) { /* ignore */ }
@@ -3896,9 +3895,17 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         getNetworkTelemetry,
         dumpDiagnostics
     };
+
+    let networkClientRuntimeInitialized = false;
+
+    function initializeNetworkMatchClientRuntime(runtimeRoot?: any): boolean {
+        if (networkClientRuntimeInitialized) return false;
+        const target = runtimeRoot || root;
+        if (!target) return false;
+        installNetworkDebugTraceAccessor(target);
     try {
-        const doc = root && root.document
-            ? root.document
+        const doc = target && target.document
+            ? target.document
             : (typeof document !== 'undefined' ? document : null);
         if (NetworkDiagnosticsModule && typeof NetworkDiagnosticsModule.installNetworkDiagnosticsShortcut === 'function') {
             NetworkDiagnosticsModule.installNetworkDiagnosticsShortcut({
@@ -3916,69 +3923,20 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     try {
         if (typeof _require === 'function') {
             const selectionFlow = _require('../game/card-effects/selection-flow');
-            if (selectionFlow && typeof selectionFlow.setSignalBridge === 'function') {
-                selectionFlow.setSignalBridge({
-                    readMatchMode: () => {
-                        try {
-                            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-                                return (globalThis as any).getCurrentMatchMode();
-                            }
-                            if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
-                        } catch (e) { /* ignore */ }
-                        return null;
-                    },
-                    getGameState: () => {
-                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).gameState : null; } catch (e) { return null; }
-                    },
-                    getCardState: () => {
-                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).cardState : null; } catch (e) { return null; }
-                    },
-                    setGameState: (nextGameState: any) => {
-                        try {
-                            if (typeof globalThis === 'undefined') return false;
-                            (globalThis as any).gameState = nextGameState;
-                            return true;
-                        } catch (e) {
-                            return false;
-                        }
-                    },
-                    setCardState: (nextCardState: any) => {
-                        try {
-                            if (typeof globalThis === 'undefined') return false;
-                            (globalThis as any).cardState = nextCardState;
-                            return true;
-                        } catch (e) {
-                            return false;
-                        }
-                    },
-                    getActionManager: () => {
-                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).ActionManager : null; } catch (e) { return null; }
-                    },
-                    getTurnPipelineUIAdapter: () => {
-                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).TurnPipelineUIAdapter : null; } catch (e) { return null; }
-                    },
-                    getTurnPipeline: () => {
-                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).TurnPipeline : null; } catch (e) { return null; }
-                    },
-                    publishSnapshot: (meta: any) => {
-                        if (typeof api.publishSnapshot !== 'function') return undefined;
-                        if (typeof api.isActive === 'function' && api.isActive() !== true) return undefined;
-                        if (typeof api.isSpectator === 'function' && api.isSpectator() === true) return undefined;
-                        return api.publishSnapshot(meta);
-                    },
-                    isNetworkPublishActive: () => {
-                        if (typeof api.publishSnapshot !== 'function') return false;
-                        if (typeof api.isSpectator === 'function' && api.isSpectator() === true) return false;
-                        if (typeof api.isActive === 'function') return api.isActive() === true;
-                        return true;
-                    },
-                    armBoardUpdateDuringPlayback: (context: any) => {
-                        return armBoardUpdateDuringPlayback(context);
-                    }
+            if (
+                NetworkSelectionSignalBridgeModule
+                && typeof NetworkSelectionSignalBridgeModule.installNetworkSelectionSignalBridge === 'function'
+            ) {
+                NetworkSelectionSignalBridgeModule.installNetworkSelectionSignalBridge({
+                    selectionFlow,
+                    root: target,
+                    client: api,
+                    armBoardUpdateDuringPlayback
                 });
             }
         }
     } catch (e) { /* ignore */ }
+    try { target.NetworkMatchClient = api; } catch (e) { /* ignore */ }
     try {
         if (typeof globalThis !== 'undefined') {
             (globalThis as any).NetworkMatchClient = api;
@@ -3989,4 +3947,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             (window as any).NetworkMatchClient = api;
         }
     } catch (e) { /* ignore */ }
+    networkClientRuntimeInitialized = true;
+    return true;
+    }
+
+    Object.defineProperty(api, 'initializeNetworkMatchClientRuntime', {
+        configurable: false,
+        enumerable: false,
+        value: initializeNetworkMatchClientRuntime
+    });
 export = api;

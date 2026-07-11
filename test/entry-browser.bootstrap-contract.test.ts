@@ -136,4 +136,14 @@ describe('entry-browser bootstrap contract', () => {
 
     expect(initializeCardInteractionRuntime).toHaveBeenCalledWith(context.window);
   });
+
+  test('boot loader explicitly initializes the network client facade', () => {
+    const context = loadBootHelpers();
+    const initializeNetworkMatchClientRuntime = jest.fn();
+    const moduleExports = { initializeNetworkMatchClientRuntime };
+
+    context.applyBootModuleEntry(moduleExports, { initNetworkMatchClient: true });
+
+    expect(initializeNetworkMatchClientRuntime).toHaveBeenCalledWith(context.window);
+  });
 });
