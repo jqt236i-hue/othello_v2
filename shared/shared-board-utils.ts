@@ -9,13 +9,13 @@
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/shape-metadata'), require('./board/cell-access'), require('./board/corners'), require('./board/edge-runs'), require('./board/risk-cells'), require('./board/shape-iteration'), require('./board/legal-moves'), require('./board/control-counts'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/shape-metadata'), require('./board/cell-access'), require('./board/corners'), require('./board/edge-runs'), require('./board/risk-cells'), require('./board/shape-iteration'), require('./board/legal-moves'), require('./board/control-counts'), require('./board/expansion-sockets'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null, root.BoardExpansionSockets || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null, root.BoardExpansionSockets || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardShapeMetadataModule: typeof import('./board/shape-metadata') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardEdgeRunsModule: typeof import('./board/edge-runs') | null, BoardRiskCellsModule: typeof import('./board/risk-cells') | null, BoardShapeIterationModule: typeof import('./board/shape-iteration') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardShapeMetadataModule: typeof import('./board/shape-metadata') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardEdgeRunsModule: typeof import('./board/edge-runs') | null, BoardRiskCellsModule: typeof import('./board/risk-cells') | null, BoardShapeIterationModule: typeof import('./board/shape-iteration') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null, BoardExpansionSocketsModule: typeof import('./board/expansion-sockets') | null) {
     'use strict';
 
     interface BoardConfig {
@@ -276,6 +276,18 @@
     const setCellValue = BoardCellAccess.setCellValue;
     const countBoardEmpties = BoardCellAccess.countBoardEmpties;
 
+    if (!BoardExpansionSocketsModule) throw new Error('BoardExpansionSockets is required by SharedBoardUtils');
+    const BoardExpansionSockets = BoardExpansionSocketsModule.createExpansionSockets({
+        toBoardCellKey,
+        getBoardShapeMeta,
+        collectBoardCoordinates,
+        resolveBoardConfig,
+        isExpansionCoordinate
+    });
+    const getExteriorVoidKeys = BoardExpansionSockets.getExteriorVoidKeys;
+    const getBoardExpansionEdgeSockets = BoardExpansionSockets.getBoardExpansionEdgeSockets;
+    const getBoardExpansionCornerSockets = BoardExpansionSockets.getBoardExpansionCornerSockets;
+
     if (!CanonicalBoardEncodingModule) throw new Error('CanonicalBoardEncoding is required by SharedBoardUtils');
     const CanonicalBoardEncoding = CanonicalBoardEncodingModule.createCanonicalBoardEncoding({ resolveBoardBounds, collectBoardCoordinates, getCellValue });
 
@@ -425,6 +437,9 @@
         isExpansionCoordinate,
         resolveExpansionSide,
         collectExpansionDescriptors,
+        getExteriorVoidKeys,
+        getBoardExpansionEdgeSockets,
+        getBoardExpansionCornerSockets,
         forEachBoardShapeCell,
         collectMainBoardCoordinates,
         createEmptyBoard,

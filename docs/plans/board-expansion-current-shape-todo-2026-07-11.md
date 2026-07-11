@@ -121,11 +121,11 @@ interface BoardExpansionSocket {
 
 ### Phase 1: 共通形状 helper
 
-- [ ] `shared/board/` に exterior classification と expansion socket generator を追加する。
-- [ ] `shared/shared-board-utils.ts` から純粋APIとして公開する。
-- [ ] 既存 `shape-metadata.ts` の `playableKeys` / `meteorHoleKeys` / `expansionCells` を入力として再利用する。
-- [ ] Phase 1 の探索枠を `outerBounds` に固定し、範囲外候補を明示的に除外する。
-- [ ] 外部空間と内部穴、凸角と凹角、同一anchorの複数方向をfixtureで固定する。
+- [x] `shared/board/` に exterior classification と expansion socket generator を追加する。
+- [x] `shared/shared-board-utils.ts` から純粋APIとして公開する。
+- [x] 既存 `shape-metadata.ts` の `playableKeys` / `meteorHoleKeys` / `expansionCells` を入力として再利用する。
+- [x] Phase 1 の探索枠を `outerBounds` に固定し、範囲外候補を明示的に除外する。
+- [x] 外部空間と内部穴、凸角と凹角、同一anchorの複数方向をfixtureで固定する。
 
 ### Phase 2: headless selector / apply の一本化
 
