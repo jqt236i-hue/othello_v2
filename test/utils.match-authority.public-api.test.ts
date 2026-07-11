@@ -36,6 +36,7 @@ const EXPECTED_PUBLIC_API_KEYS = [
   'buildPublishPayloadFromRoom',
   'buildPublishResponseOptions',
   'buildPublishResponsePayload',
+  'buildPublishViewerArtifacts',
   'buildRoomPayload',
   'buildRoomPayloadFromRoom',
   'buildSnapshotPayloadFromRoom',
@@ -115,6 +116,7 @@ const EXPECTED_PUBLIC_API_KEYS = [
   'stripTransientPresentationState',
   'toDebugPlaybackDiagnostics',
   'toPublicPresentationFrame',
+  'validateAuthoritativePendingSelectionResult',
   'validatePendingSelectionPublish'
 ];
 
