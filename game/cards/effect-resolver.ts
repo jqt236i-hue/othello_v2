@@ -75,6 +75,7 @@ const ManifestStoneRegistry = loadRuntimeModule('../../shared/manifest-stone-reg
 const CardProtectionContext = loadRuntimeModule('../logic/cards-internal/protection-context', 'CardProtectionContext', null);
 const CardSacrificeWillModule = loadRuntimeModule('../logic/cards/sacrifice_will', 'CardSacrificeWill', null);
 const CardUsageConsumptionStage = loadRuntimeModule('./card-usage-consumption-stage', 'CardUsageConsumptionStage', null);
+const CardUsagePendingStage = loadRuntimeModule('./card-usage-pending-stage', 'CardUsagePendingStage', null);
 
 const {
   CARD_DEFS,
@@ -839,73 +840,26 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     if (!executorRes || executorRes.applied !== true) return false;
   }
 
-  const pendingOffers = heavenOffers || condemnOffers || observerWillOffers || undefined;
-  const needsSelection = !!(
-    CardPendingStateManagerModule
-    && typeof CardPendingStateManagerModule.requiresTargetSelection === 'function'
-    && CardPendingStateManagerModule.requiresTargetSelection(cardType)
-  );
-
-  const pendingEffectState = CardPendingStateManagerModule && typeof CardPendingStateManagerModule.createPendingEffectState === 'function'
-    ? CardPendingStateManagerModule.createPendingEffectState({
-      cardType,
-      cardId,
-      sourceHandIndex: removedCard ? removedCard.handIndex : undefined,
-      needsSelection,
-      offers: pendingOffers
-    })
-    : {
-      type: cardType,
-      cardId,
-      sourceHandIndex: removedCard ? removedCard.handIndex : undefined,
-      stage: needsSelection ? 'selectTarget' : null,
-      offers: pendingOffers,
-      selectedCount: (cardType === 'BOARD_EXPANSION_GOD' || cardType === 'BOARD_SHRINK_WILL') ? 0 : undefined,
-      maxSelections: cardType === 'BOARD_EXPANSION_GOD'
-        ? 2
-        : (cardType === 'BOARD_SHRINK_WILL' ? (typeof getBoardShrinkSelectionCount === 'function' ? getBoardShrinkSelectionCount() : 3) : undefined),
-      selectedTargets: (cardType === 'BOARD_EXPANSION_GOD' || cardType === 'BOARD_SHRINK_WILL') ? [] : undefined,
-      placementsRemaining: cardType === 'LAST_RESORT' ? 3 : undefined
-    };
-
-  if (typeof writeCardPendingEffect === 'function') {
-    if (cardType === 'BOARD_EXECUTOR') {
-      writeCardPendingEffect(cardState, chargeOwnerKey, null);
-    } else {
-      writeCardPendingEffect(cardState, chargeOwnerKey, pendingEffectState);
-    }
+  if (!CardUsagePendingStage || typeof CardUsagePendingStage.commitCardUsagePendingState !== 'function') {
+    throw new Error('[effect-resolver] CardUsagePendingStage.commitCardUsagePendingState not available');
   }
-
-  if (cardType === 'BOARD_EXPANSION_GOD' && typeof readCardPendingEffect === 'function') {
-    const boardExpansionGodPending = readCardPendingEffect(cardState, chargeOwnerKey);
-    if (boardExpansionGodPending && typeof getBoardExpansionGodRequiredSelectionCount === 'function') {
-      const requiredSelections = getBoardExpansionGodRequiredSelectionCount(cardState, _gameState, chargeOwnerKey);
-      boardExpansionGodPending.selectedCount = 0;
-      boardExpansionGodPending.maxSelections = requiredSelections > 0 ? requiredSelections : 1;
-      boardExpansionGodPending.selectedTargets = Array.isArray(boardExpansionGodPending.selectedTargets)
-        ? boardExpansionGodPending.selectedTargets
-        : [];
-    }
-  }
-
-  if (cardType === 'BOARD_SHRINK_WILL' && typeof readCardPendingEffect === 'function') {
-    const boardShrinkPending = readCardPendingEffect(cardState, chargeOwnerKey);
-    if (boardShrinkPending) {
-      boardShrinkPending.selectedCount = 0;
-      boardShrinkPending.maxSelections = typeof getBoardShrinkSelectionCount === 'function' ? getBoardShrinkSelectionCount() : 3;
-      boardShrinkPending.selectedTargets = Array.isArray(boardShrinkPending.selectedTargets)
-        ? boardShrinkPending.selectedTargets
-        : [];
-    }
-  }
-
-  if (cardType === 'WORK_WILL') {
-    if (!cardState.workNextPlacementArmedByPlayer) cardState.workNextPlacementArmedByPlayer = { black: false, white: false };
-    cardState.workNextPlacementArmedByPlayer[chargeOwnerKey] = true;
-    if (typeof workDebugLog === 'function') {
-      workDebugLog(cardState, '[WORK_DEBUG] Card played: WORK_WILL armed for', chargeOwnerKey);
-    }
-  }
+  CardUsagePendingStage.commitCardUsagePendingState({
+    cardState,
+    gameState: _gameState,
+    cardType,
+    cardId,
+    chargeOwnerKey,
+    removedCard,
+    heavenOffers,
+    condemnOffers,
+    observerWillOffers,
+    CardPendingStateManagerModule,
+    writeCardPendingEffect,
+    readCardPendingEffect,
+    getBoardExpansionGodRequiredSelectionCount,
+    getBoardShrinkSelectionCount,
+    workDebugLog
+  });
 
   if (cardType === 'BOARD_EXECUTOR') {
     insertCardUsedPresentationBeforeBoardExecutorHoleEvents(
