@@ -18,3 +18,7 @@
 - 現在のルールや構造を知りたい時は、まず root の `docs/architecture-contracts.md` と `01-rulebook.md` を見ます。
 - ここは「なぜそうなったか」「当時どう進めたか」を追うための参照置き場です。
 - historical docs を root に戻すより、必要な安定知識だけを現行ドキュメントへ移してください。
+
+## 2026-07-11 plan classification
+
+`docs/superpowers/plans/` にあった 77 本の過去の日時付き plan は、内容を変更せずここへ移した。すべて `historical` であり、現在の実装指示ではない。正確な移動一覧と唯一の active plan は [plan-status-inventory-2026-07-11.md](../refactor-baselines/plan-status-inventory-2026-07-11.md) を参照する。

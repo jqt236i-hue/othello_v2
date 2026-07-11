@@ -1,3 +1,11 @@
+---
+status: active
+owner: repository-maintainers
+scope: behavior-preserving-full-refactor
+created: 2026-07-11
+updated: 2026-07-11
+---
+
 # Behavior-Preserving Full Refactor Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Do not run multiple implementation tasks in the same checkout concurrently.
@@ -7,6 +15,13 @@
 **Architecture:** Work proceeds through stable public facades into focused typed modules and explicit runtime adapters. Each task first captures existing observable behavior, then moves one responsibility, deletes the replaced authority, and proves the original behavior through focused checks. The master design is [2026-07-11-behavior-preserving-full-refactor-design.md](../specs/2026-07-11-behavior-preserving-full-refactor-design.md); this document is the operational runbook.
 
 **Tech Stack:** TypeScript/CommonJS, Jest, Node.js, Python training tools, Cloudflare Worker, static browser bundles, PowerShell, Git.
+
+## Execution status
+
+- Phases 0–7: completed in behavior-preserving commits.
+- Phase 8: static ownership work is complete; its required visual-equivalence gate awaits explicit user authorization for `npm run test:visual`.
+- Phase 9: completed. The Worker mirror is guarded, volatile artifacts are untracked and guarded, and dated plans are classified.
+- Phases 10 and H: pending. Phase H still requires separate explicit approval.
 
 ## Global Constraints
 

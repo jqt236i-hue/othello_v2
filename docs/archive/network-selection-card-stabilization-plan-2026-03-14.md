@@ -24,7 +24,7 @@
 - turn pipeline では多数の pending selection が「selection-only pre-placement effect」として即 return するが、明示的に turn handoff しているのは現状 `SWAP_WITH_ENEMY` と `TRAP_WILL` だけである。
   - 根拠: [game/turn/turn_pipeline_phases.js](#L1132-L1600)
 - `ensureCurrentPlayerCanActOrPass(...)` は auto-pass 補助であり、network publish 後の turn start や CPU/相手側への handoff を完結させる責務は持たない。
-  - 根拠: repo memory [selection-only-turn-handoff](..\..\memories\repo\selection-only-turn-handoff.md)
+  - 根拠: 当時の repo memory `selection-only-turn-handoff`（memory 本体はこの repository に保持されていない）
 - CPU 側も pending type の分類を別管理しており、selection-only end-turn card と network defer の判定が人間側とずれている。
   - 根拠: [game/cpu-decision.js](#L1363-L1372) [game/cpu-decision.js](#L1549-L1582)
 
@@ -128,8 +128,8 @@
 - same-turn card は turn handoff しない代わりに、selection playback が残っている間は stale click を入れない。
 - board 側だけでなく hand 側も同じ lock 契約にそろえる。
 - repo memory の既知パターンを再利用する。
-  - [stale-playback-hand-click](..\..\memories\repo\stale-playback-hand-click.md)
-  - [stale-board-click-presentation-queue](..\..\memories\repo\stale-board-click-presentation-queue.md)
+  - 当時の repo memory `stale-playback-hand-click`（memory 本体はこの repository に保持されていない）
+  - 当時の repo memory `stale-board-click-presentation-queue`（memory 本体はこの repository に保持されていない）
 
 ### 4.4 intermediate stage を明示的に扱う
 

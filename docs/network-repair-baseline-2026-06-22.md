@@ -1,7 +1,7 @@
 # Network Repair Baseline 2026-06-22
 
 This report records the Phase 0.2 baseline for
-`docs/superpowers/plans/2026-06-22-network-battle-complete-repair-optimization.md`.
+`docs/archive/2026-06-22-network-battle-complete-repair-optimization.md`.
 
 It is an execution baseline, not a gameplay specification. Player-visible
 behavior remains governed by `01-rulebook.md` and `正本/`. Internal boundaries
