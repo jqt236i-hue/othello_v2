@@ -1,42 +1,42 @@
 {
   "version": "2026-07-11",
-  "generatedAt": "2026-07-11T06:59:16.422Z",
+  "generatedAt": "2026-07-11T08:04:19.831Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
-      "sha256": "4778524ed5dbbdecf6a9ba3613a3350ea4a8ff00230e630301b4d831cdddb1bc"
+      "sha256": "4eee6207090d1060f53bc0e6e0ff08546f3822c489c4f8ae52da83fba12c29b9"
     },
     {
       "path": "assets/images/special-stones/board_executor-white.png",
-      "sha256": "9bf130853ac444ca8a9aaadd787962cda3c4b8bfde271d30ce99c2a6141be50d"
+      "sha256": "5cc078af5a8578e975cd31989394981b84cbd6561b262cdf064a0f19fca8fadb"
     },
     {
       "path": "assets/images/special-stones/BREEDING_WILL-black.png",
-      "sha256": "7d6ab6de1944b79e0e016b8e817fce0e8d57bdd2d8cdfaf11eaa20386843a11b"
+      "sha256": "fe3a7b36eaa60e7ec976e40610d7fd37f1d993061ee394956afadfd6353165bb"
     },
     {
       "path": "assets/images/special-stones/BREEDING_WILL-white.png",
-      "sha256": "312848d2ace1da870f6abbf8398be614307e06a606bb79579f171f08c5ef7efe"
+      "sha256": "77698e20bb4aa9c0f5757fb43f61dbdf061001850f6f29b35507ceceb02201bd"
     },
     {
       "path": "assets/images/special-stones/CROSS_BOMB-black.png",
-      "sha256": "87ca26d1ac311d67c0e200db05b3744f9ecbb9c61c16a7b36c3c1852476a96e9"
+      "sha256": "a2a8d12c2188bbc5033fb8f0a09b1ed7b76cc8ba59b5ad7de8ab1a4c9c47a97c"
     },
     {
       "path": "assets/images/special-stones/CROSS_BOMB-white.png",
-      "sha256": "aede1912c5f2f64dbd80973cbea80bef254a316e3cfa4b46ae9003dab47dbebb"
+      "sha256": "35d3c53304cb0a267fa6e3a3826c3d8985d8ba0349861e4a9368cd2e444a50b2"
     },
     {
       "path": "assets/images/special-stones/crystal_stone.png",
-      "sha256": "b8f37f44c57036c1d68176334e86b5cb2378e409e8ad6e707b4eb489c5949af8"
+      "sha256": "c26aa9ea18d4b190eda1d7a9e37d08d54fe4dad583a9e53c696a21d52c527552"
     },
     {
       "path": "assets/images/special-stones/DESTROY_DRAGON-black.png",
-      "sha256": "78ff57d96c0bd10106c94404b98795467796658f72d8f8d8ec7190e854cd24ce"
+      "sha256": "092b79c77e45c0af5d469abe10447b6bae95d8b9a8b698c827fc61bb8c79e3b2"
     },
     {
       "path": "assets/images/special-stones/DESTROY_DRAGON-white.png",
-      "sha256": "39e461493d7b3281e4499ee76127238ec3d3d3f1bff9e43671cf5658c539363e"
+      "sha256": "03036c50f12f57024da41b4149ecdb63fd66db36fe13257cd4da0d5d544d341a"
     },
     {
       "path": "assets/images/special-stones/ESCAPE_WILL-black.png",
@@ -48,31 +48,31 @@
     },
     {
       "path": "assets/images/special-stones/EXTREME_HYPERACTIVE_WILL-black.png",
-      "sha256": "5dbf1ea81bd9b5a59b8cb9d978d524e5f2eb80d13f6576b88f7e12cb37336785"
+      "sha256": "909aae7e19164ec61bb883ab6b6e75d134d4ccdedd24307a92498612cabbde09"
     },
     {
       "path": "assets/images/special-stones/EXTREME_HYPERACTIVE_WILL-white.png",
-      "sha256": "2e57f993d511f0b0fa05ee028aa49560d1d128029ba39ceb1658858e933b0cfa"
+      "sha256": "00626e560d11f295ea08174517e206261f753c5bc6e43400ddb4459b93ba5cf5"
     },
     {
       "path": "assets/images/special-stones/GHOST_WILL-black.png",
-      "sha256": "fef3b888ecd7555322720408cd9ba62d4a491dec5c45d2d7d87bd5ff05e2b0c3"
+      "sha256": "333cf3e835d5f090420857d9ac57cd822cf1330155c902c17a997cc37b3d87d3"
     },
     {
       "path": "assets/images/special-stones/GHOST_WILL-white.png",
-      "sha256": "3449ff37bc7875ccebeef93d409bf27cdd3a34c23c2fb1982727a7e04cdbcb04"
+      "sha256": "7da138927a2fe78dd1c94e725f3c607b58e892f1bddf6d83ceb4d95c64b4e4cb"
     },
     {
       "path": "assets/images/special-stones/GLUTTONOUS_WILL-black.png",
-      "sha256": "a315382a9501f69989a6598fbd1d3944e3e022f105ba7de38850471e7620804f"
+      "sha256": "65f962c48f2415512347fa554b13401a2f2a4d731ff9b92490cf25ea9d675193"
     },
     {
       "path": "assets/images/special-stones/GLUTTONOUS_WILL-white.png",
-      "sha256": "5f7737e154a691d15b6b551ebe0b3e97f54cc7f7268936ba1be6436f2b895f2c"
+      "sha256": "03ffca6c4a45cdafc4e7a4bca85f4e66243daaefaf41eb863e5735b1d8229636"
     },
     {
       "path": "assets/images/special-stones/gold_stone.png",
-      "sha256": "de0f5ddd3489c70f69f5ef15bac393fb35abcccbbc315b7b034d568d300b8545"
+      "sha256": "1743ea2ab9070228e3be985c0090766ee69487a1066fd0cb397aca1cb2b54686"
     },
     {
       "path": "assets/images/special-stones/HYPERACTIVE_WILL-black.png",
@@ -84,27 +84,27 @@
     },
     {
       "path": "assets/images/special-stones/METEOR_GOD-black.png",
-      "sha256": "772fc29036ccca16345b4dde26dfdf4116d8d1d7163e9768850e38a2963804c8"
+      "sha256": "7ad0abee2ec20797fe20ddfede66877636514e3848785981eaf717e06def6762"
     },
     {
       "path": "assets/images/special-stones/METEOR_GOD-white.png",
-      "sha256": "f87d3f205467d1f361796f45e81289d3e7b29d3de8393d91a02674a07eac1124"
+      "sha256": "1baa7f67f99bbe0e840c6c4fa3432a8612aa950a1dd001887e01276e706c0e48"
     },
     {
       "path": "assets/images/special-stones/OBSERVER_WILL-black.png",
-      "sha256": "5b9d1d3a6f85b7a78de0aa999f318c6a2d1d38216b38306264e9b167e8df5010"
+      "sha256": "0c04edc93d3cd29446d91e1f9b177649235f5b109920c354c55bb23251d5807b"
     },
     {
       "path": "assets/images/special-stones/OBSERVER_WILL-white.png",
-      "sha256": "e62225bf5a206125b3148a35d96c9f3e43bdfc8f2ef19016272f22fd30c32471"
+      "sha256": "00652fed9620e2c8ebf18504bf2bc649156a666a4be92ca9df6257c8e5695f5e"
     },
     {
       "path": "assets/images/special-stones/perma_protect_next_stone-black.png",
-      "sha256": "68dc00812ea0672b4dc42eaef5670f03f4511cef9bce65e4b62dcf7c2aef6785"
+      "sha256": "bcb52a04e97491fc4f8d712e0ef3740e6bc8420325a6ed231b8a20789a14d58b"
     },
     {
       "path": "assets/images/special-stones/perma_protect_next_stone-white.png",
-      "sha256": "7c8ff07c9465e743ba2b73ab0f454348bb339defa5461fe3fabc9550180c6e34"
+      "sha256": "269a9b9b412278e41237181d0d0c998af44c393de7013bce1e2853b2e1137d2d"
     },
     {
       "path": "assets/images/special-stones/PROLIFERATION_WILL-black.png",
@@ -116,19 +116,19 @@
     },
     {
       "path": "assets/images/special-stones/protected_next_stone.png",
-      "sha256": "49defc653f79308e278b4b5b3c4080efc950096afd15ae69dddd7f51d8865a94"
+      "sha256": "fa920420081803962a0e65239f08e458cae4e6b26cc378dc5eec970534bb4e89"
     },
     {
       "path": "assets/images/special-stones/rainbow_stone.png",
-      "sha256": "831ac4547cfcc06ed9c0b47a0f4915f913f300c194f5d6910b9fdeaa50900165"
+      "sha256": "eff77d6481620354337b5971ed8adfc764924a0bc39f35c40075210b735d5260"
     },
     {
       "path": "assets/images/special-stones/rakurai-black.png",
-      "sha256": "e5812450ed0388f7b009b71a2c69a38d5437e2887958d807d6912d4cdf835556"
+      "sha256": "59e18edfcf5622dc78bbe4080548203f412225f24e4c1ddee54545a8b1c73984"
     },
     {
       "path": "assets/images/special-stones/rakurai-white.png",
-      "sha256": "2619bbcf919d3c581737a88044b19e5d770701480cb508006fa22690541189b5"
+      "sha256": "9ccf230b9d813980f6f8020cf1235672ef4c0e27adda72dc091384950fc42f82"
     },
     {
       "path": "assets/images/special-stones/regen_stone-black.png",
@@ -140,19 +140,19 @@
     },
     {
       "path": "assets/images/special-stones/ROBOT_VACUUM_WILL-black.png",
-      "sha256": "f973357043b537a8fa5a11e059ec787495e82500feb9da9e107f3c72096b543a"
+      "sha256": "fdf8ab0f4a577dae737fe7d61f5f11daab6d8ddb4e8ddc3f3e39c31e865685ff"
     },
     {
       "path": "assets/images/special-stones/ROBOT_VACUUM_WILL-white.png",
-      "sha256": "7555fc92f55d79aff75236685ea3e7f5f25292eab4740c8905b0def2eaa63c03"
+      "sha256": "ea5b36ca5bb9c61a110c7d2ebe1d2b3b73ba9f0d4dd8d7972ced907d3b640624"
     },
     {
       "path": "assets/images/special-stones/SACRIFICE_WILL-black.png",
-      "sha256": "047cfac43fdbae93a46fbe8bfd90e78e50f595fec10d993be78bdcf599e8b456"
+      "sha256": "aabeb848a928219fc43a5ed84c46f166d879dabe75f7f8c3afa45a0aad976544"
     },
     {
       "path": "assets/images/special-stones/SACRIFICE_WILL-white.png",
-      "sha256": "e6f4c2cb6f0fe5efe68dc1e52b7cbf58e13c66742e5eb09c1e3c68a78cff42bd"
+      "sha256": "ff4ac721819b6dfc739a5d37c7f9a8463631511d05d49907c5d71343e341cfe8"
     },
     {
       "path": "assets/images/special-stones/silver.stone.png",
@@ -160,19 +160,19 @@
     },
     {
       "path": "assets/images/special-stones/sna-black.png",
-      "sha256": "37f81d61e0b0c5b34d4eb3504430b564cb57d3e6e60dcb86340e7ad26aa2e839"
+      "sha256": "58a09008a3b6a05e3aa43377417c4d651660942c32b1bf555277a4e30d646cc3"
     },
     {
       "path": "assets/images/special-stones/sna-white.png",
-      "sha256": "50701596041eea47372d0eded28d5b2f6339a15bcd1b5f771e312631a1d9b90a"
+      "sha256": "14bf0f5885b3500ba1ad4ac4d41a64115c48a4f5ba5e40c62c8c67c6065c51bc"
     },
     {
       "path": "assets/images/special-stones/STONE_SALVATION_GOD-black.png",
-      "sha256": "baf400e219997cf4dbaf5bf26a2c07cfe6e210408c9712163b5dd50063c8dd87"
+      "sha256": "5a34845e176f929c171a904a33accb87431920db17b5b0b13da268e81f72e7d4"
     },
     {
       "path": "assets/images/special-stones/STONE_SALVATION_GOD-white.png",
-      "sha256": "5d92e1840f334ba7b64f447f9e35b9332a44ae6a7809d6e75b41e1fbde196733"
+      "sha256": "6b689b6e4b8c8d9b65f4ad154561dff1d26ab56da3ea65931063a72d71d96233"
     },
     {
       "path": "assets/images/special-stones/theory_incarnation-black.png",
@@ -180,39 +180,39 @@
     },
     {
       "path": "assets/images/special-stones/theory_incarnation-white.png",
-      "sha256": "acf737831db0efbcd4e18ec7dc648a66848da402d7e98090ac177c62f09d2668"
+      "sha256": "ee59303cd4352134ce631fe503078664d39096ced662f5515e334087dff9bdf9"
     },
     {
       "path": "assets/images/special-stones/TIME_BOMB-black.png",
-      "sha256": "567e26fa6d90227c704b51f1af31c4b79820302255d1e29c04961e5c99c8600a"
+      "sha256": "fc6e7812402e1ba4c70cd78733571451ed82c3423d5aa8e0e6773f3a36d86c0f"
     },
     {
       "path": "assets/images/special-stones/TIME_BOMB-white.png",
-      "sha256": "6d305c6449bea7d2becdffdbfec909f8d79dbcba9328f4e4286376d9a2d24ad6"
+      "sha256": "86bc67ef1344f8946ea1c8ca098cea7d05bdc6b6e5a8556d5617d62c564c045c"
     },
     {
       "path": "assets/images/special-stones/TIME_STOP-black.png",
-      "sha256": "0e0f736254bb83904f533236c79b1c0f6fa4e5965162849456f5f00b474b3c76"
+      "sha256": "780a4352f2b05fbbaf1523f9c690bb58be51969e725966764e2c50dd42a25b09"
     },
     {
       "path": "assets/images/special-stones/TIME_STOP-white.png",
-      "sha256": "9e9b556060a58dd25cf7139a40d61851baf6805d6cb9b4f60fab51980b7c3857"
+      "sha256": "50bf059eff9021f2a57a2d5629626b4f06302722a8688a9e6d4de114a0533027"
     },
     {
       "path": "assets/images/special-stones/TIME_STOP_DEITY-black.png",
-      "sha256": "126956ab707becacf73d0c135065032ba1d6c86d72da8a35819ffd27ab60f826"
+      "sha256": "3e2dab42e7ac88b997e423aca13274c44d85c51eb0ba31327a3d8a08412781e9"
     },
     {
       "path": "assets/images/special-stones/TIME_STOP_DEITY-white.png",
-      "sha256": "c6c937011afe5e6a1a0ef13240916b7552fad7989dc5b8a534c72ca286b34a6a"
+      "sha256": "b5caa6325172310ab0203ec0d5c5cfc7f56dd9e120b3ac2009d914e530751442"
     },
     {
       "path": "assets/images/special-stones/trap_stone-black.png",
-      "sha256": "4dd9b76adfbd1d5da55a1e3dfd3a810752e0e09d9bf51e30ec3dab4a95e1c874"
+      "sha256": "e2c64551273abed96f59ab1e8250c84af09e6f7b137401ee7d62eab2123638f9"
     },
     {
       "path": "assets/images/special-stones/trap_stone-white.png",
-      "sha256": "9a159f005945c30ee8399aa3ae3e50be8284740bb568dc99c2ea9a86d9acb1b9"
+      "sha256": "f411fb8bf84b62e984093b1a220d4dc0f24ec2074ec7b0c320c1c5b09ee4acc2"
     },
     {
       "path": "assets/images/special-stones/ULTIMATE_DESTROY_GOD-black.png",
@@ -224,11 +224,11 @@
     },
     {
       "path": "assets/images/special-stones/ULTIMATE_HYPERACTIVE_GOD-black.png",
-      "sha256": "dba2a31498afd3419177d51a792a2452df08da8739f13db4a392c580beb21022"
+      "sha256": "491c60ec9b51f031714abd5f8d5f55e44684a5acd3f223dcdc55723b0dde3dcd"
     },
     {
       "path": "assets/images/special-stones/ULTIMATE_HYPERACTIVE_GOD-white.png",
-      "sha256": "254875556fe4f2af685ce30d96c9c9cfe4c700ca45e190da0015462dc144a03b"
+      "sha256": "7561efcd34312253b820691bf63625ec28f5f03e16455daa0a39dd2e117b61f5"
     },
     {
       "path": "assets/images/special-stones/ultimate_reverse_dragon-black.png",
@@ -244,27 +244,27 @@
     },
     {
       "path": "assets/images/special-stones/WILL_HUNTER_KING-white.png",
-      "sha256": "c8514fc39e0e9c1d6a2366f2ddf93b31c374572499eb12246728714dda9a3a23"
+      "sha256": "bf115a59fab112970c61bb41a8298bbeeed05f798d57a8160e1f23ab73610452"
     },
     {
       "path": "assets/images/special-stones/work_stone-black.png",
-      "sha256": "9524d553e43a28c85768c8672b079923784116c28338810e5b7f1f0de71f1d91"
+      "sha256": "cf1e7164ce746350f84e66c76d46b265d968e8ff89a88c2496fbe391fa689aa9"
     },
     {
       "path": "assets/images/special-stones/work_stone-white.png",
-      "sha256": "2e7902603574e5fc574b217f31e1f301c6b80f9dc9cb89d9c7d9876e718c0c75"
+      "sha256": "aca9ae22109265b4785238361192fe0a3828520bcb19acdbc3c57ee21a58622c"
     },
     {
       "path": "assets/images/special-stones/X_BOMB-black.png",
-      "sha256": "08b08c48f8b621fa6a5f36b9ce6348b114a6d1973431cdbc83542d3992db2d15"
+      "sha256": "47c5f0741f2a2628caa09450ff7dca535ef0f3a802f11e7cad1d45d872ed3f05"
     },
     {
       "path": "assets/images/special-stones/X_BOMB-white.png",
-      "sha256": "f2f90f9a12dcfc4b305403ff60edabce3fa6321cf448de0c7cb2b4acf2db27d8"
+      "sha256": "95545227affafd83cb342997dc21176aa2a3bc7b8a5edd196f4bed438275ccc4"
     },
     {
       "path": "assets/images/special-stones/ZAN-BLACK.png",
-      "sha256": "6387100ba24b7a4c98a70aea13baacd171d7eef97c668eb519feac030d0d1b9b"
+      "sha256": "4a430ac89589142f4949e41600809ef368d5e8737e712d6cc9ee22ed1bc7fb8f"
     },
     {
       "path": "assets/images/special-stones/ZAN-WHITE.png",
@@ -272,51 +272,51 @@
     },
     {
       "path": "assets/images/special-stones/ZOMBIE-black.png",
-      "sha256": "c80b076dbce77340f1fcaa8d91e8019bde78f4913b4c561d66f87f04d18158b5"
+      "sha256": "0a1a47cc3e30976d05a75c287d2b3e7b861429c0399933e6501b97f904fe98e6"
     },
     {
       "path": "assets/images/special-stones/ZOMBIE-white.png",
-      "sha256": "d79ec1952369c19b30d12104738143fb6442e66c3fa391587d20a54fcfd549be"
+      "sha256": "02d9f56d00f6c114b9c1b7f9d0bad5fcea37f91ae64ced339429280236354553"
     },
     {
       "path": "assets/images/stone-skin/default/black.png",
-      "sha256": "ff75366f915e2bc1eae15c2dacaa211944b1d38ffd2f9c3529401b2d5413ff62"
+      "sha256": "3c85983a1a520c29a84883eb37ac54c6e29bb11fa38683b9d4247136863e7554"
     },
     {
       "path": "assets/images/stone-skin/default/white.png",
-      "sha256": "34861a8c58df15fe4e4cb43fbc945ebf77a94fea73a16bbffe8ee4e5f7312dc6"
+      "sha256": "72a12f67ca83a47934cfbb5c1de242d07d0adefcec9c547e1a028a71c9fd341b"
     },
     {
       "path": "assets/images/stone-skin/jade-rim/black.png",
-      "sha256": "32e624bc3c6d8f4e7f0c93d6ab882dac2ad7d7f9e1d6107360bcc685e1679bc1"
+      "sha256": "8871a58dcbb05315a049e37b119fab308d247cf56704438a659a29fdd39466e9"
     },
     {
       "path": "assets/images/stone-skin/jade-rim/white.png",
-      "sha256": "5124387dc2419175844731fc7475c26f2c4b1048a6e055b030a1438e6723e2b0"
+      "sha256": "52592015f896eda8d98e67aa7129ce3a65d20e7662a1bedaf269cbac7420f21a"
     },
     {
       "path": "assets/images/stone-skin/o-stone/black.png",
-      "sha256": "a4581b8bffdd4725c1ae87504073ee1c850684e7caecfe5a60312da8cd03c893"
+      "sha256": "5f48b4ae09190d53638b412e472ceaffbbdee063b8ea63c32d088c714ca63699"
     },
     {
       "path": "assets/images/stone-skin/o-stone/white.png",
-      "sha256": "c2ef6e819f8b0960ee03a0816202f5c49c957257c44e177a932cb9c0076baee5"
+      "sha256": "ce82e99501ed6268775de8a489da35e483a680b912e6c0659fcd8a6765227d82"
     },
     {
       "path": "assets/images/stone-skin/pearl-obsidian/black.png",
-      "sha256": "caa96500183daa8ee5ffc3cfd7d5a22d266460e4518a2d2305b8af0e5c0ac151"
+      "sha256": "f4a91dd57da3642ebf0626946f79cf9b4ad50e7a453f1b4405b3079355675d4f"
     },
     {
       "path": "assets/images/stone-skin/pearl-obsidian/white.png",
-      "sha256": "ed8bd585d210897743a9c66a563e7ed59819c5f865354ee21e096507a9f19845"
+      "sha256": "33d92717f68f49f3a895989522be37731661465db001a464bd3ab05926e410ca"
     },
     {
       "path": "assets/images/other/aaa.png",
-      "sha256": "26fd6fca9e961b99586974434a96809503e8ab0b19d2b88ac713253b27d0a92c"
+      "sha256": "e599db3d0dcc2cf36a7057870383837c78fb022f47dbf8ad4995686ecd51e66d"
     },
     {
       "path": "assets/images/other/bud.png",
-      "sha256": "807ced21d44fd9f0589dcaf7550e11061865a1ea49721400a7c53d0670ea71a4"
+      "sha256": "a46094941acbf3c055bb8f15e6478da5a58a18374cc015dde5290082ac2db156"
     },
     {
       "path": "assets/images/other/card-back-deck-v1.png",
@@ -328,115 +328,115 @@
     },
     {
       "path": "assets/images/other/charge-counter-wafu-v1.png",
-      "sha256": "c4a2eac2d00dcefca82143f5f1a71dd3adfd9d58c73291a2d38bd96502a1adc0"
+      "sha256": "5ed84ef6406537f3e97d114c6573092173224b12c0d0fa0574d03a40ba3e7b31"
     },
     {
       "path": "assets/images/other/charge-delta-decrease-wafu-v1.png",
-      "sha256": "e90f95e420ade20d32854a3773d1461806348e5b46a21f77020e329f86c13bf7"
+      "sha256": "8409588607951720f2288417a7e4f23f806c579ef372da3c3a05028a2dbbe4cc"
     },
     {
       "path": "assets/images/other/charge-delta-increase-wafu-v1.png",
-      "sha256": "f2189c4e3a7e5f481d0c1c5bc39d4cdaa80e7a86aa65cdc599605b501c514893"
+      "sha256": "252e88bb83d06ee6688228ed177037d2fe05ca1342cac694f2c3cd74e8b84390"
     },
     {
       "path": "assets/images/other/gacha-crystal-cluster-v1.png",
-      "sha256": "23b940c64abf3c86e2e2f31fea7b673dbd440e50dfc74ac5b11b60f415502546"
+      "sha256": "a425874a33fc39c2c62df1aec60e4f91be05650ee18035f42cbe48903ac73654"
     },
     {
       "path": "assets/images/other/gacha-observation-bg-v1.png",
-      "sha256": "d3721164437f9dcafab79ff425e47a0a8845d60ffc20d3787b412e577d054d7b"
+      "sha256": "4fbcb1fb822f50fd57c9a856b06054e496e97180cbfee15cb0cb42b9980b1276"
     },
     {
       "path": "assets/images/other/gacha-reference-banner.png",
-      "sha256": "99db26258b865dfb2561115134e6f3e758b143fc6f6d21db475fa9f69e5d9464"
+      "sha256": "8220b23eb851f3f49bb846b1c36605023403a08934a1006ffa56456c0be16e3b"
     },
     {
       "path": "assets/images/other/ICE.png",
-      "sha256": "7ae7b73fb94e20fdd970a1cabaeb0a71883d3d8d830eae31ecfe6e93401ceca3"
+      "sha256": "c4112595a530f512a195ec56e29ad233c1c001866a6e23d2e77683dc04998e2b"
     },
     {
       "path": "assets/images/other/leaderboard-icon-clock-v1.png",
-      "sha256": "8a6353d1d9d3bcfeb0eda634cf443683fe3e95ad769f1ba628492e1d3fcd5877"
+      "sha256": "cada834b741080c50dd9b433a57101952e3c5380d2e7dcda5ec5261c3ac8c3cc"
     },
     {
       "path": "assets/images/other/leaderboard-icon-close-v1.png",
-      "sha256": "8f1a4da1d42150770b332fd2788c28142aa8d271fcda6d392802ca3bfb907f8f"
+      "sha256": "ba21c309f497fb0ed09baad3eac5410561b3419a0b58c709d85a5c6829a22b65"
     },
     {
       "path": "assets/images/other/leaderboard-icon-cpu-v1.png",
-      "sha256": "e39fa5148837813be6294d7a18e8ea2a7e3745951b75c45be153fb5cf9a097a5"
+      "sha256": "2e4cb89ea4fce44d877d1967daa2bf32d92224c3dbaf6c740d0b7b10866f4415"
     },
     {
       "path": "assets/images/other/leaderboard-icon-crown-gold-v1.png",
-      "sha256": "c2559b385c6589e07da16d2361c590e4d4e80259c083dd14e897240270dd11e5"
+      "sha256": "fde20a409e72e84638a27ab0f5c14759267d7ba42d9a2fd0bcc274bcd04c86be"
     },
     {
       "path": "assets/images/other/leaderboard-icon-help-v1.png",
-      "sha256": "c36faacf453d45bc2535bd4db6731745c5b5b024f642db10fcf2e7fa67e7dd5f"
+      "sha256": "94db1885b6e7905a08cc2f058b5695639c5e81c1fbffbf76a31d5f2865976b25"
     },
     {
       "path": "assets/images/other/leaderboard-icon-pointer-v1.png",
-      "sha256": "0170f758edfc25241526f1e3080cba85cdaf222e0b1842161e1c29b2718473a6"
+      "sha256": "890894ecf2ea47664dfddf11b11ab71c5eba435cdcfa104c3177ecbb5085d950"
     },
     {
       "path": "assets/images/other/leaderboard-icon-rank-v1.png",
-      "sha256": "daca7280edd00dae5a1b35405bf0e72f50fdfe5b2044314b24465a7a8b0b5622"
+      "sha256": "468d6df3180157427b289b5661e9c7a0e313baa538cefa5e2b2a4eca99649219"
     },
     {
       "path": "assets/images/other/leaderboard-icon-record-v1.png",
-      "sha256": "c2559b385c6589e07da16d2361c590e4d4e80259c083dd14e897240270dd11e5"
+      "sha256": "fde20a409e72e84638a27ab0f5c14759267d7ba42d9a2fd0bcc274bcd04c86be"
     },
     {
       "path": "assets/images/other/leaderboard-medal-bronze-v1.png",
-      "sha256": "0902a25d1c8ea391c1240dd3953ad36a8c8c6d947bf5dd8fb6d961c458c4f01e"
+      "sha256": "ddccc8c7d5c0d6a90f20efafef1fad093ce8c4eb730783639cdb56dc77a47b76"
     },
     {
       "path": "assets/images/other/leaderboard-medal-gold-v1.png",
-      "sha256": "aa480902f27c234e21617dbf2775514f619b63c263f5bb0ab179df0b3847558d"
+      "sha256": "84c6521250fbd648c74c8da7f7ebd38207bfff538239d662e13644cf25c3b58e"
     },
     {
       "path": "assets/images/other/leaderboard-medal-silver-v1.png",
-      "sha256": "4b3319df54b8c95d7d6b7c42b4a0d2bc8cd00b06375199005ab4285d1fefe776"
+      "sha256": "137c995af7eee269273ac9ea1f648b6ca5c1da87ca06a98112fd447a323caa8d"
     },
     {
       "path": "assets/images/other/leaderboard-podium-bronze-number-v1.png",
-      "sha256": "1038dcbca2ad227bbc4a618a5048cd39a1f0be2efa3ae9f0feb22286a12796e0"
+      "sha256": "5c8f21435210882448529b24f188149520cff04e81f622dfb9b09f146f7dcf7f"
     },
     {
       "path": "assets/images/other/leaderboard-podium-bronze-v2.png",
-      "sha256": "75d185dde7dcd3f7c489eca1fc44fb73b94dd6e73c781e6c00d2995794035f72"
+      "sha256": "74c20a548d7e9677e074dd3805b478a16eb886a47b36965129709467f9e1f1aa"
     },
     {
       "path": "assets/images/other/leaderboard-podium-gold-number-v1.png",
-      "sha256": "8942244be6aa2c4c3ce6276dc551307b590cc1e393788b66bcba75ddade4fa46"
+      "sha256": "2aae046ffedfe8c22f56dc0a6d674f7d0292bf272f4d93a7920e0c0a0c9f67b7"
     },
     {
       "path": "assets/images/other/leaderboard-podium-gold-v2.png",
-      "sha256": "7e2ee8923e5307acfbc37ef37882b1077aa7a52ee3d6f9d9e208260294872130"
+      "sha256": "a2f68283aa1ed475417c2463e8e59cda795fa44a1d15386ec54354c137a09e2c"
     },
     {
       "path": "assets/images/other/leaderboard-podium-silver-number-v1.png",
-      "sha256": "940889769f0ea85a0180053f95fcec86606db250e9bb64b460b44bdeca80b6f9"
+      "sha256": "b7c03c3e31817a7431a32fba2667ad61450b3dea9df61f552d8dc5258c34c61c"
     },
     {
       "path": "assets/images/other/leaderboard-podium-silver-v2.png",
-      "sha256": "d1b3e677ade6dcb0a4b3f237c128b7407fda8593f0eb20aba332da362521c1ea"
+      "sha256": "047046d92706091efaf6eb43b51b1ec8b9c5f1505d9fb46edb6947f3eea5bd36"
     },
     {
       "path": "assets/images/other/leaderboard-top-panel-wide-v1.png",
-      "sha256": "c29001df40ecc8acb8b063cfa03e0020a2c821976022869fd4611a2087407a49"
+      "sha256": "8cca2a193886959fb27fc2ec06e14e97d10e14cdb2a069b2d75be3b57833f0f4"
     },
     {
       "path": "assets/images/other/network-lobby-frame-v1.png",
-      "sha256": "6d8d628a9ce715228b077e9bd7988ccc8fdd9c554870d6819dc7facc547e36d4"
+      "sha256": "b465076d01933b7b952a7064f21a745fef2efa58ca570444e2356fcc5b70faa9"
     },
     {
       "path": "assets/images/other/seed.png",
-      "sha256": "5c07335dedd6edb52c630fb27e26091f0bffb2728eb4c18d7b89c5bff6b77c27"
+      "sha256": "1ecaf64d5edbbd2c5c534a6716ff3c7e0290f6d006e1c5991d30bfe06f995048"
     },
     {
       "path": "assets/images/other/turn-banner-enemy-black-v1.png",
-      "sha256": "ee89747f63aacbfa310369bb519946ed50fc99f76926699c2be2c744f480c1d0"
+      "sha256": "4b87688dc79d22c5ca5795f35fa89d11771f6f624f8e3a21eb98f9ecdbcb2bb6"
     },
     {
       "path": "assets/images/other/turn-banner-enemy-v1.png",
@@ -448,159 +448,159 @@
     },
     {
       "path": "assets/images/other/turn-banner-your-white-v1.png",
-      "sha256": "9c739512f6cf8ddedab7b8581706e33551b6132bfc6db365116a2c0596dbfa43"
+      "sha256": "7bc9a18acdf5ae17858dae0ddd6662b0abede04862c8f6be712690543ba51be6"
     },
     {
       "path": "assets/images/other/X.png",
-      "sha256": "984e56327216631c8dbcc0c825b10825abedd94f43f78399bfab0f6b480ce21a"
+      "sha256": "e617502ec3e3d626ef761aa6c05e0557f0226c37a57dfdab36a26a3fe9e762f1"
     },
     {
       "path": "assets/images/other/観測石.png",
-      "sha256": "4334cb8986c72b2b24c3aad73680f6e7e93a428234a490dc97da800b0de07a07"
+      "sha256": "cf564bb6231e40d629051fe1659d02d5b669448a8fd99355ec954b27eb486699"
     },
     {
       "path": "assets/images/special-cards/backgrounds/zombie_will_background.png",
-      "sha256": "7cca90e6ed8585988ddd4b6db388771aa269172f1bd9a8e93966240ed380f61b"
+      "sha256": "6ffcdc96c99543dde54f71adab8abd762024e37ff87aa8314c81bb2768c6093a"
     },
     {
       "path": "assets/images/special-cards/characters/board_executor.png",
-      "sha256": "041a57ebb4e0283b5aded706c5536d415d319a23befb56633b918e31c256a812"
+      "sha256": "e1f371e9284f767c0f6f1a919312e03bfb7265ec554e9fa77f9c3ce3d7b1f802"
     },
     {
       "path": "assets/images/special-cards/characters/observer_will.png",
-      "sha256": "d546380525b748e920016111130432153ed1a86ba340af15e59208b16b8dfb5b"
+      "sha256": "78f6c6a642677a3a64cd5818d8f98dba9488835f3eec651add1ceea9a5892e9e"
     },
     {
       "path": "assets/images/special-cards/characters/theory_incarnation.png",
-      "sha256": "a2b8f024e2090700fea2ec881b7a204e7ec9c1055e507e61308b4cb2ac742837"
+      "sha256": "437408c51242dcafae253cc6b8b72e765ea29a8a58b9ca990f9803b9ad206cf1"
     },
     {
       "path": "assets/images/special-cards/characters/終焉の冥灰.png",
-      "sha256": "7d9ee00146a0955813bbddad71bf7601898860d4eb5b8f5a7493ad5b00e04b6b"
+      "sha256": "193f8057d0e525713ae8def34eb3b25187a36802bdf9ae6f73a00230e6494f53"
     },
     {
       "path": "assets/images/background/default.png",
-      "sha256": "efc811da5a94c82d9ba81f66d62127097daced4aee35b68c1bb2d979e285421b"
+      "sha256": "05b646a37378f4642d8af354f9007001c4c3b6a9a7e9cb6f85a47055e22b32c2"
     },
     {
       "path": "assets/images/background/manifest-worlds/執行の世界.png",
-      "sha256": "c19ed5a0d3c013de05209baa73afe3313e553a6f2302b9c4e382035ccd1717eb"
+      "sha256": "fecf1c7d63dc0f33172ba686cc8b04b6dc6f28b3df756dde455dbf3f4f27e82d"
     },
     {
       "path": "assets/images/background/manifest-worlds/理論の世界.png",
-      "sha256": "f1273c3f452d73f4babbb49042ba19a0aa1daa616f50f28c24724d5856bb38ef"
+      "sha256": "ee04f8f1d7fadb02535e05877ecd4b9f4790bbb4263917a62aeba16588be4fc8"
     },
     {
       "path": "assets/images/background/manifest-worlds/観測の世界.png",
-      "sha256": "80e29cb6dd22aa098fa96f1f718c42d4868e49521ef7b692dd6c0999a9f46d09"
+      "sha256": "692a2a5e139c25494a465ba5adb273b9d63d4f83f3ec6c897ffb997bfdde9bb6"
     },
     {
       "path": "assets/images/background/デフォルト10.png",
-      "sha256": "0e9dd58679945a912852a7566351696ac7b6003037d8aa7b9e4acae619d9e4bd"
+      "sha256": "653429033ddd97ec7da5057355b80c0259bba13631f5b768dc6495969da7b260"
     },
     {
       "path": "assets/images/background/デフォルト11.png",
-      "sha256": "54b0116397c93300e62679de43994e69e9e690bf75c53e3a15fe1d47425efe37"
+      "sha256": "d4b898acdd64acf0c9acb41e7712babb9f904b61bc5d5c27bb7751ba9413d85e"
     },
     {
       "path": "assets/images/background/デフォルト12.png",
-      "sha256": "d066506846ed87bf9e00aaa4da721f744fb70172e4d5bad9122d5e18ceb53479"
+      "sha256": "6a2d18a66d9c2606b1acd0c4727a1ca72199aa241cf6029880c413d7a4d10cde"
     },
     {
       "path": "assets/images/background/デフォルト13.png",
-      "sha256": "bfc7fdae44bfed70d0c689ddddaa2617301a0fb76a5365570746e09c021402d1"
+      "sha256": "acbafdeed1f36cbbd9c863546c440fe3b41b28afb94100e49f5282825a9d26b6"
     },
     {
       "path": "assets/images/background/デフォルト14.png",
-      "sha256": "06b5ce3ffb7be4e3280104dabfb80913b6dc582f66467fc2f4b5ae17a81fad0c"
+      "sha256": "00f4168f5c67f9706183ff149377906a1a486e97b954fe0eb0357fa7c742c3b9"
     },
     {
       "path": "assets/images/background/デフォルト15.png",
-      "sha256": "573787eafd8fc1fd932ce0ac397f3da6f5e604397e84c663f1089790eff622ee"
+      "sha256": "67b07d11634dc29bb573c13dce3009bfd37c2fe45d3b89cf2f3cc41ab7f7f649"
     },
     {
       "path": "assets/images/background/デフォルト16.png",
-      "sha256": "9d605e9a121f103fbf2d30be0f04bba87b82be55ec2f6881ce0830aa3444540a"
+      "sha256": "ab3224d96faca839eb53b318ecd53054a96d927fd577cdec82311acb00ef4f52"
     },
     {
       "path": "assets/images/background/デフォルト17.png",
-      "sha256": "228f1e0dabeb0d3da4cf031888e4ff3462ff970f75e87d6bed789620a4524fd6"
+      "sha256": "6f505b774804a8818c61b9514b303d37ff1a9d51d2786f6ad5ecbdadcb4d8f44"
     },
     {
       "path": "assets/images/background/デフォルト18.png",
-      "sha256": "38be73d228e3f57c6fdac6587cd2d2e8ae01851a042de0fac6de2a5d94b38a11"
+      "sha256": "29ec1ea9e37f8b5dadbaa13e7ebb83b3b82760f75b193b1e523aa48b4aa86b2c"
     },
     {
       "path": "assets/images/background/デフォルト19.png",
-      "sha256": "08b0efdeae84c15c28cb001dad739e62c6588adf40b16884f0bcece3b4fb16c4"
+      "sha256": "502a741868ebd5869b25d4ccf92033c5d9606c69e16f4e710dfad847b91650f7"
     },
     {
       "path": "assets/images/background/デフォルト2.png",
-      "sha256": "5d372be012fd5b8f72d86afa3356da0e914d5fdb77503d5d704cf79a50d70d68"
+      "sha256": "28d9b26031e88d39696c0828f4447a43a66f34d3076aedbd97a8a2280a389324"
     },
     {
       "path": "assets/images/background/デフォルト20.png",
-      "sha256": "e4e8b9a546a5bd28f50ab5cb7355f50a5dfb4167880b634976bf642daea0a763"
+      "sha256": "b5b12ae9852e03a12cf2425151fd1b999f50bb36176d6347f244a44fe6b880c5"
     },
     {
       "path": "assets/images/background/デフォルト21.png",
-      "sha256": "f74cf97b01d794f3706f7a5278b48ddc98d72797a69dd15a7d900ef2046f9ccf"
+      "sha256": "ca33da1607ba2084f5cf12af6bdac1d3d7468412b87a49f34cfdafc22d81b86b"
     },
     {
       "path": "assets/images/background/デフォルト22.png",
-      "sha256": "1f73fc03540f430d1c87755b91e81e7cd2041b28b288468bac1f57470e26711a"
+      "sha256": "233c14b8537c22c97035d3489ec8d02dfbd67323ffdf4ab22b27ca45d9948f61"
     },
     {
       "path": "assets/images/background/デフォルト23.png",
-      "sha256": "19a53ee0389126e199839f678afa071330d04c89f235fb28e886bedf60885cad"
+      "sha256": "5d8cfb6acca4c2c7830610454e361c2367f8b0c057ab1f341ae71f32b3cac1a1"
     },
     {
       "path": "assets/images/background/デフォルト24.png",
-      "sha256": "feb2ab14974fe06571793c341f4d022843fe078c40d834cfbef5854b1a025404"
+      "sha256": "d9f3fc82b252957df7abb505db545c0feb6d778e4cdbbf85aedc2b539004395e"
     },
     {
       "path": "assets/images/background/デフォルト25.png",
-      "sha256": "2f6ba393629a20cce645b3508decca706eefcb275f6d2677a1742bc356c8f14f"
+      "sha256": "1bd8be6d6cf7b0f29c37a6c2e0ab3d35279b5f261270ccf577f07464b647da43"
     },
     {
       "path": "assets/images/background/デフォルト26.png",
-      "sha256": "accaec2b482377601f7d32a7a6671f6a7e35cab597f5f66a10a7d706a2b61fe8"
+      "sha256": "bb711cea4dc25a2cf55f8335b7598fd32f05dc2e9699eb33dc04ac241465306c"
     },
     {
       "path": "assets/images/background/デフォルト27.png",
-      "sha256": "a9e96955e599bca7430d6247baf9718826bd6ac9f3c58a76da5938463025a2e0"
+      "sha256": "6fc0ccf10a5cf3808ea8aa8544068d1f353732da2eae4494bcf1fe3cf349a5c2"
     },
     {
       "path": "assets/images/background/デフォルト28.png",
-      "sha256": "16e66140e103d54cb787854f034d7272a94edd072a512af9d7ae9570134a2ee3"
+      "sha256": "bf9c534e8ca9ae81ac659672edca13b45ec58d7eab386604e5ca9f78084da7d0"
     },
     {
       "path": "assets/images/background/デフォルト3.png",
-      "sha256": "60688dde506ebe5c18a8e23f79ec1e430de42eeaa34ccf2b7782d65da70dfaca"
+      "sha256": "6ae979997b6ac627385ffdad73563a3d1812b34f4cd89804b562ba42ab45e868"
     },
     {
       "path": "assets/images/background/デフォルト4.png",
-      "sha256": "8515023da52c53833848045e5e998f0cedee3762d146d0a0cba0cacbd42d6ea6"
+      "sha256": "355e9a6dad8d2978d4b8bb8e0a2d59776293031ca54e7f17b74a6f901f6073fe"
     },
     {
       "path": "assets/images/background/デフォルト5.png",
-      "sha256": "d347bd81782f3cb6ce82a71b3bed37391b0a686876fed815ce469996278de5cc"
+      "sha256": "725b2c5108453fd4308e766b0df206ca752203959dd1c0d625c4cbd1072ee9c1"
     },
     {
       "path": "assets/images/background/デフォルト6.png",
-      "sha256": "857f9902f0e15acbcc18e5c11930b7eee54a372503238ad6c1c6f13f94d3aec9"
+      "sha256": "83aa0c386e6b49135c0b4477b15c651c338862c97f6ee61f1376a5cfdae930e7"
     },
     {
       "path": "assets/images/background/デフォルト7.png",
-      "sha256": "b5865ea0f0f76849109d886dca7575a72d395ab9c02ef4c28f525b8257cb812a"
+      "sha256": "e9baffcca5fc72874b0fd5919b5872312224f4cb818898fa37ceb0182bf0a5e1"
     },
     {
       "path": "assets/images/background/デフォルト8.png",
-      "sha256": "d191d2425aa1f3190e7375b02213f5b54eaf6635ada2bde3a41b2dd833352fce"
+      "sha256": "2583b29ff8b2e64b8fa09b15eec71118f5b739002a5fd3ee9676dfc07a0a8fd2"
     },
     {
       "path": "assets/images/background/デフォルト9.png",
-      "sha256": "dc3eb6fce3ea50ada3a4c108472a3b038a4fbaaa38ad8d74fdeb08f4559b1a15"
+      "sha256": "8313e9ca67980f9d1b2541009cb1f2aa04c4b7c9c40dd0e6057d22455f7a6ebd"
     },
     {
       "path": "assets/images/background-skin/default-table.svg",
@@ -608,35 +608,35 @@
     },
     {
       "path": "assets/images/background-skin/観測の机.png",
-      "sha256": "2fe28ec2347fb703dd25ab5c2dca5644a5b3c6b8652e1ecb93cc4e38b82481e9"
+      "sha256": "f7d0fd366f7414fbd93bd5ea3979fea420f95735ba119cf731a64da7ac5ea940"
     },
     {
       "path": "assets/images/hand-skin/lv1-2.png",
-      "sha256": "0199d23e0f1dff638fd205c9a382da636f3d4cf92dc48056ea575b1fa09a7dab"
+      "sha256": "66d690feb14a62f6803cf4894fde8c3fd1ab3d933e4e034c1ce851145d30d10d"
     },
     {
       "path": "assets/images/hand-skin/lv3-5.png",
-      "sha256": "82980f0be150ac2007e4570a7bc98c960a70321ea2bd08303b8f9d8c8bf83dcb"
+      "sha256": "259ff01537a7f6381315ef2877d54f89145fe4fe7043efb5d223328fec0431cc"
     },
     {
       "path": "assets/images/hand-skin/lv4.png",
-      "sha256": "8ad467b4f1b7f50221f45bfd4fa350b446cf652430c9c3633145ba8215714b69"
+      "sha256": "c2c903a27660fe1037399193f0518d9e51638b0fa4268290810aac61175fbed7"
     },
     {
       "path": "assets/images/hand-skin/lv6-9.png",
-      "sha256": "86980cf47d314f90cd1169d83bade5bb2bab9c80c3b64dadeed95eaf18adf23d"
+      "sha256": "7d50696bbd5b8574a159d51392753f3ce24132d5301807ef8d8bbc223515c242"
     },
     {
       "path": "assets/images/hand-skin/勇者の手.png",
-      "sha256": "74ee91b5a5cacc167e07758c218ad2da750e2255a3e20d5966a21093aec19d3d"
+      "sha256": "82febdb285173ea49c0cfac849c71a012c864100fd1496549d79ab92a69243f4"
     },
     {
       "path": "assets/images/Gacha/EXR/background/観測の意志.png",
-      "sha256": "2045f8e313765c8bed2f8c93cf41adb98a11c84a157d1a4131949e6ce4376302"
+      "sha256": "2a0b89f48b12746a2d0c5f6e799804f2c8549a7111792f4c0edfc783af9c2a87"
     },
     {
       "path": "assets/images/Gacha/EXR/意志.png",
-      "sha256": "f1eb934b000b028ef0d383a392033fe22b98f1b2f28bdbeca968b79a652b14bb"
+      "sha256": "205459e17231adc708a8eadd35db270b89eb4d858e81c02126b644e8d871f0dd"
     },
     {
       "path": "assets/images/Gacha/N/background/観測できなかった夜.png",
@@ -660,19 +660,19 @@
     },
     {
       "path": "assets/images/Gacha/N/人の手.png",
-      "sha256": "b9ce391225d1e984a47a9348b8b6e5c68a04437408ba7543b6add804d5751f42"
+      "sha256": "62f631a36234b8a5308bf293dae704536c1723b570afb6ee1d62bb326ce52676"
     },
     {
       "path": "assets/images/Gacha/N/小鬼の手.png",
-      "sha256": "0965b20e3e11b4c7cbba28cd0bf4788d559d8ff85ed6cab9f4b745f095f5ab7f"
+      "sha256": "9031a18d1c56d551387241114de809c8c861db0cc2890f5573faa5ccc8548d5f"
     },
     {
       "path": "assets/images/Gacha/N/陽気な手.png",
-      "sha256": "239371e9639c128e4ca0815e7ca399ceea3e98482d11c4134ba89f94c1a01979"
+      "sha256": "2af9cc797cfcb6cc48ccd6f9f1963ba1561e5f95a620f76b7a6bb9c041ab52ac"
     },
     {
       "path": "assets/images/Gacha/N/魚眼ハンド.png",
-      "sha256": "4f57400ef634af244b743a9ad7f5fab041205d9d16df33d0405e2755d02f3f00"
+      "sha256": "0c5dcc7fabb46cd6d636846e14ac184d627aa54194fcdf66b1b443fdf1657f12"
     },
     {
       "path": "assets/images/Gacha/R/background/観測の森.png",
@@ -684,19 +684,19 @@
     },
     {
       "path": "assets/images/Gacha/R/支配の手.png",
-      "sha256": "d185ba26e740efc697af22d061f1cca99e1690da261831f3caae646ec75a297b"
+      "sha256": "c0cab3dcaea8ab5070d1d527a15d902eef900728052a3c6258993a70911b4bd0"
     },
     {
       "path": "assets/images/Gacha/R/猫の手.png",
-      "sha256": "a265c62293ad3deea8344e42a49fd1014933b86b6face52108acd0f5e5975037"
+      "sha256": "d80a3641f2fbd7c4e7ba29cf711785f3421d68a9ad04b190ae13019656ab0648"
     },
     {
       "path": "assets/images/Gacha/SR/background/宇宙の観測.png",
-      "sha256": "7a52c0ff947e9c7b70938540f110218d38b2abc54ee0f0d8a836be1fcb5b3260"
+      "sha256": "b8b0c06d770ca830ca47a3d4336a803af79c017d1c8df0f92691e8711b566fde"
     },
     {
       "path": "assets/images/Gacha/SR/虹の手.png",
-      "sha256": "b7b769e896001031ece54e2c839375bc952787d5fd32a7251cf568c81f4fdbd8"
+      "sha256": "90dddfd19e240138e02776898765032b8c60eace054f06e107f2a7c772641134"
     },
     {
       "path": "assets/images/Gacha/SSR/background/カードリバーシ.png",
@@ -704,15 +704,15 @@
     },
     {
       "path": "assets/images/Gacha/SSR/邪悪な手.png",
-      "sha256": "03872e1731fba3e226d5754e5b5739c904f2135a02a23cdbe6bbbeb0273eb078"
+      "sha256": "e4ab3d347f56393b78a6ea21e757d1e335d47de620405f2305f56109b42deaa4"
     },
     {
       "path": "assets/images/Gacha/UR/background/最高の観測.png",
-      "sha256": "968962b0020cc5a719c3df546c238e799d56a3c7537213843c5622140a437d1d"
+      "sha256": "6be6294d5bc2de3d350e296839194a6676a97ebdb9df760ddf1fa9afd199c795"
     },
     {
       "path": "assets/images/Gacha/UR/ラグドールの手.png",
-      "sha256": "36b9d605fd15fa07193652aac71b27e0da4aaf471ea20c084a4f221ac0872c07"
+      "sha256": "f8277f143ac8dbd585d981b7dbe688614bbc7d532cb2a64eda90e693fe0ce229"
     },
     {
       "path": "assets/audio/sound-effect/archive/web-audio-stone/default-legacy-stone-place.mp3",
