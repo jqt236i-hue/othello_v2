@@ -1,4 +1,4 @@
 interface:
   display_name: "Goal Prompter"
-  short_description: "Draft evidence-checked Codex Goals"
-  default_prompt: "Use $goal-prompter in this main chat to interview me, draft a strong Codex /goal prompt, and activate it here if I request activation."
+  short_description: "Draft and activate verifiable Codex Goals"
+  default_prompt: "Use $goal-prompter in this main chat to inspect context, ask only for missing decisions, draft a verifiable Codex Goal, and activate it only if I explicitly ask."

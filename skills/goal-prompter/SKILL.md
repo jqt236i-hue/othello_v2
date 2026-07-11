@@ -1,163 +1,129 @@
 ---
 name: goal-prompter
 description: |
-  Use when the user asks to create, improve, review, translate, or decide whether to use a Codex Goal or `/goal` prompt for a long-running objective. Keep the interview, drafting, confirmation, activation, and reporting in the current main chat; never redirect the workflow to a side chat or separate thread. Do NOT use for ordinary debugging, refactoring, research, audits, or implementation unless the user explicitly wants those turned into a Goal.
+  Use when the user asks to draft, improve, review, translate, or activate a Codex Goal or `/goal` prompt for one durable long-running objective with a verifiable stopping condition. Inspect available context before asking questions, keep the entire workflow in the current main chat, and distinguish drafting from activation. Do not use for ordinary one-turn implementation, research, review, or explanation unless the user explicitly wants it turned into a Goal.
 ---
 
 # Goal Prompter
-## Low-Capability Execution Contract
-- Classify the request against the frontmatter before using this skill. If another skill owns the task more directly, switch before doing work.
-- Collect these inputs before analysis: target artifact or repository path, user objective, constraints, prior commitments, available evidence, expected output format, and the decision the user needs.
-- Execute in this order: inspect the artifact or live state, extract concrete evidence, compare evidence to the objective, identify blockers, then produce the requested decision or artifact.
-- Every finding or recommendation must cite a file, command output, data point, or explicit user requirement. Do not rely on unsupported adjectives or memory-only claims when current evidence is available.
-- Before final response, verify that all required checks ran or state the exact blocker. Include changed paths or reviewed paths, evidence used, remaining risks, and the next action.
 
 ## Purpose
 
-Help the user turn an intended long-running Codex task into a strong Goal prompt. Prioritize detailed hearing before drafting: a Goal is a scoped completion contract, not a bigger one-off prompt.
+Turn a durable objective into a compact, auditable Goal contract. A Goal is larger than one normal prompt, smaller than an open-ended backlog, and complete only when concrete evidence satisfies its stopping condition.
 
-## Current Main Chat Contract
+## Operating Contract
 
-- Treat the conversation where the skill was invoked as the main chat.
-- Complete the fit check, interview, draft, confirmation, activation when requested, and final report in this same chat.
-- Do not create, fork, open, recommend, or hand off to a side chat, separate thread, or separate task for any part of this workflow.
-- Interpret "multiple turns" as later turns in this same main chat, not as permission to move the work elsewhere.
-- If Goal activation is unavailable in the current chat, provide the copy-ready Goal draft here and state the limitation. Do not move the user to another chat as a workaround.
+- Keep fit checking, context inspection, questions, drafting, confirmation, activation when requested, and reporting in the chat where this skill was invoked.
+- Do not create, fork, open, recommend, or hand off to another chat, thread, task, or worktree for this workflow.
+- Inspect available files, instructions, current state, and tool capabilities before asking the user. Ask only for decisions or facts that cannot be discovered safely.
+- Point to authoritative repository instructions instead of copying them wholesale into the Goal. Do not repeat Git hygiene, standard verification policy, or generated-file rules that already apply through those instructions; restate only exceptions and invariants that materially change this Goal.
+- Use the user's language unless they request another language.
+- Treat explicit time, token, cost, command, service, and approval limits as authoritative constraints.
+- Avoid arbitrary self-imposed iteration caps, but never ignore user limits, platform limits, or a genuine blocked condition. When a limit is reached, report verified progress and remaining work.
+- Support factual claims with current evidence. Drafting advice may be explained directly without forcing an artificial citation on every sentence.
 
-Use the user's language unless they request otherwise. If the user wants the final `/goal` prompt in another language, ask once and then write it in that language.
+## Goal Fit
 
-### Default posture: perfect over fast
+Recommend a Goal when all of these are true:
 
-The user prefers a fully complete submission over a fast one. Codices should keep iterating while each iteration can produce new evidence, a concrete fix, or a narrower decision. Arbitrary caps imposed only to "save time" are anti-patterns, but every Goal must include a blocked stop condition for repeated blockers, contradictory constraints, missing external access, or no remaining valid path.
+- There is one durable objective that may need multiple turns or checkpoints.
+- Success can be shown by tests, commands, artifacts, source evidence, logs, benchmarks, or an observable workflow.
+- Codex can make scoped progress without requiring the user to choose every intermediate step.
+
+Use a normal prompt for a one-line edit, simple explanation, short review, single deterministic command, or unrelated backlog. If the user still wants a Goal, draft one but state the weak fit and tighten the stopping condition.
 
 ## Workflow
 
-1. Decide whether a Goal is appropriate.
-2. Interview the user for missing completion details.
-3. Draft one or more `/goal` prompts.
-4. Explain what each prompt optimizes for.
-5. Ask for confirmation before activating a Goal unless the user explicitly asked to create or set it.
-6. When activation is requested and supported, activate the Goal in this same main chat and report the result here.
+1. Inspect the target, current state, applicable instructions, existing evidence, and available Goal capability.
+2. Decide whether the request is a good Goal fit.
+3. Fill the Goal contract from discovered evidence and explicit user requirements.
+4. Ask the smallest useful batch of missing decision questions.
+5. Draft one recommended Goal and explain the contract briefly.
+6. Activate it only when the user explicitly requests activation and the current environment supports it.
 
-## Activation Gate
+## Inspect Before Asking
 
-Drafting a Goal does not require a local Codex CLI that supports Goals. Activating
-one does.
+For repository work:
 
-- In Codex Desktop or an environment exposing Goal tools, use the platform's
-  native Goal creation flow in the current main chat when the user explicitly
-  asks to activate/set it. Do not create or navigate to another thread or task.
-- In CLI-only contexts, check local command evidence before telling the user to
-  run `/goal`: `codex --help`, `codex --version`, and any available goal-related
-  help output. If current official OpenAI docs are needed to confirm support,
-  browse official OpenAI sources only.
-- Treat `0.128.0` as a stale lower-bound note from a prior local observation, not
-  as an authoritative rule. Do not activate or recommend CLI Goal usage from this
-  number alone.
-- If local help or current official docs do not confirm Goal support, output a
-  copy-ready Goal draft and say `UNVERIFIED: local Codex CLI Goal support not
-  confirmed`. Do not imply that `/goal` will work locally.
-- Keep Desktop/API activation instructions separate from CLI activation
-  instructions.
+- Read the root `AGENTS.md` and the closest applicable nested instructions.
+- Identify the relevant source-of-truth documents, public contracts, existing test or build commands, and dirty-worktree constraints.
+- Derive material pointers, preservation constraints, and verification commands from the repository instead of asking the user to repeat them.
+- In this repository, use `01-rulebook.md` for player-visible behavior, `docs/architecture-contracts.md` for internal boundaries, and `AGENTS.md` for verification and Git rules.
 
-## Goal Fit Check
+Ask at most a small focused batch at a time. Prioritize:
 
-Recommend a Goal when the task has:
+1. The exact end state and success stopping condition.
+2. The evidence that proves success.
+3. Product decisions, protected behavior, hard limits, or risky actions requiring approval.
 
-- A durable objective that may require several turns in the same main chat.
-- An evidence-based finish line: tests, benchmark output, generated artifact, report, source evidence, logs, or reproducible commands.
-- An uncertain path where Codex should inspect, try, verify, and continue.
+For research or audit Goals, also resolve the authoritative source hierarchy, final artifact, and how confirmed findings, proxy evidence, blocked claims, and uncertainty must be labeled.
 
-Recommend a normal prompt instead when the task is a one-line edit, a simple explanation, a short review, a single deterministic command, or a question where the user wants one answer and then a stop.
+Do not ask about iteration strategy unless the user requests one. Default to evidence-producing checkpoints and compact progress reports.
 
-If the user insists on a Goal for a weak fit, still draft it, but make the limitation explicit and tighten the evidence standard as much as possible.
+## Goal Contract
 
-## Interview
+Include these required elements:
 
-Ask focused batches of questions. Do not dump the entire checklist at once unless the user explicitly asks for exhaustive intake. Start with the first batch; continue until the Goal can be audited.
+- **Objective:** one outcome that should become true.
+- **Success stopping condition:** the observable state that permits completion.
+- **Verification:** commands, artifacts, checks, sources, or workflows that prove the stopping condition.
+- **Preservation constraints:** behavior, APIs, schemas, data, files, or user workflows that must not regress.
+- **Boundaries and limits:** allowed scope, tools, services, repositories, risk gates, and explicit time, token, or cost limits.
+- **Blocked or limit report:** evidence gathered, paths attempted, completed checkpoints, remaining uncertainty, blocker or reached limit, and the next input needed.
 
-First batch:
+Include when relevant:
 
-- What exact end state should be true when Codex is done?
-- What evidence should Codex use to verify that end state?
-- What must not regress or be changed while Codex works?
-- What files, repos, tools, data, services, or time/budget limits define the boundary?
+- **Material pointers:** files, docs, issues, logs, plans, source IDs, or official domains to inspect first.
+- **Checkpoint policy:** a user-requested iteration strategy or a lightweight requirement to report the current checkpoint, verified evidence, remaining work, and blocked state.
+- **Evidence labels:** exact proof, partial support, proxy evidence, approximation, and uncertainty for research or audit work.
 
-Second batch, only when needed:
+Do not require material pointers when none are useful. Do not prescribe numeric thresholds that Codex can safely derive from authoritative material; do require the acceptance threshold when it is a product decision.
 
-- What should count as blocked, and what should Codex report if no defensible path remains?
-- Are proxy results acceptable? If yes, how should Codex label exact proof, partial support, approximation, and uncertainty?
-- Should Codex stop for approval before risky edits, external calls, dependency upgrades, data deletion, or expensive commands?
+Pin the outcome, evidence, protected invariants, boundaries, and stopping behavior. Do not turn discovered implementation ideas into mandatory steps unless the user or an authoritative source already requires that design.
+Do not broaden the named objective, target systems, or deliverables merely because inspection reveals adjacent work. Put adjacent risks or optional follow-ups in assumptions or explanation unless they are required for the stated stopping condition.
 
-Default: do NOT ask about iteration policy in the interview. Let Codex choose its own next-action strategy based on the outcome, verification, and boundaries. Codex should keep refining until the Outcome is fully satisfied — partial delivery is worse than slow convergence. Only ask about iteration policy if the user explicitly requests a specific strategy.
+## Activation Rules
 
-For coding Goals, also ask:
+- Interpret “draft,” “write,” “create a prompt,” “improve,” “review,” and “translate” as drafting only.
+- Activate only for explicit intent such as “activate,” “set the Goal,” “start Goal mode,” or an equally clear request to begin the Goal.
+- Before activation, show the exact final Goal text unless the user already approved that exact wording.
+- Use native Goal tools in the current chat when available. Do not create or navigate to another task.
+- When a native tool accepts an objective field, pass the Goal body in the schema it expects; keep the literal `/goal` prefix only for copy-ready slash-command text.
+- Do not replace, clear, or supersede an existing active Goal without explicit user direction.
+- Pass a token budget only when the user explicitly requested one.
+- If activation is unavailable, provide a copy-ready `/goal` prompt and state that it was not activated.
+- For current capability or CLI setup claims, inspect callable tools, local help, or current official OpenAI documentation. Do not rely on remembered version numbers.
 
-- Which test, lint, typecheck, benchmark, reproduction, or smoke command proves progress?
-- Which public APIs, schemas, snapshots, output formats, or user workflows must remain compatible?
-- Are there files or layers Codex should avoid?
+## Output
 
-For research or audit Goals, also ask:
+When information is sufficient, provide:
 
-- What claims or questions should be answered?
-- What source material is authoritative?
-- What final artifact should be produced?
-- How should Codex separate confirmed findings, approximate support, blocked claims, and remaining uncertainty?
+1. **Recommended `/goal`:** one copy-ready Goal.
+2. **Why it works:** a brief mapping to objective, stopping condition, verification, constraints, boundaries, and blocked or limit reporting.
+3. **Assumptions:** only assumptions that materially affect success.
+4. **Before activating:** only unresolved decisions that prevent safe activation.
 
-## Drafting Standard
+Keep the recommended Goal as short as the contract allows. Put inspection evidence, rationale, and candidate implementation approaches in the explanation rather than the Goal itself. Prefer a high-level document, directory, glob, or existing verification entry point over exhaustive file and test lists. Use labeled subsections only when they make a complex stopping condition or evidence matrix easier to audit.
 
-Write Goals with these parts:
+Add alternatives only when they materially change scope, verification burden, risk, or stopping behavior. When reviewing an existing Goal, return the revised Goal first, followed by the important changes.
 
-- Outcome: what should be true. Always make this explicit.
-- Verification surface: how Codex proves it.
-- Constraints: what must remain true.
-- Boundaries: allowed files, tools, data, repositories, and limits.
-- Blocked stop condition: when to stop and what to report.
+If essential information is missing, ask only the next smallest set of questions. Do not present a confident final Goal with unresolved placeholders.
 
-Iteration policy is OPTIONAL: include a specific strategy only when the user explicitly requests one. Even when no strategy is specified, the Goal must require each iteration to record new evidence/progress or stop as blocked when the blocked condition is met.
+If activation was explicitly requested and the Goal is ready, present the final wording, activate it in this same chat, and report the activation result here.
 
-Material pointers are encouraged: when the Goal involves research, audit, or evidence gathering, include pointers to file paths, documentation references, source IDs, or web domains where Codex should look. Pointing Codex at sources is preferred over prescribing specific numeric values, multipliers, or thresholds that Codex can derive from the material itself.
+## Quality Check
 
-Build the final `/goal` from these fields. Do not emit the `/goal` line until
-every field is replaced with concrete text from the interview:
+Before delivering or activating a Goal, verify:
 
-| field | required content |
-| --- | --- |
-| desired end state | the exact state that should become true |
-| specific evidence | how Codex proves completion |
-| constraints | what must remain preserved |
-| allowed inputs/tools/boundaries | repositories, files, tools, data, and limits |
-| material pointers | concrete paths, source IDs, docs, or domains to inspect |
-| blocked stop report | evidence gathered, attempted paths, blocker, and next input needed |
+- It contains one objective rather than a loose backlog.
+- Its success stopping condition is observable and evidence-based.
+- Verification can fail as well as pass.
+- Preservation constraints and hard limits are explicit.
+- Material pointers and checkpoint reporting are included only where useful.
+- Repository rules are referenced rather than duplicated unless a specific invariant must appear in the Goal.
+- Discovered implementation ideas remain choices unless the user or source of truth made them requirements.
+- The Goal does not silently expand beyond the user's named objective or target systems.
+- Drafting language cannot be mistaken for activation consent.
+- Blocked and limit-reached reports preserve partial evidence without pretending the Goal succeeded.
+- The prompt is compact enough to remain legible across later turns in this same chat.
 
-Add a concrete iteration-policy sentence only when the user explicitly requests one, for example: "Between iterations, inspect the latest failing test output before editing again." Otherwise let Codex choose its own next-action strategy while requiring evidence of progress between iterations. Do not declare blocked on slow progress alone; do declare blocked when the same blocker repeats and no meaningful progress path remains.
-
-Keep the final Goal compact enough to stay memorable, but specific enough that a later turn in the current main chat can decide whether to continue or complete it from evidence.
-
-## Output Format
-
-When enough information is available, respond with:
-
-1. `Recommended /goal`: one copy-ready Goal prompt.
-2. `Why this works`: a short mapping of outcome, evidence, constraints, boundaries, and blocked stop condition. Mention material pointers if included; skip iteration policy if it was left to Codex.
-3. `Assumptions`: only the assumptions that affect success.
-4. `Alternatives`: include shorter or stricter versions only when they materially change activation risk, evidence burden, or blocked-state handling.
-5. `Before activating`: any remaining detail the user should confirm in this chat.
-
-If the user already asked to activate/set the Goal and all required information is available, activate it in the current main chat after presenting the final wording. Do not end by directing the user to a separate chat.
-
-If information is insufficient, do not draft a confident final Goal. Ask the next smallest set of questions. Provide a clearly labeled rough draft only when all of these are known: objective, target artifact or system, finish evidence, allowed scope, and at least one blocker or stop condition. Otherwise ask questions only.
-
-## Quality Checks
-
-Before presenting the final prompt, verify:
-
-- The Goal has a measurable or auditable finish line.
-- Completion cannot be declared from confidence alone; it requires concrete evidence.
-- Constraints are explicit enough to prevent hidden regressions.
-- The boundary is neither so broad that Codex can wander nor so narrow that obvious fixes are excluded.
-- The blocked condition covers genuine impossibility (no valid path remains, the upstream project requires external changes, the constraint set is contradictory, or the same blocker repeats without a meaningful progress path). It must NOT fire on slow progress alone or on an arbitrary iteration count. Codex should report partial progress with remaining uncertainty, not declare blocked prematurely.
-- Research Goals preserve uncertainty instead of flattening partial support into success.
-- The prompt does NOT prescribe specific numeric values, multipliers, thresholds, or test counts that Codex can derive from the material itself. Mid-path decisions are left to Codex's autonomous judgment; only the outcome, verification, constraints, boundaries, and blocked stop are pinned down.
-
-For deeper examples and wording patterns, read `references/goal-design.md`.
+Read `references/goal-design.md` for current official behavior notes, reusable patterns, and failure checks.

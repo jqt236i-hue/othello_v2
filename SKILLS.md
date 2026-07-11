@@ -34,7 +34,7 @@
 
 | Skill | 使う時 |
 | --- | --- |
-| `goal-prompter` | 長期的な目的を、現在のメインチャット内で聞き取り・作成・必要なら有効化まで行う、証拠ベースの Codex Goal / `/goal` prompt に変換する時 |
+| `goal-prompter` | 長期的な目的を、リポジトリや現状を先に調べたうえで、現在のメインチャット内で検証可能な Codex Goal に整え、明示された場合だけ有効化する時 |
 | `harsh-critic` | コード、文書、デザイン、設定、計画などの具体的な成果物に対して、辛口で欠点を洗い出すレビューを求められた時 |
 | `card-reversi-card-change` | カードの追加・変更・削除を分類し、既存参照の棚卸し、専門 skill への振り分け、仕様・logic・presentation・network・生成物の横断検証を行う時 |
 | `card-reversi-network-contract` | network command、authority、snapshot、reconnect、pending、playback、Worker/local parity を変更・診断・検証する時 |
