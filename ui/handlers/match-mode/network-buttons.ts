@@ -5,6 +5,13 @@ const NetworkClipboardModule = (() => {
         return null;
     }
 })();
+const NetworkButtonActionsModule = (() => {
+    try {
+        return require('./network-button-actions');
+    } catch (e: any) {
+        return null;
+    }
+})();
 
 function bindNetworkButtons(context: any) {
     const {
@@ -331,18 +338,14 @@ function bindNetworkButtons(context: any) {
 
     if (uiRefs.networkCopyRoomBtn) {
         uiRefs.networkCopyRoomBtn.addEventListener('click', async () => {
-            const roomName = readNetworkRoomName() || '無名部屋';
-            if (!roomName) {
-                writeNetworkStatus('コピーするルーム名がありません', true);
-                return;
+            if (!NetworkButtonActionsModule || typeof NetworkButtonActionsModule.copyNetworkRoomName !== 'function') {
+                throw new Error('NetworkButtonActionsModule unavailable');
             }
-
-            const copied = await copyTextToClipboard(roomName);
-            if (copied) {
-                writeNetworkStatus(`ルーム名「${roomName}」をコピーしました`, false);
-                return;
-            }
-            writeNetworkStatus('ルーム名のコピーに失敗しました', true);
+            await NetworkButtonActionsModule.copyNetworkRoomName({
+                readNetworkRoomName,
+                copyTextToClipboard,
+                writeNetworkStatus
+            });
         });
     }
 
