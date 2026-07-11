@@ -106,6 +106,9 @@ function applyBootModuleEntry(moduleExports, entry) {
   if (entry.initDebugCardSearch === true && typeof moduleExports.initDebugCardSearch === "function") {
     window.debugCardSearchController = moduleExports.initDebugCardSearch();
   }
+  if (entry.initUIBootstrap === true && typeof moduleExports.initializeUIBootstrapRuntime === "function") {
+    moduleExports.initializeUIBootstrapRuntime(window);
+  }
   if (entry.initNetworkMatchClient === true && typeof moduleExports.initializeNetworkMatchClientRuntime === "function") {
     moduleExports.initializeNetworkMatchClientRuntime(window);
   }
@@ -258,7 +261,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/shared/commentary-runtime-helpers" },
   { moduleKey: "./dist/shared/playback-event-helpers" },
   { moduleKey: "./dist/ui/commentary-broker" },
-  { moduleKey: "./dist/ui/bootstrap" },
+  { moduleKey: "./dist/ui/bootstrap", initUIBootstrap: true },
   { moduleKey: "./dist/ui/bootstrap/lazy-runtime-loader", globalNames: ["LazyRuntimeLoaderModule"] },
   { moduleKey: "./dist/ui/bootstrap/init-dom" },
   { moduleKey: "./dist/ui/bootstrap/init-events" },

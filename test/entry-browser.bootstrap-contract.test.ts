@@ -146,4 +146,14 @@ describe('entry-browser bootstrap contract', () => {
 
     expect(initializeNetworkMatchClientRuntime).toHaveBeenCalledWith(context.window);
   });
+
+  test('boot loader explicitly initializes the UI bootstrap facade', () => {
+    const context = loadBootHelpers();
+    const initializeUIBootstrapRuntime = jest.fn();
+    const moduleExports = { initializeUIBootstrapRuntime };
+
+    context.applyBootModuleEntry(moduleExports, { initUIBootstrap: true });
+
+    expect(initializeUIBootstrapRuntime).toHaveBeenCalledWith(context.window);
+  });
 });

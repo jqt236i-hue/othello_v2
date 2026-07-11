@@ -2335,8 +2335,6 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
     const applyAssetManifest = assetManifestRuntime.applyAssetManifest;
     const handleGameInit = assetManifestRuntime.handleGameInit;
 
-    ensureOwnerHelpersGlobal();
-
     const UIBootstrap = {
         addLog: (typeof addLog === 'function') ? addLog : function () { return false; },
         debugLog: (typeof debugLog === 'function') ? debugLog : function () { return false; },
@@ -2356,10 +2354,24 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         refreshLoadedAssetManifest,
         ASSET_MANIFEST_UPDATED_EVENT
     };
-    try {
-        if (typeof window !== 'undefined') {
-            (window as unknown as { UIBootstrap?: typeof UIBootstrap }).UIBootstrap = UIBootstrap;
-        }
-    } catch (e: any) { /* ignore */ }
+
+    let uiBootstrapRuntimeInitialized = false;
+    function initializeUIBootstrapRuntime(runtimeRoot?: any): boolean {
+        if (uiBootstrapRuntimeInitialized) return false;
+        ensureOwnerHelpersGlobal();
+        const target = runtimeRoot || (typeof window !== 'undefined' ? window : null);
+        try {
+            if (target) {
+                (target as { UIBootstrap?: typeof UIBootstrap }).UIBootstrap = UIBootstrap;
+            }
+        } catch (e: any) { /* ignore */ }
+        uiBootstrapRuntimeInitialized = true;
+        return true;
+    }
+    Object.defineProperty(UIBootstrap, 'initializeUIBootstrapRuntime', {
+        configurable: false,
+        enumerable: false,
+        value: initializeUIBootstrapRuntime
+    });
 export = UIBootstrap;
 
