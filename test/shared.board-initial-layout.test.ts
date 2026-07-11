@@ -36,4 +36,26 @@ describe('shared initial board layout', () => {
     ]));
     expect(leaf.getOpeningCells({ rows: 7, cols: 7 })).toHaveLength(8);
   });
+
+  test('builds an 80-cell circle around the standard centered opening', () => {
+    const leaf = createLeaf();
+    const config = { rows: 10, cols: 10, shape: 'circle' };
+    const coords = leaf.collectMainBoardCoordinates(config);
+
+    expect(coords).toHaveLength(80);
+    expect(coords).toEqual(expect.arrayContaining([
+      { row: 0, col: 3 },
+      { row: 4, col: 4 },
+      { row: 5, col: 5 },
+      { row: 9, col: 6 },
+    ]));
+    expect(leaf.isMainBoardCell(0, 0, config)).toBe(false);
+    expect(leaf.isMainBoardCell(9, 9, config)).toBe(false);
+    expect(leaf.getOpeningPlacements(config)).toEqual([
+      { row: 4, col: 4, owner: -1 },
+      { row: 4, col: 5, owner: 1 },
+      { row: 5, col: 4, owner: 1 },
+      { row: 5, col: 5, owner: -1 },
+    ]);
+  });
 });

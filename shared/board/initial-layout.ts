@@ -8,6 +8,7 @@ export interface BoardBounds {
 export interface BoardConfig {
   rows: number;
   cols: number;
+  shape?: "rectangle" | "circle";
   baseBounds: BoardBounds;
 }
 
@@ -28,17 +29,31 @@ export interface InitialLayoutDependencies {
 }
 
 export function createInitialLayout(deps: InitialLayoutDependencies) {
+  function isCircleCell(row: number, col: number, config: BoardConfig): boolean {
+    const centerRow = (config.rows - 1) / 2;
+    const centerCol = (config.cols - 1) / 2;
+    const radius = Math.min(config.rows, config.cols) / 2;
+    const rowDistance = row - centerRow;
+    const colDistance = col - centerCol;
+    return (rowDistance * rowDistance) + (colDistance * colDistance) <= radius * radius;
+  }
+
   function isMainBoardCell(row: number, col: number, boardOrConfig: unknown, maybeCols?: unknown): boolean {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    const bounds = deps.resolveBoardConfig(boardOrConfig, maybeCols).baseBounds;
-    return row >= bounds.minRow && row <= bounds.maxRow && col >= bounds.minCol && col <= bounds.maxCol;
+    const config = deps.resolveBoardConfig(boardOrConfig, maybeCols);
+    const bounds = config.baseBounds;
+    const inBounds = row >= bounds.minRow && row <= bounds.maxRow && col >= bounds.minCol && col <= bounds.maxCol;
+    if (!inBounds) return false;
+    return config.shape === "circle" ? isCircleCell(row, col, config) : true;
   }
 
   function collectMainBoardCoordinates(boardOrConfig: unknown, maybeCols?: unknown): CellCoord[] {
     const config = deps.resolveBoardConfig(boardOrConfig, maybeCols);
     const coords: CellCoord[] = [];
     for (let row = 0; row < config.rows; row++) {
-      for (let col = 0; col < config.cols; col++) coords.push({ row, col });
+      for (let col = 0; col < config.cols; col++) {
+        if (isMainBoardCell(row, col, config)) coords.push({ row, col });
+      }
     }
     return coords;
   }

@@ -11,6 +11,7 @@ describe("shared board shape metadata", () => {
       toBoardCellKey: SharedBoardUtils.toBoardCellKey,
       normalizeOwner: (value) => (value === 1 || value === -1 ? value : 0),
       resolveBoardConfig: SharedBoardUtils.resolveBoardConfig,
+      isMainBoardCell: SharedBoardUtils.isMainBoardCell,
       collectExpansionDescriptors: SharedBoardUtils.collectExpansionDescriptors,
     });
     const board = Array.from({ length: 4 }, () =>
@@ -49,5 +50,19 @@ describe("shared board shape metadata", () => {
       minCol: 0,
       maxCol: 4,
     });
+  });
+
+  test("excludes base-shape void without treating it as a meteor hole", () => {
+    const board = Array.from({ length: 10 }, () => Array(10).fill(0));
+    SharedBoardUtils.attachBoardShape(board, {
+      boardConfig: { rows: 10, cols: 10, shape: "circle" },
+    });
+
+    const meta = SharedBoardUtils.getBoardShapeMeta(board)!;
+    expect(meta.playableKeys.size).toBe(80);
+    expect(meta.playableKeys.has("0,0")).toBe(false);
+    expect(meta.meteorHoleKeys.has("0,0")).toBe(false);
+    expect(meta.playableKeys.has("4,4")).toBe(true);
+    expect(meta.standard8x8).toBe(false);
   });
 });

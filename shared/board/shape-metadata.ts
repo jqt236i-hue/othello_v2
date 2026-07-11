@@ -30,6 +30,7 @@ export interface BoardShapeMetadataDependencies {
   toBoardCellKey: (row: number, col: number) => string;
   normalizeOwner: (value: unknown) => number;
   resolveBoardConfig: (value: unknown) => { rows: number; cols: number };
+  isMainBoardCell: (row: number, col: number, boardOrConfig: unknown) => boolean;
   collectExpansionDescriptors: (
     boardExpansion: unknown,
     boardOrConfig: unknown,
@@ -144,7 +145,9 @@ export function createBoardShapeMetadata(deps: BoardShapeMetadataDependencies) {
       const line = Array.isArray((board as unknown[][])[row])
         ? (board as unknown[][])[row]
         : [];
-      for (let col = 0; col < line.length; col++) addCoord(row, col);
+      for (let col = 0; col < line.length; col++) {
+        if (deps.isMainBoardCell(row, col, boardConfig)) addCoord(row, col);
+      }
     }
     for (const cell of expansionCells) addCoord(cell.row, cell.col);
     if (
@@ -163,10 +166,7 @@ export function createBoardShapeMetadata(deps: BoardShapeMetadataDependencies) {
       expansionOwnerByKey[deps.toBoardCellKey(cell.row, cell.col)] =
         deps.normalizeOwner(cell.owner);
     const standard8x8 =
-      (board as unknown[][]).length === deps.defaultRows &&
-      (board as unknown[][]).every(
-        (row) => Array.isArray(row) && row.length === deps.defaultCols,
-      ) &&
+      (boardConfig as { standard8x8?: boolean }).standard8x8 === true &&
       expansionCells.length === 0 &&
       meteorHoleKeys.size === 0;
     return {

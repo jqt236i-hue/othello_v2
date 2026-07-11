@@ -7,6 +7,7 @@ export interface Bounds {
 export interface BoardConfig {
   rows: number;
   cols: number;
+  shape: "rectangle" | "circle";
   standard8x8: boolean;
   baseBounds: Bounds;
   outerBounds: Bounds;
@@ -19,6 +20,7 @@ export interface BoardConfigurationDependencies {
   minCols: number;
   maxCols: number;
   outerMin: number;
+  circleSize?: number;
   clampBoardDimension: (
     value: unknown,
     fallbackValue: unknown,
@@ -28,6 +30,15 @@ export interface BoardConfigurationDependencies {
 }
 
 export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
+  const circleSize = Number.isInteger(deps.circleSize)
+    ? Math.max(1, Number(deps.circleSize))
+    : 10;
+
+  function normalizeBoardShape(value: unknown): "rectangle" | "circle" {
+    return String(value || "").trim().toLowerCase() === "circle"
+      ? "circle"
+      : "rectangle";
+  }
   function isNumericBoardDimensionArg(value: unknown): boolean {
     return (
       value !== null &&
@@ -58,17 +69,20 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
       ? Math.max(1, Math.floor(max - min + 1))
       : null;
   }
-  function buildBoardConfig(rows: unknown, cols: unknown): BoardConfig {
+  function buildBoardConfig(rows?: unknown, cols?: unknown, shapeValue?: unknown): BoardConfig {
+    const shape = normalizeBoardShape(shapeValue);
+    const requestedRows = shape === "circle" ? circleSize : rows;
+    const requestedCols = shape === "circle" ? circleSize : cols;
     const normalizedRows = deps.clampBoardDimension(
-      rows,
+      requestedRows,
       deps.defaultRows,
       deps.minRows,
       deps.maxRows,
     );
-    const fallbackCols = Number.isFinite(Number(cols))
-      ? Number(cols)
-      : Number.isFinite(Number(rows))
-        ? Number(rows)
+    const fallbackCols = Number.isFinite(Number(requestedCols))
+      ? Number(requestedCols)
+      : Number.isFinite(Number(requestedRows))
+        ? Number(requestedRows)
         : deps.defaultCols;
     const normalizedCols = deps.clampBoardDimension(
       fallbackCols,
@@ -79,7 +93,9 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
     return {
       rows: normalizedRows,
       cols: normalizedCols,
+      shape,
       standard8x8:
+        shape === "rectangle" &&
         normalizedRows === deps.defaultRows &&
         normalizedCols === deps.defaultCols,
       baseBounds: {
@@ -121,6 +137,7 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
     const derived = deriveBoardDimsFromBoard(board);
     let rows: unknown = null;
     let cols: unknown = null;
+    let shape: unknown = null;
     if (
       candidate &&
       typeof candidate === "object" &&
@@ -129,6 +146,7 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
       const obj = candidate as Record<string, unknown>;
       rows = obj.rows;
       cols = obj.cols;
+      shape = obj.shape;
       if (!Number.isFinite(Number(rows)))
         rows = readBoundsSpan(obj.baseBounds, "row");
       if (!Number.isFinite(Number(cols)))
@@ -150,7 +168,7 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
     }
     if (!Number.isFinite(Number(rows)) && derived) rows = derived.rows;
     if (!Number.isFinite(Number(cols)) && derived) cols = derived.cols;
-    return buildBoardConfig(rows, cols);
+    return buildBoardConfig(rows, cols, shape);
   }
   function extractBoardConfigSource(value: unknown): unknown {
     if (Array.isArray(value)) return value;
@@ -164,7 +182,8 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
       isNumericBoardDimensionArg(obj.rows) ||
       isNumericBoardDimensionArg(obj.cols) ||
       (obj.baseBounds && typeof obj.baseBounds === "object") ||
-      (obj.outerBounds && typeof obj.outerBounds === "object")
+      (obj.outerBounds && typeof obj.outerBounds === "object") ||
+      typeof obj.shape === "string"
     )
       return value;
     return null;
@@ -185,7 +204,7 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
       isNumericBoardDimensionArg(boardOrConfig) ||
       isNumericBoardDimensionArg(maybeCols)
     )
-      return buildBoardConfig(boardOrConfig, maybeCols);
+      return buildBoardConfig(boardOrConfig, maybeCols, "rectangle");
     if (
       boardOrConfig &&
       typeof boardOrConfig === "object" &&
@@ -204,6 +223,7 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
       const derived = deriveBoardDimsFromBoard(boardFallback);
       let rows: unknown = candidate.rows;
       let cols: unknown = candidate.cols;
+      const shape: unknown = candidate.shape;
       if (!isNumericBoardDimensionArg(rows))
         rows = readBoundsSpan(candidate.baseBounds, "row");
       if (!isNumericBoardDimensionArg(cols))
@@ -224,7 +244,7 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
       }
       if (!isNumericBoardDimensionArg(rows) && derived) rows = derived.rows;
       if (!isNumericBoardDimensionArg(cols) && derived) cols = derived.cols;
-      return buildBoardConfig(rows, cols);
+      return buildBoardConfig(rows, cols, shape);
     }
     return normalizeBoardConfig(boardOrConfig, undefined);
   }
@@ -234,7 +254,7 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
   }
   function readBoardGeometry(
     value: unknown,
-  ): { rows: number; cols: number } | null {
+  ): { rows: number; cols: number; shape: "rectangle" | "circle" } | null {
     const config = maybeResolveBoardConfig(value);
     if (
       !config ||
@@ -245,6 +265,7 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
     return {
       rows: Math.trunc(Number(config.rows)),
       cols: Math.trunc(Number(config.cols)),
+      shape: config.shape,
     };
   }
   function compareBoardGeometry(previousValue: unknown, nextValue: unknown) {
@@ -256,7 +277,7 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
       changed: !!(
         previous &&
         next &&
-        (previous.rows !== next.rows || previous.cols !== next.cols)
+        (previous.rows !== next.rows || previous.cols !== next.cols || previous.shape !== next.shape)
       ),
     };
   }
@@ -279,6 +300,7 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
     return resolveBoardConfig(boardOrConfig, maybeCols).cols;
   }
   return {
+    normalizeBoardShape,
     buildBoardConfig,
     normalizeBoardConfig,
     extractBoardConfigSource,

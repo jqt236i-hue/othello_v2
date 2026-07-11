@@ -21,6 +21,7 @@
     interface BoardConfig {
         rows: number;
         cols: number;
+        shape: 'rectangle' | 'circle';
         standard8x8: boolean;
         baseBounds: Bounds;
         outerBounds: Bounds;
@@ -167,9 +168,11 @@
         minCols: MIN_BOARD_COLS,
         maxCols: MAX_BOARD_COLS,
         outerMin: OUTER_MIN,
+        circleSize: 10,
         clampBoardDimension
     });
     const buildBoardConfig = BoardConfiguration.buildBoardConfig;
+    const normalizeBoardShape = BoardConfiguration.normalizeBoardShape;
     const normalizeBoardConfig = BoardConfiguration.normalizeBoardConfig;
     const extractBoardConfigSource = BoardConfiguration.extractBoardConfigSource;
     const maybeResolveBoardConfig = BoardConfiguration.maybeResolveBoardConfig;
@@ -236,6 +239,7 @@
         toBoardCellKey,
         normalizeOwner,
         resolveBoardConfig,
+        isMainBoardCell,
         collectExpansionDescriptors
     });
     const getBoardShapeMeta = BoardShapeMetadata.getBoardShapeMeta;
@@ -414,6 +418,7 @@
         PADDED_BOARD_MAX,
         PADDED_BOARD_SIZE,
         buildBoardConfig,
+        normalizeBoardShape,
         normalizeBoardConfig,
         extractBoardConfigSource,
         maybeResolveBoardConfig,
