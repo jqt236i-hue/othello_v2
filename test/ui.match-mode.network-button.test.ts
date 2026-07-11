@@ -231,6 +231,7 @@ describe('match-mode network button behavior', () => {
     global.window = dom.window;
     global.document = dom.window.document;
     global.location = dom.window.location;
+    global.localStorage = dom.window.localStorage;
     global.addLog = jest.fn();
     global.updateCpuCharacter = jest.fn();
     window.showCpuSpeechBubble = jest.fn();
@@ -316,6 +317,7 @@ describe('match-mode network button behavior', () => {
     delete global.window;
     delete global.document;
     delete global.location;
+    delete global.localStorage;
     delete global.addLog;
     delete global.updateCpuCharacter;
   });
@@ -360,6 +362,40 @@ describe('match-mode network button behavior', () => {
 
     expect(window.LeaderboardClient.setPlayerName).toHaveBeenLastCalledWith('閉じる前');
     expect(window.LeaderboardClient.updatePublicProfile).toHaveBeenCalledTimes(2);
+  });
+
+  test('ランキング機能が遅延読込でも、保存済みプロフィール名をネット対戦名へ復元する', async () => {
+    localStorage.setItem('card_reversi_player_profile_v1', JSON.stringify({
+      version: 1,
+      displayName: '保存済み名',
+      avatarStoneType: 'REGEN',
+      bio: '',
+      updatedAt: Date.now()
+    }));
+    delete window.LeaderboardClient;
+
+    const playerInput = document.getElementById('networkPlayerNameInput');
+    playerInput.value = '';
+    window.setupMatchModeControls(buildUiRefs());
+
+    expect(playerInput.value).toBe('保存済み名');
+
+    document.getElementById('modeNetworkBtn').click();
+    await Promise.resolve();
+
+    expect(playerInput.value).toBe('保存済み名');
+  });
+
+  test('ランキング機能が遅延読込でも、ネット対戦名の変更をプロフィールへ保存する', () => {
+    delete window.LeaderboardClient;
+    const playerInput = document.getElementById('networkPlayerNameInput');
+
+    playerInput.value = '  次回の名前  ';
+    playerInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+
+    const profile = JSON.parse(localStorage.getItem('card_reversi_player_profile_v1') || '{}');
+    expect(playerInput.value).toBe('次回の名前');
+    expect(profile.displayName).toBe('次回の名前');
   });
 
   test('レート戦ボタンは通常プレイを維持したまま専用キューに入れる', async () => {

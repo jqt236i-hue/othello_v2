@@ -28,6 +28,13 @@ const SharedUIBootstrapModule = (() => {
         return null;
     }
 })();
+const PlayerProfileModule = (() => {
+    try {
+        return _require('../player-profile');
+    } catch (e) {
+        return null;
+    }
+})();
 const MatchModeLeaderboardControllerModule = (() => {
     try {
         return _require('./match-mode/leaderboard-controller');
@@ -199,7 +206,32 @@ const MODE_OTHELLO = 'othello';
         return Array.from(normalized).slice(0, PLAYER_NAME_MAX).join('');
     }
 
+    function getProfilePlayerName() {
+        try {
+            if (PlayerProfileModule && typeof PlayerProfileModule.readPlayerProfile === 'function') {
+                const profile = PlayerProfileModule.readPlayerProfile();
+                return normalizePlayerName(profile && profile.displayName);
+            }
+        } catch (e) { /* ignore */ }
+        return '';
+    }
+
+    function saveProfilePlayerName(value: any) {
+        const normalized = normalizePlayerName(value);
+        if (!normalized) return '';
+        try {
+            if (PlayerProfileModule && typeof PlayerProfileModule.savePlayerProfile === 'function') {
+                const saved = PlayerProfileModule.savePlayerProfile({ displayName: normalized });
+                return normalizePlayerName(saved && saved.displayName) || normalized;
+            }
+        } catch (e) { /* ignore */ }
+        return normalized;
+    }
+
     function getSharedPlayerName() {
+        const profileName = getProfilePlayerName();
+        if (profileName) return profileName;
+
         try {
             if (root.LeaderboardClient && typeof root.LeaderboardClient.getPlayerName === 'function') {
                 return normalizePlayerName(root.LeaderboardClient.getPlayerName());
@@ -588,10 +620,10 @@ const MODE_OTHELLO = 'othello';
         const normalized = normalizePlayerName(value);
         if (!normalized) return '';
 
-        let stored = normalized;
+        let stored = saveProfilePlayerName(normalized) || normalized;
         try {
             if (root.LeaderboardClient && typeof root.LeaderboardClient.setPlayerName === 'function') {
-                stored = normalizePlayerName(root.LeaderboardClient.setPlayerName(normalized));
+                stored = normalizePlayerName(root.LeaderboardClient.setPlayerName(stored)) || stored;
             }
         } catch (e) { /* ignore */ }
 
