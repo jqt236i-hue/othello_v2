@@ -14,6 +14,7 @@ Change a card through the repository's canonical layers without creating a secon
 3. Read `01-rulebook.md` before changing player-visible rules, behavior, timing, prompts, labels, or descriptions.
 4. Read the relevant `正本/*.md` for card behavior, turn order, animation, sound, highlight, or network-visible gameplay. Update it only when the intended player-visible specification changes or would become stale.
 5. Treat root TypeScript and JSON files as canonical. Do not source-edit `dist/`, `worker-public/`, `public/module-registry.js`, or generated catalogs.
+6. Stop and ask the user when same-topic authorities conflict and the intended player-visible behavior is unclear.
 
 ## Inventory the card
 
@@ -23,7 +24,7 @@ Run the bundled read-only inventory from the repository root:
 node skills/card-reversi-card-change/scripts/inventory-card-change.mjs --repo . --card <card-id-or-type-or-name>
 ```
 
-Use `--json` when structured output is useful. A missing catalog match is valid for a new card. Search again manually with `rg` when the requested concept uses aliases not present in the catalog.
+Use repeatable `--term <alias>` arguments for an old ID, renamed type, effect name, pending type, event type, or sound key. Use `--json` when structured output is useful. A missing catalog match is valid for a new card. Search again manually with `rg` when the requested concept uses aliases not present in the catalog.
 
 If the current session advertises `card-reversi-browser-new-card`, `card-reversi-browser-card-change`, `card-reversi-browser-card-text-change`, or `card-reversi-browser-cost-change`, hand the classified implementation to the matching specialist skill. Keep this skill responsible for the initial inventory and final cross-layer verification. Do not assume an indexed specialist is callable when it is absent from the session's available-skill metadata.
 
@@ -45,12 +46,13 @@ Route every applicable class; do not force the change into only one class.
 
 1. Update the player-visible specification first when behavior changes.
 2. Update `cards/catalog.json` when catalog data changes.
-3. Implement canonical headless behavior in `game/logic/` and canonical turn flow.
-4. Add pending-selection coordination only through existing bridges.
-5. Emit ordered events or presentation metadata; add UI handling without mutating canonical results.
-6. Update CPU and network consumers only when the card crosses those boundaries.
-7. Update focused tests where existing coverage does not prove the changed contract.
-8. Generate catalogs, browser artifacts, or Worker mirrors only from their source scripts after focused checks pass.
+3. Regenerate catalog projections immediately with `npm run generate:catalog` when catalog data changes. Run `npm run generate:card-art-map` when card-art mapping inputs change and `npm run generate:asset-manifest` when asset inventory changes. Inspect generated diffs before testing. If a generator source changed, build its TypeScript source first.
+4. Implement canonical headless behavior in `game/logic/` and canonical turn flow.
+5. Add pending-selection coordination only through existing bridges.
+6. Emit ordered events or presentation metadata; add UI handling without mutating canonical results.
+7. Update CPU and network consumers only when the card crosses those boundaries.
+8. Update focused tests where existing coverage does not prove the changed contract.
+9. Build browser artifacts or Worker mirrors only from their source scripts after focused checks pass.
 
 Prefer the smallest coherent change. Expand scope when a local patch would duplicate rule logic, normalization, target checks, event assembly, or network authority.
 
@@ -61,12 +63,14 @@ Always inspect the final task-owned diff and run the smallest focused checks tha
 | Impact | Minimum verification |
 | --- | --- |
 | Docs or text-only | `git diff --check` plus source/render inspection. Do not add tests. |
-| Catalog or browser-visible surface | Run the relevant focused test, `npm run generate:catalog` when catalog outputs change, then `npm run build:browser`. Inspect generated diffs. |
+| Catalog or browser-visible surface | Run `npm run generate:catalog` first when catalog outputs change, inspect its diff, run the relevant focused test, then run `npm run build:browser`. |
 | Headless card rule, target, cost, turn flow, or CPU behavior | Run card/effect-specific Jest coverage plus `npm run typecheck` or the smallest existing build that exercises the changed source. Add/update a test when focused coverage is missing or a regression needs durable protection. |
 | Pending selection or presentation bridge | Include focused pending, animation, or playback tests and `npm run check:window`. Use the smallest relevant browser/E2E scenario when it materially improves confidence. |
 | Network authority, snapshot, reconnect, or cross-runtime behavior | Follow `$card-reversi-network-contract`; include `npm run test:network:parity` and standalone `npm run worker:prepare` when mirror generation/verification is required. |
 
 Do not run `worker:prepare` immediately before `worker:dev` or `worker:deploy`; those commands already invoke it. Do not weaken a failing test to obtain a pass. Report an initial failure even if a retry passes.
+
+When a card ID, type, name, event, pending type, or sound key changes or is removed, run the inventory again with the old values passed through `--term`. Classify every remaining hit as required compatibility, historical documentation, generated output awaiting regeneration, or stale code; remove stale code before completion. Build the browser as required by the root instructions.
 
 ## Finish
 

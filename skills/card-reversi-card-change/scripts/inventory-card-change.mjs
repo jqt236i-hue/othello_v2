@@ -9,27 +9,38 @@ function fail(message) {
   process.exit(1);
 }
 
+function readOptionValue(argv, index, optionName) {
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) fail(`${optionName} requires a value`);
+  return value;
+}
+
 function parseArgs(argv) {
-  const options = { repo: process.cwd(), card: '', json: false };
+  const options = { repo: process.cwd(), card: '', terms: [], json: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--repo') {
-      options.repo = argv[index + 1] || '';
+      options.repo = readOptionValue(argv, index, '--repo');
       index += 1;
     } else if (arg === '--card') {
-      options.card = argv[index + 1] || '';
+      options.card = readOptionValue(argv, index, '--card');
+      index += 1;
+    } else if (arg === '--term') {
+      options.terms.push(readOptionValue(argv, index, '--term'));
       index += 1;
     } else if (arg === '--json') {
       options.json = true;
     } else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: inventory-card-change.mjs --card <id|type|Japanese name> [--repo <path>] [--json]');
+      console.log('Usage: inventory-card-change.mjs --card <id|type|Japanese name> [--term <alias>]... [--repo <path>] [--json]');
       process.exit(0);
     } else {
       fail(`unknown argument: ${arg}`);
     }
   }
   if (!options.repo) fail('--repo requires a path');
-  if (!options.card.trim()) fail('--card is required');
+  options.card = options.card.trim();
+  options.terms = options.terms.map((term) => term.trim()).filter(Boolean);
+  if (!options.card) fail('--card is required');
   return options;
 }
 
@@ -89,10 +100,19 @@ function listCandidateFiles(repoRoot) {
 function classify(file) {
   const path = file.replaceAll('\\', '/');
   if (path === '01-rulebook.md' || path.startsWith('正本/')) return 'player-spec';
-  if (path.startsWith('worker-public/') || path.startsWith('dist/') || path === 'public/module-registry.js') {
+  const generatedRootFiles = new Set([
+    'assets/asset-manifest.json',
+    'cards/card-art-map.generated.ts',
+    'cards/catalog.generated.js',
+    'cards/catalog.js',
+    'cards/catalog.ts',
+    'public/module-registry.js'
+  ]);
+  if (path.startsWith('worker-public/') || path.startsWith('dist/') || generatedRootFiles.has(path)) {
     return 'generated-or-mirror';
   }
   if (path.startsWith('test/') || path.startsWith('tests/') || path.includes('/__tests__/')) return 'tests';
+  if (path.includes('.generated.')) return 'generated-or-mirror';
   if (path.startsWith('cards/')) return 'catalog-and-card-ui';
   if (path.startsWith('game/ai/') || /(^|\/)cpu[^/]*\.(ts|js)$/u.test(path)) return 'cpu';
   if (path.startsWith('workers/') || path.startsWith('ui/network') || path.startsWith('utils/match-') || path.startsWith('scripts/local-match-server.')) {
@@ -109,11 +129,13 @@ function classify(file) {
 function collectHits(repoRoot, files, terms) {
   const normalizedTerms = terms.map(normalize).filter(Boolean);
   const hits = [];
+  const skipped = [];
   for (const file of files) {
     let contents;
     try {
       contents = readFileSync(resolve(repoRoot, file), 'utf8');
-    } catch {
+    } catch (error) {
+      skipped.push({ file, error: error instanceof Error ? error.message : String(error) });
       continue;
     }
     const lineNumbers = [];
@@ -127,7 +149,10 @@ function collectHits(repoRoot, files, terms) {
       hits.push({ file, category: classify(file), lines: lineNumbers });
     }
   }
-  return hits.sort((left, right) => left.file.localeCompare(right.file, 'en'));
+  return {
+    hits: hits.sort((left, right) => left.file.localeCompare(right.file, 'en')),
+    skipped
+  };
 }
 
 function printHuman(result) {
@@ -156,6 +181,20 @@ function printHuman(result) {
   if (categories.has('generated-or-mirror')) {
     console.log('\nWarning: generated-or-mirror matches are evidence only; edit canonical root sources first.');
   }
+  if (result.skipped.length > 0) {
+    console.log(`\nWarning: ${result.skipped.length} candidate files could not be read; inspect the JSON output for details.`);
+  }
+}
+
+function uniqueTerms(values) {
+  const termsByNormalizedValue = new Map();
+  for (const value of values) {
+    const normalizedValue = normalize(value);
+    if (normalizedValue && !termsByNormalizedValue.has(normalizedValue)) {
+      termsByNormalizedValue.set(normalizedValue, String(value).trim());
+    }
+  }
+  return [...termsByNormalizedValue.values()];
 }
 
 const options = parseArgs(process.argv.slice(2));
@@ -170,13 +209,14 @@ try {
 
 const cards = loadCatalog(repoRoot);
 const card = selectCard(cards, options.card);
-const terms = [...new Set([options.card, card?.id, card?.type, card?.name_ja].filter(Boolean))];
-const hits = collectHits(repoRoot, listCandidateFiles(repoRoot), terms);
+const terms = uniqueTerms([options.card, card?.id, card?.type, card?.name_ja, ...options.terms]);
+const inventory = collectHits(repoRoot, listCandidateFiles(repoRoot), terms);
 const result = {
   query: options.card,
   card: card ? { id: card.id, type: card.type, name_ja: card.name_ja, enabled: card.enabled !== false } : null,
   terms,
-  hits
+  hits: inventory.hits,
+  skipped: inventory.skipped
 };
 
 if (options.json) {
