@@ -66,7 +66,7 @@ describe('deck builder controller', () => {
   });
 
   function openEditor(body) {
-    const editButton = Array.from(body.querySelectorAll('.deck-builder-view-presets > .deck-builder-preset-grid button')).find((button) => button.textContent === '編集');
+    const editButton = Array.from(body.querySelectorAll('.deck-builder-saved-deck-column > .deck-builder-preset-grid button')).find((button) => button.textContent === '編集');
     expect(editButton).toBeTruthy();
     editButton.click();
   }
@@ -153,7 +153,7 @@ describe('deck builder controller', () => {
 
     controller.open();
 
-    const localPresetCards = body.querySelectorAll('.deck-builder-view-presets > .deck-builder-preset-grid > .deck-builder-preset-card');
+    const localPresetCards = body.querySelectorAll('.deck-builder-saved-deck-column > .deck-builder-preset-grid > .deck-builder-preset-card');
     expect(localPresetCards).toHaveLength(6);
     expect(body.textContent).toContain('6つまで保存できます');
     expect(Array.from(localPresetCards).map((card) => card.textContent)).toEqual(expect.arrayContaining([
@@ -175,6 +175,9 @@ describe('deck builder controller', () => {
     expect(activeHero.textContent).toContain('理論デッキ');
     expect(Array.from(activeHero.querySelectorAll('button')).map((button) => button.textContent)).not.toContain('使用');
 
+    expect(body.querySelector('.deck-builder-workspace')).toBeTruthy();
+    expect(body.querySelector('.deck-builder-loadout-column')).toBeTruthy();
+    expect(body.querySelector('.deck-builder-saved-deck-column')).toBeTruthy();
     expect(body.querySelector('.deck-builder-workshop-grid')).toBeTruthy();
     expect(body.querySelector('.deck-builder-fixed-library')).toBeTruthy();
   });
@@ -700,7 +703,7 @@ describe('deck builder controller', () => {
       const controller = createController();
       controller.open();
 
-      const presetUseButton = Array.from(document.querySelectorAll('.deck-builder-view-presets > .deck-builder-preset-grid .deck-builder-preset-card button'))
+      const presetUseButton = Array.from(document.querySelectorAll('.deck-builder-saved-deck-column > .deck-builder-preset-grid .deck-builder-preset-card button'))
         .find((button) => button.textContent === '使用');
       expect(presetUseButton).toBeTruthy();
       presetUseButton.click();
@@ -773,7 +776,7 @@ describe('deck builder controller', () => {
       const controller = createController();
       controller.open();
 
-      const useButtons = Array.from(document.querySelectorAll('.deck-builder-view-presets > .deck-builder-preset-grid .deck-builder-preset-card button'))
+      const useButtons = Array.from(document.querySelectorAll('.deck-builder-saved-deck-column > .deck-builder-preset-grid .deck-builder-preset-card button'))
         .filter((button) => button.textContent === '使用' && !button.disabled);
       expect(useButtons).toHaveLength(2);
 

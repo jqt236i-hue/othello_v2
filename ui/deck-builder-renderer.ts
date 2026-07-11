@@ -764,7 +764,13 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   intro.textContent = '6つまで保存できます。使用で即時切替、編集で構築画面を開きます。';
   wrapper.appendChild(intro);
 
-  wrapper.appendChild(createActiveDeckHero(viewModel));
+  const workspace = document.createElement('div');
+  workspace.className = 'deck-builder-workspace';
+
+  const loadoutColumn = document.createElement('section');
+  loadoutColumn.className = 'deck-builder-loadout-column';
+  loadoutColumn.setAttribute('aria-label', '現在のデッキと固定プリセット');
+  loadoutColumn.appendChild(createActiveDeckHero(viewModel));
 
   const defaultPresetRow = document.createElement('div');
   defaultPresetRow.className = 'deck-builder-default-preset-row deck-builder-fixed-library';
@@ -810,7 +816,6 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
   const filledCount = (Array.isArray(viewModel.presets) ? viewModel.presets : []).filter((p: any) => p && p.canUse).length;
   saveSlotCounter.textContent = `${filledCount}/6 使用中`;
   saveSlotTitle.appendChild(saveSlotCounter);
-  wrapper.appendChild(saveSlotTitle);
 
   const presetGrid = document.createElement('div');
   presetGrid.className = 'deck-builder-preset-grid deck-builder-workshop-grid';
@@ -822,8 +827,18 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
 
     presetGrid.appendChild(createPresetCard(preset, actions, { slotIndex }));
   });
-  wrapper.appendChild(presetGrid);
-  wrapper.appendChild(defaultPresetRow);
+
+  loadoutColumn.appendChild(defaultPresetRow);
+
+  const savedDeckColumn = document.createElement('section');
+  savedDeckColumn.className = 'deck-builder-saved-deck-column';
+  savedDeckColumn.setAttribute('aria-label', '保存スロット');
+  savedDeckColumn.appendChild(saveSlotTitle);
+  savedDeckColumn.appendChild(presetGrid);
+
+  workspace.appendChild(loadoutColumn);
+  workspace.appendChild(savedDeckColumn);
+  wrapper.appendChild(workspace);
 
   stage.appendChild(wrapper);
   atelier.appendChild(rail);
