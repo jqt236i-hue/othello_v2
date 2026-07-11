@@ -107,6 +107,7 @@ othello_v2/
 
 - Level 0 generated-manifest diffs are review-only outputs from existing scripts; do not hand-edit generated or mirrored files just because their verification level is low.
 - If existing focused coverage already proves the changed behavior, run that coverage instead of adding duplicate tests. If no practical automated check exists, state the manual/source inspection performed and the residual risk.
+- Do not delete, skip, or weaken a failing test merely to obtain a passing result. Change test expectations only when the intended behavior has changed and the source-of-truth spec or contract is updated as needed. If a retry passes after an initial failure, report both results and the suspected reason for the instability.
 - 実機ゲーム検証（ブラウザでのプレイ・操作確認、Playwright などの自動操作を含む）は、変更のリスクに応じて事前承認なしで実行できる。ユーザーが実行しないよう指定した場合はそれに従う。
 - `test/e2e/*`, `npm run test:visual`, and Playwright/browser-driven game UI checks are Level 3 or visual verification tools. Run the smallest relevant scenario and report what was exercised.
 - Do not run long selfplay or training jobs unless explicitly requested. Use a focused preflight or small sample before any expensive run.
@@ -117,6 +118,7 @@ othello_v2/
 - Prefer the smallest coherent change that solves the real problem without weakening architecture boundaries. Do not force a local patch when the correct fix requires a broader refactor or documented design change.
 - When a direct implementation would duplicate logic, mix responsibilities, or weaken a documented boundary, expand the scope enough to fix the underlying structure instead of layering another workaround.
 - Before adding a new public API, cross-runtime helper, bridge, or dependency direction, confirm that an existing shared helper, DI hook, event, snapshot contract, or authority helper cannot cover the need.
+- Before adding or upgrading an npm or Python dependency, confirm that the platform or an existing dependency cannot reasonably cover the need. Keep manifest and lock/requirements files aligned, avoid unrelated bulk upgrades, and report the reason and impact of the dependency change.
 - Choose implementations that keep behavior localized, deterministic, and testable. If multiple approaches are plausible, prefer the one with the smallest future blast radius and note the reason in the final report when it matters.
 - Avoid temporary workarounds, broad `catch`, silent no-op paths, and success-shaped fallbacks. If a compromise is unavoidable, document the reason, risk, and follow-up in the final report.
 
@@ -126,6 +128,7 @@ othello_v2/
 - Do not create git branches, tags, or worktrees unless the user explicitly asks for them in the current task.
 - If pre-existing changes are present, classify them before editing as related to the requested task, unrelated user/work-in-progress changes, generated or mirror output, or unknown changes that need explanation.
 - Do not stage, commit, revert, delete, or overwrite pre-existing unrelated changes.
+- Never print, expose, copy into logs or documentation, or commit secrets such as API keys, access tokens, passwords, `.env` values, or Wrangler secrets. Refer to the secret by its environment/configuration name and use the appropriate secret store when configuration is required.
 - If pre-existing changes are related to the task, inspect the relevant diff and continue from it instead of duplicating or undoing it.
 - If the task cannot be completed safely because of existing changes, report the exact files involved and ask how to proceed.
 - At the end of every implementation or documentation task, run `git status --short` and inspect the relevant diff. Stage only task-owned files, and only when preparing an intended commit.
@@ -194,3 +197,4 @@ npm run worker:prepare    # Standalone mirror generation/verification, or before
 - Docs-only changes require `git diff --check`, reference and file-existence checks, and inspection of the rendered Markdown when layout matters. Validate frontmatter or `applyTo` only for document types that actually use those fields.
 - `npm run worker:dev` / `npm run worker:deploy` already run `worker:prepare`; do not run it a second time immediately beforehand. Run `worker:prepare` by itself when the task is mirror generation/verification or before invoking `npx wrangler dev` / `npx wrangler deploy` directly.
 - User-facing reports should use Japanese display names from the screen or `01-rulebook.md` first; code IDs are secondary.
+- When a user decision is required, end the report with a short recommendation in plain language, explain choices by their player-visible effect, and keep the number of choices to the minimum needed.
