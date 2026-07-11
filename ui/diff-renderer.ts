@@ -3313,35 +3313,41 @@ function initializeBoardDOM(boardEl: any) {
 
 function _createCellStateProjectorContextForDiff() {
     return {
-        _resolveGameStateForDiffRender,
-        _resolveCardStateForDiffRender,
-        _getBoardShapeForDiff,
-        _buildEmptyCellStateForDiffRender,
-        CardLogic: (typeof CardLogic !== 'undefined' ? CardLogic : undefined),
-        getPlayerKey,
-        _resolveViewerContextForDiff,
-        _canLocalPlayerControlCurrentTurnForDiff,
-        BLACK,
-        WHITE,
-        EMPTY,
-        _getExpansionDescriptorsForDiff,
-        _buildBoardHintProjectionForDiff,
-        _getActiveSuperAttractionPreviewForDiff,
-        _collectSuperAttractionPreviewKeys,
-        MarkersAdapter: (typeof MarkersAdapter !== 'undefined' ? MarkersAdapter : undefined),
-        _isReversiModeForDiffRenderer,
-        _isBombCategoryMarkerForDiff,
-        _isBoardHiddenTrap,
-        _isActiveManifestAuraMarkerForDiff,
-        _isManifestStoneTypeForDiff,
-        _resolveSpecialDisplayTurnsForDiff,
-        _isFiniteTimedLabelValueForDiff,
-        _resolveFlipEvadeDisplayForDiff,
-        _resolveDestroyEvadeDisplayForDiff,
-        isDebugWorkVisuals: () => (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true),
-        isDebugHumanVsHuman: () => (typeof window !== 'undefined' && window.DEBUG_HUMAN_VS_HUMAN),
-        warn: (...args: any[]) => console.warn(...args),
-        debugLog: (...args: any[]) => console.log(...args)
+        state: {
+            resolveGameState: _resolveGameStateForDiffRender,
+            resolveCardState: _resolveCardStateForDiffRender,
+            getBoardShape: _getBoardShapeForDiff,
+            buildEmptyCellState: _buildEmptyCellStateForDiffRender,
+            cardLogic: (typeof CardLogic !== 'undefined' ? CardLogic : undefined),
+            getPlayerKey,
+            resolveViewerContext: _resolveViewerContextForDiff,
+            canLocalPlayerControlCurrentTurn: _canLocalPlayerControlCurrentTurnForDiff,
+            constants: { BLACK, WHITE, EMPTY }
+        },
+        hints: {
+            getExpansionDescriptors: _getExpansionDescriptorsForDiff,
+            buildBoardHintProjection: _buildBoardHintProjectionForDiff,
+            getActiveSuperAttractionPreview: _getActiveSuperAttractionPreviewForDiff,
+            collectSuperAttractionPreviewKeys: _collectSuperAttractionPreviewKeys
+        },
+        markers: {
+            adapter: (typeof MarkersAdapter !== 'undefined' ? MarkersAdapter : undefined),
+            isReversiMode: _isReversiModeForDiffRenderer,
+            isBombCategory: _isBombCategoryMarkerForDiff,
+            isBoardHiddenTrap: _isBoardHiddenTrap,
+            isActiveManifestAura: _isActiveManifestAuraMarkerForDiff,
+            isManifestStoneType: _isManifestStoneTypeForDiff,
+            resolveSpecialDisplayTurns: _resolveSpecialDisplayTurnsForDiff,
+            isFiniteTimedLabelValue: _isFiniteTimedLabelValueForDiff,
+            resolveFlipEvadeDisplay: _resolveFlipEvadeDisplayForDiff,
+            resolveDestroyEvadeDisplay: _resolveDestroyEvadeDisplayForDiff
+        },
+        debug: {
+            isDebugWorkVisuals: () => (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true),
+            isDebugHumanVsHuman: () => (typeof window !== 'undefined' && window.DEBUG_HUMAN_VS_HUMAN),
+            warn: (...args: any[]) => console.warn(...args),
+            log: (...args: any[]) => console.log(...args)
+        }
     };
 }
 

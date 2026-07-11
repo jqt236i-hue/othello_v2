@@ -35,40 +35,50 @@ function specialSupportsFlipEvadeForDiff(special: any): boolean {
     );
 }
 
-function buildCurrentCellState(deps: any) {
+function buildCurrentCellState(capabilities: any) {
     if (PerfBenchmarks) PerfBenchmarks.perfStart('buildCurrentCellState');
     try {
         const {
-            _resolveGameStateForDiffRender,
-            _resolveCardStateForDiffRender,
-            _getBoardShapeForDiff,
-            _buildEmptyCellStateForDiffRender,
-            CardLogic,
-        getPlayerKey,
-        _resolveViewerContextForDiff,
-        _canLocalPlayerControlCurrentTurnForDiff,
-        BLACK,
-        WHITE,
-        EMPTY,
-        _getExpansionDescriptorsForDiff,
-        _buildBoardHintProjectionForDiff,
-        _getActiveSuperAttractionPreviewForDiff,
-        _collectSuperAttractionPreviewKeys,
-        MarkersAdapter,
-        _isReversiModeForDiffRenderer,
-        _isBombCategoryMarkerForDiff,
-        _isBoardHiddenTrap,
-        _isActiveManifestAuraMarkerForDiff,
-        _isManifestStoneTypeForDiff,
-        _resolveSpecialDisplayTurnsForDiff,
-        _isFiniteTimedLabelValueForDiff,
-        _resolveFlipEvadeDisplayForDiff,
-        _resolveDestroyEvadeDisplayForDiff,
-        isDebugWorkVisuals,
-        isDebugHumanVsHuman,
-        warn,
-        debugLog
-    } = deps;
+            state: stateCapabilities,
+            hints: hintCapabilities,
+            markers: markerCapabilities,
+            debug: debugCapabilities
+        } = capabilities || {};
+        const {
+            resolveGameState: _resolveGameStateForDiffRender,
+            resolveCardState: _resolveCardStateForDiffRender,
+            getBoardShape: _getBoardShapeForDiff,
+            buildEmptyCellState: _buildEmptyCellStateForDiffRender,
+            cardLogic: CardLogic,
+            getPlayerKey,
+            resolveViewerContext: _resolveViewerContextForDiff,
+            canLocalPlayerControlCurrentTurn: _canLocalPlayerControlCurrentTurnForDiff,
+            constants: { BLACK, WHITE, EMPTY } = {}
+        } = stateCapabilities || {};
+        const {
+            getExpansionDescriptors: _getExpansionDescriptorsForDiff,
+            buildBoardHintProjection: _buildBoardHintProjectionForDiff,
+            getActiveSuperAttractionPreview: _getActiveSuperAttractionPreviewForDiff,
+            collectSuperAttractionPreviewKeys: _collectSuperAttractionPreviewKeys
+        } = hintCapabilities || {};
+        const {
+            adapter: MarkersAdapter,
+            isReversiMode: _isReversiModeForDiffRenderer,
+            isBombCategory: _isBombCategoryMarkerForDiff,
+            isBoardHiddenTrap: _isBoardHiddenTrap,
+            isActiveManifestAura: _isActiveManifestAuraMarkerForDiff,
+            isManifestStoneType: _isManifestStoneTypeForDiff,
+            resolveSpecialDisplayTurns: _resolveSpecialDisplayTurnsForDiff,
+            isFiniteTimedLabelValue: _isFiniteTimedLabelValueForDiff,
+            resolveFlipEvadeDisplay: _resolveFlipEvadeDisplayForDiff,
+            resolveDestroyEvadeDisplay: _resolveDestroyEvadeDisplayForDiff
+        } = markerCapabilities || {};
+        const {
+            isDebugWorkVisuals,
+            isDebugHumanVsHuman,
+            warn,
+            log: debugLog
+        } = debugCapabilities || {};
     const gameState = _resolveGameStateForDiffRender();
     const cardState = _resolveCardStateForDiffRender();
     const boardShape = _getBoardShapeForDiff(gameState);
