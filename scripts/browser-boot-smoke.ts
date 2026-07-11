@@ -181,14 +181,14 @@ async function validateGamePage(page: Page): Promise<void> {
   console.log('[smoke] #autoToggleBtn OK');
 
   const requiredTexts = [
-    '\u30AB\u30FC\u30C9\u30EA\u30D0\u30FC\u30B7',
+    'Card Reversi',
     '\u76E4\u55B0\u3044\u306E\u5C0F\u9B3C',
     '\u30EA\u30D0\u30FC\u30B7\u306E\u52C7\u8005',
     '\u30AC\u30C1\u30E3',
     '\u30E9\u30F3\u30AD\u30F3\u30B0',
     '\u30C7\u30C3\u30AD',
-    'help',
-    'SKIN'
+    '\u30D8\u30EB\u30D7',
+    '\u30B9\u30AD\u30F3'
   ];
   for (const text of requiredTexts) {
     if (!bodyText.includes(text)) {
@@ -196,6 +196,14 @@ async function validateGamePage(page: Page): Promise<void> {
     }
   }
   console.log('[smoke] required texts OK');
+
+  if (await sidePanel.getAttribute('aria-hidden') !== 'true') {
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => {
+      const panel = document.getElementById('side-panel');
+      return !!panel && panel.classList.contains('side-panel-collapsed') && panel.getAttribute('aria-hidden') === 'true';
+    }, { timeout: 5000 });
+  }
 
   const resetButton = page.locator('#resetBtn');
   await resetButton.waitFor({ state: 'visible', timeout: 10000 });

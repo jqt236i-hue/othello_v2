@@ -50,6 +50,9 @@ tmp-*
 # Test artifacts
 breeding-*.png
 test_run_output.txt
+# Visual regression failure diagnostics. The tracked baseline is the test input.
+/tests/visual-regression/current-board.png
+/tests/visual-regression/diff-board.png
 
 # Disposable investigation output. Durable documentation belongs in docs/ and
 # shipped images belong in assets/; artifacts/ must never become source input.

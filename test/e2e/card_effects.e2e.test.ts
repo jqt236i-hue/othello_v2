@@ -7,7 +7,7 @@ declare const test: any;
 declare const expect: any;
 declare const window: any;
 declare const document: any;
-const { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } = require('./e2e-runtime-helpers.js');
+const { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent, closeSidePanelIfPresent } = require('./e2e-runtime-helpers.js');
 function startServer(port = 0) {
   return startStaticServer(port);
 }
@@ -171,6 +171,7 @@ describe('Card effects E2E', () => {
 
     await page.click('#debugModeBtn');
     await page.waitForTimeout(600);
+    await closeSidePanelIfPresent(page);
     await page.evaluate(() => {
       window.DEBUG_UNLIMITED_USAGE = true;
       window.DEBUG_HUMAN_VS_HUMAN = true;

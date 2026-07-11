@@ -16,6 +16,8 @@ Updated: 2026-07-11
 
 Browser profiles, caches, databases, screenshots, raw logs, PID files, temporary servers, and intermediate design exports must not be committed under `artifacts/`. The root `.gitignore` ignores the directory, and `npm run check:artifact-retention` rejects any subsequently tracked path there.
 
+The visual-regression baseline `tests/visual-regression/baseline-board.png` is a tracked test input. Its `current-board.png` and `diff-board.png` siblings are failure diagnostics only, are ignored, and must not be committed.
+
 ## 2026-07-11 tracked-tree classification
 
 The inventory contained 156,414 paths (65,355,996,045 bytes). Every first-level subtree is classified below; each nested path inherits its parent's classification.

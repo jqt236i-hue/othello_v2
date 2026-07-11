@@ -141,6 +141,21 @@ async function closeMaintenanceNoticeIfPresent(page, timeoutMs = 5000) {
   return true;
 }
 
+async function closeSidePanelIfPresent(page, timeoutMs = 5000) {
+  if (!page || typeof page.locator !== 'function') return false;
+  const panel = page.locator('#side-panel.is-open');
+  const panelCount = await panel.count().catch(() => 0);
+  if (panelCount <= 0) return false;
+
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => {
+    const sidePanel = document.getElementById('side-panel');
+    return !sidePanel
+      || (sidePanel.classList.contains('side-panel-collapsed') && sidePanel.getAttribute('aria-hidden') === 'true');
+  }, { timeout: timeoutMs }).catch(() => undefined);
+  return true;
+}
+
 async function stopStaticServer(server) {
   if (!server || typeof server.close !== 'function') return;
 
@@ -173,5 +188,6 @@ module.exports = {
   stopStaticServer,
   stopPlaywrightPage,
   stopPlaywrightBrowser,
-  closeMaintenanceNoticeIfPresent
+  closeMaintenanceNoticeIfPresent,
+  closeSidePanelIfPresent
 };

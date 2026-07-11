@@ -14,6 +14,8 @@ let pixelmatch = require('pixelmatch'); if (pixelmatch && pixelmatch.default) pi
   const currentTemp = path.join(__dirname, `current-board.capture.${process.pid}.png`);
   const diffTemp = path.join(__dirname, `diff-board.capture.${process.pid}.png`);
   const threshold = process.env.VISUAL_DIFF_THRESHOLD ? parseInt(process.env.VISUAL_DIFF_THRESHOLD, 10) : 4000; // pixels
+  // Deliberately opt-in: only use after reviewing a deterministic capture.
+  const updateBaseline = process.env.VISUAL_UPDATE_BASELINE === '1';
 
   function removeIfExists(filePath) {
     try { fs.rmSync(filePath, { force: true }); } catch (e) {}
@@ -65,25 +67,49 @@ let pixelmatch = require('pixelmatch'); if (pixelmatch && pixelmatch.default) pi
     const localUrl = `http://127.0.0.1:${actualPort}/?debug=1&noanim=1`;
     console.log('[viz-check] navigating to', localUrl);
     await page.goto(localUrl, { waitUntil: 'load' });
-    await page.waitForTimeout(2000);
+    await page.waitForFunction(() => (
+      window.gameState
+      && Array.isArray(window.gameState.board)
+      && window.gameState.board.length === 8
+      && window.cardState
+    ), { timeout: 10000 });
 
-    // Ensure test board is applied if debug helpers available
-    try {
-      await page.evaluate(async () => {
-        if (typeof window.ensureDebugActionsLoaded === 'function') {
-          return new Promise((resolve) => {
-            window.ensureDebugActionsLoaded(() => { try { if (typeof DebugActions !== 'undefined' && DebugActions && typeof DebugActions.applyVisualTestBoard === 'function') DebugActions.applyVisualTestBoard(window.gameState, window.cardState); } catch (e) {} resolve(); });
-          });
-        } else if (typeof DebugActions !== 'undefined' && DebugActions && typeof DebugActions.applyVisualTestBoard === 'function') {
-          DebugActions.applyVisualTestBoard(window.gameState, window.cardState);
-        }
-      });
-    } catch (e) { /* ignore */ }
+    // ?debug=1 only authorizes debug controls. Enable them and apply the fixture
+    // through the same UI path a developer uses, so the captured board is fixed.
+    const debugModeBtn = page.locator('#debugModeBtn');
+    await debugModeBtn.waitFor({ state: 'visible', timeout: 10000 });
+    if (await debugModeBtn.getAttribute('aria-pressed') !== 'true') {
+      await debugModeBtn.click({ timeout: 10000 });
+    }
+    const visualTestBtn = page.locator('#visualTestBtn');
+    await visualTestBtn.waitFor({ state: 'visible', timeout: 10000 });
+    await visualTestBtn.click({ timeout: 10000 });
+    await page.waitForFunction(() => {
+      const board = window.gameState && window.gameState.board;
+      const markers = window.cardState && window.cardState.markers;
+      return Array.isArray(board)
+        && board.length === 8
+        && board.every((row) => Array.isArray(row) && row.length === 8)
+        && board[0][0] !== 0
+        && board[0][1] !== 0
+        && board[7][0] !== 0
+        && board[7][1] !== 0
+        && Array.isArray(markers)
+        && markers.length === 15;
+    }, { timeout: 10000 });
 
     try { await page.evaluate(() => { if (typeof window.forceFullRender === 'function' && window.boardEl) window.forceFullRender(window.boardEl); }); } catch (e) {}
     try {
       await page.waitForFunction(() => document.documentElement.classList.contains('stone-images-loaded'), { timeout: 5000 });
     } catch (e) {}
+    const sidePanel = page.locator('#side-panel');
+    if (await sidePanel.getAttribute('aria-hidden') !== 'true') {
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => {
+        const panel = document.getElementById('side-panel');
+        return !!panel && panel.classList.contains('side-panel-collapsed') && panel.getAttribute('aria-hidden') === 'true';
+      }, { timeout: 5000 });
+    }
     await page.waitForTimeout(500);
 
     const board = await page.$('#board');
@@ -93,12 +119,11 @@ let pixelmatch = require('pixelmatch'); if (pixelmatch && pixelmatch.default) pi
     console.log('[viz-check] captured', currentTemp);
     await browser.close();
 
-    if (!fs.existsSync(baseline)) {
-      // No baseline: promote current to baseline
+    if (updateBaseline || !fs.existsSync(baseline)) {
+      // Create a missing baseline, or explicitly promote a reviewed capture.
       fs.copyFileSync(currentTemp, baseline);
-      fs.copyFileSync(currentTemp, current);
       cleanupTempArtifacts();
-      console.log('[viz-check] baseline created at', baseline);
+      console.log(`[viz-check] baseline ${updateBaseline ? 'updated' : 'created'} at`, baseline);
       server.close();
       process.exit(0);
     }

@@ -82,7 +82,7 @@ Proceed to Phase 1 only with the successful focused game/network/selfplay-policy
 
 ## Phase 10 Convergence Audit (2026-07-11)
 
-This closure record covers the normal source/current-tree program at commit `566d1fab1`. It deliberately distinguishes two external gates from code closure: visual equivalence needs explicit authorization, and repository-history rewriting needs separate remote/coordination authorization.
+This closure record covers the normal source/current-tree program. The visual-equivalence gate received explicit user authorization and passed; its full evidence is [browser-visual-verification-2026-07-11.md](browser-visual-verification-2026-07-11.md). Repository-history rewriting remains a separate remote/coordination authorization.
 
 | Audit ID | Closing commits | Removed authority or debt | Replacement authority / guard | Closing evidence | State |
 | --- | --- | --- | --- | --- | --- |
@@ -104,7 +104,7 @@ This closure record covers the normal source/current-tree program at commit `566
 | 16 | `7cb80817d`, `df3ca6ac2`, `6c07b9d37`, `ff4127084`, `635e8346b` | Repeated player/owner parsing and network constants | Portable seat codec and shared network contract constants | `test/player-owner-normalization.contract.test.ts` and `test/shared.network-contract.test.ts` pass | Closed |
 | 17 | `566d1fab1` | Independent v2/v3 CNN trainer bodies | `training/python/policy_trainer_cnn.py`; immutable v2/v3 CLI profiles | `py_compile` passes; compatibility and grouped-split Jest tests: 2 suites, 5 tests pass; both historical `--help` commands retain exit 1 / same argparse conflict | Closed |
 | 18 | `e5be5434f`, `a2e0207b9` | Copied `game/**/src/types` trees | Reference/inventory guard | `rg --files game | rg '/src/types/'` returns 0; inventory gate passes | Closed |
-| 19 | `108d61785` | Unowned CSS override chains | `docs/refactor-baselines/css-ownership.md` ownership and exception baseline | Static ownership checks and `test/ui.match-mode.leaderboard-styles.test.ts` pass | Static closure; visual gate remains |
+| 19 | `108d61785` plus authorized verification | Unowned CSS override chains | `docs/refactor-baselines/css-ownership.md` ownership and exception baseline | Static ownership checks, `test/ui.match-mode.leaderboard-styles.test.ts`, and the passing authorized browser verification record | Closed |
 | 20 | `dcba12463`–`f9fb08563`, `ac3fb9bfd`, `dfe6b6ad5` | Obsolete scripts/evidence trees/unclassified plans | Source-recurrence guard, empty artifact policy, archive index and plan-status inventory | `.omo`/`.sisyphus` absent, tracked artifacts 0, 77 historical plans classified | Closed |
 
 ### Re-run command results
@@ -113,6 +113,7 @@ This closure record covers the normal source/current-tree program at commit `566
 | --- | --- |
 | `npm run typecheck` | Pass (root and training semantic checks) |
 | `npm run checkall` | Pass; includes dependency, artifact-retention, Worker mirror, source-boundary, and JS inventory guards |
+| Authorized browser and visual verification | Pass; see [browser-visual-verification-2026-07-11.md](browser-visual-verification-2026-07-11.md) for exact viewport, commands, and initial stale-fixture diagnosis |
 | 88 non-E2E structural test paths introduced during the program | Pass: 88 suites, 625 tests |
 | `training/tests/onnx-trainer-compatibility-wrapper.test.ts` + `training/tests/onnx-trainer.grouped-split.test.ts` | Pass: 2 suites, 5 tests |
 | `npm run test:match:parity` | Pass: 11 suites, 142 tests |
@@ -122,6 +123,5 @@ This closure record covers the normal source/current-tree program at commit `566
 
 ### Explicit gates still outside automated source closure
 
-- `npm run test:visual` has not run because it launches visual/browser verification and requires explicit user authorization.
 - Phase H has not begun. Current Git object storage remains 5.26 GiB; history rewriting, a remote force-push, and fresh-clone validation require the separate approval defined in the master plan.
-- Neither gate is hidden as a passing result or treated as a completed action.
+- The completed visual gate and the pending history gate remain explicitly distinguished; the latter is not hidden as a passing result.

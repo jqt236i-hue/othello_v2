@@ -259,6 +259,20 @@ async function closeMaintenanceNoticeIfPresent(page: any): Promise<void> {
   });
 }
 
+async function closeSidePanelIfOpen(page: any): Promise<void> {
+  const isOpen = await page.evaluate(() => {
+    const panel = document.getElementById('side-panel');
+    return !!panel && panel.getAttribute('aria-hidden') !== 'true';
+  });
+  if (!isOpen) return;
+
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => {
+    const panel = document.getElementById('side-panel');
+    return !!panel && panel.classList.contains('side-panel-collapsed') && panel.getAttribute('aria-hidden') === 'true';
+  }, null, { timeout: 5000 });
+}
+
 async function collectScriptSignals(page: any, requestedUrls: string[]): Promise<string[]> {
   const runtimeSignals = await page.evaluate(() => (
     Array.from(document.scripts).map((script) => script.src || script.getAttribute('src') || '')
@@ -405,6 +419,7 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
     const controls: Record<string, UiControlProbe> = {};
     for (const target of REQUIRED_UI_CONTROL_SMOKE_TARGETS) {
       controls[target.name] = await probeControl(page, target);
+      if (target.name === 'debug') await closeSidePanelIfOpen(page);
     }
     await page.waitForTimeout(500);
     const postInteractionScriptSignals = await collectScriptSignals(page, requestedUrls);

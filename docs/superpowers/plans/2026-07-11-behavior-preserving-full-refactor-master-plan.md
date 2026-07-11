@@ -19,9 +19,9 @@ updated: 2026-07-11
 ## Execution status
 
 - Phases 0–7: completed in behavior-preserving commits. Phase 10 re-opened and then closed the omitted Phase 2.2 trainer consolidation in `566d1fab1`.
-- Phase 8: static ownership work is complete; its required visual-equivalence gate awaits explicit user authorization for `npm run test:visual`.
+- Phase 8: completed. Static ownership work and authorized browser/visual verification are recorded in [browser-visual-verification-2026-07-11.md](../../refactor-baselines/browser-visual-verification-2026-07-11.md).
 - Phase 9: completed. The Worker mirror is guarded, volatile artifacts are untracked and guarded, and dated plans are classified.
-- Phase 10 Task 10.1: completed; Task 10.2 remains user-gated visual verification.
+- Phase 10 Tasks 10.1 and 10.2: completed. The user authorized visual verification, and the passing evidence is recorded in [browser-visual-verification-2026-07-11.md](../../refactor-baselines/browser-visual-verification-2026-07-11.md).
 - Phase H: pending and requires separate explicit approval.
 
 ## Global Constraints

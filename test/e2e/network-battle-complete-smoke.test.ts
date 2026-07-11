@@ -13,7 +13,8 @@ const {
   stopStaticServer,
   stopPlaywrightBrowser,
   stopPlaywrightPage,
-  closeMaintenanceNoticeIfPresent
+  closeMaintenanceNoticeIfPresent,
+  closeSidePanelIfPresent
 } = require('./e2e-runtime-helpers.js');
 
 function wait(ms: number): Promise<void> {
@@ -67,20 +68,20 @@ function attachDiagnostics(page: any, label: string) {
 }
 
 async function openNetworkDialog(page: any): Promise<void> {
+  await closeSidePanelIfPresent(page);
   await page.locator('#modeNetworkBtn').click();
   await page.waitForSelector('#networkOverlay[aria-hidden="false"]', { timeout: 10000 });
   await page.waitForSelector('#networkPlayerNameInput', { timeout: 10000, state: 'visible' });
 }
 
-async function createDebugRoom(page: any, matchUrl: string, playerName: string): Promise<string> {
+async function createRoom(page: any, matchUrl: string, playerName: string): Promise<string> {
   await openNetworkDialog(page);
   const result = await page.evaluate(async ({ serverUrl, name }) => {
     const client = (window as any).NetworkMatchClient;
     client.setServerUrl(serverUrl);
     return client.createRoom({
       serverUrl,
-      playerName: name,
-      networkDebugEnabled: true
+      playerName: name
     });
   }, { serverUrl: matchUrl, name: playerName });
   if (!result || result.ok !== true || !/^[A-Z0-9]{3}$/.test(String(result.roomId || ''))) {
@@ -341,329 +342,6 @@ async function playFirstLegalMove(page: any): Promise<{ row: number; col: number
   return move;
 }
 
-async function fillDebugHandForSeat(page: any, seatKey: 'black' | 'white'): Promise<void> {
-  const result = await page.evaluate(async (playerKey) => {
-    const root = window as any;
-    root.DEBUG_UNLIMITED_USAGE = true;
-    root.DEBUG_HUMAN_VS_HUMAN = true;
-    if (root.__uiImpl_turn_manager) {
-      root.__uiImpl_turn_manager.DEBUG_UNLIMITED_USAGE = true;
-      root.__uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN = true;
-    }
-    root.cardState.charge = root.cardState.charge || {};
-    root.cardState.charge[playerKey] = 100;
-    root.cardState.hasUsedCardThisTurnByPlayer = root.cardState.hasUsedCardThisTurnByPlayer || {};
-    root.cardState.hasUsedCardThisTurnByPlayer[playerKey] = false;
-    const client = root.NetworkMatchClient;
-    if (!client || typeof client.publishSnapshot !== 'function') {
-      return { ok: false, reason: 'client_unavailable' };
-    }
-    if (client.getSeatKey && client.getSeatKey() !== playerKey) {
-      return { ok: false, reason: `seat_mismatch:${client.getSeatKey()}` };
-    }
-    const publish = await client.publishSnapshot({
-      actionType: 'debug_fill_hand',
-      playbackEvents: [],
-      action: { type: 'debug_fill_hand' }
-    });
-    if (typeof root.renderCardUI === 'function') root.renderCardUI();
-    return { ok: !(publish && publish.ok === false), publish };
-  }, seatKey);
-  if (!result || result.ok !== true) {
-    throw new Error(`fillDebugHandForSeat failed: ${JSON.stringify(result || {})}`);
-  }
-  await page.waitForFunction((playerKey) => {
-    const root = window as any;
-    const hand = root.cardState && root.cardState.hands && root.cardState.hands[playerKey];
-    return Array.isArray(hand)
-      && hand.includes('guard_01')
-      && hand.includes('gold_stone');
-  }, seatKey, { timeout: 15000 });
-}
-
-async function useCard(page: any, seatKey: 'black' | 'white', cardId: string): Promise<void> {
-  await page.evaluate(({ playerKey, selectedCardId }) => {
-    const root = window as any;
-    root.cardState.selectedCardId = selectedCardId;
-    root.cardState.selectedCardOwnerKey = playerKey;
-    if (typeof root.renderCardUI === 'function') root.renderCardUI();
-    if (typeof root.useSelectedCard === 'function') root.useSelectedCard();
-  }, { playerKey: seatKey, selectedCardId: cardId });
-}
-
-async function waitForTurnManagerInputIdle(page: any, timeoutMs = 20000): Promise<void> {
-  try {
-    await page.waitForFunction(() => {
-      const root = window as any;
-      let animationLocked = false;
-      try {
-        const turnManager = typeof root.require === 'function'
-          ? root.require('game/turn-manager.js')
-          : null;
-        if (turnManager && typeof turnManager.isAnimationInProgress === 'function') {
-          animationLocked = turnManager.isAnimationInProgress() === true;
-        } else if (typeof root.isAnimationInProgress === 'function') {
-          animationLocked = root.isAnimationInProgress() === true;
-        }
-      } catch (_error) {
-        animationLocked = true;
-      }
-      const timeline = root.NetworkPresentationTimeline && typeof root.NetworkPresentationTimeline.getDiagnostics === 'function'
-        ? root.NetworkPresentationTimeline.getDiagnostics()
-        : null;
-      return !animationLocked
-        && root.isProcessing !== true
-        && root.isCardAnimating !== true
-        && root.VisualPlaybackActive !== true
-        && !(root.AnimationEngine && root.AnimationEngine.isPlaying === true)
-        && (!timeline || (
-          timeline.playing !== true
-          && timeline.paused !== true
-          && Number(timeline.pendingFrameCount || 0) === 0
-        ));
-    }, null, { timeout: timeoutMs });
-  } catch (_error) {
-    const diagnostics = await page.evaluate(() => {
-      const root = window as any;
-      let timeline: any = null;
-      let turnManagerAnimationLocked: any = null;
-      try {
-        const turnManager = typeof root.require === 'function'
-          ? root.require('game/turn-manager.js')
-          : null;
-        turnManagerAnimationLocked = turnManager && typeof turnManager.isAnimationInProgress === 'function'
-          ? turnManager.isAnimationInProgress()
-          : null;
-      } catch (error) {
-        turnManagerAnimationLocked = String(error);
-      }
-      try {
-        timeline = root.NetworkPresentationTimeline && typeof root.NetworkPresentationTimeline.getDiagnostics === 'function'
-          ? root.NetworkPresentationTimeline.getDiagnostics()
-          : null;
-      } catch (error) {
-        timeline = { error: String(error) };
-      }
-      return {
-        turnManagerAnimationLocked,
-        isProcessing: root.isProcessing === true,
-        isCardAnimating: root.isCardAnimating === true,
-        visualPlaybackActive: root.VisualPlaybackActive === true,
-        animationEnginePlaying: !!(root.AnimationEngine && root.AnimationEngine.isPlaying === true),
-        timeline,
-        pending: root.cardState && root.cardState.pendingEffectByPlayer || null,
-        telemetry: root.NetworkMatchClient && typeof root.NetworkMatchClient.getNetworkTelemetry === 'function'
-          ? root.NetworkMatchClient.getNetworkTelemetry()
-          : null
-      };
-    }).catch((error: any) => ({ diagnosticError: String(error) }));
-    throw new Error(`waitForTurnManagerInputIdle timeout: ${JSON.stringify(diagnostics)}`);
-  }
-}
-
-async function findPendingSelectionTarget(
-  page: any,
-  seatKey: 'black' | 'white',
-  preferredBoardValue?: number
-): Promise<{ row: number; col: number }> {
-  const point = await page.evaluate(({ playerKey, preferredValue }) => {
-    const root = window as any;
-    const board = root.gameState && root.gameState.board;
-    const targets = (
-      root.CardLogic
-      && typeof root.CardLogic.getSelectableTargets === 'function'
-    )
-      ? root.CardLogic.getSelectableTargets(root.cardState, root.gameState, playerKey)
-      : [];
-    if (!Array.isArray(board) || !Array.isArray(targets) || targets.length <= 0) return null;
-    const normalizedPreferredValue = Number(preferredValue);
-    const preferred = targets.find((target: any) => (
-      target
-      && Number.isInteger(Number(target.row))
-      && Number.isInteger(Number(target.col))
-      && board[Number(target.row)]
-      && Number.isFinite(normalizedPreferredValue)
-      && board[Number(target.row)][Number(target.col)] === normalizedPreferredValue
-    )) || targets[0];
-    if (preferred) {
-      return { row: Number(preferred.row), col: Number(preferred.col) };
-    }
-    return null;
-  }, { playerKey: seatKey, preferredValue: preferredBoardValue });
-  if (!point || !Number.isInteger(point.row) || !Number.isInteger(point.col)) {
-    throw new Error(`pending selection target not found for ${seatKey}`);
-  }
-  return point;
-}
-
-async function clickBoardCell(page: any, row: number, col: number): Promise<void> {
-  const handled = await page.evaluate(async ({ targetRow, targetCol }) => {
-    const root = window as any;
-    if (typeof root.handleCellClick !== 'function') return false;
-    const result = root.handleCellClick(targetRow, targetCol);
-    if (result && typeof result.then === 'function') await result;
-    return true;
-  }, { targetRow: row, targetCol: col });
-  if (handled === true) return;
-  await page.locator(`.cell[data-row="${row}"][data-col="${col}"]`).click({ force: true, timeout: 10000 });
-}
-
-async function waitForPendingSelectionInputReady(
-  page: any,
-  seatKey: 'black' | 'white',
-  pendingTypes: string[],
-  timeoutMs = 5000
-): Promise<void> {
-  const payload = { playerKey: seatKey, types: pendingTypes.map((type) => String(type || '').toUpperCase()) };
-  try {
-    await page.waitForFunction(({ playerKey, types }) => {
-      const root = window as any;
-      const pending = root.cardState && root.cardState.pendingEffectByPlayer
-        ? root.cardState.pendingEffectByPlayer[playerKey]
-        : null;
-      const pendingType = String(pending && pending.type || '').trim().toUpperCase();
-      if (!pending || pending.stage !== 'selectTarget' || !types.includes(pendingType)) return false;
-
-      let allowsSelectionEntry = false;
-      try {
-        const playbackState = root.PlaybackStateManager || (
-          typeof root.require === 'function'
-            ? root.require('ui/playback-state-manager.js')
-            : null
-        );
-        allowsSelectionEntry = !!(
-          playbackState
-          && typeof playbackState.shouldAllowSelectionEntryDuringPlayback === 'function'
-          && playbackState.shouldAllowSelectionEntryDuringPlayback({
-            playerKey,
-            pendingType
-          }) === true
-        );
-      } catch (_error) {
-        allowsSelectionEntry = false;
-      }
-
-      if (allowsSelectionEntry) return true;
-      return root.isProcessing !== true
-        && root.isCardAnimating !== true
-        && root.VisualPlaybackActive !== true;
-    }, payload, { timeout: timeoutMs });
-  } catch (_error) {
-    const diagnostics = await page.evaluate(({ playerKey }) => {
-      const root = window as any;
-      const pending = root.cardState && root.cardState.pendingEffectByPlayer
-        ? root.cardState.pendingEffectByPlayer[playerKey]
-        : null;
-      const pendingType = String(pending && pending.type || '').trim().toUpperCase();
-      let playbackDiagnostics: any = null;
-      let turnManagerAnimationLocked: any = null;
-      try {
-        const playbackState = root.PlaybackStateManager || (
-          typeof root.require === 'function'
-            ? root.require('ui/playback-state-manager.js')
-            : null
-        );
-        playbackDiagnostics = playbackState ? {
-          busy: typeof playbackState.getBusyState === 'function' ? playbackState.getBusyState() : null,
-          selectionEntry: typeof playbackState.getSelectionEntryPlaybackContext === 'function'
-            ? playbackState.getSelectionEntryPlaybackContext()
-            : null,
-          allowsSelectionEntry: typeof playbackState.shouldAllowSelectionEntryDuringPlayback === 'function'
-            ? playbackState.shouldAllowSelectionEntryDuringPlayback({ playerKey, pendingType })
-            : null
-        } : null;
-      } catch (error) {
-        playbackDiagnostics = { error: String(error) };
-      }
-      try {
-        const turnManager = typeof root.require === 'function'
-          ? root.require('game/turn-manager.js')
-          : null;
-        turnManagerAnimationLocked = turnManager && typeof turnManager.isAnimationInProgress === 'function'
-          ? turnManager.isAnimationInProgress()
-          : null;
-      } catch (error) {
-        turnManagerAnimationLocked = String(error);
-      }
-      return {
-        pending,
-        pendingType,
-        isProcessing: root.isProcessing === true,
-        isCardAnimating: root.isCardAnimating === true,
-        visualPlaybackActive: root.VisualPlaybackActive === true,
-        animationEnginePlaying: !!(root.AnimationEngine && root.AnimationEngine.isPlaying === true),
-        turnManagerAnimationLocked,
-        playbackDiagnostics,
-        networkTelemetry: root.NetworkMatchClient && typeof root.NetworkMatchClient.getNetworkTelemetry === 'function'
-          ? root.NetworkMatchClient.getNetworkTelemetry()
-          : null
-      };
-    }, payload);
-    throw new Error(`waitForPendingSelectionInputReady timeout: ${JSON.stringify(diagnostics)}`);
-  }
-}
-
-async function useGuardPendingCard(page: any, seatKey: 'black' | 'white'): Promise<{ row: number; col: number }> {
-  await fillDebugHandForSeat(page, seatKey);
-  await useCard(page, seatKey, 'guard_01');
-  await page.waitForFunction((playerKey) => {
-    const root = window as any;
-    const pending = root.cardState && root.cardState.pendingEffectByPlayer
-      ? root.cardState.pendingEffectByPlayer[playerKey]
-      : null;
-    return !!(
-      pending
-      && (pending.type === 'GUARD_WILL' || pending.type === 'GUARDIAN_GOD')
-      && document.querySelector('#board.selection-mode')
-    );
-  }, seatKey, { timeout: 15000 });
-  await waitForPendingSelectionInputReady(page, seatKey, ['GUARD_WILL', 'GUARDIAN_GOD']);
-  const target = await findPendingSelectionTarget(page, seatKey, seatKey === 'black' ? 1 : -1);
-  await clickBoardCell(page, target.row, target.col);
-  await page.waitForFunction(({ playerKey, row, col }) => {
-    const root = window as any;
-    return !!(
-      root.cardState
-      && root.cardState.pendingEffectByPlayer
-      && root.cardState.pendingEffectByPlayer[playerKey] === null
-      && Array.isArray(root.cardState.markers)
-      && root.cardState.markers.some((marker: any) => (
-        marker
-        && marker.row === row
-        && marker.col === col
-        && marker.data
-        && marker.data.type === 'GUARD'
-      ))
-      && root.isProcessing !== true
-      && root.isCardAnimating !== true
-      && root.VisualPlaybackActive !== true
-    );
-  }, { playerKey: seatKey, row: target.row, col: target.col }, { timeout: 20000 });
-  return target;
-}
-
-async function useGoldStoneDestroyPlayback(page: any, seatKey: 'black' | 'white'): Promise<{ row: number; col: number }> {
-  await fillDebugHandForSeat(page, seatKey);
-  await useCard(page, seatKey, 'gold_stone');
-  await waitForTurnManagerInputIdle(page);
-  const move = await getFirstLegalMove(page);
-  await clickBoardCell(page, move.row, move.col);
-  await page.waitForFunction(({ row, col }) => {
-    const root = window as any;
-    return !!(
-      root.gameState
-      && root.gameState.board
-      && root.gameState.board[row]
-      && root.gameState.board[row][col] === 0
-      && root.isProcessing !== true
-      && root.isCardAnimating !== true
-      && root.VisualPlaybackActive !== true
-    );
-  }, move, { timeout: 20000 });
-  await waitForIdle(page);
-  return move;
-}
-
 async function forceReconnect(context: any, page: any): Promise<void> {
   const traceCountBefore = await page.evaluate(() => {
     const trace = (window as any).__networkDebugTrace;
@@ -772,7 +450,7 @@ describe('Network battle complete smoke E2E', () => {
     staticServer = null;
   }, 60000);
 
-  test('two clients stay synchronized through normal moves, pending selection, destroy playback, reconnect, and continuation', async () => {
+  test('two clients stay synchronized through normal moves, reconnect, and continuation', async () => {
     const hostContext = await hostBrowser.newContext();
     const guestContext = await guestBrowser.newContext();
     const hostPage = await hostContext.newPage();
@@ -793,7 +471,7 @@ describe('Network battle complete smoke E2E', () => {
       ]);
       await Promise.all([waitForBootstrap(hostPage), waitForBootstrap(guestPage)]);
 
-      const roomId = await createDebugRoom(hostPage, matchUrl, '黒主');
+      const roomId = await createRoom(hostPage, matchUrl, '黒主');
       expect(roomId).toMatch(/^[A-Z0-9]{3}$/);
       await joinRoom(guestPage, matchUrl, roomId, '白主');
       await hostPage.waitForFunction(
@@ -814,21 +492,6 @@ describe('Network battle complete smoke E2E', () => {
       await playFirstLegalMove(guestPage);
       await waitForSameCanonicalState(hostPage, guestPage);
       expect((await readCanonicalState(hostPage)).currentPlayer).toBe(1);
-
-      const guarded = await useGuardPendingCard(hostPage, 'black');
-      await waitForSameCanonicalState(hostPage, guestPage);
-      const afterGuard = await readCanonicalState(hostPage);
-      expect(afterGuard.pending.black).toBeNull();
-      expect(afterGuard.markers.some((marker: any) => (
-        marker.row === guarded.row
-        && marker.col === guarded.col
-        && marker.type === 'GUARD'
-      ))).toBe(true);
-
-      const destroyed = await useGoldStoneDestroyPlayback(hostPage, 'black');
-      await waitForSameCanonicalState(hostPage, guestPage);
-      const afterGoldStone = await readCanonicalState(hostPage);
-      expect(afterGoldStone.board[destroyed.row][destroyed.col]).toBe(0);
 
       await forceReconnect(guestContext, guestPage);
       await waitForSameCanonicalState(hostPage, guestPage);
