@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { readLayoutCssSurface } from './helpers/css-test-helpers';
 
-describe('custom board frame styling', () => {
-  test('styles keep the standard frame as the default and allow runtime expansion for oversized custom boards', () => {
+describe('adaptive board frame styling', () => {
+  test('styles use a CSS contour frame and allow runtime expansion for oversized custom boards', () => {
     const baseCss = fs.readFileSync(path.join(__dirname, '..', 'styles-base.css'), 'utf8');
     const layoutCss = readLayoutCssSurface();
     const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
@@ -21,13 +21,16 @@ describe('custom board frame styling', () => {
     expect(layoutCss).toMatch(/#board-frame[\s\S]*height:\s*var\(--board-frame-outer-height,\s*calc\(var\(--board-frame-inner-size\)\s*\+\s*var\(--board-frame-padding-top\)\s*\+\s*var\(--board-frame-padding-bottom\)\)\)/);
     expect(layoutCss).toMatch(/#board-frame[\s\S]*--board-frame-art-overhang-top:\s*var\(--board-frame-art-overhang\)/);
     expect(layoutCss).toMatch(/#board-frame[\s\S]*--board-frame-art-overhang-bottom:\s*var\(--board-frame-art-overhang\)/);
-    expect(layoutCss).toMatch(/#board-frame::before[\s\S]*top:\s*calc\(-1\s*\*\s*var\(--board-frame-art-overhang-top\)\s*\+\s*var\(--board-frame-art-offset-y\)\)/);
-    expect(layoutCss).toMatch(/#board-frame::before[\s\S]*bottom:\s*calc\(-1\s*\*\s*var\(--board-frame-art-overhang-bottom\)\s*-\s*var\(--board-frame-art-offset-y\)\)/);
+    expect(layoutCss).toMatch(/#board-frame[\s\S]*background:\s*transparent/);
+    expect(layoutCss).toMatch(/#board-frame::before\s*\{[\s\S]*display:\s*none/);
+    expect(layoutCss).toMatch(/#board-frame::after\s*\{[\s\S]*display:\s*none/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-max-size:\s*var\(--board-frame-inner-size,\s*calc\(var\(--layout-anchor-board-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-board-scale\)\)\)/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-disc-size:\s*var\(--board-disc-size-px,\s*89\.9%\)/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-disc-inset:\s*var\(--board-disc-inset-px,\s*5\.05%\)/);
     expect(boardCss).toMatch(/#board[\s\S]*width:\s*calc\(var\(--board-max-size\)\s*\*\s*\(var\(--board-cols\)\s*\/\s*var\(--board-max-grid\)\)\)/);
     expect(boardCss).toMatch(/#board[\s\S]*height:\s*calc\(var\(--board-max-size\)\s*\*\s*\(var\(--board-rows\)\s*\/\s*var\(--board-max-grid\)\)\)/);
+    expect(boardCss).toMatch(/#board[\s\S]*filter:[\s\S]*drop-shadow/);
+    expect(boardCss).toMatch(/\.cell\.board-frame-edge-top[\s\S]*border-top-color:\s*var\(--board-contour-highlight\)/);
     expect(boardCss).toMatch(/#board \.disc[\s\S]*width:\s*var\(--board-disc-size\)/);
     expect(boardCss).toMatch(/#board \.disc[\s\S]*top:\s*var\(--board-disc-inset\)/);
     expect(boardCss).toMatch(/\.cell\.blocked-cell\.board-shrink-hole-cell[\s\S]*border:\s*none/);

@@ -41,6 +41,7 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
         resolveExpansionSide: _resolveExpansionSideForDiff,
         applyExpansionCellPosition: _applyExpansionCellPositionForDiff,
         applyBoardEdgeClasses: _applyBoardEdgeClassesForDiff,
+        applyBoardContourEdgeClasses: _applyBoardContourEdgeClassesForDiff,
         applyTimeStopLegalEmphasis: _applyTimeStopLegalEmphasisForDiff,
         constants: { EMPTY } = {}
     } = boardCapabilities || {};
@@ -80,7 +81,8 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
         getManifestAuraOwnerClass: _getManifestAuraOwnerClassForDiff
     } = stoneCapabilities || {};
 
-    const boardShape = _getBoardShapeForDiff(_resolveGameStateForDiffRender());
+    const gameState = _resolveGameStateForDiffRender();
+    const boardShape = _getBoardShapeForDiff(gameState);
     const isExpansionCell = _isExpansionCoordinateForDiff(row, col, boardShape);
     const expansionSide = _resolveExpansionSideForDiff(state && state.side ? state.side : null, row, col, boardShape);
     const markerRenderer = _createSpecialMarkerRendererForDiff();
@@ -176,6 +178,9 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
         cell.style.left = '';
         cell.style.right = '';
         cell.style.bottom = '';
+    }
+    if (typeof _applyBoardContourEdgeClassesForDiff === 'function') {
+        _applyBoardContourEdgeClassesForDiff(cell, row, col, gameState);
     }
 
     // Add legal move indicators

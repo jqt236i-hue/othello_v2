@@ -1315,6 +1315,26 @@ function _applyBoardEdgeClassesForDiff(cell: any, row: any, col: any, shapeOrGam
     cell.classList.toggle('cell-edge-bottom', row === shape.rows - 1);
 }
 
+function _isBoardContourCellForDiff(row: number, col: number, gameState: any) {
+    if (_getExpansionDescriptorsForDiff(gameState).some((exp) => exp && exp.row === row && exp.col === col)) {
+        return true;
+    }
+    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
+    if (sharedBoardUtils && typeof sharedBoardUtils.isMainBoardCell === 'function') {
+        return !!sharedBoardUtils.isMainBoardCell(row, col, gameState);
+    }
+    const shape = _getBoardShapeForDiff(gameState);
+    return row >= 0 && row < shape.rows && col >= 0 && col < shape.cols;
+}
+
+function _applyBoardContourEdgeClassesForDiff(cell: any, row: number, col: number, gameState: any) {
+    if (!cell || !cell.classList) return;
+    cell.classList.toggle('board-frame-edge-top', !_isBoardContourCellForDiff(row - 1, col, gameState));
+    cell.classList.toggle('board-frame-edge-right', !_isBoardContourCellForDiff(row, col + 1, gameState));
+    cell.classList.toggle('board-frame-edge-bottom', !_isBoardContourCellForDiff(row + 1, col, gameState));
+    cell.classList.toggle('board-frame-edge-left', !_isBoardContourCellForDiff(row, col - 1, gameState));
+}
+
 function _getExpansionDescriptorsForDiff(gameState: any): any[] {
     const boardShape = _getBoardShapeForDiff(gameState);
     const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
@@ -3164,6 +3184,7 @@ function initializeBoardDOM(boardEl: any) {
     cellCache = [];
     cellCacheMap = new Map();
     let hasVoidCells = false;
+    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
 
     boardEl.classList.remove('board-expanded-left', 'board-expanded-right', 'board-expanded-top', 'board-expanded-bottom');
     if (expansions.some((exp) => exp && exp.side === 'left')) boardEl.classList.add('board-expanded-left');
@@ -3177,7 +3198,6 @@ function initializeBoardDOM(boardEl: any) {
             cell.className = 'cell';
             cell.dataset.row = String(r);
             cell.dataset.col = String(c);
-            const sharedBoardUtils = _getSharedBoardUtilsForDiff();
             const playable = !sharedBoardUtils || typeof sharedBoardUtils.isMainBoardCell !== 'function'
                 ? true
                 : sharedBoardUtils.isMainBoardCell(r, c, gameState);
@@ -3189,6 +3209,7 @@ function initializeBoardDOM(boardEl: any) {
                 continue;
             }
             _applyBoardEdgeClassesForDiff(cell, r, c, boardShape);
+            _applyBoardContourEdgeClassesForDiff(cell, r, c, gameState);
             attachBoardCellInteraction(cell, r, c);
             boardEl.appendChild(cell);
             _cacheCell(r, c, cell);
@@ -3208,6 +3229,7 @@ function initializeBoardDOM(boardEl: any) {
         cell.dataset.row = String(expansion.row);
         cell.dataset.col = String(expansion.col);
         _applyExpansionCellPositionForDiff(cell, expansion.row, expansion.col, boardShape);
+        _applyBoardContourEdgeClassesForDiff(cell, expansion.row, expansion.col, gameState);
         attachBoardCellInteraction(cell, expansion.row, expansion.col);
         (expansionLayer || boardEl).appendChild(cell);
         _cacheCell(expansion.row, expansion.col, cell);
@@ -3284,6 +3306,7 @@ function _createCellDomPatcherContextForDiff() {
             resolveExpansionSide: _resolveExpansionSideForDiff,
             applyExpansionCellPosition: _applyExpansionCellPositionForDiff,
             applyBoardEdgeClasses: _applyBoardEdgeClassesForDiff,
+            applyBoardContourEdgeClasses: _applyBoardContourEdgeClassesForDiff,
             applyTimeStopLegalEmphasis: _applyTimeStopLegalEmphasisForDiff,
             constants: { EMPTY }
         },

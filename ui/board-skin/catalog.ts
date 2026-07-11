@@ -140,13 +140,13 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'black-gold-lacquer',
     label: '黒金漆枠',
-    note: '黒漆と金装飾の盤面外フレーム',
+    note: '黒漆と金色のCSS外周フレーム',
     imagePath: 'assets/images/board/board-frame-black-gold-lacquer-v1.png'
   }),
   Object.freeze({
     id: 'compact-brass-clean-corners',
     label: '重厚黒金枠',
-    note: '黒鉄と古金金具の角が干渉しない盤面外フレーム',
+    note: '重厚な黒鉄と古金色のCSS外周フレーム',
     imagePath: 'assets/images/board/board-frame-compact-brass-clean-corners-v3.png',
     layout: Object.freeze({
       paddingTop: 18,
@@ -161,7 +161,7 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'compact-iron-clean-corners',
     label: '黒鉄鋲留枠',
-    note: '黒鉄の鋲留めと直線内枠の盤面外フレーム',
+    note: '黒鉄色のCSS外周フレーム',
     imagePath: 'assets/images/board/board-frame-compact-iron-clean-corners-v3.png',
     layout: Object.freeze({
       paddingTop: 20,
@@ -174,7 +174,7 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'compact-gold-clean-corners',
     label: '黒金装飾枠',
-    note: '黒漆と金装飾を抑えた盤面外フレーム',
+    note: '黒漆と金色を抑えたCSS外周フレーム',
     imagePath: 'assets/images/board/board-frame-compact-gold-clean-corners-v3.png',
     layout: Object.freeze({
       paddingTop: 21,
@@ -187,7 +187,7 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'marsh-forged-iron',
     label: '既定',
-    note: '湿地の緑青を帯びた黒鉄の盤面外フレーム',
+    note: '湿地の緑青を帯びたCSS外周フレーム',
     imagePath: 'assets/images/board/board-frame-marsh-forged-iron-v1.png',
     layout: Object.freeze({
       paddingTop: 15,
@@ -200,7 +200,7 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'submerged-wood',
     label: '沈木枠',
-    note: '濡れた沈木と古金金具の盤面外フレーム',
+    note: '濡れた沈木色のCSS外周フレーム',
     imagePath: 'assets/images/board/board-frame-submerged-wood-v1.png',
     layout: Object.freeze({
       paddingTop: 15,
@@ -213,7 +213,7 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'swamp-ruin-stone',
     label: '湿地遺跡石枠',
-    note: '暗い苔石と鈍い金装飾の盤面外フレーム',
+    note: '暗い苔石色のCSS外周フレーム',
     imagePath: 'assets/images/board/board-frame-swamp-ruin-stone-v1.png',
     layout: Object.freeze({
       paddingTop: 17,
@@ -226,7 +226,7 @@ const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
   Object.freeze({
     id: 'shadow-vine-lacquer',
     label: '影蔦漆枠',
-    note: '黒緑漆に蔦意匠を抑えた盤面外フレーム',
+    note: '黒緑漆色のCSS外周フレーム',
     imagePath: 'assets/images/board/board-frame-shadow-vine-lacquer-v1.png',
     layout: Object.freeze({
       paddingTop: 16,
