@@ -1,10 +1,10 @@
 ---
-name: codex-goal-prompter
+name: goal-prompter
 description: |
   Use when the user asks to create, improve, review, translate, or decide whether to use a Codex Goal or `/goal` prompt for a long-running objective. Keep the interview, drafting, confirmation, activation, and reporting in the current main chat; never redirect the workflow to a side chat or separate thread. Do NOT use for ordinary debugging, refactoring, research, audits, or implementation unless the user explicitly wants those turned into a Goal.
 ---
 
-# Codex Goal Prompter
+# Goal Prompter
 ## Low-Capability Execution Contract
 - Classify the request against the frontmatter before using this skill. If another skill owns the task more directly, switch before doing work.
 - Collect these inputs before analysis: target artifact or repository path, user objective, constraints, prior commitments, available evidence, expected output format, and the decision the user needs.

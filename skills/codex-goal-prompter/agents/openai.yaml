@@ -1,4 +1,0 @@
-interface:
-  display_name: "Codex Goal Prompter"
-  short_description: "Draft evidence-checked Codex Goals"
-  default_prompt: "Use $codex-goal-prompter in this main chat to interview me, draft a strong Codex /goal prompt, and activate it here if I request activation."
