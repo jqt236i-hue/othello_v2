@@ -51,4 +51,109 @@ function applyNetworkRoomSettingsResult(result: any, options: any): boolean {
     return true;
 }
 
-export = { copyNetworkRoomName, toggleNetworkRoomSettings, refreshNetworkRooms, leaveNetworkRoom, applyNetworkRoomSettingsResult };
+async function createNetworkRoom(options: any): Promise<any> {
+    await options.setMode(options.networkMode, { silentLog: true });
+    const serverUrl = options.serverInput ? options.serverInput.value.trim() : '';
+    const playerName = options.playerNameInput
+        ? options.normalizePlayerName(options.playerNameInput.value)
+        : '';
+    const localDeckSelection = options.readActiveLocalDeckSelection();
+    const deckCode = localDeckSelection.deckCode;
+    const roomBoardConfig = options.getPendingRoomBoardConfig();
+    const requestedNetworkDebugEnabled = !!(
+        options.debugCheckbox
+        && options.debugCheckbox.checked
+    );
+    const requestedNetworkAutoEnabled = !!(
+        options.autoCheckbox
+        && options.autoCheckbox.checked
+    );
+    const requestedAllCardsDeckEnabled = typeof options.readNetworkAllCardsDeckEnabled === 'function'
+        ? options.readNetworkAllCardsDeckEnabled()
+        : !!(options.allCardsDeckCheckbox && options.allCardsDeckCheckbox.checked);
+    options.notifyInvalidCustomDeckFallback(localDeckSelection);
+    try {
+        if (options.client && typeof options.client.setServerUrl === 'function') {
+            options.client.setServerUrl(serverUrl);
+        }
+        const result = await options.client.createRoom({
+            serverUrl,
+            playerName,
+            deckCode,
+            roomName: options.readNetworkRoomName(),
+            roomPassword: options.readNetworkRoomPassword(),
+            roomBoardConfig,
+            networkDebugEnabled: requestedNetworkDebugEnabled,
+            networkAutoEnabled: requestedNetworkAutoEnabled,
+            allCardsDeckEnabled: requestedAllCardsDeckEnabled
+        });
+        if (result && result.ok && options.roomInput) {
+            options.roomInput.value = result.roomName || options.readNetworkRoomName() || '無名部屋';
+        }
+        if (result && result.ok && result.playerName && options.playerNameInput) {
+            options.playerNameInput.value = result.playerName;
+            options.setSharedPlayerName(result.playerName);
+        }
+        if (result && result.ok) {
+            applyNetworkRoomSettingsResult(result, options.roomSettings);
+            options.setNetworkRoomSettingsPopupVisible(false);
+        }
+        options.refreshNetworkChatVisibility();
+        options.renderNetworkDeckInfo();
+        options.refreshNetworkRoomList({ silentStatus: true });
+        options.refreshBoardUi();
+        return result;
+    } catch (e) {
+        options.writeNetworkStatus('部屋作成に失敗しました', true);
+        return null;
+    }
+}
+
+async function joinNetworkRoom(options: any): Promise<any> {
+    await options.setMode(options.networkMode, { silentLog: true });
+    const roomId = options.getSelectedNetworkRoomId();
+    const serverUrl = options.serverInput ? options.serverInput.value.trim() : '';
+    const playerName = options.resolveRequiredNetworkPlayerName();
+    const localDeckSelection = options.readActiveLocalDeckSelection();
+    const deckCode = localDeckSelection.deckCode;
+    if (!playerName) return null;
+    if (!roomId) {
+        options.writeNetworkStatus('ルーム一覧から参加するルームを選んでください', true);
+        return null;
+    }
+    options.notifyInvalidCustomDeckFallback(localDeckSelection);
+    try {
+        if (options.client && typeof options.client.setServerUrl === 'function') {
+            options.client.setServerUrl(serverUrl);
+        }
+        const result = await options.client.joinRoom(roomId, {
+            serverUrl,
+            playerName,
+            deckCode,
+            roomPassword: options.readNetworkRoomPassword()
+        });
+        if (result && result.ok) {
+            applyNetworkRoomSettingsResult(result, options.roomSettings);
+        }
+        options.refreshNetworkChatVisibility();
+        options.renderNetworkDeckInfo();
+        if (result && result.ok) {
+            await options.refreshNetworkRoomList({ silentStatus: true });
+        }
+        options.refreshBoardUi();
+        return result;
+    } catch (e) {
+        options.writeNetworkStatus('部屋参加に失敗しました', true);
+        return null;
+    }
+}
+
+export = {
+    copyNetworkRoomName,
+    toggleNetworkRoomSettings,
+    refreshNetworkRooms,
+    leaveNetworkRoom,
+    applyNetworkRoomSettingsResult,
+    createNetworkRoom,
+    joinNetworkRoom
+};

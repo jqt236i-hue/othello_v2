@@ -384,98 +384,60 @@ function bindNetworkButtons(context: any) {
 
     if (uiRefs.networkCreateBtn) {
         uiRefs.networkCreateBtn.addEventListener('click', async () => {
-            await setMode(MODE_NETWORK, { silentLog: true });
-            const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
-            const playerName = uiRefs.networkPlayerNameInput
-                ? normalizePlayerName(uiRefs.networkPlayerNameInput.value)
-                : '';
-            const localDeckSelection = readActiveLocalDeckSelection();
-            const deckCode = localDeckSelection.deckCode;
-            const roomBoardConfig = getPendingRoomBoardConfig();
-            const requestedNetworkDebugEnabled = !!(
-                uiRefs.networkEnableDebugCheckbox
-                && uiRefs.networkEnableDebugCheckbox.checked
-            );
-            const requestedNetworkAutoEnabled = !!(
-                uiRefs.networkEnableAutoCheckbox
-                && uiRefs.networkEnableAutoCheckbox.checked
-            );
-            const requestedAllCardsDeckEnabled = typeof readNetworkAllCardsDeckEnabled === 'function'
-                ? readNetworkAllCardsDeckEnabled()
-                : !!(uiRefs.networkAllCardsDeckCheckbox && uiRefs.networkAllCardsDeckCheckbox.checked);
-            notifyInvalidCustomDeckFallback(localDeckSelection);
-            try {
-                if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
-                    root.NetworkMatchClient.setServerUrl(serverUrl);
-                }
-                const result = await root.NetworkMatchClient.createRoom({
-                    serverUrl,
-                    playerName,
-                    deckCode,
-                    roomName: readNetworkRoomName(),
-                    roomPassword: readNetworkRoomPassword(),
-                    roomBoardConfig,
-                    networkDebugEnabled: requestedNetworkDebugEnabled,
-                    networkAutoEnabled: requestedNetworkAutoEnabled,
-                    allCardsDeckEnabled: requestedAllCardsDeckEnabled
-                });
-                if (result && result.ok && uiRefs.networkRoomInput) {
-                    uiRefs.networkRoomInput.value = result.roomName || readNetworkRoomName() || '無名部屋';
-                }
-                if (result && result.ok && result.playerName && uiRefs.networkPlayerNameInput) {
-                    uiRefs.networkPlayerNameInput.value = result.playerName;
-                    setSharedPlayerName(result.playerName);
-                }
-                if (result && result.ok) {
-                    NetworkButtonActionsModule.applyNetworkRoomSettingsResult(result, { setNetworkRoomDebugEnabled, setNetworkRoomAutoEnabled, applyNetworkDebugModeAccess, refreshNetworkAutoModeAccess, tryAutoEnableDebugModeForNetworkRoom });
-                    setNetworkRoomSettingsPopupVisible(false);
-                }
-                refreshNetworkChatVisibility();
-                renderNetworkDeckInfo();
-                refreshNetworkRoomList({ silentStatus: true });
-                refreshBoardUi();
-            } catch (e) {
-                writeNetworkStatus('部屋作成に失敗しました', true);
+            if (!NetworkButtonActionsModule || typeof NetworkButtonActionsModule.createNetworkRoom !== 'function') {
+                throw new Error('NetworkButtonActionsModule unavailable');
             }
+            await NetworkButtonActionsModule.createNetworkRoom({
+                networkMode: MODE_NETWORK,
+                setMode,
+                client: root.NetworkMatchClient,
+                serverInput: uiRefs.networkServerInput,
+                playerNameInput: uiRefs.networkPlayerNameInput,
+                roomInput: uiRefs.networkRoomInput,
+                debugCheckbox: uiRefs.networkEnableDebugCheckbox,
+                autoCheckbox: uiRefs.networkEnableAutoCheckbox,
+                allCardsDeckCheckbox: uiRefs.networkAllCardsDeckCheckbox,
+                normalizePlayerName,
+                readActiveLocalDeckSelection,
+                getPendingRoomBoardConfig,
+                readNetworkAllCardsDeckEnabled,
+                notifyInvalidCustomDeckFallback,
+                readNetworkRoomName,
+                readNetworkRoomPassword,
+                setSharedPlayerName,
+                roomSettings: { setNetworkRoomDebugEnabled, setNetworkRoomAutoEnabled, applyNetworkDebugModeAccess, refreshNetworkAutoModeAccess, tryAutoEnableDebugModeForNetworkRoom },
+                setNetworkRoomSettingsPopupVisible,
+                refreshNetworkChatVisibility,
+                renderNetworkDeckInfo,
+                refreshNetworkRoomList,
+                refreshBoardUi,
+                writeNetworkStatus
+            });
         });
     }
 
     if (uiRefs.networkJoinBtn) {
         uiRefs.networkJoinBtn.addEventListener('click', async () => {
-            await setMode(MODE_NETWORK, { silentLog: true });
-            const roomId = getSelectedNetworkRoomId();
-            const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
-            const playerName = resolveRequiredNetworkPlayerName();
-            const localDeckSelection = readActiveLocalDeckSelection();
-            const deckCode = localDeckSelection.deckCode;
-            if (!playerName) return;
-            if (!roomId) {
-                writeNetworkStatus('ルーム一覧から参加するルームを選んでください', true);
-                return;
+            if (!NetworkButtonActionsModule || typeof NetworkButtonActionsModule.joinNetworkRoom !== 'function') {
+                throw new Error('NetworkButtonActionsModule unavailable');
             }
-            notifyInvalidCustomDeckFallback(localDeckSelection);
-            try {
-                if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
-                    root.NetworkMatchClient.setServerUrl(serverUrl);
-                }
-                const result = await root.NetworkMatchClient.joinRoom(roomId, {
-                    serverUrl,
-                    playerName,
-                    deckCode,
-                    roomPassword: readNetworkRoomPassword()
-                });
-                if (result && result.ok) {
-                    NetworkButtonActionsModule.applyNetworkRoomSettingsResult(result, { setNetworkRoomDebugEnabled, setNetworkRoomAutoEnabled, applyNetworkDebugModeAccess, refreshNetworkAutoModeAccess, tryAutoEnableDebugModeForNetworkRoom });
-                }
-                refreshNetworkChatVisibility();
-                renderNetworkDeckInfo();
-                if (result && result.ok) {
-                    await refreshNetworkRoomList({ silentStatus: true });
-                }
-                refreshBoardUi();
-            } catch (e) {
-                writeNetworkStatus('部屋参加に失敗しました', true);
-            }
+            await NetworkButtonActionsModule.joinNetworkRoom({
+                networkMode: MODE_NETWORK,
+                setMode,
+                client: root.NetworkMatchClient,
+                serverInput: uiRefs.networkServerInput,
+                getSelectedNetworkRoomId,
+                resolveRequiredNetworkPlayerName,
+                readActiveLocalDeckSelection,
+                notifyInvalidCustomDeckFallback,
+                readNetworkRoomPassword,
+                roomSettings: { setNetworkRoomDebugEnabled, setNetworkRoomAutoEnabled, applyNetworkDebugModeAccess, refreshNetworkAutoModeAccess, tryAutoEnableDebugModeForNetworkRoom },
+                refreshNetworkChatVisibility,
+                renderNetworkDeckInfo,
+                refreshNetworkRoomList,
+                refreshBoardUi,
+                writeNetworkStatus
+            });
         });
     }
 
