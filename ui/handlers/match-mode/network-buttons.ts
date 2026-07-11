@@ -427,11 +427,7 @@ function bindNetworkButtons(context: any) {
                     setSharedPlayerName(result.playerName);
                 }
                 if (result && result.ok) {
-                    setNetworkRoomDebugEnabled(result.networkDebugEnabled === true);
-                    setNetworkRoomAutoEnabled(result.networkAutoEnabled === true);
-                    applyNetworkDebugModeAccess();
-                    refreshNetworkAutoModeAccess();
-                    tryAutoEnableDebugModeForNetworkRoom();
+                    NetworkButtonActionsModule.applyNetworkRoomSettingsResult(result, { setNetworkRoomDebugEnabled, setNetworkRoomAutoEnabled, applyNetworkDebugModeAccess, refreshNetworkAutoModeAccess, tryAutoEnableDebugModeForNetworkRoom });
                     setNetworkRoomSettingsPopupVisible(false);
                 }
                 refreshNetworkChatVisibility();
@@ -469,11 +465,7 @@ function bindNetworkButtons(context: any) {
                     roomPassword: readNetworkRoomPassword()
                 });
                 if (result && result.ok) {
-                    setNetworkRoomDebugEnabled(result.networkDebugEnabled === true);
-                    setNetworkRoomAutoEnabled(result.networkAutoEnabled === true);
-                    applyNetworkDebugModeAccess();
-                    refreshNetworkAutoModeAccess();
-                    tryAutoEnableDebugModeForNetworkRoom();
+                    NetworkButtonActionsModule.applyNetworkRoomSettingsResult(result, { setNetworkRoomDebugEnabled, setNetworkRoomAutoEnabled, applyNetworkDebugModeAccess, refreshNetworkAutoModeAccess, tryAutoEnableDebugModeForNetworkRoom });
                 }
                 refreshNetworkChatVisibility();
                 renderNetworkDeckInfo();

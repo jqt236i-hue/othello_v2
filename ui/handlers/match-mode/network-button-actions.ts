@@ -41,4 +41,14 @@ async function leaveNetworkRoom(options: any): Promise<void> {
     options.refreshBoardUi();
 }
 
-export = { copyNetworkRoomName, toggleNetworkRoomSettings, refreshNetworkRooms, leaveNetworkRoom };
+function applyNetworkRoomSettingsResult(result: any, options: any): boolean {
+    if (!result || result.ok !== true) return false;
+    options.setNetworkRoomDebugEnabled(result.networkDebugEnabled === true);
+    options.setNetworkRoomAutoEnabled(result.networkAutoEnabled === true);
+    options.applyNetworkDebugModeAccess();
+    options.refreshNetworkAutoModeAccess();
+    options.tryAutoEnableDebugModeForNetworkRoom();
+    return true;
+}
+
+export = { copyNetworkRoomName, toggleNetworkRoomSettings, refreshNetworkRooms, leaveNetworkRoom, applyNetworkRoomSettingsResult };
