@@ -34,6 +34,18 @@ interface MatchAuthorityProjectionDeps {
     ) => Array<Record<string, number> | null>;
 }
 
+type PublishViewerKey = MatchAuthoritySeatKey | 'spectator';
+
+type PublishViewerArtifactsOptions = {
+    perfCounters?: Record<string, number>;
+    onViewerProjected?: (viewerKey: PublishViewerKey, snapshot: MatchAuthorityPublicSnapshot) => void;
+};
+
+type PublishViewerArtifacts = {
+    canonicalHash: string | null;
+    projectedSnapshots: Record<PublishViewerKey, MatchAuthorityPublicSnapshot>;
+};
+
 function asRecord(value: unknown): RecordValue {
     return value && typeof value === 'object' ? value as RecordValue : {};
 }
@@ -352,6 +364,35 @@ export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjection
         return shot;
     }
 
+    function buildPublishViewerArtifacts(
+        room: MatchAuthorityRoomState | null | undefined,
+        options?: PublishViewerArtifactsOptions
+    ): PublishViewerArtifacts {
+        const opts = options && typeof options === 'object' ? options : {};
+        const perfCounters = opts.perfCounters && typeof opts.perfCounters === 'object'
+            ? opts.perfCounters
+            : null;
+        const viewerSpecs: Array<{ key: PublishViewerKey; viewer: MatchAuthorityViewer }> = [
+            { key: 'black', viewer: { role: 'seat', seatKey: 'black' } },
+            { key: 'white', viewer: { role: 'seat', seatKey: 'white' } },
+            { key: 'spectator', viewer: { role: 'spectator', spectatorId: '' } }
+        ];
+        const projectedSnapshots = {} as Record<PublishViewerKey, MatchAuthorityPublicSnapshot>;
+        for (const spec of viewerSpecs) {
+            const snapshot = buildPublicSnapshotForViewer(room, spec.viewer);
+            projectedSnapshots[spec.key] = snapshot;
+            if (perfCounters) {
+                const counterKey = `viewerProjection${spec.key === 'spectator' ? 'Spectator' : spec.key[0].toUpperCase() + spec.key.slice(1)}`;
+                perfCounters[counterKey] = Number(perfCounters[counterKey] || 0) + 1;
+            }
+            if (typeof opts.onViewerProjected === 'function') opts.onViewerProjected(spec.key, snapshot);
+        }
+        return {
+            canonicalHash: computeAuthoritativeStateHash(room && room.snapshot ? room.snapshot : {}),
+            projectedSnapshots
+        };
+    }
+
     return {
         getFateWillControllerKey,
         isFateWillControllerForCurrentTurn,
@@ -361,6 +402,7 @@ export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjection
         getPayloadKeyForViewer,
         computeAuthoritativeStateHash,
         computeProjectedSnapshotHash,
+        buildPublishViewerArtifacts,
         buildPublicSnapshotForViewer,
         buildPublicSnapshot
     };

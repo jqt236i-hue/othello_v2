@@ -1009,6 +1009,16 @@ function buildPublicSnapshot(
     return matchAuthorityProjection.buildPublicSnapshot(room, viewerSeatKey);
 }
 
+function buildPublishViewerArtifacts(
+    room: MatchAuthorityRoomState | null | undefined,
+    options?: Record<string, unknown>
+): {
+    canonicalHash: string | null;
+    projectedSnapshots: Record<MatchAuthoritySeatKey | 'spectator', MatchAuthorityPublicSnapshot>;
+} {
+    return matchAuthorityProjection.buildPublishViewerArtifacts(room, options);
+}
+
 function computeAuthoritativeStateHash(snapshotValue: unknown): string | null {
     return matchAuthorityProjection.computeAuthoritativeStateHash(snapshotValue);
 }
@@ -1182,6 +1192,7 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     stripTransientChargeDeltaState,
     restoreMissingChargeDeltaEvents,
     projectSnapshotForViewer,
+    buildPublishViewerArtifacts,
     buildPublicSnapshotForViewer,
     buildPublicSnapshot,
     validatePendingSelectionPublish,

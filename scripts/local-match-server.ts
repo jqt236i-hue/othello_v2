@@ -2379,6 +2379,7 @@ async function handlePublish(req: any, res: any) {
             if (ratedResult) finalizeLocalRatedMatchIfNeeded(activeRoom, ratedResult, 'normal_end');
         },
         refreshTurnTimer: (options: any) => refreshTurnTimer(activeRoom, options),
+        buildPublishViewerArtifacts: (room: any, options: any) => MatchAuthority.buildPublishViewerArtifacts(room, options),
         prepareSnapshotBroadcast: (meta: any) => prepareSnapshotBroadcast(activeRoom, meta),
         ensureInitialPresentationSnapshots,
         appendPresentationFrameForAcceptedPublish,

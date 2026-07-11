@@ -2115,6 +2115,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                     if (result) await this.finalizeRatedMatchIfNeeded(result, 'normal_end');
                 },
                 refreshTurnTimer: (options: MatchWorkerTurnTimerOptions | null | undefined) => this.refreshTurnTimer(options),
+                buildPublishViewerArtifacts: (room: MatchWorkerRoomState, options: Record<string, unknown>) => (
+                    MatchAuthority.buildPublishViewerArtifacts(room, options)
+                ),
                 prepareSnapshotBroadcast: (meta: MatchWorkerSnapshotPayloadMeta | null | undefined) => this.prepareSnapshotBroadcast(meta),
                 ensureInitialPresentationSnapshots,
                 appendPresentationFrameForAcceptedPublish,

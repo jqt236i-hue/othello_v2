@@ -8,6 +8,24 @@ function jsonResponse(status: number, data: any) {
   };
 }
 
+function buildPublishViewerArtifacts(room: any, options: any = {}) {
+  const clone = (value: any) => JSON.parse(JSON.stringify(value));
+  const counters = options.perfCounters;
+  if (counters) {
+    counters.viewerProjectionBlack = Number(counters.viewerProjectionBlack || 0) + 1;
+    counters.viewerProjectionWhite = Number(counters.viewerProjectionWhite || 0) + 1;
+    counters.viewerProjectionSpectator = Number(counters.viewerProjectionSpectator || 0) + 1;
+  }
+  return {
+    canonicalHash: 'hash_state',
+    projectedSnapshots: {
+      black: clone(room.snapshot),
+      white: clone(room.snapshot),
+      spectator: clone(room.snapshot)
+    }
+  };
+}
+
 describe('match worker publish controller', () => {
   test('accepted publish keeps refresh/save/broadcast side-effect order and reuses prepared snapshot', async () => {
     const order: string[] = [];
@@ -27,6 +45,7 @@ describe('match worker publish controller', () => {
     };
     let preparedMeta: any = null;
     let broadcastMeta: any = null;
+    const publishPerfCounters: Record<string, number> = {};
     const preparedSnapshot = {
       eventId: 'prepared_publish_1',
       record: { eventId: 'prepared_publish_1', eventName: 'snapshot' }
@@ -69,6 +88,8 @@ describe('match worker publish controller', () => {
       isSnapshotGameOver: async () => false,
       toPublicNetworkDebugEnabled: () => false,
       deepClone: (value: any) => JSON.parse(JSON.stringify(value)),
+      buildPublishViewerArtifacts,
+      publishPerfCounters,
       applyCommandPublishToSnapshot: async () => {
         order.push('applyCommandPublishToSnapshot');
         return {
@@ -146,6 +167,11 @@ describe('match worker publish controller', () => {
       __preparedSnapshot: preparedSnapshot
     }));
     expect(room.stateVersion).toBe(5);
+    expect(publishPerfCounters).toEqual({
+      viewerProjectionBlack: 1,
+      viewerProjectionWhite: 1,
+      viewerProjectionSpectator: 1
+    });
     expect(payload).toEqual(expect.objectContaining({
       ok: true,
       stateVersion: 5,
@@ -242,6 +268,7 @@ describe('match worker publish controller: FATE_WILL controller can publish owne
         getSnapshotGameOver: async () => false,
         toPublicNetworkDebugEnabled: () => false,
         deepClone: (value: any) => JSON.parse(JSON.stringify(value)),
+        buildPublishViewerArtifacts,
         applyCommandPublishToSnapshot: async () => ({
           ok: true,
           snapshot: {

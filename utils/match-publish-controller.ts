@@ -291,7 +291,10 @@ export function createMatchPublishController(config?: any): any {
 
     room.snapshot = nextSnapshot;
     room.updatedAt = snapshotUpdatedAt;
-    room.authoritativeStateHash = cfg.MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
+    const publishViewerArtifacts = cfg.buildPublishViewerArtifacts(room, {
+      perfCounters: cfg.publishPerfCounters
+    });
+    room.authoritativeStateHash = publishViewerArtifacts.canonicalHash;
     if (operationId) {
       const acceptedEntry: any = {
         operationId,
@@ -353,6 +356,7 @@ export function createMatchPublishController(config?: any): any {
     if (cfg.includePreviousSnapshotForChargeDelta !== true) {
       delete publishResponseOptions.previousSnapshotForChargeDelta;
     }
+    publishResponseOptions.snapshot = publishViewerArtifacts.projectedSnapshots[seatKey];
     const responsePayload = cfg.buildPublishPayload(room, seatKey, publishResponseOptions);
     cfg.MatchAuthority.appendAuthorityLog(room, {
       kind: 'publish_accepted',
