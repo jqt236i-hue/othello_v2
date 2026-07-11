@@ -8,6 +8,7 @@ type PresentationEventLookup = {
     row?: any;
     col?: any;
     actionId?: any;
+    effectBlockId?: any;
     includeSourceCell?: boolean;
     predicate?: (event: any) => boolean;
 };
@@ -55,6 +56,7 @@ function createPresentationEventIndex(eventsInput: any, options?: PresentationEv
     const byCell = new Map<string, any[]>();
     const byRelatedCell = new Map<string, any[]>();
     const byAction = new Map<string, any[]>();
+    const byEffectBlock = new Map<string, any[]>();
 
     for (let index = 0; index < events.length; index += 1) {
         const event = events[index];
@@ -66,6 +68,11 @@ function createPresentationEventIndex(eventsInput: any, options?: PresentationEv
 
         appendToBucket(byType, normalizeLookupKey(event.type), event);
         appendToBucket(byAction, normalizeLookupKey(event.actionId ?? (event.meta && event.meta.actionId)), event);
+        appendToBucket(
+            byEffectBlock,
+            normalizeLookupKey(event.effectBlockId ?? (event.meta && event.meta.effectBlockId)),
+            event
+        );
 
         const directCellKey = normalizeCellKey(event.row, event.col);
         appendToBucket(byCell, directCellKey, event);
@@ -83,6 +90,7 @@ function createPresentationEventIndex(eventsInput: any, options?: PresentationEv
     freezeBuckets(byCell);
     freezeBuckets(byRelatedCell);
     freezeBuckets(byAction);
+    freezeBuckets(byEffectBlock);
 
     function eventsOfType(type: any): readonly any[] {
         const key = normalizeLookupKey(type);
@@ -101,12 +109,21 @@ function createPresentationEventIndex(eventsInput: any, options?: PresentationEv
         return key === null ? EMPTY_EVENTS : (byAction.get(key) || EMPTY_EVENTS);
     }
 
+    function eventsForEffectBlock(effectBlockId: any): readonly any[] {
+        const key = normalizeLookupKey(effectBlockId);
+        return key === null ? EMPTY_EVENTS : (byEffectBlock.get(key) || EMPTY_EVENTS);
+    }
+
     function getCandidateEvents(lookup: PresentationEventLookup): readonly any[] {
         const hasCell = normalizeCellKey(lookup.row, lookup.col) !== null;
         const typeEvents = typeof lookup.type === 'undefined' ? null : eventsOfType(lookup.type);
         const cellEvents = hasCell ? eventsAtCell(lookup.row, lookup.col, lookup.includeSourceCell) : null;
         const actionEvents = typeof lookup.actionId === 'undefined' ? null : eventsForAction(lookup.actionId);
-        const candidates = [typeEvents, cellEvents, actionEvents].filter((bucket): bucket is readonly any[] => bucket !== null);
+        const effectBlockEvents = typeof lookup.effectBlockId === 'undefined'
+            ? null
+            : eventsForEffectBlock(lookup.effectBlockId);
+        const candidates = [typeEvents, cellEvents, actionEvents, effectBlockEvents]
+            .filter((bucket): bucket is readonly any[] => bucket !== null);
         if (candidates.length === 0) return events;
         return candidates.reduce((smallest, bucket) => bucket.length < smallest.length ? bucket : smallest);
     }
@@ -117,6 +134,10 @@ function createPresentationEventIndex(eventsInput: any, options?: PresentationEv
         if (typeof lookup.actionId !== 'undefined') {
             const eventActionId = event.actionId ?? (event.meta && event.meta.actionId);
             if (normalizeLookupKey(eventActionId) !== normalizeLookupKey(lookup.actionId)) return false;
+        }
+        if (typeof lookup.effectBlockId !== 'undefined') {
+            const eventEffectBlockId = event.effectBlockId ?? (event.meta && event.meta.effectBlockId);
+            if (normalizeLookupKey(eventEffectBlockId) !== normalizeLookupKey(lookup.effectBlockId)) return false;
         }
         const requestedCell = normalizeCellKey(lookup.row, lookup.col);
         if (requestedCell !== null) {
@@ -156,6 +177,7 @@ function createPresentationEventIndex(eventsInput: any, options?: PresentationEv
         eventsOfType,
         eventsAtCell,
         eventsForAction,
+        eventsForEffectBlock,
         findFirst,
         findLast
     });
