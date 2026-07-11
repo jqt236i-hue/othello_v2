@@ -76,6 +76,7 @@ const CardProtectionContext = loadRuntimeModule('../logic/cards-internal/protect
 const CardSacrificeWillModule = loadRuntimeModule('../logic/cards/sacrifice_will', 'CardSacrificeWill', null);
 const CardUsageConsumptionStage = loadRuntimeModule('./card-usage-consumption-stage', 'CardUsageConsumptionStage', null);
 const CardUsagePendingStage = loadRuntimeModule('./card-usage-pending-stage', 'CardUsagePendingStage', null);
+const CardUsageImmediateStage = loadRuntimeModule('./card-usage-immediate-stage', 'CardUsageImmediateStage', null);
 
 const {
   CARD_DEFS,
@@ -822,23 +823,20 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     }
   }
 
-  if (cardType === 'THEORY_INCARNATION') {
-    if (typeof applyTheoryIncarnationUsage !== 'function') return false;
-    const theoryRes = applyTheoryIncarnationUsage(cardState, _gameState, chargeOwnerKey, _opts.prng);
-    if (!theoryRes || theoryRes.applied !== true) return false;
+  if (!CardUsageImmediateStage || typeof CardUsageImmediateStage.applyImmediateCardUsage !== 'function') {
+    throw new Error('[effect-resolver] CardUsageImmediateStage.applyImmediateCardUsage not available');
   }
-
-  if (cardType === 'CHAOS_SUMMON') {
-    if (typeof applyChaosSummonUsage !== 'function') return false;
-    const chaosRes = applyChaosSummonUsage(cardState, _gameState, chargeOwnerKey, _opts.prng);
-    if (!chaosRes || chaosRes.applied !== true) return false;
-  }
-
-  if (cardType === 'BOARD_EXECUTOR') {
-    if (typeof applyBoardExecutorUsage !== 'function') return false;
-    const executorRes = applyBoardExecutorUsage(cardState, _gameState, chargeOwnerKey, _opts.prng);
-    if (!executorRes || executorRes.applied !== true) return false;
-  }
+  const immediateUsage = CardUsageImmediateStage.applyImmediateCardUsage({
+    cardState,
+    gameState: _gameState,
+    playerKey: chargeOwnerKey,
+    cardType,
+    prng: _opts.prng,
+    applyTheoryIncarnationUsage,
+    applyChaosSummonUsage,
+    applyBoardExecutorUsage
+  });
+  if (!immediateUsage || immediateUsage.ok !== true) return false;
 
   if (!CardUsagePendingStage || typeof CardUsagePendingStage.commitCardUsagePendingState !== 'function') {
     throw new Error('[effect-resolver] CardUsagePendingStage.commitCardUsagePendingState not available');
