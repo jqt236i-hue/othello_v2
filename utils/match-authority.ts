@@ -5,6 +5,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 import type { CardState, GameState, PlayerKey } from '../src/types';
+import * as NetworkContract from '../shared/network-contract';
 import type {
     MatchAuthorityAcceptedOperationEntry,
     MatchAuthorityAcceptedOperationHistoryBySeat,
@@ -68,8 +69,6 @@ import { createMatchAuthorityOperationsApi } from './match-authority/operations'
 import { createMatchAuthorityPendingSelectionApi } from './match-authority/pending-selection';
 
 import deepClone from './deepClone';
-
-const NetworkContract = _require('../shared/network-contract') as typeof import('../shared/network-contract');
 
 interface MatchAuthorityCryptoLike {
     getRandomValues(array: Uint8Array): Uint8Array;

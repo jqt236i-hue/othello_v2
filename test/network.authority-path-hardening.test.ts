@@ -41,6 +41,13 @@ function readLineAt(source: string, index: number): string {
 }
 
 describe('network authority path hardening', () => {
+  test('match authority statically imports the shared network contract for Worker bundling', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'utils/match-authority.ts'), 'utf8');
+
+    expect(source).toContain("import * as NetworkContract from '../shared/network-contract';");
+    expect(source).not.toMatch(/_require\(['"]\.\.\/shared\/network-contract['"]\)/);
+  });
+
   test('canonical authority paths do not use ambient Math.random without an explicit allowlist', () => {
     const violations: Array<{ file: string; line: string }> = [];
     const files = Array.from(new Set(AUTHORITY_RANDOM_TARGETS.flatMap(collectFiles))).sort();
