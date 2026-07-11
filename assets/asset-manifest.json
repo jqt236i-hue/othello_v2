@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-09",
-  "generatedAt": "2026-07-09T14:19:41.043Z",
+  "version": "2026-07-11",
+  "generatedAt": "2026-07-11T06:59:16.422Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -287,14 +287,6 @@
       "sha256": "34861a8c58df15fe4e4cb43fbc945ebf77a94fea73a16bbffe8ee4e5f7312dc6"
     },
     {
-      "path": "assets/images/stone-skin/default-premium/black.png",
-      "sha256": "0120866e26b6c0bc064b550e0788ff9ec9e003f7b3fad06113caa14bd8381549"
-    },
-    {
-      "path": "assets/images/stone-skin/default-premium/white.png",
-      "sha256": "e144e20f948b45dd262e6d8027fcada57230f7c23be5e05a15b511668c1a4890"
-    },
-    {
       "path": "assets/images/stone-skin/jade-rim/black.png",
       "sha256": "32e624bc3c6d8f4e7f0c93d6ab882dac2ad7d7f9e1d6107360bcc685e1679bc1"
     },
@@ -317,10 +309,6 @@
     {
       "path": "assets/images/stone-skin/pearl-obsidian/white.png",
       "sha256": "ed8bd585d210897743a9c66a563e7ed59819c5f865354ee21e096507a9f19845"
-    },
-    {
-      "path": "assets/images/other/a.png",
-      "sha256": "00120b9f42b26097e0818de9c5c7a7f3fac31451cf4f40120d6e7b5beb555773"
     },
     {
       "path": "assets/images/other/aaa.png",
@@ -379,16 +367,8 @@
       "sha256": "e39fa5148837813be6294d7a18e8ea2a7e3745951b75c45be153fb5cf9a097a5"
     },
     {
-      "path": "assets/images/other/leaderboard-icon-crown-bronze-v1.png",
-      "sha256": "f1cb267e2351fda8cb2636c7928e8e4cbe8340945004d16dd7513e896835fa61"
-    },
-    {
       "path": "assets/images/other/leaderboard-icon-crown-gold-v1.png",
       "sha256": "c2559b385c6589e07da16d2361c590e4d4e80259c083dd14e897240270dd11e5"
-    },
-    {
-      "path": "assets/images/other/leaderboard-icon-crown-silver-v1.png",
-      "sha256": "55be7ffb3b2d3cc876336c1ece7fa422ae329f52b9824e2be727f50b897eccad"
     },
     {
       "path": "assets/images/other/leaderboard-icon-help-v1.png",
@@ -415,28 +395,12 @@
       "sha256": "aa480902f27c234e21617dbf2775514f619b63c263f5bb0ab179df0b3847558d"
     },
     {
-      "path": "assets/images/other/leaderboard-medal-number-bronze-v1.png",
-      "sha256": "8823014852b516cfc8857065cee8b237d6d2dac22a3ab4db545a63e1d84d4384"
-    },
-    {
-      "path": "assets/images/other/leaderboard-medal-number-gold-v1.png",
-      "sha256": "75300c087b693886ce00788807bfdcb0eb3201cef522092a35b93458bb934c25"
-    },
-    {
-      "path": "assets/images/other/leaderboard-medal-number-silver-v1.png",
-      "sha256": "450690b11ebcbb751f34c33831824a4d623eff401c7196e3a37a088968f9ff18"
-    },
-    {
       "path": "assets/images/other/leaderboard-medal-silver-v1.png",
       "sha256": "4b3319df54b8c95d7d6b7c42b4a0d2bc8cd00b06375199005ab4285d1fefe776"
     },
     {
       "path": "assets/images/other/leaderboard-podium-bronze-number-v1.png",
       "sha256": "1038dcbca2ad227bbc4a618a5048cd39a1f0be2efa3ae9f0feb22286a12796e0"
-    },
-    {
-      "path": "assets/images/other/leaderboard-podium-bronze-v1.png",
-      "sha256": "a82168a3fe60fdcc3a0d58c1b43c3ea0f7444a48e7bb11760efb30ed90681706"
     },
     {
       "path": "assets/images/other/leaderboard-podium-bronze-v2.png",
@@ -447,20 +411,12 @@
       "sha256": "8942244be6aa2c4c3ce6276dc551307b590cc1e393788b66bcba75ddade4fa46"
     },
     {
-      "path": "assets/images/other/leaderboard-podium-gold-v1.png",
-      "sha256": "1e7a49b1a039138c0de0a551389e3da3496a7a9be9dc7fc20ecbc0a87eb2a149"
-    },
-    {
       "path": "assets/images/other/leaderboard-podium-gold-v2.png",
       "sha256": "7e2ee8923e5307acfbc37ef37882b1077aa7a52ee3d6f9d9e208260294872130"
     },
     {
       "path": "assets/images/other/leaderboard-podium-silver-number-v1.png",
       "sha256": "940889769f0ea85a0180053f95fcec86606db250e9bb64b460b44bdeca80b6f9"
-    },
-    {
-      "path": "assets/images/other/leaderboard-podium-silver-v1.png",
-      "sha256": "bd70af0cc5171cf34f3293da107c2f96f1c89eef733b4188b5e5d7fb0be9d87b"
     },
     {
       "path": "assets/images/other/leaderboard-podium-silver-v2.png",
@@ -521,54 +477,6 @@
     {
       "path": "assets/images/special-cards/characters/終焉の冥灰.png",
       "sha256": "7d9ee00146a0955813bbddad71bf7601898860d4eb5b8f5a7493ad5b00e04b6b"
-    },
-    {
-      "path": "assets/images/background/1.png",
-      "sha256": "2fb2f1e18045a943a56c9a406fadb460b5ba8739e8fd7de7b04d379066f2eb99"
-    },
-    {
-      "path": "assets/images/background/candidates-natural/nature-bg-idea-01-forest-clearing.png",
-      "sha256": "679902e5558af79c54f0d624b4a5f3ddd3f6c093d333fe921cf9e04705c3ecf9"
-    },
-    {
-      "path": "assets/images/background/candidates-natural/nature-bg-idea-02-misty-woodland-edge.png",
-      "sha256": "2ca204aec937849ba8cd3aad42585ca9b21bf6db25aaf3a0a3c3bbbe581ea8b3"
-    },
-    {
-      "path": "assets/images/background/candidates-natural/nature-bg-idea-03-evergreen-forest.png",
-      "sha256": "dc3eb6fce3ea50ada3a4c108472a3b038a4fbaaa38ad8d74fdeb08f4559b1a15"
-    },
-    {
-      "path": "assets/images/background/candidates-natural-border/nature-border-idea-01-garden-grass.png",
-      "sha256": "0e9dd58679945a912852a7566351696ac7b6003037d8aa7b9e4acae619d9e4bd"
-    },
-    {
-      "path": "assets/images/background/candidates-natural-border/nature-border-idea-02-bamboo-grove.png",
-      "sha256": "54b0116397c93300e62679de43994e69e9e690bf75c53e3a15fe1d47425efe37"
-    },
-    {
-      "path": "assets/images/background/candidates-natural-border/nature-border-idea-03-meadow-fern.png",
-      "sha256": "d066506846ed87bf9e00aaa4da721f744fb70172e4d5bad9122d5e18ceb53479"
-    },
-    {
-      "path": "assets/images/background/candidates-natural-border/nature-border-idea-04-reed-stone-bank.png",
-      "sha256": "bfc7fdae44bfed70d0c689ddddaa2617301a0fb76a5365570746e09c021402d1"
-    },
-    {
-      "path": "assets/images/background/candidates-nature-nonplant/nature-nonplant-idea-01-water-stone.png",
-      "sha256": "c5cc79c5c8bd042876b6d4fbd67867a63a4abebf318d0d12a314bde2684f2d2d"
-    },
-    {
-      "path": "assets/images/background/candidates-nature-nonplant/nature-nonplant-idea-02-sandstone.png",
-      "sha256": "b35aa39a18855bee1cb8c3479e073f0fd0651280c7704495f00b1e575caa209b"
-    },
-    {
-      "path": "assets/images/background/candidates-nature-nonplant/nature-nonplant-idea-03-glacial-ice.png",
-      "sha256": "a291615852240f1f844229bf500153af35285f677013b09e5fa52698dd54201f"
-    },
-    {
-      "path": "assets/images/background/candidates-nature-nonplant/nature-nonplant-idea-04-tidal-flat.png",
-      "sha256": "5c8f8176370aaf199d2db3cd56ecc26ffbb27f05b9b26a0c89855254d32319b0"
     },
     {
       "path": "assets/images/background/default.png",
@@ -693,14 +601,6 @@
     {
       "path": "assets/images/background/デフォルト9.png",
       "sha256": "dc3eb6fce3ea50ada3a4c108472a3b038a4fbaaa38ad8d74fdeb08f4559b1a15"
-    },
-    {
-      "path": "assets/images/background/宇宙の観測.png",
-      "sha256": "7a52c0ff947e9c7b70938540f110218d38b2abc54ee0f0d8a836be1fcb5b3260"
-    },
-    {
-      "path": "assets/images/background/観測の机.png",
-      "sha256": "2fe28ec2347fb703dd25ab5c2dca5644a5b3c6b8652e1ecb93cc4e38b82481e9"
     },
     {
       "path": "assets/images/background-skin/default-table.svg",
