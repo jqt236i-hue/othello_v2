@@ -499,28 +499,62 @@ function markerCellKey(row: any, col: any): string {
     return `${typeof row}:${String(row)},${typeof col}:${String(col)}`;
 }
 
-function createMarkerCellIndex(cardState: CardState) {
+type MarkerContextIndexOptions = {
+    onMarkerVisited?: (marker: any, index: number) => void;
+};
+
+function createMarkerContextIndex(cardState: CardState, options?: MarkerContextIndexOptions) {
     const byCell = new Map<string, any[]>();
     const markers = getMarkers(cardState);
-    for (const marker of markers) {
-        if (!marker || !Number.isFinite(marker.row) || !Number.isFinite(marker.col)) continue;
-        const key = markerCellKey(marker.row, marker.col);
-        const list = byCell.get(key);
-        if (list) list.push(marker);
-        else byCell.set(key, [marker]);
+    const specialMarkers: any[] = [];
+    const manifestMarkers: any[] = [];
+    const bombMarkers: any[] = [];
+    const blockingMarkers: any[] = [];
+    const frozenCellKeys = new Set<string>();
+    const opts = options && typeof options === 'object' ? options : {};
+    let scanCount = 0;
+
+    for (let markerIndex = 0; markerIndex < markers.length; markerIndex += 1) {
+        const marker = markers[markerIndex];
+        scanCount += 1;
+        if (typeof opts.onMarkerVisited === 'function') opts.onMarkerVisited(marker, markerIndex);
+        if (!marker) continue;
+
+        const bomb = isBombCategoryMarker(marker);
+        const manifest = isManifestStoneMarker(marker);
+        const special = isSpecialStoneMarker(marker);
+        if (special) specialMarkers.push(marker);
+        if (manifest) manifestMarkers.push(marker);
+        if (bomb) bombMarkers.push(marker);
+
+        const type = marker && marker.data ? marker.data.type : null;
+        if (special && (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE')) {
+            blockingMarkers.push(marker);
+        }
+        if (special && type === 'FREEZE') {
+            frozenCellKeys.add(markerCellKey(marker.row, marker.col));
+        }
+
+        if (Number.isFinite(marker.row) && Number.isFinite(marker.col)) {
+            const key = markerCellKey(marker.row, marker.col);
+            const list = byCell.get(key);
+            if (list) list.push(marker);
+            else byCell.set(key, [marker]);
+        }
     }
-    const api = {
+
+    const cellIndex = {
         get(row: any, col: any): any[] {
             return byCell.get(markerCellKey(row, col)) || [];
         },
         some(row: any, col: any, predicate: (marker: any) => boolean): boolean {
-            return api.get(row, col).some(predicate);
+            return cellIndex.get(row, col).some(predicate);
         },
         find(row: any, col: any, predicate: (marker: any) => boolean): any {
-            return api.get(row, col).find(predicate);
+            return cellIndex.get(row, col).find(predicate);
         },
         findSpecial(row: any, col: any, type?: string, owner?: PlayerKey): any {
-            return api.find(row, col, (marker: any) => (
+            return cellIndex.find(row, col, (marker: any) => (
                 marker &&
                 isSpecialStoneMarker(marker) &&
                 (type ? (marker.data && marker.data.type === type) : true) &&
@@ -528,14 +562,32 @@ function createMarkerCellIndex(cardState: CardState) {
             ));
         },
         isSpecialStoneAt(row: any, col: any): boolean {
-            return !!api.find(row, col, (marker: any) => {
+            return !!cellIndex.find(row, col, (marker: any) => {
                 if (!marker) return false;
                 if (isSpecialStoneMarker(marker) && !isNormalVisualSpecialMarker(marker)) return true;
                 return isBombCategoryMarker(marker);
             });
         }
     };
-    return api;
+
+    return {
+        markers,
+        specialMarkers,
+        manifestMarkers,
+        bombMarkers,
+        blockingMarkers,
+        frozenCellKeys,
+        scanCount,
+        byCell,
+        cellIndex,
+        isFrozenCell(row: any, col: any): boolean {
+            return frozenCellKeys.has(markerCellKey(row, col));
+        }
+    };
+}
+
+function createMarkerCellIndex(cardState: CardState) {
+    return createMarkerContextIndex(cardState).cellIndex;
 }
 
 interface RemoveMarkersOptions {
@@ -1011,6 +1063,7 @@ export = {
     findSpecialMarkerAt,
     findManifestMarkerAt,
     findBombMarkerAt,
+    createMarkerContextIndex,
     createMarkerCellIndex,
     removeMarkersAt,
     getSpecialMarkerAt,
