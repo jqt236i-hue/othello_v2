@@ -20,7 +20,7 @@ updated: 2026-07-11
 
 ## 2. 予定する完成仕様
 
-Phase 1で正本へ反映する初期決定は次の通りとする。既存正本と衝突が見つかった場合は実装せず、正本側の判断を先に確定する。
+ユーザーが明示した確定入力は、表示名、コスト11、「盤面にいる特殊石を全て凍結状態にする」「意志の喪失の凍結版」という効果骨格である。次表のそれ以外は、既存ルールから導いた**実装既定値**であり、Phase 1で正本へ反映して初めて仕様確定とする。既存正本と衝突する、またはプレイヤー体験を materially 変える別解が見つかった場合は実装せず、最小の判断事項だけをユーザーへ確認する。
 
 | 項目 | 決定 |
 | --- | --- |
@@ -32,6 +32,9 @@ Phase 1で正本へ反映する初期決定は次の通りとする。既存正�
 | 基本効果 | 盤面上の対象特殊石が存在するセルを、敵味方を問わずすべて5ターン凍結 |
 | 対象分類 | 特殊石本体、罠石、時限爆弾。弱い石・強い石・幽体石・残像石・復活石などを含む |
 | 対象外 | 通常石、石状態、盤面マーカー、配置時効果、不可侵の顕現石 |
+| 隠し罠と使用可否 | 相手の非公開罠だけではカードを使用可能にしない。公開対象または自分に見える対象が1つ以上必要 |
+| 隠し罠と解決 | カードが合法に使用された後のcanonical全体解決では相手の隠し罠も凍結する |
+| 隠し罠の公開範囲 | 公開`FREEZE`により凍結セルの位置は全viewerへ見えるが、元の`TRAP` type・owner-only metadataは従来どおり非公開 |
 | 完全保護 | 既存「凍結の意志」と同じセル効果として、完全保護中の特殊石があるセルも対象 |
 | 既存凍結 | すでに有効な`FREEZE`があるセルは対象外。残りターンを延長・上書きしない |
 | 重複 | 同一セルに対象markerが複数あっても`FREEZE`は1個だけ付与 |
@@ -59,34 +62,39 @@ Phase 1で正本へ反映する初期決定は次の通りとする。既存正�
 | 6. CPU・network/runtime parity | pending | Phase 4～5 | CPU focused、network parity、worker mirror検証 PASS |
 | 7. 総合検証・実機確認・完了 | pending | Phase 1～6 | 全verification bundle、最終diff、完了commit |
 
-既存の別アクティブ実装計画と同じphysical checkoutでimplementation phaseを並行実行しない。本計画のPhase 2以降へ入る前に、他taskが完了または停止していることを確認する。
+既存の別アクティブ実装計画と同じphysical checkoutでimplementation phaseを並行実行しない。本計画のPhase 1以降へ入る前に、他taskが完了または停止し、既存dirty fileが整理済みであることを確認する。2026-07-11の自己レビュー時点では、`worker-public/*`、`docs/perf/*`、`test/e2e/network-special-stone-late-game.e2e.test.ts`に別taskと見られる変更があるため、Phase 0 gateは未達である。
 
 ## 4. 共通制約
 
 - 各Phase開始・終了時に`git status --short`を実行する。
-- unrelatedまたは説明不能なdirty fileがある場合、Phase 2以降を開始しない。今回確認済みの`worker-public/*`と`docs/perf/*`の既存差分は本計画へ混ぜない。
+- unrelatedまたは説明不能なdirty fileがある場合、Phase 1以降を開始しない。今回確認済みの`worker-public/*`、`docs/perf/*`、network special-stone E2Eの既存差分は本計画へ混ぜない。
 - branch、tag、worktreeを作らない。必要ならユーザーの明示指示を得る。
 - root TypeScriptと`cards/catalog.json`を先に編集する。`dist/`、`public/module-registry.js`、`worker-public/`、生成catalogをsourceとして手編集しない。
 - core logicはheadlessかつ決定的に保つ。DOM、sound、timer、network client、UI globalを`game/`、`shared/`へ入れない。
 - canonical state変更とpresentationはordered `events[]`で接続し、Single Visual Writerを維持する。
 - marker配列の既存順序をsortしない。対象セルの重複排除は最初に現れた座標順を維持する。
 - 既存テストを削除、skip、弱体化して通さない。
-- 各Phaseはfocused verification後にtask-owned filesだけを個別commitする。既存dirty fileをstageしない。
+- 各coherent unitはfocused verification後にtask-owned filesだけをcommitする。Phase 4～6は例外なく1つのunitとして扱い、既存dirty fileをstageしない。
 - artworkが存在しない場合、カード画像の完成を偽装しない。Phase 5のrelease gateとして明示的に止める。
+- `cards/catalog.json`、`src/types/card.ts`、CPUの明示profile、commentary、生成catalogは閉集合契約を持つ。新type追加後にいずれかだけを未更新でcommitしない。
+- Phase 4～6は1つのfeature landing unitとして扱う。途中でfocused testを実行しても、catalog/type/profile/runtime parityの閉集合が通るまでcommitしない。
 
 ## 5. File map
 
 | 責務 | 主な変更候補 | 主な検証候補 |
 | --- | --- | --- |
 | 仕様 | `01-rulebook.md`, `正本/カード仕様正本.md`, 必要時`正本/共通ルール正本.md`, `正本/効果音対応表.md` | `git diff --check`, Markdown inspection |
-| 特殊石分類・対象収集 | `shared/special-stone-registry.ts`, `game/logic/cards-internal/effect-target-counts.ts`, 必要時新規`game/logic/cards-internal/special-stone-effect-targets.ts` | `test/shared.special-stone-registry.test.ts`, `test/game.cards.effect-target-counts-module.test.ts`, `test/game.loss-will.test.ts` |
-| 凍結付与 | `game/logic/card-resolution/status-cells.ts`, 新規候補`game/logic/card-resolution/mass-freeze.ts`, `game/logic/cards.ts` | `test/game.freeze-will.test.ts`, 新規mass-freeze focused test |
-| 使用可否・即時解決 | `game/logic/cards-internal/card-usage-prechecks.ts`, `game/cards/card-usage-validation-stage.ts`, `game/turn/card-usage/immediate-effects.ts` | 新規card-use/turn pipeline focused test |
-| カタログ・詳細UI | `cards/catalog.json`, generated catalog群, `cards/card-interaction-effects.ts`, effect tags | catalog/UI detail focused tests |
+| 特殊石分類・対象収集 | Reuse: `shared/special-stone-registry.ts`; Modify: `game/logic/cards-internal/effect-target-counts.ts` | `test/shared.special-stone-registry.test.ts`, `test/game.cards.effect-target-counts-module.test.ts`, `test/game.loss-will.test.ts` |
+| 凍結付与 | `game/logic/card-resolution/status-cells.ts`, `game/logic/cards.ts` | `test/game.freeze-will.test.ts`, 新規mass-freeze focused test |
+| 使用可否・即時解決 | `game/logic/cards-internal/card-usage-prechecks.ts`, `game/logic/cards-internal/hand-manager.ts`, `game/logic/cards-internal/context-builders.ts`, `game/cards/effect-resolver.ts`, `game/cards/card-usage-validation-stage.ts`, `game/turn/card-usage/immediate-effects.ts` | 新規card-use/turn pipeline focused test |
+| 型・カタログ閉集合 | `src/types/card.ts`, `cards/catalog.json`, generated catalog群, `shared-constants.ts`は参照のみ | `test/cards.catalog.test.ts`, `test/cards.pending-selection-contract.test.ts`, `test/match-runtime-parity.test.ts` |
+| カタログ・詳細UI | `cards/card-interaction-effects.ts`, effect tags、rules/help/deck detail既存経路 | catalog/UI detail focused tests |
 | 演出・音・ログ | `game/turn/pipeline-ui/*`, `ui/animation-status-events.ts`, sound cue mapping | pipeline UI adapter、sound cue、animation focused tests |
-| CPU | `game/ai/cpu-policy-card-type-flags.ts`, `game/ai/cpu-policy-card-use-decision.ts`, 必要なcontext/count投影 | CPU policy focused tests |
+| CPU・commentary | `game/ai/cpu-policy-card-type-flags.ts`, `game/ai/cpu-policy-card-use-decision.ts`, `game/ai/cpu-policy-card-profiles.ts`, 必要時`game/ai/cpu-policy-card-taxonomy.ts`, `game/ai/commentary-data.ts`, 必要なcontext/count投影 | CPU policy/profile/commentary closed-world tests |
 | Network/Worker | canonical snapshot既存経路、`workers/`は必要時のみ。生成mirrorは`npm run worker:prepare` | `npm run test:network:parity` |
 | Browser生成 | `public/module-registry.js`, `index.html`は`npm run build:browser`出力 | browser build freshness、small UI smoke |
+
+新規runtime moduleを追加する設計へ変更した場合は、`entry-browser.js`、`workers/match-worker-runtime-preload.ts`、worker preload testsを必ずFile mapへ追加する。本計画の既定設計では、既存`effect-target-counts.ts`と`status-cells.ts`へ責務を収め、新しいpreload対象moduleを増やさない。
 
 実装時に責務の所在が変わっている場合、同じauthorityを持つ現行sourceを探し、このFile mapを先に更新する。
 
@@ -100,7 +108,7 @@ Phase 1で正本へ反映する初期決定は次の通りとする。既存正�
 
 1. `git status --short`を取得する。
 2. 既存dirty fileを本計画、別task、生成物、unknownへ分類する。
-3. 別taskのdirty fileが残る場合、ユーザーの整理または明示承認なしに実装を開始しない。
+3. 別taskのdirty fileが残る場合、ユーザーの整理または明示承認なしに仕様正本更新を含む本計画作業を開始しない。
 4. 別のアクティブ実装taskが同じcheckoutで動いていないことを確認する。
 
 **Completion:** 本計画の変更だけを安全にstage・commitできる。
@@ -113,6 +121,7 @@ Phase 1で正本へ反映する初期決定は次の通りとする。既存正�
 - `npm run typecheck`
 - `npx jest test/game.loss-will.test.ts test/game.freeze-will.test.ts --runInBand`
 - `npx jest test/game.cards.effect-target-counts-module.test.ts test/shared.special-stone-registry.test.ts --runInBand`
+- `npx jest test/cards.catalog.test.ts test/cards.pending-selection-contract.test.ts test/game.cpu-policy-card-profiles.test.ts test/cpu.commentary-runtime.test.ts --runInBand`
 
 コマンド名が現行`package.json`と異なる場合は最小の同等checkへ置き換え、計画書へ実行結果と置換理由を追記する。
 
@@ -174,7 +183,7 @@ collectSpecialStoneEffectTargets(cardState): {
 - 入力marker objectと配列をmutate・sortしない。
 - 完全保護や既存凍結の除外はcollectorへ埋め込まず、カード固有policyに残す。
 
-新しいpublic APIが不要なら、`effect-target-counts.ts`近傍の内部moduleとして実装する。`shared/`へgame state走査を移さない。
+実装先は既存`effect-target-counts.ts`を既定とする。分類データは`shared/special-stone-registry.ts`から読むが、今回必要なtraitsがすでに存在する限りregistry自体は変更しない。`shared/`へgame state走査を移さず、新しいBrowser/Worker preload moduleも増やさない。
 
 ### Task 2.2: LOSS_WILLを新collectorへ委譲する
 
@@ -207,7 +216,7 @@ collectSpecialStoneEffectTargets(cardState): {
 
 ## Phase 3 — 凍結セル付与を単一選択pendingから分離する
 
-### Task 3.1: 原子的なFREEZE付与primitiveを作る
+### Task 3.1: 検証と更新を分離したFREEZE付与primitiveを作る
 
 **Preferred design:**
 
@@ -235,6 +244,8 @@ applyStatusCellMarker(cardState, {
 - target選択可能性検証
 - pending解除
 - UI、sound、network publish
+
+一括付与側は、依存関数、全座標、重複、既存block marker、board shapeを**1件もmutateする前に全件検証**する。検証通過後は途中で通常のvalidation failureを返さず、同じmarker snapshotを前提に全件適用する。予期しない例外をcatchして部分成功結果へ変換しない。既存`addMarker()`のmarkerId/createdSeq採番を迂回する直接配列代入もしない。
 
 ### Task 3.2: 既存FREEZE_WILLをprimitiveへ委譲する
 
@@ -269,6 +280,11 @@ applyStatusCellMarker(cardState, {
 - `collectMassFreezeWillTargets(cardState, gameState, playerKey)`
 - `getMassFreezeWillTargetCount(cardState, gameState, playerKey)`
 
+実装上は、情報秘匿を守るため次の2つを区別する。
+
+- **Usability targets:** 公開対象と使用者自身が知る対象。相手のhidden trapは除外し、秘密情報だけでカードの有効/無効表示が変わらないようにする。
+- **Resolution targets:** server/headless canonical state上の全対象。カード使用が合法に成立した後は相手hidden trapも含める。
+
 **Filtering order:**
 
 1. Phase 2の特殊石effect targetを取得
@@ -277,11 +293,11 @@ applyStatusCellMarker(cardState, {
 4. 盤面形状外・消滅セルを除外
 5. 座標順を維持したまま一意セル化
 
-完全保護は除外しない。対象0ならcard usage precheckを失敗させ、手札・布石・pendingを変更しない。
+完全保護は除外しない。usability targetが0ならcard usage precheckを失敗させ、手札・布石・pendingを変更しない。network clientのviewer投影から失われた相手罠を推測したり、client-authored availability flagをauthorityにしたりしない。
 
 ### Task 4.2: 一括解決moduleを実装する
 
-**Preferred location:** `game/logic/card-resolution/mass-freeze.ts`
+**Preferred location:** 既存`game/logic/card-resolution/status-cells.ts`。Phase 3で分離したprimitiveと同じmoduleに`applyMassFreezeWill()`を置き、Browser/Worker preload対象を増やさない。責務が既存moduleへ収まらない具体的証拠が出た場合だけ別module化し、その場合は`entry-browser.js`とWorker runtime preloadを同じtaskで更新する。
 
 **Requirements:**
 
@@ -293,6 +309,7 @@ applyStatusCellMarker(cardState, {
 - 完了後にpendingを1回だけ解除する。
 - `{ applied, frozenCount, targets }`を返す。
 - 部分成功をsuccessとして偽装しない。事前query済み対象で予期しない失敗が起きた場合は明示的に失敗させる。
+- 全件事前検証後にだけmutationを開始し、通常のinvalid targetで途中停止しない。
 
 ### Task 4.3: card-use pipelineへ接続する
 
@@ -303,6 +320,7 @@ applyStatusCellMarker(cardState, {
 - `mass_freeze_will_resolved`要約eventを1件追加する。
 - 手札破壊を呼ばない。
 - 通常どおり石配置へ進める。手番を強制終了しない。
+- `game/logic/cards.ts`のpublic facade、effect target count factory、context builder、usage validation、usable-hand列挙の全経路へ同じqueryを注入し、UI/CPU/Workerで使用可否を重複実装しない。
 
 ### Task 4.4: focused rule testsを追加する
 
@@ -311,6 +329,8 @@ applyStatusCellMarker(cardState, {
 - 敵味方の特殊石本体を全て凍結
 - protected/perma-protected/ghost/afterimage/regenを包含
 - hidden trapとTIME_BOMBを包含
+- 相手hidden trapだけの局面では秘密情報を理由に使用可能にならない
+- 別の公開対象によって合法使用された場合、canonical解決では相手hidden trapも凍結
 - GUARD併存セルも凍結
 - stone status、board marker、placement effect、manifest stoneを除外
 - 同一セル複数markerを1セルとして処理
@@ -331,7 +351,7 @@ applyStatusCellMarker(cardState, {
 - `npm run typecheck`
 - `npm run check:window`
 
-**Commit:** headless rules、precheck、turn pipeline、focused testsをcommitする。例: `意志の凍結のゲームロジックを実装`
+**Commit:** この時点ではcommitしない。新typeはcatalog、`CardType`、CPU profile、commentaryと閉集合であり、Phase 5～6完了前のcommitはrepository-wide contractを壊す。focused test結果を保持してfeature landing unitを継続する。
 
 **Phase 4 gate:** Node/headlessでカード使用から5ターン凍結まで完結し、既存2カードの回帰がない。
 
@@ -344,11 +364,14 @@ applyStatusCellMarker(cardState, {
 **Files/Actions:**
 
 - `cards/catalog.json`へ`MASS_FREEZE_WILL`、コスト11、確定説明文を追加
+- `src/types/card.ts`の`CardType`へ同typeを追加
 - `npm run generate:catalog`
 - artworkファイルを既存命名規則で配置
 - `npm run generate:card-art-map`
 
 生成された`cards/catalog.ts`、`cards/catalog.js`、`cards/catalog.generated.js`、card art mapはスクリプト出力だけを採用する。
+
+カード画像生成スクリプトはcatalog内の全カードに対応画像を要求し、欠落時に失敗する。したがって、artwork配置前に`npm run generate:card-art-map`を成功扱いにしない。ファイル番号は空き番号を調査して決め、計画書の推測で固定しない。
 
 **Artwork gate:** 対応画像が未提供なら、既存画像の流用や無断placeholderでrelease completeにしない。ロジック作業は保持できるが、Phase 5と最終完了はblockedとして報告する。
 
@@ -360,6 +383,7 @@ applyStatusCellMarker(cardState, {
 - 対象選択promptやpending selection actionは追加しない。
 - 「特殊石」の用語highlight/popoverを既存仕組みで使う。
 - 通常カードの五角形frameと表示タイプ規則に従う。
+- `game/ai/commentary-data.ts`はcatalog fallbackだけに任せず、カード固有summaryが必要か確認してclosed-world commentary testを通す。
 
 ### Task 5.3: 複数セル演出を既存events経路で再生する
 
@@ -383,12 +407,13 @@ applyStatusCellMarker(cardState, {
 **Verification:**
 
 - 最小のcatalog/UI/pipeline/sound focused Jest
+- `npx jest test/cards.catalog.test.ts test/cards.pending-selection-contract.test.ts test/cards.card-art-map.generate.test.ts --runInBand`
 - `npm run generate:catalog`再実行後にdiffなし
 - `npm run generate:card-art-map`再実行後にdiffなし
 - `npm run build:browser`
 - browser build freshness check
 
-**Commit:** catalog source、意図した生成物、UI/presentation、assetだけをstageする。例: `意志の凍結をカードUIへ統合`
+**Commit:** まだcommitしない。Phase 6のCPU explicit profileとruntime parityを同じfeature landing unitへ揃える。
 
 **Phase 5 gate:** カードが一覧・手札・詳細・対局画面に正しい名称、コスト、説明、画像、演出で表示される。
 
@@ -404,6 +429,8 @@ applyStatusCellMarker(cardState, {
 - 相手の新規凍結対象セル数
 - trap/bombを含む対象内訳
 - 既存凍結済みを除いた値
+
+`cpu-policy-card-profiles.ts`のbase score、usage style、move plan profile、`cpu-policy-card-type-flags.ts`の明示flag、必要なtaxonomyをすべて更新する。catalog全typeを列挙するclosed-world testsを先に確認し、fallback scoreだけで通ったように見せない。
 
 **Baseline policy:**
 
@@ -421,22 +448,28 @@ applyStatusCellMarker(cardState, {
 - already frozenを二重評価しない
 - target0はusable cardsへ出ない
 - deterministic seedで同一判断
+- catalog全typeのbase score / usage style / move plan profile coverage
+- commentary label / summary coverage
 
 ### Task 6.2: snapshot・Worker・local parityを確認する
 
-新しいcanonical fieldは追加せず、既存`FREEZE` markerだけをsnapshotへ載せる。カードtype、ordered events、marker owner/timerがWorker/local/headlessで一致することを確認する。
+新しいcanonical fieldやclient-authored availability flagは追加せず、既存`FREEZE` markerだけをsnapshotへ載せる。カードtype、ordered events、marker owner/timerがWorker/local/headlessで一致することを確認する。hidden trapが凍結された後は、公開`FREEZE` markerと氷overlayは全viewerへ見せる一方、元の`TRAP` marker、type、owner-only metadataは相手とspectatorのprojectionから除外し続ける。
 
 **Verification:**
 
 - CPU focused Jest
+- `npx jest test/game.cpu-policy-card-profiles.test.ts test/game.cpu-policy-core.test.ts test/cpu.commentary-runtime.test.ts --runInBand`
 - `npm run test:network:parity`
+- `npm run test:match:parity`
+- `npx jest test/match-runtime-parity.test.ts test/workers.match-worker-preload.test.ts --runInBand`
+- `npx jest test/workers.match-trap-visibility.test.ts --runInBand`
 - 必要なWorker/local focused contract tests
 - standalone mirror検証として`npm run worker:prepare`
 - `git diff --check`
 
 `worker:prepare`前に既存`worker-public`差分が本計画外なら停止し、上書きしない。
 
-**Commit:** CPU変更を独立commitし、mirror生成物は本計画に必要で既存差分と安全に分離できる場合だけ別commitする。例: `CPUに意志の凍結の判断を追加`
+**Commit:** Phase 4～6のheadless、type/catalog、artwork、UI/presentation、CPUを、全closed-world/focused checks通過後に1つのfeature commitとしてcommitする。例: `意志の凍結を実装`。mirror生成物は本計画に必要で既存差分と安全に分離できる場合だけ、検証後の独立commitにする。
 
 **Phase 6 gate:** CPUがカードを合法かつ決定的に扱い、network authority間にstate/event差がない。
 
@@ -455,9 +488,11 @@ applyStatusCellMarker(cardState, {
 5. focused catalog / UI / sound / CPU suites
 6. `npm run test:network:parity`
 7. `npm run build:browser`
-8. browser build freshness check
+8. `node scripts/check-browser-build-up-to-date.js`
 9. `npm run worker:prepare`（Phase 6の安全条件を満たす場合）
-10. `git diff --check`
+10. `npm run test:match:parity`
+11. catalog/type/CPU/commentary closed-world tests
+12. `git diff --check`
 
 Focusedで十分に保証できないcross-runtime失敗が見つかった場合だけ、`npm run test:jest`または`npm run checkall`へ拡大する。失敗をskipせず、初回失敗とretry結果を両方記録する。
 
@@ -504,6 +539,7 @@ Focusedで十分に保証できないcross-runtime失敗が見つかった場合
 - artworkがなく、完成カードとしての表示を保証できない。
 - 既存FREEZEのprimitive分離でcanonical event順が変わる。
 - Worker/local/headlessでmarker owner、timer、event順が一致しない。
+- hidden trapだけで相手のカード使用可否表示が変わる、または凍結後のviewer snapshotへ元`TRAP` metadataが漏れる。
 - 複数overlay再生に第二のboard writerが必要になる。
 - verification失敗の解消にテスト弱体化や成功形fallbackが必要になる。
 
@@ -512,9 +548,7 @@ Focusedで十分に保証できないcross-runtime失敗が見つかった場合
 1. `意志の凍結の仕様を定義`
 2. `特殊石効果の対象収集を共通化`
 3. `凍結セル付与を選択処理から分離`
-4. `意志の凍結のゲームロジックを実装`
-5. `意志の凍結をカードUIへ統合`
-6. `CPUに意志の凍結の判断を追加`
-7. 必要時のみ生成mirrorまたは最終verification調整の独立commit
+4. `意志の凍結を実装`（Phase 4～6の閉集合を1commit）
+5. 必要時のみ生成mirrorまたは最終verification調整の独立commit
 
 各commitはその時点でbuild可能かつfocused tests PASSとし、壊れた中間状態をcommitしない。
