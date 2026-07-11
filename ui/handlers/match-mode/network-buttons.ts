@@ -12,6 +12,13 @@ const NetworkButtonActionsModule = (() => {
         return null;
     }
 })();
+const NetworkLobbyInputsModule = (() => {
+    try {
+        return require('./network-lobby-inputs');
+    } catch (e: any) {
+        return null;
+    }
+})();
 
 function bindNetworkButtons(context: any) {
     const {
@@ -68,26 +75,6 @@ function bindNetworkButtons(context: any) {
             return NetworkClipboardModule.copyTextToClipboard(root, typeof document !== 'undefined' ? document : null, value);
         }
         return Promise.resolve(false);
-    };
-
-    const sendChatMessage = async () => {
-        if (!uiRefs.networkChatInput) return;
-        const text = formatChatInput(uiRefs.networkChatInput.value);
-        uiRefs.networkChatInput.value = text;
-        if (!text) return;
-
-        if (!root.NetworkMatchClient || typeof root.NetworkMatchClient.sendChatMessage !== 'function') {
-            return;
-        }
-
-        try {
-            const result = await root.NetworkMatchClient.sendChatMessage(text);
-            if (result && result.ok) {
-                uiRefs.networkChatInput.value = '';
-            }
-        } catch (e) {
-            writeNetworkStatus('チャット送信に失敗しました', true);
-        }
     };
 
     if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setStatusWriter === 'function') {
@@ -206,135 +193,32 @@ function bindNetworkButtons(context: any) {
         });
     }
 
-    if (uiRefs.networkChatToggle) {
-        uiRefs.networkChatToggle.addEventListener('click', () => {
-            if (!getNetworkChatVisible() || !uiRefs.networkChatPanel) return;
-            const isOpen = uiRefs.networkChatPanel.classList.contains('is-open');
-            setNetworkChatExpanded(!isOpen);
-        });
+    if (!NetworkLobbyInputsModule || typeof NetworkLobbyInputsModule.bindNetworkLobbyInputs !== 'function') {
+        throw new Error('NetworkLobbyInputsModule unavailable');
     }
-
-    if (uiRefs.networkChatInput) {
-        uiRefs.networkChatInput.setAttribute('maxlength', String(getChatMaxLength()));
-        uiRefs.networkChatInput.addEventListener('input', () => {
-            uiRefs.networkChatInput.value = formatChatInput(uiRefs.networkChatInput.value);
-        });
-        uiRefs.networkChatInput.addEventListener('change', () => {
-            uiRefs.networkChatInput.value = formatChatInput(uiRefs.networkChatInput.value);
-        });
-        uiRefs.networkChatInput.addEventListener('keydown', (event: any) => {
-            if (event && event.key === 'Enter') {
-                event.preventDefault();
-                sendChatMessage();
-            }
-        });
-    }
-
-    if (uiRefs.networkChatSendBtn) {
-        uiRefs.networkChatSendBtn.addEventListener('click', () => {
-            sendChatMessage();
-        });
-    }
-
-    if (uiRefs.networkServerInput) {
-        try {
-            if (root.NetworkMatchClient && typeof root.NetworkMatchClient.getServerUrl === 'function') {
-                const initial = root.NetworkMatchClient.getServerUrl();
-                if (initial) uiRefs.networkServerInput.value = initial;
-            }
-        } catch (e) { /* ignore */ }
-        uiRefs.networkServerInput.addEventListener('change', () => {
-            const nextUrl = uiRefs.networkServerInput.value.trim();
-            if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
-                root.NetworkMatchClient.setServerUrl(nextUrl);
-            }
-        });
-    }
-
-    if (uiRefs.networkPlayerNameInput) {
-        uiRefs.networkPlayerNameInput.setAttribute('maxlength', String(PLAYER_NAME_MAX));
-        uiRefs.networkPlayerNameInput.setAttribute('placeholder', '名前を入力してください');
-        const initialName = normalizePlayerName(getSharedPlayerName());
-        let lastPersistedNetworkPlayerName = initialName && initialName !== DEFAULT_PLAYER_NAME ? initialName : '';
-        if (initialName && initialName !== DEFAULT_PLAYER_NAME) {
-            uiRefs.networkPlayerNameInput.value = initialName;
-        } else if (normalizePlayerName(uiRefs.networkPlayerNameInput.value) === DEFAULT_PLAYER_NAME) {
-            uiRefs.networkPlayerNameInput.value = '';
-        }
-        const persistNetworkPlayerName = () => {
-            const nextName = normalizePlayerName(uiRefs.networkPlayerNameInput.value);
-            uiRefs.networkPlayerNameInput.value = nextName;
-            if (!nextName || nextName === lastPersistedNetworkPlayerName) return;
-            lastPersistedNetworkPlayerName = setSharedPlayerName(nextName) || nextName;
-            try {
-                const leaderboard = root && root.LeaderboardClient;
-                if (leaderboard && typeof leaderboard.updatePublicProfile === 'function') {
-                    void Promise.resolve(leaderboard.updatePublicProfile()).catch(() => undefined);
-                }
-            } catch (e) { /* ignore */ }
-        };
-        uiRefs.networkPlayerNameInput.addEventListener('input', () => {
-            uiRefs.networkPlayerNameInput.value = normalizePlayerName(uiRefs.networkPlayerNameInput.value);
-        });
-        uiRefs.networkPlayerNameInput.addEventListener('change', () => {
-            persistNetworkPlayerName();
-        });
-        uiRefs.networkPlayerNameInput.addEventListener('blur', persistNetworkPlayerName);
-    }
-
-    if (uiRefs.networkRoomPasswordInput) {
-        uiRefs.networkRoomPasswordInput.setAttribute('maxlength', '20');
-        uiRefs.networkRoomPasswordInput.addEventListener('input', () => {
-            uiRefs.networkRoomPasswordInput.value = normalizeRoomPassword(uiRefs.networkRoomPasswordInput.value);
-        });
-        uiRefs.networkRoomPasswordInput.addEventListener('change', () => {
-            uiRefs.networkRoomPasswordInput.value = normalizeRoomPassword(uiRefs.networkRoomPasswordInput.value);
-        });
-    }
-
-    if (uiRefs.networkRoomInput) {
-        uiRefs.networkRoomInput.addEventListener('input', () => {
-            uiRefs.networkRoomInput.value = normalizeRoomName(uiRefs.networkRoomInput.value);
-            setSelectedNetworkRoomId('');
-        });
-        uiRefs.networkRoomInput.addEventListener('change', () => {
-            uiRefs.networkRoomInput.value = normalizeRoomName(uiRefs.networkRoomInput.value);
-        });
-    }
-
-    const bindNetworkBoardSizeInput = (inputRef: any, axis: any) => {
-        if (!inputRef || inputRef.dataset.networkBoardSizeBound === '1') return;
-        const onBoardSizeInput = () => {
-            if (inputRef.disabled) return;
-            updatePendingRoomBoardConfigFromInputs();
-        };
-        inputRef.addEventListener('input', onBoardSizeInput);
-        inputRef.addEventListener('change', onBoardSizeInput);
-        inputRef.addEventListener('wheel', (event: any) => {
-            if (inputRef.disabled) return;
-            const primaryDelta = readPrimaryWheelDelta(event);
-            if (!primaryDelta) return;
-            const fallback = getPendingRoomBoardConfig();
-            const fallbackValue = axis === 'col' ? fallback.cols : fallback.rows;
-            inputRef.value = String(stepBoardDimensionValue(
-                inputRef.value,
-                primaryDelta < 0 ? 1 : -1,
-                fallbackValue,
-                axis
-            ));
-            if (event && event.cancelable) event.preventDefault();
-            updatePendingRoomBoardConfigFromInputs();
-        }, { passive: false });
-        inputRef.dataset.networkBoardSizeBound = '1';
-    };
-    bindNetworkBoardSizeInput(uiRefs.networkBoardSizeRowsInput, 'row');
-    bindNetworkBoardSizeInput(uiRefs.networkBoardSizeColsInput, 'col');
-
-    if (uiRefs.networkAllCardsDeckCheckbox) {
-        uiRefs.networkAllCardsDeckCheckbox.addEventListener('change', () => {
-            renderNetworkDeckInfo();
-        });
-    }
+    NetworkLobbyInputsModule.bindNetworkLobbyInputs({
+        root,
+        uiRefs,
+        playerNameMax: PLAYER_NAME_MAX,
+        defaultPlayerName: DEFAULT_PLAYER_NAME,
+        getNetworkMatchClient: () => root.NetworkMatchClient,
+        getNetworkChatVisible,
+        setNetworkChatExpanded,
+        getChatMaxLength,
+        formatChatInput,
+        writeNetworkStatus,
+        normalizePlayerName,
+        getSharedPlayerName,
+        setSharedPlayerName,
+        normalizeRoomPassword,
+        normalizeRoomName,
+        setSelectedNetworkRoomId,
+        readPrimaryWheelDelta,
+        getPendingRoomBoardConfig,
+        stepBoardDimensionValue,
+        updatePendingRoomBoardConfigFromInputs,
+        renderNetworkDeckInfo
+    });
 
     if (uiRefs.networkCopyRoomBtn) {
         uiRefs.networkCopyRoomBtn.addEventListener('click', async () => {
