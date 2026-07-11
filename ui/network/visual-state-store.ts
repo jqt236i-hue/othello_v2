@@ -28,7 +28,8 @@ function readSnapshotVersion(snapshot: any, fallback?: any): number | null {
   return toIntegerOrNull(fallback);
 }
 
-function createNetworkVisualStateStore(): any {
+function createNetworkVisualStateStore(options?: any): any {
+  const opts = options && typeof options === 'object' ? options : {};
   let canonicalSnapshot: any = null;
   let canonicalVersion: number | null = null;
   let visualSnapshot: any = null;
@@ -36,9 +37,19 @@ function createNetworkVisualStateStore(): any {
   let visualVersion: number | null = null;
   let lastCommitSource = '';
 
+  function cloneOwnedSnapshot(value: any, reason: string): any {
+    const cloned = typeof opts.cloneData === 'function'
+      ? opts.cloneData(value, reason)
+      : cloneData(value);
+    if (typeof opts.onClone === 'function') opts.onClone(reason, value, cloned);
+    return typeof opts.freezeOwnedSnapshot === 'function'
+      ? opts.freezeOwnedSnapshot(cloned, reason)
+      : cloned;
+  }
+
   function setCanonicalSnapshot(snapshot: any, meta?: any): void {
     if (!snapshot || typeof snapshot !== 'object') return;
-    canonicalSnapshot = cloneData(snapshot);
+    canonicalSnapshot = cloneOwnedSnapshot(snapshot, 'setCanonicalSnapshot');
     canonicalVersion = readSnapshotVersion(canonicalSnapshot, meta && meta.stateVersion);
   }
 
@@ -55,7 +66,7 @@ function createNetworkVisualStateStore(): any {
     ) {
       return;
     }
-    visualSnapshot = cloneData(snapshot);
+    visualSnapshot = cloneOwnedSnapshot(snapshot, 'setBaseVisualSnapshot');
     const nextVisualSeq = toIntegerOrNull(opts.visualSeq);
     if (nextVisualSeq !== null && nextVisualSeq >= 0) visualSeq = nextVisualSeq;
     visualVersion = nextVisualVersion;
@@ -68,7 +79,7 @@ function createNetworkVisualStateStore(): any {
       ? frame.snapshotAfter
       : null;
     if (snapshotAfter) {
-      visualSnapshot = cloneData(snapshotAfter);
+      visualSnapshot = cloneOwnedSnapshot(snapshotAfter, 'commitFrame');
     }
     const frameSeq = toIntegerOrNull(frame.visualSeq);
     if (frameSeq !== null && frameSeq >= 0) visualSeq = frameSeq;
@@ -86,15 +97,15 @@ function createNetworkVisualStateStore(): any {
   }
 
   function getCanonicalSnapshot(): any {
-    return canonicalSnapshot ? cloneData(canonicalSnapshot) : null;
+    return canonicalSnapshot ? cloneOwnedSnapshot(canonicalSnapshot, 'getCanonicalSnapshot') : null;
   }
 
   function getVisualSnapshot(): any {
-    return visualSnapshot ? cloneData(visualSnapshot) : null;
+    return visualSnapshot ? cloneOwnedSnapshot(visualSnapshot, 'getVisualSnapshot') : null;
   }
 
   function getRenderSnapshot(): any {
-    if (visualSnapshot) return cloneData(visualSnapshot);
+    if (visualSnapshot) return cloneOwnedSnapshot(visualSnapshot, 'getRenderSnapshot');
     return getCanonicalSnapshot();
   }
 
