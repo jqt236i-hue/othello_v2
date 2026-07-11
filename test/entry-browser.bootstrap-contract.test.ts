@@ -126,4 +126,14 @@ describe('entry-browser bootstrap contract', () => {
     expect(context.require).toHaveBeenLastCalledWith('./dist/ui/debug-card-search');
     expect(context.window.DebugCardSearchModule).toEqual({ moduleKey: './dist/ui/debug-card-search' });
   });
+
+  test('boot loader explicitly initializes card interaction after assigning its compatibility facade', () => {
+    const context = loadBootHelpers();
+    const initializeCardInteractionRuntime = jest.fn();
+    const moduleExports = { initializeCardInteractionRuntime };
+
+    context.applyBootModuleEntry(moduleExports, { initCardInteraction: true });
+
+    expect(initializeCardInteractionRuntime).toHaveBeenCalledWith(context.window);
+  });
 });

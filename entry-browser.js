@@ -106,6 +106,9 @@ function applyBootModuleEntry(moduleExports, entry) {
   if (entry.initDebugCardSearch === true && typeof moduleExports.initDebugCardSearch === "function") {
     window.debugCardSearchController = moduleExports.initDebugCardSearch();
   }
+  if (entry.initCardInteraction === true && typeof moduleExports.initializeCardInteractionRuntime === "function") {
+    moduleExports.initializeCardInteractionRuntime(window);
+  }
   return moduleExports;
 }
 
@@ -314,7 +317,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/sound-engine", defaultGlobalNames: ["SoundEngine"] },
   { moduleKey: "./dist/cards/card-renderer", globalNames: ["HandAnimationUtilsModule"], lateGlobalNames: ["HandAnimationUtilsModule"] },
   { moduleKey: "./dist/cards/card-interaction-effects" },
-  { moduleKey: "./dist/cards/card-interaction" },
+  { moduleKey: "./dist/cards/card-interaction", initCardInteraction: true },
   { moduleKey: "./dist/ui/debug-card-search", globalNames: ["DebugCardSearchModule"], initDebugCardSearch: true },
   { moduleKey: "./dist/ui/storage/deck-presets" },
   { moduleKey: "./dist/ui/deck-builder-state" },

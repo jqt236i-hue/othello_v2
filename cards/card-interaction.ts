@@ -274,10 +274,6 @@ function ensureDebugActionsLoaded(cb: any) {
         document.head.appendChild(s);
     } catch (e) { if (cb) cb(null); }
 }
-if (typeof window !== 'undefined') {
-    window.ensureDebugActionsLoaded = ensureDebugActionsLoaded;
-}
-
 const _playbackStateModule = _resolveCardInteractionModule({
     readDirect: () => (typeof PlaybackStateManager !== 'undefined' ? PlaybackStateManager : null),
     requirePath: '../ui/playback-state-manager',
@@ -3311,23 +3307,33 @@ function _bindHandCardSwipeActions() {
     _handCardSwipeBound = true;
 }
 
-// Export functions to global window scope for event binding (onclick in HTML etc)
-window.fillDebugHand = fillDebugHand;
-window.updateCardDetailPanel = updateCardDetailPanel;
-window.onCardClick = onCardClick;
-window.destroySelectedHandCard = destroySelectedHandCard;
-window.useSelectedCard = useSelectedCard;
-window.toggleCardDetailExpanded = toggleCardDetailExpanded;
-window.passCurrentTurn = passCurrentTurn;
-window.cancelPendingDestroy = cancelPendingDestroy;
-window.cancelPendingSelection = cancelPendingSelection;
+let _cardInteractionRuntimeInitialized = false;
 
-if (_cardDetailLandscapeAnchorSync && typeof _cardDetailLandscapeAnchorSync.init === 'function') {
-    _cardDetailLandscapeAnchorSync.init();
+function initializeCardInteractionRuntime(runtimeRoot?: CardInteractionRuntimeRoot | null): boolean {
+    if (_cardInteractionRuntimeInitialized) return false;
+    const target = runtimeRoot || (typeof window !== 'undefined' ? window as CardInteractionRuntimeRoot : null);
+    if (!target) return false;
+
+    target.ensureDebugActionsLoaded = ensureDebugActionsLoaded;
+    target.fillDebugHand = fillDebugHand;
+    target.updateCardDetailPanel = updateCardDetailPanel;
+    target.onCardClick = onCardClick;
+    target.destroySelectedHandCard = destroySelectedHandCard;
+    target.useSelectedCard = useSelectedCard;
+    target.toggleCardDetailExpanded = toggleCardDetailExpanded;
+    target.passCurrentTurn = passCurrentTurn;
+    target.cancelPendingDestroy = cancelPendingDestroy;
+    target.cancelPendingSelection = cancelPendingSelection;
+
+    if (_cardDetailLandscapeAnchorSync && typeof _cardDetailLandscapeAnchorSync.init === 'function') {
+        _cardDetailLandscapeAnchorSync.init();
+    }
+    _bindCardDetailTagAutoDismiss();
+    _bindCardDetailTagPopoverAutoDismiss();
+    _bindHandCardSwipeActions();
+    _cardInteractionRuntimeInitialized = true;
+    return true;
 }
-_bindCardDetailTagAutoDismiss();
-_bindCardDetailTagPopoverAutoDismiss();
-_bindHandCardSwipeActions();
 
 export = {
     fillDebugHand,
@@ -3338,5 +3344,6 @@ export = {
     toggleCardDetailExpanded,
     passCurrentTurn,
     cancelPendingDestroy,
-    cancelPendingSelection
+    cancelPendingSelection,
+    initializeCardInteractionRuntime
 };

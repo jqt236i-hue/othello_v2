@@ -8,6 +8,7 @@ type BootLoadEntry = {
   lateGlobalNames?: string[];
   defaultGlobalNames?: string[];
   initDebugCardSearch?: boolean;
+  initCardInteraction?: boolean;
 };
 
 function readEntryBrowserText(): string {
@@ -136,5 +137,6 @@ describe('entry-browser boot load table sequence', () => {
     expect(byModule.get('./dist/sound-engine')?.defaultGlobalNames).toContain('SoundEngine');
     expect(getAllGlobalNames(byModule.get('./dist/ui/debug-card-search'))).toContain('DebugCardSearchModule');
     expect(byModule.get('./dist/ui/debug-card-search')?.initDebugCardSearch).toBe(true);
+    expect(byModule.get('./dist/cards/card-interaction')?.initCardInteraction).toBe(true);
   });
 });
