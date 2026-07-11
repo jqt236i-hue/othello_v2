@@ -169,13 +169,19 @@ function bindNetworkButtons(context: any) {
 
     if (uiRefs.networkRoomSettingsCloseBtn) {
         uiRefs.networkRoomSettingsCloseBtn.addEventListener('click', () => {
-            setNetworkRoomSettingsPopupVisible(false);
+            if (!NetworkButtonActionsModule || typeof NetworkButtonActionsModule.closeNetworkRoomSettings !== 'function') {
+                throw new Error('NetworkButtonActionsModule unavailable');
+            }
+            NetworkButtonActionsModule.closeNetworkRoomSettings({ setVisible: setNetworkRoomSettingsPopupVisible });
         });
     }
 
     if (uiRefs.networkRoomSettingsBackdrop) {
         uiRefs.networkRoomSettingsBackdrop.addEventListener('click', () => {
-            setNetworkRoomSettingsPopupVisible(false);
+            if (!NetworkButtonActionsModule || typeof NetworkButtonActionsModule.closeNetworkRoomSettings !== 'function') {
+                throw new Error('NetworkButtonActionsModule unavailable');
+            }
+            NetworkButtonActionsModule.closeNetworkRoomSettings({ setVisible: setNetworkRoomSettingsPopupVisible });
         });
     }
 

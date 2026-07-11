@@ -20,6 +20,10 @@ function toggleNetworkRoomSettings(options: any): boolean {
     return !isOpen;
 }
 
+function closeNetworkRoomSettings(options: any): void {
+    options.setVisible(false);
+}
+
 function refreshNetworkRooms(options: any): any {
     return options.refreshNetworkRoomList();
 }
@@ -151,6 +155,7 @@ async function joinNetworkRoom(options: any): Promise<any> {
 export = {
     copyNetworkRoomName,
     toggleNetworkRoomSettings,
+    closeNetworkRoomSettings,
     refreshNetworkRooms,
     leaveNetworkRoom,
     applyNetworkRoomSettingsResult,
