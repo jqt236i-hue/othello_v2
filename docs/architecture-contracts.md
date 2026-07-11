@@ -108,7 +108,15 @@ In practice, this means:
 - active effect resolution should consume injected modules / helpers / constants
 - authority paths must not succeed via silent fallback when required logic is absent
 
-### 5.2 Lv6 CPU training/runtime profile contract
+### 5.2 Worker runtime preload contract
+
+`workers/match-worker-runtime-preload.ts` is the single source of truth for statically bundled modules that must be exposed as runtime globals before Cloudflare Worker authority code loads game logic.
+
+`workers/match-worker.ts` consumes and validates the exported registry. It must not maintain a second module-loader map or parallel card / turn / playback dependency lists. Adding or removing a Worker runtime-global dependency is therefore a one-file registration change.
+
+`npm run worker:prepare` must reject duplicate or structurally divergent preload ownership, and `npm run worker:deploy` must run the generated Worker bundle through create / join / authenticated state / leave smoke checks before publishing.
+
+### 5.3 Lv6 CPU training/runtime profile contract
 
 The Lv6 CPU training/runtime path spans `constants/`, `scripts/`, `ui/`, and `game/`, but the stable contract is:
 

@@ -1,4 +1,4 @@
-import './match-worker-runtime-preload.js';
+import { WORKER_RUNTIME_GLOBAL_KEYS } from './match-worker-runtime-preload.js';
 import type {
     DurableObjectStateLike,
     MatchWorkerCardLogicModule,
@@ -121,154 +121,9 @@ let deckModulesPromise: Promise<MatchWorkerDeckGlobals> | null = null;
 let turnStartModulesPromise: Promise<MatchWorkerTurnStartModules> | null = null;
 let turnPipelineModulesPromise: Promise<MatchWorkerTurnPipelineModules> | null = null;
 let debugActionsModulePromise: Promise<MatchWorkerRuntimeModule> | null = null;
-let workerSharedConstantsPromise: Promise<unknown> | null = null;
-let workerSharedBoardUtilsPromise: Promise<unknown> | null = null;
 let workerDeckGlobalsPromise: Promise<unknown> | null = null;
-let workerCardGlobalsPromise: Promise<unknown> | null = null;
-let workerTurnPipelinePhaseGlobalsPromise: Promise<unknown> | null = null;
-let workerPipelineUIAdapterGlobalsPromise: Promise<unknown> | null = null;
+let workerRuntimeGlobalsPromise: Promise<void> | null = null;
 
-type MatchWorkerModuleLoader = () => unknown;
-
-const WORKER_PRELOAD_MODULE_LOADERS: Readonly<Record<string, MatchWorkerModuleLoader>> = Object.freeze({
-    '../shared-constants.js': () => require('../shared-constants.js'),
-    '../shared/shared-board-utils.js': () => require('../shared/shared-board-utils.js'),
-    '../shared/deck-spec.js': () => require('../shared/deck-spec.js'),
-    '../shared/deck-codec.js': () => require('../shared/deck-codec.js'),
-    '../shared/player-encoding.js': () => require('../shared/player-encoding.js'),
-    '../shared/destroy-outcome-contract.js': () => require('../shared/destroy-outcome-contract.js'),
-    '../shared/evasion-status.js': () => require('../shared/evasion-status.js'),
-    '../shared/manifest-stone-registry.js': () => require('../shared/manifest-stone-registry.js'),
-    '../shared/stone-status-snapshot.js': () => require('../shared/stone-status-snapshot.js'),
-    '../shared/special-card-registry.js': () => require('../shared/special-card-registry.js'),
-    '../shared/special-stone-registry.js': () => require('../shared/special-stone-registry.js'),
-    '../shared/presentation-effect-profiles.js': () => require('../shared/presentation-effect-profiles.js'),
-    '../shared/network-action-schema.js': () => require('../shared/network-action-schema.js'),
-    '../shared/playback-planner.js': () => require('../shared/playback-planner.js'),
-    '../shared/playback-event-helpers.js': () => require('../shared/playback-event-helpers.js'),
-    '../game/logic/cards-internal/random-source.js': () => require('../game/logic/cards-internal/random-source.js'),
-    '../game/logic/cards-internal/evasion-destination.js': () => require('../game/logic/cards-internal/evasion-destination.js'),
-    '../game/logic/cards-internal/state-factory.js': () => require('../game/logic/cards-internal/state-factory.js'),
-    '../game/logic/cards-internal/module-resolver.js': () => require('../game/logic/cards-internal/module-resolver.js'),
-    '../game/logic/cards-internal/protection-context.js': () => require('../game/logic/cards-internal/protection-context.js'),
-    '../game/logic/cards-internal/presentation-helpers.js': () => require('../game/logic/cards-internal/presentation-helpers.js'),
-    '../game/logic/cards-internal/capture-source.js': () => require('../game/logic/cards-internal/capture-source.js'),
-    '../game/logic/cards-internal/progression.js': () => require('../game/logic/cards-internal/progression.js'),
-    '../game/logic/cards-internal/random-board-spawn.js': () => require('../game/logic/cards-internal/random-board-spawn.js'),
-    '../game/logic/cards-internal/spawn-and-flip.js': () => require('../game/logic/cards-internal/spawn-and-flip.js'),
-    '../game/logic/cards-internal/generated-spawn-flip-resolver.js': () => require('../game/logic/cards-internal/generated-spawn-flip-resolver.js'),
-    '../game/logic/cards-internal/ribo-time-stop.js': () => require('../game/logic/cards-internal/ribo-time-stop.js'),
-    '../game/logic/cards-internal/target-access.js': () => require('../game/logic/cards-internal/target-access.js'),
-    '../game/logic/cards-internal/context-builders.js': () => require('../game/logic/cards-internal/context-builders.js'),
-    '../game/logic/cards-internal/theory-incarnation-bindings.js': () => require('../game/logic/cards-internal/theory-incarnation-bindings.js'),
-    '../game/logic/cards-internal/deck-setup.js': () => require('../game/logic/cards-internal/deck-setup.js'),
-    '../game/logic/cards-internal/hand-access.js': () => require('../game/logic/cards-internal/hand-access.js'),
-    '../game/logic/cards-internal/card-availability.js': () => require('../game/logic/cards-internal/card-availability.js'),
-    '../game/logic/cards-internal/offer-builders.js': () => require('../game/logic/cards-internal/offer-builders.js'),
-    '../game/logic/cards-internal/effect-target-counts.js': () => require('../game/logic/cards-internal/effect-target-counts.js'),
-    '../game/logic/cards-internal/salvation-effect.js': () => require('../game/logic/cards-internal/salvation-effect.js'),
-    '../game/logic/cards-internal/loss-effect.js': () => require('../game/logic/cards-internal/loss-effect.js'),
-    '../game/logic/cards-internal/fate-effect.js': () => require('../game/logic/cards-internal/fate-effect.js'),
-    '../game/logic/cards-internal/board-configuration.js': () => require('../game/logic/cards-internal/board-configuration.js'),
-    '../game/logic/cards-internal/board-shape-access.js': () => require('../game/logic/cards-internal/board-shape-access.js'),
-    '../game/logic/cards-internal/expansion-fallback.js': () => require('../game/logic/cards-internal/expansion-fallback.js'),
-    '../game/logic/cards-internal/hand-manager.js': () => require('../game/logic/cards-internal/hand-manager.js'),
-    '../game/logic/cards-internal/charge-ledger.js': () => require('../game/logic/cards-internal/charge-ledger.js'),
-    '../game/logic/cards-internal/pending-state-manager.js': () => require('../game/logic/cards-internal/pending-state-manager.js'),
-    '../game/logic/cards-internal/card-usage-prechecks.js': () => require('../game/logic/cards-internal/card-usage-prechecks.js'),
-    '../game/logic/cards-internal/effect-timing.js': () => require('../game/logic/cards-internal/effect-timing.js'),
-    '../game/logic/cards/selectors-core-utils.js': () => require('../game/logic/cards/selectors-core-utils.js'),
-    '../game/logic/cards/selectors-board-shape.js': () => require('../game/logic/cards/selectors-board-shape.js'),
-    '../game/logic/cards/expansion.js': () => require('../game/logic/cards/expansion.js'),
-    '../game/logic/cards/causal_replay.js': () => require('../game/logic/cards/causal_replay.js'),
-    '../game/logic/cards/movement.js': () => require('../game/logic/cards/movement.js'),
-    '../game/logic/cards/teleport.js': () => require('../game/logic/cards/teleport.js'),
-    '../game/logic/cards/cell-removal.js': () => require('../game/logic/cards/cell-removal.js'),
-    '../game/logic/cards/clone.js': () => require('../game/logic/cards/clone.js'),
-    '../game/logic/cards/meteor.js': () => require('../game/logic/cards/meteor.js'),
-    '../game/logic/cards/meteor_god.js': () => require('../game/logic/cards/meteor_god.js'),
-    '../game/logic/cards/shrink.js': () => require('../game/logic/cards/shrink.js'),
-    '../game/logic/cards/living_will.js': () => require('../game/logic/cards/living_will.js'),
-    '../game/logic/cards/targets.js': () => require('../game/logic/cards/targets.js'),
-    '../game/logic/cards/flips.js': () => require('../game/logic/cards/flips.js'),
-    '../game/logic/cards/chain.js': () => require('../game/logic/cards/chain.js'),
-    '../game/logic/cards/regen.js': () => require('../game/logic/cards/regen.js'),
-    '../game/logic/cards/zombie_will.js': () => require('../game/logic/cards/zombie_will.js'),
-    '../game/logic/cards/time_bomb.js': () => require('../game/logic/cards/time_bomb.js'),
-    '../game/logic/cards/breeding.js': () => require('../game/logic/cards/breeding.js'),
-    '../game/logic/effects/dragon.js': () => require('../game/logic/effects/dragon.js'),
-    '../game/logic/cards/udg.js': () => require('../game/logic/cards/udg.js'),
-    '../game/logic/cards/hyperactive.js': () => require('../game/logic/cards/hyperactive.js'),
-    '../game/logic/cards/sniper.js': () => require('../game/logic/cards/sniper.js'),
-    '../game/logic/cards/lightning.js': () => require('../game/logic/cards/lightning.js'),
-    '../game/logic/cards/will_hunter_king.js': () => require('../game/logic/cards/will_hunter_king.js'),
-    '../game/logic/cards/destroy_dragon.js': () => require('../game/logic/cards/destroy_dragon.js'),
-    '../game/logic/cards/selectors.js': () => require('../game/logic/cards/selectors.js'),
-    '../game/logic/cards/work_will.js': () => require('../game/logic/cards/work_will.js'),
-    '../game/logic/cards/sacrifice_will.js': () => require('../game/logic/cards/sacrifice_will.js'),
-    '../game/logic/cards/markers.js': () => require('../game/logic/cards/markers.js'),
-    '../game/logic/board_ops.js': () => require('../game/logic/board_ops.js'),
-    '../game/logic/effects/destroy_one_stone.js': () => require('../game/logic/effects/destroy_one_stone.js'),
-    '../game/logic/effects/swap_with_enemy.js': () => require('../game/logic/effects/swap_with_enemy.js'),
-    '../game/cards/state-manager.js': () => require('../game/cards/state-manager.js'),
-    '../game/cards/card-usage-consumption-stage.js': () => require('../game/cards/card-usage-consumption-stage.js'),
-    '../game/cards/card-usage-pending-stage.js': () => require('../game/cards/card-usage-pending-stage.js'),
-    '../game/cards/card-usage-immediate-stage.js': () => require('../game/cards/card-usage-immediate-stage.js'),
-    '../game/cards/card-usage-sacrifice-stage.js': () => require('../game/cards/card-usage-sacrifice-stage.js'),
-    '../game/cards/card-usage-presentation-stage.js': () => require('../game/cards/card-usage-presentation-stage.js'),
-    '../game/cards/card-usage-validation-stage.js': () => require('../game/cards/card-usage-validation-stage.js'),
-    '../game/cards/effect-resolver.js': () => require('../game/cards/effect-resolver.js'),
-    '../game/cards/timing-processor.js': () => require('../game/cards/timing-processor.js'),
-    '../game/cards/target-resolver.js': () => require('../game/cards/target-resolver.js'),
-    '../game/logic/card-resolution/protect': () => require('../game/logic/card-resolution/protect'),
-    '../game/logic/card-resolution/trap': () => require('../game/logic/card-resolution/trap'),
-    '../game/logic/card-resolution/ownership': () => require('../game/logic/card-resolution/ownership'),
-    '../game/logic/card-resolution/board-expansion-apply': () => require('../game/logic/card-resolution/board-expansion-apply'),
-    '../game/logic/card-resolution/status-cells': () => require('../game/logic/card-resolution/status-cells'),
-    '../game/logic/card-resolution/hand-effects': () => require('../game/logic/card-resolution/hand-effects'),
-    '../game/logic/card-resolution/observer-will': () => require('../game/logic/card-resolution/observer-will'),
-    '../game/logic/card-resolution/theory-incarnation': () => require('../game/logic/card-resolution/theory-incarnation'),
-    '../game/logic/card-resolution/chaos-summon': () => require('../game/logic/card-resolution/chaos-summon'),
-    '../game/logic/card-resolution/board-executor': () => require('../game/logic/card-resolution/board-executor'),
-    '../game/logic/card-resolution/special-stone-marker-factory': () => require('../game/logic/card-resolution/special-stone-marker-factory'),
-    '../game/logic/card-resolution/position-swap': () => require('../game/logic/card-resolution/position-swap'),
-    '../game/logic/markers_adapter.js': () => require('../game/logic/markers_adapter.js'),
-    '../game/logic/context': () => require('../game/logic/context'),
-    '../game/turn/turn_pipeline_phase_helpers.js': () => require('../game/turn/turn_pipeline_phase_helpers.js'),
-    '../game/turn/pending-coordinator.js': () => require('../game/turn/pending-coordinator.js'),
-    '../game/turn/action-phase/continuation.js': () => require('../game/turn/action-phase/continuation.js'),
-    '../game/turn/action-phase/placement-effects.js': () => require('../game/turn/action-phase/placement-effects.js'),
-    '../game/turn/card-usage/immediate-effects.js': () => require('../game/turn/card-usage/immediate-effects.js'),
-    '../game/turn/board-charge.js': () => require('../game/turn/board-charge.js'),
-    '../game/turn/presentation-helpers.js': () => require('../game/turn/presentation-helpers.js'),
-    '../game/turn/round-state.js': () => require('../game/turn/round-state.js'),
-    '../game/turn/action-phase/pre-placement-selection.js': () => require('../game/turn/action-phase/pre-placement-selection.js'),
-    '../game/turn/action-phase/place-resolution.js': () => require('../game/turn/action-phase/place-resolution.js'),
-    '../game/turn/action-phase/placement-immediate-effects.js': () => require('../game/turn/action-phase/placement-immediate-effects.js'),
-    '../game/turn/action-phase/turn-handoff.js': () => require('../game/turn/action-phase/turn-handoff.js'),
-    '../game/turn/phase-presentation-finalizer.js': () => require('../game/turn/phase-presentation-finalizer.js'),
-    '../game/turn/turn-start/bomb-phase.js': () => require('../game/turn/turn-start/bomb-phase.js'),
-    '../game/turn/turn-start/marker-phase.js': () => require('../game/turn/turn-start/marker-phase.js'),
-    '../game/turn/turn-start/post-processing.js': () => require('../game/turn/turn-start/post-processing.js'),
-    '../game/turn/turn-start/special-stone-phase.js': () => require('../game/turn/turn-start/special-stone-phase.js'),
-    '../game/turn/turn-start/timer-phase.js': () => require('../game/turn/turn-start/timer-phase.js'),
-    '../game/turn/pipeline-ui/board-event-playback.js': () => require('../game/turn/pipeline-ui/board-event-playback.js'),
-    '../game/turn/pipeline-ui/board-event-mapper.js': () => require('../game/turn/pipeline-ui/board-event-mapper.js'),
-    '../game/turn/pipeline-ui/passive-event-playback.js': () => require('../game/turn/pipeline-ui/passive-event-playback.js'),
-    '../game/turn/pipeline-ui/playback-after-state.js': () => require('../game/turn/pipeline-ui/playback-after-state.js'),
-    '../game/turn/pipeline-ui/log-mappers.js': () => require('../game/turn/pipeline-ui/log-mappers.js'),
-    '../game/turn/pipeline-ui/playback-utils.js': () => require('../game/turn/pipeline-ui/playback-utils.js'),
-    '../game/turn/pipeline-ui/generated-throw-chain-playback.js': () => require('../game/turn/pipeline-ui/generated-throw-chain-playback.js'),
-    '../game/turn/pipeline-ui/sound-cue-assembler.js': () => require('../game/turn/pipeline-ui/sound-cue-assembler.js'),
-    '../game/turn/pipeline-ui/card-economy-sound-cues.js': () => require('../game/turn/pipeline-ui/card-economy-sound-cues.js'),
-    '../game/turn/pipeline-ui/core-sound-cues.js': () => require('../game/turn/pipeline-ui/core-sound-cues.js'),
-    '../game/turn/pipeline-ui/destroy-sound-cues.js': () => require('../game/turn/pipeline-ui/destroy-sound-cues.js'),
-    '../game/turn/pipeline-ui/selection-sound-cues.js': () => require('../game/turn/pipeline-ui/selection-sound-cues.js'),
-    '../game/turn/pipeline-ui/sound-cue-helpers.js': () => require('../game/turn/pipeline-ui/sound-cue-helpers.js'),
-    '../game/logic/cards/utils.js': () => require('../game/logic/cards/utils.js'),
-    '../game/turn/sub-placement-continuation.js': () => require('../game/turn/sub-placement-continuation.js')
-});
-const WORKER_PRELOAD_MODULE_CACHE = new Map<string, unknown>();
 
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -332,31 +187,16 @@ function resolveModuleDefault(mod: unknown): MatchWorkerRuntimeModule {
     return asRuntimeModule(unwrapRuntimeModule(mod));
 }
 
-function loadWorkerPreloadModule(importPath: string): unknown {
-    if (WORKER_PRELOAD_MODULE_CACHE.has(importPath)) {
-        return WORKER_PRELOAD_MODULE_CACHE.get(importPath);
-    }
-    const loader = Object.prototype.hasOwnProperty.call(WORKER_PRELOAD_MODULE_LOADERS, importPath)
-        ? WORKER_PRELOAD_MODULE_LOADERS[importPath]
-        : null;
-    if (typeof loader !== 'function') {
-        throw new Error(`Worker preload module missing: ${importPath}`);
-    }
-    const mod = loader();
-    WORKER_PRELOAD_MODULE_CACHE.set(importPath, mod);
-    return mod;
-}
-
 function getNetworkActionSchemaModule(): MatchWorkerRuntimeModule {
-    return resolveModuleDefault(loadWorkerPreloadModule('../shared/network-action-schema.js'));
+    return resolveModuleDefault(requireWorkerRuntimeGlobal('NetworkActionSchema'));
 }
 
 function getPlaybackEventHelpersModule(): MatchWorkerRuntimeModule {
-    return resolveModuleDefault(loadWorkerPreloadModule('../shared/playback-event-helpers.js'));
+    return resolveModuleDefault(requireWorkerRuntimeGlobal('PlaybackEventHelpers'));
 }
 
 function getSubPlacementContinuationModule(): MatchWorkerRuntimeModule {
-    return resolveModuleDefault(loadWorkerPreloadModule('../game/turn/sub-placement-continuation.js'));
+    return resolveModuleDefault(requireWorkerRuntimeGlobal('TurnSubPlacementContinuation'));
 }
 
 function withCORS(response: Response): Response {
@@ -495,235 +335,56 @@ function setRuntimeGlobalValue(key: string, value: unknown): unknown {
     return value;
 }
 
-function importWorkerGlobal(importPath: string, globalKey: string): Promise<unknown> {
-    const runtimeValue = readRuntimeGlobalValue(globalKey);
-    if (hasUsableRuntimeModule(runtimeValue)) {
-        return Promise.resolve(runtimeValue);
+function requireWorkerRuntimeGlobal(globalKey: string): unknown {
+    const value = readRuntimeGlobalValue(globalKey);
+    if (!hasUsableRuntimeModule(value)) {
+        throw new Error(`Worker runtime global unavailable: ${globalKey}`);
     }
-    let mod: unknown;
-    try {
-        mod = loadWorkerPreloadModule(importPath);
-    } catch (error) {
-        return Promise.reject(error);
-    }
-    const resolved = unwrapRuntimeModule(mod);
-    const globalAfterLoad = readRuntimeGlobalValue(globalKey);
-    const preferredResolved = ModuleExportUtils && typeof ModuleExportUtils.preferUsableModuleExport === 'function'
-        ? ModuleExportUtils.preferUsableModuleExport(resolved, globalAfterLoad)
-        : (hasUsableRuntimeModule(resolved) ? resolved : globalAfterLoad);
-    if (globalKey && hasUsableRuntimeModule(preferredResolved)) {
-        setRuntimeGlobalValue(globalKey, preferredResolved);
-    } else if (globalKey && resolved) {
-        setRuntimeGlobalValue(globalKey, resolved);
-    }
-    return Promise.resolve(preferredResolved || resolved);
+    return value;
 }
 
-function ensureWorkerSharedConstants() {
-    if (!workerSharedConstantsPromise) {
-        workerSharedConstantsPromise = importWorkerGlobal('../shared-constants.js', 'SharedConstants');
+function ensureWorkerRuntimeGlobals(): Promise<void> {
+    if (!workerRuntimeGlobalsPromise) {
+        workerRuntimeGlobalsPromise = Promise.resolve().then(() => {
+            const missingGlobals = WORKER_RUNTIME_GLOBAL_KEYS.filter(
+                (globalKey) => !hasUsableRuntimeModule(readRuntimeGlobalValue(globalKey))
+            );
+            if (missingGlobals.length > 0) {
+                throw new Error(`Worker runtime globals unavailable: ${missingGlobals.join(', ')}`);
+            }
+        });
     }
-    return workerSharedConstantsPromise;
+    return workerRuntimeGlobalsPromise;
 }
 
-function ensureWorkerSharedBoardUtils() {
-    if (!workerSharedBoardUtilsPromise) {
-        workerSharedBoardUtilsPromise = ensureWorkerSharedConstants()
-            .then(() => importWorkerGlobal('../shared/shared-board-utils.js', 'SharedBoardUtils'));
-    }
-    return workerSharedBoardUtilsPromise;
+function ensureWorkerSharedConstants(): Promise<unknown> {
+    return ensureWorkerRuntimeGlobals().then(() => requireWorkerRuntimeGlobal('SharedConstants'));
+}
+
+function ensureWorkerSharedBoardUtils(): Promise<unknown> {
+    return ensureWorkerRuntimeGlobals().then(() => requireWorkerRuntimeGlobal('SharedBoardUtils'));
 }
 
 function ensureWorkerDeckGlobals(): Promise<MatchWorkerDeckGlobals> {
     if (!workerDeckGlobalsPromise) {
-        workerDeckGlobalsPromise = Promise.all([
-            ensureWorkerSharedConstants(),
-            importWorkerGlobal('../shared/deck-spec.js', 'DeckSpecHelpers'),
-            importWorkerGlobal('../shared/deck-codec.js', 'DeckCodecModule')
-        ]).then(([, deckSpecHelpers, deckCodecModule]) => ({
-            deckSpecHelpers: asRuntimeModule(deckSpecHelpers) as MatchWorkerDeckGlobals['deckSpecHelpers'],
-            deckCodecModule: asRuntimeModule(deckCodecModule) as MatchWorkerDeckGlobals['deckCodecModule']
+        workerDeckGlobalsPromise = ensureWorkerRuntimeGlobals().then(() => ({
+            deckSpecHelpers: asRuntimeModule(requireWorkerRuntimeGlobal('DeckSpecHelpers')) as MatchWorkerDeckGlobals['deckSpecHelpers'],
+            deckCodecModule: asRuntimeModule(requireWorkerRuntimeGlobal('DeckCodecModule')) as MatchWorkerDeckGlobals['deckCodecModule']
         }));
     }
     return workerDeckGlobalsPromise as Promise<MatchWorkerDeckGlobals>;
 }
 
-function ensureWorkerCardGlobals(): Promise<unknown> {
-    if (!workerCardGlobalsPromise) {
-        const requiredGlobals: Array<[string, string]> = [
-            ['../shared/player-encoding.js', 'PlayerEncoding'],
-            ['../shared/destroy-outcome-contract.js', 'DestroyOutcomeContract'],
-            ['../shared/evasion-status.js', 'EvasionStatus'],
-            ['../shared/manifest-stone-registry.js', 'ManifestStoneRegistry'],
-            ['../shared/stone-status-snapshot.js', 'StoneStatusSnapshot'],
-            ['../shared/special-card-registry.js', 'SpecialCardRegistry'],
-            ['../shared/special-stone-registry.js', 'SpecialStoneRegistry'],
-            ['../game/logic/cards-internal/random-source.js', 'CardRandomSource'],
-            ['../game/logic/cards-internal/evasion-destination.js', 'CardEvasionDestination'],
-            ['../game/logic/cards-internal/state-factory.js', 'CardStateFactory'],
-            ['../game/logic/cards-internal/module-resolver.js', 'CardModuleResolver'],
-            ['../game/logic/cards-internal/protection-context.js', 'CardProtectionContext'],
-            ['../game/logic/cards-internal/presentation-helpers.js', 'CardPresentationHelpers'],
-            ['../game/logic/cards-internal/capture-source.js', 'CardCaptureSource'],
-            ['../game/logic/cards-internal/progression.js', 'CardProgression'],
-            ['../game/logic/cards-internal/random-board-spawn.js', 'CardRandomBoardSpawn'],
-            ['../game/logic/cards-internal/spawn-and-flip.js', 'CardSpawnAndFlip'],
-            ['../game/logic/cards-internal/generated-spawn-flip-resolver.js', 'CardGeneratedSpawnFlipResolver'],
-            ['../game/logic/cards-internal/ribo-time-stop.js', 'CardRiboTimeStop'],
-            ['../game/logic/cards-internal/target-access.js', 'CardTargetAccess'],
-            ['../game/logic/cards-internal/context-builders.js', 'CardContextBuilders'],
-            ['../game/logic/cards-internal/theory-incarnation-bindings.js', 'CardTheoryIncarnationBindings'],
-            ['../game/logic/cards-internal/deck-setup.js', 'CardDeckSetup'],
-            ['../game/logic/cards-internal/hand-access.js', 'CardHandAccess'],
-            ['../game/logic/cards-internal/card-availability.js', 'CardAvailability'],
-            ['../game/logic/cards-internal/offer-builders.js', 'CardOfferBuilders'],
-            ['../game/logic/cards-internal/effect-target-counts.js', 'CardEffectTargetCounts'],
-            ['../game/logic/cards-internal/salvation-effect.js', 'CardSalvationEffect'],
-            ['../game/logic/cards-internal/loss-effect.js', 'CardLossEffect'],
-            ['../game/logic/cards-internal/fate-effect.js', 'CardFateEffect'],
-            ['../game/logic/cards-internal/board-configuration.js', 'CardBoardConfiguration'],
-            ['../game/logic/cards-internal/board-shape-access.js', 'CardBoardShapeAccess'],
-            ['../game/logic/cards-internal/expansion-fallback.js', 'CardExpansionFallback'],
-            ['../game/logic/cards-internal/hand-manager.js', 'CardHandManager'],
-            ['../game/logic/cards-internal/charge-ledger.js', 'CardChargeLedger'],
-            ['../game/logic/cards-internal/pending-state-manager.js', 'CardPendingStateManager'],
-            ['../game/logic/cards-internal/card-usage-prechecks.js', 'CardUsagePrechecks'],
-            ['../game/logic/cards-internal/effect-timing.js', 'CardEffectTiming'],
-            ['../game/logic/cards/selectors-core-utils.js', 'CardSelectorsCoreUtils'],
-            ['../game/logic/cards/selectors-board-shape.js', 'CardSelectorsBoardShape'],
-            ['../game/logic/cards/expansion.js', 'CardExpansion'],
-            ['../game/logic/cards/cell-removal.js', 'CardCellRemoval'],
-            ['../game/logic/cards/causal_replay.js', 'CardCausalReplay'],
-            ['../game/logic/cards/movement.js', 'CardMovement'],
-            ['../game/logic/cards/teleport.js', 'CardTeleport'],
-            ['../game/logic/cards/clone.js', 'CardClone'],
-            ['../game/logic/cards/meteor.js', 'CardMeteor'],
-            ['../game/logic/cards/meteor_god.js', 'CardMeteorGod'],
-            ['../game/logic/cards/shrink.js', 'CardShrink'],
-            ['../game/logic/cards/living_will.js', 'CardLivingWill'],
-            ['../game/logic/cards/targets.js', 'CardTargets'],
-            ['../game/logic/cards/flips.js', 'CardFlips'],
-            ['../game/logic/cards/chain.js', 'CardChain'],
-            ['../game/logic/cards/regen.js', 'CardRegen'],
-            ['../game/logic/cards/zombie_will.js', 'CardZombieWill'],
-            ['../game/logic/cards/time_bomb.js', 'CardTimeBomb'],
-            ['../game/logic/cards/breeding.js', 'CardBreeding'],
-            ['../game/logic/effects/dragon.js', 'DragonEffects'],
-            ['../game/logic/cards/udg.js', 'CardUdg'],
-            ['../game/logic/cards/hyperactive.js', 'CardHyperactive'],
-            ['../game/logic/cards/sniper.js', 'CardSniper'],
-            ['../game/logic/cards/lightning.js', 'CardLightning'],
-            ['../game/logic/cards/will_hunter_king.js', 'CardWillHunterKing'],
-            ['../game/logic/cards/destroy_dragon.js', 'CardDestroyDragon'],
-            ['../game/logic/cards/selectors.js', 'CardSelectors'],
-            ['../game/logic/cards/work_will.js', 'CardWork'],
-            ['../game/logic/cards/sacrifice_will.js', 'CardSacrificeWill'],
-            ['../game/logic/cards/markers.js', 'CardMarkers'],
-            ['../game/logic/board_ops.js', 'BoardOps'],
-            ['../game/logic/effects/destroy_one_stone.js', 'DestroyOneStoneEffects'],
-            ['../game/logic/effects/swap_with_enemy.js', 'SwapWithEnemyEffects'],
-            ['../game/cards/state-manager.js', 'CardStateManager'],
-            ['../game/cards/card-usage-consumption-stage.js', 'CardUsageConsumptionStage'],
-            ['../game/cards/card-usage-pending-stage.js', 'CardUsagePendingStage'],
-            ['../game/cards/card-usage-immediate-stage.js', 'CardUsageImmediateStage'],
-            ['../game/cards/card-usage-sacrifice-stage.js', 'CardUsageSacrificeStage'],
-            ['../game/cards/card-usage-presentation-stage.js', 'CardUsagePresentationStage'],
-            ['../game/cards/card-usage-validation-stage.js', 'CardUsageValidationStage'],
-            ['../game/cards/effect-resolver.js', 'CardEffectResolver'],
-            ['../game/cards/timing-processor.js', 'CardTimingProcessor'],
-            ['../game/cards/target-resolver.js', 'CardTargetResolver'],
-            ['../game/logic/card-resolution/protect', 'CardProtectEffects'],
-            ['../game/logic/card-resolution/trap', 'CardTrapEffects'],
-            ['../game/logic/card-resolution/ownership', 'CardOwnershipEffects'],
-            ['../game/logic/card-resolution/board-expansion-apply', 'CardBoardExpansionApply'],
-            ['../game/logic/card-resolution/status-cells', 'CardStatusCellsEffects'],
-            ['../game/logic/card-resolution/hand-effects', 'CardHandEffects'],
-            ['../game/logic/card-resolution/observer-will', 'CardObserverWillResolution'],
-            ['../game/logic/card-resolution/theory-incarnation', 'CardTheoryIncarnationResolution'],
-            ['../game/logic/card-resolution/chaos-summon', 'CardChaosSummonResolution'],
-            ['../game/logic/card-resolution/board-executor', 'CardBoardExecutorResolution'],
-            ['../game/logic/card-resolution/special-stone-marker-factory', 'SpecialStoneMarkerFactory'],
-            ['../game/logic/card-resolution/position-swap', 'CardPositionSwapEffects']
-        ];
-        const optionalGlobals: Array<[string, string]> = [
-            ['../game/logic/cards/utils.js', 'CardUtils']
-        ];
-        workerCardGlobalsPromise = ensureWorkerDeckGlobals()
-            .then(() => ensureWorkerSharedBoardUtils())
-            .then(() => requiredGlobals.reduce(
-                (promise, [importPath, globalKey]) => promise.then(() => importWorkerGlobal(importPath, globalKey)),
-                Promise.resolve<unknown>(undefined)
-            ))
-            .then(() => optionalGlobals.reduce(
-                (promise, [importPath, globalKey]) => promise.then(() => importWorkerGlobal(importPath, globalKey).catch(() => null)),
-                Promise.resolve<unknown>(undefined)
-            ));
-    }
-    return workerCardGlobalsPromise;
+function ensureWorkerCardGlobals(): Promise<void> {
+    return ensureWorkerRuntimeGlobals();
 }
 
-function ensureWorkerTurnPipelinePhaseGlobals(): Promise<unknown> {
-    if (!workerTurnPipelinePhaseGlobalsPromise) {
-        const requiredGlobals: Array<[string, string]> = [
-            ['../game/logic/markers_adapter.js', 'MarkersAdapter'],
-            ['../game/logic/cards/utils.js', 'CardUtils'],
-            ['../game/logic/context', 'CardContext'],
-            ['../shared-constants.js', 'SharedConstants'],
-            ['../utils/owner-helpers.js', 'OwnerHelpers'],
-            ['../shared/destroy-outcome-contract.js', 'DestroyOutcomeContract'],
-            ['../game/turn/turn_pipeline_phase_helpers.js', 'TurnPipelinePhaseHelpers'],
-            ['../game/turn/pending-coordinator.js', 'TurnPendingCoordinator'],
-            ['../game/turn/sub-placement-continuation.js', 'TurnSubPlacementContinuation'],
-            ['../game/turn/action-phase/continuation.js', 'TurnActionPhaseContinuation'],
-            ['../game/turn/action-phase/placement-effects.js', 'TurnActionPhasePlacementEffects'],
-            ['../game/turn/card-usage/immediate-effects.js', 'TurnCardUsageImmediateEffects'],
-            ['../game/turn/board-charge.js', 'TurnBoardCharge'],
-            ['../game/turn/presentation-helpers.js', 'TurnPresentationHelpers'],
-            ['../game/turn/round-state.js', 'TurnRoundState'],
-            ['../game/turn/action-phase/pre-placement-selection.js', 'TurnActionPhasePrePlacementSelection'],
-            ['../game/turn/action-phase/place-resolution.js', 'TurnActionPhasePlaceResolution'],
-            ['../game/turn/action-phase/placement-immediate-effects.js', 'TurnActionPhasePlacementImmediateEffects'],
-            ['../game/turn/action-phase/turn-handoff.js', 'TurnActionPhaseTurnHandoff'],
-            ['../game/turn/phase-presentation-finalizer.js', 'TurnPhasePresentationFinalizer'],
-            ['../game/turn/turn-start/bomb-phase.js', 'TurnStartBombPhase'],
-            ['../game/turn/turn-start/marker-phase.js', 'TurnStartMarkerPhase'],
-            ['../game/turn/turn-start/post-processing.js', 'TurnStartPostProcessing'],
-            ['../game/turn/turn-start/special-stone-phase.js', 'TurnStartSpecialStonePhase'],
-            ['../game/turn/turn-start/timer-phase.js', 'TurnStartTimerPhase']
-        ];
-        workerTurnPipelinePhaseGlobalsPromise = requiredGlobals.reduce(
-            (promise, [importPath, globalKey]) => promise.then(() => importWorkerGlobal(importPath, globalKey)),
-            Promise.resolve<unknown>(undefined)
-        );
-    }
-    return workerTurnPipelinePhaseGlobalsPromise;
+function ensureWorkerTurnPipelinePhaseGlobals(): Promise<void> {
+    return ensureWorkerRuntimeGlobals();
 }
 
-function ensureWorkerPipelineUIAdapterGlobals(): Promise<unknown> {
-    if (!workerPipelineUIAdapterGlobalsPromise) {
-        const requiredGlobals: Array<[string, string]> = [
-            ['../shared/playback-planner.js', 'PlaybackPlanner'],
-            ['../game/turn/pipeline-ui/playback-utils.js', 'PipelineUIPlaybackUtils'],
-            ['../game/turn/pipeline-ui/board-event-playback.js', 'PipelineUIBoardEventPlayback'],
-            ['../game/turn/pipeline-ui/board-event-mapper.js', 'PipelineUIBoardEventMapper'],
-            ['../game/turn/pipeline-ui/passive-event-playback.js', 'PipelineUIPassiveEventPlayback'],
-            ['../game/turn/pipeline-ui/playback-after-state.js', 'PipelineUIPlaybackAfterState'],
-            ['../game/turn/pipeline-ui/log-mappers.js', 'PipelineUILogMappers'],
-            ['../game/turn/pipeline-ui/generated-throw-chain-playback.js', 'PipelineUIGeneratedThrowChainPlayback'],
-            ['../game/turn/pipeline-ui/card-economy-sound-cues.js', 'PipelineUICardEconomySoundCues'],
-            ['../game/turn/pipeline-ui/core-sound-cues.js', 'PipelineUICoreSoundCues'],
-            ['../game/turn/pipeline-ui/destroy-sound-cues.js', 'PipelineUIDestroySoundCues'],
-            ['../game/turn/pipeline-ui/selection-sound-cues.js', 'PipelineUISelectionSoundCues'],
-            ['../game/turn/pipeline-ui/sound-cue-helpers.js', 'PipelineUISoundCueHelpers'],
-            ['../game/turn/pipeline-ui/sound-cue-assembler.js', 'PipelineUISoundCueAssembler']
-        ];
-        workerPipelineUIAdapterGlobalsPromise = ensureWorkerTurnPipelinePhaseGlobals()
-            .then(() => requiredGlobals.reduce(
-                (promise, [importPath, globalKey]) => promise.then(() => importWorkerGlobal(importPath, globalKey)),
-                Promise.resolve<unknown>(undefined)
-            ));
-    }
-    return workerPipelineUIAdapterGlobalsPromise;
+function ensureWorkerPipelineUIAdapterGlobals(): Promise<void> {
+    return ensureWorkerRuntimeGlobals();
 }
 
 function normalizeWorkerTurnPipelinePlayer(Core: MatchWorkerRuntimeModule | null | undefined, player: unknown): MatchAuthoritySeatKey | null {

@@ -1,5 +1,8 @@
 type MatchWorkerRuntimeGlobalScope = Record<string, unknown>;
 const ModuleExportUtils = require('../shared/module-export-utils');
+const runtimeGlobalKeys: string[] = [];
+
+export const WORKER_RUNTIME_GLOBAL_KEYS: readonly string[] = runtimeGlobalKeys;
 
 function getRuntimeGlobalScopes(): MatchWorkerRuntimeGlobalScope[] {
     const scopes: MatchWorkerRuntimeGlobalScope[] = [];
@@ -49,6 +52,9 @@ function setGlobalRuntimeModule(globalKey: string, value: unknown): void {
 }
 
 function installRuntimeModule(globalKey: string, loadModule: () => unknown): void {
+    if (!runtimeGlobalKeys.includes(globalKey)) {
+        runtimeGlobalKeys.push(globalKey);
+    }
     if (hasUsableGlobalRuntimeModule(globalKey)) return;
     const loadedModule = unwrapModule(loadModule());
     if (hasUsableRuntimeModule(loadedModule)) {
@@ -72,6 +78,7 @@ installRuntimeModule('StoneStatusSnapshot', () => require('../shared/stone-statu
 installRuntimeModule('SpecialCardRegistry', () => require('../shared/special-card-registry.js'));
 installRuntimeModule('SpecialStoneRegistry', () => require('../shared/special-stone-registry.js'));
 installRuntimeModule('PresentationEffectProfiles', () => require('../shared/presentation-effect-profiles.js'));
+installRuntimeModule('NetworkActionSchema', () => require('../shared/network-action-schema.js'));
 installRuntimeModule('PlaybackEventHelpers', () => require('../shared/playback-event-helpers.js'));
 installRuntimeModule('ControllerEvents', () => require('../game/controller-events.js'));
 installRuntimeModule('SeededPRNG', () => require('../game/schema/prng.js'));
@@ -202,4 +209,4 @@ installRuntimeModule('PipelineUISelectionSoundCues', () => require('../game/turn
 installRuntimeModule('PipelineUISoundCueHelpers', () => require('../game/turn/pipeline-ui/sound-cue-helpers.js'));
 installRuntimeModule('PipelineUISoundCueAssembler', () => require('../game/turn/pipeline-ui/sound-cue-assembler.js'));
 
-export {};
+Object.freeze(runtimeGlobalKeys);

@@ -36,9 +36,12 @@ function expectRuntimePreloadRegistration(runtimePreloadSource: string, globalKe
   expect(runtimePreloadSource).toContain(`require('${importPath}')`);
 }
 
-function expectWorkerModuleRegistration(workerSource: string, globalKey: string, importPath: string): void {
-  expect(workerSource).toContain(`'${importPath}':`);
-  expect(workerSource).toContain(`['${importPath}', '${globalKey}']`);
+function expectWorkerModuleRegistration(workerSource: string, _globalKey: string, _importPath: string): void {
+  expect(workerSource).toContain(
+    "import { WORKER_RUNTIME_GLOBAL_KEYS } from './match-worker-runtime-preload.js';"
+  );
+  expect(workerSource).toContain('WORKER_RUNTIME_GLOBAL_KEYS.filter(');
+  expect(workerSource).not.toContain('WORKER_PRELOAD_MODULE_LOADERS');
 }
 
 function extractStringLiteralMap(source: string, startToken: string, endToken: string): Map<string, string> {

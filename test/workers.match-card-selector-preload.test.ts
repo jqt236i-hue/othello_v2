@@ -18,17 +18,10 @@ describe('worker card selector preload contract', () => {
     expect(runtimeSelectorsIndex).toBeGreaterThan(runtimeCoreIndex);
     expect(runtimeSelectorsIndex).toBeGreaterThan(runtimeShapeIndex);
 
-    const workerCoreIndex = workerSource.indexOf("['../game/logic/cards/selectors-core-utils.js', 'CardSelectorsCoreUtils']");
-    const workerShapeIndex = workerSource.indexOf("['../game/logic/cards/selectors-board-shape.js', 'CardSelectorsBoardShape']");
-    const workerMovementIndex = workerSource.indexOf("['../game/logic/cards/movement.js', 'CardMovement']");
-    const workerSelectorsIndex = workerSource.indexOf("['../game/logic/cards/selectors.js', 'CardSelectors']");
-
-    expect(workerSource).toContain("'../game/logic/cards/selectors-core-utils.js': () => require('../game/logic/cards/selectors-core-utils.js')");
-    expect(workerSource).toContain("'../game/logic/cards/selectors-board-shape.js': () => require('../game/logic/cards/selectors-board-shape.js')");
-    expect(workerCoreIndex).toBeGreaterThanOrEqual(0);
-    expect(workerShapeIndex).toBeGreaterThanOrEqual(0);
-    expect(workerMovementIndex).toBeGreaterThan(workerCoreIndex);
-    expect(workerSelectorsIndex).toBeGreaterThan(workerCoreIndex);
-    expect(workerSelectorsIndex).toBeGreaterThan(workerShapeIndex);
+    expect(workerSource).toContain(
+      "import { WORKER_RUNTIME_GLOBAL_KEYS } from './match-worker-runtime-preload.js';"
+    );
+    expect(workerSource).not.toContain('WORKER_PRELOAD_MODULE_LOADERS');
+    expect(workerSource).not.toContain("['../game/logic/cards/selectors.js', 'CardSelectors']");
   });
 });
