@@ -20,4 +20,8 @@ function toggleNetworkRoomSettings(options: any): boolean {
     return !isOpen;
 }
 
-export = { copyNetworkRoomName, toggleNetworkRoomSettings };
+function refreshNetworkRooms(options: any): any {
+    return options.refreshNetworkRoomList();
+}
+
+export = { copyNetworkRoomName, toggleNetworkRoomSettings, refreshNetworkRooms };

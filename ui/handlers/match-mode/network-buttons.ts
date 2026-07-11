@@ -351,7 +351,10 @@ function bindNetworkButtons(context: any) {
 
     if (uiRefs.networkRoomListRefreshBtn) {
         uiRefs.networkRoomListRefreshBtn.addEventListener('click', () => {
-            refreshNetworkRoomList();
+            if (!NetworkButtonActionsModule || typeof NetworkButtonActionsModule.refreshNetworkRooms !== 'function') {
+                throw new Error('NetworkButtonActionsModule unavailable');
+            }
+            NetworkButtonActionsModule.refreshNetworkRooms({ refreshNetworkRoomList });
         });
     }
 
