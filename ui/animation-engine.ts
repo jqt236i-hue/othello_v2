@@ -1513,7 +1513,12 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             const transientOverlayBatch = (TransientOverlayBatch && typeof TransientOverlayBatch.createTransientOverlayBatch === 'function')
                 ? TransientOverlayBatch.createTransientOverlayBatch({ documentRef: (typeof document !== 'undefined' ? document : null) })
                 : null;
-            return { superCrushDestinations, layoutBatch, transientOverlayBatch };
+            return {
+                superCrushDestinations,
+                cellElements: new Map(),
+                layoutBatch,
+                transientOverlayBatch
+            };
         }
 
         _getSuperCrushDestinationContext(row: any, col: any) {
@@ -1542,6 +1547,14 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     if (context && context.transientOverlayBatch && typeof context.transientOverlayBatch.cleanup === 'function') {
                         context.transientOverlayBatch.cleanup();
                     }
+                } catch (e: any) { /* ignore */ }
+                try {
+                    if (context && context.layoutBatch && typeof context.layoutBatch.clear === 'function') {
+                        context.layoutBatch.clear();
+                    }
+                } catch (e: any) { /* ignore */ }
+                try {
+                    if (context && context.cellElements instanceof Map) context.cellElements.clear();
                 } catch (e: any) { /* ignore */ }
                 this._phaseContext = prev;
             }
@@ -2242,9 +2255,17 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
 
         getCellEl(r: any, c: any) {
             if (!this.boardEl || typeof this.boardEl.querySelector !== 'function') return null;
+            const phaseCells = this._phaseContext && this._phaseContext.cellElements instanceof Map
+                ? this._phaseContext.cellElements
+                : null;
+            const cacheKey = `${r},${c}`;
+            if (phaseCells && phaseCells.has(cacheKey)) return phaseCells.get(cacheKey);
             const selector = `.cell[data-row="${r}"][data-col="${c}"]`;
             const boardCell = this.boardEl.querySelector(selector);
-            if (boardCell) return boardCell;
+            if (boardCell) {
+                if (phaseCells) phaseCells.set(cacheKey, boardCell);
+                return boardCell;
+            }
             try {
                 const boardStack = typeof this.boardEl.closest === 'function'
                     ? this.boardEl.closest('#board-stack')
@@ -2256,9 +2277,11 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     || (typeof document !== 'undefined' && document && typeof document.getElementById === 'function'
                         ? document.getElementById('board-expansion-layer')
                         : null);
-                return expansionLayer && typeof expansionLayer.querySelector === 'function'
+                const expansionCell = expansionLayer && typeof expansionLayer.querySelector === 'function'
                     ? expansionLayer.querySelector(selector)
                     : null;
+                if (expansionCell && phaseCells) phaseCells.set(cacheKey, expansionCell);
+                return expansionCell;
             } catch (e: any) {
                 return null;
             }
