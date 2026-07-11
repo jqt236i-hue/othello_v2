@@ -6885,6 +6885,9 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 
 #deckBuilderModal .deck-builder-atelier-stage .deck-builder-intro {
     max-width: none;
+    width: 100%;
+    justify-self: stretch;
+    display: block !important;
     padding: calc(8px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) !important;
     border: 1px solid rgba(141, 221, 228, 0.16) !important;
     border-left: calc(3px * var(--layout-stage-scale)) solid var(--deck-gold) !important;
@@ -6900,10 +6903,10 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 
 #deckBuilderModal .deck-builder-workspace {
     display: grid;
-    grid-template-columns: minmax(calc(280px * var(--layout-stage-scale)), 0.82fr) minmax(0, 1.58fr);
+    grid-template-columns: minmax(calc(300px * var(--layout-stage-scale)), 0.72fr) minmax(0, 1.65fr);
     gap: calc(18px * var(--layout-stage-scale));
     min-width: 0;
-    align-items: start;
+    align-items: stretch;
 }
 
 #deckBuilderModal .deck-builder-loadout-column,
@@ -6912,6 +6915,11 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     min-width: 0;
     gap: calc(12px * var(--layout-stage-scale));
     align-content: start;
+}
+
+#deckBuilderModal .deck-builder-saved-deck-column {
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 100%;
 }
 
 #deckBuilderModal .deck-builder-loadout-column {
@@ -7083,11 +7091,14 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 
 #deckBuilderModal .deck-builder-workshop-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
     gap: calc(10px * var(--layout-stage-scale)) !important;
 }
 
 #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
     min-height: calc(152px * var(--layout-stage-scale));
+    height: 100%;
     padding: calc(14px * var(--layout-stage-scale)) !important;
     border: 1px solid var(--deck-line) !important;
     border-radius: calc(11px * var(--layout-stage-scale)) !important;
@@ -7338,6 +7349,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 @media (min-width: 1280px) {
     #deckBuilderModal .deck-builder-workshop-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        grid-template-rows: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -7417,6 +7429,15 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
         grid-template-columns: 1fr;
     }
 
+    #deckBuilderModal .deck-builder-saved-deck-column {
+        grid-template-rows: auto auto;
+        min-height: auto;
+    }
+
+    #deckBuilderModal .deck-builder-workshop-grid {
+        grid-template-rows: none;
+    }
+
     #deckBuilderModal .deck-builder-loadout-column {
         padding-right: 0;
         padding-bottom: calc(16px * var(--layout-stage-scale));
@@ -7463,6 +7484,10 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     #deckBuilderModal .deck-builder-fixed-library,
     #deckBuilderModal .deck-builder-built-in-preset-grid {
         grid-template-columns: 1fr !important;
+    }
+
+    #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
+        height: auto;
     }
 
     #deckBuilderModal .deck-builder-active-deck-hero,
