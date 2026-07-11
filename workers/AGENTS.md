@@ -30,4 +30,4 @@ Server-authoritative match worker boundary. Use this file with the root `AGENTS.
 - Focused tests: `test/workers.*`, `test/utils.match-authority*`, `test/local-match-server*`, `test/network.*`.
 - Contract bundle: `npm run test:network:parity`.
 - Smoke: `npm run match:check` when API/SSE behavior changes.
-- Deploy/mirror impact: `npm run worker:prepare` before `worker:dev` / `worker:deploy`.
+- Deploy/mirror impact: `worker:dev` / `worker:deploy` already run `npm run worker:prepare`. Run `worker:prepare` separately only for standalone mirror generation/verification or before direct `npx wrangler` use.

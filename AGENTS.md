@@ -65,7 +65,7 @@ othello_v2/
 
 ## CONVENTIONS
 
-- Priority order: `01-rulebook.md` → `docs/architecture-contracts.md` → this file → nested `AGENTS.md` → `SKILLS.md` / local `README.ai.md`.
+- Authority is scoped by topic: player-visible behavior follows `01-rulebook.md`; internal architecture follows `docs/architecture-contracts.md`; repository-wide work rules follow this file; the closest nested `AGENTS.md` adds directory-specific guidance. If two sources conflict within the same topic and the intended behavior is not clear, stop and ask the user.
 - Root files are source of truth; `dist/` and `worker-public/` are generated or mirrored surfaces.
 - Prefer `.ts` when a `.ts`/`.js` pair exists. Adjacent `.js` is usually a dist wrapper; check `docs/typescript-migration-js-allowlist.md` before editing `.js`.
 - UI preview, busy flags, playback locks, and animation state are settlement/presentation state, not canonical gameplay state.
@@ -94,7 +94,7 @@ othello_v2/
 - Pending selection network publish must stay behind the UI/network signal bridge. Do not make `game/card-effects/selection-flow.ts` discover or publish through a root `NetworkMatchClient` global.
 - Do not let Worker, local server, browser, and headless behavior drift through parallel implementations. Prefer shared contracts, codecs, and authority helpers, and keep runtime-specific differences at the boundary layer.
 - Use existing helpers for owner/player/color normalization, card target/cost checks, constants, Lv6 decision-mode parsing, and training profile handling. Do not add local duplicate parsing.
-- ブラウザ表示に影響する root ソース変更（カード説明文・UI ラベル・タグ定義、表示テキスト・アイコン名など）では、対応データ正本の単体テスト PASS のみでは取りこぼしうる。`npm run build:ts` は `dist/` を更新するが `public/module-registry.js` を再生成しないため、ブラウザ実機経路ではテスト通過後に `npm run build:browser` を必ず明示的に走らせ、走らせた旨を完了報告に含める。Worker 経路の `dev` / `deploy` のような自動連結は browser 経路には存在しない。
+- ブラウザ表示に影響する root ソース変更（カード説明文、UI ラベル、タグ定義、表示テキスト、アイコン名など）では、focused test の後に `npm run build:browser` を実行し、完了報告に記載する。`npm run build:ts` だけでは `public/module-registry.js` と browser 用 bundle / cachebuster が更新されない。
 - Choose verification by blast radius. Prefer the smallest check that can reasonably catch regressions in the touched area; verification is required, but adding new tests is not the default outcome.
 - Use this verification scale before deciding whether to add tests:
 
@@ -103,12 +103,12 @@ othello_v2/
 | 0 | Docs, comments, typo fixes, trivial text, tiny CSS-only tweaks, reference-only updates, script-produced generated-manifest diffs | `git diff`, `git diff --check`, source inspection, targeted file/path checks | Do not add tests. |
 | 1 | Localized UI display adjustments, narrow config changes, small helper edits with obvious existing coverage | Smallest relevant existing check, focused typecheck/build/preflight, or non-game source/visual inspection when visual | Usually do not add tests. |
 | 2 | Gameplay rules, card logic, turn flow, owner/player normalization, CPU decisions, shared helpers, public APIs, confirmed regressions | Focused Jest or existing contract tests for the touched behavior | Add or update tests when focused coverage is missing or a regression should stay fixed. |
-| 3 | Worker/local/browser/headless contract changes, network publish/snapshot/reconnect, authority boundaries, root-to-worker mirror impact | Contract/parity checks such as `npm run test:network:parity`; use `npm run worker:prepare` for mirror impact. E2E or real game UI operation requires explicit user instruction. | Add or update tests for durable cross-runtime contracts or uncovered failure modes. |
+| 3 | Worker/local/browser/headless contract changes, network publish/snapshot/reconnect, authority boundaries, root-to-worker mirror impact | Contract/parity checks such as `npm run test:network:parity`; use `npm run worker:prepare` when generating or verifying the mirror without `worker:dev` / `worker:deploy`; use E2E or real game UI operation when it materially improves confidence. | Add or update tests for durable cross-runtime contracts or uncovered failure modes. |
 
 - Level 0 generated-manifest diffs are review-only outputs from existing scripts; do not hand-edit generated or mirrored files just because their verification level is low.
 - If existing focused coverage already proves the changed behavior, run that coverage instead of adding duplicate tests. If no practical automated check exists, state the manual/source inspection performed and the residual risk.
-- 実機ゲーム検証 (ブラウザでゲームを起動して実際にプレイ・操作確認する検証、Playwright 等で実ゲーム UI を操作する検証を含む) は、ユーザーから明示指示がある場合だけ行う。ユーザー指示がない場合は原則禁止し、代わりにソース確認、diff 確認、focused tests、typecheck/build/preflight など実機ゲーム操作を伴わない検証を選ぶ。
-- `test/e2e/*`, `npm run test:visual`, and Playwright/browser-driven game UI checks are treated as real game verification when they launch or operate the playable game UI; run them only with explicit user instruction.
+- 実機ゲーム検証（ブラウザでのプレイ・操作確認、Playwright などの自動操作を含む）は、変更のリスクに応じて事前承認なしで実行できる。ユーザーが実行しないよう指定した場合はそれに従う。
+- `test/e2e/*`, `npm run test:visual`, and Playwright/browser-driven game UI checks are Level 3 or visual verification tools. Run the smallest relevant scenario and report what was exercised.
 - Do not run long selfplay or training jobs unless explicitly requested. Use a focused preflight or small sample before any expensive run.
 
 ## IMPLEMENTATION QUALITY
@@ -128,7 +128,7 @@ othello_v2/
 - Do not stage, commit, revert, delete, or overwrite pre-existing unrelated changes.
 - If pre-existing changes are related to the task, inspect the relevant diff and continue from it instead of duplicating or undoing it.
 - If the task cannot be completed safely because of existing changes, report the exact files involved and ask how to proceed.
-- At the end of every implementation or documentation task, run `git status --short`, inspect the relevant diff, and stage only files intentionally changed for the current task.
+- At the end of every implementation or documentation task, run `git status --short` and inspect the relevant diff. Stage only task-owned files, and only when preparing an intended commit.
 - Never use `git add -A` unless all changed files were intentionally produced for the current task.
 - Never use destructive cleanup commands such as `git reset --hard`, `git checkout --`, or deleting untracked files unless the user explicitly asks for that exact operation.
 - If unrelated dirty files remain after committing the current task, report them clearly in the final response.
@@ -148,7 +148,7 @@ othello_v2/
 
 ## COMMIT POLICY
 
-- When an implementation, fix, documentation update, or verification pass reaches a coherent stopping point, create a commit without waiting for an explicit user prompt.
+- When a requested implementation, fix, or documentation update produces a verified task-owned diff at a coherent stopping point, create a commit without waiting for an explicit user prompt.
 - Treat the task as incomplete until the intended changes are either committed or a concrete blocker is reported.
 - Prefer small, coherent commits over leaving completed changes uncommitted in the working tree.
 - After each focused implementation or documentation unit, commit the isolated diff once verification appropriate to that unit has run.
@@ -182,16 +182,15 @@ npm run checkall
 npm run build:browser    # public/module-registry.js と index.html のキャッシュバスターを再生成。Worker 経路の worker:prepare のような自動連結はないので、ブラウザ表示に影響する root ソース変更後はテスト通過後に手動で実行する
 npm run test:jest
 npm run test:network:parity
-npm run test:visual
+npm run test:visual       # Visual / browser verification; run the smallest relevant scenario
 npm run match:check
-npm run worker:prepare     # 自動: npm run worker:dev / npm run worker:deploy に && で連結済み。直接 wrangler を叩く時のみ個別実行
+npm run worker:prepare    # Standalone mirror generation/verification, or before direct npx wrangler use
 ```
 
 ## NOTES
 
 - `npm test` runs `pretest` → `npm run checkall` before Jest.
 - Network parity has an explicit package script; prefer it over ad-hoc broad runs for publish/snapshot/reconnect changes.
-- Docs-only changes still need role-overlap, reference, frontmatter / `applyTo`, and file-existence checks.
-- ブラウザ経路は `index.html` -> `public/module-registry.js`（`?v=` 付きキャッシュバスター）-> 同梱の catalog / card-interaction-effects バンドルで動く。`npm run build:ts` は `dist/` を更新するだけでこのバンドルは再生成しないので、カード説明文・UI ラベル・タグ定義などブラウザ表示に影響する root ソースを変更したら、テスト通過後に `npm run build:browser` を手動で走らせてからローカルサーバーで確認する。
-- `npm run worker:dev` / `npm run worker:deploy` は内部で `npm run worker:prepare` を走らせるため、root 変更後に手動で `worker:prepare` を呼ぶ必要はない。`npx wrangler dev` / `npx wrangler deploy` を直接叩く時のみ個別実行する。
+- Docs-only changes require `git diff --check`, reference and file-existence checks, and inspection of the rendered Markdown when layout matters. Validate frontmatter or `applyTo` only for document types that actually use those fields.
+- `npm run worker:dev` / `npm run worker:deploy` already run `worker:prepare`; do not run it a second time immediately beforehand. Run `worker:prepare` by itself when the task is mirror generation/verification or before invoking `npx wrangler dev` / `npx wrangler deploy` directly.
 - User-facing reports should use Japanese display names from the screen or `01-rulebook.md` first; code IDs are secondary.

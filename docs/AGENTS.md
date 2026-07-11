@@ -27,5 +27,5 @@ Documentation role boundary. Use this file with the root `AGENTS.md` as the loca
 
 ## Verification
 
-- Docs-only changes still need role-overlap, reference, frontmatter, and file-existence checks.
+- Docs-only changes require `git diff --check`, reference and file-existence checks, and rendered Markdown inspection when layout matters. Validate frontmatter only for document types that use it.
 - If docs describe behavior changes, include the matching implementation/test update or explain why not.
