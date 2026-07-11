@@ -136,23 +136,40 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
-  test('意志の凍結は対象数にかかわらず freeze_select を1回だけ再生する', () => {
-    const base = [{
-      type: 'status_applied',
-      phase: 9,
-      targets: [
-        { r: 2, col: 2, after: { special: 'FREEZE', timer: 5 } },
-        { r: 3, col: 3, after: { special: 'FREEZE', timer: 5 } }
-      ],
-      meta: { special: 'FREEZE', timer: 5 }
-    }];
+  test('意志の凍結はカード使用後に全凍結を再生し freeze_select を1回だけ鳴らす', () => {
+    const base = [
+      {
+        type: 'card_use_animation',
+        phase: 5,
+        targets: [{ cardId: 'mass_freeze_will_01', owner: 'black' }]
+      },
+      {
+        type: 'status_applied',
+        phase: 9,
+        targets: [{ r: 2, col: 2, after: { special: 'FREEZE', timer: 5 } }],
+        meta: { special: 'FREEZE', timer: 5, reason: 'mass_freeze_will' }
+      },
+      {
+        type: 'status_applied',
+        phase: 9,
+        targets: [{ r: 3, col: 3, after: { special: 'FREEZE', timer: 5 } }],
+        meta: { special: 'FREEZE', timer: 5, reason: 'mass_freeze_will' }
+      }
+    ];
     const raw = [{ type: 'mass_freeze_will_resolved', frozenCount: 2 }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cardUseEv = out.find((ev) => ev && ev.type === 'card_use_animation');
     const cues = out.filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'freeze_select');
+    const topLevelFreezes = out.filter((ev) => ev && ev.type === 'status_applied' && ev.meta && ev.meta.reason === 'mass_freeze_will');
 
-    expect(cues).toHaveLength(1);
-    expect(cues[0].phase).toBe(9);
+    expect(cardUseEv.targets[0].disappearSoundKey).toBe('freeze_select');
+    expect(cardUseEv.targets[0].disappearPlaybackEvents).toEqual([
+      expect.objectContaining({ targets: [expect.objectContaining({ r: 2, col: 2 })] }),
+      expect.objectContaining({ targets: [expect.objectContaining({ r: 3, col: 3 })] })
+    ]);
+    expect(cues).toHaveLength(0);
+    expect(topLevelFreezes).toHaveLength(0);
   });
 
   test('blockade_selected 成功時は BLOCKADE の status_applied phase で blockade_select を再生する', () => {

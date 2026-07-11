@@ -200,6 +200,14 @@ function planCardAndEconomySoundCues(ctx: any, deps: CardEconomySoundCueDeps) {
             'disappearPlaybackEvents'
         );
     }
+    if (deps.hasRawEvent(ctx.raw, 'mass_freeze_will_resolved', (ev: any) => Number(ev && ev.frozenCount) > 0)) {
+        deps.tagCardUseAnimationPlaybackTarget(ctx, { disappearSoundKey: 'freeze_select' });
+        deps.movePlaybackEventsIntoCardUseAnimationTarget(
+            ctx,
+            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && ev.meta.reason === 'mass_freeze_will',
+            'disappearPlaybackEvents'
+        );
+    }
     for (const profile of deps.cardEffectSpawnProfiles) {
         deps.deferFirstCardEffectSpawnIntoDisappearPlayback(ctx, profile, 'breeding_spawn');
     }

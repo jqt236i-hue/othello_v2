@@ -61,9 +61,6 @@ function planSelectionSoundCues(ctx: any, deps: SelectionSoundCueDeps) {
     if (deps.hasRawEvent(ctx.raw, 'freeze_selected', (ev: any) => !!(ev && ev.applied))) {
         deps.pushSoundCue(ctx, 'freeze_select', freezeSelectPhase, 'freeze_selected');
     }
-    if (deps.hasRawEvent(ctx.raw, 'mass_freeze_will_resolved', (ev: any) => Number(ev && ev.frozenCount) > 0)) {
-        deps.pushSoundCue(ctx, 'freeze_select', freezeSelectPhase, 'mass_freeze_will_resolved');
-    }
 
     const seedPlacePhase = deps.findPhase(
         ctx.base,

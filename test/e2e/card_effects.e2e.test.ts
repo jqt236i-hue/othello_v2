@@ -199,6 +199,23 @@ describe('Card effects E2E', () => {
     });
     expect(setup.usable).toBe(true);
 
+    await page.evaluate(() => {
+      window.__massFreezeAnimationOrder = {
+        cardGhostObserved: false,
+        freezeObserved: false,
+        cardGhostPresentAtFreeze: null
+      };
+      const observer = new MutationObserver(() => {
+        const cardGhostPresent = !!document.querySelector('.card-use-ghost');
+        if (cardGhostPresent) window.__massFreezeAnimationOrder.cardGhostObserved = true;
+        if (!window.__massFreezeAnimationOrder.freezeObserved && document.querySelector('.freeze-mark')) {
+          window.__massFreezeAnimationOrder.freezeObserved = true;
+          window.__massFreezeAnimationOrder.cardGhostPresentAtFreeze = cardGhostPresent;
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
     await page.evaluate(() => window.useSelectedCard());
     await page.waitForFunction(() => {
       const markers = Array.isArray(window.cardState && window.cardState.markers) ? window.cardState.markers : [];
@@ -213,7 +230,8 @@ describe('Card effects E2E', () => {
         owners: freezes.map((marker: any) => marker.owner),
         turns: freezes.map((marker: any) => marker.data.remainingOwnerTurns),
         overlayCount: document.querySelectorAll('.freeze-mark').length,
-        overlayTurns: Array.from(document.querySelectorAll('.freeze-turn')).map((element: any) => element.textContent)
+        overlayTurns: Array.from(document.querySelectorAll('.freeze-turn')).map((element: any) => element.textContent),
+        animationOrder: window.__massFreezeAnimationOrder
       };
     });
     expect(result.coordinates).toEqual(['2,2', '3,3', '4,4', '5,5']);
@@ -221,6 +239,11 @@ describe('Card effects E2E', () => {
     expect(result.turns).toEqual([5, 5, 5, 5]);
     expect(result.overlayCount).toBe(4);
     expect(result.overlayTurns).toEqual(expect.arrayContaining(['5', '5', '5', '5']));
+    expect(result.animationOrder).toEqual({
+      cardGhostObserved: true,
+      freezeObserved: true,
+      cardGhostPresentAtFreeze: false
+    });
     await page.close();
   }, 60000);
 

@@ -92,6 +92,18 @@ describe('MASS_FREEZE_WILL（意志の凍結）', () => {
     ));
     expect(freezePlayback).toHaveLength(5);
     expect(new Set(freezePlayback.map((event) => event.phase)).size).toBe(1);
+
+    const orderedPlayback = PipelineUIAdapter.appendSoundEffectPlaybackEvents(
+      playback,
+      result.events,
+      result.presentationEvents
+    );
+    const cardUsePlayback = orderedPlayback.find((event) => event && event.type === 'card_use_animation');
+    expect(cardUsePlayback.targets[0].disappearSoundKey).toBe('freeze_select');
+    expect(cardUsePlayback.targets[0].disappearPlaybackEvents).toHaveLength(5);
+    expect(orderedPlayback.filter((event) => (
+      event && event.type === 'status_applied' && event.meta && event.meta.reason === 'mass_freeze_will'
+    ))).toHaveLength(0);
   });
 
   test('does not expose an opponent hidden trap through card usability', () => {
