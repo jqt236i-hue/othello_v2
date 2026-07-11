@@ -195,9 +195,9 @@ function _resolveBoardRenderStateForBoardRenderer() {
     if (_isStrictNetworkVisualRenderActiveForBoardRenderer()) {
         const store = _resolveNetworkVisualStateStoreForBoardRenderer();
         try {
-            const snapshot = store && typeof store.getRenderSnapshot === 'function'
-                ? store.getRenderSnapshot()
-                : null;
+            const snapshot = store && typeof store.peekRenderSnapshot === 'function'
+                ? store.peekRenderSnapshot()
+                : (store && typeof store.getRenderSnapshot === 'function' ? store.getRenderSnapshot() : null);
             if (snapshot && snapshot.gameState && snapshot.cardState) {
                 return {
                     gameState: snapshot.gameState,

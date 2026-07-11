@@ -109,6 +109,14 @@ function createNetworkVisualStateStore(options?: any): any {
     return getCanonicalSnapshot();
   }
 
+  function peekRenderSnapshot(): any {
+    const snapshot = visualSnapshot || canonicalSnapshot;
+    if (snapshot && typeof opts.onReadonlyPeek === 'function') {
+      opts.onReadonlyPeek('peekRenderSnapshot', snapshot);
+    }
+    return snapshot;
+  }
+
   function getDiagnostics(): any {
     const lagging = canonicalVersion !== null
       && visualVersion !== null
@@ -132,6 +140,7 @@ function createNetworkVisualStateStore(options?: any): any {
     getCanonicalSnapshot,
     getVisualSnapshot,
     getRenderSnapshot,
+    peekRenderSnapshot,
     getDiagnostics
   };
 }

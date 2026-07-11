@@ -1,4 +1,6 @@
 import { JSDOM } from 'jsdom';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const Store = require('../ui/network/visual-state-store');
 
@@ -31,6 +33,19 @@ function snapshot(version: number, label: string) {
 }
 
 describe('NetworkVisualStateStore clone inventory and readonly rendering', () => {
+  test('strict network board rendering prefers readonly peek and keeps clone getter as fallback', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '..', 'ui', 'board-renderer.ts'), 'utf8');
+    const resolver = source.slice(
+      source.indexOf('function _resolveBoardRenderStateForBoardRenderer()'),
+      source.indexOf('function _getBoardShapeForBoardRenderer()')
+    );
+
+    expect(resolver).toContain("typeof store.peekRenderSnapshot === 'function'");
+    expect(resolver).toContain('store.peekRenderSnapshot()');
+    expect(resolver).toContain("typeof store.getRenderSnapshot === 'function'");
+    expect(resolver.indexOf('store.peekRenderSnapshot()')).toBeLessThan(resolver.indexOf('store.getRenderSnapshot()'));
+  });
+
   test('characterizes ownership clones for set/get/frame/render operations', () => {
     const cloneReasons: string[] = [];
     const store = Store.createNetworkVisualStateStore({
@@ -113,5 +128,34 @@ describe('NetworkVisualStateStore clone inventory and readonly rendering', () =>
         delete (global as any)[key];
       }
     }
+  });
+
+  test('readonly render peek returns the selected owned snapshot without cloning', () => {
+    const cloneReasons: string[] = [];
+    const peeked: any[] = [];
+    const store = Store.createNetworkVisualStateStore({
+      cloneData: (value: any) => deepClone(value),
+      onClone: (reason: string) => cloneReasons.push(reason),
+      onReadonlyPeek: (_reason: string, value: any) => peeked.push(value),
+      freezeOwnedSnapshot: (value: any) => deepFreeze(value)
+    });
+    store.setCanonicalSnapshot(snapshot(2, 'canonical'));
+    store.setBaseVisualSnapshot(snapshot(1, 'visual'), { visualSeq: 0, visualVersion: 1 });
+    const clonesBeforePeek = cloneReasons.length;
+
+    const laggingPeek = store.peekRenderSnapshot();
+    const secondLaggingPeek = store.peekRenderSnapshot();
+
+    expect(cloneReasons).toHaveLength(clonesBeforePeek);
+    expect(laggingPeek).toBe(secondLaggingPeek);
+    expect(laggingPeek.gameState.label).toBe('visual');
+    expect(Object.isFrozen(laggingPeek)).toBe(true);
+    expect(peeked).toEqual([laggingPeek, laggingPeek]);
+
+    const publicClone = store.getRenderSnapshot();
+    expect(publicClone).not.toBe(laggingPeek);
+    expect(publicClone).toEqual(laggingPeek);
+    store.clearVisualSnapshot();
+    expect(store.peekRenderSnapshot().gameState.label).toBe('canonical');
   });
 });

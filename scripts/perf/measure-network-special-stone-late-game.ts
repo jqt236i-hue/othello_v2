@@ -168,7 +168,7 @@ function measureVisualStore(snapshot: any): any {
   const store = VisualStateStore.createNetworkVisualStateStore();
   store.setCanonicalSnapshot(snapshot, { stateVersion: snapshot.stateVersion });
   store.setBaseVisualSnapshot(snapshot, { visualVersion: snapshot.stateVersion, visualSeq: 0, source: 'perf' });
-  return store.getRenderSnapshot();
+  return store.peekRenderSnapshot();
 }
 
 function countPlaybackPhases(playbackEvents: any[]): number {
@@ -266,7 +266,7 @@ function measureNodeFixture(
       viewerProjectionWhite: publishCounter.viewerProjectionWhite || 0,
       viewerProjectionSpectator: publishCounter.viewerProjectionSpectator || 0,
       acceptedPublishRoomPersists: 1,
-      renderSnapshotFullClones: 1
+      renderSnapshotFullClones: 0
     },
     payloadBytes: {
       black: Buffer.byteLength(JSON.stringify(publishArtifacts.payloads.black)),

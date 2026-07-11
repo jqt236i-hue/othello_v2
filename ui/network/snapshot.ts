@@ -489,7 +489,8 @@ function createNetworkSnapshotController(config: any): any {
     }
 
     function buildSnapshotEnvelope(snapshot: any, stateVersion: any): any {
-        const envelope = cloneData(snapshot || {});
+        const source = snapshot && typeof snapshot === 'object' ? snapshot : {};
+        const envelope = Object.assign({}, source);
         if (Number.isFinite(Number(stateVersion))) {
             envelope.stateVersion = Math.trunc(Number(stateVersion));
         }

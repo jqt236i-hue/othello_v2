@@ -140,7 +140,8 @@ function createNetworkPresentationTimeline(config?: any): any {
     const commitMeta = {
       visualSeq: frame.visualSeq,
       visualVersion: frame.stateVersionTo,
-      source: sourceBySeq.get(frame.visualSeq) || 'network_timeline'
+      source: sourceBySeq.get(frame.visualSeq) || 'network_timeline',
+      snapshotOwnership: 'copy_on_commit'
     };
     const store = resolveVisualStateStore();
     if (store && typeof store.commitFrame === 'function') {
