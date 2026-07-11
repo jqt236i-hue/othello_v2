@@ -240,6 +240,28 @@ async function closeMaintenanceNoticeIfPresent(page: any): Promise<void> {
   }, null, { timeout: 5000 });
 }
 
+async function closeSidePanelIfPresent(page: any): Promise<void> {
+  await page.evaluate(() => {
+    const panel = document.getElementById('side-panel');
+    if (!panel) return;
+    const isOpen = panel.classList.contains('is-open') && panel.getAttribute('aria-hidden') !== 'true';
+    if (!isOpen) return;
+    const toggle = document.getElementById('sidePanelToggleBtn') as HTMLButtonElement | null;
+    if (toggle && typeof toggle.click === 'function') {
+      toggle.click();
+      return;
+    }
+    panel.classList.remove('is-open');
+    panel.setAttribute('aria-hidden', 'true');
+  });
+  await page.waitForFunction(() => {
+    const panel = document.getElementById('side-panel');
+    return !panel
+      || !panel.classList.contains('is-open')
+      || panel.getAttribute('aria-hidden') === 'true';
+  }, null, { timeout: 5000 });
+}
+
 async function runBrowserBootPerformanceCheck(options?: BrowserBootPerformanceCheckOptions): Promise<{
   sample: BootPerformanceSample;
   evaluation: BootPerformanceEvaluation;
@@ -263,6 +285,7 @@ async function runBrowserBootPerformanceCheck(options?: BrowserBootPerformanceCh
     const startedAt = Date.now();
     await page.goto(`${baseUrl}/?debug=1`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await closeMaintenanceNoticeIfPresent(page);
+    await closeSidePanelIfPresent(page);
     await page.waitForSelector('#modeNetworkBtn', { state: 'visible', timeout: 30000 });
     await page.click('#modeNetworkBtn', { timeout: 10000 });
     await page.waitForFunction(() => {

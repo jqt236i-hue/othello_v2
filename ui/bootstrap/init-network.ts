@@ -102,24 +102,12 @@ async function initNetworkAndDebug(): Promise<void> {
   const debugAllowed = _isDebugAllowed();
 
   try {
-    if (typeof fetch === 'function' && typeof (window as any).UIBootstrap !== 'undefined' && typeof (window as any).UIBootstrap.preloadAssets === 'function') {
-      try {
-        if (typeof location !== 'undefined' && (location.protocol === 'file:' || location.origin === 'null')) return;
-      } catch (e) { /* ignore */ }
-      try {
-        const res = await fetch('assets/asset-manifest.json', { cache: 'no-store' });
-        if (res && res.ok) {
-          const manifest = await res.json();
-          if (typeof (window as any).UIBootstrap.setLoadedAssetManifest === 'function') {
-            (window as any).UIBootstrap.setLoadedAssetManifest(manifest, { root: window, dispatch: true });
-          }
-          const preloadRes = await (window as any).UIBootstrap.preloadAssets(manifest, { timeoutMs: 5000 });
-          if (!preloadRes.success) {
-            const log = debugAllowed ? console.warn : console.info;
-            log('[init] asset preloading incomplete', preloadRes.failed);
-          }
-        }
-      } catch (e) { /* ignore */ }
+    const rootRef = typeof window !== 'undefined' ? window : null;
+    const uiBootstrap = rootRef && (rootRef as any).UIBootstrap;
+    const manifestResult = await loadAssetManifestForBoot(rootRef, uiBootstrap);
+    if (manifestResult.status === 'error') {
+      const log = debugAllowed ? console.warn : console.info;
+      log('[init] asset manifest unavailable', manifestResult.reason);
     }
   } catch (e) { /* ignore */ }
 
@@ -213,8 +201,51 @@ async function initNetworkAndDebug(): Promise<void> {
   }
 }
 
+/**
+ * Load and publish the asset manifest without eagerly downloading every asset.
+ *
+ * The manifest is an integrity/catalog source for feature-level preloaders. A
+ * full-image preload here made cold boot fetch every background, card, and
+ * special-stone image before the player had opened the corresponding feature.
+ */
+async function loadAssetManifestForBoot(rootRef: any, uiBootstrap: any): Promise<any> {
+  if (!rootRef || typeof rootRef !== 'object') return { status: 'skipped', reason: 'root-unavailable' };
+  const fetchFn = typeof rootRef.fetch === 'function'
+    ? rootRef.fetch.bind(rootRef)
+    : (typeof fetch === 'function' ? fetch : null);
+  if (typeof fetchFn !== 'function') return { status: 'skipped', reason: 'fetch-unavailable' };
+  try {
+    const locationRef = rootRef.location || (typeof location !== 'undefined' ? location : null);
+    if (locationRef && (locationRef.protocol === 'file:' || locationRef.origin === 'null')) {
+      return { status: 'skipped', reason: 'file-origin' };
+    }
+  } catch (e) { /* ignore */ }
+
+  try {
+    const response = await fetchFn('assets/asset-manifest.json', { cache: 'no-store' });
+    if (!response || response.ok !== true) {
+      return {
+        status: 'error',
+        reason: 'fetch-failed',
+        code: response && Number.isFinite(Number(response.status)) ? Number(response.status) : null
+      };
+    }
+    const manifest = await response.json();
+    if (!manifest || !Array.isArray(manifest.files)) {
+      return { status: 'error', reason: 'invalid-manifest' };
+    }
+    if (uiBootstrap && typeof uiBootstrap.setLoadedAssetManifest === 'function') {
+      uiBootstrap.setLoadedAssetManifest(manifest, { root: rootRef, dispatch: true });
+    }
+    return { status: 'ok', manifest };
+  } catch (e) {
+    return { status: 'error', reason: String(e) };
+  }
+}
+
 const InitNetwork = {
-  initNetworkAndDebug
+  initNetworkAndDebug,
+  loadAssetManifestForBoot
 };
 
 export = InitNetwork;

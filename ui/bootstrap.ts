@@ -329,21 +329,30 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
 
     function ensureStoneBaseImagesReady(opts = {}) {
         if (classListContainsSafe('stone-base-images-ready')) {
+            classListAddSafe('stone-images-loaded');
+            classListAddSafe('stone-shadow-enabled');
             return Promise.resolve({ success: true, loaded: STONE_BASE_IMAGE_PATHS.slice(), failed: [] });
         }
         if (_stoneBaseImagesReadyPromise) return _stoneBaseImagesReadyPromise;
         _stoneBaseImagesReadyPromise = preloadImageList(STONE_BASE_IMAGE_PATHS, opts).then((res: any) => {
             if (res && res.success) {
                 classListAddSafe('stone-base-images-ready');
+                // The shared stone skeleton only needs the two normal stone
+                // images. Keep the legacy class as a compatibility signal;
+                // feature images are now loaded by their owning surfaces.
+                classListAddSafe('stone-images-loaded');
+                classListAddSafe('stone-shadow-enabled');
                 refreshExistingDiscImagePresentation({ assignBaseImage: true, baseImagesReady: true });
                 return res;
             }
             classListRemoveSafe('stone-base-images-ready');
+            classListRemoveSafe('stone-images-loaded');
             refreshExistingDiscImagePresentation({ baseImagesReady: false });
             _stoneBaseImagesReadyPromise = null;
             return res;
         }).catch((e) => {
             classListRemoveSafe('stone-base-images-ready');
+            classListRemoveSafe('stone-images-loaded');
             refreshExistingDiscImagePresentation({ baseImagesReady: false });
             _stoneBaseImagesReadyPromise = null;
             return { success: false, loaded: [], failed: [{ reason: String(e) }] };
