@@ -365,7 +365,7 @@ describe('local match server publish contract', () => {
 
   test('local randomFromChars uses rejection sampling instead of modulo bias', () => {
     const source = fs.readFileSync(path.resolve(__dirname, '../scripts/local-match-server.ts'), 'utf8');
-    const match = source.match(/function randomFromChars[\s\S]*?\n}\n/);
+    const match = source.match(/function randomFromChars[\s\S]*?\r?\n}\r?\n/);
 
     expect(match && match[0]).toContain('maxUnbiasedByte');
     expect(match && match[0]).toContain('if (byte >= maxUnbiasedByte) continue;');
