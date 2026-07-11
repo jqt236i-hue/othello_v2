@@ -75,6 +75,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const NetworkGameContractAdapterModule = resolveNetworkClientModule('./network/game-contract-adapter', root.NetworkGameContractAdapter || null);
     const ResultOverlayModule = resolveNetworkClientModule('./result-overlay', root || null);
     const NetworkPresenceToastModule = resolveNetworkClientModule('./network/presence-toast', null);
+    const NetworkDiagnosticsModule = resolveNetworkClientModule('./network/diagnostics', null);
     const NetworkGameContract = NetworkGameContractAdapterModule
         && typeof NetworkGameContractAdapterModule.createNetworkGameContractAdapter === 'function'
         ? NetworkGameContractAdapterModule.createNetworkGameContractAdapter({ root })
@@ -436,6 +437,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         lastAutoPassNoticeSignature: ''
     };
     let networkPresenceToastController: any = null;
+    let networkDiagnosticsController: any = null;
 
     let networkCommentaryModule: any = null;
     let networkActionSchemaModule: any = null;
@@ -1614,164 +1616,11 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return [];
     }
 
-    function sanitizeDiagnosticsValue(value: any, depth?: number): any {
-        const currentDepth = Number.isFinite(Number(depth)) ? Number(depth) : 0;
-        if (currentDepth > 8) return '[depth-limit]';
-        if (value === null || typeof value === 'undefined') return value;
-        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
-        if (Array.isArray(value)) {
-            return value.map((entry) => sanitizeDiagnosticsValue(entry, currentDepth + 1));
-        }
-        if (typeof value !== 'object') return String(value);
-
-        const sanitized: any = {};
-        Object.keys(value).forEach((key) => {
-            const normalizedKey = String(key || '').toLowerCase();
-            if (
-                normalizedKey.indexOf('token') >= 0
-                || normalizedKey.indexOf('password') >= 0
-                || normalizedKey.indexOf('secret') >= 0
-                || normalizedKey.indexOf('authorization') >= 0
-            ) {
-                return;
-            }
-            sanitized[key] = sanitizeDiagnosticsValue(value[key], currentDepth + 1);
-        });
-        return sanitized;
-    }
-
-    function readMatchModeForDiagnostics() {
-        try {
-            if (root && typeof root.getCurrentMatchMode === 'function') {
-                return String(root.getCurrentMatchMode() || '').trim();
-            }
-        } catch (e: any) { /* ignore */ }
-        try {
-            if (root && typeof root.MATCH_MODE !== 'undefined') return String(root.MATCH_MODE || '').trim();
-        } catch (e: any) { /* ignore */ }
-        try {
-            if (root && typeof root.__MATCH_MODE !== 'undefined') return String(root.__MATCH_MODE || '').trim();
-        } catch (e: any) { /* ignore */ }
-        try {
-            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).MATCH_MODE !== 'undefined') {
-                return String((globalThis as any).MATCH_MODE || '').trim();
-            }
-        } catch (e: any) { /* ignore */ }
-        return '';
-    }
-
-    function readGlobalValueForDiagnostics(name: string) {
-        try {
-            if (root && Object.prototype.hasOwnProperty.call(root, name)) return root[name];
-        } catch (e: any) { /* ignore */ }
-        try {
-            if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis, name)) {
-                return (globalThis as any)[name];
-            }
-        } catch (e: any) { /* ignore */ }
-        return null;
-    }
-
-    function normalizeDiagnosticsNumber(value: any) {
-        if (value === null || typeof value === 'undefined') return null;
-        if (typeof value === 'string' && value.trim() === '') return null;
-        return Number.isFinite(Number(value)) ? Number(value) : null;
-    }
-
-    function summarizeGameStateForDiagnostics(gameStateValue: any) {
-        const gameStateRecord = (gameStateValue && typeof gameStateValue === 'object') ? gameStateValue : {};
-        const board = Array.isArray(gameStateRecord.board) ? gameStateRecord.board : null;
-        const firstRow = board && Array.isArray(board[0]) ? board[0] : null;
-        return {
-            currentPlayer: normalizeDiagnosticsNumber(gameStateRecord.currentPlayer),
-            turnNumber: normalizeDiagnosticsNumber(gameStateRecord.turnNumber),
-            consecutivePasses: normalizeDiagnosticsNumber(gameStateRecord.consecutivePasses),
-            boardRows: board ? board.length : null,
-            boardCols: firstRow ? firstRow.length : null,
-            resultShown: gameStateRecord.__resultShown === true
-        };
-    }
-
-    function summarizeCardStateForDiagnostics(cardStateValue: any) {
-        const cardStateRecord = (cardStateValue && typeof cardStateValue === 'object') ? cardStateValue : {};
-        const hands = (cardStateRecord.hands && typeof cardStateRecord.hands === 'object') ? cardStateRecord.hands : {};
-        const blackHand = Array.isArray(hands.black) ? hands.black : [];
-        const whiteHand = Array.isArray(hands.white) ? hands.white : [];
-        return {
-            handCounts: {
-                black: blackHand.length,
-                white: whiteHand.length
-            },
-            charge: sanitizeDiagnosticsValue(cardStateRecord.charge || null),
-            selectedCardId: typeof cardStateRecord.selectedCardId === 'string' ? cardStateRecord.selectedCardId : null,
-            selectedCardOwnerKey: typeof cardStateRecord.selectedCardOwnerKey === 'string' ? cardStateRecord.selectedCardOwnerKey : null,
-            pendingEffectByPlayer: sanitizeDiagnosticsValue(cardStateRecord.pendingEffectByPlayer || null),
-            hasUsedCardThisTurnByPlayer: sanitizeDiagnosticsValue(cardStateRecord.hasUsedCardThisTurnByPlayer || null)
-        };
-    }
-
-    function buildNetworkDiagnosticsSnapshot(reason: any) {
-        const now = Date.now();
-        const readableState = getState();
-        const gameStateValue = readGlobalValueForDiagnostics('gameState');
-        const cardStateValue = readGlobalValueForDiagnostics('cardState');
-        const lastActivityAt = Number.isFinite(Number(state.lastStreamActivityAt))
-            ? Number(state.lastStreamActivityAt)
-            : 0;
-        return sanitizeDiagnosticsValue({
-            schemaVersion: 1,
-            reason: String(reason || 'manual'),
-            createdAt: new Date(now).toISOString(),
-            matchMode: readMatchModeForDiagnostics(),
-            active: isActive(),
-            viewerRole: isSpectator() ? 'spectator' : 'seat',
-            roomId: String(state.roomId || ''),
-            seatKey: normalizePlayerKey(state.seatKey),
-            spectatorId: isSpectator() ? String(state.spectatorId || '') : '',
-            spectatorName: isSpectator() ? String(state.spectatorName || '') : '',
-            stateVersion: normalizeDiagnosticsNumber(state.stateVersion),
-            appliedStateVersion: normalizeDiagnosticsNumber(state.appliedStateVersion),
-            networkDebugEnabled: state.networkDebugEnabled === true,
-            networkAutoEnabled: state.networkAutoEnabled === true,
-            stream: {
-                connected: !!state.eventSource,
-                lastEventId: String(state.lastStreamEventId || ''),
-                lastActivityAgeMs: lastActivityAt > 0 ? Math.max(0, now - lastActivityAt) : null,
-                reconnectAttempt: normalizeDiagnosticsNumber(state.reconnectAttempt) || 0,
-                reconnectRecoveryPending: state.reconnectRecoveryPending === true,
-                heartbeatResyncInFlight: state.heartbeatResyncInFlight === true
-            },
-            room: {
-                seats: readableState.roomSeats,
-                seatNames: readableState.seatNames,
-                seatHandSkins: readableState.seatHandSkins,
-                roomBoardConfig: readableState.roomBoardConfig,
-                hasTwoPlayers: hasTwoPlayers()
-            },
-            turnTimer: sanitizeDiagnosticsValue(state.turnTimer || null),
-            publishTracker: sanitizeDiagnosticsValue(readableState.publishTracker || null),
-            networkTelemetry: getNetworkTelemetry(),
-            networkDebugTrace: getNetworkDebugTraceForDiagnostics(),
-            gameState: summarizeGameStateForDiagnostics(gameStateValue),
-            cardState: summarizeCardStateForDiagnostics(cardStateValue)
-        });
-    }
-
     function dumpDiagnostics(reason?: any) {
-        const snapshot = buildNetworkDiagnosticsSnapshot(reason || 'manual');
-        const label = `[network-diagnostics] ${snapshot.reason} room=${snapshot.roomId || '-'} version=${snapshot.stateVersion === null ? '-' : snapshot.stateVersion}`;
-        try {
-            if (typeof console !== 'undefined' && console) {
-                if (typeof console.groupCollapsed === 'function') {
-                    console.groupCollapsed(label);
-                    if (typeof console.log === 'function') console.log(snapshot);
-                    if (typeof console.groupEnd === 'function') console.groupEnd();
-                } else if (typeof console.log === 'function') {
-                    console.log(label, snapshot);
-                }
-            }
-        } catch (e: any) { /* ignore */ }
-        return snapshot;
+        const controller = getNetworkDiagnosticsController();
+        return controller && typeof controller.dumpDiagnostics === 'function'
+            ? controller.dumpDiagnostics(reason || 'manual')
+            : null;
     }
 
     function cloneReadableNetworkStateValue(value: any, fallbackValue: any) {
@@ -2210,6 +2059,25 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             fadeMs: NETWORK_PRESENCE_TOAST_FADE_MS
         });
         return networkPresenceToastController;
+    }
+
+    function getNetworkDiagnosticsController() {
+        if (networkDiagnosticsController) return networkDiagnosticsController;
+        if (!NetworkDiagnosticsModule || typeof NetworkDiagnosticsModule.createNetworkDiagnosticsController !== 'function') {
+            return null;
+        }
+        networkDiagnosticsController = NetworkDiagnosticsModule.createNetworkDiagnosticsController({
+            root,
+            getState,
+            getInternalState: () => state,
+            isActive,
+            isSpectator,
+            hasTwoPlayers,
+            normalizePlayerKey,
+            getNetworkTelemetry,
+            getNetworkDebugTrace: getNetworkDebugTraceForDiagnostics
+        });
+        return networkDiagnosticsController;
     }
 
     function showNetworkPresenceToast(message: any, kind: any) {
@@ -3823,17 +3691,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return CHAT_MAX_LENGTH;
     }
 
-    function isNetworkDiagnosticsShortcutEvent(event: any) {
-        if (!event || typeof event !== 'object') return false;
-        return event.key === 'F12'
-            || event.code === 'F12'
-            || event.keyCode === 123
-            || event.which === 123;
-    }
-
     function shouldHandleNetworkDiagnosticsShortcut() {
         if (isActive()) return true;
-        const matchMode = String(readMatchModeForDiagnostics() || '').trim().toLowerCase();
+        const controller = getNetworkDiagnosticsController();
+        const matchMode = String(
+            controller && typeof controller.getMatchMode === 'function'
+                ? controller.getMatchMode()
+                : ''
+        ).trim().toLowerCase();
         return matchMode === 'network';
     }
 
@@ -4035,16 +3900,16 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         const doc = root && root.document
             ? root.document
             : (typeof document !== 'undefined' ? document : null);
-        if (doc && typeof doc.addEventListener === 'function' && doc.__networkDiagnosticsF12Installed !== true) {
-            doc.__networkDiagnosticsF12Installed = true;
-            doc.addEventListener('keydown', (event: any) => {
-                if (!isNetworkDiagnosticsShortcutEvent(event)) return;
-                if (!shouldHandleNetworkDiagnosticsShortcut()) return;
-                try {
+        if (NetworkDiagnosticsModule && typeof NetworkDiagnosticsModule.installNetworkDiagnosticsShortcut === 'function') {
+            NetworkDiagnosticsModule.installNetworkDiagnosticsShortcut({
+                document: doc,
+                shouldHandle: shouldHandleNetworkDiagnosticsShortcut,
+                dumpDiagnostics: (reason: any) => {
                     if (api && typeof api.dumpDiagnostics === 'function') {
-                        api.dumpDiagnostics('F12');
+                        return api.dumpDiagnostics(reason);
                     }
-                } catch (e: any) { /* ignore diagnostics errors */ }
+                    return null;
+                }
             });
         }
     } catch (e: any) { /* ignore */ }
