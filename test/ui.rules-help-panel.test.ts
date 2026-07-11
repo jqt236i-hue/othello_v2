@@ -57,6 +57,35 @@ describe('rules help panel', () => {
     expect(btn.getAttribute('aria-expanded')).toBe('false');
   });
 
+  test('defers the large help catalog until the panel is opened', () => {
+    setDom(`<!doctype html><html><body>
+      <button id="rulesHelpBtn" aria-expanded="false"></button>
+      <div id="rules-help-panel" aria-hidden="true">
+        <button id="rules-help-close-btn" type="button"></button>
+        <button data-help-tab="catalog" class="rules-help-tab is-active" type="button"></button>
+        <button data-help-tab="effects" class="rules-help-tab" type="button"></button>
+        <section data-help-page="catalog" class="rules-help-page is-active">
+          <div id="rules-help-card-list"></div>
+          <div id="rules-help-card-name"></div>
+          <div id="rules-help-card-desc"></div>
+        </section>
+        <section data-help-page="effects" class="rules-help-page">
+          <dl id="rules-help-effects-list"></dl>
+        </section>
+      </div>
+    </body></html>`);
+    window.CardCatalog = { cards: [] };
+    const mod = require('../ui/handlers/rules-help.js');
+    const btn = document.getElementById('rulesHelpBtn');
+    const panel = document.getElementById('rules-help-panel');
+
+    mod.setupRulesHelp(btn, panel);
+    expect(document.getElementById('rules-help-effects-list').children).toHaveLength(0);
+
+    btn.click();
+    expect(document.getElementById('rules-help-effects-list').children.length).toBeGreaterThan(0);
+  });
+
   test('backdrop click closes without reaching board handler', () => {
     const mod = require('../ui/handlers/rules-help.js');
     const btn = document.getElementById('rulesHelpBtn');
@@ -529,6 +558,7 @@ describe('rules help panel', () => {
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
     mod.setupRulesHelp(btn, panel);
+    btn.click();
 
     const effectTerms = Array.from(document.querySelectorAll('#rules-help-effects-list dt')).map((el) => el.textContent);
     expect(effectTerms).toEqual(expect.arrayContaining(['特殊石', '穴マス', '絶対執行', '不可侵', '反転保護', '完全保護', '反転回避', '破壊回避']));
@@ -662,6 +692,7 @@ describe('rules help panel', () => {
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
     mod.setupRulesHelp(btn, panel);
+    btn.click();
 
     const img = document.getElementById('rules-help-protection-map-img') as HTMLImageElement;
     const prev = document.getElementById('rules-help-protection-map-prev') as HTMLButtonElement;
@@ -712,6 +743,7 @@ describe('rules help panel', () => {
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
     mod.setupRulesHelp(btn, panel);
+    btn.click();
 
     const img = document.getElementById('rules-help-guide-slide-img') as HTMLImageElement;
     const prev = document.getElementById('rules-help-guide-prev') as HTMLButtonElement;
@@ -774,6 +806,7 @@ describe('rules help panel', () => {
       const btn = document.getElementById('rulesHelpBtn');
       const panel = document.getElementById('rules-help-panel');
       mod.setupRulesHelp(btn, panel);
+      btn.click();
 
       const img = document.getElementById('rules-help-guide-slide-img') as HTMLImageElement;
       const next = document.getElementById('rules-help-guide-next') as HTMLButtonElement;

@@ -343,6 +343,7 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   const guideSlideLoadState = new Map<string, string>();
   const guideSlideLoadCallbacks = new Map<string, Array<() => void>>();
   let protectionMapIndex = 0;
+  let helpContentReady = false;
 
   function preloadGuideSlideImage(src: string, onReady: () => void): void {
     const normalizedSrc = _safeText(src, '');
@@ -1021,6 +1022,9 @@ if (!tagFiltersEl) return;
   }
 
   function openPanel(): void {
+    // Build the large catalog/glossary while the panel is still hidden so the
+    // first visible frame remains complete and the initial DOM stays small.
+    ensureHelpContentReady();
     isOpen = true;
     if (rulesHelpBackdrop) {
       rulesHelpBackdrop.classList.add('is-open');
@@ -1034,6 +1038,16 @@ if (!tagFiltersEl) return;
       const tabKey = activeTab ? activeTab.getAttribute('data-help-tab') : tabButtons[0].getAttribute('data-help-tab');
       activateTab(tabKey as string);
     }
+  }
+
+  function ensureHelpContentReady(): void {
+    if (helpContentReady) return;
+    renderTagFilters();
+    renderEffectsList();
+    renderCatalogCards();
+    updateGuideSlide();
+    updateProtectionMapSlide();
+    helpContentReady = true;
   }
 
   function closePanel(): void {
@@ -1067,6 +1081,7 @@ if (!tagFiltersEl) return;
   for (const tabBtn of tabButtons) {
     tabBtn.addEventListener('click', (event: Event) => {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      ensureHelpContentReady();
       activateTab(tabBtn.getAttribute('data-help-tab') as string);
     });
   }
@@ -1131,6 +1146,7 @@ if (!tagFiltersEl) return;
 
   if (cardSearchInput) {
     cardSearchInput.addEventListener('input', () => {
+      ensureHelpContentReady();
       renderCatalogCards();
     });
   }
@@ -1138,6 +1154,7 @@ if (!tagFiltersEl) return;
   if (filterClearBtn) {
     filterClearBtn.addEventListener('click', (event: Event) => {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      ensureHelpContentReady();
       if (cardSearchInput) cardSearchInput.value = '';
       activeTagLabels.clear();
       renderCatalogCards();
@@ -1147,11 +1164,6 @@ if (!tagFiltersEl) return;
     });
   }
 
-  renderTagFilters();
-  renderEffectsList();
-  renderCatalogCards();
-  updateGuideSlide();
-  updateProtectionMapSlide();
   if (tabButtons.length > 0) {
     const activeTab = tabButtons.find((button: any) => button.classList.contains('is-active'));
     activateTab(activeTab ? activeTab.getAttribute('data-help-tab') as string : tabButtons[0].getAttribute('data-help-tab') as string);
