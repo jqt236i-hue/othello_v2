@@ -113,11 +113,11 @@ interface BoardExpansionSocket {
 
 ### Phase 0: 仕様を先に確定
 
-- [ ] `01-rulebook.md` の `盤面拡張` を、左右端固定から current playable shape の外周＋方向選択へ更新する。
-- [ ] `01-rulebook.md` の `盤面拡張神` を、ベース盤面4角固定から current playable shape の拡張可能な角へ更新する。
-- [ ] 外部連結した外周穴、閉じた内部穴、穴座標への上書き禁止、外周1マス制限を明記する。
-- [ ] `正本/カード仕様正本.md` の2カードを同じプレイヤー向け意図へ更新する。
-- [ ] カード面の短文変更が必要か確認し、必要なら `cards/catalog.json` を更新する。
+- [x] `01-rulebook.md` の `盤面拡張` を、左右端固定から current playable shape の外周＋方向選択へ更新する。
+- [x] `01-rulebook.md` の `盤面拡張神` を、ベース盤面4角固定から current playable shape の拡張可能な角へ更新する。
+- [x] 外部連結した外周穴、閉じた内部穴、穴座標への上書き禁止、外周1マス制限を明記する。
+- [x] `正本/カード仕様正本.md` の2カードを同じプレイヤー向け意図へ更新する。
+- [x] カード面の短文変更が必要か確認し、必要なら `cards/catalog.json` を更新する。
 
 ### Phase 1: 共通形状 helper
 
