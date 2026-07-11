@@ -22,7 +22,8 @@ updated: 2026-07-11
 - Phase 8: completed. Static ownership work and authorized browser/visual verification are recorded in [browser-visual-verification-2026-07-11.md](../../refactor-baselines/browser-visual-verification-2026-07-11.md).
 - Phase 9: completed. The Worker mirror is guarded, volatile artifacts are untracked and guarded, and dated plans are classified.
 - Phase 10 Tasks 10.1 and 10.2: completed. The user authorized visual verification, and the passing evidence is recorded in [browser-visual-verification-2026-07-11.md](../../refactor-baselines/browser-visual-verification-2026-07-11.md).
-- Phase H: pending and requires separate explicit approval.
+- Phase H Task H.1: completed in an isolated mirror. Evidence and recovery instructions are recorded in [history-rewrite-preflight.md](../../refactor-baselines/history-rewrite-preflight.md).
+- Phase H Task H.2: pending the required second explicit confirmation after review of the H.1 evidence. The authoritative remote has not been modified.
 
 ## Global Constraints
 
@@ -614,12 +615,12 @@ If a task creates browser-visible root changes, run `npm run build:browser` afte
 - Create outside this checkout: disposable mirror clone and backup refs
 - Create: `docs/refactor-baselines/history-rewrite-preflight.md`
 
-- [ ] Obtain explicit user authorization naming the remote and confirming that force-push coordination is in scope.
-- [ ] Verify `git filter-repo` availability; do not install or run another history-rewrite tool silently.
-- [ ] Create a mirror clone outside the repository workspace, record all refs, tags, object statistics, and fresh-clone size, and create backup refs.
-- [ ] Run the filter only in the disposable mirror according to the committed artifact-retention policy.
-- [ ] Verify refs, tags, source checkout, `npm ci`, focused checks, generated-surface commands, and fresh-clone size in the rewritten mirror.
-- [ ] Publish collaborator recovery instructions before touching the authoritative remote.
+- [x] Obtain explicit user authorization naming the remote and confirming that force-push coordination is in scope.
+- [x] Verify `git filter-repo` availability; do not install or run another history-rewrite tool silently.
+- [x] Create a mirror clone outside the repository workspace, record all refs, tags, object statistics, and fresh-clone size, and create backup refs.
+- [x] Run the filter only in the disposable mirror according to the committed artifact-retention policy.
+- [x] Verify refs, tags, source checkout, `npm ci`, focused checks, generated-surface commands, and fresh-clone size in the rewritten mirror.
+- [x] Publish collaborator recovery instructions before touching the authoritative remote.
 
 ### Task H.2: Apply the approved rewrite
 

@@ -123,5 +123,6 @@ This closure record covers the normal source/current-tree program. The visual-eq
 
 ### Explicit gates still outside automated source closure
 
-- Phase H has not begun. Current Git object storage remains 5.26 GiB; history rewriting, a remote force-push, and fresh-clone validation require the separate approval defined in the master plan.
-- The completed visual gate and the pending history gate remain explicitly distinguished; the latter is not hidden as a passing result.
+- Phase H.1 is complete in an isolated mirror. The dry run reduced the `main`-only candidate pack from 4.86 GiB (the source checkout's full object store was 5.26 GiB) to 1.60 GiB, removed all historical `artifacts/**` paths, preserved the latest tree hash, and passed fresh-clone checks. See [history-rewrite-preflight.md](history-rewrite-preflight.md).
+- Phase H.2 has not modified the authoritative remote. The required second explicit confirmation, final backup, force-with-lease push, and authoritative fresh-clone verification remain pending.
+- The completed visual gate and the pending authoritative-history gate remain explicitly distinguished; the latter is not hidden as a passing result.
