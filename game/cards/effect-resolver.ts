@@ -78,6 +78,7 @@ const CardUsageConsumptionStage = loadRuntimeModule('./card-usage-consumption-st
 const CardUsagePendingStage = loadRuntimeModule('./card-usage-pending-stage', 'CardUsagePendingStage', null);
 const CardUsageImmediateStage = loadRuntimeModule('./card-usage-immediate-stage', 'CardUsageImmediateStage', null);
 const CardUsageSacrificeStage = loadRuntimeModule('./card-usage-sacrifice-stage', 'CardUsageSacrificeStage', null);
+const CardUsagePresentationStage = loadRuntimeModule('./card-usage-presentation-stage', 'CardUsagePresentationStage', null);
 
 const {
   CARD_DEFS,
@@ -87,72 +88,6 @@ const {
   EMPTY,
   CHARGE_MAX
 } = SharedConstants || {};
-
-function isBoardExecutorHolePresentationEvent(event: any): boolean {
-  if (!event || typeof event !== 'object') return false;
-  const eventType = String(event.type || '').trim().toUpperCase();
-  const cause = String(event.cause || '').trim().toUpperCase();
-  const reason = String(event.reason || '').trim().toLowerCase();
-  const meta = event.meta && typeof event.meta === 'object' ? event.meta : {};
-  const metaCause = String((meta as any).cellRemovalCause || (meta as any).removalCause || '').trim().toUpperCase();
-  const metaReason = String((meta as any).cellRemovalReason || (meta as any).removalReason || '').trim().toLowerCase();
-  const removalPolicy = String((meta as any).removalPolicy || '').trim().toLowerCase();
-  const removalKind = String((meta as any).removalKind || '').trim().toLowerCase();
-  if (eventType !== 'DESTROY' && eventType !== 'STATUS_APPLIED') return false;
-  return cause === 'BOARD_EXECUTOR'
-    || metaCause === 'BOARD_EXECUTOR'
-    || reason === 'board_executor_special_stone_hole'
-    || metaReason === 'board_executor_special_stone_hole'
-    || removalPolicy === 'board_executor'
-    || removalKind === 'board_executor_hole';
-}
-
-function moveLastCardUsedBeforeBoardExecutorHoleEvents(events: any): void {
-  if (!Array.isArray(events) || events.length <= 1) return;
-  const firstHoleIndex = events.findIndex(isBoardExecutorHolePresentationEvent);
-  if (firstHoleIndex < 0) return;
-  let cardUsedIndex = -1;
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    if (events[index] && events[index].type === 'CARD_USED') {
-      cardUsedIndex = index;
-      break;
-    }
-  }
-  if (cardUsedIndex < 0 || cardUsedIndex < firstHoleIndex) return;
-  const [cardUsedEvent] = events.splice(cardUsedIndex, 1);
-  events.splice(firstHoleIndex, 0, cardUsedEvent);
-}
-
-function insertCardUsedPresentationBeforeBoardExecutorHoleEvents(cardState: any, emitCardUsed: () => void): void {
-  if (typeof emitCardUsed !== 'function') return;
-  emitCardUsed();
-  moveLastCardUsedBeforeBoardExecutorHoleEvents(cardState && cardState.presentationEvents);
-  moveLastCardUsedBeforeBoardExecutorHoleEvents(cardState && cardState._presentationEventsPersist);
-}
-
-function moveLastCardUsedToIndex(events: any, targetIndex: any): void {
-  if (!Array.isArray(events) || events.length <= 1) return;
-  const insertIndex = Number.isFinite(Number(targetIndex))
-    ? Math.max(0, Math.min(events.length, Math.trunc(Number(targetIndex))))
-    : 0;
-  let cardUsedIndex = -1;
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    if (events[index] && events[index].type === 'CARD_USED') {
-      cardUsedIndex = index;
-      break;
-    }
-  }
-  if (cardUsedIndex < 0 || cardUsedIndex <= insertIndex) return;
-  const [cardUsedEvent] = events.splice(cardUsedIndex, 1);
-  events.splice(insertIndex, 0, cardUsedEvent);
-}
-
-function insertCardUsedPresentationAtEventIndexes(cardState: any, emitCardUsed: () => void, presentationIndex: any, persistIndex: any): void {
-  if (typeof emitCardUsed !== 'function') return;
-  emitCardUsed();
-  moveLastCardUsedToIndex(cardState && cardState.presentationEvents, presentationIndex);
-  moveLastCardUsedToIndex(cardState && cardState._presentationEventsPersist, persistIndex);
-}
 
 const MAX_HAND_SIZE = 5;
 const RIBO_WILL_UNLOCK_TURN_INDEX = 19;
@@ -717,25 +652,18 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
 
   const defFn = typeof getCardDefFn === 'function' ? getCardDefFn : getCardDef;
   const usedCardDef = defFn(cardId);
-  let didEmitCardUsedPresentation = false;
-  const emitCardUsedPresentationOnce = (extraMeta?: any) => {
-    if (didEmitCardUsedPresentation || typeof emitPresentationEvent !== 'function') return;
-    didEmitCardUsedPresentation = true;
-    const baseMeta: any = {
-      owner: handKey,
-      cost: Number.isFinite(cost) ? cost : null,
-      name: (usedCardDef && usedCardDef.name) ? usedCardDef.name : null,
-      cardType: (usedCardDef && usedCardDef.type) ? usedCardDef.type : null
-    };
-    try {
-      emitPresentationEvent(cardState, {
-        type: 'CARD_USED',
-        player: chargeOwnerKey,
-        cardId: cardId,
-        meta: Object.assign(baseMeta, (extraMeta && typeof extraMeta === 'object') ? extraMeta : {})
-      });
-    } catch (e) { /* ignore presentation emission failures */ }
-  };
+  if (!CardUsagePresentationStage || typeof CardUsagePresentationStage.createCardUsedPresentationEmitter !== 'function') {
+    throw new Error('[effect-resolver] CardUsagePresentationStage.createCardUsedPresentationEmitter not available');
+  }
+  const emitCardUsedPresentationOnce = CardUsagePresentationStage.createCardUsedPresentationEmitter({
+    cardState,
+    handKey,
+    chargeOwnerKey,
+    cardId,
+    cost,
+    usedCardDef,
+    emitPresentationEvent
+  });
 
   if (!CardUsageSacrificeStage || typeof CardUsageSacrificeStage.applySacrificeCardUsageNullification !== 'function') {
     throw new Error('[effect-resolver] CardUsageSacrificeStage.applySacrificeCardUsageNullification not available');
@@ -756,7 +684,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     writeCardPendingEffect,
     emitPresentationEvent,
     emitCardUsedAtEventIndexes: (extraMeta: any, presentationIndex: number, persistIndex: number) => {
-      insertCardUsedPresentationAtEventIndexes(
+      CardUsagePresentationStage.emitCardUsedAtEventIndexes(
         cardState,
         () => emitCardUsedPresentationOnce(extraMeta),
         presentationIndex,
@@ -804,21 +732,18 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     workDebugLog
   });
 
-  if (cardType === 'BOARD_EXECUTOR') {
-    insertCardUsedPresentationBeforeBoardExecutorHoleEvents(
-      cardState,
-      emitCardUsedPresentationOnce
-    );
-  } else {
-    emitCardUsedPresentationOnce();
+  if (typeof CardUsagePresentationStage.finalizeCardUsagePresentation !== 'function') {
+    throw new Error('[effect-resolver] CardUsagePresentationStage.finalizeCardUsagePresentation not available');
   }
-
-  if (typeof addGeneratedThrowChainCard === 'function') {
-    addGeneratedThrowChainCard(cardState, handKey, cardId, cardType);
-  }
-  if (typeof addGeneratedChainWillCard === 'function') {
-    addGeneratedChainWillCard(cardState, handKey, cardId, cardType);
-  }
+  CardUsagePresentationStage.finalizeCardUsagePresentation({
+    cardState,
+    handKey,
+    cardId,
+    cardType,
+    emitCardUsedPresentationOnce,
+    addGeneratedThrowChainCard,
+    addGeneratedChainWillCard
+  });
 
   return true;
 }

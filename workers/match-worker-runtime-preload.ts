@@ -159,6 +159,7 @@ installRuntimeModule('CardUsageConsumptionStage', () => require('../game/cards/c
 installRuntimeModule('CardUsagePendingStage', () => require('../game/cards/card-usage-pending-stage.js'));
 installRuntimeModule('CardUsageImmediateStage', () => require('../game/cards/card-usage-immediate-stage.js'));
 installRuntimeModule('CardUsageSacrificeStage', () => require('../game/cards/card-usage-sacrifice-stage.js'));
+installRuntimeModule('CardUsagePresentationStage', () => require('../game/cards/card-usage-presentation-stage.js'));
 installRuntimeModule('CardEffectResolver', () => require('../game/cards/effect-resolver.js'));
 installRuntimeModule('CardTimingProcessor', () => require('../game/cards/timing-processor.js'));
 installRuntimeModule('CardTargetResolver', () => require('../game/cards/target-resolver.js'));
