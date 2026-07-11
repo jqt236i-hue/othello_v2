@@ -916,6 +916,11 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (destroyedOwnStoneCount <= 0) continue;
         }
 
+        if (type === 'MASS_FREEZE_WILL') {
+            if (typeof helpers.getMassFreezeWillTargetCount !== 'function') continue;
+            if (helpers.getMassFreezeWillTargetCount(cardState, gameState, playerKey) <= 0) continue;
+        }
+
         if (gameState) {
             if (type === 'LAST_RESORT') {
                 if (typeof helpers.canUseLastResortForPlayer !== 'function') continue;

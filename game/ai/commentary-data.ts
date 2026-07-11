@@ -76,6 +76,7 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   WORK_WILL: '石から布石収入を得る',
   RIBO_WILL: '布石を先に得る',
   LOSS_WILL: '特殊石を通常石へ戻す',
+  MASS_FREEZE_WILL: '盤上の特殊石をすべて凍結する',
   DOUBLE_PLACE: 'このターンに二回置く',
   TRIPLE_PLACE: 'このターンに三回置く',
   QUAD_PLACE: 'このターンに四回置く',

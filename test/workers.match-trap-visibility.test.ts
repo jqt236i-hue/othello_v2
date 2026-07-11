@@ -28,8 +28,14 @@ function getProjectedTrapStateForViewer(viewerKey: 'black' | 'white' | 'spectato
     "        markers: [{",
     "          id: 101, kind: 'specialStone', row: 2, col: 2, owner: 'black',",
     "          data: { type: 'TRAP', hidden: true, armedForPlayer: 'white', remainingOwnerTurns: 1 }",
+    "        }, {",
+    "          id: 102, kind: 'specialStone', row: 2, col: 2, owner: 'white',",
+    "          data: { type: 'FREEZE', remainingOwnerTurns: 5, reason: 'mass_freeze_will' }",
     "        }],",
-    "        specialStones: [{ row: 2, col: 2, owner: 'black', type: 'TRAP', remainingOwnerTurns: 1 }]",
+    "        specialStones: [",
+    "          { row: 2, col: 2, owner: 'black', type: 'TRAP', remainingOwnerTurns: 1 },",
+    "          { row: 2, col: 2, owner: 'white', type: 'FREEZE', remainingOwnerTurns: 5 }",
+    "        ]",
     "      }",
     "    }",
     "  };",
@@ -77,10 +83,16 @@ describe('match worker trap visibility projection', () => {
         col: 2,
         owner: 'black',
         data: expect.objectContaining({ type: 'TRAP', hidden: true })
+      }),
+      expect.objectContaining({
+        row: 2,
+        col: 2,
+        data: expect.objectContaining({ type: 'FREEZE', remainingOwnerTurns: 5 })
       })
     ]);
     expect(projected.specialStones).toEqual([
-      expect.objectContaining({ row: 2, col: 2, owner: 'black', type: 'TRAP' })
+      expect.objectContaining({ row: 2, col: 2, owner: 'black', type: 'TRAP' }),
+      expect.objectContaining({ row: 2, col: 2, owner: 'white', type: 'FREEZE' })
     ]);
   });
 
@@ -88,15 +100,31 @@ describe('match worker trap visibility projection', () => {
     const projected = getProjectedTrapStateForSeat('white');
 
     expect(projected.boardValue).toBe(1);
-    expect(projected.markers).toEqual([]);
-    expect(projected.specialStones).toEqual([]);
+    expect(projected.markers).toEqual([
+      expect.objectContaining({
+        row: 2,
+        col: 2,
+        data: expect.objectContaining({ type: 'FREEZE', remainingOwnerTurns: 5 })
+      })
+    ]);
+    expect(projected.specialStones).toEqual([
+      expect.objectContaining({ row: 2, col: 2, owner: 'white', type: 'FREEZE' })
+    ]);
   });
 
   test('hides hidden trap marker details from spectators', () => {
     const projected = getProjectedTrapStateForViewer('spectator');
 
     expect(projected.boardValue).toBe(1);
-    expect(projected.markers).toEqual([]);
-    expect(projected.specialStones).toEqual([]);
+    expect(projected.markers).toEqual([
+      expect.objectContaining({
+        row: 2,
+        col: 2,
+        data: expect.objectContaining({ type: 'FREEZE', remainingOwnerTurns: 5 })
+      })
+    ]);
+    expect(projected.specialStones).toEqual([
+      expect.objectContaining({ row: 2, col: 2, owner: 'white', type: 'FREEZE' })
+    ]);
   });
 });

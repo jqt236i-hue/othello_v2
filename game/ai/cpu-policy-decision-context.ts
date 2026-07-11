@@ -182,6 +182,8 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
         const ownSpecialCount = isFiniteNumber(ctx.ownSpecialCount) ? Math.max(0, Math.floor(Number(ctx.ownSpecialCount))) : 0;
         const oppSpecialCount = isFiniteNumber(ctx.oppSpecialCount) ? Math.max(0, Math.floor(Number(ctx.oppSpecialCount))) : 0;
         const ownBombCount = isFiniteNumber(ctx.ownBombCount) ? Math.max(0, Math.floor(Number(ctx.ownBombCount))) : 0;
+        const massFreezeOwnTargetCount = isFiniteNumber(ctx.massFreezeOwnTargetCount) ? Math.max(0, Math.floor(Number(ctx.massFreezeOwnTargetCount))) : 0;
+        const massFreezeOpponentTargetCount = isFiniteNumber(ctx.massFreezeOpponentTargetCount) ? Math.max(0, Math.floor(Number(ctx.massFreezeOpponentTargetCount))) : 0;
         const temptHighValueTargetCount = isFiniteNumber(ctx.temptHighValueTargetCount) ? Math.max(0, Math.floor(Number(ctx.temptHighValueTargetCount))) : 0;
         const ownGuardCount = isFiniteNumber(ctx.ownGuardCount) ? Math.max(0, Math.floor(Number(ctx.ownGuardCount))) : 0;
         const oppGuardCount = isFiniteNumber(ctx.oppGuardCount) ? Math.max(0, Math.floor(Number(ctx.oppGuardCount))) : 0;
@@ -277,6 +279,8 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
             ownSpecialCount,
             oppSpecialCount,
             ownBombCount,
+            massFreezeOwnTargetCount,
+            massFreezeOpponentTargetCount,
             temptHighValueTargetCount,
             ownGuardCount,
             oppGuardCount,

@@ -50,6 +50,7 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('GUARD_WILL')).toEqual(['完全保護', '3ターン持続']);
     expect(getEffectTagLabels('BLOCKADE_WILL')).toEqual(['3ターン持続']);
     expect(getEffectTagLabels('FREEZE_WILL')).toEqual(['5ターン持続']);
+    expect(getEffectTagLabels('MASS_FREEZE_WILL')).toEqual(['5ターン持続']);
     expect(getEffectTagLabels('THEORY_INCARNATION')).toEqual(['数字マス42獲得で使用可能', '不可侵', '4ターン持続']);
     expect(getEffectTagLabels('CHAOS_SUMMON')).toEqual(['特殊石']);
     expect(getEffectTagLabels('OBSERVER_WILL')).toEqual(['18手後使用可能', '不可侵', '5ターン持続']);

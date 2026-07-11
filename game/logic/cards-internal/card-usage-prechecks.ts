@@ -221,6 +221,13 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             ? result
             : buildFailureResult();
     }
+    if (cardType === 'MASS_FREEZE_WILL') {
+        if (typeof context.getMassFreezeWillTargetCount !== 'function')
+            return buildFailureResult();
+        return context.getMassFreezeWillTargetCount(context.cardState, context.gameState, context.playerKey) > 0
+            ? result
+            : buildFailureResult();
+    }
     if (cardType === 'SALVATION_WILL') {
         if (typeof context.getSalvationWillTargetCount !== 'function')
             return buildFailureResult();

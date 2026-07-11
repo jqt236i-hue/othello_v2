@@ -136,6 +136,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             isSilverStone,
             isTreasureBox,
             isLossWill,
+            isMassFreezeWill,
             isCorrosionWill,
             isBlockadeWill,
             isMeteorWill,
@@ -197,6 +198,8 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             ownSpecialCount,
             oppSpecialCount,
             ownBombCount,
+            massFreezeOwnTargetCount,
+            massFreezeOpponentTargetCount,
             temptHighValueTargetCount,
             ownGuardCount,
             oppGuardCount,
@@ -251,6 +254,9 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
         }
         if (isLossWill && (ownSpecialCount > 0 || ownBombCount > 0)) {
             return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'loss_will_own_special');
+        }
+        if (isMassFreezeWill && massFreezeOpponentTargetCount <= 0) {
+            return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'mass_freeze_no_opponent_target');
         }
         if (isSwapWithEnemy && swapEnemyNormalCornerTargetCount <= 0) {
             return buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, ctx, 'swap_no_enemy_normal_corner');
@@ -1110,6 +1116,16 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             if (leadStable && specialDiff <= 0) score -= 45;
             if (endgamePhase && specialDiff <= 1) score -= 30;
             if (ownGuardCount > 0 && oppGuardCount <= ownGuardCount) score -= 20;
+        }
+        if (isMassFreezeWill) {
+            const targetDiff = massFreezeOpponentTargetCount - massFreezeOwnTargetCount;
+            score -= 24;
+            score += massFreezeOpponentTargetCount * 34;
+            score -= massFreezeOwnTargetCount * 12;
+            if (targetDiff >= 2) score += 42;
+            if (targetDiff <= -1) score -= 70;
+            if (endgamePhase) score -= 20;
+            if (cornerEmergency && massFreezeOpponentTargetCount > 0) score += 18;
         }
 
         if (isCorrosionWill) {

@@ -352,6 +352,9 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
             case 'freeze_selected':
                 if (ev.applied) push(`凍結の意志: ${_toPosText(ev.target, deps)}を5ターン凍結`);
                 break;
+            case 'mass_freeze_will_resolved':
+                push(`意志の凍結: 特殊石${Number(ev.frozenCount) || 0}個を5ターン凍結`);
+                break;
             case 'heaven_blessing_selected':
                 if (ev.applied) push('天の恵みでカード獲得');
                 break;

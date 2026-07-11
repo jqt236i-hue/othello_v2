@@ -188,6 +188,7 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   BOARD_SHRINK_WILL: '外周から連続する3マスを選んで石ごと抹消し、穴マスにして盤面を縮小する。',
   BOARD_SHRINK_GOD: '角を含む外周1列を選んで石ごと抹消し、穴マスにして盤面を縮小する。',
   FREEZE_WILL: 'マス1つを凍結し、反転・破壊と持続減少を止める',
+  MASS_FREEZE_WILL: '盤面上のすべての特殊石を5ターン凍結する',
   REBUILD_WILL: '特殊カード以外の手札を破壊し、新たに3枚ドローする',
   WORK_WILL: '次石をアンカー化し毎ターン布石を獲得',
   LOSS_WILL: '盤面上の特殊石を全て通常石に戻す。自分の手札を全て破壊して使用。',
@@ -287,6 +288,7 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   BOARD_SHRINK_WILL: '外周から連続する3マスを選んで石ごと抹消し、穴マスにして盤面を縮小する。\n盤面拡張マスも対象にできる。\n生きる意志・復活の意志・破壊回避・封鎖・凍結・種などはセル消滅を止めない。\n不可侵の顕現石は対象外。',
   BOARD_SHRINK_GOD: '角を含む外周1列を選んで石ごと抹消し、穴マスにして盤面を縮小する。\n生きる意志・復活の意志・破壊回避・封鎖・凍結・種などはセル消滅を止めない。\n不可侵の顕現石は対象外。',
   FREEZE_WILL: '凍結マスと、そのマス上の石は反転・破壊されない。\n凍結中の特殊石は持続ターンが減らず、解除後に再び減り始める。',
+  MASS_FREEZE_WILL: '盤面上の特殊石本体・罠石・時限爆弾が存在するマスを、敵味方を問わずすべて5ターン凍結する。\n完全保護中の特殊石もマスごと凍結する。\n通常石・石状態・盤面マーカー・配置時効果・顕現石・既存凍結マスは対象外。\n凍結中の石は反転・破壊・移動されず、持続ターンも減少しない。\n手札破壊は行わない。',
   REBUILD_WILL: '使用カードと特殊カード以外の手札をすべて先に破壊してから引き直す。\n山札が足りない場合は引ける枚数だけ補充する。',
   WORK_WILL: function resolveWorkLine(resolveChargeMaxText?: () => string | number) {
     const chargeMaxText = (typeof resolveChargeMaxText === 'function')
@@ -377,6 +379,7 @@ const cardEffectTagsByType = Object.freeze({
   ULTIMATE_HYPERACTIVE_GOD: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(5), destroyEvasionTag(2), durationTurnsTag(12)]),
   BLOCKADE_WILL: freezeCardEffectTags([durationTurnsTag(3)]),
   FREEZE_WILL: freezeCardEffectTags([durationTurnsTag(5)]),
+  MASS_FREEZE_WILL: freezeCardEffectTags([durationTurnsTag(5)]),
 });
 
 const cardNumericTagsByType = Object.freeze(Object.fromEntries(

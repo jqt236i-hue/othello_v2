@@ -52,6 +52,7 @@ export const CARD_FACE_ART_FILENAME_BY_ID: Record<string, string> = Object.freez
     "work_01": "50_出稼ぎの意志.png",
     "ribo_01": "51_リボ払いの意志.png",
     "loss_will_01": "52_意志の喪失.png",
+    "mass_freeze_will_01": "97_意志の凍結.png",
     "double_01": "53_二連投石.png",
     "triple_01": "54_三連投石.png",
     "quad_01": "55_四連投石.png",

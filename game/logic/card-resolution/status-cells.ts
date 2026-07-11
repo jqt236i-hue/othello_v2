@@ -98,6 +98,67 @@ function applyFreezeWill(cardState: CardState, gameState: GameState, playerKey: 
     }, deps);
 }
 
+function applyMassFreezeWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, deps: any): Record<string, any> {
+    const readCardPendingEffect = deps && deps.readCardPendingEffect;
+    const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
+    const collectTargets = deps && deps.collectMassFreezeWillTargets;
+    const removeMarkersAt = deps && deps.removeMarkersAt;
+    const addMarker = deps && deps.addMarker;
+    if (
+        typeof readCardPendingEffect !== 'function' ||
+        typeof clearCardPendingEffect !== 'function' ||
+        typeof collectTargets !== 'function' ||
+        typeof removeMarkersAt !== 'function' ||
+        typeof addMarker !== 'function'
+    ) {
+        return { applied: false, reason: 'deps_missing', frozenCount: 0, targets: [] };
+    }
+
+    const pending = readCardPendingEffect(cardState, playerKey);
+    if (!pending || pending.type !== 'MASS_FREEZE_WILL') {
+        return { applied: false, reason: 'not_pending', frozenCount: 0, targets: [] };
+    }
+
+    const targets = collectTargets(cardState, gameState, playerKey, { includeHiddenOpponentTraps: true });
+    if (!Array.isArray(targets) || targets.length === 0) {
+        return { applied: false, reason: 'no_targets', frozenCount: 0, targets: [] };
+    }
+    const seen = new Set<string>();
+    const normalizedTargets: Array<{ row: number; col: number }> = [];
+    for (const target of targets) {
+        const row = target && target.row;
+        const col = target && target.col;
+        if (!Number.isInteger(row) || !Number.isInteger(col)) {
+            return { applied: false, reason: 'invalid_target', frozenCount: 0, targets: [] };
+        }
+        const key = `${row},${col}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        normalizedTargets.push({ row, col });
+    }
+    if (normalizedTargets.length === 0) {
+        return { applied: false, reason: 'no_targets', frozenCount: 0, targets: [] };
+    }
+
+    for (const target of normalizedTargets) {
+        const result = applyStatusCellMarker(cardState, playerKey, target.row, target.col, {
+            markerType: 'FREEZE',
+            reason: 'mass_freeze_will',
+            remainingOwnerTurns: deps && deps.FREEZE_TURNS
+        }, deps);
+        if (!result.applied) {
+            throw new Error(`MASS_FREEZE_WILL marker apply failed at ${target.row},${target.col}: ${result.reason || 'unknown'}`);
+        }
+    }
+
+    clearCardPendingEffect(cardState, playerKey);
+    return {
+        applied: true,
+        frozenCount: normalizedTargets.length,
+        targets: normalizedTargets
+    };
+}
+
 function applySeedWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     return applyStatusCellWill(cardState, gameState, playerKey, row, col, {
         pendingType: 'SEED_WILL',
@@ -112,6 +173,7 @@ function applySeedWill(cardState: CardState, gameState: GameState, playerKey: Pl
         applyStatusCellMarker,
         applyBlockadeWill,
         applyFreezeWill,
+        applyMassFreezeWill,
         applySeedWill
     };
 }));

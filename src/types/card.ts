@@ -66,6 +66,7 @@ export type CardType =
   | 'WORK_WILL'
   | 'RIBO_WILL'
   | 'LOSS_WILL'
+  | 'MASS_FREEZE_WILL'
   | 'DOUBLE_PLACE'
   | 'TRIPLE_PLACE'
   | 'QUAD_PLACE'

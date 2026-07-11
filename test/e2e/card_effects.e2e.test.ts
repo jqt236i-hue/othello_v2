@@ -157,6 +157,73 @@ describe('Card effects E2E', () => {
     await page.close();
   }, 60000);
 
+  test('意志の凍結 freezes every eligible special-stone cell and renders one overlay per cell', async () => {
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
+    await closeMaintenanceNoticeIfPresent(page);
+    await page.waitForFunction(
+      () => !!(window.gameState && window.cardState && window.CardLogic && typeof window.useSelectedCard === 'function'),
+      { timeout: 10000 }
+    );
+    await page.click('#debugModeBtn');
+    await closeSidePanelIfPresent(page);
+
+    const setup = await page.evaluate(() => {
+      window.DEBUG_UNLIMITED_USAGE = true;
+      window.DEBUG_HUMAN_VS_HUMAN = true;
+      if (window.__uiImpl_turn_manager) {
+        window.__uiImpl_turn_manager.DEBUG_UNLIMITED_USAGE = true;
+        window.__uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN = true;
+      }
+      window.gameState.currentPlayer = 1;
+      window.gameState.board[2][2] = 1;
+      window.gameState.board[3][3] = -1;
+      window.gameState.board[4][4] = -1;
+      window.gameState.board[5][5] = 1;
+      window.cardState.markers = [
+        { id: 9101, kind: 'specialStone', row: 2, col: 2, owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 4 } },
+        { id: 9102, kind: 'specialStone', row: 3, col: 3, owner: 'white', data: { type: 'GHOST', remainingOwnerTurns: 4 } },
+        { id: 9103, kind: 'specialStone', row: 4, col: 4, owner: 'white', data: { type: 'TRAP', hidden: true, remainingOwnerTurns: 2 } },
+        { id: 9104, kind: 'specialStone', row: 5, col: 5, owner: 'black', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 3 } }
+      ];
+      window.cardState._nextMarkerId = 9200;
+      window.cardState._nextCreatedSeq = 9200;
+      window.cardState.hands.black = ['mass_freeze_will_01'];
+      window.cardState.charge.black = 100;
+      window.cardState.selectedCardId = 'mass_freeze_will_01';
+      window.cardState.selectedCardOwnerKey = 'black';
+      window.cardState.hasUsedCardThisTurnByPlayer.black = false;
+      if (typeof window.renderCardUI === 'function') window.renderCardUI();
+      const usable = window.CardLogic.getUsableCardIds(window.cardState, window.gameState, 'black') || [];
+      return { usable: usable.includes('mass_freeze_will_01') };
+    });
+    expect(setup.usable).toBe(true);
+
+    await page.evaluate(() => window.useSelectedCard());
+    await page.waitForFunction(() => {
+      const markers = Array.isArray(window.cardState && window.cardState.markers) ? window.cardState.markers : [];
+      return markers.filter((marker: any) => marker && marker.data && marker.data.type === 'FREEZE').length === 4;
+    }, { timeout: 20000 });
+    await page.waitForFunction(() => document.querySelectorAll('.freeze-mark').length === 4, { timeout: 20000 });
+
+    const result = await page.evaluate(() => {
+      const freezes = window.cardState.markers.filter((marker: any) => marker && marker.data && marker.data.type === 'FREEZE');
+      return {
+        coordinates: freezes.map((marker: any) => `${marker.row},${marker.col}`),
+        owners: freezes.map((marker: any) => marker.owner),
+        turns: freezes.map((marker: any) => marker.data.remainingOwnerTurns),
+        overlayCount: document.querySelectorAll('.freeze-mark').length,
+        overlayTurns: Array.from(document.querySelectorAll('.freeze-turn')).map((element: any) => element.textContent)
+      };
+    });
+    expect(result.coordinates).toEqual(['2,2', '3,3', '4,4', '5,5']);
+    expect(result.owners).toEqual(['black', 'black', 'black', 'black']);
+    expect(result.turns).toEqual([5, 5, 5, 5]);
+    expect(result.overlayCount).toBe(4);
+    expect(result.overlayTurns).toEqual(expect.arrayContaining(['5', '5', '5', '5']));
+    await page.close();
+  }, 60000);
+
   test('debug mode keeps hand cards physically clickable for selection and use', async () => {
     const page = await browser.newPage();
     const consoles: Array<{ type: string; text: string }> = [];

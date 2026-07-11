@@ -41,6 +41,13 @@ describe('pipeline_ui_adapter normal logs', () => {
     expect(out).toEqual(['黒: 救済の意志: 破壊石2個を通常石として救済、3枚を反転']);
   });
 
+  test('maps mass freeze resolution to one summarized effect log', () => {
+    const out = Adapter.mapEffectLogsFromPipeline([
+      { type: 'mass_freeze_will_resolved', player: 'black', frozenCount: 4 }
+    ], [], 'black');
+    expect(out).toEqual(['黒: 意志の凍結: 特殊石4個を5ターン凍結']);
+  });
+
   test('maps equality resolution to player-facing effect log', () => {
     const out = Adapter.mapEffectLogsFromPipeline([
       { type: 'equality_will_resolved', player: 'black', stolenAmount: 10 }

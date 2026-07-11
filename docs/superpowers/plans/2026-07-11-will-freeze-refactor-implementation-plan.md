@@ -1,5 +1,5 @@
 ---
-status: active
+status: completed
 owner: repository-maintainers
 scope: will-freeze-refactor-and-card-implementation
 created: 2026-07-11
@@ -57,10 +57,10 @@ updated: 2026-07-11
 | 1. 仕様正本の確定 | completed | Phase 0 | rulebook・正本diff、docs検証 PASS |
 | 2. 特殊石対象収集の分離 | completed | Phase 1 | collector grouping、LOSS_WILL回帰 3 suites / 21 tests PASS |
 | 3. 凍結セル付与primitiveの分離 | completed | Phase 2 | FREEZE_WILL回帰、primitive 2 suites / 7 tests PASS |
-| 4. 「意志の凍結」headless実装 | pending | Phase 3 | 使用可否・一括解決・turn tests PASS |
-| 5. カタログ・UI・演出統合 | pending | Phase 4 | catalog生成、UI focused、browser build PASS |
-| 6. CPU・network/runtime parity | pending | Phase 4～5 | CPU focused、network parity、worker mirror検証 PASS |
-| 7. 総合検証・実機確認・完了 | pending | Phase 1～6 | 全verification bundle、最終diff、完了commit |
+| 4. 「意志の凍結」headless実装 | completed | Phase 3 | MASS/FREEZE/LOSS focused、対象秘匿・一括解決・turn tests PASS |
+| 5. カタログ・UI・演出統合 | completed | Phase 4 | catalog/art生成、UI・音・ログ focused、browser build PASS |
+| 6. CPU・network/runtime parity | completed | Phase 4～5 | CPU 151 tests、network 519 tests、match 143 tests、worker mirror PASS |
+| 7. 総合検証・実機確認・完了 | completed | Phase 1～6 | checkall、focused 422 tests、browser E2E、最終diff・commit確認 |
 
 既存の別アクティブ実装計画と同じphysical checkoutでimplementation phaseを並行実行しない。本計画のPhase 1以降へ入る前に、他taskが完了または停止し、既存dirty fileが整理済みであることを確認する。2026-07-11の自己レビュー時点では、`worker-public/*`、`docs/perf/*`、`test/e2e/network-special-stone-late-game.e2e.test.ts`に別taskと見られる変更があるため、Phase 0 gateは未達である。
 
@@ -288,7 +288,7 @@ applyStatusCellMarker(cardState, {
 **Filtering order:**
 
 1. Phase 2の特殊石effect targetを取得
-2. 不可侵セルを除外
+2. 顕現石セルを除外（GUARDや完全保護はセル効果を妨げないため除外しない）
 3. 現在有効な`FREEZE`があるセルを除外
 4. 盤面形状外・消滅セルを除外
 5. 座標順を維持したまま一意セル化
@@ -552,3 +552,14 @@ Focusedで十分に保証できないcross-runtime失敗が見つかった場合
 5. 必要時のみ生成mirrorまたは最終verification調整の独立commit
 
 各commitはその時点でbuild可能かつfocused tests PASSとし、壊れた中間状態をcommitしない。
+
+## 8. 完了記録（2026-07-11）
+
+- 仕様、特殊石対象collector、pending非依存の状態付与primitiveを順に正本化・分離した。
+- `MASS_FREEZE_WILL`をheadless、card-use pipeline、UI、CPU、network authorityへ接続した。相手hidden trapだけでは使用可能にならず、合法解決後はcanonical対象へ含まれる。
+- 専用アート`assets/images/card/97_意志の凍結.png`を配置し、catalogとcard-art mapを正規generatorから再生成した。
+- 複数`STATUS_APPLIED`は同一phaseで再生し、凍結音と要約ログは各1件に集約した。
+- Worker preload監査で既存adapter fallbackの`PipelineUIPresentationEventIndex`登録漏れを検出し、runtime preloadへ追加した。
+- 実ブラウザで名称、コスト11、専用アート、対象0時の非選択、console error 0件を確認した。さらにPlaywright E2Eで黒白の特殊石・hidden trap・TIME_BOMBを通常UI入口から使用し、4個の`FREEZE`、owner black、残り5、4個の氷overlayを確認した。
+- 最終検証は`npm run checkall`、`npm run typecheck`、`npm run check:window`、focused 17 suites / 422 tests、browser E2E 3 tests、network parity 34 suites / 519 tests、match parity 11 suites / 143 tests、browser build freshness、worker mirror 825 files、Worker bundle smokeがPASSした。
+- 初回失敗は保持して修正した。status-cell testのimport先、TIME_BOMB fixture、GUARDを不可侵扱いしたtarget filter、stale distを読むUI test、CPU context正規化漏れ、Worker presentation-index preload漏れをそれぞれ原因まで修正した。network parityは初回120秒上限でtimeoutし、上限を延長した同一suiteが148.7秒で全通過した。

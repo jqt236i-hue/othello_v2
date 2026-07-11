@@ -518,6 +518,16 @@ const CardCatalog = {
       "desc": "盤面上の特殊石を全て通常石に戻す。自分の手札を全て破壊して使用。"
     },
     {
+      "id": "mass_freeze_will_01",
+      "name_ja": "意志の凍結",
+      "type": "MASS_FREEZE_WILL",
+      "cost": 11,
+      "desc_ja": "盤面上のすべての特殊石を5ターン凍結する。凍結中の石は反転・破壊・移動されず、持続ターンも減少しない。",
+      "display_type_ja": "特殊",
+      "name": "意志の凍結",
+      "desc": "盤面上のすべての特殊石を5ターン凍結する。凍結中の石は反転・破壊・移動されず、持続ターンも減少しない。"
+    },
+    {
       "id": "double_01",
       "name_ja": "二連投石",
       "type": "DOUBLE_PLACE",

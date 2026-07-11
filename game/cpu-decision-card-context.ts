@@ -162,6 +162,8 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         let ownGuardCount = 0;
         let oppGuardCount = 0;
         let ownBombCount = 0;
+        let massFreezeOwnTargetCount = 0;
+        let massFreezeOpponentTargetCount = 0;
         let cloneSplitEligibleSourceCount = 0;
         const cloneSplitEligibleSourceKeys = new Set();
         for (const marker of markers) {
@@ -190,6 +192,23 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             } else if (marker.owner === opponentKey) {
                 oppSpecialCount += 1;
                 if (type === 'GUARD') oppGuardCount += 1;
+            }
+        }
+
+        const cardLogic = readCardLogic();
+        if (cardLogic && typeof cardLogic.collectMassFreezeWillTargets === 'function') {
+            const massFreezeTargets = cardLogic.collectMassFreezeWillTargets(
+                cs,
+                gs,
+                playerKey,
+                { includeHiddenOpponentTraps: true }
+            );
+            for (const target of Array.isArray(massFreezeTargets) ? massFreezeTargets : []) {
+                const owners = new Set((Array.isArray(target && target.markers) ? target.markers : [])
+                    .map((marker: any) => marker && marker.owner)
+                    .filter(Boolean));
+                if (owners.has(playerKey)) massFreezeOwnTargetCount += 1;
+                if (owners.has(opponentKey)) massFreezeOpponentTargetCount += 1;
             }
         }
 
@@ -233,6 +252,8 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             ownSpecialCount,
             oppSpecialCount,
             ownBombCount,
+            massFreezeOwnTargetCount,
+            massFreezeOpponentTargetCount,
             ownGuardCount,
             oppGuardCount,
             usableCardIds: Array.isArray(usableCardIds) ? usableCardIds.slice() : [],

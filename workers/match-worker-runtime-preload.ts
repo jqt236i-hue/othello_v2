@@ -208,5 +208,6 @@ installRuntimeModule('PipelineUIDestroySoundCues', () => require('../game/turn/p
 installRuntimeModule('PipelineUISelectionSoundCues', () => require('../game/turn/pipeline-ui/selection-sound-cues.js'));
 installRuntimeModule('PipelineUISoundCueHelpers', () => require('../game/turn/pipeline-ui/sound-cue-helpers.js'));
 installRuntimeModule('PipelineUISoundCueAssembler', () => require('../game/turn/pipeline-ui/sound-cue-assembler.js'));
+installRuntimeModule('PipelineUIPresentationEventIndex', () => require('../game/turn/pipeline-ui/presentation-event-index.js'));
 
 Object.freeze(runtimeGlobalKeys);

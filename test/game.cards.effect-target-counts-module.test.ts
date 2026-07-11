@@ -66,6 +66,42 @@ describe('card effect target counts module', () => {
     expect(counts.getLossWillRemovableCount({ markers: [] })).toBe(5);
   });
 
+  test('mass freeze distinguishes visible usability targets from canonical hidden-trap resolution targets', () => {
+    const hiddenOpponentTrap = { row: 2, col: 2, owner: 'white', data: { type: 'TRAP', hidden: true } };
+    const visibleWork = { row: 3, col: 3, owner: 'white', data: { type: 'WORK' } };
+    const frozenWork = { row: 4, col: 4, owner: 'black', data: { type: 'WORK' } };
+    const inviolableBomb = { row: 5, col: 5, owner: 'white', data: { type: 'TIME_BOMB', category: 'bomb' } };
+    const counts = createEffectTargetCounts({
+      getSpecialMarkers: () => ([hiddenOpponentTrap, visibleWork, frozenWork]),
+      getBombMarkers: () => ([inviolableBomb]),
+      getMarkerRuleClass: (marker) => SpecialStoneRegistry.classifyMarkerRuleClass(marker),
+      isFrozenCellForCard: (_cardState, row, col) => row === 4 && col === 4,
+      findManifestMarkerAt: (_cardState, row, col) => row === 5 && col === 5 ? { data: { type: 'THEORY_INCARNATION' } } : null,
+      hasBoardShapeCellForCard: (_cardState, _gameState, row, col) => row >= 0 && col >= 0
+    });
+
+    expect(counts.collectMassFreezeWillTargets({}, {}, 'black')).toEqual([
+      { row: 3, col: 3, markers: [visibleWork] }
+    ]);
+    expect(counts.getMassFreezeWillTargetCount({}, {}, 'black')).toBe(1);
+    expect(counts.collectMassFreezeWillTargets({}, {}, 'black', { includeHiddenOpponentTraps: true })).toEqual([
+      { row: 2, col: 2, markers: [hiddenOpponentTrap] },
+      { row: 3, col: 3, markers: [visibleWork] }
+    ]);
+  });
+
+  test('own hidden trap remains a visible usability target for its owner', () => {
+    const ownTrap = { row: 1, col: 6, owner: 'black', data: { type: 'TRAP', hidden: true } };
+    const counts = createEffectTargetCounts({
+      getSpecialMarkers: () => ([ownTrap]),
+      getBombMarkers: () => ([]),
+      getMarkerRuleClass: (marker) => SpecialStoneRegistry.classifyMarkerRuleClass(marker)
+    });
+
+    expect(counts.getMassFreezeWillTargetCount({}, {}, 'black')).toBe(1);
+    expect(counts.getMassFreezeWillTargetCount({}, {}, 'white')).toBe(0);
+  });
+
   test('getSalvationWillTargetCount and getExecutionWillTargetCount read the per-player ledger', () => {
     const counts = createEffectTargetCounts({
       ensureSalvationDestroyedLedger: () => ({

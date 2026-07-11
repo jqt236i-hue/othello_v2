@@ -324,6 +324,22 @@ function resolveImmediateCardUsageEffects(options: ResolveImmediateCardUsageEffe
         opts.events.push({ type: 'gluttonous_will_hand_destroyed', player: opts.playerKey, destroyedCount });
     }
 
+    if (pendingType === 'MASS_FREEZE_WILL') {
+        const res = (typeof opts.CardLogic.applyMassFreezeWill === 'function')
+            ? opts.CardLogic.applyMassFreezeWill(opts.cardState, opts.gameState, opts.playerKey)
+            : { applied: false, frozenCount: 0, targets: [] };
+        if (!res || res.applied !== true) {
+            throw new Error('MASS_FREEZE_WILL resolve failed');
+        }
+        opts.clearPendingForActionPhase(opts.cardState, opts.playerKey);
+        opts.events.push({
+            type: 'mass_freeze_will_resolved',
+            player: opts.playerKey,
+            frozenCount: Number(res.frozenCount) || 0,
+            targets: Array.isArray(res.targets) ? res.targets.slice() : []
+        });
+    }
+
     if (pendingType === 'LOSS_WILL') {
         const res = (typeof opts.CardLogic.applyLossWill === 'function')
             ? opts.CardLogic.applyLossWill(opts.cardState, opts.gameState, opts.playerKey)

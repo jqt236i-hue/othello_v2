@@ -36,6 +36,7 @@ export function createCardContextBuilders(deps: CardContextBuilderDeps) {
                 buildCondemnOffers: helpers.buildCondemnOffers,
                 buildObserverWillOffers: helpers.buildObserverWillOffers,
                 getLossWillRemovableCount: helpers.getLossWillRemovableCount,
+                getMassFreezeWillTargetCount: helpers.getMassFreezeWillTargetCount,
                 getSalvationWillTargetCount: helpers.getSalvationWillTargetCount,
                 getExecutionWillTargetCount: helpers.getExecutionWillTargetCount,
                 countOpponentOccupiedCornersForPlayer: helpers.countOpponentOccupiedCornersForPlayer,

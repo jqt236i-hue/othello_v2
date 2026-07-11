@@ -70,6 +70,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isSilverStone = cardType === 'SILVER_STONE';
         const isTreasureBox = cardType === 'TREASURE_BOX';
         const isLossWill = cardType === 'LOSS_WILL';
+        const isMassFreezeWill = cardType === 'MASS_FREEZE_WILL';
         const isCorrosionWill = cardType === 'CORROSION_WILL';
         const isBlockadeWill = cardType === 'BLOCKADE_WILL';
         const isMeteorWill = cardType === 'METEOR_WILL';
@@ -169,6 +170,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isSilverStone,
             isTreasureBox,
             isLossWill,
+            isMassFreezeWill,
             isCorrosionWill,
             isBlockadeWill,
             isMeteorWill,

@@ -38,5 +38,8 @@ describe('cpu-policy card type flags module', () => {
 
     const executor = helpers.getCpuPolicyCardTypeFlags('BOARD_EXECUTOR');
     expect(executor.isBoardExecutor).toBe(true);
+
+    const massFreeze = helpers.getCpuPolicyCardTypeFlags('MASS_FREEZE_WILL');
+    expect(massFreeze.isMassFreezeWill).toBe(true);
   });
 });

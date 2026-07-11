@@ -494,6 +494,45 @@ describe('cpu-policy-core', () => {
         expect(decision.score).toBeLessThan(decision.minUseScore);
     });
 
+    test('MASS_FREEZE_WILL values opponent targets and rejects own-only freezes', () => {
+        const baseContext = {
+            level: 6,
+            playerValue: -1,
+            legalMovesCount: 3,
+            hasCornerMoveNow: false,
+            cornerEmergency: false,
+            ownCharge: 40,
+            reserveChargeFloor: 8,
+            handSize: 2,
+            handCardIds: ['mass'],
+            usableCardIds: ['mass'],
+            ownDiscs: 18,
+            oppDiscs: 18,
+            empties: 28,
+            discDiff: 0,
+            ownCorners: 0,
+            oppCorners: 0,
+            ownEdges: 2,
+            oppEdges: 2
+        };
+        const ownOnly = core.scoreCardUseDecision(
+            'mass',
+            () => 11,
+            () => ({ id: 'mass', type: 'MASS_FREEZE_WILL' }),
+            { ...baseContext, massFreezeOwnTargetCount: 2, massFreezeOpponentTargetCount: 0 }
+        );
+        const opponentHeavy = core.scoreCardUseDecision(
+            'mass',
+            () => 11,
+            () => ({ id: 'mass', type: 'MASS_FREEZE_WILL' }),
+            { ...baseContext, massFreezeOwnTargetCount: 0, massFreezeOpponentTargetCount: 3 }
+        );
+
+        expect(ownOnly.shouldUse).toBe(false);
+        expect(opponentHeavy.score).toBeGreaterThan(ownOnly.score);
+        expect(opponentHeavy.shouldUse).toBe(true);
+    });
+
     test('scoreCardUseDecision suppresses LOSS_WILL even when enemy anchor payoff is larger', () => {
         const decision = core.scoreCardUseDecision(
             'loss_will_01',

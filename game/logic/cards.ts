@@ -1011,6 +1011,7 @@ const {
                 buildCondemnOffers,
                 buildObserverWillOffers,
                 getLossWillRemovableCount,
+                getMassFreezeWillTargetCount,
                 getSalvationWillTargetCount,
                 getExecutionWillTargetCount,
                 countOpponentOccupiedCornersForPlayer,
@@ -1199,6 +1200,9 @@ const {
             getMarkerRuleClass,
             canLossWillRevertMarker: requireCardMarkersMethod('canLossWillRevertMarker'),
             isInviolableCell,
+            findManifestMarkerAt,
+            isFrozenCellForCard,
+            hasBoardShapeCellForCard,
             ensureSalvationDestroyedLedger
         });
         return CardEffectTargetCountsCache;
@@ -2420,6 +2424,7 @@ const {
             getSeedTargets,
             getTimeStopGodDestroyableCount,
             getLossWillRemovableCount,
+            getMassFreezeWillTargetCount,
             getSalvationWillTargetCount,
             getExecutionWillTargetCount,
             getReinforcementWillTargetCount,
@@ -3016,6 +3021,27 @@ const {
 
     function getLossWillRemovableCount(cardState: any) {
         return requireCardEffectTargetCounts().getLossWillRemovableCount(cardState);
+    }
+
+    function collectMassFreezeWillTargets(cardState: any, gameState: any, playerKey: any, options?: any) {
+        return requireCardEffectTargetCounts().collectMassFreezeWillTargets(cardState, gameState, playerKey, options);
+    }
+
+    function getMassFreezeWillTargetCount(cardState: any, gameState: any, playerKey: any) {
+        return requireCardEffectTargetCounts().getMassFreezeWillTargetCount(cardState, gameState, playerKey);
+    }
+
+    function applyMassFreezeWill(cardState: any, gameState: any, playerKey: any) {
+        return CardStatusCellsModule.applyMassFreezeWill(cardState, gameState, playerKey, {
+            readCardPendingEffect,
+            clearCardPendingEffect,
+            collectMassFreezeWillTargets,
+            removeMarkersAt,
+            addMarker,
+            emitPresentationEvent,
+            MARKER_KINDS,
+            FREEZE_TURNS
+        });
     }
 
     function applyLossWill(cardState: any, gameState: any, playerKey: any) {
@@ -4645,6 +4671,9 @@ const cardsApi: any = {
         canUseReinforcementWillForPlayer,
         canUseSupportTroopsWillForPlayer,
         getLossWillRemovableCount,
+        collectMassFreezeWillTargets,
+        getMassFreezeWillTargetCount,
+        applyMassFreezeWill,
         applyLossWill,
         getSalvationWillTargetCount,
         getExecutionWillTargetCount,

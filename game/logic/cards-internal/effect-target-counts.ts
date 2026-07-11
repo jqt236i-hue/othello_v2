@@ -5,6 +5,9 @@ type EffectTargetCountsDeps = {
     getMarkerRuleClass?: (marker: any) => string | null;
     canLossWillRevertMarker?: (marker: any) => boolean;
     isInviolableCell?: (cardState: any, row: any, col: any) => boolean;
+    findManifestMarkerAt?: (cardState: any, row: any, col: any) => any;
+    isFrozenCellForCard?: (cardState: any, row: any, col: any) => boolean;
+    hasBoardShapeCellForCard?: (cardState: any, gameState: any, row: any, col: any) => boolean;
     ensureSalvationDestroyedLedger?: (cardState: any) => any;
 };
 
@@ -32,6 +35,15 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
     const isInviolableCell = typeof deps?.isInviolableCell === 'function'
         ? deps.isInviolableCell
         : (() => false);
+    const isFrozenCellForCard = typeof deps?.isFrozenCellForCard === 'function'
+        ? deps.isFrozenCellForCard
+        : (() => false);
+    const hasBoardShapeCellForCard = typeof deps?.hasBoardShapeCellForCard === 'function'
+        ? deps.hasBoardShapeCellForCard
+        : (() => true);
+    const findManifestMarkerAt = typeof deps?.findManifestMarkerAt === 'function'
+        ? deps.findManifestMarkerAt
+        : (() => null);
     const ensureSalvationDestroyedLedger = typeof deps?.ensureSalvationDestroyedLedger === 'function'
         ? deps.ensureSalvationDestroyedLedger
         : (() => null);
@@ -75,6 +87,29 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
         }
 
         return { markers, specialMarkers, bombMarkers, cells };
+    }
+
+    function isHiddenOpponentTrap(marker: any, playerKey: any) {
+        const type = String(marker && marker.data && marker.data.type || '').toUpperCase();
+        if (type !== 'TRAP' || marker.data.hidden !== true) return false;
+        const owner = String(marker && marker.owner || '');
+        return !!owner && owner !== String(playerKey || '');
+    }
+
+    function collectMassFreezeWillTargets(cardState: any, gameState: any, playerKey: any, options?: any) {
+        const includeHiddenOpponentTraps = !!(options && options.includeHiddenOpponentTraps === true);
+        const collection = collectSpecialStoneEffectTargets(cardState);
+        return collection.cells.filter((cell: any) => {
+            if (findManifestMarkerAt(cardState, cell.row, cell.col)) return false;
+            if (isFrozenCellForCard(cardState, cell.row, cell.col)) return false;
+            if (!hasBoardShapeCellForCard(cardState, gameState, cell.row, cell.col)) return false;
+            if (includeHiddenOpponentTraps) return true;
+            return cell.markers.some((marker: any) => !isHiddenOpponentTrap(marker, playerKey));
+        });
+    }
+
+    function getMassFreezeWillTargetCount(cardState: any, gameState: any, playerKey: any) {
+        return collectMassFreezeWillTargets(cardState, gameState, playerKey).length;
     }
 
     function collectLossWillRemovals(cardState: any) {
@@ -145,6 +180,8 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
 
     return {
         collectSpecialStoneEffectTargets,
+        collectMassFreezeWillTargets,
+        getMassFreezeWillTargetCount,
         collectLossWillRemovals,
         getLossWillRemovableCount,
         getSalvationWillTargetCount,
