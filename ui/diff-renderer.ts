@@ -3362,42 +3362,51 @@ function buildCurrentCellState() {
 
 function _createCellDomPatcherContextForDiff() {
     return {
-        _getBoardShapeForDiff,
-        _resolveGameStateForDiffRender,
-        _isExpansionCoordinateForDiff,
-        _resolveExpansionSideForDiff,
-        _createSpecialMarkerRendererForDiff,
-        _isVisualPlaybackActiveForDiff,
-        EMPTY,
-        _hasPendingMoveSourceAtForDiff,
-        _hasHyperactiveLikeStateForDiff,
-        AnimationShared,
-        window: (typeof window !== 'undefined' ? window : undefined),
-        location: (typeof location !== 'undefined' ? location : undefined),
-        SharedConstants: (typeof SharedConstants !== 'undefined' ? SharedConstants : undefined),
-        TimerRegistry: (typeof TimerRegistry !== 'undefined' ? TimerRegistry : undefined),
-        BoardUpdateDispatch: (typeof BoardUpdateDispatch !== 'undefined' ? BoardUpdateDispatch : undefined),
-        emitBoardUpdate: (typeof emitBoardUpdate === 'function' ? emitBoardUpdate : undefined),
-        _tryPatchTimedMarkerLabelsForDiff,
-        suppressFallbackFlipThisRender,
-        _hasPendingFlipTargetAtForDiff,
-        _applyExpansionCellPositionForDiff,
-        _applyBoardEdgeClassesForDiff,
-        _applyTimeStopLegalEmphasisForDiff,
-        document: (typeof document !== 'undefined' ? document : undefined),
-        BLACK,
-        WHITE,
-        _getDiscStoneHelperForDiff,
-        _createSpecialStoneStatusSnapshotForDiff,
-        _shouldShowFlipProtectionBadgeForDiff,
-        _createFlipProtectionBadgeForDiff,
-        getEffectKeyForType,
-        applyStoneVisualEffect: (typeof applyStoneVisualEffect === 'function' ? applyStoneVisualEffect : undefined),
-        applyTrapStoneFallbackVisual: (typeof applyTrapStoneFallbackVisual === 'function' ? applyTrapStoneFallbackVisual : undefined),
-        _resolveSpecialDisplayTurnsForDiff,
-        _applyDoubleDigitTimerClassForDiff,
-        _getManifestAuraOwnerClassForDiff,
-        _hasRecentPlaybackFlipMarkerForDiff
+        board: {
+            getBoardShape: _getBoardShapeForDiff,
+            resolveGameState: _resolveGameStateForDiffRender,
+            isExpansionCoordinate: _isExpansionCoordinateForDiff,
+            resolveExpansionSide: _resolveExpansionSideForDiff,
+            applyExpansionCellPosition: _applyExpansionCellPositionForDiff,
+            applyBoardEdgeClasses: _applyBoardEdgeClassesForDiff,
+            applyTimeStopLegalEmphasis: _applyTimeStopLegalEmphasisForDiff,
+            constants: { EMPTY }
+        },
+        playback: {
+            isVisualPlaybackActive: _isVisualPlaybackActiveForDiff,
+            hasPendingMoveSourceAt: _hasPendingMoveSourceAtForDiff,
+            hasHyperactiveLikeState: _hasHyperactiveLikeStateForDiff,
+            tryPatchTimedMarkerLabels: _tryPatchTimedMarkerLabelsForDiff,
+            suppressFallbackFlip: suppressFallbackFlipThisRender,
+            hasPendingFlipTargetAt: _hasPendingFlipTargetAtForDiff,
+            hasRecentPlaybackFlipMarker: _hasRecentPlaybackFlipMarkerForDiff
+        },
+        runtime: {
+            animationShared: AnimationShared,
+            window: (typeof window !== 'undefined' ? window : undefined),
+            location: (typeof location !== 'undefined' ? location : undefined),
+            sharedConstants: (typeof SharedConstants !== 'undefined' ? SharedConstants : undefined),
+            timerRegistry: (typeof TimerRegistry !== 'undefined' ? TimerRegistry : undefined),
+            boardUpdateDispatch: (typeof BoardUpdateDispatch !== 'undefined' ? BoardUpdateDispatch : undefined),
+            emitBoardUpdate: (typeof emitBoardUpdate === 'function' ? emitBoardUpdate : undefined),
+            document: (typeof document !== 'undefined' ? document : undefined)
+        },
+        markers: {
+            createSpecialMarkerRenderer: _createSpecialMarkerRendererForDiff
+        },
+        stones: {
+            constants: { BLACK, WHITE },
+            getDiscStoneHelper: _getDiscStoneHelperForDiff,
+            createSpecialStoneStatusSnapshot: _createSpecialStoneStatusSnapshotForDiff,
+            shouldShowFlipProtectionBadge: _shouldShowFlipProtectionBadgeForDiff,
+            createFlipProtectionBadge: _createFlipProtectionBadgeForDiff,
+            getEffectKeyForType,
+            applyStoneVisualEffect: (typeof applyStoneVisualEffect === 'function' ? applyStoneVisualEffect : undefined),
+            applyTrapStoneFallbackVisual: (typeof applyTrapStoneFallbackVisual === 'function' ? applyTrapStoneFallbackVisual : undefined),
+            resolveSpecialDisplayTurns: _resolveSpecialDisplayTurnsForDiff,
+            applyDoubleDigitTimerClass: _applyDoubleDigitTimerClassForDiff,
+            getManifestAuraOwnerClass: _getManifestAuraOwnerClassForDiff
+        }
     };
 }
 

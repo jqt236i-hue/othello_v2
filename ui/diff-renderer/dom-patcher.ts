@@ -26,45 +26,59 @@ function applyActiveTransientCellHighlight(cell: any): void {
     cell.classList.add(className);
 }
 
-function updateCellDOM(deps: any, cell: any, state: any, row: any, col: any, prevState: any) {
+function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: any, prevState: any) {
     const {
-        _getBoardShapeForDiff,
-        _resolveGameStateForDiffRender,
-        _isExpansionCoordinateForDiff,
-        _resolveExpansionSideForDiff,
-        _createSpecialMarkerRendererForDiff,
-        _isVisualPlaybackActiveForDiff,
-        EMPTY,
-        _hasPendingMoveSourceAtForDiff,
-        _hasHyperactiveLikeStateForDiff,
-        AnimationShared,
+        board: boardCapabilities,
+        playback: playbackCapabilities,
+        runtime: runtimeCapabilities,
+        markers: markerCapabilities,
+        stones: stoneCapabilities
+    } = capabilities || {};
+    const {
+        getBoardShape: _getBoardShapeForDiff,
+        resolveGameState: _resolveGameStateForDiffRender,
+        isExpansionCoordinate: _isExpansionCoordinateForDiff,
+        resolveExpansionSide: _resolveExpansionSideForDiff,
+        applyExpansionCellPosition: _applyExpansionCellPositionForDiff,
+        applyBoardEdgeClasses: _applyBoardEdgeClassesForDiff,
+        applyTimeStopLegalEmphasis: _applyTimeStopLegalEmphasisForDiff,
+        constants: { EMPTY } = {}
+    } = boardCapabilities || {};
+    const {
+        isVisualPlaybackActive: _isVisualPlaybackActiveForDiff,
+        hasPendingMoveSourceAt: _hasPendingMoveSourceAtForDiff,
+        hasHyperactiveLikeState: _hasHyperactiveLikeStateForDiff,
+        tryPatchTimedMarkerLabels: _tryPatchTimedMarkerLabelsForDiff,
+        suppressFallbackFlip: suppressFallbackFlipThisRender,
+        hasPendingFlipTargetAt: _hasPendingFlipTargetAtForDiff,
+        hasRecentPlaybackFlipMarker: _hasRecentPlaybackFlipMarkerForDiff
+    } = playbackCapabilities || {};
+    const {
+        animationShared: AnimationShared,
         window,
         location,
-        SharedConstants,
-        TimerRegistry,
-        BoardUpdateDispatch,
+        sharedConstants: SharedConstants,
+        timerRegistry: TimerRegistry,
+        boardUpdateDispatch: BoardUpdateDispatch,
         emitBoardUpdate,
-        _tryPatchTimedMarkerLabelsForDiff,
-        suppressFallbackFlipThisRender,
-        _hasPendingFlipTargetAtForDiff,
-        _applyExpansionCellPositionForDiff,
-        _applyBoardEdgeClassesForDiff,
-        _applyTimeStopLegalEmphasisForDiff,
-        document,
-        BLACK,
-        WHITE,
-        _getDiscStoneHelperForDiff,
-        _createSpecialStoneStatusSnapshotForDiff,
-        _shouldShowFlipProtectionBadgeForDiff,
-        _createFlipProtectionBadgeForDiff,
+        document
+    } = runtimeCapabilities || {};
+    const {
+        createSpecialMarkerRenderer: _createSpecialMarkerRendererForDiff
+    } = markerCapabilities || {};
+    const {
+        constants: { BLACK, WHITE } = {},
+        getDiscStoneHelper: _getDiscStoneHelperForDiff,
+        createSpecialStoneStatusSnapshot: _createSpecialStoneStatusSnapshotForDiff,
+        shouldShowFlipProtectionBadge: _shouldShowFlipProtectionBadgeForDiff,
+        createFlipProtectionBadge: _createFlipProtectionBadgeForDiff,
         getEffectKeyForType,
         applyStoneVisualEffect,
         applyTrapStoneFallbackVisual,
-        _resolveSpecialDisplayTurnsForDiff,
-        _applyDoubleDigitTimerClassForDiff,
-        _getManifestAuraOwnerClassForDiff,
-        _hasRecentPlaybackFlipMarkerForDiff
-    } = deps;
+        resolveSpecialDisplayTurns: _resolveSpecialDisplayTurnsForDiff,
+        applyDoubleDigitTimerClass: _applyDoubleDigitTimerClassForDiff,
+        getManifestAuraOwnerClass: _getManifestAuraOwnerClassForDiff
+    } = stoneCapabilities || {};
 
     const boardShape = _getBoardShapeForDiff(_resolveGameStateForDiffRender());
     const isExpansionCell = _isExpansionCoordinateForDiff(row, col, boardShape);
