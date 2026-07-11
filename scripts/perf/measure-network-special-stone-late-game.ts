@@ -37,6 +37,7 @@ type MeasurementOptions = {
   browser?: boolean;
   write?: boolean;
   outputStem?: string;
+  outputPath?: string;
 };
 
 type FixtureNodeReport = {
@@ -456,7 +457,7 @@ export async function runMeasurement(options: MeasurementOptions = {}): Promise<
     browser
   };
   if (options.write === true) {
-    writeReport(report, options.outputStem || '2026-07-11-network-special-stone-baseline');
+    writeReport(report, options.outputPath || options.outputStem || '2026-07-11-network-special-stone-baseline');
   }
   return report;
 }
@@ -500,25 +501,126 @@ export function renderMarkdown(report: any): string {
   return `${lines.join('\n')}\n`;
 }
 
-function writeReport(report: any, outputStem: string): void {
-  const outputDir = path.resolve(process.cwd(), 'docs', 'perf');
-  fs.mkdirSync(outputDir, { recursive: true });
-  const jsonPath = path.join(outputDir, `${outputStem}.json`);
-  const markdownPath = path.join(outputDir, `${outputStem}.md`);
+function resolveReportPaths(output: string): { jsonPath: string; markdownPath: string } {
+  const requested = String(output || '').trim();
+  const hasDirectory = requested.includes('/') || requested.includes('\\');
+  const absolute = hasDirectory
+    ? path.resolve(process.cwd(), requested)
+    : path.resolve(process.cwd(), 'docs', 'perf', requested);
+  const extension = path.extname(absolute).toLowerCase();
+  const stem = extension === '.json' || extension === '.md'
+    ? absolute.slice(0, -extension.length)
+    : absolute;
+  return { jsonPath: `${stem}.json`, markdownPath: `${stem}.md` };
+}
+
+function writeReport(report: any, output: string): void {
+  const { jsonPath, markdownPath } = resolveReportPaths(output);
+  fs.mkdirSync(path.dirname(jsonPath), { recursive: true });
+  fs.mkdirSync(path.dirname(markdownPath), { recursive: true });
   fs.writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
   fs.writeFileSync(markdownPath, renderMarkdown(report), 'utf8');
   console.log(`[perf] wrote ${path.relative(process.cwd(), jsonPath)}`);
   console.log(`[perf] wrote ${path.relative(process.cwd(), markdownPath)}`);
 }
 
+function readArgValue(name: string): string | null {
+  const index = process.argv.indexOf(name);
+  return index >= 0 && index + 1 < process.argv.length ? String(process.argv[index + 1]) : null;
+}
+
+function readPositiveIntegerArg(name: string, fallback: number): number {
+  const value = Number(readArgValue(name));
+  return Number.isFinite(value) && value > 0 ? Math.trunc(value) : fallback;
+}
+
+function timingValue(report: any, fixtureId: string, metric: string, field: 'median' | 'p95'): number {
+  const nodeTiming = report?.node?.fixtures?.[fixtureId]?.timingsMs?.[metric]?.[field];
+  if (Number.isFinite(Number(nodeTiming))) return Number(nodeTiming);
+  const browserTiming = report?.browser?.fixtures?.[fixtureId]?.[metric]?.[field];
+  return Number(browserTiming);
+}
+
+export function renderComparisonMarkdown(baseline: any, runs: any[]): string {
+  const targets = [
+    { label: 'protection context median', metric: 'protectionContext', field: 'median' as const, limit: 0.50 },
+    { label: 'legal moves median', metric: 'legalMoves', field: 'median' as const, limit: 0.70 },
+    { label: 'board projection median', metric: 'boardProjection', field: 'median' as const, limit: 0.75 },
+    { label: 'publish preparation median', metric: 'publishPreparation', field: 'median' as const, limit: 0.80 },
+    { label: 'client apply + render preparation median', metric: 'clientSnapshotApplyAndRenderPreparation', field: 'median' as const, limit: 0.80 }
+  ];
+  const lightTargets = targets.map((target) => ({ ...target, field: 'p95' as const, limit: 1.05 }));
+  const lines = [
+    '# Network Special-Stone Performance Comparison',
+    '',
+    `Baseline commit: \`${baseline.commit}\``,
+    `After commits: ${runs.map((run) => `\`${run.commit}\``).join(', ')}`,
+    '',
+    '## Timing gates',
+    '',
+    '| gate | run | baseline ms | after ms | ratio | result |',
+    '|---|---:|---:|---:|---:|---:|'
+  ];
+  for (const target of targets) {
+    runs.forEach((run, index) => {
+      const before = timingValue(baseline, 'late-special-20', target.metric, target.field);
+      const after = timingValue(run, 'late-special-20', target.metric, target.field);
+      const ratio = after / before;
+      lines.push(`| ${target.label} | ${index + 1} | ${before} | ${after} | ${(ratio * 100).toFixed(1)}% | ${ratio <= target.limit ? 'PASS' : 'FAIL'} |`);
+    });
+  }
+  lines.push('', '## Baseline-light p95 regression gates', '', '| metric | run | ratio | result |', '|---|---:|---:|---:|');
+  for (const target of lightTargets) {
+    runs.forEach((run, index) => {
+      const before = timingValue(baseline, 'baseline-light', target.metric, target.field);
+      const after = timingValue(run, 'baseline-light', target.metric, target.field);
+      const ratio = after / before;
+      lines.push(`| ${target.metric} | ${index + 1} | ${(ratio * 100).toFixed(1)}% | ${ratio <= target.limit ? 'PASS' : 'FAIL'} |`);
+    });
+  }
+  lines.push('', '## Deterministic gates', '', '| gate | run 1 | run 2 | result |', '|---|---:|---:|---:|');
+  const heavyRuns = runs.map((run) => run.node.fixtures['late-special-20']);
+  const operationGates: Array<[string, (fixture: any) => boolean, (fixture: any) => any]> = [
+    ['nested full marker scans = 0', (fixture) => fixture.operationCounts.nestedFullMarkerScans === 0, (fixture) => fixture.operationCounts.nestedFullMarkerScans],
+    ['flip context compiles / legal moves = 1', (fixture) => fixture.operationCounts.flipContextCompilesPerGetLegalMoves === 1, (fixture) => fixture.operationCounts.flipContextCompilesPerGetLegalMoves],
+    ['viewer projections = 1 each', (fixture) => ['Black', 'White', 'Spectator'].every((key) => fixture.operationCounts[`viewerProjection${key}`] === 1), (fixture) => `${fixture.operationCounts.viewerProjectionBlack}/${fixture.operationCounts.viewerProjectionWhite}/${fixture.operationCounts.viewerProjectionSpectator}`],
+    ['accepted publish persists = 1', (fixture) => fixture.operationCounts.acceptedPublishRoomPersists === 1, (fixture) => fixture.operationCounts.acceptedPublishRoomPersists],
+    ['render snapshot full clones = 0', (fixture) => fixture.operationCounts.renderSnapshotFullClones === 0, (fixture) => fixture.operationCounts.renderSnapshotFullClones]
+  ];
+  for (const [label, passes, value] of operationGates) {
+    lines.push(`| ${label} | ${value(heavyRuns[0])} | ${value(heavyRuns[1])} | ${heavyRuns.every(passes) ? 'PASS' : 'FAIL'} |`);
+  }
+  const baselineHeavy = baseline.node.fixtures['late-special-20'];
+  const parityPass = heavyRuns.every((fixture) => (
+    JSON.stringify(fixture.payloadBytes) === JSON.stringify(baselineHeavy.payloadBytes)
+    && JSON.stringify(fixture.playback) === JSON.stringify(baselineHeavy.playback)
+    && JSON.stringify(fixture.digests) === JSON.stringify(baselineHeavy.digests)
+  ));
+  lines.push(`| payload/playback/digest parity | exact | exact | ${parityPass ? 'PASS' : 'FAIL'} |`, '');
+  return `${lines.join('\n')}\n`;
+}
+
 export async function main(): Promise<void> {
+  const comparisonBaseline = readArgValue('--compare');
+  if (comparisonBaseline) {
+    const inputPaths = String(readArgValue('--inputs') || '').split(',').map((value) => value.trim()).filter(Boolean);
+    if (inputPaths.length !== 2) throw new Error('--inputs requires exactly two comma-separated after reports');
+    const outputPath = path.resolve(process.cwd(), readArgValue('--output') || 'docs/perf/2026-07-11-network-special-stone-comparison.md');
+    const baseline = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), comparisonBaseline), 'utf8'));
+    const runs = inputPaths.map((inputPath) => JSON.parse(fs.readFileSync(path.resolve(process.cwd(), inputPath), 'utf8')));
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    fs.writeFileSync(outputPath, renderComparisonMarkdown(baseline, runs), 'utf8');
+    console.log(`[perf] wrote ${path.relative(process.cwd(), outputPath)}`);
+    return;
+  }
   const quick = process.argv.includes('--quick');
   await runMeasurement({
-    warmup: quick ? 2 : DEFAULT_WARMUP,
-    iterations: quick ? 5 : DEFAULT_ITERATIONS,
-    integrationIterations: quick ? 3 : DEFAULT_INTEGRATION_ITERATIONS,
+    warmup: quick ? 2 : readPositiveIntegerArg('--warmup', DEFAULT_WARMUP),
+    iterations: quick ? 5 : readPositiveIntegerArg('--iterations', DEFAULT_ITERATIONS),
+    integrationIterations: quick ? 3 : readPositiveIntegerArg('--integration-iterations', DEFAULT_INTEGRATION_ITERATIONS),
     browser: !process.argv.includes('--node-only'),
-    write: true
+    write: true,
+    outputPath: readArgValue('--output') || undefined
   });
 }
 
