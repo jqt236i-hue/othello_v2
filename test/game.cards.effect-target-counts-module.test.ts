@@ -2,6 +2,35 @@ import { createEffectTargetCounts } from '../game/logic/cards-internal/effect-ta
 import * as SpecialStoneRegistry from '../shared/special-stone-registry.js';
 
 describe('card effect target counts module', () => {
+  test('collectSpecialStoneEffectTargets classifies targets and groups duplicate cells without mutating order', () => {
+    const work = { row: 2, col: 2, data: { type: 'WORK' } };
+    const trap = { row: 2, col: 2, data: { type: 'TRAP', hidden: true } };
+    const invalid = { row: null, col: 4, data: { type: 'GHOST' } };
+    const bomb = { row: 3, col: 3, data: { type: 'TIME_BOMB', category: 'bomb' } };
+    const counts = createEffectTargetCounts({
+      ensureMarkers: jest.fn(),
+      getSpecialMarkers: () => ([
+        work,
+        { row: 1, col: 1, data: { type: 'GUARD' } },
+        trap,
+        { row: 4, col: 4, data: { type: 'FREEZE' } },
+        invalid
+      ]),
+      getBombMarkers: () => ([bomb, bomb]),
+      getMarkerRuleClass: (marker) => SpecialStoneRegistry.classifyMarkerRuleClass(marker)
+    });
+
+    const result = counts.collectSpecialStoneEffectTargets({ markers: [] });
+
+    expect(result.markers).toEqual([work, trap, invalid, bomb]);
+    expect(result.specialMarkers).toEqual([work, trap, invalid]);
+    expect(result.bombMarkers).toEqual([bomb]);
+    expect(result.cells).toEqual([
+      { row: 2, col: 2, markers: [work, trap] },
+      { row: 3, col: 3, markers: [bomb] }
+    ]);
+  });
+
   test('collectLossWillRemovals excludes guarded cells, meteor holes, and inviolable bombs', () => {
     const counts = createEffectTargetCounts({
       ensureMarkers: jest.fn(),

@@ -36,8 +36,49 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
         ? deps.ensureSalvationDestroyedLedger
         : (() => null);
 
-    function collectLossWillRemovals(cardState: any) {
+    function isSpecialStoneEffectTarget(marker: any) {
+        if (!marker) return false;
+        const ruleClass = getMarkerRuleClass(marker);
+        return ruleClass === 'true_special_stone' || ruleClass === 'trap' || ruleClass === 'bomb';
+    }
+
+    function collectSpecialStoneEffectTargets(cardState: any) {
         ensureMarkers(cardState);
+        const seenMarkers = new Set<any>();
+        const specialMarkers: any[] = [];
+        const bombMarkers: any[] = [];
+
+        for (const marker of getSpecialMarkers(cardState)) {
+            if (!isSpecialStoneEffectTarget(marker) || seenMarkers.has(marker)) continue;
+            seenMarkers.add(marker);
+            specialMarkers.push(marker);
+        }
+        for (const marker of getBombMarkers(cardState)) {
+            if (!isSpecialStoneEffectTarget(marker) || seenMarkers.has(marker)) continue;
+            seenMarkers.add(marker);
+            bombMarkers.push(marker);
+        }
+
+        const markers = specialMarkers.concat(bombMarkers);
+        const cells: any[] = [];
+        const cellByKey = new Map<string, any>();
+        for (const marker of markers) {
+            if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) continue;
+            const key = `${marker.row},${marker.col}`;
+            let cell = cellByKey.get(key);
+            if (!cell) {
+                cell = { row: marker.row, col: marker.col, markers: [] };
+                cellByKey.set(key, cell);
+                cells.push(cell);
+            }
+            cell.markers.push(marker);
+        }
+
+        return { markers, specialMarkers, bombMarkers, cells };
+    }
+
+    function collectLossWillRemovals(cardState: any) {
+        const targetCollection = collectSpecialStoneEffectTargets(cardState);
         const specials = getSpecialMarkers(cardState);
         const guardedCells = new Set(
             specials
@@ -50,17 +91,15 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
                 ))
                 .map((marker: any) => `${marker.row},${marker.col}`)
         );
-        const removableSpecials = specials.filter((marker: any) => {
+        const removableSpecials = targetCollection.specialMarkers.filter((marker: any) => {
             if (!marker) return false;
             if (Number.isInteger(marker.row) && Number.isInteger(marker.col) && isInviolableCell(cardState, marker.row, marker.col)) return false;
             if (!canLossWillRevertMarker(marker)) return false;
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
             return !guardedCells.has(`${marker.row},${marker.col}`);
         });
-        const bombs = getBombMarkers(cardState);
-        const removableBombs = bombs.filter((marker: any) => {
+        const removableBombs = targetCollection.bombMarkers.filter((marker: any) => {
             if (!marker) return false;
-            if (removableSpecials.includes(marker)) return false;
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
             if (isInviolableCell(cardState, marker.row, marker.col)) return false;
             return !guardedCells.has(`${marker.row},${marker.col}`);
@@ -105,6 +144,7 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
     }
 
     return {
+        collectSpecialStoneEffectTargets,
         collectLossWillRemovals,
         getLossWillRemovableCount,
         getSalvationWillTargetCount,
