@@ -35,7 +35,89 @@ function specialSupportsFlipEvadeForDiff(special: any): boolean {
     );
 }
 
-function buildCurrentCellState(capabilities: any) {
+function createBoardRenderProjection(capabilities: any, operationCounters?: any) {
+    const {
+        state: stateCapabilities,
+        hints: hintCapabilities,
+        debug: debugCapabilities
+    } = capabilities || {};
+    const {
+        resolveGameState,
+        resolveCardState,
+        getBoardShape,
+        cardLogic: CardLogic,
+        getPlayerKey,
+        resolveViewerContext,
+        canLocalPlayerControlCurrentTurn,
+        constants: { BLACK, WHITE } = {}
+    } = stateCapabilities || {};
+    const {
+        getExpansionDescriptors,
+        buildBoardHintProjection
+    } = hintCapabilities || {};
+    const {
+        isDebugHumanVsHuman,
+        warn
+    } = debugCapabilities || {};
+    const gameState = resolveGameState();
+    const cardState = resolveCardState();
+    const boardShape = getBoardShape(gameState);
+    const valid = !!(gameState && Array.isArray(gameState.board) && gameState.board.length > 0 && Array.isArray(gameState.board[0]));
+    if (!valid) return Object.freeze({ valid: false, gameState, cardState, boardShape, hintProjection: {} });
+
+    let cardContext: any;
+    if (cardState && Array.isArray(cardState.markers)) {
+        cardContext = CardLogic.getCardContext(cardState);
+        if (operationCounters) operationCounters.cardContextBuilds = Number(operationCounters.cardContextBuilds || 0) + 1;
+    } else {
+        warn('[DiffRenderer] cardState missing or incomplete — using empty CardContext to continue rendering');
+        cardContext = { protectedStones: [], permaProtectedStones: [], bombs: [] };
+    }
+    const player = gameState.currentPlayer;
+    const playerKey = getPlayerKey(player);
+    const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+    const viewerContext = resolveViewerContext();
+    const canControlCurrentTurn = canLocalPlayerControlCurrentTurn();
+    const isFateWillControlledTurn = !!(
+        cardState &&
+        cardState.fateWillControllerByTurnOwner &&
+        cardState.fateWillControllerByTurnOwner[playerKey]
+    );
+    const isHumanTurn = viewerContext.isNetworkMode === true
+        ? canControlCurrentTurn
+        : ((gameState.currentPlayer === BLACK) ||
+            (isDebugHumanVsHuman() && gameState.currentPlayer === WHITE) ||
+            isFateWillControlledTurn);
+    const expansions = getExpansionDescriptors(gameState);
+    const hintProjection = buildBoardHintProjection(
+        gameState,
+        cardState,
+        playerKey,
+        boardShape,
+        canControlCurrentTurn,
+        isHumanTurn,
+        expansions,
+        cardContext,
+        operationCounters
+    ) || {};
+    return Object.freeze({
+        valid: true,
+        gameState,
+        cardState,
+        boardShape,
+        player,
+        playerKey,
+        pending,
+        viewerContext,
+        canControlCurrentTurn,
+        isHumanTurn,
+        expansions,
+        cardContext,
+        hintProjection
+    });
+}
+
+function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any) {
     if (PerfBenchmarks) PerfBenchmarks.perfStart('buildCurrentCellState');
     try {
         const {
@@ -79,25 +161,16 @@ function buildCurrentCellState(capabilities: any) {
             warn,
             log: debugLog
         } = debugCapabilities || {};
-    const gameState = _resolveGameStateForDiffRender();
-    const cardState = _resolveCardStateForDiffRender();
-    const boardShape = _getBoardShapeForDiff(gameState);
-    if (!gameState || !Array.isArray(gameState.board) || gameState.board.length <= 0 || !Array.isArray(gameState.board[0])) {
+    const renderProjection = preparedRenderProjection || createBoardRenderProjection(capabilities);
+    const gameState = renderProjection.gameState;
+    const cardState = renderProjection.cardState;
+    const boardShape = renderProjection.boardShape;
+    if (renderProjection.valid !== true) {
         return _buildEmptyCellStateForDiffRender(boardShape);
     }
 
-    const player = gameState.currentPlayer;
-    // Minimal, single-site guard: if cardState is missing or incomplete, use an empty context
-    // to avoid throwing inside CardLogic.getCardContext during early-init race.
-    let context: any;
-    if (cardState && Array.isArray(cardState.markers)) {
-        context = CardLogic.getCardContext(cardState);
-    } else {
-        warn('[DiffRenderer] cardState missing or incomplete — using empty CardContext to continue rendering');
-        context = { protectedStones: [], permaProtectedStones: [], bombs: [] };
-    }
-    const playerKey = getPlayerKey(player);
-    const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
+    const player = renderProjection.player;
+    const pending = renderProjection.pending;
     const freePlacementActive = !!(pending && (
         (typeof CardLogic !== 'undefined' &&
             CardLogic &&
@@ -108,31 +181,10 @@ function buildCurrentCellState(capabilities: any) {
         pending.type === 'LAST_RESORT'
     ));
     const isTabooReversePending = !!(pending && pending.type === 'TABOO_REVERSE_WILL');
-    const isNetworkMode = _resolveViewerContextForDiff().isNetworkMode === true;
-    const canControlCurrentTurn = _canLocalPlayerControlCurrentTurnForDiff();
-    const isFateWillControlledTurn = !!(
-        cardState &&
-        cardState.fateWillControllerByTurnOwner &&
-        cardState.fateWillControllerByTurnOwner[playerKey]
-    );
-    const isHumanTurn = isNetworkMode
-        ? canControlCurrentTurn
-        : ((gameState.currentPlayer === BLACK) ||
-            (isDebugHumanVsHuman() && gameState.currentPlayer === WHITE) ||
-            isFateWillControlledTurn);
-    const expansions = _getExpansionDescriptorsForDiff(gameState);
-    const hintProjection = _buildBoardHintProjectionForDiff(
-        gameState,
-        cardState,
-        playerKey,
-        boardShape,
-        canControlCurrentTurn,
-        isHumanTurn,
-        expansions
-    ) || {};
-    const selectableTargets = Array.isArray(hintProjection.selectableTargets) ? hintProjection.selectableTargets : [];
+    const isHumanTurn = renderProjection.isHumanTurn;
+    const expansions = renderProjection.expansions;
+    const hintProjection = renderProjection.hintProjection || {};
     const selectableTargetSet = hintProjection.selectableTargetSet instanceof Set ? hintProjection.selectableTargetSet : new Set();
-    const isSelectingTarget = hintProjection.isSelectingTarget === true;
     const isExtendLifeSelection = !!(
         pending &&
         (pending.type === 'EXTEND_LIFE_WILL' || pending.type === 'EXTEND_LIFE_GOD') &&
@@ -178,69 +230,93 @@ function buildCurrentCellState(capabilities: any) {
     const freezeMap = new Map();
     const seedMap = new Map();
     const sproutMap = new Map();
+    const markerVisualMap = new Map<string, any>();
+    const setMarkerVisual = (row: any, col: any, field: string, value: any) => {
+        const key = `${row},${col}`;
+        let visual = markerVisualMap.get(key);
+        if (!visual) {
+            visual = {};
+            markerVisualMap.set(key, visual);
+        }
+        visual[field] = value;
+    };
     for (const m of markers) {
         if (_isBombCategoryMarkerForDiff(m) && m.data) {
-            bombMap.set(`${m.row},${m.col}`, {
+            const bombVisual = {
                 row: m.row,
                 col: m.col,
                 remainingTurns: m.data.remainingTurns,
                 owner: m.owner
-            });
+            };
+            bombMap.set(`${m.row},${m.col}`, bombVisual);
+            setMarkerVisual(m.row, m.col, 'bomb', bombVisual);
             continue;
         }
         if ((m.kind === specialMarkerKind || m.kind === manifestMarkerKind) && m.data && m.data.type) {
             if (_isBoardHiddenTrap(m)) continue;
             if (_isActiveManifestAuraMarkerForDiff(m, manifestMarkerKind, specialMarkerKind)) {
-                manifestAuraMap.set(`${m.row},${m.col}`, {
+                const manifestAuraVisual = {
                     row: m.row,
                     col: m.col,
                     owner: m.owner
-                });
+                };
+                manifestAuraMap.set(`${m.row},${m.col}`, manifestAuraVisual);
+                setMarkerVisual(m.row, m.col, 'manifestAura', manifestAuraVisual);
             }
             if (m.data.type === 'LIVING_WILL') {
-                livingWillMap.set(`${m.row},${m.col}`, {
+                const livingWillVisual = {
                     row: m.row,
                     col: m.col,
                     owner: m.owner
-                });
+                };
+                livingWillMap.set(`${m.row},${m.col}`, livingWillVisual);
+                setMarkerVisual(m.row, m.col, 'livingWill', livingWillVisual);
                 continue;
             }
             if (m.data.type === 'BLOCKADE' || m.data.type === 'METEOR_HOLE') {
-                blockadeMap.set(`${m.row},${m.col}`, {
+                const blockadeVisual = {
                     row: m.row,
                     col: m.col,
                     type: m.data.type,
                     owner: m.owner,
                     remainingOwnerTurns: m.data.remainingOwnerTurns,
                     visualVariant: typeof m.data.visualVariant === 'string' ? m.data.visualVariant : null
-                });
+                };
+                blockadeMap.set(`${m.row},${m.col}`, blockadeVisual);
+                setMarkerVisual(m.row, m.col, 'blockade', blockadeVisual);
                 continue;
             }
             if (m.data.type === 'FREEZE') {
-                freezeMap.set(`${m.row},${m.col}`, {
+                const freezeVisual = {
                     row: m.row,
                     col: m.col,
                     owner: m.owner,
                     remainingOwnerTurns: m.data.remainingOwnerTurns
-                });
+                };
+                freezeMap.set(`${m.row},${m.col}`, freezeVisual);
+                setMarkerVisual(m.row, m.col, 'frozen', freezeVisual);
                 continue;
             }
             if (m.data.type === 'SEED') {
-                seedMap.set(`${m.row},${m.col}`, {
+                const seedVisual = {
                     row: m.row,
                     col: m.col,
                     owner: m.owner,
                     remainingOwnerTurns: m.data.remainingOwnerTurns
-                });
+                };
+                seedMap.set(`${m.row},${m.col}`, seedVisual);
+                setMarkerVisual(m.row, m.col, 'seed', seedVisual);
                 continue;
             }
             if (m.data.type === 'GUARD') {
-                guardMap.set(`${m.row},${m.col}`, {
+                const guardVisual = {
                     row: m.row,
                     col: m.col,
                     owner: m.owner,
                     remainingOwnerTurns: m.data.remainingOwnerTurns
-                });
+                };
+                guardMap.set(`${m.row},${m.col}`, guardVisual);
+                setMarkerVisual(m.row, m.col, 'guard', guardVisual);
                 continue;
             }
             const markerTypeUpper = String(m.data.type || '').toUpperCase();
@@ -257,7 +333,7 @@ function buildCurrentCellState(capabilities: any) {
                 markerTypeUpper === 'WILL_HUNTER_KING' ||
                 markerTypeUpper === 'AFTERIMAGE_WILL'
             );
-            specialMap.set(`${m.row},${m.col}`, {
+            const specialVisual = {
                 row: m.row,
                 col: m.col,
                 type: m.data.type,
@@ -287,7 +363,9 @@ function buildCurrentCellState(capabilities: any) {
                             : (markerTypeUpper === 'ULTIMATE_HYPERACTIVE' ? 5 : (markerTypeUpper === 'EXTREME_HYPERACTIVE' ? 5 : (markerTypeUpper === 'AFTERIMAGE_WILL' ? 3 : null)))
                     )
                     : 0
-            });
+            };
+            specialMap.set(`${m.row},${m.col}`, specialVisual);
+            setMarkerVisual(m.row, m.col, 'special', specialVisual);
         }
     }
     try {
@@ -354,9 +432,10 @@ function buildCurrentCellState(capabilities: any) {
         for (let c = 0; c < boardShape.cols; c++) {
             const key = r + ',' + c;
             const val = gameState.board[r][c];
-            const blockade = blockadeMap.get(key) || null;
-            const frozen = freezeMap.get(key) || null;
-            const seed = seedMap.get(key) || null;
+            const markerVisual = markerVisualMap.get(key) || null;
+            const blockade = markerVisual ? markerVisual.blockade || null : null;
+            const frozen = markerVisual ? markerVisual.frozen || null : null;
+            const seed = markerVisual ? markerVisual.seed || null : null;
             const isLegal = showLegalHints && val === EMPTY && legalSet.has(key);
             const isTabooLegal = showLegalHints && val === EMPTY && tabooLegalSet.has(key);
             const isLegalFree = showLegalHints && val === EMPTY && freePlacementActive;
@@ -373,13 +452,13 @@ function buildCurrentCellState(capabilities: any) {
             const theoryNumberCell = boardBonus !== null && !!theoryNumberCellByCell[key];
 
             // Get special stone at this position
-            const special = val !== EMPTY ? specialMap.get(key) : null;
-            const guard = val !== EMPTY ? guardMap.get(key) : null;
-            const livingWill = val !== EMPTY ? livingWillMap.get(key) : null;
-            const manifestAura = val !== EMPTY ? manifestAuraMap.get(key) : null;
-            const bomb = val !== EMPTY ? bombMap.get(key) : null;
-            const flipEvadeDisplay = _resolveFlipEvadeDisplayForDiff(special);
-            const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForDiff(special);
+            const special = val !== EMPTY && markerVisual ? markerVisual.special || null : null;
+            const guard = val !== EMPTY && markerVisual ? markerVisual.guard || null : null;
+            const livingWill = val !== EMPTY && markerVisual ? markerVisual.livingWill || null : null;
+            const manifestAura = val !== EMPTY && markerVisual ? markerVisual.manifestAura || null : null;
+            const bomb = val !== EMPTY && markerVisual ? markerVisual.bomb || null : null;
+            const flipEvadeDisplay = special ? _resolveFlipEvadeDisplayForDiff(special) : 0;
+            const destroyEvadeDisplay = special ? _resolveDestroyEvadeDisplayForDiff(special) : null;
             const specialSupportsFlipEvade = specialSupportsFlipEvadeForDiff(special);
 
             state[r][c] = {
@@ -449,16 +528,17 @@ function buildCurrentCellState(capabilities: any) {
         const isSuperAttractionPreviewDestination = isHumanTurn && superAttractionPreviewKeys.destinationKeys.has(expKey);
         const isSelectableFriendly = isHumanTurn && (selectableTargetSet.has(expKey) || boardShrinkGodPreviewHighlightSet.has(expKey));
         const isExtendLifeTarget = isSelectableFriendly && isExtendLifeSelection;
-        const blockade = blockadeMap.get(expKey) || null;
-        const frozen = freezeMap.get(expKey) || null;
-        const seed = seedMap.get(expKey) || null;
-        const special = expVal !== EMPTY ? specialMap.get(expKey) : null;
-        const guard = expVal !== EMPTY ? guardMap.get(expKey) : null;
-        const livingWill = expVal !== EMPTY ? livingWillMap.get(expKey) : null;
-        const manifestAura = expVal !== EMPTY ? manifestAuraMap.get(expKey) : null;
-        const bomb = expVal !== EMPTY ? bombMap.get(expKey) : null;
-        const flipEvadeDisplay = _resolveFlipEvadeDisplayForDiff(special);
-        const destroyEvadeDisplay = _resolveDestroyEvadeDisplayForDiff(special);
+        const markerVisual = markerVisualMap.get(expKey) || null;
+        const blockade = markerVisual ? markerVisual.blockade || null : null;
+        const frozen = markerVisual ? markerVisual.frozen || null : null;
+        const seed = markerVisual ? markerVisual.seed || null : null;
+        const special = expVal !== EMPTY && markerVisual ? markerVisual.special || null : null;
+        const guard = expVal !== EMPTY && markerVisual ? markerVisual.guard || null : null;
+        const livingWill = expVal !== EMPTY && markerVisual ? markerVisual.livingWill || null : null;
+        const manifestAura = expVal !== EMPTY && markerVisual ? markerVisual.manifestAura || null : null;
+        const bomb = expVal !== EMPTY && markerVisual ? markerVisual.bomb || null : null;
+        const flipEvadeDisplay = special ? _resolveFlipEvadeDisplayForDiff(special) : 0;
+        const destroyEvadeDisplay = special ? _resolveDestroyEvadeDisplayForDiff(special) : null;
         const specialSupportsFlipEvade = specialSupportsFlipEvadeForDiff(special);
 
         state._expansionCells.push({
@@ -514,6 +594,25 @@ function buildCurrentCellState(capabilities: any) {
         });
     }
         state._expansionCell = state._expansionCells.length > 0 ? state._expansionCells[0] : null;
+        Object.defineProperty(state, '_renderProjection', {
+            value: Object.freeze({
+                ...renderProjection,
+                markerMaps: Object.freeze({
+                    specialMap,
+                    guardMap,
+                    livingWillMap,
+                    manifestAuraMap,
+                    bombMap,
+                    blockadeMap,
+                    freezeMap,
+                    seedMap,
+                    sproutMap,
+                    markerVisualMap
+                })
+            }),
+            enumerable: false,
+            configurable: true
+        });
         return state;
     } finally {
         if (PerfBenchmarks) PerfBenchmarks.perfEnd('buildCurrentCellState');
@@ -521,6 +620,7 @@ function buildCurrentCellState(capabilities: any) {
 }
 
 const DiffRendererProjector = {
+  createBoardRenderProjection,
   buildCurrentCellState
 };
 

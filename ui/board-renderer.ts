@@ -1035,23 +1035,16 @@ function renderBoard() {
         if (_shouldSkipBoardRenderForPlayback()) {
             return;
         }
-        // Determine whether we are in a "target selection" card mode.
-    // In selection mode, normal "placeable move" hints must not appear.
+        let preparedRenderProjection: any = null;
     try {
-        const renderState = _resolveBoardRenderStateForBoardRenderer();
-        const renderGameState = renderState.gameState;
-        const renderCardState = renderState.cardState;
-        const player = renderGameState.currentPlayer;
-        const playerKey = getPlayerKey(player);
-        const pending = renderCardState && renderCardState.pendingEffectByPlayer ? renderCardState.pendingEffectByPlayer[playerKey] : null;
-        const selectableTargets = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getSelectableTargets === 'function')
-            ? CardLogic.getSelectableTargets(renderCardState, renderGameState, playerKey)
-            : [];
+        const diffModule = _require('./diff-renderer');
+        preparedRenderProjection = diffModule && typeof diffModule.createBoardRenderProjection === 'function'
+            ? diffModule.createBoardRenderProjection()
+            : null;
         const isSelectingTarget = !!(
-            pending &&
-            pending.stage === 'selectTarget' &&
-            Array.isArray(selectableTargets) &&
-            selectableTargets.length > 0
+            preparedRenderProjection &&
+            preparedRenderProjection.hintProjection &&
+            preparedRenderProjection.hintProjection.isSelectingTarget === true
         );
         if (boardEl) boardEl.classList.toggle('selection-mode', isSelectingTarget);
     } catch (e: any) {
@@ -1061,7 +1054,7 @@ function renderBoard() {
 
     // Use differential rendering if available
     if (typeof renderBoardDiff === 'function') {
-        renderBoardDiff(boardEl);
+        renderBoardDiff(boardEl, preparedRenderProjection);
     } else {
         // diff-renderer is required; avoid legacy full render path
         console.error('[Board Renderer] diff-renderer.js not loaded; rendering skipped');

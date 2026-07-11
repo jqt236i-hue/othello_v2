@@ -537,7 +537,7 @@ function _getRenderedCellsForDiff(boardEl: any) {
     return cells;
 }
 
-function _buildBoardHintProjectionForDiff(gameStateValue: any, cardStateValue: any, playerKey: any, boardShape: any, canControlCurrentTurn: boolean, isHumanTurn: boolean, expansions: any[]) {
+function _buildBoardHintProjectionForDiff(gameStateValue: any, cardStateValue: any, playerKey: any, boardShape: any, canControlCurrentTurn: boolean, isHumanTurn: boolean, expansions: any[], cardContext?: any, operationCounters?: any) {
     const projectionModule = _getBoardHintProjectionForDiff();
     if (!projectionModule || typeof projectionModule.buildBoardHintProjection !== 'function') return null;
     return projectionModule.buildBoardHintProjection({
@@ -548,6 +548,8 @@ function _buildBoardHintProjectionForDiff(gameStateValue: any, cardStateValue: a
         canControlCurrentTurn,
         isHumanTurn,
         expansions,
+        cardContext,
+        operationCounters,
         cardLogic: (typeof CardLogic !== 'undefined' ? CardLogic : null),
         getLegalMoves: (typeof getLegalMoves === 'function' ? getLegalMoves : null)
     });
@@ -3233,8 +3235,12 @@ function _createCellStateProjectorContextForDiff() {
  * Build cell state from current game state
  * @returns {Array<Array<CellState>>} 8x8セル状態配列
  */
-function buildCurrentCellState() {
-    return DiffRendererProjector.buildCurrentCellState(_createCellStateProjectorContextForDiff());
+function createBoardRenderProjection(operationCounters?: any) {
+    return DiffRendererProjector.createBoardRenderProjection(_createCellStateProjectorContextForDiff(), operationCounters);
+}
+
+function buildCurrentCellState(renderProjection?: any) {
+    return DiffRendererProjector.buildCurrentCellState(_createCellStateProjectorContextForDiff(), renderProjection);
 }
 
 function _createCellDomPatcherContextForDiff() {
@@ -3415,24 +3421,11 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
     }
 }
 
-function _syncSelectionModeForDiff(boardEl: any) {
+function _syncSelectionModeForDiff(boardEl: any, renderProjection?: any) {
     if (!boardEl || !boardEl.classList) return;
     try {
-        const gameState = _resolveGameStateForDiffRender();
-        const cardState = _resolveCardStateForDiffRender();
-        const playerKey = getPlayerKey(gameState && gameState.currentPlayer);
-        const pending = cardState && cardState.pendingEffectByPlayer
-            ? cardState.pendingEffectByPlayer[playerKey]
-            : null;
-        const selectableTargets = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getSelectableTargets === 'function')
-            ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
-            : [];
-        const isSelectingTarget = !!(
-            pending &&
-            pending.stage === 'selectTarget' &&
-            Array.isArray(selectableTargets) &&
-            selectableTargets.length > 0
-        );
+        const projection = renderProjection || createBoardRenderProjection();
+        const isSelectingTarget = !!(projection && projection.hintProjection && projection.hintProjection.isSelectingTarget === true);
         boardEl.classList.toggle('selection-mode', isSelectingTarget);
     } catch (e: any) {
         boardEl.classList.remove('selection-mode');
@@ -3445,7 +3438,7 @@ function _syncSelectionModeForDiff(boardEl: any) {
  * @param {HTMLElement} boardEl - 盤面要素
  * @returns {number} 更新されたセル数
  */
-function renderBoardDiff(boardEl: any) {
+function renderBoardDiff(boardEl: any, preparedRenderProjection?: any) {
     if (PerfBenchmarks) PerfBenchmarks.perfStart('renderBoardDiff');
     // PR1 summary accumulators live in function scope so the outer finally
     // can emit them. The inner try/finally below still mutates these via the
@@ -3502,7 +3495,8 @@ function renderBoardDiff(boardEl: any) {
             return 0;
         }
     }
-    _syncSelectionModeForDiff(boardEl);
+    const renderProjection = preparedRenderProjection || createBoardRenderProjection();
+    _syncSelectionModeForDiff(boardEl, renderProjection);
 
     // One-shot suppression set by AnimationEngine at the end of playback.
     // This prevents DiffRenderer from replaying the fallback ".flip" when syncing the final board state.
@@ -3531,7 +3525,7 @@ function renderBoardDiff(boardEl: any) {
                 !!cellCacheMap.size && boardDomSignature !== null
             );
             initializeBoardDOM(boardEl);
-            previousBoardState = buildCurrentCellState();
+            previousBoardState = buildCurrentCellState(renderProjection);
             const initialBoardShape = _getStateBoardShapeForDiff(previousBoardState);
             // Initial full render
             for (let r = 0; r < initialBoardShape.rows; r++) {
@@ -3561,7 +3555,7 @@ function renderBoardDiff(boardEl: any) {
             return cellCacheMap.size;
         }
 
-        const currentState = buildCurrentCellState();
+        const currentState = buildCurrentCellState(renderProjection);
         const currentBoardShape = _getStateBoardShapeForDiff(currentState);
         // updatedCount / updateCellDOMCount / updateCellDOMDurationMs are
         // declared at function scope above so the outer finally can emit them.
@@ -3696,6 +3690,7 @@ function _isReversiModeForDiffRenderer() {
 const DiffRenderer = {
     initializeBoardDOM,
     buildCurrentCellState,
+    createBoardRenderProjection,
     renderBoardDiff,
     forceFullRender,
     resetRenderStats,

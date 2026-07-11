@@ -10,6 +10,9 @@ interface BoardHintProjectionInput {
   expansions?: any[];
   cardLogic?: any;
   getLegalMoves?: any;
+  cardContext?: any;
+  selectableTargets?: any[];
+  operationCounters?: { cardContextBuilds?: number; selectableTargetBuilds?: number; legalMoveBuilds?: number };
 }
 
 function normalizePointKey(target: any): string | null {
@@ -314,9 +317,13 @@ function buildBoardHintProjection(inputValue: BoardHintProjectionInput): any {
   const pendingByPlayer = cardState.pendingEffectByPlayer || {};
   const pending = pendingByPlayer[input.playerKey] || null;
   const cardLogic = input.cardLogic || {};
-  const rawSelectableTargets = cardLogic && typeof cardLogic.getSelectableTargets === 'function'
-    ? cardLogic.getSelectableTargets(input.cardState, input.gameState, input.playerKey)
-    : [];
+  let rawSelectableTargets: any[] = [];
+  if (Array.isArray(input.selectableTargets)) {
+    rawSelectableTargets = input.selectableTargets;
+  } else if (cardLogic && typeof cardLogic.getSelectableTargets === 'function') {
+    rawSelectableTargets = cardLogic.getSelectableTargets(input.cardState, input.gameState, input.playerKey);
+    if (input.operationCounters) input.operationCounters.selectableTargetBuilds = Number(input.operationCounters.selectableTargetBuilds || 0) + 1;
+  }
   const selectableTargets = Array.isArray(rawSelectableTargets) ? rawSelectableTargets : [];
   const selectableTargetSet = new Set<string>();
   selectableTargets.forEach((target: any) => {
@@ -336,13 +343,15 @@ function buildBoardHintProjection(inputValue: BoardHintProjectionInput): any {
     && input.canControlCurrentTurn === true;
   let normalLegalSet = new Set<string>();
   if (showLegalHints && typeof input.getLegalMoves === 'function') {
-    let context = { protectedStones: [], permaProtectedStones: [] };
-    if (cardLogic && typeof cardLogic.getCardContext === 'function') {
+    let context = input.cardContext || { protectedStones: [], permaProtectedStones: [] };
+    if (!input.cardContext && cardLogic && typeof cardLogic.getCardContext === 'function') {
       try {
         context = cardLogic.getCardContext(input.cardState) || context;
+        if (input.operationCounters) input.operationCounters.cardContextBuilds = Number(input.operationCounters.cardContextBuilds || 0) + 1;
       } catch (e) { /* ignore */ }
     }
     const legalMoves = input.getLegalMoves(input.gameState, (context as any).protectedStones, (context as any).permaProtectedStones) || [];
+    if (input.operationCounters) input.operationCounters.legalMoveBuilds = Number(input.operationCounters.legalMoveBuilds || 0) + 1;
     normalLegalSet = new Set(legalMoves.map((move: any) => `${move.row},${move.col}`));
   }
   const tabooLegalSet = buildTabooLegalSet(input, pending, showLegalHints);
