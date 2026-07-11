@@ -17,6 +17,10 @@ export interface ExpansionDescriptorDependencies {
     boardOrConfig: unknown,
     maybeCols?: unknown,
   ) => BoardBounds;
+  resolveBaseBounds: (
+    boardOrConfig: unknown,
+    maybeCols?: unknown,
+  ) => BoardBounds;
   isMainBoardCell: (
     row: number,
     col: number,
@@ -24,6 +28,7 @@ export interface ExpansionDescriptorDependencies {
     maybeCols?: unknown,
   ) => boolean;
   normalizeOwner: (value: unknown) => number;
+  maxAbsCoordinate?: number;
 }
 
 export function createExpansionDescriptors(
@@ -36,14 +41,10 @@ export function createExpansionDescriptors(
     maybeCols?: unknown,
   ): boolean {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    const outerBounds = deps.resolveOuterBounds(boardOrConfig, maybeCols);
-    if (
-      row < outerBounds.minRow ||
-      row > outerBounds.maxRow ||
-      col < outerBounds.minCol ||
-      col > outerBounds.maxCol
-    )
-      return false;
+    const maxAbsCoordinate = Number.isFinite(Number(deps.maxAbsCoordinate))
+      ? Math.max(16, Math.trunc(Number(deps.maxAbsCoordinate)))
+      : 256;
+    if (Math.abs(row) > maxAbsCoordinate || Math.abs(col) > maxAbsCoordinate) return false;
     return !deps.isMainBoardCell(row, col, boardOrConfig, maybeCols);
   }
 
@@ -61,12 +62,19 @@ export function createExpansionDescriptors(
       side === "bottom"
     )
       return side;
-    const outerBounds = deps.resolveOuterBounds(boardOrConfig, maybeCols);
-    if (col === outerBounds.minCol) return "left";
-    if (col === outerBounds.maxCol) return "right";
-    if (row === outerBounds.minRow) return "top";
-    if (row === outerBounds.maxRow) return "bottom";
-    return null;
+    const baseBounds = deps.resolveBaseBounds(boardOrConfig, maybeCols);
+    if (col < baseBounds.minCol) return "left";
+    if (col > baseBounds.maxCol) return "right";
+    if (row < baseBounds.minRow) return "top";
+    if (row > baseBounds.maxRow) return "bottom";
+    const distances = [
+      { side: "top", value: Math.abs(row - baseBounds.minRow) },
+      { side: "right", value: Math.abs(baseBounds.maxCol - col) },
+      { side: "bottom", value: Math.abs(baseBounds.maxRow - row) },
+      { side: "left", value: Math.abs(col - baseBounds.minCol) },
+    ];
+    distances.sort((a, b) => a.value - b.value);
+    return distances[0].side;
   }
 
   function normalizeExpansionCell(

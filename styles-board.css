@@ -156,7 +156,7 @@
     border-left-color: var(--board-contour-highlight);
 }
 
-#board-expansion-layer .cell-expanded[class*="board-frame-edge-"] {
+.cell-expanded[class*="board-frame-edge-"] {
     filter:
         drop-shadow(0 0 calc(1px * var(--layout-stage-scale)) var(--board-contour-highlight))
         drop-shadow(0 0 calc(3px * var(--layout-stage-scale)) var(--board-contour-metal));
@@ -205,7 +205,7 @@
     pointer-events: auto;
 }
 
-#board-expansion-layer .cell-expanded-reveal {
+.cell-expanded-reveal {
     animation: boardExpansionCellReveal 260ms ease-out forwards;
 }
 
@@ -227,54 +227,6 @@
 #board-expansion-layer .cell-expanded-bottom {
     top: 100%;
     border-top-color: transparent;
-}
-
-#board.board-expanded-left {
-    border-left-color: transparent;
-}
-
-#board.board-expanded-right {
-    border-right-color: transparent;
-}
-
-#board.board-expanded-top {
-    border-top-color: transparent;
-}
-
-#board.board-expanded-bottom {
-    border-bottom-color: transparent;
-}
-
-#board.board-expanded-left::after {
-    border-left-color: transparent;
-}
-
-#board.board-expanded-right::after {
-    border-right-color: transparent;
-}
-
-#board.board-expanded-top::after {
-    border-top-color: transparent;
-}
-
-#board.board-expanded-bottom::after {
-    border-bottom-color: transparent;
-}
-
-#board.board-expanded-left .cell-edge-left:not(.cell-expanded) {
-    border-left-color: transparent;
-}
-
-#board.board-expanded-right .cell-edge-right:not(.cell-expanded) {
-    border-right-color: transparent;
-}
-
-#board.board-expanded-top .cell-edge-top:not(.cell-expanded) {
-    border-top-color: transparent;
-}
-
-#board.board-expanded-bottom .cell-edge-bottom:not(.cell-expanded) {
-    border-bottom-color: transparent;
 }
 
 @keyframes boardExpansionCellReveal {

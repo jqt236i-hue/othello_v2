@@ -206,6 +206,7 @@ export function createBoardShapeMetadata(deps: BoardShapeMetadataDependencies) {
     );
   }
   return {
+    collectMeteorHoleKeys,
     getBoardShapeMeta,
     buildShapeMeta,
     attachBoardShape,

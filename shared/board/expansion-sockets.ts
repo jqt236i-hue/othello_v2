@@ -20,16 +20,6 @@ export interface Bounds {
   maxCol: number;
 }
 
-export interface BoardConfig {
-  baseBounds: Bounds;
-  outerBounds: Bounds;
-}
-
-export interface BoardShapeMeta {
-  playableKeys: Set<string>;
-  meteorHoleKeys: Set<string>;
-}
-
 export interface BoardExpansionSocket {
   kind: "edge" | "corner";
   anchor: CellCoord;
@@ -40,14 +30,13 @@ export interface BoardExpansionSocket {
 
 export interface ExpansionSocketDependencies {
   toBoardCellKey: (row: number, col: number) => string;
-  getBoardShapeMeta: (board: unknown) => BoardShapeMeta | null;
-  collectBoardCoordinates: (board: unknown) => CellCoord[];
-  resolveBoardConfig: (boardOrConfig: unknown) => BoardConfig;
-  isExpansionCoordinate: (
-    row: number,
-    col: number,
-    boardOrConfig: unknown,
-  ) => boolean;
+  buildBoardTopology: (boardOrState: unknown, options?: unknown) => {
+    playableKeys: Set<string>;
+    existingKeys: Set<string>;
+    holeKeys: Set<string>;
+    playableCoordinates: CellCoord[];
+    candidateBounds: Bounds;
+  };
 }
 
 const CARDINAL_DIRECTIONS = [
@@ -74,31 +63,13 @@ export function createExpansionSockets(deps: ExpansionSocketDependencies) {
     );
   }
 
-  function collectPlayableKeys(board: unknown): Set<string> {
-    const meta = deps.getBoardShapeMeta(board);
-    if (meta && meta.playableKeys instanceof Set)
-      return new Set(meta.playableKeys);
-    return new Set(
-      deps
-        .collectBoardCoordinates(board)
-        .map((cell) => deps.toBoardCellKey(cell.row, cell.col)),
-    );
-  }
-
-  function collectMeteorHoleKeys(board: unknown): Set<string> {
-    const meta = deps.getBoardShapeMeta(board);
-    return meta && meta.meteorHoleKeys instanceof Set
-      ? new Set(meta.meteorHoleKeys)
-      : new Set();
-  }
-
   function getExteriorVoidKeys(
     board: unknown,
     boardOrConfig?: unknown,
   ): Set<string> {
-    const config = deps.resolveBoardConfig(boardOrConfig || board);
-    const bounds = config.outerBounds;
-    const playableKeys = collectPlayableKeys(board);
+    const topology = deps.buildBoardTopology(board, { boardConfig: boardOrConfig || board });
+    const bounds = topology.candidateBounds;
+    const playableKeys = topology.playableKeys;
     const exteriorKeys = new Set<string>();
     const queue: CellCoord[] = [];
 
@@ -128,33 +99,26 @@ export function createExpansionSockets(deps: ExpansionSocketDependencies) {
     return exteriorKeys;
   }
 
-  function getSortedPlayableCoordinates(board: unknown): CellCoord[] {
-    const playableKeys = collectPlayableKeys(board);
-    const coords: CellCoord[] = [];
-    for (const key of playableKeys) {
-      const [rowText, colText] = key.split(",");
-      const row = Number(rowText);
-      const col = Number(colText);
-      if (Number.isInteger(row) && Number.isInteger(col))
-        coords.push({ row, col });
-    }
-    return coords.sort((a, b) => a.row - b.row || a.col - b.col);
+  function getSortedPlayableCoordinates(
+    board: unknown,
+    boardOrConfig?: unknown,
+  ): CellCoord[] {
+    return deps.buildBoardTopology(board, { boardConfig: boardOrConfig || board }).playableCoordinates
+      .map((cell) => ({ row: cell.row, col: cell.col }));
   }
 
   function isAvailableAddition(
     row: number,
     col: number,
-    boardOrConfig: unknown,
-    playableKeys: Set<string>,
+    existingKeys: Set<string>,
     meteorHoleKeys: Set<string>,
     exteriorKeys: Set<string>,
   ): boolean {
     const key = deps.toBoardCellKey(row, col);
     return (
-      !playableKeys.has(key) &&
+      !existingKeys.has(key) &&
       !meteorHoleKeys.has(key) &&
-      exteriorKeys.has(key) &&
-      deps.isExpansionCoordinate(row, col, boardOrConfig)
+      exteriorKeys.has(key)
     );
   }
 
@@ -163,12 +127,13 @@ export function createExpansionSockets(deps: ExpansionSocketDependencies) {
     boardOrConfig?: unknown,
   ): BoardExpansionSocket[] {
     const configSource = boardOrConfig || board;
-    const playableKeys = collectPlayableKeys(board);
-    const meteorHoleKeys = collectMeteorHoleKeys(board);
+    const topology = deps.buildBoardTopology(board, { boardConfig: configSource });
+    const existingKeys = topology.existingKeys;
+    const meteorHoleKeys = topology.holeKeys;
     const exteriorKeys = getExteriorVoidKeys(board, configSource);
     const sockets: BoardExpansionSocket[] = [];
 
-    for (const anchor of getSortedPlayableCoordinates(board)) {
+    for (const anchor of getSortedPlayableCoordinates(board, configSource)) {
       for (const direction of CARDINAL_DIRECTIONS) {
         const row = anchor.row + direction.row;
         const col = anchor.col + direction.col;
@@ -176,8 +141,7 @@ export function createExpansionSockets(deps: ExpansionSocketDependencies) {
           !isAvailableAddition(
             row,
             col,
-            configSource,
-            playableKeys,
+            existingKeys,
             meteorHoleKeys,
             exteriorKeys,
           )
@@ -200,12 +164,13 @@ export function createExpansionSockets(deps: ExpansionSocketDependencies) {
     boardOrConfig?: unknown,
   ): BoardExpansionSocket[] {
     const configSource = boardOrConfig || board;
-    const playableKeys = collectPlayableKeys(board);
-    const meteorHoleKeys = collectMeteorHoleKeys(board);
+    const topology = deps.buildBoardTopology(board, { boardConfig: configSource });
+    const existingKeys = topology.existingKeys;
+    const meteorHoleKeys = topology.holeKeys;
     const exteriorKeys = getExteriorVoidKeys(board, configSource);
     const sockets: BoardExpansionSocket[] = [];
 
-    for (const anchor of getSortedPlayableCoordinates(board)) {
+    for (const anchor of getSortedPlayableCoordinates(board, configSource)) {
       for (const direction of CORNER_DIRECTIONS) {
         const additions = [
           { row: anchor.row + direction.row, col: anchor.col },
@@ -220,8 +185,7 @@ export function createExpansionSockets(deps: ExpansionSocketDependencies) {
             isAvailableAddition(
               cell.row,
               cell.col,
-              configSource,
-              playableKeys,
+              existingKeys,
               meteorHoleKeys,
               exteriorKeys,
             ),

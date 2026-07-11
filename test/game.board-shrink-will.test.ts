@@ -150,6 +150,39 @@ describe('盤面縮小 / 盤面縮小神', () => {
     expect(CardLogic.isBlockedCell(cardState, 3, -1, gameState)).toBe(true);
   });
 
+  test('盤面縮小は初期外周を越えて連鎖拡張したマスも対象にできる', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+    gameState.boardExpansion = {
+      active: true,
+      side: 'top',
+      row: -2,
+      col: 1,
+      owner: Core.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: [
+        { side: 'top', row: -1, col: 1, owner: Core.EMPTY },
+        { side: 'top', row: -2, col: 1, owner: Core.EMPTY }
+      ]
+    };
+    cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_SHRINK_WILL',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_01',
+      selectedCount: 2,
+      maxSelections: 3,
+      selectedTargets: [{ row: 0, col: 1 }, { row: -1, col: 1 }]
+    };
+
+    const targets = CardLogic.getBoardShrinkTargets(cardState, gameState, 'black');
+    expect(targets).toEqual(expect.arrayContaining([expect.objectContaining({ row: -2, col: 1 })]));
+
+    const result = CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', -2, 1);
+    expect(result).toEqual(expect.objectContaining({ applied: true, completed: true }));
+    expect(CardLogic.isBlockedCell(cardState, -2, 1, gameState)).toBe(true);
+  });
+
   test('盤面縮小で復活の意志付きの石を選ぶと復活せず穴になる', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();

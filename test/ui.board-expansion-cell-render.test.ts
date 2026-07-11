@@ -61,16 +61,17 @@ describe('DiffRenderer board expansion cell rendering', () => {
     diff.renderBoardDiff(boardEl);
 
     const expansionLayer = document.getElementById('board-expansion-layer');
-    const expansionCell = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const expansionCell = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
     expect(expansionCell).toBeTruthy();
-    expect(boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]')).toBeNull();
+    expect(expansionLayer.querySelector('.cell')).toBeNull();
     expect(expansionCell.classList.contains('cell-expanded')).toBe(true);
-    expect(expansionCell.style.left).toBe('-12.5%');
+    expect(expansionCell.style.gridRow).toBe('3');
+    expect(expansionCell.style.gridColumn).toBe('1');
     expect(expansionCell.classList.contains('cell-expanded-reveal')).toBe(false);
 
     diff.renderBoardDiff(boardEl);
 
-    const expansionCellAfter = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const expansionCellAfter = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
     expect(expansionCellAfter).toBeTruthy();
     expect(expansionCellAfter.classList.contains('cell-expanded')).toBe(true);
   });
@@ -93,10 +94,11 @@ describe('DiffRenderer board expansion cell rendering', () => {
     diff.renderBoardDiff(boardEl);
 
     const expansionLayer = document.getElementById('board-expansion-layer');
-    const leftCell = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
-    const rightCell = expansionLayer.querySelector('.cell-expanded-right[data-row="5"][data-col="8"]');
+    const leftCell = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const rightCell = boardEl.querySelector('.cell-expanded-right[data-row="5"][data-col="8"]');
     expect(leftCell).toBeTruthy();
     expect(rightCell).toBeTruthy();
+    expect(expansionLayer.querySelector('.cell')).toBeNull();
     expect(boardEl.classList.contains('board-expanded-left')).toBe(true);
     expect(boardEl.classList.contains('board-expanded-right')).toBe(true);
   });
@@ -120,20 +122,21 @@ describe('DiffRenderer board expansion cell rendering', () => {
     diff.renderBoardDiff(boardEl);
 
     const expansionLayer = document.getElementById('board-expansion-layer');
-    const topCell = expansionLayer.querySelector('.cell-expanded-top[data-row="-1"][data-col="0"]');
-    const cornerCell = expansionLayer.querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
-    const bottomCell = expansionLayer.querySelector('.cell-expanded-bottom[data-row="8"][data-col="7"]');
+    const topCell = boardEl.querySelector('.cell-expanded-top[data-row="-1"][data-col="0"]');
+    const cornerCell = boardEl.querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
+    const bottomCell = boardEl.querySelector('.cell-expanded-bottom[data-row="8"][data-col="7"]');
 
     expect(topCell).toBeTruthy();
     expect(cornerCell).toBeTruthy();
     expect(bottomCell).toBeTruthy();
 
-    expect(topCell.style.top).toBe('-12.5%');
-    expect(topCell.style.left).toBe('0%');
-    expect(cornerCell.style.top).toBe('-12.5%');
-    expect(cornerCell.style.left).toBe('-12.5%');
-    expect(bottomCell.style.top).toBe('100%');
-    expect(bottomCell.style.left).toBe('87.5%');
+    expect(topCell.style.gridRow).toBe('1');
+    expect(topCell.style.gridColumn).toBe('2');
+    expect(cornerCell.style.gridRow).toBe('1');
+    expect(cornerCell.style.gridColumn).toBe('1');
+    expect(bottomCell.style.gridRow).toBe('10');
+    expect(bottomCell.style.gridColumn).toBe('9');
+    expect(expansionLayer.querySelector('.cell')).toBeNull();
 
     expect(boardEl.classList.contains('board-expanded-top')).toBe(true);
     expect(boardEl.classList.contains('board-expanded-bottom')).toBe(true);
@@ -185,7 +188,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
 
     diff.renderBoardDiff(boardEl);
 
-    const cornerCell = document.getElementById('board-expansion-layer').querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
+    const cornerCell = boardEl.querySelector('.cell-expanded-left[data-row="-1"][data-col="-1"]');
     expect(cornerCell).toBeTruthy();
     expect(cornerCell.classList.contains('legal-free')).toBe(true);
     expect(cornerCell.classList.contains('legal')).toBe(false);
@@ -208,7 +211,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
     diff.renderBoardDiff(boardEl);
 
     const expansionLayer = document.getElementById('board-expansion-layer');
-    const newCell = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const newCell = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
     expect(newCell).toBeTruthy();
     expect(newCell.classList.contains('cell-expanded-reveal')).toBe(true);
 
@@ -225,8 +228,8 @@ describe('DiffRenderer board expansion cell rendering', () => {
     };
     diff.renderBoardDiff(boardEl);
 
-    const oldCell = expansionLayer.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
-    const addedCell = expansionLayer.querySelector('.cell-expanded-right[data-row="5"][data-col="8"]');
+    const oldCell = boardEl.querySelector('.cell-expanded-left[data-row="2"][data-col="-1"]');
+    const addedCell = boardEl.querySelector('.cell-expanded-right[data-row="5"][data-col="8"]');
     expect(oldCell).toBeTruthy();
     expect(addedCell).toBeTruthy();
     expect(oldCell.classList.contains('cell-expanded-reveal')).toBe(false);
@@ -295,29 +298,34 @@ describe('DiffRenderer board expansion cell rendering', () => {
     expect(global.window.__suppressNextBoardExpansionRevealSound).toBe(false);
   });
 
-  test('board expansion CSS clears the seam frame where outer cells connect to the main board', () => {
+  test('board expansion uses the same contour frame and reveal animation as base cells', () => {
     const boardCss = readRepoTextFile('styles-board.css');
+    expect(boardCss).toMatch(/\.cell\.board-frame-edge-top\s*\{[\s\S]*border-top-color:\s*var\(--board-contour-highlight\)/);
+    expect(boardCss).toMatch(/\.cell-expanded-reveal\s*\{[\s\S]*animation:\s*boardExpansionCellReveal/);
+  });
 
-    expect(boardCss).toMatch(/#board\.board-expanded-left\s*\{[\s\S]*border-left-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board\.board-expanded-left::after\s*\{[\s\S]*border-left-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board-expansion-layer\s+\.cell-expanded-left\s*\{[\s\S]*border-right-color:\s*transparent/);
+  test('renders a circle-void expansion exactly once in the unified grid', () => {
+    const diff = require('../ui/diff-renderer.js');
+    diff.resetRenderStats();
+    global.gameState.board = Array.from({ length: 10 }, () => Array(10).fill(global.EMPTY));
+    global.gameState.boardConfig = { rows: 10, cols: 10, shape: 'circle' };
+    global.gameState.boardExpansion = {
+      active: true,
+      side: 'top',
+      row: 0,
+      col: 0,
+      owner: global.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ side: 'top', row: 0, col: 0, owner: global.EMPTY }]
+    };
 
-    expect(boardCss).toMatch(/#board\.board-expanded-right\s*\{[\s\S]*border-right-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board\.board-expanded-right::after\s*\{[\s\S]*border-right-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board-expansion-layer\s+\.cell-expanded-right\s*\{[\s\S]*border-left-color:\s*transparent/);
+    diff.renderBoardDiff(boardEl);
 
-    expect(boardCss).toMatch(/#board\.board-expanded-top\s*\{[\s\S]*border-top-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board\.board-expanded-top::after\s*\{[\s\S]*border-top-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board-expansion-layer\s+\.cell-expanded-top\s*\{[\s\S]*border-bottom-color:\s*transparent/);
-
-    expect(boardCss).toMatch(/#board\.board-expanded-bottom\s*\{[\s\S]*border-bottom-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board\.board-expanded-bottom::after\s*\{[\s\S]*border-bottom-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board-expansion-layer\s+\.cell-expanded-bottom\s*\{[\s\S]*border-top-color:\s*transparent/);
-
-    expect(boardCss).toMatch(/#board\.board-expanded-left\s+\.cell-edge-left:not\(\.cell-expanded\)\s*\{[\s\S]*border-left-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board\.board-expanded-right\s+\.cell-edge-right:not\(\.cell-expanded\)\s*\{[\s\S]*border-right-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board\.board-expanded-top\s+\.cell-edge-top:not\(\.cell-expanded\)\s*\{[\s\S]*border-top-color:\s*transparent/);
-    expect(boardCss).toMatch(/#board\.board-expanded-bottom\s+\.cell-edge-bottom:not\(\.cell-expanded\)\s*\{[\s\S]*border-bottom-color:\s*transparent/);
+    const matching = boardEl.querySelectorAll('.cell[data-row="0"][data-col="0"]');
+    expect(matching).toHaveLength(1);
+    expect(matching[0].classList.contains('cell-expanded')).toBe(true);
+    expect(matching[0].classList.contains('cell-void')).toBe(false);
+    expect(document.getElementById('board-expansion-layer').querySelector('.cell')).toBeNull();
   });
 
   test('board CSS keeps occupied cells above neighboring grid lines', () => {

@@ -515,7 +515,7 @@ describe('UI bootstrap early CPU registration', () => {
 
     const board = document.getElementById('board');
     const cell = board.querySelector('.cell');
-    const expansionCell = document.querySelector('#board-expansion-layer .cell-expanded');
+    const expansionCell = document.querySelector('.cell-expanded');
 
     expect(uiImpl.clearLegalMoveHints()).toBe(true);
     expect(cell.classList.contains('legal')).toBe(false);

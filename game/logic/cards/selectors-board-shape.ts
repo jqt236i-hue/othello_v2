@@ -63,6 +63,20 @@ function resolveExpansionSide(side: string | null, row: number, col: number, gam
 function getExpansionCells(gameState: GameState, deps?: SelectorsBoardShapeDeps): ExpansionCell[] {
     const sharedConstants = (deps && deps.SharedConstants) || {};
     const pEmpty = (deps && deps.P_EMPTY !== undefined) ? deps.P_EMPTY : 0;
+    const sharedBoardUtils = deps && deps.SharedBoardUtils;
+    if (sharedBoardUtils && typeof sharedBoardUtils.collectExpansionDescriptors === 'function') {
+        return sharedBoardUtils.collectExpansionDescriptors(
+            (gameState as any)?.boardExpansion,
+            gameState
+        ).map((cell: any) => ({
+            side: resolveExpansionSide(cell.side || null, cell.row, cell.col, gameState, deps),
+            row: cell.row,
+            col: cell.col,
+            owner: cell.owner === sharedConstants.BLACK || cell.owner === sharedConstants.WHITE
+                ? cell.owner
+                : pEmpty
+        }));
+    }
     const gs = gameState as any;
     const expansion = (gs && gs.boardExpansion && typeof gs.boardExpansion === 'object')
         ? gs.boardExpansion

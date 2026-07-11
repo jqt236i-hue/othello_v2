@@ -38,8 +38,10 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
         getBoardShape: _getBoardShapeForDiff,
         resolveGameState: _resolveGameStateForDiffRender,
         isExpansionCoordinate: _isExpansionCoordinateForDiff,
+        isExpansionCell: _isExpansionCellForDiff,
         resolveExpansionSide: _resolveExpansionSideForDiff,
         applyExpansionCellPosition: _applyExpansionCellPositionForDiff,
+        applyBoardGridPosition: _applyBoardGridPositionForDiff,
         applyBoardEdgeClasses: _applyBoardEdgeClassesForDiff,
         applyBoardContourEdgeClasses: _applyBoardContourEdgeClassesForDiff,
         applyTimeStopLegalEmphasis: _applyTimeStopLegalEmphasisForDiff,
@@ -83,8 +85,10 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
 
     const gameState = _resolveGameStateForDiffRender();
     const boardShape = _getBoardShapeForDiff(gameState);
-    const isExpansionCell = _isExpansionCoordinateForDiff(row, col, boardShape);
-    const expansionSide = _resolveExpansionSideForDiff(state && state.side ? state.side : null, row, col, boardShape);
+    const isExpansionCell = typeof _isExpansionCellForDiff === 'function'
+        ? _isExpansionCellForDiff(row, col, gameState)
+        : _isExpansionCoordinateForDiff(row, col, gameState);
+    const expansionSide = _resolveExpansionSideForDiff(state && state.side ? state.side : null, row, col, gameState);
     const markerRenderer = _createSpecialMarkerRendererForDiff();
 
     // If a destroy-fade is actively running on this disc, skip re-rendering this cell
@@ -171,13 +175,21 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
         if (expansionSide) {
             cell.classList.add(`cell-expanded-${expansionSide}`);
         }
-        _applyExpansionCellPositionForDiff(cell, row, col, boardShape);
+        if (typeof _applyBoardGridPositionForDiff === 'function') {
+            _applyBoardGridPositionForDiff(cell, row, col, gameState);
+        } else {
+            _applyExpansionCellPositionForDiff(cell, row, col, boardShape);
+        }
     } else {
         _applyBoardEdgeClassesForDiff(cell, row, col, boardShape);
-        cell.style.top = '';
-        cell.style.left = '';
-        cell.style.right = '';
-        cell.style.bottom = '';
+        if (typeof _applyBoardGridPositionForDiff === 'function') {
+            _applyBoardGridPositionForDiff(cell, row, col, gameState);
+        } else {
+            cell.style.top = '';
+            cell.style.left = '';
+            cell.style.right = '';
+            cell.style.bottom = '';
+        }
     }
     if (typeof _applyBoardContourEdgeClassesForDiff === 'function') {
         _applyBoardContourEdgeClassesForDiff(cell, row, col, gameState);

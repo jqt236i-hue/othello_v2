@@ -2,7 +2,9 @@
 
 ## 1. Role and objective
 
-This is the active implementation plan for making initial board shapes independent from later expansion and shrink effects. Player-visible behavior is owned by `01-rulebook.md`; stable runtime boundaries are owned by `docs/architecture-contracts.md` §6.1.1.
+Status: completed on 2026-07-12.
+
+This plan made initial board shapes independent from later expansion and shrink effects. Player-visible behavior is owned by `01-rulebook.md`; stable runtime boundaries are owned by `docs/architecture-contracts.md` §6.1.1.
 
 Objective: any future initial shape supplies only its base coordinate mask. `盤面拡張`, `盤面拡張神`, `盤面縮小`, `盤面縮小神`, CPU, network authority, and rendering operate on one current-topology projection without shape-name branches.
 
@@ -79,4 +81,10 @@ npm run worker:prepare
 npm run check:worker-mirror
 ```
 
-Use a real browser to exercise circle → expansion → repeated expansion → expansion god → shrink, checking contour, hints, click coordinates, and absence of console errors.
+## 6. Completion evidence
+
+- Topology/card integration covers circle, repeated expansion beyond the initial envelope, expansion-god sockets, holes, and shrink of a second-ring expansion cell.
+- Unified-render integration covers an expansion placed in a circle-void coordinate, grid offsets, reveal state, hints, and absence of duplicate coordinate elements.
+- Network parity passed 34 suites / 521 tests; Worker mirror verification passed.
+- Real-browser circle baseline passed with 100 grid slots, 80 visible cells, 20 transparent voids, zero duplicate coordinates, zero legacy expansion-layer cells, and zero console errors.
+- `npm run checkall`, `npm run build:browser`, and the focused topology/card/UI suites passed.
