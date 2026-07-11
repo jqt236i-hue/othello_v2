@@ -80,6 +80,11 @@
     overflow: visible;
 }
 
+/* 円形盤面の欠けた20マス越しにゲーム背景が見えるようにする。 */
+#board-frame.board-shape-circle {
+    background: transparent;
+}
+
 /* Frame bevel details */
 #board-frame::before {
     content: "";

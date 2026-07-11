@@ -197,6 +197,16 @@ function _applyBoardCssVarsForDiff(boardEl: any, gameState: any) {
         boardEl.style.setProperty('--board-rows', String(shape.rows));
         boardEl.style.setProperty('--board-cols', String(shape.cols));
     }
+    const circular = String(gameState && gameState.boardConfig && gameState.boardConfig.shape || '').toLowerCase() === 'circle';
+    if (boardEl && boardEl.classList) {
+        boardEl.classList.toggle('board-shape-circle', circular);
+    }
+    const boardFrame = boardEl && typeof boardEl.closest === 'function'
+        ? boardEl.closest('#board-frame')
+        : null;
+    if (boardFrame && boardFrame.classList) {
+        boardFrame.classList.toggle('board-shape-circle', circular);
+    }
     const syncBoardPixelSizing = _getDiscStoneHelperForDiff('syncBoardPixelSizing');
     if (syncBoardPixelSizing) {
         syncBoardPixelSizing(boardEl, shape);
