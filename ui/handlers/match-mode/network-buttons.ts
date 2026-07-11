@@ -19,6 +19,13 @@ const NetworkLobbyInputsModule = (() => {
         return null;
     }
 })();
+const NetworkClientListenersModule = (() => {
+    try {
+        return require('./network-client-listeners');
+    } catch (e: any) {
+        return null;
+    }
+})();
 
 function bindNetworkButtons(context: any) {
     const {
@@ -77,121 +84,27 @@ function bindNetworkButtons(context: any) {
         return Promise.resolve(false);
     };
 
-    if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setStatusWriter === 'function') {
-        root.NetworkMatchClient.setStatusWriter((text: any, isError: any) => {
-            writeNetworkStatus(text, isError);
-        });
+    if (!NetworkClientListenersModule || typeof NetworkClientListenersModule.bindNetworkClientListeners !== 'function') {
+        throw new Error('NetworkClientListenersModule unavailable');
     }
-
-    if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setRoomStateListener === 'function') {
-        root.NetworkMatchClient.setRoomStateListener((roomState: any) => {
-            const spectatorActive = isNetworkSpectatorActive(roomState);
-            updateNetworkDebugEnabledFromRoomState(roomState);
-            updateNetworkAutoEnabledFromRoomState(roomState);
-            applyNetworkDebugModeAccess();
-            refreshNetworkAutoModeAccess();
-            refreshNetworkChatVisibility();
-            renderNetworkDeckInfo(roomState);
-            if (uiRefs.networkCreateBtn) uiRefs.networkCreateBtn.disabled = spectatorActive;
-            if (uiRefs.networkJoinBtn) uiRefs.networkJoinBtn.disabled = spectatorActive;
-            if (spectatorActive) {
-                writeNetworkStatus('観測中', false);
-            }
-            try {
-                if (typeof root.updateCpuCharacter === 'function') {
-                    root.updateCpuCharacter();
-                }
-            } catch (e) { /* ignore */ }
-        });
-    }
-
-    if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setTurnTimerListener === 'function') {
-        root.NetworkMatchClient.setTurnTimerListener((timerInfo: any) => {
-            const nextNetworkTurnTimerInfo = (timerInfo && typeof timerInfo === 'object') ? timerInfo : null;
-            setNetworkTurnTimerInfo(nextNetworkTurnTimerInfo);
-            renderNetworkStatus();
-            try {
-                if (typeof root.setBattleStatusNetworkTimerInfo === 'function') {
-                    root.setBattleStatusNetworkTimerInfo(nextNetworkTurnTimerInfo);
-                }
-            } catch (e) { /* ignore */ }
-        });
-    }
-
-    if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setChatListener === 'function') {
-        root.NetworkMatchClient.setChatListener((payload: any) => {
-            if (!payload || typeof payload !== 'object') return;
-            if (payload.type === 'history') {
-                renderNetworkChatHistory(payload.messages || []);
-                return;
-            }
-            if (payload.type === 'message' && payload.message) {
-                appendNetworkChatMessage(payload.message);
-                showNetworkChatSpeechBubble(payload.message);
-            }
-        });
-    }
-
-    if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setRematchRequestListener === 'function') {
-        root.NetworkMatchClient.setRematchRequestListener((payload: any) => {
-            if (!payload || payload.type !== 'request') return;
-            const doc = root.document || (typeof document !== 'undefined' ? document : null);
-            if (!doc) return;
-            const existing = doc.getElementById('network-rematch-request-dialog');
-            if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-
-            const overlay = doc.createElement('div');
-            overlay.id = 'network-rematch-request-dialog';
-            overlay.className = 'network-rematch-request-dialog';
-            overlay.setAttribute('role', 'dialog');
-            overlay.setAttribute('aria-modal', 'true');
-
-            const panel = doc.createElement('div');
-            panel.className = 'network-rematch-request-dialog__panel';
-            const title = doc.createElement('div');
-            title.className = 'network-rematch-request-dialog__title';
-            title.textContent = '再戦申請が来ています。';
-            const body = doc.createElement('div');
-            body.className = 'network-rematch-request-dialog__body';
-            body.textContent = '受理しますか？';
-            const actions = doc.createElement('div');
-            actions.className = 'network-rematch-request-dialog__actions';
-            const acceptBtn = doc.createElement('button');
-            acceptBtn.type = 'button';
-            acceptBtn.className = 'premium-btn primary';
-            acceptBtn.setAttribute('data-rematch-response', 'accept');
-            acceptBtn.textContent = 'はい';
-            const declineBtn = doc.createElement('button');
-            declineBtn.type = 'button';
-            declineBtn.className = 'premium-btn';
-            declineBtn.setAttribute('data-rematch-response', 'decline');
-            declineBtn.textContent = 'いいえ';
-
-            const close = () => {
-                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-            };
-            acceptBtn.addEventListener('click', () => {
-                acceptBtn.disabled = true;
-                declineBtn.disabled = true;
-                Promise.resolve(root.NetworkMatchClient.acceptRematchRequest(payload.requestId))
-                    .finally(close);
-            });
-            declineBtn.addEventListener('click', () => {
-                acceptBtn.disabled = true;
-                declineBtn.disabled = true;
-                Promise.resolve(root.NetworkMatchClient.declineRematchRequest(payload.requestId))
-                    .finally(close);
-            });
-
-            actions.appendChild(acceptBtn);
-            actions.appendChild(declineBtn);
-            panel.appendChild(title);
-            panel.appendChild(body);
-            panel.appendChild(actions);
-            overlay.appendChild(panel);
-            doc.body.appendChild(overlay);
-        });
-    }
+    NetworkClientListenersModule.bindNetworkClientListeners({
+        root,
+        uiRefs,
+        getNetworkMatchClient: () => root.NetworkMatchClient,
+        writeNetworkStatus,
+        isNetworkSpectatorActive,
+        updateNetworkDebugEnabledFromRoomState,
+        updateNetworkAutoEnabledFromRoomState,
+        applyNetworkDebugModeAccess,
+        refreshNetworkAutoModeAccess,
+        refreshNetworkChatVisibility,
+        renderNetworkDeckInfo,
+        setNetworkTurnTimerInfo,
+        renderNetworkStatus,
+        renderNetworkChatHistory,
+        appendNetworkChatMessage,
+        showNetworkChatSpeechBubble
+    });
 
     if (!NetworkLobbyInputsModule || typeof NetworkLobbyInputsModule.bindNetworkLobbyInputs !== 'function') {
         throw new Error('NetworkLobbyInputsModule unavailable');
