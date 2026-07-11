@@ -621,16 +621,14 @@ function countDiscs(state: any): DiscCount {
     return { black, white };
 }
 
-function getLegalMoves(state: any, player: number, context: FlipContext = {}): Move[] {
-    const blockedCells = context.blockedCells || [];
-    const blockedSet = blockedCells.length
-        ? new Set(blockedCells.map(p => `${p.row},${p.col}`))
-        : null;
+function getLegalMoves(state: any, player: number, context: FlipContext | CompiledFlipContext = {}): Move[] {
+    const compiled = compileFlipContext(context);
+    const blockedSet = compiled.blockedSet;
     const moves: Move[] = [];
     forEachMainBoardCell(state, (row, col, value) => {
         if (value !== EMPTY) return;
         if (blockedSet && blockedSet.has(`${row},${col}`)) return;
-        const flips = getFlipsWithContext(state, row, col, player, context);
+        const flips = getFlipsWithContext(state, row, col, player, compiled);
         if (flips.length > 0) {
             moves.push({ row, col, flips });
         }
@@ -639,7 +637,7 @@ function getLegalMoves(state: any, player: number, context: FlipContext = {}): M
     for (const expansion of expansionCells) {
         if (!expansion || expansion.owner !== EMPTY) continue;
         if (blockedSet && blockedSet.has(`${expansion.row},${expansion.col}`)) continue;
-        const flips = getFlipsWithContext(state, expansion.row, expansion.col, player, context);
+        const flips = getFlipsWithContext(state, expansion.row, expansion.col, player, compiled);
         if (flips.length > 0) {
             moves.push({ row: expansion.row, col: expansion.col, flips });
         }
@@ -647,33 +645,32 @@ function getLegalMoves(state: any, player: number, context: FlipContext = {}): M
     return moves;
 }
 
-function getFreePlacementMoves(state: any, player: number, context: FlipContext = {}): Move[] {
-    const blockedCells = context.blockedCells || [];
-    const blockedSet = blockedCells.length
-        ? new Set(blockedCells.map(p => `${p.row},${p.col}`))
-        : null;
+function getFreePlacementMoves(state: any, player: number, context: FlipContext | CompiledFlipContext = {}): Move[] {
+    const compiled = compileFlipContext(context);
+    const blockedSet = compiled.blockedSet;
     const moves: Move[] = [];
     forEachMainBoardCell(state, (row, col, value) => {
         if (value !== EMPTY) return;
         if (blockedSet && blockedSet.has(`${row},${col}`)) return;
-        const flips = getFlipsWithContext(state, row, col, player, context);
+        const flips = getFlipsWithContext(state, row, col, player, compiled);
         moves.push({ row, col, flips });
     });
     const expansionCells = getExpansionCells(state);
     for (const expansion of expansionCells) {
         if (!expansion || expansion.owner !== EMPTY) continue;
         if (blockedSet && blockedSet.has(`${expansion.row},${expansion.col}`)) continue;
-        const flips = getFlipsWithContext(state, expansion.row, expansion.col, player, context);
+        const flips = getFlipsWithContext(state, expansion.row, expansion.col, player, compiled);
         moves.push({ row: expansion.row, col: expansion.col, flips });
     }
     return moves;
 }
 
-function hasLegalMove(state: any, player: number, context: FlipContext = {}): boolean {
+function hasLegalMove(state: any, player: number, context: FlipContext | CompiledFlipContext = {}): boolean {
+    const compiled = compileFlipContext(context);
     let found = false;
     forEachMainBoardCell(state, (row, col, value) => {
         if (found || value !== EMPTY) return;
-        const flips = getFlipsWithContext(state, row, col, player, context);
+        const flips = getFlipsWithContext(state, row, col, player, compiled);
         if (flips.length > 0) {
             found = true;
         }
@@ -682,7 +679,7 @@ function hasLegalMove(state: any, player: number, context: FlipContext = {}): bo
     const expansionCells = getExpansionCells(state);
     for (const expansion of expansionCells) {
         if (!expansion || expansion.owner !== EMPTY) continue;
-        const flips = getFlipsWithContext(state, expansion.row, expansion.col, player, context);
+        const flips = getFlipsWithContext(state, expansion.row, expansion.col, player, compiled);
         if (flips.length > 0) return true;
     }
     return false;

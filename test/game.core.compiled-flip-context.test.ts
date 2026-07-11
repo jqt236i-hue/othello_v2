@@ -66,4 +66,46 @@ describe('compiled flip context', () => {
     Core.compileFlipContext(compiled);
     expect(counters.flipContextCompiles).toBe(1);
   });
+
+  test.each([
+    ['getLegalMoves', (state: any, context: any) => Core.getLegalMoves(state, Core.BLACK, context)],
+    ['getFreePlacementMoves', (state: any, context: any) => Core.getFreePlacementMoves(state, Core.BLACK, context)],
+    ['hasLegalMove', (state: any, context: any) => Core.hasLegalMove(state, Core.BLACK, context)]
+  ])('%s compiles array context exactly once per invocation', (_name, invoke) => {
+    const state = Core.createGameState();
+    const counters = { flipContextCompiles: 0 };
+    const context = {
+      protectedStones: [{ row: 0, col: 0 }],
+      permaProtectedStones: [{ row: 7, col: 7 }],
+      blockedCells: [{ row: 0, col: 7 }],
+      perfCounters: counters
+    };
+    const original = JSON.parse(JSON.stringify({
+      protectedStones: context.protectedStones,
+      permaProtectedStones: context.permaProtectedStones,
+      blockedCells: context.blockedCells
+    }));
+
+    invoke(state, context);
+
+    expect(counters.flipContextCompiles).toBe(1);
+    expect({
+      protectedStones: context.protectedStones,
+      permaProtectedStones: context.permaProtectedStones,
+      blockedCells: context.blockedCells
+    }).toEqual(original);
+  });
+
+  test('legal, free, and has-legal results match when a precompiled context is reused', () => {
+    const state = Core.createGameState();
+    const context = {
+      protectedStones: [{ row: 0, col: 0 }],
+      blockedCells: [{ row: 0, col: 7 }]
+    };
+    const compiled = Core.compileFlipContext(context);
+
+    expect(Core.getLegalMoves(state, Core.BLACK, compiled)).toEqual(Core.getLegalMoves(state, Core.BLACK, context));
+    expect(Core.getFreePlacementMoves(state, Core.BLACK, compiled)).toEqual(Core.getFreePlacementMoves(state, Core.BLACK, context));
+    expect(Core.hasLegalMove(state, Core.BLACK, compiled)).toBe(Core.hasLegalMove(state, Core.BLACK, context));
+  });
 });
