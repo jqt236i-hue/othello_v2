@@ -1,0 +1,365 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-11T11:47:17.698Z",
+  "commit": "f3f2be991436b03c07e45a291c54defc65a9c9ee",
+  "runtime": {
+    "node": "v24.12.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "config": {
+    "warmup": 25,
+    "iterations": 120,
+    "integrationIterations": 40,
+    "fixtureSeeds": {
+      "baseline-light": 101,
+      "late-dense": 202,
+      "late-special-20": 303
+    }
+  },
+  "node": {
+    "fixtures": {
+      "baseline-light": {
+        "summary": {
+          "rows": 8,
+          "cols": 8,
+          "occupied": 4,
+          "markerCount": 2
+        },
+        "seed": 101,
+        "timingsMs": {
+          "protectionContext": {
+            "count": 120,
+            "min": 0.002,
+            "max": 0.0407,
+            "median": 0.0032,
+            "p95": 0.0037
+          },
+          "legalMoves": {
+            "count": 120,
+            "min": 0.02,
+            "max": 0.5314,
+            "median": 0.083,
+            "p95": 0.2879
+          },
+          "turnStart": {
+            "count": 120,
+            "min": 0.2553,
+            "max": 1.3029,
+            "median": 0.5157,
+            "p95": 0.8825
+          },
+          "presentationMapping": {
+            "count": 120,
+            "min": 0.0017,
+            "max": 0.0117,
+            "median": 0.0022,
+            "p95": 0.0036
+          },
+          "publishPreparation": {
+            "count": 40,
+            "min": 0.6019,
+            "max": 1.3633,
+            "median": 0.7635,
+            "p95": 1.284
+          },
+          "payloadSerialization": {
+            "count": 120,
+            "min": 0.0284,
+            "max": 0.1095,
+            "median": 0.0304,
+            "p95": 0.0561
+          },
+          "clientSnapshotStoreAndRead": {
+            "count": 120,
+            "min": 0.0586,
+            "max": 0.3141,
+            "median": 0.0648,
+            "p95": 0.1339
+          }
+        },
+        "operationCounts": {
+          "specialMarkerCollections": 0,
+          "manifestMarkerCollections": 0,
+          "bombMarkerCollections": 0,
+          "blockingMarkerCollections": 0,
+          "frozenCellChecks": 0,
+          "nestedFullMarkerScans": 0,
+          "canonicalMarkerScans": 1,
+          "markerEntriesVisited": 2,
+          "flipContextCompilesPerGetLegalMoves": 1,
+          "cardProtectionContextsPerRender": 1,
+          "legalMoveGenerationsPerRender": 1,
+          "presentationEventIndexesPerMapping": 1,
+          "viewerProjectionBlack": 1,
+          "viewerProjectionWhite": 1,
+          "viewerProjectionSpectator": 1,
+          "acceptedPublishRoomPersists": 1,
+          "renderSnapshotFullClones": 0
+        },
+        "payloadBytes": {
+          "black": 6460,
+          "white": 6460,
+          "spectator": 6482
+        },
+        "playback": {
+          "eventCount": 0,
+          "phaseCount": 0,
+          "durationMs": 0
+        },
+        "digests": {
+          "canonicalHash": "fnv1a32:4bc2dfaf",
+          "eventDigest": "fnv1a32:7052509b",
+          "playbackDigest": "fnv1a32:741638a5"
+        }
+      },
+      "late-dense": {
+        "summary": {
+          "rows": 8,
+          "cols": 8,
+          "occupied": 52,
+          "markerCount": 4
+        },
+        "seed": 202,
+        "timingsMs": {
+          "protectionContext": {
+            "count": 120,
+            "min": 0.0037,
+            "max": 0.0341,
+            "median": 0.0039,
+            "p95": 0.0069
+          },
+          "legalMoves": {
+            "count": 120,
+            "min": 0.0182,
+            "max": 0.38,
+            "median": 0.0318,
+            "p95": 0.0523
+          },
+          "turnStart": {
+            "count": 120,
+            "min": 0.7167,
+            "max": 2.2182,
+            "median": 1.0053,
+            "p95": 1.5507
+          },
+          "presentationMapping": {
+            "count": 120,
+            "min": 0.0016,
+            "max": 0.0655,
+            "median": 0.0018,
+            "p95": 0.0033
+          },
+          "publishPreparation": {
+            "count": 40,
+            "min": 0.6594,
+            "max": 1.539,
+            "median": 0.8781,
+            "p95": 1.2801
+          },
+          "payloadSerialization": {
+            "count": 120,
+            "min": 0.0394,
+            "max": 0.1427,
+            "median": 0.0643,
+            "p95": 0.0801
+          },
+          "clientSnapshotStoreAndRead": {
+            "count": 120,
+            "min": 0.0644,
+            "max": 0.242,
+            "median": 0.096,
+            "p95": 0.1982
+          }
+        },
+        "operationCounts": {
+          "specialMarkerCollections": 0,
+          "manifestMarkerCollections": 0,
+          "bombMarkerCollections": 0,
+          "blockingMarkerCollections": 0,
+          "frozenCellChecks": 0,
+          "nestedFullMarkerScans": 0,
+          "canonicalMarkerScans": 1,
+          "markerEntriesVisited": 4,
+          "flipContextCompilesPerGetLegalMoves": 1,
+          "cardProtectionContextsPerRender": 1,
+          "legalMoveGenerationsPerRender": 1,
+          "presentationEventIndexesPerMapping": 1,
+          "viewerProjectionBlack": 1,
+          "viewerProjectionWhite": 1,
+          "viewerProjectionSpectator": 1,
+          "acceptedPublishRoomPersists": 1,
+          "renderSnapshotFullClones": 0
+        },
+        "payloadBytes": {
+          "black": 10599,
+          "white": 10599,
+          "spectator": 10621
+        },
+        "playback": {
+          "eventCount": 6,
+          "phaseCount": 2,
+          "durationMs": 1200
+        },
+        "digests": {
+          "canonicalHash": "fnv1a32:b9fe5183",
+          "eventDigest": "fnv1a32:b69d0653",
+          "playbackDigest": "fnv1a32:6ccfc98e"
+        }
+      },
+      "late-special-20": {
+        "summary": {
+          "rows": 8,
+          "cols": 8,
+          "occupied": 52,
+          "markerCount": 20
+        },
+        "seed": 303,
+        "timingsMs": {
+          "protectionContext": {
+            "count": 120,
+            "min": 0.0073,
+            "max": 0.0557,
+            "median": 0.0121,
+            "p95": 0.0277
+          },
+          "legalMoves": {
+            "count": 120,
+            "min": 0.0133,
+            "max": 0.1158,
+            "median": 0.0242,
+            "p95": 0.0584
+          },
+          "turnStart": {
+            "count": 120,
+            "min": 2.7378,
+            "max": 8.0585,
+            "median": 4.1495,
+            "p95": 6.179
+          },
+          "presentationMapping": {
+            "count": 120,
+            "min": 0.0033,
+            "max": 0.0393,
+            "median": 0.0034,
+            "p95": 0.0042
+          },
+          "publishPreparation": {
+            "count": 40,
+            "min": 1.2041,
+            "max": 2.5824,
+            "median": 1.5919,
+            "p95": 2.154
+          },
+          "payloadSerialization": {
+            "count": 120,
+            "min": 0.2268,
+            "max": 1.8225,
+            "median": 0.2945,
+            "p95": 0.5112
+          },
+          "clientSnapshotStoreAndRead": {
+            "count": 120,
+            "min": 0.0934,
+            "max": 0.4189,
+            "median": 0.1201,
+            "p95": 0.2262
+          }
+        },
+        "operationCounts": {
+          "specialMarkerCollections": 0,
+          "manifestMarkerCollections": 0,
+          "bombMarkerCollections": 0,
+          "blockingMarkerCollections": 0,
+          "frozenCellChecks": 0,
+          "nestedFullMarkerScans": 0,
+          "canonicalMarkerScans": 1,
+          "markerEntriesVisited": 20,
+          "flipContextCompilesPerGetLegalMoves": 1,
+          "cardProtectionContextsPerRender": 1,
+          "legalMoveGenerationsPerRender": 1,
+          "presentationEventIndexesPerMapping": 1,
+          "viewerProjectionBlack": 1,
+          "viewerProjectionWhite": 1,
+          "viewerProjectionSpectator": 1,
+          "acceptedPublishRoomPersists": 1,
+          "renderSnapshotFullClones": 0
+        },
+        "payloadBytes": {
+          "black": 43383,
+          "white": 43383,
+          "spectator": 43405
+        },
+        "playback": {
+          "eventCount": 38,
+          "phaseCount": 9,
+          "durationMs": 12400
+        },
+        "digests": {
+          "canonicalHash": "fnv1a32:2dc9e591",
+          "eventDigest": "fnv1a32:7ece743a",
+          "playbackDigest": "fnv1a32:8b758173"
+        }
+      }
+    }
+  },
+  "browser": {
+    "runtime": {
+      "chromium": "143.0.7499.4",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      }
+    },
+    "fixtures": {
+      "baseline-light": {
+        "boardProjection": {
+          "count": 120,
+          "min": 0,
+          "max": 0.4,
+          "median": 0.1,
+          "p95": 0.3
+        },
+        "clientSnapshotApplyAndRenderPreparation": {
+          "count": 120,
+          "min": 0.1,
+          "max": 3.1,
+          "median": 0.3,
+          "p95": 0.6
+        }
+      },
+      "late-dense": {
+        "boardProjection": {
+          "count": 120,
+          "min": 0,
+          "max": 0.4,
+          "median": 0.1,
+          "p95": 0.2
+        },
+        "clientSnapshotApplyAndRenderPreparation": {
+          "count": 120,
+          "min": 0,
+          "max": 0.8,
+          "median": 0.2,
+          "p95": 0.4
+        }
+      },
+      "late-special-20": {
+        "boardProjection": {
+          "count": 120,
+          "min": 0,
+          "max": 0.5,
+          "median": 0.1,
+          "p95": 0.2
+        },
+        "clientSnapshotApplyAndRenderPreparation": {
+          "count": 120,
+          "min": 0.2,
+          "max": 0.5,
+          "median": 0.3,
+          "p95": 0.5
+        }
+      }
+    }
+  }
+}

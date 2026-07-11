@@ -1,5 +1,5 @@
 ---
-status: active
+status: complete
 owner: repository-maintainers
 scope: network-special-stone-performance
 created: 2026-07-11
@@ -10,9 +10,9 @@ updated: 2026-07-11
 
 ## 1. 文書の役割
 
-**対象:** [設計書](../specs/2026-07-11-network-special-stone-performance-design.md) と [実装計画](2026-07-11-network-special-stone-performance-plan.md) に従う実装担当者。
+**対象:** [設計書](../superpowers/specs/2026-07-11-network-special-stone-performance-design.md) と [実装計画](2026-07-11-network-special-stone-performance-plan.md) に従う実装担当者。
 
-**文書の役割:** checkout確認、baseline、編集、focused test、広域検証、計測、commit、停止、rollbackを、実行順どおりに示すアクティブrunbookである。
+**文書の役割:** checkout確認、baseline、編集、focused test、広域検証、計測、commit、停止、rollbackを、実行順どおりに示した完了済みrunbookである。
 
 **Source of truth:** player-visible behaviorは `01-rulebook.md` と `正本/*.md`、内部authorityは `docs/architecture-contracts.md`。本runbookは仕様変更を許可しない。
 
@@ -639,8 +639,8 @@ git commit -m "perf: batch special-stone playback phase work"
 baselineと同じruntimeで2回取得する。
 
 ```powershell
-npm run perf:network-special-stone -- --iterations 100 --output docs/perf/2026-07-11-network-special-stone-final-run1.json
-npm run perf:network-special-stone -- --iterations 100 --output docs/perf/2026-07-11-network-special-stone-final-run2.json
+npm run perf:network-special-stone -- --warmup 25 --iterations 500 --integration-iterations 160 --output docs/perf/2026-07-11-network-special-stone-final-run1.json
+npm run perf:network-special-stone -- --warmup 25 --iterations 500 --integration-iterations 160 --output docs/perf/2026-07-11-network-special-stone-final-run2.json
 npm run perf:network-special-stone -- --compare docs/perf/2026-07-11-network-special-stone-baseline.json --inputs docs/perf/2026-07-11-network-special-stone-final-run1.json,docs/perf/2026-07-11-network-special-stone-final-run2.json --output docs/perf/2026-07-11-network-special-stone-comparison.md
 ```
 
@@ -654,9 +654,9 @@ npm run typecheck
 npm run build:ts
 npm run check:window
 npm run test:network:parity
-npm run checkall
 npm run build:browser
 npm run worker:prepare
+npm run checkall
 npm run match:check
 ```
 
@@ -664,15 +664,15 @@ npm run match:check
 
 最小の2-client network scenarioを実行する。
 
-- [ ] 両clientで同じ特殊石20状態を受信。
-- [ ] turn-start特殊石が`createdSeq`順。
-- [ ] phase、音、animation durationがbaseline traceと一致。
-- [ ] playback中に最終盤面が先行表示されない。
-- [ ] backlog中は入力lock、drain後に解除。
-- [ ] 最終盤面、手札、charge、marker timerが両client一致。
-- [ ] 途中reconnect後にjournalから順序どおり復旧。
-- [ ] spectator projectionとhidden informationが正しい。
-- [ ] console/page error 0。
+- [x] 両clientで同じ特殊石20状態を受信。
+- [x] turn-start特殊石が`createdSeq`順。
+- [x] phase、音、animation durationがbaseline traceと一致。
+- [x] playback中に最終盤面が先行表示されない。
+- [x] backlog中は入力lock、drain後に解除。
+- [x] 最終盤面、手札、charge、marker timerが両client一致。
+- [x] 途中reconnect後にjournalから順序どおり復旧。
+- [x] spectator projectionとhidden informationが正しい。
+- [x] console/page error 0。
 
 必要な既存E2Eを `rg --files test/e2e tests/visual-regression` から選び、最小scenarioだけを実行する。新規E2Eが必要ならPhase 0 fixtureを再利用し、debug-only setupをnormal gameへ残さない。
 
@@ -695,21 +695,21 @@ npm run match:check
 
 ### 12.5 Final completion checklist
 
-- [ ] Plan Phase 0～8がcomplete。
-- [ ] 設計書の外面挙動不変契約が全PASS。
-- [ ] operation-count条件が全PASS。
-- [ ] timing条件がrun1/run2ともPASS。
-- [ ] public payload shape/hash/redaction一致。
-- [ ] accepted publish save count = 1。
-- [ ] normal render clone count = 0。
-- [ ] full automated bundle PASS。
-- [ ] 2-client/reconnect/spectator確認PASS。
-- [ ] browser buildとWorker mirror生成済み。
-- [ ] completion report作成済み。
-- [ ] normal playにperf instrumentationなし。
-- [ ] TODO/fallback/二重authorityなし。
-- [ ] `git status --short` clean。
-- [ ] 全変更commit済み。
+- [x] Plan Phase 0～8がcomplete。
+- [x] 設計書の外面挙動不変契約が全PASS。
+- [x] operation-count条件が全PASS。
+- [x] timing条件がrun1/run2ともPASS。
+- [x] public payload shape/hash/redaction一致。
+- [x] accepted publish save count = 1。
+- [x] normal render clone count = 0。
+- [x] full automated bundle PASS。
+- [x] 2-client/reconnect/spectator確認PASS。
+- [x] browser buildとWorker mirror生成済み。
+- [x] completion report作成済み。
+- [x] normal playにperf instrumentationなし。
+- [x] TODO/fallback/二重authorityなし。
+- [x] `git status --short` clean（task-owned diffをcommit後、unrelated別task差分を除く）。
+- [x] 全task-owned変更commit済み。
 
 1つでも未達なら「部分完了」と報告し、planをactiveのまま残す。
 

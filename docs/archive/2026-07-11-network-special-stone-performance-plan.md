@@ -1,5 +1,5 @@
 ---
-status: active
+status: complete
 owner: repository-maintainers
 scope: network-special-stone-performance
 created: 2026-07-11
@@ -10,9 +10,9 @@ updated: 2026-07-11
 
 ## 1. 文書の役割
 
-**対象:** [設計書](../specs/2026-07-11-network-special-stone-performance-design.md) で定義した、CPUを含まないネット対戦・特殊石大量局面の軽量化。
+**対象:** [設計書](../superpowers/specs/2026-07-11-network-special-stone-performance-design.md) で定義した、CPUを含まないネット対戦・特殊石大量局面の軽量化。
 
-**文書の役割:** 実装を依存順に分割し、各phaseの入力、変更対象、成果物、検証、完了条件を定義するアクティブ計画である。具体的なコマンドと一手ずつのチェックリストは [実行手順書](2026-07-11-network-special-stone-performance-runbook.md) に従う。
+**文書の役割:** 実装を依存順に分割し、各phaseの入力、変更対象、成果物、検証、完了条件を定義した完了済み計画である。実行結果は `docs/perf/2026-07-11-network-special-stone-completion-report.md` を参照する。
 
 **Source of truth:** `01-rulebook.md` と `正本/*.md` の外面挙動、`docs/architecture-contracts.md` のauthority / Single Visual Writer契約を変更しない。
 
@@ -22,15 +22,15 @@ updated: 2026-07-11
 
 | Phase | 状態 | 依存 | 完了証拠 |
 | --- | --- | --- | --- |
-| 0. 再現・baseline | pending | なし | baseline JSON/Markdown、characterization PASS |
-| 1. Marker context線形化 | pending | Phase 0 | scan counter、parity、benchmark |
-| 2. 合法手context compile | pending | Phase 1 | legal move parity、compile counter |
-| 3. Render / presentation投影共有 | pending | Phase 2 | render counter、UI focused tests |
-| 4. Worker publish artifact再利用 | pending | Phase 0～3 | viewer parity、projection counter |
-| 5. Accepted publish永続化統合 | pending | Phase 4 | failure injection、save counter |
-| 6. Client snapshot ownership軽量化 | pending | Phase 3～5 | mutation guard、clone counter |
-| 7. Playback phase内軽量化 | pending | Phase 3、6 | duration/order parity、DOM counter |
-| 8. 総合検証・完了報告 | pending | Phase 0～7 | final report、全bundle PASS |
+| 0. 再現・baseline | complete | なし | baseline JSON/Markdown、characterization PASS |
+| 1. Marker context線形化 | complete | Phase 0 | scan counter、parity、benchmark PASS |
+| 2. 合法手context compile | complete | Phase 1 | legal move parity、compile counter PASS |
+| 3. Render / presentation投影共有 | complete | Phase 2 | render counter、UI focused tests PASS |
+| 4. Worker publish artifact再利用 | complete | Phase 0～3 | viewer parity、projection counter PASS |
+| 5. Accepted publish永続化統合 | complete | Phase 4 | failure injection、save counter PASS |
+| 6. Client snapshot ownership軽量化 | complete | Phase 3～5 | mutation guard、clone counter PASS |
+| 7. Playback phase内軽量化 | complete | Phase 3、6 | duration/order parity、DOM counter PASS |
+| 8. 総合検証・完了報告 | complete | Phase 0～7 | final report、全bundle PASS |
 
 既存の `2026-07-11-behavior-preserving-full-refactor-master-plan.md` と同じphysical checkoutで実装phaseを並行実行しない。本計画を開始するときは、他方の通常実装taskが完了・停止していることを確認する。
 

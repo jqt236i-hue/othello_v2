@@ -1,5 +1,5 @@
 ---
-status: active
+status: implemented
 owner: repository-maintainers
 scope: network-special-stone-performance
 created: 2026-07-11
@@ -11,7 +11,7 @@ created: 2026-07-11
 
 **対象:** 特殊石が複数存在する局面、および終盤のネット対戦で発生する計算停止、描画停止、通信待ち、演出キュー滞留を、プレイヤーから見える挙動を変えずに軽量化する。
 
-**文書の役割:** 実装前に守る不変条件、原因モデル、目標アーキテクチャ、計測方法、最終完了条件を定義するアクティブ設計書である。実装順は [実装計画](../plans/2026-07-11-network-special-stone-performance-plan.md)、一手ずつの操作は [実行手順書](../plans/2026-07-11-network-special-stone-performance-runbook.md) を正とする。
+**文書の役割:** 守る不変条件、原因モデル、目標アーキテクチャ、計測方法、最終完了条件を定義した実装済み設計書である。実行結果は `docs/perf/2026-07-11-network-special-stone-completion-report.md` を参照する。
 
 **仕様正本:** プレイヤー向け挙動は `01-rulebook.md`、内部境界は `docs/architecture-contracts.md`、作業規約は root と各ディレクトリの `AGENTS.md` に従う。本設計はこれらを置き換えない。
 
