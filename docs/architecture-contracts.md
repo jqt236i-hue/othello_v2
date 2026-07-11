@@ -181,6 +181,11 @@ It owns the board array, current player, turn number, and other pure progression
 - Playable-coordinate sets and other board-shape metadata are derived caches. They may be attached to in-memory board arrays, but snapshots, Worker storage, reconnect, CPU, browser, and headless runtimes must be able to rebuild them from canonical state.
 - Base-shape void, card-created holes, and expansion cells are distinct. Void cannot be targeted, restored, counted, or traversed; holes remain explicit gameplay state; expansion cells remain explicit canonical additions.
 - Legal moves, flips, counts, card targets, CPU features, and presentation projections consume the shared board-shape contract instead of reconstructing rectangular bounds locally.
+- A named shape such as `circle` is an initializer for base coordinates only. After initialization, card rules and presentation must derive behavior from the current topology and must not branch on the original shape name.
+- `shared/board/topology.ts` owns the pure `BoardTopology` projection rebuilt from base coordinates, expansion descriptors, and hole markers. It distinguishes existing, playable, hole, void, base, and expansion coordinates and derives current/render/candidate bounds plus boundary edges.
+- The serialized compatibility form remains the base board array plus explicit expansion cells and hole markers. `BoardTopology` is a derived runtime projection and must be reconstructible in browser, headless, local authority, Worker, reconnect, and spectator paths.
+- Expansion candidate generation, shrink boundary calculation, CPU targeting, and board rendering consume the same topology projection. Fixed base-envelope `outerBounds` is not gameplay authority for current-shape operations.
+- Browser rendering maps every existing world coordinate, including negative or beyond-base expansion coordinates, into one dense render grid using a deterministic row/column offset. Base and expansion cells must not use separate coordinate systems or separate board writers.
 
 ### 6.2 `cardState`
 
