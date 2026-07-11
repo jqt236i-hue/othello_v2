@@ -501,6 +501,7 @@ function markerCellKey(row: any, col: any): string {
 
 type MarkerContextIndexOptions = {
     onMarkerVisited?: (marker: any, index: number) => void;
+    includeCellIndex?: boolean;
 };
 
 function createMarkerContextIndex(cardState: CardState, options?: MarkerContextIndexOptions) {
@@ -512,6 +513,7 @@ function createMarkerContextIndex(cardState: CardState, options?: MarkerContextI
     const blockingMarkers: any[] = [];
     const frozenCellKeys = new Set<string>();
     const opts = options && typeof options === 'object' ? options : {};
+    const includeCellIndex = opts.includeCellIndex !== false;
     let scanCount = 0;
 
     for (let markerIndex = 0; markerIndex < markers.length; markerIndex += 1) {
@@ -520,14 +522,18 @@ function createMarkerContextIndex(cardState: CardState, options?: MarkerContextI
         if (typeof opts.onMarkerVisited === 'function') opts.onMarkerVisited(marker, markerIndex);
         if (!marker) continue;
 
-        const bomb = isBombCategoryMarker(marker);
-        const manifest = isManifestStoneMarker(marker);
-        const special = isSpecialStoneMarker(marker);
+        const data = marker.data && typeof marker.data === 'object' ? marker.data : null;
+        const type = data && data.type ? String(data.type).trim().toUpperCase() : '';
+        const bomb = marker.kind === MARKER_CATEGORIES.BOMB || !!(data && data.category === MARKER_CATEGORIES.BOMB);
+        const manifest = !bomb && (
+            marker.kind === MARKER_KINDS.MANIFEST_STONE ||
+            (marker.kind === MARKER_KINDS.SPECIAL_STONE && isManifestStoneType(type))
+        );
+        const special = !bomb && !manifest && marker.kind === MARKER_KINDS.SPECIAL_STONE;
         if (special) specialMarkers.push(marker);
         if (manifest) manifestMarkers.push(marker);
         if (bomb) bombMarkers.push(marker);
 
-        const type = marker && marker.data ? marker.data.type : null;
         if (special && (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE')) {
             blockingMarkers.push(marker);
         }
@@ -535,7 +541,7 @@ function createMarkerContextIndex(cardState: CardState, options?: MarkerContextI
             frozenCellKeys.add(markerCellKey(marker.row, marker.col));
         }
 
-        if (Number.isFinite(marker.row) && Number.isFinite(marker.col)) {
+        if (includeCellIndex && Number.isFinite(marker.row) && Number.isFinite(marker.col)) {
             const key = markerCellKey(marker.row, marker.col);
             const list = byCell.get(key);
             if (list) list.push(marker);

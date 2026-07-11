@@ -405,6 +405,7 @@ function getCardContext(cardState: any, deps: any) {
     throw new Error('[effect-resolver] SpecialStoneRegistry.getSpecialStoneInfo not available');
   }
   const {
+    createMarkerContextIndex,
     getSpecialMarkers,
     getManifestMarkers,
     getBombMarkers,
@@ -415,6 +416,7 @@ function getCardContext(cardState: any, deps: any) {
     constants: SharedConstants,
     SpecialStoneRegistry,
     ManifestStoneRegistry,
+    createMarkerContextIndex,
     getSpecialMarkers,
     getManifestMarkers,
     getBombMarkers,

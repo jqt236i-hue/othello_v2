@@ -112,6 +112,15 @@ function buildMeasuredProtectionContext(cardState: any): { context: any; counts:
     constants: Shared,
     SpecialStoneRegistry,
     ManifestStoneRegistry,
+    createMarkerContextIndex: (state: any, options: any) => {
+      counts.canonicalMarkerScans += 1;
+      return CardMarkers.createMarkerContextIndex(state, {
+        ...(options && typeof options === 'object' ? options : {}),
+        onMarkerVisited: () => {
+          counts.markerEntriesVisited += 1;
+        }
+      });
+    },
     getSpecialMarkers: wrapCollection('specialMarkerCollections', CardMarkers.getSpecialMarkers),
     getManifestMarkers: wrapCollection('manifestMarkerCollections', CardMarkers.getManifestMarkers),
     getBombMarkers: wrapCollection('bombMarkerCollections', CardMarkers.getBombMarkers),

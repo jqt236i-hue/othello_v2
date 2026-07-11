@@ -15,6 +15,7 @@ type ConstantsLike = {
 type SpecialStoneRegistryLike = {
     getSpecialStoneInfo(rawType: unknown): { flipProtected?: boolean } | null;
     normalizeSpecialStoneType?(rawType: unknown): string | null;
+    SPECIAL_STONE_REGISTRY?: Record<string, { flipProtected?: boolean } | null>;
 };
 
 type ManifestStoneRegistryLike = {
@@ -31,7 +32,67 @@ type ProtectionContextDeps = {
     getBlockingMarkers?(cardState: unknown): Marker[];
     isFrozenCellForCard?(cardState: unknown, row: number, col: number): boolean;
     isAdditionalPermaProtectedMarker?(marker: Marker, cardState: unknown): boolean;
+    createMarkerContextIndex?(cardState: unknown, options?: unknown): MarkerContextIndex;
 };
+
+type MarkerContextIndex = {
+    specialMarkers?: Marker[];
+    manifestMarkers?: Marker[];
+    bombMarkers?: Marker[];
+    blockingMarkers?: Marker[];
+    isFrozenCell?(row: unknown, col: unknown): boolean;
+};
+
+function resolveMarkerContextIndexFactory(deps: ProtectionContextDeps): ((cardState: unknown, options?: unknown) => MarkerContextIndex) | null {
+    if (deps && typeof deps.createMarkerContextIndex === 'function') return deps.createMarkerContextIndex;
+    try {
+        if (typeof require === 'function') {
+            const markersModule = require('../cards/markers');
+            if (markersModule && typeof markersModule.createMarkerContextIndex === 'function') {
+                return markersModule.createMarkerContextIndex;
+            }
+        }
+    } catch (e) { /* fall through to compatibility index */ }
+    return null;
+}
+
+function buildCompatibilityMarkerContextIndex(cardState: any, deps: ProtectionContextDeps): MarkerContextIndex {
+    const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+    const specialMarkers: Marker[] = [];
+    const manifestMarkers: Marker[] = [];
+    const bombMarkers: Marker[] = [];
+    const blockingMarkers: Marker[] = [];
+    const frozenKeys = new Set<string>();
+    const manifestRegistry = deps.ManifestStoneRegistry || null;
+    for (const marker of markers) {
+        if (!marker) continue;
+        const data = marker.data && typeof marker.data === 'object' ? marker.data : {};
+        const type = String(data.type || '').trim().toUpperCase();
+        const bomb = marker.kind === 'bomb' || data.category === 'bomb' || type === 'TIME_BOMB';
+        const manifest = !bomb && (marker.kind === 'manifestStone' || (
+            marker.kind === 'specialStone' && isManifestStoneType(type, manifestRegistry)
+        ));
+        const special = !bomb && !manifest && marker.kind === 'specialStone';
+        if (special) specialMarkers.push(marker);
+        if (manifest) manifestMarkers.push(marker);
+        if (bomb) bombMarkers.push(marker);
+        if (special && (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE')) {
+            blockingMarkers.push(marker);
+        }
+        if (special && type === 'FREEZE') {
+            frozenKeys.add(`${typeof marker.row}:${String(marker.row)},${typeof marker.col}:${String(marker.col)}`);
+        }
+    }
+    return {
+        specialMarkers,
+        manifestMarkers,
+        bombMarkers,
+        blockingMarkers,
+        isFrozenCell(row: unknown, col: unknown): boolean {
+            return frozenKeys.has(`${typeof row}:${String(row)},${typeof col}:${String(col)}`);
+        }
+    };
+}
 
 function requireSpecialStoneRegistry(deps: ProtectionContextDeps): SpecialStoneRegistryLike {
     const registry = deps && deps.SpecialStoneRegistry;
@@ -71,46 +132,19 @@ function isManifestStoneType(rawType: unknown, manifestRegistry?: ManifestStoneR
     return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
 }
 
-function defaultSpecialMarkers(cardState: any): Marker[] {
-    return cardState && Array.isArray(cardState.markers)
-        ? cardState.markers.filter((entry: Marker) => entry && entry.kind === 'specialStone')
-        : [];
-}
-
-function defaultManifestMarkers(cardState: any, manifestRegistry?: ManifestStoneRegistryLike | null): Marker[] {
-    return cardState && Array.isArray(cardState.markers)
-        ? cardState.markers.filter((entry: Marker) => (
-            entry &&
-            (entry.kind === 'manifestStone' || entry.kind === 'specialStone') &&
-            entry.data &&
-            isManifestStoneType(entry.data.type, manifestRegistry)
-        ))
-        : [];
-}
-
-function defaultBombMarkers(cardState: any): Marker[] {
-    return cardState && Array.isArray(cardState.markers)
-        ? cardState.markers.filter((entry: Marker) => entry && entry.data && entry.data.category === 'bomb')
-        : [];
-}
-
-function defaultBlockingMarkers(cardState: any, registry: SpecialStoneRegistryLike): Marker[] {
-    return cardState && Array.isArray(cardState.markers)
-        ? cardState.markers.filter((entry: Marker) => {
-            const type = normalizeMarkerType(entry, registry);
-            return entry && entry.kind === 'specialStone' && (
-                type === 'BLOCKADE' ||
-                type === 'METEOR_HOLE' ||
-                type === 'FREEZE'
-            );
-        })
-        : [];
-}
-
 function isRegistryFlipProtectedMarker(marker: Marker, registry: SpecialStoneRegistryLike): boolean {
     const type = normalizeMarkerType(marker, registry);
     if (!type || type === 'PROTECTED') return false;
     const info = registry.getSpecialStoneInfo(type);
+    return !!(info && info.flipProtected === true);
+}
+
+function isRegistryFlipProtectedType(type: string, registry: SpecialStoneRegistryLike): boolean {
+    if (!type || type === 'PROTECTED') return false;
+    const table = registry.SPECIAL_STONE_REGISTRY;
+    const info = table && Object.prototype.hasOwnProperty.call(table, type)
+        ? table[type]
+        : registry.getSpecialStoneInfo(type);
     return !!(info && info.flipProtected === true);
 }
 
@@ -125,53 +159,35 @@ function mapOwnerPosition(marker: Marker, constants: ConstantsLike) {
 function buildCardProtectionContext(cardState: unknown, deps: ProtectionContextDeps = {}) {
     const registry = requireSpecialStoneRegistry(deps);
     const constants = deps.constants || {};
-    const manifestRegistry = deps.ManifestStoneRegistry || null;
-    const getSpecialMarkers = typeof deps.getSpecialMarkers === 'function'
-        ? deps.getSpecialMarkers
-        : defaultSpecialMarkers;
-    const getManifestMarkers = typeof deps.getManifestMarkers === 'function'
-        ? deps.getManifestMarkers
-        : ((state: unknown) => defaultManifestMarkers(state, manifestRegistry));
-    const getBombMarkers = typeof deps.getBombMarkers === 'function'
-        ? deps.getBombMarkers
-        : defaultBombMarkers;
-    const getBlockingMarkers = typeof deps.getBlockingMarkers === 'function'
-        ? deps.getBlockingMarkers
-        : ((state: unknown) => defaultBlockingMarkers(state, registry));
+    const createMarkerContextIndex = resolveMarkerContextIndexFactory(deps);
+    const markerIndex = createMarkerContextIndex
+        ? createMarkerContextIndex(cardState, { includeCellIndex: false })
+        : buildCompatibilityMarkerContextIndex(cardState, deps);
+    const specials = Array.isArray(markerIndex.specialMarkers) ? markerIndex.specialMarkers : [];
+    const manifests = Array.isArray(markerIndex.manifestMarkers) ? markerIndex.manifestMarkers : [];
 
-    const specials = getSpecialMarkers(cardState) || [];
-    const manifests = getManifestMarkers(cardState) || [];
-
-    const protectedStones = specials
-        .filter((entry) => normalizeMarkerType(entry, registry) === 'PROTECTED')
-        .map(mapPosition);
+    const protectedStones: Array<{ row?: number; col?: number; owner?: unknown }> = [];
+    const permaProtectedStones: Array<{ row?: number; col?: number; owner?: unknown }> = [];
+    for (const entry of specials) {
+        if (!entry || !entry.data) continue;
+        const type = normalizeMarkerType(entry, registry);
+        if (type === 'PROTECTED') protectedStones.push(mapPosition(entry));
+        if (
+            isRegistryFlipProtectedType(type, registry) ||
+            type === 'FREEZE' ||
+            (typeof markerIndex.isFrozenCell === 'function' && markerIndex.isFrozenCell(entry.row, entry.col)) ||
+            (typeof deps.isAdditionalPermaProtectedMarker === 'function' && deps.isAdditionalPermaProtectedMarker(entry, cardState) === true)
+        ) {
+            permaProtectedStones.push(mapOwnerPosition(entry, constants));
+        }
+    }
 
     const inviolableStones = manifests
         .map((entry) => mapOwnerPosition(entry, constants));
 
-    const permaProtectedStones = specials
-        .filter((entry) => {
-            if (!entry || !entry.data) return false;
-            const type = normalizeMarkerType(entry, registry);
-            if (isRegistryFlipProtectedMarker(entry, registry)) return true;
-            if (type === 'FREEZE') return true;
-            if (
-                typeof deps.isFrozenCellForCard === 'function' &&
-                typeof entry.row === 'number' &&
-                typeof entry.col === 'number' &&
-                deps.isFrozenCellForCard(cardState, entry.row, entry.col)
-            ) {
-                return true;
-            }
-            if (typeof deps.isAdditionalPermaProtectedMarker === 'function') {
-                return deps.isAdditionalPermaProtectedMarker(entry, cardState) === true;
-            }
-            return false;
-        })
-        .concat(manifests)
-        .map((entry) => mapOwnerPosition(entry, constants));
+    permaProtectedStones.push(...inviolableStones);
 
-    const bombs = getBombMarkers(cardState).map((entry) => ({
+    const bombs = (Array.isArray(markerIndex.bombMarkers) ? markerIndex.bombMarkers : []).map((entry) => ({
         row: entry.row,
         col: entry.col,
         remainingTurns: entry.data ? entry.data.remainingTurns : undefined,
@@ -180,7 +196,7 @@ function buildCardProtectionContext(cardState: unknown, deps: ProtectionContextD
         createdSeq: entry.createdSeq
     }));
 
-    const blockedCells = getBlockingMarkers(cardState).map((entry) => ({
+    const blockedCells = (Array.isArray(markerIndex.blockingMarkers) ? markerIndex.blockingMarkers : []).map((entry) => ({
         row: entry.row,
         col: entry.col,
         type: entry.data ? entry.data.type : null,

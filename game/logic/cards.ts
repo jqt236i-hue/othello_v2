@@ -1393,6 +1393,10 @@ const {
         return requireCardMarkersMethod('getBlockingMarkers')(cardState);
     }
 
+    function createMarkerContextIndex(cardState: any, options?: any) {
+        return requireCardMarkersMethod('createMarkerContextIndex')(cardState, options);
+    }
+
     function isFrozenCellForCard(cardState: any, row: any, col: any) {
         return requireCardMarkersMethod('isFrozenCellForCard')(cardState, row, col);
     }
@@ -4415,6 +4419,7 @@ const {
             throw new Error('[cards.js] CardEffectResolver.getCardContext not available');
         }
         return CardEffectResolverModule.getCardContext(cardState, {
+            createMarkerContextIndex,
             getSpecialMarkers,
             getManifestMarkers,
             getBombMarkers,
