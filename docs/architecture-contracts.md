@@ -515,6 +515,7 @@ The current asset contract is:
 - worker entry: `workers/match-worker.mjs`
 - asset directory: `worker-public/`
 - sync command: `npm run worker:prepare` (通常は `npm run worker:dev` / `npm run worker:deploy` が `&&` で連結して自動実行する)
+- drift guard: `npm run check:worker-mirror`（root と生成済み mirror の差分だけでなく、mirror 内の手編集だけの余分なファイルも拒否する読み取り専用検査）
 
 Path changes or root file changes that affect the worker-served static surface are reflected automatically by `npm run worker:dev` / `npm run worker:deploy`, both of which run `npm run worker:prepare` via `&&`. Run `npm run worker:prepare` explicitly only when invoking `npx wrangler dev` / `npx wrangler deploy` directly.
 
@@ -528,7 +529,7 @@ Use the nearest existing checks for the contract you touch.
 | network publish / projection / snapshot | worker and network regression tests, including publish/snapshot parity suites |
 | UI playback / board writer / animation ordering | focused Jest around playback, presentation, and animation suites |
 | bootstrap / `window` boundary | `npm run checkall`; focused tests: `test/game.ui-boundary.test.ts`, `test/game.special-effects.ui-boundary.test.ts`, `test/ui.bootstrap-shared.test.ts` |
-| worker static mirror / deploy surface | `npm run worker:prepare` and relevant worker asset tests |
+| worker static mirror / deploy surface | `npm run worker:prepare`, `npm run check:worker-mirror`, and relevant worker asset tests |
 
 Examples already present in this repo include:
 

@@ -150,6 +150,9 @@
   if (typeof module === 'object' && module && module.exports) {
     isRealJest = typeof process !== 'undefined' && process.env && process.env.JEST_WORKER_ID && typeof globalThis.expect === 'function';
     module.exports = isRealJest ? require('./bootstrap.ts') : require('../dist/ui/bootstrap');
+    if (module.exports && typeof module.exports.initializeUIBootstrapRuntime === 'function') {
+      module.exports.initializeUIBootstrapRuntime(typeof window !== 'undefined' ? window : root);
+    }
     return;
   }
 

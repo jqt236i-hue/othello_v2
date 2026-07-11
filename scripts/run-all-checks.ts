@@ -31,6 +31,7 @@ if (!run('node', ['scripts/check-refactor-safety.js'])) ok = false;
 if (!run('node', ['scripts/check-ts-migration-safety.js'])) ok = false;
 if (!run('node', ['scripts/check-browser-build-up-to-date.js'])) ok = false;
 if (!run('node', ['scripts/check-asset-file-case.js'])) ok = false;
+if (!runNpmScript('check:worker-mirror')) ok = false;
 if (!run('node', ['scripts/test-shim-forwarding.js'])) ok = false;
 if (!run('node', ['dist/scripts/inventory-js-legacy.js'])) ok = false;
 

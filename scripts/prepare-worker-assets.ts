@@ -426,6 +426,25 @@ function listFilesRecursive(baseDir: string, relativePrefix: string): string[] {
     return out;
 }
 
+function listAllFilesRecursive(baseDir: string, relativePrefix: string): string[] {
+    if (!fs.existsSync(baseDir)) return [];
+
+    const out: string[] = [];
+    const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+    for (const entry of entries) {
+        const nextRelative = relativePrefix ? path.join(relativePrefix, entry.name) : entry.name;
+        const nextFull = path.join(baseDir, entry.name);
+        if (entry.isDirectory()) {
+            out.push(...listAllFilesRecursive(nextFull, nextRelative));
+            continue;
+        }
+        if (entry.isFile()) {
+            out.push(nextRelative);
+        }
+    }
+    return out;
+}
+
 function isAssetManifestMetadataOnlyDrift(relativePath: string, srcBuf: Buffer, dstBuf: Buffer): boolean {
     if (normalizeRelativePath(relativePath) !== 'assets/asset-manifest.json') return false;
     try {
@@ -472,7 +491,12 @@ function verifyMirroredFile(relativePath: string, issues: string[], config: any)
     }
 }
 
-function verifyMirrors(optionalFiles: any, generatedAssets: any, config: any) {
+function verifyMirrors(
+    optionalFiles: any,
+    generatedAssets: any,
+    config: any,
+    options?: { rejectExtraFiles?: boolean }
+) {
     const settings = createPrepareConfig(config);
     const issues: string[] = [];
     const verifyFiles = new Set<string>();
@@ -504,6 +528,22 @@ function verifyMirrors(optionalFiles: any, generatedAssets: any, config: any) {
         const dstBuf = fs.readFileSync(dst);
         if (!dstBuf.equals(asset.content)) {
             issues.push(`generated content mismatch: ${asset.relativePath}`);
+        }
+    }
+
+    if (options && options.rejectExtraFiles) {
+        const expectedFiles = new Set<string>(
+            Array.from(verifyFiles).map((relativePath) => normalizeRelativePath(relativePath))
+        );
+        generated.forEach((asset: any) => expectedFiles.add(normalizeRelativePath(asset.relativePath)));
+        expectedFiles.add(MODEL_ASSET_MANIFEST_PATH);
+
+        const actualFiles = listAllFilesRecursive(settings.outDir, '');
+        for (const relativePath of actualFiles) {
+            const normalized = normalizeRelativePath(relativePath);
+            if (!expectedFiles.has(normalized)) {
+                issues.push(`unexpected mirror file: ${normalized}`);
+            }
         }
     }
 
@@ -576,5 +616,8 @@ export = {
     verifyMirrors,
     verifyMirroredFile,
     listFilesRecursive,
+    listAllFilesRecursive,
+    resolveCopyableOptionalFiles,
+    resolveGeneratedOptionalAssets,
     shouldMirrorRelativePath
 };

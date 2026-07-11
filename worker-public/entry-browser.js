@@ -106,6 +106,15 @@ function applyBootModuleEntry(moduleExports, entry) {
   if (entry.initDebugCardSearch === true && typeof moduleExports.initDebugCardSearch === "function") {
     window.debugCardSearchController = moduleExports.initDebugCardSearch();
   }
+  if (entry.initUIBootstrap === true && typeof moduleExports.initializeUIBootstrapRuntime === "function") {
+    moduleExports.initializeUIBootstrapRuntime(window);
+  }
+  if (entry.initNetworkMatchClient === true && typeof moduleExports.initializeNetworkMatchClientRuntime === "function") {
+    moduleExports.initializeNetworkMatchClientRuntime(window);
+  }
+  if (entry.initCardInteraction === true && typeof moduleExports.initializeCardInteractionRuntime === "function") {
+    moduleExports.initializeCardInteractionRuntime(window);
+  }
   return moduleExports;
 }
 
@@ -252,7 +261,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/shared/commentary-runtime-helpers" },
   { moduleKey: "./dist/shared/playback-event-helpers" },
   { moduleKey: "./dist/ui/commentary-broker" },
-  { moduleKey: "./dist/ui/bootstrap" },
+  { moduleKey: "./dist/ui/bootstrap", initUIBootstrap: true },
   { moduleKey: "./dist/ui/bootstrap/lazy-runtime-loader", globalNames: ["LazyRuntimeLoaderModule"] },
   { moduleKey: "./dist/ui/bootstrap/init-dom" },
   { moduleKey: "./dist/ui/bootstrap/init-events" },
@@ -310,11 +319,11 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/ui/network/snapshot", lateGlobalNames: ["NetworkSnapshotModule"] },
   { moduleKey: "./dist/ui/network/session-seat", lateGlobalNames: ["NetworkSessionSeatModule"] },
   { moduleKey: "./dist/ui/network/session-lifecycle", lateGlobalNames: ["NetworkSessionLifecycleModule"] },
-  { moduleKey: "./dist/ui/network-client" },
+  { moduleKey: "./dist/ui/network-client", initNetworkMatchClient: true },
   { moduleKey: "./dist/sound-engine", defaultGlobalNames: ["SoundEngine"] },
   { moduleKey: "./dist/cards/card-renderer", globalNames: ["HandAnimationUtilsModule"], lateGlobalNames: ["HandAnimationUtilsModule"] },
   { moduleKey: "./dist/cards/card-interaction-effects" },
-  { moduleKey: "./dist/cards/card-interaction" },
+  { moduleKey: "./dist/cards/card-interaction", initCardInteraction: true },
   { moduleKey: "./dist/ui/debug-card-search", globalNames: ["DebugCardSearchModule"], initDebugCardSearch: true },
   { moduleKey: "./dist/ui/storage/deck-presets" },
   { moduleKey: "./dist/ui/deck-builder-state" },

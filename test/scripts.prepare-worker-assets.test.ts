@@ -166,6 +166,31 @@ describe('prepare-worker-assets', () => {
         expect(() => verifyMirrors([], [], config)).toThrow(/(size|content) mismatch: assets[\\/]sample\.txt/);
     });
 
+    test('rejects a manual-only file when strict mirror verification is requested', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-prepare-strict-'));
+        cleanupDirs.push(rootDir);
+        const outDir = path.join(rootDir, 'worker-public-out');
+        const options = {
+            rootDir,
+            outDir,
+            rootFiles: ['index.html'],
+            verifyRootFiles: ['index.html'],
+            dirs: [],
+            verifyDirs: [],
+            optionalFiles: [],
+            generatedOptionalAssets: []
+        };
+        const config = createPrepareConfig(options);
+
+        writeFile(path.join(rootDir, 'index.html'), '<!doctype html><html><body>root</body></html>');
+        prepareWorkerAssets(options);
+        expect(() => verifyMirrors([], [], config, { rejectExtraFiles: true })).not.toThrow();
+
+        writeFile(path.join(outDir, 'manual-only.txt'), 'do not source-edit mirrors');
+        expect(() => verifyMirrors([], [], config, { rejectExtraFiles: true }))
+            .toThrow(/unexpected mirror file: manual-only\.txt/);
+    });
+
     test('ignores generatedAt/version-only drift for asset manifest mirror verification even when byte size changes', () => {
         const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-prepare-manifest-'));
         cleanupDirs.push(rootDir);
