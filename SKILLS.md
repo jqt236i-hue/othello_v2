@@ -1,6 +1,6 @@
 # カードリバーシ / SKILLS.md
 
-最終更新: 2026-05-25
+最終更新: 2026-07-11
 
 ## 0. この文書の役割
 
@@ -34,6 +34,7 @@
 
 | Skill | 使う時 |
 | --- | --- |
+| `codex-goal-prompter` | 長期的な目的を、現在のメインチャット内で聞き取り・作成・必要なら有効化まで行う、証拠ベースの Codex Goal / `/goal` prompt に変換する時 |
 | `harsh-critic` | コード、文書、デザイン、設定、計画などの具体的な成果物に対して、辛口で欠点を洗い出すレビューを求められた時 |
 | `card-reversi-browser-new-card` | ブラウザ版の新カードを catalog / headless effect / pending selection / CPU / presentation / docs / tests まで end-to-end で追加する時 |
 | `card-reversi-browser-card-change` | ブラウザ版の既存カードの挙動、target、timing、availability、CPU 影響、presentation、rules help を変更する時 |
@@ -46,6 +47,7 @@
 
 ## 4. 選び方の近道
 
+- 長期タスクを監査可能な Codex Goal にする: `codex-goal-prompter`
 - ブラウザ版の新カード追加: `card-reversi-browser-new-card`
 - ブラウザ版の既存カード仕様変更: `card-reversi-browser-card-change`
 - ブラウザ版の既存カード文言だけ変更: `card-reversi-browser-card-text-change`
