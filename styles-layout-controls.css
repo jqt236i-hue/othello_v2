@@ -7258,7 +7258,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 }
 
 #deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-plus {
-    top: calc(20px * var(--layout-stage-scale)) !important;
+    top: calc(31px * var(--layout-stage-scale)) !important;
     font-size: max(26px, calc(26px * var(--layout-stage-scale))) !important;
 }
 
