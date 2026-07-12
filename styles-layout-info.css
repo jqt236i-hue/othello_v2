@@ -4542,7 +4542,7 @@
     -webkit-text-stroke: calc(0.16px * var(--layout-stage-scale)) rgba(255, 246, 229, 0.18);
     paint-order: stroke fill;
     box-shadow: none;
-    transform: translate(clamp(25px, 1.9vw, 36px), clamp(11px, 0.78vw, 14px));
+    transform: translate(0, clamp(18px, 1.4vw, 24px));
     text-shadow:
         0 calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.84),
         0 calc(4px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28),
@@ -4558,7 +4558,7 @@
         drop-shadow(0 0 calc(7px * var(--layout-stage-scale)) rgba(36, 244, 255, 0.30))
         drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 231, 168, 0.18));
     transform:
-        translate(clamp(25px, 1.9vw, 36px), clamp(11px, 0.78vw, 14px))
+        translate(0, clamp(18px, 1.4vw, 24px))
         translateY(calc(-1px * var(--layout-stage-scale)));
     text-shadow:
         0 calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.84),
@@ -4570,7 +4570,7 @@
 #networkRoomListRefreshBtn:active {
     filter: brightness(0.94);
     transform:
-        translate(clamp(25px, 1.9vw, 36px), clamp(11px, 0.78vw, 14px))
+        translate(0, clamp(18px, 1.4vw, 24px))
         translateY(calc(1px * var(--layout-stage-scale)));
 }
 

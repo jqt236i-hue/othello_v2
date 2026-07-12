@@ -181,8 +181,9 @@ describe('network room list style', () => {
     expect(createHoverBlock).toMatch(/transform:\s*translateY\(calc\(-1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(createActiveBlock).toMatch(/transform:\s*translateY\(calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(refreshBlock).toMatch(/transition:\s*color 160ms ease,\s*filter 160ms ease,\s*text-shadow 160ms ease,\s*transform 160ms ease/);
+    expect(refreshBlock).toMatch(/transform:\s*translate\(0,\s*clamp\(18px,\s*1\.4vw,\s*24px\)\)/);
     expect(refreshHoverBlock).toMatch(/color:\s*#fff7ec/);
-    expect(refreshHoverBlock).toMatch(/translate\(clamp\(25px,\s*1\.9vw,\s*36px\),\s*clamp\(11px,\s*0\.78vw,\s*14px\)\)/);
+    expect(refreshHoverBlock).toMatch(/translate\(0,\s*clamp\(18px,\s*1\.4vw,\s*24px\)\)/);
     expect(refreshHoverBlock).toMatch(/translateY\(calc\(-1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(refreshActiveBlock).toMatch(/translateY\(calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
   });
