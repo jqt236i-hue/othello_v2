@@ -87,7 +87,8 @@
     transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
     transition: transform 0.25s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     z-index: 110;
-    min-width: calc(176px * var(--layout-stage-scale));
+    width: calc(268px * var(--layout-stage-scale));
+    min-width: calc(236px * var(--layout-stage-scale));
     text-align: center;
     cursor: pointer;
     pointer-events: auto;
@@ -171,6 +172,159 @@
 
 #cpu-level-menu[hidden] {
     display: none;
+}
+
+.cpu-config-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: calc(5px * var(--layout-stage-scale));
+    padding-bottom: calc(2px * var(--layout-stage-scale));
+}
+
+.cpu-config-tab,
+.cpu-board-choice-button {
+    appearance: none;
+    -webkit-appearance: none;
+    border: var(--layout-size-border-thin) solid rgba(184, 196, 185, 0.2);
+    border-radius: calc(7px * var(--layout-stage-scale));
+    background: rgba(5, 10, 16, 0.58);
+    color: rgba(226, 232, 226, 0.78);
+    cursor: pointer;
+    font-weight: 700;
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.72);
+    transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cpu-config-tab {
+    padding: calc(7px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
+    font-size: clamp(11px, calc(12px * var(--layout-stage-scale)), 12px);
+}
+
+.cpu-config-tab:hover,
+.cpu-config-tab:focus-visible,
+.cpu-board-choice-button:hover,
+.cpu-board-choice-button:focus-visible {
+    border-color: rgba(224, 198, 122, 0.58);
+    color: #fff3cf;
+    outline: none;
+}
+
+.cpu-config-tab.is-selected,
+.cpu-board-choice-button.is-selected {
+    border-color: rgba(224, 198, 122, 0.72);
+    background:
+        linear-gradient(180deg, rgba(255, 244, 205, 0.12), rgba(255, 244, 205, 0) 42%),
+        rgba(72, 62, 34, 0.48);
+    color: #fff3cf;
+    box-shadow:
+        0 0 calc(10px * var(--layout-stage-scale)) rgba(224, 198, 122, 0.08),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 239, 187, 0.06);
+}
+
+.cpu-config-panel {
+    display: flex;
+    flex-direction: column;
+    gap: calc(4px * var(--layout-stage-scale));
+}
+
+.cpu-config-panel[hidden] {
+    display: none;
+}
+
+.cpu-board-config-panel {
+    gap: calc(12px * var(--layout-stage-scale));
+    padding: calc(4px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale));
+}
+
+.cpu-board-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: calc(6px * var(--layout-stage-scale));
+}
+
+.cpu-board-control-group[hidden] {
+    display: none;
+}
+
+.cpu-board-control-label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: calc(8px * var(--layout-stage-scale));
+    color: #f5e8c7;
+    font-size: clamp(11px, calc(12px * var(--layout-stage-scale)), 12px);
+    font-weight: 700;
+}
+
+.cpu-board-control-note {
+    color: rgba(199, 210, 204, 0.6);
+    font-size: 0.86em;
+    font-weight: 500;
+}
+
+.cpu-board-shape-choices {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: calc(6px * var(--layout-stage-scale));
+}
+
+.cpu-board-size-choices {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: calc(6px * var(--layout-stage-scale));
+}
+
+.cpu-board-choice-button {
+    padding: calc(7px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
+    font-size: clamp(11px, calc(12px * var(--layout-stage-scale)), 12px);
+}
+
+.cpu-board-dimension-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: calc(8px * var(--layout-stage-scale));
+}
+
+.cpu-board-dimension-field {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: calc(6px * var(--layout-stage-scale));
+    color: rgba(229, 235, 229, 0.78);
+    font-size: clamp(11px, calc(12px * var(--layout-stage-scale)), 12px);
+}
+
+.cpu-board-dimension-field select {
+    min-width: 0;
+    padding: calc(6px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(224, 198, 122, 0.38);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    background: rgba(5, 10, 16, 0.82);
+    color: #f5e8c7;
+}
+
+.cpu-board-apply-note {
+    color: rgba(199, 210, 204, 0.64);
+    font-size: clamp(10px, calc(11px * var(--layout-stage-scale)), 11px);
+    text-align: center;
+}
+
+.cpu-config-summary {
+    display: grid;
+    gap: calc(2px * var(--layout-stage-scale));
+    padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    border-top: var(--layout-size-border-thin) solid rgba(224, 198, 122, 0.22);
+    color: #f8e9c2;
+}
+
+.cpu-config-summary-label {
+    color: rgba(199, 210, 204, 0.58);
+    font-size: clamp(9px, calc(10px * var(--layout-stage-scale)), 10px);
+}
+
+.cpu-config-summary-value {
+    font-size: clamp(11px, calc(12px * var(--layout-stage-scale)), 12px);
+    font-weight: 700;
 }
 
 .cpu-level-menu-item {

@@ -23,6 +23,7 @@ interface SmartOption {
 
 const CpuOpponentProfiles = _require('../../shared/cpu-opponent-profiles');
 const CpuOpponentStartupOptions = _require('../../shared/cpu-opponent-startup-options');
+const SharedBoardUtils = _require('../../shared/shared-board-utils');
 const localCpuLevels: Record<string, number> = { black: 1, white: 1 };
 const localCpuProfileValues: Record<string, string> = { black: '1', white: '1' };
 const CPU_LEVEL_SHORTCUT_ID = 'cpu-level-label';
@@ -86,6 +87,231 @@ function syncCpuLevelMenuSelection(menu: HTMLDivElement, selectedValue: unknown)
   });
 }
 
+function resolveCpuBoardConfigController(): any {
+  const root = resolveSmartRuntimeRoot();
+  const directController = root && root.DeckBuilderController;
+  if (directController
+    && typeof directController.getLocalBoardConfig === 'function'
+    && typeof directController.setLocalBoardConfig === 'function') {
+    return directController;
+  }
+  try {
+    const globals = root && root.UIBootstrap && typeof root.UIBootstrap.getUIGlobals === 'function'
+      ? root.UIBootstrap.getUIGlobals()
+      : null;
+    const controller = globals && globals.DeckBuilderController;
+    if (controller
+      && typeof controller.getLocalBoardConfig === 'function'
+      && typeof controller.setLocalBoardConfig === 'function') {
+      return controller;
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function readCpuMenuBoardConfig(): any {
+  const controller = resolveCpuBoardConfigController();
+  try {
+    if (controller) return SharedBoardUtils.normalizeBoardConfig(controller.getLocalBoardConfig());
+  } catch (e) { /* ignore */ }
+  return SharedBoardUtils.buildBoardConfig();
+}
+
+function writeCpuMenuBoardConfig(nextBoardConfig: any): any {
+  const normalized = SharedBoardUtils.normalizeBoardConfig(nextBoardConfig);
+  const controller = resolveCpuBoardConfigController();
+  if (controller) controller.setLocalBoardConfig(normalized);
+  return normalized;
+}
+
+function formatCpuMenuBoardConfig(boardConfig: any): string {
+  const normalized = SharedBoardUtils.normalizeBoardConfig(boardConfig);
+  const shapeLabel = normalized.shape === 'circle' ? '円形' : '通常';
+  return `${shapeLabel} ${normalized.rows}×${normalized.cols}`;
+}
+
+function formatCpuMenuProfileLevel(selectedValue: unknown): string {
+  const profile = CpuOpponentProfiles.getCpuOpponentProfile(selectedValue);
+  const level = Number(profile && profile.level);
+  return Number.isFinite(level) ? `Lv${Math.max(1, Math.floor(level))}` : 'CPU';
+}
+
+function syncCpuConfigMenuSummary(menu: HTMLDivElement, selectedValue: unknown, boardConfig?: any): void {
+  const summary = menu.querySelector<HTMLElement>('.cpu-config-summary-value');
+  if (!summary) return;
+  const config = boardConfig || readCpuMenuBoardConfig();
+  summary.textContent = `${formatCpuMenuProfileLevel(selectedValue)} / ${formatCpuMenuBoardConfig(config)}`;
+}
+
+function syncCpuBoardConfigControls(menu: HTMLDivElement, selectedValue: unknown, boardConfig?: any): void {
+  const config = SharedBoardUtils.normalizeBoardConfig(boardConfig || readCpuMenuBoardConfig());
+  const circle = config.shape === 'circle';
+  menu.querySelectorAll<HTMLButtonElement>('[data-cpu-board-shape]').forEach((button) => {
+    const selected = String(button.dataset.cpuBoardShape || '') === config.shape;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+  });
+  menu.querySelectorAll<HTMLButtonElement>('[data-cpu-circle-size]').forEach((button) => {
+    const selected = circle && Number(button.dataset.cpuCircleSize) === config.rows;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+  });
+  const circleControls = menu.querySelector<HTMLElement>('.cpu-board-circle-controls');
+  const rectangleControls = menu.querySelector<HTMLElement>('.cpu-board-rectangle-controls');
+  if (circleControls) circleControls.hidden = !circle;
+  if (rectangleControls) rectangleControls.hidden = circle;
+  const rowsSelect = menu.querySelector<HTMLSelectElement>('[data-cpu-board-rows]');
+  const colsSelect = menu.querySelector<HTMLSelectElement>('[data-cpu-board-cols]');
+  if (rowsSelect) rowsSelect.value = String(config.rows);
+  if (colsSelect) colsSelect.value = String(config.cols);
+  syncCpuConfigMenuSummary(menu, selectedValue, config);
+}
+
+function setCpuConfigMenuTab(menu: HTMLDivElement, tabName: 'cpu' | 'board'): void {
+  menu.querySelectorAll<HTMLButtonElement>('[data-cpu-config-tab]').forEach((button) => {
+    const selected = button.dataset.cpuConfigTab === tabName;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-selected', selected ? 'true' : 'false');
+    button.tabIndex = selected ? 0 : -1;
+  });
+  menu.querySelectorAll<HTMLElement>('[data-cpu-config-panel]').forEach((panel) => {
+    panel.hidden = panel.dataset.cpuConfigPanel !== tabName;
+  });
+}
+
+function createCpuConfigTab(menu: HTMLDivElement, label: string, tabName: 'cpu' | 'board'): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'cpu-config-tab';
+  button.dataset.cpuConfigTab = tabName;
+  button.textContent = label;
+  button.setAttribute('role', 'tab');
+  button.addEventListener('click', () => {
+    setCpuConfigMenuTab(menu, tabName);
+    const shortcut = getCpuLevelShortcutButton();
+    if (shortcut) positionCpuLevelMenu(shortcut, menu);
+  });
+  return button;
+}
+
+function createCpuBoardShapeButton(
+  menu: HTMLDivElement,
+  smartWhite: HTMLSelectElement,
+  label: string,
+  shape: 'rectangle' | 'circle'
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'cpu-board-choice-button';
+  button.dataset.cpuBoardShape = shape;
+  button.textContent = label;
+  button.addEventListener('click', () => {
+    const current = readCpuMenuBoardConfig();
+    const next = shape === 'circle'
+      ? SharedBoardUtils.buildBoardConfig(
+        SharedBoardUtils.normalizeCircleBoardSize(current.rows),
+        SharedBoardUtils.normalizeCircleBoardSize(current.rows),
+        'circle'
+      )
+      : SharedBoardUtils.buildBoardConfig(current.rows, current.cols, 'rectangle');
+    syncCpuBoardConfigControls(menu, smartWhite.value, writeCpuMenuBoardConfig(next));
+  });
+  return button;
+}
+
+function createCpuBoardPanel(menu: HTMLDivElement, smartWhite: HTMLSelectElement): HTMLDivElement {
+  const panel = document.createElement('div');
+  panel.className = 'cpu-config-panel cpu-board-config-panel';
+  panel.dataset.cpuConfigPanel = 'board';
+  panel.setAttribute('role', 'tabpanel');
+
+  const shapeGroup = document.createElement('div');
+  shapeGroup.className = 'cpu-board-control-group';
+  const shapeLabel = document.createElement('div');
+  shapeLabel.className = 'cpu-board-control-label';
+  shapeLabel.textContent = '盤面形状';
+  const shapeChoices = document.createElement('div');
+  shapeChoices.className = 'cpu-board-shape-choices';
+  shapeChoices.appendChild(createCpuBoardShapeButton(menu, smartWhite, '通常', 'rectangle'));
+  shapeChoices.appendChild(createCpuBoardShapeButton(menu, smartWhite, '円形', 'circle'));
+  shapeGroup.appendChild(shapeLabel);
+  shapeGroup.appendChild(shapeChoices);
+  panel.appendChild(shapeGroup);
+
+  const circleControls = document.createElement('div');
+  circleControls.className = 'cpu-board-control-group cpu-board-circle-controls';
+  const circleLabel = document.createElement('div');
+  circleLabel.className = 'cpu-board-control-label';
+  circleLabel.textContent = '盤面サイズ';
+  const circleNote = document.createElement('span');
+  circleNote.className = 'cpu-board-control-note';
+  circleNote.textContent = '偶数・正方形固定';
+  circleLabel.appendChild(circleNote);
+  const sizeChoices = document.createElement('div');
+  sizeChoices.className = 'cpu-board-size-choices';
+  for (let size = SharedBoardUtils.MIN_CIRCLE_BOARD_SIZE; size <= SharedBoardUtils.MAX_CIRCLE_BOARD_SIZE; size += SharedBoardUtils.CIRCLE_BOARD_SIZE_STEP) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'cpu-board-choice-button';
+    button.dataset.cpuCircleSize = String(size);
+    button.textContent = `${size}×${size}`;
+    button.addEventListener('click', () => {
+      const next = SharedBoardUtils.buildBoardConfig(size, size, 'circle');
+      syncCpuBoardConfigControls(menu, smartWhite.value, writeCpuMenuBoardConfig(next));
+    });
+    sizeChoices.appendChild(button);
+  }
+  circleControls.appendChild(circleLabel);
+  circleControls.appendChild(sizeChoices);
+  panel.appendChild(circleControls);
+
+  const rectangleControls = document.createElement('div');
+  rectangleControls.className = 'cpu-board-control-group cpu-board-rectangle-controls';
+  const rectangleLabel = document.createElement('div');
+  rectangleLabel.className = 'cpu-board-control-label';
+  rectangleLabel.textContent = '盤面サイズ';
+  const dimensionFields = document.createElement('div');
+  dimensionFields.className = 'cpu-board-dimension-fields';
+  const buildDimensionField = (labelText: string, axis: 'rows' | 'cols') => {
+    const label = document.createElement('label');
+    label.className = 'cpu-board-dimension-field';
+    label.textContent = labelText;
+    const select = document.createElement('select');
+    select.dataset[axis === 'rows' ? 'cpuBoardRows' : 'cpuBoardCols'] = '1';
+    const bounds = SharedBoardUtils.getBoardDimensionBounds(axis === 'rows' ? 'row' : 'col');
+    for (let size = bounds.min; size <= bounds.max; size += 1) {
+      const option = document.createElement('option');
+      option.value = String(size);
+      option.textContent = String(size);
+      select.appendChild(option);
+    }
+    select.addEventListener('change', () => {
+      const current = readCpuMenuBoardConfig();
+      const rowsSelect = menu.querySelector<HTMLSelectElement>('[data-cpu-board-rows]');
+      const colsSelect = menu.querySelector<HTMLSelectElement>('[data-cpu-board-cols]');
+      const next = SharedBoardUtils.buildBoardConfig(
+        rowsSelect ? rowsSelect.value : current.rows,
+        colsSelect ? colsSelect.value : current.cols,
+        'rectangle'
+      );
+      syncCpuBoardConfigControls(menu, smartWhite.value, writeCpuMenuBoardConfig(next));
+    });
+    label.appendChild(select);
+    return label;
+  };
+  dimensionFields.appendChild(buildDimensionField('縦', 'rows'));
+  dimensionFields.appendChild(buildDimensionField('横', 'cols'));
+  rectangleControls.appendChild(rectangleLabel);
+  rectangleControls.appendChild(dimensionFields);
+  panel.appendChild(rectangleControls);
+
+  const applyNote = document.createElement('div');
+  applyNote.className = 'cpu-board-apply-note';
+  applyNote.textContent = '盤面変更は次のリセット / 新規対局で反映';
+  panel.appendChild(applyNote);
+  return panel;
+}
+
 function clearCpuLevelMenuChildren(menu: HTMLDivElement): void {
   while (menu.firstChild) {
     menu.removeChild(menu.firstChild);
@@ -140,8 +366,8 @@ function ensureCpuLevelMenu(smartWhite: HTMLSelectElement): HTMLDivElement | nul
     menu = document.createElement('div');
     menu.id = CPU_LEVEL_MENU_ID;
     menu.hidden = true;
-    menu.setAttribute('role', 'menu');
-    menu.setAttribute('aria-label', 'CPUレベル一覧');
+    menu.setAttribute('role', 'dialog');
+    menu.setAttribute('aria-label', 'CPU・盤面設定');
     menu.addEventListener('click', (event) => {
       event.stopPropagation();
     });
@@ -149,6 +375,18 @@ function ensureCpuLevelMenu(smartWhite: HTMLSelectElement): HTMLDivElement | nul
   }
 
   clearCpuLevelMenuChildren(menu);
+  const tabs = document.createElement('div');
+  tabs.className = 'cpu-config-tabs';
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', 'CPU・盤面設定');
+  tabs.appendChild(createCpuConfigTab(menu, 'CPU選択', 'cpu'));
+  tabs.appendChild(createCpuConfigTab(menu, '盤面設定', 'board'));
+  menu.appendChild(tabs);
+
+  const cpuPanel = document.createElement('div');
+  cpuPanel.className = 'cpu-config-panel cpu-level-list-panel';
+  cpuPanel.dataset.cpuConfigPanel = 'cpu';
+  cpuPanel.setAttribute('role', 'tabpanel');
   CPU_LEVEL_OPTIONS.forEach((opt) => {
     const item = document.createElement('button');
     item.type = 'button';
@@ -161,12 +399,26 @@ function ensureCpuLevelMenu(smartWhite: HTMLSelectElement): HTMLDivElement | nul
       event.stopPropagation();
       smartWhite.value = opt.v;
       dispatchSelectChange(smartWhite);
-      hideCpuLevelMenu();
     });
-    menu?.appendChild(item);
+    cpuPanel.appendChild(item);
   });
+  menu.appendChild(cpuPanel);
+  menu.appendChild(createCpuBoardPanel(menu, smartWhite));
+
+  const summary = document.createElement('div');
+  summary.className = 'cpu-config-summary';
+  const summaryLabel = document.createElement('span');
+  summaryLabel.className = 'cpu-config-summary-label';
+  summaryLabel.textContent = '選択中';
+  const summaryValue = document.createElement('strong');
+  summaryValue.className = 'cpu-config-summary-value';
+  summary.appendChild(summaryLabel);
+  summary.appendChild(summaryValue);
+  menu.appendChild(summary);
 
   syncCpuLevelMenuSelection(menu, smartWhite.value || localCpuLevels.white);
+  syncCpuBoardConfigControls(menu, smartWhite.value || localCpuLevels.white);
+  setCpuConfigMenuTab(menu, 'cpu');
   return menu;
 }
 
@@ -227,7 +479,7 @@ function observeCpuLevelShortcutState(): void {
 function bindCpuLevelShortcut(smartWhite: HTMLSelectElement | null): void {
   const shortcut = getCpuLevelShortcutButton();
   if (!shortcut || !smartWhite || shortcut.dataset.cpuLevelShortcutBound === '1') return;
-  shortcut.setAttribute('aria-haspopup', 'menu');
+  shortcut.setAttribute('aria-haspopup', 'dialog');
   shortcut.setAttribute('aria-expanded', 'false');
   bindCpuLevelDismissHandlers();
   observeCpuLevelShortcutState();
@@ -381,7 +633,10 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
       syncRuntimeCpuLevel('white', newLevel);
       target.value = selectedValue || String(newLevel);
       const menu = getCpuLevelMenu();
-      if (menu) syncCpuLevelMenuSelection(menu, target.value || newLevel);
+      if (menu) {
+        syncCpuLevelMenuSelection(menu, target.value || newLevel);
+        syncCpuConfigMenuSummary(menu, target.value || newLevel);
+      }
       console.log(`[CPU Level] White changed to level ${localCpuLevels.white}`);
       if (typeof updateCpuCharacter === 'function') {
         updateCpuCharacter();
