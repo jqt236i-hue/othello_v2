@@ -61,9 +61,15 @@
     height: var(--board-frame-outer-height, calc(var(--board-frame-inner-size) + var(--board-frame-padding-top) + var(--board-frame-padding-bottom)));
     padding: var(--board-frame-padding-top) var(--board-frame-padding-right) var(--board-frame-padding-bottom) var(--board-frame-padding-left);
     box-sizing: border-box;
-    background: transparent;
-    border-radius: 0;
-    box-shadow: none;
+    background: var(--board-frame-fill-background);
+    border-radius: calc(10px * var(--layout-stage-scale));
+    box-shadow:
+        var(--ui-elevation-board),
+        0 calc(34px * var(--layout-stage-scale)) calc(72px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.82),
+        0 calc(10px * var(--layout-stage-scale)) calc(24px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58),
+        0 0 0 calc(1px * var(--layout-stage-scale)) rgba(14, 10, 7, 0.96),
+        0 0 0 calc(2px * var(--layout-stage-scale)) rgba(118, 88, 30, 0.52),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 237, 181, 0.06);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -77,12 +83,44 @@
     overflow: visible;
 }
 
-/* Raster frame art is retained only as a legacy skin catalog preview. */
+/* 欠けのない通常盤面では、選択中のラスター画像フレームを表示する。 */
 #board-frame::before {
-    display: none;
+    content: "";
+    position: absolute;
+    top: calc(-1 * var(--board-frame-art-overhang-top) + var(--board-frame-art-offset-y));
+    left: calc(-1 * var(--board-frame-art-overhang));
+    right: calc(-1 * var(--board-frame-art-overhang));
+    bottom: calc(-1 * var(--board-frame-art-overhang-bottom) - var(--board-frame-art-offset-y));
+    border-radius: calc(16px * var(--layout-stage-scale));
+    pointer-events: none;
+    box-shadow: none;
+    background: var(--board-frame-image) center / 100% 100% no-repeat;
+    z-index: 0;
 }
 
 #board-frame::after {
+    content: "";
+    position: absolute;
+    top: calc(16px * var(--layout-stage-scale));
+    left: calc(16px * var(--layout-stage-scale));
+    right: calc(16px * var(--layout-stage-scale));
+    bottom: calc(16px * var(--layout-stage-scale));
+    border-radius: calc(4px * var(--layout-stage-scale));
+    border: 0;
+    box-shadow: none;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* 欠けマスを持つ特殊盤面は画像枠を外し、有効マスのCSS輪郭だけを使う。 */
+#board-frame.board-has-void-cells {
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+#board-frame.board-has-void-cells::before,
+#board-frame.board-has-void-cells::after {
     display: none;
 }
 

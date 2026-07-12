@@ -3,7 +3,7 @@ import * as path from 'path';
 import { readLayoutCssSurface } from './helpers/css-test-helpers';
 
 describe('adaptive board frame styling', () => {
-  test('styles use a CSS contour frame and allow runtime expansion for oversized custom boards', () => {
+  test('normal boards use image frames while cutout boards use CSS contours', () => {
     const baseCss = fs.readFileSync(path.join(__dirname, '..', 'styles-base.css'), 'utf8');
     const layoutCss = readLayoutCssSurface();
     const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
@@ -21,9 +21,10 @@ describe('adaptive board frame styling', () => {
     expect(layoutCss).toMatch(/#board-frame[\s\S]*height:\s*var\(--board-frame-outer-height,\s*calc\(var\(--board-frame-inner-size\)\s*\+\s*var\(--board-frame-padding-top\)\s*\+\s*var\(--board-frame-padding-bottom\)\)\)/);
     expect(layoutCss).toMatch(/#board-frame[\s\S]*--board-frame-art-overhang-top:\s*var\(--board-frame-art-overhang\)/);
     expect(layoutCss).toMatch(/#board-frame[\s\S]*--board-frame-art-overhang-bottom:\s*var\(--board-frame-art-overhang\)/);
-    expect(layoutCss).toMatch(/#board-frame[\s\S]*background:\s*transparent/);
-    expect(layoutCss).toMatch(/#board-frame::before\s*\{[\s\S]*display:\s*none/);
-    expect(layoutCss).toMatch(/#board-frame::after\s*\{[\s\S]*display:\s*none/);
+    expect(layoutCss).toMatch(/#board-frame[\s\S]*background:\s*var\(--board-frame-fill-background\)/);
+    expect(layoutCss).toMatch(/#board-frame::before\s*\{[\s\S]*background:\s*var\(--board-frame-image\)\s+center\s*\/\s*100%\s+100%\s+no-repeat/);
+    expect(layoutCss).toMatch(/#board-frame\.board-has-void-cells\s*\{[\s\S]*background:\s*transparent/);
+    expect(layoutCss).toMatch(/#board-frame\.board-has-void-cells::before,[\s\S]*#board-frame\.board-has-void-cells::after\s*\{[\s\S]*display:\s*none/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-max-size:\s*var\(--board-frame-inner-size,\s*calc\(var\(--layout-anchor-board-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-board-scale\)\)\)/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-disc-size:\s*var\(--board-disc-size-px,\s*89\.9%\)/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-disc-inset:\s*var\(--board-disc-inset-px,\s*5\.05%\)/);
