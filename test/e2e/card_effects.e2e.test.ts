@@ -353,6 +353,52 @@ describe('Card effects E2E', () => {
     await page.close();
   }, 60000);
 
+  test('毒殺の意志は空きマスと既存石を対象に使用ボタンから選択へ進める', async () => {
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1&noanim=1`);
+    await closeMaintenanceNoticeIfPresent(page);
+    await page.waitForFunction(
+      () => !!(window.gameState && window.cardState && window.CardLogic && typeof window.renderCardUI === 'function'),
+      { timeout: 10000 }
+    );
+    await closeSidePanelIfPresent(page);
+
+    const targetState = await page.evaluate(() => {
+      window.DEBUG_UNLIMITED_USAGE = true;
+      window.DEBUG_HUMAN_VS_HUMAN = true;
+      window.gameState.currentPlayer = 1;
+      window.cardState.hands = { black: ['poison_will_01'], white: [] };
+      window.cardState.charge = { black: 8, white: 0 };
+      window.cardState.selectedCardId = null;
+      window.cardState.selectedCardOwnerKey = null;
+      window.cardState.hasUsedCardThisTurnByPlayer = { black: false, white: false };
+      window.cardState.pendingEffectByPlayer = { black: null, white: null };
+      window.isProcessing = false;
+      window.isCardAnimating = false;
+      window.renderCardUI();
+      const targets = window.CardLogic.getPoisonTargets(window.cardState, window.gameState, 'black');
+      return {
+        hasEmpty: targets.some((cell: any) => cell.row === 0 && cell.col === 0),
+        hasOccupied: targets.some((cell: any) => cell.row === 3 && cell.col === 3),
+        usable: window.CardLogic.getUsableCardIds(window.cardState, window.gameState, 'black').includes('poison_will_01')
+      };
+    });
+
+    expect(targetState).toEqual({ hasEmpty: true, hasOccupied: true, usable: true });
+    await page.locator('#hand-black .card-item[data-card-id="poison_will_01"]').click();
+    await page.waitForFunction(() => {
+      const button = document.getElementById('use-card-btn') as HTMLButtonElement | null;
+      return button && button.disabled === false;
+    });
+    await page.click('#use-card-btn');
+    await page.waitForFunction(() => {
+      const pending = window.cardState.pendingEffectByPlayer && window.cardState.pendingEffectByPlayer.black;
+      return pending && pending.type === 'POISON_WILL' && pending.stage === 'selectTarget';
+    });
+
+    await page.close();
+  }, 60000);
+
   test('盤面拡張は同一anchorの方向矢印を区別してcurrent shapeへ追加する', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     await page.goto(`http://127.0.0.1:${serverPort}/?debug=1&noanim=1`, { waitUntil: 'domcontentloaded' });

@@ -69,6 +69,7 @@ export function createCardContextBuilders(deps: CardContextBuilderDeps) {
                 getBoardShrinkTargets: helpers.getBoardShrinkTargets,
                 getBoardShrinkGodTargets: helpers.getBoardShrinkGodTargets,
                 getBlockadeTargets: helpers.getBlockadeTargets,
+                getPoisonTargets: helpers.getPoisonTargets,
                 getMeteorTargets: helpers.getMeteorTargets,
                 getCausalReplayTargets: helpers.getCausalReplayTargets,
                 getFreezeTargets: helpers.getFreezeTargets,

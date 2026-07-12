@@ -557,6 +557,7 @@ const USAGE_PRECHECK_TARGET_METHODS = [
     'getBoardShrinkTargets',
     'getBoardShrinkGodTargets',
     'getBlockadeTargets',
+    'getPoisonTargets',
     'getMeteorTargets',
     'getCausalReplayTargets',
     'getFreezeTargets',

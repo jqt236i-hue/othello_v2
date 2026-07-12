@@ -12,6 +12,18 @@ function marker(cardState: any, type: string, row = 3, col = 3) {
 }
 
 describe('POISON_WILL（毒殺の意志）', () => {
+  test('空きマスと既存石の両方を対象にでき、使用可能一覧へ出る', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.charge.black = 8;
+    cardState.hands.black = ['poison_will_01'];
+
+    const targets = CardLogic.getPoisonTargets(cardState, gameState, 'black');
+    expect(targets).toContainEqual({ row: 0, col: 0 });
+    expect(targets).toContainEqual({ row: 3, col: 3 });
+    expect(CardLogic.getUsableCardIds(cardState, gameState, 'black')).toContain('poison_will_01');
+  });
+
   test('コスト8で毒マスを作り、石へ残り5の毒を即時付与する', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((card: any) => card && card.type === 'POISON_WILL');
     expect(def).toMatchObject({ id: 'poison_will_01', cost: 8 });
