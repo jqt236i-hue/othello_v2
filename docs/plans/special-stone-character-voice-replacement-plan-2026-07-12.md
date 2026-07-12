@@ -188,7 +188,7 @@ npm run test:jest -- --runTestsByPath test\game.turn-pipeline-phase-helpers.spec
 - `LEGACY_SPECIAL_STONE_BUBBLE_TYPES.WORK` による配置・終了除外を解消する。
 - 配置、破壊、持続切れ、生きる意志復活は `SPECIAL_STONE_BUBBLE` へ統一する。
 - `WORK_INCOME` と収入stepは専用presentationを維持する。
-- `WORK_REMOVED` の過去event読み取り互換は残してよいが、新規イベント生成では使わない。
+- `WORK_REMOVED` は既存の効果音・ログ・通常石化phase契約に必要なため生成を維持する。ただし吹き出し本文は持たせず、同じ座標へ生成する汎用 `SPECIAL_STONE_BUBBLE` を表示正本とする。過去event単体の読み取り時だけ新カタログの破壊文で補完する。
 - `turn_pipeline_phases.ts` の `FALLBACK_WORK_BUBBLE_SPEECH` から旧文を削除し、カタログ欠損時は発話を省略またはdev/testで検知する。
 
 ### テスト
@@ -208,7 +208,7 @@ npm run test:jest -- --runTestsByPath test\game.turn-pipeline-phase-helpers.spec
 
 - 弱い石、究極反転龍、復活石、時間停神、屍石の配置
 - 時限付き石の期限終了
-- 多動系の `no_candidates_revert -> normal_revert`
+- 多動系とロボット掃除機石の `no_candidates_revert -> normal_revert`
 - 屍石感染は感染元だけ1回
 - 屍石復活は `zombie_revived` だけ
 - 復活石復活は `regen_triggered` だけ

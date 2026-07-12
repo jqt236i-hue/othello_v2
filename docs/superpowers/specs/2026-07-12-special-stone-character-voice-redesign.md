@@ -197,7 +197,7 @@
 | 多動石 | なし | 移動候補なし | なし |
 | 極悪多動魔 | なし | 移動候補なし | なし |
 | 逃亡石 | なし | なし | `escape_exploded` |
-| ロボット掃除機石 | あり | なし | なし |
+| ロボット掃除機石 | あり | 移動候補なし | なし |
 | 悪食石 | なし | なし | 飢餓消滅は `destroy` |
 | 意志狩りの王 | あり | なし | `special_destroy_triggered` |
 | 労働石 | あり | なし | `work_income` |
@@ -220,7 +220,7 @@
 
 労働石も人格カタログ上は標準 `place` / `destroy` / `duration_end` / `living_will_restored` を持たせる。配置・喪失・期限切れ・復活は汎用 `SPECIAL_STONE_BUBBLE` を使い、`WORK_BUBBLE` の専用本文経路は収入表示だけに限定する。
 
-`WORK_INCOME` は `gained` / `incomeStep` を持つため既存専用マッピングを維持するが、本文は新しい `incomeLinesByStep` からのみ解決する。`turn_pipeline_phases.ts` と `pipeline_ui_adapter.ts` の古い完全一致フォールバック文は削除し、カタログが解決できない場合は古い人格で表示せず発話を省略する。通常ビルドで依存が欠けることはテストで失敗させる。
+`WORK_INCOME` は `gained` / `incomeStep` を持つため既存専用マッピングを維持するが、本文は新しい `incomeLinesByStep` からのみ解決する。`WORK_REMOVED` も効果音・ログ・通常石化phaseの既存契約に必要なため生成を維持するが、吹き出し本文の正本にはせず、同座標の汎用 `SPECIAL_STONE_BUBBLE` を使う。過去event単体の読み取り時だけ新カタログの破壊文で補完する。`turn_pipeline_phases.ts` と `pipeline_ui_adapter.ts` の古い完全一致フォールバック文は削除し、カタログが解決できない場合は古い人格で表示せず発話を省略する。通常ビルドで依存が欠けることはテストで失敗させる。
 
 ### 5.8 顕現石の非変更契約
 
