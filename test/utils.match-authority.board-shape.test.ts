@@ -9,13 +9,13 @@ describe('match authority board shape', () => {
     });
 
     expect(normalized).toMatchObject({
-      rows: 10,
-      cols: 10,
+      rows: 8,
+      cols: 8,
       shape: 'circle',
       standard8x8: false,
     });
     expect(MatchAuthority.resolveRoomBoardConfig({ roomBoardConfig: normalized }))
-      .toMatchObject({ rows: 10, cols: 10, shape: 'circle', standard8x8: false });
+      .toMatchObject({ rows: 8, cols: 8, shape: 'circle', standard8x8: false });
   });
 
   test('keeps shape-less room configuration backward compatible', () => {

@@ -45,6 +45,10 @@ export const MIN_BOARD_ROWS = 4;
 export const MAX_BOARD_ROWS = 16;
 export const MIN_BOARD_COLS = 4;
 export const MAX_BOARD_COLS = 16;
+export const DEFAULT_CIRCLE_BOARD_SIZE = 10;
+export const MIN_CIRCLE_BOARD_SIZE = 6;
+export const MAX_CIRCLE_BOARD_SIZE = 16;
+export const CIRCLE_BOARD_SIZE_STEP = 2;
 export const HAND_LIMIT = 5;
 export const CHARGE_LIMIT = 3;
 export const CHARGE_MAX = 99;
@@ -207,6 +211,10 @@ if (typeof window !== 'undefined') {
     (window as any).MAX_BOARD_ROWS = MAX_BOARD_ROWS;
     (window as any).MIN_BOARD_COLS = MIN_BOARD_COLS;
     (window as any).MAX_BOARD_COLS = MAX_BOARD_COLS;
+    (window as any).DEFAULT_CIRCLE_BOARD_SIZE = DEFAULT_CIRCLE_BOARD_SIZE;
+    (window as any).MIN_CIRCLE_BOARD_SIZE = MIN_CIRCLE_BOARD_SIZE;
+    (window as any).MAX_CIRCLE_BOARD_SIZE = MAX_CIRCLE_BOARD_SIZE;
+    (window as any).CIRCLE_BOARD_SIZE_STEP = CIRCLE_BOARD_SIZE_STEP;
     (window as any).HAND_LIMIT = HAND_LIMIT;
     (window as any).CHARGE_LIMIT = CHARGE_LIMIT;
     (window as any).CHARGE_MAX = CHARGE_MAX;
@@ -228,6 +236,10 @@ export default {
     MAX_BOARD_ROWS,
     MIN_BOARD_COLS,
     MAX_BOARD_COLS,
+    DEFAULT_CIRCLE_BOARD_SIZE,
+    MIN_CIRCLE_BOARD_SIZE,
+    MAX_CIRCLE_BOARD_SIZE,
+    CIRCLE_BOARD_SIZE_STEP,
     HAND_LIMIT,
     CHARGE_LIMIT,
     CHARGE_MAX,

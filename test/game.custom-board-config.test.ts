@@ -21,6 +21,26 @@ function sortMoveKeys(moves) {
 }
 
 describe('custom board config foundations', () => {
+  test.each([
+    [6, 32],
+    [8, 52],
+    [10, 80],
+    [12, 112],
+    [14, 156],
+    [16, 208],
+  ])('%i-square circle keeps a centered 2x2 opening across %i playable cells', (size, playableCells) => {
+    const gameState = Core.createGameState({ rows: size, cols: size, shape: 'circle' });
+    const start = Math.floor((size - 2) / 2);
+
+    expect(gameState.boardConfig).toMatchObject({ rows: size, cols: size, shape: 'circle' });
+    expect(SharedBoardUtils.collectMainBoardCoordinates(gameState.boardConfig)).toHaveLength(playableCells);
+    expect(gameState.board[start][start]).toBe(Core.WHITE);
+    expect(gameState.board[start][start + 1]).toBe(Core.BLACK);
+    expect(gameState.board[start + 1][start]).toBe(Core.BLACK);
+    expect(gameState.board[start + 1][start + 1]).toBe(Core.WHITE);
+    expect(Core.getLegalMoves(gameState, Core.BLACK, {})).toHaveLength(4);
+  });
+
   test('10x10 circle uses 80 playable cells and the normal centered opening', () => {
     const config = { rows: 10, cols: 10, shape: 'circle' };
     const gameState = Core.createGameState(config);

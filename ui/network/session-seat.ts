@@ -185,9 +185,10 @@ function createNetworkSessionSeatController(config: any): any {
     const normalizedRows = Math.max(1, Math.trunc(rows));
     const normalizedCols = Math.max(1, Math.trunc(cols));
     const shape = String(source.shape || '').toLowerCase() === 'circle' ? 'circle' : 'rectangle';
+    const circleSize = Math.max(6, Math.min(16, 6 + Math.round((normalizedRows - 6) / 2) * 2));
     return {
-      rows: shape === 'circle' ? 10 : normalizedRows,
-      cols: shape === 'circle' ? 10 : normalizedCols,
+      rows: shape === 'circle' ? circleSize : normalizedRows,
+      cols: shape === 'circle' ? circleSize : normalizedCols,
       shape,
       standard8x8: shape === 'rectangle' && (source.standard8x8 === true || (normalizedRows === 8 && normalizedCols === 8))
     };

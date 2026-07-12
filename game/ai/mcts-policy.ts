@@ -288,8 +288,10 @@ const _network = {
         }
         const legalMoves = _gameInterface.listActions(state, cardState, playerKey);
         const board = Array.isArray(state && state.board) ? state.board : [];
-        const onnxBoardSupported = board.length <= 8
-            && board.every((row: any) => Array.isArray(row) && row.length <= 8);
+        const boardShape = String(state && state.boardConfig && state.boardConfig.shape || 'rectangle').toLowerCase();
+        const onnxBoardSupported = boardShape === 'rectangle'
+            && board.length === 8
+            && board.every((row: any) => Array.isArray(row) && row.length === 8);
         if (!onnxBoardSupported) {
             const policy = new Map();
             const probability = legalMoves.length > 0 ? 1 / legalMoves.length : 0;

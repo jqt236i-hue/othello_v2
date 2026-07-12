@@ -61,4 +61,14 @@ describe('MCTS policy pass handling', () => {
     expect(result.policy.size).toBe(4);
     expect(Array.from(result.policy.values())).toEqual([0.25, 0.25, 0.25, 0.25]);
   });
+
+  test('uses a uniform policy for an 8x8 circle despite matching model dimensions', async () => {
+    const state = Core.createGameState({ rows: 8, cols: 8, shape: 'circle' });
+
+    const result = await _network.evaluate(state, {}, 'black');
+
+    expect(result.value).toBe(0);
+    expect(result.policy.size).toBe(4);
+    expect(Array.from(result.policy.values())).toEqual([0.25, 0.25, 0.25, 0.25]);
+  });
 });

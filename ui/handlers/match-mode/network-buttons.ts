@@ -30,6 +30,7 @@ const NetworkClientListenersModule = (() => {
 function bindNetworkButtons(context: any) {
     const {
         root,
+        boardUtils,
         uiRefs,
         PLAYER_NAME_MAX,
         DEFAULT_PLAYER_NAME,
@@ -63,6 +64,7 @@ function bindNetworkButtons(context: any) {
         readPrimaryWheelDelta,
         getPendingRoomBoardConfig,
         stepBoardDimensionValue,
+        syncNetworkCircleBoardSizeInputs,
         updatePendingRoomBoardConfigFromInputs,
         readNetworkRoomName,
         readNetworkRoomPassword,
@@ -111,6 +113,7 @@ function bindNetworkButtons(context: any) {
     }
     NetworkLobbyInputsModule.bindNetworkLobbyInputs({
         root,
+        boardUtils,
         uiRefs,
         playerNameMax: PLAYER_NAME_MAX,
         defaultPlayerName: DEFAULT_PLAYER_NAME,

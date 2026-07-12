@@ -6927,6 +6927,21 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     border-right: 1px solid rgba(174, 217, 230, 0.18);
 }
 
+#deckBuilderModal .deck-builder-default-hero.is-active,
+#deckBuilderModal .deck-builder-builtin-card.is-active {
+    border-color: #f1cf78 !important;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(241, 207, 120, 0.24), transparent 42%),
+        linear-gradient(145deg, rgba(88, 61, 22, 0.94), rgba(10, 35, 48, 0.98) 68%) !important;
+    box-shadow: 0 0 0 1px rgba(241, 207, 120, 0.2), 0 12px 24px rgba(0, 0, 0, 0.34) !important;
+}
+
+#deckBuilderModal .deck-builder-default-hero .deck-builder-active-seal,
+#deckBuilderModal .deck-builder-builtin-card .deck-builder-active-seal {
+    top: calc(8px * var(--layout-stage-scale));
+    right: calc(8px * var(--layout-stage-scale));
+}
+
 #deckBuilderModal .deck-builder-active-deck-hero {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "eyebrow" "title" "summary" "status";
@@ -7292,6 +7307,22 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     min-height: max(38px, calc(38px * var(--layout-stage-scale)));
 }
 
+#deckBuilderModal .deck-builder-editor-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+#deckBuilderModal .deck-builder-editor-actions .deck-builder-code-input {
+    flex: 1 1 260px;
+    min-width: 160px;
+    min-height: max(38px, calc(38px * var(--layout-stage-scale)));
+    padding-block: calc(6px * var(--layout-stage-scale));
+    font-family: ui-monospace, 'Cascadia Code', monospace;
+    font-size: max(10px, calc(10px * var(--layout-stage-scale)));
+    text-overflow: ellipsis;
+}
+
 #deckBuilderModal .deck-builder-name-row,
 #deckBuilderModal .deck-builder-code-block,
 #deckBuilderModal .deck-builder-section {
@@ -7501,6 +7532,15 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     #deckBuilderModal .deck-builder-editor-top .btn-small,
     #deckBuilderModal .deck-builder-actions-row .btn-small {
         min-height: 44px !important;
+    }
+
+    #deckBuilderModal .deck-builder-editor-actions {
+        flex-wrap: wrap;
+    }
+
+    #deckBuilderModal .deck-builder-editor-actions .deck-builder-code-input {
+        flex-basis: 100%;
+        min-height: 44px;
     }
 
     #deckBuilderModal .deck-builder-builtin-card .deck-builder-actions-row .btn-small,

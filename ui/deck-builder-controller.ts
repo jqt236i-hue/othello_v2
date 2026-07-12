@@ -180,9 +180,11 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
 
         function formatBoardConfigLabel(boardConfig: any) {
             const normalized = normalizeBoardConfig(boardConfig);
-            return normalized.shape === 'circle'
-                ? `円形 ${normalized.rows}x${normalized.cols} / 80マス`
-                : `${normalized.rows}x${normalized.cols}`;
+            if (normalized.shape !== 'circle') return `${normalized.rows}x${normalized.cols}`;
+            const playableCount = typeof SharedBoardUtils.collectMainBoardCoordinates === 'function'
+                ? SharedBoardUtils.collectMainBoardCoordinates(normalized).length
+                : 0;
+            return `円形 ${normalized.rows}x${normalized.cols} / ${playableCount}マス`;
         }
 
         function parseBoardDimensionInput(value: any, fallbackValue: any) {
@@ -201,7 +203,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             const maxValue = columnAxis ? SharedBoardUtils && SharedBoardUtils.MAX_BOARD_COLS : SharedBoardUtils && SharedBoardUtils.MAX_BOARD_ROWS;
             return {
                 min: minValue != null && Number.isFinite(Number(minValue)) ? Number(minValue) : 4,
-                max: maxValue != null && Number.isFinite(Number(maxValue)) ? Number(maxValue) : 8
+                max: maxValue != null && Number.isFinite(Number(maxValue)) ? Number(maxValue) : 16
             };
         }
 
@@ -224,9 +226,28 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
 
         function applyBoardDimensionInputBounds(inputRef: any, axis: any) {
             if (!inputRef) return;
-            const bounds = getBoardDimensionBounds(axis);
+            const circle = refs.boardShapeSelect && refs.boardShapeSelect.value === 'circle';
+            const bounds = circle
+                ? { min: SharedBoardUtils.MIN_CIRCLE_BOARD_SIZE, max: SharedBoardUtils.MAX_CIRCLE_BOARD_SIZE }
+                : getBoardDimensionBounds(axis);
             inputRef.min = String(bounds.min);
             inputRef.max = String(bounds.max);
+            inputRef.step = String(circle ? SharedBoardUtils.CIRCLE_BOARD_SIZE_STEP : 1);
+        }
+
+        function syncCircleBoardSizeInputs(inputRef: any, commitInvalid: boolean) {
+            if (!refs.boardShapeSelect || refs.boardShapeSelect.value !== 'circle') return true;
+            const rawValue = Number(inputRef && inputRef.value);
+            const min = Number(SharedBoardUtils.MIN_CIRCLE_BOARD_SIZE);
+            const max = Number(SharedBoardUtils.MAX_CIRCLE_BOARD_SIZE);
+            const step = Number(SharedBoardUtils.CIRCLE_BOARD_SIZE_STEP) || 2;
+            const valid = Number.isInteger(rawValue) && rawValue >= min && rawValue <= max && (rawValue - min) % step === 0;
+            if (!valid && !commitInvalid) return false;
+            const fallback = getLocalBoardConfig();
+            const normalized = SharedBoardUtils.normalizeCircleBoardSize(rawValue, fallback.rows);
+            if (refs.boardSizeRowsInput) refs.boardSizeRowsInput.value = String(normalized);
+            if (refs.boardSizeColsInput) refs.boardSizeColsInput.value = String(normalized);
+            return true;
         }
 
         function updateLocalBoardConfigFromInputs() {
@@ -695,7 +716,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             if (lockReason === 'room') {
                 return 'ネット対戦中は部屋で決めた盤面形状とサイズを使います';
             }
-            if (readBoardConfig().shape === 'circle') return '円形は10x10・80マス固定 / 次のリセットで反映';
+            if (readBoardConfig().shape === 'circle') return '円形は6〜16の偶数・正方形固定 / 次のリセットで反映';
             return '次のリセット / 新規対局で反映';
         }
 
@@ -725,12 +746,12 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             if (refs.boardSizeRowsInput) {
                 applyBoardDimensionInputBounds(refs.boardSizeRowsInput, 'row');
                 refs.boardSizeRowsInput.value = String(editableBoardConfig.rows);
-                refs.boardSizeRowsInput.disabled = locked || circle;
+                refs.boardSizeRowsInput.disabled = locked;
             }
             if (refs.boardSizeColsInput) {
                 applyBoardDimensionInputBounds(refs.boardSizeColsInput, 'col');
                 refs.boardSizeColsInput.value = String(editableBoardConfig.cols);
-                refs.boardSizeColsInput.disabled = locked || circle;
+                refs.boardSizeColsInput.disabled = locked;
             }
             if (refs.boardSizeEditorNote) {
                 refs.boardSizeEditorNote.textContent = buildBoardSizeNoteText();
@@ -1553,11 +1574,12 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
 
             const bindBoardSizeInput = (inputRef: any, axis: any) => {
                 if (!inputRef || inputRef.dataset.boardSizeBound === '1') return;
-                const onBoardSizeInput = () => {
+                const onBoardSizeInput = (event: any) => {
                     if (resolveBoardConfigLockReason()) {
                         renderBoardSizeControls();
                         return;
                     }
+                    if (!syncCircleBoardSizeInputs(inputRef, event && event.type === 'change')) return;
                     updateLocalBoardConfigFromInputs();
                 };
                 inputRef.addEventListener('input', onBoardSizeInput);
@@ -1571,12 +1593,11 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                     if (!primaryDelta) return;
                     const fallback = getLocalBoardConfig();
                     const fallbackValue = axis === 'col' ? fallback.cols : fallback.rows;
-                    inputRef.value = String(stepBoardDimensionValue(
-                        inputRef.value,
-                        primaryDelta < 0 ? 1 : -1,
-                        fallbackValue,
-                        axis
-                    ));
+                    const direction = primaryDelta < 0 ? 1 : -1;
+                    inputRef.value = String(refs.boardShapeSelect && refs.boardShapeSelect.value === 'circle'
+                        ? SharedBoardUtils.normalizeCircleBoardSize(Number(inputRef.value) + direction * SharedBoardUtils.CIRCLE_BOARD_SIZE_STEP, fallbackValue)
+                        : stepBoardDimensionValue(inputRef.value, direction, fallbackValue, axis));
+                    syncCircleBoardSizeInputs(inputRef, true);
                     if (event && event.cancelable) event.preventDefault();
                     updateLocalBoardConfigFromInputs();
                 }, { passive: false });

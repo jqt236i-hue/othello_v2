@@ -793,8 +793,9 @@ function normalizeRoomBoardConfig(value: unknown, fallbackBoard?: unknown): unkn
         ? Math.trunc(cols)
         : (Number.isFinite(fallbackCols) && fallbackCols > 0 ? Math.trunc(fallbackCols) : 8);
     const shape = String(valueRecord.shape || '').toLowerCase() === 'circle' ? 'circle' : 'rectangle';
-    const finalRows = shape === 'circle' ? 10 : normalizedRows;
-    const finalCols = shape === 'circle' ? 10 : normalizedCols;
+    const circleSize = Math.max(6, Math.min(16, 6 + Math.round((normalizedRows - 6) / 2) * 2));
+    const finalRows = shape === 'circle' ? circleSize : normalizedRows;
+    const finalCols = shape === 'circle' ? circleSize : normalizedCols;
     return {
         rows: finalRows,
         cols: finalCols,

@@ -127,8 +127,10 @@ function bindNetworkLobbyInputs(options: any): void {
 
     const bindNetworkBoardSizeInput = (inputRef: any, axis: any) => {
         if (!inputRef || inputRef.dataset.networkBoardSizeBound === '1') return;
-        const onBoardSizeInput = () => {
+        const onBoardSizeInput = (event: any) => {
             if (inputRef.disabled) return;
+            if (typeof config.syncNetworkCircleBoardSizeInputs === 'function'
+                && !config.syncNetworkCircleBoardSizeInputs(inputRef, event && event.type === 'change')) return;
             config.updatePendingRoomBoardConfigFromInputs();
         };
         inputRef.addEventListener('input', onBoardSizeInput);
@@ -139,12 +141,15 @@ function bindNetworkLobbyInputs(options: any): void {
             if (!primaryDelta) return;
             const fallback = config.getPendingRoomBoardConfig();
             const fallbackValue = axis === 'col' ? fallback.cols : fallback.rows;
-            inputRef.value = String(config.stepBoardDimensionValue(
-                inputRef.value,
-                primaryDelta < 0 ? 1 : -1,
-                fallbackValue,
-                axis
-            ));
+            const direction = primaryDelta < 0 ? 1 : -1;
+            const circle = uiRefs.networkBoardShapeSelect && uiRefs.networkBoardShapeSelect.value === 'circle';
+            const boardUtils = config.boardUtils || (config.root && config.root.SharedBoardUtils);
+            inputRef.value = String(circle && boardUtils && typeof boardUtils.normalizeCircleBoardSize === 'function'
+                ? boardUtils.normalizeCircleBoardSize(Number(inputRef.value) + direction * boardUtils.CIRCLE_BOARD_SIZE_STEP, fallbackValue)
+                : config.stepBoardDimensionValue(inputRef.value, direction, fallbackValue, axis));
+            if (typeof config.syncNetworkCircleBoardSizeInputs === 'function') {
+                config.syncNetworkCircleBoardSizeInputs(inputRef, true);
+            }
             if (event && event.cancelable) event.preventDefault();
             config.updatePendingRoomBoardConfigFromInputs();
         }, { passive: false });

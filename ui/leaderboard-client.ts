@@ -10,6 +10,7 @@ const PlayerIdentity = _require('./player-identity');
 const PlayerProfile = _require('./player-profile');
 const IdentityContract = _require('../shared/player-identity-contract');
 const PlayerProfileContract = _require('../shared/player-profile-contract');
+const SharedBoardUtils = _require('../shared/shared-board-utils');
 
 const PLAYER_NAME_STORAGE_KEY = 'shared_leaderboard_player_name_v1';
 const PLAYER_NAME_MAX = 7;
@@ -245,6 +246,10 @@ async function updatePublicProfile(options?: any): Promise<any> {
 
 function normalizeBoardConfig(value: any): any {
   if (!value || typeof value !== 'object') return null;
+  if (SharedBoardUtils && typeof SharedBoardUtils.maybeResolveBoardConfig === 'function') {
+    const normalized = SharedBoardUtils.maybeResolveBoardConfig(value);
+    if (normalized) return normalized;
+  }
   const rows = Number(value.rows);
   const cols = Number(value.cols);
   if (!Number.isFinite(rows) || !Number.isFinite(cols)) return null;
@@ -252,9 +257,10 @@ function normalizeBoardConfig(value: any): any {
   const normalizedCols = Math.trunc(cols);
   if (normalizedRows <= 0 || normalizedCols <= 0) return null;
   const shape = String(value.shape || '').toLowerCase() === 'circle' ? 'circle' : 'rectangle';
+  const circleSize = Math.max(6, Math.min(16, 6 + Math.round((normalizedRows - 6) / 2) * 2));
   return {
-    rows: shape === 'circle' ? 10 : normalizedRows,
-    cols: shape === 'circle' ? 10 : normalizedCols,
+    rows: shape === 'circle' ? circleSize : normalizedRows,
+    cols: shape === 'circle' ? circleSize : normalizedCols,
     shape,
     standard8x8: shape === 'rectangle' && (value.standard8x8 === true || (normalizedRows === 8 && normalizedCols === 8))
   };

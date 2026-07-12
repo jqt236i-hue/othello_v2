@@ -20,7 +20,10 @@ export interface BoardConfigurationDependencies {
   minCols: number;
   maxCols: number;
   outerMin: number;
-  circleSize?: number;
+  defaultCircleSize?: number;
+  minCircleSize?: number;
+  maxCircleSize?: number;
+  circleSizeStep?: number;
   clampBoardDimension: (
     value: unknown,
     fallbackValue: unknown,
@@ -30,9 +33,18 @@ export interface BoardConfigurationDependencies {
 }
 
 export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
-  const circleSize = Number.isInteger(deps.circleSize)
-    ? Math.max(1, Number(deps.circleSize))
-    : 10;
+  const minCircleSize = Number.isInteger(deps.minCircleSize) ? Math.max(1, Number(deps.minCircleSize)) : 6;
+  const maxCircleSize = Number.isInteger(deps.maxCircleSize) ? Math.max(minCircleSize, Number(deps.maxCircleSize)) : 16;
+  const circleSizeStep = Number.isInteger(deps.circleSizeStep) ? Math.max(1, Number(deps.circleSizeStep)) : 2;
+  const defaultCircleSize = Number.isInteger(deps.defaultCircleSize) ? Number(deps.defaultCircleSize) : 10;
+
+  function normalizeCircleBoardSize(value: unknown, fallbackValue: unknown = defaultCircleSize): number {
+    const fallback = Number.isFinite(Number(fallbackValue)) ? Number(fallbackValue) : defaultCircleSize;
+    const numeric = Number.isFinite(Number(value)) ? Number(value) : fallback;
+    const clamped = Math.max(minCircleSize, Math.min(maxCircleSize, Math.floor(numeric)));
+    const stepped = minCircleSize + Math.round((clamped - minCircleSize) / circleSizeStep) * circleSizeStep;
+    return Math.max(minCircleSize, Math.min(maxCircleSize, stepped));
+  }
 
   function normalizeBoardShape(value: unknown): "rectangle" | "circle" {
     return String(value || "").trim().toLowerCase() === "circle"
@@ -71,8 +83,8 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
   }
   function buildBoardConfig(rows?: unknown, cols?: unknown, shapeValue?: unknown): BoardConfig {
     const shape = normalizeBoardShape(shapeValue);
-    const requestedRows = shape === "circle" ? circleSize : rows;
-    const requestedCols = shape === "circle" ? circleSize : cols;
+    const requestedRows = shape === "circle" ? normalizeCircleBoardSize(rows, cols) : rows;
+    const requestedCols = shape === "circle" ? requestedRows : cols;
     const normalizedRows = deps.clampBoardDimension(
       requestedRows,
       deps.defaultRows,
@@ -301,6 +313,7 @@ export function createBoardConfiguration(deps: BoardConfigurationDependencies) {
   }
   return {
     normalizeBoardShape,
+    normalizeCircleBoardSize,
     buildBoardConfig,
     normalizeBoardConfig,
     extractBoardConfigSource,

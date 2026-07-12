@@ -28,6 +28,13 @@ const SharedUIBootstrapModule = (() => {
         return null;
     }
 })();
+const SharedBoardUtilsModule = (() => {
+    try {
+        return _require('../../shared/shared-board-utils');
+    } catch (e) {
+        return null;
+    }
+})();
 const PlayerProfileModule = (() => {
     try {
         return _require('../player-profile');
@@ -317,8 +324,9 @@ const MODE_OTHELLO = 'othello';
             ? fallbackBoardConfig
             : createDefaultBoardConfig();
         try {
-            if (root.SharedBoardUtils && typeof root.SharedBoardUtils.normalizeBoardConfig === 'function') {
-                return root.SharedBoardUtils.normalizeBoardConfig(boardConfig, fallback);
+            const boardUtils = root.SharedBoardUtils || SharedBoardUtilsModule;
+            if (boardUtils && typeof boardUtils.normalizeBoardConfig === 'function') {
+                return boardUtils.normalizeBoardConfig(boardConfig, fallback);
             }
         } catch (e) { /* ignore */ }
         const fallbackRows = Number.isFinite(Number(fallback && fallback.rows)) ? Number(fallback.rows) : 8;
@@ -328,9 +336,12 @@ const MODE_OTHELLO = 'othello';
         const shape = String(boardConfig && boardConfig.shape || fallback && fallback.shape || '').toLowerCase() === 'circle'
             ? 'circle'
             : 'rectangle';
+        const circleSize = shape === 'circle'
+            ? Math.max(6, Math.min(16, 6 + Math.round((rows - 6) / 2) * 2))
+            : null;
         return {
-            rows: shape === 'circle' ? 10 : rows,
-            cols: shape === 'circle' ? 10 : cols,
+            rows: circleSize !== null ? circleSize : rows,
+            cols: circleSize !== null ? circleSize : cols,
             shape,
             standard8x8: shape === 'rectangle' && rows === 8 && cols === 8
         };
@@ -339,7 +350,7 @@ const MODE_OTHELLO = 'othello';
     function getBoardDimensionBounds(axis: any) {
         let sharedBoardUtils: any = null;
         try {
-            sharedBoardUtils = root.SharedBoardUtils || null;
+            sharedBoardUtils = root.SharedBoardUtils || SharedBoardUtilsModule || null;
             if (sharedBoardUtils && typeof sharedBoardUtils.getBoardDimensionBounds === 'function') {
                 return sharedBoardUtils.getBoardDimensionBounds(axis);
             }
@@ -349,7 +360,7 @@ const MODE_OTHELLO = 'othello';
         const maxValue = columnAxis ? sharedBoardUtils && sharedBoardUtils.MAX_BOARD_COLS : sharedBoardUtils && sharedBoardUtils.MAX_BOARD_ROWS;
         return {
             min: minValue != null && Number.isFinite(Number(minValue)) ? Number(minValue) : 4,
-            max: maxValue != null && Number.isFinite(Number(maxValue)) ? Number(maxValue) : 8
+            max: maxValue != null && Number.isFinite(Number(maxValue)) ? Number(maxValue) : 16
         };
     }
 
@@ -374,9 +385,22 @@ const MODE_OTHELLO = 'othello';
 
     function applyBoardDimensionInputBounds(inputRef: any, axis: any) {
         if (!inputRef) return;
-        const bounds = getBoardDimensionBounds(axis);
+        const sharedBoardUtils = root.SharedBoardUtils || SharedBoardUtilsModule || null;
+        const circle = uiRefs.networkBoardShapeSelect && uiRefs.networkBoardShapeSelect.value === 'circle';
+        const circleMinValue = sharedBoardUtils && sharedBoardUtils.MIN_CIRCLE_BOARD_SIZE;
+        const circleMaxValue = sharedBoardUtils && sharedBoardUtils.MAX_CIRCLE_BOARD_SIZE;
+        const circleStepValue = sharedBoardUtils && sharedBoardUtils.CIRCLE_BOARD_SIZE_STEP;
+        const bounds = circle
+            ? {
+                min: circleMinValue != null && Number.isFinite(Number(circleMinValue)) ? Number(circleMinValue) : 6,
+                max: circleMaxValue != null && Number.isFinite(Number(circleMaxValue)) ? Number(circleMaxValue) : 16
+            }
+            : getBoardDimensionBounds(axis);
         inputRef.min = String(bounds.min);
         inputRef.max = String(bounds.max);
+        inputRef.step = String(circle
+            ? (circleStepValue != null && Number.isFinite(Number(circleStepValue)) ? Number(circleStepValue) : 2)
+            : 1);
     }
 
     function getPendingRoomBoardConfig() {
@@ -408,10 +432,18 @@ const MODE_OTHELLO = 'othello';
     }
 
     function formatBoardConfigLabel(boardConfig: any) {
-        const normalizedBoardConfig = normalizeBoardConfig(boardConfig);
-        return normalizedBoardConfig.shape === 'circle'
-            ? `円形 ${normalizedBoardConfig.rows}x${normalizedBoardConfig.cols} / 80マス`
-            : `${normalizedBoardConfig.rows}x${normalizedBoardConfig.cols}`;
+        const normalizedBoardConfig = boardConfig
+            && typeof boardConfig === 'object'
+            && Number.isFinite(Number(boardConfig.rows))
+            && Number.isFinite(Number(boardConfig.cols))
+            ? boardConfig
+            : normalizeBoardConfig(boardConfig);
+        if (normalizedBoardConfig.shape !== 'circle') return `${normalizedBoardConfig.rows}x${normalizedBoardConfig.cols}`;
+        const boardUtils = root.SharedBoardUtils || SharedBoardUtilsModule || null;
+        const playableCount = boardUtils && typeof boardUtils.collectMainBoardCoordinates === 'function'
+            ? boardUtils.collectMainBoardCoordinates(normalizedBoardConfig).length
+            : 0;
+        return `円形 ${normalizedBoardConfig.rows}x${normalizedBoardConfig.cols} / ${playableCount}マス`;
     }
 
     function hasCustomRoomBoardConfig(boardConfig: any) {
@@ -446,9 +478,9 @@ const MODE_OTHELLO = 'othello';
         return `${formatPendingRoomDeckText()} / 作成時に送る盤面: ${formatBoardConfigLabel(getPendingRoomBoardConfig())}`;
     }
 
-    function renderNetworkBoardSizeControls(roomState: any) {
+    function renderNetworkBoardSizeControls(roomState: any, pendingBoardConfig?: any) {
         const roomBoardConfig = getRoomBoardConfig(roomState);
-        const activeBoardConfig = roomBoardConfig || getPendingRoomBoardConfig();
+        const activeBoardConfig = roomBoardConfig || pendingBoardConfig || getPendingRoomBoardConfig();
         const locked = !!roomBoardConfig;
         const circle = activeBoardConfig.shape === 'circle';
 
@@ -461,12 +493,12 @@ const MODE_OTHELLO = 'othello';
         if (uiRefs.networkBoardSizeRowsInput) {
             applyBoardDimensionInputBounds(uiRefs.networkBoardSizeRowsInput, 'row');
             uiRefs.networkBoardSizeRowsInput.value = String(activeBoardConfig.rows);
-            uiRefs.networkBoardSizeRowsInput.disabled = locked || circle;
+            uiRefs.networkBoardSizeRowsInput.disabled = locked;
         }
         if (uiRefs.networkBoardSizeColsInput) {
             applyBoardDimensionInputBounds(uiRefs.networkBoardSizeColsInput, 'col');
             uiRefs.networkBoardSizeColsInput.value = String(activeBoardConfig.cols);
-            uiRefs.networkBoardSizeColsInput.disabled = locked || circle;
+            uiRefs.networkBoardSizeColsInput.disabled = locked;
         }
         if (uiRefs.networkBoardShapeSelect) {
             uiRefs.networkBoardShapeSelect.value = circle ? 'circle' : 'rectangle';
@@ -475,7 +507,7 @@ const MODE_OTHELLO = 'othello';
         if (uiRefs.networkBoardSizeNote) {
             uiRefs.networkBoardSizeNote.textContent = locked
                 ? 'ネット対戦中は部屋で決めた盤面形状とサイズを使います'
-                : (circle ? '円形は10x10・80マス固定' : '部屋作成前に変更できます');
+                : (circle ? '円形は6〜16の偶数・正方形固定' : '部屋作成前に変更できます');
             uiRefs.networkBoardSizeNote.classList.toggle('is-room-override', locked);
         }
     }
@@ -490,7 +522,24 @@ const MODE_OTHELLO = 'othello';
         if (controller && typeof controller.setLocalBoardConfig === 'function') {
             controller.setLocalBoardConfig(nextBoardConfig);
         }
-        renderNetworkDeckInfo();
+        renderNetworkDeckInfo(undefined, nextBoardConfig);
+    }
+
+    function syncNetworkCircleBoardSizeInputs(inputRef: any, commitInvalid: boolean) {
+        if (!uiRefs.networkBoardShapeSelect || uiRefs.networkBoardShapeSelect.value !== 'circle') return true;
+        const boardUtils = root.SharedBoardUtils || SharedBoardUtilsModule || null;
+        if (!boardUtils || typeof boardUtils.normalizeCircleBoardSize !== 'function') return false;
+        const rawValue = Number(inputRef && inputRef.value);
+        const min = Number(boardUtils.MIN_CIRCLE_BOARD_SIZE);
+        const max = Number(boardUtils.MAX_CIRCLE_BOARD_SIZE);
+        const step = Number(boardUtils.CIRCLE_BOARD_SIZE_STEP) || 2;
+        const valid = Number.isInteger(rawValue) && rawValue >= min && rawValue <= max && (rawValue - min) % step === 0;
+        if (!valid && !commitInvalid) return false;
+        const fallback = getPendingRoomBoardConfig();
+        const normalized = boardUtils.normalizeCircleBoardSize(rawValue, fallback.rows);
+        if (uiRefs.networkBoardSizeRowsInput) uiRefs.networkBoardSizeRowsInput.value = String(normalized);
+        if (uiRefs.networkBoardSizeColsInput) uiRefs.networkBoardSizeColsInput.value = String(normalized);
+        return true;
     }
 
     function formatSeatDeckText(seatLabel: any, deckCode: any, deckSize: any) {
@@ -543,7 +592,7 @@ const MODE_OTHELLO = 'othello';
         return '部屋デッキ: デフォルトデッキ';
     }
 
-    function renderNetworkDeckInfo(roomState?: any) {
+    function renderNetworkDeckInfo(roomState?: any, pendingBoardConfig?: any) {
         const el = uiRefs.networkDeckInfo;
         if (!el) return;
 
@@ -558,10 +607,10 @@ const MODE_OTHELLO = 'othello';
 
         const boardText = roomBoardConfig
             ? `部屋盤面: ${formatBoardConfigLabel(roomBoardConfig)}`
-            : `作成時に送る盤面: ${formatBoardConfigLabel(getPendingRoomBoardConfig())}`;
+            : `作成時に送る盤面: ${formatBoardConfigLabel(pendingBoardConfig || getPendingRoomBoardConfig())}`;
         el.textContent = `${formatRoomDeckText(roomDeck)} / ${boardText}`;
         el.style.color = (hasCustomRoomDeck(roomDeck) || hasCustomRoomBoardConfig(roomBoardConfig)) ? '#ffecb3' : '#d7ccc8';
-        renderNetworkBoardSizeControls(roomState);
+        renderNetworkBoardSizeControls(roomState, pendingBoardConfig);
         scheduleControlPanelLayoutSync();
         try {
             const controller = getDeckBuilderController();
@@ -1474,6 +1523,7 @@ const MODE_OTHELLO = 'othello';
     function createNetworkButtonBindingContext() {
         return {
             root,
+            boardUtils: root.SharedBoardUtils || SharedBoardUtilsModule,
             uiRefs,
             PLAYER_NAME_MAX,
             DEFAULT_PLAYER_NAME,
@@ -1507,6 +1557,7 @@ const MODE_OTHELLO = 'othello';
             readPrimaryWheelDelta,
             getPendingRoomBoardConfig,
             stepBoardDimensionValue,
+            syncNetworkCircleBoardSizeInputs,
             updatePendingRoomBoardConfigFromInputs,
             readNetworkRoomName,
         readNetworkRoomPassword,

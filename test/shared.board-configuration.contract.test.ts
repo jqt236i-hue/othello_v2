@@ -12,7 +12,10 @@ describe("shared board configuration contract", () => {
       minCols: SharedBoardUtils.MIN_BOARD_COLS,
       maxCols: SharedBoardUtils.MAX_BOARD_COLS,
       outerMin: SharedBoardUtils.OUTER_MIN,
-      circleSize: 10,
+      defaultCircleSize: SharedBoardUtils.DEFAULT_CIRCLE_BOARD_SIZE,
+      minCircleSize: SharedBoardUtils.MIN_CIRCLE_BOARD_SIZE,
+      maxCircleSize: SharedBoardUtils.MAX_CIRCLE_BOARD_SIZE,
+      circleSizeStep: SharedBoardUtils.CIRCLE_BOARD_SIZE_STEP,
       clampBoardDimension: (value, fallback, min, max) =>
         Math.max(
           min,
@@ -102,18 +105,29 @@ describe("shared board configuration contract", () => {
     ).toBeNull();
   });
 
-  test("normalizes the circle shape to a fixed 10x10 non-standard board", () => {
+  test.each([
+    [5, 6],
+    [6, 6],
+    [7, 8],
+    [10, 10],
+    [12, 12],
+    [15, 16],
+    [17, 16],
+  ])("normalizes circle size %i to supported even size %i", (requested, expectedSize) => {
     const expected = {
-      rows: 10,
-      cols: 10,
+      rows: expectedSize,
+      cols: expectedSize,
       shape: "circle",
       standard8x8: false,
     };
 
-    expect(SharedBoardUtils.resolveBoardConfig({ rows: 6, cols: 8, shape: "circle" }))
+    expect(SharedBoardUtils.resolveBoardConfig({ rows: requested, cols: 8, shape: "circle" }))
       .toMatchObject(expected);
-    expect(createLeaf().resolveBoardConfig({ rows: 6, cols: 8, shape: "circle" }))
-      .toEqual(SharedBoardUtils.resolveBoardConfig({ rows: 6, cols: 8, shape: "circle" }));
+    expect(createLeaf().resolveBoardConfig({ rows: requested, cols: 8, shape: "circle" }))
+      .toEqual(SharedBoardUtils.resolveBoardConfig({ rows: requested, cols: 8, shape: "circle" }));
+  });
+
+  test("keeps unknown shapes rectangular", () => {
     expect(SharedBoardUtils.resolveBoardConfig({ rows: 8, cols: 8, shape: "unknown" }))
       .toMatchObject({ rows: 8, cols: 8, shape: "rectangle", standard8x8: true });
   });

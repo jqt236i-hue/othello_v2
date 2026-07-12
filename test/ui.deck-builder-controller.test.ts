@@ -1192,7 +1192,7 @@ describe('deck builder controller', () => {
     expect(options.chargeGainMultiplierByPlayer).toEqual({ white: 2 });
   });
 
-  test('円形を選ぶと10x10・80マスへ固定する', () => {
+  test('円形を選ぶと偶数の正方形サイズへ同期する', () => {
     const controller = createController();
     const shapeSelect = document.getElementById('boardShapeSelect');
     const rowsInput = document.getElementById('boardSizeRowsInput');
@@ -1202,15 +1202,24 @@ describe('deck builder controller', () => {
     shapeSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
 
     expect(controller.getLocalBoardConfig()).toMatchObject({
-      rows: 10,
-      cols: 10,
+      rows: 8,
+      cols: 8,
       shape: 'circle',
       standard8x8: false,
     });
-    expect(rowsInput.disabled).toBe(true);
-    expect(colsInput.disabled).toBe(true);
-    expect(document.getElementById('boardSizeControlSummary').textContent).toBe('円形 10x10 / 80マス');
-    expect(document.getElementById('boardSizeEditorNote').textContent).toContain('80マス固定');
+    expect(rowsInput.disabled).toBe(false);
+    expect(colsInput.disabled).toBe(false);
+    expect(rowsInput.min).toBe('6');
+    expect(rowsInput.max).toBe('16');
+    expect(rowsInput.step).toBe('2');
+    expect(document.getElementById('boardSizeControlSummary').textContent).toBe('円形 8x8 / 52マス');
+    expect(document.getElementById('boardSizeEditorNote').textContent).toContain('6〜16の偶数');
+
+    rowsInput.value = '12';
+    rowsInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    expect(colsInput.value).toBe('12');
+    expect(controller.getLocalBoardConfig()).toMatchObject({ rows: 12, cols: 12, shape: 'circle' });
+    expect(document.getElementById('boardSizeControlSummary').textContent).toBe('円形 12x12 / 112マス');
   });
 
   test('CPU Lv9終焉の冥灰を黒に選ぶと黒CPUへ冥灰専用デッキと初期布石99を入れる', () => {

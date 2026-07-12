@@ -122,6 +122,18 @@
     const MAX_BOARD_COLS: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { MAX_BOARD_COLS?: unknown }).MAX_BOARD_COLS))
         ? Math.max(MIN_BOARD_COLS, Math.floor(Number((SharedConstants as { MAX_BOARD_COLS?: unknown }).MAX_BOARD_COLS)))
         : Math.max(DEFAULT_BOARD_COLS, DEFAULT_BOARD_ROWS);
+    const DEFAULT_CIRCLE_BOARD_SIZE: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { DEFAULT_CIRCLE_BOARD_SIZE?: unknown }).DEFAULT_CIRCLE_BOARD_SIZE))
+        ? Math.floor(Number((SharedConstants as { DEFAULT_CIRCLE_BOARD_SIZE?: unknown }).DEFAULT_CIRCLE_BOARD_SIZE))
+        : 10;
+    const MIN_CIRCLE_BOARD_SIZE: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { MIN_CIRCLE_BOARD_SIZE?: unknown }).MIN_CIRCLE_BOARD_SIZE))
+        ? Math.floor(Number((SharedConstants as { MIN_CIRCLE_BOARD_SIZE?: unknown }).MIN_CIRCLE_BOARD_SIZE))
+        : 6;
+    const MAX_CIRCLE_BOARD_SIZE: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { MAX_CIRCLE_BOARD_SIZE?: unknown }).MAX_CIRCLE_BOARD_SIZE))
+        ? Math.floor(Number((SharedConstants as { MAX_CIRCLE_BOARD_SIZE?: unknown }).MAX_CIRCLE_BOARD_SIZE))
+        : 16;
+    const CIRCLE_BOARD_SIZE_STEP: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { CIRCLE_BOARD_SIZE_STEP?: unknown }).CIRCLE_BOARD_SIZE_STEP))
+        ? Math.max(1, Math.floor(Number((SharedConstants as { CIRCLE_BOARD_SIZE_STEP?: unknown }).CIRCLE_BOARD_SIZE_STEP)))
+        : 2;
     const MAIN_BOARD_SIZE = DEFAULT_BOARD_ROWS;
     const OUTER_MIN = -1;
     const OUTER_MAX = DEFAULT_BOARD_COLS;
@@ -168,11 +180,15 @@
         minCols: MIN_BOARD_COLS,
         maxCols: MAX_BOARD_COLS,
         outerMin: OUTER_MIN,
-        circleSize: 10,
+        defaultCircleSize: DEFAULT_CIRCLE_BOARD_SIZE,
+        minCircleSize: MIN_CIRCLE_BOARD_SIZE,
+        maxCircleSize: MAX_CIRCLE_BOARD_SIZE,
+        circleSizeStep: CIRCLE_BOARD_SIZE_STEP,
         clampBoardDimension
     });
     const buildBoardConfig = BoardConfiguration.buildBoardConfig;
     const normalizeBoardShape = BoardConfiguration.normalizeBoardShape;
+    const normalizeCircleBoardSize = BoardConfiguration.normalizeCircleBoardSize;
     const normalizeBoardConfig = BoardConfiguration.normalizeBoardConfig;
     const extractBoardConfigSource = BoardConfiguration.extractBoardConfigSource;
     const maybeResolveBoardConfig = BoardConfiguration.maybeResolveBoardConfig;
@@ -419,6 +435,10 @@
         MAX_BOARD_ROWS,
         MIN_BOARD_COLS,
         MAX_BOARD_COLS,
+        DEFAULT_CIRCLE_BOARD_SIZE,
+        MIN_CIRCLE_BOARD_SIZE,
+        MAX_CIRCLE_BOARD_SIZE,
+        CIRCLE_BOARD_SIZE_STEP,
         getBoardDimensionBounds,
         normalizeBoardDimensionValue,
         stepBoardDimensionValue,
@@ -430,6 +450,7 @@
         PADDED_BOARD_SIZE,
         buildBoardConfig,
         normalizeBoardShape,
+        normalizeCircleBoardSize,
         normalizeBoardConfig,
         extractBoardConfigSource,
         maybeResolveBoardConfig,

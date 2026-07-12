@@ -832,10 +832,12 @@ describe('match-mode network button behavior', () => {
     const setLocalBoardConfig = jest.fn((nextBoardConfig) => {
       const rows = Number.isFinite(Number(nextBoardConfig && nextBoardConfig.rows)) ? Number(nextBoardConfig.rows) : 8;
       const cols = Number.isFinite(Number(nextBoardConfig && nextBoardConfig.cols)) ? Number(nextBoardConfig.cols) : 8;
+      const shape = String(nextBoardConfig && nextBoardConfig.shape || '').toLowerCase() === 'circle' ? 'circle' : 'rectangle';
       localBoardConfig = {
         rows,
         cols,
-        standard8x8: rows === 8 && cols === 8
+        shape,
+        standard8x8: shape === 'rectangle' && rows === 8 && cols === 8
       };
     });
 
@@ -1241,6 +1243,29 @@ describe('match-mode network button behavior', () => {
     expect(setLocalBoardConfig).toHaveBeenCalled();
     expect(document.getElementById('networkBoardSizeSummary').textContent).toBe('16x16');
     expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: デフォルト 30枚 / 作成時に送る盤面: 16x16');
+
+    const shapeSelect = document.getElementById('networkBoardShapeSelect');
+    shapeSelect.value = 'circle';
+    shapeSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    expect(setLocalBoardConfig).toHaveBeenLastCalledWith(expect.objectContaining({ rows: 16, cols: 16, shape: 'circle' }));
+    expect(rowsInput.min).toBe('6');
+    expect(rowsInput.max).toBe('16');
+    expect(rowsInput.step).toBe('2');
+    expect(rowsInput.disabled).toBe(false);
+    expect({
+      summary: document.getElementById('networkBoardSizeSummary').textContent,
+      deck: document.getElementById('networkDeckInfo').textContent,
+      lastConfig: setLocalBoardConfig.mock.calls.at(-1)?.[0]
+    }).toEqual({
+      summary: '円形 16x16 / 208マス',
+      deck: '作成時に送るデッキ: デフォルト 30枚 / 作成時に送る盤面: 円形 16x16 / 208マス',
+      lastConfig: expect.objectContaining({ rows: 16, cols: 16, shape: 'circle' })
+    });
+
+    rowsInput.value = '12';
+    rowsInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    expect(colsInput.value).toBe('12');
+    expect(document.getElementById('networkBoardSizeSummary').textContent).toBe('円形 12x12 / 112マス');
   });
 
   test('部屋盤面が確定したらネット対戦モーダルの盤面サイズ入力をロックする', () => {
