@@ -154,6 +154,64 @@ describe('board renderer pixel sizing', () => {
     expect(boardEl.style.transform).toBe('');
   });
 
+  test('syncBoardPixelSizing anchors existing cells while render bounds grow in any direction', () => {
+    const frameEl = document.getElementById('board-frame');
+    const boardEl = document.getElementById('board');
+    frameEl.getBoundingClientRect = () => ({ width: 750, height: 750 });
+    boardEl.getBoundingClientRect = () => ({ width: 783, height: 696, left: 100, top: 100 });
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.syncBoardPixelSizing(boardEl, {
+      rows: 8,
+      cols: 9,
+      baseRows: 8,
+      baseCols: 8,
+      minRow: 0,
+      minCol: -1
+    });
+
+    expect(boardEl.style.left).toBe('-43.5px');
+    expect(boardEl.style.top).toBe('');
+
+    boardRenderer.syncBoardPixelSizing(boardEl, {
+      rows: 8, cols: 9, baseRows: 8, baseCols: 8, minRow: 0, minCol: 0
+    });
+    expect(boardEl.style.left).toBe('43.5px');
+    expect(boardEl.style.top).toBe('');
+
+    boardRenderer.syncBoardPixelSizing(boardEl, {
+      rows: 9, cols: 8, baseRows: 8, baseCols: 8, minRow: -1, minCol: 0
+    });
+    expect(boardEl.style.left).toBe('');
+    expect(boardEl.style.top).toBe('-43.5px');
+
+    boardRenderer.syncBoardPixelSizing(boardEl, {
+      rows: 9, cols: 8, baseRows: 8, baseCols: 8, minRow: 0, minCol: 0
+    });
+    expect(boardEl.style.left).toBe('');
+    expect(boardEl.style.top).toBe('43.5px');
+  });
+
+  test('syncBoardPixelSizing retains the asymmetric anchor during resize resync', () => {
+    const frameEl = document.getElementById('board-frame');
+    const boardEl = document.getElementById('board');
+    frameEl.getBoundingClientRect = () => ({ width: 750, height: 750 });
+    boardEl.getBoundingClientRect = () => ({ width: 783, height: 696, left: 100, top: 100 });
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.syncBoardPixelSizing(boardEl, {
+      rows: 8,
+      cols: 9,
+      baseRows: 8,
+      baseCols: 8,
+      minRow: 0,
+      minCol: -1
+    });
+    boardRenderer.syncBoardPixelSizing(boardEl);
+
+    expect(boardEl.style.left).toBe('-43.5px');
+  });
+
   test('syncBoardPixelSizing adds border thickness when the board uses border-box sizing', () => {
     const frameEl = document.getElementById('board-frame');
     const boardEl = document.getElementById('board');

@@ -224,6 +224,8 @@ function _getBoardRenderGeometryForDiff(gameState: any) {
     return {
         rows: bounds.maxRow - bounds.minRow + 1,
         cols: bounds.maxCol - bounds.minCol + 1,
+        baseRows: baseShape.rows,
+        baseCols: baseShape.cols,
         minRow: bounds.minRow,
         maxRow: bounds.maxRow,
         minCol: bounds.minCol,

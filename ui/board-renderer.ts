@@ -254,6 +254,7 @@ const _boardElementIdentityToken = new WeakMap<any, number>();
 const _frameElementIdentityToken = new WeakMap<any, number>();
 let _nextBoardElementIdentity = 1;
 let _nextFrameElementIdentity = 1;
+const _boardPixelSizingShapeByElement = new WeakMap<any, any>();
 const STANDARD_BOARD_BASELINE_ROWS = 8;
 const STANDARD_BOARD_BASELINE_COLS = 8;
 const BOARD_FRAME_OVERSIZE_TOLERANCE_PX = 1;
@@ -388,9 +389,25 @@ function _normalizeBoardShapeForPixelSizing(shapeOrState: any) {
     const rows = Number(shapeOrState && shapeOrState.rows);
     const cols = Number(shapeOrState && shapeOrState.cols);
     if (Number.isFinite(rows) && Number.isFinite(cols)) {
+        const normalizedRows = Math.max(1, Math.trunc(rows));
+        const normalizedCols = Math.max(1, Math.trunc(cols));
+        const baseRowsValue = Number(shapeOrState && shapeOrState.baseRows);
+        const baseColsValue = Number(shapeOrState && shapeOrState.baseCols);
+        const minRowValue = Number(shapeOrState && shapeOrState.minRow);
+        const minColValue = Number(shapeOrState && shapeOrState.minCol);
+        const baseRows = Number.isFinite(baseRowsValue) ? Math.max(1, Math.trunc(baseRowsValue)) : normalizedRows;
+        const baseCols = Number.isFinite(baseColsValue) ? Math.max(1, Math.trunc(baseColsValue)) : normalizedCols;
+        const minRow = Number.isFinite(minRowValue) ? Math.trunc(minRowValue) : 0;
+        const minCol = Number.isFinite(minColValue) ? Math.trunc(minColValue) : 0;
         return {
-            rows: Math.max(1, Math.trunc(rows)),
-            cols: Math.max(1, Math.trunc(cols))
+            rows: normalizedRows,
+            cols: normalizedCols,
+            baseRows,
+            baseCols,
+            minRow,
+            minCol,
+            maxRow: minRow + normalizedRows - 1,
+            maxCol: minCol + normalizedCols - 1
         };
     }
     return _getBoardShapeForBoardRenderer();
@@ -719,14 +736,15 @@ function _getFrameElementIdentityToken(el: any): number {
     return t;
 }
 
-// PR2 v2: 12-key signature. All entries are stable across normal renders and
+// PR2 v2: sizing signature. All entries are stable across normal renders and
 // change only at the boundaries where _boardPixelSizingDirty is forced true:
 //   1-2: shape rows/cols
-//   3-4: boardEl / frameEl WeakMap identity tokens
-//   5-6: root data-board-skin-id / data-board-frame-skin-id (skin switch)
-//   7:   --layout-stage-scale (inline root style, layout profile scale)
-//   8-11: --board-frame-padding-{top,right,bottom,left} (frame skin switch)
-//   12:  window.devicePixelRatio (DPR shift)
+//   3-6: base shape and world-coordinate origin
+//   7-8: boardEl / frameEl WeakMap identity tokens
+//   9-10: root data-board-skin-id / data-board-frame-skin-id (skin switch)
+//   11: --layout-stage-scale (inline root style, layout profile scale)
+//   12-15: --board-frame-padding-{top,right,bottom,left} (frame skin switch)
+//   16: window.devicePixelRatio (DPR shift)
 // getComputedStyle() is intentionally avoided here (would force layout
 // inside the very gate that exists to avoid layout).
 function _computeBoardPixelSizingSignature(boardElement: any, shape: any): string {
@@ -746,6 +764,10 @@ function _computeBoardPixelSizingSignature(boardElement: any, shape: any): strin
     return [
         shape.rows,
         shape.cols,
+        shape.baseRows,
+        shape.baseCols,
+        shape.minRow,
+        shape.minCol,
         _getBoardElementIdentityToken(boardElement),
         _getFrameElementIdentityToken(frameEl),
         boardSkinId,
@@ -754,6 +776,23 @@ function _computeBoardPixelSizingSignature(boardElement: any, shape: any): strin
         padTop, padRight, padBottom, padLeft,
         dpr
     ].join('|');
+}
+
+function _getBoardAnchorOffsetForPixelSizing(shape: any, cellSize: number) {
+    const baseRows = Number.isFinite(shape && shape.baseRows) ? shape.baseRows : shape.rows;
+    const baseCols = Number.isFinite(shape && shape.baseCols) ? shape.baseCols : shape.cols;
+    const minRow = Number.isFinite(shape && shape.minRow) ? shape.minRow : 0;
+    const minCol = Number.isFinite(shape && shape.minCol) ? shape.minCol : 0;
+    const maxRow = Number.isFinite(shape && shape.maxRow) ? shape.maxRow : (minRow + shape.rows - 1);
+    const maxCol = Number.isFinite(shape && shape.maxCol) ? shape.maxCol : (minCol + shape.cols - 1);
+    const topGrowth = Math.max(0, -minRow);
+    const leftGrowth = Math.max(0, -minCol);
+    const bottomGrowth = Math.max(0, maxRow - (baseRows - 1));
+    const rightGrowth = Math.max(0, maxCol - (baseCols - 1));
+    return {
+        x: ((rightGrowth - leftGrowth) * cellSize) / 2,
+        y: ((bottomGrowth - topGrowth) * cellSize) / 2
+    };
 }
 
 function _handleBoardPixelSizingViewportChange() {
@@ -806,8 +845,10 @@ function _ensureBoardPixelSizingObserver(boardElement: any) {
 function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
     if (PerfBenchmarks) PerfBenchmarks.perfStart('syncBoardPixelSizing');
     try {
-        const shape = _normalizeBoardShapeForPixelSizing(shapeInput);
+        const rememberedShape = boardElement && _boardPixelSizingShapeByElement.get(boardElement);
+        const shape = _normalizeBoardShapeForPixelSizing(shapeInput || rememberedShape);
     if (!boardElement || !boardElement.style) return shape;
+    if (shapeInput) _boardPixelSizingShapeByElement.set(boardElement, shape);
 
     _ensureBoardPixelSizingObserver(boardElement);
 
@@ -850,8 +891,9 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
     boardElement.style.setProperty('--board-disc-size-px', `${discSize}px`);
     _applyBoardFramePixelSizing(baseSize.frameMetrics, outerWidth, outerHeight, shape);
 
-    boardElement.style.removeProperty('left');
-    boardElement.style.removeProperty('top');
+    const anchorOffset = _getBoardAnchorOffsetForPixelSizing(shape, cellSize);
+    boardElement.style.left = anchorOffset.x ? `${anchorOffset.x}px` : '';
+    boardElement.style.top = anchorOffset.y ? `${anchorOffset.y}px` : '';
     boardElement.style.removeProperty('transform');
     if (typeof boardElement.getBoundingClientRect === 'function') {
         const snappedRect = boardElement.getBoundingClientRect();
@@ -859,8 +901,8 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
         const snapY = Number.isFinite(snappedRect.top) ? (Math.round(snappedRect.top) - snappedRect.top) : 0;
         if (Math.abs(snapX) > 0.001 || Math.abs(snapY) > 0.001) {
             // Keep the board aligned to whole pixels without compositing the full board via transform.
-            boardElement.style.left = `${snapX}px`;
-            boardElement.style.top = `${snapY}px`;
+            boardElement.style.left = `${anchorOffset.x + snapX}px`;
+            boardElement.style.top = `${anchorOffset.y + snapY}px`;
         }
     }
     syncBoardExpansionLayerGeometry(boardElement, shape);
