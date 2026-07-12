@@ -42,6 +42,9 @@ playwright-report/
 *.cache
 tmp/
 tmp-*
+/.codex-podium-*.json
+/session-ses_*.md
+/tmp_*.json
 
 # Large archives
 *.zip
@@ -69,6 +72,7 @@ test_*.py
 # Editor/IDE
 .vscode/
 .idea/
+.codegraph/
 *.swp
 *.swo
 .venv/
@@ -76,6 +80,7 @@ test_*.py
 # OS
 .DS_Store
 Thumbs.db
+*.lnk
 
 # IMPORTANT: Do NOT ignore these (required for re-training/browser game dependencies)
 !ai/train/**
