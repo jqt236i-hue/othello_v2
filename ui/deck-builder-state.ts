@@ -27,6 +27,40 @@ function createEmptyDraft(): Draft {
   };
 }
 
+function normalizeRandomUnit(value: unknown): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  if (numeric >= 1) return 1 - Number.EPSILON;
+  return numeric;
+}
+
+function createRandomFullDraft(randomSource?: () => number): Draft {
+  const helpers = ensureDeckSpecHelpers();
+  const cardDefs = getEnabledOrder();
+  const targetSize = helpers.CUSTOM_DECK_SIZE;
+  const totalCapacity = cardDefs.reduce(
+    (sum: number, cardDef: any) => sum + getMaxCopiesForCardId(String(cardDef && cardDef.id || '')),
+    0
+  );
+
+  if (totalCapacity < targetSize) {
+    throw new Error(`ランダムデッキを ${targetSize} 枚生成できる有効カードがありません`);
+  }
+
+  const nextRandom = typeof randomSource === 'function' ? randomSource : Math.random;
+  let draft = createEmptyDraft();
+
+  while (draft.totalCount < targetSize) {
+    const eligibleCardIds = cardDefs
+      .map((cardDef: any) => String(cardDef && cardDef.id || '').trim())
+      .filter((cardId: string) => cardId && getSelectedCount(draft, cardId) < getMaxCopiesForCardId(cardId));
+    const randomIndex = Math.floor(normalizeRandomUnit(nextRandom()) * eligibleCardIds.length);
+    draft = addCardToDraft(draft, eligibleCardIds[randomIndex]);
+  }
+
+  return draft;
+}
+
 function getEnabledOrder(): any[] {
   return ensureDeckSpecHelpers().getEnabledCardDefs();
 }
@@ -178,6 +212,7 @@ function listSelectedCards(draft: any): any[] {
 
 const DeckBuilderState = {
   createEmptyDraft,
+  createRandomFullDraft,
   cloneDraft,
   getMaxCopiesForCardId,
   createDraftFromDeckSpec,

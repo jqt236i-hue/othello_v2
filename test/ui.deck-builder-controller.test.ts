@@ -103,9 +103,10 @@ describe('deck builder controller', () => {
     };
   }
 
-  function createController() {
+  function createController(options = {}) {
     const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
     return createDeckBuilderController({
+      ...options,
       root: window,
       refs: {
         openBtn: document.getElementById('openBtn'),
@@ -319,6 +320,8 @@ describe('deck builder controller', () => {
       presetId: 'theory'
     });
     expect(document.getElementById('summary').textContent).toBe('理論デッキ / 30枚');
+    expect(body.querySelector('.deck-builder-notice')).toBeNull();
+    expect(body.querySelector('.deck-builder-effective-summary')).toBeNull();
 
     const endingAshCard = builtInCards[3];
     const endingAshButtons = Array.from(endingAshCard.querySelectorAll('button'));
@@ -388,6 +391,49 @@ describe('deck builder controller', () => {
     expect(codeInput.tagName).toBe('INPUT');
     expect(children[children.indexOf(codeInput) - 1].textContent).toBe('コードコピー');
     expect(body.querySelector('.deck-builder-code-block')).toBeNull();
+  });
+
+  test('保存先の右側から合法な30枚をランダム生成し、保存前の設定を維持する', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const DeckCodecModule = require('../shared/deck-codec.js');
+    const body = document.getElementById('body');
+    const controller = createController({ randomSource: () => 0 });
+
+    controller.open();
+    openEditor(body);
+
+    const nameInput = body.querySelector('.deck-builder-name-row input');
+    const destinationSelect = body.querySelector('.deck-builder-preset-destination-select');
+    nameInput.value = 'ランダム候補';
+    nameInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    destinationSelect.value = 'preset_3';
+    destinationSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    const storedBefore = localStorage.getItem('deck_builder_presets_v1');
+
+    const randomizeButton = body.querySelector('.deck-builder-randomize-btn');
+    expect(randomizeButton).toBeTruthy();
+    expect(randomizeButton.textContent).toBe('ランダム生成');
+    expect(randomizeButton.getAttribute('aria-label')).toBe('ランダムな30枚デッキを生成');
+    expect(randomizeButton.querySelector('.deck-builder-randomize-die')?.getAttribute('aria-hidden')).toBe('true');
+    expect(randomizeButton.previousElementSibling).toBe(destinationSelect);
+    randomizeButton.click();
+
+    const refreshedNameInput = body.querySelector('.deck-builder-name-row input');
+    const refreshedDestinationSelect = body.querySelector('.deck-builder-preset-destination-select');
+    const codeInput = body.querySelector('.deck-builder-code-input');
+    const deckSpec = DeckCodecModule.decodeDeckCode(codeInput.value);
+    const counts = deckSpec.cards.map((entry) => entry.count);
+
+    expect(body.querySelector('.deck-builder-editor-summary').textContent).toBe('30/30枚 ・ 残り0枚');
+    expect(document.getElementById('header').textContent).toBe('編集中: 30/30枚');
+    expect(refreshedNameInput.value).toBe('ランダム候補');
+    expect(refreshedDestinationSelect.value).toBe('preset_3');
+    expect(localStorage.getItem('deck_builder_presets_v1')).toBe(storedBefore);
+    expect(deckSpec.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(DeckSpecHelpers.CUSTOM_DECK_SIZE);
+    expect(counts.some((count) => count > 1)).toBe(true);
+    deckSpec.cards.forEach((entry) => {
+      expect(entry.count).toBeLessThanOrEqual(DeckSpecHelpers.getMaxCopiesForCardId(entry.cardId));
+    });
   });
 
   test('保存先選択は空欄と保存済みスロットを区別して表示する', () => {
@@ -872,7 +918,7 @@ describe('deck builder controller', () => {
     }
   });
 
-  test('network room deck が player別 custom でも実対局 summary は現在 seat の枚数を表示する', () => {
+  test('network room deck が player別 custom でも実対局の重複サマリーは表示しない', () => {
     const DeckSpecHelpers = require('../shared/deck-spec.js');
     const DeckCodecModule = require('../shared/deck-codec.js');
     const whiteDeck = createThirtyCardDeck(10);
@@ -899,8 +945,7 @@ describe('deck builder controller', () => {
       const controller = createController();
       controller.open();
 
-      const effectiveSummary = document.querySelector('.deck-builder-effective-summary');
-      expect(effectiveSummary.textContent).toBe('実対局に使うデッキ: 部屋デッキ / 0枚（退出後はローカル設定へ戻ります）');
+      expect(document.querySelector('.deck-builder-effective-summary')).toBeNull();
       expect(controller.readActiveDeckSpec()).toEqual(DeckCodecModule.decodeDeckCode(emptyDeckCode));
     } finally {
       delete window.NetworkMatchClient;

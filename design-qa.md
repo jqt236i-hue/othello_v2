@@ -1,44 +1,64 @@
-# CPU・盤面設定ポップアップ Design QA
+# Deck Builder Design QA
 
-- Source visual truth: `C:\Users\quarr\.codex\visualizations\2026\07\11\019f5189-3b1e-7e10-a1a1-58f7405e5d39\cpu-board-selector-ui.html`
-- Source screenshot: `C:\Users\quarr\AppData\Local\Temp\cpu-board-selector-source.png`
-- Implementation screenshot: `C:\Users\quarr\AppData\Local\Temp\cpu-board-selector-implementation-small.png`
-- Full-view comparison: `C:\Users\quarr\AppData\Local\Temp\cpu-board-selector-comparison.png`
-- Focused comparison: `C:\Users\quarr\AppData\Local\Temp\cpu-board-selector-comparison-focused.png`
-- Viewport: 1280 × 720
-- State: CPU対戦、CPU名ポップアップを開き、`盤面設定` タブで `円形 12×12` を選択
+- Source visual truth: `C:\Users\quarr\AppData\Local\Temp\codex-clipboard-eb55e094-c909-4842-bcdb-f17108c79df9.png`
+- Implementation screenshot: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\deck-builder-final-1204x608.png`
+- Latest density correction: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\deck-builder-content-sized-final.png`
+- Full-view comparison: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\deck-builder-comparison-final.png`
+- Focused loadout comparison: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\deck-builder-focus-loadout.png`
+- Focused saved-slot comparison: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\deck-builder-focus-saved-slots.png`
+- Responsive evidence: `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\deck-builder-tablet-834x700.png`, `C:\Users\quarr\Desktop\othello_v2\artifacts\design-qa\deck-builder-mobile-final-390x844.png`
+- Viewport: 1204 × 608 desktop; 834 × 700 tablet; 390 × 844 mobile
+- State: preset 1 active, preset 6 filled, four empty slots, `2/6 使用中`; no effective-deck summary and no deck-switch success notice
 
 ## Findings
 
-- P0 / P1 / P2 の未解決項目なし。
-- タブ、盤面形状、円形サイズ、選択中サマリーの構成はソース案と一致している。
-- 通常盤面では縦横の個別セレクト、円形盤面では `6 / 8 / 10 / 12 / 14 / 16` のサイズボタンへ切り替わる。
-- ソース案の汎用的な中立色から、実装では既存ゲームの金縁・暗色・日本語表示書体へ置き換えている。既存デザインシステムへ合わせるための意図した差分であり、情報階層と操作構造は維持されている。
+No actionable P0, P1, or P2 mismatch remains.
+
+- [P3] Reference corner ornaments are more elaborate
+  - Location: default deck and saved-slot card corners.
+  - Evidence: the source uses small manuscript corner seals and bottom-center archive marks; the implementation uses restrained double inset rules and gold/cyan state borders.
+  - Impact: minor ornamental fidelity difference only; hierarchy, state recognition, and operation are unchanged.
+  - Follow-up: add a small reusable ornamental asset only if a later polish pass needs exact motif fidelity.
 
 ## Required Fidelity Surfaces
 
-- Fonts and typography: 既存ゲームUIの書体、太さ、文字間隔を継承。タブ、ラベル、補足、選択サマリーの階層が判別でき、折り返しや欠けはない。
-- Spacing and layout rhythm: CPU名直下へアンカーされ、2列タブ、2列形状、3列サイズのリズムを維持。盤面やCPU画像との重なりはポップアップとして意図した範囲に収まる。
-- Colors and visual tokens: 既存の暗色面、金色選択枠、淡色文字を使用。選択状態は色だけでなく枠と面でも判別できる。
-- Image quality and asset fidelity: 新しい画像資産は不要。既存CPU画像と背景を変更せず、ポップアップのみ追加している。
-- Copy and content: `CPU選択`、`盤面設定`、`盤面形状`、`盤面サイズ`、`偶数・正方形固定`、反映タイミング、選択中サマリーを確認。
+- Fonts and typography: Japanese display text uses a Mincho stack; metadata and actions retain readable sans/monospace treatment. Saved-deck titles were raised from the inherited ~8.5px rendering to 16px, summaries to 10px, section title to 20px, and the close glyph to 18px.
+- Spacing and layout rhythm: desktop uses the reference 3 × 2 saved-slot grid, matching left/right proportions and two-row density. The later user-requested removal of the effective-deck/status row intentionally shifts the content upward relative to the source mock.
+- Colors and visual tokens: midnight navy, muted blue-green, and antique-gold tokens map closely to the source. Active, filled, empty, disabled, and secondary-action states remain distinguishable without relying on color alone.
+- Image quality and asset fidelity: the generated 1254 × 1254 lacquer/washi texture is sharp, text-free, low-contrast, and used only behind live UI. No screenshot, text, button, or card content is baked into it.
+- Copy and content: app copy remains live DOM text. Differences in deck counts/type distribution are intentional dynamic test data rather than copied mock content. The explicitly removed `実対局に使うデッキ` row and switch-success notice do not reappear.
+- Icons: existing semantic section icons and controls remain. The plus, archive rail, count badge, and close control are aligned and readable; the remaining ornate-corner difference is classified P3 above.
+- Responsiveness and accessibility: tablet fits without horizontal overflow; mobile uses vertical scrolling with a 58px header and practical action targets. Focus-visible produces a 3px antique-gold outline with 2px offset. Reduced-motion rules remain in place.
 
-## Interaction Verification
+## Interaction Evidence
 
-- CPU選択タブと盤面設定タブの切り替え
-- CPUレベル選択後もポップアップを維持
-- 通常 / 円形の切り替え
-- 円形 12×12の選択とサマリー更新
-- 画面外クリックによる閉じる操作
-- 1280 × 720での収まり
-- ブラウザコンソールエラーなし
+- Opened the deck builder from the live game UI.
+- Edited slots 1 and 6, used `ランダム生成`, changed names, saved both, returned to the selection screen, and activated slot 1.
+- Confirmed empty-slot disabled `使用`, active/filled/empty visual states, `2/6 使用中`, and keyboard focus styling.
+- Browser console errors checked after the final desktop state: none.
 
 ## Comparison History
 
-- Pass 1: ソース案と実装を同一状態で全面・局所比較。操作構造、情報階層、収まりにP0/P1/P2差分なし。既存ゲームテーマへの置換を意図した差分として確認。
+1. Initial implementation evidence: `deck-builder-before-modal.png`
+   - Findings: 2 × 3 saved-slot grid at 1204px, illustrated observatory background, weak antique-gold hierarchy, and under-sized live metadata.
+   - Fixes: switched to generated lacquer/washi texture, established final color/type tokens, restored 3 × 2 desktop grid, and rebuilt active/empty/filled surfaces.
+2. First redesign evidence: `deck-builder-after-pass1.png` and `deck-builder-after-pass2.png`
+   - Findings: large vertical under-fill, then over-tall cards; plus glyph and halo were separated; saved-deck titles still inherited an `!important` compact size.
+   - Fixes: normalized desktop row heights, aligned the live plus element inside its halo, restored `STANDARD` metadata, and overrode title/summary sizes at the final scoped selector.
+3. Responsive evidence: `deck-builder-tablet-834x700.png` and initial mobile capture
+   - Findings: excess tablet inter-section space and a compressed mobile header/close glyph.
+   - Fixes: removed forced stacked-workspace height below 900px, enforced a 58px mobile header, and set an 18px minimum close glyph.
+4. Post-fix evidence: final full-view and focused comparison paths listed above.
+   - Result: no P0/P1/P2 mismatch remains; only the accepted P3 ornament detail remains.
+5. User review reopened the desktop pass because tall viewports stretched every card panel.
+   - Correction: desktop modal and workspace are content-sized; saved-slot rows stay at the intended 172px density and unused space remains outside the panels.
+   - Evidence: `deck-builder-content-sized-final.png` at 1231 × 886; texture and gold framing remain visible without vertical stretching.
 
-## Follow-up Polish
+## Verification
 
-- P3なし。
+- `npm run test:jest -- test/ui.deck-builder-controller.test.ts test/ui.deck-builder-layout-css.test.ts test/ui.deck-builder-browser-registry.test.ts` — 3 suites, 50 tests passed.
+- `npm run build:browser` — passed.
+- `npm run worker:prepare` — mirror verified, 826 files.
+- `git diff --check` — passed.
 
-final result: passed
+final result: passed after density correction; reviewer follow-up remains open for visual sign-off

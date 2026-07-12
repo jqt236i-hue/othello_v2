@@ -2767,10 +2767,9 @@
     background: transparent;
 }
 
-/* ----- Notice & effective-summary status pills ----- */
+/* ----- Notice status pill ----- */
 
-.deck-builder-notice,
-.deck-builder-effective-summary {
+.deck-builder-notice {
     font-size: calc(11px * var(--layout-stage-scale));
     line-height: 1.4;
     border-radius: calc(8px * var(--layout-stage-scale));
@@ -2793,34 +2792,6 @@
         rgba(40, 20, 18, 0.6);
     border-color: rgba(255, 130, 130, 0.4);
     color: #ffe0e0;
-}
-
-/* "実対局に使うデッキ" hero pill — refined status display (no pulse, muted gold) */
-.deck-builder-effective-summary {
-    position: relative;
-    background:
-        linear-gradient(180deg, rgba(220, 200, 170, 0.08), rgba(220, 200, 170, 0.02) 60%, rgba(255, 255, 255, 0.01) 100%),
-        linear-gradient(180deg, rgba(38, 32, 26, 0.92), rgba(22, 18, 14, 0.92));
-    border: var(--layout-size-border-thin) solid rgba(180, 160, 120, 0.32);
-    color: #e8dcc0;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    padding: calc(10px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
-    box-shadow:
-        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(220, 200, 170, 0.1),
-        0 calc(2px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.45);
-}
-
-.deck-builder-effective-summary::before {
-    content: "";
-    display: inline-block;
-    width: calc(7px * var(--layout-stage-scale));
-    height: calc(7px * var(--layout-stage-scale));
-    margin-right: calc(8px * var(--layout-stage-scale));
-    border-radius: 50%;
-    background: radial-gradient(circle, #d4bd90 0%, #8a7448 90%);
-    vertical-align: middle;
-    transform: translateY(calc(-1px * var(--layout-stage-scale)));
 }
 
 .deck-builder-view {
@@ -3965,6 +3936,47 @@
 .deck-builder-name-row select {
     flex: 1 1 auto;
     min-width: 0;
+}
+
+.deck-builder-destination-row .deck-builder-randomize-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    gap: calc(7px * var(--layout-stage-scale));
+    min-height: max(42px, calc(42px * var(--layout-stage-scale)));
+    white-space: nowrap;
+}
+
+.deck-builder-randomize-die {
+    position: relative;
+    display: inline-block;
+    flex: 0 0 auto;
+    width: max(16px, calc(16px * var(--layout-stage-scale)));
+    aspect-ratio: 1;
+    box-sizing: border-box;
+    color: #08202a;
+    border: var(--layout-size-border-thin) solid rgba(224, 255, 252, 0.9);
+    border-radius: max(4px, calc(4px * var(--layout-stage-scale)));
+    background: linear-gradient(145deg, #f0fffd, #8edbdc);
+    box-shadow:
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.9),
+        0 calc(1px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42);
+}
+
+.deck-builder-randomize-die::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(3px, calc(3px * var(--layout-stage-scale)));
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow:
+        calc(-4px * var(--layout-stage-scale)) calc(-4px * var(--layout-stage-scale)) 0 currentColor,
+        calc(4px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) 0 currentColor;
+    transform: translate(-50%, -50%);
 }
 
 .deck-builder-code-block,
@@ -5920,8 +5932,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 }
 
 /* --- ステータス pill: 5/10 padding + 10.5px font --- */
-.deck-builder-notice,
-.deck-builder-effective-summary {
+.deck-builder-notice {
     padding: calc(5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) !important;
     font-size: calc(10.5px * var(--layout-stage-scale)) !important;
     line-height: 1.35 !important;
@@ -6763,6 +6774,33 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     background: linear-gradient(135deg, rgba(16, 48, 69, 0.86), rgba(6, 16, 31, 0.96)) !important;
 }
 
+#deckBuilderModal .deck-builder-built-in-preset-grid .deck-builder-builtin-card {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+        "meta"
+        "action" !important;
+}
+
+#deckBuilderModal .deck-builder-built-in-preset-grid .deck-builder-builtin-gem {
+    display: none !important;
+}
+
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card[data-preset-id="execution"]::before {
+    background: #641f2a !important;
+}
+
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card[data-preset-id="theory"]::before {
+    background: #1d3f73 !important;
+}
+
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card[data-preset-id="observation"]::before {
+    background: #1f5a3a !important;
+}
+
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card[data-preset-id="ending-ash"]::before {
+    background: #3b3f46 !important;
+}
+
 @media (max-width: 1180px) {
     #deckBuilderModal .deck-builder-workshop-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -6791,19 +6829,23 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
    responsive presentation are re-composed here.
    ============================================================ */
 #deckBuilderModal {
-    --deck-surface: rgba(8, 17, 31, 0.94);
-    --deck-surface-raised: rgba(14, 31, 49, 0.94);
-    --deck-line: rgba(152, 202, 218, 0.24);
-    --deck-line-strong: rgba(158, 225, 231, 0.48);
-    --deck-gold: #e8c779;
-    --deck-cyan: #8ddde4;
-    --deck-text: #f4f1e8;
-    --deck-muted: #a9c1cc;
-    width: min(1180px, calc(100vw - 28px));
-    max-height: min(94vh, 840px) !important;
-    border-color: rgba(173, 222, 225, 0.34) !important;
-    background: #07101d !important;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(232, 199, 121, 0.08) !important;
+    --deck-surface: rgba(4, 15, 27, 0.94);
+    --deck-surface-raised: rgba(8, 27, 42, 0.94);
+    --deck-line: rgba(158, 130, 72, 0.44);
+    --deck-line-strong: rgba(211, 174, 94, 0.78);
+    --deck-gold: #d8b463;
+    --deck-gold-soft: #a98a4e;
+    --deck-cyan: #83c5cb;
+    --deck-text: #eee5d4;
+    --deck-muted: #a9bbc1;
+    width: min(1180px, calc(100vw - 16px));
+    height: min(96dvh, 900px);
+    max-height: calc(100dvh - 12px) !important;
+    border: 1px solid rgba(183, 146, 75, 0.62) !important;
+    border-radius: calc(8px * var(--layout-stage-scale));
+    background: #03101c !important;
+    box-shadow: 0 28px 78px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(218, 180, 99, 0.1) !important;
+    overflow: hidden;
 }
 
 #deckBuilderOverlay.is-open {
@@ -6811,11 +6853,11 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 }
 
 #deckBuilderModalHeader {
-    min-height: calc(54px * var(--layout-stage-scale));
-    padding: calc(10px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) !important;
-    border-bottom-color: rgba(141, 221, 228, 0.24) !important;
+    min-height: calc(62px * var(--layout-stage-scale));
+    padding: calc(10px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) !important;
+    border-bottom-color: rgba(181, 143, 72, 0.58) !important;
     background:
-        linear-gradient(90deg, rgba(17, 48, 59, 0.94), rgba(8, 21, 37, 0.96) 54%, rgba(33, 27, 22, 0.92)) !important;
+        linear-gradient(90deg, rgba(7, 30, 43, 0.98), rgba(3, 15, 28, 0.98) 58%, rgba(15, 16, 18, 0.98)) !important;
 }
 
 #deckBuilderModal .deck-builder-title-wrap {
@@ -6824,8 +6866,11 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 
 #deckBuilderModal .deck-builder-title {
     color: var(--deck-text) !important;
-    font-size: max(20px, calc(22px * var(--layout-stage-scale))) !important;
-    letter-spacing: 0.02em;
+    font-family: 'Yu Mincho', 'Hiragino Mincho ProN', 'Noto Serif JP', 'BIZ UDPMincho', serif !important;
+    font-size: max(25px, calc(26px * var(--layout-stage-scale))) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04em;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.05), 0 2px 8px rgba(0, 0, 0, 0.72);
 }
 
 #deckBuilderModal .deck-builder-title::before {
@@ -6834,36 +6879,42 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 }
 
 #deckBuilderModal #deckBuilderHeaderSummary {
-    color: rgba(211, 231, 235, 0.72);
-    border-color: rgba(158, 225, 231, 0.18);
-    background: rgba(5, 15, 28, 0.52);
+    color: rgba(196, 210, 211, 0.76);
+    border-color: rgba(139, 177, 179, 0.2);
+    background: rgba(3, 13, 24, 0.62);
 }
 
 #deckBuilderModal #deckBuilderCloseBtn {
-    width: max(40px, calc(40px * var(--layout-stage-scale)));
-    height: max(40px, calc(40px * var(--layout-stage-scale)));
-    border-color: rgba(141, 221, 228, 0.42) !important;
-    color: #dffbff !important;
-    background: rgba(23, 79, 87, 0.34) !important;
+    width: max(42px, calc(42px * var(--layout-stage-scale)));
+    height: max(42px, calc(42px * var(--layout-stage-scale)));
+    font-size: max(18px, calc(18px * var(--layout-stage-scale)));
+    border-color: rgba(205, 165, 83, 0.72) !important;
+    color: #e7c679 !important;
+    background: rgba(4, 19, 30, 0.82) !important;
+    box-shadow: inset 0 0 0 3px rgba(3, 13, 23, 0.9), inset 0 0 0 4px rgba(183, 144, 70, 0.24);
 }
 
 #deckBuilderModal #deckBuilderBody {
+    flex: 1 1 auto;
+    min-height: 0;
     scrollbar-gutter: stable;
-    background: #07101d !important;
+    background: #03101c !important;
 }
 
 #deckBuilderModal .deck-builder-atelier-shell {
-    grid-template-columns: calc(54px * var(--layout-stage-scale)) minmax(0, 1fr);
+    grid-template-columns: calc(62px * var(--layout-stage-scale)) minmax(0, 1fr);
     min-height: 100%;
     background:
-        linear-gradient(100deg, rgba(3, 8, 17, 0.94), rgba(5, 12, 25, 0.73) 52%, rgba(5, 12, 25, 0.9)),
-        url('assets/images/ui/deck-atelier-observatory.png') center / cover no-repeat;
+        linear-gradient(100deg, rgba(2, 9, 17, 0.76), rgba(4, 15, 27, 0.68) 52%, rgba(3, 12, 22, 0.78)),
+        url('assets/images/ui/deck-builder-night-manuscript-texture.png') center / cover no-repeat;
 }
 
 #deckBuilderModal .deck-builder-atelier-rail {
     gap: calc(14px * var(--layout-stage-scale));
     padding: calc(18px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale));
-    background: rgba(4, 10, 20, 0.78);
+    border-right: 1px solid rgba(184, 145, 70, 0.46);
+    background: rgba(3, 13, 23, 0.88);
+    box-shadow: inset -4px 0 14px rgba(0, 0, 0, 0.28);
 }
 
 #deckBuilderModal .deck-builder-atelier-mark {
@@ -6873,13 +6924,16 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 
 #deckBuilderModal .deck-builder-atelier-stage {
     min-width: 0;
-    padding: calc(18px * var(--layout-stage-scale)) calc(20px * var(--layout-stage-scale)) calc(22px * var(--layout-stage-scale));
-    background: linear-gradient(90deg, rgba(7, 13, 25, 0.18), rgba(7, 13, 25, 0.64));
+    padding: calc(14px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale));
+    background: linear-gradient(90deg, rgba(3, 12, 22, 0.2), rgba(3, 12, 22, 0.62));
 }
 
 #deckBuilderModal .deck-builder-atelier-stage .deck-builder-view-presets {
     display: grid;
-    gap: calc(12px * var(--layout-stage-scale)) !important;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: max(16px, calc(18px * var(--layout-stage-scale))) !important;
+    height: 100%;
+    min-height: 0;
     padding: 0 !important;
 }
 
@@ -6889,10 +6943,10 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     justify-self: stretch;
     display: block !important;
     padding: calc(8px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) !important;
-    border: 1px solid rgba(141, 221, 228, 0.16) !important;
+    border: 1px solid rgba(112, 143, 148, 0.28) !important;
     border-left: calc(3px * var(--layout-stage-scale)) solid var(--deck-gold) !important;
-    background: rgba(5, 15, 28, 0.64) !important;
-    color: #bdd1d9 !important;
+    background: rgba(2, 12, 22, 0.62) !important;
+    color: #b9c5c6 !important;
     font-size: max(11px, calc(11px * var(--layout-stage-scale))) !important;
     line-height: 1.45;
 }
@@ -6903,9 +6957,11 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 
 #deckBuilderModal .deck-builder-workspace {
     display: grid;
-    grid-template-columns: minmax(calc(300px * var(--layout-stage-scale)), 0.72fr) minmax(0, 1.65fr);
-    gap: calc(18px * var(--layout-stage-scale));
+    grid-template-columns: minmax(calc(286px * var(--layout-stage-scale)), 0.72fr) minmax(0, 1.7fr);
+    gap: calc(20px * var(--layout-stage-scale));
+    height: 100%;
     min-width: 0;
+    min-height: 0;
     align-items: stretch;
 }
 
@@ -6919,12 +6975,13 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 
 #deckBuilderModal .deck-builder-saved-deck-column {
     grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
     min-height: 100%;
 }
 
 #deckBuilderModal .deck-builder-loadout-column {
-    padding-right: calc(18px * var(--layout-stage-scale));
-    border-right: 1px solid rgba(174, 217, 230, 0.18);
+    padding-right: calc(20px * var(--layout-stage-scale));
+    border-right: 1px solid rgba(178, 141, 70, 0.34);
 }
 
 #deckBuilderModal .deck-builder-default-hero.is-active,
@@ -6996,47 +7053,78 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     display: grid !important;
     grid-template-columns: 1fr !important;
     gap: calc(10px * var(--layout-stage-scale));
-    padding: calc(12px * var(--layout-stage-scale));
-    border: 1px solid var(--deck-line);
-    border-radius: calc(14px * var(--layout-stage-scale));
-    background: rgba(5, 14, 27, 0.74);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
 }
 
 #deckBuilderModal .deck-builder-default-hero {
-    min-height: 0;
+    min-height: max(178px, calc(184px * var(--layout-stage-scale)));
     padding: calc(14px * var(--layout-stage-scale)) !important;
-    border: 1px solid rgba(232, 199, 121, 0.36) !important;
-    border-radius: calc(10px * var(--layout-stage-scale)) !important;
-    background: linear-gradient(145deg, rgba(76, 50, 16, 0.66), rgba(17, 27, 40, 0.96)) !important;
+    border: 1px solid rgba(190, 150, 72, 0.72) !important;
+    border-radius: calc(2px * var(--layout-stage-scale)) !important;
+    background:
+        linear-gradient(145deg, rgba(9, 36, 50, 0.9), rgba(3, 15, 27, 0.96)),
+        url('assets/images/ui/deck-builder-night-manuscript-texture.png') center / cover !important;
+    box-shadow: inset 0 0 0 4px rgba(2, 13, 23, 0.88), inset 0 0 0 5px rgba(176, 138, 68, 0.24) !important;
+}
+
+#deckBuilderModal .deck-builder-default-hero::before {
+    border-color: rgba(185, 146, 72, 0.28);
 }
 
 #deckBuilderModal .deck-builder-hero-sigil {
     margin-bottom: calc(4px * var(--layout-stage-scale)) !important;
+    color: #9edce8;
+}
+
+#deckBuilderModal .deck-builder-hero-sigil::before {
+    color: #9edce8;
 }
 
 #deckBuilderModal .deck-builder-default-hero .deck-builder-preset-title {
     font-size: max(18px, calc(19px * var(--layout-stage-scale))) !important;
+    color: var(--deck-text);
+    font-family: 'Yu Mincho', 'Hiragino Mincho ProN', 'Noto Serif JP', 'BIZ UDPMincho', serif;
+    font-weight: 600;
+    letter-spacing: 0.04em;
 }
 
 #deckBuilderModal .deck-builder-default-hero .deck-builder-preset-summary,
 #deckBuilderModal .deck-builder-hero-meta {
     margin-bottom: calc(8px * var(--layout-stage-scale)) !important;
+    color: #b9ced7;
+}
+
+#deckBuilderModal .deck-builder-default-hero .deck-builder-preset-summary b {
+    color: #d9f3f5;
+}
+
+#deckBuilderModal .deck-builder-format-pill {
+    border-color: rgba(141, 221, 228, 0.34);
+    color: #bfe8f0;
+    background: rgba(93, 180, 205, 0.12);
 }
 
 #deckBuilderModal .deck-builder-hero-cta {
+    margin-top: auto;
     min-height: max(38px, calc(38px * var(--layout-stage-scale)));
-    border-radius: calc(7px * var(--layout-stage-scale)) !important;
-    color: #fff3cc !important;
+    border-radius: calc(2px * var(--layout-stage-scale)) !important;
+    color: #eee7d9 !important;
     font-size: max(12px, calc(12px * var(--layout-stage-scale))) !important;
-    border-color: rgba(232, 199, 121, 0.58) !important;
-    background: linear-gradient(180deg, rgba(164, 121, 48, 0.72), rgba(88, 59, 23, 0.9)) !important;
+    border-color: rgba(194, 154, 76, 0.72) !important;
+    background: linear-gradient(180deg, rgba(17, 68, 84, 0.9), rgba(5, 38, 53, 0.96)) !important;
+    box-shadow: inset 0 1px 0 rgba(210, 236, 233, 0.15);
 }
 
 #deckBuilderModal .deck-builder-built-in-preset-section .deck-builder-section-title {
     margin: 0 0 calc(7px * var(--layout-stage-scale));
     padding-bottom: calc(6px * var(--layout-stage-scale));
-    color: #d7eef2 !important;
-    border-bottom: 1px solid rgba(141, 221, 228, 0.18);
+    color: #dcd5c7 !important;
+    border-bottom: 1px solid rgba(174, 139, 71, 0.28);
+    font-family: 'Yu Mincho', 'Hiragino Mincho ProN', 'Noto Serif JP', serif;
+    letter-spacing: 0.05em;
 }
 
 #deckBuilderModal .deck-builder-built-in-preset-grid {
@@ -7050,11 +7138,12 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
         "gem meta"
         "action action" !important;
     gap: calc(6px * var(--layout-stage-scale)) !important;
-    min-height: calc(84px * var(--layout-stage-scale));
+    min-height: max(80px, calc(86px * var(--layout-stage-scale)));
     padding: calc(9px * var(--layout-stage-scale)) !important;
-    border: 1px solid rgba(141, 221, 228, 0.24) !important;
-    border-radius: calc(8px * var(--layout-stage-scale)) !important;
-    background: linear-gradient(145deg, rgba(13, 47, 65, 0.9), rgba(6, 17, 32, 0.96)) !important;
+    border: 1px solid rgba(142, 160, 155, 0.34) !important;
+    border-radius: calc(2px * var(--layout-stage-scale)) !important;
+    background: linear-gradient(145deg, rgba(8, 35, 49, 0.92), rgba(3, 15, 27, 0.97)) !important;
+    box-shadow: inset 3px 0 0 var(--gem-color, #456b62), inset 0 0 0 3px rgba(2, 13, 23, 0.62);
 }
 
 #deckBuilderModal .deck-builder-builtin-gem {
@@ -7063,7 +7152,10 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 }
 
 #deckBuilderModal .deck-builder-builtin-meta .deck-builder-preset-title {
+    font-family: 'Yu Mincho', 'Hiragino Mincho ProN', 'Noto Serif JP', serif;
     font-size: max(12px, calc(12px * var(--layout-stage-scale))) !important;
+    font-weight: 600;
+    letter-spacing: 0.03em;
 }
 
 #deckBuilderModal .deck-builder-builtin-meta .deck-builder-preset-summary {
@@ -7093,34 +7185,37 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     padding: 0 0 calc(10px * var(--layout-stage-scale)) !important;
     min-height: calc(38px * var(--layout-stage-scale));
     color: var(--deck-text) !important;
-    border-bottom: 1px solid rgba(174, 217, 230, 0.2);
+    border-bottom: 1px solid rgba(174, 139, 71, 0.32);
+    font-family: 'Yu Mincho', 'Hiragino Mincho ProN', 'Noto Serif JP', serif;
     font-size: max(20px, calc(22px * var(--layout-stage-scale))) !important;
 }
 
 #deckBuilderModal .deck-builder-section-counter {
     padding: calc(5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
-    border-radius: calc(999px * var(--layout-stage-scale));
-    color: #d4f3f5;
-    background: rgba(19, 69, 78, 0.38);
+    border: 1px solid rgba(174, 139, 71, 0.5);
+    border-radius: calc(2px * var(--layout-stage-scale));
+    color: #ded7c7;
+    background: rgba(3, 18, 29, 0.68);
 }
 
 #deckBuilderModal .deck-builder-workshop-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-template-rows: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, max(172px, calc(178px * var(--layout-stage-scale))));
+    align-content: start;
     align-items: stretch;
     gap: calc(10px * var(--layout-stage-scale)) !important;
 }
 
 #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
-    min-height: calc(152px * var(--layout-stage-scale));
+    min-height: 0;
     height: 100%;
     padding: calc(14px * var(--layout-stage-scale)) !important;
-    border: 1px solid var(--deck-line) !important;
-    border-radius: calc(11px * var(--layout-stage-scale)) !important;
+    border: 1px solid rgba(156, 132, 78, 0.46) !important;
+    border-radius: calc(2px * var(--layout-stage-scale)) !important;
     background:
-        radial-gradient(circle at 100% 0%, rgba(93, 180, 205, 0.12), transparent 42%),
-        linear-gradient(145deg, rgba(16, 38, 59, 0.96), rgba(6, 16, 31, 0.98)) !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+        linear-gradient(145deg, rgba(7, 29, 43, 0.94), rgba(2, 13, 25, 0.98)),
+        url('assets/images/ui/deck-builder-night-manuscript-texture.png') center / cover !important;
+    box-shadow: inset 0 0 0 3px rgba(2, 12, 22, 0.74), inset 0 0 0 4px rgba(148, 119, 62, 0.16);
     transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
@@ -7137,10 +7232,11 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 }
 
 #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card.is-active {
-    border-color: rgba(232, 199, 121, 0.78) !important;
+    border-color: rgba(221, 181, 91, 0.9) !important;
     background:
-        radial-gradient(circle at 100% 0%, rgba(232, 199, 121, 0.22), transparent 44%),
-        linear-gradient(145deg, rgba(73, 52, 22, 0.92), rgba(10, 35, 48, 0.98) 64%, rgba(6, 16, 31, 0.98)) !important;
+        linear-gradient(145deg, rgba(82, 60, 25, 0.86), rgba(7, 31, 43, 0.97) 58%, rgba(2, 13, 25, 0.98)),
+        url('assets/images/ui/deck-builder-night-manuscript-texture.png') center / cover !important;
+    box-shadow: inset 0 0 0 3px rgba(2, 12, 22, 0.72), inset 0 0 0 4px rgba(223, 183, 92, 0.3), 0 0 18px rgba(167, 125, 50, 0.08) !important;
 }
 
 #deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-meta {
@@ -7156,12 +7252,14 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 #deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-meta .deck-builder-preset-title {
     padding-right: 0;
     color: var(--deck-text);
-    font-size: max(17px, calc(18px * var(--layout-stage-scale)));
+    font-family: 'Yu Mincho', 'Hiragino Mincho ProN', 'Noto Serif JP', serif;
+    letter-spacing: 0.03em;
+    font-size: max(16px, calc(17px * var(--layout-stage-scale))) !important;
 }
 
 #deckBuilderModal .deck-builder-workshop-grid .deck-builder-preset-summary {
     color: var(--deck-muted);
-    font-size: max(10px, calc(10px * var(--layout-stage-scale)));
+    font-size: max(10px, calc(10px * var(--layout-stage-scale))) !important;
 }
 
 #deckBuilderModal .deck-builder-workshop-grid .deck-builder-slot-count-orb {
@@ -7173,7 +7271,8 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     margin: 0;
     padding: 0;
     border: 1px solid rgba(141, 221, 228, 0.22);
-    border-radius: calc(7px * var(--layout-stage-scale));
+    border-color: rgba(158, 130, 72, 0.52);
+    border-radius: calc(2px * var(--layout-stage-scale));
     background: rgba(8, 27, 43, 0.76);
     box-shadow: none;
 }
@@ -7226,7 +7325,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 #deckBuilderModal .deck-builder-workshop-grid .deck-builder-actions-row .btn-small {
     width: 100%;
     min-height: max(40px, calc(40px * var(--layout-stage-scale))) !important;
-    border-radius: calc(7px * var(--layout-stage-scale)) !important;
+    border-radius: calc(2px * var(--layout-stage-scale)) !important;
     font-size: max(11px, calc(11px * var(--layout-stage-scale))) !important;
 }
 
@@ -7245,21 +7344,36 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 #deckBuilderModal .deck-builder-save-slot-card.is-empty {
     justify-content: center !important;
     border-style: dashed !important;
-    border-color: rgba(141, 221, 228, 0.38) !important;
-    background: rgba(7, 22, 37, 0.66) !important;
+    border-color: rgba(139, 169, 165, 0.44) !important;
+    background:
+        linear-gradient(rgba(2, 16, 28, 0.7), rgba(2, 16, 28, 0.7)),
+        url('assets/images/ui/deck-builder-night-manuscript-texture.png') center / cover !important;
 }
 
 #deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo {
-    width: calc(46px * var(--layout-stage-scale)) !important;
-    height: calc(46px * var(--layout-stage-scale)) !important;
+    width: max(44px, calc(46px * var(--layout-stage-scale))) !important;
+    height: max(44px, calc(46px * var(--layout-stage-scale))) !important;
     border-radius: 50%;
-    background: rgba(38, 107, 123, 0.14);
+    border-color: rgba(186, 150, 76, 0.58);
+    background: rgba(14, 48, 58, 0.22);
     transform: none;
 }
 
 #deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-plus {
-    top: calc(20px * var(--layout-stage-scale)) !important;
-    font-size: max(26px, calc(26px * var(--layout-stage-scale))) !important;
+    display: block !important;
+    top: max(36px, calc(40px * var(--layout-stage-scale))) !important;
+    color: #d2ad5d;
+    font-family: ui-monospace, 'Cascadia Code', monospace;
+    font-size: max(24px, calc(24px * var(--layout-stage-scale))) !important;
+}
+
+#deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo {
+    display: grid !important;
+    place-items: center;
+}
+
+#deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo::after {
+    content: none;
 }
 
 #deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-cta {
@@ -7275,7 +7389,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     padding: calc(18px * var(--layout-stage-scale));
     background:
         linear-gradient(90deg, rgba(4, 10, 20, 0.9), rgba(7, 18, 33, 0.78)),
-        url('assets/images/ui/deck-atelier-observatory.png') center / cover fixed;
+        url('assets/images/ui/deck-builder-night-manuscript-texture.png') center / cover fixed;
 }
 
 #deckBuilderModal .deck-builder-editor-top {
@@ -7342,7 +7456,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     background: rgba(3, 12, 23, 0.88);
 }
 
-#deckBuilderModal .deck-builder-section-title {
+#deckBuilderModal .deck-builder-view-editor .deck-builder-section-title {
     color: #edf4f2 !important;
     font-size: max(13px, calc(13px * var(--layout-stage-scale))) !important;
 }
@@ -7377,16 +7491,16 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     outline-offset: 2px;
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 901px) {
     #deckBuilderModal .deck-builder-workshop-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-        grid-template-rows: repeat(2, minmax(0, 1fr));
+        grid-template-rows: repeat(2, max(172px, calc(178px * var(--layout-stage-scale))));
     }
 }
 
 @media (min-width: 761px) and (max-height: 780px) {
     #deckBuilderModal .deck-builder-atelier-stage {
-        padding: calc(12px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
+        padding: calc(16px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale));
     }
 
     #deckBuilderModal .deck-builder-atelier-stage .deck-builder-intro {
@@ -7394,12 +7508,12 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     }
 
     #deckBuilderModal .deck-builder-workspace {
-        gap: calc(12px * var(--layout-stage-scale));
+        gap: calc(16px * var(--layout-stage-scale));
     }
 
     #deckBuilderModal .deck-builder-loadout-column {
         gap: calc(8px * var(--layout-stage-scale));
-        padding-right: calc(12px * var(--layout-stage-scale));
+        padding-right: calc(16px * var(--layout-stage-scale));
     }
 
     #deckBuilderModal .deck-builder-active-deck-hero {
@@ -7417,15 +7531,17 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 
     #deckBuilderModal .deck-builder-fixed-library {
         gap: calc(7px * var(--layout-stage-scale));
-        padding: calc(9px * var(--layout-stage-scale));
+        padding: 0;
     }
 
     #deckBuilderModal .deck-builder-default-hero {
+        min-height: max(178px, calc(184px * var(--layout-stage-scale)));
         padding: calc(10px * var(--layout-stage-scale)) !important;
     }
 
     #deckBuilderModal .deck-builder-hero-meta {
-        display: none;
+        display: flex !important;
+        margin-bottom: calc(5px * var(--layout-stage-scale)) !important;
     }
 
     #deckBuilderModal .deck-builder-built-in-preset-grid {
@@ -7433,7 +7549,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     }
 
     #deckBuilderModal .deck-builder-builtin-card {
-        min-height: calc(70px * var(--layout-stage-scale));
+        min-height: max(80px, calc(86px * var(--layout-stage-scale)));
         padding: calc(7px * var(--layout-stage-scale)) !important;
     }
 
@@ -7446,7 +7562,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     }
 
     #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
-        min-height: calc(142px * var(--layout-stage-scale));
+        min-height: 0;
         padding: calc(11px * var(--layout-stage-scale)) !important;
     }
 
@@ -7458,10 +7574,13 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 @media (max-width: 900px) {
     #deckBuilderModal .deck-builder-workspace {
         grid-template-columns: 1fr;
+        height: auto;
+        gap: calc(16px * var(--layout-stage-scale));
     }
 
     #deckBuilderModal .deck-builder-saved-deck-column {
         grid-template-rows: auto auto;
+        height: auto;
         min-height: auto;
     }
 
@@ -7488,8 +7607,12 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     }
 
     #deckBuilderModalHeader {
-        min-height: calc(58px * var(--layout-stage-scale));
+        min-height: max(58px, calc(58px * var(--layout-stage-scale)));
         padding: calc(8px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) !important;
+    }
+
+    #deckBuilderModal .deck-builder-title {
+        font-size: 22px !important;
     }
 
     #deckBuilderModal #deckBuilderHeaderSummary {
@@ -7543,6 +7666,14 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
         min-height: 44px;
     }
 
+    #deckBuilderModal .deck-builder-destination-row {
+        flex-wrap: wrap;
+    }
+
+    #deckBuilderModal .deck-builder-destination-row .deck-builder-randomize-btn {
+        min-height: 44px;
+    }
+
     #deckBuilderModal .deck-builder-builtin-card .deck-builder-actions-row .btn-small,
     #deckBuilderModal .deck-builder-hero-cta {
         font-size: 13px !important;
@@ -7567,4 +7698,169 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     #deckBuilderModal .deck-builder-card {
         transition: none;
     }
+}
+
+/* ============================================================
+   Deck Workshop — user review correction
+   The generated texture is intentionally visible as a material layer while
+   DOM content remains live and accessible above it.
+   ============================================================ */
+#deckBuilderModal {
+    isolation: isolate;
+}
+
+#deckBuilderModal::after {
+    background-image:
+        url('assets/images/ui/deck-builder-night-manuscript-texture.png'),
+        radial-gradient(circle at 18% 12%, rgba(191, 151, 71, 0.1), transparent 29%),
+        radial-gradient(circle at 88% 86%, rgba(77, 153, 166, 0.1), transparent 34%);
+    background-size: 720px 720px, auto, auto;
+    background-repeat: repeat, no-repeat, no-repeat;
+    background-position: center, center, center;
+    opacity: 0.2;
+    mix-blend-mode: screen;
+}
+
+#deckBuilderModal .deck-builder-atelier-shell {
+    position: relative;
+    isolation: isolate;
+    background-image:
+        linear-gradient(100deg, rgba(2, 9, 17, 0.5), rgba(4, 15, 27, 0.42) 52%, rgba(3, 12, 22, 0.54)),
+        url('assets/images/ui/deck-builder-night-manuscript-texture.png');
+    background-size: auto, 660px 660px;
+    background-repeat: no-repeat, repeat;
+    background-blend-mode: normal, screen;
+}
+
+#deckBuilderModal .deck-builder-atelier-stage,
+#deckBuilderModal .deck-builder-atelier-rail {
+    position: relative;
+    z-index: 1;
+}
+
+#deckBuilderModal .deck-builder-default-hero,
+#deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
+    background-size: auto, 480px 480px !important;
+    background-repeat: no-repeat, repeat !important;
+    outline: 1px solid rgba(219, 178, 91, 0.16);
+    outline-offset: -5px;
+}
+
+#deckBuilderModal .deck-builder-default-hero {
+    background-image:
+        linear-gradient(145deg, rgba(9, 36, 50, 0.76), rgba(3, 15, 27, 0.84)),
+        url('assets/images/ui/deck-builder-night-manuscript-texture.png') !important;
+    background-blend-mode: normal, screen;
+}
+
+#deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
+    background-image:
+        linear-gradient(145deg, rgba(7, 29, 43, 0.76), rgba(2, 13, 25, 0.84)),
+        url('assets/images/ui/deck-builder-night-manuscript-texture.png') !important;
+    background-blend-mode: normal, screen;
+    box-shadow:
+        inset 0 0 0 3px rgba(2, 12, 22, 0.68),
+        inset 0 0 0 4px rgba(186, 148, 75, 0.24),
+        0 12px 25px rgba(0, 0, 0, 0.22) !important;
+}
+
+#deckBuilderModal .deck-builder-save-slot-card.is-empty {
+    background-image:
+        linear-gradient(rgba(2, 16, 28, 0.5), rgba(2, 16, 28, 0.5)),
+        url('assets/images/ui/deck-builder-night-manuscript-texture.png') !important;
+    background-blend-mode: normal, screen;
+}
+
+#deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo {
+    display: grid !important;
+    place-items: center !important;
+    position: relative !important;
+}
+
+#deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo > .deck-builder-empty-plus {
+    position: static !important;
+    inset: auto !important;
+    display: grid !important;
+    place-items: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    transform: none !important;
+    font-family: ui-monospace, 'Cascadia Code', monospace;
+    font-size: max(24px, calc(24px * var(--layout-stage-scale))) !important;
+    line-height: 1 !important;
+    color: #d2ad5d;
+}
+
+/* ============================================================
+   Deck Workshop — density correction
+   Keep content panels at their intended density.  The reference layout
+   intentionally leaves breathing room beneath the fixed-density cards.
+   ============================================================ */
+@media (min-width: 901px) and (min-height: 781px) {
+    #deckBuilderModal .deck-builder-atelier-shell,
+    #deckBuilderModal .deck-builder-atelier-stage,
+    #deckBuilderModal .deck-builder-atelier-stage .deck-builder-view-presets,
+    #deckBuilderModal .deck-builder-workspace,
+    #deckBuilderModal .deck-builder-loadout-column,
+    #deckBuilderModal .deck-builder-saved-deck-column {
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    #deckBuilderModal .deck-builder-atelier-shell {
+        align-items: start;
+    }
+
+    #deckBuilderModal .deck-builder-atelier-stage .deck-builder-view-presets {
+        grid-template-rows: auto auto;
+    }
+
+    #deckBuilderModal .deck-builder-workspace {
+        align-items: start;
+    }
+
+    #deckBuilderModal .deck-builder-fixed-library {
+        height: auto !important;
+        min-height: 0 !important;
+        grid-template-rows: auto auto !important;
+        align-content: start !important;
+    }
+
+    #deckBuilderModal .deck-builder-built-in-preset-grid {
+        height: auto !important;
+        min-height: 0 !important;
+        grid-template-rows: repeat(2, minmax(0, auto)) !important;
+        align-content: start !important;
+    }
+
+    #deckBuilderModal .deck-builder-built-in-preset-grid .deck-builder-builtin-card {
+        height: auto !important;
+        min-height: max(80px, calc(86px * var(--layout-stage-scale))) !important;
+    }
+
+    #deckBuilderModal .deck-builder-workshop-grid {
+        grid-template-rows: repeat(2, max(172px, calc(178px * var(--layout-stage-scale)))) !important;
+        align-content: start !important;
+    }
+
+    #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
+        height: 100% !important;
+        min-height: 0 !important;
+    }
+}
+
+/* The archive is content-sized on roomy screens; max-height remains the
+   safety net for short viewports where the body should scroll. */
+#deckBuilderModal {
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+#deckBuilderModal #deckBuilderBody {
+    flex: 0 1 auto !important;
+}
+
+#deckBuilderModal .deck-builder-atelier-shell {
+    min-height: 0 !important;
 }

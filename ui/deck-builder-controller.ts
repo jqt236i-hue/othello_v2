@@ -1052,17 +1052,6 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             return `デフォルトデッキ / ${targetChoice.deckSize}枚`;
         }
 
-        function formatEffectiveChoiceSummary(effective: any) {
-            if (!effective.roomOverrideActive) {
-                return `実対局に使うデッキ: ${formatLocalChoiceSummary(effective.choice)}`;
-            }
-
-            if (effective.choice.mode === 'custom') {
-                return `実対局に使うデッキ: 部屋デッキ / ${effective.choice.deckSize}枚（退出後はローカル設定へ戻ります）`;
-            }
-            return `実対局に使うデッキ: 部屋デッキ / デフォルトデッキ（退出後はローカル設定へ戻ります）`;
-        }
-
         function buildPresetViewModel() {
             return state.presetState.presets.map((preset: any, index: any) => {
                 const slotNumberLabel = `No.${String(index + 1).padStart(2, '0')}`;
@@ -1232,7 +1221,6 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 roomOverrideActive: effective.roomOverrideActive,
                 controlSummaryText: formatLocalChoiceSummary(state.activeLocalChoice),
                 headerSummaryText: buildHeaderSummaryText(),
-                effectiveSummaryText: formatEffectiveChoiceSummary(effective),
                 noticeText: state.noticeText,
                 noticeIsError: state.noticeIsError,
                 standardSummaryText: `${getDefaultDeckSize()}枚 / 有効カードから重複なしランダム`,
@@ -1267,6 +1255,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
                 onEditorShowCardDetail: showEditorCardDetail,
                 onEditorCloseCardDetail: closeEditorCardDetail,
                 onEditorImportCode: importEditorCode,
+                onEditorRandomize: randomizeEditorDraft,
                 onEditorSave: saveEditorPreset,
                 onEditorUse: useEditorDraft,
                 onEditorCopyCode: copyEditorCode
@@ -1327,7 +1316,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
 
         function useStandardDeck() {
             setLocalActiveChoice(createStandardChoice({ source: 'standard' }));
-            emitNotice('デフォルトデッキへ切り替えました', false, true);
+            clearNotice();
             render();
         }
 
@@ -1356,7 +1345,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             }
 
             setLocalActiveChoice(choice);
-            emitNotice(`${displayName} を使用中にしました`, false, true);
+            clearNotice();
             render();
         }
 
@@ -1381,7 +1370,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             }
 
             setLocalActiveChoice(presetChoice);
-            emitNotice(`${presetName} を使用中にしました`, false, true);
+            clearNotice();
             render();
         }
 
@@ -1486,6 +1475,18 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             state.editor.draft = DeckBuilderStateModule.createDraftFromDeckSpec(deckSpec);
             state.editor.codeInputValue = DeckCodecModule.encodeDeckSpec(deckSpec);
             emitNotice('deckCode からデッキを読み込みました', false, false);
+            renderPreservingEditorScroll();
+        }
+
+        function randomizeEditorDraft() {
+            try {
+                state.editor.draft = DeckBuilderStateModule.createRandomFullDraft(opts.randomSource);
+                state.editor.detailCardId = '';
+                syncEditorCodeFromDraft();
+                emitNotice('30枚のランダムデッキを生成しました（未保存）', false, false);
+            } catch (e: any) {
+                emitNotice('ランダムデッキを生成できませんでした', true, false);
+            }
             renderPreservingEditorScroll();
         }
 

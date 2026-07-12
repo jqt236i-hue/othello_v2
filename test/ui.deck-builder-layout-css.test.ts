@@ -63,6 +63,17 @@ describe('deck builder layout CSS', () => {
     expect(css).toMatch(/^\.btn-small:hover:not\(:disabled\),\s*\n\.btn-small:focus-visible\s*\{[\s\S]*rgba\(95,\s*205,\s*220,\s*0\.42\)/m);
   });
 
+  test('random deck button stays touch-friendly and wraps on narrow screens', () => {
+    const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const css = fs.readFileSync(cssPath, 'utf8');
+
+    expect(css).toMatch(/\.deck-builder-destination-row\s+\.deck-builder-randomize-btn\s*\{[\s\S]*white-space:\s*nowrap/);
+    expect(css).toMatch(/\.deck-builder-randomize-die\s*\{[\s\S]*aspect-ratio:\s*1[\s\S]*border-radius:[\s\S]*linear-gradient/);
+    expect(css).toMatch(/\.deck-builder-randomize-die::after\s*\{[\s\S]*border-radius:\s*50%[\s\S]*box-shadow:/);
+    expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-destination-row\s*\{[\s\S]*flex-wrap:\s*wrap/);
+    expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-destination-row\s+\.deck-builder-randomize-btn\s*\{[\s\S]*min-height:\s*44px/);
+  });
+
   test('tablet landscape fits the selection surface without relying on vertical scrolling', () => {
     const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
     const css = fs.readFileSync(cssPath, 'utf8');
@@ -71,5 +82,19 @@ describe('deck builder layout CSS', () => {
     expect(tabletFitSection).toMatch(/@media\s*\(min-width:\s*761px\)\s*and\s*\(max-height:\s*900px\)/);
     expect(tabletFitSection).toMatch(/\.deck-builder-workshop-grid\s*>\s*\.deck-builder-save-slot-card\s*\{[\s\S]*min-height:\s*calc\(136px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(tabletFitSection).toMatch(/#deckBuilderModal\s+#deckBuilderBody\s*\{[\s\S]*touch-action:\s*pan-y/);
+  });
+
+  test('night manuscript theme uses the generated texture and keeps a three-by-two desktop workshop', () => {
+    const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const texturePath = path.join(__dirname, '..', 'assets', 'images', 'ui', 'deck-builder-night-manuscript-texture.png');
+    const css = fs.readFileSync(cssPath, 'utf8');
+    const finalSection = css.split('Deck Workshop — comparison-first workspace')[1] || '';
+
+    expect(fs.existsSync(texturePath)).toBe(true);
+    expect(finalSection).toMatch(/url\(['"]assets\/images\/ui\/deck-builder-night-manuscript-texture\.png['"]\)/);
+    expect(finalSection).toMatch(/--deck-gold:\s*#d8b463/);
+    expect(finalSection).toMatch(/font-family:\s*'Yu Mincho',[\s\S]*'Noto Serif JP'/);
+    expect(finalSection).toMatch(/@media\s*\(min-width:\s*901px\)[\s\S]*grid-template-columns:\s*repeat\(3,[\s\S]*grid-template-rows:\s*repeat\(2,/);
+    expect(finalSection).toMatch(/\.deck-builder-save-slot-card\.is-empty[\s\S]*border-style:\s*dashed\s*!important/);
   });
 });

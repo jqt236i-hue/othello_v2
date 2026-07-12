@@ -500,6 +500,10 @@ function createEmptySlotCtaElements() {
   plus.setAttribute('aria-hidden', 'true');
   plus.textContent = '+';
 
+  // Keep the affordance inside its ring so CSS can center the glyph against
+  // the ring itself instead of relying on a card-height-specific offset.
+  halo.appendChild(plus);
+
   const cta = document.createElement('div');
   cta.className = 'deck-builder-empty-cta';
   cta.setAttribute('aria-hidden', 'true');
@@ -535,7 +539,7 @@ function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTM
 
   // Empty slot — halo + plus + cta + slot number label only
   if (slotState === 'empty') {
-    const { halo, plus, cta } = createEmptySlotCtaElements();
+    const { halo, cta } = createEmptySlotCtaElements();
 
     // Hidden title for back-compat with old test/a11y expectations ("空きスロット N")
     if (typeof opts.slotIndex === 'number') {
@@ -546,7 +550,6 @@ function createPresetCard(preset: any, actions: HTMLElement, options?: any): HTM
     }
 
     presetCard.appendChild(halo);
-    presetCard.appendChild(plus);
     presetCard.appendChild(cta);
     presetCard.appendChild(actions);
     return presetCard;
@@ -841,12 +844,14 @@ function renderEditorView(container: HTMLElement, viewModel: any, handlers: any)
   topRow.appendChild(createButton('戻る', 'btn-small', handlers.onEditorBack));
   wrapper.appendChild(topRow);
 
-  const destinationRow = document.createElement('label');
+  const destinationRow = document.createElement('div');
   destinationRow.className = 'deck-builder-name-row deck-builder-destination-row';
-  const destinationLabel = document.createElement('span');
+  const destinationLabel = document.createElement('label');
   destinationLabel.textContent = '保存先';
+  destinationLabel.htmlFor = 'deckBuilderPresetDestinationSelect';
   destinationRow.appendChild(destinationLabel);
   const destinationSelect = document.createElement('select');
+  destinationSelect.id = 'deckBuilderPresetDestinationSelect';
   destinationSelect.className = 'deck-builder-preset-destination-select compact-select';
   const presetOptions = Array.isArray(editor.presetOptions) ? editor.presetOptions : [];
   presetOptions.forEach((preset: any) => {
@@ -860,6 +865,18 @@ function renderEditorView(container: HTMLElement, viewModel: any, handlers: any)
     handlers.onEditorDestinationChange(destinationSelect.value);
   });
   destinationRow.appendChild(destinationSelect);
+  const randomizeButton = createButton(
+    'ランダム生成',
+    'btn-small deck-builder-randomize-btn',
+    handlers.onEditorRandomize,
+    { title: '有効カードから30枚をランダム生成' }
+  );
+  randomizeButton.setAttribute('aria-label', 'ランダムな30枚デッキを生成');
+  const randomizeDie = document.createElement('span');
+  randomizeDie.className = 'deck-builder-randomize-die';
+  randomizeDie.setAttribute('aria-hidden', 'true');
+  randomizeButton.appendChild(randomizeDie);
+  destinationRow.appendChild(randomizeButton);
   wrapper.appendChild(destinationRow);
 
   const nameRow = document.createElement('label');
@@ -996,13 +1013,6 @@ function renderDeckBuilder(refs: any, viewModel: any, handlers: any, options?: a
     notice.className = `deck-builder-notice${model.noticeIsError ? ' is-error' : ''}`;
     notice.textContent = model.noticeText;
     uiRefs.body.appendChild(notice);
-  }
-
-  if (model.effectiveSummaryText) {
-    const effectiveSummary = document.createElement('div');
-    effectiveSummary.className = 'deck-builder-effective-summary';
-    effectiveSummary.textContent = model.effectiveSummaryText;
-    uiRefs.body.appendChild(effectiveSummary);
   }
 
   if (model.view === 'editor') {
