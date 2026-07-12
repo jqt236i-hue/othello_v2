@@ -1,4 +1,4 @@
-# 特殊石・顕現石キャラクターボイス全面置換 実装計画
+# 特殊石キャラクターボイス全面置換 実装計画
 
 - 作成日: 2026-07-12
 - 状態: Reviewed implementation plan
@@ -7,9 +7,9 @@
 
 ## 0. 文書の役割
 
-この計画は、最新キャラクター設定を基に、罠・爆弾を除く特殊石26種のゲーム内吹き出しと顕現石3種の特殊カード固有セリフを全面置換する実装手順である。実装モデルは設計書を仕様判断の正本とし、本文書の順序で正本、台本、root source、テスト、生成物を更新する。
+この計画は、最新キャラクター設定を基に、罠・爆弾を除く特殊石26種のゲーム内吹き出しを全面置換する実装手順である。実装モデルは設計書を仕様判断の正本とし、本文書の順序で正本、台本、root source、テスト、生成物を更新する。
 
-非目標は、ゲームルール変更、UIデザイン刷新、音声追加、顕現石の盤上吹き出し追加、routine能力発動ごとの発話追加である。
+非目標は、ゲームルール変更、UIデザイン刷新、音声追加、顕現石の既存固有セリフ変更・削除・新規吹き出し追加、routine能力発動ごとの発話追加である。
 
 ## 1. 開始前確認
 
@@ -24,9 +24,8 @@
    - `game/turn/turn_pipeline_phase_helpers.ts`
    - `game/turn/presentation-helpers.ts`
    - `game/turn/pipeline-ui/passive-event-playback.ts`
-   - `shared/special-card-registry.ts`
 3. `node -e` またはfocused inspectionで現行 `SPECIAL_STONE_BUBBLE_SPEECH` の石種・シナリオ一覧を保存し、置換後比較に使う。
-4. 旧セリフが存在するactive sourceを `rg` で列挙する。最低限、労働石固定文、顕現石3文、`GENERIC_LIVING_WILL_RESTORED_LINES`、`placeLines`、`lostLine` を確認する。
+4. 旧特殊石セリフが存在するactive sourceを `rg` で列挙する。最低限、労働石固定文、`GENERIC_LIVING_WILL_RESTORED_LINES`、`placeLines`、`lostLine` を確認する。
 
 ### 完了条件
 
@@ -41,19 +40,13 @@
 特殊石吹き出し節を設計書どおり更新する。
 
 - 労働石の旧文固定・既存文維持要件を削除する。
-- 対象を特殊石26種、除外を罠・爆弾系と明記する。
+- 対象を特殊石26種、除外を罠・爆弾系・顕現石と明記する。
 - 標準シナリオ `place` / `destroy` / `duration_end` / `normal_revert` / `living_will_restored` のプレイヤー向け意味を書く。
 - 専用シナリオに時間停神、屍石感染・復活、労働収入を追加する。
 - routine能力発動では話さないこと、専用発話と破壊発話を重ねないことを書く。
-- 顕現石は特殊カード固有セリフだけを持ち、盤上の配置・終了吹き出しを追加しないことを維持する。
-- 理論の化身、盤界の執行者、盤理の観測者の新しい固定固有セリフを、各カード節と特殊カード演出節の両方へ反映する。
+- 顕現石は現時点の改稿対象外で、既存固有セリフを変更・削除せず、盤上の配置・終了吹き出しも追加しないことを明記する。
 
-### 2.2 `正本/演出正本.md`
-
-- 顕現石3種の固有セリフだけを新文へ更新する。
-- 暗転、立ち絵、背景、BGM、効果、短期サマリー、終了2秒演出の順序や時間は変更しない。
-
-### 2.3 `special-stone-speech-draft.md`
+### 2.2 `special-stone-speech-draft.md`
 
 既存内容を最新台本へ全面改稿する。
 
@@ -63,8 +56,7 @@
 - 全26種へ `place` / `destroy` / `living_will_restored` を各5文用意する。
 - 行列で必要な `duration_end` / `normal_revert` / 専用シナリオを各5文用意する。
 - 労働収入はstep 1～5の固定文を用意する。
-- 顕現石3種は固定固有セリフと `quoteLines` の意図した改行を記載する。
-- 絶対保護石、継承多動石、罠、爆弾、石状態、配置時効果のセリフを含めない。
+- 絶対保護石、継承多動石、罠、爆弾、石状態、配置時効果、顕現石のセリフを含めない。
 - 既存文は「いっぱい食べる俺が好き」を明示採用する場合を除き再利用しない。
 
 ### 執筆チェック
@@ -82,16 +74,16 @@
 
 ```powershell
 git diff --check
-rg -n "絶対保護石|継承多動石|罠石|時限爆弾|十字爆弾|クロス爆弾" special-stone-speech-draft.md
+rg -n "絶対保護石|継承多動石|罠石|時限爆弾|十字爆弾|クロス爆弾|理論の化身|盤界の執行者|盤理の観測者" special-stone-speech-draft.md
 ```
 
 除外名は冒頭の「除外対象」記述以外のセリフ見出し・本文に存在しないことを確認する。
 
 ### 完了条件
 
-- プレイヤー表示仕様が新しい対象・優先順位・顕現固定文を定めている。
+- プレイヤー表示仕様が新しい対象・優先順位と顕現石除外を定めている。
 - 台本だけを読めば、実装者が全候補を転記できる。
-- 設定メモ、rulebook、演出正本、台本の人格と顕現固定文が一致する。
+- 設定メモ、rulebook、台本の特殊石人格が一致する。
 
 ### コミット
 
@@ -282,52 +274,51 @@ npm run test:jest -- --runTestsByPath `
 - 新規生成イベントは新カタログ本文だけを表示する。
 - UIとSingle Visual Writerに変更がない。
 
-## 6. 顕現石の固定固有セリフを置換する
+## 6. 顕現石の非変更を監査する
 
 ### 対象
 
 - `shared/special-card-registry.ts`
+- `01-rulebook.md` の顕現石カード節・特殊カード演出節
+- `正本/演出正本.md`
 - `test/shared.special-card-registry.test.ts`
 - `test/game.pipeline-ui-adapter.sound-cue.test.ts`
 - `test/ui.animation-feedback-events.sound-keys.test.ts`
 
 ### 作業
 
-- 台本で確定した3体の `quote` / `quoteLines` を反映する。
-- `quoteLines.join('')` が、意図した句読点・空白を除き `quote` と同じ全文になることを確認する。
-- 執行者の固定文には「俺様」、観測者の固定文には「ぞよ」を含める。
-- カードID、markerType、画像、背景、BGM、cinematicKeyは変更しない。
+- task diffを確認し、顕現石3種の `quote` / `quoteLines` が変更されていないことを確認する。
+- rulebookの既存固有セリフ、演出正本、関連テスト期待値が変更されていないことを確認する。
+- 特殊石セリフカタログに `THEORY_INCARNATION`、`BOARD_EXECUTOR`、`OBSERVER_WILL` が追加されていないことを確認する。
+- 顕現石の配置時・持続切れ・終了時に `SPECIAL_STONE_BUBBLE` を出す経路が追加されていないことを確認する。
 
 ### 検証
 
 ```powershell
-npm run test:jest -- --runTestsByPath `
-  test\shared.special-card-registry.test.ts `
-  test\game.pipeline-ui-adapter.sound-cue.test.ts `
-  test\ui.animation-feedback-events.sound-keys.test.ts
+git diff -- shared/special-card-registry.ts 正本/演出正本.md test/shared.special-card-registry.test.ts test/ui.animation-feedback-events.sound-keys.test.ts
+rg -n "THEORY_INCARNATION|BOARD_EXECUTOR|OBSERVER_WILL" game/turn/turn_pipeline_phase_helpers.ts
 ```
 
 ### 完了条件
 
-- 3体の固有セリフが台本・rulebook・演出正本・registryで一致する。
-- 暗転演出と文字送りの既存contractが維持される。
-- 顕現石の盤上終了文は追加されていない。
+- 顕現石の既存固有セリフ・演出・テスト期待値にtask-owned diffがない。
+- 顕現石の盤上吹き出しが追加されていない。
 
 ## 7. 旧文・対象漏れ・重複を監査する
 
 ### 作業
 
 1. 変更前に保存した旧セリフ一覧とactive sourceを比較する。
-2. 明示再採用した「いっぱい食べる俺が好き」以外の旧本文が、active source・rulebook・演出正本・台本に残っていないことを確認する。
+2. 明示再採用した「いっぱい食べる俺が好き」以外の旧特殊石本文が、active source・rulebook・台本に残っていないことを確認する。
 3. `GENERIC_LIVING_WILL_RESTORED_LINES`、`FALLBACK_WORK_BUBBLE_SPEECH` の旧本文、`DEFAULT_WORK_LOST_BUBBLE_TEXT` がないことを確認する。
-4. カタログのexact target setが26種、manifest registryが3種であることを確認する。
-5. 罠・爆弾が発話カタログに含まれないことを確認する。
+4. カタログのexact target setが26種であることを確認する。
+5. 罠・爆弾・顕現石が発話カタログに含まれないことを確認する。
 
 ### 代表コマンド
 
 ```powershell
 rg -n "GENERIC_LIVING_WILL_RESTORED_LINES|FALLBACK_WORK_BUBBLE_SPEECH|DEFAULT_WORK_LOST_BUBBLE_TEXT|placeLines|lostLine" game test
-rg -n "TRAP_REVEAL|TRAP|TIME_BOMB|CROSS_BOMB|X_BOMB" game/turn/turn_pipeline_phase_helpers.ts
+rg -n "TRAP_REVEAL|TRAP|TIME_BOMB|CROSS_BOMB|X_BOMB|THEORY_INCARNATION|BOARD_EXECUTOR|OBSERVER_WILL" game/turn/turn_pipeline_phase_helpers.ts
 ```
 
 `placeLines` / `lostLine` は他機能の無関係な一致を目視分類し、特殊石セリフ旧形式だけが消えていることを確認する。
@@ -363,9 +354,7 @@ npm run test:jest -- --runTestsByPath `
   test\game.zombie-will.test.ts `
   test\game.theory-incarnation.test.ts `
   test\game.will-hunter-king.test.ts `
-  test\shared.special-card-registry.test.ts `
   test\ui.animation-engine.observer-bubble.test.ts `
-  test\ui.animation-feedback-events.sound-keys.test.ts `
   test\ui.animation-special-stone-phase-batching.test.ts `
   test\network.playback-event-assembly.contract.test.ts
 ```
@@ -410,10 +399,9 @@ npm run worker:prepare
 - 吹き出し表示中もクリック操作を妨げない。
 - 生きる意志復活で破壊文が重ならない。
 - 時間停神、屍石感染、屍石復活で専用文が1回だけ出る。
-- 顕現石3種の暗転固有セリフ、一文字送り、固定改行が正しい。
-- 顕現終了時に文言が出ない。
+- 顕現石の暗転演出・固有セリフ・終了演出が今回の変更前と同じである。
 
-必要なら最小のPlaywright/Jest E2Eを追加する。スクリーンショットは代表的な短文、最長文、顕現固定文を各1枚残す。
+必要なら最小のPlaywright/Jest E2Eを追加する。スクリーンショットは代表的な短文と最長文を各1枚残す。
 
 ### 完了条件
 
@@ -429,12 +417,12 @@ npm run worker:prepare
 3. 次の差分を個別に確認する。
    - player-visible specと台本
    - speech catalogとpresentation routing
-   - manifest registry
+   - 顕現石関連ファイルにtask diffがないこと
    - tests
    - `build:browser` / `worker:prepare` による生成・mirror差分
 4. 無関係な変更をstageしない。
 5. 実装・テスト・生成物が一体なら1commit、仕様台本を先行commit済みなら実装完了commitを分ける。
-6. 最終報告に、変更対象29体、除外対象、実行コマンドと結果、browser実機確認内容、commit ID、残存する無関係dirty fileを記載する。
+6. 最終報告に、変更対象特殊石26種、除外対象、実行コマンドと結果、browser実機確認内容、commit ID、残存する無関係dirty fileを記載する。
 
 ### 完了条件
 
@@ -445,26 +433,26 @@ npm run worker:prepare
 ## 11. 完了チェックリスト
 
 - [ ] 設定メモの特殊石26種が全て新しい吹き出し台本を持つ（Step 2、3）
-- [ ] 顕現石3種が新しい固定固有セリフを持つ（Step 2、6）
-- [ ] 罠・爆弾系を含めていない（Step 2、3、7）
-- [ ] 執行者が性別不詳の俺様口調、観測者が性別不詳の「～ぞよ」口調である（Step 2、6）
+- [ ] 罠・爆弾系・顕現石を含めていない（Step 2、3、6、7）
 - [ ] 全候補が人格固有で重複なし、長さ制約内である（Step 2、3、7）
 - [ ] 汎用の生きる意志復活文がなく、26種それぞれの復活文がある（Step 3、4）
 - [ ] 時間停神と屍石の専用発話がある（Step 3、4）
 - [ ] 労働石の旧形式・旧フォールバック本文が残らない（Step 3、4、5、7）
 - [ ] 専用シナリオと破壊・終了文が二重表示されない（Step 4、5）
 - [ ] routine能力で毎ターン3秒発話を追加していない（Step 4）
-- [ ] 顕現石の配置・終了吹き出しを追加していない（Step 2、6、9）
+- [ ] 顕現石の既存固有セリフを変更・削除せず、新規吹き出しも追加していない（Step 2、6、9）
 - [ ] presentation/playback typeとcanonical stateを変更していない（Step 4、5、8）
 - [ ] focused tests、typecheck、network parityが通る（Step 8）
 - [ ] `npm run build:browser` と `npm run worker:prepare` が通る（Step 9）
-- [ ] デスクトップ・狭幅・顕現演出を実機確認した（Step 9）
+- [ ] デスクトップ・狭幅の特殊石吹き出しを実機確認した（Step 9）
 - [ ] 最終diffを確認し、task-owned filesだけをcommitした（Step 10）
 
 ## 12. Self-review
 
 初稿では「文字列置換」を中心に工程化していたが、設計レビューで、労働石の旧イベント形式、複製フォールバック、共通復活文、時間停神・屍石の発話漏れが残ると判明した。そのためStep 3～5を分け、カタログ、発火分類、playback互換をそれぞれ客観的に完了判定できる形へ修正した。
 
-また、台本を実装と同時に作ると仕様レビュー前にコードへ転記されるため、Step 2でrulebook・演出正本・全台本を先に確定し、仕様単位でcommitする順序へ変更した。顕現終了文禁止、routine発話抑制、生成物のsource-first順序も各工程へ明記した。
+また、台本を実装と同時に作ると仕様レビュー前にコードへ転記されるため、Step 2でrulebookと全特殊石台本を先に確定し、仕様単位でcommitする順序へ変更した。routine発話抑制と生成物のsource-first順序も各工程へ明記した。
 
-最終確認では、設計書の29体、除外、人格、一意性、シナリオ優先、ネットワーク権威、Single Visual Writer、browser生成、Worker mirror、実機確認、最終commitの全条件がplan stepとチェックリストへ対応している。実装モデルが現在の会話を参照せず実行でき、通常の設計判断を新たに行う必要はない。
+ユーザーの追加指示により、顕現石3種は現時点のセリフ改稿対象から除外した。旧Step 6の固有セリフ置換を非変更監査へ差し替え、rulebook顕現節・演出正本・registry・関連テストにtask diffを出さない完了条件へ修正した。
+
+最終確認では、設計書の対象特殊石26種、罠・爆弾・顕現石除外、人格、一意性、シナリオ優先、ネットワーク権威、Single Visual Writer、browser生成、Worker mirror、実機確認、最終commitの全条件がplan stepとチェックリストへ対応している。実装モデルが現在の会話を参照せず実行でき、通常の設計判断を新たに行う必要はない。
