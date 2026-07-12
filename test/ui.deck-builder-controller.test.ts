@@ -164,24 +164,34 @@ describe('deck builder controller', () => {
     ]));
   });
 
-  test('使用中の保存デッキを専用ヒーローで示し、保存スロットと固定プリセットを分けて表示する', () => {
+  test('専用パネルを置かず、使用中の保存デッキ自体を強調する', () => {
     const body = document.getElementById('body');
     const activeDeck = createThirtyCardDeck(0);
     localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', '理論デッキ', activeDeck.deckCode)));
 
     createController().open();
 
-    const activeHero = body.querySelector('.deck-builder-active-deck-hero');
-    expect(activeHero).toBeTruthy();
-    expect(activeHero.textContent).toContain('現在使用中');
-    expect(activeHero.textContent).toContain('理論デッキ');
-    expect(Array.from(activeHero.querySelectorAll('button')).map((button) => button.textContent)).not.toContain('使用');
+    expect(body.querySelector('.deck-builder-active-deck-hero')).toBeNull();
+    const activeCard = body.querySelector('.deck-builder-save-slot-card.is-active');
+    expect(activeCard).toBeTruthy();
+    expect(activeCard.textContent).toContain('理論デッキ');
+    expect(activeCard.textContent).toContain('IN USE');
 
     expect(body.querySelector('.deck-builder-workspace')).toBeTruthy();
     expect(body.querySelector('.deck-builder-loadout-column')).toBeTruthy();
     expect(body.querySelector('.deck-builder-saved-deck-column')).toBeTruthy();
     expect(body.querySelector('.deck-builder-workshop-grid')).toBeTruthy();
     expect(body.querySelector('.deck-builder-fixed-library')).toBeTruthy();
+  });
+
+  test('デフォルトデッキ使用中はデフォルトカード自体を強調する', () => {
+    const body = document.getElementById('body');
+
+    createController().open();
+
+    const defaultCard = body.querySelector('.deck-builder-default-hero');
+    expect(defaultCard.classList.contains('is-active')).toBe(true);
+    expect(defaultCard.textContent).toContain('IN USE');
   });
 
   test('デッキ選択画面を観測室アーカイブの専用サーフェスで包む', () => {

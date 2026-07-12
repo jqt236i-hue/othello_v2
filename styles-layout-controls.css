@@ -6927,6 +6927,21 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     border-right: 1px solid rgba(174, 217, 230, 0.18);
 }
 
+#deckBuilderModal .deck-builder-default-hero.is-active,
+#deckBuilderModal .deck-builder-builtin-card.is-active {
+    border-color: #f1cf78 !important;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(241, 207, 120, 0.24), transparent 42%),
+        linear-gradient(145deg, rgba(88, 61, 22, 0.94), rgba(10, 35, 48, 0.98) 68%) !important;
+    box-shadow: 0 0 0 1px rgba(241, 207, 120, 0.2), 0 12px 24px rgba(0, 0, 0, 0.34) !important;
+}
+
+#deckBuilderModal .deck-builder-default-hero .deck-builder-active-seal,
+#deckBuilderModal .deck-builder-builtin-card .deck-builder-active-seal {
+    top: calc(8px * var(--layout-stage-scale));
+    right: calc(8px * var(--layout-stage-scale));
+}
+
 #deckBuilderModal .deck-builder-active-deck-hero {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "eyebrow" "title" "summary" "status";

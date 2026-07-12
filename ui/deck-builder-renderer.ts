@@ -623,6 +623,10 @@ function createBuiltInPresetCard(preset: any, actions: HTMLElement): HTMLElement
   }
   card.dataset.slotState = slotState;
 
+  if (preset.isActive) {
+    card.appendChild(createActiveSealElement(preset.displayName));
+  }
+
   const gem = document.createElement('div');
   gem.className = 'deck-builder-builtin-gem';
   gem.setAttribute('aria-hidden', 'true');
@@ -646,10 +650,14 @@ function createBuiltInPresetCard(preset: any, actions: HTMLElement): HTMLElement
   return card;
 }
 
-function createDefaultDeckHero(viewModel: any, onUse: any): HTMLElement {
+function createDefaultDeckHero(viewModel: any, onUse: any, isActive: boolean): HTMLElement {
   const card = document.createElement('div');
-  card.className = 'deck-builder-preset-card deck-builder-standard-card deck-builder-default-hero is-filled';
+  card.className = `deck-builder-preset-card deck-builder-standard-card deck-builder-default-hero ${isActive ? 'is-active' : 'is-filled'}`;
   card.dataset.slotState = 'standard';
+
+  if (isActive) {
+    card.appendChild(createActiveSealElement('デフォルトデッキ'));
+  }
 
   const sigil = document.createElement('div');
   sigil.className = 'deck-builder-hero-sigil';
@@ -683,43 +691,6 @@ function createDefaultDeckHero(viewModel: any, onUse: any): HTMLElement {
   card.appendChild(cta);
 
   return card;
-}
-
-function createActiveDeckHero(viewModel: any): HTMLElement {
-  const savedPresets = Array.isArray(viewModel && viewModel.presets) ? viewModel.presets : [];
-  const builtInPresets = Array.isArray(viewModel && viewModel.builtInPresets) ? viewModel.builtInPresets : [];
-  const activePreset = savedPresets.find((preset: any) => preset && preset.isActive)
-    || builtInPresets.find((preset: any) => preset && preset.isActive)
-    || null;
-  const isStandard = !activePreset;
-
-  const hero = document.createElement('section');
-  hero.className = 'deck-builder-active-deck-hero';
-  hero.setAttribute('aria-label', '現在使用中のデッキ');
-
-  const eyebrow = document.createElement('div');
-  eyebrow.className = 'deck-builder-active-deck-eyebrow';
-  eyebrow.textContent = 'ACTIVE DECK';
-  hero.appendChild(eyebrow);
-
-  const title = document.createElement('div');
-  title.className = 'deck-builder-active-deck-title';
-  title.textContent = isStandard ? 'デフォルトデッキ' : activePreset.displayName;
-  hero.appendChild(title);
-
-  const summary = document.createElement('div');
-  summary.className = 'deck-builder-active-deck-summary';
-  summary.textContent = isStandard
-    ? '30枚 · 有効カードから重複なしランダム'
-    : String(activePreset.summaryText || '構築済みデッキ');
-  hero.appendChild(summary);
-
-  const status = document.createElement('div');
-  status.className = 'deck-builder-active-deck-status';
-  status.textContent = '現在使用中';
-  hero.appendChild(status);
-
-  return hero;
 }
 
 function createSectionIcon(svgInner: string): HTMLElement {
@@ -769,16 +740,18 @@ function renderPresetView(container: HTMLElement, viewModel: any, handlers: any)
 
   const loadoutColumn = document.createElement('section');
   loadoutColumn.className = 'deck-builder-loadout-column';
-  loadoutColumn.setAttribute('aria-label', '現在のデッキと固定プリセット');
-  loadoutColumn.appendChild(createActiveDeckHero(viewModel));
+  loadoutColumn.setAttribute('aria-label', 'デフォルトデッキと固定プリセット');
 
   const defaultPresetRow = document.createElement('div');
   defaultPresetRow.className = 'deck-builder-default-preset-row deck-builder-fixed-library';
 
-  const standardCard = createDefaultDeckHero(viewModel, handlers.onUseStandard);
+  const savedPresets = Array.isArray(viewModel.presets) ? viewModel.presets : [];
+  const builtInPresets = Array.isArray(viewModel.builtInPresets) ? viewModel.builtInPresets : [];
+  const isStandardActive = !savedPresets.some((preset: any) => preset && preset.isActive)
+    && !builtInPresets.some((preset: any) => preset && preset.isActive);
+  const standardCard = createDefaultDeckHero(viewModel, handlers.onUseStandard, isStandardActive);
   defaultPresetRow.appendChild(standardCard);
 
-  const builtInPresets = Array.isArray(viewModel.builtInPresets) ? viewModel.builtInPresets : [];
   if (builtInPresets.length > 0) {
     const builtInSection = document.createElement('div');
     builtInSection.className = 'deck-builder-built-in-preset-section';
