@@ -29,6 +29,7 @@ const localCpuProfileValues: Record<string, string> = { black: '1', white: '1' }
 const CPU_LEVEL_SHORTCUT_ID = 'cpu-level-label';
 const CPU_LEVEL_MENU_ID = 'cpu-level-menu';
 const CPU_LEVEL_MENU_OFFSET_PX = 8;
+const CPU_LEVEL_MENU_SHIFT_LEFT_PX = 15;
 const CPU_LEVEL_MENU_VIEWPORT_MARGIN_PX = 8;
 const CPU_LEVEL_MENU_MIN_HEIGHT_PX = 96;
 const CPU_LEVEL_OPTIONS: SmartOption[] = CpuOpponentProfiles.getCpuOpponentMenuOptions()
@@ -141,6 +142,29 @@ function syncCpuConfigMenuSummary(menu: HTMLDivElement, selectedValue: unknown, 
   if (!summary) return;
   const config = boardConfig || readCpuMenuBoardConfig();
   summary.textContent = `${formatCpuMenuProfileLevel(selectedValue)} / ${formatCpuMenuBoardConfig(config)}`;
+}
+
+function readCpuBoardWheelDelta(event: WheelEvent): number {
+  const deltaX = Number(event && event.deltaX) || 0;
+  const deltaY = Number(event && event.deltaY) || 0;
+  return Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+}
+
+function resetGameFromCpuBoardMenu(): void {
+  const resetButton = typeof document !== 'undefined'
+    ? document.getElementById('resetBtn') as HTMLButtonElement | null
+    : null;
+  if (resetButton && !resetButton.disabled) {
+    resetButton.click();
+    return;
+  }
+  const root = resolveSmartRuntimeRoot();
+  const resetFn = root && typeof root.resetGame === 'function'
+    ? root.resetGame
+    : ((typeof globalThis !== 'undefined' && typeof (globalThis as any).resetGame === 'function')
+      ? (globalThis as any).resetGame
+      : null);
+  if (typeof resetFn === 'function') resetFn();
 }
 
 function syncCpuBoardConfigControls(menu: HTMLDivElement, selectedValue: unknown, boardConfig?: any): void {
@@ -259,6 +283,22 @@ function createCpuBoardPanel(menu: HTMLDivElement, smartWhite: HTMLSelectElement
       const next = SharedBoardUtils.buildBoardConfig(size, size, 'circle');
       syncCpuBoardConfigControls(menu, smartWhite.value, writeCpuMenuBoardConfig(next));
     });
+    button.addEventListener('wheel', (event) => {
+      const delta = readCpuBoardWheelDelta(event);
+      if (!delta) return;
+      const current = readCpuMenuBoardConfig();
+      const direction = delta < 0 ? 1 : -1;
+      const nextSize = SharedBoardUtils.normalizeCircleBoardSize(
+        current.rows + direction * SharedBoardUtils.CIRCLE_BOARD_SIZE_STEP,
+        current.rows
+      );
+      event.preventDefault();
+      syncCpuBoardConfigControls(
+        menu,
+        smartWhite.value,
+        writeCpuMenuBoardConfig(SharedBoardUtils.buildBoardConfig(nextSize, nextSize, 'circle'))
+      );
+    }, { passive: false });
     sizeChoices.appendChild(button);
   }
   circleControls.appendChild(circleLabel);
@@ -296,6 +336,20 @@ function createCpuBoardPanel(menu: HTMLDivElement, smartWhite: HTMLSelectElement
       );
       syncCpuBoardConfigControls(menu, smartWhite.value, writeCpuMenuBoardConfig(next));
     });
+    select.addEventListener('wheel', (event) => {
+      const delta = readCpuBoardWheelDelta(event);
+      if (!delta) return;
+      const current = readCpuMenuBoardConfig();
+      const fallbackValue = axis === 'rows' ? current.rows : current.cols;
+      select.value = String(SharedBoardUtils.stepBoardDimensionValue(
+        select.value,
+        delta < 0 ? 1 : -1,
+        fallbackValue,
+        axis === 'rows' ? 'row' : 'col'
+      ));
+      event.preventDefault();
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }, { passive: false });
     label.appendChild(select);
     return label;
   };
@@ -305,10 +359,24 @@ function createCpuBoardPanel(menu: HTMLDivElement, smartWhite: HTMLSelectElement
   rectangleControls.appendChild(dimensionFields);
   panel.appendChild(rectangleControls);
 
+  const footer = document.createElement('div');
+  footer.className = 'cpu-board-panel-footer';
   const applyNote = document.createElement('div');
   applyNote.className = 'cpu-board-apply-note';
   applyNote.textContent = '盤面変更は次のリセット / 新規対局で反映';
-  panel.appendChild(applyNote);
+  const resetButton = document.createElement('button');
+  resetButton.type = 'button';
+  resetButton.className = 'cpu-board-reset-button';
+  resetButton.textContent = 'リセット';
+  resetButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    hideCpuLevelMenu();
+    resetGameFromCpuBoardMenu();
+  });
+  footer.appendChild(applyNote);
+  footer.appendChild(resetButton);
+  panel.appendChild(footer);
   return panel;
 }
 
@@ -351,7 +419,7 @@ function positionCpuLevelMenu(shortcut: HTMLButtonElement, menu: HTMLDivElement)
     48,
     Math.min(Math.max(CPU_LEVEL_MENU_MIN_HEIGHT_PX, availableHeight), viewportBoundHeight)
   );
-  const right = Math.max(margin, Math.round(viewportWidth - rect.right));
+  const right = Math.max(margin, Math.round(viewportWidth - rect.right + CPU_LEVEL_MENU_SHIFT_LEFT_PX));
   menu.style.top = `${top}px`;
   menu.style.right = `${right}px`;
   menu.style.left = 'auto';

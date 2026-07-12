@@ -10,6 +10,7 @@ describe('smart cpu level shortcut', () => {
     const dom = new JSDOM(
       '<!doctype html><html><body>' +
       '<button id="cpu-level-label" type="button" aria-expanded="false"></button>' +
+      '<button id="resetBtn" type="button">リセット</button>' +
       '<select id="smartBlack"></select>' +
       '<select id="smartWhite"></select>' +
       '</body></html>',
@@ -21,6 +22,7 @@ describe('smart cpu level shortcut', () => {
     global.Event = dom.window.Event;
     global.MouseEvent = dom.window.MouseEvent;
     global.KeyboardEvent = dom.window.KeyboardEvent;
+    global.WheelEvent = dom.window.WheelEvent;
     global.updateCpuCharacter = jest.fn();
     global.CpuPolicy = { loadPolicyForLevel: jest.fn().mockResolvedValue({}) };
     global.addLog = jest.fn();
@@ -34,6 +36,8 @@ describe('smart cpu level shortcut', () => {
       getLocalBoardConfig: () => boardConfig,
       setLocalBoardConfig
     };
+    const resetClick = jest.fn();
+    document.getElementById('resetBtn')?.addEventListener('click', resetClick);
 
     const shortcutEl = document.getElementById('cpu-level-label') as HTMLButtonElement;
     shortcutEl.getBoundingClientRect = () => ({
@@ -111,6 +115,16 @@ describe('smart cpu level shortcut', () => {
     }));
     expect(menu?.querySelector('.cpu-config-summary-value')?.textContent).toBe('Lv9 / 円形 12×12');
 
+    (menu?.querySelector('[data-cpu-circle-size="12"]') as HTMLButtonElement).dispatchEvent(
+      new dom.window.WheelEvent('wheel', { deltaY: -100, bubbles: true, cancelable: true })
+    );
+    expect(setLocalBoardConfig).toHaveBeenLastCalledWith(expect.objectContaining({
+      rows: 14,
+      cols: 14,
+      shape: 'circle'
+    }));
+    expect(menu?.querySelector('.cpu-config-summary-value')?.textContent).toBe('Lv9 / 円形 14×14');
+
     (menu?.querySelector('[data-cpu-board-shape="rectangle"]') as HTMLButtonElement).click();
     const rowsSelect = menu?.querySelector('[data-cpu-board-rows]') as HTMLSelectElement;
     const colsSelect = menu?.querySelector('[data-cpu-board-cols]') as HTMLSelectElement;
@@ -125,7 +139,16 @@ describe('smart cpu level shortcut', () => {
     }));
     expect(menu?.querySelector('.cpu-config-summary-value')?.textContent).toBe('Lv9 / 通常 10×16');
 
-    document.body.click();
+    rowsSelect.dispatchEvent(new dom.window.WheelEvent('wheel', { deltaY: -100, bubbles: true, cancelable: true }));
+    expect(setLocalBoardConfig).toHaveBeenLastCalledWith(expect.objectContaining({
+      rows: 11,
+      cols: 16,
+      shape: 'rectangle'
+    }));
+    expect(menu?.querySelector('.cpu-config-summary-value')?.textContent).toBe('Lv9 / 通常 11×16');
+
+    (menu?.querySelector('.cpu-board-reset-button') as HTMLButtonElement).click();
+    expect(resetClick).toHaveBeenCalledTimes(1);
     expect(menu?.hidden).toBe(true);
     expect(shortcut.getAttribute('aria-expanded')).toBe('false');
 
@@ -134,6 +157,7 @@ describe('smart cpu level shortcut', () => {
     delete global.Event;
     delete global.MouseEvent;
     delete global.KeyboardEvent;
+    delete global.WheelEvent;
     delete global.updateCpuCharacter;
     delete global.CpuPolicy;
     delete global.addLog;
@@ -145,6 +169,7 @@ describe('smart cpu level shortcut', () => {
     const dom = new JSDOM(
       '<!doctype html><html><body>' +
       '<button id="cpu-level-label" type="button" aria-expanded="false"></button>' +
+      '<button id="resetBtn" type="button">リセット</button>' +
       '<select id="smartBlack"></select>' +
       '<select id="smartWhite"></select>' +
       '</body></html>',
@@ -156,6 +181,7 @@ describe('smart cpu level shortcut', () => {
     global.Event = dom.window.Event;
     global.MouseEvent = dom.window.MouseEvent;
     global.KeyboardEvent = dom.window.KeyboardEvent;
+    global.WheelEvent = dom.window.WheelEvent;
     global.updateCpuCharacter = jest.fn();
     global.CpuPolicy = { loadPolicyForLevel: jest.fn().mockResolvedValue({}) };
     global.addLog = jest.fn();
@@ -186,6 +212,7 @@ describe('smart cpu level shortcut', () => {
     expect(Number.isFinite(top)).toBe(true);
     expect(Number.isFinite(maxHeight)).toBe(true);
     expect(top + maxHeight).toBeLessThanOrEqual(317);
+    expect(menu?.style.right).toBe('28px');
     expect(menu?.style.overflowY).toBe('auto');
 
     delete global.window;
@@ -193,6 +220,7 @@ describe('smart cpu level shortcut', () => {
     delete global.Event;
     delete global.MouseEvent;
     delete global.KeyboardEvent;
+    delete global.WheelEvent;
     delete global.updateCpuCharacter;
     delete global.CpuPolicy;
     delete global.addLog;

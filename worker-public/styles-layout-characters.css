@@ -306,7 +306,34 @@
 .cpu-board-apply-note {
     color: rgba(199, 210, 204, 0.64);
     font-size: clamp(10px, calc(11px * var(--layout-stage-scale)), 11px);
-    text-align: center;
+}
+
+.cpu-board-panel-footer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: calc(8px * var(--layout-stage-scale));
+}
+
+.cpu-board-reset-button {
+    appearance: none;
+    -webkit-appearance: none;
+    flex: 0 0 auto;
+    padding: calc(6px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(224, 198, 122, 0.5);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    background: rgba(72, 62, 34, 0.42);
+    color: #f8e9c2;
+    cursor: pointer;
+    font-size: clamp(10px, calc(11px * var(--layout-stage-scale)), 11px);
+    font-weight: 700;
+}
+
+.cpu-board-reset-button:hover,
+.cpu-board-reset-button:focus-visible {
+    border-color: rgba(244, 218, 146, 0.8);
+    background: rgba(94, 78, 40, 0.62);
+    outline: none;
 }
 
 .cpu-config-summary {
