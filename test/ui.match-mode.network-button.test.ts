@@ -1201,7 +1201,7 @@ describe('match-mode network button behavior', () => {
     expect(document.getElementById('networkStatusText').textContent).toContain('観測中');
   });
 
-  test('ネット対戦モーダルの盤面サイズ入力はホイールで 10x10 まで増減できる', async () => {
+  test('ネット対戦モーダルの盤面サイズ入力はホイールで 16x16 まで増減できる', async () => {
     let localBoardConfig = { rows: 8, cols: 8, standard8x8: true };
     const setLocalBoardConfig = jest.fn((nextBoardConfig) => {
       const rows = Number.isFinite(Number(nextBoardConfig && nextBoardConfig.rows)) ? Number(nextBoardConfig.rows) : 8;
@@ -1230,18 +1230,17 @@ describe('match-mode network button behavior', () => {
     networkBtn.click();
     await Promise.resolve();
 
-    expect(rowsInput.max).toBe('10');
-    expect(colsInput.max).toBe('10');
+    expect(rowsInput.max).toBe('16');
+    expect(colsInput.max).toBe('16');
 
+    rowsInput.value = '15';
+    colsInput.value = '15';
     dispatchWheel(rowsInput, { deltaY: -100 });
-    dispatchWheel(rowsInput, { deltaY: -100 });
-    dispatchWheel(rowsInput, { deltaY: -100 });
-    dispatchWheel(colsInput, { deltaY: -100 });
     dispatchWheel(colsInput, { deltaY: -100 });
 
     expect(setLocalBoardConfig).toHaveBeenCalled();
-    expect(document.getElementById('networkBoardSizeSummary').textContent).toBe('10x10');
-    expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: デフォルト 30枚 / 作成時に送る盤面: 10x10');
+    expect(document.getElementById('networkBoardSizeSummary').textContent).toBe('16x16');
+    expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: デフォルト 30枚 / 作成時に送る盤面: 16x16');
   });
 
   test('部屋盤面が確定したらネット対戦モーダルの盤面サイズ入力をロックする', () => {

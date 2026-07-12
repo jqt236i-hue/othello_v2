@@ -337,14 +337,20 @@ const MODE_OTHELLO = 'othello';
     }
 
     function getBoardDimensionBounds(axis: any) {
+        let sharedBoardUtils: any = null;
         try {
-            if (root.SharedBoardUtils && typeof root.SharedBoardUtils.getBoardDimensionBounds === 'function') {
-                return root.SharedBoardUtils.getBoardDimensionBounds(axis);
+            sharedBoardUtils = root.SharedBoardUtils || null;
+            if (sharedBoardUtils && typeof sharedBoardUtils.getBoardDimensionBounds === 'function') {
+                return sharedBoardUtils.getBoardDimensionBounds(axis);
             }
         } catch (e) { /* ignore */ }
-        return axis === 'col'
-            ? { min: 4, max: 10 }
-            : { min: 4, max: 10 };
+        const columnAxis = axis === 'col' || axis === 'cols' || axis === 'column';
+        const minValue = columnAxis ? sharedBoardUtils && sharedBoardUtils.MIN_BOARD_COLS : sharedBoardUtils && sharedBoardUtils.MIN_BOARD_ROWS;
+        const maxValue = columnAxis ? sharedBoardUtils && sharedBoardUtils.MAX_BOARD_COLS : sharedBoardUtils && sharedBoardUtils.MAX_BOARD_ROWS;
+        return {
+            min: minValue != null && Number.isFinite(Number(minValue)) ? Number(minValue) : 4,
+            max: maxValue != null && Number.isFinite(Number(maxValue)) ? Number(maxValue) : 8
+        };
     }
 
     function stepBoardDimensionValue(value: any, direction: any, fallbackValue: any, axis: any) {

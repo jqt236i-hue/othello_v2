@@ -957,41 +957,41 @@ describe('deck builder controller', () => {
     });
   });
 
-  test('setLocalBoardConfig はローカル盤面サイズを 10x10 上限で更新する', () => {
+  test('setLocalBoardConfig はローカル盤面サイズを 16x16 上限で更新する', () => {
     const controller = createController();
 
-    controller.setLocalBoardConfig({ rows: 11, cols: 12 });
+    controller.setLocalBoardConfig({ rows: 17, cols: 18 });
 
     expect(controller.getLocalBoardConfig()).toMatchObject({
-      rows: 10,
-      cols: 10,
+      rows: 16,
+      cols: 16,
       standard8x8: false
     });
     expect(controller.readBoardConfig()).toMatchObject({
-      rows: 10,
-      cols: 10,
+      rows: 16,
+      cols: 16,
       standard8x8: false
     });
   });
 
-  test('盤面サイズ入力はホイールで 10x10 まで増減できる', () => {
+  test('盤面サイズ入力はホイールで 16x16 まで増減できる', () => {
     const controller = createController();
     const rowsInput = document.getElementById('boardSizeRowsInput');
     const colsInput = document.getElementById('boardSizeColsInput');
 
-    expect(rowsInput.max).toBe('10');
-    expect(colsInput.max).toBe('10');
+    expect(rowsInput.max).toBe('16');
+    expect(colsInput.max).toBe('16');
 
-    dispatchWheel(rowsInput, { deltaY: -100 });
-    dispatchWheel(rowsInput, { deltaY: -100 });
+    rowsInput.value = '15';
+    colsInput.value = '15';
     dispatchWheel(rowsInput, { deltaY: -100 });
     dispatchWheel(colsInput, { deltaY: -100 });
 
-    expect(rowsInput.value).toBe('10');
-    expect(colsInput.value).toBe('9');
+    expect(rowsInput.value).toBe('16');
+    expect(colsInput.value).toBe('16');
     expect(controller.getLocalBoardConfig()).toMatchObject({
-      rows: 10,
-      cols: 9,
+      rows: 16,
+      cols: 16,
       standard8x8: false
     });
   });

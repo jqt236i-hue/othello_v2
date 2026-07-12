@@ -1,6 +1,7 @@
 import mctsPolicyModule = require('../mcts-policy');
+import Core = require('../../logic/core');
 
-const { _gameInterface } = mctsPolicyModule as any;
+const { _gameInterface, _network } = mctsPolicyModule as any;
 
 function makeFullState(overrides: Record<string, unknown> = {}) {
   return {
@@ -49,5 +50,15 @@ describe('MCTS policy pass handling', () => {
     const terminal = _gameInterface.isTerminal(makeFullState({ consecutivePasses: 2 }), {});
 
     expect(terminal.isTerminal).toBe(true);
+  });
+
+  test('uses a uniform policy without ONNX inference for boards larger than 8x8', async () => {
+    const state = Core.createGameState({ rows: 16, cols: 16 });
+
+    const result = await _network.evaluate(state, {}, 'black');
+
+    expect(result.value).toBe(0);
+    expect(result.policy.size).toBe(4);
+    expect(Array.from(result.policy.values())).toEqual([0.25, 0.25, 0.25, 0.25]);
   });
 });

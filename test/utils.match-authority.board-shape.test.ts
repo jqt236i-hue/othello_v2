@@ -22,4 +22,11 @@ describe('match authority board shape', () => {
     expect(MatchAuthority.normalizeRoomBoardConfig({ rows: 8, cols: 8 }))
       .toMatchObject({ rows: 8, cols: 8, shape: 'rectangle', standard8x8: true });
   });
+
+  test('accepts 16x16 rectangle rooms and clamps larger requests', () => {
+    expect(MatchAuthority.normalizeRoomBoardConfig({ rows: 16, cols: 16 }))
+      .toMatchObject({ rows: 16, cols: 16, shape: 'rectangle', standard8x8: false });
+    expect(MatchAuthority.normalizeRoomBoardConfig({ rows: 20, cols: 18 }))
+      .toMatchObject({ rows: 16, cols: 16, shape: 'rectangle', standard8x8: false });
+  });
 });

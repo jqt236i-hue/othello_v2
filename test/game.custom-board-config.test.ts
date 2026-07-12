@@ -329,26 +329,26 @@ describe('custom board config foundations', () => {
     expect(BoardOps.getExpansionDescriptors(gameState)).toEqual(expected);
   });
 
-  test('board config clamps above-limit requests to 10x10 and accepts full 10x10 boards', () => {
-    expect(SharedBoardUtils.buildBoardConfig(11, 12)).toMatchObject({
-      rows: 10,
-      cols: 10,
+  test('board config clamps above-limit requests to 16x16 and accepts full 16x16 boards', () => {
+    expect(SharedBoardUtils.buildBoardConfig(17, 18)).toMatchObject({
+      rows: 16,
+      cols: 16,
       standard8x8: false
     });
 
-    const gameState = Core.createGameState({ rows: 10, cols: 10 });
+    const gameState = Core.createGameState({ rows: 16, cols: 16 });
 
-    expect(gameState.board).toHaveLength(10);
-    expect(gameState.board[0]).toHaveLength(10);
+    expect(gameState.board).toHaveLength(16);
+    expect(gameState.board[0]).toHaveLength(16);
     expect(gameState.boardConfig).toMatchObject({
-      rows: 10,
-      cols: 10,
+      rows: 16,
+      cols: 16,
       standard8x8: false
     });
-    expect(gameState.board[4][4]).toBe(Core.WHITE);
-    expect(gameState.board[4][5]).toBe(Core.BLACK);
-    expect(gameState.board[5][4]).toBe(Core.BLACK);
-    expect(gameState.board[5][5]).toBe(Core.WHITE);
+    expect(gameState.board[7][7]).toBe(Core.WHITE);
+    expect(gameState.board[7][8]).toBe(Core.BLACK);
+    expect(gameState.board[8][7]).toBe(Core.BLACK);
+    expect(gameState.board[8][8]).toBe(Core.WHITE);
   });
 
   test('shared board geometry helpers ignore missing sources and compare snapshot-like configs', () => {

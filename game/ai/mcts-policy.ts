@@ -287,6 +287,17 @@ const _network = {
             return { policy: new Map(), value: 0 };
         }
         const legalMoves = _gameInterface.listActions(state, cardState, playerKey);
+        const board = Array.isArray(state && state.board) ? state.board : [];
+        const onnxBoardSupported = board.length <= 8
+            && board.every((row: any) => Array.isArray(row) && row.length <= 8);
+        if (!onnxBoardSupported) {
+            const policy = new Map();
+            const probability = legalMoves.length > 0 ? 1 / legalMoves.length : 0;
+            for (const move of legalMoves) {
+                policy.set(_gameInterface.actionToKey(move), probability);
+            }
+            return { policy, value: 0 };
+        }
         const context = _buildOnnxContext(state, cardState, playerKey, legalMoves);
 
         let outputs;

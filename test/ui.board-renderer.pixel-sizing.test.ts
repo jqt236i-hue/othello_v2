@@ -62,6 +62,22 @@ describe('board renderer pixel sizing', () => {
     expect(boardEl.style.getPropertyValue('--board-disc-size-px')).toBe('63px');
   });
 
+  test('syncBoardPixelSizing fits the maximum 16x16 board into the 8x8 baseline area', () => {
+    const frameEl = document.getElementById('board-frame');
+    const boardEl = document.getElementById('board');
+    frameEl.getBoundingClientRect = () => ({ width: 750, height: 750 });
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.syncBoardPixelSizing(boardEl, { rows: 16, cols: 16 });
+
+    expect(boardEl.style.width).toBe('688px');
+    expect(boardEl.style.height).toBe('688px');
+    expect(boardEl.style.getPropertyValue('--board-cell-size-px')).toBe('43px');
+    expect(boardEl.style.getPropertyValue('--board-cell-scale')).toBe(String(43 / 87));
+    expect(boardEl.style.getPropertyValue('--board-disc-inset-px')).toBe('2px');
+    expect(boardEl.style.getPropertyValue('--board-disc-size-px')).toBe('39px');
+  });
+
   test('syncBoardPixelSizing leaves standard 8x8 frame sizing unchanged', () => {
     const frameEl = document.getElementById('board-frame');
     const boardEl = document.getElementById('board');

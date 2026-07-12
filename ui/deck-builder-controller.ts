@@ -196,9 +196,13 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
             if (SharedBoardUtils && typeof SharedBoardUtils.getBoardDimensionBounds === 'function') {
                 return SharedBoardUtils.getBoardDimensionBounds(axis);
             }
-            return axis === 'col'
-                ? { min: 4, max: 10 }
-                : { min: 4, max: 10 };
+            const columnAxis = axis === 'col' || axis === 'cols' || axis === 'column';
+            const minValue = columnAxis ? SharedBoardUtils && SharedBoardUtils.MIN_BOARD_COLS : SharedBoardUtils && SharedBoardUtils.MIN_BOARD_ROWS;
+            const maxValue = columnAxis ? SharedBoardUtils && SharedBoardUtils.MAX_BOARD_COLS : SharedBoardUtils && SharedBoardUtils.MAX_BOARD_ROWS;
+            return {
+                min: minValue != null && Number.isFinite(Number(minValue)) ? Number(minValue) : 4,
+                max: maxValue != null && Number.isFinite(Number(maxValue)) ? Number(maxValue) : 8
+            };
         }
 
         function stepBoardDimensionValue(value: any, direction: any, fallbackValue: any, axis: any) {
