@@ -1641,7 +1641,7 @@ function _tryPatchTimedMarkerLabelsForDiff(cell: any, prevState: any, state: any
         if (!patch(cell.querySelector('.poison-cell-turn'), prevState.poisonCell.remainingTurns, state.poisonCell.remainingTurns)) return false;
     }
     if (prevState.poisoned && state.poisoned && prevState.poisoned.remainingTurns !== state.poisoned.remainingTurns) {
-        if (!patch(cell.querySelector('.poison-status-badge'), prevState.poisoned.remainingTurns, state.poisoned.remainingTurns)) return false;
+        if (!patch(cell.querySelector('.poison-lethal-timer'), prevState.poisoned.remainingTurns, state.poisoned.remainingTurns)) return false;
     }
     return patched;
 }

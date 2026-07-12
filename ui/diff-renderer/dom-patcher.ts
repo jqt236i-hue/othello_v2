@@ -489,11 +489,12 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
         if (state.poisoned && Number.isFinite(Number(state.poisoned.remainingTurns))) {
             disc.classList.add('disc-poisoned');
             const poisonBadge = markerRenderer
-                ? markerRenderer.createPoisonStatusBadge(state.poisoned.remainingTurns)
+                ? markerRenderer.createPoisonLethalTimer(state.poisoned.remainingTurns)
                 : document.createElement('div');
             if (!markerRenderer) {
-                poisonBadge.className = 'poison-status-badge countdown-timer';
+                poisonBadge.className = 'poison-lethal-timer';
                 poisonBadge.textContent = String(Math.max(0, Math.trunc(Number(state.poisoned.remainingTurns))));
+                poisonBadge.setAttribute('aria-hidden', 'true');
             }
             discHud.appendChild(poisonBadge);
         }

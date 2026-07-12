@@ -129,8 +129,13 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     return mark;
   }
 
-  function createPoisonStatusBadge(remainingTurns: any) {
-    return createTimedMarkerLabel('poison-status-badge countdown-timer', remainingTurns);
+  function createPoisonLethalTimer(remainingTurns: any) {
+    const timer = doc.createElement('div');
+    timer.className = 'poison-lethal-timer';
+    const value = Number(remainingTurns);
+    timer.textContent = Number.isFinite(value) ? String(Math.max(0, Math.trunc(value))) : '';
+    timer.setAttribute('aria-hidden', 'true');
+    return timer;
   }
 
   return {
@@ -145,7 +150,7 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     createFlipProtectionBadge,
     createFreezeMark,
     createPoisonCellMark,
-    createPoisonStatusBadge
+    createPoisonLethalTimer
   };
 }
 

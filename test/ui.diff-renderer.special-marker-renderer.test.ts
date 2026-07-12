@@ -129,4 +129,15 @@ describe('diff-renderer special marker renderer', () => {
     expect(badge.className).toBe('stone-flip-protection-badge');
     expect(badge.textContent).toBe('反');
   });
+
+  test('creates a dedicated poison lethal timer without the shared countdown marker', () => {
+    const renderer = createRenderer();
+
+    const timer = renderer.createPoisonLethalTimer(5.9);
+
+    expect(timer.className).toBe('poison-lethal-timer');
+    expect(timer.classList.contains('countdown-timer')).toBe(false);
+    expect(timer.textContent).toBe('5');
+    expect(timer.attributes['aria-hidden']).toBe('true');
+  });
 });

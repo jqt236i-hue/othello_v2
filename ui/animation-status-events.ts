@@ -84,7 +84,7 @@ async function handleStatusChangeEvent(ev: any, deps: AnimationStatusEventDeps) 
 
                 if (isStatusTick) {
                     if (isPoisonStatus) {
-                        const selector = poisonSpecialUpper === 'POISONED' ? '.poison-status-badge' : '.poison-cell-turn';
+                        const selector = poisonSpecialUpper === 'POISONED' ? '.poison-lethal-timer' : '.poison-cell-turn';
                         const timer = cell.querySelector(selector);
                         if (timer && ev.meta && Number.isFinite(Number(ev.meta.timer))) timer.textContent = String(Math.max(0, Math.trunc(Number(ev.meta.timer))));
                         return;

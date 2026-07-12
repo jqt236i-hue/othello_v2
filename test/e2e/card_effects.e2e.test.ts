@@ -395,6 +395,35 @@ describe('Card effects E2E', () => {
       const pending = window.cardState.pendingEffectByPlayer && window.cardState.pendingEffectByPlayer.black;
       return pending && pending.type === 'POISON_WILL' && pending.stage === 'selectTarget';
     });
+    await page.click('.cell[data-row="3"][data-col="3"]');
+    await page.waitForSelector('.cell[data-row="3"][data-col="3"] .disc .poison-lethal-timer');
+
+    const poisonTimer = await page.evaluate(() => {
+      const timer = document.querySelector('.cell[data-row="3"][data-col="3"] .disc .poison-lethal-timer') as HTMLElement | null;
+      if (!timer) return null;
+      const style = getComputedStyle(timer);
+      const disc = timer.closest('.disc') as HTMLElement | null;
+      const timerRect = timer.getBoundingClientRect();
+      const discRect = disc ? disc.getBoundingClientRect() : null;
+      return {
+        text: timer.textContent,
+        className: timer.className,
+        leftOffset: discRect ? timerRect.left - discRect.left : Number.NaN,
+        topOffset: discRect ? timerRect.top - discRect.top : Number.NaN,
+        clipPath: style.clipPath,
+        backgroundImage: style.backgroundImage,
+        oldMarkerCount: document.querySelectorAll('.poison-status-badge').length
+      };
+    });
+    expect(poisonTimer).not.toBeNull();
+    if (!poisonTimer) throw new Error('poison lethal timer was not rendered');
+    expect(poisonTimer.text).toBe('5');
+    expect(poisonTimer.className).toBe('poison-lethal-timer');
+    expect(poisonTimer.leftOffset).toBeLessThanOrEqual(0);
+    expect(poisonTimer.topOffset).toBeLessThanOrEqual(0);
+    expect(poisonTimer.clipPath).toContain('polygon');
+    expect(poisonTimer.backgroundImage).toContain('linear-gradient');
+    expect(poisonTimer.oldMarkerCount).toBe(0);
 
     await page.close();
   }, 60000);
