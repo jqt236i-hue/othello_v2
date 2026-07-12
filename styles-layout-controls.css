@@ -6763,6 +6763,17 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     background: linear-gradient(135deg, rgba(16, 48, 69, 0.86), rgba(6, 16, 31, 0.96)) !important;
 }
 
+#deckBuilderModal .deck-builder-built-in-preset-grid .deck-builder-builtin-card {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+        "meta"
+        "action" !important;
+}
+
+#deckBuilderModal .deck-builder-built-in-preset-grid .deck-builder-builtin-gem {
+    display: none !important;
+}
+
 @media (max-width: 1180px) {
     #deckBuilderModal .deck-builder-workshop-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
