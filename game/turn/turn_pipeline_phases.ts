@@ -488,43 +488,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return timeStopPassRes;
     }
 
-    const FALLBACK_WORK_BUBBLE_SPEECH = Object.freeze({
-        placeLines: Object.freeze(['ここで稼ぐ！']),
-        lostLine: 'あああああああああああああ'
-    });
-
-    function getLegacySpecialStoneBubbleSpeech(type: any) {
-        const key = String(type || '').trim().toUpperCase();
-        if (key === 'WORK') {
-            return {
-                placeLines: (
-                    PhaseHelpersModule &&
-                    Array.isArray(PhaseHelpersModule.WORK_PLACE_LINES) &&
-                    PhaseHelpersModule.WORK_PLACE_LINES.length > 0
-                ) ? PhaseHelpersModule.WORK_PLACE_LINES : FALLBACK_WORK_BUBBLE_SPEECH.placeLines,
-                lostLine: (
-                    PhaseHelpersModule &&
-                    typeof PhaseHelpersModule.WORK_LOST_LINE === 'string'
-                ) ? PhaseHelpersModule.WORK_LOST_LINE : FALLBACK_WORK_BUBBLE_SPEECH.lostLine
-            };
-        }
-        return null;
-    }
-
-    const getSpecialStoneBubbleSpeech = (
-        PhaseHelpersModule &&
-        typeof PhaseHelpersModule.getSpecialStoneBubbleSpeech === 'function'
-    ) ? PhaseHelpersModule.getSpecialStoneBubbleSpeech : getLegacySpecialStoneBubbleSpeech;
-    const workBubbleSpeech = getSpecialStoneBubbleSpeech('WORK') || getLegacySpecialStoneBubbleSpeech('WORK');
-    const WORK_PLACE_LINES = (
-        workBubbleSpeech &&
-        Array.isArray(workBubbleSpeech.placeLines) &&
-        workBubbleSpeech.placeLines.length > 0
-    ) ? workBubbleSpeech.placeLines : FALLBACK_WORK_BUBBLE_SPEECH.placeLines;
-    const WORK_LOST_LINE = (
-        workBubbleSpeech &&
-        typeof workBubbleSpeech.lostLine === 'string'
-    ) ? workBubbleSpeech.lostLine : FALLBACK_WORK_BUBBLE_SPEECH.lostLine;
     function resolveSpecialStatusTimer(markerData: any) {
         const remainingOwnerTurns = Number(markerData && markerData.remainingOwnerTurns);
         if (Number.isFinite(remainingOwnerTurns)) return Math.max(0, Math.trunc(remainingOwnerTurns));
@@ -589,30 +552,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         typeof PhaseHelpersModule.resolveWorkIncomeLine === 'function'
     )
         ? PhaseHelpersModule.resolveWorkIncomeLine
-        : function resolveWorkIncomeLineFallback(gained: any) {
-            return `布石+${Number(gained) || 0} 労働の成果だ`;
-        };
+        : function resolveWorkIncomeLineFallback() { return null; };
 
     const getSpecialStoneBubbleSpeechLines = (
         PhaseHelpersModule &&
         typeof PhaseHelpersModule.getSpecialStoneBubbleSpeechLines === 'function'
     )
         ? PhaseHelpersModule.getSpecialStoneBubbleSpeechLines
-        : function getSpecialStoneBubbleSpeechLinesFallback(type: any, scenario: any) {
-            const speech = getSpecialStoneBubbleSpeech(type);
-            if (!speech) return null;
-            const scenarioKey = String(scenario || '').trim().toLowerCase();
-            if (scenarioKey === 'place' && Array.isArray(speech.placeLines) && speech.placeLines.length > 0) {
-                return speech.placeLines;
-            }
-            if (scenarioKey === 'destroy' && typeof speech.lostLine === 'string' && speech.lostLine) {
-                return [speech.lostLine];
-            }
-            if (Array.isArray(speech[scenarioKey]) && speech[scenarioKey].length > 0) {
-                return speech[scenarioKey];
-            }
-            return null;
-        };
+        : function getSpecialStoneBubbleSpeechLinesFallback() { return null; };
 
     const pickSpecialStoneBubbleSpeechLine = (
         PhaseHelpersModule &&
@@ -1694,9 +1641,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 buildPlacementChargeBubblePayload,
                 emitBoardChargeBubblePresentation,
                 emitSpecialStonePlacementBubbleFromEffects,
-                emitWorkBubblePresentation,
-                pickRandomLine,
-                workPlaceLines: WORK_PLACE_LINES,
                 pushTrapEvents,
                 emitTrapHandRemoveEvents,
                 debugLog: logTurnPipelinePhasesDebug

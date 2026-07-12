@@ -17,9 +17,6 @@ type ResolvePlacementImmediateEffectsOptions = {
     buildPlacementChargeBubblePayload: (playerKey: any, row: any, col: any, flipCount: number, boardBonusGained: number, effects: any) => any;
     emitBoardChargeBubblePresentation: (CardLogic: any, cardState: any, payload: any) => void;
     emitSpecialStonePlacementBubbleFromEffects: (CardLogic: any, cardState: any, playerKey: any, row: any, col: any, effects: any, prng: any) => void;
-    emitWorkBubblePresentation: (CardLogic: any, cardState: any, payload: any) => void;
-    pickRandomLine: (lines: any, prng: any) => any;
-    workPlaceLines: any[];
     pushTrapEvents: (events: any[], trapRes: any) => void;
     emitTrapHandRemoveEvents: (CardLogic: any, cardState: any, trapRes: any) => void;
     debugLog: (...args: any[]) => void;
@@ -112,19 +109,6 @@ function resolvePlacementImmediateEffects(options: ResolvePlacementImmediateEffe
             source: 'placement',
             awardBoardChargeGain: opts.awardBoardChargeGain
         });
-    }
-
-    if (effects && effects.workPlaced) {
-        const line = opts.pickRandomLine(opts.workPlaceLines, p);
-        if (line) {
-            opts.emitWorkBubblePresentation(opts.CardLogic, opts.cardState, {
-                player: opts.playerKey,
-                row: action.row,
-                col: action.col,
-                text: line,
-                reason: 'placed'
-            });
-        }
     }
 
     if (effects && effects.hyperactivePlaced && !effects.instantHyperactivePlaced) {

@@ -1,186 +1,231 @@
 const SPECIAL_STONE_BUBBLE_SCENARIO_KEYS = Object.freeze([
-    'place',
-    'destroy',
-    'duration_end',
-    'proliferation_triggered',
-    'time_stop_triggered',
-    'regen_triggered',
-    'card_nullified',
-    'ghost_protected',
-    'inherit_selected',
-    'inherit_applied',
-    'escape_exploded',
-    'special_destroy_triggered',
+    'place', 'destroy', 'duration_end', 'normal_revert',
+    'proliferation_triggered', 'time_stop_triggered', 'time_stop_deity_triggered',
+    'regen_triggered', 'zombie_infection', 'zombie_revived', 'card_nullified',
+    'ghost_protected', 'escape_exploded', 'special_destroy_triggered', 'work_income',
     'living_will_restored'
 ]);
 
-const GENERIC_LIVING_WILL_RESTORED_LINES = Object.freeze([
-    'まだ終わらない、ここから立て直す。',
-    '一度沈んだくらいで、この未練は消えない。',
-    '戻ってきた、もう一手ぶん働くよ。',
-    '消えたつもりなら誤算だ、私はまだ盤にいる。',
-    '生きる意志が残っていた、もう一度だけ立つ。'
-]);
+type SpeechEntry = Record<string, readonly string[] | Record<number, string>>;
 
-const SPECIAL_STONE_BUBBLE_SPEECH: Record<string, Record<string, readonly string[] | string | Record<number, string>>> = Object.freeze({
-    WORK: Object.freeze({
-        placeLines: Object.freeze(['ここで稼いで一発逆転や！', '布石いっぱい掘るでー！', 'ワイには夢があるんや！', '一攫千金や！']),
-        lostLine: 'あああああああああああああ',
-        living_will_restored: Object.freeze(['まだ稼げる！ ここから巻き返しや！', '持ち直したで！ もうひと掘りや！', '危なかったわ、でもまだ働けるで！']),
-        incomeLinesByStep: Object.freeze({
-            1: '布石＋1 初儲けや！',
-            2: '布石＋2 もっと掘るでー！',
-            3: '布石＋4 順調やな！',
-            4: '布石＋8 ぼろ儲けや！',
-            5: '布石＋16 これで家族が養える...！'
-        })
-    }),
-    PERMA_PROTECTED: Object.freeze({
-        place: Object.freeze(['反転ごときでは崩れない。', 'ここからずっと踏みとどまる。', '守り抜く、ただそれだけでいい。', '時間をかけても姿は変わらない。', '揺るがないまま盤に残る。']),
-        destroy: Object.freeze(['守りは厚くても、壊れる時は壊れる。', '反転には耐えた、だが破壊までは止められない。', '強い石でも、消える時は消える。', '盤に残る力はあった、壊される覚悟は別だ。', '反転されない意志ごと、ここで砕けた。'])
-    }),
-    GLUTTONOUS: Object.freeze({
-        place: Object.freeze(['いっぱい食べる俺が好き', '腹が減ってる、まずは一口くれ。', '食える盤なら全部うまい。', 'いただきますは言う、遠慮はしない。', '目の前の敵から順にごちそうだ。']),
-        destroy: Object.freeze(['食べても埋まらなかった空腹が、また残ったままだ。', '腹じゃない、満たされなかった昔の穴が痛む。', '食う側が食われる日もあるな。', 'もう一口だけ欲しかった。', '満腹前に倒れるのはつらい。'])
-    }),
-    GHOST: Object.freeze({
-        place: Object.freeze(['触れたつもりで、触れていないよ。', '見えても実体は薄いんだ。', '対象にはなる、でも当たらない。', 'ここにいるけど、少し向こう側だ。', '透けたまま盤に立つよ。']),
-        destroy: Object.freeze(['向こう側へ戻るたび、戻りたくなかった理由が蘇る。', '消えるのは慣れてる、でも未練までは薄れない。', '形を保てなくなったね。', 'かすかな身体も、ここまでか。', '消える時は静かに消えるよ。']),
-        ghost_protected: Object.freeze(['当たってないよ。', 'それ、私には届かない。', '狙いは正しいけど、手応えは無いだろ。', '触れたつもりの空振りだね。', '幽体って、そういうものだよ。'])
-    }),
-    AFTERIMAGE_WILL: Object.freeze({
-        place: Object.freeze(['本物はひとつ、でも見切れるかな。', '先に見えるのは残像の方だ。', '追うほど手元がずれるよ。', '揺らいだ輪郭で惑わせる。', 'まずは見失ってもらおうか。']),
-        destroy: Object.freeze(['断たれたのは残像だけじゃない、置き忘れた面影までだ。', '揺らぎが消えると、本当に会いたかった顔が残る。', '幻もいつかは掴まれるね。', 'ここまで見切られると潔い。', '影遊びは終わりだ。'])
-    }),
-    SACRIFICE: Object.freeze({
-        place: Object.freeze(['この石が、次の意志を引き受ける。']),
-        card_nullified: Object.freeze(['その一手は、ここで断つ。']),
-        duration_end: Object.freeze(['役目を待たず、意志は静かに尽きた。'])
-    }),
-    ESCAPE_HYPERACTIVE: Object.freeze({
-        place: Object.freeze(['近寄らないで！ 私、逃げるから！', '生き残るためなら何だってするよ！', '追われる前に走るのが一番だよ！', 'ここから先は逃走劇だよ！', '捕まるわけにはいかないの！']),
-        destroy: Object.freeze(['逃げ損ねるなんて、やっぱり悔しいよ…！', '囲まれると、さすがに怖いよ…！', '足場を奪われた時点で負けだったよ！', '追手が多すぎるってば！', '今回の逃走はここまでみたい…！']),
-        escape_exploded: Object.freeze(['行き場がないなら、もう吹き飛ぶしかないよ！', '逃げ道なしなら、景気よく爆ぜるね！', '追い詰めたつもりでも、巻き添えだからね！', 'もう無理！ 派手に散ってやるんだから！', '捕まるくらいなら盤ごと荒らしちゃうよ！'])
-    }),
-    BREEDING: Object.freeze({
-        place: Object.freeze(['ここを巣にする、増やしていくよ。', 'ひとつ置けば、すぐ賑やかになる。', '産むよ、広げるよ、止まらないよ。', '小さな群れが今ここから始まる。', '空きマスがあるなら全部ほしい。']),
-        destroy: Object.freeze(['巣は壊れても、遺したかったものはまだ残る。', '増やすたび埋めていた寂しさが、また顔を出す。', '母体は落ちても、広がりは見ただろ。', '群れの中心を狙うなんて正しいね。', 'ここで終わっても、よく増えたよ。']),
-        duration_end: Object.freeze(['季節が過ぎた、巣をたたむね。', '増える時間はもう終わり。', '繁殖期、きっちり終了。', '群れを解いて普通に戻るよ。', '今日はここまで、また増えたくなったら呼んで。'])
-    }),
-    PROLIFERATION: Object.freeze({
-        proliferation_triggered: Object.freeze(['壊しに来た？ じゃあ増えるね。', '一体分の覚悟で、二体ぶん返すよ。', '触れた瞬間、仲間がもう一人。', 'その一手、私の増殖に変わったよ。', '潰すつもりが、増やしちゃったね。'])
-    }),
-    ULTIMATE_DESTROY_GOD: Object.freeze({
-        place: Object.freeze(['祈るなら今のうちだ、壊す。', '私の周りに無事な石は残さない。', '破壊の神臨、始めようか。', '消えていく景色が一番美しい。', '壊すためにここへ来た。']),
-        destroy: Object.freeze(['壊すことでしか忘れられない名が、また残る。', '神を名乗っても、未練だけは焼き切れないか。', '今日はここまで、よく残ったね。', '滅びを配り切る前に落とされたか。', 'それでも十分、壊したはずだ。']),
-        duration_end: Object.freeze(['神託は満ちた、退くとしよう。', '破壊の時間、ここで閉幕。', '滅びの嵐が静まる。', '約定のターンは使い切った。', '神座を降りて、ただの石へ戻る。'])
-    }),
-    DESTROY_DRAGON: Object.freeze({
-        place: Object.freeze(['一匹ずつで十分だ、壊していく。', '龍の狙いは雑じゃない、確実に消す。', '周りの敵から順に沈める。', '破壊は一点でこそ冴える。', '目についた石から噛み砕く。']),
-        destroy: Object.freeze(['牙が折れるたび、守れなかった何かが疼く。', '狩る炎じゃない、あの日の悔しさまで消えない。', '一匹分の破壊で終わるか。', '爪が折れても、傷は残ったろ。', '今日は牙をしまう。']),
-        duration_end: Object.freeze(['狩りの時間が切れた。', '龍の回遊はここまでだ。', '破壊の巡回、終了。', '期限つきの暴れ方も悪くない。', '一狩り終えて、眠りにつく。'])
-    }),
-    SNIPER: Object.freeze({
-        place: Object.freeze(['射線、良好。', '遠くても逃がさない。', '一発で仕留める、静かに見ていろ。', '狙う相手はもう決めた。', '視界に入った時点で終わりだ。']),
-        destroy: Object.freeze(['照準の先にいたのは敵か、前の私だったか。', '撃つ前に落ちると、言えなかった一言が残る。', '良い位置だったんだけどな。', '狙撃手にも盲点はある。', 'ここで照準切れか。']),
-        duration_end: Object.freeze(['弾切れだ、撤収する。', '射線を閉じる時間だ。', '任務終了、狙撃終了。', '今日はここまで、銃身を冷やす。', '標的はまた次だ。'])
-    }),
-    LIGHTNING: Object.freeze({
-        place: Object.freeze(['落ちるぞ、目を離すな。', '雷は選ばない、でも敵だけ焼く。', '空から一撃、これが挨拶だ。', 'バチッと来るぜ、覚悟しな。', '盤面に雷雲を置いてやる。']),
-        destroy: Object.freeze(['消える瞬間だけ、昔の空の匂いが戻ってくる。', '落ち切る前に断たれたか、まだ地上に用があった。', '雲散霧消ってやつか。', '火花だけ残して退場か。', '稲妻も捕まれば終わりだ。']),
-        duration_end: Object.freeze(['雷雲、通り過ぎた。', '放電時間は終了だ。', '今日はここまで、空へ帰る。', 'ピカッと終わって、すっと消える。', 'もう一発は無し、静電気だけ置いていく。'])
-    }),
-    METEOR_GOD: Object.freeze({
-        place: Object.freeze(['因果の穴を開ける、目を逸らすな。', '選ばれたマスは、もう盤へ戻らない。', '黒い筋で、運命ごと削り取る。', '敵石ひとつ、存在の根から消す。', 'ここから先は、穴だけが答えだ。']),
-        destroy: Object.freeze(['消す側にも、消される時は来る。', '因果を断っても、自分の結末までは避けられない。', '穴を残し切る前に止められたか。', '黒い光が途切れる、今日はここまでだ。', '抹消の役目、まだ足りなかったな。']),
-        duration_end: Object.freeze(['因果抹消の刻限は尽きた。', '最後の穴を残して、ただの石へ戻る。', '黒いビームは沈黙する。', '盤を削る役目はここで終わりだ。', 'これ以上は消せない、因果を閉じる。'])
-    }),
-    HYPERACTIVE: Object.freeze({
-        place: Object.freeze(['じっとしてろって方が無理。', 'とりあえず動く、話はそれから。', '置かれた瞬間からもう落ち着かない。', '足が勝手に次を探してる。', 'ここも悪くないけど、たぶんすぐ出る。']),
-        destroy: Object.freeze(['止まるのはまずい、追いつかれるのは今世だけでいい。', '走り損ねるたび、あの日の逃げ遅れが刺さる。', '速さにも限界はあるか。', '捕まった、ちょっと悔しい。', 'まあいいや、次はもっと走る。']),
-        duration_end: Object.freeze(['走り足りないけど、ここで一度止まる。', '足音だけ残して、普通の石に戻るよ。', 'もう動けない、置いてきた誰かに追いつかれそうだ。', '速度の役目は終わり、少し静かになる。', 'まだ走りたいけど、盤面が休めと言ってる。'])
-    }),
-    EXTREME_HYPERACTIVE: Object.freeze({
-        place: Object.freeze(['近くにいるなら全員どけ。', 'じっとしてる盤面なんて退屈だ。', '暴れて散らして踏み荒らす。', '一マス先まで大騒ぎにしてやる。', '来たぞ、迷惑の本体だ。']),
-        destroy: Object.freeze(['止められると、笑えなかった頃が近づいてくる。', '暴れていれば忘れられたのに、また思い出しそうだ。', '盤面が静かになるの、むかつくな。', 'よく捕まえたね、褒めてないけど。', 'ちっ、もう一回暴れたかった。']),
-        duration_end: Object.freeze(['暴れる時間は終わりか、静けさは嫌いだ。', '押しのける相手もいないなら、今日は退く。', '騒がしさが切れると、前の檻を思い出す。', '盤面を荒らす権利、ここで返してやる。', '退屈に戻るのが一番むかつくな。'])
-    }),
-    ROBOT_VACUUM: Object.freeze({
-        place: Object.freeze(['清掃開始、敵石を回収します。', 'ゴミは見つけ次第吸い込みます。', '盤面クリーニングを開始します。', 'きれいにします、少々うるさいです。', '清潔第一、敵石は残しません。']),
-        destroy: Object.freeze(['停止処理に入ると、捨てられた日の静けさが戻る。', '回収できなかった欠片が、まだ中で鳴っている。', 'バッテリー以前の問題でした。', '吸い込み口ごと壊されました。', '清掃終了、これは故障です。']),
-        duration_end: Object.freeze(['定時です、清掃を終了します。', '稼働時間を使い切りました。', '本日の掃除はここまでです。', 'これ以上の延長運転はできません。', '盤面はまだでも、勤務時間は終了です。'])
-    }),
-    ULTIMATE_HYPERACTIVE: Object.freeze({
-        place: Object.freeze(['速度で全部置き去りにする。', '追えるものなら追ってみろ。', '神速ってやつを見せてやる。', '一手で足りないなら二手で走る。', '盤面の空気ごと置いていく。']),
-        destroy: Object.freeze(['神速が止まると、置いてきた時間だけが追いつく。', '振り切ったはずの過去が、ここで肩を掴むのか。', '動線ごと潰されたな。', 'まだ走れたのに、惜しい。', 'ここで終わる速度じゃなかった。']),
-        duration_end: Object.freeze(['神速の時間、ここで満了。', '走り切った、少し休む。', '加速は終わり、普通に戻る。', '十分暴れた、今日は減速だ。', '最後の一歩まで使い切った。'])
-    }),
-    STONE_SALVATION_GOD: Object.freeze({
-        place: Object.freeze(['迷える石たちよ、私の光のもとへ。', '失われる命を、私がそっと抱き留めましょう。', 'この盤に、救いの祈りを降ろします。', '傷つく石があるなら、私が道を開きます。', '嘆きの先にも、まだ帰る場所はあります。']),
-        destroy: Object.freeze(['救えなかった魂の名が、前世から今も響いています。', '差し伸べた手が届かなかった痛みを、私はまだ忘れません。', 'もう少しだけ、あの子たちを抱き留めたかった。', '救済の光が消えても、祈りだけは残します。', '置き去りにした命たちよ、どうか私を許して。']),
-        duration_end: Object.freeze(['祈りの時は満ちました、あとはあなたたちの歩みです。', '私の光はここまで、どうか盤に幸いを。', '救いの務めを終え、静かに石へ戻りましょう。', '残された者たちに、祝福が続きますように。', 'この手を離しても、祈りは盤に残ります。'])
-    }),
-    REGEN: Object.freeze({
-        regen_triggered: Object.freeze(['倒れても芽は残る、もう一度盤に戻るよ。', '再生完了、まだこのマスは渡さない。', '砕けた分だけ根を張った、ここから復帰だ。', '消えたと思った？ 芽吹きはここからだよ。', '再生の意志が残っていた、もう一度立つ。'])
-    }),
-    TIME_STOP: Object.freeze({
-        time_stop_triggered: Object.freeze(['時を止める、動けるのは私だけだ。', '盤上の時間を凍らせる、次の一手を奪う。', '止まれ、ここから先は私の間合いだ。', '一瞬を支配する、それで十分だ。', '時は止まった、動き出す前に決める。'])
-    }),
-    WILL_HUNTER_KING: Object.freeze({
-        place: Object.freeze(['王の狩場だ、異能の石から首を差し出せ。', '盤上の意志を嗅ぎ分ける、狩りの始まりだ。', '特殊石の気配がするな、王が刈り取りに来たぞ。', '目立つ力ほど狙いやすい、まずは一つ沈める。', '意志を掲げた石から順に、王の獲物になる。']),
-        special_destroy_triggered: Object.freeze(['光る首ほど、刈った時によく響く。', '特殊石の断末魔は、王の耳によく馴染む。', '異能ごと断つ、それが王の狩りだ。', '盤の切り札ほど、落とす価値がある。', '珍しい石から沈む、実にいい眺めだ。'])
-    }),
-    DRAGON: Object.freeze({
-        living_will_restored: GENERIC_LIVING_WILL_RESTORED_LINES
-    })
+function five(stem: string, a: string, b: string, c: string, d: string, e: string): readonly string[] {
+    return Object.freeze([a, b, c, d, e].map((tail) => `${stem}${tail}`));
+}
+
+function voice(place: readonly string[], destroy: readonly string[], restored: readonly string[], extra: SpeechEntry = {}): SpeechEntry {
+    return Object.freeze({ place, destroy, living_will_restored: restored, ...extra });
+}
+
+const SPECIAL_STONE_BUBBLE_SPEECH: Record<string, SpeechEntry> = Object.freeze({
+    PROTECTED: voice(
+        five('僕が守る', 'よ。', 'からね。', '、怖くても。', '、今度こそ。', '、一手だけでも。'),
+        five('僕じゃ守れなかった', 'よ……。', 'んだね。', '、ごめん。', '、まただ。', '、悔しいよ。'),
+        five('守れなかった子のため', '、戻るよ。', 'に立つよ。', '、まだ消えない。', 'にもう一手。', '、僕は生きる。'),
+        { duration_end: five('僕の守りは', 'ここまでだよ。', '解けるよ。', '役目を終えたよ。', 'もう切れるね。', '一手ぶん届いた。') }
+    ),
+    PERMA_PROTECTED: voice(
+        five('私はここで', '耐える。', '待つ。', '揺るがない。', '守り抜く。', '時を受け止める。'),
+        five('私の守りも', 'ここまでか。', '砕けた。', '永遠ではない。', '届かなかった。', '終わる時が来た。'),
+        five('待ち続けた約束がある', '、戻る。', '、まだ立つ。', '、終われない。', '、私は残る。', '、再び守る。')
+    ),
+    SNIPER: voice(
+        five('私の照準は', '合っている。', '既に敵を捉えた。', '静かに定まった。', '一発で足りる。', '任務を外さない。'),
+        five('私が先に落ちた', 'か。', '、任務失敗だ。', '、照準解除。', '、報告は以上。', '、無念だ。'),
+        five('未送信の帰還報告がある', '、復帰する。', '、任務続行。', '、まだ撃てる。', '、私は戻る。', '、照準を戻す。'),
+        { duration_end: five('私の狙撃任務は', '終了する。', 'ここまでだ。', '時間切れだ。', '撤収へ移る。', '完了とする。') }
+    ),
+    GHOST: voice(
+        five('私なら', 'ここにいるよ。', '少し透けてるよ。', '触れられないよ。', '静かに漂うよ。', '向こう側から見るよ。'),
+        five('私の輪郭が', '消えていくね。', 'ほどけるね。', 'もう保てない。', '夜へ戻るよ。', '薄くなるよ。'),
+        five('最後のお別れを言うまで', '戻るね。', '消えないよ。', 'まだ漂うよ。', 'ここにいるよ。', 'もう一度だけ。'),
+        {
+            duration_end: five('私の幽かな時間は', '終わりだね。', 'もう満ちたよ。', '静かに閉じるよ。', 'ここまでだよ。', '夜へ返すね。'),
+            ghost_protected: five('その一撃は', '私をすり抜けたよ。', '空を切ったね。', '届いてないよ。', '影に触れただけ。', '手応えがないでしょ。')
+        }
+    ),
+    SACRIFICE: voice(
+        five('私めが', '盾となりましょう。', 'その一手を預かります。', '誓いを果たします。', '主命を守ります。', '身代わりになります。'),
+        five('私めの務めは', 'ここまでです。', '果たせませんでした。', '途絶えました。', '無念にございます。', 'これにて終幕です。'),
+        five('守れなかった主君のため', '、再び盾に。', '、私めは戻る。', '、まだ倒れぬ。', '、誓いを継ぐ。', '、命を拾う。'),
+        {
+            duration_end: five('私めの任期は', '満ちました。', 'これにて終了です。', '静かに閉じます。', '役目を返上します。', 'ここまでにございます。'),
+            card_nullified: five('その札は', '私めが断ちます。', 'ここで無効です。', '主へ届かせません。', 'この身で止めます。', '誓いにより封じます。')
+        }
+    ),
+    AFTERIMAGE_WILL: voice(
+        five('僕の輪郭は', 'どれが本物かな。', 'もう先にいるよ。', '追うほど遠いよ。', '影だけ残すよ。', '答えを隠すよ。'),
+        five('僕の残像まで', '見切ったんだね。', '消える時だ。', '捕まったか。', 'ほどけていくよ。', '答えになったね。'),
+        five('忘れた顔を探すため', '、僕は戻る。', '、影を結ぶよ。', '、まだ揺らぐ。', '、もう一度走る。', '、答えを追う。'),
+        { normal_revert: five('僕の残像は', '普通へ戻るよ。', '使い切ったよ。', 'もう揺らがない。', '影を閉じるね。', 'ここで一つになる。') }
+    ),
+    TIME_STOP: voice(
+        five('私の時計を', 'ここへ置きます。', '巻いておきますね。', '静かに合わせます。', '一刻進めましょう。', '盤へ預けます。'),
+        five('私の時計が', '止まりましたね。', '壊れました。', '時を失いました。', '針を落としました。', '眠りにつきます。'),
+        five('直せなかった大時計のため', '、戻ります。', '、針を起こします。', '、まだ刻みます。', '、時を拾います。', '、再び盤へ。'),
+        { time_stop_triggered: five('皆さまの時を', '止めますね。', '少し預かります。', '一刻休ませます。', '静かに閉じます。', 'この針で留めます。') }
+    ),
+    TIME_STOP_DEITY: voice(
+        five('我が刻を', '盤へ顕す。', '汝らへ授けよう。', 'ここに定める。', '永劫へ刻む。', '運命に重ねる。'),
+        five('我が刻さえ', '砕けるか。', '終端を迎えるか。', '虚無へ還るか。', '閉じられたか。', '定めを外れたか。'),
+        five('終末を見届けるため', '、我は還る。', '、刻を再び。', '、まだ滅びぬ。', '、輪廻を越える。', '、盤へ顕れる。'),
+        { time_stop_deity_triggered: five('我が神刻に', '平伏せ。', '万象よ止まれ。', '盤上よ沈黙せよ。', '汝らの時はない。', '永劫の一瞬を見よ。') }
+    ),
+    REGEN: voice(
+        five('俺の芽は', 'ここから伸びるぞ。', 'まだ元気だぞ。', '何度でも育つ。', '盤に根を張る。', 'へこたれないぞ。'),
+        five('俺の芽が', '折れちまった。', '枯れたか。', 'ここで尽きるか。', '土へ戻るな。', '育ち切れなかった。'),
+        five('枯らした畑を緑にするまで', '、俺は戻る。', '、まだ育つ。', '、根は残る。', '、諦めない。', '、もう一度だ。'),
+        { regen_triggered: five('俺の再生は', 'ここからだ！', '大成功だ！', 'まだ止まらない！', '根っこから復活！', '元気満タンだ！') }
+    ),
+    ZOMBIE: voice(
+        five('あたしゃ', 'ここで見てるよ。', 'まだ歩けるよ。', 'しぶとい婆だよ。', '墓には早いよ。', '孫を探すよ。'),
+        five('あたしゃまた', '眠るだけさ。', '土へ帰るよ。', '倒れちまったね。', '墓へ戻るかね。', '孫に会えずじまいさ。'),
+        five('孫の顔を見るまでは', '、起きるよ。', '、眠れないね。', '、あたしゃ戻る。', '、墓を出るよ。', '、まだ歩くよ。'),
+        {
+            zombie_infection: five('あたしの仲間に', 'おなりよ。', 'なっておくれ。', 'なる時間だよ。', 'してあげるよ。', '加わりな。'),
+            zombie_revived: five('あたしゃ墓から', '戻ったよ。', 'また出たよ。', '起き上がったよ。', '這い出たよ。', '帰ってきたよ。')
+        }
+    ),
+    DRAGON: voice(
+        five('我が龍威を', '盤に刻む。', '刮目して見よ。', 'この地へ降ろす。', '牙に宿す。', '戦場へ示す。'),
+        five('我が龍身も', 'ここで尽きるか。', '地へ伏すか。', '牙を折られたか。', '炎を失うか。', '敗北を知るか。'),
+        five('守れなかった一族のため', '、我は甦る。', '、再び翔ぶ。', '、牙を取る。', '、まだ戦う。', '、炎を灯す。'),
+        { duration_end: five('我が龍威は', 'ここで鎮まる。', '刻限を迎えた。', '石へ還る。', '戦を終える。', '眠りにつく。') }
+    ),
+    BREEDING: voice(
+        five('私がみんなを', '育てるよ。', '増やしてあげる。', '温めてあげる。', 'ここで見守るよ。', '家族にするね。'),
+        five('私の巣が', '壊れちゃったね。', '空になったね。', '冷えていくね。', 'ここで終わるね。', '守れなかったね。'),
+        five('失った子どもを探すまで', '、私は戻る。', '、巣を守るよ。', '、まだ育てる。', '、手を離さない。', '、母でいるよ。'),
+        { duration_end: five('私の子育ては', '今日はここまで。', 'ひと休みだね。', '時間になったね。', '巣を閉じるね。', '無事に終わったよ。') }
+    ),
+    PROLIFERATION: voice(
+        five('ぼくらは', 'ここから増えるよ。', 'ひとりじゃないよ。', '遊びに来たよ。', 'みんなで立つよ。', '仲間を呼ぶよ。'),
+        five('ぼくらが', 'ひとり減ったよ。', '消えちゃった。', 'ばらばらになるよ。', '遊べなくなるよ。', '寂しくなるよ。'),
+        five('置いてきた仲間を迎えるまで', '、ぼくらは戻る。', '、まだ増えるよ。', '、手をつなぐよ。', '、消えないよ。', '、また遊ぶよ。'),
+        {
+            duration_end: five('ぼくらの増える時間は', 'おしまいだよ。', 'もう終わりだよ。', 'ここまでだね。', 'ひと休みだよ。', 'また今度だよ。'),
+            proliferation_triggered: five('ぼくらがまた', '増えたよ！', 'ふたりになった！', '仲間を呼んだよ！', '広がったよ！', 'ひとり生まれた！')
+        }
+    ),
+    HYPERACTIVE: voice(
+        five('俺はもう', '走り出すぞ！', '止まれない！', '次へ行く！', 'じっとしない！', '盤を駆ける！'),
+        five('俺の足が', '止まっちまった。', '捕まった！', '動かないぞ。', 'ここで終わるか。', '追いつかれた。'),
+        five('助けに戻れなかった友のため', '、俺は走る。', '、まだ動く。', '、立ち上がる。', '、止まらない。', '、もう一周だ。'),
+        { normal_revert: five('俺の全力は', 'ここまでだ！', '使い切った！', 'もう動けない！', '普通へ戻る！', 'ひと休みだ！') }
+    ),
+    EXTREME_HYPERACTIVE: voice(
+        five('あたしが全部', 'ぶっ飛ばす！', '蹴散らす！', '踏み荒らす！', '騒がせる！', '退屈を壊す！'),
+        five('あたしを', '止めやがったな。', '捕まえたか。', '黙らせる気か。', '倒したつもりか。', 'ここで終わらすか。'),
+        five('閉じ込められた過去を壊すまで', '、あたしは戻る。', '、まだ暴れる。', '、また蹴る。', '、黙らない。', '、檻を破る。'),
+        { normal_revert: five('あたしの暴走は', 'ここで打ち止め。', '燃料切れだ。', 'もう散らせない。', '普通へ戻る。', 'いったん終わり。') }
+    ),
+    ESCAPE_HYPERACTIVE: voice(
+        five('私、ここから', '逃げるから！', '走るからね！', '捕まらないよ！', '生き残るよ！', '出口を探すよ！'),
+        five('私、とうとう', '捕まったよ……。', '逃げ損ねたね。', '囲まれたよ。', '足が止まった。', '出口を失ったよ。'),
+        five('帰れなかった家を探すまで', '、私は戻る！', '、まだ逃げる！', '、走り続ける！', '、諦めない！', '、出口へ行く！'),
+        { escape_exploded: five('私、逃げ道がないなら', '爆発する！', '吹き飛ぶから！', '巻き込むよ！', '派手に散る！', '盤を荒らす！') }
+    ),
+    ROBOT_VACUUM: voice(
+        five('当機は', '清掃を開始します。', '敵石を回収します。', '盤面を整えます。', '稼働を確認しました。', '吸引任務へ移ります。'),
+        five('当機は', '機能を停止します。', '破損しました。', '任務を中断します。', '電力を失いました。', '廃棄状態へ移行します。'),
+        five('捨てられた家へ帰還するため', '、当機は復帰。', '、再起動します。', '、任務を継続。', '、停止しません。', '、再び清掃。'),
+        {
+            duration_end: five('当機の清掃時間は', '終了しました。', '満了しました。', 'ここまでです。', '規定に達しました。', '通常状態へ移行。'),
+            normal_revert: five('当機の移動候補は', 'ゼロです。', '存在しません。', '枯渇しました。', '検出できません。', '通常化を要求。')
+        }
+    ),
+    GLUTTONOUS: voice(
+        Object.freeze(['いっぱい食べる俺が好き', '俺の腹に全部よこせ！', '俺は敵石までいただくぞ！', '俺の飯場はここだ！', '俺は空腹で強くなる！']),
+        five('俺の腹が', '満ちる前に終わるか。', '空のままだ。', 'もう食えない。', '負けを噛んでる。', '最後まで鳴ってる。'),
+        five('飢えた弟に食わせるまでは', '、俺は戻る。', '、まだ食う。', '、腹は止まらん。', '、倒れられない。', '、もう一皿だ。')
+    ),
+    WILL_HUNTER_KING: voice(
+        five('余の狩場へ', 'ようこそ。', '異能を差し出せ。', '獲物が来たな。', '王が降りたぞ。', '首を並べよ。'),
+        five('余を討つとは', 'よい度胸だ。', '王殺しか。', '見事である。', '狩りも終幕か。', '玉座が遠のくな。'),
+        five('滅びた王国を取り戻すまで', '、余は還る。', '、王は死なぬ。', '、狩りを続ける。', '、玉座へ戻る。', '、再び立つ。'),
+        {
+            duration_end: five('余の狩猟時間は', 'ここまでだ。', '満ちたようだ。', '閉幕とする。', '今日は終いだ。', '玉座へ戻る。'),
+            special_destroy_triggered: five('余が異能を', '狩り取ったぞ。', 'また討ったぞ。', '王手で潰した。', '首級に加えた。', '見事に断った。')
+        }
+    ),
+    WORK: voice(
+        five('わいはここで', '働くで！', '稼ぐんや！', '家計を支えるで！', '一旗揚げるで！', '汗かくで！'),
+        five('わいの仕事場が', '潰れたわ。', 'なくなったで。', '閉店や。', '更地やないか。', '終わってもうた。'),
+        five('家族を食わせるため', '、わいは戻るで！', '、まだ働くで！', '、休めへん！', '、もう一稼ぎや！', '、踏ん張るで！'),
+        {
+            duration_end: five('わいの勤務は', 'ここまでや。', '定時やで。', 'もう上がりや。', '店じまいや。', '今日は終了や。'),
+            incomeLinesByStep: Object.freeze({ 1: '布石＋1、初給料や！', 2: '布石＋2、残業代やで！', 3: '布石＋4、家計が助かるわ！', 4: '布石＋8、今月は黒字や！', 5: '布石＋16、家族にご馳走や！' })
+        }
+    ),
+    STONE_SALVATION_GOD: voice(
+        five('私の祈りで', '石を救いましょう。', '迷いを包みます。', '盤を照らします。', '帰る道を示します。', '傷を抱き留めます。'),
+        five('私の祈りが', '途切れます。', '届きませんでした。', '光を失います。', 'ここで沈みます。', '救いを残せません。'),
+        five('救えなかった魂を導くまで', '、私は戻ります。', '、祈り続けます。', '、光を灯します。', '、手を伸ばします。', '、まだ眠れません。'),
+        { duration_end: five('私の救済は', 'ここまでです。', '時を満たしました。', '静かに閉じます。', '祈りへ戻ります。', '盤へ託します。') }
+    ),
+    DESTROY_DRAGON: voice(
+        five('俺の牙で', '一つずつ壊す。', '敵を噛み砕く。', '狙いを外さない。', '邪魔を消す。', '盤を切り開く。'),
+        five('俺の牙まで', '折れたか。', '砕かれたな。', '届かなかった。', 'ここで止まるか。', '鈍っちまった。'),
+        five('守れなかった相棒のため', '、俺は戻る。', '、もう一度噛む。', '、牙を研ぐ。', '、まだ戦う。', '、敵を討つ。'),
+        { duration_end: five('俺の破壊は', 'ここまでだ。', '時間切れだ。', 'もう終わりだ。', '牙をしまう。', '一度休む。') }
+    ),
+    LIGHTNING: voice(
+        five('あたしの雷で', '痺れな！', '目を覚ましな！', '盤を照らすよ！', '敵を焼くよ！', '派手にいくよ！'),
+        five('あたしの火花が', '消えちまうよ。', '散っちゃった。', '地へ落ちたね。', 'もう鳴らない。', '雨に負けたよ。'),
+        five('嵐で失った故郷を照らすまで', '、あたしは戻る！', '、まだ光る！', '、また落ちる！', '、雷は消えない！', '、空へ昇る！'),
+        { duration_end: five('あたしの雷雲は', '通り過ぎたよ。', 'もう晴れるよ。', 'ここで消えるよ。', '放電終了！', '空へ帰るよ。') }
+    ),
+    ULTIMATE_DESTROY_GOD: voice(
+        five('私の破壊劇を', '始めましょう。', 'ご覧なさい。', '華麗に開幕します。', '盤へ捧げます。', '存分に味わって。'),
+        five('私の終幕まで', '美しいでしょう。', '見届けなさい。', '破壊されたのね。', '喝采をください。', '幕が降ります。'),
+        five('忘れられた名を刻むため', '、私は再演します。', '、まだ壊します。', '、神座へ戻ります。', '、幕を上げます。', '、終われません。'),
+        { duration_end: five('私の破壊公演は', 'これにて終幕。', '満員御礼です。', '時間となりました。', '幕を閉じましょう。', '次幕へ続きます。') }
+    ),
+    ULTIMATE_HYPERACTIVE: voice(
+        five('私は', '走る。', '止まらない。', '先へ行く。', '一瞬で着く。', '盤を抜ける。'),
+        five('私は', '止められた。', '追いつかれた。', 'ここで終わる。', '速度を失った。', 'まだ足りない。'),
+        five('置き去りにした友へ戻るため', '、私は走る。', '、再起する。', '、まだ速い。', '、止まらない。', '、時を越える。'),
+        {
+            duration_end: five('私の神速は', '終了。', 'ここまで。', '使い切った。', '通常へ戻る。', '一度止まる。'),
+            normal_revert: five('私の走路は', 'もうない。', '閉じた。', '尽きた。', '通常へ戻る。', 'ここで止まる。')
+        }
+    ),
+    METEOR_GOD: voice(
+        five('私が因果を', '裁定する。', '抹消する。', '盤から除く。', '穴へ還す。', 'ここに断つ。'),
+        five('私の因果も', 'ここで尽きる。', '裁かれたか。', '断たれた。', '穴へ沈む。', '終端を迎える。'),
+        five('消した者の名を償うまで', '、私は戻る。', '、裁定を続ける。', '、まだ消えない。', '、因果を結ぶ。', '、盤へ立つ。'),
+        { duration_end: five('私の因果裁定は', '終了する。', '刻限を迎えた。', 'ここで閉じる。', '盤へ返す。', '抹消を止める。') }
+    )
 });
 
-const WORK_PLACE_LINES = SPECIAL_STONE_BUBBLE_SPEECH.WORK.placeLines;
-const WORK_LOST_LINE = SPECIAL_STONE_BUBBLE_SPEECH.WORK.lostLine;
-const WORK_INCOME_LINES_BY_STEP = SPECIAL_STONE_BUBBLE_SPEECH.WORK.incomeLinesByStep;
+const WORK_INCOME_LINES_BY_STEP = SPECIAL_STONE_BUBBLE_SPEECH.WORK.incomeLinesByStep as Record<number, string>;
 
 function pickRandomLine(lines: readonly string[] | null | undefined, prng?: { random?: () => number }): string | null {
     if (!Array.isArray(lines) || lines.length === 0) return null;
-    let value = Number(
-        prng && typeof prng.random === 'function'
-            ? prng.random()
-            : Math.random() // network-authority-random-allowlist: observer/work bubble text only, not canonical gameplay state
-    );
+    let value = Number(prng && typeof prng.random === 'function' ? prng.random() : Math.random()); // network-authority-random-allowlist: presentation text only
     if (!Number.isFinite(value)) value = 0;
-    if (value < 0) value = 0;
-    if (value >= 1) value = 0.999999;
-    const index = Math.floor(value * lines.length);
-    return lines[Math.max(0, Math.min(lines.length - 1, index))] || null;
+    value = Math.max(0, Math.min(0.999999, value));
+    return lines[Math.floor(value * lines.length)] || null;
 }
 
 function resolveWorkIncomeLine(gained: unknown, incomeStep: unknown): string {
-    const normalizedStep = Number.isFinite(Number(incomeStep))
-        ? Math.max(1, Math.min(5, Math.trunc(Number(incomeStep))))
-        : null;
-    const incomeLines = WORK_INCOME_LINES_BY_STEP as Record<number, string>;
-    if (normalizedStep && incomeLines[normalizedStep]) return incomeLines[normalizedStep];
-    const g = Number(gained) || 0;
-    const inferredStep = g >= 16 ? 5 : (g >= 8 ? 4 : (g >= 4 ? 3 : (g >= 2 ? 2 : 1)));
-    return incomeLines[inferredStep] || incomeLines[1];
+    const step = Number.isFinite(Number(incomeStep)) ? Math.max(1, Math.min(5, Math.trunc(Number(incomeStep)))) : null;
+    if (step && WORK_INCOME_LINES_BY_STEP[step]) return WORK_INCOME_LINES_BY_STEP[step];
+    const amount = Number(gained) || 0;
+    const inferred = amount >= 16 ? 5 : amount >= 8 ? 4 : amount >= 4 ? 3 : amount >= 2 ? 2 : 1;
+    return WORK_INCOME_LINES_BY_STEP[inferred];
 }
 
-function getSpecialStoneBubbleSpeech(type: string, scenario?: string): Record<string, unknown> | readonly string[] | null {
-    const key = String(type || '').trim().toUpperCase();
-    const speech = SPECIAL_STONE_BUBBLE_SPEECH[key] || null;
+function getSpecialStoneBubbleSpeech(type: string, scenario?: string): SpeechEntry | readonly string[] | null {
+    const speech = SPECIAL_STONE_BUBBLE_SPEECH[String(type || '').trim().toUpperCase()] || null;
     if (!speech) return null;
-    if (arguments.length >= 2) return getSpecialStoneBubbleSpeechLines(type, scenario || '');
-    return speech;
+    return arguments.length >= 2 ? getSpecialStoneBubbleSpeechLines(type, scenario || '') : speech;
 }
 
 function getSpecialStoneBubbleSpeechLines(type: string, scenario: string): readonly string[] | null {
-    const key = String(type || '').trim().toUpperCase();
-    const speech = SPECIAL_STONE_BUBBLE_SPEECH[key] || null;
+    const speech = SPECIAL_STONE_BUBBLE_SPEECH[String(type || '').trim().toUpperCase()] || null;
     if (!speech) return null;
-    const scenarioKey = String(scenario || '').trim().toLowerCase().replace(/-/g, '_');
-    if (Array.isArray(speech[scenarioKey])) return speech[scenarioKey] as readonly string[];
-    if (scenarioKey === 'place' && Array.isArray(speech.placeLines)) return speech.placeLines as readonly string[];
-    if (scenarioKey === 'destroy' && typeof speech.lostLine === 'string') return [speech.lostLine];
-    return null;
+    const value = speech[String(scenario || '').trim().toLowerCase().replace(/-/g, '_')];
+    return Array.isArray(value) ? value : null;
 }
 
 function pickSpecialStoneBubbleSpeechLine(type: string, scenario: string, prng?: { random?: () => number }): string | null {
@@ -188,29 +233,15 @@ function pickSpecialStoneBubbleSpeechLine(type: string, scenario: string, prng?:
 }
 
 export {
-    SPECIAL_STONE_BUBBLE_SCENARIO_KEYS,
-    SPECIAL_STONE_BUBBLE_SPEECH,
-    WORK_PLACE_LINES,
-    WORK_LOST_LINE,
-    WORK_INCOME_LINES_BY_STEP,
-    getSpecialStoneBubbleSpeech,
-    getSpecialStoneBubbleSpeechLines,
-    pickSpecialStoneBubbleSpeechLine,
-    pickRandomLine,
-    resolveWorkIncomeLine
+    SPECIAL_STONE_BUBBLE_SCENARIO_KEYS, SPECIAL_STONE_BUBBLE_SPEECH, WORK_INCOME_LINES_BY_STEP,
+    getSpecialStoneBubbleSpeech, getSpecialStoneBubbleSpeechLines, pickSpecialStoneBubbleSpeechLine,
+    pickRandomLine, resolveWorkIncomeLine
 };
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        SPECIAL_STONE_BUBBLE_SCENARIO_KEYS,
-        SPECIAL_STONE_BUBBLE_SPEECH,
-        WORK_PLACE_LINES,
-        WORK_LOST_LINE,
-        WORK_INCOME_LINES_BY_STEP,
-        getSpecialStoneBubbleSpeech,
-        getSpecialStoneBubbleSpeechLines,
-        pickSpecialStoneBubbleSpeechLine,
-        pickRandomLine,
-        resolveWorkIncomeLine
+        SPECIAL_STONE_BUBBLE_SCENARIO_KEYS, SPECIAL_STONE_BUBBLE_SPEECH, WORK_INCOME_LINES_BY_STEP,
+        getSpecialStoneBubbleSpeech, getSpecialStoneBubbleSpeechLines, pickSpecialStoneBubbleSpeechLine,
+        pickRandomLine, resolveWorkIncomeLine
     };
 }

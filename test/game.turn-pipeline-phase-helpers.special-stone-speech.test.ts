@@ -1,153 +1,93 @@
-import * as phaseHelpers from '../game/turn/turn_pipeline_phase_helpers.js';
+const speech = require('../game/turn/turn_pipeline_phase_helpers');
 
-describe('turn_pipeline_phase_helpers special stone speech catalog', () => {
-  test('preserves WORK speech exactly', () => {
-    expect(phaseHelpers.getSpecialStoneBubbleSpeech('WORK')).toEqual({
-      placeLines: [
-        'ここで稼いで一発逆転や！',
-        '布石いっぱい掘るでー！',
-        'ワイには夢があるんや！',
-        '一攫千金や！'
-      ],
-      lostLine: 'あああああああああああああ',
-      living_will_restored: [
-        'まだ稼げる！ ここから巻き返しや！',
-        '持ち直したで！ もうひと掘りや！',
-        '危なかったわ、でもまだ働けるで！'
-      ],
-      incomeLinesByStep: {
-        1: '布石＋1 初儲けや！',
-        2: '布石＋2 もっと掘るでー！',
-        3: '布石＋4 順調やな！',
-        4: '布石＋8 ぼろ儲けや！',
-        5: '布石＋16 これで家族が養える...！'
+const SPECIAL_TYPES = [
+  'PROTECTED', 'PERMA_PROTECTED', 'SNIPER', 'GHOST', 'SACRIFICE', 'AFTERIMAGE_WILL',
+  'TIME_STOP', 'TIME_STOP_DEITY', 'REGEN', 'ZOMBIE', 'DRAGON', 'BREEDING',
+  'PROLIFERATION', 'HYPERACTIVE', 'EXTREME_HYPERACTIVE', 'ESCAPE_HYPERACTIVE',
+  'ROBOT_VACUUM', 'GLUTTONOUS', 'WILL_HUNTER_KING', 'WORK', 'STONE_SALVATION_GOD',
+  'DESTROY_DRAGON', 'LIGHTNING', 'ULTIMATE_DESTROY_GOD', 'ULTIMATE_HYPERACTIVE', 'METEOR_GOD'
+];
+
+const DURATION_TYPES = [
+  'PROTECTED', 'SNIPER', 'GHOST', 'SACRIFICE', 'DRAGON', 'BREEDING', 'PROLIFERATION',
+  'ROBOT_VACUUM', 'WILL_HUNTER_KING', 'WORK',
+  'STONE_SALVATION_GOD', 'DESTROY_DRAGON', 'LIGHTNING', 'ULTIMATE_DESTROY_GOD',
+  'ULTIMATE_HYPERACTIVE', 'METEOR_GOD'
+];
+
+const SPECIAL_SCENARIOS: Record<string, string[]> = {
+  AFTERIMAGE_WILL: ['normal_revert'],
+  HYPERACTIVE: ['normal_revert'],
+  EXTREME_HYPERACTIVE: ['normal_revert'],
+  ULTIMATE_HYPERACTIVE: ['normal_revert'],
+  ROBOT_VACUUM: ['normal_revert'],
+  PROLIFERATION: ['proliferation_triggered'],
+  TIME_STOP: ['time_stop_triggered'],
+  TIME_STOP_DEITY: ['time_stop_deity_triggered'],
+  REGEN: ['regen_triggered'],
+  ZOMBIE: ['zombie_infection', 'zombie_revived'],
+  SACRIFICE: ['card_nullified'],
+  GHOST: ['ghost_protected'],
+  ESCAPE_HYPERACTIVE: ['escape_exploded'],
+  WILL_HUNTER_KING: ['special_destroy_triggered']
+};
+
+describe('特殊石キャラクターボイス契約', () => {
+  test('対象26種だけを収録し、顕現石と罠・爆弾を含めない', () => {
+    expect(Object.keys(speech.SPECIAL_STONE_BUBBLE_SPEECH).sort()).toEqual([...SPECIAL_TYPES].sort());
+    for (const excluded of ['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL', 'TRAP', 'TIME_BOMB', 'CROSS_BOMB', 'X_BOMB']) {
+      expect(speech.getSpecialStoneBubbleSpeech(excluded)).toBeNull();
+    }
+  });
+
+  test('全石の共通シナリオと対象別シナリオが各5候補', () => {
+    for (const type of SPECIAL_TYPES) {
+      for (const scenario of ['place', 'destroy', 'living_will_restored']) {
+        expect(speech.getSpecialStoneBubbleSpeechLines(type, scenario)).toHaveLength(5);
       }
-    });
-  });
-
-  test('exposes required scenario keys and scenario-based lookup helpers', () => {
-    expect(phaseHelpers.SPECIAL_STONE_BUBBLE_SCENARIO_KEYS).toEqual(expect.arrayContaining([
-      'place',
-      'destroy',
-      'duration_end',
-      'proliferation_triggered',
-      'time_stop_triggered',
-      'regen_triggered',
-      'card_nullified',
-      'ghost_protected',
-      'inherit_selected',
-      'inherit_applied',
-      'escape_exploded',
-      'special_destroy_triggered',
-      'living_will_restored'
-    ]));
-
-    const gluttonousPlaceLines = phaseHelpers.getSpecialStoneBubbleSpeechLines('GLUTTONOUS', 'place');
-    expect(gluttonousPlaceLines).toHaveLength(5);
-    expect(gluttonousPlaceLines).toContain('いっぱい食べる俺が好き');
-    expect(phaseHelpers.pickSpecialStoneBubbleSpeechLine('GLUTTONOUS', 'place', { random: () => 0 })).toBe('いっぱい食べる俺が好き');
-
-    const ghostProtectedLines = phaseHelpers.getSpecialStoneBubbleSpeech('GHOST', 'ghost_protected');
-    expect(ghostProtectedLines).toHaveLength(5);
-    expect(ghostProtectedLines[0]).toBe('当たってないよ。');
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ESCAPE_HYPERACTIVE', 'place')).toEqual([
-      '近寄らないで！ 私、逃げるから！',
-      '生き残るためなら何だってするよ！',
-      '追われる前に走るのが一番だよ！',
-      'ここから先は逃走劇だよ！',
-      '捕まるわけにはいかないの！'
-    ]);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ESCAPE_HYPERACTIVE', 'destroy')).toEqual([
-      '逃げ損ねるなんて、やっぱり悔しいよ…！',
-      '囲まれると、さすがに怖いよ…！',
-      '足場を奪われた時点で負けだったよ！',
-      '追手が多すぎるってば！',
-      '今回の逃走はここまでみたい…！'
-    ]);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ESCAPE_HYPERACTIVE', 'escape_exploded')).toEqual([
-      '行き場がないなら、もう吹き飛ぶしかないよ！',
-      '逃げ道なしなら、景気よく爆ぜるね！',
-      '追い詰めたつもりでも、巻き添えだからね！',
-      'もう無理！ 派手に散ってやるんだから！',
-      '捕まるくらいなら盤ごと荒らしちゃうよ！'
-    ]);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('PROLIFERATION', 'proliferation_triggered')).toHaveLength(5);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('WILL_HUNTER_KING', 'special_destroy_triggered')).toHaveLength(5);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('ESCAPE_HYPERACTIVE', 'escape_exploded')).toHaveLength(5);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('DRAGON', 'living_will_restored')).toHaveLength(5);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('DRAGON', 'living_will_restored')).toEqual([
-      'まだ終わらない、ここから立て直す。',
-      '一度沈んだくらいで、この未練は消えない。',
-      '戻ってきた、もう一手ぶん働くよ。',
-      '消えたつもりなら誤算だ、私はまだ盤にいる。',
-      '生きる意志が残っていた、もう一度だけ立つ。'
-    ]);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('PERMA_PROTECTED', 'place')).toEqual([
-      '反転ごときでは崩れない。',
-      'ここからずっと踏みとどまる。',
-      '守り抜く、ただそれだけでいい。',
-      '時間をかけても姿は変わらない。',
-      '揺るがないまま盤に残る。'
-    ]);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('AFTERIMAGE_WILL', 'place')).toEqual([
-      '本物はひとつ、でも見切れるかな。',
-      '先に見えるのは残像の方だ。',
-      '追うほど手元がずれるよ。',
-      '揺らいだ輪郭で惑わせる。',
-      'まずは見失ってもらおうか。'
-    ]);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('SACRIFICE', 'place')).toEqual([
-      'この石が、次の意志を引き受ける。'
-    ]);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('SACRIFICE', 'card_nullified')).toEqual([
-      'その一手は、ここで断つ。'
-    ]);
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('SACRIFICE', 'duration_end')).toEqual([
-      '役目を待たず、意志は静かに尽きた。'
-    ]);
-  });
-
-  test('keeps excluded stones and unsupported scenarios out of the catalog', () => {
-    expect(phaseHelpers.getSpecialStoneBubbleSpeech('GOLD')).toBeNull();
-    expect(phaseHelpers.getSpecialStoneBubbleSpeech('TRAP')).toBeNull();
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('GLUTTONOUS', 'duration_end')).toBeNull();
-  });
-
-  test('adds five basic trigger lines for newly speaking special stones', () => {
-    const speakingStones = [
-      'BREEDING',
-      'ULTIMATE_DESTROY_GOD',
-      'DESTROY_DRAGON',
-      'SNIPER',
-      'LIGHTNING',
-      'HYPERACTIVE',
-      'EXTREME_HYPERACTIVE',
-      'ROBOT_VACUUM',
-      'ULTIMATE_HYPERACTIVE',
-      'STONE_SALVATION_GOD',
-      'METEOR_GOD',
-    ];
-
-    for (const special of speakingStones) {
-      expect(phaseHelpers.getSpecialStoneBubbleSpeechLines(special, 'place')).toHaveLength(5);
-      expect(phaseHelpers.getSpecialStoneBubbleSpeechLines(special, 'destroy')).toHaveLength(5);
-      expect(phaseHelpers.getSpecialStoneBubbleSpeechLines(special, 'duration_end')).toHaveLength(5);
     }
-
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('STONE_SALVATION_GOD', 'place')).toContain('迷える石たちよ、私の光のもとへ。');
-    expect(phaseHelpers.getSpecialStoneBubbleSpeechLines('METEOR_GOD', 'place')).toContain('因果の穴を開ける、目を逸らすな。');
+    for (const type of DURATION_TYPES) {
+      expect(speech.getSpecialStoneBubbleSpeechLines(type, 'duration_end')).toHaveLength(5);
+    }
+    for (const [type, scenarios] of Object.entries(SPECIAL_SCENARIOS)) {
+      for (const scenario of scenarios) {
+        expect(speech.getSpecialStoneBubbleSpeechLines(type, scenario)).toHaveLength(5);
+      }
+    }
   });
 
-  test('adds place and destroy lines for non-duration protection-style stones', () => {
-    const speakingStones = [
-      'PERMA_PROTECTED',
-      'AFTERIMAGE_WILL',
-    ];
-
-    for (const special of speakingStones) {
-      expect(phaseHelpers.getSpecialStoneBubbleSpeechLines(special, 'place')).toHaveLength(5);
-      expect(phaseHelpers.getSpecialStoneBubbleSpeechLines(special, 'destroy')).toHaveLength(5);
-      expect(phaseHelpers.getSpecialStoneBubbleSpeechLines(special, 'duration_end')).toBeNull();
+  test('全文は非空・改行なし・34文字以下・完全一致重複なし', () => {
+    const lines: string[] = [];
+    for (const entry of Object.values(speech.SPECIAL_STONE_BUBBLE_SPEECH) as any[]) {
+      for (const value of Object.values(entry)) {
+        if (Array.isArray(value)) lines.push(...value);
+        else if (value && typeof value === 'object') lines.push(...Object.values(value) as string[]);
+      }
     }
+    expect(lines.length).toBeGreaterThan(500);
+    for (const line of lines) {
+      expect(line.trim()).toBe(line);
+      expect(line).not.toMatch(/[\r\n]/);
+      expect(Array.from(line).length).toBeLessThanOrEqual(34);
+    }
+    expect(new Set(lines).size).toBe(lines.length);
+    const restoredArrays = SPECIAL_TYPES.map((type) => speech.getSpecialStoneBubbleSpeechLines(type, 'living_will_restored'));
+    expect(new Set(restoredArrays).size).toBe(SPECIAL_TYPES.length);
+  });
+
+  test('労働石収入は段階ごとの新しい固定文だけを返す', () => {
+    expect(speech.resolveWorkIncomeLine(1, 1)).toBe('布石＋1、初給料や！');
+    expect(speech.resolveWorkIncomeLine(16, 5)).toBe('布石＋16、家族にご馳走や！');
+    expect(speech.resolveWorkIncomeLine(8, undefined)).toBe('布石＋8、今月は黒字や！');
+    expect((speech.SPECIAL_STONE_BUBBLE_SPEECH.WORK as any).placeLines).toBeUndefined();
+    expect((speech.SPECIAL_STONE_BUBBLE_SPEECH.WORK as any).lostLine).toBeUndefined();
+  });
+
+  test('代表的な口調と唯一の再採用文を保持する', () => {
+    expect(speech.getSpecialStoneBubbleSpeechLines('PROTECTED', 'place')[0]).toContain('僕');
+    expect(speech.getSpecialStoneBubbleSpeechLines('TIME_STOP_DEITY', 'place')[0]).toContain('我');
+    expect(speech.getSpecialStoneBubbleSpeechLines('ROBOT_VACUUM', 'place')[0]).toContain('当機');
+    expect(speech.getSpecialStoneBubbleSpeechLines('WORK', 'place')[0]).toContain('わい');
+    expect(speech.getSpecialStoneBubbleSpeechLines('GLUTTONOUS', 'place')).toContain('いっぱい食べる俺が好き');
   });
 });

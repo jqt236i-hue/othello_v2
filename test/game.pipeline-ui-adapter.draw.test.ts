@@ -412,7 +412,7 @@ describe('pipeline_ui_adapter draw mapping', () => {
     const bubbleEv = out.find((ev) => ev && ev.type === 'observer_bubble' && ev.rawType === 'WORK_BUBBLE');
     expect(bubbleEv).toBeTruthy();
     expect(bubbleEv.targets[0]).toMatchObject({ r: 6, col: 1, owner: 'white' });
-    expect(bubbleEv.targets[0].text).toContain('あああああああああああああ');
+    expect(bubbleEv.targets[0].text).toBe('わいの仕事場が潰れたわ。');
   });
 
   test('does not map WORK_REMOVED with duration_end to observer_bubble playback event', () => {

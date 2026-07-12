@@ -10,14 +10,13 @@ type TurnPresentationHelperDeps = {
     resolveWorkIncomeLine?: (gained: any, incomeStep: any) => any;
 };
 
-const LEGACY_SPECIAL_STONE_BUBBLE_TYPES: Record<string, boolean | undefined> = Object.freeze({
-    WORK: true
-});
+const LEGACY_SPECIAL_STONE_BUBBLE_TYPES: Record<string, boolean | undefined> = Object.freeze({});
 
 const SPECIAL_STONE_PLACEMENT_EFFECT_SPECS = Object.freeze([
     Object.freeze({ flag: 'protected', special: 'PROTECTED' }),
     Object.freeze({ flag: 'permaProtected', special: 'PERMA_PROTECTED' }),
     Object.freeze({ flag: 'regenPlaced', special: 'REGEN' }),
+    Object.freeze({ flag: 'zombiePlaced', special: 'ZOMBIE' }),
     Object.freeze({ flag: 'dragonPlaced', special: 'DRAGON' }),
     Object.freeze({ flag: 'breedingPlaced', special: 'BREEDING' }),
     Object.freeze({ flag: 'proliferationPlaced', special: 'PROLIFERATION' }),
@@ -37,6 +36,7 @@ const SPECIAL_STONE_PLACEMENT_EFFECT_SPECS = Object.freeze([
     Object.freeze({ flag: 'escapeHyperactivePlaced', special: 'ESCAPE_HYPERACTIVE' }),
     Object.freeze({ flag: 'robotVacuumPlaced', special: 'ROBOT_VACUUM' }),
     Object.freeze({ flag: 'gluttonousPlaced', special: 'GLUTTONOUS' }),
+    Object.freeze({ flag: 'workPlaced', special: 'WORK' }),
     Object.freeze({ flag: 'instantHyperactivePlaced', special: 'HYPERACTIVE' }),
     Object.freeze({ flag: 'ultimateHyperactivePlaced', special: 'ULTIMATE_HYPERACTIVE' }),
     Object.freeze({ flag: 'hyperactivePlaced', special: 'HYPERACTIVE' })
@@ -61,6 +61,12 @@ function hasDurationEndMarker(reason: any, cause: any) {
     const reasonLower = String(reason || '').toLowerCase();
     const causeLower = String(cause || '').toLowerCase();
     return reasonLower === 'duration_end' || reasonLower.indexOf('duration') >= 0 || reasonLower.indexOf('expire') >= 0 || causeLower.indexOf('expire') >= 0;
+}
+
+function hasNormalRevertMarker(reason: any, cause: any) {
+    const reasonLower = String(reason || '').toLowerCase();
+    const causeLower = String(cause || '').toLowerCase();
+    return reasonLower === 'no_candidates_revert' || causeLower === 'no_candidates_revert';
 }
 
 function normalizePlayerKey(player: any, deps: TurnPresentationHelperDeps) {
@@ -598,19 +604,6 @@ function emitTheoryIncarnationSpawnPlacementBubble(CardLogic: any, cardState: an
     const opts = (options && typeof options === 'object') ? options : {};
     const player = normalizePlayerKey(ev.player || detail.owner || opts.fallbackPlayer, deps);
 
-    if (special === 'WORK') {
-        const text = deps.pickSpecialStoneBubbleSpeechLine('WORK', 'place', opts.prng);
-        if (!text) return false;
-        emitWorkBubblePresentation(CardLogic, cardState, {
-            player,
-            row,
-            col,
-            text,
-            reason: 'theory_incarnation_spawned'
-        }, deps);
-        return true;
-    }
-
     return emitBubble({
         special,
         scenario: 'place',
@@ -692,6 +685,24 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
         const cause = ev.cause || (ev.meta && ev.meta.cause) || null;
         const player = normalizePlayerKey(ev.player || ev.owner || (ev.meta && ev.meta.owner) || opts.fallbackPlayer, deps);
 
+        if (ev.type === 'WORK_REMOVED') {
+            if (findMatchingLivingWillRestorePresentationEvent(presentationEventIndex, 'WORK', row, col)) {
+                continue;
+            }
+            const scenario = isDurationEndSpecialStoneBubbleReason(reason, cause) ? 'duration_end' : 'destroy';
+            emitBubble({ special: 'WORK', scenario, player, row, col, reason: reason || scenario, cause });
+            continue;
+        }
+
+        if (ev.type === 'CHANGE' && String(reason || '').toLowerCase() === 'zombie_infection') {
+            const sourceRow = Number(ev.meta && ev.meta.sourceRow);
+            const sourceCol = Number(ev.meta && ev.meta.sourceCol);
+            if (Number.isInteger(sourceRow) && Number.isInteger(sourceCol)) {
+                emitBubble({ special: 'ZOMBIE', scenario: 'zombie_infection', player, row: sourceRow, col: sourceCol, reason, cause });
+            }
+            continue;
+        }
+
         if ((ev.type === 'CHANGE' || ev.type === 'SPAWN') && isLivingWillRestorePresentationEvent(ev)) {
             if (deps.getSpecialStoneBubbleSpeechLines(special, 'living_will_restored')) {
                 emitBubble({
@@ -716,6 +727,7 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
         if (ev.type === 'STATUS_REMOVED') {
             if (!isGenericSpecialStoneBubbleType(special)) continue;
             const durationEnd = isDurationEndSpecialStoneBubbleReason(reason, cause);
+            const normalRevert = hasNormalRevertMarker(reason, cause);
             const escapeExploded = isEscapeExplosionSpecialStoneBubbleReason(reason, cause);
             if (special === 'REGEN' && hasRegenTriggeredPresentationEventAt(presentationEventIndex, row, col)) {
                 continue;
@@ -726,7 +738,9 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
             if (!durationEnd && !escapeExploded && hasMatchingSpecialStoneStatusAppliedEvent(presentationEventIndex, special, row, col)) {
                 continue;
             }
-            const scenario = escapeExploded && deps.getSpecialStoneBubbleSpeechLines(special, 'escape_exploded')
+            const scenario = normalRevert && deps.getSpecialStoneBubbleSpeechLines(special, 'normal_revert')
+                ? 'normal_revert'
+                : escapeExploded && deps.getSpecialStoneBubbleSpeechLines(special, 'escape_exploded')
                 ? 'escape_exploded'
                 : (durationEnd ? 'duration_end' : 'destroy');
             emitBubble({
@@ -776,9 +790,10 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
         }
 
         if (ev.type === 'CHANGE' && String(reason || '').toLowerCase() === 'regen_triggered') {
+            const reviveSpecial = special === 'ZOMBIE' ? 'ZOMBIE' : (special || 'REGEN');
             emitBubble({
-                special: special || 'REGEN',
-                scenario: 'regen_triggered',
+                special: reviveSpecial,
+                scenario: reviveSpecial === 'ZOMBIE' ? 'zombie_revived' : 'regen_triggered',
                 player,
                 row,
                 col,

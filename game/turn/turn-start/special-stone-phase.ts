@@ -51,7 +51,7 @@ function createTurnStartSpecialStoneProcessingState(): TurnStartSpecialStoneProc
         }
     };
 }
-function pushTimeStopTurnStartEvents(events: any[], playerKey: any, row: any, col: any, res: any): void {
+function pushTimeStopTurnStartEvents(events: any[], playerKey: any, row: any, col: any, markerType: any, res: any): void {
     if (res && Array.isArray(res.triggered) && res.triggered.length) {
         for (let index = 0; index < res.triggered.length; index += 1) {
             const detail = res.triggered[index];
@@ -60,6 +60,7 @@ function pushTimeStopTurnStartEvents(events: any[], playerKey: any, row: any, co
                 player: playerKey,
                 row: detail && Number.isInteger(detail.row) ? detail.row : row,
                 col: detail && Number.isInteger(detail.col) ? detail.col : col,
+                markerType,
                 remainingBonusTurns: Number(detail && detail.totalReservedTurns) || 0
             });
         }
@@ -289,7 +290,7 @@ function processTurnStartSpecialStone(options: ProcessTurnStartSpecialStoneOptio
     }
 if ((typeKey === 'TIME_STOP' || typeKey === 'TIME_STOP_DEITY') && owner === opts.playerKey && typeof opts.CardLogic.processTimeStopEffectsAtTurnStartAnchor === 'function') {
         const res = opts.CardLogic.processTimeStopEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, typeKey);
-        pushTimeStopTurnStartEvents(opts.events, opts.playerKey, row, col, res);
+        pushTimeStopTurnStartEvents(opts.events, opts.playerKey, row, col, typeKey, res);
         return processingState;
     }
 

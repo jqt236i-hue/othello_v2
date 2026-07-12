@@ -280,24 +280,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'ultimate_hyperactive_flipped_immediate'
     ]);
     const GENERATED_THROW_CHAIN_REASON = 'generated_throw_chain';
-    const DEFAULT_WORK_LOST_BUBBLE_TEXT = 'あああああああああああああ';
-    const DEFAULT_WORK_INCOME_BUBBLE_TEXT_BY_STEP = Object.freeze({
-        1: '布石＋1 初儲けや！',
-        2: '布石＋2 もっと掘るでー！',
-        3: '布石＋4 順調やな！',
-        4: '布石＋8 ぼろ儲けや！',
-        5: '布石＋16 これで家族が養える...！'
-    });
-    const WORK_LOST_BUBBLE_TEXT = (
-        TurnPipelinePhaseHelpers
-        && typeof TurnPipelinePhaseHelpers.WORK_LOST_LINE === 'string'
-        && TurnPipelinePhaseHelpers.WORK_LOST_LINE
-    ) ? TurnPipelinePhaseHelpers.WORK_LOST_LINE : DEFAULT_WORK_LOST_BUBBLE_TEXT;
     const WORK_INCOME_BUBBLE_TEXT_BY_STEP = (
         TurnPipelinePhaseHelpers
         && TurnPipelinePhaseHelpers.WORK_INCOME_LINES_BY_STEP
         && typeof TurnPipelinePhaseHelpers.WORK_INCOME_LINES_BY_STEP === 'object'
-    ) ? TurnPipelinePhaseHelpers.WORK_INCOME_LINES_BY_STEP : DEFAULT_WORK_INCOME_BUBBLE_TEXT_BY_STEP;
+    ) ? TurnPipelinePhaseHelpers.WORK_INCOME_LINES_BY_STEP : Object.freeze({});
     const MULTI_PLACE_LABEL_BY_TYPE: Record<string, string> = Object.freeze({
         DOUBLE_PLACE: '二連投石',
         TRIPLE_PLACE: '三連投石',
@@ -384,7 +371,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const step: number | null = Number.isFinite(rawStep) ? Math.max(1, Math.min(5, Math.trunc(rawStep!))) : null;
         if (step && WORK_INCOME_BUBBLE_TEXT_BY_STEP[step]) return WORK_INCOME_BUBBLE_TEXT_BY_STEP[step];
 
-        return WORK_INCOME_BUBBLE_TEXT_BY_STEP[1];
+        return null;
     }
 
     function _resolveWorkRemovedBubbleText(ev: any) {
@@ -392,7 +379,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (directText) return directText;
         const metaText = String(ev && ev.meta && ev.meta.text ? ev.meta.text : '').trim();
         if (metaText) return metaText;
-        return WORK_LOST_BUBBLE_TEXT;
+        if (TurnPipelinePhaseHelpers && typeof TurnPipelinePhaseHelpers.getSpecialStoneBubbleSpeechLines === 'function') {
+            const lines = TurnPipelinePhaseHelpers.getSpecialStoneBubbleSpeechLines('WORK', 'destroy');
+            return Array.isArray(lines) && lines.length > 0 ? lines[0] : null;
+        }
+        return null;
     }
 
     function isRegenTriggeredChange(ev: any) {

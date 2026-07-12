@@ -181,6 +181,7 @@ function shouldMirrorRelativePath(relativePath: string) {
     if (baseName.includes('.tmp-')) return false;
 
     if (/\.(ts|tsx|d\.ts)$/i.test(baseName)) return false;
+    if (normalized.startsWith('assets/') && /\.md$/i.test(baseName)) return false;
     if (/\.test\.(js|ts|tsx)$/i.test(baseName)) return false;
     if (baseName.endsWith('.map')) return false;
 

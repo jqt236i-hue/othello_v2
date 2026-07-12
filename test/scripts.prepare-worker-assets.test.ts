@@ -84,6 +84,7 @@ describe('prepare-worker-assets', () => {
         expect(() => verifyMirrors([], [], config)).not.toThrow();
         expect(shouldMirrorRelativePath('assets/keep.js')).toBe(true);
         expect(shouldMirrorRelativePath('assets/AGENTS.md')).toBe(false);
+        expect(shouldMirrorRelativePath('assets/character-notes.md')).toBe(false);
         expect(shouldMirrorRelativePath('assets/file.ts')).toBe(false);
         expect(shouldMirrorRelativePath('assets/asset-manifest.json.tmp-1-2')).toBe(false);
         expect(shouldMirrorRelativePath('game/logic/module-resolver.js')).toBe(false);

@@ -65,9 +65,6 @@ describe('placement immediate effect context', () => {
         buildPlacementChargeBubblePayload: () => null,
         emitBoardChargeBubblePresentation: () => undefined,
         emitSpecialStonePlacementBubbleFromEffects: () => undefined,
-        emitWorkBubblePresentation: () => undefined,
-        pickRandomLine: () => null,
-        workPlaceLines: [],
         pushTrapEvents: () => undefined,
         emitTrapHandRemoveEvents: () => undefined,
         debugLog: () => undefined

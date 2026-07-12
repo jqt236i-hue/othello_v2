@@ -241,7 +241,11 @@ function mapWorkRemoved(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlay
         isDurationExpired ||
         !Number.isInteger(ctx.ev.row) ||
         !Number.isInteger(ctx.ev.col) ||
-        deps.hasLivingWillRestorePresentationEventForSource(ctx.presentationEvents, ctx.ev.row, ctx.ev.col, 'WORK')
+        deps.hasLivingWillRestorePresentationEventForSource(ctx.presentationEvents, ctx.ev.row, ctx.ev.col, 'WORK') ||
+        ctx.presentationEvents.some((candidate: any) => (
+            candidate && candidate.type === 'SPECIAL_STONE_BUBBLE' && candidate.special === 'WORK' &&
+            Number(candidate.row) === Number(ctx.ev.row) && Number(candidate.col) === Number(ctx.ev.col)
+        ))
     ) {
         return;
     }
