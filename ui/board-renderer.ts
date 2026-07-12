@@ -410,7 +410,17 @@ function _normalizeBoardShapeForPixelSizing(shapeOrState: any) {
             maxCol: minCol + normalizedCols - 1
         };
     }
-    return _getBoardShapeForBoardRenderer();
+    const fallbackShape = _getBoardShapeForBoardRenderer();
+    return {
+        rows: fallbackShape.rows,
+        cols: fallbackShape.cols,
+        baseRows: fallbackShape.rows,
+        baseCols: fallbackShape.cols,
+        minRow: 0,
+        minCol: 0,
+        maxRow: fallbackShape.rows - 1,
+        maxCol: fallbackShape.cols - 1
+    };
 }
 
 function _clearBoardPixelSizingVars(boardElement: any) {
@@ -421,6 +431,7 @@ function _clearBoardPixelSizingVars(boardElement: any) {
         boardElement.style.removeProperty('top');
         boardElement.style.removeProperty('transform');
         boardElement.style.removeProperty('--board-cell-size-px');
+        boardElement.style.removeProperty('--board-cell-scale');
         boardElement.style.removeProperty('--board-disc-inset-px');
         boardElement.style.removeProperty('--board-disc-size-px');
     }
@@ -872,7 +883,19 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
     }
 
     const measuredCellSize = Math.max(1, Math.floor(Math.min(baseSize.width / shape.cols, baseSize.height / shape.rows)));
-    const cellSize = Math.max(1, Math.max(measuredCellSize, baseSize.baselineCellSize || 0));
+    const baselineCellSize = Math.max(0, Number(baseSize.baselineCellSize) || 0);
+    const baseRows = Number.isFinite(shape.baseRows) ? shape.baseRows : shape.rows;
+    const baseCols = Number.isFinite(shape.baseCols) ? shape.baseCols : shape.cols;
+    const baseMaxGrid = Math.max(baseRows, baseCols);
+    const initialBoardScale = baseMaxGrid > STANDARD_BOARD_BASELINE_ROWS
+        ? STANDARD_BOARD_BASELINE_ROWS / baseMaxGrid
+        : 1;
+    const scaledBaselineCellSize = baselineCellSize > 0
+        ? Math.max(1, Math.floor(baselineCellSize * initialBoardScale))
+        : measuredCellSize;
+    const cellSize = baseMaxGrid > STANDARD_BOARD_BASELINE_ROWS
+        ? scaledBaselineCellSize
+        : Math.max(1, Math.max(measuredCellSize, baselineCellSize));
     if (!(cellSize > 0)) {
         _clearBoardPixelSizingVars(boardElement);
         return shape;
@@ -887,6 +910,7 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
     boardElement.style.width = `${outerWidth}px`;
     boardElement.style.height = `${outerHeight}px`;
     boardElement.style.setProperty('--board-cell-size-px', `${cellSize}px`);
+    boardElement.style.setProperty('--board-cell-scale', baselineCellSize > 0 ? String(cellSize / baselineCellSize) : '1');
     boardElement.style.setProperty('--board-disc-inset-px', `${discInset}px`);
     boardElement.style.setProperty('--board-disc-size-px', `${discSize}px`);
     _applyBoardFramePixelSizing(baseSize.frameMetrics, outerWidth, outerHeight, shape);

@@ -27,7 +27,7 @@ describe('board renderer pixel sizing', () => {
     delete global.document;
   });
 
-  test('syncBoardPixelSizing keeps custom boards at least as large per-cell as standard 8x8 and expands the frame', () => {
+  test('syncBoardPixelSizing shrinks an initial 8x9 board from the standard 8x8 baseline', () => {
     const frameEl = document.getElementById('board-frame');
     const boardEl = document.getElementById('board');
     frameEl.getBoundingClientRect = () => ({ width: 750, height: 750 });
@@ -35,14 +35,31 @@ describe('board renderer pixel sizing', () => {
     const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.syncBoardPixelSizing(boardEl, { rows: 8, cols: 9 });
 
-    expect(boardEl.style.width).toBe('783px');
-    expect(boardEl.style.height).toBe('696px');
-    expect(boardEl.style.getPropertyValue('--board-cell-size-px')).toBe('87px');
+    expect(boardEl.style.width).toBe('693px');
+    expect(boardEl.style.height).toBe('616px');
+    expect(boardEl.style.getPropertyValue('--board-cell-size-px')).toBe('77px');
+    expect(boardEl.style.getPropertyValue('--board-cell-scale')).toBe(String(77 / 87));
     expect(boardEl.style.getPropertyValue('--board-disc-inset-px')).toBe('4px');
-    expect(boardEl.style.getPropertyValue('--board-disc-size-px')).toBe('79px');
-    expect(frameEl.style.getPropertyValue('--board-frame-outer-width')).toBe('833px');
+    expect(boardEl.style.getPropertyValue('--board-disc-size-px')).toBe('69px');
+    expect(frameEl.style.getPropertyValue('--board-frame-outer-width')).toBe('');
     expect(frameEl.style.getPropertyValue('--board-frame-outer-height')).toBe('');
-    expect(document.body.classList.contains('board-oversize-active')).toBe(true);
+    expect(document.body.classList.contains('board-oversize-active')).toBe(false);
+  });
+
+  test('syncBoardPixelSizing progressively shrinks larger initial boards', () => {
+    const frameEl = document.getElementById('board-frame');
+    const boardEl = document.getElementById('board');
+    frameEl.getBoundingClientRect = () => ({ width: 750, height: 750 });
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.syncBoardPixelSizing(boardEl, { rows: 10, cols: 10 });
+
+    expect(boardEl.style.width).toBe('690px');
+    expect(boardEl.style.height).toBe('690px');
+    expect(boardEl.style.getPropertyValue('--board-cell-size-px')).toBe('69px');
+    expect(boardEl.style.getPropertyValue('--board-cell-scale')).toBe(String(69 / 87));
+    expect(boardEl.style.getPropertyValue('--board-disc-inset-px')).toBe('3px');
+    expect(boardEl.style.getPropertyValue('--board-disc-size-px')).toBe('63px');
   });
 
   test('syncBoardPixelSizing leaves standard 8x8 frame sizing unchanged', () => {
@@ -56,6 +73,7 @@ describe('board renderer pixel sizing', () => {
     expect(boardEl.style.width).toBe('696px');
     expect(boardEl.style.height).toBe('696px');
     expect(boardEl.style.getPropertyValue('--board-cell-size-px')).toBe('87px');
+    expect(boardEl.style.getPropertyValue('--board-cell-scale')).toBe('1');
     expect(frameEl.style.getPropertyValue('--board-frame-outer-width')).toBe('');
     expect(frameEl.style.getPropertyValue('--board-frame-outer-height')).toBe('');
     expect(document.body.classList.contains('board-oversize-active')).toBe(false);
@@ -192,6 +210,27 @@ describe('board renderer pixel sizing', () => {
     expect(boardEl.style.top).toBe('43.5px');
   });
 
+  test('syncBoardPixelSizing keeps the initial 8x8 scale after card expansion', () => {
+    const frameEl = document.getElementById('board-frame');
+    const boardEl = document.getElementById('board');
+    frameEl.getBoundingClientRect = () => ({ width: 750, height: 750 });
+
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.syncBoardPixelSizing(boardEl, {
+      rows: 10,
+      cols: 10,
+      baseRows: 8,
+      baseCols: 8,
+      minRow: -1,
+      minCol: -1
+    });
+
+    expect(boardEl.style.width).toBe('870px');
+    expect(boardEl.style.height).toBe('870px');
+    expect(boardEl.style.getPropertyValue('--board-cell-size-px')).toBe('87px');
+    expect(boardEl.style.getPropertyValue('--board-cell-scale')).toBe('1');
+  });
+
   test('syncBoardPixelSizing retains the asymmetric anchor during resize resync', () => {
     const frameEl = document.getElementById('board-frame');
     const boardEl = document.getElementById('board');
@@ -222,10 +261,10 @@ describe('board renderer pixel sizing', () => {
     const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.syncBoardPixelSizing(boardEl, { rows: 8, cols: 9 });
 
-    expect(boardEl.style.width).toBe('791px');
-    expect(boardEl.style.height).toBe('704px');
-    expect(frameEl.style.getPropertyValue('--board-frame-outer-width')).toBe('841px');
-    expect(frameEl.style.getPropertyValue('--board-frame-outer-height')).toBe('754px');
+    expect(boardEl.style.width).toBe('701px');
+    expect(boardEl.style.height).toBe('624px');
+    expect(frameEl.style.getPropertyValue('--board-frame-outer-width')).toBe('');
+    expect(frameEl.style.getPropertyValue('--board-frame-outer-height')).toBe('');
   });
 
   test('syncBoardPixelSizing clears stale inline sizing when the board cannot be measured', () => {
@@ -237,6 +276,7 @@ describe('board renderer pixel sizing', () => {
     boardEl.style.left = '-0.25px';
     boardEl.style.top = '0.25px';
     boardEl.style.setProperty('--board-cell-size-px', '100px');
+    boardEl.style.setProperty('--board-cell-scale', '0.8');
     boardEl.style.setProperty('--board-disc-inset-px', '5px');
     boardEl.style.setProperty('--board-disc-size-px', '90px');
     frameEl.style.setProperty('--board-frame-outer-width', '800px');
@@ -252,6 +292,7 @@ describe('board renderer pixel sizing', () => {
     expect(boardEl.style.top).toBe('');
     expect(boardEl.style.transform).toBe('');
     expect(boardEl.style.getPropertyValue('--board-cell-size-px')).toBe('');
+    expect(boardEl.style.getPropertyValue('--board-cell-scale')).toBe('');
     expect(boardEl.style.getPropertyValue('--board-disc-inset-px')).toBe('');
     expect(boardEl.style.getPropertyValue('--board-disc-size-px')).toBe('');
     expect(frameEl.style.getPropertyValue('--board-frame-outer-width')).toBe('');

@@ -23,6 +23,13 @@ describe('board CSS rendering contract', () => {
     expect(css).toMatch(/#board-expansion-layer\s+\.cell-expanded\s*\{[\s\S]*z-index:\s*var\(--board-layer-expanded-cell\);/);
   });
 
+  test('fixed-size board markers follow the initial board cell scale', () => {
+    const css = readRepoTextFile('styles-board.css');
+
+    expect(css).toMatch(/#board,\s*[\s\S]*#board-expansion-layer\s*\{[\s\S]*--board-cell-scale:\s*1;/);
+    expect(css).toMatch(/\.board-bonus-number,\s*[\s\S]*\.stone-regen-badge\s*\{\s*scale:\s*var\(--board-cell-scale,\s*1\);/);
+  });
+
   test('expanded cells inherit board surface tokens instead of duplicating base art', () => {
     const css = readRepoTextFile('styles-board.css');
 
