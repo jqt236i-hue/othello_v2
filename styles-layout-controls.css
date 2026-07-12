@@ -6774,6 +6774,22 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     display: none !important;
 }
 
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card[data-preset-id="execution"]::before {
+    background: #641f2a !important;
+}
+
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card[data-preset-id="theory"]::before {
+    background: #1d3f73 !important;
+}
+
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card[data-preset-id="observation"]::before {
+    background: #1f5a3a !important;
+}
+
+#deckBuilderModal .deck-builder-built-in-preset-grid > .deck-builder-builtin-card[data-preset-id="ending-ash"]::before {
+    background: #3b3f46 !important;
+}
+
 @media (max-width: 1180px) {
     #deckBuilderModal .deck-builder-workshop-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
