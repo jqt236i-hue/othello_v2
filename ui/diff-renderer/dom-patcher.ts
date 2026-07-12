@@ -225,6 +225,15 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
     applyActiveTransientCellHighlight(cell);
     _applyTimeStopLegalEmphasisForDiff(cell);
 
+    if (state.poisonCell) {
+        cell.classList.add('poison-cell');
+        const poisonCellMark = markerRenderer
+            ? markerRenderer.createPoisonCellMark(state.poisonCell.remainingTurns)
+            : document.createElement('div');
+        if (!markerRenderer) poisonCellMark.className = 'poison-cell-mark';
+        cell.appendChild(poisonCellMark);
+    }
+
     if (state.blockade) {
         cell.classList.add('blocked-cell');
         const blockedType = String(state.blockade.type || '').toUpperCase();
@@ -475,6 +484,18 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
                 _applyDoubleDigitTimerClassForDiff(guardTimer, guardRemaining);
             }
             discHud.appendChild(guardTimer);
+        }
+
+        if (state.poisoned && Number.isFinite(Number(state.poisoned.remainingTurns))) {
+            disc.classList.add('disc-poisoned');
+            const poisonBadge = markerRenderer
+                ? markerRenderer.createPoisonStatusBadge(state.poisoned.remainingTurns)
+                : document.createElement('div');
+            if (!markerRenderer) {
+                poisonBadge.className = 'poison-status-badge countdown-timer';
+                poisonBadge.textContent = String(Math.max(0, Math.trunc(Number(state.poisoned.remainingTurns))));
+            }
+            discHud.appendChild(poisonBadge);
         }
 
         if (state.breedingSprout) {

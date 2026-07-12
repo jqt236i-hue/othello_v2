@@ -336,7 +336,7 @@ function runStatusCellSelectionScenario(config) {
     "  board[3][4] = 1;",
     "  board[4][3] = 1;",
     "  board[4][4] = -1;",
-    "  const actionTarget = config.actionKey === 'freezeTarget' || config.actionKey === 'seedTarget' || config.actionKey === 'blockadeTarget'",
+    "  const actionTarget = config.actionKey === 'freezeTarget' || config.actionKey === 'seedTarget' || config.actionKey === 'blockadeTarget' || config.actionKey === 'poisonTarget'",
     "    ? { row: 2, col: 3 }",
     "    : { row: 3, col: 4 };",
     "  const params = { player: 'black', pendingSelectionState: { type: config.pendingType, stage: 'selectTarget', cardId: config.cardId, sourceHandIndex: 0 } };",
@@ -641,7 +641,8 @@ describe('worker pendingEffectId contract', () => {
   test.each([
     ['freeze_01', 'FREEZE_WILL', 'freezeTarget', 'FREEZE'],
     ['seed_01', 'SEED_WILL', 'seedTarget', 'SEED'],
-    ['blockade_01', 'BLOCKADE_WILL', 'blockadeTarget', 'BLOCKADE']
+    ['blockade_01', 'BLOCKADE_WILL', 'blockadeTarget', 'BLOCKADE'],
+    ['poison_will_01', 'POISON_WILL', 'poisonTarget', 'POISON_CELL']
   ])('%s pending target selection applies status marker and clears pending state', (cardId, pendingType, actionKey, markerType) => {
     const result = runStatusCellSelectionScenario({ cardId, pendingType, actionKey });
 

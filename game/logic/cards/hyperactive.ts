@@ -647,7 +647,7 @@ function moveCoexistingSpecialMarkers(cardState: CardState, anchorEntry: any, fr
         if (marker.row !== fromRow || marker.col !== fromCol) continue;
         if (marker.kind === 'specialStone') {
             const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-            if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE' || markerTypeUpper === 'FREEZE' || markerTypeUpper === 'SEED') continue;
+            if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE' || markerTypeUpper === 'FREEZE' || markerTypeUpper === 'SEED' || markerTypeUpper === 'POISON_CELL') continue;
         }
         marker.row = toRow;
         marker.col = toCol;

@@ -97,6 +97,7 @@ export type CardType =
   | 'BOARD_SHRINK_WILL'
   | 'BOARD_SHRINK_GOD'
   | 'BLOCKADE_WILL'
+  | 'POISON_WILL'
   | 'METEOR_WILL'
   | 'CAUSAL_REPLAY_WILL'
   | 'METEOR_GOD'

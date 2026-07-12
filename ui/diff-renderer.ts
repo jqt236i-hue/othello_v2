@@ -1566,7 +1566,9 @@ function _cloneCellStateWithTimedLabelsNormalizedForDiff(source: any) {
         bomb: source.bomb ? { ...source.bomb } : source.bomb,
         blockade: source.blockade ? { ...source.blockade } : source.blockade,
         frozen: source.frozen ? { ...source.frozen } : source.frozen,
-        seed: source.seed ? { ...source.seed } : source.seed
+        seed: source.seed ? { ...source.seed } : source.seed,
+        poisonCell: source.poisonCell ? { ...source.poisonCell } : source.poisonCell,
+        poisoned: source.poisoned ? { ...source.poisoned } : source.poisoned
     };
     if (cloned.special) {
         cloned.special.remainingOwnerTurns = 0;
@@ -1584,6 +1586,8 @@ function _cloneCellStateWithTimedLabelsNormalizedForDiff(source: any) {
     if (cloned.blockade) cloned.blockade.remainingOwnerTurns = 0;
     if (cloned.frozen) cloned.frozen.remainingOwnerTurns = 0;
     if (cloned.seed) cloned.seed.remainingOwnerTurns = 0;
+    if (cloned.poisonCell) cloned.poisonCell.remainingTurns = 0;
+    if (cloned.poisoned) cloned.poisoned.remainingTurns = 0;
     return cloned;
 }
 function _onlyTimedLabelsChangedForDiff(prevState: any, state: any) {
@@ -1632,6 +1636,12 @@ function _tryPatchTimedMarkerLabelsForDiff(cell: any, prevState: any, state: any
     }
     if (prevState.seed && state.seed && prevState.seed.remainingOwnerTurns !== state.seed.remainingOwnerTurns) {
         if (!patch(cell.querySelector('.seed-turn.countdown-timer'), prevState.seed.remainingOwnerTurns, state.seed.remainingOwnerTurns)) return false;
+    }
+    if (prevState.poisonCell && state.poisonCell && prevState.poisonCell.remainingTurns !== state.poisonCell.remainingTurns) {
+        if (!patch(cell.querySelector('.poison-cell-turn'), prevState.poisonCell.remainingTurns, state.poisonCell.remainingTurns)) return false;
+    }
+    if (prevState.poisoned && state.poisoned && prevState.poisoned.remainingTurns !== state.poisoned.remainingTurns) {
+        if (!patch(cell.querySelector('.poison-status-badge'), prevState.poisoned.remainingTurns, state.poisoned.remainingTurns)) return false;
     }
     return patched;
 }
@@ -2466,6 +2476,8 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
                 bomb: null,
                 blockade: null,
                 frozen: null,
+                poisonCell: null,
+                poisoned: null,
                 destroyEvadeRemaining: null
             };
         }

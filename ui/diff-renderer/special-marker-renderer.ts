@@ -122,6 +122,17 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     return freezeMark;
   }
 
+  function createPoisonCellMark(remainingTurns: any) {
+    const mark = doc.createElement('div');
+    mark.className = 'poison-cell-mark';
+    mark.appendChild(createTimedMarkerLabel('poison-cell-turn countdown-timer', remainingTurns));
+    return mark;
+  }
+
+  function createPoisonStatusBadge(remainingTurns: any) {
+    return createTimedMarkerLabel('poison-status-badge countdown-timer', remainingTurns);
+  }
+
   return {
     createHoleMark,
     createBlockadeMark,
@@ -132,7 +143,9 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     createRegenBadgeLabel,
     createStoneStatusTimerLabel,
     createFlipProtectionBadge,
-    createFreezeMark
+    createFreezeMark,
+    createPoisonCellMark,
+    createPoisonStatusBadge
   };
 }
 

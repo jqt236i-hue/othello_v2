@@ -667,6 +667,14 @@ window.CardCatalog = {
       "display_type_ja": "特殊"
     },
     {
+      "id": "poison_will_01",
+      "name_ja": "毒殺の意志",
+      "type": "POISON_WILL",
+      "cost": 8,
+      "desc_ja": "マス1つを10ターン持続する毒マスにする。毒マスにいる石は毒状態になり、5ターン後に破壊される。完全保護と不可侵には効かない。",
+      "display_type_ja": "殲滅"
+    },
+    {
       "id": "meteor_01",
       "name_ja": "因果抹消",
       "type": "METEOR_WILL",

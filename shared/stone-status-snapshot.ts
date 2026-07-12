@@ -102,7 +102,7 @@
             return (SpecialStoneRegistry as { isOverlayOnlySpecialStoneType: (v: unknown) => boolean }).isOverlayOnlySpecialStoneType(rawType);
         }
         const type = normalizeSpecialStoneType(rawType);
-        return type === 'GUARD' || type === 'LIVING_WILL';
+        return type === 'GUARD' || type === 'LIVING_WILL' || type === 'POISONED';
     }
 
     function getSpecialStoneTimerClass(rawType: unknown, fallback?: unknown): string {

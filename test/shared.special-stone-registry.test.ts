@@ -178,6 +178,10 @@ describe('special stone registry rule classification', () => {
     expect(SpecialStoneRegistry.isCaptureTargetableStoneEffect('TIME_BOMB')).toBe(false);
     expect(SpecialStoneRegistry.isCaptureTargetableStoneEffect('LIVING_WILL')).toBe(false);
     expect(SpecialStoneRegistry.canLossWillRevert('LIVING_WILL')).toBe(false);
+    expect(SpecialStoneRegistry.classifySpecialStoneRuleClass('POISONED')).toBe('stone_status');
+    expect(SpecialStoneRegistry.isNormalVisualStoneEffect('POISONED')).toBe(true);
+    expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('POISONED')).toBe(false);
+    expect(SpecialStoneRegistry.isDurationAffectableMarker({ kind: 'specialStone', data: { type: 'POISONED', remainingTurns: 5 } })).toBe(false);
 
     expect(SpecialStoneRegistry.isTemptTargetableStoneEffect('GUARD')).toBe(false);
     expect(SpecialStoneRegistry.blocksTempt('GUARD')).toBe(true);

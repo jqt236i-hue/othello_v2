@@ -353,6 +353,15 @@
             name: '種マス',
             desc: '所有者ターン開始時だけ残り回数が減り、5回目で空いたままなら同色の通常石が1個芽生える。種マスには通常どおり配置・移動でき、石が置かれた時点で種は消える。'
         }),
+        POISON_CELL: Object.freeze({
+            name: '毒マス',
+            desc: '10ターン持続し、このマスにいる完全保護・不可侵以外の石を毒状態にする。'
+        }),
+        POISONED: Object.freeze({
+            name: '毒状態',
+            desc: '付与後5ターンで通常の破壊を受ける。完全保護で解除される。',
+            overlayOnlyVisual: true
+        }),
         THEORY_INCARNATION: Object.freeze({
             name: '理論の化身',
             desc: '5ターン不可侵の顕現石。所有者のカード使用と石配置を封じる。'
@@ -426,14 +435,16 @@
 
     const STONE_STATUS_TYPES: ReadonlySet<string> = new Set([
         'GUARD',
-        'LIVING_WILL'
+        'LIVING_WILL',
+        'POISONED'
     ]);
 
     const BOARD_MARKER_TYPES: ReadonlySet<string> = new Set([
         'BLOCKADE',
         'METEOR_HOLE',
         'FREEZE',
-        'SEED'
+        'SEED',
+        'POISON_CELL'
     ]);
 
     const PLACEMENT_EFFECT_TYPES: ReadonlySet<string> = new Set([
@@ -514,6 +525,17 @@
             theorySpawnCandidate: false,
             normalVisual: true,
             willHunterPriority: false
+        });
+        out.POISONED = makeStoneEffectRule('POISONED', {
+            category: 'stone_status',
+            countsAsSpecialStone: false,
+            temptTargetable: false,
+            captureTargetable: false,
+            lossWillRevertible: false,
+            theorySpawnCandidate: false,
+            normalVisual: true,
+            willHunterPriority: false,
+            durationAffectable: false
         });
 
         for (const type of BOARD_MARKER_TYPES) {

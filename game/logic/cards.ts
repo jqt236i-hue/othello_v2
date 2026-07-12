@@ -231,6 +231,8 @@ const {
     const BLOCKADE_TURNS = 3;
     const FREEZE_TURNS = 5;
     const SEED_WILL_TURNS = 5;
+    const POISON_CELL_TURNS = 10;
+    const POISON_STONE_TURNS = 5;
     const TRAP_WILL_STEAL_MAX = 10;
     const GUARD_WILL_TURNS = 3;
     const GUARDIAN_GOD_TURNS = 10;
@@ -1046,6 +1048,7 @@ const {
                 getBoardShrinkTargets,
                 getBoardShrinkGodTargets,
                 getBlockadeTargets,
+                getPoisonTargets,
                 getMeteorTargets,
                 getCausalReplayTargets,
                 getFreezeTargets,
@@ -2421,6 +2424,7 @@ const {
             getBoardShrinkTargets,
             getBoardShrinkGodTargets,
             getBlockadeTargets,
+            getPoisonTargets,
             getMeteorTargets,
             getCausalReplayTargets,
             getFreezeTargets,
@@ -2670,6 +2674,10 @@ const {
         return CardTargetAccessModule.getBlockadeTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
 
+    function getPoisonTargets(cardState: any, gameState: any, playerKey: any) {
+        return CardTargetAccessModule.getPoisonTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
+    }
+
     function getMeteorTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getMeteorTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
@@ -2767,7 +2775,7 @@ const {
     }
 
     function applyGuardWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        return CardProtectModule.applyGuardWill(cardState, gameState, playerKey, row, col, {
+        const result = CardProtectModule.applyGuardWill(cardState, gameState, playerKey, row, col, {
             readCardPendingEffect,
             getGuardTargets,
             removeMarkersAt,
@@ -2777,6 +2785,8 @@ const {
             GUARD_WILL_TURNS,
             GUARDIAN_GOD_TURNS
         });
+        if (result && result.applied) syncPoisonContacts(cardState, gameState, gameState && gameState.turnNumber);
+        return result;
     }
 
     function applyLivingWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
@@ -2947,6 +2957,42 @@ const {
             MARKER_KINDS,
             BLOCKADE_TURNS
         });
+    }
+
+    function getPoisonDeps() {
+        return {
+            readCardPendingEffect,
+            getPoisonTargets,
+            getMarkers,
+            addMarker,
+            removeMarkerById,
+            emitPresentationEvent,
+            clearCardPendingEffect,
+            getCellValueForCard,
+            isInviolableCell,
+            destroyAt: (cs: any, gs: any, r: any, c: any, cause: any, reason: any, meta: any) => (
+                BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                    ? BoardOpsModule.destroyAt(cs, gs, r, c, cause, reason, meta)
+                    : null
+            ),
+            BLACK,
+            WHITE,
+            EMPTY,
+            POISON_CELL_TURNS,
+            POISON_STONE_TURNS
+        };
+    }
+
+    function applyPoisonWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
+        return CardStatusCellsModule.applyPoisonWill(cardState, gameState, playerKey, row, col, getPoisonDeps());
+    }
+
+    function syncPoisonContacts(cardState: any, gameState: any, appliedTurnNumber?: any) {
+        return CardStatusCellsModule.syncPoisonContacts(cardState, gameState, Number(appliedTurnNumber ?? gameState?.turnNumber ?? 0), getPoisonDeps());
+    }
+
+    function processPoisonTurnEnd(cardState: any, gameState: any, completedTurnNumber?: any) {
+        return CardStatusCellsModule.processPoisonTurnEnd(cardState, gameState, Number(completedTurnNumber ?? gameState?.turnNumber ?? 0), getPoisonDeps());
     }
 
     function applyMeteorWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
@@ -4539,6 +4585,8 @@ const cardsApi: any = {
         GHOST_WILL_TURNS,
         SACRIFICE_WILL_TURNS,
         SEED_WILL_TURNS,
+        POISON_CELL_TURNS,
+        POISON_STONE_TURNS,
         WILL_HUNTER_KING_TURNS,
         NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS,
         THROW_CHAIN_CONFIG_BY_TYPE,
@@ -4653,6 +4701,9 @@ const cardsApi: any = {
         applyBoardShrinkWill,
         applyBoardShrinkGod,
         applyBlockadeWill,
+        applyPoisonWill,
+        syncPoisonContacts,
+        processPoisonTurnEnd,
         applyMeteorWill,
         applyFreezeWill,
         applySeedWill,
@@ -4751,6 +4802,7 @@ const cardsApi: any = {
         getBoardShrinkTargets,
         getBoardShrinkGodTargets,
         getBlockadeTargets,
+        getPoisonTargets,
         getMeteorTargets,
         getCausalReplayTargets,
         getFreezeTargets,

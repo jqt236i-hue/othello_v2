@@ -550,6 +550,14 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
             score += (oppAdj * 130) - (ownAdj * 40);
             if (!onBoard) score += 260;
             return score;
+        case 'POISON_WILL':
+            if (opp) score += 2600;
+            else if (own) score -= 3400;
+            else score += 120 + (oppAdj * 150) - (ownAdj * 45);
+            if (corner) score += opp ? 2200 : (own ? -1800 : 260);
+            else if (edge) score += opp ? 720 : 120;
+            score += destructiveMarkerScore * 1.25;
+            return score;
         case 'SEED_WILL':
             if (!empty && onBoard) return -2400;
             if (corner) score += 12000;

@@ -169,11 +169,138 @@ function applySeedWill(cardState: CardState, gameState: GameState, playerKey: Pl
     }, deps);
 }
 
+function markerType(marker: any): string {
+    return String(marker && marker.data && marker.data.type || '').trim().toUpperCase();
+}
+
+function syncPoisonContacts(cardState: CardState, gameState: GameState, appliedTurnNumber: number, deps: any): Record<string, any> {
+    const getMarkers = deps && deps.getMarkers;
+    const addMarker = deps && deps.addMarker;
+    const removeMarkerById = deps && deps.removeMarkerById;
+    const getCellValueForCard = deps && deps.getCellValueForCard;
+    const isInviolableCell = deps && deps.isInviolableCell;
+    const emitPresentationEvent = deps && deps.emitPresentationEvent;
+    const empty = deps && deps.EMPTY;
+    if (typeof getMarkers !== 'function' || typeof addMarker !== 'function' || typeof getCellValueForCard !== 'function') {
+        return { applied: 0, removed: 0 };
+    }
+    const markers = getMarkers(cardState).slice();
+    const poisonCells = markers.filter((marker: any) => markerType(marker) === 'POISON_CELL');
+    const poisoned = markers.filter((marker: any) => markerType(marker) === 'POISONED');
+    let applied = 0;
+    let removed = 0;
+
+    for (const status of poisoned) {
+        const occupied = getCellValueForCard(gameState, status.row, status.col) !== empty;
+        const guarded = markers.some((marker: any) => marker.row === status.row && marker.col === status.col && markerType(marker) === 'GUARD');
+        const inviolable = typeof isInviolableCell === 'function' && isInviolableCell(cardState, status.row, status.col);
+        if (occupied && !guarded && !inviolable) continue;
+        if (typeof removeMarkerById === 'function' && removeMarkerById(cardState, status.id)) {
+            removed += 1;
+            if (typeof emitPresentationEvent === 'function') emitPresentationEvent(cardState, {
+                type: 'STATUS_REMOVED', row: status.row, col: status.col,
+                meta: { special: 'POISONED', reason: guarded ? 'full_guard' : (inviolable ? 'inviolable' : 'stone_absent') }
+            });
+        }
+    }
+
+    for (const cell of poisonCells) {
+        const value = getCellValueForCard(gameState, cell.row, cell.col);
+        if (value === empty) continue;
+        const currentMarkers = getMarkers(cardState);
+        const guarded = currentMarkers.some((marker: any) => marker.row === cell.row && marker.col === cell.col && markerType(marker) === 'GUARD');
+        const inviolable = typeof isInviolableCell === 'function' && isInviolableCell(cardState, cell.row, cell.col);
+        const exists = currentMarkers.some((marker: any) => marker.row === cell.row && marker.col === cell.col && markerType(marker) === 'POISONED');
+        if (guarded || inviolable || exists) continue;
+        const owner = value === deps.BLACK ? 'black' : 'white';
+        addMarker(cardState, 'specialStone', cell.row, cell.col, owner, {
+            type: 'POISONED',
+            remainingTurns: deps.POISON_STONE_TURNS,
+            appliedTurnNumber
+        });
+        applied += 1;
+    }
+    return { applied, removed };
+}
+
+function applyPoisonWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
+    const pending = deps.readCardPendingEffect(cardState, playerKey);
+    if (!pending || pending.type !== 'POISON_WILL' || pending.stage !== 'selectTarget') return { applied: false, reason: 'not_pending' };
+    const targets = deps.getPoisonTargets(cardState, gameState, playerKey);
+    if (!targets.some((target: any) => target.row === row && target.col === col)) return { applied: false, reason: 'invalid_target' };
+    deps.addMarker(cardState, 'specialStone', row, col, playerKey, {
+        type: 'POISON_CELL',
+        remainingTurns: deps.POISON_CELL_TURNS,
+        appliedTurnNumber: Number(gameState && (gameState as any).turnNumber || 0)
+    });
+    deps.clearCardPendingEffect(cardState, playerKey);
+    syncPoisonContacts(cardState, gameState, Number(gameState && (gameState as any).turnNumber || 0), deps);
+    return { applied: true, row, col };
+}
+
+function processPoisonTurnEnd(cardState: CardState, gameState: GameState, completedTurnNumber: number, deps: any): Record<string, any> {
+    const getMarkers = deps && deps.getMarkers;
+    const removeMarkerById = deps && deps.removeMarkerById;
+    const emitPresentationEvent = deps && deps.emitPresentationEvent;
+    if (typeof getMarkers !== 'function' || typeof removeMarkerById !== 'function') return { processed: false };
+    syncPoisonContacts(cardState, gameState, completedTurnNumber, deps);
+    let lethalCount = 0;
+    let expiredCellCount = 0;
+    const statuses = getMarkers(cardState).filter((marker: any) => markerType(marker) === 'POISONED').slice().sort((left: any, right: any) => (
+        (Number(left.createdSeq) || 0) - (Number(right.createdSeq) || 0) ||
+        (Number(left.row) || 0) - (Number(right.row) || 0) ||
+        (Number(left.col) || 0) - (Number(right.col) || 0) ||
+        (Number(left.id) || 0) - (Number(right.id) || 0)
+    ));
+    for (const marker of statuses) {
+        if (Number(marker.data.appliedTurnNumber) === Number(completedTurnNumber)) continue;
+        marker.data.remainingTurns = Math.max(0, Number(marker.data.remainingTurns || 0) - 1);
+        if (marker.data.remainingTurns > 0) {
+            if (typeof emitPresentationEvent === 'function') emitPresentationEvent(cardState, {
+                type: 'STATUS_TICK', row: marker.row, col: marker.col,
+                meta: { special: 'POISONED', timer: marker.data.remainingTurns, reason: 'poison_tick' }
+            });
+            continue;
+        }
+        lethalCount += 1;
+        if (typeof deps.destroyAt === 'function') {
+            deps.destroyAt(cardState, gameState, marker.row, marker.col, 'POISON_WILL', 'poison_lethal', { poison: true });
+        }
+        removeMarkerById(cardState, marker.id);
+        if (typeof emitPresentationEvent === 'function') emitPresentationEvent(cardState, {
+            type: 'STATUS_REMOVED', row: marker.row, col: marker.col,
+            meta: { special: 'POISONED', timer: 0, reason: 'poison_resolved' }
+        });
+    }
+    syncPoisonContacts(cardState, gameState, completedTurnNumber, deps);
+    const cells = getMarkers(cardState).filter((marker: any) => markerType(marker) === 'POISON_CELL').slice();
+    for (const marker of cells) {
+        if (Number(marker.data.appliedTurnNumber) === Number(completedTurnNumber)) continue;
+        marker.data.remainingTurns = Math.max(0, Number(marker.data.remainingTurns || 0) - 1);
+        if (marker.data.remainingTurns > 0) {
+            if (typeof emitPresentationEvent === 'function') emitPresentationEvent(cardState, {
+                type: 'STATUS_TICK', row: marker.row, col: marker.col,
+                meta: { special: 'POISON_CELL', timer: marker.data.remainingTurns, reason: 'poison_cell_tick' }
+            });
+            continue;
+        }
+        if (removeMarkerById(cardState, marker.id)) expiredCellCount += 1;
+        if (typeof emitPresentationEvent === 'function') emitPresentationEvent(cardState, {
+            type: 'STATUS_REMOVED', row: marker.row, col: marker.col,
+            meta: { special: 'POISON_CELL', timer: 0, reason: 'duration_end' }
+        });
+    }
+    return { processed: true, lethalCount, expiredCellCount };
+}
+
     return {
         applyStatusCellMarker,
         applyBlockadeWill,
         applyFreezeWill,
         applyMassFreezeWill,
-        applySeedWill
+        applySeedWill,
+        applyPoisonWill,
+        syncPoisonContacts,
+        processPoisonTurnEnd
     };
 }));

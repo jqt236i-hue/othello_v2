@@ -156,7 +156,8 @@ export function createCardBoardShapeAccess(config: CardBoardShapeAccessConfig): 
                     markerTypeUpper === 'BLOCKADE' ||
                     markerTypeUpper === 'METEOR_HOLE' ||
                     markerTypeUpper === 'FREEZE' ||
-                    markerTypeUpper === 'SEED'
+                    markerTypeUpper === 'SEED' ||
+                    markerTypeUpper === 'POISON_CELL'
                 ) continue;
             }
             marker.row = toRow;

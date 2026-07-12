@@ -183,6 +183,7 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   WILL_HUNTER_KING: '次に置く石を意志狩り化。自ターン開始時、敵石を1つ破壊してそのマスへ移動する。敵の特殊石を優先して狙う。',
   INSTANT_HYPERACTIVE_WILL: '次に置く石へ瞬間多動の配置時効果を付け、3マス分移動して通常石に戻す。',
   BLOCKADE_WILL: '空きマス1つを封鎖（配置・移動不可）',
+  POISON_WILL: 'マス1つを10ターン毒マス化。触れた石は5ターン後に破壊',
   METEOR_WILL: 'マスを1つ選んで石ごと抹消し、穴マスにする。',
   CAUSAL_REPLAY_WILL: '盤面に穴マスがある時のみ使用可能。穴マスを1つ選び、空の通常マスとして再生する。',
   BOARD_SHRINK_WILL: '外周から連続する3マスを選んで石ごと抹消し、穴マスにして盤面を縮小する。',
@@ -282,6 +283,7 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
   GLUTTONOUS_WILL: '隣接敵石があれば優先してそのマスへ進入し、同時に捕食する。\n隣接敵石が無い場合は敵石へ近づくように移動する。\n2連続で捕食できないと飢えて消滅する。',
   WILL_HUNTER_KING: '次に置く石を意志狩りの王石化する。\n自ターン開始時、敵石を1つ選んでそのマスへ移動しながら破壊する。\n敵の特殊石があればそちらを優先して狙う。\n反転回避2回と破壊回避2回を持ち、回避時は盤面上の最も近い有効な空きマスへ移動する。\n回避移動後、移動先で挟める列があればその石の色で反転する。',
   BLOCKADE_WILL: '封鎖したマスには両者とも配置・移動で入れない。\n持続終了時に解除される。',
+  POISON_WILL: '空き・石ありを問わずマス1つを10ターン毒マスにする。\n毒マスに触れた敵味方の通常石・特殊石は5ターン後に通常の破壊を受ける。\n完全保護と不可侵には効かず、後から完全保護を付けると毒は消える。\n毒状態は石と一緒に移動し、再接触で残りターンはリセットされない。',
   SEED_WILL: '種マスは通常どおり配置・移動に使える。\n石が置かれた時点で種は消える。\n所有者ターン開始時だけ残り回数が減る。\n5回目の所有者ターン開始で芽生えた石は、そのマスを起点に通常の挟み反転を行う。\n封鎖の意志・凍結の意志では種マスを選べない。',
   METEOR_WILL: 'マスを1つ選んで石ごと抹消し、穴マスにする。\n生きる意志・復活の意志・破壊回避・封鎖・凍結・種などはセル消滅を止めない。\n完全保護は穴化を止めない。\n不可侵の顕現石は対象外。',
   CAUSAL_REPLAY_WILL: '盤面に穴マスが1つ以上存在する場合のみ使用可能。\n穴マスを1つ選び、空の通常マスとして再生する。\n石・特殊石・数字マスなど、穴化前の状態は戻らない。',
@@ -378,6 +380,7 @@ const cardEffectTagsByType = Object.freeze({
   STONE_SALVATION_GOD: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(12), flipProtectionTag()]),
   ULTIMATE_HYPERACTIVE_GOD: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(5), destroyEvasionTag(2), durationTurnsTag(12)]),
   BLOCKADE_WILL: freezeCardEffectTags([durationTurnsTag(3)]),
+  POISON_WILL: freezeCardEffectTags([durationTurnsTag(10), delayedActivationTurnsTag(5)]),
   FREEZE_WILL: freezeCardEffectTags([durationTurnsTag(5)]),
   MASS_FREEZE_WILL: freezeCardEffectTags([durationTurnsTag(5)]),
 });

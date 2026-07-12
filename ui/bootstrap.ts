@@ -2028,6 +2028,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             corrosion: 'handleCorrosionSelection',
                             clone: 'handleCloneSelection',
                             blockade: 'handleBlockadeSelection',
+                            poison: 'handlePoisonSelection',
                             board_expansion: 'handleBoardExpansionSelection',
                             board_shrink: 'handleBoardShrinkSelection',
                             freeze: 'handleFreezeSelection',

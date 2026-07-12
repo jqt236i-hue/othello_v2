@@ -85,6 +85,15 @@ function resolveBlockadeSelection(options: BoardEffectsStageOptions): any {
     return { matched: true, result: true };
 }
 
+function resolvePoisonSelection(options: BoardEffectsStageOptions): any {
+    const selection = readRequiredTarget(options, ['POISON_WILL'], 'poisonTarget', 'POISON_WILL requires poisonTarget before placement');
+    if (!selection) return null;
+    if (unresolvedTarget(selection)) return unresolvedTarget(selection);
+    const result = options.CardLogic.applyPoisonWill(options.cardState, options.gameState, options.playerKey, selection.target.row, selection.target.col);
+    options.events.push({ type: 'poison_selected', player: options.playerKey, target: selection.target, applied: !!(result && result.applied) });
+    return { matched: true, result: true };
+}
+
 function resolveMeteorSelection(options: BoardEffectsStageOptions): any {
     const selection = readRequiredTarget(options, ['METEOR_WILL'], 'meteorTarget', 'METEOR_WILL requires meteorTarget before placement');
     if (!selection) return null;
@@ -125,6 +134,7 @@ function resolveBoardEffectsSelection(options: BoardEffectsStageOptions): any {
     return resolveBoardExpansionSelection(options)
         || resolveBoardShrinkSelection(options)
         || resolveBlockadeSelection(options)
+        || resolvePoisonSelection(options)
         || resolveMeteorSelection(options)
         || resolveCausalReplaySelection(options)
         || resolveFreezeSelection(options)

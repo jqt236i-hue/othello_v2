@@ -822,6 +822,7 @@ const Flips = CardFlips || {};
             getBoardExpansionTargets,
             getBoardShrinkTargets,
             getBlockadeTargets,
+            getPoisonTargets,
             getMeteorTargets,
             getCausalReplayTargets,
             getFreezeTargets,
@@ -1202,6 +1203,13 @@ const Flips = CardFlips || {};
             });
     }
 
+    function getPoisonTargets(cardState: any, gameState: any, playerKey: any) {
+        if (typeof Selectors.getPoisonTargets === 'function') {
+            return Selectors.getPoisonTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
     function getEqualityTargets(cardState: any, gameState: any, playerKey: any) {
         void cardState;
         void gameState;
@@ -1346,6 +1354,7 @@ export = {
     getCausalReplayTargets,
     getFreezeTargets,
     getBlockadeTargets,
+    getPoisonTargets,
     getCellTeleportTargets,
     getSniperTargets,
     getTimeBombTargets,

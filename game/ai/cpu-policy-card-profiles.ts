@@ -20,6 +20,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
     // Positive: generally usable/safer. Negative: volatile or high opportunity cost.
     const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
         BLOCKADE_WILL: 8,
+        POISON_WILL: 6,
         BOARD_EXPANSION_GOD: -3,
         BOARD_EXPANSION_WILL: -2,
         BOARD_EXECUTOR: 3,
@@ -118,6 +119,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
     // Keep an explicit list so newly added cards cannot silently bypass CPU usage tuning.
     const allCardTypesForUsageStyle = Object.freeze([
         'BLOCKADE_WILL',
+        'POISON_WILL',
         'BOARD_EXPANSION_GOD',
         'BOARD_EXPANSION_WILL',
         'BOARD_SHRINK_WILL',
@@ -215,6 +217,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
 
     const cardTypeUsageStyleOverrides = Object.freeze({
         BLOCKADE_WILL: { lowMobilityBias: 4, endgameBias: 4, cornerNowBias: -2 },
+        POISON_WILL: { trailingBias: 4, leadBias: 1, cornerEmergencyBias: 3 },
         BOARD_EXPANSION_GOD: { trailingBias: 6, handPressureBias: 6, cornerNowBias: -6 },
         BOARD_EXPANSION_WILL: { trailingBias: 4, handPressureBias: 4, cornerNowBias: -6 },
         BOARD_SHRINK_WILL: { cornerEmergencyBias: 6, trailingBias: 6, leadBias: -4, handPressureBias: 2 },
@@ -623,6 +626,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
 
     const cardTypeMovePlanProfileOverrides = Object.freeze({
         BLOCKADE_WILL: { archetype: 'controlBoard', placementWeight: 0, oppAdjBias: 2, emptyAdjBias: 1 },
+        POISON_WILL: { archetype: 'attack', placementWeight: 0, oppAdjBias: 4, cornerBias: 3, edgeBias: 2 },
         BOARD_EXPANSION_GOD: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 4, edgeBias: 3, emptyAdjBias: 3 },
         BOARD_EXPANSION_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 2, edgeBias: 4, emptyAdjBias: 3 },
         BOARD_SHRINK_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 3, edgeBias: 4, oppAdjBias: 3, emptyAdjBias: 1 },

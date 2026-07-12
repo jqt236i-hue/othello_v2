@@ -49,6 +49,8 @@
 .guard-timer,
 .stone-timer,
 .special-timer,
+.poison-cell-turn,
+.poison-status-badge,
 .stone-flip-protection-badge,
 .stone-regen-badge {
     scale: var(--board-cell-scale, 1);
@@ -952,6 +954,62 @@ body.time-stop-active #board .cell.time-stop-legal-emphasis.has-board-bonus .boa
         inset 0 0 14px rgba(150, 74, 255, 0.34),
         inset 0 0 4px rgba(255, 255, 255, 0.22),
         0 0 calc(8px * var(--layout-stage-scale)) rgba(180, 102, 255, 0.18);
+}
+
+.cell.poison-cell {
+    isolation: isolate;
+    background:
+        radial-gradient(circle at 34% 30%, rgba(221, 120, 255, 0.42), transparent 34%),
+        repeating-radial-gradient(circle at 70% 68%, rgba(105, 15, 139, 0.5) 0 6%, transparent 7% 17%),
+        linear-gradient(145deg, rgba(73, 11, 94, 0.78), rgba(150, 38, 172, 0.7));
+    box-shadow: inset 0 0 calc(12px * var(--layout-stage-scale)) rgba(229, 115, 255, 0.45);
+}
+
+.poison-cell-mark {
+    position: absolute;
+    inset: 4%;
+    pointer-events: none;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(239, 154, 255, 0.48);
+    border-radius: 18%;
+    z-index: 18;
+}
+
+.poison-cell-turn {
+    position: absolute;
+    top: calc(2px * var(--layout-stage-scale));
+    right: calc(3px * var(--layout-stage-scale));
+    min-width: calc(15px * var(--layout-stage-scale));
+    padding: calc(1px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale));
+    border-radius: 999px;
+    color: #fff;
+    background: rgba(71, 7, 95, 0.86);
+    font-weight: 800;
+    text-align: center;
+    z-index: 70;
+}
+
+.disc.disc-poisoned .disc__face {
+    filter: sepia(0.18) saturate(1.24) hue-rotate(246deg);
+    box-shadow: inset 0 0 calc(9px * var(--layout-stage-scale)) rgba(177, 43, 220, 0.68);
+}
+
+.poison-status-badge {
+    position: absolute;
+    right: calc(-2px * var(--layout-stage-scale));
+    bottom: calc(-1px * var(--layout-stage-scale));
+    width: calc(21px * var(--layout-stage-scale));
+    height: calc(20px * var(--layout-stage-scale));
+    display: grid;
+    place-items: end center;
+    padding-bottom: calc(2px * var(--layout-stage-scale));
+    color: #fff;
+    font-size: calc(11px * var(--layout-stage-scale));
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 1px 2px #23002f;
+    background: linear-gradient(135deg, transparent 49%, #8c19af 50%);
+    z-index: 74;
+    pointer-events: none;
 }
 
 .cell.effect-target-highlight-placement {

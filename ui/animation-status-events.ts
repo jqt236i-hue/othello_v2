@@ -73,6 +73,8 @@ async function handleStatusChangeEvent(ev: any, deps: AnimationStatusEventDeps) 
                     ''
                 ).toLowerCase();
                 const removedSpecialUpper = String(ev && ev.meta && ev.meta.special ? ev.meta.special : '').toUpperCase();
+                const poisonSpecialUpper = removedSpecialUpper || String(ev && ev.meta && ev.meta.special || '').toUpperCase();
+                const isPoisonStatus = poisonSpecialUpper === 'POISONED' || poisonSpecialUpper === 'POISON_CELL';
                 const isFreezeDurationEnd =
                     ev &&
                     ev.type === deps.eventTypes.STATUS_REMOVED &&
@@ -81,6 +83,12 @@ async function handleStatusChangeEvent(ev: any, deps: AnimationStatusEventDeps) 
                     !after.special;
 
                 if (isStatusTick) {
+                    if (isPoisonStatus) {
+                        const selector = poisonSpecialUpper === 'POISONED' ? '.poison-status-badge' : '.poison-cell-turn';
+                        const timer = cell.querySelector(selector);
+                        if (timer && ev.meta && Number.isFinite(Number(ev.meta.timer))) timer.textContent = String(Math.max(0, Math.trunc(Number(ev.meta.timer))));
+                        return;
+                    }
                     const disc = await deps.waitForDisc(target.r, target.col, 4);
                     if (!disc) return;
                     deps.syncDiscTimerOnly(disc, after);
@@ -91,6 +99,8 @@ async function handleStatusChangeEvent(ev: any, deps: AnimationStatusEventDeps) 
                     await deps.fadeOutFreezeOverlay(cell, deps.overlayCrossfadeMs);
                     return;
                 }
+
+                if (isPoisonStatus) return;
 
                 if (isCausalReplayCellRestoration(ev)) {
                     clearRestoredHoleCellPresentation(cell);

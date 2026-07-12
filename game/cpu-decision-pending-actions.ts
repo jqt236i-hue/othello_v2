@@ -538,6 +538,18 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         });
     }
 
+    async function cpuSelectPoisonWillWithPolicy(playerKey: any): Promise<any> {
+        return runTargetAction({
+            playerKey,
+            pendingType: 'POISON_WILL',
+            targets: getSelectableTargets(playerKey),
+            noTargetLabel: '毒殺対象なし',
+            targetLabel: '毒殺ターゲット',
+            payloadKey: 'poisonTarget',
+            applyMethodName: 'applyPoisonWill'
+        });
+    }
+
     async function cpuSelectMeteorWillWithPolicy(playerKey: any): Promise<any> {
         return runTargetAction({
             playerKey,
@@ -989,6 +1001,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
 
     return {
         cpuSelectBlockadeWillWithPolicy,
+        cpuSelectPoisonWillWithPolicy,
         cpuSelectBoardExpansionWillWithPolicy,
         cpuSelectBoardShrinkWithPolicy,
         cpuSelectBuoyancyWillWithPolicy,

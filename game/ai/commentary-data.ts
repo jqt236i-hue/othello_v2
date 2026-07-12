@@ -102,6 +102,7 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   BOARD_EXPANSION_WILL: '盤面を外側へ広げる',
   BOARD_EXPANSION_GOD: '角から盤面を広げる',
   BLOCKADE_WILL: '空きマスを封鎖する',
+  POISON_WILL: 'マスを毒で汚染し石を遅延破壊する',
   METEOR_WILL: 'マスごと破壊して穴にする',
   METEOR_GOD: '因果抹消神で敵石を穴にする',
   FREEZE_WILL: 'マスを凍結する',

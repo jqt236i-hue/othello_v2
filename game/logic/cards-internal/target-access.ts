@@ -182,6 +182,10 @@ function getMeteorTargets(cardState: any, gameState: any, playerKey: any, deps: 
     return resolveTargetResolverTargets('getMeteorTargets', [cardState, gameState, playerKey], deps);
 }
 
+function getPoisonTargets(cardState: any, gameState: any, playerKey: any, deps: TargetAccessDeps) {
+    return resolveTargetResolverTargets('getPoisonTargets', [cardState, gameState, playerKey], deps);
+}
+
 function getCausalReplayTargets(cardState: any, gameState: any, playerKey: any, deps: TargetAccessDeps) {
     return resolveTargetResolverTargets('getCausalReplayTargets', [cardState, gameState, playerKey], deps);
 }
@@ -265,6 +269,7 @@ module.exports = {
     getCellTeleportDestinations,
     getCellTeleportTargets,
     getBlockadeTargets,
+    getPoisonTargets,
     getMeteorTargets,
     getCausalReplayTargets,
     getFreezeTargets,

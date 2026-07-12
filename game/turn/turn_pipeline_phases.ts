@@ -424,6 +424,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
         const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
         clearPendingForActionPhase(cardState, playerKey);
+        if (CardLogic && typeof CardLogic.processPoisonTurnEnd === 'function') {
+            CardLogic.processPoisonTurnEnd(cardState, gameState, Number(gameState && gameState.turnNumber || 0));
+        }
         const newState = Core.applyPass(gameState);
         Object.assign(gameState, newState);
         const timeStopPassRes = (ActionPhaseTurnHandoffModule && typeof ActionPhaseTurnHandoffModule.consumeTimeStopCompletedTurn === 'function')
@@ -1255,6 +1258,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     deferGuardDurationEndUntilAfterTurnStartMarkers: true
                 });
             }
+            if (CardLogic && typeof CardLogic.syncPoisonContacts === 'function') {
+                CardLogic.syncPoisonContacts(cardState, gameState, Number(gameState && gameState.turnNumber || 0));
+            }
             if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
                 applyGeneratedSpawnFlipResultsTurnStart(
                     CardLogic,
@@ -1788,6 +1794,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
     function applyActionPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, action: any, events: any, prng: any, BoardOps: any) {
         const ctx = createTurnPipelinePhaseContext(CardLogic, Core, cardState, gameState, playerKey, events, prng, BoardOps, action);
+        const actionTurnNumber = Number(gameState && gameState.turnNumber || 0);
         const phaseSnapshot = snapshotTurnPhasePresentationStart(ctx);
         const presentationStartIndex = phaseSnapshot.presentationStartIndex;
         try {
@@ -1813,6 +1820,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             throw new Error('Unknown action.type');
         }
         } finally {
+            if (CardLogic && typeof CardLogic.syncPoisonContacts === 'function') {
+                CardLogic.syncPoisonContacts(cardState, gameState, actionTurnNumber);
+            }
             finalizeActionPhasePresentation(ctx, phaseSnapshot);
         }
     }

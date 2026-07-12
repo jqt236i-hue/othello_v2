@@ -587,7 +587,8 @@ function _isCellFixedMarkerType(type: string): boolean {
     return typeUpper === 'BLOCKADE' ||
         typeUpper === 'METEOR_HOLE' ||
         typeUpper === 'FREEZE' ||
-        typeUpper === 'SEED';
+        typeUpper === 'SEED' ||
+        typeUpper === 'POISON_CELL';
 }
 
 function _isStoneAttachedMoveMarker(marker: any): boolean {
@@ -2132,11 +2133,13 @@ function _removeDestroyedCellFromBoard(ctx: DestroyCoreContext): void {
     setStoneIdAt(ctx.cardState, ctx.gameState, ctx.row, ctx.col, null);
     setCellValue(ctx.gameState, ctx.row, ctx.col, EMPTY);
     if (ctx.cardMarkers && typeof ctx.cardMarkers.removeMarkersAt === 'function') {
-        ctx.cardMarkers.removeMarkersAt(ctx.cardState, ctx.row, ctx.col);
+        ctx.cardMarkers.removeMarkersAt(ctx.cardState, ctx.row, ctx.col, { preserveTypes: ['POISON_CELL'] });
     } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
-        MarkersAdapter.removeMarkersAt(ctx.cardState, ctx.row, ctx.col);
+        MarkersAdapter.removeMarkersAt(ctx.cardState, ctx.row, ctx.col, { preserveTypes: ['POISON_CELL'] });
     } else if (Array.isArray(ctx.cardState.markers)) {
-        ctx.cardState.markers = ctx.cardState.markers.filter((m: any) => !(m.row === ctx.row && m.col === ctx.col));
+        ctx.cardState.markers = ctx.cardState.markers.filter((m: any) => (
+            m.row !== ctx.row || m.col !== ctx.col || String(m.data && m.data.type || '').toUpperCase() === 'POISON_CELL'
+        ));
     }
 }
 

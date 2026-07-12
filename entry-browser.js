@@ -367,6 +367,7 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/game/card-effects/board-expansion" },
   { moduleKey: "./dist/game/card-effects/board-shrink" },
   { moduleKey: "./dist/game/card-effects/blockade" },
+  { moduleKey: "./dist/game/card-effects/poison" },
   { moduleKey: "./dist/game/card-effects/meteor" },
   { moduleKey: "./dist/game/card-effects/causal-replay" },
   { moduleKey: "./dist/game/card-effects/freeze" },

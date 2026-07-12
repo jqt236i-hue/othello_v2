@@ -337,6 +337,8 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             return validateSelectionTargets(context, 'getBoardShrinkGodTargets', 1) ? result : buildFailureResult();
         case 'BLOCKADE_WILL':
             return validateSelectionTargets(context, 'getBlockadeTargets', 1) ? result : buildFailureResult();
+        case 'POISON_WILL':
+            return validateSelectionTargets(context, 'getPoisonTargets', 1) ? result : buildFailureResult();
         case 'METEOR_WILL':
             return validateSelectionTargets(context, 'getMeteorTargets', 1) ? result : buildFailureResult();
         case 'CAUSAL_REPLAY_WILL':

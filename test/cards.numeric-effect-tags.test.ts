@@ -26,6 +26,7 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('TIME_STOP_GOD')).toEqual(['特殊石', '5ターン後に発動']);
     expect(getEffectTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual(['特殊石', '反転保護']);
     expect(getEffectTagLabels('SEED_WILL')).toEqual(['5ターン後に発動']);
+    expect(getEffectTagLabels('POISON_WILL')).toEqual(['10ターン持続', '5ターン後に発動']);
     expect(getNumericTagLabels('TIME_BOMB')).toEqual(['3ターン後に発動']);
     expect(getNumericTagLabels('TIME_STOP_GOD')).toEqual(['5ターン後に発動']);
     expect(getNumericTagLabels('PERMA_PROTECT_NEXT_STONE')).toEqual([]);

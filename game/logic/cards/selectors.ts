@@ -1307,6 +1307,22 @@ function getMeteorTargets(cardState: CardState, gameState: GameState): TargetCel
     return res;
 }
 
+// Poison may be placed under empty or occupied cells. Holes and an existing poison cell are excluded.
+function getPoisonTargets(cardState: CardState, gameState: GameState): TargetCell[] {
+    const gs = gameState as any;
+    if (!gs || !gs.board) return [];
+    const res: TargetCell[] = [];
+    forEachBoardShapeCell(gameState, (r, c) => {
+        if (isMeteorHoleCell(cardState, r, c)) return;
+        const alreadyPoisoned = Array.isArray((cardState as any).markers) && (cardState as any).markers.some((marker: any) => (
+            marker && marker.row === r && marker.col === c && marker.data && marker.data.type === 'POISON_CELL'
+        ));
+        if (alreadyPoisoned) return;
+        res.push({ row: r, col: c });
+    });
+    return res;
+}
+
 // Return causal replay targets: existing meteor holes only.
 function getCausalReplayTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const gs = gameState as any;
@@ -1443,6 +1459,7 @@ export = {
     getBoardExpansionTargets,
     getBoardExpansionGodTargets,
     getBlockadeTargets,
+    getPoisonTargets,
     getMeteorTargets,
     getCausalReplayTargets,
     getBoardShrinkTargets,

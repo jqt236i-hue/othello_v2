@@ -3115,6 +3115,10 @@ async function cpuSelectBlockadeWillWithPolicy(playerKey: any): Promise<any> {
     return CpuDecisionPendingActions.cpuSelectBlockadeWillWithPolicy(playerKey);
 }
 
+async function cpuSelectPoisonWillWithPolicy(playerKey: any): Promise<any> {
+    return CpuDecisionPendingActions.cpuSelectPoisonWillWithPolicy(playerKey);
+}
+
 /**
  * 因果抹消 対象選択
  * @param {string} playerKey - 'black' または 'white'
@@ -3252,7 +3256,8 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectTimeBombWithPolicy,
         cpuSelectBoardExpansionWillWithPolicy,
         cpuSelectBoardShrinkWithPolicy,
-        cpuSelectBlockadeWillWithPolicy,
+            cpuSelectBlockadeWillWithPolicy,
+            cpuSelectPoisonWillWithPolicy,
         cpuSelectMeteorWillWithPolicy,
         cpuSelectCausalReplayWillWithPolicy,
         cpuSelectFreezeWillWithPolicy,

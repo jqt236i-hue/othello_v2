@@ -56,6 +56,7 @@ const STATIC_PENDING_SELECTION_PROMPTS: Record<string, string> = Object.freeze({
     BOARD_EXPANSION_WILL: '外周マスの外向き矢印を選んで盤面を拡張してください',
     BOARD_EXPANSION_GOD: '角マスの外向き矢印を選んで盤面を拡張してください',
     BLOCKADE_WILL: '封鎖する空きマスを選んでください',
+    POISON_WILL: '毒マスにするマスを選んでください',
     FREEZE_WILL: '凍結するマスを選んでください',
     SEED_WILL: '種をまく空きマスを選んでください',
     METEOR_WILL: '因果抹消で破壊するマスを選んでください',

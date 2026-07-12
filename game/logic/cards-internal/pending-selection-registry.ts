@@ -261,6 +261,18 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         action: { policyMethod: 'chooseBlockadeTarget', field: 'blockadeTarget' },
         cpuHandlerNames: ['cpuSelectBlockadeWillWithPolicy']
     },
+    POISON_WILL: {
+        kind: 'continue_turn',
+        turnOutcome: 'continue_turn',
+        deferNetworkPublish: true,
+        waitForPlaybackIdle: true,
+        needsTargetSelection: true,
+        cancellable: true,
+        dispatchKey: 'poison',
+        target: { method: 'getPoisonTargets', argsKey: 'player' },
+        action: { policyMethod: 'choosePoisonTarget', field: 'poisonTarget' },
+        cpuHandlerNames: ['cpuSelectPoisonWillWithPolicy']
+    },
     BOARD_EXPANSION_WILL: {
         kind: 'continue_turn',
         turnOutcome: 'continue_turn',

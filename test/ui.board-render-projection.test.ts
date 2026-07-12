@@ -24,10 +24,13 @@ describe('per-render board projection', () => {
       currentPlayer: 1,
       board: Array.from({ length: 8 }, () => Array(8).fill(0))
     };
+    (global as any).gameState.board[5][5] = -1;
     (global as any).cardState = {
       markers: [
         { id: 'protected', kind: 'specialStone', row: 3, col: 3, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2 } },
-        { id: 'bomb', kind: 'specialStone', row: 4, col: 4, owner: 'white', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }
+        { id: 'bomb', kind: 'specialStone', row: 4, col: 4, owner: 'white', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } },
+        { id: 'poison-cell', kind: 'specialStone', row: 5, col: 5, owner: 'black', data: { type: 'POISON_CELL', remainingTurns: 9 } },
+        { id: 'poisoned', kind: 'specialStone', row: 5, col: 5, owner: 'white', data: { type: 'POISONED', remainingTurns: 4 } }
       ],
       pendingEffectByPlayer: { black: null, white: null },
       fateWillControllerByTurnOwner: {}
@@ -56,6 +59,9 @@ describe('per-render board projection', () => {
     expect(projectedState[2][3].isLegal).toBe(true);
     expect(projectedState._renderProjection.markerMaps.specialMap.get('3,3')).toEqual(expect.objectContaining({ type: 'PROTECTED' }));
     expect(projectedState._renderProjection.markerMaps.bombMap.get('4,4')).toEqual(expect.objectContaining({ remainingTurns: 2 }));
+    expect(projectedState[5][5].poisonCell).toEqual({ remainingTurns: 9 });
+    expect(projectedState[5][5].poisoned).toEqual({ remainingTurns: 4 });
+    expect(projectedState[5][5].special).toBeNull();
     expect((global as any).gameState._renderProjection).toBeUndefined();
     expect((global as any).cardState._renderProjection).toBeUndefined();
   });

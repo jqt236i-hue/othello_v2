@@ -38,6 +38,9 @@ function handOffCompletedTurn(options: HandOffCompletedTurnOptions): any {
     const turnNumber = Number.isFinite(Number(opts.turnNumberAfterCompletion))
         ? Number(opts.turnNumberAfterCompletion)
         : (Number(opts.gameState.turnNumber || 0) + 1);
+    if (opts.CardLogic && typeof opts.CardLogic.processPoisonTurnEnd === 'function') {
+        opts.CardLogic.processPoisonTurnEnd(opts.cardState, opts.gameState, Number(opts.gameState.turnNumber || 0));
+    }
     opts.advanceGameRoundAfterCompletedTurn(opts.Core, opts.gameState, opts.playerKey, null);
     const timeStopRes = consumeTimeStopCompletedTurn({
         CardLogic: opts.CardLogic,

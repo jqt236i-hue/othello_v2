@@ -61,6 +61,10 @@ function cellStatesEqual(a: any, b: any): boolean {
     if (a.frozen.remainingOwnerTurns !== b.frozen.remainingOwnerTurns) return false;
     if (a.frozen.owner !== b.frozen.owner) return false;
   }
+  if ((a.poisonCell === null) !== (b.poisonCell === null)) return false;
+  if (a.poisonCell && b.poisonCell && a.poisonCell.remainingTurns !== b.poisonCell.remainingTurns) return false;
+  if ((a.poisoned === null) !== (b.poisoned === null)) return false;
+  if (a.poisoned && b.poisoned && a.poisoned.remainingTurns !== b.poisoned.remainingTurns) return false;
 
   if ((a.seed === null) !== (b.seed === null)) return false;
   if (a.seed && b.seed) {

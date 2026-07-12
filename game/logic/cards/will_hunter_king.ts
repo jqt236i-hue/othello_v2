@@ -260,7 +260,7 @@ function moveCoexistingMarkers(cardState: any, fromRow: number, fromCol: number,
         if (!marker || marker.row !== fromRow || marker.col !== fromCol)
             continue;
         const typeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-        if (typeUpper === 'BLOCKADE' || typeUpper === 'METEOR_HOLE' || typeUpper === 'FREEZE' || typeUpper === 'SEED')
+        if (typeUpper === 'BLOCKADE' || typeUpper === 'METEOR_HOLE' || typeUpper === 'FREEZE' || typeUpper === 'SEED' || typeUpper === 'POISON_CELL')
             continue;
         marker.row = toRow;
         marker.col = toCol;

@@ -230,10 +230,10 @@ function getMarkerRuleClass(marker: any): string | null {
     const type = String(marker && marker.data && marker.data.type || '').toUpperCase();
     if (isBombCategoryMarker(marker) || type === 'TIME_BOMB') return 'bomb';
     if (type === 'TRAP') return 'trap';
-    if (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE' || type === 'SEED') return 'board_marker';
+    if (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE' || type === 'SEED' || type === 'POISON_CELL') return 'board_marker';
     if (type === 'HYPERACTIVE' && !!(marker && marker.data && marker.data.instantPlacementOnly)) return 'placement_effect';
     if (type === 'CROSS_BOMB' || type === 'X_BOMB' || type === 'GOLD' || type === 'SILVER' || type === 'RAINBOW') return 'placement_effect';
-    if (type === 'GUARD' || type === 'LIVING_WILL') return 'stone_status';
+    if (type === 'GUARD' || type === 'LIVING_WILL' || type === 'POISONED') return 'stone_status';
     if (!type) return null;
     return 'true_special_stone';
 }
@@ -601,6 +601,7 @@ interface RemoveMarkersOptions {
     category?: string;
     type?: string;
     owner?: PlayerKey;
+    preserveTypes?: string[];
 }
 
 function removeMarkersAt(cardState: CardState, row: number, col: number, options?: RemoveMarkersOptions): void {
@@ -610,8 +611,10 @@ function removeMarkersAt(cardState: CardState, row: number, col: number, options
     }
     if (!cardState || !Array.isArray((cardState as any).markers)) return;
     const opts = options || {};
+    const preserveTypes = new Set((opts.preserveTypes || []).map((type) => String(type).toUpperCase()));
     (cardState as any).markers = (cardState as any).markers.filter((marker: any) => {
         if (!marker || marker.row !== row || marker.col !== col) return true;
+        if (preserveTypes.has(String(marker.data && marker.data.type || '').toUpperCase())) return true;
         if (opts.kind === MARKER_CATEGORIES.BOMB && !isBombCategoryMarker(marker)) return true;
         if (opts.kind === MARKER_KINDS.SPECIAL_STONE && !isSpecialStoneMarker(marker)) return true;
         if (opts.kind === MARKER_KINDS.MANIFEST_STONE && !isManifestStoneMarker(marker)) return true;
@@ -695,6 +698,8 @@ function isNormalVisualSpecialMarker(marker: any): boolean {
         type === 'METEOR_HOLE' ||
         type === 'FREEZE' ||
         type === 'SEED' ||
+        type === 'POISON_CELL' ||
+        type === 'POISONED' ||
         type === 'LIVING_WILL' ||
         type === 'TRAP'
     );
@@ -774,6 +779,7 @@ function swapCellCoordinates(cardState: CardState, gameState: GameState, posA: P
     const markers = getMarkers(cardState);
     for (const marker of markers) {
         if (!marker) continue;
+        if (getMarkerRuleClass(marker) === 'board_marker') continue;
         if (marker.row === aRow && marker.col === aCol) {
             marker.row = bRow;
             marker.col = bCol;
@@ -845,7 +851,9 @@ function addMarker(cardState: CardState, kind: string, row: number, col: number,
             timer = (marker.data && typeof marker.data.remainingTurns === 'number') ? marker.data.remainingTurns : null;
         } else if (isVisualStoneMarker) {
             special = marker.data && marker.data.type ? marker.data.type : null;
-            timer = (marker.data && typeof marker.data.remainingOwnerTurns === 'number') ? marker.data.remainingOwnerTurns : null;
+            timer = (marker.data && typeof marker.data.remainingOwnerTurns === 'number')
+                ? marker.data.remainingOwnerTurns
+                : ((marker.data && typeof marker.data.remainingTurns === 'number') ? marker.data.remainingTurns : null);
             flipEvadeRemaining = Number.isFinite(Number(marker.data && marker.data.flipEvadeRemaining))
                 ? Math.max(0, Math.trunc(Number(marker.data.flipEvadeRemaining)))
                 : null;

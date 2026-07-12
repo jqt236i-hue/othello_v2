@@ -229,6 +229,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
     const blockadeMap = new Map();
     const freezeMap = new Map();
     const seedMap = new Map();
+    const poisonCellMap = new Map();
+    const poisonedMap = new Map();
     const sproutMap = new Map();
     const markerVisualMap = new Map<string, any>();
     const setMarkerVisual = (row: any, col: any, field: string, value: any) => {
@@ -306,6 +308,18 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                 };
                 seedMap.set(`${m.row},${m.col}`, seedVisual);
                 setMarkerVisual(m.row, m.col, 'seed', seedVisual);
+                continue;
+            }
+            if (m.data.type === 'POISON_CELL') {
+                const visual = { row: m.row, col: m.col, remainingTurns: m.data.remainingTurns };
+                poisonCellMap.set(`${m.row},${m.col}`, visual);
+                setMarkerVisual(m.row, m.col, 'poisonCell', visual);
+                continue;
+            }
+            if (m.data.type === 'POISONED') {
+                const visual = { row: m.row, col: m.col, remainingTurns: m.data.remainingTurns };
+                poisonedMap.set(`${m.row},${m.col}`, visual);
+                setMarkerVisual(m.row, m.col, 'poisoned', visual);
                 continue;
             }
             if (m.data.type === 'GUARD') {
@@ -436,6 +450,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
             const blockade = markerVisual ? markerVisual.blockade || null : null;
             const frozen = markerVisual ? markerVisual.frozen || null : null;
             const seed = markerVisual ? markerVisual.seed || null : null;
+            const poisonCell = markerVisual ? markerVisual.poisonCell || null : null;
+            const poisoned = val !== EMPTY && markerVisual ? markerVisual.poisoned || null : null;
             const isLegal = showLegalHints && val === EMPTY && legalSet.has(key);
             const isTabooLegal = showLegalHints && val === EMPTY && tabooLegalSet.has(key);
             const isLegalFree = showLegalHints && val === EMPTY && freePlacementActive;
@@ -508,6 +524,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                     owner: getOwnerValueForDiff(seed.owner, BLACK, WHITE),
                     remainingOwnerTurns: seed.remainingOwnerTurns
                 } : null,
+                poisonCell: poisonCell ? { remainingTurns: poisonCell.remainingTurns } : null,
+                poisoned: poisoned ? { remainingTurns: poisoned.remainingTurns } : null,
                 destroyEvadeRemaining: destroyEvadeDisplay
             };
         }
@@ -532,6 +550,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
         const blockade = markerVisual ? markerVisual.blockade || null : null;
         const frozen = markerVisual ? markerVisual.frozen || null : null;
         const seed = markerVisual ? markerVisual.seed || null : null;
+        const poisonCell = markerVisual ? markerVisual.poisonCell || null : null;
+        const poisoned = expVal !== EMPTY && markerVisual ? markerVisual.poisoned || null : null;
         const special = expVal !== EMPTY && markerVisual ? markerVisual.special || null : null;
         const guard = expVal !== EMPTY && markerVisual ? markerVisual.guard || null : null;
         const livingWill = expVal !== EMPTY && markerVisual ? markerVisual.livingWill || null : null;
@@ -566,6 +586,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                 owner: getOwnerValueForDiff(seed.owner, BLACK, WHITE),
                 remainingOwnerTurns: seed.remainingOwnerTurns
             } : null,
+            poisonCell: poisonCell ? { remainingTurns: poisonCell.remainingTurns } : null,
+            poisoned: poisoned ? { remainingTurns: poisoned.remainingTurns } : null,
             special: special ? {
                 type: special.type,
                 owner: getOwnerValueForDiff(special.owner, BLACK, WHITE),
@@ -606,6 +628,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                     blockadeMap,
                     freezeMap,
                     seedMap,
+                    poisonCellMap,
+                    poisonedMap,
                     sproutMap,
                     markerVisualMap
                 })

@@ -398,12 +398,15 @@ interface RemoveMarkersOptions {
     category?: string;
     type?: string;
     owner?: string;
+    preserveTypes?: string[];
 }
 
 function removeMarkersAt(cardState: any, row: number, col: number, options?: RemoveMarkersOptions): void {
     const opts = options || {};
+    const preserveTypes = new Set((opts.preserveTypes || []).map((type) => String(type).toUpperCase()));
     removeMarkers(cardState, (m: Marker) => {
         if (m.row !== row || m.col !== col) return false;
+        if (preserveTypes.has(String(m.data && m.data.type || '').toUpperCase())) return false;
         if (opts.kind === LEGACY_BOMB_KIND && !isBombCategoryMarker(m)) return false;
         if (opts.kind === MARKER_KINDS.SPECIAL_STONE && !isSpecialStoneMarker(m)) return false;
         if (opts.kind === MARKER_KINDS.MANIFEST_STONE && !isManifestStoneMarker(m)) return false;
