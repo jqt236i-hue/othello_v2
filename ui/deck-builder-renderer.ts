@@ -879,38 +879,28 @@ function renderEditorView(container: HTMLElement, viewModel: any, handlers: any)
   wrapper.appendChild(nameRow);
 
   const actionRow = document.createElement('div');
-  actionRow.className = 'deck-builder-actions-row';
+  actionRow.className = 'deck-builder-actions-row deck-builder-editor-actions';
   actionRow.appendChild(createButton('保存', 'btn-small', handlers.onEditorSave, { disabled: !editor.canSave }));
   actionRow.appendChild(createButton('使用', 'btn-small', handlers.onEditorUse, { disabled: !editor.canUse }));
   actionRow.appendChild(createButton('コード読込', 'btn-small', handlers.onEditorImportCode));
   actionRow.appendChild(createButton('コードコピー', 'btn-small', handlers.onEditorCopyCode, { disabled: !editor.canCopy }));
+  const codeInput = document.createElement('input');
+  codeInput.type = 'text';
+  codeInput.className = 'deck-builder-code-input';
+  codeInput.value = editor.codeInputValue;
+  codeInput.placeholder = 'deckCode: D1C1:...';
+  codeInput.setAttribute('aria-label', 'デッキコード');
+  codeInput.title = 'デッキコード';
+  codeInput.addEventListener('input', () => {
+    handlers.onEditorCodeInput(codeInput.value);
+  });
+  actionRow.appendChild(codeInput);
   wrapper.appendChild(actionRow);
 
   const detailPopup = createEditorCardDetailPopup(editor.detailCard, handlers);
   if (detailPopup) {
     wrapper.appendChild(detailPopup);
   }
-
-  const codeBlock = document.createElement('div');
-  codeBlock.className = 'deck-builder-code-block';
-  const codeLabel = document.createElement('div');
-  codeLabel.className = 'deck-builder-section-title deck-builder-section-title-with-icon';
-  codeLabel.appendChild(createSectionIcon('<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.5 4.5l-3 3.5 3 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 4.5l3 3.5-3 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 3l-2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'));
-  const codeLabelText = document.createElement('span');
-  codeLabelText.className = 'deck-builder-section-title-text';
-  codeLabelText.textContent = 'deckCode';
-  codeLabel.appendChild(codeLabelText);
-  codeBlock.appendChild(codeLabel);
-  const codeInput = document.createElement('textarea');
-  codeInput.className = 'deck-builder-code-input';
-  codeInput.rows = 3;
-  codeInput.value = editor.codeInputValue;
-  codeInput.placeholder = 'D1C1:...';
-  codeInput.addEventListener('input', () => {
-    handlers.onEditorCodeInput(codeInput.value);
-  });
-  codeBlock.appendChild(codeInput);
-  wrapper.appendChild(codeBlock);
 
   const selectedSection = document.createElement('div');
   selectedSection.className = 'deck-builder-section';

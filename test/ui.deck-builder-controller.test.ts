@@ -376,6 +376,20 @@ describe('deck builder controller', () => {
     });
   });
 
+  test('デッキコード入力をコードコピーの右側へ1行で表示する', () => {
+    const body = document.getElementById('body');
+
+    createController().open();
+    body.querySelector('.deck-builder-save-slot-card .btn-small:last-child').click();
+
+    const actionRow = body.querySelector('.deck-builder-editor-actions');
+    const codeInput = actionRow.querySelector('.deck-builder-code-input');
+    const children = Array.from(actionRow.children);
+    expect(codeInput.tagName).toBe('INPUT');
+    expect(children[children.indexOf(codeInput) - 1].textContent).toBe('コードコピー');
+    expect(body.querySelector('.deck-builder-code-block')).toBeNull();
+  });
+
   test('保存先選択は空欄と保存済みスロットを区別して表示する', () => {
     const { deckCode } = createThirtyCardDeck();
     localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_2', 'お気に入り', deckCode)));

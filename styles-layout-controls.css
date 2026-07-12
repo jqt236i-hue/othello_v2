@@ -7307,6 +7307,22 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     min-height: max(38px, calc(38px * var(--layout-stage-scale)));
 }
 
+#deckBuilderModal .deck-builder-editor-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+#deckBuilderModal .deck-builder-editor-actions .deck-builder-code-input {
+    flex: 1 1 260px;
+    min-width: 160px;
+    min-height: max(38px, calc(38px * var(--layout-stage-scale)));
+    padding-block: calc(6px * var(--layout-stage-scale));
+    font-family: ui-monospace, 'Cascadia Code', monospace;
+    font-size: max(10px, calc(10px * var(--layout-stage-scale)));
+    text-overflow: ellipsis;
+}
+
 #deckBuilderModal .deck-builder-name-row,
 #deckBuilderModal .deck-builder-code-block,
 #deckBuilderModal .deck-builder-section {
@@ -7516,6 +7532,15 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     #deckBuilderModal .deck-builder-editor-top .btn-small,
     #deckBuilderModal .deck-builder-actions-row .btn-small {
         min-height: 44px !important;
+    }
+
+    #deckBuilderModal .deck-builder-editor-actions {
+        flex-wrap: wrap;
+    }
+
+    #deckBuilderModal .deck-builder-editor-actions .deck-builder-code-input {
+        flex-basis: 100%;
+        min-height: 44px;
     }
 
     #deckBuilderModal .deck-builder-builtin-card .deck-builder-actions-row .btn-small,
