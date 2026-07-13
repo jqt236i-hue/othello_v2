@@ -147,6 +147,26 @@
         inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.18);
 }
 
+/* 標準オセロの星マス。盤面の質感を邪魔しないよう、暗い小さな点で控えめに示す。 */
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="1"][data-col="1"]::after,
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="1"][data-col="6"]::after,
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="6"][data-col="1"]::after,
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="6"][data-col="6"]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(7px * var(--board-cell-scale, 1));
+    height: calc(7px * var(--board-cell-scale, 1));
+    border-radius: 50%;
+    background: rgba(2, 10, 9, 0.68);
+    box-shadow:
+        0 0 0 calc(1px * var(--board-cell-scale, 1)) rgba(177, 224, 194, 0.07),
+        0 calc(1px * var(--board-cell-scale, 1)) calc(2px * var(--board-cell-scale, 1)) rgba(0, 0, 0, 0.24);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
 .cell.cell-void {
     visibility: hidden;
     pointer-events: none;

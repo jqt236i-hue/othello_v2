@@ -3266,6 +3266,10 @@ function initializeBoardDOM(boardEl: any) {
     const sharedBoardUtils = _getSharedBoardUtilsForDiff();
 
     boardEl.classList.toggle('board-square-regular', _isSquareRectangularBoardForDiff(gameState));
+    boardEl.classList.toggle(
+        'board-standard-8x8',
+        _isSquareRectangularBoardForDiff(gameState) && boardShape.rows === 8 && boardShape.cols === 8
+    );
 
     boardEl.classList.remove('board-expanded-left', 'board-expanded-right', 'board-expanded-top', 'board-expanded-bottom');
     if (expansions.some((exp) => exp && exp.side === 'left')) boardEl.classList.add('board-expanded-left');
