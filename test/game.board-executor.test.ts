@@ -39,6 +39,13 @@ function addStone(cardState: any, gameState: any, row: number, col: number, owne
   });
 }
 
+function addBoardExecutorRequirementStones(cardState: any, gameState: any): void {
+  addStone(cardState, gameState, 0, 0, 'black', 'PROTECTED');
+  addStone(cardState, gameState, 0, 1, 'white', 'PERMA_PROTECTED');
+  addStone(cardState, gameState, 0, 2, 'black', 'TRAP', 'specialStone', { hidden: true });
+  addStone(cardState, gameState, 0, 3, 'white', 'TIME_BOMB', 'bomb', { category: 'bomb', remainingTurns: 2 });
+}
+
 function hasMarker(cardState: any, type: string): boolean {
   return (cardState.markers || []).some((marker: any) => marker && marker.data && marker.data.type === type);
 }
@@ -71,7 +78,7 @@ const PREVIOUS_BOARD_EXECUTOR_FLIP_GAIN_SOURCE_TYPES = [
 ];
 
 describe('盤界の執行者', () => {
-  test('手札上の使用可否にも自分の特殊石条件を反映する', () => {
+  test('手札上の使用可否に、所有者を問わない特殊石4個条件を反映する', () => {
     const prng = createPrng();
     const cardState: any = CardLogic.createCardState(prng);
     const gameState = createGameState();
@@ -80,12 +87,18 @@ describe('盤界の執行者', () => {
 
     expect(CardLogic.canUseCard(cardState, 'black', 'board_executor_01')).toBe(false);
 
-    addStone(cardState, gameState, 2, 2, 'black', 'TRAP', 'specialStone', { hidden: true });
+    addStone(cardState, gameState, 0, 0, 'black', 'PROTECTED');
+    addStone(cardState, gameState, 0, 1, 'white', 'PERMA_PROTECTED');
+    addStone(cardState, gameState, 0, 2, 'black', 'TRAP', 'specialStone', { hidden: true });
+
+    expect(CardLogic.canUseCard(cardState, 'black', 'board_executor_01')).toBe(false);
+
+    addStone(cardState, gameState, 0, 3, 'white', 'TIME_BOMB', 'bomb', { category: 'bomb', remainingTurns: 2 });
 
     expect(CardLogic.canUseCard(cardState, 'black', 'board_executor_01')).toBe(true);
   });
 
-  test('自分の特殊石がない場合は使用できず、自分の罠石があれば使用できる', () => {
+  test('特殊石が4個未満では使用できず、4個になると使用できる', () => {
     const prng = createPrng();
     const cardState: any = CardLogic.createCardState(prng);
     const gameState = createGameState();
@@ -95,7 +108,7 @@ describe('盤界の執行者', () => {
     expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'board_executor_01', null, { prng })).toBe(false);
 
     cardState.hands.black = ['board_executor_01'];
-    addStone(cardState, gameState, 2, 2, 'black', 'TRAP', 'specialStone', { hidden: true });
+    addBoardExecutorRequirementStones(cardState, gameState);
 
     expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'board_executor_01', null, { prng })).toBe(true);
   });
@@ -130,8 +143,7 @@ describe('盤界の執行者', () => {
     const gameState = createGameState();
     cardState.hands.black = ['board_executor_01'];
     cardState.charge.black = 99;
-    addStone(cardState, gameState, 1, 1, 'black', 'PROTECTED');
-    addStone(cardState, gameState, 2, 2, 'white', 'TRAP', 'specialStone', { hidden: true });
+    addBoardExecutorRequirementStones(cardState, gameState);
 
     const result = PipelineUiAdapter.runTurnWithAdapter(
       cardState,
@@ -173,7 +185,7 @@ describe('盤界の執行者', () => {
     cardState.hands.white = ['guard_01'];
     cardState.charge.black = 0;
     cardState.charge.white = 10;
-    addStone(cardState, gameState, 0, 0, 'black', 'PROTECTED');
+    addBoardExecutorRequirementStones(cardState, gameState);
 
     expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'board_executor_01', null, { prng })).toBe(true);
     expect(cardState.nextBoardExecutorStoneByPlayer.black).toEqual(expect.objectContaining({ sourceType: 'BOARD_EXECUTOR' }));
@@ -197,7 +209,7 @@ describe('盤界の執行者', () => {
     setupOpeningBoard(gameState);
     cardState.hands.black = ['board_executor_01'];
     cardState.charge.black = 0;
-    addStone(cardState, gameState, 0, 0, 'black', 'PROTECTED');
+    addBoardExecutorRequirementStones(cardState, gameState);
 
     expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'board_executor_01', null, { prng })).toBe(true);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();

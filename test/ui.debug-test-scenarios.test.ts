@@ -185,6 +185,9 @@ describe('debug test scenarios', () => {
     expect(gameState.currentPlayer).toBe(1);
     expect(gameState.turnNumber).toBeGreaterThanOrEqual(18);
     expect(gameState.board[2][3]).toBe(1);
+    expect(gameState.board[2][4]).toBe(-1);
+    expect(gameState.board[3][2]).toBe(1);
+    expect(gameState.board[3][5]).toBe(-1);
     expect(cardState.turnIndex).toBeGreaterThanOrEqual(18);
     expect(cardState.hands.black).toEqual([
       'theory_incarnation_01',
@@ -196,7 +199,7 @@ describe('debug test scenarios', () => {
     expect(cardState.numberCellCollectedTotalByPlayer.black).toBe(42);
     expect(cardState.pendingEffectByPlayer).toEqual({ black: null, white: null });
     expect(cardState.hasUsedCardThisTurnByPlayer).toEqual({ black: false, white: false });
-    expect(cardState.markers).toEqual([
+    expect(cardState.markers).toEqual(expect.arrayContaining([
       expect.objectContaining({
         kind: 'specialStone',
         row: 2,
@@ -207,8 +210,12 @@ describe('debug test scenarios', () => {
           flipEvadeRemaining: 6,
           destroyEvadeRemaining: 6
         })
-      })
-    ]);
+      }),
+      expect.objectContaining({ kind: 'specialStone', row: 2, col: 4, owner: 'white', data: expect.objectContaining({ type: 'TRAP' }) }),
+      expect.objectContaining({ kind: 'specialStone', row: 3, col: 2, owner: 'black', data: expect.objectContaining({ type: 'PROTECTED' }) }),
+      expect.objectContaining({ kind: 'bomb', row: 3, col: 5, owner: 'white', data: expect.objectContaining({ type: 'TIME_BOMB' }) })
+    ]));
+    expect(cardState.markers).toHaveLength(4);
     expect(CardLogic.canUseBoardExecutor(cardState, 'black')).toBe(true);
     expect(cardState.markers.some((marker: any) => marker.kind === 'manifestStone')).toBe(false);
     expect(cardState.selectedCardId).toBe('theory_incarnation_01');

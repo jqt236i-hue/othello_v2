@@ -196,6 +196,9 @@ function applySpecialCardsReadyScenario(gameState: any, cardState: any) {
   gameState.turnNumber = Math.max(OBSERVER_READY_TURN, Number(gameState.turnNumber) || 0);
   gameState.consecutivePasses = 0;
   setBoardCell(gameState, 2, 3, 1);
+  setBoardCell(gameState, 2, 4, -1);
+  setBoardCell(gameState, 3, 2, 1);
+  setBoardCell(gameState, 3, 5, -1);
 
   cardState.hands = {
     ...(cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {}),
@@ -217,20 +220,46 @@ function applySpecialCardsReadyScenario(gameState: any, cardState: any) {
   cardState.hasUsedCardThisTurnByPlayer = { black: false, white: false };
   cardState.lastUsedCardByPlayer = { black: null, white: null };
   cardState.lastTurnStartedFor = null;
-  cardState.markers = [{
-    id: 'debug_special_ready_afterimage_black',
-    kind: 'specialStone',
-    row: 2,
-    col: 3,
-    owner: 'black',
-    data: {
-      type: 'AFTERIMAGE_WILL',
-      flipEvadeRemaining: 6,
-      destroyEvadeRemaining: 6,
-      sourceType: 'SPECIAL_DEBUG',
-      visualEffectKey: 'afterimageWill'
+  cardState.markers = [
+    {
+      id: 'debug_special_ready_afterimage_black',
+      kind: 'specialStone',
+      row: 2,
+      col: 3,
+      owner: 'black',
+      data: {
+        type: 'AFTERIMAGE_WILL',
+        flipEvadeRemaining: 6,
+        destroyEvadeRemaining: 6,
+        sourceType: 'SPECIAL_DEBUG',
+        visualEffectKey: 'afterimageWill'
+      }
+    },
+    {
+      id: 'debug_special_ready_trap_white',
+      kind: 'specialStone',
+      row: 2,
+      col: 4,
+      owner: 'white',
+      data: { type: 'TRAP', hidden: true, sourceType: 'SPECIAL_DEBUG' }
+    },
+    {
+      id: 'debug_special_ready_protected_black',
+      kind: 'specialStone',
+      row: 3,
+      col: 2,
+      owner: 'black',
+      data: { type: 'PROTECTED', sourceType: 'SPECIAL_DEBUG' }
+    },
+    {
+      id: 'debug_special_ready_time_bomb_white',
+      kind: 'bomb',
+      row: 3,
+      col: 5,
+      owner: 'white',
+      data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2, sourceType: 'SPECIAL_DEBUG' }
     }
-  }];
+  ];
   cardState.selectedCardId = 'theory_incarnation_01';
   cardState.selectedCardOwnerKey = 'black';
   cardState.numberCellCollectedTotalByPlayer = {

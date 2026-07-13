@@ -24,6 +24,7 @@ const ManifestStoneRegistryFallback = safeRequire('../../../shared/manifest-ston
 
 const BOARD_EXECUTOR_MARKER_TYPE = 'BOARD_EXECUTOR';
 const BOARD_EXECUTOR_DURATION_OWNER_TURNS = 4;
+const BOARD_EXECUTOR_MIN_SPECIAL_STONES = 4;
 
 function ownerKeyOf(playerKey: any): PlayerKey {
     return playerKey === 'white' ? 'white' : 'black';
@@ -111,11 +112,8 @@ function collectBoardExecutorSpecialStoneCells(cardState: CardState, deps?: any)
     return cells;
 }
 
-function canUseBoardExecutor(cardState: CardState, playerKey: PlayerKey, deps?: any): boolean {
-    const ownerKey = ownerKeyOf(playerKey);
-    return getMarkers(cardState, deps).some((marker) => (
-        isBoardExecutorAffectedSpecialMarker(marker) && markerOwnerOf(marker) === ownerKey
-    ));
+function canUseBoardExecutor(cardState: CardState, _playerKey: PlayerKey, deps?: any): boolean {
+    return collectBoardExecutorSpecialStoneCells(cardState, deps).length >= BOARD_EXECUTOR_MIN_SPECIAL_STONES;
 }
 
 function ensureBoardExecutorState(cardState: any): void {
@@ -128,7 +126,7 @@ function applyBoardExecutorUsage(cardState: CardState, gameState: GameState, pla
     const ownerKey = ownerKeyOf(playerKey);
     ensureBoardExecutorState(cardState as any);
     if (!canUseBoardExecutor(cardState, ownerKey, deps)) {
-        return { applied: false, reason: 'no_own_special_stone' };
+        return { applied: false, reason: 'insufficient_special_stones' };
     }
     if (!deps || typeof deps.applyCellRemovalAt !== 'function') {
         return { applied: false, reason: 'cell_removal_unavailable' };
@@ -281,6 +279,7 @@ function processBoardExecutorMarkerAtTurnStart(cardState: CardState, gameState: 
 export = {
     BOARD_EXECUTOR_MARKER_TYPE,
     BOARD_EXECUTOR_DURATION_OWNER_TURNS,
+    BOARD_EXECUTOR_MIN_SPECIAL_STONES,
     canUseBoardExecutor,
     applyBoardExecutorUsage,
     applyBoardExecutorStoneReservation,

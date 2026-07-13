@@ -367,7 +367,7 @@ const cardEffectTagsByType = Object.freeze({
   GUARDIAN_GOD: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(10)]),
   THEORY_INCARNATION: freezeCardEffectTags([usageConditionTag('数字マス42獲得で使用可能'), inviolableTag(), durationTurnsTag(3)]),
       CHAOS_SUMMON: freezeCardEffectTags([specialStoneTag()]),
-  BOARD_EXECUTOR: freezeCardEffectTags([usageConditionTag('自特殊石存在時使用可能'), holeCellTag(), absoluteExecutionTag(), inviolableTag(), durationTurnsTag(4)]),
+  BOARD_EXECUTOR: freezeCardEffectTags([usageConditionTag('特殊石4個以上で使用可能'), holeCellTag(), absoluteExecutionTag(), inviolableTag(), durationTurnsTag(4)]),
   OBSERVER_WILL: freezeCardEffectTags([usageConditionTag('18手後使用可能'), inviolableTag(), durationTurnsTag(5)]),
   ULTIMATE_DESTROY_GOD: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(6), flipProtectionTag()]),
   DESTROY_DRAGON_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(3), flipProtectionTag()]),
