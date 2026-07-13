@@ -204,8 +204,8 @@ describe('debug test scenarios', () => {
         owner: 'black',
         data: expect.objectContaining({
           type: 'AFTERIMAGE_WILL',
-          flipEvadeRemaining: 3,
-          destroyEvadeRemaining: 3
+          flipEvadeRemaining: 6,
+          destroyEvadeRemaining: 6
         })
       })
     ]);

@@ -22,7 +22,7 @@ function createState(randomValue = 0) {
 }
 
 describe('AFTERIMAGE_WILL（避ける意志）', () => {
-  test('配置時に残像石マーカーと3/3回避回数が付く', () => {
+  test('配置時に残像石マーカーと6/6回避回数が付く', () => {
     const { cardState, gameState } = createState();
 
     gameState.board[3][3] = Shared.BLACK;
@@ -46,8 +46,8 @@ describe('AFTERIMAGE_WILL（避ける意志）', () => {
     ));
 
     expect(marker).toBeTruthy();
-    expect(marker.data.flipEvadeRemaining).toBe(3);
-    expect(marker.data.destroyEvadeRemaining).toBe(3);
+    expect(marker.data.flipEvadeRemaining).toBe(6);
+    expect(marker.data.destroyEvadeRemaining).toBe(6);
     expect(marker.data.remainingOwnerTurns).toBeUndefined();
   });
 
@@ -493,7 +493,7 @@ describe('AFTERIMAGE_WILL（避ける意志）', () => {
     expect(marker).toBeTruthy();
     expect(marker.row).toBe(7);
     expect(marker.col).toBe(7);
-    expect(marker.data.destroyEvadeRemaining).toBe(2);
+    expect(marker.data.destroyEvadeRemaining).toBe(5);
   });
 
   test('反転回避0で通常反転された時は destroy 回数が残っていても通常石へ戻る', () => {

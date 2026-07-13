@@ -115,12 +115,12 @@ describe('special stone placement visuals (spawn meta backfill)', () => {
 
     const spawn = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'SPAWN' && e.row === 3 && e.col === 3);
     expect(spawn && spawn.meta && spawn.meta.special).toBe('AFTERIMAGE_WILL');
-    expect(spawn && spawn.meta && spawn.meta.flipEvadeRemaining).toBe(3);
-    expect(spawn && spawn.meta && spawn.meta.destroyEvadeRemaining).toBe(3);
+    expect(spawn && spawn.meta && spawn.meta.flipEvadeRemaining).toBe(6);
+    expect(spawn && spawn.meta && spawn.meta.destroyEvadeRemaining).toBe(6);
 
     const status = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'STATUS_APPLIED' && e.row === 3 && e.col === 3);
     expect(status && status.meta && status.meta.special).toBe('AFTERIMAGE_WILL');
-    expect(status && status.meta && status.meta.flipEvadeRemaining).toBe(3);
-    expect(status && status.meta && status.meta.destroyEvadeRemaining).toBe(3);
+    expect(status && status.meta && status.meta.flipEvadeRemaining).toBe(6);
+    expect(status && status.meta && status.meta.destroyEvadeRemaining).toBe(6);
   });
 });

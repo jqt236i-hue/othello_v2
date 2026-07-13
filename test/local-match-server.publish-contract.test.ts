@@ -847,8 +847,8 @@ describe('local match server publish contract', () => {
         owner: 'white',
         data: expect.objectContaining({
           type: 'AFTERIMAGE_WILL',
-          flipEvadeRemaining: 3,
-          destroyEvadeRemaining: 3
+          flipEvadeRemaining: 6,
+          destroyEvadeRemaining: 6
         })
       }));
 
@@ -868,8 +868,8 @@ describe('local match server publish contract', () => {
         owner: 'white',
         data: expect.objectContaining({
           type: 'AFTERIMAGE_WILL',
-          flipEvadeRemaining: 2,
-          destroyEvadeRemaining: 3
+          flipEvadeRemaining: 5,
+          destroyEvadeRemaining: 6
         })
       }));
       expect(movedMarker.row === 2 && movedMarker.col === 2).toBe(false);

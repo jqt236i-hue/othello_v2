@@ -225,8 +225,8 @@ function applySpecialCardsReadyScenario(gameState: any, cardState: any) {
     owner: 'black',
     data: {
       type: 'AFTERIMAGE_WILL',
-      flipEvadeRemaining: 3,
-      destroyEvadeRemaining: 3,
+      flipEvadeRemaining: 6,
+      destroyEvadeRemaining: 6,
       sourceType: 'SPECIAL_DEBUG',
       visualEffectKey: 'afterimageWill'
     }

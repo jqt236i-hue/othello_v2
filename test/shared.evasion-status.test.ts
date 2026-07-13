@@ -6,7 +6,7 @@ describe('shared evasion status profiles', () => {
     ['ESCAPE_HYPERACTIVE', 1, undefined, undefined, 'ESCAPE_HYPERACTIVE', 'escape_hyperactive_flip_evade_move', false, false],
     ['EXTREME_HYPERACTIVE', 5, 5, 5, 'EXTREME_HYPERACTIVE_WILL', 'extreme_hyperactive_flip_evade_move', false, false],
     ['ULTIMATE_HYPERACTIVE', 5, 2, 5, 'ULTIMATE_HYPERACTIVE_GOD', 'ultimate_hyperactive_flip_evade_move', true, false],
-    ['AFTERIMAGE_WILL', 3, 3, undefined, 'AFTERIMAGE_WILL', 'afterimage_will_flip_evade_move', false, true],
+    ['AFTERIMAGE_WILL', 6, 6, undefined, 'AFTERIMAGE_WILL', 'afterimage_will_flip_evade_move', false, true],
     ['WILL_HUNTER_KING', 2, 2, undefined, 'WILL_HUNTER_KING', 'will_hunter_king_flip_evade_move', false, false]
   ])(
     '%s profile exposes shared defaults and flip metadata',
@@ -38,8 +38,8 @@ describe('shared evasion status profiles', () => {
 
   test('counter consumption uses profile defaults when marker data omitted them', () => {
     const afterimage = { type: 'AFTERIMAGE_WILL' };
-    expect(EvasionStatus.consumeDestroyEvade(afterimage)).toBe(2);
-    expect(afterimage.destroyEvadeRemaining).toBe(2);
+    expect(EvasionStatus.consumeDestroyEvade(afterimage)).toBe(5);
+    expect(afterimage.destroyEvadeRemaining).toBe(5);
 
   });
 

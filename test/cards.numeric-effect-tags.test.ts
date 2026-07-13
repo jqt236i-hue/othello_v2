@@ -12,8 +12,8 @@ describe('CardInteractionEffects effect tags', () => {
   }
 
   test('AFTERIMAGE_WILL returns special stone plus evasion tags with per-stone count labels', () => {
-    expect(getEffectTagLabels('AFTERIMAGE_WILL')).toEqual(['特殊石', '反転回避3回', '破壊回避3回']);
-    expect(getNumericTagLabels('AFTERIMAGE_WILL')).toEqual(['反転回避3回', '破壊回避3回']);
+    expect(getEffectTagLabels('AFTERIMAGE_WILL')).toEqual(['特殊石', '反転回避6回', '破壊回避6回']);
+    expect(getNumericTagLabels('AFTERIMAGE_WILL')).toEqual(['反転回避6回', '破壊回避6回']);
   });
 
   test('ROBOT_VACUUM_WILL returns a special stone tag with duration tags', () => {

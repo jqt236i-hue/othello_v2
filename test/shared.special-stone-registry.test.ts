@@ -203,8 +203,8 @@ describe('special stone registry rule classification', () => {
       (globalThis as any).EvasionStatus = realEvasionStatus;
 
       expect(lateRegistry.getSpecialStoneInfo('AFTERIMAGE_WILL')).toMatchObject({
-        tagFlipEvadeDefault: 3,
-        tagDestroyEvadeDefault: 3
+        tagFlipEvadeDefault: 6,
+        tagDestroyEvadeDefault: 6
       });
       expect(lateRegistry.getSpecialStoneInfo('EXTREME_HYPERACTIVE')).toMatchObject({
         tagFlipEvadeDefault: 5,

@@ -72,8 +72,8 @@
             requiresActiveDuration: true
         }),
         AFTERIMAGE_WILL: Object.freeze({
-            flipDefault: 3,
-            destroyDefault: 3,
+            flipDefault: 6,
+            destroyDefault: 6,
             flipCause: 'AFTERIMAGE_WILL',
             flipMoveReason: 'afterimage_will_flip_evade_move',
             pruneWhenBothDepleted: true
