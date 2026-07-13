@@ -16,6 +16,7 @@ import type {
     CpuPolicyPosition
 } from './cpu-policy-core-types';
 import { createCpuPolicyCoreApi } from './cpu-policy-core-api';
+import type { CpuCandidateScoringBoardShape } from './cpu-candidate-scoring';
 /**
  * @file cpu-policy-core.js
  * @description Pure CPU policy helpers (no UI/DOM/global side effects).
@@ -574,7 +575,8 @@ function getCpuPolicyMoveSelection() {
     CpuPolicyMoveSelectionCache = CpuPolicyMoveSelectionModule.createCpuPolicyMoveSelection({
         isFiniteNumber,
         resolveBoardGeometry,
-        scoreMoveHeuristic
+        scoreMoveHeuristic,
+        createCandidateScoringBoardShape
     });
     return CpuPolicyMoveSelectionCache;
 }
@@ -1386,6 +1388,14 @@ function isCSquare(row: number, col: number, boardOrRows?: CpuPolicyBoardShape, 
 
 function scoreMoveHeuristic(move: CpuPolicyMove, level = 1, boardOrRows?: CpuPolicyBoardShape, colsMaybe?: number | null): number {
     return requireCpuPolicyBoardPrimitives().scoreMoveHeuristic(move, level, boardOrRows, colsMaybe);
+}
+
+function createCandidateScoringBoardShape(
+    candidateMoves: CpuPolicyMove[],
+    boardOrRows?: CpuPolicyBoardShape,
+    colsMaybe?: number | null
+): CpuCandidateScoringBoardShape {
+    return requireCpuPolicyBoardPrimitives().createCandidateScoringBoardShape(candidateMoves, boardOrRows, colsMaybe);
 }
 
 function cloneBoard(board: CpuPolicyBoard | null | undefined): CpuPolicyBoard {

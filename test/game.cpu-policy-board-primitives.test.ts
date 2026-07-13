@@ -27,6 +27,9 @@ describe('cpu-policy board primitives module', () => {
 
     expect(cornerScore).toBeGreaterThan(edgeScore);
     expect(edgeScore).toBeGreaterThan(xScore);
+    expect(cornerScore).toBe(15600);
+    expect(edgeScore).toBe(600);
+    expect(xScore).toBe(-1800);
   });
 
   test('applyMoveToBoard clones and applies flips from provided move metadata', () => {

@@ -19,6 +19,7 @@ type CpuDecisionMoveSelectionConfig = {
     isPlayableBoard: (board: any) => any;
     maybeOverrideWithStrictPendingPlacement: (selectedMove: any, candidateMoves: any, playerKey: any, movePlanScoreFn: any) => any;
     readCpuPendingEffect: (playerKey: any) => any;
+    readCpuCandidateScoringBatch?: (candidateMoves: any, context: any) => any;
     resolveCpuLv6LookaheadWeights: () => any;
     resolveCpuSmartnessLevel: (playerKey: any) => any;
     resolvePendingType: (playerKey: any) => any;
@@ -200,10 +201,31 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
 
         if (cpuPolicyCore && typeof cpuPolicyCore.chooseMove === 'function') {
             const useHeuristic = !movePlanScoreFn && placementLevel >= 3;
-            const selected = cpuPolicyCore.chooseMove(prioritizedCandidateMoves, placementLevel, rng, aiSelector, {
+            let candidateScoringPrecompute = null;
+            if (typeof cfg.readCpuCandidateScoringBatch === 'function') {
+                try {
+                    candidateScoringPrecompute = cfg.readCpuCandidateScoringBatch(prioritizedCandidateMoves, {
+                        playerKey: String(playerKey || ''),
+                        level: placementLevel
+                    });
+                } catch (error) {
+                    candidateScoringPrecompute = null;
+                    cfg.cpuDebugLog('[CPU] candidate scoring batch unavailable; using local scorer', error);
+                }
+            }
+            const moveOptions: any = {
                 enableHeuristic: useHeuristic,
                 scoreMove: (movePlanScoreFn || learnedScoreFn || learnedMove) ? combinedScoreFn : null
-            });
+            };
+            if (candidateScoringPrecompute && typeof candidateScoringPrecompute === 'object') {
+                if (candidateScoringPrecompute.expectedRequest) {
+                    moveOptions.expectedCandidateScoringRequest = candidateScoringPrecompute.expectedRequest;
+                }
+                if (candidateScoringPrecompute.batch) {
+                    moveOptions.candidateScoringBatch = candidateScoringPrecompute.batch;
+                }
+            }
+            const selected = cpuPolicyCore.chooseMove(prioritizedCandidateMoves, placementLevel, rng, aiSelector, moveOptions);
             if (selected) {
                 cfg.cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: 選択 (${selected.row}, ${selected.col}) - 反転${selected.flips.length}枚`);
                 return selected;

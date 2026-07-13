@@ -1,5 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { CpuPolicyBoard, CpuPolicyMove, CpuPolicyPosition } from './cpu-policy-core-types';
+import {
+    createCpuCandidateScoringBoardShape,
+    scoreCpuCandidateHeuristic,
+    type CpuCandidateCellClassification,
+    type CpuCandidateScoringBoardShape
+} from './cpu-candidate-scoring';
 
 type CpuPolicyBoardShape = CpuPolicyBoard | number | null | undefined;
 
@@ -87,17 +93,37 @@ export function createCpuPolicyBoardPrimitives(config?: CpuPolicyBoardPrimitives
         const row = isFiniteNumber(move && move.row) ? Number(move.row) : 0;
         const col = isFiniteNumber(move && move.col) ? Number(move.col) : 0;
         const flips = Array.isArray(move.flips) ? move.flips.length : 0;
+        return scoreCpuCandidateHeuristic({
+            level,
+            flipCount: flips,
+            isCorner: isCorner(row, col, boardOrRows, colsMaybe),
+            isEdge: isEdge(row, col, boardOrRows, colsMaybe),
+            isXSquare: isXSquare(row, col, boardOrRows, colsMaybe),
+            isCSquare: isCSquare(row, col, boardOrRows, colsMaybe)
+        });
+    }
 
-        let score = flips * 100;
-        if (isCorner(row, col, boardOrRows, colsMaybe)) score += 10000;
-        if (isEdge(row, col, boardOrRows, colsMaybe)) score += 600;
-        if (isXSquare(row, col, boardOrRows, colsMaybe)) score -= 600;
-        if (isCSquare(row, col, boardOrRows, colsMaybe)) score -= 300;
-        if (level >= 6 && isXSquare(row, col, boardOrRows, colsMaybe)) score -= 1200;
-        if (level >= 6 && isCSquare(row, col, boardOrRows, colsMaybe)) score -= 700;
-
-        if (level >= 5 && isCorner(row, col, boardOrRows, colsMaybe)) score += 5000;
-        return score;
+    function createCandidateScoringBoardShape(
+        candidateMoves: CpuPolicyMove[],
+        boardOrRows?: CpuPolicyBoardShape,
+        colsMaybe?: number | null
+    ): CpuCandidateScoringBoardShape {
+        const geom = resolveBoardGeometry(boardOrRows, colsMaybe);
+        const tieMaxR = geom.maxR >= 0 ? geom.maxR : 7;
+        const tieMaxC = geom.maxC >= 0 ? geom.maxC : 7;
+        const classifications: CpuCandidateCellClassification[] = (Array.isArray(candidateMoves) ? candidateMoves : []).map((move) => {
+            const row = isFiniteNumber(move && move.row) ? Number(move.row) : 0;
+            const col = isFiniteNumber(move && move.col) ? Number(move.col) : 0;
+            return {
+                row,
+                col,
+                isCorner: isCorner(row, col, boardOrRows, colsMaybe),
+                isEdge: isEdge(row, col, boardOrRows, colsMaybe),
+                isXSquare: isXSquare(row, col, boardOrRows, colsMaybe),
+                isCSquare: isCSquare(row, col, boardOrRows, colsMaybe)
+            };
+        });
+        return createCpuCandidateScoringBoardShape(tieMaxR, tieMaxC, classifications);
     }
 
     function cloneBoard(board: CpuPolicyBoard | null | undefined): CpuPolicyBoard {
@@ -173,6 +199,7 @@ export function createCpuPolicyBoardPrimitives(config?: CpuPolicyBoardPrimitives
         isXSquare,
         isCSquare,
         scoreMoveHeuristic,
+        createCandidateScoringBoardShape,
         cloneBoard,
         inBoard,
         getFlipsBasic,

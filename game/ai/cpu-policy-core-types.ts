@@ -1,3 +1,5 @@
+import type { CpuCandidateScoringBatch, CpuCandidateScoringRequest } from './cpu-candidate-scoring';
+
 export type CpuPolicyCardId = string;
 export type CpuPolicyBoardCell = 1 | -1 | 0 | number | null | undefined;
 export type CpuPolicyBoard = CpuPolicyBoardCell[][];
@@ -119,6 +121,7 @@ export interface CpuPolicyLookaheadSearchMeta {
 
 export interface CpuPolicyMoveOptions {
     board?: CpuPolicyBoard | null;
+    enableHeuristic?: boolean;
     playerValue?: 1 | -1 | number;
     level?: number;
     depth?: number;
@@ -135,6 +138,8 @@ export interface CpuPolicyMoveOptions {
     priorWeight?: number;
     searchWeight?: number;
     scoreMove?: (move: CpuPolicyMove) => number;
+    expectedCandidateScoringRequest?: CpuCandidateScoringRequest | null;
+    candidateScoringBatch?: CpuCandidateScoringBatch | null;
     onSearchMeta?: (meta: CpuPolicyLookaheadSearchMeta) => void;
     [key: string]: unknown;
 }

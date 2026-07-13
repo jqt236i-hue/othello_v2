@@ -7,11 +7,26 @@ import type {
     CpuPolicyRandomSource,
     CpuPolicyAiMoveSelector
 } from './cpu-policy-core-types';
+import {
+    createCpuCandidateScoringRequest,
+    isCpuCandidateScoringRequest,
+    scoreCpuCandidateRequest,
+    scoreCpuCandidateTie,
+    verifyCpuCandidateScoringBatch,
+    type CpuCandidateScoringBoardShape,
+    type CpuCandidateScoringMove,
+    type CpuCandidateScoringRequest
+} from './cpu-candidate-scoring';
 
 type CpuPolicyMoveSelectionDeps = {
     isFiniteNumber?: (value: unknown) => boolean;
     resolveBoardGeometry?: (boardOrRows?: CpuPolicyBoard | number | null | undefined, colsMaybe?: number | null) => { maxR: number; maxC: number };
     scoreMoveHeuristic?: (move: CpuPolicyMove, level?: number, board?: CpuPolicyBoard | number | null | undefined, colsMaybe?: number | null) => number;
+    createCandidateScoringBoardShape?: (
+        candidateMoves: CpuPolicyMove[],
+        board?: CpuPolicyBoard | number | null | undefined,
+        colsMaybe?: number | null
+    ) => CpuCandidateScoringBoardShape;
 };
 
 function fallbackIsFiniteNumber(value: unknown): boolean {
@@ -26,6 +41,9 @@ export function createCpuPolicyMoveSelection(deps?: CpuPolicyMoveSelectionDeps) 
     const isFiniteNumber = typeof deps?.isFiniteNumber === 'function' ? deps.isFiniteNumber : fallbackIsFiniteNumber;
     const resolveBoardGeometry = typeof deps?.resolveBoardGeometry === 'function' ? deps.resolveBoardGeometry : fallbackResolveBoardGeometry;
     const scoreMoveHeuristic = typeof deps?.scoreMoveHeuristic === 'function' ? deps.scoreMoveHeuristic : (() => 0);
+    const createCandidateScoringBoardShape = typeof deps?.createCandidateScoringBoardShape === 'function'
+        ? deps.createCandidateScoringBoardShape
+        : null;
 
     function computeLegalMoveMetrics(legalMoves: CpuPolicyMove[], getBoardBonus?: CpuPolicyBoardBonusResolver): CpuPolicyLegalMoveMetrics {
         const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
@@ -54,26 +72,100 @@ export function createCpuPolicyMoveSelection(deps?: CpuPolicyMoveSelectionDeps) 
         };
     }
 
-    function rankMoves(candidateMoves: CpuPolicyMove[], level = 1, options?: CpuPolicyMoveOptions | null): CpuPolicyMove[] {
-        const opts = options || {};
-        const useHeuristic = !!opts.enableHeuristic;
-        const scoreMove = typeof opts.scoreMove === 'function' ? opts.scoreMove : null;
-        const board = Array.isArray(opts.board) ? opts.board : null;
+    function rankMovesLegacy(
+        candidateMoves: CpuPolicyMove[],
+        level: number,
+        board: CpuPolicyBoard | null,
+        useHeuristic: boolean,
+        scoreMove: ((move: CpuPolicyMove) => number) | null
+    ): CpuPolicyMove[] {
         const geom = resolveBoardGeometry(board);
         const tieMaxR = geom.maxR >= 0 ? geom.maxR : 7;
         const tieMaxC = geom.maxC >= 0 ? geom.maxC : 7;
-        if (!useHeuristic && !scoreMove) return candidateMoves.slice();
-
         const scored = candidateMoves.map((move, idx) => {
             const learnedScore = scoreMove ? (scoreMove(move) || 0) : 0;
             const heuristicScore = useHeuristic ? scoreMoveHeuristic(move, level, board) : 0;
             const row = isFiniteNumber(move && move.row) ? Number(move.row) : 0;
             const col = isFiniteNumber(move && move.col) ? Number(move.col) : 0;
-            const tie = (tieMaxR - row) * 0.001 + (tieMaxC - col) * 0.0001 + (candidateMoves.length - idx) * 0.00001;
+            const tie = scoreCpuCandidateTie({
+                row,
+                col,
+                candidateIndex: idx,
+                candidateCount: candidateMoves.length,
+                tieMaxR,
+                tieMaxC
+            });
             return { move, score: learnedScore + heuristicScore + tie };
         });
         scored.sort((a, b) => b.score - a.score);
         return scored.map((s) => s.move);
+    }
+
+    function projectMoveForCandidateScoring(move: CpuPolicyMove): CpuCandidateScoringMove {
+        const flips = (Array.isArray(move && move.flips) ? move.flips : []) as Array<{ row: number; col: number }>;
+        return {
+            row: Number(move && move.row),
+            col: Number(move && move.col),
+            flips: flips.map((flip) => ({ row: Number(flip && flip.row), col: Number(flip && flip.col) }))
+        };
+    }
+
+    function createExpectedCandidateScoringRequest(
+        candidateMoves: CpuPolicyMove[],
+        level: number,
+        board: CpuPolicyBoard | null,
+        currentRequest: unknown
+    ): CpuCandidateScoringRequest {
+        const identity = isCpuCandidateScoringRequest(currentRequest)
+            ? currentRequest
+            : null;
+        return createCpuCandidateScoringRequest({
+            requestId: identity ? identity.requestId : 'local-rank',
+            decisionEpoch: identity ? identity.decisionEpoch : 0,
+            stateVersion: identity ? identity.stateVersion : null,
+            turnNumber: identity ? identity.turnNumber : 0,
+            playerKey: identity ? identity.playerKey : 'local',
+            level,
+            boardShape: (createCandidateScoringBoardShape as NonNullable<typeof createCandidateScoringBoardShape>)(candidateMoves, board),
+            candidateMoves: candidateMoves.map(projectMoveForCandidateScoring)
+        });
+    }
+
+    function rankMoves(candidateMoves: CpuPolicyMove[], level = 1, options?: CpuPolicyMoveOptions | null): CpuPolicyMove[] {
+        const opts = options || {};
+        const useHeuristic = !!opts.enableHeuristic;
+        const scoreMove = typeof opts.scoreMove === 'function' ? opts.scoreMove : null;
+        const board = Array.isArray(opts.board) ? opts.board : null;
+        if (!useHeuristic && !scoreMove) return candidateMoves.slice();
+
+        if (!createCandidateScoringBoardShape) {
+            return rankMovesLegacy(candidateMoves, level, board, useHeuristic, scoreMove);
+        }
+
+        let scoreResponse;
+        try {
+            const batch = opts.candidateScoringBatch;
+            const currentRequest = opts.expectedCandidateScoringRequest;
+            const hasCurrentRequest = isCpuCandidateScoringRequest(currentRequest);
+            const expectedRequest = createExpectedCandidateScoringRequest(candidateMoves, level, board, currentRequest);
+            scoreResponse = hasCurrentRequest && verifyCpuCandidateScoringBatch(expectedRequest, batch)
+                ? batch.response
+                : scoreCpuCandidateRequest(expectedRequest);
+        } catch (error) {
+            // Invalid internal candidates are not eligible for the portable DTO.
+            // Preserve the existing synchronous selector as the exact local fallback.
+            return rankMovesLegacy(candidateMoves, level, board, useHeuristic, scoreMove);
+        }
+
+        const scored = candidateMoves.map((move, idx) => {
+            const learnedScore = scoreMove ? (scoreMove(move) || 0) : 0;
+            const candidateScore = scoreResponse.scores[idx];
+            const heuristicScore = useHeuristic ? candidateScore.heuristicScore : 0;
+            // Keep the legacy floating-point addition order exactly.
+            return { move, score: learnedScore + heuristicScore + candidateScore.tieScore };
+        });
+        scored.sort((a, b) => b.score - a.score);
+        return scored.map((entry) => entry.move);
     }
 
     function chooseMove(
