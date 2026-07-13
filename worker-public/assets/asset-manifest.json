@@ -1,6 +1,6 @@
 {
   "version": "2026-07-13",
-  "generatedAt": "2026-07-13T02:18:27.332Z",
+  "generatedAt": "2026-07-13T02:31:02.625Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -40,11 +40,11 @@
     },
     {
       "path": "assets/images/special-stones/ESCAPE_WILL-black.png",
-      "sha256": "a3a56fbefb42fa4cc058987a1d489cb25a7a3df8a1bf8da0c0ce525c766d15e8"
+      "sha256": "d3285492cc7d3e3c7ec5b54c72c6157f2f47bceb960583a289de8aaa4facb9f1"
     },
     {
       "path": "assets/images/special-stones/ESCAPE_WILL-white.png",
-      "sha256": "f064e1414eb4e86e903261af18651943fa12e970d5a3b96fdbe5a49e0252c0d3"
+      "sha256": "348de29c53156b016b885348975731d1261be8d25484ebc32881976c0c23529f"
     },
     {
       "path": "assets/images/special-stones/EXTREME_HYPERACTIVE_WILL-black.png",
@@ -264,11 +264,11 @@
     },
     {
       "path": "assets/images/special-stones/ZAN-BLACK.png",
-      "sha256": "4a430ac89589142f4949e41600809ef368d5e8737e712d6cc9ee22ed1bc7fb8f"
+      "sha256": "a3a56fbefb42fa4cc058987a1d489cb25a7a3df8a1bf8da0c0ce525c766d15e8"
     },
     {
       "path": "assets/images/special-stones/ZAN-WHITE.png",
-      "sha256": "13be5adc09b13c08580442dcc239466a5d620072e50143706750a703e4cd7037"
+      "sha256": "f064e1414eb4e86e903261af18651943fa12e970d5a3b96fdbe5a49e0252c0d3"
     },
     {
       "path": "assets/images/special-stones/ZOMBIE-black.png",
