@@ -1,0 +1,1 @@
+import{t as e}from"./feature-registry-BPA-wCKa.js";function t(t){return e(`leaderboard`,t,[`ui/leaderboard-client`])}export{t as loadOptionalFeature};

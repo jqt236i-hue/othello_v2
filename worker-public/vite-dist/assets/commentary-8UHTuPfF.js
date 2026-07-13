@@ -1,0 +1,1 @@
+import{t as e}from"./feature-registry-BPA-wCKa.js";function t(t){return e(`commentary`,t)}export{t as loadOptionalFeature};

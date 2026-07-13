@@ -128,6 +128,13 @@ function isOptionalBootEntry(entry) {
   return entry.bootClass === "optional" || getBootModuleClass(entry.moduleKey) === "optional";
 }
 
+function isBootModuleInOptionalGroup(moduleKey, group) {
+  if (!group) return true;
+  var meta = window.__CARD_REVERSI_BOOT_MODULES__ || {};
+  var groups = meta.optionalGroups && typeof meta.optionalGroups === "object" ? meta.optionalGroups : {};
+  return listHasBootModuleKey(groups[group], normalizeBootModuleKey(moduleKey));
+}
+
 function runBootLoadEntries(entries) {
   for (var i = 0; i < entries.length; i += 1) {
     var entry = entries[i];
@@ -141,11 +148,12 @@ function runBootLoadEntries(entries) {
   }
 }
 
-function restoreOptionalBootEntries(entries) {
+function restoreOptionalBootEntries(entries, group) {
   var restored = 0;
   for (var i = 0; i < entries.length; i += 1) {
     var entry = entries[i];
     if (!isOptionalBootEntry(entry) || entry.moduleExports) continue;
+    if (!isBootModuleInOptionalGroup(entry.moduleKey, group)) continue;
     var moduleExports = requireBootModule(entry.moduleKey, { bootClass: "optional" });
     if (!moduleExports) continue;
     applyBootModuleEntry(moduleExports, entry);
@@ -404,6 +412,10 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/ui/background-skin/selection", globalNames: ["BackgroundSkinSelectionModule"], lateGlobalNames: ["BackgroundSkinSelectionModule"] },
   { moduleKey: "./dist/ui/background-skin/runtime", globalNames: ["BackgroundSkinRuntimeModule"], lateGlobalNames: ["BackgroundSkinRuntimeModule"] },
   { moduleKey: "./dist/ui/background-skin/controller", globalNames: ["BackgroundSkinControllerModule"], lateGlobalNames: ["BackgroundSkinControllerModule"] },
+  { moduleKey: "./dist/ui/font-skin/catalog", globalNames: ["FontSkinCatalogModule"], lateGlobalNames: ["FontSkinCatalogModule"] },
+  { moduleKey: "./dist/ui/font-skin/selection", globalNames: ["FontSkinSelectionModule"], lateGlobalNames: ["FontSkinSelectionModule"] },
+  { moduleKey: "./dist/ui/font-skin/runtime", globalNames: ["FontSkinRuntimeModule"], lateGlobalNames: ["FontSkinRuntimeModule"] },
+  { moduleKey: "./dist/ui/font-skin/controller", globalNames: ["FontSkinControllerModule"], lateGlobalNames: ["FontSkinControllerModule"] },
   { moduleKey: "./dist/ui/hand-skin/catalog", globalNames: ["HandSkinCatalogModule"] },
   { moduleKey: "./dist/ui/hand-skin/selection", globalNames: ["HandSkinSelectionModule"] },
   { moduleKey: "./dist/ui/hand-skin/runtime", globalNames: ["HandSkinRuntimeModule"] },
@@ -419,8 +431,9 @@ var BOOT_LOAD_ENTRIES = [
 ];
 
 runBootLoadEntries(BOOT_LOAD_ENTRIES);
-window.__restoreCardReversiOptionalBootEntries = function() {
-  var restored = restoreOptionalBootEntries(BOOT_LOAD_ENTRIES);
+window.__restoreCardReversiOptionalBootEntries = function(group) {
+  var normalizedGroup = typeof group === "string" ? group.trim().toLowerCase() : "";
+  var restored = restoreOptionalBootEntries(BOOT_LOAD_ENTRIES, normalizedGroup);
   assignBootLateGlobals(BOOT_LOAD_ENTRIES);
   return restored;
 };

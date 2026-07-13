@@ -64,7 +64,7 @@ describe('browser UI control smoke evaluation', () => {
         'http://127.0.0.1/entry-browser.js'
       ],
       postInteractionScriptSignals: [
-        'http://127.0.0.1/public/module-registry.optional.js'
+        'http://127.0.0.1/public/module-registry.optional.gacha.js'
       ],
       pageErrors: [],
       consoleErrors: []

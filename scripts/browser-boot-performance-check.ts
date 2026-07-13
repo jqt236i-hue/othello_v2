@@ -5,6 +5,7 @@ import { chromium, type Browser } from 'playwright';
 
 const DEFAULT_NETWORK_MODE_READY_BUDGET_MS = 15000;
 const OPTIONAL_REGISTRY_NAME = 'module-registry.optional.js';
+const OPTIONAL_REGISTRY_FRAGMENT = 'module-registry.optional';
 const ONNX_RUNTIME_PATH_FRAGMENT = 'onnxruntime-web/dist/ort.min.js';
 
 interface BootModuleMetadata {
@@ -51,8 +52,9 @@ function normalizeList(value: unknown): string[] {
 
 function extractBootModuleMetadataFromRegistryText(text: string): BootModuleMetadata {
   const source = String(text || '');
-  const marker = 'window.__CARD_REVERSI_BOOT_MODULES__';
-  const markerIndex = source.indexOf(marker);
+  const markers = ['var _nextBootModules', 'window.__CARD_REVERSI_BOOT_MODULES__'];
+  const marker = markers.find((candidate) => source.indexOf(candidate) >= 0) || '';
+  const markerIndex = marker ? source.indexOf(marker) : -1;
   if (markerIndex < 0) {
     return { required: [], optional: [], optionalPrefixes: [] };
   }
@@ -306,7 +308,7 @@ async function runBrowserBootPerformanceCheck(options?: BrowserBootPerformanceCh
     const allScriptSignals = requestedUrls.concat(runtimeProbe.scripts || []);
     const sample: BootPerformanceSample = {
       ...registryMetrics,
-      optionalRegistryLoadedAtStartup: allScriptSignals.some((url) => String(url || '').includes(OPTIONAL_REGISTRY_NAME)),
+      optionalRegistryLoadedAtStartup: allScriptSignals.some((url) => String(url || '').includes(OPTIONAL_REGISTRY_FRAGMENT)),
       onnxScriptLoadedAtStartup: runtimeProbe.hasOrt === true
         || allScriptSignals.some((url) => String(url || '').includes(ONNX_RUNTIME_PATH_FRAGMENT)),
       networkModeReadyMs

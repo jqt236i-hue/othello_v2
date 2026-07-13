@@ -27,6 +27,7 @@ export interface StartBrowserAppOptions {
   timeoutMs?: number;
   loadScript?: (url: string, key: keyof ClassicScriptContract) => Promise<void>;
   now?: () => number;
+  beforeInitialize?: (root: RuntimeRoot, document: Document) => void | Promise<void>;
 }
 
 function defaultClassicRootUrl(): string {
@@ -149,6 +150,9 @@ export function createStartBrowserApp(options: StartBrowserAppOptions = {}): () 
         await stylesReady;
       }
       await load('entry');
+      if (typeof options.beforeInitialize === 'function') {
+        await options.beforeInitialize(rootRef, documentRef);
+      }
       if (rootRef.__uiInitialized !== true) {
         if (typeof rootRef.initializeUI !== 'function') {
           throw new Error('entry-browser did not expose initializeUI');

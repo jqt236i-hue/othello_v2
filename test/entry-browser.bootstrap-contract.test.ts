@@ -127,6 +127,32 @@ describe('entry-browser bootstrap contract', () => {
     expect(context.window.DebugCardSearchModule).toEqual({ moduleKey: './dist/ui/debug-card-search' });
   });
 
+  test('group restore evaluates only entries emitted for the requested optional feature', () => {
+    const context = loadBootHelpers();
+    context.window.__CARD_REVERSI_BOOT_MODULES__ = {
+      required: [],
+      optional: ['ui/gacha/gacha-overlay-controller', 'ui/background-skin/controller'],
+      optionalPrefixes: ['ui/gacha/', 'ui/background-skin/'],
+      optionalGroups: {
+        gacha: ['ui/gacha/gacha-overlay-controller'],
+        cosmetic: ['ui/background-skin/controller']
+      }
+    };
+    context.require.mockImplementation((moduleKey: string) => ({ moduleKey }));
+    context.require.mockClear();
+    const entries = [
+      { moduleKey: './dist/ui/gacha/gacha-overlay-controller', globalNames: ['GachaOverlayControllerModule'] },
+      { moduleKey: './dist/ui/background-skin/controller', globalNames: ['BackgroundSkinControllerModule'] }
+    ];
+    context.runBootLoadEntries(entries);
+
+    expect(context.restoreOptionalBootEntries(entries, 'gacha')).toBe(1);
+    expect(context.require).toHaveBeenCalledTimes(1);
+    expect(context.window.GachaOverlayControllerModule).toBeDefined();
+    expect(context.window.BackgroundSkinControllerModule).toBeUndefined();
+    expect(context.restoreOptionalBootEntries(entries, 'gacha')).toBe(0);
+  });
+
   test('boot loader explicitly initializes card interaction after assigning its compatibility facade', () => {
     const context = loadBootHelpers();
     const initializeCardInteractionRuntime = jest.fn();

@@ -69,6 +69,17 @@ function checkBrowserBuildUpToDate(rootDirInput?: string): BrowserBuildCheckResu
         };
     }
 
+    for (const [group, groupPath] of Object.entries(registryResult.groupOutFiles)) {
+        const expectedGroupContent = (registryResult.groupContents as Record<string, string>)[group];
+        if (!fs.existsSync(groupPath) || fs.readFileSync(groupPath, 'utf8') !== expectedGroupContent) {
+            return {
+                ok: false,
+                code: 1,
+                message: `[check-browser-build] optional ${group} module registry is stale. Run \`npm run build:browser\`.`
+            };
+        }
+    }
+
     const indexPath = path.join(rootDir, 'index.html');
     const currentIndexHtml = fs.readFileSync(indexPath, 'utf8');
     const syncResult = syncBrowserScriptVersions({ rootDir, write: false });

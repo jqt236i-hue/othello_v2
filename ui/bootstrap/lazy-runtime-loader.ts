@@ -9,15 +9,21 @@ interface LazyRuntimeLoaderOptions {
   optionalRegistrySrc?: string;
   onnxRuntimeSrc?: string;
   loadScript?: LoadScriptFn;
+  loadGroup?: (group: LazyRuntimeGroup) => Promise<unknown>;
 }
 
 interface LazyRuntimeLoader {
   load: (group: LazyRuntimeGroup | string) => Promise<boolean>;
   isLoaded: (group: LazyRuntimeGroup | string) => boolean;
+  getLastError: (group: LazyRuntimeGroup | string) => unknown;
 }
 
 const DEFAULT_OPTIONAL_REGISTRY_SRC = 'public/module-registry.optional.js';
 const DEFAULT_ONNX_RUNTIME_SRC = 'node_modules/onnxruntime-web/dist/ort.min.js';
+const ONNX_RUNTIME_MODULE_KEYS = [
+  'game/ai/othello-onnx-runtime',
+  'game/ai/policy-onnx-runtime'
+] as const;
 
 let defaultLoader: LazyRuntimeLoader | null = null;
 
@@ -28,7 +34,8 @@ function normalizeGroup(group: LazyRuntimeGroup | string): LazyRuntimeGroup {
   if (normalized === 'commentary') return 'commentary';
   if (normalized === 'cosmetic') return 'cosmetic';
   if (normalized === 'leaderboard') return 'leaderboard';
-  return 'cpu';
+  if (normalized === 'cpu') return 'cpu';
+  throw new Error(`unknown lazy runtime group: ${normalized || '(empty)'}`);
 }
 
 function resolveRoot(options?: LazyRuntimeLoaderOptions): any {
@@ -46,7 +53,7 @@ function resolveDocument(rootRef: any, options?: LazyRuntimeLoaderOptions): Docu
 }
 
 function appendVersionFromStartupRegistry(src: string, docRef: Document | null): string {
-  if (!docRef || src.indexOf('?') >= 0 || src !== DEFAULT_OPTIONAL_REGISTRY_SRC) return src;
+  if (!docRef || src.indexOf('?') >= 0 || !/^public\/module-registry\.optional(?:\.[a-z-]+)?\.js$/.test(src)) return src;
   try {
     const startup = docRef.querySelector('script[src*="public/module-registry.js"]') as HTMLScriptElement | null;
     if (!startup || !startup.src) return src;
@@ -86,6 +93,9 @@ function loadScriptElement(src: string, docRef: Document | null): Promise<boolea
       };
       script.onerror = () => {
         cleanup();
+        if (script.getAttribute('data-lazy-runtime-src') && script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
         reject(new Error(`failed to load lazy runtime script: ${src}`));
       };
       if (!existing) {
@@ -104,9 +114,11 @@ function createLazyRuntimeLoader(options?: LazyRuntimeLoaderOptions): LazyRuntim
   const docRef = resolveDocument(rootRef, opts);
   const loadedGroups = new Set<LazyRuntimeGroup>();
   const loadingGroups = new Map<LazyRuntimeGroup, Promise<boolean>>();
+  const lastErrors = new Map<LazyRuntimeGroup, unknown>();
   let optionalRegistryLoad: Promise<unknown> | null = null;
   let onnxRuntimeLoad: Promise<unknown> | null = null;
-  let optionalBootEntriesRestored = false;
+  let aggregateOptionalBootEntriesRestored = false;
+  const restoredGroups = new Set<LazyRuntimeGroup>();
 
   const loadScript: LoadScriptFn = typeof opts.loadScript === 'function'
     ? opts.loadScript
@@ -118,48 +130,84 @@ function createLazyRuntimeLoader(options?: LazyRuntimeLoaderOptions): LazyRuntim
   );
   const onnxRuntimeSrc = opts.onnxRuntimeSrc || DEFAULT_ONNX_RUNTIME_SRC;
 
-  const restoreOptionalBootEntries = () => {
-    if (optionalBootEntriesRestored) return;
-    optionalBootEntriesRestored = true;
+  const restoreOptionalBootEntries = (group?: LazyRuntimeGroup) => {
+    if (group ? restoredGroups.has(group) : aggregateOptionalBootEntriesRestored) return;
     try {
       const restore = rootRef && rootRef.__restoreCardReversiOptionalBootEntries;
-      if (typeof restore === 'function') restore();
+      if (typeof restore === 'function') restore(group);
     } catch (e) { /* ignore */ }
+    if (group) restoredGroups.add(group);
+    else aggregateOptionalBootEntriesRestored = true;
   };
 
   const ensureOptionalRegistry = (): Promise<unknown> => {
     if (!optionalRegistryLoad) {
-      optionalRegistryLoad = Promise.resolve(loadScript(optionalRegistrySrc)).then((result) => {
-        restoreOptionalBootEntries();
-        return result;
+      optionalRegistryLoad = Promise.resolve(loadScript(optionalRegistrySrc)).catch((error) => {
+        optionalRegistryLoad = null;
+        throw error;
       });
     }
     return optionalRegistryLoad;
   };
 
   const ensureOnnxRuntime = (): Promise<unknown> => {
-    if (!onnxRuntimeLoad) onnxRuntimeLoad = Promise.resolve(loadScript(onnxRuntimeSrc));
+    if (!onnxRuntimeLoad) {
+      onnxRuntimeLoad = Promise.resolve(loadScript(onnxRuntimeSrc)).catch((error) => {
+        onnxRuntimeLoad = null;
+        throw error;
+      });
+    }
     return onnxRuntimeLoad;
   };
 
+  const injectOnnxRuntimeApi = () => {
+    const ortApi = rootRef && rootRef.ort;
+    if (!ortApi || typeof ortApi.Tensor !== 'function') {
+      throw new Error('onnxruntime-web loaded without exposing window.ort');
+    }
+    if (!rootRef || typeof rootRef.require !== 'function') {
+      throw new Error('CommonJS compatibility runtime is unavailable for ONNX injection');
+    }
+    for (const moduleKey of ONNX_RUNTIME_MODULE_KEYS) {
+      const runtime = rootRef.require(moduleKey);
+      if (!runtime || typeof runtime.configure !== 'function') {
+        throw new Error(`ONNX runtime module is unavailable: ${moduleKey}`);
+      }
+      runtime.configure({ ortApi });
+    }
+  };
+
   const load = (groupInput: LazyRuntimeGroup | string): Promise<boolean> => {
-    const group = normalizeGroup(groupInput);
+    let group: LazyRuntimeGroup;
+    try {
+      group = normalizeGroup(groupInput);
+    } catch (error) {
+      return Promise.reject(error);
+    }
     if (loadedGroups.has(group)) return Promise.resolve(true);
     const inFlight = loadingGroups.get(group);
     if (inFlight) return inFlight;
     const next = (async () => {
-      await ensureOptionalRegistry();
+      if (typeof opts.loadGroup === 'function') {
+        await opts.loadGroup(group);
+      } else {
+        await ensureOptionalRegistry();
+        restoreOptionalBootEntries();
+      }
       if (group === 'onnx') {
         await ensureOnnxRuntime();
+        injectOnnxRuntimeApi();
       }
       loadedGroups.add(group);
+      lastErrors.delete(group);
       return true;
     })();
     loadingGroups.set(group, next);
     next.then(() => {
       loadingGroups.delete(group);
-    }, () => {
+    }, (error) => {
       loadingGroups.delete(group);
+      lastErrors.set(group, error);
     });
     return next;
   };
@@ -167,7 +215,18 @@ function createLazyRuntimeLoader(options?: LazyRuntimeLoaderOptions): LazyRuntim
   return {
     load,
     isLoaded(groupInput: LazyRuntimeGroup | string): boolean {
-      return loadedGroups.has(normalizeGroup(groupInput));
+      try {
+        return loadedGroups.has(normalizeGroup(groupInput));
+      } catch (e) {
+        return false;
+      }
+    },
+    getLastError(groupInput: LazyRuntimeGroup | string): unknown {
+      try {
+        return lastErrors.get(normalizeGroup(groupInput));
+      } catch (e) {
+        return e;
+      }
     }
   };
 }

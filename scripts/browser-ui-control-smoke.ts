@@ -4,7 +4,7 @@ import * as path from 'path';
 import { chromium, type Browser } from 'playwright';
 import { REQUIRED_ELEMENT_IDS, REQUIRED_GLOBAL_TYPES } from '../browser-vite/runtime-contract';
 
-const OPTIONAL_REGISTRY_NAME = 'module-registry.optional.js';
+const OPTIONAL_REGISTRY_NAME = 'module-registry.optional';
 const ONNX_RUNTIME_PATH_FRAGMENT = 'onnxruntime-web/dist/ort.min.js';
 
 interface UiControlSmokeTarget {

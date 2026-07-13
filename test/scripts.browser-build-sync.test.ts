@@ -111,6 +111,25 @@ describe('browser build sync', () => {
         });
     });
 
+    test('check detects a stale feature-level optional registry', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-build-group-stale-'));
+        cleanupDirs.push(rootDir);
+
+        writeFile(path.join(rootDir, 'entry-browser.js'), 'console.log("entry-a");\n');
+        writeFile(path.join(rootDir, 'dist', 'ui', 'gacha', 'gacha-overlay-controller.js'), 'module.exports = {};\n');
+        writeSourceStub(rootDir, path.join('ui', 'gacha', 'gacha-overlay-controller.js'));
+        writeBrowserIndexFixture(rootDir);
+
+        const result = buildRegistry({ rootDir, log: false });
+        writeFile(result.groupOutFiles.gacha, 'stale group registry\n');
+
+        expect(checkBrowserBuildUpToDate(rootDir)).toEqual({
+            ok: false,
+            code: 1,
+            message: '[check-browser-build] optional gacha module registry is stale. Run `npm run build:browser`.'
+        });
+    });
+
     test('buildRegistry registers root runtime modules that are not emitted into dist', () => {
         const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-build-runtime-'));
         cleanupDirs.push(rootDir);

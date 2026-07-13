@@ -99,4 +99,37 @@ describe('Vite classic compatibility loader', () => {
     await boot;
     expect(order).toEqual(['runtime', 'registry', 'layout', 'entry']);
   });
+
+  test('installs feature loaders before handlers capture dependencies during UI initialization', async () => {
+    const dom = createDom();
+    const root: any = dom.window;
+    const order: string[] = [];
+    const capturedLoaders: any[] = [];
+    const beforeInitialize = jest.fn(() => {
+      order.push('feature-loader');
+      root.loadLazyRuntimeGroup = jest.fn();
+    });
+    const starter = createStartBrowserApp({
+      root,
+      document: root.document,
+      contract,
+      beforeInitialize,
+      loadScript: async (_url, key) => {
+        order.push(key);
+        if (key === 'entry') {
+          installReadyGlobals(root);
+          root.initializeUI = async () => {
+            order.push('initialize-ui');
+            capturedLoaders.push(root.loadLazyRuntimeGroup);
+            root.__uiInitialized = true;
+          };
+        }
+      }
+    });
+
+    await starter();
+    expect(order).toEqual(['runtime', 'registry', 'layout', 'entry', 'feature-loader', 'initialize-ui']);
+    expect(beforeInitialize).toHaveBeenCalledTimes(1);
+    expect(capturedLoaders[0]).toBe(root.loadLazyRuntimeGroup);
+  });
 });

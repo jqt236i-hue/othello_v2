@@ -39,6 +39,20 @@ try {
     CpuPolicyOnnxRuntime = _require('./policy-onnx-runtime');
 } catch (e: any) { /* ignore */ }
 
+function resolveCpuPolicyOnnxRuntime(): any {
+    if (CpuPolicyOnnxRuntime && typeof CpuPolicyOnnxRuntime.runInference === 'function') {
+        return CpuPolicyOnnxRuntime;
+    }
+    try {
+        CpuPolicyOnnxRuntime = _require('./policy-onnx-runtime');
+    } catch (e: any) {
+        CpuPolicyOnnxRuntime = null;
+    }
+    return CpuPolicyOnnxRuntime && typeof CpuPolicyOnnxRuntime.runInference === 'function'
+        ? CpuPolicyOnnxRuntime
+        : null;
+}
+
 function getPlayerValue(playerKey: any): number {
     if (CoreLogic && CoreLogic.BLACK !== undefined) {
         return playerKey === 'black' ? CoreLogic.BLACK : CoreLogic.WHITE;
@@ -283,7 +297,8 @@ function _getUsableCardIds(cardState: any, playerKey: string): any[] {
 
 const _network = {
     async evaluate(state: any, cardState: any, playerKey: string): Promise<any> {
-        if (!CpuPolicyOnnxRuntime) {
+        const policyOnnxRuntime = resolveCpuPolicyOnnxRuntime();
+        if (!policyOnnxRuntime) {
             return { policy: new Map(), value: 0 };
         }
         const legalMoves = _gameInterface.listActions(state, cardState, playerKey);
@@ -304,7 +319,7 @@ const _network = {
 
         let outputs;
         try {
-            outputs = await CpuPolicyOnnxRuntime.runInference(context);
+            outputs = await policyOnnxRuntime.runInference(context);
         } catch (e) {
             return { policy: new Map(), value: 0 };
         }

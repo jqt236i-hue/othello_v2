@@ -71,4 +71,32 @@ describe('MCTS policy pass handling', () => {
     expect(result.policy.size).toBe(4);
     expect(Array.from(result.policy.values())).toEqual([0.25, 0.25, 0.25, 0.25]);
   });
+
+  test('re-resolves the ONNX runtime after its optional group becomes available', async () => {
+    jest.resetModules();
+    let attempts = 0;
+    const runInference = jest.fn(async () => ({
+      place_logits: { data: new Float32Array(100) },
+      value: { data: new Float32Array([0.25]) }
+    }));
+    jest.doMock('../policy-onnx-runtime', () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error('optional runtime not loaded yet');
+      return { runInference };
+    });
+
+    try {
+      const freshMctsPolicy = require('../mcts-policy');
+      const state = Core.createGameState({ rows: 8, cols: 8 });
+      const result = await freshMctsPolicy._network.evaluate(state, {}, 'black');
+
+      expect(attempts).toBe(2);
+      expect(runInference).toHaveBeenCalledTimes(1);
+      expect(result.value).toBeCloseTo(0.25, 6);
+      expect(result.policy.size).toBe(4);
+    } finally {
+      jest.dontMock('../policy-onnx-runtime');
+      jest.resetModules();
+    }
+  });
 });

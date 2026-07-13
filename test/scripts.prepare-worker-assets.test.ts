@@ -43,6 +43,11 @@ describe('prepare-worker-assets', () => {
         expect(ROOT_FILES).toContain('entry-browser.js');
         expect(ROOT_FILES).toContain('public/runtime.js');
         expect(ROOT_FILES).toContain('public/module-registry.js');
+        expect(ROOT_FILES).toContain('public/module-registry.optional.js');
+        for (const group of ['gacha', 'cosmetic', 'leaderboard', 'commentary', 'cpu', 'onnx']) {
+            expect(ROOT_FILES).toContain(`public/module-registry.optional.${group}.js`);
+            expect(VERIFY_ROOT_FILES).toContain(`public/module-registry.optional.${group}.js`);
+        }
         expect(ROOT_FILES).toContain('styles-leaderboard.css');
         expect(VERIFY_ROOT_FILES).toContain('entry-browser.js');
         expect(VERIFY_ROOT_FILES).toContain('public/runtime.js');

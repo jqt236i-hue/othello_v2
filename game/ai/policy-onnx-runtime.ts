@@ -720,6 +720,7 @@ const Api = {
     loadFromUrl,
     loadTargetModelFromUrl,
     loadValueModelFromUrl,
+    runInference,
     chooseMove,
     choosePendingTarget,
     evaluatePosition,

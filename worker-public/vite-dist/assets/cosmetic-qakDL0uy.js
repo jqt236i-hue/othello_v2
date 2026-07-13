@@ -1,0 +1,1 @@
+import{t as e}from"./feature-registry-BPA-wCKa.js";function t(t){return e(`cosmetic`,t,[`ui/background-skin/controller`,`ui/font-skin/controller`,`ui/hand-skin/controller`])}export{t as loadOptionalFeature};

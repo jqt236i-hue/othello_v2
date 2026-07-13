@@ -1,10 +1,12 @@
 const {
   buildRegistry,
-  classifyBrowserBootModule
+  classifyBrowserBootModule,
+  classifyBrowserOptionalGroup
 } = require('../scripts/build-module-registry');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const vm = require('vm');
 
 function writeFile(filePath, content) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -32,13 +34,23 @@ describe('browser module registry boot contract', () => {
   });
 
   test('classifies diagnostics, cosmetics, and heavyweight optional modules as optional', () => {
-    expect(classifyBrowserBootModule('dist/ui/debug-test-scenarios')).toBe('optional');
+    expect(classifyBrowserBootModule('dist/ui/debug-test-scenarios')).toBe('required');
     expect(classifyBrowserBootModule('dist/ui/background-skin/controller')).toBe('optional');
     expect(classifyBrowserBootModule('dist/ui/font-skin/controller')).toBe('optional');
     expect(classifyBrowserBootModule('dist/ui/hand-skin/controller')).toBe('optional');
     expect(classifyBrowserBootModule('dist/game/ai/policy-onnx-runtime')).toBe('optional');
     expect(classifyBrowserBootModule('dist/ui/gacha/gacha-overlay-controller')).toBe('optional');
     expect(classifyBrowserBootModule('node_modules/onnxruntime-web/dist/ort.min')).toBe('optional');
+  });
+
+  test('assigns optional modules to one canonical feature owner with required overrides', () => {
+    expect(classifyBrowserOptionalGroup('ui/gacha/gacha-overlay-controller')).toBe('gacha');
+    expect(classifyBrowserOptionalGroup('ui/background-skin/controller')).toBe('cosmetic');
+    expect(classifyBrowserOptionalGroup('ui/leaderboard-client')).toBe('leaderboard');
+    expect(classifyBrowserOptionalGroup('othello-ai/runtime/browser-cpu')).toBe('cpu');
+    expect(classifyBrowserOptionalGroup('game/ai/policy-onnx-runtime')).toBe('onnx');
+    expect(classifyBrowserOptionalGroup('ui/hand-skin/catalog')).toBeNull();
+    expect(classifyBrowserOptionalGroup('shared/gacha-helpers')).toBeNull();
   });
 
   test('emits sorted boot metadata in generated registry content', () => {
@@ -50,6 +62,27 @@ describe('browser module registry boot contract', () => {
     expect(result && result.content).toContain('"ui/debug-card-search"');
   });
 
+  test('group metadata merges without replacing startup required classification', () => {
+    const result = buildRegistry({ write: false, log: false, syncScriptVersions: false });
+    const context: any = {
+      window: {
+        __cjsRegister: jest.fn(),
+        __cjsAlias: jest.fn()
+      }
+    };
+
+    vm.runInNewContext(result.startupContent, context);
+    const requiredBefore = context.window.__CARD_REVERSI_BOOT_MODULES__.required.slice();
+    vm.runInNewContext(result.groupContents.gacha, context);
+
+    expect(requiredBefore).toContain('ui/bootstrap');
+    expect(context.window.__CARD_REVERSI_BOOT_MODULES__.required).toEqual(requiredBefore);
+    expect(context.window.__CARD_REVERSI_BOOT_MODULES__.optionalGroups.gacha)
+      .toContain('ui/gacha/gacha-overlay-controller');
+    expect(context.window.__CARD_REVERSI_BOOT_MODULES__.optional)
+      .toContain('ui/gacha/gacha-overlay-controller');
+  });
+
   test('separates startup registry from lazy optional registry content', () => {
     const result = buildRegistry({ write: false, log: false, syncScriptVersions: false });
 
@@ -59,6 +92,15 @@ describe('browser module registry boot contract', () => {
     expect(result && result.startupContent).not.toContain('_r("ui/gacha/gacha-overlay-controller"');
     expect(result && result.optionalContent).toContain('_r("game/ai/policy-onnx-runtime"');
     expect(result && result.optionalContent).toContain('_r("ui/gacha/gacha-overlay-controller"');
+    expect(result && result.groupContents.gacha).toContain('_r("ui/gacha/gacha-overlay-controller"');
+    expect(result && result.groupContents.gacha).not.toContain('_r("ui/background-skin/controller"');
+    expect(result && result.groupContents.cosmetic).toContain('_r("ui/background-skin/controller"');
+    expect(result && result.startupContent).toContain('_r("ui/gacha/gacha-events"');
+    expect(result && result.groupContents.cosmetic).not.toContain('_r("ui/gacha/gacha-events"');
+    expect(result && result.groupContents.leaderboard).toContain('_r("ui/leaderboard-client"');
+    expect(result && result.groupContents.cpu).toContain('_r("othello-ai/runtime/browser-cpu"');
+    expect(result && result.groupContents.onnx).toContain('_r("game/ai/policy-onnx-runtime"');
+    expect(result && result.groupContents.onnx).not.toContain('policy-onnx-runtime-v2');
   });
 
   test('writes startup and optional registry files when split output is enabled', () => {
@@ -82,8 +124,12 @@ describe('browser module registry boot contract', () => {
 
       const startupPath = path.join(rootDir, 'public', 'module-registry.js');
       const optionalPath = path.join(rootDir, 'public', 'module-registry.optional.js');
+      const gachaPath = path.join(rootDir, 'public', 'module-registry.optional.gacha.js');
+      const onnxPath = path.join(rootDir, 'public', 'module-registry.optional.onnx.js');
       const startup = fs.readFileSync(startupPath, 'utf8');
       const optional = fs.readFileSync(optionalPath, 'utf8');
+      const gacha = fs.readFileSync(gachaPath, 'utf8');
+      const onnx = fs.readFileSync(onnxPath, 'utf8');
 
       expect(result && result.outFile).toBe(startupPath);
       expect(result && result.optionalOutFile).toBe(optionalPath);
@@ -93,6 +139,26 @@ describe('browser module registry boot contract', () => {
       expect(startup).not.toContain('_r("ui/gacha/gacha-overlay-controller"');
       expect(optional).toContain('_r("game/ai/policy-onnx-runtime"');
       expect(optional).toContain('_r("ui/gacha/gacha-overlay-controller"');
+      expect(gacha).toContain('_r("ui/gacha/gacha-overlay-controller"');
+      expect(gacha).not.toContain('_r("game/ai/policy-onnx-runtime"');
+      expect(onnx).toContain('_r("game/ai/policy-onnx-runtime"');
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test('fails generation when an optional group has an unresolved local dependency', () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-registry-unresolved-'));
+    try {
+      writeFile(path.join(rootDir, 'dist', 'ui', 'gacha', 'gacha-overlay-controller.js'), "module.exports = require('./missing-local');\n");
+      writeFile(path.join(rootDir, 'ui', 'gacha', 'gacha-overlay-controller.ts'), 'export = {};\n');
+
+      expect(() => buildRegistry({
+        rootDir,
+        write: false,
+        log: false,
+        syncScriptVersions: false
+      })).toThrow(/gacha-overlay-controller -> \.\/missing-local/);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

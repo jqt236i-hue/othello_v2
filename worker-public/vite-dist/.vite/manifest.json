@@ -1,4 +1,8 @@
 {
+  "_feature-registry-BPA-wCKa.js": {
+    "file": "assets/feature-registry-BPA-wCKa.js",
+    "name": "feature-registry"
+  },
   "assets/images/hand-skin/勇者の手.png": {
     "file": "assets/勇者の手-C6v2toAd.png",
     "src": "assets/images/hand-skin/勇者の手.png"
@@ -19,11 +23,73 @@
     "file": "assets/black-C5I6QShq.png",
     "src": "assets/images/stone-skin/default/black.png"
   },
+  "browser-vite/features/commentary.ts": {
+    "file": "assets/commentary-8UHTuPfF.js",
+    "name": "commentary",
+    "src": "browser-vite/features/commentary.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_feature-registry-BPA-wCKa.js"
+    ]
+  },
+  "browser-vite/features/cosmetic.ts": {
+    "file": "assets/cosmetic-qakDL0uy.js",
+    "name": "cosmetic",
+    "src": "browser-vite/features/cosmetic.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_feature-registry-BPA-wCKa.js"
+    ]
+  },
+  "browser-vite/features/cpu.ts": {
+    "file": "assets/cpu-ASIxyAPR.js",
+    "name": "cpu",
+    "src": "browser-vite/features/cpu.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_feature-registry-BPA-wCKa.js"
+    ]
+  },
+  "browser-vite/features/gacha.ts": {
+    "file": "assets/gacha-B8cDJB87.js",
+    "name": "gacha",
+    "src": "browser-vite/features/gacha.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_feature-registry-BPA-wCKa.js"
+    ]
+  },
+  "browser-vite/features/leaderboard.ts": {
+    "file": "assets/leaderboard-CjiuPYoP.js",
+    "name": "leaderboard",
+    "src": "browser-vite/features/leaderboard.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_feature-registry-BPA-wCKa.js"
+    ]
+  },
+  "browser-vite/features/onnx.ts": {
+    "file": "assets/onnx-BT6Qq0p7.js",
+    "name": "onnx",
+    "src": "browser-vite/features/onnx.ts",
+    "isDynamicEntry": true,
+    "imports": [
+      "_feature-registry-BPA-wCKa.js"
+    ]
+  },
   "index.vite.html": {
-    "file": "assets/index.vite-eK3fNgEC.js",
+    "file": "assets/index.vite-D69LPOhf.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
+    "dynamicImports": [
+      "browser-vite/features/gacha.ts",
+      "browser-vite/features/cosmetic.ts",
+      "browser-vite/features/leaderboard.ts",
+      "browser-vite/features/commentary.ts",
+      "browser-vite/features/cpu.ts",
+      "browser-vite/features/onnx.ts"
+    ],
     "assets": [
       "assets/black-C5I6QShq.png",
       "assets/card-reversi-player-guide-slide-01-epiawl9Y.png",

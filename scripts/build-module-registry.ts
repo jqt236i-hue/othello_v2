@@ -25,6 +25,7 @@ interface BuildRegistryOptions {
     distDir?: string;
     outFile?: string;
     optionalOutFile?: string;
+    groupOutDir?: string;
     splitRegistries?: boolean;
     write?: boolean;
     log?: boolean;
@@ -37,11 +38,22 @@ interface BuildRegistryResult {
     optionalContent: string;
     outFile: string;
     optionalOutFile: string;
+    groupContents: Record<OptionalRuntimeGroup, string>;
+    groupOutFiles: Record<OptionalRuntimeGroup, string>;
     wroteFile: boolean;
     wroteOptionalFile: boolean;
+    wroteGroupFiles: Record<OptionalRuntimeGroup, boolean>;
 }
 
 type BrowserBootModuleClass = 'required' | 'optional';
+const OPTIONAL_RUNTIME_GROUPS = ['gacha', 'cosmetic', 'leaderboard', 'commentary', 'cpu', 'onnx'] as const;
+type OptionalRuntimeGroup = typeof OPTIONAL_RUNTIME_GROUPS[number];
+
+interface RegistryModuleRecord {
+    moduleKey: string;
+    content: string;
+    aliases: string[];
+}
 
 const BROWSER_MODULE_PREFIXES = [
     'cards/',
@@ -80,7 +92,9 @@ const BROWSER_ROOT_MODULES = new Set([
 
 const DIST_EXCLUDED_BROWSER_MODULES = new Set([
     'shared/observation-gacha-catalog.generated.js',
-    'shared/gacha-hand-catalog.generated.js'
+    'shared/gacha-hand-catalog.generated.js',
+    // Node-only runtime (onnxruntime-node/fs/path). It must never be evaluated by a browser registry.
+    'game/ai/policy-onnx-runtime-v2.js'
 ]);
 
 const EXTRA_BROWSER_MODULES: Array<{ source: string; key: string; aliases?: string[] }> = [
@@ -113,6 +127,11 @@ const EXTRA_BROWSER_MODULES: Array<{ source: string; key: string; aliases?: stri
 
 const REQUIRED_BOOT_MODULE_KEYS = new Set([
     'shared-constants',
+    // Result rewards and network seat normalization are non-screen contracts.
+    'shared/gacha-helpers',
+    'shared/gacha-hand-catalog-shared',
+    'shared/observation-gacha-catalog-shared',
+    'shared/observation-gacha-catalog.generated',
     'cards/catalog',
     'game/logic/core',
     'game/logic/cards',
@@ -121,7 +140,12 @@ const REQUIRED_BOOT_MODULE_KEYS = new Set([
     'ui/network-client',
     'ui/board-renderer',
     'ui/debug-card-search',
+    // There is no player-facing debug lazy shell. Keep the small debug fixture available in both lanes.
+    'ui/debug-test-scenarios',
+    'ui/gacha/catalog-access',
+    'ui/gacha/gacha-events',
     'ui/presentation-handler',
+    'ui/storage/gacha-progress',
     'ui/cosmetics/catalog-shared',
     'ui/hand-skin/catalog',
     'ui/hand-skin/selection',
@@ -146,6 +170,40 @@ const OPTIONAL_BOOT_MODULE_PREFIXES = [
     'ui/storage/gacha'
 ];
 
+const OPTIONAL_GROUP_PREFIXES: Record<OptionalRuntimeGroup, readonly string[]> = Object.freeze({
+    gacha: Object.freeze([
+        'shared/gacha',
+        'shared/observation-gacha',
+        'ui/gacha/',
+        'ui/storage/gacha'
+    ]),
+    cosmetic: Object.freeze([
+        'ui/background-skin/',
+        'ui/font-skin/',
+        'ui/hand-skin/controller'
+    ]),
+    leaderboard: Object.freeze(['ui/leaderboard']),
+    // Commentary is player-visible and enabled by default, so its current runtime remains eager.
+    // This group is intentionally empty until a first-action shell can preserve that contract.
+    commentary: Object.freeze(['data/dialogue/']),
+    cpu: Object.freeze(['othello-ai/']),
+    onnx: Object.freeze([
+        'game/ai/othello-onnx-runtime',
+        'game/ai/policy-onnx-runtime'
+    ])
+});
+
+const OPTIONAL_GROUP_DEPENDENCY_OVERRIDES: Partial<Record<OptionalRuntimeGroup, readonly string[]>> = Object.freeze({
+    // Required cosmetic catalog bridges resolve these generated catalogs dynamically, while
+    // hand-skin/controller resolves the event module through a dynamic require path.
+    cosmetic: Object.freeze([
+        'shared/observation-gacha-catalog-shared',
+        'shared/observation-gacha-catalog.generated',
+        'ui/storage/gacha-progress',
+        'ui/gacha/gacha-events'
+    ])
+});
+
 function normalizeBootModuleKey(key: string): string {
     let normalized = String(key || '').trim().replace(/\\/g, '/');
     normalized = normalized.replace(/^\.\//, '');
@@ -163,10 +221,31 @@ function classifyBrowserBootModule(key: string): BrowserBootModuleClass {
     return 'required';
 }
 
-function buildBootModuleMetadata(registeredKeys: Set<string>): {
+function matchesModulePrefix(moduleKey: string, prefix: string): boolean {
+    const normalizedPrefix = normalizeBootModuleKey(prefix);
+    if (!normalizedPrefix) return false;
+    return moduleKey === normalizedPrefix.replace(/\/$/, '') || moduleKey.startsWith(normalizedPrefix);
+}
+
+function classifyBrowserOptionalGroup(key: string): OptionalRuntimeGroup | null {
+    const normalized = normalizeBootModuleKey(key);
+    if (!normalized || classifyBrowserBootModule(normalized) !== 'optional') return null;
+    for (const group of OPTIONAL_RUNTIME_GROUPS) {
+        if (OPTIONAL_GROUP_PREFIXES[group].some(prefix => matchesModulePrefix(normalized, prefix))) {
+            return group;
+        }
+    }
+    return null;
+}
+
+function buildBootModuleMetadata(
+    registeredKeys: Set<string>,
+    optionalGroups?: Partial<Record<OptionalRuntimeGroup, Set<string>>>
+): {
     required: string[];
     optional: string[];
     optionalPrefixes: string[];
+    optionalGroups: Record<string, string[]>;
 } {
     const required = new Set<string>();
     const optional = new Set<string>();
@@ -181,21 +260,56 @@ function buildBootModuleMetadata(registeredKeys: Set<string>): {
         }
     });
 
+    const groups: Record<string, string[]> = {};
+    for (const group of OPTIONAL_RUNTIME_GROUPS) {
+        const values = optionalGroups && optionalGroups[group];
+        groups[group] = Array.from(values || [])
+            .map(normalizeBootModuleKey)
+            .filter(Boolean)
+            .filter((value, index, all) => all.indexOf(value) === index)
+            .sort();
+    }
+
     return {
         required: Array.from(required).sort(),
         optional: Array.from(optional).sort(),
-        optionalPrefixes: OPTIONAL_BOOT_MODULE_PREFIXES.slice().sort()
+        optionalPrefixes: OPTIONAL_BOOT_MODULE_PREFIXES.slice().sort(),
+        optionalGroups: groups
     };
 }
 
-function createBootModuleMetadataLines(registeredKeys: Set<string>): string[] {
-    const metadata = buildBootModuleMetadata(registeredKeys);
+function createBootModuleMetadataLines(
+    registeredKeys: Set<string>,
+    optionalGroups?: Partial<Record<OptionalRuntimeGroup, Set<string>>>
+): string[] {
+    const metadata = buildBootModuleMetadata(registeredKeys, optionalGroups);
     const json = JSON.stringify(metadata, null, 2)
         .split('\n')
         .map((line, index) => index === 0 ? line : '  ' + line)
         .join('\n');
     return [
-        '  window.__CARD_REVERSI_BOOT_MODULES__ = ' + json + ';',
+        '  var _nextBootModules = ' + json + ';',
+        '  var _previousBootModules = window.__CARD_REVERSI_BOOT_MODULES__ || {};',
+        '  function _mergeBootList(left, right) {',
+        '    var seen = Object.create(null);',
+        '    return [].concat(Array.isArray(left) ? left : [], Array.isArray(right) ? right : [])',
+        '      .map(function(value) { return String(value || "").replace(/\\\\/g, "/").replace(/^\\.\\//, "").replace(/^dist\\//, "").replace(/\\.js$/, ""); })',
+        '      .filter(function(value) { if (!value || seen[value]) return false; seen[value] = true; return true; })',
+        '      .sort();',
+        '  }',
+        '  var _requiredBootModules = _mergeBootList(_previousBootModules.required, _nextBootModules.required);',
+        '  var _optionalBootModules = _mergeBootList(_previousBootModules.optional, _nextBootModules.optional)',
+        '    .filter(function(value) { return _requiredBootModules.indexOf(value) < 0; });',
+        '  var _optionalBootGroups = Object.assign({}, _previousBootModules.optionalGroups || {});',
+        '  Object.keys(_nextBootModules.optionalGroups || {}).forEach(function(group) {',
+        '    _optionalBootGroups[group] = _mergeBootList(_optionalBootGroups[group], _nextBootModules.optionalGroups[group]);',
+        '  });',
+        '  window.__CARD_REVERSI_BOOT_MODULES__ = {',
+        '    required: _requiredBootModules,',
+        '    optional: _optionalBootModules,',
+        '    optionalPrefixes: _mergeBootList(_previousBootModules.optionalPrefixes, _nextBootModules.optionalPrefixes),',
+        '    optionalGroups: _optionalBootGroups',
+        '  };',
         ''
     ];
 }
@@ -280,6 +394,115 @@ function collectRootRuntimeModules(rootDir: string): string[] {
     return rootJsFiles.filter(isRootRuntimeModule).sort();
 }
 
+function collectRecordKeys(record: RegistryModuleRecord): string[] {
+    return [record.moduleKey].concat(record.aliases || []);
+}
+
+function extractLiteralModuleDependencies(content: string): string[] {
+    const dependencies = new Set<string>();
+    const pattern = /(?:\b_require|\brequire|\b__require)\s*\(\s*(['"])([^'"]+)\1\s*\)/g;
+    let match: RegExpExecArray | null = null;
+    while ((match = pattern.exec(String(content || ''))) !== null) {
+        if (match[2]) dependencies.add(match[2]);
+    }
+    return Array.from(dependencies).sort();
+}
+
+function resolveRegistryDependencyKey(
+    fromModuleKey: string,
+    dependencyId: string,
+    registeredModuleKeys: Set<string>
+): string | null {
+    const rawId = String(dependencyId || '').trim().replace(/\\/g, '/');
+    if (!rawId) return null;
+    const candidate = rawId.startsWith('.')
+        ? path.posix.normalize(path.posix.join(path.posix.dirname(fromModuleKey), rawId))
+        : rawId;
+    const normalized = normalizeBootModuleKey(candidate);
+    if (registeredModuleKeys.has(normalized)) return normalized;
+    return null;
+}
+
+function isRegistryLocalDependencyId(dependencyId: string): boolean {
+    const normalized = String(dependencyId || '').trim().replace(/\\/g, '/');
+    return normalized.startsWith('.') || normalized.startsWith('dist/');
+}
+
+function createEmptyGroupSetRecord(): Record<OptionalRuntimeGroup, Set<string>> {
+    return OPTIONAL_RUNTIME_GROUPS.reduce((result, group) => {
+        result[group] = new Set<string>();
+        return result;
+    }, {} as Record<OptionalRuntimeGroup, Set<string>>);
+}
+
+function buildOptionalGroupClosures(records: RegistryModuleRecord[]): Record<OptionalRuntimeGroup, Set<string>> {
+    const recordByKey = new Map<string, RegistryModuleRecord>();
+    for (const record of records) recordByKey.set(normalizeBootModuleKey(record.moduleKey), record);
+    const registeredModuleKeys = new Set<string>(recordByKey.keys());
+    const groups = createEmptyGroupSetRecord();
+
+    for (const record of records) {
+        const normalized = normalizeBootModuleKey(record.moduleKey);
+        const owner = classifyBrowserOptionalGroup(normalized);
+        if (owner) groups[owner].add(normalized);
+    }
+    for (const group of OPTIONAL_RUNTIME_GROUPS) {
+        if (groups[group].size === 0) continue;
+        for (const dependency of OPTIONAL_GROUP_DEPENDENCY_OVERRIDES[group] || []) {
+            const normalized = normalizeBootModuleKey(dependency);
+            if (!recordByKey.has(normalized)) {
+                throw new Error(`[module-registry] optional group ${group} override is missing: ${normalized}`);
+            }
+            if (classifyBrowserBootModule(normalized) === 'optional') groups[group].add(normalized);
+        }
+
+        const queue = Array.from(groups[group]);
+        for (let index = 0; index < queue.length; index += 1) {
+            const moduleKey = queue[index];
+            const record = recordByKey.get(moduleKey);
+            if (!record) continue;
+            for (const dependencyId of extractLiteralModuleDependencies(record.content)) {
+                const dependencyKey = resolveRegistryDependencyKey(moduleKey, dependencyId, registeredModuleKeys);
+                if (!dependencyKey && isRegistryLocalDependencyId(dependencyId)) {
+                    throw new Error(`[module-registry] optional group ${group} has unresolved local dependency: ${moduleKey} -> ${dependencyId}`);
+                }
+                if (!dependencyKey || classifyBrowserBootModule(dependencyKey) !== 'optional') continue;
+                if (!groups[group].has(dependencyKey)) {
+                    groups[group].add(dependencyKey);
+                    queue.push(dependencyKey);
+                }
+            }
+        }
+    }
+
+    // Guard the generated contract itself: every resolvable optional literal dependency must
+    // travel with the group, even when its canonical owner is another optional feature.
+    for (const group of OPTIONAL_RUNTIME_GROUPS) {
+        for (const moduleKey of groups[group]) {
+            const record = recordByKey.get(moduleKey);
+            if (!record) continue;
+            for (const dependencyId of extractLiteralModuleDependencies(record.content)) {
+                const dependencyKey = resolveRegistryDependencyKey(moduleKey, dependencyId, registeredModuleKeys);
+                if (!dependencyKey && isRegistryLocalDependencyId(dependencyId)) {
+                    throw new Error(`[module-registry] optional group ${group} has unresolved local dependency: ${moduleKey} -> ${dependencyId}`);
+                }
+                if (
+                    dependencyKey
+                    && classifyBrowserBootModule(dependencyKey) === 'optional'
+                    && !groups[group].has(dependencyKey)
+                ) {
+                    throw new Error(`[module-registry] optional group ${group} is not closed: ${moduleKey} -> ${dependencyKey}`);
+                }
+            }
+        }
+    }
+    return groups;
+}
+
+function getOptionalGroupOutFile(groupOutDir: string, group: OptionalRuntimeGroup): string {
+    return path.join(groupOutDir, `module-registry.optional.${group}.js`);
+}
+
 function sleepSync(ms: number): void {
     const end = Date.now() + Math.max(0, ms);
     while (Date.now() < end) {
@@ -330,6 +553,9 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
     const optionalOutFile = opts.optionalOutFile
         ? path.resolve(String(opts.optionalOutFile))
         : path.join(path.dirname(outFile), 'module-registry.optional.js');
+    const groupOutDir = opts.groupOutDir
+        ? path.resolve(String(opts.groupOutDir))
+        : path.dirname(optionalOutFile);
     const shouldSplitRegistries = opts.splitRegistries !== false;
     const shouldWrite = opts.write !== false;
     const shouldLog = opts.log !== false;
@@ -339,6 +565,7 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
     }
     const jsFiles: string[] = [];
     walkDir(distDir, distDir, jsFiles);
+    jsFiles.sort();
 
     const lines: string[] = createRegistryPreamble();
     const startupLines: string[] = createRegistryPreamble();
@@ -346,6 +573,7 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
     const bootMetadataInsertIndex = lines.length;
     const startupBootMetadataInsertIndex = startupLines.length;
     const optionalBootMetadataInsertIndex = optionalLines.length;
+    const moduleRecords: RegistryModuleRecord[] = [];
 
     const skipped: string[] = [];
     const registeredKeys = new Set<string>();
@@ -385,6 +613,7 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
             registeredKeys.add(moduleKey + '.js');
         }
         appendRegisteredModuleWithJsAlias(lines, moduleKey, content);
+        moduleRecords.push({ moduleKey, content, aliases: [moduleKey + '.js'] });
         const bootClass = classifyBrowserBootModule(moduleKey);
         const bootLines = bootClass === 'optional' ? optionalLines : startupLines;
         const bootKeys = bootClass === 'optional' ? optionalRegisteredKeys : startupRegisteredKeys;
@@ -409,6 +638,7 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
             continue;
         }
         appendRegisteredModule(lines, extra.key, content);
+        moduleRecords.push({ moduleKey: extra.key, content, aliases: (extra.aliases || []).slice() });
         registeredKeys.add(extra.key);
         const bootClass = classifyBrowserBootModule(extra.key);
         const bootLines = bootClass === 'optional' ? optionalLines : startupLines;
@@ -438,6 +668,7 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
             continue;
         }
         appendRegisteredModuleWithJsAlias(lines, moduleKey, content);
+        moduleRecords.push({ moduleKey, content, aliases: [moduleKey + '.js'] });
         registeredKeys.add(moduleKey);
         registeredKeys.add(moduleKey + '.js');
         const bootClass = classifyBrowserBootModule(moduleKey);
@@ -448,13 +679,45 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
         bootKeys.add(moduleKey + '.js');
     }
 
-    lines.splice(bootMetadataInsertIndex, 0, ...createBootModuleMetadataLines(registeredKeys));
-    startupLines.splice(startupBootMetadataInsertIndex, 0, ...createBootModuleMetadataLines(startupRegisteredKeys));
-    optionalLines.splice(optionalBootMetadataInsertIndex, 0, ...createBootModuleMetadataLines(optionalRegisteredKeys));
+    const optionalGroupClosures = buildOptionalGroupClosures(moduleRecords);
+    const groupLines = {} as Record<OptionalRuntimeGroup, string[]>;
+    const groupRegisteredKeys = createEmptyGroupSetRecord();
+    for (const group of OPTIONAL_RUNTIME_GROUPS) groupLines[group] = createRegistryPreamble();
+    for (const record of moduleRecords) {
+        const normalized = normalizeBootModuleKey(record.moduleKey);
+        for (const group of OPTIONAL_RUNTIME_GROUPS) {
+            if (!optionalGroupClosures[group].has(normalized)) continue;
+            appendRegisteredModule(groupLines[group], record.moduleKey, record.content);
+            groupRegisteredKeys[group].add(record.moduleKey);
+            for (const alias of record.aliases) {
+                appendRegisteredAlias(groupLines[group], alias, record.moduleKey);
+                groupRegisteredKeys[group].add(alias);
+            }
+        }
+    }
+
+    lines.splice(bootMetadataInsertIndex, 0, ...createBootModuleMetadataLines(registeredKeys, optionalGroupClosures));
+    startupLines.splice(startupBootMetadataInsertIndex, 0, ...createBootModuleMetadataLines(startupRegisteredKeys, optionalGroupClosures));
+    optionalLines.splice(optionalBootMetadataInsertIndex, 0, ...createBootModuleMetadataLines(optionalRegisteredKeys, optionalGroupClosures));
+    for (const group of OPTIONAL_RUNTIME_GROUPS) {
+        groupLines[group].splice(
+            createRegistryPreamble().length,
+            0,
+            ...createBootModuleMetadataLines(groupRegisteredKeys[group], { [group]: optionalGroupClosures[group] })
+        );
+    }
 
     const content = finalizeRegistryContent(lines);
     const startupContent = finalizeRegistryContent(startupLines);
     const optionalContent = finalizeRegistryContent(optionalLines);
+    const groupContents = {} as Record<OptionalRuntimeGroup, string>;
+    const groupOutFiles = {} as Record<OptionalRuntimeGroup, string>;
+    const wroteGroupFiles = {} as Record<OptionalRuntimeGroup, boolean>;
+    for (const group of OPTIONAL_RUNTIME_GROUPS) {
+        groupContents[group] = finalizeRegistryContent(groupLines[group]);
+        groupOutFiles[group] = getOptionalGroupOutFile(groupOutDir, group);
+        wroteGroupFiles[group] = false;
+    }
     let wroteFile = false;
     let wroteOptionalFile = false;
     if (shouldWrite) {
@@ -472,6 +735,15 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
                 writeFileWithRetry(optionalOutFile, optionalContent);
                 wroteOptionalFile = true;
             }
+            for (const group of OPTIONAL_RUNTIME_GROUPS) {
+                const groupOutFile = groupOutFiles[group];
+                fs.mkdirSync(path.dirname(groupOutFile), { recursive: true });
+                const currentGroup = fs.existsSync(groupOutFile) ? fs.readFileSync(groupOutFile, 'utf8') : null;
+                if (currentGroup !== groupContents[group]) {
+                    writeFileWithRetry(groupOutFile, groupContents[group]);
+                    wroteGroupFiles[group] = true;
+                }
+            }
         }
         if (shouldSyncScriptVersions && fs.existsSync(path.join(rootDir, 'index.html'))) {
             syncBrowserScriptVersions({ rootDir, write: true });
@@ -479,7 +751,9 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
     }
 
     if (shouldLog) {
-        const suffix = shouldSplitRegistries ? ' plus ' + path.relative(rootDir, optionalOutFile) : '';
+        const suffix = shouldSplitRegistries
+            ? ' plus ' + path.relative(rootDir, optionalOutFile) + ' and ' + OPTIONAL_RUNTIME_GROUPS.length + ' group registries'
+            : '';
         console.log('[module-registry] wrote ' + jsFiles.length + ' modules to ' + path.relative(rootDir, outFile) + suffix);
         if (skipped.length > 0) {
             console.log('[module-registry] skipped ' + skipped.length + ' files:');
@@ -495,8 +769,11 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
         optionalContent,
         outFile,
         optionalOutFile,
+        groupContents,
+        groupOutFiles,
         wroteFile,
-        wroteOptionalFile
+        wroteOptionalFile,
+        wroteGroupFiles
     };
 }
 
@@ -506,5 +783,7 @@ if (require.main === module) {
 
 export = {
     buildRegistry,
-    classifyBrowserBootModule
+    classifyBrowserBootModule,
+    classifyBrowserOptionalGroup,
+    OPTIONAL_RUNTIME_GROUPS
 };

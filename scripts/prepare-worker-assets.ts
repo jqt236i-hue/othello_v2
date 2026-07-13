@@ -89,7 +89,13 @@ const ROOT_FILES: readonly string[] = Object.freeze([
     'styles-variables.css',
     'public/runtime.js',
     'public/module-registry.js',
-    'public/module-registry.optional.js'
+    'public/module-registry.optional.js',
+    'public/module-registry.optional.gacha.js',
+    'public/module-registry.optional.cosmetic.js',
+    'public/module-registry.optional.leaderboard.js',
+    'public/module-registry.optional.commentary.js',
+    'public/module-registry.optional.cpu.js',
+    'public/module-registry.optional.onnx.js'
 ]);
 
 const DIRS: readonly string[] = Object.freeze([

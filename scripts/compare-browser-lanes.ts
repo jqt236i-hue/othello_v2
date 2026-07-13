@@ -92,7 +92,7 @@ function summarizeLane(result: any): any {
     },
     startupRequestedPaths: startupPaths,
     startupScriptPaths: startupPaths.filter((value) => /\.js(?:\?|$)/.test(value)),
-    optionalRegistryAtStartup: result.sample.startupScriptSignals.some((value: string) => value.includes('module-registry.optional.js')),
+    optionalRegistryAtStartup: result.sample.startupScriptSignals.some((value: string) => value.includes('module-registry.optional')),
     onnxRuntimeAtStartup: result.sample.startupScriptSignals.some((value: string) => value.includes('onnxruntime-web/dist/ort.min.js')),
     pageErrors: result.sample.pageErrors,
     consoleErrors: result.sample.consoleErrors,
