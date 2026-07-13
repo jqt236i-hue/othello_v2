@@ -154,15 +154,12 @@
 #board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="6"][data-col="6"]::after {
     content: "";
     position: absolute;
-    top: 0;
-    left: 0;
+    top: calc(-1 * var(--layout-size-border-thin));
+    left: calc(-1 * var(--layout-size-border-thin));
     width: calc(8px * var(--board-cell-scale, 1));
     height: calc(8px * var(--board-cell-scale, 1));
     border-radius: 50%;
-    background: rgba(2, 10, 9, 0.90);
-    box-shadow:
-        0 0 0 calc(1px * var(--board-cell-scale, 1)) rgba(190, 232, 207, 0.34),
-        0 calc(1px * var(--board-cell-scale, 1)) calc(2px * var(--board-cell-scale, 1)) rgba(0, 0, 0, 0.38);
+    background: rgba(3, 19, 16, 0.88);
     transform: translate(-50%, -50%);
     z-index: 7;
     pointer-events: none;
