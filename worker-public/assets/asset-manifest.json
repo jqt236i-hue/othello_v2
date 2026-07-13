@@ -1,6 +1,6 @@
 {
   "version": "2026-07-13",
-  "generatedAt": "2026-07-13T01:59:59.463Z",
+  "generatedAt": "2026-07-13T02:18:27.332Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -40,11 +40,11 @@
     },
     {
       "path": "assets/images/special-stones/ESCAPE_WILL-black.png",
-      "sha256": "d3285492cc7d3e3c7ec5b54c72c6157f2f47bceb960583a289de8aaa4facb9f1"
+      "sha256": "a3a56fbefb42fa4cc058987a1d489cb25a7a3df8a1bf8da0c0ce525c766d15e8"
     },
     {
       "path": "assets/images/special-stones/ESCAPE_WILL-white.png",
-      "sha256": "348de29c53156b016b885348975731d1261be8d25484ebc32881976c0c23529f"
+      "sha256": "f064e1414eb4e86e903261af18651943fa12e970d5a3b96fdbe5a49e0252c0d3"
     },
     {
       "path": "assets/images/special-stones/EXTREME_HYPERACTIVE_WILL-black.png",
