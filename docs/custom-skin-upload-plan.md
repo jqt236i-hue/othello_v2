@@ -40,7 +40,7 @@
 
 ビジュアル回帰の `npm run test:visual` は2回とも、今回のエディタが表示されない初期盤面キャプチャで、基準 `372x372` に対して現行 `368x368` となる既存基準差分で失敗した。基準画像の更新や、今回の変更と無関係な盤面CSS変更は行わない。見た目パネルを開いた実機確認では、背景・盤面・石の編集UI、保存、再読み込み復元、削除を確認した。
 
-### 5. 最終レビューとコミット — 進行中
+### 5. 最終レビューとコミット — 完了
 
 - `git status --short` と関連diffを確認し、タスク所有ファイルだけを対象にする。
 - 既存変更がないこと、生成物が意図した差分だけであること、仕様書と実装が一致することを確認する。
@@ -57,7 +57,18 @@
 - [x] ネットワークへ画像データを流さない契約
 - [x] `01-rulebook.md`、設計書、計画書の整合
 - [x] focused Jest / typecheck / browser build / 手動ブラウザ確認
-- [ ] 最終diff確認とタスク所有ファイルのコミット
+- [x] 最終diff確認とタスク所有ファイルのコミット
+
+## 完了記録
+
+- 実装コミット: `07faeec47 Add browser-local custom skin editor`
+- `npm run typecheck`: 成功
+- focused Jest: 5 suites / 43 tests 成功。依存境界チェックも成功
+- `npm run build:browser`: 成功
+- `npm run worker:prepare`: 成功（827 files mirror-verified）
+- `npm run check:window`: 成功
+- Playwright実機確認: 背景・盤面・石の画像読み込み、保存、再読み込み復元、削除を確認
+- 残存事項: `npm run test:visual` は既存の基準画像サイズ差分（基準372px / 現行368px）で失敗。今回のエディタが表示されない初期盤面キャプチャのため、基準更新は保留
 
 ## Self-review
 
