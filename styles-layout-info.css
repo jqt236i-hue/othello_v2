@@ -1441,6 +1441,7 @@
     --rules-help-page-min-height: min(58vh, 500px);
     z-index: calc(var(--z-floating-control) + 541);
     width: min(860px, calc(100vw - 44px));
+    height: min(80vh, 700px);
     max-height: min(80vh, 700px);
     background: var(--bg-panel-dark);
     border: var(--layout-size-border-thin) solid var(--border-status);
@@ -2168,13 +2169,14 @@
 
 #rules-help-pages {
     flex: 1;
-    min-height: var(--rules-help-page-min-height);
+    min-height: 0;
+    overflow: hidden;
 }
 
 .rules-help-page {
     display: none;
     height: 100%;
-    min-height: var(--rules-help-page-min-height);
+    min-height: 0;
 }
 
 .rules-help-page.is-active {
@@ -2185,6 +2187,7 @@
     display: flex;
     flex-direction: column;
     gap: calc(8px * var(--layout-stage-scale));
+    min-height: 0;
 }
 
 #rules-help-catalog-controls {
@@ -2398,8 +2401,10 @@
     display: grid;
     grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
     gap: calc(10px * var(--layout-stage-scale));
+    flex: 1 1 0;
     width: 100%;
-    min-height: var(--rules-help-page-min-height);
+    min-height: 0;
+    overflow: hidden;
 }
 
 #rules-help-card-list {
