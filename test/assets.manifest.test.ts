@@ -80,6 +80,7 @@ describe('assets manifest', () => {
       'assets/audio/bgm/manifest-stones/執行の道-bpm150.mp3',
       'assets/audio/bgm/manifest-stones/観測の道-bpm150.mp3',
       'assets/audio/sound-effect/observer_will_capture.mp3',
+      'assets/audio/sound-effect/毒殺の意志で石が毒状態になるタイミング.mp3',
       'assets/audio/sound-effect/毒殺の意志を置くタイミング.mp3',
       'assets/audio/sound-effect/ゾンビの意志が噛むタイミング.mp3',
       'assets/audio/sound-effect/ゾンビの意志を置くタイミング.mp3',

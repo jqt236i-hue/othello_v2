@@ -87,6 +87,26 @@ function planCoreSoundCues(ctx: any, deps: CoreSoundCueDeps) {
         deps.pushSoundCue(ctx, 'zombie_will_place', zombiePlacementPhase, 'zombie_placed');
     }
 
+    const isPoisonInfectionEvent = (ev: any) => {
+        if (!(
+            ev &&
+            ev.type === 'status_applied' &&
+            ev.meta &&
+            String(ev.meta.special || '').toUpperCase() === 'POISONED'
+        )) {
+            return false;
+        }
+        const reason = String(ev.reason || (ev.meta && ev.meta.reason) || '').toLowerCase();
+        return reason !== 'poison_tick' && reason !== 'poison_resolved';
+    };
+    const poisonInfectionEvents = ctx.base.filter((ev: any) => isPoisonInfectionEvent(ev));
+    for (const event of poisonInfectionEvents) {
+        const count = Array.isArray(event.targets) && event.targets.length > 0 ? event.targets.length : 1;
+        for (let index = 0; index < count; index += 1) {
+            deps.pushSoundCue(ctx, 'poison_will_infect', event.phase, 'poison_infected', { allowRepeat: true });
+        }
+    }
+
     const zombieInfectionPhase = deps.findPhase(
         ctx.base,
         (ev: any) => (

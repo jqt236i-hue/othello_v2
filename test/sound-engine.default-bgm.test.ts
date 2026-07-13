@@ -467,6 +467,7 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.effectSoundFiles.zombie_will_bite).toBe('ゾンビの意志が噛むタイミング.mp3');
     expect(soundEngine.effectSoundFiles.zombie_will_revive).toBe('ゾンビの意志が復活するタイミング.mp3');
     expect(soundEngine.effectSoundFiles.poison_will_place).toBe('毒殺の意志を置くタイミング.mp3');
+    expect(soundEngine.effectSoundFiles.poison_will_infect).toBe('毒殺の意志で石が毒状態になるタイミング.mp3');
     expect(soundEngine.effectVolumeScales.board_shrink_selected).toBe(0.7);
     expect(soundEngine.effectVolumeScales.meteor_hole).toBe(0.7);
     expect(soundEngine.effectVolumeScales.causal_replay_restore).toBe(0.7);

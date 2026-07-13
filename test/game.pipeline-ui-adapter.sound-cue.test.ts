@@ -265,6 +265,43 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
+  test('POISONED の status_applied phase で poison_will_infect を再生する', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 17,
+      targets: [{ r: 5, col: 1, after: { color: 1, special: 'POISONED', timer: 5 } }],
+      meta: { special: 'POISONED', timer: 5 }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'poison_will_infect');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(17);
+  });
+
+  test('POISONED の tick / lethal 解決では poison_will_infect を再生しない', () => {
+    const base = [
+      {
+        type: 'status_applied',
+        phase: 17,
+        targets: [{ r: 5, col: 1, after: { color: 1, special: 'POISONED', timer: 4 } }],
+        meta: { special: 'POISONED', timer: 4, reason: 'poison_tick' }
+      },
+      {
+        type: 'status_removed',
+        phase: 18,
+        targets: [{ r: 5, col: 1, before: { color: 1, special: 'POISONED', timer: 0 } }],
+        meta: { special: 'POISONED', timer: 0, reason: 'poison_resolved' }
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'poison_will_infect');
+
+    expect(cue).toBeUndefined();
+  });
+
   test('condemn_selected は相手手札の hand_remove phase で stone_destroy を再生する', () => {
     const base = [
       {
