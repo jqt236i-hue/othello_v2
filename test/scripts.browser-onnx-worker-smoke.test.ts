@@ -1,0 +1,36 @@
+const { evaluateOnnxWorkerSmoke } = require('../scripts/browser-onnx-worker-smoke');
+
+function probe(lane: 'classic' | 'vite', overrides: Record<string, unknown> = {}) {
+  return Object.assign({
+    lane,
+    digest: 'same',
+    outputLength: 100,
+    selectedMove: { row: 2, col: 3 },
+    windowOrt: lane === 'classic',
+    mainThreadOrtScripts: lane === 'classic' ? 1 : 0,
+    startupWorkerRequests: [],
+    startupOrtRequests: [],
+    workerRequests: lane === 'vite' ? ['worker-entry.js'] : [],
+    ortRequests: lane === 'vite' ? ['ort.min.js'] : ['ort.min.js'],
+    clientStatus: lane === 'vite' ? { workerCreatedCount: 1, pendingRequests: 0 } : null,
+    pageErrors: [],
+    consoleErrors: [],
+    resourceErrors: []
+  }, overrides);
+}
+
+describe('browser ONNX Worker smoke evaluation', () => {
+  test('accepts an exact classic/Vite inference match with no main-thread Vite ORT', () => {
+    expect(evaluateOnnxWorkerSmoke(probe('classic'), probe('vite'))).toEqual([]);
+  });
+
+  test('reports result drift and main-thread ORT regression', () => {
+    const errors = evaluateOnnxWorkerSmoke(
+      probe('classic'),
+      probe('vite', { digest: 'different', windowOrt: true, mainThreadOrtScripts: 1 })
+    );
+    expect(errors).toContain('classic/Vite ONNX output digest mismatch');
+    expect(errors).toContain('Vite lane exposed ORT on the main thread');
+    expect(errors).toContain('Vite lane appended a main-thread ORT script');
+  });
+});

@@ -10,6 +10,7 @@ interface LazyRuntimeLoaderOptions {
   onnxRuntimeSrc?: string;
   loadScript?: LoadScriptFn;
   loadGroup?: (group: LazyRuntimeGroup) => Promise<unknown>;
+  shouldLoadMainThreadOnnxRuntime?: () => boolean;
 }
 
 interface LazyRuntimeLoader {
@@ -195,8 +196,13 @@ function createLazyRuntimeLoader(options?: LazyRuntimeLoaderOptions): LazyRuntim
         restoreOptionalBootEntries();
       }
       if (group === 'onnx') {
-        await ensureOnnxRuntime();
-        injectOnnxRuntimeApi();
+        const shouldLoadMainThread = typeof opts.shouldLoadMainThreadOnnxRuntime === 'function'
+          ? opts.shouldLoadMainThreadOnnxRuntime() !== false
+          : true;
+        if (shouldLoadMainThread) {
+          await ensureOnnxRuntime();
+          injectOnnxRuntimeApi();
+        }
       }
       loadedGroups.add(group);
       lastErrors.delete(group);

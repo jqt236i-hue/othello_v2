@@ -64,4 +64,32 @@ describe('Vite optional feature loader', () => {
     expect(adapterLoad).toHaveBeenCalledTimes(2);
     expect(loader.isLoaded('leaderboard')).toBe(true);
   });
+
+  test('an ONNX adapter-installed Worker executor prevents the legacy ORT script load', async () => {
+    jest.resetModules();
+    const lazyRuntimeModule = require('../ui/bootstrap/lazy-runtime-loader');
+    const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {
+      url: 'https://example.test/vite-dist/index.vite.html'
+    });
+    const root: any = dom.window;
+    root.LazyRuntimeLoaderModule = lazyRuntimeModule;
+    const adapterLoad = jest.fn(async () => {
+      root.__CARD_REVERSI_ONNX_WORKER_EXECUTOR__ = { runSession: jest.fn() };
+      return true;
+    });
+    const loadScript = jest.fn(async () => undefined);
+    const loader = installOptionalFeatureLoader({
+      root,
+      document: root.document,
+      loadScript,
+      featureImports: {
+        onnx: async () => ({ loadOptionalFeature: adapterLoad })
+      }
+    });
+
+    await expect(root.loadLazyRuntimeGroup('onnx')).resolves.toBe(true);
+    expect(adapterLoad).toHaveBeenCalledTimes(1);
+    expect(loadScript).not.toHaveBeenCalled();
+    expect(loader.isLoaded('onnx')).toBe(true);
+  });
 });

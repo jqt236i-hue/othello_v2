@@ -1,0 +1,256 @@
+import {
+  CpuWorkerClient,
+  CpuWorkerClientError,
+  OnnxWorkerInferenceExecutor,
+  type CpuWorkerTransport
+} from '../browser-vite/cpu-worker/client';
+import {
+  CPU_WORKER_OPERATIONS,
+  CPU_WORKER_PROTOCOL_VERSION,
+  type CpuWorkerRequest
+} from '../browser-vite/cpu-worker/protocol';
+
+class FakeWorker implements CpuWorkerTransport {
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  onmessageerror: ((event: MessageEvent) => void) | null = null;
+  readonly messages: Array<{ message: any; transfer?: Transferable[] }> = [];
+  terminated = false;
+
+  postMessage(message: unknown, transfer?: Transferable[]): void {
+    this.messages.push({ message, transfer });
+  }
+
+  terminate(): void {
+    this.terminated = true;
+  }
+
+  emit(data: unknown): void {
+    this.onmessage?.({ data } as MessageEvent);
+  }
+
+  crash(message = 'boom'): void {
+    this.onerror?.({ message, error: new Error(message) } as ErrorEvent);
+  }
+}
+
+function createSessionPayload() {
+  return {
+    sessionKey: 'policy-placement',
+    modelUrl: 'https://example.test/data/model.onnx',
+    metaUrl: 'https://example.test/data/model.meta.json',
+    wasmPathsUrl: 'https://example.test/node_modules/onnxruntime-web/dist/',
+    executionProviders: ['wasm']
+  };
+}
+
+function successFor(request: CpuWorkerRequest, result: unknown) {
+  return {
+    protocolVersion: CPU_WORKER_PROTOCOL_VERSION,
+    kind: 'response',
+    ok: true,
+    requestId: request.requestId,
+    operation: request.operation,
+    decisionEpoch: request.decisionEpoch,
+    stateVersion: request.stateVersion,
+    turnNumber: request.turnNumber,
+    result
+  };
+}
+
+describe('CpuWorkerClient', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test('creates the Worker lazily and resolves only an exact matching response', async () => {
+    const worker = new FakeWorker();
+    const factory = jest.fn(() => worker);
+    const client = new CpuWorkerClient({ workerFactory: factory });
+    expect(factory).not.toHaveBeenCalled();
+
+    const pending = client.request(CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION, createSessionPayload());
+    expect(factory).toHaveBeenCalledTimes(1);
+    const request = worker.messages[0].message as CpuWorkerRequest;
+    worker.emit(successFor(request, {
+      sessionKey: 'policy-placement',
+      inputNames: ['obs'],
+      outputNames: ['logits'],
+      meta: { inputName: 'obs' },
+      executionProviders: ['wasm']
+    }));
+
+    await expect(pending).resolves.toMatchObject({ sessionKey: 'policy-placement' });
+    expect(client.getStatus()).toMatchObject({ pendingRequests: 0, workerCreatedCount: 1, requestCount: 1 });
+  });
+
+  test('cancels with AbortSignal and ignores a late response for that request', async () => {
+    const worker = new FakeWorker();
+    const client = new CpuWorkerClient({ workerFactory: () => worker });
+    const controller = new AbortController();
+    const pending = client.request(
+      CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION,
+      createSessionPayload(),
+      { signal: controller.signal }
+    );
+    const request = worker.messages[0].message as CpuWorkerRequest;
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ code: 'CPU_WORKER_CANCELLED' });
+    expect(worker.messages[1].message).toEqual({
+      protocolVersion: CPU_WORKER_PROTOCOL_VERSION,
+      kind: 'cancel',
+      requestId: request.requestId
+    });
+    worker.emit(successFor(request, {
+      sessionKey: 'policy-placement',
+      inputNames: ['obs'],
+      outputNames: ['logits'],
+      meta: null,
+      executionProviders: ['wasm']
+    }));
+    expect(worker.terminated).toBe(false);
+    expect(client.getStatus().pendingRequests).toBe(0);
+  });
+
+  test('terminates a timed-out Worker and recreates it on the next request', async () => {
+    jest.useFakeTimers();
+    const workers: FakeWorker[] = [];
+    const client = new CpuWorkerClient({
+      workerFactory: () => {
+        const worker = new FakeWorker();
+        workers.push(worker);
+        return worker;
+      },
+      defaultTimeoutMs: 10
+    });
+    const first = client.request(CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION, createSessionPayload());
+    const expectation = expect(first).rejects.toMatchObject({ code: 'CPU_WORKER_TIMEOUT' });
+    jest.advanceTimersByTime(11);
+    await expectation;
+    expect(workers[0].terminated).toBe(true);
+
+    const second = client.request(CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION, createSessionPayload());
+    expect(workers).toHaveLength(2);
+    const request = workers[1].messages[0].message as CpuWorkerRequest;
+    workers[1].emit(successFor(request, {
+      sessionKey: 'policy-placement',
+      inputNames: ['obs'],
+      outputNames: ['logits'],
+      meta: null,
+      executionProviders: ['wasm']
+    }));
+    await expect(second).resolves.toBeTruthy();
+    expect(client.getStatus()).toMatchObject({ workerCreatedCount: 2, restartCount: 1 });
+  });
+
+  test('rejects mismatched authority metadata and restarts after a crash', async () => {
+    const workers: FakeWorker[] = [];
+    const client = new CpuWorkerClient({ workerFactory: () => {
+      const worker = new FakeWorker();
+      workers.push(worker);
+      return worker;
+    } });
+    const pending = client.request(
+      CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION,
+      createSessionPayload(),
+      { decisionEpoch: 9, stateVersion: 3, turnNumber: 2 }
+    );
+    const request = workers[0].messages[0].message as CpuWorkerRequest;
+    workers[0].emit({
+      ...successFor(request, {
+        sessionKey: 'policy-placement',
+        inputNames: ['obs'],
+        outputNames: ['logits'],
+        meta: null,
+        executionProviders: ['wasm']
+      }),
+      turnNumber: 3
+    });
+
+    await expect(pending).rejects.toThrow('stale or mismatched');
+    expect(workers[0].terminated).toBe(true);
+    expect(client.getStatus().workerActive).toBe(false);
+  });
+
+  test('reports unsupported Worker creation without pretending the request succeeded', async () => {
+    const client = new CpuWorkerClient({
+      workerFactory: () => { throw new Error('Worker is blocked'); }
+    });
+    await expect(client.request(
+      CPU_WORKER_OPERATIONS.ONNX_RELEASE_SESSION,
+      { sessionKey: 'x' }
+    )).rejects.toMatchObject({ code: 'CPU_WORKER_UNAVAILABLE' });
+    expect(client.getStatus()).toMatchObject({ workerActive: false, workerCreatedCount: 0 });
+  });
+});
+
+class AutoWorker extends FakeWorker {
+  override postMessage(message: unknown, transfer?: Transferable[]): void {
+    super.postMessage(message, transfer);
+    const request = message as CpuWorkerRequest;
+    if (!request || request.kind !== 'request') return;
+    queueMicrotask(() => {
+      if (request.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
+        this.emit(successFor(request, {
+          sessionKey: (request.payload as any).sessionKey,
+          inputNames: ['obs'],
+          outputNames: ['logits'],
+          meta: { inputName: 'obs', outputName: 'logits' },
+          executionProviders: ['wasm']
+        }));
+      } else if (request.operation === CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION) {
+        this.emit(successFor(request, {
+          sessionKey: (request.payload as any).sessionKey,
+          outputs: [{ name: 'logits', type: 'float32', data: new Float32Array([0.25]), dims: [1] }]
+        }));
+      } else {
+        this.emit(successFor(request, { sessionKey: (request.payload as any).sessionKey, released: true }));
+      }
+    });
+  }
+}
+
+describe('OnnxWorkerInferenceExecutor recovery', () => {
+  test('rehydrates its session recipe after a Worker crash before running inference', async () => {
+    const workers: AutoWorker[] = [];
+    const client = new CpuWorkerClient({ workerFactory: () => {
+      const worker = new AutoWorker();
+      workers.push(worker);
+      return worker;
+    } });
+    const executor = new OnnxWorkerInferenceExecutor({
+      client,
+      baseUrl: 'https://example.test/game/',
+      wasmPathsUrl: 'https://example.test/node_modules/onnxruntime-web/dist/'
+    });
+    const session = await executor.createSession({
+      sessionKey: 'policy-placement',
+      modelUrl: '../data/model.onnx',
+      metaUrl: '../data/model.meta.json',
+      executionProviders: ['wasm']
+    });
+    expect(workers).toHaveLength(1);
+    workers[0].crash('simulated crash');
+
+    const outputs = await executor.runSession({
+      session,
+      inputName: 'obs',
+      type: 'float32',
+      data: new Float32Array([1, 2]),
+      dims: [1, 2]
+    });
+
+    expect(workers).toHaveLength(2);
+    const operations = workers.flatMap((worker) => worker.messages)
+      .map((entry) => entry.message.operation)
+      .filter(Boolean);
+    expect(operations).toEqual([
+      CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION,
+      CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION,
+      CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION
+    ]);
+    expect((outputs.logits.data as Float32Array)[0]).toBeCloseTo(0.25);
+    expect(client.getStatus()).toMatchObject({ workerCreatedCount: 2, restartCount: 1 });
+  });
+});

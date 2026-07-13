@@ -30,6 +30,7 @@
     "match:ui-control-smoke": "npm run build:browser && node dist/scripts/browser-ui-control-smoke.js",
     "match:ui-control-smoke:vite": "npm run build:vite && node dist/scripts/browser-ui-control-smoke.js --vite",
     "match:optional-feature-smoke:vite": "npm run build:vite && node dist/scripts/browser-optional-feature-smoke.js",
+    "match:onnx-worker-smoke:vite": "npm run build:vite && node dist/scripts/browser-onnx-worker-smoke.js",
     "compare:browser-lanes": "npm run build:vite && node dist/scripts/compare-browser-lanes.js",
     "compare:browser-lanes:write": "npm run build:vite && node dist/scripts/compare-browser-lanes.js --write",
     "match:endgame-check": "npm run build:ts && node dist/scripts/network-endgame-smoke.js",

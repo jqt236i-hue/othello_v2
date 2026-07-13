@@ -33,6 +33,7 @@ export function installOptionalFeatureLoader(options: InstallOptionalFeatureLoad
   const loader = runtimeModule.createLazyRuntimeLoader({
     root: rootRef,
     document: documentRef,
+    shouldLoadMainThreadOnnxRuntime: () => !rootRef.__CARD_REVERSI_ONNX_WORKER_EXECUTOR__,
     loadGroup: async (group: OptionalFeatureGroup) => {
       const importFeature = imports[group];
       if (typeof importFeature !== 'function') throw new Error(`missing Vite optional adapter: ${group}`);

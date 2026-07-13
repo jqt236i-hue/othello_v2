@@ -77,6 +77,26 @@ describe('lazy runtime loader', () => {
     expect(root.require).not.toHaveBeenCalled();
   });
 
+  test('skips main-thread ORT when a Vite Worker executor was installed by the group adapter', async () => {
+    jest.resetModules();
+    const { createLazyRuntimeLoader } = require('../ui/bootstrap/lazy-runtime-loader');
+    const loadScript = jest.fn(async () => undefined);
+    const loadGroup = jest.fn(async () => undefined);
+    const root = { require: jest.fn() };
+    const loader = createLazyRuntimeLoader({
+      root,
+      loadScript,
+      loadGroup,
+      shouldLoadMainThreadOnnxRuntime: () => false
+    });
+
+    await expect(loader.load('onnx')).resolves.toBe(true);
+    expect(loadGroup).toHaveBeenCalledWith('onnx');
+    expect(loadScript).not.toHaveBeenCalled();
+    expect(root.require).not.toHaveBeenCalled();
+    expect(loader.isLoaded('onnx')).toBe(true);
+  });
+
   test('default loader exposes browser globals', async () => {
     jest.resetModules();
     const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {

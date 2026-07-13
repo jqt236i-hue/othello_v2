@@ -72,7 +72,8 @@ let _config = {
     readQuerySearch: null as any,
     readWebGpuEnabled: null as any,
     nowMs: null as any,
-    ortApi: null as any
+    ortApi: null as any,
+    inferenceExecutor: null as any
 };
 const LATENCY_SAMPLE_LIMIT = 512;
 const LATENCY_OPERATION_KEYS = Object.freeze([
@@ -208,10 +209,29 @@ function configure(config: any) {
         _config.ortApi = config.ortApi || null;
         applyOrtEnvLogLevel(_config.ortApi);
     }
+    if (Object.prototype.hasOwnProperty.call(config, 'inferenceExecutor')) {
+        const executor = config.inferenceExecutor;
+        _config.inferenceExecutor = executor &&
+            typeof executor.createSession === 'function' &&
+            typeof executor.runSession === 'function'
+            ? executor
+            : null;
+    }
     return getStatus();
 }
 
+function releaseInjectedSession(session: any) {
+    const executor = _config.inferenceExecutor;
+    if (!session || !executor || typeof executor.releaseSession !== 'function') return;
+    try {
+        Promise.resolve(executor.releaseSession(session)).catch(() => undefined);
+    } catch (e) { /* best-effort release */ }
+}
+
 function clearModel() {
+    releaseInjectedSession(_session);
+    releaseInjectedSession(_targetSession);
+    releaseInjectedSession(_valueSession);
     _session = null;
     _meta = null;
     _inputName = 'obs';
@@ -301,6 +321,28 @@ async function createInferenceSession(ortApi: any, modelUrl: any) {
     }
 }
 
+async function createInjectedInferenceSession(sessionKey: string, modelUrl: string, metaUrl: string) {
+    const executor = _config.inferenceExecutor;
+    if (!executor || typeof executor.createSession !== 'function') return null;
+    const preferredProviders = isWebGpuExecutionOptIn() ? ['webgpu', 'wasm'] : ['wasm'];
+    try {
+        return await executor.createSession({
+            sessionKey,
+            modelUrl,
+            metaUrl,
+            executionProviders: preferredProviders
+        });
+    } catch (primaryErr) {
+        if (preferredProviders.length === 1 && preferredProviders[0] === 'wasm') throw primaryErr;
+        return executor.createSession({
+            sessionKey,
+            modelUrl,
+            metaUrl,
+            executionProviders: ['wasm']
+        });
+    }
+}
+
 function resolveOrtApi(requireSession: any): any {
     const ortApi = _config.ortApi || _ort;
     if (ortApi && typeof ortApi.Tensor === 'function' &&
@@ -339,8 +381,9 @@ function resolveTensorByName(outputs: any, preferredName: any, fallbackIndex: an
 }
 
 async function loadFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any) {
-    const ortApi = resolveOrtApi(true);
-    if (!ortApi) {
+    const executor = _config.inferenceExecutor;
+    const ortApi = executor ? null : resolveOrtApi(true);
+    if (!executor && !ortApi) {
         _lastError = new Error('onnxruntime-web is not available');
         return false;
     }
@@ -349,16 +392,23 @@ async function loadFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any) {
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _metaUrl;
 
     try {
-        let modelSource = targetModel;
-        if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
-            try {
-                modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
-            } catch (assetErr) {
-                modelSource = targetModel;
+        let session: any;
+        let meta: any;
+        if (executor) {
+            session = await createInjectedInferenceSession('policy-placement', targetModel, targetMeta);
+            meta = session && session.meta;
+        } else {
+            let modelSource = targetModel;
+            if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
+                try {
+                    modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
+                } catch (assetErr) {
+                    modelSource = targetModel;
+                }
             }
+            session = await createInferenceSession(ortApi, modelSource);
+            meta = await loadMetaJson(targetMeta, fetchImpl);
         }
-        const session = await createInferenceSession(ortApi, modelSource);
-        const meta = await loadMetaJson(targetMeta, fetchImpl);
         _session = session;
         _meta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
         _inputName = (_meta && _meta.inputName) || (session.inputNames && session.inputNames[0]) || 'obs';
@@ -378,8 +428,9 @@ async function loadFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any) {
 }
 
 async function loadTargetModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any) {
-    const ortApi = resolveOrtApi(true);
-    if (!ortApi) {
+    const executor = _config.inferenceExecutor;
+    const ortApi = executor ? null : resolveOrtApi(true);
+    if (!executor && !ortApi) {
         _targetLastError = new Error('onnxruntime-web is not available');
         return false;
     }
@@ -388,16 +439,23 @@ async function loadTargetModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: an
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _targetMetaUrl;
 
     try {
-        let modelSource = targetModel;
-        if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
-            try {
-                modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
-            } catch (assetErr) {
-                modelSource = targetModel;
+        let session: any;
+        let meta: any;
+        if (executor) {
+            session = await createInjectedInferenceSession('policy-target', targetModel, targetMeta);
+            meta = session && session.meta;
+        } else {
+            let modelSource = targetModel;
+            if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
+                try {
+                    modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
+                } catch (assetErr) {
+                    modelSource = targetModel;
+                }
             }
+            session = await createInferenceSession(ortApi, modelSource);
+            meta = await loadMetaJson(targetMeta, fetchImpl);
         }
-        const session = await createInferenceSession(ortApi, modelSource);
-        const meta = await loadMetaJson(targetMeta, fetchImpl);
         _targetSession = session;
         _targetMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
         _targetInputName = (_targetMeta && _targetMeta.inputName) || (session.inputNames && session.inputNames[0]) || 'obs';
@@ -420,8 +478,9 @@ async function loadTargetModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: an
 }
 
 async function loadValueModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any) {
-    const ortApi = resolveOrtApi(true);
-    if (!ortApi) {
+    const executor = _config.inferenceExecutor;
+    const ortApi = executor ? null : resolveOrtApi(true);
+    if (!executor && !ortApi) {
         _valueLastError = new Error('onnxruntime-web is not available');
         return false;
     }
@@ -430,16 +489,23 @@ async function loadValueModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _valueMetaUrl;
 
     try {
-        let modelSource = targetModel;
-        if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
-            try {
-                modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
-            } catch (assetErr) {
-                modelSource = targetModel;
+        let session: any;
+        let meta: any;
+        if (executor) {
+            session = await createInjectedInferenceSession('policy-value', targetModel, targetMeta);
+            meta = session && session.meta;
+        } else {
+            let modelSource = targetModel;
+            if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
+                try {
+                    modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
+                } catch (assetErr) {
+                    modelSource = targetModel;
+                }
             }
+            session = await createInferenceSession(ortApi, modelSource);
+            meta = await loadMetaJson(targetMeta, fetchImpl);
         }
-        const session = await createInferenceSession(ortApi, modelSource);
-        const meta = await loadMetaJson(targetMeta, fetchImpl);
         _valueSession = session;
         _valueMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
         _valueInputName = (_valueMeta && _valueMeta.inputName) || (session.inputNames && session.inputNames[0]) || 'obs';
@@ -556,9 +622,23 @@ function isSupportedOnnxContext(context: any, candidateMoves: any, modelMeta: an
 
 async function runInferenceForSession(session: any, inputName: any, context: any, metaOverride: any, actionIdsOverride: any) {
     if (!session) return null;
+    const x = buildInputVector(context || {}, metaOverride, actionIdsOverride);
+    const executor = _config.inferenceExecutor;
+    if (executor && typeof executor.runSession === 'function') {
+        return executor.runSession({
+            session,
+            inputName,
+            type: 'float32',
+            data: x,
+            dims: [1, x.length],
+            decisionEpoch: context && context.decisionEpoch,
+            stateVersion: context && context.stateVersion,
+            turnNumber: context && context.turnNumber,
+            signal: context && context.abortSignal
+        });
+    }
     const ortApi = resolveOrtApi(false);
     if (!ortApi) return null;
-    const x = buildInputVector(context || {}, metaOverride, actionIdsOverride);
     const feeds: any = {};
     feeds[inputName] = new ortApi.Tensor('float32', x, [1, x.length]);
     return session.run(feeds);

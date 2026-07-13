@@ -43,7 +43,8 @@ let _config = {
   exactSolveMaxMs: 250,
   exactSolveNowMs: null as any,
   nowMs: null as any,
-  ortApi: null as any
+  ortApi: null as any,
+  inferenceExecutor: null as any
 };
 
 function configure(config: any) {
@@ -67,6 +68,14 @@ function configure(config: any) {
   if (typeof next.sourceUrl === 'string' && next.sourceUrl.trim()) _sourceUrl = next.sourceUrl.trim();
   if (typeof next.metaUrl === 'string' && next.metaUrl.trim()) _metaUrl = next.metaUrl.trim();
   if (Object.prototype.hasOwnProperty.call(next, 'ortApi')) _config.ortApi = next.ortApi || null;
+  if (Object.prototype.hasOwnProperty.call(next, 'inferenceExecutor')) {
+    const executor = next.inferenceExecutor;
+    _config.inferenceExecutor = executor &&
+      typeof executor.createSession === 'function' &&
+      typeof executor.runSession === 'function'
+      ? executor
+      : null;
+  }
   return getStatus();
 }
 
@@ -87,6 +96,13 @@ function resolveOrtApi(requireSession: boolean): any {
 }
 
 function clearModel() {
+  const previousSession = _session;
+  const executor = _config.inferenceExecutor;
+  if (previousSession && executor && typeof executor.releaseSession === 'function') {
+    try {
+      Promise.resolve(executor.releaseSession(previousSession)).catch(() => undefined);
+    } catch (e) { /* best-effort release */ }
+  }
   _session = null;
   _meta = null;
   _inputName = 'obs';
@@ -131,24 +147,37 @@ async function loadMetaJson(url: string, fetchImpl?: any) {
 }
 
 async function loadFromUrl(modelUrl?: string, metaUrl?: string, fetchImpl?: any) {
-  const ortApi = resolveOrtApi(true);
-  if (!ortApi) {
+  const executor = _config.inferenceExecutor;
+  const ortApi = executor ? null : resolveOrtApi(true);
+  if (!executor && !ortApi) {
     _lastError = new Error('onnxruntime-web is not available');
     return false;
   }
   const targetModel = (typeof modelUrl === 'string' && modelUrl.trim()) ? modelUrl.trim() : _sourceUrl;
   const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _metaUrl;
   try {
-    let modelSource = targetModel;
-    if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
-      try {
-        modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
-      } catch (assetErr) {
-        modelSource = targetModel;
+    let session: any;
+    let meta: any;
+    if (executor) {
+      session = await executor.createSession({
+        sessionKey: 'othello-policy-value',
+        modelUrl: targetModel,
+        metaUrl: targetMeta,
+        executionProviders: ['wasm']
+      });
+      meta = session && session.meta;
+    } else {
+      let modelSource = targetModel;
+      if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
+        try {
+          modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
+        } catch (assetErr) {
+          modelSource = targetModel;
+        }
       }
+      session = await ortApi.InferenceSession.create(modelSource, { executionProviders: ['wasm'] });
+      meta = await loadMetaJson(targetMeta, fetchImpl);
     }
-    const session = await ortApi.InferenceSession.create(modelSource, { executionProviders: ['wasm'] });
-    const meta = await loadMetaJson(targetMeta, fetchImpl);
     _session = session;
     _meta = meta || { inputDim: INPUT_DIM, outputDim: BOARD_CELLS };
     _inputName = (_meta && _meta.inputName) || (session.inputNames && session.inputNames[0]) || 'obs';
@@ -436,13 +465,27 @@ function actionIndexFromMove(move: any): number {
 
 async function runInference(context: any) {
   if (!_session) return null;
-  const ortApi = resolveOrtApi(false);
-  if (!ortApi) return null;
   const startedAt = readNowMs();
   const x = buildInputVector(context);
-  const feeds: any = {};
-  feeds[_inputName] = new ortApi.Tensor('float32', x, [1, x.length]);
   try {
+    const executor = _config.inferenceExecutor;
+    if (executor && typeof executor.runSession === 'function') {
+      return await executor.runSession({
+        session: _session,
+        inputName: _inputName,
+        type: 'float32',
+        data: x,
+        dims: [1, x.length],
+        decisionEpoch: context && context.decisionEpoch,
+        stateVersion: context && context.stateVersion,
+        turnNumber: context && context.turnNumber,
+        signal: context && context.abortSignal
+      });
+    }
+    const ortApi = resolveOrtApi(false);
+    if (!ortApi) return null;
+    const feeds: any = {};
+    feeds[_inputName] = new ortApi.Tensor('float32', x, [1, x.length]);
     return await _session.run(feeds);
   } finally {
     const elapsed = Math.max(0, readNowMs() - startedAt);
