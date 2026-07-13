@@ -147,15 +147,15 @@
         inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.18);
 }
 
-/* 標準オセロの星マス。対象マスの中央へ、盤面の質感を邪魔しない暗い小さな点を置く。 */
+/* 標準オセロの星。外周から2マス分内側の罫線交点へ、暗い小さな点を置く。 */
 #board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="2"][data-col="2"]::after,
-#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="2"][data-col="5"]::after,
-#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="5"][data-col="2"]::after,
-#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="5"][data-col="5"]::after {
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="2"][data-col="6"]::after,
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="6"][data-col="2"]::after,
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="6"][data-col="6"]::after {
     content: "";
     position: absolute;
-    top: 50%;
-    left: 50%;
+    top: 0;
+    left: 0;
     width: calc(8px * var(--board-cell-scale, 1));
     height: calc(8px * var(--board-cell-scale, 1));
     border-radius: 50%;
