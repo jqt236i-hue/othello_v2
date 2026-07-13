@@ -1,6 +1,6 @@
 {
   "version": "2026-07-13",
-  "generatedAt": "2026-07-13T00:44:18.057Z",
+  "generatedAt": "2026-07-13T01:59:59.463Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -124,11 +124,11 @@
     },
     {
       "path": "assets/images/special-stones/rakurai-black.png",
-      "sha256": "59e18edfcf5622dc78bbe4080548203f412225f24e4c1ddee54545a8b1c73984"
+      "sha256": "338ceb262b9ff9fa402a8e578ac70d1f48468813ed4bfe43f67db12c95a99eec"
     },
     {
       "path": "assets/images/special-stones/rakurai-white.png",
-      "sha256": "9ccf230b9d813980f6f8020cf1235672ef4c0e27adda72dc091384950fc42f82"
+      "sha256": "fd9d6678666bcf8000f032e7678204fed2c6e0c7587ae472b2835fd83bdc1256"
     },
     {
       "path": "assets/images/special-stones/regen_stone-black.png",
