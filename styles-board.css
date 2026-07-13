@@ -535,7 +535,24 @@
     }
 }
 
+.cell.has-disc::before,
+.disc::before {
+    background: radial-gradient(
+        ellipse at var(--shadow-gradient-origin-x) var(--shadow-gradient-origin-y),
+        color-mix(in srgb, var(--shadow-layer-color) 60%, transparent) 0%,
+        color-mix(in srgb, var(--shadow-layer-color) 52%, transparent) 30%,
+        color-mix(in srgb, var(--shadow-layer-color) 38%, transparent) 52%,
+        color-mix(in srgb, var(--shadow-layer-color) 23%, transparent) 70%,
+        color-mix(in srgb, var(--shadow-layer-color) 10%, transparent) 84%,
+        color-mix(in srgb, var(--shadow-layer-color) 4%, transparent) 94%,
+        transparent 100%
+    );
+}
+
 .cell.has-disc::before {
+    --shadow-layer-color: var(--cell-contact-shadow-color);
+    --shadow-gradient-origin-x: 44%;
+    --shadow-gradient-origin-y: 44%;
     content: "";
     position: absolute;
     left: 6%;
@@ -543,14 +560,6 @@
     bottom: 7%;
     height: 31%;
     border-radius: 50%;
-    background: radial-gradient(
-        ellipse at 44% 44%,
-        color-mix(in srgb, var(--cell-contact-shadow-color) 100%, transparent) 0%,
-        color-mix(in srgb, var(--cell-contact-shadow-color) 80%, transparent) 44%,
-        color-mix(in srgb, var(--cell-contact-shadow-color) 34%, transparent) 76%,
-        transparent 90%
-    );
-    filter: blur(var(--cell-contact-shadow-blur));
     transform: translate(var(--cell-contact-shadow-offset-x), var(--cell-contact-shadow-offset-y)) scale(1.14, 0.96);
     box-shadow: 0 -1px 2px var(--cell-contact-shadow-highlight);
     opacity: 0;
@@ -1090,19 +1099,13 @@ body.time-stop-active #board .cell.time-stop-legal-emphasis.has-board-bonus .boa
 }
 
 .disc::before {
+    --shadow-layer-color: var(--stone-shadow-color);
+    --shadow-gradient-origin-x: 40%;
+    --shadow-gradient-origin-y: 34%;
     content: "";
     position: absolute;
     inset: 30% -14% -26% 20%;
     border-radius: 50%;
-    background:
-        radial-gradient(
-            ellipse at 40% 34%,
-            color-mix(in srgb, var(--stone-shadow-color) 100%, transparent) 0%,
-            color-mix(in srgb, var(--stone-shadow-color) 82%, transparent) 38%,
-            color-mix(in srgb, var(--stone-shadow-color) 38%, transparent) 72%,
-            transparent 90%
-        );
-    filter: blur(var(--stone-shadow-blur));
     transform: translate(var(--stone-shadow-offset-x), var(--stone-shadow-offset-y)) scale(1.30, 0.78);
     transform-origin: center;
     opacity: 0;

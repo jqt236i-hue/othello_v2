@@ -307,7 +307,6 @@
     --stone-shadow-color: rgba(0, 0, 0, 0.84);
     --stone-shadow-offset-x: 5px;
     --stone-shadow-offset-y: 9px;
-    --stone-shadow-blur: 5px;
     --stone-shadow-spread: 0px;
     --stone-keyline-width: 0px;
     --stone-keyline-color: transparent;
@@ -321,7 +320,6 @@
     /* Per-cell contact shadow for occupied cells */
     --cell-contact-shadow-offset-x: 4px;
     --cell-contact-shadow-offset-y: 6px;
-    --cell-contact-shadow-blur: 6px;
     --cell-contact-shadow-color: rgba(0, 0, 0, 0.68);
     --cell-contact-shadow-highlight: rgba(255, 255, 255, 0.06);
 }

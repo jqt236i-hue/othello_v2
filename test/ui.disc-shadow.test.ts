@@ -8,11 +8,18 @@ function extractRuleBody(css: string, selector: string): string {
     return match ? match[1] : '';
 }
 
+function extractRuleBodyContaining(css: string, selector: string, marker: string): string {
+    const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const matches = Array.from(css.matchAll(new RegExp(`${escapedSelector}\\s*\\{([\\s\\S]*?)\\n\\}`, 'g')));
+    const match = matches.find((candidate) => candidate[1].includes(marker));
+    expect(match).toBeDefined();
+    return match ? match[1] : '';
+}
+
 describe('stone shadow styles', () => {
     test('styles-variables.css contains shadow variables', () => {
         const css = fs.readFileSync(path.join(__dirname, '..', 'styles-variables.css'), 'utf8');
         expect(css).toMatch(/--stone-shadow-color/);
-        expect(css).toMatch(/--stone-shadow-blur/);
         expect(css).toMatch(/--stone-shadow-offset-x/);
         expect(css).toMatch(/--stone-shadow-offset-y/);
         expect(css).toMatch(/--stone-keyline-width/);
@@ -20,6 +27,8 @@ describe('stone shadow styles', () => {
         expect(css).toMatch(/--board-shadow-outer/);
         expect(css).toMatch(/--cell-contact-shadow-color/);
         expect(css).toMatch(/--cell-contact-shadow-offset-x/);
+        expect(css).not.toMatch(/--stone-shadow-blur/);
+        expect(css).not.toMatch(/--cell-contact-shadow-blur/);
     });
 
     test('styles-stone-shadows.css enables only the canonical cell/disc shadow selectors', () => {
@@ -28,8 +37,8 @@ describe('stone shadow styles', () => {
         const discEnabledShadowBlock = extractRuleBody(css, 'html.stone-shadow-enabled .disc::before');
         expect(css).toMatch(/html\.stone-shadow-enabled\s+\.cell\.has-disc::before/);
         expect(css).toMatch(/html\.stone-shadow-enabled\s+\.disc::before/);
-        expect(cellEnabledShadowBlock).toMatch(/opacity:\s*0\.68/);
-        expect(discEnabledShadowBlock).toMatch(/opacity:\s*0\.76/);
+        expect(cellEnabledShadowBlock).toMatch(/opacity:\s*0\.48/);
+        expect(discEnabledShadowBlock).toMatch(/opacity:\s*0\.53/);
         expect(css).not.toMatch(/:has\(/);
         expect(css).not.toMatch(/\.disc::after/);
         expect(css).not.toMatch(/special-stone-img/);
@@ -42,8 +51,9 @@ describe('stone shadow styles', () => {
         const blackDiscBlock = extractRuleBody(css, '.disc.black');
         const whiteDiscBlock = extractRuleBody(css, '.disc.white');
         const cellContactShadowBlock = extractRuleBody(css, '.cell.has-disc::before');
-        const discShadowBlock = extractRuleBody(css, '.disc::before');
-        expect(css).toMatch(/#board[\s\S]*box-shadow:[\s\S]*var\(--board-shadow-outer\)/);
+        const discShadowBlock = extractRuleBodyContaining(css, '.disc::before', '--shadow-layer-color:');
+        const sharedShadowBlock = css.match(/\.cell\.has-disc::before,\s*\.disc::before\s*\{([\s\S]*?)\n\}/);
+        expect(css).toMatch(/#board[\s\S]*filter:[\s\S]*var\(--board-contour-shadow\)/);
         expect(css).toMatch(/\.cell\.has-disc::before/);
         expect(css).toMatch(/var\(--cell-contact-shadow-color\)/);
         expect(css).toMatch(/var\(--cell-contact-shadow-offset-x\)/);
@@ -59,22 +69,28 @@ describe('stone shadow styles', () => {
         expect(discRootBlock).not.toBeNull();
         expect(discRootBlock[0]).not.toMatch(/transition:/);
         expect(css).not.toMatch(/html\.stone-shadow-enabled\s+\.disc__face/);
-        expect(css).toMatch(/radial-gradient/);
+        expect(sharedShadowBlock).not.toBeNull();
+        expect(sharedShadowBlock && sharedShadowBlock[1]).toMatch(/radial-gradient/);
+        expect(sharedShadowBlock && sharedShadowBlock[1]).toMatch(/var\(--shadow-layer-color\)/);
+        expect(sharedShadowBlock && sharedShadowBlock[1]).toMatch(/var\(--shadow-layer-color\)\s+60%/);
+        expect(sharedShadowBlock && sharedShadowBlock[1]).toMatch(/transparent\s+100%/);
         expect(css).toMatch(/var\(--stone-shadow-offset-x\)/);
         expect(css).toMatch(/var\(--stone-shadow-offset-y\)/);
-        expect(cellContactShadowBlock).toMatch(/radial-gradient/);
-        expect(cellContactShadowBlock).toMatch(/filter:\s*blur\(var\(--cell-contact-shadow-blur\)\)/);
+        expect(cellContactShadowBlock).toMatch(/--shadow-layer-color:\s*var\(--cell-contact-shadow-color\)/);
+        expect(cellContactShadowBlock).not.toMatch(/filter:\s*blur/);
         expect(cellContactShadowBlock).toMatch(/left:\s*6%/);
         expect(cellContactShadowBlock).toMatch(/right:\s*2%/);
         expect(cellContactShadowBlock).toMatch(/bottom:\s*7%/);
         expect(cellContactShadowBlock).toMatch(/height:\s*31%/);
-        expect(cellContactShadowBlock).toMatch(/ellipse at 44% 44%/);
+        expect(cellContactShadowBlock).toMatch(/--shadow-gradient-origin-x:\s*44%/);
+        expect(cellContactShadowBlock).toMatch(/--shadow-gradient-origin-y:\s*44%/);
         expect(cellContactShadowBlock).toMatch(/translate\(var\(--cell-contact-shadow-offset-x\),\s*var\(--cell-contact-shadow-offset-y\)\)\s*scale\(1\.14,\s*0\.96\)/);
         expect(cellContactShadowBlock).toMatch(/z-index:\s*2/);
-        expect(discShadowBlock).toMatch(/radial-gradient/);
-        expect(discShadowBlock).toMatch(/filter:\s*blur\(var\(--stone-shadow-blur\)\)/);
+        expect(discShadowBlock).toMatch(/--shadow-layer-color:\s*var\(--stone-shadow-color\)/);
+        expect(discShadowBlock).not.toMatch(/filter:\s*blur/);
         expect(discShadowBlock).toMatch(/inset:\s*30%\s+-14%\s+-26%\s+20%/);
-        expect(discShadowBlock).toMatch(/ellipse at 40% 34%/);
+        expect(discShadowBlock).toMatch(/--shadow-gradient-origin-x:\s*40%/);
+        expect(discShadowBlock).toMatch(/--shadow-gradient-origin-y:\s*34%/);
         expect(discShadowBlock).toMatch(/translate\(var\(--stone-shadow-offset-x\),\s*var\(--stone-shadow-offset-y\)\)\s*scale\(1\.30,\s*0\.78\)/);
         expect(blackDiscBlock).toMatch(/--stone-keyline-width:\s*max\(1px,\s*calc\(1px \* var\(--layout-stage-scale\)\)\)/);
         expect(blackDiscBlock).toMatch(/--stone-keyline-color:\s*rgba\(255,\s*255,\s*244,\s*0\.16\)/);
