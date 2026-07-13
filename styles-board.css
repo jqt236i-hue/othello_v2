@@ -156,14 +156,15 @@
     position: absolute;
     top: 50%;
     left: 50%;
-    width: calc(7px * var(--board-cell-scale, 1));
-    height: calc(7px * var(--board-cell-scale, 1));
+    width: calc(8px * var(--board-cell-scale, 1));
+    height: calc(8px * var(--board-cell-scale, 1));
     border-radius: 50%;
-    background: rgba(2, 10, 9, 0.68);
+    background: rgba(2, 10, 9, 0.90);
     box-shadow:
-        0 0 0 calc(1px * var(--board-cell-scale, 1)) rgba(177, 224, 194, 0.07),
-        0 calc(1px * var(--board-cell-scale, 1)) calc(2px * var(--board-cell-scale, 1)) rgba(0, 0, 0, 0.24);
+        0 0 0 calc(1px * var(--board-cell-scale, 1)) rgba(190, 232, 207, 0.34),
+        0 calc(1px * var(--board-cell-scale, 1)) calc(2px * var(--board-cell-scale, 1)) rgba(0, 0, 0, 0.38);
     transform: translate(-50%, -50%);
+    z-index: 7;
     pointer-events: none;
 }
 
