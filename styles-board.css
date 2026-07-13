@@ -148,10 +148,10 @@
 }
 
 /* 標準オセロの星マス。盤面の質感を邪魔しないよう、暗い小さな点で控えめに示す。 */
-#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="1"][data-col="1"]::after,
-#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="1"][data-col="6"]::after,
-#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="6"][data-col="1"]::after,
-#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="6"][data-col="6"]::after {
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="2"][data-col="2"]::after,
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="2"][data-col="5"]::after,
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="5"][data-col="2"]::after,
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="5"][data-col="5"]::after {
     content: "";
     position: absolute;
     top: 50%;
