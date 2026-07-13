@@ -166,11 +166,12 @@ describe('network room list style', () => {
     expect(mobileSettingsBtnBlock).toMatch(/position:\s*static/);
   });
 
-  test('部屋作成と更新ボタンはホバーで光彩と押し込み状態を持つ', () => {
+  test('部屋作成と更新ボタンは光彩を持ち、更新文字は背景枠からずれない', () => {
     const css = readRepoTextFile('styles-layout-info.css');
     const createBlock = readCssRuleBlock(css, '#networkActionRow #networkCreateBtn');
     const createHoverBlock = readCssRuleBlock(css, '#networkActionRow #networkCreateBtn:hover,\n#networkActionRow #networkCreateBtn:focus-visible');
     const createActiveBlock = readCssRuleBlock(css, '#networkActionRow #networkCreateBtn:active');
+    const refreshHeaderBlock = readCssRuleBlock(css, '#networkRoomListHeader');
     const refreshBlock = readCssRuleBlock(css, '#networkRoomListRefreshBtn');
     const refreshHoverBlock = readCssRuleBlock(css, '#networkRoomListRefreshBtn:hover,\n#networkRoomListRefreshBtn:focus-visible');
     const refreshActiveBlock = readCssRuleBlock(css, '#networkRoomListRefreshBtn:active');
@@ -180,12 +181,20 @@ describe('network room list style', () => {
     expect(createHoverBlock).toMatch(/drop-shadow\(0 0 calc\(8px \* var\(--layout-stage-scale\)\) rgba\(36,\s*244,\s*255,\s*0\.24\)\)/);
     expect(createHoverBlock).toMatch(/transform:\s*translateY\(calc\(-1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(createActiveBlock).toMatch(/transform:\s*translateY\(calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
-    expect(refreshBlock).toMatch(/transition:\s*color 160ms ease,\s*filter 160ms ease,\s*text-shadow 160ms ease,\s*transform 160ms ease/);
-    expect(refreshBlock).toMatch(/transform:\s*translate\(0,\s*clamp\(18px,\s*1\.4vw,\s*24px\)\)/);
+    expect(refreshHeaderBlock).toMatch(/--network-room-refresh-width:\s*10\.17cqw/);
+    expect(refreshHeaderBlock).toMatch(/--network-room-refresh-height:\s*3\.53cqw/);
+    expect(refreshHeaderBlock).toMatch(/--network-room-refresh-font-size:\s*1\.56cqw/);
+    expect(refreshHeaderBlock).toMatch(/--network-room-refresh-offset-y:\s*1\.87cqw/);
+    expect(refreshHeaderBlock).toMatch(/container-type:\s*inline-size/);
+    expect(refreshBlock).toMatch(/width:\s*var\(--network-room-refresh-width\)/);
+    expect(refreshBlock).toMatch(/height:\s*var\(--network-room-refresh-height\)/);
+    expect(refreshBlock).toMatch(/font-size:\s*var\(--network-room-refresh-font-size\)/);
+    expect(refreshBlock).toMatch(/transform:\s*translateY\(var\(--network-room-refresh-offset-y\)\)/);
+    expect(refreshBlock).toMatch(/transition:\s*color 160ms ease,\s*filter 160ms ease,\s*text-shadow 160ms ease/);
+    expect(refreshBlock).not.toMatch(/transition:[^;]*transform/);
     expect(refreshHoverBlock).toMatch(/color:\s*#fff7ec/);
-    expect(refreshHoverBlock).toMatch(/translate\(0,\s*clamp\(18px,\s*1\.4vw,\s*24px\)\)/);
-    expect(refreshHoverBlock).toMatch(/translateY\(calc\(-1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
-    expect(refreshActiveBlock).toMatch(/translateY\(calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
+    expect(refreshHoverBlock).not.toMatch(/transform\s*:/);
+    expect(refreshActiveBlock).not.toMatch(/transform\s*:/);
   });
 
   test('観戦ボタンは参照画像の暗色ボタンとして表示する', () => {
