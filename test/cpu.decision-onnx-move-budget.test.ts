@@ -51,4 +51,23 @@ describe('cpu decision ONNX move budget', () => {
       expect.stringContaining('timeout budget=')
     );
   });
+
+  test('passes the budget AbortSignal into the ONNX inference context', async () => {
+    const chooseMove = jest.fn(async (_moves, context) => {
+      expect(context.abortSignal).toBeInstanceOf(AbortSignal);
+      return { row: 2, col: 4 };
+    });
+    const deps = createBaseDeps({
+      resolvePolicyOnnxRuntime: jest.fn(() => ({ chooseMove })),
+      awaitCpuPromiseWithinBudget: jest.fn((factory) => factory(new AbortController().signal)),
+      refineOnnxMoveByTacticalPlan: jest.fn((_moves, selected) => selected)
+    });
+    const mod = createCpuDecisionOnnxMove(deps as any);
+
+    await expect(mod.selectMoveFromOnnxPolicyAsync([
+      { row: 2, col: 4, flips: [{ row: 3, col: 4 }] }
+    ], 'white', 1)).resolves.toMatchObject({ row: 2, col: 4 });
+
+    expect(chooseMove).toHaveBeenCalledTimes(1);
+  });
 });

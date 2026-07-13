@@ -69,7 +69,7 @@
     ]
   },
   "browser-vite/features/onnx.ts": {
-    "file": "assets/onnx-BT6Qq0p7.js",
+    "file": "assets/onnx-B2CAnx2s.js",
     "name": "onnx",
     "src": "browser-vite/features/onnx.ts",
     "isDynamicEntry": true,
@@ -78,7 +78,7 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-D69LPOhf.js",
+    "file": "assets/index.vite-CUWDUf-r.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,

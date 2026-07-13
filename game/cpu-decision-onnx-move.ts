@@ -64,11 +64,15 @@ export function createCpuDecisionOnnxMove(deps: CpuDecisionOnnxMoveDeps) {
     try {
       const handCardIds = deps.getHandCardIdsForPlayer(playerKey);
       const selected = await deps.awaitCpuPromiseWithinBudget(
-        () => runtime.chooseMove(
+        (abortSignal: AbortSignal | null) => runtime.chooseMove(
           prioritizedCandidateMoves,
           useOthelloOnnx
-            ? { playerKey, level, board, legalMovesCount: prioritizedCandidateMoves.length }
-            : deps.buildOnnxContext(playerKey, level, prioritizedCandidateMoves.length, handCardIds, null)
+            ? { playerKey, level, board, legalMovesCount: prioritizedCandidateMoves.length, abortSignal }
+            : Object.assign(
+              {},
+              deps.buildOnnxContext(playerKey, level, prioritizedCandidateMoves.length, handCardIds, null),
+              { abortSignal }
+            )
         ),
         budgetMs,
         deps.getCpuOnnxBudgetTimeout()

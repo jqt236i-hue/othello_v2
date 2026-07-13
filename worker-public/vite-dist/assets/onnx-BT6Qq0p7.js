@@ -1,1 +1,0 @@
-import{t as e}from"./feature-registry-BPA-wCKa.js";function t(t){return e(`onnx`,t,[`game/ai/othello-onnx-runtime`,`game/ai/policy-onnx-runtime`])}export{t as loadOptionalFeature};

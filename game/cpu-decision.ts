@@ -2824,19 +2824,40 @@ async function awaitCpuPromiseWithinBudget(promiseFactory: any, budgetMs: any, t
         !Number.isFinite(budgetMs) ||
         budgetMs <= 0
     ) {
-        return promiseFactory();
+        return promiseFactory(null);
     }
     const timerService = getCpuTimerService();
     if (!timerService) {
-        return promiseFactory();
+        return promiseFactory(null);
     }
-    return new Promise((resolve) => {
+    const abortController = typeof AbortController === 'function' ? new AbortController() : null;
+    return new Promise((resolve, reject) => {
+        let settled = false;
         let timeoutId: any = null;
-        promiseFactory().then((result: any) => {
+        let pending: Promise<any>;
+        try {
+            pending = Promise.resolve(promiseFactory(abortController ? abortController.signal : null));
+        } catch (error) {
+            reject(error);
+            return;
+        }
+        pending.then((result: any) => {
+            if (settled) return;
+            settled = true;
             if (timeoutId !== null) timerService.clearTimeout(timeoutId);
             resolve(result);
+        }, (error: any) => {
+            if (settled) return;
+            settled = true;
+            if (timeoutId !== null) timerService.clearTimeout(timeoutId);
+            reject(error);
         });
-        timeoutId = timerService.setTimeout(() => resolve(timeoutValue), budgetMs);
+        timeoutId = timerService.setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            if (abortController) abortController.abort();
+            resolve(timeoutValue);
+        }, budgetMs);
     });
 }
 

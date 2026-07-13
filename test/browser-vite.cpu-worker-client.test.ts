@@ -84,6 +84,45 @@ describe('CpuWorkerClient', () => {
     expect(client.getStatus()).toMatchObject({ pendingRequests: 0, workerCreatedCount: 1, requestCount: 1 });
   });
 
+  test('probes Worker readiness without creating an ONNX session', async () => {
+    const worker = new FakeWorker();
+    const client = new CpuWorkerClient({ workerFactory: () => worker });
+    const pending = client.probe();
+    const request = worker.messages[0].message as CpuWorkerRequest;
+    expect(request.operation).toBe(CPU_WORKER_OPERATIONS.PING);
+    worker.emit(successFor(request, { ready: true }));
+
+    await expect(pending).resolves.toBe(true);
+    expect(client.getStatus()).toMatchObject({ workerCreatedCount: 1, requestCount: 1 });
+  });
+
+  test('binds browser timer functions to the global object before starting a request', async () => {
+    const worker = new FakeWorker();
+    const setTimeoutFn = jest.fn(function browserSetTimeout(this: unknown, handler: TimerHandler) {
+      if (this !== globalThis) throw new TypeError('Illegal invocation');
+      return setTimeout(handler, 1000);
+    }) as unknown as typeof setTimeout;
+    const clearTimeoutFn = jest.fn(function browserClearTimeout(this: unknown, timeoutId: any) {
+      if (this !== globalThis) throw new TypeError('Illegal invocation');
+      clearTimeout(timeoutId);
+    }) as unknown as typeof clearTimeout;
+    const client = new CpuWorkerClient({ workerFactory: () => worker, setTimeoutFn, clearTimeoutFn });
+    const pending = client.request(CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION, createSessionPayload());
+    const request = worker.messages[0].message as CpuWorkerRequest;
+    worker.emit(successFor(request, {
+      sessionKey: 'policy-placement',
+      inputNames: ['obs'],
+      outputNames: ['logits'],
+      meta: null,
+      executionProviders: ['wasm']
+    }));
+
+    await expect(pending).resolves.toBeTruthy();
+    expect(setTimeoutFn).toHaveBeenCalledTimes(1);
+    expect(clearTimeoutFn).toHaveBeenCalledTimes(1);
+    expect(client.getStatus().pendingRequests).toBe(0);
+  });
+
   test('cancels with AbortSignal and ignores a late response for that request', async () => {
     const worker = new FakeWorker();
     const client = new CpuWorkerClient({ workerFactory: () => worker });
@@ -191,7 +230,9 @@ class AutoWorker extends FakeWorker {
     const request = message as CpuWorkerRequest;
     if (!request || request.kind !== 'request') return;
     queueMicrotask(() => {
-      if (request.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
+      if (request.operation === CPU_WORKER_OPERATIONS.PING) {
+        this.emit(successFor(request, { ready: true }));
+      } else if (request.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
         this.emit(successFor(request, {
           sessionKey: (request.payload as any).sessionKey,
           inputNames: ['obs'],
@@ -212,6 +253,27 @@ class AutoWorker extends FakeWorker {
 }
 
 describe('OnnxWorkerInferenceExecutor recovery', () => {
+  test('can constrain browser Worker inference to the deployable WASM provider', async () => {
+    const worker = new AutoWorker();
+    const client = new CpuWorkerClient({ workerFactory: () => worker });
+    const executor = new OnnxWorkerInferenceExecutor({
+      client,
+      baseUrl: 'https://example.test/game/',
+      wasmPathsUrl: 'https://example.test/node_modules/onnxruntime-web/dist/',
+      allowedExecutionProviders: ['wasm']
+    });
+
+    await executor.createSession({
+      sessionKey: 'policy-placement',
+      modelUrl: '../data/model.onnx',
+      metaUrl: '../data/model.meta.json',
+      executionProviders: ['webgpu', 'wasm']
+    });
+
+    const request = worker.messages[0].message as CpuWorkerRequest;
+    expect((request.payload as any).executionProviders).toEqual(['wasm']);
+  });
+
   test('rehydrates its session recipe after a Worker crash before running inference', async () => {
     const workers: AutoWorker[] = [];
     const client = new CpuWorkerClient({ workerFactory: () => {

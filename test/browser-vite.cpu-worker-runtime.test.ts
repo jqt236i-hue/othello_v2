@@ -29,6 +29,20 @@ function createPayload() {
 }
 
 describe('Dedicated CPU Worker runtime', () => {
+  test('answers a readiness probe without loading ORT', async () => {
+    const ortLoader = jest.fn();
+    const runtime = createCpuWorkerRuntime({ ortLoader });
+
+    const response: any = await runtime.handleMessage(request(
+      CPU_WORKER_OPERATIONS.PING,
+      { probe: true }
+    ));
+
+    expect(response).toMatchObject({ ok: true, result: { ready: true } });
+    expect(ortLoader).not.toHaveBeenCalled();
+    expect(runtime.getStatus().ortLoaded).toBe(false);
+  });
+
   test('owns ORT session creation, tensor construction, inference, and release', async () => {
     const run = jest.fn(async (feeds: any) => ({
       logits: { type: 'float32', data: new Float32Array([0.1, 0.9]), dims: [1, 2] },

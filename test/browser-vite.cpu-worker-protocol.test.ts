@@ -20,6 +20,24 @@ function createIdentity() {
 }
 
 describe('CPU Worker protocol', () => {
+  test('validates a readiness probe without any ONNX payload', () => {
+    const request = parseCpuWorkerRequest({
+      ...createIdentity(),
+      operation: CPU_WORKER_OPERATIONS.PING,
+      kind: 'request',
+      payload: { probe: true }
+    });
+    const response = parseCpuWorkerResponse({
+      ...request,
+      kind: 'response',
+      ok: true,
+      result: { ready: true }
+    });
+
+    expect(request.payload).toEqual({ probe: true });
+    expect(response.ok && response.result).toEqual({ ready: true });
+  });
+
   test('validates a versioned inference request and preserves its authority identity', () => {
     const data = new Float32Array([1, 2, 3, 4]);
     const request = parseCpuWorkerRequest({

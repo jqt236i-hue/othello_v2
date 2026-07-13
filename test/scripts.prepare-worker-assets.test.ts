@@ -39,6 +39,19 @@ describe('prepare-worker-assets', () => {
         expect(VERIFY_DIRS).toContain('vite-dist');
     });
 
+    test('mirrors only the deployable WASM runtime used by the CPU Worker', () => {
+        expect(OPTIONAL_FILES).toEqual(expect.arrayContaining([
+            'node_modules/onnxruntime-web/dist/ort.min.js',
+            'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs',
+            'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm'
+        ]));
+        expect(OPTIONAL_FILES).not.toEqual(expect.arrayContaining([
+            'node_modules/onnxruntime-web/dist/ort.webgpu.min.js',
+            'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm',
+            'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm'
+        ]));
+    });
+
     test('verifies worker runtime root files are mirrored', () => {
         expect(ROOT_FILES).toContain('entry-browser.js');
         expect(ROOT_FILES).toContain('public/runtime.js');

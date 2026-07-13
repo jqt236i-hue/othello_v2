@@ -230,12 +230,27 @@ export function createCpuWorkerRuntime(options: CpuWorkerRuntimeOptions = {}) {
 
   const createSession = async (payload: OnnxCreateSessionPayload) => {
     if (!fetchImpl) throw new Error('fetch is unavailable in the CPU Worker');
-    const ort = await readOrt(payload.wasmPathsUrl, payload.executionProviders);
+    let ort: OrtModule;
+    try {
+      ort = await readOrt(payload.wasmPathsUrl, payload.executionProviders);
+    } catch (error) {
+      throw new Error(`failed to load Worker ORT: ${sanitizeErrorMessage(error)}`);
+    }
     configureWasm(ort, payload.wasmPathsUrl);
-    const modelSource = await loadOnnxModelSource(fetchImpl, payload.modelUrl);
-    const session = await ort.InferenceSession.create(modelSource, {
-      executionProviders: payload.executionProviders.slice()
-    });
+    let modelSource: Uint8Array;
+    try {
+      modelSource = await loadOnnxModelSource(fetchImpl, payload.modelUrl);
+    } catch (error) {
+      throw new Error(`failed to load Worker ONNX model: ${sanitizeErrorMessage(error)}`);
+    }
+    let session: any;
+    try {
+      session = await ort.InferenceSession.create(modelSource, {
+        executionProviders: payload.executionProviders.slice()
+      });
+    } catch (error) {
+      throw new Error(`failed to create Worker ONNX session: ${sanitizeErrorMessage(error)}`);
+    }
     const next: WorkerOnnxSession = {
       session,
       inputNames: Array.isArray(session.inputNames) ? session.inputNames.slice() : [],
@@ -285,6 +300,9 @@ export function createCpuWorkerRuntime(options: CpuWorkerRuntimeOptions = {}) {
   };
 
   const handleRequest = async (request: CpuWorkerRequest): Promise<CpuWorkerSuccessResponse['result']> => {
+    if (request.operation === CPU_WORKER_OPERATIONS.PING) {
+      return { ready: true };
+    }
     if (request.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
       return createSession(request.payload as OnnxCreateSessionPayload);
     }

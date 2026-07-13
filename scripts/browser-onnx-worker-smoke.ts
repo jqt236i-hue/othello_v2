@@ -4,12 +4,13 @@ import * as path from 'path';
 const RuntimeHelpers = require(path.join(process.cwd(), 'test', 'e2e', 'e2e-runtime-helpers.js'));
 
 interface LaneProbe {
-  lane: 'classic' | 'vite';
+  lane: 'classic' | 'vite' | 'vite-worker-fallback';
   digest: string;
   outputLength: number;
   selectedMove: { row: number; col: number } | null;
   windowOrt: boolean;
   mainThreadOrtScripts: number;
+  workerExecutor: boolean;
   startupWorkerRequests: string[];
   startupOrtRequests: string[];
   workerRequests: string[];
@@ -79,13 +80,26 @@ async function openLane(browser: Browser, baseUrl: string, lane: 'classic' | 'vi
   return { context, page, requestedUrls, pageErrors, consoleErrors, resourceErrors };
 }
 
-async function runLane(browser: Browser, baseUrl: string, lane: 'classic' | 'vite'): Promise<LaneProbe> {
+async function runLane(
+  browser: Browser,
+  baseUrl: string,
+  lane: 'classic' | 'vite',
+  options: { blockWorker?: boolean } = {}
+): Promise<LaneProbe> {
   const runtime = await openLane(browser, baseUrl, lane);
   const startupWorkerRequests = requestUrlsMatching(runtime.requestedUrls, /\/worker-entry-[^/]+\.js(?:\?|$)/);
   const startupOrtRequests = requestUrlsMatching(runtime.requestedUrls, /\/onnxruntime-web\/dist\/ort(?:\.webgpu)?\.min\.js(?:\?|$)/);
   try {
-    const result = await runtime.page.evaluate(async () => {
+    const result = await runtime.page.evaluate(async ({ blockWorker }) => {
       const root = window as any;
+      if (blockWorker) {
+        Object.defineProperty(root, 'Worker', {
+          configurable: true,
+          value: function BlockedWorker() {
+            throw new DOMException('Worker blocked by test policy', 'SecurityError');
+          }
+        });
+      }
       if (typeof root.loadLazyRuntimeGroup !== 'function') throw new Error('loadLazyRuntimeGroup is unavailable');
       await root.loadLazyRuntimeGroup('onnx');
       if (typeof root.require !== 'function') throw new Error('browser module runtime is unavailable');
@@ -102,16 +116,28 @@ async function runLane(browser: Browser, baseUrl: string, lane: 'classic' | 'vit
       });
       const modelUrl = new URL('data/models/policy-net.onnx', document.baseURI).href;
       const metaUrl = new URL('data/models/policy-net.onnx.meta.json', document.baseURI).href;
-      const fetchImpl = root.__CARD_REVERSI_ONNX_WORKER_EXECUTOR__
-        ? window.fetch.bind(window)
-        : ((url: RequestInfo | URL, init?: RequestInit) => {
-            if (String(url).endsWith('.onnx')) return Promise.reject(new Error('use direct ORT URL load'));
-            return window.fetch(url, init);
-          });
-      const loaded = await policyRuntime.loadFromUrl(modelUrl, metaUrl, fetchImpl);
+      let loaded = false;
+      if (root.__CARD_REVERSI_ONNX_WORKER_EXECUTOR__) {
+        loaded = await policyRuntime.loadFromUrl(modelUrl, metaUrl, window.fetch.bind(window));
+      } else {
+        const [modelResponse, metaResponse] = await Promise.all([
+          window.fetch(modelUrl, { cache: 'no-store' }),
+          window.fetch(metaUrl, { cache: 'no-store' })
+        ]);
+        if (!modelResponse.ok || !metaResponse.ok) throw new Error('classic ONNX fixture fetch failed');
+        const modelBytes = new Uint8Array(await modelResponse.arrayBuffer());
+        const meta = await metaResponse.json();
+        const session = await root.ort.InferenceSession.create(modelBytes, { executionProviders: ['wasm'] });
+        policyRuntime.__setLoadedForTest(session, meta);
+        loaded = true;
+      }
       if (!loaded) {
         const status = policyRuntime.getStatus && policyRuntime.getStatus();
-        throw new Error(`policy ONNX model did not load: ${status && status.lastError || 'unknown error'}`);
+        const clientStatus = root.__CARD_REVERSI_CPU_WORKER_CLIENT__?.getStatus?.() || null;
+        throw new Error(
+          `policy ONNX model did not load: ${status && status.lastError || 'unknown error'}; ` +
+          `client=${JSON.stringify(clientStatus)}`
+        );
       }
       const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
       board[3][3] = -1;
@@ -146,15 +172,16 @@ async function runLane(browser: Browser, baseUrl: string, lane: 'classic' | 'vit
         outputLength: tensor.data.length,
         selectedMove,
         windowOrt: !!root.ort,
+        workerExecutor: !!root.__CARD_REVERSI_ONNX_WORKER_EXECUTOR__,
         mainThreadOrtScripts: document.querySelectorAll('script[src*="onnxruntime-web/dist/ort"]').length,
         clientStatus: root.__CARD_REVERSI_CPU_WORKER_CLIENT__
           ? root.__CARD_REVERSI_CPU_WORKER_CLIENT__.getStatus()
           : null
       };
-    });
+    }, { blockWorker: options.blockWorker === true });
     await runtime.page.waitForTimeout(100);
     return {
-      lane,
+      lane: options.blockWorker ? 'vite-worker-fallback' : lane,
       ...result,
       startupWorkerRequests,
       startupOrtRequests,
@@ -178,6 +205,7 @@ function evaluateOnnxWorkerSmoke(classic: LaneProbe, vite: LaneProbe): string[] 
     errors.push('classic/Vite selected move mismatch');
   }
   if (!classic.windowOrt) errors.push('classic lane did not expose the expected main-thread ORT API');
+  if (!vite.workerExecutor) errors.push('Vite lane did not retain the ready Worker executor');
   if (vite.windowOrt) errors.push('Vite lane exposed ORT on the main thread');
   if (vite.mainThreadOrtScripts !== 0) errors.push('Vite lane appended a main-thread ORT script');
   if (vite.startupWorkerRequests.length !== 0) errors.push('Vite lane created its CPU Worker during startup');
@@ -198,6 +226,31 @@ function evaluateOnnxWorkerSmoke(classic: LaneProbe, vite: LaneProbe): string[] 
   return errors;
 }
 
+function evaluateOnnxWorkerFallbackSmoke(classic: LaneProbe, fallback: LaneProbe): string[] {
+  const errors: string[] = [];
+  if (fallback.digest !== classic.digest) errors.push('Worker fallback/classic ONNX output digest mismatch');
+  if (fallback.outputLength !== classic.outputLength) errors.push('Worker fallback/classic ONNX output length mismatch');
+  if (JSON.stringify(fallback.selectedMove) !== JSON.stringify(classic.selectedMove)) {
+    errors.push('Worker fallback/classic selected move mismatch');
+  }
+  if (!fallback.windowOrt) errors.push('Worker fallback did not load main-thread ORT');
+  if (fallback.workerExecutor) errors.push('Worker fallback retained the unavailable Worker executor');
+  if (fallback.mainThreadOrtScripts !== 1) {
+    errors.push(`Worker fallback main-thread ORT script count ${fallback.mainThreadOrtScripts} != 1`);
+  }
+  if (fallback.workerRequests.length !== 0) {
+    errors.push(`Worker fallback unexpectedly fetched ${fallback.workerRequests.length} Worker script(s)`);
+  }
+  if (fallback.ortRequests.length !== 1) {
+    errors.push(`Worker fallback ORT request count ${fallback.ortRequests.length} != 1`);
+  }
+  if (fallback.clientStatus) errors.push('Worker fallback exposed a failed CPU Worker client');
+  fallback.pageErrors.forEach((error) => errors.push(`${fallback.lane} page error: ${error}`));
+  fallback.consoleErrors.forEach((error) => errors.push(`${fallback.lane} console error: ${error}`));
+  fallback.resourceErrors.forEach((error) => errors.push(`${fallback.lane} resource error: ${error}`));
+  return errors;
+}
+
 async function runBrowserOnnxWorkerSmoke(options: { log?: boolean } = {}): Promise<any> {
   const server = RuntimeHelpers.startStaticServer(0);
   let browser: Browser | null = null;
@@ -207,8 +260,11 @@ async function runBrowserOnnxWorkerSmoke(options: { log?: boolean } = {}): Promi
     browser = await chromium.launch({ headless: true });
     const classic = await runLane(browser, baseUrl, 'classic');
     const vite = await runLane(browser, baseUrl, 'vite');
-    const errors = evaluateOnnxWorkerSmoke(classic, vite);
-    const report = { ok: errors.length === 0, errors, classic, vite };
+    const fallback = await runLane(browser, baseUrl, 'vite', { blockWorker: true });
+    const errors = evaluateOnnxWorkerSmoke(classic, vite).concat(
+      evaluateOnnxWorkerFallbackSmoke(classic, fallback)
+    );
+    const report = { ok: errors.length === 0, errors, classic, vite, fallback };
     if (options.log !== false) console.log(JSON.stringify(report, null, 2));
     return report;
   } finally {
@@ -232,5 +288,6 @@ if (require.main === module) {
 
 export = {
   evaluateOnnxWorkerSmoke,
+  evaluateOnnxWorkerFallbackSmoke,
   runBrowserOnnxWorkerSmoke
 };

@@ -9,6 +9,7 @@ function resolveMimeType(filePath) {
   if (ext === '.js' || ext === '.mjs') return 'application/javascript';
   if (ext === '.css') return 'text/css';
   if (ext === '.json') return 'application/json';
+  if (ext === '.wasm') return 'application/wasm';
   return 'application/octet-stream';
 }
 

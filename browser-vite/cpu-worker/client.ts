@@ -130,8 +130,8 @@ export class CpuWorkerClient {
     }
     this.workerFactory = options.workerFactory;
     this.defaultTimeoutMs = normalizeTimeoutMs(options.defaultTimeoutMs, 15000);
-    this.setTimeoutFn = options.setTimeoutFn || setTimeout;
-    this.clearTimeoutFn = options.clearTimeoutFn || clearTimeout;
+    this.setTimeoutFn = (options.setTimeoutFn || setTimeout).bind(globalThis);
+    this.clearTimeoutFn = (options.clearTimeoutFn || clearTimeout).bind(globalThis);
   }
 
   getStatus(): CpuWorkerClientStatus {
@@ -348,6 +348,15 @@ export class CpuWorkerClient {
     });
   }
 
+  async probe(timeoutMs = 2000): Promise<boolean> {
+    const result = await this.request(
+      CPU_WORKER_OPERATIONS.PING,
+      { probe: true },
+      { timeoutMs }
+    );
+    return !!result && 'ready' in result && result.ready === true;
+  }
+
   terminate(reason = 'CPU Worker client terminated'): void {
     this.failWorker(new CpuWorkerClientError(reason, 'CPU_WORKER_TERMINATED', true));
   }
@@ -365,6 +374,7 @@ export interface OnnxWorkerInferenceExecutorOptions {
   wasmPathsUrl: string;
   createTimeoutMs?: number;
   runTimeoutMs?: number;
+  allowedExecutionProviders?: Array<'webgpu' | 'wasm'>;
 }
 
 interface OnnxSessionRecipe {
@@ -397,6 +407,7 @@ export class OnnxWorkerInferenceExecutor {
   private readonly wasmPathsUrl: string;
   private readonly createTimeoutMs: number;
   private readonly runTimeoutMs: number;
+  private readonly allowedExecutionProviders: Array<'webgpu' | 'wasm'> | null;
   private readonly recipes = new Map<string, OnnxSessionRecipe>();
 
   constructor(options: OnnxWorkerInferenceExecutorOptions) {
@@ -408,6 +419,12 @@ export class OnnxWorkerInferenceExecutor {
     this.wasmPathsUrl = resolveAbsoluteHttpUrl(options.wasmPathsUrl, this.baseUrl, 'wasmPathsUrl');
     this.createTimeoutMs = normalizeTimeoutMs(options.createTimeoutMs, 45000);
     this.runTimeoutMs = normalizeTimeoutMs(options.runTimeoutMs, 5000);
+    const providers = Array.isArray(options.allowedExecutionProviders)
+      ? options.allowedExecutionProviders.filter((one, index, all) => (
+        (one === 'webgpu' || one === 'wasm') && all.indexOf(one) === index
+      ))
+      : [];
+    this.allowedExecutionProviders = providers.length > 0 ? providers : null;
   }
 
   private async createRemoteSession(recipe: OnnxSessionRecipe): Promise<OnnxCreateSessionResult> {
@@ -447,7 +464,9 @@ export class OnnxWorkerInferenceExecutor {
       modelUrl: resolveAbsoluteHttpUrl(options.modelUrl, this.baseUrl, 'modelUrl'),
       metaUrl: resolveAbsoluteHttpUrl(options.metaUrl, this.baseUrl, 'metaUrl'),
       wasmPathsUrl: this.wasmPathsUrl,
-      executionProviders: Array.isArray(options.executionProviders) ? options.executionProviders.slice() : ['wasm'],
+      executionProviders: this.allowedExecutionProviders
+        ? this.allowedExecutionProviders.slice()
+        : (Array.isArray(options.executionProviders) ? options.executionProviders.slice() : ['wasm']),
       remoteGeneration: 0,
       descriptor: null,
       meta: null

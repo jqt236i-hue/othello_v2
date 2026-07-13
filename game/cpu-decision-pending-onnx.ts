@@ -87,7 +87,7 @@ export function createCpuDecisionPendingOnnx(config: CpuDecisionPendingOnnxConfi
         const valueContext = buildPendingTargetValueContext(baseContext, pendingType, target, boardOverride);
         const timeoutValue = cfg.getPendingSelectionOnnxTimeout();
         const value = await cfg.awaitCpuPromiseWithinBudget(
-            () => runtime.evaluatePosition(valueContext),
+            (abortSignal: AbortSignal | null) => runtime.evaluatePosition(Object.assign({}, valueContext, { abortSignal })),
             valueBudgetMs,
             timeoutValue
         );
@@ -163,7 +163,10 @@ export function createCpuDecisionPendingOnnx(config: CpuDecisionPendingOnnxConfi
         try {
             const timeoutValue = cfg.getCpuOnnxBudgetTimeout();
             const selected = await cfg.awaitCpuPromiseWithinBudget(
-                () => runtime.choosePendingTarget(targets, baseContext),
+                (abortSignal: AbortSignal | null) => runtime.choosePendingTarget(
+                    targets,
+                    Object.assign({}, baseContext, { abortSignal })
+                ),
                 budgetMs,
                 timeoutValue
             );

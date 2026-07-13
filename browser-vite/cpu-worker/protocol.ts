@@ -1,6 +1,7 @@
 export const CPU_WORKER_PROTOCOL_VERSION = 1 as const;
 
 export const CPU_WORKER_OPERATIONS = Object.freeze({
+  PING: 'worker.ping',
   ONNX_CREATE_SESSION: 'onnx.create-session',
   ONNX_RUN_SESSION: 'onnx.run-session',
   ONNX_RELEASE_SESSION: 'onnx.release-session'
@@ -26,6 +27,10 @@ export interface OnnxCreateSessionPayload {
   executionProviders: string[];
 }
 
+export interface CpuWorkerPingPayload {
+  probe: true;
+}
+
 export interface OnnxRunSessionPayload {
   sessionKey: string;
   input: {
@@ -42,7 +47,7 @@ export interface OnnxReleaseSessionPayload {
 
 export type CpuWorkerRequest = CpuWorkerRequestIdentity & {
   kind: 'request';
-  payload: OnnxCreateSessionPayload | OnnxRunSessionPayload | OnnxReleaseSessionPayload;
+  payload: CpuWorkerPingPayload | OnnxCreateSessionPayload | OnnxRunSessionPayload | OnnxReleaseSessionPayload;
 };
 
 export interface CpuWorkerCancelMessage {
@@ -76,7 +81,11 @@ export interface OnnxReleaseSessionResult {
   released: boolean;
 }
 
-export type CpuWorkerResult = OnnxCreateSessionResult | OnnxRunSessionResult | OnnxReleaseSessionResult;
+export interface CpuWorkerPingResult {
+  ready: true;
+}
+
+export type CpuWorkerResult = CpuWorkerPingResult | OnnxCreateSessionResult | OnnxRunSessionResult | OnnxReleaseSessionResult;
 
 export interface CpuWorkerSuccessResponse extends CpuWorkerRequestIdentity {
   kind: 'response';
@@ -241,6 +250,11 @@ function parseCreateSessionPayload(value: unknown): OnnxCreateSessionPayload {
   };
 }
 
+function parsePingPayload(value: unknown): CpuWorkerPingPayload {
+  if (!isRecord(value) || value.probe !== true) fail('ping payload is invalid');
+  return { probe: true };
+}
+
 function parseRunSessionPayload(value: unknown): OnnxRunSessionPayload {
   if (!isRecord(value) || !isRecord(value.input)) fail('run-session payload must contain an input tensor');
   if (value.input.type !== 'float32' || !(value.input.data instanceof Float32Array)) {
@@ -267,7 +281,9 @@ export function parseCpuWorkerRequest(value: unknown): CpuWorkerRequest {
   if (!isRecord(value) || value.kind !== 'request') fail('invalid CPU Worker request envelope');
   const identity = readRequestIdentity(value);
   let payload: CpuWorkerRequest['payload'];
-  if (identity.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
+  if (identity.operation === CPU_WORKER_OPERATIONS.PING) {
+    payload = parsePingPayload(value.payload);
+  } else if (identity.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
     payload = parseCreateSessionPayload(value.payload);
   } else if (identity.operation === CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION) {
     payload = parseRunSessionPayload(value.payload);
@@ -343,7 +359,13 @@ function parseReleaseSessionResult(value: unknown): OnnxReleaseSessionResult {
   };
 }
 
+function parsePingResult(value: unknown): CpuWorkerPingResult {
+  if (!isRecord(value) || value.ready !== true) fail('ping result is invalid');
+  return { ready: true };
+}
+
 function parseResponseResult(operation: CpuWorkerOperation, value: unknown): CpuWorkerResult {
+  if (operation === CPU_WORKER_OPERATIONS.PING) return parsePingResult(value);
   if (operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) return parseCreateSessionResult(value);
   if (operation === CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION) return parseRunSessionResult(value);
   return parseReleaseSessionResult(value);

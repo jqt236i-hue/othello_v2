@@ -22,7 +22,7 @@ function createPendingOnnx(overrides = {}) {
       source[row][col] = value;
       return true;
     },
-    awaitCpuPromiseWithinBudget: async (factory, _budgetMs, _timeoutValue) => factory(),
+    awaitCpuPromiseWithinBudget: overrides.awaitCpuPromiseWithinBudget || (async (factory, _budgetMs, _timeoutValue) => factory()),
     getPendingSelectionOnnxTimeout: () => pendingTimeout,
     getPendingSelectionValueWeight: () => 220,
     resolveCandidateMoveByCoord: (candidates, selected) => candidates.find((m) => m.row === selected.row && m.col === selected.col) || null,
@@ -99,5 +99,33 @@ describe('cpu decision pending onnx module', () => {
     });
 
     await expect(pendingOnnx.choosePendingTargetWithPolicyAsync('white', 'TRAP_WILL', [fallback], null)).resolves.toBe(fallback);
+  });
+
+  test('passes the budget AbortSignal into pending and value inference contexts', async () => {
+    const signals = [];
+    const runtime = {
+      choosePendingTarget: jest.fn(async (_targets, context) => {
+        signals.push(context.abortSignal);
+        return { row: 0, col: 0 };
+      }),
+      evaluatePosition: jest.fn(async (context) => {
+        signals.push(context.abortSignal);
+        return 0;
+      })
+    };
+    const pendingOnnx = createPendingOnnx({
+      choosePendingTargetWithPolicy: (_playerKey, _pendingType, targets) => targets[1],
+      resolvePolicyOnnxRuntime: () => runtime,
+      awaitCpuPromiseWithinBudget: (factory) => factory(new AbortController().signal)
+    });
+    const targets = [{ row: 0, col: 0 }, { row: 1, col: 0 }];
+
+    await expect(pendingOnnx.choosePendingTargetWithPolicyAsync('white', 'DESTROY_ONE_STONE', targets, null))
+      .resolves.toBeTruthy();
+
+    expect(runtime.choosePendingTarget).toHaveBeenCalledTimes(1);
+    expect(runtime.evaluatePosition).toHaveBeenCalledTimes(2);
+    expect(signals).toHaveLength(3);
+    expect(signals.every((signal) => signal instanceof AbortSignal)).toBe(true);
   });
 });

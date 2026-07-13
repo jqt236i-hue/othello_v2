@@ -1,13 +1,18 @@
-const { evaluateOnnxWorkerSmoke } = require('../scripts/browser-onnx-worker-smoke');
+const {
+  evaluateOnnxWorkerSmoke,
+  evaluateOnnxWorkerFallbackSmoke
+} = require('../scripts/browser-onnx-worker-smoke');
 
-function probe(lane: 'classic' | 'vite', overrides: Record<string, unknown> = {}) {
+function probe(lane: 'classic' | 'vite' | 'vite-worker-fallback', overrides: Record<string, unknown> = {}) {
+  const fallback = lane === 'vite-worker-fallback';
   return Object.assign({
     lane,
     digest: 'same',
     outputLength: 100,
     selectedMove: { row: 2, col: 3 },
-    windowOrt: lane === 'classic',
-    mainThreadOrtScripts: lane === 'classic' ? 1 : 0,
+    windowOrt: lane === 'classic' || fallback,
+    workerExecutor: lane === 'vite',
+    mainThreadOrtScripts: lane === 'classic' || fallback ? 1 : 0,
     startupWorkerRequests: [],
     startupOrtRequests: [],
     workerRequests: lane === 'vite' ? ['worker-entry.js'] : [],
@@ -32,5 +37,12 @@ describe('browser ONNX Worker smoke evaluation', () => {
     expect(errors).toContain('classic/Vite ONNX output digest mismatch');
     expect(errors).toContain('Vite lane exposed ORT on the main thread');
     expect(errors).toContain('Vite lane appended a main-thread ORT script');
+  });
+
+  test('accepts exact in-thread fallback when Worker construction is blocked', () => {
+    expect(evaluateOnnxWorkerFallbackSmoke(
+      probe('classic'),
+      probe('vite-worker-fallback')
+    )).toEqual([]);
   });
 });
