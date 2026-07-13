@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-11",
-  "generatedAt": "2026-07-11T08:04:19.831Z",
+  "version": "2026-07-13",
+  "generatedAt": "2026-07-13T00:27:50.634Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -833,6 +833,10 @@
     {
       "path": "assets/audio/sound-effect/手札のカードを選択したタイミング.mp3",
       "sha256": "807c54e4e4aeb18cf94846d3f19bbc2a749104c47a3f9a6c24eec85e077c5585"
+    },
+    {
+      "path": "assets/audio/sound-effect/毒殺の意志を置くタイミング.mp3",
+      "sha256": "ca453ed3ec11870aacd13418ea355987b7f318b5366b0d86d5e54044265875d1"
     },
     {
       "path": "assets/audio/sound-effect/浮力系で石が浮上したタイミング.mp3",

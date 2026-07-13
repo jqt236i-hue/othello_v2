@@ -71,6 +71,15 @@ function planSelectionSoundCues(ctx: any, deps: SelectionSoundCueDeps) {
         deps.pushSoundCue(ctx, 'seed_place', seedPlacePhase, 'seed_selected');
     }
 
+    const poisonWillPlacePhase = deps.findPhase(
+        ctx.base,
+        (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'POISON_CELL',
+        ctx.fallbackPhase
+    );
+    if (deps.hasRawEvent(ctx.raw, 'poison_selected', (ev: any) => !!(ev && ev.applied))) {
+        deps.pushSoundCue(ctx, 'poison_will_place', poisonWillPlacePhase, 'poison_selected');
+    }
+
     const trapTriggeredEvent = ctx.raw.find((ev: any) => ev && ev.type === 'trap_triggered' && deps.rawDetailCount(ev) > 0);
     const trapTriggeredDetail = trapTriggeredEvent && Array.isArray(trapTriggeredEvent.details)
         ? trapTriggeredEvent.details[0]
