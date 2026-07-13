@@ -1,3 +1,5 @@
+import { applyBackgroundImageWithFallback } from './assets/background-image-codec';
+
 export {};
 
 type AnimationFeedbackEventDeps = {
@@ -389,7 +391,12 @@ function applyManifestPresentationForCinematic(target: any, deps: AnimationFeedb
             documentRef.body.classList.add('manifest-world-background-active');
             documentRef.body.setAttribute('data-manifest-world-background-key', presentation.manifestBackgroundKey || presentation.cinematicKey || presentation.cardId || 'manifest_world');
             documentRef.body.setAttribute('data-manifest-world-background-source', 'special_card_use');
-            documentRef.body.style.setProperty('--manifest-world-background', `url("${presentation.manifestBackgroundImage}")`);
+            applyBackgroundImageWithFallback(
+                root,
+                documentRef.body.style,
+                '--manifest-world-background',
+                presentation.manifestBackgroundImage
+            );
         } catch (e: any) { /* ignore */ }
     }
 

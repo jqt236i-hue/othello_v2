@@ -1,3 +1,5 @@
+import { applyBackgroundImageWithFallback } from '../assets/background-image-codec';
+
 let lastActiveManifestWorldBackground: any = null;
 let manifestWorldBackgroundEndTimer: any = null;
 let lastActiveManifestBgm: any = null;
@@ -77,7 +79,12 @@ function syncManifestWorldEffects(options: any): void {
             body.classList.add('manifest-world-background-active');
             body.setAttribute('data-manifest-world-background-key', String(activeBackground.key || 'manifest_world'));
             body.setAttribute('data-manifest-world-background-source', String(activeBackground.source || 'marker'));
-            body.style.setProperty('--manifest-world-background', `url("${imagePath}")`);
+            applyBackgroundImageWithFallback(
+                (documentRef && documentRef.defaultView) || (typeof window !== 'undefined' ? window : null),
+                body.style,
+                '--manifest-world-background',
+                imagePath
+            );
             lastActiveManifestWorldBackground = {
                 key: activeBackground.key || 'manifest_world',
                 imagePath,

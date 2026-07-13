@@ -2,7 +2,7 @@
 
 @font-face {
     font-family: "CR-Cinzel";
-    src: url("assets/fonts/cinzel-400.ttf") format("truetype");
+    src: url("assets/fonts/cinzel-400.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
@@ -10,7 +10,7 @@
 
 @font-face {
     font-family: "CR-Cinzel";
-    src: url("assets/fonts/cinzel-700.ttf") format("truetype");
+    src: url("assets/fonts/cinzel-700.woff2") format("woff2");
     font-weight: 700;
     font-style: normal;
     font-display: swap;
@@ -18,7 +18,7 @@
 
 @font-face {
     font-family: "CR-Cinzel";
-    src: url("assets/fonts/cinzel-900.ttf") format("truetype");
+    src: url("assets/fonts/cinzel-900.woff2") format("woff2");
     font-weight: 900;
     font-style: normal;
     font-display: swap;
@@ -26,7 +26,7 @@
 
 @font-face {
     font-family: "CR-Shippori Mincho";
-    src: url("assets/fonts/shippori-mincho-400.ttf") format("truetype");
+    src: url("assets/fonts/shippori-mincho-400.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
@@ -34,7 +34,7 @@
 
 @font-face {
     font-family: "CR-Shippori Mincho";
-    src: url("assets/fonts/shippori-mincho-700.ttf") format("truetype");
+    src: url("assets/fonts/shippori-mincho-700.woff2") format("woff2");
     font-weight: 700;
     font-style: normal;
     font-display: swap;
@@ -42,7 +42,7 @@
 
 @font-face {
     font-family: "CR-Shippori Mincho";
-    src: url("assets/fonts/shippori-mincho-800.ttf") format("truetype");
+    src: url("assets/fonts/shippori-mincho-800.woff2") format("woff2");
     font-weight: 800;
     font-style: normal;
     font-display: swap;
@@ -50,7 +50,7 @@
 
 @font-face {
     font-family: "CR-Kaisei Tokumin";
-    src: url("assets/fonts/kaisei-tokumin-400.ttf") format("truetype");
+    src: url("assets/fonts/kaisei-tokumin-400.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
@@ -58,7 +58,7 @@
 
 @font-face {
     font-family: "CR-Kaisei Tokumin";
-    src: url("assets/fonts/kaisei-tokumin-700.ttf") format("truetype");
+    src: url("assets/fonts/kaisei-tokumin-700.woff2") format("woff2");
     font-weight: 700;
     font-style: normal;
     font-display: swap;
@@ -66,7 +66,7 @@
 
 @font-face {
     font-family: "CR-Kaisei Tokumin";
-    src: url("assets/fonts/kaisei-tokumin-800.ttf") format("truetype");
+    src: url("assets/fonts/kaisei-tokumin-800.woff2") format("woff2");
     font-weight: 800;
     font-style: normal;
     font-display: swap;
@@ -74,7 +74,7 @@
 
 @font-face {
     font-family: "CR-Zen Antique Soft";
-    src: url("assets/fonts/zen-antique-soft-400.ttf") format("truetype");
+    src: url("assets/fonts/zen-antique-soft-400.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
@@ -82,7 +82,7 @@
 
 @font-face {
     font-family: "CR-Yusei Magic";
-    src: url("assets/fonts/yusei-magic-400.ttf") format("truetype");
+    src: url("assets/fonts/yusei-magic-400.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
@@ -90,7 +90,7 @@
 
 @font-face {
     font-family: "CR-RocknRoll One";
-    src: url("assets/fonts/rocknroll-one-400.ttf") format("truetype");
+    src: url("assets/fonts/rocknroll-one-400.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
     font-display: swap;

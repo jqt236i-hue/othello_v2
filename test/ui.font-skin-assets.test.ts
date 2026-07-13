@@ -6,12 +6,12 @@ describe('font skin bundled assets', () => {
     const root = path.resolve(__dirname, '..');
     const css = fs.readFileSync(path.join(root, 'styles-base.css'), 'utf8');
     const expected = [
-      ['CR-Cinzel', 'cinzel-400.ttf'],
-      ['CR-Shippori Mincho', 'shippori-mincho-400.ttf'],
-      ['CR-Kaisei Tokumin', 'kaisei-tokumin-400.ttf'],
-      ['CR-Zen Antique Soft', 'zen-antique-soft-400.ttf'],
-      ['CR-Yusei Magic', 'yusei-magic-400.ttf'],
-      ['CR-RocknRoll One', 'rocknroll-one-400.ttf']
+      ['CR-Cinzel', 'cinzel-400.woff2'],
+      ['CR-Shippori Mincho', 'shippori-mincho-400.woff2'],
+      ['CR-Kaisei Tokumin', 'kaisei-tokumin-400.woff2'],
+      ['CR-Zen Antique Soft', 'zen-antique-soft-400.woff2'],
+      ['CR-Yusei Magic', 'yusei-magic-400.woff2'],
+      ['CR-RocknRoll One', 'rocknroll-one-400.woff2']
     ];
 
     expected.forEach(([family, fileName]) => {
@@ -22,23 +22,28 @@ describe('font skin bundled assets', () => {
 
   test('ships local font files and source license notes', () => {
     const root = path.resolve(__dirname, '..');
+    const css = fs.readFileSync(path.join(root, 'styles-base.css'), 'utf8');
     [
-      'cinzel-400.ttf',
-      'cinzel-700.ttf',
-      'cinzel-900.ttf',
-      'shippori-mincho-400.ttf',
-      'shippori-mincho-700.ttf',
-      'shippori-mincho-800.ttf',
-      'kaisei-tokumin-400.ttf',
-      'kaisei-tokumin-700.ttf',
-      'kaisei-tokumin-800.ttf',
-      'zen-antique-soft-400.ttf',
-      'yusei-magic-400.ttf',
-      'rocknroll-one-400.ttf',
+      'cinzel-400.woff2',
+      'cinzel-700.woff2',
+      'cinzel-900.woff2',
+      'shippori-mincho-400.woff2',
+      'shippori-mincho-700.woff2',
+      'shippori-mincho-800.woff2',
+      'kaisei-tokumin-400.woff2',
+      'kaisei-tokumin-700.woff2',
+      'kaisei-tokumin-800.woff2',
+      'zen-antique-soft-400.woff2',
+      'yusei-magic-400.woff2',
+      'rocknroll-one-400.woff2',
+      'font-build-manifest.json',
       'OFL.txt'
     ].forEach((name) => {
       const filePath = path.join(root, 'assets', 'fonts', name);
       expect(fs.existsSync(filePath)).toBe(true);
     });
+    expect(fs.readdirSync(path.join(root, 'assets', 'fonts')).some((name) => name.endsWith('.ttf'))).toBe(false);
+    expect(css).not.toContain('.ttf');
+    expect(css).toContain('format("woff2")');
   });
 });

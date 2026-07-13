@@ -5,6 +5,8 @@
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
+import backgroundImageCodec = require('../assets/background-image-codec');
+
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
@@ -80,7 +82,12 @@ function applyBackgroundSkin(rootRef: Window | null | undefined, skinId: string)
       body.style.backgroundRepeat = 'no-repeat';
       body.style.backgroundSize = 'cover';
     } else if (definition.imagePath) {
-      body.style.setProperty('--selected-background-skin', 'url("' + definition.imagePath + '")');
+      backgroundImageCodec.applyBackgroundImageWithFallback(
+        ctx,
+        body.style,
+        '--selected-background-skin',
+        definition.imagePath
+      );
       body.style.backgroundImage = 'var(--selected-background-skin)';
       body.style.backgroundPosition = 'center center';
       body.style.backgroundRepeat = 'no-repeat';

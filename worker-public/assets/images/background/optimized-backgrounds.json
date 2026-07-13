@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "codec": "webp-lossless",
+  "selection": {
+    "root": "assets/images/background",
+    "minimumSourceBytes": 2097152,
+    "pngOnly": true,
+    "opaqueOnly": true
+  },
+  "images": [
+    {
+      "source": "assets/images/background/default.png",
+      "output": "assets/images/background/default.webp",
+      "width": 1672,
+      "height": 941,
+      "sourceBytes": 2339268,
+      "outputBytes": 1789206,
+      "savedBytes": 550062,
+      "sourceSha256": "05b646a37378f4642d8af354f9007001c4c3b6a9a7e9cb6f85a47055e22b32c2",
+      "outputSha256": "6a7931e6d73dea81f1f918a47a4b1870bc2c445cb19254cee8fb784f1a64129e"
+    },
+    {
+      "source": "assets/images/background/デフォルト10.png",
+      "output": "assets/images/background/デフォルト10.webp",
+      "width": 1672,
+      "height": 941,
+      "sourceBytes": 2405342,
+      "outputBytes": 1873648,
+      "savedBytes": 531694,
+      "sourceSha256": "653429033ddd97ec7da5057355b80c0259bba13631f5b768dc6495969da7b260",
+      "outputSha256": "b505eaa2744db2a4a2bf24e8f9ba261ac024bc557fff0fbbba1a739e31f0743a"
+    },
+    {
+      "source": "assets/images/background/デフォルト11.png",
+      "output": "assets/images/background/デフォルト11.webp",
+      "width": 1672,
+      "height": 941,
+      "sourceBytes": 2368250,
+      "outputBytes": 1784952,
+      "savedBytes": 583298,
+      "sourceSha256": "d4b898acdd64acf0c9acb41e7712babb9f904b61bc5d5c27bb7751ba9413d85e",
+      "outputSha256": "f3cf841b3d27c5d04784904154b26709d0bc70dd67e461347d024c5f6921bd16"
+    },
+    {
+      "source": "assets/images/background/デフォルト12.png",
+      "output": "assets/images/background/デフォルト12.webp",
+      "width": 1672,
+      "height": 941,
+      "sourceBytes": 2395931,
+      "outputBytes": 1811890,
+      "savedBytes": 584041,
+      "sourceSha256": "6a2d18a66d9c2606b1acd0c4727a1ca72199aa241cf6029880c413d7a4d10cde",
+      "outputSha256": "2f57410b796a298d9970f0683c19118e013f22bcb7dac4b70a7fc897d950ee00"
+    },
+    {
+      "source": "assets/images/background/デフォルト13.png",
+      "output": "assets/images/background/デフォルト13.webp",
+      "width": 1672,
+      "height": 941,
+      "sourceBytes": 2692727,
+      "outputBytes": 1999296,
+      "savedBytes": 693431,
+      "sourceSha256": "acbafdeed1f36cbbd9c863546c440fe3b41b28afb94100e49f5282825a9d26b6",
+      "outputSha256": "2e0a86c8a2fc49a00ab443fe11d4577bcf14a762d233b38d970c5fdbd881007b"
+    },
+    {
+      "source": "assets/images/background/デフォルト2.png",
+      "output": "assets/images/background/デフォルト2.webp",
+      "width": 1672,
+      "height": 941,
+      "sourceBytes": 2388098,
+      "outputBytes": 1749952,
+      "savedBytes": 638146,
+      "sourceSha256": "28d9b26031e88d39696c0828f4447a43a66f34d3076aedbd97a8a2280a389324",
+      "outputSha256": "1ad22302ba46e718bd4c212cf210e6e854fa5f8144477b5f6240c58aaa156d67"
+    },
+    {
+      "source": "assets/images/background/デフォルト6.png",
+      "output": "assets/images/background/デフォルト6.webp",
+      "width": 1672,
+      "height": 941,
+      "sourceBytes": 2137699,
+      "outputBytes": 1700132,
+      "savedBytes": 437567,
+      "sourceSha256": "83aa0c386e6b49135c0b4477b15c651c338862c97f6ee61f1376a5cfdae930e7",
+      "outputSha256": "9ff64d5720050add1c89aebc34a3fe172014e737844b44769b5705a0c5591eff"
+    },
+    {
+      "source": "assets/images/background/デフォルト9.png",
+      "output": "assets/images/background/デフォルト9.webp",
+      "width": 1672,
+      "height": 941,
+      "sourceBytes": 2459346,
+      "outputBytes": 1843516,
+      "savedBytes": 615830,
+      "sourceSha256": "8313e9ca67980f9d1b2541009cb1f2aa04c4b7c9c40dd0e6057d22455f7a6ebd",
+      "outputSha256": "47f6d266a86bf7bff9969c72cd56019dc97f93ab2b7a98703cd33742064a3080"
+    }
+  ],
+  "totals": {
+    "sourceBytes": 19186661,
+    "outputBytes": 14552592,
+    "savedBytes": 4634069
+  }
+}
