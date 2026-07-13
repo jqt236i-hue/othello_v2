@@ -48,7 +48,7 @@ export const BASE_GAME_TERM_GLOSSARY: readonly GameTermGlossaryEntry[] = Object.
   Object.freeze({ id: 'duration-turn', label: '持続ターン', category: 'resource', description: 'このカードや石状態が盤面で効果を持ち続けるターン数。' }),
   Object.freeze({ id: 'observer-will-repayment', label: '観測の代償', category: 'unique', tone: 'resource', description: '盤理の観測者の顕現終了後に発生する返済。奪ったカードの元コスト20%分を自ターン開始時に最大9回支払い、布石不足時はその回、自石4個をランダム破壊する。' }),
   Object.freeze({ id: 'condition-number-cell-42', label: '数字マス42獲得で使用可能', category: 'resource', description: '対局中に数字マスから実際に得た布石合計が42以上になると使える。' }),
-  Object.freeze({ id: 'condition-four-special-stones', label: '特殊石4個以上で使用可能', category: 'resource', description: '所有者を問わず、盤面に特殊石が4個以上ある時だけ使える。' }),
+  Object.freeze({ id: 'condition-three-special-stones', label: '特殊石3個以上で使用可能', category: 'resource', description: '所有者を問わず、盤面に特殊石が3個以上ある時だけ使える。' }),
   Object.freeze({ id: 'condition-after-18-turns', label: '18手後使用可能', category: 'resource', description: '18手以上経過した後に使える。' }),
   Object.freeze({ id: 'turn-start', label: 'ターン開始', category: 'resource', description: '手番開始時に効果や持続管理を処理するタイミング。' }),
   Object.freeze({ id: 'time-stop', label: '時間停止', category: 'resource', description: '発動したプレイヤーが2ターン連続で行動する。' }),

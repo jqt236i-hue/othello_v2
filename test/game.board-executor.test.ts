@@ -41,9 +41,8 @@ function addStone(cardState: any, gameState: any, row: number, col: number, owne
 
 function addBoardExecutorRequirementStones(cardState: any, gameState: any): void {
   addStone(cardState, gameState, 0, 0, 'black', 'PROTECTED');
-  addStone(cardState, gameState, 0, 1, 'white', 'PERMA_PROTECTED');
-  addStone(cardState, gameState, 0, 2, 'black', 'TRAP', 'specialStone', { hidden: true });
-  addStone(cardState, gameState, 0, 3, 'white', 'TIME_BOMB', 'bomb', { category: 'bomb', remainingTurns: 2 });
+  addStone(cardState, gameState, 0, 1, 'white', 'TRAP', 'specialStone', { hidden: true });
+  addStone(cardState, gameState, 0, 2, 'black', 'TIME_BOMB', 'bomb', { category: 'bomb', remainingTurns: 2 });
 }
 
 function hasMarker(cardState: any, type: string): boolean {
@@ -78,7 +77,7 @@ const PREVIOUS_BOARD_EXECUTOR_FLIP_GAIN_SOURCE_TYPES = [
 ];
 
 describe('盤界の執行者', () => {
-  test('手札上の使用可否に、所有者を問わない特殊石4個条件を反映する', () => {
+  test('手札上の使用可否に、所有者を問わない特殊石3個条件を反映する', () => {
     const prng = createPrng();
     const cardState: any = CardLogic.createCardState(prng);
     const gameState = createGameState();
@@ -88,17 +87,16 @@ describe('盤界の執行者', () => {
     expect(CardLogic.canUseCard(cardState, 'black', 'board_executor_01')).toBe(false);
 
     addStone(cardState, gameState, 0, 0, 'black', 'PROTECTED');
-    addStone(cardState, gameState, 0, 1, 'white', 'PERMA_PROTECTED');
-    addStone(cardState, gameState, 0, 2, 'black', 'TRAP', 'specialStone', { hidden: true });
+    addStone(cardState, gameState, 0, 1, 'white', 'TRAP', 'specialStone', { hidden: true });
 
     expect(CardLogic.canUseCard(cardState, 'black', 'board_executor_01')).toBe(false);
 
-    addStone(cardState, gameState, 0, 3, 'white', 'TIME_BOMB', 'bomb', { category: 'bomb', remainingTurns: 2 });
+    addStone(cardState, gameState, 0, 2, 'black', 'TIME_BOMB', 'bomb', { category: 'bomb', remainingTurns: 2 });
 
     expect(CardLogic.canUseCard(cardState, 'black', 'board_executor_01')).toBe(true);
   });
 
-  test('特殊石が4個未満では使用できず、4個になると使用できる', () => {
+  test('特殊石が3個未満では使用できず、3個になると使用できる', () => {
     const prng = createPrng();
     const cardState: any = CardLogic.createCardState(prng);
     const gameState = createGameState();

@@ -24,7 +24,7 @@ const ManifestStoneRegistryFallback = safeRequire('../../../shared/manifest-ston
 
 const BOARD_EXECUTOR_MARKER_TYPE = 'BOARD_EXECUTOR';
 const BOARD_EXECUTOR_DURATION_OWNER_TURNS = 4;
-const BOARD_EXECUTOR_MIN_SPECIAL_STONES = 4;
+const BOARD_EXECUTOR_MIN_SPECIAL_STONES = 3;
 
 function ownerKeyOf(playerKey: any): PlayerKey {
     return playerKey === 'white' ? 'white' : 'black';

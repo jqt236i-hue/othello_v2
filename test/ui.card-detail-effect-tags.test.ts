@@ -223,7 +223,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['特殊石4個以上で使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
+    expect(getTagLabels()).toEqual(['特殊石3個以上で使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
     expect(document.getElementById('card-detail-desc').textContent).toContain('すべての特殊石を絶対執行');
     expect(document.getElementById('card-detail-desc').textContent).not.toContain('場合のみ使用可能');
     expect(document.getElementById('card-detail-more').textContent).toContain('盤界の執行者を4T不可侵の顕現石として出す');
@@ -316,7 +316,7 @@ describe('card detail effect tags', () => {
     global.CardLogic.getCardDef = () => boardExecutorDef;
 
     window.updateCardDetailPanel();
-    expect(getTagLabels()).toEqual(['特殊石4個以上で使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
+    expect(getTagLabels()).toEqual(['特殊石3個以上で使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
   });
 
   test('hole-cell board shrink cards use concise erase wording in the detail summary', () => {

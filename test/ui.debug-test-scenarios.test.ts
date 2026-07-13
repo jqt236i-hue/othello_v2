@@ -186,7 +186,6 @@ describe('debug test scenarios', () => {
     expect(gameState.turnNumber).toBeGreaterThanOrEqual(18);
     expect(gameState.board[2][3]).toBe(1);
     expect(gameState.board[2][4]).toBe(-1);
-    expect(gameState.board[3][2]).toBe(1);
     expect(gameState.board[3][5]).toBe(-1);
     expect(cardState.turnIndex).toBeGreaterThanOrEqual(18);
     expect(cardState.hands.black).toEqual([
@@ -212,10 +211,9 @@ describe('debug test scenarios', () => {
         })
       }),
       expect.objectContaining({ kind: 'specialStone', row: 2, col: 4, owner: 'white', data: expect.objectContaining({ type: 'TRAP' }) }),
-      expect.objectContaining({ kind: 'specialStone', row: 3, col: 2, owner: 'black', data: expect.objectContaining({ type: 'PROTECTED' }) }),
       expect.objectContaining({ kind: 'bomb', row: 3, col: 5, owner: 'white', data: expect.objectContaining({ type: 'TIME_BOMB' }) })
     ]));
-    expect(cardState.markers).toHaveLength(4);
+    expect(cardState.markers).toHaveLength(3);
     expect(CardLogic.canUseBoardExecutor(cardState, 'black')).toBe(true);
     expect(cardState.markers.some((marker: any) => marker.kind === 'manifestStone')).toBe(false);
     expect(cardState.selectedCardId).toBe('theory_incarnation_01');

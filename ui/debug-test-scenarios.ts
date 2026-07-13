@@ -197,7 +197,6 @@ function applySpecialCardsReadyScenario(gameState: any, cardState: any) {
   gameState.consecutivePasses = 0;
   setBoardCell(gameState, 2, 3, 1);
   setBoardCell(gameState, 2, 4, -1);
-  setBoardCell(gameState, 3, 2, 1);
   setBoardCell(gameState, 3, 5, -1);
 
   cardState.hands = {
@@ -242,14 +241,6 @@ function applySpecialCardsReadyScenario(gameState: any, cardState: any) {
       col: 4,
       owner: 'white',
       data: { type: 'TRAP', hidden: true, sourceType: 'SPECIAL_DEBUG' }
-    },
-    {
-      id: 'debug_special_ready_protected_black',
-      kind: 'specialStone',
-      row: 3,
-      col: 2,
-      owner: 'black',
-      data: { type: 'PROTECTED', sourceType: 'SPECIAL_DEBUG' }
     },
     {
       id: 'debug_special_ready_time_bomb_white',

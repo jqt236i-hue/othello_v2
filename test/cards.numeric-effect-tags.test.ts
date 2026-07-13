@@ -77,7 +77,7 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('METEOR_WILL')).toEqual(['穴マス', '抹消']);
     expect(getEffectTagLabels('BOARD_SHRINK_WILL')).toEqual(['穴マス', '抹消']);
     expect(getEffectTagLabels('BOARD_SHRINK_GOD')).toEqual(['穴マス', '抹消']);
-    expect(getEffectTagLabels('BOARD_EXECUTOR')).toEqual(['特殊石4個以上で使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
+    expect(getEffectTagLabels('BOARD_EXECUTOR')).toEqual(['特殊石3個以上で使用可能', '穴マス', '絶対執行', '不可侵', '4ターン持続']);
     expect(getEffectTagLabels('METEOR_GOD')).toEqual(['特殊石', '6ターン持続', '反転保護', '穴マス', '抹消']);
   });
 
