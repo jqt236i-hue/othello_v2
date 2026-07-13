@@ -220,6 +220,7 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
       host: optionsEl,
       kind: 'board',
       getSelectedSkinId: () => selectedSkin ? selectedSkin.id : catalogModule.DEFAULT_BOARD_SKIN_ID,
+      useSkin: (skinId: string) => applySelection(skinId, false),
       onSaved: (definition: SkinDefinition) => {
         refreshOptions(definition.id);
         selectionModule.writeStoredBoardSkinId(rootRef, definition.id);

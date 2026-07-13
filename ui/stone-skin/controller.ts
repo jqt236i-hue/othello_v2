@@ -145,6 +145,7 @@ function setupStoneSkinControls(options?: any): ControllerApi | null {
       host: optionsEl,
       kind: 'stone',
       getSelectedSkinId: () => selectedSkin ? selectedSkin.id : catalogModule.DEFAULT_STONE_SKIN_ID,
+      useSkin: (skinId: string) => applySelection(skinId, false),
       onSaved: (definition: StoneSkinDefinition) => {
         refreshOptions(definition.id);
         selectionModule.writeStoredStoneSkinId(rootRef, definition.id);

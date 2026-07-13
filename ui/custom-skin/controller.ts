@@ -52,6 +52,7 @@ interface CustomSkinUploaderOptions {
   host: HTMLElement;
   kind: CustomSkinKind;
   getSelectedSkinId: () => string;
+  useSkin?: (skinId: string) => unknown;
   onSaved: (definition: CustomSkinDefinition) => void;
   onDeleted: (skinId: string) => void;
 }
@@ -219,8 +220,10 @@ function setupCustomSkinUploader(options: CustomSkinUploaderOptions): CustomSkin
   editor.appendChild(imageRow);
 
   const actionRow = createElement(docRef, 'div', 'custom-skin-editor-action-row');
+  const useButton = createButton(docRef, '使用', 'custom-skin-editor-use-button');
   const saveButton = createButton(docRef, '保存', 'custom-skin-editor-save-button');
   const deleteButton = createButton(docRef, '削除', 'custom-skin-editor-delete-button');
+  actionRow.appendChild(useButton);
   actionRow.appendChild(saveButton);
   actionRow.appendChild(deleteButton);
   editor.appendChild(actionRow);
@@ -251,8 +254,10 @@ function setupCustomSkinUploader(options: CustomSkinUploaderOptions): CustomSkin
   function syncButtons(): void {
     const selectedId = String(opts.getSelectedSkinId() || '').trim();
     const isCustom = storageApi.isCustomSkin(selectedId, opts.kind);
+    useButton.disabled = saving || !isCustom || typeof opts.useSkin !== 'function';
     saveButton.disabled = saving || !hasDraft();
     deleteButton.disabled = saving || !isCustom;
+    useButton.setAttribute('aria-disabled', useButton.disabled ? 'true' : 'false');
     saveButton.setAttribute('aria-disabled', saveButton.disabled ? 'true' : 'false');
     deleteButton.setAttribute('aria-disabled', deleteButton.disabled ? 'true' : 'false');
   }
@@ -286,6 +291,22 @@ function setupCustomSkinUploader(options: CustomSkinUploaderOptions): CustomSkin
     }
     syncButtons();
   }
+
+  useButton.addEventListener('click', () => {
+    if (saving || useButton.disabled || typeof opts.useSkin !== 'function') return;
+    const selectedId = String(opts.getSelectedSkinId() || '').trim();
+    if (!storageApi.isCustomSkin(selectedId, opts.kind)) return;
+    try {
+      const result = opts.useSkin(selectedId);
+      if (!result) {
+        setStatus('このスキンを一時使用できませんでした', true);
+        return;
+      }
+      setStatus('一時使用しました（選択は保存していません）');
+    } catch (error: any) {
+      setStatus(String(error && error.message || '一時使用できませんでした'), true);
+    }
+  });
 
   saveButton.addEventListener('click', () => {
     if (saving || !hasDraft()) return;

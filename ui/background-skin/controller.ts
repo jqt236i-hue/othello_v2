@@ -142,6 +142,7 @@ function setupBackgroundSkinControls(options?: any): ControllerApi | null {
       host: optionsEl,
       kind: 'background',
       getSelectedSkinId: () => selectedSkin ? selectedSkin.id : catalogModule.DEFAULT_BACKGROUND_SKIN_ID,
+      useSkin: (skinId: string) => applySelection(skinId, false),
       onSaved: (definition: SkinDefinition) => {
         refreshOptions(definition.id);
         selectionModule.writeStoredBackgroundSkinId(rootRef, definition.id);

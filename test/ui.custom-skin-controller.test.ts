@@ -46,8 +46,10 @@ describe('custom skin editor controls', () => {
     const editor = document.querySelector('.custom-skin-editor--board');
     expect(editor).not.toBeNull();
     expect(editor?.textContent).toContain('画像読み込み');
+    expect(editor?.textContent).toContain('使用');
     expect(editor?.textContent).toContain('保存');
     expect(editor?.textContent).toContain('削除');
+    expect((editor?.querySelector('.custom-skin-editor-use-button') as HTMLButtonElement).disabled).toBe(true);
     expect((editor?.querySelector('.custom-skin-editor-delete-button') as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -62,8 +64,15 @@ describe('custom skin editor controls', () => {
     (document.querySelector('.custom-skin-editor-save-button') as HTMLButtonElement).click();
     await Promise.resolve();
     await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
 
     expect(storage.saveCustomSkin).toHaveBeenCalled();
     expect(window.localStorage.getItem('reversi.boardSkin')).toBe('custom:board:test');
+
+    const useButton = document.querySelector('.custom-skin-editor-use-button') as HTMLButtonElement;
+    useButton.click();
+    expect(window.localStorage.getItem('reversi.boardSkin')).toBe('custom:board:test');
+    expect(document.querySelector('.custom-skin-editor-status')?.textContent).toContain('一時使用');
   });
 });

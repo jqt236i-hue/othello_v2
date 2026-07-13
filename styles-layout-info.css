@@ -1656,6 +1656,7 @@
 }
 
 .custom-skin-editor-load-button,
+.custom-skin-editor-use-button,
 .custom-skin-editor-save-button,
 .custom-skin-editor-delete-button {
     min-height: calc(28px * var(--layout-stage-scale));
@@ -1673,6 +1674,8 @@
 
 .custom-skin-editor-load-button:hover,
 .custom-skin-editor-load-button:focus-visible,
+.custom-skin-editor-use-button:hover,
+.custom-skin-editor-use-button:focus-visible,
 .custom-skin-editor-save-button:hover,
 .custom-skin-editor-save-button:focus-visible {
     border-color: rgba(242, 201, 95, 0.82);
@@ -1694,6 +1697,7 @@
 }
 
 .custom-skin-editor-load-button:disabled,
+.custom-skin-editor-use-button:disabled,
 .custom-skin-editor-save-button:disabled,
 .custom-skin-editor-delete-button:disabled {
     cursor: not-allowed;
