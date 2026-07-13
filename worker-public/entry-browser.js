@@ -1,6 +1,11 @@
 // ===== Classic browser runtime entry =====
 // Loads modules in original index.html order via module-registry
 
+if (!window.__CARD_REVERSI_BROWSER_LANE__) window.__CARD_REVERSI_BROWSER_LANE__ = "classic";
+if (typeof document !== "undefined" && document && document.documentElement) {
+  document.documentElement.setAttribute("data-browser-lane", window.__CARD_REVERSI_BROWSER_LANE__);
+}
+
 // _require / __require aliases (used by dist modules internally)
 window._require = window.require;
 window.__require = window.require;

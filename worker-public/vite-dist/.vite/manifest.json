@@ -1,0 +1,35 @@
+{
+  "assets/images/hand-skin/勇者の手.png": {
+    "file": "assets/勇者の手-C6v2toAd.png",
+    "src": "assets/images/hand-skin/勇者の手.png"
+  },
+  "assets/images/help/player-guide/card-reversi-player-guide-slide-01.png": {
+    "file": "assets/card-reversi-player-guide-slide-01-epiawl9Y.png",
+    "src": "assets/images/help/player-guide/card-reversi-player-guide-slide-01.png"
+  },
+  "assets/images/help/protection-penetration/protection-penetration-quick-reference.png": {
+    "file": "assets/protection-penetration-quick-reference-QipUvGs2.png",
+    "src": "assets/images/help/protection-penetration/protection-penetration-quick-reference.png"
+  },
+  "assets/images/hero/hero.png": {
+    "file": "assets/hero-DbqiEqdj.png",
+    "src": "assets/images/hero/hero.png"
+  },
+  "assets/images/stone-skin/default/black.png": {
+    "file": "assets/black-C5I6QShq.png",
+    "src": "assets/images/stone-skin/default/black.png"
+  },
+  "index.vite.html": {
+    "file": "assets/index.vite-eK3fNgEC.js",
+    "name": "index.vite",
+    "src": "index.vite.html",
+    "isEntry": true,
+    "assets": [
+      "assets/black-C5I6QShq.png",
+      "assets/card-reversi-player-guide-slide-01-epiawl9Y.png",
+      "assets/protection-penetration-quick-reference-QipUvGs2.png",
+      "assets/hero-DbqiEqdj.png",
+      "assets/勇者の手-C6v2toAd.png"
+    ]
+  }
+}

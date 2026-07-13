@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-browser-lane="vite">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Card Reversi</title>
-    <link rel="icon" type="image/png" href="assets/images/stone-skin/default/black.png">
+    <link rel="icon" type="image/png" href="./vite-dist/assets/black-C5I6QShq.png">
     <script>
         (() => {
             try {
@@ -33,20 +33,44 @@
         })();
     </script>
     <!-- CSS Split Modules -->
-    <link rel="stylesheet" href="styles-variables.css">
-    <link rel="stylesheet" href="styles-base.css">
-    <link rel="stylesheet" href="styles-layout.css">
-    <link rel="stylesheet" href="styles-charge-hud.css">
-    <link rel="stylesheet" href="styles-layout-controls.css">
-    <link rel="stylesheet" href="styles-layout-info.css">
-    <link rel="stylesheet" href="styles-layout-result.css">
-    <link rel="stylesheet" href="styles-layout-characters.css">
-    <link rel="stylesheet" href="styles-board.css">
-    <link rel="stylesheet" href="styles-cards.css">
-    <link rel="stylesheet" href="styles-animations.css">
-    <link rel="stylesheet" href="styles-responsive.css">
-    <link rel="stylesheet" href="styles-stone-shadows.css">
-    <link rel="stylesheet" href="styles-profile.css">
+    <base href="../">
+    <meta name="card-reversi-classic-style" content="styles-variables.css">
+    <meta name="card-reversi-classic-style" content="styles-base.css">
+    <meta name="card-reversi-classic-style" content="styles-layout.css">
+    <meta name="card-reversi-classic-style" content="styles-charge-hud.css">
+    <meta name="card-reversi-classic-style" content="styles-layout-controls.css">
+    <meta name="card-reversi-classic-style" content="styles-layout-info.css">
+    <meta name="card-reversi-classic-style" content="styles-layout-result.css">
+    <meta name="card-reversi-classic-style" content="styles-layout-characters.css">
+    <meta name="card-reversi-classic-style" content="styles-board.css">
+    <meta name="card-reversi-classic-style" content="styles-cards.css">
+    <meta name="card-reversi-classic-style" content="styles-animations.css">
+    <meta name="card-reversi-classic-style" content="styles-responsive.css">
+    <meta name="card-reversi-classic-style" content="styles-stone-shadows.css">
+    <meta name="card-reversi-classic-style" content="styles-profile.css">
+    <script data-card-reversi-classic-style-bootstrap>
+        (() => {
+            const metas = Array.from(document.querySelectorAll('meta[name="card-reversi-classic-style"]'));
+            const loads = metas.map((meta) => new Promise((resolve, reject) => {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.setAttribute('data-card-reversi-classic-style', meta.content);
+                link.onload = () => resolve(meta.content);
+                link.onerror = () => reject(new Error('failed to load classic stylesheet: ' + meta.content));
+                link.href = new URL(meta.content, document.baseURI).href;
+                document.head.appendChild(link);
+            }));
+            const ready = Promise.all(loads);
+            ready.catch(() => {});
+            window.__CARD_REVERSI_CLASSIC_STYLES_READY__ = ready;
+        })();
+    </script>
+    <meta name="card-reversi-classic-runtime" content="public/runtime.js?v=10249323031789">
+    <meta name="card-reversi-classic-registry" content="public/module-registry.js?v=56387683272347">
+    <meta name="card-reversi-classic-layout" content="ui/layout-stage.js">
+    <meta name="card-reversi-classic-entry" content="entry-browser.js?v=61646375449959">
+    <meta name="card-reversi-browser-lane" content="vite">
+  <script type="module" crossorigin src="./vite-dist/assets/index.vite-eK3fNgEC.js"></script>
 </head>
 
 <body>
@@ -203,7 +227,7 @@
                     <div id="rules-help-guide-slide-frame" role="group" aria-label="カードリバーシ説明スライド">
                         <img
                             id="rules-help-guide-slide-img"
-                            src="assets/images/help/player-guide/card-reversi-player-guide-slide-01.png"
+                            src="./vite-dist/assets/card-reversi-player-guide-slide-01-epiawl9Y.png"
                             alt="カードリバーシ説明スライド 1 / 8"
                             draggable="false"
                             decoding="async">
@@ -226,7 +250,7 @@
                     <div id="rules-help-protection-map-frame" role="group" aria-label="耐性貫通表">
                         <img
                             id="rules-help-protection-map-img"
-                            src="assets/images/help/protection-penetration/protection-penetration-quick-reference.png"
+                            src="./vite-dist/assets/protection-penetration-quick-reference-QipUvGs2.png"
                             alt="耐性貫通の〇×早見表 1 / 2"
                             draggable="false"
                             decoding="async">
@@ -446,7 +470,7 @@
 
     <!-- Hero Character Display -->
     <div id="hero-character-panel">
-        <img id="hero-character-img" src="assets/images/hero/hero.png" alt="リバーシの勇者">
+        <img id="hero-character-img" src="./vite-dist/assets/hero-DbqiEqdj.png" alt="リバーシの勇者">
         <div id="hero-label">リバーシの勇者</div>
     </div>
 
@@ -1018,7 +1042,7 @@
         <div id="handWrapper" style="display:none;">
                 <img
                     id="handImage"
-                    src="assets/images/hand-skin/勇者の手.png"
+                    src="./vite-dist/assets/%E5%8B%87%E8%80%85%E3%81%AE%E6%89%8B-C6v2toAd.png"
                     alt=""
                     aria-hidden="true"
                     draggable="false"
@@ -1028,11 +1052,7 @@
     </div>
 
 
-    <!-- Scripts -->
-    <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=56387683272347"></script>
-    <script src="ui/layout-stage.js"></script>
-    <script src="entry-browser.js?v=61646375449959"></script>
+    <!-- Vite comparison lane entry; generated from index.html -->
 </body>
 
 </html>

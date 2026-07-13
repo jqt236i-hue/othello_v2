@@ -9,6 +9,10 @@
     "typecheck:watch": "tsc --noEmit --watch",
     "build:ts": "tsc -p tsconfig.build.json && npm run typecheck:training && node scripts/build-training-cli.js",
     "build:browser": "npm run build:ts && node dist/scripts/build-module-registry.js",
+    "generate:vite-entry": "npm run build:ts && node dist/scripts/build-vite-entry.js",
+    "check:vite-entry": "npm run build:ts && node dist/scripts/build-vite-entry.js --check",
+    "build:vite": "npm run build:browser && node dist/scripts/build-vite-entry.js && vite build",
+    "dev:vite": "npm run build:browser && node dist/scripts/build-vite-entry.js && vite --host 127.0.0.1",
     "serve": "node scripts/serve-with-fallback.js",
     "match:server": "npm run build:ts && node scripts/local-match-server.js",
     "match:server:net": "npm run build:ts && node scripts/local-match-server.js --host 0.0.0.0 --port 8787",
@@ -24,13 +28,16 @@
     "assets:optimized:check": "npm run assets:fonts:check && npm run assets:backgrounds:check",
     "perf:network-special-stone": "npm run build:browser && node scripts/perf/measure-network-special-stone-late-game.js",
     "match:ui-control-smoke": "npm run build:browser && node dist/scripts/browser-ui-control-smoke.js",
+    "match:ui-control-smoke:vite": "npm run build:vite && node dist/scripts/browser-ui-control-smoke.js --vite",
+    "compare:browser-lanes": "npm run build:vite && node dist/scripts/compare-browser-lanes.js",
+    "compare:browser-lanes:write": "npm run build:vite && node dist/scripts/compare-browser-lanes.js --write",
     "match:endgame-check": "npm run build:ts && node dist/scripts/network-endgame-smoke.js",
     "test:network:parity": "jest --runInBand --runTestsByPath test\\ui.network-client.publish-base-version.test.ts test\\ui.network-client.reconnect-sync.test.ts test\\ui.network-client.apply-coordinator.test.ts test\\ui.network-client.sound-dedupe.test.ts test\\ui.network-client.result-sync.test.ts test\\ui.network-client.action-bridge-next-snapshot.test.ts test\\ui.network-client.trap-deferred-publish.test.ts test\\ui.network-work-will-followup-placement.test.ts test\\ui.network-snapshot.single-writer-baseline.test.ts test\\ui.network-snapshot.pending-presentation-reconcile.test.ts test\\ui.network-snapshot.move-source-empty.test.ts test\\workers.match-publish-sanitize.test.ts test\\workers.match-publish-idempotency.test.ts test\\workers.match-pending-effect-id.test.ts test\\workers.match-movement-selection.test.ts test\\workers.match-card-pattern-parity.test.ts test\\workers.match-card-selector-preload.test.ts test\\workers.match-network-parity-missing-types.test.ts test\\workers.match-condemn-visibility.test.ts test\\workers.match-reveal-hand-visibility.test.ts test\\workers.match-trap-visibility.test.ts test\\workers.match-fate-will-authority.test.ts test\\workers.match-stream-sse.test.ts test\\workers.match-leave-token-revocation.test.ts test\\network.authority-path-hardening.test.ts test\\network.playback-event-assembly.contract.test.ts test\\utils.match-authority.publish-response.test.ts test\\local-match-server.publish-contract.test.ts test\\local-match-server.leave-contract.test.ts test\\ui.match-mode.network-button.test.ts test\\ui.animation-utils.hand-fallback.test.ts test\\ui.animation-feedback-events.sound-keys.test.ts test\\ui.animation-engine.test.ts test\\ui.animation-engine.move-variants.test.ts",
     "test:match:parity": "jest --runInBand --runTestsByPath test\\match-runtime-parity.test.ts test\\network.authority-path-hardening.test.ts test\\workers.match-card-pattern-parity.test.ts test\\workers.match-condemn-visibility.test.ts test\\workers.match-reveal-hand-visibility.test.ts test\\workers.match-trap-visibility.test.ts test\\workers.match-fate-will-authority.test.ts test\\network.playback-event-assembly.contract.test.ts test\\local-match-server.publish-contract.test.ts test\\workers.match-publish-idempotency.test.ts test\\workers.match-pending-effect-id.test.ts",
     "check:generated-network-surface": "npm run build:ts && node dist/scripts/check-generated-network-surface.js",
     "check:artifact-retention": "npm run build:ts && node dist/scripts/check-artifact-retention.js",
-    "check:worker-mirror": "npm run build:ts && node dist/scripts/check-worker-mirror.js",
-    "worker:prepare": "npm run build:ts && node scripts/check-asset-file-case.js && node dist/scripts/check-worker-runtime-preload.js && node scripts/prepare-worker-assets.js",
+    "check:worker-mirror": "npm run build:vite && node dist/scripts/check-worker-mirror.js",
+    "worker:prepare": "npm run build:vite && node scripts/check-asset-file-case.js && node dist/scripts/check-worker-runtime-preload.js && node scripts/prepare-worker-assets.js",
     "worker:dev": "npm run worker:prepare && npx wrangler dev",
     "worker:bundle:smoke": "node dist/scripts/worker-bundle-smoke.js",
     "worker:deploy": "npm run worker:prepare && npm run worker:bundle:smoke && npx wrangler deploy",
@@ -142,6 +149,7 @@
     "pngjs": "^7.0.0",
     "sharp": "^0.35.3",
     "ts-jest": "^29.4.9",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vite": "^8.1.4"
   }
 }

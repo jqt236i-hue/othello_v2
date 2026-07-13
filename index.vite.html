@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-browser-lane="vite">
 
 <head>
     <meta charset="UTF-8">
@@ -33,20 +33,43 @@
         })();
     </script>
     <!-- CSS Split Modules -->
-    <link rel="stylesheet" href="styles-variables.css">
-    <link rel="stylesheet" href="styles-base.css">
-    <link rel="stylesheet" href="styles-layout.css">
-    <link rel="stylesheet" href="styles-charge-hud.css">
-    <link rel="stylesheet" href="styles-layout-controls.css">
-    <link rel="stylesheet" href="styles-layout-info.css">
-    <link rel="stylesheet" href="styles-layout-result.css">
-    <link rel="stylesheet" href="styles-layout-characters.css">
-    <link rel="stylesheet" href="styles-board.css">
-    <link rel="stylesheet" href="styles-cards.css">
-    <link rel="stylesheet" href="styles-animations.css">
-    <link rel="stylesheet" href="styles-responsive.css">
-    <link rel="stylesheet" href="styles-stone-shadows.css">
-    <link rel="stylesheet" href="styles-profile.css">
+    <base href="./">
+    <meta name="card-reversi-classic-style" content="styles-variables.css">
+    <meta name="card-reversi-classic-style" content="styles-base.css">
+    <meta name="card-reversi-classic-style" content="styles-layout.css">
+    <meta name="card-reversi-classic-style" content="styles-charge-hud.css">
+    <meta name="card-reversi-classic-style" content="styles-layout-controls.css">
+    <meta name="card-reversi-classic-style" content="styles-layout-info.css">
+    <meta name="card-reversi-classic-style" content="styles-layout-result.css">
+    <meta name="card-reversi-classic-style" content="styles-layout-characters.css">
+    <meta name="card-reversi-classic-style" content="styles-board.css">
+    <meta name="card-reversi-classic-style" content="styles-cards.css">
+    <meta name="card-reversi-classic-style" content="styles-animations.css">
+    <meta name="card-reversi-classic-style" content="styles-responsive.css">
+    <meta name="card-reversi-classic-style" content="styles-stone-shadows.css">
+    <meta name="card-reversi-classic-style" content="styles-profile.css">
+    <script data-card-reversi-classic-style-bootstrap>
+        (() => {
+            const metas = Array.from(document.querySelectorAll('meta[name="card-reversi-classic-style"]'));
+            const loads = metas.map((meta) => new Promise((resolve, reject) => {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.setAttribute('data-card-reversi-classic-style', meta.content);
+                link.onload = () => resolve(meta.content);
+                link.onerror = () => reject(new Error('failed to load classic stylesheet: ' + meta.content));
+                link.href = new URL(meta.content, document.baseURI).href;
+                document.head.appendChild(link);
+            }));
+            const ready = Promise.all(loads);
+            ready.catch(() => {});
+            window.__CARD_REVERSI_CLASSIC_STYLES_READY__ = ready;
+        })();
+    </script>
+    <meta name="card-reversi-classic-runtime" content="public/runtime.js?v=10249323031789">
+    <meta name="card-reversi-classic-registry" content="public/module-registry.js?v=56387683272347">
+    <meta name="card-reversi-classic-layout" content="ui/layout-stage.js">
+    <meta name="card-reversi-classic-entry" content="entry-browser.js?v=61646375449959">
+    <meta name="card-reversi-browser-lane" content="vite">
 </head>
 
 <body>
@@ -1028,11 +1051,8 @@
     </div>
 
 
-    <!-- Scripts -->
-    <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=56387683272347"></script>
-    <script src="ui/layout-stage.js"></script>
-    <script src="entry-browser.js?v=61646375449959"></script>
+    <!-- Vite comparison lane entry; generated from index.html -->
+    <script type="module" src="/browser-vite/main.ts"></script>
 </body>
 
 </html>

@@ -38,7 +38,8 @@ describe('browser UI control smoke evaluation', () => {
         'http://127.0.0.1/node_modules/onnxruntime-web/dist/ort.min.js'
       ],
       pageErrors: ['TypeError: setupDebugControls is not a function'],
-      consoleErrors: ['failed to lazy load cosmetic group']
+      consoleErrors: ['failed to lazy load cosmetic group'],
+      resourceErrors: ['404 http://127.0.0.1/assets/missing.png']
     });
 
     expect(result.ok).toBe(false);
@@ -51,6 +52,7 @@ describe('browser UI control smoke evaluation', () => {
     expect(result.errors).toContain('ONNX runtime was loaded during UI control smoke');
     expect(result.errors).toContain('page error: TypeError: setupDebugControls is not a function');
     expect(result.errors).toContain('console error: failed to lazy load cosmetic group');
+    expect(result.errors).toContain('resource error: 404 http://127.0.0.1/assets/missing.png');
   });
 
   test('accepts required shells that stay interactive while lazy bodies load after click', () => {

@@ -99,7 +99,8 @@ const DIRS: readonly string[] = Object.freeze([
     'game',
     'shared',
     'ui',
-    'utils'
+    'utils',
+    'vite-dist'
 ]);
 
 const VERIFY_DIRS: readonly string[] = Object.freeze([
@@ -109,7 +110,8 @@ const VERIFY_DIRS: readonly string[] = Object.freeze([
     'game',
     'shared',
     'ui',
-    'utils'
+    'utils',
+    'vite-dist'
 ]);
 
 const VERIFY_ROOT_FILES: readonly string[] = Object.freeze(ROOT_FILES.slice());

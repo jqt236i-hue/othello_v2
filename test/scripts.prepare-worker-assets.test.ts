@@ -36,6 +36,7 @@ describe('prepare-worker-assets', () => {
 
     test('verifies assets as part of mirrored directories', () => {
         expect(VERIFY_DIRS).toContain('assets');
+        expect(VERIFY_DIRS).toContain('vite-dist');
     });
 
     test('verifies worker runtime root files are mirrored', () => {

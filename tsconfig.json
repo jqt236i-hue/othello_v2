@@ -33,6 +33,7 @@
     "include": [
       "game/**/*",
       "ui/**/*",
+      "browser-vite/**/*",
       "shared/**/*",
       "workers/**/*",
       "scripts/**/*",

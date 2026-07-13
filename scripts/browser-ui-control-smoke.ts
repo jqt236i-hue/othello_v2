@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as http from 'http';
 import * as path from 'path';
 import { chromium, type Browser } from 'playwright';
+import { REQUIRED_ELEMENT_IDS, REQUIRED_GLOBAL_TYPES } from '../browser-vite/runtime-contract';
 
 const OPTIONAL_REGISTRY_NAME = 'module-registry.optional.js';
 const ONNX_RUNTIME_PATH_FRAGMENT = 'onnxruntime-web/dist/ort.min.js';
@@ -32,6 +33,8 @@ interface UiControlSmokeSample {
   postInteractionScriptSignals: string[];
   pageErrors: string[];
   consoleErrors: string[];
+  resourceErrors?: string[];
+  documentBaseUri?: string;
 }
 
 interface UiControlSmokeEvaluation {
@@ -43,6 +46,40 @@ interface BrowserUiControlSmokeOptions {
   rootDir?: string;
   launch?: typeof chromium.launch;
   log?: boolean;
+  entryPath?: string;
+  captureComparison?: boolean;
+}
+
+interface BrowserLaneComparisonSnapshot {
+  readyMs: number;
+  userAgent: string;
+  lane: string;
+  htmlLane: string;
+  bootState: string;
+  viteRuntime: {
+    state: string;
+    loadedScripts: string[];
+    esmEntry: boolean;
+  } | null;
+  globals: Record<string, string>;
+  missingElements: string[];
+  stylesheetPaths: string[];
+  startupResources: {
+    count: number;
+    transferBytes: number;
+    encodedBodyBytes: number;
+    decodedBodyBytes: number;
+  };
+  navigation: {
+    domContentLoadedMs: number;
+    loadMs: number;
+  };
+  fixture: {
+    board: unknown;
+    markers: unknown;
+    boardWidth: number;
+    boardHeight: number;
+  };
 }
 
 const REQUIRED_UI_CONTROL_SMOKE_TARGETS: UiControlSmokeTarget[] = [
@@ -141,6 +178,9 @@ function evaluateUiControlSmokeSample(sample: UiControlSmokeSample): UiControlSm
   }
   for (const error of normalizeSignals(source.consoleErrors)) {
     errors.push(`console error: ${error}`);
+  }
+  for (const error of normalizeSignals(source.resourceErrors)) {
+    errors.push(`resource error: ${error}`);
   }
 
   return { ok: errors.length === 0, errors };
@@ -377,10 +417,128 @@ async function probeControl(page: any, target: UiControlSmokeTarget): Promise<Ui
   return probe;
 }
 
+async function captureStartupComparisonSnapshot(page: any, readyMs: number): Promise<Omit<BrowserLaneComparisonSnapshot, 'fixture'>> {
+  await page.evaluate(() => (document as any).fonts && (document as any).fonts.ready);
+  return page.evaluate(({ globalTypes, elementIds, measuredReadyMs }: any) => {
+    const root = window as any;
+    const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    const globals = Object.fromEntries(Object.keys(globalTypes).map((name) => [name, typeof root[name]]));
+    return {
+      readyMs: measuredReadyMs,
+      userAgent: navigator.userAgent,
+      lane: String(root.__CARD_REVERSI_BROWSER_LANE__ || ''),
+      htmlLane: String(document.documentElement.getAttribute('data-browser-lane') || ''),
+      bootState: String(document.documentElement.getAttribute('data-browser-boot-state') || ''),
+      viteRuntime: root.__CARD_REVERSI_BROWSER_METRICS__ ? {
+        state: String(root.__CARD_REVERSI_BROWSER_METRICS__.state || ''),
+        loadedScripts: Array.isArray(root.__CARD_REVERSI_BROWSER_METRICS__.loadedScripts)
+          ? root.__CARD_REVERSI_BROWSER_METRICS__.loadedScripts.slice()
+          : [],
+        esmEntry: root.__CARD_REVERSI_BROWSER_CAPABILITIES__?.esmEntry === true
+      } : null,
+      globals,
+      missingElements: elementIds.filter((id: string) => !document.getElementById(id)),
+      stylesheetPaths: Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+        .map((link: Element) => new URL((link as HTMLLinkElement).href, document.baseURI).pathname),
+      startupResources: {
+        count: resources.length,
+        transferBytes: resources.reduce((sum, entry) => sum + Number(entry.transferSize || 0), 0),
+        encodedBodyBytes: resources.reduce((sum, entry) => sum + Number(entry.encodedBodySize || 0), 0),
+        decodedBodyBytes: resources.reduce((sum, entry) => sum + Number(entry.decodedBodySize || 0), 0)
+      },
+      navigation: {
+        domContentLoadedMs: Number(navigation && navigation.domContentLoadedEventEnd || 0),
+        loadMs: Number(navigation && navigation.loadEventEnd || 0)
+      }
+    };
+  }, {
+    globalTypes: REQUIRED_GLOBAL_TYPES,
+    elementIds: REQUIRED_ELEMENT_IDS,
+    measuredReadyMs: readyMs
+  });
+}
+
+async function captureComparisonFixture(page: any): Promise<{
+  fixture: BrowserLaneComparisonSnapshot['fixture'];
+  boardPng: Buffer;
+}> {
+  const debugEnabled = await page.getAttribute('#debugModeBtn', 'aria-pressed');
+  if (debugEnabled !== 'true') await page.click('#debugModeBtn', { timeout: 10000 });
+  await page.waitForSelector('#visualTestBtn', { state: 'attached', timeout: 10000 });
+  await page.evaluate(() => {
+    const button = document.getElementById('visualTestBtn') as HTMLButtonElement | null;
+    if (!button || typeof button.click !== 'function') throw new Error('visual fixture control is unavailable');
+    button.click();
+  });
+  try {
+    await page.waitForFunction(() => {
+      const root = window as any;
+      const board = root.gameState && root.gameState.board;
+      const markers = root.cardState && root.cardState.markers;
+      return Array.isArray(board)
+        && board.length === 8
+        && board.every((row: unknown) => Array.isArray(row) && row.length === 8)
+        && board[0][0] !== 0
+        && board[0][1] !== 0
+        && board[7][0] !== 0
+        && board[7][1] !== 0
+        && Array.isArray(markers)
+        && markers.length === 15;
+    }, null, { timeout: 10000 });
+  } catch (error) {
+    const diagnostics = await page.evaluate(() => {
+      const root = window as any;
+      return {
+        debugPressed: document.getElementById('debugModeBtn')?.getAttribute('aria-pressed'),
+        visualButtonPresent: !!document.getElementById('visualTestBtn'),
+        boardRows: Array.isArray(root.gameState?.board) ? root.gameState.board.length : null,
+        corners: Array.isArray(root.gameState?.board) ? [
+          root.gameState.board[0]?.[0],
+          root.gameState.board[0]?.[1],
+          root.gameState.board[7]?.[0],
+          root.gameState.board[7]?.[1]
+        ] : null,
+        markerCount: Array.isArray(root.cardState?.markers) ? root.cardState.markers.length : null
+      };
+    });
+    throw new Error(`visual fixture did not settle: ${JSON.stringify(diagnostics)}; ${error instanceof Error ? error.message : error}`);
+  }
+  await page.evaluate(() => {
+    const root = window as any;
+    if (typeof root.forceFullRender === 'function' && root.boardEl) root.forceFullRender(root.boardEl);
+  });
+  try {
+    await page.waitForFunction(() => document.documentElement.classList.contains('stone-images-loaded'), null, { timeout: 5000 });
+  } catch (_error) {
+    // The screenshot still captures the explicit CSS fallback if an image codec is unavailable.
+  }
+  await page.evaluate(() => (document as any).fonts && (document as any).fonts.ready);
+  await closeSidePanelIfOpen(page);
+  await page.waitForTimeout(500);
+  const fixture = await page.evaluate(() => {
+    const root = window as any;
+    const board = document.getElementById('board');
+    const rect = board ? board.getBoundingClientRect() : { width: 0, height: 0 };
+    return {
+      board: root.gameState && root.gameState.board,
+      markers: root.cardState && root.cardState.markers,
+      boardWidth: Number(rect.width),
+      boardHeight: Number(rect.height)
+    };
+  });
+  const board = page.locator('#board');
+  const boardPng = await board.screenshot({ type: 'png' });
+  return { fixture, boardPng };
+}
+
 async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions): Promise<{
   sample: UiControlSmokeSample;
   evaluation: UiControlSmokeEvaluation;
   requestedUrls: string[];
+  startupRequestedUrls: string[];
+  comparison?: BrowserLaneComparisonSnapshot;
+  boardPng?: Buffer;
 }> {
   const opts = (options && typeof options === 'object') ? options : {};
   const rootDir = path.resolve(opts.rootDir || process.cwd());
@@ -391,6 +549,7 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
     const requestedUrls: string[] = [];
     const pageErrors: string[] = [];
     const consoleErrors: string[] = [];
+    const resourceErrors: string[] = [];
     const launch = typeof opts.launch === 'function' ? opts.launch : chromium.launch.bind(chromium);
     browser = await launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
@@ -406,29 +565,50 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
         consoleErrors.push(message.text());
       }
     });
+    page.on('response', (response: any) => {
+      if (!response.ok()) resourceErrors.push(`${response.status()} ${response.url()}`);
+    });
 
-    await page.goto(`${baseUrl}/?debug=1`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const entryPath = String(opts.entryPath || '/').trim() || '/';
+    const separator = entryPath.includes('?') ? '&' : '?';
+    const startedAt = Date.now();
+    await page.goto(`${baseUrl}${entryPath}${separator}debug=1`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await closeMaintenanceNoticeIfPresent(page);
     await page.waitForFunction(() => document.readyState !== 'loading', null, { timeout: 10000 });
     for (const target of REQUIRED_UI_CONTROL_SMOKE_TARGETS) {
       await page.waitForSelector(target.selector, { state: 'attached', timeout: 30000 });
     }
+    await page.waitForFunction(() => (window as any).__uiInitialized === true, null, { timeout: 30000 });
+    const readyMs = Date.now() - startedAt;
 
     await page.waitForTimeout(500);
     const startupScriptSignals = await collectScriptSignals(page, requestedUrls);
+    const startupComparison = opts.captureComparison
+      ? await captureStartupComparisonSnapshot(page, readyMs)
+      : null;
+    const startupRequestedUrls = requestedUrls.slice();
     const controls: Record<string, UiControlProbe> = {};
+    let fixtureCapture: Awaited<ReturnType<typeof captureComparisonFixture>> | null = null;
     for (const target of REQUIRED_UI_CONTROL_SMOKE_TARGETS) {
       controls[target.name] = await probeControl(page, target);
-      if (target.name === 'debug') await closeSidePanelIfOpen(page);
+      if (target.name === 'debug') {
+        await closeSidePanelIfOpen(page);
+        if (opts.captureComparison) fixtureCapture = await captureComparisonFixture(page);
+      }
     }
     await page.waitForTimeout(500);
     const postInteractionScriptSignals = await collectScriptSignals(page, requestedUrls);
+    const comparison = startupComparison && fixtureCapture
+      ? { ...startupComparison, fixture: fixtureCapture.fixture }
+      : undefined;
     const sample: UiControlSmokeSample = {
       controls,
       startupScriptSignals,
       postInteractionScriptSignals,
       pageErrors,
-      consoleErrors
+      consoleErrors,
+      resourceErrors,
+      documentBaseUri: await page.evaluate(() => document.baseURI)
     };
     const evaluation = evaluateUiControlSmokeSample(sample);
 
@@ -443,11 +623,21 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
           || signalContainsFragment(sample.postInteractionScriptSignals, ONNX_RUNTIME_PATH_FRAGMENT),
         pageErrorCount: sample.pageErrors.length,
         consoleErrorCount: sample.consoleErrors.length,
+        resourceErrorCount: sample.resourceErrors?.length || 0,
+        resourceErrors: normalizeSignals(sample.resourceErrors).slice(0, 30),
+        documentBaseUri: sample.documentBaseUri,
         evaluation,
         requestedScripts: postInteractionScriptSignals.filter((url) => /\.js(?:\?|$)/.test(String(url || '')))
       }, null, 2));
     }
-    return { sample, evaluation, requestedUrls };
+    return {
+      sample,
+      evaluation,
+      requestedUrls,
+      startupRequestedUrls,
+      comparison,
+      boardPng: fixtureCapture?.boardPng
+    };
   } finally {
     if (browser) await browser.close();
     await closeServer(server);
@@ -455,7 +645,8 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
 }
 
 if (require.main === module) {
-  runBrowserUiControlSmoke().then((result) => {
+  const entryPath = process.argv.includes('--vite') ? '/vite-dist/index.vite.html' : '/';
+  runBrowserUiControlSmoke({ entryPath }).then((result) => {
     if (!result.evaluation.ok) {
       console.error(`[browser-ui-control-smoke] failed: ${result.evaluation.errors.join('; ')}`);
       process.exit(1);

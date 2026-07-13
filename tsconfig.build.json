@@ -6,6 +6,7 @@
   "include": [
     "game/**/*.ts",
     "ui/**/*.ts",
+    "browser-vite/**/*.ts",
     "shared/**/*.ts",
     "constants/**/*.ts",
     "workers/**/*.ts",
