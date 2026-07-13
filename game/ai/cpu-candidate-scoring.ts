@@ -20,6 +20,14 @@ const MAX_TIE_BOUND = 4096;
 
 export type CpuCandidateScoringStateVersion = number | string | null;
 
+export interface CpuCandidateScoringIdentity {
+    requestId: string;
+    decisionEpoch: number;
+    stateVersion: CpuCandidateScoringStateVersion;
+    turnNumber: number;
+    playerKey: string;
+}
+
 export interface CpuCandidateScoringPosition {
     row: number;
     col: number;
@@ -191,8 +199,19 @@ function cloneBoardShape(value: CpuCandidateScoringBoardShape): CpuCandidateScor
 
 function isStateVersion(value: unknown): value is CpuCandidateScoringStateVersion {
     if (value === null) return true;
-    if (typeof value === 'string') return value.length <= MAX_STATE_VERSION_STRING_LENGTH;
+    if (typeof value === 'string') return value.length > 0 && value.length <= MAX_STATE_VERSION_STRING_LENGTH;
     return isSafeNonNegativeInteger(value);
+}
+
+export function isCpuCandidateScoringIdentity(value: unknown): value is CpuCandidateScoringIdentity {
+    if (!isRecord(value)) return false;
+    return (
+        isBoundedString(value.requestId, MAX_REQUEST_ID_LENGTH) &&
+        isSafeNonNegativeInteger(value.decisionEpoch) &&
+        isStateVersion(value.stateVersion) &&
+        isSafeNonNegativeInteger(value.turnNumber) &&
+        isBoundedString(value.playerKey, MAX_PLAYER_KEY_LENGTH)
+    );
 }
 
 function isPosition(value: unknown): value is CpuCandidateScoringPosition {

@@ -38,13 +38,19 @@ export function filterLv6OpenCornerAdjacentMoves(candidateMoves: any, board: any
     return safeMoves.length > 0 ? safeMoves : candidateMoves;
 }
 
-export function filterMovesByLv6PlacementPriority(playerKey: any, level: any, candidateMoves: any, deps?: PlacementFilterDeps): any {
+export function filterMovesByLv6PlacementPriority(
+    playerKey: any,
+    level: any,
+    candidateMoves: any,
+    deps?: PlacementFilterDeps,
+    options?: { emitDebugLog?: boolean }
+): any {
     const activeDeps = deps || {};
     if (
         activeDeps.placementPriority &&
         typeof activeDeps.placementPriority.filterMovesByLv6PlacementPriority === 'function'
     ) {
-        return activeDeps.placementPriority.filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves);
+        return activeDeps.placementPriority.filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves, options);
     }
     return Array.isArray(candidateMoves) ? candidateMoves : [];
 }
@@ -90,4 +96,3 @@ export function filterCloneSplitTargetsForLv6(playerKey: any, targets: any, deps
         return isCloneSplitEligibleSource(playerKey, target.row, target.col, undefined, activeDeps);
     });
 }
-

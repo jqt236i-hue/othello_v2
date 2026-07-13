@@ -2528,9 +2528,16 @@ const CpuDecisionMoveSelection = (CpuDecisionMoveSelectionModule && typeof CpuDe
  * @param {string} playerKey - 'black' または 'white'
  * @returns {Object} 選択された手
  */
-function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
+function prepareCpuCandidateScoringRequest(candidateMoves: any, playerKey: any, identity: any): any {
+    if (CpuDecisionMoveSelection && typeof CpuDecisionMoveSelection.prepareCpuCandidateScoringRequest === 'function') {
+        return CpuDecisionMoveSelection.prepareCpuCandidateScoringRequest(candidateMoves, playerKey, identity);
+    }
+    return null;
+}
+
+function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any, candidateScoringPrecompute?: any): any {
     if (CpuDecisionMoveSelection && typeof CpuDecisionMoveSelection.selectCpuMoveWithPolicy === 'function') {
-        return CpuDecisionMoveSelection.selectCpuMoveWithPolicy(candidateMoves, playerKey);
+        return CpuDecisionMoveSelection.selectCpuMoveWithPolicy(candidateMoves, playerKey, candidateScoringPrecompute);
     }
     return candidateMoves[Math.floor(cpuRng.random() * candidateMoves.length)];
 }
@@ -2737,10 +2744,15 @@ function filterLv6OpenCornerAdjacentMoves(candidateMoves: any, board: any): any 
     });
 }
 
-function filterMovesByLv6PlacementPriority(playerKey: any, level: any, candidateMoves: any): any {
+function filterMovesByLv6PlacementPriority(
+    playerKey: any,
+    level: any,
+    candidateMoves: any,
+    options?: { emitDebugLog?: boolean }
+): any {
     return CpuPolicyPlacementFiltersRequired.filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves, {
         placementPriority: CpuDecisionPlacementPriority
-    });
+    }, options);
 }
 
 function isCloneSplitEligibleSource(playerKey: any, row: any, col: any, markerProfile?: any): any {
@@ -3248,6 +3260,7 @@ if (typeof module !== 'undefined' && module.exports) {
         applyHandCardDestroy,
         selectCardToUse,
         applyCardChoice,
+        prepareCpuCandidateScoringRequest,
         selectCpuMoveWithPolicy,
         selectMoveFromOnnxPolicyAsync,
         isCardChoiceAllowedByRisk,

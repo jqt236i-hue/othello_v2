@@ -1,7 +1,15 @@
+import {
+  isCpuCandidateScoringRequest,
+  isCpuCandidateScoringResponse,
+  type CpuCandidateScoringRequest,
+  type CpuCandidateScoringResponse
+} from '../../game/ai/cpu-candidate-scoring';
+
 export const CPU_WORKER_PROTOCOL_VERSION = 1 as const;
 
 export const CPU_WORKER_OPERATIONS = Object.freeze({
   PING: 'worker.ping',
+  SCORE_CANDIDATES: 'cpu.score-candidates',
   ONNX_CREATE_SESSION: 'onnx.create-session',
   ONNX_RUN_SESSION: 'onnx.run-session',
   ONNX_RELEASE_SESSION: 'onnx.release-session'
@@ -31,6 +39,10 @@ export interface CpuWorkerPingPayload {
   probe: true;
 }
 
+export interface CpuCandidateScoringPayload {
+  request: CpuCandidateScoringRequest;
+}
+
 export interface OnnxRunSessionPayload {
   sessionKey: string;
   input: {
@@ -47,7 +59,12 @@ export interface OnnxReleaseSessionPayload {
 
 export type CpuWorkerRequest = CpuWorkerRequestIdentity & {
   kind: 'request';
-  payload: CpuWorkerPingPayload | OnnxCreateSessionPayload | OnnxRunSessionPayload | OnnxReleaseSessionPayload;
+  payload:
+    CpuWorkerPingPayload |
+    CpuCandidateScoringPayload |
+    OnnxCreateSessionPayload |
+    OnnxRunSessionPayload |
+    OnnxReleaseSessionPayload;
 };
 
 export interface CpuWorkerCancelMessage {
@@ -85,7 +102,12 @@ export interface CpuWorkerPingResult {
   ready: true;
 }
 
-export type CpuWorkerResult = CpuWorkerPingResult | OnnxCreateSessionResult | OnnxRunSessionResult | OnnxReleaseSessionResult;
+export type CpuWorkerResult =
+  CpuWorkerPingResult |
+  CpuCandidateScoringResponse |
+  OnnxCreateSessionResult |
+  OnnxRunSessionResult |
+  OnnxReleaseSessionResult;
 
 export interface CpuWorkerSuccessResponse extends CpuWorkerRequestIdentity {
   kind: 'response';
@@ -255,6 +277,24 @@ function parsePingPayload(value: unknown): CpuWorkerPingPayload {
   return { probe: true };
 }
 
+function parseCandidateScoringPayload(
+  value: unknown,
+  identity: CpuWorkerRequestIdentity
+): CpuCandidateScoringPayload {
+  if (!isRecord(value) || !isCpuCandidateScoringRequest(value.request)) {
+    fail('candidate-scoring payload is invalid');
+  }
+  const request = value.request;
+  if (
+    request.decisionEpoch !== identity.decisionEpoch ||
+    request.stateVersion !== identity.stateVersion ||
+    request.turnNumber !== identity.turnNumber
+  ) {
+    fail('candidate-scoring payload identity does not match its Worker envelope');
+  }
+  return { request };
+}
+
 function parseRunSessionPayload(value: unknown): OnnxRunSessionPayload {
   if (!isRecord(value) || !isRecord(value.input)) fail('run-session payload must contain an input tensor');
   if (value.input.type !== 'float32' || !(value.input.data instanceof Float32Array)) {
@@ -283,6 +323,8 @@ export function parseCpuWorkerRequest(value: unknown): CpuWorkerRequest {
   let payload: CpuWorkerRequest['payload'];
   if (identity.operation === CPU_WORKER_OPERATIONS.PING) {
     payload = parsePingPayload(value.payload);
+  } else if (identity.operation === CPU_WORKER_OPERATIONS.SCORE_CANDIDATES) {
+    payload = parseCandidateScoringPayload(value.payload, identity);
   } else if (identity.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
     payload = parseCreateSessionPayload(value.payload);
   } else if (identity.operation === CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION) {
@@ -364,8 +406,14 @@ function parsePingResult(value: unknown): CpuWorkerPingResult {
   return { ready: true };
 }
 
+function parseCandidateScoringResult(value: unknown): CpuCandidateScoringResponse {
+  if (!isCpuCandidateScoringResponse(value)) fail('candidate-scoring result is invalid');
+  return value;
+}
+
 function parseResponseResult(operation: CpuWorkerOperation, value: unknown): CpuWorkerResult {
   if (operation === CPU_WORKER_OPERATIONS.PING) return parsePingResult(value);
+  if (operation === CPU_WORKER_OPERATIONS.SCORE_CANDIDATES) return parseCandidateScoringResult(value);
   if (operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) return parseCreateSessionResult(value);
   if (operation === CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION) return parseRunSessionResult(value);
   return parseReleaseSessionResult(value);

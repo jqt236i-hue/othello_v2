@@ -8,9 +8,12 @@ type CpuTurnMovePhaseConfig = {
     getAnimationRetryDelayMs: () => any;
     getCardState: () => any;
     getCurrentPlayerKeySafe: () => any;
+    getCurrentStateVersionSafe: () => number | string | null;
     getCurrentTurnNumberSafe: () => any;
     getFlipBlockersSafe: () => any;
     getGameState: () => any;
+    getPrepareCpuCandidateScoringRequestFn: () => any;
+    getScoreCandidatesInWorkerFn: () => any;
     getSelectMoveFromOnnxFn: () => any;
     getUseCardWithPolicyFn: () => any;
     handleCpuTurnError: (playerKey: any, selfName: any, error: any, autoMode: any) => any;
@@ -25,7 +28,7 @@ type CpuTurnMovePhaseConfig = {
     resolveProcessPassTurn: () => any;
     scheduleRetry: (fn: any, delayMs?: any) => any;
     scheduleRunCpuTurn: (playerKey: any, options: any, delayMs: any) => any;
-    selectCpuMoveSafe: (candidateMoves: any, playerKey: any) => any;
+    selectCpuMoveSafe: (candidateMoves: any, playerKey: any, candidateScoringPrecompute?: any) => any;
     setCpuProcessing: (active: any) => any;
     shouldAbortCpuForHumanMode: (playerKey: any, context: any) => any;
     shouldUseOnnxMoveDecision: (level: any) => any;
@@ -41,6 +44,7 @@ function normalizePlayerKeyFromValue(value: any, blackValue: any, whiteValue: an
 
 export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuTurnMovePhaseConfig;
+    let candidateScoringDecisionEpoch = 0;
 
     function readNowMs(): number {
         if (typeof cfg.readNowMs === 'function') {
@@ -61,6 +65,9 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
         const pending = opts.pending || null;
         const turnStartMs = Number.isFinite(opts.turnStartMs) ? opts.turnStartMs : readNowMs();
         const expectedTurnNumber = cfg.getCurrentTurnNumberSafe();
+        const expectedStateVersion = typeof cfg.getCurrentStateVersionSafe === 'function'
+            ? cfg.getCurrentStateVersionSafe()
+            : null;
 
         const invokeCpuPass = async (passFn: any, passOptions: any): Promise<any> => {
             const result = await Promise.resolve(passFn(playerKey, passOptions));
@@ -164,7 +171,72 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 }
             }
             if (!move) {
-                move = cfg.selectCpuMoveSafe(candidateMoves, playerKey);
+                let candidateScoringPrecompute = null;
+                const prepareCandidateScoring = typeof cfg.getPrepareCpuCandidateScoringRequestFn === 'function'
+                    ? cfg.getPrepareCpuCandidateScoringRequestFn()
+                    : null;
+                const scoreCandidatesInWorker = typeof cfg.getScoreCandidatesInWorkerFn === 'function'
+                    ? cfg.getScoreCandidatesInWorkerFn()
+                    : null;
+                if (typeof prepareCandidateScoring === 'function' && typeof scoreCandidatesInWorker === 'function') {
+                    const decisionEpoch = ++candidateScoringDecisionEpoch;
+                    const identity = {
+                        requestId: `cpu-score-${decisionEpoch}`,
+                        decisionEpoch,
+                        stateVersion: expectedStateVersion,
+                        turnNumber: Number.isSafeInteger(expectedTurnNumber) && expectedTurnNumber >= 0
+                            ? expectedTurnNumber
+                            : 0,
+                        playerKey: String(playerKey || '')
+                    };
+                    let expectedRequest = null;
+                    let batch = null;
+                    try {
+                        expectedRequest = prepareCandidateScoring(candidateMoves, playerKey, identity);
+                        if (expectedRequest) {
+                            batch = await scoreCandidatesInWorker(expectedRequest);
+                        }
+                    } catch (e) {
+                        cfg.debugCpuTrace('[AI] Dedicated Worker candidate scoring failed; using exact local scorer', {
+                            playerKey,
+                            decisionEpoch,
+                            error: e && (e as any).message ? (e as any).message : String(e)
+                        });
+                    }
+                    if (expectedRequest) {
+                        if (cfg.shouldAbortCpuForHumanMode(playerKey, 'after_worker_candidate_scoring')) {
+                            return { status: 'handled' };
+                        }
+                        const nowPlayerKey = cfg.getCurrentPlayerKeySafe();
+                        const nowTurnNumber = cfg.getCurrentTurnNumberSafe();
+                        const nowStateVersion = typeof cfg.getCurrentStateVersionSafe === 'function'
+                            ? cfg.getCurrentStateVersionSafe()
+                            : null;
+                        const stale = (
+                            decisionEpoch !== candidateScoringDecisionEpoch ||
+                            (nowPlayerKey && nowPlayerKey !== playerKey) ||
+                            (expectedTurnNumber !== null && nowTurnNumber !== expectedTurnNumber) ||
+                            nowStateVersion !== expectedStateVersion
+                        );
+                        if (stale) {
+                            cfg.debugCpuTrace('[AI] discard stale Worker candidate scores', {
+                                playerKey,
+                                decisionEpoch,
+                                currentDecisionEpoch: candidateScoringDecisionEpoch,
+                                expectedTurnNumber,
+                                nowTurnNumber,
+                                expectedStateVersion,
+                                nowStateVersion
+                            });
+                            if (decisionEpoch === candidateScoringDecisionEpoch) cfg.setCpuProcessing(false);
+                            return { status: 'handled' };
+                        }
+                        if (batch) {
+                            candidateScoringPrecompute = { expectedRequest, batch };
+                        }
+                    }
+                }
+                move = cfg.selectCpuMoveSafe(candidateMoves, playerKey, candidateScoringPrecompute);
             }
         }
         if (!move) {
@@ -197,6 +269,9 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 ? cfg.getCurrentPlayerKeySafe()
                 : normalizePlayerKeyFromValue((cfg.getGameState() || {}).currentPlayer, cfg.blackValue, cfg.whiteValue);
             const nowTurnNumber = cfg.getCurrentTurnNumberSafe();
+            const nowStateVersion = typeof cfg.getCurrentStateVersionSafe === 'function'
+                ? cfg.getCurrentStateVersionSafe()
+                : null;
             if (nowCurrentKey && nowCurrentKey !== playerKey) {
                 cfg.debugCpuTrace('[AI] skip stale delayed move commit (turn changed)', {
                     playerKey,
@@ -210,6 +285,15 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                     playerKey,
                     expectedTurnNumber,
                     nowTurnNumber
+                });
+                cfg.setCpuProcessing(false);
+                return;
+            }
+            if (nowStateVersion !== expectedStateVersion) {
+                cfg.debugCpuTrace('[AI] skip stale delayed move commit (state version changed)', {
+                    playerKey,
+                    expectedStateVersion,
+                    nowStateVersion
                 });
                 cfg.setCpuProcessing(false);
                 return;

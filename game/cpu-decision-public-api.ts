@@ -8,6 +8,7 @@ export const REQUIRED_CPU_DECISION_EXPORTS = [
   'computeCpuAction',
   'cpuMaybeDestroyHandCardWithPolicy',
   'cpuMaybeUseCardWithPolicy',
+  'prepareCpuCandidateScoringRequest',
   'selectCardToUse',
   'selectCpuMoveWithPolicy',
   'selectMoveFromOnnxPolicyAsync',

@@ -3,6 +3,7 @@ import {
   createCpuCandidateDigest,
   createCpuCandidateScoringBoardShape,
   createCpuCandidateScoringRequest,
+  isCpuCandidateScoringIdentity,
   isCpuCandidateScoringRequest,
   scoreCpuCandidateRequest,
   verifyCpuCandidateScoringBatch,
@@ -109,6 +110,14 @@ describe('pure CPU candidate scoring boundary', () => {
     expect(verifyCpuCandidateScoringResponse(request, nonFiniteScore)).toBe(false);
 
     expect(verifyCpuCandidateScoringBatch(request, { request, response })).toBe(true);
+    expect(isCpuCandidateScoringIdentity({
+      requestId: 'empty-state-version',
+      decisionEpoch: 1,
+      stateVersion: '',
+      turnNumber: 1,
+      playerKey: 'white'
+    })).toBe(false);
+    expect(() => makeRequest({ stateVersion: '' })).toThrow(/stateVersion/);
   });
 
   test('matches the legacy formula across bounded deterministic randomized fixtures', () => {

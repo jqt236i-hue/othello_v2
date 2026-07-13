@@ -5,6 +5,8 @@ export type CpuRuntimeWiringDeps = {
   readCpuSmartnessValueFromSelect: (id: string) => any;
   getPlaybackStateModuleForReset: () => any;
   registerUIGlobals: (globals: Record<string, any>) => any;
+  scoreCandidatesInWorker?: (request: any, options?: { signal?: AbortSignal | null }) => Promise<any>;
+  isCpuCandidateScoringAvailable?: () => boolean;
 };
 
 type RuntimeFunction = (...args: any[]) => any;
@@ -49,6 +51,7 @@ function registerCpuRuntimeGlobals(cpu: any, cpuDecision: any, moveGenerator: an
   registerDirectRuntimeFunction(cpuGlobals, 'processCpuTurn', cpu);
   registerDirectRuntimeFunction(cpuGlobals, 'processAutoBlackTurn', cpu);
   registerDirectRuntimeFunction(cpuGlobals, 'selectMoveFromOnnxPolicyAsync', cpuDecision);
+  registerDirectRuntimeFunction(cpuGlobals, 'prepareCpuCandidateScoringRequest', cpuDecision);
   registerDirectRuntimeFunction(cpuGlobals, 'selectCpuMoveWithPolicy', cpuDecision);
   registerDirectRuntimeFunction(cpuGlobals, 'resolveCpuDecisionLevelForPlayer', cpuDecision);
 
@@ -70,6 +73,8 @@ export function installCpuRuntimeWiring(deps: CpuRuntimeWiringDeps): { registere
   try { cpuDecision = deps.requireModule('../game/cpu-decision'); } catch (e: any) { /* ignore */ }
   let moveGenerator: any = null;
   try { moveGenerator = deps.requireModule('../game/move-generator'); } catch (e: any) { /* ignore */ }
+  let networkClient: any = null;
+  try { networkClient = deps.requireModule('../ui/network-client'); } catch (e: any) { /* ignore */ }
 
   const cpuGlobals = registerCpuRuntimeGlobals(cpu, cpuDecision, moveGenerator);
   if (!cpu) return { registeredGlobals: cpuGlobals };
@@ -91,6 +96,21 @@ export function installCpuRuntimeWiring(deps: CpuRuntimeWiringDeps): { registere
       }),
       resolveRuntimeFunction: runtimeResolvers.resolveRuntimeFunction,
       resolveRuntimeValue: runtimeResolvers.resolveRuntimeValue,
+      readCpuStateVersion: () => {
+        try {
+          if (!networkClient || typeof networkClient.getStateVersion !== 'function') return null;
+          if (typeof networkClient.isActive === 'function' && networkClient.isActive() !== true) return null;
+          return networkClient.getStateVersion();
+        } catch (e: any) {
+          return null;
+        }
+      },
+      scoreCandidatesInWorker: typeof deps.scoreCandidatesInWorker === 'function'
+        ? deps.scoreCandidatesInWorker
+        : undefined,
+      isCpuCandidateScoringAvailable: typeof deps.isCpuCandidateScoringAvailable === 'function'
+        ? deps.isCpuCandidateScoringAvailable
+        : () => typeof deps.scoreCandidatesInWorker === 'function',
       readProcessing: () => {
         try {
           const playbackState = deps.getPlaybackStateModuleForReset();

@@ -130,7 +130,13 @@ export function createCpuDecisionPlacementPriority(deps: CpuDecisionPlacementPri
     return safeMoves.length > 0 ? safeMoves : candidateMoves;
   }
 
-  function filterLv6EdgeMovesByPlan(playerKey: any, level: any, candidateMoves: any, board: any): any {
+  function filterLv6EdgeMovesByPlan(
+    playerKey: any,
+    level: any,
+    candidateMoves: any,
+    board: any,
+    emitDebugLog = true
+  ): any {
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0 || !board) return [];
 
     const edgeMoves = candidateMoves.filter((move: any) => {
@@ -180,7 +186,7 @@ export function createCpuDecisionPlacementPriority(deps: CpuDecisionPlacementPri
       Number.isFinite(bestPlanScore) &&
       (bestOverallPlanScore - bestPlanScore) >= edgeEscapeMargin
     ) {
-      deps.cpuDebugLog(
+      if (emitDebugLog) deps.cpuDebugLog(
         `[CPU] Lv${level} ${playerKey}: 辺優先を緩和し、内側の安全候補も保持 (${Math.round(bestOverallPlanScore - bestPlanScore)})`
       );
       return candidateMoves;
@@ -189,9 +195,15 @@ export function createCpuDecisionPlacementPriority(deps: CpuDecisionPlacementPri
     return finalists.length > 0 ? finalists : safeEdgeMoves;
   }
 
-  function filterMovesByLv6PlacementPriority(playerKey: any, level: any, candidateMoves: any): any {
+  function filterMovesByLv6PlacementPriority(
+    playerKey: any,
+    level: any,
+    candidateMoves: any,
+    options?: { emitDebugLog?: boolean }
+  ): any {
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0) return [];
     if (!Number.isFinite(level) || level < 6) return candidateMoves;
+    const emitDebugLog = !options || options.emitDebugLog !== false;
 
     const board = deps.getCurrentCpuBoard();
     const pendingType = deps.resolvePendingType(playerKey);
@@ -203,13 +215,13 @@ export function createCpuDecisionPlacementPriority(deps: CpuDecisionPlacementPri
       : effectFocusedCandidates;
     const candidatePool = filteredCandidates.length > 0 ? filteredCandidates : candidateMoves;
 
-    if (board && effectFocusedCandidates.length > 0 && effectFocusedCandidates.length < candidateMoves.length) {
+    if (emitDebugLog && board && effectFocusedCandidates.length > 0 && effectFocusedCandidates.length < candidateMoves.length) {
       deps.cpuDebugLog(
         `[CPU] Lv${level} ${playerKey}: ${String(pendingType || '')}配置を敵石隣接候補へ補正 (${effectFocusedCandidates.length}/${candidateMoves.length})`
       );
     }
 
-    if (board && filteredCandidates.length > 0 && filteredCandidates.length < effectFocusedCandidates.length) {
+    if (emitDebugLog && board && filteredCandidates.length > 0 && filteredCandidates.length < effectFocusedCandidates.length) {
       deps.cpuDebugLog(
         `[CPU] Lv${level} ${playerKey}: 角隣接の危険候補を除外 (${filteredCandidates.length}/${effectFocusedCandidates.length})`
       );
@@ -223,7 +235,7 @@ export function createCpuDecisionPlacementPriority(deps: CpuDecisionPlacementPri
         return Number.isInteger(row) && Number.isInteger(col) && deps.isCornerCell(row, col, board);
       });
       if (cornerMoves.length > 0) {
-        deps.cpuDebugLog(
+        if (emitDebugLog) deps.cpuDebugLog(
           `[CPU] Lv${level} ${playerKey}: 角合法手を最優先 (${cornerMoves.length}/${candidatePool.length})`
         );
         return cornerMoves;
@@ -240,15 +252,15 @@ export function createCpuDecisionPlacementPriority(deps: CpuDecisionPlacementPri
         removedSpecialCount += Number(profile.count) || 0;
         strongestProfileScore = Math.max(strongestProfileScore, Number(profile.score) || 0);
       }
-      deps.cpuDebugLog(
+      if (emitDebugLog) deps.cpuDebugLog(
         `[CPU] Lv${level} ${playerKey}: 相手特殊石を反転除去できる候補を優先 (${prioritized.length}/${candidatePool.length}, 対象${removedSpecialCount}個, 最大優先値${strongestProfileScore})`
       );
       return prioritized;
     }
 
-    const edgeMoves = filterLv6EdgeMovesByPlan(playerKey, level, candidatePool, board);
+    const edgeMoves = filterLv6EdgeMovesByPlan(playerKey, level, candidatePool, board, emitDebugLog);
     if (edgeMoves.length > 0) {
-      deps.cpuDebugLog(
+      if (emitDebugLog) deps.cpuDebugLog(
         `[CPU] Lv${level} ${playerKey}: 安全な辺手を優先 (${edgeMoves.length}/${candidatePool.length})`
       );
       return edgeMoves;

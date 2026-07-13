@@ -11,8 +11,15 @@ interface LaneProbe {
   windowOrt: boolean;
   mainThreadOrtScripts: number;
   workerExecutor: boolean;
+  candidateScoreDigest: string;
+  candidateScoreCount: number;
+  candidateWorkerUsed: boolean;
+  candidateScoringInjected: boolean | null;
   startupWorkerRequests: string[];
   startupOrtRequests: string[];
+  scoringWorkerRequests: string[];
+  scoringOrtRequests: string[];
+  scoringClientStatus: Record<string, unknown> | null;
   workerRequests: string[];
   ortRequests: string[];
   clientStatus: Record<string, unknown> | null;
@@ -90,7 +97,7 @@ async function runLane(
   const startupWorkerRequests = requestUrlsMatching(runtime.requestedUrls, /\/worker-entry-[^/]+\.js(?:\?|$)/);
   const startupOrtRequests = requestUrlsMatching(runtime.requestedUrls, /\/onnxruntime-web\/dist\/ort(?:\.webgpu)?\.min\.js(?:\?|$)/);
   try {
-    const result = await runtime.page.evaluate(async ({ blockWorker }) => {
+    const scoring = await runtime.page.evaluate(async ({ blockWorker, expectedLane }) => {
       const root = window as any;
       if (blockWorker) {
         Object.defineProperty(root, 'Worker', {
@@ -100,6 +107,91 @@ async function runLane(
           }
         });
       }
+      if (typeof root.require !== 'function') throw new Error('browser module runtime is unavailable');
+      const scorerModule = root.require('game/ai/cpu-candidate-scoring');
+      if (!scorerModule || typeof scorerModule.createCpuCandidateScoringRequest !== 'function') {
+        throw new Error('candidate-scoring runtime is unavailable');
+      }
+      const candidateMoves = [
+        { row: 0, col: 0, flips: [{ row: 1, col: 1 }] },
+        { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+        { row: 4, col: 5, flips: [] }
+      ];
+      const request = scorerModule.createCpuCandidateScoringRequest({
+        requestId: 'browser-worker-score-1',
+        decisionEpoch: 7,
+        stateVersion: 12,
+        turnNumber: 4,
+        playerKey: 'white',
+        level: 6,
+        boardShape: scorerModule.createCpuCandidateScoringBoardShape(7, 7, [
+          { row: 0, col: 0, isCorner: true, isEdge: true, isXSquare: false, isCSquare: false }
+        ]),
+        candidateMoves
+      });
+      const localResponse = scorerModule.scoreCpuCandidateRequest(request);
+      let response = localResponse;
+      let candidateWorkerUsed = false;
+      let bridge = null;
+      if (expectedLane === 'vite') {
+        const manifestUrl = new URL('vite-dist/.vite/manifest.json', document.baseURI);
+        const manifestResponse = await fetch(manifestUrl);
+        if (!manifestResponse.ok) throw new Error('Vite manifest is unavailable');
+        const manifest = await manifestResponse.json();
+        const diagnosticsEntry = manifest['browser-vite/cpu-worker/diagnostics.ts'];
+        if (!diagnosticsEntry || typeof diagnosticsEntry.file !== 'string') {
+          throw new Error('Vite CPU Worker diagnostics entry is unavailable');
+        }
+        const diagnosticsUrl = new URL(`vite-dist/${diagnosticsEntry.file}`, document.baseURI);
+        const importModule = new Function('url', 'return import(url)') as (url: string) => Promise<any>;
+        const diagnostics = await importModule(diagnosticsUrl.href);
+        bridge = typeof diagnostics.getCpuWorkerBridgeDiagnostics === 'function'
+          ? diagnostics.getCpuWorkerBridgeDiagnostics(root)
+          : null;
+        if (!bridge) throw new Error('Vite CPU Worker bridge is unavailable before scoring');
+        try {
+          const batch = await bridge.scoreCandidatesInWorker(request);
+          response = batch.response;
+          candidateWorkerUsed = true;
+        } catch (error) {
+          response = localResponse;
+        }
+      }
+      if (!scorerModule.verifyCpuCandidateScoringResponse(request, response)) {
+        throw new Error('candidate-scoring browser response failed canonical verification');
+      }
+      const digestInput = new TextEncoder().encode(JSON.stringify(response));
+      const digestBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', digestInput));
+      return {
+        candidateScoreDigest: Array.from(digestBytes).map((value) => value.toString(16).padStart(2, '0')).join(''),
+        candidateScoreCount: response.scores.length,
+        candidateWorkerUsed,
+        candidateScoringInjected: expectedLane === 'vite'
+          ? root.__CARD_REVERSI_BROWSER_CAPABILITIES__?.cpuCandidateScoringInjected === true
+          : null,
+        scoringClientStatus: bridge && bridge.client ? bridge.client.getStatus() : null
+      };
+    }, { blockWorker: options.blockWorker === true, expectedLane: lane });
+    await runtime.page.waitForTimeout(100);
+    const scoringWorkerRequests = requestUrlsMatching(runtime.requestedUrls, /\/worker-entry-[^/]+\.js(?:\?|$)/);
+    const scoringOrtRequests = requestUrlsMatching(runtime.requestedUrls, /\/onnxruntime-web\/dist\/ort(?:\.webgpu)?\.min\.js(?:\?|$)/);
+
+    const result = await runtime.page.evaluate(async () => {
+      const root = window as any;
+      const readBridge = async () => {
+        const manifestUrl = new URL('vite-dist/.vite/manifest.json', document.baseURI);
+        const manifestResponse = await fetch(manifestUrl);
+        if (!manifestResponse.ok) return null;
+        const manifest = await manifestResponse.json();
+        const diagnosticsEntry = manifest['browser-vite/cpu-worker/diagnostics.ts'];
+        if (!diagnosticsEntry || typeof diagnosticsEntry.file !== 'string') return null;
+        const diagnosticsUrl = new URL(`vite-dist/${diagnosticsEntry.file}`, document.baseURI);
+        const importModule = new Function('url', 'return import(url)') as (url: string) => Promise<any>;
+        const diagnostics = await importModule(diagnosticsUrl.href);
+        return typeof diagnostics.getCpuWorkerBridgeDiagnostics === 'function'
+          ? diagnostics.getCpuWorkerBridgeDiagnostics(root)
+          : null;
+      };
       if (typeof root.loadLazyRuntimeGroup !== 'function') throw new Error('loadLazyRuntimeGroup is unavailable');
       await root.loadLazyRuntimeGroup('onnx');
       if (typeof root.require !== 'function') throw new Error('browser module runtime is unavailable');
@@ -133,7 +225,8 @@ async function runLane(
       }
       if (!loaded) {
         const status = policyRuntime.getStatus && policyRuntime.getStatus();
-        const clientStatus = root.__CARD_REVERSI_CPU_WORKER_CLIENT__?.getStatus?.() || null;
+        const bridge = await readBridge();
+        const clientStatus = bridge && bridge.client ? bridge.client.getStatus() : null;
         throw new Error(
           `policy ONNX model did not load: ${status && status.lastError || 'unknown error'}; ` +
           `client=${JSON.stringify(clientStatus)}`
@@ -167,6 +260,7 @@ async function runLane(
       const selectedMove = selected && Number.isFinite(selected.row) && Number.isFinite(selected.col)
         ? { row: Number(selected.row), col: Number(selected.col) }
         : null;
+      const bridge = await readBridge();
       return {
         digest,
         outputLength: tensor.data.length,
@@ -174,17 +268,18 @@ async function runLane(
         windowOrt: !!root.ort,
         workerExecutor: !!root.__CARD_REVERSI_ONNX_WORKER_EXECUTOR__,
         mainThreadOrtScripts: document.querySelectorAll('script[src*="onnxruntime-web/dist/ort"]').length,
-        clientStatus: root.__CARD_REVERSI_CPU_WORKER_CLIENT__
-          ? root.__CARD_REVERSI_CPU_WORKER_CLIENT__.getStatus()
-          : null
+        clientStatus: bridge && bridge.client ? bridge.client.getStatus() : null
       };
-    }, { blockWorker: options.blockWorker === true });
+    });
     await runtime.page.waitForTimeout(100);
     return {
       lane: options.blockWorker ? 'vite-worker-fallback' : lane,
+      ...scoring,
       ...result,
       startupWorkerRequests,
       startupOrtRequests,
+      scoringWorkerRequests,
+      scoringOrtRequests,
       workerRequests: requestUrlsMatching(runtime.requestedUrls, /\/worker-entry-[^/]+\.js(?:\?|$)/),
       ortRequests: requestUrlsMatching(runtime.requestedUrls, /\/onnxruntime-web\/dist\/ort(?:\.webgpu)?\.min\.js(?:\?|$)/),
       pageErrors: runtime.pageErrors,
@@ -199,6 +294,12 @@ async function runLane(
 
 function evaluateOnnxWorkerSmoke(classic: LaneProbe, vite: LaneProbe): string[] {
   const errors: string[] = [];
+  if (classic.candidateScoreDigest !== vite.candidateScoreDigest) {
+    errors.push('classic/Vite candidate score digest mismatch');
+  }
+  if (classic.candidateScoreCount !== vite.candidateScoreCount) {
+    errors.push('classic/Vite candidate score count mismatch');
+  }
   if (classic.digest !== vite.digest) errors.push('classic/Vite ONNX output digest mismatch');
   if (classic.outputLength !== vite.outputLength) errors.push('classic/Vite ONNX output length mismatch');
   if (JSON.stringify(classic.selectedMove) !== JSON.stringify(vite.selectedMove)) {
@@ -210,6 +311,20 @@ function evaluateOnnxWorkerSmoke(classic: LaneProbe, vite: LaneProbe): string[] 
   if (vite.mainThreadOrtScripts !== 0) errors.push('Vite lane appended a main-thread ORT script');
   if (vite.startupWorkerRequests.length !== 0) errors.push('Vite lane created its CPU Worker during startup');
   if (vite.startupOrtRequests.length !== 0) errors.push('Vite lane loaded ORT during startup');
+  if (!vite.candidateWorkerUsed) errors.push('Vite lane did not score candidates in the Worker');
+  if (!vite.candidateScoringInjected) errors.push('Vite lane did not inject candidate scoring through UIBootstrap');
+  if (vite.scoringWorkerRequests.length !== 1) {
+    errors.push(`Vite scoring Worker request count ${vite.scoringWorkerRequests.length} != 1`);
+  }
+  if (vite.scoringOrtRequests.length !== 0) {
+    errors.push(`Vite scoring checkpoint loaded ${vite.scoringOrtRequests.length} ORT script(s)`);
+  }
+  if (!vite.scoringClientStatus || Number(vite.scoringClientStatus.workerCreatedCount) !== 1) {
+    errors.push('Vite candidate scorer did not create exactly one Worker');
+  }
+  if (!vite.scoringClientStatus || Number(vite.scoringClientStatus.pendingRequests) !== 0) {
+    errors.push('Vite candidate scorer retained a pending request');
+  }
   if (vite.workerRequests.length !== 1) errors.push(`Vite Worker request count ${vite.workerRequests.length} != 1`);
   if (vite.ortRequests.length !== 1) errors.push(`Vite Worker ORT request count ${vite.ortRequests.length} != 1`);
   if (!vite.clientStatus || Number(vite.clientStatus.workerCreatedCount) !== 1) {
@@ -228,6 +343,20 @@ function evaluateOnnxWorkerSmoke(classic: LaneProbe, vite: LaneProbe): string[] 
 
 function evaluateOnnxWorkerFallbackSmoke(classic: LaneProbe, fallback: LaneProbe): string[] {
   const errors: string[] = [];
+  if (fallback.candidateScoreDigest !== classic.candidateScoreDigest) {
+    errors.push('Worker fallback/classic candidate score digest mismatch');
+  }
+  if (fallback.candidateScoreCount !== classic.candidateScoreCount) {
+    errors.push('Worker fallback/classic candidate score count mismatch');
+  }
+  if (fallback.candidateWorkerUsed) errors.push('Worker fallback incorrectly reported Worker candidate scoring');
+  if (fallback.candidateScoringInjected) errors.push('Worker fallback retained candidate scoring injection');
+  if (fallback.scoringWorkerRequests.length !== 0) {
+    errors.push(`Worker fallback scoring unexpectedly fetched ${fallback.scoringWorkerRequests.length} Worker script(s)`);
+  }
+  if (fallback.scoringOrtRequests.length !== 0) {
+    errors.push(`Worker fallback scoring loaded ${fallback.scoringOrtRequests.length} ORT script(s)`);
+  }
   if (fallback.digest !== classic.digest) errors.push('Worker fallback/classic ONNX output digest mismatch');
   if (fallback.outputLength !== classic.outputLength) errors.push('Worker fallback/classic ONNX output length mismatch');
   if (JSON.stringify(fallback.selectedMove) !== JSON.stringify(classic.selectedMove)) {

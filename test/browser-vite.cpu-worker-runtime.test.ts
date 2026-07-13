@@ -4,6 +4,11 @@ import {
   CPU_WORKER_PROTOCOL_VERSION,
   type CpuWorkerOperation
 } from '../browser-vite/cpu-worker/protocol';
+import {
+  createCpuCandidateScoringBoardShape,
+  createCpuCandidateScoringRequest,
+  scoreCpuCandidateRequest
+} from '../game/ai/cpu-candidate-scoring';
 
 function request(operation: CpuWorkerOperation, payload: unknown, requestId = 'cpu-1-1') {
   return {
@@ -28,6 +33,24 @@ function createPayload() {
   };
 }
 
+function createScoringRequest() {
+  return createCpuCandidateScoringRequest({
+    requestId: 'runtime-score-1',
+    decisionEpoch: 3,
+    stateVersion: 21,
+    turnNumber: 6,
+    playerKey: 'black',
+    level: 5,
+    boardShape: createCpuCandidateScoringBoardShape(7, 7, [
+      { row: 0, col: 0, isCorner: true, isEdge: true, isXSquare: false, isCSquare: false }
+    ]),
+    candidateMoves: [
+      { row: 0, col: 0, flips: [{ row: 1, col: 1 }] },
+      { row: 3, col: 4, flips: [] }
+    ]
+  });
+}
+
 describe('Dedicated CPU Worker runtime', () => {
   test('answers a readiness probe without loading ORT', async () => {
     const ortLoader = jest.fn();
@@ -41,6 +64,25 @@ describe('Dedicated CPU Worker runtime', () => {
     expect(response).toMatchObject({ ok: true, result: { ready: true } });
     expect(ortLoader).not.toHaveBeenCalled();
     expect(runtime.getStatus().ortLoaded).toBe(false);
+  });
+
+  test('scores candidates exactly without loading ORT or fetching assets', async () => {
+    const ortLoader = jest.fn();
+    const fetchImpl = jest.fn();
+    const runtime = createCpuWorkerRuntime({ ortLoader, fetchImpl: fetchImpl as any });
+    const scoringRequest = createScoringRequest();
+
+    const response: any = await runtime.handleMessage({
+      ...request(CPU_WORKER_OPERATIONS.SCORE_CANDIDATES, { request: scoringRequest }),
+      decisionEpoch: scoringRequest.decisionEpoch,
+      stateVersion: scoringRequest.stateVersion,
+      turnNumber: scoringRequest.turnNumber
+    });
+
+    expect(response).toMatchObject({ ok: true, result: scoreCpuCandidateRequest(scoringRequest) });
+    expect(ortLoader).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(runtime.getStatus()).toMatchObject({ ortLoaded: false, sessionKeys: [] });
   });
 
   test('owns ORT session creation, tensor construction, inference, and release', async () => {

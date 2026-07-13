@@ -9,6 +9,7 @@ const REQUIRED_CPU_POLICY_FUNCTIONS: Array<keyof CpuPolicyCoreApi> = [
     'chooseMoveByLookahead',
     'chooseMove',
     'computeLegalMoveMetrics',
+    'createExpectedCandidateScoringRequest',
     'getMovePlanProfileForCardType',
     'isChargeRampCardType',
     'isCornerHoldCardType',

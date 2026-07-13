@@ -102,6 +102,27 @@ describe('cpu-policy move selection module', () => {
     })).toEqual([a, b]);
   });
 
+  test('builds the canonical scorer request from an explicit attempt identity', () => {
+    const a = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] } as any;
+    const b = { row: 4, col: 5, flips: [] } as any;
+    const shape = createCpuCandidateScoringBoardShape(7, 7, []);
+    const helpers = createCpuPolicyMoveSelection({
+      createCandidateScoringBoardShape: () => shape
+    });
+    const identity = {
+      requestId: 'worker-attempt-17',
+      decisionEpoch: 17,
+      stateVersion: 'room:42',
+      turnNumber: 9,
+      playerKey: 'white'
+    };
+
+    const request = helpers.createExpectedCandidateScoringRequest([a, b], 4, null, identity);
+
+    expect(request).toMatchObject({ ...identity, level: 4, boardShape: shape });
+    expect(request.candidateMoves).toEqual([a, b]);
+  });
+
   test('does not swallow or repeat learned-score callback failures', () => {
     const a = { id: 'a', row: 0, col: 0, flips: [] } as any;
     const b = { id: 'b', row: 7, col: 7, flips: [] } as any;

@@ -1,4 +1,8 @@
-import type { CpuCandidateScoringBatch, CpuCandidateScoringRequest } from './cpu-candidate-scoring';
+import type {
+    CpuCandidateScoringBatch,
+    CpuCandidateScoringIdentity,
+    CpuCandidateScoringRequest
+} from './cpu-candidate-scoring';
 
 export type CpuPolicyCardId = string;
 export type CpuPolicyBoardCell = 1 | -1 | 0 | number | null | undefined;
@@ -179,6 +183,12 @@ export interface CpuPolicyCoreApi {
         options?: CpuPolicyMoveOptions
     ): CpuPolicyMove | null;
     computeLegalMoveMetrics(legalMoves: CpuPolicyMove[], getBoardBonus?: CpuPolicyBoardBonusResolver): CpuPolicyLegalMoveMetrics;
+    createExpectedCandidateScoringRequest(
+        candidateMoves: CpuPolicyMove[],
+        level: number,
+        board: CpuPolicyBoard | null,
+        identity: CpuCandidateScoringIdentity | CpuCandidateScoringRequest | null
+    ): CpuCandidateScoringRequest;
     getMovePlanProfileForCardType(cardType: string): Record<string, unknown> | null;
     isChargeRampCardType(cardType: string): boolean;
     isCornerHoldCardType(cardType: string): boolean;

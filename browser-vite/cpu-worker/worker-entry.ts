@@ -6,6 +6,7 @@ import {
   type CpuWorkerRequest,
   type CpuWorkerResponse,
   type CpuWorkerSuccessResponse,
+  type CpuCandidateScoringPayload,
   type OnnxCreateSessionPayload,
   type OnnxReleaseSessionPayload,
   type OnnxRunSessionPayload,
@@ -14,6 +15,7 @@ import {
   parseCpuWorkerCancel,
   parseCpuWorkerRequest
 } from './protocol';
+import { scoreCpuCandidateRequest } from '../../game/ai/cpu-candidate-scoring';
 
 type OrtModule = {
   env?: {
@@ -164,6 +166,9 @@ function makeSuccessResponse(request: CpuWorkerRequest, result: CpuWorkerSuccess
 
 function makeErrorResponse(request: CpuWorkerRequest, error: unknown): CpuWorkerErrorResponse {
   const protocolError = error instanceof CpuWorkerProtocolError;
+  const operationErrorCode = request.operation === CPU_WORKER_OPERATIONS.SCORE_CANDIDATES
+    ? 'CPU_WORKER_SCORING_ERROR'
+    : (String(request.operation).startsWith('onnx.') ? 'CPU_WORKER_ONNX_ERROR' : 'CPU_WORKER_OPERATION_ERROR');
   return {
     protocolVersion: CPU_WORKER_PROTOCOL_VERSION,
     kind: 'response',
@@ -174,7 +179,7 @@ function makeErrorResponse(request: CpuWorkerRequest, error: unknown): CpuWorker
     stateVersion: request.stateVersion,
     turnNumber: request.turnNumber,
     error: {
-      code: protocolError ? error.code : 'CPU_WORKER_ONNX_ERROR',
+      code: protocolError ? error.code : operationErrorCode,
       message: sanitizeErrorMessage(error),
       recoverable: !protocolError
     }
@@ -302,6 +307,9 @@ export function createCpuWorkerRuntime(options: CpuWorkerRuntimeOptions = {}) {
   const handleRequest = async (request: CpuWorkerRequest): Promise<CpuWorkerSuccessResponse['result']> => {
     if (request.operation === CPU_WORKER_OPERATIONS.PING) {
       return { ready: true };
+    }
+    if (request.operation === CPU_WORKER_OPERATIONS.SCORE_CANDIDATES) {
+      return scoreCpuCandidateRequest((request.payload as CpuCandidateScoringPayload).request);
     }
     if (request.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
       return createSession(request.payload as OnnxCreateSessionPayload);

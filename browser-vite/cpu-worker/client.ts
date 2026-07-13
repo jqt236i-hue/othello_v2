@@ -16,6 +16,13 @@ import {
   parseCpuWorkerResponse,
   sameCpuWorkerIdentity
 } from './protocol';
+import {
+  isCpuCandidateScoringRequest,
+  verifyCpuCandidateScoringResponse,
+  type CpuCandidateScoringBatch,
+  type CpuCandidateScoringRequest,
+  type CpuCandidateScoringResponse
+} from '../../game/ai/cpu-candidate-scoring';
 
 export interface CpuWorkerTransport {
   postMessage(message: unknown, transfer?: Transferable[]): void;
@@ -147,12 +154,11 @@ export class CpuWorkerClient {
   }
 
   private nextDecisionEpoch(requested: unknown): number {
-    const parsed = Number(requested);
-    if (Number.isSafeInteger(parsed) && parsed > this.decisionEpoch) {
-      this.decisionEpoch = parsed;
-    } else {
-      this.decisionEpoch += 1;
+    if (typeof requested === 'number' && Number.isSafeInteger(requested) && requested >= 0) {
+      this.decisionEpoch = Math.max(this.decisionEpoch, requested);
+      return requested;
     }
+    this.decisionEpoch += 1;
     return this.decisionEpoch;
   }
 
@@ -360,6 +366,96 @@ export class CpuWorkerClient {
   terminate(reason = 'CPU Worker client terminated'): void {
     this.failWorker(new CpuWorkerClientError(reason, 'CPU_WORKER_TERMINATED', true));
   }
+
+  invalidateProtocol(reason: string): CpuWorkerClientError {
+    const error = new CpuWorkerClientError(reason, 'CPU_WORKER_PROTOCOL_ERROR', false);
+    this.failWorker(error);
+    return error;
+  }
+}
+
+export interface CpuCandidateWorkerScorerOptions {
+  client: CpuWorkerClient;
+  timeoutMs?: number;
+  setTimeoutFn?: typeof setTimeout;
+  clearTimeoutFn?: typeof clearTimeout;
+}
+
+export interface CpuCandidateWorkerScoreOptions {
+  signal?: AbortSignal | null;
+}
+
+export class CpuCandidateWorkerScorer {
+  private readonly client: CpuWorkerClient;
+  private readonly timeoutMs: number;
+  private readonly setTimeoutFn: typeof setTimeout;
+  private readonly clearTimeoutFn: typeof clearTimeout;
+
+  constructor(options: CpuCandidateWorkerScorerOptions) {
+    if (!options || !(options.client instanceof CpuWorkerClient)) {
+      throw new TypeError('CpuCandidateWorkerScorer requires a CpuWorkerClient');
+    }
+    this.client = options.client;
+    this.timeoutMs = normalizeTimeoutMs(options.timeoutMs, 48);
+    this.setTimeoutFn = (options.setTimeoutFn || setTimeout).bind(globalThis);
+    this.clearTimeoutFn = (options.clearTimeoutFn || clearTimeout).bind(globalThis);
+  }
+
+  async score(
+    request: CpuCandidateScoringRequest,
+    options: CpuCandidateWorkerScoreOptions = {}
+  ): Promise<CpuCandidateScoringBatch> {
+    if (!isCpuCandidateScoringRequest(request)) {
+      throw new CpuWorkerProtocolError('candidate-scoring request is invalid');
+    }
+    const controller = new AbortController();
+    let timeoutFired = false;
+    const abortFromCaller = () => controller.abort();
+    if (options.signal) {
+      if (options.signal.aborted) controller.abort();
+      else options.signal.addEventListener('abort', abortFromCaller, { once: true });
+    }
+    const timeoutId = this.setTimeoutFn(() => {
+      timeoutFired = true;
+      controller.abort();
+    }, this.timeoutMs);
+    try {
+      const response = await this.client.request(
+        CPU_WORKER_OPERATIONS.SCORE_CANDIDATES,
+        { request },
+        {
+          decisionEpoch: request.decisionEpoch,
+          stateVersion: request.stateVersion,
+          turnNumber: request.turnNumber,
+          timeoutMs: Math.max(1000, this.timeoutMs * 8),
+          signal: controller.signal
+        }
+      ) as CpuCandidateScoringResponse;
+      if (!verifyCpuCandidateScoringResponse(request, response)) {
+        throw this.client.invalidateProtocol('candidate-scoring response does not match the request');
+      }
+      return { request, response };
+    } catch (error) {
+      if (timeoutFired) {
+        throw new CpuWorkerClientError(
+          `CPU candidate scoring timed out after ${this.timeoutMs}ms`,
+          'CPU_WORKER_SCORE_TIMEOUT',
+          true
+        );
+      }
+      throw error;
+    } finally {
+      this.clearTimeoutFn(timeoutId);
+      if (options.signal) options.signal.removeEventListener('abort', abortFromCaller);
+    }
+  }
+}
+
+export function createCpuCandidateWorkerScorer(
+  options: CpuCandidateWorkerScorerOptions
+): (request: CpuCandidateScoringRequest, scoreOptions?: CpuCandidateWorkerScoreOptions) => Promise<CpuCandidateScoringBatch> {
+  const scorer = new CpuCandidateWorkerScorer(options);
+  return scorer.score.bind(scorer);
 }
 
 export interface OnnxInferenceSessionDescriptor {

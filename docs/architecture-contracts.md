@@ -80,6 +80,10 @@ Adjacent `.js` files are compatibility wrappers/projections unless the TypeScrip
 
 Main-thread CPU selection may consume a precomputed score batch only after protocol, request identity, decision epoch, state version, turn, player, level, board-shape projection, ordered candidate digest, coordinates, score count, and finite-score validation all match the current request. Missing, stale, malformed, or mismatched batches must use the same scorer locally. The precomputed batch is advisory computation only: gameplay authority still validates and applies the selected move, and CPU Worker code must not own canonical game state, RNG, card application, presentation timing, or network publish.
 
+`browser-vite/cpu-worker/*` is a browser Dedicated Worker optimization boundary and is distinct from the server-authoritative `workers/` runtime. It may lazily execute the pure candidate scorer and own ONNX Runtime session, tensor, and inference work, but it must not own mutable gameplay state, RNG, action selection/application, presentation delay, or network publish. Candidate scoring alone must not load ONNX Runtime. The Vite entry injects the scoring capability explicitly through `UIBootstrap`; the main-thread CPU turn validates the current attempt, player, turn, available authoritative state version, and scorer DTO identity before use. Worker unavailability, timeout, cancellation, malformed data, or mismatch must use the identical local scorer. Minimum think time and presentation ordering remain main-thread policy.
+
+The browser turn must request Worker candidate scoring only after it knows the base policy ranking will consume that batch. It must not wait speculatively before pending-placement, Othello, learned-policy, or lookahead selectors that can return first. The current runtime therefore offloads the deterministic base ranking for Lv3-Lv5; higher-level selectors keep their existing precedence, while the scorer itself remains portable and versioned for future two-stage selection work.
+
 ## 5. Runtime contracts
 
 This repository runs the same game logic across multiple runtimes:

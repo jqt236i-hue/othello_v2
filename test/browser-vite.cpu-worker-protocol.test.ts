@@ -7,6 +7,11 @@ import {
   parseCpuWorkerResponse,
   sameCpuWorkerIdentity
 } from '../browser-vite/cpu-worker/protocol';
+import {
+  createCpuCandidateScoringBoardShape,
+  createCpuCandidateScoringRequest,
+  scoreCpuCandidateRequest
+} from '../game/ai/cpu-candidate-scoring';
 
 function createIdentity() {
   return {
@@ -20,6 +25,22 @@ function createIdentity() {
 }
 
 describe('CPU Worker protocol', () => {
+  function createScoringRequest() {
+    return createCpuCandidateScoringRequest({
+      requestId: 'score-inner-1',
+      decisionEpoch: 7,
+      stateVersion: 12,
+      turnNumber: 4,
+      playerKey: 'white',
+      level: 4,
+      boardShape: createCpuCandidateScoringBoardShape(7, 7, []),
+      candidateMoves: [
+        { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+        { row: 4, col: 5, flips: [] }
+      ]
+    });
+  }
+
   test('validates a readiness probe without any ONNX payload', () => {
     const request = parseCpuWorkerRequest({
       ...createIdentity(),
@@ -54,6 +75,34 @@ describe('CPU Worker protocol', () => {
     expect(request.stateVersion).toBe(12);
     expect(request.turnNumber).toBe(4);
     expect(collectTransferableBuffers(request.payload)).toEqual([data.buffer]);
+  });
+
+  test('keeps scorer identity nested while transport requestId remains independent', () => {
+    const scoringRequest = createScoringRequest();
+    const request = parseCpuWorkerRequest({
+      ...createIdentity(),
+      operation: CPU_WORKER_OPERATIONS.SCORE_CANDIDATES,
+      kind: 'request',
+      payload: { request: scoringRequest }
+    });
+    const response = parseCpuWorkerResponse({
+      ...request,
+      kind: 'response',
+      ok: true,
+      result: scoreCpuCandidateRequest(scoringRequest)
+    });
+
+    expect(request.requestId).toBe('cpu-1-1');
+    expect((request.payload as any).request.requestId).toBe('score-inner-1');
+    expect(response.ok && (response.result as any).requestId).toBe('score-inner-1');
+
+    expect(() => parseCpuWorkerRequest({
+      ...createIdentity(),
+      operation: CPU_WORKER_OPERATIONS.SCORE_CANDIDATES,
+      decisionEpoch: scoringRequest.decisionEpoch + 1,
+      kind: 'request',
+      payload: { request: scoringRequest }
+    })).toThrow(/identity/);
   });
 
   test('rejects unsupported versions, relative model URLs, and mismatched tensor shapes', () => {

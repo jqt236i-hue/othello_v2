@@ -9,6 +9,7 @@ import type {
 } from './cpu-policy-core-types';
 import {
     createCpuCandidateScoringRequest,
+    isCpuCandidateScoringIdentity,
     isCpuCandidateScoringRequest,
     scoreCpuCandidateRequest,
     scoreCpuCandidateTie,
@@ -116,7 +117,7 @@ export function createCpuPolicyMoveSelection(deps?: CpuPolicyMoveSelectionDeps) 
         board: CpuPolicyBoard | null,
         currentRequest: unknown
     ): CpuCandidateScoringRequest {
-        const identity = isCpuCandidateScoringRequest(currentRequest)
+        const identity = isCpuCandidateScoringIdentity(currentRequest)
             ? currentRequest
             : null;
         return createCpuCandidateScoringRequest({
@@ -194,6 +195,7 @@ export function createCpuPolicyMoveSelection(deps?: CpuPolicyMoveSelectionDeps) 
 
     return {
         computeLegalMoveMetrics,
+        createExpectedCandidateScoringRequest,
         rankMoves,
         chooseMove
     };

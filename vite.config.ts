@@ -35,7 +35,14 @@ export default defineConfig(({ command }) => ({
     assetsInlineLimit: 0,
     manifest: true,
     rollupOptions: {
-      input: path.resolve(__dirname, 'index.vite.html'),
+      input: {
+        'index.vite': path.resolve(__dirname, 'index.vite.html'),
+        'cpu-worker-diagnostics': path.resolve(
+          __dirname,
+          'browser-vite/cpu-worker/diagnostics.ts'
+        )
+      },
+      preserveEntrySignatures: 'strict',
       output: {
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',

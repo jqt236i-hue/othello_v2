@@ -1,9 +1,6 @@
 import { loadOptionalFeatureRegistry, type OptionalFeatureContext } from './feature-registry';
-import CpuWorkerConstructor from '../cpu-worker/worker-entry?worker';
-import {
-  createCpuWorkerClient,
-  createOnnxWorkerInferenceExecutor
-} from '../cpu-worker/client';
+import { createOnnxWorkerInferenceExecutor } from '../cpu-worker/client';
+import { disableCpuWorkerBridge, installCpuWorkerBridge } from '../cpu-worker/bridge';
 
 const ONNX_RUNTIME_MODULE_KEYS = [
   'game/ai/othello-onnx-runtime',
@@ -16,14 +13,16 @@ async function installWorkerExecutor(context: OptionalFeatureContext): Promise<b
   if (typeof rootRef.Worker !== 'function') return false;
   if (typeof rootRef.require !== 'function') return false;
 
-  const client = createCpuWorkerClient({
-    workerFactory: () => new CpuWorkerConstructor({ name: 'card-reversi-cpu' }) as unknown as Worker,
-    defaultTimeoutMs: 15000
-  });
+  const bridge = installCpuWorkerBridge(rootRef, context.document);
+  if (!bridge) return false;
+  const client = bridge.client;
   try {
-    if (!await client.probe(3000)) return false;
+    if (!await client.probe(3000)) {
+      disableCpuWorkerBridge(rootRef, bridge);
+      return false;
+    }
   } catch (error) {
-    client.terminate('CPU Worker probe failed; use main-thread ONNX fallback');
+    disableCpuWorkerBridge(rootRef, bridge);
     return false;
   }
   const executor = createOnnxWorkerInferenceExecutor({

@@ -1,4 +1,5 @@
 import {
+  CpuCandidateWorkerScorer,
   CpuWorkerClient,
   CpuWorkerClientError,
   OnnxWorkerInferenceExecutor,
@@ -9,6 +10,11 @@ import {
   CPU_WORKER_PROTOCOL_VERSION,
   type CpuWorkerRequest
 } from '../browser-vite/cpu-worker/protocol';
+import {
+  createCpuCandidateScoringBoardShape,
+  createCpuCandidateScoringRequest,
+  scoreCpuCandidateRequest
+} from '../game/ai/cpu-candidate-scoring';
 
 class FakeWorker implements CpuWorkerTransport {
   onmessage: ((event: MessageEvent) => void) | null = null;
@@ -56,6 +62,23 @@ function successFor(request: CpuWorkerRequest, result: unknown) {
     turnNumber: request.turnNumber,
     result
   };
+}
+
+function createScoringRequest(overrides: Record<string, unknown> = {}) {
+  return createCpuCandidateScoringRequest({
+    requestId: 'client-score-1',
+    decisionEpoch: 7,
+    stateVersion: 13,
+    turnNumber: 5,
+    playerKey: 'white',
+    level: 4,
+    boardShape: createCpuCandidateScoringBoardShape(7, 7, []),
+    candidateMoves: [
+      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+      { row: 4, col: 5, flips: [] }
+    ],
+    ...overrides
+  } as any);
 }
 
 describe('CpuWorkerClient', () => {
@@ -232,6 +255,8 @@ class AutoWorker extends FakeWorker {
     queueMicrotask(() => {
       if (request.operation === CPU_WORKER_OPERATIONS.PING) {
         this.emit(successFor(request, { ready: true }));
+      } else if (request.operation === CPU_WORKER_OPERATIONS.SCORE_CANDIDATES) {
+        this.emit(successFor(request, scoreCpuCandidateRequest((request.payload as any).request)));
       } else if (request.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
         this.emit(successFor(request, {
           sessionKey: (request.payload as any).sessionKey,
@@ -251,6 +276,78 @@ class AutoWorker extends FakeWorker {
     });
   }
 }
+
+describe('CpuCandidateWorkerScorer', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test('round-trips canonical scores and preserves one explicit gameplay epoch after a probe', async () => {
+    const worker = new AutoWorker();
+    const client = new CpuWorkerClient({ workerFactory: () => worker });
+    const scorer = new CpuCandidateWorkerScorer({ client });
+    const request = createScoringRequest();
+
+    await expect(client.probe()).resolves.toBe(true);
+    await expect(scorer.score(request)).resolves.toEqual({
+      request,
+      response: scoreCpuCandidateRequest(request)
+    });
+    await expect(scorer.score(request)).resolves.toBeTruthy();
+
+    const scoreRequests = worker.messages
+      .map((entry) => entry.message as CpuWorkerRequest)
+      .filter((entry) => entry.operation === CPU_WORKER_OPERATIONS.SCORE_CANDIDATES);
+    expect(scoreRequests).toHaveLength(2);
+    expect(scoreRequests.map((entry) => entry.decisionEpoch)).toEqual([7, 7]);
+    expect(scoreRequests.map((entry) => entry.requestId)).not.toEqual([
+      request.requestId,
+      request.requestId
+    ]);
+  });
+
+  test('uses cancel-only timeout, ignores the late score, and preserves the shared Worker', async () => {
+    jest.useFakeTimers();
+    const worker = new FakeWorker();
+    const client = new CpuWorkerClient({ workerFactory: () => worker });
+    const scorer = new CpuCandidateWorkerScorer({ client, timeoutMs: 10 });
+    const scoringRequest = createScoringRequest();
+    const pending = scorer.score(scoringRequest);
+    const scoreEnvelope = worker.messages[0].message as CpuWorkerRequest;
+
+    const expectation = expect(pending).rejects.toMatchObject({ code: 'CPU_WORKER_SCORE_TIMEOUT' });
+    jest.advanceTimersByTime(11);
+    await expectation;
+
+    expect(worker.terminated).toBe(false);
+    expect(worker.messages[1].message).toMatchObject({ kind: 'cancel', requestId: scoreEnvelope.requestId });
+    worker.emit(successFor(scoreEnvelope, scoreCpuCandidateRequest(scoringRequest)));
+
+    const probe = client.probe();
+    const probeEnvelope = worker.messages[2].message as CpuWorkerRequest;
+    worker.emit(successFor(probeEnvelope, { ready: true }));
+    await expect(probe).resolves.toBe(true);
+    expect(client.getStatus()).toMatchObject({ workerActive: true, workerCreatedCount: 1 });
+  });
+
+  test('invalidates a Worker that returns a structurally valid score for another request', async () => {
+    const worker = new FakeWorker();
+    const client = new CpuWorkerClient({ workerFactory: () => worker });
+    const scorer = new CpuCandidateWorkerScorer({ client });
+    const scoringRequest = createScoringRequest();
+    const pending = scorer.score(scoringRequest);
+    const scoreEnvelope = worker.messages[0].message as CpuWorkerRequest;
+    const mismatched = {
+      ...scoreCpuCandidateRequest(scoringRequest),
+      requestId: 'different-inner-request'
+    };
+    worker.emit(successFor(scoreEnvelope, mismatched));
+
+    await expect(pending).rejects.toMatchObject({ code: 'CPU_WORKER_PROTOCOL_ERROR', recoverable: false });
+    expect(worker.terminated).toBe(true);
+    expect(client.getStatus()).toMatchObject({ workerActive: false, restartCount: 1 });
+  });
+});
 
 describe('OnnxWorkerInferenceExecutor recovery', () => {
   test('can constrain browser Worker inference to the deployable WASM provider', async () => {

@@ -986,6 +986,7 @@ const {
 } = requireCpuPolicyMovePlanScoring();
 const {
     computeLegalMoveMetrics,
+    createExpectedCandidateScoringRequest,
     rankMoves,
     chooseMove
 } = requireCpuPolicyMoveSelection();
@@ -1518,6 +1519,7 @@ const cpuPolicyCoreApi: CpuPolicyCoreApi = createCpuPolicyCoreApi({
     chooseMoveByLookahead,
     chooseMove,
     computeLegalMoveMetrics,
+    createExpectedCandidateScoringRequest,
     getMovePlanProfileForCardType,
     isChargeRampCardType,
     isCornerHoldCardType,

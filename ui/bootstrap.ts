@@ -118,6 +118,15 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
 'use strict';
 
     let _uiGlobals: any = {};
+    let cpuCandidateScoringRuntime: { scoreCandidatesInWorker?: Function } = {};
+
+    function configureCpuCandidateScoring(runtime: any): boolean {
+        const scorer = runtime && typeof runtime.scoreCandidatesInWorker === 'function'
+            ? runtime.scoreCandidatesInWorker
+            : null;
+        cpuCandidateScoringRuntime = scorer ? { scoreCandidatesInWorker: scorer } : {};
+        return !!scorer;
+    }
     let _gameDIInstallResult: any = null;
     let _stoneBaseImagesReadyPromise: any = null;
     const ASSET_MANIFEST_UPDATED_EVENT = 'asset-manifest:updated';
@@ -1578,7 +1587,19 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     runtimeResolvers,
                     readCpuSmartnessValueFromSelect,
                     getPlaybackStateModuleForReset,
-                    registerUIGlobals
+                    registerUIGlobals,
+                    scoreCandidatesInWorker: typeof cpuCandidateScoringRuntime.scoreCandidatesInWorker === 'function'
+                        ? (...args: any[]) => {
+                            const scorer = cpuCandidateScoringRuntime.scoreCandidatesInWorker;
+                            if (typeof scorer !== 'function') {
+                                throw new Error('Dedicated CPU candidate scorer is unavailable');
+                            }
+                            return scorer(...args);
+                        }
+                        : undefined,
+                    isCpuCandidateScoringAvailable: () => (
+                        typeof cpuCandidateScoringRuntime.scoreCandidatesInWorker === 'function'
+                    )
                 });
                 const cpuGlobals = result && result.registeredGlobals ? result.registeredGlobals : {};
                 if (Object.keys(cpuGlobals).length) {
@@ -2354,6 +2375,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         isGameDIInstalled,
         registerUIGlobals,
         getRegisteredUIGlobals,
+        configureCpuCandidateScoring,
         preloadAssets,
         preloadSpecialStoneVisuals,
         applyAssetManifest,

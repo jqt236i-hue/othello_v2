@@ -7,7 +7,12 @@ type CpuDecisionMoveSelectionConfig = {
     cpuDebugLog: (...args: any[]) => void;
     error: (...args: any[]) => void;
     filterLv6OpenCornerAdjacentMoves: (candidateMoves: any, board: any) => any;
-    filterMovesByLv6PlacementPriority: (playerKey: any, level: any, candidateMoves: any) => any;
+    filterMovesByLv6PlacementPriority: (
+        playerKey: any,
+        level: any,
+        candidateMoves: any,
+        options?: { emitDebugLog?: boolean }
+    ) => any;
     getAISystem: () => any;
     getCardState: () => any;
     getBoardBonusValueAt: (row: any, col: any) => any;
@@ -70,29 +75,88 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
         return candidateMoves;
     }
 
-    function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
-        const rng = cfg.getCpuRng();
+    function prepareCandidateMovesForPolicy(candidateMoves: any, playerKey: any, emitAdjustmentLog: boolean): any {
+        const safeCandidateMoves = Array.isArray(candidateMoves) ? candidateMoves : [];
         const cardLevel = cfg.resolveCpuSmartnessLevel(playerKey);
-
-        if (cardLevel < 0) {
-            cfg.error(`[CPU] selectCpuMoveWithPolicy called for human player ${playerKey}, returning random move`);
-            return candidateMoves[Math.floor(rng.random() * candidateMoves.length)];
-        }
-
         const pendingType = cfg.resolvePendingType(playerKey);
         const board = cfg.getCurrentCpuBoard();
         const forceLv6Placement = cfg.shouldForceCardModeLv6Placement(playerKey, pendingType, board);
         const placementLevel = forceLv6Placement ? 6 : cardLevel;
-
-        const economicCandidateMoves = filterPendingEconomicPlacementMoves(candidateMoves, pendingType);
-        if (economicCandidateMoves.length > 0 && economicCandidateMoves.length < candidateMoves.length) {
+        const economicCandidateMoves = filterPendingEconomicPlacementMoves(safeCandidateMoves, pendingType);
+        if (emitAdjustmentLog && economicCandidateMoves.length > 0 && economicCandidateMoves.length < safeCandidateMoves.length) {
             cfg.cpuDebugLog(
-                `[CPU] Lv${cardLevel} ${playerKey}: ${normalizePendingType(pendingType)}配置を布石収支ライン以上へ補正 (${economicCandidateMoves.length}/${candidateMoves.length})`
+                `[CPU] Lv${cardLevel} ${playerKey}: ${normalizePendingType(pendingType)}配置を布石収支ライン以上へ補正 (${economicCandidateMoves.length}/${safeCandidateMoves.length})`
             );
         }
-        let prioritizedCandidateMoves = cfg.filterMovesByLv6PlacementPriority(playerKey, placementLevel, economicCandidateMoves);
+        let prioritizedCandidateMoves = cfg.filterMovesByLv6PlacementPriority(
+            playerKey,
+            placementLevel,
+            economicCandidateMoves,
+            { emitDebugLog: emitAdjustmentLog }
+        );
         if (Number.isFinite(placementLevel) && placementLevel >= 6) {
             prioritizedCandidateMoves = cfg.filterLv6OpenCornerAdjacentMoves(prioritizedCandidateMoves, board);
+        }
+        return {
+            board,
+            cardLevel,
+            forceLv6Placement,
+            pendingType,
+            placementLevel,
+            prioritizedCandidateMoves: Array.isArray(prioritizedCandidateMoves) ? prioritizedCandidateMoves : []
+        };
+    }
+
+    function prepareCpuCandidateScoringRequest(candidateMoves: any, playerKey: any, identity: any): any {
+        const cardLevel = cfg.resolveCpuSmartnessLevel(playerKey);
+        const pendingType = cfg.resolvePendingType(playerKey);
+        const normalizedPendingType = normalizePendingType(pendingType);
+        if (
+            !Number.isFinite(cardLevel) ||
+            cardLevel < 3 ||
+            cardLevel >= 6 ||
+            normalizedPendingType === 'FREE_PLACEMENT' ||
+            normalizedPendingType === 'LAST_RESORT'
+        ) {
+            return null;
+        }
+        const board = cfg.getCurrentCpuBoard();
+        if (cfg.shouldForceCardModeLv6Placement(playerKey, pendingType, board)) return null;
+        const prepared = prepareCandidateMovesForPolicy(candidateMoves, playerKey, false);
+        if (
+            prepared.cardLevel < 0 ||
+            !Number.isFinite(prepared.placementLevel) ||
+            prepared.placementLevel < 3 ||
+            prepared.placementLevel >= 6 ||
+            prepared.prioritizedCandidateMoves.length < 2
+        ) {
+            return null;
+        }
+        const cpuPolicyCore = cfg.getCpuPolicyCore ? cfg.getCpuPolicyCore() : null;
+        if (!cpuPolicyCore || typeof cpuPolicyCore.createExpectedCandidateScoringRequest !== 'function') return null;
+        return cpuPolicyCore.createExpectedCandidateScoringRequest(
+            prepared.prioritizedCandidateMoves,
+            prepared.placementLevel,
+            null,
+            identity
+        );
+    }
+
+    function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any, candidateScoringPrecomputeInput?: any): any {
+        const rng = cfg.getCpuRng();
+        const prepared = prepareCandidateMovesForPolicy(candidateMoves, playerKey, true);
+        const {
+            board,
+            cardLevel,
+            forceLv6Placement,
+            pendingType,
+            placementLevel,
+            prioritizedCandidateMoves
+        } = prepared;
+
+        if (cardLevel < 0) {
+            cfg.error(`[CPU] selectCpuMoveWithPolicy called for human player ${playerKey}, returning random move`);
+            return candidateMoves[Math.floor(rng.random() * candidateMoves.length)];
         }
 
         const aiSelector = cfg.isAISystemAvailable() && cfg.getAISystem() && typeof cfg.getAISystem().selectMove === 'function'
@@ -201,8 +265,8 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
 
         if (cpuPolicyCore && typeof cpuPolicyCore.chooseMove === 'function') {
             const useHeuristic = !movePlanScoreFn && placementLevel >= 3;
-            let candidateScoringPrecompute = null;
-            if (typeof cfg.readCpuCandidateScoringBatch === 'function') {
+            let candidateScoringPrecompute = candidateScoringPrecomputeInput || null;
+            if (!candidateScoringPrecompute && typeof cfg.readCpuCandidateScoringBatch === 'function') {
                 try {
                     candidateScoringPrecompute = cfg.readCpuCandidateScoringBatch(prioritizedCandidateMoves, {
                         playerKey: String(playerKey || ''),
@@ -248,6 +312,7 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
     }
 
     return {
+        prepareCpuCandidateScoringRequest,
         selectCpuMoveWithPolicy
     };
 }

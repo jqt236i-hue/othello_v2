@@ -35,7 +35,9 @@ describe('UI bootstrap early CPU registration', () => {
     const setPassHandlerRuntime = jest.fn();
     const setCpuDecisionRuntime = jest.fn();
     const selectMoveFromOnnxPolicyAsync = jest.fn();
+    const prepareCpuCandidateScoringRequest = jest.fn();
     const selectCpuMoveWithPolicy = jest.fn();
+    const scoreCandidatesInWorker = jest.fn(() => ({ worker: true }));
     const resolveCpuDecisionLevelForPlayer = jest.fn(() => 1);
     const generateMovesForPlayer = jest.fn();
     const setTurnPipelinePhasesRuntime = jest.fn();
@@ -48,6 +50,7 @@ describe('UI bootstrap early CPU registration', () => {
     jest.doMock('../game/cpu-decision', () => ({
       setCpuDecisionRuntime,
       selectMoveFromOnnxPolicyAsync,
+      prepareCpuCandidateScoringRequest,
       selectCpuMoveWithPolicy,
       resolveCpuDecisionLevelForPlayer
     }));
@@ -57,8 +60,13 @@ describe('UI bootstrap early CPU registration', () => {
     jest.doMock('../game/turn/turn_pipeline_phases', () => ({
       setTurnPipelinePhasesRuntime
     }));
+    jest.doMock('../ui/network-client', () => ({
+      isActive: jest.fn(() => true),
+      getStateVersion: jest.fn(() => 42)
+    }));
 
     const uiBoot = require('../ui/bootstrap.js');
+    expect(uiBoot.configureCpuCandidateScoring({ scoreCandidatesInWorker })).toBe(true);
     // Call installGameDI (returns impl) to perform the registration logic
     const impl = uiBoot.installGameDI();
 
@@ -66,6 +74,7 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof globals.processCpuTurn).toBe('function');
     expect(typeof globals.processAutoBlackTurn).toBe('function');
     expect(globals.selectMoveFromOnnxPolicyAsync).toBe(selectMoveFromOnnxPolicyAsync);
+    expect(globals.prepareCpuCandidateScoringRequest).toBe(prepareCpuCandidateScoringRequest);
     expect(globals.selectCpuMoveWithPolicy).toBe(selectCpuMoveWithPolicy);
     expect(typeof globals.generateMovesForPlayer).toBe('function');
     expect(mockCpu.setCpuUIImpl).toHaveBeenCalledTimes(1);
@@ -78,6 +87,12 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readQuerySearch).toBe('function');
     expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readProcessing).toBe('function');
     expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readAnimationBusy).toBe('function');
+    expect(mockCpu.setCpuUIImpl.mock.calls[0][0].readCpuStateVersion()).toBe(42);
+    expect(mockCpu.setCpuUIImpl.mock.calls[0][0].isCpuCandidateScoringAvailable()).toBe(true);
+    expect(mockCpu.setCpuUIImpl.mock.calls[0][0].scoreCandidatesInWorker('request')).toEqual({ worker: true });
+    expect(scoreCandidatesInWorker).toHaveBeenCalledWith('request');
+    expect(uiBoot.configureCpuCandidateScoring(null)).toBe(false);
+    expect(mockCpu.setCpuUIImpl.mock.calls[0][0].isCpuCandidateScoringAvailable()).toBe(false);
     expect(setPassHandlerRuntime).toHaveBeenCalledTimes(1);
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].processCpuTurn).toBe('function');
     setPassHandlerRuntime.mock.calls[0][0].processCpuTurn('black');

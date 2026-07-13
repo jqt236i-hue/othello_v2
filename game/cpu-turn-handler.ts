@@ -203,6 +203,23 @@ function resolveRuntimeFunction(name: string): Function | null {
         : null;
 }
 
+function getCurrentStateVersionSafe(): number | string | null {
+    try {
+        const injected = __uiImpl_cpu && typeof __uiImpl_cpu.readCpuStateVersion === 'function'
+            ? __uiImpl_cpu.readCpuStateVersion()
+            : null;
+        if (Number.isSafeInteger(injected) && Number(injected) >= 0) return Number(injected);
+        if (typeof injected === 'string' && injected.length > 0 && injected.length <= 160) return injected;
+        const runtimeGameState = resolveRuntimeValue('gameState');
+        const value = runtimeGameState && typeof runtimeGameState === 'object'
+            ? runtimeGameState.stateVersion
+            : (gameState && typeof gameState === 'object' ? (gameState as any).stateVersion : null);
+        if (Number.isSafeInteger(value) && Number(value) >= 0) return Number(value);
+        if (typeof value === 'string' && value.length > 0 && value.length <= 160) return value;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
 function emitCpuTurnLogAdded(message: any, kind?: string): boolean {
     try {
         const runtimeEmitLogAdded = resolveRuntimeFunction('emitLogAdded');
@@ -979,13 +996,13 @@ const presentationRuntime = CpuTurnPresentationRuntimeModule.createPresentationR
     processCpuTurn: () => processCpuTurn()
 });
 
-function selectCpuMoveSafe(candidateMoves: any, playerKey: any) {
+function selectCpuMoveSafe(candidateMoves: any, playerKey: any, candidateScoringPrecompute?: any) {
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
     try {
         const selectCpuMoveWithPolicyFn = resolveRuntimeFunction('selectCpuMoveWithPolicy')
             || (typeof selectCpuMoveWithPolicy === 'function' ? selectCpuMoveWithPolicy : null);
         if (typeof selectCpuMoveWithPolicyFn === 'function') {
-            const selected = selectCpuMoveWithPolicyFn(candidateMoves, playerKey);
+            const selected = selectCpuMoveWithPolicyFn(candidateMoves, playerKey, candidateScoringPrecompute);
             if (selected && Number.isFinite(selected.row) && Number.isFinite(selected.col)) {
                 return selected;
             }
@@ -1239,12 +1256,29 @@ const CpuTurnMovePhase = (CpuTurnMovePhaseModule && typeof CpuTurnMovePhaseModul
         getAnimationRetryDelayMs,
         getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
         getCurrentPlayerKeySafe,
+        getCurrentStateVersionSafe,
         getCurrentTurnNumberSafe,
         getFlipBlockersSafe,
         getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
         getSelectMoveFromOnnxFn: () => (
             resolveRuntimeFunction('selectMoveFromOnnxPolicyAsync')
             || (typeof selectMoveFromOnnxPolicyAsync === 'function' ? selectMoveFromOnnxPolicyAsync : null)
+        ),
+        getPrepareCpuCandidateScoringRequestFn: () => (
+            resolveRuntimeFunction('prepareCpuCandidateScoringRequest')
+            || (CpuDecisionRuntimeModule && typeof CpuDecisionRuntimeModule.prepareCpuCandidateScoringRequest === 'function'
+                ? CpuDecisionRuntimeModule.prepareCpuCandidateScoringRequest
+                : null)
+        ),
+        getScoreCandidatesInWorkerFn: () => (
+            __uiImpl_cpu &&
+            typeof __uiImpl_cpu.scoreCandidatesInWorker === 'function' &&
+            (
+                typeof __uiImpl_cpu.isCpuCandidateScoringAvailable !== 'function' ||
+                __uiImpl_cpu.isCpuCandidateScoringAvailable() === true
+            )
+                ? __uiImpl_cpu.scoreCandidatesInWorker
+                : null
         ),
         getUseCardWithPolicyFn: () => (
             resolveRuntimeFunction('cpuMaybeUseCardWithPolicy')
