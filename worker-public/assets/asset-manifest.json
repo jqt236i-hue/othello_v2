@@ -1,6 +1,6 @@
 {
   "version": "2026-07-13",
-  "generatedAt": "2026-07-13T02:31:02.625Z",
+  "generatedAt": "2026-07-13T02:33:45.184Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -100,11 +100,11 @@
     },
     {
       "path": "assets/images/special-stones/perma_protect_next_stone-black.png",
-      "sha256": "bcb52a04e97491fc4f8d712e0ef3740e6bc8420325a6ed231b8a20789a14d58b"
+      "sha256": "727be0c5151cdd49055bfc08086ea4827366de1b51e22e9e85c3db85eeee9583"
     },
     {
       "path": "assets/images/special-stones/perma_protect_next_stone-white.png",
-      "sha256": "269a9b9b412278e41237181d0d0c998af44c393de7013bce1e2853b2e1137d2d"
+      "sha256": "2465543283a5ff47038620b3005758147bd569fecf2442d65df284c8b288241e"
     },
     {
       "path": "assets/images/special-stones/PROLIFERATION_WILL-black.png",
