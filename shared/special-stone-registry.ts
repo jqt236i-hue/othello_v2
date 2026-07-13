@@ -364,7 +364,7 @@
         }),
         THEORY_INCARNATION: Object.freeze({
             name: '理論の化身',
-            desc: '5ターン不可侵の顕現石。所有者のカード使用と石配置を封じる。'
+            desc: '3ターン不可侵の顕現石。所有者のカード使用を封じる。'
         }),
         BOARD_EXECUTOR: Object.freeze({
             name: '盤界の執行者',

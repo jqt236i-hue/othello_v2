@@ -18,7 +18,7 @@ describe('manifest stone marker data builder', () => {
     }));
   });
 
-  test('builds theory incarnation marker data with four owner turns', () => {
+  test('builds theory incarnation marker data with three owner turns', () => {
     const data = ManifestStoneRegistry.createManifestStoneMarkerData('THEORY_INCARNATION', {
       sessionId: 'theory_black_1'
     });
@@ -26,7 +26,7 @@ describe('manifest stone marker data builder', () => {
     expect(data).toEqual(expect.objectContaining({
       type: 'THEORY_INCARNATION',
       sourceType: 'THEORY_INCARNATION',
-      remainingOwnerTurns: 4,
+      remainingOwnerTurns: 3,
       inviolable: true,
       visualEffectKey: 'theoryIncarnationStone',
       sessionId: 'theory_black_1'

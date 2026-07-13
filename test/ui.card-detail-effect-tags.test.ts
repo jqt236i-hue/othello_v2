@@ -197,10 +197,10 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['数字マス42獲得で使用可能', '不可侵', '4ターン持続']);
+    expect(getTagLabels()).toEqual(['数字マス42獲得で使用可能', '不可侵', '3ターン持続']);
       expect(document.getElementById('card-detail-desc').textContent).not.toContain('使用可能');
-      expect(document.getElementById('card-detail-more').textContent).toContain('4T不可侵の顕現石');
-    expect(document.getElementById('card-detail-more').textContent).toContain('最大5回特殊石を出現できる');
+      expect(document.getElementById('card-detail-more').textContent).toContain('3T不可侵の顕現石');
+    expect(document.getElementById('card-detail-more').textContent).toContain('最大4回特殊石を出現できる');
     expect(document.getElementById('card-detail-more').textContent).toContain('反転しない');
     expect(document.getElementById('card-detail-more').textContent).toContain('反転枚数でも布石は獲得しない');
       expect(document.getElementById('card-detail-more').textContent).not.toContain('出現時に反転した枚数ぶんの布石は獲得する');
