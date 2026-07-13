@@ -118,6 +118,22 @@ function resolveStoneControllerModule(rootRef: any): any {
   return null;
 }
 
+function resolveMySkinControllerModule(rootRef: any): any {
+  const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
+  if (ctx && ctx.MySkinControllerModule) return ctx.MySkinControllerModule;
+  try {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).MySkinControllerModule) {
+      return (globalThis as any).MySkinControllerModule;
+    }
+  } catch (e) { /* ignore */ }
+  if (typeof _require === 'function') {
+    try {
+      return _require('../custom-skin/my-skin-controller.js');
+    } catch (e) { /* ignore */ }
+  }
+  return null;
+}
+
 function resolveUIBootstrapModule(rootRef: any): any {
   const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
   if (ctx && ctx.UIBootstrap) return ctx.UIBootstrap;
@@ -418,6 +434,7 @@ function setupHandSkinControls(options?: any): any {
   const boardControllerModule = resolveBoardControllerModule(rootRef);
   const fontControllerModule = resolveFontControllerModule(rootRef);
   const stoneControllerModule = resolveStoneControllerModule(rootRef);
+  const mySkinControllerModule = resolveMySkinControllerModule(rootRef);
   if (!docRef || !catalogModule || !selectionModule || !runtimeModule) return null;
 
   const button = opts.button || docRef.getElementById('handSkinBtn');
@@ -430,6 +447,7 @@ function setupHandSkinControls(options?: any): any {
   const boardFrameSection = opts.boardFrameSection || docRef.getElementById('boardFrameSkinSection');
   const fontSection = opts.fontSection || docRef.getElementById('fontSkinSection');
   const stoneSection = opts.stoneSection || docRef.getElementById('stoneSkinSection');
+  const mySkinSection = opts.mySkinSection || docRef.getElementById('mySkinSection');
   const presetSection = opts.presetSection || docRef.getElementById('appearancePresetSection');
   const handTabBtn = opts.handTabBtn || docRef.getElementById('appearanceTabHand');
   const backgroundTabBtn = opts.backgroundTabBtn || docRef.getElementById('appearanceTabBackground');
@@ -437,7 +455,9 @@ function setupHandSkinControls(options?: any): any {
   const boardFrameTabBtn = opts.boardFrameTabBtn || docRef.getElementById('appearanceTabBoardFrame');
   const fontTabBtn = opts.fontTabBtn || docRef.getElementById('appearanceTabFont');
   const stoneTabBtn = opts.stoneTabBtn || docRef.getElementById('appearanceTabStone');
+  const mySkinTabBtn = opts.mySkinTabBtn || docRef.getElementById('appearanceTabMySkin');
   const presetTabBtn = opts.presetTabBtn || docRef.getElementById('appearanceTabPreset');
+  const mySkinOptions = opts.mySkinOptions || docRef.getElementById('mySkinOptions');
   const presetNameInput = opts.presetNameInput || docRef.getElementById('appearancePresetNameInput');
   const presetSaveBtn = opts.presetSaveBtn || docRef.getElementById('appearancePresetSaveBtn');
   const presetCodeInput = opts.presetCodeInput || docRef.getElementById('appearancePresetCodeInput');
@@ -472,6 +492,16 @@ function setupHandSkinControls(options?: any): any {
     ? stoneControllerModule.setupStoneSkinControls({
       root: rootRef,
       document: docRef
+    })
+    : null;
+  const mySkinControllerApi = mySkinControllerModule && typeof mySkinControllerModule.setupMySkinControls === 'function'
+    ? mySkinControllerModule.setupMySkinControls({
+      root: rootRef,
+      document: docRef,
+      optionsEl: mySkinOptions,
+      backgroundControllerApi,
+      boardControllerApi,
+      stoneControllerApi
     })
     : null;
   ensureHandAnimationControls(docRef, rootRef, handSection, optionsEl);
@@ -761,6 +791,7 @@ function setupHandSkinControls(options?: any): any {
     const hasBoardFrameTab = !!(boardControllerApi && boardFrameSection && boardFrameTabBtn);
     const hasFontTab = !!(fontControllerApi && fontSection && fontTabBtn);
     const hasStoneTab = !!(stoneControllerApi && stoneSection && stoneTabBtn);
+    const hasMySkinTab = !!(mySkinControllerApi && mySkinSection && mySkinTabBtn);
     const hasPresetTab = !!(presetSection && presetTabBtn && presetListEl && presetSaveBtn);
     if (nextTab === 'background' && hasBackgroundTab) {
       activeTab = 'background';
@@ -772,6 +803,8 @@ function setupHandSkinControls(options?: any): any {
       activeTab = 'font';
     } else if (nextTab === 'stone' && hasStoneTab) {
       activeTab = 'stone';
+    } else if (nextTab === 'my-skin' && hasMySkinTab) {
+      activeTab = 'my-skin';
     } else if (nextTab === 'preset' && hasPresetTab) {
       activeTab = 'preset';
     } else {
@@ -783,6 +816,7 @@ function setupHandSkinControls(options?: any): any {
     if (boardFrameSection) boardFrameSection.hidden = activeTab !== 'board-frame';
     if (fontSection) fontSection.hidden = activeTab !== 'font';
     if (stoneSection) stoneSection.hidden = activeTab !== 'stone';
+    if (mySkinSection) mySkinSection.hidden = activeTab !== 'my-skin';
     if (presetSection) presetSection.hidden = activeTab !== 'preset';
     syncTabButtonState(handTabBtn, 'hand', true);
     syncTabButtonState(backgroundTabBtn, 'background', hasBackgroundTab);
@@ -790,7 +824,11 @@ function setupHandSkinControls(options?: any): any {
     syncTabButtonState(boardFrameTabBtn, 'board-frame', hasBoardFrameTab);
     syncTabButtonState(fontTabBtn, 'font', hasFontTab);
     syncTabButtonState(stoneTabBtn, 'stone', hasStoneTab);
+    syncTabButtonState(mySkinTabBtn, 'my-skin', hasMySkinTab);
     syncTabButtonState(presetTabBtn, 'preset', hasPresetTab);
+    if (activeTab === 'my-skin' && mySkinControllerApi && typeof mySkinControllerApi.refreshOptions === 'function') {
+      mySkinControllerApi.refreshOptions();
+    }
     if (activeTab === 'preset') renderAppearancePresetList();
   }
 
@@ -810,6 +848,9 @@ function setupHandSkinControls(options?: any): any {
     }
     if (stoneControllerApi && typeof stoneControllerApi.refreshOptions === 'function') {
       stoneControllerApi.refreshOptions();
+    }
+    if (mySkinControllerApi && typeof mySkinControllerApi.refreshOptions === 'function') {
+      mySkinControllerApi.refreshOptions();
     }
     renderAppearancePresetList();
     setActiveTab(activeTab);
@@ -881,6 +922,13 @@ function setupHandSkinControls(options?: any): any {
     stoneTabBtn.addEventListener('click', function (event: any) {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       setActiveTab('stone');
+    });
+  }
+
+  if (mySkinTabBtn) {
+    mySkinTabBtn.addEventListener('click', function (event: any) {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      setActiveTab('my-skin');
     });
   }
 

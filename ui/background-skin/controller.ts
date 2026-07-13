@@ -72,6 +72,8 @@ function createOptionButton(docRef: Document, skin: SkinDefinition): HTMLButtonE
 interface ControllerApi {
   refreshOptions: (preferredSkinId?: string) => void;
   getSelectedSkinId: () => string;
+  useSkin: (skinId: string) => SkinDefinition | null;
+  saveSkin: (skinId: string) => SkinDefinition | null;
   selectSkin: (skinId: string) => SkinDefinition | null;
 }
 
@@ -172,6 +174,12 @@ function setupBackgroundSkinControls(options?: any): ControllerApi | null {
     refreshOptions,
     getSelectedSkinId: function () {
       return selectedSkin ? selectedSkin.id : catalogModule.DEFAULT_BACKGROUND_SKIN_ID;
+    },
+    useSkin: function (skinId: string) {
+      return applySelection(skinId, false);
+    },
+    saveSkin: function (skinId: string) {
+      return applySelection(skinId, true);
     },
     selectSkin: function (skinId: string) {
       return applySelection(skinId, true);

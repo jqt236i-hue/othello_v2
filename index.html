@@ -541,6 +541,7 @@
             <button id="appearanceTabBoardFrame" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="boardFrameSkinSection">盤面フレーム</button>
             <button id="appearanceTabFont" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="fontSkinSection">フォント</button>
             <button id="appearanceTabStone" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="stoneSkinSection">石</button>
+            <button id="appearanceTabMySkin" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="mySkinSection">マイスキン</button>
             <button id="appearanceTabPreset" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="appearancePresetSection">プリセット</button>
         </div>
         <div id="handSkinSection" class="appearance-panel-section" data-appearance-section="hand">
@@ -560,6 +561,9 @@
         </div>
         <div id="stoneSkinSection" class="appearance-panel-section" data-appearance-section="stone" hidden>
             <div id="stoneSkinOptions" role="radiogroup" aria-label="通常石スキン"></div>
+        </div>
+        <div id="mySkinSection" class="appearance-panel-section" data-appearance-section="my-skin" hidden>
+            <div id="mySkinOptions" aria-label="保存済みマイスキン"></div>
         </div>
         <div id="appearancePresetSection" class="appearance-panel-section" data-appearance-section="preset" hidden>
             <div id="appearancePresetSavePanel">
@@ -1026,7 +1030,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=117096121895396"></script>
+    <script src="public/module-registry.js?v=90136879890896"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="entry-browser.js?v=240262822236786"></script>
 </body>

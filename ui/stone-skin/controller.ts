@@ -75,6 +75,8 @@ function createOptionButton(docRef: Document, skin: StoneSkinDefinition): HTMLBu
 interface ControllerApi {
   refreshOptions: (preferredSkinId?: string) => void;
   getSelectedSkinId: () => string;
+  useSkin: (skinId: string) => StoneSkinDefinition | null;
+  saveSkin: (skinId: string) => StoneSkinDefinition | null;
   selectSkin: (skinId: string) => StoneSkinDefinition | null;
 }
 
@@ -175,6 +177,12 @@ function setupStoneSkinControls(options?: any): ControllerApi | null {
     refreshOptions,
     getSelectedSkinId: function () {
       return selectedSkin ? selectedSkin.id : catalogModule.DEFAULT_STONE_SKIN_ID;
+    },
+    useSkin: function (skinId: string) {
+      return applySelection(skinId, false);
+    },
+    saveSkin: function (skinId: string) {
+      return applySelection(skinId, true);
     },
     selectSkin: function (skinId: string) {
       return applySelection(skinId, true);

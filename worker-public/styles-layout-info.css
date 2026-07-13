@@ -1769,6 +1769,177 @@
     -webkit-overflow-scrolling: touch;
 }
 
+#mySkinOptions {
+    display: block;
+    flex: 1 1 auto;
+    height: min(var(--appearance-option-list-height), calc(100dvh - calc(150px * var(--layout-stage-scale))));
+    max-height: min(var(--appearance-option-list-height), calc(100dvh - calc(150px * var(--layout-stage-scale))));
+    min-height: 0;
+    padding-right: calc(4px * var(--layout-stage-scale));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.my-skin-status {
+    min-height: calc(15px * var(--layout-stage-scale));
+    margin-bottom: calc(6px * var(--layout-stage-scale));
+    color: rgba(180, 239, 220, 0.82);
+    font-size: calc(10px * var(--layout-stage-scale));
+    line-height: 1.35;
+}
+
+.my-skin-status.is-error {
+    color: #ffb0a4;
+}
+
+.my-skin-empty {
+    padding: calc(16px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) dashed rgba(83, 214, 209, 0.3);
+    border-radius: calc(8px * var(--layout-stage-scale));
+    color: rgba(228, 255, 251, 0.7);
+    font-size: calc(12px * var(--layout-stage-scale));
+    text-align: center;
+}
+
+.my-skin-group + .my-skin-group {
+    margin-top: calc(12px * var(--layout-stage-scale));
+}
+
+.my-skin-group-title {
+    margin: 0 0 calc(6px * var(--layout-stage-scale));
+    color: #ffecb3;
+    font-size: calc(12px * var(--layout-stage-scale));
+    font-weight: 800;
+}
+
+.my-skin-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--appearance-option-list-gap);
+}
+
+.my-skin-card {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: calc(7px * var(--layout-stage-scale));
+    padding: calc(8px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.28);
+    border-radius: calc(9px * var(--layout-stage-scale));
+    background: rgba(4, 16, 19, 0.72);
+    color: #f8e8c9;
+}
+
+.my-skin-card.is-current {
+    border-color: rgba(242, 201, 95, 0.82);
+    box-shadow: inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 236, 179, 0.16);
+}
+
+.my-skin-card-main {
+    display: grid;
+    grid-template-columns: calc(74px * var(--layout-stage-scale)) minmax(0, 1fr);
+    align-items: center;
+    gap: calc(8px * var(--layout-stage-scale));
+    min-width: 0;
+}
+
+.my-skin-card-preview,
+.my-skin-card-stone-preview {
+    width: calc(74px * var(--layout-stage-scale));
+    height: calc(56px * var(--layout-stage-scale));
+    border-radius: calc(7px * var(--layout-stage-scale));
+    background: rgba(0, 0, 0, 0.24);
+    object-fit: cover;
+}
+
+.my-skin-card-stone-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(5px * var(--layout-stage-scale));
+    padding: calc(4px * var(--layout-stage-scale));
+}
+
+.my-skin-card-stone-preview .my-skin-card-preview {
+    width: calc(27px * var(--layout-stage-scale));
+    height: calc(27px * var(--layout-stage-scale));
+    border-radius: 50%;
+    object-fit: contain;
+}
+
+.my-skin-card-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: calc(3px * var(--layout-stage-scale));
+}
+
+.my-skin-card-label {
+    overflow: hidden;
+    color: #f8e8c9;
+    font-size: calc(12px * var(--layout-stage-scale));
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.my-skin-card-note,
+.my-skin-card-current {
+    color: rgba(228, 255, 251, 0.66);
+    font-size: calc(10px * var(--layout-stage-scale));
+    line-height: 1.3;
+}
+
+.my-skin-card-current {
+    color: #ffe9a5;
+    font-weight: 800;
+}
+
+.my-skin-card-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: calc(5px * var(--layout-stage-scale));
+}
+
+.my-skin-card-actions button {
+    min-height: calc(27px * var(--layout-stage-scale));
+    padding: 0 calc(4px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(83, 214, 209, 0.34);
+    border-radius: calc(5px * var(--layout-stage-scale));
+    background: rgba(20, 67, 71, 0.68);
+    color: #e8fffb;
+    font: inherit;
+    font-size: calc(10px * var(--layout-stage-scale));
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.my-skin-card-actions button:hover,
+.my-skin-card-actions button:focus-visible {
+    border-color: rgba(242, 201, 95, 0.82);
+    background: rgba(35, 94, 91, 0.86);
+    outline: none;
+}
+
+.my-skin-card-actions .my-skin-delete {
+    border-color: rgba(194, 111, 99, 0.42);
+    background: rgba(71, 28, 32, 0.62);
+    color: #ffd8d0;
+}
+
+.my-skin-card-actions .my-skin-delete:hover:not(:disabled),
+.my-skin-card-actions .my-skin-delete:focus-visible:not(:disabled) {
+    border-color: rgba(255, 154, 138, 0.8);
+    background: rgba(103, 37, 42, 0.8);
+}
+
+.my-skin-card-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.42;
+}
+
 .hand-skin-option,
 .background-skin-option,
 .board-skin-option,
@@ -3032,20 +3203,20 @@
     padding: calc(14px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale));
 }
 
-:is(#networkPanel, #ratedMatchModalBody, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #rules-help-pages) {
+:is(#networkPanel, #ratedMatchModalBody, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages) {
     scrollbar-width: thin;
     scrollbar-color: rgba(83, 214, 209, 0.48) rgba(0, 0, 0, 0.22);
 }
 
-:is(#networkPanel, #ratedMatchModalBody, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #rules-help-pages)::-webkit-scrollbar {
+:is(#networkPanel, #ratedMatchModalBody, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar {
     width: calc(8px * var(--layout-stage-scale));
 }
 
-:is(#networkPanel, #ratedMatchModalBody, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #rules-help-pages)::-webkit-scrollbar-track {
+:is(#networkPanel, #ratedMatchModalBody, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar-track {
     background: rgba(0, 0, 0, 0.18);
 }
 
-:is(#networkPanel, #ratedMatchModalBody, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #rules-help-pages)::-webkit-scrollbar-thumb {
+:is(#networkPanel, #ratedMatchModalBody, #networkRoomListViewport, #leaderboardModalBody, #gachaModalBody, #deckBuilderBody, #handSkinOptions, #backgroundSkinOptions, #boardSkinOptions, #fontSkinOptions, #stoneSkinOptions, #mySkinOptions, #rules-help-pages)::-webkit-scrollbar-thumb {
     border-radius: calc(999px * var(--layout-stage-scale));
     background: linear-gradient(180deg, rgba(83, 214, 209, 0.66), rgba(126, 215, 255, 0.32));
 }

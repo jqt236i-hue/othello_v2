@@ -100,6 +100,8 @@ interface ControllerApi {
   refreshFrameOptions: (preferredSkinId?: string) => void;
   getSelectedSkinId: () => string;
   getSelectedFrameSkinId: () => string;
+  useSkin: (skinId: string) => SkinDefinition | null;
+  saveSkin: (skinId: string) => SkinDefinition | null;
   selectSkin: (skinId: string) => SkinDefinition | null;
   selectFrameSkin: (skinId: string) => SkinDefinition | null;
 }
@@ -259,6 +261,12 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
     },
     getSelectedFrameSkinId: function () {
       return selectedFrameSkin ? selectedFrameSkin.id : catalogModule.DEFAULT_BOARD_FRAME_SKIN_ID;
+    },
+    useSkin: function (skinId: string) {
+      return applySelection(skinId, false);
+    },
+    saveSkin: function (skinId: string) {
+      return applySelection(skinId, true);
     },
     selectSkin: function (skinId: string) {
       return applySelection(skinId, true);
