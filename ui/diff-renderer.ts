@@ -1375,8 +1375,23 @@ function _isBoardContourCellForDiff(row: number, col: number, gameState: any) {
     return row >= 0 && row < shape.rows && col >= 0 && col < shape.cols;
 }
 
+function _isSquareRectangularBoardForDiff(gameState: any) {
+    const shape = _getBoardShapeForDiff(gameState);
+    const boardShape = String(gameState && gameState.boardConfig && gameState.boardConfig.shape || 'rectangle').toLowerCase();
+    return boardShape === 'rectangle' && shape.rows === shape.cols;
+}
+
 function _applyBoardContourEdgeClassesForDiff(cell: any, row: number, col: number, gameState: any) {
     if (!cell || !cell.classList) return;
+    if (_isSquareRectangularBoardForDiff(gameState)) {
+        cell.classList.remove(
+            'board-frame-edge-top',
+            'board-frame-edge-right',
+            'board-frame-edge-bottom',
+            'board-frame-edge-left'
+        );
+        return;
+    }
     cell.classList.toggle('board-frame-edge-top', !_isBoardContourCellForDiff(row - 1, col, gameState));
     cell.classList.toggle('board-frame-edge-right', !_isBoardContourCellForDiff(row, col + 1, gameState));
     cell.classList.toggle('board-frame-edge-bottom', !_isBoardContourCellForDiff(row + 1, col, gameState));
@@ -3249,6 +3264,8 @@ function initializeBoardDOM(boardEl: any) {
     cellCacheMap = new Map();
     let hasVoidCells = false;
     const sharedBoardUtils = _getSharedBoardUtilsForDiff();
+
+    boardEl.classList.toggle('board-square-regular', _isSquareRectangularBoardForDiff(gameState));
 
     boardEl.classList.remove('board-expanded-left', 'board-expanded-right', 'board-expanded-top', 'board-expanded-bottom');
     if (expansions.some((exp) => exp && exp.side === 'left')) boardEl.classList.add('board-expanded-left');

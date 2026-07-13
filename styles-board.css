@@ -79,6 +79,11 @@
         drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) var(--board-contour-shadow));
 }
 
+/* 正方形の通常盤面はラスターの外周フレームを使い、CSS輪郭の黄色い光を重ねない。 */
+#board.board-square-regular {
+    --board-contour-highlight: transparent;
+}
+
 #board-expansion-layer {
     position: absolute;
     left: 0;
