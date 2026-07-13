@@ -861,20 +861,32 @@ function createTimeDefenseLine(summary: any) {
     return line;
 }
 
-function canUseObservationStoneProgress() {
+function resolveObservationStoneModules(): any {
+    return {
+        helpers: resolveResultOverlayModuleOrNull('../shared/gacha-helpers', 'GachaHelpersModule')
+            || ResultOverlayGachaHelpersModule,
+        progress: resolveResultOverlayModuleOrNull('./storage/gacha-progress', 'GachaProgressStorageModule')
+            || ResultOverlayGachaProgressModule
+    };
+}
+
+function canUseObservationStoneProgress(modules?: any) {
+    const resolved = modules || resolveObservationStoneModules();
     return !!(
-        ResultOverlayGachaHelpersModule
-        && ResultOverlayGachaProgressModule
-        && typeof ResultOverlayGachaProgressModule.getObservationStones === 'function'
+        resolved.helpers
+        && resolved.progress
+        && typeof resolved.progress.getObservationStones === 'function'
+        && typeof resolved.progress.awardObservationStones === 'function'
     );
 }
 
-function getObservationStoneBalanceForResult() {
-    if (!canUseObservationStoneProgress()) return 0;
+function getObservationStoneBalanceForResult(modules?: any) {
+    const resolved = modules || resolveObservationStoneModules();
+    if (!canUseObservationStoneProgress(resolved)) return 0;
     const rootRef = (typeof window !== 'undefined' && window)
         ? window
         : (typeof globalThis !== 'undefined' ? globalThis : null);
-    return Math.max(0, toFiniteInteger(ResultOverlayGachaProgressModule.getObservationStones(rootRef), 0));
+    return Math.max(0, toFiniteInteger(resolved.progress.getObservationStones(rootRef), 0));
 }
 
 function resolveObservationStoneRewardToken(counts: any, viewerKey: any, localOutcomeKey: any) {
@@ -889,6 +901,7 @@ function resolveObservationStoneRewardToken(counts: any, viewerKey: any, localOu
 }
 
 function resolveObservationStoneRewardSummary(counts: any, viewerKey: any, localOutcomeKey: any) {
+    const modules = resolveObservationStoneModules();
     const baseSummary = {
         visible: false,
         eligible: false,
@@ -896,10 +909,10 @@ function resolveObservationStoneRewardSummary(counts: any, viewerKey: any, local
         base: 0,
         bonus: 0,
         total: 0,
-        balance: getObservationStoneBalanceForResult()
+        balance: getObservationStoneBalanceForResult(modules)
     };
 
-    if (!canUseObservationStoneProgress()) {
+    if (!canUseObservationStoneProgress(modules)) {
         return baseSummary;
     }
     if (!isObservationStoneRewardEligibleMatch()) {
@@ -910,7 +923,7 @@ function resolveObservationStoneRewardSummary(counts: any, viewerKey: any, local
     if (_observationStoneRewardByToken.has(token)) {
         const cached = _observationStoneRewardByToken.get(token);
         return Object.assign({}, cached, {
-            balance: getObservationStoneBalanceForResult()
+            balance: getObservationStoneBalanceForResult(modules)
         });
     }
 
@@ -919,16 +932,14 @@ function resolveObservationStoneRewardSummary(counts: any, viewerKey: any, local
         : (typeof globalThis !== 'undefined' ? globalThis : null);
     const baseReward = Math.max(
         0,
-        toFiniteInteger(ResultOverlayGachaHelpersModule.OBSERVATION_STONE_REWARD_BASE, 100)
+        toFiniteInteger(modules.helpers.OBSERVATION_STONE_REWARD_BASE, 100)
     );
-    const bonusReward = localOutcomeKey === 'win' && (typeof ResultOverlayGachaHelpersModule.rollObservationBonus === 'function')
-        ? Math.max(0, toFiniteInteger(ResultOverlayGachaHelpersModule.rollObservationBonus(), 0))
+    const bonusReward = localOutcomeKey === 'win' && (typeof modules.helpers.rollObservationBonus === 'function')
+        ? Math.max(0, toFiniteInteger(modules.helpers.rollObservationBonus(), 0))
         : 0;
     const totalReward = baseReward + bonusReward;
 
-    if (typeof ResultOverlayGachaProgressModule.awardObservationStones === 'function') {
-        ResultOverlayGachaProgressModule.awardObservationStones(rootRef, totalReward);
-    }
+    modules.progress.awardObservationStones(rootRef, totalReward);
 
     const rewardSummary = Object.assign({}, baseSummary, {
         visible: true,
@@ -942,7 +953,7 @@ function resolveObservationStoneRewardSummary(counts: any, viewerKey: any, local
     _observationStoneRewardByToken.set(token, rewardSummary);
 
     return Object.assign({}, rewardSummary, {
-        balance: getObservationStoneBalanceForResult()
+        balance: getObservationStoneBalanceForResult(modules)
     });
 }
 

@@ -51,6 +51,8 @@ describe('result overlay seat perspective', () => {
     delete global.LeaderboardClient;
     delete global.loadLazyRuntimeGroup;
     delete global.LazyRuntimeLoaderModule;
+    delete global.GachaHelpersModule;
+    delete global.GachaProgressStorageModule;
     delete global.window?.LeaderboardClient;
     delete global.window?.loadLazyRuntimeGroup;
     delete global.window?.LazyRuntimeLoaderModule;
@@ -322,6 +324,45 @@ describe('result overlay seat perspective', () => {
       expect(storageModule.getObservationStones(window)).toBe(200);
     } finally {
       randomSpy.mockRestore();
+    }
+  });
+
+  test('起動時に未ロードでも後から遅延ロードされた観測石モジュールで報酬を保存する', () => {
+    jest.doMock('../shared/gacha-helpers', () => {
+      throw new Error('gacha helpers are not loaded at initial boot');
+    });
+    jest.doMock('../ui/storage/gacha-progress', () => {
+      throw new Error('gacha progress is not loaded at initial boot');
+    });
+
+    const helpersModule = jest.requireActual('../shared/gacha-helpers');
+    const storageModule = jest.requireActual('../ui/storage/gacha-progress');
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
+
+    try {
+      const mod = require('../ui/result-overlay.js');
+
+      // Simulate the optional registry being restored after result-overlay boot.
+      global.GachaHelpersModule = helpersModule;
+      global.GachaProgressStorageModule = storageModule;
+
+      const summary = mod.resolveObservationStoneRewardSummary(
+        { black: 48, white: 16 },
+        'black',
+        'win'
+      );
+
+      expect(summary).toEqual(expect.objectContaining({
+        visible: true,
+        granted: true,
+        total: 200,
+        balance: 200
+      }));
+      expect(storageModule.getObservationStones(window)).toBe(200);
+    } finally {
+      randomSpy.mockRestore();
+      jest.dontMock('../shared/gacha-helpers');
+      jest.dontMock('../ui/storage/gacha-progress');
     }
   });
 
