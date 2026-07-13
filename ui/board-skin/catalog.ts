@@ -35,7 +35,7 @@ interface BoardFrameSkinLayout {
 }
 
 interface CustomSkinStorageModule {
-  getCustomSkinDefinitions?: (rootRef: Window, kind?: string) => BoardSkinItem[];
+  getCustomSkinDefinitions?: (rootRef: Window, kind?: string) => Array<BoardSkinItem | BoardFrameSkinItem>;
 }
 
 const BASE_BOARD_SKINS: readonly BoardSkinItem[] = Object.freeze([
@@ -174,6 +174,15 @@ function getCustomBoardSkins(rootRef?: Window | null): BoardSkinItem[] {
   if (!root || !storage || typeof storage.getCustomSkinDefinitions !== 'function') return [];
   return storage.getCustomSkinDefinitions(root, 'board')
     .filter((item): item is BoardSkinItem => !!item && String(item.imagePath || '').trim() !== '')
+    .map((item) => ({ ...item }));
+}
+
+function getCustomBoardFrameSkins(rootRef?: Window | null): BoardFrameSkinItem[] {
+  const root = resolveCustomSkinRoot(rootRef);
+  const storage = root ? resolveCustomSkinStorageModule(root) : null;
+  if (!root || !storage || typeof storage.getCustomSkinDefinitions !== 'function') return [];
+  return storage.getCustomSkinDefinitions(root, 'board-frame')
+    .filter((item): item is BoardFrameSkinItem => !!item && String(item.imagePath || '').trim() !== '')
     .map((item) => ({ ...item }));
 }
 
@@ -329,31 +338,31 @@ function getBoardSkinDefinition(skinId: string, rootRef?: Window | null): BoardS
   return found ? cloneSkin(found) : null;
 }
 
-function getAllBoardFrameSkins(): BoardFrameSkinItem[] {
-  return BOARD_FRAME_SKINS.map(cloneFrameSkin);
+function getAllBoardFrameSkins(rootRef?: Window | null): BoardFrameSkinItem[] {
+  return BOARD_FRAME_SKINS.map(cloneFrameSkin).concat(getCustomBoardFrameSkins(rootRef));
 }
 
-function listOwnedBoardFrameSkinIds(): string[] {
-  return BOARD_FRAME_SKINS.map((skin) => skin.id);
+function listOwnedBoardFrameSkinIds(rootRef?: Window | null): string[] {
+  return getAllBoardFrameSkins(rootRef).map((skin) => skin.id);
 }
 
-function isBoardFrameSkinOwned(_rootRef: Window, skinId: string): boolean {
+function isBoardFrameSkinOwned(rootRef: Window, skinId: string): boolean {
   const normalized = normalizeCatalogBoardFrameSkinId(skinId);
-  return BOARD_FRAME_SKINS.some((skin) => skin.id === normalized);
+  return getAllBoardFrameSkins(rootRef).some((skin) => skin.id === normalized);
 }
 
-function getOwnedBoardFrameSkins(): BoardFrameSkinItem[] {
-  return getAllBoardFrameSkins();
+function getOwnedBoardFrameSkins(rootRef?: Window | null): BoardFrameSkinItem[] {
+  return getAllBoardFrameSkins(rootRef);
 }
 
-function normalizeBoardFrameSkinId(value: unknown): string {
+function normalizeBoardFrameSkinId(value: unknown, rootRef?: Window | null): string {
   const normalized = normalizeCatalogBoardFrameSkinId(value);
-  return BOARD_FRAME_SKINS.some((skin) => skin.id === normalized) ? normalized : DEFAULT_BOARD_FRAME_SKIN_ID;
+  return getAllBoardFrameSkins(rootRef).some((skin) => skin.id === normalized) ? normalized : DEFAULT_BOARD_FRAME_SKIN_ID;
 }
 
-function getBoardFrameSkinDefinition(skinId: string): BoardFrameSkinItem | null {
-  const normalized = normalizeBoardFrameSkinId(skinId);
-  const found = BOARD_FRAME_SKINS.find((skin) => skin.id === normalized) || BOARD_FRAME_SKINS[0] || null;
+function getBoardFrameSkinDefinition(skinId: string, rootRef?: Window | null): BoardFrameSkinItem | null {
+  const normalized = normalizeBoardFrameSkinId(skinId, rootRef);
+  const found = getAllBoardFrameSkins(rootRef).find((skin) => skin.id === normalized) || BOARD_FRAME_SKINS[0] || null;
   return found ? cloneFrameSkin(found) : null;
 }
 

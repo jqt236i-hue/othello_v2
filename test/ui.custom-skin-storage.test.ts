@@ -52,6 +52,7 @@ describe('custom skin storage and catalogs', () => {
     const customDefinitions = {
       background: [{ id: 'custom:background:1', label: '夜空', note: '個人保存', imagePath: 'blob:bg' }],
       board: [{ id: 'custom:board:1', label: '星盤', note: '個人保存', imagePath: 'blob:board' }],
+      'board-frame': [{ id: 'custom:board-frame:1', label: '星枠', note: '個人保存', imagePath: 'blob:frame' }],
       stone: [{ id: 'custom:stone:1', label: '月石', note: '個人保存', blackImagePath: 'blob:black', whiteImagePath: 'blob:white' }]
     };
     (window as any).CustomSkinStorageModule = {
@@ -69,6 +70,10 @@ describe('custom skin storage and catalogs', () => {
     expect(boardCatalog.getBoardSkinDefinition('custom:board:1', window)).toEqual(expect.objectContaining({
       id: 'custom:board:1',
       imagePath: 'blob:board'
+    }));
+    expect(boardCatalog.getBoardFrameSkinDefinition('custom:board-frame:1', window)).toEqual(expect.objectContaining({
+      id: 'custom:board-frame:1',
+      imagePath: 'blob:frame'
     }));
     expect(stoneCatalog.getStoneSkinDefinition('custom:stone:1', window)).toEqual(expect.objectContaining({
       id: 'custom:stone:1',

@@ -4,6 +4,7 @@ describe('custom skin editor controls', () => {
   let dom: JSDOM;
   let storage: any;
   let customDefinitions: any[];
+  let customFrameDefinitions: any[];
 
   beforeEach(() => {
     jest.resetModules();
@@ -16,11 +17,18 @@ describe('custom skin editor controls', () => {
     global.window = dom.window as unknown as Window & typeof globalThis;
     global.document = dom.window.document;
     customDefinitions = [];
+    customFrameDefinitions = [];
     storage = {
-      getCustomSkinDefinitions: (_root: Window, kind: string) => kind === 'board' ? customDefinitions : [],
+      getCustomSkinDefinitions: (_root: Window, kind: string) => kind === 'board' ? customDefinitions : kind === 'board-frame' ? customFrameDefinitions : [],
       isCustomSkin: () => false,
       getCustomSkinRecord: () => null,
-      saveCustomSkin: jest.fn(async () => {
+      saveCustomSkin: jest.fn(async (root: Window, input: any) => {
+        if (input.kind === 'board-frame') {
+          const definition = { id: 'custom:board-frame:test', kind: 'board-frame', label: '保存枠', note: '個人保存', imagePath: 'blob:frame' };
+          customFrameDefinitions = [definition];
+          storage.isCustomSkin = (value: string, kind: string) => value === definition.id && kind === 'board-frame';
+          return definition;
+        }
         const definition = { id: 'custom:board:test', kind: 'board', label: '保存盤面', note: '個人保存', imagePath: 'blob:board' };
         customDefinitions = [definition];
         storage.isCustomSkin = (value: string, kind: string) => value === definition.id && kind === 'board';
@@ -74,5 +82,31 @@ describe('custom skin editor controls', () => {
     useButton.click();
     expect(window.localStorage.getItem('reversi.boardSkin')).toBe('custom:board:test');
     expect(document.querySelector('.custom-skin-editor-status')?.textContent).toContain('一時使用');
+  });
+
+  test('renders a custom image editor for board frames and persists the frame selection', async () => {
+    const controller = require('../ui/board-skin/controller.ts');
+    controller.setupBoardSkinControls({ root: window });
+
+    const editor = document.querySelector('.custom-skin-editor--board-frame');
+    expect(editor).not.toBeNull();
+    expect(editor?.textContent).toContain('画像読み込み');
+    expect(editor?.textContent).toContain('使用');
+    expect(editor?.textContent).toContain('保存');
+    expect(editor?.textContent).toContain('削除');
+
+    const fileInput = editor?.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new Blob(['frame'], { type: 'image/png' });
+    Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] });
+    fileInput.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    (editor?.querySelector('.custom-skin-editor-name-input') as HTMLInputElement).value = '保存枠';
+    (editor?.querySelector('.custom-skin-editor-save-button') as HTMLButtonElement).click();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(storage.saveCustomSkin).toHaveBeenCalledWith(window, expect.objectContaining({ kind: 'board-frame' }));
+    expect(window.localStorage.getItem('reversi.boardFrameSkin')).toBe('custom:board-frame:test');
   });
 });

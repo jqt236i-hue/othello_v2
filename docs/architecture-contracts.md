@@ -361,10 +361,10 @@ The generic observation catalog is the source of truth. Hand-only catalog helper
 
 Player-provided background, board-surface, and normal-stone images are local presentation data, not gameplay or network state.
 
-- `ui/custom-skin/storage.ts` is the canonical browser-local boundary for IndexedDB records, Blob validation, object URL lifecycle, and custom-skin update notifications.
-- `ui/custom-skin/controller.ts` owns the shared image picker/editor UI used by the background, board-surface, and normal-stone controllers.
+- `ui/custom-skin/storage.ts` is the canonical browser-local boundary for IndexedDB records, Blob validation, object URL lifecycle, and custom-skin update notifications for background, board-surface, board-frame, and normal-stone images.
+- `ui/custom-skin/controller.ts` owns the shared image picker/editor UI used by the background, board-surface, board-frame, and normal-stone controllers.
 - `ui/custom-skin/my-skin-controller.ts` owns the saved-only `マイスキン` list and routes `使用` to runtime-only application while routing `保存` through the category controller's persistent selection API.
-- `ui/background-skin/catalog.ts`, `ui/board-skin/catalog.ts`, and `ui/stone-skin/catalog.ts` may append hydrated `custom:` definitions to their fixed catalogs, but fixed catalog definitions remain source-controlled and immutable.
+- `ui/background-skin/catalog.ts`, `ui/board-skin/catalog.ts`, and `ui/stone-skin/catalog.ts` may append hydrated `custom:` definitions to their fixed catalogs, including board-frame definitions in the board catalog, but fixed catalog definitions remain source-controlled and immutable.
 - Existing selection modules continue to store only the selected custom ID in localStorage; image bytes remain in IndexedDB.
 - Custom image bytes must not enter game state, Worker/local-server authority, network snapshots, seat metadata, or the shared hand-skin sync path.
 - If IndexedDB or object URL APIs are unavailable, the fixed catalog remains usable and the editor reports a save/load failure in the UI.

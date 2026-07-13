@@ -9,7 +9,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-type CustomSkinKind = 'background' | 'board' | 'stone';
+type CustomSkinKind = 'background' | 'board' | 'board-frame' | 'stone';
 
 interface CustomSkinDefinition {
   id: string;
@@ -31,7 +31,10 @@ interface CustomSkinStorageModule {
 interface SkinControllerApi {
   useSkin?: (skinId: string) => unknown;
   saveSkin?: (skinId: string) => unknown;
+  useFrameSkin?: (skinId: string) => unknown;
+  saveFrameSkin?: (skinId: string) => unknown;
   getSelectedSkinId?: () => string;
+  getSelectedFrameSkinId?: () => string;
 }
 
 interface MySkinControllerOptions {
@@ -85,13 +88,32 @@ function createButton(docRef: Document, label: string, className: string, ariaLa
 function getKindLabel(kind: CustomSkinKind): string {
   if (kind === 'background') return '背景';
   if (kind === 'board') return '盤面デザイン';
+  if (kind === 'board-frame') return '盤面フレーム';
   return '石';
 }
 
 function getController(options: MySkinControllerOptions, kind: CustomSkinKind): SkinControllerApi | null {
   if (kind === 'background') return options.backgroundControllerApi || null;
-  if (kind === 'board') return options.boardControllerApi || null;
+  if (kind === 'board' || kind === 'board-frame') return options.boardControllerApi || null;
   return options.stoneControllerApi || null;
+}
+
+function getSelectedSkinId(controller: SkinControllerApi | null, kind: CustomSkinKind): string | null {
+  if (!controller) return null;
+  const getter = kind === 'board-frame' ? controller.getSelectedFrameSkinId : controller.getSelectedSkinId;
+  return typeof getter === 'function' ? getter() : null;
+}
+
+function useSkin(controller: SkinControllerApi | null, kind: CustomSkinKind, skinId: string): unknown {
+  if (!controller) return null;
+  const action = kind === 'board-frame' ? controller.useFrameSkin : controller.useSkin;
+  return typeof action === 'function' ? action(skinId) : null;
+}
+
+function saveSkin(controller: SkinControllerApi | null, kind: CustomSkinKind, skinId: string): unknown {
+  if (!controller) return null;
+  const action = kind === 'board-frame' ? controller.saveFrameSkin : controller.saveSkin;
+  return typeof action === 'function' ? action(skinId) : null;
 }
 
 function createPreview(docRef: Document, definition: CustomSkinDefinition): HTMLElement {
@@ -156,7 +178,7 @@ function setupMySkinControls(options?: MySkinControllerOptions): MySkinControlle
     note.textContent = definition.note || '個人保存';
     copy.appendChild(note);
     const controller = getController(opts, definition.kind);
-    if (controller && typeof controller.getSelectedSkinId === 'function' && controller.getSelectedSkinId() === definition.id) {
+    if (getSelectedSkinId(controller, definition.kind) === definition.id) {
       const current = createElement(docRef, 'span', 'my-skin-card-current');
       current.textContent = '現在使用中';
       copy.appendChild(current);
@@ -175,7 +197,7 @@ function setupMySkinControls(options?: MySkinControllerOptions): MySkinControlle
         return;
       }
       try {
-        const result = typeof api.useSkin === 'function' ? api.useSkin(definition.id) : null;
+        const result = useSkin(api, definition.kind, definition.id);
         if (!result) {
           setStatus('このスキンを使用できません', true);
           return;
@@ -192,12 +214,14 @@ function setupMySkinControls(options?: MySkinControllerOptions): MySkinControlle
     saveButton.addEventListener('click', (event: Event) => {
       event.preventDefault();
       const api = getController(opts, definition.kind);
-      if (!api || typeof api.saveSkin !== 'function') {
+      if (!api || (definition.kind === 'board-frame'
+        ? typeof api.saveFrameSkin !== 'function'
+        : typeof api.saveSkin !== 'function')) {
         setStatus('このスキンを保存できません', true);
         return;
       }
       try {
-        const result = api.saveSkin(definition.id);
+        const result = saveSkin(api, definition.kind, definition.id);
         if (!result) {
           setStatus('このスキンを保存できません', true);
           return;
@@ -245,7 +269,12 @@ function setupMySkinControls(options?: MySkinControllerOptions): MySkinControlle
 
     const definitions = storageApi.getCustomSkinDefinitions(opts.root) || [];
     const validDefinitions = definitions.filter((definition) => (
-      definition && (definition.kind === 'background' || definition.kind === 'board' || definition.kind === 'stone')
+      definition && (
+        definition.kind === 'background'
+        || definition.kind === 'board'
+        || definition.kind === 'board-frame'
+        || definition.kind === 'stone'
+      )
     ));
     if (!validDefinitions.length) {
       const empty = createElement(docRef, 'div', 'my-skin-empty');
@@ -254,7 +283,7 @@ function setupMySkinControls(options?: MySkinControllerOptions): MySkinControlle
       return;
     }
 
-    (['background', 'board', 'stone'] as CustomSkinKind[]).forEach((kind) => {
+    (['background', 'board', 'board-frame', 'stone'] as CustomSkinKind[]).forEach((kind) => {
       const kindDefinitions = validDefinitions.filter((definition) => definition.kind === kind);
       if (!kindDefinitions.length) return;
       const group = createElement(docRef, 'section', 'my-skin-group');

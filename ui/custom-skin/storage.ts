@@ -3,7 +3,7 @@
  * @description Browser-local storage and object URL cache for custom cosmetic skins
  */
 
-type CustomSkinKind = 'background' | 'board' | 'stone';
+type CustomSkinKind = 'background' | 'board' | 'board-frame' | 'stone';
 
 interface CustomSkinRecord {
   id: string;
@@ -11,6 +11,7 @@ interface CustomSkinRecord {
   label: string;
   backgroundImage?: Blob;
   boardImage?: Blob;
+  boardFrameImage?: Blob;
   blackImage?: Blob;
   whiteImage?: Blob;
   createdAt: string;
@@ -33,6 +34,11 @@ interface CustomBoardSkinDefinition extends CustomSkinDefinitionBase {
   imagePath: string;
 }
 
+interface CustomBoardFrameSkinDefinition extends CustomSkinDefinitionBase {
+  kind: 'board-frame';
+  imagePath: string;
+}
+
 interface CustomStoneSkinDefinition extends CustomSkinDefinitionBase {
   kind: 'stone';
   blackImagePath: string;
@@ -42,6 +48,7 @@ interface CustomStoneSkinDefinition extends CustomSkinDefinitionBase {
 type CustomSkinDefinition =
   | CustomBackgroundSkinDefinition
   | CustomBoardSkinDefinition
+  | CustomBoardFrameSkinDefinition
   | CustomStoneSkinDefinition;
 
 interface SaveCustomSkinInput {
@@ -50,6 +57,7 @@ interface SaveCustomSkinInput {
   label?: string;
   backgroundImage?: Blob;
   boardImage?: Blob;
+  boardFrameImage?: Blob;
   blackImage?: Blob;
   whiteImage?: Blob;
 }
@@ -133,7 +141,7 @@ function createError(message: string, code: string): CustomSkinStorageError {
 
 function normalizeKind(value: unknown): CustomSkinKind | null {
   const normalized = String(value || '').trim();
-  if (normalized === 'background' || normalized === 'board' || normalized === 'stone') return normalized;
+  if (normalized === 'background' || normalized === 'board' || normalized === 'board-frame' || normalized === 'stone') return normalized;
   return null;
 }
 
@@ -183,6 +191,7 @@ function validateInput(input: SaveCustomSkinInput): { kind: CustomSkinKind; labe
   if (!kind) throw createError('保存対象のスキン種別が不正です', 'invalid-kind');
   if (kind === 'background') validateImage(input.backgroundImage, '背景画像');
   if (kind === 'board') validateImage(input.boardImage, '盤面画像');
+  if (kind === 'board-frame') validateImage(input.boardFrameImage, '盤面フレーム画像');
   if (kind === 'stone') {
     validateImage(input.blackImage, '黒石画像');
     validateImage(input.whiteImage, '白石画像');
@@ -230,6 +239,9 @@ function createDefinition(rootRef: any, record: CustomSkinRecord, state: CustomS
   }
   if (record.kind === 'board' && record.boardImage) {
     return { ...base, kind: 'board', imagePath: createObjectUrl(rootRef, record.boardImage, record.id, state) };
+  }
+  if (record.kind === 'board-frame' && record.boardFrameImage) {
+    return { ...base, kind: 'board-frame', imagePath: createObjectUrl(rootRef, record.boardFrameImage, record.id, state) };
   }
   if (record.kind === 'stone' && record.blackImage && record.whiteImage) {
     return {
@@ -382,6 +394,7 @@ async function saveCustomSkin(rootRef: any, input: SaveCustomSkinInput): Promise
   };
   if (validated.kind === 'background') record.backgroundImage = input.backgroundImage;
   if (validated.kind === 'board') record.boardImage = input.boardImage;
+  if (validated.kind === 'board-frame') record.boardFrameImage = input.boardFrameImage;
   if (validated.kind === 'stone') {
     record.blackImage = input.blackImage;
     record.whiteImage = input.whiteImage;

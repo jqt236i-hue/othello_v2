@@ -9,7 +9,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-type CustomSkinKind = 'background' | 'board' | 'stone';
+type CustomSkinKind = 'background' | 'board' | 'board-frame' | 'stone';
 
 interface CustomSkinStorageModule {
   isCustomSkin: (value: unknown, kind?: CustomSkinKind) => boolean;
@@ -24,6 +24,7 @@ interface CustomSkinRecord {
   label: string;
   backgroundImage?: Blob;
   boardImage?: Blob;
+  boardFrameImage?: Blob;
   blackImage?: Blob;
   whiteImage?: Blob;
 }
@@ -34,6 +35,7 @@ interface SaveCustomSkinInput {
   label?: string;
   backgroundImage?: Blob;
   boardImage?: Blob;
+  boardFrameImage?: Blob;
   blackImage?: Blob;
   whiteImage?: Blob;
 }
@@ -146,7 +148,7 @@ function setupCustomSkinUploader(options: CustomSkinUploaderOptions): CustomSkin
 
   const imageRow = createElement(docRef, 'div', 'custom-skin-editor-image-row');
   const previewMap: Record<string, HTMLImageElement> = {};
-  const draft: { backgroundImage?: Blob; boardImage?: Blob; blackImage?: Blob; whiteImage?: Blob } = {};
+  const draft: { backgroundImage?: Blob; boardImage?: Blob; boardFrameImage?: Blob; blackImage?: Blob; whiteImage?: Blob } = {};
   const previewUrls: string[] = [];
 
   function revokePreviewUrls(): void {
@@ -184,7 +186,7 @@ function setupCustomSkinUploader(options: CustomSkinUploaderOptions): CustomSkin
     }
   }
 
-  function createImagePicker(key: 'backgroundImage' | 'boardImage' | 'blackImage' | 'whiteImage', labelText: string): void {
+  function createImagePicker(key: 'backgroundImage' | 'boardImage' | 'boardFrameImage' | 'blackImage' | 'whiteImage', labelText: string): void {
     const picker = createElement(docRef, 'div', 'custom-skin-editor-picker');
     const input = createFileInput(docRef);
     const button = createButton(docRef, labelText, 'custom-skin-editor-load-button');
@@ -215,7 +217,10 @@ function setupCustomSkinUploader(options: CustomSkinUploaderOptions): CustomSkin
     createImagePicker('blackImage', '黒石画像読み込み');
     createImagePicker('whiteImage', '白石画像読み込み');
   } else {
-    createImagePicker(opts.kind === 'background' ? 'backgroundImage' : 'boardImage', '画像読み込み');
+    const imageKey = opts.kind === 'background'
+      ? 'backgroundImage'
+      : opts.kind === 'board-frame' ? 'boardFrameImage' : 'boardImage';
+    createImagePicker(imageKey, '画像読み込み');
   }
   editor.appendChild(imageRow);
 
@@ -248,6 +253,7 @@ function setupCustomSkinUploader(options: CustomSkinUploaderOptions): CustomSkin
   function hasDraft(): boolean {
     if (opts.kind === 'background') return !!draft.backgroundImage;
     if (opts.kind === 'board') return !!draft.boardImage;
+    if (opts.kind === 'board-frame') return !!draft.boardFrameImage;
     return !!draft.blackImage && !!draft.whiteImage;
   }
 
@@ -266,6 +272,7 @@ function setupCustomSkinUploader(options: CustomSkinUploaderOptions): CustomSkin
     revokePreviewUrls();
     delete draft.backgroundImage;
     delete draft.boardImage;
+    delete draft.boardFrameImage;
     delete draft.blackImage;
     delete draft.whiteImage;
     if (!record || record.kind !== opts.kind) {
@@ -276,6 +283,7 @@ function setupCustomSkinUploader(options: CustomSkinUploaderOptions): CustomSkin
     nameInput.value = record.label || '';
     draft.backgroundImage = record.backgroundImage;
     draft.boardImage = record.boardImage;
+    draft.boardFrameImage = record.boardFrameImage;
     draft.blackImage = record.blackImage;
     draft.whiteImage = record.whiteImage;
     Object.keys(previewMap).forEach((key) => setPreview(key, draft[key as keyof typeof draft]));
@@ -319,6 +327,7 @@ function setupCustomSkinUploader(options: CustomSkinUploaderOptions): CustomSkin
       label: nameInput.value,
       backgroundImage: draft.backgroundImage,
       boardImage: draft.boardImage,
+      boardFrameImage: draft.boardFrameImage,
       blackImage: draft.blackImage,
       whiteImage: draft.whiteImage
     };

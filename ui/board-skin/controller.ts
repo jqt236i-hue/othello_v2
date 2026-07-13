@@ -102,6 +102,8 @@ interface ControllerApi {
   getSelectedFrameSkinId: () => string;
   useSkin: (skinId: string) => SkinDefinition | null;
   saveSkin: (skinId: string) => SkinDefinition | null;
+  useFrameSkin: (skinId: string) => SkinDefinition | null;
+  saveFrameSkin: (skinId: string) => SkinDefinition | null;
   selectSkin: (skinId: string) => SkinDefinition | null;
   selectFrameSkin: (skinId: string) => SkinDefinition | null;
 }
@@ -123,6 +125,7 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
   let selectedSkin: SkinDefinition | null = null;
   let selectedFrameSkin: SkinDefinition | null = null;
   let customSkinUploader: any = null;
+  let customFrameSkinUploader: any = null;
 
   function syncOptionState() {
     Array.from(optionsEl.querySelectorAll('.board-skin-option')).forEach((optionButton: any) => {
@@ -163,6 +166,9 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
       runtimeModule.syncDisplayedBoardFrameSkin(rootRef, definition.id);
     }
     syncFrameOptionState();
+    if (customFrameSkinUploader && typeof customFrameSkinUploader.refreshSelectedState === 'function') {
+      customFrameSkinUploader.refreshSelectedState();
+    }
     if (persist === true && typeof selectionModule.writeStoredBoardFrameSkinId === 'function') {
       selectionModule.writeStoredBoardFrameSkinId(rootRef, definition.id);
     }
@@ -230,11 +236,31 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
         selectionModule.writeStoredBoardSkinId(rootRef, selectedSkin ? selectedSkin.id : catalogModule.DEFAULT_BOARD_SKIN_ID);
       }
     });
+    customFrameSkinUploader = customSkinControllerModule.setupCustomSkinUploader({
+      root: rootRef,
+      document: docRef,
+      host: frameOptionsEl,
+      kind: 'board-frame',
+      getSelectedSkinId: () => selectedFrameSkin ? selectedFrameSkin.id : catalogModule.DEFAULT_BOARD_FRAME_SKIN_ID,
+      useSkin: (skinId: string) => applyFrameSelection(skinId, false),
+      onSaved: (definition: SkinDefinition) => {
+        refreshFrameOptions(definition.id);
+        selectionModule.writeStoredBoardFrameSkinId(rootRef, definition.id);
+      },
+      onDeleted: () => {
+        refreshFrameOptions();
+        selectionModule.writeStoredBoardFrameSkinId(
+          rootRef,
+          selectedFrameSkin ? selectedFrameSkin.id : catalogModule.DEFAULT_BOARD_FRAME_SKIN_ID
+        );
+      }
+    });
   }
 
   if (customSkinStorageModule && typeof customSkinStorageModule.subscribeCustomSkins === 'function') {
     customSkinStorageModule.subscribeCustomSkins(rootRef, () => {
       refreshOptions(selectedSkin ? selectedSkin.id : undefined);
+      refreshFrameOptions(selectedFrameSkin ? selectedFrameSkin.id : undefined);
     });
   }
 
@@ -247,6 +273,11 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
   if (customSkinStorageModule && typeof customSkinStorageModule.loadCustomSkins === 'function') {
     customSkinStorageModule.loadCustomSkins(rootRef).then(() => {
       refreshOptions(selectionModule.readStoredBoardSkinId(rootRef));
+      refreshFrameOptions(
+        typeof selectionModule.readStoredBoardFrameSkinId === 'function'
+          ? selectionModule.readStoredBoardFrameSkinId(rootRef)
+          : undefined
+      );
     }).catch((error: any) => {
       if (customSkinUploader && typeof customSkinUploader.setStatus === 'function') {
         customSkinUploader.setStatus(String(error && error.message || '個人保存を読み込めませんでした'), true);
@@ -268,6 +299,12 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
     },
     saveSkin: function (skinId: string) {
       return applySelection(skinId, true);
+    },
+    useFrameSkin: function (skinId: string) {
+      return applyFrameSelection(skinId, false);
+    },
+    saveFrameSkin: function (skinId: string) {
+      return applyFrameSelection(skinId, true);
     },
     selectSkin: function (skinId: string) {
       return applySelection(skinId, true);

@@ -31,6 +31,13 @@ describe('my skin controls', () => {
         imagePath: 'blob:board'
       },
       {
+        id: 'custom:board-frame:star',
+        kind: 'board-frame',
+        label: '星枠',
+        note: '個人保存',
+        imagePath: 'blob:frame'
+      },
+      {
         id: 'custom:stone:moon',
         kind: 'stone',
         label: '月石',
@@ -47,11 +54,14 @@ describe('my skin controls', () => {
     boardController = {
       useSkin: jest.fn(() => definitions[1]),
       saveSkin: jest.fn(() => definitions[1]),
-      getSelectedSkinId: jest.fn(() => 'bluegreen-felt')
+      useFrameSkin: jest.fn(() => definitions[2]),
+      saveFrameSkin: jest.fn(() => definitions[2]),
+      getSelectedSkinId: jest.fn(() => 'bluegreen-felt'),
+      getSelectedFrameSkinId: jest.fn(() => 'marsh-forged-iron')
     };
     stoneController = {
-      useSkin: jest.fn(() => definitions[2]),
-      saveSkin: jest.fn(() => definitions[2]),
+      useSkin: jest.fn(() => definitions[3]),
+      saveSkin: jest.fn(() => definitions[3]),
       getSelectedSkinId: jest.fn(() => 'o-stone')
     };
     storage = {
@@ -84,9 +94,14 @@ describe('my skin controls', () => {
     });
     await Promise.resolve();
 
-    expect(document.querySelectorAll('.my-skin-card')).toHaveLength(3);
-    expect(document.querySelectorAll('.my-skin-card-actions button')).toHaveLength(9);
+    expect(document.querySelectorAll('.my-skin-card')).toHaveLength(4);
+    expect(document.querySelectorAll('.my-skin-card-actions button')).toHaveLength(12);
     expect(document.body.textContent).not.toContain('既定');
+
+    const frameCard = document.querySelector('[data-custom-skin-id="custom:board-frame:star"]') as HTMLElement;
+    (frameCard.querySelector('.my-skin-use') as HTMLButtonElement).click();
+    expect(boardController.useFrameSkin).toHaveBeenCalledWith('custom:board-frame:star');
+    expect(boardController.saveFrameSkin).not.toHaveBeenCalled();
 
     const backgroundCard = document.querySelector('[data-custom-skin-id="custom:background:night"]') as HTMLElement;
     (backgroundCard.querySelector('.my-skin-use') as HTMLButtonElement).click();
