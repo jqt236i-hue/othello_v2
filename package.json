@@ -16,6 +16,7 @@
     "match:turnstart-browser-check": "npm run build:ts && node dist/scripts/network-turn-start-browser-check.js",
     "match:playback-board-writer-check": "npm run build:ts && node dist/scripts/playback-board-writer-browser-check.js",
     "match:boot-performance-check": "npm run build:browser && node dist/scripts/browser-boot-performance-check.js",
+    "baseline:browser-modernization": "npm run build:browser && node dist/scripts/capture-browser-modernization-baseline.js",
     "perf:network-special-stone": "npm run build:browser && node scripts/perf/measure-network-special-stone-late-game.js",
     "match:ui-control-smoke": "npm run build:browser && node dist/scripts/browser-ui-control-smoke.js",
     "match:endgame-check": "npm run build:ts && node dist/scripts/network-endgame-smoke.js",

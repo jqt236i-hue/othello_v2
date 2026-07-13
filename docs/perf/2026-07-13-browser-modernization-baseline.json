@@ -1,0 +1,233 @@
+{
+  "schemaVersion": "browser_modernization_baseline.v1",
+  "capturedAt": "2026-07-13T12:28:17.136Z",
+  "commit": "af1850f4a2bac3f730d2a2bc0206b5228f5e3340",
+  "environment": {
+    "node": "v24.12.0",
+    "platform": "win32",
+    "arch": "x64",
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    },
+    "lane": "classic"
+  },
+  "boot": {
+    "sample": {
+      "moduleRegistryBytes": 7904221,
+      "optionalRegistryBytes": 323840,
+      "combinedRegistryBytes": 8228061,
+      "requiredBootModuleCount": 599,
+      "optionalBootModuleCount": 33,
+      "combinedBootModuleCount": 632,
+      "optionalRegistryLoadedAtStartup": false,
+      "onnxScriptLoadedAtStartup": false,
+      "networkModeReadyMs": 1238
+    },
+    "evaluation": {
+      "ok": true,
+      "errors": []
+    }
+  },
+  "cpu": {
+    "fixtures": [
+      {
+        "name": "level3_heuristic_move",
+        "action": {
+          "type": "move",
+          "move": {
+            "row": 0,
+            "col": 0,
+            "flips": [
+              {
+                "row": 1,
+                "col": 1
+              }
+            ]
+          }
+        },
+        "actionDigest": "b590bf6f03e0930995b30bf9b9ef8b311ebd19f2b69499f729cd320c761486bd"
+      },
+      {
+        "name": "level6_heuristic_move",
+        "action": {
+          "type": "move",
+          "move": {
+            "row": 0,
+            "col": 0,
+            "flips": [
+              {
+                "row": 1,
+                "col": 1
+              }
+            ]
+          }
+        },
+        "actionDigest": "b590bf6f03e0930995b30bf9b9ef8b311ebd19f2b69499f729cd320c761486bd"
+      },
+      {
+        "name": "no_move_use_card",
+        "action": {
+          "type": "useCard",
+          "cardId": "guard_will"
+        },
+        "actionDigest": "9060ad138a36a15b3b4e8fc904f8c0b1591ed32d33bceca279d7511de7a53139"
+      },
+      {
+        "name": "no_move_pass",
+        "action": {
+          "type": "pass"
+        },
+        "actionDigest": "393c7b8bb7c831399f5614224c506545c97e1d246209ac4b55386f17f66edf40"
+      }
+    ],
+    "scoreDigest": "af20344345f7eacb3b2783f4f8132637bcde64e3fff3f8cca686d4cb0feb85a0",
+    "scores": [
+      {
+        "level": 3,
+        "index": 0,
+        "row": 0,
+        "col": 0,
+        "score": 10700
+      },
+      {
+        "level": 3,
+        "index": 1,
+        "row": 0,
+        "col": 3,
+        "score": 1000
+      },
+      {
+        "level": 3,
+        "index": 2,
+        "row": 1,
+        "col": 1,
+        "score": -100
+      },
+      {
+        "level": 3,
+        "index": 3,
+        "row": 3,
+        "col": 2,
+        "score": 300
+      },
+      {
+        "level": 6,
+        "index": 0,
+        "row": 0,
+        "col": 0,
+        "score": 15700
+      },
+      {
+        "level": 6,
+        "index": 1,
+        "row": 0,
+        "col": 3,
+        "score": 1000
+      },
+      {
+        "level": 6,
+        "index": 2,
+        "row": 1,
+        "col": 1,
+        "score": -1300
+      },
+      {
+        "level": 6,
+        "index": 3,
+        "row": 3,
+        "col": 2,
+        "score": 300
+      }
+    ]
+  },
+  "presentation": {
+    "visualBaselinePath": "tests/visual-regression/baseline-board.png",
+    "visualBaselineSha256": "66e848b37b311e1d37ebcc340653a2c80a0458ad6d37439d635deb16e4050b75",
+    "sourceDigest": "a7230ebf17683f7381200453b405f605bb86167e4b92408af32d0936005e00d9",
+    "sourceHashes": [
+      {
+        "path": "index.html",
+        "sha256": "026b38fd4da9972759cc9c7fffbd8202a7d5dce4a6c913137a6acb49d155440d"
+      },
+      {
+        "path": "entry-browser.js",
+        "sha256": "da848c2c12726d5db33981a35956ec27a15d1330e9af48f98ccaf58dff55d3b5"
+      },
+      {
+        "path": "styles-animations.css",
+        "sha256": "cf719c59df252416b1b0ef235ff64227c15c795e696c723c368f7ffffe529431"
+      },
+      {
+        "path": "styles-base.css",
+        "sha256": "f8a62b59567b756112e6c4d8f0ee41d817515b83e5ba36018933ff0359d2290c"
+      },
+      {
+        "path": "styles-board.css",
+        "sha256": "47cbbb9fe83a442b4f6e75d443e387873ee0d6e80796728c1b8d3e748eb10048"
+      },
+      {
+        "path": "styles-cards.css",
+        "sha256": "9926593e04777658b37faf198fff7842319e93c73cd0f16a936399541b708566"
+      },
+      {
+        "path": "styles-layout.css",
+        "sha256": "3d502db1b286fac93c49ef949c3c5cb26325904e7f22928f3f6a5548c6795f93"
+      },
+      {
+        "path": "styles-layout-controls.css",
+        "sha256": "7884c00827593d45e03807bb3a38e5e52becd3b26d48cdfb03063e642f1f50e4"
+      },
+      {
+        "path": "styles-layout-info.css",
+        "sha256": "3a76e60412dbcfc293e7f17991f515dc23ccda01e62a5b2f542b1b9a5cb200cf"
+      },
+      {
+        "path": "styles-responsive.css",
+        "sha256": "4aee0eab376a59358f4ad1b1fd5f2de5a674b3372ef6d625c2e5b1410a612acd"
+      },
+      {
+        "path": "sound-engine.ts",
+        "sha256": "acae4e99c7471ff51b3f79c8d49644023f81df893b7bcdc773b603d169daa2c8"
+      },
+      {
+        "path": "ui/animation-engine.ts",
+        "sha256": "0aa602a19401fbef280d3db91cabff8d2a218621c6fe65fbe4d158fe6a3bf406"
+      },
+      {
+        "path": "ui/playback-engine.ts",
+        "sha256": "dd99612f980bf2cad14eb5e2fc9a96c061a5d890cb570f7f02daf4f16c9bc38c"
+      },
+      {
+        "path": "ui/presentation-handler.ts",
+        "sha256": "0c3a0d46ff953c01d75dff1387aa815e407fe845a4a6efe576e038e3480a632e"
+      }
+    ],
+    "requiredElementIds": {
+      "board": true,
+      "leftActionButtons": true,
+      "resetBtn": true,
+      "rulesHelpBtn": true,
+      "rules-help-panel": true,
+      "gachaOpenBtn": true,
+      "gachaOverlay": true,
+      "modeNetworkBtn": true,
+      "networkOverlay": true
+    }
+  },
+  "verificationContracts": [
+    "npx jest --runInBand --runTestsByPath test/game.cpu-decision-action.test.ts test/cpu.compute.test.ts test/determinism.test.ts test/match-runtime-parity.test.ts",
+    "npx jest --runInBand --runTestsByPath test/ui.animation-engine.test.ts test/ui.animation-feedback-events.sound-keys.test.ts test/network.playback-event-assembly.contract.test.ts",
+    "npm run match:boot-performance-check",
+    "npm run match:ui-control-smoke",
+    "npm run test:visual",
+    "npm run test:network:parity"
+  ],
+  "verificationRun": [
+    "Focused CPU/determinism/presentation bundle: pass (9 suites, 69 tests).",
+    "Browser UI-control smoke: pass; six major controls opened, with 0 page and console errors.",
+    "Visual regression: initial stale-size failure (372×372 baseline vs 368×368 current), intentional current-fixture promotion, then pass with 0 differing pixels.",
+    "Network authority/parity: pass (34 suites, 522 tests).",
+    "Jest reported its existing post-run open-handle warning after the passing focused and network bundles; no suite failed."
+  ]
+}
