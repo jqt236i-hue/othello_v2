@@ -3,6 +3,12 @@
  * @description Board surface skin catalog
  */
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+  ? __non_webpack_require__
+  : require;
+
 interface BoardSkinItem {
   id: string;
   label: string;
@@ -26,6 +32,10 @@ interface BoardFrameSkinLayout {
   artOverhangTop?: number;
   artOverhangBottom?: number;
   artOffsetY?: number;
+}
+
+interface CustomSkinStorageModule {
+  getCustomSkinDefinitions?: (rootRef: Window, kind?: string) => BoardSkinItem[];
 }
 
 const BASE_BOARD_SKINS: readonly BoardSkinItem[] = Object.freeze([
@@ -135,6 +145,37 @@ const BASE_BOARD_SKINS: readonly BoardSkinItem[] = Object.freeze([
 
 const BOARD_SKINS = BASE_BOARD_SKINS.slice();
 const DEFAULT_BOARD_SKIN_ID = 'bluegreen-felt';
+
+function resolveCustomSkinStorageModule(rootRef?: Window | null): CustomSkinStorageModule | null {
+  try {
+    const ctx = rootRef as Window & { CustomSkinStorageModule?: CustomSkinStorageModule };
+    if (ctx && ctx.CustomSkinStorageModule) return ctx.CustomSkinStorageModule;
+    if (typeof globalThis !== 'undefined' && (globalThis as unknown as { CustomSkinStorageModule?: CustomSkinStorageModule }).CustomSkinStorageModule) {
+      return (globalThis as unknown as { CustomSkinStorageModule?: CustomSkinStorageModule }).CustomSkinStorageModule ?? null;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    return _require('../custom-skin/storage');
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function resolveCustomSkinRoot(rootRef?: Window | null): Window | null {
+  if (rootRef && typeof rootRef === 'object') return rootRef;
+  try {
+    if (typeof globalThis !== 'undefined' && globalThis) return globalThis as unknown as Window;
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function getCustomBoardSkins(rootRef?: Window | null): BoardSkinItem[] {
+  const root = resolveCustomSkinRoot(rootRef);
+  const storage = root ? resolveCustomSkinStorageModule(root) : null;
+  if (!root || !storage || typeof storage.getCustomSkinDefinitions !== 'function') return [];
+  return storage.getCustomSkinDefinitions(root, 'board')
+    .filter((item): item is BoardSkinItem => !!item && String(item.imagePath || '').trim() !== '')
+    .map((item) => ({ ...item }));
+}
 
 const BASE_BOARD_FRAME_SKINS: readonly BoardFrameSkinItem[] = Object.freeze([
   Object.freeze({
@@ -260,31 +301,31 @@ function normalizeCatalogBoardFrameSkinId(value: unknown): string {
   return String(value || '').trim();
 }
 
-function getAllBoardSkins(): BoardSkinItem[] {
-  return BOARD_SKINS.map(cloneSkin);
+function getAllBoardSkins(rootRef?: Window | null): BoardSkinItem[] {
+  return BOARD_SKINS.map(cloneSkin).concat(getCustomBoardSkins(rootRef));
 }
 
-function listOwnedBoardSkinIds(): string[] {
-  return BOARD_SKINS.map((skin) => skin.id);
+function listOwnedBoardSkinIds(rootRef?: Window | null): string[] {
+  return getAllBoardSkins(rootRef).map((skin) => skin.id);
 }
 
-function isBoardSkinOwned(_rootRef: Window, skinId: string): boolean {
+function isBoardSkinOwned(rootRef: Window, skinId: string): boolean {
   const normalized = normalizeCatalogBoardSkinId(skinId);
-  return BOARD_SKINS.some((skin) => skin.id === normalized);
+  return getAllBoardSkins(rootRef).some((skin) => skin.id === normalized);
 }
 
-function getOwnedBoardSkins(): BoardSkinItem[] {
-  return getAllBoardSkins();
+function getOwnedBoardSkins(rootRef?: Window | null): BoardSkinItem[] {
+  return getAllBoardSkins(rootRef);
 }
 
-function normalizeBoardSkinId(value: unknown): string {
+function normalizeBoardSkinId(value: unknown, rootRef?: Window | null): string {
   const normalized = normalizeCatalogBoardSkinId(value);
-  return BOARD_SKINS.some((skin) => skin.id === normalized) ? normalized : DEFAULT_BOARD_SKIN_ID;
+  return getAllBoardSkins(rootRef).some((skin) => skin.id === normalized) ? normalized : DEFAULT_BOARD_SKIN_ID;
 }
 
-function getBoardSkinDefinition(skinId: string): BoardSkinItem | null {
-  const normalized = normalizeBoardSkinId(skinId);
-  const found = BOARD_SKINS.find((skin) => skin.id === normalized) || BOARD_SKINS[0] || null;
+function getBoardSkinDefinition(skinId: string, rootRef?: Window | null): BoardSkinItem | null {
+  const normalized = normalizeBoardSkinId(skinId, rootRef);
+  const found = getAllBoardSkins(rootRef).find((skin) => skin.id === normalized) || BOARD_SKINS[0] || null;
   return found ? cloneSkin(found) : null;
 }
 

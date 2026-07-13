@@ -3,12 +3,22 @@
  * @description Normal stone skin catalog
  */
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+  ? __non_webpack_require__
+  : require;
+
 interface StoneSkinItem {
   id: string;
   label: string;
   note: string;
   blackImagePath: string;
   whiteImagePath: string;
+}
+
+interface CustomSkinStorageModule {
+  getCustomSkinDefinitions?: (rootRef: Window, kind?: string) => StoneSkinItem[];
 }
 
 const BASE_STONE_SKINS: readonly StoneSkinItem[] = Object.freeze([
@@ -45,6 +55,41 @@ const BASE_STONE_SKINS: readonly StoneSkinItem[] = Object.freeze([
 const STONE_SKINS = BASE_STONE_SKINS.slice();
 const DEFAULT_STONE_SKIN_ID = 'o-stone';
 
+function resolveCustomSkinStorageModule(rootRef?: Window | null): CustomSkinStorageModule | null {
+  try {
+    const ctx = rootRef as Window & { CustomSkinStorageModule?: CustomSkinStorageModule };
+    if (ctx && ctx.CustomSkinStorageModule) return ctx.CustomSkinStorageModule;
+    if (typeof globalThis !== 'undefined' && (globalThis as unknown as { CustomSkinStorageModule?: CustomSkinStorageModule }).CustomSkinStorageModule) {
+      return (globalThis as unknown as { CustomSkinStorageModule?: CustomSkinStorageModule }).CustomSkinStorageModule ?? null;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    return _require('../custom-skin/storage');
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function resolveCustomSkinRoot(rootRef?: Window | null): Window | null {
+  if (rootRef && typeof rootRef === 'object') return rootRef;
+  try {
+    if (typeof globalThis !== 'undefined' && globalThis) return globalThis as unknown as Window;
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function getCustomStoneSkins(rootRef?: Window | null): StoneSkinItem[] {
+  const root = resolveCustomSkinRoot(rootRef);
+  const storage = root ? resolveCustomSkinStorageModule(root) : null;
+  if (!root || !storage || typeof storage.getCustomSkinDefinitions !== 'function') return [];
+  return storage.getCustomSkinDefinitions(root, 'stone')
+    .filter((item): item is StoneSkinItem => (
+      !!item
+      && String(item.blackImagePath || '').trim() !== ''
+      && String(item.whiteImagePath || '').trim() !== ''
+    ))
+    .map((item) => ({ ...item }));
+}
+
 function cloneSkin(skin: StoneSkinItem): StoneSkinItem {
   return { ...skin };
 }
@@ -53,31 +98,31 @@ function normalizeCatalogStoneSkinId(value: unknown): string {
   return String(value || '').trim();
 }
 
-function getAllStoneSkins(): StoneSkinItem[] {
-  return STONE_SKINS.map(cloneSkin);
+function getAllStoneSkins(rootRef?: Window | null): StoneSkinItem[] {
+  return STONE_SKINS.map(cloneSkin).concat(getCustomStoneSkins(rootRef));
 }
 
-function listOwnedStoneSkinIds(): string[] {
-  return STONE_SKINS.map((skin) => skin.id);
+function listOwnedStoneSkinIds(rootRef?: Window | null): string[] {
+  return getAllStoneSkins(rootRef).map((skin) => skin.id);
 }
 
-function isStoneSkinOwned(_rootRef: Window, skinId: string): boolean {
+function isStoneSkinOwned(rootRef: Window, skinId: string): boolean {
   const normalized = normalizeCatalogStoneSkinId(skinId);
-  return STONE_SKINS.some((skin) => skin.id === normalized);
+  return getAllStoneSkins(rootRef).some((skin) => skin.id === normalized);
 }
 
-function getOwnedStoneSkins(): StoneSkinItem[] {
-  return getAllStoneSkins();
+function getOwnedStoneSkins(rootRef?: Window | null): StoneSkinItem[] {
+  return getAllStoneSkins(rootRef);
 }
 
-function normalizeStoneSkinId(value: unknown): string {
+function normalizeStoneSkinId(value: unknown, rootRef?: Window | null): string {
   const normalized = normalizeCatalogStoneSkinId(value);
-  return STONE_SKINS.some((skin) => skin.id === normalized) ? normalized : DEFAULT_STONE_SKIN_ID;
+  return getAllStoneSkins(rootRef).some((skin) => skin.id === normalized) ? normalized : DEFAULT_STONE_SKIN_ID;
 }
 
-function getStoneSkinDefinition(skinId: string): StoneSkinItem | null {
-  const normalized = normalizeStoneSkinId(skinId);
-  const found = STONE_SKINS.find((skin) => skin.id === normalized) || STONE_SKINS[0] || null;
+function getStoneSkinDefinition(skinId: string, rootRef?: Window | null): StoneSkinItem | null {
+  const normalized = normalizeStoneSkinId(skinId, rootRef);
+  const found = getAllStoneSkins(rootRef).find((skin) => skin.id === normalized) || STONE_SKINS[0] || null;
   return found ? cloneSkin(found) : null;
 }
 

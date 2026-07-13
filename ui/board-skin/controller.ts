@@ -111,6 +111,8 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
   const catalogModule = resolveModule(rootRef, 'BoardSkinCatalogModule', './catalog');
   const selectionModule = resolveModule(rootRef, 'BoardSkinSelectionModule', './selection');
   const runtimeModule = resolveModule(rootRef, 'BoardSkinRuntimeModule', './runtime');
+  const customSkinStorageModule = resolveModule(rootRef, 'CustomSkinStorageModule', '../custom-skin/storage');
+  const customSkinControllerModule = resolveModule(rootRef, 'CustomSkinControllerModule', '../custom-skin/controller');
   if (!docRef || !catalogModule || !selectionModule || !runtimeModule) return null;
 
   const optionsEl = opts.optionsEl || docRef.getElementById('boardSkinOptions');
@@ -118,6 +120,7 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
   if (!optionsEl) return null;
   let selectedSkin: SkinDefinition | null = null;
   let selectedFrameSkin: SkinDefinition | null = null;
+  let customSkinUploader: any = null;
 
   function syncOptionState() {
     Array.from(optionsEl.querySelectorAll('.board-skin-option')).forEach((optionButton: any) => {
@@ -142,6 +145,9 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
     selectedSkin = definition;
     runtimeModule.syncDisplayedBoardSkin(rootRef, definition.id);
     syncOptionState();
+    if (customSkinUploader && typeof customSkinUploader.refreshSelectedState === 'function') {
+      customSkinUploader.refreshSelectedState();
+    }
     if (persist === true) selectionModule.writeStoredBoardSkinId(rootRef, definition.id);
     return definition;
   }
@@ -205,12 +211,45 @@ function setupBoardSkinControls(options?: any): ControllerApi | null {
     applyFrameSelection(nextSkinId, false);
   }
 
+  if (customSkinControllerModule && typeof customSkinControllerModule.setupCustomSkinUploader === 'function') {
+    customSkinUploader = customSkinControllerModule.setupCustomSkinUploader({
+      root: rootRef,
+      document: docRef,
+      host: optionsEl,
+      kind: 'board',
+      getSelectedSkinId: () => selectedSkin ? selectedSkin.id : catalogModule.DEFAULT_BOARD_SKIN_ID,
+      onSaved: (definition: SkinDefinition) => {
+        refreshOptions(definition.id);
+        selectionModule.writeStoredBoardSkinId(rootRef, definition.id);
+      },
+      onDeleted: () => {
+        refreshOptions();
+        selectionModule.writeStoredBoardSkinId(rootRef, selectedSkin ? selectedSkin.id : catalogModule.DEFAULT_BOARD_SKIN_ID);
+      }
+    });
+  }
+
+  if (customSkinStorageModule && typeof customSkinStorageModule.subscribeCustomSkins === 'function') {
+    customSkinStorageModule.subscribeCustomSkins(rootRef, () => {
+      refreshOptions(selectedSkin ? selectedSkin.id : undefined);
+    });
+  }
+
   refreshOptions(selectionModule.readStoredBoardSkinId(rootRef));
   refreshFrameOptions(
     typeof selectionModule.readStoredBoardFrameSkinId === 'function'
       ? selectionModule.readStoredBoardFrameSkinId(rootRef)
       : undefined
   );
+  if (customSkinStorageModule && typeof customSkinStorageModule.loadCustomSkins === 'function') {
+    customSkinStorageModule.loadCustomSkins(rootRef).then(() => {
+      refreshOptions(selectionModule.readStoredBoardSkinId(rootRef));
+    }).catch((error: any) => {
+      if (customSkinUploader && typeof customSkinUploader.setStatus === 'function') {
+        customSkinUploader.setStatus(String(error && error.message || '個人保存を読み込めませんでした'), true);
+      }
+    });
+  }
 
   return {
     refreshOptions,

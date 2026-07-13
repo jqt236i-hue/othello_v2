@@ -357,6 +357,17 @@ Observation-gacha cosmetics span generated catalog files, local inventory, local
 
 The generic observation catalog is the source of truth. Hand-only catalog helpers exist only to preserve existing callers while they consume a filtered `hand_skin` view, and background selection remains local cosmetic state rather than networked gameplay state.
 
+### 7.5.1 Browser-local custom skin images
+
+Player-provided background, board-surface, and normal-stone images are local presentation data, not gameplay or network state.
+
+- `ui/custom-skin/storage.ts` is the canonical browser-local boundary for IndexedDB records, Blob validation, object URL lifecycle, and custom-skin update notifications.
+- `ui/custom-skin/controller.ts` owns the shared image picker/editor UI used by the background, board-surface, and normal-stone controllers.
+- `ui/background-skin/catalog.ts`, `ui/board-skin/catalog.ts`, and `ui/stone-skin/catalog.ts` may append hydrated `custom:` definitions to their fixed catalogs, but fixed catalog definitions remain source-controlled and immutable.
+- Existing selection modules continue to store only the selected custom ID in localStorage; image bytes remain in IndexedDB.
+- Custom image bytes must not enter game state, Worker/local-server authority, network snapshots, seat metadata, or the shared hand-skin sync path.
+- If IndexedDB or object URL APIs are unavailable, the fixed catalog remains usable and the editor reports a save/load failure in the UI.
+
 ## 8. Authority and network contracts
 
 ### 8.1 Server authority

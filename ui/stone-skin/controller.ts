@@ -85,11 +85,14 @@ function setupStoneSkinControls(options?: any): ControllerApi | null {
   const catalogModule = resolveModule(rootRef, 'StoneSkinCatalogModule', './catalog');
   const selectionModule = resolveModule(rootRef, 'StoneSkinSelectionModule', './selection');
   const runtimeModule = resolveModule(rootRef, 'StoneSkinRuntimeModule', './runtime');
+  const customSkinStorageModule = resolveModule(rootRef, 'CustomSkinStorageModule', '../custom-skin/storage');
+  const customSkinControllerModule = resolveModule(rootRef, 'CustomSkinControllerModule', '../custom-skin/controller');
   if (!docRef || !catalogModule || !selectionModule || !runtimeModule) return null;
 
   const optionsEl = opts.optionsEl || docRef.getElementById('stoneSkinOptions');
   if (!optionsEl) return null;
   let selectedSkin: StoneSkinDefinition | null = null;
+  let customSkinUploader: any = null;
 
   function syncOptionState() {
     Array.from(optionsEl.querySelectorAll('.stone-skin-option')).forEach((optionButton: any) => {
@@ -105,6 +108,9 @@ function setupStoneSkinControls(options?: any): ControllerApi | null {
     selectedSkin = definition;
     runtimeModule.syncDisplayedStoneSkin(rootRef, definition.id);
     syncOptionState();
+    if (customSkinUploader && typeof customSkinUploader.refreshSelectedState === 'function') {
+      customSkinUploader.refreshSelectedState();
+    }
     if (persist === true) selectionModule.writeStoredStoneSkinId(rootRef, definition.id);
     return definition;
   }
@@ -130,7 +136,40 @@ function setupStoneSkinControls(options?: any): ControllerApi | null {
     applySelection(nextSkinId, false);
   }
 
+  if (customSkinControllerModule && typeof customSkinControllerModule.setupCustomSkinUploader === 'function') {
+    customSkinUploader = customSkinControllerModule.setupCustomSkinUploader({
+      root: rootRef,
+      document: docRef,
+      host: optionsEl,
+      kind: 'stone',
+      getSelectedSkinId: () => selectedSkin ? selectedSkin.id : catalogModule.DEFAULT_STONE_SKIN_ID,
+      onSaved: (definition: StoneSkinDefinition) => {
+        refreshOptions(definition.id);
+        selectionModule.writeStoredStoneSkinId(rootRef, definition.id);
+      },
+      onDeleted: () => {
+        refreshOptions();
+        selectionModule.writeStoredStoneSkinId(rootRef, selectedSkin ? selectedSkin.id : catalogModule.DEFAULT_STONE_SKIN_ID);
+      }
+    });
+  }
+
+  if (customSkinStorageModule && typeof customSkinStorageModule.subscribeCustomSkins === 'function') {
+    customSkinStorageModule.subscribeCustomSkins(rootRef, () => {
+      refreshOptions(selectedSkin ? selectedSkin.id : undefined);
+    });
+  }
+
   refreshOptions(selectionModule.readStoredStoneSkinId(rootRef));
+  if (customSkinStorageModule && typeof customSkinStorageModule.loadCustomSkins === 'function') {
+    customSkinStorageModule.loadCustomSkins(rootRef).then(() => {
+      refreshOptions(selectionModule.readStoredStoneSkinId(rootRef));
+    }).catch((error: any) => {
+      if (customSkinUploader && typeof customSkinUploader.setStatus === 'function') {
+        customSkinUploader.setStatus(String(error && error.message || '個人保存を読み込めませんでした'), true);
+      }
+    });
+  }
 
   return {
     refreshOptions,
