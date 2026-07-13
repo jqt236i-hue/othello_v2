@@ -184,7 +184,7 @@ describe('network room list style', () => {
     expect(refreshHeaderBlock).toMatch(/--network-room-refresh-width:\s*10\.17cqw/);
     expect(refreshHeaderBlock).toMatch(/--network-room-refresh-height:\s*3\.53cqw/);
     expect(refreshHeaderBlock).toMatch(/--network-room-refresh-font-size:\s*1\.56cqw/);
-    expect(refreshHeaderBlock).toMatch(/--network-room-refresh-offset-y:\s*1\.87cqw/);
+    expect(refreshHeaderBlock).toMatch(/--network-room-refresh-offset-y:\s*2\.49cqw/);
     expect(refreshHeaderBlock).toMatch(/container-type:\s*inline-size/);
     expect(refreshBlock).toMatch(/width:\s*var\(--network-room-refresh-width\)/);
     expect(refreshBlock).toMatch(/height:\s*var\(--network-room-refresh-height\)/);
