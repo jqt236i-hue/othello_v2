@@ -156,8 +156,8 @@
     position: absolute;
     top: calc(-1 * var(--layout-size-border-thin));
     left: calc(-1 * var(--layout-size-border-thin));
-    width: calc(8px * var(--board-cell-scale, 1));
-    height: calc(8px * var(--board-cell-scale, 1));
+    width: calc(6px * var(--board-cell-scale, 1));
+    height: calc(6px * var(--board-cell-scale, 1));
     border-radius: 50%;
     background: rgba(3, 19, 16, 0.88);
     transform: translate(-50%, -50%);
