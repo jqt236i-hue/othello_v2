@@ -2,9 +2,9 @@
 /* Projected shadow lives on occupied cells; disc root keeps only the local auxiliary layer. */
 
 html.stone-shadow-enabled .cell.has-disc::before {
-    opacity: 0.78;
+    opacity: 0.68;
 }
 
 html.stone-shadow-enabled .disc::before {
-    opacity: 0.86;
+    opacity: 0.76;
 }
