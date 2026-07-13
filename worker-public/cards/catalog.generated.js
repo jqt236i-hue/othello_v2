@@ -73,7 +73,7 @@ window.CardCatalog = {
       "name_ja": "避ける意志",
       "type": "AFTERIMAGE_WILL",
       "cost": 8,
-      "desc_ja": "次に置く石を残像石化。反転回避3回と破壊回避3回を持つ特殊石。",
+      "desc_ja": "次に置く石を残像石化。反転回避6回と破壊回避6回を持つ特殊石。",
       "display_type_ja": "守護"
     },
     {

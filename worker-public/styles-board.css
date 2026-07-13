@@ -79,6 +79,11 @@
         drop-shadow(0 calc(8px * var(--layout-stage-scale)) calc(13px * var(--layout-stage-scale)) var(--board-contour-shadow));
 }
 
+/* 正方形の通常盤面はラスターの外周フレームを使い、CSS輪郭の黄色い光を重ねない。 */
+#board.board-square-regular {
+    --board-contour-highlight: transparent;
+}
+
 #board-expansion-layer {
     position: absolute;
     left: 0;
@@ -140,6 +145,25 @@
     box-shadow:
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 231, 160, 0.025),
         inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.18);
+}
+
+/* 標準オセロの星。外周から2マス分内側の罫線交点へ、暗い小さな点を置く。 */
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="2"][data-col="2"]::after,
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="2"][data-col="6"]::after,
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="6"][data-col="2"]::after,
+#board.board-standard-8x8:not(.board-has-void-cells) > .cell:not(.has-theory-number-cell)[data-row="6"][data-col="6"]::after {
+    content: "";
+    position: absolute;
+    top: calc(-1 * var(--layout-size-border-thin));
+    left: calc(-1 * var(--layout-size-border-thin));
+    width: calc(6px * var(--board-cell-scale, 1));
+    height: calc(6px * var(--board-cell-scale, 1));
+    border-radius: 50%;
+    background: var(--board-cell-base-color);
+    opacity: 0.72;
+    transform: translate(-50%, -50%);
+    z-index: 7;
+    pointer-events: none;
 }
 
 .cell.cell-void {

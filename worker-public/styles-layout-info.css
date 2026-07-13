@@ -1441,6 +1441,7 @@
     --rules-help-page-min-height: min(58vh, 500px);
     z-index: calc(var(--z-floating-control) + 541);
     width: min(860px, calc(100vw - 44px));
+    height: min(80vh, 700px);
     max-height: min(80vh, 700px);
     background: var(--bg-panel-dark);
     border: var(--layout-size-border-thin) solid var(--border-status);
@@ -2168,13 +2169,14 @@
 
 #rules-help-pages {
     flex: 1;
-    min-height: var(--rules-help-page-min-height);
+    min-height: 0;
+    overflow: hidden;
 }
 
 .rules-help-page {
     display: none;
     height: 100%;
-    min-height: var(--rules-help-page-min-height);
+    min-height: 0;
 }
 
 .rules-help-page.is-active {
@@ -2185,6 +2187,7 @@
     display: flex;
     flex-direction: column;
     gap: calc(8px * var(--layout-stage-scale));
+    min-height: 0;
 }
 
 #rules-help-catalog-controls {
@@ -2398,8 +2401,10 @@
     display: grid;
     grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
     gap: calc(10px * var(--layout-stage-scale));
+    flex: 1 1 0;
     width: 100%;
-    min-height: var(--rules-help-page-min-height);
+    min-height: 0;
+    overflow: hidden;
 }
 
 #rules-help-card-list {
@@ -4808,11 +4813,16 @@
 }
 
 #networkRoomListHeader {
+    --network-room-refresh-width: 10.17cqw;
+    --network-room-refresh-height: 3.53cqw;
+    --network-room-refresh-font-size: 1.56cqw;
+    --network-room-refresh-offset-y: 2.49cqw;
     position: relative;
     z-index: 4;
     align-items: start;
     padding-top: 0.2%;
     color: var(--network-lobby-cream);
+    container-type: inline-size;
 }
 
 #networkRoomListHeader::before {
@@ -4851,8 +4861,11 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: clamp(98px, 7.2vw, 132px);
-    min-height: clamp(34px, 2.72vw, 48px);
+    flex: 0 0 var(--network-room-refresh-width);
+    width: var(--network-room-refresh-width);
+    min-width: 0;
+    height: var(--network-room-refresh-height);
+    min-height: 0;
     padding: 0;
     overflow: visible;
     border: 0;
@@ -4862,7 +4875,7 @@
     color: var(--network-lobby-cream);
     -webkit-text-fill-color: currentColor;
     font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
-    font-size: clamp(15px, 1.08vw, 20px);
+    font-size: var(--network-room-refresh-font-size);
     font-weight: 900;
     line-height: 0.98;
     font-kerning: normal;
@@ -4873,13 +4886,13 @@
     -webkit-text-stroke: calc(0.16px * var(--layout-stage-scale)) rgba(255, 246, 229, 0.18);
     paint-order: stroke fill;
     box-shadow: none;
-    transform: translate(0, clamp(18px, 1.4vw, 24px));
+    transform: translateY(var(--network-room-refresh-offset-y));
     text-shadow:
         0 calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.84),
         0 calc(4px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28),
         0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 231, 168, 0.18);
     filter: none;
-    transition: color 160ms ease, filter 160ms ease, text-shadow 160ms ease, transform 160ms ease;
+    transition: color 160ms ease, filter 160ms ease, text-shadow 160ms ease;
 }
 
 #networkRoomListRefreshBtn:hover,
@@ -4888,9 +4901,6 @@
     filter:
         drop-shadow(0 0 calc(7px * var(--layout-stage-scale)) rgba(36, 244, 255, 0.30))
         drop-shadow(0 0 calc(8px * var(--layout-stage-scale)) rgba(255, 231, 168, 0.18));
-    transform:
-        translate(0, clamp(18px, 1.4vw, 24px))
-        translateY(calc(-1px * var(--layout-stage-scale)));
     text-shadow:
         0 calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.84),
         0 calc(4px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.28),
@@ -4900,9 +4910,6 @@
 
 #networkRoomListRefreshBtn:active {
     filter: brightness(0.94);
-    transform:
-        translate(0, clamp(18px, 1.4vw, 24px))
-        translateY(calc(1px * var(--layout-stage-scale)));
 }
 
 #networkRoomListRefreshBtn::before {
