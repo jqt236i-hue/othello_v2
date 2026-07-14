@@ -1,1 +1,0 @@
-import{t as e}from"./feature-registry-BPA-wCKa.js";function t(t){return e(`cpu`,t,[`othello-ai/runtime/browser-cpu`])}export{t as loadOptionalFeature};

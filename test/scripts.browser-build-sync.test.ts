@@ -21,9 +21,11 @@ function writeSourceStub(rootDir: string, distRelativePath: string) {
 
 function writeBrowserIndexFixture(rootDir: string) {
     writeFile(path.join(rootDir, 'public', 'runtime.js'), 'window.__cjsRegister = function() {};\nwindow.__cjsAlias = function() {};\n');
+    writeFile(path.join(rootDir, 'styles-base.css'), 'body { color: #fff; }\n');
     writeFile(path.join(rootDir, 'index.html'), [
         '<!doctype html>',
         '<html><body>',
+        '<link rel="stylesheet" href="styles-base.css?v=1">',
         '<script src="public/runtime.js"></script>',
         '<script src="public/module-registry.js?v=1"></script>',
         '<script src="entry-browser.js?v=1"></script>',
@@ -59,10 +61,12 @@ describe('browser build sync', () => {
         const runtimeVersion = computeScriptVersionToken(path.join(rootDir, 'public', 'runtime.js'));
         const registryVersion = computeScriptVersionToken(registryPath);
         const entryVersion = computeScriptVersionToken(path.join(rootDir, 'entry-browser.js'));
+        const styleVersion = computeScriptVersionToken(path.join(rootDir, 'styles-base.css'));
 
         expect(html).toContain(`public/runtime.js?v=${runtimeVersion}`);
         expect(html).toContain(`public/module-registry.js?v=${registryVersion}`);
         expect(html).toContain(`entry-browser.js?v=${entryVersion}`);
+        expect(html).toContain(`styles-base.css?v=${styleVersion}`);
         expect(checkBrowserBuildUpToDate(rootDir)).toEqual({
             ok: true,
             code: 0,

@@ -1,20 +1,20 @@
 const {
-  optionalRegistryGroupFromUrl,
+  optionalPayloadGroupFromUrl,
   evaluateFeatureProbe
 } = require('../scripts/browser-optional-feature-smoke');
 
 describe('browser optional feature smoke evaluation', () => {
-  test('extracts aggregate and feature registry groups from request URLs', () => {
-    expect(optionalRegistryGroupFromUrl('https://example.test/public/module-registry.optional.js?v=1')).toBe('aggregate');
-    expect(optionalRegistryGroupFromUrl('https://example.test/public/module-registry.optional.gacha.js?v=1')).toBe('gacha');
-    expect(optionalRegistryGroupFromUrl('https://example.test/public/module-registry.js?v=1')).toBe('');
+  test('extracts feature groups from hashed optional payload URLs', () => {
+    expect(optionalPayloadGroupFromUrl('https://example.test/vite-dist/assets/optional-gacha-AbC123.mjs')).toBe('gacha');
+    expect(optionalPayloadGroupFromUrl('https://example.test/vite-dist/assets/optional-onnx-Xyz.mjs?cardReversiRetry=2')).toBe('onnx');
+    expect(optionalPayloadGroupFromUrl('https://example.test/public/module-registry.optional.gacha.js?v=1')).toBe('');
   });
 
   test('rejects unrelated registries and duplicated requests', () => {
     const errors = evaluateFeatureProbe({
       group: 'gacha',
-      requestedOptionalRegistries: ['gacha', 'gacha', 'cosmetic'],
-      expectedRegistryRequests: 1,
+      requestedOptionalPayloads: ['gacha', 'gacha', 'cosmetic'],
+      expectedPayloadRequests: 1,
       opened: true,
       reopened: true,
       pageErrors: [],
@@ -22,7 +22,7 @@ describe('browser optional feature smoke evaluation', () => {
       resourceErrors: []
     });
 
-    expect(errors).toContain('gacha loaded unrelated optional registries: cosmetic');
-    expect(errors).toContain('gacha registry request count 2 != 1');
+    expect(errors).toContain('gacha loaded unrelated optional payloads: cosmetic');
+    expect(errors).toContain('gacha payload request count 2 != 1');
   });
 });

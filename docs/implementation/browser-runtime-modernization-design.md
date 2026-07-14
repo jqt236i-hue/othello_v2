@@ -1,10 +1,10 @@
 # Browser runtime modernization design
 
-- Status: reviewed design
-- Date: 2026-07-13
+- Status: completed with registry-free Vite default cutover on 2026-07-14
+- Date: 2026-07-14
 - Target: browser boot, optional feature delivery, shipped font/background assets, and browser CPU inference/scoring execution
 - Source of truth: root `AGENTS.md`, `docs/architecture-contracts.md`, `01-rulebook.md`, current classic boot implementation, and the baseline captured by this program
-- Non-goals: gameplay/rule changes, changing Lv6 policy ownership, changing animation or sound ordering, changing network authority, replacing the Cloudflare match Worker, making ONNX the primary Lv6 policy, removing the classic entry before parity is proven, or running training/selfplay jobs
+- Non-goals: gameplay/rule changes, changing Lv6 policy ownership, changing animation or sound ordering, changing network authority, replacing the Cloudflare match Worker, making ONNX the primary Lv6 policy, converting every CommonJS source file by hand in this change, or running training/selfplay jobs
 
 ## 1. Problem and desired outcome
 
@@ -20,6 +20,7 @@ The desired outcome is a behavior-preserving migration lane that can be compared
 6. run ONNX session creation/inference in a Dedicated Worker;
 7. extend that Worker to pure candidate scoring while main-thread game authority still validates and applies the chosen action;
 8. add safe font subsets and only then expand image conversion where objective parity gates pass.
+9. remove the generated source-code module registry from the shipped default path, make the verified Vite/ESM document the default, and retain the classic document only as an explicit rollback artifact.
 
 No phase is allowed to redefine player-visible game behavior. `01-rulebook.md` and `正本/` therefore remain unchanged unless verification discovers that an existing visible contract cannot be preserved.
 
@@ -69,9 +70,9 @@ The following are release gates, not goals to trade away:
 
 ## 4. Chosen architecture
 
-### 4.1 Two browser lanes
+### 4.1 Comparison lanes followed by a registry-free default
 
-`index.html` remains the classic control lane. A new `index.vite.html` is the comparison lane and is built/served by Vite. It starts from an explicit idempotent `startBrowserApp()` ESM function.
+The migration first keeps `index.html` as the classic control lane and uses `index.vite.html` as the comparison lane. After the exact behavior, cross-browser, asset, Worker, and deployment checks pass, the generated Vite document becomes the default `index.html`. The former classic document remains available as `index.classic.html` for one rollback cycle and continues to load the generated registry. The default document must not request `public/runtime.js`, `public/module-registry.js`, or any optional registry script.
 
 During this program, Vite owns:
 
@@ -81,23 +82,25 @@ During this program, Vite owns:
 - an explicit compatibility boot adapter that preserves the current global/initializer contract;
 - comparison instrumentation identifying `classic` versus `vite` lane.
 
-The compatibility adapter initially loads the generated CommonJS registry because the source tree is not yet native-ESM-safe. This is deliberate: the program replaces the browser entry orchestration and optional/Worker delivery first, while retaining the classic registry as a temporary compatibility substrate. The default entry is not switched and the registry is not removed until a later migration can convert remaining required modules without weakening boot parity. This prevents a nominal “ESM conversion” that silently drops globals or feature initializers.
+The comparison adapter initially loads the generated CommonJS registry. The cutover replaces that adapter with a build-generated Vite CommonJS-interoperability bridge. Vite/Rolldown owns parsing, bundling, module factories, caching, and hashed chunk output; the bridge owns only the existing synchronous string-ID resolution needed by legacy `_require(id)` call sites. It contains no source strings, `eval`, or `new Function`, is not fetched as a standalone registry, and can register optional Vite chunks without executing them at startup. This is a delivery/runtime replacement, not a claim that all repository sources have already been rewritten as idiomatic ESM.
 
-The Vite lane boot order is fixed as:
+The registry-free Vite boot order is fixed as:
 
 1. set lane/capability flags;
 2. install the lazy Dedicated Worker client without starting the Worker;
-3. load classic runtime and startup registry compatibility scripts;
-4. run layout-stage before first interactive layout;
-5. load `entry-browser.js` and await its explicit ready signal;
-6. install Vite feature loaders and ONNX executor injection;
-7. expose comparison metrics.
+3. register Vite-bundled startup module accessors and install the bounded legacy ID bridge;
+4. install the optional-feature hook and lazy Worker bridge before bootstrap can capture them;
+5. run layout-stage before first interactive layout;
+6. import `entry-browser.js` through Vite and await its explicit ready signal;
+7. validate ONNX injection ownership, expose comparison metrics, and assert that no registry resource was requested.
+
+The generator inventories every browser `_require`, `__require`, `__non_webpack_require__`, and dynamic string-ID target. A referenced local ID that is absent from the canonical module records fails the build. The bridge stores only Vite/Rolldown-produced module accessors and aliases: it does not own module source, evaluate factories, or add a second export/cache model. Dedicated tests freeze circular access, evaluation order, default/named CommonJS export identity, and the error returned when an optional module is requested before its group is registered.
 
 Required startup failure is fatal and visible in the console/boot error surface. Optional feature failure is scoped to that feature and retryable.
 
-### 4.2 Feature-level optional registries and dynamic imports
+### 4.2 Feature-level optional Vite chunks and retry
 
-The registry generator continues to emit the aggregate optional registry for the classic lane. It additionally emits deterministic group registries for:
+The registry generator continues to emit the aggregate/group registries for the explicit classic rollback document. The Vite generator consumes the same canonical module records and ownership/closure classification to emit deterministic startup and group loader modules for:
 
 - `gacha`;
 - `cosmetic` (background/font/hand/catalog surfaces that are not required boot modules);
@@ -110,7 +113,7 @@ Required module overrides always remain in the startup registry even when their 
 
 Each group is emitted from an explicit ownership map plus the transitive optional dependencies required by that group. The generator rejects a group whose module dependency resolves only through a different unloaded optional group. Loading a group merges its boot metadata with the startup metadata; it must not replace the required/optional classification used by later restores.
 
-The Vite lane maps each group to a separate `import()` adapter. The adapter loads only the matching group registry, restores newly available boot entries, and resolves after required group globals/initializer checks pass. The classic lane retains the aggregate fallback.
+Small feature adapters are part of the startup ESM chunk, so an adapter fetch cannot become permanently rejected in the browser module map. Each optional group is emitted as a self-contained chunk (apart from startup dependencies) and is excluded from shared optional child chunks. The adapter asks a Vite virtual URL manifest for the matching hashed group chunk and imports it. A failed request is retried with a distinct query URL while preserving the same content-hashed base file; successful registration then restores the matching boot entries and verifies required modules/globals. Browser tests abort both the group entry and a would-be child dependency to prove the self-contained/retry contract. The classic rollback lane retains the registry-script fallback.
 
 The loader state machine is per group:
 
@@ -118,6 +121,7 @@ The loader state machine is per group:
 - failure returns to `idle`, records an error for diagnostics, and permits retry;
 - simultaneous requests share one in-flight promise;
 - repeated success is idempotent;
+- loading controls expose `aria-busy` and a polite status; failure exposes an actionable retry without changing canonical state;
 - the first user action is resumed after load instead of being discarded;
 - hover/focus/idle prefetch may be added only where it does not start audio, alter state, or open UI.
 
@@ -258,29 +262,33 @@ Timing gates compare distributions/medians with a generous environment-noise env
 
 ## 6. Failure and rollback behavior
 
-- `index.html` remains the immediate rollback lane throughout the program.
+- before cutover, `index.html` is the control lane; after cutover, `index.classic.html` is the explicit rollback lane.
 - Vite build output is isolated and never overwrites the classic source entry.
 - Optional group failure restores the group to retryable `idle`; it does not mark the whole app loaded.
 - Unsupported Worker/module Worker/CSP conditions select the main-thread runtime before a CPU decision starts.
 - Worker crash rejects pending operations; current CPU logic follows the existing local/ONNX fallback path.
+- if ONNX Worker ping succeeds but model/WASM/session creation or inference later fails, the bridge disables Worker ONNX for that session, loads main-thread ORT once, and retries through the existing runtime before allowing the established table/heuristic fallback.
+- Worker ONNX failure first rejects/settles its pending request, clears injected sessions and failed initializer state, and starts one main-thread ORT activation promise. The failed CPU decision keeps its existing remaining-budget fallback and is not replayed after its epoch has settled; the next eligible ONNX attempt uses the main-thread runtime. Concurrent failures join the same activation promise. Explicit WebGPU opt-in retains `webgpu` then `wasm` ordering.
 - ONNX timeout uses the current budget sentinel and reason; it never returns a success-shaped null without diagnostics.
 - Stale CPU results are discarded, and the current turn is recomputed/retried through existing scheduling.
-- WebP/AVIF decode failure resolves the original PNG without changing selection state.
+- a selected background keeps the current visible image while WebP/AVIF is decoded; PNG is requested only after optimized decode failure, so a cold selection does not fetch both formats.
 - subset glyph misses use full WOFF2; full WOFF2 load failure uses the existing system-font stack.
 
 ## 7. Security, privacy, and compatibility
 
 - Worker messages contain only bounded CPU/model DTOs. No seat token, spectator token, room credential, local-storage dump, chat history, or arbitrary object graph is sent.
 - Vite asset URLs use a relative base suitable for the Worker static mirror. Hashed files and HTML are mirrored together through `worker:prepare` so stale HTML cannot reference missing chunks.
+- CSS URLs receive the same generated version contract as classic scripts. Production verification checks JavaScript/Worker/WASM/font/image MIME types, cache policy, CSP compatibility, and stale-document preload failure handling.
+- the cache contract is: HTML revalidates, content-hashed Vite chunks are immutable, and non-hashed classic CSS receives a generated query version in both default and rollback documents.
 - CSP/module Worker support is feature-detected. Classic delivery remains supported.
 - WOFF2 and WebP are capability-gated where necessary; PNG/system-font fallbacks remain.
 - Generated outputs are created from root sources and then mirrored; `worker-public/` is never edited first.
 
 ## 8. Alternatives considered
 
-### Directly replace `index.html` with Vite
+### Directly replace `index.html` with Vite before comparison
 
-Rejected for this program. The codebase still relies on compatibility globals, CommonJS `_require`, import-time registration, and explicit initializer order. A direct replacement would combine entry migration, module conversion, and behavior changes in one rollback unit.
+Rejected. The replacement occurs only after the additive comparison path passes exact and cross-browser gates. The bounded generated interop bridge preserves legacy synchronous module IDs without shipping the source-code registry.
 
 ### Bundle the existing registry as one Vite asset and call the migration complete
 
@@ -328,6 +336,9 @@ Rejected. Alpha-heavy cards, stones, UI, and animation assets have much higher v
 - optional gacha/cosmetic/leaderboard first-open, double-click dedupe, failure/retry, and second-open checks;
 - `npm run test:visual` plus focused screenshots for new comparison surfaces;
 - font-ready/glyph probe and background decode/fallback checks.
+- Chromium, Firefox, and WebKit desktop smoke plus a mobile/touch viewport smoke;
+- request assertions proving optimized background success fetches no PNG and a failed optimized decode fetches PNG once;
+- loading/error/retry accessibility checks for optional controls.
 
 ### Cross-runtime/deploy
 
@@ -339,6 +350,7 @@ Rejected. Alpha-heavy cards, stones, UI, and animation assets have much higher v
 - `npm run test:network:parity`
 - `npm run worker:prepare`
 - `npm run check:worker-mirror`
+- production-like static-server header/MIME/cache/CSP check and a saved repeated classic-versus-current Vite performance artifact.
 
 No long selfplay or training job is part of verification.
 
@@ -349,9 +361,11 @@ The program is complete when all of the following are true:
 - a durable pre-change baseline and repeatable comparison command exist;
 - classic and Vite lanes both boot and pass focused UI/network/CPU parity;
 - Vite lane reports hashed ESM chunks and a lazily created Dedicated Worker;
+- the default document requests no custom runtime/module-registry asset, while `index.classic.html` remains a verified rollback entry;
 - optional feature requests load only the selected group and are retryable;
+- optional controls have visible loading/error/retry state and correct `aria-busy` semantics;
 - every shipped custom font is delivered as WOFF2, common glyph subsets are used, and full WOFF2 fallback renders arbitrary probes;
-- selected large opaque backgrounds use WebP (and only gated final candidates use AVIF) with PNG fallback and matching dimensions;
+- selected large opaque backgrounds use WebP (and only gated final candidates use AVIF) with PNG fallback and matching dimensions, without a successful cold selection fetching both formats;
 - ONNX `InferenceSession.create/run` occurs in the Dedicated Worker for the Vite lane and preserves existing output interpretation/fallback;
 - eligible CPU heuristic candidate scores are computed in the Worker and verified before use, with exact local fallback;
 - canonical CPU actions, events, animations/sounds, visible screenshots, and network authority checks match the baseline;
@@ -360,15 +374,30 @@ The program is complete when all of the following are true:
 
 ## 11. Self-review
 
-- The design keeps the default entry and current authority paths unchanged while introducing measurable alternate paths.
-- It does not claim that merely wrapping the registry in a Vite entry completes native-ESM conversion; the temporary compatibility substrate is explicit.
+- The design uses the classic entry as a control until all gates pass, then makes the registry-free Vite document default while retaining an explicit rollback artifact.
+- It does not claim that a string-ID compatibility bridge is idiomatic source-level ESM; completion means Vite owns the shipped module code/chunks and no source-code registry/runtime is fetched by default.
 - It separates ONNX execution from CPU/game authority and keeps main-thread stale-result validation.
 - It preserves arbitrary dynamic Japanese text through a full-WOFF2 fallback rather than assuming a closed glyph corpus.
 - It limits initial image conversion to opaque backgrounds and preserves source fallbacks.
 - It defines retry and stale-response behavior instead of relying on broad catches or success-shaped no-ops.
 - Remaining implementation risk is concentrated in compatibility boot order, group dependency classification, and injected ONNX executor parity; the plan must put characterization tests before each switch.
 
-## 12. Independent review findings incorporated
+## 12. Completion audit and corrective decisions (2026-07-14)
+
+The post-implementation audit reopened the program because the comparison path still fetched the custom startup registry and because several failure/compatibility cases were not proven. The following evidence is now part of the design input:
+
+- a cold optimized background selection fetched both PNG and WebP because PNG was assigned before optimized decode;
+- a rejected Vite adapter import remained rejected for the page lifetime because the same module URL was reused;
+- a Worker could pass ping and later fail ORT/model/session work without activating main-thread ONNX;
+- only Chromium desktop had covered optional import, Worker, WOFF2, and WebP behavior;
+- CSS was not versioned with the generated browser artifacts;
+- the saved performance artifact predated the final hashes, and the Vite comparison lane still carried the startup registry.
+
+Corrective implementation therefore proceeds in this order: behavior-preserving background and Worker fallback fixes; retryable optional loading plus accessible status; cross-browser and production-like delivery gates; registry-free Vite boot; default document cutover; repeated final performance/visual/CPU/network/mirror verification. Any exact CPU, canonical-state/event, screenshot, or interaction mismatch blocks the cutover rather than being accepted as a performance trade.
+
+The loading indicator does not replace existing button text or open a surface early. It is restricted to `aria-busy`, an accessible retry description, and a non-canonical visual state on the existing control. This small player-visible timing state is recorded in `01-rulebook.md`; no card, turn, sound, or animation specification changes.
+
+## 13. Independent review findings incorporated
 
 The independent boot/runtime review identified five high-risk compatibility contracts in the current implementation:
 

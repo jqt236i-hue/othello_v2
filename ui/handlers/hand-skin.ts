@@ -8,6 +8,7 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+const LazyControlStatus = require('./lazy-control-status');
 
 interface HandSkinItem {
   id: string;
@@ -151,10 +152,12 @@ function createLazyHandSkinControls(options: Record<string, unknown>, rootRef: a
 
   let delegate: any = null;
   let loading: Promise<any> | null = null;
+  const loadStatus = LazyControlStatus.createLazyControlStatus(button, '見た目設定');
 
   const ensureDelegate = (): Promise<any> => {
     if (delegate) return Promise.resolve(delegate);
     if (!loading) {
+      loadStatus.begin();
       loading = Promise.resolve(loadLazyRuntimeGroup('cosmetic')).then(() => {
         const controllerModule = resolveControllerModule();
         if (!controllerModule || typeof controllerModule.setupHandSkinControls !== 'function') {
@@ -168,7 +171,11 @@ function createLazyHandSkinControls(options: Record<string, unknown>, rootRef: a
         if (!delegate) {
           throw new Error('hand skin controls are unavailable after lazy runtime load');
         }
+        loadStatus.succeed();
         return delegate;
+      }).catch((error) => {
+        loadStatus.fail();
+        throw error;
       }).finally(() => {
         if (!delegate) loading = null;
       });

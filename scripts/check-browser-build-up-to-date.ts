@@ -80,9 +80,11 @@ function checkBrowserBuildUpToDate(rootDirInput?: string): BrowserBuildCheckResu
         }
     }
 
-    const indexPath = path.join(rootDir, 'index.html');
+    const indexPath = fs.existsSync(path.join(rootDir, 'index.classic.html'))
+        ? path.join(rootDir, 'index.classic.html')
+        : path.join(rootDir, 'index.html');
     const currentIndexHtml = fs.readFileSync(indexPath, 'utf8');
-    const syncResult = syncBrowserScriptVersions({ rootDir, write: false });
+    const syncResult = syncBrowserScriptVersions({ rootDir, indexPath, write: false });
     if (currentIndexHtml !== syncResult.html) {
         return {
             ok: false,

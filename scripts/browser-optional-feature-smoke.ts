@@ -7,8 +7,8 @@ type OptionalGroup = typeof OPTIONAL_GROUPS[number];
 
 interface FeatureProbe {
   group: OptionalGroup;
-  requestedOptionalRegistries: string[];
-  expectedRegistryRequests: number;
+  requestedOptionalPayloads: string[];
+  expectedPayloadRequests: number;
   opened?: boolean;
   reopened?: boolean;
   pageErrors: string[];
@@ -22,19 +22,19 @@ const UI_FEATURES: Partial<Record<OptionalGroup, { button: string; panel: string
   leaderboard: { button: '#leaderboardOpenBtn', panel: '#leaderboardOverlay', close: '#leaderboardCloseBtn' }
 };
 
-function optionalRegistryGroupFromUrl(url: string): string {
-  const match = String(url || '').match(/module-registry\.optional(?:\.([a-z-]+))?\.js(?:\?|$)/);
-  return match ? (match[1] || 'aggregate') : '';
+function optionalPayloadGroupFromUrl(url: string): string {
+  const match = String(url || '').match(/\/optional-(gacha|cosmetic|leaderboard|commentary|cpu|onnx)(?:-[^/?]+)?\.mjs(?:\?|$)/);
+  return match ? match[1] : '';
 }
 
 function evaluateFeatureProbe(probe: FeatureProbe): string[] {
   const errors: string[] = [];
   const expected = probe.group;
-  const wrong = probe.requestedOptionalRegistries.filter((group) => group !== expected);
-  const expectedCount = probe.requestedOptionalRegistries.filter((group) => group === expected).length;
-  if (wrong.length > 0) errors.push(`${expected} loaded unrelated optional registries: ${wrong.join(', ')}`);
-  if (expectedCount !== probe.expectedRegistryRequests) {
-    errors.push(`${expected} registry request count ${expectedCount} != ${probe.expectedRegistryRequests}`);
+  const wrong = probe.requestedOptionalPayloads.filter((group) => group !== expected);
+  const expectedCount = probe.requestedOptionalPayloads.filter((group) => group === expected).length;
+  if (wrong.length > 0) errors.push(`${expected} loaded unrelated optional payloads: ${wrong.join(', ')}`);
+  if (expectedCount !== probe.expectedPayloadRequests) {
+    errors.push(`${expected} payload request count ${expectedCount} != ${probe.expectedPayloadRequests}`);
   }
   if (probe.opened === false) errors.push(`${expected} first action did not open its UI`);
   if (probe.reopened === false) errors.push(`${expected} second action did not reopen its UI`);
@@ -73,7 +73,7 @@ async function openVitePage(browser: Browser, baseUrl: string): Promise<{
   page.on('response', (response) => {
     if (!response.ok()) resourceErrors.push(`${response.status()} ${response.url()}`);
   });
-  await page.goto(`${baseUrl}/vite-dist/index.vite.html?debug=1`, {
+  await page.goto(`${baseUrl}/?debug=1`, {
     waitUntil: 'domcontentloaded',
     timeout: 30000
   });
@@ -82,9 +82,13 @@ async function openVitePage(browser: Browser, baseUrl: string): Promise<{
     (window as any).__uiInitialized === true
     && document.documentElement.getAttribute('data-browser-boot-state') === 'ready'
   ), null, { timeout: 30000 });
-  const startupOptional = requestedUrls.map(optionalRegistryGroupFromUrl).filter(Boolean);
+  const startupRegistryRequests = requestedUrls.filter((url) => url.includes('module-registry'));
+  if (startupRegistryRequests.length > 0) {
+    throw new Error(`compatibility registry loaded at Vite startup: ${startupRegistryRequests.join(', ')}`);
+  }
+  const startupOptional = requestedUrls.map(optionalPayloadGroupFromUrl).filter(Boolean);
   if (startupOptional.length > 0) {
-    throw new Error(`optional registry loaded at Vite startup: ${startupOptional.join(', ')}`);
+    throw new Error(`optional payload loaded at Vite startup: ${startupOptional.join(', ')}`);
   }
   return { context, page, requestedUrls, pageErrors, consoleErrors, resourceErrors };
 }
@@ -139,8 +143,8 @@ async function probeUiFeature(browser: Browser, baseUrl: string, group: Optional
     await runtime.page.waitForTimeout(100);
     return {
       group,
-      requestedOptionalRegistries: runtime.requestedUrls.map(optionalRegistryGroupFromUrl).filter(Boolean),
-      expectedRegistryRequests: 1,
+      requestedOptionalPayloads: runtime.requestedUrls.map(optionalPayloadGroupFromUrl).filter(Boolean),
+      expectedPayloadRequests: 1,
       opened,
       reopened,
       pageErrors: runtime.pageErrors,
@@ -167,8 +171,8 @@ async function probeRuntimeFeature(browser: Browser, baseUrl: string, group: Opt
     await runtime.page.waitForTimeout(100);
     return {
       group,
-      requestedOptionalRegistries: runtime.requestedUrls.map(optionalRegistryGroupFromUrl).filter(Boolean),
-      expectedRegistryRequests: 1,
+      requestedOptionalPayloads: runtime.requestedUrls.map(optionalPayloadGroupFromUrl).filter(Boolean),
+      expectedPayloadRequests: 1,
       pageErrors: runtime.pageErrors,
       consoleErrors: runtime.consoleErrors,
       resourceErrors: runtime.resourceErrors
@@ -182,7 +186,8 @@ async function probeRuntimeFeature(browser: Browser, baseUrl: string, group: Opt
 async function probeFailureRetry(browser: Browser, baseUrl: string): Promise<FeatureProbe> {
   const runtime = await openVitePage(browser, baseUrl);
   let routedRequests = 0;
-  await runtime.page.route('**/module-registry.optional.gacha.js*', async (route) => {
+  const gachaPayloadPattern = /\/optional-gacha-[^/]+\.mjs(?:\?.*)?$/;
+  await runtime.page.route(gachaPayloadPattern, async (route) => {
     routedRequests += 1;
     if (routedRequests === 1) {
       await route.abort('failed');
@@ -203,8 +208,8 @@ async function probeFailureRetry(browser: Browser, baseUrl: string): Promise<Fea
     await runtime.page.waitForTimeout(100);
     return {
       group: 'gacha',
-      requestedOptionalRegistries: runtime.requestedUrls.map(optionalRegistryGroupFromUrl).filter(Boolean),
-      expectedRegistryRequests: 2,
+      requestedOptionalPayloads: runtime.requestedUrls.map(optionalPayloadGroupFromUrl).filter(Boolean),
+      expectedPayloadRequests: 2,
       opened: failedOpen === false,
       reopened: true,
       pageErrors: runtime.pageErrors,
@@ -213,10 +218,10 @@ async function probeFailureRetry(browser: Browser, baseUrl: string): Promise<Fea
         !error.includes('[gacha] lazy runtime load failed')
         && !error.includes('Failed to load resource: net::ERR_FAILED')
       )),
-      resourceErrors: runtime.resourceErrors.filter((error) => !error.includes('module-registry.optional.gacha.js'))
+      resourceErrors: runtime.resourceErrors.filter((error) => !error.includes('optional-gacha-'))
     };
   } finally {
-    await runtime.page.unroute('**/module-registry.optional.gacha.js*').catch(() => undefined);
+    await runtime.page.unroute(gachaPayloadPattern).catch(() => undefined);
     await RuntimeHelpers.stopPlaywrightPage(runtime.page);
     await runtime.context.close().catch(() => undefined);
   }
@@ -262,7 +267,7 @@ if (require.main === module) {
 
 export = {
   OPTIONAL_GROUPS,
-  optionalRegistryGroupFromUrl,
+  optionalPayloadGroupFromUrl,
   evaluateFeatureProbe,
   runBrowserOptionalFeatureSmoke
 };

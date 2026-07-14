@@ -69,6 +69,14 @@ export async function loadOptionalFeatureRegistry(
   context: OptionalFeatureContext,
   requiredModuleKeys: string[] = []
 ): Promise<boolean> {
+  const vitePayloadLoader = context.root.__CARD_REVERSI_LOAD_VITE_OPTIONAL_PAYLOAD__;
+  if (typeof vitePayloadLoader === 'function') {
+    await vitePayloadLoader.call(context.root, group);
+    const restore = context.root.__restoreCardReversiOptionalBootEntries;
+    if (typeof restore === 'function') restore(group);
+    assertRegisteredModules(context.root, group, requiredModuleKeys);
+    return true;
+  }
   const src = appendStartupVersion(`public/module-registry.optional.${group}.js`, context.document);
   const loadScript = context.loadScript
     || ((url: string, featureGroup: OptionalFeatureGroup) => loadScriptElement(url, featureGroup, context.document));

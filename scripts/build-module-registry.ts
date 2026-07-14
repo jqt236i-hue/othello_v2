@@ -43,6 +43,9 @@ interface BuildRegistryResult {
     wroteFile: boolean;
     wroteOptionalFile: boolean;
     wroteGroupFiles: Record<OptionalRuntimeGroup, boolean>;
+    browserModuleRecords: RegistryModuleRecord[];
+    optionalGroupModuleKeys: Record<OptionalRuntimeGroup, string[]>;
+    bootModuleMetadata: ReturnType<typeof buildBootModuleMetadata>;
 }
 
 type BrowserBootModuleClass = 'required' | 'optional';
@@ -53,6 +56,7 @@ interface RegistryModuleRecord {
     moduleKey: string;
     content: string;
     aliases: string[];
+    sourcePath: string;
 }
 
 const BROWSER_MODULE_PREFIXES = [
@@ -150,6 +154,14 @@ const REQUIRED_BOOT_MODULE_KEYS = new Set([
     'ui/hand-skin/catalog',
     'ui/hand-skin/selection',
     'ui/hand-skin/runtime'
+]);
+
+// Temporary Rolldown inputs are written under dist so Vite can consume the
+// already-compiled browser modules. They are build plumbing, not canonical
+// browser modules, and must never feed back into the classic registry on a
+// subsequent build.
+const DIST_EXCLUDED_DIRECTORIES = new Set([
+    'browser-vite-bridge-src'
 ]);
 
 const OPTIONAL_BOOT_MODULE_PREFIXES = [
@@ -342,6 +354,8 @@ function walkDir(dir: string, base: string, files: string[]): void {
     for (const entry of entries) {
         const full = path.join(dir, entry.name);
         if (entry.isDirectory()) {
+            const relDir = path.relative(base, full).replace(/\\/g, '/');
+            if (DIST_EXCLUDED_DIRECTORIES.has(relDir)) continue;
             walkDir(full, base, files);
         } else if (entry.isFile() && entry.name.endsWith('.js')) {
             const rel = path.relative(base, full).replace(/\\/g, '/');
@@ -613,7 +627,7 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
             registeredKeys.add(moduleKey + '.js');
         }
         appendRegisteredModuleWithJsAlias(lines, moduleKey, content);
-        moduleRecords.push({ moduleKey, content, aliases: [moduleKey + '.js'] });
+        moduleRecords.push({ moduleKey, content, aliases: [moduleKey + '.js'], sourcePath: fullPath });
         const bootClass = classifyBrowserBootModule(moduleKey);
         const bootLines = bootClass === 'optional' ? optionalLines : startupLines;
         const bootKeys = bootClass === 'optional' ? optionalRegisteredKeys : startupRegisteredKeys;
@@ -638,7 +652,12 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
             continue;
         }
         appendRegisteredModule(lines, extra.key, content);
-        moduleRecords.push({ moduleKey: extra.key, content, aliases: (extra.aliases || []).slice() });
+        moduleRecords.push({
+            moduleKey: extra.key,
+            content,
+            aliases: (extra.aliases || []).slice(),
+            sourcePath: fullPath
+        });
         registeredKeys.add(extra.key);
         const bootClass = classifyBrowserBootModule(extra.key);
         const bootLines = bootClass === 'optional' ? optionalLines : startupLines;
@@ -668,7 +687,7 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
             continue;
         }
         appendRegisteredModuleWithJsAlias(lines, moduleKey, content);
-        moduleRecords.push({ moduleKey, content, aliases: [moduleKey + '.js'] });
+        moduleRecords.push({ moduleKey, content, aliases: [moduleKey + '.js'], sourcePath: fullPath });
         registeredKeys.add(moduleKey);
         registeredKeys.add(moduleKey + '.js');
         const bootClass = classifyBrowserBootModule(moduleKey);
@@ -745,8 +764,11 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
                 }
             }
         }
-        if (shouldSyncScriptVersions && fs.existsSync(path.join(rootDir, 'index.html'))) {
-            syncBrowserScriptVersions({ rootDir, write: true });
+        const classicIndexPath = fs.existsSync(path.join(rootDir, 'index.classic.html'))
+            ? path.join(rootDir, 'index.classic.html')
+            : path.join(rootDir, 'index.html');
+        if (shouldSyncScriptVersions && fs.existsSync(classicIndexPath)) {
+            syncBrowserScriptVersions({ rootDir, indexPath: classicIndexPath, write: true });
         }
     }
 
@@ -773,7 +795,18 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
         groupOutFiles,
         wroteFile,
         wroteOptionalFile,
-        wroteGroupFiles
+        wroteGroupFiles,
+        browserModuleRecords: moduleRecords.map((record) => ({
+            moduleKey: record.moduleKey,
+            content: record.content,
+            aliases: record.aliases.slice(),
+            sourcePath: record.sourcePath
+        })),
+        optionalGroupModuleKeys: OPTIONAL_RUNTIME_GROUPS.reduce((result, group) => {
+            result[group] = Array.from(optionalGroupClosures[group]).sort();
+            return result;
+        }, {} as Record<OptionalRuntimeGroup, string[]>),
+        bootModuleMetadata: buildBootModuleMetadata(registeredKeys, optionalGroupClosures)
     };
 }
 
@@ -785,5 +818,6 @@ export = {
     buildRegistry,
     classifyBrowserBootModule,
     classifyBrowserOptionalGroup,
+    normalizeBootModuleKey,
     OPTIONAL_RUNTIME_GROUPS
 };

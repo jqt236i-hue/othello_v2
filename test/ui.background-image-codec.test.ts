@@ -52,6 +52,80 @@ describe('background image codec fallback', () => {
     expect(resolved).toBe(sourcePath);
   });
 
+  test('keeps the current image while WebP decodes and never assigns PNG on success', async () => {
+    const resolvers: Array<() => void> = [];
+    const requestedSources: string[] = [];
+    class DeferredSuccessfulImage extends SuccessfulImage {
+      set src(value: string) {
+        requestedSources.push(value);
+        super.src = value;
+      }
+
+      decode(): Promise<void> {
+        return new Promise<void>((resolve) => resolvers.push(resolve));
+      }
+    }
+    const values: Record<string, string> = {
+      '--background': 'url("assets/images/background/current.png")'
+    };
+    const style = {
+      setProperty(name: string, value: string) { values[name] = value; },
+      getPropertyValue(name: string) { return values[name] || ''; }
+    } as CSSStyleDeclaration;
+
+    codec.applyBackgroundImageWithFallback(
+      { Image: DeferredSuccessfulImage } as any,
+      style,
+      '--background',
+      sourcePath
+    );
+
+    expect(values['--background']).toBe('url("assets/images/background/current.png")');
+    expect(requestedSources).toEqual([expect.stringContaining('data:image/webp')]);
+    resolvers.shift()?.();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(requestedSources).toEqual([
+      expect.stringContaining('data:image/webp'),
+      outputPath
+    ]);
+    expect(values['--background']).toBe('url("assets/images/background/current.png")');
+    resolvers.shift()?.();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(values['--background']).toBe(`url("${outputPath}")`);
+    expect(requestedSources).not.toContain(sourcePath);
+  });
+
+  test('assigns PNG once only after optimized decode fails', async () => {
+    let decodeCount = 0;
+    class FailingAssetImage extends SuccessfulImage {
+      decode(): Promise<void> {
+        decodeCount += 1;
+        return decodeCount === 1 ? Promise.resolve() : Promise.reject(new Error('decode failed'));
+      }
+    }
+    const values: Record<string, string> = {
+      '--background': 'url("assets/images/background/current.png")'
+    };
+    const assignments: string[] = [];
+    const style = {
+      setProperty(name: string, value: string) {
+        values[name] = value;
+        assignments.push(value);
+      },
+      getPropertyValue(name: string) { return values[name] || ''; }
+    } as CSSStyleDeclaration;
+
+    codec.applyBackgroundImageWithFallback(
+      { Image: FailingAssetImage } as any,
+      style,
+      '--background',
+      sourcePath
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(assignments).toEqual([`url("${sourcePath}")`]);
+  });
+
   test('does not overwrite a newer background while an older decode is pending', async () => {
     const resolvers: Array<() => void> = [];
     class DeferredImage extends SuccessfulImage {

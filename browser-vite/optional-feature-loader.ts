@@ -1,16 +1,7 @@
 import type { OptionalFeatureContext, OptionalFeatureGroup } from './features/feature-registry';
 
 type RuntimeRoot = Window & Record<string, any>;
-type FeatureAdapter = { loadOptionalFeature: (context: OptionalFeatureContext) => Promise<boolean> };
-
-const FEATURE_IMPORTS: Record<OptionalFeatureGroup, () => Promise<FeatureAdapter>> = {
-  gacha: () => import('./features/gacha'),
-  cosmetic: () => import('./features/cosmetic'),
-  leaderboard: () => import('./features/leaderboard'),
-  commentary: () => import('./features/commentary'),
-  cpu: () => import('./features/cpu'),
-  onnx: () => import('./features/onnx')
-};
+export type FeatureAdapter = { loadOptionalFeature: (context: OptionalFeatureContext) => Promise<boolean> };
 
 export interface InstallOptionalFeatureLoaderOptions {
   root?: RuntimeRoot;
@@ -29,7 +20,7 @@ export function installOptionalFeatureLoader(options: InstallOptionalFeatureLoad
   if (!runtimeModule || typeof runtimeModule.createLazyRuntimeLoader !== 'function') {
     throw new Error('LazyRuntimeLoaderModule.createLazyRuntimeLoader is unavailable');
   }
-  const imports = Object.assign({}, FEATURE_IMPORTS, options.featureImports || {});
+  const imports = Object.assign({}, options.featureImports || {});
   const loader = runtimeModule.createLazyRuntimeLoader({
     root: rootRef,
     document: documentRef,

@@ -118,6 +118,20 @@ In practice, this means:
 - active effect resolution should consume injected modules / helpers / constants
 - authority paths must not succeed via silent fallback when required logic is absent
 
+### 5.1.1 Browser default and rollback delivery
+
+`index.html` is the production default and must boot through Vite-owned, content-hashed ESM chunks. `index.classic.html` is the explicit rollback document and may continue to load `public/runtime.js` plus `public/module-registry*.js`. The default document must not request those compatibility assets or evaluate generated source text at runtime.
+
+Browser module ownership remains single-sourced in `scripts/build-module-registry.ts`. `scripts/build-vite-module-bridge.ts` consumes that canonical selection, alias, required/optional, and dependency-closure metadata to generate static imports and bounded export accessors. `browser-vite/module-bridge.ts` may normalize legacy synchronous IDs and retain accessors to already bundled exports; it must not retain module source, construct factories, use `eval` / `new Function`, or become a second independent module cache or ownership registry. An unresolved required local ID is a build failure.
+
+Startup order is fixed: install the bridge and failure handlers, wait for the document and linked styles, import the layout stage, import `entry-browser.js`, run the existing initializer once, then validate the public runtime contract before publishing readiness. A boot or stale-preload failure must produce an explicit reload-required error rather than a success-shaped partial runtime.
+
+Gacha, cosmetic, leaderboard, commentary, CPU, and ONNX payloads are optional Vite chunks. A successful group registers once and is deduplicated. A failed request clears its in-flight state and the next user attempt uses a distinct URL so a rejected module fetch does not poison the page lifetime. Loading/error/retry flags are presentation state only; they must not enter canonical game state, snapshots, or network authority.
+
+`npm run build:vite` owns the complete browser generation sequence. It refreshes classic registry artifacts for rollback, synchronizes CSS query versions in both documents, generates the Vite interop entries, builds hashed chunks, and publishes the built Vite document as root `index.html`. `npm run worker:prepare` mirrors the resulting default, rollback, and hashed assets from root sources. Generated `index.html`, `index.vite.html`, `public/module-registry*.js`, `vite-dist/`, and `worker-public/` must not be source-edited.
+
+Production delivery follows one cache/MIME/security contract: HTML revalidates; content-hashed Vite JS/Worker assets and versioned CSS are immutable; JavaScript, module, Worker, WASM, WOFF2, and WebP responses use their correct MIME types; and the default entry must start under the repository's production CSP including the Dedicated Worker and ONNX WASM path. Because hashed chunks can be replaced between deployments, Vite preload failure handling remains mandatory even when deployment normally publishes HTML and assets atomically.
+
 ### 5.2 Worker runtime preload contract
 
 `workers/match-worker-runtime-preload.ts` is the single source of truth for statically bundled modules that must be exposed as runtime globals before Cloudflare Worker authority code loads game logic.

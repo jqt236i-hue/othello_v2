@@ -1,6 +1,6 @@
 # Browser runtime modernization implementation plan
 
-- Status: completed on 2026-07-14
+- Status: completed through Phase 11 on 2026-07-14
 - Completion record: `docs/perf/2026-07-14-browser-modernization-completion.md`
 - Design: `docs/implementation/browser-runtime-modernization-design.md`
 - Date: 2026-07-13
@@ -309,7 +309,7 @@ Common text loads subset fonts without missing glyphs, arbitrary text reaches fu
 - document any environmental timing variance without weakening correctness gates;
 - commit each verified coherent unit and leave no unexplained task-owned changes.
 
-## Plan self-review
+## Original plan self-review
 
 - Every switch is preceded by a characterization or parity boundary.
 - The Vite lane is additive and rollbackable; the plan does not falsely treat a registry wrapper as complete native-ESM conversion.
@@ -319,3 +319,91 @@ Common text loads subset fonts without missing glyphs, arbitrary text reaches fu
 - Initial images are limited to opaque backgrounds; high-risk alpha/text/animation assets remain out of scope.
 - Browser-visible root changes explicitly include `build:browser`, and every deploy-affecting phase includes root-first mirror generation/verification.
 - The final bundle covers Level 3 network/mirror checks and real browser comparison without starting training or long selfplay.
+
+## Phase 9 — Correct audited behavior-preservation gaps
+
+### Files
+
+- update `ui/assets/background-image-codec.ts` and its focused tests;
+- update `browser-vite/optional-feature-loader.ts`, feature loading helpers, and focused retry tests;
+- update the CPU Worker bridge/runtime failure signal and ONNX fallback tests;
+- update only the optional-control handlers/styles needed for loading/error/retry presentation.
+
+### Work
+
+1. Keep the currently displayed background until optimized decode succeeds. Request PNG only after optimized decode failure, and ignore stale selection completions.
+2. Make feature adapters eager and the actual feature payload retryable with a distinct URL after a network failure.
+3. Propagate post-ping ORT/model/session/inference failure to the bridge, disable Worker ONNX for the session, load main-thread ORT once, and retry through the existing initializer.
+4. Apply `aria-busy`, a polite loading status, and an actionable retry state to optional controls without opening a surface twice or changing storage/game state.
+
+### Verification
+
+- focused codec request-count and stale-selection tests;
+- adapter/payload first-failure then same-page retry tests;
+- post-ping create/run failure tests proving main-thread ONNX activation;
+- optional first-click/double-click/failure/retry browser smoke;
+- existing exact CPU/ONNX/Worker suites.
+
+### Done when
+
+No successful optimized selection double-fetches PNG, optional payload failure is retryable without reload, post-ping ONNX failure reaches the existing main-thread fallback, and loading state is perceivable but gameplay-visible behavior is otherwise unchanged.
+
+## Phase 10 — Registry-free Vite delivery and default cutover
+
+### Files
+
+- extend `scripts/build-module-registry.ts` to expose the canonical browser-module records without changing classic output;
+- add a generated Vite interop-module builder and checked generated startup/group loader entries;
+- add a bounded `browser-vite` module-ID bridge and Vite virtual hashed group-URL plugin;
+- replace `browser-vite/classic-compat-loader.ts` boot ownership with registry-free Vite boot;
+- update `scripts/build-vite-entry.ts`, `vite.config.ts`, package scripts, generated documents, and mirror preparation;
+- preserve the old document as `index.classic.html`, then publish the verified Vite document as default `index.html`.
+
+### Work
+
+1. Reuse the existing browser-module selection, aliases, required/optional classification, and group closures; do not create a second ownership map.
+2. Inventory every browser dynamic require target and fail generation for unresolved local IDs. Generate accessors that Vite/Rolldown converts to bundled CommonJS factories. The interop bridge resolves only legacy synchronous IDs and built-ins; it stores no source text, factory implementation, or independent module cache and performs no dynamic code evaluation.
+3. Emit optional groups as self-contained content-hashed Vite chunks with startup dependencies only. Import their emitted URLs with a per-attempt query so a transient rejected module URL does not poison retries.
+4. Import layout and `entry-browser.js` through Vite, preserve explicit global publication/initializer order, and assert the runtime contract before readiness.
+5. Keep classic registry artifacts only for `index.classic.html`; assert the default page requests none of them.
+
+### Verification
+
+- generator determinism, alias, closure, and stale-output tests;
+- unresolved dynamic ID, circular/evaluation-order, export identity, and optional-before-load tests;
+- registry-free boot contract and no-registry-request browser assertion;
+- classic rollback boot smoke;
+- optional code-split request/isolation/retry checks;
+- exact CPU action/state/event/replay digest comparison and UI screenshots;
+- `npm run build:browser`, Vite production build, Worker mirror generation/check.
+
+### Done when
+
+The default document boots entirely through Vite-owned hashed JS chunks, requests no custom source-code registry/runtime, optional groups remain split and retryable, the classic rollback document works, and exact game/presentation/network gates remain unchanged.
+
+## Phase 11 — Browser/deployment evidence and final completion
+
+### Work and verification
+
+1. Version all linked CSS through the generated browser version synchronizer.
+2. Add a production-like static-server check for JavaScript/Worker/WASM/font/image MIME, cache policy, CSP-required URLs, and stale-chunk/preload failure presentation.
+3. Run desktop Chromium, Firefox, and WebKit startup/optional/font/background/Worker smoke, plus a touch/mobile viewport scenario and background/resume check where supported.
+4. Save a repeated current-build classic-versus-default-Vite resource/timing report with final hashes; report medians and exact transferred resources without claiming causality from a single sample.
+5. Run typecheck, focused suites, `checkall`, network parity, classic/default UI control smoke, visual regression, asset checks, `worker:prepare`, mirror check, `git diff --check`, and final status/diff inspection.
+6. Update completion evidence and architecture documentation, then commit each isolated verified unit.
+
+`scripts/build-vite-entry.ts` owns generation of both documents: it snapshots/updates the rollback document and produces the Vite source document without allowing `build:browser` to switch the default back. The Vite close-bundle step publishes the built document as default only after generation; an idempotency test runs the build sequence twice and checks default/rollback CSS versions plus final mirror hashes.
+
+### Done when
+
+All eight residual tasks have an executable gate and current-build artifact, the final hashes match the saved report and mirror, no correctness/visual gate regresses, and the working tree is clean after coherent commits.
+
+## Residual plan self-review
+
+- The plan fixes the three reproduced failures before changing the default entry.
+- Registry-free means no shipped source-string registry/runtime on the default path; it does not conceal the remaining source-level CommonJS migration behind a naming change.
+- Required and optional module ownership stays single-sourced in the existing generator, preventing classic/Vite drift.
+- Retry changes URL identity only after failure; successful hashed chunks retain normal cacheability.
+- ONNX fallback changes execution location only after failure and preserves the current policy/result interpretation.
+- Loading UX is settlement/presentation state only and never enters canonical game or network snapshots.
+- Cross-browser, production delivery, final performance, network, visual, and mirror gates all occur before completion is reported.

@@ -1,0 +1,565 @@
+{
+  "schemaVersion": 2,
+  "capturedAt": "2026-07-14T07:13:07.245Z",
+  "runCount": 3,
+  "environment": {
+    "node": "v24.12.0",
+    "platform": "win32-x64",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/143.0.7499.4 Safari/537.36"
+  },
+  "lanes": {
+    "classic": {
+      "lane": "classic",
+      "htmlLane": "classic",
+      "bootState": "",
+      "viteRuntime": null,
+      "readyMs": 1813,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/143.0.7499.4 Safari/537.36",
+      "navigation": {
+        "domContentLoadedMs": 1423,
+        "loadMs": 1568.8999999985099
+      },
+      "startupResources": {
+        "count": 123,
+        "transferBytes": 35394467,
+        "encodedBodyBytes": 35357567,
+        "decodedBodyBytes": 35357567
+      },
+      "globals": {
+        "gameState": "object",
+        "cardState": "object",
+        "initializeUI": "function",
+        "resetGame": "function",
+        "forceFullRender": "function",
+        "LazyRuntimeLoaderModule": "object"
+      },
+      "missingElements": [],
+      "stylesheetPaths": [
+        "/styles-variables.css",
+        "/styles-base.css",
+        "/styles-layout.css",
+        "/styles-charge-hud.css",
+        "/styles-layout-controls.css",
+        "/styles-layout-info.css",
+        "/styles-layout-result.css",
+        "/styles-layout-characters.css",
+        "/styles-board.css",
+        "/styles-cards.css",
+        "/styles-animations.css",
+        "/styles-responsive.css",
+        "/styles-stone-shadows.css",
+        "/styles-profile.css",
+        "/styles-leaderboard.css"
+      ],
+      "fixtureDigest": "52d06b8d2c4b222134624ac544745a01a89642bd0c5943c405fbd8aef5c8f80d",
+      "boardSize": {
+        "width": 352,
+        "height": 351.9999694824219
+      },
+      "startupRequestedPaths": [
+        "/assets/asset-manifest.json",
+        "/assets/fonts/shippori-mincho-400-subset.woff2",
+        "/assets/fonts/shippori-mincho-700-subset.woff2",
+        "/assets/fonts/shippori-mincho-800-subset.woff2",
+        "/assets/images/background/%E3%83%87%E3%83%95%E3%82%A9%E3%83%AB%E3%83%8825.png",
+        "/assets/images/board/board-frame-marsh-forged-iron-v1.png",
+        "/assets/images/board/board-surface-bluegreen-felt-v1.png",
+        "/assets/images/card/43_%E6%82%AA%E9%A3%9F%E3%81%AE%E6%84%8F%E5%BF%97.png",
+        "/assets/images/cpu/level1.png",
+        "/assets/images/hand-skin/%E5%8B%87%E8%80%85%E3%81%AE%E6%89%8B.png",
+        "/assets/images/hand-skin/lv1-2.png",
+        "/assets/images/help/player-guide/card-reversi-player-guide-slide-01.png",
+        "/assets/images/help/protection-penetration/protection-penetration-quick-reference.png",
+        "/assets/images/hero/hero.png",
+        "/assets/images/other/%E8%A6%B3%E6%B8%AC%E7%9F%B3.png",
+        "/assets/images/other/card-back-deck-v1.png",
+        "/assets/images/other/charge-counter-wafu-v1.png",
+        "/assets/images/other/gacha-crystal-cluster-v1.png",
+        "/assets/images/other/gacha-observation-bg-v1.png",
+        "/assets/images/other/gacha-reference-banner.png",
+        "/assets/images/other/leaderboard-icon-close-v1.png",
+        "/assets/images/other/leaderboard-icon-crown-gold-v1.png",
+        "/assets/images/other/leaderboard-icon-help-v1.png",
+        "/assets/images/other/leaderboard-icon-rank-v1.png",
+        "/assets/images/other/leaderboard-medal-gold-v1.png",
+        "/assets/images/other/leaderboard-top-panel-wide-v1.png",
+        "/assets/images/other/network-lobby-frame-v1.png",
+        "/assets/images/other/turn-banner-your-v1.png",
+        "/assets/images/special-stones/BREEDING_WILL-black.png",
+        "/assets/images/special-stones/BREEDING_WILL-white.png",
+        "/assets/images/special-stones/CROSS_BOMB-black.png",
+        "/assets/images/special-stones/CROSS_BOMB-white.png",
+        "/assets/images/special-stones/DESTROY_DRAGON-black.png",
+        "/assets/images/special-stones/DESTROY_DRAGON-white.png",
+        "/assets/images/special-stones/ESCAPE_WILL-black.png",
+        "/assets/images/special-stones/ESCAPE_WILL-white.png",
+        "/assets/images/special-stones/EXTREME_HYPERACTIVE_WILL-black.png",
+        "/assets/images/special-stones/EXTREME_HYPERACTIVE_WILL-white.png",
+        "/assets/images/special-stones/GHOST_WILL-black.png",
+        "/assets/images/special-stones/GHOST_WILL-white.png",
+        "/assets/images/special-stones/GLUTTONOUS_WILL-black.png",
+        "/assets/images/special-stones/GLUTTONOUS_WILL-white.png",
+        "/assets/images/special-stones/HYPERACTIVE_WILL-black.png",
+        "/assets/images/special-stones/HYPERACTIVE_WILL-white.png",
+        "/assets/images/special-stones/METEOR_GOD-black.png",
+        "/assets/images/special-stones/METEOR_GOD-white.png",
+        "/assets/images/special-stones/OBSERVER_WILL-black.png",
+        "/assets/images/special-stones/OBSERVER_WILL-white.png",
+        "/assets/images/special-stones/PROLIFERATION_WILL-black.png",
+        "/assets/images/special-stones/PROLIFERATION_WILL-white.png",
+        "/assets/images/special-stones/ROBOT_VACUUM_WILL-black.png",
+        "/assets/images/special-stones/ROBOT_VACUUM_WILL-white.png",
+        "/assets/images/special-stones/SACRIFICE_WILL-black.png",
+        "/assets/images/special-stones/SACRIFICE_WILL-white.png",
+        "/assets/images/special-stones/STONE_SALVATION_GOD-black.png",
+        "/assets/images/special-stones/STONE_SALVATION_GOD-white.png",
+        "/assets/images/special-stones/TIME_BOMB-black.png",
+        "/assets/images/special-stones/TIME_BOMB-white.png",
+        "/assets/images/special-stones/TIME_STOP-black.png",
+        "/assets/images/special-stones/TIME_STOP-white.png",
+        "/assets/images/special-stones/TIME_STOP_DEITY-black.png",
+        "/assets/images/special-stones/TIME_STOP_DEITY-white.png",
+        "/assets/images/special-stones/ULTIMATE_DESTROY_GOD-black.png",
+        "/assets/images/special-stones/ULTIMATE_DESTROY_GOD-white.png",
+        "/assets/images/special-stones/ULTIMATE_HYPERACTIVE_GOD-black.png",
+        "/assets/images/special-stones/ULTIMATE_HYPERACTIVE_GOD-white.png",
+        "/assets/images/special-stones/WILL_HUNTER_KING-black.png",
+        "/assets/images/special-stones/WILL_HUNTER_KING-white.png",
+        "/assets/images/special-stones/X_BOMB-black.png",
+        "/assets/images/special-stones/X_BOMB-white.png",
+        "/assets/images/special-stones/ZAN-BLACK.png",
+        "/assets/images/special-stones/ZAN-WHITE.png",
+        "/assets/images/special-stones/ZOMBIE-black.png",
+        "/assets/images/special-stones/ZOMBIE-white.png",
+        "/assets/images/special-stones/board_executor-black.png",
+        "/assets/images/special-stones/board_executor-white.png",
+        "/assets/images/special-stones/crystal_stone.png",
+        "/assets/images/special-stones/gold_stone.png",
+        "/assets/images/special-stones/perma_protect_next_stone-black.png",
+        "/assets/images/special-stones/perma_protect_next_stone-white.png",
+        "/assets/images/special-stones/protected_next_stone.png",
+        "/assets/images/special-stones/rainbow_stone.png",
+        "/assets/images/special-stones/rakurai-black.png",
+        "/assets/images/special-stones/rakurai-white.png",
+        "/assets/images/special-stones/regen_stone-black.png",
+        "/assets/images/special-stones/regen_stone-white.png",
+        "/assets/images/special-stones/silver.stone.png",
+        "/assets/images/special-stones/sna-black.png",
+        "/assets/images/special-stones/sna-white.png",
+        "/assets/images/special-stones/theory_incarnation-black.png",
+        "/assets/images/special-stones/theory_incarnation-white.png",
+        "/assets/images/special-stones/trap_stone-black.png",
+        "/assets/images/special-stones/trap_stone-white.png",
+        "/assets/images/special-stones/ultimate_reverse_dragon-black.png",
+        "/assets/images/special-stones/ultimate_reverse_dragon-white.png",
+        "/assets/images/special-stones/work_stone-black.png",
+        "/assets/images/special-stones/work_stone-white.png",
+        "/assets/images/stone-skin/default/black.png",
+        "/assets/images/stone-skin/default/white.png",
+        "/assets/images/stone-skin/o-stone/black.png",
+        "/assets/images/stone-skin/o-stone/white.png",
+        "/assets/images/ui/card-area-table-opponent-v6.png",
+        "/assets/images/ui/card-area-table-player-v6.png",
+        "/assets/images/ui/deck-builder-night-manuscript-texture.png",
+        "/entry-browser.js?v=248168568173213",
+        "/index.classic.html?debug=1",
+        "/public/module-registry.js?v=159278661717845",
+        "/public/runtime.js?v=10249323031789",
+        "/styles-animations.css?v=228086861389605",
+        "/styles-base.css?v=239652248002073",
+        "/styles-board.css?v=78940351752250",
+        "/styles-cards.css?v=168389985043575",
+        "/styles-charge-hud.css?v=33539802130051",
+        "/styles-layout-characters.css?v=2666866856487",
+        "/styles-layout-controls.css?v=205751993397673",
+        "/styles-layout-info.css?v=64282339578587",
+        "/styles-layout-result.css?v=128754261725352",
+        "/styles-layout.css?v=67414573298310",
+        "/styles-leaderboard.css",
+        "/styles-profile.css?v=218601426601992",
+        "/styles-responsive.css?v=206849807048678",
+        "/styles-stone-shadows.css?v=206393956137437",
+        "/styles-variables.css?v=237083400848434",
+        "/ui/layout-stage.js"
+      ],
+      "startupScriptPaths": [
+        "/entry-browser.js?v=248168568173213",
+        "/public/module-registry.js?v=159278661717845",
+        "/public/runtime.js?v=10249323031789",
+        "/ui/layout-stage.js"
+      ],
+      "moduleRegistryAtStartup": true,
+      "optionalRegistryAtStartup": false,
+      "optionalPayloadAtStartup": false,
+      "onnxRuntimeAtStartup": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "resourceErrors": [],
+      "readyMsSamples": [
+        1968,
+        1813,
+        1786
+      ]
+    },
+    "vite": {
+      "lane": "vite",
+      "htmlLane": "vite",
+      "bootState": "ready",
+      "viteRuntime": {
+        "state": "ready",
+        "moduleDelivery": "vite-bundled",
+        "loadedModules": [
+          "startup",
+          "layout",
+          "entry"
+        ],
+        "esmEntry": true,
+        "customModuleRegistry": false
+      },
+      "readyMs": 1999,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/143.0.7499.4 Safari/537.36",
+      "navigation": {
+        "domContentLoadedMs": 553.3000000007451,
+        "loadMs": 776.3999999985099
+      },
+      "startupResources": {
+        "count": 127,
+        "transferBytes": 31447320,
+        "encodedBodyBytes": 31408920,
+        "decodedBodyBytes": 31408920
+      },
+      "globals": {
+        "gameState": "object",
+        "cardState": "object",
+        "initializeUI": "function",
+        "resetGame": "function",
+        "forceFullRender": "function",
+        "LazyRuntimeLoaderModule": "object"
+      },
+      "missingElements": [],
+      "stylesheetPaths": [
+        "/styles-variables.css",
+        "/styles-base.css",
+        "/styles-layout.css",
+        "/styles-charge-hud.css",
+        "/styles-layout-controls.css",
+        "/styles-layout-info.css",
+        "/styles-layout-result.css",
+        "/styles-layout-characters.css",
+        "/styles-board.css",
+        "/styles-cards.css",
+        "/styles-animations.css",
+        "/styles-responsive.css",
+        "/styles-stone-shadows.css",
+        "/styles-profile.css",
+        "/styles-leaderboard.css"
+      ],
+      "fixtureDigest": "52d06b8d2c4b222134624ac544745a01a89642bd0c5943c405fbd8aef5c8f80d",
+      "boardSize": {
+        "width": 352,
+        "height": 351.9999694824219
+      },
+      "startupRequestedPaths": [
+        "/?debug=1",
+        "/assets/asset-manifest.json",
+        "/assets/fonts/shippori-mincho-400-subset.woff2",
+        "/assets/fonts/shippori-mincho-700-subset.woff2",
+        "/assets/fonts/shippori-mincho-800-subset.woff2",
+        "/assets/images/background/%E3%83%87%E3%83%95%E3%82%A9%E3%83%AB%E3%83%8825.png",
+        "/assets/images/board/board-frame-marsh-forged-iron-v1.png",
+        "/assets/images/board/board-surface-bluegreen-felt-v1.png",
+        "/assets/images/card/32_%E5%A2%97%E6%AE%96%E3%81%AE%E6%84%8F%E5%BF%97.png",
+        "/assets/images/cpu/level1.png",
+        "/assets/images/hand-skin/%E5%8B%87%E8%80%85%E3%81%AE%E6%89%8B.png",
+        "/assets/images/hand-skin/lv1-2.png",
+        "/assets/images/hero/hero.png",
+        "/assets/images/other/%E8%A6%B3%E6%B8%AC%E7%9F%B3.png",
+        "/assets/images/other/card-back-deck-v1.png",
+        "/assets/images/other/charge-counter-wafu-v1.png",
+        "/assets/images/other/gacha-crystal-cluster-v1.png",
+        "/assets/images/other/gacha-observation-bg-v1.png",
+        "/assets/images/other/gacha-reference-banner.png",
+        "/assets/images/other/leaderboard-icon-close-v1.png",
+        "/assets/images/other/leaderboard-icon-crown-gold-v1.png",
+        "/assets/images/other/leaderboard-icon-help-v1.png",
+        "/assets/images/other/leaderboard-icon-rank-v1.png",
+        "/assets/images/other/leaderboard-medal-gold-v1.png",
+        "/assets/images/other/leaderboard-top-panel-wide-v1.png",
+        "/assets/images/other/network-lobby-frame-v1.png",
+        "/assets/images/other/turn-banner-your-v1.png",
+        "/assets/images/special-stones/BREEDING_WILL-black.png",
+        "/assets/images/special-stones/BREEDING_WILL-white.png",
+        "/assets/images/special-stones/CROSS_BOMB-black.png",
+        "/assets/images/special-stones/CROSS_BOMB-white.png",
+        "/assets/images/special-stones/DESTROY_DRAGON-black.png",
+        "/assets/images/special-stones/DESTROY_DRAGON-white.png",
+        "/assets/images/special-stones/ESCAPE_WILL-black.png",
+        "/assets/images/special-stones/ESCAPE_WILL-white.png",
+        "/assets/images/special-stones/EXTREME_HYPERACTIVE_WILL-black.png",
+        "/assets/images/special-stones/EXTREME_HYPERACTIVE_WILL-white.png",
+        "/assets/images/special-stones/GHOST_WILL-black.png",
+        "/assets/images/special-stones/GHOST_WILL-white.png",
+        "/assets/images/special-stones/GLUTTONOUS_WILL-black.png",
+        "/assets/images/special-stones/GLUTTONOUS_WILL-white.png",
+        "/assets/images/special-stones/HYPERACTIVE_WILL-black.png",
+        "/assets/images/special-stones/HYPERACTIVE_WILL-white.png",
+        "/assets/images/special-stones/METEOR_GOD-black.png",
+        "/assets/images/special-stones/METEOR_GOD-white.png",
+        "/assets/images/special-stones/OBSERVER_WILL-black.png",
+        "/assets/images/special-stones/OBSERVER_WILL-white.png",
+        "/assets/images/special-stones/PROLIFERATION_WILL-black.png",
+        "/assets/images/special-stones/PROLIFERATION_WILL-white.png",
+        "/assets/images/special-stones/ROBOT_VACUUM_WILL-black.png",
+        "/assets/images/special-stones/ROBOT_VACUUM_WILL-white.png",
+        "/assets/images/special-stones/SACRIFICE_WILL-black.png",
+        "/assets/images/special-stones/SACRIFICE_WILL-white.png",
+        "/assets/images/special-stones/STONE_SALVATION_GOD-black.png",
+        "/assets/images/special-stones/STONE_SALVATION_GOD-white.png",
+        "/assets/images/special-stones/TIME_BOMB-black.png",
+        "/assets/images/special-stones/TIME_BOMB-white.png",
+        "/assets/images/special-stones/TIME_STOP-black.png",
+        "/assets/images/special-stones/TIME_STOP-white.png",
+        "/assets/images/special-stones/TIME_STOP_DEITY-black.png",
+        "/assets/images/special-stones/TIME_STOP_DEITY-white.png",
+        "/assets/images/special-stones/ULTIMATE_DESTROY_GOD-black.png",
+        "/assets/images/special-stones/ULTIMATE_DESTROY_GOD-white.png",
+        "/assets/images/special-stones/ULTIMATE_HYPERACTIVE_GOD-black.png",
+        "/assets/images/special-stones/ULTIMATE_HYPERACTIVE_GOD-white.png",
+        "/assets/images/special-stones/WILL_HUNTER_KING-black.png",
+        "/assets/images/special-stones/WILL_HUNTER_KING-white.png",
+        "/assets/images/special-stones/X_BOMB-black.png",
+        "/assets/images/special-stones/X_BOMB-white.png",
+        "/assets/images/special-stones/ZAN-BLACK.png",
+        "/assets/images/special-stones/ZAN-WHITE.png",
+        "/assets/images/special-stones/ZOMBIE-black.png",
+        "/assets/images/special-stones/ZOMBIE-white.png",
+        "/assets/images/special-stones/board_executor-black.png",
+        "/assets/images/special-stones/board_executor-white.png",
+        "/assets/images/special-stones/crystal_stone.png",
+        "/assets/images/special-stones/gold_stone.png",
+        "/assets/images/special-stones/perma_protect_next_stone-black.png",
+        "/assets/images/special-stones/perma_protect_next_stone-white.png",
+        "/assets/images/special-stones/protected_next_stone.png",
+        "/assets/images/special-stones/rainbow_stone.png",
+        "/assets/images/special-stones/rakurai-black.png",
+        "/assets/images/special-stones/rakurai-white.png",
+        "/assets/images/special-stones/regen_stone-black.png",
+        "/assets/images/special-stones/regen_stone-white.png",
+        "/assets/images/special-stones/silver.stone.png",
+        "/assets/images/special-stones/sna-black.png",
+        "/assets/images/special-stones/sna-white.png",
+        "/assets/images/special-stones/theory_incarnation-black.png",
+        "/assets/images/special-stones/theory_incarnation-white.png",
+        "/assets/images/special-stones/trap_stone-black.png",
+        "/assets/images/special-stones/trap_stone-white.png",
+        "/assets/images/special-stones/ultimate_reverse_dragon-black.png",
+        "/assets/images/special-stones/ultimate_reverse_dragon-white.png",
+        "/assets/images/special-stones/work_stone-black.png",
+        "/assets/images/special-stones/work_stone-white.png",
+        "/assets/images/stone-skin/default/black.png",
+        "/assets/images/stone-skin/default/white.png",
+        "/assets/images/stone-skin/o-stone/black.png",
+        "/assets/images/stone-skin/o-stone/white.png",
+        "/assets/images/ui/card-area-table-opponent-v6.png",
+        "/assets/images/ui/card-area-table-player-v6.png",
+        "/assets/images/ui/deck-builder-night-manuscript-texture.png",
+        "/styles-animations.css?v=228086861389605",
+        "/styles-base.css?v=239652248002073",
+        "/styles-board.css?v=78940351752250",
+        "/styles-cards.css?v=168389985043575",
+        "/styles-charge-hud.css?v=33539802130051",
+        "/styles-layout-characters.css?v=2666866856487",
+        "/styles-layout-controls.css?v=205751993397673",
+        "/styles-layout-info.css?v=64282339578587",
+        "/styles-layout-result.css?v=128754261725352",
+        "/styles-layout.css?v=67414573298310",
+        "/styles-leaderboard.css",
+        "/styles-profile.css?v=218601426601992",
+        "/styles-responsive.css?v=206849807048678",
+        "/styles-stone-shadows.css?v=206393956137437",
+        "/styles-variables.css?v=237083400848434",
+        "/vite-dist/assets/%E5%8B%87%E8%80%85%E3%81%AE%E6%89%8B-C6v2toAd.png",
+        "/vite-dist/assets/bridge-DaXBrZaL.js",
+        "/vite-dist/assets/card-reversi-player-guide-slide-01-epiawl9Y.png",
+        "/vite-dist/assets/entry-browser-C0-THyGr.js",
+        "/vite-dist/assets/hero-DbqiEqdj.png",
+        "/vite-dist/assets/index.vite-BvTk0iLw.js",
+        "/vite-dist/assets/layout-stage-cyNvfiou.js",
+        "/vite-dist/assets/protection-penetration-quick-reference-QipUvGs2.png",
+        "/vite-dist/assets/rolldown-runtime-aKtaBQYM.js"
+      ],
+      "startupScriptPaths": [
+        "/vite-dist/assets/bridge-DaXBrZaL.js",
+        "/vite-dist/assets/entry-browser-C0-THyGr.js",
+        "/vite-dist/assets/index.vite-BvTk0iLw.js",
+        "/vite-dist/assets/layout-stage-cyNvfiou.js",
+        "/vite-dist/assets/rolldown-runtime-aKtaBQYM.js"
+      ],
+      "moduleRegistryAtStartup": false,
+      "optionalRegistryAtStartup": false,
+      "optionalPayloadAtStartup": false,
+      "onnxRuntimeAtStartup": false,
+      "pageErrors": [],
+      "consoleErrors": [],
+      "resourceErrors": [],
+      "readyMsSamples": [
+        1999,
+        2152,
+        1927
+      ]
+    }
+  },
+  "correctness": {
+    "runtimeContractMatch": true,
+    "fixtureDigest": "52d06b8d2c4b222134624ac544745a01a89642bd0c5943c405fbd8aef5c8f80d",
+    "fixtureDigestMatch": true
+  },
+  "visual": {
+    "width": 352,
+    "height": 353,
+    "diffPixels": 0,
+    "diffPixelSamples": [
+      0,
+      0,
+      0
+    ]
+  },
+  "samples": [
+    {
+      "run": 1,
+      "order": [
+        "classic",
+        "vite"
+      ],
+      "lanes": {
+        "classic": {
+          "readyMs": 1968,
+          "navigation": {
+            "domContentLoadedMs": 1428,
+            "loadMs": 1567.199999999255
+          },
+          "startupResources": {
+            "count": 124,
+            "transferBytes": 35390656,
+            "encodedBodyBytes": 35353756,
+            "decodedBodyBytes": 35353756
+          }
+        },
+        "vite": {
+          "readyMs": 1999,
+          "navigation": {
+            "domContentLoadedMs": 553.3000000007451,
+            "loadMs": 775
+          },
+          "startupResources": {
+            "count": 128,
+            "transferBytes": 31447320,
+            "encodedBodyBytes": 31408920,
+            "decodedBodyBytes": 31408920
+          }
+        }
+      },
+      "visual": {
+        "width": 352,
+        "height": 353,
+        "diffPixels": 0
+      },
+      "evaluation": {
+        "ok": true,
+        "errors": []
+      }
+    },
+    {
+      "run": 2,
+      "order": [
+        "vite",
+        "classic"
+      ],
+      "lanes": {
+        "classic": {
+          "readyMs": 1813,
+          "navigation": {
+            "domContentLoadedMs": 1423,
+            "loadMs": 1572.0999999977648
+          },
+          "startupResources": {
+            "count": 123,
+            "transferBytes": 35394467,
+            "encodedBodyBytes": 35357567,
+            "decodedBodyBytes": 35357567
+          }
+        },
+        "vite": {
+          "readyMs": 2152,
+          "navigation": {
+            "domContentLoadedMs": 572.8999999985099,
+            "loadMs": 776.3999999985099
+          },
+          "startupResources": {
+            "count": 126,
+            "transferBytes": 31186049,
+            "encodedBodyBytes": 31148249,
+            "decodedBodyBytes": 31148249
+          }
+        }
+      },
+      "visual": {
+        "width": 352,
+        "height": 353,
+        "diffPixels": 0
+      },
+      "evaluation": {
+        "ok": true,
+        "errors": []
+      }
+    },
+    {
+      "run": 3,
+      "order": [
+        "classic",
+        "vite"
+      ],
+      "lanes": {
+        "classic": {
+          "readyMs": 1786,
+          "navigation": {
+            "domContentLoadedMs": 1406.300000000745,
+            "loadMs": 1568.8999999985099
+          },
+          "startupResources": {
+            "count": 123,
+            "transferBytes": 35419116,
+            "encodedBodyBytes": 35382216,
+            "decodedBodyBytes": 35382216
+          }
+        },
+        "vite": {
+          "readyMs": 1927,
+          "navigation": {
+            "domContentLoadedMs": 493.20000000298023,
+            "loadMs": 824.1000000014901
+          },
+          "startupResources": {
+            "count": 127,
+            "transferBytes": 31711933,
+            "encodedBodyBytes": 31673833,
+            "decodedBodyBytes": 31673833
+          }
+        }
+      },
+      "visual": {
+        "width": 352,
+        "height": 353,
+        "diffPixels": 0
+      },
+      "evaluation": {
+        "ok": true,
+        "errors": []
+      }
+    }
+  ],
+  "evaluation": {
+    "ok": true,
+    "errors": []
+  }
+}

@@ -20,6 +20,7 @@ interface GenerateViteEntryResult {
   scriptSources: string[];
   styleSources: string[];
   wroteFile: boolean;
+  wroteClassicFile: boolean;
 }
 
 function normalizeNewlines(value: string): string {
@@ -72,9 +73,6 @@ function renderViteEntry(classicHtml: string): { content: string; scriptSources:
     throw new Error('index.html does not declare any classic stylesheets');
   }
 
-  const metaTags = scriptSources.map((source, index) => (
-    `    <meta name="card-reversi-classic-${['runtime', 'registry', 'layout', 'entry'][index]}" content="${source}">`
-  )).join('\n');
   const styleMetaTags = styleSources.map((source) => (
     `    <meta name="card-reversi-classic-style" content="${source}">`
   )).join('\n');
@@ -82,22 +80,30 @@ function renderViteEntry(classicHtml: string): { content: string; scriptSources:
   content = content.replace(/<link\s+rel="stylesheet"\s+href="[^"]+"\s*>/g, '');
   content = content.replace(
     '</head>',
-    `    <base href="./">\n${styleMetaTags}\n${renderStyleBootstrap()}\n${metaTags}\n    <meta name="card-reversi-browser-lane" content="vite">\n</head>`
+    `    <base href="./">\n${styleMetaTags}\n${renderStyleBootstrap()}\n    <meta name="card-reversi-browser-lane" content="vite">\n</head>`
   );
   content = content.replace('<html lang="ja">', '<html lang="ja" data-browser-lane="vite">');
   const refreshedMarkerIndex = content.lastIndexOf('<!-- Scripts -->');
   const refreshedBodyCloseIndex = content.lastIndexOf('</body>');
-  content = `${content.slice(0, refreshedMarkerIndex)}<!-- Vite comparison lane entry; generated from index.html -->\n    <script type="module" src="/browser-vite/main.ts"></script>\n${content.slice(refreshedBodyCloseIndex)}`;
+  content = `${content.slice(0, refreshedMarkerIndex)}<!-- Vite default entry; generated from index.classic.html -->\n    <script type="module" src="/browser-vite/main.ts"></script>\n${content.slice(refreshedBodyCloseIndex)}`;
   return { content, scriptSources, styleSources };
 }
 
 function generateViteEntry(options: GenerateViteEntryOptions = {}): GenerateViteEntryResult {
   const rootDir = path.resolve(options.rootDir || process.cwd());
-  const sourcePath = path.join(rootDir, 'index.html');
+  const defaultPath = path.join(rootDir, 'index.html');
+  const classicPath = path.join(rootDir, 'index.classic.html');
+  const sourcePath = fs.existsSync(classicPath) ? classicPath : defaultPath;
   const outputPath = path.join(rootDir, 'index.vite.html');
-  const rendered = renderViteEntry(fs.readFileSync(sourcePath, 'utf8'));
+  const classicContent = fs.readFileSync(sourcePath, 'utf8');
+  const rendered = renderViteEntry(classicContent);
   let wroteFile = false;
+  let wroteClassicFile = false;
   if (options.write !== false) {
+    if (!fs.existsSync(classicPath)) {
+      fs.writeFileSync(classicPath, classicContent, 'utf8');
+      wroteClassicFile = true;
+    }
     const current = fs.existsSync(outputPath) ? normalizeNewlines(fs.readFileSync(outputPath, 'utf8')) : '';
     if (current !== rendered.content) {
       fs.writeFileSync(outputPath, rendered.content, 'utf8');
@@ -110,7 +116,8 @@ function generateViteEntry(options: GenerateViteEntryOptions = {}): GenerateVite
     content: rendered.content,
     scriptSources: rendered.scriptSources,
     styleSources: rendered.styleSources,
-    wroteFile
+    wroteFile,
+    wroteClassicFile
   };
 }
 

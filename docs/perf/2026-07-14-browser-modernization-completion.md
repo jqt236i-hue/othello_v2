@@ -1,9 +1,10 @@
 # Browser runtime modernization completion (2026-07-14)
 
 - Status: PASS
-- Scope: phases 0–8 in `docs/implementation/browser-runtime-modernization-plan.md`
-- Player-visible rules, timing contracts, text, and card behavior: unchanged
-- Default entry: classic remains available; the Vite lane is additive and rollbackable
+- Scope: phases 0–11 in `docs/implementation/browser-runtime-modernization-plan.md`
+- Player-visible rules, CPU decisions, animation order, and card behavior: unchanged
+- Player-visible additions: accessible loading/retry status for lazily loaded optional controls and a mobile quick-control clearance fix
+- Default entry: registry-free Vite/ESM; `index.classic.html` remains the explicit rollback entry
 
 ## Delivered boundaries
 
@@ -15,8 +16,11 @@
 6. Vite ONNX inference runs in a lazy Dedicated Worker. Vector construction, result interpretation, tactical refinement, and move authority remain on their existing owners.
 7. On the Vite lane, eligible Lv3–5 normal-placement candidate scoring uses the same Worker, with epoch/turn/state/digest validation and exact local fallback.
 8. Additional image conversion remains limited to objectively smaller, opaque, lossless background assets.
+9. Optimized backgrounds are decoded before selection, so normal delivery fetches WebP only and requests the original PNG only after optimized decode failure.
+10. The default document is built from 611 startup modules into Vite-owned hashed chunks and does not request `public/runtime.js` or `public/module-registry*.js`; the classic document retains those artifacts for rollback.
+11. Cross-engine, mobile-touch, production CSP/MIME/cache, asset-delivery, optional-retry, and post-start Worker-failure gates cover the final delivery path.
 
-The Vite lane still loads the canonical registry through a compatibility adapter. This program intentionally establishes a measured parallel ESM lane and feature-level dynamic imports; it does not claim that every canonical CommonJS-style module has already become a native ESM module.
+Vite owns the shipped default module code and chunk graph. A generated interop bridge preserves existing string-ID/CommonJS export semantics during source migration, but it stores import accessors rather than module source or runtime-evaluated factories. This completion therefore means registry-free delivery, not that every source file has already been rewritten as idiomatic native ESM.
 
 ## Asset result
 
@@ -48,7 +52,7 @@ The Vite lane still loads the canonical registry through a compatibility adapter
 - Classic/Vite comparison screenshot: 0 differing pixels
 - Full visual regression: 0 differing pixels (threshold 4,000)
 
-Timing values remain same-machine observations rather than acceptance thresholds. The final no-write classic boot sample reported network-mode readiness at 875 ms; repeated Classic/Vite comparisons passed all exact gates despite normal run-to-run timing variation.
+Timing values remain same-machine observations rather than acceptance thresholds. Three alternating cold runs produced median UI readiness of 1,813 ms for Classic and 1,999 ms for Vite; median DOMContentLoaded was 1,423 ms versus 553 ms and median load was 1,569 ms versus 776 ms. Median initial transfer was 35,394,467 B versus 31,447,320 B, a reduction of 3,947,147 B. All three runs passed the exact state and visual gates; the raw samples and resource lists are stored in `docs/perf/2026-07-14-browser-lane-comparison.json`.
 
 ## Final verification
 
@@ -56,19 +60,21 @@ Timing values remain same-machine observations rather than acceptance thresholds
 | --- | --- |
 | `npm run checkall` | PASS |
 | `npm run test:network:parity` | PASS — 34 suites, 522 tests |
-| Modernization-focused Jest bundle | PASS — 32 suites, 197 tests |
-| Font/background focused Jest bundle | PASS — 5 suites, 52 tests |
+| Modernization-focused Jest selection | PASS — 37 suites, 197 tests |
 | Classic and Vite UI-control smoke | PASS — six controls each, no page/console/resource errors |
-| Optional feature browser smoke | PASS — six isolated groups plus failure/retry |
+| Optional feature browser smoke | PASS — six isolated groups plus forced first-failure/distinct-request retry |
+| Asset delivery browser smoke | PASS — WOFF2 only, no registry, WebP-only success path, single-PNG fallback path |
 | ONNX/candidate Worker browser smoke | PASS — shared Worker, exact output, exact fallback |
 | Post-disable ONNX fallback component tests | PASS — terminal Worker client, executor detach, one-time main-thread ORT activation |
 | Classic and Vite CPU auto-response E2E | PASS |
 | Classic and Vite font subset/full fallback E2E | PASS |
-| Boot performance and no-write baseline capture | PASS |
-| Classic/Vite comparison | PASS |
+| Classic/Vite repeated cold comparison | PASS — three runs per lane, exact state digest, 0 differing pixels each run |
+| Cross-platform browser smoke | PASS — Chromium, Firefox, WebKit, Chromium Pixel 7/touch |
+| Production delivery smoke | PASS — CSP, MIME, cache headers, Dedicated Worker, ONNX model and WASM |
+| Mobile quick-control touch | PASS — target center unobscured and real touchscreen tap accepted |
 | `npm run test:visual` | PASS — 0 differing pixels |
 | Asset deterministic check | PASS — 12 font pairs and 13 backgrounds |
-| Worker mirror | PASS — 878 files |
+| Worker mirror | PASS — 881 files |
 
 ## Retry notes
 
@@ -78,6 +84,11 @@ Timing values remain same-machine observations rather than acceptance thresholds
 - The first CPU auto-response two-lane attempts treated hidden settings `<option>` elements as visible controls. The fixture now sets the hidden configuration through its DOM event contract; both lanes pass.
 - A temporary per-turn Worker-request assertion was removed because Worker scoring eligibility intentionally depends on the resulting policy path and filtered candidate count. Worker transport and actual CPU move-phase injection remain covered by the dedicated browser smoke and focused move-phase tests.
 - Earlier focused retries corrected a stale public-API expected list and a smoke fixture missing the new CPU-scoring injection capability; no production behavior was weakened to make a test pass.
+- The first default-Vite boot exposed two stale compatibility lookups (`CardExpansion` and a timer module); the source lookups were corrected and the standalone build, both UI-control lanes, and all browser smokes then passed.
+- The first production-delivery probe classified a document fallback as a valid module response. The probe now validates content type and response body; CSP/MIME/cache/Worker/WASM delivery passes without fallback responses.
+- The first Pixel 7 touch run found the quick-control tray overlapping its target. Increasing the mobile clearance and using an actual touchscreen tap removed the overlap and passed the geometry assertion.
+- A final Vite build launched concurrently with an asset scan saw a transient generated-module scan race. The isolated build and both later deterministic builds (`worker:prepare` and `checkall`) passed.
+- The aggregate `npm run test:jest` command remained CPU-active beyond 20 minutes in this environment and was stopped without a reported assertion failure. The task-owned focused selection (197 tests), complete network parity suite (522 tests), dependency-boundary test in `checkall`, and browser/visual gates all completed successfully.
 
 ## Commit sequence
 
@@ -90,10 +101,12 @@ Timing values remain same-machine observations rather than acceptance thresholds
 - `527d61b69`, `73a43f9dd` — ONNX Worker and hardened fallback/cancellation
 - `f70c85f8d` — candidate scoring in the shared Worker
 - `f0ab11733` — subset fonts and additional safe background WebP
+- Final residual fixes, registry-free default cutover, delivery evidence, and mirror sync — this document's enclosing commit
 
 ## Residual compatibility posture
 
-- Classic remains the default rollback lane.
+- Vite is the default delivery lane. Classic remains available at `index.classic.html` for explicit rollback and is verified by the same UI-control smoke.
 - The exact local scorer remains available whenever Dedicated Worker creation is unavailable. If main-thread ORT/WASM is permitted, ONNX uses the in-thread path; if the page policy blocks that runtime too, the existing CPU policy/table/heuristic fallback remains.
 - Full WOFF2 and original PNG assets remain available as runtime fallback.
 - CPU authority, move application, network publication, presentation ordering, and replay state remain outside the Worker.
+- The primary Vite startup chunk is 3,502.02 kB (876.30 kB gzip), so the build retains Vite's over-500-kB advisory. Six optional groups are already split; further startup splitting can be measured as a later optimization without changing this completed compatibility cutover.

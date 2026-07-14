@@ -1,8 +1,14 @@
-import { createStartBrowserApp } from './classic-compat-loader';
+import { createStartViteBrowserApp, installVitePreloadErrorHandler } from './native-app-loader';
+import { OPTIONAL_PAYLOAD_URLS } from './generated/optional-payload-urls';
+import { FEATURE_IMPORTS } from './optional-feature-adapters';
 import { installOptionalFeatureLoader } from './optional-feature-loader';
+import { installOptionalPayloadLoader } from './optional-payload-loader';
 import { installCpuWorkerBridge } from './cpu-worker/bridge';
 
-const startBrowserApp = createStartBrowserApp({
+installVitePreloadErrorHandler();
+installOptionalPayloadLoader({ payloadUrls: OPTIONAL_PAYLOAD_URLS });
+
+const startBrowserApp = createStartViteBrowserApp({
   beforeInitialize: (root, documentRef) => {
     const cpuWorkerBridge = installCpuWorkerBridge(root, documentRef);
     let candidateScoringInjected = false;
@@ -20,7 +26,7 @@ const startBrowserApp = createStartBrowserApp({
       root.__CARD_REVERSI_BROWSER_CAPABILITIES__ || {},
       { cpuCandidateScoringInjected: candidateScoringInjected }
     ));
-    installOptionalFeatureLoader({ root, document: documentRef });
+    installOptionalFeatureLoader({ root, document: documentRef, featureImports: FEATURE_IMPORTS });
   }
 });
 const bootPromise = startBrowserApp();

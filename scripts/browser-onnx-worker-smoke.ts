@@ -61,7 +61,7 @@ async function openLane(browser: Browser, baseUrl: string, lane: 'classic' | 'vi
   page.on('response', (response) => {
     if (!response.ok()) resourceErrors.push(`${response.status()} ${response.url()}`);
   });
-  const entry = lane === 'vite' ? 'vite-dist/index.vite.html' : 'index.html';
+  const entry = lane === 'vite' ? '' : 'index.classic.html';
   await page.goto(`${baseUrl}/${entry}?debug=1&othelloOnnx=0`, {
     waitUntil: 'domcontentloaded',
     timeout: 30000

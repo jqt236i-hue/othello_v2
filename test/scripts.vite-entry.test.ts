@@ -25,7 +25,7 @@ describe('Vite comparison entry generator', () => {
     expect(rendered.content).not.toContain('<link rel="stylesheet" href="styles.css">');
     expect(rendered.styleSources).toEqual(['styles.css']);
     expect(rendered.content).not.toContain('<script src="public/runtime.js');
-    expect(rendered.content).toContain('content="public/runtime.js?v=1"');
+    expect(rendered.content).not.toContain('card-reversi-classic-runtime');
   });
 
   test('writes a deterministic index.vite.html and detects no second change', () => {
@@ -35,7 +35,10 @@ describe('Vite comparison entry generator', () => {
       const first = generateViteEntry({ rootDir });
       const second = generateViteEntry({ rootDir });
       expect(first.wroteFile).toBe(true);
+      expect(first.wroteClassicFile).toBe(true);
       expect(second.wroteFile).toBe(false);
+      expect(second.wroteClassicFile).toBe(false);
+      expect(fs.readFileSync(path.join(rootDir, 'index.classic.html'), 'utf8')).toContain('public/module-registry.js?v=2');
       expect(fs.readFileSync(first.outputPath, 'utf8')).toBe(first.content);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });

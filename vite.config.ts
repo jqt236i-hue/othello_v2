@@ -20,6 +20,15 @@ export default defineConfig(({ command }) => ({
         .replace('<base href="./">', '<base href="../">')
         .replace(/(["'])\.\/assets\//g, '$1./vite-dist/assets/');
       fs.writeFileSync(documentPath, source, 'utf8');
+      fs.writeFileSync(path.resolve(__dirname, 'index.html'), source, 'utf8');
+
+      // The staged CommonJS inputs are only needed while Rolldown resolves the
+      // generated startup entry. Removing them keeps later classic builds
+      // deterministic and avoids shipping build-only source copies.
+      fs.rmSync(path.resolve(__dirname, 'dist', 'browser-vite-bridge-src'), {
+        recursive: true,
+        force: true
+      });
     }
   }],
   define: {

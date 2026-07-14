@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as http from 'http';
 import * as path from 'path';
-import { chromium, type Browser } from 'playwright';
+import { chromium, type Browser, type BrowserContextOptions } from 'playwright';
 import { REQUIRED_ELEMENT_IDS, REQUIRED_GLOBAL_TYPES } from '../browser-vite/runtime-contract';
 
 const OPTIONAL_REGISTRY_NAME = 'module-registry.optional';
@@ -25,6 +25,7 @@ interface UiControlProbe {
   beforeState?: string | null;
   afterState?: string | null;
   error?: string;
+  hitTest?: Record<string, unknown>;
 }
 
 interface UiControlSmokeSample {
@@ -48,6 +49,8 @@ interface BrowserUiControlSmokeOptions {
   log?: boolean;
   entryPath?: string;
   captureComparison?: boolean;
+  pageOptions?: BrowserContextOptions;
+  interactionMode?: 'mouse' | 'touch';
 }
 
 interface BrowserLaneComparisonSnapshot {
@@ -58,8 +61,10 @@ interface BrowserLaneComparisonSnapshot {
   bootState: string;
   viteRuntime: {
     state: string;
-    loadedScripts: string[];
+    moduleDelivery: string;
+    loadedModules: string[];
     esmEntry: boolean;
+    customModuleRegistry: boolean;
   } | null;
   globals: Record<string, string>;
   missingElements: string[];
@@ -397,11 +402,53 @@ async function closeControlPanel(page: any, target: UiControlSmokeTarget): Promi
   }
 }
 
-async function probeControl(page: any, target: UiControlSmokeTarget): Promise<UiControlProbe> {
+async function tapControlAtVisiblePoint(page: any, selector: string): Promise<void> {
+  await page.evaluate((targetSelector: string) => {
+    const target = document.querySelector(targetSelector) as HTMLElement | null;
+    const rail = target?.closest('#leftActionButtons') as HTMLElement | null;
+    if (!target || !rail) return;
+    const targetRect = target.getBoundingClientRect();
+    const railRect = rail.getBoundingClientRect();
+    if (targetRect.left < railRect.left || targetRect.right > railRect.right) {
+      const targetCenter = targetRect.left + targetRect.width / 2;
+      const railCenter = railRect.left + railRect.width / 2;
+      rail.scrollLeft += targetCenter - railCenter;
+    }
+  }, selector);
+  await page.waitForTimeout(50);
+  const hitTest = await page.evaluate((targetSelector: string) => {
+    const target = document.querySelector(targetSelector) as HTMLElement | null;
+    if (!target) return { ok: false, reason: 'target missing', x: 0, y: 0 };
+    const rect = target.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    return {
+      ok: !!hit && (hit === target || target.contains(hit)),
+      reason: hit
+        ? `blocked by ${(hit as HTMLElement).id || hit.tagName.toLowerCase()}`
+        : 'no element at target point',
+      x,
+      y
+    };
+  }, selector);
+  if (!hitTest.ok) throw new Error(`touch hit test failed for ${selector}: ${hitTest.reason}`);
+  await page.touchscreen.tap(hitTest.x, hitTest.y);
+}
+
+async function probeControl(
+  page: any,
+  target: UiControlSmokeTarget,
+  interactionMode: 'mouse' | 'touch' = 'mouse'
+): Promise<UiControlProbe> {
   const probe = await readControlState(page, target);
   if (!probe.present || !probe.visible || !probe.enabled) return probe;
   try {
-    await page.click(target.selector, { timeout: 10000 });
+    if (interactionMode === 'touch') {
+      await tapControlAtVisiblePoint(page, target.selector);
+    } else {
+      await page.click(target.selector, { timeout: 10000 });
+    }
     probe.clicked = true;
     const opened = target.panelSelector
       ? await waitForPanelOpen(page, target.panelSelector)
@@ -413,6 +460,46 @@ async function probeControl(page: any, target: UiControlSmokeTarget): Promise<Ui
     await closeControlPanel(page, target);
   } catch (error) {
     probe.error = error instanceof Error ? error.message : String(error);
+    probe.hitTest = await page.evaluate((selector: string) => {
+      const target = document.querySelector(selector) as HTMLElement | null;
+      const rail = document.getElementById('leftActionButtons');
+      const quick = document.getElementById('quick-controls-bar');
+      const serializeRect = (element: Element | null) => {
+        if (!element) return null;
+        const rect = element.getBoundingClientRect();
+        return {
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height
+        };
+      };
+      const targetRect = target?.getBoundingClientRect() || null;
+      const point = targetRect
+        ? { x: targetRect.left + targetRect.width / 2, y: targetRect.top + targetRect.height / 2 }
+        : null;
+      return {
+        targetRect: serializeRect(target),
+        railRect: serializeRect(rail),
+        quickRect: serializeRect(quick),
+        point,
+        elementsAtPoint: point
+          ? document.elementsFromPoint(point.x, point.y).slice(0, 6).map((element) => ({
+            tag: element.tagName.toLowerCase(),
+            id: (element as HTMLElement).id || '',
+            className: typeof (element as HTMLElement).className === 'string'
+              ? (element as HTMLElement).className
+              : ''
+          }))
+          : [],
+        railScrollLeft: rail?.scrollLeft ?? null,
+        railScrollWidth: rail?.scrollWidth ?? null,
+        railClientWidth: rail?.clientWidth ?? null,
+        viewport: { width: window.innerWidth, height: window.innerHeight }
+      };
+    }, target.selector);
   }
   return probe;
 }
@@ -432,10 +519,12 @@ async function captureStartupComparisonSnapshot(page: any, readyMs: number): Pro
       bootState: String(document.documentElement.getAttribute('data-browser-boot-state') || ''),
       viteRuntime: root.__CARD_REVERSI_BROWSER_METRICS__ ? {
         state: String(root.__CARD_REVERSI_BROWSER_METRICS__.state || ''),
-        loadedScripts: Array.isArray(root.__CARD_REVERSI_BROWSER_METRICS__.loadedScripts)
-          ? root.__CARD_REVERSI_BROWSER_METRICS__.loadedScripts.slice()
+        moduleDelivery: String(root.__CARD_REVERSI_BROWSER_METRICS__.moduleDelivery || ''),
+        loadedModules: Array.isArray(root.__CARD_REVERSI_BROWSER_METRICS__.loadedModules)
+          ? root.__CARD_REVERSI_BROWSER_METRICS__.loadedModules.slice()
           : [],
-        esmEntry: root.__CARD_REVERSI_BROWSER_CAPABILITIES__?.esmEntry === true
+        esmEntry: root.__CARD_REVERSI_BROWSER_CAPABILITIES__?.esmEntry === true,
+        customModuleRegistry: root.__CARD_REVERSI_BROWSER_CAPABILITIES__?.customModuleRegistry === true
       } : null,
       globals,
       missingElements: elementIds.filter((id: string) => !document.getElementById(id)),
@@ -552,7 +641,10 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
     const resourceErrors: string[] = [];
     const launch = typeof opts.launch === 'function' ? opts.launch : chromium.launch.bind(chromium);
     browser = await launch({ headless: true });
-    const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
+    const page = await browser.newPage(Object.assign(
+      { viewport: { width: 1366, height: 900 } },
+      opts.pageOptions || {}
+    ));
 
     page.on('request', (request: any) => {
       requestedUrls.push(request.url());
@@ -574,11 +666,31 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
     const startedAt = Date.now();
     await page.goto(`${baseUrl}${entryPath}${separator}debug=1`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await closeMaintenanceNoticeIfPresent(page);
-    await page.waitForFunction(() => document.readyState !== 'loading', null, { timeout: 10000 });
-    for (const target of REQUIRED_UI_CONTROL_SMOKE_TARGETS) {
-      await page.waitForSelector(target.selector, { state: 'attached', timeout: 30000 });
+    try {
+      await page.waitForFunction(() => document.readyState !== 'loading', null, { timeout: 10000 });
+      for (const target of REQUIRED_UI_CONTROL_SMOKE_TARGETS) {
+        await page.waitForSelector(target.selector, { state: 'attached', timeout: 30000 });
+      }
+      await page.waitForFunction(() => (window as any).__uiInitialized === true, null, { timeout: 30000 });
+    } catch (error) {
+      const diagnostics = await page.evaluate((selectors: string[]) => {
+        const root = window as any;
+        return {
+          documentReadyState: document.readyState,
+          bootState: document.documentElement.getAttribute('data-browser-boot-state'),
+          lane: document.documentElement.getAttribute('data-browser-lane'),
+          uiInitialized: root.__uiInitialized === true,
+          metrics: root.__CARD_REVERSI_BROWSER_METRICS__ || null,
+          bootError: document.getElementById('browserViteBootError')?.textContent || '',
+          missingSelectors: selectors.filter((selector) => !document.querySelector(selector))
+        };
+      }, REQUIRED_UI_CONTROL_SMOKE_TARGETS.map((target) => target.selector));
+      throw new Error(
+        `browser did not reach the first actionable state: ${JSON.stringify(diagnostics)}; `
+        + `pageErrors=${JSON.stringify(pageErrors)}; consoleErrors=${JSON.stringify(consoleErrors)}; `
+        + `resourceErrors=${JSON.stringify(resourceErrors)}; ${error instanceof Error ? error.message : error}`
+      );
     }
-    await page.waitForFunction(() => (window as any).__uiInitialized === true, null, { timeout: 30000 });
     const readyMs = Date.now() - startedAt;
 
     await page.waitForTimeout(500);
@@ -590,7 +702,7 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
     const controls: Record<string, UiControlProbe> = {};
     let fixtureCapture: Awaited<ReturnType<typeof captureComparisonFixture>> | null = null;
     for (const target of REQUIRED_UI_CONTROL_SMOKE_TARGETS) {
-      controls[target.name] = await probeControl(page, target);
+      controls[target.name] = await probeControl(page, target, opts.interactionMode);
       if (target.name === 'debug') {
         await closeSidePanelIfOpen(page);
         if (opts.captureComparison) fixtureCapture = await captureComparisonFixture(page);
@@ -645,7 +757,7 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
 }
 
 if (require.main === module) {
-  const entryPath = process.argv.includes('--vite') ? '/vite-dist/index.vite.html' : '/';
+  const entryPath = process.argv.includes('--classic') ? '/index.classic.html' : '/';
   runBrowserUiControlSmoke({ entryPath }).then((result) => {
     if (!result.evaluation.ok) {
       console.error(`[browser-ui-control-smoke] failed: ${result.evaluation.errors.join('; ')}`);

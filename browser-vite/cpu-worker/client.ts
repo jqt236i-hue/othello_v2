@@ -484,6 +484,7 @@ export interface OnnxWorkerInferenceExecutorOptions {
   createTimeoutMs?: number;
   runTimeoutMs?: number;
   allowedExecutionProviders?: Array<'webgpu' | 'wasm'>;
+  onFailure?: (error: unknown, operation: 'create' | 'run') => void;
 }
 
 interface OnnxSessionRecipe {
@@ -517,6 +518,7 @@ export class OnnxWorkerInferenceExecutor {
   private readonly createTimeoutMs: number;
   private readonly runTimeoutMs: number;
   private readonly allowedExecutionProviders: Array<'webgpu' | 'wasm'> | null;
+  private readonly onFailure: ((error: unknown, operation: 'create' | 'run') => void) | null;
   private readonly recipes = new Map<string, OnnxSessionRecipe>();
 
   constructor(options: OnnxWorkerInferenceExecutorOptions) {
@@ -534,6 +536,14 @@ export class OnnxWorkerInferenceExecutor {
       ))
       : [];
     this.allowedExecutionProviders = providers.length > 0 ? providers : null;
+    this.onFailure = typeof options.onFailure === 'function' ? options.onFailure : null;
+  }
+
+  private notifyFailure(error: unknown, operation: 'create' | 'run'): void {
+    if (!this.onFailure) return;
+    try {
+      this.onFailure(error, operation);
+    } catch (callbackError) { /* preserve the original inference failure */ }
   }
 
   private async createRemoteSession(recipe: OnnxSessionRecipe): Promise<OnnxCreateSessionResult> {
@@ -568,26 +578,31 @@ export class OnnxWorkerInferenceExecutor {
     metaUrl: string;
     executionProviders: string[];
   }): Promise<OnnxInferenceSessionDescriptor & { meta: Record<string, unknown> | null }> {
-    const recipe: OnnxSessionRecipe = {
-      sessionKey: String(options.sessionKey || '').trim(),
-      modelUrl: resolveAbsoluteHttpUrl(options.modelUrl, this.baseUrl, 'modelUrl'),
-      metaUrl: resolveAbsoluteHttpUrl(options.metaUrl, this.baseUrl, 'metaUrl'),
-      wasmPathsUrl: this.wasmPathsUrl,
-      executionProviders: this.allowedExecutionProviders
-        ? this.allowedExecutionProviders.slice()
-        : (Array.isArray(options.executionProviders) ? options.executionProviders.slice() : ['wasm']),
-      remoteGeneration: 0,
-      descriptor: null,
-      meta: null
-    };
-    const result = await this.createRemoteSession(recipe);
-    this.recipes.set(recipe.sessionKey, recipe);
-    return {
-      sessionKey: result.sessionKey,
-      inputNames: result.inputNames.slice(),
-      outputNames: result.outputNames.slice(),
-      meta: result.meta
-    };
+    try {
+      const recipe: OnnxSessionRecipe = {
+        sessionKey: String(options.sessionKey || '').trim(),
+        modelUrl: resolveAbsoluteHttpUrl(options.modelUrl, this.baseUrl, 'modelUrl'),
+        metaUrl: resolveAbsoluteHttpUrl(options.metaUrl, this.baseUrl, 'metaUrl'),
+        wasmPathsUrl: this.wasmPathsUrl,
+        executionProviders: this.allowedExecutionProviders
+          ? this.allowedExecutionProviders.slice()
+          : (Array.isArray(options.executionProviders) ? options.executionProviders.slice() : ['wasm']),
+        remoteGeneration: 0,
+        descriptor: null,
+        meta: null
+      };
+      const result = await this.createRemoteSession(recipe);
+      this.recipes.set(recipe.sessionKey, recipe);
+      return {
+        sessionKey: result.sessionKey,
+        inputNames: result.inputNames.slice(),
+        outputNames: result.outputNames.slice(),
+        meta: result.meta
+      };
+    } catch (error) {
+      this.notifyFailure(error, 'create');
+      throw error;
+    }
   }
 
   private async ensureRemoteSession(sessionKey: string): Promise<OnnxSessionRecipe> {
@@ -611,37 +626,42 @@ export class OnnxWorkerInferenceExecutor {
     turnNumber?: number | null;
     signal?: AbortSignal | null;
   }): Promise<Record<string, { type: string; data: unknown; dims: number[] }>> {
-    const sessionKey = String(options && options.session && options.session.sessionKey || '').trim();
-    const recipe = await this.ensureRemoteSession(sessionKey);
-    const copiedData = new Float32Array(options.data);
-    const result = await this.client.request(
-      CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION,
-      {
-        sessionKey: recipe.sessionKey,
-        input: {
-          name: options.inputName,
-          type: 'float32',
-          data: copiedData,
-          dims: options.dims.slice()
+    try {
+      const sessionKey = String(options && options.session && options.session.sessionKey || '').trim();
+      const recipe = await this.ensureRemoteSession(sessionKey);
+      const copiedData = new Float32Array(options.data);
+      const result = await this.client.request(
+        CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION,
+        {
+          sessionKey: recipe.sessionKey,
+          input: {
+            name: options.inputName,
+            type: 'float32',
+            data: copiedData,
+            dims: options.dims.slice()
+          }
+        },
+        {
+          decisionEpoch: options.decisionEpoch,
+          stateVersion: options.stateVersion,
+          turnNumber: options.turnNumber,
+          timeoutMs: this.runTimeoutMs,
+          signal: options.signal,
+          transfer: [copiedData.buffer]
         }
-      },
-      {
-        decisionEpoch: options.decisionEpoch,
-        stateVersion: options.stateVersion,
-        turnNumber: options.turnNumber,
-        timeoutMs: this.runTimeoutMs,
-        signal: options.signal,
-        transfer: [copiedData.buffer]
+      ) as OnnxRunSessionResult;
+      if (result.sessionKey !== recipe.sessionKey) {
+        throw new CpuWorkerProtocolError('Worker returned outputs for a different ONNX session');
       }
-    ) as OnnxRunSessionResult;
-    if (result.sessionKey !== recipe.sessionKey) {
-      throw new CpuWorkerProtocolError('Worker returned outputs for a different ONNX session');
+      const outputs: Record<string, { type: string; data: unknown; dims: number[] }> = {};
+      for (const tensor of result.outputs) {
+        outputs[tensor.name] = { type: tensor.type, data: tensor.data, dims: tensor.dims.slice() };
+      }
+      return outputs;
+    } catch (error) {
+      this.notifyFailure(error, 'run');
+      throw error;
     }
-    const outputs: Record<string, { type: string; data: unknown; dims: number[] }> = {};
-    for (const tensor of result.outputs) {
-      outputs[tensor.name] = { type: tensor.type, data: tensor.data, dims: tensor.dims.slice() };
-    }
-    return outputs;
   }
 
   async releaseSession(session: OnnxInferenceSessionDescriptor | null | undefined): Promise<boolean> {

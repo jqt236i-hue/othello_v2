@@ -4743,6 +4743,38 @@ body.time-stop-active {
     cursor: default;
 }
 
+#leftActionButtons .left-action-btn[data-lazy-load-state="loading"] {
+    cursor: progress;
+}
+
+#leftActionButtons .left-action-btn[data-lazy-load-state="loading"]::after {
+    content: "";
+    position: absolute;
+    right: 0.5rem;
+    width: 0.7rem;
+    height: 0.7rem;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: lazy-control-spin 0.75s linear infinite;
+}
+
+#leftActionButtons .left-action-btn[data-lazy-load-state="error"] {
+    outline: 2px solid rgba(255, 126, 126, 0.9);
+    outline-offset: 2px;
+}
+
+@keyframes lazy-control-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #leftActionButtons .left-action-btn[data-lazy-load-state="loading"]::after {
+        animation: none;
+        border-right-color: currentColor;
+    }
+}
+
 /* Premium left command rail */
 #leftActionButtons {
     --left-rail-accent: #53d6d1;

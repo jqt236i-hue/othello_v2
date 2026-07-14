@@ -73,7 +73,7 @@ function getTurnTransitionGapMs() {
 
 // Timers abstraction injection - use game/timers when available instead of direct timers
 let timers: any = null;
-try { timers = _require('../timers'); } catch (e) { /* ignore */ }
+try { timers = _require('./timers'); } catch (e) { /* ignore */ }
 const _waitMs = (ms: any) => (timers && typeof timers.waitMs === 'function') ? timers.waitMs(ms) : Promise.resolve();
 
 async function animateFlipsWithDeferredColor(flips: any, fromColor: any, toColor: any) {

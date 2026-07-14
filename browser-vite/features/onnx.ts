@@ -31,7 +31,7 @@ async function installWorkerExecutor(context: OptionalFeatureContext): Promise<b
     wasmPathsUrl: new URL('node_modules/onnxruntime-web/dist/', context.document.baseURI).href,
     createTimeoutMs: 45000,
     runTimeoutMs: 5000,
-    allowedExecutionProviders: ['wasm']
+    onFailure: () => disableCpuWorkerBridge(rootRef, bridge)
   });
   for (const moduleKey of ONNX_RUNTIME_MODULE_KEYS) {
     const runtime = rootRef.require(moduleKey);

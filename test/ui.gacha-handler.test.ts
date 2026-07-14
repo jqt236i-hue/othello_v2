@@ -245,11 +245,76 @@ describe('gacha handler', () => {
     expect(createGachaOverlayController).not.toHaveBeenCalled();
 
     document.getElementById('gachaOpenBtn').click();
+    expect(document.getElementById('gachaOpenBtn').getAttribute('aria-busy')).toBe('true');
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(loadLazyRuntimeGroup).toHaveBeenCalledTimes(1);
     expect(createGachaOverlayController).toHaveBeenCalledTimes(1);
     expect(controller.initialize).toHaveBeenCalledTimes(1);
     expect(controller.openOverlay).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('gachaOpenBtn').getAttribute('aria-busy')).toBeNull();
+    expect(document.getElementById('gachaOpenBtn').getAttribute('data-lazy-load-state')).toBe('loaded');
+  });
+
+  test('marks a failed lazy gacha load as retryable and succeeds on the next click', async () => {
+    jest.resetModules();
+    setDom();
+    jest.doMock('../ui/gacha/gacha-transaction', () => {
+      throw new Error('optional gacha registry not loaded');
+    });
+    jest.doMock('../ui/gacha/gacha-overlay-view', () => {
+      throw new Error('optional gacha registry not loaded');
+    });
+    jest.doMock('../ui/gacha/gacha-overlay-controller', () => {
+      throw new Error('optional gacha registry not loaded');
+    });
+    let attempt = 0;
+    const controller = {
+      initialize: jest.fn(),
+      isOpen: jest.fn(() => false),
+      openOverlay: jest.fn(),
+      closeOverlay: jest.fn(),
+      toggleDetails: jest.fn(),
+      refresh: jest.fn(),
+      getCatalogItems: jest.fn(() => []),
+      isAnimating: jest.fn(() => false),
+      performPull: jest.fn(),
+      handleOverlayBackgroundClick: jest.fn(),
+      handleEscape: jest.fn(() => false)
+    };
+    const loadLazyRuntimeGroup = jest.fn(async () => {
+      attempt += 1;
+      if (attempt === 1) throw new Error('network failed');
+      global.GachaTransactionModule = { getCatalogItems: () => [], commitPullTransaction: jest.fn() };
+      global.GachaOverlayViewModule = { createGachaOverlayView: jest.fn(() => ({
+        refs: {
+          openBtn: document.getElementById('gachaOpenBtn'),
+          overlay: document.getElementById('gachaOverlay'),
+          modal: document.getElementById('gachaModal'),
+          closeBtn: document.getElementById('gachaCloseBtn'),
+          detailToggleBtn: null,
+          singlePullBtn: document.getElementById('gachaSinglePullBtn'),
+          tenPullBtn: document.getElementById('gachaTenPullBtn')
+        }
+      })) };
+      global.GachaOverlayControllerModule = {
+        createGachaOverlayController: jest.fn(() => controller)
+      };
+      return true;
+    });
+    const mod = require('../ui/handlers/gacha.js');
+    mod.setupGachaControls({ root: window, loadLazyRuntimeGroup });
+    const button = document.getElementById('gachaOpenBtn');
+
+    button.click();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(button.getAttribute('aria-busy')).toBeNull();
+    expect(button.getAttribute('data-lazy-load-state')).toBe('error');
+    expect(button.getAttribute('aria-label')).toContain('再試行');
+
+    button.click();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(loadLazyRuntimeGroup).toHaveBeenCalledTimes(2);
+    expect(button.getAttribute('data-lazy-load-state')).toBe('loaded');
   });
 });

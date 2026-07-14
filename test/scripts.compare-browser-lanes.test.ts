@@ -4,6 +4,7 @@ const PNG = require('pngjs').PNG;
 const {
   comparePngBuffers,
   evaluateReport,
+  median,
   normalizeRequestedPaths
 } = require('../scripts/compare-browser-lanes');
 
@@ -25,8 +26,10 @@ function lane(name: 'classic' | 'vite'): any {
     bootState: name === 'vite' ? 'ready' : '',
     viteRuntime: name === 'vite' ? {
       state: 'ready',
-      loadedScripts: ['runtime', 'registry', 'layout', 'entry'],
-      esmEntry: true
+      moduleDelivery: 'vite-bundled',
+      loadedModules: ['startup', 'layout', 'entry'],
+      esmEntry: true,
+      customModuleRegistry: false
     } : null,
     globals: { ...REQUIRED_GLOBAL_TYPES },
     missingElements: [],
@@ -34,6 +37,8 @@ function lane(name: 'classic' | 'vite'): any {
     fixtureDigest: 'fixture-digest',
     boardSize: { width: 368, height: 368 },
     optionalRegistryAtStartup: false,
+    moduleRegistryAtStartup: name === 'classic',
+    optionalPayloadAtStartup: false,
     onnxRuntimeAtStartup: false,
     pageErrors: [],
     consoleErrors: [],
@@ -45,6 +50,11 @@ function lane(name: 'classic' | 'vite'): any {
 }
 
 describe('classic/Vite browser lane comparison', () => {
+  test('uses a stable median for repeated cold-run evidence', () => {
+    expect(median([910, 730, 810])).toBe(810);
+    expect(median([900, 700, 800, 600])).toBe(750);
+  });
+
   test('normalizes request URLs without their ephemeral origin', () => {
     expect(normalizeRequestedPaths([
       'http://127.0.0.1:50001/entry-browser.js?v=1',

@@ -5,6 +5,7 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+const LazyControlStatus = require('./lazy-control-status');
 
 function resolveDocument(rootRef: any): Document | null {
   if (rootRef && rootRef.document) return rootRef.document;
@@ -110,10 +111,12 @@ function createLazyGachaControls(options: any, rootRef: any, docRef: Document, l
 
   let delegate: any = null;
   let loading: Promise<any> | null = null;
+  const loadStatus = LazyControlStatus.createLazyControlStatus(openBtn, '観測ガチャ');
 
   const ensureDelegate = (): Promise<any> => {
     if (delegate) return Promise.resolve(delegate);
     if (!loading) {
+      loadStatus.begin();
       loading = Promise.resolve(loadLazyRuntimeGroup('gacha')).then(() => {
         delegate = setupGachaControls(Object.assign({}, options, {
           root: rootRef,
@@ -123,7 +126,11 @@ function createLazyGachaControls(options: any, rootRef: any, docRef: Document, l
         if (!delegate) {
           throw new Error('gacha modules are unavailable after lazy runtime load');
         }
+        loadStatus.succeed();
         return delegate;
+      }).catch((error) => {
+        loadStatus.fail();
+        throw error;
       }).finally(() => {
         if (!delegate) loading = null;
       });

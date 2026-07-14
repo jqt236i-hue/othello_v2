@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Reversi</title>
+    <link rel="icon" type="image/png" href="assets/images/stone-skin/default/black.png">
+    <script>
+        (() => {
+            try {
+                const params = new URLSearchParams((typeof location !== 'undefined' && location.search) ? location.search : '');
+                const raw = (params.get('simAspect') || params.get('sim-aspect') || '').trim().toLowerCase();
+                const normalized = raw.replace(/\s+/g, '');
+                const root = document.documentElement;
+                if (!root || !normalized) return;
+                if (normalized === '16:10' || normalized === '16x10' || normalized === '1610') {
+                    root.classList.add('sim-aspect-16-10');
+                    root.setAttribute('data-sim-aspect', '16:10');
+                } else if (normalized === '3:2' || normalized === '3x2' || normalized === '32') {
+                    root.classList.add('sim-aspect-3-2');
+                    root.setAttribute('data-sim-aspect', '3:2');
+                } else if (normalized === '4:3' || normalized === '4x3' || normalized === '43') {
+                    root.classList.add('sim-aspect-4-3');
+                    root.setAttribute('data-sim-aspect', '4:3');
+                } else if (normalized === '5:4' || normalized === '5x4' || normalized === '54') {
+                    root.classList.add('sim-aspect-5-4');
+                    root.setAttribute('data-sim-aspect', '5:4');
+                }
+            } catch {
+                // ignore malformed query
+            }
+        })();
+    </script>
+    <!-- CSS Split Modules -->
+    <link rel="stylesheet" href="styles-variables.css?v=237083400848434">
+    <link rel="stylesheet" href="styles-base.css?v=239652248002073">
+    <link rel="stylesheet" href="styles-layout.css?v=67414573298310">
+    <link rel="stylesheet" href="styles-charge-hud.css?v=33539802130051">
+    <link rel="stylesheet" href="styles-layout-controls.css?v=205751993397673">
+    <link rel="stylesheet" href="styles-layout-info.css?v=64282339578587">
+    <link rel="stylesheet" href="styles-layout-result.css?v=128754261725352">
+    <link rel="stylesheet" href="styles-layout-characters.css?v=2666866856487">
+    <link rel="stylesheet" href="styles-board.css?v=78940351752250">
+    <link rel="stylesheet" href="styles-cards.css?v=168389985043575">
+    <link rel="stylesheet" href="styles-animations.css?v=228086861389605">
+    <link rel="stylesheet" href="styles-responsive.css?v=206849807048678">
+    <link rel="stylesheet" href="styles-stone-shadows.css?v=206393956137437">
+    <link rel="stylesheet" href="styles-profile.css?v=218601426601992">
+</head>
+
+<body>
+    <!-- Top-Left Info Panel -->
+    <div id="info-panel">
+        <h1 class="brand-wordmark" aria-label="Card Reversi">
+            <span class="brand-wordmark-main">Card Reversi</span>
+        </h1>
+    </div>
+
+    <div id="round-display-panel" aria-live="polite" aria-atomic="true"></div>
+
+    <div id="left-info-stack">
+        <div id="effect-live-panel" class="battle-status-panel" data-battle-status-panel="1" role="status" aria-label="戦況" aria-live="polite" aria-atomic="false">
+            <div class="battle-status-topline">
+                <div class="battle-status-round">ROUND 1</div>
+                <div class="battle-status-network-timer" hidden></div>
+            </div>
+            <div class="battle-status-score" aria-label="石数">
+                <span class="battle-status-count battle-status-count--black" aria-label="黒石 2"><span class="battle-status-stone battle-status-stone--black" aria-hidden="true"></span><span class="battle-status-count-value">2</span></span>
+                <span class="battle-status-score-separator">/</span>
+                <span class="battle-status-count battle-status-count--white" aria-label="白石 2"><span class="battle-status-stone battle-status-stone--white" aria-hidden="true"></span><span class="battle-status-count-value">2</span></span>
+            </div>
+            <div class="battle-status-turn">あなたのターン</div>
+            <div class="battle-status-latest">直近 -</div>
+        </div>
+
+        <div id="manifest-effect-panel" aria-live="polite" aria-atomic="true" aria-hidden="true">
+            <div id="manifest-effect-title"></div>
+            <div id="manifest-effect-lines"></div>
+        </div>
+
+        <div id="stone-info-panel" class="stone-info-panel" aria-live="polite" aria-atomic="true" aria-hidden="true">
+            <div id="stone-info-name" class="stone-info-name"></div>
+            <div id="stone-info-desc" class="stone-info-desc"></div>
+            <div id="stone-info-meta" class="stone-info-meta"></div>
+        </div>
+    </div>
+
+    <div id="rules-help-backdrop" aria-hidden="true"></div>
+    <div id="rules-help-panel" aria-hidden="true" role="dialog" aria-modal="false" aria-label="help">
+        <div id="rules-help-title-row">
+            <div id="rules-help-title">help</div>
+            <button id="rules-help-close-btn" type="button" aria-label="helpを閉じる">×</button>
+        </div>
+        <div id="rules-help-tabs" role="tablist" aria-label="help tabs">
+            <button id="rules-help-tab-catalog" class="rules-help-tab is-active" type="button" role="tab"
+                aria-selected="true" aria-controls="rules-help-page-catalog" data-help-tab="catalog">カード図鑑</button>
+            <button id="rules-help-tab-effects" class="rules-help-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="rules-help-page-effects" data-help-tab="effects">効果一覧</button>
+            <button id="rules-help-tab-guide" class="rules-help-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="rules-help-page-guide" data-help-tab="guide">ルールと操作</button>
+            <button id="rules-help-tab-protection-map" class="rules-help-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="rules-help-page-protection-map" data-help-tab="protection-map">耐性貫通表</button>
+            <button id="rules-help-tab-counters" class="rules-help-tab" type="button" role="tab"
+                aria-selected="false" aria-controls="rules-help-page-counters" data-help-tab="counters">石マーカー</button>
+        </div>
+        <div id="rules-help-pages">
+            <section id="rules-help-page-catalog" class="rules-help-page is-active" data-help-page="catalog"
+                aria-hidden="false">
+                <div id="rules-help-catalog-controls" aria-label="カード図鑑の絞り込み">
+                    <label id="rules-help-card-search-label" for="rules-help-card-search">検索</label>
+                    <div id="rules-help-card-search-row">
+                        <input id="rules-help-card-search" type="search" placeholder="カード名・効果・タグ" autocomplete="off"
+                            spellcheck="false" aria-labelledby="rules-help-card-search-label"
+                            aria-controls="rules-help-card-list" />
+                        <button id="rules-help-card-filter-clear" type="button" aria-disabled="true" disabled>クリア</button>
+                    </div>
+                    <div id="rules-help-card-tag-filters" role="group" aria-label="効果タグで絞り込み"></div>
+                    <div id="rules-help-card-filter-status" role="status" aria-live="polite" aria-atomic="true">0 / 0枚</div>
+                </div>
+                <div id="rules-help-catalog-layout">
+                    <div id="rules-help-card-list" role="listbox" aria-label="カード一覧"></div>
+                    <div id="rules-help-card-detail">
+                        <div id="rules-help-card-name">カードを選択してください</div>
+                        <div id="rules-help-card-desc">左の一覧からカードを押すと、効果を表示します。</div>
+                    </div>
+                </div>
+            </section>
+            <section id="rules-help-page-effects" class="rules-help-page" data-help-page="effects" aria-hidden="true">
+                <dl id="rules-help-effects-list">
+                    <div class="rules-help-effect-item">
+                        <dt>多動状態</dt>
+                        <dd>両者ターン開始時マス移動する、基本ランダム移動。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>反転回避</dt>
+                        <dd>反転されるとき、元位置から最も近い空きマスに移動して避ける。隣接に空きがない場合、次に近い空きマスに移動し回避する。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>破壊回避</dt>
+                        <dd>破壊されるとき、元位置から最も近い空きマスに移動して避ける。隣接に空きがない場合、次に近い空きマスに移動し回避する。空きマスがなければ回避できない。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>特殊石</dt>
+                        <dd>通常石ではなく、盤面に残って次ターン以降も能力主体として生きる石。罠石・時限爆弾は含み、顕現石・石状態・盤面マーカー・配置時効果は含まない。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>穴マス</dt>
+                        <dd>マスを永続の穴にする。穴マスには誰も置けず、移動先にもならず、反転経路も遮断する。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>抹消</dt>
+                        <dd>そのマスの石を取り除きます。完全保護や反転保護でも防げません。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>絶対執行</dt>
+                        <dd>盤界の執行者専用の抹消。全ての保護を貫通して特殊石を穴マスにする。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>反転保護</dt>
+                        <dd>反転されない。挟める列ごと無効できる。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>完全保護</dt>
+                        <dd>石に対する敵対的・強制的な効果を無効化。自分への強化・維持効果は受けられ、マス破壊は貫通する。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>不可侵</dt>
+                        <dd>顕現石や特殊カードを、通常のカード効果や手札効果の対象から外す特殊カード固有の保護。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>マス破壊</dt>
+                        <dd>マスごと穴にして永続封鎖。誰も置けず、反転経路も遮断する。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>破壊／爆発</dt>
+                        <dd>石を破壊して盤面から消す効果。反転保護では防げないが、完全保護・不可侵には効かない。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>連鎖反転</dt>
+                        <dd>通常反転の後さらに挟める列ができた場合追加で一方向だけ反転させる。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>禁忌反転</dt>
+                        <dd>挟めなくても反転可能。実際に反転する枚数が最大の列1方向のみ選ぶ。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>封鎖</dt>
+                        <dd>一時的にそのマスを塞ぐ。両者とも置けず、移動でも入れない。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>凍結</dt>
+                        <dd>そのマスと上の石の反転・破壊・持続減少を止める。</dd>
+                    </div>
+                    <div class="rules-help-effect-item">
+                        <dt>時間停止</dt>
+                        <dd>発動したプレイヤーが2ターン連続で行動する。</dd>
+                    </div>
+                </dl>
+            </section>
+            <section id="rules-help-page-guide" class="rules-help-page" data-help-page="guide" aria-hidden="true">
+                <div id="rules-help-guide-layout">
+                    <div id="rules-help-guide-slide-frame" role="group" aria-label="カードリバーシ説明スライド">
+                        <img
+                            id="rules-help-guide-slide-img"
+                            src="assets/images/help/player-guide/card-reversi-player-guide-slide-01.png"
+                            alt="カードリバーシ説明スライド 1 / 8"
+                            draggable="false"
+                            decoding="async">
+                    </div>
+                    <div id="rules-help-guide-controls" aria-label="説明スライドのページ操作">
+                        <button id="rules-help-guide-prev" class="btn-small" type="button">前へ</button>
+                        <div id="rules-help-guide-page-status" aria-live="polite" aria-atomic="true">1 / 8</div>
+                        <button id="rules-help-guide-next" class="btn-small" type="button">次へ</button>
+                    </div>
+                </div>
+            </section>
+            <section id="rules-help-page-protection-map" class="rules-help-page" data-help-page="protection-map"
+                aria-hidden="true">
+                <div id="rules-help-protection-map-layout">
+                    <div id="rules-help-protection-map-controls" aria-label="耐性貫通表のページ操作">
+                        <button id="rules-help-protection-map-prev" class="btn-small" type="button">前へ</button>
+                        <div id="rules-help-protection-map-page-status" aria-live="polite" aria-atomic="true">1 / 2</div>
+                        <button id="rules-help-protection-map-next" class="btn-small" type="button">次へ</button>
+                    </div>
+                    <div id="rules-help-protection-map-frame" role="group" aria-label="耐性貫通表">
+                        <img
+                            id="rules-help-protection-map-img"
+                            src="assets/images/help/protection-penetration/protection-penetration-quick-reference.png"
+                            alt="耐性貫通の〇×早見表 1 / 2"
+                            draggable="false"
+                            decoding="async">
+                    </div>
+                </div>
+            </section>
+            <section id="rules-help-page-counters" class="rules-help-page" data-help-page="counters"
+                aria-hidden="true">
+                <div id="rules-help-counters-layout">
+                    <section class="rules-help-counter-summary" aria-labelledby="rules-help-counters-title">
+                        <div class="rules-help-counter-summary-copy">
+                            <div id="rules-help-counters-title" class="rules-help-counter-summary-title">石の上のマーカーの見方
+                            </div>
+                            <div class="rules-help-counter-summary-text">
+                                石の上に出る数字やバッジは、位置と形で意味が変わります。下中央の数字は石本体やカウントダウン系、
+                                右上と左下の小さい数字は回避回数系、中央左のピンクハートバッジは復活回数、中央右の灰色バッジは反転保護と覚えると見分けやすいです。
+                            </div>
+                            <div class="rules-help-counter-summary-note">
+                                色や輪郭が少し違っても、同じ位置に出るマーカーはほぼ同じ意味です。数字の詳しい意味も、石情報で確認できます。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-demo" aria-hidden="true">
+                            <div class="disc black" data-image-state="loaded"
+                                style="--stone-image: var(--normal-stone-black-image);">
+                                <div class="disc__face">
+                                    <div class="disc__base-image"></div>
+                                    <div class="disc__overlay-image"></div>
+                                </div>
+                                <div class="disc__hud">
+                                    <div class="countdown-timer">5</div>
+                                    <div class="stone-flip-protection-badge">反</div>
+                                    <div class="stone-regen-badge" data-count="3"><span class="stone-regen-badge-value">3</span></div>
+                                    <div class="stone-timer flip-evade-timer">3</div>
+                                    <div class="stone-timer destroy-evade-timer">1</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <div id="rules-help-counters-list">
+                        <div class="rules-help-counter-row rules-help-counter-row-header" aria-hidden="true">
+                            <div class="rules-help-counter-cell">見本</div>
+                            <div class="rules-help-counter-cell">意味</div>
+                            <div class="rules-help-counter-cell">読み方</div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="guard-timer">3</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">上側の青い数字</div>
+                                <div class="rules-help-counter-meaning">完全保護の残りターン</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                守る石など、上から掛かっている保護が切れるまでの残りターンです。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="special-timer">5</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">下中央の丸い数字</div>
+                                <div class="rules-help-counter-meaning">特殊石本体の持続ターン</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                一般的な特殊石の残りターンです。龍・繁殖・労働石などでも、本体側の持続表示として読みます。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="stone-regen-badge" data-count="3"><span class="stone-regen-badge-value">3</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">中央左のピンクハートバッジ</div>
+                                <div class="rules-help-counter-meaning">復活可能回数</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                復活の意志で付いた石が、反転や破壊からあと何回まで復活できるかを表します。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="countdown-timer">4</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">下中央の赤い三角形数字</div>
+                                <div class="rules-help-counter-meaning">カウントダウン専用の残り回数</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                時限爆弾の起爆まで、時間停石の発動まで、強い石の昇格までなどに使われます。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="stone-timer flip-evade-timer">2</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">右上の数字</div>
+                                <div class="rules-help-counter-meaning">反転回避の残り回数</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                反転をあと何回まで避けられるかを表します。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="stone-timer destroy-evade-timer">1</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">左下の小さい数字</div>
+                                <div class="rules-help-counter-meaning">破壊回避の残り回数</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                破壊をあと何回まで避けられるかを表します。
+                            </div>
+                        </div>
+                        <div class="rules-help-counter-row">
+                            <div class="rules-help-counter-cell rules-help-counter-cell--demo">
+                                <div class="rules-help-counter-demo" aria-hidden="true">
+                                    <div class="disc black" data-image-state="loaded"
+                                        style="--stone-image: var(--normal-stone-black-image);">
+                                        <div class="disc__face">
+                                            <div class="disc__base-image"></div>
+                                            <div class="disc__overlay-image"></div>
+                                        </div>
+                                        <div class="disc__hud">
+                                            <div class="stone-flip-protection-badge">反</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rules-help-counter-cell">
+                                <div class="rules-help-counter-label">中央右の灰色バッジ</div>
+                                <div class="rules-help-counter-meaning">反転保護の目印</div>
+                            </div>
+                            <div class="rules-help-counter-cell rules-help-counter-cell--note">
+                                反転されない石を表します。灰色の五角形に「反」と表示されます。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Enemy CPU Character Display -->
+    <div id="cpu-character-panel">
+        <img id="cpu-character-img" src="" alt="敵CPU">
+        <button id="cpu-level-label" type="button" aria-label="CPU・盤面設定を開く" aria-haspopup="dialog" aria-expanded="false">Lv1 盤喰いの小鬼</button>
+    </div>
+
+    <!-- Hero Character Display -->
+    <div id="hero-character-panel">
+        <img id="hero-character-img" src="assets/images/hero/hero.png" alt="リバーシの勇者">
+        <div id="hero-label">リバーシの勇者</div>
+    </div>
+
+    <div id="leftActionButtons" aria-label="左下メニュー">
+        <button id="modeCpuBtn" class="btn-small left-action-btn" type="button">
+            <span class="left-action-icon left-action-icon-cpu" aria-hidden="true"></span>
+            <span class="left-action-label">CPU</span>
+        </button>
+        <button id="modeNetworkBtn" class="btn-small left-action-btn" type="button" aria-controls="networkOverlay" aria-expanded="false">
+            <span class="left-action-icon left-action-icon-network" aria-hidden="true"></span>
+            <span class="left-action-label">ネット対戦</span>
+        </button>
+        <button id="ratedMatchOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="ratedMatchOverlay" aria-expanded="false">
+            <span class="left-action-icon left-action-icon-rated" aria-hidden="true"></span>
+            <span class="left-action-label">レート戦</span>
+        </button>
+        <button id="leaderboardOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="leaderboardOverlay" aria-expanded="false">
+            <span class="left-action-icon left-action-icon-ranking" aria-hidden="true"></span>
+            <span class="left-action-label">ランキング</span>
+        </button>
+        <button id="deckBuilderOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="deckBuilderOverlay" aria-expanded="false">
+            <span class="left-action-icon left-action-icon-deck" aria-hidden="true"></span>
+            <span class="left-action-label">デッキ</span>
+        </button>
+        <button id="profileOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="profileOverlay" aria-expanded="false">
+            <span class="left-action-icon left-action-icon-profile" aria-hidden="true"></span>
+            <span class="left-action-label">プロフィール</span>
+        </button>
+        <button id="gachaOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="gachaOverlay" aria-expanded="false">
+            <span class="left-action-icon left-action-icon-gacha" aria-hidden="true"></span>
+            <span class="left-action-label">ガチャ</span>
+        </button>
+        <button id="handSkinBtn" class="btn-small left-action-btn" type="button" aria-expanded="false" aria-controls="handSkinPanel" aria-label="見た目設定">
+            <span class="left-action-icon left-action-icon-skin" aria-hidden="true"></span>
+            <span class="left-action-label">スキン</span>
+        </button>
+        <button id="sidePanelToggleBtn" class="btn-small left-action-btn" type="button" aria-controls="side-panel" aria-expanded="false" aria-label="設定を開く" title="設定を開く">
+            <span class="left-action-icon left-action-icon-settings" aria-hidden="true"></span>
+            <span class="left-action-label">設定</span>
+        </button>
+        <button id="rulesHelpBtn" class="btn-small left-action-btn" type="button" aria-expanded="false" aria-controls="rules-help-panel">
+            <span class="left-action-icon left-action-icon-help" aria-hidden="true"></span>
+            <span class="left-action-label">ヘルプ</span>
+        </button>
+        <button id="leftRailVisibilityBtn" class="btn-small left-action-btn left-action-btn-rail-toggle" type="button" aria-controls="leftActionButtons" aria-expanded="true" aria-label="左メニューを非表示" title="左メニューを非表示">
+            <span class="left-action-icon left-action-icon-rail-toggle" aria-hidden="true"></span>
+            <span class="left-action-label">非表示</span>
+        </button>
+    </div>
+    <script>
+        (() => {
+            const rail = document.getElementById('leftActionButtons');
+            const btn = document.getElementById('leftRailVisibilityBtn');
+            if (!rail || !btn) return;
+            const label = btn.querySelector('.left-action-label');
+            const sync = (visible) => {
+                rail.classList.toggle('left-rail-collapsed', !visible);
+                btn.setAttribute('aria-expanded', visible ? 'true' : 'false');
+                btn.setAttribute('aria-label', visible ? '左メニューを非表示' : '左メニューを表示');
+                btn.setAttribute('title', visible ? '左メニューを非表示' : '左メニューを表示');
+                if (label) label.textContent = visible ? '非表示' : '表示';
+            };
+            sync(true);
+            btn.addEventListener('click', () => sync(rail.classList.contains('left-rail-collapsed')));
+        })();
+    </script>
+
+    <div id="quick-controls-bar" aria-label="クイック操作">
+        <button id="resetBtn" class="btn-small quick-control-btn" type="button">リセット</button>
+        <button id="quickBgmToggleBtn" class="btn-small quick-control-btn btn-active" type="button" aria-pressed="true" title="BGM">BGM: ON</button>
+        <div id="quickBgmTrackPicker" class="quick-bgm-track-picker">
+            <button id="quickBgmTrackButton" class="quick-bgm-track-button" type="button" aria-haspopup="listbox" aria-expanded="false">BGM</button>
+            <div id="quickBgmTrackMenu" class="quick-bgm-track-menu" role="listbox" aria-label="BGM変更"></div>
+        </div>
+        <button id="autoToggleBtn" class="btn-small quick-control-btn" type="button">AUTO: OFF</button>
+        <button id="muteBtn" class="btn-small quick-control-btn" type="button">🔊 ON</button>
+        <label class="quick-volume-control" for="seVolSlider">
+            <span class="quick-volume-label">音量</span>
+            <input type="range" id="seVolSlider" class="compact-slider quick-volume-slider" min="0" max="2" step="0.05">
+        </label>
+    </div>
+
+    <div id="handSkinPanel" aria-hidden="true" role="dialog" aria-modal="false" aria-label="見た目設定">
+        <div id="handSkinPanelHeader">
+            <div id="handSkinPanelTitle">見た目</div>
+            <button id="handSkinCloseBtn" class="btn-small" type="button" aria-label="見た目設定を閉じる">×</button>
+        </div>
+        <div id="appearancePanelTabs" role="tablist" aria-label="見た目種別">
+            <button id="appearanceTabHand" class="appearance-panel-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="handSkinSection">手</button>
+            <button id="appearanceTabBackground" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="backgroundSkinSection">背景</button>
+            <button id="appearanceTabBoard" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="boardSkinSection">盤面デザイン</button>
+            <button id="appearanceTabBoardFrame" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="boardFrameSkinSection">盤面フレーム</button>
+            <button id="appearanceTabFont" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="fontSkinSection">フォント</button>
+            <button id="appearanceTabStone" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="stoneSkinSection">石</button>
+            <button id="appearanceTabMySkin" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="mySkinSection">マイスキン</button>
+            <button id="appearanceTabPreset" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="appearancePresetSection">プリセット</button>
+        </div>
+        <div id="handSkinSection" class="appearance-panel-section" data-appearance-section="hand">
+            <div id="handSkinOptions" role="radiogroup" aria-label="手の見た目スキン"></div>
+        </div>
+        <div id="backgroundSkinSection" class="appearance-panel-section" data-appearance-section="background" hidden>
+            <div id="backgroundSkinOptions" role="radiogroup" aria-label="背景画像"></div>
+        </div>
+        <div id="boardSkinSection" class="appearance-panel-section" data-appearance-section="board" hidden>
+            <div id="boardSkinOptions" role="radiogroup" aria-label="盤面デザイン"></div>
+        </div>
+        <div id="boardFrameSkinSection" class="appearance-panel-section" data-appearance-section="board-frame" hidden>
+            <div id="boardFrameSkinOptions" role="radiogroup" aria-label="盤面フレーム"></div>
+        </div>
+        <div id="fontSkinSection" class="appearance-panel-section" data-appearance-section="font" hidden>
+            <div id="fontSkinOptions" role="radiogroup" aria-label="文字フォント"></div>
+        </div>
+        <div id="stoneSkinSection" class="appearance-panel-section" data-appearance-section="stone" hidden>
+            <div id="stoneSkinOptions" role="radiogroup" aria-label="通常石スキン"></div>
+        </div>
+        <div id="mySkinSection" class="appearance-panel-section" data-appearance-section="my-skin" hidden>
+            <div id="mySkinOptions" aria-label="保存済みマイスキン"></div>
+        </div>
+        <div id="appearancePresetSection" class="appearance-panel-section" data-appearance-section="preset" hidden>
+            <div id="appearancePresetSavePanel">
+                <div id="appearancePresetSaveTitle">今の状態で保存</div>
+                <div id="appearancePresetSaveRow">
+                    <label id="appearancePresetNameLabel" for="appearancePresetNameInput">名前(任意)</label>
+                    <input id="appearancePresetNameInput" type="text" maxlength="24" autocomplete="off" spellcheck="false">
+                    <button id="appearancePresetSaveBtn" class="btn-small" type="button">保存</button>
+                </div>
+            </div>
+            <div id="appearancePresetCodePanel">
+                <button id="appearancePresetCodeLoadBtn" class="btn-small" type="button">コード読み込み</button>
+                <div id="appearancePresetCodeStatus" role="status" aria-live="polite"></div>
+            </div>
+            <div id="appearancePresetList" aria-label="見た目プリセット一覧"></div>
+        </div>
+    </div>
+
+
+    <div id="networkChatPanel" aria-hidden="true">
+        <button id="networkChatToggle" type="button" aria-expanded="false">対戦チャット</button>
+        <div id="networkChatBody">
+            <div id="networkChatMessages" aria-live="polite" aria-atomic="false"></div>
+            <div id="networkChatInputRow">
+                <input id="networkChatInput" type="text" maxlength="20" placeholder="20文字まで" autocomplete="off"
+                    spellcheck="false" />
+                <button id="networkChatSendBtn" class="btn-small" type="button">送信</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <!-- Opponent Area (Deck + Hand) -->
+        <div class="player-area-top">
+            <div id="deck-white" class="deck-stack">
+                <div class="deck-edge"></div>
+                <div class="deck-count">10</div>
+            </div>
+            <div id="hand-white" class="hand-container"></div>
+        </div>
+
+        <div id="board-stack">
+            <div id="board-frame">
+                <div id="board"></div>
+                <div id="ratedMatchQueueTimer" class="rated-queue-timer" hidden aria-hidden="true" aria-live="polite" aria-atomic="true"></div>
+                <button id="reversi-pass-btn" type="button" hidden disabled>パス</button>
+                <button id="board-frame-pass-btn" type="button" hidden disabled aria-hidden="true" aria-label="パス">パス</button>
+                <!-- Occupancy UI (removed) -->
+                <!-- Card Animation FX Layer -->
+                <div id="card-fx-layer"></div>
+            </div>
+            <div id="board-expansion-layer" aria-hidden="true"></div>
+            <!-- Charge UI -->
+            <div id="charge-hud-layer">
+                <div id="charge-black" class="charge-display"><span class="charge-label">布石:</span> <span class="charge-current">0</span><span class="charge-separator"> / </span><span class="charge-max">99</span></div>
+                <div id="charge-delta-black-increase" class="charge-delta" aria-live="polite"></div>
+                <div id="charge-delta-black-decrease" class="charge-delta" aria-live="polite"></div>
+                <div id="charge-white" class="charge-display"><span class="charge-label">布石:</span> <span class="charge-current">0</span><span class="charge-separator"> / </span><span class="charge-max">99</span></div>
+                <div id="charge-delta-white-increase" class="charge-delta" aria-live="polite"></div>
+                <div id="charge-delta-white-decrease" class="charge-delta" aria-live="polite"></div>
+                <div id="consecutive-pass-status" class="pass-streak-status" hidden aria-hidden="true" aria-live="polite" aria-atomic="true">
+                    <span class="pass-streak-label">連続パス</span><span class="pass-streak-current" data-pass-streak-current="true">0</span><span class="pass-streak-separator">/</span><span class="pass-streak-max">2</span><span class="pass-streak-note">(パスカウント2で終局)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Player Area (Hand + Deck) -->
+        <div class="player-area-bottom">
+            <div id="hand-black" class="hand-container"></div>
+            <div id="deck-black" class="deck-stack">
+                <div class="deck-edge"></div>
+                <div class="deck-count">10</div>
+            </div>
+            <!-- Card Detail Panel: placed next to player's deck/hand for quick access -->
+            <div id="card-detail-panel">
+                <div id="card-detail-name">-</div>
+                <div id="card-detail-desc">カードを選択してください</div>
+                <div id="card-detail-effect-tags" aria-label="カード効果タグ"></div>
+                <div id="card-detail-more" style="display:none;"></div>
+                <div id="card-detail-actions">
+                    <button id="toggle-card-detail-btn" type="button" disabled>詳細</button>
+                    <button id="use-card-btn" type="button" disabled>使用</button>
+                    <button id="destroy-card-btn" type="button" disabled>破壊</button>
+                    <button id="pass-btn" type="button" disabled>パス</button>
+                </div>
+                <button id="cancel-card-btn" type="button" style="display:none;" onclick="cancelPendingDestroy()">キャンセル</button>
+                <div id="use-card-reason"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="log" aria-hidden="true"></div>
+
+
+    <!-- Side UI Panel -->
+    <div id="side-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-label="設定">
+        <!-- Compact Control Panel -->
+        <div id="control-panel">
+            <div class="control-group">
+                <div class="control-label">SETTINGS</div>
+                <button id="humanVsHumanBtn" class="btn-small" type="button"
+                    style="background-color: #5a3a2d; color: #ffb366; display: none;">人間vs人間: OFF</button>
+                <button id="visualTestBtn" class="btn-small" type="button"
+                    style="background-color: #3a2a5a; color: #ffa500; display: none;">石ビジュアル</button>
+                <button id="debugModeBtn" class="btn-small" type="button" aria-pressed="false"
+                    style="background-color: #4a3828; color: #d7ccc8;">DEBUG: OFF</button>
+                <button id="logToggleBtn" class="btn-small" type="button" aria-controls="log" aria-expanded="false" title="ログ">ログ</button>
+            </div>
+            <div class="control-group mode-shortcut-group">
+                <div class="control-label">MODE</div>
+                <button id="modeReversiBtn" class="btn-small" type="button">リバーシ</button>
+            </div>
+            <div class="control-group board-size-group">
+                <div class="control-label">BOARD</div>
+                <button id="boardSizeOpenBtn" class="btn-small" type="button" aria-controls="boardSizeEditor" aria-expanded="false">盤面サイズ</button>
+                <div id="boardSizeControlSummary" class="board-size-control-summary">8x8</div>
+            </div>
+            <div id="boardSizeEditor" class="board-size-editor" hidden>
+                <label class="board-size-editor-label" for="boardShapeSelect">形状</label>
+                <select id="boardShapeSelect" class="compact-select">
+                    <option value="rectangle">通常</option>
+                    <option value="circle">円形</option>
+                </select>
+                <label class="board-size-editor-label" for="boardSizeRowsInput">縦</label>
+                <input id="boardSizeRowsInput" class="compact-number-input" type="number" min="4" max="16" step="1" inputmode="numeric" value="8">
+                <span class="board-size-editor-separator">x</span>
+                <label class="board-size-editor-label" for="boardSizeColsInput">横</label>
+                <input id="boardSizeColsInput" class="compact-number-input" type="number" min="4" max="16" step="1" inputmode="numeric" value="8">
+                <button id="boardSizeCloseBtn" class="btn-small" type="button">閉じる</button>
+                <div id="boardSizeEditorNote" class="board-size-editor-note">次のリセット / 新規対局で反映</div>
+            </div>
+            <div id="networkTimerStatus" aria-live="polite" aria-atomic="true"></div>
+
+            <div class="control-group">
+                <div class="control-label">CPU LEVEL</div>
+                <label class="small-label">黒</label>
+                <select id="smartBlack" class="compact-select" style="width: 70px;"></select>
+                <label class="small-label">白</label>
+                <select id="smartWhite" class="compact-select" style="width: 70px;"></select>
+            </div>
+
+            <!-- Sound Effects -->
+            <div class="control-group">
+                <div class="control-label">SE</div>
+                <select id="seTypeSelect" class="compact-select"></select>
+            </div>
+
+            <!-- BGM -->
+            <div class="control-group">
+                <div class="control-label">BGM</div>
+                <button id="bgmPlayBtn" class="btn-small" type="button">▶</button>
+                <button id="bgmPauseBtn" class="btn-small" type="button">⏸</button>
+                <select id="bgmTrackSelect" class="compact-select" style="max-width: 90px;"></select>
+                <input type="range" id="bgmVolSlider" class="compact-slider" min="0" max="1.35" step="0.01">
+            </div>
+        </div>
+
+        <!-- Discard Display -->
+        <div id="discard-display">
+            <div class="discard-label">捨て札</div>
+            <div id="discard-count">0</div>
+        </div>
+    </div>
+
+    <div id="networkOverlay" aria-hidden="true">
+        <div id="networkModal" role="dialog" aria-modal="true" aria-label="ネット対戦設定">
+            <div id="networkModalHeader">
+                <div class="network-title">ネット対戦</div>
+                <button id="networkCloseBtn" class="btn-small" type="button" aria-label="ネット対戦設定を閉じる">×</button>
+            </div>
+            <div id="networkModalBody">
+                <div id="networkPanel">
+                    <details id="networkAdvancedSettings">
+                        <summary>詳細設定</summary>
+                        <input id="networkServerInput" type="text" value="" placeholder="接続先URL（空欄でこのサイト）"
+                            />
+                    </details>
+                    <section class="network-section" aria-label="部屋を作成する">
+                        <div class="network-section-title">部屋を作成する</div>
+                        <div class="network-create-fields">
+                            <label class="network-field" for="networkPlayerNameInput">
+                                <span class="network-field-label">名前 <span class="network-field-required">※必須</span></span>
+                                <input id="networkPlayerNameInput" type="text" placeholder="名前を入力してください" maxlength="7" autocomplete="off" spellcheck="false"
+                                    />
+                            </label>
+                            <label class="network-field" for="networkRoomIdInput">
+                                <span class="network-field-label">ルーム名 <span class="network-field-optional">任意</span></span>
+                                <input id="networkRoomIdInput" type="text" placeholder="ルーム名を入力してください" maxlength="20" autocomplete="off" spellcheck="false"
+                                    />
+                            </label>
+                            <label class="network-field" for="networkRoomPasswordInput">
+                                <span class="network-field-label">パスワード <span class="network-field-optional">任意</span></span>
+                                <input id="networkRoomPasswordInput" type="password" placeholder="空欄で公開" maxlength="20" autocomplete="off" spellcheck="false"
+                                    />
+                            </label>
+                        </div>
+                    </section>
+                    <div id="networkActionRow" aria-label="ネット対戦操作">
+                        <button id="networkRoomSettingsBtn" class="btn-small" type="button" aria-label="部屋作成設定" aria-controls="networkRoomSettingsPopup" aria-expanded="false">⚙</button>
+                        <button id="networkCreateBtn" class="btn-small" type="button">部屋作成</button>
+                        <div id="networkRoomSettingsBackdrop" aria-hidden="true"></div>
+                        <div id="networkRoomSettingsPopup" role="dialog" aria-modal="true" aria-label="部屋作成設定" aria-hidden="true">
+                            <div id="networkRoomSettingsPopupTitle">設定</div>
+                            <button id="networkRoomSettingsCloseBtn" class="btn-small" type="button" aria-label="部屋作成設定を閉じる">×</button>
+                            <div id="networkBoardSizeRow">
+                                <div id="networkBoardSizeHeader">
+                                    <span id="networkBoardSizeTitle">盤面サイズ</span>
+                                    <span id="networkBoardSizeSummary" class="board-size-control-summary">8x8</span>
+                                </div>
+                                <label class="board-size-editor-label" for="networkBoardShapeSelect">形状</label>
+                                <select id="networkBoardShapeSelect" class="compact-select">
+                                    <option value="rectangle">通常</option>
+                                    <option value="circle">円形</option>
+                                </select>
+                                <div id="networkBoardSizeInputs">
+                                    <label class="board-size-editor-label" for="networkBoardSizeRowsInput">縦</label>
+                                    <input id="networkBoardSizeRowsInput" class="compact-number-input" type="number" min="4" max="16" step="1" inputmode="numeric" value="8" />
+                                    <span class="board-size-editor-separator">x</span>
+                                    <label class="board-size-editor-label" for="networkBoardSizeColsInput">横</label>
+                                    <input id="networkBoardSizeColsInput" class="compact-number-input" type="number" min="4" max="16" step="1" inputmode="numeric" value="8" />
+                                </div>
+                                <div id="networkBoardSizeNote" class="board-size-editor-note">部屋作成前に変更できます</div>
+                            </div>
+                            <label id="networkDebugOptionRow" for="networkEnableDebugCheckbox">
+                                <input id="networkEnableDebugCheckbox" type="checkbox" />
+                                デバッグモードを有効化
+                            </label>
+                            <label id="networkAutoOptionRow" for="networkEnableAutoCheckbox">
+                                <input id="networkEnableAutoCheckbox" type="checkbox" />
+                                オートプレイを許可
+                            </label>
+                            <label id="networkAllCardsDeckOptionRow" for="networkAllCardsDeckCheckbox">
+                                <input id="networkAllCardsDeckCheckbox" type="checkbox" />
+                                両者全カードデッキ
+                            </label>
+                        </div>
+                    </div>
+                    <button id="networkJoinBtn" class="btn-small network-hidden-control" type="button" hidden>参加</button>
+                    <button id="networkLeaveBtn" class="btn-small network-hidden-control" type="button" hidden>退出</button>
+                    <button id="networkCopyRoomBtn" class="btn-small network-hidden-control" type="button" hidden>部屋番号コピー</button>
+                    <div id="networkStatusText"></div>
+                    <div id="networkDeckInfo"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ratedMatchOverlay" aria-hidden="true">
+        <div id="ratedMatchModal" role="dialog" aria-modal="true" aria-labelledby="ratedMatchModalTitle">
+            <div id="ratedMatchModalHeader">
+                <div class="rated-match-crest" aria-hidden="true"></div>
+                <div class="rated-match-heading">
+                    <span class="rated-match-kicker">Ranked Match</span>
+                    <div id="ratedMatchModalTitle" class="rated-match-title">レート戦</div>
+                </div>
+                <button id="ratedMatchCloseBtn" class="btn-small" type="button" aria-label="レート戦を閉じる">×</button>
+            </div>
+            <div id="ratedMatchModalBody">
+                <div id="ratedMatchPanel">
+                    <section class="rated-match-overview" aria-label="レート戦情報">
+                        <div class="rated-match-rating">
+                            <span class="rated-match-rating-label">RATE</span>
+                            <strong id="ratedMatchRatingText">未計測</strong>
+                        </div>
+                        <div class="rated-match-player">
+                            <span>プレイヤーID</span>
+                            <strong id="ratedMatchIdentityText">未確認</strong>
+                        </div>
+                    </section>
+                    <section class="rated-match-rules" aria-label="レート戦条件">
+                        <button id="ratedMatchDeckOpenBtn" class="rated-match-rule rated-match-deck-button" type="button" aria-label="デッキ構築を開く">
+                            <span>デッキ</span>
+                            <strong id="ratedMatchDeckNameText">確認中</strong>
+                        </button>
+                        <div class="rated-match-rule">
+                            <span>盤面</span>
+                            <strong>8x8固定</strong>
+                        </div>
+                    </section>
+                    <section class="rated-match-shortcuts" aria-label="レート戦メニュー">
+                        <button id="ratedMatchLeaderboardBtn" class="btn-small" type="button">レートランキング</button>
+                        <button id="ratedMatchHistoryBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="ratedMatchHistoryPanel">直近10戦</button>
+                    </section>
+                    <section class="rated-match-queue" aria-label="レート戦キュー">
+                        <div class="rated-match-queue-head">
+                            <div class="rated-match-section-title">マッチング</div>
+                            <div id="ratedMatchDeckSummary" class="rated-match-deck-summary">使用デッキ: 確認中</div>
+                        </div>
+                        <div class="rated-match-status-frame">
+                            <span class="rated-match-status-label">QUEUE STATUS</span>
+                            <div id="ratedMatchStatus" role="status" aria-live="polite">待機していません</div>
+                        </div>
+                        <div class="rated-match-actions">
+                            <button id="ratedMatchQueueBtn" class="btn-small" type="button">キューに入る</button>
+                            <button id="ratedMatchCancelBtn" class="btn-small" type="button" disabled>待機解除</button>
+                        </div>
+                    </section>
+                    <section id="ratedMatchHistoryPanel" class="rated-match-history" aria-label="直近レート戦績" hidden>
+                        <div class="rated-match-history-head">
+                            <div class="rated-match-section-title">直近10戦</div>
+                            <div id="ratedMatchHistoryStatus" class="rated-match-history-status" role="status" aria-live="polite">戦績を読み込んでいません</div>
+                        </div>
+                        <div id="ratedMatchHistoryList" class="rated-match-history-list"></div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="leaderboardOverlay" aria-hidden="true">
+        <div id="leaderboardModal" role="dialog" aria-modal="true" aria-label="スコアランキング">
+            <div id="leaderboardModalHeader">
+                <div class="leaderboard-title">スコアランキング</div>
+                <button id="leaderboardCloseBtn" class="btn-small" type="button" aria-label="スコアランキングを閉じる">×</button>
+            </div>
+            <div id="leaderboardModalBody">
+                <div id="leaderboardNameRow">
+                    <label for="leaderboardNameInput">名前</label>
+                    <input id="leaderboardNameInput" type="text" maxlength="7" placeholder="表示名（7文字まで）" autocomplete="off" spellcheck="false" />
+                    <button id="leaderboardReloadBtn" class="btn-small" type="button">更新</button>
+                </div>
+                <div id="leaderboardStatusText">ランキングを読み込み中...</div>
+                <div id="leaderboardList" aria-live="polite"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="profileOverlay" aria-hidden="true">
+        <div id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+            <div id="profileModalHeader">
+                <div id="profileModalTitle" class="profile-title">プロフィール</div>
+                <button id="profileCloseBtn" class="btn-small" type="button" aria-label="プロフィールを閉じる">×</button>
+            </div>
+            <div id="profileModalBody">
+                <div class="profile-tabs" role="tablist" aria-label="プロフィール設定">
+                    <button id="profileTabProfile" class="profile-tab is-active" type="button" role="tab" aria-controls="profileEditSection" aria-selected="true">プロフィール</button>
+                    <button id="profileTabIdentity" class="profile-tab" type="button" role="tab" aria-controls="profileIdentitySection" aria-selected="false">ID・復元</button>
+                </div>
+                <section id="profileEditSection" class="profile-section is-active" role="tabpanel" aria-labelledby="profileTabProfile">
+                    <div class="profile-main-row">
+                        <div id="profileAvatarPreview" class="profile-avatar-preview" role="img" aria-label="プロフィール画像"></div>
+                        <label class="profile-field">
+                            <span>名前</span>
+                            <span class="profile-name-control-row">
+                                <input id="profileNameInput" type="text" maxlength="7" autocomplete="off" spellcheck="false">
+                                <button id="profileSaveBtn" class="btn-small" type="button">保存</button>
+                            </span>
+                        </label>
+                    </div>
+                    <div class="profile-field">
+                        <span>プロフィール画像</span>
+                        <div id="profileAvatarOptions" class="profile-avatar-options" role="radiogroup" aria-label="プロフィール画像"></div>
+                    </div>
+                    <label class="profile-field" for="profileBioInput">
+                        <span>自己紹介</span>
+                        <textarea id="profileBioInput" maxlength="120" rows="4" spellcheck="false"></textarea>
+                    </label>
+                </section>
+                <section id="profileIdentitySection" class="profile-section" role="tabpanel" aria-labelledby="profileTabIdentity" hidden>
+                    <div class="profile-identity-row">
+                        <span>プレイヤーID</span>
+                        <code id="profilePlayerIdText">未作成</code>
+                        <button id="profileEnsureIdentityBtn" class="btn-small" type="button">ID確認</button>
+                    </div>
+                    <div class="profile-identity-row profile-identity-row-code">
+                        <label for="profileRecoveryCodeOutput">復元コード</label>
+                        <input id="profileRecoveryCodeOutput" type="text" readonly value="" aria-label="復元コード">
+                        <button id="profileRevealRecoveryBtn" class="btn-small" type="button">表示</button>
+                        <button id="profileCopyRecoveryBtn" class="btn-small" type="button">コピー</button>
+                        <button id="profileRegenerateRecoveryBtn" class="btn-small" type="button">再発行</button>
+                    </div>
+                    <div class="profile-identity-row profile-identity-row-code">
+                        <label for="profileRecoveryCodeInput">復元コード読み込み</label>
+                        <input id="profileRecoveryCodeInput" type="text" autocomplete="off" spellcheck="false" aria-label="復元コード読み込み">
+                        <button id="profileRecoverIdentityBtn" class="btn-small" type="button">読み込み</button>
+                    </div>
+                    <div id="profileIdentityStatus" aria-live="polite"></div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <div id="gachaOverlay" aria-hidden="true">
+        <div id="gachaModal" role="dialog" aria-modal="true" aria-label="観測ガチャ">
+            <div id="gachaModalHeader">
+                <div class="gacha-title-wrap">
+                    <div class="gacha-title">観測ガチャ</div>
+                    <div id="gachaBalanceSummary">
+                        <span class="observation-stone-icon" aria-hidden="true"></span>
+                        <span class="gacha-balance-label">観測石</span>
+                        <span id="gachaBalanceValue">0</span>
+                    </div>
+                </div>
+                <button id="gachaCloseBtn" class="btn-small" type="button" aria-label="観測ガチャを閉じる">×</button>
+            </div>
+            <div id="gachaModalBody">
+                <div class="gacha-reference-shell">
+                    <div id="gachaStatusText">戦闘に勝利すると観測石が入手できます。ガチャで手のスキン、配置音、背景などを解放できます。</div>
+                    <div class="gacha-pull-showcase" aria-label="観測ガチャ実行">
+                        <button id="gachaSinglePullBtn" class="btn-small gacha-pull-side" type="button">
+                            <span class="gacha-pull-label">1回ガチャ</span>
+                            <span class="gacha-pull-cost">
+                                <span class="observation-stone-icon" aria-hidden="true"></span>
+                                <span>100</span>
+                            </span>
+                        </button>
+                        <div class="gacha-pull-main gacha-pull-main-ten">
+                            <button id="gachaTenPullBtn" class="btn-small" type="button">
+                                <span class="gacha-pull-label">10連ガチャ</span>
+                                <span class="gacha-pull-cost">
+                                    <span class="observation-stone-icon" aria-hidden="true"></span>
+                                    <span>1000</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="gachaDetailsPanel"></div>
+                    <div class="gacha-results-frame">
+                        <div class="gacha-results-heading">最新結果</div>
+                        <div id="gachaResults" aria-live="polite"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="deckBuilderOverlay" aria-hidden="true">
+        <div id="deckBuilderModal" role="dialog" aria-modal="true" aria-label="デッキ構築">
+            <div id="deckBuilderModalHeader">
+                <div class="deck-builder-title-wrap">
+                    <div class="deck-builder-title">デッキ構築</div>
+                    <div id="deckBuilderHeaderSummary"></div>
+                </div>
+                <button id="deckBuilderCloseBtn" class="btn-small" type="button" aria-label="デッキ構築を閉じる">×</button>
+            </div>
+            <div id="deckBuilderBody"></div>
+        </div>
+    </div>
+
+    <!-- Active Effect Slots (Phase 2) -->
+    <div id="active-black" class="active-effect-slot">
+        <div class="effect-slot-label">黒の効果</div>
+        <div class="effect-slot-content">なし</div>
+    </div>
+    <div id="active-white" class="active-effect-slot">
+        <div class="effect-slot-label">白の効果</div>
+        <div class="effect-slot-content">なし</div>
+    </div>
+
+    <!-- Hand Animation Elements -->
+    <div id="handLayer" style="display:none;">
+        <div id="handWrapper" style="display:none;">
+                <img
+                    id="handImage"
+                    src="assets/images/hand-skin/勇者の手.png"
+                    alt=""
+                    aria-hidden="true"
+                    draggable="false"
+                decoding="async">
+            <div id="heldStone" class="held-stone black"></div>
+        </div>
+    </div>
+
+
+    <!-- Scripts -->
+    <script src="public/runtime.js?v=10249323031789"></script>
+    <script src="public/module-registry.js?v=159278661717845"></script>
+    <script src="ui/layout-stage.js"></script>
+    <script src="entry-browser.js?v=248168568173213"></script>
+</body>
+
+</html>

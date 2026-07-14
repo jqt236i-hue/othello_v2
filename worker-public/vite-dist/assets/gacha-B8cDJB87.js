@@ -1,1 +1,0 @@
-import{t as e}from"./feature-registry-BPA-wCKa.js";function t(t){return e(`gacha`,t,[`ui/gacha/gacha-overlay-controller`,`ui/gacha/gacha-overlay-view`])}export{t as loadOptionalFeature};

@@ -1,0 +1,245 @@
+import * as childProcess from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
+import ModuleRegistryBuilder = require('./build-module-registry');
+import LegacyModuleTransform = require('./browser-vite-module-transform');
+
+const ROOT = process.cwd();
+const DIST_ROOT = path.join(ROOT, 'dist');
+const STAGE_ROOT = path.join(DIST_ROOT, 'browser-vite-bridge-src');
+const GENERATED_SOURCE_ROOT = path.join(ROOT, 'browser-vite', 'generated');
+const GENERATED_ASSET_ROOT = path.join(ROOT, 'browser-vite', 'generated-assets');
+const OPTIONAL_GROUPS = ['gacha', 'cosmetic', 'leaderboard', 'commentary', 'cpu', 'onnx'] as const;
+type OptionalGroup = typeof OPTIONAL_GROUPS[number];
+
+interface BrowserModuleRecord {
+  moduleKey: string;
+  content: string;
+  aliases: string[];
+  sourcePath: string;
+}
+
+interface RegistryResult {
+  browserModuleRecords: BrowserModuleRecord[];
+  optionalGroupModuleKeys: Record<OptionalGroup, string[]>;
+  bootModuleMetadata: {
+    required: string[];
+    optional: string[];
+    optionalPrefixes: string[];
+    optionalGroups: Record<string, string[]>;
+  };
+}
+
+function assertGeneratedStagePath(targetPath: string): void {
+  const resolved = path.resolve(targetPath);
+  const expectedPrefix = `${path.resolve(DIST_ROOT)}${path.sep}`;
+  if (!resolved.startsWith(expectedPrefix)) {
+    throw new Error(`[vite-module-bridge] refusing generated stage path outside dist: ${resolved}`);
+  }
+}
+
+function resetStageRoot(): void {
+  assertGeneratedStagePath(STAGE_ROOT);
+  fs.rmSync(STAGE_ROOT, { recursive: true, force: true });
+  fs.mkdirSync(STAGE_ROOT, { recursive: true });
+}
+
+function normalizeKey(value: string): string {
+  return LegacyModuleTransform.normalizeModuleKey(value);
+}
+
+function moduleFilePath(contextRoot: string, moduleKey: string): string {
+  return path.join(contextRoot, 'modules', `${normalizeKey(moduleKey)}.js`);
+}
+
+function writeText(filePath: string, content: string): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, String(content || '').replace(/\r\n?/g, '\n'), 'utf8');
+}
+
+function checkOrWrite(filePath: string, content: string, checkOnly: boolean): boolean {
+  const normalized = String(content || '').replace(/\r\n?/g, '\n');
+  const current = fs.existsSync(filePath)
+    ? fs.readFileSync(filePath, 'utf8').replace(/\r\n?/g, '\n')
+    : '';
+  if (current === normalized) return false;
+  if (checkOnly) throw new Error(`[vite-module-bridge] generated file is stale: ${path.relative(ROOT, filePath)}`);
+  writeText(filePath, normalized);
+  return true;
+}
+
+function buildAliasRecord(records: BrowserModuleRecord[]): Record<string, string> {
+  const aliases: Record<string, string> = {};
+  for (const record of records) {
+    const target = normalizeKey(record.moduleKey);
+    for (const alias of record.aliases || []) {
+      const normalized = normalizeKey(alias);
+      if (normalized && normalized !== target) aliases[normalized] = target;
+    }
+  }
+  return aliases;
+}
+
+function stageContext(
+  contextName: string,
+  records: BrowserModuleRecord[],
+  allRecords: BrowserModuleRecord[]
+): { contextRoot: string; stagedPaths: Map<string, string> } {
+  const contextRoot = path.join(STAGE_ROOT, contextName);
+  const includedKeys = new Set(records.map((record) => normalizeKey(record.moduleKey)));
+  const stagedPaths = new Map<string, string>();
+  for (const record of records) {
+    stagedPaths.set(normalizeKey(record.moduleKey), moduleFilePath(contextRoot, record.moduleKey));
+  }
+  for (const record of records) {
+    const transformed = LegacyModuleTransform.transformLegacyBrowserModule({
+      record,
+      records: allRecords,
+      includedModuleKeys: includedKeys,
+      stagedPathByModuleKey: stagedPaths
+    });
+    writeText(stagedPaths.get(normalizeKey(record.moduleKey))!, transformed);
+  }
+  return { contextRoot, stagedPaths };
+}
+
+function renderAccessors(
+  records: BrowserModuleRecord[],
+  stagedPaths: ReadonlyMap<string, string>,
+  fromPath: string
+): string {
+  return records
+    .slice()
+    .sort((left, right) => normalizeKey(left.moduleKey).localeCompare(normalizeKey(right.moduleKey)))
+    .map((record) => {
+      const key = normalizeKey(record.moduleKey);
+      const stagedPath = stagedPaths.get(key);
+      if (!stagedPath) throw new Error(`[vite-module-bridge] missing accessor path: ${key}`);
+      let relativePath = path.relative(path.dirname(fromPath), stagedPath).replace(/\\/g, '/');
+      if (!relativePath.startsWith('.')) relativePath = `./${relativePath}`;
+      return `  ${JSON.stringify(key)}: () => require(${JSON.stringify(relativePath)})`;
+    })
+    .join(',\n');
+}
+
+function renderStartupSource(
+  records: BrowserModuleRecord[],
+  stagedPaths: ReadonlyMap<string, string>,
+  bootMetadata: RegistryResult['bootModuleMetadata']
+): string {
+  const outputPath = path.join(GENERATED_SOURCE_ROOT, 'startup-modules.ts');
+  const aliases = buildAliasRecord(records);
+  return `// Auto-generated by scripts/build-vite-module-bridge.ts. Do not edit.\n` +
+    `import { installBootModuleMetadata, registerModuleAccessors } from '../module-bridge';\n\n` +
+    `declare const require: NodeRequire;\n\n` +
+    `const startupAccessors: Record<string, () => unknown> = {\n${renderAccessors(records, stagedPaths, outputPath)}\n};\n\n` +
+    `registerModuleAccessors(startupAccessors, ${JSON.stringify(aliases, null, 2)}, 'startup');\n` +
+    `installBootModuleMetadata(${JSON.stringify(bootMetadata, null, 2)});\n\n` +
+    `export const startupModuleCount = ${records.length};\n`;
+}
+
+function renderOptionalEntry(
+  group: OptionalGroup,
+  records: BrowserModuleRecord[],
+  stagedPaths: ReadonlyMap<string, string>,
+  entryPath: string
+): string {
+  const aliases = buildAliasRecord(records);
+  return `'use strict';\n` +
+    `const accessors = {\n${renderAccessors(records, stagedPaths, entryPath)}\n};\n` +
+    `const register = globalThis.__CARD_REVERSI_REGISTER_VITE_MODULES__;\n` +
+    `if (typeof register !== 'function') throw new Error('Vite module bridge is unavailable for ${group}');\n` +
+    `register(accessors, ${JSON.stringify(aliases)}, ${JSON.stringify(group)});\n`;
+}
+
+function bundleOptionalGroup(group: OptionalGroup, entryPath: string, targetPath: string, checkOnly: boolean): boolean {
+  const generatedPath = checkOnly ? path.join(STAGE_ROOT, 'check-assets', path.basename(targetPath)) : targetPath;
+  fs.mkdirSync(path.dirname(generatedPath), { recursive: true });
+  const cliPath = path.join(ROOT, 'node_modules', 'rolldown', 'bin', 'cli.mjs');
+  const result = childProcess.spawnSync(process.execPath, [
+    cliPath,
+    entryPath,
+    '--file', generatedPath,
+    '--format', 'esm',
+    '--platform', 'browser',
+    '--no-codeSplitting',
+    '--strictExecutionOrder',
+    '--minify',
+    '--logLevel', 'warn'
+  ], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    maxBuffer: 32 * 1024 * 1024
+  });
+  if (result.status !== 0) {
+    throw new Error(`[vite-module-bridge] ${group} bundle failed: ${result.stderr || result.stdout || result.status}`);
+  }
+  const bundled = fs.readFileSync(generatedPath, 'utf8').replace(/\r\n?/g, '\n');
+  if (/\bimport\s*(?:\(|[^;]*\bfrom\b)/.test(bundled)) {
+    throw new Error(`[vite-module-bridge] ${group} output is not self-contained`);
+  }
+  if (!checkOnly) return true;
+  return checkOrWrite(targetPath, bundled, true);
+}
+
+function renderPayloadUrlsSource(): string {
+  const imports = OPTIONAL_GROUPS.map((group) => (
+    `import ${group}Url from '../generated-assets/optional-${group}.mjs?url';`
+  )).join('\n');
+  const entries = OPTIONAL_GROUPS.map((group) => `  ${group}: ${group}Url`).join(',\n');
+  return `// Auto-generated by scripts/build-vite-module-bridge.ts. Do not edit.\n${imports}\n\n` +
+    `export const OPTIONAL_PAYLOAD_URLS = Object.freeze({\n${entries}\n});\n`;
+}
+
+function buildViteModuleBridge(options: { checkOnly?: boolean } = {}): void {
+  const checkOnly = options.checkOnly === true;
+  const registry = ModuleRegistryBuilder.buildRegistry({
+    write: false,
+    log: false,
+    syncScriptVersions: false
+  }) as RegistryResult | null;
+  if (!registry) throw new Error('[vite-module-bridge] dist browser modules are unavailable');
+  const allRecords = registry.browserModuleRecords;
+  const optionalKeys = new Set((registry.bootModuleMetadata.optional || []).map(normalizeKey));
+  const startupRecords = allRecords.filter((record) => !optionalKeys.has(normalizeKey(record.moduleKey)));
+
+  resetStageRoot();
+  const startupStage = stageContext('startup', startupRecords, allRecords);
+  checkOrWrite(
+    path.join(GENERATED_SOURCE_ROOT, 'startup-modules.ts'),
+    renderStartupSource(startupRecords, startupStage.stagedPaths, registry.bootModuleMetadata),
+    checkOnly
+  );
+
+  for (const group of OPTIONAL_GROUPS) {
+    const groupKeys = new Set((registry.optionalGroupModuleKeys[group] || []).map(normalizeKey));
+    const records = allRecords.filter((record) => groupKeys.has(normalizeKey(record.moduleKey)));
+    const stage = stageContext(path.join('groups', group), records, allRecords);
+    const entryPath = path.join(stage.contextRoot, 'entry.js');
+    writeText(entryPath, renderOptionalEntry(group, records, stage.stagedPaths, entryPath));
+    bundleOptionalGroup(
+      group,
+      entryPath,
+      path.join(GENERATED_ASSET_ROOT, `optional-${group}.mjs`),
+      checkOnly
+    );
+  }
+
+  checkOrWrite(
+    path.join(GENERATED_SOURCE_ROOT, 'optional-payload-urls.ts'),
+    renderPayloadUrlsSource(),
+    checkOnly
+  );
+  console.log(`[vite-module-bridge] ${checkOnly ? 'verified' : 'generated'} ${startupRecords.length} startup modules and ${OPTIONAL_GROUPS.length} optional payloads`);
+}
+
+if (require.main === module) {
+  try {
+    buildViteModuleBridge({ checkOnly: process.argv.includes('--check') });
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  }
+}
+
+export = { buildViteModuleBridge };

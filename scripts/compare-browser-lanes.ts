@@ -8,13 +8,23 @@ import { REQUIRED_GLOBAL_TYPES } from '../browser-vite/runtime-contract';
 const { runBrowserUiControlSmoke } = BrowserUiControlSmoke as any;
 const PNG = require('pngjs').PNG;
 
-const REPORT_JSON_PATH = 'docs/perf/2026-07-13-browser-lane-comparison.json';
-const REPORT_MARKDOWN_PATH = 'docs/perf/2026-07-13-browser-lane-comparison.md';
+const REPORT_JSON_PATH = 'docs/perf/2026-07-14-browser-lane-comparison.json';
+const REPORT_MARKDOWN_PATH = 'docs/perf/2026-07-14-browser-lane-comparison.md';
 
 interface CompareBrowserLanesOptions {
   rootDir?: string;
   write?: boolean;
   log?: boolean;
+  runs?: number;
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = values.slice().sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle];
 }
 
 function stableValue(value: any): any {
@@ -92,7 +102,9 @@ function summarizeLane(result: any): any {
     },
     startupRequestedPaths: startupPaths,
     startupScriptPaths: startupPaths.filter((value) => /\.js(?:\?|$)/.test(value)),
+    moduleRegistryAtStartup: startupPaths.some((value) => value.includes('/public/module-registry')),
     optionalRegistryAtStartup: result.sample.startupScriptSignals.some((value: string) => value.includes('module-registry.optional')),
+    optionalPayloadAtStartup: startupPaths.some((value) => /\/optional-[a-z-]+-[^/]+\.mjs(?:\?|$)/.test(value)),
     onnxRuntimeAtStartup: result.sample.startupScriptSignals.some((value: string) => value.includes('onnxruntime-web/dist/ort.min.js')),
     pageErrors: result.sample.pageErrors,
     consoleErrors: result.sample.consoleErrors,
@@ -111,10 +123,12 @@ function evaluateReport(classic: any, vite: any, visual: any): { ok: boolean; er
   if (
     !vite.viteRuntime
     || vite.viteRuntime.state !== 'ready'
+    || vite.viteRuntime.moduleDelivery !== 'vite-bundled'
     || vite.viteRuntime.esmEntry !== true
-    || stableJson(vite.viteRuntime.loadedScripts) !== stableJson(['runtime', 'registry', 'layout', 'entry'])
+    || vite.viteRuntime.customModuleRegistry !== false
+    || stableJson(vite.viteRuntime.loadedModules) !== stableJson(['startup', 'layout', 'entry'])
   ) {
-    errors.push('Vite compatibility boot metrics are invalid');
+    errors.push('Vite bundled-module boot metrics are invalid');
   }
   for (const [name, expectedType] of Object.entries(REQUIRED_GLOBAL_TYPES)) {
     if (classic.globals[name] !== expectedType) errors.push(`classic global ${name} is ${classic.globals[name]}, expected ${expectedType}`);
@@ -130,6 +144,9 @@ function evaluateReport(classic: any, vite: any, visual: any): { ok: boolean; er
   if (stableJson(classic.boardSize) !== stableJson(vite.boardSize)) errors.push('board layout size differs');
   if (visual.diffPixels !== 0) errors.push(`board screenshot differs by ${visual.diffPixels} pixels`);
   if (classic.optionalRegistryAtStartup || vite.optionalRegistryAtStartup) errors.push('optional registry loaded before interaction');
+  if (!classic.moduleRegistryAtStartup) errors.push('classic rollback did not request its compatibility registry');
+  if (vite.moduleRegistryAtStartup) errors.push('Vite default requested the compatibility module registry');
+  if (vite.optionalPayloadAtStartup) errors.push('Vite optional payload loaded before interaction');
   if (classic.onnxRuntimeAtStartup || vite.onnxRuntimeAtStartup) errors.push('ONNX runtime loaded during startup');
   for (const [label, lane] of [['classic', classic], ['Vite', vite]] as const) {
     if (lane.pageErrors.length) errors.push(`${label} page errors: ${lane.pageErrors.join('; ')}`);
@@ -143,23 +160,44 @@ function evaluateReport(classic: any, vite: any, visual: any): { ok: boolean; er
   return { ok: errors.length === 0, errors };
 }
 
+function aggregateLaneSamples(samples: any[]): any {
+  if (samples.length === 0) throw new Error('browser lane samples are empty');
+  const first = samples[0];
+  return {
+    ...first,
+    readyMs: median(samples.map((sample) => sample.readyMs)),
+    readyMsSamples: samples.map((sample) => sample.readyMs),
+    navigation: {
+      domContentLoadedMs: median(samples.map((sample) => sample.navigation.domContentLoadedMs)),
+      loadMs: median(samples.map((sample) => sample.navigation.loadMs))
+    },
+    startupResources: {
+      count: median(samples.map((sample) => sample.startupResources.count)),
+      transferBytes: median(samples.map((sample) => sample.startupResources.transferBytes)),
+      encodedBodyBytes: median(samples.map((sample) => sample.startupResources.encodedBodyBytes)),
+      decodedBodyBytes: median(samples.map((sample) => sample.startupResources.decodedBodyBytes))
+    }
+  };
+}
+
 function toMarkdown(report: any): string {
   const rows = ['classic', 'vite'].map((laneName) => {
     const lane = report.lanes[laneName];
-    return `| ${laneName} | ${lane.readyMs} | ${lane.startupResources.count} | ${lane.startupResources.transferBytes} | ${lane.startupResources.decodedBodyBytes} | ${lane.startupScriptPaths.length} |`;
+    return `| ${laneName} | ${lane.readyMs} | ${lane.readyMsSamples.join(', ')} | ${lane.startupResources.count} | ${lane.startupResources.transferBytes} | ${lane.startupResources.decodedBodyBytes} | ${lane.startupScriptPaths.length} |`;
   }).join('\n');
   return [
-    '# Classic / Vite browser lane comparison (2026-07-13)',
+    '# Classic rollback / Vite default browser lane comparison (2026-07-14)',
     '',
     `- Status: ${report.evaluation.ok ? 'PASS' : 'FAIL'}`,
     `- Captured at: ${report.capturedAt}`,
     `- Node: ${report.environment.node}`,
-    '- Timing and transfer values are same-machine observations, not universal performance thresholds.',
+    `- Cold runs per lane: ${report.runCount}`,
+    '- Timing and transfer values are medians from fresh browser processes on the same machine, not universal performance thresholds.',
     '',
     '## Startup comparison',
     '',
-    '| lane | UI ready (ms) | resources | transfer bytes | decoded bytes | scripts |',
-    '| --- | ---: | ---: | ---: | ---: | ---: |',
+    '| lane | median UI ready (ms) | ready samples (ms) | median resources | median transfer bytes | median decoded bytes | scripts |',
+    '| --- | ---: | --- | ---: | ---: | ---: | ---: |',
     rows,
     '',
     '## Correctness gates',
@@ -169,6 +207,8 @@ function toMarkdown(report: any): string {
     `- Board screenshot: ${report.visual.width}x${report.visual.height}, ${report.visual.diffPixels} differing pixels`,
     `- Classic optional registry at startup: ${report.lanes.classic.optionalRegistryAtStartup}`,
     `- Vite optional registry at startup: ${report.lanes.vite.optionalRegistryAtStartup}`,
+    `- Vite compatibility registry at startup: ${report.lanes.vite.moduleRegistryAtStartup}`,
+    `- Vite optional payload at startup: ${report.lanes.vite.optionalPayloadAtStartup}`,
     `- Classic ONNX runtime at startup: ${report.lanes.classic.onnxRuntimeAtStartup}`,
     `- Vite ONNX runtime at startup: ${report.lanes.vite.onnxRuntimeAtStartup}`,
     `- Vite hashed ESM entry: ${report.lanes.vite.startupScriptPaths.find((value: string) => value.includes('/vite-dist/assets/index.vite-')) || 'missing'}`,
@@ -182,18 +222,59 @@ function toMarkdown(report: any): string {
 
 async function compareBrowserLanes(options: CompareBrowserLanesOptions = {}): Promise<any> {
   const rootDir = path.resolve(options.rootDir || process.cwd());
-  const classicResult = await runBrowserUiControlSmoke({ rootDir, entryPath: '/', captureComparison: true, log: false });
-  const viteResult = await runBrowserUiControlSmoke({ rootDir, entryPath: '/vite-dist/index.vite.html', captureComparison: true, log: false });
-  if (!classicResult.comparison || !viteResult.comparison || !classicResult.boardPng || !viteResult.boardPng) {
-    throw new Error('browser lane comparison capture is incomplete');
+  const runCount = Math.max(1, Math.floor(options.runs ?? 3));
+  const classicSamples: any[] = [];
+  const viteSamples: any[] = [];
+  const samples: any[] = [];
+  const evaluationErrors: string[] = [];
+  const visualSamples: any[] = [];
+  for (let index = 0; index < runCount; index += 1) {
+    const classicFirst = index % 2 === 0;
+    const capture = async (entryPath: string) => runBrowserUiControlSmoke({
+      rootDir,
+      entryPath,
+      captureComparison: true,
+      log: false
+    });
+    const firstResult = await capture(classicFirst ? '/index.classic.html' : '/');
+    const secondResult = await capture(classicFirst ? '/' : '/index.classic.html');
+    const classicResult = classicFirst ? firstResult : secondResult;
+    const viteResult = classicFirst ? secondResult : firstResult;
+    if (!classicResult.comparison || !viteResult.comparison || !classicResult.boardPng || !viteResult.boardPng) {
+      throw new Error(`browser lane comparison capture ${index + 1} is incomplete`);
+    }
+    const classic = summarizeLane(classicResult);
+    const vite = summarizeLane(viteResult);
+    const visual = comparePngBuffers(classicResult.boardPng, viteResult.boardPng);
+    const evaluation = evaluateReport(classic, vite, visual);
+    classicSamples.push(classic);
+    viteSamples.push(vite);
+    visualSamples.push(visual);
+    samples.push({
+      run: index + 1,
+      order: classicFirst ? ['classic', 'vite'] : ['vite', 'classic'],
+      lanes: {
+        classic: { readyMs: classic.readyMs, navigation: classic.navigation, startupResources: classic.startupResources },
+        vite: { readyMs: vite.readyMs, navigation: vite.navigation, startupResources: vite.startupResources }
+      },
+      visual,
+      evaluation
+    });
+    evaluationErrors.push(...evaluation.errors.map((error) => `run ${index + 1}: ${error}`));
   }
-  const classic = summarizeLane(classicResult);
-  const vite = summarizeLane(viteResult);
-  const visual = comparePngBuffers(classicResult.boardPng, viteResult.boardPng);
-  const evaluation = evaluateReport(classic, vite, visual);
+  const classic = aggregateLaneSamples(classicSamples);
+  const vite = aggregateLaneSamples(viteSamples);
+  const visual = {
+    width: visualSamples[0].width,
+    height: visualSamples[0].height,
+    diffPixels: Math.max(...visualSamples.map((sample) => sample.diffPixels)),
+    diffPixelSamples: visualSamples.map((sample) => sample.diffPixels)
+  };
+  const evaluation = { ok: evaluationErrors.length === 0, errors: evaluationErrors };
   const report = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     capturedAt: new Date().toISOString(),
+    runCount,
     environment: {
       node: process.version,
       platform: `${process.platform}-${process.arch}`,
@@ -201,13 +282,16 @@ async function compareBrowserLanes(options: CompareBrowserLanesOptions = {}): Pr
     },
     lanes: { classic, vite },
     correctness: {
-      runtimeContractMatch: digest(classic.globals) === digest(vite.globals)
-        && classic.missingElements.length === 0
-        && vite.missingElements.length === 0,
+      runtimeContractMatch: classicSamples.every((sample, index) => (
+        digest(sample.globals) === digest(viteSamples[index].globals)
+        && sample.missingElements.length === 0
+        && viteSamples[index].missingElements.length === 0
+      )),
       fixtureDigest: classic.fixtureDigest,
-      fixtureDigestMatch: classic.fixtureDigest === vite.fixtureDigest
+      fixtureDigestMatch: classicSamples.every((sample, index) => sample.fixtureDigest === viteSamples[index].fixtureDigest)
     },
     visual,
+    samples,
     evaluation
   };
   if (options.write) {
@@ -219,7 +303,12 @@ async function compareBrowserLanes(options: CompareBrowserLanesOptions = {}): Pr
 }
 
 if (require.main === module) {
-  compareBrowserLanes({ write: process.argv.includes('--write') }).then((report) => {
+  const runsArgument = process.argv.find((value) => value.startsWith('--runs='));
+  const parsedRuns = runsArgument ? Number(runsArgument.slice('--runs='.length)) : 3;
+  compareBrowserLanes({
+    write: process.argv.includes('--write'),
+    runs: Number.isFinite(parsedRuns) && parsedRuns > 0 ? parsedRuns : 3
+  }).then((report) => {
     if (!report.evaluation.ok) {
       console.error(`[browser-lane-comparison] failed: ${report.evaluation.errors.join('; ')}`);
       process.exit(1);
@@ -235,6 +324,7 @@ export = {
   compareBrowserLanes,
   comparePngBuffers,
   evaluateReport,
+  median,
   normalizeRequestedPaths,
   stableJson,
   toMarkdown

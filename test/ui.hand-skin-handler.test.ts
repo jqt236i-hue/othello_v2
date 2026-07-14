@@ -143,7 +143,8 @@ describe('hand skin handler', () => {
     expect(api).toBeTruthy();
 
     document.getElementById('handSkinBtn').click();
-    await flushMicrotasks();
+    expect(document.getElementById('handSkinBtn').getAttribute('aria-busy')).toBe('true');
+    await flushMicrotasks(8);
 
     expect(loadLazyRuntimeGroup).toHaveBeenCalledTimes(1);
     expect(controllerModule.setupHandSkinControls).toHaveBeenCalledWith(expect.objectContaining({
@@ -155,6 +156,8 @@ describe('hand skin handler', () => {
     expect(api.copyCurrentAppearanceCode()).toBe('appearance:v1:test');
     expect(await api.loadAppearancePresetCode()).toBe('loaded');
     expect(api.getHandAnimationPreferences()).toEqual({ draw: true, place: true });
+    expect(document.getElementById('handSkinBtn').getAttribute('aria-busy')).toBeNull();
+    expect(document.getElementById('handSkinBtn').getAttribute('data-lazy-load-state')).toBe('loaded');
   });
 
   test('re-resolves hand skin runtime helpers after optional modules become available', () => {

@@ -1,11 +1,11 @@
 {
-  "_bridge-CU23XGq6.js": {
-    "file": "assets/bridge-CU23XGq6.js",
+  "_bridge-DaXBrZaL.js": {
+    "file": "assets/bridge-DaXBrZaL.js",
     "name": "bridge"
   },
-  "_feature-registry-BPA-wCKa.js": {
-    "file": "assets/feature-registry-BPA-wCKa.js",
-    "name": "feature-registry"
+  "_rolldown-runtime-aKtaBQYM.js": {
+    "file": "assets/rolldown-runtime-aKtaBQYM.js",
+    "name": "rolldown-runtime"
   },
   "assets/images/hand-skin/勇者の手.png": {
     "file": "assets/勇者の手-C6v2toAd.png",
@@ -28,91 +28,81 @@
     "src": "assets/images/stone-skin/default/black.png"
   },
   "browser-vite/cpu-worker/diagnostics.ts": {
-    "file": "assets/cpu-worker-diagnostics-mCN7VuPO.js",
+    "file": "assets/cpu-worker-diagnostics-D5VbCsJU.js",
     "name": "cpu-worker-diagnostics",
     "src": "browser-vite/cpu-worker/diagnostics.ts",
     "isEntry": true,
     "imports": [
-      "_bridge-CU23XGq6.js"
+      "_bridge-DaXBrZaL.js"
     ]
   },
-  "browser-vite/features/commentary.ts": {
-    "file": "assets/commentary-8UHTuPfF.js",
-    "name": "commentary",
-    "src": "browser-vite/features/commentary.ts",
-    "isDynamicEntry": true,
-    "imports": [
-      "_feature-registry-BPA-wCKa.js"
-    ]
+  "browser-vite/generated-assets/optional-commentary.mjs": {
+    "file": "assets/optional-commentary-w5vg3vdT.mjs",
+    "src": "browser-vite/generated-assets/optional-commentary.mjs"
   },
-  "browser-vite/features/cosmetic.ts": {
-    "file": "assets/cosmetic-qakDL0uy.js",
-    "name": "cosmetic",
-    "src": "browser-vite/features/cosmetic.ts",
-    "isDynamicEntry": true,
-    "imports": [
-      "_feature-registry-BPA-wCKa.js"
-    ]
+  "browser-vite/generated-assets/optional-cosmetic.mjs": {
+    "file": "assets/optional-cosmetic-DROcErS9.mjs",
+    "src": "browser-vite/generated-assets/optional-cosmetic.mjs"
   },
-  "browser-vite/features/cpu.ts": {
-    "file": "assets/cpu-ASIxyAPR.js",
-    "name": "cpu",
-    "src": "browser-vite/features/cpu.ts",
-    "isDynamicEntry": true,
-    "imports": [
-      "_feature-registry-BPA-wCKa.js"
-    ]
+  "browser-vite/generated-assets/optional-cpu.mjs": {
+    "file": "assets/optional-cpu-BntQgZI-.mjs",
+    "src": "browser-vite/generated-assets/optional-cpu.mjs"
   },
-  "browser-vite/features/gacha.ts": {
-    "file": "assets/gacha-B8cDJB87.js",
-    "name": "gacha",
-    "src": "browser-vite/features/gacha.ts",
-    "isDynamicEntry": true,
-    "imports": [
-      "_feature-registry-BPA-wCKa.js"
-    ]
+  "browser-vite/generated-assets/optional-gacha.mjs": {
+    "file": "assets/optional-gacha-B00JGPIr.mjs",
+    "src": "browser-vite/generated-assets/optional-gacha.mjs"
   },
-  "browser-vite/features/leaderboard.ts": {
-    "file": "assets/leaderboard-CjiuPYoP.js",
-    "name": "leaderboard",
-    "src": "browser-vite/features/leaderboard.ts",
-    "isDynamicEntry": true,
-    "imports": [
-      "_feature-registry-BPA-wCKa.js"
-    ]
+  "browser-vite/generated-assets/optional-leaderboard.mjs": {
+    "file": "assets/optional-leaderboard-eJB6Elfi.mjs",
+    "src": "browser-vite/generated-assets/optional-leaderboard.mjs"
   },
-  "browser-vite/features/onnx.ts": {
-    "file": "assets/onnx-C0ss_m4G.js",
-    "name": "onnx",
-    "src": "browser-vite/features/onnx.ts",
+  "browser-vite/generated-assets/optional-onnx.mjs": {
+    "file": "assets/optional-onnx-DuYtzOpL.mjs",
+    "src": "browser-vite/generated-assets/optional-onnx.mjs"
+  },
+  "entry-browser.js": {
+    "file": "assets/entry-browser-C0-THyGr.js",
+    "name": "entry-browser",
+    "src": "entry-browser.js",
     "isDynamicEntry": true,
     "imports": [
-      "_bridge-CU23XGq6.js",
-      "_feature-registry-BPA-wCKa.js"
+      "_rolldown-runtime-aKtaBQYM.js"
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-B8wzE_Uf.js",
+    "file": "assets/index.vite-BvTk0iLw.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
     "imports": [
-      "_bridge-CU23XGq6.js"
+      "_rolldown-runtime-aKtaBQYM.js",
+      "_bridge-DaXBrZaL.js"
     ],
     "dynamicImports": [
-      "browser-vite/features/gacha.ts",
-      "browser-vite/features/cosmetic.ts",
-      "browser-vite/features/leaderboard.ts",
-      "browser-vite/features/commentary.ts",
-      "browser-vite/features/cpu.ts",
-      "browser-vite/features/onnx.ts"
+      "ui/layout-stage.js",
+      "entry-browser.js"
     ],
     "assets": [
+      "assets/optional-gacha-B00JGPIr.mjs",
+      "assets/optional-cosmetic-DROcErS9.mjs",
+      "assets/optional-leaderboard-eJB6Elfi.mjs",
+      "assets/optional-commentary-w5vg3vdT.mjs",
+      "assets/optional-cpu-BntQgZI-.mjs",
+      "assets/optional-onnx-DuYtzOpL.mjs",
       "assets/black-C5I6QShq.png",
       "assets/card-reversi-player-guide-slide-01-epiawl9Y.png",
       "assets/protection-penetration-quick-reference-QipUvGs2.png",
       "assets/hero-DbqiEqdj.png",
       "assets/勇者の手-C6v2toAd.png"
+    ]
+  },
+  "ui/layout-stage.js": {
+    "file": "assets/layout-stage-cyNvfiou.js",
+    "name": "layout-stage",
+    "src": "ui/layout-stage.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_rolldown-runtime-aKtaBQYM.js"
     ]
   }
 }

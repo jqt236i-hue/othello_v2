@@ -5,6 +5,7 @@ type BrowserRoot = Window & { Image?: ImageConstructor };
 
 const WEBP_PROBE = 'data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA4AAAAvAAAAAAcQEf0PRET/Aw==';
 let webpSupportPromise: Promise<boolean> | null = null;
+let pendingStyleRequests = new WeakMap<object, Map<string, symbol>>();
 
 function getImageConstructor(rootRef: BrowserRoot | null | undefined): ImageConstructor | null {
   if (rootRef && typeof rootRef.Image === 'function') return rootRef.Image;
@@ -68,16 +69,33 @@ export function applyBackgroundImageWithFallback(
   sourcePath: string
 ): void {
   const fallbackCss = toCssUrl(sourcePath);
-  style.setProperty(propertyName, fallbackCss);
+  const initialValue = typeof style.getPropertyValue === 'function'
+    ? style.getPropertyValue(propertyName)
+    : '';
+  const optimizedPath = getOptimizedBackgroundPath(sourcePath);
+  if (!optimizedPath) {
+    style.setProperty(propertyName, fallbackCss);
+    return;
+  }
+  let propertyRequests = pendingStyleRequests.get(style as unknown as object);
+  if (!propertyRequests) {
+    propertyRequests = new Map<string, symbol>();
+    pendingStyleRequests.set(style as unknown as object, propertyRequests);
+  }
+  const requestToken = Symbol(propertyName);
+  propertyRequests.set(propertyName, requestToken);
   void resolveBackgroundImagePath(rootRef, sourcePath).then((resolvedPath) => {
+    if (propertyRequests?.get(propertyName) !== requestToken) return;
     const currentValue = typeof style.getPropertyValue === 'function'
       ? style.getPropertyValue(propertyName)
-      : fallbackCss;
-    if (currentValue !== fallbackCss) return;
+      : initialValue;
+    if (currentValue !== initialValue) return;
     style.setProperty(propertyName, toCssUrl(resolvedPath));
+    propertyRequests?.delete(propertyName);
   });
 }
 
 export function resetBackgroundImageCodecForTests(): void {
   webpSupportPromise = null;
+  pendingStyleRequests = new WeakMap<object, Map<string, symbol>>();
 }

@@ -441,4 +441,55 @@ describe('OnnxWorkerInferenceExecutor recovery', () => {
     expect((outputs.logits.data as Float32Array)[0]).toBeCloseTo(0.25);
     expect(client.getStatus()).toMatchObject({ workerCreatedCount: 2, restartCount: 1 });
   });
+
+  test('reports post-ping session creation failure so the browser can activate main-thread ONNX', async () => {
+    const worker = new FakeWorker();
+    const client = new CpuWorkerClient({ workerFactory: () => worker });
+    const onFailure = jest.fn();
+    const executor = new OnnxWorkerInferenceExecutor({
+      client,
+      baseUrl: 'https://example.test/game/',
+      wasmPathsUrl: 'https://example.test/node_modules/onnxruntime-web/dist/',
+      onFailure
+    });
+    const pending = executor.createSession({
+      sessionKey: 'policy-placement',
+      modelUrl: '../data/model.onnx',
+      metaUrl: '../data/model.meta.json',
+      executionProviders: ['webgpu', 'wasm']
+    });
+    const request = worker.messages[0].message as CpuWorkerRequest;
+    worker.emit({
+      ...successFor(request, null),
+      ok: false,
+      error: { code: 'ONNX_SESSION_CREATE_FAILED', message: 'WASM load failed', recoverable: true },
+      result: undefined
+    });
+
+    await expect(pending).rejects.toThrow('WASM load failed');
+    expect(onFailure).toHaveBeenCalledTimes(1);
+    expect(onFailure).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'ONNX_SESSION_CREATE_FAILED'
+    }), 'create');
+  });
+
+  test('preserves explicit WebGPU opt-in when no deployment provider override is supplied', async () => {
+    const worker = new AutoWorker();
+    const client = new CpuWorkerClient({ workerFactory: () => worker });
+    const executor = new OnnxWorkerInferenceExecutor({
+      client,
+      baseUrl: 'https://example.test/game/',
+      wasmPathsUrl: 'https://example.test/node_modules/onnxruntime-web/dist/'
+    });
+
+    await executor.createSession({
+      sessionKey: 'policy-placement',
+      modelUrl: '../data/model.onnx',
+      metaUrl: '../data/model.meta.json',
+      executionProviders: ['webgpu', 'wasm']
+    });
+
+    const request = worker.messages[0].message as CpuWorkerRequest;
+    expect((request.payload as any).executionProviders).toEqual(['webgpu', 'wasm']);
+  });
 });

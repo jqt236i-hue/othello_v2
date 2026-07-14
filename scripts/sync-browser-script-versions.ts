@@ -52,6 +52,11 @@ function buildScriptTagPattern(relativePath: string): RegExp {
     return new RegExp(`(<script\\s+[^>]*src=["'])${escapedPath}(?:\\?v=[^"'<>]*)?(["'][^>]*><\\/script>)`);
 }
 
+function buildStylesheetTagPattern(relativePath: string): RegExp {
+    const escapedPath = escapeRegExp(relativePath);
+    return new RegExp(`(<link\\s+[^>]*rel=["']stylesheet["'][^>]*href=["'])${escapedPath}(?:\\?v=[^"'<>]*)?(["'][^>]*>)`);
+}
+
 function syncBrowserScriptVersions(options?: SyncBrowserScriptVersionsOptions): SyncBrowserScriptVersionsResult {
     const opts = (options && typeof options === 'object') ? options : {};
     const rootDir = opts.rootDir ? path.resolve(String(opts.rootDir)) : path.resolve(__dirname, '..');
@@ -88,6 +93,23 @@ function syncBrowserScriptVersions(options?: SyncBrowserScriptVersionsOptions): 
             version,
             changed: nextHtml !== html
         });
+        html = nextHtml;
+    }
+
+    const stylesheetPaths = Array.from(html.matchAll(/<link\s+[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/g))
+        .map((match) => String(match[1] || '').split('?')[0])
+        .filter((relativePath, index, all) => (
+            !!relativePath
+            && !/^(?:[a-z]+:)?\/\//i.test(relativePath)
+            && all.indexOf(relativePath) === index
+        ));
+    for (const relativePath of stylesheetPaths) {
+        const filePath = path.join(rootDir, relativePath);
+        if (!fs.existsSync(filePath)) continue;
+        const version = computeScriptVersionToken(filePath);
+        const pattern = buildStylesheetTagPattern(relativePath);
+        const nextHtml = html.replace(pattern, `$1${relativePath}?v=${version}$2`);
+        updates.push({ relativePath, version, changed: nextHtml !== html });
         html = nextHtml;
     }
 
