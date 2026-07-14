@@ -33,6 +33,9 @@ export function installOptionalFeatureLoader(options: InstallOptionalFeatureLoad
   const loader = runtimeModule.createLazyRuntimeLoader({
     root: rootRef,
     document: documentRef,
+    loadScript: typeof options.loadScript === 'function'
+      ? (src: string) => options.loadScript!(src, 'onnx')
+      : undefined,
     shouldLoadMainThreadOnnxRuntime: () => !rootRef.__CARD_REVERSI_ONNX_WORKER_EXECUTOR__,
     loadGroup: async (group: OptionalFeatureGroup) => {
       const importFeature = imports[group];
@@ -44,8 +47,29 @@ export function installOptionalFeatureLoader(options: InstallOptionalFeatureLoad
       return adapter.loadOptionalFeature({ root: rootRef, document: documentRef, loadScript: options.loadScript });
     }
   });
+  let mainThreadOnnxFallback: Promise<boolean> | null = null;
+  const activateMainThreadOnnxFallback = (): Promise<boolean> => {
+    if (mainThreadOnnxFallback) return mainThreadOnnxFallback;
+    const next = (async () => {
+      if (typeof loader.activateMainThreadOnnxFallback !== 'function') {
+        throw new Error('main-thread ONNX fallback loader is unavailable');
+      }
+      await loader.activateMainThreadOnnxFallback();
+      for (const initializerName of ['initPolicyOnnxModel', 'initOthelloOnnxModel']) {
+        const initializer = rootRef[initializerName];
+        if (typeof initializer === 'function') await initializer.call(rootRef);
+      }
+      return true;
+    })();
+    mainThreadOnnxFallback = next;
+    next.catch(() => {
+      if (mainThreadOnnxFallback === next) mainThreadOnnxFallback = null;
+    });
+    return next;
+  };
   const facade = Object.assign({}, runtimeModule, {
     loadLazyRuntimeGroup: loader.load,
+    activateMainThreadOnnxFallback,
     isLazyRuntimeGroupLoaded: loader.isLoaded,
     getLazyRuntimeGroupError: loader.getLastError
   });

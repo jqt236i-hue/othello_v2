@@ -1,6 +1,7 @@
 # Browser runtime modernization implementation plan
 
-- Status: reviewed implementation plan
+- Status: completed on 2026-07-14
+- Completion record: `docs/perf/2026-07-14-browser-modernization-completion.md`
 - Design: `docs/implementation/browser-runtime-modernization-design.md`
 - Date: 2026-07-13
 - Execution mode: sequential behavior-preserving phases with a verified commit after each coherent unit

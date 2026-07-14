@@ -245,6 +245,35 @@ describe('CpuWorkerClient', () => {
     )).rejects.toMatchObject({ code: 'CPU_WORKER_UNAVAILABLE' });
     expect(client.getStatus()).toMatchObject({ workerActive: false, workerCreatedCount: 0 });
   });
+
+  test('never recreates a Worker after the client is explicitly terminated', async () => {
+    const workers: FakeWorker[] = [];
+    const client = new CpuWorkerClient({
+      workerFactory: () => {
+        const worker = new FakeWorker();
+        workers.push(worker);
+        return worker;
+      }
+    });
+    const first = client.probe();
+    const request = workers[0].messages[0].message as CpuWorkerRequest;
+    workers[0].emit(successFor(request, { ready: true }));
+    await expect(first).resolves.toBe(true);
+
+    client.terminate('permanent test shutdown');
+
+    await expect(client.probe()).rejects.toMatchObject({
+      code: 'CPU_WORKER_TERMINATED',
+      recoverable: false
+    });
+    expect(workers).toHaveLength(1);
+    expect(workers[0].terminated).toBe(true);
+    expect(client.getStatus()).toMatchObject({
+      workerActive: false,
+      permanentlyClosed: true,
+      workerCreatedCount: 1
+    });
+  });
 });
 
 class AutoWorker extends FakeWorker {

@@ -97,6 +97,51 @@ describe('lazy runtime loader', () => {
     expect(loader.isLoaded('onnx')).toBe(true);
   });
 
+  test('can activate main-thread ORT once after the Worker-backed ONNX group is already loaded', async () => {
+    jest.resetModules();
+    const { createLazyRuntimeLoader } = require('../ui/bootstrap/lazy-runtime-loader');
+    const configureOthelloRuntime = jest.fn();
+    const configurePolicyRuntime = jest.fn();
+    const root = {
+      ort: null as any,
+      require: jest.fn((moduleKey: string) => {
+        if (moduleKey === 'game/ai/othello-onnx-runtime') return { configure: configureOthelloRuntime };
+        if (moduleKey === 'game/ai/policy-onnx-runtime') return { configure: configurePolicyRuntime };
+        throw new Error(`unexpected module: ${moduleKey}`);
+      })
+    };
+    const loadScript = jest.fn(async (src: string) => {
+      expect(src).toBe('node_modules/onnxruntime-web/dist/ort.min.js');
+      root.ort = { Tensor: function Tensor() {} };
+    });
+    const loader = createLazyRuntimeLoader({
+      root,
+      loadScript,
+      loadGroup: jest.fn(async () => undefined),
+      shouldLoadMainThreadOnnxRuntime: () => false
+    });
+    await loader.load('onnx');
+
+    const first = loader.activateMainThreadOnnxFallback();
+    const second = loader.activateMainThreadOnnxFallback();
+
+    expect(first).toBe(second);
+    await expect(first).resolves.toBe(true);
+    await expect(loader.activateMainThreadOnnxFallback()).resolves.toBe(true);
+    expect(loadScript).toHaveBeenCalledTimes(1);
+    expect(configureOthelloRuntime).toHaveBeenCalledTimes(1);
+    expect(configurePolicyRuntime).toHaveBeenCalledTimes(1);
+    expect(configureOthelloRuntime).toHaveBeenCalledWith({
+      inferenceExecutor: null,
+      ortApi: root.ort
+    });
+    expect(configurePolicyRuntime).toHaveBeenCalledWith({
+      inferenceExecutor: null,
+      ortApi: root.ort
+    });
+    expect(loader.isLoaded('onnx')).toBe(true);
+  });
+
   test('default loader exposes browser globals', async () => {
     jest.resetModules();
     const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {

@@ -5,6 +5,7 @@ import {
   createCpuWorkerClient,
   type CpuWorkerClient
 } from './client';
+import { detachOnnxWorkerExecutor } from './main-thread-fallback';
 
 type RuntimeRoot = Window & Record<string, any>;
 
@@ -68,6 +69,7 @@ export function disableCpuWorkerBridge(
   bridge?: BrowserCpuWorkerBridge | null
 ): void {
   const current = bridges.get(rootRef);
+  if (!current && permanentlyDisabledRoots.has(rootRef)) return;
   if (bridge && current && current !== bridge) return;
   const target = current || bridge || null;
   if (target && target.client) target.client.terminate('Dedicated CPU Worker disabled');
@@ -79,12 +81,39 @@ export function disableCpuWorkerBridge(
       bootstrap.configureCpuCandidateScoring(null);
     }
   } catch (error) { /* local fallback remains available */ }
-  delete rootRef.__CARD_REVERSI_ONNX_WORKER_EXECUTOR__;
+  const detachResult = detachOnnxWorkerExecutor(rootRef);
+  const lazyRuntime = rootRef.LazyRuntimeLoaderModule;
+  const activateMainThreadFallback = lazyRuntime && lazyRuntime.activateMainThreadOnnxFallback;
+  const fallbackPending = detachResult.hadWorkerExecutor && typeof activateMainThreadFallback === 'function';
   updateCapabilities(rootRef, {
     dedicatedCpuWorkerConfigured: false,
     cpuCandidateScoringWorker: false,
     cpuCandidateScoringInjected: false,
     dedicatedCpuWorker: false,
-    onnxInferenceWorker: false
+    onnxInferenceWorker: false,
+    onnxWorkerDetachSucceeded: detachResult.errors.length === 0,
+    onnxMainThreadFallbackPending: fallbackPending,
+    onnxMainThreadFallbackActive: false,
+    onnxMainThreadFallbackError: null
   });
+  if (!fallbackPending) return;
+
+  const fallbackPromise = Promise.resolve()
+    .then(() => activateMainThreadFallback.call(lazyRuntime))
+    .then(() => {
+      updateCapabilities(rootRef, {
+        onnxMainThreadFallbackPending: false,
+        onnxMainThreadFallbackActive: true,
+        onnxMainThreadFallbackError: null
+      });
+      return true;
+    }, (error) => {
+      updateCapabilities(rootRef, {
+        onnxMainThreadFallbackPending: false,
+        onnxMainThreadFallbackActive: false,
+        onnxMainThreadFallbackError: error instanceof Error ? error.message : String(error)
+      });
+      return false;
+    });
+  rootRef.__CARD_REVERSI_ONNX_MAIN_THREAD_FALLBACK__ = fallbackPromise;
 }

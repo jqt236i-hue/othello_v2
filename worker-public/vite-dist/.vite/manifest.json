@@ -1,6 +1,6 @@
 {
-  "_bridge-Djk4Df2v.js": {
-    "file": "assets/bridge-Djk4Df2v.js",
+  "_bridge-CU23XGq6.js": {
+    "file": "assets/bridge-CU23XGq6.js",
     "name": "bridge"
   },
   "_feature-registry-BPA-wCKa.js": {
@@ -28,12 +28,12 @@
     "src": "assets/images/stone-skin/default/black.png"
   },
   "browser-vite/cpu-worker/diagnostics.ts": {
-    "file": "assets/cpu-worker-diagnostics-JbS-MpAa.js",
+    "file": "assets/cpu-worker-diagnostics-mCN7VuPO.js",
     "name": "cpu-worker-diagnostics",
     "src": "browser-vite/cpu-worker/diagnostics.ts",
     "isEntry": true,
     "imports": [
-      "_bridge-Djk4Df2v.js"
+      "_bridge-CU23XGq6.js"
     ]
   },
   "browser-vite/features/commentary.ts": {
@@ -82,22 +82,22 @@
     ]
   },
   "browser-vite/features/onnx.ts": {
-    "file": "assets/onnx-GNBDKKAn.js",
+    "file": "assets/onnx-C0ss_m4G.js",
     "name": "onnx",
     "src": "browser-vite/features/onnx.ts",
     "isDynamicEntry": true,
     "imports": [
-      "_bridge-Djk4Df2v.js",
+      "_bridge-CU23XGq6.js",
       "_feature-registry-BPA-wCKa.js"
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-DqnnDAkz.js",
+    "file": "assets/index.vite-B8wzE_Uf.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
     "imports": [
-      "_bridge-Djk4Df2v.js"
+      "_bridge-CU23XGq6.js"
     ],
     "dynamicImports": [
       "browser-vite/features/gacha.ts",

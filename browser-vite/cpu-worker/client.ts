@@ -52,6 +52,7 @@ export interface CpuWorkerClientOptions {
 
 export interface CpuWorkerClientStatus {
   workerActive: boolean;
+  permanentlyClosed: boolean;
   generation: number;
   pendingRequests: number;
   requestCount: number;
@@ -128,6 +129,7 @@ export class CpuWorkerClient {
   private workerCreatedCount = 0;
   private restartCount = 0;
   private lastError: Error | null = null;
+  private permanentlyClosed = false;
   private readonly pending = new Map<string, PendingRequest>();
   private readonly ignoredRequestIds = new Set<string>();
 
@@ -144,6 +146,7 @@ export class CpuWorkerClient {
   getStatus(): CpuWorkerClientStatus {
     return {
       workerActive: !!this.worker,
+      permanentlyClosed: this.permanentlyClosed,
       generation: this.generation,
       pendingRequests: this.pending.size,
       requestCount: this.requestCount,
@@ -163,6 +166,15 @@ export class CpuWorkerClient {
   }
 
   private ensureWorker(): CpuWorkerTransport {
+    if (this.permanentlyClosed) {
+      const error = new CpuWorkerClientError(
+        'CPU Worker client is permanently closed',
+        'CPU_WORKER_TERMINATED',
+        false
+      );
+      this.lastError = error;
+      throw error;
+    }
     if (this.worker) return this.worker;
     let worker: CpuWorkerTransport;
     try {
@@ -364,7 +376,8 @@ export class CpuWorkerClient {
   }
 
   terminate(reason = 'CPU Worker client terminated'): void {
-    this.failWorker(new CpuWorkerClientError(reason, 'CPU_WORKER_TERMINATED', true));
+    this.permanentlyClosed = true;
+    this.failWorker(new CpuWorkerClientError(reason, 'CPU_WORKER_TERMINATED', false));
   }
 
   invalidateProtocol(reason: string): CpuWorkerClientError {

@@ -15,6 +15,7 @@ interface LazyRuntimeLoaderOptions {
 
 interface LazyRuntimeLoader {
   load: (group: LazyRuntimeGroup | string) => Promise<boolean>;
+  activateMainThreadOnnxFallback: () => Promise<boolean>;
   isLoaded: (group: LazyRuntimeGroup | string) => boolean;
   getLastError: (group: LazyRuntimeGroup | string) => unknown;
 }
@@ -118,6 +119,7 @@ function createLazyRuntimeLoader(options?: LazyRuntimeLoaderOptions): LazyRuntim
   const lastErrors = new Map<LazyRuntimeGroup, unknown>();
   let optionalRegistryLoad: Promise<unknown> | null = null;
   let onnxRuntimeLoad: Promise<unknown> | null = null;
+  let mainThreadOnnxFallbackLoad: Promise<boolean> | null = null;
   let aggregateOptionalBootEntriesRestored = false;
   const restoredGroups = new Set<LazyRuntimeGroup>();
 
@@ -161,7 +163,7 @@ function createLazyRuntimeLoader(options?: LazyRuntimeLoaderOptions): LazyRuntim
     return onnxRuntimeLoad;
   };
 
-  const injectOnnxRuntimeApi = () => {
+  const injectOnnxRuntimeApi = (detachWorkerExecutor = false) => {
     const ortApi = rootRef && rootRef.ort;
     if (!ortApi || typeof ortApi.Tensor !== 'function') {
       throw new Error('onnxruntime-web loaded without exposing window.ort');
@@ -174,8 +176,24 @@ function createLazyRuntimeLoader(options?: LazyRuntimeLoaderOptions): LazyRuntim
       if (!runtime || typeof runtime.configure !== 'function') {
         throw new Error(`ONNX runtime module is unavailable: ${moduleKey}`);
       }
-      runtime.configure({ ortApi });
+      runtime.configure(detachWorkerExecutor
+        ? { inferenceExecutor: null, ortApi }
+        : { ortApi });
     }
+  };
+
+  const activateMainThreadOnnxFallback = (): Promise<boolean> => {
+    if (mainThreadOnnxFallbackLoad) return mainThreadOnnxFallbackLoad;
+    const next = (async () => {
+      await ensureOnnxRuntime();
+      injectOnnxRuntimeApi(true);
+      return true;
+    })();
+    mainThreadOnnxFallbackLoad = next;
+    next.catch(() => {
+      if (mainThreadOnnxFallbackLoad === next) mainThreadOnnxFallbackLoad = null;
+    });
+    return next;
   };
 
   const load = (groupInput: LazyRuntimeGroup | string): Promise<boolean> => {
@@ -220,6 +238,7 @@ function createLazyRuntimeLoader(options?: LazyRuntimeLoaderOptions): LazyRuntim
 
   return {
     load,
+    activateMainThreadOnnxFallback,
     isLoaded(groupInput: LazyRuntimeGroup | string): boolean {
       try {
         return loadedGroups.has(normalizeGroup(groupInput));
