@@ -4,12 +4,18 @@ import { FEATURE_IMPORTS } from './optional-feature-adapters';
 import { installOptionalFeatureLoader } from './optional-feature-loader';
 import { installOptionalPayloadLoader } from './optional-payload-loader';
 import { installCpuWorkerBridge } from './cpu-worker/bridge';
+import { applyPixiRuntimeOutcome, loadPixiRuntime } from './pixi-runtime-loader';
 
 installVitePreloadErrorHandler();
 installOptionalPayloadLoader({ payloadUrls: OPTIONAL_PAYLOAD_URLS });
 
 const startBrowserApp = createStartViteBrowserApp({
-  beforeInitialize: (root, documentRef) => {
+  loadPixiRuntime: (root) => loadPixiRuntime({
+    root,
+    importer: () => import('pixi.js')
+  }),
+  beforeInitialize: (root, documentRef, pixiRuntime) => {
+    const pixiRuntimeInjected = applyPixiRuntimeOutcome(root, pixiRuntime);
     const cpuWorkerBridge = installCpuWorkerBridge(root, documentRef);
     let candidateScoringInjected = false;
     if (
@@ -24,7 +30,7 @@ const startBrowserApp = createStartViteBrowserApp({
     root.__CARD_REVERSI_BROWSER_CAPABILITIES__ = Object.freeze(Object.assign(
       {},
       root.__CARD_REVERSI_BROWSER_CAPABILITIES__ || {},
-      { cpuCandidateScoringInjected: candidateScoringInjected }
+      { cpuCandidateScoringInjected: candidateScoringInjected, pixiRuntimeInjected }
     ));
     installOptionalFeatureLoader({ root, document: documentRef, featureImports: FEATURE_IMPORTS });
   }

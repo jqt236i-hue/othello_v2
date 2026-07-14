@@ -1,3 +1,6 @@
 *.pdf binary
 *.png binary
 *.pptx binary
+public/vendor/*.min.js binary
+worker-public/public/vendor/*.min.js binary
+worker-public/vite-dist/assets/* binary

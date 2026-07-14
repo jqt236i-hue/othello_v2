@@ -54,6 +54,7 @@ describe('prepare-worker-assets', () => {
 
     test('verifies worker runtime root files are mirrored', () => {
         expect(ROOT_FILES).toContain('entry-browser.js');
+        expect(ROOT_FILES).toContain('public/vendor/pixi-8.18.1.min.js');
         expect(ROOT_FILES).toContain('public/runtime.js');
         expect(ROOT_FILES).toContain('public/module-registry.js');
         expect(ROOT_FILES).toContain('public/module-registry.optional.js');
@@ -63,6 +64,7 @@ describe('prepare-worker-assets', () => {
         }
         expect(ROOT_FILES).toContain('styles-leaderboard.css');
         expect(VERIFY_ROOT_FILES).toContain('entry-browser.js');
+        expect(VERIFY_ROOT_FILES).toContain('public/vendor/pixi-8.18.1.min.js');
         expect(VERIFY_ROOT_FILES).toContain('public/runtime.js');
         expect(VERIFY_ROOT_FILES).toContain('public/module-registry.js');
         expect(VERIFY_ROOT_FILES).toContain('styles-leaderboard.css');
@@ -131,6 +133,32 @@ describe('prepare-worker-assets', () => {
         writeFile(path.join(outDir, 'index.html'), '<!doctype html><html><body>drift</body></html>');
 
         expect(() => verifyMirrors([], [], config)).toThrow(/(size|content) mismatch: index\.html/);
+    });
+
+    test('mirrors the versioned Pixi vendor and detects nested-file drift', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-prepare-pixi-vendor-'));
+        cleanupDirs.push(rootDir);
+        const outDir = path.join(rootDir, 'worker-public-out');
+        const vendorPath = 'public/vendor/pixi-8.18.1.min.js';
+        const options = {
+            rootDir,
+            outDir,
+            rootFiles: [vendorPath],
+            verifyRootFiles: [vendorPath],
+            dirs: [],
+            verifyDirs: [],
+            optionalFiles: [],
+            generatedOptionalAssets: []
+        };
+        const config = createPrepareConfig(options);
+        writeFile(path.join(rootDir, vendorPath), 'pixi-vendor-fixture');
+
+        prepareWorkerAssets(options);
+        expect(fs.readFileSync(path.join(outDir, vendorPath), 'utf8')).toBe('pixi-vendor-fixture');
+        expect(() => verifyMirrors([], [], config)).not.toThrow();
+
+        writeFile(path.join(outDir, vendorPath), 'drift');
+        expect(() => verifyMirrors([], [], config)).toThrow(/(size|content) mismatch: public[\\/]vendor[\\/]pixi-8\.18\.1\.min\.js/);
     });
 
     test('can sync selected root files without deleting unrelated mirror files', () => {

@@ -55,6 +55,13 @@ try {
     }
 } catch (e: any) { /* ignore */ }
 
+let PixiRuntimeContract: any = null;
+try {
+    if (typeof _require === 'function') {
+        PixiRuntimeContract = _require('./pixi/runtime-contract');
+    }
+} catch (e: any) { /* ignore */ }
+
 function readCpuSmartnessValueFromSelect(id: string): number | string {
     try {
         if (CpuProfileSelectionModule && typeof CpuProfileSelectionModule.readCpuSmartnessValueFromSelectId === 'function') {
@@ -126,6 +133,23 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             : null;
         cpuCandidateScoringRuntime = scorer ? { scoreCandidatesInWorker: scorer } : {};
         return !!scorer;
+    }
+
+    function configurePixiRuntime(runtime: any, options?: any): boolean {
+        if (!PixiRuntimeContract || typeof PixiRuntimeContract.configurePixiRuntime !== 'function') return false;
+        return PixiRuntimeContract.configurePixiRuntime(runtime, options);
+    }
+
+    function markPixiRuntimeUnavailable(reason: any, options?: any): boolean {
+        if (!PixiRuntimeContract || typeof PixiRuntimeContract.markPixiRuntimeUnavailable !== 'function') return false;
+        return PixiRuntimeContract.markPixiRuntimeUnavailable(reason, options);
+    }
+
+    function getPixiRuntimeCapability(): any {
+        if (!PixiRuntimeContract || typeof PixiRuntimeContract.getPixiRuntimeCapability !== 'function') {
+            return Object.freeze({ lane: 'unknown', injected: false, version: null, unavailableReason: 'runtime-contract-unavailable' });
+        }
+        return PixiRuntimeContract.getPixiRuntimeCapability();
     }
     let _gameDIInstallResult: any = null;
     let _stoneBaseImagesReadyPromise: any = null;
@@ -2376,6 +2400,9 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         registerUIGlobals,
         getRegisteredUIGlobals,
         configureCpuCandidateScoring,
+        configurePixiRuntime,
+        markPixiRuntimeUnavailable,
+        getPixiRuntimeCapability,
         preloadAssets,
         preloadSpecialStoneVisuals,
         applyAssetManifest,
@@ -2395,6 +2422,13 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         try {
             if (target) {
                 (target as { UIBootstrap?: typeof UIBootstrap }).UIBootstrap = UIBootstrap;
+                if (String((target as any).__CARD_REVERSI_BROWSER_LANE__ || '').toLowerCase() === 'classic') {
+                    if ((target as any).PIXI) {
+                        configurePixiRuntime((target as any).PIXI, { root: target, lane: 'classic' });
+                    } else {
+                        markPixiRuntimeUnavailable('classic-global-missing', { root: target, lane: 'classic' });
+                    }
+                }
             }
         } catch (e: any) { /* ignore */ }
         uiBootstrapRuntimeInitialized = true;

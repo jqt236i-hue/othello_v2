@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const CLASSIC_SCRIPT_ORDER = Object.freeze([
+  'public/vendor/pixi-8.18.1.min.js',
   'public/runtime.js',
   'public/module-registry.js',
   'ui/layout-stage.js',

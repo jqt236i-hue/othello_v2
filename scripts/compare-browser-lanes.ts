@@ -85,6 +85,8 @@ function summarizeLane(result: any): any {
     htmlLane: snapshot.htmlLane,
     bootState: snapshot.bootState,
     viteRuntime: snapshot.viteRuntime,
+    pixiRuntime: snapshot.pixiRuntime,
+    boardRenderSurface: snapshot.boardRenderSurface,
     readyMs: snapshot.readyMs,
     userAgent: snapshot.userAgent,
     navigation: snapshot.navigation,
@@ -129,6 +131,28 @@ function evaluateReport(classic: any, vite: any, visual: any): { ok: boolean; er
     || stableJson(vite.viteRuntime.loadedModules) !== stableJson(['startup', 'layout', 'entry'])
   ) {
     errors.push('Vite bundled-module boot metrics are invalid');
+  }
+  for (const [label, lane, expectedLane] of [
+    ['classic', classic, 'classic'],
+    ['Vite', vite, 'vite']
+  ] as const) {
+    if (
+      !lane.pixiRuntime
+      || lane.pixiRuntime.lane !== expectedLane
+      || lane.pixiRuntime.injected !== true
+      || lane.pixiRuntime.version !== '8.18.1'
+      || lane.pixiRuntime.unavailableReason !== null
+    ) {
+      errors.push(`${label} Pixi runtime capability is invalid`);
+    }
+    if (
+      !lane.boardRenderSurface
+      || lane.boardRenderSurface.renderer !== 'legacy-dom'
+      || lane.boardRenderSurface.cellCount <= 0
+      || lane.boardRenderSurface.canvasCount !== 0
+    ) {
+      errors.push(`${label} did not preserve the Phase 1 DOM board surface`);
+    }
   }
   for (const [name, expectedType] of Object.entries(REQUIRED_GLOBAL_TYPES)) {
     if (classic.globals[name] !== expectedType) errors.push(`classic global ${name} is ${classic.globals[name]}, expected ${expectedType}`);
@@ -284,6 +308,9 @@ async function compareBrowserLanes(options: CompareBrowserLanesOptions = {}): Pr
     correctness: {
       runtimeContractMatch: classicSamples.every((sample, index) => (
         digest(sample.globals) === digest(viteSamples[index].globals)
+        && sample.pixiRuntime?.version === viteSamples[index].pixiRuntime?.version
+        && sample.pixiRuntime?.injected === true
+        && viteSamples[index].pixiRuntime?.injected === true
         && sample.missingElements.length === 0
         && viteSamples[index].missingElements.length === 0
       )),

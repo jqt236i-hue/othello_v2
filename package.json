@@ -8,7 +8,7 @@
     "typecheck:ts-only": "tsc -p tsconfig.ts-only.json --pretty false && npm run typecheck:training",
     "typecheck:watch": "tsc --noEmit --watch",
     "build:ts": "tsc -p tsconfig.build.json && npm run typecheck:training && node scripts/build-training-cli.js",
-    "build:browser": "npm run build:ts && node dist/scripts/build-module-registry.js",
+    "build:browser": "npm run build:ts && node dist/scripts/prepare-pixi-classic-assets.js && node dist/scripts/build-module-registry.js",
     "generate:vite-entry": "npm run build:ts && node dist/scripts/build-vite-entry.js",
     "check:vite-entry": "npm run build:ts && node dist/scripts/build-vite-entry.js --check",
     "generate:vite-modules": "npm run build:ts && node dist/scripts/build-vite-module-bridge.js",
@@ -33,6 +33,7 @@
     "match:ui-control-smoke": "npm run build:vite && node dist/scripts/browser-ui-control-smoke.js",
     "match:ui-control-smoke:vite": "npm run build:vite && node dist/scripts/browser-ui-control-smoke.js",
     "match:ui-control-smoke:classic": "npm run build:browser && node dist/scripts/browser-ui-control-smoke.js --classic",
+    "match:pixi-runtime-fallback-check": "npm run build:vite && node dist/scripts/pixijs-runtime-fallback-browser-check.js",
     "match:optional-feature-smoke:vite": "npm run build:vite && node dist/scripts/browser-optional-feature-smoke.js",
     "match:onnx-worker-smoke:vite": "npm run build:vite && node dist/scripts/browser-onnx-worker-smoke.js",
     "match:cross-platform-smoke:vite": "npm run build:vite && node dist/scripts/browser-cross-platform-smoke.js",
@@ -104,7 +105,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "onnxruntime-web": "^1.22.0"
+    "onnxruntime-web": "^1.22.0",
+    "pixi.js": "8.18.1"
   },
   "jest": {
     "testEnvironment": "node",

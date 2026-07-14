@@ -1,7 +1,124 @@
 {
+  "_BufferResource-THE6zpTV.js": {
+    "file": "assets/BufferResource-THE6zpTV.js",
+    "name": "BufferResource",
+    "imports": [
+      "_Geometry-BU6TUmLD.js",
+      "_RenderTargetSystem-Li4ySkzE.js",
+      "_GCManagedHash-CS_ntgxT.js"
+    ]
+  },
+  "_Cache-4NLpjVOm.js": {
+    "file": "assets/Cache-4NLpjVOm.js",
+    "name": "Cache",
+    "imports": [
+      "_Geometry-BU6TUmLD.js"
+    ]
+  },
+  "_CanvasPool-Bq925mTT.js": {
+    "file": "assets/CanvasPool-Bq925mTT.js",
+    "name": "CanvasPool",
+    "imports": [
+      "_Geometry-BU6TUmLD.js"
+    ]
+  },
+  "_FederatedEventTarget-BprZznEk.js": {
+    "file": "assets/FederatedEventTarget-BprZznEk.js",
+    "name": "FederatedEventTarget",
+    "imports": [
+      "_Geometry-BU6TUmLD.js",
+      "_Filter-CvF2W6EG.js"
+    ]
+  },
+  "_Filter-CvF2W6EG.js": {
+    "file": "assets/Filter-CvF2W6EG.js",
+    "name": "Filter",
+    "imports": [
+      "_Geometry-BU6TUmLD.js"
+    ]
+  },
+  "_FilterSystem-DSMXPk6a.js": {
+    "file": "assets/FilterSystem-DSMXPk6a.js",
+    "name": "FilterSystem",
+    "imports": [
+      "_Geometry-BU6TUmLD.js",
+      "_Filter-CvF2W6EG.js",
+      "_Cache-4NLpjVOm.js",
+      "_ImageSource-GD0LtTbh.js",
+      "_canvasUtils-DgWfguSs.js",
+      "_CanvasPool-Bq925mTT.js"
+    ]
+  },
+  "_GCManagedHash-CS_ntgxT.js": {
+    "file": "assets/GCManagedHash-CS_ntgxT.js",
+    "name": "GCManagedHash",
+    "imports": [
+      "_Geometry-BU6TUmLD.js"
+    ]
+  },
+  "_Geometry-BU6TUmLD.js": {
+    "file": "assets/Geometry-BU6TUmLD.js",
+    "name": "Geometry",
+    "imports": [
+      "_rolldown-runtime-aKtaBQYM.js"
+    ]
+  },
+  "_GraphicsContext-D1wfcT7m.js": {
+    "file": "assets/GraphicsContext-D1wfcT7m.js",
+    "name": "GraphicsContext",
+    "imports": [
+      "_rolldown-runtime-aKtaBQYM.js",
+      "_Geometry-BU6TUmLD.js",
+      "_ImageSource-GD0LtTbh.js",
+      "_getTextureBatchBindGroup-o4mzMUng.js",
+      "_GCManagedHash-CS_ntgxT.js"
+    ]
+  },
+  "_ImageSource-GD0LtTbh.js": {
+    "file": "assets/ImageSource-GD0LtTbh.js",
+    "name": "ImageSource",
+    "imports": [
+      "_Geometry-BU6TUmLD.js"
+    ]
+  },
+  "_RenderTargetSystem-Li4ySkzE.js": {
+    "file": "assets/RenderTargetSystem-Li4ySkzE.js",
+    "name": "RenderTargetSystem",
+    "imports": [
+      "_Geometry-BU6TUmLD.js",
+      "_Filter-CvF2W6EG.js",
+      "_GCManagedHash-CS_ntgxT.js"
+    ]
+  },
   "_bridge-DaXBrZaL.js": {
     "file": "assets/bridge-DaXBrZaL.js",
     "name": "bridge"
+  },
+  "_canvasUtils-DgWfguSs.js": {
+    "file": "assets/canvasUtils-DgWfguSs.js",
+    "name": "canvasUtils",
+    "imports": [
+      "_Geometry-BU6TUmLD.js"
+    ]
+  },
+  "_getTextureBatchBindGroup-o4mzMUng.js": {
+    "file": "assets/getTextureBatchBindGroup-o4mzMUng.js",
+    "name": "getTextureBatchBindGroup",
+    "imports": [
+      "_Geometry-BU6TUmLD.js"
+    ]
+  },
+  "_init-D0nup9lV.js": {
+    "file": "assets/init-D0nup9lV.js",
+    "name": "init",
+    "imports": [
+      "_Geometry-BU6TUmLD.js",
+      "_FilterSystem-DSMXPk6a.js"
+    ]
+  },
+  "_preload-helper-HclGiUj8.js": {
+    "file": "assets/preload-helper-HclGiUj8.js",
+    "name": "preload-helper"
   },
   "_rolldown-runtime-aKtaBQYM.js": {
     "file": "assets/rolldown-runtime-aKtaBQYM.js",
@@ -70,17 +187,19 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-BvTk0iLw.js",
+    "file": "assets/index.vite-1Muz_xwd.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-aKtaBQYM.js",
+      "_preload-helper-HclGiUj8.js",
       "_bridge-DaXBrZaL.js"
     ],
     "dynamicImports": [
       "ui/layout-stage.js",
-      "entry-browser.js"
+      "entry-browser.js",
+      "node_modules/pixi.js/lib/index.mjs"
     ],
     "assets": [
       "assets/optional-gacha-B00JGPIr.mjs",
@@ -94,6 +213,106 @@
       "assets/protection-penetration-quick-reference-QipUvGs2.png",
       "assets/hero-DbqiEqdj.png",
       "assets/勇者の手-C6v2toAd.png"
+    ]
+  },
+  "node_modules/pixi.js/lib/environment-browser/browserAll.mjs": {
+    "file": "assets/browserAll-DH4vY9WY.js",
+    "name": "browserAll",
+    "src": "node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Geometry-BU6TUmLD.js",
+      "_Filter-CvF2W6EG.js",
+      "_FederatedEventTarget-BprZznEk.js",
+      "_FilterSystem-DSMXPk6a.js",
+      "_init-D0nup9lV.js"
+    ]
+  },
+  "node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs": {
+    "file": "assets/webworkerAll-zsHQgvLW.js",
+    "name": "webworkerAll",
+    "src": "node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_FilterSystem-DSMXPk6a.js",
+      "_init-D0nup9lV.js"
+    ]
+  },
+  "node_modules/pixi.js/lib/index.mjs": {
+    "file": "assets/lib-CszWuAp3.js",
+    "name": "lib",
+    "src": "node_modules/pixi.js/lib/index.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_rolldown-runtime-aKtaBQYM.js",
+      "_preload-helper-HclGiUj8.js",
+      "_Geometry-BU6TUmLD.js",
+      "_Filter-CvF2W6EG.js",
+      "_FederatedEventTarget-BprZznEk.js",
+      "_FilterSystem-DSMXPk6a.js",
+      "_Cache-4NLpjVOm.js",
+      "_ImageSource-GD0LtTbh.js",
+      "_canvasUtils-DgWfguSs.js",
+      "_CanvasPool-Bq925mTT.js",
+      "_GraphicsContext-D1wfcT7m.js",
+      "_RenderTargetSystem-Li4ySkzE.js",
+      "_getTextureBatchBindGroup-o4mzMUng.js",
+      "_GCManagedHash-CS_ntgxT.js",
+      "_BufferResource-THE6zpTV.js",
+      "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+      "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
+    ],
+    "dynamicImports": [
+      "node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
+      "node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
+      "node_modules/pixi.js/lib/index.mjs",
+      "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+      "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
+    ]
+  },
+  "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs": {
+    "file": "assets/CanvasRenderer-YiR86zGa.js",
+    "name": "CanvasRenderer",
+    "src": "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Geometry-BU6TUmLD.js",
+      "_Filter-CvF2W6EG.js",
+      "_canvasUtils-DgWfguSs.js",
+      "_GraphicsContext-D1wfcT7m.js",
+      "_RenderTargetSystem-Li4ySkzE.js",
+      "_GCManagedHash-CS_ntgxT.js"
+    ]
+  },
+  "node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs": {
+    "file": "assets/WebGLRenderer-yEqs23Aj.js",
+    "name": "WebGLRenderer",
+    "src": "node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/pixi.js/lib/index.mjs"
+    ]
+  },
+  "node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs": {
+    "file": "assets/WebGPURenderer-AhscsYP6.js",
+    "name": "WebGPURenderer",
+    "src": "node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/pixi.js/lib/index.mjs"
+    ]
+  },
+  "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs": {
+    "file": "assets/BitmapFont-Bo2aAycx.js",
+    "name": "BitmapFont",
+    "src": "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Geometry-BU6TUmLD.js",
+      "_Cache-4NLpjVOm.js",
+      "_ImageSource-GD0LtTbh.js",
+      "_CanvasPool-Bq925mTT.js",
+      "_GraphicsContext-D1wfcT7m.js"
     ]
   },
   "ui/layout-stage.js": {

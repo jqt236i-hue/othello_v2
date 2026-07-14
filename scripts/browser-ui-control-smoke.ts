@@ -69,6 +69,17 @@ interface BrowserLaneComparisonSnapshot {
     esmEntry: boolean;
     customModuleRegistry: boolean;
   } | null;
+  pixiRuntime: {
+    lane: string;
+    injected: boolean;
+    version: string | null;
+    unavailableReason: string | null;
+  } | null;
+  boardRenderSurface: {
+    renderer: string;
+    cellCount: number;
+    canvasCount: number;
+  };
   globals: Record<string, string>;
   missingElements: string[];
   stylesheetPaths: string[];
@@ -539,6 +550,17 @@ async function captureStartupComparisonSnapshot(page: any, readyMs: number): Pro
         esmEntry: root.__CARD_REVERSI_BROWSER_CAPABILITIES__?.esmEntry === true,
         customModuleRegistry: root.__CARD_REVERSI_BROWSER_CAPABILITIES__?.customModuleRegistry === true
       } : null,
+      pixiRuntime: root.__CARD_REVERSI_BROWSER_CAPABILITIES__?.pixiRuntime ? {
+        lane: String(root.__CARD_REVERSI_BROWSER_CAPABILITIES__.pixiRuntime.lane || ''),
+        injected: root.__CARD_REVERSI_BROWSER_CAPABILITIES__.pixiRuntime.injected === true,
+        version: root.__CARD_REVERSI_BROWSER_CAPABILITIES__.pixiRuntime.version || null,
+        unavailableReason: root.__CARD_REVERSI_BROWSER_CAPABILITIES__.pixiRuntime.unavailableReason || null
+      } : null,
+      boardRenderSurface: {
+        renderer: String(document.getElementById('board')?.getAttribute('data-board-renderer') || 'legacy-dom'),
+        cellCount: document.querySelectorAll('#board .cell, #board-expansion-layer .cell').length,
+        canvasCount: document.querySelectorAll('#board canvas').length
+      },
       globals,
       missingElements: elementIds.filter((id: string) => !document.getElementById(id)),
       stylesheetPaths: Array.from(document.querySelectorAll('link[rel="stylesheet"]'))

@@ -561,6 +561,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/network/visual-settlement": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network/visual-settlement.js"),
   "ui/network/visual-state-store": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/network/visual-state-store.js"),
   "ui/perf-benchmarks": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/perf-benchmarks.js"),
+  "ui/pixi/runtime-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/runtime-contract.js"),
   "ui/placement-sound-selection": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/placement-sound-selection.js"),
   "ui/playback-engine": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/playback-engine.js"),
   "ui/playback-flip-marker": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/playback-flip-marker.js"),
@@ -1177,6 +1178,7 @@ installBootModuleMetadata({
     "ui/network/visual-settlement",
     "ui/network/visual-state-store",
     "ui/perf-benchmarks",
+    "ui/pixi/runtime-contract",
     "ui/placement-sound-selection",
     "ui/playback-engine",
     "ui/playback-flip-marker",
@@ -1314,4 +1316,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 611;
+export const startupModuleCount = 612;

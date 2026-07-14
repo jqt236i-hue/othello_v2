@@ -1,6 +1,12 @@
 import './generated/startup-modules';
 import { inspectRuntimeContract, type RuntimeContractInspection } from './runtime-contract';
 import { installModuleBridge } from './module-bridge';
+import {
+  consumeClaimedPixiRuntimePreloadFailure,
+  isPixiRuntimePreloadPending,
+  trackPixiRuntimePreloadCandidate,
+  type PixiRuntimeLoadOutcome
+} from './pixi-runtime-loader';
 
 type RuntimeRoot = Window & Record<string, any>;
 
@@ -22,7 +28,12 @@ export interface StartViteBrowserAppOptions {
   now?: () => number;
   loadLayout?: () => Promise<unknown>;
   loadEntry?: () => Promise<unknown>;
-  beforeInitialize?: (root: RuntimeRoot, document: Document) => void | Promise<void>;
+  loadPixiRuntime?: (root: RuntimeRoot) => Promise<PixiRuntimeLoadOutcome>;
+  beforeInitialize?: (
+    root: RuntimeRoot,
+    document: Document,
+    pixiRuntime: PixiRuntimeLoadOutcome | null
+  ) => void | Promise<void>;
 }
 
 function waitForDocumentReady(documentRef: Document): Promise<void> {
@@ -52,6 +63,23 @@ export function installVitePreloadErrorHandler(
 ): void {
   if (rootRef.__CARD_REVERSI_VITE_PRELOAD_ERROR_HANDLER__) return;
   const handler = (event: Event): void => {
+    const payload = (event as Event & { payload?: unknown }).payload;
+    if (
+      isPixiRuntimePreloadPending(rootRef)
+      && trackPixiRuntimePreloadCandidate(rootRef, payload)
+    ) {
+      // Vite dispatches this event before rejecting the dynamic import. Let the
+      // rejection reach its owning promise, then suppress only the exact Error
+      // claimed by the optional Pixi loader. Unrelated preload errors remain fatal.
+      setTimeout(() => {
+        if (consumeClaimedPixiRuntimePreloadFailure(rootRef, payload)) return;
+        renderBootError(
+          documentRef,
+          new Error('更新されたゲームファイルを取得できませんでした。ページを再読み込みしてください。')
+        );
+      }, 0);
+      return;
+    }
     if (typeof event.preventDefault === 'function') event.preventDefault();
     renderBootError(
       documentRef,
@@ -113,6 +141,22 @@ export function createStartViteBrowserApp(
     installModuleBridge(rootRef);
 
     startPromise = (async () => {
+      let pixiRuntimePromise: Promise<PixiRuntimeLoadOutcome | null>;
+      try {
+        pixiRuntimePromise = options.loadPixiRuntime
+          ? Promise.resolve(options.loadPixiRuntime(rootRef)).catch((error) => ({
+              runtime: null,
+              version: null,
+              unavailableReason: `pixi-import-failed:${error instanceof Error ? error.message : String(error)}`
+            }))
+          : Promise.resolve(null);
+      } catch (error) {
+        pixiRuntimePromise = Promise.resolve({
+          runtime: null,
+          version: null,
+          unavailableReason: `pixi-import-failed:${error instanceof Error ? error.message : String(error)}`
+        });
+      }
       await waitForDocumentReady(documentRef);
       const stylesReady = rootRef.__CARD_REVERSI_CLASSIC_STYLES_READY__;
       if (stylesReady && typeof stylesReady.then === 'function') await stylesReady;
@@ -121,7 +165,7 @@ export function createStartViteBrowserApp(
       await loadEntry();
       metrics.loadedModules.push('entry');
       if (typeof options.beforeInitialize === 'function') {
-        await options.beforeInitialize(rootRef, documentRef);
+        await options.beforeInitialize(rootRef, documentRef, await pixiRuntimePromise);
       }
       if (rootRef.__uiInitialized !== true) {
         if (typeof rootRef.initializeUI !== 'function') {

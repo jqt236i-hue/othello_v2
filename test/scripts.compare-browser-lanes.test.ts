@@ -31,6 +31,17 @@ function lane(name: 'classic' | 'vite'): any {
       esmEntry: true,
       customModuleRegistry: false
     } : null,
+    pixiRuntime: {
+      lane: name,
+      injected: true,
+      version: '8.18.1',
+      unavailableReason: null
+    },
+    boardRenderSurface: {
+      renderer: 'legacy-dom',
+      cellCount: 64,
+      canvasCount: 0
+    },
     globals: { ...REQUIRED_GLOBAL_TYPES },
     missingElements: [],
     stylesheetPaths: ['/styles-base.css', '/styles-board.css'],

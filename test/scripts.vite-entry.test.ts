@@ -6,6 +6,7 @@ const { CLASSIC_SCRIPT_ORDER, generateViteEntry, renderViteEntry } = require('..
 
 const classicTail = `
     <!-- Scripts -->
+    <script src="public/vendor/pixi-8.18.1.min.js"></script>
     <script src="public/runtime.js?v=1"></script>
     <script src="public/module-registry.js?v=2"></script>
     <script src="ui/layout-stage.js"></script>
@@ -25,6 +26,7 @@ describe('Vite comparison entry generator', () => {
     expect(rendered.content).not.toContain('<link rel="stylesheet" href="styles.css">');
     expect(rendered.styleSources).toEqual(['styles.css']);
     expect(rendered.content).not.toContain('<script src="public/runtime.js');
+    expect(rendered.content).not.toContain('public/vendor/pixi-8.18.1.min.js');
     expect(rendered.content).not.toContain('card-reversi-classic-runtime');
   });
 

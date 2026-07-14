@@ -88,6 +88,7 @@ const ROOT_FILES: readonly string[] = Object.freeze([
     'styles-responsive.css',
     'styles-stone-shadows.css',
     'styles-variables.css',
+    'public/vendor/pixi-8.18.1.min.js',
     'public/runtime.js',
     'public/module-registry.js',
     'public/module-registry.optional.js',
