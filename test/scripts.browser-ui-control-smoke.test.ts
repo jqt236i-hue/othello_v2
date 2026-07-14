@@ -1,7 +1,10 @@
 const {
   REQUIRED_UI_CONTROL_SMOKE_TARGETS,
+  evaluateReadyOnlySmokeSample,
   evaluateUiControlSmokeSample
 } = require('../scripts/browser-ui-control-smoke');
+const fs = require('fs');
+const path = require('path');
 
 function passingControls() {
   return REQUIRED_UI_CONTROL_SMOKE_TARGETS.reduce((acc: any, target: any) => {
@@ -71,5 +74,27 @@ describe('browser UI control smoke evaluation', () => {
     });
 
     expect(result).toEqual({ ok: true, errors: [] });
+  });
+
+  test('ready-only evaluation includes errors emitted by capture hooks', () => {
+    expect(evaluateReadyOnlySmokeSample({
+      controls: {},
+      startupScriptSignals: [],
+      postInteractionScriptSignals: [],
+      pageErrors: ['fixture page failure'],
+      consoleErrors: ['fixture console failure'],
+      resourceErrors: ['404 fixture.png']
+    })).toEqual({
+      ok: false,
+      errors: [
+        'page error: fixture page failure',
+        'console error: fixture console failure',
+        'resource error: 404 fixture.png'
+      ]
+    });
+
+    const source = fs.readFileSync(path.join(__dirname, '../scripts/browser-ui-control-smoke.ts'), 'utf8');
+    expect(source.indexOf('const afterReadyResult')).toBeGreaterThan(-1);
+    expect(source.indexOf('const evaluation = opts.readyOnly')).toBeGreaterThan(source.indexOf('const afterReadyResult'));
   });
 });

@@ -49,8 +49,11 @@ interface BrowserUiControlSmokeOptions {
   log?: boolean;
   entryPath?: string;
   captureComparison?: boolean;
+  readyOnly?: boolean;
   pageOptions?: BrowserContextOptions;
   interactionMode?: 'mouse' | 'touch';
+  beforeGoto?: ((page: any) => Promise<void>) | null;
+  afterReady?: ((page: any) => Promise<unknown>) | null;
 }
 
 interface BrowserLaneComparisonSnapshot {
@@ -188,6 +191,16 @@ function evaluateUiControlSmokeSample(sample: UiControlSmokeSample): UiControlSm
     errors.push(`resource error: ${error}`);
   }
 
+  return { ok: errors.length === 0, errors };
+}
+
+function evaluateReadyOnlySmokeSample(sample: UiControlSmokeSample): UiControlSmokeEvaluation {
+  const source = sample && typeof sample === 'object' ? sample : {} as UiControlSmokeSample;
+  const errors = [
+    ...normalizeSignals(source.pageErrors).map((error) => `page error: ${error}`),
+    ...normalizeSignals(source.consoleErrors).map((error) => `console error: ${error}`),
+    ...normalizeSignals(source.resourceErrors).map((error) => `resource error: ${error}`)
+  ];
   return { ok: errors.length === 0, errors };
 }
 
@@ -626,8 +639,12 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
   evaluation: UiControlSmokeEvaluation;
   requestedUrls: string[];
   startupRequestedUrls: string[];
+  readyMs: number;
+  browserVersion: string;
+  userAgent: string;
   comparison?: BrowserLaneComparisonSnapshot;
   boardPng?: Buffer;
+  afterReadyResult?: unknown;
 }> {
   const opts = (options && typeof options === 'object') ? options : {};
   const rootDir = path.resolve(opts.rootDir || process.cwd());
@@ -661,6 +678,8 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
       if (!response.ok()) resourceErrors.push(`${response.status()} ${response.url()}`);
     });
 
+    if (typeof opts.beforeGoto === 'function') await opts.beforeGoto(page);
+
     const entryPath = String(opts.entryPath || '/').trim() || '/';
     const separator = entryPath.includes('?') ? '&' : '?';
     const startedAt = Date.now();
@@ -692,6 +711,8 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
       );
     }
     const readyMs = Date.now() - startedAt;
+    const browserVersion = browser.version();
+    const userAgent = await page.evaluate(() => navigator.userAgent);
 
     await page.waitForTimeout(500);
     const startupScriptSignals = await collectScriptSignals(page, requestedUrls);
@@ -701,12 +722,16 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
     const startupRequestedUrls = requestedUrls.slice();
     const controls: Record<string, UiControlProbe> = {};
     let fixtureCapture: Awaited<ReturnType<typeof captureComparisonFixture>> | null = null;
-    for (const target of REQUIRED_UI_CONTROL_SMOKE_TARGETS) {
-      controls[target.name] = await probeControl(page, target, opts.interactionMode);
-      if (target.name === 'debug') {
-        await closeSidePanelIfOpen(page);
-        if (opts.captureComparison) fixtureCapture = await captureComparisonFixture(page);
+    if (opts.readyOnly !== true) {
+      for (const target of REQUIRED_UI_CONTROL_SMOKE_TARGETS) {
+        controls[target.name] = await probeControl(page, target, opts.interactionMode);
+        if (target.name === 'debug') {
+          await closeSidePanelIfOpen(page);
+          if (opts.captureComparison) fixtureCapture = await captureComparisonFixture(page);
+        }
       }
+    } else {
+      await closeSidePanelIfOpen(page);
     }
     await page.waitForTimeout(500);
     const postInteractionScriptSignals = await collectScriptSignals(page, requestedUrls);
@@ -722,7 +747,12 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
       resourceErrors,
       documentBaseUri: await page.evaluate(() => document.baseURI)
     };
-    const evaluation = evaluateUiControlSmokeSample(sample);
+    const afterReadyResult = typeof opts.afterReady === 'function'
+      ? await opts.afterReady(page)
+      : undefined;
+    const evaluation = opts.readyOnly === true
+      ? evaluateReadyOnlySmokeSample(sample)
+      : evaluateUiControlSmokeSample(sample);
 
     if (opts.log !== false) {
       console.log(JSON.stringify({
@@ -747,8 +777,12 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
       evaluation,
       requestedUrls,
       startupRequestedUrls,
+      readyMs,
+      browserVersion,
+      userAgent,
       comparison,
-      boardPng: fixtureCapture?.boardPng
+      boardPng: fixtureCapture?.boardPng,
+      afterReadyResult
     };
   } finally {
     if (browser) await browser.close();
@@ -772,6 +806,7 @@ if (require.main === module) {
 
 export = {
   REQUIRED_UI_CONTROL_SMOKE_TARGETS,
+  evaluateReadyOnlySmokeSample,
   evaluateUiControlSmokeSample,
   runBrowserUiControlSmoke,
   summarizeControls
