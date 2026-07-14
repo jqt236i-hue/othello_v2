@@ -28,7 +28,12 @@ describe('initializeUI gacha wiring', () => {
 
     const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
     jest.doMock(bootstrapPath, () => ({
-      installGameDI: jest.fn()
+      installGameDI: jest.fn(),
+      getBoardVisualController: jest.fn(() => ({
+        waitUntilReady: jest.fn(async () => undefined),
+        isReady: jest.fn(() => true),
+        getVisualFrameDigest: jest.fn(() => 'initial-frame')
+      }))
     }), { virtual: false });
   });
 
@@ -45,9 +50,9 @@ describe('initializeUI gacha wiring', () => {
     delete global.setupGachaControls;
   });
 
-  test('UI初期化時にガチャ設定を接続する', () => {
+  test('UI初期化時にガチャ設定を接続する', async () => {
     const initModule = require('../ui/handlers/init.js');
-    initModule.initializeUI();
+    await initModule.initializeUI();
 
     expect(global.setupGachaControls).toHaveBeenCalledWith({
       root: window

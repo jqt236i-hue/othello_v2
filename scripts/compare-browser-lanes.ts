@@ -147,11 +147,11 @@ function evaluateReport(classic: any, vite: any, visual: any): { ok: boolean; er
     }
     if (
       !lane.boardRenderSurface
-      || lane.boardRenderSurface.renderer !== 'legacy-dom'
+      || lane.boardRenderSurface.renderer !== 'dom'
       || lane.boardRenderSurface.cellCount <= 0
       || lane.boardRenderSurface.canvasCount !== 0
     ) {
-      errors.push(`${label} did not preserve the Phase 1 DOM board surface`);
+      errors.push(`${label} did not preserve the Phase 2 exclusive DOM board surface`);
     }
   }
   for (const [name, expectedType] of Object.entries(REQUIRED_GLOBAL_TYPES)) {

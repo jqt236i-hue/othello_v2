@@ -76,4 +76,90 @@ describe('per-render board projection', () => {
     expect(diff.createBoardRenderProjection()).not.toBe(projection);
     expect(diff.createBoardRenderProjection().gameState).toBe((global as any).gameState);
   });
+
+  test('builds one immutable sparse semantic model from explicit render inputs', () => {
+    const diff = require('../ui/diff-renderer.js');
+    const inputs = diff.createBoardRenderInputs({ hoveredCellKey: '2,3' });
+    const projection = diff.createBoardRenderProjection(undefined, inputs);
+    const cellState = diff.buildCurrentCellState(projection, inputs);
+    const model = diff.buildBoardRenderModel(projection, cellState, {
+      visualRevision: 3,
+      overlay: inputs.presentationOverlayState,
+      inputs
+    });
+
+    expect(model.cells).toHaveLength(64);
+    expect(model.cells.some((cell: any) => cell.kind === 'void')).toBe(false);
+    expect(model.cells.find((cell: any) => cell.key === '2,3').interaction.hovered).toBe(true);
+    expect(model.cells.find((cell: any) => cell.key === '5,5').stone.owner).toBe('white');
+    expect(model).not.toHaveProperty('_renderProjection');
+    expect(Object.isFrozen(model)).toBe(true);
+    expect((global as any).getLegalMoves).toHaveBeenCalledTimes(1);
+  });
+
+  test('applies the prepared visual frame atomically after canonical globals advance', () => {
+    const diff = require('../ui/diff-renderer.js');
+    const modelBuilder = require('../ui/board-visual/model-builder');
+    const inputs = diff.createBoardRenderInputs();
+    const projection = diff.createBoardRenderProjection(undefined, inputs);
+    const cellState = diff.buildCurrentCellState(projection, inputs);
+    const overlay = diff.createBoardPresentationOverlayState(
+      projection,
+      cellState,
+      inputs.presentationOverlayState
+    );
+    const model = diff.buildBoardRenderModel(projection, cellState, {
+      visualRevision: 4,
+      overlay,
+      inputs: { baseVisualState: inputs.baseVisualState, presentationOverlayState: overlay }
+    });
+
+    (global as any).gameState = {
+      currentPlayer: -1,
+      board: Array.from({ length: 4 }, () => Array(4).fill(0))
+    };
+    (global as any).gameState.board[0][0] = 1;
+    (global as any).cardState = {
+      markers: [],
+      pendingEffectByPlayer: { black: null, white: null },
+      fateWillControllerByTurnOwner: {}
+    };
+
+    const compatibilityState = modelBuilder.buildDomCompatibilityRenderState(model);
+    expect(modelBuilder.getDomCompatibilityPayload).toBeUndefined();
+    expect(compatibilityState.renderProjection.gameState).not.toBe(projection.gameState);
+    expect(compatibilityState.renderProjection.cardState).not.toBe(projection.cardState);
+
+    diff.renderBoardDiff(
+      (global as any).boardEl,
+      compatibilityState.renderProjection,
+      compatibilityState.cellState,
+      model,
+      { authorizedByBoardVisualController: true }
+    );
+
+    expect((global as any).boardEl.querySelectorAll('.cell')).toHaveLength(64);
+    expect((global as any).boardEl.querySelector('.cell[data-row="5"][data-col="5"] .disc.white')).not.toBeNull();
+    expect((global as any).boardEl.querySelector('.cell[data-row="0"][data-col="0"] .disc')).toBeNull();
+  });
+
+  test('DOM compatibility materializes only the frame viewport plus bounded overscan/gutter', () => {
+    const diff = require('../ui/diff-renderer.js');
+    const inputs = diff.createBoardRenderInputs();
+    const projection = diff.createBoardRenderProjection(undefined, inputs);
+    const cellState = diff.buildCurrentCellState(projection, inputs);
+    const model = diff.buildBoardRenderModel(projection, cellState, {
+      inputs,
+      overlay: inputs.presentationOverlayState
+    });
+
+    diff.initializeBoardDOM((global as any).boardEl, model, {
+      visibleWorldWindow: { minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 }
+    });
+
+    // one visible cell + one-cell overscan + capped two-cell effect gutter,
+    // clipped at the top/left topology boundary => 4 x 4 DOM views.
+    expect((global as any).boardEl.querySelectorAll('.cell')).toHaveLength(16);
+    expect((global as any).boardEl.querySelector('.cell[data-row="4"][data-col="4"]')).toBeNull();
+  });
 });

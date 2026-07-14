@@ -14,7 +14,11 @@ const PresentationQueue = _require('../shared/presentation-queue');
 import type { CardState } from '../src/types';
 
 interface AnimationEngine {
-  play: (payload: PresentationEvent[], options?: { strictNetworkPlayback?: boolean }) => Promise<void>;
+  play: (payload: PresentationEvent[], options?: {
+    strictNetworkPlayback?: boolean;
+    deferFinalSettlement?: boolean;
+    onFinalizationReady?: (finalize: () => boolean) => void;
+  }) => Promise<void>;
 }
 
 interface PresentationEvent {
@@ -33,6 +37,8 @@ interface UIImplPlayback {
 interface PlaybackDeps {
   AnimationEngine?: AnimationEngine;
   strictNetworkPlayback?: boolean;
+  deferFinalSettlement?: boolean;
+  onFinalizationReady?: (finalize: () => boolean) => void;
   scheduleCpuTurnEvent?: (ev: PresentationEvent) => unknown;
   scheduleCpuTurn?: (delay: number, callback: () => void) => unknown;
   onSchedule?: (callback: (() => void) | null) => void;
@@ -91,7 +97,12 @@ async function playPlaybackBatch(events: PresentationEvent[], deps: PlaybackDeps
   if (!payload.length) return;
   const config = (deps && typeof deps === 'object') ? deps : {};
   const strictNetworkPlayback = config.strictNetworkPlayback === true;
-  const playbackOptions = strictNetworkPlayback ? { strictNetworkPlayback: true } : undefined;
+  const deferFinalSettlement = config.deferFinalSettlement === true;
+  const playbackOptions = (strictNetworkPlayback || deferFinalSettlement) ? {
+    strictNetworkPlayback,
+    deferFinalSettlement: config.deferFinalSettlement === true,
+    onFinalizationReady: config.onFinalizationReady
+  } : undefined;
   const AnimationEngine = resolveAnimationEngine(deps);
   if (AnimationEngine && typeof AnimationEngine.play === 'function') {
     if (playbackOptions) {

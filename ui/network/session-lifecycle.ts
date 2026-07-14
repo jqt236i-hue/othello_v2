@@ -8,6 +8,7 @@ function createNetworkSessionLifecycleController(config: any): any {
   const roomIdLength = Number.isFinite(Number(cfg.roomIdLength)) ? Math.trunc(Number(cfg.roomIdLength)) : 3;
   const playerNameMax = Number.isFinite(Number(cfg.playerNameMax)) ? Math.trunc(Number(cfg.playerNameMax)) : 7;
   let createRoomInProgress = false;
+  let localSessionEpoch = 0;
 
   function readState(): any {
     const state = typeof cfg.getState === 'function' ? cfg.getState() : null;
@@ -15,6 +16,60 @@ function createNetworkSessionLifecycleController(config: any): any {
       throw new Error('network_session_lifecycle_state_required');
     }
     return state;
+  }
+
+  function readSessionEpoch(): number {
+    if (typeof cfg.getSessionEpoch === 'function') {
+      const configuredEpoch = Number(cfg.getSessionEpoch());
+      if (Number.isFinite(configuredEpoch)) return Math.max(0, Math.trunc(configuredEpoch));
+    }
+    return localSessionEpoch;
+  }
+
+  function advanceSessionEpoch(reason: string): number {
+    if (typeof cfg.advanceSessionEpoch === 'function') {
+      const configuredEpoch = Number(cfg.advanceSessionEpoch(reason));
+      if (Number.isFinite(configuredEpoch)) {
+        localSessionEpoch = Math.max(localSessionEpoch + 1, Math.trunc(configuredEpoch));
+        return Math.max(0, Math.trunc(configuredEpoch));
+      }
+    }
+    localSessionEpoch += 1;
+    return localSessionEpoch;
+  }
+
+  function captureSessionGuard(stateCandidate?: any): any {
+    const state = stateCandidate && typeof stateCandidate === 'object' ? stateCandidate : readState();
+    const spectator = isSpectatorState(state);
+    return Object.freeze({
+      epoch: readSessionEpoch(),
+      roomId: String(state.roomId || ''),
+      viewerRole: spectator ? 'spectator' : 'seat',
+      seatKey: spectator ? '' : String(state.seatKey || ''),
+      seatToken: spectator ? '' : String(state.seatToken || ''),
+      spectatorId: spectator ? String(state.spectatorId || '') : '',
+      spectatorToken: spectator ? String(state.spectatorToken || '') : ''
+    });
+  }
+
+  function isSessionGuardCurrent(guard: any): boolean {
+    if (!guard || guard.epoch !== readSessionEpoch()) return false;
+    let state: any;
+    try { state = readState(); } catch (e) { return false; }
+    const spectator = isSpectatorState(state);
+    return guard.roomId === String(state.roomId || '')
+      && guard.viewerRole === (spectator ? 'spectator' : 'seat')
+      && guard.seatKey === (spectator ? '' : String(state.seatKey || ''))
+      && guard.seatToken === (spectator ? '' : String(state.seatToken || ''))
+      && guard.spectatorId === (spectator ? String(state.spectatorId || '') : '')
+      && guard.spectatorToken === (spectator ? String(state.spectatorToken || '') : '');
+  }
+
+  function sessionChangedResult(stage: string): any {
+    if (typeof cfg.recordNetworkTelemetry === 'function') {
+      cfg.recordNetworkTelemetry('stale_network_session_response_ignored', { stage: String(stage || 'unknown') });
+    }
+    return { ok: false, recovered: false, stale: true, reason: 'SESSION_CHANGED' };
   }
 
   function emitPlayerNameRequired(): void {
@@ -220,11 +275,20 @@ function createNetworkSessionLifecycleController(config: any): any {
     });
   }
 
-  async function fetchAndApplyPresentationJournal(afterVisualSeq: any, canonicalVersion: any, source?: any, lastVisualVersion?: any): Promise<any> {
+  async function fetchAndApplyPresentationJournal(
+    afterVisualSeq: any,
+    canonicalVersion: any,
+    source?: any,
+    lastVisualVersion?: any,
+    expectedSession?: any
+  ): Promise<any> {
     const state = readState();
+    const sessionGuard = expectedSession || captureSessionGuard(state);
+    if (!isSessionGuardCurrent(sessionGuard)) return sessionChangedResult('journal_before_request');
     const normalizedSource = String(source || 'journal_recovery');
     const path = buildPresentationJournalPath(state, afterVisualSeq);
     const res = await cfg.requestJson('GET', path);
+    if (!isSessionGuardCurrent(sessionGuard)) return sessionChangedResult('journal_after_request');
     if (!res.ok || !res.data || res.data.ok !== true) {
       return { recovered: false, reason: (res.data && res.data.reason) || 'PRESENTATION_JOURNAL_FETCH_FAILED' };
     }
@@ -251,6 +315,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     if (typeof cfg.drainPresentationTimeline === 'function') {
       await cfg.drainPresentationTimeline();
     }
+    if (!isSessionGuardCurrent(sessionGuard)) return sessionChangedResult('journal_after_drain');
     if (typeof cfg.recordNetworkTelemetry === 'function') {
       cfg.recordNetworkTelemetry(normalizedSource === 'state_sync' ? 'state_sync_presentation_journal_recovered' : 'presentation_journal_recovered', {
         afterVisualSeq,
@@ -283,6 +348,42 @@ function createNetworkSessionLifecycleController(config: any): any {
       || normalized === 'SEAT_NOT_FOUND';
   }
 
+  async function disposePresentationTimeline(reason: string): Promise<void> {
+    if (typeof cfg.disposePresentationTimeline !== 'function') return;
+    const disposed = await cfg.disposePresentationTimeline(reason);
+    if (disposed !== true) throw new Error('NETWORK_PRESENTATION_TIMELINE_DISPOSE_FAILED');
+  }
+
+  function convergeConfirmedLeaveDisposeFailure(state: any, spectatorSession: boolean, error: any): any {
+    if (typeof cfg.markSessionReloadRequired === 'function') {
+      cfg.markSessionReloadRequired({
+        reason: 'LEAVE_SETTLEMENT_DISPOSE_FAILED',
+        error: error && error.message ? String(error.message) : String(error || '')
+      });
+    }
+    if (typeof cfg.closeStream === 'function') cfg.closeStream();
+    if (typeof cfg.teardownActionBridge === 'function') cfg.teardownActionBridge();
+    if (!spectatorSession && typeof cfg.clearSeatClaim === 'function') {
+      cfg.clearSeatClaim(state && state.roomId);
+    }
+    if (typeof cfg.emitStatus === 'function') {
+      cfg.emitStatus('ネット対戦の終了処理を完了できませんでした。ページを再読み込みしてください', true);
+    }
+    if (typeof cfg.recordNetworkTelemetry === 'function') {
+      cfg.recordNetworkTelemetry('confirmed_leave_settlement_dispose_failed', {
+        roomId: state && state.roomId ? String(state.roomId) : null,
+        spectator: spectatorSession === true,
+        error: error && error.message ? String(error.message) : String(error || '')
+      });
+    }
+    return {
+      ok: false,
+      reason: 'LEAVE_SETTLEMENT_DISPOSE_FAILED',
+      authorityLeft: true,
+      reloadRequired: true
+    };
+  }
+
   async function createRoom(options?: any): Promise<any> {
     const opts = (options && typeof options === 'object') ? options : {};
     const currentState = readState();
@@ -292,6 +393,7 @@ function createNetworkSessionLifecycleController(config: any): any {
       }
       return { ok: false, reason: 'ALREADY_IN_ROOM', roomId: currentState.roomId };
     }
+    const entryEpoch = readSessionEpoch();
     if (createRoomInProgress) {
       if (typeof cfg.emitStatus === 'function') {
         cfg.emitStatus('部屋作成中です', false);
@@ -324,6 +426,11 @@ function createNetworkSessionLifecycleController(config: any): any {
       });
     }
 
+    if (readSessionEpoch() !== entryEpoch || readState().roomId) {
+      return sessionChangedResult('create_before_activation');
+    }
+    advanceSessionEpoch('session_create_activation');
+    await disposePresentationTimeline('session_create_activation');
     if (typeof cfg.activateSessionFromResponse === 'function') {
       cfg.activateSessionFromResponse(Object.assign({}, res.data, { playerName: entryPayload.playerName }), '');
     }
@@ -384,6 +491,12 @@ function createNetworkSessionLifecycleController(config: any): any {
       cfg.setServerUrl(opts.serverUrl);
     }
 
+    const entryState = readState();
+    if (entryState.roomId) {
+      return { ok: false, reason: 'ALREADY_IN_ROOM', roomId: entryState.roomId };
+    }
+    const entryEpoch = readSessionEpoch();
+
     const validationPayload = MatchEntryPayload.buildJoinRoomPayload(roomId, opts, createEntryPayloadHelpers(null));
     if (!validationPayload.ok) {
       return emitEntryPayloadFailure(validationPayload.reason);
@@ -415,6 +528,11 @@ function createNetworkSessionLifecycleController(config: any): any {
       });
     }
 
+    if (readSessionEpoch() !== entryEpoch || readState().roomId) {
+      return sessionChangedResult('join_before_activation');
+    }
+    advanceSessionEpoch('session_join_activation');
+    await disposePresentationTimeline('session_join_activation');
     if (typeof cfg.activateSessionFromResponse === 'function') {
       cfg.activateSessionFromResponse(Object.assign({}, res.data, { playerName: entryPayload.playerName }), entryPayload.roomId);
     }
@@ -447,6 +565,12 @@ function createNetworkSessionLifecycleController(config: any): any {
       cfg.setServerUrl(opts.serverUrl);
     }
 
+    const entryState = readState();
+    if (entryState.roomId) {
+      return { ok: false, reason: 'ALREADY_IN_ROOM', roomId: entryState.roomId };
+    }
+    const entryEpoch = readSessionEpoch();
+
     const entryPayload = MatchEntryPayload.buildSpectateRoomPayload(roomId, opts, createEntryPayloadHelpers());
     if (!entryPayload.ok) {
       return emitEntryPayloadFailure(entryPayload.reason);
@@ -460,6 +584,11 @@ function createNetworkSessionLifecycleController(config: any): any {
       });
     }
 
+    if (readSessionEpoch() !== entryEpoch || readState().roomId) {
+      return sessionChangedResult('spectate_before_activation');
+    }
+    advanceSessionEpoch('session_spectator_activation');
+    await disposePresentationTimeline('session_spectator_activation');
     if (typeof cfg.activateSpectatorSessionFromResponse === 'function') {
       cfg.activateSpectatorSessionFromResponse(Object.assign({}, res.data, { playerName: entryPayload.playerName }), entryPayload.roomId);
     }
@@ -491,9 +620,11 @@ function createNetworkSessionLifecycleController(config: any): any {
     const intakeSource = normalizeStateSyncIntakeSource(opts.source);
     const state = readState();
     if (!state.roomId) return { ok: false, reason: 'NO_ROOM' };
+    const sessionGuard = captureSessionGuard(state);
 
     const path = buildStatePath(state);
     const res = await cfg.requestJson('GET', path);
+    if (!isSessionGuardCurrent(sessionGuard)) return sessionChangedResult('state_sync_after_request');
     if (!res.ok || !res.data || res.data.ok !== true) {
       return { ok: false, reason: (res.data && res.data.reason) || 'STATE_FETCH_FAILED' };
     }
@@ -608,14 +739,19 @@ function createNetworkSessionLifecycleController(config: any): any {
       cursorVisualSeq > visualSeqBeforeStateSync + stateSyncPresentationFrameCount &&
       typeof cfg.enqueuePresentationFramesFromPayload === 'function'
     ) {
-      await fetchAndApplyPresentationJournal(
+      const journalResult = await fetchAndApplyPresentationJournal(
         visualSeqBeforeStateSync,
         cursorStateVersion !== null ? cursorStateVersion : responseStateVersion,
         'state_sync',
-        visualVersionBeforeStateSync
+        visualVersionBeforeStateSync,
+        sessionGuard
       );
+      if (journalResult && journalResult.reason === 'SESSION_CHANGED') {
+        return { ok: false, stale: true, reason: 'SESSION_CHANGED' };
+      }
     }
 
+    if (!isSessionGuardCurrent(sessionGuard)) return sessionChangedResult('state_sync_before_return');
     return { ok: true, appliedSnapshot: appliedSnapshot };
   }
 
@@ -636,6 +772,8 @@ function createNetworkSessionLifecycleController(config: any): any {
     if (stored.serverUrl && typeof cfg.setServerUrl === 'function') {
       cfg.setServerUrl(stored.serverUrl);
     }
+    advanceSessionEpoch('stored_session_activation');
+    await disposePresentationTimeline('stored_session_activation');
     if (typeof cfg.activateStoredSession !== 'function' || cfg.activateStoredSession(stored) !== true) {
       if (typeof cfg.clearStoredSession === 'function') cfg.clearStoredSession();
       return { ok: false, reason: 'STORED_SESSION_INVALID' };
@@ -651,9 +789,14 @@ function createNetworkSessionLifecycleController(config: any): any {
     });
     if (!syncResult || syncResult.ok !== true) {
       const reason = syncResult && syncResult.reason ? syncResult.reason : 'STATE_FETCH_FAILED';
+      if (reason === 'SESSION_CHANGED') {
+        return { ok: false, stale: true, reason };
+      }
       if (isInvalidStoredSessionReason(reason) && typeof cfg.clearStoredSession === 'function') {
         cfg.clearStoredSession();
       }
+      advanceSessionEpoch('stored_session_sync_failed');
+      await disposePresentationTimeline('stored_session_sync_failed');
       if (typeof cfg.resetSessionState === 'function') {
         cfg.resetSessionState();
       }
@@ -683,15 +826,17 @@ function createNetworkSessionLifecycleController(config: any): any {
   }
 
   async function leaveRoom(): Promise<any> {
-    if (typeof cfg.clearPlaybackStateForLeave === 'function') {
-      cfg.clearPlaybackStateForLeave();
-    }
     if (typeof cfg.clearPendingForceSyncPlaybackRecovery === 'function') {
       cfg.clearPendingForceSyncPlaybackRecovery();
     }
 
     const state = readState();
     if (!state.roomId) {
+      advanceSessionEpoch('session_leave_inactive');
+      await disposePresentationTimeline('session_leave_inactive');
+      if (typeof cfg.clearPlaybackStateForLeave === 'function') {
+        cfg.clearPlaybackStateForLeave();
+      }
       if (typeof cfg.resetSessionState === 'function') {
         cfg.resetSessionState();
       }
@@ -749,6 +894,15 @@ function createNetworkSessionLifecycleController(config: any): any {
       };
     }
 
+    advanceSessionEpoch('session_leave_confirmed');
+    try {
+      await disposePresentationTimeline('session_leave_confirmed');
+    } catch (error) {
+      return convergeConfirmedLeaveDisposeFailure(state, spectatorSession, error);
+    }
+    if (typeof cfg.clearPlaybackStateForLeave === 'function') {
+      cfg.clearPlaybackStateForLeave();
+    }
     if (typeof cfg.resetSessionState === 'function') {
       cfg.resetSessionState();
     }

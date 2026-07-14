@@ -25,8 +25,6 @@ declare const boardEl: any;
 declare const getPlayerKey: (...args: any[]) => any;
 declare const CardLogic: any;
 declare const getLegalMoves: (...args: any[]) => any;
-declare const renderBoardDiff: (...args: any[]) => any;
-declare const forceFullRender: (...args: any[]) => any;
 declare const BLACK: number;
 declare const WHITE: number;
 declare const EMPTY: number;
@@ -84,6 +82,15 @@ if (typeof require === 'function') {
 var BoardRendererStoneHelpersRegistryModule: any = null;
 if (typeof require === 'function') {
     try { BoardRendererStoneHelpersRegistryModule = require('./board-renderer/stone-helpers'); } catch (e: any) { /* ignore */ }
+}
+
+var WorldStatePresenterModule: any = null;
+var BoardWorldStatePresenter: any = null;
+if (typeof require === 'function') {
+    try {
+        WorldStatePresenterModule = require('./presentation/world-state-presenter');
+        BoardWorldStatePresenter = WorldStatePresenterModule.createWorldStatePresenter();
+    } catch (e: any) { /* ignore */ }
 }
 
 function _getBoardHintProjectionForBoardRenderer() {
@@ -192,21 +199,19 @@ function _resolveGlobalCardStateForBoardRenderer() {
 }
 
 function _resolveBoardRenderStateForBoardRenderer() {
-    if (_isStrictNetworkVisualRenderActiveForBoardRenderer()) {
-        const store = _resolveNetworkVisualStateStoreForBoardRenderer();
-        try {
-            const snapshot = store && typeof store.peekRenderSnapshot === 'function'
-                ? store.peekRenderSnapshot()
-                : (store && typeof store.getRenderSnapshot === 'function' ? store.getRenderSnapshot() : null);
-            if (snapshot && snapshot.gameState && snapshot.cardState) {
-                return {
-                    gameState: snapshot.gameState,
-                    cardState: snapshot.cardState,
-                    source: 'network_visual_state'
-                };
-            }
-        } catch (e: any) { /* ignore */ }
-    }
+    const store = _resolveNetworkVisualStateStoreForBoardRenderer();
+    try {
+        const snapshot = store && typeof store.peekRenderSnapshot === 'function'
+            ? store.peekRenderSnapshot()
+            : (store && typeof store.getRenderSnapshot === 'function' ? store.getRenderSnapshot() : null);
+        if (snapshot && snapshot.gameState && snapshot.cardState) {
+            return {
+                gameState: snapshot.gameState,
+                cardState: snapshot.cardState,
+                source: 'network_visual_state'
+            };
+        }
+    } catch (e: any) { /* ignore */ }
     return {
         gameState: _resolveGlobalGameStateForBoardRenderer(),
         cardState: _resolveGlobalCardStateForBoardRenderer(),
@@ -249,7 +254,6 @@ let boardPixelSizingObservedFrame: any = null;
 let boardPixelSizingObservedElement: any = null;
 let boardPixelSizingWindowHandlerInstalled = false;
 let _boardPixelSizingPageStateHandlersInstalled = false;
-let timeStopBgmPausedByBoardRenderer = false;
 const _boardElementIdentityToken = new WeakMap<any, number>();
 const _frameElementIdentityToken = new WeakMap<any, number>();
 let _nextBoardElementIdentity = 1;
@@ -806,12 +810,40 @@ function _getBoardAnchorOffsetForPixelSizing(shape: any, cellSize: number) {
     };
 }
 
+function _measureBoardPixelSizing(boardElement: any, shape: any) {
+    const baseSize = _getBoardBaseSizeForPixelSizing(boardElement);
+    if (!baseSize || !(baseSize.width > 0) || !(baseSize.height > 0)) return null;
+    const measuredCellSize = Math.max(1, Math.floor(Math.min(baseSize.width / shape.cols, baseSize.height / shape.rows)));
+    const baselineCellSize = Math.max(0, Number(baseSize.baselineCellSize) || 0);
+    const baseRows = Number.isFinite(shape.baseRows) ? shape.baseRows : shape.rows;
+    const baseCols = Number.isFinite(shape.baseCols) ? shape.baseCols : shape.cols;
+    const baseMaxGrid = Math.max(baseRows, baseCols);
+    const initialBoardScale = baseMaxGrid > STANDARD_BOARD_BASELINE_ROWS
+        ? STANDARD_BOARD_BASELINE_ROWS / baseMaxGrid
+        : 1;
+    const scaledBaselineCellSize = baselineCellSize > 0
+        ? Math.max(1, Math.floor(baselineCellSize * initialBoardScale))
+        : measuredCellSize;
+    const cellSize = baseMaxGrid > STANDARD_BOARD_BASELINE_ROWS
+        ? scaledBaselineCellSize
+        : Math.max(1, Math.max(measuredCellSize, baselineCellSize));
+    return cellSize > 0 ? { baseSize, baselineCellSize, cellSize } : null;
+}
+
 function _handleBoardPixelSizingViewportChange() {
     if (!boardPixelSizingObservedElement) return;
     // PR2 (N3 dirty gate): window/frame resize must always re-sync even when
     // the (shape, frame) signature is unchanged.
     _boardPixelSizingDirty = true;
-    syncBoardPixelSizing(boardPixelSizingObservedElement);
+    try {
+        const root: any = typeof window !== 'undefined' ? window : globalThis;
+        const scheduler = root && root.RenderScheduler;
+        if (scheduler && typeof scheduler.requestBoardRender === 'function') {
+            scheduler.requestBoardRender({ source: 'board-pixel-sizing', reason: 'viewport-change' });
+            return;
+        }
+    } catch (e: any) { /* fall through to controller render */ }
+    renderBoard();
 }
 
 function _ensureBoardPixelSizingObserver(boardElement: any) {
@@ -876,30 +908,12 @@ function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
     }
 
     const boxMetrics = _getBoardBoxMetricsForPixelSizing(boardElement);
-    const baseSize = _getBoardBaseSizeForPixelSizing(boardElement);
-    if (!baseSize || !(baseSize.width > 0) || !(baseSize.height > 0)) {
+    const measurement = _measureBoardPixelSizing(boardElement, shape);
+    if (!measurement) {
         _clearBoardPixelSizingVars(boardElement);
         return shape;
     }
-
-    const measuredCellSize = Math.max(1, Math.floor(Math.min(baseSize.width / shape.cols, baseSize.height / shape.rows)));
-    const baselineCellSize = Math.max(0, Number(baseSize.baselineCellSize) || 0);
-    const baseRows = Number.isFinite(shape.baseRows) ? shape.baseRows : shape.rows;
-    const baseCols = Number.isFinite(shape.baseCols) ? shape.baseCols : shape.cols;
-    const baseMaxGrid = Math.max(baseRows, baseCols);
-    const initialBoardScale = baseMaxGrid > STANDARD_BOARD_BASELINE_ROWS
-        ? STANDARD_BOARD_BASELINE_ROWS / baseMaxGrid
-        : 1;
-    const scaledBaselineCellSize = baselineCellSize > 0
-        ? Math.max(1, Math.floor(baselineCellSize * initialBoardScale))
-        : measuredCellSize;
-    const cellSize = baseMaxGrid > STANDARD_BOARD_BASELINE_ROWS
-        ? scaledBaselineCellSize
-        : Math.max(1, Math.max(measuredCellSize, baselineCellSize));
-    if (!(cellSize > 0)) {
-        _clearBoardPixelSizingVars(boardElement);
-        return shape;
-    }
+    const { baseSize, baselineCellSize, cellSize } = measurement;
 
     const discInset = Math.max(1, Math.round(cellSize * 0.0505));
     const discSize = Math.max(1, cellSize - (discInset * 2));
@@ -1037,28 +1051,16 @@ function _syncTimeStopClassForBoardRenderer() {
     if (typeof document === 'undefined') return;
     const active = _isTimeStopActiveForBoardRenderer();
     const soundEngine = _resolveSoundEngineForBoardRenderer();
-    if (soundEngine && typeof soundEngine.pauseBgm === 'function' && typeof soundEngine.playBgm === 'function') {
-        if (active) {
-            if (_isBgmPlayingForBoardRenderer(soundEngine)) {
-                timeStopBgmPausedByBoardRenderer = true;
-                try { soundEngine.pauseBgm(); } catch (e: any) { timeStopBgmPausedByBoardRenderer = false; }
-            }
-        } else if (timeStopBgmPausedByBoardRenderer) {
-            timeStopBgmPausedByBoardRenderer = false;
-            try { soundEngine.playBgm(); } catch (e: any) { /* ignore */ }
-        }
-    } else if (!active) {
-        timeStopBgmPausedByBoardRenderer = false;
+    if (!BoardWorldStatePresenter && WorldStatePresenterModule) {
+        BoardWorldStatePresenter = WorldStatePresenterModule.createWorldStatePresenter();
     }
-    try {
-        if (document.documentElement && document.documentElement.classList) {
-            document.documentElement.classList.toggle('time-stop-active', active);
-        }
-        if (document.body && document.body.classList) {
-            document.body.classList.toggle('time-stop-active', active);
-        }
-    } catch (e: any) {
-        // UI only
+    if (BoardWorldStatePresenter && typeof BoardWorldStatePresenter.presentTimeStop === 'function') {
+        BoardWorldStatePresenter.presentTimeStop({
+            active,
+            document,
+            soundEngine,
+            isBgmPlaying: _isBgmPlayingForBoardRenderer
+        });
     }
 }
 
@@ -1093,105 +1095,408 @@ const collectRandomSpawnPreviewHighlightKeys = (cardStateValue: any, gameStateVa
     return new Set();
 };
 
-function renderBoard() {
+function prepareBoardVisualUpdate() {
+    _syncTimeStopClassForBoardRenderer();
+    const controller = getBoardVisualController();
+    if (!controller) return null;
+    const playbackDeferred = _shouldSkipBoardRenderForPlayback();
+    if (playbackDeferred && controller.getMode() === 'idle') {
+        AutoBoardWriterTokenForBoardRenderer = controller.claimWriter(
+            `legacy-playback:${BoardVisualRevisionForBoardRenderer + 1}`,
+            'local'
+        );
+    }
+    const prepared = Object.freeze({
+        controller,
+        playbackDeferred,
+        frame: _buildBoardVisualFrameForBoardRenderer(controller)
+    });
+    PreparedBoardVisualUpdatesForBoardRenderer.add(prepared);
+    return prepared;
+}
+
+function renderBoard(preparedVisualUpdate?: any) {
     if (PerfBenchmarks) PerfBenchmarks.perfStart('renderBoard');
     try {
-        _syncTimeStopClassForBoardRenderer();
-        // Single Visual Writer: skip renders while playback is active or already queued.
-        if (_shouldSkipBoardRenderForPlayback()) {
+        const prepared = preparedVisualUpdate
+            && PreparedBoardVisualUpdatesForBoardRenderer.has(preparedVisualUpdate)
+            ? preparedVisualUpdate
+            : prepareBoardVisualUpdate();
+        if (prepared) PreparedBoardVisualUpdatesForBoardRenderer.delete(prepared);
+        const controller = prepared && prepared.controller;
+        if (!controller) {
+            console.error('[Board Renderer] board visual controller unavailable; rendering skipped');
             return;
         }
-        let preparedRenderProjection: any = null;
-    try {
-        const diffModule = _require('./diff-renderer');
-        preparedRenderProjection = diffModule && typeof diffModule.createBoardRenderProjection === 'function'
-            ? diffModule.createBoardRenderProjection()
-            : null;
-        const isSelectingTarget = !!(
-            preparedRenderProjection &&
-            preparedRenderProjection.hintProjection &&
-            preparedRenderProjection.hintProjection.isSelectingTarget === true
-        );
-        if (boardEl) boardEl.classList.toggle('selection-mode', isSelectingTarget);
-    } catch (e: any) {
-        // UI only
-    }
-    syncBoardPixelSizing(boardEl);
-
-    // Use differential rendering if available
-    if (typeof renderBoardDiff === 'function') {
-        renderBoardDiff(boardEl, preparedRenderProjection);
-    } else {
-        // diff-renderer is required; avoid legacy full render path
-        console.error('[Board Renderer] diff-renderer.js not loaded; rendering skipped');
-        return;
-    }
-    updateOccupancyUI();
+        const playbackDeferred = prepared.playbackDeferred === true;
+        const applied = controller.submitFrame(prepared.frame);
+        if (!playbackDeferred && AutoBoardWriterTokenForBoardRenderer) {
+            const token = AutoBoardWriterTokenForBoardRenderer;
+            controller.releaseWriter(token);
+            AutoBoardWriterTokenForBoardRenderer = null;
+        }
+        if (applied === true || (!playbackDeferred && controller.getMode() === 'idle')) updateOccupancyUI();
     } finally {
         if (PerfBenchmarks) PerfBenchmarks.perfEnd('renderBoard');
     }
 }
 
-function _resolveBoardFullRenderDelegate() {
+let BoardVisualRuntimeForBoardRenderer: any = null;
+let AutoBoardWriterTokenForBoardRenderer: any = null;
+let BoardVisualRevisionForBoardRenderer = 0;
+const PreparedBoardVisualUpdatesForBoardRenderer = new WeakSet<object>();
+
+function _isBoardVisualDiagnosticsEnabledForBoardRenderer() {
     try {
-        if (typeof forceFullRender === 'function') return forceFullRender;
+        if (typeof window !== 'undefined' && ((window as any).__BOARD_VISUAL_TEST__ === true || (window as any).__DEV__ === true)) return true;
+        if (typeof location !== 'undefined') return /(?:^|[?&])debug=1(?:&|$)/.test(String(location.search || ''));
     } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && typeof window.forceFullRender === 'function') return window.forceFullRender;
-    } catch (e: any) { /* ignore */ }
-    return null;
+    return false;
 }
 
-function _resolveBoardDiffRenderDelegate() {
-    try {
-        if (typeof renderBoardDiff === 'function') return renderBoardDiff;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && typeof window.renderBoardDiff === 'function') return window.renderBoardDiff;
-    } catch (e: any) { /* ignore */ }
-    try {
-        const diffRendererModule = _require('./diff-renderer');
-        if (diffRendererModule && typeof diffRendererModule.renderBoardDiff === 'function') {
-            return diffRendererModule.renderBoardDiff;
-        }
-    } catch (e: any) { /* ignore */ }
-    return null;
+function _resolveBoardElementForVisualRuntime() {
+    try { if (typeof boardEl !== 'undefined' && boardEl) return boardEl; } catch (e: any) { /* ignore */ }
+    try { return typeof document !== 'undefined' ? document.getElementById('board') : null; } catch (e: any) { return null; }
 }
 
-function _resolveBoardDiffResetDelegate() {
-    try {
-        const diffRendererModule = _require('./diff-renderer');
-        if (diffRendererModule && typeof diffRendererModule.resetRenderStats === 'function') {
-            return diffRendererModule.resetRenderStats;
+function _createBoardVisualRuntimeForBoardRenderer() {
+    const host = _resolveBoardElementForVisualRuntime();
+    if (!host) return null;
+    const ControllerModule = _require('./board-visual/controller');
+    const DomBackendModule = _require('./board-visual/dom-backend');
+    const DiagnosticsModule = _require('./board-visual/diagnostics');
+    const diagnostics = DiagnosticsModule.createBoardVisualDiagnostics({
+        enabled: _isBoardVisualDiagnosticsEnabledForBoardRenderer()
+    });
+    const backend = DomBackendModule.createDomBoardVisualBackend({
+        beforeApplyFrame(activeHost: any, frame: any) {
+            const topology = frame && frame.model && frame.model.topology || {};
+            syncBoardPixelSizing(activeHost, {
+                rows: topology.renderRows,
+                cols: topology.renderCols,
+                baseRows: topology.baseRows,
+                baseCols: topology.baseCols,
+                minRow: topology.minRow,
+                minCol: topology.minCol
+            });
         }
-    } catch (e: any) { /* ignore */ }
+    });
+    const controller = ControllerModule.createBoardVisualController({ backend, diagnostics });
+    const mountPromise = Promise.resolve(controller.mount(host));
+    mountPromise.catch((error: any) => {
+        diagnostics.record('controller:mount-error', { message: String(error && error.message || error || '') });
+    });
+    if (controller.ready && typeof controller.ready.catch === 'function') {
+        controller.ready.catch(() => { /* readiness is observed through the runtime promise */ });
+    }
+    const runtime = { controller, diagnostics, host, ready: controller.ready || mountPromise };
+    if (diagnostics.enabled === true) {
+        const root = typeof window !== 'undefined' ? window : globalThis;
+        DiagnosticsModule.installBoardVisualDebugContract(root, diagnostics, controller);
+    }
+    return runtime;
+}
+
+function getBoardVisualController() {
+    if (!BoardVisualRuntimeForBoardRenderer) {
+        BoardVisualRuntimeForBoardRenderer = _createBoardVisualRuntimeForBoardRenderer();
+    }
+    return BoardVisualRuntimeForBoardRenderer ? BoardVisualRuntimeForBoardRenderer.controller : null;
+}
+
+function configureBoardVisualController(controller: any, options?: any) {
+    if (!controller || typeof controller.submitFrame !== 'function') {
+        throw new Error('configureBoardVisualController requires a controller');
+    }
+    const previousRuntime = BoardVisualRuntimeForBoardRenderer;
+    if (
+        previousRuntime
+        && previousRuntime.controller
+        && previousRuntime.controller !== controller
+        && typeof previousRuntime.controller.destroy === 'function'
+    ) {
+        previousRuntime.controller.destroy();
+    }
+    const diagnostics = options && options.diagnostics || null;
+    const host = options && options.host || _resolveBoardElementForVisualRuntime();
+    BoardVisualRuntimeForBoardRenderer = {
+        controller,
+        diagnostics,
+        host,
+        ready: controller.ready || Promise.resolve()
+    };
+    if (diagnostics && diagnostics.enabled === true) {
+        const DiagnosticsModule = _require('./board-visual/diagnostics');
+        const root = typeof window !== 'undefined' ? window : globalThis;
+        DiagnosticsModule.installBoardVisualDebugContract(root, diagnostics, controller);
+    }
+    AutoBoardWriterTokenForBoardRenderer = null;
+    return controller;
+}
+
+function getBoardVisualControllerReady() {
+    const controller = getBoardVisualController();
+    if (!controller) return Promise.reject(new Error('Board visual controller is unavailable'));
+    if (typeof controller.waitUntilReady === 'function') return controller.waitUntilReady();
+    return controller.ready || Promise.resolve();
+}
+
+function claimBoardVisualWriter(frameToken: string, mode: 'local' | 'network' = 'local') {
+    const controller = getBoardVisualController();
+    if (!controller) throw new Error('Board visual controller is unavailable');
+    if (AutoBoardWriterTokenForBoardRenderer) {
+        const adopted = controller.reclaimWriter(AutoBoardWriterTokenForBoardRenderer, frameToken, mode);
+        AutoBoardWriterTokenForBoardRenderer = null;
+        return adopted;
+    }
+    return controller.claimWriter(frameToken, mode);
+}
+
+function releaseBoardVisualWriter(token: any, finalFrame?: any) {
+    const controller = getBoardVisualController();
+    if (!controller) throw new Error('Board visual controller is unavailable');
+    return controller.releaseWriter(token, finalFrame);
+}
+
+async function abortBoardVisualWriterBeforeHandoff(token: any, checkpoint?: any) {
+    const controller = getBoardVisualController();
+    if (!controller || typeof controller.abortWriterBeforeHandoff !== 'function') {
+        throw new Error('Board visual controller cannot abort a writer before handoff');
+    }
+    return controller.abortWriterBeforeHandoff(token, checkpoint);
+}
+
+async function cancelBoardVisualWriterAfterHandoff(token: any, checkpoint?: any) {
+    const controller = getBoardVisualController();
+    if (!controller || typeof controller.cancelWriterAfterHandoff !== 'function') {
+        throw new Error('Board visual controller cannot cancel a writer after handoff');
+    }
+    if (typeof controller.getActiveWriterToken !== 'function' || controller.getActiveWriterToken() !== token) {
+        throw new Error('Board visual cancel token does not own the active frame');
+    }
+    return controller.cancelWriterAfterHandoff(token, checkpoint);
+}
+
+async function settleBoardVisualWriter(token: any) {
+    const controller = getBoardVisualController();
+    if (!controller) throw new Error('Board visual controller is unavailable');
+    if (controller.getMode && controller.getMode() === 'recovering') {
+        await controller.restore();
+    } else {
+        renderBoard();
+    }
+    return controller.releaseWriter(token);
+}
+
+function beginBoardVisualFrameCommit(token: any) {
+    const controller = getBoardVisualController();
+    if (!controller) throw new Error('Board visual controller is unavailable');
+    return controller.beginAwaitingFrameCommit(token);
+}
+
+async function applyCommittedBoardVisualFrame(token: any, receipt?: any) {
+    const controller = getBoardVisualController();
+    if (!controller) throw new Error('Board visual controller is unavailable');
+    if (
+        receipt
+        && (
+            receipt.kind !== 'network-visual-commit'
+            || receipt.visualSeq !== Number(String(token && token.frameToken || '').split(':').pop())
+        )
+    ) {
+        throw new Error('Committed board visual receipt does not match the writer token');
+    }
+    const store = _resolveNetworkVisualStateStoreForBoardRenderer();
+    if (
+        !receipt
+        || !store
+        || typeof store.isCurrentCommitReceipt !== 'function'
+        || store.isCurrentCommitReceipt(receipt) !== true
+        || typeof store.getSnapshotForReceipt !== 'function'
+    ) {
+        throw new Error('Committed board visual receipt is not current for the visual store');
+    }
+    const committedSnapshot = store.getSnapshotForReceipt(receipt);
+    if (
+        !committedSnapshot
+        || !committedSnapshot.gameState
+        || !committedSnapshot.cardState
+    ) {
+        throw new Error('Committed board visual receipt has no bound snapshot');
+    }
+    const frame = _buildBoardVisualFrameForBoardRenderer(controller, committedSnapshot);
+    if (controller.getMode && controller.getMode() === 'recovering') {
+        if (typeof controller.restoreCommittedFrame !== 'function') {
+            throw new Error('Board visual controller cannot restore a committed frame');
+        }
+        return controller.restoreCommittedFrame(token, frame);
+    }
+    return controller.applyCommittedFrame(token, frame);
+}
+
+function enterBoardVisualRecovery(token: any, error?: unknown) {
+    const controller = getBoardVisualController();
+    if (!controller) throw new Error('Board visual controller is unavailable');
+    if (typeof controller.getActiveWriterToken !== 'function' || controller.getActiveWriterToken() !== token) {
+        throw new Error('Board visual recovery token does not own the active frame');
+    }
+    if (
+        typeof controller.getActiveFrameToken !== 'function'
+        || controller.getActiveFrameToken() !== String(token && token.frameToken || '')
+    ) {
+        throw new Error('Board visual recovery frame token does not match the active frame');
+    }
+    return controller.enterRecovery(token, error);
+}
+
+function settleAutoBoardVisualWriter() {
+    if (!AutoBoardWriterTokenForBoardRenderer) return false;
+    const controller = getBoardVisualController();
+    if (!controller) return false;
+    renderBoard();
+    // renderBoard settles the synthetic token itself when playback has
+    // already become idle. Only release here when the playback defer gate
+    // intentionally kept the token active.
+    if (!AutoBoardWriterTokenForBoardRenderer) {
+        updateOccupancyUI();
+        return true;
+    }
+    const token = AutoBoardWriterTokenForBoardRenderer;
+    controller.releaseWriter(token);
+    AutoBoardWriterTokenForBoardRenderer = null;
+    updateOccupancyUI();
+    return true;
+}
+
+function _readBoardCellSizeForLayout(host: any, topology?: any) {
+    if (host && topology) {
+        const shape = _normalizeBoardShapeForPixelSizing({
+            rows: topology.renderRows,
+            cols: topology.renderCols,
+            baseRows: topology.baseRows,
+            baseCols: topology.baseCols,
+            minRow: topology.minRow,
+            minCol: topology.minCol
+        });
+        const measurement = _measureBoardPixelSizing(host, shape);
+        if (measurement && measurement.cellSize > 0) return measurement.cellSize;
+    }
     try {
-        if (typeof window !== 'undefined' && typeof window.resetRenderStats === 'function') return window.resetRenderStats;
+        const value = parseFloat(String(host && host.style && host.style.getPropertyValue('--board-cell-size-px') || ''));
+        if (Number.isFinite(value) && value > 0) return value;
     } catch (e: any) { /* ignore */ }
-    return null;
+    return 1;
+}
+
+function _readBoardFrameGeometryForLayout(host: any, appearance: any) {
+    const fallbackRect = host && typeof host.getBoundingClientRect === 'function'
+        ? host.getBoundingClientRect()
+        : { left: 0, top: 0 };
+    const frame = host && typeof host.closest === 'function' ? host.closest('#board-frame') : null;
+    if (!frame || typeof frame.getBoundingClientRect !== 'function') {
+        return {
+            clientOrigin: { x: Number(fallbackRect.left) || 0, y: Number(fallbackRect.top) || 0 },
+            frameInset: { top: 0, right: 0, bottom: 0, left: 0 }
+        };
+    }
+    const frameRect = frame.getBoundingClientRect();
+    let computed: any = null;
+    try {
+        computed = typeof window !== 'undefined' && typeof window.getComputedStyle === 'function'
+            ? window.getComputedStyle(frame)
+            : null;
+    } catch (e: any) { computed = null; }
+    let stageScale = 1;
+    try {
+        const rawScale = document && document.documentElement && document.documentElement.style
+            ? document.documentElement.style.getPropertyValue('--layout-stage-scale')
+            : '';
+        const parsedScale = Number.parseFloat(String(rawScale || ''));
+        if (Number.isFinite(parsedScale) && parsedScale > 0) stageScale = parsedScale;
+    } catch (e: any) { /* use unit scale */ }
+    const descriptor = appearance && appearance.boardFrameLayout || {};
+    const inset = (cssField: string, descriptorField: string) => {
+        const cssValue = Number.parseFloat(String(computed && computed[cssField] || ''));
+        if (Number.isFinite(cssValue)) return cssValue;
+        const descriptorValue = Number(descriptor[descriptorField]);
+        return Number.isFinite(descriptorValue) ? descriptorValue * stageScale : 0;
+    };
+    return {
+        clientOrigin: { x: Number(frameRect.left) || 0, y: Number(frameRect.top) || 0 },
+        frameInset: {
+            top: inset('paddingTop', 'paddingTop'),
+            right: inset('paddingRight', 'paddingRight'),
+            bottom: inset('paddingBottom', 'paddingBottom'),
+            left: inset('paddingLeft', 'paddingLeft')
+        }
+    };
+}
+
+function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualStateOverride?: any) {
+    const DiffRendererModule = _require('./diff-renderer');
+    const LayoutModule = _require('./board-visual/layout');
+    const ThemeModule = _require('./board-visual/theme');
+    const FramePresenterModule = _require('./board-visual/frame-presenter');
+    const baseInputs = DiffRendererModule.createBoardRenderInputs(undefined, baseVisualStateOverride);
+    const projection = DiffRendererModule.createBoardRenderProjection(undefined, baseInputs);
+    const cellState = DiffRendererModule.buildCurrentCellState(projection, baseInputs);
+    const presentationOverlayState = DiffRendererModule.createBoardPresentationOverlayState(
+        projection,
+        cellState,
+        baseInputs.presentationOverlayState
+    );
+    const inputs = Object.freeze({
+        baseVisualState: baseInputs.baseVisualState,
+        presentationOverlayState
+    });
+    const visualRevision = ++BoardVisualRevisionForBoardRenderer;
+    const model = DiffRendererModule.buildBoardRenderModel(projection, cellState, {
+        visualRevision,
+        overlay: inputs.presentationOverlayState,
+        inputs
+    });
+    const host = _resolveBoardElementForVisualRuntime();
+    const rect = host && typeof host.getBoundingClientRect === 'function'
+        ? host.getBoundingClientRect()
+        : { left: 0, top: 0, width: 0, height: 0 };
+    const appearance = FramePresenterModule.resolveBoardAppearanceDescriptor(host, visualRevision);
+    const frameGeometry = _readBoardFrameGeometryForLayout(host, appearance);
+    const layoutCellSize = _readBoardCellSizeForLayout(host, model.topology);
+    const viewport = typeof window !== 'undefined' ? (window as any).visualViewport : null;
+    const layout = LayoutModule.createBoardViewportLayout(model.topology, {
+        revision: visualRevision,
+        cellSize: layoutCellSize,
+        dpr: typeof window !== 'undefined' ? window.devicePixelRatio : 1,
+        clientOrigin: frameGeometry.clientOrigin,
+        frameInset: frameGeometry.frameInset,
+        visualViewport: {
+            scale: viewport && Number(viewport.scale) || 1,
+            offsetLeft: viewport && Number(viewport.offsetLeft) || 0,
+            offsetTop: viewport && Number(viewport.offsetTop) || 0
+        },
+        camera: {
+            scrollLeft: host && Number(host.scrollLeft) || 0,
+            scrollTop: host && Number(host.scrollTop) || 0,
+            viewportWidth: Number(rect.width) || model.topology.renderCols * layoutCellSize,
+            viewportHeight: Number(rect.height) || model.topology.renderRows * layoutCellSize
+        }
+    });
+    const frameToken = controller && controller.getActiveFrameToken()
+        ? controller.getActiveFrameToken()
+        : `idle:${visualRevision}`;
+    return Object.freeze({
+        model,
+        layout,
+        appearance,
+        theme: ThemeModule.resolveBoardVisualThemeDescriptor(host, visualRevision),
+        frameToken
+    });
 }
 
 function renderBoardFull() {
-    _syncTimeStopClassForBoardRenderer();
-    // Single Visual Writer: skip renders while playback is active or already queued.
-    if (_shouldSkipBoardRenderForPlayback()) {
-        return;
-    }
-    const fullRender = _resolveBoardFullRenderDelegate();
-    if (typeof fullRender === 'function') {
-        fullRender(boardEl);
-        return;
-    }
-    const diffRender = _resolveBoardDiffRenderDelegate();
-    if (typeof diffRender === 'function') {
-        const resetDiffRender = _resolveBoardDiffResetDelegate();
-        if (typeof resetDiffRender === 'function') {
-            resetDiffRender();
-        }
-        diffRender(boardEl);
-        return;
-    }
-    console.error('[Board Renderer] diff-renderer.js not loaded; full rendering skipped');
+    const controller = getBoardVisualController();
+    if (controller && typeof controller.invalidate === 'function') controller.invalidate();
+    return renderBoard();
 }
 
 function updateOccupancyUI() {
@@ -1378,7 +1683,21 @@ function setDiscStoneImage(disc: any, val: any) {
 // Expose in CommonJS for tests and in browser globals for legacy callers
 const BoardRenderer = {
             renderBoard,
+            prepareBoardVisualUpdate,
             renderBoardFull,
+            getBoardVisualController,
+            getBoardVisualControllerReady,
+            configureBoardVisualController,
+            claimBoardVisualWriter,
+            releaseBoardVisualWriter,
+            abortBoardVisualWriterBeforeHandoff,
+            cancelBoardVisualWriterAfterHandoff,
+            settleBoardVisualWriter,
+            beginBoardVisualFrameCommit,
+            applyCommittedBoardVisualFrame,
+            enterBoardVisualRecovery,
+            settleAutoBoardVisualWriter,
+            buildBoardVisualFrame: _buildBoardVisualFrameForBoardRenderer,
             updateOccupancyUI,
             applyTimeStopLegalEmphasis,
             collectPendingSelectedTargetHighlightKeys,
@@ -1401,6 +1720,7 @@ export = BoardRenderer;
 if (typeof window !== 'undefined') {
     // Prefer board-renderer as the canonical renderBoard implementation.
     window.renderBoard = renderBoard;
+    (window as any).prepareBoardVisualUpdate = prepareBoardVisualUpdate;
     window.updateOccupancyUI = window.updateOccupancyUI || updateOccupancyUI;
     window.collectPendingSelectedTargetHighlightKeys = window.collectPendingSelectedTargetHighlightKeys || collectPendingSelectedTargetHighlightKeys;
     window.collectRandomSpawnPreviewHighlightKeys = window.collectRandomSpawnPreviewHighlightKeys || collectRandomSpawnPreviewHighlightKeys;

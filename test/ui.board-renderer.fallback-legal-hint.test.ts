@@ -182,7 +182,8 @@ describe('board-renderer fallback legal hints', () => {
     boardRenderer.renderBoard();
 
     expect(global.boardEl.classList.contains('selection-mode')).toBe(true);
-    expect(global.renderBoardDiff).toHaveBeenCalledTimes(1);
+    expect(global.boardEl.querySelector('.cell[data-row="0"][data-col="1"]')).toBeTruthy();
+    expect(global.renderBoardDiff).not.toHaveBeenCalled();
   });
 
   test('renderBoardFull suppresses normal legal hints while BLOCKADE_WILL target selection is active', () => {
@@ -409,6 +410,33 @@ describe('board-renderer fallback legal hints', () => {
     expect(cornerCell.querySelector('.board-expansion-direction-hint')?.textContent).toBe('↖');
   });
 
+  test('preserves direction hints through overlay, sparse model, and DOM compatibility projection', () => {
+    global.getLegalMoves.mockReturnValue([]);
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 1, direction: { row: 0, col: 1 } }]);
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_SHRINK_WILL',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_01',
+      selectedTargets: [{ row: 0, col: 0 }]
+    };
+    const diff = require('../ui/diff-renderer.js');
+    const inputs = diff.createBoardRenderInputs();
+    const projection = diff.createBoardRenderProjection(undefined, inputs);
+    expect(projection.hintProjection.boardShrinkWillDirectionHintMap.get('0,1')).toBe('right');
+    const cellState = diff.buildCurrentCellState(projection, inputs);
+    const overlay = diff.createBoardPresentationOverlayState(projection, cellState, inputs.presentationOverlayState);
+    expect(overlay.directionHints).toEqual(expect.arrayContaining([
+      expect.objectContaining({ cellKey: '0,1', directionKey: 'right', kind: 'board-shrink-will' })
+    ]));
+    const model = diff.buildBoardRenderModel(projection, cellState, { overlay, inputs, visualRevision: 1 });
+    expect(model.cells.find((cell: any) => cell.key === '0,1').interaction.directionHints).toEqual(expect.arrayContaining([
+      expect.objectContaining({ directionKey: 'right', kind: 'board-shrink-will' })
+    ]));
+    const builder = require('../ui/board-visual/model-builder');
+    const compatibility = builder.buildDomCompatibilityRenderState(model);
+    expect(compatibility.renderProjection.hintProjection.boardShrinkWillDirectionHintMap.get('0,1')).toBe('right');
+  });
+
   test('renderBoard skips diff render while PLAYBACK_EVENTS are pending', () => {
     global.cardState.presentationEvents = [
       { type: 'PLAYBACK_EVENTS', events: [{ type: 'hyperactive_move', phase: 1 }] }
@@ -489,8 +517,12 @@ describe('board-renderer fallback legal hints', () => {
     const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
-    expect(global.getLegalMoves).not.toHaveBeenCalled();
+    expect(global.getLegalMoves).toHaveBeenCalled();
     expect(global.boardEl.querySelector('.sentinel')).toBeTruthy();
+    expect(boardRenderer.getBoardVisualController().getSnapshot()).toMatchObject({
+      mode: 'playback',
+      backendKind: 'dom'
+    });
   });
 
   test('renderBoardFull skips full redraw with persisted PLAYBACK_EVENTS even when allowBoardUpdateDuringPlayback is armed', () => {
@@ -509,8 +541,9 @@ describe('board-renderer fallback legal hints', () => {
     const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
-    expect(global.getLegalMoves).not.toHaveBeenCalled();
+    expect(global.getLegalMoves).toHaveBeenCalled();
     expect(global.boardEl.querySelector('.sentinel')).toBeTruthy();
+    expect(boardRenderer.getBoardVisualController().getSnapshot().mode).toBe('playback');
     boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
   });
 
@@ -558,28 +591,31 @@ describe('board-renderer fallback legal hints', () => {
     boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
   });
 
-  test('renderBoardFull delegates to canonical full render when available', () => {
+  test('renderBoardFull stays on the controller path when a legacy global full writer exists', () => {
     global.forceFullRender = jest.fn();
 
     const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
-    expect(global.forceFullRender).toHaveBeenCalledTimes(1);
-    expect(global.forceFullRender).toHaveBeenCalledWith(global.boardEl);
+    expect(global.forceFullRender).not.toHaveBeenCalled();
     expect(global.renderBoardDiff).not.toHaveBeenCalled();
-    expect(global.getLegalMoves).not.toHaveBeenCalled();
+    expect(global.boardEl.querySelectorAll('.cell')).toHaveLength(64);
+    expect(boardRenderer.getBoardVisualController().getSnapshot()).toMatchObject({
+      mode: 'idle',
+      backendKind: 'dom'
+    });
 
     delete global.forceFullRender;
   });
 
-  test('renderBoardFull falls back to diff renderer when canonical full render is unavailable', () => {
+  test('renderBoardFull uses the DOM backend without calling a legacy global diff writer', () => {
     delete global.forceFullRender;
     const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
-    expect(global.renderBoardDiff).toHaveBeenCalledTimes(1);
-    expect(global.renderBoardDiff).toHaveBeenCalledWith(global.boardEl);
-    expect(global.getLegalMoves).not.toHaveBeenCalled();
+    expect(global.renderBoardDiff).not.toHaveBeenCalled();
+    expect(global.boardEl.querySelectorAll('.cell')).toHaveLength(64);
+    expect(global.getLegalMoves).toHaveBeenCalled();
   });
 
   test('renderBoardFull fallback restores missing cells through a full refresh', () => {
@@ -594,7 +630,7 @@ describe('board-renderer fallback legal hints', () => {
     const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
-    expect(global.renderBoardDiff).toHaveBeenCalledTimes(1);
+    expect(global.renderBoardDiff).not.toHaveBeenCalled();
     expect(global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]')).toBeTruthy();
     expect(global.boardEl.children).toHaveLength(64);
   });

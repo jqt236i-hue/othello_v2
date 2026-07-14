@@ -13,6 +13,7 @@ import type { GameState as GameStateType } from '../../src/types';
 
 declare const UIBootstrap: {
   installGameDI: () => void;
+  getBoardVisualController?: () => any;
 } | undefined;
 
 declare const SharedUIBootstrap: {
@@ -90,6 +91,33 @@ function setUiInitializedFlag(value: boolean): void {
       (window as unknown as Record<string, unknown>).__uiInitialized = ready;
     }
   } catch (e) { /* ignore */ }
+}
+
+async function waitForInitialBoardVisualReady(uiBootstrap: typeof UIBootstrap | null): Promise<void> {
+  if (!uiBootstrap || typeof uiBootstrap.getBoardVisualController !== 'function') {
+    throw new Error('board_visual_controller_api_unavailable');
+  }
+  const controller = uiBootstrap.getBoardVisualController();
+  if (!controller) throw new Error('board_visual_controller_unavailable');
+  if (typeof controller.waitUntilReady === 'function') {
+    await controller.waitUntilReady();
+  } else if (controller.ready && typeof controller.ready.then === 'function') {
+    await controller.ready;
+  } else {
+    throw new Error('board_visual_controller_readiness_unavailable');
+  }
+  if (typeof controller.isReady !== 'function') {
+    throw new Error('board_visual_controller_state_unavailable');
+  }
+  if (controller.isReady() !== true) {
+    throw new Error('board_visual_controller_not_ready');
+  }
+  if (typeof controller.getVisualFrameDigest !== 'function') {
+    throw new Error('board_visual_controller_digest_unavailable');
+  }
+  if (!controller.getVisualFrameDigest()) {
+    throw new Error('board_visual_initial_frame_unavailable');
+  }
 }
 
 interface InitDomElements {
@@ -216,8 +244,8 @@ interface InitDomElements {
 
 async function initializeUI(): Promise<void> {
   setUiInitializedFlag(false);
+  const uiBootstrap = _getUiBootstrapModule();
   try {
-    const uiBootstrap = _getUiBootstrapModule();
     if (uiBootstrap && typeof uiBootstrap.installGameDI === 'function') {
       uiBootstrap.installGameDI();
     }
@@ -253,12 +281,14 @@ async function initializeUI(): Promise<void> {
     }
   } catch (e) { /* ignore */ }
 
-  if (typeof attachInitEventListeners === 'function') {
-    attachInitEventListeners(refs, debugAllowed);
-  }
-
   if (typeof initGameSystems === 'function') {
     await initGameSystems();
+  }
+
+  await waitForInitialBoardVisualReady(uiBootstrap);
+
+  if (typeof attachInitEventListeners === 'function') {
+    attachInitEventListeners(refs, debugAllowed);
   }
 
   if (typeof restoreStoredNetworkSessionOnBoot === 'function') {

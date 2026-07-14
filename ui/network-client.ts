@@ -463,6 +463,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkPlaybackDispatcherModule: any = null;
     let networkVisualStateStoreModule: any = null;
     let networkVisualSettlementModule: any = null;
+    let networkPresentationRecoverySurfaceModule: any = null;
     let networkDebugTraceModule: any = null;
     let networkIntakeEnvelopeModule: any = null;
     let networkIntakeCoordinatorModule: any = null;
@@ -491,6 +492,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkDebugTrace: any = null;
     let networkIntakeCoordinator: any = null;
     let networkPresentationGapRecoveryPromise: Promise<any> | null = null;
+    let networkPresentationRetryTimer: any = null;
+    let networkPresentationRetryAttempt = 0;
+    let networkSessionEpoch = 0;
     let ownerHelpers: any = null;
     networkCommentaryModule = resolveNetworkClientModule('./network/commentary', null);
     networkActionSchemaModule = resolveNetworkClientModule('../shared/network-action-schema', null);
@@ -515,6 +519,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     networkPlaybackDispatcherModule = resolveNetworkClientModule('./network/playback-dispatcher', null);
     networkVisualStateStoreModule = resolveNetworkClientModule('./network/visual-state-store', null);
     networkVisualSettlementModule = resolveNetworkClientModule('./network/visual-settlement', null);
+    networkPresentationRecoverySurfaceModule = resolveNetworkClientModule('./presentation/reload-required-surface', null);
     networkDebugTraceModule = resolveNetworkClientModule('./network/debug-trace', null);
     networkIntakeEnvelopeModule = resolveNetworkClientModule('./network/intake-envelope', null);
     networkIntakeCoordinatorModule = resolveNetworkClientModule('./network/intake-coordinator', null);
@@ -767,6 +772,20 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return networkVisualStateStore;
     }
 
+    function resetNetworkVisualStateStoreForSessionBoundary(storeCandidate?: any) {
+        const store = storeCandidate || networkVisualStateStore;
+        if (!store) return false;
+        if (typeof store.reset === 'function') {
+            store.reset();
+            return true;
+        }
+        if (typeof store.clearVisualSnapshot === 'function') {
+            store.clearVisualSnapshot();
+            return true;
+        }
+        return false;
+    }
+
     function getNetworkVisualSettlementTracker() {
         if (networkVisualSettlementTracker) return networkVisualSettlementTracker;
         const mod = resolveNetworkVisualSettlementModule();
@@ -850,6 +869,15 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return coordinator.submit(envelope);
     }
 
+    function awaitNetworkBoardVisualReady() {
+        const renderer = resolveNetworkClientCandidate(() => _require('./board-renderer'))
+            || resolveNetworkClientGlobal('BoardRenderer');
+        if (!renderer || typeof renderer.getBoardVisualControllerReady !== 'function') {
+            return Promise.reject(new Error('network_board_visual_readiness_unavailable'));
+        }
+        return Promise.resolve(renderer.getBoardVisualControllerReady());
+    }
+
     function getNetworkPlaybackDispatcher() {
         if (networkPlaybackDispatcher) return networkPlaybackDispatcher;
         const mod = resolveNetworkPlaybackDispatcherModule();
@@ -857,6 +885,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         const presentationHandlerModule = resolveNetworkPresentationHandlerModule();
         const dispatcherConfig: any = {
             root,
+            awaitBoardVisualReady: () => awaitNetworkBoardVisualReady(),
             getCardState: () => {
                 try { return root && root.cardState; } catch (e: any) { return null; }
             },
@@ -973,6 +1002,157 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return requested;
     }
 
+    function observeNetworkTimelineFrameCommitted(frame: any, meta: any) {
+        const info = {
+            source: 'network_timeline',
+            visualSeq: Number.isFinite(Number(meta && meta.visualSeq)) ? Math.trunc(Number(meta.visualSeq)) : null,
+            visualVersion: Number.isFinite(Number(meta && meta.visualVersion)) ? Math.trunc(Number(meta.visualVersion)) : null,
+            frameSource: meta && meta.source ? String(meta.source) : null,
+            stateVersionFrom: frame && Number.isFinite(Number(frame.stateVersionFrom)) ? Math.trunc(Number(frame.stateVersionFrom)) : null,
+            stateVersionTo: frame && Number.isFinite(Number(frame.stateVersionTo)) ? Math.trunc(Number(frame.stateVersionTo)) : null
+        };
+        recordNetworkTrace('visual_frame_committed', info);
+        recordNetworkTelemetry('network_timeline_visual_frame_committed', info);
+        return true;
+    }
+
+    function clearNetworkPresentationRetryTimer() {
+        if (networkPresentationRetryTimer !== null) {
+            clearScheduledTimeout(networkPresentationRetryTimer);
+            networkPresentationRetryTimer = null;
+        }
+    }
+
+    function clearNetworkPresentationRecoverySurface() {
+        const mod = networkPresentationRecoverySurfaceModule;
+        if (!mod || typeof mod.clearReloadRequiredSurface !== 'function') return false;
+        try { return mod.clearReloadRequiredSurface(root); } catch (e: any) { return false; }
+    }
+
+    function showNetworkPresentationRecoverySurface(timeline: any, paused: any) {
+        const message = 'ネット対戦の盤面表示を復旧できませんでした。再試行するか、ページを再読み込みしてください';
+        emitStatus(message, true);
+        const mod = networkPresentationRecoverySurfaceModule;
+        if (mod && typeof mod.showReloadRequiredSurface === 'function') {
+            try {
+                mod.showReloadRequiredSurface({
+                    root,
+                    message,
+                    onRetry: () => retryNetworkPresentationTimeline(timeline)
+                });
+            } catch (e: any) { /* status text remains the fallback surface */ }
+        }
+        recordNetworkTelemetry('network_presentation_reload_required', {
+            visualSeq: paused && paused.visualSeq,
+            stage: paused && paused.stage,
+            message: paused && paused.message
+        });
+    }
+
+    function getNetworkSessionEpoch() {
+        return networkSessionEpoch;
+    }
+
+    function advanceNetworkSessionEpoch(reason?: any) {
+        networkSessionEpoch += 1;
+        // In-flight gap recovery cannot be cancelled at the transport layer,
+        // so detach it here; its epoch/timeline guard will discard the reply.
+        networkPresentationGapRecoveryPromise = null;
+        clearNetworkPresentationRecoverySurface();
+        recordNetworkTrace('network_session_epoch_advanced', {
+            epoch: networkSessionEpoch,
+            reason: String(reason || 'session_boundary')
+        });
+        return networkSessionEpoch;
+    }
+
+    function retryNetworkPresentationTimeline(timelineCandidate?: any) {
+        const timeline = timelineCandidate || networkPresentationTimeline;
+        if (!timeline || timeline !== networkPresentationTimeline || typeof timeline.retryPausedSettlement !== 'function') {
+            return Promise.resolve(0);
+        }
+        clearNetworkPresentationRetryTimer();
+        return Promise.resolve(timeline.retryPausedSettlement(getNetworkPlaybackDispatcher()))
+            .then((drained: any) => {
+                if (timeline !== networkPresentationTimeline) return drained;
+                syncVisualCursorFromTimeline();
+                syncBoardPlaybackLockAfterTimelineDrain();
+                const diagnostics = typeof timeline.getDiagnostics === 'function'
+                    ? timeline.getDiagnostics()
+                    : null;
+                if (!diagnostics || diagnostics.paused !== true) {
+                    networkPresentationRetryAttempt = 0;
+                    clearNetworkPresentationRecoverySurface();
+                }
+                return drained;
+            })
+            .catch((error: any) => {
+                if (timeline === networkPresentationTimeline) syncBoardPlaybackLockAfterTimelineDrain();
+                recordNetworkTelemetry('network_presentation_timeline_retry_failed', {
+                    error: error && error.message ? String(error.message) : String(error || '')
+                });
+                return 0;
+            });
+    }
+
+    function retryPresentationTimeline() {
+        networkPresentationRetryAttempt = 0;
+        return retryNetworkPresentationTimeline(networkPresentationTimeline);
+    }
+
+    function scheduleNetworkPresentationSettlementRetry(paused: any) {
+        const timeline = networkPresentationTimeline;
+        if (!timeline || networkPresentationRetryTimer !== null) return false;
+        const stage = String(paused && paused.stage || 'unknown');
+        const canRetry = stage !== 'dispatch' || (paused && paused.safeDispatchRetry === true);
+        if (!canRetry || networkPresentationRetryAttempt >= 5) {
+            recordNetworkTelemetry('network_presentation_timeline_paused', {
+                visualSeq: paused && paused.visualSeq,
+                stage,
+                message: paused && paused.message,
+                automaticRetry: false
+            });
+            showNetworkPresentationRecoverySurface(timeline, paused);
+            return false;
+        }
+        const attempt = ++networkPresentationRetryAttempt;
+        const delayMs = Math.min(1000, 50 * Math.pow(2, attempt - 1));
+        networkPresentationRetryTimer = scheduleTimeout(() => {
+            networkPresentationRetryTimer = null;
+            if (timeline !== networkPresentationTimeline) return;
+            retryNetworkPresentationTimeline(timeline);
+        }, delayMs);
+        recordNetworkTelemetry('network_presentation_timeline_retry_scheduled', {
+            visualSeq: paused && paused.visualSeq,
+            stage,
+            attempt,
+            delayMs
+        });
+        return true;
+    }
+
+    async function disposeNetworkPresentationTimeline(reason?: any) {
+        clearNetworkPresentationRetryTimer();
+        clearNetworkPresentationRecoverySurface();
+        networkPresentationRetryAttempt = 0;
+        const timeline = networkPresentationTimeline;
+        if (!timeline) return true;
+        if (typeof timeline.dispose !== 'function') {
+            throw new Error('network_presentation_timeline_dispose_unavailable');
+        }
+        await timeline.dispose(reason || 'network_session_boundary');
+        if (networkPresentationTimeline === timeline) networkPresentationTimeline = null;
+        try {
+            if (root && root.NetworkPresentationTimeline === timeline) root.NetworkPresentationTimeline = null;
+        } catch (e: any) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkPresentationTimeline === timeline) {
+                (globalThis as any).NetworkPresentationTimeline = null;
+            }
+        } catch (e: any) { /* ignore */ }
+        return true;
+    }
+
     function getNetworkPresentationTimeline() {
         if (networkPresentationTimeline) return networkPresentationTimeline;
         const mod = resolveNetworkPresentationTimelineModule();
@@ -988,7 +1168,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             playbackDispatcher: getNetworkPlaybackDispatcher(),
             visualStateStore: getNetworkVisualStateStore(),
             visualSettlementTracker: getNetworkVisualSettlementTracker(),
-            onFrameCommitted: (frame: any, meta: any) => requestNetworkTimelineBoardRefresh(frame, meta)
+            onFrameCommitted: (frame: any, meta: any) => observeNetworkTimelineFrameCommitted(frame, meta),
+            onSettlementPaused: (paused: any) => scheduleNetworkPresentationSettlementRetry(paused)
         });
         try {
             root.NetworkPresentationTimeline = networkPresentationTimeline;
@@ -1010,6 +1191,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             || resolveNetworkClientCandidate(() => _require('./presentation-handler'));
     }
 
+    function assertNetworkPresentationTimelineDisposedForSessionBoundary() {
+        if (networkPresentationTimeline) {
+            throw new Error('network_presentation_timeline_must_be_disposed_before_session_boundary');
+        }
+    }
+
     function getNetworkSessionSeatController() {
         if (networkSessionSeatController) return networkSessionSeatController;
         const mod = resolveNetworkSessionSeatModule();
@@ -1022,6 +1209,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             normalizeRoomId,
             playerNameMax: PLAYER_NAME_MAX,
             prepareSessionActivation: (payload: any) => {
+                assertNetworkPresentationTimelineDisposedForSessionBoundary();
                 state.lastStreamEventId = '';
                 const activationSnapshotVersion = getSnapshotStateVersion(payload && payload.snapshot);
                 state.appliedStateVersion = activationSnapshotVersion;
@@ -1034,7 +1222,6 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 state.lastVisualVersion = cursor && Number.isFinite(Number(cursor.stateVersion))
                     ? Math.max(0, Math.trunc(Number(cursor.stateVersion)))
                     : (Number.isFinite(Number(activationSnapshotVersion)) ? activationSnapshotVersion : null);
-                networkPresentationTimeline = null;
                 if (networkVisualSettlementTracker && typeof networkVisualSettlementTracker.reset === 'function') {
                     networkVisualSettlementTracker.reset({
                         completedVisualSeq: Number.isFinite(Number(state.lastVisualSeq))
@@ -1043,22 +1230,18 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     });
                 }
                 const visualStore = getNetworkVisualStateStore();
-                if (visualStore && typeof visualStore.clearVisualSnapshot === 'function') {
-                    visualStore.clearVisualSnapshot();
-                }
+                resetNetworkVisualStateStoreForSessionBoundary(visualStore);
                 clearPendingForceSyncPlaybackRecovery();
             },
             onResetSessionState: () => {
+                assertNetworkPresentationTimelineDisposedForSessionBoundary();
                 state.appliedStateVersion = null;
                 state.lastVisualSeq = 0;
                 state.lastVisualVersion = null;
-                networkPresentationTimeline = null;
                 if (networkVisualSettlementTracker && typeof networkVisualSettlementTracker.reset === 'function') {
                     networkVisualSettlementTracker.reset({ completedVisualSeq: 0 });
                 }
-                if (networkVisualStateStore && typeof networkVisualStateStore.clearVisualSnapshot === 'function') {
-                    networkVisualStateStore.clearVisualSnapshot();
-                }
+                resetNetworkVisualStateStoreForSessionBoundary(networkVisualStateStore);
                 state.lastStreamEventId = '';
                 state.authoritativeMatchState.gameState = null;
                 state.authoritativeMatchState.cardState = null;
@@ -1106,6 +1289,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             shouldRetryJoinWithoutStoredClaim,
             activateSessionFromResponse,
             activateSpectatorSessionFromResponse,
+            disposePresentationTimeline: (reason: any) => disposeNetworkPresentationTimeline(reason),
+            getSessionEpoch: () => getNetworkSessionEpoch(),
+            advanceSessionEpoch: (reason: any) => advanceNetworkSessionEpoch(reason),
             resetNetworkTelemetry,
             openStream,
             getKnownProjectedSnapshotHash,
@@ -1122,6 +1308,11 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             syncVisualCursorForSnapshotNoPlayback,
             clearPlaybackStateForLeave,
             clearPendingForceSyncPlaybackRecovery,
+            markSessionReloadRequired: () => {
+                state.active = false;
+                state.networkDebugEnabled = false;
+                state.networkAutoEnabled = false;
+            },
             resetSessionState,
             resetTurnTimerState,
             closeStream,
@@ -2500,6 +2691,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             : (Number.isFinite(Number(state.lastVisualSeq)) ? Math.max(0, Math.trunc(Number(state.lastVisualSeq))) : 0);
         const path = buildPresentationJournalPath(afterVisualSeq);
         if (!path) return Promise.resolve(false);
+        const recoveryEpoch = getNetworkSessionEpoch();
 
         recordNetworkTelemetry('network_presentation_timeline_gap_recovery_started', {
             reason: String(reason || ''),
@@ -2509,9 +2701,17 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             pendingVisualSeqs: Array.isArray(diagnostics.pendingVisualSeqs) ? diagnostics.pendingVisualSeqs.slice(0, 8) : []
         });
 
-        networkPresentationGapRecoveryPromise = Promise.resolve()
+        const recoveryPromise = Promise.resolve()
             .then(() => requestJson('GET', path, undefined))
             .then((res: any) => {
+                if (recoveryEpoch !== getNetworkSessionEpoch() || timeline !== networkPresentationTimeline) {
+                    recordNetworkTelemetry('network_presentation_timeline_gap_recovery_stale', {
+                        afterVisualSeq,
+                        recoveryEpoch,
+                        currentEpoch: getNetworkSessionEpoch()
+                    });
+                    return false;
+                }
                 if (!res || !res.ok || !res.data || res.data.ok !== true) {
                     recordNetworkTelemetry('network_presentation_timeline_gap_recovery_failed', {
                         reason: res && res.data && res.data.reason ? String(res.data.reason) : 'PRESENTATION_JOURNAL_FETCH_FAILED',
@@ -2525,6 +2725,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     skipAutoDrain: true
                 });
                 return drainPresentationTimeline().then((drained: any) => {
+                    if (recoveryEpoch !== getNetworkSessionEpoch() || timeline !== networkPresentationTimeline) {
+                        return false;
+                    }
                     recordNetworkTelemetry('network_presentation_timeline_gap_recovered', {
                         afterVisualSeq,
                         enqueued,
@@ -2540,9 +2743,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 return false;
             })
             .finally(() => {
-                networkPresentationGapRecoveryPromise = null;
+                if (networkPresentationGapRecoveryPromise === recoveryPromise) {
+                    networkPresentationGapRecoveryPromise = null;
+                }
             });
-        return networkPresentationGapRecoveryPromise;
+        networkPresentationGapRecoveryPromise = recoveryPromise;
+        return recoveryPromise;
     }
 
     function drainPresentationTimeline() {
@@ -2553,8 +2759,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return Promise.resolve()
             .then(() => timeline.drainPlayableFrames(getNetworkPlaybackDispatcher()))
             .then((drained: any) => {
+                if (timeline !== networkPresentationTimeline) return drained;
                 syncVisualCursorFromTimeline();
                 syncBoardPlaybackLockAfterTimelineDrain();
+                try {
+                    const diagnostics = typeof timeline.getDiagnostics === 'function' ? timeline.getDiagnostics() : null;
+                    if (!diagnostics || diagnostics.paused !== true) networkPresentationRetryAttempt = 0;
+                } catch (e: any) { /* ignore */ }
                 return drained;
             })
             .catch((error: any) => {
@@ -3004,6 +3215,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
     function resetSessionState() {
         invokeControllerMethod(getNetworkSessionSeatController, 'resetSessionState', arguments, () => {
+            assertNetworkPresentationTimelineDisposedForSessionBoundary();
             state.active = false;
             state.roomId = '';
             state.viewerRole = 'seat';
@@ -3025,10 +3237,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             state.appliedStateVersion = null;
             state.lastVisualSeq = 0;
             state.lastVisualVersion = null;
-            networkPresentationTimeline = null;
-            if (networkVisualStateStore && typeof networkVisualStateStore.clearVisualSnapshot === 'function') {
-                networkVisualStateStore.clearVisualSnapshot();
-            }
+            resetNetworkVisualStateStoreForSessionBoundary(networkVisualStateStore);
             state.lastStateSyncRecoveredPlaybackSignature = '';
             state.lastStreamEventId = '';
             state.authoritativeMatchState.gameState = null;
@@ -3383,33 +3592,35 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return res.data;
     }
 
-    function adoptMatchedRoom(payload: any, options?: any) {
+    async function adoptMatchedRoom(payload: any, options?: any) {
         const data = payload && typeof payload === 'object' ? payload : {};
         const opts = options && typeof options === 'object' ? options : {};
         const roomId = String(data.roomId || '').trim().toUpperCase();
         const seatKey = String(data.seatKey || '').trim();
         const seatToken = String(data.seatToken || '').trim();
         if (!roomId || !seatKey || !seatToken) {
-            return Promise.resolve({ ok: false, reason: 'RATED_MATCH_PAYLOAD_INVALID' });
+            return { ok: false, reason: 'RATED_MATCH_PAYLOAD_INVALID' };
         }
         if (opts.serverUrl && typeof setServerUrl === 'function') {
             setServerUrl(opts.serverUrl);
         }
         if (state.roomId && state.roomId !== roomId) {
-            return Promise.resolve({ ok: false, reason: 'ALREADY_IN_ROOM', roomId: state.roomId });
+            return { ok: false, reason: 'ALREADY_IN_ROOM', roomId: state.roomId };
         }
+        advanceNetworkSessionEpoch('rated_match_activation');
+        await disposeNetworkPresentationTimeline('rated_match_activation');
         activateSessionFromResponse(data, roomId);
         resetNetworkTelemetry();
         openStream({ source: opts.source || 'rated_queue' });
         emitStatus('レート戦: マッチ成立（' + (seatKey === 'black' ? '黒' : '白') + '）', false);
         syncQuickResetButtonForNetworkState();
-        return Promise.resolve({
+        return {
             ok: true,
             roomId,
             seatKey,
             networkDebugEnabled: state.networkDebugEnabled === true,
             networkAutoEnabled: state.networkAutoEnabled === true
-        });
+        };
     }
 
     function getCurrentAppliedGameState() {
@@ -3893,6 +4104,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         getRatedMatch,
         getNetworkAutoEnabled,
         getNetworkTelemetry,
+        retryPresentationTimeline,
         dumpDiagnostics
     };
 

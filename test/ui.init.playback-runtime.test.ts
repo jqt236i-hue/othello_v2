@@ -74,7 +74,12 @@ describe('initializeUI playback runtime delegation', () => {
 
     const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
     jest.doMock(bootstrapPath, () => ({
-      installGameDI: jest.fn()
+      installGameDI: jest.fn(),
+      getBoardVisualController: jest.fn(() => ({
+        waitUntilReady: jest.fn(async () => undefined),
+        isReady: jest.fn(() => true),
+        getVisualFrameDigest: jest.fn(() => 'initial-frame')
+      }))
     }), { virtual: false });
 
     const playbackStatePath = path.resolve(__dirname, '..', 'ui', 'playback-state-manager.js');

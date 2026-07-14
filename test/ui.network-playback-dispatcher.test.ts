@@ -1,11 +1,22 @@
 const Dispatcher = require('../ui/network/playback-dispatcher');
 
+function settlementHandle(visualSeq: number) {
+  return Object.freeze({
+    kind: 'strict-network-settlement',
+    visualSeq,
+    applyCommittedFrame: jest.fn(async () => true),
+    settle: jest.fn(async () => true),
+    cancel: jest.fn(async () => true)
+  });
+}
+
 describe('NetworkPlaybackDispatcher', () => {
   test('dispatches PLAYBACK_EVENTS through the presentation handler', async () => {
     const handled: any[] = [];
     const dispatcher = Dispatcher.createNetworkPlaybackDispatcher({
       handlePresentationEvent: jest.fn(async (event: any) => {
         handled.push(event);
+        return settlementHandle(event.meta.visualSeq);
       })
     });
 
@@ -29,11 +40,12 @@ describe('NetworkPlaybackDispatcher', () => {
     ]);
   });
 
-  test('requests a board refresh after direct presentation playback finishes', async () => {
+  test('does not invoke a second board drain after direct strict presentation playback', async () => {
     const calls: string[] = [];
     const dispatcher = Dispatcher.createNetworkPlaybackDispatcher({
-      handlePresentationEvent: jest.fn(async () => {
+      handlePresentationEvent: jest.fn(async (event: any) => {
         calls.push('playback');
+        return settlementHandle(event.meta.visualSeq);
       }),
       onBoardUpdated: jest.fn(() => {
         calls.push('board');
@@ -47,7 +59,7 @@ describe('NetworkPlaybackDispatcher', () => {
     });
 
     expect(result).toMatchObject({ started: true, method: 'presentation_handler' });
-    expect(calls).toEqual(['playback', 'board']);
+    expect(calls).toEqual(['playback']);
   });
 
   test('queues to cardState, requests a drain, and clears the drained network batch', async () => {
@@ -109,6 +121,78 @@ describe('NetworkPlaybackDispatcher', () => {
     await expect(dispatcher.dispatchNetworkPlaybackEvents([], {
       source: 'network_timeline'
     })).resolves.toMatchObject({ started: false, method: 'empty' });
+    expect(handlePresentationEvent).not.toHaveBeenCalled();
+  });
+
+  test('dispatches an empty strict frame and still returns its settlement handle', async () => {
+    const handle = settlementHandle(9);
+    const handlePresentationEvent = jest.fn(async () => handle);
+    const dispatcher = Dispatcher.createNetworkPlaybackDispatcher({ handlePresentationEvent });
+
+    await expect(dispatcher.dispatchNetworkPlaybackEvents([], {
+      source: 'network_timeline',
+      visualSeq: 9,
+      strictNetworkPlayback: true
+    })).resolves.toMatchObject({
+      started: true,
+      method: 'presentation_handler',
+      settlementHandle: handle
+    });
+    expect(handlePresentationEvent).toHaveBeenCalledTimes(1);
+  });
+
+  test('awaits board visual readiness before invoking strict presentation playback', async () => {
+    const order: string[] = [];
+    let releaseReady: (() => void) | null = null;
+    const ready = new Promise<void>((resolve) => { releaseReady = resolve; });
+    const handlePresentationEvent = jest.fn(async (event: any) => {
+      order.push('handler');
+      return settlementHandle(event.meta.visualSeq);
+    });
+    const dispatcher = Dispatcher.createNetworkPlaybackDispatcher({
+      awaitBoardVisualReady: jest.fn(async () => {
+        order.push('ready:start');
+        await ready;
+        order.push('ready:end');
+      }),
+      handlePresentationEvent
+    });
+
+    const dispatchPromise = dispatcher.dispatchNetworkPlaybackEvents([{ type: 'move' }], {
+      visualSeq: 10,
+      strictNetworkPlayback: true
+    });
+    await Promise.resolve();
+    expect(order).toEqual(['ready:start']);
+    expect(handlePresentationEvent).not.toHaveBeenCalled();
+    releaseReady && releaseReady();
+    await expect(dispatchPromise).resolves.toMatchObject({ started: true });
+    expect(order).toEqual(['ready:start', 'ready:end', 'handler']);
+  });
+
+  test('marks readiness failure as safe to retry before dispatch side effects', async () => {
+    const handlePresentationEvent = jest.fn();
+    const dispatcher = Dispatcher.createNetworkPlaybackDispatcher({
+      awaitBoardVisualReady: jest.fn(async () => {
+        throw new Error('mount pending');
+      }),
+      handlePresentationEvent
+    });
+
+    let caught: any = null;
+    try {
+      await dispatcher.dispatchNetworkPlaybackEvents([{ type: 'move' }], {
+        visualSeq: 11,
+        strictNetworkPlayback: true
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toMatchObject({
+      message: 'strict_network_board_visual_not_ready',
+      code: 'STRICT_NETWORK_BOARD_VISUAL_NOT_READY',
+      safeDispatchRetry: true
+    });
     expect(handlePresentationEvent).not.toHaveBeenCalled();
   });
 });

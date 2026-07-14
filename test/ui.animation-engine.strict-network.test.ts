@@ -77,8 +77,9 @@ describe('AnimationEngine strict network playback', () => {
     }
   });
 
-  test('strict network playback over the event cap fast-forwards without rejecting', async () => {
+  test('strict network playback over the event cap warns and settles every event in order', async () => {
     const requestBoardUpdate = jest.fn();
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     (global as any).window.PLAYBACK_EVENT_CAP = 2;
     jest.doMock('../ui/animation-resolver', () => ({
       getAnimationShared: () => null,
@@ -93,20 +94,34 @@ describe('AnimationEngine strict network playback', () => {
     try {
       const AnimationEngine = require('../ui/animation-engine');
       const executePhaseSpy = jest.spyOn(AnimationEngine, 'executePhase').mockResolvedValue(undefined);
+      const sleepSpy = jest.spyOn(AnimationEngine, '_sleep').mockResolvedValue(undefined);
 
       try {
-        await expect(AnimationEngine.play([
+        const events = [
           { type: 'flip', phase: 1, strictNetworkPlayback: true, targets: [] },
           { type: 'move', phase: 2, strictNetworkPlayback: true, targets: [] },
           { type: 'destroy', phase: 3, strictNetworkPlayback: true, targets: [] }
-        ], { strictNetworkPlayback: true })).resolves.toBeUndefined();
+        ];
+        await expect(AnimationEngine.play(events, { strictNetworkPlayback: true })).resolves.toBeUndefined();
 
         expect(requestBoardUpdate).toHaveBeenCalledTimes(1);
-        expect(executePhaseSpy).not.toHaveBeenCalled();
+        expect(executePhaseSpy.mock.calls.map(([phaseEvents]) => phaseEvents.map((event: any) => event.type))).toEqual([
+          ['flip'],
+          ['move'],
+          ['destroy']
+        ]);
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Continuing ordered playback'),
+          expect.objectContaining({ original: 3, cap: 2, strictNetworkPlayback: true })
+        );
+        expect((global as any).window.__telemetry__.playbackEventCapExceeded).toBe(1);
+        expect((global as any).window.__telemetry__.playbackFastForwarded).toBeUndefined();
       } finally {
+        sleepSpy.mockRestore();
         executePhaseSpy.mockRestore();
       }
     } finally {
+      warnSpy.mockRestore();
       jest.dontMock('../ui/animation-resolver');
     }
   });
@@ -121,13 +136,18 @@ describe('AnimationEngine strict network playback', () => {
     expect(PlaybackState.shouldDeferBoardUpdate({})).toBe(true);
   });
 
-  test('paused network presentation timeline is diagnostic and does not keep input locked', () => {
+  test('paused active network presentation settlement keeps input locked', () => {
     (global as any).NetworkPresentationTimeline = {
-      getDiagnostics: () => ({ playing: false, paused: true })
+      getDiagnostics: () => ({
+        playing: false,
+        paused: true,
+        activeSettlementStage: 'apply-committed-frame',
+        blocksInput: true
+      })
     };
     const PlaybackState = require('../ui/playback-state-manager');
 
-    expect(PlaybackState.getPlaybackActive()).toBe(false);
-    expect(PlaybackState.shouldDeferBoardUpdate({})).toBe(false);
+    expect(PlaybackState.getPlaybackActive()).toBe(true);
+    expect(PlaybackState.shouldDeferBoardUpdate({})).toBe(true);
   });
 });

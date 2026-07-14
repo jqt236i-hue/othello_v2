@@ -23,7 +23,7 @@ describe('ui/bootstrap lazy install', () => {
     expect(typeof global.processCpuTurn).toBe('undefined');
   });
 
-  test('initializeUI installs game DI explicitly', () => {
+  test('initializeUI installs game DI explicitly', async () => {
     const dom = new JSDOM('<!doctype html><html><body></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
@@ -31,13 +31,24 @@ describe('ui/bootstrap lazy install', () => {
     const installGameDIMock = jest.fn();
     const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
     jest.doMock(bootstrapPath, () => ({
-      installGameDI: installGameDIMock
+      installGameDI: installGameDIMock,
+      getBoardVisualController: jest.fn(() => ({
+        waitUntilReady: jest.fn(async () => undefined),
+        isReady: jest.fn(() => true),
+        getVisualFrameDigest: jest.fn(() => 'initial-frame')
+      }))
     }), { virtual: false });
+
+    if (document.readyState === 'loading') {
+      await new Promise<void>((resolve) => {
+        document.addEventListener('DOMContentLoaded', () => resolve(), { once: true });
+      });
+    }
 
     const initPath = path.resolve(__dirname, '..', 'ui', 'handlers', 'init.js');
     const initModule = require(initPath);
 
-    initModule.initializeUI();
+    await initModule.initializeUI();
 
     expect(installGameDIMock).toHaveBeenCalledTimes(1);
   });

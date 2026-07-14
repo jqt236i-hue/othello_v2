@@ -1,4 +1,88 @@
-const Timeline = require('../ui/network/presentation-timeline');
+const TimelineModule = require('../ui/network/presentation-timeline');
+const VisualStateStoreModule = require('../ui/network/visual-state-store');
+
+function commitReceipt(playedFrame: any, meta?: any) {
+  return Object.freeze({
+    kind: 'network-visual-commit',
+    visualSeq: playedFrame.visualSeq,
+    visualVersion: playedFrame.stateVersionTo,
+    source: meta && meta.source || 'test',
+    snapshotOwnership: 'copy_on_commit'
+  });
+}
+
+function settlementHandle(visualSeq: number, hooks?: any) {
+  const callbacks = hooks || {};
+  return Object.freeze({
+    kind: 'strict-network-settlement',
+    visualSeq,
+    applyCommittedFrame: jest.fn(async (receipt: any) => {
+      if (callbacks.applyCommittedFrame) return callbacks.applyCommittedFrame(receipt);
+      return true;
+    }),
+    settle: jest.fn(async () => {
+      if (callbacks.settle) return callbacks.settle();
+      return true;
+    }),
+    cancel: jest.fn(async (reason: any) => {
+      if (callbacks.cancel) return callbacks.cancel(reason);
+      return true;
+    })
+  });
+}
+
+function trustedVisualStateStore(commitImpl: (playedFrame: any, meta: any) => any) {
+  const trusted = new WeakSet<object>();
+  return {
+    commitFrame: jest.fn((playedFrame: any, meta: any) => {
+      const raw = commitImpl(playedFrame, meta);
+      const receipt = raw && raw.kind === 'network-visual-commit'
+        ? raw
+        : commitReceipt(playedFrame, meta);
+      trusted.add(receipt);
+      return receipt;
+    }),
+    isCurrentCommitReceipt: jest.fn((receipt: any) => !!receipt && trusted.has(receipt))
+  };
+}
+
+function createTestTimeline(config?: any) {
+  const cfg = { ...(config || {}) };
+  if (cfg.visualStateStore && typeof cfg.visualStateStore.commitFrame === 'function') {
+    const originalCommit = cfg.visualStateStore.commitFrame.bind(cfg.visualStateStore);
+    cfg.visualStateStore = trustedVisualStateStore(originalCommit);
+  } else {
+    const store = VisualStateStoreModule.createNetworkVisualStateStore();
+    store.setBaseVisualSnapshot(
+      { stateVersion: cfg.initialVisualVersion || 0 },
+      { visualSeq: cfg.initialVisualSeq || 0, visualVersion: cfg.initialVisualVersion || 0 }
+    );
+    cfg.visualStateStore = store;
+  }
+  if (!cfg.visualSettlementTracker) {
+    cfg.visualSettlementTracker = { markVisualSeqCompleted: jest.fn(() => true) };
+  }
+  const timeline = TimelineModule.createNetworkPresentationTimeline(cfg);
+  const originalDrain = timeline.drainPlayableFrames.bind(timeline);
+  timeline.drainPlayableFrames = (dispatcher: any) => {
+    if (!dispatcher || typeof dispatcher.dispatchNetworkPlaybackEvents !== 'function') {
+      return originalDrain(dispatcher);
+    }
+    return originalDrain({
+      ...dispatcher,
+      async dispatchNetworkPlaybackEvents(events: any[], options: any) {
+        const result = await dispatcher.dispatchNetworkPlaybackEvents(events, options);
+        if (result && result.started === true && !result.settlementHandle) {
+          return { ...result, settlementHandle: settlementHandle(options.visualSeq) };
+        }
+        return result;
+      }
+    });
+  };
+  return timeline;
+}
+
+const Timeline = { createNetworkPresentationTimeline: createTestTimeline };
 
 function frame(visualSeq: number, from: number, to: number, type?: string) {
   return {
@@ -84,7 +168,7 @@ describe('NetworkPresentationTimeline', () => {
 
   test('marks visualSeq completed after a frame commit', async () => {
     const visualSettlementTracker = {
-      markVisualSeqCompleted: jest.fn()
+      markVisualSeqCompleted: jest.fn(() => true)
     };
     const timeline = Timeline.createNetworkPresentationTimeline({
       initialVisualSeq: 0,
@@ -133,15 +217,17 @@ describe('NetworkPresentationTimeline', () => {
       return drained;
     });
 
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let index = 0; index < 10 && !order.includes('commit-start'); index += 1) {
+      await Promise.resolve();
+    }
 
     expect(resolved).toBe(false);
     expect(order).toEqual(['playback', 'commit-start']);
     expect(timeline.getDiagnostics()).toMatchObject({
       playing: true,
-      visualSeq: 1,
-      visualVersion: 2
+      visualSeq: 0,
+      visualVersion: 1,
+      activeSettlementStage: 'observer'
     });
 
     releaseCommit && releaseCommit();
@@ -341,6 +427,67 @@ describe('NetworkPresentationTimeline', () => {
     });
   });
 
+  test('retries only committed-frame apply and preserves dispatch/commit/tracker/observer/settle order', async () => {
+    const order: string[] = [];
+    let applyAttempt = 0;
+    const handle = settlementHandle(1, {
+      applyCommittedFrame: async (receipt: any) => {
+        applyAttempt += 1;
+        order.push(`apply:${applyAttempt}:${receipt.visualSeq}`);
+        if (applyAttempt === 1) throw new Error('context lost after commit');
+        return true;
+      },
+      settle: async () => {
+        order.push('settle');
+        return true;
+      }
+    });
+    const visualStateStore = trustedVisualStateStore((playedFrame: any, meta: any) => {
+        order.push('commit');
+        return commitReceipt(playedFrame, meta);
+      });
+    const dispatcher = {
+      dispatchNetworkPlaybackEvents: jest.fn(async () => {
+        order.push('dispatch');
+        return { started: true, method: 'test', settlementHandle: handle };
+      })
+    };
+    const timeline = TimelineModule.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1,
+      visualStateStore,
+      visualSettlementTracker: {
+        markVisualSeqCompleted: jest.fn(() => {
+          order.push('tracker');
+          return true;
+        })
+      },
+      onFrameCommitted: jest.fn(() => order.push('observer'))
+    });
+    timeline.enqueueFrames([frame(1, 1, 2)], { source: 'stream' });
+
+    await expect(timeline.drainPlayableFrames(dispatcher)).resolves.toBe(0);
+    expect(order).toEqual(['dispatch', 'commit', 'apply:1:1']);
+    expect(timeline.getDiagnostics()).toMatchObject({
+      visualSeq: 0,
+      paused: true,
+      activeSettlementStage: 'apply-committed-frame'
+    });
+
+    await expect(timeline.retryPausedSettlement(dispatcher)).resolves.toBe(1);
+    expect(order).toEqual([
+      'dispatch',
+      'commit',
+      'apply:1:1',
+      'apply:2:1',
+      'tracker',
+      'observer',
+      'settle'
+    ]);
+    expect(dispatcher.dispatchNetworkPlaybackEvents).toHaveBeenCalledTimes(1);
+    expect(visualStateStore.commitFrame).toHaveBeenCalledTimes(1);
+  });
+
   test('pauses diagnostics when strict playback dispatch fails', async () => {
     const timeline = Timeline.createNetworkPresentationTimeline({
       initialVisualSeq: 0,
@@ -408,6 +555,170 @@ describe('NetworkPresentationTimeline', () => {
         visualSeq: 1,
         message: 'network_playback_dispatch_failed:unavailable'
       }
+    });
+  });
+
+  test('does not redispatch an unsafe failed playback batch without a phase checkpoint', async () => {
+    const dispatcher = {
+      dispatchNetworkPlaybackEvents: jest.fn(async () => {
+        throw new Error('board phase failed after side effects started');
+      })
+    };
+    const timeline = Timeline.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1
+    });
+    timeline.enqueueFrames([frame(1, 1, 2)], { source: 'stream' });
+
+    await expect(timeline.drainPlayableFrames(dispatcher)).resolves.toBe(0);
+    await expect(timeline.retryPausedSettlement(dispatcher))
+      .rejects.toThrow('network_playback_dispatch_retry_requires_phase_checkpoint');
+    expect(dispatcher.dispatchNetworkPlaybackEvents).toHaveBeenCalledTimes(1);
+    expect(timeline.getDiagnostics()).toMatchObject({
+      paused: true,
+      activeSettlementStage: 'dispatch',
+      blocksInput: true
+    });
+  });
+
+  test('retries a dispatch only when failure happened before the presentation handler ran', async () => {
+    let attempt = 0;
+    const dispatcher = {
+      dispatchNetworkPlaybackEvents: jest.fn(async (_events: any[], options: any) => {
+        attempt += 1;
+        if (attempt === 1) {
+          const error: any = new Error('strict_network_board_visual_not_ready');
+          error.safeDispatchRetry = true;
+          throw error;
+        }
+        return {
+          started: true,
+          method: 'test',
+          settlementHandle: settlementHandle(options.visualSeq)
+        };
+      })
+    };
+    const timeline = Timeline.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1
+    });
+    timeline.enqueueFrames([frame(1, 1, 2)], { source: 'stream' });
+
+    await expect(timeline.drainPlayableFrames(dispatcher)).resolves.toBe(0);
+    await expect(timeline.retryPausedSettlement(dispatcher)).resolves.toBe(1);
+    expect(dispatcher.dispatchNetworkPlaybackEvents).toHaveBeenCalledTimes(2);
+    expect(timeline.getDiagnostics()).toMatchObject({ paused: false, visualSeq: 1 });
+  });
+
+  test('keeps ownership paused when the visual settlement tracker rejects completion', async () => {
+    const handle = settlementHandle(1);
+    const timeline = TimelineModule.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1,
+      visualStateStore: VisualStateStoreModule.createNetworkVisualStateStore(),
+      visualSettlementTracker: {
+        markVisualSeqCompleted: jest.fn(() => false)
+      }
+    });
+    timeline.enqueueFrames([frame(1, 1, 2)], { source: 'stream' });
+
+    await expect(timeline.drainPlayableFrames({
+      dispatchNetworkPlaybackEvents: jest.fn(async () => ({
+        started: true,
+        method: 'test',
+        settlementHandle: handle
+      }))
+    })).resolves.toBe(0);
+
+    expect(timeline.getDiagnostics()).toMatchObject({
+      paused: true,
+      activeSettlementStage: 'tracker',
+      blocksInput: true,
+      pausedError: { message: 'network_visual_settlement_tracker_rejected' }
+    });
+    expect(handle.settle).not.toHaveBeenCalled();
+    expect(handle.cancel).not.toHaveBeenCalled();
+  });
+
+  test('disposes a handed-off paused settlement exactly once before clearing the timeline', async () => {
+    const order: string[] = [];
+    const handle = settlementHandle(1, {
+      applyCommittedFrame: async () => {
+        order.push('apply');
+        throw new Error('context lost');
+      },
+      cancel: async (reason: any) => {
+        order.push(`cancel:${reason}`);
+        return true;
+      }
+    });
+    const timeline = TimelineModule.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1,
+      visualStateStore: VisualStateStoreModule.createNetworkVisualStateStore(),
+      visualSettlementTracker: { markVisualSeqCompleted: jest.fn(() => true) }
+    });
+    timeline.enqueueFrames([frame(1, 1, 2)], { source: 'stream' });
+    await timeline.drainPlayableFrames({
+      dispatchNetworkPlaybackEvents: jest.fn(async () => ({
+        started: true,
+        method: 'test',
+        settlementHandle: handle
+      }))
+    });
+
+    await expect(timeline.dispose('session-switch')).resolves.toBe(true);
+    await expect(timeline.dispose('duplicate')).resolves.toBe(true);
+    expect(order).toEqual(['apply', 'cancel:session-switch']);
+    expect(handle.cancel).toHaveBeenCalledTimes(1);
+    expect(timeline.getDiagnostics()).toMatchObject({
+      disposed: true,
+      pendingFrameCount: 0,
+      blocksInput: false
+    });
+    expect(() => timeline.enqueueFrames([frame(2, 2, 3)])).toThrow('network_presentation_timeline_disposed');
+  });
+
+  test('dispose accepts a settlement that completes while disposal is waiting for the drain', async () => {
+    let resolveSettle: ((value: boolean) => void) | null = null;
+    let signalSettleStarted: (() => void) | null = null;
+    const settleStarted = new Promise<void>((resolve) => { signalSettleStarted = resolve; });
+    const handle = settlementHandle(1, {
+      settle: () => {
+        if (signalSettleStarted) signalSettleStarted();
+        return new Promise<boolean>((resolve) => { resolveSettle = resolve; });
+      }
+    });
+    const timeline = TimelineModule.createNetworkPresentationTimeline({
+      initialVisualSeq: 0,
+      initialVisualVersion: 1,
+      visualStateStore: VisualStateStoreModule.createNetworkVisualStateStore(),
+      visualSettlementTracker: { markVisualSeqCompleted: jest.fn(() => true) }
+    });
+    timeline.enqueueFrames([frame(1, 1, 2)], { source: 'stream' });
+
+    const drainPromise = timeline.drainPlayableFrames({
+      dispatchNetworkPlaybackEvents: jest.fn(async () => ({
+        started: true,
+        method: 'test',
+        settlementHandle: handle
+      }))
+    });
+    await settleStarted;
+    const disposePromise = timeline.dispose('session-switch-during-settle');
+    expect(timeline.getDiagnostics()).toMatchObject({ disposing: true, blocksInput: true });
+
+    expect(resolveSettle).not.toBeNull();
+    resolveSettle!(true);
+    await expect(drainPromise).resolves.toBe(1);
+    await expect(disposePromise).resolves.toBe(true);
+
+    expect(handle.settle).toHaveBeenCalledTimes(1);
+    expect(handle.cancel).not.toHaveBeenCalled();
+    expect(timeline.getDiagnostics()).toMatchObject({
+      disposed: true,
+      pendingFrameCount: 0,
+      blocksInput: false
     });
   });
 });

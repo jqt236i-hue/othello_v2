@@ -1261,6 +1261,10 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             }
             const strictNetworkPlaybackThisRun = playOptions.strictNetworkPlayback === true
                 || normalizedEvents.some((event) => event && event.strictNetworkPlayback === true);
+            const deferFinalSettlement = playOptions.deferFinalSettlement === true;
+            if (deferFinalSettlement && typeof playOptions.onFinalizationReady !== 'function') {
+                throw new Error('playback_finalization_handoff_unavailable');
+            }
             let abortedDuringPlay = false;
             let playbackError: any = null;
             let strictWatchdogPromise: Promise<never> | null = null;
@@ -1297,17 +1301,15 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
 
             const playbackEventCap = this._resolvePlaybackEventCap();
             if (normalizedEvents.length > playbackEventCap) {
-                console.warn('[AnimationEngine] playback event cap exceeded. Fast-forwarding to board sync.', {
+                console.warn('[AnimationEngine] playback event cap exceeded. Continuing ordered playback.', {
                     original: normalizedEvents.length,
                     cap: playbackEventCap,
                     strictNetworkPlayback: strictNetworkPlaybackThisRun === true
                 });
                 if (typeof window !== 'undefined') {
                     window.__telemetry__ = window.__telemetry__ || { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };
-                    window.__telemetry__.playbackFastForwarded = (window.__telemetry__.playbackFastForwarded || 0) + 1;
+                    window.__telemetry__.playbackEventCapExceeded = (window.__telemetry__.playbackEventCapExceeded || 0) + 1;
                 }
-                _requestBoardUpdate();
-                return;
             }
 
             // Clear stale abort/watchdog state from previous runs.
@@ -1437,10 +1439,33 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 if (isCurrentRun && !runState.externallyAborted) {
                     if (strictNetworkPlaybackFailed) {
                         if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
-                            PlaybackState.abortPlayback({ boardElement: this.boardEl, strictNetworkPlayback: true });
+                            PlaybackState.abortPlayback({
+                                boardElement: this.boardEl,
+                                strictNetworkPlayback: true,
+                                preserveVisualPlaybackClaims: true,
+                                preserveSelectionSettlementLock: true
+                            });
                         } else {
                             this.setGlobalInteractionLock(false);
                         }
+                    } else if (deferFinalSettlement) {
+                        if (boardUpdateContext && PlaybackState && typeof PlaybackState.armBoardUpdateContext === 'function') {
+                            PlaybackState.armBoardUpdateContext(boardUpdateContext);
+                        }
+                        let finalized = false;
+                        playOptions.onFinalizationReady(() => {
+                            if (finalized) return false;
+                            if (PlaybackState && typeof PlaybackState.finalizePlayback === 'function') {
+                                PlaybackState.finalizePlayback({
+                                    boardElement: this.boardEl,
+                                    clearBoardUpdateContext: true
+                                });
+                            } else {
+                                this.setGlobalInteractionLock(false);
+                            }
+                            finalized = true;
+                            return true;
+                        });
                     } else if (PlaybackState && typeof PlaybackState.finalizePlayback === 'function') {
                         PlaybackState.finalizePlayback({
                             boardElement: this.boardEl,
@@ -1702,7 +1727,12 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 error.name = 'NetworkPlaybackWatchdogError';
                 this._strictNetworkPlaybackError = error;
                 if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
-                    PlaybackState.abortPlayback({ boardElement: this.boardEl, strictNetworkPlayback: true });
+                    PlaybackState.abortPlayback({
+                        boardElement: this.boardEl,
+                        strictNetworkPlayback: true,
+                        preserveVisualPlaybackClaims: true,
+                        preserveSelectionSettlementLock: true
+                    });
                 } else if (typeof window !== 'undefined') {
                     this.setGlobalInteractionLock(false);
                 }

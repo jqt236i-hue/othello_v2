@@ -17,6 +17,8 @@ let commentaryBroker: any = null;
 let stoneVisuals: any = null;
 let presentationResolver: any = null;
 let playbackEngineModule: any = null;
+let pendingLocalBoardVisualSettlementClaim: any = null;
+let activeLocalPresentationDrainClaim: any = null;
 
 function isPresentationDebugEnabled(): boolean {
   try {
@@ -492,20 +494,50 @@ function claimPresentationDrainForEvents(events: any[]): any {
   const mergedPayload = ([] as any[]).concat(...playbackPayloads);
   const manager = resolvePlaybackStateManagerForPresentation();
   if (!manager || typeof manager.claimVisualPlayback !== 'function') return null;
-  return manager.claimVisualPlayback({
+  const strictEvent = list.find((event) => !!(
+    event && event.meta && event.meta.strictNetworkPlayback === true
+  ));
+  const strictNetworkPlayback = !!strictEvent;
+  const managerClaim = manager.claimVisualPlayback({
     source: 'presentation_handler',
     reason: 'presentation_queue_drain',
     scope: 'presentation_drain',
     eventCount: mergedPayload.length,
-    eventTypes: collectPlaybackEventTypesForClaim(mergedPayload)
+    eventTypes: collectPlaybackEventTypesForClaim(mergedPayload),
+    strictNetworkPlayback
   });
+  let boardWriterToken: any = null;
+  // Strict-network ownership is transferred by the typed dispatcher/timeline
+  // settlement handle in Phase 8. Until that handoff exists, keep the existing
+  // manager-owned strict drain lifecycle and do not create an orphaned board
+  // writer token here. Local drains can complete their final frame atomically.
+  if (!strictNetworkPlayback) {
+    try {
+      const renderer = _require('./board-renderer');
+      if (renderer && typeof renderer.claimBoardVisualWriter === 'function') {
+        boardWriterToken = renderer.claimBoardVisualWriter(`local:${String(managerClaim.id)}`, 'local');
+      }
+    } catch (error) {
+      manager.releaseVisualPlaybackClaim(managerClaim);
+      throw error;
+    }
+  }
+  return {
+    managerClaim,
+    boardWriterToken,
+    managerFinalizers: [],
+    meta: {
+      scope: 'presentation_drain',
+      strictNetworkPlayback
+    }
+  };
 }
 
 function releasePlaybackClaimForPresentation(claim: any): boolean {
   if (!claim) return false;
   const manager = resolvePlaybackStateManagerForPresentation();
   if (!manager || typeof manager.releaseVisualPlaybackClaim !== 'function') return false;
-  return manager.releaseVisualPlaybackClaim(claim);
+  return manager.releaseVisualPlaybackClaim(claim.managerClaim || claim);
 }
 
 function hasActivePlaybackClaimForPresentation(): boolean {
@@ -536,7 +568,39 @@ function requestBoardSyncAfterPlaybackClaimRelease(reason: string): boolean {
   return false;
 }
 
-function releasePlaybackClaimAndRequestBoardSync(claim: any, reason: string): boolean {
+async function releasePlaybackClaimAndRequestBoardSync(claim: any, reason: string): Promise<boolean> {
+  const isFinalLocalSettlement = !!(
+    claim && claim.meta && claim.meta.strictNetworkPlayback !== true
+    && claim.boardWriterToken
+  );
+  if (isFinalLocalSettlement) {
+    try {
+      const renderer = _require('./board-renderer');
+      if (claim.boardWriterToken && renderer && typeof renderer.releaseBoardVisualWriter === 'function') {
+        if (typeof renderer.settleBoardVisualWriter === 'function') {
+          await renderer.settleBoardVisualWriter(claim.boardWriterToken);
+        } else {
+          if (typeof renderer.renderBoard === 'function') renderer.renderBoard();
+          renderer.releaseBoardVisualWriter(claim.boardWriterToken);
+        }
+        claim.boardWriterToken = null;
+      } else if (renderer && typeof renderer.settleAutoBoardVisualWriter === 'function') {
+        renderer.settleAutoBoardVisualWriter();
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+  const managerFinalizers = claim && Array.isArray(claim.managerFinalizers)
+    ? claim.managerFinalizers
+    : [];
+  while (managerFinalizers.length > 0) {
+    const finalizer = managerFinalizers[0];
+    if (typeof finalizer !== 'function' || finalizer() !== true) {
+      throw new Error('Local playback manager did not finalize');
+    }
+    managerFinalizers.shift();
+  }
   const released = releasePlaybackClaimForPresentation(claim);
   if (released && !hasActivePlaybackClaimForPresentation()) {
     requestBoardSyncAfterPlaybackClaimRelease(reason);
@@ -544,9 +608,215 @@ function releasePlaybackClaimAndRequestBoardSync(claim: any, reason: string): bo
   return released;
 }
 
-async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
+function createStrictNetworkSettlementHandle(options: {
+  visualSeq: number;
+  managerClaim: any;
+  boardWriterToken: any;
+  renderer: any;
+}) {
+  const manager = resolvePlaybackStateManagerForPresentation();
+  let handedOff = false;
+  let awaitingFrameCommit = false;
+  let committedFrameApplied = false;
+  let boardReleased = false;
+  let managerReleased = false;
+  let managerFinalized = false;
+  let managerFinalizer: (() => boolean) | null = null;
+  let applyPromise: Promise<boolean> | null = null;
+  let settlePromise: Promise<boolean> | null = null;
+  let cancelPromise: Promise<boolean> | null = null;
+  let terminalOperation: 'settle' | 'cancel' | null = null;
+  const assertOwned = () => {
+    if (!options.boardWriterToken || !options.managerClaim) {
+      throw new Error('Strict network settlement handle has no active ownership');
+    }
+  };
+  const abortBeforeHandoff = async (primaryError?: unknown) => {
+    if (handedOff || managerReleased) return false;
+    try {
+      if (!boardReleased) {
+        if (typeof options.renderer.abortBoardVisualWriterBeforeHandoff !== 'function') {
+          throw new Error('Strict network writer abort API is unavailable');
+        }
+        await options.renderer.abortBoardVisualWriterBeforeHandoff(options.boardWriterToken);
+        boardReleased = true;
+      }
+    } catch (recoveryError) {
+      if (primaryError instanceof Error) {
+        Object.defineProperty(primaryError, 'recoveryError', {
+          value: recoveryError,
+          configurable: true,
+          enumerable: false,
+          writable: false
+        });
+        throw primaryError;
+      }
+      throw recoveryError;
+    }
+    if (manager && typeof manager.releaseVisualPlaybackClaim === 'function') {
+      managerReleased = manager.releaseVisualPlaybackClaim(options.managerClaim) === true;
+    }
+    return managerReleased;
+  };
+  const publicHandle = Object.freeze({
+    kind: 'strict-network-settlement' as const,
+    visualSeq: options.visualSeq,
+    async applyCommittedFrame(receipt: any) {
+      assertOwned();
+      if (terminalOperation) throw new Error('Strict network settlement is already terminating');
+      if (committedFrameApplied) return true;
+      if (!handedOff) throw new Error('Strict network settlement ownership has not been handed off');
+      if (!awaitingFrameCommit) throw new Error('Strict network settlement is not awaiting a committed frame');
+      if (
+        !receipt
+        || receipt.kind !== 'network-visual-commit'
+        || receipt.visualSeq !== options.visualSeq
+      ) {
+        throw new Error('Strict network committed-frame receipt does not match the active visual sequence');
+      }
+      if (!applyPromise) {
+        applyPromise = (async () => {
+          const applied = await options.renderer.applyCommittedBoardVisualFrame(options.boardWriterToken, receipt);
+          if (applied !== true) throw new Error('Strict network committed board frame was not applied');
+          committedFrameApplied = true;
+          return true;
+        })();
+      }
+      try {
+        return await applyPromise;
+      } catch (error) {
+        applyPromise = null;
+        throw error;
+      }
+    },
+    async settle() {
+      assertOwned();
+      if (managerReleased) return false;
+      if (terminalOperation === 'cancel') return cancelPromise;
+      if (terminalOperation === 'settle' && settlePromise) return settlePromise;
+      terminalOperation = 'settle';
+      if (!settlePromise) {
+        settlePromise = (async () => {
+          if (applyPromise) await applyPromise;
+          if (!committedFrameApplied) throw new Error('Strict network visual frame has not been committed');
+          if (!managerFinalizer) throw new Error('Strict network manager finalizer is unavailable');
+          if (!boardReleased) {
+            options.renderer.releaseBoardVisualWriter(options.boardWriterToken);
+            boardReleased = true;
+          }
+          if (!managerFinalized && managerFinalizer() !== true) {
+            throw new Error('Strict network playback manager did not finalize');
+          }
+          managerFinalized = true;
+          if (!manager || typeof manager.releaseVisualPlaybackClaim !== 'function') {
+            throw new Error('PlaybackStateManager cannot release strict network settlement');
+          }
+          if (manager.releaseVisualPlaybackClaim(options.managerClaim) !== true) {
+            throw new Error('Strict network playback manager claim was not released');
+          }
+          managerReleased = true;
+          return true;
+        })();
+      }
+      try {
+        return await settlePromise;
+      } catch (error) {
+        settlePromise = null;
+        terminalOperation = null;
+        throw error;
+      }
+    },
+    async cancel(reason?: any) {
+      assertOwned();
+      if (managerReleased) return false;
+      if (terminalOperation === 'settle') return settlePromise;
+      if (terminalOperation === 'cancel' && cancelPromise) return cancelPromise;
+      terminalOperation = 'cancel';
+      const cancelReason = String(reason || 'strict_network_settlement_cancelled');
+      cancelPromise = (async () => {
+        if (applyPromise) {
+          try { await applyPromise; } catch (e) { /* cancellation restores the pre-frame checkpoint */ }
+        }
+        if (!manager || typeof manager.recordVisualPlaybackSettlementError !== 'function') {
+          throw new Error('PlaybackStateManager cannot record strict network cancellation');
+        }
+        if (manager.recordVisualPlaybackSettlementError(options.managerClaim, new Error(cancelReason), {
+          stage: handedOff ? 'post-handoff-cancel' : 'pre-handoff-recovery-cancel',
+          visualSeq: options.visualSeq
+        }) !== true) {
+          throw new Error('PlaybackStateManager rejected strict network cancellation');
+        }
+        if (!boardReleased) {
+          if (handedOff) {
+            if (typeof options.renderer.cancelBoardVisualWriterAfterHandoff !== 'function') {
+              throw new Error('Strict network post-handoff writer cancel API is unavailable');
+            }
+            await options.renderer.cancelBoardVisualWriterAfterHandoff(options.boardWriterToken);
+          } else {
+            if (typeof options.renderer.abortBoardVisualWriterBeforeHandoff !== 'function') {
+              throw new Error('Strict network pre-handoff writer cancel API is unavailable');
+            }
+            await options.renderer.abortBoardVisualWriterBeforeHandoff(options.boardWriterToken);
+          }
+          boardReleased = true;
+        }
+        if (managerFinalizer && !managerFinalized) {
+          if (managerFinalizer() !== true) {
+            throw new Error('Strict network playback manager did not finalize during cancellation');
+          }
+          managerFinalized = true;
+        }
+        if (typeof manager.releaseVisualPlaybackClaim !== 'function') {
+          throw new Error('PlaybackStateManager cannot release strict network cancellation');
+        }
+        if (manager.releaseVisualPlaybackClaim(options.managerClaim) !== true) {
+          throw new Error('Strict network cancellation claim was not released');
+        }
+        managerReleased = true;
+        return true;
+      })();
+      try {
+        return await cancelPromise;
+      } catch (error) {
+        cancelPromise = null;
+        terminalOperation = null;
+        throw error;
+      }
+    }
+  });
+  return Object.freeze({
+    publicHandle,
+    beginAwaiting() {
+      assertOwned();
+      if (handedOff) throw new Error('Strict network settlement ownership was handed off before commit wait began');
+      if (!awaitingFrameCommit) {
+        options.renderer.beginBoardVisualFrameCommit(options.boardWriterToken);
+        awaitingFrameCommit = true;
+      }
+      return true;
+    },
+    setManagerFinalizer(finalizer: unknown) {
+      if (typeof finalizer !== 'function') throw new Error('Strict network manager finalizer is unavailable');
+      if (managerFinalizer) throw new Error('Strict network manager finalizer was registered twice');
+      managerFinalizer = finalizer as () => boolean;
+      return true;
+    },
+    handoff() {
+      if (handedOff) throw new Error('Strict network settlement ownership was handed off twice');
+      if (!awaitingFrameCommit) throw new Error('Strict network settlement cannot hand off before commit wait');
+      handedOff = true;
+      return publicHandle;
+    },
+    async abortBeforeHandoff(primaryError?: unknown) {
+      return abortBeforeHandoff(primaryError);
+    }
+  });
+}
+
+async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
   const payload = normalizePlaybackEventsForUi(Array.isArray(ev && ev.events) ? ev.events : []);
-  if (!payload.length) return;
+  const strictNetworkPlayback = !!(ev && ev.meta && ev.meta.strictNetworkPlayback === true);
+  if (!payload.length && !strictNetworkPlayback) return;
   const suppressPlayback = !!(ev && ev.meta && ev.meta.suppressPlayback === true);
   const payloadTypes = payload.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value);
 
@@ -573,86 +843,201 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
   }
 
   const playbackClaim = claimPlaybackBatchForPresentation(ev, payload);
+  let strictSettlement: any = null;
+  let strictOwnershipTransferred = false;
+  let deferredManagerFinalizer: (() => boolean) | null = payload.length === 0 ? (() => true) : null;
+  if (strictNetworkPlayback) {
+    let renderer: any = null;
+    let boardWriterToken: any = null;
+    try {
+      if (!playbackClaim) throw new Error('strict_network_playback_manager_unavailable');
+      renderer = _require('./board-renderer');
+      if (!renderer || typeof renderer.claimBoardVisualWriter !== 'function') {
+        throw new Error('strict_network_board_visual_controller_unavailable');
+      }
+      const visualSeq = Number(ev && ev.meta && ev.meta.visualSeq);
+      if (!Number.isInteger(visualSeq) || visualSeq < 0) {
+        throw new Error('strict_network_visual_seq_required');
+      }
+      boardWriterToken = renderer.claimBoardVisualWriter(`network:${visualSeq}`, 'network');
+      strictSettlement = createStrictNetworkSettlementHandle({
+        visualSeq,
+        managerClaim: playbackClaim,
+        boardWriterToken,
+        renderer
+      });
+    } catch (error) {
+      if (boardWriterToken && renderer) {
+        try {
+          if (typeof renderer.abortBoardVisualWriterBeforeHandoff !== 'function') {
+            throw new Error('Strict network writer abort API is unavailable');
+          }
+          await renderer.abortBoardVisualWriterBeforeHandoff(boardWriterToken);
+        } catch (recoveryError) {
+          if (error instanceof Error) {
+            Object.defineProperty(error, 'recoveryError', {
+              value: recoveryError,
+              configurable: true,
+              enumerable: false,
+              writable: false
+            });
+          }
+          throw error;
+        }
+      }
+      releasePlaybackClaimForPresentation(playbackClaim);
+      throw error;
+    }
+  } else if (!activeLocalPresentationDrainClaim && playbackClaim && typeof document !== 'undefined') {
+    try {
+      const renderer = _require('./board-renderer');
+      if (!renderer || typeof renderer.claimBoardVisualWriter !== 'function') {
+        throw new Error('local_board_visual_controller_unavailable');
+      }
+      playbackClaim.boardWriterToken = renderer.claimBoardVisualWriter(
+        `local-batch:${String(playbackClaim.id)}`,
+        'local'
+      );
+      playbackClaim.managerFinalizers = [];
+    } catch (error) {
+      releasePlaybackClaimForPresentation(playbackClaim);
+      throw error;
+    }
+  }
   try {
     const playbackDispatchDeps = getPlaybackDispatchDeps();
-    const strictNetworkPlayback = !!(ev && ev.meta && ev.meta.strictNetworkPlayback === true);
-    const playbackEngineDeps = strictNetworkPlayback
-      ? Object.assign({}, playbackDispatchDeps, { strictNetworkPlayback: true })
-      : playbackDispatchDeps;
+    const playbackEngineDeps = Object.assign({}, playbackDispatchDeps, {
+      strictNetworkPlayback,
+      deferFinalSettlement: true,
+      onFinalizationReady(finalizer: unknown) {
+        if (typeof finalizer !== 'function') throw new Error('playback_manager_finalizer_invalid');
+        if (deferredManagerFinalizer) throw new Error('playback_manager_finalizer_registered_twice');
+        deferredManagerFinalizer = finalizer as () => boolean;
+      }
+    });
     const playbackEventForDispatch = {
       type: 'PLAYBACK_EVENTS',
       events: payload,
       meta: ev && ev.meta && typeof ev.meta === 'object' ? Object.assign({}, ev.meta) : undefined
     };
     const playbackEngine = resolvePlaybackEngine();
-    try {
-      if (playbackEngine && typeof playbackEngine.dispatchPresentationEvent === 'function') {
-        const startedAt = Date.now();
-        emitPresentationDebugConsole('playback_batch_dispatch_engine', {
+    let dispatched = payload.length === 0;
+    if (!dispatched) {
+      try {
+        if (playbackEngine && typeof playbackEngine.dispatchPresentationEvent === 'function') {
+          const startedAt = Date.now();
+          emitPresentationDebugConsole('playback_batch_dispatch_engine', {
+            payloadCount: payload.length,
+            payloadTypes,
+            hasAnimationEngine: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine),
+            animationEngineHasPlay: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine && typeof playbackDispatchDeps.AnimationEngine.play === 'function')
+          });
+          await playbackEngine.dispatchPresentationEvent(playbackEventForDispatch, playbackEngineDeps);
+          emitPresentationDebugConsole('playback_batch_dispatch_engine_resolved', {
+            payloadCount: payload.length,
+            payloadTypes,
+            elapsedMs: Date.now() - startedAt
+          });
+          dispatched = true;
+        }
+      } catch (e) {
+        emitPresentationDebugConsole('playback_batch_dispatch_engine_failed', {
           payloadCount: payload.length,
           payloadTypes,
-          hasAnimationEngine: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine),
-          animationEngineHasPlay: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine && typeof playbackDispatchDeps.AnimationEngine.play === 'function')
+          error: e && (e as any).message ? String((e as any).message) : String(e || '')
         });
-        await playbackEngine.dispatchPresentationEvent(playbackEventForDispatch, playbackEngineDeps);
-        emitPresentationDebugConsole('playback_batch_dispatch_engine_resolved', {
-          payloadCount: payload.length,
-          payloadTypes,
-          elapsedMs: Date.now() - startedAt
-        });
-        return;
-      }
-    } catch (e) {
-      emitPresentationDebugConsole('playback_batch_dispatch_engine_failed', {
-        payloadCount: payload.length,
-        payloadTypes,
-        error: e && (e as any).message ? String((e as any).message) : String(e || '')
-      });
-      if (strictNetworkPlayback) {
-        throw e;
+        if (strictNetworkPlayback) throw e;
       }
     }
 
-    try {
-      const animationEngine = playbackDispatchDeps.AnimationEngine;
-      if (animationEngine && typeof animationEngine.play === 'function') {
-        const startedAt = Date.now();
-        emitPresentationDebugConsole('playback_batch_animation_engine', {
-          payloadCount: payload.length,
-          payloadTypes
-        });
-        if (strictNetworkPlayback) {
-          await animationEngine.play(payload, { strictNetworkPlayback: true });
+    if (!dispatched) {
+      try {
+        const animationEngine = playbackDispatchDeps.AnimationEngine;
+        if (animationEngine && typeof animationEngine.play === 'function') {
+          const startedAt = Date.now();
+          emitPresentationDebugConsole('playback_batch_animation_engine', {
+            payloadCount: payload.length,
+            payloadTypes
+          });
+          if (strictNetworkPlayback) {
+            await animationEngine.play(payload, {
+              strictNetworkPlayback: true,
+              deferFinalSettlement: true,
+              onFinalizationReady: playbackEngineDeps.onFinalizationReady
+            });
+          } else {
+            await animationEngine.play(payload, {
+              deferFinalSettlement: true,
+              onFinalizationReady: playbackEngineDeps.onFinalizationReady
+            });
+          }
+          emitPresentationDebugConsole('playback_batch_animation_engine_resolved', {
+            payloadCount: payload.length,
+            payloadTypes,
+            elapsedMs: Date.now() - startedAt
+          });
+          dispatched = true;
         } else {
-          await animationEngine.play(payload);
+          emitPresentationDebugConsole('playback_batch_no_animation_engine', {
+            payloadCount: payload.length,
+            payloadTypes
+          });
+          if (strictNetworkPlayback) {
+            throw new Error('strict_network_playback_animation_engine_unavailable');
+          }
         }
-        emitPresentationDebugConsole('playback_batch_animation_engine_resolved', {
+      } catch (e) {
+        emitPresentationDebugConsole('playback_batch_failed', {
           payloadCount: payload.length,
           payloadTypes,
-          elapsedMs: Date.now() - startedAt
+          error: e && (e as any).message ? String((e as any).message) : String(e || '')
         });
-        return;
-      }
-      emitPresentationDebugConsole('playback_batch_no_animation_engine', {
-        payloadCount: payload.length,
-        payloadTypes
-      });
-      if (strictNetworkPlayback) {
-        throw new Error('strict_network_playback_animation_engine_unavailable');
-      }
-    } catch (e) {
-      emitPresentationDebugConsole('playback_batch_failed', {
-        payloadCount: payload.length,
-        payloadTypes,
-        error: e && (e as any).message ? String((e as any).message) : String(e || '')
-      });
-      try { console.warn('[PresentationHandler] playback failed', e); } catch (e2) { /* ignore */ }
-      if (strictNetworkPlayback) {
-        throw e;
+        try { console.warn('[PresentationHandler] playback failed', e); } catch (e2) { /* ignore */ }
+        if (strictNetworkPlayback) throw e;
       }
     }
+
+    if (strictNetworkPlayback) {
+      strictSettlement.setManagerFinalizer(deferredManagerFinalizer);
+      strictSettlement.beginAwaiting();
+      const settlementHandle = strictSettlement.handoff();
+      strictOwnershipTransferred = true;
+      return settlementHandle;
+    }
+    if (!deferredManagerFinalizer) throw new Error('local_playback_manager_finalizer_unavailable');
+    const finalizationOwner = activeLocalPresentationDrainClaim || playbackClaim;
+    if (!Array.isArray(finalizationOwner.managerFinalizers)) finalizationOwner.managerFinalizers = [];
+    finalizationOwner.managerFinalizers.push(deferredManagerFinalizer);
+  } catch (error) {
+    if (strictNetworkPlayback && strictSettlement) {
+      try {
+        await strictSettlement.abortBeforeHandoff(error);
+        strictOwnershipTransferred = true;
+      } catch (recoveryError) {
+        strictOwnershipTransferred = true;
+        if (error && typeof error === 'object') {
+          Object.defineProperty(error, 'strictSettlementRecoveryHandle', {
+            value: strictSettlement.publicHandle,
+            configurable: true,
+            enumerable: false,
+            writable: false
+          });
+        }
+        throw recoveryError;
+      }
+    }
+    throw error;
   } finally {
-    releasePlaybackClaimAndRequestBoardSync(playbackClaim, 'playback_batch_claim_released');
+    if (!strictNetworkPlayback || !strictOwnershipTransferred) {
+      if (playbackClaim && playbackClaim.boardWriterToken) {
+        pendingLocalBoardVisualSettlementClaim = playbackClaim;
+      }
+      if (await releasePlaybackClaimAndRequestBoardSync(playbackClaim, 'playback_batch_claim_released')) {
+        if (pendingLocalBoardVisualSettlementClaim === playbackClaim) {
+          pendingLocalBoardVisualSettlementClaim = null;
+        }
+      }
+    }
   }
 }
 
@@ -776,8 +1161,17 @@ function flushPendingPresentationEvents(): any[] {
 async function flushBoardPresentationEvents(): Promise<void> {
   let drainClaim: any = null;
   try {
+    if (pendingLocalBoardVisualSettlementClaim) {
+      const pendingClaim = pendingLocalBoardVisualSettlementClaim;
+      if (await releasePlaybackClaimAndRequestBoardSync(pendingClaim, 'presentation_drain_recovery_settled')) {
+        pendingLocalBoardVisualSettlementClaim = null;
+      }
+    }
     const events = flushPendingPresentationEvents();
     drainClaim = claimPresentationDrainForEvents(events);
+    if (drainClaim && drainClaim.meta && drainClaim.meta.strictNetworkPlayback !== true) {
+      activeLocalPresentationDrainClaim = drainClaim;
+    }
     emitPresentationDebugConsole('board_updated_flush', {
       eventCount: Array.isArray(events) ? events.length : 0,
       eventTypes: Array.isArray(events)
@@ -799,7 +1193,23 @@ async function flushBoardPresentationEvents(): Promise<void> {
   } catch (e) {
     console.error('[PresentationHandler] onBoardUpdated error', e);
   } finally {
-    releasePlaybackClaimAndRequestBoardSync(drainClaim, 'presentation_drain_claim_released');
+    if (activeLocalPresentationDrainClaim === drainClaim) {
+      activeLocalPresentationDrainClaim = null;
+    }
+    if (drainClaim) {
+      const isRecoverableLocalClaim = !!(
+        drainClaim.meta
+        && drainClaim.meta.scope === 'presentation_drain'
+        && drainClaim.meta.strictNetworkPlayback !== true
+        && drainClaim.boardWriterToken
+      );
+      if (isRecoverableLocalClaim) pendingLocalBoardVisualSettlementClaim = drainClaim;
+      if (await releasePlaybackClaimAndRequestBoardSync(drainClaim, 'presentation_drain_claim_released')) {
+        if (pendingLocalBoardVisualSettlementClaim === drainClaim) {
+          pendingLocalBoardVisualSettlementClaim = null;
+        }
+      }
+    }
   }
 }
 

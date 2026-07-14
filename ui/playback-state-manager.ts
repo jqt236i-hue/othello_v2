@@ -96,6 +96,7 @@ let nextSelectionSettlementLockId = 1;
 const selectionSettlementLockIds = new Set<number>();
 let nextVisualPlaybackClaimId = 1;
 const visualPlaybackClaimIds = new Map<number, any>();
+const visualPlaybackSettlementErrors = new Map<number, any>();
 let visualPlaybackClaimBusyBaseline: { processing: boolean; cardAnimating: boolean } | null = null;
 let visualPlaybackClaimProcessingCleared = false;
 let visualPlaybackClaimCardAnimatingCleared = false;
@@ -165,6 +166,7 @@ function releaseVisualPlaybackClaim(token?: any): boolean {
   const tokenId = Number(token && token.id);
   const claim = Number.isFinite(tokenId) ? visualPlaybackClaimIds.get(tokenId) : null;
   const removed = Number.isFinite(tokenId) && visualPlaybackClaimIds.delete(tokenId);
+  if (removed === true) visualPlaybackSettlementErrors.delete(tokenId);
   syncVisualPlaybackClaimMirror();
   if (removed !== true) {
     return false;
@@ -196,12 +198,37 @@ function releaseVisualPlaybackClaim(token?: any): boolean {
 
 function clearVisualPlaybackClaims(): boolean {
   visualPlaybackClaimIds.clear();
+  visualPlaybackSettlementErrors.clear();
   visualPlaybackClaimBusyBaseline = null;
   visualPlaybackClaimProcessingCleared = false;
   visualPlaybackClaimCardAnimatingCleared = false;
   syncVisualPlaybackClaimMirror();
   syncBoardLockToPlaybackState();
   return true;
+}
+
+function recordVisualPlaybackSettlementError(token: any, error?: any, meta?: any): boolean {
+  const tokenId = Number(token && token.id);
+  if (!Number.isFinite(tokenId) || visualPlaybackClaimIds.get(tokenId) !== token) return false;
+  const details = Object.freeze({
+    tokenId,
+    message: error && error.message ? String(error.message) : String(error || 'visual_playback_settlement_error'),
+    stage: meta && meta.stage ? String(meta.stage) : 'unknown',
+    visualSeq: Number.isFinite(Number(meta && meta.visualSeq)) ? Math.trunc(Number(meta.visualSeq)) : null,
+    recordedAt: Date.now()
+  });
+  visualPlaybackSettlementErrors.set(tokenId, details);
+  setProcessing(true);
+  setCardAnimating(true);
+  setBoardLockActive(true);
+  return true;
+}
+
+function getVisualPlaybackSettlementError(token?: any): any {
+  const tokenId = Number(token && token.id);
+  if (Number.isFinite(tokenId)) return visualPlaybackSettlementErrors.get(tokenId) || null;
+  const entries = Array.from(visualPlaybackSettlementErrors.values());
+  return entries.length > 0 ? entries[entries.length - 1] : null;
 }
 
 function hasSelectionSettlementLock(): boolean {
@@ -257,7 +284,14 @@ function isNetworkPresentationTimelinePlaying(): boolean {
       const timeline = target && target.NetworkPresentationTimeline;
       if (timeline && typeof timeline.getDiagnostics === 'function') {
         const diagnostics = timeline.getDiagnostics();
-        if (diagnostics && diagnostics.playing === true) return true;
+        if (
+          diagnostics
+          && (
+            diagnostics.playing === true
+            || diagnostics.blocksInput === true
+            || (diagnostics.paused === true && diagnostics.activeSettlementStage)
+          )
+        ) return true;
       }
     } catch (e) { /* ignore */ }
   }
@@ -1072,13 +1106,16 @@ function finalizePlayback(options?: any): any {
 
 function clearPlaybackLock(options?: any): boolean {
   const opts = (options && typeof options === 'object') ? options : {};
-  clearVisualPlaybackClaims();
+  if (opts.preserveVisualPlaybackClaims !== true) {
+    clearVisualPlaybackClaims();
+  }
   clearBoardUpdateContext();
   clearSelectionEntryPlaybackContext();
   if (opts.preserveSelectionSettlementLock !== true) {
     clearSelectionSettlementLocks();
   }
-  setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
+  const keepClaimBusy = hasClaimedVisualPlayback() === true;
+  setBusyState({ processing: keepClaimBusy, cardAnimating: keepClaimBusy, playbackActive: false });
   setPlaybackStartedAt(null);
   setBoardLockActive(getPlaybackActive(), opts);
   return true;
@@ -1130,6 +1167,8 @@ function getRuntimePlaybackState(): any {
     setInteractionLock,
     claimVisualPlayback,
     releaseVisualPlaybackClaim,
+    recordVisualPlaybackSettlementError,
+    getVisualPlaybackSettlementError,
     clearVisualPlaybackClaims,
     hasClaimedVisualPlayback,
     acquireSelectionSettlementLock,
@@ -1212,6 +1251,8 @@ const PlaybackStateManager = {
   setInteractionLock,
   claimVisualPlayback,
   releaseVisualPlaybackClaim,
+  recordVisualPlaybackSettlementError,
+  getVisualPlaybackSettlementError,
   clearVisualPlaybackClaims,
   hasClaimedVisualPlayback,
   acquireSelectionSettlementLock,

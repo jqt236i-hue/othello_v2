@@ -51,10 +51,40 @@ describe('ui render scheduler', () => {
     });
   });
 
-  test('defers visual flush while playback or presentation work is active', () => {
+  test('prepares one visual update and passes the same immutable frame context to every scheduled surface', () => {
+    const prepared = Object.freeze({ frame: Object.freeze({ frameToken: 'idle:1' }) });
+    const prepareBoardVisualUpdate = jest.fn(() => prepared);
+    const renderBoard = jest.fn();
+    const renderCardUI = jest.fn();
+    const updateStatus = jest.fn();
+    const { createRenderScheduler } = require('../ui/render-scheduler.js');
+    const scheduler = createRenderScheduler({
+      requestAnimationFrame: jest.fn(),
+      prepareBoardVisualUpdate,
+      renderBoard,
+      renderCardUI,
+      updateStatus,
+      shouldDeferUiSync: () => false
+    });
+
+    scheduler.requestBoardRender('board');
+    scheduler.requestBoardRender('board-again');
+    scheduler.requestCardUiRender('cards');
+    scheduler.requestStatusUpdate('status');
+    scheduler.flushNow();
+
+    expect(prepareBoardVisualUpdate).toHaveBeenCalledTimes(1);
+    expect(renderBoard).toHaveBeenCalledWith(prepared);
+    expect(renderCardUI).toHaveBeenCalledWith(prepared);
+    expect(updateStatus).toHaveBeenCalledWith(prepared);
+  });
+
+  test('sends board frames to the controller path while deferring card and status UI', () => {
     const scheduled: FrameRequestCallback[] = [];
     let busy = true;
     const renderBoard = jest.fn();
+    const renderCardUI = jest.fn();
+    const updateStatus = jest.fn();
 
     const { createRenderScheduler } = require('../ui/render-scheduler.js');
     const scheduler = createRenderScheduler({
@@ -63,19 +93,27 @@ describe('ui render scheduler', () => {
         return scheduled.length;
       },
       renderBoard,
+      renderCardUI,
+      updateStatus,
       shouldDeferUiSync: () => busy
     });
 
     scheduler.requestBoardRender({ reason: 'during-playback' });
+    scheduler.requestCardUiRender({ reason: 'during-playback' });
+    scheduler.requestStatusUpdate({ reason: 'during-playback' });
     scheduled[0](16);
 
-    expect(renderBoard).not.toHaveBeenCalled();
+    expect(renderBoard).toHaveBeenCalledTimes(1);
+    expect(renderCardUI).not.toHaveBeenCalled();
+    expect(updateStatus).not.toHaveBeenCalled();
     expect(scheduled).toHaveLength(2);
 
     busy = false;
     scheduled[1](32);
 
     expect(renderBoard).toHaveBeenCalledTimes(1);
+    expect(renderCardUI).toHaveBeenCalledTimes(1);
+    expect(updateStatus).toHaveBeenCalledTimes(1);
   });
 
   test('flushNow renders synchronously and keeps board before card UI', () => {
@@ -97,7 +135,7 @@ describe('ui render scheduler', () => {
     expect(calls).toEqual(['board', 'card', 'status']);
   });
 
-  test('flushNow ignorePlayback still defers board rendering while playback is active', () => {
+  test('flushNow ignorePlayback explicitly flushes board, card, and status in order', () => {
     const scheduled: FrameRequestCallback[] = [];
     const calls: string[] = [];
     let busy = true;
@@ -118,22 +156,14 @@ describe('ui render scheduler', () => {
     scheduler.requestStatusUpdate({ reason: 'status' });
 
     expect(scheduler.flushNow({ ignorePlayback: true })).toBe(true);
-    expect(calls).toEqual(['card', 'status']);
-    expect(scheduler.getState()).toMatchObject({
-      boardQueued: true,
-      cardUiQueued: false,
-      statusQueued: false,
-      deferredUntilIdle: true
-    });
-
-    busy = false;
-    scheduled[0](16);
-
-    expect(calls).toEqual(['card', 'status', 'board']);
+    expect(calls).toEqual(['board', 'card', 'status']);
     expect(scheduler.getState()).toMatchObject({
       boardQueued: false,
+      cardUiQueued: false,
+      statusQueued: false,
       deferredUntilIdle: false
     });
+    expect(scheduled).toHaveLength(1);
   });
 
   test('ui requestCardUiSync still coalesces through scheduler-compatible state', async () => {

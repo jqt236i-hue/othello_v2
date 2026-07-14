@@ -1,0 +1,237 @@
+export type BoardViewerContext = 'black' | 'white' | 'spectator';
+export type BoardExpansionSide = 'top' | 'right' | 'bottom' | 'left';
+export type BoardBoundaryEdgeKind = 'none' | 'outer' | 'hole';
+export type BoardWriterMode = 'idle' | 'playback' | 'awaiting-frame-commit' | 'recovering' | 'destroyed';
+
+export interface BoardWorldCoordinate {
+  row: number;
+  col: number;
+}
+
+export interface BoardWorldWindow {
+  minRow: number;
+  maxRow: number;
+  minCol: number;
+  maxCol: number;
+}
+
+export interface BoardCellBoundaryEdges {
+  top: BoardBoundaryEdgeKind;
+  right: BoardBoundaryEdgeKind;
+  bottom: BoardBoundaryEdgeKind;
+  left: BoardBoundaryEdgeKind;
+}
+
+export interface BoardStoneVisualState {
+  owner: 'black' | 'white';
+  value: number;
+  specialType: string | null;
+  status: Readonly<Record<string, unknown>>;
+}
+
+export interface BoardMarkerVisualState {
+  kind: string;
+  owner: 'black' | 'white' | null;
+  value: string | number | boolean | null;
+  data: Readonly<Record<string, unknown>>;
+}
+
+export interface BoardCellInteractionState {
+  legal: boolean;
+  legalFree: boolean;
+  tabooLegal: boolean;
+  selectable: boolean;
+  interactionLocked: boolean;
+  hovered: boolean;
+  keyboardCursor: boolean;
+  previewKinds: readonly string[];
+  selected: boolean;
+  selectionKinds: readonly string[];
+  directionHints: readonly BoardCellDirectionHint[];
+  directionHintIds: readonly string[];
+  localPendingHintIds: readonly string[];
+}
+
+export type BoardDirectionHintKind =
+  | 'board-shrink-god'
+  | 'board-shrink-will'
+  | 'board-expansion-god'
+  | 'board-expansion-will'
+  | 'generic';
+
+export interface BoardCellDirectionHint {
+  id: string;
+  kind: BoardDirectionHintKind;
+  directionKey: string;
+}
+
+export interface BoardCellVisualState {
+  key: string;
+  row: number;
+  col: number;
+  renderRow: number;
+  renderCol: number;
+  kind: 'playable' | 'hole';
+  expansionSide: BoardExpansionSide | null;
+  boundaryEdges: BoardCellBoundaryEdges;
+  stone: BoardStoneVisualState | null;
+  markers: readonly BoardMarkerVisualState[];
+  interaction: BoardCellInteractionState;
+  visualSignature: string;
+}
+
+export interface MaterializedBoardCellVisualState extends Omit<BoardCellVisualState, 'kind'> {
+  kind: 'playable' | 'hole' | 'void';
+  ephemeral: boolean;
+}
+
+export interface BoardRenderTopologyModel {
+  baseRows: number;
+  baseCols: number;
+  minRow: number;
+  maxRow: number;
+  minCol: number;
+  maxCol: number;
+  renderRowOffset: number;
+  renderColOffset: number;
+  renderRows: number;
+  renderCols: number;
+  existingKeys: readonly string[];
+  playableKeys: readonly string[];
+  holeKeys: readonly string[];
+}
+
+export interface BoardRenderModel {
+  visualRevision: number;
+  topology: BoardRenderTopologyModel;
+  cells: readonly BoardCellVisualState[];
+  keyboardCursorKey: string | null;
+  viewerContext: BoardViewerContext;
+  currentPlayer: 'black' | 'white';
+  canControlCurrentTurn: boolean;
+  isHumanTurn: boolean;
+}
+
+export interface BoardDirectionHint {
+  id: string;
+  cellKey: string;
+  directionKey: string;
+  kind?: BoardDirectionHintKind;
+}
+
+export interface BoardPendingHint {
+  id: string;
+  cellKey: string;
+  kind: string;
+}
+
+export interface BoardPreviewHint {
+  cellKey: string;
+  kind: string;
+}
+
+export interface BoardPresentationOverlayState {
+  hoveredCellKey: string | null;
+  keyboardCursorKey: string | null;
+  previewCellKeys: readonly string[];
+  previewHints: readonly BoardPreviewHint[];
+  selectedCellKeys: readonly string[];
+  directionHints: readonly BoardDirectionHint[];
+  localPendingHints: readonly BoardPendingHint[];
+  interactionLocked: boolean;
+}
+
+export interface BoardRenderInputs<TBaseVisualState = unknown> {
+  baseVisualState: TBaseVisualState;
+  presentationOverlayState: BoardPresentationOverlayState;
+}
+
+export interface BoardCameraState {
+  scrollLeft: number;
+  scrollTop: number;
+  viewportWidth: number;
+  viewportHeight: number;
+}
+
+export interface BoardViewportLayout {
+  revision: number;
+  cellSize: number;
+  dpr: number;
+  orientation: 'normal' | 'rotated-180';
+  frameInset: { top: number; right: number; bottom: number; left: number };
+  clientOrigin: { x: number; y: number };
+  visualViewport: { scale: number; offsetLeft: number; offsetTop: number };
+  camera: BoardCameraState;
+  logicalWidth: number;
+  logicalHeight: number;
+  visibleWorldWindow: BoardWorldWindow;
+}
+
+export interface BoardClientRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  width: number;
+  height: number;
+  layoutRevision: number;
+}
+
+export interface BoardAppearanceDescriptor {
+  boardSkinId: string;
+  boardImageUrl: string;
+  boardFrameSkinId: string;
+  boardFrameLayout: Readonly<Record<string, string | number>>;
+  stoneSkinId: string;
+  blackStoneImageUrl: string;
+  whiteStoneImageUrl: string;
+  revision: number;
+}
+
+export interface BoardVisualThemeDescriptor {
+  revision: number;
+  surfaceColor: string;
+  gridColor: string;
+  outerBoundaryColor: string;
+  holeBoundaryColor: string;
+  markerColor: string;
+  hintColor: string;
+  timerColor: string;
+  fontFamily: string;
+  gridLineWidth: number;
+}
+
+export interface BoardVisualFrame {
+  model: BoardRenderModel;
+  layout: BoardViewportLayout;
+  appearance: BoardAppearanceDescriptor;
+  theme: BoardVisualThemeDescriptor;
+  frameToken: string;
+}
+
+export interface BoardPlaybackContext {
+  token: BoardWriterToken;
+  strictNetworkPlayback: boolean;
+}
+
+export interface BoardWriterToken {
+  id: number;
+  frameToken: string;
+  mode: 'local' | 'network';
+}
+
+export interface BoardVisualBackendDeps {
+  diagnostics?: { record: (event: string, detail?: unknown) => void };
+}
+
+export interface BoardVisualBackend {
+  readonly kind: 'dom' | 'pixi';
+  mount(host: HTMLElement, deps: BoardVisualBackendDeps): void | Promise<void>;
+  applyFrame(frame: BoardVisualFrame): void;
+  playPhase(events: readonly unknown[], context: BoardPlaybackContext): Promise<void>;
+  getRenderedCell?(row: number, col: number): unknown;
+  getCellClientRect(row: number, col: number): BoardClientRect | null;
+  resize(layout: BoardViewportLayout): void;
+  restore(frame: BoardVisualFrame): void | Promise<void>;
+  destroy(): void;
+}

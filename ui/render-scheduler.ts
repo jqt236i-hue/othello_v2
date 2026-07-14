@@ -5,9 +5,10 @@ type RenderSchedulerDeps = {
   cancelAnimationFrame?: (id: number) => void;
   setTimeout?: (callback: () => void, ms: number) => any;
   clearTimeout?: (id: any) => void;
-  renderBoard?: (() => void) | null;
-  renderCardUI?: (() => void) | null;
-  updateStatus?: (() => void) | null;
+  prepareBoardVisualUpdate?: (() => unknown) | null;
+  renderBoard?: ((preparedVisualUpdate?: unknown) => void) | null;
+  renderCardUI?: ((preparedVisualUpdate?: unknown) => void) | null;
+  updateStatus?: ((preparedVisualUpdate?: unknown) => void) | null;
   shouldDeferUiSync?: (() => boolean) | null;
 };
 
@@ -37,7 +38,7 @@ function resolveRoot(): any {
   return base;
 }
 
-function resolveRuntimeFunction(name: string, fallback: any): (() => void) | null {
+function resolveRuntimeFunction(name: string, fallback: any): ((...args: any[]) => any) | null {
   if (typeof fallback === 'function') return fallback;
   const root = resolveRoot();
   try {
@@ -102,38 +103,34 @@ function createRenderScheduler(deps?: RenderSchedulerDeps) {
     if (!state.boardQueued && !state.cardUiQueued && !state.statusQueued) return false;
     const playbackDeferred = shouldDefer();
     const ignorePlayback = options && options.ignorePlayback === true;
-    if (playbackDeferred && !ignorePlayback) {
-      state.deferredUntilIdle = true;
-      schedule();
-      return false;
-    }
-
-    // ignorePlayback may flush non-board UI, but board DOM writes still obey playback deferral.
-    const runBoard = state.boardQueued && !playbackDeferred;
-    const runCard = state.cardUiQueued;
-    const runStatus = state.statusQueued;
-    if (!runBoard && state.boardQueued && playbackDeferred && !runCard && !runStatus) {
-      state.deferredUntilIdle = true;
-      schedule();
-      return false;
-    }
+    // Board frame construction always reaches BoardVisualController. The
+    // controller alone owns playback coalescing and keeps the active backend
+    // untouched. Other UI surfaces retain their existing playback deferral.
+    const runBoard = state.boardQueued;
+    const runCard = state.cardUiQueued && (!playbackDeferred || ignorePlayback);
+    const runStatus = state.statusQueued && (!playbackDeferred || ignorePlayback);
     state.boardQueued = state.boardQueued && !runBoard;
-    state.cardUiQueued = false;
-    state.statusQueued = false;
-    state.deferredUntilIdle = state.boardQueued && playbackDeferred;
+    state.cardUiQueued = state.cardUiQueued && !runCard;
+    state.statusQueued = state.statusQueued && !runStatus;
+    state.deferredUntilIdle = playbackDeferred && (state.cardUiQueued || state.statusQueued);
     if (!state.deferredUntilIdle) state.reasons = [];
+
+    const prepareBoardVisualUpdate = runBoard
+      ? resolveRuntimeFunction('prepareBoardVisualUpdate', currentDeps.prepareBoardVisualUpdate)
+      : null;
+    const preparedVisualUpdate = prepareBoardVisualUpdate ? prepareBoardVisualUpdate() : undefined;
 
     if (runBoard) {
       const renderBoard = resolveRuntimeFunction('renderBoard', currentDeps.renderBoard);
-      if (renderBoard) renderBoard();
+      if (renderBoard) renderBoard(preparedVisualUpdate);
     }
     if (runCard) {
       const renderCardUI = resolveRuntimeFunction('renderCardUI', currentDeps.renderCardUI);
-      if (renderCardUI) renderCardUI();
+      if (renderCardUI) renderCardUI(preparedVisualUpdate);
     }
     if (runStatus) {
       const updateStatus = resolveRuntimeFunction('updateStatus', currentDeps.updateStatus);
-      if (updateStatus) updateStatus();
+      if (updateStatus) updateStatus(preparedVisualUpdate);
     }
     if (state.deferredUntilIdle) schedule();
     return true;

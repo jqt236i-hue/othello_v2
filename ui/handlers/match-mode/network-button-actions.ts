@@ -29,11 +29,23 @@ function refreshNetworkRooms(options: any): any {
 }
 
 async function leaveNetworkRoom(options: any): Promise<void> {
+    let leaveResult: any = { ok: true };
     try {
         if (options.client && typeof options.client.leaveRoom === 'function') {
-            await options.client.leaveRoom();
+            leaveResult = await options.client.leaveRoom();
         }
-    } catch (e) { /* leave cleanup continues */ }
+    } catch (e) {
+        if (typeof options.writeNetworkStatus === 'function') {
+            options.writeNetworkStatus('ネット対戦の退出処理に失敗しました', true);
+        }
+        return;
+    }
+    if (!leaveResult || leaveResult.ok !== true) {
+        if (leaveResult && leaveResult.reloadRequired === true && typeof options.writeNetworkStatus === 'function') {
+            options.writeNetworkStatus('ネット対戦の終了処理を完了できませんでした。ページを再読み込みしてください', true);
+        }
+        return;
+    }
     options.setNetworkRoomDebugEnabled(false);
     options.setNetworkRoomAutoEnabled(false);
     if (options.debugCheckbox) options.debugCheckbox.checked = false;

@@ -43,7 +43,12 @@ describe('initializeUI side panel toggle', () => {
 
     const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
     jest.doMock(bootstrapPath, () => ({
-      installGameDI: jest.fn()
+      installGameDI: jest.fn(),
+      getBoardVisualController: jest.fn(() => ({
+        waitUntilReady: jest.fn(async () => undefined),
+        isReady: jest.fn(() => true),
+        getVisualFrameDigest: jest.fn(() => 'initial-frame')
+      }))
     }), { virtual: false });
   });
 
@@ -63,9 +68,9 @@ describe('initializeUI side panel toggle', () => {
     );
   }
 
-  test('初期表示は展開状態で、ボタン押下で折りたたみ/再展開できる', () => {
+  test('初期表示は展開状態で、ボタン押下で折りたたみ/再展開できる', async () => {
     const initModule = require('../ui/handlers/init.js');
-    initModule.initializeUI();
+    await initModule.initializeUI();
 
     const sidePanel = document.getElementById('side-panel');
     const toggleBtn = document.getElementById('sidePanelToggleBtn');
@@ -76,6 +81,8 @@ describe('initializeUI side panel toggle', () => {
     expect(toggleBtn.textContent?.trim()).toBe('設定');
     expect(toggleBtn.querySelector('.left-action-icon')).not.toBeNull();
     expect(toggleBtn.querySelector('.left-action-label')?.textContent).toBe('設定');
+    expect(sidePanel.style.left).toBe('132px');
+    expect(sidePanel.style.top).toBe('190px');
 
     toggleBtn.click();
 
@@ -85,12 +92,13 @@ describe('initializeUI side panel toggle', () => {
     expect(toggleBtn.textContent?.trim()).toBe('設定');
     expect(toggleBtn.querySelector('.left-action-icon')).not.toBeNull();
     expect(toggleBtn.querySelector('.left-action-label')?.textContent).toBe('設定');
-    expect(sidePanel.style.left).toBe('132px');
-    expect(sidePanel.style.top).toBe('190px');
+    expect(sidePanel.style.left).toBe('');
+    expect(sidePanel.style.top).toBe('');
     expect(sidePanel.style.right).toBe('');
     expect(sidePanel.style.bottom).toBe('');
 
     toggleBtn.click();
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
     expect(sidePanel.classList.contains('side-panel-collapsed')).toBe(true);
     expect(toggleBtn.getAttribute('aria-expanded')).toBe('false');
@@ -101,7 +109,7 @@ describe('initializeUI side panel toggle', () => {
     expect(sawResetGameThrowLog()).toBe(false);
   });
 
-  test('iPhone縦プロファイルでは初期表示を折りたたみ状態にする', () => {
+  test('iPhone縦プロファイルでは初期表示を折りたたみ状態にする', async () => {
     document.documentElement.classList.add('layout-profile-phone-portrait');
     document.documentElement.setAttribute('data-layout-profile', 'layout-profile-phone-portrait');
     Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true });
@@ -122,7 +130,7 @@ describe('initializeUI side panel toggle', () => {
     }
 
     const initModule = require('../ui/handlers/init.js');
-    initModule.initializeUI();
+    await initModule.initializeUI();
 
     const sidePanel = document.getElementById('side-panel');
     const toggleBtn = document.getElementById('sidePanelToggleBtn');
@@ -133,6 +141,8 @@ describe('initializeUI side panel toggle', () => {
     expect(toggleBtn.textContent?.trim()).toBe('設定');
     expect(toggleBtn.querySelector('.left-action-icon')).not.toBeNull();
     expect(toggleBtn.querySelector('.left-action-label')?.textContent).toBe('設定');
+    expect(sidePanel.style.left).toBe('75px');
+    expect(sidePanel.style.top).toBe('282px');
 
     toggleBtn.click();
 
@@ -142,8 +152,8 @@ describe('initializeUI side panel toggle', () => {
     expect(toggleBtn.textContent?.trim()).toBe('設定');
     expect(toggleBtn.querySelector('.left-action-icon')).not.toBeNull();
     expect(toggleBtn.querySelector('.left-action-label')?.textContent).toBe('設定');
-    expect(sidePanel.style.left).toBe('75px');
-    expect(sidePanel.style.top).toBe('282px');
+    expect(sidePanel.style.left).toBe('');
+    expect(sidePanel.style.top).toBe('');
     expect(sidePanel.style.right).toBe('');
     expect(sidePanel.style.bottom).toBe('');
     expect(sawResetGameThrowLog()).toBe(false);

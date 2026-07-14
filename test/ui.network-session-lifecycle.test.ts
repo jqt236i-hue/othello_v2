@@ -48,6 +48,7 @@ describe('NetworkSessionLifecycleController', () => {
         stateObj.spectatorId = data.spectatorId;
         stateObj.spectatorToken = data.spectatorToken;
       }),
+      disposePresentationTimeline: jest.fn(async () => true),
       resetNetworkTelemetry: jest.fn(),
       openStream: jest.fn(),
       closeStream: jest.fn(),
@@ -97,6 +98,7 @@ describe('NetworkSessionLifecycleController', () => {
       drainPresentationTimeline: jest.fn(async () => 0),
       clearPlaybackStateForLeave: jest.fn(),
       clearPendingForceSyncPlaybackRecovery: jest.fn(),
+      markSessionReloadRequired: jest.fn(() => { stateObj.active = false; }),
       cloneData: jest.fn((value) => JSON.parse(JSON.stringify(value)))
     };
 
@@ -124,6 +126,30 @@ describe('NetworkSessionLifecycleController', () => {
       expect(result.seatKey).toBe('black');
       expect(mockConfig.activateSessionFromResponse).toHaveBeenCalled();
       expect(mockConfig.openStream).toHaveBeenCalled();
+    });
+
+    test('旧presentation timelineを破棄してから新sessionを有効化する', async () => {
+      const order = [];
+      mockConfig.disposePresentationTimeline.mockImplementation(async () => {
+        order.push('dispose');
+        return true;
+      });
+      mockConfig.activateSessionFromResponse.mockImplementation((data) => {
+        order.push('activate');
+        stateObj.roomId = data.roomId;
+        stateObj.seatKey = data.seatKey;
+        stateObj.seatToken = data.seatToken;
+      });
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        roomId: 'ABC',
+        seatKey: 'black',
+        seatToken: 'token123'
+      }));
+
+      await expect(controller.createRoom({ playerName: 'テスト' })).resolves.toMatchObject({ ok: true });
+      expect(order).toEqual(['dispose', 'activate']);
+      expect(mockConfig.disposePresentationTimeline).toHaveBeenCalledWith('session_create_activation');
     });
 
     test('プレイヤー名を正規化する', async () => {
@@ -756,6 +782,78 @@ describe('NetworkSessionLifecycleController', () => {
   });
 
   describe('syncLatestState - エラーハンドリング', () => {
+    test('旧sessionのstate応答を別roomへ適用しない', async () => {
+      stateObj.roomId = 'OLD';
+      stateObj.seatKey = 'black';
+      stateObj.seatToken = 'old-token';
+      let resolveRequest: ((value: any) => void) | null = null;
+      mockConfig.requestJson.mockImplementation(() => new Promise((resolve) => {
+        resolveRequest = resolve;
+      }));
+
+      const syncPromise = controller.syncLatestState();
+      stateObj.roomId = 'NEW';
+      stateObj.seatKey = 'white';
+      stateObj.seatToken = 'new-token';
+      resolveRequest!(jsonResponse(200, {
+        ok: true,
+        stateVersion: 2,
+        snapshot: { stateVersion: 2, gameState: { source: 'old' }, cardState: {} }
+      }));
+
+      await expect(syncPromise).resolves.toMatchObject({
+        ok: false,
+        stale: true,
+        reason: 'SESSION_CHANGED'
+      });
+      expect(mockConfig.applyPayloadSessionState).not.toHaveBeenCalled();
+      expect(mockConfig.applySnapshotThroughCoordinator).not.toHaveBeenCalled();
+    });
+
+    test('旧sessionのjournal応答を別roomのvisual storeへ適用しない', async () => {
+      stateObj.roomId = 'OLD';
+      stateObj.seatKey = 'black';
+      stateObj.seatToken = 'old-token';
+      stateObj.lastVisualSeq = 1;
+      stateObj.lastVisualVersion = 1;
+      let resolveJournal: ((value: any) => void) | null = null;
+      mockConfig.requestJson.mockImplementation(async (_method, path) => {
+        if (path.startsWith('/api/match/state')) {
+          return jsonResponse(200, {
+            ok: true,
+            stateVersion: 3,
+            snapshot: { stateVersion: 3, gameState: {}, cardState: {} },
+            presentationCursor: { visualSeq: 3, stateVersion: 3 }
+          });
+        }
+        return new Promise((resolve) => { resolveJournal = resolve; });
+      });
+
+      const syncPromise = controller.syncLatestState();
+      while (!resolveJournal) await Promise.resolve();
+      stateObj.roomId = 'NEW';
+      stateObj.seatKey = 'white';
+      stateObj.seatToken = 'new-token';
+      resolveJournal!(jsonResponse(200, {
+        ok: true,
+        baseVisualSeq: 1,
+        baseSnapshot: { stateVersion: 1, gameState: { source: 'old' }, cardState: {} },
+        presentationFrames: [
+          { visualSeq: 2, stateVersionFrom: 1, stateVersionTo: 2, playbackEvents: [] },
+          { visualSeq: 3, stateVersionFrom: 2, stateVersionTo: 3, playbackEvents: [] }
+        ]
+      }));
+
+      await expect(syncPromise).resolves.toMatchObject({
+        ok: false,
+        stale: true,
+        reason: 'SESSION_CHANGED'
+      });
+      expect(mockConfig.visualStateStore.setBaseVisualSnapshot).not.toHaveBeenCalled();
+      expect(mockConfig.enqueuePresentationFramesFromPayload).not.toHaveBeenCalled();
+      expect(mockConfig.drainPresentationTimeline).not.toHaveBeenCalled();
+    });
+
     test('部屋に参加していない場合はエラー', async () => {
       stateObj.roomId = null;
 
@@ -868,9 +966,20 @@ describe('NetworkSessionLifecycleController', () => {
 
   describe('leaveRoom - 基本機能', () => {
     test('正常に退出する', async () => {
+      const order = [];
       stateObj.roomId = 'ABC';
       stateObj.seatKey = 'black';
       stateObj.seatToken = 'token123';
+
+      mockConfig.disposePresentationTimeline.mockImplementation(async () => {
+        order.push('dispose');
+        return true;
+      });
+      mockConfig.clearPlaybackStateForLeave.mockImplementation(() => order.push('clear-playback'));
+      mockConfig.resetSessionState.mockImplementation(() => {
+        order.push('reset-session');
+        stateObj.roomId = null;
+      });
 
       mockConfig.requestJson.mockResolvedValue(jsonResponse(200, { ok: true }));
 
@@ -879,6 +988,7 @@ describe('NetworkSessionLifecycleController', () => {
       expect(result.ok).toBe(true);
       expect(mockConfig.resetSessionState).toHaveBeenCalled();
       expect(mockConfig.closeStream).toHaveBeenCalled();
+      expect(order).toEqual(['dispose', 'clear-playback', 'reset-session']);
       expect(mockConfig.clearSeatClaim).toHaveBeenCalledWith('ABC');
     });
 
@@ -917,6 +1027,33 @@ describe('NetworkSessionLifecycleController', () => {
   });
 
   describe('leaveRoom - エラーハンドリング', () => {
+    test('authority退出成功後にsettlement破棄が失敗したらreload-requiredへ収束する', async () => {
+      stateObj.active = true;
+      stateObj.roomId = 'ABC';
+      stateObj.seatKey = 'black';
+      stateObj.seatToken = 'token123';
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, { ok: true }));
+      mockConfig.disposePresentationTimeline.mockRejectedValue(new Error('backend restore failed'));
+
+      await expect(controller.leaveRoom()).resolves.toEqual({
+        ok: false,
+        reason: 'LEAVE_SETTLEMENT_DISPOSE_FAILED',
+        authorityLeft: true,
+        reloadRequired: true
+      });
+
+      expect(mockConfig.markSessionReloadRequired).toHaveBeenCalledWith(expect.objectContaining({
+        reason: 'LEAVE_SETTLEMENT_DISPOSE_FAILED'
+      }));
+      expect(stateObj.active).toBe(false);
+      expect(mockConfig.clearPlaybackStateForLeave).not.toHaveBeenCalled();
+      expect(mockConfig.resetSessionState).not.toHaveBeenCalled();
+      expect(mockConfig.closeStream).toHaveBeenCalledTimes(1);
+      expect(mockConfig.teardownActionBridge).toHaveBeenCalledTimes(1);
+      expect(mockConfig.clearSeatClaim).toHaveBeenCalledWith('ABC');
+      expect(mockConfig.emitStatus).toHaveBeenCalledWith(expect.stringContaining('再読み込み'), true);
+    });
+
     test('退出リクエストが失敗した場合', async () => {
       stateObj.roomId = 'ABC';
       stateObj.seatKey = 'black';
@@ -927,6 +1064,8 @@ describe('NetworkSessionLifecycleController', () => {
 
       expect(result.ok).toBe(false);
       expect(result.reason).toBe('LEAVE_REQUEST_FAILED');
+      expect(mockConfig.disposePresentationTimeline).not.toHaveBeenCalled();
+      expect(mockConfig.clearPlaybackStateForLeave).not.toHaveBeenCalled();
     });
 
     test('部屋が見つからない場合は成功とみなす', async () => {

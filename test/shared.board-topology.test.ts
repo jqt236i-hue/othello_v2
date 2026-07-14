@@ -38,6 +38,10 @@ describe('shared BoardTopology', () => {
 
     expect(topology.expansionKeys.has('-2,3')).toBe(true);
     expect(topology.renderBounds.minRow).toBe(-2);
+    expect(topology.renderRowOffset).toBe(2);
+    expect(topology.renderColOffset).toBe(0);
+    expect(topology.renderRows).toBe(12);
+    expect(topology.renderCols).toBe(10);
     expect(topology.candidateBounds.minRow).toBe(-3);
     expect(sockets.some((socket: any) => (
       socket.anchor.row === -2 &&
@@ -61,7 +65,47 @@ describe('shared BoardTopology', () => {
     expect(topology.existingKeys.has('0,3')).toBe(true);
     expect(topology.holeKeys.has('0,3')).toBe(true);
     expect(topology.playableKeys.has('0,3')).toBe(false);
+    expect(topology.boundaryEdgesByKey.get('0,3')?.bottom).toBe('hole');
+    expect(topology.boundaryEdgesByKey.get('1,3')?.top).toBe('hole');
     expect(sockets.some((socket: any) => socket.additions.some((cell: any) => cell.row === 0 && cell.col === 3))).toBe(false);
+  });
+
+  test('derives outer contours without materializing a global void key set', () => {
+    const state = createCircleState();
+    const topology = SharedBoardUtils.buildBoardTopology(state, { cardState: state.cardState });
+
+    expect(topology.boundaryEdgesByKey.get('0,3')).toMatchObject({
+      top: 'outer',
+      left: 'outer'
+    });
+    expect(topology).not.toHaveProperty('voidKeys');
+    expect(topology.boundaryEdgesByKey.size).toBe(topology.existingKeys.size);
+  });
+
+  test('keeps explicit holes as sparse topology tombstones', () => {
+    const state = createCircleState();
+    state.cardState = {
+      markers: [{
+        kind: 'specialStone',
+        row: -3,
+        col: 12,
+        data: { type: 'METEOR_HOLE' }
+      }]
+    };
+    const topology = SharedBoardUtils.buildBoardTopology(state, { cardState: state.cardState });
+
+    expect(topology.existingKeys.has('-3,12')).toBe(true);
+    expect(topology.holeKeys.has('-3,12')).toBe(true);
+    expect(topology.playableKeys.has('-3,12')).toBe(false);
+    expect(topology.holeCoordinates).toContainEqual({ row: -3, col: 12 });
+    expect(topology.renderBounds).toMatchObject({ minRow: -3, maxCol: 12 });
+    expect(topology.renderRowOffset).toBe(3);
+    expect(topology.boundaryEdgesByKey.get('-3,12')).toEqual({
+      top: 'outer',
+      right: 'outer',
+      bottom: 'outer',
+      left: 'outer'
+    });
   });
 
   test('god sockets always add a connected 2x2 corner around their anchor', () => {

@@ -33,6 +33,26 @@ function snapshot(version: number, label: string) {
 }
 
 describe('NetworkVisualStateStore clone inventory and readonly rendering', () => {
+  test('deep-freezes production-owned snapshots before exposing a zero-copy peek', () => {
+    const store = Store.createNetworkVisualStateStore();
+    const source = snapshot(3, 'owned');
+
+    store.setCanonicalSnapshot(source);
+    const peeked = store.peekRenderSnapshot();
+
+    expect(peeked).not.toBe(source);
+    expect(Object.isFrozen(peeked)).toBe(true);
+    expect(Object.isFrozen(peeked.gameState)).toBe(true);
+    expect(Object.isFrozen(peeked.gameState.board)).toBe(true);
+    expect(Object.isFrozen(peeked.gameState.board[0])).toBe(true);
+    expect(Object.isFrozen(peeked.cardState.hands.black)).toBe(true);
+
+    source.gameState.label = 'mutated-source';
+    source.gameState.board[0][0] = 1;
+    expect(peeked.gameState.label).toBe('owned');
+    expect(peeked.gameState.board[0][0]).toBe(0);
+  });
+
   test('strict network board rendering prefers readonly peek and keeps clone getter as fallback', () => {
     const source = fs.readFileSync(path.resolve(__dirname, '..', 'ui', 'board-renderer.ts'), 'utf8');
     const resolver = source.slice(
@@ -157,5 +177,29 @@ describe('NetworkVisualStateStore clone inventory and readonly rendering', () =>
     expect(publicClone).toEqual(laggingPeek);
     store.clearVisualSnapshot();
     expect(store.peekRenderSnapshot().gameState.label).toBe('canonical');
+  });
+
+  test('returns the same frozen committed snapshot only for the current store receipt', () => {
+    const store = Store.createNetworkVisualStateStore();
+    const otherStore = Store.createNetworkVisualStateStore();
+    const committed = snapshot(4, 'committed');
+    const receipt = store.commitFrame({
+      visualSeq: 1,
+      stateVersionFrom: 3,
+      stateVersionTo: 4,
+      snapshotAfter: committed
+    });
+    const boundSnapshot = store.getSnapshotForReceipt(receipt);
+
+    expect(store.isCurrentCommitReceipt(receipt)).toBe(true);
+    expect(otherStore.isCurrentCommitReceipt(receipt)).toBe(false);
+    expect(boundSnapshot).toBe(store.peekRenderSnapshot());
+    expect(Object.isFrozen(boundSnapshot)).toBe(true);
+    expect(Object.isFrozen(boundSnapshot.gameState.board[0])).toBe(true);
+
+    const forgedReceipt = Object.freeze({ ...receipt });
+    expect(store.isCurrentCommitReceipt(forgedReceipt)).toBe(false);
+    expect(store.getSnapshotForReceipt(forgedReceipt)).toBeNull();
+    expect(otherStore.getSnapshotForReceipt(receipt)).toBeNull();
   });
 });

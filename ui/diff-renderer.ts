@@ -41,6 +41,8 @@ const DiffRendererProjector = _require('./diff-renderer/projector');
 const DiffRendererDomPatcher = _require('./diff-renderer/dom-patcher');
 const DiffRendererInteractionBinder = _require('./diff-renderer/interaction-binder');
 const DiffRendererWorldEffects = _require('./diff-renderer/world-effects');
+const WorldStatePresenterModule = _require('./presentation/world-state-presenter');
+const DiffRendererWorldStatePresenter = WorldStatePresenterModule.createWorldStatePresenter();
 const cellStatesEqual = DiffRendererEquality.cellStatesEqual;
 
 /**
@@ -83,6 +85,7 @@ let boardDomElement: any = null;
 let lastBoardExpansionRevealSoundKey: any = null;
 let suppressBoardExpansionRevealSoundThisRender = false;
 let superAttractionHoverPreview: any = null;
+let activePreparedVisualStateForDiff: { gameState: any; cardState: any } | null = null;
 let DiffRendererManifestStoneRegistryModule: any = null;
 let BoardHintProjectionModule: any = null;
 let LastUsedPanelCopyModuleForDiff: any = null;
@@ -204,12 +207,14 @@ function _applyBoardCssVarsForDiff(boardEl: any, gameState: any) {
     return shape;
 }
 
-function _getBoardTopologyForDiff(gameState: any) {
+function _getBoardTopologyForDiff(gameState: any, cardStateOverride?: any) {
     const sharedBoardUtils = _getSharedBoardUtilsForDiff();
     if (!sharedBoardUtils || typeof sharedBoardUtils.buildBoardTopology !== 'function') return null;
     try {
         return sharedBoardUtils.buildBoardTopology(gameState, {
-            cardState: _resolveCardStateForDiffRender()
+            cardState: typeof cardStateOverride === 'undefined'
+                ? _resolveCardStateForDiffRender()
+                : cardStateOverride
         });
     } catch (e: any) {
         return null;
@@ -1376,9 +1381,11 @@ function _isBoardContourCellForDiff(row: number, col: number, gameState: any) {
 }
 
 function _isSquareRectangularBoardForDiff(gameState: any) {
-    const shape = _getBoardShapeForDiff(gameState);
-    const boardShape = String(gameState && gameState.boardConfig && gameState.boardConfig.shape || 'rectangle').toLowerCase();
-    return boardShape === 'rectangle' && shape.rows === shape.cols;
+    const topology = _getBoardTopologyForDiff(gameState);
+    if (!topology) return false;
+    return topology.baseRows === topology.baseCols
+        && topology.baseKeys instanceof Set
+        && topology.baseKeys.size === topology.baseRows * topology.baseCols;
 }
 
 function _applyBoardContourEdgeClassesForDiff(cell: any, row: number, col: number, gameState: any) {
@@ -1465,7 +1472,11 @@ function _getExpansionDescriptorForDiff(gameState: any) {
 
 function _getBoardDomSignatureForDiff(gameState: any) {
     const boardShape = _getBoardShapeForDiff(gameState);
-    const baseShape = String(gameState && gameState.boardConfig && gameState.boardConfig.shape || 'rectangle').toLowerCase();
+    const topology = _getBoardTopologyForDiff(gameState);
+    const baseShape = topology && topology.baseKeys instanceof Set
+        && topology.baseKeys.size === topology.baseRows * topology.baseCols
+        ? 'dense'
+        : 'sparse';
     const descriptors = _getExpansionDescriptorsForDiff(gameState);
     const geometry = _getBoardRenderGeometryForDiff(gameState);
     const boundsToken = `${geometry.minRow},${geometry.maxRow},${geometry.minCol},${geometry.maxCol}`;
@@ -2018,18 +2029,72 @@ function _isStrictNetworkVisualRenderActiveForDiff() {
 }
 
 function _resolveNetworkVisualRenderSnapshotForDiff() {
-    if (!_isStrictNetworkVisualRenderActiveForDiff()) return null;
     const store = _resolveNetworkVisualStateStoreForDiff();
     try {
-        const snapshot = store && typeof store.getRenderSnapshot === 'function'
-            ? store.getRenderSnapshot()
-            : null;
+        const snapshot = store && typeof store.peekRenderSnapshot === 'function'
+            ? store.peekRenderSnapshot()
+            : (store && typeof store.getRenderSnapshot === 'function' ? store.getRenderSnapshot() : null);
         if (snapshot && snapshot.gameState && snapshot.cardState) return snapshot;
     } catch (e: any) { /* ignore */ }
     return null;
 }
 
+function _resolveLocalVisualRenderPairForDiff() {
+    let lexicalGameState: any = null;
+    let lexicalCardState: any = null;
+    try { lexicalGameState = gameState; } catch (e: any) { /* undeclared in isolated runtimes */ }
+    try { lexicalCardState = cardState; } catch (e: any) { /* undeclared in isolated runtimes */ }
+    if (lexicalGameState && typeof lexicalGameState === 'object') {
+        return {
+            gameState: lexicalGameState,
+            cardState: lexicalCardState && typeof lexicalCardState === 'object' ? lexicalCardState : {}
+        };
+    }
+
+    try {
+        const windowGameState = typeof window !== 'undefined' ? window.gameState : null;
+        const windowCardState = typeof window !== 'undefined' ? window.cardState : null;
+        if (windowGameState && typeof windowGameState === 'object') {
+            return {
+                gameState: windowGameState,
+                cardState: windowCardState && typeof windowCardState === 'object' ? windowCardState : {}
+            };
+        }
+    } catch (e: any) { /* ignore unavailable browser globals */ }
+
+    try {
+        const root = typeof globalThis !== 'undefined' ? globalThis as any : null;
+        const rootGameState = root ? root.gameState : null;
+        const rootCardState = root ? root.cardState : null;
+        if (rootGameState && typeof rootGameState === 'object') {
+            return {
+                gameState: rootGameState,
+                cardState: rootCardState && typeof rootCardState === 'object' ? rootCardState : {}
+            };
+        }
+    } catch (e: any) { /* ignore unavailable runtime globals */ }
+    return { gameState: null, cardState: {} };
+}
+
+function _resolveVisualRenderPairForDiff() {
+    if (activePreparedVisualStateForDiff) {
+        return {
+            gameState: activePreparedVisualStateForDiff.gameState,
+            cardState: activePreparedVisualStateForDiff.cardState
+        };
+    }
+    const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
+    if (visualSnapshot) {
+        return {
+            gameState: visualSnapshot.gameState,
+            cardState: visualSnapshot.cardState
+        };
+    }
+    return _resolveLocalVisualRenderPairForDiff();
+}
+
 function _resolveGameStateForDiffRender() {
+    if (activePreparedVisualStateForDiff) return activePreparedVisualStateForDiff.gameState;
     const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
     if (visualSnapshot && visualSnapshot.gameState) return visualSnapshot.gameState;
     try {
@@ -2045,6 +2110,7 @@ function _resolveGameStateForDiffRender() {
 }
 
 function _resolveCardStateForDiffRender() {
+    if (activePreparedVisualStateForDiff) return activePreparedVisualStateForDiff.cardState;
     const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
     if (visualSnapshot && visualSnapshot.cardState) return visualSnapshot.cardState;
     try {
@@ -2296,26 +2362,26 @@ function _ensureBoardExpansionDirectionHintForDiff(cell: any, rawDirections: any
     }
 }
 
-function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any) {
+function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any, preparedRenderProjection?: any) {
     if (PerfBenchmarks) PerfBenchmarks.perfStart('_syncBoardShrinkGodDirectionHintsForDiff');
     try {
         if (!boardEl) return;
+    let projection = preparedRenderProjection && preparedRenderProjection.hintProjection;
+    if (!projection || typeof projection !== 'object') {
         const gameState = _resolveGameStateForDiffRender();
-    const cardState = _resolveCardStateForDiffRender();
-    const playerKey = gameState ? getPlayerKey(gameState.currentPlayer) : null;
-    const pending = playerKey && cardState && cardState.pendingEffectByPlayer
-        ? cardState.pendingEffectByPlayer[playerKey]
-        : null;
-    const boardShape = _getBoardShapeForDiff(gameState);
-    const projection = _buildBoardHintProjectionForDiff(
-        gameState,
-        cardState,
-        playerKey,
-        boardShape,
-        false,
-        true,
-        _getExpansionDescriptorsForDiff(gameState)
-    ) || {};
+        const cardState = _resolveCardStateForDiffRender();
+        const playerKey = gameState ? getPlayerKey(gameState.currentPlayer) : null;
+        const boardShape = _getBoardShapeForDiff(gameState);
+        projection = _buildBoardHintProjectionForDiff(
+            gameState,
+            cardState,
+            playerKey,
+            boardShape,
+            false,
+            true,
+            _getExpansionDescriptorsForDiff(gameState)
+        ) || {};
+    }
     const hintMap = projection.boardShrinkGodDirectionHintMap instanceof Map
         ? projection.boardShrinkGodDirectionHintMap
         : new Map();
@@ -2387,7 +2453,13 @@ function _getSuperAttractionPreviewSignature(context: any, row: number, col: num
 function _requestSuperAttractionPreviewRender() {
     if (!boardDomElement) return;
     try {
-        renderBoardDiff(boardDomElement);
+        const scheduler = _require('./render-scheduler');
+        if (scheduler && typeof scheduler.requestBoardRender === 'function') {
+            scheduler.requestBoardRender({ source: 'ui.diff-renderer', reason: 'super-attraction-hover' });
+            return;
+        }
+        const renderer = _require('./board-renderer');
+        if (renderer && typeof renderer.renderBoard === 'function') renderer.renderBoard();
     } catch (e: any) { /* UI-only hover update */ }
 }
 
@@ -2577,15 +2649,16 @@ function _isBoardHiddenTrap(marker: any) {
     return true;
 }
 
-function _resolveViewerContextForDiff() {
+function _resolveViewerContextForDiff(preparedCardState?: any) {
     const root = typeof window !== 'undefined' ? window : null;
     try {
         if (ViewerContextModule && typeof ViewerContextModule.resolveDiffRendererViewerContext === 'function') {
-            return ViewerContextModule.resolveDiffRendererViewerContext(root, OwnerHelpersModule);
+            return ViewerContextModule.resolveDiffRendererViewerContext(root, OwnerHelpersModule, preparedCardState);
         }
     } catch (e: any) { /* fallback to local resolution */ }
     let localPlayerKey: any = null;
     let isNetworkMode = false;
+    let isSpectator = false;
     try {
         const directKeys = [root && root.LOCAL_PLAYER_KEY, root && root.__LOCAL_PLAYER_KEY, root && root.BOARD_VIEWER_KEY];
         for (const key of directKeys) {
@@ -2604,16 +2677,25 @@ function _resolveViewerContextForDiff() {
             )
         );
     } catch (e: any) { isNetworkMode = false; }
+    try {
+        isSpectator = !!(
+            root
+            && root.NetworkMatchClient
+            && typeof root.NetworkMatchClient.isSpectator === 'function'
+            && root.NetworkMatchClient.isSpectator() === true
+        );
+    } catch (e: any) { isSpectator = false; }
     return {
         seatKey: null,
         localPlayerKey,
         isNetworkMode,
+        isSpectator,
         debugHumanVsHuman: !!(root && root.DEBUG_HUMAN_VS_HUMAN === true)
     };
 }
 
-function _resolveNetworkLocalPlayerKeyForDiff() {
-    const viewerContext = _resolveViewerContextForDiff();
+function _resolveNetworkLocalPlayerKeyForDiff(preparedViewerContext?: any) {
+    const viewerContext = preparedViewerContext || _resolveViewerContextForDiff();
     if (viewerContext.localPlayerKey === 'white' || viewerContext.localPlayerKey === 'black') {
         return viewerContext.localPlayerKey;
     }
@@ -2623,34 +2705,40 @@ function _resolveNetworkLocalPlayerKeyForDiff() {
     return 'black';
 }
 
-function _canLocalPlayerControlCurrentTurnForDiff() {
+function _canLocalPlayerControlCurrentTurnForDiff(
+    preparedGameState?: any,
+    preparedCardState?: any,
+    preparedViewerContext?: any
+) {
+    const gameStateValue = preparedGameState || _resolveGameStateForDiffRender();
+    const cardStateValue = preparedCardState || _resolveCardStateForDiffRender();
+    const viewerContext = preparedViewerContext || _resolveViewerContextForDiff();
+    if (viewerContext && viewerContext.isSpectator === true) return false;
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveNetworkInputPermissions === 'function') {
             return OwnerHelpersModule.resolveNetworkInputPermissions({
                 rootRef: typeof window !== 'undefined' ? window : null,
-                cardState: typeof cardState !== 'undefined' ? cardState : null,
-                gameState: typeof gameState !== 'undefined' ? gameState : null,
-                currentPlayer: gameState && gameState.currentPlayer,
-                localPlayerKey: _resolveNetworkLocalPlayerKeyForDiff(),
-                debugHumanVsHuman: _resolveViewerContextForDiff().debugHumanVsHuman === true
+                cardState: cardStateValue,
+                gameState: gameStateValue,
+                currentPlayer: gameStateValue && gameStateValue.currentPlayer,
+                localPlayerKey: _resolveNetworkLocalPlayerKeyForDiff(viewerContext),
+                debugHumanVsHuman: viewerContext.debugHumanVsHuman === true
             }).canOperateBoard === true;
         }
     } catch (e: any) { /* fallback to legacy local checks */ }
-    const viewerContext = _resolveViewerContextForDiff();
     const isNetworkMode = viewerContext.isNetworkMode === true;
-    const currentPlayerKey = gameState.currentPlayer === WHITE ? 'white' : 'black';
+    const currentPlayerKey = gameStateValue && gameStateValue.currentPlayer === WHITE ? 'white' : 'black';
     const isHvH = viewerContext.debugHumanVsHuman === true;
     if (isNetworkMode || !isHvH) {
-        const cs = (typeof cardState !== 'undefined' && cardState) ? cardState : null;
-        const fwc = cs && cs.fateWillControllerByTurnOwner;
+        const fwc = cardStateValue && cardStateValue.fateWillControllerByTurnOwner;
         const controller = fwc && fwc[currentPlayerKey];
         if (controller) {
-            const localPlayerKey = _resolveNetworkLocalPlayerKeyForDiff();
+            const localPlayerKey = _resolveNetworkLocalPlayerKeyForDiff(viewerContext);
             return controller === localPlayerKey;
         }
     }
     if (!isNetworkMode) return true;
-    const localPlayerKey = _resolveNetworkLocalPlayerKeyForDiff();
+    const localPlayerKey = _resolveNetworkLocalPlayerKeyForDiff(viewerContext);
     return currentPlayerKey === localPlayerKey;
 }
 
@@ -3251,7 +3339,24 @@ function attachBoardCellInteraction(cell: any, row: any, col: any) {
  * Initialize board with full rendering (first time only)
  * @param {HTMLElement} boardEl - 盤面要素
  */
-function initializeBoardDOM(boardEl: any) {
+function _getBoardMaterializationSignatureForDiff(boardRenderModel?: any, viewportLayout?: any): string {
+    if (!boardRenderModel || !viewportLayout || !viewportLayout.visibleWorldWindow) return '';
+    try {
+        const BoardVisualModel = _require('./board-visual/model');
+        const materializedWindow = BoardVisualModel.getBoardViewportMaterializationWindow({
+            model: boardRenderModel,
+            visibleWindow: viewportLayout.visibleWorldWindow,
+            overscanCells: 1,
+            effectGutterCells: 2
+        });
+        if (!materializedWindow) return ':viewport:empty';
+        return `:viewport:${materializedWindow.minRow},${materializedWindow.maxRow},${materializedWindow.minCol},${materializedWindow.maxCol}`;
+    } catch (e: any) {
+        return ':viewport:invalid';
+    }
+}
+
+function initializeBoardDOM(boardEl: any, boardRenderModel?: any, viewportLayout?: any) {
     const gameState = _resolveGameStateForDiffRender();
     const renderGeometry = _applyBoardCssVarsForDiff(boardEl, gameState);
     const boardShape = _getBoardShapeForDiff(gameState);
@@ -3262,7 +3367,6 @@ function initializeBoardDOM(boardEl: any) {
     if (expansionLayer) expansionLayer.innerHTML = '';
     cellCache = [];
     cellCacheMap = new Map();
-    let hasVoidCells = false;
     const sharedBoardUtils = _getSharedBoardUtilsForDiff();
 
     boardEl.classList.toggle('board-square-regular', _isSquareRectangularBoardForDiff(gameState));
@@ -3277,21 +3381,54 @@ function initializeBoardDOM(boardEl: any) {
     if (expansions.some((exp) => exp && exp.side === 'top')) boardEl.classList.add('board-expanded-top');
     if (expansions.some((exp) => exp && exp.side === 'bottom')) boardEl.classList.add('board-expanded-bottom');
 
-    for (let r = renderGeometry.minRow; r <= renderGeometry.maxRow; r++) {
-        for (let c = renderGeometry.minCol; c <= renderGeometry.maxCol; c++) {
+    let materializedCells: any[] | null = null;
+    if (boardRenderModel) {
+        try {
+            const BoardVisualModel = _require('./board-visual/model');
+            materializedCells = Array.from(BoardVisualModel.materializeBoardViewport({
+                model: boardRenderModel,
+                visibleWindow: viewportLayout && viewportLayout.visibleWorldWindow
+                    ? viewportLayout.visibleWorldWindow
+                    : {
+                        minRow: boardRenderModel.topology.minRow,
+                        maxRow: boardRenderModel.topology.maxRow,
+                        minCol: boardRenderModel.topology.minCol,
+                        maxCol: boardRenderModel.topology.maxCol
+                    },
+                overscanCells: viewportLayout && viewportLayout.visibleWorldWindow ? 1 : 0,
+                effectGutterCells: viewportLayout && viewportLayout.visibleWorldWindow ? 2 : 0
+            }));
+        } catch (e: any) {
+            materializedCells = null;
+        }
+    }
+    const renderCells = materializedCells || (() => {
+        const values = [];
+        for (let row = renderGeometry.minRow; row <= renderGeometry.maxRow; row++) {
+            for (let col = renderGeometry.minCol; col <= renderGeometry.maxCol; col++) {
+                values.push({ row, col, kind: null, expansionSide: null });
+            }
+        }
+        return values;
+    })();
+
+    for (const renderedCell of renderCells) {
+            const r = renderedCell.row;
+            const c = renderedCell.col;
             const cell = document.createElement('div');
             cell.className = 'cell';
             cell.dataset.row = String(r);
             cell.dataset.col = String(c);
             _applyBoardGridPositionForDiff(cell, r, c, gameState);
             const key = `${r},${c}`;
-            const exists = topology && topology.existingKeys instanceof Set
+            const exists = renderedCell.kind
+                ? renderedCell.kind !== 'void'
+                : topology && topology.existingKeys instanceof Set
                 ? topology.existingKeys.has(key)
                 : (!sharedBoardUtils || typeof sharedBoardUtils.isMainBoardCell !== 'function'
                     ? _isMainBoardCellForDiff(r, c, boardShape)
                     : sharedBoardUtils.isMainBoardCell(r, c, gameState)) || _isExpansionCellForDiff(r, c, gameState);
             if (!exists) {
-                hasVoidCells = true;
                 cell.classList.add('cell-void');
                 cell.setAttribute('aria-hidden', 'true');
                 boardEl.appendChild(cell);
@@ -3307,16 +3444,10 @@ function initializeBoardDOM(boardEl: any) {
             attachBoardCellInteraction(cell, r, c);
             boardEl.appendChild(cell);
             _cacheCell(r, c, cell);
-        }
     }
 
-    boardEl.classList.toggle('board-has-void-cells', hasVoidCells);
-    const boardFrame = typeof boardEl.closest === 'function' ? boardEl.closest('#board-frame') : null;
-    if (boardFrame && boardFrame.classList) {
-        boardFrame.classList.toggle('board-has-void-cells', hasVoidCells);
-    }
-
-    boardDomSignature = _getBoardDomSignatureForDiff(gameState);
+    boardDomSignature = _getBoardDomSignatureForDiff(gameState)
+        + _getBoardMaterializationSignatureForDiff(boardRenderModel, viewportLayout);
 
     previousBoardState = null;
     if (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
@@ -3325,17 +3456,134 @@ function initializeBoardDOM(boardEl: any) {
 }
 
 
-function _createCellStateProjectorContextForDiff() {
+function createBoardRenderInputs(presentationOverlayState?: unknown, baseVisualStateOverride?: any) {
+    const BoardVisualModel = _require('./board-visual/model');
+    const override = baseVisualStateOverride && typeof baseVisualStateOverride === 'object'
+        && baseVisualStateOverride.gameState && typeof baseVisualStateOverride.gameState === 'object'
+        && baseVisualStateOverride.cardState && typeof baseVisualStateOverride.cardState === 'object'
+        ? baseVisualStateOverride
+        : null;
+    const visualPair = override || _resolveVisualRenderPairForDiff();
+    const viewerContext = _resolveViewerContextForDiff(visualPair.cardState);
+    return Object.freeze({
+        baseVisualState: Object.freeze({
+            gameState: visualPair.gameState,
+            cardState: visualPair.cardState,
+            viewerContext: Object.freeze({ ...viewerContext }),
+            canControlCurrentTurn: _canLocalPlayerControlCurrentTurnForDiff(
+                visualPair.gameState,
+                visualPair.cardState,
+                viewerContext
+            )
+        }),
+        presentationOverlayState: BoardVisualModel.validateBoardPresentationOverlayState(presentationOverlayState)
+    });
+}
+
+function createBoardPresentationOverlayState(renderProjection: any, cellState: any, initialOverlay?: unknown) {
+    const BoardVisualModel = _require('./board-visual/model');
+    const base = BoardVisualModel.validateBoardPresentationOverlayState(initialOverlay);
+    const previewHints = Array.from(base.previewHints || []);
+    const previewCellKeys = new Set(base.previewCellKeys || []);
+    const selectedCellKeys = new Set(base.selectedCellKeys || []);
+    const directionHints = Array.from(base.directionHints || []);
+    const collect = (cell: any, row: number, col: number) => {
+        if (!cell) return;
+        const cellKey = `${row},${col}`;
+        const addPreview = (kind: string, active: boolean) => {
+            if (!active) return;
+            previewCellKeys.add(cellKey);
+            previewHints.push({ cellKey, kind });
+        };
+        addPreview('random-spawn', cell.isRandomSpawnPreview === true);
+        addPreview('selected-target', cell.isSelectedTargetHighlighted === true);
+        addPreview('super-attraction-path', cell.isSuperAttractionPathPreview === true);
+        addPreview('super-attraction-destination', cell.isSuperAttractionPreviewDestination === true);
+        if (cell.isSelectedTargetHighlighted === true) selectedCellKeys.add(cellKey);
+    };
+    const shape = _getStateBoardShapeForDiff(cellState);
+    for (let row = 0; row < shape.rows; row += 1) {
+        for (let col = 0; col < shape.cols; col += 1) collect(cellState && cellState[row] && cellState[row][col], row, col);
+    }
+    for (const expansion of _getExpansionStateListForDiff(cellState)) {
+        collect(expansion, expansion.row, expansion.col);
+    }
+    const hintProjection = renderProjection && renderProjection.hintProjection && typeof renderProjection.hintProjection === 'object'
+        ? renderProjection.hintProjection
+        : {};
+    const collectDirectionHints = (mapValue: any, kind: string) => {
+        if (!(mapValue instanceof Map)) return;
+        for (const [cellKey, rawDirections] of mapValue.entries()) {
+            const directions = (Array.isArray(rawDirections) ? rawDirections : [rawDirections])
+                .map((value: any) => String(value || '').trim())
+                .filter((value: string) => !!value);
+            for (const directionKey of directions) {
+                directionHints.push({
+                    id: `${kind}:${String(cellKey)}:${directionKey}`,
+                    cellKey: String(cellKey),
+                    directionKey,
+                    kind
+                });
+            }
+        }
+    };
+    const expansionKind = String(renderProjection && renderProjection.pending && renderProjection.pending.type || '').toUpperCase() === 'BOARD_EXPANSION_WILL'
+        ? 'board-expansion-will'
+        : 'board-expansion-god';
+    collectDirectionHints(hintProjection.boardExpansionDirectionHintMap, expansionKind);
+    collectDirectionHints(hintProjection.boardShrinkWillDirectionHintMap, 'board-shrink-will');
+    collectDirectionHints(hintProjection.boardShrinkGodDirectionHintMap, 'board-shrink-god');
+    const hoverTarget = superAttractionHoverPreview && superAttractionHoverPreview.target;
+    const hoveredCellKey = hoverTarget && Number.isInteger(hoverTarget.row) && Number.isInteger(hoverTarget.col)
+        ? `${hoverTarget.row},${hoverTarget.col}`
+        : base.hoveredCellKey;
+    const interactionLocked = base.interactionLocked === true || !!(
+        PlaybackStateModule
+        && typeof PlaybackStateModule.shouldDeferBoardUpdate === 'function'
+        && PlaybackStateModule.shouldDeferBoardUpdate({ cardState: renderProjection && renderProjection.cardState }) === true
+    );
+    return BoardVisualModel.validateBoardPresentationOverlayState({
+        ...base,
+        hoveredCellKey,
+        previewCellKeys: Array.from(previewCellKeys),
+        previewHints,
+        selectedCellKeys: Array.from(selectedCellKeys),
+        directionHints,
+        interactionLocked
+    });
+}
+
+function _createCellStateProjectorContextForDiff(inputs?: any) {
+    const base = inputs && inputs.baseVisualState && typeof inputs.baseVisualState === 'object'
+        ? inputs.baseVisualState
+        : null;
     return {
         state: {
-            resolveGameState: _resolveGameStateForDiffRender,
-            resolveCardState: _resolveCardStateForDiffRender,
+            resolveGameState: base ? () => base.gameState : _resolveGameStateForDiffRender,
+            resolveCardState: base ? () => base.cardState : _resolveCardStateForDiffRender,
             getBoardShape: _getBoardShapeForDiff,
             buildEmptyCellState: _buildEmptyCellStateForDiffRender,
             cardLogic: (typeof CardLogic !== 'undefined' ? CardLogic : undefined),
             getPlayerKey,
-            resolveViewerContext: _resolveViewerContextForDiff,
-            canLocalPlayerControlCurrentTurn: _canLocalPlayerControlCurrentTurnForDiff,
+            resolveViewerContext: base && base.viewerContext
+                ? () => base.viewerContext
+                : _resolveViewerContextForDiff,
+            normalizeViewerContext: (value: any) => (
+                ViewerContextModule && typeof ViewerContextModule.toBoardViewerContext === 'function'
+                    ? ViewerContextModule.toBoardViewerContext(value)
+                    : (value === 'white' || value === 'spectator' ? value : 'black')
+            ),
+            canLocalPlayerControlCurrentTurn: base && typeof base.canControlCurrentTurn === 'boolean'
+                ? () => base.canControlCurrentTurn
+                : () => _canLocalPlayerControlCurrentTurnForDiff(
+                    base && base.gameState,
+                    base && base.cardState,
+                    base && base.viewerContext
+                ),
+            buildBoardTopology: (gameStateValue: any, options?: any) => _getBoardTopologyForDiff(
+                gameStateValue,
+                base ? base.cardState : options && options.cardState
+            ),
             constants: { BLACK, WHITE, EMPTY }
         },
         hints: {
@@ -3370,12 +3618,21 @@ function _createCellStateProjectorContextForDiff() {
  * Build cell state from current game state
  * @returns {Array<Array<CellState>>} 8x8セル状態配列
  */
-function createBoardRenderProjection(operationCounters?: any) {
-    return DiffRendererProjector.createBoardRenderProjection(_createCellStateProjectorContextForDiff(), operationCounters);
+function createBoardRenderProjection(operationCounters?: any, inputs?: any) {
+    return DiffRendererProjector.createBoardRenderProjection(_createCellStateProjectorContextForDiff(inputs), operationCounters);
 }
 
-function buildCurrentCellState(renderProjection?: any) {
-    return DiffRendererProjector.buildCurrentCellState(_createCellStateProjectorContextForDiff(), renderProjection);
+function buildCurrentCellState(renderProjection?: any, inputs?: any) {
+    return DiffRendererProjector.buildCurrentCellState(_createCellStateProjectorContextForDiff(inputs), renderProjection);
+}
+
+function buildBoardRenderModel(renderProjection?: any, cellState?: any, options?: any) {
+    return DiffRendererProjector.buildBoardRenderModel(
+        _createCellStateProjectorContextForDiff(options && options.inputs),
+        renderProjection,
+        cellState,
+        options
+    );
 }
 
 function _createCellDomPatcherContextForDiff() {
@@ -3578,7 +3835,13 @@ function _syncSelectionModeForDiff(boardEl: any, renderProjection?: any) {
  * @param {HTMLElement} boardEl - 盤面要素
  * @returns {number} 更新されたセル数
  */
-function renderBoardDiff(boardEl: any, preparedRenderProjection?: any) {
+function renderBoardDiff(
+    boardEl: any,
+    preparedRenderProjection?: any,
+    preparedCellState?: any,
+    preparedBoardRenderModel?: any,
+    options?: { authorizedByBoardVisualController?: boolean; viewportLayout?: any }
+) {
     if (PerfBenchmarks) PerfBenchmarks.perfStart('renderBoardDiff');
     // PR1 summary accumulators live in function scope so the outer finally
     // can emit them. The inner try/finally below still mutates these via the
@@ -3602,10 +3865,18 @@ function renderBoardDiff(boardEl: any, preparedRenderProjection?: any) {
         updateCellDOMCount++;
         updateCellDOMDurationMs += _t1 - _t0;
     };
+    const renderProjection = preparedRenderProjection || createBoardRenderProjection();
+    const previousPreparedVisualState = activePreparedVisualStateForDiff;
+    activePreparedVisualStateForDiff = renderProjection && renderProjection.valid === true
+        ? { gameState: renderProjection.gameState, cardState: renderProjection.cardState }
+        : null;
     try {
         const cardStateForManifestSync = _resolveCardStateForDiffRender();
-        _syncManifestWorldEffectsForDiff(cardStateForManifestSync);
-    _syncManifestEffectPanelForDiff(cardStateForManifestSync);
+        DiffRendererWorldStatePresenter.presentManifest({
+            cardState: cardStateForManifestSync,
+            syncWorldEffects: _syncManifestWorldEffectsForDiff,
+            syncEffectPanel: _syncManifestEffectPanelForDiff
+        });
     if (boardEl && boardDomElement && boardDomElement !== boardEl) {
         previousBoardState = null;
         cellCache = [];
@@ -3623,7 +3894,11 @@ function renderBoardDiff(boardEl: any, preparedRenderProjection?: any) {
     const hasClaimedVisualPlayback = _hasClaimedVisualPlaybackForDiff();
     const visualPlaybackActive = _isVisualPlaybackActiveForDiff();
     const boardHasPlaybackLock = !!(boardEl && boardEl.classList && boardEl.classList.contains('playback-locked'));
-    if ((hasPendingPlaybackEvents || hasClaimedVisualPlayback || (visualPlaybackActive && boardHasPlaybackLock)) && shouldDeferBoardUpdate) {
+    if (
+        options?.authorizedByBoardVisualController !== true
+        && (hasPendingPlaybackEvents || hasClaimedVisualPlayback || (visualPlaybackActive && boardHasPlaybackLock))
+        && shouldDeferBoardUpdate
+    ) {
         if (typeof window !== 'undefined' && window.__DEV__ === true) {
             throw new Error('renderBoardDiff called during active VisualPlayback (dev fail-fast)');
         } else {
@@ -3635,7 +3910,6 @@ function renderBoardDiff(boardEl: any, preparedRenderProjection?: any) {
             return 0;
         }
     }
-    const renderProjection = preparedRenderProjection || createBoardRenderProjection();
     _syncSelectionModeForDiff(boardEl, renderProjection);
 
     // One-shot suppression set by AnimationEngine at the end of playback.
@@ -3655,7 +3929,8 @@ function renderBoardDiff(boardEl: any, preparedRenderProjection?: any) {
 
     try {
         const gameState = _resolveGameStateForDiffRender();
-        const nextSignature = _getBoardDomSignatureForDiff(gameState);
+        const nextSignature = _getBoardDomSignatureForDiff(gameState)
+            + _getBoardMaterializationSignatureForDiff(preparedBoardRenderModel, options && options.viewportLayout);
         // 初回またはキャッシュが空の場合は全レンダリング
         if (!cellCacheMap.size || boardDomSignature !== nextSignature) {
             const nextExpansions = _getExpansionDescriptorsForDiff(gameState);
@@ -3664,8 +3939,8 @@ function renderBoardDiff(boardEl: any, preparedRenderProjection?: any) {
                 nextExpansions,
                 !!cellCacheMap.size && boardDomSignature !== null
             );
-            initializeBoardDOM(boardEl);
-            previousBoardState = buildCurrentCellState(renderProjection);
+            initializeBoardDOM(boardEl, preparedBoardRenderModel, options && options.viewportLayout);
+            previousBoardState = preparedCellState || buildCurrentCellState(renderProjection);
             const initialBoardShape = _getStateBoardShapeForDiff(previousBoardState);
             // Initial full render
             for (let r = 0; r < initialBoardShape.rows; r++) {
@@ -3687,7 +3962,7 @@ function renderBoardDiff(boardEl: any, preparedRenderProjection?: any) {
             }
             reconcileCellHasDiscClasses(boardEl);
             reconcileCellHintClasses(boardEl, previousBoardState);
-            _syncBoardShrinkGodDirectionHintsForDiff(boardEl);
+            _syncBoardShrinkGodDirectionHintsForDiff(boardEl, renderProjection);
             _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys, nextSignature);
             if (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
                 console.log('[DiffRenderer] Initial full render complete');
@@ -3695,7 +3970,7 @@ function renderBoardDiff(boardEl: any, preparedRenderProjection?: any) {
             return cellCacheMap.size;
         }
 
-        const currentState = buildCurrentCellState(renderProjection);
+        const currentState = preparedCellState || buildCurrentCellState(renderProjection);
         const currentBoardShape = _getStateBoardShapeForDiff(currentState);
         // updatedCount / updateCellDOMCount / updateCellDOMDurationMs are
         // declared at function scope above so the outer finally can emit them.
@@ -3743,7 +4018,7 @@ function renderBoardDiff(boardEl: any, preparedRenderProjection?: any) {
 
         reconcileCellHasDiscClasses(boardEl);
         reconcileCellHintClasses(boardEl, currentState);
-        _syncBoardShrinkGodDirectionHintsForDiff(boardEl);
+        _syncBoardShrinkGodDirectionHintsForDiff(boardEl, renderProjection);
 
         return updatedCount;
     } finally {
@@ -3753,6 +4028,7 @@ function renderBoardDiff(boardEl: any, preparedRenderProjection?: any) {
         pendingFlipTargetKeysThisRender = null;
     }
     } finally {
+        activePreparedVisualStateForDiff = previousPreparedVisualState;
         // PR1.5: gating. Outer finally builds the summary detail object only
         // when the perf bench is enabled. OFF path: only perfEnd is called and
         // the helper itself early-returns without any allocation or work.
@@ -3829,7 +4105,10 @@ function _isReversiModeForDiffRenderer() {
 // Export helpers for Node/Jest test harness
 const DiffRenderer = {
     initializeBoardDOM,
+    createBoardRenderInputs,
+    createBoardPresentationOverlayState,
     buildCurrentCellState,
+    buildBoardRenderModel,
     createBoardRenderProjection,
     renderBoardDiff,
     forceFullRender,
@@ -3839,7 +4118,13 @@ const DiffRenderer = {
 };
 export = DiffRenderer;
 if (typeof window !== 'undefined') {
-    window.forceFullRender = forceFullRender;
+    window.forceFullRender = function () {
+        try {
+            const renderer = _require('./board-renderer');
+            if (renderer && typeof renderer.renderBoardFull === 'function') return renderer.renderBoardFull();
+        } catch (e: any) { /* ignore */ }
+        return undefined;
+    };
     window.resetRenderStats = resetRenderStats;
     window.attachBoardCellInteraction = attachBoardCellInteraction;
     window.showSpecialStoneInfoAt = showSpecialStoneInfoAt;

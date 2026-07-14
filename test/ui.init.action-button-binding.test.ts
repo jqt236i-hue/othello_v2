@@ -30,7 +30,12 @@ describe('initializeUI action button binding', () => {
 
     const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
     jest.doMock(bootstrapPath, () => ({
-      installGameDI: jest.fn()
+      installGameDI: jest.fn(),
+      getBoardVisualController: jest.fn(() => ({
+        waitUntilReady: jest.fn(async () => undefined),
+        isReady: jest.fn(() => true),
+        getVisualFrameDigest: jest.fn(() => 'initial-frame')
+      }))
     }), { virtual: false });
   });
 
@@ -49,9 +54,9 @@ describe('initializeUI action button binding', () => {
     delete global.window?.NetworkMatchClient;
   });
 
-  test('UI初期化時に効果音のユーザー操作アンロックを予約する', () => {
+  test('UI初期化時に効果音のユーザー操作アンロックを予約する', async () => {
     const initModule = require('../ui/handlers/init.js');
-    initModule.initializeUI();
+    await initModule.initializeUI();
 
     expect(global.SoundEngine.installUserGestureUnlock).toHaveBeenCalledTimes(1);
     expect(global.SoundEngine.installUserGestureUnlock).toHaveBeenCalledWith(document);
@@ -60,9 +65,9 @@ describe('initializeUI action button binding', () => {
     expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
   });
 
-  test('破壊ボタン押下で既存処理を呼ぶ', () => {
+  test('破壊ボタン押下で既存処理を呼ぶ', async () => {
     const initModule = require('../ui/handlers/init.js');
-    initModule.initializeUI();
+    await initModule.initializeUI();
 
     document.getElementById('destroy-card-btn').click();
 
@@ -71,11 +76,11 @@ describe('initializeUI action button binding', () => {
     expect(global.destroySelectedHandCard).toHaveBeenCalledTimes(1);
   });
 
-  test('通常カードの使用ボタン押下では既存処理だけを呼ぶ', () => {
+  test('通常カードの使用ボタン押下では既存処理だけを呼ぶ', async () => {
     global.cardState.selectedCardId = 'WORK_WILL_001';
     global.CardLogic.getCardDef.mockReturnValue({ id: 'WORK_WILL_001', type: 'WORK_WILL' });
     const initModule = require('../ui/handlers/init.js');
-    initModule.initializeUI();
+    await initModule.initializeUI();
 
     document.getElementById('use-card-btn').click();
 
@@ -84,11 +89,11 @@ describe('initializeUI action button binding', () => {
     expect(global.useSelectedCard).toHaveBeenCalledTimes(1);
   });
 
-  test('宝箱カードの使用ボタン押下でも既存処理だけを呼ぶ', () => {
+  test('宝箱カードの使用ボタン押下でも既存処理だけを呼ぶ', async () => {
     global.cardState.selectedCardId = 'TREASURE_BOX_001';
     global.CardLogic.getCardDef.mockReturnValue({ id: 'TREASURE_BOX_001', type: 'TREASURE_BOX' });
     const initModule = require('../ui/handlers/init.js');
-    initModule.initializeUI();
+    await initModule.initializeUI();
 
     document.getElementById('use-card-btn').click();
 

@@ -38,7 +38,7 @@ function lane(name: 'classic' | 'vite'): any {
       unavailableReason: null
     },
     boardRenderSurface: {
-      renderer: 'legacy-dom',
+      renderer: 'dom',
       cellCount: 64,
       canvasCount: 0
     },

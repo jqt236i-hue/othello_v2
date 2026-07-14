@@ -15,7 +15,18 @@ export interface ExpansionDescriptor extends CellCoord {
   owner: number;
 }
 
+export type BoardBoundaryEdgeKind = "none" | "outer" | "hole";
+
+export interface BoardCellBoundaryEdges {
+  top: BoardBoundaryEdgeKind;
+  right: BoardBoundaryEdgeKind;
+  bottom: BoardBoundaryEdgeKind;
+  left: BoardBoundaryEdgeKind;
+}
+
 export interface BoardTopology {
+  baseRows: number;
+  baseCols: number;
   baseKeys: Set<string>;
   expansionKeys: Set<string>;
   existingKeys: Set<string>;
@@ -25,6 +36,13 @@ export interface BoardTopology {
   expansionCoordinates: CellCoord[];
   existingCoordinates: CellCoord[];
   playableCoordinates: CellCoord[];
+  holeCoordinates: CellCoord[];
+  expansionSideByKey: Map<string, string | null>;
+  renderRowOffset: number;
+  renderColOffset: number;
+  renderRows: number;
+  renderCols: number;
+  boundaryEdgesByKey: Map<string, BoardCellBoundaryEdges>;
   contentBounds: Bounds;
   renderBounds: Bounds;
   candidateBounds: Bounds;
@@ -88,6 +106,43 @@ function unionBounds(a: Bounds, b: Bounds): Bounds {
   };
 }
 
+function buildBoundaryEdgesByKey(
+  existingKeys: Set<string>,
+  holeKeys: Set<string>,
+  toBoardCellKey: (row: number, col: number) => string,
+): Map<string, BoardCellBoundaryEdges> {
+  const result = new Map<string, BoardCellBoundaryEdges>();
+  const directions = [
+    ["top", -1, 0],
+    ["right", 0, 1],
+    ["bottom", 1, 0],
+    ["left", 0, -1],
+  ] as const;
+  for (const key of existingKeys) {
+    const [rowText, colText] = key.split(",");
+    const row = Number(rowText);
+    const col = Number(colText);
+    if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+    const currentIsHole = holeKeys.has(key);
+    const edges: BoardCellBoundaryEdges = {
+      top: "none",
+      right: "none",
+      bottom: "none",
+      left: "none",
+    };
+    for (const [edge, rowDelta, colDelta] of directions) {
+      const neighborKey = toBoardCellKey(row + rowDelta, col + colDelta);
+      if (!existingKeys.has(neighborKey)) {
+        edges[edge] = "outer";
+      } else if (currentIsHole !== holeKeys.has(neighborKey)) {
+        edges[edge] = "hole";
+      }
+    }
+    result.set(key, edges);
+  }
+  return result;
+}
+
 export function createBoardTopology(deps: BoardTopologyDependencies) {
   function buildBoardTopology(boardOrState: unknown, options?: unknown): BoardTopology {
     const state = boardOrState && typeof boardOrState === "object" && !Array.isArray(boardOrState)
@@ -120,7 +175,12 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
     }
 
     const expansionKeys = new Set<string>();
-    for (const cell of expansions) expansionKeys.add(deps.toBoardCellKey(cell.row, cell.col));
+    const expansionSideByKey = new Map<string, string | null>();
+    for (const cell of expansions) {
+      const key = deps.toBoardCellKey(cell.row, cell.col);
+      expansionKeys.add(key);
+      expansionSideByKey.set(key, typeof cell.side === "string" ? cell.side : null);
+    }
 
     const holeKeys = new Set<string>(
       meta && meta.meteorHoleKeys instanceof Set
@@ -134,7 +194,10 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
       }
     }
 
-    const existingKeys = new Set<string>([...baseKeys, ...expansionKeys]);
+    // Explicit holes are existing topology tombstones, even when a malformed or
+    // recovered snapshot places one outside the current base/expansion sets.
+    // A missing key inside renderBounds is the only representation of void.
+    const existingKeys = new Set<string>([...baseKeys, ...expansionKeys, ...holeKeys]);
     const playableKeys = new Set<string>();
     for (const key of existingKeys) if (!holeKeys.has(key)) playableKeys.add(key);
 
@@ -148,6 +211,15 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
       config.baseBounds,
     );
     const renderBounds = unionBounds(config.baseBounds, contentBounds);
+    const renderRowOffset = renderBounds.minRow < 0 ? -renderBounds.minRow : 0;
+    const renderColOffset = renderBounds.minCol < 0 ? -renderBounds.minCol : 0;
+    const renderRows = renderBounds.maxRow - renderBounds.minRow + 1;
+    const renderCols = renderBounds.maxCol - renderBounds.minCol + 1;
+    const boundaryEdgesByKey = buildBoundaryEdgesByKey(
+      existingKeys,
+      holeKeys,
+      deps.toBoardCellKey,
+    );
     const candidateBounds = {
       minRow: contentBounds.minRow - 1,
       maxRow: contentBounds.maxRow + 1,
@@ -156,6 +228,8 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
     };
 
     return {
+      baseRows: config.rows,
+      baseCols: config.cols,
       baseKeys,
       expansionKeys,
       existingKeys,
@@ -165,6 +239,13 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
       expansionCoordinates,
       existingCoordinates,
       playableCoordinates,
+      holeCoordinates,
+      expansionSideByKey,
+      renderRowOffset,
+      renderColOffset,
+      renderRows,
+      renderCols,
+      boundaryEdgesByKey,
       contentBounds,
       renderBounds,
       candidateBounds,

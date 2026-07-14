@@ -2309,6 +2309,17 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         return Object.assign({}, _uiGlobals);
     }
 
+    function getBoardVisualController() {
+        try {
+            const renderer = _require('./board-renderer');
+            return renderer && typeof renderer.getBoardVisualController === 'function'
+                ? renderer.getBoardVisualController()
+                : null;
+        } catch (e: any) {
+            return null;
+        }
+    }
+
     function ensureOwnerHelpersGlobal() {
         if (!OwnerHelpersModule) return null;
         try {
@@ -2399,6 +2410,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         isGameDIInstalled,
         registerUIGlobals,
         getRegisteredUIGlobals,
+        getBoardVisualController,
         configureCpuCandidateScoring,
         configurePixiRuntime,
         markPixiRuntimeUnavailable,

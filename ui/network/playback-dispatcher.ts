@@ -172,31 +172,68 @@ function createNetworkPlaybackDispatcher(config?: any): any {
     };
   }
 
+  function requireStrictSettlementHandle(value: any, visualSeq: number): any {
+    if (
+      !value
+      || value.kind !== 'strict-network-settlement'
+      || value.visualSeq !== visualSeq
+      || typeof value.applyCommittedFrame !== 'function'
+      || typeof value.settle !== 'function'
+      || typeof value.cancel !== 'function'
+    ) {
+      throw new Error('strict_network_settlement_handle_required');
+    }
+    return value;
+  }
+
   async function dispatchNetworkPlaybackEvents(playbackEvents: any[], options?: any): Promise<any> {
-    if (!Array.isArray(playbackEvents) || playbackEvents.length <= 0) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const strictNetworkPlayback = opts.strictNetworkPlayback === true;
+    if (!Array.isArray(playbackEvents) || (playbackEvents.length <= 0 && !strictNetworkPlayback)) {
       return { started: false, method: 'empty' };
     }
+    if (strictNetworkPlayback && (!Number.isInteger(Number(opts.visualSeq)) || Number(opts.visualSeq) < 0)) {
+      throw new Error('strict_network_visual_seq_required');
+    }
     const event = createPlaybackEvent(playbackEvents, options);
+    if (strictNetworkPlayback && typeof cfg.awaitBoardVisualReady === 'function') {
+      try {
+        await cfg.awaitBoardVisualReady();
+      } catch (cause: any) {
+        const error: any = new Error('strict_network_board_visual_not_ready');
+        error.code = 'STRICT_NETWORK_BOARD_VISUAL_NOT_READY';
+        error.safeDispatchRetry = true;
+        if (cause) error.cause = cause;
+        throw error;
+      }
+    }
     const handler = resolvePresentationHandler();
     if (typeof handler === 'function') {
-      const result = handler(event);
-      if (result && typeof result.then === 'function') await result;
-      const drain = resolveBoardDrain();
-      if (typeof drain === 'function') {
-        const drainResult = drain({
-          source: event.meta.source,
-          reason: 'network_playback_dispatch',
-          visualSeq: event.meta.visualSeq,
-          networkPlaybackBatchId: event.meta.networkPlaybackBatchId
-        });
-        if (drainResult && typeof drainResult.then === 'function') await drainResult;
+      const handlerResult = await handler(event);
+      let settlementHandle: any = null;
+      if (strictNetworkPlayback) {
+        settlementHandle = requireStrictSettlementHandle(handlerResult, event.meta.visualSeq);
+      } else {
+        const drain = resolveBoardDrain();
+        if (typeof drain === 'function') {
+          await drain({
+            source: event.meta.source,
+            reason: 'network_playback_dispatch',
+            visualSeq: event.meta.visualSeq,
+            networkPlaybackBatchId: event.meta.networkPlaybackBatchId
+          });
+        }
       }
       recordTelemetry('network_playback_dispatcher_direct', {
         source: event.meta.source,
         visualSeq: event.meta.visualSeq,
         playbackEventCount: playbackEvents.length
       });
-      return { started: true, method: 'presentation_handler', event };
+      return { started: true, method: 'presentation_handler', event, settlementHandle };
+    }
+
+    if (strictNetworkPlayback) {
+      throw new Error('strict_network_settlement_handler_unavailable');
     }
 
     const cardStateRef = resolveCardState();

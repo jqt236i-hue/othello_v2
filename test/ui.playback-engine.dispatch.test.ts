@@ -92,7 +92,7 @@ describe('ui playback engine dispatch', () => {
 
     expect(animationEngine.play).toHaveBeenCalledWith(
       [{ type: 'flip', phase: 1 }],
-      { strictNetworkPlayback: true }
+      expect.objectContaining({ strictNetworkPlayback: true })
     );
   });
 
