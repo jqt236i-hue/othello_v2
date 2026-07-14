@@ -523,9 +523,84 @@ function _fitCardNameElement(nameEl: any, retriesRemaining: any = 6) {
         runFit();
     }
 }
+let _fontReadyRefitGeneration = 0;
+let _fontReadyRefitSettledReady: Promise<any> | null = null;
+let _fontReadyRefitPending: {
+    ready: Promise<any>;
+    generation: number;
+    promise: Promise<boolean>;
+} | null = null;
+function refitAllCardNameElements(documentRef?: Document | null) {
+    const docRef = documentRef || (typeof document !== 'undefined' ? document : null);
+    if (!docRef || typeof docRef.querySelectorAll !== 'function')
+        return 0;
+    const nameElements = Array.from(docRef.querySelectorAll('.card-name'));
+    nameElements.forEach((nameEl) => _fitCardNameElement(nameEl));
+    return nameElements.length;
+}
+function scheduleCardNameRefitAfterFontsReady(
+    documentRef?: Document | null,
+    forceCurrentCycle: boolean = false
+): Promise<boolean> {
+    const docRef = documentRef || (typeof document !== 'undefined' ? document : null);
+    const generation = ++_fontReadyRefitGeneration;
+    if (!docRef)
+        return Promise.resolve(false);
+    return new Promise((resolve) => {
+        const beginWait = () => {
+            const fontSet = (docRef as Document & { fonts?: { ready?: Promise<any> } }).fonts;
+            const ready = fontSet && fontSet.ready;
+            if (!ready || typeof ready.then !== 'function') {
+                resolve(false);
+                return;
+            }
+            if (!forceCurrentCycle && !_fontReadyRefitPending && _fontReadyRefitSettledReady === ready) {
+                resolve(false);
+                return;
+            }
+            if (_fontReadyRefitPending && _fontReadyRefitPending.ready === ready) {
+                _fontReadyRefitPending.generation = generation;
+                _fontReadyRefitPending.promise.then(resolve);
+                return;
+            }
+            const record = {
+                ready,
+                generation,
+                promise: Promise.resolve(false)
+            };
+            record.promise = Promise.resolve(ready).then(() => {
+                if (_fontReadyRefitPending !== record || record.generation !== _fontReadyRefitGeneration)
+                    return false;
+                _fontReadyRefitPending = null;
+                if (fontSet && fontSet.ready && fontSet.ready !== ready) {
+                    void scheduleCardNameRefitAfterFontsReady(docRef);
+                    return false;
+                }
+                _fontReadyRefitSettledReady = ready;
+                refitAllCardNameElements(docRef);
+                return true;
+            }, () => {
+                if (_fontReadyRefitPending === record)
+                    _fontReadyRefitPending = null;
+                return false;
+            });
+            _fontReadyRefitPending = record;
+            record.promise.then(resolve);
+        };
+        const view = docRef.defaultView;
+        if (view && typeof view.requestAnimationFrame === 'function') {
+            view.requestAnimationFrame(beginWait);
+        }
+        else {
+            beginWait();
+        }
+    });
+}
 try {
     if (typeof window !== 'undefined') {
         window.fitCardNameElement = _fitCardNameElement;
+        window.refitAllCardNameElements = refitAllCardNameElements;
+        window.scheduleCardNameRefitAfterFontsReady = scheduleCardNameRefitAfterFontsReady;
         window.applyCardSpecialArtToFace = applyCardSpecialArtToFace;
         window.resolveCardBackgroundArtPath = resolveCardBackgroundArtPath;
     }
@@ -2132,6 +2207,7 @@ function renderCardUI() {
             content.textContent = effects.length > 0 ? effects.map((e: any) => e.name).join(', ') : 'なし';
         }
     }
+    void scheduleCardNameRefitAfterFontsReady(document);
 }
 try {
     if (typeof window !== 'undefined') {
@@ -2151,5 +2227,7 @@ export = {
     consumeChargeDeltaSourcesForRender,
     drainVisibleChargeDeltaPopups,
     renderVisibleChargeDisplays,
+    refitAllCardNameElements,
+    scheduleCardNameRefitAfterFontsReady,
     renderCardUI
 };

@@ -106,6 +106,22 @@ function applyFontSkin(rootRef: Window | null | undefined, skinId: string): Font
       }
     });
   }
+  const scheduleRefit = ctx && typeof (ctx as Window & {
+    scheduleCardNameRefitAfterFontsReady?: (
+      documentRef?: Document | null,
+      forceCurrentCycle?: boolean
+    ) => Promise<boolean>;
+  }).scheduleCardNameRefitAfterFontsReady === 'function'
+    ? (ctx as Window & {
+      scheduleCardNameRefitAfterFontsReady?: (
+        documentRef?: Document | null,
+        forceCurrentCycle?: boolean
+      ) => Promise<boolean>;
+    }).scheduleCardNameRefitAfterFontsReady
+    : null;
+  if (scheduleRefit) {
+    void scheduleRefit(docRef, true);
+  }
 
   return definition;
 }

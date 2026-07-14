@@ -1,7 +1,7 @@
 # Classic / Vite browser lane comparison (2026-07-13)
 
 - Status: PASS
-- Captured at: 2026-07-13T13:34:50.417Z
+- Captured at: 2026-07-13T23:21:23.283Z
 - Node: v24.12.0
 - Timing and transfer values are same-machine observations, not universal performance thresholds.
 
@@ -9,8 +9,8 @@
 
 | lane | UI ready (ms) | resources | transfer bytes | decoded bytes | scripts |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| classic | 1202 | 125 | 43873409 | 43835909 | 4 |
-| vite | 889 | 126 | 43935505 | 43897705 | 5 |
+| classic | 913 | 123 | 35361452 | 35324552 | 4 |
+| vite | 859 | 127 | 35722954 | 35684854 | 6 |
 
 ## Correctness gates
 
@@ -21,7 +21,7 @@
 - Vite optional registry at startup: false
 - Classic ONNX runtime at startup: false
 - Vite ONNX runtime at startup: false
-- Vite hashed ESM entry: /vite-dist/assets/index.vite-eK3fNgEC.js
+- Vite hashed ESM entry: /vite-dist/assets/index.vite-DqnnDAkz.js
 
 ## Evaluation
 

@@ -1,6 +1,6 @@
 {
   "version": "2026-07-13",
-  "generatedAt": "2026-07-13T12:42:00.229Z",
+  "generatedAt": "2026-07-13T23:14:16.374Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -500,7 +500,7 @@
     },
     {
       "path": "assets/images/background/optimized-backgrounds.json",
-      "sha256": "9d3b143d561a635a58f8ec0caf48dae1c586da2b528e7ae45d586252ebe24860"
+      "sha256": "1618c0eac23461f271ddd1baa1a0b42eb4949609732ec76bea71b38cbf146355"
     },
     {
       "path": "assets/images/background/デフォルト10.png",
@@ -607,12 +607,24 @@
       "sha256": "6ae979997b6ac627385ffdad73563a3d1812b34f4cd89804b562ba42ab45e868"
     },
     {
+      "path": "assets/images/background/デフォルト3.webp",
+      "sha256": "7ab698d1e1b12b0846a672dce59e84648765d11e5d77901e8b5d012a77166dc7"
+    },
+    {
       "path": "assets/images/background/デフォルト4.png",
       "sha256": "355e9a6dad8d2978d4b8bb8e0a2d59776293031ca54e7f17b74a6f901f6073fe"
     },
     {
+      "path": "assets/images/background/デフォルト4.webp",
+      "sha256": "f91a9287e3038a93aa93f25ca43fc6e6c675b2c1cf3783ba6aeb7f745c5d5d92"
+    },
+    {
       "path": "assets/images/background/デフォルト5.png",
       "sha256": "725b2c5108453fd4308e766b0df206ca752203959dd1c0d625c4cbd1072ee9c1"
+    },
+    {
+      "path": "assets/images/background/デフォルト5.webp",
+      "sha256": "f451c1fd370fc93e5bb687f1c2375aed40ed34409b9e0711630c251d85b46508"
     },
     {
       "path": "assets/images/background/デフォルト6.png",
@@ -627,8 +639,16 @@
       "sha256": "e9baffcca5fc72874b0fd5919b5872312224f4cb818898fa37ceb0182bf0a5e1"
     },
     {
+      "path": "assets/images/background/デフォルト7.webp",
+      "sha256": "170a5556c01528b1ad68b0142243e488b21fe083282d316d4d7fbabc81ebb386"
+    },
+    {
       "path": "assets/images/background/デフォルト8.png",
       "sha256": "2583b29ff8b2e64b8fa09b15eec71118f5b739002a5fd3ee9676dfc07a0a8fd2"
+    },
+    {
+      "path": "assets/images/background/デフォルト8.webp",
+      "sha256": "53b1b661e259647cee597cf307e3883a57207b79350ce507fad03f7dbefb8716"
     },
     {
       "path": "assets/images/background/デフォルト9.png",

@@ -7,7 +7,9 @@ const ROOT = path.resolve(__dirname, '..', '..', '..');
 const BACKGROUND_DIR = path.join(ROOT, 'assets', 'images', 'background');
 const MANIFEST_PATH = path.join(BACKGROUND_DIR, 'optimized-backgrounds.json');
 const GENERATED_MODULE_PATH = path.join(ROOT, 'ui', 'assets', 'optimized-backgrounds.generated.ts');
-const MIN_SOURCE_BYTES = 2 * 1024 * 1024;
+const MIN_SOURCE_BYTES = Math.floor(1.25 * 1024 * 1024);
+const MIN_SAVED_BYTES = 256 * 1024;
+const MIN_SAVINGS_RATIO = 0.15;
 
 type ManifestEntry = {
   source: string;
@@ -50,21 +52,39 @@ async function getCandidates(): Promise<string[]> {
   return candidates;
 }
 
-async function buildOutput(sourcePath: string, outputPath: string): Promise<void> {
-  await sharp(sourcePath, { failOn: 'error' })
+async function encodeOutput(sourcePath: string): Promise<Buffer> {
+  return sharp(sourcePath, { failOn: 'error' })
     .webp({ lossless: true, effort: 6, smartSubsample: false })
-    .toFile(outputPath);
+    .toBuffer();
 }
 
-async function verifyOutput(sourcePath: string, outputPath: string): Promise<ManifestEntry> {
-  if (!fs.existsSync(outputPath)) {
-    throw new Error(`missing optimized background: ${browserPath(outputPath)}`);
+async function verifyEncodedOutput(
+  sourcePath: string,
+  outputPath: string,
+  encoded: Buffer,
+  checkOnly: boolean
+): Promise<ManifestEntry | null> {
+  const sourceBytes = fs.statSync(sourcePath).size;
+  const outputBytes = encoded.length;
+  const savedBytes = sourceBytes - outputBytes;
+  const savingsRatio = savedBytes / sourceBytes;
+  if (savedBytes < MIN_SAVED_BYTES || savingsRatio < MIN_SAVINGS_RATIO) return null;
+  if (checkOnly) {
+    if (!fs.existsSync(outputPath)) {
+      throw new Error(`missing optimized background: ${browserPath(outputPath)}`);
+    }
+    const committed = fs.readFileSync(outputPath);
+    if (!committed.equals(encoded)) {
+      throw new Error(`optimized background is stale: ${browserPath(outputPath)}`);
+    }
+  } else {
+    fs.writeFileSync(outputPath, encoded);
   }
   const [sourceMetadata, outputMetadata, sourceRaw, outputRaw] = await Promise.all([
     sharp(sourcePath).metadata(),
-    sharp(outputPath).metadata(),
+    sharp(encoded).metadata(),
     sharp(sourcePath).ensureAlpha().raw().toBuffer(),
-    sharp(outputPath).ensureAlpha().raw().toBuffer()
+    sharp(encoded).ensureAlpha().raw().toBuffer()
   ]);
   if (
     sourceMetadata.width !== outputMetadata.width
@@ -75,11 +95,6 @@ async function verifyOutput(sourcePath: string, outputPath: string): Promise<Man
   if (!sourceRaw.equals(outputRaw)) {
     throw new Error(`decoded RGBA mismatch: ${browserPath(sourcePath)}`);
   }
-  const sourceBytes = fs.statSync(sourcePath).size;
-  const outputBytes = fs.statSync(outputPath).size;
-  if (outputBytes >= sourceBytes) {
-    throw new Error(`lossless WebP is not smaller: ${browserPath(sourcePath)}`);
-  }
   return {
     source: browserPath(sourcePath),
     output: browserPath(outputPath),
@@ -87,9 +102,9 @@ async function verifyOutput(sourcePath: string, outputPath: string): Promise<Man
     height: sourceMetadata.height || 0,
     sourceBytes,
     outputBytes,
-    savedBytes: sourceBytes - outputBytes,
+    savedBytes,
     sourceSha256: sha256(sourcePath),
-    outputSha256: sha256(outputPath)
+    outputSha256: crypto.createHash('sha256').update(encoded).digest('hex')
   };
 }
 
@@ -104,21 +119,43 @@ function renderGeneratedModule(entries: ManifestEntry[]): string {
   ].join('\n');
 }
 
+function reconcileGeneratedOutputs(entries: ManifestEntry[], checkOnly: boolean): void {
+  const expectedOutputs = new Set(entries.map((entry) => path.resolve(ROOT, entry.output).toLowerCase()));
+  const unexpectedOutputs = fs.readdirSync(BACKGROUND_DIR, { withFileTypes: true })
+    .filter((item) => item.isFile() && item.name.toLowerCase().endsWith('.webp'))
+    .map((item) => path.join(BACKGROUND_DIR, item.name))
+    .filter((outputPath) => {
+      const sourcePath = outputPath.replace(/\.webp$/i, '.png');
+      return fs.existsSync(sourcePath) && !expectedOutputs.has(path.resolve(outputPath).toLowerCase());
+    });
+  if (unexpectedOutputs.length === 0) return;
+  if (checkOnly) {
+    throw new Error(
+      `unexpected generated background output(s): ${unexpectedOutputs.map(browserPath).join(', ')}`
+    );
+  }
+  unexpectedOutputs.forEach((outputPath) => fs.unlinkSync(outputPath));
+}
+
 async function run(): Promise<void> {
   const checkOnly = process.argv.includes('--check');
   const candidates = await getCandidates();
   const entries: ManifestEntry[] = [];
   for (const sourcePath of candidates) {
     const outputPath = sourcePath.replace(/\.png$/i, '.webp');
-    if (!checkOnly) await buildOutput(sourcePath, outputPath);
-    entries.push(await verifyOutput(sourcePath, outputPath));
+    const encoded = await encodeOutput(sourcePath);
+    const entry = await verifyEncodedOutput(sourcePath, outputPath, encoded, checkOnly);
+    if (entry) entries.push(entry);
   }
+  reconcileGeneratedOutputs(entries, checkOnly);
   const manifest = {
     schemaVersion: 1,
     codec: 'webp-lossless',
     selection: {
       root: 'assets/images/background',
       minimumSourceBytes: MIN_SOURCE_BYTES,
+      minimumSavedBytes: MIN_SAVED_BYTES,
+      minimumSavingsRatio: MIN_SAVINGS_RATIO,
       pngOnly: true,
       opaqueOnly: true
     },

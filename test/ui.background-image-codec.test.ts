@@ -1,4 +1,6 @@
 import * as codec from '../ui/assets/background-image-codec';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const sourcePath = 'assets/images/background/default.png';
 const outputPath = 'assets/images/background/default.webp';
@@ -73,5 +75,44 @@ describe('background image codec fallback', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(values['--background']).toBe('url("assets/images/background/newer.png")');
+  });
+
+  test('ships only materially smaller lossless WebP backgrounds', () => {
+    const root = path.resolve(__dirname, '..');
+    const manifest = JSON.parse(fs.readFileSync(
+      path.join(root, 'assets', 'images', 'background', 'optimized-backgrounds.json'),
+      'utf8'
+    ));
+
+    expect(manifest.images).toHaveLength(13);
+    expect(manifest.selection).toMatchObject({
+      minimumSourceBytes: 1310720,
+      minimumSavedBytes: 262144,
+      minimumSavingsRatio: 0.15,
+      opaqueOnly: true
+    });
+    manifest.images.forEach((image: any) => {
+      expect(image.savedBytes).toBeGreaterThanOrEqual(manifest.selection.minimumSavedBytes);
+      expect(image.savedBytes / image.sourceBytes).toBeGreaterThanOrEqual(
+        manifest.selection.minimumSavingsRatio
+      );
+      expect(fs.existsSync(path.join(root, image.output))).toBe(true);
+      expect(image.output.endsWith('.webp')).toBe(true);
+    });
+    expect(codec.getOptimizedBackgroundPath('assets/images/background/デフォルト4.png'))
+      .toBe('assets/images/background/デフォルト4.webp');
+    expect(fs.readdirSync(path.join(root, 'assets', 'images', 'background'))
+      .some((name) => name.endsWith('.avif'))).toBe(false);
+    const mappedOutputs = new Set(manifest.images.map((image: any) => path.basename(image.output)));
+    const pairedWebpOutputs = fs.readdirSync(path.join(root, 'assets', 'images', 'background'))
+      .filter((name) => name.endsWith('.webp'))
+      .filter((name) => fs.existsSync(path.join(
+        root,
+        'assets',
+        'images',
+        'background',
+        name.replace(/\.webp$/i, '.png')
+      )));
+    expect(pairedWebpOutputs.every((name) => mappedOutputs.has(name))).toBe(true);
   });
 });

@@ -674,6 +674,76 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('font-ready refit ignores an obsolete loading cycle and refits the current card names once', async () => {
+    const dom = createRendererContext();
+    const { window } = dom;
+    const callbacks: Array<FrameRequestCallback> = [];
+    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    }) as any;
+    const nameEl = window.document.createElement('div');
+    nameEl.className = 'card-name';
+    window.document.body.appendChild(nameEl);
+
+    let resolveFirst!: () => void;
+    let resolveSecond!: () => void;
+    const firstReady = new Promise<void>((resolve) => { resolveFirst = resolve; });
+    const secondReady = new Promise<void>((resolve) => { resolveSecond = resolve; });
+    let currentReady: Promise<void> = firstReady;
+    Object.defineProperty(window.document, 'fonts', {
+      configurable: true,
+      get: () => ({ ready: currentReady })
+    });
+
+    const firstResult = window.scheduleCardNameRefitAfterFontsReady(window.document);
+    callbacks.shift()!(0);
+    currentReady = secondReady;
+    const secondResult = window.scheduleCardNameRefitAfterFontsReady(window.document);
+    callbacks.shift()!(0);
+
+    resolveFirst();
+    await Promise.resolve();
+    await expect(firstResult).resolves.toBe(false);
+    expect(callbacks).toHaveLength(0);
+
+    resolveSecond();
+    await Promise.resolve();
+    await expect(secondResult).resolves.toBe(true);
+    expect(callbacks).toHaveLength(1);
+
+    dom.window.close();
+  });
+
+  test('font-ready refit skips a settled loading cycle unless explicitly forced', async () => {
+    const dom = createRendererContext();
+    const { window } = dom;
+    const callbacks: Array<FrameRequestCallback> = [];
+    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    }) as any;
+    const ready = Promise.resolve();
+    Object.defineProperty(window.document, 'fonts', {
+      configurable: true,
+      value: { ready }
+    });
+
+    const first = window.scheduleCardNameRefitAfterFontsReady(window.document);
+    callbacks.shift()!(0);
+    await expect(first).resolves.toBe(true);
+
+    const duplicate = window.scheduleCardNameRefitAfterFontsReady(window.document);
+    callbacks.shift()!(0);
+    await expect(duplicate).resolves.toBe(false);
+
+    const forced = window.scheduleCardNameRefitAfterFontsReady(window.document, true);
+    callbacks.shift()!(0);
+    await expect(forced).resolves.toBe(true);
+
+    dom.window.close();
+  });
+
   test('network own hand cost badge uses projected observer will override', () => {
     const dom = createRendererContext({
       matchMode: 'network',

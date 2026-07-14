@@ -49,6 +49,7 @@ describe('font skin runtime', () => {
   });
 
   test('applies selected font families to document root and body', () => {
+    const scheduleCardNameRefitAfterFontsReady = jest.fn(() => Promise.resolve(true));
     const bodyStyle = {
       values: {} as Record<string, string>,
       setProperty(name: string, value: string) {
@@ -70,6 +71,7 @@ describe('font skin runtime', () => {
     const bodyAttrs: Record<string, string> = {};
     const rootAttrs: Record<string, string> = {};
     const rootRef = {
+      scheduleCardNameRefitAfterFontsReady,
       document: {
         body: {
           style: bodyStyle,
@@ -103,5 +105,6 @@ describe('font skin runtime', () => {
     expect(bodyStyle.values['--selected-app-font-family']).toContain('DotGothic16');
     expect(bodyStyle.values['--selected-app-font-accent-family']).toContain('DotGothic16');
     expect(rootStyle.values['--selected-app-font-family']).toContain('DotGothic16');
+    expect(scheduleCardNameRefitAfterFontsReady).toHaveBeenCalledWith(rootRef.document, true);
   });
 });

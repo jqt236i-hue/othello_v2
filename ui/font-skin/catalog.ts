@@ -18,9 +18,9 @@ const BASE_FONT_SKINS: readonly FontSkinItem[] = Object.freeze([
     id: 'shippori-mincho',
     label: '既定',
     note: '和風・物語調のカード名に合う上品な明朝',
-    fontFamily: '"CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif',
-    accentFontFamily: '"CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif',
-    readableFontFamily: '"CR-Shippori Mincho", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    fontFamily: '"CR-Shippori Mincho Subset", "CR-Shippori Mincho Full", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    accentFontFamily: '"CR-Shippori Mincho Subset", "CR-Shippori Mincho Full", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    readableFontFamily: '"CR-Shippori Mincho Subset", "CR-Shippori Mincho Full", "Yu Mincho", "Hiragino Mincho ProN", serif',
     previewText: 'Aa\nあア\n123'
   }),
   Object.freeze({
@@ -36,8 +36,8 @@ const BASE_FONT_SKINS: readonly FontSkinItem[] = Object.freeze([
     id: 'cinzel',
     label: 'Cinzel',
     note: '金属プレートや英字見出し向けの碑文風セリフ',
-    fontFamily: '"CR-Cinzel", "Times New Roman", serif',
-    accentFontFamily: '"CR-Cinzel", "Times New Roman", serif',
+    fontFamily: '"CR-Cinzel Subset", "CR-Cinzel Full", "Times New Roman", serif',
+    accentFontFamily: '"CR-Cinzel Subset", "CR-Cinzel Full", "Times New Roman", serif',
     readableFontFamily: '"Meiryo UI", "BIZ UDPGothic", "Yu Gothic UI", "Hiragino Sans", sans-serif',
     previewText: 'Aa\nあア\n123'
   }),
@@ -45,36 +45,36 @@ const BASE_FONT_SKINS: readonly FontSkinItem[] = Object.freeze([
     id: 'kaisei-tokumin',
     label: 'Kaisei Tokumin',
     note: '幻想感のある太め明朝。強いカード名向け',
-    fontFamily: '"CR-Kaisei Tokumin", "Yu Mincho", "Hiragino Mincho ProN", serif',
-    accentFontFamily: '"CR-Kaisei Tokumin", "Yu Mincho", "Hiragino Mincho ProN", serif',
-    readableFontFamily: '"CR-Kaisei Tokumin", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    fontFamily: '"CR-Kaisei Tokumin Subset", "CR-Kaisei Tokumin Full", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    accentFontFamily: '"CR-Kaisei Tokumin Subset", "CR-Kaisei Tokumin Full", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    readableFontFamily: '"CR-Kaisei Tokumin Subset", "CR-Kaisei Tokumin Full", "Yu Mincho", "Hiragino Mincho ProN", serif',
     previewText: 'Aa\nあア\n123'
   }),
   Object.freeze({
     id: 'zen-antique-soft',
     label: 'Zen Antique Soft',
     note: 'レトロで柔らかい和風セリフ',
-    fontFamily: '"CR-Zen Antique Soft", "Yu Mincho", "Hiragino Mincho ProN", serif',
-    accentFontFamily: '"CR-Zen Antique Soft", "Yu Mincho", "Hiragino Mincho ProN", serif',
-    readableFontFamily: '"CR-Zen Antique Soft", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    fontFamily: '"CR-Zen Antique Soft Subset", "CR-Zen Antique Soft Full", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    accentFontFamily: '"CR-Zen Antique Soft Subset", "CR-Zen Antique Soft Full", "Yu Mincho", "Hiragino Mincho ProN", serif',
+    readableFontFamily: '"CR-Zen Antique Soft Subset", "CR-Zen Antique Soft Full", "Yu Mincho", "Hiragino Mincho ProN", serif',
     previewText: 'Aa\nあア\n123'
   }),
   Object.freeze({
     id: 'yusei-magic',
     label: 'Yusei Magic',
     note: '軽い手書き感。コミカルなカードや演出向け',
-    fontFamily: '"CR-Yusei Magic", "Yu Gothic", "Hiragino Sans", sans-serif',
-    accentFontFamily: '"CR-Yusei Magic", "Yu Gothic", "Hiragino Sans", sans-serif',
-    readableFontFamily: '"CR-Yusei Magic", "Yu Gothic", "Hiragino Sans", sans-serif',
+    fontFamily: '"CR-Yusei Magic Subset", "CR-Yusei Magic Full", "Yu Gothic", "Hiragino Sans", sans-serif',
+    accentFontFamily: '"CR-Yusei Magic Subset", "CR-Yusei Magic Full", "Yu Gothic", "Hiragino Sans", sans-serif',
+    readableFontFamily: '"CR-Yusei Magic Subset", "CR-Yusei Magic Full", "Yu Gothic", "Hiragino Sans", sans-serif',
     previewText: 'Aa\nあア\n123'
   }),
   Object.freeze({
     id: 'rocknroll-one',
     label: 'RocknRoll One',
     note: '太く読みやすいポップ見出し。操作ボタン向け',
-    fontFamily: '"CR-RocknRoll One", "Yu Gothic", "Hiragino Sans", sans-serif',
-    accentFontFamily: '"CR-RocknRoll One", "Yu Gothic", "Hiragino Sans", sans-serif',
-    readableFontFamily: '"CR-RocknRoll One", "Yu Gothic", "Hiragino Sans", sans-serif',
+    fontFamily: '"CR-RocknRoll One Subset", "CR-RocknRoll One Full", "Yu Gothic", "Hiragino Sans", sans-serif',
+    accentFontFamily: '"CR-RocknRoll One Subset", "CR-RocknRoll One Full", "Yu Gothic", "Hiragino Sans", sans-serif',
+    readableFontFamily: '"CR-RocknRoll One Subset", "CR-RocknRoll One Full", "Yu Gothic", "Hiragino Sans", sans-serif',
     previewText: 'Aa\nあア\n123'
   })
 ]);

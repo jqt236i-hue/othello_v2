@@ -25,5 +25,9 @@ describe('font skin catalog', () => {
     expect(skins.find((skin: any) => skin.id === 'zen-antique-soft').fontFamily).toContain('CR-Zen Antique Soft');
     expect(skins.find((skin: any) => skin.id === 'yusei-magic').fontFamily).toContain('CR-Yusei Magic');
     expect(skins.find((skin: any) => skin.id === 'rocknroll-one').fontFamily).toContain('CR-RocknRoll One');
+    skins.filter((skin: any) => skin.id !== 'dot-gothic').forEach((skin: any) => {
+      expect(skin.fontFamily.indexOf('Subset')).toBeGreaterThanOrEqual(0);
+      expect(skin.fontFamily.indexOf('Full')).toBeGreaterThan(skin.fontFamily.indexOf('Subset'));
+    });
   });
 });

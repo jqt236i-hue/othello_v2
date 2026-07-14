@@ -6,7 +6,12 @@ export const OPTIMIZED_BACKGROUND_IMAGES = Object.freeze({
   "assets/images/background/デフォルト12.png": "assets/images/background/デフォルト12.webp",
   "assets/images/background/デフォルト13.png": "assets/images/background/デフォルト13.webp",
   "assets/images/background/デフォルト2.png": "assets/images/background/デフォルト2.webp",
+  "assets/images/background/デフォルト3.png": "assets/images/background/デフォルト3.webp",
+  "assets/images/background/デフォルト4.png": "assets/images/background/デフォルト4.webp",
+  "assets/images/background/デフォルト5.png": "assets/images/background/デフォルト5.webp",
   "assets/images/background/デフォルト6.png": "assets/images/background/デフォルト6.webp",
+  "assets/images/background/デフォルト7.png": "assets/images/background/デフォルト7.webp",
+  "assets/images/background/デフォルト8.png": "assets/images/background/デフォルト8.webp",
   "assets/images/background/デフォルト9.png": "assets/images/background/デフォルト9.webp"
 } as const);
 
