@@ -1146,7 +1146,237 @@ let AutoBoardWriterTokenForBoardRenderer: any = null;
 let BoardVisualFrameSerialForBoardRenderer = 0;
 let BoardVisualFrameRevisionComposerForBoardRenderer: any = null;
 let BoardVisualThemeFontObserverDisposeForBoardRenderer: (() => void) | null = null;
+let BoardVisualBackendTestConfigForBoardRenderer: any = null;
 const PreparedBoardVisualUpdatesForBoardRenderer = new WeakSet<object>();
+
+const PIXI_INITIAL_FALLBACK_ERROR_CODES_FOR_BOARD_RENDERER = new Set([
+    'pixi_runtime_unavailable',
+    'pixi_webgl_unavailable',
+    'pixi_application_init_failed',
+    'pixi_webgl_init_failed',
+    'pixi_renderer_init_failed'
+]);
+
+function _createBoardVisualCapabilityErrorForBoardRenderer(
+    code: string,
+    message: string,
+    stage?: string,
+    cause?: unknown
+) {
+    const error: any = new Error(message);
+    error.name = 'BoardVisualCapabilityError';
+    error.code = code;
+    if (stage) error.stage = stage;
+    if (typeof cause !== 'undefined') error.cause = cause;
+    return error;
+}
+
+function _isBoardVisualTestInjectionAllowedForBoardRenderer() {
+    try {
+        if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test') return true;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && (window as any).__BOARD_VISUAL_TEST__ === true) return true;
+    } catch (e: any) { /* ignore */ }
+    return false;
+}
+
+function configureBoardVisualBackendForTest(options?: any) {
+    if (!_isBoardVisualTestInjectionAllowedForBoardRenderer()) {
+        throw new Error('Board visual backend injection is available only to an explicit test harness');
+    }
+    if (BoardVisualRuntimeForBoardRenderer) {
+        throw new Error('Board visual backend selection is already fixed for this page');
+    }
+    if (options == null) {
+        BoardVisualBackendTestConfigForBoardRenderer = null;
+        return;
+    }
+    const selection = options.selection == null ? null : String(options.selection);
+    if (selection !== null && selection !== 'dom' && selection !== 'pixi') {
+        throw new Error('Board visual backend test selection must be dom or pixi');
+    }
+    if (options.createDomBackend != null && typeof options.createDomBackend !== 'function') {
+        throw new Error('createDomBackend must be a function');
+    }
+    if (options.createPixiBackend != null && typeof options.createPixiBackend !== 'function') {
+        throw new Error('createPixiBackend must be a function');
+    }
+    BoardVisualBackendTestConfigForBoardRenderer = Object.freeze({
+        selection,
+        noAnimation: typeof options.noAnimation === 'boolean' ? options.noAnimation : undefined,
+        createDomBackend: options.createDomBackend || null,
+        createPixiBackend: options.createPixiBackend || null
+    });
+}
+
+function _readBoardVisualRendererQueryForBoardRenderer() {
+    try {
+        const activeLocation = typeof window !== 'undefined' && window.location
+            ? window.location
+            : (typeof location !== 'undefined' ? location : null);
+        return new URLSearchParams(activeLocation ? String(activeLocation.search || '') : '');
+    } catch (e: any) {
+        return new URLSearchParams('');
+    }
+}
+
+function _selectBoardVisualBackendForBoardRenderer() {
+    const testConfig = BoardVisualBackendTestConfigForBoardRenderer;
+    const params = _readBoardVisualRendererQueryForBoardRenderer();
+    const queryRequestsPixi = params.get('debug') === '1' && params.get('boardRenderer') === 'pixi';
+    const kind = testConfig && testConfig.selection
+        ? testConfig.selection
+        : (queryRequestsPixi ? 'pixi' : 'dom');
+    const noAnimation = kind === 'pixi'
+        ? (testConfig && typeof testConfig.noAnimation === 'boolean'
+            ? testConfig.noAnimation
+            : (testConfig && testConfig.selection === 'pixi' ? true : params.get('noanim') === '1'))
+        : false;
+    return Object.freeze({ kind, noAnimation });
+}
+
+function _assertBoardVisualBackendShapeForBoardRenderer(backend: any, kind: 'dom' | 'pixi') {
+    if (
+        !backend
+        || backend.kind !== kind
+        || typeof backend.mount !== 'function'
+        || typeof backend.applyFrame !== 'function'
+        || typeof backend.playPhase !== 'function'
+        || typeof backend.getCellClientRect !== 'function'
+        || typeof backend.resize !== 'function'
+        || typeof backend.restore !== 'function'
+        || typeof backend.destroy !== 'function'
+    ) {
+        throw new Error(`${kind} board visual backend does not implement the backend port`);
+    }
+    return backend;
+}
+
+function _createFailedBoardVisualBackendForBoardRenderer(kind: 'dom' | 'pixi', error: Error) {
+    return {
+        kind,
+        mount() { return Promise.reject(error); },
+        applyFrame() { throw error; },
+        playPhase() { return Promise.reject(error); },
+        getCellClientRect() { return null; },
+        resize() { throw error; },
+        restore() { return Promise.reject(error); },
+        destroy() { /* no resources were acquired */ }
+    };
+}
+
+function _createDomBoardVisualBackendForBoardRenderer() {
+    const options = {
+        beforeApplyFrame(activeHost: any, frame: any) {
+            const topology = frame && frame.model && frame.model.topology || {};
+            syncBoardPixelSizing(activeHost, {
+                rows: topology.renderRows,
+                cols: topology.renderCols,
+                baseRows: topology.baseRows,
+                baseCols: topology.baseCols,
+                minRow: topology.minRow,
+                minCol: topology.minCol
+            });
+        }
+    };
+    const testFactory = BoardVisualBackendTestConfigForBoardRenderer
+        && BoardVisualBackendTestConfigForBoardRenderer.createDomBackend;
+    const factory = testFactory || (() => {
+        const DomBackendModule = _require('./board-visual/dom-backend');
+        if (!DomBackendModule || typeof DomBackendModule.createDomBoardVisualBackend !== 'function') {
+            throw new Error('DOM board visual backend factory is unavailable');
+        }
+        return DomBackendModule.createDomBoardVisualBackend(options);
+    });
+    return _assertBoardVisualBackendShapeForBoardRenderer(
+        testFactory ? factory(options) : factory(),
+        'dom'
+    );
+}
+
+function _createPixiBoardVisualBackendForBoardRenderer(noAnimation: boolean) {
+    if (!noAnimation) {
+        return _createFailedBoardVisualBackendForBoardRenderer(
+            'pixi',
+            _createBoardVisualCapabilityErrorForBoardRenderer(
+                'pixi_static_animation_required',
+                'Pixi board rendering in Phase 4 requires noanim=1',
+                'capability'
+            )
+        );
+    }
+    const options = Object.freeze({ noAnimation: true });
+    const testFactory = BoardVisualBackendTestConfigForBoardRenderer
+        && BoardVisualBackendTestConfigForBoardRenderer.createPixiBackend;
+    if (testFactory) {
+        try {
+            return _assertBoardVisualBackendShapeForBoardRenderer(testFactory(options), 'pixi');
+        } catch (cause: any) {
+            const error = cause instanceof Error
+                ? cause
+                : _createBoardVisualCapabilityErrorForBoardRenderer(
+                    'pixi_backend_factory_failed',
+                    'Pixi board visual backend factory failed',
+                    'factory',
+                    cause
+                );
+            return _createFailedBoardVisualBackendForBoardRenderer('pixi', error);
+        }
+    }
+    let PixiBackendModule: any;
+    try {
+        PixiBackendModule = _require('./pixi/board-backend');
+    } catch (cause: any) {
+        return _createFailedBoardVisualBackendForBoardRenderer(
+            'pixi',
+            _createBoardVisualCapabilityErrorForBoardRenderer(
+                'pixi_runtime_unavailable',
+                'Pixi board visual backend module is unavailable',
+                'runtime',
+                cause
+            )
+        );
+    }
+    if (!PixiBackendModule || typeof PixiBackendModule.createPixiBoardVisualBackend !== 'function') {
+        return _createFailedBoardVisualBackendForBoardRenderer(
+            'pixi',
+            _createBoardVisualCapabilityErrorForBoardRenderer(
+                'pixi_runtime_unavailable',
+                'Pixi board visual backend factory is unavailable',
+                'runtime'
+            )
+        );
+    }
+    try {
+        return _assertBoardVisualBackendShapeForBoardRenderer(
+            PixiBackendModule.createPixiBoardVisualBackend(options),
+            'pixi'
+        );
+    } catch (cause: any) {
+        const error = cause instanceof Error
+            ? cause
+            : _createBoardVisualCapabilityErrorForBoardRenderer(
+                'pixi_backend_factory_failed',
+                'Pixi board visual backend factory failed',
+                'factory',
+                cause
+            );
+        return _createFailedBoardVisualBackendForBoardRenderer('pixi', error);
+    }
+}
+
+function _isPixiInitialFallbackErrorForBoardRenderer(error: unknown) {
+    const visited = new Set<unknown>();
+    let current: any = error;
+    for (let depth = 0; current && depth < 6 && !visited.has(current); depth += 1) {
+        visited.add(current);
+        const code = String(current.code || '').trim().toLowerCase();
+        if (PIXI_INITIAL_FALLBACK_ERROR_CODES_FOR_BOARD_RENDERER.has(code)) return true;
+        current = current.cause || current.originalError || null;
+    }
+    return false;
+}
 
 function _isBoardVisualDiagnosticsEnabledForBoardRenderer() {
     try {
@@ -1210,33 +1440,55 @@ function _createBoardVisualRuntimeForBoardRenderer() {
     const host = _resolveBoardElementForVisualRuntime();
     if (!host) return null;
     const ControllerModule = _require('./board-visual/controller');
-    const DomBackendModule = _require('./board-visual/dom-backend');
     const DiagnosticsModule = _require('./board-visual/diagnostics');
     const diagnostics = DiagnosticsModule.createBoardVisualDiagnostics({
         enabled: _isBoardVisualDiagnosticsEnabledForBoardRenderer()
     });
-    const backend = DomBackendModule.createDomBoardVisualBackend({
-        beforeApplyFrame(activeHost: any, frame: any) {
-            const topology = frame && frame.model && frame.model.topology || {};
-            syncBoardPixelSizing(activeHost, {
-                rows: topology.renderRows,
-                cols: topology.renderCols,
-                baseRows: topology.baseRows,
-                baseCols: topology.baseCols,
-                minRow: topology.minRow,
-                minCol: topology.minCol
-            });
-        }
-    });
+    const selection = _selectBoardVisualBackendForBoardRenderer();
+    const backend = selection.kind === 'pixi'
+        ? _createPixiBoardVisualBackendForBoardRenderer(selection.noAnimation)
+        : _createDomBoardVisualBackendForBoardRenderer();
     const controller = ControllerModule.createBoardVisualController({ backend, diagnostics });
     const mountPromise = Promise.resolve(controller.mount(host));
-    mountPromise.catch((error: any) => {
+    const initialReadyPromise = mountPromise.catch(async (error: any) => {
         diagnostics.record('controller:mount-error', { message: String(error && error.message || error || '') });
+        if (selection.kind !== 'pixi' || !_isPixiInitialFallbackErrorForBoardRenderer(error)) throw error;
+        diagnostics.record('backend:compatibility-fallback-start', {
+            from: 'pixi',
+            code: String(error && error.code || ''),
+            stage: String(error && error.stage || '')
+        });
+        let compatibilityBackend: any;
+        try {
+            compatibilityBackend = _createDomBoardVisualBackendForBoardRenderer();
+        } catch (cause: any) {
+            compatibilityBackend = _createFailedBoardVisualBackendForBoardRenderer(
+                'dom',
+                _createBoardVisualCapabilityErrorForBoardRenderer(
+                    'dom_compatibility_backend_unavailable',
+                    'DOM compatibility board backend is unavailable',
+                    'compatibility',
+                    cause
+                )
+            );
+        }
+        await controller.replaceBackend(compatibilityBackend);
+        diagnostics.record('backend:compatibility-fallback-ready', { from: 'pixi', to: 'dom' });
     });
+    initialReadyPromise.catch(() => { /* readiness is observed by bootstrap or the caller */ });
     if (controller.ready && typeof controller.ready.catch === 'function') {
         controller.ready.catch(() => { /* readiness is observed through the runtime promise */ });
     }
-    const runtime = { controller, diagnostics, host, ready: controller.ready || mountPromise };
+    const controllerWaitUntilReady = typeof controller.waitUntilReady === 'function'
+        ? controller.waitUntilReady.bind(controller)
+        : null;
+    if (controllerWaitUntilReady) {
+        // The initial Pixi readiness cycle rejects before replaceBackend starts
+        // its compatibility cycle. Bootstrap must observe the complete exclusive
+        // mount transaction, then any later controller recovery cycle.
+        controller.waitUntilReady = () => initialReadyPromise.then(() => controllerWaitUntilReady());
+    }
+    const runtime = { controller, diagnostics, host, ready: initialReadyPromise };
     if (diagnostics.enabled === true) {
         const root = typeof window !== 'undefined' ? window : globalThis;
         DiagnosticsModule.installBoardVisualDebugContract(root, diagnostics, controller);
@@ -1757,6 +2009,7 @@ const BoardRenderer = {
             getBoardVisualController,
             getBoardVisualControllerReady,
             configureBoardVisualController,
+            configureBoardVisualBackendForTest,
             claimBoardVisualWriter,
             playBoardVisualPhase,
             getBoardCellClientRect,

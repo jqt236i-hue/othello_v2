@@ -1,0 +1,328 @@
+import fs from 'fs';
+import path from 'path';
+import { JSDOM } from 'jsdom';
+
+type BackendHooks = {
+  mount?: (host: HTMLElement) => void | Promise<void>;
+  applyFrame?: (frame: any) => void;
+  restore?: (frame: any) => void | Promise<void>;
+  destroy?: () => void;
+};
+
+function createBackend(kind: 'dom' | 'pixi', hooks: BackendHooks = {}) {
+  return {
+    kind,
+    mount: jest.fn((host: HTMLElement) => hooks.mount?.(host)),
+    applyFrame: jest.fn((frame: any) => hooks.applyFrame?.(frame)),
+    playPhase: jest.fn(async () => undefined),
+    getCellClientRect: jest.fn(() => null),
+    resize: jest.fn(),
+    restore: jest.fn((frame: any) => hooks.restore ? hooks.restore(frame) : hooks.applyFrame?.(frame)),
+    destroy: jest.fn(() => hooks.destroy?.())
+  };
+}
+
+function createInitialFrame() {
+  return {
+    frameToken: 'initial:1',
+    model: {
+      visualRevision: 1,
+      topology: {
+        baseRows: 1,
+        baseCols: 1,
+        minRow: 0,
+        maxRow: 0,
+        minCol: 0,
+        maxCol: 0,
+        renderRowOffset: 0,
+        renderColOffset: 0,
+        renderRows: 1,
+        renderCols: 1,
+        existingKeys: ['0,0'],
+        playableKeys: ['0,0'],
+        holeKeys: []
+      },
+      cells: [],
+      keyboardCursorKey: null,
+      viewerContext: 'black',
+      currentPlayer: 'black',
+      canControlCurrentTurn: true,
+      isHumanTurn: true
+    },
+    layout: {
+      revision: 1,
+      cellSize: 20,
+      dpr: 1,
+      orientation: 'normal',
+      frameInset: { top: 0, right: 0, bottom: 0, left: 0 },
+      clientOrigin: { x: 0, y: 0 },
+      visualViewport: { scale: 1, offsetLeft: 0, offsetTop: 0 },
+      camera: { scrollLeft: 0, scrollTop: 0, viewportWidth: 20, viewportHeight: 20 },
+      logicalWidth: 20,
+      logicalHeight: 20,
+      visibleWorldWindow: { minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 }
+    },
+    appearance: {
+      boardSkinId: 'default',
+      boardImageUrl: '',
+      boardFrameSkinId: 'default',
+      boardFrameLayout: {},
+      stoneSkinId: 'default',
+      blackStoneImageUrl: '',
+      whiteStoneImageUrl: '',
+      revision: 1
+    },
+    theme: { revision: 1 }
+  };
+}
+
+describe('board renderer backend selection and initial compatibility fallback', () => {
+  let dom: JSDOM;
+  let controller: any;
+
+  function loadRenderer(url = 'https://example.test/game') {
+    dom = new JSDOM(
+      '<!doctype html><html><body><div id="board-stack"><div id="board-frame"><div id="board"></div></div><div id="board-expansion-layer"></div></div></body></html>',
+      { url }
+    );
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).boardEl = dom.window.document.getElementById('board');
+    return require('../ui/board-renderer.js');
+  }
+
+  beforeEach(() => {
+    jest.resetModules();
+    controller = null;
+  });
+
+  afterEach(() => {
+    try { controller?.destroy?.(); } catch (_error) { /* test cleanup */ }
+    try { dom?.window.close(); } catch (_error) { /* test cleanup */ }
+    delete (global as any).window;
+    delete (global as any).document;
+    delete (global as any).boardEl;
+  });
+
+  test.each([
+    'https://example.test/game',
+    'https://example.test/game?boardRenderer=pixi&noanim=1',
+    'https://example.test/game?debug=0&boardRenderer=pixi&noanim=1'
+  ])('keeps DOM as the production/default backend for %s', async (url) => {
+    const renderer = loadRenderer(url);
+    const domBackend = createBackend('dom');
+    const createDomBackend = jest.fn(() => domBackend);
+    const createPixiBackend = jest.fn(() => createBackend('pixi'));
+    renderer.configureBoardVisualBackendForTest({ createDomBackend, createPixiBackend });
+
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+
+    expect(createDomBackend).toHaveBeenCalledTimes(1);
+    expect(createPixiBackend).not.toHaveBeenCalled();
+    expect(controller.getBackendKind()).toBe('dom');
+    expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('dom');
+  });
+
+  test('enables Pixi only for the exact debug/noanim query and mounts one canvas without cell DOM', async () => {
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    const createDomBackend = jest.fn(() => createBackend('dom'));
+    const createPixiBackend = jest.fn((options: any) => createBackend('pixi', {
+      mount(host) {
+        while (host.firstChild) host.removeChild(host.firstChild);
+        host.appendChild(document.createElement('canvas'));
+      }
+    }));
+    renderer.configureBoardVisualBackendForTest({ createDomBackend, createPixiBackend });
+
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+
+    expect(createPixiBackend).toHaveBeenCalledWith({ noAnimation: true });
+    expect(createDomBackend).not.toHaveBeenCalled();
+    expect(controller.getBackendKind()).toBe('pixi');
+    expect(document.querySelectorAll('#board > canvas')).toHaveLength(1);
+    expect(document.querySelectorAll('#board .cell')).toHaveLength(0);
+    expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('pixi');
+  });
+
+  test('allows an explicit test harness to select the static Pixi backend without query flags', async () => {
+    const renderer = loadRenderer();
+    const createPixiBackend = jest.fn(() => createBackend('pixi'));
+    renderer.configureBoardVisualBackendForTest({ selection: 'pixi', createPixiBackend });
+
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+
+    expect(createPixiBackend).toHaveBeenCalledWith({ noAnimation: true });
+    expect(controller.getBackendKind()).toBe('pixi');
+  });
+
+  test('rejects live animation as a typed capability error without silently selecting DOM', async () => {
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi');
+    const createDomBackend = jest.fn(() => createBackend('dom'));
+    const createPixiBackend = jest.fn(() => createBackend('pixi'));
+    renderer.configureBoardVisualBackendForTest({ createDomBackend, createPixiBackend });
+
+    controller = renderer.getBoardVisualController();
+    await expect(controller.waitUntilReady()).rejects.toMatchObject({
+      name: 'BoardVisualCapabilityError',
+      code: 'pixi_static_animation_required',
+      stage: 'capability'
+    });
+
+    expect(createPixiBackend).not.toHaveBeenCalled();
+    expect(createDomBackend).not.toHaveBeenCalled();
+    expect(controller.getMode()).toBe('recovering');
+    expect(document.getElementById('board')?.hasAttribute('data-board-renderer')).toBe(false);
+  });
+
+  test('destroys failed Pixi before exclusively mounting DOM and restores the queued initial frame', async () => {
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    const order: string[] = [];
+    const initError: any = new Error('application init rejected');
+    initError.code = 'pixi_application_init_failed';
+    initError.stage = 'init';
+    let pixiHost: HTMLElement | null = null;
+    let pixiCanvas: HTMLCanvasElement | null = null;
+    const pixiBackend = createBackend('pixi', {
+      mount(host) {
+        order.push('pixi:mount');
+        pixiHost = host;
+        pixiCanvas = document.createElement('canvas');
+        host.appendChild(pixiCanvas);
+        return Promise.reject(initError);
+      },
+      destroy() {
+        order.push('pixi:destroy');
+        if (pixiCanvas?.parentNode === pixiHost) pixiHost.removeChild(pixiCanvas);
+      }
+    });
+    const domBackend = createBackend('dom', {
+      mount(host) {
+        order.push('dom:mount');
+        expect(host.querySelectorAll('canvas')).toHaveLength(0);
+        expect(host.querySelectorAll('.cell')).toHaveLength(0);
+      },
+      restore() {
+        order.push('dom:restore');
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        document.getElementById('board')?.appendChild(cell);
+      }
+    });
+    const createDomBackend = jest.fn(() => domBackend);
+    renderer.configureBoardVisualBackendForTest({
+      createPixiBackend: () => pixiBackend,
+      createDomBackend
+    });
+
+    controller = renderer.getBoardVisualController();
+    expect(controller.submitFrame(createInitialFrame())).toBe(false);
+    await controller.waitUntilReady();
+
+    expect(order).toEqual(['pixi:mount', 'pixi:destroy', 'dom:mount', 'dom:restore']);
+    expect(pixiBackend.destroy).toHaveBeenCalledTimes(1);
+    expect(createDomBackend).toHaveBeenCalledTimes(1);
+    expect(controller.getBackendKind()).toBe('dom');
+    expect(controller.isReady()).toBe(true);
+    expect(controller.getVisualFrameDigest()).toEqual(expect.any(String));
+    expect(document.querySelectorAll('#board canvas')).toHaveLength(0);
+    expect(document.querySelectorAll('#board > .cell')).toHaveLength(1);
+    expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('dom');
+  });
+
+  test('does not turn scene or texture failures into a success-shaped DOM fallback', async () => {
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    const resourceError: any = new Error('stone texture decode failed');
+    resourceError.code = 'pixi_texture_decode_failed';
+    resourceError.stage = 'texture';
+    const pixiBackend = createBackend('pixi', {
+      mount() { return Promise.reject(resourceError); }
+    });
+    const createDomBackend = jest.fn(() => createBackend('dom'));
+    renderer.configureBoardVisualBackendForTest({
+      createPixiBackend: () => pixiBackend,
+      createDomBackend
+    });
+
+    controller = renderer.getBoardVisualController();
+    await expect(controller.waitUntilReady()).rejects.toBe(resourceError);
+
+    expect(createDomBackend).not.toHaveBeenCalled();
+    expect(pixiBackend.destroy).not.toHaveBeenCalled();
+    expect(controller.getBackendKind()).toBe('pixi');
+    expect(controller.getMode()).toBe('recovering');
+    expect(document.getElementById('board')?.hasAttribute('data-board-renderer')).toBe(false);
+  });
+
+  test('requires an explicit initialization error code instead of a generic stage or message', async () => {
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    const ambiguousError: any = new Error('application init rejected');
+    ambiguousError.stage = 'init';
+    const pixiBackend = createBackend('pixi', {
+      mount() { return Promise.reject(ambiguousError); }
+    });
+    const createDomBackend = jest.fn(() => createBackend('dom'));
+    renderer.configureBoardVisualBackendForTest({
+      createPixiBackend: () => pixiBackend,
+      createDomBackend
+    });
+
+    controller = renderer.getBoardVisualController();
+    await expect(controller.waitUntilReady()).rejects.toBe(ambiguousError);
+
+    expect(createDomBackend).not.toHaveBeenCalled();
+    expect(controller.getBackendKind()).toBe('pixi');
+    expect(controller.getMode()).toBe('recovering');
+  });
+
+  test('fixes the injected selection before mount and refuses mutation afterwards', async () => {
+    const renderer = loadRenderer();
+    renderer.configureBoardVisualBackendForTest({
+      selection: 'dom',
+      createDomBackend: () => createBackend('dom')
+    });
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+
+    expect(() => renderer.configureBoardVisualBackendForTest({ selection: 'pixi' }))
+      .toThrow('selection is already fixed');
+  });
+});
+
+describe('Pixi board CSS and classic delivery wiring', () => {
+  const root = path.resolve(__dirname, '..');
+
+  test('scopes canvas surface replacement to data-board-renderer="pixi" and keeps DOM/frame rules', () => {
+    const boardCss = fs.readFileSync(path.join(root, 'styles-board.css'), 'utf8');
+    const layoutCss = fs.readFileSync(path.join(root, 'styles-layout.css'), 'utf8');
+    const responsiveCss = fs.readFileSync(path.join(root, 'styles-responsive.css'), 'utf8');
+
+    expect(boardCss).toMatch(/#board\s*\{[\s\S]*?display:\s*grid;/);
+    expect(boardCss).toContain('#board[data-board-renderer="pixi"]');
+    expect(boardCss).toContain('.pixi-board-scroll-viewport');
+    expect(boardCss).toContain('.pixi-board-scroll-surface');
+    expect(boardCss).toContain('.pixi-board-canvas-layer');
+    expect(boardCss).toMatch(/#board\[data-board-renderer="pixi"\]::before,[\s\S]*?content:\s*none;/);
+    expect(layoutCss).toContain('#board-frame::before');
+    expect(layoutCss).toContain('background: var(--board-frame-image)');
+    expect(responsiveCss).toMatch(/#board\s*\{\s*--board-max-size:/);
+  });
+
+  test('loads the classic Pixi vendor exactly once before every app runtime entry', () => {
+    const classic = fs.readFileSync(path.join(root, 'index.classic.html'), 'utf8');
+    const vendor = 'public/vendor/pixi-8.18.1.min.js';
+    const vendorMatches = classic.match(/public\/vendor\/pixi-8\.18\.1\.min\.js/g) || [];
+    const vendorIndex = classic.indexOf(vendor);
+    const runtimeIndex = classic.indexOf('public/runtime.js');
+    const registryIndex = classic.indexOf('public/module-registry.js');
+    const entryIndex = classic.indexOf('entry-browser.js');
+
+    expect(vendorMatches).toHaveLength(1);
+    expect(vendorIndex).toBeGreaterThanOrEqual(0);
+    expect(runtimeIndex).toBeGreaterThan(vendorIndex);
+    expect(registryIndex).toBeGreaterThan(runtimeIndex);
+    expect(entryIndex).toBeGreaterThan(registryIndex);
+  });
+});
