@@ -19,16 +19,20 @@ describe('destroy source animation batching', () => {
     jest.resetModules();
   });
 
-  test('UDG lightning uses layout batch for repeated source rect reads', async () => {
-    const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+  test('DOM runtime owns cached cell-to-client-rect reads for destroy source effects', async () => {
+    const dom = new JSDOM(`<!doctype html><html><body><div id="board">
+      <div class="cell" data-row="1" data-col="1"></div>
+      <div class="cell" data-row="3" data-col="3"></div>
+      <div class="cell" data-row="4" data-col="4"></div>
+    </div></body></html>`);
     (global as any).window = dom.window as any;
     (global as any).document = dom.window.document as any;
     (global.window as any).innerWidth = 800;
     (global.window as any).innerHeight = 600;
 
-    const sourceCell = document.createElement('div');
-    const targetCellA = document.createElement('div');
-    const targetCellB = document.createElement('div');
+    const sourceCell = document.querySelector('.cell[data-row="1"][data-col="1"]') as HTMLElement;
+    const targetCellA = document.querySelector('.cell[data-row="3"][data-col="3"]') as HTMLElement;
+    const targetCellB = document.querySelector('.cell[data-row="4"][data-col="4"]') as HTMLElement;
     const sourceRect = jest.fn(() => makeRect(100, 100));
     const targetRectA = jest.fn(() => makeRect(200, 200));
     const targetRectB = jest.fn(() => makeRect(240, 240));
@@ -36,39 +40,56 @@ describe('destroy source animation batching', () => {
     targetCellA.getBoundingClientRect = targetRectA;
     targetCellB.getBoundingClientRect = targetRectB;
 
-    const { createLayoutReadBatch } = require('../ui/layout-read-batch.js');
-    const layoutBatch = createLayoutReadBatch();
-    const sourceEvents = require('../ui/animation-destroy-source-events.js');
-    const baseDeps = {
-      isNoAnim: () => false,
-      getCellEl: (row: number, col: number) => {
-        if (row === 1 && col === 1) return sourceCell;
-        if (row === 3 && col === 3) return targetCellA;
-        return targetCellB;
-      },
-      resolveSniperSource: () => ({ row: 1, col: 1 }),
-      waitForAnimationFinish: () => Promise.resolve(),
-      sleep: () => Promise.resolve(),
-      timer: makeTimer,
-      playbackScope: null,
-      layoutBatch
+    const observedRects: any[] = [];
+    jest.doMock('../ui/animation-destroy-source-events', () => ({
+      animateUdgLightningStrike: jest.fn(async (target: any, deps: any) => {
+        observedRects.push(deps.getCellClientRect(1, 1));
+        observedRects.push(deps.getCellClientRect(target.r, target.col));
+      })
+    }));
+    jest.doMock('../ui/animation-destroy-events', () => ({
+      handleDestroyEvent: jest.fn(async (event: any, deps: any) => {
+        for (const target of event.targets || []) {
+          const profile = deps.resolveDestroySourceAnimationProfile(target);
+          await deps.playDestroySourceAnimation(target, profile);
+        }
+      })
+    }));
+
+    const { createDomBoardPlaybackHandlers } = require('../ui/board-visual/dom-runtime');
+    const { createDomBoardPlaybackExecutor } = require('../ui/board-visual/dom-playback');
+    const handlers = createDomBoardPlaybackHandlers({
+      boardElement: document.getElementById('board'),
+      documentRef: document,
+      getTimer: makeTimer
+    });
+    const executor = createDomBoardPlaybackExecutor(handlers);
+    const events = [
+      { type: 'destroy', targets: [{ r: 3, col: 3, sourceRow: 1, sourceCol: 1, cause: 'ULTIMATE_DESTROY_GOD', reason: 'udg_destroyed' }] },
+      { type: 'destroy', targets: [{ r: 4, col: 4, sourceRow: 1, sourceCol: 1, cause: 'ULTIMATE_DESTROY_GOD', reason: 'udg_destroyed' }] }
+    ];
+    const context = {
+      token: { id: 1, frameToken: 'local:destroy-source-batch', mode: 'local' },
+      strictNetworkPlayback: false,
+      phaseScope: { phaseKey: '0', stepIndex: 0, events }
     };
 
-    await sourceEvents.animateUdgLightningStrike(
-      { r: 3, col: 3, source: { r: 1, col: 1 } },
-      baseDeps
-    );
-    await sourceEvents.animateUdgLightningStrike(
-      { r: 4, col: 4, source: { r: 1, col: 1 } },
-      baseDeps
-    );
+    await executor.playPhase(events, context);
 
     expect(sourceRect).toHaveBeenCalledTimes(1);
     expect(targetRectA).toHaveBeenCalledTimes(1);
     expect(targetRectB).toHaveBeenCalledTimes(1);
+    expect(observedRects).toEqual([
+      makeRect(100, 100),
+      makeRect(200, 200),
+      makeRect(100, 100),
+      makeRect(240, 240)
+    ]);
 
     dom.window.close();
     delete (global as any).window;
     delete (global as any).document;
+    jest.dontMock('../ui/animation-destroy-source-events');
+    jest.dontMock('../ui/animation-destroy-events');
   });
 });

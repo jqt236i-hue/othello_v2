@@ -100,6 +100,33 @@ const FALLBACK_MANIFEST_STONE_TYPES_FOR_DIFF = Object.freeze([
     'OBSERVER_WILL'
 ]);
 
+function _getPlayerKeyForDiff(value: any): 'black' | 'white' | null {
+    try {
+        if (typeof getPlayerKey === 'function') return getPlayerKey(value);
+    } catch (e: any) { /* classic global is optional in isolated/runtime tests */ }
+    if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
+        return OwnerHelpersModule.normalizePlayerKeyOptional(value);
+    }
+    if (value === 'black' || value === 1 || value === '1') return 'black';
+    if (value === 'white' || value === -1 || value === '-1') return 'white';
+    return null;
+}
+
+function _getBoardValueConstantsForDiff() {
+    const shared = SharedConstantsModuleForDiff;
+    return {
+        BLACK: shared && Number.isFinite(Number(shared.BLACK))
+            ? Number(shared.BLACK)
+            : ((typeof BLACK !== 'undefined') ? BLACK : 1),
+        WHITE: shared && Number.isFinite(Number(shared.WHITE))
+            ? Number(shared.WHITE)
+            : ((typeof WHITE !== 'undefined') ? WHITE : -1),
+        EMPTY: shared && Number.isFinite(Number(shared.EMPTY))
+            ? Number(shared.EMPTY)
+            : ((typeof EMPTY !== 'undefined') ? EMPTY : 0)
+    };
+}
+
 function _getManifestStoneRegistryForDiff() {
     if (DiffRendererManifestStoneRegistryModule) return DiffRendererManifestStoneRegistryModule;
     if (typeof require === 'function') {
@@ -148,7 +175,8 @@ function _isActiveManifestAuraMarkerForDiff(marker: any, manifestMarkerKind: any
 }
 
 function _getManifestAuraOwnerClassForDiff(owner: any) {
-    return (owner === 'black' || owner === BLACK || owner === 1) ? 'black' : 'white';
+    const constants = _getBoardValueConstantsForDiff();
+    return (owner === 'black' || owner === constants.BLACK) ? 'black' : 'white';
 }
 
 function _getBoardShapeForDiff(gameState: any) {
@@ -1443,11 +1471,12 @@ function _getExpansionDescriptorsForDiff(gameState: any): any[] {
 
         if (!_isExpansionCoordinateForDiff(row, col, boardShape)) return;
         if (out.some((desc) => desc && desc.row === row && desc.col === col)) return;
+        const constants = _getBoardValueConstantsForDiff();
         out.push({
             row,
             col,
             side: _resolveExpansionSideForDiff(side, row, col, boardShape),
-            owner: (owner === BLACK || owner === WHITE) ? owner : EMPTY
+            owner: (owner === constants.BLACK || owner === constants.WHITE) ? owner : constants.EMPTY
         });
     };
 
@@ -1704,6 +1733,17 @@ function _getCachedCell(row: any, col: any) {
 
 // Shared animation helpers (normalized)
 var AnimationShared = (typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null);
+var SharedConstantsModuleForDiff: any = null;
+if (typeof _require === 'function') {
+    try { SharedConstantsModuleForDiff = _require('../shared-constants'); } catch (e: any) { /* ignore */ }
+}
+if (!SharedConstantsModuleForDiff) {
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants) {
+            SharedConstantsModuleForDiff = (globalThis as any).SharedConstants;
+        }
+    } catch (e: any) { /* ignore */ }
+}
 var OwnerHelpersModule: any = null;
 if (typeof require === 'function') {
     try { OwnerHelpersModule = require('../utils/owner-helpers'); } catch (e: any) { /* ignore */ }
@@ -2370,7 +2410,7 @@ function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any, preparedRenderPr
     if (!projection || typeof projection !== 'object') {
         const gameState = _resolveGameStateForDiffRender();
         const cardState = _resolveCardStateForDiffRender();
-        const playerKey = gameState ? getPlayerKey(gameState.currentPlayer) : null;
+        const playerKey = gameState ? _getPlayerKeyForDiff(gameState.currentPlayer) : null;
         const boardShape = _getBoardShapeForDiff(gameState);
         projection = _buildBoardHintProjectionForDiff(
             gameState,
@@ -2428,7 +2468,8 @@ function _getCurrentPendingForSuperAttractionPreview() {
     const gs = _resolveGameStateForDiffRender();
     const cs = _resolveCardStateForDiffRender();
     if (!gs || !cs || !cs.pendingEffectByPlayer) return null;
-    const playerKey = getPlayerKey(gs.currentPlayer);
+    const playerKey = _getPlayerKeyForDiff(gs.currentPlayer);
+    if (!playerKey) return null;
     const pending = cs.pendingEffectByPlayer[playerKey];
     if (!pending || pending.stage !== 'selectTarget' || pending.type !== 'SUPER_ATTRACTION_WILL') return null;
     const firstTarget = _normalizeSuperAttractionPreviewPoint(pending.firstTarget);
@@ -2727,7 +2768,10 @@ function _canLocalPlayerControlCurrentTurnForDiff(
         }
     } catch (e: any) { /* fallback to legacy local checks */ }
     const isNetworkMode = viewerContext.isNetworkMode === true;
-    const currentPlayerKey = gameStateValue && gameStateValue.currentPlayer === WHITE ? 'white' : 'black';
+    const currentPlayerKey = gameStateValue
+        && gameStateValue.currentPlayer === _getBoardValueConstantsForDiff().WHITE
+        ? 'white'
+        : 'black';
     const isHvH = viewerContext.debugHumanVsHuman === true;
     if (isNetworkMode || !isHvH) {
         const fwc = cardStateValue && cardStateValue.fateWillControllerByTurnOwner;
@@ -3367,6 +3411,7 @@ function initializeBoardDOM(boardEl: any, boardRenderModel?: any, viewportLayout
     if (expansionLayer) expansionLayer.innerHTML = '';
     cellCache = [];
     cellCacheMap = new Map();
+    let hasVoidCells = false;
     const sharedBoardUtils = _getSharedBoardUtilsForDiff();
 
     boardEl.classList.toggle('board-square-regular', _isSquareRectangularBoardForDiff(gameState));
@@ -3429,6 +3474,7 @@ function initializeBoardDOM(boardEl: any, boardRenderModel?: any, viewportLayout
                     ? _isMainBoardCellForDiff(r, c, boardShape)
                     : sharedBoardUtils.isMainBoardCell(r, c, gameState)) || _isExpansionCellForDiff(r, c, gameState);
             if (!exists) {
+                hasVoidCells = true;
                 cell.classList.add('cell-void');
                 cell.setAttribute('aria-hidden', 'true');
                 boardEl.appendChild(cell);
@@ -3444,6 +3490,15 @@ function initializeBoardDOM(boardEl: any, boardRenderModel?: any, viewportLayout
             attachBoardCellInteraction(cell, r, c);
             boardEl.appendChild(cell);
             _cacheCell(r, c, cell);
+    }
+
+    // DOM compatibility keeps the historical paint order: topology classes
+    // settle after cells are materialized. Pixi frame presentation remains a
+    // separate backend concern and does not rewrite this compatibility DOM.
+    boardEl.classList.toggle('board-has-void-cells', hasVoidCells);
+    const boardFrame = typeof boardEl.closest === 'function' ? boardEl.closest('#board-frame') : null;
+    if (boardFrame && boardFrame.classList) {
+        boardFrame.classList.toggle('board-has-void-cells', hasVoidCells);
     }
 
     boardDomSignature = _getBoardDomSignatureForDiff(gameState)
@@ -3557,6 +3612,7 @@ function _createCellStateProjectorContextForDiff(inputs?: any) {
     const base = inputs && inputs.baseVisualState && typeof inputs.baseVisualState === 'object'
         ? inputs.baseVisualState
         : null;
+    const constants = _getBoardValueConstantsForDiff();
     return {
         state: {
             resolveGameState: base ? () => base.gameState : _resolveGameStateForDiffRender,
@@ -3564,7 +3620,7 @@ function _createCellStateProjectorContextForDiff(inputs?: any) {
             getBoardShape: _getBoardShapeForDiff,
             buildEmptyCellState: _buildEmptyCellStateForDiffRender,
             cardLogic: (typeof CardLogic !== 'undefined' ? CardLogic : undefined),
-            getPlayerKey,
+            getPlayerKey: _getPlayerKeyForDiff,
             resolveViewerContext: base && base.viewerContext
                 ? () => base.viewerContext
                 : _resolveViewerContextForDiff,
@@ -3584,7 +3640,7 @@ function _createCellStateProjectorContextForDiff(inputs?: any) {
                 gameStateValue,
                 base ? base.cardState : options && options.cardState
             ),
-            constants: { BLACK, WHITE, EMPTY }
+            constants
         },
         hints: {
             getExpansionDescriptors: _getExpansionDescriptorsForDiff,
@@ -3636,6 +3692,7 @@ function buildBoardRenderModel(renderProjection?: any, cellState?: any, options?
 }
 
 function _createCellDomPatcherContextForDiff() {
+    const constants = _getBoardValueConstantsForDiff();
     return {
         board: {
             getBoardShape: _getBoardShapeForDiff,
@@ -3648,7 +3705,7 @@ function _createCellDomPatcherContextForDiff() {
             applyBoardEdgeClasses: _applyBoardEdgeClassesForDiff,
             applyBoardContourEdgeClasses: _applyBoardContourEdgeClassesForDiff,
             applyTimeStopLegalEmphasis: _applyTimeStopLegalEmphasisForDiff,
-            constants: { EMPTY }
+            constants: { EMPTY: constants.EMPTY }
         },
         playback: {
             isVisualPlaybackActive: _isVisualPlaybackActiveForDiff,
@@ -3673,7 +3730,7 @@ function _createCellDomPatcherContextForDiff() {
             createSpecialMarkerRenderer: _createSpecialMarkerRendererForDiff
         },
         stones: {
-            constants: { BLACK, WHITE },
+            constants: { BLACK: constants.BLACK, WHITE: constants.WHITE },
             getDiscStoneHelper: _getDiscStoneHelperForDiff,
             createSpecialStoneStatusSnapshot: _createSpecialStoneStatusSnapshotForDiff,
             shouldShowFlipProtectionBadge: _shouldShowFlipProtectionBadgeForDiff,
@@ -4048,20 +4105,26 @@ function renderBoardDiff(
 }
 
 /**
- * 強制的に全セルを再レンダリング
- * Force full re-render of all cells
- * @param {HTMLElement} boardEl - 盤面要素
+ * Compatibility facade for callers that still use the historical
+ * `forceFullRender()` API. BoardRenderer owns the active controller and is
+ * therefore the only legal entry point for a full board write.
  */
-function forceFullRender(boardEl: any) {
-    previousBoardState = null;
-    cellCache = [];
-    cellCacheMap = new Map();
-    boardDomSignature = null;
-    initializeBoardDOM(boardEl);
-    renderBoardDiff(boardEl);
-    if (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
-        console.log('[DiffRenderer] Full render forced');
+function forceFullRender(_boardEl?: any) {
+    let renderer: any = null;
+    try {
+        renderer = _require('./board-renderer');
+    } catch (e: any) { /* resolved by the browser registry fallback below */ }
+    if (!renderer && typeof window !== 'undefined') {
+        try {
+            renderer = typeof (window as any).require === 'function'
+                ? (window as any).require('ui/board-renderer')
+                : null;
+        } catch (e: any) { /* handled by the explicit error below */ }
     }
+    if (!renderer || typeof renderer.renderBoardFull !== 'function') {
+        throw new Error('BoardRenderer.renderBoardFull is unavailable');
+    }
+    return renderer.renderBoardFull();
 }
 
 /**
@@ -4118,13 +4181,7 @@ const DiffRenderer = {
 };
 export = DiffRenderer;
 if (typeof window !== 'undefined') {
-    window.forceFullRender = function () {
-        try {
-            const renderer = _require('./board-renderer');
-            if (renderer && typeof renderer.renderBoardFull === 'function') return renderer.renderBoardFull();
-        } catch (e: any) { /* ignore */ }
-        return undefined;
-    };
+    window.forceFullRender = forceFullRender;
     window.resetRenderStats = resetRenderStats;
     window.attachBoardCellInteraction = attachBoardCellInteraction;
     window.showSpecialStoneInfoAt = showSpecialStoneInfoAt;

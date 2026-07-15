@@ -130,6 +130,28 @@ function mapMove(ctx: BoardEventMapperContext, deps: BoardEventMapperDeps) {
     ctx.pEvent.phase = deps.planMovePlaybackPhase(ctx.phaseState, ctx.ev);
 }
 
+function mapBoardVisualEffect(ctx: BoardEventMapperContext, deps: BoardEventMapperDeps, type: string) {
+    ctx.pEvent.type = type;
+    if (Number.isFinite(Number(ctx.ev.phase))) {
+        ctx.pEvent.phase = deps.phaseNum(ctx.ev.phase);
+    }
+    const fields = [
+        'row',
+        'col',
+        'effectKey',
+        'owner',
+        'newColor',
+        'durationMs',
+        'autoFadeOut',
+        'fadeWholeStone'
+    ];
+    for (const field of fields) {
+        if (Object.prototype.hasOwnProperty.call(ctx.ev, field)) {
+            ctx.pEvent[field] = ctx.ev[field];
+        }
+    }
+}
+
 function clearUnknownPresentationEvent(ctx: BoardEventMapperContext, deps: BoardEventMapperDeps) {
     ctx.pEvent.type = null;
     deps.clearChainFlipPhaseState(ctx.phaseState);
@@ -152,6 +174,12 @@ function mapBoardPresentationEvent(ctx: BoardEventMapperContext, deps: BoardEven
             return { handled: true, skip: false };
         case 'MOVE':
             mapMove(ctx, deps);
+            return { handled: true, skip: false };
+        case 'CROSSFADE_STONE':
+            mapBoardVisualEffect(ctx, deps, 'crossfade_stone');
+            return { handled: true, skip: false };
+        case 'PROTECTION_EXPIRE':
+            mapBoardVisualEffect(ctx, deps, 'protection_expire');
             return { handled: true, skip: false };
         default:
             clearUnknownPresentationEvent(ctx, deps);

@@ -165,6 +165,76 @@ describe('PixiJS playfield DOM baseline capture', () => {
     expect(aggregateFirst).toBe(aggregateSecond);
   });
 
+  test('normalizes planner manifest completion to the exact Phase 0 playback digests', () => {
+    const contract = Baseline.buildPlaybackEventFixtureContract();
+    const eventTypesByPhase = new Map<number, string[]>();
+    for (const event of contract.events) {
+      const phase = Number(event.phase);
+      if (!eventTypesByPhase.has(phase)) eventTypesByPhase.set(phase, []);
+      eventTypesByPhase.get(phase)!.push(event.type);
+    }
+    const phaseCompletionTrace = Array.from(eventTypesByPhase.entries()).map(([phase, eventTypes]) => ({
+      phase,
+      depth: 0,
+      durationMs: 0,
+      eventTypes
+    }));
+    const normalizedTrace = Baseline.normalizePhaseZeroPlaybackCompletionTrace(phaseCompletionTrace);
+    expect(normalizedTrace.slice(-2)).toEqual([
+      { phase: 10, depth: 1, durationMs: 0, eventTypes: ['sound_effect'] },
+      { phase: 10, depth: 0, durationMs: 0, eventTypes: ['manifest_ending', 'sound_effect'] }
+    ]);
+    const middleAndMultipleManifestTrace = [{
+      phase: 10,
+      depth: 0,
+      durationMs: 5,
+      eventTypes: ['sound_effect', 'manifest_ending', 'log', 'manifest_ending']
+    }];
+    const normalizedMiddleAndMultiple = Baseline.normalizePhaseZeroPlaybackCompletionTrace(middleAndMultipleManifestTrace);
+    expect(normalizedMiddleAndMultiple).toEqual([
+      { phase: 10, depth: 1, durationMs: 0, eventTypes: ['sound_effect', 'log'] },
+      middleAndMultipleManifestTrace[0]
+    ]);
+    expect(Baseline.normalizePhaseZeroPlaybackCompletionTrace(normalizedMiddleAndMultiple))
+      .toEqual(normalizedMiddleAndMultiple);
+
+    const phaseCompletionOrder = Array.from(eventTypesByPhase.keys());
+    const finalBoardDigest = '80fe11faf0d79b2fe7ca08f916f498289746748bde1b597816655ddb642f03d0';
+    const modeDefinitions = [
+      { name: 'normal', reducedMotion: 'no-preference', noAnim: false, expected: 'eedbfbfad770db8f276aacbf13f3a4648fa18c018fe3a844770a593656a299e9' },
+      { name: 'reduced-motion', reducedMotion: 'reduce', noAnim: false, expected: 'f5fd5917f4a3eeb90abe51cfa688fb24d371d8ff963e2758a01deeeb159c5214' },
+      { name: 'NOANIM=1', reducedMotion: 'no-preference', noAnim: true, expected: 'd2b103fb2607db63266bd144960f67afc1c22d9e4f97ddc9bbad65d06681c867' }
+    ];
+    const modes = modeDefinitions.map((mode) => {
+      const executionDigest = Baseline.buildStablePlaybackExecutionDigest({
+        mode,
+        execution: {
+          phaseCompletionTrace,
+          phaseCompletionOrder,
+          soundKeys: contract.declaredSoundKeys,
+          playbackActive: false,
+          processing: false,
+          cardAnimating: false
+        },
+        inputDigest: contract.inputDigest,
+        semanticDigest: contract.semanticDigest,
+        finalBoardDigest
+      });
+      expect(executionDigest).toBe(mode.expected);
+      return {
+        name: mode.name,
+        prefersReducedMotion: mode.reducedMotion === 'reduce',
+        noAnim: mode.noAnim,
+        phaseCompletionOrder,
+        soundKeys: contract.declaredSoundKeys,
+        finalBoardDigest,
+        executionDigest
+      };
+    });
+    expect(Baseline.buildStablePlaybackAggregateDigest(contract, modes))
+      .toBe('e575038b75fe60388a160b96057934898d4cdc88e1586ed69d4bf062a69c2e86');
+  });
+
   test('freezes network visual settlement scenarios through the production timeline and store', async () => {
     const baseline = await Baseline.buildNetworkVisualBaselines();
     expect(baseline.scenarios.map((scenario: any) => scenario.name)).toEqual([
@@ -176,7 +246,7 @@ describe('PixiJS playfield DOM baseline capture', () => {
     expect(baseline.scenarios[0].checkpoints.map((checkpoint: any) => checkpoint.drained)).toEqual([0, 2]);
     expect(baseline.scenarios.every((scenario: any) => scenario.finalDiagnostics.timeline.paused === false)).toBe(true);
     expect(baseline.scenarios.every((scenario: any) => /^[a-f0-9]{64}$/.test(scenario.digest))).toBe(true);
-    expect(baseline.digest).toMatch(/^[a-f0-9]{64}$/);
+    expect(baseline.digest).toBe('f1bb2d4606c98e9130dd781bd3af31f2d6f0894793770be2da5e3c27bf7fe7bc');
   });
 
   test('renders a readable comparison document', () => {

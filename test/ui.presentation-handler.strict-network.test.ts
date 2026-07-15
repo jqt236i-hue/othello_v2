@@ -29,7 +29,14 @@ describe('PresentationHandler strict network playback', () => {
 
       await expect(PresentationHandler.handlePresentationEvent({
         type: 'PLAYBACK_EVENTS',
-        events: [{ type: 'flip', phase: 1 }],
+        events: [{
+          type: 'CROSSFADE_STONE',
+          phase: 1,
+          row: 2,
+          col: 3,
+          effectKey: 'regenStone',
+          durationMs: 600
+        }],
         meta: {
           source: 'network_timeline',
           strictNetworkPlayback: true,
@@ -38,7 +45,16 @@ describe('PresentationHandler strict network playback', () => {
       })).rejects.toThrow(/network_playback_watchdog/);
 
       expect((global as any).AnimationEngine.play).toHaveBeenCalledWith(
-        [{ type: 'flip', phase: 1 }],
+        [expect.objectContaining({
+          type: 'crossfade_stone',
+          phase: 1,
+          row: 2,
+          col: 3,
+          effectKey: 'regenStone',
+          durationMs: 600,
+          visualSeq: 1,
+          meta: expect.objectContaining({ visualSeq: 1 })
+        })],
         expect.objectContaining({
           strictNetworkPlayback: true,
           deferFinalSettlement: true,
@@ -49,5 +65,25 @@ describe('PresentationHandler strict network playback', () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+
+  test('rejects malformed strict standalone board events instead of downgrading to a local writer', async () => {
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    const claimBoardVisualWriter = jest.fn();
+    jest.doMock('../ui/board-renderer', () => ({ claimBoardVisualWriter }));
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+
+    await expect(PresentationHandler.handlePresentationEvent({
+      type: 'CROSSFADE_STONE',
+      row: 1,
+      col: 4,
+      meta: {
+        source: 'network_timeline',
+        strictNetworkPlayback: true,
+        visualSeq: 9
+      }
+    })).rejects.toThrow('strict_network_standalone_board_event_requires_playback_batch');
+    expect(claimBoardVisualWriter).not.toHaveBeenCalled();
   });
 });

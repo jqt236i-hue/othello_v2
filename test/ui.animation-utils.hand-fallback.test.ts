@@ -1,7 +1,22 @@
 import { JSDOM } from 'jsdom';
 import * as path from 'path';
 const animationSharedPath = path.resolve(__dirname, '..', 'ui', 'animation-shared.js');
+const boardRendererPath = path.resolve(__dirname, '..', 'ui', 'board-renderer.ts');
 const ALT_GACHA_HAND_SKIN_ID = 'gacha__n__hand-swap';
+let getBoardCellClientRectMock: jest.Mock;
+
+function resolveFixtureBoardCellRect(row, col) {
+  const selector = `.cell[data-row="${row}"][data-col="${col}"]`;
+  const cell = document.querySelector(selector);
+  const measured = cell && typeof cell.getBoundingClientRect === 'function'
+    ? cell.getBoundingClientRect()
+    : null;
+  if (measured && measured.width > 0 && measured.height > 0) return measured;
+  const size = 64;
+  const left = Number(col) * size;
+  const top = Number(row) * size;
+  return { left, top, width: size, height: size, right: left + size, bottom: top + size };
+}
 
 function createScopedTimerMock() {
   const scopeMap = new Map();
@@ -127,6 +142,14 @@ describe('animation-utils hand fallback', () => {
     global.renderCardUI = jest.fn();
     global.isProcessing = false;
     global.isCardAnimating = false;
+    getBoardCellClientRectMock = jest.fn((row, col) => resolveFixtureBoardCellRect(row, col));
+    jest.doMock(boardRendererPath, () => ({
+      getBoardCellClientRect: getBoardCellClientRectMock,
+      getBoardVisualControllerReady: jest.fn(async () => undefined),
+      claimBoardVisualWriter: jest.fn(() => ({ id: 1, frameToken: 'local:test', mode: 'local' })),
+      playBoardVisualPhase: jest.fn(async () => undefined),
+      settleBoardVisualWriter: jest.fn(async () => true)
+    }));
     if (Object.prototype.hasOwnProperty.call(global, 'TimerRegistry')) {
       delete global.TimerRegistry;
     }
@@ -144,6 +167,8 @@ describe('animation-utils hand fallback', () => {
     delete global.Image;
     delete global.createCardFaceElement;
     delete global.resolveCardBackgroundArtPath;
+    delete global.applyStoneVisualEffect;
+    jest.dontMock(boardRendererPath);
   });
 
   test('playHandAnimation completes even when Element.animate is unavailable', async () => {
@@ -217,6 +242,73 @@ describe('animation-utils hand fallback', () => {
     expect(window.localStorage.getItem('othello.handAnimation.draw')).toBeNull();
     expect(wrapper.animate).not.toHaveBeenCalled();
     expect(document.getElementById('handLayer').style.display).toBe('none');
+  });
+
+  test('playCaptureToHandAnimation builds its overlay stone from payload without reading board cell DOM', async () => {
+    const hand = document.getElementById('hand-black');
+    const targetCard = document.createElement('div');
+    targetCard.className = 'card-item';
+    targetCard.dataset.ownerKey = 'black';
+    targetCard.dataset.handIndex = '0';
+    targetCard.getBoundingClientRect = () => ({
+      left: 420,
+      top: 520,
+      width: 90,
+      height: 120,
+      right: 510,
+      bottom: 640
+    });
+    hand.appendChild(targetCard);
+    const sourceDisc = document.createElement('div');
+    sourceDisc.className = 'disc white source-only-class';
+    sourceDisc.cloneNode = jest.fn(() => {
+      throw new Error('capture overlay must not clone the board disc');
+    });
+    document.querySelector('.cell').appendChild(sourceDisc);
+    const boardQuery = jest.spyOn(global.boardEl, 'querySelector').mockImplementation(() => {
+      throw new Error('capture overlay must not query board cells');
+    });
+    getBoardCellClientRectMock.mockImplementation(() => ({
+      left: 100,
+      top: 200,
+      width: 80,
+      height: 80,
+      right: 180,
+      bottom: 280
+    }));
+    global.boardEl.style.setProperty('--board-disc-size-px', '72px');
+    global.boardEl.style.setProperty('--board-disc-inset-px', '4px');
+    const animatedElements = [];
+    window.Element.prototype.animate = jest.fn(function () {
+      animatedElements.push(this);
+      return {
+        addEventListener: jest.fn(),
+        finished: Promise.resolve()
+      };
+    });
+    global.applyStoneVisualEffect = jest.fn();
+
+    const animationUtils = require('../ui/animation-utils.js');
+    await animationUtils.playCaptureToHandAnimation({
+      player: 'black',
+      cardId: 'dragon_01',
+      sourceRow: 0,
+      sourceCol: 0,
+      sourceOwner: 'white',
+      sourceSpecialType: 'DRAGON',
+      insertIndex: 0
+    });
+
+    expect(boardQuery).not.toHaveBeenCalled();
+    expect(sourceDisc.cloneNode).not.toHaveBeenCalled();
+    expect(global.applyStoneVisualEffect).toHaveBeenCalledWith(
+      expect.objectContaining({ className: expect.stringContaining('disc white') }),
+      'DRAGON',
+      { owner: 'white' }
+    );
+    expect(animatedElements[0]).toEqual(expect.objectContaining({
+      className: expect.stringContaining('disc white')
+    }));
   });
 
   test('playHandAnimation skips hand movement but keeps placement completion when place hand animation is disabled', async () => {
@@ -1394,16 +1486,20 @@ describe('animation-utils hand fallback', () => {
       bottom: 190
     });
     const sacrificeCell = document.querySelector('.cell[data-row="0"][data-col="0"]');
-    sacrificeCell.getBoundingClientRect = () => ({
+    sacrificeCell.getBoundingClientRect = jest.fn(() => {
+      throw new Error('animation-utils must not read board cell DOM geometry');
+    });
+    getBoardCellClientRectMock.mockImplementation(() => ({
       left: 260,
       top: 300,
       width: 64,
       height: 64,
       right: 324,
       bottom: 364
-    });
+    }));
 
     const mod = require('../ui/animation-utils.js');
+    const playBoardEffect = jest.fn(() => Promise.resolve());
     const promise = mod.playCardUseHandAnimation({
       player: 'white',
       owner: 'white',
@@ -1412,7 +1508,8 @@ describe('animation-utils hand fallback', () => {
       name: '破壊の意志',
       nullifiedBySacrificeWill: true,
       cardUseVanishEffect: 'sacrifice_seal_burn',
-      sacrificeWill: { row: 0, col: 0, owner: 'black', special: 'SACRIFICE' }
+      sacrificeWill: { row: 0, col: 0, owner: 'black', special: 'SACRIFICE' },
+      playBoardEffect
     });
 
     await Promise.resolve();
@@ -1430,8 +1527,14 @@ describe('animation-utils hand fallback', () => {
     });
     expect(keyframesText).toContain('scale(0.08)');
     expect(keyframesText).toContain('translate(-558px, 142px) scale(0.08)');
-    expect(keyframesText).toContain('drop-shadow(0 0 16px rgba(255, 55, 55, 0.88))');
-    expect(absorbCalls).toHaveLength(2);
+    expect(absorbCalls).toHaveLength(1);
+    expect(getBoardCellClientRectMock).toHaveBeenCalledWith(0, 0);
+    expect(playBoardEffect).toHaveBeenCalledWith({
+      type: 'legacy_sacrifice_absorb_pulse',
+      row: 0,
+      col: 0,
+      durationMs: 2600
+    });
 
     jest.advanceTimersByTime(4000);
     await Promise.resolve();

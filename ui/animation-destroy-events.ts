@@ -24,6 +24,7 @@ type AnimationDestroyEventDeps = {
     removeDiscFromCell: (cell: any, disc: any) => any;
     resolveOwnerClassFromColor: (ownerColor: any) => string;
     onDestroyGhostFallback?: (target: any, context: any) => void;
+    animateFadeOutAt?: (row: any, col: any, options?: any) => Promise<any>;
 };
 
 function getDocumentRef(): any {
@@ -147,7 +148,9 @@ async function handleDestroyEvent(ev: any, deps: AnimationDestroyEventDeps) {
                 return;
             }
 
-            const fadeOutAtFn = (typeof animateFadeOutAt === 'function') ? animateFadeOutAt : null;
+            const fadeOutAtFn = typeof deps.animateFadeOutAt === 'function'
+                ? deps.animateFadeOutAt
+                : ((typeof animateFadeOutAt === 'function') ? animateFadeOutAt : null);
             if (fadeOutAtFn) {
                 await fadeOutAtFn(target.r, target.col, { createGhost: true, color: ownerColor });
 

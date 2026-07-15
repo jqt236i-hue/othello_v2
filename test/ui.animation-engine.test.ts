@@ -1,43 +1,135 @@
-describe('animation-engine _sleep', () => {
+import {
+  clearAnimationEngineDomBackendSleepControl,
+  installAnimationEngineDomBackendMock,
+  setAnimationEngineDomBackendSleepControl
+} from './helpers/animation-engine-dom-backend';
+
+installAnimationEngineDomBackendMock();
+
+function installAnimationClock(options: { noAnim?: boolean } = {}) {
+  let nextTimerId = 1;
+  const timer = {
+    setTimeout: jest.fn((callback: () => void, durationMs: number) => {
+      const timerId = nextTimerId++;
+      // The playback watchdog must remain armed until play() settles. All
+      // presentation delays are completed synchronously so the public API can
+      // be tested without reaching into AnimationEngine's private sleep hook.
+      if (Number(durationMs) < 10000) callback();
+      return timerId;
+    }),
+    clearTimeout: jest.fn(),
+    clearAll: jest.fn(),
+    pendingCount: jest.fn(() => 0),
+    newScope: jest.fn(() => null),
+    clearScope: jest.fn()
+  };
+  jest.doMock('../ui/animation-shared.js', () => ({
+    isNoAnim: () => typeof options.noAnim === 'boolean'
+      ? options.noAnim
+      : (process.env.NOANIM === '1' || process.env.NOANIM === 'true' || process.env.DISABLE_ANIMATIONS === '1'),
+    getTimer: () => timer
+  }));
+  return timer;
+}
+
+function usedPhaseGap(timer: { setTimeout: jest.Mock }): boolean {
+  return timer.setTimeout.mock.calls.some((call) => Number(call[1]) === 200);
+}
+
+describe('animation-engine public playback contract', () => {
   beforeEach(() => {
     jest.resetModules();
+    clearAnimationEngineDomBackendSleepControl();
   });
 
-  test('resolves immediately when NOANIM is active', async () => {
-    jest.doMock('../ui/animation-shared.js', () => ({ isNoAnim: () => true, getTimer: () => ({ setTimeout: () => {}, clearTimeout: () => {}, clearAll: () => {} }) }));
+  afterEach(() => {
+    clearAnimationEngineDomBackendSleepControl();
+    jest.dontMock('../ui/animation-shared.js');
+  });
+
+  test('NOANIM playback skips the readable phase gap through the public play API', async () => {
+    const timer = installAnimationClock({ noAnim: true });
     // Minimal fake document so the PlaybackEngine constructor succeeds in node tests
     global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
+    global.window = { addLog: jest.fn() };
     const engine = require('../ui/animation-engine.js');
-    // _sleep should resolve immediately (no waiting) when NOANIM mode is active
-    await expect(engine._sleep(1000)).resolves.toBeUndefined();
-  });
+    await expect(engine.play([
+      { type: 'log', phase: 1, message: 'first' },
+      { type: 'log', phase: 2, message: 'second' }
+    ])).resolves.toBeUndefined();
 
-  test('phase context exposes a layout read batch during one phase', async () => {
-    global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
-
-    const engine = require('../ui/animation-engine.js');
-    const executeEventSpy = jest.spyOn(engine, 'executeEvent').mockResolvedValue(undefined);
-    const phaseContext = engine._buildPhaseContext([]);
-
-    expect(phaseContext.layoutBatch).toBeTruthy();
-    expect(typeof phaseContext.layoutBatch.readRect).toBe('function');
-    await engine.executePhase([{ type: 'log', phase: 1, message: 'x' }]);
-
-    expect(executeEventSpy).toHaveBeenCalledTimes(1);
-
-    executeEventSpy.mockRestore();
+    expect(usedPhaseGap(timer)).toBe(false);
+    expect(global.window.addLog).toHaveBeenCalledTimes(2);
+    delete global.window;
     delete global.document;
   });
 
-  test('returns 500ms fade only for breeding spawn targets', () => {
-    global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
+  test('public board playback creates and clears one backend layout batch for the phase', async () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM('<!doctype html><html><body><div id="board"><div class="cell" data-row="1" data-col="2"></div></div></body></html>');
+    global.window = dom.window;
+    global.document = dom.window.document;
+    const actualLayoutReadBatch = jest.requireActual('../ui/layout-read-batch');
+    const clear = jest.fn();
+    const createLayoutReadBatch = jest.fn(() => ({
+      readRect: actualLayoutReadBatch.createLayoutReadBatch().readRect,
+      clear
+    }));
+    jest.doMock('../ui/layout-read-batch', () => ({
+      ...actualLayoutReadBatch,
+      createLayoutReadBatch
+    }));
+
     const engine = require('../ui/animation-engine.js');
-    expect(engine.getSpawnFadeInMs({ cause: 'BREEDING', reason: 'breeding_spawn' })).toBe(500);
-    expect(engine.getSpawnFadeInMs({ cause: 'BREEDING', reason: 'breeding_spawn_immediate' })).toBe(500);
-    expect(engine.getSpawnFadeInMs({ cause: 'SYSTEM', reason: 'standard_place' })).toBe(0);
+    await engine.executePhase([{
+      type: 'spawn',
+      phase: 1,
+      targets: [{ r: 1, col: 2, after: { color: 1, owner: 'black' } }]
+    }]);
+
+    expect(createLayoutReadBatch).toHaveBeenCalledTimes(1);
+    expect(clear).toHaveBeenCalledTimes(1);
+    expect(dom.window.document.querySelector('.cell[data-row="1"][data-col="2"] .disc')).toBeTruthy();
+
+    jest.dontMock('../ui/layout-read-batch');
+    dom.window.close();
+    delete global.window;
+    delete global.document;
   });
 
-  test('getCellEl resolves cells rendered in the board expansion layer', () => {
+  test('public spawn playback waits 500ms fade only for breeding spawn targets', async () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM(`<!doctype html><html><body><div id="board">
+      <div class="cell" data-row="1" data-col="1"></div>
+      <div class="cell" data-row="1" data-col="2"></div>
+      <div class="cell" data-row="1" data-col="3"></div>
+    </div></body></html>`);
+    global.window = dom.window;
+    global.document = dom.window.document;
+    const sleepControl = setAnimationEngineDomBackendSleepControl();
+    const engine = require('../ui/animation-engine.js');
+    await engine.executePhase([{
+      type: 'spawn',
+      phase: 1,
+      targets: [
+        { r: 1, col: 1, cause: 'BREEDING', reason: 'breeding_spawn', after: { color: 1, owner: 'black' } },
+        { r: 1, col: 2, cause: 'BREEDING', reason: 'breeding_spawn_immediate', after: { color: 1, owner: 'black' } },
+        { r: 1, col: 3, cause: 'SYSTEM', reason: 'standard_place', after: { color: 1, owner: 'black' } }
+      ]
+    }]);
+
+    const noAnimRun = process.env.NOANIM === '1'
+      || process.env.NOANIM === 'true'
+      || process.env.DISABLE_ANIMATIONS === '1';
+    expect(sleepControl.mock.calls.filter((call) => Number(call[0]) === 620)).toHaveLength(noAnimRun ? 0 : 2);
+    expect(dom.window.document.querySelectorAll('.disc')).toHaveLength(3);
+
+    dom.window.close();
+    delete global.window;
+    delete global.document;
+  });
+
+  test('public compatibility settlement resolves cells rendered in the board expansion layer', async () => {
     const { JSDOM } = require('jsdom');
     const dom = new JSDOM(`
       <!doctype html>
@@ -57,7 +149,11 @@ describe('animation-engine _sleep', () => {
 
     const engine = require('../ui/animation-engine.js');
 
-    expect(engine.getCellEl(-1, 0)).toBe(dom.window.document.querySelector('#board-expansion-layer .cell'));
+    await engine.applyFinalStates({
+      targets: [{ r: -1, col: 0, after: { color: 1, owner: 'black' } }]
+    });
+
+    expect(dom.window.document.querySelector('#board-expansion-layer .cell .disc.black')).toBeTruthy();
 
     dom.window.close();
     delete global.window;
@@ -83,6 +179,7 @@ describe('animation-engine _sleep', () => {
   });
 
   test('card_use_animation の直後 phase にある treasure_gain は追加ギャップなしで再生する', async () => {
+    const timer = installAnimationClock();
     const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
     global.document = { getElementById: () => cellEl };
     global.window = {
@@ -96,7 +193,6 @@ describe('animation-engine _sleep', () => {
     };
 
     const engine = require('../ui/animation-engine.js');
-    engine._sleep = jest.fn(() => Promise.resolve());
 
     await engine.play([
       { type: 'card_use_animation', phase: 1, targets: [{ player: 'black', owner: 'black', cardId: 'TREASURE_BOX_001' }] },
@@ -105,7 +201,7 @@ describe('animation-engine _sleep', () => {
 
     expect(global.window.playCardUseHandAnimation).toHaveBeenCalled();
     expect(playEffectByKey).toHaveBeenCalledWith('treasure_gain');
-    expect(engine._sleep).not.toHaveBeenCalled();
+    expect(usedPhaseGap(timer)).toBe(false);
 
     delete global.SoundEngine;
     delete global.emitBoardUpdate;
@@ -138,14 +234,15 @@ describe('animation-engine _sleep', () => {
   });
 
   test('place_hand_animation の直後 phase に spawn だけがある特殊石配置でも追加ギャップなしで再生する', async () => {
-    const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
-    global.document = { getElementById: () => cellEl };
-    global.window = {};
+    const timer = installAnimationClock();
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM('<!doctype html><html><body><div id="board"><div class="cell" data-row="4" data-col="4"></div></div></body></html>');
+    global.window = dom.window;
+    global.document = dom.window.document;
     global.emitBoardUpdate = jest.fn();
 
     const engine = require('../ui/animation-engine.js');
-    engine._sleep = jest.fn(() => Promise.resolve());
-    const executePhaseSpy = jest.spyOn(engine, 'executePhase').mockResolvedValue(undefined);
+    const executePhaseSpy = jest.spyOn(engine, 'executePhase');
 
     await engine.play([
       { type: 'place_hand_animation', phase: 0, targets: [{ r: 4, col: 4, player: 'black', owner: 'black' }] },
@@ -164,14 +261,17 @@ describe('animation-engine _sleep', () => {
     ]);
 
     expect(executePhaseSpy).toHaveBeenCalledTimes(2);
-    expect(engine._sleep).not.toHaveBeenCalled();
+    expect(usedPhaseGap(timer)).toBe(false);
+    expect(dom.window.document.querySelector('.cell[data-row="4"][data-col="4"] .disc')).toBeTruthy();
 
     executePhaseSpy.mockRestore();
+    dom.window.close();
     delete global.emitBoardUpdate;
     delete global.window;
+    delete global.document;
   });
 
-  test('regen placement animation uses heart badge instead of duration timer', () => {
+  test('regen placement animation uses heart badge instead of duration timer', async () => {
     const { JSDOM } = require('jsdom');
     const dom = new JSDOM(`
       <!doctype html>
@@ -190,14 +290,14 @@ describe('animation-engine _sleep', () => {
     global.window.applyStoneVisualEffect = jest.fn((disc) => disc.classList.add('special-stone', 'regen-stone'));
 
     const engine = require('../ui/animation-engine.js');
-    engine.applyFinalStates({
+    await engine.applyFinalStates({
       targets: [{
         r: 1,
         col: 2,
         after: { color: 1, special: 'REGEN', timer: 3, owner: 'black' }
       }]
     });
-    engine.applyFinalStates({
+    await engine.applyFinalStates({
       targets: [{
         r: 1,
         col: 2,
@@ -218,6 +318,7 @@ describe('animation-engine _sleep', () => {
   });
 
   test('spawn の直後 phase に多動系 move がある network playback でも追加ギャップなしで再生する', async () => {
+    const timer = installAnimationClock();
     const { JSDOM } = require('jsdom');
     const dom = new JSDOM(`
       <!doctype html>
@@ -252,7 +353,6 @@ describe('animation-engine _sleep', () => {
     global.window.Element.prototype.animate = animateSpy;
 
     const engine = require('../ui/animation-engine.js');
-    engine._sleep = jest.fn(() => Promise.resolve());
 
     await engine.play([
       {
@@ -282,7 +382,7 @@ describe('animation-engine _sleep', () => {
       }
     ]);
 
-    expect(engine._sleep).not.toHaveBeenCalled();
+    expect(usedPhaseGap(timer)).toBe(false);
 
     dom.window.close();
     delete global.SoundEngine;
@@ -320,6 +420,10 @@ describe('animation-engine _sleep', () => {
     global.window.setDiscStoneImage = setDiscStoneImage;
     global.window.clearStoneVisualEffectState = clearStoneVisualEffectState;
     global.window.applyStoneVisualEffect = applyStoneVisualEffect;
+    global.getEffectKeyForSpecialType = global.window.getEffectKeyForSpecialType;
+    global.setDiscStoneImage = setDiscStoneImage;
+    global.clearStoneVisualEffectState = clearStoneVisualEffectState;
+    global.applyStoneVisualEffect = applyStoneVisualEffect;
     global.emitBoardUpdate = jest.fn();
 
     const engine = require('../ui/animation-engine.js');
@@ -355,6 +459,10 @@ describe('animation-engine _sleep', () => {
     dom.window.close();
     delete global.emitBoardUpdate;
     delete global.requestAnimationFrame;
+    delete global.getEffectKeyForSpecialType;
+    delete global.setDiscStoneImage;
+    delete global.clearStoneVisualEffectState;
+    delete global.applyStoneVisualEffect;
     delete global.window;
     delete global.document;
   });
@@ -383,6 +491,10 @@ describe('animation-engine _sleep', () => {
     global.window.setDiscStoneImage = setDiscStoneImage;
     global.window.clearStoneVisualEffectState = clearStoneVisualEffectState;
     global.window.applyStoneVisualEffect = applyStoneVisualEffect;
+    global.getEffectKeyForSpecialType = global.window.getEffectKeyForSpecialType;
+    global.setDiscStoneImage = setDiscStoneImage;
+    global.clearStoneVisualEffectState = clearStoneVisualEffectState;
+    global.applyStoneVisualEffect = applyStoneVisualEffect;
     global.emitBoardUpdate = jest.fn();
 
     const engine = require('../ui/animation-engine.js');
@@ -419,6 +531,10 @@ describe('animation-engine _sleep', () => {
     dom.window.close();
     delete global.emitBoardUpdate;
     delete global.requestAnimationFrame;
+    delete global.getEffectKeyForSpecialType;
+    delete global.setDiscStoneImage;
+    delete global.clearStoneVisualEffectState;
+    delete global.applyStoneVisualEffect;
     delete global.window;
     delete global.document;
   });
@@ -446,6 +562,10 @@ describe('animation-engine _sleep', () => {
     global.window.setDiscStoneImage = jest.fn();
     global.window.clearStoneVisualEffectState = jest.fn();
     global.window.applyStoneVisualEffect = applyStoneVisualEffect;
+    global.getEffectKeyForSpecialType = global.window.getEffectKeyForSpecialType;
+    global.setDiscStoneImage = global.window.setDiscStoneImage;
+    global.clearStoneVisualEffectState = global.window.clearStoneVisualEffectState;
+    global.applyStoneVisualEffect = applyStoneVisualEffect;
     global.emitBoardUpdate = jest.fn();
 
     const engine = require('../ui/animation-engine.js');
@@ -479,6 +599,10 @@ describe('animation-engine _sleep', () => {
     dom.window.close();
     delete global.emitBoardUpdate;
     delete global.requestAnimationFrame;
+    delete global.getEffectKeyForSpecialType;
+    delete global.setDiscStoneImage;
+    delete global.clearStoneVisualEffectState;
+    delete global.applyStoneVisualEffect;
     delete global.window;
     delete global.document;
   });

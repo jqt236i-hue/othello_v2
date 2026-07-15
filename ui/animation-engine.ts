@@ -1,5 +1,3 @@
-import type { CardState, GameState, PlayerKey } from '../src/types';
-
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -15,92 +13,20 @@ declare const addLog: ((msg: any) => void) | undefined;
 declare const playHandAnimation: any;
 
 const Constants = _require('./animation-constants');
-const Visuals = _require('./stone-visuals');
 const PlaybackStateManager = _require('./playback-state-manager');
-const PresentationEffectProfiles = _require('../shared/presentation-effect-profiles');
 
 const {
         EVENT_TYPES,
-        FLIP_MS,
-        PHASE_GAP_MS,
-        POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS,
-        FADE_IN_MS,
-        BREEDING_SPAWN_FADE_MS,
-        REGEN_CONSUME_FADE_MS,
-        FADE_OUT_MS,
-        OVERLAY_CROSSFADE_MS,
-        MOVE_MS,
-        OBSERVER_BUBBLE_MS,
-        OBSERVER_BUBBLE_FADE_MS,
-        THEORY_SPAWN_ROULETTE_MS,
-        THEORY_SPAWN_MATERIALIZE_MS
+        PHASE_GAP_MS
     } = Constants;
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
-    const EFFECT_TARGET_HIGHLIGHT_CLASS = 'effect-target-highlight';
-    const EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS = 'effect-target-highlight-positive';
-    const EFFECT_TARGET_PLACEMENT_HIGHLIGHT_CLASS = 'effect-target-highlight-placement';
-    const EFFECT_TARGET_SPAWN_HIGHLIGHT_CLASS = 'effect-target-highlight-spawn';
-    const TRANSIENT_CELL_HIGHLIGHT_CLASS_DATASET_KEY = 'transientCellHighlightClass';
-    const TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY = 'transientCellHighlightToken';
-    const RANDOM_SPAWN_PREVIEW_CLASS = 'random-spawn-preview';
-    const HIGHLIGHT_TONE_NEGATIVE = 'negative';
-    const HIGHLIGHT_TONE_POSITIVE = 'positive';
-    const HIGHLIGHT_TONE_PLACEMENT = 'placement';
     const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
     const LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY = '__skipNextCardUseAnimationUntilByKey';
     const LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY = '__skipNextCardUseButtonSoundCount';
     const LOCAL_CARD_USE_PLAYBACK_SKIP_MS = 30000;
     const MANIFEST_ENDING_TRANSITION_MS = 2000;
     const MANIFEST_ENDING_DIM_OPACITY = 0.6;
-    const POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS = PresentationEffectProfiles.POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS;
-    const matchesCauseAndReasonPrefix = PresentationEffectProfiles.matchesCauseAndReasonPrefix;
-    const matchesSpawnProfileTarget = PresentationEffectProfiles.matchesSpawnProfileTarget;
-    const DESTROY_SOURCE_ANIMATION_PROFILES = Object.freeze([
-        Object.freeze({
-            causes: Object.freeze(['SNIPER_WILL']),
-            reasonPrefix: 'sniper_shot',
-            sourceResolver: '_resolveSniperSource',
-            animationMethod: 'animateSniperProjectile'
-        }),
-        Object.freeze({
-            causes: Object.freeze(['DESTROY_DRAGON', 'DESTROY_DRAGON_WILL']),
-            reasonPrefix: 'destroy_dragon_breath',
-            sourceResolver: '_resolveDestroyDragonSource',
-            animationMethod: 'animateDestroyDragonBreath'
-        }),
-        Object.freeze({
-            causes: Object.freeze(['ULTIMATE_DESTROY_GOD']),
-            reasonPrefix: 'udg_destroyed',
-            sourceResolver: '_resolveSniperSource',
-            animationMethod: 'animateUdgLightningStrike'
-        }),
-        Object.freeze({
-            causes: Object.freeze(['LIGHTNING_WILL']),
-            reasonPrefix: 'lightning_destroyed',
-            sourceResolver: '_resolveSniperSource',
-            animationMethod: 'animateUdgLightningStrike'
-        }),
-        Object.freeze({
-            causes: Object.freeze(['METEOR_GOD']),
-            reasonPrefix: 'meteor_god_cell_destroy',
-            sourceResolver: '_resolveSniperSource',
-            animationMethod: 'animateMeteorGodBlackBeam'
-        }),
-        Object.freeze({
-            causes: Object.freeze(['WILL_HUNTER_KING']),
-            reasonPrefix: 'will_hunter_king_slash',
-            sourceResolver: null,
-            animationMethod: 'animateWillHunterKingSlash'
-        }),
-        Object.freeze({
-            causes: Object.freeze(['ROBOT_VACUUM']),
-            reasonPrefix: 'robot_vacuum_suck',
-            sourceResolver: '_resolveRobotVacuumSource',
-            animationMethod: 'animateRobotVacuumSuction',
-            afterDestroy: 'clearCell'
-        })
-    ]);
 
     function hasRegenBackFlip(events: any) {
         return (events || []).some((e: any) =>
@@ -144,18 +70,11 @@ const {
 
 var AnimationResolver = requireRuntimeModuleOrWindowGlobal('./animation-resolver', 'AnimationResolver');
 var AnimationFeedbackEvents = requireRuntimeModuleOrWindowGlobal('./animation-feedback-events', 'AnimationFeedbackEvents');
-var AnimationDestroyEvents = requireRuntimeModuleOrWindowGlobal('./animation-destroy-events', 'AnimationDestroyEvents');
 var AnimationHandEvents = requireRuntimeModuleOrWindowGlobal('./animation-hand-events', 'AnimationHandEvents');
-var AnimationFlipEvents = requireRuntimeModuleOrWindowGlobal('./animation-flip-events', 'AnimationFlipEvents');
-var AnimationMoveEvents = requireRuntimeModuleOrWindowGlobal('./animation-move-events', 'AnimationMoveEvents');
-var AnimationPlacementEvents = requireRuntimeModuleOrWindowGlobal('./animation-placement-events', 'AnimationPlacementEvents');
-var AnimationStatusEvents = requireRuntimeModuleOrWindowGlobal('./animation-status-events', 'AnimationStatusEvents');
-var AnimationDestroySourceEvents = requireRuntimeModuleOrWindowGlobal('./animation-destroy-source-events', 'AnimationDestroySourceEvents');
-var AnimationTheoryEvents = requireRuntimeModuleOrWindowGlobal('./animation-theory-events', 'AnimationTheoryEvents');
-var LayoutReadBatch = requireRuntimeModuleOrWindowGlobal('./layout-read-batch', 'LayoutReadBatch');
-var TransientOverlayBatch = requireRuntimeModuleOrWindowGlobal('./transient-overlay-batch', 'TransientOverlayBatch');
-var StoneStatusSnapshot = requireRuntimeModuleOrWindowGlobal('../shared/stone-status-snapshot', 'StoneStatusSnapshot');
-var SpecialMarkerRenderer = requireRuntimeModuleOrWindowGlobal('./diff-renderer/special-marker-renderer', 'SpecialMarkerRenderer');
+var PresentationPhasePlanner = requireRuntimeModuleOrWindowGlobal('./presentation/phase-planner', 'PresentationPhasePlanner');
+var PresentationDispatcher = requireRuntimeModuleOrWindowGlobal('./presentation/dispatcher', 'PresentationDispatcher');
+var PresentationVisualSeed = requireRuntimeModuleOrWindowGlobal('./presentation/visual-seed', 'PresentationVisualSeed');
+var BoardPlaybackTypes = requireRuntimeModuleOrWindowGlobal('./board-visual/playback-types', 'BoardPlaybackTypes');
 var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
         ? AnimationResolver.getAnimationShared()
         : ((typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null));
@@ -183,81 +102,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         };
     };
     var PlaybackState = PlaybackStateManager || null;
-
-    function resolveSpecialTimerClassForAnimation(specialType: any): string {
-        const typeUpper = String(specialType || '').toUpperCase();
-        if (typeUpper === 'TIME_BOMB') return 'bomb-timer countdown-timer';
-        if (typeUpper === 'GUARD') return 'guard-timer';
-
-        if (StoneStatusSnapshot && typeof StoneStatusSnapshot.createSpecialStoneStatusSnapshot === 'function') {
-            const snapshot = StoneStatusSnapshot.createSpecialStoneStatusSnapshot({ type: typeUpper }, { mode: 'raw' });
-            if (snapshot && snapshot.timerClass) {
-                const timerClass = String(snapshot.timerClass);
-                return timerClass === 'countdown-timer'
-                    ? timerClass
-                    : `stone-timer ${timerClass}`;
-            }
-        }
-
-        if (typeUpper === 'DRAGON' || typeUpper === 'DESTROY_DRAGON') return 'stone-timer dragon-timer';
-        if (typeUpper === 'ULTIMATE_DESTROY_GOD') return 'stone-timer udg-timer';
-        if (typeUpper === 'BREEDING') return 'stone-timer breeding-timer';
-        if (typeUpper === 'WORK') return 'stone-timer work-timer';
-        if (typeUpper === 'TIME_STOP') return 'countdown-timer';
-        return 'stone-timer special-timer';
-    }
-
-    function createFlipProtectionBadgeForAnimation() {
-        if (typeof document === 'undefined') return null;
-        if (SpecialMarkerRenderer && typeof SpecialMarkerRenderer.createSpecialMarkerRenderer === 'function') {
-            const renderer = SpecialMarkerRenderer.createSpecialMarkerRenderer({ documentRef: document });
-            if (renderer && typeof renderer.createFlipProtectionBadge === 'function') {
-                return renderer.createFlipProtectionBadge();
-            }
-        }
-        const badge = document.createElement('div');
-        badge.className = 'stone-flip-protection-badge';
-        badge.textContent = '反';
-        badge.setAttribute('aria-hidden', 'true');
-        return badge;
-    }
-
-    function createRegenBadgeForAnimation(value: any, specialType: any = null) {
-        if (typeof document === 'undefined') return null;
-        const remaining = Math.max(0, Math.trunc(Number(value)));
-        if (!Number.isFinite(remaining) || remaining <= 0) return null;
-        if (SpecialMarkerRenderer && typeof SpecialMarkerRenderer.createSpecialMarkerRenderer === 'function') {
-            const renderer = SpecialMarkerRenderer.createSpecialMarkerRenderer({ documentRef: document });
-            if (renderer && typeof renderer.createRegenBadgeLabel === 'function') {
-                return renderer.createRegenBadgeLabel(remaining, { specialType });
-            }
-        }
-        const badge = document.createElement('div');
-        badge.className = 'stone-regen-badge';
-        if (String(specialType || '').toUpperCase() === 'ZOMBIE') {
-            badge.classList.add('stone-regen-badge--zombie');
-        }
-        badge.setAttribute('data-count', String(remaining));
-        if (remaining >= 10) badge.classList.add('timer-double-digit');
-        const valueLabel = document.createElement('span');
-        valueLabel.className = 'stone-regen-badge-value';
-        valueLabel.textContent = String(remaining);
-        badge.appendChild(valueLabel);
-        return badge;
-    }
-
-    function shouldShowFlipProtectionBadgeForAnimation(state: any, specialType: any) {
-        if (!StoneStatusSnapshot || typeof StoneStatusSnapshot.createSpecialStoneStatusSnapshot !== 'function') return false;
-        const typeUpper = String(specialType || '').toUpperCase();
-        const snapshot = StoneStatusSnapshot.createSpecialStoneStatusSnapshot({
-            type: typeUpper || null,
-            remainingOwnerTurns: state && state.timer,
-            flipEvadeRemaining: state && state.flipEvadeRemaining,
-            destroyEvadeRemaining: state && state.destroyEvadeRemaining,
-            hasGuard: typeUpper === 'GUARD' || !!(state && (state.hasGuard || state.guard))
-        }, { mode: 'raw' });
-        return !!(snapshot && snapshot.hasFlipProtection);
-    }
 
     // Ensure minimal telemetry helpers exist even without initializeUI
     if (typeof window !== 'undefined') {
@@ -387,12 +231,16 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         playbackScope: any;
         _remainingEvents: any;
         _watchdogId: any;
-        _phaseContext: any;
         _playbackRunSequence: any;
         _activePlaybackRunId: any;
         _strictNetworkPlayback: any;
         _strictNetworkPlaybackError: any;
         _strictNetworkPlaybackReject: any;
+        _activeBoardWriterToken: any;
+        _ownsActiveBoardWriterToken: boolean;
+        _unresolvedLocalBoardWriterError: any;
+        _pendingLocalBoardWriterClaims: number;
+        _unresolvedLocalPlaybackManagerClaim: any;
         constructor() {
             this.isPlaying = false;
             this.boardEl = document.getElementById('board');
@@ -401,12 +249,227 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             this.playbackScope = null;
             this._remainingEvents = [];
             this._watchdogId = null;
-            this._phaseContext = null;
             this._playbackRunSequence = 0;
             this._activePlaybackRunId = null;
             this._strictNetworkPlayback = false;
             this._strictNetworkPlaybackError = null;
             this._strictNetworkPlaybackReject = null;
+            this._activeBoardWriterToken = null;
+            this._ownsActiveBoardWriterToken = false;
+            this._unresolvedLocalBoardWriterError = null;
+            this._pendingLocalBoardWriterClaims = 0;
+            this._unresolvedLocalPlaybackManagerClaim = null;
+        }
+
+        _createPlaybackError(code: string, event: any, cause?: any) {
+            if (BoardPlaybackTypes && typeof BoardPlaybackTypes.PresentationPlaybackError === 'function') {
+                return new BoardPlaybackTypes.PresentationPlaybackError(code, event, {
+                    strictNetworkPlayback: this._strictNetworkPlayback === true,
+                    cause
+                });
+            }
+            const error: any = new Error(`${code}:${String(event && event.type || 'unknown')}`);
+            error.name = 'PresentationPlaybackError';
+            error.code = code;
+            error.strictNetworkPlayback = this._strictNetworkPlayback === true;
+            if (cause) error.cause = cause;
+            return error;
+        }
+
+        _throwIfLocalBoardWriterRecoveryIsUnresolved(event: any) {
+            if (
+                this._unresolvedLocalBoardWriterError
+                && this._ownsActiveBoardWriterToken
+                && this._activeBoardWriterToken
+                && this._activeBoardWriterToken.mode === 'local'
+            ) {
+                throw this._createPlaybackError(
+                    'board_writer_recovery_unresolved',
+                    event,
+                    this._unresolvedLocalBoardWriterError
+                );
+            }
+        }
+
+        _hasOwnedLocalBoardWriter() {
+            return !!(
+                this._ownsActiveBoardWriterToken
+                && this._activeBoardWriterToken
+                && this._activeBoardWriterToken.mode === 'local'
+            );
+        }
+
+        _hasPendingLocalBoardWriterClaim() {
+            return this._pendingLocalBoardWriterClaims > 0;
+        }
+
+        _holdUnresolvedLocalWriterPlaybackState(error: any, event: any) {
+            if (!PlaybackState) {
+                this.setGlobalInteractionLock(true);
+                return true;
+            }
+            if (typeof PlaybackState.setInteractionLock === 'function') {
+                PlaybackState.setInteractionLock(true);
+            } else if (typeof PlaybackState.setBusyState === 'function') {
+                PlaybackState.setBusyState({ processing: true, cardAnimating: true, playbackActive: true });
+            } else if (typeof PlaybackState.beginPlayback === 'function') {
+                PlaybackState.beginPlayback({ boardElement: this.boardEl });
+            } else {
+                this.setGlobalInteractionLock(true);
+            }
+            if (
+                !this._unresolvedLocalPlaybackManagerClaim
+                && typeof PlaybackState.claimVisualPlayback === 'function'
+            ) {
+                this._unresolvedLocalPlaybackManagerClaim = PlaybackState.claimVisualPlayback({
+                    source: 'animation-engine',
+                    scope: 'generic',
+                    reason: 'board_writer_recovery_unresolved',
+                    eventType: String(event && event.type || 'unknown'),
+                    restoreBusyBaseline: false
+                });
+            }
+            if (
+                this._unresolvedLocalPlaybackManagerClaim
+                && typeof PlaybackState.recordVisualPlaybackSettlementError === 'function'
+            ) {
+                PlaybackState.recordVisualPlaybackSettlementError(
+                    this._unresolvedLocalPlaybackManagerClaim,
+                    error,
+                    { stage: 'local-board-writer-recovery' }
+                );
+            }
+            return true;
+        }
+
+        _clearOwnedLocalBoardWriter(token: any) {
+            if (this._activeBoardWriterToken === token) {
+                this._activeBoardWriterToken = null;
+            }
+            this._ownsActiveBoardWriterToken = false;
+            this._unresolvedLocalBoardWriterError = null;
+            if (
+                this._unresolvedLocalPlaybackManagerClaim
+                && PlaybackState
+                && typeof PlaybackState.releaseVisualPlaybackClaim === 'function'
+            ) {
+                PlaybackState.releaseVisualPlaybackClaim(this._unresolvedLocalPlaybackManagerClaim);
+            }
+            this._unresolvedLocalPlaybackManagerClaim = null;
+        }
+
+        async _settleOwnedLocalBoardWriter(token: any, event: any) {
+            const renderer = requireRuntimeModuleOrWindowGlobal('./board-renderer', 'BoardRenderer');
+            let settlementError: any = null;
+            try {
+                if (!renderer || (
+                    typeof renderer.settleBoardVisualWriter !== 'function'
+                    && typeof renderer.releaseBoardVisualWriter !== 'function'
+                )) {
+                    throw new Error('Board writer release API unavailable');
+                }
+                if (typeof renderer.settleBoardVisualWriter === 'function') {
+                    await renderer.settleBoardVisualWriter(token);
+                } else {
+                    renderer.releaseBoardVisualWriter(token);
+                }
+                this._clearOwnedLocalBoardWriter(token);
+                return { released: true, recovered: false, error: null };
+            } catch (error: any) {
+                settlementError = error && error.name === 'PresentationPlaybackError'
+                    ? error
+                    : this._createPlaybackError('board_writer_settlement_failed', event, error);
+            }
+
+            try {
+                if (!renderer || typeof renderer.enterBoardVisualRecovery !== 'function') {
+                    throw new Error('Board writer recovery API unavailable');
+                }
+                if (typeof renderer.settleBoardVisualWriter !== 'function') {
+                    throw new Error('Board writer recovery settlement API unavailable');
+                }
+                renderer.enterBoardVisualRecovery(token, settlementError);
+                await renderer.settleBoardVisualWriter(token);
+                this._clearOwnedLocalBoardWriter(token);
+                return { released: true, recovered: true, error: settlementError };
+            } catch (recoveryError: any) {
+                // Keep the token and ownership intact. The controller remains
+                // claimed/recovering, so neither a later run nor a direct phase
+                // can silently become a second visual writer.
+                this._unresolvedLocalBoardWriterError = settlementError;
+                return {
+                    released: false,
+                    recovered: false,
+                    error: settlementError,
+                    recoveryError
+                };
+            }
+        }
+
+        async _playBoardPhaseThroughBackend(events: any, phaseScope?: any) {
+            let phaseEvents = Array.isArray(events) ? events : [];
+            if (!phaseEvents.length) return;
+            this._throwIfLocalBoardWriterRecoveryIsUnresolved(phaseEvents[0]);
+            if (
+                this._strictNetworkPlayback !== true
+                && PresentationVisualSeed
+                && typeof PresentationVisualSeed.withNextPresentationBatchId === 'function'
+            ) {
+                phaseEvents = Array.from(PresentationVisualSeed.withNextPresentationBatchId(phaseEvents));
+            }
+            let token = this._activeBoardWriterToken;
+            let releaseAfterPhase = false;
+            const renderer = requireRuntimeModuleOrWindowGlobal('./board-renderer', 'BoardRenderer');
+            if (!renderer || typeof renderer.playBoardVisualPhase !== 'function') {
+                throw this._createPlaybackError('board_renderer_unavailable', phaseEvents[0]);
+            }
+            if (!token && this._strictNetworkPlayback === true) {
+                throw this._createPlaybackError('board_writer_token_unavailable', phaseEvents[0]);
+            }
+            if (!token) {
+                const claimPlaybackRunId = this._activePlaybackRunId;
+                this._pendingLocalBoardWriterClaims += 1;
+                try {
+                    if (typeof renderer.getBoardVisualControllerReady === 'function') {
+                        await renderer.getBoardVisualControllerReady();
+                    }
+                    // Concurrent launches in one planner step can all observe a
+                    // null token before the readiness await. Re-read it after
+                    // readiness so only the first continuation claims writer.
+                    token = this._activeBoardWriterToken;
+                    if (!token) {
+                        if (typeof renderer.claimBoardVisualWriter !== 'function') {
+                            throw new Error('Board writer claim API unavailable');
+                        }
+                        const frameToken = claimPlaybackRunId !== null
+                            ? `local:animation-engine:${claimPlaybackRunId}`
+                            : `local:animation-engine-direct:${this._playbackRunSequence + 1}`;
+                        token = renderer.claimBoardVisualWriter(frameToken, 'local');
+                        this._activeBoardWriterToken = token;
+                        this._ownsActiveBoardWriterToken = true;
+                        releaseAfterPhase = claimPlaybackRunId === null;
+                    }
+                } catch (error: any) {
+                    throw this._createPlaybackError('board_writer_claim_failed', phaseEvents[0], error);
+                } finally {
+                    this._pendingLocalBoardWriterClaims = Math.max(0, this._pendingLocalBoardWriterClaims - 1);
+                }
+            }
+            if (token) {
+                let playbackError: any = null;
+                try {
+                    await renderer.playBoardVisualPhase(token, phaseEvents, phaseScope);
+                } catch (error: any) {
+                    playbackError = error && error.name === 'PresentationPlaybackError'
+                        ? error
+                        : this._createPlaybackError('board_renderer_failed', phaseEvents[0], error);
+                }
+                if (releaseAfterPhase) {
+                    const settlement = await this._settleOwnedLocalBoardWriter(token, phaseEvents[0]);
+                    playbackError = playbackError || settlement.error;
+                }
+                if (playbackError) throw playbackError;
+            }
         }
 
         _registerPlaybackAbortHandle(runId: any, runState: any) {
@@ -487,7 +550,14 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 ? Math.max(0, Number(timeoutMs))
                 : 0;
             const startedAt = Date.now();
-            while (this._isPlaybackStateActive() && (this.isPlaying === true || this._activePlaybackRunId !== null)) {
+            while (
+                (this._isPlaybackStateActive() && (this.isPlaying === true || this._activePlaybackRunId !== null))
+                || this._hasOwnedLocalBoardWriter()
+                || this._hasPendingLocalBoardWriterClaim()
+            ) {
+                if (this._unresolvedLocalBoardWriterError && this._hasOwnedLocalBoardWriter()) {
+                    return false;
+                }
                 if (safeTimeoutMs > 0 && Date.now() - startedAt >= safeTimeoutMs) {
                     return false;
                 }
@@ -558,121 +628,12 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             return out;
         }
 
-        _resolveSniperSource(target: any) {
-            const t = (target && typeof target === 'object') ? target : {};
-            const meta = (t.meta && typeof t.meta === 'object') ? t.meta : {};
-            const sourceRow = this._toBoardIndex(
-                Object.prototype.hasOwnProperty.call(t, 'sourceRow') ? t.sourceRow : meta.sourceRow
-            );
-            const sourceCol = this._toBoardIndex(
-                Object.prototype.hasOwnProperty.call(t, 'sourceCol') ? t.sourceCol : meta.sourceCol
-            );
-            if (sourceRow === null || sourceCol === null) return null;
-            return { row: sourceRow, col: sourceCol };
-        }
-
-        _resolveRobotVacuumSource(target: any) {
-            return this._resolveSniperSource(target);
-        }
-
-        _resolveDestroyDragonSource(target: any) {
-            return this._resolveSniperSource(target);
-        }
-
         _getTargetCause(target: any) {
             return String(target && target.cause ? target.cause : '').toUpperCase();
         }
 
         _getTargetReason(target: any) {
             return String(target && target.reason ? target.reason : '').toLowerCase();
-        }
-
-        _resolveDestroySourceAnimationProfile(target: any) {
-            const cause = this._getTargetCause(target);
-            const reason = this._getTargetReason(target);
-            for (const profile of DESTROY_SOURCE_ANIMATION_PROFILES as any) {
-                if (!matchesCauseAndReasonPrefix(cause, reason, profile)) continue;
-                const resolverName = profile.sourceResolver;
-                if (resolverName) {
-                    const resolver = (this as any)[resolverName];
-                    if (typeof resolver !== 'function' || !resolver.call(this, target)) continue;
-                }
-                return profile;
-            }
-            return null;
-        }
-
-        async _playDestroySourceAnimation(target: any, profile: any) {
-            if (!profile || !profile.animationMethod) return;
-            const animationMethod = (this as any)[profile.animationMethod];
-            if (typeof animationMethod !== 'function') return;
-            await animationMethod.call(this, target);
-        }
-
-        _isSuperCrushCause(cause: any) {
-            return cause === 'BUOYANCY_WILL' || cause === 'SUPER_BUOYANCY_WILL' || cause === 'GRAVITY_WILL' || cause === 'SUPER_GRAVITY_WILL' || cause === 'SUPER_ATTRACTION_WILL';
-        }
-
-        _resolveMoveDurationScale(target: any) {
-            const cause = this._getTargetCause(target);
-            const reason = this._getTargetReason(target);
-            if (
-                cause === 'SUPER_ATTRACTION_WILL' ||
-                reason.indexOf('super_attraction_move') === 0 ||
-                reason.indexOf('super_attraction_collision') === 0
-            ) {
-                return 0.5;
-            }
-            if (target && target.isPositionSwapMove) return 0.8;
-            return 1;
-        }
-
-        _resolveSuperCrushCollisionDelayMs(target: any) {
-            const cause = this._getTargetCause(target);
-            if (!this._isSuperCrushCause(cause)) return 0;
-
-            const meta = (target && typeof target.meta === 'object') ? target.meta : null;
-            const progressRaw = Number(meta && meta.collisionProgress);
-            if (!Number.isFinite(progressRaw)) return 0;
-
-            const moveDurationMs = Math.max(1, Math.round((Number(MOVE_MS) || 400) * this._resolveMoveDurationScale(target)));
-            // Keep destroy slightly before move arrival so destination replacement never erases timing.
-            const normalizedProgress = Math.max(0, Math.min(0.88, progressRaw));
-            const delayMs = Math.round(moveDurationMs * normalizedProgress);
-            return delayMs > 0 ? delayMs : 0;
-        }
-
-        _resolveOwnerColorFromBefore(ownerBefore: any) {
-            if (ownerBefore !== 'black' && ownerBefore !== 'white') return null;
-            const blackVal = (typeof BLACK !== 'undefined') ? BLACK : 1;
-            const whiteVal = (typeof WHITE !== 'undefined') ? WHITE : -1;
-            return ownerBefore === 'black' ? blackVal : whiteVal;
-        }
-
-        _resolveOwnerClassFromColor(ownerColor: any) {
-            const blackVal = (typeof BLACK !== 'undefined') ? BLACK : 1;
-            return ownerColor === blackVal ? 'black' : 'white';
-        }
-
-        _resolveVisualColorFromState(state: any, fallbackDisc: any, fallbackOwner: any) {
-            const blackVal = (typeof BLACK !== 'undefined') ? BLACK : 1;
-            const whiteVal = (typeof WHITE !== 'undefined') ? WHITE : -1;
-            const rawColor = Number(state && state.color);
-            if (rawColor === blackVal || rawColor === whiteVal) return rawColor;
-
-            const ownerCandidate = (state && Object.prototype.hasOwnProperty.call(state, 'owner'))
-                ? state.owner
-                : fallbackOwner;
-            const normalizedOwnerKey = this._normalizePlayerKeyOptional(ownerCandidate);
-            if (normalizedOwnerKey === 'black') return blackVal;
-            if (normalizedOwnerKey === 'white') return whiteVal;
-
-            if (fallbackDisc && fallbackDisc.classList) {
-                if (fallbackDisc.classList.contains('black')) return blackVal;
-                if (fallbackDisc.classList.contains('white')) return whiteVal;
-            }
-
-            return null;
         }
 
         _normalizePlayerKeyOptional(value: any) {
@@ -683,86 +644,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             if (value === 'black' || value === 1 || value === '1') return 'black';
             if (value === 'white' || value === -1 || value === '-1') return 'white';
             return null;
-        }
-
-        _normalizePlayerKey(value: any) {
-            return this._normalizePlayerKeyOptional(value) || 'black';
-        }
-
-        _getCurrentMatchMode() {
-            try {
-                if (OwnerHelpersModule && typeof OwnerHelpersModule.getCurrentMatchMode === 'function') {
-                    return String(OwnerHelpersModule.getCurrentMatchMode(typeof window !== 'undefined' ? window : null) || 'cpu').toLowerCase();
-                }
-            } catch (e: any) { /* ignore */ }
-
-            try {
-                if (typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function') {
-                    return String(window.getCurrentMatchMode() || 'cpu').toLowerCase();
-                }
-                if (typeof window !== 'undefined' && window) {
-                    const matchMode = window.MATCH_MODE || window.__MATCH_MODE;
-                    if (matchMode) return String(matchMode).toLowerCase();
-                }
-            } catch (e: any) { /* ignore */ }
-
-            try {
-                if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-                    return String((globalThis as any).getCurrentMatchMode() || 'cpu').toLowerCase();
-                }
-                if (typeof globalThis !== 'undefined') {
-                    const matchMode = (globalThis as any).MATCH_MODE || (globalThis as any).__MATCH_MODE;
-                    if (matchMode) return String(matchMode).toLowerCase();
-                }
-            } catch (e: any) { /* ignore */ }
-
-            return 'cpu';
-        }
-
-        _resolveLocalSeatKey() {
-            try {
-                if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers && typeof OwnerHelpers.resolveLocalPlayerKey === 'function') {
-                    return this._normalizePlayerKey(OwnerHelpers.resolveLocalPlayerKey(typeof window !== 'undefined' ? window : null));
-                }
-            } catch (e: any) { /* ignore */ }
-
-            try {
-                if (typeof window !== 'undefined' && window && window.NetworkMatchClient && typeof window.NetworkMatchClient.getSeatKey === 'function') {
-                    return this._normalizePlayerKey(window.NetworkMatchClient.getSeatKey());
-                }
-            } catch (e: any) { /* ignore */ }
-
-            try {
-                if (typeof window !== 'undefined' && window) {
-                    const candidates = [window.LOCAL_PLAYER_KEY, window.__LOCAL_PLAYER_KEY, window.BOARD_VIEWER_KEY];
-                    for (const one of candidates) {
-                        if (one === 'white' || one === -1 || one === '-1') return 'white';
-                        if (one === 'black' || one === 1 || one === '1') return 'black';
-                    }
-                }
-            } catch (e: any) { /* ignore */ }
-
-            return 'black';
-        }
-
-        _resolveCardUseOwnerKey(target: any) {
-            const t = (target && typeof target === 'object') ? target : {};
-            if (Object.prototype.hasOwnProperty.call(t, 'owner') && t.owner !== null && typeof t.owner !== 'undefined' && t.owner !== '') {
-                return this._normalizePlayerKey(t.owner);
-            }
-            if (Object.prototype.hasOwnProperty.call(t, 'player') && t.player !== null && typeof t.player !== 'undefined' && t.player !== '') {
-                return this._normalizePlayerKey(t.player);
-            }
-            return null;
-        }
-
-        _resolveCardType(cardId: any) {
-            if (!cardId) return null;
-            if (typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.getCardDef !== 'function') {
-                return null;
-            }
-            const def = CardLogic.getCardDef(cardId);
-            return def && typeof def.type === 'string' ? def.type : null;
         }
 
         _resolvePlaceHandDescriptor(target: any) {
@@ -788,172 +669,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             const blackVal = (typeof BLACK !== 'undefined') ? BLACK : 1;
             const whiteVal = (typeof WHITE !== 'undefined') ? WHITE : -1;
             return playerKey === 'white' ? whiteVal : blackVal;
-        }
-
-        _isCardEffectCause(cause: any) {
-            return !!cause && cause !== 'SYSTEM';
-        }
-
-        _getTargetMeta(target: any) {
-            return target && target.meta && typeof target.meta === 'object'
-                ? target.meta
-                : {};
-        }
-
-        _hasSpecialPlacementVisual(target: any) {
-            const meta = this._getTargetMeta(target);
-            const after = target && target.after && typeof target.after === 'object'
-                ? target.after
-                : {};
-            return !!(
-                String(meta.special || '').trim() ||
-                String(after.special || '').trim() ||
-                String(target && target.special ? target.special : '').trim()
-            );
-        }
-
-        _resolvePlacementHighlightTone(eventType: any, target: any) {
-            if (eventType !== EVENT_TYPES.SPAWN && eventType !== EVENT_TYPES.PLACE) return null;
-            const meta = this._getTargetMeta(target);
-            const placementKind = String(meta.placementKind || '').trim().toLowerCase();
-            if (placementKind === 'normal_placement') return HIGHLIGHT_TONE_PLACEMENT;
-            if (placementKind === 'effect_placement') return HIGHLIGHT_TONE_POSITIVE;
-
-            const cause = this._getTargetCause(target);
-            const reason = this._getTargetReason(target);
-            if (cause !== 'SYSTEM' || reason !== 'standard_place') return null;
-            return this._hasSpecialPlacementVisual(target)
-                ? HIGHLIGHT_TONE_POSITIVE
-                : HIGHLIGHT_TONE_PLACEMENT;
-        }
-
-        _resolveEffectTargetHighlightTone(eventType: any, target: any) {
-            if (_isNoAnim()) return null;
-            const cause = this._getTargetCause(target);
-
-            if (target && target.meta && (
-                target.meta.blockedByGhost === true ||
-                target.meta.proliferated === true ||
-                target.meta.regenerated === true
-            )) {
-                return eventType === EVENT_TYPES.DESTROY
-                    ? HIGHLIGHT_TONE_NEGATIVE
-                    : HIGHLIGHT_TONE_POSITIVE;
-            }
-            const placementTone = this._resolvePlacementHighlightTone(eventType, target);
-            if (placementTone) return placementTone;
-            if (!this._isCardEffectCause(cause)) return null;
-            if (eventType === EVENT_TYPES.DESTROY) return HIGHLIGHT_TONE_NEGATIVE;
-            if (eventType === EVENT_TYPES.MOVE) {
-                const reason = this._getTargetReason(target);
-                if (cause === 'DESTROY_EVADE' || reason.indexOf('destroy_evade_move') === 0) {
-                    return HIGHLIGHT_TONE_NEGATIVE;
-                }
-            }
-            return eventType === EVENT_TYPES.FLIP ||
-                eventType === EVENT_TYPES.SPAWN ||
-                eventType === EVENT_TYPES.PLACE ||
-                eventType === EVENT_TYPES.MOVE
-                ? HIGHLIGHT_TONE_POSITIVE
-                : null;
-        }
-
-        _shouldPreserveDiscOnDestroy(target: any) {
-            return !!(
-                target &&
-                target.meta && (
-                    target.meta.blockedByGhost ||
-                    target.meta.proliferated === true ||
-                    target.meta.regenerated === true
-                )
-            );
-        }
-
-        _resolveDestroyTargetHighlightMinimumMs(target: any) {
-            if (!target || !target.meta) return 0;
-            const isProtectedDestroy =
-                target.meta.proliferated === true ||
-                target.meta.blockedByGhost === true ||
-                target.meta.regenerated === true;
-            if (!isProtectedDestroy) return 0;
-            const cause = this._getTargetCause(target);
-            const reason = this._getTargetReason(target);
-            const isOverlapReturnDestroy =
-                (cause === 'GLUTTONOUS_WILL' && reason.indexOf('gluttonous_eat') === 0) ||
-                (cause === 'WILL_HUNTER_KING' && reason.indexOf('will_hunter_king_slash') === 0);
-            if (!isOverlapReturnDestroy) return 0;
-            return Math.max(120, Math.floor(MOVE_MS / 2));
-        }
-
-        _resolveSpawnTargetHighlightMinimumMs(target: any) {
-            if (!target) return 0;
-            const cause = this._getTargetCause(target);
-            const reason = this._getTargetReason(target);
-            const shouldKeepVisible = POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS.some((profile: any) => (
-                matchesSpawnProfileTarget(target, cause, reason, profile)
-            ));
-            if (!shouldKeepVisible) return 0;
-            return POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS;
-        }
-
-        _isRandomSpawnPreviewSettlingTarget(target: any) {
-            const cause = this._getTargetCause(target);
-            const reason = this._getTargetReason(target);
-            return (cause === 'REINFORCEMENT_WILL' && reason.indexOf('reinforcement_will_spawn') === 0) ||
-                (cause === 'SUPPORT_TROOPS_WILL' && reason.indexOf('support_troops_will_spawn') === 0);
-        }
-
-        _shouldClearRandomSpawnPreviewForSpawnEvent(ev: any) {
-            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
-            return targets.some((target: any) => this._isRandomSpawnPreviewSettlingTarget(target));
-        }
-
-        _clearRandomSpawnPreviewHints() {
-            const roots: any[] = [];
-            const pushRoot = (root: any) => {
-                if (root && roots.indexOf(root) < 0) roots.push(root);
-            };
-            pushRoot(this.boardEl);
-            try {
-                const boardStack = this.boardEl && typeof this.boardEl.closest === 'function'
-                    ? this.boardEl.closest('#board-stack')
-                    : null;
-                const scopedLayer = boardStack && typeof boardStack.querySelector === 'function'
-                    ? boardStack.querySelector('#board-expansion-layer')
-                    : null;
-                pushRoot(scopedLayer);
-            } catch (e: any) { /* ignore */ }
-            try {
-                const docLayer = typeof document !== 'undefined' && document && typeof document.getElementById === 'function'
-                    ? document.getElementById('board-expansion-layer')
-                    : null;
-                pushRoot(docLayer);
-            } catch (e: any) { /* ignore */ }
-
-            for (const root of roots) {
-                try {
-                    if (root.classList && root.classList.contains(RANDOM_SPAWN_PREVIEW_CLASS)) {
-                        root.classList.remove(RANDOM_SPAWN_PREVIEW_CLASS);
-                    }
-                    if (typeof root.querySelectorAll !== 'function') continue;
-                    root.querySelectorAll(`.${RANDOM_SPAWN_PREVIEW_CLASS}`).forEach((cell: any) => {
-                        try { cell.classList.remove(RANDOM_SPAWN_PREVIEW_CLASS); } catch (e: any) { /* ignore */ }
-                    });
-                } catch (e: any) { /* ignore */ }
-            }
-        }
-
-        _resolveStatusChangeHighlightMinimumMs(highlightTone: any) {
-            if (!highlightTone) return 0;
-            return POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS;
-        }
-
-        _resolveEffectTargetHighlightMinimumMs(eventType: any, target: any, highlightTone: any, minimumVisibleMs: any) {
-            const requestedMinimum = Number.isFinite(Number(minimumVisibleMs))
-                ? Math.max(0, Math.trunc(Number(minimumVisibleMs)))
-                : 0;
-            if (requestedMinimum > 0) return requestedMinimum;
-            return highlightTone ? POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS : requestedMinimum;
         }
 
         _isHyperactiveLikeMoveEvent(ev: any) {
@@ -1011,239 +726,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             return hasCardUseAnimation && nextHasTreasureGainCue;
         }
 
-        async _runWithEffectTargetHighlight(cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) {
-            if (!cell || typeof runner !== 'function') return undefined;
-
-            const highlightTone = this._resolveEffectTargetHighlightTone(eventType, target);
-            const resolvedMinimumMs = this._resolveEffectTargetHighlightMinimumMs(eventType, target, highlightTone, minimumVisibleMs);
-            const extraClasses = highlightTone === HIGHLIGHT_TONE_NEGATIVE && eventType === EVENT_TYPES.SPAWN
-                ? [EFFECT_TARGET_SPAWN_HIGHLIGHT_CLASS]
-                : [];
-            return this._runWithTransientCellHighlight(cell, highlightTone, runner, resolvedMinimumMs, extraClasses);
-        }
-
-        _resolveStatusChangeHighlightTone(ev: any, target: any) {
-            if (!ev || (ev.type !== EVENT_TYPES.STATUS_APPLIED && ev.type !== EVENT_TYPES.STATUS_REMOVED)) return null;
-            const meta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
-            const explicitTone = String(meta.highlightTone || '').toLowerCase();
-            if (explicitTone === 'none') return null;
-
-            const reason = String(
-                meta.reason ||
-                (ev && ev.reason) ||
-                (target && target.reason) ||
-                ''
-            ).toLowerCase();
-            const specialUpper = String(
-                meta.special ||
-                (target && target.after && target.after.special) ||
-                ''
-            ).toUpperCase();
-            if (specialUpper === 'BLOCKADE' || specialUpper === 'FREEZE') return null;
-            if (specialUpper === 'TRAP_REVEAL' || reason === 'trap_expired_reveal') return HIGHLIGHT_TONE_NEGATIVE;
-            if (explicitTone === HIGHLIGHT_TONE_POSITIVE || explicitTone === HIGHLIGHT_TONE_NEGATIVE) {
-                return HIGHLIGHT_TONE_POSITIVE;
-            }
-            const rawType = String(ev && ev.rawType ? ev.rawType : '').toUpperCase();
-            if (rawType === 'STATUS_TICK') return null;
-            if (!specialUpper) return null;
-            return HIGHLIGHT_TONE_POSITIVE;
-        }
-
-        async _runWithTransientCellHighlight(cell: any, highlightTone: any, runner: any, minimumVisibleMs: any, extraClasses: any) {
-            if (!cell || typeof runner !== 'function') return undefined;
-            const baseHighlightClass = highlightTone === HIGHLIGHT_TONE_POSITIVE
-                ? EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS
-                : (highlightTone === HIGHLIGHT_TONE_PLACEMENT
-                    ? EFFECT_TARGET_PLACEMENT_HIGHLIGHT_CLASS
-                    : (highlightTone === HIGHLIGHT_TONE_NEGATIVE ? EFFECT_TARGET_HIGHLIGHT_CLASS : null));
-            if (!baseHighlightClass) {
-                return runner();
-            }
-
-            let highlighted = false;
-            const transientClasses = Array.isArray(extraClasses)
-                ? extraClasses.filter((className) => typeof className === 'string' && className)
-                : [];
-            const minVisible = Number.isFinite(Number(minimumVisibleMs))
-                ? Math.max(0, Math.trunc(Number(minimumVisibleMs)))
-                : 0;
-            const startedAt = Date.now();
-            const transientToken = `${baseHighlightClass}:${startedAt}:${Math.random()}`;
-            try {
-                if (cell.dataset) {
-                    cell.dataset[TRANSIENT_CELL_HIGHLIGHT_CLASS_DATASET_KEY] = baseHighlightClass;
-                    cell.dataset[TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY] = transientToken;
-                }
-                cell.classList.add(baseHighlightClass);
-                for (const className of transientClasses) {
-                    cell.classList.add(className);
-                }
-                highlighted = true;
-            } catch (e: any) { /* ignore */ }
-
-            try {
-                return await runner();
-            } finally {
-                if (highlighted && minVisible > 0) {
-                    const elapsed = Date.now() - startedAt;
-                    const remaining = minVisible - elapsed;
-                    if (remaining > 0) {
-                        await this._sleep(remaining);
-                    }
-                }
-                if (highlighted) {
-                    const stillOwnsTransientHighlight = !cell.dataset
-                        || !cell.dataset[TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY]
-                        || cell.dataset[TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY] === transientToken;
-                    if (stillOwnsTransientHighlight && cell.dataset) {
-                        try {
-                            delete cell.dataset[TRANSIENT_CELL_HIGHLIGHT_CLASS_DATASET_KEY];
-                            delete cell.dataset[TRANSIENT_CELL_HIGHLIGHT_TOKEN_DATASET_KEY];
-                        } catch (e: any) { /* ignore */ }
-                    }
-                    if (stillOwnsTransientHighlight) {
-                        for (const className of transientClasses) {
-                            try { cell.classList.remove(className); } catch (e: any) { /* ignore */ }
-                        }
-                        try { cell.classList.remove(baseHighlightClass); } catch (e: any) { /* ignore */ }
-                    }
-                }
-            }
-        }
-
-        async _waitForAnimationFinish(anim: any, durationMs: any, timeoutPaddingMs: any) {
-            if (!anim) return;
-            const timeoutMs = Math.max(0, Math.round(Number(durationMs) || 0)) +
-                Math.max(0, Math.round(Number(timeoutPaddingMs) || 0));
-
-            await new Promise<void>((resolve) => {
-                let timeoutId: any = null;
-                let done = false;
-                const finish = () => {
-                    if (done) return;
-                    done = true;
-                    try {
-                        if (anim && typeof anim.removeEventListener === 'function') {
-                            anim.removeEventListener('finish', finish);
-                        }
-                    } catch (e: any) { /* ignore */ }
-                    if (timeoutId !== null) {
-                        try { _Timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
-                        timeoutId = null;
-                    }
-                    resolve();
-                };
-                try {
-                    if (anim && typeof anim.addEventListener === 'function') {
-                        anim.addEventListener('finish', finish, { once: true });
-                    }
-                } catch (e: any) { /* ignore */ }
-                try {
-                    timeoutId = _Timer().setTimeout(finish, timeoutMs, this.playbackScope);
-                } catch (e: any) {
-                    timeoutId = setTimeout(finish, timeoutMs);
-                }
-                try {
-                    if (anim && anim.finished && typeof anim.finished.then === 'function') {
-                        anim.finished.then(finish).catch(finish);
-                    }
-                } catch (e: any) { /* ignore */ }
-            });
-        }
-
-        async _waitForOpacityTransition(element: any, durationMs: any, timeoutPaddingMs: any, startTransition: any, cleanup: any) {
-            if (!element) {
-                if (typeof cleanup === 'function') {
-                    try { cleanup(); } catch (e: any) { /* ignore */ }
-                }
-                return;
-            }
-
-            const timeoutMs = Math.max(0, Math.round(Number(durationMs) || 0)) +
-                Math.max(0, Math.round(Number(timeoutPaddingMs) || 0));
-
-            await new Promise<void>((resolve) => {
-                let timeoutId: any = null;
-                let done = false;
-                const finish = () => {
-                    if (done) return;
-                    done = true;
-                    if (timeoutId !== null) {
-                        try { _Timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
-                        timeoutId = null;
-                    }
-                    try { element.removeEventListener('transitionend', onEnd); } catch (e: any) { /* ignore */ }
-                    if (typeof cleanup === 'function') {
-                        try { cleanup(); } catch (e: any) { /* ignore */ }
-                    }
-                    resolve();
-                };
-                const onEnd = (e: any) => {
-                    if (!e || e.propertyName === 'opacity') finish();
-                };
-                try { element.addEventListener('transitionend', onEnd); } catch (e: any) { /* ignore */ }
-                try {
-                    timeoutId = _Timer().setTimeout(finish, timeoutMs, this.playbackScope);
-                } catch (e: any) {
-                    timeoutId = setTimeout(finish, timeoutMs);
-                }
-                if (typeof startTransition === 'function') {
-                    try {
-                        startTransition();
-                    } catch (e: any) {
-                        finish();
-                    }
-                }
-            });
-        }
-
-        _getDestroySourceAnimationDeps() {
-            if (!(AnimationDestroySourceEvents && typeof AnimationDestroySourceEvents.animateSniperProjectile === 'function')) {
-                throw new Error('AnimationEngine destroy source events module unavailable');
-            }
-            return {
-                isNoAnim: _isNoAnim,
-                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
-                resolveSniperSource: (target: any) => this._resolveSniperSource(target),
-                resolveRobotVacuumSource: (target: any) => this._resolveRobotVacuumSource(target),
-                resolveDestroyDragonSource: (target: any) => this._resolveDestroyDragonSource(target),
-                waitForAnimationFinish: (anim: any, durationMs: any, timeoutPaddingMs: any) => this._waitForAnimationFinish(anim, durationMs, timeoutPaddingMs),
-                sleep: (ms: any) => this._sleep(ms),
-                timer: _Timer,
-                playbackScope: this.playbackScope,
-                layoutBatch: this._getPhaseLayoutBatch(),
-                transientOverlayBatch: this._getPhaseTransientOverlayBatch()
-            };
-        }
-
-        _resolveSniperProjectileOwner(target: any) {
-            if (!(AnimationDestroySourceEvents && typeof AnimationDestroySourceEvents.resolveSniperProjectileOwner === 'function')) {
-                throw new Error('AnimationEngine destroy source events module unavailable');
-            }
-            return AnimationDestroySourceEvents.resolveSniperProjectileOwner(target);
-        }
-
-        async animateSniperProjectile(target: any) {
-            return AnimationDestroySourceEvents.animateSniperProjectile(target, this._getDestroySourceAnimationDeps());
-        }
-
-        async animateRobotVacuumSuction(target: any) {
-            return AnimationDestroySourceEvents.animateRobotVacuumSuction(target, this._getDestroySourceAnimationDeps());
-        }
-
-        async animateDestroyDragonBreath(target: any) {
-            return AnimationDestroySourceEvents.animateDestroyDragonBreath(target, this._getDestroySourceAnimationDeps());
-        }
-
-        async animateUdgLightningStrike(target: any) {
-            return AnimationDestroySourceEvents.animateUdgLightningStrike(target, this._getDestroySourceAnimationDeps());
-        }
-
-        async animateMeteorGodBlackBeam(target: any) {
-            return AnimationDestroySourceEvents.animateMeteorGodBlackBeam(target, this._getDestroySourceAnimationDeps());
-        }
-
         /**
          * Play a sequence of PlaybackEvents.
          * @param {Array} events - Ordered PlaybackEvents
@@ -1251,9 +733,10 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
          */
         async play(events: any, options?: any) {
             const playOptions = (options && typeof options === 'object') ? options : {};
-            const normalizedEvents = Array.isArray(events)
+            let normalizedEvents = Array.isArray(events)
                 ? events.map((ev) => this._normalizeEvent(ev))
                 : [];
+            this._throwIfLocalBoardWriterRecoveryIsUnresolved(normalizedEvents[0]);
             // No events: just ensure flags are clean and return.
             if (!normalizedEvents.length) {
                 this.setGlobalInteractionLock(false);
@@ -1261,6 +744,13 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             }
             const strictNetworkPlaybackThisRun = playOptions.strictNetworkPlayback === true
                 || normalizedEvents.some((event) => event && event.strictNetworkPlayback === true);
+            if (
+                !strictNetworkPlaybackThisRun
+                && PresentationVisualSeed
+                && typeof PresentationVisualSeed.withNextPresentationBatchId === 'function'
+            ) {
+                normalizedEvents = Array.from(PresentationVisualSeed.withNextPresentationBatchId(normalizedEvents));
+            }
             const deferFinalSettlement = playOptions.deferFinalSettlement === true;
             if (deferFinalSettlement && typeof playOptions.onFinalizationReady !== 'function') {
                 throw new Error('playback_finalization_handoff_unavailable');
@@ -1268,6 +758,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             let abortedDuringPlay = false;
             let playbackError: any = null;
             let strictWatchdogPromise: Promise<never> | null = null;
+            const runBoardWriterToken = playOptions.boardWriterToken || null;
             const awaitPlaybackStep = (promise: any) => {
                 if (strictNetworkPlaybackThisRun && strictWatchdogPromise) {
                     return Promise.race([Promise.resolve(promise), strictWatchdogPromise]);
@@ -1287,9 +778,23 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             ));
 
             const hasActivePlaybackRun = this.isPlaying === true || this._activePlaybackRunId !== null;
-            if (this._isPlaybackStateActive() && hasActivePlaybackRun) {
+            if (
+                (this._isPlaybackStateActive() && hasActivePlaybackRun)
+                || this._hasOwnedLocalBoardWriter()
+                || this._hasPendingLocalBoardWriterClaim()
+            ) {
                 const overlapWaitMs = this._resolvePlaybackOverlapWaitMs();
                 const settled = await this._waitForActivePlaybackToSettle(overlapWaitMs);
+                if (!settled) {
+                    this._throwIfLocalBoardWriterRecoveryIsUnresolved(normalizedEvents[0]);
+                    if (this._hasOwnedLocalBoardWriter() || this._hasPendingLocalBoardWriterClaim()) {
+                        throw this._createPlaybackError(
+                            'board_writer_active_run_unsettled',
+                            normalizedEvents[0],
+                            new Error('Previous local board writer did not settle before overlap timeout')
+                        );
+                    }
+                }
                 if (!settled && this._isPlaybackStateActive() && (this.isPlaying === true || this._activePlaybackRunId !== null)) {
                     console.warn('[AnimationEngine] Already playing. Aborting previous...');
                     this.isAborted = true;
@@ -1327,6 +832,8 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             const runId = this._playbackRunSequence + 1;
             this._playbackRunSequence = runId;
             this._activePlaybackRunId = runId;
+            this._activeBoardWriterToken = runBoardWriterToken;
+            this._ownsActiveBoardWriterToken = false;
             const runState = {
                 scope: null,
                 watchdogId: null,
@@ -1410,11 +917,40 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 if (this._watchdogId === runState.watchdogId) {
                     this._watchdogId = null;
                 }
-                if (isCurrentRun) {
+                const activeWriterBelongsToRun = this._ownsActiveBoardWriterToken
+                    && this._activeBoardWriterToken
+                    && this._activeBoardWriterToken.mode === 'local'
+                    && this._activeBoardWriterToken.frameToken === `local:animation-engine:${runId}`;
+                let localWriterSettlementResolved = true;
+                if (activeWriterBelongsToRun) {
+                    const ownedToken = this._activeBoardWriterToken;
+                    const settlement = await this._settleOwnedLocalBoardWriter(
+                        ownedToken,
+                        normalizedEvents[normalizedEvents.length - 1]
+                    );
+                    localWriterSettlementResolved = settlement.released === true;
+                    if (settlement.error) {
+                        abortedDuringPlay = true;
+                        playbackError = playbackError || settlement.error;
+                    }
+                }
+                if (!localWriterSettlementResolved && activeWriterBelongsToRun) {
+                    // External abort may already have cleared manager/input state.
+                    // Keep engine and manager state aligned with the controller's
+                    // retained local writer until recovery can be completed.
+                    this._activePlaybackRunId = runId;
+                    this.isPlaying = true;
+                    this._holdUnresolvedLocalWriterPlaybackState(
+                        playbackError || this._unresolvedLocalBoardWriterError,
+                        normalizedEvents[normalizedEvents.length - 1]
+                    );
+                }
+                if (isCurrentRun && localWriterSettlementResolved) {
                     this._activePlaybackRunId = null;
                     this.isPlaying = false;
                 }
                 const shouldArmBoardUpdateContext = isCurrentRun
+                    && localWriterSettlementResolved
                     && !runState.externallyAborted
                     && (shouldSuppressNextDiffFlip || shouldSuppressBoardExpansionRevealSound)
                     && !abortedDuringPlay
@@ -1431,12 +967,12 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 const strictNetworkPlaybackFailed = strictNetworkPlaybackThisRun
                     && (!!playbackError || !!this._strictNetworkPlaybackError);
                 // Avoid leaking abort state into the next playback run.
-                if (isCurrentRun) {
+                if (isCurrentRun && localWriterSettlementResolved) {
                     this.isAborted = false;
                 }
                 // After playback completes, request a final board diff render to ensure DOM matches state.
                 // This avoids stale visuals when diff rendering was suppressed during playback.
-                if (isCurrentRun && !runState.externallyAborted) {
+                if (isCurrentRun && localWriterSettlementResolved && !runState.externallyAborted) {
                     if (strictNetworkPlaybackFailed) {
                         if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
                             PlaybackState.abortPlayback({
@@ -1481,9 +1017,12 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                         _requestBoardUpdate();
                     }
                 }
-                if (isCurrentRun) {
+                if (isCurrentRun && localWriterSettlementResolved) {
                     this._strictNetworkPlaybackReject = null;
                     this._strictNetworkPlayback = false;
+                    if (this._activeBoardWriterToken === runBoardWriterToken) {
+                        this._activeBoardWriterToken = null;
+                    }
                 }
             }
             if (this._strictNetworkPlaybackError) {
@@ -1491,218 +1030,80 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 this._strictNetworkPlaybackError = null;
                 throw error;
             }
-            if (playbackError && strictNetworkPlaybackThisRun) {
+            if (playbackError) {
                 throw playbackError;
             }
         }
         groupByPhase(events: any) {
-            return events.reduce((acc: any, ev: any) => {
-                const p = ev.phase || 0;
-                if (!acc[p]) acc[p] = [];
-                acc[p].push(ev);
-                return acc;
-            }, {});
-        }
-
-        _isSuperCrushMoveTarget(target: any) {
-            const cause = this._getTargetCause(target);
-            const reason = this._getTargetReason(target);
-            return this._isSuperCrushCause(cause) ||
-                reason.indexOf('super_buoyancy_move') === 0 ||
-                reason.indexOf('super_gravity_move') === 0 ||
-                reason.indexOf('super_attraction_move') === 0;
-        }
-
-        _buildPhaseContext(events: any) {
-            const superCrushDestinations = new Map();
-            for (const ev of events || []) {
-                if (!ev || ev.type !== EVENT_TYPES.MOVE || !Array.isArray(ev.targets)) continue;
-                for (const target of ev.targets) {
-                    if (!this._isSuperCrushMoveTarget(target)) continue;
-                    const from = target && target.from ? target.from : null;
-                    const to = target && target.to ? target.to : null;
-                    if (!to || !Number.isInteger(to.r) || !Number.isInteger(to.col)) continue;
-                    const fromCell = from && Number.isInteger(from.r) && Number.isInteger(from.col)
-                        ? this.getCellEl(from.r, from.col)
-                        : null;
-                    const toCell = this.getCellEl(to.r, to.col);
-                    superCrushDestinations.set(`${to.r},${to.col}`, {
-                        sourceHadDisc: !!(fromCell && fromCell.querySelector('.disc')),
-                        destinationHadDisc: !!(toCell && toCell.querySelector('.disc'))
-                    });
-                }
+            if (PresentationPhasePlanner && typeof PresentationPhasePlanner.groupPresentationEventsByPhase === 'function') {
+                return PresentationPhasePlanner.groupPresentationEventsByPhase(events || []);
             }
-            const layoutBatch = (LayoutReadBatch && typeof LayoutReadBatch.createLayoutReadBatch === 'function')
-                ? LayoutReadBatch.createLayoutReadBatch()
-                : null;
-            const transientOverlayBatch = (TransientOverlayBatch && typeof TransientOverlayBatch.createTransientOverlayBatch === 'function')
-                ? TransientOverlayBatch.createTransientOverlayBatch({ documentRef: (typeof document !== 'undefined' ? document : null) })
-                : null;
-            return {
-                superCrushDestinations,
-                cellElements: new Map(),
-                layoutBatch,
-                transientOverlayBatch
-            };
-        }
-
-        _getSuperCrushDestinationContext(row: any, col: any) {
-            const ctx = this._phaseContext;
-            if (!ctx || !(ctx.superCrushDestinations instanceof Map)) return null;
-            return ctx.superCrushDestinations.get(`${row},${col}`) || null;
-        }
-
-        _getPhaseLayoutBatch() {
-            const ctx = this._phaseContext;
-            return ctx && ctx.layoutBatch ? ctx.layoutBatch : null;
-        }
-
-        _getPhaseTransientOverlayBatch() {
-            const ctx = this._phaseContext;
-            return ctx && ctx.transientOverlayBatch ? ctx.transientOverlayBatch : null;
-        }
-
-        async _withPhaseContext(context: any, runner: any) {
-            const prev = this._phaseContext;
-            this._phaseContext = context || null;
-            try {
-                return await runner();
-            } finally {
-                try {
-                    if (context && context.transientOverlayBatch && typeof context.transientOverlayBatch.cleanup === 'function') {
-                        context.transientOverlayBatch.cleanup();
-                    }
-                } catch (e: any) { /* ignore */ }
-                try {
-                    if (context && context.layoutBatch && typeof context.layoutBatch.clear === 'function') {
-                        context.layoutBatch.clear();
-                    }
-                } catch (e: any) { /* ignore */ }
-                try {
-                    if (context && context.cellElements instanceof Map) context.cellElements.clear();
-                } catch (e: any) { /* ignore */ }
-                this._phaseContext = prev;
-            }
-        }
-
-        async _animateDestroyGhostAtCell(cell: any, ownerColor: any) {
-            if (!cell) return;
-            const ghost = document.createElement('div');
-            ghost.className = 'disc';
-            if (ownerColor === ((typeof BLACK !== 'undefined') ? BLACK : 1)) ghost.classList.add('black');
-            else if (ownerColor === ((typeof WHITE !== 'undefined') ? WHITE : -1)) ghost.classList.add('white');
-            ghost.style.pointerEvents = 'none';
-            ghost.classList.add('destroy-fade');
-            cell.appendChild(ghost);
-            await this._sleep(FADE_OUT_MS);
-            if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
-        }
-
-        _removeDiscFromCell(cell: any, disc: any) {
-            if (!cell || !disc) return;
-            try {
-                if (disc.parentElement === cell) cell.removeChild(disc);
-            } catch (e: any) { /* ignore */ }
-            try {
-                if (!cell.querySelector('.disc')) cell.classList.remove('has-disc');
-            } catch (e: any) { /* ignore */ }
-        }
-
-        _isBoardShrinkHoleStatusChange(ev: any, target: any) {
-            const meta = ev && ev.meta && typeof ev.meta === 'object' ? ev.meta : null;
-            const targetMeta = target && target.meta && typeof target.meta === 'object' ? target.meta : null;
-            const visualVariant = String(
-                (targetMeta && targetMeta.visualVariant) ||
-                (meta && meta.visualVariant) ||
-                (target && target.after && target.after.visualVariant) ||
-                ''
-            ).toUpperCase();
-            return visualVariant === 'BOARD_FRAME';
-        }
-
-        _ensureBoardShrinkHoleMark(cell: any) {
-            if (!cell || typeof document === 'undefined') return null;
-            try {
-                cell.classList.add('blocked-cell', 'board-shrink-hole-cell');
-                cell.classList.remove('meteor-hole-cell');
-                let mark = cell.querySelector('.board-shrink-hole-mark');
-                if (!mark) {
-                    mark = document.createElement('div');
-                    mark.className = 'board-shrink-hole-mark';
-                    cell.appendChild(mark);
-                }
-                return mark;
-            } catch (e: any) {
-                return null;
-            }
-        }
-
-        async _playBoardShrinkHolePushIn(cell: any) {
-            const mark = this._ensureBoardShrinkHoleMark(cell);
-            if (!mark) return;
-            if (_isNoAnim()) return;
-            try {
-                cell.classList.add('board-shrink-hole-push-active');
-                mark.classList.add('board-shrink-hole-push-in');
-                await this._sleep(Math.max(180, Math.min(360, Math.round(FADE_OUT_MS * 0.55))));
-            } finally {
-                try { mark.classList.remove('board-shrink-hole-push-in'); } catch (e: any) { /* ignore */ }
-                try { cell.classList.remove('board-shrink-hole-push-active'); } catch (e: any) { /* ignore */ }
-            }
+            throw new Error('Presentation phase planner is unavailable');
         }
 
         async executePhase(phaseEvents: any) {
-            const events = Array.isArray(phaseEvents) ? phaseEvents.slice() : [];
-            const hasTreasureGainCue = events.some((ev) => {
-                if (!ev || ev.type !== EVENT_TYPES.SOUND_EFFECT) return false;
-                if (String(ev.soundKey || '').trim() === 'treasure_gain') return true;
-                const targets = Array.isArray(ev.targets) ? ev.targets : [];
-                return targets.some((t: any) => String((t && t.soundKey) || '').trim() === 'treasure_gain');
-            });
-
-            const effectiveEvents = hasTreasureGainCue
-                ? events
-                    .map((ev) => {
-                        if (!ev || ev.type !== EVENT_TYPES.SOUND_EFFECT) return ev;
-                        const keys = [];
-                        if (ev.soundKey) keys.push(String(ev.soundKey).trim());
-                        const targets = Array.isArray(ev.targets) ? ev.targets : [];
-                        for (const t of targets) {
-                            if (t && t.soundKey) keys.push(String(t.soundKey).trim());
-                        }
-                        const filtered = keys.filter((k) => k && k !== 'charge_gain_common');
-                        if (!filtered.length) return null;
-                        const nextEv = Object.assign({}, ev);
-                        delete nextEv.soundKey;
-                        nextEv.targets = filtered.map((soundKey) => ({ soundKey }));
-                        return nextEv;
-                    })
-                    .filter((ev) => !!ev)
-                : events;
-
-            const manifestEndingEvents = effectiveEvents.filter(ev => ev && ev.type === EVENT_TYPES.MANIFEST_ENDING);
-            if (manifestEndingEvents.length) {
-                const remainingEvents = effectiveEvents.filter(ev => !ev || ev.type !== EVENT_TYPES.MANIFEST_ENDING);
-                for (const ev of manifestEndingEvents) {
-                    await this.executeEvent(ev);
-                }
-                if (remainingEvents.length) {
-                    await this.executePhase(remainingEvents);
-                }
-                return;
+            if (!PresentationDispatcher || typeof PresentationDispatcher.dispatchPresentationPhase !== 'function') {
+                throw new Error('Presentation dispatcher is unavailable');
             }
-
-            // Batch flip events within the same phase so that multiple flips animate together.
-            const phaseContext = this._buildPhaseContext(effectiveEvents);
-            await this._withPhaseContext(phaseContext, async () => {
-                const flips = effectiveEvents.filter(ev => ev && ev.type === EVENT_TYPES.FLIP);
-                const nonFlips = effectiveEvents.filter(ev => !ev || ev.type !== EVENT_TYPES.FLIP);
-
-                const promises = [];
-                if (flips.length) promises.push(this.executeFlipBatch(flips));
-                if (nonFlips.length) promises.push(...nonFlips.map(ev => this.executeEvent(ev)));
-                await Promise.all(promises);
-            });
+            let events = Array.isArray(phaseEvents) ? phaseEvents.slice() : [];
+            this._throwIfLocalBoardWriterRecoveryIsUnresolved(events[0]);
+            if (
+                this._strictNetworkPlayback !== true
+                && PresentationVisualSeed
+                && typeof PresentationVisualSeed.withNextPresentationBatchId === 'function'
+            ) {
+                events = Array.from(PresentationVisualSeed.withNextPresentationBatchId(events));
+            }
+            let directWriterToken: any = null;
+            const needsBoardWriter = events.some((event: any) => !(
+                BoardPlaybackTypes
+                && typeof BoardPlaybackTypes.isKnownGlobalPresentationEvent === 'function'
+                && BoardPlaybackTypes.isKnownGlobalPresentationEvent(event)
+            ));
+            if (
+                needsBoardWriter
+                && this._activePlaybackRunId === null
+                && !this._activeBoardWriterToken
+                && this._strictNetworkPlayback !== true
+            ) {
+                const renderer = requireRuntimeModuleOrWindowGlobal('./board-renderer', 'BoardRenderer');
+                try {
+                    if (!renderer || typeof renderer.claimBoardVisualWriter !== 'function') {
+                        throw new Error('Board writer claim API unavailable');
+                    }
+                    if (typeof renderer.getBoardVisualControllerReady === 'function') {
+                        await renderer.getBoardVisualControllerReady();
+                    }
+                    directWriterToken = renderer.claimBoardVisualWriter(
+                        `local:animation-engine-direct:${this._playbackRunSequence + 1}`,
+                        'local'
+                    );
+                    this._activeBoardWriterToken = directWriterToken;
+                    this._ownsActiveBoardWriterToken = true;
+                } catch (error: any) {
+                    throw this._createPlaybackError('board_writer_claim_failed', events[0], error);
+                }
+            }
+            let phaseError: any = null;
+            try {
+                await PresentationDispatcher.dispatchPresentationPhase(
+                    events,
+                    {
+                        strictNetworkPlayback: this._strictNetworkPlayback === true,
+                        playBoardPhase: (boardEvents: any, phaseScope: any) => this._playBoardPhaseThroughBackend(boardEvents, phaseScope),
+                        playGlobalEvent: (event: any) => this.executeEvent(event, { globalOnly: true }),
+                        playManifestEndingGlobal: (event: any) => this.handleManifestEndingGlobal(event),
+                        warnUnhandledLocalEvent: (event: any) => console.warn('[AnimationEngine] Unhandled event type:', event && event.type)
+                    }
+                );
+            } catch (error: any) {
+                phaseError = error;
+            }
+            if (directWriterToken) {
+                const settlement = await this._settleOwnedLocalBoardWriter(directWriterToken, events[0]);
+                phaseError = phaseError || settlement.error;
+            }
+            if (phaseError) throw phaseError;
         }
 
         async _sleep(ms: any) {
@@ -1770,45 +1171,47 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             try { _requestBoardUpdate(); } catch (e: any) { /* Intentionally empty: board update in abort path */ }
         }
 
-        async executeEvent(ev: any) {
+        async executeEvent(ev: any, options?: any) {
+            const globalOnly = !!(options && options.globalOnly === true);
             const handPlaybackResult = this._handleHandPlaybackEvent(ev);
             if (handPlaybackResult !== null) {
                 return handPlaybackResult;
             }
             switch (ev.type) {
                 case EVENT_TYPES.PLACE:
-                    return this.handlePlace(ev);
                 case EVENT_TYPES.FLIP:
-                    return this.handleFlip(ev);
                 case EVENT_TYPES.DESTROY:
-                    return this.handleDestroy(ev);
                 case EVENT_TYPES.SPAWN:
-                    return this.handleSpawn(ev);
                 case EVENT_TYPES.MOVE:
-                    return this.handleMove(ev);
                 case EVENT_TYPES.STATUS_APPLIED:
                 case EVENT_TYPES.STATUS_REMOVED:
-                    return this.handleStatusChange(ev);
                 case EVENT_TYPES.OBSERVER_BUBBLE:
-                    return this.handleObserverBubble(ev);
+                case EVENT_TYPES.THEORY_INCARNATION_SPAWN_ROULETTE:
+                    if (globalOnly) throw this._createPlaybackError('board_event_routed_to_global_dispatcher', ev);
+                    return this._playBoardPhaseThroughBackend([ev]);
                 case EVENT_TYPES.ROUND_BONUS_BANNER:
                     return this.handleRoundBonusBanner(ev);
                 case EVENT_TYPES.SPECIAL_CARD_CINEMATIC:
                     return this.handleSpecialCardCinematic(ev);
                 case EVENT_TYPES.MANIFEST_ENDING:
-                    return this.handleManifestEnding(ev);
-                case EVENT_TYPES.THEORY_INCARNATION_SPAWN_ROULETTE:
-                    return this.handleTheoryIncarnationSpawnRoulette(ev);
+                    if (globalOnly) return this.handleManifestEndingGlobal(ev);
+                    await this._playBoardPhaseThroughBackend([ev]);
+                    return this.handleManifestEndingGlobal(ev);
                 case EVENT_TYPES.SOUND_EFFECT:
                     return this.handleSoundEffect(ev);
                 case EVENT_TYPES.LOG:
                     this.log(ev.message);
                     return Promise.resolve();
                 default:
+                    if (this._strictNetworkPlayback === true) {
+                        throw this._createPlaybackError('presentation_event_unimplemented', ev);
+                    }
                     console.warn('[AnimationEngine] Unhandled event type:', ev.type);
-                    // Fallback: apply state immediately (Section 1.1)
-                    this.applyFinalStates(ev);
-                    return Promise.resolve();
+                    return this._playBoardPhaseThroughBackend([{
+                        type: '__dom_compatibility_final_state',
+                        sourceEvent: ev,
+                        targets: ev && ev.targets || []
+                    }]);
             }
         }
 
@@ -1826,127 +1229,10 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 armSkipNextCardUseButtonSound: _armSkipNextCardUseButtonSound,
                 armLocalCardUseAnimationSkip: _armLocalCardUseAnimationSkip,
                 executeEvent: (event: any) => this.executeEvent(event),
+                playBoardEffect: (event: any) => this._playBoardPhaseThroughBackend([event]),
                 fallbackPlayHandAnimation: (typeof playHandAnimation === 'function') ? playHandAnimation : null
             });
         }
-
-        _handleStatusPlaybackEvent(ev: any) {
-            if (!(AnimationStatusEvents && typeof AnimationStatusEvents.handleStatusChangeEvent === 'function')) {
-                throw new Error('AnimationEngine status events module unavailable');
-            }
-            return AnimationStatusEvents.handleStatusChangeEvent(ev, {
-                eventTypes: EVENT_TYPES,
-                visuals: Visuals,
-                overlayCrossfadeMs: OVERLAY_CROSSFADE_MS,
-                regenConsumeFadeMs: REGEN_CONSUME_FADE_MS,
-                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
-                resolveStatusChangeHighlightTone: (event: any, target: any) => this._resolveStatusChangeHighlightTone(event, target),
-                runWithTransientCellHighlight: (cell: any, highlightTone: any, runner: any, minimumVisibleMs: any, extraClasses: any[]) => this._runWithTransientCellHighlight(cell, highlightTone, runner, minimumVisibleMs, extraClasses),
-                resolveStatusChangeHighlightMinimumMs: (highlightTone: any) => this._resolveStatusChangeHighlightMinimumMs(highlightTone),
-                waitForDisc: (row: any, col: any, retries: any) => this.waitForDisc(row, col, retries),
-                syncDiscTimerOnly: (disc: any, after: any) => this.syncDiscTimerOnly(disc, after),
-                fadeOutFreezeOverlay: (cell: any, durationMs: any) => this.fadeOutFreezeOverlay(cell, durationMs),
-                crossfadeDiscToState: (disc: any, after: any, durationMs: any) => this.crossfadeDiscToState(disc, after, durationMs),
-                isBoardShrinkHoleStatusChange: (event: any, target: any) => this._isBoardShrinkHoleStatusChange(event, target),
-                playBoardShrinkHolePushIn: (cell: any) => this._playBoardShrinkHolePushIn(cell),
-                removeDiscFromCell: (cell: any, disc: any) => this._removeDiscFromCell(cell, disc),
-                resolveVisualColorFromState: (visualAfter: any, disc: any, visualOwner: any) => this._resolveVisualColorFromState(visualAfter, disc, visualOwner),
-                syncDiscVisual: (disc: any, visualAfter: any) => this.syncDiscVisual(disc, visualAfter)
-            });
-        }
-
-        _handleFlipPlaybackEvent(ev: any) {
-            if (!(AnimationFlipEvents && typeof AnimationFlipEvents.handleFlipEvent === 'function')) {
-                throw new Error('AnimationEngine flip events module unavailable');
-            }
-            return AnimationFlipEvents.handleFlipEvent(ev, {
-                eventTypes: EVENT_TYPES,
-                flipMs: FLIP_MS,
-                fadeOutMs: FADE_OUT_MS,
-                zombieBiteMs: 800,
-                isNoAnim: _isNoAnim,
-                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
-                resolveOwnerColorFromBefore: (ownerBefore: any) => this._resolveOwnerColorFromBefore(ownerBefore),
-                resolveOwnerClassFromColor: (ownerColor: any) => this._resolveOwnerClassFromColor(ownerColor),
-                syncDiscVisual: (disc: any, after: any) => this.syncDiscVisual(disc, after),
-                runWithEffectTargetHighlight: (cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) => this._runWithEffectTargetHighlight(cell, eventType, target, runner, minimumVisibleMs),
-                sleep: (ms: any) => this._sleep(ms),
-                animationShared: AnimationShared
-            });
-        }
-
-        _handlePlacePlaybackEvent(ev: any) {
-            if (!(AnimationPlacementEvents && typeof AnimationPlacementEvents.handlePlaceEvent === 'function')) {
-                throw new Error('AnimationEngine placement events module unavailable');
-            }
-            return AnimationPlacementEvents.handlePlaceEvent(ev, {
-                eventTypes: EVENT_TYPES,
-                breedingSpawnFadeMs: BREEDING_SPAWN_FADE_MS,
-                isNoAnim: _isNoAnim,
-                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
-                createDisc: (state: any) => this.createDisc(state),
-                runWithEffectTargetHighlight: (cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) => this._runWithEffectTargetHighlight(cell, eventType, target, runner, minimumVisibleMs),
-                resolveSpawnTargetHighlightMinimumMs: (target: any) => this._resolveSpawnTargetHighlightMinimumMs(target),
-                waitForOpacityTransition: (disc: any, durationMs: any, bufferMs: any, starter: any, cleanup: any) => this._waitForOpacityTransition(disc, durationMs, bufferMs, starter, cleanup)
-            });
-        }
-
-        _handleSpawnPlaybackEvent(ev: any) {
-            if (!(AnimationPlacementEvents && typeof AnimationPlacementEvents.handleSpawnEvent === 'function')) {
-                throw new Error('AnimationEngine placement events module unavailable');
-            }
-            if (this._shouldClearRandomSpawnPreviewForSpawnEvent(ev)) {
-                this._clearRandomSpawnPreviewHints();
-            }
-            return AnimationPlacementEvents.handleSpawnEvent(ev, {
-                eventTypes: EVENT_TYPES,
-                breedingSpawnFadeMs: BREEDING_SPAWN_FADE_MS,
-                isNoAnim: _isNoAnim,
-                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
-                createDisc: (state: any) => this.createDisc(state),
-                runWithEffectTargetHighlight: (cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) => this._runWithEffectTargetHighlight(cell, eventType, target, runner, minimumVisibleMs),
-                resolveSpawnTargetHighlightMinimumMs: (target: any) => this._resolveSpawnTargetHighlightMinimumMs(target),
-                waitForOpacityTransition: (disc: any, durationMs: any, bufferMs: any, starter: any, cleanup: any) => this._waitForOpacityTransition(disc, durationMs, bufferMs, starter, cleanup)
-            });
-        }
-
-        _handleDestroyPlaybackEvent(ev: any) {
-            if (!(AnimationDestroyEvents && typeof AnimationDestroyEvents.handleDestroyEvent === 'function')) {
-                throw new Error('AnimationEngine destroy events module unavailable');
-            }
-            return AnimationDestroyEvents.handleDestroyEvent(ev, {
-                eventTypes: EVENT_TYPES,
-                fadeOutMs: FADE_OUT_MS,
-                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
-                sleep: (ms: any) => this._sleep(ms),
-                getTargetCause: (target: any) => this._getTargetCause(target),
-                getTargetReason: (target: any) => this._getTargetReason(target),
-                isSuperCrushCause: (cause: any) => this._isSuperCrushCause(cause),
-                getSuperCrushDestinationContext: (row: any, col: any) => this._getSuperCrushDestinationContext(row, col),
-                resolveSuperCrushTargetDelayMs: (target: any) => this._resolveSuperCrushCollisionDelayMs(target),
-                resolveOwnerColorFromBefore: (ownerBefore: any) => this._resolveOwnerColorFromBefore(ownerBefore),
-                shouldPreserveDiscOnDestroy: (target: any) => this._shouldPreserveDiscOnDestroy(target),
-                resolveDestroyTargetHighlightMinimumMs: (target: any) => this._resolveDestroyTargetHighlightMinimumMs(target),
-                resolveEffectTargetHighlightTone: (eventType: any, target: any) => this._resolveEffectTargetHighlightTone(eventType, target),
-                runWithEffectTargetHighlight: (cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) => this._runWithEffectTargetHighlight(cell, eventType, target, runner, minimumVisibleMs),
-                resolveDestroySourceAnimationProfile: (target: any) => this._resolveDestroySourceAnimationProfile(target),
-                playDestroySourceAnimation: (target: any, profile: any) => this._playDestroySourceAnimation(target, profile),
-                animateDestroyGhostAtCell: (cell: any, ownerColor: any) => this._animateDestroyGhostAtCell(cell, ownerColor),
-                createDisc: (state: any) => this.createDisc(state),
-                removeDiscFromCell: (cell: any, disc: any) => this._removeDiscFromCell(cell, disc),
-                resolveOwnerClassFromColor: (ownerColor: any) => this._resolveOwnerClassFromColor(ownerColor),
-                onDestroyGhostFallback: (target: any, context: any) => {
-                    try {
-                        const root: any = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : null);
-                        if (root && Array.isArray(root.__destroyGhostFallbackEvents)) {
-                            root.__destroyGhostFallbackEvents.push({ target, context });
-                        }
-                    } catch (e: any) { /* ignore diagnostics */ }
-                }
-            });
-        }
-
-        // --- Visual Primitive Handlers ---
 
         async handleRoundBonusBanner(ev: any) {
             if (!(AnimationFeedbackEvents && typeof AnimationFeedbackEvents.handleRoundBonusBannerEvent === 'function')) {
@@ -1966,19 +1252,9 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         }
 
         async handleTheoryIncarnationSpawnRoulette(ev: any) {
-            if (!(AnimationTheoryEvents && typeof AnimationTheoryEvents.handleTheoryIncarnationSpawnRouletteEvent === 'function')) {
-                throw new Error('AnimationEngine theory events module unavailable');
-            }
-            return AnimationTheoryEvents.handleTheoryIncarnationSpawnRouletteEvent(ev, {
-                isNoAnim: _isNoAnim,
-                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
-                createDisc: (state: any) => this.createDisc(state),
-                waitForOpacityTransition: (disc: any, durationMs: any, bufferMs: any, starter: any, cleanup: any) => this._waitForOpacityTransition(disc, durationMs, bufferMs, starter, cleanup),
-                timer: _Timer,
-                playbackScope: this.playbackScope,
-                defaultDurationMs: THEORY_SPAWN_ROULETTE_MS,
-                defaultMaterializeMs: THEORY_SPAWN_MATERIALIZE_MS
-            });
+            return this._playBoardPhaseThroughBackend([Object.assign({}, ev, {
+                type: EVENT_TYPES.THEORY_INCARNATION_SPAWN_ROULETTE
+            })]);
         }
 
         _resolveManifestEndingDurationMs(ev: any) {
@@ -2036,32 +1312,16 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             return null;
         }
 
-        _syncManifestEndingTarget(target: any) {
-            if (!target) return;
-            const row = Number.isInteger(target.r) ? target.r : target.row;
-            const col = Number.isInteger(target.col) ? target.col : target.c;
-            const cell = this.getCellEl(row, col);
-            if (!cell) return;
-            const disc = cell.querySelector('.disc');
-            if (!disc) return;
-            const after = (target.after && typeof target.after === 'object') ? Object.assign({}, target.after) : {};
-            delete after.manifestAura;
-            if (after.color !== 1 && after.color !== -1) {
-                after.color = disc.classList.contains('white') ? -1 : 1;
-            }
-            after.special = null;
-            after.timer = null;
-            this.syncDiscVisual(disc, after);
+        async handleManifestEndingBoard(ev: any) {
+            return this._playBoardPhaseThroughBackend([Object.assign({}, ev, {
+                type: EVENT_TYPES.MANIFEST_ENDING
+            })]);
         }
 
-        async handleManifestEnding(ev: any) {
+        async handleManifestEndingGlobal(ev: any) {
             const durationMs = this._resolveManifestEndingDurationMs(ev);
             const transitionMs = _isNoAnim() ? 0 : durationMs;
             const dimOpacity = this._resolveManifestEndingOpacity(ev);
-            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
-            for (const target of targets) {
-                this._syncManifestEndingTarget(target);
-            }
             this._clearManifestWorldBackground();
 
             const soundEngine = this._getManifestEndingSoundEngine();
@@ -2095,23 +1355,17 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         }
 
         async handleObserverBubble(ev: any) {
-            if (!(AnimationFeedbackEvents && typeof AnimationFeedbackEvents.handleObserverBubbleEvent === 'function')) {
-                throw new Error('AnimationEngine feedback events module unavailable');
-            }
-            return AnimationFeedbackEvents.handleObserverBubbleEvent(ev, {
-                isNoAnim: _isNoAnim,
-                observerBubbleMs: OBSERVER_BUBBLE_MS,
-                observerBubbleFadeMs: OBSERVER_BUBBLE_FADE_MS,
-                getCellEl: (row: any, col: any) => this.getCellEl(row, col)
-            });
+            return this._playBoardPhaseThroughBackend([Object.assign({}, ev, {
+                type: EVENT_TYPES.OBSERVER_BUBBLE
+            })]);
         }
 
         async handlePlace(ev: any) {
-            return this._handlePlacePlaybackEvent(ev);
+            return this._playBoardPhaseThroughBackend([Object.assign({}, ev, { type: EVENT_TYPES.PLACE })]);
         }
 
         async handleFlip(ev: any) {
-            return this._handleFlipPlaybackEvent(ev);
+            return this._playBoardPhaseThroughBackend([Object.assign({}, ev, { type: EVENT_TYPES.FLIP })]);
         }
 
         // Batch handler so that multiple flips in the same phase animate simultaneously
@@ -2128,377 +1382,37 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         }
 
         async handleDestroy(ev: any) {
-            return this._handleDestroyPlaybackEvent(ev);
-        }
-
-        async animateWillHunterKingSlash(target: any) {
-            return AnimationDestroySourceEvents.animateWillHunterKingSlash(target, this._getDestroySourceAnimationDeps());
+            return this._playBoardPhaseThroughBackend([Object.assign({}, ev, { type: EVENT_TYPES.DESTROY })]);
         }
 
         async handleSpawn(ev: any) {
-            return this._handleSpawnPlaybackEvent(ev);
-        }
-
-        isBreedingSpawnTarget(t: any) {
-            if (!(AnimationPlacementEvents && typeof AnimationPlacementEvents.isBreedingSpawnTarget === 'function')) {
-                throw new Error('AnimationEngine placement events module unavailable');
-            }
-            return AnimationPlacementEvents.isBreedingSpawnTarget(t);
-        }
-
-        getSpawnFadeInMs(t: any) {
-            if (!(AnimationPlacementEvents && typeof AnimationPlacementEvents.getSpawnFadeInMs === 'function')) {
-                throw new Error('AnimationEngine placement events module unavailable');
-            }
-            return AnimationPlacementEvents.getSpawnFadeInMs(t, {
-                breedingSpawnFadeMs: BREEDING_SPAWN_FADE_MS
-            });
-        }
-
-        _handleMovePlaybackEvent(ev: any) {
-            if (!(AnimationMoveEvents && typeof AnimationMoveEvents.handleMoveEvent === 'function')) {
-                throw new Error('AnimationEngine move events module unavailable');
-            }
-            return AnimationMoveEvents.handleMoveEvent(ev, {
-                eventTypes: EVENT_TYPES,
-                moveMs: MOVE_MS,
-                effectTargetHighlightClass: EFFECT_TARGET_HIGHLIGHT_CLASS,
-                effectTargetPositiveHighlightClass: EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS,
-                highlightToneNegative: HIGHLIGHT_TONE_NEGATIVE,
-                highlightTonePositive: HIGHLIGHT_TONE_POSITIVE,
-                isNoAnim: _isNoAnim,
-                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
-                createDisc: (state: any) => this.createDisc(state),
-                getTargetCause: (target: any) => this._getTargetCause(target),
-                getTargetReason: (target: any) => this._getTargetReason(target),
-                resolveEffectTargetHighlightTone: (eventType: any, target: any) => this._resolveEffectTargetHighlightTone(eventType, target),
-                resolveMoveDurationScale: (target: any) => this._resolveMoveDurationScale(target),
-                waitForAnimationFinish: (animation: any, durationMs: any, timeoutBufferMs: any) => this._waitForAnimationFinish(animation, durationMs, timeoutBufferMs),
-                syncDiscVisual: (disc: any, after: any) => this.syncDiscVisual(disc, after),
-                removeDiscFromCell: (cell: any, disc: any) => this._removeDiscFromCell(cell, disc),
-                layoutBatch: this._getPhaseLayoutBatch()
-            });
+            return this._playBoardPhaseThroughBackend([Object.assign({}, ev, { type: EVENT_TYPES.SPAWN })]);
         }
 
         async handleMove(ev: any) {
-            return this._handleMovePlaybackEvent(ev);
+            return this._playBoardPhaseThroughBackend([Object.assign({}, ev, { type: EVENT_TYPES.MOVE })]);
         }
 
         async handleStatusChange(ev: any) {
-            return this._handleStatusPlaybackEvent(ev);
+            const rawType = String(ev && ev.type || '').trim().toLowerCase();
+            const type = rawType === EVENT_TYPES.STATUS_REMOVED
+                ? EVENT_TYPES.STATUS_REMOVED
+                : EVENT_TYPES.STATUS_APPLIED;
+            return this._playBoardPhaseThroughBackend([Object.assign({}, ev, { type })]);
         }
 
-        async fadeOutFreezeOverlay(cell: any, durationMs: any) {
-            if (!cell) return;
-            const freezeMark = cell.querySelector('.freeze-mark');
-            cell.classList.remove('frozen-cell');
-            if (!freezeMark) return;
-            if (_isNoAnim() || !Number.isFinite(durationMs) || durationMs <= 0) {
-                try { if (freezeMark.parentElement) freezeMark.parentElement.removeChild(freezeMark); } catch (e: any) { /* ignore */ }
-                return;
-            }
-
-            const ghost = freezeMark.cloneNode(true);
-            ghost.style.position = 'absolute';
-            ghost.style.inset = '0';
-            ghost.style.pointerEvents = 'none';
-            ghost.style.zIndex = '85';
-            ghost.style.opacity = '1';
-
-            try { if (freezeMark.parentElement) freezeMark.parentElement.removeChild(freezeMark); } catch (e: any) { /* ignore */ }
-            cell.appendChild(ghost);
-            ghost.style.transition = `opacity ${durationMs}ms ease`;
-
-            await this._waitForOpacityTransition(
-                ghost,
-                durationMs,
-                120,
-                () => {
-                    try {
-                        requestAnimationFrame(() => {
-                            ghost.style.opacity = '0';
-                        });
-                    } catch (e: any) {
-                        ghost.style.opacity = '0';
-                    }
-                },
-                () => {
-                    try { if (ghost.parentElement) ghost.parentElement.removeChild(ghost); } catch (e: any) { /* ignore */ }
-                }
-            );
+        async handleManifestEnding(ev: any) {
+            const boardPromise = this.handleManifestEndingBoard(ev);
+            const globalPromise = this.handleManifestEndingGlobal(ev);
+            await Promise.all([boardPromise, globalPromise]);
         }
 
-        async crossfadeDiscToState(disc: any, after: any, durationMs: any) {
-            if (!disc) return;
-            const cell = disc.parentElement;
-            if (!cell || _isNoAnim() || !Number.isFinite(durationMs) || durationMs <= 0) {
-                this.syncDiscVisual(disc, after);
-                return;
-            }
-
-            const ghost = disc.cloneNode(true);
-            ghost.style.position = 'absolute';
-            ghost.style.top = '0';
-            ghost.style.left = '0';
-            ghost.style.width = '100%';
-            ghost.style.height = '100%';
-            ghost.style.margin = '0';
-            ghost.style.pointerEvents = 'none';
-            ghost.style.zIndex = '85';
-            ghost.style.opacity = '1';
-            ghost.classList.add('stone-instant');
-            cell.appendChild(ghost);
-
-            const prevDiscTransition = disc.style.transition || '';
-            disc.style.opacity = '0';
-            this.syncDiscVisual(disc, after);
-            disc.classList.add('stone-instant');
-            disc.offsetHeight; // force reflow
-            disc.classList.remove('stone-instant');
-            disc.style.transition = prevDiscTransition ? `${prevDiscTransition}, opacity ${durationMs}ms ease` : `opacity ${durationMs}ms ease`;
-            ghost.style.transition = `opacity ${durationMs}ms ease`;
-
-            await this._waitForOpacityTransition(
-                ghost,
-                durationMs,
-                120,
-                () => {
-                    try {
-                        requestAnimationFrame(() => {
-                            disc.style.opacity = '1';
-                            ghost.style.opacity = '0';
-                        });
-                    } catch (e: any) {
-                        disc.style.opacity = '1';
-                        ghost.style.opacity = '0';
-                    }
-                },
-                () => {
-                    try { if (ghost.parentElement) ghost.parentElement.removeChild(ghost); } catch (e: any) { /* ignore */ }
-                    disc.style.opacity = '';
-                    disc.style.transition = prevDiscTransition;
-                }
-            );
-        }
-
-        // --- Helpers ---
-
-        getCellEl(r: any, c: any) {
-            if (!this.boardEl || typeof this.boardEl.querySelector !== 'function') return null;
-            const phaseCells = this._phaseContext && this._phaseContext.cellElements instanceof Map
-                ? this._phaseContext.cellElements
-                : null;
-            const cacheKey = `${r},${c}`;
-            if (phaseCells && phaseCells.has(cacheKey)) return phaseCells.get(cacheKey);
-            const selector = `.cell[data-row="${r}"][data-col="${c}"]`;
-            const boardCell = this.boardEl.querySelector(selector);
-            if (boardCell) {
-                if (phaseCells) phaseCells.set(cacheKey, boardCell);
-                return boardCell;
-            }
-            try {
-                const boardStack = typeof this.boardEl.closest === 'function'
-                    ? this.boardEl.closest('#board-stack')
-                    : null;
-                const scopedLayer = boardStack && typeof boardStack.querySelector === 'function'
-                    ? boardStack.querySelector('#board-expansion-layer')
-                    : null;
-                const expansionLayer = scopedLayer
-                    || (typeof document !== 'undefined' && document && typeof document.getElementById === 'function'
-                        ? document.getElementById('board-expansion-layer')
-                        : null);
-                const expansionCell = expansionLayer && typeof expansionLayer.querySelector === 'function'
-                    ? expansionLayer.querySelector(selector)
-                    : null;
-                if (expansionCell && phaseCells) phaseCells.set(cacheKey, expansionCell);
-                return expansionCell;
-            } catch (e: any) {
-                return null;
-            }
-        }
-
-        async waitForDisc(r: any, c: any, attempts: any) {
-            let remaining = Number.isFinite(attempts) ? attempts : 1;
-            while (remaining > 0) {
-                const cell = this.getCellEl(r, c);
-                const disc = cell ? cell.querySelector('.disc') : null;
-                if (disc) return disc;
-                remaining -= 1;
-                await new Promise<void>(resolve=> {
-                    try {
-                        requestAnimationFrame(() => setTimeout(resolve, 0));
-                    } catch (e: any) {
-                        setTimeout(resolve, 0);
-                    }
-                });
-            }
-            return null;
-        }
-
-        createDisc(state: any) {
-            const disc = document.createElement('div');
-            disc.className = 'disc';
-            this.syncDiscVisual(disc, state);
-            return disc;
-        }
-
-        syncDiscVisual(disc: any, state: any) {
-            if (!state) return;
-            disc.classList.remove('black', 'white');
-            if (state.color === 1) disc.classList.add('black');
-            else if (state.color === -1) disc.classList.add('white');
-            disc.classList.toggle('living-will-aura', !!state.livingWillAura);
-            disc.classList.remove('manifest-stone-aura', 'manifest-stone-aura-black', 'manifest-stone-aura-white');
-            if (state.manifestAura) {
-                const manifestOwner = state.manifestAura && state.manifestAura.owner !== undefined
-                    ? state.manifestAura.owner
-                    : state.owner;
-                const manifestOwnerClass = (manifestOwner === 'white' || manifestOwner === -1 || manifestOwner === '-1') ? 'white' : 'black';
-                disc.classList.add('manifest-stone-aura', `manifest-stone-aura-${manifestOwnerClass}`);
-            }
-
-            const setDiscStoneImage = (typeof window !== 'undefined' && typeof window.setDiscStoneImage === 'function')
-                ? window.setDiscStoneImage
-                : null;
-            const clearStoneVisualEffectState = (typeof window !== 'undefined' && typeof window.clearStoneVisualEffectState === 'function')
-                ? window.clearStoneVisualEffectState
-                : null;
-            const applyStoneVisualEffect = (typeof window !== 'undefined' && typeof window.applyStoneVisualEffect === 'function')
-                ? window.applyStoneVisualEffect
-                : null;
-            const getEffectKeyForSpecialType = (typeof window !== 'undefined' && typeof window.getEffectKeyForSpecialType === 'function')
-                ? window.getEffectKeyForSpecialType
-                : null;
-
-            const visualSpecialType = state.special;
-
-            if (visualSpecialType) {
-                const effectKey = getEffectKeyForSpecialType ? getEffectKeyForSpecialType(visualSpecialType) : null;
-                if (clearStoneVisualEffectState) {
-                    clearStoneVisualEffectState(disc, { skipRenderReset: true });
-                } else {
-                    disc.classList.remove('special-stone');
-                    disc.style.removeProperty('--special-stone-image');
-                    disc.style.removeProperty('--disc-overlay-image');
-                    disc.style.removeProperty('--disc-overlay-scale');
-                }
-                if (applyStoneVisualEffect && effectKey) {
-                    const ownerVal = (state.owner !== undefined && state.owner !== null) ? state.owner : state.color;
-                    applyStoneVisualEffect(disc, effectKey, { owner: ownerVal });
-                } else if (setDiscStoneImage) {
-                    setDiscStoneImage(disc, state.color);
-                }
-            } else {
-                if (clearStoneVisualEffectState) {
-                    clearStoneVisualEffectState(disc);
-                } else {
-                    disc.classList.remove('special-stone');
-                    disc.style.removeProperty('--special-stone-image');
-                    disc.style.removeProperty('--disc-overlay-image');
-                    disc.style.removeProperty('--disc-overlay-scale');
-                    if (setDiscStoneImage) {
-                        setDiscStoneImage(disc, state.color);
-                    }
-                }
-            }
-
-            this.syncDiscTimerOnly(disc, state);
-        }
-
-        syncDiscTimerOnly(disc: any, state: any) {
-            if (!disc || !state) return;
-
-            const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .countdown-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer, .flip-evade-timer, .destroy-evade-timer, .stone-flip-protection-badge, .stone-regen-badge';
-            const existingTimers = Array.from(disc.querySelectorAll(allTimerSelector));
-            existingTimers.forEach((el: any) => el.remove());
-
-            const specialType = String(state.special || '').toUpperCase();
-            let primaryTimerValue = Number(state.timer);
-            if (specialType === 'PERMA_PROTECTED') {
-                primaryTimerValue = NaN;
-            }
-            const parseCounterOrNaN = (raw: any) => {
-                if (raw === null || raw === undefined || raw === '') return NaN;
-                const parsed = Number(raw);
-                if (!Number.isFinite(parsed)) return NaN;
-                return Math.max(0, Math.trunc(parsed));
-            };
-            let flipEvadeRemaining = parseCounterOrNaN(state.flipEvadeRemaining);
-            const destroyEvadeRemaining = parseCounterOrNaN(state.destroyEvadeRemaining);
-
-            const appendTimer = (className: any, value: any, options: any) => {
-                const opts = options || {};
-                const allowZero = opts.allowZero === true;
-                if (!(Number.isFinite(value) && (allowZero ? value >= 0 : value > 0))) return;
-                const timerEl = document.createElement('div');
-                timerEl.className = className;
-                timerEl.textContent = String(Math.max(0, Math.trunc(value)));
-                disc.appendChild(timerEl);
-            };
-
-            const reviveRemaining = specialType === 'REGEN'
-                ? primaryTimerValue
-                : parseCounterOrNaN(state.regenRemaining);
-            if ((specialType === 'REGEN' || specialType === 'ZOMBIE') && Number.isFinite(reviveRemaining) && reviveRemaining > 0) {
-                const regenBadge = createRegenBadgeForAnimation(reviveRemaining, specialType);
-                if (regenBadge) disc.appendChild(regenBadge);
-            }
-            if (specialType !== 'REGEN' && Number.isFinite(primaryTimerValue) && primaryTimerValue > 0) {
-                const primaryClass = resolveSpecialTimerClassForAnimation(specialType);
-                appendTimer(primaryClass, primaryTimerValue, undefined);
-            }
-
-            if (shouldShowFlipProtectionBadgeForAnimation(state, specialType)) {
-                const badge = createFlipProtectionBadgeForAnimation();
-                if (badge) disc.appendChild(badge);
-            }
-
-            const isPrimaryFlipEvadeSpecialType = (
-                specialType === 'HYPERACTIVE' ||
-                specialType === 'AFTERIMAGE_WILL' ||
-                specialType === 'EXTREME_HYPERACTIVE' ||
-                specialType === 'ESCAPE_HYPERACTIVE' ||
-                specialType === 'ULTIMATE_HYPERACTIVE' ||
-                specialType === 'WILL_HUNTER_KING'
-            );
-
-            const hasPrimaryEvadeCounter = isPrimaryFlipEvadeSpecialType && Number.isFinite(flipEvadeRemaining) && flipEvadeRemaining >= 0;
-            if (hasPrimaryEvadeCounter) {
-                appendTimer('stone-timer flip-evade-timer', flipEvadeRemaining, { allowZero: true });
-            }
-
-            const hasDestroyEvadeCounter =
-                (
-                    specialType === 'ULTIMATE_HYPERACTIVE' ||
-                    specialType === 'EXTREME_HYPERACTIVE' ||
-                    specialType === 'WILL_HUNTER_KING' ||
-                    specialType === 'AFTERIMAGE_WILL'
-                ) &&
-                Number.isFinite(destroyEvadeRemaining) &&
-                destroyEvadeRemaining >= 0;
-            if (hasDestroyEvadeCounter) {
-                appendTimer('stone-timer destroy-evade-timer', destroyEvadeRemaining, { allowZero: true });
-            }
-        }
-
-        applyFinalStates(ev: any) {
-            // Fallback: use per-target provided 'after' states when available
-            for (const t of ev.targets || []) {
-                const state = t.after || { color: 0, special: null, timer: null };
-                const [r, c] = [t.r, t.col];
-                const cell = this.getCellEl(r, c);
-                if (!cell) continue;
-                if (state.color === 0) {
-                    cell.innerHTML = '';
-                } else {
-                    let disc = cell.querySelector('.disc');
-                    if (!disc) {
-                        disc = this.createDisc(state);
-                        cell.appendChild(disc);
-                    }
-                    this.syncDiscVisual(disc, state);
-                }
-            }
+        async applyFinalStates(ev: any) {
+            return this._playBoardPhaseThroughBackend([{
+                type: '__dom_compatibility_final_state',
+                sourceEvent: ev,
+                targets: Array.isArray(ev && ev.targets) ? ev.targets : []
+            }]);
         }
 
         setGlobalInteractionLock(locked: any) {

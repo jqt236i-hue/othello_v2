@@ -209,9 +209,21 @@ export interface BoardVisualFrame {
   frameToken: string;
 }
 
+/**
+ * One planner-owned serial/parallel execution scope. Concurrent board launches
+ * share this object so a backend can retain one geometry/overlay context until
+ * every launch in the scope has settled.
+ */
+export interface BoardPlaybackPhaseScope {
+  readonly events: readonly unknown[];
+  readonly phaseKey?: string;
+  readonly stepIndex?: number;
+}
+
 export interface BoardPlaybackContext {
   token: BoardWriterToken;
   strictNetworkPlayback: boolean;
+  phaseScope?: BoardPlaybackPhaseScope;
 }
 
 export interface BoardWriterToken {

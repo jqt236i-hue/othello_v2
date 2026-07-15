@@ -62,6 +62,8 @@ describe('special-stone playback phase batching', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    jest.dontMock('../ui/animation-destroy-events');
+    jest.dontMock('../ui/animation-destroy-source-events');
     delete (global as any).window;
     delete (global as any).document;
   });
@@ -86,48 +88,81 @@ describe('special-stone playback phase batching', () => {
     (global as any).window = dom.window;
     (global as any).document = dom.window.document;
 
-    const engine = require('../ui/animation-engine.js');
+    const { createDomBoardPlaybackHandlers } = require('../ui/board-visual/dom-runtime');
+    const { createDomBoardPlaybackExecutor } = require('../ui/board-visual/dom-playback');
     const board = document.getElementById('board') as HTMLElement;
     const querySelector = jest.spyOn(board, 'querySelector');
-    const contexts: any[] = [];
-    jest.spyOn(engine, 'executeEvent').mockImplementation(async () => {
-      contexts.push(engine._phaseContext);
-      expect(engine.getCellEl(2, 3)).toBeTruthy();
-      expect(engine.getCellEl(2, 3)).toBeTruthy();
-    });
+    const executor = createDomBoardPlaybackExecutor(createDomBoardPlaybackHandlers({
+      boardElement: board,
+      documentRef: document
+    }));
+    const token = { id: 1, frameToken: 'batching:4', mode: 'local' };
+    const firstScope = { phaseKey: '4', stepIndex: 0 };
+    const event = {
+      type: '__dom_compatibility_final_state',
+      phase: 4,
+      targets: [{ r: 2, col: 3, after: { color: 0, special: null, timer: null } }]
+    };
 
-    await engine.executePhase([
-      { type: 'log', phase: 4 },
-      { type: 'log', phase: 4 }
-    ]);
+    await executor.playPhase([event, event], { token, phaseScope: firstScope });
     expect(querySelector).toHaveBeenCalledTimes(1);
-    expect(contexts[0]).toBe(contexts[1]);
-    expect(engine._phaseContext).toBeNull();
 
-    await engine.executePhase([{ type: 'log', phase: 5 }]);
+    await executor.playPhase([
+      { ...event, phase: 5 }
+    ], {
+      token,
+      phaseScope: { phaseKey: '5', stepIndex: 1 }
+    });
     expect(querySelector).toHaveBeenCalledTimes(2);
-    expect(contexts[2]).not.toBe(contexts[0]);
 
     dom.window.close();
   });
 
   test('transient overlays batch body mutations into one append and one removal per phase', async () => {
+    jest.doMock('../ui/animation-destroy-events', () => ({
+      handleDestroyEvent: async (event: any, deps: any) => {
+        await Promise.all(event.targets.map((target: any) => deps.playDestroySourceAnimation(
+          target,
+          deps.resolveDestroySourceAnimationProfile(target)
+        )));
+      }
+    }));
+    jest.doMock('../ui/animation-destroy-source-events', () => ({
+      animateUdgLightningStrike: async (_target: any, deps: any) => {
+        deps.transientOverlayBatch.append(document.createElement('div'));
+      }
+    }));
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     (global as any).window = dom.window;
     (global as any).document = dom.window.document;
 
-    const engine = require('../ui/animation-engine.js');
+    const { createDomBoardPlaybackHandlers } = require('../ui/board-visual/dom-runtime');
+    const { createDomBoardPlaybackExecutor } = require('../ui/board-visual/dom-playback');
+    const executor = createDomBoardPlaybackExecutor(createDomBoardPlaybackHandlers({
+      boardElement: document.getElementById('board'),
+      documentRef: document,
+      isNoAnim: () => false
+    }));
     const bodyAppend = jest.spyOn(document.body, 'appendChild');
     const bodyRemove = jest.spyOn(document.body, 'removeChild');
-    const context = engine._buildPhaseContext([]);
+    const target = {
+      r: 2,
+      col: 3,
+      sourceRow: 1,
+      sourceCol: 3,
+      cause: 'ULTIMATE_DESTROY_GOD',
+      reason: 'udg_destroyed'
+    };
 
-    await engine._withPhaseContext(context, async () => {
-      context.transientOverlayBatch.append(document.createElement('div'));
-      context.transientOverlayBatch.append(document.createElement('div'));
-      expect(bodyAppend).toHaveBeenCalledTimes(1);
-      expect(document.querySelectorAll('.transient-overlay-batch > div')).toHaveLength(2);
+    await executor.playPhase([
+      { type: 'destroy', phase: 8, targets: [target] },
+      { type: 'destroy', phase: 8, targets: [{ ...target, col: 4 }] }
+    ], {
+      token: { id: 1, frameToken: 'batching:8', mode: 'local' },
+      phaseScope: { phaseKey: '8', stepIndex: 0 }
     });
 
+    expect(bodyAppend).toHaveBeenCalledTimes(1);
     expect(bodyRemove).toHaveBeenCalledTimes(1);
     expect(document.querySelector('.transient-overlay-batch')).toBeNull();
     dom.window.close();

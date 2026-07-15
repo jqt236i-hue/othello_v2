@@ -1,5 +1,6 @@
 import type {
   BoardPlaybackContext,
+  BoardPlaybackPhaseScope,
   BoardVisualBackend,
   BoardVisualFrame,
   BoardWriterMode,
@@ -397,12 +398,20 @@ function createBoardVisualController(options: {
       diagnostics.record('writer:reclaimed', { id: activeToken.id, frameToken: activeToken.frameToken, mode: writerMode });
       return activeToken;
     },
-    async playPhase(token: BoardWriterToken, events: readonly unknown[]) {
+    async playPhase(
+      token: BoardWriterToken,
+      events: readonly unknown[],
+      providedScope?: BoardPlaybackPhaseScope
+    ) {
       assertToken(token);
       if (mode !== 'playback') throw new Error(`Cannot play a board phase while controller is ${mode}`);
+      const phaseScope: BoardPlaybackPhaseScope = providedScope || Object.freeze({
+        events: Object.freeze(Array.from(events))
+      });
       const context: BoardPlaybackContext = Object.freeze({
         token,
-        strictNetworkPlayback: token.mode === 'network'
+        strictNetworkPlayback: token.mode === 'network',
+        phaseScope
       });
       await backend.playPhase(events, context);
     },

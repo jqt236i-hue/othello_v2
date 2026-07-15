@@ -10,6 +10,7 @@ type AnimationHandEventDeps = {
     armSkipNextCardUseButtonSound: () => any;
     armLocalCardUseAnimationSkip: (target: any) => any;
     executeEvent: (event: any) => Promise<any>;
+    playBoardEffect?: (event: any) => Promise<any>;
     fallbackPlayHandAnimation: any;
 };
 
@@ -133,6 +134,9 @@ function handleCardUseAnimationEvent(ev: any, deps: AnimationHandEventDeps) {
         nullifiedBySacrificeWill: target.nullifiedBySacrificeWill === true,
         cardUseVanishEffect: target.cardUseVanishEffect || null,
         sacrificeWill: target.sacrificeWill || null,
+        playBoardEffect: typeof deps.playBoardEffect === 'function'
+            ? deps.playBoardEffect
+            : null,
         disappearSoundKey: target.disappearSoundKey || null,
         onDisappear: disappearPlaybackEvents.length > 0
             ? () => Promise.all(disappearPlaybackEvents.map((one: any) => deps.executeEvent(one)))

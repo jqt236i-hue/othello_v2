@@ -14,9 +14,7 @@ describe('destroy source animation stone skin visuals', () => {
   }
 
   function makeDeps(observedBackgroundImages: string[]) {
-    const fromCell = document.createElement('div');
-    const toCell = document.createElement('div');
-    fromCell.getBoundingClientRect = () => ({
+    const fromRect = {
       left: 20,
       top: 30,
       width: 80,
@@ -26,8 +24,8 @@ describe('destroy source animation stone skin visuals', () => {
       x: 20,
       y: 30,
       toJSON: () => ({})
-    } as DOMRect);
-    toCell.getBoundingClientRect = () => ({
+    } as DOMRect;
+    const toRect = {
       left: 220,
       top: 230,
       width: 80,
@@ -37,11 +35,11 @@ describe('destroy source animation stone skin visuals', () => {
       x: 220,
       y: 230,
       toJSON: () => ({})
-    } as DOMRect);
+    } as DOMRect;
 
     return {
       isNoAnim: () => false,
-      getCellEl: (row: number, col: number) => (row === 1 && col === 1 ? fromCell : toCell),
+      getCellClientRect: (row: number, col: number) => (row === 1 && col === 1 ? fromRect : toRect),
       resolveSniperSource: () => ({ row: 1, col: 1 }),
       resolveRobotVacuumSource: () => ({ row: 1, col: 1 }),
       resolveDestroyDragonSource: () => ({ row: 1, col: 1 }),

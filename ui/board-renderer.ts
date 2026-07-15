@@ -1258,6 +1258,20 @@ function releaseBoardVisualWriter(token: any, finalFrame?: any) {
     return controller.releaseWriter(token, finalFrame);
 }
 
+async function playBoardVisualPhase(token: any, events: readonly unknown[], phaseScope?: any) {
+    const controller = getBoardVisualController();
+    if (!controller || typeof controller.playPhase !== 'function') {
+        throw new Error('Board visual controller cannot play a presentation phase');
+    }
+    return controller.playPhase(token, events, phaseScope);
+}
+
+function getBoardCellClientRect(row: number, col: number) {
+    const controller = getBoardVisualController();
+    if (!controller || typeof controller.getCellClientRect !== 'function') return null;
+    return controller.getCellClientRect(row, col);
+}
+
 async function abortBoardVisualWriterBeforeHandoff(token: any, checkpoint?: any) {
     const controller = getBoardVisualController();
     if (!controller || typeof controller.abortWriterBeforeHandoff !== 'function') {
@@ -1456,9 +1470,6 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
         inputs
     });
     const host = _resolveBoardElementForVisualRuntime();
-    const rect = host && typeof host.getBoundingClientRect === 'function'
-        ? host.getBoundingClientRect()
-        : { left: 0, top: 0, width: 0, height: 0 };
     const appearance = FramePresenterModule.resolveBoardAppearanceDescriptor(host, visualRevision);
     const frameGeometry = _readBoardFrameGeometryForLayout(host, appearance);
     const layoutCellSize = _readBoardCellSizeForLayout(host, model.topology);
@@ -1477,8 +1488,13 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
         camera: {
             scrollLeft: host && Number(host.scrollLeft) || 0,
             scrollTop: host && Number(host.scrollTop) || 0,
-            viewportWidth: Number(rect.width) || model.topology.renderCols * layoutCellSize,
-            viewportHeight: Number(rect.height) || model.topology.renderRows * layoutCellSize
+            // The DOM compatibility host is the logical board surface. Its
+            // live rect still describes the previous topology until the
+            // controller-owned frame presenter applies this frame, so using
+            // that rect here would incorrectly clip a shape change. The Pixi
+            // viewport supplies its scroll viewport dimensions separately.
+            viewportWidth: model.topology.renderCols * layoutCellSize,
+            viewportHeight: model.topology.renderRows * layoutCellSize
         }
     });
     const frameToken = controller && controller.getActiveFrameToken()
@@ -1689,6 +1705,8 @@ const BoardRenderer = {
             getBoardVisualControllerReady,
             configureBoardVisualController,
             claimBoardVisualWriter,
+            playBoardVisualPhase,
+            getBoardCellClientRect,
             releaseBoardVisualWriter,
             abortBoardVisualWriterBeforeHandoff,
             cancelBoardVisualWriterAfterHandoff,

@@ -58,6 +58,14 @@ let __player_slot_elements_utils: any = null;
 try { __player_slot_elements_utils = (typeof require === 'function') ? require('./player-slot-elements') : null; } catch (e: any) { __player_slot_elements_utils = null; }
 let __element_cache_utils: any = null;
 try { __element_cache_utils = (typeof require === 'function') ? require('./element-cache') : (typeof globalThis !== 'undefined' ? (globalThis as any).ElementCacheModule : null); } catch (e: any) { __element_cache_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).ElementCacheModule : null); }
+let __board_renderer_geometry_utils: any = null;
+let __hand_fade_token_sequence_utils = 0;
+let __legacy_board_animation_token_utils: any = null;
+let __legacy_board_animation_ref_count_utils = 0;
+let __legacy_board_animation_sequence_utils = 0;
+let __legacy_board_animation_opening_utils: Promise<any> | null = null;
+let __legacy_board_animation_closing_utils: Promise<any> | null = null;
+let __legacy_board_animation_unresolved_error_utils: any = null;
 let __hand_skin_utils: any = null;
 let __hand_fade_state_utils: any = null;
 try { __hand_fade_state_utils = (typeof require === 'function') ? require('./hand-animation/fade-state') : (typeof globalThis !== 'undefined' ? (globalThis as any).HandFadeStateModule : null); } catch (e: any) { __hand_fade_state_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).HandFadeStateModule : null); }
@@ -449,28 +457,223 @@ function _playStonePlaceSoundSafe() {
     } catch (e: any) { /* ignore */ }
 }
 
-function _resolveBoardExpansionLayerForAnimationUtils(boardRoot: any) {
-    if (typeof document === 'undefined' || !document || typeof document.getElementById !== 'function') return null;
-    if (boardRoot && typeof boardRoot.closest === 'function') {
-        const boardStack = boardRoot.closest('#board-stack');
-        if (boardStack && typeof boardStack.querySelector === 'function') {
-            const scopedLayer = boardStack.querySelector('#board-expansion-layer');
-            if (scopedLayer) return scopedLayer;
+function _getBoardRendererGeometryForAnimationUtils() {
+    if (__board_renderer_geometry_utils) return __board_renderer_geometry_utils;
+    try {
+        const renderer = _require('./board-renderer');
+        if (renderer) {
+            __board_renderer_geometry_utils = renderer;
+            return renderer;
         }
-    }
-    return document.getElementById('board-expansion-layer');
+    } catch (e: any) { /* compatibility fallback below */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).BoardRenderer) {
+            __board_renderer_geometry_utils = (globalThis as any).BoardRenderer;
+            return __board_renderer_geometry_utils;
+        }
+    } catch (e: any) { /* ignore */ }
+    return null;
 }
 
-function _resolveBoardCellForAnimationUtils(boardRoot: any, row: any, col: any) {
-    const selector = `.cell[data-row="${row}"][data-col="${col}"]`;
-    const boardCell = boardRoot && typeof boardRoot.querySelector === 'function'
-        ? boardRoot.querySelector(selector)
-        : null;
-    if (boardCell) return boardCell;
-    const expansionLayer = _resolveBoardExpansionLayerForAnimationUtils(boardRoot);
-    return expansionLayer && typeof expansionLayer.querySelector === 'function'
-        ? expansionLayer.querySelector(selector)
-        : null;
+function _resolveBoardCellClientRectForAnimationUtils(row: any, col: any) {
+    const normalizedRow = Number(row);
+    const normalizedCol = Number(col);
+    if (!Number.isInteger(normalizedRow) || !Number.isInteger(normalizedCol)) return null;
+
+    const renderer = _getBoardRendererGeometryForAnimationUtils();
+    try {
+        if (renderer && typeof renderer.getBoardCellClientRect === 'function') {
+            const rect = _normalizeCardSourceRect(renderer.getBoardCellClientRect(normalizedRow, normalizedCol));
+            if (rect && rect.width > 0 && rect.height > 0) return rect;
+        }
+    } catch (e: any) { /* unavailable geometry settles through the caller's existing fallback */ }
+    return null;
+}
+
+function _resolveBoardDiscClientRectFromCellRect(cellRect: any, boardRoot: any) {
+    const normalized = _normalizeCardSourceRect(cellRect);
+    if (!normalized || !(normalized.width > 0) || !(normalized.height > 0)) return null;
+
+    let discWidth = 0;
+    let discHeight = 0;
+    let insetX = NaN;
+    let insetY = NaN;
+    try {
+        const style = boardRoot && boardRoot.style;
+        const size = Number.parseFloat(style && style.getPropertyValue('--board-disc-size-px') || '');
+        const inset = Number.parseFloat(style && style.getPropertyValue('--board-disc-inset-px') || '');
+        if (Number.isFinite(size) && size > 0) {
+            discWidth = size;
+            discHeight = size;
+        }
+        if (Number.isFinite(inset) && inset >= 0) {
+            insetX = inset;
+            insetY = inset;
+        }
+    } catch (e: any) { /* use the same CSS percentage defaults below */ }
+
+    if (!(discWidth > 0)) discWidth = normalized.width * 0.899;
+    if (!(discHeight > 0)) discHeight = normalized.height * 0.899;
+    if (!Number.isFinite(insetX)) insetX = normalized.width * 0.0505;
+    if (!Number.isFinite(insetY)) insetY = normalized.height * 0.0505;
+
+    return _normalizeCardSourceRect({
+        left: normalized.left + insetX,
+        top: normalized.top + insetY,
+        width: discWidth,
+        height: discHeight,
+        right: normalized.left + insetX + discWidth,
+        bottom: normalized.top + insetY + discHeight
+    });
+}
+
+function _createLegacyBoardWriterErrorForUtils(code: string, event: any, cause?: any) {
+    const error: any = new Error(`${code}:${String(event && event.type || 'unknown').trim().toLowerCase() || 'unknown'}`);
+    error.name = 'PresentationPlaybackError';
+    error.code = code;
+    error.eventType = String(event && event.type || 'unknown').trim().toLowerCase() || 'unknown';
+    error.strictNetworkPlayback = false;
+    if (cause !== undefined) {
+        Object.defineProperty(error, 'cause', {
+            value: cause,
+            configurable: true,
+            enumerable: false,
+            writable: false
+        });
+    }
+    return error;
+}
+
+function _throwIfLegacyBoardWriterRecoveryIsUnresolvedForUtils(event: any) {
+    if (__legacy_board_animation_token_utils && __legacy_board_animation_unresolved_error_utils) {
+        throw _createLegacyBoardWriterErrorForUtils(
+            'board_writer_recovery_unresolved',
+            event,
+            __legacy_board_animation_unresolved_error_utils
+        );
+    }
+}
+
+async function _openLegacyBoardAnimationWriterForUtils(renderer: any, event: any) {
+    if (__legacy_board_animation_closing_utils) {
+        try {
+            await __legacy_board_animation_closing_utils;
+        } catch (error: any) {
+            _throwIfLegacyBoardWriterRecoveryIsUnresolvedForUtils(event);
+            throw error;
+        }
+    }
+    _throwIfLegacyBoardWriterRecoveryIsUnresolvedForUtils(event);
+    if (__legacy_board_animation_token_utils) {
+        return { renderer, token: __legacy_board_animation_token_utils };
+    }
+    await renderer.getBoardVisualControllerReady();
+    if (!__legacy_board_animation_token_utils) {
+        __legacy_board_animation_token_utils = renderer.claimBoardVisualWriter(
+            `local:legacy-board-animation:${++__legacy_board_animation_sequence_utils}`,
+            'local'
+        );
+    }
+    return { renderer, token: __legacy_board_animation_token_utils };
+}
+
+async function _acquireLegacyBoardAnimationWriterForUtils(event: any) {
+    const renderer = _getBoardRendererGeometryForAnimationUtils();
+    if (
+        !renderer
+        || typeof renderer.claimBoardVisualWriter !== 'function'
+        || typeof renderer.getBoardVisualControllerReady !== 'function'
+        || typeof renderer.settleBoardVisualWriter !== 'function'
+        || typeof renderer.playBoardVisualPhase !== 'function'
+    ) {
+        throw new Error('legacy_board_animation_writer_unavailable');
+    }
+    _throwIfLegacyBoardWriterRecoveryIsUnresolvedForUtils(event);
+    // Reserve the lease before awaiting readiness. Concurrent callers then
+    // keep the shared token alive even if the first playback settles fast.
+    __legacy_board_animation_ref_count_utils += 1;
+    try {
+        if (__legacy_board_animation_token_utils && !__legacy_board_animation_closing_utils) {
+            return { renderer, token: __legacy_board_animation_token_utils };
+        }
+        if (!__legacy_board_animation_opening_utils) {
+            const opening = _openLegacyBoardAnimationWriterForUtils(renderer, event);
+            __legacy_board_animation_opening_utils = opening;
+            void opening.then(
+                () => { if (__legacy_board_animation_opening_utils === opening) __legacy_board_animation_opening_utils = null; },
+                () => { if (__legacy_board_animation_opening_utils === opening) __legacy_board_animation_opening_utils = null; }
+            );
+        }
+        return await __legacy_board_animation_opening_utils;
+    } catch (error: any) {
+        __legacy_board_animation_ref_count_utils = Math.max(0, __legacy_board_animation_ref_count_utils - 1);
+        _throwIfLegacyBoardWriterRecoveryIsUnresolvedForUtils(event);
+        throw error;
+    }
+}
+
+async function _settleLegacyBoardAnimationWriterForUtils(claim: any, event: any) {
+    __legacy_board_animation_ref_count_utils = Math.max(0, __legacy_board_animation_ref_count_utils - 1);
+    if (__legacy_board_animation_ref_count_utils !== 0) return;
+    const token = __legacy_board_animation_token_utils;
+    if (!token || !claim || !claim.renderer) return;
+    if (!__legacy_board_animation_closing_utils) {
+        // Publish the closing promise before invoking settlement so a new
+        // caller cannot claim a second writer while final-frame sync runs.
+        const closing = Promise.resolve().then(async () => {
+            let settlementError: any = null;
+            try {
+                await claim.renderer.settleBoardVisualWriter(token);
+            } catch (error: any) {
+                settlementError = error && error.name === 'PresentationPlaybackError'
+                    ? error
+                    : _createLegacyBoardWriterErrorForUtils('board_writer_settlement_failed', event, error);
+            }
+            if (settlementError) {
+                try {
+                    if (typeof claim.renderer.enterBoardVisualRecovery !== 'function') {
+                        throw new Error('Board writer recovery API unavailable');
+                    }
+                    claim.renderer.enterBoardVisualRecovery(token, settlementError);
+                    await claim.renderer.settleBoardVisualWriter(token);
+                } catch (recoveryError: any) {
+                    __legacy_board_animation_unresolved_error_utils = settlementError;
+                    Object.defineProperty(settlementError, 'recoveryError', {
+                        value: recoveryError,
+                        configurable: true,
+                        enumerable: false,
+                        writable: false
+                    });
+                    throw settlementError;
+                }
+            }
+            if (__legacy_board_animation_token_utils === token) {
+                __legacy_board_animation_token_utils = null;
+            }
+            __legacy_board_animation_unresolved_error_utils = null;
+            return settlementError;
+        });
+        __legacy_board_animation_closing_utils = closing;
+    }
+    const closing = __legacy_board_animation_closing_utils;
+    let settlementError: any = null;
+    try {
+        settlementError = await closing;
+    } finally {
+        if (__legacy_board_animation_closing_utils === closing) {
+            __legacy_board_animation_closing_utils = null;
+        }
+    }
+    if (settlementError) throw settlementError;
+}
+
+async function _playLegacyBoardAnimationEventForUtils(event: any) {
+    const claim = await _acquireLegacyBoardAnimationWriterForUtils(event);
+    try {
+        await claim.renderer.playBoardVisualPhase(claim.token, [event]);
+    } finally {
+        await _settleLegacyBoardAnimationWriterForUtils(claim, event);
+    }
 }
 
 function _resolveCardStateForHandAnimations() {
@@ -1305,7 +1508,6 @@ function _animateCompat(el: any, keyframes: any, options: any, scope: any) {
  * @returns {Promise<void>}
  */
 function animateDestroyAt(row: any, col: any, options: any) {
-    // Unified destroy path: use the same fade-out logic as DESTROY playback.
     return animateFadeOutAt(row, col, options);
 }
 
@@ -1317,77 +1519,11 @@ function animateDestroyAt(row: any, col: any, options: any) {
  * @returns {Promise<void>}
  */
 function animateFadeOutAt(row: any, col: any, options: any) {
-    const opts = options || {};
-    return new Promise<void>(resolve=> {
-        const root = (typeof boardEl !== 'undefined' && boardEl) ? boardEl : document;
-        const cell = root.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-        if (!cell) return resolve();
-        let disc = cell.querySelector('.disc');
-        let createdGhost = false;
-        if (!disc && opts.createGhost) {
-            disc = document.createElement('div');
-            const color = opts.color;
-            disc.className = 'disc ' + (color === BLACK ? 'black' : 'white');
-            // Ensure it doesn't interfere with clicks
-            disc.style.pointerEvents = 'none';
-            cell.appendChild(disc);
-            createdGhost = true;
-
-            // Optional: apply special stone visual to match expected look before fading out
-            if (opts.effectKey && typeof applyStoneVisualEffect === 'function') {
-                applyStoneVisualEffect(disc, opts.effectKey, { owner: color });
-            }
-        }
-        if (!disc) return resolve();
-
-        // If already animating, resolve immediately
-        if (disc.classList.contains('destroy-fade')) return resolve();
-
-        const noAnim = _isNoAnim();
-        if (noAnim) {
-            if (createdGhost && disc.parentElement) {
-                disc.parentElement.removeChild(disc);
-            }
-            return resolve();
-        }
-
-        // Ensure fade-out isn't overridden by other animation classes (e.g. leftover 'flip')
-        disc.classList.remove('flip', 'shatter', 'breeding-spawn');
-        void disc.offsetWidth;
-
-        let resolved = false;
-        let timerId: any = null;
-        const safeResolve = () => {
-            if (resolved) return;
-            resolved = true;
-            disc.removeEventListener('animationend', onEnd);
-            if (timerId !== null) {
-                try { _Timer().clearTimeout(timerId); } catch (e: any) { /* Intentionally empty: timer cleanup guard */ }
-                timerId = null;
-            }
-            if (createdGhost && disc.parentElement) {
-                disc.parentElement.removeChild(disc);
-            }
-            resolve();
-        };
-
-        // Safety timeout (DESTROY_FADE_MS + 200ms)
-        const fadeMs = (typeof SharedConstants !== 'undefined' && SharedConstants.DESTROY_FADE_MS) ? SharedConstants.DESTROY_FADE_MS : ((typeof window !== 'undefined' && window.DESTROY_FADE_MS) ? window.DESTROY_FADE_MS : 500);
-        const startTs = Date.now();
-
-        const onEnd = (ev: any) => {
-            // Guard: if animationend fires immediately (duration 0), wait for the expected fade window.
-            try {
-                const elapsed = Date.now() - startTs;
-                if (elapsed < fadeMs) return;
-            } catch (e: any) { /* ignore */ }
-            safeResolve();
-        };
-            const useAnimationEnd = !opts.createGhost; // Keep this line for clarity
-        if (useAnimationEnd) disc.addEventListener('animationend', onEnd);
-        disc.classList.add('destroy-fade');
-
-        timerId = _Timer().setTimeout(safeResolve, fadeMs + 200);
+    return _playLegacyBoardAnimationEventForUtils({
+        type: 'legacy_fade_out',
+        row,
+        col,
+        options: options || {}
     });
 }
 
@@ -1398,39 +1534,10 @@ function animateFadeOutAt(row: any, col: any, options: any) {
  * @returns {Promise<void>}
  */
 function animateStrongWillApply(row: any, col: any) {
-    return new Promise<void>(resolve=> {
-        const cell = boardEl.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-        if (!cell) return resolve();
-        const disc = cell.querySelector('.disc');
-        if (!disc) return resolve();
-
-        // If no animations mode, resolve immediately
-        if (_isNoAnim()) {
-            resolve();
-            return;
-        }
-
-        // Restart animation if needed
-        disc.classList.remove('strong-will-apply');
-        void disc.offsetWidth;
-        disc.classList.add('strong-will-apply');
-
-        let resolved = false;
-        const safeResolve = () => {
-            if (resolved) {
-                return;
-            }
-            resolved = true;
-            disc.removeEventListener('animationend', onEnd);
-            disc.classList.remove('strong-will-apply');
-            resolve();
-        };
-        const onEnd = (ev: any) => {
-            safeResolve();
-        };
-        disc.addEventListener('animationend', onEnd);
-        // Safety timeout
-        const timerId = _Timer().setTimeout(safeResolve, 600);
+    return _playLegacyBoardAnimationEventForUtils({
+        type: 'legacy_strong_will_apply',
+        row,
+        col
     });
 }
 
@@ -1467,8 +1574,8 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         _setProcessingState(true);
 
         const boardRoot = (typeof boardEl !== 'undefined' && boardEl) ? boardEl : document.getElementById('board');
-        const targetCell = _resolveBoardCellForAnimationUtils(boardRoot, row, col);
-        if (!targetCell) {
+        const cellRect = _resolveBoardCellClientRectForAnimationUtils(row, col);
+        if (!cellRect) {
             completeImmediately();
             return;
         }
@@ -1501,7 +1608,6 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         }, 3000, sc);
 
         const boardRect = boardRoot.getBoundingClientRect();
-        const cellRect = targetCell.getBoundingClientRect();
 
         const handContext = _syncDisplayedHandSkinForAnimation(player, visualOptions);
         const playerKey = handContext && handContext.ownerKey
@@ -1753,7 +1859,7 @@ function _finalizeHandAddAnimation(payload: any, options: any) {
     const fadeState = {
         playerKey: toPlayerKey,
         count: Number.isFinite(data.count) ? data.count : 1,
-        token: `hand-fade-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        token: `hand-fade-${++__hand_fade_token_sequence_utils}`
     };
 
     let revealState = _getHandRevealState();
@@ -1861,19 +1967,17 @@ function playCaptureToHandAnimation(payload: any) {
         const sourceCol = Number(data.sourceCol);
         const insertIndex = Number(data.insertIndex);
         const targetCardEl = _resolveCaptureTargetCardElement(toPlayerKey, Number.isInteger(insertIndex) ? insertIndex : -1);
-        const sourceCell = boardRoot && Number.isInteger(sourceRow) && Number.isInteger(sourceCol)
-            ? boardRoot.querySelector(`.cell[data-row="${sourceRow}"][data-col="${sourceCol}"]`)
-            : null;
-        if (!layerEl || !targetCardEl || !sourceCell) {
+        const sourceCellRect = _resolveBoardCellClientRectForAnimationUtils(sourceRow, sourceCol);
+        if (!layerEl || !targetCardEl || !sourceCellRect) {
             done();
             return;
         }
 
         const targetRect = _snapRectToWholePixels(targetCardEl.getBoundingClientRect());
-        const sourceDisc = sourceCell.querySelector('.disc');
-        const sourceRect = sourceDisc
-            ? _snapRectToWholePixels(sourceDisc.getBoundingClientRect())
-            : _snapRectToWholePixels(sourceCell.getBoundingClientRect());
+        const sourceRect = _snapRectToWholePixels(
+            _resolveBoardDiscClientRectFromCellRect(sourceCellRect, boardRoot)
+            || sourceCellRect
+        );
         if (!sourceRect || !targetRect) {
             done();
             return;
@@ -1908,15 +2012,13 @@ function playCaptureToHandAnimation(payload: any) {
             done();
         };
 
-        movingStone = sourceDisc ? sourceDisc.cloneNode(true) : document.createElement('div');
-        if (!sourceDisc) {
-            const sourceOwnerKey = _normalizeHandOwnerKey(data.sourceOwner);
-            movingStone.className = `disc ${sourceOwnerKey === 'white' ? 'white' : 'black'}`;
-            if (data.sourceSpecialType && typeof applyStoneVisualEffect === 'function') {
-                try {
-                    applyStoneVisualEffect(movingStone, data.sourceSpecialType, { owner: sourceOwnerKey });
-                } catch (e: any) { /* ignore */ }
-            }
+        movingStone = document.createElement('div');
+        const sourceOwnerKey = _normalizeHandOwnerKey(data.sourceOwner);
+        movingStone.className = `disc ${sourceOwnerKey === 'white' ? 'white' : 'black'}`;
+        if (data.sourceSpecialType && typeof applyStoneVisualEffect === 'function') {
+            try {
+                applyStoneVisualEffect(movingStone, data.sourceSpecialType, { owner: sourceOwnerKey });
+            } catch (e: any) { /* ignore */ }
         }
         movingStone.style.position = 'fixed';
         movingStone.style.pointerEvents = 'none';
@@ -2209,31 +2311,14 @@ function _isSacrificeSealBurnCardUse(data: any): boolean {
     return String(data.cardUseVanishEffect || '').trim().toLowerCase() === 'sacrifice_seal_burn';
 }
 
-function _resolveSacrificeAbsorbCell(data: any) {
+function _resolveSacrificeAbsorbTargetRect(data: any) {
     const sacrificeWill = data && data.sacrificeWill && typeof data.sacrificeWill === 'object'
         ? data.sacrificeWill
         : null;
     const row = Number(sacrificeWill && sacrificeWill.row);
     const col = Number(sacrificeWill && sacrificeWill.col);
     if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
-    try {
-        const boardRef = _resolveTrapPlacementBoardElement();
-        if (boardRef && typeof boardRef.querySelector === 'function') {
-            return boardRef.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-        }
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
-            return document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-        }
-    } catch (e: any) { /* ignore */ }
-    return null;
-}
-
-function _resolveSacrificeAbsorbTargetRect(data: any) {
-    const cell = _resolveSacrificeAbsorbCell(data);
-    if (!cell || typeof cell.getBoundingClientRect !== 'function') return null;
-    const rect = _snapRectToWholePixels(cell.getBoundingClientRect());
+    const rect = _snapRectToWholePixels(_resolveBoardCellClientRectForAnimationUtils(row, col));
     if (!rect || !(rect.width > 0) || !(rect.height > 0)) return null;
     return rect;
 }
@@ -2261,18 +2346,24 @@ async function _playSacrificeAbsorbVanish(movingCard: any, playbackScope: any, d
         movingCard.style.transformOrigin = 'center center';
     } catch (e: any) { /* ignore */ }
 
-    const cell = _resolveSacrificeAbsorbCell(data);
-    const cellPulse = cell
-        ? _animateCompat(cell, [
-            { filter: 'none' },
-            { filter: 'drop-shadow(0 0 16px rgba(255, 55, 55, 0.88)) brightness(1.12)' },
-            { filter: 'none' }
-        ], {
-            duration: SACRIFICE_ABSORB_MS,
-            easing: 'ease-out',
-            fill: 'none'
-        }, playbackScope)
-        : Promise.resolve();
+    const sacrificeWill = data && data.sacrificeWill && typeof data.sacrificeWill === 'object'
+        ? data.sacrificeWill
+        : null;
+    const pulseEvent = {
+        type: 'legacy_sacrifice_absorb_pulse',
+        row: Number(sacrificeWill && sacrificeWill.row),
+        col: Number(sacrificeWill && sacrificeWill.col),
+        durationMs: SACRIFICE_ABSORB_MS
+    };
+    const playBoardEffect = typeof data.playBoardEffect === 'function'
+        ? data.playBoardEffect
+        : _playLegacyBoardAnimationEventForUtils;
+    let cellPulse: Promise<any>;
+    try {
+        cellPulse = Promise.resolve(playBoardEffect(pulseEvent));
+    } catch (error: any) {
+        cellPulse = Promise.reject(error);
+    }
 
     const cardAbsorb = _animateCompat(movingCard, [
         {
@@ -2540,178 +2631,11 @@ function playCardUseHandAnimation(payload: any) {
  * @returns {Promise<void>}
  */
 function animateHyperactiveMove(from: any, to: any, options: any) {
-    const opts = options || {};
-    return new Promise<void>(resolve=> {
-        const fromCell = boardEl.querySelector(`.cell[data-row="${from.row}"][data-col="${from.col}"]`);
-        const toCell = boardEl.querySelector(`.cell[data-row="${to.row}"][data-col="${to.col}"]`);
-        if (!fromCell || !toCell) return resolve();
-
-        let fromDisc = fromCell.querySelector('.disc');
-        let sourceCell = fromCell;
-        // Fallback order:
-        // 1) carryDisc passed by caller (for chained moves when board is already at final snapshot),
-        // 2) destination disc (single-step post-state fallback).
-        if (!fromDisc && opts.carryDisc && opts.carryDisc.parentElement) {
-            fromDisc = opts.carryDisc;
-            sourceCell = opts.carryDisc.parentElement;
-        }
-        if (!fromDisc) {
-            const toDisc = toCell.querySelector('.disc');
-            if (!toDisc) return resolve();
-            fromDisc = toDisc;
-            sourceCell = toCell;
-        }
-        // Move visuals must not inherit destroy/disappear state.
-        fromDisc.classList.remove('destroy-fade', 'shatter');
-
-        const fxLayer = document.getElementById('card-fx-layer') || boardEl;
-        const fxRect = _snapRectToWholePixels(fxLayer.getBoundingClientRect());
-        const fromRect = _snapRectToWholePixels(fromCell.getBoundingClientRect());
-        const toRect = _snapRectToWholePixels(toCell.getBoundingClientRect());
-        const sourceCellRect = sourceCell && typeof sourceCell.getBoundingClientRect === 'function'
-            ? _snapRectToWholePixels(sourceCell.getBoundingClientRect())
-            : fromRect;
-        const liveDiscRect = fromDisc && typeof fromDisc.getBoundingClientRect === 'function'
-            ? _snapRectToWholePixels(fromDisc.getBoundingClientRect())
-            : null;
-        if (!fxRect || !fromRect || !toRect) return resolve();
-
-        let discWidth = liveDiscRect && liveDiscRect.width > 0 ? liveDiscRect.width : 0;
-        let discHeight = liveDiscRect && liveDiscRect.height > 0 ? liveDiscRect.height : 0;
-        let discInsetX = (
-            liveDiscRect &&
-            sourceCellRect &&
-            Number.isFinite(liveDiscRect.left) &&
-            Number.isFinite(sourceCellRect.left)
-        ) ? (liveDiscRect.left - sourceCellRect.left) : NaN;
-        let discInsetY = (
-            liveDiscRect &&
-            sourceCellRect &&
-            Number.isFinite(liveDiscRect.top) &&
-            Number.isFinite(sourceCellRect.top)
-        ) ? (liveDiscRect.top - sourceCellRect.top) : NaN;
-
-        if (!(discWidth > 0) || !(discHeight > 0) || !Number.isFinite(discInsetX) || !Number.isFinite(discInsetY)) {
-            try {
-                if (typeof window !== 'undefined' && boardEl && typeof window.getComputedStyle === 'function') {
-                    const boardStyle = window.getComputedStyle(boardEl);
-                    const cssDiscSize = Number.parseFloat(boardStyle.getPropertyValue('--board-disc-size-px') || '');
-                    const cssDiscInset = Number.parseFloat(boardStyle.getPropertyValue('--board-disc-inset-px') || '');
-                    if (!(discWidth > 0) && Number.isFinite(cssDiscSize) && cssDiscSize > 0) discWidth = cssDiscSize;
-                    if (!(discHeight > 0) && Number.isFinite(cssDiscSize) && cssDiscSize > 0) discHeight = cssDiscSize;
-                    if (!Number.isFinite(discInsetX) && Number.isFinite(cssDiscInset) && cssDiscInset >= 0) discInsetX = cssDiscInset;
-                    if (!Number.isFinite(discInsetY) && Number.isFinite(cssDiscInset) && cssDiscInset >= 0) discInsetY = cssDiscInset;
-                }
-            } catch (e: any) { /* ignore */ }
-        }
-
-        if (!(discWidth > 0)) discWidth = fromRect.width * 0.82;
-        if (!(discHeight > 0)) discHeight = fromRect.height * 0.82;
-        if (!Number.isFinite(discInsetX)) discInsetX = Math.max(0, (fromRect.width - discWidth) / 2);
-        if (!Number.isFinite(discInsetY)) discInsetY = Math.max(0, (fromRect.height - discHeight) / 2);
-
-        // Match the currently rendered disc box so moving stones keep the same sharp size.
-        const startX = Math.round((fromRect.left - fxRect.left) + discInsetX);
-        const startY = Math.round((fromRect.top - fxRect.top) + discInsetY);
-        const endX = Math.round((toRect.left - fxRect.left) + discInsetX);
-        const endY = Math.round((toRect.top - fxRect.top) + discInsetY);
-        const ghostWidth = Math.max(1, Math.round(discWidth));
-        const ghostHeight = Math.max(1, Math.round(discHeight));
-        const baseMoveMs = (typeof window !== 'undefined' && window.AnimationConstants && Number.isFinite(window.AnimationConstants.MOVE_MS))
-            ? window.AnimationConstants.MOVE_MS
-            : 400;
-        const durationMs = Math.max(1, Math.round(baseMoveMs));
-
-// No-Animation: perform immediate move
-    if (typeof _isNoAnim === 'function' && _isNoAnim()) {
-        try {
-            if (fromDisc.parentElement === fromCell) {
-                fromCell.removeChild(fromDisc);
-            }
-            toCell.appendChild(fromDisc);
-        } catch (e: any) { /* ignore */ }
-        return resolve();
-    }
-
-    const ghost = fromDisc.cloneNode(true);
-        ghost.classList.remove('destroy-fade', 'shatter');
-        ghost.classList.add('hyperactive-move-ghost');
-        ghost.style.position = 'absolute';
-        ghost.style.left = `${startX}px`;
-        ghost.style.top = `${startY}px`;
-        ghost.style.width = `${ghostWidth}px`;
-        ghost.style.height = `${ghostHeight}px`;
-        ghost.style.pointerEvents = 'none';
-        ghost.style.transform = 'none';
-        ghost.style.transition = 'none';
-
-        // Hide source disc; board re-render after the animation will remove it
-        fromDisc.style.visibility = 'hidden';
-        fxLayer.appendChild(ghost);
-
-        let finished = false;
-        let timeoutId: any = null;
-        let transitionKickoffId: any = null;
-        const handleTransitionEnd = (event: any) => {
-            if (!event || event.target !== ghost) return;
-            const propertyName = String(event.propertyName || '');
-            if (propertyName && propertyName !== 'left' && propertyName !== 'top') return;
-            finish();
-        };
-        const finish = () => {
-            if (finished) return;
-            finished = true;
-            if (timeoutId !== null) {
-                _Timer().clearTimeout(timeoutId);
-                timeoutId = null;
-            }
-            if (transitionKickoffId !== null && typeof cancelAnimationFrame === 'function') {
-                try { cancelAnimationFrame(transitionKickoffId); } catch (e: any) { /* ignore */ }
-                transitionKickoffId = null;
-            }
-            try { ghost.removeEventListener('transitionend', handleTransitionEnd); } catch (e: any) { /* ignore */ }
-            if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
-            // Materialize the moved disc immediately so multiple hyperactive moves
-            // don't look like teleporting/reappearing after a batch re-render.
-            // (Final board state is still synced by emitBoardUpdate().)
-            try {
-                // Remove any existing disc in target (should be empty, but guard against stale DOM)
-                const existing = toCell.querySelector('.disc');
-                if (existing && existing !== fromDisc) {
-                    existing.remove();
-                }
-                fromDisc.style.visibility = '';
-                if (sourceCell === fromCell && fromDisc.parentElement === fromCell) {
-                    fromCell.removeChild(fromDisc);
-                }
-                toCell.appendChild(fromDisc);
-            } catch (e: any) {
-                // ignore DOM move errors; board will re-render after this animation anyway
-            }
-            resolve();
-        };
-
-        ghost.addEventListener('transitionend', handleTransitionEnd);
-        const startTransition = () => {
-            if (finished) return;
-            ghost.style.transition =
-                `left ${durationMs}ms cubic-bezier(0.2, 0.85, 0.3, 1), top ${durationMs}ms cubic-bezier(0.2, 0.85, 0.3, 1)`;
-            ghost.style.left = `${endX}px`;
-            ghost.style.top = `${endY}px`;
-        };
-        const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
-        try {
-            if (typeof requestAnimationFrame === 'function') {
-                transitionKickoffId = requestAnimationFrame(startTransition);
-            } else if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-                transitionKickoffId = window.requestAnimationFrame(startTransition);
-            } else {
-                _Timer().setTimeout(startTransition, 0, sc);
-            }
-        } catch (e: any) {
-            _Timer().setTimeout(startTransition, 0, sc);
-        }
-        timeoutId = _Timer().setTimeout(finish, durationMs + 220, sc);
+    return _playLegacyBoardAnimationEventForUtils({
+        type: 'legacy_hyperactive_move',
+        from,
+        to,
+        options: options || {}
     });
 }
 

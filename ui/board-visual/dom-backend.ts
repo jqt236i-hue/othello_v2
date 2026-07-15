@@ -9,6 +9,8 @@ import type {
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require;
+const DomPlayback = _require('./dom-playback');
+const DomRuntime = _require('./dom-runtime');
 
 function createDomBoardVisualBackend(options?: {
   playPhase?: (events: readonly unknown[], context: BoardPlaybackContext) => Promise<void>;
@@ -19,10 +21,15 @@ function createDomBoardVisualBackend(options?: {
 } {
   const DiffRenderer = _require('../diff-renderer');
   const ModelBuilder = _require('./model-builder');
-  const FramePresenter = _require('./frame-presenter');
   let host: HTMLElement | null = null;
   let diagnostics: BoardVisualBackendDeps['diagnostics'] = undefined;
   let lastFrame: BoardVisualFrame | null = null;
+  const runtimeHandlers = !options?.playPhase
+    ? DomRuntime.createDomBoardPlaybackHandlers({ getBoardElement: () => host })
+    : null;
+  const playbackExecutor = runtimeHandlers
+    ? DomPlayback.createDomBoardPlaybackExecutor(runtimeHandlers)
+    : null;
 
   const findRenderedCellElement = (row: number, col: number): HTMLElement | null => {
     if (!host) return null;
@@ -84,9 +91,6 @@ function createDomBoardVisualBackend(options?: {
 
   const applyFrame = (frame: BoardVisualFrame) => {
     if (!host) throw new Error('DOM board backend is not mounted');
-    // Skin/layout is part of this controller-owned frame. Apply it before
-    // pixel sizing so geometry and cell materialization use one snapshot.
-    FramePresenter.presentBoardFrame(host, frame);
     if (options && typeof options.beforeApplyFrame === 'function') {
       options.beforeApplyFrame(host, frame);
     }
@@ -95,6 +99,10 @@ function createDomBoardVisualBackend(options?: {
       authorizedByBoardVisualController: true,
       viewportLayout: frame.layout
     });
+    // The compatibility renderer owns the legacy frame/skin DOM updates.
+    // Re-presenting them here changes Chromium's frame-art rasterization even
+    // when the effective values are identical. Pixi uses the frame presenter;
+    // the compatibility path deliberately preserves the legacy paint order.
     lastFrame = frame;
     diagnostics?.record('dom:frame-applied', { frameToken: frame.frameToken });
   };
@@ -109,10 +117,13 @@ function createDomBoardVisualBackend(options?: {
     },
     applyFrame,
     async playPhase(events: readonly unknown[], context: BoardPlaybackContext) {
-      if (!options || typeof options.playPhase !== 'function') {
-        throw new Error('DOM board playback adapter is unavailable');
-      }
-      await options.playPhase(events, context);
+      const playPhase = options && typeof options.playPhase === 'function'
+        ? options.playPhase
+        : playbackExecutor && typeof playbackExecutor.playPhase === 'function'
+          ? playbackExecutor.playPhase.bind(playbackExecutor)
+          : null;
+      if (!playPhase) throw new Error('DOM board playback adapter is unavailable');
+      await playPhase(events, context);
     },
     getCellClientRect(row: number, col: number): BoardClientRect | null {
       if (!host) return null;
@@ -144,6 +155,7 @@ function createDomBoardVisualBackend(options?: {
       DiffRenderer.resetRenderStats();
     },
     destroy() {
+      if (runtimeHandlers && typeof runtimeHandlers.destroy === 'function') runtimeHandlers.destroy();
       diagnostics?.record('dom:destroyed');
       host = null;
       diagnostics = undefined;

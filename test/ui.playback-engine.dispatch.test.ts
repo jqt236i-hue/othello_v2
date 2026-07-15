@@ -81,18 +81,20 @@ describe('ui playback engine dispatch', () => {
   test('strict network playback passes strict option to AnimationEngine', async () => {
     const playbackEngine = require('../ui/playback-engine.js');
     const animationEngine = { play: jest.fn().mockResolvedValue(undefined) };
+    const boardWriterToken = Object.freeze({ id: 7, frameToken: 'network:12', mode: 'network' });
 
     await playbackEngine.dispatchPresentationEvent({
       type: 'PLAYBACK_EVENTS',
       events: [{ type: 'flip', phase: 1 }]
     }, {
       AnimationEngine: animationEngine,
-      strictNetworkPlayback: true
+      strictNetworkPlayback: true,
+      boardWriterToken
     });
 
     expect(animationEngine.play).toHaveBeenCalledWith(
       [{ type: 'flip', phase: 1 }],
-      expect.objectContaining({ strictNetworkPlayback: true })
+      expect.objectContaining({ strictNetworkPlayback: true, boardWriterToken })
     );
   });
 

@@ -1,5 +1,6 @@
 describe('DiffRenderer flip suppression (post-playback sync)', () => {
   beforeEach(() => {
+    jest.resetModules();
     // Minimal DOM (this repo's Jest environment may be "node", so create JSDOM explicitly)
     const { JSDOM } = require('jsdom');
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
@@ -14,6 +15,7 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
     global.handleCellClick = () => {};
     global.getPlayerKey = (p) => (p === BLACK ? 'black' : 'white');
     global.getLegalMoves = () => [];
+    global.countDiscs = () => ({ black: 1, white: 0 });
     global.CardLogic = {
       getCardContext: () => ({ protectedStones: [], permaProtectedStones: [], bombs: [] }),
       getSelectableTargets: () => []
@@ -30,6 +32,7 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
     delete global.window;
     delete global.document;
     delete global.boardEl;
+    delete global.countDiscs;
   });
 
   test('does not apply fallback .flip when __suppressNextDiffFlip is set', () => {

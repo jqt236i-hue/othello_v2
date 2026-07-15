@@ -19,6 +19,8 @@ let presentationResolver: any = null;
 let playbackEngineModule: any = null;
 let pendingLocalBoardVisualSettlementClaim: any = null;
 let activeLocalPresentationDrainClaim: any = null;
+let legacyBoardPresentationSequence = 0;
+let detachedLegacyBoardPresentationLease: any = null;
 
 function isPresentationDebugEnabled(): boolean {
   try {
@@ -526,6 +528,7 @@ function claimPresentationDrainForEvents(events: any[]): any {
     managerClaim,
     boardWriterToken,
     managerFinalizers: [],
+    boardPresentationSettlements: [],
     meta: {
       scope: 'presentation_drain',
       strictNetworkPlayback
@@ -814,8 +817,27 @@ function createStrictNetworkSettlementHandle(options: {
 }
 
 async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
-  const payload = normalizePlaybackEventsForUi(Array.isArray(ev && ev.events) ? ev.events : []);
+  let payload = normalizePlaybackEventsForUi(Array.isArray(ev && ev.events) ? ev.events : []);
   const strictNetworkPlayback = !!(ev && ev.meta && ev.meta.strictNetworkPlayback === true);
+  const outerVisualSeq = Number(ev && ev.meta && ev.meta.visualSeq);
+  if (strictNetworkPlayback && Number.isInteger(outerVisualSeq) && outerVisualSeq >= 0) {
+    payload = payload.map((event: any) => ({
+      ...event,
+      visualSeq: Number.isInteger(Number(event && event.visualSeq)) ? Number(event.visualSeq) : outerVisualSeq,
+      meta: Object.assign({}, event && event.meta && typeof event.meta === 'object' ? event.meta : {}, {
+        visualSeq: event && event.meta && typeof event.meta === 'object'
+          && Number.isInteger(Number(event.meta.visualSeq))
+          ? Number(event.meta.visualSeq)
+          : outerVisualSeq
+      })
+    }));
+  } else if (!strictNetworkPlayback && payload.length) {
+    const VisualSeed = _require('./presentation/visual-seed');
+    if (!VisualSeed || typeof VisualSeed.withNextPresentationBatchId !== 'function') {
+      throw new Error('local_presentation_batch_identity_unavailable');
+    }
+    payload = Array.from(VisualSeed.withNextPresentationBatchId(payload));
+  }
   if (!payload.length && !strictNetworkPlayback) return;
   const suppressPlayback = !!(ev && ev.meta && ev.meta.suppressPlayback === true);
   const payloadTypes = payload.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value);
@@ -845,6 +867,7 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
   const playbackClaim = claimPlaybackBatchForPresentation(ev, payload);
   let strictSettlement: any = null;
   let strictOwnershipTransferred = false;
+  let activeBoardWriterToken: any = null;
   let deferredManagerFinalizer: (() => boolean) | null = payload.length === 0 ? (() => true) : null;
   if (strictNetworkPlayback) {
     let renderer: any = null;
@@ -860,6 +883,7 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
         throw new Error('strict_network_visual_seq_required');
       }
       boardWriterToken = renderer.claimBoardVisualWriter(`network:${visualSeq}`, 'network');
+      activeBoardWriterToken = boardWriterToken;
       strictSettlement = createStrictNetworkSettlementHandle({
         visualSeq,
         managerClaim: playbackClaim,
@@ -899,12 +923,16 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
         'local'
       );
       playbackClaim.managerFinalizers = [];
+      activeBoardWriterToken = playbackClaim.boardWriterToken;
     } catch (error) {
       releasePlaybackClaimForPresentation(playbackClaim);
       throw error;
     }
   }
   try {
+    if (!activeBoardWriterToken && activeLocalPresentationDrainClaim) {
+      activeBoardWriterToken = activeLocalPresentationDrainClaim.boardWriterToken || null;
+    }
     const playbackDispatchDeps = getPlaybackDispatchDeps();
     const playbackEngineDeps = Object.assign({}, playbackDispatchDeps, {
       strictNetworkPlayback,
@@ -913,7 +941,8 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
         if (typeof finalizer !== 'function') throw new Error('playback_manager_finalizer_invalid');
         if (deferredManagerFinalizer) throw new Error('playback_manager_finalizer_registered_twice');
         deferredManagerFinalizer = finalizer as () => boolean;
-      }
+      },
+      boardWriterToken: activeBoardWriterToken
     });
     const playbackEventForDispatch = {
       type: 'PLAYBACK_EVENTS',
@@ -922,9 +951,11 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
     };
     const playbackEngine = resolvePlaybackEngine();
     let dispatched = payload.length === 0;
+    let playbackDispatchStarted = false;
     if (!dispatched) {
       try {
         if (playbackEngine && typeof playbackEngine.dispatchPresentationEvent === 'function') {
+          playbackDispatchStarted = true;
           const startedAt = Date.now();
           emitPresentationDebugConsole('playback_batch_dispatch_engine', {
             payloadCount: payload.length,
@@ -946,11 +977,15 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
           payloadTypes,
           error: e && (e as any).message ? String((e as any).message) : String(e || '')
         });
-        if (strictNetworkPlayback) throw e;
+        // Once the dispatcher has accepted this batch it may already have
+        // emitted sound, global overlays, or board events. Replaying the same
+        // payload through the compatibility path would duplicate those side
+        // effects, so preserve the original failure for every playback mode.
+        throw e;
       }
     }
 
-    if (!dispatched) {
+    if (!dispatched && !playbackDispatchStarted) {
       try {
         const animationEngine = playbackDispatchDeps.AnimationEngine;
         if (animationEngine && typeof animationEngine.play === 'function') {
@@ -963,12 +998,14 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
             await animationEngine.play(payload, {
               strictNetworkPlayback: true,
               deferFinalSettlement: true,
-              onFinalizationReady: playbackEngineDeps.onFinalizationReady
+              onFinalizationReady: playbackEngineDeps.onFinalizationReady,
+              boardWriterToken: activeBoardWriterToken
             });
           } else {
             await animationEngine.play(payload, {
               deferFinalSettlement: true,
-              onFinalizationReady: playbackEngineDeps.onFinalizationReady
+              onFinalizationReady: playbackEngineDeps.onFinalizationReady,
+              boardWriterToken: activeBoardWriterToken
             });
           }
           emitPresentationDebugConsole('playback_batch_animation_engine_resolved', {
@@ -993,7 +1030,10 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
           error: e && (e as any).message ? String((e as any).message) : String(e || '')
         });
         try { console.warn('[PresentationHandler] playback failed', e); } catch (e2) { /* ignore */ }
-        if (strictNetworkPlayback) throw e;
+        // The compatibility dispatcher has also started consuming the batch
+        // at this point. Preserve its typed renderer/resource failure instead
+        // of converting a partial presentation into apparent success.
+        throw e;
       }
     }
 
@@ -1041,50 +1081,236 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
   }
 }
 
-function applyCrossfadeStone(ev: any): void {
-  const row = ev && ev.row;
-  const col = ev && ev.col;
-  if (!Number.isFinite(row) || !Number.isFinite(col)) return;
+function createLegacyBoardPresentationError(code: string, ev: any, cause?: any): any {
+  const eventType = String(ev && ev.type || 'unknown').trim().toLowerCase() || 'unknown';
+  const error: any = new Error(`${code}:${eventType}`);
+  error.name = 'PresentationPlaybackError';
+  error.code = code;
+  error.eventType = eventType;
+  error.strictNetworkPlayback = false;
+  if (cause !== undefined) {
+    Object.defineProperty(error, 'cause', {
+      value: cause,
+      configurable: true,
+      enumerable: false,
+      writable: false
+    });
+  }
+  return error;
+}
 
-  const tryApply = function (retries: number) {
-    try {
-      const cell = document.querySelector('.cell[data-row="' + row + '"][data-col="' + col + '"]');
-      const disc = cell ? cell.querySelector('.disc') : null;
-      if (!disc) {
-        if (retries > 0) setTimeout(function () { tryApply(retries - 1); }, 80);
-        return;
-      }
+function throwIfDetachedLegacyBoardRecoveryIsUnresolved(lease: any, ev: any): void {
+  if (lease && lease.token && lease.unresolvedError) {
+    throw createLegacyBoardPresentationError(
+      'board_writer_recovery_unresolved',
+      ev,
+      lease.unresolvedError
+    );
+  }
+}
 
-      try {
-        const syncDiscVisual = resolveDiscVisualSync();
-        if (typeof syncDiscVisual === 'function') syncDiscVisual(row, col);
-      } catch (e) { /* ignore */ }
+function holdDetachedLegacyBoardRecoveryState(lease: any, ev: any, error: any): void {
+  const manager = lease.manager || resolvePlaybackStateManagerForPresentation();
+  if (!manager || typeof manager.claimVisualPlayback !== 'function') {
+    throw new Error('Detached board recovery playback manager is unavailable');
+  }
+  lease.manager = manager;
+  if (!lease.managerClaim) {
+    lease.managerClaim = manager.claimVisualPlayback({
+      source: 'presentation-handler',
+      scope: 'generic',
+      reason: 'detached_board_writer_recovery_unresolved',
+      eventCount: 1,
+      eventTypes: [String(ev && ev.type || 'unknown').trim() || 'unknown'],
+      strictNetworkPlayback: false,
+      restoreBusyBaseline: false
+    });
+  }
+  if (!lease.managerClaim) {
+    throw new Error('Detached board recovery playback claim was rejected');
+  }
+  if (typeof manager.setInteractionLock === 'function') {
+    manager.setInteractionLock(true);
+  } else if (typeof manager.setBusyState === 'function') {
+    manager.setBusyState({ processing: true, cardAnimating: true, playbackActive: true });
+  } else {
+    throw new Error('Detached board recovery interaction lock is unavailable');
+  }
+  if (typeof manager.recordVisualPlaybackSettlementError !== 'function') {
+    throw new Error('Detached board recovery settlement recorder is unavailable');
+  }
+  if (manager.recordVisualPlaybackSettlementError(lease.managerClaim, error, {
+    stage: 'detached-board-writer-recovery'
+  }) !== true) {
+    throw new Error('Detached board recovery settlement error was rejected');
+  }
+}
 
-      const applyStoneVisualState = resolveApplyStoneVisualState();
-      const crossfadeStone = resolveCrossfadeStoneVisual();
-      if (typeof crossfadeStone === 'function') {
-        crossfadeStone(disc, {
-          effectKey: ev.effectKey,
-          owner: ev.owner,
-          newColor: ev.newColor,
-          durationMs: ev.durationMs,
-          autoFadeOut: ev.autoFadeOut,
-          fadeWholeStone: ev.fadeWholeStone
-        }).catch(function () { /* Intentionally empty: fire-and-forget animation */ });
-      } else if (typeof applyStoneVisualState === 'function') {
-        applyStoneVisualState(disc, {
-          effectKey: ev.effectKey,
-          owner: ev.owner,
-          newColor: ev.newColor
-        });
-      } else if (typeof (applyStoneVisualEffect as any) === 'function') {
-        (applyStoneVisualEffect as any)(disc, ev.effectKey, { owner: ev.owner });
-      }
-    } catch (e) {
-      if (retries > 0) setTimeout(function () { tryApply(retries - 1); }, 80);
+function releaseDetachedLegacyBoardRecoveryClaimAfterRestore(lease: any, ev: any): void {
+  if (!lease || !lease.managerClaim) return;
+  const manager = lease.manager || resolvePlaybackStateManagerForPresentation();
+  let released = false;
+  try {
+    if (!manager || typeof manager.releaseVisualPlaybackClaim !== 'function') {
+      throw new Error('Detached board recovery playback release is unavailable');
     }
-  };
-  tryApply(5);
+    released = manager.releaseVisualPlaybackClaim(lease.managerClaim) === true;
+    if (!released) throw new Error('Detached board recovery playback claim was not released');
+  } catch (error) {
+    const typedError = createLegacyBoardPresentationError('board_writer_manager_release_failed', ev, error);
+    lease.unresolvedError = typedError;
+    throw typedError;
+  }
+  lease.managerClaim = null;
+  lease.manager = null;
+}
+
+async function settleDetachedLegacyBoardPresentationLease(renderer: any, lease: any, ev: any): Promise<any> {
+  let settlementError: any = null;
+  try {
+    if (typeof renderer.settleBoardVisualWriter === 'function') {
+      await renderer.settleBoardVisualWriter(lease.token);
+    } else {
+      renderer.releaseBoardVisualWriter(lease.token);
+    }
+  } catch (error) {
+    settlementError = error && (error as any).name === 'PresentationPlaybackError'
+      ? error
+      : createLegacyBoardPresentationError('board_writer_settlement_failed', ev, error);
+  }
+  if (settlementError) {
+    try {
+      if (typeof renderer.enterBoardVisualRecovery !== 'function') {
+        throw new Error('Board writer recovery API unavailable');
+      }
+      if (typeof renderer.settleBoardVisualWriter !== 'function') {
+        throw new Error('Board writer recovery settlement API unavailable');
+      }
+      await renderer.enterBoardVisualRecovery(lease.token, settlementError);
+      await renderer.settleBoardVisualWriter(lease.token);
+    } catch (recoveryError) {
+      lease.unresolvedError = settlementError;
+      Object.defineProperty(settlementError, 'recoveryError', {
+        value: recoveryError,
+        configurable: true,
+        enumerable: false,
+        writable: false
+      });
+      try {
+        holdDetachedLegacyBoardRecoveryState(lease, ev, settlementError);
+      } catch (managerError) {
+        Object.defineProperty(settlementError, 'managerSettlementError', {
+          value: managerError,
+          configurable: true,
+          enumerable: false,
+          writable: false
+        });
+      }
+      throw settlementError;
+    }
+  }
+  // A retained manager claim can only reach this point through a future
+  // explicit restore/retry. Release it after the writer restore succeeds;
+  // a failed manager release keeps the lease/token as an error settlement.
+  releaseDetachedLegacyBoardRecoveryClaimAfterRestore(lease, ev);
+  lease.token = null;
+  lease.unresolvedError = null;
+  return settlementError;
+}
+
+async function playLegacyBoardPresentationEvent(ev: any): Promise<void> {
+  const renderer = _require('./board-renderer');
+  if (
+    !renderer
+    || typeof renderer.playBoardVisualPhase !== 'function'
+    || typeof renderer.claimBoardVisualWriter !== 'function'
+    || typeof renderer.releaseBoardVisualWriter !== 'function'
+  ) {
+    throw new Error('legacy_board_presentation_backend_unavailable');
+  }
+  const drainToken = activeLocalPresentationDrainClaim && activeLocalPresentationDrainClaim.boardWriterToken;
+  if (drainToken) {
+    await renderer.playBoardVisualPhase(drainToken, [ev]);
+    return;
+  }
+
+  let lease = detachedLegacyBoardPresentationLease;
+  throwIfDetachedLegacyBoardRecoveryIsUnresolved(lease, ev);
+  if (lease && lease.closingPromise) {
+    try {
+      await lease.closingPromise;
+    } catch (error) {
+      throwIfDetachedLegacyBoardRecoveryIsUnresolved(lease, ev);
+      throw error;
+    }
+    return playLegacyBoardPresentationEvent(ev);
+  }
+  if (!lease) {
+    lease = {
+      pending: 0,
+      token: null,
+      closingPromise: null,
+      unresolvedError: null,
+      manager: null,
+      managerClaim: null,
+      tokenPromise: (async () => {
+        if (typeof renderer.getBoardVisualControllerReady === 'function') {
+          await renderer.getBoardVisualControllerReady();
+        }
+        lease.token = renderer.claimBoardVisualWriter(
+          `local:legacy-presentation:${++legacyBoardPresentationSequence}`,
+          'local'
+        );
+        return lease.token;
+      })()
+    };
+    detachedLegacyBoardPresentationLease = lease;
+  }
+  lease.pending += 1;
+  try {
+    const token = await lease.tokenPromise;
+    await renderer.playBoardVisualPhase(token, [ev]);
+  } finally {
+    lease.pending -= 1;
+    // Same-turn standalone effects preserve their historical concurrent
+    // launch while sharing one exclusive visual writer lease.
+    await Promise.resolve();
+    if (lease.pending === 0 && detachedLegacyBoardPresentationLease === lease) {
+      const closingPromise = (async () => {
+        let settlementError: any = null;
+        if (lease.token) {
+          settlementError = await settleDetachedLegacyBoardPresentationLease(renderer, lease, ev);
+        }
+        if (detachedLegacyBoardPresentationLease === lease) {
+          detachedLegacyBoardPresentationLease = null;
+        }
+        return settlementError;
+      })();
+      lease.closingPromise = closingPromise;
+      let settlementError: any = null;
+      try {
+        settlementError = await closingPromise;
+      } finally {
+        if (lease.closingPromise === closingPromise) {
+          lease.closingPromise = null;
+        }
+      }
+      if (settlementError) throw settlementError;
+    }
+  }
+}
+
+function launchLegacyBoardPresentationEvent(ev: any): void {
+  const settlement = playLegacyBoardPresentationEvent(ev).catch(function () {
+    // These local cosmetic events were historically fire-and-forget.
+  });
+  const drain = activeLocalPresentationDrainClaim;
+  if (drain) {
+    if (!Array.isArray(drain.boardPresentationSettlements)) {
+      drain.boardPresentationSettlements = [];
+    }
+    drain.boardPresentationSettlements.push(settlement);
+  }
 }
 
 function handlePresentationEvent(ev: any): any {
@@ -1136,14 +1362,19 @@ function handlePresentationEvent(ev: any): any {
     }
 
     if (ev.type === 'CROSSFADE_STONE') {
-      applyCrossfadeStone(ev);
+      if (ev.meta && ev.meta.strictNetworkPlayback === true) {
+        return Promise.reject(new Error('strict_network_standalone_board_event_requires_playback_batch'));
+      }
+      launchLegacyBoardPresentationEvent(ev);
       return;
     }
 
     if (ev.type === 'PROTECTION_EXPIRE') {
-      if (typeof (animateProtectionExpireAt as any) === 'function') {
-        try { (animateProtectionExpireAt as any)(ev.row, ev.col); } catch (e) { /* ignore */ }
+      if (ev.meta && ev.meta.strictNetworkPlayback === true) {
+        return Promise.reject(new Error('strict_network_standalone_board_event_requires_playback_batch'));
       }
+      launchLegacyBoardPresentationEvent(ev);
+      return;
     }
   } catch (e) {
     console.error('[PresentationHandler] handlePresentationEvent error', e);
@@ -1193,6 +1424,10 @@ async function flushBoardPresentationEvents(): Promise<void> {
   } catch (e) {
     console.error('[PresentationHandler] onBoardUpdated error', e);
   } finally {
+    if (drainClaim && Array.isArray(drainClaim.boardPresentationSettlements)) {
+      await Promise.all(drainClaim.boardPresentationSettlements);
+      drainClaim.boardPresentationSettlements.length = 0;
+    }
     if (activeLocalPresentationDrainClaim === drainClaim) {
       activeLocalPresentationDrainClaim = null;
     }

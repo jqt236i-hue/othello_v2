@@ -1,0 +1,98 @@
+import {
+  dispatchPresentationPhase,
+  normalizePresentationPhaseSoundEvents
+} from '../ui/presentation/dispatcher';
+import { PresentationPlaybackError } from '../ui/board-visual/playback-types';
+
+describe('presentation dispatcher', () => {
+  test('manifest is serial, then flip batch and non-flips launch in legacy order', async () => {
+    const calls: string[] = [];
+    const boardScopes: any[] = [];
+    const gate = () => new Promise<void>((resolve) => {
+      calls.push('await');
+      resolve();
+    });
+    await dispatchPresentationPhase([
+      { type: 'place', phase: 4 },
+      { type: 'manifest_ending', phase: 4 },
+      { type: 'flip', phase: 4, sequenceIndex: 9 },
+      { type: 'log', phase: 4, message: 'x' },
+      { type: 'flip', phase: 4, sequenceIndex: 1 },
+      { type: 'spawn', phase: 4 }
+    ], {
+      playBoardPhase(events, scope) {
+        calls.push(`board:${events.map((event) => event.type).join(',')}`);
+        boardScopes.push(scope);
+        return gate();
+      },
+      playManifestEndingGlobal() {
+        calls.push('global:manifest_ending');
+      },
+      playGlobalEvent(event) {
+        calls.push(`global:${event.type}`);
+      }
+    });
+
+    expect(calls.filter((entry) => entry !== 'await')).toEqual([
+      'board:manifest_ending',
+      'global:manifest_ending',
+      'board:flip,flip',
+      'board:place',
+      'global:log',
+      'board:spawn'
+    ]);
+    expect(boardScopes[0]).not.toBe(boardScopes[1]);
+    expect(boardScopes.slice(1)).toEqual([boardScopes[1], boardScopes[1], boardScopes[1]]);
+    expect(boardScopes[1]).toEqual(expect.objectContaining({
+      phaseKey: '4',
+      stepIndex: 1,
+      events: expect.arrayContaining([
+        expect.objectContaining({ type: 'flip', sequenceIndex: 9 }),
+        expect.objectContaining({ type: 'place' }),
+        expect.objectContaining({ type: 'log' }),
+        expect.objectContaining({ type: 'spawn' })
+      ])
+    }));
+    expect(Object.isFrozen(boardScopes[1])).toBe(true);
+    expect(Object.isFrozen(boardScopes[1].events)).toBe(true);
+  });
+
+  test('strict unknown event fails before any compatibility final-state write', async () => {
+    const playBoardPhase = jest.fn();
+    await expect(dispatchPresentationPhase([{ type: 'future_event', phase: 1 }], {
+      strictNetworkPlayback: true,
+      playBoardPhase,
+      playGlobalEvent: jest.fn()
+    })).rejects.toEqual(expect.objectContaining<Partial<PresentationPlaybackError>>({
+      name: 'PresentationPlaybackError',
+      code: 'presentation_event_unimplemented',
+      strictNetworkPlayback: true
+    }));
+    expect(playBoardPhase).not.toHaveBeenCalled();
+  });
+
+  test('local unknown event uses the exclusive DOM compatibility board port', async () => {
+    const playBoardPhase = jest.fn();
+    const event = { type: 'legacy_event', phase: 2, targets: [{ r: 1, col: 2 }] };
+    await dispatchPresentationPhase([event], {
+      playBoardPhase,
+      playGlobalEvent: jest.fn()
+    });
+    expect(playBoardPhase).toHaveBeenCalledWith(
+      [expect.objectContaining({ type: '__dom_compatibility_final_state', sourceEvent: event })],
+      expect.objectContaining({ phaseKey: '2', stepIndex: 0 })
+    );
+  });
+
+  test('treasure sound suppression keeps stable event order', () => {
+    const events = [
+      { type: 'log', message: 'before' },
+      { type: 'sound_effect', targets: [{ soundKey: 'charge_gain_common' }] },
+      { type: 'sound_effect', targets: [{ soundKey: 'treasure_gain' }] },
+      { type: 'log', message: 'after' }
+    ];
+    expect(normalizePresentationPhaseSoundEvents(events).map((event) => (
+      event.type === 'log' ? event.message : (event.targets?.[0] as { soundKey: string }).soundKey
+    ))).toEqual(['before', 'treasure_gain', 'after']);
+  });
+});

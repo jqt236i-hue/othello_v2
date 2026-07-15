@@ -126,6 +126,63 @@ describe('AnimationEngine strict network playback', () => {
     }
   });
 
+  test('strict playback without a writer fails typed and never fast-forwards board pixels', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const board = dom.window.document.getElementById('board') as HTMLElement;
+    board.innerHTML = '<div class="cell" data-row="0" data-col="0"></div>';
+    const AnimationEngine = require('../ui/animation-engine');
+
+    try {
+      await expect(AnimationEngine.play([{
+        type: 'place',
+        phase: 1,
+        strictNetworkPlayback: true,
+        targets: [{ r: 0, col: 0, after: { color: 1, owner: 'black' } }]
+      }], { strictNetworkPlayback: true })).rejects.toEqual(expect.objectContaining({
+        name: 'PresentationPlaybackError',
+        code: 'board_writer_token_unavailable',
+        strictNetworkPlayback: true
+      }));
+      expect(board.querySelector('.disc')).toBeNull();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  test('strict cap warning still dispatches every real board phase through one writer', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    (global as any).window.PLAYBACK_EVENT_CAP = 2;
+    const renderer = require('../ui/board-renderer');
+    await renderer.getBoardVisualControllerReady();
+    const token = renderer.claimBoardVisualWriter('local:strict-cap-fixture', 'local');
+    const playPhaseSpy = jest.spyOn(renderer, 'playBoardVisualPhase');
+    const AnimationEngine = require('../ui/animation-engine');
+    const sleepSpy = jest.spyOn(AnimationEngine, '_sleep').mockResolvedValue(undefined);
+
+    try {
+      await AnimationEngine.play([
+        { type: 'place', phase: 1, targets: [] },
+        { type: 'flip', phase: 2, targets: [] },
+        { type: 'destroy', phase: 3, targets: [] }
+      ], { strictNetworkPlayback: true, boardWriterToken: token });
+
+      expect(playPhaseSpy.mock.calls.map(([, events]: any[]) => events.map((event: any) => event.type))).toEqual([
+        ['place'],
+        ['flip'],
+        ['destroy']
+      ]);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Continuing ordered playback'),
+        expect.objectContaining({ original: 3, cap: 2, strictNetworkPlayback: true })
+      );
+    } finally {
+      renderer.releaseBoardVisualWriter(token);
+      sleepSpy.mockRestore();
+      playPhaseSpy.mockRestore();
+      warnSpy.mockRestore();
+    }
+  });
+
   test('playing network presentation timeline keeps playback state busy', () => {
     (global as any).NetworkPresentationTimeline = {
       getDiagnostics: () => ({ playing: true, paused: false })

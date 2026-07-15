@@ -1,8 +1,30 @@
 import { JSDOM } from 'jsdom';
+import {
+  clearAnimationEngineDomBackendSleepControl,
+  installAnimationEngineDomBackendMock,
+  setAnimationEngineDomBackendSleepControl
+} from './helpers/animation-engine-dom-backend';
 const AnimationConstants = require('../ui/animation-constants.js');
 const EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS = 500;
+
+installAnimationEngineDomBackendMock();
+
 describe('animation-engine guard timer rendering', () => {
   let dom;
+
+  const syncDiscVisualThroughBackend = async (engine, disc, state) => {
+    const board = document.getElementById('board')!;
+    let cell = disc.closest('.cell');
+    if (!cell) {
+      cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = '0';
+      cell.dataset.col = '0';
+      cell.appendChild(disc);
+      board.appendChild(cell);
+    }
+    await engine.applyFinalStates({ targets: [{ r: 0, col: 0, after: state }] });
+  };
 
   beforeEach(() => {
     jest.resetModules();
@@ -15,6 +37,7 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   afterEach(() => {
+    clearAnimationEngineDomBackendSleepControl();
     jest.useRealTimers();
     if (dom && dom.window) dom.window.close();
     delete global.window;
@@ -22,7 +45,7 @@ describe('animation-engine guard timer rendering', () => {
     delete global.SoundEngine;
   });
 
-  test('uses only guard-timer for GUARD status updates', () => {
+  test('uses only guard-timer for GUARD status updates', async () => {
     const engine = require('../ui/animation-engine');
     const disc = document.createElement('div');
     disc.className = 'disc black';
@@ -32,7 +55,7 @@ describe('animation-engine guard timer rendering', () => {
     oldTimer.textContent = '3';
     disc.appendChild(oldTimer);
 
-    engine.syncDiscVisual(disc, { color: 1, special: 'GUARD', timer: 2, owner: 'black' });
+    await syncDiscVisualThroughBackend(engine, disc, { color: 1, special: 'GUARD', timer: 2, owner: 'black' });
 
     const guardTimers = disc.querySelectorAll('.guard-timer');
     expect(guardTimers.length).toBe(1);
@@ -41,12 +64,12 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.querySelector('.stone-timer')).toBeNull();
   });
 
-  test('does not render a countdown timer for Strong Will stones', () => {
+  test('does not render a countdown timer for Strong Will stones', async () => {
     const engine = require('../ui/animation-engine');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
-    engine.syncDiscVisual(disc, { color: 1, special: 'PERMA_PROTECTED', timer: 9, owner: 'black' });
+    await syncDiscVisualThroughBackend(engine, disc, { color: 1, special: 'PERMA_PROTECTED', timer: 9, owner: 'black' });
 
     const countdownTimers = disc.querySelectorAll('.countdown-timer');
     expect(countdownTimers.length).toBe(0);
@@ -54,22 +77,22 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.querySelector('.special-timer')).toBeNull();
   });
 
-  test('syncDiscVisual marks flip-protected stones with the protection badge', () => {
+  test('DOM backend marks flip-protected stones with the protection badge', async () => {
     const engine = require('../ui/animation-engine');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
-    engine.syncDiscVisual(disc, { color: 1, special: 'PERMA_PROTECTED', timer: 9, owner: 'black' });
+    await syncDiscVisualThroughBackend(engine, disc, { color: 1, special: 'PERMA_PROTECTED', timer: 9, owner: 'black' });
 
     const badge = disc.querySelector('.stone-flip-protection-badge');
     expect(badge).not.toBeNull();
     expect(badge!.textContent).toBe('反');
 
-    engine.syncDiscVisual(disc, { color: 1, special: 'GHOST', timer: 3, owner: 'black' });
+    await syncDiscVisualThroughBackend(engine, disc, { color: 1, special: 'GHOST', timer: 3, owner: 'black' });
     expect(disc.querySelector('.stone-flip-protection-badge')).toBeNull();
   });
 
-  test('syncDiscVisual uses shared special-stone timer classes for body duration labels', () => {
+  test('DOM backend uses shared special-stone timer classes for body duration labels', async () => {
     const engine = require('../ui/animation-engine');
     const SpecialStoneRegistry = require('../shared/special-stone-registry.js');
 
@@ -78,9 +101,15 @@ describe('animation-engine guard timer rendering', () => {
       { type: 'LIGHTNING', timer: 6 },
       { type: 'METEOR_GOD', timer: 5 }
     ]) {
+      document.getElementById('board')!.innerHTML = '';
       const disc = document.createElement('div');
       disc.className = 'disc black';
-      engine.syncDiscVisual(disc, { color: 1, special: item.type, timer: item.timer, owner: 'black' });
+      await syncDiscVisualThroughBackend(engine, disc, {
+        color: 1,
+        special: item.type,
+        timer: item.timer,
+        owner: 'black'
+      });
 
       const expectedClass = SpecialStoneRegistry.getSpecialStoneTimerClass(item.type, 'special-timer');
       const timer = disc.querySelector(`.${expectedClass}`);
@@ -92,15 +121,15 @@ describe('animation-engine guard timer rendering', () => {
     }
   });
 
-  test('syncDiscVisual toggles living will aura without dropping the current special visual', () => {
+  test('DOM backend toggles living will aura without dropping the current special visual', async () => {
     const engine = require('../ui/animation-engine');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
-    engine.syncDiscVisual(disc, { color: 1, special: 'WORK', timer: 4, owner: 'black', livingWillAura: true });
+    await syncDiscVisualThroughBackend(engine, disc, { color: 1, special: 'WORK', timer: 4, owner: 'black', livingWillAura: true });
     expect(disc.classList.contains('living-will-aura')).toBe(true);
 
-    engine.syncDiscVisual(disc, { color: 1, special: 'WORK', timer: 4, owner: 'black', livingWillAura: false });
+    await syncDiscVisualThroughBackend(engine, disc, { color: 1, special: 'WORK', timer: 4, owner: 'black', livingWillAura: false });
     expect(disc.classList.contains('living-will-aura')).toBe(false);
   });
 
@@ -111,6 +140,7 @@ describe('animation-engine guard timer rendering', () => {
     }));
 
     const engine = require('../ui/animation-engine');
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -147,7 +177,7 @@ describe('animation-engine guard timer rendering', () => {
     }));
 
     const engine = require('../ui/animation-engine');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -225,7 +255,7 @@ describe('animation-engine guard timer rendering', () => {
     }));
 
     const engine = require('../ui/animation-engine');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -267,7 +297,7 @@ describe('animation-engine guard timer rendering', () => {
 
     global.window.getEffectKeyForSpecialType = () => 'hyperactiveStone';
     const engine = require('../ui/animation-engine');
-    jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -308,7 +338,7 @@ describe('animation-engine guard timer rendering', () => {
     }));
 
     const engine = require('../ui/animation-engine');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -452,7 +482,7 @@ describe('animation-engine guard timer rendering', () => {
     }));
 
     const engine = require('../ui/animation-engine');
-    engine._sleep = jest.fn(() => Promise.resolve());
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell has-disc';
@@ -480,7 +510,7 @@ describe('animation-engine guard timer rendering', () => {
     expect(cell.classList.contains('board-shrink-hole-cell')).toBe(true);
     expect(cell.classList.contains('meteor-hole-cell')).toBe(false);
     expect(cell.querySelector('.board-shrink-hole-mark')).toBeTruthy();
-    expect(engine._sleep).toHaveBeenCalled();
+    expect(sleepSpy).toHaveBeenCalled();
   });
 
   test('trap_expired_reveal の STATUS_APPLIED は赤セルハイライトを一瞬出す', async () => {
@@ -523,8 +553,7 @@ describe('animation-engine guard timer rendering', () => {
 
   test('blockedByGhost flip only shows highlight and keeps the disc owner', async () => {
     const engine = require('../ui/animation-engine');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const syncSpy = jest.spyOn(engine, 'syncDiscVisual');
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -549,7 +578,6 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(syncSpy).not.toHaveBeenCalled();
     expect(disc.classList.contains('black')).toBe(true);
     expect(disc.classList.contains('white')).toBe(false);
     expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
@@ -559,7 +587,7 @@ describe('animation-engine guard timer rendering', () => {
 
   test('blockedByGhost destroy only shows highlight and keeps the disc in place', async () => {
     const engine = require('../ui/animation-engine');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -593,7 +621,7 @@ describe('animation-engine guard timer rendering', () => {
 
   test('proliferated destroy only shows highlight and keeps the disc in place', async () => {
     const engine = require('../ui/animation-engine');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -627,7 +655,7 @@ describe('animation-engine guard timer rendering', () => {
 
   test('regenerated destroy only shows highlight and keeps the disc in place', async () => {
     const engine = require('../ui/animation-engine');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -664,7 +692,7 @@ describe('animation-engine guard timer rendering', () => {
     ['WILL_HUNTER_KING', 'will_hunter_king_slash']
   ])('proliferated %s destroy keeps highlight visible through overlap midpoint', async (cause, reason) => {
     const engine = require('../ui/animation-engine');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -700,7 +728,7 @@ describe('animation-engine guard timer rendering', () => {
     ['WILL_HUNTER_KING', 'will_hunter_king_slash']
   ])('ghost-blocked %s destroy keeps highlight visible through overlap midpoint', async (cause, reason) => {
     const engine = require('../ui/animation-engine');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -729,7 +757,7 @@ describe('animation-engine guard timer rendering', () => {
 
   test('regenerated will_hunter destroy keeps highlight visible through overlap midpoint', async () => {
     const engine = require('../ui/animation-engine');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
@@ -776,8 +804,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(cell.classList, 'add');
     const removeSpy = jest.spyOn(cell.classList, 'remove');
-    const discCrossfadeSpy = jest.spyOn(engine, 'crossfadeDiscToState').mockResolvedValue(undefined);
-
+    setAnimationEngineDomBackendSleepControl();
     await engine.handleStatusChange({
       type: 'status_removed',
       rawType: 'STATUS_REMOVED',
@@ -785,14 +812,15 @@ describe('animation-engine guard timer rendering', () => {
       meta: { special: 'GUARD', reason: 'loss_will_reset' }
     });
 
-    expect(discCrossfadeSpy).toHaveBeenCalledTimes(1);
     expect(crossfadeSpy).not.toHaveBeenCalled();
+    expect(disc.classList.contains('special-stone')).toBe(false);
     expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
   });
 
   test('freeze duration_end の STATUS_REMOVED は freeze overlay fade を使う', async () => {
     const engine = require('../ui/animation-engine');
+    setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell frozen-cell';
@@ -806,8 +834,6 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(cell.classList, 'add');
     const removeSpy = jest.spyOn(cell.classList, 'remove');
-    const freezeFadeSpy = jest.spyOn(engine, 'fadeOutFreezeOverlay').mockResolvedValue(undefined);
-
     await engine.handleStatusChange({
       type: 'status_removed',
       rawType: 'STATUS_REMOVED',
@@ -815,7 +841,8 @@ describe('animation-engine guard timer rendering', () => {
       meta: { special: 'FREEZE', reason: 'duration_end' }
     });
 
-    expect(freezeFadeSpy).toHaveBeenCalledTimes(1);
+    expect(cell.classList.contains('frozen-cell')).toBe(false);
+    expect(cell.querySelector('.freeze-mark')).toBeNull();
     expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
     expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
@@ -835,7 +862,7 @@ describe('animation-engine guard timer rendering', () => {
     cell.appendChild(holeMark);
     board.appendChild(cell);
 
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockImplementation(async () => {
+    const sleepSpy = setAnimationEngineDomBackendSleepControl(async () => {
       expect(cell.classList.contains('effect-target-highlight-positive')).toBe(true);
       expect(cell.classList.contains('blocked-cell')).toBe(false);
       expect(cell.classList.contains('board-shrink-hole-cell')).toBe(false);
@@ -970,8 +997,9 @@ describe('animation-engine guard timer rendering', () => {
     delete global.SoundEngine;
   });
 
-  test('fadeOutFreezeOverlay removes frozen-cell visuals after fade', async () => {
+  test('DOM backend removes frozen-cell visuals after fade', async () => {
     const engine = require('../ui/animation-engine');
+    setAnimationEngineDomBackendSleepControl();
     const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell frozen-cell';
@@ -983,7 +1011,12 @@ describe('animation-engine guard timer rendering', () => {
     cell.appendChild(freezeMark);
     board.appendChild(cell);
 
-    await engine.fadeOutFreezeOverlay(cell, 1);
+    await engine.handleStatusChange({
+      type: 'status_removed',
+      rawType: 'STATUS_REMOVED',
+      targets: [{ r: 1, col: 1, after: { color: 0, special: null, timer: null, owner: null } }],
+      meta: { special: 'FREEZE', reason: 'duration_end' }
+    });
 
     expect(cell.classList.contains('frozen-cell')).toBe(false);
     expect(cell.querySelector('.freeze-mark')).toBeNull();
@@ -1545,7 +1578,8 @@ describe('animation-engine guard timer rendering', () => {
     targetCell.appendChild(targetDisc);
     board.appendChild(targetCell);
 
-    const projectileSpy = jest.spyOn(engine, 'animateSniperProjectile').mockResolvedValue(undefined);
+    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const projectileSpy = jest.spyOn(destroySourceEvents, 'animateSniperProjectile').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
       type: 'destroy',
@@ -1560,7 +1594,6 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(projectileSpy).not.toHaveBeenCalled();
-    projectileSpy.mockRestore();
     delete global.animateFadeOutAt;
   });
 
@@ -1585,7 +1618,8 @@ describe('animation-engine guard timer rendering', () => {
     board.appendChild(sourceCell);
     board.appendChild(targetCell);
 
-    const projectileSpy = jest.spyOn(engine, 'animateSniperProjectile').mockResolvedValue(undefined);
+    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const projectileSpy = jest.spyOn(destroySourceEvents, 'animateSniperProjectile').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
       type: 'destroy',
@@ -1600,7 +1634,6 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(projectileSpy).toHaveBeenCalledTimes(1);
-    projectileSpy.mockRestore();
     delete global.animateFadeOutAt;
   });
 
@@ -1621,8 +1654,9 @@ describe('animation-engine guard timer rendering', () => {
     board.appendChild(sourceCell);
     board.appendChild(targetCell);
 
-    const projectileSpy = jest.spyOn(engine, 'animateSniperProjectile').mockResolvedValue(undefined);
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const projectileSpy = jest.spyOn(destroySourceEvents, 'animateSniperProjectile').mockResolvedValue(undefined);
+    setAnimationEngineDomBackendSleepControl();
 
     await engine.handleDestroy({
       type: 'destroy',
@@ -1638,8 +1672,6 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(projectileSpy).toHaveBeenCalledTimes(1);
-    projectileSpy.mockRestore();
-    sleepSpy.mockRestore();
   });
 
   test.each([
@@ -1667,8 +1699,9 @@ describe('animation-engine guard timer rendering', () => {
     board.appendChild(sourceCell);
     board.appendChild(targetCell);
 
-    const sourceAnimationSpy = jest.spyOn(engine, methodName).mockResolvedValue(undefined);
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const sourceAnimationSpy = jest.spyOn(destroySourceEvents, methodName).mockResolvedValue(undefined);
+    setAnimationEngineDomBackendSleepControl();
 
     await engine.handleDestroy({
       type: 'destroy',
@@ -1684,8 +1717,6 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(sourceAnimationSpy).toHaveBeenCalledTimes(1);
-    sourceAnimationSpy.mockRestore();
-    sleepSpy.mockRestore();
   });
 
   test('generic card destroy still shows a ghost fade when target disc was already removed', async () => {
@@ -1698,8 +1729,10 @@ describe('animation-engine guard timer rendering', () => {
     targetCell.dataset.col = '2';
     board.appendChild(targetCell);
 
-    const createDiscSpy = jest.spyOn(engine, 'createDisc');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    let sawDestroyGhost = false;
+    setAnimationEngineDomBackendSleepControl(() => {
+      sawDestroyGhost = sawDestroyGhost || !!targetCell.querySelector('.disc.destroy-fade');
+    });
 
     await engine.handleDestroy({
       type: 'destroy',
@@ -1712,12 +1745,7 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(createDiscSpy).toHaveBeenCalledWith(expect.objectContaining({
-      color: 1,
-      owner: 'black'
-    }));
-    createDiscSpy.mockRestore();
-    sleepSpy.mockRestore();
+    expect(sawDestroyGhost).toBe(true);
   });
 
   test('robot vacuum destroy triggers suction animation and skips fade-out path', async () => {
@@ -1744,7 +1772,8 @@ describe('animation-engine guard timer rendering', () => {
     board.appendChild(sourceCell);
     board.appendChild(targetCell);
 
-    const suctionSpy = jest.spyOn(engine, 'animateRobotVacuumSuction').mockImplementation(async () => {
+    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const suctionSpy = jest.spyOn(destroySourceEvents, 'animateRobotVacuumSuction').mockImplementation(async () => {
       const liveDisc = targetCell.querySelector('.disc');
       expect(liveDisc).not.toBeNull();
       expect(liveDisc.style.visibility).not.toBe('hidden');
@@ -1767,7 +1796,6 @@ describe('animation-engine guard timer rendering', () => {
     expect(global.animateFadeOutAt).not.toHaveBeenCalled();
     expect(targetCell.querySelector('.disc')).toBeNull();
 
-    suctionSpy.mockRestore();
     delete global.animateFadeOutAt;
   });
 
@@ -1846,7 +1874,8 @@ describe('animation-engine guard timer rendering', () => {
     targetCell.appendChild(targetDisc);
     board.appendChild(targetCell);
 
-    const suctionSpy = jest.spyOn(engine, 'animateRobotVacuumSuction').mockResolvedValue(undefined);
+    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const suctionSpy = jest.spyOn(destroySourceEvents, 'animateRobotVacuumSuction').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
       type: 'destroy',
@@ -1862,10 +1891,8 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(suctionSpy).not.toHaveBeenCalled();
-    expect(global.animateFadeOutAt).toHaveBeenCalledTimes(1);
     expect(targetCell.querySelector('.disc')).toBeNull();
 
-    suctionSpy.mockRestore();
     delete global.animateFadeOutAt;
   });
 
@@ -1890,7 +1917,8 @@ describe('animation-engine guard timer rendering', () => {
     board.appendChild(sourceCell);
     board.appendChild(targetCell);
 
-    const lightningSpy = jest.spyOn(engine, 'animateUdgLightningStrike').mockResolvedValue(undefined);
+    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const lightningSpy = jest.spyOn(destroySourceEvents, 'animateUdgLightningStrike').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
       type: 'destroy',
@@ -1906,8 +1934,7 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(lightningSpy).toHaveBeenCalledTimes(1);
-    expect(global.animateFadeOutAt).toHaveBeenCalledTimes(1);
-    lightningSpy.mockRestore();
+    expect(targetCell.querySelector('.disc')).toBeNull();
     delete global.animateFadeOutAt;
   });
 
@@ -1925,7 +1952,8 @@ describe('animation-engine guard timer rendering', () => {
     targetCell.appendChild(targetDisc);
     board.appendChild(targetCell);
 
-    const lightningSpy = jest.spyOn(engine, 'animateUdgLightningStrike').mockResolvedValue(undefined);
+    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const lightningSpy = jest.spyOn(destroySourceEvents, 'animateUdgLightningStrike').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
       type: 'destroy',
@@ -1941,8 +1969,7 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(lightningSpy).not.toHaveBeenCalled();
-    expect(global.animateFadeOutAt).toHaveBeenCalledTimes(1);
-    lightningSpy.mockRestore();
+    expect(targetCell.querySelector('.disc')).toBeNull();
     delete global.animateFadeOutAt;
   });
 
@@ -1967,7 +1994,8 @@ describe('animation-engine guard timer rendering', () => {
     board.appendChild(sourceCell);
     board.appendChild(targetCell);
 
-    const lightningSpy = jest.spyOn(engine, 'animateUdgLightningStrike').mockResolvedValue(undefined);
+    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const lightningSpy = jest.spyOn(destroySourceEvents, 'animateUdgLightningStrike').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
       type: 'destroy',
@@ -1983,8 +2011,7 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(lightningSpy).toHaveBeenCalledTimes(1);
-    expect(global.animateFadeOutAt).toHaveBeenCalledTimes(1);
-    lightningSpy.mockRestore();
+    expect(targetCell.querySelector('.disc')).toBeNull();
     delete global.animateFadeOutAt;
   });
 
@@ -2002,7 +2029,8 @@ describe('animation-engine guard timer rendering', () => {
     targetCell.appendChild(targetDisc);
     board.appendChild(targetCell);
 
-    const lightningSpy = jest.spyOn(engine, 'animateUdgLightningStrike').mockResolvedValue(undefined);
+    const destroySourceEvents = require('../ui/animation-destroy-source-events');
+    const lightningSpy = jest.spyOn(destroySourceEvents, 'animateUdgLightningStrike').mockResolvedValue(undefined);
 
     await engine.handleDestroy({
       type: 'destroy',
@@ -2018,8 +2046,7 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(lightningSpy).not.toHaveBeenCalled();
-    expect(global.animateFadeOutAt).toHaveBeenCalledTimes(1);
-    lightningSpy.mockRestore();
+    expect(targetCell.querySelector('.disc')).toBeNull();
     delete global.animateFadeOutAt;
   });
 
@@ -2036,7 +2063,7 @@ describe('animation-engine guard timer rendering', () => {
     targetCell.appendChild(targetDisc);
     board.appendChild(targetCell);
 
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    setAnimationEngineDomBackendSleepControl();
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
 
@@ -2056,7 +2083,6 @@ describe('animation-engine guard timer rendering', () => {
     expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(targetCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
-    sleepSpy.mockRestore();
     addSpy.mockRestore();
     removeSpy.mockRestore();
   });
@@ -2074,7 +2100,7 @@ describe('animation-engine guard timer rendering', () => {
     targetCell.appendChild(targetDisc);
     board.appendChild(targetCell);
 
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    setAnimationEngineDomBackendSleepControl();
     const addSpy = jest.spyOn(targetCell.classList, 'add');
 
     await engine.handleFlip({
@@ -2092,7 +2118,6 @@ describe('animation-engine guard timer rendering', () => {
     expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
     expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
 
-    sleepSpy.mockRestore();
     addSpy.mockRestore();
   });
 
@@ -2112,7 +2137,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
 
     await engine.handleDestroy({
       type: 'destroy',
@@ -2182,7 +2207,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
-    const fadeSpy = jest.spyOn(engine, 'getSpawnFadeInMs').mockReturnValue(0);
+    setAnimationEngineDomBackendSleepControl();
 
     await engine.handleSpawn({
       type: 'spawn',
@@ -2204,7 +2229,6 @@ describe('animation-engine guard timer rendering', () => {
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
-    fadeSpy.mockRestore();
   });
 
   test('free placement spawn applies and clears purple cell highlight', async () => {
@@ -2219,7 +2243,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
 
     await engine.handleSpawn({
       type: 'spawn',
@@ -2255,7 +2279,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
 
     await engine.handleSpawn({
       type: 'spawn',
@@ -2364,7 +2388,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
 
     await engine.handleSpawn({
       type: 'spawn',
@@ -2408,7 +2432,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
 
     await engine.handleSpawn({
       type: 'spawn',
@@ -2448,7 +2472,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
 
     await engine.handleSpawn({
       type: 'spawn',
@@ -2488,7 +2512,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
 
     await engine.handleSpawn({
       type: 'spawn',
@@ -2534,7 +2558,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
 
     await engine.handleSpawn({
       type: 'spawn',
@@ -2580,7 +2604,7 @@ describe('animation-engine guard timer rendering', () => {
     otherPreviewCell.dataset.col = '5';
     board.appendChild(otherPreviewCell);
 
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
 
     await engine.handleSpawn({
       type: 'spawn',
@@ -2599,7 +2623,6 @@ describe('animation-engine guard timer rendering', () => {
     expect(targetCell.classList.contains('effect-target-highlight-positive')).toBe(false);
     expect(sleepSpy).toHaveBeenCalled();
 
-    sleepSpy.mockRestore();
   });
 
   test('free placement place event applies and clears purple cell highlight', async () => {
@@ -2614,7 +2637,7 @@ describe('animation-engine guard timer rendering', () => {
 
     const addSpy = jest.spyOn(targetCell.classList, 'add');
     const removeSpy = jest.spyOn(targetCell.classList, 'remove');
-    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const sleepSpy = setAnimationEngineDomBackendSleepControl();
 
     await engine.handlePlace({
       type: 'place',
@@ -2635,7 +2658,6 @@ describe('animation-engine guard timer rendering', () => {
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
-    sleepSpy.mockRestore();
   });
 
   test('normal place event inserts the disc immediately without fade setup', async () => {

@@ -90,4 +90,38 @@ describe('DomBoardVisualBackend diagnostics', () => {
     expect(backend.getRenderedCell(0, 0)).toBeNull();
     dom.window.close();
   });
+
+  test('controller writer routes compatibility board pixels through the owned DOM runtime', async () => {
+    const dom = new JSDOM(`<!doctype html><html><body>
+      <div id="board"><div class="cell" data-row="1" data-col="2"></div></div>
+    </body></html>`);
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+
+    try {
+      const { createDomBoardVisualBackend } = require('../ui/board-visual/dom-backend');
+      const { createBoardVisualController } = require('../ui/board-visual/controller');
+      const host = dom.window.document.getElementById('board') as HTMLElement;
+      const backend = createDomBoardVisualBackend();
+      const controller = createBoardVisualController({ backend });
+      await controller.mount(host);
+      const token = controller.claimWriter('local:dom-runtime-test', 'local');
+
+      await controller.playPhase(token, [{
+        type: '__dom_compatibility_final_state',
+        sourceEvent: {
+          type: 'legacy_fixture',
+          targets: [{ r: 1, col: 2, after: { color: 1, owner: 'black', special: null } }]
+        }
+      }]);
+
+      expect(host.querySelector('.cell[data-row="1"][data-col="2"] .disc.black')).toBeTruthy();
+      expect(controller.releaseWriter(token)).toBe(true);
+      controller.destroy();
+    } finally {
+      dom.window.close();
+      delete (global as any).window;
+      delete (global as any).document;
+    }
+  });
 });

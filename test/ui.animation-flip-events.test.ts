@@ -26,6 +26,14 @@ describe('AnimationFlipEvents', () => {
       zombieBiteMs: 800,
       isNoAnim: () => false,
       getCellEl: (row: number, col: number) => document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`),
+      getCellClientRect: jest.fn((row: number, col: number) => ({
+        left: col * 40,
+        top: row * 40,
+        right: (col + 1) * 40,
+        bottom: (row + 1) * 40,
+        width: 40,
+        height: 40
+      })),
       resolveOwnerColorFromBefore: () => 1,
       resolveOwnerClassFromColor: () => 'black',
       syncDiscVisual: jest.fn((disc: HTMLElement, state: any) => {
@@ -132,6 +140,9 @@ describe('AnimationFlipEvents', () => {
     const calls: string[] = [];
     const triggerFlip = jest.fn(() => calls.push('trigger'));
     const deps = createDeps(triggerFlip);
+    document.querySelectorAll('.cell').forEach((cell: any) => {
+      cell.getBoundingClientRect = () => { throw new Error('live cell geometry must not be read'); };
+    });
     deps.syncDiscVisual = jest.fn((disc: HTMLElement, state: any) => {
       calls.push(`sync:${state.color}`);
       disc.classList.toggle('black', state.color === 1);
@@ -161,6 +172,7 @@ describe('AnimationFlipEvents', () => {
     }, deps);
 
     expect(calls).toEqual(['bite', 'sync:1']);
+    expect(deps.getCellClientRect.mock.calls).toEqual(expect.arrayContaining([[2, 2], [2, 3]]));
     // Infection must NOT take the regular flip pathway.
     expect(triggerFlip).not.toHaveBeenCalled();
     expect(deps.animationShared.removeFlip).not.toHaveBeenCalled();

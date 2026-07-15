@@ -15,6 +15,14 @@ type AnimationFlipEventDeps = {
     zombieBiteMs: any;
     isNoAnim: () => boolean;
     getCellEl: (row: any, col: any) => any;
+    getCellClientRect: (row: any, col: any) => {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+        width: number;
+        height: number;
+    } | null;
     resolveOwnerColorFromBefore: (ownerBefore: any) => any;
     resolveOwnerClassFromColor: (ownerColor: any) => string;
     syncDiscVisual: (disc: any, after: any) => any;
@@ -89,17 +97,17 @@ async function playZombieBiteAnimation(target: any, targetCell: any, deps: Anima
     if (!isZombieInfectionTarget(target) || deps.isNoAnim() || prefersReducedMotion()) return;
     const meta = target && target.meta && typeof target.meta === 'object' ? target.meta : {};
     if (!Number.isInteger(meta.sourceRow) || !Number.isInteger(meta.sourceCol)) return;
-    const sourceCell = deps.getCellEl(meta.sourceRow, meta.sourceCol);
     const documentRef = getDocumentRef();
-    if (!sourceCell || !targetCell || !documentRef || typeof documentRef.createElement !== 'function') return;
+    if (!targetCell || !documentRef || typeof documentRef.createElement !== 'function') return;
 
     const layer = targetCell.closest && targetCell.closest('#board, .board, .game-board');
     const host = layer || documentRef.body;
     if (!host || typeof host.appendChild !== 'function') return;
 
     const hostRect = host.getBoundingClientRect();
-    const sourceRect = sourceCell.getBoundingClientRect();
-    const targetRect = targetCell.getBoundingClientRect();
+    const sourceRect = deps.getCellClientRect(meta.sourceRow, meta.sourceCol);
+    const targetRect = deps.getCellClientRect(target.r, target.col);
+    if (!sourceRect || !targetRect) return;
     const sourceX = sourceRect.left + sourceRect.width / 2 - hostRect.left;
     const sourceY = sourceRect.top + sourceRect.height / 2 - hostRect.top;
     const targetX = targetRect.left + targetRect.width / 2 - hostRect.left;

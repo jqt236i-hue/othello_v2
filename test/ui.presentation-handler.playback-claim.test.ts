@@ -1,7 +1,12 @@
+async function flushMicrotasks(iterations = 16): Promise<void> {
+  for (let index = 0; index < iterations; index += 1) await Promise.resolve();
+}
+
 describe('PresentationHandler playback claim', () => {
   afterEach(() => {
     jest.dontMock('../game/cpu-turn-handler');
     jest.dontMock('../ui/board-renderer');
+    jest.dontMock('../ui/playback-engine');
     jest.resetModules();
     delete (global as any).AnimationEngine;
     delete (global as any).GameEvents;
@@ -55,9 +60,116 @@ describe('PresentationHandler playback claim', () => {
       })
     );
     expect((global as any).AnimationEngine.play).toHaveBeenCalledWith(
-      [{ type: 'destroy', phase: 1, targets: [{ r: 2, col: 3 }] }],
+      [expect.objectContaining({
+        type: 'destroy',
+        phase: 1,
+        targets: [{ r: 2, col: 3 }],
+        presentationBatchId: expect.stringMatching(/^local-presentation:\d+$/)
+      })],
       expect.objectContaining({ deferFinalSettlement: true })
     );
+    expect((global as any).AnimationEngine.play).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not replay a non-strict batch when dispatcher playback rejects after side effects start', async () => {
+    const originalFailure = new Error('playback failed after partial presentation');
+    const claim = { id: 8 };
+    const playSound = jest.fn();
+    const showGlobalOverlay = jest.fn();
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn(() => claim),
+      releaseVisualPlaybackClaim: jest.fn(() => true)
+    };
+    (global as any).AnimationEngine = {
+      play: jest.fn(async () => {
+        playSound('impact');
+        showGlobalOverlay('manifest');
+        throw originalFailure;
+      })
+    };
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+
+    await expect(PresentationHandler.handlePresentationEvent({
+      type: 'PLAYBACK_EVENTS',
+      events: [
+        { type: 'sound', phase: 1, key: 'impact' },
+        { type: 'manifest', phase: 1, overlay: 'manifest' }
+      ],
+      meta: { source: 'unit-test' }
+    })).rejects.toBe(originalFailure);
+
+    expect((global as any).AnimationEngine.play).toHaveBeenCalledTimes(1);
+    expect(playSound).toHaveBeenCalledTimes(1);
+    expect(showGlobalOverlay).toHaveBeenCalledTimes(1);
+  });
+
+  test('uses the direct AnimationEngine fallback only when playback dispatcher is unavailable', async () => {
+    const order: string[] = [];
+    const claim = { id: 10 };
+    jest.doMock('../ui/playback-engine', () => ({}));
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn(() => {
+        order.push('claim');
+        return claim;
+      }),
+      releaseVisualPlaybackClaim: jest.fn(() => {
+        order.push('release');
+        return true;
+      })
+    };
+    (global as any).AnimationEngine = {
+      play: jest.fn(async (_events, options) => {
+        order.push('fallback-play');
+        options.onFinalizationReady(() => {
+          order.push('finalize');
+          return true;
+        });
+      })
+    };
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+
+    await expect(PresentationHandler.handlePresentationEvent({
+      type: 'PLAYBACK_EVENTS',
+      events: [{ type: 'destroy', phase: 1, targets: [{ r: 4, col: 5 }] }],
+      meta: { source: 'unit-test' }
+    })).resolves.toBeUndefined();
+
+    expect((global as any).AnimationEngine.play).toHaveBeenCalledTimes(1);
+    expect(order).toEqual(['claim', 'fallback-play', 'finalize', 'release']);
+  });
+
+  test('propagates a direct AnimationEngine fallback failure and releases its claim without replay', async () => {
+    const originalFailure = new Error('renderer resource failed');
+    const claim = { id: 11 };
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    jest.doMock('../ui/playback-engine', () => ({}));
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn(() => claim),
+      releaseVisualPlaybackClaim: jest.fn(() => true)
+    };
+    (global as any).AnimationEngine = {
+      play: jest.fn(async () => {
+        throw originalFailure;
+      })
+    };
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+
+    await expect(PresentationHandler.handlePresentationEvent({
+      type: 'PLAYBACK_EVENTS',
+      events: [{ type: 'move', phase: 1 }],
+      meta: { source: 'unit-test' }
+    })).rejects.toBe(originalFailure);
+
+    warnSpy.mockRestore();
+    expect((global as any).AnimationEngine.play).toHaveBeenCalledTimes(1);
+    expect((global as any).PlaybackStateManager.releaseVisualPlaybackClaim).toHaveBeenCalledTimes(1);
+    expect((global as any).PlaybackStateManager.releaseVisualPlaybackClaim).toHaveBeenCalledWith(claim);
   });
 
   test('requests board sync again after releasing playback claim', async () => {
@@ -514,5 +626,237 @@ describe('PresentationHandler playback claim', () => {
       'manager-finalize',
       'manager-release:21'
     ]);
+  });
+
+  test('keeps standalone cosmetic board effects fire-and-forget while sharing one writer lease', async () => {
+    const deferred = () => {
+      let resolve!: () => void;
+      const promise = new Promise<void>((done) => { resolve = done; });
+      return { promise, resolve };
+    };
+    const ready = deferred();
+    const crossfade = deferred();
+    const protection = deferred();
+    const boardWriterToken = { id: 51, frameToken: 'local:legacy-presentation:1', mode: 'local' };
+    const runtime = {
+      createBoardUpdateDrainController: jest.fn(() => ({
+        requestDrain: async (runDrain: any) => runDrain()
+      })),
+      flushPendingPresentationEvents: jest.fn(() => [
+        { type: 'CROSSFADE_STONE', row: 1, col: 2, durationMs: 600 },
+        { type: 'PROTECTION_EXPIRE', row: 3, col: 4, durationMs: 600 }
+      ])
+    };
+    jest.doMock('../game/cpu-turn-handler', () => ({ PresentationRuntime: runtime }));
+    const claimBoardVisualWriter = jest.fn(() => boardWriterToken);
+    const playBoardVisualPhase = jest.fn((_token, events) => {
+      return events[0].type === 'CROSSFADE_STONE' ? crossfade.promise : protection.promise;
+    });
+    const settleBoardVisualWriter = jest.fn(async () => true);
+    jest.doMock('../ui/board-renderer', () => ({
+      getBoardVisualControllerReady: jest.fn(() => ready.promise),
+      claimBoardVisualWriter,
+      playBoardVisualPhase,
+      settleBoardVisualWriter,
+      releaseBoardVisualWriter: jest.fn()
+    }));
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn(),
+      releaseVisualPlaybackClaim: jest.fn()
+    };
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+    await expect(PresentationHandler.onBoardUpdated()).resolves.toBeUndefined();
+
+    expect((global as any).PlaybackStateManager.claimVisualPlayback).not.toHaveBeenCalled();
+    expect(claimBoardVisualWriter).not.toHaveBeenCalled();
+
+    ready.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(claimBoardVisualWriter).toHaveBeenCalledTimes(1);
+    expect(playBoardVisualPhase).toHaveBeenCalledTimes(2);
+    expect(playBoardVisualPhase.mock.calls.map((call) => call[0])).toEqual([
+      boardWriterToken,
+      boardWriterToken
+    ]);
+
+    crossfade.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(settleBoardVisualWriter).not.toHaveBeenCalled();
+
+    protection.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(settleBoardVisualWriter).toHaveBeenCalledTimes(1);
+    expect(settleBoardVisualWriter).toHaveBeenCalledWith(boardWriterToken);
+  });
+
+  test('recovers a detached cosmetic lease before a later fire-and-forget effect claims again', async () => {
+    const firstToken = { id: 61, frameToken: 'local:legacy-presentation:1', mode: 'local' };
+    const secondToken = { id: 62, frameToken: 'local:legacy-presentation:2', mode: 'local' };
+    const claimBoardVisualWriter = jest.fn()
+      .mockReturnValueOnce(firstToken)
+      .mockReturnValueOnce(secondToken);
+    const playBoardVisualPhase = jest.fn(async () => undefined);
+    const enterBoardVisualRecovery = jest.fn(() => true);
+    const settleBoardVisualWriter = jest.fn()
+      .mockRejectedValueOnce(new Error('initial_settlement_failed'))
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true);
+    const releaseBoardVisualWriter = jest.fn();
+    jest.doMock('../ui/board-renderer', () => ({
+      getBoardVisualControllerReady: jest.fn(async () => undefined),
+      claimBoardVisualWriter,
+      playBoardVisualPhase,
+      enterBoardVisualRecovery,
+      settleBoardVisualWriter,
+      releaseBoardVisualWriter
+    }));
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    const claimVisualPlayback = jest.fn();
+    const setInteractionLock = jest.fn((locked) => locked === true);
+    const recordVisualPlaybackSettlementError = jest.fn(() => true);
+    const releaseVisualPlaybackClaim = jest.fn(() => true);
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback,
+      setInteractionLock,
+      recordVisualPlaybackSettlementError,
+      releaseVisualPlaybackClaim
+    };
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+    expect(PresentationHandler.handlePresentationEvent({
+      type: 'CROSSFADE_STONE',
+      row: 1,
+      col: 2
+    })).toBeUndefined();
+    await flushMicrotasks();
+
+    expect(claimBoardVisualWriter).toHaveBeenCalledTimes(1);
+    expect(playBoardVisualPhase).toHaveBeenCalledTimes(1);
+    expect(enterBoardVisualRecovery).toHaveBeenCalledTimes(1);
+    expect(enterBoardVisualRecovery).toHaveBeenCalledWith(firstToken, expect.objectContaining({
+      name: 'PresentationPlaybackError',
+      code: 'board_writer_settlement_failed'
+    }));
+    expect(settleBoardVisualWriter).toHaveBeenCalledTimes(2);
+    expect(releaseBoardVisualWriter).not.toHaveBeenCalled();
+
+    expect(PresentationHandler.handlePresentationEvent({
+      type: 'PROTECTION_EXPIRE',
+      row: 3,
+      col: 4
+    })).toBeUndefined();
+    await flushMicrotasks();
+
+    expect(claimBoardVisualWriter).toHaveBeenCalledTimes(2);
+    expect(playBoardVisualPhase).toHaveBeenCalledTimes(2);
+    expect(settleBoardVisualWriter).toHaveBeenCalledTimes(3);
+    expect(settleBoardVisualWriter).toHaveBeenNthCalledWith(3, secondToken);
+    expect(releaseBoardVisualWriter).not.toHaveBeenCalled();
+    expect(claimVisualPlayback).not.toHaveBeenCalled();
+    expect(setInteractionLock).not.toHaveBeenCalled();
+    expect(recordVisualPlaybackSettlementError).not.toHaveBeenCalled();
+    expect(releaseVisualPlaybackClaim).not.toHaveBeenCalled();
+  });
+
+  test('retains a detached cosmetic lease and typed-rejects the next launch when recovery fails', async () => {
+    const retainedToken = { id: 71, frameToken: 'local:legacy-presentation:1', mode: 'local' };
+    const managerClaim = { id: 72 };
+    const caughtErrors: any[] = [];
+    const originalCatch = Promise.prototype.catch;
+    const catchSpy = jest.spyOn(Promise.prototype as any, 'catch').mockImplementation(function (
+      this: Promise<any>,
+      onRejected: any
+    ) {
+      return originalCatch.call(this, (error: any) => {
+        caughtErrors.push(error);
+        return typeof onRejected === 'function' ? onRejected(error) : undefined;
+      });
+    });
+    const claimBoardVisualWriter = jest.fn(() => retainedToken);
+    const playBoardVisualPhase = jest.fn(async () => undefined);
+    const enterBoardVisualRecovery = jest.fn(() => true);
+    const settleBoardVisualWriter = jest.fn(async () => {
+      throw new Error('checkpoint_restore_failed');
+    });
+    const releaseBoardVisualWriter = jest.fn();
+    jest.doMock('../ui/board-renderer', () => ({
+      getBoardVisualControllerReady: jest.fn(async () => undefined),
+      claimBoardVisualWriter,
+      playBoardVisualPhase,
+      enterBoardVisualRecovery,
+      settleBoardVisualWriter,
+      releaseBoardVisualWriter
+    }));
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    const claimVisualPlayback = jest.fn(() => managerClaim);
+    const setInteractionLock = jest.fn((locked) => locked === true);
+    const recordVisualPlaybackSettlementError = jest.fn(() => true);
+    const releaseVisualPlaybackClaim = jest.fn(() => true);
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback,
+      setInteractionLock,
+      recordVisualPlaybackSettlementError,
+      releaseVisualPlaybackClaim
+    };
+
+    try {
+      const PresentationHandler = require('../ui/presentation-handler.js');
+      expect(PresentationHandler.handlePresentationEvent({
+        type: 'CROSSFADE_STONE',
+        row: 2,
+        col: 2
+      })).toBeUndefined();
+      await flushMicrotasks();
+      expect(PresentationHandler.handlePresentationEvent({
+        type: 'PROTECTION_EXPIRE',
+        row: 2,
+        col: 3
+      })).toBeUndefined();
+      await flushMicrotasks();
+    } finally {
+      catchSpy.mockRestore();
+    }
+
+    expect(caughtErrors.filter((error) => error && error.code).map((error) => error.code)).toEqual([
+      'board_writer_settlement_failed',
+      'board_writer_recovery_unresolved'
+    ]);
+    expect(claimBoardVisualWriter).toHaveBeenCalledTimes(1);
+    expect(playBoardVisualPhase).toHaveBeenCalledTimes(1);
+    expect(enterBoardVisualRecovery).toHaveBeenCalledTimes(1);
+    expect(settleBoardVisualWriter).toHaveBeenCalledTimes(2);
+    expect(settleBoardVisualWriter.mock.calls.map((call) => call[0])).toEqual([
+      retainedToken,
+      retainedToken
+    ]);
+    expect(releaseBoardVisualWriter).not.toHaveBeenCalled();
+    expect(claimVisualPlayback).toHaveBeenCalledTimes(1);
+    expect(claimVisualPlayback).toHaveBeenCalledWith(expect.objectContaining({
+      source: 'presentation-handler',
+      scope: 'generic',
+      reason: 'detached_board_writer_recovery_unresolved',
+      eventCount: 1,
+      eventTypes: ['CROSSFADE_STONE'],
+      strictNetworkPlayback: false,
+      restoreBusyBaseline: false
+    }));
+    expect(setInteractionLock).toHaveBeenCalledTimes(1);
+    expect(setInteractionLock).toHaveBeenCalledWith(true);
+    expect(recordVisualPlaybackSettlementError).toHaveBeenCalledTimes(1);
+    expect(recordVisualPlaybackSettlementError).toHaveBeenCalledWith(
+      managerClaim,
+      expect.objectContaining({
+        name: 'PresentationPlaybackError',
+        code: 'board_writer_settlement_failed'
+      }),
+      { stage: 'detached-board-writer-recovery' }
+    );
+    expect(releaseVisualPlaybackClaim).not.toHaveBeenCalled();
   });
 });

@@ -18,6 +18,7 @@ interface AnimationEngine {
     strictNetworkPlayback?: boolean;
     deferFinalSettlement?: boolean;
     onFinalizationReady?: (finalize: () => boolean) => void;
+    boardWriterToken?: unknown;
   }) => Promise<void>;
 }
 
@@ -39,6 +40,7 @@ interface PlaybackDeps {
   strictNetworkPlayback?: boolean;
   deferFinalSettlement?: boolean;
   onFinalizationReady?: (finalize: () => boolean) => void;
+  boardWriterToken?: unknown;
   scheduleCpuTurnEvent?: (ev: PresentationEvent) => unknown;
   scheduleCpuTurn?: (delay: number, callback: () => void) => unknown;
   onSchedule?: (callback: (() => void) | null) => void;
@@ -98,10 +100,11 @@ async function playPlaybackBatch(events: PresentationEvent[], deps: PlaybackDeps
   const config = (deps && typeof deps === 'object') ? deps : {};
   const strictNetworkPlayback = config.strictNetworkPlayback === true;
   const deferFinalSettlement = config.deferFinalSettlement === true;
-  const playbackOptions = (strictNetworkPlayback || deferFinalSettlement) ? {
+  const playbackOptions = (strictNetworkPlayback || deferFinalSettlement || !!config.boardWriterToken) ? {
     strictNetworkPlayback,
     deferFinalSettlement: config.deferFinalSettlement === true,
-    onFinalizationReady: config.onFinalizationReady
+    onFinalizationReady: config.onFinalizationReady,
+    boardWriterToken: config.boardWriterToken
   } : undefined;
   const AnimationEngine = resolveAnimationEngine(deps);
   if (AnimationEngine && typeof AnimationEngine.play === 'function') {

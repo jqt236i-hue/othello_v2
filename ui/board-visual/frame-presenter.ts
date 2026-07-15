@@ -89,6 +89,16 @@ function cssUrl(path: string): string {
   return `url("${String(path || '').replace(/"/g, '\\"')}")`;
 }
 
+function setAttributeIfChanged(target: HTMLElement | null, name: string, value: string) {
+  if (!target || target.getAttribute(name) === value) return;
+  target.setAttribute(name, value);
+}
+
+function setStylePropertyIfChanged(target: HTMLElement | null, property: string, value: string) {
+  if (!target || !target.style || target.style.getPropertyValue(property) === value) return;
+  target.style.setProperty(property, value);
+}
+
 function applyFrameLayout(target: HTMLElement | null, layout: Readonly<Record<string, string | number>>) {
   if (!target || !target.style) return;
   const propertyByField: Record<string, string> = {
@@ -103,7 +113,7 @@ function applyFrameLayout(target: HTMLElement | null, layout: Readonly<Record<st
   for (const field of FRAME_LAYOUT_FIELDS) {
     const property = propertyByField[field];
     const value = Number(layout && layout[field]);
-    if (Number.isFinite(value)) target.style.setProperty(property, `calc(${value}px * var(--layout-stage-scale))`);
+    if (Number.isFinite(value)) setStylePropertyIfChanged(target, property, `calc(${value}px * var(--layout-stage-scale))`);
     else target.style.removeProperty(property);
   }
 }
@@ -124,19 +134,19 @@ function presentBoardFrame(host: HTMLElement, frame: BoardVisualFrame) {
   host.classList.toggle('board-has-void-cells', hasVoidCells);
   if (boardFrame && boardFrame.classList) boardFrame.classList.toggle('board-has-void-cells', hasVoidCells);
 
-  host.setAttribute('data-board-skin-id', appearance.boardSkinId);
-  if (appearance.boardImageUrl) host.style.setProperty('--board-surface-texture-image', cssUrl(appearance.boardImageUrl));
+  setAttributeIfChanged(host, 'data-board-skin-id', appearance.boardSkinId);
+  if (appearance.boardImageUrl) setStylePropertyIfChanged(host, '--board-surface-texture-image', cssUrl(appearance.boardImageUrl));
   if (rootElement) {
-    rootElement.setAttribute('data-board-skin-id', appearance.boardSkinId);
-    rootElement.setAttribute('data-board-frame-skin-id', appearance.boardFrameSkinId);
-    rootElement.setAttribute('data-stone-skin-id', appearance.stoneSkinId);
-    if (appearance.boardImageUrl) rootElement.style.setProperty('--board-surface-texture-image', cssUrl(appearance.boardImageUrl));
-    if (appearance.blackStoneImageUrl) rootElement.style.setProperty('--normal-stone-black-image', cssUrl(appearance.blackStoneImageUrl));
-    if (appearance.whiteStoneImageUrl) rootElement.style.setProperty('--normal-stone-white-image', cssUrl(appearance.whiteStoneImageUrl));
+    setAttributeIfChanged(rootElement, 'data-board-skin-id', appearance.boardSkinId);
+    setAttributeIfChanged(rootElement, 'data-board-frame-skin-id', appearance.boardFrameSkinId);
+    setAttributeIfChanged(rootElement, 'data-stone-skin-id', appearance.stoneSkinId);
+    if (appearance.boardImageUrl) setStylePropertyIfChanged(rootElement, '--board-surface-texture-image', cssUrl(appearance.boardImageUrl));
+    if (appearance.blackStoneImageUrl) setStylePropertyIfChanged(rootElement, '--normal-stone-black-image', cssUrl(appearance.blackStoneImageUrl));
+    if (appearance.whiteStoneImageUrl) setStylePropertyIfChanged(rootElement, '--normal-stone-white-image', cssUrl(appearance.whiteStoneImageUrl));
     applyFrameLayout(rootElement, appearance.boardFrameLayout);
   }
   if (boardFrame) {
-    boardFrame.setAttribute('data-board-frame-skin-id', appearance.boardFrameSkinId);
+    setAttributeIfChanged(boardFrame, 'data-board-frame-skin-id', appearance.boardFrameSkinId);
     applyFrameLayout(boardFrame, appearance.boardFrameLayout);
   }
   const oversize = topologyNeedsOversizeLayout(frame.model.topology);

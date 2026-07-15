@@ -210,11 +210,47 @@ function sha256(value: string | Buffer): string {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
 
+function normalizePhaseZeroPlaybackCompletionTrace(value: any): any[] {
+  const trace = Array.isArray(value) ? value : [];
+  const normalized: any[] = [];
+  for (const rawEntry of trace) {
+    const entry = rawEntry && typeof rawEntry === 'object' ? rawEntry : {};
+    const eventTypes = Array.isArray(entry.eventTypes) ? entry.eventTypes.slice() : [];
+    const normalizedTypes = eventTypes.map((type: any) => String(type || '').trim().toLowerCase());
+    const manifestIndex = normalizedTypes.indexOf('manifest_ending');
+    const phase = entry.phase;
+    const depth = Number.isFinite(Number(entry.depth)) ? Number(entry.depth) : 0;
+    const remainderEventTypes = manifestIndex >= 0
+      ? eventTypes.filter((_type: any, index: number) => normalizedTypes[index] !== 'manifest_ending')
+      : [];
+    const alreadyHasLegacyRemainder = remainderEventTypes.length > 0 && normalized.some((candidate: any) => (
+      candidate
+      && candidate.phase === phase
+      && candidate.depth === depth + 1
+      && stableJson(candidate.eventTypes || []) === stableJson(remainderEventTypes)
+    ));
+    if (remainderEventTypes.length > 0 && !alreadyHasLegacyRemainder) {
+      // Phase 0 observed the post-manifest remainder through the old recursive
+      // executePhase call. The planner now dispatches the same remainder in
+      // order without recursion; retain that evidence shape only in capture.
+      normalized.push({
+        phase,
+        depth: depth + 1,
+        durationMs: 0,
+        eventTypes: remainderEventTypes
+      });
+    }
+    normalized.push({ ...entry, depth, eventTypes });
+  }
+  return normalized;
+}
+
 function buildStablePlaybackExecutionDigest(input: any): string {
   const mode = input && input.mode ? input.mode : {};
   const execution = input && input.execution ? input.execution : {};
-  const trace = Array.isArray(execution.phaseCompletionTrace)
-    ? execution.phaseCompletionTrace.map((entry: any) => ({
+  const normalizedTrace = normalizePhaseZeroPlaybackCompletionTrace(execution.phaseCompletionTrace);
+  const trace = normalizedTrace.length > 0
+    ? normalizedTrace.map((entry: any) => ({
         phase: entry && entry.phase,
         depth: entry && entry.depth,
         eventTypes: Array.isArray(entry && entry.eventTypes) ? entry.eventTypes : []
@@ -531,6 +567,54 @@ function createNetworkFrame(visualSeq: number, from: number, to: number, playbac
   };
 }
 
+function createBaselineStrictNetworkSettlementHandle(visualSeq: number): any {
+  let committedFrameApplied = false;
+  let terminal = false;
+  return Object.freeze({
+    kind: 'strict-network-settlement' as const,
+    visualSeq,
+    async applyCommittedFrame(receipt: any): Promise<boolean> {
+      if (terminal) throw new Error('baseline_strict_settlement_already_terminal');
+      if (
+        !receipt
+        || receipt.kind !== 'network-visual-commit'
+        || receipt.visualSeq !== visualSeq
+      ) {
+        throw new Error('baseline_strict_settlement_receipt_mismatch');
+      }
+      committedFrameApplied = true;
+      return true;
+    },
+    async settle(): Promise<boolean> {
+      if (terminal) return false;
+      if (!committedFrameApplied) throw new Error('baseline_strict_settlement_before_committed_frame');
+      terminal = true;
+      return true;
+    },
+    async cancel(): Promise<boolean> {
+      if (terminal) return false;
+      terminal = true;
+      return true;
+    }
+  });
+}
+
+function toPhaseZeroTimelineDiagnostics(value: any): any {
+  const diagnostics = value && typeof value === 'object' ? value : {};
+  return {
+    visualSeq: diagnostics.visualSeq,
+    visualVersion: diagnostics.visualVersion,
+    pendingFrameCount: diagnostics.pendingFrameCount,
+    pendingVisualSeqs: diagnostics.pendingVisualSeqs,
+    pendingFrameSummaries: diagnostics.pendingFrameSummaries,
+    nextExpectedVisualSeq: diagnostics.nextExpectedVisualSeq,
+    playing: diagnostics.playing,
+    paused: diagnostics.paused,
+    pausedError: diagnostics.pausedError,
+    lastPlayedFrame: diagnostics.lastPlayedFrame
+  };
+}
+
 async function runNetworkTimelineScenario(config: any): Promise<any> {
   const store = NetworkVisualStateStore.createNetworkVisualStateStore();
   store.setCanonicalSnapshot(config.canonicalSnapshot);
@@ -547,26 +631,37 @@ async function runNetworkTimelineScenario(config: any): Promise<any> {
     visualStateStore: store,
     onFrameCommitted: (frame: any, meta: any) => {
       commits.push({ visualSeq: frame.visualSeq, visualVersion: meta.visualVersion, snapshot: store.peekRenderSnapshot() });
+    },
+    visualSettlementTracker: {
+      markVisualSeqCompleted: async () => true
     }
   });
   const checkpoints: any[] = [];
   const dispatcher = {
     dispatchNetworkPlaybackEvents: async (events: any[], meta: any) => {
       playback.push({ events, meta, renderSnapshot: store.peekRenderSnapshot() });
-      return { started: true, method: 'baseline' };
+      return {
+        started: true,
+        method: 'baseline',
+        settlementHandle: createBaselineStrictNetworkSettlementHandle(meta.visualSeq)
+      };
     }
   };
   for (const step of config.steps) {
     const accepted = timeline.enqueueFrames(step.frames, step.options);
     const drained = step.drain === false ? 0 : await timeline.drainPlayableFrames(dispatcher);
-    checkpoints.push({ accepted, drained, diagnostics: timeline.getDiagnostics() });
+    checkpoints.push({
+      accepted,
+      drained,
+      diagnostics: toPhaseZeroTimelineDiagnostics(timeline.getDiagnostics())
+    });
   }
   const result = {
     name: config.name,
     checkpoints,
     playback,
     commits,
-    timeline: timeline.getDiagnostics(),
+    timeline: toPhaseZeroTimelineDiagnostics(timeline.getDiagnostics()),
     store: store.getDiagnostics(),
     renderSnapshot: store.getRenderSnapshot()
   };
@@ -995,7 +1090,10 @@ async function captureProductionPlaybackBaselines(page: any): Promise<any> {
       };
     }, { playbackFixture: fixture, playbackMode: mode });
     const finalBoardDigest = sha256(stableJson(execution.finalVisualState));
-    const phaseCompletionOrder = execution.phaseCompletionOrder;
+    const phaseCompletionTrace = normalizePhaseZeroPlaybackCompletionTrace(execution.phaseCompletionTrace);
+    const phaseCompletionOrder = phaseCompletionTrace
+      .filter((entry: any) => entry.depth === 0)
+      .map((entry: any) => entry.phase);
     if (stableJson(phaseCompletionOrder) !== stableJson([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])) {
       throw new Error(`${mode.name} production playback phase order drifted: ${stableJson(phaseCompletionOrder)}`);
     }
@@ -1007,7 +1105,7 @@ async function captureProductionPlaybackBaselines(page: any): Promise<any> {
     }
     const executionDigest = buildStablePlaybackExecutionDigest({
       mode,
-      execution,
+      execution: { ...execution, phaseCompletionTrace, phaseCompletionOrder },
       inputDigest: contract.inputDigest,
       semanticDigest: contract.semanticDigest,
       finalBoardDigest
@@ -1020,7 +1118,7 @@ async function captureProductionPlaybackBaselines(page: any): Promise<any> {
       inputDigest: contract.inputDigest,
       semanticDigest: contract.semanticDigest,
       phaseCompletionOrder,
-      phaseCompletionTrace: execution.phaseCompletionTrace,
+      phaseCompletionTrace,
       soundKeys: execution.soundKeys,
       durationMs: execution.durationMs,
       finalBoardDigest,
@@ -1458,6 +1556,7 @@ export = {
   TOPOLOGY_FIXTURES,
   buildNetworkVisualBaselines,
   buildPlaybackEventFixtureContract,
+  normalizePhaseZeroPlaybackCompletionTrace,
   buildStablePlaybackAggregateDigest,
   buildStablePlaybackExecutionDigest,
   buildTopologyFixtures,

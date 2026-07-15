@@ -19,6 +19,7 @@ function setupGlobalsForWhiteNetworkTurn() {
   global.handleCellClick = jest.fn();
   global.getPlayerKey = (player) => (player === global.BLACK ? 'black' : 'white');
   global.getLegalMoves = jest.fn(() => [{ row: 2, col: 3, flips: [[2, 4]] }]);
+  global.countDiscs = jest.fn(() => ({ black: 0, white: 0 }));
   global.applyStoneVisualEffect = jest.fn();
   global.renderBoardDiff = jest.fn();
   global.forceFullRender = (el) => require('../ui/diff-renderer.js').forceFullRender(el);
@@ -80,6 +81,7 @@ function cleanupGlobals(dom) {
   delete global.handleCellClick;
   delete global.getPlayerKey;
   delete global.getLegalMoves;
+  delete global.countDiscs;
   delete global.applyStoneVisualEffect;
   delete global.renderBoardDiff;
   delete global.forceFullRender;

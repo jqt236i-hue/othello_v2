@@ -8,7 +8,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 type DestroySourceAnimationDeps = {
     isNoAnim: () => boolean;
-    getCellEl: (row: any, col: any) => any;
+    getCellClientRect: (row: any, col: any) => {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+        width: number;
+        height: number;
+    } | null;
     resolveSniperSource: (target: any) => any;
     resolveRobotVacuumSource: (target: any) => any;
     resolveDestroyDragonSource: (target: any) => any;
@@ -16,29 +23,15 @@ type DestroySourceAnimationDeps = {
     sleep: (ms: any) => Promise<void>;
     timer: () => any;
     playbackScope: any;
-    layoutBatch?: {
-        readRect?: (element: any) => any;
-    } | null;
     transientOverlayBatch?: {
         getRoot?: (options?: any) => HTMLElement | null;
         append?: (element: HTMLElement) => boolean;
         cleanup?: () => boolean;
     } | null;
+    random?: () => number;
 };
 
 let cachedStoneSkinRuntimeModule: any = null;
-
-function readElementRect(element: any, deps: DestroySourceAnimationDeps) {
-    if (!element) return null;
-    const batch = deps && deps.layoutBatch;
-    if (batch && typeof batch.readRect === 'function') {
-        const rect = batch.readRect(element);
-        if (rect) return rect;
-    }
-    return typeof element.getBoundingClientRect === 'function'
-        ? element.getBoundingClientRect()
-        : null;
-}
 
 function appendTransientOverlay(overlay: HTMLElement, deps: DestroySourceAnimationDeps): boolean {
     const batch = deps && deps.transientOverlayBatch;
@@ -93,12 +86,8 @@ async function animateSniperProjectile(target: any, deps: DestroySourceAnimation
     const source = deps.resolveSniperSource(target);
     if (!source) return;
 
-    const fromCell = deps.getCellEl(source.row, source.col);
-    const toCell = deps.getCellEl(target.r, target.col);
-    if (!fromCell || !toCell) return;
-
-    const fromRect = readElementRect(fromCell, deps);
-    const toRect = readElementRect(toCell, deps);
+    const fromRect = deps.getCellClientRect(source.row, source.col);
+    const toRect = deps.getCellClientRect(target.r, target.col);
     if (!fromRect || !toRect) return;
     const owner = resolveSniperProjectileOwner(target);
     const imgPath = resolveNormalStoneBackgroundImage(owner);
@@ -151,12 +140,8 @@ async function animateRobotVacuumSuction(target: any, deps: DestroySourceAnimati
     const source = deps.resolveRobotVacuumSource(target);
     if (!source) return;
 
-    const fromCell = deps.getCellEl(target.r, target.col);
-    const toCell = deps.getCellEl(source.row, source.col);
-    if (!fromCell || !toCell) return;
-
-    const fromRect = readElementRect(fromCell, deps);
-    const toRect = readElementRect(toCell, deps);
+    const fromRect = deps.getCellClientRect(target.r, target.col);
+    const toRect = deps.getCellClientRect(source.row, source.col);
     if (!fromRect || !toRect) return;
 
     const ownerBefore = String(target.ownerBefore || '').toLowerCase();
@@ -210,12 +195,8 @@ async function animateDestroyDragonBreath(target: any, deps: DestroySourceAnimat
     const source = deps.resolveDestroyDragonSource(target);
     if (!source) return;
 
-    const fromCell = deps.getCellEl(source.row, source.col);
-    const toCell = deps.getCellEl(target.r, target.col);
-    if (!fromCell || !toCell) return;
-
-    const fromRect = readElementRect(fromCell, deps);
-    const toRect = readElementRect(toCell, deps);
+    const fromRect = deps.getCellClientRect(source.row, source.col);
+    const toRect = deps.getCellClientRect(target.r, target.col);
     if (!fromRect || !toRect) return;
 
     const fromX = fromRect.left + (fromRect.width / 2);
@@ -345,14 +326,10 @@ async function animateMeteorGodBlackBeam(target: any, deps: DestroySourceAnimati
     const source = deps.resolveSniperSource(target);
     if (!source) return;
 
-    const fromCell = deps.getCellEl(source.row, source.col);
-    const toCell = deps.getCellEl(target.r, target.col);
-    if (!fromCell || !toCell) return;
-    if (!document || !document.body) return;
-
-    const fromRect = readElementRect(fromCell, deps);
-    const toRect = readElementRect(toCell, deps);
+    const fromRect = deps.getCellClientRect(source.row, source.col);
+    const toRect = deps.getCellClientRect(target.r, target.col);
     if (!fromRect || !toRect) return;
+    if (!document || !document.body) return;
 
     const fromX = fromRect.left + (fromRect.width / 2);
     const fromY = fromRect.top + (fromRect.height / 2);
@@ -531,14 +508,10 @@ async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimati
     const source = deps.resolveSniperSource(target);
     if (!source) return;
 
-    const fromCell = deps.getCellEl(source.row, source.col);
-    const toCell = deps.getCellEl(target.r, target.col);
-    if (!fromCell || !toCell) return;
-    if (!document || !document.body) return;
-
-    const fromRect = readElementRect(fromCell, deps);
-    const toRect = readElementRect(toCell, deps);
+    const fromRect = deps.getCellClientRect(source.row, source.col);
+    const toRect = deps.getCellClientRect(target.r, target.col);
     if (!fromRect || !toRect) return;
+    if (!document || !document.body) return;
     const startX = fromRect.left + (fromRect.width / 2);
     const startY = fromRect.top + (fromRect.height / 2);
     const endX = toRect.left + (toRect.width / 2);
@@ -595,7 +568,8 @@ async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimati
             let y = sy + (dy * t);
             if (i > 0 && i < safeSegments) {
                 const centerWeight = 1 - Math.abs((t * 2) - 1);
-                const offset = (Math.random() - 0.5) * jitter * (0.45 + centerWeight);
+                const random = typeof deps.random === 'function' ? deps.random : (() => 0.5);
+                const offset = (random() - 0.5) * jitter * (0.45 + centerWeight);
                 x += nx * offset;
                 y += ny * offset;
             }
@@ -633,8 +607,9 @@ async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimati
     for (const idx of branchBaseIndexes) {
         const anchor = main.points[idx];
         if (!anchor) continue;
-        const branchEndX = anchor.x + ((Math.random() - 0.5) * 54) + ((endX - startX) * 0.12);
-        const branchEndY = anchor.y + ((Math.random() - 0.5) * 54) - ((endY - startY) * 0.08);
+        const random = typeof deps.random === 'function' ? deps.random : (() => 0.5);
+        const branchEndX = anchor.x + ((random() - 0.5) * 54) + ((endX - startX) * 0.12);
+        const branchEndY = anchor.y + ((random() - 0.5) * 54) - ((endY - startY) * 0.08);
         const branch = buildPath(
             anchor.x,
             anchor.y,
@@ -814,10 +789,7 @@ async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimati
 async function animateWillHunterKingSlash(target: any, deps: DestroySourceAnimationDeps) {
     if (!target || deps.isNoAnim()) return;
 
-    const cell = deps.getCellEl(target.r, target.col);
-    if (!cell) return;
-
-    const cellRect = readElementRect(cell, deps);
+    const cellRect = deps.getCellClientRect(target.r, target.col);
     if (!cellRect) return;
     const source = deps.resolveSniperSource(target);
     const slash = document.createElement('div');
@@ -825,15 +797,12 @@ async function animateWillHunterKingSlash(target: any, deps: DestroySourceAnimat
 
     let angleDeg = -32;
     if (source) {
-        const sourceCell = deps.getCellEl(source.row, source.col);
-        if (sourceCell) {
-            const sourceRect = readElementRect(sourceCell, deps);
-            if (sourceRect) {
-                angleDeg = Math.atan2(
-                    (cellRect.top + (cellRect.height / 2)) - (sourceRect.top + (sourceRect.height / 2)),
-                    (cellRect.left + (cellRect.width / 2)) - (sourceRect.left + (sourceRect.width / 2))
-                ) * (180 / Math.PI);
-            }
+        const sourceRect = deps.getCellClientRect(source.row, source.col);
+        if (sourceRect) {
+            angleDeg = Math.atan2(
+                (cellRect.top + (cellRect.height / 2)) - (sourceRect.top + (sourceRect.height / 2)),
+                (cellRect.left + (cellRect.width / 2)) - (sourceRect.left + (sourceRect.width / 2))
+            ) * (180 / Math.PI);
         }
     }
 

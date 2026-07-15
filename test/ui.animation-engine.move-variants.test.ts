@@ -1,4 +1,7 @@
 import { JSDOM } from 'jsdom';
+import { installAnimationEngineDomBackendMock } from './helpers/animation-engine-dom-backend';
+
+installAnimationEngineDomBackendMock();
 
 const CASES = [
   ['STRONG_WIND_WILL', 'strong_wind_move', 'scale(1.08)', 400],
@@ -19,6 +22,9 @@ describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpoi
   });
 
   afterEach(() => {
+    delete (global as any).getEffectKeyForSpecialType;
+    delete (global as any).applyStoneVisualEffect;
+    delete (global as any).clearStoneVisualEffectState;
     delete global.window;
     delete global.document;
     delete global.emitBoardUpdate;
@@ -531,6 +537,9 @@ describe('animation-engine extreme forced swap playback', () => {
   });
 
   afterEach(() => {
+    delete (global as any).getEffectKeyForSpecialType;
+    delete (global as any).applyStoneVisualEffect;
+    delete (global as any).clearStoneVisualEffectState;
     delete global.window;
     delete global.document;
     delete global.emitBoardUpdate;
@@ -705,6 +714,9 @@ describe('animation-engine extreme forced swap playback', () => {
       if (!disc) return;
       disc.classList.remove('special-stone', 'extreme-hyperactive-visual');
     });
+    (global as any).getEffectKeyForSpecialType = window.getEffectKeyForSpecialType;
+    (global as any).applyStoneVisualEffect = window.applyStoneVisualEffect;
+    (global as any).clearStoneVisualEffectState = window.clearStoneVisualEffectState;
     window.applyStoneVisualEffect(extremeDisc, 'extremeHyperactiveStone');
     const playPromise = engine.handleMove({
       type: 'move',

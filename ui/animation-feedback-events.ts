@@ -11,7 +11,14 @@ type AnimationFeedbackEventDeps = {
     typewriterSleep?: (ms: any) => Promise<void>;
     observerBubbleMs?: any;
     observerBubbleFadeMs?: any;
-    getCellEl?: (row: any, col: any) => any;
+    getCellClientRect?: (row: any, col: any) => {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+        width: number;
+        height: number;
+    } | null;
 };
 
 function getWindowRef(): any {
@@ -554,11 +561,6 @@ function handleSoundEffectEvent(ev: any, deps: AnimationFeedbackEventDeps = {}) 
     return Promise.resolve();
 }
 
-function getObserverBubbleCell(deps: AnimationFeedbackEventDeps, row: any, col: any) {
-    if (!deps.getCellEl) return null;
-    return deps.getCellEl(row, col);
-}
-
 function handleObserverBubbleEvent(ev: any, deps: AnimationFeedbackEventDeps = {}) {
     const documentRef = getDocumentRef();
     if (!documentRef || !documentRef.body) return Promise.resolve();
@@ -571,8 +573,8 @@ function handleObserverBubbleEvent(ev: any, deps: AnimationFeedbackEventDeps = {
         const col = Number.isInteger(target && target.col) ? target.col : null;
         if (row === null || col === null) continue;
 
-        const cell = getObserverBubbleCell(deps, row, col);
-        if (!cell) continue;
+        const rect = deps.getCellClientRect ? deps.getCellClientRect(row, col) : null;
+        if (!rect) continue;
 
         const bubbleKind = String((target && target.bubbleKind) || '').trim().toLowerCase() === 'charge'
             ? 'charge'
@@ -612,7 +614,6 @@ function handleObserverBubbleEvent(ev: any, deps: AnimationFeedbackEventDeps = {
             try { if (oldNode && oldNode.parentElement) oldNode.parentElement.removeChild(oldNode); } catch (e: any) { /* ignore */ }
         }
 
-        const rect = cell.getBoundingClientRect();
         const viewportW = (root && Number.isFinite(root.innerWidth)) ? root.innerWidth : documentRef.documentElement.clientWidth;
         const anchorX = rect.left + (rect.width / 2);
         const anchorY = isChargeBubble ? (rect.bottom - 2) : (rect.top - 8);

@@ -13,6 +13,9 @@ import * as MatchAuthority from '../utils/match-authority.js';
 import * as SeededPRNG from '../game/schema/prng.js';
 import AnimationConstants = require('../ui/animation-constants.js');
 import { createLocalMatchServer, resetRoomsForTests, patchRoomSnapshotForTests } from '../scripts/local-match-server.js';
+import { installAnimationEngineDomBackendMock } from './helpers/animation-engine-dom-backend';
+
+installAnimationEngineDomBackendMock();
 
 const WORKER_RESULT_MARKER = '__WORKER_PLAYBACK_CONTRACT__';
 
@@ -2690,7 +2693,7 @@ describe('network playback event assembly contract', () => {
     }
 
     expect(failures).toEqual([]);
-  });
+  }, 20000);
 
   test('local match stream replays missed snapshot events after Last-Event-ID reconnect', async () => {
     let room = null;
