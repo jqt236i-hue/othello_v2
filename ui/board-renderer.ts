@@ -1102,7 +1102,7 @@ function prepareBoardVisualUpdate() {
     const playbackDeferred = _shouldSkipBoardRenderForPlayback();
     if (playbackDeferred && controller.getMode() === 'idle') {
         AutoBoardWriterTokenForBoardRenderer = controller.claimWriter(
-            `legacy-playback:${BoardVisualRevisionForBoardRenderer + 1}`,
+            `legacy-playback:${BoardVisualFrameSerialForBoardRenderer + 1}`,
             'local'
         );
     }
@@ -1143,7 +1143,9 @@ function renderBoard(preparedVisualUpdate?: any) {
 
 let BoardVisualRuntimeForBoardRenderer: any = null;
 let AutoBoardWriterTokenForBoardRenderer: any = null;
-let BoardVisualRevisionForBoardRenderer = 0;
+let BoardVisualFrameSerialForBoardRenderer = 0;
+let BoardVisualFrameRevisionComposerForBoardRenderer: any = null;
+let BoardVisualThemeFontObserverDisposeForBoardRenderer: (() => void) | null = null;
 const PreparedBoardVisualUpdatesForBoardRenderer = new WeakSet<object>();
 
 function _isBoardVisualDiagnosticsEnabledForBoardRenderer() {
@@ -1157,6 +1159,51 @@ function _isBoardVisualDiagnosticsEnabledForBoardRenderer() {
 function _resolveBoardElementForVisualRuntime() {
     try { if (typeof boardEl !== 'undefined' && boardEl) return boardEl; } catch (e: any) { /* ignore */ }
     try { return typeof document !== 'undefined' ? document.getElementById('board') : null; } catch (e: any) { return null; }
+}
+
+function _disposeBoardVisualThemeFontObserverForBoardRenderer() {
+    const dispose = BoardVisualThemeFontObserverDisposeForBoardRenderer;
+    BoardVisualThemeFontObserverDisposeForBoardRenderer = null;
+    if (typeof dispose === 'function') dispose();
+}
+
+function _requestBoardVisualThemeRefreshForBoardRenderer() {
+    const runtime = BoardVisualRuntimeForBoardRenderer;
+    const controller = runtime && runtime.controller;
+    if (!controller) return;
+    const mode = typeof controller.getMode === 'function' ? controller.getMode() : 'idle';
+    if (mode === 'destroyed') return;
+    if (
+        mode === 'recovering'
+        && (
+            typeof controller.getActiveWriterToken !== 'function'
+            || !controller.getActiveWriterToken()
+        )
+    ) {
+        return;
+    }
+    try {
+        // This is a normal visual-frame request. During playback it is
+        // coalesced by the controller and can only apply at final/committed
+        // settlement; while idle it changes the theme revision alone.
+        renderBoard();
+    } catch (error: any) {
+        if (runtime.diagnostics && typeof runtime.diagnostics.record === 'function') {
+            runtime.diagnostics.record('theme:font-ready-refresh-error', {
+                message: String(error && error.message || error || '')
+            });
+        }
+    }
+}
+
+function _installBoardVisualThemeFontObserverForBoardRenderer(host: HTMLElement | null) {
+    _disposeBoardVisualThemeFontObserverForBoardRenderer();
+    const ThemeModule = _require('./board-visual/theme');
+    if (!ThemeModule || typeof ThemeModule.observeBoardVisualThemeFonts !== 'function') return;
+    BoardVisualThemeFontObserverDisposeForBoardRenderer = ThemeModule.observeBoardVisualThemeFonts(
+        host,
+        _requestBoardVisualThemeRefreshForBoardRenderer
+    );
 }
 
 function _createBoardVisualRuntimeForBoardRenderer() {
@@ -1194,6 +1241,7 @@ function _createBoardVisualRuntimeForBoardRenderer() {
         const root = typeof window !== 'undefined' ? window : globalThis;
         DiagnosticsModule.installBoardVisualDebugContract(root, diagnostics, controller);
     }
+    _installBoardVisualThemeFontObserverForBoardRenderer(host);
     return runtime;
 }
 
@@ -1209,6 +1257,7 @@ function configureBoardVisualController(controller: any, options?: any) {
         throw new Error('configureBoardVisualController requires a controller');
     }
     const previousRuntime = BoardVisualRuntimeForBoardRenderer;
+    _disposeBoardVisualThemeFontObserverForBoardRenderer();
     if (
         previousRuntime
         && previousRuntime.controller
@@ -1230,6 +1279,7 @@ function configureBoardVisualController(controller: any, options?: any) {
         const root = typeof window !== 'undefined' ? window : globalThis;
         DiagnosticsModule.installBoardVisualDebugContract(root, diagnostics, controller);
     }
+    _installBoardVisualThemeFontObserverForBoardRenderer(host);
     AutoBoardWriterTokenForBoardRenderer = null;
     return controller;
 }
@@ -1463,19 +1513,19 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
         baseVisualState: baseInputs.baseVisualState,
         presentationOverlayState
     });
-    const visualRevision = ++BoardVisualRevisionForBoardRenderer;
+    const frameSerial = ++BoardVisualFrameSerialForBoardRenderer;
     const model = DiffRendererModule.buildBoardRenderModel(projection, cellState, {
-        visualRevision,
+        visualRevision: 0,
         overlay: inputs.presentationOverlayState,
         inputs
     });
     const host = _resolveBoardElementForVisualRuntime();
-    const appearance = FramePresenterModule.resolveBoardAppearanceDescriptor(host, visualRevision);
+    const appearance = FramePresenterModule.resolveBoardAppearanceDescriptor(host, 0);
     const frameGeometry = _readBoardFrameGeometryForLayout(host, appearance);
     const layoutCellSize = _readBoardCellSizeForLayout(host, model.topology);
     const viewport = typeof window !== 'undefined' ? (window as any).visualViewport : null;
     const layout = LayoutModule.createBoardViewportLayout(model.topology, {
-        revision: visualRevision,
+        revision: 0,
         cellSize: layoutCellSize,
         dpr: typeof window !== 'undefined' ? window.devicePixelRatio : 1,
         clientOrigin: frameGeometry.clientOrigin,
@@ -1499,14 +1549,17 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
     });
     const frameToken = controller && controller.getActiveFrameToken()
         ? controller.getActiveFrameToken()
-        : `idle:${visualRevision}`;
-    return Object.freeze({
+        : `idle:${frameSerial}`;
+    if (!BoardVisualFrameRevisionComposerForBoardRenderer) {
+        BoardVisualFrameRevisionComposerForBoardRenderer = FramePresenterModule.createBoardVisualFrameRevisionComposer();
+    }
+    return BoardVisualFrameRevisionComposerForBoardRenderer.compose(Object.freeze({
         model,
         layout,
         appearance,
-        theme: ThemeModule.resolveBoardVisualThemeDescriptor(host, visualRevision),
+        theme: ThemeModule.resolveBoardVisualThemeDescriptor(host, 0),
         frameToken
-    });
+    }));
 }
 
 function renderBoardFull() {

@@ -188,8 +188,41 @@ export interface BoardAppearanceDescriptor {
   revision: number;
 }
 
+export interface BoardVisualShadowDescriptor {
+  offsetXRatio: number;
+  offsetYRatio: number;
+  blurRatio: number;
+  color: string;
+}
+
+export interface BoardVisualGlowDescriptor {
+  blurRatio: number;
+  color: string;
+}
+
+export interface BoardVisualTextStyleDescriptor {
+  fontFamily: string;
+  fontWeight: number;
+  fontSizeRatio: number;
+  doubleDigitScale: number;
+  lineHeight: number;
+  color: string;
+  shadows: readonly BoardVisualShadowDescriptor[];
+  glow: BoardVisualGlowDescriptor | null;
+}
+
+export interface BoardVisualHintStyleDescriptor {
+  ringColor: string;
+  highlightColor: string;
+  glowColor: string;
+  lineWidthRatio: number;
+  glowBlurRatio: number;
+}
+
 export interface BoardVisualThemeDescriptor {
   revision: number;
+  /** Increments when the selected document font set finishes a loading cycle. */
+  fontReadyEpoch: number;
   surfaceColor: string;
   gridColor: string;
   outerBoundaryColor: string;
@@ -199,6 +232,10 @@ export interface BoardVisualThemeDescriptor {
   timerColor: string;
   fontFamily: string;
   gridLineWidth: number;
+  boardBonus: BoardVisualTextStyleDescriptor;
+  timer: BoardVisualTextStyleDescriptor;
+  directionHint: BoardVisualTextStyleDescriptor;
+  legalHint: BoardVisualHintStyleDescriptor;
 }
 
 export interface BoardVisualFrame {
