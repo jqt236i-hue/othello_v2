@@ -97,6 +97,8 @@ function createBoardVisualController(options: {
   let networkCommittedApplied = false;
   const hostLeaseOwner = Object.freeze({});
   const idleWaiters = new Set<IdleWaiter>();
+  const settlingIdleWaiters = new Set<IdleWaiter>();
+  let idleSettlement: Promise<void> | null = null;
   let resolveReady!: () => void;
   let rejectReady!: (error: unknown) => void;
   let readySettled = false;
@@ -117,17 +119,44 @@ function createBoardVisualController(options: {
 
   beginReadyCycle();
 
+  const waitForBackendVisualSettlement = (frame?: BoardVisualFrame) => {
+    const candidate = (backend as any).waitForVisualSettlement;
+    if (typeof candidate !== 'function') return Promise.resolve();
+    return Promise.resolve(candidate.call(backend, frame));
+  };
+
   const flushIdleWaiters = () => {
     if (!ready || mode !== 'idle' || idleWaiters.size === 0) return;
     const waiters = Array.from(idleWaiters);
-    idleWaiters.clear();
-    for (const waiter of waiters) waiter.resolve();
+    for (const waiter of waiters) {
+      idleWaiters.delete(waiter);
+      settlingIdleWaiters.add(waiter);
+    }
+    if (!idleSettlement) {
+      idleSettlement = waitForBackendVisualSettlement().then(
+        () => {
+          const settled = Array.from(settlingIdleWaiters);
+          settlingIdleWaiters.clear();
+          for (const waiter of settled) waiter.resolve();
+        },
+        (error) => {
+          const normalized = toError(error, 'Board visual settlement failed');
+          const settled = Array.from(settlingIdleWaiters);
+          settlingIdleWaiters.clear();
+          for (const waiter of settled) waiter.reject(normalized);
+        }
+      ).finally(() => {
+        idleSettlement = null;
+        flushIdleWaiters();
+      });
+    }
   };
 
   const rejectIdleWaiters = (error: Error) => {
-    if (idleWaiters.size === 0) return;
-    const waiters = Array.from(idleWaiters);
+    if (idleWaiters.size === 0 && settlingIdleWaiters.size === 0) return;
+    const waiters = Array.from(new Set([...idleWaiters, ...settlingIdleWaiters]));
     idleWaiters.clear();
+    settlingIdleWaiters.clear();
     for (const waiter of waiters) waiter.reject(error);
   };
 
@@ -253,11 +282,25 @@ function createBoardVisualController(options: {
         settleReadyFailure(normalized);
         throw normalized;
       }
-      const completeMount = () => {
+      const completeMount = async () => {
           backendMounted = true;
-          const initial = initialLatest;
-          if (initial) applyReadyFrame(initial);
-          initialLatest = null;
+          let initial = initialLatest;
+          while (initial) {
+            initialLatest = null;
+            const prepareFrame = (backend as any).prepareFrame;
+            if (typeof prepareFrame === 'function') {
+              await Promise.resolve(prepareFrame.call(backend, initial));
+            }
+            // A newer frame queued while resources were prepared supersedes
+            // the stale frame without ever making it the visible writer.
+            if (initialLatest) {
+              initial = initialLatest;
+              continue;
+            }
+            applyReadyFrame(initial);
+            await waitForBackendVisualSettlement(initial);
+            initial = initialLatest;
+          }
           ready = true;
           recoveryError = null;
           settleReadySuccess();
@@ -275,8 +318,7 @@ function createBoardVisualController(options: {
         if (mountResult && typeof (mountResult as any).then === 'function') {
           mountPromise = Promise.resolve(mountResult).then(completeMount).catch(failMount);
         } else {
-          completeMount();
-          mountPromise = Promise.resolve();
+          mountPromise = Promise.resolve().then(completeMount).catch(failMount);
         }
       } catch (error) {
         try {
@@ -329,7 +371,7 @@ function createBoardVisualController(options: {
       if (mode === 'recovering') {
         return Promise.reject(recoveryError || new Error('BoardVisualController is recovering'));
       }
-      if (ready && mode === 'idle') return Promise.resolve();
+      if (ready && mode === 'idle') return waitForBackendVisualSettlement();
       return new Promise<void>((resolve, reject) => {
         idleWaiters.add(Object.freeze({ resolve, reject }));
       });
@@ -510,6 +552,7 @@ function createBoardVisualController(options: {
       try {
         if (!ready) throw new Error('Committed frame apply requires backend readiness');
         if (!apply(frame)) throw new Error('Committed board frame was not applied');
+        await waitForBackendVisualSettlement(frame);
         networkCommittedApplied = true;
         pendingCommittedRecoveryFrame = null;
         // Keep normal render submissions excluded until tracker/observer
@@ -541,10 +584,12 @@ function createBoardVisualController(options: {
         if (!backendMounted) throw new Error('Committed frame restore requires a mounted backend');
         if (mode === 'recovering') {
           await backend.restore(target);
+          await waitForBackendVisualSettlement(target);
           lastApplied = target;
         } else {
           if (!ready) throw new Error('Committed frame restore requires backend readiness');
           applyReadyFrame(target);
+          await waitForBackendVisualSettlement(target);
         }
         pendingLatest = null;
         initialLatest = null;
@@ -625,6 +670,7 @@ function createBoardVisualController(options: {
       try {
         if (!backendMounted) throw new Error('Board restore requires a mounted backend');
         await backend.restore(target);
+        await waitForBackendVisualSettlement(target);
         finishSuccessfulRestore(target);
         return true;
       } catch (error) {
@@ -654,6 +700,7 @@ function createBoardVisualController(options: {
         let restoreTarget = pendingLatest || initialLatest || checkpoint || lastApplied;
         if (restoreTarget) {
           await backend.restore(restoreTarget);
+          await waitForBackendVisualSettlement(restoreTarget);
           const queuedAfterRestore = pendingLatest || initialLatest;
           if (queuedAfterRestore && queuedAfterRestore !== restoreTarget) {
             applyReadyFrame(queuedAfterRestore);

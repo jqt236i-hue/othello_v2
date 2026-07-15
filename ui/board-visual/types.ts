@@ -276,8 +276,12 @@ export interface BoardVisualBackendDeps {
 export interface BoardVisualBackend {
   readonly kind: 'dom' | 'pixi';
   mount(host: HTMLElement, deps: BoardVisualBackendDeps): void | Promise<void>;
+  /** Prepare async resources without making them the visible writer yet. */
+  prepareFrame?(frame: BoardVisualFrame): void | Promise<void>;
   applyFrame(frame: BoardVisualFrame): void;
   playPhase(events: readonly unknown[], context: BoardPlaybackContext): Promise<void>;
+  /** Resolve only after the requested frame's async visual resources settle. */
+  waitForVisualSettlement?(frame?: BoardVisualFrame): void | Promise<void>;
   getRenderedCell?(row: number, col: number): unknown;
   getCellClientRect(row: number, col: number): BoardClientRect | null;
   resize(layout: BoardViewportLayout): void;
