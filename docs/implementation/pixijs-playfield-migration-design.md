@@ -2,6 +2,7 @@
 
 - Status: proposed
 - Date: 2026-07-14
+- Last reviewed: 2026-07-15（実 presentation・実機 mobile performance・cutover evidence gate を補強）
 - Target: ブラウザの盤面、石、盤面上の入力表示、盤面に属する再生演出を PixiJS へ移行する
 - Source of truth: root `AGENTS.md`、`01-rulebook.md`、`正本/演出正本.md`、`正本/ターン進行正本.md`、`docs/architecture-contracts.md`、現行 root 実装
 - Design dependency: PixiJS `8.18.1` を完全固定して使用する
@@ -76,6 +77,17 @@ canvas 化後は合法手を DOM から逆算できないため、入力 control
 - classic lane は root の生成済み module registry と script load order を使う。
 - `scripts/compare-browser-lanes.ts` は classic/Vite の DOM・layout・pixel 一致を比較する。
 - 盤面 DOM selector、`renderBoardDiff()`、`forceFullRender()` に直接依存する test/E2E/visual script が多数ある。実装と同時に stable diagnostic API へ移さなければ、テストのためだけに偽 cell DOM を残すことになる。
+
+### 2.6 現行性能証拠と限界
+
+Phase 0 の同一 desktop Chrome capture では、DOM lane の8x8複数石更新が classic p95 40.9 ms、Vite p95 43.7 ms、16x16 apply がそれぞれ 276.8 ms、271.9 ms だった。少なくとも現行盤面の render/apply 経路には一 frame budget を超える負荷が残っており、盤面を PixiJS backend へ移す根拠は失われていない。
+
+一方、Phase 0 の当該 frame 値は synthetic state mutation と `forceFullRender()` を使う desktop microbenchmark であり、`AnimationEngine` / `PlaybackEngine` が実際に `PLACE`、`FLIP`、`MOVE`、`DESTROY`、`SPAWN`、`STATUS`、特殊演出を dispatch する一手全体の負荷や、physical mobile device の paint/composite、texture upload、thermal throttling を証明しない。したがって次を区別する。
+
+- Phase 0 baseline: topology、pixel、digest、desktop apply cost を固定する再現可能な移行前基準。
+- Phase 9 release evidence: public presentation path を使った DOM/Pixi A/B、physical Android Chrome / iPhone Safari、長時間安定性を含む default cutover 判定。
+
+現行実装には `RenderScheduler`、`syncBoardPixelSizing()` の dirty/signature gate、差分 renderer、Single Visual Writer、CPU candidate scoring Worker、lazy runtime loading がすでにある。Pixi 移行はこれらを置き換えず、盤面 DOM/CSS writer と board-local effect の残存負荷を backend 内へ集約する。HUD、手札、global DOM effect、CPU の残存負荷は計測上分離し、盤面の性能問題を理由に全 UI を canvas 化しない。
 
 ## 3. 外部技術判断
 
@@ -440,12 +452,13 @@ classic と Vite は同じ Pixi backend を使う。classic は browser boot の
 - `?debug=1&boardRenderer=pixi` と test harness injection だけが Pixi lane を選べる。
 - Pixi init/asset failure は、最初の board render 前に DOM backend へ戻せる。途中まで両方を mount しない。
 
-cutover release:
+cutover release は、証拠と deployment を循環させないため次の3 unitに分ける。
 
-- classic/Vite の default を同時に Pixi へ切り替える。
-- WebGL/runtime/initial texture preflight に失敗した場合だけ、最初の board render 前に DOM compatibility backend を mount する。
-- `?debug=1&boardRenderer=dom` は fallback の継続検証用に残し、通常 query では選択できない。
-- Pixi-default deployment に対して production smoke、network match、reconnect、主要特殊演出、supported browser bundle を実行し、default selector は一つの commit で戻せるようにする。
+1. pre-cutover evidence: DOM-default の clean candidate commit から DOM/Pixi を排他的に選べる debug harness を配信し、desktop/physical performance、browser、visual、network、lifecycle gate を通す。reference device manifest は計測前に commit し、結果を見た後の端末差し替えを禁止する。raw report と pre-cutover 判定は report-only commit に保存する。
+2. default cutover: unit 1 が pass した後、classic/Vite の default selector と必要な生成物だけを一つの isolated commit で Pixi へ切り替え、その commit SHA の immutable artifact を deploy する。WebGL/runtime/initial texture preflight に失敗した場合だけ、最初の board render 前に DOM compatibility backend を mount する。`?debug=1&boardRenderer=dom` は fallback の継続検証用に残し、通常 query では選択できない。
+3. post-deploy evidence: unit 2 の deployed commit SHA に対して production smoke、network match、reconnect、主要特殊演出、supported browser bundle を実行し、結果だけを final cutover report commit に保存する。この report commit まで Phase 9 を完了扱いにしない。
+
+unit 2 に selector、cachebuster、機械生成 browser artifact 以外の runtime change が混ざった場合、unit 1 の evidence は無効として再取得する。post-deploy failureがselector/cachebusterだけなら失敗commitをrevertしてreplacement unit 2を作り、runtime修正ならunit 1へ戻る。rollback は最終passしたunit 2のisolated default-selector commitを戻すことで行い、unit 3のreportには失敗attemptを含むdeployment証跡を保持する。
 
 cleanup release:
 
@@ -526,18 +539,47 @@ baseline 更新は「renderer を変更したため」だけで一括承認し�
 
 ### 7.3 performance gates
 
-Phase 0 で同一端末・同一ブラウザ・同一 fixture の DOM baseline を保存し、Pixi lane と比較する。
+performance gate は「再現可能な desktop A/B」と「physical mobile release gate」の二層にする。どちらも DOM/Pixi を同時 mount せず、同一 fixture/event digest を backend 切替ごとに reload して測る。
+
+#### 7.3.1 計測経路と attribution
+
+- `forceFullRender()` 計測は model/apply microbenchmark と明記し、animation frame の代用にしない。
+- animation 計測は isolated fixture でも public `PlaybackEngine` → phase planner/dispatcher → `BoardVisualController.playPhase()` 経路を通す。event を直接 backend method へ注入して成功扱いにしない。
+- report schema v1 の scenario ID を `basic.multi-flip-8x8`、`heavy.move-8x8`、`heavy.destroy-spawn-8x8`、`heavy.status-8x8`、`heavy.destroy-source-8x8`、`heavy.theory-manifest-8x8`、`micro.full-marker-16x16`、`stability.expansion-skin` に固定する。heavy threshold は各 scenario を個別判定し、sample を混ぜて遅い effect を隠さない。
+- board model build、backend apply、board-local playback、global DOM overlay/HUD、whole-turn settlement を別 measure にし、Pixi 改善と残存 DOM/CPU 負荷を混同しない。
+- capture は `document.visibilityState === 'visible'`、focus、font/texture/application ready を確認し、最初の120個の連続 idle rAF interval の median を `nominalFrameIntervalMs` とする。途中の visibility/focus change は report 全体を invalid にする。
+- 各 scenario は5回の非集計 warm-up 後、basicを30回、各heavyを20回、micro operationを100回測る。p50/p95/p99 は昇順 sample の `ceil(p * N) - 1` を使う nearest-rank とし、raw sample を削除・winsorizeしない。
+- requestAnimationFrame interval の p50/p95/p99/max、nominal interval の1.5倍を超える jank frame 比率、`interval >= 50 ms` の `rafStall50msCount`、presentation start latency、display object/texture lease/canvas backing size を保存する。`rafStall50msCount` は全対象 browser の必須 gate とし、Long Animation Frame / Long Task は対応時だけ CPU attribution に使う optional field とする。
+- `browserArtifactSha256` は配信対象fileごとの `{ path, sha256 }` をpath昇順にしたUTF-8 stable JSONのSHA-256とし、LAN URLや生成時刻をdigest入力へ含めない。serverとbrowser reportが同じ値を持たなければcaptureを開始しない。
+- event の player-visible duration は正本どおり維持し、短縮を性能改善として数えない。
+
+#### 7.3.2 再現可能な desktop gate
+
+- Phase 0 と同じ machine/browser/viewport/DPR で DOM/Pixi の actual playback と microbenchmark を取得する。
+- 8x8 basic board-local scenario の Pixi p95 は「観測した nominal frame interval + 1 ms」以内、jank frame 比率は5%以下、`rafStall50msCount === 0` とする。
+- DOM p95 が上記 frame target を外す scenario は Pixi p95 が DOM より20%以上短いこと。DOM が既に target 内なら Pixi は DOM より5%を超えて悪化しないこと。
+- 16x16/full marker fixture の個々の input hit test と model apply の同期 measure は50 ms未満とする。
+- whole-turn p95 と presentation start latency は DOM より5%を超えて悪化せず、board-local 改善を HUD/global effect の追加負荷で相殺しない。
+
+#### 7.3.3 physical mobile release gate
+
+- physical gate は production entry である Vite lane を、計測前に commit 済みの `reference-devices.json` に記録した physical Android Chrome 1台と physical iPhone Safari 1台で実行する。manifest は exact model、OS/build、browser version、screen/viewport、DPR、refresh setting を固定するが、製品全体の最低対応端末を新設するものではない。端末変更は事前レビューと全report再取得を必要とし、結果確認後の差し替えを禁止する。いずれかの reference device を用意できない場合、Phase 9 の default cutover は未達とする。
+- desktop emulation、CPU throttling、Playwright WebKit は代替証拠にしない。normal match ではなく clean candidate commit の production-like LAN artifact を `--manual-host 0.0.0.0` で配信し、DOM/Pixiの明示URLを別reloadして debug-only `Run Suite` → `Export JSON` で取得する。export は Web Share file、未対応時は Blob download を使う。report は schema version、UUID `reportId`、candidate commit SHA、browser artifact SHA-256、lane、URL、fixture/event digest、backend、warm-up/raw sample/集計規則を自己完結して含め、Node validatorへ4 fileをimportする。validatorはfile名/本文の`reportId`を照合し、import後のraw file SHA-256をpre-cutover manifestへ保存する。
+- 同一端末の DOM/Pixi capture は画面refresh設定、省電力設定、orientationを維持し、各backend前に5分cool-downする。capture orderはcandidate commit SHA末尾byteの偶奇でDOM-first/Pixi-firstを決定してreportへ記録し、手作業で有利な順序を選ばない。
+- 8x8 basic scenario は p95 が nominal frame interval の1.25倍以内、jank frame 比率5%以下、`rafStall50msCount === 0` を必須とする。
+- 各heavy board-local scenario は p95 が nominal frame interval の2倍以内、max frame interval 100 ms未満、`rafStall50msCount === 0` とする。DOM がこの target を外す場合は Pixi p95 が20%以上短く、DOM がtarget内ならPixiはDOMより5%を超えて悪化しないこと。global DOM effect の時間は別 measure とする。
+- 10分間の basic/heavy/skin/expansion loop を実行し、最後の2分のp95/jank比率が最初の2分から20%を超えて悪化せず、context loss、canvas backing growth、display object/texture lease の単調増加を起こさない。
+- physical whole-turn p95 と presentation start latency は DOM より5%を超えて悪化しない。残存 jank が HUD、手札、global DOM effect、CPU に帰属する場合は別 follow-up inventory に記録するが、Pixi の責務を全 UI へ拡張しない。
+
+#### 7.3.4 lifecycle / delivery gate
 
 - idle settle 後に ticker/requestAnimationFrame が継続しない。
-- 8x8 の代表的な複数 flip/特殊演出で animation frame p95 が 16.7 ms 以下、かつ DOM baseline から 20% 超悪化しない。
-- 16x16/full marker fixture で input hit test と model apply に 50 ms 超の long task を作らない。
-- 同じ model を 100 回 apply して display object 数と texture lease 数が増えない。
+- 同じ model を100回 applyし、reset 50回、skin切替50回後に display object 数と texture lease 数が初期 steady state へ戻る。
 - 多段拡張で logical surface が増えても canvas backing width/height と live cell view 数が viewport + overscan/gutter 上限を超えて増えない。
-- reset 50 回、skin 切替 50 回後に live object/lease count が初期 steady state へ戻る。
 - WebGL context は一ページ一個で、全画面演出用の第二 Pixi Application を作らない。
-- classic/Vite の asset request、transfer、app-ready 時間を baseline report に残し、Pixi chunk/vendor の増分を明示する。
+- classic/Vite の asset request、transfer、app-ready、texture decode/upload を report に残し、Pixi chunk/vendor と GPU upload 対象 pixel の増分を明示する。
 
-環境依存の時間値は repository 全体の普遍値とせず、同じ capture command・browser version・viewport・DPR を report に記録する。
+環境依存値は repository 全体の普遍値とせず、raw sample、集計規則、同一 fixture digest、環境情報を JSON report に保存する。gate failure を tolerance 緩和、sample 除外、演出時間短縮で解消してはならず、Pixi default cutover を保留して原因を修正する。
 
 ## 8. 失敗モードと対処
 
@@ -609,6 +651,8 @@ backend/controller/model の責務が実装と contract test で安定した段�
 - 全 presentation event が正本順で再生され、strict network playback と reconnect が最終 visual state を先送りしない。
 - DOM hand/card/HUD/global presentation が座標 bridge 経由で Pixi 盤面と整合する。
 - supported browser matrix、visual regression、classic-vs-Vite、network parity、Worker mirror、performance gate が通る。
+- actual playback の desktop DOM/Pixi A/B と physical Android Chrome / iPhone Safari gate が通り、10分 loop の thermal/lifecycle degradation が許容範囲内である。
+- Phase 9のpre-cutover evidence、isolated default-selector deployment、deployed SHAのpost-smoke reportが別unit/commitで完了し、final cutover reportが実際のdeploymentを参照する。
 - idle ticker、display object、texture、listener、ResizeObserver、WebGL context の leak がない。
 - `docs/architecture-contracts.md`、build scripts、test harness が Pixi default と mutually exclusive DOM compatibility fallback を説明している。
 
@@ -624,5 +668,7 @@ backend/controller/model の責務が実装と contract test で安定した段�
 - compatibility: WebGL init/recovery failure では mutually exclusive DOM backend を使い、今回の移行で対応環境を狭めない。
 - scope: カード/HUD/フォームを DOM に残し、第二 Pixi Application と全画面 canvas 化を除外した。
 - verification: unit、real browser、network、visual、performance、mirror の gate を分離した。
+- performance evidence: synthetic `forceFullRender()` を microbenchmark に限定し、actual public playback、事前固定reference device、全browser共通`rafStall50msCount`、versioned schema/runbook、10分 stability、board/global attribution を release gate に追加した。
+- cutover evidence: pre-cutover、isolated default deployment、deployed-SHA reportを3 unitに分け、deployment前のcommitへproduction結果を要求する循環を除いた。
 
-自己レビューの結果、実装者に委ねる material architecture choice は残していない。個別の easing・particle 数・texture atlas 化は、既存見た目と性能 gate を満たす範囲の局所実装判断であり、authority や移行範囲を変更しない。
+自己レビューでは、旧 performance gate が desktop synthetic apply と実 animation を区別せず、physical mobile と thermal throttling を完了条件にしていない問題に加え、default cutoverとproduction証拠の循環、Safari observer未対応時の判定不能、端末・取得条件の後付け余地を確認した。二層gate、versioned schema/runbook、事前commitするreference-device manifest、raw rAF stall判定、Unit A/B/Cを追加し、Phase 0 baselineを無効化せず解消した。reference device実値はPhase 9開始前にoperatorが提供する外部entry conditionであり、対応端末仕様の変更ではない。実装者に委ねるmaterial architecture choiceは残していない。個別のeasing・particle数・texture atlas化は、既存見た目と性能gateを満たす範囲の局所実装判断であり、authorityや移行範囲を変更しない。
