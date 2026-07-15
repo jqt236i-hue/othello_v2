@@ -7,7 +7,8 @@ const {
     chooseServePort,
     buildHttpServerArgs,
     computeAssetSourceFingerprint,
-    generateLocalModelAssetManifest
+    generateLocalModelAssetManifest,
+    refreshBrowserScriptVersions
 } = require('../scripts/serve-with-fallback');
 
 function listenOnce(server, options) {
@@ -107,6 +108,35 @@ describe('serve-with-fallback', () => {
             expect(manifest.files).not.toContain('data/models/policy-target.onnx');
             expect(manifest.files).not.toContain('data/models/policy-value.onnx');
             expect(manifest.files).not.toContain('data/models/policy-table.json');
+        } finally {
+            fs.rmSync(tmpRoot, { recursive: true, force: true });
+        }
+    });
+
+    test('refreshBrowserScriptVersions updates the classic entry without requiring classic tags in Vite index', () => {
+        const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'serve-browser-entry-'));
+        const publicDir = path.join(tmpRoot, 'public');
+        fs.mkdirSync(publicDir, { recursive: true });
+        fs.writeFileSync(path.join(tmpRoot, 'entry-browser.js'), 'entry');
+        fs.writeFileSync(path.join(publicDir, 'runtime.js'), 'runtime');
+        fs.writeFileSync(path.join(publicDir, 'module-registry.js'), 'registry');
+        const viteHtml = '<!doctype html><script type="module" src="./vite-dist/app.js"></script>';
+        const classicHtml = [
+            '<!doctype html>',
+            '<script src="public/runtime.js"></script>',
+            '<script src="public/module-registry.js"></script>',
+            '<script src="entry-browser.js"></script>'
+        ].join('\n');
+        fs.writeFileSync(path.join(tmpRoot, 'index.html'), viteHtml);
+        fs.writeFileSync(path.join(tmpRoot, 'index.classic.html'), classicHtml);
+
+        try {
+            const result = refreshBrowserScriptVersions(tmpRoot);
+            expect(result.indexPath).toBe(path.join(tmpRoot, 'index.classic.html'));
+            expect(fs.readFileSync(path.join(tmpRoot, 'index.html'), 'utf8')).toBe(viteHtml);
+            expect(fs.readFileSync(path.join(tmpRoot, 'index.classic.html'), 'utf8')).toMatch(
+                /public\/runtime\.js\?v=\d+/
+            );
         } finally {
             fs.rmSync(tmpRoot, { recursive: true, force: true });
         }

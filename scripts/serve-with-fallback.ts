@@ -34,6 +34,15 @@ interface ArtifactRefreshOptions {
     intervalMs?: number;
 }
 
+type BrowserScriptRefreshResult =
+    | { skipped: true; reason: string }
+    | {
+        html: string;
+        indexPath: string;
+        wroteFile: boolean;
+        updates: Array<{ relativePath: string; version: string; changed: boolean }>;
+    };
+
 const LOCAL_MODEL_ASSET_MANIFEST_PATH = path.join('data', 'models', 'model-assets.json');
 const LOCAL_MODEL_ASSET_CANDIDATES = Object.freeze([
     'data/models/policy-net.onnx',
@@ -240,15 +249,27 @@ function computeBrowserScriptFingerprint(rootPath: string) {
     return JSON.stringify(entries);
 }
 
-function refreshBrowserScriptVersions(rootPath: string) {
+function refreshBrowserScriptVersions(rootPath: string): BrowserScriptRefreshResult {
     const resolvedRoot = path.resolve(String(rootPath || '.'));
-    const indexPath = path.join(resolvedRoot, 'index.html');
     const entryBrowserPath = path.join(resolvedRoot, 'entry-browser.js');
+    const runtimePath = path.join(resolvedRoot, 'public', 'runtime.js');
     const moduleRegistryPath = path.join(resolvedRoot, 'public', 'module-registry.js');
-    if (!fs.existsSync(indexPath) || !fs.existsSync(entryBrowserPath) || !fs.existsSync(moduleRegistryPath)) {
-        return;
+    if (!fs.existsSync(entryBrowserPath) || !fs.existsSync(runtimePath) || !fs.existsSync(moduleRegistryPath)) {
+        return { skipped: true, reason: 'classic-runtime-files-missing' };
     }
-    syncBrowserScriptVersions({ rootDir: resolvedRoot, write: true });
+    const requiredScripts = ['public/runtime.js', 'public/module-registry.js', 'entry-browser.js'];
+    const indexPath = [
+        path.join(resolvedRoot, 'index.classic.html'),
+        path.join(resolvedRoot, 'index.html')
+    ].find((candidate) => {
+        if (!fs.existsSync(candidate)) return false;
+        const html = fs.readFileSync(candidate, 'utf8');
+        return requiredScripts.every((relativePath) => html.includes(relativePath));
+    });
+    if (!indexPath) {
+        return { skipped: true, reason: 'classic-entry-missing' };
+    }
+    return syncBrowserScriptVersions({ rootDir: resolvedRoot, indexPath, write: true });
 }
 
 function collectAssetSourceEntries(dirPath: string, basePath: string, entries: string[]): void {
@@ -386,6 +407,7 @@ export = {
     resolveHttpServerEntrypoint,
     computeAssetSourceFingerprint,
     generateLocalModelAssetManifest,
+    refreshBrowserScriptVersions,
     refreshGeneratedCatalogArtifactsIfNeeded,
     startArtifactRefreshLoop,
     main
