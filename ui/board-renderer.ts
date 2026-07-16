@@ -1166,6 +1166,13 @@ let BoardVisualRenderSessionEpochForBoardRenderer = 0;
 let BoardVisualFrameRevisionComposerForBoardRenderer: any = null;
 let BoardVisualThemeFontObserverDisposeForBoardRenderer: (() => void) | null = null;
 let BoardVisualBackendTestConfigForBoardRenderer: any = null;
+let BoardInputControllerForBoardRenderer: any = null;
+let BoardInputLockResolverForBoardRenderer: (() => boolean) | null = null;
+let BoardInputKeyboardCursorKeyForBoardRenderer: string | null = null;
+let BoardInputOverlayRenderSuppressedForBoardRenderer = false;
+let BoardInputDeferredOverlayRenderGenerationForBoardRenderer = 0;
+let BoardInputDeferredOverlayRenderForBoardRenderer: Promise<void> | null = null;
+let BoardAccessibilityLayerForBoardRenderer: any = null;
 const PreparedBoardVisualUpdatesForBoardRenderer = new WeakSet<object>();
 
 const PIXI_INITIAL_FALLBACK_ERROR_CODES_FOR_BOARD_RENDERER = new Set([
@@ -1325,7 +1332,13 @@ function _createPixiBoardVisualBackendForBoardRenderer(noAnimation: boolean) {
             )
         );
     }
-    const options = Object.freeze({ noAnimation: true });
+    const options = Object.freeze({
+        noAnimation: true,
+        // Backend mount precedes UI event activation. Resolve lazily so the
+        // adapter can exist while BoardInputController remains disabled until
+        // bootstrap finishes the visual-ready gate.
+        getInputController: () => getBoardInputController()
+    });
     const testFactory = BoardVisualBackendTestConfigForBoardRenderer
         && BoardVisualBackendTestConfigForBoardRenderer.createPixiBackend;
     if (testFactory) {
@@ -1410,6 +1423,193 @@ function _resolveBoardElementForVisualRuntime() {
     try { return typeof document !== 'undefined' ? document.getElementById('board') : null; } catch (e: any) { return null; }
 }
 
+function _recordBoardInputErrorForBoardRenderer(event: string, error: unknown) {
+    const diagnostics = BoardVisualRuntimeForBoardRenderer && BoardVisualRuntimeForBoardRenderer.diagnostics;
+    if (!diagnostics || typeof diagnostics.record !== 'function') return;
+    diagnostics.record(event, { message: String((error as any)?.message || error || '') });
+}
+
+function _requestBoardInputOverlayRenderForBoardRenderer() {
+    if (BoardInputOverlayRenderSuppressedForBoardRenderer) return;
+    const runtime = BoardVisualRuntimeForBoardRenderer;
+    const controller = runtime && runtime.controller;
+    if (!controller || (typeof controller.getMode === 'function' && controller.getMode() === 'destroyed')) return;
+    const mode = typeof controller.getMode === 'function' ? controller.getMode() : 'idle';
+    if (mode !== 'idle') {
+        if (BoardInputDeferredOverlayRenderForBoardRenderer || typeof controller.waitForIdle !== 'function') return;
+        const generation = ++BoardInputDeferredOverlayRenderGenerationForBoardRenderer;
+        const pending = Promise.resolve(controller.waitForIdle()).then(() => new Promise<void>((resolve) => {
+            setTimeout(() => {
+                try {
+                    if (
+                        generation === BoardInputDeferredOverlayRenderGenerationForBoardRenderer
+                        && BoardVisualRuntimeForBoardRenderer === runtime
+                        && controller.getMode?.() === 'idle'
+                    ) renderBoard();
+                } catch (error) {
+                    _recordBoardInputErrorForBoardRenderer('input:deferred-overlay-render-error', error);
+                } finally {
+                    resolve();
+                }
+            }, 0);
+        })).catch((error) => {
+            _recordBoardInputErrorForBoardRenderer('input:deferred-overlay-wait-error', error);
+        }).finally(() => {
+            if (BoardInputDeferredOverlayRenderForBoardRenderer === pending) {
+                BoardInputDeferredOverlayRenderForBoardRenderer = null;
+            }
+        });
+        BoardInputDeferredOverlayRenderForBoardRenderer = pending;
+        return;
+    }
+    try {
+        renderBoard();
+    } catch (error) {
+        _recordBoardInputErrorForBoardRenderer('input:overlay-render-error', error);
+    }
+}
+
+function _setBoardInputKeyboardCursorKeyForBoardRenderer(rawKey: unknown): boolean {
+    const next = rawKey == null ? null : String(rawKey);
+    if (BoardInputKeyboardCursorKeyForBoardRenderer === next) return false;
+    BoardInputKeyboardCursorKeyForBoardRenderer = next;
+    _requestBoardInputOverlayRenderForBoardRenderer();
+    return true;
+}
+
+function _isBoardInputLockedForBoardRenderer(): boolean {
+    const controller = BoardVisualRuntimeForBoardRenderer && BoardVisualRuntimeForBoardRenderer.controller;
+    if (controller && typeof controller.getMode === 'function' && controller.getMode() !== 'idle') return true;
+    if (
+        controller
+        && typeof controller.isIdleSettlementPending === 'function'
+        && controller.isIdleSettlementPending() === true
+    ) return true;
+    try {
+        return BoardInputLockResolverForBoardRenderer?.() === true;
+    } catch (_error) {
+        return true;
+    }
+}
+
+function _emitBoardInputBlockedForBoardRenderer(reason: string) {
+    if (reason !== 'spectator') return;
+    try {
+        const root = typeof window !== 'undefined' ? window as any : null;
+        if (root && typeof root.writeNetworkStatus === 'function') {
+            root.writeNetworkStatus('観測中は操作できません', true);
+        }
+    } catch (_error) { /* status is presentation-only */ }
+}
+
+function getBoardInputController() {
+    if (BoardInputControllerForBoardRenderer) return BoardInputControllerForBoardRenderer;
+    const InputModule = _require('./board-input-controller');
+    if (!InputModule || typeof InputModule.createBoardInputController !== 'function') {
+        throw new Error('Board input controller capability is unavailable');
+    }
+    const DiffRendererModule = _require('./diff-renderer');
+    const presentation = DiffRendererModule
+        && typeof DiffRendererModule.getBoardInputPresentationCapabilities === 'function'
+        ? DiffRendererModule.getBoardInputPresentationCapabilities()
+        : {};
+    const input = InputModule.createBoardInputController({
+        ...presentation,
+        handleCellClick: (row: number, col: number, directionKey?: string) => {
+            if (typeof handleCellClick !== 'function') throw new Error('handleCellClick is unavailable');
+            return handleCellClick(row, col, directionKey);
+        },
+        getCellClientRect: (row: number, col: number) => {
+            const visualController = BoardVisualRuntimeForBoardRenderer && BoardVisualRuntimeForBoardRenderer.controller;
+            return visualController && typeof visualController.getCellClientRect === 'function'
+                ? visualController.getCellClientRect(row, col)
+                : null;
+        },
+        setKeyboardCursorKey: _setBoardInputKeyboardCursorKeyForBoardRenderer,
+        isInputLocked: _isBoardInputLockedForBoardRenderer,
+        onBlocked: _emitBoardInputBlockedForBoardRenderer
+    });
+    BoardInputControllerForBoardRenderer = input;
+    const visualController = BoardVisualRuntimeForBoardRenderer && BoardVisualRuntimeForBoardRenderer.controller;
+    const settledFrame = visualController && typeof visualController.getSettledFrame === 'function'
+        ? visualController.getSettledFrame()
+        : null;
+    if (settledFrame && settledFrame.model && typeof input.syncModel === 'function') input.syncModel(settledFrame.model);
+    return input;
+}
+
+function activateBoardInputController(options?: { isInputLocked?: () => boolean }) {
+    if (options && Object.prototype.hasOwnProperty.call(options, 'isInputLocked')) {
+        if (options.isInputLocked != null && typeof options.isInputLocked !== 'function') {
+            throw new Error('Board input lock resolver must be a function');
+        }
+        BoardInputLockResolverForBoardRenderer = options.isInputLocked || null;
+    }
+    const input = getBoardInputController();
+    input.activate?.();
+    input.syncInputState?.();
+    const visualController = BoardVisualRuntimeForBoardRenderer && BoardVisualRuntimeForBoardRenderer.controller;
+    const settledFrame = visualController?.getSettledFrame?.();
+    if (settledFrame) _syncSettledBoardInputForBoardRenderer(settledFrame);
+    return input;
+}
+
+function deactivateBoardInputController() {
+    return BoardInputControllerForBoardRenderer?.deactivate?.() === true;
+}
+
+function _syncSettledBoardInputForBoardRenderer(frame: any) {
+    if (!frame || !frame.model) return;
+    if (BoardInputControllerForBoardRenderer) {
+        try {
+            BoardInputControllerForBoardRenderer.syncModel?.(frame.model);
+        } catch (error) {
+            _recordBoardInputErrorForBoardRenderer('input:model-sync-error', error);
+        }
+    }
+    const runtime = BoardVisualRuntimeForBoardRenderer;
+    const controller = runtime && runtime.controller;
+    const backendKind = controller && typeof controller.getBackendKind === 'function'
+        ? controller.getBackendKind()
+        : null;
+    if (backendKind !== 'pixi') {
+        BoardAccessibilityLayerForBoardRenderer?.destroy?.();
+        BoardAccessibilityLayerForBoardRenderer = null;
+        return;
+    }
+    try {
+        const host = runtime.host || _resolveBoardElementForVisualRuntime();
+        if (!host) return;
+        if (!BoardAccessibilityLayerForBoardRenderer) {
+            const AccessibilityModule = _require('./board-accessibility-layer');
+            BoardAccessibilityLayerForBoardRenderer = AccessibilityModule.createBoardAccessibilityLayer({
+                document: host.ownerDocument,
+                onActivate: (row: number, col: number, directionKey: string) => {
+                    getBoardInputController().activateDirection?.(row, col, directionKey);
+                },
+                onFocus: (cellKey: string) => {
+                    getBoardInputController().focusDirectionHint?.(cellKey);
+                },
+                onBlur: (cellKey: string) => {
+                    getBoardInputController().blurDirectionHint?.(cellKey);
+                }
+            });
+        }
+        BoardAccessibilityLayerForBoardRenderer.mount(host, host.querySelector('canvas'));
+        BoardAccessibilityLayerForBoardRenderer.sync({
+            model: frame.model,
+            getCellClientRect: (row: number, col: number) => controller.getCellClientRect(row, col)
+        });
+    } catch (error) {
+        _recordBoardInputErrorForBoardRenderer('input:accessibility-sync-error', error);
+    }
+}
+
+function _subscribeSettledBoardInputForBoardRenderer(controller: any) {
+    if (!controller || typeof controller.subscribeSettledFrame !== 'function') return null;
+    return controller.subscribeSettledFrame(_syncSettledBoardInputForBoardRenderer, true);
+}
+
 function _disposeBoardVisualThemeFontObserverForBoardRenderer() {
     const dispose = BoardVisualThemeFontObserverDisposeForBoardRenderer;
     BoardVisualThemeFontObserverDisposeForBoardRenderer = null;
@@ -1472,6 +1672,7 @@ function _createBoardVisualRuntimeForBoardRenderer() {
         diagnostics,
         beginApplyFrame: _beginBoardVisualApplyTransactionForBoardRenderer
     });
+    const settledFrameSubscription = _subscribeSettledBoardInputForBoardRenderer(controller);
     const mountPromise = Promise.resolve(controller.mount(host));
     const initialReadyPromise = mountPromise.catch(async (error: any) => {
         diagnostics.record('controller:mount-error', { message: String(error && error.message || error || '') });
@@ -1511,7 +1712,7 @@ function _createBoardVisualRuntimeForBoardRenderer() {
         // mount transaction, then any later controller recovery cycle.
         controller.waitUntilReady = () => initialReadyPromise.then(() => controllerWaitUntilReady());
     }
-    const runtime = { controller, diagnostics, host, ready: initialReadyPromise };
+    const runtime = { controller, diagnostics, host, ready: initialReadyPromise, settledFrameSubscription };
     if (diagnostics.enabled === true) {
         const root = typeof window !== 'undefined' ? window : globalThis;
         DiagnosticsModule.installBoardVisualDebugContract(root, diagnostics, controller);
@@ -1532,7 +1733,12 @@ function configureBoardVisualController(controller: any, options?: any) {
         throw new Error('configureBoardVisualController requires a controller');
     }
     const previousRuntime = BoardVisualRuntimeForBoardRenderer;
+    BoardInputDeferredOverlayRenderGenerationForBoardRenderer += 1;
+    BoardInputDeferredOverlayRenderForBoardRenderer = null;
     _disposeBoardVisualThemeFontObserverForBoardRenderer();
+    try { previousRuntime?.settledFrameSubscription?.(); } catch (_error) { /* controller teardown continues */ }
+    BoardAccessibilityLayerForBoardRenderer?.destroy?.();
+    BoardAccessibilityLayerForBoardRenderer = null;
     if (
         previousRuntime
         && previousRuntime.controller
@@ -1547,7 +1753,8 @@ function configureBoardVisualController(controller: any, options?: any) {
         controller,
         diagnostics,
         host,
-        ready: controller.ready || Promise.resolve()
+        ready: controller.ready || Promise.resolve(),
+        settledFrameSubscription: _subscribeSettledBoardInputForBoardRenderer(controller)
     };
     if (diagnostics && diagnostics.enabled === true) {
         const DiagnosticsModule = _require('./board-visual/diagnostics');
@@ -2095,7 +2302,9 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
     const LayoutModule = _require('./board-visual/layout');
     const ThemeModule = _require('./board-visual/theme');
     const FramePresenterModule = _require('./board-visual/frame-presenter');
-    const baseInputs = DiffRendererModule.createBoardRenderInputs(undefined, baseVisualStateOverride);
+    const baseInputs = DiffRendererModule.createBoardRenderInputs({
+        keyboardCursorKey: BoardInputKeyboardCursorKeyForBoardRenderer
+    }, baseVisualStateOverride);
     const projection = DiffRendererModule.createBoardRenderProjection(undefined, baseInputs);
     const cellState = DiffRendererModule.buildCurrentCellState(projection, baseInputs);
     const presentationOverlayState = DiffRendererModule.createBoardPresentationOverlayState(
@@ -2158,6 +2367,16 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
 }
 
 function resetBoardVisualRenderSession() {
+    BoardInputDeferredOverlayRenderGenerationForBoardRenderer += 1;
+    BoardInputDeferredOverlayRenderForBoardRenderer = null;
+    BoardInputOverlayRenderSuppressedForBoardRenderer = true;
+    try {
+        BoardInputKeyboardCursorKeyForBoardRenderer = null;
+        BoardInputControllerForBoardRenderer?.reset?.();
+        BoardAccessibilityLayerForBoardRenderer?.clear?.();
+    } finally {
+        BoardInputOverlayRenderSuppressedForBoardRenderer = false;
+    }
     BoardVisualRenderSessionEpochForBoardRenderer = BoardVisualRenderSessionEpochForBoardRenderer >= Number.MAX_SAFE_INTEGER
         ? 1
         : BoardVisualRenderSessionEpochForBoardRenderer + 1;
@@ -2358,6 +2577,9 @@ const BoardRenderer = {
             renderBoardFull,
             getBoardVisualController,
             getBoardVisualControllerReady,
+            getBoardInputController,
+            activateBoardInputController,
+            deactivateBoardInputController,
             configureBoardVisualController,
             configureBoardVisualBackendForTest,
             claimBoardVisualWriter,

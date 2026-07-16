@@ -37,6 +37,49 @@ function backend(overrides: Record<string, unknown> = {}) {
 }
 
 describe('BoardVisualController async visual settlement', () => {
+  test('publishes a frame to input consumers only after visual settlement commits', async () => {
+    const settlement = deferred();
+    const visualBackend = backend({
+      waitForVisualSettlement: jest.fn(() => settlement.promise)
+    });
+    const controller = ControllerModule.createBoardVisualController({ backend: visualBackend });
+    const settled: any[] = [];
+    controller.subscribeSettledFrame((value: any) => settled.push(value));
+    await controller.mount({} as HTMLElement);
+    const value = frame('idle:settled-input', 1);
+
+    expect(controller.submitFrame(value)).toBe(true);
+    expect(controller.getSettledFrame()).toBeNull();
+    expect(settled).toEqual([]);
+
+    settlement.resolve();
+    await controller.waitForIdle();
+    await Promise.resolve();
+
+    expect(controller.getSettledFrame()).toBe(value);
+    expect(settled).toEqual([value]);
+  });
+
+  test('does not publish a frame whose visual settlement rolls back', async () => {
+    const settlement = deferred();
+    const visualBackend = backend({
+      waitForVisualSettlement: jest.fn(() => settlement.promise)
+    });
+    const controller = ControllerModule.createBoardVisualController({ backend: visualBackend });
+    const listener = jest.fn();
+    controller.subscribeSettledFrame(listener);
+    await controller.mount({} as HTMLElement);
+    const value = frame('idle:failed-input', 2);
+
+    controller.submitFrame(value);
+    settlement.reject(new Error('settlement failed'));
+    await expect(controller.waitForIdle()).rejects.toThrow('settlement failed');
+    await Promise.resolve();
+
+    expect(controller.getSettledFrame()).toBeNull();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
   test('prepares only the latest synchronous playback frame without applying it', async () => {
     const visualBackend = backend();
     const controller = ControllerModule.createBoardVisualController({ backend: visualBackend });

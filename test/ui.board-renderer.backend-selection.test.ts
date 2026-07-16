@@ -76,6 +76,28 @@ function createInitialFrame() {
   };
 }
 
+function createInteractiveFrame() {
+  const frame: any = createInitialFrame();
+  frame.frameToken = 'input:settled:1';
+  frame.model.cells = [{
+    key: '0,0',
+    row: 0,
+    col: 0,
+    kind: 'playable',
+    interaction: {
+      legal: true,
+      legalFree: false,
+      interactionLocked: false,
+      directionHints: [{
+        id: 'expand:right',
+        kind: 'board-expansion-will',
+        directionKey: 'right'
+      }]
+    }
+  }];
+  return frame;
+}
+
 describe('board renderer backend selection and initial compatibility fallback', () => {
   let dom: JSDOM;
   let controller: any;
@@ -102,6 +124,7 @@ describe('board renderer backend selection and initial compatibility fallback', 
     delete (global as any).window;
     delete (global as any).document;
     delete (global as any).boardEl;
+    delete (global as any).handleCellClick;
   });
 
   test.each([
@@ -138,7 +161,13 @@ describe('board renderer backend selection and initial compatibility fallback', 
     controller = renderer.getBoardVisualController();
     await controller.waitUntilReady();
 
-    expect(createPixiBackend).toHaveBeenCalledWith({ noAnimation: true });
+    expect(createPixiBackend).toHaveBeenCalledWith(expect.objectContaining({
+      noAnimation: true,
+      getInputController: expect.any(Function)
+    }));
+    const inputController = createPixiBackend.mock.calls[0][0].getInputController();
+    expect(inputController).toBe(renderer.getBoardInputController());
+    expect(inputController.getState().enabled).toBe(false);
     expect(createDomBackend).not.toHaveBeenCalled();
     expect(controller.getBackendKind()).toBe('pixi');
     expect(document.querySelectorAll('#board > canvas')).toHaveLength(1);
@@ -154,8 +183,100 @@ describe('board renderer backend selection and initial compatibility fallback', 
     controller = renderer.getBoardVisualController();
     await controller.waitUntilReady();
 
-    expect(createPixiBackend).toHaveBeenCalledWith({ noAnimation: true });
+    expect(createPixiBackend).toHaveBeenCalledWith(expect.objectContaining({
+      noAnimation: true,
+      getInputController: expect.any(Function)
+    }));
     expect(controller.getBackendKind()).toBe('pixi');
+  });
+
+  test('enables one shared input controller after readiness and publishes Pixi semantics only after settlement', async () => {
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    const handleCellClick = jest.fn();
+    (global as any).handleCellClick = handleCellClick;
+    const pixiBackend = createBackend('pixi', {
+      mount(host) {
+        host.replaceChildren(document.createElement('canvas'));
+      }
+    });
+    pixiBackend.getCellClientRect.mockReturnValue({
+      left: 10,
+      top: 20,
+      right: 54,
+      bottom: 64,
+      width: 44,
+      height: 44,
+      layoutRevision: 1
+    });
+    const createPixiBackend = jest.fn(() => pixiBackend);
+    renderer.configureBoardVisualBackendForTest({ createPixiBackend });
+
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+    const input = createPixiBackend.mock.calls[0][0].getInputController();
+    expect(input.getState().enabled).toBe(false);
+    expect(renderer.activateBoardInputController()).toBe(input);
+    expect(input.getState().enabled).toBe(true);
+
+    expect(controller.submitFrame(createInteractiveFrame())).toBe(true);
+    expect(document.querySelector('.board-accessibility-layer')).toBeNull();
+    await controller.waitForIdle();
+    await Promise.resolve();
+
+    const layers = document.querySelectorAll('#board > .board-accessibility-layer');
+    const button = layers[0]?.querySelector('button') as HTMLButtonElement | null;
+    expect(layers).toHaveLength(1);
+    expect(document.querySelector('#board canvas')?.getAttribute('aria-hidden')).toBe('true');
+    expect(button?.getAttribute('role')).toBe('button');
+    expect(button?.getAttribute('aria-label')).toBe('盤面を→方向へ拡張');
+    expect(input.getLegalCells()).toEqual([{ row: 0, col: 0, key: '0,0' }]);
+
+    button?.click();
+    expect(handleCellClick).toHaveBeenCalledWith(0, 0, 'right');
+  });
+
+  test('keeps board input locked until an idle visual frame has settled', async () => {
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    let resolveSettlement!: () => void;
+    const settlement = new Promise<void>((resolve) => {
+      resolveSettlement = resolve;
+    });
+    const pixiBackend = createBackend('pixi');
+    (pixiBackend as any).waitForVisualSettlement = jest.fn(() => settlement);
+    const createPixiBackend = jest.fn(() => pixiBackend);
+    renderer.configureBoardVisualBackendForTest({ createPixiBackend });
+
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+    const input = renderer.activateBoardInputController();
+
+    expect(controller.submitFrame(createInteractiveFrame())).toBe(true);
+    await Promise.resolve();
+    expect(controller.getMode()).toBe('idle');
+    expect(controller.isIdleSettlementPending()).toBe(true);
+    expect(input.getState().locked).toBe(true);
+
+    resolveSettlement();
+    await controller.waitForIdle();
+    expect(controller.isIdleSettlementPending()).toBe(false);
+    expect(input.getState().locked).toBe(false);
+  });
+
+  test('never mounts the Pixi semantic layer for the DOM compatibility backend', async () => {
+    const renderer = loadRenderer();
+    const domBackend = createBackend('dom');
+    renderer.configureBoardVisualBackendForTest({
+      selection: 'dom',
+      createDomBackend: () => domBackend
+    });
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+    renderer.activateBoardInputController();
+    controller.submitFrame(createInteractiveFrame());
+    await controller.waitForIdle();
+    await Promise.resolve();
+
+    expect(document.querySelector('.board-accessibility-layer')).toBeNull();
   });
 
   test('rejects live animation as a typed capability error without silently selecting DOM', async () => {

@@ -165,6 +165,22 @@ function countDisplayObjects(root: any): number {
   return 1 + children.reduce((total: number, child: any) => total + countDisplayObjects(child), 0);
 }
 
+function rectangularHitArea(width: number, height: number): Readonly<{
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  contains(x: number, y: number): boolean;
+}> {
+  return Object.freeze({
+    x: 0,
+    y: 0,
+    width,
+    height,
+    contains: (x: number, y: number) => x >= 0 && x < width && y >= 0 && y < height
+  });
+}
+
 function frameViewRevisionSignature(
   frame: BoardVisualFrame,
   textureIdentity: string,
@@ -213,7 +229,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   const effectGutterCells = normalizeEffectGutter(options.effectGutterCells);
   const maxRetainedViews = normalizeMaxRetainedViews(options.maxRetainedViews);
   const root = createPixiContainer(runtime, 'pixi-board-scene');
-  root.eventMode = 'none';
+  // Passive ancestors let Pixi traverse only the sparse materialized hit
+  // objects while every visible pixel remains owned by the visual layers.
+  root.eventMode = 'passive';
   const mutableLayers = {} as Record<PixiBoardSceneLayerName, any>;
   for (const name of PIXI_BOARD_SCENE_LAYER_ORDER) {
     const layer = createPixiContainer(runtime, `pixi-board-layer:${name}`);
@@ -223,6 +241,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     addPixiChild(root, layer);
   }
   const layers = Object.freeze(mutableLayers);
+  layers.interaction.eventMode = 'none';
+  layers.interaction.cursor = 'default';
+  layers.interaction.hitArea = null;
   if (options.stage) addPixiChild(options.stage, root);
   const boardSurfaceFill = createPixiGraphics(runtime, 'pixi-board-surface-fill');
   const boardSurfaceTexture = createPixiSprite(runtime, 'pixi-board-surface-texture');
@@ -501,6 +522,14 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     const sceneOffsetY = Number.isFinite(Number(context.canvasViewport?.sceneOffsetY))
       ? Number(context.canvasViewport!.sceneOffsetY)
       : defaultOffset;
+    // This one static parent receives Federated global moves and delegates
+    // cell authority to the shared O(1) controller. Child hit areas exist
+    // only for materialized sparse cells; no dense void model is allocated.
+    layers.interaction.eventMode = 'static';
+    layers.interaction.hitArea = rectangularHitArea(
+      frame.layout.camera.viewportWidth,
+      frame.layout.camera.viewportHeight
+    );
     const nextBoardTextureMode = updateBoardSurface(frame, context, sceneOffsetX, sceneOffsetY);
     const materialized = materializeBoardViewport({
       model: frame.model,
@@ -602,6 +631,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     boardSurfaceFill.visible = false;
     boardSurfaceOverlay.visible = false;
     if (boardSurfaceTexture) boardSurfaceTexture.visible = false;
+    layers.interaction.eventMode = 'none';
+    layers.interaction.hitArea = null;
     materializationWindow = null;
     resetCount += 1;
   }

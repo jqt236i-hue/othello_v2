@@ -170,6 +170,32 @@
     max-height: none;
 }
 
+/* Pixi owns every visible board pixel. This transparent, game-specific DOM
+   layer preserves only the legacy focusable expansion-direction controls. */
+#board > .board-accessibility-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: calc(var(--board-layer-expanded-cell) + 20);
+}
+
+#board > .board-accessibility-layer > .board-accessibility-direction-button {
+    position: absolute;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: transparent;
+    opacity: 0;
+    pointer-events: auto;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+}
+
 /* Disable interactions during active playback */
 #board.playback-locked {
     pointer-events: none;

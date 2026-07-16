@@ -240,9 +240,10 @@ function createSceneFixture() {
   const failTokens = new Set<string>();
   let destroyed = false;
   let resetCount = 0;
+  const interactionLayer = { kind: 'interaction-layer' };
   const scene = {
     root: {},
-    layers: {},
+    layers: { interaction: interactionLayer },
     applyFrame: jest.fn((frame: BoardVisualFrame, context: any) => {
       if (failTokens.has(frame.frameToken)) throw new Error(`scene-failed:${frame.frameToken}`);
       applyCalls.push({ frame, context });
@@ -320,6 +321,8 @@ function createHarness(options: {
   webglAvailable?: boolean;
   sceneFactoryThrows?: boolean;
   cameraFactory?: any;
+  inputFactory?: any;
+  getInputController?: () => any;
   customBoardBlob?: Blob | null;
 } = {}) {
   const dom = new JSDOM('<!doctype html><div id="board"><div class="cell">legacy</div></div>', {
@@ -365,6 +368,8 @@ function createHarness(options: {
       ? (() => { throw new Error('scene-init-failed'); })
       : (() => scene.scene),
     cameraFactory: options.cameraFactory,
+    inputFactory: options.inputFactory,
+    getInputController: options.getInputController,
     resolveAppearance: (frame) => resolvedAppearance(frame, false, options.customBoardBlob || null),
     resolveDefaultAppearance: (frame) => resolvedAppearance(frame, true),
     acquireAppearanceLease: (appearance) => {
@@ -397,6 +402,45 @@ function createHarness(options: {
 }
 
 describe('Pixi board backend integration', () => {
+  test('mounts and destroys the normalized board input adapter with the camera viewport', async () => {
+    const input = {
+      mount: jest.fn(),
+      syncViewportMetrics: jest.fn(),
+      destroy: jest.fn(),
+      getDiagnostics: jest.fn(() => ({ mounted: true }))
+    };
+    const inputFactory = jest.fn(() => input);
+    const controller = { hitTestClientPoint: jest.fn(), handlePointer: jest.fn() };
+    const getInputController = jest.fn(() => controller);
+    const harness = createHarness({ inputFactory, getInputController });
+
+    await harness.backend.mount(harness.host, {});
+
+    expect(inputFactory).toHaveBeenCalledWith({ getController: getInputController });
+    expect(input.mount).toHaveBeenCalledWith({
+      viewport: harness.host.querySelector('#board-scroll-viewport'),
+      renderer: harness.app.instances[0].renderer,
+      interactionLayer: harness.scene.scene.layers.interaction
+    });
+    expect(getInputController).not.toHaveBeenCalled();
+
+    const frame = makeFrame('input-metrics', 1, { viewportWidth: 160, viewportHeight: 120 });
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+    expect(input.syncViewportMetrics).toHaveBeenLastCalledWith({
+      width: 160,
+      height: 120,
+      resolution: 2
+    });
+
+    harness.backend.destroy();
+    expect(input.destroy).toHaveBeenCalledTimes(1);
+    expect(input.destroy.mock.invocationCallOrder[0]).toBeLessThan(
+      harness.scene.scene.destroy.mock.invocationCallOrder[0]
+    );
+  });
+
   test('mounts one WebGL canvas, prepares the initial frame, and commits a cell-less static scene', async () => {
     const harness = createHarness();
     const frame = makeFrame('initial', 1, { special: true });
@@ -660,7 +704,7 @@ describe('Pixi board backend integration', () => {
     });
   });
 
-  test('uses the strict init-code allowlist and never marks camera or scene failures as DOM fallback candidates', async () => {
+  test('uses the strict init-code allowlist and never marks camera, scene, or input failures as DOM fallback candidates', async () => {
     const runtimeUnavailable = createHarness();
     const missingRuntime = Backend.createPixiBoardVisualBackend({
       runtime: {},
@@ -695,6 +739,20 @@ describe('Pixi board backend integration', () => {
     const sceneError = await scene.backend.mount(scene.host, {}).catch((error) => error);
     expect(sceneError).toMatchObject({ code: 'pixi_scene_init_failed', fallbackEligible: false });
     expect(Backend.isPixiCompatibilityFallbackError(sceneError)).toBe(false);
+    const failedInput = {
+      mount: jest.fn(() => { throw new Error('input-failed'); }),
+      syncViewportMetrics: jest.fn(),
+      destroy: jest.fn(),
+      getDiagnostics: jest.fn()
+    };
+    const input = createHarness({
+      inputFactory: () => failedInput,
+      getInputController: () => ({ hitTestClientPoint: jest.fn(), handlePointer: jest.fn() })
+    });
+    const inputError = await input.backend.mount(input.host, {}).catch((error) => error);
+    expect(inputError).toMatchObject({ code: 'pixi_input_init_failed', fallbackEligible: false });
+    expect(Backend.isPixiCompatibilityFallbackError(inputError)).toBe(false);
+    expect(failedInput.destroy).toHaveBeenCalledTimes(1);
   });
 
   test('accepts Pixi v8 numeric WEBGL and rejects numeric WEBGPU/CANVAS renderers', async () => {

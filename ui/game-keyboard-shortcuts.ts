@@ -1,15 +1,16 @@
-interface LegalCell {
-    row: number;
-    col: number;
-    key: string;
-    el: HTMLElement;
+interface BoardInputKeyboardPort {
+    handleKeyboard: (event: KeyboardEvent) => boolean;
+    refreshLegalCells?: () => void;
+    clearKeyboardCursor?: () => void;
+    getState?: () => { keyboardCursorKey?: string | null };
 }
 
 interface GameKeyboardShortcutDeps {
     getDocumentRef?: () => Document | null;
     getWindowRef?: () => (Window & Record<string, any>) | null;
     getCardStateValue?: () => any;
-    handleCellClick?: (row: number, col: number) => void;
+    boardInputController?: BoardInputKeyboardPort | null;
+    getBoardInputController?: () => BoardInputKeyboardPort | null;
     useSelectedCard?: () => void;
     destroySelectedHandCard?: () => void;
     isNetworkSpectator?: () => boolean;
@@ -33,8 +34,6 @@ const BLOCKING_UI_SELECTORS = [
     '#gachaOverlay.is-open',
     '#deckBuilderOverlay.is-open'
 ];
-
-const LEGAL_CURSOR_CLASS = 'keyboard-legal-cursor';
 
 function getDocumentFromDeps(deps: GameKeyboardShortcutDeps): Document | null {
     if (deps.getDocumentRef) return deps.getDocumentRef();
@@ -85,61 +84,6 @@ function isBlockingUiOpen(doc: Document): boolean {
     });
 }
 
-function normalizeLegalCell(el: Element): LegalCell | null {
-    const row = Number((el as HTMLElement).dataset.row);
-    const col = Number((el as HTMLElement).dataset.col);
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
-    return { row, col, key: `${row},${col}`, el: el as HTMLElement };
-}
-
-function collectLegalCells(doc: Document): LegalCell[] {
-    return Array.from(doc.querySelectorAll('.cell.legal, .cell.legal-free'))
-        .map(normalizeLegalCell)
-        .filter((cell): cell is LegalCell => !!cell)
-        .sort((a, b) => (a.row - b.row) || (a.col - b.col));
-}
-
-function clearLegalCursor(doc: Document, state: ShortcutState): void {
-    doc.querySelectorAll(`.${LEGAL_CURSOR_CLASS}`).forEach((el) => el.classList.remove(LEGAL_CURSOR_CLASS));
-    state.legalCursorKey = null;
-}
-
-function applyLegalCursor(doc: Document, state: ShortcutState, cell: LegalCell | null): void {
-    doc.querySelectorAll(`.${LEGAL_CURSOR_CLASS}`).forEach((el) => el.classList.remove(LEGAL_CURSOR_CLASS));
-    if (!cell) {
-        state.legalCursorKey = null;
-        return;
-    }
-    cell.el.classList.add(LEGAL_CURSOR_CLASS);
-    state.legalCursorKey = cell.key;
-}
-
-function getCurrentLegalCell(cells: LegalCell[], state: ShortcutState): LegalCell | null {
-    if (!state.legalCursorKey) return null;
-    return cells.find((cell) => cell.key === state.legalCursorKey) || null;
-}
-
-function chooseDirectionalLegalCell(cells: LegalCell[], current: LegalCell, direction: 'up' | 'down' | 'left' | 'right'): LegalCell | null {
-    const candidates = cells.filter((cell) => {
-        if (direction === 'up') return cell.row < current.row;
-        if (direction === 'down') return cell.row > current.row;
-        if (direction === 'left') return cell.col < current.col;
-        return cell.col > current.col;
-    });
-    if (candidates.length <= 0) return null;
-    const score = (cell: LegalCell): [number, number, number, number] => {
-        if (direction === 'up' || direction === 'down') {
-            return [Math.abs(cell.row - current.row), Math.abs(cell.col - current.col), cell.row, cell.col];
-        }
-        return [Math.abs(cell.col - current.col), Math.abs(cell.row - current.row), cell.row, cell.col];
-    };
-    return candidates.sort((a, b) => {
-        const sa = score(a);
-        const sb = score(b);
-        return (sa[0] - sb[0]) || (sa[1] - sb[1]) || (sa[2] - sb[2]) || (sa[3] - sb[3]);
-    })[0] || null;
-}
-
 function resolveDirection(code: string): 'up' | 'down' | 'left' | 'right' | null {
     if (code === 'KeyW') return 'up';
     if (code === 'KeyS') return 'down';
@@ -148,27 +92,9 @@ function resolveDirection(code: string): 'up' | 'down' | 'left' | 'right' | null
     return null;
 }
 
-function moveLegalCursor(doc: Document, state: ShortcutState, direction: 'up' | 'down' | 'left' | 'right'): boolean {
-    const cells = collectLegalCells(doc);
-    if (cells.length <= 0) {
-        clearLegalCursor(doc, state);
-        return false;
-    }
-    const current = getCurrentLegalCell(cells, state);
-    const next = current ? chooseDirectionalLegalCell(cells, current, direction) || current : cells[0];
-    applyLegalCursor(doc, state, next);
-    return true;
-}
-
-function placeLegalCursor(deps: GameKeyboardShortcutDeps, doc: Document, state: ShortcutState): boolean {
-    const cells = collectLegalCells(doc);
-    const current = getCurrentLegalCell(cells, state);
-    if (!current) return false;
-    const root = getWindowFromDeps(deps);
-    const fn = deps.handleCellClick || (root && typeof root.handleCellClick === 'function' ? root.handleCellClick : null);
-    if (typeof fn !== 'function') return false;
-    fn(current.row, current.col);
-    return true;
+function resolveBoardInputController(deps: GameKeyboardShortcutDeps): BoardInputKeyboardPort | null {
+    if (deps.boardInputController) return deps.boardInputController;
+    return deps.getBoardInputController?.() || null;
 }
 
 function getSelectedCardElement(doc: Document): HTMLElement | null {
@@ -262,7 +188,6 @@ function isGameShortcutKey(event: KeyboardEvent, direction: string | null): bool
 }
 
 function createGameKeyboardShortcutController(deps: GameKeyboardShortcutDeps = {}) {
-    const state: ShortcutState = { legalCursorKey: null };
     let bound = false;
 
     const handleKeydown = (event: KeyboardEvent) => {
@@ -281,13 +206,12 @@ function createGameKeyboardShortcutController(deps: GameKeyboardShortcutDeps = {
                 if (moveCardSelection(doc, direction === 'left' ? -1 : 1)) event.preventDefault();
                 return;
             }
-            if (moveLegalCursor(doc, state, direction)) event.preventDefault();
+            resolveBoardInputController(deps)?.handleKeyboard(event);
             return;
         }
 
         if (isSpaceKey(event) && !event.shiftKey) {
-            if (event.repeat) return;
-            if (placeLegalCursor(deps, doc, state)) event.preventDefault();
+            resolveBoardInputController(deps)?.handleKeyboard(event);
             return;
         }
 
@@ -311,23 +235,15 @@ function createGameKeyboardShortcutController(deps: GameKeyboardShortcutDeps = {
             const doc = getDocumentFromDeps(deps);
             if (!doc || !bound) return;
             doc.removeEventListener('keydown', handleKeydown);
-            clearLegalCursor(doc, state);
+            resolveBoardInputController(deps)?.clearKeyboardCursor?.();
             bound = false;
         },
         refresh(): void {
-            const doc = getDocumentFromDeps(deps);
-            if (!doc) return;
-            const cells = collectLegalCells(doc);
-            if (cells.length <= 0) {
-                clearLegalCursor(doc, state);
-                return;
-            }
-            if (!getCurrentLegalCell(cells, state)) {
-                applyLegalCursor(doc, state, null);
-            }
+            resolveBoardInputController(deps)?.refreshLegalCells?.();
         },
         getState(): ShortcutState {
-            return { ...state };
+            const inputState = resolveBoardInputController(deps)?.getState?.();
+            return { legalCursorKey: inputState?.keyboardCursorKey || null };
         }
     };
 }
@@ -341,7 +257,7 @@ function setupGameKeyboardShortcuts(deps: GameKeyboardShortcutDeps = {}) {
     controller.init();
     if (root) {
         root.__gameKeyboardShortcutController = controller;
-        root.GameKeyboardShortcutsModule = { createGameKeyboardShortcutController, setupGameKeyboardShortcuts };
+        root.GameKeyboardShortcutsModule = { createGameKeyboardShortcutController, setupGameKeyboardShortcuts, isBlockingUiOpen };
     }
     return controller;
 }
@@ -350,12 +266,14 @@ if (typeof window !== 'undefined') {
     try {
         (window as any).GameKeyboardShortcutsModule = {
             createGameKeyboardShortcutController,
-            setupGameKeyboardShortcuts
+            setupGameKeyboardShortcuts,
+            isBlockingUiOpen
         };
     } catch (e) { /* ignore */ }
 }
 
 export = {
     createGameKeyboardShortcutController,
-    setupGameKeyboardShortcuts
+    setupGameKeyboardShortcuts,
+    isBlockingUiOpen
 };

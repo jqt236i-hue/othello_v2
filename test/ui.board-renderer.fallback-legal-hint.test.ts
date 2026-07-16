@@ -3,7 +3,7 @@ import { JSDOM } from 'jsdom';
 describe('board-renderer fallback legal hints', () => {
   let dom;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.resetModules();
 
     dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
@@ -58,9 +58,19 @@ describe('board-renderer fallback legal hints', () => {
       markers: [],
       pendingEffectByPlayer: { black: null, white: null }
     };
+
+    // Board rendering is controller-owned and the backend mount is async.
+    // Bootstrap waits for this gate before callers can request a frame.
+    const renderer = require('../ui/board-renderer.js');
+    await renderer.getBoardVisualControllerReady();
   });
 
   afterEach(() => {
+    try {
+      require('../ui/board-renderer.js').getBoardVisualController()?.destroy?.();
+    } catch (e) {
+      // ignore controller cleanup after an assertion failure
+    }
     try {
       if (dom && dom.window && typeof dom.window.close === 'function') {
         dom.window.close();

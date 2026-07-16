@@ -162,12 +162,14 @@ describe('BoardRenderModel sparse projection', () => {
     ];
     cell.interaction.selectable = true;
     cell.interaction.selected = true;
+    cell.interaction.keyboardCursor = true;
     cell.interaction.selectionKinds = ['friendly', 'extend-life'];
     cell.interaction.previewKinds = ['random-spawn', 'super-attraction-path'];
     const model = BoardVisualModel.createBoardRenderModel({
       topology: createTopology(['0,0'], [], { minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 }),
       cells: [cell],
-      viewerContext: 'white'
+      viewerContext: 'white',
+      overlay: { keyboardCursorKey: '0,0' }
     });
 
     const compatibility = BoardVisualModelBuilder.buildDomCompatibilityRenderState(model);
@@ -180,6 +182,7 @@ describe('BoardRenderModel sparse projection', () => {
       isSuperAttractionPathPreview: true,
       isSelectableFriendly: true,
       isExtendLifeTarget: true,
+      isKeyboardCursor: true,
       breedingSprout: true,
       boardBonus: 6,
       theoryNumberCell: true,

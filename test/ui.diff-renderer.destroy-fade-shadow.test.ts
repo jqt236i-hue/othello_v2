@@ -1,8 +1,31 @@
 import { JSDOM } from 'jsdom';
 
 describe('DiffRenderer destroy-fade cleanup', () => {
+  let sharedInputController: any = null;
+
+  function getSharedInputController() {
+    if (sharedInputController) return sharedInputController;
+    const diff = require('../ui/diff-renderer.js');
+    const inputModule = require('../ui/board-input-controller.ts');
+    sharedInputController = inputModule.createBoardInputController({
+      ...diff.getBoardInputPresentationCapabilities(),
+      handleCellClick: (row: number, col: number, directionKey?: string) => (
+        (global as any).handleCellClick(row, col, directionKey)
+      )
+    });
+    sharedInputController.activate();
+    return sharedInputController;
+  }
+
   beforeEach(() => {
     jest.resetModules();
+    sharedInputController = null;
+    jest.doMock('../ui/board-renderer', () => ({
+      getBoardInputController: () => getSharedInputController()
+    }));
+    jest.doMock('../dist/ui/board-renderer', () => ({
+      getBoardInputController: () => getSharedInputController()
+    }));
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
@@ -37,6 +60,8 @@ describe('DiffRenderer destroy-fade cleanup', () => {
   });
 
   afterEach(() => {
+    sharedInputController?.destroy?.();
+    sharedInputController = null;
     jest.runOnlyPendingTimers();
     jest.useRealTimers();
     delete global.window;
@@ -513,6 +538,11 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     const targetCell = boardEl.querySelector('.cell[data-row="5"][data-col="4"]');
     targetCell.dispatchEvent(Object.assign(new window.Event('pointerenter', { bubbles: true }), { pointerType: 'mouse' }));
 
+    expect(sharedInputController).not.toBeNull();
+    expect(sharedInputController.getState().hoveredCellKey).toBe('5,4');
+    expect(global.CardLogic.getSuperAttractionPathPreview).toHaveBeenCalled();
+    diff.renderBoardDiff(boardEl);
+
     const diagonalCell = boardEl.querySelector('.cell[data-row="3"][data-col="3"]');
     const axisCell = boardEl.querySelector('.cell[data-row="3"][data-col="2"]');
     expect(diagonalCell.classList.contains('super-attraction-path-preview')).toBe(true);
@@ -521,6 +551,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     expect(targetCell.classList.contains('super-attraction-preview-destination')).toBe(true);
 
     targetCell.dispatchEvent(Object.assign(new window.Event('pointerleave', { bubbles: true }), { pointerType: 'mouse' }));
+    diff.renderBoardDiff(boardEl);
 
     expect(diagonalCell.classList.contains('super-attraction-path-preview')).toBe(false);
     expect(axisCell.classList.contains('super-attraction-path-preview')).toBe(false);

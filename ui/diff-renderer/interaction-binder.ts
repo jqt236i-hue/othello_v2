@@ -1,111 +1,98 @@
-function bindBoardCellInteraction(capabilities: any, cell: any, row: any, col: any): void {
+const BOARD_DIRECTION_HINT_SELECTOR = [
+    '.board-expansion-direction-hint',
+    '.board-shrink-god-direction-hint',
+    '.board-shrink-will-direction-hint'
+].join(', ');
+
+function resolveBoardInputController(capabilities: any): any {
+    const controller = capabilities && typeof capabilities.getInputController === 'function'
+        ? capabilities.getInputController()
+        : null;
+    if (!controller || typeof controller.handlePointer !== 'function') {
+        throw new Error('[DiffRendererInteractionBinder] board input controller unavailable');
+    }
+    return controller;
+}
+
+function resolveDirectionKey(event: any): string | undefined {
+    const target = event && event.target;
+    const directionHint = target && typeof target.closest === 'function'
+        ? target.closest(BOARD_DIRECTION_HINT_SELECTOR)
+        : null;
+    const directionKey = directionHint && directionHint.dataset
+        ? String(directionHint.dataset.direction || '').trim()
+        : '';
+    return directionKey || undefined;
+}
+
+function createPointerInput(type: string, event: any, row: number, col: number): any {
+    return {
+        type,
+        row,
+        col,
+        pointerId: event && event.pointerId,
+        pointerType: event && event.pointerType,
+        button: event && event.button,
+        clientX: event && event.clientX,
+        clientY: event && event.clientY,
+        directionKey: type === 'pointerup' ? resolveDirectionKey(event) : undefined,
+        preventDefault: event && typeof event.preventDefault === 'function'
+            ? () => event.preventDefault()
+            : undefined
+    };
+}
+
+function bindBoardCellInteraction(capabilities: any, cell: any, rawRow: any, rawCol: any): void {
     if (!cell) return;
-    const {
-        showIdleStoneInfoPanel,
-        ensureOutsideCloseHandler,
-        longPressMs,
-        longPressMoveCancelPx,
-        isHoverPointerEvent,
-        setSuperAttractionHoverPreview,
-        clearSuperAttractionHoverPreview,
-        showSpecialStoneInfoAt,
-        isTouchStoneInfoEvent,
-        handleCellClick,
-        setTimeout: setTimeoutFn,
-        clearTimeout: clearTimeoutFn
-    } = capabilities || {};
-    showIdleStoneInfoPanel();
+    const row = Number(rawRow);
+    const col = Number(rawCol);
+    capabilities?.showIdleStoneInfoPanel?.();
 
-    let pressTimer: any = null;
-    let pressActive = false;
-    let longPressed = false;
-    let startX = 0;
-    let startY = 0;
-
-    const clearPress = () => {
-        pressActive = false;
-        if (pressTimer) {
-            clearTimeoutFn(pressTimer);
-            pressTimer = null;
-        }
+    const forwardPointer = (type: string, event: any) => {
+        const controller = resolveBoardInputController(capabilities);
+        return controller.handlePointer(createPointerInput(type, event, row, col));
     };
 
-    cell.addEventListener('pointerdown', (ev: any) => {
-        if (ev.button !== 0) return;
-        ensureOutsideCloseHandler();
-        clearPress();
-        longPressed = false;
-        pressActive = true;
-        startX = Number(ev.clientX || 0);
-        startY = Number(ev.clientY || 0);
-        pressTimer = setTimeoutFn(() => {
-            if (!pressActive) return;
-            longPressed = true;
-            showSpecialStoneInfoAt(row, col);
-        }, longPressMs);
-    });
-
-    cell.addEventListener('pointerenter', (ev: any) => {
-        if (!isHoverPointerEvent(ev)) return;
-        ensureOutsideCloseHandler();
-        setSuperAttractionHoverPreview(row, col);
-        showSpecialStoneInfoAt(row, col, { preserveOnEmpty: true });
-    });
-
-    cell.addEventListener('pointermove', (ev: any) => {
-        if (isHoverPointerEvent(ev)) {
-            setSuperAttractionHoverPreview(row, col);
+    cell.addEventListener('pointerdown', (event: any) => forwardPointer('pointerdown', event));
+    cell.addEventListener('pointerenter', (event: any) => forwardPointer('pointerenter', event));
+    cell.addEventListener('pointermove', (event: any) => forwardPointer('pointermove', event));
+    cell.addEventListener('pointerup', (event: any) => forwardPointer('pointerup', event));
+    cell.addEventListener('pointerupoutside', (event: any) => forwardPointer('pointerupoutside', event));
+    cell.addEventListener('pointercancel', (event: any) => forwardPointer('pointercancel', event));
+    cell.addEventListener('pointerleave', (event: any) => forwardPointer('pointerleave', event));
+    cell.addEventListener('mouseleave', (event: any) => {
+        const controller = resolveBoardInputController(capabilities);
+        const normalized = createPointerInput('pointerleave', event, row, col);
+        if (normalized.pointerId == null && typeof controller.getState === 'function') {
+            normalized.pointerId = controller.getState()?.activePointerId ?? undefined;
         }
-        if (!pressActive) return;
-        const dx = Math.abs(Number(ev.clientX || 0) - startX);
-        const dy = Math.abs(Number(ev.clientY || 0) - startY);
-        if (dx > longPressMoveCancelPx || dy > longPressMoveCancelPx) {
-            clearPress();
-        }
+        controller.handlePointer(normalized);
     });
-
-    cell.addEventListener('pointerup', (ev: any) => {
-        if (!pressActive && !longPressed) return;
-        const wasLongPressed = longPressed;
-        clearPress();
-        if (wasLongPressed) {
-            ev.preventDefault();
-            return;
-        }
-        if (isTouchStoneInfoEvent(ev)) {
-            showSpecialStoneInfoAt(row, col);
-        }
-        const directionHint = ev && ev.target && typeof ev.target.closest === 'function'
-            ? ev.target.closest('.board-expansion-direction-hint')
-            : null;
-        const directionKey = directionHint && directionHint.dataset
-            ? directionHint.dataset.direction
-            : undefined;
-        handleCellClick(row, col, directionKey);
-    });
-
-    cell.addEventListener('pointercancel', () => clearPress());
-    cell.addEventListener('keydown', (ev: any) => {
-        if (!ev || (ev.key !== 'Enter' && ev.key !== ' ')) return;
-        const directionHint = ev.target && typeof ev.target.closest === 'function'
-            ? ev.target.closest('.board-expansion-direction-hint')
-            : null;
-        const directionKey = directionHint && directionHint.dataset
-            ? directionHint.dataset.direction
-            : undefined;
+    cell.addEventListener('keydown', (event: any) => {
+        if (!event || (event.key !== 'Enter' && event.key !== ' ')) return;
+        const directionKey = resolveDirectionKey(event);
         if (!directionKey) return;
-        ev.preventDefault();
-        handleCellClick(row, col, directionKey);
-    });
-    cell.addEventListener('pointerleave', (ev: any) => {
-        if (isHoverPointerEvent(ev)) {
-            clearSuperAttractionHoverPreview();
+        const controller = resolveBoardInputController(capabilities);
+        if (typeof controller.handleKeyboard !== 'function') {
+            throw new Error('[DiffRendererInteractionBinder] keyboard input capability unavailable');
         }
-        clearPress();
-    });
-    cell.addEventListener('mouseleave', () => {
-        clearSuperAttractionHoverPreview();
-        clearPress();
+        controller.handleKeyboard({
+            code: event.code,
+            key: event.key,
+            repeat: event.repeat,
+            shiftKey: event.shiftKey,
+            ctrlKey: event.ctrlKey,
+            altKey: event.altKey,
+            metaKey: event.metaKey,
+            isComposing: event.isComposing,
+            defaultPrevented: event.defaultPrevented,
+            row,
+            col,
+            directionKey,
+            preventDefault: typeof event.preventDefault === 'function'
+                ? () => event.preventDefault()
+                : undefined
+        });
     });
 }
 

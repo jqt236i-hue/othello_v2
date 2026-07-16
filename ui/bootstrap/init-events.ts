@@ -319,6 +319,19 @@ function setupBattleLogToggle(logToggleBtn: HTMLElement | null, logPanel: HTMLEl
   });
 }
 
+function activateBoardInputAfterVisualReady() {
+  const BoardRenderer = _require('../board-renderer');
+  if (!BoardRenderer || typeof BoardRenderer.activateBoardInputController !== 'function') {
+    throw new Error('board_input_controller_api_unavailable');
+  }
+  return BoardRenderer.activateBoardInputController({
+    isInputLocked: () => {
+      const doc = typeof document !== 'undefined' ? document : null;
+      return !doc || GameKeyboardShortcuts.isBlockingUiOpen(doc);
+    }
+  });
+}
+
 function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean): void {
   const root = (typeof window !== 'undefined') ? window : null;
   setupBattleLogToggle(refs.logToggleBtn, refs.logPanel);
@@ -440,8 +453,12 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
     initialCollapsed: debugAllowed !== true,
     root
   });
+  // initializeUI calls this module only after BoardVisualController readiness.
+  // Pointer and keyboard adapters must share the same controller instance.
+  const boardInputController = activateBoardInputAfterVisualReady();
   GameKeyboardShortcuts.setupGameKeyboardShortcuts({
-    getWindowRef: () => root as (Window & Record<string, unknown>) | null
+    getWindowRef: () => root as (Window & Record<string, unknown>) | null,
+    boardInputController
   });
 
   if (refs.destroyBtn && typeof destroySelectedHandCard === 'function') {

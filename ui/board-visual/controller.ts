@@ -135,6 +135,7 @@ function createBoardVisualController(options: {
   let localWriterSettlement: LocalWriterSettlement | null = null;
   let initialLatest: BoardVisualFrame | null = null;
   let lastApplied: BoardVisualFrame | null = null;
+  let lastSettled: BoardVisualFrame | null = null;
   let writerCheckpoint: BoardVisualFrame | null = null;
   let pendingCommittedRecoveryFrame: BoardVisualFrame | null = null;
   let tokenSequence = 0;
@@ -149,6 +150,8 @@ function createBoardVisualController(options: {
   const hostLeaseOwner = Object.freeze({});
   const idleWaiters = new Set<IdleWaiter>();
   const settlingIdleWaiters = new Set<IdleWaiter>();
+  const settledFrameListeners = new Set<(frame: BoardVisualFrame) => void>();
+  let settledFrameNotificationVersion = 0;
   let idleSettlement: Promise<void> | null = null;
   let resolveReady!: () => void;
   let rejectReady!: (error: unknown) => void;
@@ -297,6 +300,27 @@ function createBoardVisualController(options: {
     }
   };
 
+  const scheduleSettledFrameNotification = (frame: BoardVisualFrame) => {
+    const version = ++settledFrameNotificationVersion;
+    Promise.resolve().then(() => {
+      if (
+        mode === 'destroyed'
+        || version !== settledFrameNotificationVersion
+        || lastSettled !== frame
+      ) return;
+      for (const listener of Array.from(settledFrameListeners)) {
+        try {
+          listener(frame);
+        } catch (error) {
+          diagnostics.record('frame:settled-listener-error', {
+            frameToken: frame.frameToken,
+            message: toError(error, 'Board settled-frame listener failed').message
+          });
+        }
+      }
+    });
+  };
+
   const commitPresentation = (presentation: ActiveBoardFramePresentation | null) => {
     if (!presentation || presentation.state !== 'active') return;
     try {
@@ -304,6 +328,8 @@ function createBoardVisualController(options: {
       presentation.state = 'committed';
       if (activePresentation === presentation) activePresentation = null;
       lastApplied = presentation.presentedFrame;
+      lastSettled = presentation.presentedFrame;
+      scheduleSettledFrameNotification(presentation.presentedFrame);
     } catch (error) {
       rollbackPresentation(presentation);
       throw error;
@@ -822,7 +848,35 @@ function createBoardVisualController(options: {
       return backend.kind;
     },
     getVisualFrameDigest() {
-      return computeVisualFrameDigest(lastApplied);
+      return computeVisualFrameDigest(lastSettled);
+    },
+    getSettledFrame() {
+      return lastSettled;
+    },
+    subscribeSettledFrame(listener: (frame: BoardVisualFrame) => void, emitCurrent = false) {
+      assertAlive();
+      if (typeof listener !== 'function') {
+        throw new Error('Board settled-frame listener must be a function');
+      }
+      settledFrameListeners.add(listener);
+      if (emitCurrent && lastSettled) {
+        const current = lastSettled;
+        Promise.resolve().then(() => {
+          if (mode !== 'destroyed' && settledFrameListeners.has(listener) && lastSettled === current) {
+            try {
+              listener(current);
+            } catch (error) {
+              diagnostics.record('frame:settled-listener-error', {
+                frameToken: current.frameToken,
+                message: toError(error, 'Board settled-frame listener failed').message
+              });
+            }
+          }
+        });
+      }
+      return () => {
+        settledFrameListeners.delete(listener);
+      };
     },
     getRenderedCell(row: number, col: number) {
       const candidate = (backend as any).getRenderedCell;
@@ -1267,6 +1321,8 @@ function createBoardVisualController(options: {
       networkAwaitingStarted = false;
       networkCommittedApplied = false;
       recoveryError = null;
+      settledFrameNotificationVersion += 1;
+      settledFrameListeners.clear();
       releaseHostLease();
       if (destroyError) throw destroyError;
     }

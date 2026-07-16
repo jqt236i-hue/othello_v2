@@ -1,6 +1,23 @@
 import { JSDOM } from 'jsdom';
 
 describe('board cell long press info', () => {
+  let sharedInputController: any = null;
+
+  function getSharedInputController() {
+    if (sharedInputController) return sharedInputController;
+    const diff = require('../ui/diff-renderer.js');
+    const inputModule = require('../ui/board-input-controller.ts');
+    sharedInputController = inputModule.createBoardInputController({
+      ...diff.getBoardInputPresentationCapabilities(),
+      handleCellClick: (row: number, col: number, directionKey?: string) => {
+        if (directionKey == null) return (global as any).handleCellClick(row, col);
+        return (global as any).handleCellClick(row, col, directionKey);
+      }
+    });
+    sharedInputController.activate();
+    return sharedInputController;
+  }
+
   function dispatchPointer(target, type, props) {
     const ev = new Event(type, { bubbles: true, cancelable: true });
     const p = props || {};
@@ -13,6 +30,13 @@ describe('board cell long press info', () => {
 
   beforeEach(() => {
     jest.resetModules();
+    sharedInputController = null;
+    jest.doMock('../ui/board-renderer', () => ({
+      getBoardInputController: () => getSharedInputController()
+    }));
+    jest.doMock('../dist/ui/board-renderer', () => ({
+      getBoardInputController: () => getSharedInputController()
+    }));
     const dom = new JSDOM('<!doctype html><html><body></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;

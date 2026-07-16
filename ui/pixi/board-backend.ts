@@ -43,6 +43,12 @@ import {
   type PixiBoardScene,
   type PixiBoardSceneOptions
 } from './board-scene';
+import {
+  createPixiBoardInput,
+  type PixiBoardInput,
+  type PixiBoardInputControllerPort,
+  type PixiBoardInputOptions
+} from './board-input';
 import type { PixiStaticTextureSource } from './cell-view';
 
 export type PixiBoardBackendErrorStage =
@@ -52,6 +58,7 @@ export type PixiBoardBackendErrorStage =
   | 'camera-init'
   | 'mount'
   | 'scene-init'
+  | 'input-init'
   | 'texture-init'
   | 'texture-prepare'
   | 'texture-commit'
@@ -147,6 +154,8 @@ export interface PixiBoardBackendOptions {
   readonly applicationFactory?: (options: PixiBoardApplicationOptions) => PixiBoardApplication;
   readonly cameraFactory?: (options: PixiBoardCameraOptions) => PixiBoardCamera;
   readonly sceneFactory?: (options: PixiBoardSceneOptions) => PixiBoardScene;
+  readonly inputFactory?: (options: PixiBoardInputOptions) => PixiBoardInput;
+  readonly getInputController?: () => PixiBoardInputControllerPort | null;
   readonly textureManagerFactory?: (options: PixiTextureManagerOptions) => PixiTextureManager;
   readonly resolveAppearance?: AppearanceResolver;
   readonly resolveDefaultAppearance?: AppearanceResolver;
@@ -333,6 +342,7 @@ export function createPixiBoardVisualBackend(
   const applicationFactory = options.applicationFactory || createPixiBoardApplication;
   const cameraFactory = options.cameraFactory || createPixiBoardCamera;
   const sceneFactory = options.sceneFactory || createPixiBoardScene;
+  const inputFactory = options.inputFactory || createPixiBoardInput;
   const textureManagerFactory = options.textureManagerFactory || createPixiTextureManager;
   const runtime = options.runtime || PixiRuntimeContract.getPixiRuntime();
   const noAnimation = options.noAnimation === true;
@@ -342,6 +352,7 @@ export function createPixiBoardVisualBackend(
   let application: PixiBoardApplication | null = null;
   let camera: PixiBoardCamera | null = null;
   let scene: PixiBoardScene | null = null;
+  let input: PixiBoardInput | null = null;
   let textureManager: PixiTextureManager | null = null;
   let mountPromise: Promise<void> | null = null;
   let latestWork: FrameWork | null = null;
@@ -544,6 +555,11 @@ export function createPixiBoardVisualBackend(
   function resizeApplication(canvasViewport: PixiBoardCanvasViewport, layout: BoardViewportLayout): void {
     try {
       application!.resize(canvasViewport.width, canvasViewport.height, layout.dpr);
+      input?.syncViewportMetrics({
+        width: layout.camera.viewportWidth,
+        height: layout.camera.viewportHeight,
+        resolution: layout.dpr
+      });
     } catch (error) {
       throw rememberError(backendError({
         code: 'pixi_resize_failed',
@@ -761,11 +777,13 @@ export function createPixiBoardVisualBackend(
         }));
       }
     }
+    try { input?.destroy(); } catch (_error) { /* continue releasing visual resources */ }
     try { scene?.destroy(); } catch (_error) { /* continue releasing GPU resources */ }
     try { textureManager?.destroy(); } catch (_error) { /* continue releasing the context */ }
     try { camera?.destroy(); } catch (_error) { /* continue releasing the canvas */ }
     try { application?.destroy(); } catch (_error) { /* terminal cleanup */ }
     scene = null;
+    input = null;
     textureManager = null;
     camera = null;
     application = null;
@@ -959,6 +977,26 @@ export function createPixiBoardVisualBackend(
           message: `Pixi texture manager initialization failed: ${errorMessage(error)}`,
           detail: error
         });
+      }
+      assertMountActive();
+      if (typeof options.getInputController === 'function') {
+        try {
+          const viewport = camera!.getViewportElement();
+          if (!viewport) throw new Error('Pixi board input viewport is unavailable');
+          input = inputFactory({ getController: options.getInputController });
+          input.mount({
+            viewport,
+            renderer: application!.getRenderer(),
+            interactionLayer: scene!.layers.interaction
+          });
+        } catch (error) {
+          throw backendError({
+            code: 'pixi_input_init_failed',
+            stage: 'input-init',
+            message: `Pixi board input initialization failed: ${errorMessage(error)}`,
+            detail: error
+          });
+        }
       }
       assertMountActive();
       state = 'ready';

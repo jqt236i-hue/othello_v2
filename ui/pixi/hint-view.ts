@@ -44,6 +44,22 @@ export interface PixiHintView {
   getDiagnostics(): PixiHintViewDiagnostics;
 }
 
+function rectangularHitArea(width: number, height: number): Readonly<{
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  contains(x: number, y: number): boolean;
+}> {
+  return Object.freeze({
+    x: 0,
+    y: 0,
+    width,
+    height,
+    contains: (x: number, y: number) => x >= 0 && x < width && y >= 0 && y < height
+  });
+}
+
 function directionPresentation(directionKey: string, cellSize: number): Readonly<{
   glyph: string;
   x: number;
@@ -128,7 +144,15 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     updateCount += 1;
     position = { x: context.sceneX, y: context.sceneY };
     setPixiPosition(root, position.x, position.y);
-    setPixiPosition(interactionRoot, position.x, position.y);
+    // The renderer canvas includes an effect gutter around the fixed
+    // viewport. Federated Events target the native scroll viewport instead,
+    // so interaction objects live in viewport coordinates without that
+    // visual-only gutter.
+    setPixiPosition(
+      interactionRoot,
+      position.x - context.sceneOffsetX,
+      position.y - context.sceneOffsetY
+    );
     clearPixiGraphics(hints);
     clearPixiGraphics(interactionRoot);
     removeAndDestroyPixiChildren(directionRoot);
@@ -147,8 +171,19 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     const visible = cell.kind === 'playable';
     root.visible = visible;
     interactionRoot.visible = visible;
-    interactionRoot.eventMode = 'none';
-    interactionRoot.cursor = 'default';
+    // The transparent interaction layer mirrors model state only. Actual
+    // commands still flow through BoardInputController and handleCellClick;
+    // Pixi never computes legality or becomes gameplay authority.
+    interactionRoot.eventMode = visible ? 'static' : 'none';
+    interactionRoot.cursor = !interaction.interactionLocked && (
+      interaction.legal
+      || interaction.legalFree
+      || interaction.selectable
+      || interaction.directionHints.length > 0
+    ) ? 'pointer' : 'default';
+    interactionRoot.hitArea = visible
+      ? rectangularHitArea(context.layout.cellSize, context.layout.cellSize)
+      : null;
     if (!visible) return true;
 
     const cellSize = context.layout.cellSize;
@@ -187,10 +222,6 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
         cellSize * radiusRatio
       );
     };
-    drawPixiRect(interactionRoot, 0, 0, cellSize, cellSize, {
-      color: '#000000',
-      alpha: 0.001
-    });
     if (previewKinds.has('selected-target')) {
       drawSurface('#ff4848', 0.42);
       drawInsetOutline(0.016, '#ff6c6c', 0.88, 0.032, 0.025);
@@ -302,6 +333,7 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     root.visible = false;
     interactionRoot.visible = false;
     interactionRoot.eventMode = 'none';
+    interactionRoot.hitArea = null;
     clearPixiGraphics(hints);
     clearPixiGraphics(interactionRoot);
     removeAndDestroyPixiChildren(directionRoot);

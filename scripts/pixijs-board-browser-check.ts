@@ -500,23 +500,27 @@ async function decorateCurrentPresentationFixture(page: any): Promise<{
       });
       const submitted = controller.submitFrame(frame);
       if (submitted !== true) throw new Error('Static presentation fixture frame was not submitted while idle');
-      const digestAfterSubmit = controller.getVisualFrameDigest();
+      // A submitted frame is not yet the visual baseline. The controller
+      // publishes its digest/frame only after backend visual settlement.
+      const digestImmediatelyAfterSubmit = controller.getVisualFrameDigest();
       await root.__boardVisualDebug.waitForIdle();
       return {
         ...decoration,
+        frameToken: frame.frameToken,
         submitted,
-        digestAfterSubmit,
-        digestAfterSettlement: controller.getVisualFrameDigest()
+        digestImmediatelyAfterSubmit,
+        digestAfterSettlement: controller.getVisualFrameDigest(),
+        settledFrameToken: controller.getSettledFrame?.()?.frameToken || null
       };
     };
     const digestBeforeSubmit = controller.getVisualFrameDigest();
     let applied = await submitDecoration(1);
-    const supersededOnce = applied.digestAfterSettlement !== applied.digestAfterSubmit;
+    const supersededOnce = applied.settledFrameToken !== applied.frameToken;
     if (supersededOnce) applied = await submitDecoration(2);
     const presentationCandidateKeys = applied.candidates.map((cell: any) => cell.key);
     const [firstRow, firstCol] = applied.candidates[0].key.split(',').map(Number);
     const renderedLegal = root.__boardVisualDebug.getRenderedCell(firstRow, firstCol)?.hint?.legal === true;
-    if (!renderedLegal || applied.digestAfterSettlement !== applied.digestAfterSubmit) {
+    if (!renderedLegal || applied.settledFrameToken !== applied.frameToken) {
       throw new Error('Static presentation fixture did not stabilize after one resource invalidation retry');
     }
     return {
@@ -527,8 +531,9 @@ async function decorateCurrentPresentationFixture(page: any): Promise<{
         renderedLegal,
         supersededOnce,
         digestBeforeSubmit,
-        digestAfterSubmit: applied.digestAfterSubmit,
+        digestImmediatelyAfterSubmit: applied.digestImmediatelyAfterSubmit,
         digestAfterSettlement: applied.digestAfterSettlement,
+        settledFrameToken: applied.settledFrameToken,
         writerMode: controller.getMode()
       }
     };
@@ -1382,6 +1387,7 @@ export = {
   REQUIRED_EXPANSION_FIXTURES,
   STATIC_ENTRY_QUERY,
   VIRTUALIZATION_FIXTURE,
+  applyPhaseZeroFixture,
   comparePhaseZeroGeometryAndSkin,
   comparePngBuffers,
   createFailedLaneReport,

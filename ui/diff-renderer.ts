@@ -2656,8 +2656,6 @@ function _resolveDestroyEvadeDisplayForDiff(special: any) {
         : null;
 }
 
-const LONG_PRESS_MS = 420;
-const LONG_PRESS_MOVE_CANCEL_PX = 8;
 const STONE_INFO_TAG_MEANINGS: Record<string, string> = Object.freeze({
     '多動状態': '両者ターン開始時にマス移動する状態。',
     '反転回避': '反転されるとき、元位置から最も近い空きマスに移動して避ける。隣接に空きがない場合、次に近い空きマスに移動し回避する。移動先で挟める列があれば、その石の色で反転する。',
@@ -2947,20 +2945,6 @@ function _isStoneInfoPanelVisible() {
     if (typeof document === 'undefined') return false;
     const panel = document.getElementById('stone-info-panel');
     return !!(panel && panel.classList.contains('visible'));
-}
-
-function _isHoverPointerEvent(ev: any) {
-    if (StoneInfoPanelModule && typeof StoneInfoPanelModule.isHoverPointerEvent === 'function') {
-        return StoneInfoPanelModule.isHoverPointerEvent(typeof window !== 'undefined' ? window : null, ev);
-    }
-    return !(ev && ev.pointerType === 'touch');
-}
-
-function _isTouchStoneInfoEvent(ev: any) {
-    if (StoneInfoPanelModule && typeof StoneInfoPanelModule.isTouchStoneInfoEvent === 'function') {
-        return StoneInfoPanelModule.isTouchStoneInfoEvent(typeof window !== 'undefined' ? window : null, ev);
-    }
-    return !!(ev && ev.pointerType === 'touch');
 }
 
 function _ensureStoneInfoTagPanel() {
@@ -3360,23 +3344,32 @@ function attachBoardCellInteraction(cell: any, row: any, col: any) {
     }
     return DiffRendererInteractionBinder.bindBoardCellInteraction({
         showIdleStoneInfoPanel: _showIdleStoneInfoPanel,
-        ensureOutsideCloseHandler: _ensureOutsideCloseHandler,
-        longPressMs: LONG_PRESS_MS,
-        longPressMoveCancelPx: LONG_PRESS_MOVE_CANCEL_PX,
-        isHoverPointerEvent: _isHoverPointerEvent,
-        setSuperAttractionHoverPreview: _setSuperAttractionHoverPreview,
-        clearSuperAttractionHoverPreview: _clearSuperAttractionHoverPreview,
-        showSpecialStoneInfoAt,
-        isTouchStoneInfoEvent: _isTouchStoneInfoEvent,
-        handleCellClick: (targetRow: any, targetCol: any) => {
-            if (typeof handleCellClick !== 'function') {
-                throw new Error('[DiffRenderer] handleCellClick unavailable');
+        getInputController: () => {
+            let renderer: any = null;
+            try { renderer = _require('./board-renderer'); } catch (_error) { /* browser registry fallback below */ }
+            if (!renderer && typeof window !== 'undefined') {
+                try {
+                    renderer = typeof (window as any).require === 'function'
+                        ? (window as any).require('ui/board-renderer')
+                        : null;
+                } catch (_error) { /* handled by the explicit error below */ }
             }
-            return handleCellClick(targetRow, targetCol);
-        },
-        setTimeout: (callback: any, delay: number) => setTimeout(callback, delay),
-        clearTimeout: (timer: any) => clearTimeout(timer)
+            if (!renderer || typeof renderer.getBoardInputController !== 'function') {
+                throw new Error('[DiffRenderer] BoardRenderer.getBoardInputController unavailable');
+            }
+            return renderer.getBoardInputController();
+        }
     }, cell, row, col);
+}
+
+function getBoardInputPresentationCapabilities() {
+    return Object.freeze({
+        showIdleStoneInfoPanel: _showIdleStoneInfoPanel,
+        ensureOutsideCloseHandler: _ensureOutsideCloseHandler,
+        setHoveredCell: _setSuperAttractionHoverPreview,
+        clearHoveredCell: _clearSuperAttractionHoverPreview,
+        showSpecialStoneInfoAt
+    });
 }
 /**
 * 盤面を初期化（最初の1回のみ全レンダリング）
@@ -3848,6 +3841,7 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
                 const shouldShowSuperAttractionPreviewDestination = !!(state && state.isSuperAttractionPreviewDestination);
                 const shouldShowSelectable = canShowSelectableFriendlyForState(state);
                 const shouldShowExtendLifeTarget = !!(canShowHint && state && state.isExtendLifeTarget);
+                const shouldShowKeyboardCursor = !!(state && state.isKeyboardCursor);
                 const transientHighlightClass = getActiveTransientCellHighlightClassForDiff(cell);
                 const shouldRaiseRegenBadge = !!(
                     state &&
@@ -3866,6 +3860,7 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
                 cell.classList.toggle('super-attraction-preview-destination', shouldShowSuperAttractionPreviewDestination);
                 cell.classList.toggle('selectable-friendly', shouldShowSelectable);
                 cell.classList.toggle('selectable-friendly-no-circle', shouldShowExtendLifeTarget);
+                cell.classList.toggle('keyboard-legal-cursor', shouldShowKeyboardCursor);
                 cell.classList.toggle('has-regen-badge', shouldRaiseRegenBadge);
                 _applyTimeStopLegalEmphasisForDiff(cell);
             } catch (e: any) { /* ignore */ }
@@ -4177,6 +4172,7 @@ const DiffRenderer = {
     forceFullRender,
     resetRenderStats,
     attachBoardCellInteraction,
+    getBoardInputPresentationCapabilities,
     showSpecialStoneInfoAt
 };
 export = DiffRenderer;

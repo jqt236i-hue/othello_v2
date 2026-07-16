@@ -126,6 +126,7 @@ function goodReport(): any {
 
 describe('Pixi static board browser check', () => {
   test('reuses every Phase 0 browser fixture and accepts a bounded exclusive Pixi report', () => {
+    expect(typeof Check.applyPhaseZeroFixture).toBe('function');
     const names = Check.BROWSER_FIXTURES.map((fixture: any) => fixture.name);
     expect(names).toEqual(expect.arrayContaining([
       'rectangle-4x4',

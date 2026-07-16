@@ -446,6 +446,8 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/animation-utils": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/animation-utils.js"),
   "ui/assets/background-image-codec": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/background-image-codec.js"),
   "ui/assets/optimized-backgrounds.generated": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/optimized-backgrounds.generated.js"),
+  "ui/board-accessibility-layer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-accessibility-layer.js"),
+  "ui/board-input-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-input-controller.js"),
   "ui/board-renderer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-renderer.js"),
   "ui/board-renderer/stone-helpers": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-renderer/stone-helpers.js"),
   "ui/board-skin/catalog": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-skin/catalog.js"),
@@ -577,6 +579,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/pixi/appearance-resolver": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/appearance-resolver.js"),
   "ui/pixi/application": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/application.js"),
   "ui/pixi/board-backend": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/board-backend.js"),
+  "ui/pixi/board-input": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/board-input.js"),
   "ui/pixi/board-scene": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/board-scene.js"),
   "ui/pixi/camera": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/camera.js"),
   "ui/pixi/cell-view": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/cell-view.js"),
@@ -1091,6 +1094,8 @@ installBootModuleMetadata({
     "ui/animation-utils",
     "ui/assets/background-image-codec",
     "ui/assets/optimized-backgrounds.generated",
+    "ui/board-accessibility-layer",
+    "ui/board-input-controller",
     "ui/board-renderer",
     "ui/board-renderer/stone-helpers",
     "ui/board-skin/catalog",
@@ -1222,6 +1227,7 @@ installBootModuleMetadata({
     "ui/pixi/appearance-resolver",
     "ui/pixi/application",
     "ui/pixi/board-backend",
+    "ui/pixi/board-input",
     "ui/pixi/board-scene",
     "ui/pixi/camera",
     "ui/pixi/cell-view",
@@ -1372,4 +1378,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 640;
+export const startupModuleCount = 643;

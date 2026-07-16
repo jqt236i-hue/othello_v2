@@ -79,7 +79,7 @@ describe('per-render board projection', () => {
 
   test('builds one immutable sparse semantic model from explicit render inputs', () => {
     const diff = require('../ui/diff-renderer.js');
-    const inputs = diff.createBoardRenderInputs({ hoveredCellKey: '2,3' });
+    const inputs = diff.createBoardRenderInputs({ hoveredCellKey: '2,3', keyboardCursorKey: '2,3' });
     const projection = diff.createBoardRenderProjection(undefined, inputs);
     const cellState = diff.buildCurrentCellState(projection, inputs);
     const model = diff.buildBoardRenderModel(projection, cellState, {
@@ -91,10 +91,47 @@ describe('per-render board projection', () => {
     expect(model.cells).toHaveLength(64);
     expect(model.cells.some((cell: any) => cell.kind === 'void')).toBe(false);
     expect(model.cells.find((cell: any) => cell.key === '2,3').interaction.hovered).toBe(true);
+    expect(model.cells.find((cell: any) => cell.key === '2,3').interaction.keyboardCursor).toBe(true);
     expect(model.cells.find((cell: any) => cell.key === '5,5').stone.owner).toBe('white');
     expect(model).not.toHaveProperty('_renderProjection');
     expect(Object.isFrozen(model)).toBe(true);
     expect((global as any).getLegalMoves).toHaveBeenCalledTimes(1);
+
+    const compatibility = require('../ui/board-visual/model-builder').buildDomCompatibilityRenderState(model);
+    expect(compatibility.cellState[2][3].isKeyboardCursor).toBe(true);
+    diff.renderBoardDiff(
+      (global as any).boardEl,
+      compatibility.renderProjection,
+      compatibility.cellState,
+      model,
+      { authorizedByBoardVisualController: true }
+    );
+    expect((global as any).boardEl.querySelector('.cell[data-row="2"][data-col="3"]')
+      ?.classList.contains('keyboard-legal-cursor')).toBe(true);
+
+    const movedOverlay = diff.createBoardPresentationOverlayState(
+      projection,
+      cellState,
+      { keyboardCursorKey: '5,5' }
+    );
+    const movedModel = diff.buildBoardRenderModel(projection, cellState, {
+      visualRevision: 4,
+      overlay: movedOverlay,
+      inputs: { ...inputs, presentationOverlayState: movedOverlay }
+    });
+    const movedCompatibility = require('../ui/board-visual/model-builder')
+      .buildDomCompatibilityRenderState(movedModel);
+    diff.renderBoardDiff(
+      (global as any).boardEl,
+      movedCompatibility.renderProjection,
+      movedCompatibility.cellState,
+      movedModel,
+      { authorizedByBoardVisualController: true }
+    );
+    expect((global as any).boardEl.querySelector('.cell[data-row="2"][data-col="3"]')
+      ?.classList.contains('keyboard-legal-cursor')).toBe(false);
+    expect((global as any).boardEl.querySelector('.cell[data-row="5"][data-col="5"]')
+      ?.classList.contains('keyboard-legal-cursor')).toBe(true);
   });
 
   test('applies the prepared visual frame atomically after canonical globals advance', () => {

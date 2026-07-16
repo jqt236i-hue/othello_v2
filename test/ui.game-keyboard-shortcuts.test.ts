@@ -18,11 +18,7 @@ describe('game keyboard shortcuts', () => {
   function buildDom(extra = ''): JSDOM {
     return new JSDOM(`
       <!doctype html><html><body>
-        <div id="board">
-          <div class="cell legal" data-row="2" data-col="3"></div>
-          <div class="cell legal" data-row="2" data-col="5"></div>
-          <div class="cell legal-free" data-row="4" data-col="5"></div>
-        </div>
+        <div id="board"><canvas aria-hidden="true"></canvas></div>
         <div id="hand-black" class="hand-container" data-owner-key="black">
           <div class="hand-track">
             <div class="card-item visible clickable" data-card-id="alpha" data-owner-key="black"></div>
@@ -37,10 +33,12 @@ describe('game keyboard shortcuts', () => {
 
   function createController(dom: JSDOM, overrides: Record<string, unknown> = {}) {
     const mod = require('../ui/game-keyboard-shortcuts');
+    const BoardInput = require('../ui/board-input-controller');
     const placed: Array<{ row: number; col: number }> = [];
     const used: string[] = [];
     const destroyed: string[] = [];
     const clicks: string[] = [];
+    const cursorKeys: Array<string | null> = [];
 
     dom.window.document.querySelectorAll<HTMLElement>('.card-item').forEach((el) => {
       el.addEventListener('click', () => {
@@ -52,36 +50,49 @@ describe('game keyboard shortcuts', () => {
       });
     });
 
+    const boardInputController = BoardInput.createBoardInputController({
+      getLegalCells: () => [
+        { row: 2, col: 3 },
+        { row: 2, col: 5 },
+        { row: 4, col: 5 }
+      ],
+      handleCellClick: (row: number, col: number) => placed.push({ row, col }),
+      setKeyboardCursorKey: (key: string | null) => cursorKeys.push(key)
+    });
+    boardInputController.activate();
+
     const controller = mod.createGameKeyboardShortcutController({
       getDocumentRef: () => dom.window.document,
       getWindowRef: () => dom.window as any,
       getCardStateValue: () => ({ selectedCardId: dom.window.document.querySelector('.card-item.selected')?.getAttribute('data-card-id') || null }),
-      handleCellClick: (row: number, col: number) => placed.push({ row, col }),
+      boardInputController,
       useSelectedCard: () => used.push('use'),
       destroySelectedHandCard: () => destroyed.push('destroy'),
       ...overrides
     });
     controller.init();
-    return { controller, placed, used, destroyed, clicks };
+    return { controller, boardInputController, placed, used, destroyed, clicks, cursorKeys };
   }
 
   test('WASD moves the legal cursor and Space places through handleCellClick', () => {
     const dom = buildDom();
-    const { placed } = createController(dom);
+    const { controller, placed, cursorKeys } = createController(dom);
 
     const first = key(dom, { code: 'KeyD', key: 'd' });
     expect(first.defaultPrevented).toBe(true);
-    expect(dom.window.document.querySelector('[data-row="2"][data-col="3"]')?.classList.contains('keyboard-legal-cursor')).toBe(true);
+    expect(controller.getState().legalCursorKey).toBe('2,3');
 
     key(dom, { code: 'KeyD', key: 'd' });
-    expect(dom.window.document.querySelector('[data-row="2"][data-col="5"]')?.classList.contains('keyboard-legal-cursor')).toBe(true);
+    expect(controller.getState().legalCursorKey).toBe('2,5');
 
     key(dom, { code: 'KeyS', key: 's' });
-    expect(dom.window.document.querySelector('[data-row="4"][data-col="5"]')?.classList.contains('keyboard-legal-cursor')).toBe(true);
+    expect(controller.getState().legalCursorKey).toBe('4,5');
 
     const place = key(dom, { code: 'Space', key: ' ' });
     expect(place.defaultPrevented).toBe(true);
     expect(placed).toEqual([{ row: 4, col: 5 }]);
+    expect(cursorKeys).toEqual(['2,3', '2,5', '4,5']);
+    expect(dom.window.document.querySelector('.cell')).toBeNull();
   });
 
   test('Space ignores repeats to avoid repeated placement', () => {
@@ -172,7 +183,7 @@ describe('game keyboard shortcuts', () => {
 
   test('button focus still allows WASD movement but protects Space and Enter', () => {
     const dom = buildDom('<button id="menu-button" type="button">menu</button>');
-    const { placed, used } = createController(dom);
+    const { controller, placed, used } = createController(dom);
     const button = dom.window.document.getElementById('menu-button') as HTMLButtonElement;
     button.focus();
 
@@ -196,14 +207,14 @@ describe('game keyboard shortcuts', () => {
       cancelable: true
     }));
 
-    expect(dom.window.document.querySelector('[data-row="2"][data-col="3"]')?.classList.contains('keyboard-legal-cursor')).toBe(true);
+    expect(controller.getState().legalCursorKey).toBe('2,3');
     expect(placed).toEqual([]);
     expect(used).toEqual([]);
   });
 
   test('shortcuts are ignored while blocking panels are open', () => {
     const dom = buildDom('<div class="debug-card-search-control is-open"></div>');
-    const { placed, clicks } = createController(dom);
+    const { controller, placed, clicks } = createController(dom);
 
     key(dom, { code: 'KeyD', key: 'd' });
     key(dom, { code: 'Space', key: ' ' });
@@ -211,12 +222,12 @@ describe('game keyboard shortcuts', () => {
 
     expect(placed).toEqual([]);
     expect(clicks).toEqual([]);
-    expect(dom.window.document.querySelector('.keyboard-legal-cursor')).toBeNull();
+    expect(controller.getState().legalCursorKey).toBeNull();
   });
 
   test('shortcuts are ignored while profile overlay is open even with button focus', () => {
     const dom = buildDom('<div id="profileOverlay" class="is-open"><button id="profileTabProfile" type="button"></button></div>');
-    const { placed, used, destroyed, clicks } = createController(dom);
+    const { controller, placed, used, destroyed, clicks } = createController(dom);
     const profileButton = dom.window.document.getElementById('profileTabProfile') as HTMLButtonElement;
     profileButton.focus();
 
@@ -249,6 +260,18 @@ describe('game keyboard shortcuts', () => {
     expect(used).toEqual([]);
     expect(destroyed).toEqual([]);
     expect(clicks).toEqual([]);
+    expect(controller.getState().legalCursorKey).toBeNull();
+  });
+
+  test('destroy clears the shared model cursor without writing a DOM class', () => {
+    const dom = buildDom();
+    const { controller, boardInputController, cursorKeys } = createController(dom);
+
+    key(dom, { code: 'KeyD', key: 'd' });
+    controller.destroy();
+
+    expect(boardInputController.getState().keyboardCursorKey).toBeNull();
+    expect(cursorKeys).toEqual(['2,3', null]);
     expect(dom.window.document.querySelector('.keyboard-legal-cursor')).toBeNull();
   });
 });

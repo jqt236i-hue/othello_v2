@@ -33,6 +33,7 @@ class FakeDisplayObject {
   alpha = 1;
   eventMode = 'none';
   cursor = 'default';
+  hitArea: any = null;
   sortableChildren = false;
   destroyed = false;
 
@@ -387,7 +388,29 @@ describe('Pixi static retained views', () => {
       directionKeys: ['up-left', 'right'],
       interactionLocked: false
     });
-    expect(hintView.interactionRoot.eventMode).toBe('none');
+    expect(hintView.interactionRoot.eventMode).toBe('static');
+    expect(hintView.interactionRoot.cursor).toBe('pointer');
+    expect(hintView.interactionRoot.position).toMatchObject({ x: 32, y: 64 });
+    expect(hintView.interactionRoot.hitArea).toMatchObject({ x: 0, y: 0, width: 32, height: 32 });
+    expect(hintView.interactionRoot.hitArea.contains(0, 0)).toBe(true);
+    expect(hintView.interactionRoot.hitArea.contains(31.99, 31.99)).toBe(true);
+    expect(hintView.interactionRoot.hitArea.contains(32, 16)).toBe(false);
+  });
+
+  test('removes Pixi cell hit ownership for holes and reset views', () => {
+    const fixture = createFakeRuntime();
+    const hintView = HintView.createPixiHintView(fixture.runtime);
+    const hole = materializedCell(makeCell('2,3', { kind: 'hole' }));
+
+    hintView.update(hole, viewContext());
+    expect(hintView.interactionRoot).toMatchObject({ eventMode: 'none', hitArea: null });
+
+    const playable = materializedCell(makeCell('2,3', { interaction: { legal: true } }));
+    hintView.update(playable, viewContext({ revisionSignature: 'static-view:playable' }));
+    expect(hintView.interactionRoot).toMatchObject({ eventMode: 'static' });
+
+    hintView.reset();
+    expect(hintView.interactionRoot).toMatchObject({ eventMode: 'none', hitArea: null });
   });
 
   test('shows procedural normal/special/sprout fallback and double-digit timer styles', () => {
@@ -496,9 +519,17 @@ describe('Pixi static board scene', () => {
     const second = scene.applyFrame(frame, { textures, textureRevision: 1 });
 
     expect(fixture.stage.children).toEqual([scene.root]);
+    expect(scene.root.eventMode).toBe('passive');
     expect(scene.root.children.map((layer: any) => layer.label)).toEqual(
       BoardScene.PIXI_BOARD_SCENE_LAYER_ORDER.map((name) => `pixi-board-layer:${name}`)
     );
+    expect(scene.root.children
+      .filter((layer: any) => layer !== scene.layers.interaction)
+      .every((layer: any) => layer.eventMode === 'none')).toBe(true);
+    expect(scene.layers.interaction).toMatchObject({ eventMode: 'static' });
+    expect(scene.layers.interaction.hitArea).toMatchObject({ x: 0, y: 0, width: 256, height: 256 });
+    expect(scene.layers.interaction.hitArea.contains(255.99, 255.99)).toBe(true);
+    expect(scene.layers.interaction.hitArea.contains(256, 0)).toBe(false);
     expect(first).toMatchObject({ materializedCount: 64, createdViews: 64, updatedViews: 64 });
     expect(second).toMatchObject({ materializedCount: 64, createdViews: 0, updatedViews: 0, skippedViews: 64 });
     expect(scene.getDiagnostics()).toMatchObject({
@@ -683,8 +714,10 @@ describe('Pixi static board scene', () => {
 
     scene.reset();
     expect(scene.getDiagnostics()).toMatchObject({ activeViewCount: 0, pooledViewCount: 81 });
+    expect(scene.layers.interaction).toMatchObject({ eventMode: 'none', hitArea: null });
     const reapplied = scene.applyFrame(first);
     expect(reapplied).toMatchObject({ createdViews: 0, reusedViews: 81 });
+    expect(scene.layers.interaction).toMatchObject({ eventMode: 'static' });
 
     scene.destroy();
     scene.destroy();
