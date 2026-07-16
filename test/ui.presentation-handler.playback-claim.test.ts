@@ -395,6 +395,61 @@ describe('PresentationHandler playback claim', () => {
     ]);
   });
 
+  test('retains a strict recovery handle when manager release fails before handoff', async () => {
+    const managerClaim = { id: 43 };
+    const boardWriterToken = { id: 44 };
+    const abortBoardVisualWriterBeforeHandoff = jest.fn(async () => true);
+    jest.doMock('../ui/board-renderer', () => ({
+      claimBoardVisualWriter: jest.fn(() => boardWriterToken),
+      abortBoardVisualWriterBeforeHandoff
+    }));
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    const releaseVisualPlaybackClaim = jest.fn()
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+    const recordVisualPlaybackSettlementError = jest.fn(() => true);
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn(() => managerClaim),
+      releaseVisualPlaybackClaim,
+      recordVisualPlaybackSettlementError
+    };
+    (global as any).AnimationEngine = {
+      play: jest.fn(async () => {
+        throw new Error('strict playback failed before handoff');
+      })
+    };
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+    const error = await PresentationHandler.handlePresentationEvent({
+      type: 'PLAYBACK_EVENTS',
+      events: [{ type: 'move', phase: 1 }],
+      meta: { source: 'network_timeline', strictNetworkPlayback: true, visualSeq: 81 }
+    }).catch((caught: any) => caught);
+
+    expect(error).toMatchObject({ message: 'strict playback failed before handoff' });
+    expect(error.recoveryError).toMatchObject({
+      name: 'PresentationPlaybackError',
+      code: 'strict_network_manager_release_failed',
+      strictNetworkPlayback: true,
+      visualSeq: 81
+    });
+    expect(error.strictSettlementRecoveryHandle).toMatchObject({
+      kind: 'strict-network-settlement',
+      visualSeq: 81
+    });
+    expect(abortBoardVisualWriterBeforeHandoff).toHaveBeenCalledTimes(1);
+    expect(releaseVisualPlaybackClaim).toHaveBeenCalledTimes(1);
+
+    await expect(error.strictSettlementRecoveryHandle.cancel('release_retry')).resolves.toBe(true);
+    expect(recordVisualPlaybackSettlementError).toHaveBeenCalledWith(
+      managerClaim,
+      expect.objectContaining({ message: 'release_retry' }),
+      { stage: 'pre-handoff-recovery-cancel', visualSeq: 81 }
+    );
+    expect(abortBoardVisualWriterBeforeHandoff).toHaveBeenCalledTimes(1);
+    expect(releaseVisualPlaybackClaim).toHaveBeenCalledTimes(2);
+  });
+
   test('cancels a handed-off strict settlement with manager lock held until board restore', async () => {
     const order: string[] = [];
     const managerClaim = { id: 51 };
@@ -463,6 +518,80 @@ describe('PresentationHandler playback claim', () => {
       'manager-finalize',
       'manager-release'
     ]);
+  });
+
+  test('keeps boot-time presentation events queued and unclaimed until the board backend is ready', async () => {
+    let resolveReady!: () => void;
+    const ready = new Promise<void>((resolve) => { resolveReady = resolve; });
+    const order: string[] = [];
+    const drainClaim = { id: 81 };
+    const batchClaim = { id: 82 };
+    const boardWriterToken = { id: 83, frameToken: 'local:boot-ready', mode: 'local' };
+    const runtime = {
+      createBoardUpdateDrainController: jest.fn(() => ({
+        requestDrain: async (runDrain: any) => runDrain()
+      })),
+      flushPendingPresentationEvents: jest.fn(() => {
+        order.push('flush');
+        return [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'move', phase: 1 }] }];
+      })
+    };
+    jest.doMock('../game/cpu-turn-handler', () => ({ PresentationRuntime: runtime }));
+    const claimBoardVisualWriter = jest.fn(() => {
+      order.push('board-claim');
+      return boardWriterToken;
+    });
+    jest.doMock('../ui/board-renderer', () => ({
+      getBoardVisualControllerReady: jest.fn(async () => {
+        order.push('ready-wait');
+        await ready;
+        order.push('ready');
+      }),
+      claimBoardVisualWriter,
+      settleBoardVisualWriter: jest.fn(async () => {
+        order.push('board-settle');
+        return true;
+      }),
+      releaseBoardVisualWriter: jest.fn()
+    }));
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn((meta) => {
+        order.push(`manager-claim:${meta.scope}`);
+        return meta.scope === 'presentation_drain' ? drainClaim : batchClaim;
+      }),
+      releaseVisualPlaybackClaim: jest.fn(() => true),
+      hasClaimedVisualPlayback: jest.fn(() => true)
+    };
+    (global as any).AnimationEngine = {
+      play: jest.fn(async (_events, options) => {
+        order.push('play');
+        options.onFinalizationReady(() => true);
+      })
+    };
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+    let finished = false;
+    const draining = PresentationHandler.onBoardUpdated().then(() => { finished = true; });
+    await flushMicrotasks(2);
+
+    expect(finished).toBe(false);
+    expect(runtime.flushPendingPresentationEvents).not.toHaveBeenCalled();
+    expect((global as any).PlaybackStateManager.claimVisualPlayback).not.toHaveBeenCalled();
+    expect(claimBoardVisualWriter).not.toHaveBeenCalled();
+
+    resolveReady();
+    await draining;
+
+    expect(order.slice(0, 4)).toEqual([
+      'ready-wait',
+      'ready',
+      'flush',
+      'manager-claim:presentation_drain'
+    ]);
+    expect(order.indexOf('board-claim')).toBeGreaterThan(order.indexOf('flush'));
+    expect(order.indexOf('play')).toBeGreaterThan(order.indexOf('board-claim'));
+    expect(order).toContain('board-settle');
   });
 
   test('holds a drain claim across multiple drained playback batches', async () => {
@@ -667,14 +796,20 @@ describe('PresentationHandler playback claim', () => {
     };
 
     const PresentationHandler = require('../ui/presentation-handler.js');
-    await expect(PresentationHandler.onBoardUpdated()).resolves.toBeUndefined();
+    let drainFinished = false;
+    const draining = PresentationHandler.onBoardUpdated().then(() => { drainFinished = true; });
+    await Promise.resolve();
+    await Promise.resolve();
 
+    expect(drainFinished).toBe(false);
+    expect(runtime.flushPendingPresentationEvents).not.toHaveBeenCalled();
     expect((global as any).PlaybackStateManager.claimVisualPlayback).not.toHaveBeenCalled();
     expect(claimBoardVisualWriter).not.toHaveBeenCalled();
 
     ready.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    await draining;
+    await flushMicrotasks(2);
+    expect(drainFinished).toBe(true);
     expect(claimBoardVisualWriter).toHaveBeenCalledTimes(1);
     expect(playBoardVisualPhase).toHaveBeenCalledTimes(2);
     expect(playBoardVisualPhase.mock.calls.map((call) => call[0])).toEqual([

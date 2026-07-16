@@ -226,6 +226,8 @@ export interface BoardVisualThemeDescriptor {
   surfaceColor: string;
   gridColor: string;
   outerBoundaryColor: string;
+  contourMetalColor: string;
+  contourShadowColor: string;
   holeBoundaryColor: string;
   markerColor: string;
   hintColor: string;
@@ -244,6 +246,11 @@ export interface BoardVisualFrame {
   appearance: BoardAppearanceDescriptor;
   theme: BoardVisualThemeDescriptor;
   frameToken: string;
+  /**
+   * UI-only identity for one rendered match. This is presentation lifecycle
+   * state, not canonical game or network authority.
+   */
+  readonly renderSessionId?: string;
 }
 
 /**

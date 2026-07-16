@@ -8,6 +8,19 @@ export default defineConfig(({ command }) => ({
   publicDir: false,
   plugins: [{
     name: 'card-reversi-vite-document-base',
+    configureServer(server) {
+      if (command !== 'serve') return;
+      server.middlewares.use((request, _response, next) => {
+        const rawUrl = String(request.url || '/');
+        const queryIndex = rawUrl.indexOf('?');
+        const pathname = queryIndex >= 0 ? rawUrl.slice(0, queryIndex) : rawUrl;
+        const search = queryIndex >= 0 ? rawUrl.slice(queryIndex) : '';
+        if (pathname === '/' || pathname === '/index.html') {
+          request.url = `/index.vite.html${search}`;
+        }
+        next();
+      });
+    },
     closeBundle() {
       if (command !== 'build') return;
 

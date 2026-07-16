@@ -1096,16 +1096,34 @@ const collectRandomSpawnPreviewHighlightKeys = (cardStateValue: any, gameStateVa
 };
 
 function prepareBoardVisualUpdate() {
-    _syncTimeStopClassForBoardRenderer();
     const controller = getBoardVisualController();
     if (!controller) return null;
     const playbackDeferred = _shouldSkipBoardRenderForPlayback();
     if (playbackDeferred && controller.getMode() === 'idle') {
-        AutoBoardWriterTokenForBoardRenderer = controller.claimWriter(
-            `legacy-playback:${BoardVisualFrameSerialForBoardRenderer + 1}`,
-            'local'
-        );
+        const idleSettlementPending = typeof controller.isIdleSettlementPending === 'function'
+            && controller.isIdleSettlementPending() === true;
+        if (idleSettlementPending) {
+            void _requestAutoBoardVisualWriterForBoardRenderer(controller, true);
+            const deferred = Object.freeze({
+                controller,
+                playbackDeferred,
+                deferredUntilAutoWriter: true
+            });
+            PreparedBoardVisualUpdatesForBoardRenderer.add(deferred);
+            return deferred;
+        }
+        if (!AutoBoardWriterTokenForBoardRenderer) {
+            AutoBoardWriterTokenForBoardRenderer = controller.claimWriter(
+                `legacy-playback:${BoardVisualFrameSerialForBoardRenderer + 1}`,
+                'local'
+            );
+        }
+        // A newer synchronous render can acquire the writer after the pending
+        // settlement completed but before its waiter resumed. This render is
+        // already the required fresh active-token render.
+        AutoBoardWriterDeferredRenderRequestedForBoardRenderer = false;
     }
+    _syncTimeStopClassForBoardRenderer();
     const prepared = Object.freeze({
         controller,
         playbackDeferred,
@@ -1128,13 +1146,9 @@ function renderBoard(preparedVisualUpdate?: any) {
             console.error('[Board Renderer] board visual controller unavailable; rendering skipped');
             return;
         }
+        if (prepared.deferredUntilAutoWriter === true) return;
         const playbackDeferred = prepared.playbackDeferred === true;
         const applied = controller.submitFrame(prepared.frame);
-        if (!playbackDeferred && AutoBoardWriterTokenForBoardRenderer) {
-            const token = AutoBoardWriterTokenForBoardRenderer;
-            controller.releaseWriter(token);
-            AutoBoardWriterTokenForBoardRenderer = null;
-        }
         if (applied === true || (!playbackDeferred && controller.getMode() === 'idle')) updateOccupancyUI();
     } finally {
         if (PerfBenchmarks) PerfBenchmarks.perfEnd('renderBoard');
@@ -1143,7 +1157,12 @@ function renderBoard(preparedVisualUpdate?: any) {
 
 let BoardVisualRuntimeForBoardRenderer: any = null;
 let AutoBoardWriterTokenForBoardRenderer: any = null;
+let AutoBoardWriterClaimForBoardRenderer: Promise<any> | null = null;
+let AutoBoardWriterSettlementForBoardRenderer: Promise<boolean> | null = null;
+let AutoBoardWriterClaimGenerationForBoardRenderer = 0;
+let AutoBoardWriterDeferredRenderRequestedForBoardRenderer = false;
 let BoardVisualFrameSerialForBoardRenderer = 0;
+let BoardVisualRenderSessionEpochForBoardRenderer = 0;
 let BoardVisualFrameRevisionComposerForBoardRenderer: any = null;
 let BoardVisualThemeFontObserverDisposeForBoardRenderer: (() => void) | null = null;
 let BoardVisualBackendTestConfigForBoardRenderer: any = null;
@@ -1448,7 +1467,11 @@ function _createBoardVisualRuntimeForBoardRenderer() {
     const backend = selection.kind === 'pixi'
         ? _createPixiBoardVisualBackendForBoardRenderer(selection.noAnimation)
         : _createDomBoardVisualBackendForBoardRenderer();
-    const controller = ControllerModule.createBoardVisualController({ backend, diagnostics });
+    const controller = ControllerModule.createBoardVisualController({
+        backend,
+        diagnostics,
+        beginApplyFrame: _beginBoardVisualApplyTransactionForBoardRenderer
+    });
     const mountPromise = Promise.resolve(controller.mount(host));
     const initialReadyPromise = mountPromise.catch(async (error: any) => {
         diagnostics.record('controller:mount-error', { message: String(error && error.message || error || '') });
@@ -1532,15 +1555,75 @@ function configureBoardVisualController(controller: any, options?: any) {
         DiagnosticsModule.installBoardVisualDebugContract(root, diagnostics, controller);
     }
     _installBoardVisualThemeFontObserverForBoardRenderer(host);
+    AutoBoardWriterClaimGenerationForBoardRenderer += 1;
     AutoBoardWriterTokenForBoardRenderer = null;
+    AutoBoardWriterClaimForBoardRenderer = null;
+    AutoBoardWriterSettlementForBoardRenderer = null;
+    AutoBoardWriterDeferredRenderRequestedForBoardRenderer = false;
     return controller;
 }
 
-function getBoardVisualControllerReady() {
+function _requestAutoBoardVisualWriterForBoardRenderer(
+    controller: any,
+    requestFreshRender = false
+): Promise<any> {
+    if (requestFreshRender) AutoBoardWriterDeferredRenderRequestedForBoardRenderer = true;
+    if (AutoBoardWriterTokenForBoardRenderer) {
+        return Promise.resolve(AutoBoardWriterTokenForBoardRenderer);
+    }
+    if (AutoBoardWriterClaimForBoardRenderer) return AutoBoardWriterClaimForBoardRenderer;
+    const generation = AutoBoardWriterClaimGenerationForBoardRenderer;
+    const claim = (async () => {
+        if (typeof controller.waitForIdle === 'function') await controller.waitForIdle();
+        if (generation !== AutoBoardWriterClaimGenerationForBoardRenderer) return null;
+        if (getBoardVisualController() !== controller) return null;
+        let token = AutoBoardWriterTokenForBoardRenderer;
+        if (
+            !token
+            && (typeof controller.getMode !== 'function' || controller.getMode() === 'idle')
+            && _shouldSkipBoardRenderForPlayback()
+        ) {
+            token = controller.claimWriter(
+                `legacy-playback:${BoardVisualFrameSerialForBoardRenderer + 1}`,
+                'local'
+            );
+            AutoBoardWriterTokenForBoardRenderer = token;
+        }
+        if (AutoBoardWriterDeferredRenderRequestedForBoardRenderer) {
+            AutoBoardWriterDeferredRenderRequestedForBoardRenderer = false;
+            // Re-read canonical presentation state only after ownership is
+            // safe. Never retain or replay the pre-settlement prepared frame.
+            renderBoard();
+        }
+        return token;
+    })();
+    AutoBoardWriterClaimForBoardRenderer = claim;
+    const clear = () => {
+        if (AutoBoardWriterClaimForBoardRenderer === claim) {
+            AutoBoardWriterClaimForBoardRenderer = null;
+        }
+    };
+    const fail = () => {
+        if (generation === AutoBoardWriterClaimGenerationForBoardRenderer) {
+            AutoBoardWriterDeferredRenderRequestedForBoardRenderer = false;
+        }
+        clear();
+    };
+    void claim.then(clear, fail);
+    return claim;
+}
+
+async function getBoardVisualControllerReady() {
     const controller = getBoardVisualController();
     if (!controller) return Promise.reject(new Error('Board visual controller is unavailable'));
-    if (typeof controller.waitUntilReady === 'function') return controller.waitUntilReady();
-    return controller.ready || Promise.resolve();
+    if (typeof controller.waitUntilReady === 'function') await controller.waitUntilReady();
+    else await (controller.ready || Promise.resolve());
+    if (
+        typeof controller.waitForIdle === 'function'
+        && (typeof controller.getMode !== 'function' || controller.getMode() === 'idle')
+    ) {
+        await controller.waitForIdle();
+    }
 }
 
 function claimBoardVisualWriter(frameToken: string, mode: 'local' | 'network' = 'local') {
@@ -1596,6 +1679,13 @@ async function cancelBoardVisualWriterAfterHandoff(token: any, checkpoint?: any)
 async function settleBoardVisualWriter(token: any) {
     const controller = getBoardVisualController();
     if (!controller) throw new Error('Board visual controller is unavailable');
+    if (typeof controller.settleLocalWriter === 'function') {
+        renderBoard();
+        return controller.settleLocalWriter(token);
+    }
+    // Compatibility for an injected/older controller. Runtime controllers
+    // use the async path above so writer and PlaybackState ownership remain
+    // claimed through resource preparation and visual settlement.
     if (controller.getMode && controller.getMode() === 'recovering') {
         await controller.restore();
     } else {
@@ -1665,23 +1755,275 @@ function enterBoardVisualRecovery(token: any, error?: unknown) {
     return controller.enterRecovery(token, error);
 }
 
-function settleAutoBoardVisualWriter() {
-    if (!AutoBoardWriterTokenForBoardRenderer) return false;
+async function settleAutoBoardVisualWriter(): Promise<boolean> {
+    if (AutoBoardWriterSettlementForBoardRenderer) return AutoBoardWriterSettlementForBoardRenderer;
     const controller = getBoardVisualController();
     if (!controller) return false;
-    renderBoard();
-    // renderBoard settles the synthetic token itself when playback has
-    // already become idle. Only release here when the playback defer gate
-    // intentionally kept the token active.
-    if (!AutoBoardWriterTokenForBoardRenderer) {
+    const settlement = (async () => {
+        if (!AutoBoardWriterTokenForBoardRenderer && AutoBoardWriterClaimForBoardRenderer) {
+            await AutoBoardWriterClaimForBoardRenderer;
+        }
+        if (!AutoBoardWriterTokenForBoardRenderer) return false;
+        const token = AutoBoardWriterTokenForBoardRenderer;
+        renderBoard();
+        if (AutoBoardWriterTokenForBoardRenderer !== token) return true;
+        if (typeof controller.settleLocalWriter === 'function') {
+            await controller.settleLocalWriter(token);
+        } else {
+            controller.releaseWriter(token);
+        }
+        if (AutoBoardWriterTokenForBoardRenderer === token) {
+            AutoBoardWriterTokenForBoardRenderer = null;
+        }
         updateOccupancyUI();
         return true;
+    })();
+    AutoBoardWriterSettlementForBoardRenderer = settlement;
+    try {
+        return await settlement;
+    } finally {
+        if (AutoBoardWriterSettlementForBoardRenderer === settlement) {
+            AutoBoardWriterSettlementForBoardRenderer = null;
+        }
     }
-    const token = AutoBoardWriterTokenForBoardRenderer;
-    controller.releaseWriter(token);
-    AutoBoardWriterTokenForBoardRenderer = null;
-    updateOccupancyUI();
-    return true;
+}
+
+const BOARD_FRAME_LAYOUT_STYLE_PROPERTIES_FOR_TRANSACTION = Object.freeze([
+    '--board-frame-padding-top',
+    '--board-frame-padding-right',
+    '--board-frame-padding-bottom',
+    '--board-frame-padding-left',
+    '--board-frame-art-overhang-top',
+    '--board-frame-art-overhang-bottom',
+    '--board-frame-art-offset-y'
+]);
+
+function _captureBoardVisualApplyDomSnapshotForBoardRenderer(host: any) {
+    const doc = host && host.ownerDocument
+        ? host.ownerDocument
+        : (typeof document !== 'undefined' ? document : null);
+    const rootElement = doc && doc.documentElement;
+    const boardFrame = host && typeof host.closest === 'function' ? host.closest('#board-frame') : null;
+    const gameContainer = boardFrame && typeof boardFrame.closest === 'function'
+        ? boardFrame.closest('#game-container')
+        : (doc && doc.getElementById ? doc.getElementById('game-container') : null);
+    const previousExpansionLayer = resolveBoardExpansionLayerElement(host, false);
+    const restorers: Array<() => void> = [];
+    const captureAttribute = (element: any, name: string) => {
+        if (!element || typeof element.getAttribute !== 'function') return;
+        const value = element.getAttribute(name);
+        restorers.push(() => {
+            if (value == null) element.removeAttribute(name);
+            else element.setAttribute(name, value);
+        });
+    };
+    const captureClass = (element: any, name: string) => {
+        if (!element || !element.classList) return;
+        const enabled = element.classList.contains(name);
+        restorers.push(() => element.classList.toggle(name, enabled));
+    };
+    const captureStyle = (element: any, properties: readonly string[]) => {
+        if (!element || !element.style) return;
+        for (const property of properties) {
+            const value = element.style.getPropertyValue(property);
+            const priority = element.style.getPropertyPriority(property);
+            restorers.push(() => {
+                if (value) element.style.setProperty(property, value, priority);
+                else element.style.removeProperty(property);
+            });
+        }
+    };
+
+    captureAttribute(host, 'data-board-skin-id');
+    captureClass(host, 'board-has-void-cells');
+    captureStyle(host, [
+        '--board-surface-texture-image',
+        '--board-rows',
+        '--board-cols',
+        '--board-cell-size-px',
+        '--board-cell-scale',
+        '--board-disc-inset-px',
+        '--board-disc-size-px',
+        'width',
+        'height',
+        'left',
+        'top',
+        'transform'
+    ]);
+    captureAttribute(boardFrame, 'data-board-frame-skin-id');
+    captureClass(boardFrame, 'board-has-void-cells');
+    captureStyle(boardFrame, [
+        ...BOARD_FRAME_LAYOUT_STYLE_PROPERTIES_FOR_TRANSACTION,
+        '--board-frame-outer-width',
+        '--board-frame-outer-height'
+    ]);
+    captureAttribute(rootElement, 'data-board-skin-id');
+    captureAttribute(rootElement, 'data-board-frame-skin-id');
+    captureAttribute(rootElement, 'data-stone-skin-id');
+    captureStyle(rootElement, [
+        '--board-surface-texture-image',
+        '--normal-stone-black-image',
+        '--normal-stone-white-image',
+        ...BOARD_FRAME_LAYOUT_STYLE_PROPERTIES_FOR_TRANSACTION
+    ]);
+    captureClass(doc && doc.body, 'board-oversize-active');
+    captureClass(gameContainer, 'board-oversize-active');
+    captureStyle(previousExpansionLayer, [
+        '--board-rows',
+        '--board-cols',
+        'left',
+        'top',
+        'width',
+        'height'
+    ]);
+
+    let restored = false;
+    return {
+        rollback() {
+            if (restored) return;
+            restored = true;
+            for (let index = restorers.length - 1; index >= 0; index -= 1) restorers[index]();
+            if (!previousExpansionLayer) {
+                const createdExpansionLayer = resolveBoardExpansionLayerElement(host, false);
+                if (createdExpansionLayer && createdExpansionLayer.parentNode) {
+                    createdExpansionLayer.parentNode.removeChild(createdExpansionLayer);
+                }
+            }
+            _boardPixelSizingSignature = null;
+            _boardPixelSizingDirty = true;
+        }
+    };
+}
+
+function _createBoardVisualFrameWithLiveLayoutForBoardRenderer(host: any, frame: any) {
+    const LayoutModule = _require('./board-visual/layout');
+    const topology = frame.model.topology;
+    const cellSize = _readBoardCellSizeForLayout(host, topology);
+    const viewportElement = host && typeof host.querySelector === 'function'
+        ? host.querySelector('#board-scroll-viewport')
+        : null;
+    const cameraElement = viewportElement || host;
+    const cameraRect = cameraElement && typeof cameraElement.getBoundingClientRect === 'function'
+        ? cameraElement.getBoundingClientRect()
+        : null;
+    const logicalWidth = topology.renderCols * cellSize;
+    const logicalHeight = topology.renderRows * cellSize;
+    const viewportWidth = Number(cameraElement && cameraElement.clientWidth)
+        || Number(cameraRect && cameraRect.width)
+        || logicalWidth;
+    const viewportHeight = Number(cameraElement && cameraElement.clientHeight)
+        || Number(cameraRect && cameraRect.height)
+        || logicalHeight;
+    const viewport = typeof window !== 'undefined' ? (window as any).visualViewport : null;
+    const layout = LayoutModule.createBoardViewportLayout(topology, {
+        revision: frame.layout.revision,
+        cellSize,
+        dpr: typeof window !== 'undefined' ? window.devicePixelRatio : frame.layout.dpr,
+        orientation: frame.layout.orientation,
+        // The Pixi camera is mounted directly inside the board viewport. Its
+        // physical client rect is therefore the coordinate bridge origin;
+        // applying the surrounding DOM frame inset here would count it twice.
+        clientOrigin: {
+            x: Number(cameraRect && cameraRect.left) || 0,
+            y: Number(cameraRect && cameraRect.top) || 0
+        },
+        frameInset: { top: 0, right: 0, bottom: 0, left: 0 },
+        visualViewport: {
+            scale: viewport && Number(viewport.scale) || frame.layout.visualViewport.scale || 1,
+            offsetLeft: viewport && Number(viewport.offsetLeft) || 0,
+            offsetTop: viewport && Number(viewport.offsetTop) || 0
+        },
+        camera: {
+            // Scroll belongs to the inner Pixi viewport. clientOrigin remains
+            // the frame anchor, so the same offset is never applied twice.
+            scrollLeft: Number(cameraElement && cameraElement.scrollLeft) || 0,
+            scrollTop: Number(cameraElement && cameraElement.scrollTop) || 0,
+            viewportWidth,
+            viewportHeight
+        }
+    });
+    return Object.freeze({ ...frame, layout });
+}
+
+function _capPixiBoardViewportForBoardRenderer(host: any, topology: any) {
+    const cellSize = _readBoardCellSizeForLayout(host, topology);
+    const shape = _normalizeBoardShapeForPixelSizing({
+        rows: topology.renderRows,
+        cols: topology.renderCols,
+        baseRows: topology.baseRows,
+        baseCols: topology.baseCols,
+        minRow: topology.minRow,
+        minCol: topology.minCol
+    });
+    const measurement = _measureBoardPixelSizing(host, shape);
+    const boxMetrics = _getBoardBoxMetricsForPixelSizing(host);
+    const availableWidth = Number(measurement && measurement.baseSize && measurement.baseSize.width);
+    const availableHeight = Number(measurement && measurement.baseSize && measurement.baseSize.height);
+    const baseContentWidth = Math.min(
+        shape.baseCols * cellSize,
+        availableWidth > 0 ? availableWidth : Number.POSITIVE_INFINITY
+    );
+    const baseContentHeight = Math.min(
+        shape.baseRows * cellSize,
+        availableHeight > 0 ? availableHeight : Number.POSITIVE_INFINITY
+    );
+    const borderWidth = boxMetrics.boxSizing === 'border-box' ? boxMetrics.borderX : 0;
+    const borderHeight = boxMetrics.boxSizing === 'border-box' ? boxMetrics.borderY : 0;
+
+    // #board is the physical viewport in the Pixi lane. The logical render
+    // bounds live only on #board-scroll-surface, so expansion never grows the
+    // DOM frame/backbuffer and the camera can preserve upper/left anchors by
+    // adjusting scroll in the same apply.
+    host.style.width = `${baseContentWidth + borderWidth}px`;
+    host.style.height = `${baseContentHeight + borderHeight}px`;
+    host.style.removeProperty('left');
+    host.style.removeProperty('top');
+    host.style.removeProperty('transform');
+
+    const frameElement = _getBoardFrameElementForPixelSizing(host);
+    _clearBoardFramePixelSizingVars(frameElement);
+    _setBoardOversizeLayoutState(frameElement, false);
+
+    if (typeof host.getBoundingClientRect === 'function') {
+        const viewportRect = host.getBoundingClientRect();
+        const snapX = Number.isFinite(viewportRect.left) ? Math.round(viewportRect.left) - viewportRect.left : 0;
+        const snapY = Number.isFinite(viewportRect.top) ? Math.round(viewportRect.top) - viewportRect.top : 0;
+        if (Math.abs(snapX) > 0.001) host.style.left = `${snapX}px`;
+        if (Math.abs(snapY) > 0.001) host.style.top = `${snapY}px`;
+    }
+}
+
+function _beginBoardVisualApplyTransactionForBoardRenderer(frame: any, context: any) {
+    if (!context || context.backendKind !== 'pixi') return Object.freeze({ frame });
+    const host = context.host || _resolveBoardElementForVisualRuntime();
+    if (!host) throw new Error('Pixi board presentation host is unavailable');
+    const FramePresenterModule = _require('./board-visual/frame-presenter');
+    if (!FramePresenterModule || typeof FramePresenterModule.presentBoardFrame !== 'function') {
+        throw new Error('Board frame presenter is unavailable');
+    }
+    const snapshot = _captureBoardVisualApplyDomSnapshotForBoardRenderer(host);
+    try {
+        // These writes occur only after the controller authorizes this frame.
+        FramePresenterModule.presentBoardFrame(host, frame);
+        const topology = frame.model.topology;
+        syncBoardPixelSizing(host, {
+            rows: topology.renderRows,
+            cols: topology.renderCols,
+            baseRows: topology.baseRows,
+            baseCols: topology.baseCols,
+            minRow: topology.minRow,
+            minCol: topology.minCol
+        });
+        _capPixiBoardViewportForBoardRenderer(host, topology);
+        const presentedFrame = _createBoardVisualFrameWithLiveLayoutForBoardRenderer(host, frame);
+        return Object.freeze({
+            frame: presentedFrame,
+            rollback: snapshot.rollback
+        });
+    } catch (error) {
+        snapshot.rollback();
+        throw error;
+    }
 }
 
 function _readBoardCellSizeForLayout(host: any, topology?: any) {
@@ -1810,8 +2152,16 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
         layout,
         appearance,
         theme: ThemeModule.resolveBoardVisualThemeDescriptor(host, 0),
-        frameToken
+        frameToken,
+        renderSessionId: `board-render-session:${BoardVisualRenderSessionEpochForBoardRenderer}`
     }));
+}
+
+function resetBoardVisualRenderSession() {
+    BoardVisualRenderSessionEpochForBoardRenderer = BoardVisualRenderSessionEpochForBoardRenderer >= Number.MAX_SAFE_INTEGER
+        ? 1
+        : BoardVisualRenderSessionEpochForBoardRenderer + 1;
+    return `board-render-session:${BoardVisualRenderSessionEpochForBoardRenderer}`;
 }
 
 function renderBoardFull() {
@@ -2021,6 +2371,7 @@ const BoardRenderer = {
             applyCommittedBoardVisualFrame,
             enterBoardVisualRecovery,
             settleAutoBoardVisualWriter,
+            resetBoardVisualRenderSession,
             buildBoardVisualFrame: _buildBoardVisualFrameForBoardRenderer,
             updateOccupancyUI,
             applyTimeStopLegalEmphasis,

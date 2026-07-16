@@ -22,6 +22,7 @@ export interface PixiBoardCameraDiagnostics {
   readonly destroyed: boolean;
   readonly revision: number;
   readonly stableCellSize: number | null;
+  readonly renderSessionId: string | null;
   readonly logicalWidth: number;
   readonly logicalHeight: number;
   readonly viewportWidth: number;
@@ -53,7 +54,12 @@ export interface PixiBoardCameraOptions {
   readonly devicePixelRatio?: number | (() => number);
   readonly visualViewport?: VisualViewportLike | null;
   readonly createResizeObserver?: ((callback: ResizeObserverCallback) => ResizeObserverLike) | null;
-  readonly measureViewport?: (viewport: HTMLElement) => Readonly<{ width: number; height: number }>;
+  readonly measureViewport?: (viewport: HTMLElement) => Readonly<{
+    width: number;
+    height: number;
+    left?: number;
+    top?: number;
+  }>;
   readonly onLayoutChange?: (
     layout: BoardViewportLayout,
     canvasViewport: PixiBoardCanvasViewport
@@ -62,7 +68,11 @@ export interface PixiBoardCameraOptions {
 
 export interface PixiBoardCamera {
   mount(host: HTMLElement): HTMLElement;
-  sync(topology: BoardRenderTopologyModel, seedLayout: BoardViewportLayout): BoardViewportLayout;
+  sync(
+    topology: BoardRenderTopologyModel,
+    seedLayout: BoardViewportLayout,
+    renderSessionId?: string
+  ): BoardViewportLayout;
   refresh(): BoardViewportLayout | null;
   getLayout(): BoardViewportLayout | null;
   getCanvasViewport(): PixiBoardCanvasViewport | null;
@@ -110,6 +120,22 @@ function topologySignature(topology: BoardRenderTopologyModel): string {
     topology.renderColOffset,
     topology.renderRows,
     topology.renderCols
+  ].join(':');
+}
+
+function normalizedRenderSessionId(value: unknown): string | null {
+  const normalized = String(value == null ? '' : value).trim();
+  return normalized || null;
+}
+
+function stableBoardIdentity(
+  topology: BoardRenderTopologyModel,
+  renderSessionId: string | null
+): string {
+  return [
+    renderSessionId || 'legacy-render-session',
+    Math.max(1, Math.trunc(finite(topology.baseRows, topology.renderRows))),
+    Math.max(1, Math.trunc(finite(topology.baseCols, topology.renderCols)))
   ].join(':');
 }
 
@@ -179,13 +205,20 @@ export function reconcilePixiBoardCameraScroll(options: {
   });
 }
 
-function defaultMeasureViewport(viewport: HTMLElement): Readonly<{ width: number; height: number }> {
+function defaultMeasureViewport(viewport: HTMLElement): Readonly<{
+  width: number;
+  height: number;
+  left?: number;
+  top?: number;
+}> {
   const rect = typeof viewport.getBoundingClientRect === 'function'
     ? viewport.getBoundingClientRect()
     : null;
   return Object.freeze({
     width: positive(viewport.clientWidth || rect?.width || 1),
-    height: positive(viewport.clientHeight || rect?.height || 1)
+    height: positive(viewport.clientHeight || rect?.height || 1),
+    left: rect && Number.isFinite(rect.left) ? rect.left : undefined,
+    top: rect && Number.isFinite(rect.top) ? rect.top : undefined
   });
 }
 
@@ -223,6 +256,8 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
   let layout: BoardViewportLayout | null = null;
   let canvasViewport: PixiBoardCanvasViewport | null = null;
   let stableCellSize: number | null = null;
+  let stableIdentity: string | null = null;
+  let latestRenderSessionId: string | null = null;
   let revision = 0;
   let fingerprint: string | null = null;
   let destroyed = false;
@@ -271,6 +306,7 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
   function applySync(
     topology: BoardRenderTopologyModel,
     seedLayout: BoardViewportLayout,
+    renderSessionId: string | null,
     preserveTopologyPosition: boolean
   ): BoardViewportLayout {
     assertAlive();
@@ -278,16 +314,27 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
     if (syncing && layout) return layout;
     syncing = true;
     try {
-      if (stableCellSize == null) stableCellSize = positive(seedLayout.cellSize);
+      const nextStableIdentity = stableBoardIdentity(topology, renderSessionId);
+      const continuesStableBoard = stableIdentity === nextStableIdentity;
+      if (stableCellSize == null || !continuesStableBoard) {
+        stableCellSize = positive(seedLayout.cellSize);
+        stableIdentity = nextStableIdentity;
+      }
       const cellSize = stableCellSize;
       const measured = measureViewport(viewport);
-      const viewportWidth = positive(measured.width, seedLayout.camera.viewportWidth);
-      const viewportHeight = positive(measured.height, seedLayout.camera.viewportHeight);
+      const availableViewportWidth = positive(measured.width, seedLayout.camera.viewportWidth);
+      const availableViewportHeight = positive(measured.height, seedLayout.camera.viewportHeight);
+      const viewportWidth = Math.min(availableViewportWidth, topology.baseCols * cellSize);
+      const viewportHeight = Math.min(availableViewportHeight, topology.baseRows * cellSize);
       const logicalWidth = topology.renderCols * cellSize;
       const logicalHeight = topology.renderRows * cellSize;
-      const rawScrollLeft = layout ? viewport.scrollLeft : seedLayout.camera.scrollLeft;
-      const rawScrollTop = layout ? viewport.scrollTop : seedLayout.camera.scrollTop;
-      const reconciled = preserveTopologyPosition
+      const rawScrollLeft = continuesStableBoard && layout
+        ? viewport.scrollLeft
+        : seedLayout.camera.scrollLeft;
+      const rawScrollTop = continuesStableBoard && layout
+        ? viewport.scrollTop
+        : seedLayout.camera.scrollTop;
+      const reconciled = preserveTopologyPosition && continuesStableBoard
         ? reconcilePixiBoardCameraScroll({
           previousTopology: latestTopology,
           nextTopology: topology,
@@ -306,12 +353,27 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
       if (viewport.scrollLeft !== nextScrollLeft) viewport.scrollLeft = nextScrollLeft;
       if (viewport.scrollTop !== nextScrollTop) viewport.scrollTop = nextScrollTop;
 
+      // The seed origin belongs to the frame. The measured viewport is the
+      // board content origin after frame padding, so subtract that inset when
+      // responsive layout or device rotation moves the board without changing
+      // its dimensions.
+      const measuredLeft = Number(measured.left);
+      const measuredTop = Number(measured.top);
+      const clientOrigin = {
+        x: Number.isFinite(measuredLeft)
+          ? measuredLeft - seedLayout.frameInset.left
+          : seedLayout.clientOrigin.x,
+        y: Number.isFinite(measuredTop)
+          ? measuredTop - seedLayout.frameInset.top
+          : seedLayout.clientOrigin.y
+      };
+
       const candidateWithoutRevision = {
         cellSize,
         dpr: readDpr(seedLayout),
         orientation: seedLayout.orientation,
         frameInset: seedLayout.frameInset,
-        clientOrigin: seedLayout.clientOrigin,
+        clientOrigin,
         visualViewport: readVisualViewport(seedLayout),
         camera: {
           scrollLeft: nextScrollLeft,
@@ -346,6 +408,7 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
       updateCanvasLayer(nextCanvasViewport);
       latestTopology = topology;
       latestSeedLayout = seedLayout;
+      latestRenderSessionId = renderSessionId;
       layout = nextLayout;
       canvasViewport = nextCanvasViewport;
       options.onLayoutChange?.(nextLayout, nextCanvasViewport);
@@ -357,7 +420,7 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
 
   const refreshListener: EventListener = () => {
     if (!latestTopology || !latestSeedLayout || destroyed) return;
-    applySync(latestTopology, latestSeedLayout, false);
+    applySync(latestTopology, latestSeedLayout, latestRenderSessionId, false);
   };
 
   function mount(nextHost: HTMLElement): HTMLElement {
@@ -415,14 +478,18 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
     return canvasLayer;
   }
 
-  function sync(topology: BoardRenderTopologyModel, seedLayout: BoardViewportLayout): BoardViewportLayout {
+  function sync(
+    topology: BoardRenderTopologyModel,
+    seedLayout: BoardViewportLayout,
+    renderSessionId?: string
+  ): BoardViewportLayout {
     if (!topology || !seedLayout) throw new Error('PixiBoardCamera sync requires topology and layout');
-    return applySync(topology, seedLayout, true);
+    return applySync(topology, seedLayout, normalizedRenderSessionId(renderSessionId), true);
   }
 
   function refresh(): BoardViewportLayout | null {
     if (!latestTopology || !latestSeedLayout) return null;
-    return applySync(latestTopology, latestSeedLayout, false);
+    return applySync(latestTopology, latestSeedLayout, latestRenderSessionId, false);
   }
 
   function destroy(): void {
@@ -448,6 +515,9 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
     latestSeedLayout = null;
     layout = null;
     canvasViewport = null;
+    stableCellSize = null;
+    stableIdentity = null;
+    latestRenderSessionId = null;
   }
 
   function getDiagnostics(): PixiBoardCameraDiagnostics {
@@ -456,6 +526,7 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
       destroyed,
       revision,
       stableCellSize,
+      renderSessionId: latestRenderSessionId,
       logicalWidth: layout?.logicalWidth || 0,
       logicalHeight: layout?.logicalHeight || 0,
       viewportWidth: layout?.camera.viewportWidth || 0,

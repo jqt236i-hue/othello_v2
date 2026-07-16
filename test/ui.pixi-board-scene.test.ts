@@ -86,6 +86,7 @@ class FakeGraphics extends FakeDisplayObject {
   rect(...args: any[]) { this.commands.push({ op: 'rect', args }); return this; }
   roundRect(...args: any[]) { this.commands.push({ op: 'roundRect', args }); return this; }
   circle(...args: any[]) { this.commands.push({ op: 'circle', args }); return this; }
+  ellipse(...args: any[]) { this.commands.push({ op: 'ellipse', args }); return this; }
   moveTo(...args: any[]) { this.commands.push({ op: 'moveTo', args }); return this; }
   lineTo(...args: any[]) { this.commands.push({ op: 'lineTo', args }); return this; }
   fill(style: any) { this.commands.push({ op: 'fill', style }); return this; }
@@ -392,11 +393,19 @@ describe('Pixi static retained views', () => {
   test('shows procedural normal/special/sprout fallback and double-digit timer styles', () => {
     const fixture = createFakeRuntime();
     const stoneView = StoneView.createPixiStoneView(fixture.runtime);
+    const plain = materializedCell(makeCell('0,0', {
+      stone: { owner: 'black', value: 1, specialType: null, status: {} }
+    }));
+    stoneView.update(plain, viewContext());
+    expect((stoneView.root.children.find((child: any) => (
+      child.label === 'pixi-stone-shadow'
+    )) as FakeGraphics).commands.filter((command) => command.op === 'ellipse')).toHaveLength(12);
+
     const normal = materializedCell(makeCell('0,0', {
       stone: { owner: 'white', value: -1, specialType: 'GUARD', status: { remainingOwnerTurns: 12 } }
     }));
 
-    stoneView.update(normal, viewContext());
+    stoneView.update(normal, viewContext({ revisionSignature: 'static-view:2' }));
     expect(stoneView.getDiagnostics()).toMatchObject({
       visible: true,
       owner: 'white',
@@ -408,7 +417,7 @@ describe('Pixi static retained views', () => {
     const sprout = materializedCell(makeCell('0,1', {
       markers: [{ kind: 'breeding-sprout', owner: 'white', value: true, data: { active: true } }]
     }));
-    stoneView.update(sprout, viewContext({ revisionSignature: 'static-view:2' }));
+    stoneView.update(sprout, viewContext({ revisionSignature: 'static-view:3' }));
     expect(stoneView.getDiagnostics()).toMatchObject({
       visible: true,
       specialType: 'BREEDING',
@@ -731,7 +740,7 @@ describe('Pixi static board scene', () => {
       holeCount: 1,
       boardTextureMode: 'per-cell',
       surfaceBoardTextureCount: 0,
-      cellBoardTextureCount: 32
+      cellBoardTextureCount: 31
     });
     expect(circleScene.getRenderedCell(0, 0)).toMatchObject({
       kind: 'void',
@@ -739,7 +748,7 @@ describe('Pixi static board scene', () => {
     });
     expect(circleScene.getRenderedCell(2, 2)).toMatchObject({
       kind: 'hole',
-      cell: { usesBoardTexture: true }
+      cell: { usesBoardTexture: false }
     });
 
     const rotatedFixture = createFakeRuntime();

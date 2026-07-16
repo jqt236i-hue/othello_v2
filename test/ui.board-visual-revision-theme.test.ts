@@ -57,6 +57,7 @@ function makeRawFrame(overrides: Record<string, any> = {}) {
   };
   return {
     frameToken: overrides.frameToken || 'idle:1',
+    renderSessionId: overrides.renderSessionId || 'match:default',
     model,
     layout,
     appearance,
@@ -87,11 +88,14 @@ describe('board visual independent revision contract', () => {
     clone.layout.revision = 102;
     clone.appearance.revision = 103;
     clone.theme.revision = 104;
+    clone.renderSessionId = 'match:next';
     const second = composer.compose(clone);
 
     expect(revisions(first)).toEqual({ model: 1, layout: 1, appearance: 1, theme: 1 });
     expect(revisions(second)).toEqual(revisions(first));
     expect(second.frameToken).toBe('idle:2');
+    expect(first.renderSessionId).toBe('match:default');
+    expect(second.renderSessionId).toBe('match:next');
   });
 
   test.each([
@@ -148,6 +152,8 @@ describe('board visual semantic theme descriptor', () => {
     expect(theme.timer.doubleDigitScale).toBeLessThan(1);
     expect(theme.directionHint.fontWeight).toBe(700);
     expect(theme.legalHint.lineWidthRatio).toBeGreaterThan(0);
+    expect(theme.contourMetalColor).toBe(Theme.DEFAULT_BOARD_VISUAL_THEME.contourMetalColor);
+    expect(theme.contourShadowColor).toBe(Theme.DEFAULT_BOARD_VISUAL_THEME.contourShadowColor);
     expect(theme.boardBonus.shadows.length).toBeGreaterThan(0);
     expect(theme.boardBonus.glow).toMatchObject({ color: expect.any(String), blurRatio: expect.any(Number) });
     expect(Object.isFrozen(theme)).toBe(true);
@@ -160,6 +166,8 @@ describe('board visual semantic theme descriptor', () => {
   test('rejects unsafe colors, fonts, and out-of-range numeric style values', () => {
     expect(() => Theme.createBoardVisualThemeDescriptor({ surfaceColor: 'url(javascript:bad)' }))
       .toThrow(/surfaceColor/);
+    expect(() => Theme.createBoardVisualThemeDescriptor({ contourShadowColor: 'url(javascript:bad)' }))
+      .toThrow(/contourShadowColor/);
     expect(() => Theme.createBoardVisualThemeDescriptor({ fontFamily: 'var(--unresolved-font)' }))
       .toThrow(/fontFamily/);
     expect(() => Theme.createBoardVisualThemeDescriptor({ timer: { doubleDigitScale: 1.2 } }))
@@ -270,6 +278,8 @@ describe('board visual semantic theme descriptor', () => {
     const theme = Theme.resolveBoardVisualThemeDescriptor(host);
 
     expect(theme.surfaceColor).toBe(Theme.DEFAULT_BOARD_VISUAL_THEME.surfaceColor);
+    expect(theme.contourMetalColor).toBe(Theme.DEFAULT_BOARD_VISUAL_THEME.contourMetalColor);
+    expect(theme.contourShadowColor).toBe(Theme.DEFAULT_BOARD_VISUAL_THEME.contourShadowColor);
     expect(theme.fontFamily).toBe(Theme.DEFAULT_BOARD_VISUAL_THEME.fontFamily);
     expect(theme.gridLineWidth).toBe(Theme.DEFAULT_BOARD_VISUAL_THEME.gridLineWidth);
   });

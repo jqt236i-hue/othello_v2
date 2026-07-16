@@ -588,7 +588,7 @@ async function releasePlaybackClaimAndRequestBoardSync(claim: any, reason: strin
         }
         claim.boardWriterToken = null;
       } else if (renderer && typeof renderer.settleAutoBoardVisualWriter === 'function') {
-        renderer.settleAutoBoardVisualWriter();
+        await renderer.settleAutoBoardVisualWriter();
       }
     } catch (error) {
       throw error;
@@ -609,6 +609,23 @@ async function releasePlaybackClaimAndRequestBoardSync(claim: any, reason: strin
     requestBoardSyncAfterPlaybackClaimRelease(reason);
   }
   return released;
+}
+
+function createStrictNetworkSettlementError(
+  code: string,
+  message: string,
+  visualSeq: number
+): Error & { code: string; strictNetworkPlayback: true; visualSeq: number } {
+  const error = new Error(message) as Error & {
+    code: string;
+    strictNetworkPlayback: true;
+    visualSeq: number;
+  };
+  error.name = 'PresentationPlaybackError';
+  error.code = code;
+  error.strictNetworkPlayback = true;
+  error.visualSeq = visualSeq;
+  return error;
 }
 
 function createStrictNetworkSettlementHandle(options: {
@@ -644,6 +661,22 @@ function createStrictNetworkSettlementHandle(options: {
         await options.renderer.abortBoardVisualWriterBeforeHandoff(options.boardWriterToken);
         boardReleased = true;
       }
+      if (!manager || typeof manager.releaseVisualPlaybackClaim !== 'function') {
+        throw createStrictNetworkSettlementError(
+          'strict_network_manager_release_unavailable',
+          'PlaybackStateManager cannot release strict network playback before handoff',
+          options.visualSeq
+        );
+      }
+      if (manager.releaseVisualPlaybackClaim(options.managerClaim) !== true) {
+        throw createStrictNetworkSettlementError(
+          'strict_network_manager_release_failed',
+          'Strict network playback manager claim was not released before handoff',
+          options.visualSeq
+        );
+      }
+      managerReleased = true;
+      return true;
     } catch (recoveryError) {
       if (primaryError instanceof Error) {
         Object.defineProperty(primaryError, 'recoveryError', {
@@ -656,10 +689,6 @@ function createStrictNetworkSettlementHandle(options: {
       }
       throw recoveryError;
     }
-    if (manager && typeof manager.releaseVisualPlaybackClaim === 'function') {
-      managerReleased = manager.releaseVisualPlaybackClaim(options.managerClaim) === true;
-    }
-    return managerReleased;
   };
   const publicHandle = Object.freeze({
     kind: 'strict-network-settlement' as const,
@@ -1397,6 +1426,13 @@ async function flushBoardPresentationEvents(): Promise<void> {
       if (await releasePlaybackClaimAndRequestBoardSync(pendingClaim, 'presentation_drain_recovery_settled')) {
         pendingLocalBoardVisualSettlementClaim = null;
       }
+    }
+    const renderer = _require('./board-renderer');
+    if (renderer && typeof renderer.getBoardVisualControllerReady === 'function') {
+      // Keep the queue intact and unclaimed until the exclusive backend mount
+      // plus any idle frame resources have settled. This is the boot boundary:
+      // initGameSystems may emit boardUpdated before Pixi is ready.
+      await renderer.getBoardVisualControllerReady();
     }
     const events = flushPendingPresentationEvents();
     drainClaim = claimPresentationDrainForEvents(events);

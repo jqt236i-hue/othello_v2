@@ -1305,11 +1305,21 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         } catch (e: any) { /* ignore */ }
     }
 
+    function resetBoardVisualRenderSessionForReset() {
+        try {
+            const renderer = _require('./board-renderer');
+            if (renderer && typeof renderer.resetBoardVisualRenderSession === 'function') {
+                renderer.resetBoardVisualRenderSession();
+            }
+        } catch (e: any) { /* ignore */ }
+    }
+
     function runResetTransientUIStateCleanup() {
         // Keep abort first so any final sync can consume pending diff context before we clear playback state.
         [
             abortAnimationPlaybackForReset,
             clearPlaybackStateForReset,
+            resetBoardVisualRenderSessionForReset,
             clearTransientTimersForReset,
             unlockBoardPlaybackForReset,
             clearBoardTransientDomForReset,

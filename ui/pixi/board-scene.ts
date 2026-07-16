@@ -226,7 +226,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   if (options.stage) addPixiChild(options.stage, root);
   const boardSurfaceFill = createPixiGraphics(runtime, 'pixi-board-surface-fill');
   const boardSurfaceTexture = createPixiSprite(runtime, 'pixi-board-surface-texture');
-  addPixiChild(layers.surface, boardSurfaceFill, boardSurfaceTexture);
+  const boardSurfaceOverlay = createPixiGraphics(runtime, 'pixi-board-surface-overlay');
+  addPixiChild(layers.surface, boardSurfaceFill, boardSurfaceTexture, boardSurfaceOverlay);
   const starPoints = createPixiGraphics(runtime, 'pixi-board-star-points');
   addPixiChild(layers.marker, starPoints);
   const pool: ObjectPool<RetainedCellViews> = createObjectPool({
@@ -318,7 +319,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
           ? 'single-surface'
           : 'none';
     clearPixiGraphics(boardSurfaceFill);
+    clearPixiGraphics(boardSurfaceOverlay);
     boardSurfaceFill.visible = boardTextureMode === 'single-surface';
+    boardSurfaceOverlay.visible = boardTextureMode === 'single-surface';
     if (boardTextureMode === 'single-surface') {
       const baseCorners = [
         worldToScene(topology, frame.layout, 0, 0),
@@ -330,6 +333,30 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       const top = sceneOffsetY + Math.min(...baseCorners.map((corner) => corner.y));
       const width = topology.baseCols * frame.layout.cellSize;
       const height = topology.baseRows * frame.layout.cellSize;
+      const stageScale = (frame.layout.cellSize * Math.max(topology.baseRows, topology.baseCols)) / 496;
+      const shadowOffsetY = 8 * stageScale;
+      for (const [spread, alpha] of [[12, 0.03], [9, 0.05], [6, 0.07], [4, 0.1], [2, 0.14]] as const) {
+        const scaledSpread = spread * stageScale;
+        drawPixiRect(
+          boardSurfaceFill,
+          left - scaledSpread,
+          top + shadowOffsetY - scaledSpread,
+          width + scaledSpread * 2,
+          height + scaledSpread * 2,
+          { color: frame.theme.contourShadowColor, alpha }
+        );
+      }
+      for (const [spread, alpha] of [[4, 0.12], [3, 0.15], [2, 0.18], [1, 0.22]] as const) {
+        const scaledSpread = spread * stageScale;
+        drawPixiRect(
+          boardSurfaceFill,
+          left - scaledSpread,
+          top - scaledSpread,
+          width + scaledSpread * 2,
+          height + scaledSpread * 2,
+          { color: frame.theme.contourMetalColor, alpha }
+        );
+      }
       drawPixiRect(
         boardSurfaceFill,
         left,
@@ -343,8 +370,56 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       setPixiPosition(boardSurfaceTexture, left, top);
       boardSurfaceTexture.width = width;
       boardSurfaceTexture.height = height;
+
+      // Mirror #board::before. Keeping this as one retained Graphics object
+      // preserves the DOM skin treatment without multiplying board textures
+      // across materialized cells.
+      const verticalBands = 20;
+      for (let index = 0; index < verticalBands; index += 1) {
+        const y = top + (height * index) / verticalBands;
+        const bandHeight = height / verticalBands + 0.5;
+        const t = (index + 0.5) / verticalBands;
+        if (t < 0.14) {
+          drawPixiRect(boardSurfaceOverlay, left, y, width, bandHeight, {
+            color: '#fff8da', alpha: 0.035 * (1 - t / 0.14)
+          });
+        } else if (t > 0.7) {
+          drawPixiRect(boardSurfaceOverlay, left, y, width, bandHeight, {
+            color: '#000000', alpha: 0.3 * ((t - 0.7) / 0.3)
+          });
+        }
+      }
+      const radialRadius = Math.min(width, height) * 0.42;
+      const radialSteps = 6;
+      for (let index = radialSteps; index >= 1; index -= 1) {
+        const ratio = index / radialSteps;
+        drawPixiCircle(
+          boardSurfaceOverlay,
+          left + width * 0.5,
+          top + height * 0.44,
+          radialRadius * ratio,
+          { color: '#68ffe5', alpha: 0.055 / radialSteps }
+        );
+        drawPixiCircle(
+          boardSurfaceOverlay,
+          left + width * 0.5,
+          top + height * 0.5,
+          radialRadius * 1.095 * ratio,
+          { color: '#e0be6e', alpha: 0.032 / radialSteps }
+        );
+      }
+      drawPixiRect(
+        boardSurfaceOverlay,
+        left + 1,
+        top + 1,
+        Math.max(0, width - 2),
+        Math.max(0, height - 2),
+        null,
+        { color: '#d6b56a', alpha: 0.16, width: 1 }
+      );
     } else if (boardSurfaceTexture) {
       boardSurfaceTexture.visible = false;
+      boardSurfaceOverlay.visible = false;
     }
     return boardTextureMode;
   }
@@ -404,7 +479,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
           scene.x + sceneOffsetX,
           scene.y + sceneOffsetY,
           radius,
-          { color: frame.theme.markerColor, alpha: 0.72 }
+          { color: frame.theme.surfaceColor, alpha: 0.72 }
         );
         starPointCount += 1;
       }
@@ -523,7 +598,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     starPointSignature = null;
     boardTextureMode = 'none';
     clearPixiGraphics(boardSurfaceFill);
+    clearPixiGraphics(boardSurfaceOverlay);
     boardSurfaceFill.visible = false;
+    boardSurfaceOverlay.visible = false;
     if (boardSurfaceTexture) boardSurfaceTexture.visible = false;
     materializationWindow = null;
     resetCount += 1;

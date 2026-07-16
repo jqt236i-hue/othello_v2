@@ -10,6 +10,9 @@ export interface PixiBoardApplicationDiagnostics {
   readonly canvasCount: number;
   readonly contextCount: number;
   readonly tickerRunning: boolean;
+  readonly privateTickerRunning: boolean;
+  readonly sharedTickerRunning: boolean;
+  readonly systemTickerRunning: boolean;
   readonly renderCount: number;
   readonly resizeCount: number;
   readonly resolution: number;
@@ -85,6 +88,8 @@ export function createPixiBoardApplication(
   let canvas: HTMLCanvasElement | null = null;
   let host: HTMLElement | null = null;
   let initialization: Promise<void> | null = null;
+  let lifecycleEpoch = 0;
+  let destroyError: Error | null = null;
   let resolveReady!: () => void;
   let rejectReady!: (error: unknown) => void;
   let readySettled = false;
@@ -112,18 +117,50 @@ export function createPixiBoardApplication(
     rejectReady(error);
   }
 
-  function cleanupPartialApplication(): void {
+  function getDestroyError(): Error {
+    if (!destroyError) destroyError = new Error('PixiBoardApplication destroyed before initialization');
+    return destroyError;
+  }
+
+  function initializationWasSuperseded(epoch: number): boolean {
+    return state === 'destroyed' || epoch !== lifecycleEpoch;
+  }
+
+  function resolveManagedTickers(candidate: any): any[] {
+    const tickers = [candidate && candidate.ticker, runtime?.Ticker?.shared, runtime?.Ticker?.system];
+    const unique = new Set<any>();
+    for (const ticker of tickers) {
+      if (ticker && typeof ticker === 'object') unique.add(ticker);
+    }
+    return Array.from(unique);
+  }
+
+  function tickerStarted(ticker: any): boolean {
+    return Boolean(ticker && ticker.started === true);
+  }
+
+  function stopManagedTickers(candidate: any, force = false): void {
+    const wasRunning = tickerRunning;
     tickerRunning = false;
-    try {
-      if (application && application.ticker && typeof application.ticker.stop === 'function') {
-        application.ticker.stop();
+    for (const ticker of resolveManagedTickers(candidate)) {
+      if (typeof ticker.stop !== 'function') continue;
+      if (!force && !wasRunning && !tickerStarted(ticker)) continue;
+      try {
+        ticker.stop();
+      } catch (_error) {
+        // Best effort: the caller still owns the primary render/init failure.
       }
-    } catch (_error) { /* best effort during failed initialization */ }
-    try { removeCanvas(canvas || resolveCanvas(application)); } catch (_error) { /* best effort */ }
-    try { destroyApplication(application); } catch (_error) { /* primary init error wins */ }
-    canvas = null;
+    }
+  }
+
+  function cleanupApplicationInstance(candidate: any): void {
+    const candidateCanvas = resolveCanvas(candidate);
+    stopManagedTickers(candidate, true);
+    try { removeCanvas(candidateCanvas); } catch (_error) { /* best effort */ }
+    try { destroyApplication(candidate); } catch (_error) { /* primary init error wins */ }
+    if (application === candidate) application = null;
+    if (canvas && canvas === candidateCanvas) canvas = null;
     host = null;
-    application = null;
   }
 
   async function initialize(): Promise<void> {
@@ -138,26 +175,38 @@ export function createPixiBoardApplication(
       throw error;
     }
     state = 'initializing';
+    const epoch = ++lifecycleEpoch;
     initialization = (async () => {
+      let candidate: any = null;
       try {
-        application = new runtime.Application();
-        if (!application || typeof application.init !== 'function') {
+        candidate = new runtime.Application();
+        application = candidate;
+        if (!candidate || typeof candidate.init !== 'function') {
           throw new Error('Pixi Application.init is unavailable');
         }
-        await application.init({
+        await candidate.init({
           ...PIXI_BOARD_APPLICATION_OPTIONS,
           resolution
         });
-        canvas = resolveCanvas(application);
-        if (!canvas) throw new Error('Pixi Application canvas is unavailable');
-        if (application.ticker && typeof application.ticker.stop === 'function') {
-          application.ticker.stop();
+        if (initializationWasSuperseded(epoch)) {
+          throw getDestroyError();
         }
-        tickerRunning = false;
+        const candidateCanvas = resolveCanvas(candidate);
+        if (!candidateCanvas) throw new Error('Pixi Application canvas is unavailable');
+        canvas = candidateCanvas;
+        stopManagedTickers(candidate, true);
+        if (initializationWasSuperseded(epoch)) {
+          throw getDestroyError();
+        }
         state = 'ready';
         settleReadySuccess();
       } catch (error) {
-        cleanupPartialApplication();
+        cleanupApplicationInstance(candidate);
+        if (initializationWasSuperseded(epoch)) {
+          const destroyed = getDestroyError();
+          settleReadyFailure(destroyed);
+          throw destroyed;
+        }
         state = 'failed';
         settleReadyFailure(error);
         throw error;
@@ -171,6 +220,7 @@ export function createPixiBoardApplication(
       throw new Error('PixiBoardApplication mount host is unavailable');
     }
     await initialize();
+    if (state === 'destroyed') throw getDestroyError();
     if (!canvas) throw new Error('PixiBoardApplication canvas is unavailable');
     if (host && host !== nextHost) throw new Error('PixiBoardApplication cannot mount a second host');
     if (canvas.parentNode && canvas.parentNode !== nextHost) {
@@ -225,32 +275,36 @@ export function createPixiBoardApplication(
   }
 
   function stopTicker(): void {
-    if (!application || !application.ticker || typeof application.ticker.stop !== 'function') {
-      tickerRunning = false;
-      return;
-    }
-    if (tickerRunning) application.ticker.stop();
-    tickerRunning = false;
+    stopManagedTickers(application);
   }
 
   function destroy(): void {
     if (state === 'destroyed') return;
-    stopTicker();
-    removeCanvas(canvas || resolveCanvas(application));
-    destroyApplication(application);
+    const wasInitializing = state === 'initializing';
+    const candidate = application;
+    state = 'destroyed';
+    lifecycleEpoch += 1;
+    stopManagedTickers(candidate, true);
+    removeCanvas(canvas || resolveCanvas(candidate));
+    if (!wasInitializing) destroyApplication(candidate);
     canvas = null;
     host = null;
     application = null;
-    state = 'destroyed';
-    if (!readySettled) settleReadyFailure(new Error('PixiBoardApplication destroyed before initialization'));
+    if (!readySettled) settleReadyFailure(getDestroyError());
   }
 
   function getDiagnostics(): PixiBoardApplicationDiagnostics {
+    const privateTickerRunning = tickerStarted(application && application.ticker);
+    const sharedTickerRunning = tickerStarted(runtime?.Ticker?.shared);
+    const systemTickerRunning = tickerStarted(runtime?.Ticker?.system);
     return Object.freeze({
       state,
       canvasCount: canvas && canvas.parentNode ? 1 : 0,
       contextCount: application && state === 'ready' ? 1 : 0,
-      tickerRunning,
+      tickerRunning: tickerRunning || privateTickerRunning || sharedTickerRunning || systemTickerRunning,
+      privateTickerRunning,
+      sharedTickerRunning,
+      systemTickerRunning,
       renderCount,
       resizeCount,
       resolution: currentResolution

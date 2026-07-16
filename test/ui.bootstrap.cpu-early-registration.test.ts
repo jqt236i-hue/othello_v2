@@ -510,8 +510,10 @@ describe('UI bootstrap early CPU registration', () => {
     document.body.appendChild(strayBodyGhost);
 
     const setUIImplMock = jest.fn();
+    const resetBoardVisualRenderSession = jest.fn();
     jest.doMock('../game/turn-manager', () => ({ setUIImpl: setUIImplMock }));
     jest.doMock('../game/cpu-turn-handler', () => ({}));
+    jest.doMock('../ui/board-renderer', () => ({ resetBoardVisualRenderSession }));
 
     const uiBoot = require('../ui/bootstrap.js');
     uiBoot.installGameDI();
@@ -553,6 +555,7 @@ describe('UI bootstrap early CPU registration', () => {
     expect(fxLayer.innerHTML).toBe('');
     expect(document.body.contains(strayBodyGhost)).toBe(false);
     expect(global.resetRenderStats).toHaveBeenCalledTimes(1);
+    expect(resetBoardVisualRenderSession).toHaveBeenCalledTimes(1);
   });
 
   test('resetTransientUIState resets result presentation state before clearing stale result UI', () => {

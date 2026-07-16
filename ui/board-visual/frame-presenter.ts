@@ -141,7 +141,8 @@ function createBoardVisualFrameRevisionComposer() {
         layout: nextLayout,
         appearance: nextAppearance,
         theme: nextTheme,
-        frameToken: String(frame.frameToken || '')
+        frameToken: String(frame.frameToken || ''),
+        renderSessionId: String(frame.renderSessionId || '')
       });
     },
     getRevisions() {

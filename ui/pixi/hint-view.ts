@@ -7,6 +7,7 @@ import {
   createPixiText,
   destroyPixiDisplayObject,
   drawPixiCircle,
+  drawPixiLine,
   drawPixiRect,
   removeAndDestroyPixiChildren,
   removePixiFromParent,
@@ -153,39 +154,119 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     const cellSize = context.layout.cellSize;
     const center = cellSize / 2;
     const legalStyle = context.theme.legalHint;
+    const surfaceInset = Math.max(0.5, context.theme.gridLineWidth);
+    const surfaceSize = Math.max(0, cellSize - surfaceInset * 2);
+    const previewKinds = new Set(interaction.previewKinds);
+    const selectionKinds = new Set(interaction.selectionKinds);
+    const drawSurface = (color: string, alpha: number) => {
+      drawPixiRect(hints, surfaceInset, surfaceInset, surfaceSize, surfaceSize, {
+        color,
+        alpha
+      });
+    };
+    const drawInsetOutline = (
+      insetRatio: number,
+      color: string,
+      alpha: number,
+      widthRatio: number,
+      radiusRatio = 0
+    ) => {
+      const inset = cellSize * insetRatio;
+      drawPixiRect(
+        hints,
+        inset,
+        inset,
+        Math.max(0, cellSize - inset * 2),
+        Math.max(0, cellSize - inset * 2),
+        null,
+        {
+          color,
+          alpha,
+          width: Math.max(1, cellSize * widthRatio)
+        },
+        cellSize * radiusRatio
+      );
+    };
     drawPixiRect(interactionRoot, 0, 0, cellSize, cellSize, {
       color: '#000000',
       alpha: 0.001
     });
-    if (interaction.previewKinds.length) {
+    if (previewKinds.has('selected-target')) {
+      drawSurface('#ff4848', 0.42);
+      drawInsetOutline(0.016, '#ff6c6c', 0.88, 0.032, 0.025);
+      drawInsetOutline(0.045, '#ff6c6c', 0.74, 0.032, 0.025);
+    }
+    if (previewKinds.has('random-spawn')) {
+      drawSurface('#7cb6ff', 0.18);
+      drawInsetOutline(0.045, '#a2d2ff', 0.35, 0.023);
+      const inset = 0;
+      const low = inset;
+      const high = cellSize - inset;
+      // Chromium's one-pixel dashed outline resolves to a short 3px/2px
+      // cadence at the Phase 0 44px cell size.
+      const dash = cellSize * 0.068;
+      const gap = cellSize * 0.045;
+      const stroke = {
+        color: '#badfff',
+        alpha: 0.78,
+        width: Math.max(1, cellSize * 0.023)
+      };
+      for (let start = low; start < high; start += dash + gap) {
+        const end = Math.min(high, start + dash);
+        drawPixiLine(hints, start, low, end, low, stroke);
+        drawPixiLine(hints, start, high, end, high, stroke);
+        drawPixiLine(hints, low, start, low, end, stroke);
+        drawPixiLine(hints, high, start, high, end, stroke);
+      }
+    }
+    if (previewKinds.has('super-attraction-path')) {
+      drawSurface('#d270ff', 0.035);
+      drawInsetOutline(0.025, '#d270ff', 0.42, 0.032);
+    }
+    if (previewKinds.has('super-attraction-destination')) {
+      drawSurface('#d270ff', 0.06);
+      drawInsetOutline(0.045, '#eea0ff', 0.78, 0.048);
+      drawInsetOutline(0.075, '#d270ff', 0.25, 0.028);
+    }
+    const hasKnownPreview = previewKinds.has('selected-target')
+      || previewKinds.has('random-spawn')
+      || previewKinds.has('super-attraction-path')
+      || previewKinds.has('super-attraction-destination');
+    if (interaction.previewKinds.length && !hasKnownPreview) {
       drawPixiRect(hints, cellSize * 0.06, cellSize * 0.06, cellSize * 0.88, cellSize * 0.88, {
         color: legalStyle.highlightColor,
         alpha: 0.62
       }, null, cellSize * 0.08);
     }
-    if (interaction.legal || interaction.legalFree || interaction.tabooLegal) {
-      drawPixiCircle(hints, center, center, cellSize * 0.15, {
-        color: legalStyle.highlightColor,
-        alpha: interaction.legalFree ? 0.78 : 0.48
-      }, {
-        color: interaction.tabooLegal ? context.theme.holeBoundaryColor : legalStyle.ringColor,
-        alpha: 1,
-        width: Math.max(1, cellSize * legalStyle.lineWidthRatio)
+    if (interaction.legal || interaction.legalFree) {
+      // DOM's board-has-void-cells rule restores the per-cell board texture
+      // after the legal class, so circle/hole boards keep only the ring.
+      if (context.boardTextureMode !== 'per-cell') drawSurface('#146457', 0.72);
+      const legalLineWidth = Math.max(1, cellSize * legalStyle.lineWidthRatio);
+      drawPixiCircle(hints, center, center, Math.max(0, cellSize * 0.34 - legalLineWidth * 0.5), null, {
+        color: legalStyle.ringColor,
+        alpha: 0.72,
+        width: legalLineWidth
       });
     }
-    if (interaction.selectable || interaction.selectionKinds.length) {
-      drawPixiRect(hints, cellSize * 0.09, cellSize * 0.09, cellSize * 0.82, cellSize * 0.82, null, {
-        color: legalStyle.ringColor,
-        alpha: 0.82,
-        width: Math.max(1.5, cellSize * 0.035)
-      }, cellSize * 0.09);
+    if (interaction.tabooLegal || selectionKinds.has('positive-target')) {
+      drawSurface('#9858ee', 0.4);
+      drawInsetOutline(0.016, '#d29aff', 0.9, 0.032, 0.025);
+      drawInsetOutline(0.045, '#c68aff', 0.76, 0.032, 0.025);
     }
-    if (interaction.selected) {
-      drawPixiRect(hints, cellSize * 0.045, cellSize * 0.045, cellSize * 0.91, cellSize * 0.91, null, {
-        color: context.theme.hintColor,
-        alpha: 1,
-        width: Math.max(2, cellSize * 0.055)
-      }, cellSize * 0.1);
+    if (selectionKinds.has('friendly')) {
+      drawSurface('#0e7e6f', 0.84);
+    }
+    const hasKnownSelection = interaction.tabooLegal
+      || selectionKinds.has('positive-target')
+      || selectionKinds.has('friendly');
+    if ((interaction.selectable || interaction.selectionKinds.length) && !hasKnownSelection) {
+      drawInsetOutline(0.09, legalStyle.ringColor, 0.82, 0.035, 0.09);
+    }
+    if (interaction.selected && !previewKinds.has('selected-target')) {
+      drawSurface('#ff4848', 0.42);
+      drawInsetOutline(0.016, '#ff6c6c', 0.88, 0.032, 0.025);
+      drawInsetOutline(0.045, '#ff6c6c', 0.74, 0.032, 0.025);
     }
     if (interaction.hovered) {
       drawPixiRect(hints, cellSize * 0.02, cellSize * 0.02, cellSize * 0.96, cellSize * 0.96, {
@@ -194,11 +275,9 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
       }, null, cellSize * 0.08);
     }
     if (interaction.keyboardCursor) {
-      drawPixiRect(hints, cellSize * 0.13, cellSize * 0.13, cellSize * 0.74, cellSize * 0.74, null, {
-        color: context.theme.directionHint.color,
-        alpha: 1,
-        width: Math.max(2, cellSize * 0.04)
-      }, cellSize * 0.05);
+      drawInsetOutline(0.032, '#ffc650', 0.08, 0.09, 0.075);
+      drawInsetOutline(0.056, '#ffe178', 0.96, 0.032, 0.065);
+      drawInsetOutline(0.075, '#ffeb96', 0.12, 0.018, 0.055);
     }
     renderDirectionHints(runtime, directionRoot, interaction.directionHints, context);
     return true;

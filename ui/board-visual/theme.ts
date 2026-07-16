@@ -87,6 +87,8 @@ const DEFAULT_BOARD_VISUAL_THEME: BoardVisualThemeDescriptor = Object.freeze({
   surfaceColor: '#0a6b55',
   gridColor: '#142c25',
   outerBoundaryColor: '#091d18',
+  contourMetalColor: 'rgba(55, 49, 38, 0.98)',
+  contourShadowColor: 'rgba(3, 7, 6, 0.96)',
   holeBoundaryColor: '#6b2020',
   markerColor: DEFAULT_BONUS_STYLE.color,
   hintColor: DEFAULT_LEGAL_HINT_STYLE.ringColor,
@@ -238,6 +240,14 @@ export function createBoardVisualThemeDescriptor(
       source.outerBoundaryColor ?? DEFAULT_BOARD_VISUAL_THEME.outerBoundaryColor,
       'outerBoundaryColor'
     ),
+    contourMetalColor: validatedColor(
+      source.contourMetalColor ?? DEFAULT_BOARD_VISUAL_THEME.contourMetalColor,
+      'contourMetalColor'
+    ),
+    contourShadowColor: validatedColor(
+      source.contourShadowColor ?? DEFAULT_BOARD_VISUAL_THEME.contourShadowColor,
+      'contourShadowColor'
+    ),
     holeBoundaryColor: validatedColor(
       source.holeBoundaryColor ?? DEFAULT_BOARD_VISUAL_THEME.holeBoundaryColor,
       'holeBoundaryColor'
@@ -376,6 +386,11 @@ export function resolveBoardVisualThemeDescriptor(
   const markerColor = readColorToken(style, '--board-bonus-number-color', DEFAULT_BOARD_VISUAL_THEME.markerColor);
   const hintColor = readColorToken(style, '--board-legal-ring-color', DEFAULT_BOARD_VISUAL_THEME.hintColor);
   const timerColor = readColorToken(style, '--board-timer-color', DEFAULT_BOARD_VISUAL_THEME.timerColor);
+  const contourColor = readColorToken(
+    style,
+    '--board-contour-highlight',
+    DEFAULT_BOARD_VISUAL_THEME.outerBoundaryColor
+  );
   return createBoardVisualThemeDescriptor({
     revision,
     fontReadyEpoch: getBoardVisualThemeFontReadyEpoch(host),
@@ -384,7 +399,17 @@ export function resolveBoardVisualThemeDescriptor(
     outerBoundaryColor: readColorToken(
       style,
       '--board-outer-boundary-color',
-      DEFAULT_BOARD_VISUAL_THEME.outerBoundaryColor
+      contourColor
+    ),
+    contourMetalColor: readColorToken(
+      style,
+      '--board-contour-metal',
+      DEFAULT_BOARD_VISUAL_THEME.contourMetalColor
+    ),
+    contourShadowColor: readColorToken(
+      style,
+      '--board-contour-shadow',
+      DEFAULT_BOARD_VISUAL_THEME.contourShadowColor
     ),
     holeBoundaryColor: readColorToken(
       style,

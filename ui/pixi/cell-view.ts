@@ -250,6 +250,30 @@ export function drawPixiCircle(
   }
 }
 
+export function drawPixiEllipse(
+  graphics: any,
+  x: number,
+  y: number,
+  radiusX: number,
+  radiusY: number,
+  fill?: PixiFillStyle | null,
+  stroke?: PixiStrokeStyle | null
+): void {
+  if (!graphics) return;
+  const draw = () => {
+    if (typeof graphics.ellipse === 'function') graphics.ellipse(x, y, radiusX, radiusY);
+    else if (typeof graphics.drawEllipse === 'function') graphics.drawEllipse(x, y, radiusX, radiusY);
+  };
+  if (fill) {
+    draw();
+    applyFill(graphics, fill);
+  }
+  if (stroke) {
+    draw();
+    applyStroke(graphics, stroke);
+  }
+}
+
 export function drawPixiLine(
   graphics: any,
   fromX: number,
@@ -328,7 +352,7 @@ function isBoardBonusMarker(kind: unknown): boolean {
   return String(kind || '').trim().toLowerCase().replace(/_/g, '-').includes('board-bonus');
 }
 
-const CELL_MARKER_KINDS = new Set(['board-bonus', 'blockade', 'frozen', 'seed', 'poison-cell']);
+const CELL_MARKER_KINDS = new Set(['board-bonus', 'blockade', 'seed', 'poison-cell']);
 
 export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView {
   const surfaceRoot = createPixiContainer(runtime, 'pixi-cell-surface');
@@ -390,13 +414,15 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     const shouldUseCellBoardTexture = typeof context.boardTextureMode === 'undefined'
       || context.boardTextureMode === 'per-cell'
       || (context.boardTextureMode === 'single-surface' && cell.expansionSide !== null);
-    const boardTexture = shouldUseCellBoardTexture
+    const boardTexture = cell.kind === 'hole'
+      ? null
+      : shouldUseCellBoardTexture
       ? resolvePixiStaticTexture(context.textures, ['board'])
       : null;
     drawPixiRect(surface, 0, 0, cellSize, cellSize, {
-      color: cell.kind === 'hole' ? context.theme.holeBoundaryColor : context.theme.surfaceColor,
+      color: cell.kind === 'hole' ? '#000000' : context.theme.surfaceColor,
       alpha: cell.kind === 'hole'
-        ? 0.42
+        ? 1
         : context.boardTextureMode === 'single-surface' && cell.expansionSide === null
           ? 0
           : 1
@@ -412,38 +438,77 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     }
 
     const gridWidth = Math.max(0.5, context.theme.gridLineWidth);
-    drawPixiRect(grid, 0, 0, cellSize, cellSize, null, {
-      color: context.theme.gridColor,
-      alpha: 0.9,
+    const gridInset = gridWidth / 2;
+    if (cell.kind === 'playable') {
+      // Mirror the retained DOM cell's vertical surface gradient. Two
+      // premultiplied low-alpha bands approximate the CSS interpolation while
+      // keeping the texture itself a single shared board sprite.
+      const surfaceBands = 11;
+      for (let index = 0; index < surfaceBands; index += 1) {
+        const t = (index + 0.5) / surfaceBands;
+        const y = (cellSize * index) / surfaceBands;
+        const height = cellSize / surfaceBands + 0.25;
+        const warmAlpha = 0.022 * (1 - t);
+        const shadeAlpha = 0.065 * t;
+        if (warmAlpha > 0) {
+          drawPixiRect(grid, 0, y, cellSize, height, {
+            color: '#fff7ce', alpha: warmAlpha
+          });
+        }
+        if (shadeAlpha > 0) {
+          drawPixiRect(grid, 0, y, cellSize, height, {
+            color: '#000000', alpha: shadeAlpha
+          });
+        }
+      }
+    }
+    // DOM cells use a dark top/left bevel and a faint warm right/bottom
+    // bevel. Keep both one-cell-local so adjacent cells retain the same
+    // two-sided grid instead of collapsing it into one canvas stroke.
+    drawPixiLine(grid, 0, gridInset, cellSize, gridInset, {
+      color: 'rgba(4, 12, 12, 0.54)',
+      alpha: 1,
       width: gridWidth
     });
-    if (cell.kind === 'hole') {
-      const holeWidth = Math.max(gridWidth, cellSize * 0.04);
-      drawPixiLine(grid, cellSize * 0.2, cellSize * 0.2, cellSize * 0.8, cellSize * 0.8, {
-        color: context.theme.holeBoundaryColor,
-        alpha: 0.9,
-        width: holeWidth
-      });
-      drawPixiLine(grid, cellSize * 0.8, cellSize * 0.2, cellSize * 0.2, cellSize * 0.8, {
-        color: context.theme.holeBoundaryColor,
-        alpha: 0.9,
-        width: holeWidth
-      });
-    }
-
+    drawPixiLine(grid, gridInset, 0, gridInset, cellSize, {
+      color: 'rgba(4, 12, 12, 0.58)',
+      alpha: 1,
+      width: gridWidth
+    });
+    drawPixiLine(grid, cellSize - gridInset, 0, cellSize - gridInset, cellSize, {
+      color: 'rgba(230, 187, 104, 0.18)',
+      alpha: 1,
+      width: gridWidth
+    });
+    drawPixiLine(grid, 0, cellSize - gridInset, cellSize, cellSize - gridInset, {
+      color: 'rgba(230, 187, 104, 0.14)',
+      alpha: 1,
+      width: gridWidth
+    });
+    drawPixiLine(grid, 0, Math.max(gridInset, cellSize - gridWidth * 1.5), cellSize, Math.max(gridInset, cellSize - gridWidth * 1.5), {
+      color: '#000000', alpha: 0.18, width: gridWidth
+    });
     const boundaryWidth = Math.max(gridWidth, cellSize * 0.045);
+    const boundaryInset = boundaryWidth / 2;
     const edgeLines: Record<string, readonly [number, number, number, number]> = {
-      top: [0, 0, cellSize, 0],
-      right: [cellSize, 0, cellSize, cellSize],
-      bottom: [0, cellSize, cellSize, cellSize],
-      left: [0, 0, 0, cellSize]
+      top: [0, boundaryInset, cellSize, boundaryInset],
+      right: [cellSize - boundaryInset, 0, cellSize - boundaryInset, cellSize],
+      bottom: [0, cellSize - boundaryInset, cellSize, cellSize - boundaryInset],
+      left: [boundaryInset, 0, boundaryInset, cellSize]
     };
     for (const edge of ['top', 'right', 'bottom', 'left'] as const) {
       const boundary = cell.boundaryEdges[edge];
       if (boundary === 'none') continue;
+      // DOM meteor holes retain an ordinary dark cell/grid; they do not add
+      // a second red contour. A complete rectangular board likewise relies
+      // on the retained DOM frame art instead of a CSS contour around cells.
+      if (boundary === 'hole') continue;
+      if (boundary === 'outer'
+        && context.boardTextureMode === 'single-surface'
+        && cell.expansionSide === null) continue;
       const [fromX, fromY, toX, toY] = edgeLines[edge];
       drawPixiLine(grid, fromX, fromY, toX, toY, {
-        color: boundary === 'hole' ? context.theme.holeBoundaryColor : context.theme.outerBoundaryColor,
+        color: context.theme.outerBoundaryColor,
         alpha: 1,
         width: boundaryWidth
       });
@@ -452,6 +517,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     let badgeIndex = 0;
     for (const marker of cell.markers) {
       if (!CELL_MARKER_KINDS.has(marker.kind)) continue;
+      if (marker.kind === 'seed' && cell.stone) continue;
       const label = markerLabel(marker);
       markerLabels.push(label);
       renderedMarkerKinds.push(marker.kind);

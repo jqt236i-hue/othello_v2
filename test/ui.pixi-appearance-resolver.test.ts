@@ -105,4 +105,20 @@ describe('Pixi appearance resolver', () => {
       sourceBlob: null
     }));
   });
+
+  test('keeps committed special visuals separate from placement-only pending effects', () => {
+    const resolver = require('../ui/pixi/appearance-resolver.ts');
+
+    expect(resolver.resolveSpecialStoneAppearanceResource(
+      window,
+      'ULTIMATE_REVERSE_DRAGON',
+      'white'
+    )).toBeNull();
+    expect(resolver.resolveSpecialStoneAppearanceResource(window, 'FREEZE', 'black')).toEqual(
+      expect.objectContaining({
+        role: 'special-stone',
+        url: 'https://example.test/game/assets/images/other/ICE.png'
+      })
+    );
+  });
 });

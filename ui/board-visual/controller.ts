@@ -9,6 +9,42 @@ import type {
 
 type ControllerDiagnostics = { record: (event: string, detail?: unknown) => void };
 type IdleWaiter = Readonly<{ resolve: () => void; reject: (error: Error) => void }>;
+type PendingFramePreparation = Readonly<{
+  frame: BoardVisualFrame;
+  version: number;
+  promise: Promise<void>;
+}>;
+type LocalWriterSettlement = Readonly<{
+  token: BoardWriterToken;
+  promise: Promise<boolean>;
+}>;
+type BoardFramePresentation = Readonly<{
+  frame: BoardVisualFrame;
+  commit?: () => void;
+  rollback?: () => void;
+}>;
+type ActiveBoardFramePresentation = {
+  sourceFrame: BoardVisualFrame;
+  presentedFrame: BoardVisualFrame;
+  previousFrame: BoardVisualFrame | null;
+  commit?: () => void;
+  rollback?: () => void;
+  state: 'active' | 'committed' | 'rolled-back';
+};
+type IdleFrameSettlement = {
+  sourceFrame: BoardVisualFrame;
+  presentation: ActiveBoardFramePresentation;
+  version: number;
+  lifecycleEpoch: number;
+  settled: boolean;
+  promise: Promise<void>;
+};
+type RecoveryFrameSettlement = Readonly<{
+  presentation: ActiveBoardFramePresentation;
+  consumedPendingFrame: BoardVisualFrame | null;
+  consumedPendingVersion: number;
+  consumedInitialFrame: BoardVisualFrame | null;
+}>;
 
 const HOST_BACKEND_LEASES = new WeakMap<HTMLElement, object>();
 
@@ -76,6 +112,13 @@ function readBackendCountSnapshot(backend: BoardVisualBackend, methodName: strin
 function createBoardVisualController(options: {
   backend: BoardVisualBackend;
   diagnostics?: ControllerDiagnostics;
+  beginApplyFrame?: (
+    frame: BoardVisualFrame,
+    context: Readonly<{
+      backendKind: BoardVisualBackend['kind'];
+      host: HTMLElement | null;
+    }>
+  ) => BoardFramePresentation | BoardVisualFrame;
 }) {
   let backend = options.backend;
   const diagnostics = options.diagnostics || { record() {} };
@@ -86,6 +129,10 @@ function createBoardVisualController(options: {
   let host: HTMLElement | null = null;
   let activeToken: BoardWriterToken | null = null;
   let pendingLatest: BoardVisualFrame | null = null;
+  let pendingFrameVersion = 0;
+  let pendingPreparation: PendingFramePreparation | null = null;
+  let pendingPreparationScheduleTicket: object | null = null;
+  let localWriterSettlement: LocalWriterSettlement | null = null;
   let initialLatest: BoardVisualFrame | null = null;
   let lastApplied: BoardVisualFrame | null = null;
   let writerCheckpoint: BoardVisualFrame | null = null;
@@ -95,6 +142,10 @@ function createBoardVisualController(options: {
   let recoveryError: Error | null = null;
   let networkAwaitingStarted = false;
   let networkCommittedApplied = false;
+  let lifecycleEpoch = 0;
+  let activePresentation: ActiveBoardFramePresentation | null = null;
+  let idleFrameSettlement: IdleFrameSettlement | null = null;
+  let idleFrameSettlementVersion = 0;
   const hostLeaseOwner = Object.freeze({});
   const idleWaiters = new Set<IdleWaiter>();
   const settlingIdleWaiters = new Set<IdleWaiter>();
@@ -125,6 +176,26 @@ function createBoardVisualController(options: {
     return Promise.resolve(candidate.call(backend, frame));
   };
 
+  const waitForLatestIdleSettlement = async (): Promise<void> => {
+    while (true) {
+      const tracked = idleFrameSettlement;
+      if (tracked) {
+        await tracked.promise;
+        if (idleFrameSettlement === tracked) return;
+        continue;
+      }
+      const epoch = lifecycleEpoch;
+      try {
+        await waitForBackendVisualSettlement();
+        assertLifecycleCurrent(epoch);
+      } catch (error) {
+        if (mode === 'destroyed') throw toError(error, 'BoardVisualController is destroyed');
+        throw enterFailureRecovery(error, 'idle', 'frame:idle-settlement-error');
+      }
+      if (!idleFrameSettlement) return;
+    }
+  };
+
   const flushIdleWaiters = () => {
     if (!ready || mode !== 'idle' || idleWaiters.size === 0) return;
     const waiters = Array.from(idleWaiters);
@@ -133,7 +204,7 @@ function createBoardVisualController(options: {
       settlingIdleWaiters.add(waiter);
     }
     if (!idleSettlement) {
-      idleSettlement = waitForBackendVisualSettlement().then(
+      idleSettlement = waitForLatestIdleSettlement().then(
         () => {
           const settled = Array.from(settlingIdleWaiters);
           settlingIdleWaiters.clear();
@@ -162,6 +233,12 @@ function createBoardVisualController(options: {
 
   const assertAlive = () => {
     if (mode === 'destroyed') throw new Error('BoardVisualController is destroyed');
+  };
+
+  const assertLifecycleCurrent = (epoch: number) => {
+    if (epoch !== lifecycleEpoch || mode === 'destroyed') {
+      throw new Error('BoardVisualController is destroyed');
+    }
   };
 
   const setHostRendererAttribute = (value: BoardVisualBackend['kind'] | null) => {
@@ -205,12 +282,80 @@ function createBoardVisualController(options: {
     rejectReady(error);
   };
 
+  const rollbackPresentation = (presentation: ActiveBoardFramePresentation | null) => {
+    if (!presentation || presentation.state !== 'active') return;
+    presentation.state = 'rolled-back';
+    if (activePresentation === presentation) activePresentation = null;
+    lastApplied = presentation.previousFrame;
+    try {
+      presentation.rollback?.();
+    } catch (error) {
+      diagnostics.record('frame:presentation-rollback-error', {
+        frameToken: presentation.sourceFrame.frameToken,
+        message: toError(error, 'Board frame presentation rollback failed').message
+      });
+    }
+  };
+
+  const commitPresentation = (presentation: ActiveBoardFramePresentation | null) => {
+    if (!presentation || presentation.state !== 'active') return;
+    try {
+      presentation.commit?.();
+      presentation.state = 'committed';
+      if (activePresentation === presentation) activePresentation = null;
+      lastApplied = presentation.presentedFrame;
+    } catch (error) {
+      rollbackPresentation(presentation);
+      throw error;
+    }
+  };
+
+  const beginFramePresentation = (frame: BoardVisualFrame): ActiveBoardFramePresentation => {
+    // A newer allowed apply supersedes an unsettled presentation. Restore the
+    // last settled DOM frame first, then present the newer frame in the same
+    // JavaScript transaction so no intermediate writer can paint.
+    rollbackPresentation(activePresentation);
+    const previousFrame = lastApplied;
+    const result = typeof options.beginApplyFrame === 'function'
+      ? options.beginApplyFrame(frame, Object.freeze({ backendKind: backend.kind, host }))
+      : frame;
+    const descriptor: BoardFramePresentation = result && typeof result === 'object' && 'frame' in result
+      ? result as BoardFramePresentation
+      : Object.freeze({ frame: result as BoardVisualFrame }) as BoardFramePresentation;
+    const presentedFrame = descriptor.frame;
+    if (!presentedFrame || presentedFrame.frameToken !== frame.frameToken) {
+      try { descriptor.rollback?.(); } catch (_error) { /* retain the identity error */ }
+      throw new Error('Presented board frame must preserve the source frame token');
+    }
+    if (
+      presentedFrame.renderSessionId !== frame.renderSessionId
+      || presentedFrame.model !== frame.model
+      || presentedFrame.appearance !== frame.appearance
+      || presentedFrame.theme !== frame.theme
+    ) {
+      try { descriptor.rollback?.(); } catch (_error) { /* retain the identity error */ }
+      throw new Error('Presented board frame may only replace live viewport layout');
+    }
+    const presentation: ActiveBoardFramePresentation = {
+      sourceFrame: frame,
+      presentedFrame,
+      previousFrame,
+      commit: descriptor.commit,
+      rollback: descriptor.rollback,
+      state: 'active'
+    };
+    activePresentation = presentation;
+    return presentation;
+  };
+
   const enterFailureRecovery = (
     error: unknown,
     returnMode: BoardWriterMode,
     event: string
   ): Error => {
     const normalized = toError(error, 'Board visual backend failed');
+    if (mode === 'destroyed') return normalized;
+    rollbackPresentation(activePresentation);
     if (readySettled) beginReadyCycle();
     ready = false;
     recoveryReturnMode = returnMode === 'recovering'
@@ -224,11 +369,53 @@ function createBoardVisualController(options: {
     return normalized;
   };
 
-  const applyReadyFrame = (frame: BoardVisualFrame) => {
-    backend.applyFrame(frame);
-    lastApplied = frame;
+  const applyReadyFrame = (frame: BoardVisualFrame): ActiveBoardFramePresentation => {
+    const presentation = beginFramePresentation(frame);
+    try {
+      if (presentation.presentedFrame === frame) backend.applyFrame(frame);
+      else (backend.applyFrame as any)(frame, presentation.presentedFrame);
+    } catch (error) {
+      rollbackPresentation(presentation);
+      throw error;
+    }
+    lastApplied = presentation.presentedFrame;
     diagnostics.record('frame:applied', { frameToken: frame.frameToken, revision: frame.model.visualRevision });
-    return true;
+    return presentation;
+  };
+
+  const settleReadyFramePresentation = async (
+    frame: BoardVisualFrame,
+    epoch: number,
+    operation: 'apply' | 'restore'
+  ): Promise<ActiveBoardFramePresentation> => {
+    const presentation = beginFramePresentation(frame);
+    try {
+      const applyOperation = operation === 'restore' ? backend.restore : backend.applyFrame;
+      if (presentation.presentedFrame === frame) {
+        await Promise.resolve(applyOperation.call(backend, frame));
+      } else {
+        await Promise.resolve((applyOperation as any).call(backend, frame, presentation.presentedFrame));
+      }
+      if (operation === 'apply') {
+        diagnostics.record('frame:applied', { frameToken: frame.frameToken, revision: frame.model.visualRevision });
+      }
+      assertLifecycleCurrent(epoch);
+      await waitForBackendVisualSettlement(frame);
+      assertLifecycleCurrent(epoch);
+      return presentation;
+    } catch (error) {
+      rollbackPresentation(presentation);
+      throw error;
+    }
+  };
+
+  const restoreReadyFrame = async (
+    frame: BoardVisualFrame,
+    epoch: number
+  ): Promise<ActiveBoardFramePresentation> => {
+    const presentation = await settleReadyFramePresentation(frame, epoch, 'restore');
+    commitPresentation(presentation);
+    return presentation;
   };
 
   const apply = (frame: BoardVisualFrame) => {
@@ -238,6 +425,182 @@ function createBoardVisualController(options: {
       return false;
     }
     return applyReadyFrame(frame);
+  };
+
+  const trackIdleFrameSettlement = (
+    sourceFrame: BoardVisualFrame,
+    presentation: ActiveBoardFramePresentation
+  ): IdleFrameSettlement => {
+    const version = ++idleFrameSettlementVersion;
+    const epoch = lifecycleEpoch;
+    const tracked: IdleFrameSettlement = {
+      sourceFrame,
+      presentation,
+      version,
+      lifecycleEpoch: epoch,
+      settled: false,
+      promise: Promise.resolve()
+    };
+    if (typeof (backend as any).waitForVisualSettlement !== 'function') {
+      commitPresentation(presentation);
+      tracked.settled = true;
+      idleFrameSettlement = tracked;
+      diagnostics.record('frame:idle-settled', { frameToken: sourceFrame.frameToken });
+      return tracked;
+    }
+    const settlement = waitForBackendVisualSettlement(sourceFrame).then(
+      () => {
+        assertLifecycleCurrent(epoch);
+        if (idleFrameSettlement !== tracked || version !== idleFrameSettlementVersion) {
+          rollbackPresentation(presentation);
+          return;
+        }
+        commitPresentation(presentation);
+        tracked.settled = true;
+        diagnostics.record('frame:idle-settled', { frameToken: sourceFrame.frameToken });
+      },
+      (error) => {
+        assertLifecycleCurrent(epoch);
+        if (idleFrameSettlement !== tracked || version !== idleFrameSettlementVersion) {
+          rollbackPresentation(presentation);
+          return;
+        }
+        tracked.settled = true;
+        pendingLatest = sourceFrame;
+        rollbackPresentation(presentation);
+        throw enterFailureRecovery(error, 'idle', 'frame:idle-settlement-error');
+      }
+    );
+    settlement.catch(() => { /* observed; waitForIdle receives the same promise */ });
+    tracked.promise = settlement;
+    idleFrameSettlement = tracked;
+    return tracked;
+  };
+
+  const invalidatePendingPreparation = () => {
+    pendingFrameVersion += 1;
+    pendingPreparation = null;
+  };
+
+  const clearPendingLatestFrame = () => {
+    pendingLatest = null;
+    pendingPreparationScheduleTicket = null;
+    invalidatePendingPreparation();
+  };
+
+  const startPendingPreparation = (
+    frame: BoardVisualFrame,
+    version: number
+  ): PendingFramePreparation => {
+    const prepareFrame = (backend as any).prepareFrame;
+    let preparation: Promise<void>;
+    try {
+      preparation = typeof prepareFrame === 'function'
+        ? Promise.resolve(prepareFrame.call(backend, frame))
+        : Promise.resolve();
+    } catch (error) {
+      preparation = Promise.reject(error);
+    }
+    const observed = preparation.then(
+      () => {
+        if (version === pendingFrameVersion && pendingLatest === frame) {
+          diagnostics.record('frame:prepared', { frameToken: frame.frameToken, version });
+        }
+      },
+      (error) => {
+        if (version !== pendingFrameVersion || pendingLatest !== frame) {
+          diagnostics.record('frame:stale-prepare-error', {
+            frameToken: frame.frameToken,
+            version,
+            message: toError(error, 'Stale board frame preparation failed').message
+          });
+          return;
+        }
+        throw toError(error, 'Board frame preparation failed');
+      }
+    );
+    // Preparation starts while playback still owns the visual writer. Its
+    // latest failure is surfaced by settleLocalWriter; stale failures are
+    // observed and deliberately ignored after a newer frame supersedes them.
+    observed.catch(() => { /* observed by the pending preparation contract */ });
+    const record = Object.freeze({ frame, version, promise: observed });
+    pendingPreparation = record;
+    return record;
+  };
+
+  const ensurePendingPreparation = (
+    frame: BoardVisualFrame,
+    version: number
+  ): PendingFramePreparation => {
+    if (
+      pendingPreparation
+      && pendingPreparation.frame === frame
+      && pendingPreparation.version === version
+    ) {
+      return pendingPreparation;
+    }
+    return startPendingPreparation(frame, version);
+  };
+
+  const schedulePendingPreparation = () => {
+    if (pendingPreparationScheduleTicket) return;
+    const ticket = Object.freeze({});
+    pendingPreparationScheduleTicket = ticket;
+    void Promise.resolve().then(() => {
+      if (pendingPreparationScheduleTicket !== ticket) return;
+      pendingPreparationScheduleTicket = null;
+      const frame = pendingLatest;
+      if (!frame) return;
+      ensurePendingPreparation(frame, pendingFrameVersion);
+    });
+  };
+
+  const queuePendingLatestFrame = (frame: BoardVisualFrame, event: string) => {
+    pendingLatest = frame;
+    invalidatePendingPreparation();
+    diagnostics.record(event, { frameToken: frame.frameToken, version: pendingFrameVersion });
+    schedulePendingPreparation();
+  };
+
+  const settleLatestRecoveryFrame = async (
+    initialTarget: BoardVisualFrame,
+    epoch: number
+  ): Promise<RecoveryFrameSettlement> => {
+    let target = initialTarget;
+    let operation: 'apply' | 'restore' = 'restore';
+    while (true) {
+      const pendingAtStart = pendingLatest;
+      const pendingVersionAtStart = pendingFrameVersion;
+      const initialAtStart = initialLatest;
+      const presentation = await settleReadyFramePresentation(target, epoch, operation);
+      const pendingStable = pendingLatest === pendingAtStart
+        && pendingFrameVersion === pendingVersionAtStart;
+      const consumedPending = pendingAtStart === target && pendingStable;
+
+      if (pendingLatest && !consumedPending) {
+        rollbackPresentation(presentation);
+        target = pendingLatest;
+        operation = 'apply';
+        continue;
+      }
+
+      const initialStable = initialLatest === initialAtStart;
+      const consumedInitial = !pendingLatest && initialAtStart === target && initialStable;
+      if (!pendingLatest && initialLatest && !consumedInitial) {
+        rollbackPresentation(presentation);
+        target = initialLatest;
+        operation = 'apply';
+        continue;
+      }
+
+      commitPresentation(presentation);
+      return Object.freeze({
+        presentation,
+        consumedPendingFrame: consumedPending ? target : null,
+        consumedPendingVersion: pendingVersionAtStart,
+        consumedInitialFrame: consumedInitial ? target : null
+      });
+    }
   };
 
   const assertToken = (token: BoardWriterToken) => {
@@ -251,12 +614,26 @@ function createBoardVisualController(options: {
   };
 
   const finishSuccessfulRestore = (
-    target: BoardVisualFrame,
+    settlement: RecoveryFrameSettlement,
     returnMode: BoardWriterMode = recoveryReturnMode
   ) => {
+    const target = settlement.presentation.presentedFrame;
     lastApplied = target;
-    pendingLatest = null;
-    initialLatest = null;
+    if (
+      settlement.consumedPendingFrame
+      && pendingLatest === settlement.consumedPendingFrame
+      && pendingFrameVersion === settlement.consumedPendingVersion
+    ) {
+      clearPendingLatestFrame();
+      // A recovery-time pending frame is newer than an initial frame retained
+      // from the failed mount generation.
+      initialLatest = null;
+    } else if (
+      settlement.consumedInitialFrame
+      && initialLatest === settlement.consumedInitialFrame
+    ) {
+      initialLatest = null;
+    }
     ready = true;
     recoveryError = null;
     const nextMode = returnMode === 'recovering' ? (activeToken ? 'playback' : 'idle') : returnMode;
@@ -266,9 +643,75 @@ function createBoardVisualController(options: {
     diagnostics.record('recovery:restored', { frameToken: target.frameToken });
   };
 
+  const finishWriterRelease = (token: BoardWriterToken) => {
+    clearPendingLatestFrame();
+    pendingCommittedRecoveryFrame = null;
+    diagnostics.record('writer:released', { id: token.id, frameToken: token.frameToken });
+    activeToken = null;
+    writerCheckpoint = null;
+    networkAwaitingStarted = false;
+    networkCommittedApplied = false;
+    setMode('idle');
+    return true;
+  };
+
+  const performLocalWriterSettlement = async (
+    token: BoardWriterToken,
+    finalFrame?: BoardVisualFrame
+  ): Promise<boolean> => {
+    const epoch = lifecycleEpoch;
+    assertToken(token);
+    if (token.mode !== 'local') throw new Error('Async local settlement requires a local board writer');
+    if (mode !== 'playback' && mode !== 'recovering') {
+      throw new Error(`Cannot settle local board writer while controller is ${mode}`);
+    }
+    if (finalFrame) {
+      if (finalFrame.frameToken !== token.frameToken) throw new Error('Final visual frame token mismatch');
+      queuePendingLatestFrame(finalFrame, 'frame:coalesced-for-local-settlement');
+    }
+    if (mode === 'recovering' && readySettled && !ready) beginReadyCycle();
+    let target: BoardVisualFrame | null = null;
+    try {
+      while (pendingLatest) {
+        target = pendingLatest;
+        if (target.frameToken !== token.frameToken) throw new Error('Final visual frame token mismatch');
+        const version = pendingFrameVersion;
+        const preparation = ensurePendingPreparation(target, version);
+        await preparation.promise;
+        assertLifecycleCurrent(epoch);
+        if (pendingLatest !== target || pendingFrameVersion !== version) continue;
+        if (!backendMounted) throw new Error('Local board settlement requires a mounted backend');
+        const presentation = applyReadyFrame(target);
+        await waitForBackendVisualSettlement(target);
+        assertLifecycleCurrent(epoch);
+        if (pendingLatest !== target || pendingFrameVersion !== version) {
+          rollbackPresentation(presentation);
+          continue;
+        }
+        commitPresentation(presentation);
+        break;
+      }
+      if (!target) {
+        await waitForBackendVisualSettlement();
+        assertLifecycleCurrent(epoch);
+      }
+      if (mode === 'recovering') {
+        ready = true;
+        recoveryError = null;
+        recoveryReturnMode = 'playback';
+        setMode('playback');
+        settleReadySuccess();
+      }
+      return finishWriterRelease(token);
+    } catch (error) {
+      throw enterFailureRecovery(error, 'playback', 'frame:local-settlement-error');
+    }
+  };
+
   return {
     async mount(nextHost: HTMLElement) {
       assertAlive();
+      const epoch = lifecycleEpoch;
       if (mountPromise) {
         if (host !== nextHost) throw new Error('BoardVisualController cannot mount a second host');
         return mountPromise;
@@ -283,13 +726,29 @@ function createBoardVisualController(options: {
         throw normalized;
       }
       const completeMount = async () => {
+          assertLifecycleCurrent(epoch);
           backendMounted = true;
           let initial = initialLatest;
           while (initial) {
             initialLatest = null;
             const prepareFrame = (backend as any).prepareFrame;
             if (typeof prepareFrame === 'function') {
-              await Promise.resolve(prepareFrame.call(backend, initial));
+              try {
+                await Promise.resolve(prepareFrame.call(backend, initial));
+                assertLifecycleCurrent(epoch);
+              } catch (error) {
+                // A rejected preparation for a superseded initial frame must
+                // not poison the newer initial frame's readiness cycle.
+                if (initialLatest) {
+                  diagnostics.record('frame:stale-initial-prepare-error', {
+                    frameToken: initial.frameToken,
+                    message: toError(error, 'Stale initial frame preparation failed').message
+                  });
+                  initial = initialLatest;
+                  continue;
+                }
+                throw error;
+              }
             }
             // A newer frame queued while resources were prepared supersedes
             // the stale frame without ever making it the visible writer.
@@ -297,10 +756,14 @@ function createBoardVisualController(options: {
               initial = initialLatest;
               continue;
             }
-            applyReadyFrame(initial);
+            const presentation = applyReadyFrame(initial);
             await waitForBackendVisualSettlement(initial);
+            assertLifecycleCurrent(epoch);
+            if (initialLatest) rollbackPresentation(presentation);
+            else commitPresentation(presentation);
             initial = initialLatest;
           }
+          assertLifecycleCurrent(epoch);
           ready = true;
           recoveryError = null;
           settleReadySuccess();
@@ -308,6 +771,9 @@ function createBoardVisualController(options: {
           flushIdleWaiters();
       };
       const failMount = (error: unknown) => {
+          if (mode === 'destroyed' || epoch !== lifecycleEpoch) {
+            throw toError(error, 'BoardVisualController is destroyed');
+          }
           if (!backendMounted) setHostRendererAttribute(null);
           const normalized = enterFailureRecovery(error, mode, 'backend:mount-error');
           settleReadyFailure(normalized);
@@ -343,6 +809,9 @@ function createBoardVisualController(options: {
     getMode() {
       return mode;
     },
+    isIdleSettlementPending() {
+      return !!(idleFrameSettlement && !idleFrameSettlement.settled);
+    },
     getActiveFrameToken() {
       return activeToken?.frameToken || null;
     },
@@ -371,7 +840,7 @@ function createBoardVisualController(options: {
       if (mode === 'recovering') {
         return Promise.reject(recoveryError || new Error('BoardVisualController is recovering'));
       }
-      if (ready && mode === 'idle') return waitForBackendVisualSettlement();
+      if (ready && mode === 'idle') return waitForLatestIdleSettlement();
       return new Promise<void>((resolve, reject) => {
         idleWaiters.add(Object.freeze({ resolve, reject }));
       });
@@ -379,8 +848,8 @@ function createBoardVisualController(options: {
     submitFrame(frame: BoardVisualFrame) {
       assertAlive();
       if (mode === 'recovering') {
-        assertFrameMatchesActiveToken(frame);
-        pendingLatest = frame;
+        if (activeToken) assertFrameMatchesActiveToken(frame);
+        queuePendingLatestFrame(frame, 'frame:coalesced-recovery');
         return false;
       }
       if (!ready) {
@@ -391,7 +860,10 @@ function createBoardVisualController(options: {
       }
       if (mode === 'idle') {
         try {
-          return apply(frame);
+          const presentation = apply(frame);
+          if (!presentation) return false;
+          trackIdleFrameSettlement(frame, presentation);
+          return true;
         } catch (error) {
           pendingLatest = frame;
           throw enterFailureRecovery(error, 'idle', 'frame:idle-apply-error');
@@ -401,8 +873,7 @@ function createBoardVisualController(options: {
         if (!activeToken || frame.frameToken !== activeToken.frameToken) {
           throw new Error('Cannot coalesce a visual frame from a different playback token');
         }
-        pendingLatest = frame;
-        diagnostics.record('frame:coalesced', { frameToken: frame.frameToken });
+        queuePendingLatestFrame(frame, 'frame:coalesced');
         return false;
       }
       if (mode === 'awaiting-frame-commit') {
@@ -417,9 +888,12 @@ function createBoardVisualController(options: {
       if (!ready) throw new Error('Cannot claim board visual writer before backend readiness');
       if (mode !== 'idle') throw new Error(`Cannot claim board visual writer while controller is ${mode}`);
       if (activeToken) throw new Error('Board visual writer is already claimed');
+      if (idleFrameSettlement && !idleFrameSettlement.settled) {
+        throw new Error('Cannot claim board visual writer before idle visual settlement completes');
+      }
       activeToken = Object.freeze({ id: ++tokenSequence, frameToken: String(frameToken), mode: writerMode });
       writerCheckpoint = lastApplied;
-      pendingLatest = null;
+      clearPendingLatestFrame();
       pendingCommittedRecoveryFrame = null;
       networkAwaitingStarted = false;
       networkCommittedApplied = false;
@@ -433,7 +907,7 @@ function createBoardVisualController(options: {
       if (mode !== 'playback') throw new Error('Board writer reclaim requires playback mode');
       activeToken = Object.freeze({ id: ++tokenSequence, frameToken: String(frameToken), mode: writerMode });
       if (!writerCheckpoint) writerCheckpoint = lastApplied;
-      pendingLatest = null;
+      clearPendingLatestFrame();
       pendingCommittedRecoveryFrame = null;
       networkAwaitingStarted = false;
       networkCommittedApplied = false;
@@ -445,6 +919,7 @@ function createBoardVisualController(options: {
       events: readonly unknown[],
       providedScope?: BoardPlaybackPhaseScope
     ) {
+      const epoch = lifecycleEpoch;
       assertToken(token);
       if (mode !== 'playback') throw new Error(`Cannot play a board phase while controller is ${mode}`);
       const phaseScope: BoardPlaybackPhaseScope = providedScope || Object.freeze({
@@ -456,8 +931,10 @@ function createBoardVisualController(options: {
         phaseScope
       });
       await backend.playPhase(events, context);
+      assertLifecycleCurrent(epoch);
     },
     async abortWriterBeforeHandoff(token: BoardWriterToken, checkpoint?: BoardVisualFrame) {
+      const epoch = lifecycleEpoch;
       assertToken(token);
       if (token.mode !== 'network' || mode !== 'playback' || networkAwaitingStarted) {
         throw new Error('Writer abort before handoff requires active pre-handoff network playback');
@@ -474,9 +951,8 @@ function createBoardVisualController(options: {
         if (!ready || !backendMounted) {
           throw new Error('Writer abort before handoff requires backend readiness');
         }
-        await backend.restore(target);
-        lastApplied = target;
-        pendingLatest = null;
+        await restoreReadyFrame(target, epoch);
+        clearPendingLatestFrame();
         initialLatest = null;
         pendingCommittedRecoveryFrame = null;
         recoveryError = null;
@@ -493,6 +969,7 @@ function createBoardVisualController(options: {
       }
     },
     async cancelWriterAfterHandoff(token: BoardWriterToken, checkpoint?: BoardVisualFrame) {
+      const epoch = lifecycleEpoch;
       assertToken(token);
       const postHandoffMode = mode === 'awaiting-frame-commit'
         || mode === 'recovering'
@@ -512,9 +989,8 @@ function createBoardVisualController(options: {
       if (readySettled && !ready) beginReadyCycle();
       try {
         if (!backendMounted) throw new Error('Writer cancel after handoff requires a mounted backend');
-        await backend.restore(target);
-        lastApplied = target;
-        pendingLatest = null;
+        await restoreReadyFrame(target, epoch);
+        clearPendingLatestFrame();
         initialLatest = null;
         pendingCommittedRecoveryFrame = null;
         ready = true;
@@ -538,21 +1014,25 @@ function createBoardVisualController(options: {
       if (token.mode !== 'network' || mode !== 'playback') {
         throw new Error('Only active strict-network playback can await a committed frame');
       }
-      pendingLatest = null;
+      clearPendingLatestFrame();
       pendingCommittedRecoveryFrame = null;
       networkAwaitingStarted = true;
       networkCommittedApplied = false;
       setMode('awaiting-frame-commit');
     },
     async applyCommittedFrame(token: BoardWriterToken, frame: BoardVisualFrame) {
+      const epoch = lifecycleEpoch;
       assertToken(token);
       if (mode !== 'awaiting-frame-commit') throw new Error('Committed frame apply requires awaiting-frame-commit');
       if (!networkAwaitingStarted) throw new Error('Committed frame apply requires beginAwaitingFrameCommit');
       if (frame.frameToken !== token.frameToken) throw new Error('Committed frame token mismatch');
       try {
         if (!ready) throw new Error('Committed frame apply requires backend readiness');
-        if (!apply(frame)) throw new Error('Committed board frame was not applied');
+        const presentation = apply(frame);
+        if (!presentation) throw new Error('Committed board frame was not applied');
         await waitForBackendVisualSettlement(frame);
+        assertLifecycleCurrent(epoch);
+        commitPresentation(presentation);
         networkCommittedApplied = true;
         pendingCommittedRecoveryFrame = null;
         // Keep normal render submissions excluded until tracker/observer
@@ -569,6 +1049,7 @@ function createBoardVisualController(options: {
       }
     },
     async restoreCommittedFrame(token: BoardWriterToken, frame?: BoardVisualFrame) {
+      const epoch = lifecycleEpoch;
       assertToken(token);
       if (token.mode !== 'network' || (mode !== 'recovering' && mode !== 'awaiting-frame-commit')) {
         throw new Error('Committed frame restore requires active network recovery or commit wait');
@@ -583,15 +1064,15 @@ function createBoardVisualController(options: {
       try {
         if (!backendMounted) throw new Error('Committed frame restore requires a mounted backend');
         if (mode === 'recovering') {
-          await backend.restore(target);
-          await waitForBackendVisualSettlement(target);
-          lastApplied = target;
+          await restoreReadyFrame(target, epoch);
         } else {
           if (!ready) throw new Error('Committed frame restore requires backend readiness');
-          applyReadyFrame(target);
+          const presentation = applyReadyFrame(target);
           await waitForBackendVisualSettlement(target);
+          assertLifecycleCurrent(epoch);
+          commitPresentation(presentation);
         }
-        pendingLatest = null;
+        clearPendingLatestFrame();
         initialLatest = null;
         pendingCommittedRecoveryFrame = null;
         ready = true;
@@ -609,8 +1090,27 @@ function createBoardVisualController(options: {
         throw enterFailureRecovery(error, 'awaiting-frame-commit', 'frame:committed-restore-error');
       }
     },
+    settleLocalWriter(token: BoardWriterToken, finalFrame?: BoardVisualFrame): Promise<boolean> {
+      assertAlive();
+      assertToken(token);
+      if (localWriterSettlement) {
+        if (localWriterSettlement.token === token && !finalFrame) return localWriterSettlement.promise;
+        return Promise.reject(new Error('A local board writer settlement is already active'));
+      }
+      const promise = performLocalWriterSettlement(token, finalFrame);
+      const settlement = Object.freeze({ token, promise });
+      localWriterSettlement = settlement;
+      const clear = () => {
+        if (localWriterSettlement === settlement) localWriterSettlement = null;
+      };
+      void promise.then(clear, clear);
+      return promise;
+    },
     releaseWriter(token: BoardWriterToken, finalFrame?: BoardVisualFrame) {
       assertToken(token);
+      if (localWriterSettlement?.token === token) {
+        throw new Error('Cannot synchronously release a board writer during async local settlement');
+      }
       const canReleaseCommittedNetworkFrame = token.mode === 'network'
         && mode === 'awaiting-frame-commit'
         && networkAwaitingStarted
@@ -623,24 +1123,20 @@ function createBoardVisualController(options: {
         throw new Error('Cannot release strict-network writer before successful committed frame apply');
       }
       const frame = token.mode === 'network' ? null : (finalFrame || pendingLatest);
+      let presentation: ActiveBoardFramePresentation | null = null;
       if (frame) {
         if (frame.frameToken !== token.frameToken) throw new Error('Final visual frame token mismatch');
         try {
-          if (!apply(frame)) throw new Error('Final board frame was not applied');
+          presentation = apply(frame) || null;
+          if (!presentation) throw new Error('Final board frame was not applied');
         } catch (error) {
           pendingLatest = frame;
           throw enterFailureRecovery(error, 'playback', 'frame:final-apply-error');
         }
       }
-      pendingLatest = null;
-      pendingCommittedRecoveryFrame = null;
-      diagnostics.record('writer:released', { id: token.id, frameToken: token.frameToken });
-      activeToken = null;
-      writerCheckpoint = null;
-      networkAwaitingStarted = false;
-      networkCommittedApplied = false;
-      setMode('idle');
-      return true;
+      const released = finishWriterRelease(token);
+      if (frame && presentation) trackIdleFrameSettlement(frame, presentation);
+      return released;
     },
     enterRecovery(token: BoardWriterToken, error?: unknown) {
       assertAlive();
@@ -654,6 +1150,7 @@ function createBoardVisualController(options: {
     },
     async restore(frame?: BoardVisualFrame) {
       assertAlive();
+      const epoch = lifecycleEpoch;
       if (mode !== 'recovering') throw new Error('Board restore requires recovering mode');
       if (
         activeToken?.mode === 'network'
@@ -663,15 +1160,14 @@ function createBoardVisualController(options: {
       ) {
         throw new Error('Strict-network committed recovery requires restoreCommittedFrame');
       }
-      const target = frame || pendingLatest || lastApplied;
+      const target = frame || pendingLatest || initialLatest || lastApplied;
       if (!target) throw new Error('Board restore has no checkpoint frame');
       if (activeToken) assertFrameMatchesActiveToken(target);
       if (readySettled && !ready) beginReadyCycle();
       try {
         if (!backendMounted) throw new Error('Board restore requires a mounted backend');
-        await backend.restore(target);
-        await waitForBackendVisualSettlement(target);
-        finishSuccessfulRestore(target);
+        const settlement = await settleLatestRecoveryFrame(target, epoch);
+        finishSuccessfulRestore(settlement);
         return true;
       } catch (error) {
         throw enterFailureRecovery(error, recoveryReturnMode, 'recovery:restore-error');
@@ -679,6 +1175,7 @@ function createBoardVisualController(options: {
     },
     async replaceBackend(nextBackend: BoardVisualBackend) {
       assertAlive();
+      const epoch = lifecycleEpoch;
       if (!host) throw new Error('Cannot replace an unmounted board backend');
       if (!ready && mode !== 'recovering') {
         throw new Error('Cannot replace a board backend before the current mount settles');
@@ -696,18 +1193,13 @@ function createBoardVisualController(options: {
         backend = nextBackend;
         setHostRendererAttribute(nextBackend.kind);
         await Promise.resolve(backend.mount(host, { diagnostics }));
+        assertLifecycleCurrent(epoch);
         backendMounted = true;
-        let restoreTarget = pendingLatest || initialLatest || checkpoint || lastApplied;
+        const restoreTarget = pendingLatest || initialLatest || checkpoint || lastApplied;
         if (restoreTarget) {
-          await backend.restore(restoreTarget);
-          await waitForBackendVisualSettlement(restoreTarget);
-          const queuedAfterRestore = pendingLatest || initialLatest;
-          if (queuedAfterRestore && queuedAfterRestore !== restoreTarget) {
-            applyReadyFrame(queuedAfterRestore);
-            restoreTarget = queuedAfterRestore;
-          }
+          const settlement = await settleLatestRecoveryFrame(restoreTarget, epoch);
+          finishSuccessfulRestore(settlement, returnMode);
         }
-        if (restoreTarget) finishSuccessfulRestore(restoreTarget, returnMode);
         else {
           ready = true;
           recoveryError = null;
@@ -717,6 +1209,13 @@ function createBoardVisualController(options: {
         diagnostics.record('backend:replaced', { kind: backend.kind });
         flushIdleWaiters();
       } catch (error) {
+        if (
+          checkpoint
+          && !pendingLatest
+          && !initialLatest
+        ) {
+          queuePendingLatestFrame(checkpoint, 'frame:retained-after-backend-replace-error');
+        }
         if (!backendMounted) setHostRendererAttribute(null);
         throw enterFailureRecovery(error, returnMode, 'backend:replace-error');
       }
@@ -744,6 +1243,13 @@ function createBoardVisualController(options: {
     },
     destroy() {
       if (mode === 'destroyed') return;
+      lifecycleEpoch += 1;
+      ready = false;
+      setMode('destroyed');
+      rollbackPresentation(activePresentation);
+      const error = new Error('BoardVisualController was destroyed before becoming idle');
+      rejectIdleWaiters(error);
+      settleReadyFailure(error);
       let destroyError: Error | null = null;
       try {
         backend.destroy();
@@ -752,20 +1258,16 @@ function createBoardVisualController(options: {
         diagnostics.record('backend:destroy-error', { message: destroyError.message });
       }
       backendMounted = false;
-      ready = false;
       activeToken = null;
       writerCheckpoint = null;
-      pendingLatest = null;
+      clearPendingLatestFrame();
       initialLatest = null;
       pendingCommittedRecoveryFrame = null;
+      localWriterSettlement = null;
       networkAwaitingStarted = false;
       networkCommittedApplied = false;
       recoveryError = null;
       releaseHostLease();
-      setMode('destroyed');
-      const error = new Error('BoardVisualController was destroyed before becoming idle');
-      rejectIdleWaiters(error);
-      settleReadyFailure(error);
       if (destroyError) throw destroyError;
     }
   };

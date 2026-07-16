@@ -1,0 +1,749 @@
+import { JSDOM } from 'jsdom';
+import { createBoardViewportLayout } from '../ui/board-visual/layout';
+import type { BoardVisualFrame } from '../ui/board-visual/types';
+import Backend = require('../ui/pixi/board-backend');
+import Camera = require('../ui/pixi/camera');
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
+}
+
+function nextTurn(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+function makeFrame(
+  token: string,
+  revision: number,
+  options: {
+    boardUrl?: string;
+    special?: boolean;
+    rows?: number;
+    cols?: number;
+    renderSessionId?: string;
+    viewportWidth?: number;
+    viewportHeight?: number;
+  } = {}
+): BoardVisualFrame {
+  const rows = options.rows || 16;
+  const cols = options.cols || 16;
+  const topology = {
+    baseRows: 8,
+    baseCols: 8,
+    minRow: 0,
+    maxRow: rows - 1,
+    minCol: 0,
+    maxCol: cols - 1,
+    renderRowOffset: 0,
+    renderColOffset: 0,
+    renderRows: rows,
+    renderCols: cols,
+    existingKeys: ['0,0'],
+    playableKeys: ['0,0'],
+    holeKeys: []
+  };
+  const layout = createBoardViewportLayout(topology, {
+    revision,
+    cellSize: 40,
+    dpr: 2,
+    orientation: 'normal',
+    frameInset: { top: 0, right: 0, bottom: 0, left: 0 },
+    clientOrigin: { x: 10, y: 20 },
+    visualViewport: { scale: 1, offsetLeft: 0, offsetTop: 0 },
+    camera: {
+      scrollLeft: 0,
+      scrollTop: 0,
+      viewportWidth: options.viewportWidth || 160,
+      viewportHeight: options.viewportHeight || 120
+    }
+  });
+  return Object.freeze({
+    frameToken: token,
+    renderSessionId: options.renderSessionId || 'render-session:default',
+    model: Object.freeze({
+      visualRevision: revision,
+      topology,
+      cells: Object.freeze([{
+        key: '0,0',
+        row: 0,
+        col: 0,
+        renderRow: 0,
+        renderCol: 0,
+        kind: 'playable' as const,
+        expansionSide: null,
+        boundaryEdges: { top: 'outer' as const, right: 'none' as const, bottom: 'none' as const, left: 'outer' as const },
+        stone: {
+          owner: 'black' as const,
+          value: 1,
+          specialType: options.special ? 'TIME_BOMB' : null,
+          status: {}
+        },
+        markers: [],
+        interaction: {
+          legal: false,
+          legalFree: false,
+          tabooLegal: false,
+          selectable: false,
+          interactionLocked: false,
+          hovered: false,
+          keyboardCursor: false,
+          previewKinds: [],
+          selected: false,
+          selectionKinds: [],
+          directionHints: [],
+          directionHintIds: [],
+          localPendingHintIds: []
+        },
+        visualSignature: `cell:${revision}`
+      }]),
+      keyboardCursorKey: null,
+      viewerContext: 'black' as const,
+      currentPlayer: 'black' as const,
+      canControlCurrentTurn: true,
+      isHumanTurn: true
+    }),
+    layout,
+    appearance: Object.freeze({
+      boardSkinId: `board-${revision}`,
+      boardImageUrl: options.boardUrl || `https://example.test/board-${revision}.png`,
+      boardFrameSkinId: 'frame-default',
+      boardFrameLayout: {},
+      stoneSkinId: `stone-${revision}`,
+      blackStoneImageUrl: 'https://example.test/black.png',
+      whiteStoneImageUrl: 'https://example.test/white.png',
+      revision
+    }),
+    theme: Object.freeze({
+      revision,
+      fontReadyEpoch: 1,
+      surfaceColor: '#075b45',
+      gridColor: '#111111',
+      outerBoundaryColor: '#eeeeee',
+      holeBoundaryColor: '#888888',
+      markerColor: '#ffffff',
+      hintColor: '#ffff00',
+      timerColor: '#ffffff',
+      fontFamily: 'sans-serif',
+      gridLineWidth: 1,
+      boardBonus: {
+        fontFamily: 'sans-serif', fontWeight: 700, fontSizeRatio: 0.5, doubleDigitScale: 0.8,
+        lineHeight: 1, color: '#fff', shadows: [], glow: null
+      },
+      timer: {
+        fontFamily: 'sans-serif', fontWeight: 700, fontSizeRatio: 0.5, doubleDigitScale: 0.8,
+        lineHeight: 1, color: '#fff', shadows: [], glow: null
+      },
+      directionHint: {
+        fontFamily: 'sans-serif', fontWeight: 700, fontSizeRatio: 0.5, doubleDigitScale: 0.8,
+        lineHeight: 1, color: '#fff', shadows: [], glow: null
+      },
+      legalHint: {
+        ringColor: '#fff', highlightColor: '#ff0', glowColor: '#ff0', lineWidthRatio: 0.05, glowBlurRatio: 0.1
+      }
+    })
+  });
+}
+
+function createApplicationRuntime(document: Document, options: {
+  initError?: Error;
+  rendererMissing?: boolean;
+  rendererType?: string | number;
+} = {}) {
+  const instances: any[] = [];
+  class Application {
+    canvas = document.createElement('canvas');
+    stage = { kind: 'stage' };
+    ticker: any;
+    renderer: any;
+    init = jest.fn(async () => {
+      if (options.initError) throw options.initError;
+    });
+    destroy = jest.fn();
+
+    constructor() {
+      this.ticker = {
+        started: false,
+        start: jest.fn(() => { this.ticker.started = true; }),
+        stop: jest.fn(() => { this.ticker.started = false; })
+      };
+      const gl = { MAX_TEXTURE_SIZE: 3379, getParameter: jest.fn(() => 2048) };
+      this.renderer = options.rendererMissing ? null : {
+        type: typeof options.rendererType === 'undefined' ? 'webgl' : options.rendererType,
+        gl,
+        resolution: 1,
+        resize: jest.fn((width: number, height: number, resolution = 1) => {
+          this.canvas.width = Math.ceil(width * resolution);
+          this.canvas.height = Math.ceil(height * resolution);
+        }),
+        render: jest.fn()
+      };
+      instances.push(this);
+    }
+  }
+  return {
+    runtime: {
+      VERSION: '8.18.1',
+      Application,
+      RendererType: { WEBGL: 1, WEBGPU: 2, CANVAS: 4 }
+    },
+    instances
+  };
+}
+
+function createTextureRuntime() {
+  const deferredByUrl = new Map<string, ReturnType<typeof deferred<void>>>();
+  const destroyed: string[] = [];
+  let failAll = false;
+  const loadTexture = jest.fn(async (url: string) => {
+    if (failAll) throw new Error(`texture-failed:${url}`);
+    const waiting = deferredByUrl.get(url);
+    if (waiting) await waiting.promise;
+    return {
+      texture: { url },
+      width: 64,
+      height: 64,
+      destroy: () => destroyed.push(url)
+    };
+  });
+  const runtime = {
+    loadTexture,
+    createTextureFromBitmap: jest.fn(async (bitmap: any) => ({ texture: { bitmap }, width: bitmap.width, height: bitmap.height })),
+    createProceduralTexture: jest.fn(async (purpose: string) => {
+      if (failAll) throw new Error(`procedural-failed:${purpose}`);
+      return { texture: { procedural: purpose }, width: 1, height: 1 };
+    }),
+    createImageBitmap: jest.fn(),
+    destroyTexture: jest.fn(),
+    getMaxTextureSize: () => 8192
+  };
+  return {
+    runtime,
+    loadTexture,
+    destroyed,
+    deferUrl(url: string) {
+      const waiting = deferred<void>();
+      deferredByUrl.set(url, waiting);
+      return waiting;
+    },
+    setFailAll(value: boolean) { failAll = value; }
+  };
+}
+
+function createSceneFixture() {
+  const applyCalls: Array<{ frame: BoardVisualFrame; context: any }> = [];
+  const failTokens = new Set<string>();
+  let destroyed = false;
+  let resetCount = 0;
+  const scene = {
+    root: {},
+    layers: {},
+    applyFrame: jest.fn((frame: BoardVisualFrame, context: any) => {
+      if (failTokens.has(frame.frameToken)) throw new Error(`scene-failed:${frame.frameToken}`);
+      applyCalls.push({ frame, context });
+      return { materializedCount: 1, createdViews: 1, reusedViews: 0, updatedViews: 1, skippedViews: 0, releasedViews: 0, materializationWindow: null };
+    }),
+    getRenderedCell: jest.fn((row: number, col: number) => row === 0 && col === 0 ? { key: '0,0' } : null),
+    getDiagnostics: jest.fn(() => ({
+      destroyed,
+      applyCount: applyCalls.length,
+      resetCount,
+      activeViewCount: destroyed ? 0 : 1,
+      pooledViewCount: 0,
+      createdViewCount: 1,
+      destroyedViewCount: destroyed ? 1 : 0,
+      cumulativeUpdatedViewCount: applyCalls.length,
+      cumulativeSkippedViewCount: 0,
+      cumulativeReleasedViewCount: 0,
+      displayObjectCount: destroyed ? 0 : 9,
+      textureBackedStoneCount: 1,
+      proceduralStoneCount: 0,
+      ephemeralVoidCount: 0,
+      holeCount: 0,
+      starPointCount: 0,
+      objectOverscanCells: 1,
+      effectGutterCells: 2,
+      canvasCount: 0,
+      domNodeCount: 0,
+      layerOrder: ['surface', 'cell', 'marker', 'stone', 'hint', 'playback', 'effect', 'interaction'],
+      retainedKeys: destroyed ? [] : ['0,0'],
+      materializationWindow: null
+    })),
+    reset: jest.fn(() => { resetCount += 1; }),
+    destroy: jest.fn(() => { destroyed = true; })
+  };
+  return { scene: scene as any, applyCalls, failTokens };
+}
+
+function resolvedAppearance(frame: BoardVisualFrame, useDefaults = false, customBoardBlob: Blob | null = null) {
+  const prefix = useDefaults ? 'default-' : '';
+  const descriptor = frame.appearance;
+  return Object.freeze({
+    descriptor,
+    resources: Object.freeze([
+      Object.freeze({
+        role: 'board' as const,
+        url: useDefaults ? 'https://example.test/default-board.png' : descriptor.boardImageUrl,
+        customSkinId: !useDefaults && customBoardBlob ? 'custom:test-board' : null,
+        sourceBlob: useDefaults ? null : customBoardBlob,
+        contentFingerprint: `${prefix}board`
+      }),
+      Object.freeze({
+        role: 'black-stone' as const,
+        url: useDefaults ? 'https://example.test/default-black.png' : descriptor.blackStoneImageUrl,
+        customSkinId: null,
+        sourceBlob: null,
+        contentFingerprint: `${prefix}black`
+      }),
+      Object.freeze({
+        role: 'white-stone' as const,
+        url: useDefaults ? 'https://example.test/default-white.png' : descriptor.whiteStoneImageUrl,
+        customSkinId: null,
+        sourceBlob: null,
+        contentFingerprint: `${prefix}white`
+      })
+    ]),
+    contentFingerprint: `${prefix}${descriptor.revision}`
+  });
+}
+
+function createHarness(options: {
+  noAnimation?: boolean;
+  initError?: Error;
+  rendererMissing?: boolean;
+  rendererType?: string | number;
+  webglAvailable?: boolean;
+  sceneFactoryThrows?: boolean;
+  cameraFactory?: any;
+  customBoardBlob?: Blob | null;
+} = {}) {
+  const dom = new JSDOM('<!doctype html><div id="board"><div class="cell">legacy</div></div>', {
+    url: 'https://example.test/game/index.html'
+  });
+  const document = dom.window.document;
+  const host = document.getElementById('board') as HTMLElement;
+  const app = createApplicationRuntime(document, options);
+  const textures = createTextureRuntime();
+  const scene = createSceneFixture();
+  const leases: Array<{ release: jest.Mock<boolean, []>; label: string }> = [];
+  let resizeCallback: (() => void) | null = null;
+  let observerDisconnected = false;
+  const viewportListeners = new Map<string, Set<EventListener>>();
+  const visualViewport = {
+    scale: 1,
+    offsetLeft: 0,
+    offsetTop: 0,
+    addEventListener(type: string, listener: EventListener) {
+      const listeners = viewportListeners.get(type) || new Set<EventListener>();
+      listeners.add(listener);
+      viewportListeners.set(type, listeners);
+    },
+    removeEventListener(type: string, listener: EventListener) {
+      viewportListeners.get(type)?.delete(listener);
+    }
+  };
+  const backend = Backend.createPixiBoardVisualBackend({
+    runtime: app.runtime,
+    root: dom.window as any,
+    document,
+    devicePixelRatio: 2,
+    noAnimation: options.noAnimation !== false,
+    webglPreflight: () => options.webglAvailable !== false,
+    textureRuntime: textures.runtime as any,
+    measureViewport: () => ({ width: 160, height: 120 }),
+    visualViewport: visualViewport as any,
+    createResizeObserver: (callback: any) => {
+      resizeCallback = callback;
+      return { observe() {}, disconnect() { observerDisconnected = true; } };
+    },
+    sceneFactory: options.sceneFactoryThrows
+      ? (() => { throw new Error('scene-init-failed'); })
+      : (() => scene.scene),
+    cameraFactory: options.cameraFactory,
+    resolveAppearance: (frame) => resolvedAppearance(frame, false, options.customBoardBlob || null),
+    resolveDefaultAppearance: (frame) => resolvedAppearance(frame, true),
+    acquireAppearanceLease: (appearance) => {
+      const label = appearance.descriptor.boardImageUrl;
+      const lease = { label, release: jest.fn(() => true) };
+      leases.push(lease);
+      return Object.freeze({ urls: [], release: lease.release });
+    },
+    resolveSpecialAppearance: (type, owner) => Object.freeze({
+      role: 'special-stone' as const,
+      url: `https://example.test/special/${type}/${owner}.png`,
+      customSkinId: null,
+      sourceBlob: null,
+      contentFingerprint: `${type}:${owner}`
+    })
+  });
+  return {
+    dom,
+    document,
+    host,
+    app,
+    textures,
+    scene,
+    leases,
+    backend,
+    fireResize() { resizeCallback?.(); },
+    observerDisconnected: () => observerDisconnected,
+    viewportListeners
+  };
+}
+
+describe('Pixi board backend integration', () => {
+  test('mounts one WebGL canvas, prepares the initial frame, and commits a cell-less static scene', async () => {
+    const harness = createHarness();
+    const frame = makeFrame('initial', 1, { special: true });
+
+    await harness.backend.mount(harness.host, { diagnostics: { record: jest.fn() } });
+    await harness.backend.prepareFrame(frame);
+    expect(harness.scene.applyCalls).toHaveLength(0);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+
+    expect(harness.host.querySelectorAll('canvas')).toHaveLength(1);
+    expect(harness.host.querySelectorAll('.cell')).toHaveLength(0);
+    expect(harness.host.querySelectorAll('#board-scroll-viewport')).toHaveLength(1);
+    expect(harness.host.querySelectorAll('#board-scroll-surface')).toHaveLength(1);
+    expect(harness.app.instances).toHaveLength(1);
+    expect(harness.app.instances[0].renderer.gl.getParameter).toHaveBeenCalledWith(3379);
+    expect(harness.scene.applyCalls).toHaveLength(1);
+    const textureSource = harness.scene.applyCalls[0].context.textures;
+    expect(textureSource.get('board')).toMatchObject({ url: frame.appearance.boardImageUrl });
+    expect(textureSource.get('special-stone:TIME_BOMB:black')).toMatchObject({
+      url: 'https://example.test/special/TIME_BOMB/black.png'
+    });
+    expect(harness.backend.getRenderedCell(0, 0)).toEqual({ key: '0,0' });
+    expect(harness.backend.getDiagnostics()).toMatchObject({
+      state: 'ready', mounted: true, canvasCount: 1, contextCount: 1,
+      domCellCount: 0, maxTextureSize: 2048, tickerRunning: false,
+      committedApplyCount: 1, settledFrameToken: 'initial'
+    });
+  });
+
+  test('keeps prepared work identity while applying a layout-only presented frame', async () => {
+    const harness = createHarness();
+    await harness.backend.mount(harness.host, {});
+    const frame = makeFrame('live-layout', 2);
+    const presentedFrame = Object.freeze({
+      ...frame,
+      layout: Object.freeze({
+        ...frame.layout,
+        clientOrigin: Object.freeze({ ...frame.layout.clientOrigin, x: 111 })
+      })
+    }) as BoardVisualFrame;
+
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame, presentedFrame);
+    await harness.backend.waitForVisualSettlement(frame);
+
+    expect(harness.scene.applyCalls.at(-1)!.frame).toMatchObject({
+      frameToken: 'live-layout', model: frame.model, appearance: frame.appearance, theme: frame.theme,
+      layout: expect.objectContaining({ clientOrigin: expect.objectContaining({ x: 111 }) })
+    });
+    expect(harness.backend.getDiagnostics().settledFrameToken).toBe('live-layout');
+
+    const restorePresentation = Object.freeze({
+      ...frame,
+      layout: Object.freeze({
+        ...frame.layout,
+        clientOrigin: Object.freeze({ ...frame.layout.clientOrigin, x: 222 })
+      })
+    }) as BoardVisualFrame;
+    await harness.backend.restore(frame, restorePresentation);
+    await harness.backend.waitForVisualSettlement(frame);
+    expect(harness.scene.applyCalls.at(-1)!.frame.layout.clientOrigin.x).toBe(222);
+  });
+
+  test('forwards the frame render-session identity to camera sync', async () => {
+    const syncedSessionIds: Array<string | undefined> = [];
+    const harness = createHarness({
+      cameraFactory: (options: any) => {
+        const camera = Camera.createPixiBoardCamera(options);
+        return Object.freeze({
+          ...camera,
+          sync(topology: any, layout: any, renderSessionId?: string) {
+            syncedSessionIds.push(renderSessionId);
+            return camera.sync(topology, layout, renderSessionId);
+          }
+        });
+      }
+    });
+    await harness.backend.mount(harness.host, {});
+
+    const first = makeFrame('session-first', 1, { renderSessionId: 'match:first' });
+    await harness.backend.prepareFrame(first);
+    harness.backend.applyFrame(first);
+    await harness.backend.waitForVisualSettlement(first);
+
+    const second = makeFrame('session-second', 2, { renderSessionId: 'match:second' });
+    await harness.backend.prepareFrame(second);
+    harness.backend.applyFrame(second);
+    await harness.backend.waitForVisualSettlement(second);
+
+    expect(syncedSessionIds).toEqual(['match:first', 'match:second']);
+    expect(harness.backend.getDiagnostics().camera).toMatchObject({
+      renderSessionId: 'match:second'
+    });
+  });
+
+  test('drops stale asynchronous preparation without reporting it as a visual commit', async () => {
+    const harness = createHarness();
+    await harness.backend.mount(harness.host, {});
+    const first = makeFrame('stale', 1, { boardUrl: 'https://example.test/slow-a.png' });
+    const latest = makeFrame('latest', 2, { boardUrl: 'https://example.test/slow-b.png' });
+    const firstLoad = harness.textures.deferUrl(first.appearance.boardImageUrl);
+    const latestLoad = harness.textures.deferUrl(latest.appearance.boardImageUrl);
+
+    harness.backend.applyFrame(first);
+    await nextTurn();
+    harness.backend.applyFrame(latest);
+    await expect(harness.backend.waitForVisualSettlement(first)).resolves.toBeUndefined();
+    expect(harness.backend.getDiagnostics().settledFrameToken).toBeNull();
+
+    latestLoad.resolve();
+    await harness.backend.waitForVisualSettlement(latest);
+    expect(harness.scene.applyCalls.map((entry) => entry.frame.frameToken)).toEqual(['latest']);
+    firstLoad.resolve();
+    await nextTurn();
+    await nextTurn();
+    expect(harness.scene.applyCalls.map((entry) => entry.frame.frameToken)).toEqual(['latest']);
+    expect(harness.backend.getDiagnostics()).toMatchObject({ stalePrepareCount: 1, settledFrameToken: 'latest' });
+  });
+
+  test('keeps the previous texture set on atomic scene failure and releases failed prepared leases', async () => {
+    const harness = createHarness();
+    await harness.backend.mount(harness.host, {});
+    const oldFrame = makeFrame('old', 1);
+    await harness.backend.prepareFrame(oldFrame);
+    harness.backend.applyFrame(oldFrame);
+    await harness.backend.waitForVisualSettlement(oldFrame);
+    const nextFrame = makeFrame('next', 2);
+    await harness.backend.prepareFrame(nextFrame);
+    harness.scene.failTokens.add('next');
+
+    let applyError: unknown;
+    try { harness.backend.applyFrame(nextFrame); }
+    catch (error) { applyError = error; }
+    expect(applyError).toMatchObject({ code: 'pixi_scene_apply_failed', fallbackEligible: false });
+    await expect(harness.backend.waitForVisualSettlement(nextFrame)).rejects.toBe(applyError);
+    let repeatedError: unknown;
+    try { harness.backend.applyFrame(nextFrame); }
+    catch (error) { repeatedError = error; }
+    expect(repeatedError).toBe(applyError);
+    expect(harness.backend.getDiagnostics().textures).toMatchObject({
+      activeSetId: expect.stringContaining('old'), preparedSetCount: 0, sourceLeaseCount: 1
+    });
+    expect(harness.leases.find((lease) => lease.label === nextFrame.appearance.boardImageUrl)!.release).toHaveBeenCalledTimes(1);
+
+    harness.scene.failTokens.delete('next');
+    await harness.backend.restore(nextFrame);
+    expect(harness.scene.applyCalls.at(-1)!.frame.frameToken).toBe('next');
+    expect(harness.backend.getDiagnostics()).toMatchObject({ restoreCount: 1, settledFrameToken: 'next' });
+  });
+
+  test('committed-frame settlement waits for texture preparation and the final render', async () => {
+    const harness = createHarness();
+    await harness.backend.mount(harness.host, {});
+    const frame = makeFrame('committed', 3, { boardUrl: 'https://example.test/slow-commit.png' });
+    const loading = harness.textures.deferUrl(frame.appearance.boardImageUrl);
+    harness.backend.applyFrame(frame);
+    let settled = false;
+    const waiting = harness.backend.waitForVisualSettlement(frame).then(() => { settled = true; });
+    await nextTurn();
+    expect(settled).toBe(false);
+    expect(harness.scene.applyCalls).toHaveLength(0);
+
+    loading.resolve();
+    await waiting;
+    expect(settled).toBe(true);
+    expect(harness.scene.applyCalls.at(-1)!.frame.frameToken).toBe('committed');
+    expect(harness.app.instances[0].renderer.render).toHaveBeenCalledTimes(1);
+  });
+
+  test('bounds the backing store to viewport plus gutter and cleans every owned resource', async () => {
+    const harness = createHarness();
+    await harness.backend.mount(harness.host, {});
+    const frame = makeFrame('bounded', 4, { rows: 16, cols: 16 });
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+
+    const diagnostics = harness.backend.getDiagnostics();
+    expect(diagnostics.camera).toMatchObject({
+      logicalWidth: 640, logicalHeight: 640, canvasWidth: 320, canvasHeight: 280
+    });
+    expect(diagnostics.canvasBackingWidth).toBe(640);
+    expect(diagnostics.canvasBackingHeight).toBe(560);
+    expect(diagnostics.canvasBackingWidth).toBeLessThan(640 * 2);
+    harness.fireResize();
+    expect(harness.backend.getDiagnostics().resizeRenderCount).toBe(1);
+
+    harness.backend.destroy();
+    harness.backend.destroy();
+    expect(harness.host.querySelectorAll('canvas')).toHaveLength(0);
+    expect(harness.host.querySelectorAll('#board-scroll-viewport')).toHaveLength(0);
+    expect(harness.observerDisconnected()).toBe(true);
+    expect(Array.from(harness.viewportListeners.values()).every((listeners) => listeners.size === 0)).toBe(true);
+    expect(harness.leases.every((lease) => lease.release.mock.calls.length === 1)).toBe(true);
+    expect(harness.backend.getDisplayObjectCounts()).toEqual({ total: 0, active: 0, pooled: 0, canvas: 0 });
+    expect(harness.backend.getTextureLeaseCounts()).toEqual({ total: 0, cached: 0, external: 0, source: 0 });
+    expect(harness.backend.getDiagnostics()).toMatchObject({
+      state: 'destroyed', canvasCount: 0, contextCount: 0, tickerRunning: false
+    });
+  });
+
+  test('bounds an expanded custom board derivative to the base viewport plus gutter', async () => {
+    const customBoardBlob = new Blob(['custom-board'], { type: 'image/png' });
+    const harness = createHarness({ customBoardBlob });
+    harness.textures.runtime.createImageBitmap.mockImplementation(async (_source: any, resize?: any) => ({
+      width: resize?.resizeWidth || 4096,
+      height: resize?.resizeHeight || 4096,
+      close: jest.fn()
+    }));
+    await harness.backend.mount(harness.host, {});
+    const frame = makeFrame('expanded-custom-board', 41, {
+      rows: 64,
+      cols: 64,
+      viewportWidth: 2560,
+      viewportHeight: 2560
+    });
+
+    await harness.backend.prepareFrame(frame);
+
+    expect(harness.textures.runtime.createImageBitmap).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ width: 4096, height: 4096 }),
+      expect.objectContaining({ resizeWidth: 960, resizeHeight: 960, resizeQuality: 'high' })
+    );
+    harness.backend.destroy();
+  });
+
+  test('surfaces camera refresh render failure through settlement until a successful restore', async () => {
+    const harness = createHarness();
+    await harness.backend.mount(harness.host, {});
+    const frame = makeFrame('camera-refresh', 5);
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+
+    const renderFailure = new Error('camera-refresh-render-failed');
+    const ticker = harness.app.instances[0].ticker;
+    ticker.started = true;
+    const stopCountBeforeFailure = ticker.stop.mock.calls.length;
+    harness.app.instances[0].renderer.render.mockImplementationOnce(() => {
+      throw renderFailure;
+    });
+    harness.fireResize();
+
+    const refreshError = await harness.backend.waitForVisualSettlement(frame).catch((error) => error);
+    expect(refreshError).toMatchObject({
+      code: 'pixi_render_failed', stage: 'render', fallbackEligible: false
+    });
+    expect(refreshError.detail).toBe(renderFailure);
+    expect(ticker.stop).toHaveBeenCalledTimes(stopCountBeforeFailure + 1);
+    expect(ticker.started).toBe(false);
+    expect(Backend.isPixiCompatibilityFallbackError(refreshError)).toBe(false);
+    await expect(harness.backend.waitForVisualSettlement(frame)).rejects.toBe(refreshError);
+    expect(harness.backend.getDiagnostics().lastErrorCode).toBe('pixi_render_failed');
+
+    await harness.backend.restore(frame);
+    await expect(harness.backend.waitForVisualSettlement(frame)).resolves.toBeUndefined();
+    expect(harness.backend.getDiagnostics()).toMatchObject({
+      restoreCount: 1, settledFrameToken: 'camera-refresh', lastErrorCode: null
+    });
+  });
+
+  test('uses the strict init-code allowlist and never marks camera or scene failures as DOM fallback candidates', async () => {
+    const runtimeUnavailable = createHarness();
+    const missingRuntime = Backend.createPixiBoardVisualBackend({
+      runtime: {},
+      document: runtimeUnavailable.document,
+      root: runtimeUnavailable.dom.window as any
+    });
+    await expect(missingRuntime.mount(runtimeUnavailable.host, {})).rejects.toMatchObject({ code: 'pixi_runtime_unavailable' });
+
+    const webgl = createHarness({ webglAvailable: false });
+    await expect(webgl.backend.mount(webgl.host, {})).rejects.toMatchObject({ code: 'pixi_webgl_unavailable' });
+    const application = createHarness({ initError: new Error('generic-init-failed') });
+    await expect(application.backend.mount(application.host, {})).rejects.toMatchObject({ code: 'pixi_application_init_failed' });
+    const webglInit = createHarness({ initError: new Error('WebGL context creation failed') });
+    await expect(webglInit.backend.mount(webglInit.host, {})).rejects.toMatchObject({ code: 'pixi_webgl_init_failed' });
+    const renderer = createHarness({ rendererMissing: true });
+    await expect(renderer.backend.mount(renderer.host, {})).rejects.toMatchObject({ code: 'pixi_renderer_init_failed' });
+
+    const fallbackErrors = [
+      await missingRuntime.mount(runtimeUnavailable.host, {}).catch((error) => error),
+      await webgl.backend.mount(webgl.host, {}).catch((error) => error),
+      await application.backend.mount(application.host, {}).catch((error) => error),
+      await webglInit.backend.mount(webglInit.host, {}).catch((error) => error),
+      await renderer.backend.mount(renderer.host, {}).catch((error) => error)
+    ];
+    expect(fallbackErrors.every(Backend.isPixiCompatibilityFallbackError)).toBe(true);
+
+    const camera = createHarness({ cameraFactory: () => { throw new Error('camera-failed'); } });
+    const cameraError = await camera.backend.mount(camera.host, {}).catch((error) => error);
+    expect(cameraError).toMatchObject({ code: 'pixi_camera_init_failed', fallbackEligible: false });
+    expect(Backend.isPixiCompatibilityFallbackError(cameraError)).toBe(false);
+    const scene = createHarness({ sceneFactoryThrows: true });
+    const sceneError = await scene.backend.mount(scene.host, {}).catch((error) => error);
+    expect(sceneError).toMatchObject({ code: 'pixi_scene_init_failed', fallbackEligible: false });
+    expect(Backend.isPixiCompatibilityFallbackError(sceneError)).toBe(false);
+  });
+
+  test('accepts Pixi v8 numeric WEBGL and rejects numeric WEBGPU/CANVAS renderers', async () => {
+    const webgl = createHarness({ rendererType: 1 });
+    await expect(webgl.backend.mount(webgl.host, {})).resolves.toBeUndefined();
+    webgl.backend.destroy();
+
+    for (const rendererType of [2, 4]) {
+      const harness = createHarness({ rendererType });
+      const error = await harness.backend.mount(harness.host, {}).catch((caught) => caught);
+      expect(error).toMatchObject({ code: 'pixi_renderer_init_failed', fallbackEligible: true });
+      expect(Backend.isPixiCompatibilityFallbackError(error)).toBe(true);
+    }
+  });
+
+  test('only accepts Phase 4 playback in no-animation mode', async () => {
+    const staticHarness = createHarness();
+    await staticHarness.backend.mount(staticHarness.host, {});
+    await expect(staticHarness.backend.playPhase([], {
+      token: { id: 1, frameToken: 'phase', mode: 'local' }, strictNetworkPlayback: false
+    })).resolves.toBeUndefined();
+
+    const animated = createHarness({ noAnimation: false });
+    await animated.backend.mount(animated.host, {});
+    const error = await animated.backend.playPhase([], {
+      token: { id: 1, frameToken: 'phase', mode: 'local' }, strictNetworkPlayback: false
+    }).catch((caught) => caught);
+    expect(error).toMatchObject({ code: 'pixi_static_animation_unsupported', fallbackEligible: false });
+    expect(Backend.isPixiCompatibilityFallbackError(error)).toBe(false);
+  });
+
+  test('reuses a failed preparation as the same typed failure and restore can retry it', async () => {
+    const harness = createHarness();
+    await harness.backend.mount(harness.host, {});
+    const frame = makeFrame('retry', 5);
+    harness.textures.setFailAll(true);
+    let prepareError: unknown;
+    try { await harness.backend.prepareFrame(frame); }
+    catch (error) { prepareError = error; }
+    expect(prepareError).toMatchObject({ code: 'pixi_texture_prepare_failed', fallbackEligible: false });
+    let applyError: unknown;
+    try { harness.backend.applyFrame(frame); }
+    catch (error) { applyError = error; }
+    expect(applyError).toBe(prepareError);
+    await expect(harness.backend.waitForVisualSettlement(frame)).rejects.toBe(prepareError);
+
+    harness.textures.setFailAll(false);
+    await harness.backend.restore(frame);
+    expect(harness.scene.applyCalls.at(-1)!.frame.frameToken).toBe('retry');
+    expect(harness.backend.getDiagnostics()).toMatchObject({ restoreCount: 1, settledFrameToken: 'retry' });
+  });
+});

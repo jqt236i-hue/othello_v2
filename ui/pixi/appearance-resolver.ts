@@ -253,15 +253,21 @@ export function resolveSpecialStoneAppearanceResource(
   owner: unknown,
   baseUri?: string | null
 ): BoardAppearanceResourceDescriptor | null {
+  const normalizedType = String(specialType || '').trim().toUpperCase();
   const effectKey = typeof GameVisualEffectsMap.getEffectKeyForSpecialType === 'function'
     ? GameVisualEffectsMap.getEffectKeyForSpecialType(specialType)
     : null;
   const effect = effectKey && GameVisualEffectsMap.STONE_VISUAL_EFFECTS
     ? GameVisualEffectsMap.STONE_VISUAL_EFFECTS[effectKey]
     : null;
-  const rawPath = effect && typeof GameVisualEffectsMap.resolveEffectImagePath === 'function'
+  const effectPath = effect && typeof GameVisualEffectsMap.resolveEffectImagePath === 'function'
     ? GameVisualEffectsMap.resolveEffectImagePath(effect, { owner })
     : null;
+  // Freeze is a full-cell status overlay in the DOM writer rather than a
+  // special-stone registry entry. Keep the same built-in asset in the Pixi
+  // resource pipeline so it remains preloaded, bounded and transactionally
+  // committed with the rest of the frame.
+  const rawPath = effectPath || (normalizedType === 'FREEZE' ? 'assets/images/other/ICE.png' : null);
   if (!rawPath) return null;
   const root = resolveRootRef(rootRef);
   const url = resolveAppearanceAssetUrl(rawPath, resolveBaseUri(root, baseUri));
