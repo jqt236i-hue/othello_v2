@@ -2,6 +2,9 @@ type BoardRendererStoneHelperMap = Record<string, any>;
 
 const HELPER_NAMES = Object.freeze([
   'syncBoardPixelSizing',
+  'renderBoard',
+  'renderBoardFull',
+  'getBoardInputController',
   'applyTimeStopLegalEmphasis',
   'resolveBoardExpansionLayerElement',
   'ensureDiscSkeleton',

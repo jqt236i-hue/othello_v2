@@ -1,14 +1,16 @@
 import * as fs from 'fs';
 import * as http from 'http';
 import * as path from 'path';
-import { chromium, Browser } from 'playwright';
+import { chromium, type Browser } from 'playwright';
+
+type BackendKind = 'dom' | 'pixi';
 
 function resolveMimeType(filePath: string): string {
   const ext = path.extname(filePath).toLowerCase();
-  if (ext === '.html') return 'text/html';
-  if (ext === '.js' || ext === '.mjs') return 'application/javascript';
-  if (ext === '.css') return 'text/css';
-  if (ext === '.json') return 'application/json';
+  if (ext === '.html') return 'text/html; charset=utf-8';
+  if (ext === '.js' || ext === '.mjs') return 'application/javascript; charset=utf-8';
+  if (ext === '.css') return 'text/css; charset=utf-8';
+  if (ext === '.json') return 'application/json; charset=utf-8';
   if (ext === '.wasm') return 'application/wasm';
   if (ext === '.onnx') return 'application/octet-stream';
   return 'application/octet-stream';
@@ -16,11 +18,11 @@ function resolveMimeType(filePath: string): string {
 
 function createStaticServer(rootDir: string): http.Server {
   return http.createServer((req, res) => {
-    const rawUrl = String((req && req.url) || '/').split('?')[0] || '/';
-    let decoded = '/';
+    const rawUrl = String(req?.url || '/').split('?')[0] || '/';
+    let decoded = '/index.html';
     try {
       decoded = decodeURIComponent(rawUrl === '/' ? '/index.html' : rawUrl);
-    } catch (_e) {
+    } catch (_error) {
       res.writeHead(400);
       res.end('Bad request');
       return;
@@ -44,20 +46,20 @@ function createStaticServer(rootDir: string): http.Server {
   });
 }
 
-async function listen(server: http.Server, host: string, port: number): Promise<string> {
+async function listen(server: http.Server): Promise<string> {
   await new Promise<void>((resolve, reject) => {
     const onError = (error: Error) => {
       server.removeListener('error', onError);
       reject(error);
     };
     server.once('error', onError);
-    server.listen(port, host, () => {
+    server.listen(0, '127.0.0.1', () => {
       server.removeListener('error', onError);
       resolve();
     });
   });
   const address = server.address() as any;
-  return `http://${host}:${address.port}`;
+  return `http://127.0.0.1:${address.port}`;
 }
 
 async function closeServer(server: http.Server | null | undefined): Promise<void> {
@@ -68,267 +70,230 @@ async function closeServer(server: http.Server | null | undefined): Promise<void
 function findRepoRoot(startDir: string): string {
   let dir = path.resolve(startDir);
   while (dir !== path.dirname(dir)) {
-    if (fs.existsSync(path.join(dir, 'package.json')) && fs.existsSync(path.join(dir, 'index.html'))) {
-      return dir;
-    }
+    if (fs.existsSync(path.join(dir, 'package.json')) && fs.existsSync(path.join(dir, 'index.html'))) return dir;
     dir = path.dirname(dir);
   }
   return path.resolve(startDir);
 }
 
-async function launchChrome(): Promise<Browser> {
-  return chromium.launch({ channel: 'chrome', headless: true });
+function evaluateWriterLaneEvidence(evidence: any): { ok: boolean; errors: string[] } {
+  const backend = String(evidence?.backend || 'unknown');
+  const errors: string[] = [];
+  if (evidence?.observedBackend !== backend) {
+    errors.push(`${backend}: requested backend resolved as ${evidence?.observedBackend || 'missing'}`);
+  }
+  const records = Array.isArray(evidence?.records) ? evidence.records : [];
+  const byLabel = new Map(records.map((record: any) => [record.label, record]));
+  const initial = byLabel.get('initial-settled') as any;
+  const duringDirect = byLabel.get('during-direct-render') as any;
+  const duringScheduled = byLabel.get('during-scheduler-render') as any;
+  const final = byLabel.get('final-settled') as any;
+  if (!initial?.cell?.hasStone) errors.push(`${backend}: initial settled stone is missing`);
+  for (const record of [duringDirect, duringScheduled]) {
+    if (!record?.cell?.hasStone) errors.push(`${backend}: active writer exposed the canonical final cell early`);
+    if (record?.visualDigest !== initial?.visualDigest) {
+      errors.push(`${backend}: active writer changed the settled visual digest before settlement`);
+    }
+    if (record?.writerMode !== 'playback') errors.push(`${backend}: active writer mode was not playback`);
+  }
+  if (final?.cell?.hasStone) errors.push(`${backend}: settled final frame retained the removed stone`);
+  if (!initial?.visualDigest || final?.visualDigest === initial.visualDigest) {
+    errors.push(`${backend}: final visual digest did not advance`);
+  }
+  if (final?.writerMode !== 'idle') errors.push(`${backend}: writer did not return to idle`);
+  if (backend === 'pixi') {
+    const diagnostics = final?.backendDiagnostics || {};
+    const timeline = diagnostics.timeline || {};
+    const playback = diagnostics.playback || {};
+    const pool = diagnostics.pool || {};
+    if (diagnostics.tickerRunning === true
+      || timeline.tickerRunning === true
+      || Number(timeline.activeRunCount || 0) !== 0) {
+      errors.push('pixi: private ticker remained active after writer settlement');
+    }
+    if (Number(playback.inFlightEffectCount || 0) !== 0
+      || Number(pool.activePlaybackGhostCount || 0) !== 0
+      || Number(pool.activePlaybackHighlightLeaseCount || 0) !== 0) {
+      errors.push('pixi: playback projection resources remained active after writer settlement');
+    }
+  }
+  for (const error of evidence?.consoleErrors || []) errors.push(`${backend}: console error: ${error}`);
+  for (const error of evidence?.pageErrors || []) errors.push(`${backend}: page error: ${error}`);
+  return { ok: errors.length === 0, errors };
 }
 
-async function main(): Promise<void> {
-  const rootDir = findRepoRoot(__dirname);
-  const server = createStaticServer(rootDir);
-  let browser: Browser | null = null;
+async function captureWriterLane(browser: Browser, appUrl: string, backend: BackendKind): Promise<any> {
+  const page = await browser.newPage({ viewport: { width: 980, height: 760 } });
+  const consoleErrors: string[] = [];
+  const pageErrors: string[] = [];
+  page.on('console', (message) => {
+    if (typeof message.type === 'function' && message.type() === 'error') consoleErrors.push(message.text());
+  });
+  page.on('pageerror', (error) => {
+    pageErrors.push(error?.message ? String(error.message) : String(error));
+  });
   try {
-    const appUrl = await listen(server, '127.0.0.1', 0);
-    console.log(`[playback-board-writer-check] app=${appUrl}`);
-    browser = await launchChrome();
-    const page = await browser.newPage();
-    const consoleErrors: string[] = [];
-    const pageErrors: string[] = [];
-    page.on('console', (message) => {
-      if (typeof message.type === 'function' && message.type() === 'error') {
-        consoleErrors.push(message.text());
-      }
+    await page.goto(`${appUrl}/?debug=1&boardRenderer=${backend}&noanim=1`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30000
     });
-    page.on('pageerror', (error) => {
-      pageErrors.push(error && (error as any).message ? String((error as any).message) : String(error));
-    });
-    await page.goto(`${appUrl}/?debug=1`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForFunction(() => {
-      return !!(
-        (window as any).renderBoard
-        && (window as any).require
-        && (window as any).RenderScheduler
-      );
-    }, null, { timeout: 30000 });
     await page.waitForFunction(() => {
       const root = window as any;
-      let timeline: any = null;
-      try {
-        timeline = root.NetworkPresentationTimeline && typeof root.NetworkPresentationTimeline.getDiagnostics === 'function'
-          ? root.NetworkPresentationTimeline.getDiagnostics()
-          : null;
-      } catch (_e) {
-        timeline = null;
-      }
-      return root.isProcessing !== true
-        && root.isCardAnimating !== true
-        && root.VisualPlaybackActive !== true
-        && !(root.AnimationEngine && root.AnimationEngine.isPlaying === true)
-        && (!timeline || (
-          timeline.playing !== true
-          && timeline.paused !== true
-          && Number(timeline.pendingFrameCount || 0) === 0
-        ));
+      return root.__uiInitialized === true
+        && !!root.__boardVisualDebug
+        && typeof root.__boardVisualDebug.getBackendDiagnostics === 'function'
+        && typeof root.renderBoard === 'function'
+        && typeof root.require === 'function';
     }, null, { timeout: 30000 });
+    await page.evaluate(async () => (window as any).__boardVisualDebug.waitForIdle());
 
-    const evidence = await page.evaluate(async () => {
+    const records = await page.evaluate(async (requestedBackend: BackendKind) => {
       const root = window as any;
+      const debug = root.__boardVisualDebug;
       const boardRenderer = root.require('ui/board-renderer');
-      const diffRenderer = root.require('ui/diff-renderer');
-      const boardUpdateSyncRuntime = root.require('ui/board-update-sync-runtime');
-      if (!boardRenderer || typeof boardRenderer.renderBoardFull !== 'function') {
-        throw new Error('ui/board-renderer.renderBoardFull is unavailable');
+      const boardUtils = root.require('shared/shared-board-utils');
+      const core = root.require('game/logic/core');
+      if (!boardRenderer || typeof boardRenderer.claimBoardVisualWriter !== 'function'
+        || typeof boardRenderer.settleBoardVisualWriter !== 'function') {
+        throw new Error('board writer public API is unavailable');
       }
-      if (!boardUpdateSyncRuntime || typeof boardUpdateSyncRuntime.armBoardUpdateSyncContext !== 'function') {
-        throw new Error('ui/board-update-sync-runtime is unavailable');
+      if (!core || !boardUtils || typeof root.forceFullRender !== 'function') {
+        throw new Error('board writer fixture runtime is unavailable');
       }
       const row = 2;
       const col = 2;
-      const flipRow = 2;
-      const flipCol = 3;
-      const black = Number.isFinite(Number(root.BLACK)) ? Number(root.BLACK) : 1;
-      const white = Number.isFinite(Number(root.WHITE)) ? Number(root.WHITE) : -1;
-      const empty = Number.isFinite(Number(root.EMPTY)) ? Number(root.EMPTY) : 0;
-      const board = Array.from({ length: 8 }, () => Array(8).fill(empty));
-      board[row][col] = white;
-      root.gameState = root.gameState || {};
-      root.gameState.currentPlayer = black;
-      root.gameState.board = board;
-      root.cardState = root.cardState || {};
+      const createState = (stone: number) => {
+        const state = core.createGameState({ rows: 8, cols: 8, shape: 'rectangle' });
+        state.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        state.board[row][col] = stone;
+        state.boardExpansion = {
+          active: false,
+          side: null,
+          row: null,
+          owner: 0,
+          usedByPlayer: { black: false, white: false },
+          cells: []
+        };
+        boardUtils.attachBoardShape(state.board, {
+          boardConfig: state.boardConfig,
+          boardExpansion: state.boardExpansion,
+          cardState: root.cardState
+        });
+        return state;
+      };
+      root.cardState = root.cardState && typeof root.cardState === 'object' ? root.cardState : {};
       root.cardState.markers = [];
       root.cardState.pendingEffectByPlayer = { black: null, white: null };
       root.cardState.presentationEvents = [];
       root.cardState._presentationEventsPersist = [];
+      root.gameState = createState(-1);
+      await Promise.resolve(root.forceFullRender(document.getElementById('board')));
+      await debug.waitForIdle();
 
-      const readCellAt = (targetRow: number, targetCol: number) => {
-        const cell = document.querySelector(`.cell[data-row="${targetRow}"][data-col="${targetCol}"]`) as HTMLElement | null;
-        const disc = cell ? cell.querySelector('.disc') as HTMLElement | null : null;
+      const stoneSnapshot = () => {
+        const cell = debug.getRenderedCell(row, col);
+        const stone = cell?.stone || null;
+        const pixiStone = stone && typeof stone.visible === 'boolean';
         return {
           hasCell: !!cell,
-          hasDisc: !!disc,
-          cellClass: cell ? cell.className : '',
-          discClass: disc ? disc.className : ''
+          hasStone: pixiStone ? stone.visible === true && !!stone.owner : !!stone,
+          owner: stone?.owner || null,
+          visualSignature: cell?.visualSignature || null
         };
       };
-      const readCell = () => readCellAt(row, col);
-      const records: any[] = [];
-      const record = (label: string) => {
-        records.push({ label, cell: readCell() });
-      };
-      const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-      const armBypassContext = (reason: string) => {
-        boardUpdateSyncRuntime.armBoardUpdateSyncContext({
-          allowBoardUpdateDuringPlayback: true,
+      const output: any[] = [];
+      const record = (label: string) => output.push({
+        label,
+        cell: stoneSnapshot(),
+        writerMode: debug.getWriterMode(),
+        visualDigest: debug.getVisualFrameDigest(),
+        backendDiagnostics: debug.getBackendDiagnostics()
+      });
+
+      record('initial-settled');
+      const token = boardRenderer.claimBoardVisualWriter(`browser-writer-check:${requestedBackend}`, 'local');
+      root.gameState = createState(0);
+      root.renderBoard();
+      record('during-direct-render');
+
+      if (root.RenderScheduler?.requestBoardRender && root.RenderScheduler?.flushVisualUpdates) {
+        root.RenderScheduler.requestBoardRender({
           source: 'playback-board-writer-browser-check',
-          reason
+          reason: 'active-writer-coalescing'
         });
-      };
-
-      boardRenderer.renderBoardFull();
-      record('initial-render');
-      if (!readCell().hasDisc) {
-        throw new Error(`initial target disc was not rendered: ${JSON.stringify(records)}`);
+        root.RenderScheduler.flushVisualUpdates({ ignorePlayback: true });
+      } else {
+        root.renderBoard();
       }
+      record('during-scheduler-render');
 
-      root.gameState.board[row][col] = empty;
-      root.cardState.presentationEvents = [
-        { type: 'PLAYBACK_EVENTS', events: [{ type: 'destroy', phase: 1, targets: [{ r: row, col }] }] }
-      ];
-      root.cardState._presentationEventsPersist = [
-        { type: 'PLAYBACK_EVENTS', events: [{ type: 'destroy', phase: 1, targets: [{ r: row, col }] }] }
-      ];
-
-      armBypassContext('direct_renderBoard_probe');
-      root.renderBoard();
-      record('after-renderBoard-during-playback');
-
-      armBypassContext('scheduler_ignore_probe');
-      root.RenderScheduler.requestBoardRender({
-        source: 'playback-board-writer-browser-check',
-        reason: 'scheduler_ignore_probe'
-      });
-      root.RenderScheduler.flushVisualUpdates({ ignorePlayback: true });
-      record('after-scheduler-ignore-during-playback');
-
-      if (diffRenderer && typeof diffRenderer.renderBoardDiff === 'function') {
-        armBypassContext('direct_diff_probe');
-        diffRenderer.renderBoardDiff(document.getElementById('board'));
-        record('after-renderBoardDiff-during-playback');
-      }
-
-      const duringLabels = records.filter((entry) => (
-        entry.label !== 'initial-render'
-        && entry.label !== 'after-final-idle-render'
-      ));
-      const missingDuringPlayback = duringLabels.filter((entry) => !entry.cell || entry.cell.hasDisc !== true);
-      if (missingDuringPlayback.length > 0) {
-        throw new Error(`target disc disappeared during pending playback: ${JSON.stringify(records)}`);
-      }
-
-      root.cardState.presentationEvents = [];
-      root.cardState._presentationEventsPersist = [];
-      boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
-      root.renderBoard();
-      record('after-final-idle-render');
-      await wait(700);
-      record('after-final-idle-settle');
-
-      const finalCell = readCell();
-      if (finalCell.hasDisc) {
-        throw new Error(`final idle render did not remove target disc: ${JSON.stringify(records)}`);
-      }
-      const flipEvents = root.require('ui/animation-flip-events');
-      if (!flipEvents || typeof flipEvents.handleFlipEvent !== 'function') {
-        throw new Error('ui/animation-flip-events.handleFlipEvent is unavailable');
-      }
-      const flipRecords: any[] = [];
-      const readFlipCell = () => readCellAt(flipRow, flipCol);
-      const recordFlip = (label: string) => {
-        flipRecords.push({ label, cell: readFlipCell() });
-      };
-      if (diffRenderer && typeof diffRenderer.resetRenderStats === 'function') {
-        diffRenderer.resetRenderStats();
-      }
-      root.gameState.board = Array.from({ length: 8 }, () => Array(8).fill(empty));
-      root.cardState.markers = [];
-      root.cardState.presentationEvents = [];
-      root.cardState._presentationEventsPersist = [];
-      root.gameState.board[flipRow][flipCol] = black;
-      boardRenderer.renderBoardFull();
-      recordFlip('flip-initial-render');
-      if (!readFlipCell().hasDisc) {
-        throw new Error(`initial flip target disc was not rendered: ${JSON.stringify(flipRecords)}`);
-      }
-      const flipAnimationShared = {
-        triggerFlip: (disc: HTMLElement | null | undefined) => {
-          if (disc && disc.classList) disc.classList.add('flip');
-        },
-        removeFlip: (disc: HTMLElement | null | undefined) => {
-          if (disc && disc.classList) disc.classList.remove('flip');
-        }
-      };
-
-      await flipEvents.handleFlipEvent({
-        type: 'flip',
-        targets: [{ r: flipRow, col: flipCol, ownerBefore: 'black', after: { color: white } }]
-      }, {
-        eventTypes: { FLIP: 'flip' },
-        flipMs: 20,
-        fadeOutMs: 10,
-        isNoAnim: () => false,
-        getCellEl: (r: number, c: number) => document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`),
-        resolveOwnerColorFromBefore: () => black,
-        resolveOwnerClassFromColor: () => 'black',
-        syncDiscVisual: (disc: HTMLElement, state: any) => {
-          disc.classList.toggle('black', state && state.color === black);
-          disc.classList.toggle('white', state && state.color === white);
-        },
-        runWithEffectTargetHighlight: (_cell: Element, _eventType: string, _target: unknown, runner: () => Promise<void>) => runner(),
-        sleep: () => Promise.resolve(),
-        animationShared: flipAnimationShared
-      });
-      recordFlip('after-playback-flip');
-
-      const afterPlaybackFlipCell = readFlipCell();
-      if (!afterPlaybackFlipCell.hasDisc || !afterPlaybackFlipCell.discClass.split(/\s+/).includes('white')) {
-        throw new Error(`playback flip did not leave a white disc: ${JSON.stringify(flipRecords)}`);
-      }
-
-      root.gameState.board[flipRow][flipCol] = white;
-      diffRenderer.renderBoardDiff(document.getElementById('board'));
-      recordFlip('after-final-flip-sync');
-
-      const finalFlipCell = readFlipCell();
-      if (!finalFlipCell.hasDisc || !finalFlipCell.discClass.split(/\s+/).includes('white')) {
-        throw new Error(`final flip sync did not keep the white disc: ${JSON.stringify(flipRecords)}`);
-      }
-      const replayedFlip = flipRecords.some((entry) => (
-        entry.label === 'after-final-flip-sync'
-        && entry.cell
-        && typeof entry.cell.discClass === 'string'
-        && entry.cell.discClass.split(/\s+/).includes('flip')
-      ));
-      if (replayedFlip) {
-        throw new Error(`final flip sync replayed fallback flip: ${JSON.stringify(flipRecords)}`);
-      }
+      await boardRenderer.settleBoardVisualWriter(token);
+      await debug.waitForIdle();
+      record('final-settled');
       return {
-        records,
-        flipRecords
+        requestedBackend,
+        observedBackend: debug.getBackendKind(),
+        records: output
       };
-    });
-
-    console.log(JSON.stringify({
-      evidence,
+    }, backend);
+    return {
+      backend,
+      observedBackend: records.observedBackend,
+      records: records.records,
       consoleErrors,
       pageErrors
-    }, null, 2));
-    if (consoleErrors.length > 0 || pageErrors.length > 0) {
-      throw new Error(`browser errors detected: ${JSON.stringify({ consoleErrors, pageErrors })}`);
+    };
+  } finally {
+    await page.close();
+  }
+}
+
+async function runPlaybackBoardWriterBrowserCheck(options?: {
+  rootDir?: string;
+  launch?: typeof chromium.launch;
+  log?: boolean;
+}): Promise<any> {
+  const rootDir = findRepoRoot(options?.rootDir || __dirname);
+  const server = createStaticServer(rootDir);
+  let browser: Browser | null = null;
+  try {
+    const appUrl = await listen(server);
+    const launch = options?.launch
+      ? options.launch
+      : (launchOptions: Parameters<typeof chromium.launch>[0]) => chromium.launch(launchOptions);
+    browser = await launch({ channel: 'chrome', headless: true });
+    const lanes: any[] = [];
+    for (const backend of ['dom', 'pixi'] as const) lanes.push(await captureWriterLane(browser, appUrl, backend));
+    const evaluations = lanes.map((lane) => ({
+      backend: lane.backend,
+      ...evaluateWriterLaneEvidence(lane)
+    }));
+    const result = {
+      schemaVersion: 'playback_board_writer_browser_check.v2',
+      appUrl,
+      lanes,
+      evaluations,
+      ok: evaluations.every((evaluation) => evaluation.ok)
+    };
+    if (options?.log !== false) console.log(JSON.stringify(result, null, 2));
+    if (!result.ok) {
+      throw new Error(evaluations.flatMap((evaluation) => evaluation.errors).join('; '));
     }
+    return result;
   } finally {
     if (browser) await browser.close();
     await closeServer(server);
   }
 }
 
-main().catch((error) => {
-  console.error(`[playback-board-writer-check] failed: ${error && (error as any).message ? String((error as any).message) : String(error)}`);
-  process.exit(1);
-});
+if (require.main === module) {
+  runPlaybackBoardWriterBrowserCheck().catch((error) => {
+    console.error(`[playback-board-writer-check] failed: ${error instanceof Error ? error.message : error}`);
+    process.exit(1);
+  });
+}
+
+export = {
+  evaluateWriterLaneEvidence,
+  runPlaybackBoardWriterBrowserCheck
+};

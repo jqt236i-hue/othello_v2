@@ -116,6 +116,86 @@
     z-index: var(--board-layer-decoration);
 }
 
+/* Phase 4 Pixi lane: keep the DOM frame/layout, but give the board pixels to
+   the exclusive canvas backend. The default/data-board-renderer="dom" path
+   continues to use the grid and pseudo-element surface above unchanged. */
+#board[data-board-renderer="pixi"] {
+    display: block;
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+    filter: none;
+    overflow: visible;
+}
+
+#board[data-board-renderer="pixi"]::before,
+#board[data-board-renderer="pixi"]::after {
+    content: none;
+    display: none;
+}
+
+#board[data-board-renderer="pixi"] > .cell {
+    display: none !important;
+}
+
+#board-stack:has(#board[data-board-renderer="pixi"]) > #board-expansion-layer {
+    display: none;
+}
+
+#board[data-board-renderer="pixi"] > .pixi-board-scroll-viewport {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    z-index: var(--board-layer-cell);
+}
+
+#board[data-board-renderer="pixi"] .pixi-board-scroll-surface {
+    position: relative;
+    pointer-events: none;
+}
+
+#board[data-board-renderer="pixi"] > .pixi-board-canvas-layer {
+    position: absolute;
+    pointer-events: none;
+    overflow: visible;
+    z-index: var(--board-layer-expanded-cell);
+}
+
+#board[data-board-renderer="pixi"] > .pixi-board-canvas-layer > canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+}
+
+/* Pixi owns every visible board pixel. This transparent, game-specific DOM
+   layer preserves only the legacy focusable expansion-direction controls. */
+#board > .board-accessibility-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: calc(var(--board-layer-expanded-cell) + 20);
+}
+
+#board > .board-accessibility-layer > .board-accessibility-direction-button {
+    position: absolute;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: transparent;
+    opacity: 0;
+    pointer-events: auto;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+}
+
 /* Disable interactions during active playback */
 #board.playback-locked {
     pointer-events: none;

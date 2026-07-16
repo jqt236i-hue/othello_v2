@@ -13,6 +13,14 @@ describe('DiffRenderer stone info panel DOM shell', () => {
     global.handleCellClick = jest.fn();
     global.cardState = { markers: [] };
     global.gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 1 };
+    const inputController = {
+      handlePointer: jest.fn(),
+      handleKeyboard: jest.fn(),
+      getState: jest.fn(() => ({ activePointerId: null }))
+    };
+    require('../ui/board-renderer/stone-helpers.ts').setBoardRendererStoneHelpers({
+      getBoardInputController: () => inputController
+    });
     return require('../ui/diff-renderer.js');
   }
 
@@ -26,6 +34,7 @@ describe('DiffRenderer stone info panel DOM shell', () => {
     delete global.handleCellClick;
     delete global.cardState;
     delete global.gameState;
+    delete (global as any).BoardRendererStoneHelpers;
   });
 
   test('creates stone info panel below manifest panel when the left stack exists', () => {

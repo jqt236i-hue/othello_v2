@@ -15,8 +15,11 @@ export interface PixiBoardApplicationDiagnostics {
   readonly systemTickerRunning: boolean;
   readonly renderCount: number;
   readonly resizeCount: number;
+  readonly tickerListenerCount: number;
   readonly resolution: number;
 }
+
+export type PixiBoardTickerListener = (deltaMs: number) => void;
 
 export interface PixiBoardApplication {
   readonly ready: Promise<void>;
@@ -27,8 +30,12 @@ export interface PixiBoardApplication {
   getStage(): any;
   getRenderer(): any;
   getDiagnostics(): PixiBoardApplicationDiagnostics;
+  /** Debug/test extraction renders into an offscreen texture; it never relies on the default WebGL buffer. */
+  captureFramePngDataUrl(target?: any): string;
   render(): void;
   resize(width: number, height: number, resolution?: number): void;
+  /** Subscribe to this Application's private ticker. The caller owns start/stop. */
+  subscribeTicker(listener: PixiBoardTickerListener): () => void;
   startTicker(): void;
   stopTicker(): void;
   destroy(): void;
@@ -77,6 +84,20 @@ function destroyApplication(application: any): void {
   });
 }
 
+function detachAutomaticTickerRender(application: any): void {
+  const ticker = application && application.ticker;
+  const render = application && application.render;
+  if (typeof render !== 'function') return;
+  if (!ticker || typeof ticker.remove !== 'function') {
+    throw new Error('Pixi private ticker render listener cannot be detached');
+  }
+  // Pixi's TickerPlugin registers Application.render even when autoStart is
+  // false. Board playback renders explicitly after all parallel mutations, so
+  // retaining that listener would render twice and could settle before the
+  // final automatic render.
+  ticker.remove(render, application);
+}
+
 export function createPixiBoardApplication(
   options: PixiBoardApplicationOptions = {}
 ): PixiBoardApplication {
@@ -96,6 +117,11 @@ export function createPixiBoardApplication(
   let tickerRunning = false;
   let renderCount = 0;
   let resizeCount = 0;
+  const tickerSubscriptions = new Set<{
+    readonly ticker: any;
+    readonly adapter: (ticker: any) => void;
+    active: boolean;
+  }>();
   const ready = new Promise<void>((resolve, reject) => {
     resolveReady = resolve;
     rejectReady = reject;
@@ -126,36 +152,49 @@ export function createPixiBoardApplication(
     return state === 'destroyed' || epoch !== lifecycleEpoch;
   }
 
-  function resolveManagedTickers(candidate: any): any[] {
-    const tickers = [candidate && candidate.ticker, runtime?.Ticker?.shared, runtime?.Ticker?.system];
-    const unique = new Set<any>();
-    for (const ticker of tickers) {
-      if (ticker && typeof ticker === 'object') unique.add(ticker);
-    }
-    return Array.from(unique);
-  }
-
   function tickerStarted(ticker: any): boolean {
     return Boolean(ticker && ticker.started === true);
   }
 
-  function stopManagedTickers(candidate: any, force = false): void {
+  function stopPrivateTicker(candidate: any, force = false): void {
     const wasRunning = tickerRunning;
     tickerRunning = false;
-    for (const ticker of resolveManagedTickers(candidate)) {
-      if (typeof ticker.stop !== 'function') continue;
-      if (!force && !wasRunning && !tickerStarted(ticker)) continue;
+    const ticker = candidate && candidate.ticker;
+    if (!ticker || typeof ticker.stop !== 'function') return;
+    if (!force && !wasRunning && !tickerStarted(ticker)) return;
+    try {
+      ticker.stop();
+    } catch (_error) {
+      // Best effort: the caller still owns the primary render/init failure.
+    }
+  }
+
+  function removeTickerSubscription(subscription: {
+    readonly ticker: any;
+    readonly adapter: (ticker: any) => void;
+    active: boolean;
+  }): void {
+    if (!subscription.active) return;
+    subscription.active = false;
+    tickerSubscriptions.delete(subscription);
+    subscription.ticker.remove(subscription.adapter);
+  }
+
+  function clearTickerSubscriptions(): void {
+    for (const subscription of Array.from(tickerSubscriptions)) {
       try {
-        ticker.stop();
+        removeTickerSubscription(subscription);
       } catch (_error) {
-        // Best effort: the caller still owns the primary render/init failure.
+        // Application teardown must continue even if a renderer-owned ticker
+        // rejects listener removal.
       }
     }
+    tickerSubscriptions.clear();
   }
 
   function cleanupApplicationInstance(candidate: any): void {
     const candidateCanvas = resolveCanvas(candidate);
-    stopManagedTickers(candidate, true);
+    stopPrivateTicker(candidate, true);
     try { removeCanvas(candidateCanvas); } catch (_error) { /* best effort */ }
     try { destroyApplication(candidate); } catch (_error) { /* primary init error wins */ }
     if (application === candidate) application = null;
@@ -194,7 +233,8 @@ export function createPixiBoardApplication(
         const candidateCanvas = resolveCanvas(candidate);
         if (!candidateCanvas) throw new Error('Pixi Application canvas is unavailable');
         canvas = candidateCanvas;
-        stopManagedTickers(candidate, true);
+        detachAutomaticTickerRender(candidate);
+        stopPrivateTicker(candidate, true);
         if (initializationWasSuperseded(epoch)) {
           throw getDestroyError();
         }
@@ -245,6 +285,48 @@ export function createPixiBoardApplication(
     renderCount += 1;
   }
 
+  function captureFramePngDataUrl(target?: any): string {
+    assertReady();
+    const renderer = application.renderer;
+    const extract = renderer && renderer.extract;
+    const Rectangle = runtime && runtime.Rectangle;
+    const screen = renderer && renderer.screen;
+    const width = Number(screen && screen.width)
+      || Number(canvas && canvas.width) / currentResolution;
+    const height = Number(screen && screen.height)
+      || Number(canvas && canvas.height) / currentResolution;
+    if (!extract || typeof extract.canvas !== 'function') {
+      throw new Error('Pixi renderer.extract.canvas is unavailable');
+    }
+    if (typeof Rectangle !== 'function' || !(width > 0) || !(height > 0)) {
+      throw new Error('Pixi frame extraction geometry is unavailable');
+    }
+    const extractionTarget = target || application.stage;
+    const renderGroup = extractionTarget && extractionTarget.renderGroup;
+    if (renderGroup) renderGroup.structureDidChange = true;
+    if (typeof renderer.resetState === 'function') renderer.resetState();
+    let extracted: any;
+    try {
+      extracted = extract.canvas({
+        target: extractionTarget,
+        frame: new Rectangle(0, 0, width, height),
+        resolution: currentResolution,
+        clearColor: [0, 0, 0, 0],
+        antialias: true
+      });
+    } finally {
+      if (typeof renderer.resetState === 'function') renderer.resetState();
+    }
+    if (!extracted || typeof extracted.toDataURL !== 'function') {
+      throw new Error('Pixi frame extraction did not return a canvas');
+    }
+    const value = String(extracted.toDataURL('image/png'));
+    if (!/^data:image\/png;base64,[A-Za-z0-9+/=\r\n]+$/.test(value)) {
+      throw new Error('Pixi frame extraction returned an invalid PNG data URL');
+    }
+    return value;
+  }
+
   function resize(width: number, height: number, nextResolution?: number): void {
     assertReady();
     const pixelWidth = Number(width);
@@ -274,8 +356,40 @@ export function createPixiBoardApplication(
     tickerRunning = true;
   }
 
+  function subscribeTicker(listener: PixiBoardTickerListener): () => void {
+    assertReady();
+    if (typeof listener !== 'function') throw new Error('Pixi ticker listener is unavailable');
+    const ticker = application.ticker;
+    if (!ticker || typeof ticker.add !== 'function' || typeof ticker.remove !== 'function') {
+      throw new Error('Pixi private ticker subscription is unavailable');
+    }
+    const adapter = (tick: any): void => {
+      const rawDelta = Number(tick && (tick.deltaMS ?? tick.elapsedMS));
+      listener(Number.isFinite(rawDelta) && rawDelta > 0 ? rawDelta : 0);
+    };
+    const subscription = { ticker, adapter, active: true };
+    tickerSubscriptions.add(subscription);
+    try {
+      ticker.add(adapter);
+    } catch (error) {
+      subscription.active = false;
+      tickerSubscriptions.delete(subscription);
+      throw error;
+    }
+    return () => removeTickerSubscription(subscription);
+  }
+
   function stopTicker(): void {
-    stopManagedTickers(application);
+    assertReady();
+    const ticker = application.ticker;
+    if (!ticker || typeof ticker.stop !== 'function') throw new Error('Pixi private ticker is unavailable');
+    if (!tickerRunning && !tickerStarted(ticker)) return;
+    // Normal playback settlement is a correctness boundary. Unlike terminal
+    // teardown, a failed stop must reject the timeline so an actually-running
+    // ticker cannot be reported as an idle success.
+    ticker.stop();
+    if (tickerStarted(ticker)) throw new Error('Pixi private ticker remained active after stop');
+    tickerRunning = false;
   }
 
   function destroy(): void {
@@ -284,7 +398,8 @@ export function createPixiBoardApplication(
     const candidate = application;
     state = 'destroyed';
     lifecycleEpoch += 1;
-    stopManagedTickers(candidate, true);
+    clearTickerSubscriptions();
+    stopPrivateTicker(candidate, true);
     removeCanvas(canvas || resolveCanvas(candidate));
     if (!wasInitializing) destroyApplication(candidate);
     canvas = null;
@@ -301,12 +416,13 @@ export function createPixiBoardApplication(
       state,
       canvasCount: canvas && canvas.parentNode ? 1 : 0,
       contextCount: application && state === 'ready' ? 1 : 0,
-      tickerRunning: tickerRunning || privateTickerRunning || sharedTickerRunning || systemTickerRunning,
+      tickerRunning: tickerRunning || privateTickerRunning,
       privateTickerRunning,
       sharedTickerRunning,
       systemTickerRunning,
       renderCount,
       resizeCount,
+      tickerListenerCount: tickerSubscriptions.size,
       resolution: currentResolution
     });
   }
@@ -320,8 +436,10 @@ export function createPixiBoardApplication(
     getStage: () => application && application.stage || null,
     getRenderer: () => application && application.renderer || null,
     getDiagnostics,
+    captureFramePngDataUrl,
     render,
     resize,
+    subscribeTicker,
     startTicker,
     stopTicker,
     destroy

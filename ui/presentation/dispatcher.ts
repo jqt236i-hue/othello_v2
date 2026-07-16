@@ -14,6 +14,14 @@ import {
 
 export interface PresentationDispatcherDeps {
   readonly strictNetworkPlayback?: boolean;
+  /**
+   * Validate the planner-owned step against the active board backend before
+   * any board, sound, or global launch in that step starts.
+   */
+  readonly preflightBoardPhase?: (
+    events: readonly PresentationPlaybackEvent[],
+    scope: PresentationBoardPhaseScope
+  ) => Promise<void> | void;
   readonly playBoardPhase: (
     events: readonly PresentationPlaybackEvent[],
     scope?: PresentationBoardPhaseScope
@@ -43,6 +51,32 @@ function createBoardPhaseScope(
     phaseKey: plan.phaseKey,
     stepIndex
   });
+}
+
+function collectStepEvents(
+  step: PresentationPhasePlan<PresentationPlaybackEvent>['steps'][number]
+): readonly PresentationPlaybackEvent[] {
+  if (step.kind === 'serial-event') return Object.freeze([step.event]);
+  return Object.freeze(step.launches.flatMap((launch) => (
+    launch.kind === 'flip-batch' ? Array.from(launch.events) : [launch.event]
+  )));
+}
+
+function preflightStep(
+  plan: PresentationPhasePlan<PresentationPlaybackEvent>,
+  stepIndex: number,
+  deps: PresentationDispatcherDeps
+): PresentationBoardPhaseScope | Promise<PresentationBoardPhaseScope> {
+  const events = collectStepEvents(plan.steps[stepIndex]);
+  const scope = createBoardPhaseScope(plan, stepIndex, events);
+  const needsBoardPreflight = events.some((event) => !isKnownGlobalPresentationEvent(event));
+  if (needsBoardPreflight && typeof deps.preflightBoardPhase === 'function') {
+    const result = deps.preflightBoardPhase(events, scope);
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      return Promise.resolve(result).then(() => scope);
+    }
+  }
+  return scope;
 }
 
 function isSoundEffect(event: PresentationPlaybackEvent): boolean {
@@ -156,15 +190,15 @@ export async function dispatchPresentationPhasePlan(
 
   for (let stepIndex = 0; stepIndex < plan.steps.length; stepIndex += 1) {
     const step = plan.steps[stepIndex];
+    const preflight = preflightStep(plan, stepIndex, deps);
+    const scope = preflight && typeof (preflight as Promise<PresentationBoardPhaseScope>).then === 'function'
+      ? await preflight
+      : preflight as PresentationBoardPhaseScope;
     if (step.kind === 'serial-event') {
-      const scope = createBoardPhaseScope(plan, stepIndex, [step.event]);
       await launchEvent(step.event, deps, scope);
       continue;
     }
-    const parallelEvents = step.launches.flatMap((launch) => (
-      launch.kind === 'flip-batch' ? Array.from(launch.events) : [launch.event]
-    ));
-    const scope = createBoardPhaseScope(plan, stepIndex, parallelEvents);
+    const parallelEvents = scope.events;
     const runParallel = async () => {
       const promises: Promise<void>[] = [];
       // Calling launchParallel before collecting the next promise preserves
@@ -178,6 +212,34 @@ export async function dispatchPresentationPhasePlan(
       await runParallel();
     }
   }
+}
+
+/**
+ * Capability preflight used by AnimationEngine before it claims a local board
+ * writer. Dispatch performs the same validation again at each real step so
+ * direct dispatcher callers retain the no-partial-start guarantee.
+ */
+export function preflightPresentationPhase(
+  events: readonly PresentationPlaybackEvent[],
+  deps: PresentationDispatcherDeps
+): Promise<void> | void {
+  if (!deps || typeof deps.playBoardPhase !== 'function' || typeof deps.playGlobalEvent !== 'function') {
+    throw new Error('presentation_dispatcher_dependencies_unavailable');
+  }
+  const effectiveEvents = normalizePresentationPhaseSoundEvents(events);
+  const plans = planPresentationPhases(effectiveEvents);
+  const steps = plans.flatMap((plan) => (
+    plan.steps.map((_step, stepIndex) => ({ plan, stepIndex }))
+  ));
+  const runFrom = (startIndex: number): Promise<void> | void => {
+    for (let index = startIndex; index < steps.length; index += 1) {
+      const candidate = preflightStep(steps[index].plan, steps[index].stepIndex, deps);
+      if (candidate && typeof (candidate as Promise<PresentationBoardPhaseScope>).then === 'function') {
+        return Promise.resolve(candidate).then(() => runFrom(index + 1));
+      }
+    }
+  };
+  return runFrom(0);
 }
 
 export async function dispatchPresentationPhase(

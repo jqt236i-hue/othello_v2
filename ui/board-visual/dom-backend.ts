@@ -15,11 +15,14 @@ const DomRuntime = _require('./dom-runtime');
 function createDomBoardVisualBackend(options?: {
   playPhase?: (events: readonly unknown[], context: BoardPlaybackContext) => Promise<void>;
   beforeApplyFrame?: (host: HTMLElement, frame: BoardVisualFrame) => void;
+  compatibilityRenderer?: {
+    renderBoardDiff: (...args: any[]) => unknown;
+    resetRenderStats: () => unknown;
+  };
 }): BoardVisualBackend & {
   invalidate: () => void;
   getRenderedCell: (row: number, col: number) => Readonly<Record<string, unknown>> | null;
 } {
-  const DiffRenderer = _require('../diff-renderer');
   const ModelBuilder = _require('./model-builder');
   let host: HTMLElement | null = null;
   let diagnostics: BoardVisualBackendDeps['diagnostics'] = undefined;
@@ -30,6 +33,18 @@ function createDomBoardVisualBackend(options?: {
   const playbackExecutor = runtimeHandlers
     ? DomPlayback.createDomBoardPlaybackExecutor(runtimeHandlers)
     : null;
+
+  const requireCompatibilityRenderer = () => {
+    const renderer = options && options.compatibilityRenderer;
+    if (
+      !renderer
+      || typeof renderer.renderBoardDiff !== 'function'
+      || typeof renderer.resetRenderStats !== 'function'
+    ) {
+      throw new Error('DOM compatibility renderer dependency is unavailable');
+    }
+    return renderer;
+  };
 
   const findRenderedCellElement = (row: number, col: number): HTMLElement | null => {
     if (!host) return null;
@@ -94,8 +109,9 @@ function createDomBoardVisualBackend(options?: {
     if (options && typeof options.beforeApplyFrame === 'function') {
       options.beforeApplyFrame(host, frame);
     }
+    const compatibilityRenderer = requireCompatibilityRenderer();
     const compatibilityState = ModelBuilder.buildDomCompatibilityRenderState(frame.model);
-    DiffRenderer.renderBoardDiff(host, compatibilityState.renderProjection, compatibilityState.cellState, frame.model, {
+    compatibilityRenderer.renderBoardDiff(host, compatibilityState.renderProjection, compatibilityState.cellState, frame.model, {
       authorizedByBoardVisualController: true,
       viewportLayout: frame.layout
     });
@@ -116,6 +132,11 @@ function createDomBoardVisualBackend(options?: {
       diagnostics?.record('dom:mounted');
     },
     applyFrame,
+    validatePhase() {
+      // The compatibility executor remains the complete presentation backend.
+      // Its handler validation stays in dom-playback at launch time so legacy
+      // local unknown-event fallback and launch order are unchanged.
+    },
     async playPhase(events: readonly unknown[], context: BoardPlaybackContext) {
       const playPhase = options && typeof options.playPhase === 'function'
         ? options.playPhase
@@ -148,11 +169,11 @@ function createDomBoardVisualBackend(options?: {
       // Existing DOM sizing remains in board-renderer during the parity phase.
     },
     restore(frame: BoardVisualFrame) {
-      DiffRenderer.resetRenderStats();
+      requireCompatibilityRenderer().resetRenderStats();
       applyFrame(frame);
     },
     invalidate() {
-      DiffRenderer.resetRenderStats();
+      requireCompatibilityRenderer().resetRenderStats();
     },
     destroy() {
       if (runtimeHandlers && typeof runtimeHandlers.destroy === 'function') runtimeHandlers.destroy();

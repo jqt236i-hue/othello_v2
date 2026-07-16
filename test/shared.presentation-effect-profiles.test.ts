@@ -48,6 +48,29 @@ describe('PresentationEffectProfiles', () => {
     }, 'SUPPORT_TROOPS_WILL', 'support_troops_will_spawn', profile)).toBe(true);
   });
 
+  test.each([
+    ['SNIPER_WILL', 'sniper_shot'],
+    ['DESTROY_DRAGON_WILL', 'destroy_dragon_breath'],
+    ['ULTIMATE_DESTROY_GOD', 'udg_destroyed'],
+    ['LIGHTNING_WILL', 'lightning_destroyed'],
+    ['METEOR_GOD', 'meteor_god_cell_destroy'],
+    ['WILL_HUNTER_KING', 'will_hunter_king_slash'],
+    ['ROBOT_VACUUM', 'robot_vacuum_suck'],
+    ['GLUTTONOUS_WILL', 'gluttonous_eat'],
+    ['SUPER_BUOYANCY_WILL', 'super_buoyancy_collision'],
+    ['SUPER_GRAVITY_WILL', 'super_gravity_collision'],
+    ['SUPER_ATTRACTION_WILL', 'super_attraction_collision']
+  ])('classifies non-generic DESTROY presentation %s/%s', (cause, reason) => {
+    expect(profiles.isNonGenericDestroyTarget({ cause, reason })).toBe(true);
+  });
+
+  test('keeps ordinary DESTROY targets on the generic fade profile', () => {
+    expect(profiles.isNonGenericDestroyTarget({
+      cause: 'DESTROY_ONE_STONE',
+      reason: 'destroy_selected'
+    })).toBe(false);
+  });
+
   test('equality will is treated as a positive normal spawn profile', () => {
     const profile = profiles.POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS.find((one) => one && one.cause === 'EQUALITY_WILL');
     expect(profile).toEqual(expect.objectContaining({

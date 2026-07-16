@@ -3,6 +3,10 @@ import { installAnimationEngineDomBackendMock } from './helpers/animation-engine
 
 installAnimationEngineDomBackendMock();
 
+const IS_NOANIM = process.env.NOANIM === '1'
+  || process.env.NOANIM === 'true'
+  || process.env.DISABLE_ANIMATIONS === '1';
+
 const CASES = [
   ['STRONG_WIND_WILL', 'strong_wind_move', 'scale(1.08)', 400],
   ['SUPER_BUOYANCY_WILL', 'super_buoyancy_move', 'scale(1.06)', 400],
@@ -80,10 +84,16 @@ describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpoi
       }]
     });
 
-    expect(animateCalls).toHaveLength(1);
-    expect(animateCalls[0].keyframes).toHaveLength(3);
-    expect(String(animateCalls[0].keyframes[1].transform)).toContain(midpointScale);
-    expect(animateCalls[0].options.duration).toBe(expectedDurationMs);
+    if (IS_NOANIM) {
+      expect(animateCalls).toHaveLength(0);
+      expect(fromCell.querySelector('.disc')).toBeNull();
+      expect(toCell.querySelector('.disc')).toBe(disc);
+    } else {
+      expect(animateCalls).toHaveLength(1);
+      expect(animateCalls[0].keyframes).toHaveLength(3);
+      expect(String(animateCalls[0].keyframes[1].transform)).toContain(midpointScale);
+      expect(animateCalls[0].options.duration).toBe(expectedDurationMs);
+    }
   });
 
   test('animates network snapshot move when source cell is already empty', async () => {
@@ -137,10 +147,14 @@ describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpoi
       }]
     });
 
-    expect(animateCalls).toHaveLength(1);
-    expect(animateCalls[0].keyframes).toHaveLength(3);
-    expect(String(animateCalls[0].keyframes[1].transform)).toContain(midpointScale);
-    expect(animateCalls[0].options.duration).toBe(expectedDurationMs);
+    if (IS_NOANIM) {
+      expect(animateCalls).toHaveLength(0);
+    } else {
+      expect(animateCalls).toHaveLength(1);
+      expect(animateCalls[0].keyframes).toHaveLength(3);
+      expect(String(animateCalls[0].keyframes[1].transform)).toContain(midpointScale);
+      expect(animateCalls[0].options.duration).toBe(expectedDurationMs);
+    }
     expect(fromCell.querySelector('.disc')).toBeNull();
     expect(toCell.querySelector('.disc.black')).toBe(destinationDisc);
   });
@@ -228,11 +242,17 @@ describe('animation-engine super attraction waypoint path', () => {
       }]
     });
 
-    expect(animateCalls).toHaveLength(1);
-    expect(animateCalls[0].keyframes).toHaveLength(3);
-    expect(String(animateCalls[0].keyframes[1].transform)).toContain('translate(120px, 120px)');
-    expect(animateCalls[0].keyframes[1].offset).toBeCloseTo(2 / 3, 5);
-    expect(String(animateCalls[0].keyframes[2].transform)).toContain('translate(120px, 180px)');
+    if (IS_NOANIM) {
+      expect(animateCalls).toHaveLength(0);
+      expect(fromCell.querySelector('.disc')).toBeNull();
+      expect(toCell.querySelector('.disc')).toBe(disc);
+    } else {
+      expect(animateCalls).toHaveLength(1);
+      expect(animateCalls[0].keyframes).toHaveLength(3);
+      expect(String(animateCalls[0].keyframes[1].transform)).toContain('translate(120px, 120px)');
+      expect(animateCalls[0].keyframes[1].offset).toBeCloseTo(2 / 3, 5);
+      expect(String(animateCalls[0].keyframes[2].transform)).toContain('translate(120px, 180px)');
+    }
   });
 });
 
@@ -310,10 +330,14 @@ describe.each([
       }]
     });
 
-    expect(animateCalls).toHaveLength(1);
-    expect(animateCalls[0]).toHaveLength(3);
-    expect(String(animateCalls[0][0].transform)).toContain('translate(0, 0)');
-    expect(String(animateCalls[0][2].transform)).toContain('translate(0, 0)');
+    if (IS_NOANIM) {
+      expect(animateCalls).toHaveLength(0);
+    } else {
+      expect(animateCalls).toHaveLength(1);
+      expect(animateCalls[0]).toHaveLength(3);
+      expect(String(animateCalls[0][0].transform)).toContain('translate(0, 0)');
+      expect(String(animateCalls[0][2].transform)).toContain('translate(0, 0)');
+    }
     expect(fromCell.querySelectorAll('.disc.black')).toHaveLength(1);
     expect(toCell.querySelectorAll('.disc.white')).toHaveLength(1);
   });
@@ -374,7 +398,8 @@ describe.each([
       }]
     });
 
-    expect(sourceVisibilityAtGhostRemoval).toBe('hidden');
+    expect(global.window.Element.prototype.animate).toHaveBeenCalledTimes(IS_NOANIM ? 0 : 1);
+    expect(sourceVisibilityAtGhostRemoval).toBe(IS_NOANIM ? null : 'hidden');
     expect(sourceDisc.style.visibility).toBe('visible');
   });
 
@@ -431,6 +456,14 @@ describe.each([
     });
 
     await Promise.resolve();
+    if (IS_NOANIM) {
+      await playbackPromise;
+      expect(global.window.Element.prototype.animate).not.toHaveBeenCalled();
+      expect(sourceDisc.style.visibility).toBe('visible');
+      expect(targetDisc.style.visibility).not.toBe('hidden');
+      return;
+    }
+
     expect(sourceDisc.style.visibility).toBe('hidden');
     expect(targetDisc.style.visibility).not.toBe('hidden');
 
@@ -512,6 +545,14 @@ describe('animation-engine hyperactive source-empty move', () => {
     expect(fromCell.querySelectorAll('.disc')).toHaveLength(0);
     expect(toCell.querySelectorAll('.disc')).toHaveLength(1);
     expect(toCell.querySelector('.disc')).toBe(destinationDisc);
+    if (IS_NOANIM) {
+      await movePromise;
+      expect(global.window.Element.prototype.animate).not.toHaveBeenCalled();
+      expect(finishHandler).toBeNull();
+      expect(destinationDisc.style.visibility).toBe('visible');
+      return;
+    }
+
     expect(destinationDisc.style.visibility).toBe('hidden');
 
     expect(typeof finishHandler).toBe('function');
@@ -626,6 +667,16 @@ describe('animation-engine extreme forced swap playback', () => {
 
     await Promise.resolve();
     await Promise.resolve();
+
+    if (IS_NOANIM) {
+      await playPromise;
+      expect(animateCalls).toHaveLength(0);
+      expect(fromCell.querySelectorAll('.disc.white')).toHaveLength(1);
+      expect(fromCell.querySelectorAll('.disc.black')).toHaveLength(0);
+      expect(toCell.querySelectorAll('.disc.black')).toHaveLength(1);
+      expect(toCell.querySelectorAll('.disc.white')).toHaveLength(0);
+      return;
+    }
 
     expect(animateCalls).toHaveLength(1);
     expect(animateCalls[0]).toHaveLength(3);
@@ -744,6 +795,17 @@ describe('animation-engine extreme forced swap playback', () => {
 
     await Promise.resolve();
     await Promise.resolve();
+    if (IS_NOANIM) {
+      await playPromise;
+      expect(animateCalls).toHaveLength(0);
+      expect(fromCell.querySelectorAll('.disc.white')).toHaveLength(1);
+      expect(fromCell.querySelectorAll('.extreme-hyperactive-visual')).toHaveLength(0);
+      expect(toCell.querySelectorAll('.disc.black')).toHaveLength(1);
+      expect(toCell.querySelectorAll('.extreme-hyperactive-visual')).toHaveLength(1);
+      expect(document.body.querySelectorAll('.special-stone')).toHaveLength(1);
+      return;
+    }
+
     expect(animateCalls).toHaveLength(1);
 
     finishFirstAnimation();
@@ -922,7 +984,7 @@ describe('animation-engine network move final visual state', () => {
       }]
     });
 
-    expect(animateCalls).toHaveLength(1);
+    expect(animateCalls).toHaveLength(IS_NOANIM ? 0 : 1);
     expect(fromCell.querySelector('.disc')).toBeNull();
     expect(toCell.querySelector('.disc')).toBe(destinationDisc);
     expect(destinationDisc.classList.contains('special-stone')).toBe(true);
@@ -1001,6 +1063,15 @@ describe('animation-engine move animation finish fallback', () => {
     playbackPromise.then(settled);
 
     await Promise.resolve();
+    if (IS_NOANIM) {
+      await playbackPromise;
+      expect(global.window.Element.prototype.animate).not.toHaveBeenCalled();
+      expect(settled).toHaveBeenCalledTimes(1);
+      expect(fromCell.querySelector('.disc')).toBeNull();
+      expect(toCell.querySelector('.disc')).toBe(disc);
+      return;
+    }
+
     expect(settled).not.toHaveBeenCalled();
 
     finishAnimation();

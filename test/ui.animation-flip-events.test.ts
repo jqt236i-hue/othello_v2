@@ -1,5 +1,9 @@
 import { JSDOM } from 'jsdom';
 
+const IS_NOANIM = process.env.NOANIM === '1'
+  || process.env.NOANIM === 'true'
+  || process.env.DISABLE_ANIMATIONS === '1';
+
 describe('AnimationFlipEvents', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -24,7 +28,7 @@ describe('AnimationFlipEvents', () => {
       flipMs: 10,
       fadeOutMs: 10,
       zombieBiteMs: 800,
-      isNoAnim: () => false,
+      isNoAnim: () => IS_NOANIM,
       getCellEl: (row: number, col: number) => document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`),
       getCellClientRect: jest.fn((row: number, col: number) => ({
         left: col * 40,
@@ -65,8 +69,10 @@ describe('AnimationFlipEvents', () => {
       deps
     );
 
-    expect(triggerFlip).toHaveBeenCalledTimes(1);
+    expect(triggerFlip).toHaveBeenCalledTimes(IS_NOANIM ? 0 : 1);
     expect(deps.syncDiscVisual).toHaveBeenCalledTimes(1);
+    const disc = document.querySelector('.cell[data-row="2"][data-col="3"] .disc') as HTMLElement;
+    expect(disc.classList.contains('white')).toBe(true);
   });
 
   test('syncs flipped color before starting the CSS flip animation', async () => {
@@ -91,7 +97,7 @@ describe('AnimationFlipEvents', () => {
       deps
     );
 
-    expect(calls).toEqual(['sync:-1', 'trigger']);
+    expect(calls).toEqual(IS_NOANIM ? ['sync:-1'] : ['sync:-1', 'trigger']);
     const disc = document.querySelector('.cell[data-row="2"][data-col="3"] .disc') as HTMLElement;
     expect(disc.classList.contains('white')).toBe(true);
   });
@@ -111,8 +117,13 @@ describe('AnimationFlipEvents', () => {
     );
 
     const disc = document.querySelector('.cell[data-row="2"][data-col="3"] .disc') as HTMLElement;
-    expect(disc.dataset.playbackFlipAt).toMatch(/^\d+$/);
-    expect(playbackFlipMarker.hasRecentPlaybackFlipMarker(disc)).toBe(true);
+    if (IS_NOANIM) {
+      expect(disc.dataset.playbackFlipAt).toBeUndefined();
+      expect(playbackFlipMarker.hasRecentPlaybackFlipMarker(disc)).toBe(false);
+    } else {
+      expect(disc.dataset.playbackFlipAt).toMatch(/^\d+$/);
+      expect(playbackFlipMarker.hasRecentPlaybackFlipMarker(disc)).toBe(true);
+    }
   });
 
   test('keeps using the shared CSS flip helper when element.animate is available', async () => {
@@ -131,7 +142,7 @@ describe('AnimationFlipEvents', () => {
     );
 
     expect(disc.animate).not.toHaveBeenCalled();
-    expect(triggerFlip).toHaveBeenCalledTimes(1);
+    expect(triggerFlip).toHaveBeenCalledTimes(IS_NOANIM ? 0 : 1);
   });
 
   test('plays the zombie bite, syncs the infected stone, and skips the regular flip pathway', async () => {
@@ -171,8 +182,12 @@ describe('AnimationFlipEvents', () => {
       }]
     }, deps);
 
-    expect(calls).toEqual(['bite', 'sync:1']);
-    expect(deps.getCellClientRect.mock.calls).toEqual(expect.arrayContaining([[2, 2], [2, 3]]));
+    expect(calls).toEqual(IS_NOANIM ? ['sync:1'] : ['bite', 'sync:1']);
+    if (IS_NOANIM) {
+      expect(deps.getCellClientRect).not.toHaveBeenCalled();
+    } else {
+      expect(deps.getCellClientRect.mock.calls).toEqual(expect.arrayContaining([[2, 2], [2, 3]]));
+    }
     // Infection must NOT take the regular flip pathway.
     expect(triggerFlip).not.toHaveBeenCalled();
     expect(deps.animationShared.removeFlip).not.toHaveBeenCalled();
@@ -202,10 +217,14 @@ describe('AnimationFlipEvents', () => {
       targets: [{ r: 2, col: 3, ownerBefore: 'black', after: { color: -1 } }]
     }, deps);
 
-    expect(triggerFlip).toHaveBeenCalledTimes(1);
-    expect(deps.sleep).toHaveBeenCalledWith(deps.flipMs);
+    expect(triggerFlip).toHaveBeenCalledTimes(IS_NOANIM ? 0 : 1);
+    if (IS_NOANIM) {
+      expect(deps.sleep).not.toHaveBeenCalledWith(deps.flipMs);
+    } else {
+      expect(deps.sleep).toHaveBeenCalledWith(deps.flipMs);
+    }
     const disc = document.querySelector('.cell[data-row="2"][data-col="3"] .disc') as HTMLElement;
-    expect(playbackFlipMarker.hasRecentPlaybackFlipMarker(disc)).toBe(true);
+    expect(playbackFlipMarker.hasRecentPlaybackFlipMarker(disc)).toBe(!IS_NOANIM);
   });
 
   test('skips zombie bite DOM when animations are disabled', async () => {
@@ -232,5 +251,7 @@ describe('AnimationFlipEvents', () => {
     expect(deps.sleep).not.toHaveBeenCalledWith(800);
     expect(deps.syncDiscVisual).toHaveBeenCalledTimes(1);
     expect(triggerFlip).not.toHaveBeenCalled();
+    const disc = document.querySelector('.cell[data-row="2"][data-col="3"] .disc') as HTMLElement;
+    expect(disc.classList.contains('black')).toBe(true);
   });
 });

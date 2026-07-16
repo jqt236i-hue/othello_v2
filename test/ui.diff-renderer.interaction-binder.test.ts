@@ -9,8 +9,9 @@ describe('diff renderer interaction binder', () => {
 
     expect(rendererSource).toContain("_require('./diff-renderer/interaction-binder')");
     expect(attachSource).toContain('DiffRendererInteractionBinder.bindBoardCellInteraction({');
-    expect(attachSource).toContain("_require('./board-renderer')");
-    expect(attachSource).toContain('renderer.getBoardInputController()');
+    expect(attachSource).toContain("_getBoardRendererHelperForDiff('getBoardInputController')");
+    expect(attachSource).toContain('return getBoardInputController()');
+    expect(attachSource).not.toContain("_require('./board-renderer')");
     expect(attachSource).not.toContain("cell.addEventListener('pointerdown'");
     expect(binderSource).toContain("cell.addEventListener('pointerdown'");
     expect(binderSource).toContain('getInputController');

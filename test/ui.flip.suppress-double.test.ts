@@ -29,14 +29,18 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
   });
 
   afterEach(() => {
+    try { require('../ui/board-renderer.js').getBoardVisualController()?.destroy?.(); } catch (e) { /* cleanup */ }
     delete global.window;
     delete global.document;
     delete global.boardEl;
     delete global.countDiscs;
+    delete (global as any).BoardRendererStoneHelpers;
   });
 
-  test('does not apply fallback .flip when __suppressNextDiffFlip is set', () => {
+  test('does not apply fallback .flip when __suppressNextDiffFlip is set', async () => {
     const playbackState = require('../ui/playback-state-manager.js');
+    const boardRenderer = require('../ui/board-renderer.js');
+    await boardRenderer.getBoardVisualControllerReady();
     const diff = require('../ui/diff-renderer.js');
     // Initial state: black stone at (0,0)
     gameState.board[0][0] = BLACK;
@@ -62,9 +66,11 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
     expect(playbackState.getBoardUpdateContext()).toBeNull();
   });
 
-  test('does not apply snapshot diff while pending playback is still queued', () => {
+  test('does not apply snapshot diff while pending playback is still queued', async () => {
     const playbackState = require('../ui/playback-state-manager.js');
     const boardUpdateSyncRuntime = require('../ui/board-update-sync-runtime.js');
+    const boardRenderer = require('../ui/board-renderer.js');
+    await boardRenderer.getBoardVisualControllerReady();
     const diff = require('../ui/diff-renderer.js');
     gameState.board[0][0] = BLACK;
     diff.forceFullRender(boardEl);

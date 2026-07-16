@@ -1,6 +1,7 @@
 import type {
   BoardClientRect,
   BoardPlaybackContext,
+  BoardPlaybackValidationContext,
   BoardVisualBackend,
   BoardVisualBackendDeps,
   BoardVisualFrame,
@@ -49,6 +50,11 @@ import {
   type PixiBoardInputControllerPort,
   type PixiBoardInputOptions
 } from './board-input';
+import {
+  createPixiBoardPlayback,
+  type PixiBoardPlayback,
+  type PixiBoardPlaybackOptions
+} from './board-playback';
 import type { PixiStaticTextureSource } from './cell-view';
 
 export type PixiBoardBackendErrorStage =
@@ -59,6 +65,7 @@ export type PixiBoardBackendErrorStage =
   | 'mount'
   | 'scene-init'
   | 'input-init'
+  | 'playback-init'
   | 'texture-init'
   | 'texture-prepare'
   | 'texture-commit'
@@ -117,6 +124,17 @@ export interface PixiBoardBackendDiagnostics {
   readonly camera: ReturnType<PixiBoardCamera['getDiagnostics']> | null;
   readonly scene: ReturnType<PixiBoardScene['getDiagnostics']> | null;
   readonly textures: ReturnType<PixiTextureManager['getDiagnostics']> | null;
+  readonly playback: ReturnType<PixiBoardPlayback['getDiagnostics']> | null;
+  readonly timeline: ReturnType<PixiBoardPlayback['getDiagnostics']>['timeline'] | null;
+  readonly pool: Readonly<{
+    activeViewCount: number;
+    pooledViewCount: number;
+    activePlaybackGhostCount: number;
+    pooledPlaybackGhostCount: number;
+    activePlaybackHighlightLeaseCount: number;
+    renderedPlaybackHighlightCount: number;
+    pooledPlaybackHighlightCount: number;
+  }> | null;
 }
 
 export interface PixiBoardVisualBackend extends BoardVisualBackend {
@@ -129,6 +147,7 @@ export interface PixiBoardVisualBackend extends BoardVisualBackend {
   getBoardClientRect(): BoardClientRect | null;
   getDisplayObjectCounts(): Readonly<Record<string, number>>;
   getTextureLeaseCounts(): Readonly<Record<string, number>>;
+  captureDebugFramePngDataUrl(): string;
   getDiagnostics(): PixiBoardBackendDiagnostics;
 }
 
@@ -155,6 +174,7 @@ export interface PixiBoardBackendOptions {
   readonly cameraFactory?: (options: PixiBoardCameraOptions) => PixiBoardCamera;
   readonly sceneFactory?: (options: PixiBoardSceneOptions) => PixiBoardScene;
   readonly inputFactory?: (options: PixiBoardInputOptions) => PixiBoardInput;
+  readonly playbackFactory?: (options: PixiBoardPlaybackOptions) => PixiBoardPlayback;
   readonly getInputController?: () => PixiBoardInputControllerPort | null;
   readonly textureManagerFactory?: (options: PixiTextureManagerOptions) => PixiTextureManager;
   readonly resolveAppearance?: AppearanceResolver;
@@ -169,6 +189,7 @@ export interface PixiBoardBackendOptions {
 interface FrameWork {
   readonly sequence: number;
   readonly frame: BoardVisualFrame;
+  readonly cameraRecovery: boolean;
   presentedFrame: BoardVisualFrame | null;
   preparation: Promise<void>;
   settlement: Promise<void>;
@@ -331,6 +352,16 @@ function defaultRoot(explicit?: Record<string, any> | null): Record<string, any>
   return null;
 }
 
+function prefersReducedMotion(root: Record<string, any> | null): boolean {
+  try {
+    return root && typeof root.matchMedia === 'function'
+      ? root.matchMedia('(prefers-reduced-motion: reduce)').matches === true
+      : false;
+  } catch (_error) {
+    return false;
+  }
+}
+
 export function createPixiBoardVisualBackend(
   options: PixiBoardBackendOptions = {}
 ): PixiBoardVisualBackend {
@@ -343,6 +374,7 @@ export function createPixiBoardVisualBackend(
   const cameraFactory = options.cameraFactory || createPixiBoardCamera;
   const sceneFactory = options.sceneFactory || createPixiBoardScene;
   const inputFactory = options.inputFactory || createPixiBoardInput;
+  const playbackFactory = options.playbackFactory || createPixiBoardPlayback;
   const textureManagerFactory = options.textureManagerFactory || createPixiTextureManager;
   const runtime = options.runtime || PixiRuntimeContract.getPixiRuntime();
   const noAnimation = options.noAnimation === true;
@@ -353,6 +385,7 @@ export function createPixiBoardVisualBackend(
   let camera: PixiBoardCamera | null = null;
   let scene: PixiBoardScene | null = null;
   let input: PixiBoardInput | null = null;
+  let playback: PixiBoardPlayback | null = null;
   let textureManager: PixiTextureManager | null = null;
   let mountPromise: Promise<void> | null = null;
   let latestWork: FrameWork | null = null;
@@ -390,7 +423,7 @@ export function createPixiBoardVisualBackend(
         message: 'Pixi board backend is destroyed'
       }));
     }
-    if (state !== 'ready' || !application || !camera || !scene || !textureManager) {
+    if (state !== 'ready' || !application || !camera || !scene || !textureManager || !playback) {
       throw rememberError(backendError({
         code: 'pixi_backend_not_mounted',
         stage: 'lifecycle',
@@ -525,12 +558,12 @@ export function createPixiBoardVisualBackend(
     liveWorks.delete(work);
     if (visualCommit) {
       settledFrameToken = work.frame.frameToken;
-      if (pendingCameraRenderError) {
-        if (lastErrorCode === pendingCameraRenderError.code) lastErrorCode = null;
-        pendingCameraRenderError = null;
-      }
     }
     work.resolveSettlement();
+  }
+
+  function assertCameraRenderHealthy(): void {
+    if (pendingCameraRenderError) throw pendingCameraRenderError;
   }
 
   function finishWorkFailure(work: FrameWork, error: PixiBoardBackendError): void {
@@ -573,14 +606,19 @@ export function createPixiBoardVisualBackend(
   function applySceneAndRender(
     frame: BoardVisualFrame,
     snapshot: PixiCommittedTextureSet,
-    canvasViewport: PixiBoardCanvasViewport
+    canvasViewport: PixiBoardCanvasViewport,
+    options: { readonly preservePlaybackProjection?: boolean } = {}
   ): void {
     try {
-      scene!.applyFrame(frame, {
+      const sceneContext = {
         textures: textureSource(snapshot),
         textureRevision: snapshot.generation,
-        canvasViewport
-      });
+        canvasViewport,
+        ...(options.preservePlaybackProjection === true
+          ? { preservePlaybackProjection: true as const }
+          : {})
+      };
+      scene!.applyFrame(frame, sceneContext);
     } catch (error) {
       throw rememberError(backendError({
         code: 'pixi_scene_apply_failed',
@@ -589,26 +627,19 @@ export function createPixiBoardVisualBackend(
         detail: error
       }));
     }
-    let renderFailure: { readonly error: unknown } | null = null;
     try {
       application!.render();
     } catch (error) {
-      renderFailure = { error };
-    } finally {
-      try {
-        application!.stopTicker();
-      } catch (error) {
-        if (!renderFailure) renderFailure = { error };
-      }
-    }
-    if (renderFailure) {
       throw rememberError(backendError({
         code: 'pixi_render_failed',
         stage: 'render',
-        message: `Pixi board render failed: ${errorMessage(renderFailure.error)}`,
-        detail: renderFailure.error
+        message: `Pixi board render failed: ${errorMessage(error)}`,
+        detail: error
       }));
     }
+    // Reflow must retain the active event projection. A canonical local or
+    // network frame apply settles it only after the final pixels rendered.
+    if (options.preservePlaybackProjection !== true) playback?.onFrameApplied();
   }
 
   function commitWork(work: FrameWork): void {
@@ -621,6 +652,10 @@ export function createPixiBoardVisualBackend(
     assertMounted();
     work.committing = true;
     try {
+      // A failed camera refresh poisons the current visual transaction. A
+      // normal frame commit must not make that failure look successful; only
+      // the explicit restore path is allowed to prove recovery and clear it.
+      if (!work.cameraRecovery) assertCameraRenderHealthy();
       const presentedFrame = work.presentedFrame || work.frame;
       suppressCameraCallback = true;
       let syncedLayout: BoardViewportLayout;
@@ -672,7 +707,11 @@ export function createPixiBoardVisualBackend(
     }
   }
 
-  function startWork(frame: BoardVisualFrame, force = false): FrameWork {
+  function startWork(
+    frame: BoardVisualFrame,
+    force = false,
+    cameraRecovery = false
+  ): FrameWork {
     assertMounted();
     if (!frame || typeof frame !== 'object') {
       throw rememberError(backendError({
@@ -694,6 +733,7 @@ export function createPixiBoardVisualBackend(
     const work = {
       sequence: ++workSequence,
       frame,
+      cameraRecovery,
       presentedFrame: null,
       preparation: Promise.resolve(),
       settlement,
@@ -742,7 +782,9 @@ export function createPixiBoardVisualBackend(
     if (!snapshot) return;
     resizeApplication(canvasViewport, layout);
     const renderFrame = Object.freeze({ ...currentFrame, layout });
-    applySceneAndRender(renderFrame, snapshot, canvasViewport);
+    applySceneAndRender(renderFrame, snapshot, canvasViewport, {
+      preservePlaybackProjection: true
+    });
     currentFrame = renderFrame;
     resizeRenderCount += 1;
   }
@@ -762,6 +804,10 @@ export function createPixiBoardVisualBackend(
         detail: error
       });
       pendingCameraRenderError = rememberError(normalized);
+      // A camera reflow is part of the active board visual transaction. If it
+      // cannot render, the phase must reject instead of continuing on a stale
+      // canvas and later looking successful after an unrelated frame commit.
+      playback?.abort(normalized);
     }
   }
 
@@ -777,6 +823,7 @@ export function createPixiBoardVisualBackend(
         }));
       }
     }
+    try { playback?.destroy(); } catch (_error) { /* continue releasing visual resources */ }
     try { input?.destroy(); } catch (_error) { /* continue releasing visual resources */ }
     try { scene?.destroy(); } catch (_error) { /* continue releasing GPU resources */ }
     try { textureManager?.destroy(); } catch (_error) { /* continue releasing the context */ }
@@ -784,6 +831,7 @@ export function createPixiBoardVisualBackend(
     try { application?.destroy(); } catch (_error) { /* terminal cleanup */ }
     scene = null;
     input = null;
+    playback = null;
     textureManager = null;
     camera = null;
     application = null;
@@ -999,6 +1047,24 @@ export function createPixiBoardVisualBackend(
         }
       }
       assertMountActive();
+      try {
+        playback = playbackFactory({
+          application: application!,
+          scene: scene!,
+          getFrame: () => currentFrame,
+          noAnimation,
+          reducedMotion: () => prefersReducedMotion(root),
+          record
+        });
+      } catch (error) {
+        throw backendError({
+          code: 'pixi_playback_init_failed',
+          stage: 'playback-init',
+          message: `Pixi board playback initialization failed: ${errorMessage(error)}`,
+          detail: error
+        });
+      }
+      assertMountActive();
       state = 'ready';
       record('pixi-backend:mounted', { kind: 'pixi' });
     })().catch((error) => {
@@ -1017,6 +1083,8 @@ export function createPixiBoardVisualBackend(
   }
 
   function prepareFrame(frame: BoardVisualFrame): Promise<void> {
+    assertMounted();
+    assertCameraRenderHealthy();
     const work = startWork(frame);
     return work.preparation;
   }
@@ -1042,6 +1110,8 @@ export function createPixiBoardVisualBackend(
   }
 
   function applyFrame(frame: BoardVisualFrame, presentedFrame?: BoardVisualFrame): void {
+    assertMounted();
+    assertCameraRenderHealthy();
     const presentationOverride = resolvePresentedFrame(frame, presentedFrame);
     const work = startWork(frame);
     applyRequestCount += 1;
@@ -1055,25 +1125,37 @@ export function createPixiBoardVisualBackend(
     const work = frame && typeof frame === 'object'
       ? workByFrame.get(frame as object)
       : latestWork;
-    if (pendingCameraRenderError && (!work || work.settled)) {
-      return Promise.reject(pendingCameraRenderError);
-    }
+    if (pendingCameraRenderError) return Promise.reject(pendingCameraRenderError);
     if (!work) return Promise.resolve();
     return work.settlement;
   }
 
+  function validatePhase(
+    events: readonly unknown[],
+    context: BoardPlaybackValidationContext
+  ): void {
+    assertMounted();
+    assertCameraRenderHealthy();
+    playback!.validatePhase(events, context);
+  }
+
   async function playPhase(
-    _events: readonly unknown[],
-    _context: BoardPlaybackContext
+    events: readonly unknown[],
+    context: BoardPlaybackContext
   ): Promise<void> {
     assertMounted();
     playPhaseCount += 1;
-    if (!noAnimation) {
-      throw rememberError(backendError({
-        code: 'pixi_static_animation_unsupported',
+    try {
+      assertCameraRenderHealthy();
+      await playback!.playPhase(events, context);
+    } catch (error) {
+      lastErrorCode = String((error as any)?.code || 'pixi_playback_failed');
+      record('pixi-backend:error', {
+        code: lastErrorCode,
         stage: 'play-phase',
-        message: 'Phase 4 Pixi backend only supports no-animation playback'
-      }));
+        message: errorMessage(error)
+      });
+      throw error;
     }
   }
 
@@ -1100,12 +1182,18 @@ export function createPixiBoardVisualBackend(
     assertMounted();
     const presentationOverride = resolvePresentedFrame(frame, presentedFrame);
     restoreCount += 1;
-    const work = startWork(frame, true);
+    const cameraErrorAtStart = pendingCameraRenderError;
+    const work = startWork(frame, true, true);
     work.presentedFrame = presentationOverride;
     work.applyRequested = true;
     await work.preparation;
     if (!work.settled && work.prepared) commitWork(work);
     await work.settlement;
+    if (cameraErrorAtStart && pendingCameraRenderError === cameraErrorAtStart) {
+      pendingCameraRenderError = null;
+      if (lastErrorCode === cameraErrorAtStart.code) lastErrorCode = null;
+      record('pixi-backend:camera-restored', { frameToken: frame.frameToken });
+    }
   }
 
   function getDisplayObjectCounts(): Readonly<Record<string, number>> {
@@ -1128,11 +1216,17 @@ export function createPixiBoardVisualBackend(
     });
   }
 
+  function captureDebugFramePngDataUrl(): string {
+    assertMounted();
+    return application!.captureFramePngDataUrl(scene!.root);
+  }
+
   function getDiagnostics(): PixiBoardBackendDiagnostics {
     const appDiagnostics = application?.getDiagnostics() || null;
     const cameraDiagnostics = camera?.getDiagnostics() || null;
     const sceneDiagnostics = scene?.getDiagnostics() || null;
     const textureDiagnostics = textureManager?.getDiagnostics() || null;
+    const playbackDiagnostics = playback?.getDiagnostics() || null;
     const canvas = application?.getCanvas();
     return Object.freeze({
       state,
@@ -1160,7 +1254,18 @@ export function createPixiBoardVisualBackend(
       application: appDiagnostics,
       camera: cameraDiagnostics,
       scene: sceneDiagnostics,
-      textures: textureDiagnostics
+      textures: textureDiagnostics,
+      playback: playbackDiagnostics,
+      timeline: playbackDiagnostics?.timeline || null,
+      pool: sceneDiagnostics ? Object.freeze({
+        activeViewCount: sceneDiagnostics.activeViewCount,
+        pooledViewCount: sceneDiagnostics.pooledViewCount,
+        activePlaybackGhostCount: sceneDiagnostics.activePlaybackGhostCount || 0,
+        pooledPlaybackGhostCount: sceneDiagnostics.pooledPlaybackGhostCount || 0,
+        activePlaybackHighlightLeaseCount: sceneDiagnostics.activePlaybackHighlightLeaseCount || 0,
+        renderedPlaybackHighlightCount: sceneDiagnostics.renderedPlaybackHighlightCount || 0,
+        pooledPlaybackHighlightCount: sceneDiagnostics.pooledPlaybackHighlightCount || 0
+      }) : null
     });
   }
 
@@ -1176,6 +1281,7 @@ export function createPixiBoardVisualBackend(
     mount,
     prepareFrame,
     applyFrame,
+    validatePhase,
     playPhase,
     waitForVisualSettlement,
     getRenderedCell: (row: number, col: number) => scene?.getRenderedCell(row, col) || null,
@@ -1185,6 +1291,7 @@ export function createPixiBoardVisualBackend(
     restore,
     getDisplayObjectCounts,
     getTextureLeaseCounts,
+    captureDebugFramePngDataUrl,
     getDiagnostics,
     destroy
   });

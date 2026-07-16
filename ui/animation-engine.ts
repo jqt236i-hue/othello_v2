@@ -472,6 +472,35 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             }
         }
 
+        _preflightBoardPhaseThroughBackend(events: any, phaseScope?: any) {
+            const phaseEvents = Array.isArray(events) ? events : [];
+            if (!phaseEvents.length) return;
+            const renderer = requireRuntimeModuleOrWindowGlobal('./board-renderer', 'BoardRenderer');
+            if (!renderer) {
+                throw this._createPlaybackError('board_renderer_unavailable', phaseEvents[0]);
+            }
+            const fail = (error: any) => {
+                if (error && error.name === 'PresentationPlaybackError') throw error;
+                throw this._createPlaybackError('board_renderer_failed', phaseEvents[0], error);
+            };
+            try {
+                // Older injected DOM test adapters are capability-complete and
+                // intentionally have no preflight port. The real controller
+                // requires the port for Pixi and rejects a missing Pixi seam.
+                if (typeof renderer.validateBoardVisualPhase !== 'function') return;
+                const ready = typeof renderer.getBoardVisualControllerReady === 'function'
+                    ? renderer.getBoardVisualControllerReady()
+                    : undefined;
+                return Promise.resolve(ready).then(() => renderer.validateBoardVisualPhase(
+                    phaseEvents,
+                    phaseScope,
+                    this._strictNetworkPlayback === true
+                )).catch(fail);
+            } catch (error: any) {
+                return fail(error);
+            }
+        }
+
         _registerPlaybackAbortHandle(runId: any, runState: any) {
             if (!PlaybackState || typeof PlaybackState.registerPlaybackAbortHandle !== 'function') return null;
             const handle = {
@@ -1054,6 +1083,24 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             ) {
                 events = Array.from(PresentationVisualSeed.withNextPresentationBatchId(events));
             }
+            const dispatcherDeps = {
+                strictNetworkPlayback: this._strictNetworkPlayback === true,
+                preflightBoardPhase: (stepEvents: any, phaseScope: any) => this._preflightBoardPhaseThroughBackend(stepEvents, phaseScope),
+                playBoardPhase: (boardEvents: any, phaseScope: any) => this._playBoardPhaseThroughBackend(boardEvents, phaseScope),
+                playGlobalEvent: (event: any) => this.executeEvent(event, { globalOnly: true }),
+                playManifestEndingGlobal: (event: any) => this.handleManifestEndingGlobal(event),
+                warnUnhandledLocalEvent: (event: any) => console.warn('[AnimationEngine] Unhandled event type:', event && event.type)
+            };
+            if (typeof PresentationDispatcher.preflightPresentationPhase !== 'function') {
+                throw new Error('Presentation dispatcher capability preflight is unavailable');
+            }
+            // Complete the active-backend capability check before the direct
+            // local path claims its writer. Dispatch repeats this per actual
+            // planner step immediately before launch.
+            const capabilityPreflight = PresentationDispatcher.preflightPresentationPhase(events, dispatcherDeps);
+            if (capabilityPreflight && typeof capabilityPreflight.then === 'function') {
+                await capabilityPreflight;
+            }
             let directWriterToken: any = null;
             const needsBoardWriter = events.some((event: any) => !(
                 BoardPlaybackTypes
@@ -1088,13 +1135,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             try {
                 await PresentationDispatcher.dispatchPresentationPhase(
                     events,
-                    {
-                        strictNetworkPlayback: this._strictNetworkPlayback === true,
-                        playBoardPhase: (boardEvents: any, phaseScope: any) => this._playBoardPhaseThroughBackend(boardEvents, phaseScope),
-                        playGlobalEvent: (event: any) => this.executeEvent(event, { globalOnly: true }),
-                        playManifestEndingGlobal: (event: any) => this.handleManifestEndingGlobal(event),
-                        warnUnhandledLocalEvent: (event: any) => console.warn('[AnimationEngine] Unhandled event type:', event && event.type)
-                    }
+                    dispatcherDeps
                 );
             } catch (error: any) {
                 phaseError = error;

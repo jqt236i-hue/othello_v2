@@ -1,5 +1,6 @@
 import { JSDOM } from 'jsdom';
 import { createBoardViewportLayout } from '../ui/board-visual/layout';
+import { PresentationPlaybackError } from '../ui/board-visual/playback-types';
 import type { BoardVisualFrame } from '../ui/board-visual/types';
 import Backend = require('../ui/pixi/board-backend');
 import Camera = require('../ui/pixi/camera');
@@ -273,12 +274,58 @@ function createSceneFixture() {
       domNodeCount: 0,
       layerOrder: ['surface', 'cell', 'marker', 'stone', 'hint', 'playback', 'effect', 'interaction'],
       retainedKeys: destroyed ? [] : ['0,0'],
-      materializationWindow: null
+      materializationWindow: null,
+      playbackScopeKey: null,
+      retainedStoneOverrideCount: 0,
+      hiddenStoneCount: 0,
+      activePlaybackGhostCount: 0,
+      pooledPlaybackGhostCount: 2,
+      createdPlaybackGhostCount: 2,
+      destroyedPlaybackGhostCount: destroyed ? 2 : 0,
+      activePlaybackHighlightLeaseCount: 0,
+      renderedPlaybackHighlightCount: 0,
+      pooledPlaybackHighlightCount: 1
     })),
     reset: jest.fn(() => { resetCount += 1; }),
     destroy: jest.fn(() => { destroyed = true; })
   };
   return { scene: scene as any, applyCalls, failTokens };
+}
+
+function createPlaybackFixture() {
+  const timeline = Object.freeze({
+    state: 'idle' as const,
+    activeRunCount: 0,
+    tickerRunning: false,
+    tickerSubscribed: false,
+    startedRunCount: 0,
+    completedRunCount: 0,
+    failedRunCount: 0,
+    abortedRunCount: 0,
+    tickerStartCount: 0,
+    tickerStopCount: 0,
+    lastError: null
+  });
+  const playback = {
+    kind: 'pixi-board-playback' as const,
+    validatePhase: jest.fn((_events: readonly unknown[], _context: unknown) => undefined),
+    playPhase: jest.fn(async (_events: readonly unknown[], _context: unknown) => undefined),
+    onFrameApplied: jest.fn(),
+    abort: jest.fn(() => 0),
+    getDiagnostics: jest.fn(() => Object.freeze({
+      destroyed: false,
+      activeScopeKey: null,
+      projectedStoneCount: 0,
+      retainedFinalGhostCount: 0,
+      inFlightEffectCount: 0,
+      phaseCount: 0,
+      completedPhaseCount: 0,
+      failedPhaseCount: 0,
+      timeline
+    })),
+    destroy: jest.fn()
+  };
+  return { playback, timeline };
 }
 
 function resolvedAppearance(frame: BoardVisualFrame, useDefaults = false, customBoardBlob: Blob | null = null) {
@@ -322,13 +369,20 @@ function createHarness(options: {
   sceneFactoryThrows?: boolean;
   cameraFactory?: any;
   inputFactory?: any;
+  playbackFactory?: any;
   getInputController?: () => any;
   customBoardBlob?: Blob | null;
+  reducedMotion?: boolean;
 } = {}) {
   const dom = new JSDOM('<!doctype html><div id="board"><div class="cell">legacy</div></div>', {
     url: 'https://example.test/game/index.html'
   });
   const document = dom.window.document;
+  const matchMedia = jest.fn((query: string) => ({
+    media: query,
+    matches: options.reducedMotion === true
+  }));
+  (dom.window as any).matchMedia = matchMedia;
   const host = document.getElementById('board') as HTMLElement;
   const app = createApplicationRuntime(document, options);
   const textures = createTextureRuntime();
@@ -369,6 +423,7 @@ function createHarness(options: {
       : (() => scene.scene),
     cameraFactory: options.cameraFactory,
     inputFactory: options.inputFactory,
+    playbackFactory: options.playbackFactory,
     getInputController: options.getInputController,
     resolveAppearance: (frame) => resolvedAppearance(frame, false, options.customBoardBlob || null),
     resolveDefaultAppearance: (frame) => resolvedAppearance(frame, true),
@@ -395,6 +450,7 @@ function createHarness(options: {
     scene,
     leases,
     backend,
+    matchMedia,
     fireResize() { resizeCallback?.(); },
     observerDisconnected: () => observerDisconnected,
     viewportListeners
@@ -412,7 +468,12 @@ describe('Pixi board backend integration', () => {
     const inputFactory = jest.fn(() => input);
     const controller = { hitTestClientPoint: jest.fn(), handlePointer: jest.fn() };
     const getInputController = jest.fn(() => controller);
-    const harness = createHarness({ inputFactory, getInputController });
+    const playbackFixture = createPlaybackFixture();
+    const harness = createHarness({
+      inputFactory,
+      getInputController,
+      playbackFactory: () => playbackFixture.playback
+    });
 
     await harness.backend.mount(harness.host, {});
 
@@ -435,7 +496,14 @@ describe('Pixi board backend integration', () => {
     });
 
     harness.backend.destroy();
+    expect(playbackFixture.playback.destroy).toHaveBeenCalledTimes(1);
     expect(input.destroy).toHaveBeenCalledTimes(1);
+    expect(playbackFixture.playback.destroy.mock.invocationCallOrder[0]).toBeLessThan(
+      harness.scene.scene.destroy.mock.invocationCallOrder[0]
+    );
+    expect(playbackFixture.playback.destroy.mock.invocationCallOrder[0]).toBeLessThan(
+      harness.app.instances[0].destroy.mock.invocationCallOrder[0]
+    );
     expect(input.destroy.mock.invocationCallOrder[0]).toBeLessThan(
       harness.scene.scene.destroy.mock.invocationCallOrder[0]
     );
@@ -467,8 +535,70 @@ describe('Pixi board backend integration', () => {
     expect(harness.backend.getDiagnostics()).toMatchObject({
       state: 'ready', mounted: true, canvasCount: 1, contextCount: 1,
       domCellCount: 0, maxTextureSize: 2048, tickerRunning: false,
-      committedApplyCount: 1, settledFrameToken: 'initial'
+      committedApplyCount: 1, settledFrameToken: 'initial',
+      playback: { destroyed: false },
+      timeline: { state: 'idle', activeRunCount: 0 },
+      pool: {
+        activeViewCount: 1,
+        pooledPlaybackGhostCount: 2,
+        pooledPlaybackHighlightCount: 1
+      }
     });
+  });
+
+  test('injects animation policies and settles playback projection only after a successful canonical render', async () => {
+    const fixture = createPlaybackFixture();
+    const playbackFactory = jest.fn(() => fixture.playback);
+    const harness = createHarness({
+      noAnimation: false,
+      reducedMotion: true,
+      playbackFactory
+    });
+
+    await harness.backend.mount(harness.host, {});
+    const playbackOptions = playbackFactory.mock.calls[0][0];
+    expect(playbackOptions).toMatchObject({
+      scene: harness.scene.scene,
+      noAnimation: false,
+      record: expect.any(Function)
+    });
+    expect(playbackOptions.getFrame()).toBeNull();
+    expect(playbackOptions.reducedMotion()).toBe(true);
+    expect(harness.matchMedia).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
+
+    const frame = makeFrame('playback-final', 21);
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+    expect(fixture.playback.onFrameApplied).toHaveBeenCalledTimes(1);
+    expect(playbackOptions.getFrame()).toMatchObject({ frameToken: 'playback-final' });
+    expect(harness.scene.applyCalls.at(-1)!.context).not.toHaveProperty('preservePlaybackProjection');
+
+    playbackOptions.application.startTicker();
+    const ticker = harness.app.instances[0].ticker;
+    const stopCountBeforeReflow = ticker.stop.mock.calls.length;
+    harness.fireResize();
+    expect(harness.scene.applyCalls.at(-1)!.context).toMatchObject({
+      preservePlaybackProjection: true
+    });
+    expect(fixture.playback.onFrameApplied).toHaveBeenCalledTimes(1);
+    expect(ticker.stop).toHaveBeenCalledTimes(stopCountBeforeReflow);
+    expect(harness.backend.getDiagnostics().tickerRunning).toBe(true);
+    playbackOptions.application.stopTicker();
+
+    const failedFrame = makeFrame('playback-render-failed', 22);
+    await harness.backend.prepareFrame(failedFrame);
+    const renderError = new Error('final-render-failed');
+    harness.app.instances[0].renderer.render.mockImplementationOnce(() => {
+      throw renderError;
+    });
+    expect(() => harness.backend.applyFrame(failedFrame)).toThrow(
+      expect.objectContaining({ code: 'pixi_render_failed', detail: renderError })
+    );
+    await expect(harness.backend.waitForVisualSettlement(failedFrame)).rejects.toMatchObject({
+      code: 'pixi_render_failed', detail: renderError
+    });
+    expect(fixture.playback.onFrameApplied).toHaveBeenCalledTimes(1);
   });
 
   test('keeps prepared work identity while applying a layout-only presented frame', async () => {
@@ -669,7 +799,7 @@ describe('Pixi board backend integration', () => {
     harness.backend.destroy();
   });
 
-  test('surfaces camera refresh render failure through settlement until a successful restore', async () => {
+  test('keeps an idle camera refresh failure pending across phase and frame work until restore', async () => {
     const harness = createHarness();
     await harness.backend.mount(harness.host, {});
     const frame = makeFrame('camera-refresh', 5);
@@ -691,17 +821,82 @@ describe('Pixi board backend integration', () => {
       code: 'pixi_render_failed', stage: 'render', fallbackEligible: false
     });
     expect(refreshError.detail).toBe(renderFailure);
-    expect(ticker.stop).toHaveBeenCalledTimes(stopCountBeforeFailure + 1);
-    expect(ticker.started).toBe(false);
+    expect(ticker.stop).toHaveBeenCalledTimes(stopCountBeforeFailure);
+    expect(ticker.started).toBe(true);
     expect(Backend.isPixiCompatibilityFallbackError(refreshError)).toBe(false);
     await expect(harness.backend.waitForVisualSettlement(frame)).rejects.toBe(refreshError);
     expect(harness.backend.getDiagnostics().lastErrorCode).toBe('pixi_render_failed');
 
-    await harness.backend.restore(frame);
-    await expect(harness.backend.waitForVisualSettlement(frame)).resolves.toBeUndefined();
+    const blockedFrame = makeFrame('camera-refresh-blocked', 6);
+    expect(() => harness.backend.validatePhase([{ type: 'place', targets: [] }], {
+      strictNetworkPlayback: false
+    })).toThrow(refreshError);
+    await expect(harness.backend.playPhase([{ type: 'place', targets: [] }], {
+      token: { id: 1, frameToken: frame.frameToken, mode: 'local' },
+      strictNetworkPlayback: false
+    })).rejects.toBe(refreshError);
+    expect(() => harness.backend.prepareFrame(blockedFrame)).toThrow(refreshError);
+    expect(() => harness.backend.applyFrame(blockedFrame)).toThrow(refreshError);
+    await expect(harness.backend.waitForVisualSettlement(blockedFrame)).rejects.toBe(refreshError);
+
+    await harness.backend.restore(blockedFrame);
+    await expect(harness.backend.waitForVisualSettlement(blockedFrame)).resolves.toBeUndefined();
     expect(harness.backend.getDiagnostics()).toMatchObject({
-      restoreCount: 1, settledFrameToken: 'camera-refresh', lastErrorCode: null
+      restoreCount: 1, settledFrameToken: 'camera-refresh-blocked', lastErrorCode: null
     });
+  });
+
+  test('aborts active playback when a camera refresh cannot render', async () => {
+    const fixture = createPlaybackFixture();
+    let rejectPlayback!: (error: unknown) => void;
+    fixture.playback.playPhase.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
+      rejectPlayback = reject;
+    }));
+    fixture.playback.abort.mockImplementationOnce((error: unknown) => {
+      rejectPlayback(error);
+      return 1;
+    });
+    fixture.playback.getDiagnostics.mockReturnValue(Object.freeze({
+      destroyed: false,
+      activeScopeKey: 'local:1:camera-playback',
+      projectedStoneCount: 1,
+      retainedFinalGhostCount: 1,
+      inFlightEffectCount: 1,
+      phaseCount: 1,
+      completedPhaseCount: 0,
+      failedPhaseCount: 0,
+      timeline: Object.freeze({
+        ...fixture.timeline,
+        state: 'running' as const,
+        activeRunCount: 1,
+        tickerRunning: true,
+        tickerSubscribed: true
+      })
+    }));
+    const harness = createHarness({ playbackFactory: () => fixture.playback });
+    await harness.backend.mount(harness.host, {});
+    const frame = makeFrame('camera-playback', 6);
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+
+    const phasePromise = harness.backend.playPhase([{ type: 'move' }], {
+      token: { id: 1, frameToken: 'camera-playback', mode: 'local' },
+      strictNetworkPlayback: false
+    });
+    await Promise.resolve();
+    const renderFailure = new Error('camera-playback-render-failed');
+    harness.app.instances[0].renderer.render.mockImplementationOnce(() => {
+      throw renderFailure;
+    });
+    harness.fireResize();
+
+    const playbackError = await phasePromise.catch((error) => error);
+    expect(playbackError).toMatchObject({ code: 'pixi_render_failed', stage: 'render' });
+    expect(playbackError.detail).toBe(renderFailure);
+    expect(fixture.playback.abort).toHaveBeenCalledTimes(1);
+    expect(fixture.playback.abort).toHaveBeenCalledWith(playbackError);
+    await expect(harness.backend.waitForVisualSettlement(frame)).rejects.toBe(playbackError);
   });
 
   test('uses the strict init-code allowlist and never marks camera, scene, or input failures as DOM fallback candidates', async () => {
@@ -753,6 +948,17 @@ describe('Pixi board backend integration', () => {
     expect(inputError).toMatchObject({ code: 'pixi_input_init_failed', fallbackEligible: false });
     expect(Backend.isPixiCompatibilityFallbackError(inputError)).toBe(false);
     expect(failedInput.destroy).toHaveBeenCalledTimes(1);
+
+    const playback = createHarness({
+      playbackFactory: () => { throw new Error('playback-failed'); }
+    });
+    const playbackError = await playback.backend.mount(playback.host, {}).catch((error) => error);
+    expect(playbackError).toMatchObject({
+      code: 'pixi_playback_init_failed',
+      stage: 'playback-init',
+      fallbackEligible: false
+    });
+    expect(Backend.isPixiCompatibilityFallbackError(playbackError)).toBe(false);
   });
 
   test('accepts Pixi v8 numeric WEBGL and rejects numeric WEBGPU/CANVAS renderers', async () => {
@@ -768,20 +974,40 @@ describe('Pixi board backend integration', () => {
     }
   });
 
-  test('only accepts Phase 4 playback in no-animation mode', async () => {
-    const staticHarness = createHarness();
-    await staticHarness.backend.mount(staticHarness.host, {});
-    await expect(staticHarness.backend.playPhase([], {
-      token: { id: 1, frameToken: 'phase', mode: 'local' }, strictNetworkPlayback: false
-    })).resolves.toBeUndefined();
+  test('delegates Phase 6 playback in animated mode and preserves typed failures', async () => {
+    const fixture = createPlaybackFixture();
+    const playbackFactory = jest.fn(() => fixture.playback);
+    const harness = createHarness({ noAnimation: false, playbackFactory });
+    await harness.backend.mount(harness.host, {});
+    const context = {
+      token: { id: 1, frameToken: 'phase', mode: 'local' as const },
+      strictNetworkPlayback: false
+    };
+    const events = [{ type: 'place', row: 0, col: 0 }];
 
-    const animated = createHarness({ noAnimation: false });
-    await animated.backend.mount(animated.host, {});
-    const error = await animated.backend.playPhase([], {
-      token: { id: 1, frameToken: 'phase', mode: 'local' }, strictNetworkPlayback: false
-    }).catch((caught) => caught);
-    expect(error).toMatchObject({ code: 'pixi_static_animation_unsupported', fallbackEligible: false });
-    expect(Backend.isPixiCompatibilityFallbackError(error)).toBe(false);
+    const validationContext = {
+      strictNetworkPlayback: false,
+      phaseScope: { events, phaseKey: '0', stepIndex: 0 }
+    };
+    expect(() => harness.backend.validatePhase!(events, validationContext)).not.toThrow();
+    expect(fixture.playback.validatePhase).toHaveBeenCalledWith(events, validationContext);
+    expect(fixture.playback.playPhase).not.toHaveBeenCalled();
+
+    await expect(harness.backend.playPhase(events, context)).resolves.toBeUndefined();
+    expect(fixture.playback.playPhase).toHaveBeenCalledWith(events, context);
+
+    const playbackError = new PresentationPlaybackError(
+      'board_event_unimplemented',
+      { type: 'crossfade_stone' },
+      { strictNetworkPlayback: true }
+    );
+    fixture.playback.playPhase.mockRejectedValueOnce(playbackError as never);
+    await expect(harness.backend.playPhase([{ type: 'crossfade_stone' }], {
+      ...context,
+      strictNetworkPlayback: true
+    })).rejects.toBe(playbackError);
+    expect(harness.backend.getDiagnostics().lastErrorCode).toBe('board_event_unimplemented');
+    expect(Backend.isPixiCompatibilityFallbackError(playbackError)).toBe(false);
   });
 
   test('reuses a failed preparation as the same typed failure and restore can retry it', async () => {

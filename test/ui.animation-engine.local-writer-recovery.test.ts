@@ -1,4 +1,5 @@
 import { JSDOM } from 'jsdom';
+import { PresentationPlaybackError } from '../ui/board-visual/playback-types';
 
 type RendererFixture = ReturnType<typeof installRendererFixture>;
 
@@ -8,6 +9,7 @@ function installRendererFixture(options?: {
   deferFirstPhase?: boolean;
   deferSecondPhase?: boolean;
   deferReady?: boolean;
+  preflightError?: Error;
 }) {
   let activeToken: any = null;
   let mode = 'idle';
@@ -46,6 +48,9 @@ function installRendererFixture(options?: {
       resolve();
     },
     getBoardVisualControllerReady: jest.fn(() => readyPromise),
+    ...(options?.preflightError ? {
+      validateBoardVisualPhase: jest.fn(() => Promise.reject(options.preflightError))
+    } : {}),
     claimBoardVisualWriter: jest.fn((frameToken: string, writerMode: 'local' | 'network') => {
       if (activeToken) throw new Error('writer_already_claimed');
       activeToken = Object.freeze({ id: nextTokenId++, frameToken, mode: writerMode });
@@ -215,6 +220,32 @@ describe('AnimationEngine local board writer recovery', () => {
     expect(engine._activeBoardWriterToken).toBeNull();
     expect(engine._ownsActiveBoardWriterToken).toBe(false);
     expect(engine.isPlaying).toBe(false);
+  });
+
+  test('direct phase capability failure happens before claiming or launching a writer', async () => {
+    const unsupported = { type: 'crossfade_stone', phase: 1, row: 2, col: 2 };
+    const preflightError = new PresentationPlaybackError(
+      'board_event_unimplemented',
+      unsupported,
+      { strictNetworkPlayback: false }
+    );
+    const renderer: RendererFixture = installRendererFixture({
+      initialSettlementFails: false,
+      preflightError
+    });
+    const engine = require('../ui/animation-engine');
+
+    await expect(engine.executePhase([
+      { type: 'place', phase: 1, targets: [] },
+      { type: 'sound_effect', phase: 1, soundKey: 'stone_place' },
+      unsupported
+    ])).rejects.toBe(preflightError);
+
+    expect((renderer as any).validateBoardVisualPhase).toHaveBeenCalledTimes(1);
+    expect(renderer.claimBoardVisualWriter).not.toHaveBeenCalled();
+    expect(renderer.playBoardVisualPhase).not.toHaveBeenCalled();
+    expect(renderer.activeToken).toBeNull();
+    expect(renderer.lifecycle).toEqual([]);
   });
 
   test('waits for an externally aborted run writer before starting the next run', async () => {

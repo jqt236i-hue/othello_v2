@@ -71,6 +71,57 @@ describe('presentation dispatcher', () => {
     expect(playBoardPhase).not.toHaveBeenCalled();
   });
 
+  test('preflights the complete parallel step before flip, sound, or board launch', async () => {
+    const calls: string[] = [];
+    const unsupported = { type: 'crossfade_stone', phase: 3, row: 2, col: 2 };
+    const error = new PresentationPlaybackError('board_event_unimplemented', unsupported, {
+      strictNetworkPlayback: true
+    });
+
+    await expect(dispatchPresentationPhase([
+      { type: 'place', phase: 3, targets: [] },
+      { type: 'flip', phase: 3, targets: [] },
+      { type: 'sound_effect', phase: 3, soundKey: 'stone_flip' },
+      unsupported
+    ], {
+      strictNetworkPlayback: true,
+      preflightBoardPhase(events) {
+        calls.push(`preflight:${events.map((event) => event.type).join(',')}`);
+        throw error;
+      },
+      playBoardPhase(events) {
+        calls.push(`board:${events.map((event) => event.type).join(',')}`);
+      },
+      playGlobalEvent(event) {
+        calls.push(`global:${event.type}`);
+      }
+    })).rejects.toBe(error);
+
+    expect(calls).toEqual([
+      'preflight:flip,place,sound_effect,crossfade_stone'
+    ]);
+  });
+
+  test('does not consult the board backend for a pure-global planner step', async () => {
+    const preflightBoardPhase = jest.fn();
+    const playGlobalEvent = jest.fn();
+
+    await dispatchPresentationPhase([
+      { type: 'sound_effect', phase: 5, soundKey: 'stone_place' },
+      { type: 'log', phase: 5, message: 'global only' }
+    ], {
+      preflightBoardPhase,
+      playBoardPhase: jest.fn(),
+      playGlobalEvent
+    });
+
+    expect(preflightBoardPhase).not.toHaveBeenCalled();
+    expect(playGlobalEvent.mock.calls.map(([event]) => event.type)).toEqual([
+      'sound_effect',
+      'log'
+    ]);
+  });
+
   test('local unknown event uses the exclusive DOM compatibility board port', async () => {
     const playBoardPhase = jest.fn();
     const event = { type: 'legacy_event', phase: 2, targets: [{ r: 1, col: 2 }] };

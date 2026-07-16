@@ -30,9 +30,10 @@ describe('DomBoardVisualBackend diagnostics', () => {
     }));
 
     const { createDomBoardVisualBackend } = require('../ui/board-visual/dom-backend');
+    const compatibilityRenderer = require('../ui/diff-renderer');
     const dom = new JSDOM('<!doctype html><div id="board"></div>');
     const host = dom.window.document.getElementById('board') as HTMLElement;
-    const backend = createDomBoardVisualBackend();
+    const backend = createDomBoardVisualBackend({ compatibilityRenderer });
     const playable = Object.freeze({
       key: '0,0', row: 0, col: 0, kind: 'playable', visualSignature: 'playable:0,0'
     });

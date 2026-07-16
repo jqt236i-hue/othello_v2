@@ -20,12 +20,11 @@ describe('DiffRenderer destroy-fade cleanup', () => {
   beforeEach(() => {
     jest.resetModules();
     sharedInputController = null;
-    jest.doMock('../ui/board-renderer', () => ({
+    const boardRendererHelpers = {
       getBoardInputController: () => getSharedInputController()
-    }));
-    jest.doMock('../dist/ui/board-renderer', () => ({
-      getBoardInputController: () => getSharedInputController()
-    }));
+    };
+    require('../ui/board-renderer/stone-helpers.ts').setBoardRendererStoneHelpers(boardRendererHelpers);
+    require('../dist/ui/board-renderer/stone-helpers.js').setBoardRendererStoneHelpers(boardRendererHelpers);
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
@@ -77,6 +76,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     delete global.CardLogic;
     delete global.cardState;
     delete global.gameState;
+    delete (global as any).BoardRendererStoneHelpers;
   });
 
   test('removes has-disc after deferred destroy cleanup', () => {

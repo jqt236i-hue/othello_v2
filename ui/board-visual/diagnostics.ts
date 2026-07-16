@@ -6,6 +6,7 @@ type DiagnosticEntry = Readonly<{
 
 type BoardVisualDebugSource = Readonly<{
   getBackendKind: () => unknown;
+  getBackendDiagnostics: () => unknown;
   getMode: () => unknown;
   getVisualFrameDigest: () => unknown;
   getRenderedCell: (row: number, col: number) => unknown;
@@ -56,6 +57,7 @@ function createBoardVisualDiagnostics(options?: { enabled?: boolean; capacity?: 
 function assertDebugSource(source: BoardVisualDebugSource): void {
   const requiredMethods: readonly (keyof BoardVisualDebugSource)[] = [
     'getBackendKind',
+    'getBackendDiagnostics',
     'getMode',
     'getVisualFrameDigest',
     'getRenderedCell',
@@ -86,6 +88,7 @@ function installBoardVisualDebugContract(
   assertDebugSource(source);
   const contract = Object.freeze({
     getBackendKind: () => String(source.getBackendKind()),
+    getBackendDiagnostics: () => cloneForDiagnostics(source.getBackendDiagnostics()),
     getWriterMode: () => String(source.getMode()),
     getVisualFrameDigest: () => cloneForDiagnostics(source.getVisualFrameDigest()),
     getRenderedCell: (row: number, col: number) => cloneForDiagnostics(

@@ -45,6 +45,13 @@ function createPlaybackMove(fromRow, fromCol, toRow, toCol, reason) {
   }];
 }
 
+function withUnclaimedPlaybackSettlement(options) {
+  return Object.assign({
+    releaseUnclaimedPlayback: true,
+    clearUndrainedPlayback: true
+  }, options || {});
+}
+
 function expectSourceToRemainUntilPlayback(row, col) {
   const sourceCell = global.boardEl.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
   expect(sourceCell).toBeTruthy();
@@ -195,9 +202,9 @@ describe('Network snapshot hyperactive source-empty handling', () => {
           data: Object.assign({ type: markerType }, markerData)
         }
       ]),
-      {
+      withUnclaimedPlaybackSettlement({
         playbackEvents: createPlaybackMove(source.row, source.col, dest.row, dest.col, reason)
-      }
+      })
     );
 
     expect(applied).toBe(true);
@@ -271,9 +278,9 @@ describe('Network snapshot hyperactive source-empty handling', () => {
           data: { type: markerType, remainingOwnerTurns: 10, flipEvadeRemaining: 3 }
         }
       ]),
-      {
+      withUnclaimedPlaybackSettlement({
         playbackEvents: createPlaybackMove(2, 2, 2, 5, reason)
-      }
+      })
     );
 
     expect(applied).toBe(true);

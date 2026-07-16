@@ -228,7 +228,7 @@ function _applyBoardCssVarsForDiff(boardEl: any, gameState: any) {
         boardEl.style.setProperty('--board-rows', String(shape.rows));
         boardEl.style.setProperty('--board-cols', String(shape.cols));
     }
-    const syncBoardPixelSizing = _getDiscStoneHelperForDiff('syncBoardPixelSizing');
+    const syncBoardPixelSizing = _getBoardRendererHelperForDiff('syncBoardPixelSizing');
     if (syncBoardPixelSizing) {
         syncBoardPixelSizing(boardEl, shape);
     }
@@ -362,7 +362,7 @@ function _getSharedBoardUtilsForDiff() {
     return globalScope.SharedBoardUtils || null;
 }
 
-function _getDiscStoneHelperForDiff(name: any) {
+function _getBoardRendererHelperForDiff(name: any) {
     if (
         BoardRendererStoneHelpersRegistryModule &&
         typeof BoardRendererStoneHelpersRegistryModule.getBoardRendererStoneHelper === 'function'
@@ -389,7 +389,7 @@ function _isTimeStopActiveForDiff() {
 }
 
 function _applyTimeStopLegalEmphasisForDiff(cell: any) {
-    const helper = _getDiscStoneHelperForDiff('applyTimeStopLegalEmphasis');
+    const helper = _getBoardRendererHelperForDiff('applyTimeStopLegalEmphasis');
     if (typeof helper === 'function') {
         helper(cell, _isTimeStopActiveForDiff());
         return;
@@ -564,7 +564,7 @@ function _getBoardHintProjectionForDiff() {
 }
 
 function _resolveBoardExpansionLayerForDiff(boardEl: any, createIfMissing?: any) {
-    const resolveLayer = _getDiscStoneHelperForDiff('resolveBoardExpansionLayerElement');
+    const resolveLayer = _getBoardRendererHelperForDiff('resolveBoardExpansionLayerElement');
     if (resolveLayer) {
         return resolveLayer(boardEl, createIfMissing);
     }
@@ -2499,8 +2499,8 @@ function _requestSuperAttractionPreviewRender() {
             scheduler.requestBoardRender({ source: 'ui.diff-renderer', reason: 'super-attraction-hover' });
             return;
         }
-        const renderer = _require('./board-renderer');
-        if (renderer && typeof renderer.renderBoard === 'function') renderer.renderBoard();
+        const renderBoard = _getBoardRendererHelperForDiff('renderBoard');
+        if (typeof renderBoard === 'function') renderBoard();
     } catch (e: any) { /* UI-only hover update */ }
 }
 
@@ -3345,19 +3345,11 @@ function attachBoardCellInteraction(cell: any, row: any, col: any) {
     return DiffRendererInteractionBinder.bindBoardCellInteraction({
         showIdleStoneInfoPanel: _showIdleStoneInfoPanel,
         getInputController: () => {
-            let renderer: any = null;
-            try { renderer = _require('./board-renderer'); } catch (_error) { /* browser registry fallback below */ }
-            if (!renderer && typeof window !== 'undefined') {
-                try {
-                    renderer = typeof (window as any).require === 'function'
-                        ? (window as any).require('ui/board-renderer')
-                        : null;
-                } catch (_error) { /* handled by the explicit error below */ }
-            }
-            if (!renderer || typeof renderer.getBoardInputController !== 'function') {
+            const getBoardInputController = _getBoardRendererHelperForDiff('getBoardInputController');
+            if (typeof getBoardInputController !== 'function') {
                 throw new Error('[DiffRenderer] BoardRenderer.getBoardInputController unavailable');
             }
-            return renderer.getBoardInputController();
+            return getBoardInputController();
         }
     }, cell, row, col);
 }
@@ -3724,7 +3716,7 @@ function _createCellDomPatcherContextForDiff() {
         },
         stones: {
             constants: { BLACK: constants.BLACK, WHITE: constants.WHITE },
-            getDiscStoneHelper: _getDiscStoneHelperForDiff,
+            getDiscStoneHelper: _getBoardRendererHelperForDiff,
             createSpecialStoneStatusSnapshot: _createSpecialStoneStatusSnapshotForDiff,
             shouldShowFlipProtectionBadge: _shouldShowFlipProtectionBadgeForDiff,
             createFlipProtectionBadge: _createFlipProtectionBadgeForDiff,
@@ -4105,21 +4097,11 @@ function renderBoardDiff(
  * therefore the only legal entry point for a full board write.
  */
 function forceFullRender(_boardEl?: any) {
-    let renderer: any = null;
-    try {
-        renderer = _require('./board-renderer');
-    } catch (e: any) { /* resolved by the browser registry fallback below */ }
-    if (!renderer && typeof window !== 'undefined') {
-        try {
-            renderer = typeof (window as any).require === 'function'
-                ? (window as any).require('ui/board-renderer')
-                : null;
-        } catch (e: any) { /* handled by the explicit error below */ }
-    }
-    if (!renderer || typeof renderer.renderBoardFull !== 'function') {
+    const renderBoardFull = _getBoardRendererHelperForDiff('renderBoardFull');
+    if (typeof renderBoardFull !== 'function') {
         throw new Error('BoardRenderer.renderBoardFull is unavailable');
     }
-    return renderer.renderBoardFull();
+    return renderBoardFull();
 }
 
 /**

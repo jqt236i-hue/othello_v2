@@ -270,6 +270,12 @@ export interface BoardPlaybackContext {
   phaseScope?: BoardPlaybackPhaseScope;
 }
 
+/** Capability-only validation before a board writer is claimed or launched. */
+export interface BoardPlaybackValidationContext {
+  strictNetworkPlayback: boolean;
+  phaseScope?: BoardPlaybackPhaseScope;
+}
+
 export interface BoardWriterToken {
   id: number;
   frameToken: string;
@@ -286,6 +292,8 @@ export interface BoardVisualBackend {
   /** Prepare async resources without making them the visible writer yet. */
   prepareFrame?(frame: BoardVisualFrame): void | Promise<void>;
   applyFrame(frame: BoardVisualFrame): void;
+  /** Must not claim a writer, start a ticker, or mutate the rendered scene. */
+  validatePhase?(events: readonly unknown[], context: BoardPlaybackValidationContext): void | Promise<void>;
   playPhase(events: readonly unknown[], context: BoardPlaybackContext): Promise<void>;
   /** Resolve only after the requested frame's async visual resources settle. */
   waitForVisualSettlement?(frame?: BoardVisualFrame): void | Promise<void>;

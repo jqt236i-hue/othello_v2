@@ -12,8 +12,15 @@ function deferred<T>() {
 
 function createTicker(initiallyStarted = true) {
   let started = initiallyStarted;
+  const listeners = new Set<(ticker: any) => void>();
   return {
     get started() { return started; },
+    get listenerCount() { return listeners.size; },
+    add: jest.fn((listener: (ticker: any) => void, _context?: any, _priority?: number) => { listeners.add(listener); }),
+    remove: jest.fn((listener: (ticker: any) => void, _context?: any) => { listeners.delete(listener); }),
+    tick(deltaMS: number) {
+      for (const listener of Array.from(listeners)) listener({ deltaMS, elapsedMS: deltaMS });
+    },
     start: jest.fn(() => { started = true; }),
     stop: jest.fn(() => { started = false; })
   };
@@ -41,15 +48,31 @@ function createRuntime(options: { rejectInit?: boolean; initGate?: Promise<void>
   const instances: any[] = [];
   const sharedTicker = createTicker();
   const systemTicker = createTicker();
+  class Rectangle {
+    constructor(
+      public x: number,
+      public y: number,
+      public width: number,
+      public height: number
+    ) {}
+  }
   class Application {
-    canvas = { parentNode: null };
-    stage = { kind: 'stage' };
+    canvas = { parentNode: null, width: 640, height: 480 };
+    stage = { kind: 'stage', renderGroup: { structureDidChange: false } };
     ticker = createTicker();
+    render = jest.fn();
     contextCreated = false;
     renderer = {
       resolution: 1,
+      screen: { width: 320, height: 240 },
       render: jest.fn(),
-      resize: jest.fn()
+      resize: jest.fn(),
+      resetState: jest.fn(),
+      extract: {
+        canvas: jest.fn(() => ({
+          toDataURL: jest.fn(() => 'data:image/png;base64,AA==')
+        }))
+      }
     };
     init = jest.fn(async () => {
       if (options.initGate) await options.initGate;
@@ -57,9 +80,18 @@ function createRuntime(options: { rejectInit?: boolean; initGate?: Promise<void>
       if (options.rejectInit) throw new Error('webgl-init-failed');
     });
     destroy = jest.fn();
-    constructor() { instances.push(this); }
+    constructor() {
+      // Pixi 8.18.1 TickerPlugin installs this listener even with autoStart:false.
+      this.ticker.add(this.render as any, this, -25);
+      instances.push(this);
+    }
   }
-  return { runtime: { Application, Ticker: { shared: sharedTicker, system: systemTicker } }, instances, sharedTicker, systemTicker };
+  return {
+    runtime: { Application, Rectangle, Ticker: { shared: sharedTicker, system: systemTicker } },
+    instances,
+    sharedTicker,
+    systemTicker
+  };
 }
 
 describe('Pixi board Application lifecycle', () => {
@@ -88,11 +120,13 @@ describe('Pixi board Application lifecycle', () => {
       backgroundAlpha: 0
     });
     expect(fixture.instances[0].ticker.stop).toHaveBeenCalledTimes(1);
-    expect(fixture.sharedTicker.stop).toHaveBeenCalledTimes(1);
-    expect(fixture.systemTicker.stop).toHaveBeenCalledTimes(1);
+    expect(fixture.instances[0].ticker.remove)
+      .toHaveBeenCalledWith(fixture.instances[0].render, fixture.instances[0]);
+    expect(fixture.sharedTicker.stop).not.toHaveBeenCalled();
+    expect(fixture.systemTicker.stop).not.toHaveBeenCalled();
     expect(boardApp.getDiagnostics()).toMatchObject({
       state: 'ready', canvasCount: 1, contextCount: 1, tickerRunning: false,
-      privateTickerRunning: false, sharedTickerRunning: false, systemTickerRunning: false, resolution: 2
+      privateTickerRunning: false, sharedTickerRunning: true, systemTickerRunning: true, resolution: 2
     });
   });
 
@@ -117,9 +151,109 @@ describe('Pixi board Application lifecycle', () => {
     boardApp.stopTicker();
     boardApp.stopTicker();
     expect(fixture.instances[0].ticker.stop).toHaveBeenCalledTimes(2);
-    expect(fixture.sharedTicker.stop).toHaveBeenCalledTimes(2);
-    expect(fixture.systemTicker.stop).toHaveBeenCalledTimes(2);
+    expect(fixture.sharedTicker.stop).not.toHaveBeenCalled();
+    expect(fixture.systemTicker.stop).not.toHaveBeenCalled();
     expect(boardApp.getDiagnostics().tickerRunning).toBe(false);
+  });
+
+  test('extracts a complete debug frame through an offscreen render texture', async () => {
+    const fixture = createRuntime();
+    const boardApp = ApplicationModule.createPixiBoardApplication({
+      runtime: fixture.runtime,
+      devicePixelRatio: 2
+    });
+    await boardApp.mount(createHost());
+
+    expect(boardApp.captureFramePngDataUrl()).toBe('data:image/png;base64,AA==');
+    expect(fixture.instances[0].renderer.extract.canvas).toHaveBeenCalledWith({
+      target: fixture.instances[0].stage,
+      frame: expect.objectContaining({ x: 0, y: 0, width: 320, height: 240 }),
+      resolution: 2,
+      clearColor: [0, 0, 0, 0],
+      antialias: true
+    });
+    expect(fixture.instances[0].renderer.resetState).toHaveBeenCalledTimes(2);
+    expect(fixture.instances[0].stage.renderGroup.structureDidChange).toBe(true);
+  });
+
+  test('propagates a normal ticker-stop failure and does not report false idle', async () => {
+    const fixture = createRuntime();
+    const boardApp = ApplicationModule.createPixiBoardApplication({ runtime: fixture.runtime });
+    await boardApp.mount(createHost());
+    boardApp.startTicker();
+    const stopError = new Error('private-ticker-stop-failed');
+    fixture.instances[0].ticker.stop.mockImplementationOnce(() => {
+      throw stopError;
+    });
+
+    expect(() => boardApp.stopTicker()).toThrow(stopError);
+    expect(boardApp.getDiagnostics()).toMatchObject({
+      tickerRunning: true,
+      privateTickerRunning: true
+    });
+  });
+
+  test('subscribes only to the private ticker and removes listeners idempotently', async () => {
+    const fixture = createRuntime();
+    const boardApp = ApplicationModule.createPixiBoardApplication({ runtime: fixture.runtime });
+    await boardApp.mount(createHost());
+    fixture.instances[0].ticker.add.mockClear();
+    fixture.instances[0].ticker.remove.mockClear();
+    const listener = jest.fn(() => boardApp.render());
+
+    const unsubscribe = boardApp.subscribeTicker(listener);
+    boardApp.startTicker();
+    fixture.instances[0].ticker.tick(16.5);
+
+    expect(listener).toHaveBeenCalledWith(16.5);
+    expect(fixture.instances[0].renderer.render).toHaveBeenCalledTimes(1);
+    expect(fixture.instances[0].render).not.toHaveBeenCalled();
+    expect(fixture.instances[0].ticker.add).toHaveBeenCalledTimes(1);
+    expect(fixture.sharedTicker.add).not.toHaveBeenCalled();
+    expect(fixture.systemTicker.add).not.toHaveBeenCalled();
+    expect(fixture.sharedTicker.start).not.toHaveBeenCalled();
+    expect(fixture.systemTicker.start).not.toHaveBeenCalled();
+    expect(boardApp.getDiagnostics()).toMatchObject({
+      privateTickerRunning: true,
+      tickerListenerCount: 1
+    });
+
+    unsubscribe();
+    unsubscribe();
+    fixture.instances[0].ticker.tick(16.5);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(fixture.instances[0].ticker.remove).toHaveBeenCalledTimes(1);
+    expect(boardApp.getDiagnostics().tickerListenerCount).toBe(0);
+  });
+
+  test('destroy removes every private ticker subscription before stopping the ticker', async () => {
+    const fixture = createRuntime();
+    const boardApp = ApplicationModule.createPixiBoardApplication({ runtime: fixture.runtime });
+    await boardApp.mount(createHost());
+    fixture.instances[0].ticker.add.mockClear();
+    fixture.instances[0].ticker.remove.mockClear();
+    const first = jest.fn();
+    const second = jest.fn();
+    boardApp.subscribeTicker(first);
+    boardApp.subscribeTicker(second);
+    boardApp.startTicker();
+
+    boardApp.destroy();
+    fixture.instances[0].ticker.tick(10);
+
+    expect(first).not.toHaveBeenCalled();
+    expect(second).not.toHaveBeenCalled();
+    expect(fixture.instances[0].ticker.remove).toHaveBeenCalledTimes(2);
+    expect(fixture.instances[0].ticker.remove.mock.invocationCallOrder[1])
+      .toBeLessThan(fixture.instances[0].ticker.stop.mock.invocationCallOrder[1]);
+    expect(fixture.sharedTicker.stop).not.toHaveBeenCalled();
+    expect(fixture.systemTicker.stop).not.toHaveBeenCalled();
+    expect(boardApp.getDiagnostics()).toMatchObject({
+      state: 'destroyed',
+      tickerRunning: false,
+      tickerListenerCount: 0
+    });
   });
 
   test('destroys canvas, ticker, context, and application idempotently', async () => {

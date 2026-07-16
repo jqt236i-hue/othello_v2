@@ -56,15 +56,16 @@ const SACRIFICE_ABSORB_MS = 2600;
 const matchesCauseAndReasonPrefix = PresentationEffectProfiles.matchesCauseAndReasonPrefix;
 const matchesSpawnProfileTarget = PresentationEffectProfiles.matchesSpawnProfileTarget;
 const POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS = PresentationEffectProfiles.POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS;
+const SPECIAL_DESTROY_TARGET_PROFILES = PresentationEffectProfiles.SPECIAL_DESTROY_TARGET_PROFILES;
 
 const DESTROY_SOURCE_ANIMATION_PROFILES = Object.freeze([
-  Object.freeze({ causes: Object.freeze(['SNIPER_WILL']), reasonPrefix: 'sniper_shot', sourceResolver: 'sniper', animationMethod: 'animateSniperProjectile' }),
-  Object.freeze({ causes: Object.freeze(['DESTROY_DRAGON', 'DESTROY_DRAGON_WILL']), reasonPrefix: 'destroy_dragon_breath', sourceResolver: 'dragon', animationMethod: 'animateDestroyDragonBreath' }),
-  Object.freeze({ causes: Object.freeze(['ULTIMATE_DESTROY_GOD']), reasonPrefix: 'udg_destroyed', sourceResolver: 'sniper', animationMethod: 'animateUdgLightningStrike' }),
-  Object.freeze({ causes: Object.freeze(['LIGHTNING_WILL']), reasonPrefix: 'lightning_destroyed', sourceResolver: 'sniper', animationMethod: 'animateUdgLightningStrike' }),
-  Object.freeze({ causes: Object.freeze(['METEOR_GOD']), reasonPrefix: 'meteor_god_cell_destroy', sourceResolver: 'sniper', animationMethod: 'animateMeteorGodBlackBeam' }),
-  Object.freeze({ causes: Object.freeze(['WILL_HUNTER_KING']), reasonPrefix: 'will_hunter_king_slash', sourceResolver: null, animationMethod: 'animateWillHunterKingSlash' }),
-  Object.freeze({ causes: Object.freeze(['ROBOT_VACUUM']), reasonPrefix: 'robot_vacuum_suck', sourceResolver: 'vacuum', animationMethod: 'animateRobotVacuumSuction', afterDestroy: 'clearCell' })
+  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.sniperShot, sourceResolver: 'sniper', animationMethod: 'animateSniperProjectile' }),
+  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.destroyDragonBreath, sourceResolver: 'dragon', animationMethod: 'animateDestroyDragonBreath' }),
+  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.udgDestroyed, sourceResolver: 'sniper', animationMethod: 'animateUdgLightningStrike' }),
+  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.lightningDestroyed, sourceResolver: 'sniper', animationMethod: 'animateUdgLightningStrike' }),
+  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.meteorGodBlackBeam, sourceResolver: 'sniper', animationMethod: 'animateMeteorGodBlackBeam' }),
+  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.willHunterKingSlash, sourceResolver: null, animationMethod: 'animateWillHunterKingSlash' }),
+  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.robotVacuumSuck, sourceResolver: 'vacuum', animationMethod: 'animateRobotVacuumSuction', afterDestroy: 'clearCell' })
 ]);
 
 interface DomPhaseRuntimeContext {

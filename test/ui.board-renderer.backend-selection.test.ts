@@ -175,7 +175,7 @@ describe('board renderer backend selection and initial compatibility fallback', 
     expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('pixi');
   });
 
-  test('allows an explicit test harness to select the static Pixi backend without query flags', async () => {
+  test('allows an explicit test harness to select the animated Pixi backend without query flags', async () => {
     const renderer = loadRenderer();
     const createPixiBackend = jest.fn(() => createBackend('pixi'));
     renderer.configureBoardVisualBackendForTest({ selection: 'pixi', createPixiBackend });
@@ -184,7 +184,7 @@ describe('board renderer backend selection and initial compatibility fallback', 
     await controller.waitUntilReady();
 
     expect(createPixiBackend).toHaveBeenCalledWith(expect.objectContaining({
-      noAnimation: true,
+      noAnimation: false,
       getInputController: expect.any(Function)
     }));
     expect(controller.getBackendKind()).toBe('pixi');
@@ -279,23 +279,22 @@ describe('board renderer backend selection and initial compatibility fallback', 
     expect(document.querySelector('.board-accessibility-layer')).toBeNull();
   });
 
-  test('rejects live animation as a typed capability error without silently selecting DOM', async () => {
+  test('enables live Pixi animation without silently selecting DOM', async () => {
     const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi');
     const createDomBackend = jest.fn(() => createBackend('dom'));
     const createPixiBackend = jest.fn(() => createBackend('pixi'));
     renderer.configureBoardVisualBackendForTest({ createDomBackend, createPixiBackend });
 
     controller = renderer.getBoardVisualController();
-    await expect(controller.waitUntilReady()).rejects.toMatchObject({
-      name: 'BoardVisualCapabilityError',
-      code: 'pixi_static_animation_required',
-      stage: 'capability'
-    });
+    await controller.waitUntilReady();
 
-    expect(createPixiBackend).not.toHaveBeenCalled();
+    expect(createPixiBackend).toHaveBeenCalledWith(expect.objectContaining({
+      noAnimation: false,
+      getInputController: expect.any(Function)
+    }));
     expect(createDomBackend).not.toHaveBeenCalled();
-    expect(controller.getMode()).toBe('recovering');
-    expect(document.getElementById('board')?.hasAttribute('data-board-renderer')).toBe(false);
+    expect(controller.getBackendKind()).toBe('pixi');
+    expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('pixi');
   });
 
   test('destroys failed Pixi before exclusively mounting DOM and restores the queued initial frame', async () => {

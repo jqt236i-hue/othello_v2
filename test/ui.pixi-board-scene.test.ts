@@ -821,3 +821,256 @@ describe('Pixi static board scene', () => {
     }
   });
 });
+
+describe('Pixi board scene playback projection', () => {
+  const blackStone = Object.freeze({
+    owner: 'black' as const,
+    value: 1,
+    specialType: null,
+    status: Object.freeze({})
+  });
+  const whiteStone = Object.freeze({
+    owner: 'white' as const,
+    value: -1,
+    specialType: null,
+    status: Object.freeze({})
+  });
+
+  test('keeps retained overrides through reflow and clears them only after a successful final apply', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 8, baseCols: 8 });
+    const makeStoneFrame = (stone: typeof blackStone | typeof whiteStone, revision: number) => makeFrame({
+      topology,
+      modelRevision: revision,
+      layoutRevision: revision,
+      cells: topology.existingKeys.map((key) => makeCell(key, {
+        stone: key === '3,3' ? stone : null
+      }))
+    });
+    const first = makeStoneFrame(blackStone, 1);
+    const second = makeStoneFrame(whiteStone, 2);
+    scene.applyFrame(first);
+
+    const scope = scene.beginPlaybackScope('writer:1');
+    expect(scene.beginPlaybackScope('writer:1')).toBe(scope);
+    scene.retainStoneOverride(scope, 3, 3, {
+      offsetX: 7,
+      offsetY: -5,
+      scaleX: 0.4,
+      scaleY: 1,
+      rotation: 0.25,
+      alpha: 0.6
+    });
+    scene.hideStone(scope, 3, 3);
+
+    expect(scene.getRenderedCell(3, 3)).toMatchObject({
+      stone: { owner: 'black', visible: false },
+      playback: {
+        hidden: true,
+        overridden: true,
+        offset: { x: 7, y: -5 },
+        scale: { x: 0.4, y: 1 },
+        rotation: 0.25,
+        alpha: 0.6
+      }
+    });
+    expect(() => scene.beginPlaybackScope('writer:2')).toThrow('still active');
+    expect(() => scene.applyFrame(null as any)).toThrow('complete BoardVisualFrame');
+    expect(scene.getDiagnostics()).toMatchObject({
+      playbackScopeKey: 'writer:1',
+      retainedStoneOverrideCount: 1,
+      hiddenStoneCount: 1
+    });
+
+    scene.applyFrame(second, { preservePlaybackProjection: true });
+    expect(scene.getRenderedCell(3, 3)).toMatchObject({
+      stone: { owner: 'white', visible: false },
+      playback: { hidden: true, overridden: true }
+    });
+
+    scene.applyFrame(second);
+    expect(scene.getRenderedCell(3, 3)).toMatchObject({
+      stone: { owner: 'white', visible: true },
+      playback: {
+        hidden: false,
+        overridden: false,
+        offset: { x: 0, y: 0 },
+        scale: { x: 1, y: 1 },
+        rotation: 0,
+        alpha: 1
+      }
+    });
+    expect(scene.getDiagnostics()).toMatchObject({
+      playbackScopeKey: null,
+      retainedStoneOverrideCount: 0,
+      hiddenStoneCount: 0
+    });
+  });
+
+  test('pools event ghosts without increasing sparse cell materialization', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 16, baseCols: 16 });
+    const frame = makeFrame({
+      topology,
+      visibleWindow: { minRow: 4, maxRow: 6, minCol: 4, maxCol: 6 }
+    });
+    scene.applyFrame(frame);
+    const retainedCount = scene.getDiagnostics().activeViewCount;
+    const scope = scene.beginPlaybackScope('writer:ghosts');
+    const offscreen = scene.acquirePlaybackGhost(scope, {
+      row: 15,
+      col: 15,
+      stone: blackStone
+    });
+
+    expect(scene.getPlaybackGhost(offscreen)).toMatchObject({
+      row: 15,
+      col: 15,
+      visible: false,
+      owner: 'black'
+    });
+    expect(scene.getDiagnostics()).toMatchObject({
+      activeViewCount: retainedCount,
+      activePlaybackGhostCount: 1,
+      createdPlaybackGhostCount: 1
+    });
+
+    // MOVE keeps the ghost anchored to its source and animates in scene-space
+    // offsets. Culling must follow that transformed position as it crosses
+    // from an offscreen source into the materialized viewport.
+    scene.updatePlaybackGhost(scope, offscreen, {
+      offsetX: -10 * 32,
+      offsetY: -10 * 32
+    });
+    expect(scene.getPlaybackGhost(offscreen)).toMatchObject({
+      row: 15,
+      col: 15,
+      visible: true,
+      position: { x: 96, y: 96 },
+      offset: { x: -320, y: -320 }
+    });
+
+    scene.updatePlaybackGhost(scope, offscreen, {
+      row: 5.5,
+      col: 5,
+      offsetX: 3,
+      offsetY: -4,
+      scaleX: 0.5,
+      scaleY: 1.2,
+      rotation: 0.75,
+      alpha: 0.4
+    });
+    expect(scene.getPlaybackGhost(offscreen)).toMatchObject({
+      row: 5.5,
+      col: 5,
+      visible: true,
+      position: { x: 99, y: 108 },
+      offset: { x: 3, y: -4 },
+      scale: { x: 0.5, y: 1.2 },
+      rotation: 0.75,
+      alpha: 0.4
+    });
+
+    scene.hideStone(scope, 5, 5);
+    scene.releasePlaybackGhost(scope, offscreen);
+    expect(scene.layers.playback.children).toHaveLength(0);
+    expect(scene.getPlaybackGhost(offscreen)).toBeNull();
+    expect(scene.getDiagnostics()).toMatchObject({
+      hiddenStoneCount: 1,
+      activePlaybackGhostCount: 0,
+      pooledPlaybackGhostCount: 1
+    });
+
+    const reused = scene.acquirePlaybackGhost(scope, { row: 5, col: 5, stone: whiteStone });
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackGhostCount: 1,
+      createdPlaybackGhostCount: 1,
+      pooledPlaybackGhostCount: 0
+    });
+    scene.applyFrame(frame);
+    expect(scene.getPlaybackGhost(reused)).toBeNull();
+    expect(scene.getDiagnostics()).toMatchObject({
+      hiddenStoneCount: 0,
+      playbackScopeKey: null,
+      activePlaybackGhostCount: 0,
+      pooledPlaybackGhostCount: 1
+    });
+  });
+
+  test('leases one transient highlight per cell and restores the previous tone on release', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 8, baseCols: 8 });
+    const frame = makeFrame({ topology });
+    scene.applyFrame(frame);
+    const scope = scene.beginPlaybackScope('writer:highlight');
+    const positive = scene.acquirePlaybackCellHighlight(scope, 2, 2, 'positive');
+    const placement = scene.acquirePlaybackCellHighlight(scope, 2, 2, 'placement');
+
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackHighlightLeaseCount: 2,
+      renderedPlaybackHighlightCount: 1
+    });
+    expect(scene.layers.effect.children).toHaveLength(1);
+    expect((scene.layers.effect.children[0] as FakeGraphics).commands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#66a4ff' }) })
+    ]));
+
+    scene.releasePlaybackCellHighlight(scope, placement);
+    expect((scene.layers.effect.children[0] as FakeGraphics).commands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#b466ff' }) })
+    ]));
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackHighlightLeaseCount: 1,
+      renderedPlaybackHighlightCount: 1
+    });
+
+    scene.releasePlaybackCellHighlight(scope, positive);
+    expect(scene.layers.effect.children).toHaveLength(0);
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackHighlightLeaseCount: 0,
+      renderedPlaybackHighlightCount: 0,
+      pooledPlaybackHighlightCount: 1
+    });
+
+    scene.acquirePlaybackCellHighlight(scope, 2, 2, 'negative');
+    scene.applyFrame(frame);
+    expect(scene.layers.effect.children).toHaveLength(0);
+    expect(scene.getDiagnostics()).toMatchObject({
+      playbackScopeKey: null,
+      activePlaybackHighlightLeaseCount: 0,
+      renderedPlaybackHighlightCount: 0
+    });
+  });
+
+  test('reset and destroy release playback objects and reject stale scope handles', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 4, baseCols: 4 });
+    scene.applyFrame(makeFrame({ topology }));
+    const scope = scene.beginPlaybackScope('writer:reset');
+    const ghost = scene.acquirePlaybackGhost(scope, { row: 1, col: 1, stone: blackStone });
+    scene.acquirePlaybackCellHighlight(scope, 1, 1, 'placement');
+    scene.resetPlaybackProjection(scope);
+
+    expect(scene.getDiagnostics()).toMatchObject({
+      playbackScopeKey: null,
+      activePlaybackGhostCount: 0,
+      activePlaybackHighlightLeaseCount: 0
+    });
+    expect(() => scene.updatePlaybackGhost(scope, ghost, { alpha: 0 })).toThrow('scope is not active');
+
+    const next = scene.beginPlaybackScope('writer:destroy');
+    scene.acquirePlaybackGhost(next, { row: 1, col: 1, stone: whiteStone });
+    scene.destroy();
+    expect(scene.getDiagnostics()).toMatchObject({
+      destroyed: true,
+      activePlaybackGhostCount: 0,
+      pooledPlaybackGhostCount: 0,
+      destroyedPlaybackGhostCount: 1,
+      displayObjectCount: 0
+    });
+  });
+});

@@ -31,12 +31,11 @@ describe('board cell long press info', () => {
   beforeEach(() => {
     jest.resetModules();
     sharedInputController = null;
-    jest.doMock('../ui/board-renderer', () => ({
+    const boardRendererHelpers = {
       getBoardInputController: () => getSharedInputController()
-    }));
-    jest.doMock('../dist/ui/board-renderer', () => ({
-      getBoardInputController: () => getSharedInputController()
-    }));
+    };
+    require('../ui/board-renderer/stone-helpers.ts').setBoardRendererStoneHelpers(boardRendererHelpers);
+    require('../dist/ui/board-renderer/stone-helpers.js').setBoardRendererStoneHelpers(boardRendererHelpers);
     const dom = new JSDOM('<!doctype html><html><body></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
@@ -59,6 +58,7 @@ describe('board cell long press info', () => {
     try { delete global.window; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.document; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.Event; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete (global as any).BoardRendererStoneHelpers; } catch (e) { /* test cleanup */ }
   });
 
   test('short press keeps normal click behavior', () => {

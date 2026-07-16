@@ -1257,7 +1257,7 @@ function _selectBoardVisualBackendForBoardRenderer() {
     const noAnimation = kind === 'pixi'
         ? (testConfig && typeof testConfig.noAnimation === 'boolean'
             ? testConfig.noAnimation
-            : (testConfig && testConfig.selection === 'pixi' ? true : params.get('noanim') === '1'))
+            : params.get('noanim') === '1')
         : false;
     return Object.freeze({ kind, noAnimation });
 }
@@ -1293,7 +1293,9 @@ function _createFailedBoardVisualBackendForBoardRenderer(kind: 'dom' | 'pixi', e
 }
 
 function _createDomBoardVisualBackendForBoardRenderer() {
+    const compatibilityRenderer = _require('./diff-renderer');
     const options = {
+        compatibilityRenderer,
         beforeApplyFrame(activeHost: any, frame: any) {
             const topology = frame && frame.model && frame.model.topology || {};
             syncBoardPixelSizing(activeHost, {
@@ -1322,18 +1324,8 @@ function _createDomBoardVisualBackendForBoardRenderer() {
 }
 
 function _createPixiBoardVisualBackendForBoardRenderer(noAnimation: boolean) {
-    if (!noAnimation) {
-        return _createFailedBoardVisualBackendForBoardRenderer(
-            'pixi',
-            _createBoardVisualCapabilityErrorForBoardRenderer(
-                'pixi_static_animation_required',
-                'Pixi board rendering in Phase 4 requires noanim=1',
-                'capability'
-            )
-        );
-    }
     const options = Object.freeze({
-        noAnimation: true,
+        noAnimation,
         // Backend mount precedes UI event activation. Resolve lazily so the
         // adapter can exist while BoardInputController remains disabled until
         // bootstrap finishes the visual-ready gate.
@@ -1856,6 +1848,19 @@ async function playBoardVisualPhase(token: any, events: readonly unknown[], phas
         throw new Error('Board visual controller cannot play a presentation phase');
     }
     return controller.playPhase(token, events, phaseScope);
+}
+
+async function validateBoardVisualPhase(
+    events: readonly unknown[],
+    phaseScope?: any,
+    strictNetworkPlayback = false
+) {
+    const controller = getBoardVisualController();
+    if (!controller) throw new Error('Board visual controller is unavailable');
+    if (typeof controller.waitUntilReady === 'function') await controller.waitUntilReady();
+    else await (controller.ready || Promise.resolve());
+    if (typeof controller.validatePhase !== 'function') return;
+    await controller.validatePhase(events, strictNetworkPlayback === true, phaseScope);
 }
 
 function getBoardCellClientRect(row: number, col: number) {
@@ -2583,6 +2588,7 @@ const BoardRenderer = {
             configureBoardVisualController,
             configureBoardVisualBackendForTest,
             claimBoardVisualWriter,
+            validateBoardVisualPhase,
             playBoardVisualPhase,
             getBoardCellClientRect,
             releaseBoardVisualWriter,

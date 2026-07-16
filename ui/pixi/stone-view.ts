@@ -86,6 +86,12 @@ const STONE_MARKER_KINDS = new Set([
   'breeding-sprout'
 ]);
 
+export function hasPixiStoneVisual(cell: MaterializedBoardCellVisualState): boolean {
+  return cell.kind === 'playable' && (
+    !!cell.stone || cell.markers.some((marker) => STONE_MARKER_KINDS.has(marker.kind))
+  );
+}
+
 function markerSpecialType(markers: readonly BoardMarkerVisual[]): string | null {
   const typeByKind: Readonly<Record<string, string>> = Object.freeze({
     'living-will-aura': 'LIVING_WILL',
@@ -219,7 +225,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       ? cell.markers.filter((marker) => STONE_MARKER_KINDS.has(marker.kind))
       : [];
     renderedMarkerKinds = stoneMarkers.map((marker) => marker.kind);
-    root.visible = !!stone || stoneMarkers.length > 0;
+    root.visible = hasPixiStoneVisual(cell);
     if (!stone && !stoneMarkers.length) {
       owner = null;
       specialType = null;

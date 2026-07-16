@@ -1,6 +1,6 @@
 interface CauseReasonProfile {
     cause?: unknown;
-    causes?: unknown[];
+    causes?: readonly unknown[];
     reasonPrefix?: unknown;
     spawnIntent?: unknown;
     [key: string]: unknown;
@@ -36,6 +36,10 @@ const SPECIAL_DESTROY_TARGET_PROFILES = Object.freeze({
         causes: Object.freeze(['ULTIMATE_DESTROY_GOD']),
         reasonPrefix: 'udg_destroyed'
     }),
+    meteorGodBlackBeam: Object.freeze({
+        causes: Object.freeze(['METEOR_GOD']),
+        reasonPrefix: 'meteor_god_cell_destroy'
+    }),
     robotVacuumSuck: Object.freeze({
         causes: Object.freeze(['ROBOT_VACUUM']),
         reasonPrefix: 'robot_vacuum_suck'
@@ -47,6 +51,21 @@ const SPECIAL_DESTROY_TARGET_PROFILES = Object.freeze({
     willHunterKingSlash: Object.freeze({
         causes: Object.freeze(['WILL_HUNTER_KING']),
         reasonPrefix: 'will_hunter_king_slash'
+    })
+});
+
+const SUPER_CRUSH_DESTROY_TARGET_PROFILES = Object.freeze({
+    superBuoyancyCollision: Object.freeze({
+        causes: Object.freeze(['BUOYANCY_WILL', 'SUPER_BUOYANCY_WILL']),
+        reasonPrefix: 'super_buoyancy_collision'
+    }),
+    superGravityCollision: Object.freeze({
+        causes: Object.freeze(['GRAVITY_WILL', 'SUPER_GRAVITY_WILL']),
+        reasonPrefix: 'super_gravity_collision'
+    }),
+    superAttractionCollision: Object.freeze({
+        causes: Object.freeze(['SUPER_ATTRACTION_WILL']),
+        reasonPrefix: 'super_attraction_collision'
     })
 });
 
@@ -78,7 +97,7 @@ const CARD_EFFECT_SPAWN_PLAYBACK_PROFILES = Object.freeze([
     Object.freeze({ spawnIntent: 'salvation_spawn', cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON })
 ]);
 
-function getProfileCauses(profile: CauseReasonProfile | null | undefined): unknown[] {
+function getProfileCauses(profile: CauseReasonProfile | null | undefined): readonly unknown[] {
     if (!profile) return [];
     if (Array.isArray(profile.causes)) return profile.causes;
     return profile.cause ? [profile.cause] : [];
@@ -102,6 +121,19 @@ function matchesCauseReasonProfile(subject: PresentationSubject | null | undefin
         subject && subject.reason,
         profile
     );
+}
+
+/**
+ * Returns true when DESTROY uses a source/collision/replacement presentation
+ * instead of the generic fade. Board backends use this shared classification
+ * to avoid silently presenting an unimplemented special as a normal destroy.
+ */
+function isNonGenericDestroyTarget(subject: PresentationSubject | null | undefined): boolean {
+    const profiles = [
+        ...Object.values(SPECIAL_DESTROY_TARGET_PROFILES),
+        ...Object.values(SUPER_CRUSH_DESTROY_TARGET_PROFILES)
+    ];
+    return profiles.some((profile) => matchesCauseReasonProfile(subject, profile));
 }
 
 function matchesSpawnProfileTarget(target: PresentationSubject | null | undefined, cause: unknown, reason: unknown, profile: CauseReasonProfile | null | undefined): boolean {
@@ -141,12 +173,14 @@ export = {
     STONE_SALVATION_GOD_CAUSE,
     STONE_SALVATION_GOD_REVIVE_REASON,
     SPECIAL_DESTROY_TARGET_PROFILES,
+    SUPER_CRUSH_DESTROY_TARGET_PROFILES,
     POSITIVE_SPAWN_LIKE_EFFECTS,
     POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS,
     CARD_EFFECT_SPAWN_PLAYBACK_PROFILES,
     inferSpawnIntent,
     matchesCauseAndReasonPrefix,
     matchesCauseReasonProfile,
+    isNonGenericDestroyTarget,
     matchesSpawnProfileTarget,
     isSpawnEventLike
 };

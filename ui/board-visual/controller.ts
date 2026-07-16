@@ -1,13 +1,17 @@
 import type {
   BoardPlaybackContext,
   BoardPlaybackPhaseScope,
+  BoardPlaybackValidationContext,
   BoardVisualBackend,
   BoardVisualFrame,
   BoardWriterMode,
   BoardWriterToken
 } from './types';
 
-type ControllerDiagnostics = { record: (event: string, detail?: unknown) => void };
+type ControllerDiagnostics = {
+  readonly enabled?: boolean;
+  record: (event: string, detail?: unknown) => void;
+};
 type IdleWaiter = Readonly<{ resolve: () => void; reject: (error: Error) => void }>;
 type PendingFramePreparation = Readonly<{
   frame: BoardVisualFrame;
@@ -847,6 +851,18 @@ function createBoardVisualController(options: {
     getBackendKind() {
       return backend.kind;
     },
+    getBackendDiagnostics() {
+      const candidate = (backend as any).getDiagnostics;
+      return typeof candidate === 'function' ? candidate.call(backend) : null;
+    },
+    captureDebugFramePngDataUrl() {
+      assertAlive();
+      if (diagnostics.enabled !== true) {
+        throw new Error('Board visual frame capture requires gated diagnostics');
+      }
+      const candidate = (backend as any).captureDebugFramePngDataUrl;
+      return typeof candidate === 'function' ? candidate.call(backend) : null;
+    },
     getVisualFrameDigest() {
       return computeVisualFrameDigest(lastSettled);
     },
@@ -967,6 +983,30 @@ function createBoardVisualController(options: {
       networkCommittedApplied = false;
       diagnostics.record('writer:reclaimed', { id: activeToken.id, frameToken: activeToken.frameToken, mode: writerMode });
       return activeToken;
+    },
+    async validatePhase(
+      events: readonly unknown[],
+      strictNetworkPlayback: boolean,
+      providedScope?: BoardPlaybackPhaseScope
+    ) {
+      const epoch = lifecycleEpoch;
+      assertAlive();
+      if (!ready || !backendMounted) {
+        throw new Error('Cannot validate a board phase before backend readiness');
+      }
+      const phaseScope: BoardPlaybackPhaseScope = providedScope || Object.freeze({
+        events: Object.freeze(Array.from(events))
+      });
+      const context: BoardPlaybackValidationContext = Object.freeze({
+        strictNetworkPlayback: strictNetworkPlayback === true,
+        phaseScope
+      });
+      if (typeof backend.validatePhase === 'function') {
+        await backend.validatePhase(events, context);
+      } else if (backend.kind === 'pixi') {
+        throw new Error('Pixi board backend capability preflight is unavailable');
+      }
+      assertLifecycleCurrent(epoch);
     },
     async playPhase(
       token: BoardWriterToken,
