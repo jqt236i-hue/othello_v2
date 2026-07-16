@@ -122,6 +122,39 @@ describe('board visual effect bounds manifest', () => {
     expect(EffectBounds.expandBoardVisualEffectMaterializationBounds(source, ['destroy'])).toEqual(expected);
   });
 
+  test('materializes all four corners and four edges for every board-local effect family', () => {
+    const placements = [
+      { name: 'top-left', source: { minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 } },
+      { name: 'top-right', source: { minRow: 0, maxRow: 0, minCol: 7, maxCol: 7 } },
+      { name: 'bottom-right', source: { minRow: 7, maxRow: 7, minCol: 7, maxCol: 7 } },
+      { name: 'bottom-left', source: { minRow: 7, maxRow: 7, minCol: 0, maxCol: 0 } },
+      { name: 'top', source: { minRow: 0, maxRow: 0, minCol: 3, maxCol: 4 } },
+      { name: 'right', source: { minRow: 3, maxRow: 4, minCol: 7, maxCol: 7 } },
+      { name: 'bottom', source: { minRow: 7, maxRow: 7, minCol: 3, maxCol: 4 } },
+      { name: 'left', source: { minRow: 3, maxRow: 4, minCol: 0, maxCol: 0 } }
+    ];
+
+    for (const family of EffectBounds.BOARD_LOCAL_EFFECT_FAMILIES as string[]) {
+      const extent = EffectBounds.getBoardVisualEffectMaterializationGutter([family]);
+      for (const placement of placements) {
+        const expanded = EffectBounds.expandBoardVisualEffectMaterializationBounds(
+          placement.source,
+          [family]
+        );
+        expect({ family, placement: placement.name, expanded }).toEqual({
+          family,
+          placement: placement.name,
+          expanded: {
+            minRow: placement.source.minRow - extent.top,
+            maxRow: placement.source.maxRow + extent.bottom,
+            minCol: placement.source.minCol - extent.left,
+            maxCol: placement.source.maxCol + extent.right
+          }
+        });
+      }
+    }
+  });
+
   test('ceil-composes fractional per-edge extents for the viewport materializer', () => {
     expect(EffectBounds.getBoardVisualEffectMaterializationGutter([
       'place',

@@ -1480,6 +1480,14 @@ async function flushBoardPresentationEvents(): Promise<void> {
           pendingLocalBoardVisualSettlementClaim = null;
         }
       }
+    } else {
+      const renderer = _require('./board-renderer');
+      if (
+        renderer
+        && typeof renderer.settleAutoBoardVisualWriter === 'function'
+      ) {
+        await renderer.settleAutoBoardVisualWriter();
+      }
     }
   }
 }

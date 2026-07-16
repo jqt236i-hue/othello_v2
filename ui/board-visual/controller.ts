@@ -188,7 +188,17 @@ function createBoardVisualController(options: {
       const tracked = idleFrameSettlement;
       if (tracked) {
         await tracked.promise;
-        if (idleFrameSettlement === tracked) return;
+        if (idleFrameSettlement === tracked) {
+          const epoch = lifecycleEpoch;
+          try {
+            await waitForBackendVisualSettlement(lastSettled || undefined);
+            assertLifecycleCurrent(epoch);
+          } catch (error) {
+            if (mode === 'destroyed') throw toError(error, 'BoardVisualController is destroyed');
+            throw enterFailureRecovery(error, 'idle', 'frame:idle-settlement-error');
+          }
+          if (idleFrameSettlement === tracked) return;
+        }
         continue;
       }
       const epoch = lifecycleEpoch;

@@ -50,6 +50,7 @@ describe('diff renderer manifestation world background sync', () => {
   function renderOnce(board = [[0]]) {
     (global as any).gameState = { board, currentPlayer: 1 };
     diffRenderer.renderBoardDiff(document.getElementById('board'));
+    diffRenderer.presentCommittedWorldState((global as any).cardState);
   }
 
   test('applies observer world background while observer manifestation stone is active', () => {

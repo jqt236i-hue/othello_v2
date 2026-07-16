@@ -4,6 +4,9 @@ import type {
   PixiBoardScene,
   PixiPlaybackCellHighlightHandle,
   PixiPlaybackCellHighlightTone,
+  PixiPlaybackEffectHandle,
+  PixiPlaybackEffectOptions,
+  PixiPlaybackEffectUpdate,
   PixiPlaybackGhostHandle,
   PixiPlaybackGhostUpdate,
   PixiPlaybackProjectionScope
@@ -22,16 +25,24 @@ export interface PixiBoardEffectTimings {
   readonly positiveHighlightMinimumMs: number;
   readonly zombieBiteMs: number;
   readonly teleportPulseMs: number;
+  readonly strongWillApplyMs: number;
+  readonly sacrificeAbsorbMs: number;
+  readonly theoryRouletteMs: number;
+  readonly theoryMaterializeMs: number;
+  readonly manifestEndingMs: number;
 }
 
 export interface PixiBoardEffectProjection {
   readonly frame: BoardVisualFrame;
+  /** Complete immutable planner scope used only to derive presentation geometry. */
+  readonly phaseEvents: readonly PresentationPlaybackEvent[];
   readonly scene: PixiBoardScene;
   readonly scope: PixiPlaybackProjectionScope;
   readonly timeline: PixiTimeline;
   readonly timings: PixiBoardEffectTimings;
   readonly noAnimation: boolean;
   readonly reducedMotion: boolean;
+  waitForTargetPrelude(event: PresentationPlaybackEvent, target: unknown): Promise<void>;
   /** Stone visible at the planner phase-scope boundary, before parallel writes. */
   getPhaseSourceStone(row: number, col: number): PixiPlaybackStoneVisual | null;
   getProjectedStone(row: number, col: number): PixiPlaybackStoneVisual | null;
@@ -49,6 +60,10 @@ export interface PixiBoardEffectProjection {
     tone: PixiPlaybackCellHighlightTone
   ): PixiPlaybackCellHighlightHandle;
   releaseHighlight(handle: PixiPlaybackCellHighlightHandle): void;
+  acquireEffect(options: PixiPlaybackEffectOptions): PixiPlaybackEffectHandle;
+  updateEffect(handle: PixiPlaybackEffectHandle, update: PixiPlaybackEffectUpdate): void;
+  retainEffect(row: number, col: number, handle: PixiPlaybackEffectHandle): void;
+  releaseEffect(handle: PixiPlaybackEffectHandle): void;
 }
 
 export type PixiBoardEffectPlayer = (

@@ -9,6 +9,8 @@ type AnimationFeedbackEventDeps = {
     isNoAnim?: () => boolean;
     sleep?: (ms: any) => Promise<void>;
     typewriterSleep?: (ms: any) => Promise<void>;
+    abortSignal?: AbortSignal | null;
+    isAborted?: () => boolean;
     observerBubbleMs?: any;
     observerBubbleFadeMs?: any;
     getCellClientRect?: (row: any, col: any) => {
@@ -68,6 +70,11 @@ function waitForCinematic(ms: number, deps: AnimationFeedbackEventDeps) {
         return deps.sleep(ms);
     }
     return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+function isFeedbackEventAborted(deps: AnimationFeedbackEventDeps): boolean {
+    return deps.abortSignal?.aborted === true
+        || (typeof deps.isAborted === 'function' && deps.isAborted() === true);
 }
 
 function normalizePlayerKey(value: any): string {
@@ -136,7 +143,7 @@ function resolveSpecialCardQuoteLines(quote: string, explicitLines: string[] = [
 }
 
 async function revealSpecialCardQuoteTypewriter(quoteEl: any, quote: string, deps: AnimationFeedbackEventDeps, explicitLines: string[] = []) {
-    if (!quoteEl || !quote) return;
+    if (!quoteEl || !quote || isFeedbackEventAborted(deps)) return;
     quoteEl.dataset.fullText = quote;
     quoteEl.textContent = '';
     const documentRef = quoteEl.ownerDocument || getDocumentRef();
@@ -150,15 +157,17 @@ async function revealSpecialCardQuoteTypewriter(quoteEl: any, quote: string, dep
         return lineEl;
     });
     await waitForTypewriter(120, deps);
+    if (isFeedbackEventAborted(deps)) return;
     for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const lineEl = lineEls[lineIndex];
         const chars = Array.from(lines[lineIndex]);
         let nextText = '';
         for (const char of chars) {
-            if (!quoteEl.isConnected) return;
+            if (isFeedbackEventAborted(deps) || !quoteEl.isConnected) return;
             nextText += char;
             lineEl.textContent = nextText;
             await waitForTypewriter(resolveTypewriterDelayForChar(char), deps);
+            if (isFeedbackEventAborted(deps)) return;
         }
     }
 }
@@ -222,6 +231,7 @@ function resolveManifestSummary(target: any) {
 }
 
 function showManifestSummaryPopup(target: any, deps: AnimationFeedbackEventDeps = {}) {
+    if (isFeedbackEventAborted(deps)) return;
     const summary = resolveManifestSummary(target);
     if (!summary) return;
     const documentRef = getDocumentRef();
@@ -422,6 +432,7 @@ function applyManifestPresentationForCinematic(target: any, deps: AnimationFeedb
 
 async function handleSpecialCardCinematicEvent(ev: any, deps: AnimationFeedbackEventDeps = {}) {
     const target = getSpecialCardCinematicTarget(ev);
+    if (isFeedbackEventAborted(deps)) return Promise.resolve();
     const durationMs = toPositiveInt(
         (target && target.durationMs) || (ev && ev.durationMs),
         3000
@@ -474,6 +485,12 @@ async function handleSpecialCardCinematicEvent(ev: any, deps: AnimationFeedbackE
         overlay.classList.add('special-card-cinematic-visible');
     }
     await waitForCinematic(durationMs, deps);
+    if (isFeedbackEventAborted(deps)) {
+        try {
+            if (overlay.parentElement) overlay.parentElement.removeChild(overlay);
+        } catch (e: any) { /* ignore */ }
+        return;
+    }
     try {
         overlay.classList.remove('special-card-cinematic-visible');
         overlay.classList.add('special-card-cinematic-leaving');
@@ -482,6 +499,7 @@ async function handleSpecialCardCinematicEvent(ev: any, deps: AnimationFeedbackE
     try {
         if (overlay.parentElement) overlay.parentElement.removeChild(overlay);
     } catch (e: any) { /* ignore */ }
+    if (isFeedbackEventAborted(deps)) return;
     showManifestSummaryPopup(target, deps);
 }
 

@@ -376,7 +376,7 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                 remainingOwnerTurns: isManifestType
                     ? m.data.remainingOwnerTurns
                     : _resolveSpecialDisplayTurnsForDiff(m.data),
-                regenRemaining: (!isManifestType && (markerTypeUpper === 'REGEN' || markerTypeUpper === 'ZOMBIE') && _isFiniteTimedLabelValueForDiff(m.data.regenRemaining))
+                regenRemaining: (!isManifestType && _isFiniteTimedLabelValueForDiff(m.data.regenRemaining))
                     ? Math.max(0, Math.trunc(Number(m.data.regenRemaining)))
                     : null,
                 destroyEvadeRemaining: (!isManifestType && (

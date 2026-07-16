@@ -19,14 +19,20 @@ import {
   createPixiContainer,
   createPixiGraphics,
   createPixiSprite,
+  createPixiText,
   destroyPixiDisplayObject,
+  drawPixiBoardFrameHoleInnerEdges,
+  drawPixiBoardFrameHoleSurface,
   drawPixiCircle,
+  drawPixiLine,
   drawPixiRect,
   removePixiFromParent,
   resolvePixiStaticTexture,
+  setPixiAnchor,
   setPixiPosition,
   setPixiScale,
   type PixiCellView,
+  type BoardFrameInnerBoundaryEdge,
   type PixiStaticBoardTextureMode,
   type PixiStaticTextureSource,
   type PixiStaticViewContext,
@@ -57,6 +63,7 @@ export interface PixiBoardSceneOptions {
   readonly effectGutterCells?: number;
   readonly maxRetainedViews?: number;
   readonly maxRetainedGhosts?: number;
+  readonly maxRetainedEffects?: number;
 }
 
 export interface PixiBoardSceneApplyContext {
@@ -107,6 +114,65 @@ export interface PixiPlaybackCellHighlightHandle {
   readonly scopeId: number;
 }
 
+export type PixiPlaybackEffectKind =
+  | 'aura'
+  | 'impact'
+  | 'pulse'
+  | 'roulette'
+  | 'topology';
+
+export type PixiPlaybackEffectTone =
+  | 'blue'
+  | 'gold'
+  | 'green'
+  | 'purple'
+  | 'red'
+  | 'white';
+
+export interface PixiPlaybackEffectOptions {
+  readonly row: number;
+  readonly col: number;
+  readonly family: string;
+  readonly kind: PixiPlaybackEffectKind;
+  readonly tone?: PixiPlaybackEffectTone;
+  readonly label?: string | number | null;
+  /** BOARD_FRAME topology effect edges that border final playable cells. */
+  readonly innerBoundaryEdges?: readonly BoardFrameInnerBoundaryEdge[];
+}
+
+export interface PixiPlaybackEffectUpdate {
+  readonly alpha?: number;
+  readonly scale?: number;
+  readonly rotation?: number;
+  readonly visible?: boolean;
+}
+
+export interface PixiPlaybackEffectHandle {
+  readonly id: number;
+  readonly scopeId: number;
+}
+
+export interface PixiTopologyRevealHandle {
+  readonly id: number;
+}
+
+export interface PixiPlaybackEffectDiagnostics {
+  readonly id: number;
+  readonly scopeId: number;
+  readonly row: number;
+  readonly col: number;
+  readonly family: string;
+  readonly kind: PixiPlaybackEffectKind;
+  readonly tone: PixiPlaybackEffectTone;
+  readonly label: string | null;
+  readonly innerBoundaryEdges: readonly BoardFrameInnerBoundaryEdge[];
+  readonly visible: boolean;
+  readonly alpha: number;
+  readonly scale: number;
+  readonly rotation: number;
+  readonly position: Readonly<{ x: number; y: number }>;
+}
+
 export interface PixiPlaybackGhostDiagnostics {
   readonly id: number;
   readonly scopeId: number;
@@ -138,6 +204,7 @@ export interface PixiBoardSceneRenderedCell {
   readonly cell: ReturnType<PixiCellView['getDiagnostics']>;
   readonly stone: ReturnType<PixiStoneView['getDiagnostics']>;
   readonly hint: ReturnType<PixiHintView['getDiagnostics']>;
+  readonly topologyRevealAlpha: number;
   readonly playback: Readonly<{
     hidden: boolean;
     overridden: boolean;
@@ -179,12 +246,22 @@ export interface PixiBoardSceneDiagnostics {
   readonly retainedStoneOverrideCount: number;
   readonly hiddenStoneCount: number;
   readonly activePlaybackGhostCount: number;
+  /** DisplayObject-backed ghosts inside the current viewport materialization window. */
+  readonly materializedPlaybackGhostCount: number;
   readonly pooledPlaybackGhostCount: number;
   readonly createdPlaybackGhostCount: number;
   readonly destroyedPlaybackGhostCount: number;
   readonly activePlaybackHighlightLeaseCount: number;
   readonly renderedPlaybackHighlightCount: number;
   readonly pooledPlaybackHighlightCount: number;
+  readonly activePlaybackEffectCount: number;
+  /** DisplayObject-backed effects inside the current viewport materialization window. */
+  readonly materializedPlaybackEffectCount: number;
+  readonly pooledPlaybackEffectCount: number;
+  readonly createdPlaybackEffectCount: number;
+  readonly destroyedPlaybackEffectCount: number;
+  readonly activeTopologyRevealCount: number;
+  readonly topologyRevealKeys: readonly string[];
 }
 
 export interface PixiBoardScene {
@@ -222,7 +299,24 @@ export interface PixiBoardScene {
     scope: PixiPlaybackProjectionScope,
     handle: PixiPlaybackCellHighlightHandle
   ): void;
+  acquirePlaybackEffect(
+    scope: PixiPlaybackProjectionScope,
+    options: PixiPlaybackEffectOptions
+  ): PixiPlaybackEffectHandle;
+  updatePlaybackEffect(
+    scope: PixiPlaybackProjectionScope,
+    handle: PixiPlaybackEffectHandle,
+    update: PixiPlaybackEffectUpdate
+  ): void;
+  releasePlaybackEffect(
+    scope: PixiPlaybackProjectionScope,
+    handle: PixiPlaybackEffectHandle
+  ): void;
   getPlaybackGhost(handle: PixiPlaybackGhostHandle): PixiPlaybackGhostDiagnostics | null;
+  getPlaybackEffect(handle: PixiPlaybackEffectHandle): PixiPlaybackEffectDiagnostics | null;
+  beginTopologyReveal(keys: readonly string[], initialProgress?: number): PixiTopologyRevealHandle;
+  updateTopologyReveal(handle: PixiTopologyRevealHandle, progress: number): void;
+  endTopologyReveal(handle: PixiTopologyRevealHandle): void;
   resetPlaybackProjection(scope?: PixiPlaybackProjectionScope): void;
   getRenderedCell(row: number, col: number): PixiBoardSceneRenderedCell | null;
   getDiagnostics(): PixiBoardSceneDiagnostics;
@@ -238,7 +332,7 @@ interface RetainedCellViews {
 
 interface PlaybackGhostRecord {
   readonly handle: PixiPlaybackGhostHandle;
-  readonly view: PixiStoneView;
+  view: PixiStoneView | null;
   readonly cell: MaterializedBoardCellVisualState;
   row: number;
   col: number;
@@ -251,6 +345,33 @@ interface PlaybackHighlightLease {
   readonly row: number;
   readonly col: number;
   readonly tone: PixiPlaybackCellHighlightTone;
+}
+
+interface PlaybackEffectView {
+  readonly root: any;
+  readonly graphics: any;
+  readonly label: any | null;
+}
+
+interface PlaybackEffectRecord {
+  readonly handle: PixiPlaybackEffectHandle;
+  view: PlaybackEffectView | null;
+  readonly options: Readonly<{
+    row: number;
+    col: number;
+    family: string;
+    kind: PixiPlaybackEffectKind;
+    tone: PixiPlaybackEffectTone;
+    label: string | null;
+    innerBoundaryEdges: readonly BoardFrameInnerBoundaryEdge[];
+  }>;
+  transform: Required<PixiPlaybackEffectUpdate>;
+}
+
+interface TopologyRevealRecord {
+  readonly handle: PixiTopologyRevealHandle;
+  readonly keys: ReadonlySet<string>;
+  progress: number;
 }
 
 const maximumGutter = getMaxBoardLocalEffectGutterCells();
@@ -284,6 +405,15 @@ function normalizeMaxRetainedGhosts(value: unknown): number {
   const numeric = Number(value);
   if (!Number.isInteger(numeric) || numeric < 0) {
     throw new Error('Pixi board scene maxRetainedGhosts must be a non-negative integer');
+  }
+  return numeric;
+}
+
+function normalizeMaxRetainedEffects(value: unknown): number {
+  if (typeof value === 'undefined') return 96;
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric < 0) {
+    throw new Error('Pixi board scene maxRetainedEffects must be a non-negative integer');
   }
   return numeric;
 }
@@ -328,6 +458,78 @@ function normalizeGhostUpdate(
     ...transform,
     row: finiteNumber(source.row, finiteNumber(previous?.row, 0)),
     col: finiteNumber(source.col, finiteNumber(previous?.col, 0)),
+    visible: typeof source.visible === 'boolean' ? source.visible : previous?.visible !== false
+  });
+}
+
+const PLAYBACK_EFFECT_KINDS = new Set<PixiPlaybackEffectKind>([
+  'aura',
+  'impact',
+  'pulse',
+  'roulette',
+  'topology'
+]);
+
+const PLAYBACK_EFFECT_TONES = new Set<PixiPlaybackEffectTone>([
+  'blue',
+  'gold',
+  'green',
+  'purple',
+  'red',
+  'white'
+]);
+
+function normalizePlaybackEffectOptions(
+  value: PixiPlaybackEffectOptions
+): PlaybackEffectRecord['options'] {
+  const source = value && typeof value === 'object' ? value : {} as PixiPlaybackEffectOptions;
+  const row = Number(source.row);
+  const col = Number(source.col);
+  if (!Number.isInteger(row) || !Number.isInteger(col)) {
+    throw new Error('Pixi playback effect coordinates must be integers');
+  }
+  const family = String(source.family || '').trim();
+  if (!family) throw new Error('Pixi playback effect family is required');
+  const kind = source.kind;
+  if (!PLAYBACK_EFFECT_KINDS.has(kind)) {
+    throw new Error(`Pixi playback effect kind is unsupported: ${String(kind)}`);
+  }
+  const tone = source.tone || 'white';
+  if (!PLAYBACK_EFFECT_TONES.has(tone)) {
+    throw new Error(`Pixi playback effect tone is unsupported: ${String(tone)}`);
+  }
+  const label = source.label === null || typeof source.label === 'undefined'
+    ? null
+    : String(source.label);
+  const allowedEdges = new Set<BoardFrameInnerBoundaryEdge>(['top', 'right', 'bottom', 'left']);
+  const seenEdges = new Set<BoardFrameInnerBoundaryEdge>();
+  const innerBoundaryEdges: BoardFrameInnerBoundaryEdge[] = [];
+  for (const rawEdge of Array.isArray(source.innerBoundaryEdges) ? source.innerBoundaryEdges : []) {
+    const edge = String(rawEdge || '').trim().toLowerCase() as BoardFrameInnerBoundaryEdge;
+    if (!allowedEdges.has(edge) || seenEdges.has(edge)) continue;
+    seenEdges.add(edge);
+    innerBoundaryEdges.push(edge);
+  }
+  return Object.freeze({
+    row,
+    col,
+    family,
+    kind,
+    tone,
+    label,
+    innerBoundaryEdges: Object.freeze(innerBoundaryEdges)
+  });
+}
+
+function normalizePlaybackEffectUpdate(
+  value: PixiPlaybackEffectUpdate,
+  previous?: Required<PixiPlaybackEffectUpdate>
+): Required<PixiPlaybackEffectUpdate> {
+  const source = value && typeof value === 'object' ? value : {};
+  return Object.freeze({
+    alpha: Math.max(0, Math.min(1, finiteNumber(source.alpha, finiteNumber(previous?.alpha, 1)))),
+    scale: Math.max(0, finiteNumber(source.scale, finiteNumber(previous?.scale, 1))),
+    rotation: finiteNumber(source.rotation, finiteNumber(previous?.rotation, 0)),
     visible: typeof source.visible === 'boolean' ? source.visible : previous?.visible !== false
   });
 }
@@ -399,6 +601,16 @@ function frameViewRevisionSignature(
 }
 
 function resetRetainedViews(views: RetainedCellViews): void {
+  for (const target of [
+    views.cell.surfaceRoot,
+    views.cell.cellRoot,
+    views.cell.markerRoot,
+    views.stone.root,
+    views.hint.root,
+    views.hint.interactionRoot
+  ]) {
+    if (target) target.alpha = 1;
+  }
   views.cell.reset();
   views.stone.reset();
   views.hint.reset();
@@ -416,6 +628,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   const effectGutterCells = normalizeEffectGutter(options.effectGutterCells);
   const maxRetainedViews = normalizeMaxRetainedViews(options.maxRetainedViews);
   const maxRetainedGhosts = normalizeMaxRetainedGhosts(options.maxRetainedGhosts);
+  const maxRetainedEffects = normalizeMaxRetainedEffects(options.maxRetainedEffects);
   const root = createPixiContainer(runtime, 'pixi-board-scene');
   // Passive ancestors let Pixi traverse only the sparse materialized hit
   // objects while every visible pixel remains owned by the visual layers.
@@ -465,6 +678,31 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     destroy: destroyPixiDisplayObject,
     maxRetained: maxRetainedGhosts
   });
+  const playbackEffectPool: ObjectPool<PlaybackEffectView> = createObjectPool({
+    create: () => {
+      const root = createPixiContainer(runtime, 'pixi-playback-effect');
+      const graphics = createPixiGraphics(runtime, 'pixi-playback-effect-graphics');
+      const label = createPixiText(runtime, 'pixi-playback-effect-label');
+      addPixiChild(root, graphics, label);
+      return Object.freeze({ root, graphics, label });
+    },
+    reset: (view) => {
+      clearPixiGraphics(view.graphics);
+      if (view.label) {
+        view.label.text = '';
+        view.label.visible = false;
+      }
+      setPixiPivot(view.root, 0, 0);
+      setPixiPosition(view.root, 0, 0);
+      setPixiScale(view.root, 1, 1);
+      view.root.rotation = 0;
+      view.root.alpha = 1;
+      view.root.visible = false;
+      removePixiFromParent(view.root);
+    },
+    destroy: (view) => destroyPixiDisplayObject(view.root),
+    maxRetained: maxRetainedEffects
+  });
   const active = new Map<string, RetainedCellViews>();
   const materializedByKey = new Map<string, MaterializedBoardCellVisualState>();
   const retainedStoneBaseVisibility = new Map<string, boolean>();
@@ -473,11 +711,15 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   const playbackGhosts = new Map<number, PlaybackGhostRecord>();
   const playbackHighlightLeases = new Map<number, PlaybackHighlightLease>();
   const playbackHighlightsByKey = new Map<string, any>();
+  const playbackEffects = new Map<number, PlaybackEffectRecord>();
+  const topologyReveals = new Map<number, TopologyRevealRecord>();
   const textureIds = new WeakMap<object, number>();
   let nextTextureId = 1;
   let nextPlaybackScopeId = 1;
   let nextPlaybackGhostId = 1;
   let nextPlaybackHighlightId = 1;
+  let nextPlaybackEffectId = 1;
+  let nextTopologyRevealId = 1;
   let playbackScope: PixiPlaybackProjectionScope | null = null;
   let latestFrame: BoardVisualFrame | null = null;
   let latestViewContext: Omit<PixiStaticViewContext, 'sceneX' | 'sceneY'> | null = null;
@@ -688,22 +930,56 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     });
   }
 
+  function dematerializePlaybackGhost(record: PlaybackGhostRecord): void {
+    const view = record.view;
+    if (!view) return;
+    record.view = null;
+    playbackGhostPool.release(view);
+  }
+
+  function shouldMaterializePlaybackGhost(record: PlaybackGhostRecord): boolean {
+    return record.transform.visible && isGhostInsideMaterialization(record);
+  }
+
   function syncPlaybackGhost(record: PlaybackGhostRecord): void {
-    const context = viewContextAt(record.row, record.col);
-    record.view.update(record.cell, context);
-    setPlaybackTransform(
-      record.view.root,
-      context.sceneX,
-      context.sceneY,
-      context.layout.cellSize,
-      record.transform
-    );
-    record.view.root.visible = record.transform.visible
-      && isGhostInsideMaterialization(record);
+    if (!shouldMaterializePlaybackGhost(record)) {
+      dematerializePlaybackGhost(record);
+      return;
+    }
+    let view = record.view;
+    const acquired = !view;
+    if (!view) {
+      view = playbackGhostPool.acquire();
+      record.view = view;
+    }
+    try {
+      if (acquired) addPixiChild(layers.playback, view.root);
+      const context = viewContextAt(record.row, record.col);
+      view.update(record.cell, context);
+      setPlaybackTransform(
+        view.root,
+        context.sceneX,
+        context.sceneY,
+        context.layout.cellSize,
+        record.transform
+      );
+      view.root.visible = true;
+    } catch (error) {
+      dematerializePlaybackGhost(record);
+      throw error;
+    }
   }
 
   function syncPlaybackGhosts(): void {
-    for (const record of playbackGhosts.values()) syncPlaybackGhost(record);
+    const records = Array.from(playbackGhosts.values());
+    // Release the old viewport first so scroll/reflow never temporarily owns
+    // DisplayObjects for both the old and new materialization windows.
+    for (const record of records) {
+      if (!shouldMaterializePlaybackGhost(record)) dematerializePlaybackGhost(record);
+    }
+    for (const record of records) {
+      if (shouldMaterializePlaybackGhost(record)) syncPlaybackGhost(record);
+    }
   }
 
   function retainStoneOverride(
@@ -716,7 +992,10 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     const key = integerWorldKey(row, col);
     retainedStoneOverrides.set(key, normalizeRetainedOverride(override, retainedStoneOverrides.get(key)));
     const views = active.get(key);
-    if (views && latestFrame) applyRetainedStoneProjection(key, views.stone, latestFrame.layout.cellSize);
+    if (views && latestFrame) {
+      applyRetainedStoneProjection(key, views.stone, latestFrame.layout.cellSize);
+      applyTopologyRevealAlpha(key, views);
+    }
   }
 
   function hideStone(scope: PixiPlaybackProjectionScope, row: number, col: number): void {
@@ -735,7 +1014,6 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     if (!options || !options.stone) throw new Error('Pixi playback ghost stone is required');
     integerWorldKey(options.row, options.col);
     const handle = Object.freeze({ id: nextPlaybackGhostId++, scopeId: scope.id });
-    const view = playbackGhostPool.acquire();
     const transform = normalizeGhostUpdate({
       row: Number(options.row),
       col: Number(options.col),
@@ -743,19 +1021,18 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     });
     const record: PlaybackGhostRecord = {
       handle,
-      view,
+      view: null,
       cell: makePlaybackGhostCell(handle, options),
       row: transform.row,
       col: transform.col,
       transform
     };
     playbackGhosts.set(handle.id, record);
-    addPixiChild(layers.playback, view.root);
     try {
       syncPlaybackGhost(record);
     } catch (error) {
       playbackGhosts.delete(handle.id);
-      playbackGhostPool.release(view);
+      dematerializePlaybackGhost(record);
       throw error;
     }
     return handle;
@@ -795,7 +1072,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   ): void {
     const record = findPlaybackGhost(scope, handle);
     playbackGhosts.delete(handle.id);
-    playbackGhostPool.release(record.view);
+    dematerializePlaybackGhost(record);
   }
 
   function renderPlaybackHighlight(key: string): void {
@@ -811,6 +1088,14 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       return;
     }
     const lease = leases[leases.length - 1];
+    if (!isCoordinateInsideMaterialization(lease.row, lease.col)) {
+      const released = playbackHighlightsByKey.get(key);
+      if (released) {
+        playbackHighlightsByKey.delete(key);
+        playbackHighlightPool.release(released);
+      }
+      return;
+    }
     const context = viewContextAt(lease.row, lease.col);
     let view = playbackHighlightsByKey.get(key);
     if (!view) {
@@ -842,7 +1127,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     setPixiScale(view, 1, 1);
     view.rotation = 0;
     view.alpha = 1;
-    view.visible = isCoordinateInsideMaterialization(lease.row, lease.col);
+    view.visible = true;
   }
 
   function syncPlaybackHighlights(): void {
@@ -895,6 +1180,209 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     renderPlaybackHighlight(lease.key);
   }
 
+  const effectPalette: Readonly<Record<PixiPlaybackEffectTone, {
+    readonly fill: string;
+    readonly stroke: string;
+  }>> = Object.freeze({
+    blue: Object.freeze({ fill: '#63d8ff', stroke: '#d8f8ff' }),
+    gold: Object.freeze({ fill: '#ffd45e', stroke: '#fff0b0' }),
+    green: Object.freeze({ fill: '#65f29a', stroke: '#c8ffdc' }),
+    purple: Object.freeze({ fill: '#b66cff', stroke: '#ead5ff' }),
+    red: Object.freeze({ fill: '#ff5353', stroke: '#ffd0d0' }),
+    white: Object.freeze({ fill: '#ffffff', stroke: '#ffffff' })
+  });
+
+  function drawPlaybackEffect(record: PlaybackEffectRecord): void {
+    const view = record.view;
+    if (!view) return;
+    const context = viewContextAt(record.options.row, record.options.col);
+    const cellSize = context.layout.cellSize;
+    const center = cellSize / 2;
+    const palette = effectPalette[record.options.tone];
+    const graphics = view.graphics;
+    clearPixiGraphics(graphics);
+    if (record.options.kind === 'roulette') {
+      const inset = Math.max(2, cellSize * 0.07);
+      drawPixiRect(
+        graphics,
+        inset,
+        inset,
+        cellSize - (inset * 2),
+        cellSize - (inset * 2),
+        { color: palette.fill, alpha: 0.18 },
+        { color: palette.stroke, alpha: 0.96, width: Math.max(2, cellSize * 0.055) },
+        Math.max(3, cellSize * 0.12)
+      );
+    } else if (record.options.kind === 'topology') {
+      drawPixiBoardFrameHoleSurface(graphics, cellSize);
+      drawPixiBoardFrameHoleInnerEdges(
+        graphics,
+        cellSize,
+        record.options.innerBoundaryEdges
+      );
+    } else {
+      const radius = record.options.kind === 'impact'
+        ? cellSize * 0.48
+        : record.options.kind === 'pulse'
+          ? cellSize * 0.53
+          : cellSize * 0.44;
+      drawPixiCircle(
+        graphics,
+        center,
+        center,
+        radius,
+        { color: palette.fill, alpha: record.options.kind === 'impact' ? 0.28 : 0.14 },
+        { color: palette.stroke, alpha: 0.94, width: Math.max(2, cellSize * 0.045) }
+      );
+      if (record.options.kind === 'impact') {
+        drawPixiCircle(
+          graphics,
+          center,
+          center,
+          cellSize * 0.19,
+          { color: palette.stroke, alpha: 0.76 },
+          { color: palette.fill, alpha: 0.95, width: Math.max(1, cellSize * 0.025) }
+        );
+        for (let index = 0; index < 4; index += 1) {
+          const angle = (Math.PI / 2) * index;
+          drawPixiLine(
+            graphics,
+            center + Math.cos(angle) * cellSize * 0.2,
+            center + Math.sin(angle) * cellSize * 0.2,
+            center + Math.cos(angle) * cellSize * 0.62,
+            center + Math.sin(angle) * cellSize * 0.62,
+            { color: palette.stroke, alpha: 0.86, width: Math.max(1, cellSize * 0.03) }
+          );
+        }
+      }
+    }
+
+    if (view.label) {
+      const label = view.label;
+      label.text = record.options.label || '';
+      label.style = {
+        fill: palette.stroke,
+        fontFamily: context.theme.fontFamily,
+        fontSize: Math.max(10, Math.round(cellSize * 0.3)),
+        fontWeight: '800',
+        stroke: { color: '#10151d', width: Math.max(1, cellSize * 0.035) }
+      };
+      setPixiAnchor(label, 0.5);
+      setPixiPosition(label, center, center);
+      label.visible = !!record.options.label;
+    }
+
+    setPixiPivot(view.root, center, center);
+    setPixiPosition(view.root, context.sceneX + center, context.sceneY + center);
+    setPixiScale(view.root, record.transform.scale, record.transform.scale);
+    view.root.rotation = record.transform.rotation;
+    view.root.alpha = record.transform.alpha;
+    view.root.visible = true;
+  }
+
+  function dematerializePlaybackEffect(record: PlaybackEffectRecord): void {
+    const view = record.view;
+    if (!view) return;
+    record.view = null;
+    playbackEffectPool.release(view);
+  }
+
+  function shouldMaterializePlaybackEffect(record: PlaybackEffectRecord): boolean {
+    return record.transform.visible
+      && isCoordinateInsideMaterialization(record.options.row, record.options.col);
+  }
+
+  function syncPlaybackEffect(record: PlaybackEffectRecord): void {
+    if (!shouldMaterializePlaybackEffect(record)) {
+      dematerializePlaybackEffect(record);
+      return;
+    }
+    let view = record.view;
+    const acquired = !view;
+    if (!view) {
+      view = playbackEffectPool.acquire();
+      record.view = view;
+    }
+    try {
+      if (acquired) addPixiChild(layers.effect, view.root);
+      drawPlaybackEffect(record);
+    } catch (error) {
+      dematerializePlaybackEffect(record);
+      throw error;
+    }
+  }
+
+  function syncPlaybackEffects(): void {
+    const records = Array.from(playbackEffects.values());
+    for (const record of records) {
+      if (!shouldMaterializePlaybackEffect(record)) dematerializePlaybackEffect(record);
+    }
+    for (const record of records) {
+      if (shouldMaterializePlaybackEffect(record)) syncPlaybackEffect(record);
+    }
+  }
+
+  function findPlaybackEffect(
+    scope: PixiPlaybackProjectionScope,
+    handle: PixiPlaybackEffectHandle
+  ): PlaybackEffectRecord {
+    assertPlaybackScope(scope);
+    if (!handle || handle.scopeId !== scope.id) {
+      throw new Error('Pixi playback effect belongs to a different scope');
+    }
+    const record = playbackEffects.get(handle.id);
+    if (!record || record.handle.scopeId !== handle.scopeId) {
+      throw new Error('Pixi playback effect is not active');
+    }
+    return record;
+  }
+
+  function acquirePlaybackEffect(
+    scope: PixiPlaybackProjectionScope,
+    rawOptions: PixiPlaybackEffectOptions
+  ): PixiPlaybackEffectHandle {
+    assertPlaybackScope(scope);
+    if (!latestFrame || !latestViewContext) {
+      throw new Error('Pixi playback effect requires an applied visual frame');
+    }
+    const effectOptions = normalizePlaybackEffectOptions(rawOptions);
+    const handle = Object.freeze({ id: nextPlaybackEffectId++, scopeId: scope.id });
+    const record: PlaybackEffectRecord = {
+      handle,
+      view: null,
+      options: effectOptions,
+      transform: normalizePlaybackEffectUpdate({})
+    };
+    playbackEffects.set(handle.id, record);
+    try {
+      syncPlaybackEffect(record);
+    } catch (error) {
+      playbackEffects.delete(handle.id);
+      dematerializePlaybackEffect(record);
+      throw error;
+    }
+    return handle;
+  }
+
+  function updatePlaybackEffect(
+    scope: PixiPlaybackProjectionScope,
+    handle: PixiPlaybackEffectHandle,
+    update: PixiPlaybackEffectUpdate
+  ): void {
+    const record = findPlaybackEffect(scope, handle);
+    record.transform = normalizePlaybackEffectUpdate(update, record.transform);
+    syncPlaybackEffect(record);
+  }
+
+  function releasePlaybackEffect(
+    scope: PixiPlaybackProjectionScope,
+    handle: PixiPlaybackEffectHandle
+  ): void {
+    const record = findPlaybackEffect(scope, handle);
+    playbackEffects.delete(handle.id);
+    dematerializePlaybackEffect(record);
+  }
+
   function getPlaybackGhost(handle: PixiPlaybackGhostHandle): PixiPlaybackGhostDiagnostics | null {
     const record = handle && playbackGhosts.get(handle.id);
     if (!record || record.handle.scopeId !== handle.scopeId || !latestFrame || !latestViewContext) return null;
@@ -904,8 +1392,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       scopeId: record.handle.scopeId,
       row: record.row,
       col: record.col,
-      visible: !!record.view.root.visible,
-      owner: record.view.getDiagnostics().owner,
+      visible: !!record.view?.root.visible,
+      owner: record.view?.getDiagnostics().owner || record.cell.stone?.owner || null,
       position: Object.freeze({
         x: scene.x + latestViewContext.sceneOffsetX + record.transform.offsetX,
         y: scene.y + latestViewContext.sceneOffsetY + record.transform.offsetY
@@ -917,20 +1405,142 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     });
   }
 
+  function getPlaybackEffect(handle: PixiPlaybackEffectHandle): PixiPlaybackEffectDiagnostics | null {
+    const record = handle && playbackEffects.get(handle.id);
+    if (!record || record.handle.scopeId !== handle.scopeId || !latestFrame || !latestViewContext) return null;
+    const context = viewContextAt(record.options.row, record.options.col);
+    return Object.freeze({
+      id: record.handle.id,
+      scopeId: record.handle.scopeId,
+      row: record.options.row,
+      col: record.options.col,
+      family: record.options.family,
+      kind: record.options.kind,
+      tone: record.options.tone,
+      label: record.options.label,
+      innerBoundaryEdges: Object.freeze(record.options.innerBoundaryEdges.slice()),
+      visible: !!record.view?.root.visible,
+      alpha: record.transform.alpha,
+      scale: record.transform.scale,
+      rotation: record.transform.rotation,
+      position: Object.freeze({ x: context.sceneX, y: context.sceneY })
+    });
+  }
+
+  function topologyRevealAlphaForKey(key: string): number {
+    let alpha = 1;
+    for (const reveal of topologyReveals.values()) {
+      if (reveal.keys.has(key)) alpha = Math.min(alpha, reveal.progress);
+    }
+    return alpha;
+  }
+
+  function applyTopologyRevealAlpha(key: string, views: RetainedCellViews): void {
+    const alpha = topologyRevealAlphaForKey(key);
+    for (const target of [
+      views.cell.surfaceRoot,
+      views.cell.cellRoot,
+      views.cell.markerRoot,
+      views.hint.root,
+      views.hint.interactionRoot
+    ]) {
+      if (target) target.alpha = alpha;
+    }
+    const stoneBaseAlpha = retainedStoneOverrides.get(key)?.alpha ?? 1;
+    views.stone.root.alpha = stoneBaseAlpha * alpha;
+  }
+
+  function normalizedTopologyRevealKeys(keys: readonly string[]): readonly string[] {
+    if (!Array.isArray(keys)) throw new Error('Pixi topology reveal keys must be an array');
+    if (!latestFrame) throw new Error('Pixi topology reveal requires an applied visual frame');
+    const existing = new Set(latestFrame.model.topology.existingKeys);
+    const normalized = new Set<string>();
+    for (const rawKey of keys) {
+      const parts = String(rawKey || '').split(',');
+      if (parts.length !== 2) throw new Error(`Pixi topology reveal key is invalid: ${String(rawKey)}`);
+      const key = integerWorldKey(parts[0], parts[1]);
+      if (existing.has(key)) normalized.add(key);
+    }
+    return Object.freeze(sortedWorldKeys(normalized));
+  }
+
+  function beginTopologyReveal(
+    keys: readonly string[],
+    initialProgress = 0
+  ): PixiTopologyRevealHandle {
+    assertAlive();
+    const normalizedKeys = normalizedTopologyRevealKeys(keys);
+    if (!normalizedKeys.length) throw new Error('Pixi topology reveal requires existing cell keys');
+    const handle = Object.freeze({ id: nextTopologyRevealId++ });
+    const progress = Math.max(0, Math.min(1, finiteNumber(initialProgress, 0)));
+    topologyReveals.set(handle.id, {
+      handle,
+      keys: new Set(normalizedKeys),
+      progress
+    });
+    for (const key of normalizedKeys) {
+      const views = active.get(key);
+      if (views) applyTopologyRevealAlpha(key, views);
+    }
+    return handle;
+  }
+
+  function updateTopologyReveal(handle: PixiTopologyRevealHandle, progress: number): void {
+    if (destroyed) return;
+    const reveal = handle && topologyReveals.get(handle.id);
+    if (!reveal) throw new Error('Pixi topology reveal is not active');
+    reveal.progress = Math.max(0, Math.min(1, finiteNumber(progress, reveal.progress)));
+    for (const key of reveal.keys) {
+      const views = active.get(key);
+      if (views) applyTopologyRevealAlpha(key, views);
+    }
+  }
+
+  function endTopologyReveal(handle: PixiTopologyRevealHandle): void {
+    if (destroyed) return;
+    const reveal = handle && topologyReveals.get(handle.id);
+    if (!reveal) return;
+    topologyReveals.delete(handle.id);
+    for (const key of reveal.keys) {
+      const views = active.get(key);
+      if (views) applyTopologyRevealAlpha(key, views);
+    }
+  }
+
+  function resetTopologyRevealsInternal(): void {
+    if (!topologyReveals.size) return;
+    const keys = new Set<string>();
+    for (const reveal of topologyReveals.values()) {
+      for (const key of reveal.keys) keys.add(key);
+    }
+    topologyReveals.clear();
+    for (const key of keys) {
+      const views = active.get(key);
+      if (views) applyTopologyRevealAlpha(key, views);
+    }
+  }
+
   function resetPlaybackProjectionInternal(): void {
     for (const record of Array.from(playbackGhosts.values())) {
       playbackGhosts.delete(record.handle.id);
-      playbackGhostPool.release(record.view);
+      dematerializePlaybackGhost(record);
     }
     playbackHighlightLeases.clear();
     for (const [key, view] of Array.from(playbackHighlightsByKey.entries())) {
       playbackHighlightsByKey.delete(key);
       playbackHighlightPool.release(view);
     }
+    for (const record of Array.from(playbackEffects.values())) {
+      playbackEffects.delete(record.handle.id);
+      dematerializePlaybackEffect(record);
+    }
     retainedStoneOverrides.clear();
     hiddenStoneKeys.clear();
     playbackScope = null;
-    for (const [key, views] of active) restoreRetainedStoneRoot(key, views.stone);
+    for (const [key, views] of active) {
+      restoreRetainedStoneRoot(key, views.stone);
+      applyTopologyRevealAlpha(key, views);
+    }
   }
 
   function resetPlaybackProjection(scope?: PixiPlaybackProjectionScope): void {
@@ -1233,6 +1843,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       retainedStoneBaseVisibility.set(cell.key, hasPixiStoneVisual(cell));
       applyRetainedStoneProjection(cell.key, views.stone, frame.layout.cellSize);
       const hintChanged = views.hint.update(cell, viewContext);
+      applyTopologyRevealAlpha(cell.key, views);
       if (cellChanged || stoneChanged || hintChanged) updatedViews += 1;
       else skippedViews += 1;
     }
@@ -1250,6 +1861,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     if (playbackScope) {
       syncPlaybackGhosts();
       syncPlaybackHighlights();
+      syncPlaybackEffects();
       if (context.preservePlaybackProjection !== true) resetPlaybackProjectionInternal();
     }
     applyCount += 1;
@@ -1278,12 +1890,14 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       cell,
       stone: views.stone.getDiagnostics(),
       hint: views.hint.getDiagnostics(),
+      topologyRevealAlpha: topologyRevealAlphaForKey(key),
       playback: retainedPlaybackDiagnostics(key)
     });
   }
 
   function reset(): void {
     if (destroyed) return;
+    resetTopologyRevealsInternal();
     resetPlaybackProjectionInternal();
     for (const key of Array.from(active.keys())) releaseKey(key);
     materializedByKey.clear();
@@ -1312,6 +1926,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     pool.destroy();
     playbackGhostPool.destroy();
     playbackHighlightPool.destroy();
+    playbackEffectPool.destroy();
     removePixiFromParent(root);
     destroyPixiDisplayObject(root);
   }
@@ -1320,6 +1935,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     const poolDiagnostics = pool.getDiagnostics();
     const ghostPoolDiagnostics = playbackGhostPool.getDiagnostics();
     const highlightPoolDiagnostics = playbackHighlightPool.getDiagnostics();
+    const effectPoolDiagnostics = playbackEffectPool.getDiagnostics();
     let textureBackedStoneCount = 0;
     let proceduralStoneCount = 0;
     let ephemeralVoidCount = 0;
@@ -1365,12 +1981,24 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       retainedStoneOverrideCount: retainedStoneOverrides.size,
       hiddenStoneCount: hiddenStoneKeys.size,
       activePlaybackGhostCount: playbackGhosts.size,
+      materializedPlaybackGhostCount: Array.from(playbackGhosts.values())
+        .filter((record) => !!record.view).length,
       pooledPlaybackGhostCount: ghostPoolDiagnostics.available,
       createdPlaybackGhostCount: ghostPoolDiagnostics.created,
       destroyedPlaybackGhostCount: ghostPoolDiagnostics.destroyed,
       activePlaybackHighlightLeaseCount: playbackHighlightLeases.size,
       renderedPlaybackHighlightCount: playbackHighlightsByKey.size,
-      pooledPlaybackHighlightCount: highlightPoolDiagnostics.available
+      pooledPlaybackHighlightCount: highlightPoolDiagnostics.available,
+      activePlaybackEffectCount: playbackEffects.size,
+      materializedPlaybackEffectCount: Array.from(playbackEffects.values())
+        .filter((record) => !!record.view).length,
+      pooledPlaybackEffectCount: effectPoolDiagnostics.available,
+      createdPlaybackEffectCount: effectPoolDiagnostics.created,
+      destroyedPlaybackEffectCount: effectPoolDiagnostics.destroyed,
+      activeTopologyRevealCount: topologyReveals.size,
+      topologyRevealKeys: Object.freeze(sortedWorldKeys(new Set(
+        Array.from(topologyReveals.values()).flatMap((reveal) => Array.from(reveal.keys))
+      )))
     });
   }
 
@@ -1386,7 +2014,14 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     releasePlaybackGhost,
     acquirePlaybackCellHighlight,
     releasePlaybackCellHighlight,
+    acquirePlaybackEffect,
+    updatePlaybackEffect,
+    releasePlaybackEffect,
     getPlaybackGhost,
+    getPlaybackEffect,
+    beginTopologyReveal,
+    updateTopologyReveal,
+    endTopologyReveal,
     resetPlaybackProjection,
     getRenderedCell,
     getDiagnostics,

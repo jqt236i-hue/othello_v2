@@ -29,6 +29,7 @@ type AnimationFlipEventDeps = {
     runWithEffectTargetHighlight: (cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) => Promise<any>;
     sleep: (ms: any) => Promise<any>;
     animationShared: any;
+    waitForZombieSourcePrelude?: (target: any) => Promise<void>;
 };
 
 function getDocumentRef(): any {
@@ -95,6 +96,15 @@ function prefersReducedMotion() {
 
 async function playZombieBiteAnimation(target: any, targetCell: any, deps: AnimationFlipEventDeps) {
     if (!isZombieInfectionTarget(target) || deps.isNoAnim() || prefersReducedMotion()) return;
+    if (typeof deps.waitForZombieSourcePrelude === 'function') {
+        try {
+            targetCell.classList.add('zombie-bite-active');
+            await deps.waitForZombieSourcePrelude(target);
+        } finally {
+            targetCell.classList.remove('zombie-bite-active');
+        }
+        return;
+    }
     const meta = target && target.meta && typeof target.meta === 'object' ? target.meta : {};
     if (!Number.isInteger(meta.sourceRow) || !Number.isInteger(meta.sourceCol)) return;
     const documentRef = getDocumentRef();

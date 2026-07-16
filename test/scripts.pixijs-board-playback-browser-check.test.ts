@@ -16,7 +16,8 @@ function goodBackendDiagnostics(): any {
       activeScopeKey: null,
       projectedStoneCount: 0,
       retainedFinalGhostCount: 0,
-      inFlightEffectCount: 0
+      inFlightEffectCount: 0,
+      inFlightTopologyRevealCount: 0
     },
     pool: {
       activePlaybackGhostCount: 0,
@@ -24,6 +25,11 @@ function goodBackendDiagnostics(): any {
       activePlaybackHighlightLeaseCount: 0,
       renderedPlaybackHighlightCount: 0,
       pooledPlaybackHighlightCount: 1
+    },
+    scene: {
+      activePlaybackEffectCount: 0,
+      activeTopologyRevealCount: 0,
+      pooledPlaybackEffectCount: 4
     }
   };
 }
@@ -31,22 +37,57 @@ function goodBackendDiagnostics(): any {
 function scenarioReport(definition: any, renderer: 'dom' | 'pixi', mode: string): any {
   const finalModelDigest = Check.canonicalFinalModelDigest(definition);
   const finalRenderedCells = JSON.parse(JSON.stringify(Check.expectedFinalRenderedCells(definition)));
+  const immediateEvidence = definition.pixiEvidence === 'immediate';
+  const topologyEvidence = definition.pixiEvidence === 'topology-reveal';
+  const settledKeyFrame = mode === 'noanim' || immediateEvidence;
+  const renderedCells = Object.fromEntries(Object.entries(finalRenderedCells).map(([key, value]: [string, any]) => [
+    key,
+    { rendered: true, ...value, playbackHidden: false }
+  ]));
   const report = {
     scenario: definition.name,
     started: renderer === 'pixi' ? {
       initialBackendDiagnostics: { timeline: { startedRunCount: 2 } }
     } : {},
     expectedEventType: definition.eventType,
+    expectedEventTypes: Check.expectedBoardEventTypes(definition),
     expectedSoundKey: definition.soundKey,
+    expectedPhaseEventTypes: Check.expectedPhaseEventTypes(definition),
+    expectedGlobalEventTypes: definition.expectedGlobalEventTypes || [],
+    expectedDispatchLaunchOrder: Check.expectedDispatchLaunchOrder(definition),
+    pixiEvidence: definition.pixiEvidence || 'timeline',
+    execution: definition.execution || 'playback',
     expectedFinalModelDigest: finalModelDigest,
     expectedFinalRenderedCells: Check.expectedFinalRenderedCells(definition),
     inputDigest: `input:${definition.name}`,
-    eventTypes: [definition.eventType],
-    completedEventTypes: [definition.eventType],
+    eventTypes: Check.expectedBoardEventTypes(definition),
+    completedEventTypes: Check.expectedBoardEventTypes(definition),
+    phaseEventTypes: Check.expectedPhaseEventTypes(definition),
+    completedPhaseEventTypes: Check.expectedPhaseEventTypes(definition),
+    globalEventTypes: definition.expectedGlobalEventTypes || [],
+    completedGlobalEventTypes: definition.expectedGlobalEventTypes || [],
+    dispatchLaunchOrder: Check.expectedDispatchLaunchOrder(definition),
     soundKeys: [definition.soundKey],
+    manifestWorldStarts: definition.name === 'manifest-ending-world'
+      ? [{ overlayPresent: mode !== 'noanim', noAnimation: mode === 'noanim' }]
+      : [],
+    manifestWorldCompletions: definition.name === 'manifest-ending-world'
+      ? [{ overlayPresent: false, noAnimation: mode === 'noanim' }]
+      : [],
+    manifestBgmTransitions: definition.name === 'manifest-ending-world'
+      ? [
+        [null, null, { transitionMs: mode === 'noanim' ? 0 : 2000 }],
+        [null, null],
+        [null, null]
+      ]
+      : [],
     error: null,
     finalModelDigest,
     finalVisualDigest: `${renderer}:visual:${definition.name}`,
+    finalVisualSemanticDigest: Check.buildFinalVisualSemanticDigest({
+      finalModelDigest,
+      renderedCells
+    }),
     settledFlags: {
       playbackActive: false,
       processing: false,
@@ -54,36 +95,38 @@ function scenarioReport(definition: any, renderer: 'dom' | 'pixi', mode: string)
       writerMode: 'idle'
     },
     keyFrame: renderer === 'pixi' ? {
-      capturedInsidePlayback: true,
-      captureKind: mode === 'noanim' ? 'settled' : 'active',
+      capturedInsidePlayback: !topologyEvidence,
+      capturedFromCommittedFrame: topologyEvidence,
+      captureKind: settledKeyFrame ? 'settled' : 'active',
       captureStage: mode === 'noanim' ? 'microtask' : 'microtask',
-      writerMode: mode === 'noanim' ? 'idle' : 'playback',
-      playbackDone: mode === 'noanim',
+      writerMode: settledKeyFrame || topologyEvidence ? 'idle' : 'playback',
+      playbackDone: settledKeyFrame,
       screenshotSha256: 'a'.repeat(64),
       screenshotSource: 'pixi-extract',
       backendDiagnostics: {
         timeline: {
-          activeRunCount: mode === 'noanim' ? 0 : 1
+          activeRunCount: settledKeyFrame ? 0 : 1
         },
         pool: {
           activePlaybackGhostCount: mode === 'noanim'
+            || immediateEvidence
+            || topologyEvidence
             || (mode === 'reduced-motion' && definition.name === 'destroy') ? 0 : 1,
           activePlaybackHighlightLeaseCount: 0
+        },
+        scene: {
+          activePlaybackEffectCount: 0,
+          activeTopologyRevealCount: topologyEvidence && mode !== 'noanim' ? 1 : 0,
+          topologyRevealKeys: topologyEvidence && mode !== 'noanim' ? ['2,-1'] : []
         }
       }
     } : null,
     final: renderer === 'pixi' ? {
       backendDiagnostics: goodBackendDiagnostics(),
-      renderedCells: Object.fromEntries(Object.entries(finalRenderedCells).map(([key, value]: [string, any]) => [
-        key,
-        { rendered: true, ...value, playbackHidden: false }
-      ]))
+      renderedCells
     } : {
       backendDiagnostics: null,
-      renderedCells: Object.fromEntries(Object.entries(finalRenderedCells).map(([key, value]: [string, any]) => [
-        key,
-        { rendered: true, ...value, playbackHidden: false }
-      ]))
+      renderedCells
     }
   };
   return {
@@ -102,20 +145,20 @@ function goodReport(): any {
           renderer,
           mode,
           smokeEvaluation: { ok: true, errors: [] },
-          scenarios: Check.PLAYBACK_SCENARIOS.map((definition: any) => (
+          scenarios: Check.scenariosForMode(mode).map((definition: any) => (
             scenarioReport(definition, renderer, mode)
           ))
         });
       }
     }
   }
-  return { reports };
+  return { scenarioNames: Check.PLAYBACK_SCENARIOS.map((scenario: any) => scenario.name), reports };
 }
 
-describe('Pixi basic playback browser check', () => {
-  test('covers only the six Phase 6 board event groups and parses public lanes/modes', () => {
+describe('Pixi playback browser scenario matrix', () => {
+  test('keeps the six Phase 6 groups and adds the Phase 7 normal/NOANIM matrix', () => {
     expect(Check.KEY_FRAME_DELAY_MS).toBeUndefined();
-    expect(Check.PLAYBACK_SCENARIOS.map((scenario: any) => scenario.eventType)).toEqual([
+    expect(Check.PLAYBACK_SCENARIOS.slice(0, 6).map((scenario: any) => scenario.eventType)).toEqual([
       'place',
       'spawn',
       'flip',
@@ -123,6 +166,23 @@ describe('Pixi basic playback browser check', () => {
       'move',
       'status_applied'
     ]);
+    expect(Check.PLAYBACK_SCENARIOS.slice(6).map((scenario: any) => scenario.name)).toEqual([
+      'special-destroy-hybrid',
+      'zombie-infection-source',
+      'theory-incarnation',
+      'manifest-ending-world',
+      'topology-expansion',
+      'topology-shrink',
+      'legacy-fade-out',
+      'crossfade-stone',
+      'protection-expire',
+      'legacy-strong-will-apply',
+      'legacy-hyperactive-move',
+      'legacy-sacrifice-absorb-pulse'
+    ]);
+    expect(Check.scenariosForMode('reduced-motion')).toHaveLength(6);
+    expect(Check.scenariosForMode('normal')).toHaveLength(18);
+    expect(Check.scenariosForMode('noanim')).toHaveLength(18);
     expect(Check.publicEntryPath('classic', 'pixi', 'normal'))
       .toBe('/index.classic.html?debug=1&boardRenderer=pixi');
     expect(Check.publicEntryPath('vite', 'pixi', 'noanim'))
@@ -132,8 +192,19 @@ describe('Pixi basic playback browser check', () => {
       modes: ['reduced-motion'],
       writeArtifacts: true
     });
+    expect(Check.parseCliOptions([
+      '--classic-only',
+      '--mode=normal',
+      '--scenario=topology-expansion,theory-incarnation'
+    ])).toEqual({
+      lanes: ['classic'],
+      modes: ['normal'],
+      scenarioNames: ['topology-expansion', 'theory-incarnation'],
+      writeArtifacts: true
+    });
     expect(() => Check.parseCliOptions(['--classic-only', '--vite-only'])).toThrow('mutually exclusive');
     expect(() => Check.parseCliOptions(['--mode=slow'])).toThrow('Unsupported playback mode');
+    expect(() => Check.parseCliOptions(['--scenario=missing'])).toThrow('Unsupported playback scenario');
 
     const payload = Check.createBrowserScenarioPayload(Check.PLAYBACK_SCENARIOS[0]);
     expect(payload).toEqual({
@@ -141,10 +212,31 @@ describe('Pixi basic playback browser check', () => {
       boardSize: { rows: 8, cols: 8 }
     });
     expect(payload.boardSize).toBe(Check.PLAYBACK_BOARD_SIZE);
+
+    const theory = Check.PLAYBACK_SCENARIOS.find((scenario: any) => scenario.name === 'theory-incarnation');
+    expect(Check.expectedFinalRenderedCells(theory)['1,4']).toEqual({
+      hasStone: true,
+      owner: 'black',
+      specialType: 'THEORY_INCARNATION'
+    });
   });
 
   test('accepts DOM/Pixi and classic/Vite parity with settled private resources', () => {
     expect(Check.evaluatePixiPlaybackBrowserReport(goodReport())).toEqual({ ok: true, errors: [] });
+  });
+
+  test('accepts an explicitly filtered scenario matrix without weakening its scenario contract', () => {
+    const report = goodReport();
+    report.scenarioNames = ['topology-expansion'];
+    for (const lane of report.reports) {
+      lane.scenarios = lane.scenarios.filter((scenario: any) => scenario.scenario === 'topology-expansion');
+      if (lane.renderer === 'pixi' && lane.mode === 'noanim') {
+        const topology = lane.scenarios[0];
+        topology.final.backendDiagnostics.timeline.startedRunCount =
+          topology.started.initialBackendDiagnostics.timeline.startedRunCount;
+      }
+    }
+    expect(Check.evaluatePixiPlaybackBrowserReport(report)).toEqual({ ok: true, errors: [] });
   });
 
   test('accepts a reduced-motion branch that settles before the external frame probe', () => {

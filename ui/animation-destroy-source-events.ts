@@ -28,7 +28,9 @@ type DestroySourceAnimationDeps = {
         append?: (element: HTMLElement) => boolean;
         cleanup?: () => boolean;
     } | null;
+    abortSignal?: AbortSignal | null;
     random?: () => number;
+    suppressTargetImpact?: boolean;
 };
 
 let cachedStoneSkinRuntimeModule: any = null;
@@ -43,6 +45,116 @@ function appendTransientOverlay(overlay: HTMLElement, deps: DestroySourceAnimati
         return true;
     }
     return false;
+}
+
+function cleanupTransientAnimation(element: HTMLElement | null, animations?: readonly any[]) {
+    for (const animation of animations || []) {
+        try {
+            if (animation && typeof animation.cancel === 'function') animation.cancel();
+        } catch (e: any) { /* cleanup */ }
+    }
+    try {
+        if (element && element.parentElement) element.parentElement.removeChild(element);
+    } catch (e: any) { /* cleanup */ }
+}
+
+function subscribeToAbort(signal: AbortSignal | null | undefined, onAbort: () => void): () => void {
+    if (!signal) return () => undefined;
+    if (signal.aborted) {
+        onAbort();
+        return () => undefined;
+    }
+    signal.addEventListener('abort', onAbort, { once: true });
+    return () => signal.removeEventListener('abort', onAbort);
+}
+
+function waitForScopedDeadline(deps: DestroySourceAnimationDeps, delayMs: number): Promise<void> {
+    return new Promise<void>((resolve) => {
+        let settled = false;
+        let timeoutId: any = null;
+        let timer: any = null;
+        let nativeTimer = false;
+        let unsubscribe: () => void = () => undefined;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            if (timeoutId !== null) {
+                try {
+                    if (nativeTimer) globalThis.clearTimeout(timeoutId);
+                    else if (timer && typeof timer.clearTimeout === 'function') timer.clearTimeout(timeoutId);
+                } catch (e: any) { /* cleanup */ }
+                timeoutId = null;
+            }
+            unsubscribe();
+            resolve();
+        };
+
+        unsubscribe = subscribeToAbort(deps.abortSignal, finish);
+        if (settled) return;
+        try {
+            timer = deps.timer();
+            timeoutId = timer.setTimeout(finish, delayMs, deps.playbackScope);
+        } catch (e: any) {
+            nativeTimer = true;
+            timeoutId = globalThis.setTimeout(finish, delayMs);
+        }
+    });
+}
+
+function waitForAnimationsOrDeadline(
+    deps: DestroySourceAnimationDeps,
+    animations: readonly any[],
+    delayMs: number
+): Promise<void> {
+    return new Promise<void>((resolve) => {
+        let settled = false;
+        let timeoutId: any = null;
+        let timer: any = null;
+        let nativeTimer = false;
+        let unsubscribe: () => void = () => undefined;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            if (timeoutId !== null) {
+                try {
+                    if (nativeTimer) globalThis.clearTimeout(timeoutId);
+                    else if (timer && typeof timer.clearTimeout === 'function') timer.clearTimeout(timeoutId);
+                } catch (e: any) { /* cleanup */ }
+                timeoutId = null;
+            }
+            unsubscribe();
+            resolve();
+        };
+
+        unsubscribe = subscribeToAbort(deps.abortSignal, finish);
+        if (settled) return;
+
+        let completed = 0;
+        const completeOne = () => {
+            completed += 1;
+            if (completed >= animations.length) finish();
+        };
+        for (const animation of animations) {
+            try {
+                if (animation?.finished && typeof animation.finished.then === 'function') {
+                    Promise.resolve(animation.finished).then(completeOne, completeOne);
+                } else {
+                    completeOne();
+                }
+            } catch (e: any) {
+                completeOne();
+            }
+        }
+        if (settled) return;
+
+        try {
+            timer = deps.timer();
+            timeoutId = timer.setTimeout(finish, delayMs, deps.playbackScope);
+        } catch (e: any) {
+            nativeTimer = true;
+            timeoutId = globalThis.setTimeout(finish, delayMs);
+        }
+    });
 }
 
 function resolveStoneSkinRuntimeModule() {
@@ -82,6 +194,7 @@ function resolveNormalStoneBackgroundImage(owner: 'black' | 'white'): string {
 async function animateSniperProjectile(target: any, deps: DestroySourceAnimationDeps) {
     if (!target) return;
     if (deps.isNoAnim()) return;
+    if (deps.abortSignal?.aborted) return;
 
     const source = deps.resolveSniperSource(target);
     if (!source) return;
@@ -116,26 +229,30 @@ async function animateSniperProjectile(target: any, deps: DestroySourceAnimation
     projectile.style.zIndex = '1200';
     projectile.style.margin = '0';
 
-    document.body.appendChild(projectile);
+    appendTransientOverlay(projectile, deps);
 
     const travelPx = Math.hypot(deltaX, deltaY);
     const durationMs = Math.max(120, Math.min(420, Math.round(90 + (travelPx * 0.35))));
-    const anim = projectile.animate([
-        { transform: 'translate(0, 0)', opacity: 1 },
-        { transform: `translate(${deltaX}px, ${deltaY}px)`, opacity: 1 }
-    ], {
-        duration: durationMs,
-        easing: 'linear'
-    });
+    let anim: any = null;
+    try {
+        anim = projectile.animate([
+            { transform: 'translate(0, 0)', opacity: 1 },
+            { transform: `translate(${deltaX}px, ${deltaY}px)`, opacity: 1 }
+        ], {
+            duration: durationMs,
+            easing: 'linear'
+        });
 
-    await deps.waitForAnimationFinish(anim, durationMs, 120);
-
-    if (projectile.parentElement) projectile.parentElement.removeChild(projectile);
+        await deps.waitForAnimationFinish(anim, durationMs, 120);
+    } finally {
+        cleanupTransientAnimation(projectile, anim ? [anim] : []);
+    }
 }
 
 async function animateRobotVacuumSuction(target: any, deps: DestroySourceAnimationDeps) {
     if (!target) return;
     if (deps.isNoAnim()) return;
+    if (deps.abortSignal?.aborted) return;
 
     const source = deps.resolveRobotVacuumSource(target);
     if (!source) return;
@@ -171,26 +288,30 @@ async function animateRobotVacuumSuction(target: any, deps: DestroySourceAnimati
     projectile.style.zIndex = '1200';
     projectile.style.margin = '0';
 
-    document.body.appendChild(projectile);
+    appendTransientOverlay(projectile, deps);
 
     const travelPx = Math.hypot(deltaX, deltaY);
     const durationMs = Math.max(140, Math.min(360, Math.round(140 + (travelPx * 0.28))));
-    const anim = projectile.animate([
-        { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-        { transform: `translate(${deltaX}px, ${deltaY}px) scale(0.68)`, opacity: 0.78 }
-    ], {
-        duration: durationMs,
-        easing: 'cubic-bezier(0.2, 0.9, 0.25, 1)'
-    });
+    let anim: any = null;
+    try {
+        anim = projectile.animate([
+            { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+            { transform: `translate(${deltaX}px, ${deltaY}px) scale(0.68)`, opacity: 0.78 }
+        ], {
+            duration: durationMs,
+            easing: 'cubic-bezier(0.2, 0.9, 0.25, 1)'
+        });
 
-    await deps.waitForAnimationFinish(anim, durationMs, 120);
-
-    if (projectile.parentElement) projectile.parentElement.removeChild(projectile);
+        await deps.waitForAnimationFinish(anim, durationMs, 120);
+    } finally {
+        cleanupTransientAnimation(projectile, anim ? [anim] : []);
+    }
 }
 
 async function animateDestroyDragonBreath(target: any, deps: DestroySourceAnimationDeps) {
     if (!target) return;
     if (deps.isNoAnim()) return;
+    if (deps.abortSignal?.aborted) return;
 
     const source = deps.resolveDestroyDragonSource(target);
     if (!source) return;
@@ -257,71 +378,57 @@ async function animateDestroyDragonBreath(target: any, deps: DestroySourceAnimat
 
     layer.appendChild(beam);
     layer.appendChild(muzzle);
-    layer.appendChild(impact);
-    document.body.appendChild(layer);
+    if (!deps.suppressTargetImpact) layer.appendChild(impact);
+    appendTransientOverlay(layer, deps);
 
-    await new Promise<void>((resolve) => {
-        let timeoutId: any = null;
-        let done = false;
-        const finish = () => {
-            if (done) return;
-            done = true;
-            if (timeoutId !== null) {
-                try { deps.timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
-                timeoutId = null;
-            }
-            resolve();
-        };
-
+    const animations: any[] = [];
+    try {
         try {
             if (beam.animate) {
-                beam.animate([
-                    { offset: 0, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.2)` },
-                    { offset: 0.18, opacity: 1, transform: `rotate(${angleDeg}deg) scaleX(1)` },
-                    { offset: 0.72, opacity: 0.94, transform: `rotate(${angleDeg}deg) scaleX(1)` },
-                    { offset: 1, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.92)` }
-                ], {
-                    duration: durationMs,
-                    easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)'
-                });
+                animations.push(beam.animate([
+                        { offset: 0, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.2)` },
+                        { offset: 0.18, opacity: 1, transform: `rotate(${angleDeg}deg) scaleX(1)` },
+                        { offset: 0.72, opacity: 0.94, transform: `rotate(${angleDeg}deg) scaleX(1)` },
+                        { offset: 1, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.92)` }
+                    ], {
+                        duration: durationMs,
+                        easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)'
+                }));
             }
             if (muzzle.animate) {
-                muzzle.animate([
-                    { offset: 0, opacity: 0, transform: 'scale(0.35)' },
-                    { offset: 0.24, opacity: 1, transform: 'scale(1.08)' },
-                    { offset: 0.68, opacity: 0.86, transform: 'scale(0.98)' },
-                    { offset: 1, opacity: 0, transform: 'scale(0.7)' }
-                ], {
-                    duration: Math.max(220, durationMs - 30),
-                    easing: 'ease-out'
-                });
+                animations.push(muzzle.animate([
+                        { offset: 0, opacity: 0, transform: 'scale(0.35)' },
+                        { offset: 0.24, opacity: 1, transform: 'scale(1.08)' },
+                        { offset: 0.68, opacity: 0.86, transform: 'scale(0.98)' },
+                        { offset: 1, opacity: 0, transform: 'scale(0.7)' }
+                    ], {
+                        duration: Math.max(220, durationMs - 30),
+                        easing: 'ease-out'
+                }));
             }
-            if (impact.animate) {
-                impact.animate([
-                    { offset: 0, opacity: 0, transform: 'scale(0.35)' },
-                    { offset: 0.22, opacity: 1, transform: 'scale(1.15)' },
-                    { offset: 0.7, opacity: 0.88, transform: 'scale(1.35)' },
-                    { offset: 1, opacity: 0, transform: 'scale(1.75)' }
-                ], {
-                    duration: Math.max(260, durationMs + 40),
-                    easing: 'ease-out'
-                });
+            if (!deps.suppressTargetImpact && impact.animate) {
+                animations.push(impact.animate([
+                        { offset: 0, opacity: 0, transform: 'scale(0.35)' },
+                        { offset: 0.22, opacity: 1, transform: 'scale(1.15)' },
+                        { offset: 0.7, opacity: 0.88, transform: 'scale(1.35)' },
+                        { offset: 1, opacity: 0, transform: 'scale(1.75)' }
+                    ], {
+                        duration: Math.max(260, durationMs + 40),
+                        easing: 'ease-out'
+                }));
             }
         } catch (e: any) { /* ignore */ }
 
-        try {
-            timeoutId = deps.timer().setTimeout(finish, durationMs + 120, deps.playbackScope);
-        } catch (e: any) {
-            timeoutId = setTimeout(finish, durationMs + 120);
-        }
-    });
-
-    if (layer.parentElement) layer.parentElement.removeChild(layer);
+        await waitForScopedDeadline(deps, durationMs + 120);
+    } finally {
+        cleanupTransientAnimation(layer, animations);
+    }
 }
 
 async function animateMeteorGodBlackBeam(target: any, deps: DestroySourceAnimationDeps) {
     if (!target) return;
     if (deps.isNoAnim()) return;
+    if (deps.abortSignal?.aborted) return;
 
     const source = deps.resolveSniperSource(target);
     if (!source) return;
@@ -417,93 +524,81 @@ async function animateMeteorGodBlackBeam(target: any, deps: DestroySourceAnimati
     layer.appendChild(outerBeam);
     layer.appendChild(coreBeam);
     layer.appendChild(muzzle);
-    layer.appendChild(impact);
-    layer.appendChild(ring);
-    document.body.appendChild(layer);
+    if (!deps.suppressTargetImpact) {
+        layer.appendChild(impact);
+        layer.appendChild(ring);
+    }
+    appendTransientOverlay(layer, deps);
 
-    await new Promise<void>((resolve) => {
-        let timeoutId: any = null;
-        let done = false;
-        const finish = () => {
-            if (done) return;
-            done = true;
-            if (timeoutId !== null) {
-                try { deps.timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
-                timeoutId = null;
-            }
-            resolve();
-        };
-
+    const animations: any[] = [];
+    try {
         try {
             if (outerBeam.animate) {
-                outerBeam.animate([
-                    { offset: 0, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.08)` },
-                    { offset: 0.16, opacity: 1, transform: `rotate(${angleDeg}deg) scaleX(1)` },
-                    { offset: 0.74, opacity: 0.94, transform: `rotate(${angleDeg}deg) scaleX(1)` },
-                    { offset: 1, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.96)` }
-                ], {
-                    duration: durationMs,
-                    easing: 'cubic-bezier(0.2, 0.78, 0.18, 1)'
-                });
+                animations.push(outerBeam.animate([
+                        { offset: 0, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.08)` },
+                        { offset: 0.16, opacity: 1, transform: `rotate(${angleDeg}deg) scaleX(1)` },
+                        { offset: 0.74, opacity: 0.94, transform: `rotate(${angleDeg}deg) scaleX(1)` },
+                        { offset: 1, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.96)` }
+                    ], {
+                        duration: durationMs,
+                        easing: 'cubic-bezier(0.2, 0.78, 0.18, 1)'
+                }));
             }
             if (coreBeam.animate) {
-                coreBeam.animate([
-                    { offset: 0, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.04)` },
-                    { offset: 0.12, opacity: 1, transform: `rotate(${angleDeg}deg) scaleX(1)` },
-                    { offset: 0.7, opacity: 1, transform: `rotate(${angleDeg}deg) scaleX(1)` },
-                    { offset: 1, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.9)` }
-                ], {
-                    duration: Math.max(220, durationMs - 30),
-                    easing: 'cubic-bezier(0.18, 0.9, 0.2, 1)'
-                });
+                animations.push(coreBeam.animate([
+                        { offset: 0, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.04)` },
+                        { offset: 0.12, opacity: 1, transform: `rotate(${angleDeg}deg) scaleX(1)` },
+                        { offset: 0.7, opacity: 1, transform: `rotate(${angleDeg}deg) scaleX(1)` },
+                        { offset: 1, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.9)` }
+                    ], {
+                        duration: Math.max(220, durationMs - 30),
+                        easing: 'cubic-bezier(0.18, 0.9, 0.2, 1)'
+                }));
             }
             if (muzzle.animate) {
-                muzzle.animate([
-                    { offset: 0, opacity: 0, transform: 'scale(0.45)' },
-                    { offset: 0.18, opacity: 0.95, transform: 'scale(1.1)' },
-                    { offset: 0.72, opacity: 0.78, transform: 'scale(0.92)' },
-                    { offset: 1, opacity: 0, transform: 'scale(0.58)' }
-                ], {
-                    duration: durationMs,
-                    easing: 'ease-out'
-                });
+                animations.push(muzzle.animate([
+                        { offset: 0, opacity: 0, transform: 'scale(0.45)' },
+                        { offset: 0.18, opacity: 0.95, transform: 'scale(1.1)' },
+                        { offset: 0.72, opacity: 0.78, transform: 'scale(0.92)' },
+                        { offset: 1, opacity: 0, transform: 'scale(0.58)' }
+                    ], {
+                        duration: durationMs,
+                        easing: 'ease-out'
+                }));
             }
-            if (impact.animate) {
-                impact.animate([
-                    { offset: 0, opacity: 0, transform: 'scale(0.28)' },
-                    { offset: 0.18, opacity: 0.9, transform: 'scale(1.18)' },
-                    { offset: 0.74, opacity: 0.88, transform: 'scale(0.82)' },
-                    { offset: 1, opacity: 0, transform: 'scale(0.22)' }
-                ], {
-                    duration: Math.max(240, durationMs + 60),
-                    easing: 'cubic-bezier(0.16, 0.82, 0.24, 1)'
-                });
+            if (!deps.suppressTargetImpact && impact.animate) {
+                animations.push(impact.animate([
+                        { offset: 0, opacity: 0, transform: 'scale(0.28)' },
+                        { offset: 0.18, opacity: 0.9, transform: 'scale(1.18)' },
+                        { offset: 0.74, opacity: 0.88, transform: 'scale(0.82)' },
+                        { offset: 1, opacity: 0, transform: 'scale(0.22)' }
+                    ], {
+                        duration: Math.max(240, durationMs + 60),
+                        easing: 'cubic-bezier(0.16, 0.82, 0.24, 1)'
+                }));
             }
-            if (ring.animate) {
-                ring.animate([
-                    { offset: 0, opacity: 0, transform: 'scale(1.32)' },
-                    { offset: 0.2, opacity: 0.92, transform: 'scale(1.02)' },
-                    { offset: 1, opacity: 0, transform: 'scale(0.18)' }
-                ], {
-                    duration: Math.max(240, durationMs + 70),
-                    easing: 'cubic-bezier(0.2, 0.72, 0.2, 1)'
-                });
+            if (!deps.suppressTargetImpact && ring.animate) {
+                animations.push(ring.animate([
+                        { offset: 0, opacity: 0, transform: 'scale(1.32)' },
+                        { offset: 0.2, opacity: 0.92, transform: 'scale(1.02)' },
+                        { offset: 1, opacity: 0, transform: 'scale(0.18)' }
+                    ], {
+                        duration: Math.max(240, durationMs + 70),
+                        easing: 'cubic-bezier(0.2, 0.72, 0.2, 1)'
+                }));
             }
         } catch (e: any) { /* ignore */ }
 
-        try {
-            timeoutId = deps.timer().setTimeout(finish, durationMs + 140, deps.playbackScope);
-        } catch (e: any) {
-            timeoutId = setTimeout(finish, durationMs + 140);
-        }
-    });
-
-    if (layer.parentElement) layer.parentElement.removeChild(layer);
+        await waitForScopedDeadline(deps, durationMs + 140);
+    } finally {
+        cleanupTransientAnimation(layer, animations);
+    }
 }
 
 async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimationDeps) {
     if (!target) return;
     if (deps.isNoAnim()) return;
+    if (deps.abortSignal?.aborted) return;
 
     const source = deps.resolveSniperSource(target);
     if (!source) return;
@@ -638,7 +733,7 @@ async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimati
     flash.style.filter = 'drop-shadow(0 0 16px rgba(160, 236, 255, 0.95))';
     flash.style.pointerEvents = 'none';
     flash.style.zIndex = '1251';
-    overlay.appendChild(flash);
+    if (!deps.suppressTargetImpact) overlay.appendChild(flash);
 
     const ring = document.createElement('div');
     ring.style.position = 'fixed';
@@ -651,7 +746,7 @@ async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimati
     ring.style.border = '2px solid rgba(173, 238, 255, 0.9)';
     ring.style.pointerEvents = 'none';
     ring.style.zIndex = '1251';
-    overlay.appendChild(ring);
+    if (!deps.suppressTargetImpact) overlay.appendChild(ring);
 
     appendTransientOverlay(overlay, deps);
 
@@ -709,7 +804,7 @@ async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimati
         });
     }
 
-    queueAnimation(flash, [
+    if (!deps.suppressTargetImpact) queueAnimation(flash, [
         { opacity: 0.2, transform: 'translate(-50%, -50%) scale(0.1)' },
         { opacity: 1, transform: 'translate(-50%, -50%) scale(1.3)', offset: 0.24 },
         { opacity: 0, transform: 'translate(-50%, -50%) scale(2.6)', offset: 1 }
@@ -719,7 +814,7 @@ async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimati
         fill: 'forwards'
     });
 
-    queueAnimation(ring, [
+    if (!deps.suppressTargetImpact) queueAnimation(ring, [
         { opacity: 0.85, transform: 'translate(-50%, -50%) scale(0.2)' },
         { opacity: 0.5, transform: 'translate(-50%, -50%) scale(1.4)', offset: 0.48 },
         { opacity: 0, transform: 'translate(-50%, -50%) scale(2.1)', offset: 1 }
@@ -731,63 +826,19 @@ async function animateUdgLightningStrike(target: any, deps: DestroySourceAnimati
 
     try {
         if (!animations.length) {
-            await new Promise((resolve) => {
-                try {
-                    deps.timer().setTimeout(resolve, durationMs + 40, deps.playbackScope);
-                } catch (e: any) {
-                    setTimeout(resolve, durationMs + 40);
-                }
-            });
+            await waitForScopedDeadline(deps, durationMs + 40);
             return;
         }
 
-        await new Promise<void>((resolve) => {
-            let timeoutId: any = null;
-            let done = false;
-            const finish = () => {
-                if (done) return;
-                done = true;
-                if (timeoutId !== null) {
-                    try { deps.timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
-                    timeoutId = null;
-                }
-                resolve();
-            };
-
-            let settled = 0;
-            const expected = animations.length;
-            for (const anim of animations) {
-                try {
-                    if (anim && anim.finished && typeof anim.finished.then === 'function') {
-                        anim.finished.then(() => {
-                            settled += 1;
-                            if (settled >= expected) finish();
-                        }).catch(() => {
-                            settled += 1;
-                            if (settled >= expected) finish();
-                        });
-                    } else {
-                        settled += 1;
-                    }
-                } catch (e: any) {
-                    settled += 1;
-                }
-            }
-
-            if (settled >= expected) finish();
-            try {
-                timeoutId = deps.timer().setTimeout(finish, durationMs + 140, deps.playbackScope);
-            } catch (e: any) {
-                timeoutId = setTimeout(finish, durationMs + 140);
-            }
-        });
+        await waitForAnimationsOrDeadline(deps, animations, durationMs + 140);
     } finally {
-        if (overlay && overlay.parentElement) overlay.parentElement.removeChild(overlay);
+        cleanupTransientAnimation(overlay, animations);
     }
 }
 
 async function animateWillHunterKingSlash(target: any, deps: DestroySourceAnimationDeps) {
     if (!target || deps.isNoAnim()) return;
+    if (deps.abortSignal?.aborted) return;
 
     const cellRect = deps.getCellClientRect(target.r, target.col);
     if (!cellRect) return;
@@ -814,12 +865,13 @@ async function animateWillHunterKingSlash(target: any, deps: DestroySourceAnimat
     slash.style.setProperty('--slash-angle-deg', `${angleDeg}deg`);
     slash.style.pointerEvents = 'none';
     slash.style.zIndex = '1300';
-    document.body.appendChild(slash);
+    appendTransientOverlay(slash, deps);
 
     const durationMs = 280;
+    let anim: any = null;
     try {
         if (typeof slash.animate === 'function') {
-            const anim = slash.animate([
+            anim = slash.animate([
                 { opacity: 0, transform: 'scale(0.6)' },
                 { opacity: 1, transform: 'scale(1)' },
                 { opacity: 0, transform: 'scale(1.08)' }
@@ -832,7 +884,7 @@ async function animateWillHunterKingSlash(target: any, deps: DestroySourceAnimat
             await deps.sleep(durationMs);
         }
     } finally {
-        try { if (slash.parentElement) slash.parentElement.removeChild(slash); } catch (e: any) { /* ignore */ }
+        cleanupTransientAnimation(slash, anim ? [anim] : []);
     }
 }
 

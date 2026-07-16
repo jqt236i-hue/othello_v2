@@ -1174,6 +1174,8 @@ let BoardInputDeferredOverlayRenderGenerationForBoardRenderer = 0;
 let BoardInputDeferredOverlayRenderForBoardRenderer: Promise<void> | null = null;
 let BoardAccessibilityLayerForBoardRenderer: any = null;
 const PreparedBoardVisualUpdatesForBoardRenderer = new WeakSet<object>();
+const BoardVisualWorldStateByFrameForBoardRenderer = new WeakMap<object, any>();
+let LastPixiBoardExpansionRevealSoundKeyForBoardRenderer: string | null = null;
 
 const PIXI_INITIAL_FALLBACK_ERROR_CODES_FOR_BOARD_RENDERER = new Set([
     'pixi_runtime_unavailable',
@@ -1323,13 +1325,47 @@ function _createDomBoardVisualBackendForBoardRenderer() {
     );
 }
 
+function _playPixiBoardExpansionRevealSoundForBoardRenderer(
+    keys: readonly string[],
+    frame: any
+) {
+    if (!Array.isArray(keys) || keys.length === 0) return;
+    const captured = frame && typeof frame === 'object'
+        ? BoardVisualWorldStateByFrameForBoardRenderer.get(frame)
+        : null;
+    if (captured && captured.boardUpdateContext
+        && captured.boardUpdateContext.suppressBoardExpansionRevealSound === true) {
+        return;
+    }
+    const soundKey = `${String(frame && frame.frameToken || '')}:${keys.slice().sort().join('|')}`;
+    if (soundKey === LastPixiBoardExpansionRevealSoundKeyForBoardRenderer) return;
+    LastPixiBoardExpansionRevealSoundKeyForBoardRenderer = soundKey;
+    const play = () => {
+        try {
+            const soundEngine = _resolveSoundEngineForBoardRenderer();
+            if (!soundEngine || typeof soundEngine.playEffectByKey !== 'function') return;
+            if (typeof soundEngine.init === 'function') soundEngine.init();
+            soundEngine.playEffectByKey('board_expansion_reveal');
+        } catch (e: any) { /* presentation sound must not fail board settlement */ }
+    };
+    try {
+        const root = typeof window !== 'undefined' ? window : null;
+        if (root && typeof root.requestAnimationFrame === 'function') {
+            root.requestAnimationFrame(play);
+            return;
+        }
+    } catch (e: any) { /* synchronous fallback */ }
+    play();
+}
+
 function _createPixiBoardVisualBackendForBoardRenderer(noAnimation: boolean) {
     const options = Object.freeze({
         noAnimation,
         // Backend mount precedes UI event activation. Resolve lazily so the
         // adapter can exist while BoardInputController remains disabled until
         // bootstrap finishes the visual-ready gate.
-        getInputController: () => getBoardInputController()
+        getInputController: () => getBoardInputController(),
+        onTopologyRevealStart: _playPixiBoardExpansionRevealSoundForBoardRenderer
     });
     const testFactory = BoardVisualBackendTestConfigForBoardRenderer
         && BoardVisualBackendTestConfigForBoardRenderer.createPixiBackend;
@@ -2205,8 +2241,52 @@ function _capPixiBoardViewportForBoardRenderer(host: any, topology: any) {
     }
 }
 
+function _createCommittedWorldStateCallbackForBoardRenderer(frame: any, backendKind: unknown) {
+    let committed = false;
+    const captured = frame && typeof frame === 'object'
+        ? BoardVisualWorldStateByFrameForBoardRenderer.get(frame)
+        : null;
+    const DiffRendererModule = _require('./diff-renderer');
+    const manifestPresentationState = captured
+        && Object.prototype.hasOwnProperty.call(captured, 'manifestPresentationState')
+        ? captured.manifestPresentationState
+        : (
+            DiffRendererModule
+            && typeof DiffRendererModule.createCommittedManifestPresentationState === 'function'
+                ? DiffRendererModule.createCommittedManifestPresentationState(
+                    _resolveBoardRenderStateForBoardRenderer().cardState
+                )
+                : null
+        );
+    return () => {
+        if (committed) return;
+        committed = true;
+        if (!DiffRendererModule || typeof DiffRendererModule.presentCommittedWorldState !== 'function') return;
+        DiffRendererModule.presentCommittedWorldState(manifestPresentationState);
+        if (backendKind === 'pixi') {
+            if (captured && captured.boardUpdateSyncContext) {
+                const syncRuntime = _getBoardUpdateSyncRuntimeForBoardRenderer();
+                if (syncRuntime && typeof syncRuntime.consumeBoardUpdateSyncContext === 'function') {
+                    syncRuntime.consumeBoardUpdateSyncContext();
+                }
+            }
+            if (captured && captured.boardUpdateContext
+                && PlaybackStateModule
+                && typeof PlaybackStateModule.consumeBoardUpdateContext === 'function') {
+                PlaybackStateModule.consumeBoardUpdateContext();
+            }
+        }
+    };
+}
+
 function _beginBoardVisualApplyTransactionForBoardRenderer(frame: any, context: any) {
-    if (!context || context.backendKind !== 'pixi') return Object.freeze({ frame });
+    const commitWorldState = _createCommittedWorldStateCallbackForBoardRenderer(
+        frame,
+        context && context.backendKind
+    );
+    if (!context || context.backendKind !== 'pixi') {
+        return Object.freeze({ frame, commit: commitWorldState });
+    }
     const host = context.host || _resolveBoardElementForVisualRuntime();
     if (!host) throw new Error('Pixi board presentation host is unavailable');
     const FramePresenterModule = _require('./board-visual/frame-presenter');
@@ -2230,6 +2310,7 @@ function _beginBoardVisualApplyTransactionForBoardRenderer(frame: any, context: 
         const presentedFrame = _createBoardVisualFrameWithLiveLayoutForBoardRenderer(host, frame);
         return Object.freeze({
             frame: presentedFrame,
+            commit: commitWorldState,
             rollback: snapshot.rollback
         });
     } catch (error) {
@@ -2361,7 +2442,7 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
     if (!BoardVisualFrameRevisionComposerForBoardRenderer) {
         BoardVisualFrameRevisionComposerForBoardRenderer = FramePresenterModule.createBoardVisualFrameRevisionComposer();
     }
-    return BoardVisualFrameRevisionComposerForBoardRenderer.compose(Object.freeze({
+    const frame = BoardVisualFrameRevisionComposerForBoardRenderer.compose(Object.freeze({
         model,
         layout,
         appearance,
@@ -2369,6 +2450,27 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
         frameToken,
         renderSessionId: `board-render-session:${BoardVisualRenderSessionEpochForBoardRenderer}`
     }));
+    let boardUpdateContext: any = null;
+    try {
+        if (PlaybackStateModule && typeof PlaybackStateModule.getBoardUpdateContext === 'function') {
+            const value = PlaybackStateModule.getBoardUpdateContext();
+            if (value && typeof value === 'object') boardUpdateContext = Object.freeze({ ...value });
+        }
+    } catch (e: any) { /* absent context */ }
+    const boardUpdateSyncContextValue = _peekBoardUpdateSyncContextForBoardRenderer();
+    if (typeof DiffRendererModule.createCommittedManifestPresentationState !== 'function') {
+        throw new Error('Committed manifest presentation snapshot capability is unavailable');
+    }
+    BoardVisualWorldStateByFrameForBoardRenderer.set(frame, Object.freeze({
+        manifestPresentationState: DiffRendererModule.createCommittedManifestPresentationState(
+            inputs.baseVisualState && (inputs.baseVisualState as any).cardState
+        ),
+        boardUpdateContext,
+        boardUpdateSyncContext: boardUpdateSyncContextValue && typeof boardUpdateSyncContextValue === 'object'
+            ? Object.freeze({ ...boardUpdateSyncContextValue })
+            : null
+    }));
+    return frame;
 }
 
 function resetBoardVisualRenderSession() {
@@ -2385,6 +2487,7 @@ function resetBoardVisualRenderSession() {
     BoardVisualRenderSessionEpochForBoardRenderer = BoardVisualRenderSessionEpochForBoardRenderer >= Number.MAX_SAFE_INTEGER
         ? 1
         : BoardVisualRenderSessionEpochForBoardRenderer + 1;
+    LastPixiBoardExpansionRevealSoundKeyForBoardRenderer = null;
     return `board-render-session:${BoardVisualRenderSessionEpochForBoardRenderer}`;
 }
 

@@ -997,6 +997,45 @@ describe('animation-engine guard timer rendering', () => {
     delete global.SoundEngine;
   });
 
+  test('manifest_ending は abortAndSync 直後に暗転overlayと再生待機を解放する', async () => {
+    jest.useFakeTimers();
+    global.SoundEngine = { syncManifestBgmOverride: jest.fn() };
+    global.window.PLAYBACK_WATCHDOG_MS = 30000;
+
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
+    const cell = document.createElement('div');
+    cell.className = 'cell has-disc';
+    cell.dataset.row = '1';
+    cell.dataset.col = '2';
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone manifest-stone-aura';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    const playPromise = engine.play([{
+      type: 'manifest_ending',
+      phase: 1,
+      targets: [{
+        r: 1,
+        col: 2,
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    }]);
+    await Promise.resolve();
+
+    expect(document.querySelector('.manifest-ending-overlay')).toBeTruthy();
+    engine.abortAndSync();
+    await expect(playPromise).resolves.toBeUndefined();
+
+    expect(document.querySelector('.manifest-ending-overlay')).toBeNull();
+    expect(board.classList.contains('playback-locked')).toBe(false);
+    expect(jest.getTimerCount()).toBe(0);
+
+    jest.useRealTimers();
+    delete global.SoundEngine;
+  });
+
   test('DOM backend removes frozen-cell visuals after fade', async () => {
     const engine = require('../ui/animation-engine');
     setAnimationEngineDomBackendSleepControl();

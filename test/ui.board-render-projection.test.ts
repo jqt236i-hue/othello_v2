@@ -77,6 +77,33 @@ describe('per-render board projection', () => {
     expect(diff.createBoardRenderProjection().gameState).toBe((global as any).gameState);
   });
 
+  test('preserves explicit regen and evade counters on every special-stone visual', () => {
+    (global as any).gameState.board[1][1] = 1;
+    (global as any).cardState.markers.push({
+      id: 'hyperactive-counters',
+      kind: 'specialStone',
+      row: 1,
+      col: 1,
+      owner: 'black',
+      data: {
+        type: 'HYPERACTIVE',
+        remainingOwnerTurns: 12,
+        regenRemaining: 3,
+        flipEvadeRemaining: 2
+      }
+    });
+    const diff = require('../ui/diff-renderer.js');
+
+    const state = diff.buildCurrentCellState(diff.createBoardRenderProjection());
+
+    expect(state[1][1].special).toMatchObject({
+      type: 'HYPERACTIVE',
+      remainingOwnerTurns: 12,
+      regenRemaining: 3,
+      flipEvadeRemaining: 2
+    });
+  });
+
   test('builds one immutable sparse semantic model from explicit render inputs', () => {
     const diff = require('../ui/diff-renderer.js');
     const inputs = diff.createBoardRenderInputs({ hoveredCellKey: '2,3', keyboardCursorKey: '2,3' });

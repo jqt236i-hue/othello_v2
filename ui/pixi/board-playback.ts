@@ -4,6 +4,7 @@ import type { PresentationPlaybackEvent } from '../board-visual/playback-types';
 import {
   PresentationPlaybackError,
   isBoardPlaybackEvent,
+  isHybridPresentationEvent,
   isKnownGlobalPresentationEvent,
   normalizePresentationEventType
 } from '../board-visual/playback-types';
@@ -16,6 +17,9 @@ import type {
   PixiBoardScene,
   PixiPlaybackCellHighlightHandle,
   PixiPlaybackCellHighlightTone,
+  PixiPlaybackEffectHandle,
+  PixiPlaybackEffectOptions,
+  PixiPlaybackEffectUpdate,
   PixiPlaybackGhostHandle,
   PixiPlaybackGhostUpdate,
   PixiPlaybackProjectionScope
@@ -39,6 +43,16 @@ import { playPixiMoveEffect } from './effects/move';
 import { playPixiPlaceEffect } from './effects/place';
 import { playPixiSpawnEffect } from './effects/spawn';
 import { playPixiStatusEffect } from './effects/status';
+import {
+  playPixiCrossfadeStoneEffect,
+  playPixiLegacyFadeOutEffect,
+  playPixiLegacyHyperactiveMoveEffect,
+  playPixiLegacySacrificeAbsorbPulseEffect,
+  playPixiLegacyStrongWillApplyEffect,
+  playPixiProtectionExpireEffect
+} from './effects/special-stone';
+import { playPixiTheoryIncarnationEffect } from './effects/theory-incarnation';
+import { playPixiManifestEndingBoardEffect } from './effects/manifest';
 import type {
   PixiBoardEffectPlayer,
   PixiBoardEffectProjection,
@@ -65,7 +79,9 @@ export interface PixiBoardPlaybackDiagnostics {
   readonly activeScopeKey: string | null;
   readonly projectedStoneCount: number;
   readonly retainedFinalGhostCount: number;
+  readonly retainedFinalEffectCount: number;
   readonly inFlightEffectCount: number;
+  readonly inFlightTopologyRevealCount: number;
   readonly phaseCount: number;
   readonly completedPhaseCount: number;
   readonly failedPhaseCount: number;
@@ -76,6 +92,7 @@ export interface PixiBoardPlayback {
   readonly kind: 'pixi-board-playback';
   validatePhase(events: readonly unknown[], context: BoardPlaybackValidationContext): void;
   playPhase(events: readonly unknown[], context: BoardPlaybackContext): Promise<void>;
+  revealTopologyCells(keys: readonly string[]): Promise<void>;
   /** Call only after a non-reflow scene frame has rendered successfully. */
   onFrameApplied(): void;
   abort(reason?: unknown): number;
@@ -110,8 +127,15 @@ const DEFAULT_TIMINGS: PixiBoardEffectTimings = Object.freeze({
   regenConsumeFadeMs: Number(AnimationConstants.REGEN_CONSUME_FADE_MS) || 500,
   positiveHighlightMinimumMs: Number(AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS) || 500,
   zombieBiteMs: 800,
-  teleportPulseMs: 140
+  teleportPulseMs: 140,
+  strongWillApplyMs: 600,
+  sacrificeAbsorbMs: 2600,
+  theoryRouletteMs: Number(AnimationConstants.THEORY_SPAWN_ROULETTE_MS) || 2500,
+  theoryMaterializeMs: Number(AnimationConstants.THEORY_SPAWN_MATERIALIZE_MS) || 2000,
+  manifestEndingMs: 2000
 });
+
+const TOPOLOGY_REVEAL_MS = 260;
 
 function coordinateKey(row: number, col: number): string {
   return `${Math.trunc(Number(row))},${Math.trunc(Number(col))}`;
@@ -119,6 +143,24 @@ function coordinateKey(row: number, col: number): string {
 
 function resolveBoolean(policy: PixiTimelineBooleanPolicy | undefined): boolean {
   return typeof policy === 'function' ? policy() === true : policy === true;
+}
+
+/** CSS `ease-out` is cubic-bezier(0, 0, 0.58, 1). */
+function cssEaseOutProgress(rawProgress: number): number {
+  const progress = Math.max(0, Math.min(1, Number(rawProgress) || 0));
+  if (progress === 0 || progress === 1) return progress;
+  let lower = 0;
+  let upper = 1;
+  let parameter = progress;
+  for (let iteration = 0; iteration < 12; iteration += 1) {
+    const inverse = 1 - parameter;
+    const x = 3 * inverse * parameter * parameter * 0.58 + parameter * parameter * parameter;
+    if (x < progress) lower = parameter;
+    else upper = parameter;
+    parameter = (lower + upper) / 2;
+  }
+  const inverse = 1 - parameter;
+  return 3 * inverse * parameter * parameter + parameter * parameter * parameter;
 }
 
 function scopeKey(context: BoardPlaybackContext): string {
@@ -162,6 +204,14 @@ function requirePlayer(
     case 'move': return playPixiMoveEffect;
     case 'status_applied':
     case 'status_removed': return playPixiStatusEffect;
+    case 'crossfade_stone': return playPixiCrossfadeStoneEffect;
+    case 'protection_expire': return playPixiProtectionExpireEffect;
+    case 'legacy_fade_out': return playPixiLegacyFadeOutEffect;
+    case 'legacy_strong_will_apply': return playPixiLegacyStrongWillApplyEffect;
+    case 'legacy_hyperactive_move': return playPixiLegacyHyperactiveMoveEffect;
+    case 'legacy_sacrifice_absorb_pulse': return playPixiLegacySacrificeAbsorbPulseEffect;
+    case 'theory_incarnation_spawn_roulette': return playPixiTheoryIncarnationEffect;
+    case 'manifest_ending': return playPixiManifestEndingBoardEffect;
     default:
       throw new PresentationPlaybackError('board_event_unimplemented', event, {
         strictNetworkPlayback: context?.strictNetworkPlayback === true
@@ -196,7 +246,8 @@ function validateDestroyPresentation(
 ): void {
   const targets = Array.isArray(event.targets) ? event.targets : [];
   const unsupported = targets.find((target) => (
-    PresentationEffectProfiles.isNonGenericDestroyTarget(target as any)
+    PresentationEffectProfiles.requiresGlobalDestroyPrelude(target as any)
+      && typeof context?.phaseScope?.waitForTargetPrelude !== 'function'
   ));
   if (!unsupported) return;
   throw new PresentationPlaybackError('board_event_unimplemented', event, {
@@ -209,7 +260,7 @@ function validatePixiCapabilityEvent(
   context: BoardPlaybackValidationContext
 ): void {
   if (isKnownGlobalPresentationEvent(candidate)) return;
-  if (!isBoardPlaybackEvent(candidate)) {
+  if (!isBoardPlaybackEvent(candidate) && !isHybridPresentationEvent(candidate)) {
     throw new PresentationPlaybackError('board_event_unimplemented', candidate, {
       strictNetworkPlayback: context?.strictNetworkPlayback === true
     });
@@ -233,11 +284,17 @@ function collectPhaseCoordinateKeys(events: readonly unknown[]): readonly string
       : null;
     if (!event) continue;
     add(event);
+    add((event as any).from);
+    add((event as any).to);
     for (const target of event.targets || []) {
       add(target);
       if (target && typeof target === 'object') {
         add((target as any).from);
         add((target as any).to);
+        add((target as any).selectedCell);
+        for (const candidate of Array.isArray((target as any).candidateCells)
+          ? (target as any).candidateCells
+          : []) add(candidate);
       }
     }
   }
@@ -262,9 +319,12 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
   });
   const projectedStones = new Map<string, PixiPlaybackStoneVisual | null>();
   const retainedFinalGhosts = new Map<string, PixiPlaybackGhostHandle>();
+  const retainedFinalEffects = new Map<string, PixiPlaybackEffectHandle>();
+  const retainedFinalEffectKeysByHandle = new Map<number, string>();
   const phaseSourceSnapshots = new WeakMap<object, ReadonlyMap<string, PixiPlaybackStoneVisual | null>>();
   const phaseSettlements = new WeakMap<object, PixiPhaseSettlementState>();
   const inFlightEffects = new Set<Promise<void>>();
+  const inFlightTopologyReveals = new Set<Promise<void>>();
   let activeScope: PixiPlaybackProjectionScope | null = null;
   let destroyed = false;
   let phaseCount = 0;
@@ -275,6 +335,8 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     activeScope = null;
     projectedStones.clear();
     retainedFinalGhosts.clear();
+    retainedFinalEffects.clear();
+    retainedFinalEffectKeysByHandle.clear();
   }
 
   function synchronizeSceneScope(): void {
@@ -300,7 +362,9 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     const expectedNonFlipCounts = new Map<PresentationPlaybackEvent, number>();
     const mutationCounts = new Map<string, number>();
     const terminalWrites = new Map<string, PixiPlaybackStoneVisual | null>();
-    const boardEvents = validationEvents.filter(isBoardPlaybackEvent) as PresentationPlaybackEvent[];
+    const boardEvents = validationEvents.filter((event) => (
+      isBoardPlaybackEvent(event) || isHybridPresentationEvent(event)
+    )) as PresentationPlaybackEvent[];
     for (const event of boardEvents) {
       const type = normalizePresentationEventType(event);
       if (type === 'flip') {
@@ -350,6 +414,9 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       }
       if (type === 'destroy') {
         for (const target of event.targets || []) {
+          if (PresentationEffectProfiles.getSpecialDestroyTargetProfileKey(target as any) === 'gluttonousEat') {
+            continue;
+          }
           const meta = target && typeof target === 'object' && (target as any).meta
             && typeof (target as any).meta === 'object'
             ? (target as any).meta
@@ -362,6 +429,22 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
           countMutation(key);
           terminalWrites.set(key, null);
         }
+        continue;
+      }
+      if (type === 'legacy_fade_out') {
+        const key = coordinateKeyOf(event);
+        countMutation(key);
+        if (key) terminalWrites.set(key, null);
+        continue;
+      }
+      if (type === 'legacy_hyperactive_move') {
+        const fromKey = coordinateKeyOf((event as any).from);
+        const toKey = coordinateKeyOf((event as any).to);
+        countMutation(fromKey);
+        countMutation(toKey);
+        if (fromKey) terminalWrites.set(fromKey, null);
+        // The move player retains the source visual at the destination. Its
+        // concrete terminal write is already deterministic inside that player.
         continue;
       }
       if (type === 'move') {
@@ -481,6 +564,16 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     scene.releasePlaybackGhost(scope, handle);
   }
 
+  function releaseRetainedFinalEffect(key: string, scope: PixiPlaybackProjectionScope): void {
+    const handle = retainedFinalEffects.get(key);
+    if (!handle) return;
+    retainedFinalEffects.delete(key);
+    retainedFinalEffectKeysByHandle.delete(handle.id);
+    if (scene.getDiagnostics().playbackScopeKey !== scope.key) return;
+    if (!scene.getPlaybackEffect(handle)) return;
+    scene.releasePlaybackEffect(scope, handle);
+  }
+
   function createProjection(
     context: BoardPlaybackContext,
     phaseSourceSnapshot: ReadonlyMap<string, PixiPlaybackStoneVisual | null>
@@ -490,12 +583,23 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     if (!frame) throw new Error('Pixi board playback visual frame is unavailable');
     return Object.freeze({
       frame,
+      phaseEvents: Object.freeze(Array.from(
+        context?.phaseScope && Array.isArray(context.phaseScope.events)
+          ? context.phaseScope.events
+          : []
+      )) as readonly PresentationPlaybackEvent[],
       scene,
       scope,
       timeline,
       timings,
       noAnimation: resolveBoolean(options.noAnimation),
       reducedMotion: resolveBoolean(options.reducedMotion),
+      waitForTargetPrelude(event: PresentationPlaybackEvent, target: unknown): Promise<void> {
+        const gate = context?.phaseScope?.waitForTargetPrelude;
+        return typeof gate === 'function'
+          ? Promise.resolve(gate(event, target))
+          : Promise.resolve();
+      },
       getProjectedStone(row: number, col: number): PixiPlaybackStoneVisual | null {
         return readProjectedStone(frame, row, col);
       },
@@ -546,6 +650,28 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       releaseHighlight(handle: PixiPlaybackCellHighlightHandle): void {
         if (scene.getDiagnostics().playbackScopeKey !== scope.key) return;
         scene.releasePlaybackCellHighlight(scope, handle);
+      },
+      acquireEffect(effectOptions: PixiPlaybackEffectOptions): PixiPlaybackEffectHandle {
+        return scene.acquirePlaybackEffect(scope, effectOptions);
+      },
+      updateEffect(handle: PixiPlaybackEffectHandle, update: PixiPlaybackEffectUpdate): void {
+        scene.updatePlaybackEffect(scope, handle, update);
+      },
+      retainEffect(row: number, col: number, handle: PixiPlaybackEffectHandle): void {
+        const key = coordinateKey(row, col);
+        const previous = retainedFinalEffects.get(key);
+        if (previous && previous.id !== handle.id) releaseRetainedFinalEffect(key, scope);
+        retainedFinalEffects.set(key, handle);
+        retainedFinalEffectKeysByHandle.set(handle.id, key);
+      },
+      releaseEffect(handle: PixiPlaybackEffectHandle): void {
+        if (scene.getDiagnostics().playbackScopeKey !== scope.key) return;
+        const retainedKey = retainedFinalEffectKeysByHandle.get(handle.id);
+        if (retainedKey) {
+          retainedFinalEffectKeysByHandle.delete(handle.id);
+          retainedFinalEffects.delete(retainedKey);
+        }
+        scene.releasePlaybackEffect(scope, handle);
       }
     });
   }
@@ -611,7 +737,9 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     if (!phaseEvents.length && !scopedEvents.length) return;
     const validated = validatePhaseInternal(phaseEvents, context);
     if (!phaseEvents.length) return;
-    const invalid = phaseEvents.find((event) => !isBoardPlaybackEvent(event));
+    const invalid = phaseEvents.find((event) => (
+      !isBoardPlaybackEvent(event) && !isHybridPresentationEvent(event)
+    ));
     if (invalid) {
       throw new PresentationPlaybackError('non_board_event_routed_to_board_backend', invalid, {
         strictNetworkPlayback: context?.strictNetworkPlayback === true
@@ -671,6 +799,50 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     }
   }
 
+  function revealTopologyCells(rawKeys: readonly string[]): Promise<void> {
+    if (destroyed) return Promise.reject(new Error('Pixi board playback is destroyed'));
+    const keys = Object.freeze(Array.from(new Set(
+      (Array.isArray(rawKeys) ? rawKeys : []).map((key) => String(key || '').trim()).filter(Boolean)
+    )));
+    if (!keys.length) return Promise.resolve();
+    const immediate = resolveBoolean(options.noAnimation);
+    const handle = scene.beginTopologyReveal(keys, immediate ? 1 : 0);
+    record('pixi-playback:topology-reveal-start', { keys });
+    if (immediate) {
+      scene.endTopologyReveal(handle);
+      record('pixi-playback:topology-reveal-complete', { keys, immediate: true });
+      return Promise.resolve();
+    }
+
+    let ended = false;
+    const endReveal = () => {
+      if (ended) return;
+      ended = true;
+      scene.endTopologyReveal(handle);
+    };
+    let tracked!: Promise<void>;
+    tracked = timeline.run({
+      durationMs: TOPOLOGY_REVEAL_MS,
+      effectFamily: 'board-expansion',
+      onUpdate(progress) {
+        scene.updateTopologyReveal(handle, cssEaseOutProgress(progress));
+      },
+      onSettled() {
+        endReveal();
+      }
+    }).then(() => {
+      record('pixi-playback:topology-reveal-complete', { keys, immediate: false });
+    }).finally(() => {
+      endReveal();
+      inFlightTopologyReveals.delete(tracked);
+      inFlightEffects.delete(tracked);
+    });
+    tracked.catch(() => undefined);
+    inFlightTopologyReveals.add(tracked);
+    inFlightEffects.add(tracked);
+    return tracked;
+  }
+
   function onFrameApplied(): void {
     // Scene.applyFrame() owns atomic transient cleanup. The playback layer only
     // drops handles after the canonical frame has also rendered successfully.
@@ -701,7 +873,9 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       activeScopeKey: activeScope?.key || null,
       projectedStoneCount: projectedStones.size,
       retainedFinalGhostCount: retainedFinalGhosts.size,
+      retainedFinalEffectCount: retainedFinalEffects.size,
       inFlightEffectCount: inFlightEffects.size,
+      inFlightTopologyRevealCount: inFlightTopologyReveals.size,
       phaseCount,
       completedPhaseCount,
       failedPhaseCount,
@@ -714,6 +888,8 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     abort(new Error('Pixi board playback was destroyed'));
     destroyed = true;
     timeline.destroy();
+    for (const pending of inFlightTopologyReveals) inFlightEffects.delete(pending);
+    inFlightTopologyReveals.clear();
     clearBookkeeping();
   }
 
@@ -721,6 +897,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     kind: 'pixi-board-playback' as const,
     validatePhase,
     playPhase,
+    revealTopologyCells,
     onFrameApplied,
     abort,
     getDiagnostics,

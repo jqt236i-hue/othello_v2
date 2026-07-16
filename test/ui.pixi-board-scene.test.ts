@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import * as BoardVisualModel from '../ui/board-visual/model';
+import * as EffectBounds from '../ui/board-visual/effect-bounds';
 import * as Theme from '../ui/board-visual/theme';
 import * as BoardScene from '../ui/pixi/board-scene';
 import * as CellView from '../ui/pixi/cell-view';
@@ -112,6 +113,76 @@ class FakeText extends FakeDisplayObject {
     this.text = typeof options === 'object' ? String(options.text || '') : String(options || '');
     this.style = typeof options === 'object' ? options.style || {} : style || {};
   }
+}
+
+function renderedGraphicsBounds(root: any, graphics: FakeGraphics): {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+} {
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let pendingPoint: number[] | null = null;
+  let maxStrokeWidth = 0;
+  const include = (x: number, y: number) => {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  };
+  for (const command of graphics.commands) {
+    const args = command.args || [];
+    if (command.op === 'rect' || command.op === 'roundRect') {
+      include(args[0], args[1]);
+      include(args[0] + args[2], args[1] + args[3]);
+    } else if (command.op === 'circle') {
+      include(args[0] - args[2], args[1] - args[2]);
+      include(args[0] + args[2], args[1] + args[2]);
+    } else if (command.op === 'ellipse') {
+      include(args[0] - args[2], args[1] - args[3]);
+      include(args[0] + args[2], args[1] + args[3]);
+    } else if (command.op === 'moveTo') {
+      pendingPoint = args;
+      include(args[0], args[1]);
+    } else if (command.op === 'lineTo') {
+      if (pendingPoint) include(pendingPoint[0], pendingPoint[1]);
+      include(args[0], args[1]);
+      pendingPoint = args;
+    } else if (command.op === 'stroke') {
+      maxStrokeWidth = Math.max(maxStrokeWidth, Number(command.style?.width) || 0);
+    }
+  }
+  const strokePad = maxStrokeWidth / 2;
+  minX -= strokePad;
+  minY -= strokePad;
+  maxX += strokePad;
+  maxY += strokePad;
+  const pivotX = Number(root.pivot?.x) || 0;
+  const pivotY = Number(root.pivot?.y) || 0;
+  const scaleX = Number(root.scale?.x) || 1;
+  const scaleY = Number(root.scale?.y) || 1;
+  const rotation = Number(root.rotation) || 0;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const transformed = [
+    [minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY]
+  ].map(([x, y]) => {
+    const scaledX = (x - pivotX) * scaleX;
+    const scaledY = (y - pivotY) * scaleY;
+    return {
+      x: root.position.x + scaledX * cos - scaledY * sin,
+      y: root.position.y + scaledX * sin + scaledY * cos
+    };
+  });
+  return {
+    minX: Math.min(...transformed.map((point) => point.x)),
+    minY: Math.min(...transformed.map((point) => point.y)),
+    maxX: Math.max(...transformed.map((point) => point.x)),
+    maxY: Math.max(...transformed.map((point) => point.y))
+  };
 }
 
 function createFakeRuntime() {
@@ -446,6 +517,17 @@ describe('Pixi static retained views', () => {
       specialType: 'BREEDING',
       textureBacked: false,
       renderedMarkerKinds: ['breeding-sprout']
+    });
+
+    const seedView = CellView.createPixiCellView(fixture.runtime);
+    const seed = materializedCell(makeCell('0,2', {
+      markers: [{ kind: 'seed', owner: 'white', value: null, data: { remainingOwnerTurns: 2 } }]
+    }));
+    seedView.update(seed, viewContext({ revisionSignature: 'static-view:4' }));
+    expect(seedView.getDiagnostics()).toMatchObject({
+      markerCount: 1,
+      markerLabels: ['2'],
+      renderedMarkerKinds: ['seed']
     });
   });
 
@@ -934,8 +1016,10 @@ describe('Pixi board scene playback projection', () => {
     expect(scene.getDiagnostics()).toMatchObject({
       activeViewCount: retainedCount,
       activePlaybackGhostCount: 1,
-      createdPlaybackGhostCount: 1
+      materializedPlaybackGhostCount: 0,
+      createdPlaybackGhostCount: 0
     });
+    expect(scene.layers.playback.children).toHaveLength(0);
 
     // MOVE keeps the ghost anchored to its source and animates in scene-space
     // offsets. Culling must follow that transformed position as it crosses
@@ -950,6 +1034,10 @@ describe('Pixi board scene playback projection', () => {
       visible: true,
       position: { x: 96, y: 96 },
       offset: { x: -320, y: -320 }
+    });
+    expect(scene.getDiagnostics()).toMatchObject({
+      materializedPlaybackGhostCount: 1,
+      createdPlaybackGhostCount: 1
     });
 
     scene.updatePlaybackGhost(scope, offscreen, {
@@ -980,12 +1068,14 @@ describe('Pixi board scene playback projection', () => {
     expect(scene.getDiagnostics()).toMatchObject({
       hiddenStoneCount: 1,
       activePlaybackGhostCount: 0,
+      materializedPlaybackGhostCount: 0,
       pooledPlaybackGhostCount: 1
     });
 
     const reused = scene.acquirePlaybackGhost(scope, { row: 5, col: 5, stone: whiteStone });
     expect(scene.getDiagnostics()).toMatchObject({
       activePlaybackGhostCount: 1,
+      materializedPlaybackGhostCount: 1,
       createdPlaybackGhostCount: 1,
       pooledPlaybackGhostCount: 0
     });
@@ -995,8 +1085,173 @@ describe('Pixi board scene playback projection', () => {
       hiddenStoneCount: 0,
       playbackScopeKey: null,
       activePlaybackGhostCount: 0,
+      materializedPlaybackGhostCount: 0,
       pooledPlaybackGhostCount: 1
     });
+  });
+
+  test('bounds transient effect DisplayObjects by viewport while preserving offscreen logical records', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 16, baseCols: 16 });
+    const firstFrame = makeFrame({
+      topology,
+      visibleWindow: { minRow: 0, maxRow: 1, minCol: 0, maxCol: 1 }
+    });
+    scene.applyFrame(firstFrame);
+    const baselineDisplayObjectCount = scene.getDiagnostics().displayObjectCount;
+    const scope = scene.beginPlaybackScope('writer:sparse-effects');
+    const handles = topology.playableKeys.map((key) => {
+      const [row, col] = key.split(',').map(Number);
+      return scene.acquirePlaybackEffect(scope, {
+        row,
+        col,
+        family: 'theory_incarnation',
+        kind: 'pulse',
+        tone: 'purple'
+      });
+    });
+    const firstWindow = scene.getDiagnostics().materializationWindow!;
+    const firstWindowArea = (firstWindow.maxRow - firstWindow.minRow + 1)
+      * (firstWindow.maxCol - firstWindow.minCol + 1);
+
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackEffectCount: 256,
+      materializedPlaybackEffectCount: firstWindowArea,
+      createdPlaybackEffectCount: firstWindowArea,
+      pooledPlaybackEffectCount: 0
+    });
+    expect(scene.layers.effect.children.filter((child: FakeDisplayObject) => (
+      child.label === 'pixi-playback-effect'
+    ))).toHaveLength(firstWindowArea);
+    expect(scene.getDiagnostics().displayObjectCount - baselineDisplayObjectCount)
+      .toBe(firstWindowArea * 3);
+    expect(scene.getPlaybackEffect(handles[0])).toMatchObject({ visible: true, row: 0, col: 0 });
+    expect(scene.getPlaybackEffect(handles[handles.length - 1])).toMatchObject({
+      visible: false,
+      row: 15,
+      col: 15
+    });
+
+    const lastFrame = makeFrame({
+      topology,
+      visibleWindow: { minRow: 14, maxRow: 15, minCol: 14, maxCol: 15 },
+      layoutRevision: 2
+    });
+    scene.applyFrame(lastFrame, { preservePlaybackProjection: true });
+    const lastWindow = scene.getDiagnostics().materializationWindow!;
+    const lastWindowArea = (lastWindow.maxRow - lastWindow.minRow + 1)
+      * (lastWindow.maxCol - lastWindow.minCol + 1);
+    expect(lastWindowArea).toBe(firstWindowArea);
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackEffectCount: 256,
+      materializedPlaybackEffectCount: lastWindowArea,
+      createdPlaybackEffectCount: firstWindowArea,
+      pooledPlaybackEffectCount: 0
+    });
+    expect(scene.getPlaybackEffect(handles[0])).toMatchObject({ visible: false });
+    expect(scene.getPlaybackEffect(handles[handles.length - 1])).toMatchObject({ visible: true });
+
+    scene.applyFrame(firstFrame, { preservePlaybackProjection: true });
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackEffectCount: 256,
+      materializedPlaybackEffectCount: firstWindowArea,
+      createdPlaybackEffectCount: firstWindowArea
+    });
+    expect(scene.getPlaybackEffect(handles[0])).toMatchObject({ visible: true });
+    expect(scene.getPlaybackEffect(handles[handles.length - 1])).toMatchObject({ visible: false });
+
+    for (const handle of handles) scene.releasePlaybackEffect(scope, handle);
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackEffectCount: 0,
+      materializedPlaybackEffectCount: 0,
+      pooledPlaybackEffectCount: firstWindowArea
+    });
+    scene.destroy();
+    expect(scene.getDiagnostics()).toMatchObject({
+      pooledPlaybackEffectCount: 0,
+      destroyedPlaybackEffectCount: firstWindowArea,
+      displayObjectCount: 0
+    });
+  });
+
+  test('keeps the rendered geometry of every board-local family inside the two-cell canvas gutter at all corners and edges', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 8, baseCols: 8 });
+    const frame = makeFrame({ topology, cellSize: 32 });
+    scene.applyFrame(frame);
+    const scope = scene.beginPlaybackScope('writer:actual-effect-clipping');
+    const gutterPx = scene.getDiagnostics().effectGutterCells * frame.layout.cellSize;
+    const canvasWidth = frame.layout.camera.viewportWidth + gutterPx * 2;
+    const canvasHeight = frame.layout.camera.viewportHeight + gutterPx * 2;
+    const placements = [
+      { name: 'top-left', row: 0, col: 0 },
+      { name: 'top', row: 0, col: 3 },
+      { name: 'top-right', row: 0, col: 7 },
+      { name: 'right', row: 3, col: 7 },
+      { name: 'bottom-right', row: 7, col: 7 },
+      { name: 'bottom', row: 7, col: 3 },
+      { name: 'bottom-left', row: 7, col: 0 },
+      { name: 'left', row: 3, col: 0 }
+    ];
+    const effectShape = (family: string) => {
+      if (family === 'board_shrink') {
+        return { kind: 'topology' as const, scale: 1, rotation: 0 };
+      }
+      if (family === 'theory_incarnation_spawn_roulette') {
+        return { kind: 'roulette' as const, scale: 1.08, rotation: 0 };
+      }
+      if (family === 'crossfade_stone') {
+        return { kind: 'aura' as const, scale: 1.12, rotation: 0 };
+      }
+      if (family === 'destroy' || family === 'legacy_sacrifice_absorb_pulse') {
+        return { kind: 'impact' as const, scale: 1.72, rotation: Math.PI * 0.36 };
+      }
+      return { kind: 'pulse' as const, scale: 1.4, rotation: 0 };
+    };
+
+    for (const family of EffectBounds.BOARD_LOCAL_EFFECT_FAMILIES) {
+      const shape = effectShape(family);
+      for (const placement of placements) {
+        const handle = scene.acquirePlaybackEffect(scope, {
+          row: placement.row,
+          col: placement.col,
+          family,
+          kind: shape.kind,
+          tone: 'purple',
+          label: family === 'theory_incarnation_spawn_roulette' ? '19' : null,
+          innerBoundaryEdges: family === 'board_shrink'
+            ? ['top', 'right', 'bottom', 'left']
+            : []
+        });
+        scene.updatePlaybackEffect(scope, handle, {
+          alpha: 1,
+          scale: shape.scale,
+          rotation: shape.rotation
+        });
+        const root = scene.layers.effect.children.find((child: FakeDisplayObject) => (
+          child.label === 'pixi-playback-effect'
+        )) as FakeContainer;
+        const graphics = root.children.find((child) => (
+          child.label === 'pixi-playback-effect-graphics'
+        )) as FakeGraphics;
+        const bounds = renderedGraphicsBounds(root, graphics);
+        expect({
+          family,
+          placement: placement.name,
+          insideCanvasGutter: bounds.minX >= -0.001
+            && bounds.minY >= -0.001
+            && bounds.maxX <= canvasWidth + 0.001
+            && bounds.maxY <= canvasHeight + 0.001
+        }).toEqual({
+          family,
+          placement: placement.name,
+          insideCanvasGutter: true
+        });
+        scene.releasePlaybackEffect(scope, handle);
+      }
+    }
   });
 
   test('leases one transient highlight per cell and restores the previous tone on release', () => {
@@ -1045,6 +1300,105 @@ describe('Pixi board scene playback projection', () => {
     });
   });
 
+  test('materializes transient highlights only while their cell is inside the viewport window', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 16, baseCols: 16 });
+    const firstFrame = makeFrame({
+      topology,
+      visibleWindow: { minRow: 0, maxRow: 1, minCol: 0, maxCol: 1 }
+    });
+    scene.applyFrame(firstFrame);
+    const scope = scene.beginPlaybackScope('writer:sparse-highlight');
+    const handle = scene.acquirePlaybackCellHighlight(scope, 15, 15, 'positive');
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackHighlightLeaseCount: 1,
+      renderedPlaybackHighlightCount: 0,
+      pooledPlaybackHighlightCount: 0
+    });
+    expect(scene.layers.effect.children).toHaveLength(0);
+
+    scene.applyFrame(makeFrame({
+      topology,
+      visibleWindow: { minRow: 14, maxRow: 15, minCol: 14, maxCol: 15 },
+      layoutRevision: 2
+    }), { preservePlaybackProjection: true });
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackHighlightLeaseCount: 1,
+      renderedPlaybackHighlightCount: 1,
+      pooledPlaybackHighlightCount: 0
+    });
+    expect(scene.layers.effect.children).toHaveLength(1);
+
+    scene.applyFrame(firstFrame, { preservePlaybackProjection: true });
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackHighlightLeaseCount: 1,
+      renderedPlaybackHighlightCount: 0,
+      pooledPlaybackHighlightCount: 1
+    });
+    expect(scene.layers.effect.children).toHaveLength(0);
+
+    scene.releasePlaybackCellHighlight(scope, handle);
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackHighlightLeaseCount: 0,
+      renderedPlaybackHighlightCount: 0,
+      pooledPlaybackHighlightCount: 1
+    });
+  });
+
+  test('draws retained BOARD_FRAME playback topology without a generic X or internal seam', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 4, baseCols: 4 });
+    scene.applyFrame(makeFrame({ topology, cellSize: 40 }));
+    const scope = scene.beginPlaybackScope('writer:board-frame-hole');
+    const handle = scene.acquirePlaybackEffect(scope, {
+      row: 1,
+      col: 1,
+      family: 'board_shrink',
+      kind: 'topology',
+      innerBoundaryEdges: ['top', 'bottom']
+    });
+
+    expect(scene.getPlaybackEffect(handle)).toMatchObject({
+      family: 'board_shrink',
+      kind: 'topology',
+      innerBoundaryEdges: ['top', 'bottom']
+    });
+    const effectRoot = scene.layers.effect.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-playback-effect'
+    )) as FakeContainer;
+    const graphics = effectRoot.children.find((child) => (
+      child.label === 'pixi-playback-effect-graphics'
+    )) as FakeGraphics;
+    expect(graphics.commands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#080909' }) })
+    ]));
+    const segments: Array<{ from: number[]; to: number[] }> = [];
+    let from: number[] | null = null;
+    for (const command of graphics.commands) {
+      if (command.op === 'moveTo') from = command.args as number[];
+      if (command.op === 'lineTo' && from) {
+        segments.push({ from, to: command.args as number[] });
+        from = null;
+      }
+    }
+    expect(segments.length).toBeGreaterThan(4);
+    expect(segments.some(({ from: start, to }) => (
+      (to[0] - start[0]) * (to[1] - start[1]) < 0
+    ))).toBe(false);
+    const edgeRects = graphics.commands.filter((command) => (
+      command.op === 'rect' && command.args?.[2] === 40 && command.args?.[3] === 2.5
+    ));
+    expect(edgeRects).toHaveLength(2);
+
+    scene.releasePlaybackEffect(scope, handle);
+    expect(scene.getDiagnostics()).toMatchObject({
+      activePlaybackEffectCount: 0,
+      pooledPlaybackEffectCount: 1
+    });
+  });
+
   test('reset and destroy release playback objects and reject stale scope handles', () => {
     const fixture = createFakeRuntime();
     const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
@@ -1072,5 +1426,69 @@ describe('Pixi board scene playback projection', () => {
       destroyedPlaybackGhostCount: 1,
       displayObjectCount: 0
     });
+  });
+
+  test('keeps topology reveal progress across reflow and clears pooled view alpha on reset', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({
+      baseRows: 8,
+      baseCols: 8,
+      minRow: 0,
+      maxRow: 7,
+      minCol: 0,
+      maxCol: 8
+    });
+    const frame = makeFrame({ topology, cellSize: 32, layoutRevision: 1 });
+    scene.applyFrame(frame);
+    const handle = scene.beginTopologyReveal(['0,8']);
+    expect(scene.getRenderedCell(0, 8)).toMatchObject({ topologyRevealAlpha: 0 });
+
+    scene.updateTopologyReveal(handle, 0.35);
+    const beforeReflow = scene.getRenderedCell(0, 8)!;
+    expect(beforeReflow.topologyRevealAlpha).toBeCloseTo(0.35);
+    const expectedRoots = [
+      ['surface', 'pixi-cell-surface'],
+      ['cell', 'pixi-cell-grid'],
+      ['marker', 'pixi-cell-markers'],
+      ['stone', 'pixi-stone-view'],
+      ['hint', 'pixi-hint-view'],
+      ['interaction', 'pixi-interaction-hit-area']
+    ] as const;
+    for (const [layer, label] of expectedRoots) {
+      const visualOnlyGutter = layer === 'interaction'
+        ? scene.getDiagnostics().effectGutterCells * frame.layout.cellSize
+        : 0;
+      const display = scene.layers[layer].children.find((child: FakeDisplayObject) => (
+        child.label === label
+        && child.position.x === beforeReflow.position.x - visualOnlyGutter
+        && child.position.y === beforeReflow.position.y - visualOnlyGutter
+      ));
+      expect(display).toBeTruthy();
+      expect(display.alpha).toBeCloseTo(0.35);
+    }
+
+    const reflow = makeFrame({ topology, cellSize: 40, layoutRevision: 2 });
+    scene.applyFrame(reflow, { preservePlaybackProjection: true });
+    expect(scene.getRenderedCell(0, 8)).toMatchObject({ topologyRevealAlpha: 0.35 });
+    expect(scene.getDiagnostics()).toMatchObject({
+      activeTopologyRevealCount: 1,
+      topologyRevealKeys: ['0,8']
+    });
+
+    scene.endTopologyReveal(handle);
+    expect(scene.getRenderedCell(0, 8)).toMatchObject({ topologyRevealAlpha: 1 });
+    const createdBeforeReset = scene.getDiagnostics().createdViewCount;
+    const resetHandle = scene.beginTopologyReveal(['0,8']);
+    scene.updateTopologyReveal(resetHandle, 0.12);
+    scene.reset();
+    expect(scene.getDiagnostics()).toMatchObject({
+      activeTopologyRevealCount: 0,
+      topologyRevealKeys: []
+    });
+
+    scene.applyFrame(frame);
+    expect(scene.getRenderedCell(0, 8)).toMatchObject({ topologyRevealAlpha: 1 });
+    expect(scene.getDiagnostics().createdViewCount).toBe(createdBeforeReset);
   });
 });

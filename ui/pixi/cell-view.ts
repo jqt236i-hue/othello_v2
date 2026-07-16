@@ -43,6 +43,8 @@ export interface PixiCellViewDiagnostics {
   readonly markerLabels: readonly string[];
   readonly theoryNumberStyle: boolean;
   readonly usesBoardTexture: boolean;
+  readonly boardFrameHole: boolean;
+  readonly boardFrameInnerBoundaryEdges: readonly BoardFrameInnerBoundaryEdge[];
   readonly position: Readonly<{ x: number; y: number }>;
 }
 
@@ -352,6 +354,134 @@ function isBoardBonusMarker(kind: unknown): boolean {
   return String(kind || '').trim().toLowerCase().replace(/_/g, '-').includes('board-bonus');
 }
 
+const BOARD_FRAME_INNER_BOUNDARY_EDGES = ['top', 'right', 'bottom', 'left'] as const;
+export type BoardFrameInnerBoundaryEdge = typeof BOARD_FRAME_INNER_BOUNDARY_EDGES[number];
+
+function isBoardFrameHoleMarker(
+  marker: MaterializedBoardCellVisualState['markers'][number]
+): boolean {
+  if (String(marker && marker.kind || '').trim().toLowerCase().replace(/_/g, '-') !== 'blockade') return false;
+  const data = marker && marker.data && typeof marker.data === 'object' ? marker.data : {};
+  return String(data.type || '').trim().toUpperCase() === 'METEOR_HOLE'
+    && String(data.visualVariant || '').trim().toUpperCase() === 'BOARD_FRAME';
+}
+
+function readBoardFrameInnerBoundaryEdges(
+  marker: MaterializedBoardCellVisualState['markers'][number] | null
+): readonly BoardFrameInnerBoundaryEdge[] {
+  if (!marker) return Object.freeze([]);
+  const raw = marker.data && marker.data.innerBoundaryMask;
+  const values = Array.isArray(raw)
+    ? raw
+    : typeof raw === 'string'
+      ? raw.split(',')
+      : [];
+  const allowed = new Set<string>(BOARD_FRAME_INNER_BOUNDARY_EDGES);
+  const seen = new Set<string>();
+  const edges: BoardFrameInnerBoundaryEdge[] = [];
+  for (const value of values) {
+    const edge = String(value || '').trim().toLowerCase();
+    if (!allowed.has(edge) || seen.has(edge)) continue;
+    seen.add(edge);
+    edges.push(edge as BoardFrameInnerBoundaryEdge);
+  }
+  return Object.freeze(edges);
+}
+
+function drawClippedBoardFrameGrainLine(
+  graphics: any,
+  startX: number,
+  cellSize: number,
+  stroke: PixiStrokeStyle
+): void {
+  let fromX = startX;
+  let fromY = 0;
+  let toX = startX + cellSize;
+  let toY = cellSize;
+  if (fromX < 0) {
+    fromY = -fromX;
+    fromX = 0;
+  }
+  if (toX > cellSize) {
+    toY -= toX - cellSize;
+    toX = cellSize;
+  }
+  if (fromY > cellSize || toY < 0) return;
+  drawPixiLine(graphics, fromX, fromY, toX, toY, stroke);
+}
+
+/**
+ * Procedural counterpart of the retained DOM board-frame fill. Keep all grain
+ * strokes in one direction: this is frame material, never a generic X marker.
+ */
+export function drawPixiBoardFrameHoleSurface(graphics: any, cellSize: number): void {
+  drawPixiRect(graphics, 0, 0, cellSize, cellSize, { color: '#080909', alpha: 1 });
+  const bandCount = 10;
+  for (let index = 0; index < bandCount; index += 1) {
+    const y = (cellSize * index) / bandCount;
+    const height = cellSize / bandCount + 0.25;
+    drawPixiRect(graphics, 0, y, cellSize, height, {
+      color: index % 2 === 0 ? '#2a2b2b' : '#000000',
+      alpha: index % 2 === 0 ? 0.17 : 0.12
+    });
+  }
+  const grainSpacing = Math.max(2, cellSize / 12);
+  for (let startX = -cellSize; startX < cellSize; startX += grainSpacing) {
+    drawClippedBoardFrameGrainLine(graphics, startX, cellSize, {
+      color: '#ffffff', alpha: 0.045, width: Math.max(0.5, cellSize * 0.012)
+    });
+    drawClippedBoardFrameGrainLine(graphics, startX + Math.max(0.5, cellSize * 0.018), cellSize, {
+      color: '#000000', alpha: 0.22, width: Math.max(0.5, cellSize * 0.014)
+    });
+  }
+  const vignetteWidth = Math.max(1, cellSize * 0.025);
+  drawPixiRect(graphics, vignetteWidth / 2, vignetteWidth / 2, cellSize - vignetteWidth, cellSize - vignetteWidth, null, {
+    color: '#000000', alpha: 0.72, width: vignetteWidth
+  });
+  drawPixiRect(graphics, vignetteWidth * 1.5, vignetteWidth * 1.5, cellSize - vignetteWidth * 3, cellSize - vignetteWidth * 3, null, {
+    color: '#000000', alpha: 0.28, width: vignetteWidth * 2
+  });
+}
+
+export function drawPixiBoardFrameHoleInnerEdges(
+  graphics: any,
+  cellSize: number,
+  edges: readonly BoardFrameInnerBoundaryEdge[]
+): void {
+  const edgeThickness = Math.max(2, cellSize * 0.0625);
+  const highlightWidth = Math.max(0.75, edgeThickness * 0.3);
+  const shadowWidth = Math.max(0.75, edgeThickness * 0.42);
+  for (const edge of edges) {
+    if (edge === 'top' || edge === 'bottom') {
+      const y = edge === 'top' ? 0 : cellSize - edgeThickness;
+      drawPixiRect(graphics, 0, y, cellSize, edgeThickness, { color: '#000000', alpha: 0.42 });
+      const highlightY = edge === 'top' ? highlightWidth / 2 : cellSize - highlightWidth / 2;
+      const shadowY = edge === 'top'
+        ? edgeThickness - shadowWidth / 2
+        : cellSize - edgeThickness + shadowWidth / 2;
+      drawPixiLine(graphics, 0, highlightY, cellSize, highlightY, {
+        color: '#ffffff', alpha: edge === 'top' ? 0.22 : 0.18, width: highlightWidth
+      });
+      drawPixiLine(graphics, 0, shadowY, cellSize, shadowY, {
+        color: '#000000', alpha: 0.62, width: shadowWidth
+      });
+      continue;
+    }
+    const x = edge === 'left' ? 0 : cellSize - edgeThickness;
+    drawPixiRect(graphics, x, 0, edgeThickness, cellSize, { color: '#000000', alpha: 0.42 });
+    const highlightX = edge === 'left' ? highlightWidth / 2 : cellSize - highlightWidth / 2;
+    const shadowX = edge === 'left'
+      ? edgeThickness - shadowWidth / 2
+      : cellSize - edgeThickness + shadowWidth / 2;
+    drawPixiLine(graphics, highlightX, 0, highlightX, cellSize, {
+      color: '#ffffff', alpha: 0.22, width: highlightWidth
+    });
+    drawPixiLine(graphics, shadowX, 0, shadowX, cellSize, {
+      color: '#000000', alpha: 0.62, width: shadowWidth
+    });
+  }
+}
+
 const CELL_MARKER_KINDS = new Set(['board-bonus', 'blockade', 'seed', 'poison-cell']);
 
 export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView {
@@ -360,8 +490,10 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
   const markerRoot = createPixiContainer(runtime, 'pixi-cell-markers');
   const surface = createPixiGraphics(runtime, 'pixi-cell-surface-fill');
   const surfaceTexture = createPixiSprite(runtime, 'pixi-cell-surface-texture');
+  const boardFrameHoleSurface = createPixiGraphics(runtime, 'pixi-cell-board-frame-hole-surface');
+  const boardFrameHoleInnerEdges = createPixiGraphics(runtime, 'pixi-cell-board-frame-hole-inner-edges');
   const grid = createPixiGraphics(runtime, 'pixi-cell-grid-lines');
-  addPixiChild(surfaceRoot, surface, surfaceTexture);
+  addPixiChild(surfaceRoot, surface, surfaceTexture, boardFrameHoleSurface, boardFrameHoleInnerEdges);
   addPixiChild(cellRoot, grid);
   let signature: string | null = null;
   let key: string | null = null;
@@ -370,6 +502,8 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
   let renderedMarkerKinds: string[] = [];
   let theoryNumberStyle = false;
   let usesBoardTexture = false;
+  let boardFrameHole = false;
+  let boardFrameInnerBoundaryEdges: readonly BoardFrameInnerBoundaryEdge[] = Object.freeze([]);
   let updateCount = 0;
   let resetCount = 0;
   let destroyed = false;
@@ -399,12 +533,22 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     cellRoot.visible = cell.kind !== 'void';
     markerRoot.visible = cell.kind !== 'void';
     clearPixiGraphics(surface);
+    clearPixiGraphics(boardFrameHoleSurface);
+    clearPixiGraphics(boardFrameHoleInnerEdges);
     clearPixiGraphics(grid);
     removeAndDestroyPixiChildren(markerRoot);
     markerLabels = [];
     renderedMarkerKinds = [];
     theoryNumberStyle = cell.markers.some((marker) => marker.kind === 'theory-number-cell');
     usesBoardTexture = false;
+    const boardFrameHoleMarker = cell.kind === 'hole'
+      ? cell.markers.find(isBoardFrameHoleMarker) || null
+      : null;
+    boardFrameHole = !!boardFrameHoleMarker;
+    boardFrameInnerBoundaryEdges = readBoardFrameInnerBoundaryEdges(boardFrameHoleMarker);
+    boardFrameHoleSurface.visible = boardFrameHole;
+    boardFrameHoleInnerEdges.visible = boardFrameHole;
+    grid.visible = !boardFrameHole;
 
     if (cell.kind === 'void') {
       if (surfaceTexture) surfaceTexture.visible = false;
@@ -435,6 +579,10 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
       surfaceTexture.y = 0;
       surfaceTexture.width = cellSize;
       surfaceTexture.height = cellSize;
+    }
+    if (boardFrameHole) {
+      drawPixiBoardFrameHoleSurface(boardFrameHoleSurface, cellSize);
+      drawPixiBoardFrameHoleInnerEdges(boardFrameHoleInnerEdges, cellSize, boardFrameInnerBoundaryEdges);
     }
 
     const gridWidth = Math.max(0.5, context.theme.gridLineWidth);
@@ -517,6 +665,10 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     let badgeIndex = 0;
     for (const marker of cell.markers) {
       if (!CELL_MARKER_KINDS.has(marker.kind)) continue;
+      // The board-frame material is the complete visual for this blockade.
+      // Keeping the generic badge would diverge from the DOM mark and resemble
+      // a second effect layered over the hole.
+      if (marker === boardFrameHoleMarker) continue;
       if (marker.kind === 'seed' && cell.stone) continue;
       const label = markerLabel(marker);
       markerLabels.push(label);
@@ -575,12 +727,19 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     renderedMarkerKinds = [];
     theoryNumberStyle = false;
     usesBoardTexture = false;
+    boardFrameHole = false;
+    boardFrameInnerBoundaryEdges = Object.freeze([]);
     position = { x: 0, y: 0 };
     surfaceRoot.visible = false;
     cellRoot.visible = false;
     markerRoot.visible = false;
     clearPixiGraphics(surface);
+    clearPixiGraphics(boardFrameHoleSurface);
+    clearPixiGraphics(boardFrameHoleInnerEdges);
     clearPixiGraphics(grid);
+    boardFrameHoleSurface.visible = false;
+    boardFrameHoleInnerEdges.visible = false;
+    grid.visible = true;
     if (surfaceTexture) surfaceTexture.visible = false;
     removeAndDestroyPixiChildren(markerRoot);
     removePixiFromParent(surfaceRoot);
@@ -610,6 +769,8 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
       markerLabels: Object.freeze(markerLabels.slice()),
       theoryNumberStyle,
       usesBoardTexture,
+      boardFrameHole,
+      boardFrameInnerBoundaryEdges: Object.freeze(boardFrameInnerBoundaryEdges.slice()),
       position: Object.freeze({ ...position })
     });
   }

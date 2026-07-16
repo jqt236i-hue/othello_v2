@@ -1,8 +1,10 @@
 import type { PresentationPlaybackEvent } from '../../board-visual/playback-types';
 import type {
   PixiPlaybackCellHighlightHandle,
+  PixiPlaybackEffectHandle,
   PixiPlaybackGhostHandle
 } from '../board-scene';
+import type { BoardFrameInnerBoundaryEdge } from '../cell-view';
 import {
   createPlaybackStoneVisual,
   normalizePlaybackCoordinate,
@@ -55,6 +57,54 @@ function isBoardShrinkHole(event: PresentationPlaybackEvent, target: any): boole
       || meta.visualVariant
       || target?.after?.visualVariant
   ) === 'BOARD_FRAME';
+}
+
+function boardFrameHoleKeysAfterPhase(
+  projection: PixiBoardEffectProjection,
+  currentEvent: PresentationPlaybackEvent
+): ReadonlySet<string> {
+  const holes = new Set<string>(projection.frame.model.topology.holeKeys);
+  const events = projection.phaseEvents.includes(currentEvent)
+    ? projection.phaseEvents
+    : Object.freeze([...projection.phaseEvents, currentEvent]);
+  for (const candidate of events) {
+    const event = candidate && typeof candidate === 'object' ? candidate : null;
+    if (!event) continue;
+    for (const rawTarget of Array.isArray(event.targets) ? event.targets : []) {
+      const target = rawTarget as any;
+      const coordinate = normalizePlaybackCoordinate(target);
+      if (!coordinate) continue;
+      const key = `${coordinate.row},${coordinate.col}`;
+      if (isCausalReplayCellRestoration(event)) {
+        holes.delete(key);
+        continue;
+      }
+      if (upper(target?.after?.special) === 'METEOR_HOLE') holes.add(key);
+    }
+  }
+  return holes;
+}
+
+function boardFrameInnerBoundaryEdges(
+  projection: PixiBoardEffectProjection,
+  event: PresentationPlaybackEvent,
+  row: number,
+  col: number
+): readonly BoardFrameInnerBoundaryEdge[] {
+  const existing = new Set(projection.frame.model.topology.existingKeys);
+  const holes = boardFrameHoleKeysAfterPhase(projection, event);
+  const neighbors: readonly [BoardFrameInnerBoundaryEdge, number, number][] = [
+    ['top', row - 1, col],
+    ['right', row, col + 1],
+    ['bottom', row + 1, col],
+    ['left', row, col - 1]
+  ];
+  return Object.freeze(neighbors
+    .filter(([, neighborRow, neighborCol]) => {
+      const key = `${neighborRow},${neighborCol}`;
+      return existing.has(key) && !holes.has(key);
+    })
+    .map(([edge]) => edge));
 }
 
 function resolveStatusSpecial(event: PresentationPlaybackEvent, target: any): string {
@@ -165,6 +215,9 @@ async function playStatusTarget(
   let highlight: PixiPlaybackCellHighlightHandle | null = null;
   let outgoingGhost: PixiPlaybackGhostHandle | null = null;
   let incomingGhost: PixiPlaybackGhostHandle | null = null;
+  let topologyEffect: PixiPlaybackEffectHandle | null = null;
+  let topologyRetained = false;
+  let timelineCompleted = false;
   let finalApplied = false;
   const releaseHighlight = () => {
     if (!highlight) return;
@@ -188,10 +241,22 @@ async function playStatusTarget(
     releaseOutgoingGhost();
     releaseIncomingGhost();
   };
+  const releaseTopologyEffect = () => {
+    if (!topologyEffect) return;
+    const owned = topologyEffect;
+    topologyEffect = null;
+    topologyRetained = false;
+    projection.releaseEffect(owned);
+  };
   const applyFinal = () => {
     if (finalApplied) return;
     releaseGhosts();
     projection.setProjectedStone(coordinate.row, coordinate.col, after);
+    if (mode === 'hole-push' && topologyEffect && !topologyRetained) {
+      projection.updateEffect(topologyEffect, { alpha: 1, scale: 1 });
+      projection.retainEffect(coordinate.row, coordinate.col, topologyEffect);
+      topologyRetained = true;
+    }
     finalApplied = true;
   };
 
@@ -221,6 +286,26 @@ async function playStatusTarget(
           return;
         }
 
+        if (mode === 'hole-push') {
+          topologyEffect = projection.acquireEffect({
+            row: coordinate.row,
+            col: coordinate.col,
+            family: 'board_shrink',
+            kind: 'topology',
+            tone: 'white',
+            innerBoundaryEdges: boardFrameInnerBoundaryEdges(
+              projection,
+              event,
+              coordinate.row,
+              coordinate.col
+            )
+          });
+          projection.updateEffect(topologyEffect, {
+            alpha: projection.noAnimation ? 1 : 0,
+            scale: projection.noAnimation ? 1 : 0.82
+          });
+        }
+
         projection.setProjectedStone(coordinate.row, coordinate.col, null);
         if (current) outgoingGhost = projection.acquireTransientGhost(
           coordinate.row,
@@ -244,6 +329,10 @@ async function playStatusTarget(
             scaleX: 1 - visualProgress * 0.18,
             scaleY: 1 - visualProgress * 0.18
           });
+          if (topologyEffect) projection.updateEffect(topologyEffect, {
+            alpha: visualProgress,
+            scale: 0.82 + visualProgress * 0.18
+          });
         } else if (mode === 'crossfade') {
           if (outgoingGhost) projection.updateGhost(outgoingGhost, { alpha: 1 - visualProgress });
           if (incomingGhost) projection.updateGhost(incomingGhost, { alpha: visualProgress });
@@ -252,9 +341,11 @@ async function playStatusTarget(
         if (progress >= 1) releaseHighlight();
       }
     });
+    timelineCompleted = true;
   } finally {
     releaseGhosts();
     releaseHighlight();
+    if (!timelineCompleted || !topologyRetained) releaseTopologyEffect();
   }
 }
 

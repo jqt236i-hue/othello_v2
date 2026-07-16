@@ -14,6 +14,7 @@ function createTicker(initiallyStarted = true) {
   let started = initiallyStarted;
   const listeners = new Set<(ticker: any) => void>();
   return {
+    autoStart: true,
     get started() { return started; },
     get listenerCount() { return listeners.size; },
     add: jest.fn((listener: (ticker: any) => void, _context?: any, _priority?: number) => { listeners.add(listener); }),
@@ -122,11 +123,13 @@ describe('Pixi board Application lifecycle', () => {
     expect(fixture.instances[0].ticker.stop).toHaveBeenCalledTimes(1);
     expect(fixture.instances[0].ticker.remove)
       .toHaveBeenCalledWith(fixture.instances[0].render, fixture.instances[0]);
-    expect(fixture.sharedTicker.stop).not.toHaveBeenCalled();
-    expect(fixture.systemTicker.stop).not.toHaveBeenCalled();
+    expect(fixture.sharedTicker.stop).toHaveBeenCalledTimes(1);
+    expect(fixture.systemTicker.stop).toHaveBeenCalledTimes(1);
+    expect(fixture.sharedTicker.autoStart).toBe(false);
+    expect(fixture.systemTicker.autoStart).toBe(false);
     expect(boardApp.getDiagnostics()).toMatchObject({
       state: 'ready', canvasCount: 1, contextCount: 1, tickerRunning: false,
-      privateTickerRunning: false, sharedTickerRunning: true, systemTickerRunning: true, resolution: 2
+      privateTickerRunning: false, sharedTickerRunning: false, systemTickerRunning: false, resolution: 2
     });
   });
 
@@ -151,9 +154,27 @@ describe('Pixi board Application lifecycle', () => {
     boardApp.stopTicker();
     boardApp.stopTicker();
     expect(fixture.instances[0].ticker.stop).toHaveBeenCalledTimes(2);
-    expect(fixture.sharedTicker.stop).not.toHaveBeenCalled();
-    expect(fixture.systemTicker.stop).not.toHaveBeenCalled();
+    expect(fixture.sharedTicker.stop).toHaveBeenCalledTimes(1);
+    expect(fixture.systemTicker.stop).toHaveBeenCalledTimes(1);
     expect(boardApp.getDiagnostics().tickerRunning).toBe(false);
+  });
+
+  test('re-stops runtime tickers at the explicit idle settlement boundary', async () => {
+    const fixture = createRuntime();
+    const boardApp = ApplicationModule.createPixiBoardApplication({ runtime: fixture.runtime });
+    await boardApp.mount(createHost());
+    fixture.systemTicker.start();
+    fixture.sharedTicker.start();
+    fixture.instances[0].ticker.start();
+
+    boardApp.settleIdle();
+
+    expect(boardApp.getDiagnostics()).toMatchObject({
+      tickerRunning: false,
+      privateTickerRunning: false,
+      sharedTickerRunning: false,
+      systemTickerRunning: false
+    });
   });
 
   test('extracts a complete debug frame through an offscreen render texture', async () => {
@@ -247,8 +268,8 @@ describe('Pixi board Application lifecycle', () => {
     expect(fixture.instances[0].ticker.remove).toHaveBeenCalledTimes(2);
     expect(fixture.instances[0].ticker.remove.mock.invocationCallOrder[1])
       .toBeLessThan(fixture.instances[0].ticker.stop.mock.invocationCallOrder[1]);
-    expect(fixture.sharedTicker.stop).not.toHaveBeenCalled();
-    expect(fixture.systemTicker.stop).not.toHaveBeenCalled();
+    expect(fixture.sharedTicker.stop).toHaveBeenCalledTimes(1);
+    expect(fixture.systemTicker.stop).toHaveBeenCalledTimes(1);
     expect(boardApp.getDiagnostics()).toMatchObject({
       state: 'destroyed',
       tickerRunning: false,

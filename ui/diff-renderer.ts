@@ -938,6 +938,72 @@ function _findLastDiscardCardEntryForDiff(cardStateValue: any) {
     return null;
 }
 
+function _cloneCommittedManifestValueForDiff(value: any, seen?: WeakMap<object, any>): any {
+    if (!value || typeof value !== 'object') return value;
+    const visited = seen || new WeakMap<object, any>();
+    const existing = visited.get(value);
+    if (existing) return existing;
+    if (Array.isArray(value)) {
+        const clone: any[] = [];
+        visited.set(value, clone);
+        value.forEach((entry) => clone.push(_cloneCommittedManifestValueForDiff(entry, visited)));
+        return Object.freeze(clone);
+    }
+    const clone: Record<string, any> = {};
+    visited.set(value, clone);
+    Object.keys(value).forEach((key) => {
+        clone[key] = _cloneCommittedManifestValueForDiff(value[key], visited);
+    });
+    return Object.freeze(clone);
+}
+
+function _cloneCommittedManifestOwnerRecordForDiff(value: any) {
+    const source = value && typeof value === 'object' ? value : {};
+    return Object.freeze({
+        black: _cloneCommittedManifestValueForDiff(source.black),
+        white: _cloneCommittedManifestValueForDiff(source.white)
+    });
+}
+
+/**
+ * Capture only the card-state fields consumed by manifestation world effects
+ * and the manifestation/last-used-card panel.  The returned graph is detached
+ * and frozen so a canonical state object can continue advancing while the
+ * corresponding board frame is awaiting visual settlement.
+ */
+function createCommittedManifestPresentationState(cardStateValue: any) {
+    const source = cardStateValue && typeof cardStateValue === 'object' ? cardStateValue : {};
+    const lastDiscardEntry = _findLastDiscardCardEntryForDiff(source);
+    return Object.freeze({
+        markers: _cloneCommittedManifestValueForDiff(
+            Array.isArray(source.markers) ? source.markers : []
+        ),
+        hands: Object.freeze({
+            black: _cloneCommittedManifestValueForDiff(
+                source.hands && Array.isArray(source.hands.black) ? source.hands.black : []
+            ),
+            white: _cloneCommittedManifestValueForDiff(
+                source.hands && Array.isArray(source.hands.white) ? source.hands.white : []
+            )
+        }),
+        nextBoardExecutorStoneByPlayer: _cloneCommittedManifestOwnerRecordForDiff(
+            source.nextBoardExecutorStoneByPlayer
+        ),
+        nextObserverWillStoneByPlayer: _cloneCommittedManifestOwnerRecordForDiff(
+            source.nextObserverWillStoneByPlayer
+        ),
+        nextTheoryIncarnationStoneByPlayer: _cloneCommittedManifestOwnerRecordForDiff(
+            source.nextTheoryIncarnationStoneByPlayer
+        ),
+        lastUsedCardByPlayer: _cloneCommittedManifestOwnerRecordForDiff(
+            source.lastUsedCardByPlayer
+        ),
+        discard: Object.freeze(lastDiscardEntry
+            ? [_cloneCommittedManifestValueForDiff(lastDiscardEntry)]
+            : [])
+    });
+}
+
 function _findLastDiscardCardIdForDiff(cardStateValue: any): string {
     return _normalizeLastUsedCardIdForDiff(_findLastDiscardCardEntryForDiff(cardStateValue));
 }
@@ -1281,6 +1347,20 @@ function _syncManifestWorldEffectsForDiff(cardStateValue: any) {
         findActiveManifestBgm: _findActiveManifestBgmForDiff,
         findActiveManifestBackground: _findActiveManifestBackgroundForDiff,
         getTimer: _getManifestWorldEffectsTimerForDiff
+    });
+}
+
+/**
+ * Present non-board manifestation UI only after the controller has proved
+ * that the corresponding board frame rendered successfully.  Keeping this
+ * entry point outside renderBoardDiff makes the contract backend-neutral:
+ * DOM compatibility and Pixi commits use the same settled-frame callback.
+ */
+function presentCommittedWorldState(cardStateValue: any) {
+    DiffRendererWorldStatePresenter.presentManifest({
+        cardState: cardStateValue,
+        syncWorldEffects: _syncManifestWorldEffectsForDiff,
+        syncEffectPanel: _syncManifestEffectPanelForDiff
     });
 }
 
@@ -3915,12 +3995,6 @@ function renderBoardDiff(
         ? { gameState: renderProjection.gameState, cardState: renderProjection.cardState }
         : null;
     try {
-        const cardStateForManifestSync = _resolveCardStateForDiffRender();
-        DiffRendererWorldStatePresenter.presentManifest({
-            cardState: cardStateForManifestSync,
-            syncWorldEffects: _syncManifestWorldEffectsForDiff,
-            syncEffectPanel: _syncManifestEffectPanelForDiff
-        });
     if (boardEl && boardDomElement && boardDomElement !== boardEl) {
         previousBoardState = null;
         cellCache = [];
@@ -4150,6 +4224,8 @@ const DiffRenderer = {
     buildCurrentCellState,
     buildBoardRenderModel,
     createBoardRenderProjection,
+    createCommittedManifestPresentationState,
+    presentCommittedWorldState,
     renderBoardDiff,
     forceFullRender,
     resetRenderStats,

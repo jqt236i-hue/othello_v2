@@ -157,18 +157,23 @@ function createMockScene(log: string[]) {
   let nextScopeId = 1;
   let nextGhostId = 1;
   let nextHighlightId = 1;
+  let nextEffectId = 1;
   let scope: { id: number; key: string } | null = null;
   const ghosts = new Map<number, any>();
   const highlights = new Map<number, any>();
+  const effects = new Map<number, any>();
   let pooledGhosts = 0;
   let pooledHighlights = 0;
+  let pooledEffects = 0;
 
   function clearProjection(label: string) {
     log.push(label);
     pooledGhosts += ghosts.size;
     pooledHighlights += highlights.size;
+    pooledEffects += effects.size;
     ghosts.clear();
     highlights.clear();
+    effects.clear();
     scope = null;
   }
 
@@ -212,7 +217,30 @@ function createMockScene(log: string[]) {
       if (highlights.delete(handle.id)) pooledHighlights += 1;
       log.push(`scene:highlight-release:${handle.id}`);
     }),
+    acquirePlaybackEffect: jest.fn((ownedScope: any, options: any) => {
+      const handle = Object.freeze({ id: nextEffectId++, scopeId: ownedScope.id });
+      effects.set(handle.id, {
+        handle,
+        ...options,
+        alpha: 1,
+        scale: 1,
+        rotation: 0,
+        visible: true
+      });
+      log.push(`scene:effect-acquire:${options.family}:${options.row},${options.col}`);
+      return handle;
+    }),
+    updatePlaybackEffect: jest.fn((_scope: any, handle: any, update: any) => {
+      const current = effects.get(handle.id);
+      if (current) effects.set(handle.id, { ...current, ...update });
+      log.push(`scene:effect-update:${handle.id}`);
+    }),
+    releasePlaybackEffect: jest.fn((_scope: any, handle: any) => {
+      if (effects.delete(handle.id)) pooledEffects += 1;
+      log.push(`scene:effect-release:${handle.id}`);
+    }),
     getPlaybackGhost: jest.fn((handle: any) => ghosts.get(handle.id) || null),
+    getPlaybackEffect: jest.fn((handle: any) => effects.get(handle.id) || null),
     resetPlaybackProjection: jest.fn(() => clearProjection('scene:projection-reset')),
     applyFrame: jest.fn((_frame: BoardVisualFrame, context?: { preservePlaybackProjection?: boolean }) => {
       log.push('scene:frame-apply');
@@ -225,7 +253,9 @@ function createMockScene(log: string[]) {
       activePlaybackGhostCount: ghosts.size,
       pooledPlaybackGhostCount: pooledGhosts,
       activePlaybackHighlightLeaseCount: highlights.size,
-      pooledPlaybackHighlightCount: pooledHighlights
+      pooledPlaybackHighlightCount: pooledHighlights,
+      activePlaybackEffectCount: effects.size,
+      pooledPlaybackEffectCount: pooledEffects
     })),
     reset: jest.fn(() => clearProjection('scene:reset')),
     destroy: jest.fn(() => clearProjection('scene:destroy'))
@@ -235,7 +265,8 @@ function createMockScene(log: string[]) {
 
 function context(
   strictNetworkPlayback = false,
-  events: readonly unknown[] = []
+  events: readonly unknown[] = [],
+  waitForTargetPrelude?: (event: unknown, target: unknown) => Promise<void>
 ): BoardPlaybackContext {
   return Object.freeze({
     token: Object.freeze({
@@ -244,7 +275,12 @@ function context(
       mode: strictNetworkPlayback ? 'network' as const : 'local' as const
     }),
     strictNetworkPlayback,
-    phaseScope: Object.freeze({ events: Object.freeze(Array.from(events)), phaseKey: '1', stepIndex: 0 })
+    phaseScope: Object.freeze({
+      events: Object.freeze(Array.from(events)),
+      phaseKey: '1',
+      stepIndex: 0,
+      ...(waitForTargetPrelude ? { waitForTargetPrelude } : {})
+    })
   });
 }
 
@@ -378,26 +414,71 @@ describe('Pixi board playback contract', () => {
     expect(harness.log).toContain(`record:pixi-playback:event-complete:${type}`);
   });
 
-  test('rejects a known unsupported board event before any phase or visual starts', async () => {
-    const harness = createHarness({ noAnimation: true });
+  test('supports the Phase 7 crossfade stone branch and releases its Pixi leases', async () => {
+    const frame = makeFrame([[1, 1, stone('black')]]);
+    const harness = createHarness({ frame, noAnimation: true });
+    const event = { type: 'crossfade_stone', row: 1, col: 1, newColor: -1 };
 
-    await expect(harness.playback.playPhase([
-      { type: 'place', targets: [] },
-      { type: 'crossfade_stone', row: 1, col: 1 }
-    ], context(true))).rejects.toEqual(expect.objectContaining({
-      name: 'PresentationPlaybackError',
-      code: 'board_event_unimplemented',
-      eventType: 'crossfade_stone',
-      strictNetworkPlayback: true
-    }));
+    await expect(harness.playback.playPhase([event], context(true, [event])))
+      .resolves.toBeUndefined();
 
-    expect(harness.scene.beginPlaybackScope).not.toHaveBeenCalled();
-    expect(harness.record).not.toHaveBeenCalled();
+    expect(harness.scene.acquirePlaybackEffect).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ family: 'crossfade_stone', row: 1, col: 1 })
+    );
     expect(harness.playback.getDiagnostics()).toMatchObject({
-      phaseCount: 0,
+      phaseCount: 1,
+      completedPhaseCount: 1,
       inFlightEffectCount: 0,
-      activeScopeKey: null
+      activeScopeKey: 'network:2:network:phase:1'
     });
+    expect(harness.scene.getDiagnostics()).toMatchObject({
+      activePlaybackEffectCount: 0
+    });
+  });
+
+  test.each([
+    ['protection expire', { type: 'protection_expire', row: 1, col: 1 }],
+    ['legacy fade', { type: 'legacy_fade_out', row: 1, col: 1, options: {} }],
+    ['legacy strong will', { type: 'legacy_strong_will_apply', row: 1, col: 1 }],
+    ['legacy hyperactive move', {
+      type: 'legacy_hyperactive_move',
+      from: { row: 1, col: 1 },
+      to: { row: 1, col: 2 }
+    }],
+    ['legacy sacrifice pulse', { type: 'legacy_sacrifice_absorb_pulse', row: 1, col: 1 }],
+    ['theory incarnation', {
+      type: 'theory_incarnation_spawn_roulette',
+      targets: [{
+        r: 2,
+        col: 2,
+        selectedCell: { r: 2, col: 2 },
+        candidateCells: [{ r: 2, col: 1, value: 3 }, { r: 2, col: 2, value: 7 }],
+        ownerAfter: 'black',
+        after: { owner: 'black', color: 1, special: 'THEORY' }
+      }]
+    }],
+    ['manifest ending board sync', {
+      type: 'manifest_ending',
+      targets: [{ r: 2, col: 2, after: { owner: 'white', color: -1 } }]
+    }]
+  ])('supports %s without compatibility board pixels', async (_name, rawEvent) => {
+    const harness = createHarness({
+      frame: makeFrame([[1, 1, stone('black')], [2, 2, stone('white', 'MANIFEST_THEORY')]]),
+      noAnimation: true
+    });
+    const event = rawEvent as any;
+
+    await expect(harness.playback.playPhase([event], context(true, [event])))
+      .resolves.toBeUndefined();
+
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      phaseCount: 1,
+      completedPhaseCount: 1,
+      failedPhaseCount: 0,
+      inFlightEffectCount: 0
+    });
+    expect(harness.scene.getDiagnostics()).toMatchObject({ activePlaybackEffectCount: 0 });
   });
 
   test('preflights the complete phase scope before an earlier routed event mutates Pixi', async () => {
@@ -406,7 +487,7 @@ describe('Pixi board playback contract', () => {
     const scopeEvents = [
       place,
       { type: 'sound_effect', soundKey: 'stone_place' },
-      { type: 'crossfade_stone', row: 1, col: 1 }
+      { type: 'future_board_effect', row: 1, col: 1 }
     ];
 
     await expect(harness.playback.playPhase(
@@ -415,7 +496,7 @@ describe('Pixi board playback contract', () => {
     )).rejects.toEqual(expect.objectContaining({
       name: 'PresentationPlaybackError',
       code: 'board_event_unimplemented',
-      eventType: 'crossfade_stone',
+      eventType: 'future_board_effect',
       strictNetworkPlayback: true
     }));
 
@@ -440,11 +521,8 @@ describe('Pixi board playback contract', () => {
     ['ultimate destroy lightning', 'ULTIMATE_DESTROY_GOD', 'udg_destroyed'],
     ['lightning strike', 'LIGHTNING_WILL', 'lightning_destroyed'],
     ['meteor black beam', 'METEOR_GOD', 'meteor_god_cell_destroy'],
-    ['will hunter slash', 'WILL_HUNTER_KING', 'will_hunter_king_slash'],
-    ['robot vacuum', 'ROBOT_VACUUM', 'robot_vacuum_suck'],
-    ['gluttonous replacement', 'GLUTTONOUS_WILL', 'gluttonous_eat'],
-    ['super crush collision', 'SUPER_GRAVITY_WILL', 'super_gravity_collision']
-  ])('rejects Phase 7 DESTROY variant %s instead of using the generic fade', async (
+    ['robot vacuum', 'ROBOT_VACUUM', 'robot_vacuum_suck']
+  ])('preflights the Phase 7 global DESTROY trajectory gate for %s', async (
     _name,
     cause,
     reason
@@ -479,6 +557,60 @@ describe('Pixi board playback contract', () => {
       activeScopeKey: null,
       inFlightEffectCount: 0
     });
+  });
+
+  test.each([
+    ['sniper projectile', 'SNIPER_WILL', 'sniper_shot'],
+    ['destroy dragon breath', 'DESTROY_DRAGON_WILL', 'destroy_dragon_breath'],
+    ['ultimate destroy lightning', 'ULTIMATE_DESTROY_GOD', 'udg_destroyed'],
+    ['lightning strike', 'LIGHTNING_WILL', 'lightning_destroyed'],
+    ['meteor black beam', 'METEOR_GOD', 'meteor_god_cell_destroy'],
+    ['robot vacuum', 'ROBOT_VACUUM', 'robot_vacuum_suck'],
+    ['will hunter slash', 'WILL_HUNTER_KING', 'will_hunter_king_slash'],
+    ['gluttonous replacement', 'GLUTTONOUS_WILL', 'gluttonous_eat'],
+    ['super crush collision', 'SUPER_GRAVITY_WILL', 'super_gravity_collision']
+  ])('settles the Phase 7 DESTROY variant %s with its assigned renderer', async (
+    _name,
+    cause,
+    reason
+  ) => {
+    const harness = createHarness({
+      frame: makeFrame([[3, 3, stone('black')]]),
+      noAnimation: true
+    });
+    const event = {
+      type: 'destroy',
+      targets: [{
+        r: 3,
+        col: 3,
+        sourceRow: 2,
+        sourceCol: 3,
+        ownerBefore: 'black',
+        cause,
+        reason,
+        before: { owner: 'black', color: 1 }
+      }]
+    };
+    const gate = jest.fn(async () => undefined);
+
+    await expect(harness.playback.playPhase(
+      [event],
+      context(false, [event], gate)
+    )).resolves.toBeUndefined();
+
+    const needsGlobalGate = ![
+      'WILL_HUNTER_KING',
+      'GLUTTONOUS_WILL',
+      'SUPER_GRAVITY_WILL'
+    ].includes(cause);
+    expect(gate).toHaveBeenCalledTimes(needsGlobalGate ? 1 : 0);
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      phaseCount: 1,
+      completedPhaseCount: 1,
+      failedPhaseCount: 0,
+      inFlightEffectCount: 0
+    });
+    expect(harness.scene.getDiagnostics()).toMatchObject({ activePlaybackEffectCount: 0 });
   });
 
   test('NOANIM still executes start, final projection, render, and transient cleanup', async () => {
@@ -522,6 +654,88 @@ describe('Pixi board playback contract', () => {
       activePlaybackGhostCount: 1,
       activePlaybackHighlightLeaseCount: 0
     });
+  });
+
+  test('BOARD_FRAME shrink retains procedural hole geometry without an adjacent seam until commit', async () => {
+    const harness = createHarness({
+      frame: makeFrame([[0, 0, stone('black')], [0, 1, stone('white')]]),
+      noAnimation: true
+    });
+    const event = {
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      meta: { special: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' },
+      targets: [
+        { r: 0, col: 0, before: { owner: 'black', color: 1 }, after: { special: 'METEOR_HOLE' } },
+        { r: 0, col: 1, before: { owner: 'white', color: -1 }, after: { special: 'METEOR_HOLE' } }
+      ]
+    } as any;
+
+    await harness.playback.playPhase([event], context(false, [event]));
+
+    expect(harness.scene.acquirePlaybackEffect.mock.calls.map((call: any[]) => call[1]))
+      .toEqual([
+        expect.objectContaining({
+          family: 'board_shrink',
+          kind: 'topology',
+          row: 0,
+          col: 0,
+          innerBoundaryEdges: ['bottom']
+        }),
+        expect.objectContaining({
+          family: 'board_shrink',
+          kind: 'topology',
+          row: 0,
+          col: 1,
+          innerBoundaryEdges: ['right', 'bottom']
+        })
+      ]);
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      retainedFinalEffectCount: 2,
+      inFlightEffectCount: 0
+    });
+    expect(harness.scene.getDiagnostics().activePlaybackEffectCount).toBe(2);
+
+    harness.scene.applyFrame(harness.frame);
+    harness.playback.onFrameApplied();
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      retainedFinalEffectCount: 0,
+      activeScopeKey: null
+    });
+    expect(harness.scene.getDiagnostics().activePlaybackEffectCount).toBe(0);
+  });
+
+  test('zombie terminal flip waits for its DOM-global source decoration gate', async () => {
+    const harness = createHarness({
+      frame: makeFrame([[2, 3, stone('white')]]),
+      noAnimation: true
+    });
+    let resolvePrelude!: () => void;
+    const prelude = new Promise<void>((resolve) => { resolvePrelude = resolve; });
+    const gate = jest.fn(() => prelude);
+    const event = {
+      type: 'flip',
+      targets: [{
+        r: 2,
+        col: 3,
+        ownerBefore: 'white',
+        ownerAfter: 'black',
+        cause: 'ZOMBIE',
+        reason: 'zombie_infection',
+        meta: { sourceRow: 2, sourceCol: 2 },
+        after: { owner: 'black', color: 1, special: 'ZOMBIE' }
+      }]
+    };
+    let settled = false;
+    const playback = harness.playback.playPhase([event], context(false, [event], gate))
+      .then(() => { settled = true; });
+
+    await flushMicrotasks();
+    expect(gate).toHaveBeenCalledTimes(1);
+    expect(settled).toBe(false);
+    resolvePrelude();
+    await playback;
+    expect(settled).toBe(true);
   });
 
   test('source-empty DESTROY and MOVE consume their logical durations', async () => {

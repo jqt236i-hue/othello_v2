@@ -968,7 +968,11 @@ class DomBoardPlaybackRuntime {
     await this.runInPhase(events, context, async (phase) => {
       if (!AnimationFlipEvents || typeof AnimationFlipEvents.handleFlipEvent !== 'function') throw new Error('DOM flip event module unavailable');
       const targets: unknown[] = [];
-      for (const event of events) for (const target of Array.isArray(event.targets) ? event.targets : []) targets.push(target);
+      const eventByTarget = new Map<unknown, PresentationPlaybackEvent>();
+      for (const event of events) for (const target of Array.isArray(event.targets) ? event.targets : []) {
+        targets.push(target);
+        eventByTarget.set(target, event);
+      }
       if (!targets.length) return;
       await AnimationFlipEvents.handleFlipEvent({ type: EVENT_TYPES.FLIP, targets }, {
         eventTypes: EVENT_TYPES,
@@ -983,7 +987,15 @@ class DomBoardPlaybackRuntime {
         syncDiscVisual: (disc: HTMLElement, state: any) => this.syncDiscVisual(disc, state),
         runWithEffectTargetHighlight: (cell: HTMLElement, type: unknown, target: any, runner: () => Promise<any>, minimum: unknown) => this.runWithEffectTargetHighlight(cell, type, target, runner, minimum),
         sleep: (ms: unknown) => this.sleep(ms),
-        animationShared: AnimationShared
+        animationShared: AnimationShared,
+        ...(typeof context?.phaseScope?.waitForTargetPrelude === 'function'
+          ? {
+            waitForZombieSourcePrelude: (target: unknown) => context.phaseScope!.waitForTargetPrelude!(
+              eventByTarget.get(target) || events[0],
+              target
+            )
+          }
+          : {})
       });
     });
   }
@@ -1028,7 +1040,15 @@ class DomBoardPlaybackRuntime {
         resolveEffectTargetHighlightTone: (type: unknown, target: any) => this.resolveEffectTargetHighlightTone(type, target),
         runWithEffectTargetHighlight: (cell: HTMLElement, type: unknown, target: any, runner: () => Promise<any>, minimum: unknown) => this.runWithEffectTargetHighlight(cell, type, target, runner, minimum),
         resolveDestroySourceAnimationProfile: (target: any) => this.resolveDestroySourceAnimationProfile(target),
-        playDestroySourceAnimation: (target: any, profile: any) => this.playDestroySourceAnimation(target, profile, event, phase),
+        playDestroySourceAnimation: async (target: any, profile: any) => {
+          const gate = context?.phaseScope?.waitForTargetPrelude;
+          if (profile && typeof gate === 'function'
+            && PresentationEffectProfiles.requiresGlobalDestroyPrelude(target)) {
+            await gate(event, target);
+            return;
+          }
+          await this.playDestroySourceAnimation(target, profile, event, phase);
+        },
         animateDestroyGhostAtCell: (cell: HTMLElement, color: unknown) => this.animateDestroyGhostAtCell(cell, color),
         createDisc: (state: any) => this.createDisc(state),
         removeDiscFromCell: (cell: HTMLElement, disc: HTMLElement) => this.removeDiscFromCell(cell, disc),

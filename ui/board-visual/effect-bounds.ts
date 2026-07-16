@@ -189,7 +189,7 @@ export const GLOBAL_DOM_EFFECT_FAMILIES = Object.freeze(
 
 export const PHASE0_PRESENTATION_EFFECT_FAMILY_INVENTORY = Object.freeze({
   PLACE: Object.freeze(['place', 'source-to-board'] as const),
-  FLIP: Object.freeze(['flip'] as const),
+  FLIP: Object.freeze(['flip', 'source-to-board'] as const),
   DESTROY: Object.freeze(['destroy', 'source-to-board'] as const),
   SPAWN: Object.freeze(['spawn'] as const),
   MOVE: Object.freeze(['move'] as const),
@@ -220,6 +220,8 @@ export const PRESENTATION_EVENT_EFFECT_FAMILY_INVENTORY = Object.freeze({
   legacy_hyperactive_move: Object.freeze(['legacy_hyperactive_move'] as const),
   legacy_sacrifice_absorb_pulse: Object.freeze(['legacy_sacrifice_absorb_pulse'] as const),
   observer_bubble: Object.freeze(['observer_bubble'] as const),
+  destroy_source_animation: Object.freeze(['source-to-board'] as const),
+  zombie_bite_source_animation: Object.freeze(['source-to-board'] as const),
   theory_incarnation_spawn_roulette: Object.freeze(['theory_incarnation_spawn_roulette'] as const),
   manifest_ending: Object.freeze(['manifest_ending_board', 'fullscreen'] as const),
   place_hand_animation: Object.freeze(['source-to-board'] as const),

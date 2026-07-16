@@ -30,10 +30,12 @@ function makeFrame(
     renderSessionId?: string;
     viewportWidth?: number;
     viewportHeight?: number;
+    existingKeys?: string[];
   } = {}
 ): BoardVisualFrame {
   const rows = options.rows || 16;
   const cols = options.cols || 16;
+  const existingKeys = options.existingKeys || ['0,0'];
   const topology = {
     baseRows: 8,
     baseCols: 8,
@@ -45,8 +47,8 @@ function makeFrame(
     renderColOffset: 0,
     renderRows: rows,
     renderCols: cols,
-    existingKeys: ['0,0'],
-    playableKeys: ['0,0'],
+    existingKeys,
+    playableKeys: existingKeys,
     holeKeys: []
   };
   const layout = createBoardViewportLayout(topology, {
@@ -70,39 +72,42 @@ function makeFrame(
     model: Object.freeze({
       visualRevision: revision,
       topology,
-      cells: Object.freeze([{
-        key: '0,0',
-        row: 0,
-        col: 0,
-        renderRow: 0,
-        renderCol: 0,
-        kind: 'playable' as const,
-        expansionSide: null,
-        boundaryEdges: { top: 'outer' as const, right: 'none' as const, bottom: 'none' as const, left: 'outer' as const },
-        stone: {
-          owner: 'black' as const,
-          value: 1,
-          specialType: options.special ? 'TIME_BOMB' : null,
-          status: {}
-        },
-        markers: [],
-        interaction: {
-          legal: false,
-          legalFree: false,
-          tabooLegal: false,
-          selectable: false,
-          interactionLocked: false,
-          hovered: false,
-          keyboardCursor: false,
-          previewKinds: [],
-          selected: false,
-          selectionKinds: [],
-          directionHints: [],
-          directionHintIds: [],
-          localPendingHintIds: []
-        },
-        visualSignature: `cell:${revision}`
-      }]),
+      cells: Object.freeze(existingKeys.map((key) => {
+        const [row, col] = key.split(',').map(Number);
+        return {
+          key,
+          row,
+          col,
+          renderRow: row,
+          renderCol: col,
+          kind: 'playable' as const,
+          expansionSide: null,
+          boundaryEdges: { top: 'outer' as const, right: 'none' as const, bottom: 'none' as const, left: 'outer' as const },
+          stone: {
+            owner: 'black' as const,
+            value: 1,
+            specialType: options.special ? 'TIME_BOMB' : null,
+            status: {}
+          },
+          markers: [],
+          interaction: {
+            legal: false,
+            legalFree: false,
+            tabooLegal: false,
+            selectable: false,
+            interactionLocked: false,
+            hovered: false,
+            keyboardCursor: false,
+            previewKinds: [],
+            selected: false,
+            selectionKinds: [],
+            directionHints: [],
+            directionHintIds: [],
+            localPendingHintIds: []
+          },
+          visualSignature: `cell:${revision}:${key}`
+        };
+      })),
       keyboardCursorKey: null,
       viewerContext: 'black' as const,
       currentPlayer: 'black' as const,
@@ -310,6 +315,7 @@ function createPlaybackFixture() {
     kind: 'pixi-board-playback' as const,
     validatePhase: jest.fn((_events: readonly unknown[], _context: unknown) => undefined),
     playPhase: jest.fn(async (_events: readonly unknown[], _context: unknown) => undefined),
+    revealTopologyCells: jest.fn(async (_keys: readonly string[]) => undefined),
     onFrameApplied: jest.fn(),
     abort: jest.fn(() => 0),
     getDiagnostics: jest.fn(() => Object.freeze({
@@ -318,6 +324,7 @@ function createPlaybackFixture() {
       projectedStoneCount: 0,
       retainedFinalGhostCount: 0,
       inFlightEffectCount: 0,
+      inFlightTopologyRevealCount: 0,
       phaseCount: 0,
       completedPhaseCount: 0,
       failedPhaseCount: 0,
@@ -373,6 +380,7 @@ function createHarness(options: {
   getInputController?: () => any;
   customBoardBlob?: Blob | null;
   reducedMotion?: boolean;
+  onTopologyRevealStart?: (keys: readonly string[], frame: any) => void;
 } = {}) {
   const dom = new JSDOM('<!doctype html><div id="board"><div class="cell">legacy</div></div>', {
     url: 'https://example.test/game/index.html'
@@ -425,6 +433,7 @@ function createHarness(options: {
     inputFactory: options.inputFactory,
     playbackFactory: options.playbackFactory,
     getInputController: options.getInputController,
+    onTopologyRevealStart: options.onTopologyRevealStart,
     resolveAppearance: (frame) => resolvedAppearance(frame, false, options.customBoardBlob || null),
     resolveDefaultAppearance: (frame) => resolvedAppearance(frame, true),
     acquireAppearanceLease: (appearance) => {
@@ -741,6 +750,143 @@ describe('Pixi board backend integration', () => {
     expect(harness.app.instances[0].renderer.render).toHaveBeenCalledTimes(1);
   });
 
+  test('reveals only old/new topology additions while settling at the DOM-compatible first render', async () => {
+    const fixture = createPlaybackFixture();
+    const onTopologyRevealStart = jest.fn();
+    const harness = createHarness({
+      noAnimation: false,
+      playbackFactory: () => fixture.playback,
+      onTopologyRevealStart
+    });
+    await harness.backend.mount(harness.host, {});
+
+    const initial = makeFrame('topology-initial', 1, { existingKeys: ['0,0'] });
+    await harness.backend.prepareFrame(initial);
+    harness.backend.applyFrame(initial);
+    await harness.backend.waitForVisualSettlement(initial);
+    expect(fixture.playback.revealTopologyCells).not.toHaveBeenCalled();
+    expect(onTopologyRevealStart).not.toHaveBeenCalled();
+
+    const reveal = deferred<void>();
+    fixture.playback.revealTopologyCells.mockReturnValueOnce(reveal.promise);
+    const expanded = makeFrame('topology-expanded', 2, {
+      existingKeys: ['1,0', '0,0', '0,1']
+    });
+    await harness.backend.prepareFrame(expanded);
+    harness.backend.applyFrame(expanded);
+
+    const idlePlaybackDiagnostics = fixture.playback.getDiagnostics();
+    fixture.playback.getDiagnostics.mockReturnValue({
+      ...idlePlaybackDiagnostics,
+      timeline: {
+        ...idlePlaybackDiagnostics.timeline,
+        state: 'running',
+        activeRunCount: 1,
+        tickerRunning: true,
+        tickerSubscribed: true
+      }
+    });
+    const ticker = harness.app.instances[0].ticker;
+    ticker.start();
+    const stopCountBeforeRevealSettlement = ticker.stop.mock.calls.length;
+
+    expect(fixture.playback.revealTopologyCells).toHaveBeenCalledWith(['0,1', '1,0']);
+    expect(onTopologyRevealStart).toHaveBeenCalledWith(['0,1', '1,0'], expanded);
+    const expansionApplyOrder = harness.scene.scene.applyFrame.mock.invocationCallOrder.at(-1)!;
+    const revealStartOrder = fixture.playback.revealTopologyCells.mock.invocationCallOrder.at(-1)!;
+    const expansionRenderOrder = harness.app.instances[0].renderer.render.mock.invocationCallOrder.at(-1)!;
+    const revealSoundOrder = onTopologyRevealStart.mock.invocationCallOrder.at(-1)!;
+    expect(expansionApplyOrder).toBeLessThan(revealStartOrder);
+    expect(revealStartOrder).toBeLessThan(expansionRenderOrder);
+    expect(expansionRenderOrder).toBeLessThan(revealSoundOrder);
+
+    let settled = false;
+    const waiting = harness.backend.waitForVisualSettlement(expanded).then(() => { settled = true; });
+    await waiting;
+    expect(settled).toBe(true);
+    expect(ticker.started).toBe(true);
+    expect(ticker.stop).toHaveBeenCalledTimes(stopCountBeforeRevealSettlement);
+    expect(harness.backend.getDiagnostics()).toMatchObject({
+      committedApplyCount: 2,
+      settledFrameToken: 'topology-expanded'
+    });
+    // The cosmetic 260ms reveal is deliberately independent from canonical
+    // visual settlement.  It still owns and cleans its timeline resources.
+    reveal.resolve();
+    await Promise.resolve();
+    fixture.playback.getDiagnostics.mockReturnValue(idlePlaybackDiagnostics);
+    await harness.backend.waitForVisualSettlement(expanded);
+    expect(ticker.started).toBe(false);
+    expect(harness.backend.getDiagnostics().settledFrameToken).toBe('topology-expanded');
+
+    const shrunk = makeFrame('topology-shrunk', 3, { existingKeys: ['0,0'] });
+    await harness.backend.prepareFrame(shrunk);
+    harness.backend.applyFrame(shrunk);
+    await harness.backend.waitForVisualSettlement(shrunk);
+    expect(fixture.playback.revealTopologyCells).toHaveBeenCalledTimes(1);
+    expect(onTopologyRevealStart).toHaveBeenCalledTimes(1);
+
+    await harness.backend.restore(expanded);
+    expect(fixture.playback.revealTopologyCells).toHaveBeenCalledTimes(1);
+    expect(onTopologyRevealStart).toHaveBeenCalledTimes(1);
+    expect(harness.backend.getDiagnostics()).toMatchObject({
+      restoreCount: 1,
+      settledFrameToken: 'topology-expanded'
+    });
+  });
+
+  test('notifies topology reveal sound only after a successful render and permits a same-token retry', async () => {
+    const fixture = createPlaybackFixture();
+    const onTopologyRevealStart = jest.fn();
+    const harness = createHarness({
+      noAnimation: false,
+      playbackFactory: () => fixture.playback,
+      onTopologyRevealStart
+    });
+    await harness.backend.mount(harness.host, {});
+
+    const initial = makeFrame('topology-retry-initial', 1, { existingKeys: ['0,0'] });
+    await harness.backend.prepareFrame(initial);
+    harness.backend.applyFrame(initial);
+    await harness.backend.waitForVisualSettlement(initial);
+
+    const renderFailure = new Error('topology-retry-render-failed');
+    harness.app.instances[0].renderer.render.mockImplementationOnce(() => {
+      throw renderFailure;
+    });
+    const failedAttempt = makeFrame('topology-retry', 2, {
+      existingKeys: ['0,0', '0,1']
+    });
+    await harness.backend.prepareFrame(failedAttempt);
+    let applyError: unknown;
+    try { harness.backend.applyFrame(failedAttempt); }
+    catch (error) { applyError = error; }
+    expect(applyError).toMatchObject({
+      code: 'pixi_render_failed', stage: 'render', detail: renderFailure
+    });
+    await expect(harness.backend.waitForVisualSettlement(failedAttempt)).rejects.toBe(applyError);
+    expect(fixture.playback.revealTopologyCells).toHaveBeenCalledTimes(1);
+    expect(onTopologyRevealStart).not.toHaveBeenCalled();
+
+    const retry = makeFrame('topology-retry', 2, {
+      existingKeys: ['0,0', '0,1']
+    });
+    await harness.backend.prepareFrame(retry);
+    harness.backend.applyFrame(retry);
+    await harness.backend.waitForVisualSettlement(retry);
+
+    expect(fixture.playback.revealTopologyCells).toHaveBeenCalledTimes(2);
+    expect(onTopologyRevealStart).toHaveBeenCalledTimes(1);
+    expect(onTopologyRevealStart).toHaveBeenCalledWith(['0,1'], retry);
+    const retryRenderOrder = harness.app.instances[0].renderer.render.mock.invocationCallOrder.at(-1)!;
+    const retrySoundOrder = onTopologyRevealStart.mock.invocationCallOrder.at(-1)!;
+    expect(retryRenderOrder).toBeLessThan(retrySoundOrder);
+    expect(harness.backend.getDiagnostics()).toMatchObject({
+      committedApplyCount: 2,
+      settledFrameToken: 'topology-retry'
+    });
+  });
+
   test('bounds the backing store to viewport plus gutter and cleans every owned resource', async () => {
     const harness = createHarness();
     await harness.backend.mount(harness.host, {});
@@ -862,6 +1008,7 @@ describe('Pixi board backend integration', () => {
       projectedStoneCount: 1,
       retainedFinalGhostCount: 1,
       inFlightEffectCount: 1,
+      inFlightTopologyRevealCount: 0,
       phaseCount: 1,
       completedPhaseCount: 0,
       failedPhaseCount: 0,

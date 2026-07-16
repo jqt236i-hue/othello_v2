@@ -47,8 +47,17 @@ describe('manifest effect panel', () => {
 
   function renderOnce() {
     diffRenderer.renderBoardDiff(document.getElementById('board'));
+    diffRenderer.presentCommittedWorldState((global as any).cardState);
     return document.getElementById('manifest-effect-panel') as HTMLElement | null;
   }
+
+  test('waits for the controller committed-frame callback before updating manifest UI', () => {
+    diffRenderer.renderBoardDiff(document.getElementById('board'));
+    expect(document.getElementById('manifest-effect-panel')).toBeNull();
+
+    diffRenderer.presentCommittedWorldState((global as any).cardState);
+    expect(document.getElementById('manifest-effect-panel')).not.toBeNull();
+  });
 
   test('last used card tags opt back into pointer events inside the passive left HUD panel', () => {
     const css = fs.readFileSync(path.join(__dirname, '..', 'styles-layout-info.css'), 'utf8');

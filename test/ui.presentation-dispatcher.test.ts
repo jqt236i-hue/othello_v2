@@ -122,6 +122,104 @@ describe('presentation dispatcher', () => {
     ]);
   });
 
+  test('starts zombie source decoration before the board batch and shares its target gate', async () => {
+    const calls: string[] = [];
+    let resolvePrelude!: () => void;
+    const prelude = new Promise<void>((resolve) => { resolvePrelude = resolve; });
+    const target = {
+      r: 2,
+      col: 3,
+      cause: 'ZOMBIE',
+      reason: 'zombie_infection',
+      meta: { sourceRow: 2, sourceCol: 2 }
+    };
+    const dispatch = dispatchPresentationPhase([{ type: 'flip', phase: 7, targets: [target] }], {
+      playGlobalEvent(event) {
+        calls.push(`global:${event.type}`);
+        return prelude;
+      },
+      async playBoardPhase(_events, scope) {
+        calls.push('board:start');
+        await scope?.waitForTargetPrelude?.(_events[0], target);
+        calls.push('board:settled');
+      }
+    });
+
+    await Promise.resolve();
+    expect(calls).toEqual(['global:zombie_bite_source_animation', 'board:start']);
+    resolvePrelude();
+    await dispatch;
+    expect(calls).toEqual([
+      'global:zombie_bite_source_animation',
+      'board:start',
+      'board:settled'
+    ]);
+  });
+
+  test('settles each special DESTROY source trajectory before its matching Pixi target impact', async () => {
+    const calls: string[] = [];
+    const resolvers = new Map<string, () => void>();
+    const sniper = {
+      r: 1,
+      col: 1,
+      sourceRow: 0,
+      sourceCol: 0,
+      cause: 'SNIPER_WILL',
+      reason: 'sniper_shot'
+    };
+    const robot = {
+      r: 4,
+      col: 4,
+      sourceRow: 6,
+      sourceCol: 6,
+      cause: 'ROBOT_VACUUM',
+      reason: 'robot_vacuum_suck'
+    };
+    const ordinary = {
+      r: 2,
+      col: 2,
+      cause: 'SYSTEM',
+      reason: 'board_effect'
+    };
+    const event = { type: 'destroy', phase: 9, targets: [sniper, ordinary, robot] };
+    let boardSettled = false;
+    const dispatch = dispatchPresentationPhase([event], {
+      playGlobalEvent(globalEvent) {
+        const target = globalEvent.target as any;
+        const key = `${target.r},${target.col}`;
+        calls.push(`global:${key}`);
+        return new Promise<void>((resolve) => { resolvers.set(key, resolve); });
+      },
+      async playBoardPhase(events, scope) {
+        expect(events).toEqual([event]);
+        calls.push('board:start');
+        await Promise.all([
+          scope?.waitForTargetPrelude?.(event, sniper),
+          scope?.waitForTargetPrelude?.(event, ordinary),
+          scope?.waitForTargetPrelude?.(event, robot)
+        ]);
+        boardSettled = true;
+        calls.push('board:settled');
+      }
+    });
+
+    await Promise.resolve();
+    expect(calls).toEqual(['global:1,1', 'global:4,4', 'board:start']);
+    expect(boardSettled).toBe(false);
+    resolvers.get('1,1')?.();
+    await Promise.resolve();
+    expect(boardSettled).toBe(false);
+    resolvers.get('4,4')?.();
+    await dispatch;
+    expect(boardSettled).toBe(true);
+    expect(calls).toEqual([
+      'global:1,1',
+      'global:4,4',
+      'board:start',
+      'board:settled'
+    ]);
+  });
+
   test('local unknown event uses the exclusive DOM compatibility board port', async () => {
     const playBoardPhase = jest.fn();
     const event = { type: 'legacy_event', phase: 2, targets: [{ r: 1, col: 2 }] };

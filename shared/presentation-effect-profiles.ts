@@ -54,6 +54,15 @@ const SPECIAL_DESTROY_TARGET_PROFILES = Object.freeze({
     })
 });
 
+const GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS = Object.freeze([
+    'sniperShot',
+    'lightningDestroyed',
+    'destroyDragonBreath',
+    'udgDestroyed',
+    'meteorGodBlackBeam',
+    'robotVacuumSuck'
+] as const);
+
 const SUPER_CRUSH_DESTROY_TARGET_PROFILES = Object.freeze({
     superBuoyancyCollision: Object.freeze({
         causes: Object.freeze(['BUOYANCY_WILL', 'SUPER_BUOYANCY_WILL']),
@@ -136,6 +145,18 @@ function isNonGenericDestroyTarget(subject: PresentationSubject | null | undefin
     return profiles.some((profile) => matchesCauseReasonProfile(subject, profile));
 }
 
+function getSpecialDestroyTargetProfileKey(subject: PresentationSubject | null | undefined): string | null {
+    for (const [key, profile] of Object.entries(SPECIAL_DESTROY_TARGET_PROFILES)) {
+        if (matchesCauseReasonProfile(subject, profile)) return key;
+    }
+    return null;
+}
+
+function requiresGlobalDestroyPrelude(subject: PresentationSubject | null | undefined): boolean {
+    const key = getSpecialDestroyTargetProfileKey(subject);
+    return !!key && (GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS as readonly string[]).includes(key);
+}
+
 function matchesSpawnProfileTarget(target: PresentationSubject | null | undefined, cause: unknown, reason: unknown, profile: CauseReasonProfile | null | undefined): boolean {
     if (!matchesCauseAndReasonPrefix(cause, reason, profile)) return false;
     const expectedIntent = profile && profile.spawnIntent;
@@ -173,6 +194,7 @@ export = {
     STONE_SALVATION_GOD_CAUSE,
     STONE_SALVATION_GOD_REVIVE_REASON,
     SPECIAL_DESTROY_TARGET_PROFILES,
+    GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS,
     SUPER_CRUSH_DESTROY_TARGET_PROFILES,
     POSITIVE_SPAWN_LIKE_EFFECTS,
     POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS,
@@ -181,6 +203,8 @@ export = {
     matchesCauseAndReasonPrefix,
     matchesCauseReasonProfile,
     isNonGenericDestroyTarget,
+    getSpecialDestroyTargetProfileKey,
+    requiresGlobalDestroyPrelude,
     matchesSpawnProfileTarget,
     isSpawnEventLike
 };

@@ -250,6 +250,50 @@ describe('PresentationHandler playback claim', () => {
     expect((global as any).AnimationEngine.play).not.toHaveBeenCalled();
   });
 
+  test('settles a synthetic local writer when a board update has no playback events', async () => {
+    let markSettlementStarted: () => void = () => undefined;
+    const settlementStarted = new Promise<void>((resolve) => {
+      markSettlementStarted = resolve;
+    });
+    let completeSettlement: () => void = () => undefined;
+    const settlement = new Promise<boolean>((resolve) => {
+      completeSettlement = () => resolve(true);
+    });
+    const settleAutoBoardVisualWriter = jest.fn(() => {
+      markSettlementStarted();
+      return settlement;
+    });
+    const runtime = {
+      createBoardUpdateDrainController: jest.fn(() => ({
+        requestDrain: async (runDrain: any) => runDrain()
+      })),
+      flushPendingPresentationEvents: jest.fn(() => [])
+    };
+    jest.doMock('../game/cpu-turn-handler', () => ({ PresentationRuntime: runtime }));
+    jest.doMock('../ui/board-renderer', () => ({
+      getBoardVisualControllerReady: jest.fn(async () => undefined),
+      settleAutoBoardVisualWriter
+    }));
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+
+    let boardUpdateResolved = false;
+    const boardUpdate = PresentationHandler.onBoardUpdated().then(() => {
+      boardUpdateResolved = true;
+    });
+    await settlementStarted;
+
+    expect(boardUpdateResolved).toBe(false);
+
+    completeSettlement();
+    await expect(boardUpdate).resolves.toBeUndefined();
+
+    expect(runtime.flushPendingPresentationEvents).toHaveBeenCalledTimes(1);
+    expect(settleAutoBoardVisualWriter).toHaveBeenCalledTimes(1);
+    expect(boardUpdateResolved).toBe(true);
+  });
+
   test('hands strict network ownership to an opaque settlement handle until committed-frame sync succeeds', async () => {
     const order: string[] = [];
     const managerClaim = { id: 31 };

@@ -45,6 +45,22 @@ const PNG_DIFF_PIXEL_BUDGET = 4000;
 const PHASE_ZERO_REPORT_PATH = 'docs/perf/pixijs-playfield-baseline.json';
 const VIEWPORT_WIDTH = 1366;
 const VIEWPORT_HEIGHT = 900;
+const SPECIAL_TIMER_BADGE_FIXTURE = 'presentation-special-timer-badge';
+const SPECIAL_TIMER_BADGE_EXPECTATIONS = Object.freeze({
+  '1,1': Object.freeze({
+    specialType: 'HYPERACTIVE',
+    statusLabels: Object.freeze(['special:12', 'regen:3', 'flip-evade:2'])
+  }),
+  '1,2': Object.freeze({ specialType: 'GUARD', statusLabels: Object.freeze(['guard:4']) }),
+  '2,2': Object.freeze({ specialType: 'TIME_BOMB', statusLabels: Object.freeze(['bomb:10']) }),
+  // The frozen and manifest rows pin their dedicated marker/aura branches.
+  '5,5': Object.freeze({ specialType: 'FREEZE', statusLabels: Object.freeze(['freeze:3']) }),
+  '6,6': Object.freeze({
+    specialType: 'ULTIMATE_REVERSE_DRAGON',
+    statusLabels: Object.freeze(['special:8']),
+    renderedMarkerKinds: Object.freeze(['special', 'manifest-aura'])
+  })
+});
 
 type Lane = 'classic' | 'vite';
 
@@ -590,6 +606,7 @@ async function readFixtureProbe(
       `${definition.rows - 1},${definition.cols - 1}`,
       ...(definition.expansionCells || []).map((cell: any) => `${cell.row},${cell.col}`),
       ...(definition.holes || []).map((cell: any) => `${cell.row},${cell.col}`),
+      ...(definition.markers || []).map((marker: any) => `${marker.row},${marker.col}`),
       ...presentationCandidateKeys
     ]);
     const renderedCells: Record<string, unknown> = {};
@@ -626,6 +643,7 @@ async function readFixtureProbe(
       requestedDpr: expectedDpr,
       observedDpr: dpr,
       frameDigest: debug.getVisualFrameDigest(),
+      backendDiagnostics: debug.getBackendDiagnostics(),
       centerRect,
       canvas: canvasRect ? {
         cssWidth: canvasRect.width,
@@ -1037,6 +1055,13 @@ function evaluatePixijsBoardLaneReport(report: any): { ok: boolean; errors: stri
       errors.push(`${name}: DPR mismatch ${fixture.observedDpr}`);
     }
     if (!fixture.frameDigest) errors.push(`${name}: visual frame digest is missing`);
+    const application = fixture.backendDiagnostics?.application;
+    if (application && (application.tickerRunning === true
+      || application.privateTickerRunning === true
+      || application.sharedTickerRunning === true
+      || application.systemTickerRunning === true)) {
+      errors.push(`${name}: Pixi ticker remained active after visual settlement`);
+    }
     if (!fixture.canvas || fixture.canvas.backingWidth <= 0 || fixture.canvas.backingHeight <= 0) {
       errors.push(`${name}: canvas backing store is missing`);
     } else {
@@ -1108,6 +1133,29 @@ function evaluatePixijsBoardLaneReport(report: any): { ok: boolean; errors: stri
         || !hints.some((hint: any) => hint.keyboardCursor === true)
         || !hasPreview) {
         errors.push(`${name}: static legal/selection/preview/keyboard hints are incomplete`);
+      }
+    }
+    if (fixture.fixture === SPECIAL_TIMER_BADGE_FIXTURE) {
+      for (const [key, expectation] of Object.entries(SPECIAL_TIMER_BADGE_EXPECTATIONS)) {
+        const stone = fixture.renderedCells?.[key]?.stone;
+        const statusLabels = Array.isArray(stone?.statusLabels)
+          ? stone.statusLabels.map((entry: any) => `${entry.kind}:${entry.value}`)
+          : [];
+        if (stone?.visible !== true
+          || stone?.specialType !== expectation.specialType
+          || JSON.stringify(statusLabels) !== JSON.stringify(expectation.statusLabels)
+          || ('renderedMarkerKinds' in expectation
+            && JSON.stringify(stone?.renderedMarkerKinds || []) !== JSON.stringify(expectation.renderedMarkerKinds))) {
+          errors.push(`${name}:${key}: Phase 0 special timer/badge visual drifted`);
+        }
+      }
+      // Phase 0 intentionally placed SEED over an occupied opening stone. Pin
+      // that baseline suppression here; the empty-cell seed branch has its own
+      // retained-view fixture.
+      const occupiedSeed = fixture.renderedCells?.['4,4'];
+      if (occupiedSeed?.stone?.specialType != null
+        || (occupiedSeed?.cell?.renderedMarkerKinds || []).includes('seed')) {
+        errors.push(`${name}:4,4: occupied Phase 0 seed suppression drifted`);
       }
     }
   }
@@ -1387,6 +1435,7 @@ export = {
   REQUIRED_EXPANSION_FIXTURES,
   STATIC_ENTRY_QUERY,
   VIRTUALIZATION_FIXTURE,
+  SPECIAL_TIMER_BADGE_EXPECTATIONS,
   applyPhaseZeroFixture,
   comparePhaseZeroGeometryAndSkin,
   comparePngBuffers,

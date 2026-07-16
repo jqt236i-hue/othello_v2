@@ -74,6 +74,7 @@ var AnimationHandEvents = requireRuntimeModuleOrWindowGlobal('./animation-hand-e
 var PresentationPhasePlanner = requireRuntimeModuleOrWindowGlobal('./presentation/phase-planner', 'PresentationPhasePlanner');
 var PresentationDispatcher = requireRuntimeModuleOrWindowGlobal('./presentation/dispatcher', 'PresentationDispatcher');
 var PresentationVisualSeed = requireRuntimeModuleOrWindowGlobal('./presentation/visual-seed', 'PresentationVisualSeed');
+var GlobalBoardEffectPresenter = requireRuntimeModuleOrWindowGlobal('./presentation/global-board-effect-presenter', 'GlobalBoardEffectPresenter');
 var BoardPlaybackTypes = requireRuntimeModuleOrWindowGlobal('./board-visual/playback-types', 'BoardPlaybackTypes');
 var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
         ? AnimationResolver.getAnimationShared()
@@ -231,6 +232,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         playbackScope: any;
         _remainingEvents: any;
         _watchdogId: any;
+        _playbackAbortController: AbortController | null;
         _playbackRunSequence: any;
         _activePlaybackRunId: any;
         _strictNetworkPlayback: any;
@@ -249,6 +251,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             this.playbackScope = null;
             this._remainingEvents = [];
             this._watchdogId = null;
+            this._playbackAbortController = null;
             this._playbackRunSequence = 0;
             this._activePlaybackRunId = null;
             this._strictNetworkPlayback = false;
@@ -511,6 +514,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     this.isAborted = true;
                     this.isPlaying = false;
                     this._activePlaybackRunId = null;
+                    try { runState.abortController?.abort(); } catch (e: any) { /* ignore */ }
                     const scope = runState.scope;
                     if (scope !== null) {
                         try { _Timer().clearScope(scope); } catch (e: any) { /* ignore */ }
@@ -524,6 +528,9 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     }
                     if (this._watchdogId === watchdogId) {
                         this._watchdogId = null;
+                    }
+                    if (this._playbackAbortController === runState.abortController) {
+                        this._playbackAbortController = null;
                     }
                     runState.watchdogId = null;
                     return true;
@@ -827,6 +834,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 if (!settled && this._isPlaybackStateActive() && (this.isPlaying === true || this._activePlaybackRunId !== null)) {
                     console.warn('[AnimationEngine] Already playing. Aborting previous...');
                     this.isAborted = true;
+                    try { this._playbackAbortController?.abort(); } catch (e: any) { /* ignore */ }
                     // Wait a short settle period
                     await new Promise(r => _Timer().setTimeout(r, 100));
                     this.isAborted = false;
@@ -866,13 +874,15 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             const runState = {
                 scope: null,
                 watchdogId: null,
-                externallyAborted: false
+                externallyAborted: false,
+                abortController: (typeof AbortController === 'function') ? new AbortController() : null
             };
             let abortHandle: any = null;
             // Setup playback scope and flags
             this.isPlaying = true;
             this.playbackScope = (typeof TimerRegistry !== 'undefined' && TimerRegistry.newScope) ? TimerRegistry.newScope() : null;
             runState.scope = this.playbackScope;
+            this._playbackAbortController = runState.abortController;
                 // expose scope for animations to register timers under
                 if (typeof window !== 'undefined') window._currentPlaybackScope = this.playbackScope;
             abortHandle = this._registerPlaybackAbortHandle(runId, runState);
@@ -931,6 +941,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             } finally {
                 this._clearPlaybackAbortHandle(abortHandle);
                 // cleanup watchdog & scope
+                try { runState.abortController?.abort(); } catch (e: any) { /* ignore */ }
                 if (runState.scope !== null) {
                     _Timer().clearScope(runState.scope);
                 }
@@ -945,6 +956,9 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 }
                 if (this._watchdogId === runState.watchdogId) {
                     this._watchdogId = null;
+                }
+                if (this._playbackAbortController === runState.abortController) {
+                    this._playbackAbortController = null;
                 }
                 const activeWriterBelongsToRun = this._ownsActiveBoardWriterToken
                     && this._activeBoardWriterToken
@@ -1149,8 +1163,32 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
 
         async _sleep(ms: any) {
             if (_isNoAnim()) return Promise.resolve();
+            const signal = this._playbackAbortController?.signal || null;
+            if (signal?.aborted) return Promise.resolve();
             return new Promise<void>(resolve=> {
-                const id = _Timer().setTimeout(resolve, ms, this.playbackScope);
+                let settled = false;
+                let id: any = null;
+                const finish = () => {
+                    if (settled) return;
+                    settled = true;
+                    if (id !== null) {
+                        try { _Timer().clearTimeout(id); } catch (e: any) { /* cleanup */ }
+                        id = null;
+                    }
+                    try { signal?.removeEventListener('abort', finish); } catch (e: any) { /* cleanup */ }
+                    resolve();
+                };
+                try { signal?.addEventListener('abort', finish, { once: true }); } catch (e: any) { /* ignore */ }
+                if (signal?.aborted) {
+                    finish();
+                    return;
+                }
+                const scheduledId = _Timer().setTimeout(finish, ms, this.playbackScope);
+                id = scheduledId;
+                if (settled) {
+                    try { _Timer().clearTimeout(scheduledId); } catch (e: any) { /* cleanup */ }
+                    id = null;
+                }
             });
         }
 
@@ -1160,6 +1198,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             // Telemetry increment
             if (typeof window !== 'undefined') { window.__telemetry__ = window.__telemetry__ || { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 }; window.__telemetry__.watchdogFired = (window.__telemetry__.watchdogFired || 0) + 1; }
             // Clear timers in this scope and mark aborted
+            try { this._playbackAbortController?.abort(); } catch (e: any) { /* best-effort */ }
             try {
                 if (this.playbackScope !== null) _Timer().clearScope(this.playbackScope);
             } catch (e: any) { /* best-effort */ }
@@ -1200,6 +1239,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             console.info('[AnimationEngine] abortAndSync called — stopping playback and syncing state');
             // Telemetry increment for aborts
             if (typeof window !== 'undefined') { window.__telemetry__ = window.__telemetry__ || { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 }; window.__telemetry__.abortCount = (window.__telemetry__.abortCount || 0) + 1; }
+            try { this._playbackAbortController?.abort(); } catch (e: any) { /* Intentionally empty: abort signal cleanup */ }
             try {
                 if (this.playbackScope !== null) _Timer().clearScope(this.playbackScope);
             } catch (e: any) { /* Intentionally empty: timer cleanup in abort path */ }
@@ -1226,10 +1266,15 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 case EVENT_TYPES.MOVE:
                 case EVENT_TYPES.STATUS_APPLIED:
                 case EVENT_TYPES.STATUS_REMOVED:
-                case EVENT_TYPES.OBSERVER_BUBBLE:
                 case EVENT_TYPES.THEORY_INCARNATION_SPAWN_ROULETTE:
                     if (globalOnly) throw this._createPlaybackError('board_event_routed_to_global_dispatcher', ev);
                     return this._playBoardPhaseThroughBackend([ev]);
+                case EVENT_TYPES.OBSERVER_BUBBLE:
+                    return this.handleObserverBubble(ev);
+                case 'destroy_source_animation':
+                    return this.handleDestroySourceAnimation(ev);
+                case 'zombie_bite_source_animation':
+                    return this.handleZombieBiteSourceAnimation(ev);
                 case EVENT_TYPES.ROUND_BONUS_BANNER:
                     return this.handleRoundBonusBanner(ev);
                 case EVENT_TYPES.SPECIAL_CARD_CINEMATIC:
@@ -1286,9 +1331,13 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             if (!(AnimationFeedbackEvents && typeof AnimationFeedbackEvents.handleSpecialCardCinematicEvent === 'function')) {
                 throw new Error('AnimationEngine feedback events module unavailable');
             }
+            const abortSignal = this._playbackAbortController?.signal || null;
             return AnimationFeedbackEvents.handleSpecialCardCinematicEvent(ev, {
                 isNoAnim: _isNoAnim,
-                sleep: (ms: any) => this._sleep(ms)
+                sleep: (ms: any) => this._sleep(ms),
+                typewriterSleep: (ms: any) => this._sleep(ms),
+                abortSignal,
+                isAborted: () => this.isAborted === true || abortSignal?.aborted === true
             });
         }
 
@@ -1396,9 +1445,89 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
         }
 
         async handleObserverBubble(ev: any) {
-            return this._playBoardPhaseThroughBackend([Object.assign({}, ev, {
-                type: EVENT_TYPES.OBSERVER_BUBBLE
-            })]);
+            if (!(AnimationFeedbackEvents && typeof AnimationFeedbackEvents.handleObserverBubbleEvent === 'function')) {
+                throw new Error('AnimationEngine observer event module unavailable');
+            }
+            const renderer = requireRuntimeModuleOrWindowGlobal('./board-renderer', 'BoardRenderer');
+            if (!renderer || typeof renderer.getBoardCellClientRect !== 'function') {
+                throw this._createPlaybackError('board_geometry_unavailable', ev);
+            }
+            if (typeof renderer.getBoardVisualControllerReady === 'function') {
+                await renderer.getBoardVisualControllerReady();
+            }
+            return AnimationFeedbackEvents.handleObserverBubbleEvent(ev, {
+                isNoAnim: _isNoAnim,
+                observerBubbleMs: Constants.OBSERVER_BUBBLE_MS,
+                observerBubbleFadeMs: Constants.OBSERVER_BUBBLE_FADE_MS,
+                getCellClientRect: (row: any, col: any) => renderer.getBoardCellClientRect(row, col)
+            });
+        }
+
+        async handleDestroySourceAnimation(ev: any) {
+            if (!(GlobalBoardEffectPresenter && typeof GlobalBoardEffectPresenter.presentDestroySourceAnimation === 'function')) {
+                throw new Error('AnimationEngine global board effect presenter unavailable');
+            }
+            const renderer = requireRuntimeModuleOrWindowGlobal('./board-renderer', 'BoardRenderer');
+            if (!renderer || typeof renderer.getBoardCellClientRect !== 'function') {
+                throw this._createPlaybackError('board_geometry_unavailable', ev);
+            }
+            if (typeof renderer.getBoardVisualControllerReady === 'function') {
+                await renderer.getBoardVisualControllerReady();
+            }
+            const controller = typeof renderer.getBoardVisualController === 'function'
+                ? renderer.getBoardVisualController()
+                : null;
+            const suppressTargetImpact = !!(
+                controller
+                && typeof controller.getBackendKind === 'function'
+                && controller.getBackendKind() === 'pixi'
+            );
+            let random = () => 0.5;
+            if (PresentationVisualSeed && typeof PresentationVisualSeed.createVisualRandom === 'function') {
+                try {
+                    const target = ev && (ev.target || (Array.isArray(ev.targets) ? ev.targets[0] : null));
+                    random = PresentationVisualSeed.createVisualRandom({
+                        event: Object.assign({}, ev && ev.sourceEvent || ev, {
+                            presentationBatchId: ev && ev.presentationBatchId || 'local-presentation:0',
+                            effectKind: 'destroy-source',
+                            target: target && { row: target.r ?? target.row, col: target.col ?? target.c }
+                        })
+                    });
+                } catch (e: any) { /* deterministic midpoint fallback */ }
+            }
+            return GlobalBoardEffectPresenter.presentDestroySourceAnimation(ev, {
+                isNoAnim: _isNoAnim,
+                getCellClientRect: (row: any, col: any) => renderer.getBoardCellClientRect(row, col),
+                sleep: (ms: any) => this._sleep(ms),
+                timer: _Timer,
+                playbackScope: this.playbackScope,
+                abortSignal: this._playbackAbortController?.signal || null,
+                random,
+                suppressTargetImpact,
+                documentRef: (typeof document !== 'undefined') ? document : null
+            });
+        }
+
+        async handleZombieBiteSourceAnimation(ev: any) {
+            if (!(GlobalBoardEffectPresenter && typeof GlobalBoardEffectPresenter.presentZombieBiteSourceAnimation === 'function')) {
+                throw new Error('AnimationEngine zombie bite global presenter unavailable');
+            }
+            const renderer = requireRuntimeModuleOrWindowGlobal('./board-renderer', 'BoardRenderer');
+            if (!renderer || typeof renderer.getBoardCellClientRect !== 'function') {
+                throw this._createPlaybackError('board_geometry_unavailable', ev);
+            }
+            if (typeof renderer.getBoardVisualControllerReady === 'function') {
+                await renderer.getBoardVisualControllerReady();
+            }
+            return GlobalBoardEffectPresenter.presentZombieBiteSourceAnimation(ev, {
+                isNoAnim: _isNoAnim,
+                getCellClientRect: (row: any, col: any) => renderer.getBoardCellClientRect(row, col),
+                sleep: (ms: any) => this._sleep(ms),
+                timer: _Timer,
+                playbackScope: this.playbackScope,
+                abortSignal: this._playbackAbortController?.signal || null,
+                documentRef: (typeof document !== 'undefined') ? document : null
+            });
         }
 
         async handlePlace(ev: any) {

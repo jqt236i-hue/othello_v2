@@ -23,7 +23,6 @@ export type BoardPlaybackEventType =
   | 'legacy_strong_will_apply'
   | 'legacy_hyperactive_move'
   | 'legacy_sacrifice_absorb_pulse'
-  | 'observer_bubble'
   | 'theory_incarnation_spawn_roulette';
 
 export type HybridPresentationEventType = 'manifest_ending';
@@ -44,7 +43,6 @@ const BOARD_EVENT_TYPES = Object.freeze([
   'legacy_strong_will_apply',
   'legacy_hyperactive_move',
   'legacy_sacrifice_absorb_pulse',
-  'observer_bubble',
   'theory_incarnation_spawn_roulette'
 ] as const);
 
@@ -56,6 +54,9 @@ const GLOBAL_EVENT_TYPES = Object.freeze([
   'card_use_animation',
   'special_card_cinematic',
   'round_bonus_banner',
+  'observer_bubble',
+  'destroy_source_animation',
+  'zombie_bite_source_animation',
   'sound_effect',
   'log'
 ] as const);

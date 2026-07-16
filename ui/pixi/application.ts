@@ -13,6 +13,8 @@ export interface PixiBoardApplicationDiagnostics {
   readonly privateTickerRunning: boolean;
   readonly sharedTickerRunning: boolean;
   readonly systemTickerRunning: boolean;
+  readonly sharedTickerAutoStart: boolean;
+  readonly systemTickerAutoStart: boolean;
   readonly renderCount: number;
   readonly resizeCount: number;
   readonly tickerListenerCount: number;
@@ -38,6 +40,8 @@ export interface PixiBoardApplication {
   subscribeTicker(listener: PixiBoardTickerListener): () => void;
   startTicker(): void;
   stopTicker(): void;
+  /** Enforce the turn-based idle boundary after frame/playback settlement. */
+  settleIdle(): void;
   destroy(): void;
 }
 
@@ -169,6 +173,23 @@ export function createPixiBoardApplication(
     }
   }
 
+  function disableRuntimeIdleTicker(candidate: any, label: 'shared' | 'system'): void {
+    if (!candidate) return;
+    // Pixi's shared/system tickers are process-wide, but this repository owns
+    // one exclusive Pixi playfield application. Leaving either auto-starting
+    // ticker alive makes a static turn-based board schedule rAF forever.
+    if ('autoStart' in candidate) candidate.autoStart = false;
+    if (typeof candidate.stop === 'function' && tickerStarted(candidate)) candidate.stop();
+    if (tickerStarted(candidate)) {
+      throw new Error(`Pixi ${label} ticker remained active after initialization`);
+    }
+  }
+
+  function disableRuntimeIdleTickers(): void {
+    disableRuntimeIdleTicker(runtime?.Ticker?.shared, 'shared');
+    disableRuntimeIdleTicker(runtime?.Ticker?.system, 'system');
+  }
+
   function removeTickerSubscription(subscription: {
     readonly ticker: any;
     readonly adapter: (ticker: any) => void;
@@ -235,6 +256,7 @@ export function createPixiBoardApplication(
         canvas = candidateCanvas;
         detachAutomaticTickerRender(candidate);
         stopPrivateTicker(candidate, true);
+        disableRuntimeIdleTickers();
         if (initializationWasSuperseded(epoch)) {
           throw getDestroyError();
         }
@@ -282,6 +304,7 @@ export function createPixiBoardApplication(
       throw new Error('Pixi renderer.render is unavailable');
     }
     renderer.render({ container: application.stage });
+    disableRuntimeIdleTickers();
     renderCount += 1;
   }
 
@@ -324,6 +347,7 @@ export function createPixiBoardApplication(
     if (!/^data:image\/png;base64,[A-Za-z0-9+/=\r\n]+$/.test(value)) {
       throw new Error('Pixi frame extraction returned an invalid PNG data URL');
     }
+    disableRuntimeIdleTickers();
     return value;
   }
 
@@ -392,6 +416,15 @@ export function createPixiBoardApplication(
     tickerRunning = false;
   }
 
+  function settleIdle(): void {
+    assertReady();
+    stopPrivateTicker(application, true);
+    disableRuntimeIdleTickers();
+    if (tickerStarted(application?.ticker)) {
+      throw new Error('Pixi private ticker remained active at idle settlement');
+    }
+  }
+
   function destroy(): void {
     if (state === 'destroyed') return;
     const wasInitializing = state === 'initializing';
@@ -420,6 +453,8 @@ export function createPixiBoardApplication(
       privateTickerRunning,
       sharedTickerRunning,
       systemTickerRunning,
+      sharedTickerAutoStart: runtime?.Ticker?.shared?.autoStart === true,
+      systemTickerAutoStart: runtime?.Ticker?.system?.autoStart === true,
       renderCount,
       resizeCount,
       tickerListenerCount: tickerSubscriptions.size,
@@ -442,6 +477,7 @@ export function createPixiBoardApplication(
     subscribeTicker,
     startTicker,
     stopTicker,
+    settleIdle,
     destroy
   });
 }

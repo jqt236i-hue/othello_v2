@@ -7,6 +7,7 @@ describe('diff renderer world effects', () => {
     const worldEffectsSource = fs.readFileSync(path.resolve(__dirname, '..', 'ui', 'diff-renderer', 'world-effects.ts'), 'utf8');
 
     expect(rendererSource).toContain("_require('./diff-renderer/world-effects')");
+    expect(rendererSource).toContain('function presentCommittedWorldState(cardStateValue: any)');
     expect(rendererSource).toContain('DiffRendererWorldEffects.syncManifestWorldEffects({');
     expect(rendererSource).toContain('DiffRendererWorldEffects.resetManifestWorldEffects({');
     expect(rendererSource).not.toContain('function _syncManifestBgmForDiff');

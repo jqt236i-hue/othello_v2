@@ -32,6 +32,26 @@ function goodFixture(definition: any, dpr = 1): any {
       previewKinds: index >= 2 && index <= 6 ? ['fixture-preview'] : []
     }
   }]));
+  if (definition.name === 'presentation-special-timer-badge') {
+    for (const [key, expectation] of Object.entries(Check.SPECIAL_TIMER_BADGE_EXPECTATIONS) as any[]) {
+      renderedCells[key] = {
+        cell: { renderedMarkerKinds: [] },
+        stone: {
+          visible: true,
+          specialType: expectation.specialType,
+          statusLabels: expectation.statusLabels.map((label: string) => {
+            const separator = label.lastIndexOf(':');
+            return { kind: label.slice(0, separator), value: label.slice(separator + 1) };
+          }),
+          renderedMarkerKinds: expectation.renderedMarkerKinds || []
+        }
+      };
+    }
+    renderedCells['4,4'] = {
+      cell: { renderedMarkerKinds: [] },
+      stone: { visible: true, specialType: null, statusLabels: [], renderedMarkerKinds: [] }
+    };
+  }
   return {
     fixture: definition.name,
     renderer: 'pixi',
@@ -43,6 +63,14 @@ function goodFixture(definition: any, dpr = 1): any {
     requestedDpr: dpr,
     observedDpr: dpr,
     frameDigest: `digest:${definition.name}`,
+    backendDiagnostics: {
+      application: {
+        tickerRunning: false,
+        privateTickerRunning: false,
+        sharedTickerRunning: false,
+        systemTickerRunning: false
+      }
+    },
     canvas: {
       backingWidth: 900 * dpr,
       backingHeight: 700 * dpr,

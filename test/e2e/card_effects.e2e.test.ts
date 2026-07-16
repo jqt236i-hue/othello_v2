@@ -12,6 +12,22 @@ function startServer(port = 0) {
   return startStaticServer(port);
 }
 
+async function openPixiDebugLane(page: any, serverPort: number, noanim = false): Promise<void> {
+  const animationQuery = noanim ? '&noanim=1' : '';
+  await page.goto(
+    `http://127.0.0.1:${serverPort}/?debug=1&boardRenderer=pixi${animationQuery}`,
+    { waitUntil: 'domcontentloaded' }
+  );
+  await closeMaintenanceNoticeIfPresent(page);
+  await page.waitForFunction(() => {
+    const root = window as any;
+    return root.__uiInitialized === true
+      && !!root.__boardVisualDebug
+      && root.__boardVisualDebug.getBackendKind() === 'pixi';
+  }, undefined, { timeout: 30000 });
+  await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
+}
+
 describe('Card effects E2E', () => {
   let serverProc: any;
   let browser: any;
@@ -37,8 +53,7 @@ describe('Card effects E2E', () => {
       try { consoles.push({ type: msg.type(), text: msg.text() }); } catch (e) { /* ignore */ }
     });
 
-    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
-    await closeMaintenanceNoticeIfPresent(page);
+    await openPixiDebugLane(page, serverPort);
 
     // Wait for game state
     await page.waitForFunction(() => !!(window.gameState && Array.isArray(window.gameState.board) && window.gameState.board.length === 8), { timeout: 10000 });
@@ -157,10 +172,9 @@ describe('Card effects E2E', () => {
     await page.close();
   }, 60000);
 
-  test('意志の凍結 freezes every eligible special-stone cell and renders one overlay per cell', async () => {
+  test('意志の凍結 freezes every eligible special-stone cell in the Pixi board', async () => {
     const page = await browser.newPage();
-    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
-    await closeMaintenanceNoticeIfPresent(page);
+    await openPixiDebugLane(page, serverPort);
     await page.waitForFunction(
       () => !!(window.gameState && window.cardState && window.CardLogic && typeof window.useSelectedCard === 'function'),
       { timeout: 10000 }
@@ -205,45 +219,96 @@ describe('Card effects E2E', () => {
         freezeObserved: false,
         cardGhostPresentAtFreeze: null
       };
-      const observer = new MutationObserver(() => {
+      let probeHandle = 0;
+      const probe = () => {
         const cardGhostPresent = !!document.querySelector('.card-use-ghost');
         if (cardGhostPresent) window.__massFreezeAnimationOrder.cardGhostObserved = true;
-        if (!window.__massFreezeAnimationOrder.freezeObserved && document.querySelector('.freeze-mark')) {
+        const debug = window.__boardVisualDebug;
+        const rendered = [[2, 2], [3, 3], [4, 4], [5, 5]].map(([row, col]) => (
+          debug && debug.getRenderedCell(row, col)
+        ));
+        const freezeRendered = rendered.every((cell: any) => (
+          cell
+          && cell.stone
+          && cell.stone.visible === true
+          && Array.isArray(cell.stone.renderedMarkerKinds)
+          && cell.stone.renderedMarkerKinds.includes('frozen')
+          && Array.isArray(cell.stone.statusLabels)
+          && cell.stone.statusLabels.some((entry: any) => entry.kind === 'freeze' && entry.value === '5')
+        ));
+        if (!window.__massFreezeAnimationOrder.freezeObserved && freezeRendered) {
           window.__massFreezeAnimationOrder.freezeObserved = true;
           window.__massFreezeAnimationOrder.cardGhostPresentAtFreeze = cardGhostPresent;
-          observer.disconnect();
+          cancelAnimationFrame(probeHandle);
+          return;
         }
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
+        probeHandle = requestAnimationFrame(probe);
+      };
+      probeHandle = requestAnimationFrame(probe);
     });
     await page.evaluate(() => window.useSelectedCard());
     await page.waitForFunction(() => {
       const markers = Array.isArray(window.cardState && window.cardState.markers) ? window.cardState.markers : [];
       return markers.filter((marker: any) => marker && marker.data && marker.data.type === 'FREEZE').length === 4;
-    }, { timeout: 20000 });
-    await page.waitForFunction(() => document.querySelectorAll('.freeze-mark').length === 4, { timeout: 20000 });
+    }, undefined, { timeout: 20000 });
+    await page.waitForFunction(() => {
+      const debug = window.__boardVisualDebug;
+      return [[2, 2], [3, 3], [4, 4], [5, 5]].every(([row, col]) => {
+        const cell = debug && debug.getRenderedCell(row, col);
+        return cell
+          && cell.stone
+          && cell.stone.renderedMarkerKinds.includes('frozen')
+          && cell.stone.statusLabels.some((entry: any) => entry.kind === 'freeze' && entry.value === '5');
+      });
+    }, undefined, { timeout: 20000 });
+    // The Pixi controller can settle the committed frame between two browser
+    // tasks. Let the rAF order probe observe that frame before reading it back.
+    await page.waitForFunction(
+      () => window.__massFreezeAnimationOrder?.freezeObserved === true,
+      undefined,
+      { timeout: 5000 }
+    );
+    await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
 
     const result = await page.evaluate(() => {
       const freezes = window.cardState.markers.filter((marker: any) => marker && marker.data && marker.data.type === 'FREEZE');
+      const rendered = freezes.map((marker: any) => window.__boardVisualDebug.getRenderedCell(marker.row, marker.col));
       return {
         coordinates: freezes.map((marker: any) => `${marker.row},${marker.col}`),
         owners: freezes.map((marker: any) => marker.owner),
         turns: freezes.map((marker: any) => marker.data.remainingOwnerTurns),
-        overlayCount: document.querySelectorAll('.freeze-mark').length,
-        overlayTurns: Array.from(document.querySelectorAll('.freeze-turn')).map((element: any) => element.textContent),
-        animationOrder: window.__massFreezeAnimationOrder
+        renderedFreezeCount: rendered.filter((cell: any) => (
+          cell
+          && cell.stone
+          && Array.isArray(cell.stone.renderedMarkerKinds)
+          && cell.stone.renderedMarkerKinds.includes('frozen')
+        )).length,
+        renderedTurns: rendered.map((cell: any) => {
+          const label = cell && cell.stone && Array.isArray(cell.stone.statusLabels)
+            ? cell.stone.statusLabels.find((entry: any) => entry.kind === 'freeze')
+            : null;
+          return label ? label.value : null;
+        }),
+        animationOrder: window.__massFreezeAnimationOrder,
+        frameDigest: window.__boardVisualDebug.getVisualFrameDigest(),
+        backendDiagnostics: window.__boardVisualDebug.getBackendDiagnostics()
       };
     });
     expect(result.coordinates).toEqual(['2,2', '3,3', '4,4', '5,5']);
     expect(result.owners).toEqual(['black', 'black', 'black', 'black']);
     expect(result.turns).toEqual([5, 5, 5, 5]);
-    expect(result.overlayCount).toBe(4);
-    expect(result.overlayTurns).toEqual(expect.arrayContaining(['5', '5', '5', '5']));
+    expect(result.renderedFreezeCount).toBe(4);
+    expect(result.renderedTurns).toEqual(['5', '5', '5', '5']);
     expect(result.animationOrder).toEqual({
       cardGhostObserved: true,
       freezeObserved: true,
       cardGhostPresentAtFreeze: false
     });
+    expect(result.frameDigest).toEqual(expect.any(String));
+    expect(result.backendDiagnostics).toEqual(expect.objectContaining({
+      domCellCount: 0,
+      state: 'ready'
+    }));
     await page.close();
   }, 60000);
 
@@ -254,8 +319,7 @@ describe('Card effects E2E', () => {
       try { consoles.push({ type: msg.type(), text: msg.text() }); } catch (e) { /* ignore */ }
     });
 
-    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
-    await closeMaintenanceNoticeIfPresent(page);
+    await openPixiDebugLane(page, serverPort);
     await page.waitForFunction(() => !!(window.gameState && window.cardState && typeof window.renderCardUI === 'function'), { timeout: 10000 });
     await page.waitForTimeout(1200);
 
@@ -355,8 +419,7 @@ describe('Card effects E2E', () => {
 
   test('毒殺の意志は空きマスと既存石を対象に使用ボタンから選択へ進める', async () => {
     const page = await browser.newPage();
-    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1&noanim=1`);
-    await closeMaintenanceNoticeIfPresent(page);
+    await openPixiDebugLane(page, serverPort, true);
     await page.waitForFunction(
       () => !!(window.gameState && window.cardState && window.CardLogic && typeof window.renderCardUI === 'function'),
       { timeout: 10000 }
@@ -395,43 +458,55 @@ describe('Card effects E2E', () => {
       const pending = window.cardState.pendingEffectByPlayer && window.cardState.pendingEffectByPlayer.black;
       return pending && pending.type === 'POISON_WILL' && pending.stage === 'selectTarget';
     });
-    await page.click('.cell[data-row="3"][data-col="3"]');
-    await page.waitForSelector('.cell[data-row="3"][data-col="3"] .disc .poison-lethal-timer');
+    const poisonTarget = await page.evaluate(() => window.__boardVisualDebug.getCellClientRect(3, 3));
+    expect(poisonTarget).toEqual(expect.objectContaining({
+      width: expect.any(Number),
+      height: expect.any(Number)
+    }));
+    expect(poisonTarget.width).toBeGreaterThan(0);
+    expect(poisonTarget.height).toBeGreaterThan(0);
+    await page.mouse.click(
+      poisonTarget.left + poisonTarget.width / 2,
+      poisonTarget.top + poisonTarget.height / 2
+    );
+    await page.waitForFunction(() => {
+      const cell = window.__boardVisualDebug.getRenderedCell(3, 3);
+      return cell
+        && cell.stone
+        && cell.stone.specialType === 'POISONED'
+        && Array.isArray(cell.stone.statusLabels)
+        && cell.stone.statusLabels.some((entry: any) => entry.kind === 'poison' && entry.value === '5');
+    });
+    await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
 
     const poisonTimer = await page.evaluate(() => {
-      const timer = document.querySelector('.cell[data-row="3"][data-col="3"] .disc .poison-lethal-timer') as HTMLElement | null;
-      if (!timer) return null;
-      const style = getComputedStyle(timer);
-      const disc = timer.closest('.disc') as HTMLElement | null;
-      const timerRect = timer.getBoundingClientRect();
-      const discRect = disc ? disc.getBoundingClientRect() : null;
+      const cell = window.__boardVisualDebug.getRenderedCell(3, 3);
+      if (!cell || !cell.stone) return null;
       return {
-        text: timer.textContent,
-        className: timer.className,
-        leftOffset: discRect ? timerRect.left - discRect.left : Number.NaN,
-        topOffset: discRect ? timerRect.top - discRect.top : Number.NaN,
-        clipPath: style.clipPath,
-        backgroundImage: style.backgroundImage,
-        oldMarkerCount: document.querySelectorAll('.poison-status-badge').length
+        specialType: cell.stone.specialType,
+        renderedMarkerKinds: cell.stone.renderedMarkerKinds,
+        statusLabels: cell.stone.statusLabels,
+        timerLabel: cell.stone.timerLabel,
+        badgeLabel: cell.stone.badgeLabel,
+        frameDigest: window.__boardVisualDebug.getVisualFrameDigest(),
+        backendDiagnostics: window.__boardVisualDebug.getBackendDiagnostics()
       };
     });
     expect(poisonTimer).not.toBeNull();
     if (!poisonTimer) throw new Error('poison lethal timer was not rendered');
-    expect(poisonTimer.text).toBe('5');
-    expect(poisonTimer.className).toBe('poison-lethal-timer');
-    expect(poisonTimer.leftOffset).toBeLessThanOrEqual(0);
-    expect(poisonTimer.topOffset).toBeLessThanOrEqual(0);
-    expect(poisonTimer.clipPath).toContain('polygon');
-    expect(poisonTimer.backgroundImage).toContain('linear-gradient');
-    expect(poisonTimer.oldMarkerCount).toBe(0);
+    expect(poisonTimer.specialType).toBe('POISONED');
+    expect(poisonTimer.renderedMarkerKinds).toContain('poisoned');
+    expect(poisonTimer.statusLabels).toContainEqual({ kind: 'poison', value: '5' });
+    expect([poisonTimer.timerLabel, poisonTimer.badgeLabel]).toContain('5');
+    expect(poisonTimer.frameDigest).toEqual(expect.any(String));
+    expect(poisonTimer.backendDiagnostics).toEqual(expect.objectContaining({ domCellCount: 0 }));
 
     await page.close();
   }, 60000);
 
   test('盤面拡張は同一anchorの方向矢印を区別してcurrent shapeへ追加する', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1&noanim=1`, { waitUntil: 'domcontentloaded' });
-    await closeMaintenanceNoticeIfPresent(page);
+    await openPixiDebugLane(page, serverPort, true);
     await closeSidePanelIfPresent(page);
     await page.waitForFunction(() => !!(
       window.gameState &&
@@ -441,7 +516,7 @@ describe('Card effects E2E', () => {
       typeof window.handleCellClick === 'function'
     ), { timeout: 15000 });
 
-    await page.evaluate(() => {
+    await page.evaluate(async () => {
       window.DEBUG_UNLIMITED_USAGE = true;
       window.DEBUG_HUMAN_VS_HUMAN = true;
       window.MATCH_MODE = 'cpu';
@@ -472,31 +547,61 @@ describe('Card effects E2E', () => {
       window.VisualPlaybackActive = false;
       window.renderBoard();
     });
+    await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
 
-    const anchor = page.locator('.cell[data-row="0"][data-col="0"]');
-    expect(await anchor.locator('.board-expansion-direction-hint').count()).toBe(2);
-    expect(await anchor.locator('.board-expansion-direction-hint[data-direction="up"]').textContent()).toBe('↑');
-    expect(await anchor.locator('.board-expansion-direction-hint[data-direction="left"]').textContent()).toBe('←');
+    await page.waitForFunction(() => {
+      const anchor = window.__boardVisualDebug.getRenderedCell(0, 0);
+      return anchor && anchor.hint && anchor.hint.directionKeys.length === 2;
+    });
+    const beforeExpansion = await page.evaluate(() => ({
+      anchor: window.__boardVisualDebug.getRenderedCell(0, 0),
+      anchorRect: window.__boardVisualDebug.getCellClientRect(0, 0),
+      frameDigest: window.__boardVisualDebug.getVisualFrameDigest()
+    }));
+    expect(beforeExpansion.anchor.hint.directionKeys).toEqual(['up', 'left']);
+    expect(beforeExpansion.anchorRect.width).toBeGreaterThan(0);
+    expect(beforeExpansion.anchorRect.height).toBeGreaterThan(0);
     const screenshot = await page.screenshot();
     expect(screenshot.byteLength).toBeGreaterThan(1000);
 
-    await page.evaluate(async () => {
-      await window.handleCellClick(0, 0, 'up');
-    });
+    const upDirectionButton = page.locator('.board-accessibility-direction-button[data-cell-key="0,0"][data-direction="up"]');
+    expect(await upDirectionButton.count()).toBe(1);
+    await upDirectionButton.click();
     await page.waitForFunction(() => {
       const cells = window.gameState && window.gameState.boardExpansion && window.gameState.boardExpansion.cells;
       return Array.isArray(cells) && cells.some((cell) => cell && cell.row === -1 && cell.col === 0);
     }, null, { timeout: 10000 });
+    await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
+    await page.waitForFunction(() => {
+      const expanded = window.__boardVisualDebug.getRenderedCell(-1, 0);
+      return expanded && expanded.kind === 'playable';
+    }, null, { timeout: 10000 });
+    await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
 
     const result = await page.evaluate(() => ({
       pending: window.cardState.pendingEffectByPlayer.black,
-      cells: window.gameState.boardExpansion.cells
+      cells: window.gameState.boardExpansion.cells,
+      expanded: window.__boardVisualDebug.getRenderedCell(-1, 0),
+      expandedRect: window.__boardVisualDebug.getCellClientRect(-1, 0),
+      frameDigest: window.__boardVisualDebug.getVisualFrameDigest(),
+      backendDiagnostics: window.__boardVisualDebug.getBackendDiagnostics()
     }));
     expect(result.pending).toBeNull();
     expect(result.cells).toEqual(expect.arrayContaining([
       expect.objectContaining({ row: -1, col: 0 })
     ]));
     expect(result.cells.some((cell: any) => cell.row === 0 && cell.col === -1)).toBe(false);
+    expect(result.expanded).toEqual(expect.objectContaining({
+      key: '-1,0',
+      kind: 'playable'
+    }));
+    expect(result.expandedRect.width).toBeGreaterThan(0);
+    expect(result.frameDigest).not.toBe(beforeExpansion.frameDigest);
+    expect(result.backendDiagnostics).toEqual(expect.objectContaining({
+      domCellCount: 0,
+      playback: expect.objectContaining({ inFlightEffectCount: 0 }),
+      timeline: expect.objectContaining({ state: 'idle' })
+    }));
 
     await page.close();
   }, 60000);

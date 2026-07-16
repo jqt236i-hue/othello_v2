@@ -132,7 +132,10 @@ async function playFlipTarget(
     finalApplied = true;
   };
   try {
-    await projection.timeline.run({
+    const sourcePrelude = zombie
+      ? projection.waitForTargetPrelude(event, target)
+      : Promise.resolve();
+    await Promise.all([projection.timeline.run({
       durationMs,
       effectFamily: zombie ? 'flip-zombie' : (missingSource ? 'flip-missing-source' : 'flip'),
       event,
@@ -173,7 +176,7 @@ async function playFlipTarget(
           releaseHighlight();
         }
       }
-    });
+    }), sourcePrelude]);
   } finally {
     releaseGhost();
     releaseHighlight();

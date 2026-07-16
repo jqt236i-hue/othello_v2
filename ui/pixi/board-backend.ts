@@ -184,6 +184,11 @@ export interface PixiBoardBackendOptions {
     frame: BoardVisualFrame
   ) => BoardAppearanceObjectUrlLease;
   readonly resolveSpecialAppearance?: SpecialAppearanceResolver;
+  /** Non-board side effect fired once when an added-cell reveal starts. */
+  readonly onTopologyRevealStart?: (
+    keys: readonly string[],
+    frame: BoardVisualFrame
+  ) => void;
 }
 
 interface FrameWork {
@@ -201,6 +206,7 @@ interface FrameWork {
   cancelled: boolean;
   settled: boolean;
   error: PixiBoardBackendError | null;
+  topologyReveal: Promise<void> | null;
 }
 
 const DEFAULT_EFFECT_GUTTER_CELLS = 2;
@@ -215,6 +221,22 @@ const COMPATIBILITY_FALLBACK_CODES = new Set([
 function finitePositive(value: unknown): number | null {
   const numeric = Number(value);
   return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function addedTopologyKeys(
+  current: BoardVisualFrame | null,
+  next: BoardVisualFrame
+): readonly string[] {
+  if (!current) return Object.freeze([]);
+  const previousKeys = new Set(current.model.topology.existingKeys);
+  return Object.freeze(next.model.topology.existingKeys
+    .filter((key) => !previousKeys.has(key))
+    .slice()
+    .sort((a, b) => {
+      const [aRow, aCol] = a.split(',').map(Number);
+      const [bRow, bCol] = b.split(',').map(Number);
+      return aRow - bRow || aCol - bCol;
+    }));
 }
 
 function backendError(options: {
@@ -375,6 +397,7 @@ export function createPixiBoardVisualBackend(
   const sceneFactory = options.sceneFactory || createPixiBoardScene;
   const inputFactory = options.inputFactory || createPixiBoardInput;
   const playbackFactory = options.playbackFactory || createPixiBoardPlayback;
+  const onTopologyRevealStart = options.onTopologyRevealStart;
   const textureManagerFactory = options.textureManagerFactory || createPixiTextureManager;
   const runtime = options.runtime || PixiRuntimeContract.getPixiRuntime();
   const noAnimation = options.noAnimation === true;
@@ -553,6 +576,7 @@ export function createPixiBoardVisualBackend(
 
   function finishWorkSuccess(work: FrameWork, visualCommit = true): void {
     if (work.settled) return;
+    work.topologyReveal = null;
     work.settled = true;
     work.error = null;
     liveWorks.delete(work);
@@ -570,6 +594,7 @@ export function createPixiBoardVisualBackend(
     if (work.settled) return;
     if (work.prepared && work.prepared.state === 'prepared') work.prepared.release();
     work.prepared = null;
+    work.topologyReveal = null;
     work.settled = true;
     work.error = error;
     liveWorks.delete(work);
@@ -579,6 +604,9 @@ export function createPixiBoardVisualBackend(
   function cancelWork(work: FrameWork): void {
     if (work.cancelled || work.settled) return;
     work.cancelled = true;
+    if (work.topologyReveal) {
+      playback?.abort(new Error(`Pixi topology reveal superseded: ${work.frame.frameToken}`));
+    }
     if (work.prepared && work.prepared.state === 'prepared') work.prepared.release();
     work.prepared = null;
     stalePrepareCount += 1;
@@ -607,7 +635,12 @@ export function createPixiBoardVisualBackend(
     frame: BoardVisualFrame,
     snapshot: PixiCommittedTextureSet,
     canvasViewport: PixiBoardCanvasViewport,
-    options: { readonly preservePlaybackProjection?: boolean } = {}
+    options: {
+      readonly preservePlaybackProjection?: boolean;
+      readonly topologyRevealKeys?: readonly string[];
+      readonly topologyRevealSourceFrame?: BoardVisualFrame;
+      readonly onTopologyRevealStarted?: (settlement: Promise<void>) => void;
+    } = {}
   ): void {
     try {
       const sceneContext = {
@@ -627,9 +660,26 @@ export function createPixiBoardVisualBackend(
         detail: error
       }));
     }
+    const revealKeys = Array.isArray(options.topologyRevealKeys)
+      ? options.topologyRevealKeys
+      : [];
+    if (revealKeys.length) {
+      try {
+        const settlement = playback!.revealTopologyCells(revealKeys);
+        options.onTopologyRevealStarted?.(settlement);
+      } catch (error) {
+        throw rememberError(backendError({
+          code: 'pixi_topology_reveal_failed',
+          stage: 'scene-apply',
+          message: `Pixi topology reveal failed to start: ${errorMessage(error)}`,
+          detail: error
+        }));
+      }
+    }
     try {
       application!.render();
     } catch (error) {
+      if (revealKeys.length) playback?.abort(error);
       throw rememberError(backendError({
         code: 'pixi_render_failed',
         stage: 'render',
@@ -637,9 +687,42 @@ export function createPixiBoardVisualBackend(
         detail: error
       }));
     }
+    if (revealKeys.length) {
+      try {
+        onTopologyRevealStart?.(
+          Object.freeze(revealKeys.slice()),
+          options.topologyRevealSourceFrame || frame
+        );
+      }
+      catch (_error) { /* sound/global presentation must not corrupt board settlement */ }
+    }
     // Reflow must retain the active event projection. A canonical local or
     // network frame apply settles it only after the final pixels rendered.
     if (options.preservePlaybackProjection !== true) playback?.onFrameApplied();
+  }
+
+  function finishCommittedVisual(work: FrameWork): void {
+    if (work.settled || work.cancelled) return;
+    record('pixi-backend:frame-settled', { frameToken: work.frame.frameToken });
+    finishWorkSuccess(work);
+  }
+
+  function observeTopologyReveal(work: FrameWork): void {
+    const settlement = work.topologyReveal;
+    // DOM compatibility commits immediately after starting its 260ms CSS
+    // reveal.  Match that busy/input timing: the first successful Pixi render
+    // settles the frame while the cosmetic reveal continues independently.
+    finishCommittedVisual(work);
+    if (!settlement) return;
+    settlement.catch((error) => {
+      if (work.cancelled || state === 'destroyed') return;
+      nestedBackendError(error) || rememberError(backendError({
+          code: 'pixi_topology_reveal_failed',
+          stage: 'render',
+          message: `Pixi topology reveal failed: ${errorMessage(error)}`,
+          detail: error
+      }));
+    });
   }
 
   function commitWork(work: FrameWork): void {
@@ -657,6 +740,9 @@ export function createPixiBoardVisualBackend(
       // the explicit restore path is allowed to prove recovery and clear it.
       if (!work.cameraRecovery) assertCameraRenderHealthy();
       const presentedFrame = work.presentedFrame || work.frame;
+      const revealKeys = work.cameraRecovery
+        ? Object.freeze([] as string[])
+        : addedTopologyKeys(currentFrame, presentedFrame);
       suppressCameraCallback = true;
       let syncedLayout: BoardViewportLayout;
       try {
@@ -674,7 +760,13 @@ export function createPixiBoardVisualBackend(
       const renderFrame = Object.freeze({ ...presentedFrame, layout: syncedLayout });
       try {
         textureManager!.commit(work.prepared, (snapshot) => {
-          applySceneAndRender(renderFrame, snapshot, canvasViewport);
+          applySceneAndRender(renderFrame, snapshot, canvasViewport, {
+            topologyRevealKeys: revealKeys,
+            topologyRevealSourceFrame: work.frame,
+            onTopologyRevealStarted(settlement) {
+              work.topologyReveal = settlement;
+            }
+          });
         });
       } catch (error) {
         const nested = nestedBackendError(error);
@@ -690,8 +782,7 @@ export function createPixiBoardVisualBackend(
       work.prepared = null;
       currentFrame = renderFrame;
       committedApplyCount += 1;
-      record('pixi-backend:frame-settled', { frameToken: work.frame.frameToken });
-      finishWorkSuccess(work);
+      observeTopologyReveal(work);
     } catch (error) {
       const normalized = nestedBackendError(error) || rememberError(backendError({
         code: 'pixi_scene_apply_failed',
@@ -699,6 +790,7 @@ export function createPixiBoardVisualBackend(
         message: `Pixi board frame apply failed: ${errorMessage(error)}`,
         detail: error
       }));
+      if (work.topologyReveal) playback?.abort(normalized);
       finishWorkFailure(work, normalized);
       throw normalized;
     } finally {
@@ -744,7 +836,8 @@ export function createPixiBoardVisualBackend(
       committing: false,
       cancelled: false,
       settled: false,
-      error: null
+      error: null,
+      topologyReveal: null
     } as FrameWork;
     latestWork = work;
     workByFrame.set(frame as object, work);
@@ -1121,13 +1214,18 @@ export function createPixiBoardVisualBackend(
     if (work.prepared) commitWork(work);
   }
 
-  function waitForVisualSettlement(frame?: BoardVisualFrame): Promise<void> {
+  async function waitForVisualSettlement(frame?: BoardVisualFrame): Promise<void> {
     const work = frame && typeof frame === 'object'
       ? workByFrame.get(frame as object)
       : latestWork;
-    if (pendingCameraRenderError) return Promise.reject(pendingCameraRenderError);
-    if (!work) return Promise.resolve();
-    return work.settlement;
+    if (pendingCameraRenderError) throw pendingCameraRenderError;
+    if (work) await work.settlement;
+    // A committed topology frame intentionally releases gameplay busy state
+    // before its 260ms cosmetic reveal finishes. Do not stop the private
+    // ticker while that timeline still owns a run; the timeline stops it when
+    // its final frame releases the reveal lease.
+    const activeRunCount = Number(playback?.getDiagnostics()?.timeline?.activeRunCount || 0);
+    if (activeRunCount === 0) application?.settleIdle();
   }
 
   function validatePhase(
@@ -1148,6 +1246,7 @@ export function createPixiBoardVisualBackend(
     try {
       assertCameraRenderHealthy();
       await playback!.playPhase(events, context);
+      application?.settleIdle();
     } catch (error) {
       lastErrorCode = String((error as any)?.code || 'pixi_playback_failed');
       record('pixi-backend:error', {
