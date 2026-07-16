@@ -25,6 +25,14 @@ function collectFiles(root: string, relativeDir: string, extension: string): Arr
 }
 
 describe('JS inventory runtime-authority guard', () => {
+  test('classifies the verified pinned Pixi classic artifact as generated output', () => {
+    const banner = '/*!\n * PixiJS - v8.18.1\n * Compiled build\n */';
+
+    expect(inventory.classify('public/vendor/pixi-8.18.1.min.js', banner)).toBe('generated');
+    expect(inventory.classify('public/vendor/pixi-8.18.2.min.js', banner)).not.toBe('generated');
+    expect(inventory.classify('public/vendor/pixi-8.18.1.min.js', 'var handWritten = true;')).not.toBe('generated');
+  });
+
   test('rejects a TypeScript sibling that hides a substantial runtime implementation', () => {
     const content = [
       'function resolveDecision(value) { return value + 1; }',
