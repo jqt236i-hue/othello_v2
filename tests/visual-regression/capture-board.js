@@ -42,7 +42,7 @@ function finalizeScreenshot(tempPath, outputPath) {
 
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1024 } });
-  const localUrl = `http://127.0.0.1:${server.address().port}/?debug=1&noanim=1`;
+  const localUrl = `http://127.0.0.1:${server.address().port}/?debug=1&boardRenderer=pixi&noanim=1`;
   console.log('[viz] navigating to', localUrl);
   await page.goto(localUrl, { waitUntil: 'load' });
 
@@ -71,8 +71,13 @@ function finalizeScreenshot(tempPath, outputPath) {
     console.warn('[viz] applyVisualTestBoard failed', e);
   }
 
-  // Force render and wait for animations
-  try { await page.evaluate(() => { if (typeof window.forceFullRender === 'function' && window.boardEl) window.forceFullRender(window.boardEl); }); } catch (e) {}
+  // Submit through the active backend and wait for its visual settlement.
+  await page.evaluate(async () => {
+    if (typeof window.renderBoard === 'function') window.renderBoard();
+    if (window.__boardVisualDebug && typeof window.__boardVisualDebug.waitForIdle === 'function') {
+      await window.__boardVisualDebug.waitForIdle();
+    }
+  });
   try {
     await page.waitForFunction(() => document.documentElement.classList.contains('stone-images-loaded'), { timeout: 5000 });
   } catch (e) {}

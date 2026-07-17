@@ -408,10 +408,10 @@ async function applyPhaseZeroFixture(page: any, fixture: FixtureDefinition): Pro
       stoneSkinRuntime.applyStoneSkin(root, skin.stone);
     }
     const board = document.getElementById('board');
-    if (!board || typeof root.forceFullRender !== 'function') {
+    if (!board || typeof root.renderBoard !== 'function') {
       throw new Error('Public board render path unavailable for Pixi board fixture');
     }
-    await Promise.resolve(root.forceFullRender(board));
+    await Promise.resolve(root.renderBoard());
     if (!root.__boardVisualDebug || typeof root.__boardVisualDebug.waitForIdle !== 'function') {
       throw new Error('Gated board visual diagnostics unavailable');
     }
@@ -636,8 +636,10 @@ async function readFixtureProbe(
       fixture: definition.name,
       renderer: board?.getAttribute('data-board-renderer') || '',
       canvasCount: document.querySelectorAll('#board canvas').length,
-      domCellCount: document.querySelectorAll('#board .cell, #board-expansion-layer .cell').length,
-      scrollSurfaceCellCount: surface?.querySelectorAll('.cell').length || 0,
+      domCellCount: Number(debug.getBackendDiagnostics()?.domCellCount || 0),
+      scrollSurfaceCellCount: surface
+        ? Array.from(surface.children).filter((child) => child.hasAttribute('data-row') && child.hasAttribute('data-col')).length
+        : 0,
       canvasAriaHidden: canvas?.getAttribute('aria-hidden') === 'true',
       connectedBoardContextCount: root.__pixiBoardBrowserCheckProbe.getConnectedBoardContextCount(),
       requestedDpr: expectedDpr,
@@ -989,7 +991,7 @@ async function createCustomSkinBlobFixture(page: any): Promise<any> {
     });
     boardRuntime.applyBoardSkin(root, board.id);
     stoneRuntime.applyStoneSkin(root, stone.id);
-    await Promise.resolve(root.forceFullRender(document.getElementById('board')));
+    await Promise.resolve(root.renderBoard());
     await root.__boardVisualDebug.waitForIdle();
     return {
       boardId: board.id,
@@ -1019,7 +1021,7 @@ async function createCustomSkinBlobFixture(page: any): Promise<any> {
     const stoneRuntime = root.require('ui/stone-skin/runtime');
     boardRuntime.applyBoardSkin(root, 'bluegreen-felt');
     stoneRuntime.applyStoneSkin(root, 'o-stone');
-    await Promise.resolve(root.forceFullRender(document.getElementById('board')));
+    await Promise.resolve(root.renderBoard());
     await root.__boardVisualDebug.waitForIdle();
     await storage.deleteCustomSkin(root, boardId);
     await storage.deleteCustomSkin(root, stoneId);

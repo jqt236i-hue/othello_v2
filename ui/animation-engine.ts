@@ -898,12 +898,19 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
 
                 // Watchdog to prevent permanent freezes
                 const WATCHDOG_TIMEOUT_MS = this._resolvePlaybackWatchdogMs();
-                if (this.playbackScope !== null) {
-                    this._watchdogId = _Timer().setTimeout(() => this.handleWatchdog(), WATCHDOG_TIMEOUT_MS, this.playbackScope);
-                } else {
-                    this._watchdogId = _Timer().setTimeout(() => this.handleWatchdog(), WATCHDOG_TIMEOUT_MS);
-                }
-                runState.watchdogId = this._watchdogId;
+                const armWatchdog = () => {
+                    const previousWatchdogId = runState.watchdogId;
+                    if (previousWatchdogId) {
+                        try { _Timer().clearTimeout(previousWatchdogId); } catch (e: any) { /* ignore */ }
+                    }
+                    if (this.playbackScope !== null) {
+                        this._watchdogId = _Timer().setTimeout(() => this.handleWatchdog(), WATCHDOG_TIMEOUT_MS, this.playbackScope);
+                    } else {
+                        this._watchdogId = _Timer().setTimeout(() => this.handleWatchdog(), WATCHDOG_TIMEOUT_MS);
+                    }
+                    runState.watchdogId = this._watchdogId;
+                };
+                armWatchdog();
 
                 // Group by phase
                 this._remainingEvents = normalizedEvents.slice();
@@ -921,6 +928,11 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
 
                     const phaseEvents = phases[phase];
                     await awaitPlaybackStep(this.executePhase(phaseEvents));
+                    // A completed phase proves that playback is still making
+                    // forward progress. Long ordered journals may legitimately
+                    // exceed the per-phase freeze budget, so restart the guard
+                    // without changing any player-visible event duration.
+                    armWatchdog();
 
                     // Gap between readable phases (Section 3)
                     if (phase !== sortedPhases[sortedPhases.length - 1]) {

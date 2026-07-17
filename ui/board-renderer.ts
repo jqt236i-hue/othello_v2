@@ -1358,14 +1358,15 @@ function _playPixiBoardExpansionRevealSoundForBoardRenderer(
     play();
 }
 
-function _createPixiBoardVisualBackendForBoardRenderer(noAnimation: boolean) {
+function _createPixiBoardVisualBackendForBoardRenderer(noAnimation: boolean, contextRecovery?: any) {
     const options = Object.freeze({
         noAnimation,
         // Backend mount precedes UI event activation. Resolve lazily so the
         // adapter can exist while BoardInputController remains disabled until
         // bootstrap finishes the visual-ready gate.
         getInputController: () => getBoardInputController(),
-        onTopologyRevealStart: _playPixiBoardExpansionRevealSoundForBoardRenderer
+        onTopologyRevealStart: _playPixiBoardExpansionRevealSoundForBoardRenderer,
+        ...(contextRecovery ? { contextRecovery } : {})
     });
     const testFactory = BoardVisualBackendTestConfigForBoardRenderer
         && BoardVisualBackendTestConfigForBoardRenderer.createPixiBackend;
@@ -1424,6 +1425,22 @@ function _createPixiBoardVisualBackendForBoardRenderer(noAnimation: boolean) {
             );
         return _createFailedBoardVisualBackendForBoardRenderer('pixi', error);
     }
+}
+
+function _showBoardVisualReloadRequiredForBoardRenderer(error: unknown, diagnostics?: any) {
+    const message = '盤面表示を復旧できませんでした。ページを再読み込みしてください。';
+    diagnostics?.record?.('context-recovery:reload-required', {
+        message: String((error as any)?.message || error || '')
+    });
+    try {
+        const SurfaceModule = _require('./presentation/reload-required-surface');
+        if (SurfaceModule && typeof SurfaceModule.showReloadRequiredSurface === 'function') {
+            SurfaceModule.showReloadRequiredSurface({
+                root: typeof window !== 'undefined' ? window : null,
+                message
+            });
+        }
+    } catch (_error) { /* the controller remains locked even without a DOM alert surface */ }
 }
 
 function _isPixiInitialFallbackErrorForBoardRenderer(error: unknown) {
@@ -1692,10 +1709,58 @@ function _createBoardVisualRuntimeForBoardRenderer() {
         enabled: _isBoardVisualDiagnosticsEnabledForBoardRenderer()
     });
     const selection = _selectBoardVisualBackendForBoardRenderer();
+    let controller: any = null;
+    let contextFallback: Promise<boolean> | null = null;
+    const contextRecovery = selection.kind === 'pixi'
+        ? Object.freeze({
+            timeoutMs: 5000,
+            onContextLost(error: Error) {
+                if (!controller || typeof controller.beginContextRecovery !== 'function') {
+                    throw new Error('Board context recovery controller is unavailable');
+                }
+                // The controller owns and observes this promise. The backend
+                // must continue synchronously so it can interrupt Pixi work.
+                controller.beginContextRecovery(error);
+            },
+            onContextRestored() {
+                if (!controller || typeof controller.restoreContextRecovery !== 'function') return false;
+                return controller.restoreContextRecovery();
+            },
+            onFallbackRequired(error: Error) {
+                if (contextFallback) return contextFallback;
+                contextFallback = (async () => {
+                    diagnostics.record('backend:context-compatibility-fallback-start', {
+                        from: 'pixi', message: String(error && error.message || '')
+                    });
+                    try {
+                        const compatibilityBackend = _createDomBoardVisualBackendForBoardRenderer();
+                        await controller.replaceBackend(compatibilityBackend, {
+                            preserveContextRecovery: true
+                        });
+                        await controller.restoreContextRecovery({ backendAlreadyRestored: true });
+                        diagnostics.record('backend:context-compatibility-fallback-ready', {
+                            from: 'pixi', to: 'dom'
+                        });
+                        return true;
+                    } catch (cause: any) {
+                        try { controller?.failContextRecovery?.(cause); } catch (_error) { /* preserve primary failure */ }
+                        _showBoardVisualReloadRequiredForBoardRenderer(cause, diagnostics);
+                        throw cause;
+                    }
+                })();
+                contextFallback.catch(() => { /* surfaced through reload-required state */ });
+                return contextFallback;
+            },
+            onRecoveryFailed(error: Error) {
+                try { controller?.failContextRecovery?.(error); } catch (_error) { /* preserve recovery error */ }
+                _showBoardVisualReloadRequiredForBoardRenderer(error, diagnostics);
+            }
+        })
+        : null;
     const backend = selection.kind === 'pixi'
-        ? _createPixiBoardVisualBackendForBoardRenderer(selection.noAnimation)
+        ? _createPixiBoardVisualBackendForBoardRenderer(selection.noAnimation, contextRecovery)
         : _createDomBoardVisualBackendForBoardRenderer();
-    const controller = ControllerModule.createBoardVisualController({
+    controller = ControllerModule.createBoardVisualController({
         backend,
         diagnostics,
         beginApplyFrame: _beginBoardVisualApplyTransactionForBoardRenderer
@@ -2163,10 +2228,13 @@ function _createBoardVisualFrameWithLiveLayoutForBoardRenderer(host: any, frame:
         || Number(cameraRect && cameraRect.height)
         || logicalHeight;
     const viewport = typeof window !== 'undefined' ? (window as any).visualViewport : null;
+    const presentationScales = _readBoardPresentationScalesForBoardRenderer(host);
     const layout = LayoutModule.createBoardViewportLayout(topology, {
         revision: frame.layout.revision,
         cellSize,
         dpr: typeof window !== 'undefined' ? window.devicePixelRatio : frame.layout.dpr,
+        stageScale: presentationScales.stageScale,
+        cellScale: presentationScales.cellScale,
         orientation: frame.layout.orientation,
         // The Pixi camera is mounted directly inside the board viewport. Its
         // physical client rect is therefore the coordinate bridge origin;
@@ -2191,6 +2259,21 @@ function _createBoardVisualFrameWithLiveLayoutForBoardRenderer(host: any, frame:
         }
     });
     return Object.freeze({ ...frame, layout });
+}
+
+function _readBoardPresentationScalesForBoardRenderer(host: any) {
+    let stageScale = 1;
+    let cellScale = 1;
+    try {
+        const rootStyle = document && document.documentElement && document.documentElement.style;
+        const parsed = Number.parseFloat(String(rootStyle && rootStyle.getPropertyValue('--layout-stage-scale') || ''));
+        if (Number.isFinite(parsed) && parsed > 0) stageScale = parsed;
+    } catch (e: any) { /* use unit stage scale */ }
+    try {
+        const parsed = Number.parseFloat(String(host && host.style && host.style.getPropertyValue('--board-cell-scale') || ''));
+        if (Number.isFinite(parsed) && parsed > 0) cellScale = parsed;
+    } catch (e: any) { /* use unit cell scale */ }
+    return Object.freeze({ stageScale, cellScale });
 }
 
 function _capPixiBoardViewportForBoardRenderer(host: any, topology: any) {
@@ -2412,11 +2495,14 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
     const appearance = FramePresenterModule.resolveBoardAppearanceDescriptor(host, 0);
     const frameGeometry = _readBoardFrameGeometryForLayout(host, appearance);
     const layoutCellSize = _readBoardCellSizeForLayout(host, model.topology);
+    const presentationScales = _readBoardPresentationScalesForBoardRenderer(host);
     const viewport = typeof window !== 'undefined' ? (window as any).visualViewport : null;
     const layout = LayoutModule.createBoardViewportLayout(model.topology, {
         revision: 0,
         cellSize: layoutCellSize,
         dpr: typeof window !== 'undefined' ? window.devicePixelRatio : 1,
+        stageScale: presentationScales.stageScale,
+        cellScale: presentationScales.cellScale,
         clientOrigin: frameGeometry.clientOrigin,
         frameInset: frameGeometry.frameInset,
         visualViewport: {

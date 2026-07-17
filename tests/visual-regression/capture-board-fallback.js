@@ -41,7 +41,7 @@ function finalizeScreenshot(tempPath, outputPath) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1024 } });
   await page.route('**/assets/images/stones/*', route => route.abort());
 
-  const localUrl = `http://127.0.0.1:${server.address().port}/?debug=1&noanim=1`;
+  const localUrl = `http://127.0.0.1:${server.address().port}/?debug=1&boardRenderer=pixi&noanim=1`;
   console.log('[viz] navigating to', localUrl);
   await page.goto(localUrl, { waitUntil: 'load' });
   await page.waitForTimeout(2000);
@@ -65,7 +65,12 @@ function finalizeScreenshot(tempPath, outputPath) {
     });
   } catch (e) {}
 
-  try { await page.evaluate(() => { if (typeof window.forceFullRender === 'function' && window.boardEl) window.forceFullRender(window.boardEl); }); } catch (e) {}
+  await page.evaluate(async () => {
+    if (typeof window.renderBoard === 'function') window.renderBoard();
+    if (window.__boardVisualDebug && typeof window.__boardVisualDebug.waitForIdle === 'function') {
+      await window.__boardVisualDebug.waitForIdle();
+    }
+  });
   await page.waitForTimeout(500);
   // Mark fallback capture visually to ensure a measurable diff even if images failed to load.
   try {

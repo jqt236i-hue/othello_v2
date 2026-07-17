@@ -1,4 +1,5 @@
 import type { MaterializedBoardCellVisualState } from '../board-visual/types';
+import StoneStatusSnapshotModule = require('../../shared/stone-status-snapshot');
 import {
   addPixiChild,
   clearPixiGraphics,
@@ -10,6 +11,7 @@ import {
   drawPixiCircle,
   drawPixiEllipse,
   drawPixiLine,
+  drawPixiPolygon,
   drawPixiRect,
   removeAndDestroyPixiChildren,
   removePixiFromParent,
@@ -23,6 +25,15 @@ import {
 
 type BoardMarkerVisual = MaterializedBoardCellVisualState['markers'][number];
 
+interface StoneStatusSnapshotApi {
+  createSpecialStoneStatusSnapshot?: (
+    input: Readonly<Record<string, unknown>>,
+    options: Readonly<Record<string, unknown>>
+  ) => Readonly<{ hasFlipProtection?: boolean }> | null;
+}
+
+const StoneStatusSnapshot = StoneStatusSnapshotModule as unknown as StoneStatusSnapshotApi;
+
 export interface PixiStoneViewDiagnostics {
   readonly updateCount: number;
   readonly resetCount: number;
@@ -33,6 +44,7 @@ export interface PixiStoneViewDiagnostics {
   readonly specialType: string | null;
   readonly timerLabel: string;
   readonly badgeLabel: string;
+  readonly flipProtectionBadgeVisible: boolean;
   readonly statusLabels: readonly Readonly<{ kind: string; value: string }>[];
   readonly textureBacked: boolean;
   readonly texturePurpose: string | null;
@@ -160,6 +172,28 @@ function collectStoneStatusLabels(
   return labels;
 }
 
+function hasFlipProtectionBadge(
+  specialType: string | null,
+  status: Readonly<Record<string, unknown>>,
+  markers: readonly BoardMarkerVisual[]
+): boolean {
+  if (!specialType || typeof StoneStatusSnapshot?.createSpecialStoneStatusSnapshot !== 'function') {
+    return false;
+  }
+  const nestedSpecial = status.special && typeof status.special === 'object'
+    ? status.special as Readonly<Record<string, unknown>>
+    : {};
+  const specialMarker = markers.find((marker) => marker.kind === 'special');
+  const markerData = specialMarker?.data || {};
+  const snapshot = StoneStatusSnapshot.createSpecialStoneStatusSnapshot({
+    ...markerData,
+    ...nestedSpecial,
+    type: specialType,
+    hasGuard: specialType === 'GUARD' || markers.some((marker) => marker.kind === 'guard')
+  }, { mode: 'raw' });
+  return snapshot?.hasFlipProtection === true;
+}
+
 function statusLabelPosition(kind: string, cellSize: number): Readonly<{ x: number; y: number }> {
   const ratios: Readonly<Record<string, readonly [number, number]>> = Object.freeze({
     special: [0.5, 0.82],
@@ -186,14 +220,27 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
   const markerOverlay = createPixiSprite(runtime, 'pixi-stone-marker-overlay');
   const specialRing = createPixiGraphics(runtime, 'pixi-stone-special-ring');
   const specialBadge = createPixiText(runtime, 'pixi-stone-special-badge');
+  const flipProtectionBadge = createPixiText(runtime, 'pixi-stone-flip-protection-badge');
   const statusLabelsRoot = createPixiContainer(runtime, 'pixi-stone-status-labels');
-  addPixiChild(root, shadow, aura, procedural, sprite, markerOverlay, specialRing, specialBadge, statusLabelsRoot);
+  addPixiChild(
+    root,
+    shadow,
+    aura,
+    procedural,
+    sprite,
+    markerOverlay,
+    specialRing,
+    specialBadge,
+    flipProtectionBadge,
+    statusLabelsRoot
+  );
   let signature: string | null = null;
   let key: string | null = null;
   let owner: 'black' | 'white' | null = null;
   let specialType: string | null = null;
   let timerLabel = '';
   let badgeLabel = '';
+  let flipProtectionBadgeVisible = false;
   let statusLabels: Array<{ kind: string; value: string }> = [];
   let textureBacked = false;
   let texturePurpose: string | null = null;
@@ -231,11 +278,13 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       specialType = null;
       timerLabel = '';
       badgeLabel = '';
+      flipProtectionBadgeVisible = false;
       textureBacked = false;
       texturePurpose = null;
       if (sprite) sprite.visible = false;
       if (markerOverlay) markerOverlay.visible = false;
       if (specialBadge) specialBadge.visible = false;
+      if (flipProtectionBadge) flipProtectionBadge.visible = false;
       statusLabels = [];
       removeAndDestroyPixiChildren(statusLabelsRoot);
       return true;
@@ -246,9 +295,18 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       ? String(stone.specialType).trim().toUpperCase()
       : markerSpecialType(stoneMarkers);
     const cellSize = context.layout.cellSize;
-    const center = cellSize / 2;
-    // DOM uses --board-disc-size: 89.9% with a 5.05% inset on each side.
-    const radius = cellSize * 0.4495;
+    const stageScale = Math.max(0.01, Number(context.layout.stageScale) || 1);
+    const cellScale = Math.max(0.01, Number(context.layout.cellScale) || 1);
+    const fixedUiScale = stageScale * cellScale;
+    // syncBoardPixelSizing rounds the compatibility disc inset before
+    // assigning pixel dimensions. Include the minimum cell border so Pixi and
+    // DOM sample the same source-image pixels at DPR 1.
+    const cellBorderWidth = Math.max(1, stageScale);
+    const discInset = Math.max(1, Math.round(cellSize * 0.0505));
+    const discSize = Math.max(1, cellSize - (discInset * 2));
+    const discOrigin = cellBorderWidth + discInset;
+    const radius = discSize / 2;
+    const center = discOrigin + radius;
     const normalizedSpecialType = String(specialType || '').trim().toUpperCase();
     const purposes = stoneTexturePurposes(owner, specialType);
     const basePurposes = [`${owner}-stone`, `stone:${owner}`];
@@ -262,8 +320,11 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
         : specialTexture)
       : null;
 
-    if (stone && !specialType) {
-      // Match the two DOM depth layers without applying a per-stone filter:
+    if (stone) {
+      // Match the two DOM depth layers without applying a per-stone filter.
+      // The compatibility writer applies both pseudo-element shadows to every
+      // occupied cell, including special stones whose image already owns the
+      // visible rim.
       // a shallow contact shadow on the cell and a softer projected shadow
       // from the disc. Both remain comfortably inside the two-cell gutter.
       const drawShadowGradient = (
@@ -323,20 +384,16 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       sprite.visible = textureBacked;
       if (textureBacked) sprite.texture = texture;
       setPixiAnchor(sprite, 0.5);
-      // CSS background painting lands the disc raster half a device pixel
-      // below/right of Pixi's anchored quad at DPR 1. Preserve that sampling
-      // origin so native and custom stone skins compare without a one-pixel
-      // up/left drift.
-      setPixiPosition(sprite, center + 0.5, center + 0.5);
-      sprite.width = radius * 2;
-      sprite.height = radius * 2;
+      setPixiPosition(sprite, center, center);
+      sprite.width = discSize;
+      sprite.height = discSize;
     }
     if (markerOverlay) {
       markerOverlay.visible = !!freezeOverlayTexture;
       if (freezeOverlayTexture) markerOverlay.texture = freezeOverlayTexture;
       markerOverlay.alpha = 0.62;
       setPixiAnchor(markerOverlay, 0.5);
-      setPixiPosition(markerOverlay, center, center);
+      setPixiPosition(markerOverlay, cellSize / 2, cellSize / 2);
       markerOverlay.width = cellSize;
       markerOverlay.height = cellSize;
     }
@@ -437,6 +494,58 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     }
 
     const status = stone?.status || {};
+    flipProtectionBadgeVisible = !!stone && hasFlipProtectionBadge(specialType, status, stoneMarkers);
+    if (flipProtectionBadge) {
+      flipProtectionBadge.visible = flipProtectionBadgeVisible;
+      if (flipProtectionBadgeVisible) {
+        const unscaledBadgeHalfWidth = 9 * stageScale;
+        const badgeX = discOrigin + discSize + (2 * stageScale) - unscaledBadgeHalfWidth;
+        const badgeY = center;
+        const badgeHalfWidth = 9 * fixedUiScale;
+        const badgeLowerInset = 5.76 * fixedUiScale;
+        const badgeUpperY = badgeY - (2.16 * fixedUiScale);
+        const badgePoints = (scale = 1) => Object.freeze([
+          Object.freeze({ x: badgeX, y: badgeY - badgeHalfWidth * scale }),
+          Object.freeze({ x: badgeX + badgeHalfWidth * scale, y: badgeY + (badgeUpperY - badgeY) * scale }),
+          Object.freeze({ x: badgeX + badgeLowerInset * scale, y: badgeY + badgeHalfWidth * scale }),
+          Object.freeze({ x: badgeX - badgeLowerInset * scale, y: badgeY + badgeHalfWidth * scale }),
+          Object.freeze({ x: badgeX - badgeHalfWidth * scale, y: badgeY + (badgeUpperY - badgeY) * scale })
+        ]);
+        drawPixiPolygon(specialRing, badgePoints(1.17), { color: '#000000', alpha: 0.08 });
+        drawPixiPolygon(specialRing, badgePoints(1.11), { color: '#000000', alpha: 0.12 });
+        drawPixiPolygon(specialRing, badgePoints(1.055), { color: '#000000', alpha: 0.16 });
+        const baseBadgePoints = badgePoints();
+        drawPixiPolygon(specialRing, baseBadgePoints, {
+          color: '#5c6068', alpha: 0.86
+        }, {
+          color: '#e2e6ec', alpha: 0.72, width: Math.max(1, stageScale) * cellScale
+        });
+        drawPixiPolygon(specialRing, Object.freeze([
+          baseBadgePoints[0],
+          baseBadgePoints[1],
+          Object.freeze({ x: badgeX + badgeLowerInset * 0.65, y: badgeY - badgeHalfWidth * 0.04 }),
+          Object.freeze({ x: badgeX - badgeLowerInset * 0.65, y: badgeY - badgeHalfWidth * 0.04 }),
+          baseBadgePoints[4]
+        ]), { color: '#ffffff', alpha: 0.13 });
+        flipProtectionBadge.text = '反';
+        flipProtectionBadge.style = {
+          ...toPixiTextStyle(context.theme.timer, cellSize, '反'),
+          fill: '#f4f6f8',
+          fontWeight: 800,
+          fontSize: 10 * fixedUiScale,
+          lineHeight: 10 * fixedUiScale,
+          dropShadow: {
+            color: '#000000',
+            alpha: 0.72,
+            blur: 2 * fixedUiScale,
+            distance: fixedUiScale,
+            angle: Math.PI / 2
+          }
+        };
+        setPixiAnchor(flipProtectionBadge, 0.5);
+        setPixiPosition(flipProtectionBadge, badgeX, badgeY);
+      }
+    }
     statusLabels = collectStoneStatusLabels(status, stoneMarkers);
     timerLabel = statusLabels.find((entry) => (
       entry.kind === 'special' || entry.kind === 'countdown' || entry.kind === 'bomb' || entry.kind === 'guard'
@@ -449,25 +558,48 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     ))?.value || '';
     removeAndDestroyPixiChildren(statusLabelsRoot);
     for (const statusLabel of statusLabels) {
-      const labelPosition = statusLabelPosition(statusLabel.kind, cellSize);
+      const labelPosition = statusLabel.kind === 'special'
+        ? Object.freeze({ x: center, y: discOrigin + discSize - (8 * stageScale) })
+        : statusLabel.kind === 'bomb'
+          ? Object.freeze({ x: center, y: discOrigin + discSize - (5 * stageScale) })
+          : statusLabel.kind === 'guard'
+            ? Object.freeze({ x: center, y: discOrigin + (4 * stageScale) })
+            : statusLabelPosition(statusLabel.kind, cellSize);
       if (statusLabel.kind === 'special') {
+        const width = (statusLabel.value.length >= 2 ? 24 : 18) * fixedUiScale;
+        const height = 14 * fixedUiScale;
         drawPixiRect(
           specialRing,
-          labelPosition.x - cellSize * 0.17,
-          labelPosition.y - cellSize * 0.1,
-          cellSize * 0.34,
-          cellSize * 0.2,
+          labelPosition.x - width / 2,
+          labelPosition.y - height / 2,
+          width,
+          height,
           { color: '#28563c', alpha: 0.72 },
-          { color: '#b8ecd0', alpha: 0.6, width: Math.max(1, cellSize * 0.018) },
-          cellSize * 0.07
+          { color: '#b8ecd0', alpha: 0.6, width: Math.max(1, stageScale) * cellScale },
+          4 * fixedUiScale
+        );
+        drawPixiRect(
+          specialRing,
+          labelPosition.x - width / 2 + fixedUiScale,
+          labelPosition.y - height / 2 + fixedUiScale,
+          Math.max(0, width - fixedUiScale * 2),
+          Math.max(0, height * 0.42),
+          { color: '#ffffff', alpha: 0.1 },
+          null,
+          3 * fixedUiScale
         );
       } else if (statusLabel.kind === 'guard') {
         // The shield background is drawn with the guard overlay above.
       } else if (statusLabel.kind === 'bomb') {
-        drawPixiCircle(specialRing, labelPosition.x, labelPosition.y, cellSize * 0.14, {
-          color: '#ac1c1c', alpha: 0.9
+        const size = 20 * fixedUiScale;
+        drawPixiPolygon(specialRing, Object.freeze([
+          Object.freeze({ x: labelPosition.x, y: labelPosition.y - size / 2 }),
+          Object.freeze({ x: labelPosition.x + size / 2, y: labelPosition.y + size / 2 }),
+          Object.freeze({ x: labelPosition.x - size / 2, y: labelPosition.y + size / 2 })
+        ]), {
+          color: '#ac1c1c', alpha: 0.88
         }, {
-          color: '#ffb8b8', alpha: 0.72, width: Math.max(1, cellSize * 0.018)
+          color: '#ffb8b8', alpha: 0.72, width: Math.max(1, stageScale) * cellScale
         });
       } else if (statusLabel.kind === 'freeze') {
         drawPixiCircle(specialRing, labelPosition.x, labelPosition.y, cellSize * 0.14, {
@@ -489,8 +621,19 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
         toPixiTextStyle(context.theme.timer, cellSize, statusLabel.value)
       );
       if (!text) continue;
+      if (statusLabel.kind === 'special' || statusLabel.kind === 'bomb' || statusLabel.kind === 'guard') {
+        text.style = {
+          ...text.style,
+          fontSize: (statusLabel.kind === 'special' ? 11 : 10) * fixedUiScale,
+          lineHeight: (statusLabel.kind === 'special' ? 11 : 10) * fixedUiScale
+        };
+      }
       setPixiAnchor(text, 0.5);
-      setPixiPosition(text, labelPosition.x, labelPosition.y);
+      setPixiPosition(
+        text,
+        labelPosition.x,
+        labelPosition.y + (statusLabel.kind === 'bomb' ? fixedUiScale * 1.2 : 0)
+      );
       addPixiChild(statusLabelsRoot, text);
     }
     return true;
@@ -504,6 +647,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     specialType = null;
     timerLabel = '';
     badgeLabel = '';
+    flipProtectionBadgeVisible = false;
     statusLabels = [];
     textureBacked = false;
     texturePurpose = null;
@@ -516,6 +660,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     clearPixiGraphics(specialRing);
     if (sprite) sprite.visible = false;
     if (specialBadge) specialBadge.visible = false;
+    if (flipProtectionBadge) flipProtectionBadge.visible = false;
     removeAndDestroyPixiChildren(statusLabelsRoot);
     removePixiFromParent(root);
     resetCount += 1;
@@ -539,6 +684,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       specialType,
       timerLabel,
       badgeLabel,
+      flipProtectionBadgeVisible,
       statusLabels: Object.freeze(statusLabels.map((entry) => Object.freeze({ ...entry }))),
       textureBacked,
       texturePurpose,

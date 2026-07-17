@@ -43,6 +43,39 @@ describe('AnimationEngine strict network playback', () => {
     }
   });
 
+  test('watchdog restarts after each completed phase in a long ordered journal', async () => {
+    const AnimationEngine = require('../ui/animation-engine');
+    const originalExecutePhase = AnimationEngine.executePhase;
+    let resolveFirst!: () => void;
+    let resolveSecond!: () => void;
+    const firstPhase = new Promise<void>((resolve) => { resolveFirst = resolve; });
+    const secondPhase = new Promise<void>((resolve) => { resolveSecond = resolve; });
+    AnimationEngine.executePhase = jest.fn()
+      .mockImplementationOnce(() => firstPhase)
+      .mockImplementationOnce(() => secondPhase);
+
+    try {
+      const playPromise = AnimationEngine.play([
+        { type: 'place_hand_animation', phase: 1, strictNetworkPlayback: true, targets: [] },
+        { type: 'spawn', phase: 2, strictNetworkPlayback: true, targets: [] }
+      ], { strictNetworkPlayback: true });
+
+      await Promise.resolve();
+      jest.advanceTimersByTime(9);
+      resolveFirst();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(AnimationEngine.executePhase).toHaveBeenCalledTimes(2);
+
+      jest.advanceTimersByTime(9);
+      resolveSecond();
+      await expect(playPromise).resolves.toBeUndefined();
+      expect((global as any).window.__telemetry__?.watchdogFired || 0).toBe(0);
+    } finally {
+      AnimationEngine.executePhase = originalExecutePhase;
+    }
+  });
+
   test('strict network playback failure does not emit final board sync', async () => {
     const requestBoardUpdate = jest.fn();
     const failure = new Error('strict_phase_failed');

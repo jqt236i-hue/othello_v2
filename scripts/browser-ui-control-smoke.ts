@@ -558,8 +558,10 @@ async function captureStartupComparisonSnapshot(page: any, readyMs: number): Pro
       } : null,
       boardRenderSurface: {
         renderer: String(document.getElementById('board')?.getAttribute('data-board-renderer') || 'legacy-dom'),
-        cellCount: document.querySelectorAll('#board .cell, #board-expansion-layer .cell').length,
-        canvasCount: document.querySelectorAll('#board canvas').length
+        cellCount: Number(root.__boardVisualDebug?.getDisplayObjectCounts?.()?.active
+          || root.__boardVisualDebug?.getBackendDiagnostics?.()?.domCellCount
+          || 0),
+        canvasCount: Number(root.__boardVisualDebug?.getBackendDiagnostics?.()?.canvasCount || 0)
       },
       globals,
       missingElements: elementIds.filter((id: string) => !document.getElementById(id)),
@@ -628,9 +630,10 @@ async function captureComparisonFixture(page: any): Promise<{
     });
     throw new Error(`visual fixture did not settle: ${JSON.stringify(diagnostics)}; ${error instanceof Error ? error.message : error}`);
   }
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const root = window as any;
-    if (typeof root.forceFullRender === 'function' && root.boardEl) root.forceFullRender(root.boardEl);
+    if (typeof root.renderBoard === 'function') root.renderBoard();
+    if (root.__boardVisualDebug?.waitForIdle) await root.__boardVisualDebug.waitForIdle();
   });
   try {
     await page.waitForFunction(() => document.documentElement.classList.contains('stone-images-loaded'), null, { timeout: 5000 });
@@ -813,7 +816,9 @@ async function runBrowserUiControlSmoke(options?: BrowserUiControlSmokeOptions):
 }
 
 if (require.main === module) {
-  const entryPath = process.argv.includes('--classic') ? '/index.classic.html' : '/';
+  const entryPath = process.argv.includes('--classic')
+    ? '/index.classic.html?boardRenderer=pixi&noanim=1'
+    : '/?boardRenderer=pixi&noanim=1';
   runBrowserUiControlSmoke({ entryPath }).then((result) => {
     if (!result.evaluation.ok) {
       console.error(`[browser-ui-control-smoke] failed: ${result.evaluation.errors.join('; ')}`);

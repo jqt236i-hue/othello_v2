@@ -12,7 +12,8 @@ const {
   stopStaticServer,
   stopPlaywrightBrowser,
   stopPlaywrightPage,
-  closeMaintenanceNoticeIfPresent
+  closeMaintenanceNoticeIfPresent,
+  closeSidePanelIfPresent
 } = require('./e2e-runtime-helpers.js');
 
 const BLACK = 1;
@@ -27,22 +28,30 @@ function waitForServer(server: any) {
 }
 
 async function openDebugPage(browser: any, port: number) {
-  const page = await browser.newPage();
-  await page.goto(`http://127.0.0.1:${port}/?debug=1&noanim=1`, {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+  await page.goto(`http://127.0.0.1:${port}/?debug=1&boardRenderer=pixi&noanim=1`, {
     waitUntil: 'domcontentloaded',
     timeout: 10000
   });
   await closeMaintenanceNoticeIfPresent(page);
   await page.waitForFunction(
-    () => !!(window.gameState && window.cardState && typeof window.useSelectedCard === 'function'),
+    () => !!(
+      window.gameState
+      && window.cardState
+      && typeof window.useSelectedCard === 'function'
+      && (window as any).__uiInitialized === true
+      && (window as any).__boardVisualDebug?.getBackendKind?.() === 'pixi'
+    ),
     null,
     { timeout: 15000 }
   );
+  await closeSidePanelIfPresent(page);
+  await page.evaluate(() => (window as any).__boardVisualDebug.waitForIdle());
   return page;
 }
 
 async function installStandardDebugState(page: any, cardId: string, humanVsHuman: boolean) {
-  await page.evaluate(({ selectedCardId, hvh }) => {
+  await page.evaluate(async ({ selectedCardId, hvh }) => {
     const BLACK_VALUE = 1;
     const WHITE_VALUE = -1;
     window.CPU_TURN_DELAY_MS = 0;
@@ -83,6 +92,7 @@ async function installStandardDebugState(page: any, cardId: string, humanVsHuman
     window.VisualPlaybackActive = false;
     if (typeof window.renderBoard === 'function') window.renderBoard();
     if (typeof window.renderCardUI === 'function') window.renderCardUI();
+    await (window as any).__boardVisualDebug.waitForIdle();
   }, { selectedCardId: cardId, hvh: humanVsHuman });
 }
 
@@ -97,7 +107,40 @@ async function useSelectedCardAndClickTarget(page: any, pendingType: string, row
       && window.cardState.pendingEffectByPlayer.black;
     return pending && pending.type === type;
   }, pendingType, { timeout: 5000 });
-  await page.click(`.cell[data-row="${row}"][data-col="${col}"]`, { timeout: 5000 });
+  await page.evaluate(() => (window as any).__boardVisualDebug.waitForIdle());
+  const resolveTarget = () => page.evaluate(({ targetRow, targetCol }) => {
+    const root = window as any;
+    const rect = root.__boardVisualDebug.getCellClientRect(targetRow, targetCol);
+    if (!rect || !(rect.width > 0) || !(rect.height > 0)) {
+      throw new Error(`Pending target ${targetRow},${targetCol} has no Pixi client rect`);
+    }
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  }, { targetRow: row, targetCol: col });
+  let target = await resolveTarget();
+  await page.mouse.move(target.x, target.y);
+  await page.evaluate(async () => {
+    await (window as any).__boardVisualDebug.waitForIdle();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  });
+  target = await resolveTarget();
+  await page.mouse.move(target.x, target.y);
+  await page.evaluate(({ targetRow, targetCol, x, y }) => {
+    const root = window as any;
+    const input = root.require('ui/board-renderer').getBoardInputController();
+    const hit = input.hitTestClientPoint(x, y);
+    const state = input.getState();
+    const element = document.elementFromPoint(x, y) as HTMLElement | null;
+    const board = document.getElementById('board');
+    if (!hit || hit.row !== targetRow || hit.col !== targetCol || state.enabled !== true || state.locked === true
+      || !element || !board?.contains(element)) {
+      throw new Error(`Pending Pixi input is unavailable: ${JSON.stringify({
+        hit, state, x, y,
+        element: element ? { tag: element.tagName, id: element.id, className: String(element.className || '') } : null
+      })}`);
+    }
+  }, { targetRow: row, targetCol: col, ...target });
+  await page.mouse.down({ button: 'left' });
+  await page.mouse.up({ button: 'left' });
 }
 
 async function readRuntimeState(page: any) {
@@ -112,7 +155,13 @@ async function readRuntimeState(page: any) {
     },
     cell33: window.gameState.board[3][3],
     blackCount: window.gameState.board.flat().filter((value) => value === 1).length,
-    whiteCount: window.gameState.board.flat().filter((value) => value === -1).length
+    whiteCount: window.gameState.board.flat().filter((value) => value === -1).length,
+    boardVisual: {
+      backend: (window as any).__boardVisualDebug.getBackendKind(),
+      writerMode: (window as any).__boardVisualDebug.getWriterMode(),
+      domCellCount: (window as any).__boardVisualDebug.getBackendDiagnostics()?.domCellCount,
+      rendered33: (window as any).__boardVisualDebug.getRenderedCell(3, 3)
+    }
   }));
 }
 
@@ -153,6 +202,9 @@ describe('pending selection CPU handoff E2E', () => {
       expect(state.pending).toEqual({ black: null, white: null });
       expect(state.busy).toEqual({ processing: false, cardAnimating: false, playback: false });
       expect(state.whiteCount).toBeGreaterThan(0);
+      expect(state.boardVisual).toEqual(expect.objectContaining({
+        backend: 'pixi', writerMode: 'idle', domCellCount: 0
+      }));
     } finally {
       await stopPlaywrightPage(page);
     }
@@ -182,6 +234,10 @@ describe('pending selection CPU handoff E2E', () => {
       expect(state.cell33).toBe(0);
       expect(state.pending).toEqual({ black: null, white: null });
       expect(state.busy).toEqual({ processing: false, cardAnimating: false, playback: false });
+      expect(state.boardVisual).toEqual(expect.objectContaining({
+        backend: 'pixi', writerMode: 'idle', domCellCount: 0
+      }));
+      expect(state.boardVisual.rendered33?.stone?.visible).toBe(false);
     } finally {
       await stopPlaywrightPage(page);
     }

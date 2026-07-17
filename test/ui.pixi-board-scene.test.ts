@@ -313,6 +313,8 @@ function makeFrame(options: {
       revision: options.layoutRevision || 1,
       cellSize,
       dpr: 1,
+      stageScale: 1,
+      cellScale: 1,
       orientation: options.orientation || 'normal',
       frameInset: { top: 0, right: 0, bottom: 0, left: 0 },
       clientOrigin: { x: 0, y: 0 },
@@ -505,7 +507,15 @@ describe('Pixi static retained views', () => {
       owner: 'white',
       specialType: 'GUARD',
       timerLabel: '12',
+      flipProtectionBadgeVisible: true,
       textureBacked: false
+    });
+    expect(stoneView.root.children.find((child: any) => (
+      child.label === 'pixi-stone-flip-protection-badge'
+    ))).toMatchObject({
+      visible: true,
+      text: '反',
+      position: { x: 24, y: 17 }
     });
 
     const sprout = materializedCell(makeCell('0,1', {

@@ -24,14 +24,17 @@ function wait(ms: number): Promise<void> {
 async function waitForBootstrap(page: any): Promise<void> {
   await page.waitForFunction(
     () => !!(
-      (window as any).gameState
+      (window as any).__uiInitialized === true
+      && (window as any).gameState
       && Array.isArray((window as any).gameState.board)
       && (window as any).cardState
       && (window as any).NetworkMatchClient
+      && (window as any).__boardVisualDebug?.getBackendKind?.() === 'pixi'
     ),
     null,
     { timeout: 20000 }
   );
+  await page.evaluate(() => (window as any).__boardVisualDebug.waitForIdle());
 }
 
 function attachDiagnostics(page: any, label: string) {
@@ -142,8 +145,10 @@ async function waitForIdle(page: any, timeoutMs = 20000): Promise<void> {
           timeline.playing !== true
           && timeline.paused !== true
           && Number(timeline.pendingFrameCount || 0) === 0
-        ));
+        ))
+        && root.__boardVisualDebug?.getWriterMode?.() === 'idle';
     }, null, { timeout: timeoutMs });
+    await page.evaluate(() => (window as any).__boardVisualDebug.waitForIdle());
   } catch (_error) {
     const diagnostics = await page.evaluate(() => {
       const root = window as any;
@@ -186,6 +191,20 @@ async function waitForIdle(page: any, timeoutMs = 20000): Promise<void> {
         animationEnginePlaying: !!(root.AnimationEngine && root.AnimationEngine.isPlaying === true),
         timeline,
         playback,
+        boardVisual: root.__boardVisualDebug ? {
+          backend: root.__boardVisualDebug.getBackendKind(),
+          writerMode: root.__boardVisualDebug.getWriterMode(),
+          backendDiagnostics: root.__boardVisualDebug.getBackendDiagnostics()
+        } : null,
+        animationEngine: root.AnimationEngine ? {
+          isPlaying: root.AnimationEngine.isPlaying === true,
+          isAborted: root.AnimationEngine.isAborted === true,
+          strictNetworkPlayback: root.AnimationEngine._strictNetworkPlayback === true,
+          activePlaybackRunId: root.AnimationEngine._activePlaybackRunId,
+          activeBoardWriterToken: root.AnimationEngine._activeBoardWriterToken,
+          remainingEvents: root.AnimationEngine._remainingEvents
+        } : null,
+        reloadRequired: !!document.querySelector('[data-reload-required="true"]'),
         pending: root.cardState && root.cardState.pendingEffectByPlayer || null,
         currentPlayer: root.gameState && root.gameState.currentPlayer,
         turnNumber: root.gameState && root.gameState.turnNumber,
@@ -230,6 +249,14 @@ async function waitForSameCanonicalState(hostPage: any, guestPage: any, timeoutM
       && lastGuest.busy.processing === false
       && lastGuest.busy.cardAnimating === false
       && lastGuest.busy.playback === false
+      && lastHost.visual.backend === 'pixi'
+      && lastGuest.visual.backend === 'pixi'
+      && lastHost.visual.domCellCount === 0
+      && lastGuest.visual.domCellCount === 0
+      && lastHost.visual.canvasCount === 1
+      && lastGuest.visual.canvasCount === 1
+      && JSON.stringify(lastHost.visual.renderedBoard) === JSON.stringify(lastHost.board)
+      && JSON.stringify(lastGuest.visual.renderedBoard) === JSON.stringify(lastGuest.board)
     ) {
       return;
     }
@@ -272,6 +299,15 @@ async function readCanonicalState(page: any): Promise<any> {
       currentPlayer: root.gameState ? root.gameState.currentPlayer : null,
       turnNumber: root.gameState ? root.gameState.turnNumber : null
     };
+    const debug = root.__boardVisualDebug;
+    const renderedBoard = board.map((row: any[], rowIndex: number) => row.map((_value: any, colIndex: number) => {
+      const stone = debug?.getRenderedCell?.(rowIndex, colIndex)?.stone;
+      if (!stone?.visible) return 0;
+      if (stone.owner === 'black') return 1;
+      if (stone.owner === 'white') return -1;
+      return 0;
+    }));
+    const backendDiagnostics = debug?.getBackendDiagnostics?.() || null;
     return {
       hash: JSON.stringify(hashPayload),
       stateVersion: root.NetworkMatchClient && typeof root.NetworkMatchClient.getStateVersion === 'function'
@@ -285,6 +321,13 @@ async function readCanonicalState(page: any): Promise<any> {
       board,
       markers,
       timeline,
+      visual: {
+        backend: debug?.getBackendKind?.() || null,
+        digest: debug?.getVisualFrameDigest?.() || null,
+        renderedBoard,
+        domCellCount: Number(backendDiagnostics?.domCellCount || 0),
+        canvasCount: Number(backendDiagnostics?.canvasCount || 0)
+      },
       busy: {
         processing: !!root.isProcessing,
         cardAnimating: !!root.isCardAnimating,
@@ -337,7 +380,17 @@ async function getFirstLegalMove(page: any): Promise<{ row: number; col: number 
 
 async function playFirstLegalMove(page: any): Promise<{ row: number; col: number }> {
   const move = await getFirstLegalMove(page);
-  await page.click(`.cell[data-row="${move.row}"][data-col="${move.col}"]`);
+  const target = await page.evaluate(({ row, col }) => {
+    const root = window as any;
+    const rect = root.__boardVisualDebug.getCellClientRect(row, col);
+    if (!rect || !(rect.width > 0) || !(rect.height > 0)) {
+      throw new Error(`Network move ${row},${col} has no Pixi client rect`);
+    }
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  }, move);
+  await page.mouse.move(target.x, target.y);
+  await page.mouse.down({ button: 'left' });
+  await page.mouse.up({ button: 'left' });
   await waitForIdle(page);
   return move;
 }
@@ -457,7 +510,7 @@ describe('Network battle complete smoke E2E', () => {
     const guestPage = await guestContext.newPage();
     const hostDiagnostics = attachDiagnostics(hostPage, 'host');
     const guestDiagnostics = attachDiagnostics(guestPage, 'guest');
-    const appUrl = `http://127.0.0.1:${staticPort}/?debug=1&matchServer=http://127.0.0.1:${matchPort}`;
+    const appUrl = `http://127.0.0.1:${staticPort}/?debug=1&boardRenderer=pixi&matchServer=http://127.0.0.1:${matchPort}`;
     const matchUrl = `http://127.0.0.1:${matchPort}`;
 
     try {
@@ -504,6 +557,8 @@ describe('Network battle complete smoke E2E', () => {
       const finalGuest = await readCanonicalState(guestPage);
       expect(finalGuest.hash).toBe(finalHost.hash);
       expect(finalGuest.stateVersion).toBe(finalHost.stateVersion);
+      expect(finalHost.visual.renderedBoard).toEqual(finalHost.board);
+      expect(finalGuest.visual.renderedBoard).toEqual(finalGuest.board);
 
       assertPageDiagnosticsClean(hostDiagnostics);
       assertPageDiagnosticsClean(guestDiagnostics);

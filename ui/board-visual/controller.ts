@@ -49,6 +49,26 @@ type RecoveryFrameSettlement = Readonly<{
   consumedPendingVersion: number;
   consumedInitialFrame: BoardVisualFrame | null;
 }>;
+type WriterPhaseLaunch = Readonly<{
+  events: readonly unknown[];
+  phaseScope: BoardPlaybackPhaseScope;
+}>;
+type WriterPhaseGroup = {
+  readonly scopeIdentity: object;
+  readonly launches: WriterPhaseLaunch[];
+};
+type ContextRecoveryCycle = Readonly<{
+  generation: number;
+  returnMode: BoardWriterMode;
+  checkpoint: BoardVisualFrame | null;
+  phaseGroups: readonly Readonly<{
+    scopeIdentity: object;
+    launches: readonly WriterPhaseLaunch[];
+  }>[];
+  promise: Promise<void>;
+  resolve: () => void;
+  reject: (error: Error) => void;
+}>;
 
 const HOST_BACKEND_LEASES = new WeakMap<HTMLElement, object>();
 
@@ -147,6 +167,11 @@ function createBoardVisualController(options: {
   let recoveryError: Error | null = null;
   let networkAwaitingStarted = false;
   let networkCommittedApplied = false;
+  let writerPhaseGroups: WriterPhaseGroup[] = [];
+  let contextRecoveryGeneration = 0;
+  let contextRecoveryAttemptSequence = 0;
+  let contextRecoveryCycle: ContextRecoveryCycle | null = null;
+  let latestContextRecoveryPromise: Promise<void> | null = null;
   let lifecycleEpoch = 0;
   let activePresentation: ActiveBoardFramePresentation | null = null;
   let idleFrameSettlement: IdleFrameSettlement | null = null;
@@ -407,6 +432,62 @@ function createBoardVisualController(options: {
     diagnostics.record(event, { message: normalized.message, frameToken: activeToken?.frameToken || null });
     settleReadyFailure(normalized);
     return normalized;
+  };
+
+  const clearWriterPhaseHistory = () => {
+    writerPhaseGroups = [];
+  };
+
+  const appendWriterPhaseLaunch = (
+    events: readonly unknown[],
+    phaseScope: BoardPlaybackPhaseScope
+  ): WriterPhaseLaunch => {
+    const launch = Object.freeze({
+      events: Object.freeze(Array.from(events)),
+      phaseScope
+    });
+    const scopeIdentity = phaseScope as object;
+    const latestGroup = writerPhaseGroups[writerPhaseGroups.length - 1];
+    if (latestGroup && latestGroup.scopeIdentity === scopeIdentity) {
+      latestGroup.launches.push(launch);
+    } else {
+      writerPhaseGroups.push({ scopeIdentity, launches: [launch] });
+    }
+    return launch;
+  };
+
+  const snapshotWriterPhaseGroups = (): ContextRecoveryCycle['phaseGroups'] => Object.freeze(
+    writerPhaseGroups.map((group) => Object.freeze({
+      scopeIdentity: group.scopeIdentity,
+      launches: Object.freeze(group.launches.slice())
+    }))
+  );
+
+  const contextRecoveryTarget = (cycle: ContextRecoveryCycle): BoardVisualFrame | null => {
+    if (cycle.returnMode === 'awaiting-frame-commit') {
+      if (pendingCommittedRecoveryFrame) return pendingCommittedRecoveryFrame;
+      if (networkCommittedApplied && lastApplied) return lastApplied;
+      return cycle.checkpoint || writerCheckpoint || lastSettled || lastApplied;
+    }
+    if (cycle.returnMode === 'playback') {
+      return cycle.checkpoint || writerCheckpoint || lastSettled || lastApplied;
+    }
+    return pendingLatest || initialLatest || cycle.checkpoint || lastSettled || lastApplied;
+  };
+
+  const finishContextRecoveryCycle = (cycle: ContextRecoveryCycle) => {
+    if (contextRecoveryCycle !== cycle) return;
+    contextRecoveryCycle = null;
+    cycle.resolve();
+  };
+
+  const rejectContextRecoveryCycle = (cycle: ContextRecoveryCycle, error: unknown) => {
+    if (contextRecoveryCycle !== cycle) return;
+    const normalized = toError(error, 'Board context recovery failed');
+    contextRecoveryCycle = null;
+    recoveryError = normalized;
+    diagnostics.record('context-recovery:failed', { message: normalized.message });
+    cycle.reject(normalized);
   };
 
   const applyReadyFrame = (frame: BoardVisualFrame): ActiveBoardFramePresentation => {
@@ -691,6 +772,7 @@ function createBoardVisualController(options: {
     writerCheckpoint = null;
     networkAwaitingStarted = false;
     networkCommittedApplied = false;
+    clearWriterPhaseHistory();
     setMode('idle');
     return true;
   };
@@ -973,6 +1055,7 @@ function createBoardVisualController(options: {
       }
       activeToken = Object.freeze({ id: ++tokenSequence, frameToken: String(frameToken), mode: writerMode });
       writerCheckpoint = lastApplied;
+      clearWriterPhaseHistory();
       clearPendingLatestFrame();
       pendingCommittedRecoveryFrame = null;
       networkAwaitingStarted = false;
@@ -987,6 +1070,7 @@ function createBoardVisualController(options: {
       if (mode !== 'playback') throw new Error('Board writer reclaim requires playback mode');
       activeToken = Object.freeze({ id: ++tokenSequence, frameToken: String(frameToken), mode: writerMode });
       if (!writerCheckpoint) writerCheckpoint = lastApplied;
+      clearWriterPhaseHistory();
       clearPendingLatestFrame();
       pendingCommittedRecoveryFrame = null;
       networkAwaitingStarted = false;
@@ -1034,8 +1118,28 @@ function createBoardVisualController(options: {
         strictNetworkPlayback: token.mode === 'network',
         phaseScope
       });
-      await backend.playPhase(events, context);
-      assertLifecycleCurrent(epoch);
+      appendWriterPhaseLaunch(events, phaseScope);
+      const recoveryGenerationAtStart = contextRecoveryGeneration;
+      try {
+        await backend.playPhase(events, context);
+        assertLifecycleCurrent(epoch);
+      } catch (error) {
+        const recovery = contextRecoveryCycle;
+        const recoveryPromise = recovery && recovery.generation > recoveryGenerationAtStart
+          ? recovery.promise
+          : (contextRecoveryGeneration > recoveryGenerationAtStart
+            ? latestContextRecoveryPromise
+            : null);
+        if (!recoveryPromise) throw error;
+        await recoveryPromise;
+        assertLifecycleCurrent(epoch);
+        return;
+      }
+      const recovery = contextRecoveryCycle;
+      if (recovery && recovery.generation > recoveryGenerationAtStart) {
+        await recovery.promise;
+        assertLifecycleCurrent(epoch);
+      }
     },
     async abortWriterBeforeHandoff(token: BoardWriterToken, checkpoint?: BoardVisualFrame) {
       const epoch = lifecycleEpoch;
@@ -1063,6 +1167,7 @@ function createBoardVisualController(options: {
         diagnostics.record('writer:aborted-before-handoff', { id: token.id, frameToken: token.frameToken });
         activeToken = null;
         writerCheckpoint = null;
+        clearWriterPhaseHistory();
         networkAwaitingStarted = false;
         networkCommittedApplied = false;
         setMode('idle');
@@ -1102,6 +1207,7 @@ function createBoardVisualController(options: {
         diagnostics.record('writer:cancelled-after-handoff', { id: token.id, frameToken: token.frameToken });
         activeToken = null;
         writerCheckpoint = null;
+        clearWriterPhaseHistory();
         networkAwaitingStarted = false;
         networkCommittedApplied = false;
         recoveryReturnMode = 'idle';
@@ -1122,6 +1228,9 @@ function createBoardVisualController(options: {
       pendingCommittedRecoveryFrame = null;
       networkAwaitingStarted = true;
       networkCommittedApplied = false;
+      // From this point a context restore must not replay events. The timeline
+      // owns the committed-store apply and retains the opaque settlement handle.
+      clearWriterPhaseHistory();
       setMode('awaiting-frame-commit');
     },
     async applyCommittedFrame(token: BoardWriterToken, frame: BoardVisualFrame) {
@@ -1252,6 +1361,121 @@ function createBoardVisualController(options: {
       enterFailureRecovery(error || new Error('Board visual recovery requested'), mode, 'recovery:entered');
       return true;
     },
+    beginContextRecovery(error?: unknown) {
+      assertAlive();
+      if (contextRecoveryCycle) return contextRecoveryCycle.promise;
+      if (mode !== 'idle' && mode !== 'playback' && mode !== 'awaiting-frame-commit') {
+        throw new Error(`Cannot begin context recovery while controller is ${mode}`);
+      }
+      const returnMode = mode;
+      let resolve!: () => void;
+      let reject!: (error: Error) => void;
+      const promise = new Promise<void>((resolvePromise, rejectPromise) => {
+        resolve = resolvePromise;
+        reject = rejectPromise;
+      });
+      promise.catch(() => { /* observed by active phase and lifecycle owners */ });
+      const cycle: ContextRecoveryCycle = Object.freeze({
+        generation: ++contextRecoveryGeneration,
+        returnMode,
+        checkpoint: returnMode === 'playback'
+          ? (writerCheckpoint || lastSettled || lastApplied)
+          : (lastSettled || lastApplied),
+        phaseGroups: returnMode === 'playback'
+          ? snapshotWriterPhaseGroups()
+          : Object.freeze([]),
+        promise,
+        resolve,
+        reject
+      });
+      contextRecoveryCycle = cycle;
+      latestContextRecoveryPromise = promise;
+      enterFailureRecovery(error || new Error('Board WebGL context lost'), returnMode, 'context-recovery:entered');
+      diagnostics.record('context-recovery:checkpointed', {
+        generation: cycle.generation,
+        returnMode,
+        frameToken: cycle.checkpoint?.frameToken || null,
+        phaseGroupCount: cycle.phaseGroups.length
+      });
+      return promise;
+    },
+    async restoreContextRecovery(options?: { backendAlreadyRestored?: boolean }) {
+      assertAlive();
+      const cycle = contextRecoveryCycle;
+      if (!cycle) throw new Error('Board context recovery is not active');
+      const epoch = lifecycleEpoch;
+      const attempt = ++contextRecoveryAttemptSequence;
+      const assertAttemptCurrent = () => {
+        if (contextRecoveryCycle !== cycle || attempt !== contextRecoveryAttemptSequence) {
+          throw new Error('Board context recovery attempt was superseded');
+        }
+      };
+      if (readySettled && !ready) beginReadyCycle();
+      try {
+        if (!backendMounted) throw new Error('Board context recovery requires a mounted backend');
+        const target = contextRecoveryTarget(cycle);
+        if (target && options?.backendAlreadyRestored !== true) {
+          await restoreReadyFrame(target, epoch);
+          assertAttemptCurrent();
+        }
+        if (cycle.returnMode === 'playback') {
+          for (const group of cycle.phaseGroups) {
+            await Promise.all(group.launches.map((launch) => backend.playPhase(
+              launch.events,
+              Object.freeze({
+                token: activeToken!,
+                strictNetworkPlayback: activeToken?.mode === 'network',
+                phaseScope: launch.phaseScope,
+                recoveryReplay: true
+              })
+            )));
+            assertAttemptCurrent();
+            assertLifecycleCurrent(epoch);
+          }
+        }
+        if (cycle.returnMode === 'awaiting-frame-commit') {
+          const committedTarget = pendingCommittedRecoveryFrame;
+          if (committedTarget && target === committedTarget) {
+            clearPendingLatestFrame();
+            pendingCommittedRecoveryFrame = null;
+            networkCommittedApplied = true;
+          }
+        }
+        ready = true;
+        recoveryError = null;
+        recoveryReturnMode = cycle.returnMode;
+        setMode(cycle.returnMode);
+        settleReadySuccess();
+        diagnostics.record('context-recovery:restored', {
+          generation: cycle.generation,
+          backendKind: backend.kind,
+          returnMode: cycle.returnMode,
+          frameToken: target?.frameToken || null,
+          replayedPhaseGroupCount: cycle.phaseGroups.length
+        });
+        finishContextRecoveryCycle(cycle);
+        return true;
+      } catch (error) {
+        if (contextRecoveryCycle !== cycle || attempt !== contextRecoveryAttemptSequence) {
+          throw toError(error, 'Board context recovery attempt was superseded');
+        }
+        recoveryError = toError(error, 'Board context recovery failed');
+        ready = false;
+        setMode('recovering');
+        diagnostics.record('context-recovery:restore-error', {
+          generation: cycle.generation,
+          message: recoveryError.message
+        });
+        throw recoveryError;
+      }
+    },
+    failContextRecovery(error: unknown) {
+      assertAlive();
+      const cycle = contextRecoveryCycle;
+      if (!cycle) return false;
+      rejectContextRecoveryCycle(cycle, error);
+      return true;
+    },
     async restore(frame?: BoardVisualFrame) {
       assertAlive();
       const epoch = lifecycleEpoch;
@@ -1277,7 +1501,10 @@ function createBoardVisualController(options: {
         throw enterFailureRecovery(error, recoveryReturnMode, 'recovery:restore-error');
       }
     },
-    async replaceBackend(nextBackend: BoardVisualBackend) {
+    async replaceBackend(
+      nextBackend: BoardVisualBackend,
+      replacementOptions?: { preserveContextRecovery?: boolean }
+    ) {
       assertAlive();
       const epoch = lifecycleEpoch;
       if (!host) throw new Error('Cannot replace an unmounted board backend');
@@ -1288,7 +1515,13 @@ function createBoardVisualController(options: {
         throw new Error('Cannot replace backend without the active host lease');
       }
       beginReadyCycle();
-      const checkpoint = pendingLatest || initialLatest || lastApplied;
+      const preservedContextRecovery = replacementOptions?.preserveContextRecovery === true
+        ? contextRecoveryCycle
+        : null;
+      if (preservedContextRecovery) contextRecoveryAttemptSequence += 1;
+      const checkpoint = preservedContextRecovery
+        ? contextRecoveryTarget(preservedContextRecovery)
+        : (pendingLatest || initialLatest || lastApplied);
       const returnMode = mode === 'recovering' ? recoveryReturnMode : mode;
       try {
         backend.destroy();
@@ -1299,16 +1532,31 @@ function createBoardVisualController(options: {
         await Promise.resolve(backend.mount(host, { diagnostics }));
         assertLifecycleCurrent(epoch);
         backendMounted = true;
-        const restoreTarget = pendingLatest || initialLatest || checkpoint || lastApplied;
+        const restoreTarget = preservedContextRecovery
+          ? checkpoint
+          : (pendingLatest || initialLatest || checkpoint || lastApplied);
         if (restoreTarget) {
-          const settlement = await settleLatestRecoveryFrame(restoreTarget, epoch);
-          finishSuccessfulRestore(settlement, returnMode);
+          if (preservedContextRecovery) {
+            await restoreReadyFrame(restoreTarget, epoch);
+            ready = false;
+            recoveryError = null;
+            setMode('recovering');
+          } else {
+            const settlement = await settleLatestRecoveryFrame(restoreTarget, epoch);
+            finishSuccessfulRestore(settlement, returnMode);
+          }
         }
         else {
-          ready = true;
-          recoveryError = null;
-          setMode(returnMode === 'recovering' ? (activeToken ? 'playback' : 'idle') : returnMode);
-          settleReadySuccess();
+          if (preservedContextRecovery) {
+            ready = false;
+            recoveryError = null;
+            setMode('recovering');
+          } else {
+            ready = true;
+            recoveryError = null;
+            setMode(returnMode === 'recovering' ? (activeToken ? 'playback' : 'idle') : returnMode);
+            settleReadySuccess();
+          }
         }
         diagnostics.record('backend:replaced', { kind: backend.kind });
         flushIdleWaiters();
@@ -1370,6 +1618,10 @@ function createBoardVisualController(options: {
       localWriterSettlement = null;
       networkAwaitingStarted = false;
       networkCommittedApplied = false;
+      clearWriterPhaseHistory();
+      if (contextRecoveryCycle) {
+        rejectContextRecoveryCycle(contextRecoveryCycle, error);
+      }
       recoveryError = null;
       settledFrameNotificationVersion += 1;
       settledFrameListeners.clear();

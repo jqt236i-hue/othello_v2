@@ -1610,7 +1610,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       const top = sceneOffsetY + Math.min(...baseCorners.map((corner) => corner.y));
       const width = topology.baseCols * frame.layout.cellSize;
       const height = topology.baseRows * frame.layout.cellSize;
-      const stageScale = (frame.layout.cellSize * Math.max(topology.baseRows, topology.baseCols)) / 496;
+      const stageScale = frame.layout.stageScale;
       const shadowOffsetY = 8 * stageScale;
       for (const [spread, alpha] of [[12, 0.03], [9, 0.05], [6, 0.07], [4, 0.1], [2, 0.14]] as const) {
         const scaledSpread = spread * stageScale;

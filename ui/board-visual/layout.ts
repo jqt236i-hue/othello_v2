@@ -10,6 +10,8 @@ interface CreateBoardViewportLayoutOptions {
   revision?: number;
   cellSize: number;
   dpr?: number;
+  stageScale?: number;
+  cellScale?: number;
   orientation?: 'normal' | 'rotated-180';
   frameInset?: Partial<BoardViewportLayout['frameInset']>;
   clientOrigin?: Partial<BoardViewportLayout['clientOrigin']>;
@@ -93,6 +95,8 @@ export function createBoardViewportLayout(
     revision: Math.max(0, Math.trunc(finite(options.revision))),
     cellSize,
     dpr: Math.min(2, Math.max(0.1, finite(options.dpr, 1))),
+    stageScale: Math.max(0.01, finite(options.stageScale, 1)),
+    cellScale: Math.max(0.01, finite(options.cellScale, 1)),
     orientation,
     frameInset: Object.freeze(frameInset),
     clientOrigin: Object.freeze(clientOrigin),

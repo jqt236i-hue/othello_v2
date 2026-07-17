@@ -585,6 +585,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/pixi/board-scene": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/board-scene.js"),
   "ui/pixi/camera": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/camera.js"),
   "ui/pixi/cell-view": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/cell-view.js"),
+  "ui/pixi/context-recovery": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/context-recovery.js"),
   "ui/pixi/effects/common": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/common.js"),
   "ui/pixi/effects/destroy": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/destroy.js"),
   "ui/pixi/effects/flip": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/flip.js"),
@@ -1249,6 +1250,7 @@ installBootModuleMetadata({
     "ui/pixi/board-scene",
     "ui/pixi/camera",
     "ui/pixi/cell-view",
+    "ui/pixi/context-recovery",
     "ui/pixi/effects/common",
     "ui/pixi/effects/destroy",
     "ui/pixi/effects/flip",
@@ -1410,4 +1412,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 659;
+export const startupModuleCount = 660;

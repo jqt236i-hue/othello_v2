@@ -19,6 +19,10 @@ function nextTurn(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve));
 }
 
+async function flushMicrotasks(iterations = 8): Promise<void> {
+  for (let index = 0; index < iterations; index += 1) await Promise.resolve();
+}
+
 function makeFrame(
   token: string,
   revision: number,
@@ -381,6 +385,7 @@ function createHarness(options: {
   customBoardBlob?: Blob | null;
   reducedMotion?: boolean;
   onTopologyRevealStart?: (keys: readonly string[], frame: any) => void;
+  contextRecovery?: any;
 } = {}) {
   const dom = new JSDOM('<!doctype html><div id="board"><div class="cell">legacy</div></div>', {
     url: 'https://example.test/game/index.html'
@@ -434,6 +439,7 @@ function createHarness(options: {
     playbackFactory: options.playbackFactory,
     getInputController: options.getInputController,
     onTopologyRevealStart: options.onTopologyRevealStart,
+    contextRecovery: options.contextRecovery,
     resolveAppearance: (frame) => resolvedAppearance(frame, false, options.customBoardBlob || null),
     resolveDefaultAppearance: (frame) => resolvedAppearance(frame, true),
     acquireAppearanceLease: (appearance) => {
@@ -1157,6 +1163,54 @@ describe('Pixi board backend integration', () => {
     expect(Backend.isPixiCompatibilityFallbackError(playbackError)).toBe(false);
   });
 
+  test('does not stop the shared private ticker while a sibling board phase run is active', async () => {
+    const fixture = createPlaybackFixture();
+    const first = deferred<void>();
+    const second = deferred<void>();
+    let activeRunCount = 2;
+    fixture.playback.playPhase
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementationOnce(() => second.promise);
+    fixture.playback.getDiagnostics.mockImplementation(() => Object.freeze({
+      destroyed: false,
+      activeScopeKey: 'network:1',
+      projectedStoneCount: 1,
+      retainedFinalGhostCount: 0,
+      inFlightEffectCount: activeRunCount,
+      inFlightTopologyRevealCount: 0,
+      phaseCount: 2,
+      completedPhaseCount: 2 - activeRunCount,
+      failedPhaseCount: 0,
+      timeline: Object.freeze({
+        ...fixture.timeline,
+        state: activeRunCount > 0 ? 'running' as const : 'idle' as const,
+        activeRunCount,
+        tickerRunning: activeRunCount > 0,
+        tickerSubscribed: activeRunCount > 0
+      })
+    }));
+    const harness = createHarness({ playbackFactory: () => fixture.playback });
+    await harness.backend.mount(harness.host, {});
+    const ticker = harness.app.instances[0].ticker;
+    const stopCountBeforePhases = ticker.stop.mock.calls.length;
+    const context = {
+      token: { id: 1, frameToken: 'network:1', mode: 'network' as const },
+      strictNetworkPlayback: true
+    };
+
+    const firstPhase = harness.backend.playPhase([{ type: 'place' }], context);
+    const secondPhase = harness.backend.playPhase([{ type: 'flip' }], context);
+    activeRunCount = 1;
+    first.resolve();
+    await expect(firstPhase).resolves.toBeUndefined();
+    expect(ticker.stop).toHaveBeenCalledTimes(stopCountBeforePhases);
+
+    activeRunCount = 0;
+    second.resolve();
+    await expect(secondPhase).resolves.toBeUndefined();
+    expect(ticker.stop).toHaveBeenCalledTimes(stopCountBeforePhases + 1);
+  });
+
   test('reuses a failed preparation as the same typed failure and restore can retry it', async () => {
     const harness = createHarness();
     await harness.backend.mount(harness.host, {});
@@ -1176,5 +1230,114 @@ describe('Pixi board backend integration', () => {
     await harness.backend.restore(frame);
     expect(harness.scene.applyCalls.at(-1)!.frame.frameToken).toBe('retry');
     expect(harness.backend.getDiagnostics()).toMatchObject({ restoreCount: 1, settledFrameToken: 'retry' });
+  });
+
+  test('locks the controller before aborting Pixi work and reloads texture ownership on context restore', async () => {
+    const fixture = createPlaybackFixture();
+    const onContextLost = jest.fn();
+    const onContextRestored = jest.fn(async () => true);
+    const onFallbackRequired = jest.fn(async () => true);
+    const harness = createHarness({
+      playbackFactory: () => fixture.playback,
+      contextRecovery: { onContextLost, onContextRestored, onFallbackRequired }
+    });
+    await harness.backend.mount(harness.host, {});
+    const canvas = harness.app.instances[0].canvas as HTMLCanvasElement;
+    const lost = new harness.dom.window.Event('webglcontextlost', { cancelable: true });
+
+    canvas.dispatchEvent(lost);
+
+    expect(lost.defaultPrevented).toBe(true);
+    expect(onContextLost).toHaveBeenCalledTimes(1);
+    expect(fixture.playback.abort).toHaveBeenCalledTimes(1);
+    expect(onContextLost.mock.invocationCallOrder[0])
+      .toBeLessThan(fixture.playback.abort.mock.invocationCallOrder[0]);
+    expect(harness.backend.getDiagnostics().contextRecovery).toMatchObject({
+      state: 'lost', lossCount: 1, timerActive: true
+    });
+    expect(() => harness.backend.applyFrame(makeFrame('blocked', 9))).toThrow(
+      expect.objectContaining({ code: 'pixi_context_lost' })
+    );
+
+    canvas.dispatchEvent(new harness.dom.window.Event('webglcontextrestored'));
+    await nextTurn();
+    await nextTurn();
+
+    expect(onContextRestored).toHaveBeenCalledTimes(1);
+    expect(onFallbackRequired).not.toHaveBeenCalled();
+    expect(harness.backend.getDiagnostics()).toMatchObject({
+      lastErrorCode: null,
+      contextRecovery: {
+        state: 'idle', restoreAttemptCount: 1, restoreSuccessCount: 1, timerActive: false
+      }
+    });
+  });
+
+  test('still aborts Pixi work when the controller context-loss hook fails', async () => {
+    const fixture = createPlaybackFixture();
+    const onRecoveryFailed = jest.fn();
+    const harness = createHarness({
+      playbackFactory: () => fixture.playback,
+      contextRecovery: {
+        onContextLost: jest.fn(() => { throw new Error('controller-lock-failed'); }),
+        onContextRestored: jest.fn(async () => true),
+        onFallbackRequired: jest.fn(async () => true),
+        onRecoveryFailed
+      }
+    });
+    await harness.backend.mount(harness.host, {});
+    const canvas = harness.app.instances[0].canvas as HTMLCanvasElement;
+
+    canvas.dispatchEvent(new harness.dom.window.Event('webglcontextlost', { cancelable: true }));
+
+    expect(fixture.playback.abort).toHaveBeenCalledTimes(1);
+    expect(fixture.playback.abort).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'pixi_context_lost' })
+    );
+    expect(onRecoveryFailed).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'controller-lock-failed' })
+    );
+    expect(harness.backend.getDiagnostics().contextRecovery).toMatchObject({
+      state: 'failed', failureCount: 1, timerActive: false
+    });
+    expect(() => harness.backend.applyFrame(makeFrame('still-blocked', 10))).toThrow(
+      expect.objectContaining({ code: 'pixi_context_lost' })
+    );
+  });
+
+  test('requests DOM compatibility once when WebGL checkpoint restore exceeds five seconds', async () => {
+    jest.useFakeTimers();
+    try {
+      const restore = deferred<boolean>();
+      const onFallbackRequired = jest.fn(async () => true);
+      const harness = createHarness({
+        contextRecovery: {
+          timeoutMs: 5000,
+          onContextLost: jest.fn(),
+          onContextRestored: jest.fn(() => restore.promise),
+          onFallbackRequired
+        }
+      });
+      await harness.backend.mount(harness.host, {});
+      const canvas = harness.app.instances[0].canvas as HTMLCanvasElement;
+      canvas.dispatchEvent(new harness.dom.window.Event('webglcontextlost', { cancelable: true }));
+      canvas.dispatchEvent(new harness.dom.window.Event('webglcontextrestored'));
+      await Promise.resolve();
+
+      jest.advanceTimersByTime(5000);
+      await flushMicrotasks();
+
+      expect(onFallbackRequired).toHaveBeenCalledTimes(1);
+      expect(harness.backend.getDiagnostics().contextRecovery).toMatchObject({
+        state: 'idle', fallbackAttemptCount: 1, fallbackSuccessCount: 1
+      });
+      restore.resolve(true);
+      jest.advanceTimersByTime(5000);
+      await flushMicrotasks();
+      expect(onFallbackRequired).toHaveBeenCalledTimes(1);
+      harness.backend.destroy();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

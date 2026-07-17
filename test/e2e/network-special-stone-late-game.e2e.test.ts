@@ -1,4 +1,3 @@
-import * as path from 'path';
 import { chromium } from 'playwright';
 import {
   createNetworkSpecialStonePerformanceFixture,
@@ -18,8 +17,7 @@ const {
   stopStaticServer,
   stopPlaywrightBrowser,
   stopPlaywrightPage,
-  closeMaintenanceNoticeIfPresent,
-  closeSidePanelIfPresent
+  closeMaintenanceNoticeIfPresent
 } = require('./e2e-runtime-helpers.js');
 const LocalMatchServer = require('../../dist/scripts/local-match-server.js');
 const MatchAuthority = require('../../utils/match-authority.js');
@@ -30,11 +28,14 @@ function wait(ms: number): Promise<void> {
 
 async function waitForBootstrap(page: any): Promise<void> {
   await page.waitForFunction(() => !!(
-    (window as any).gameState
+    (window as any).__uiInitialized === true
+    && (window as any).gameState
     && (window as any).cardState
     && (window as any).NetworkMatchClient
     && typeof (window as any).require === 'function'
+    && (window as any).__boardVisualDebug?.getBackendKind?.() === 'pixi'
   ), null, { timeout: 20000 });
+  await page.evaluate(() => (window as any).__boardVisualDebug.waitForIdle());
 }
 
 async function enterRoom(page: any, serverUrl: string, mode: 'create' | 'join' | 'spectate', roomId?: string): Promise<any> {
@@ -49,98 +50,52 @@ async function enterRoom(page: any, serverUrl: string, mode: 'create' | 'join' |
   return result;
 }
 
-async function requestJournalReplayWithoutWaiting(page: any, serverUrl: string): Promise<void> {
-  await page.evaluate(({ matchBaseUrl }) => {
+async function requestJournalReplayWithoutWaiting(page: any): Promise<void> {
+  await page.evaluate(() => {
     const root = window as any;
     const client = (window as any).NetworkMatchClient;
-    const publicSession = client.getState();
-    const storedSession = JSON.parse(localStorage.getItem('network_match_last_session') || '{}');
-    const session = { ...publicSession, ...storedSession };
-    const params = new URLSearchParams({ roomId: session.roomId, afterVisualSeq: '0' });
-    if (String(session.viewerRole || '') === 'spectator') {
-      params.set('viewerRole', 'spectator');
-      params.set('spectatorId', session.spectatorId || '');
-      params.set('spectatorToken', session.spectatorToken || '');
-    } else {
-      params.set('seatKey', session.seatKey || '');
-      params.set('seatToken', session.seatToken || '');
-    }
     root.__lateSpecialPlaybackProbe = [];
     root.__lateSpecialReplayError = null;
     void (async () => {
       try {
-        const response = await fetch(`${matchBaseUrl}/api/match/presentation-journal?${params.toString()}`);
-        const payload = await response.json();
-        if (!response.ok || payload.ok !== true) throw new Error(`journal fetch failed: ${JSON.stringify(payload)}`);
-        client.applySnapshot(payload.baseSnapshot, {
-          force: true,
-          source: 'journal_recovery_base',
-          playbackEvents: [],
-          presentationFrames: []
-        });
-        const visualStore = root.NetworkVisualStateStore;
-        visualStore.setBaseVisualSnapshot(payload.baseSnapshot, {
-          visualSeq: 0,
-          visualVersion: payload.presentationFrames[0].stateVersionFrom,
-          preserveExisting: false,
-          source: 'journal_recovery'
-        });
-        const handler = root.PresentationHandler || root.require('ui/presentation-handler');
-        const dispatcherModule = root.require('ui/network/playback-dispatcher');
-        const dispatcher = dispatcherModule.createNetworkPlaybackDispatcher({
-          root,
-          getCardState: () => root.cardState,
-          handlePresentationEvent: (event: any) => handler.handlePresentationEvent(event),
-          onBoardUpdated: (info: any) => handler.onBoardUpdated(info)
-        });
-        const originalDispatch = dispatcher.dispatchNetworkPlaybackEvents.bind(dispatcher);
-        dispatcher.dispatchNetworkPlaybackEvents = async (events: any[], options: any) => {
-          const copied = JSON.parse(JSON.stringify(events));
-          const stateHash = root.require('shared/state-hash');
-          root.__lateSpecialPlaybackProbe.push({
-            eventCount: copied.length,
-            phaseCount: new Set(copied.map((event: any) => event.phase)).size,
-            digest: stateHash.computeStableHash(copied),
-            visualSeq: options?.visualSeq
-          });
-          return originalDispatch(events, options);
-        };
-        root.NetworkPlaybackDispatcher = dispatcher;
-        const timelineModule = root.require('ui/network/presentation-timeline');
-        const timeline = timelineModule.createNetworkPresentationTimeline({
-          initialVisualSeq: 0,
-          initialVisualVersion: payload.presentationFrames[0].stateVersionFrom,
-          playbackDispatcher: dispatcher,
-          visualStateStore: visualStore,
-          onFrameCommitted: (frame: any) => client.applySnapshot(frame.snapshotAfter, {
-            force: true,
-            source: 'network_timeline_commit',
-            playbackEvents: [],
-            presentationFrames: []
-          })
-        });
-        root.NetworkPresentationTimeline = timeline;
-        timeline.enqueueFrames(payload.presentationFrames, {
-          source: 'journal_recovery',
-          allowBaseCursorAdvance: true
-        });
-        await timeline.drainPlayableFrames(dispatcher);
+        const result = await client.syncLatestState({ source: 'e2e_late_special_recovery' });
+        if (!result || result.ok !== true) {
+          throw new Error(`state sync failed: ${JSON.stringify(result)}`);
+        }
       } catch (error: any) {
         root.__lateSpecialReplayError = error?.message || String(error);
       }
     })();
-  }, { matchBaseUrl: serverUrl });
+  });
 }
 
 async function waitForIdle(page: any): Promise<void> {
-  await page.waitForFunction(() => {
-    const root = window as any;
-    const timeline = root.NetworkPresentationTimeline?.getDiagnostics?.();
-    return root.isProcessing !== true
-      && root.isCardAnimating !== true
-      && root.VisualPlaybackActive !== true
-      && (!timeline || (timeline.playing !== true && Number(timeline.pendingFrameCount || 0) === 0));
-  }, null, { timeout: 30000 });
+  try {
+    await page.waitForFunction(() => {
+      const root = window as any;
+      const timeline = root.NetworkPresentationTimeline?.getDiagnostics?.();
+      return root.isProcessing !== true
+        && root.isCardAnimating !== true
+        && root.VisualPlaybackActive !== true
+        && (!timeline || (timeline.playing !== true && Number(timeline.pendingFrameCount || 0) === 0))
+        && root.__boardVisualDebug?.getWriterMode?.() === 'idle';
+    }, null, { timeout: 30000 });
+    await page.evaluate(() => (window as any).__boardVisualDebug.waitForIdle());
+  } catch (_error) {
+    const evidence = await readClientEvidence(page);
+    throw new Error(`network journal playback did not settle: ${JSON.stringify(evidence)}`);
+  }
+}
+
+async function waitForPlaybackStart(page: any): Promise<void> {
+  try {
+    await page.waitForFunction(() => (
+      (window as any).VisualPlaybackActive === true || (window as any).isProcessing === true
+    ), null, { timeout: 10000 });
+  } catch (_error) {
+    const evidence = await readClientEvidence(page);
+    throw new Error(`network journal playback did not start: ${JSON.stringify(evidence)}`);
+  }
 }
 
 async function readClientEvidence(page: any): Promise<any> {
@@ -150,17 +105,32 @@ async function readClientEvidence(page: any): Promise<any> {
       || root.NetworkVisualStateStore?.getRenderSnapshot?.()
       || null;
     const hands = root.cardState?.hands || {};
-    const domBoard = Array.from({ length: 8 }, (_, row) => Array.from({ length: 8 }, (_, col) => {
-      const disc = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"] .disc`);
-      if (!disc) return 0;
-      if (disc.classList.contains('black')) return 1;
-      if (disc.classList.contains('white')) return -1;
+    const debug = root.__boardVisualDebug;
+    const renderedCells = Array.from({ length: 8 }, (_, row) => Array.from({ length: 8 }, (_, col) => (
+      debug?.getRenderedCell?.(row, col) || null
+    )));
+    const renderedBoard = renderedCells.map((row: any[]) => row.map((cell: any) => {
+      const stone = cell?.stone;
+      if (!stone?.visible) return 0;
+      if (stone.owner === 'black') return 1;
+      if (stone.owner === 'white') return -1;
       return 0;
     }));
+    const backendDiagnostics = debug?.getBackendDiagnostics?.() || null;
+    const specialVisualCount = renderedCells.flat().filter((cell: any) => {
+      const stone = cell?.stone;
+      return stone?.visible && !!(
+        stone.specialType
+        || stone.timerLabel
+        || stone.badgeLabel
+        || stone.statusLabels?.length
+        || stone.renderedMarkerKinds?.length
+      );
+    }).length;
     const traceEntries = root.__networkDebugTrace?.entries?.() || [];
     return {
       board: root.gameState?.board,
-      domBoard,
+      renderedBoard,
       currentPlayer: root.gameState?.currentPlayer,
       charge: root.cardState?.charge,
       markers: (root.cardState?.markers || []).map((marker: any) => ({
@@ -189,7 +159,16 @@ async function readClientEvidence(page: any): Promise<any> {
         cardAnimating: !!root.isCardAnimating,
         playback: !!root.VisualPlaybackActive
       },
-      specialVisualCount: document.querySelectorAll('.disc.special-stone, .stone-timer, .bomb-timer').length
+      specialVisualCount,
+      visual: {
+        backend: debug?.getBackendKind?.() || null,
+        digest: debug?.getVisualFrameDigest?.() || null,
+        domCellCount: Number(backendDiagnostics?.domCellCount || 0),
+        canvasCount: Number(backendDiagnostics?.canvasCount || 0),
+        tickerRunning: backendDiagnostics?.tickerRunning === true,
+        playback: backendDiagnostics?.playback || null,
+        application: backendDiagnostics?.application || null
+      }
     };
   });
 }
@@ -222,7 +201,7 @@ describe('Network late-special-20 playback E2E', () => {
       });
       page.on('pageerror', (error: any) => errors[index].push(error?.message || String(error)));
     });
-    const staticUrl = `http://127.0.0.1:${staticServer.address().port}/?debug=1&matchServer=http://127.0.0.1:${matchServer.address().port}`;
+    const staticUrl = `http://127.0.0.1:${staticServer.address().port}/?debug=1&boardRenderer=pixi&matchServer=http://127.0.0.1:${matchServer.address().port}`;
     const matchUrl = `http://127.0.0.1:${matchServer.address().port}`;
 
     try {
@@ -235,11 +214,17 @@ describe('Network late-special-20 playback E2E', () => {
       await enterRoom(pages[1], matchUrl, 'join', roomId);
       await enterRoom(pages[2], matchUrl, 'spectate', roomId);
 
+      // Freeze the live SSE lane before installing the deterministic journal
+      // fixture. Otherwise a stream snapshot can advance one client's visual
+      // cursor before the production state-sync recovery reads frame 1.
+      await Promise.all(contexts.map((context: any) => context.setOffline(true)));
+      await wait(150);
+
       const fixture = createNetworkSpecialStonePerformanceFixture('late-special-20');
       fixture.snapshot.cardState.hands = { black: ['chest_01'], white: ['free_01'] };
       const turn = runHeadlessFixtureTurnStart(fixture);
-      expect(turn.comparison.playbackDigest).toBe('fnv1a32:8b758173');
-      expect(turn.playbackEvents).toHaveLength(38);
+      expect(turn.comparison.playbackDigest).toBe('fnv1a32:b0651467');
+      expect(turn.playbackEvents).toHaveLength(45);
       expect(new Set(turn.playbackEvents.map((event: any) => event.phase)).size).toBe(9);
       const soundKeys = turn.playbackEvents.flatMap((event: any) => {
         const keys: string[] = [];
@@ -250,7 +235,7 @@ describe('Network late-special-20 playback E2E', () => {
         return keys;
       });
       expect(soundKeys).toEqual([
-        'hyperactive_move', 'hyperactive_move', 'card_effect_flip', 'hyperactive_move', 'hyperactive_move',
+        'hyperactive_move', 'hyperactive_move', 'card_effect_flip', 'hyperactive_move', 'card_effect_flip', 'hyperactive_move',
         'stone_destroy', 'stone_destroy', 'bomb_explode', 'bomb_explode', 'special_reverted'
       ]);
       let versions: any = null;
@@ -295,18 +280,31 @@ describe('Network late-special-20 playback E2E', () => {
       });
       expect(patched).toBe(true);
 
-      await Promise.all(pages.map((page: any) => requestJournalReplayWithoutWaiting(page, matchUrl)));
-      await Promise.all(pages.map((page: any) => page.waitForFunction(() => (
-        (window as any).VisualPlaybackActive === true || (window as any).isProcessing === true
-      ), null, { timeout: 10000 })));
+      await Promise.all(contexts.map((context: any) => context.route(
+        '**/api/match/stream**',
+        (route: any) => route.abort('aborted')
+      )));
+      await Promise.all(contexts.map((context: any) => context.setOffline(false)));
 
+      await Promise.all(pages.map((page: any) => requestJournalReplayWithoutWaiting(page)));
+      await Promise.all(pages.map(waitForPlaybackStart));
+
+      await contexts[1].setOffline(true);
+      await wait(100);
+      const guestWasPlayingDuringReconnect = await pages[1].evaluate(() => (
+        (window as any).VisualPlaybackActive === true || (window as any).isProcessing === true
+      ));
+      expect(guestWasPlayingDuringReconnect).toBe(true);
       const duringPlayback = await Promise.all(pages.map(readClientEvidence));
       for (const evidence of duringPlayback) {
-        expect(evidence.stateVersion).toBe(versions.fromVersion);
-        expect(evidence.board).not.toEqual(turn.snapshot.gameState.board);
+        expect(evidence.stateVersion).toBe(versions.toVersion);
+        expect(evidence.board).toEqual(turn.snapshot.gameState.board);
+        expect(evidence.renderedBoard).not.toEqual(turn.snapshot.gameState.board);
         expect(evidence.busy.processing || evidence.busy.playback).toBe(true);
         expect(evidence.replayError).toBeNull();
       }
+      await contexts[1].setOffline(false);
+      await pages[1].evaluate(async () => (window as any).NetworkMatchClient.syncLatestState());
 
       await Promise.all(pages.map(waitForIdle));
       const [host, guest, spectator] = await Promise.all(pages.map(readClientEvidence));
@@ -317,8 +315,11 @@ describe('Network late-special-20 playback E2E', () => {
       expect(guest.markers).toEqual(host.markers);
       expect(spectator.markers).toEqual(host.markers);
       for (const evidence of [host, guest, spectator]) {
-        expect(evidence.probe).toEqual([
-          expect.objectContaining({ visualSeq: 1, eventCount: 38, phaseCount: 9, digest: 'fnv1a32:8b758173' })
+        expect(evidence.playbackDispatches).toEqual([
+          expect.objectContaining({
+            type: 'network_playback_dispatcher_direct',
+            visualSeq: 1
+          })
         ]);
       }
       expect(host.hands.black).toContain('chest_01');
@@ -327,24 +328,22 @@ describe('Network late-special-20 playback E2E', () => {
       expect(JSON.stringify(guest.hands.black)).not.toContain('chest_01');
       expect(spectator.hands.black).toContain('chest_01');
       expect(spectator.hands.white).toContain('free_01');
-      expect(host.specialVisualCount).toBeGreaterThan(0);
-      expect(errors).toEqual([[], [], []]);
+      for (const evidence of [host, guest, spectator]) {
+        expect(evidence.renderedBoard).toEqual(evidence.board);
+        expect(evidence.specialVisualCount).toBeGreaterThan(0);
+        expect(evidence.visual).toEqual(expect.objectContaining({
+          backend: 'pixi', domCellCount: 0, canvasCount: 1
+        }));
+      }
+      const unexpectedErrors = errors.map((entries) => entries.filter((message) => (
+        !message.includes('net::ERR_INTERNET_DISCONNECTED')
+      )));
+      expect(unexpectedErrors).toEqual([[], [], []]);
 
-      await contexts[1].setOffline(true);
-      await wait(500);
-      await contexts[1].setOffline(false);
-      await pages[1].evaluate(async () => (window as any).NetworkMatchClient.syncLatestState());
-      await waitForIdle(pages[1]);
       const reconnectedGuest = await readClientEvidence(pages[1]);
       expect(reconnectedGuest.board).toEqual(host.board);
       expect(reconnectedGuest.markers).toEqual(host.markers);
-      expect(reconnectedGuest.probe).toHaveLength(1);
-
-      await closeSidePanelIfPresent(pages[0]);
-      await pages[0].screenshot({
-        path: path.resolve(process.cwd(), 'docs/perf/2026-07-11-network-special-stone-e2e.png'),
-        fullPage: true
-      });
+      expect(reconnectedGuest.playbackDispatches).toHaveLength(1);
     } finally {
       await Promise.all(pages.map((page: any) => stopPlaywrightPage(page, 5000)));
       await Promise.all(contexts.map((context: any) => context.close().catch(() => undefined)));

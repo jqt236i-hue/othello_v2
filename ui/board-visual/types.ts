@@ -157,6 +157,8 @@ export interface BoardViewportLayout {
   revision: number;
   cellSize: number;
   dpr: number;
+  stageScale: number;
+  cellScale: number;
   orientation: 'normal' | 'rotated-180';
   frameInset: { top: number; right: number; bottom: number; left: number };
   clientOrigin: { x: number; y: number };
@@ -273,6 +275,8 @@ export interface BoardPlaybackContext {
   token: BoardWriterToken;
   strictNetworkPlayback: boolean;
   phaseScope?: BoardPlaybackPhaseScope;
+  /** Board-only context-loss replay. Global sound/log/DOM effects must not run. */
+  recoveryReplay?: boolean;
 }
 
 /** Capability-only validation before a board writer is claimed or launched. */

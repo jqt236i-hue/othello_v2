@@ -157,7 +157,7 @@ async function captureWriterLane(browser: Browser, appUrl: string, backend: Back
         || typeof boardRenderer.settleBoardVisualWriter !== 'function') {
         throw new Error('board writer public API is unavailable');
       }
-      if (!core || !boardUtils || typeof root.forceFullRender !== 'function') {
+      if (!core || !boardUtils || typeof root.renderBoard !== 'function') {
         throw new Error('board writer fixture runtime is unavailable');
       }
       const row = 2;
@@ -187,7 +187,7 @@ async function captureWriterLane(browser: Browser, appUrl: string, backend: Back
       root.cardState.presentationEvents = [];
       root.cardState._presentationEventsPersist = [];
       root.gameState = createState(-1);
-      await Promise.resolve(root.forceFullRender(document.getElementById('board')));
+      await Promise.resolve(root.renderBoard());
       await debug.waitForIdle();
 
       const stoneSnapshot = () => {

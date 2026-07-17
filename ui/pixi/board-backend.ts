@@ -56,6 +56,11 @@ import {
   type PixiBoardPlaybackOptions
 } from './board-playback';
 import type { PixiStaticTextureSource } from './cell-view';
+import {
+  createPixiContextRecovery,
+  type PixiContextRecovery,
+  type PixiContextRecoveryDiagnostics
+} from './context-recovery';
 
 export type PixiBoardBackendErrorStage =
   | 'runtime'
@@ -135,6 +140,7 @@ export interface PixiBoardBackendDiagnostics {
     renderedPlaybackHighlightCount: number;
     pooledPlaybackHighlightCount: number;
   }> | null;
+  readonly contextRecovery: PixiContextRecoveryDiagnostics | null;
 }
 
 export interface PixiBoardVisualBackend extends BoardVisualBackend {
@@ -189,6 +195,16 @@ export interface PixiBoardBackendOptions {
     keys: readonly string[],
     frame: BoardVisualFrame
   ) => void;
+  readonly contextRecovery?: Readonly<{
+    timeoutMs?: number;
+    /** Must synchronously lock controller input/settlement before Pixi aborts. */
+    onContextLost: (error: Error, event: Event) => void;
+    /** Called after texture resources have been recreated. */
+    onContextRestored: (event: Event) => boolean | Promise<boolean>;
+    /** Must replace this backend with the exclusive DOM compatibility backend. */
+    onFallbackRequired: (error: Error) => boolean | Promise<boolean>;
+    onRecoveryFailed?: (error: Error) => void;
+  }>;
 }
 
 interface FrameWork {
@@ -410,6 +426,8 @@ export function createPixiBoardVisualBackend(
   let input: PixiBoardInput | null = null;
   let playback: PixiBoardPlayback | null = null;
   let textureManager: PixiTextureManager | null = null;
+  let contextRecovery: PixiContextRecovery | null = null;
+  let contextLostError: PixiBoardBackendError | null = null;
   let mountPromise: Promise<void> | null = null;
   let latestWork: FrameWork | null = null;
   let currentFrame: BoardVisualFrame | null = null;
@@ -453,6 +471,103 @@ export function createPixiBoardVisualBackend(
         message: 'Pixi board backend is not mounted'
       }));
     }
+  }
+
+  function assertContextHealthy(): void {
+    if (contextLostError) throw contextLostError;
+  }
+
+  function createTextureManagerForRenderer(): PixiTextureManager {
+    if (!application) throw new Error('Pixi renderer is unavailable for texture initialization');
+    return textureManagerFactory({
+      runtime: options.textureRuntime,
+      pixiRuntime: runtime,
+      root,
+      documentRef: doc,
+      baseUri: doc?.baseURI || null,
+      maxTextureSize: readRendererMaxTextureSize(application.getRenderer())
+    });
+  }
+
+  function contextLossError(error: unknown): PixiBoardBackendError {
+    return backendError({
+      code: 'pixi_context_lost',
+      stage: 'lifecycle',
+      message: `Pixi WebGL context was lost: ${errorMessage(error)}`,
+      detail: error
+    });
+  }
+
+  function interruptForContextLoss(error: PixiBoardBackendError): void {
+    playback?.abort(error);
+    for (const work of Array.from(liveWorks)) finishWorkFailure(work, error);
+    application?.settleIdle();
+  }
+
+  async function reloadContextTextureResources(): Promise<void> {
+    try { textureManager?.destroy(); } catch (_error) { /* replace the invalid context resources */ }
+    textureManager = null;
+    try {
+      textureManager = createTextureManagerForRenderer();
+    } catch (error) {
+      throw rememberError(backendError({
+        code: 'pixi_context_texture_reload_failed',
+        stage: 'texture-init',
+        message: `Pixi context texture reload failed: ${errorMessage(error)}`,
+        detail: error
+      }));
+    }
+  }
+
+  function installContextRecovery(canvas: HTMLCanvasElement): void {
+    const hooks = options.contextRecovery;
+    if (!hooks) return;
+    contextRecovery = createPixiContextRecovery({
+      target: canvas,
+      timeoutMs: hooks.timeoutMs,
+      onContextLost(error, event) {
+        const normalized = rememberError(contextLossError(error));
+        contextLostError = normalized;
+        // Controller ownership must move to recovering before abort rejects an
+        // active board phase or frame settlement.
+        try {
+          hooks.onContextLost(normalized, event);
+        } finally {
+          // A controller hook failure is terminal for this recovery cycle, but
+          // it must not leave Pixi playback or settlement work running against
+          // the lost WebGL context.
+          interruptForContextLoss(normalized);
+          record('pixi-backend:context-lost', { frameToken: currentFrame?.frameToken || null });
+        }
+      },
+      async onContextRestored(event) {
+        record('pixi-backend:context-restore-start', { frameToken: currentFrame?.frameToken || null });
+        try {
+          await reloadContextTextureResources();
+          contextLostError = null;
+          const recovered = await hooks.onContextRestored(event);
+          if (recovered !== true) {
+            contextLostError = contextLossError('controller checkpoint restore was rejected');
+            return false;
+          }
+          lastErrorCode = null;
+          record('pixi-backend:context-restored', { frameToken: currentFrame?.frameToken || null });
+          return true;
+        } catch (error) {
+          contextLostError = contextLossError(error);
+          record('pixi-backend:context-restore-error', { message: errorMessage(error) });
+          throw error;
+        }
+      },
+      async onFallbackRequired(error) {
+        record('pixi-backend:context-fallback-start', { message: error.message });
+        return hooks.onFallbackRequired(error);
+      },
+      onRecoveryFailed(error) {
+        record('pixi-backend:context-recovery-failed', { message: error.message });
+        hooks.onRecoveryFailed?.(error);
+      }
+    });
   }
 
   function resolveAppearance(frame: BoardVisualFrame): ResolvedBoardAppearance {
@@ -541,6 +656,7 @@ export function createPixiBoardVisualBackend(
 
   async function prepareResources(work: FrameWork): Promise<void> {
     assertMounted();
+    assertContextHealthy();
     prepareCount += 1;
     try {
       const appearance = resolveAppearance(work.frame);
@@ -905,6 +1021,7 @@ export function createPixiBoardVisualBackend(
   }
 
   function cleanupOwnedResources(): void {
+    try { contextRecovery?.destroy(); } catch (_error) { /* continue releasing visual resources */ }
     for (const work of Array.from(liveWorks)) {
       if (work.prepared && work.prepared.state === 'prepared') work.prepared.release();
       work.prepared = null;
@@ -926,6 +1043,8 @@ export function createPixiBoardVisualBackend(
     input = null;
     playback = null;
     textureManager = null;
+    contextRecovery = null;
+    contextLostError = null;
     camera = null;
     application = null;
     currentFrame = null;
@@ -1103,14 +1222,7 @@ export function createPixiBoardVisualBackend(
       }
       assertMountActive();
       try {
-        textureManager = textureManagerFactory({
-          runtime: options.textureRuntime,
-          pixiRuntime: runtime,
-          root,
-          documentRef: doc,
-          baseUri: doc?.baseURI || null,
-          maxTextureSize: readRendererMaxTextureSize(application!.getRenderer())
-        });
+        textureManager = createTextureManagerForRenderer();
       } catch (error) {
         throw backendError({
           code: 'pixi_texture_init_failed',
@@ -1158,6 +1270,17 @@ export function createPixiBoardVisualBackend(
         });
       }
       assertMountActive();
+      try {
+        installContextRecovery(canvas);
+      } catch (error) {
+        throw backendError({
+          code: 'pixi_context_recovery_init_failed',
+          stage: 'lifecycle',
+          message: `Pixi context recovery initialization failed: ${errorMessage(error)}`,
+          detail: error
+        });
+      }
+      assertMountActive();
       state = 'ready';
       record('pixi-backend:mounted', { kind: 'pixi' });
     })().catch((error) => {
@@ -1177,6 +1300,7 @@ export function createPixiBoardVisualBackend(
 
   function prepareFrame(frame: BoardVisualFrame): Promise<void> {
     assertMounted();
+    assertContextHealthy();
     assertCameraRenderHealthy();
     const work = startWork(frame);
     return work.preparation;
@@ -1204,6 +1328,7 @@ export function createPixiBoardVisualBackend(
 
   function applyFrame(frame: BoardVisualFrame, presentedFrame?: BoardVisualFrame): void {
     assertMounted();
+    assertContextHealthy();
     assertCameraRenderHealthy();
     const presentationOverride = resolvePresentedFrame(frame, presentedFrame);
     const work = startWork(frame);
@@ -1215,6 +1340,8 @@ export function createPixiBoardVisualBackend(
   }
 
   async function waitForVisualSettlement(frame?: BoardVisualFrame): Promise<void> {
+    assertMounted();
+    assertContextHealthy();
     const work = frame && typeof frame === 'object'
       ? workByFrame.get(frame as object)
       : latestWork;
@@ -1233,6 +1360,7 @@ export function createPixiBoardVisualBackend(
     context: BoardPlaybackValidationContext
   ): void {
     assertMounted();
+    assertContextHealthy();
     assertCameraRenderHealthy();
     playback!.validatePhase(events, context);
   }
@@ -1242,11 +1370,16 @@ export function createPixiBoardVisualBackend(
     context: BoardPlaybackContext
   ): Promise<void> {
     assertMounted();
+    assertContextHealthy();
     playPhaseCount += 1;
     try {
       assertCameraRenderHealthy();
       await playback!.playPhase(events, context);
-      application?.settleIdle();
+      // Multiple board event branches in one presentation phase share this
+      // backend timeline. A shorter sibling must not stop the private ticker
+      // while another run still needs clock ticks to settle.
+      const activeRunCount = Number(playback?.getDiagnostics()?.timeline?.activeRunCount || 0);
+      if (activeRunCount === 0) application?.settleIdle();
     } catch (error) {
       lastErrorCode = String((error as any)?.code || 'pixi_playback_failed');
       record('pixi-backend:error', {
@@ -1260,6 +1393,7 @@ export function createPixiBoardVisualBackend(
 
   function resize(layout: BoardViewportLayout): void {
     assertMounted();
+    assertContextHealthy();
     if (!currentFrame) return;
     suppressCameraCallback = true;
     let synced: BoardViewportLayout;
@@ -1279,6 +1413,7 @@ export function createPixiBoardVisualBackend(
 
   async function restore(frame: BoardVisualFrame, presentedFrame?: BoardVisualFrame): Promise<void> {
     assertMounted();
+    assertContextHealthy();
     const presentationOverride = resolvePresentedFrame(frame, presentedFrame);
     restoreCount += 1;
     const cameraErrorAtStart = pendingCameraRenderError;
@@ -1364,7 +1499,8 @@ export function createPixiBoardVisualBackend(
         activePlaybackHighlightLeaseCount: sceneDiagnostics.activePlaybackHighlightLeaseCount || 0,
         renderedPlaybackHighlightCount: sceneDiagnostics.renderedPlaybackHighlightCount || 0,
         pooledPlaybackHighlightCount: sceneDiagnostics.pooledPlaybackHighlightCount || 0
-      }) : null
+      }) : null,
+      contextRecovery: contextRecovery?.getDiagnostics() || null
     });
   }
 

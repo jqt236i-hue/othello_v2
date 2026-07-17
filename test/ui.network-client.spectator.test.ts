@@ -62,6 +62,7 @@ describe('NetworkMatchClient spectator session', () => {
     global.emitGameStateChange = jest.fn();
     global.emitBoardUpdate = jest.fn();
     global.renderCardUI = jest.fn();
+    global.GameEvents = { gameEvents: { on: jest.fn() } };
 
     eventSources = [];
     global.EventSource = class MockEventSource {
@@ -135,6 +136,7 @@ describe('NetworkMatchClient spectator session', () => {
     delete global.emitGameStateChange;
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
+    delete global.GameEvents;
     delete global.EventSource;
     delete global.fetch;
   });

@@ -252,6 +252,36 @@ export function drawPixiCircle(
   }
 }
 
+export function drawPixiPolygon(
+  graphics: any,
+  points: readonly Readonly<{ x: number; y: number }>[],
+  fill?: PixiFillStyle | null,
+  stroke?: PixiStrokeStyle | null
+): void {
+  if (!graphics || points.length < 3) return;
+  const draw = () => {
+    const flattened = points.flatMap((point) => [point.x, point.y]);
+    if (typeof graphics.poly === 'function') {
+      graphics.poly(flattened, true);
+      return;
+    }
+    if (typeof graphics.moveTo !== 'function' || typeof graphics.lineTo !== 'function') return;
+    graphics.moveTo(points[0].x, points[0].y);
+    for (let index = 1; index < points.length; index += 1) {
+      graphics.lineTo(points[index].x, points[index].y);
+    }
+    graphics.lineTo(points[0].x, points[0].y);
+  };
+  if (fill) {
+    draw();
+    applyFill(graphics, fill);
+  }
+  if (stroke) {
+    draw();
+    applyStroke(graphics, stroke);
+  }
+}
+
 export function drawPixiEllipse(
   graphics: any,
   x: number,

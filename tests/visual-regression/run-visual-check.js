@@ -64,7 +64,7 @@ let pixelmatch = require('pixelmatch'); if (pixelmatch && pixelmatch.default) pi
   try {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1440, height: 1024 } });
-    const localUrl = `http://127.0.0.1:${actualPort}/?debug=1&noanim=1`;
+    const localUrl = `http://127.0.0.1:${actualPort}/?debug=1&boardRenderer=pixi&noanim=1`;
     console.log('[viz-check] navigating to', localUrl);
     await page.goto(localUrl, { waitUntil: 'load' });
     await page.waitForFunction(() => (
@@ -98,7 +98,12 @@ let pixelmatch = require('pixelmatch'); if (pixelmatch && pixelmatch.default) pi
         && markers.length === 15;
     }, { timeout: 10000 });
 
-    try { await page.evaluate(() => { if (typeof window.forceFullRender === 'function' && window.boardEl) window.forceFullRender(window.boardEl); }); } catch (e) {}
+    await page.evaluate(async () => {
+      if (typeof window.renderBoard === 'function') window.renderBoard();
+      if (window.__boardVisualDebug && typeof window.__boardVisualDebug.waitForIdle === 'function') {
+        await window.__boardVisualDebug.waitForIdle();
+      }
+    });
     try {
       await page.waitForFunction(() => document.documentElement.classList.contains('stone-images-loaded'), { timeout: 5000 });
     } catch (e) {}

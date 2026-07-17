@@ -168,7 +168,14 @@ describe('board renderer backend selection and initial compatibility fallback', 
     expect(createPixiBackend).toHaveBeenCalledWith(expect.objectContaining({
       noAnimation: true,
       getInputController: expect.any(Function),
-      onTopologyRevealStart: expect.any(Function)
+      onTopologyRevealStart: expect.any(Function),
+      contextRecovery: expect.objectContaining({
+        timeoutMs: 5000,
+        onContextLost: expect.any(Function),
+        onContextRestored: expect.any(Function),
+        onFallbackRequired: expect.any(Function),
+        onRecoveryFailed: expect.any(Function)
+      })
     }));
     const inputController = createPixiBackend.mock.calls[0][0].getInputController();
     expect(inputController).toBe(renderer.getBoardInputController());
@@ -487,6 +494,83 @@ describe('board renderer backend selection and initial compatibility fallback', 
     expect(createDomBackend).not.toHaveBeenCalled();
     expect(controller.getBackendKind()).toBe('pixi');
     expect(controller.getMode()).toBe('recovering');
+  });
+
+  test('restores an idle Pixi checkpoint and then switches exclusively to DOM on timeout', async () => {
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    const order: string[] = [];
+    let hooks: any = null;
+    let pixiCanvas: HTMLCanvasElement | null = null;
+    const pixiBackend = createBackend('pixi', {
+      mount(host) {
+        pixiCanvas = document.createElement('canvas');
+        host.appendChild(pixiCanvas);
+      },
+      restore() { order.push('pixi:restore'); },
+      destroy() {
+        order.push('pixi:destroy');
+        pixiCanvas?.remove();
+      }
+    });
+    const domBackend = createBackend('dom', {
+      mount(host) {
+        order.push('dom:mount');
+        expect(host.querySelectorAll('canvas')).toHaveLength(0);
+      },
+      restore() { order.push('dom:restore'); }
+    });
+    renderer.configureBoardVisualBackendForTest({
+      createPixiBackend: (options: any) => {
+        hooks = options.contextRecovery;
+        return pixiBackend;
+      },
+      createDomBackend: () => domBackend
+    });
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+    controller.submitFrame(createInitialFrame());
+    await controller.waitForIdle();
+
+    hooks.onContextLost(new Error('first context loss'), new Event('webglcontextlost'));
+    await expect(hooks.onContextRestored(new Event('webglcontextrestored'))).resolves.toBe(true);
+    expect(controller.getBackendKind()).toBe('pixi');
+    expect(controller.getMode()).toBe('idle');
+    expect(order).toEqual(['pixi:restore']);
+
+    hooks.onContextLost(new Error('second context loss'), new Event('webglcontextlost'));
+    await expect(hooks.onFallbackRequired(new Error('restore timed out'))).resolves.toBe(true);
+
+    expect(order).toEqual(['pixi:restore', 'pixi:destroy', 'dom:mount', 'dom:restore']);
+    expect(controller.getBackendKind()).toBe('dom');
+    expect(controller.getMode()).toBe('idle');
+    expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('dom');
+  });
+
+  test('shows reload-required only when checkpointed DOM fallback also fails', async () => {
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    let hooks: any = null;
+    const fallbackError = new Error('DOM compatibility mount failed');
+    renderer.configureBoardVisualBackendForTest({
+      createPixiBackend: (options: any) => {
+        hooks = options.contextRecovery;
+        return createBackend('pixi');
+      },
+      createDomBackend: () => createBackend('dom', {
+        mount() { throw fallbackError; }
+      })
+    });
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+    controller.submitFrame(createInitialFrame());
+    await controller.waitForIdle();
+
+    hooks.onContextLost(new Error('context loss'), new Event('webglcontextlost'));
+    await expect(hooks.onFallbackRequired(new Error('restore timed out'))).rejects.toBe(fallbackError);
+
+    expect(controller.getMode()).toBe('recovering');
+    expect(controller.isReady()).toBe(false);
+    expect(document.getElementById('network-presentation-reload-required')).not.toBeNull();
+    expect(document.querySelector('[data-presentation-reload="true"]')?.textContent).toBe('再読み込み');
   });
 
   test('fixes the injected selection before mount and refuses mutation afterwards', async () => {

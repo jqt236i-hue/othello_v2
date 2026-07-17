@@ -58,6 +58,15 @@ export function installAnimationEngineDomBackendMock(): void {
 
     return {
       getBoardVisualControllerReady: () => Promise.resolve(),
+      getBoardCellClientRect: (row: number, col: number) => {
+        if (typeof document === 'undefined') return null;
+        const cell = document.querySelector(
+          `.cell[data-row="${row}"][data-col="${col}"]`
+        );
+        return cell && typeof cell.getBoundingClientRect === 'function'
+          ? cell.getBoundingClientRect()
+          : null;
+      },
       claimBoardVisualWriter: (frameToken: string, mode: 'local' | 'network') => ({
         id: nextTokenId++,
         frameToken,

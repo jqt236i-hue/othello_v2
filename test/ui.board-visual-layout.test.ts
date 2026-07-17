@@ -40,6 +40,8 @@ describe('BoardViewportLayout', () => {
     });
     const rect = Layout.getCellClientRect(topology, layout, -2, -1);
     expect(layout.dpr).toBe(2);
+    expect(layout.stageScale).toBe(1);
+    expect(layout.cellScale).toBe(1);
     expect(layout.visualViewport.scale).toBe(2);
     expect(rect).toMatchObject({ left: 94, top: 194, width: 50, height: 50, layoutRevision: 4 });
   });

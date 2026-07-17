@@ -762,7 +762,6 @@ async function startScenario(
       || typeof renderer.getBoardVisualControllerReady !== 'function'
       || typeof renderer.getBoardVisualController !== 'function'
       || typeof engine._playBoardPhaseThroughBackend !== 'function'
-      || typeof root.forceFullRender !== 'function'
       || typeof root.renderBoard !== 'function') {
       throw new Error('Pixi playback browser fixture seam is unavailable');
     }
@@ -824,7 +823,7 @@ async function startScenario(
       initialMarkers,
       Array.from(definition.initialExpansionCells || [])
     );
-    await Promise.resolve(root.forceFullRender(boardElement));
+    await Promise.resolve(root.renderBoard());
     await debug.waitForIdle();
     if ((document as any).fonts?.ready) await (document as any).fonts.ready;
     await debug.waitForIdle();
@@ -1150,9 +1149,9 @@ async function startScenario(
           if (definition.execution === 'committed-frame') {
             probe.frameCommitStarted = true;
             let frameSettled = false;
-            // Keep the settled baseline from forceFullRender(), but submit the
+            // Keep the settled baseline from the public renderer, but submit the
             // committed topology delta through the normal public render path.
-            // invalidate()/forceFullRender() would discard the DOM renderer's
+            // an explicit invalidation would discard the DOM renderer's
             // previous materialization before it can classify reveal cells.
             const frameCommit = Promise.resolve(root.renderBoard(boardElement));
             let samplingPromise: Promise<void> | null = null;

@@ -191,7 +191,7 @@ describe('board input backend E2E', () => {
         state.currentPlayer = opening.currentPlayer;
         state.turnNumber = 0;
         state.consecutivePasses = 0;
-        await Promise.resolve(root.forceFullRender(document.getElementById('board')));
+        await Promise.resolve(root.renderBoard());
         await root.__boardVisualDebug.waitForIdle();
       });
     }
@@ -272,7 +272,7 @@ describe('board input backend E2E', () => {
         root.__boardSpectatorStatusTrace.push({ text: String(text || ''), isError: isError === true });
         return previousWriter?.(text, isError);
       };
-      await Promise.resolve(root.forceFullRender(document.getElementById('board')));
+      await Promise.resolve(root.renderBoard());
       await root.__boardVisualDebug.waitForIdle();
     });
     await page.waitForFunction(() => {
