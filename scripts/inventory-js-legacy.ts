@@ -99,7 +99,10 @@ function classify(relPath: string, content: string): JsCategory {
   if ((relPath === 'public/module-registry.js' || /^public\/module-registry\.optional(?:\.[a-z-]+)?\.js$/.test(relPath)) && content.includes('Auto-generated module registry')) return 'generated';
 
   if (
-    relPath === 'public/vendor/pixi-8.18.1.min.js'
+    (
+      relPath === 'public/vendor/pixi-8.18.1.min.js'
+      || relPath === 'public/vendor/pixi-unsafe-eval-8.18.1.min.js'
+    )
     && content.includes('PixiJS - v8.18.1')
   ) {
     return 'generated';

@@ -12,7 +12,13 @@ installOptionalPayloadLoader({ payloadUrls: OPTIONAL_PAYLOAD_URLS });
 const startBrowserApp = createStartViteBrowserApp({
   loadPixiRuntime: (root) => loadPixiRuntime({
     root,
-    importer: () => import('pixi.js')
+    importer: async () => {
+      // Install Pixi's official CSP-safe shader/uniform generators before any
+      // renderer can be created. This keeps production script-src free of
+      // unsafe-eval while preserving a catchable, lazy Pixi runtime boundary.
+      await import('pixi.js/unsafe-eval');
+      return import('pixi.js');
+    }
   }),
   beforeInitialize: (root, documentRef, pixiRuntime) => {
     const pixiRuntimeInjected = applyPixiRuntimeOutcome(root, pixiRuntime);
@@ -30,7 +36,14 @@ const startBrowserApp = createStartViteBrowserApp({
     root.__CARD_REVERSI_BROWSER_CAPABILITIES__ = Object.freeze(Object.assign(
       {},
       root.__CARD_REVERSI_BROWSER_CAPABILITIES__ || {},
-      { cpuCandidateScoringInjected: candidateScoringInjected, pixiRuntimeInjected }
+      {
+        cpuCandidateScoringInjected: candidateScoringInjected,
+        pixiRuntimeInjected,
+        boardPerformanceHarnessEligible: (() => {
+          const params = new URLSearchParams(String(root.location?.search || ''));
+          return params.get('debug') === '1' && params.get('boardPerf') === '1';
+        })()
+      }
     ));
     installOptionalFeatureLoader({ root, document: documentRef, featureImports: FEATURE_IMPORTS });
   }

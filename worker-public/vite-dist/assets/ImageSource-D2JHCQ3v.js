@@ -1,0 +1,1 @@
+import{W as e,_ as t}from"./Geometry-CZCQfHLF.js";var n=class extends t{constructor(e){super(e),this.uploadMethodId=`image`,this.autoGarbageCollect=!0}static test(e){return globalThis.HTMLImageElement&&e instanceof HTMLImageElement||typeof ImageBitmap<`u`&&e instanceof ImageBitmap||globalThis.VideoFrame&&e instanceof VideoFrame}};n.extension=e.TextureSource;export{n as t};

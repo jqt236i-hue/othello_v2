@@ -249,6 +249,33 @@ describe('PixiJS playfield DOM baseline capture', () => {
     expect(baseline.digest).toBe('f1bb2d4606c98e9130dd781bd3af31f2d6f0894793770be2da5e3c27bf7fe7bc');
   });
 
+  test('labels current DOM/Pixi model/apply values as a Phase 0 microcomparison, not animation evidence', () => {
+    const fixtureDigest = require('../ui/board-visual/performance-harness').BOARD_PERFORMANCE_PHASE_ZERO_MICRO_DIGEST;
+    const reports = ['classic', 'vite'].flatMap((lane) => ['dom', 'pixi'].map((backend) => ({
+      lane,
+      backend,
+      phaseZeroMicroComparison: { fixtureDigest, frameSampleCount: 30 }
+    })));
+    const comparison = Baseline.buildPhaseZeroPixiComparison({
+      schemaVersion: 'pixijs_playfield_dom_baseline.v2',
+      commit: 'phase-zero',
+      environment: {
+        viewport: { width: 1366, height: 900 },
+        dpr: 1,
+        browserVersions: { classic: 'Chromium', vite: 'Chromium' },
+        userAgents: { classic: 'ua', vite: 'ua' }
+      },
+      browserLanes: {
+        classic: { performance: { multiFlipFrameP95Ms: 40 } },
+        vite: { performance: { multiFlipFrameP95Ms: 41 } }
+      }
+    }, reports, 'a'.repeat(64));
+    expect(comparison.role).toMatch(/not animation evidence/);
+    expect(comparison.fixtureDigest).toBe(fixtureDigest);
+    expect(comparison.lanes.classic.currentPixi.frameSampleCount).toBe(30);
+    expect(comparison.lanes.vite.immutableDomBaseline.multiFlipFrameP95Ms).toBe(41);
+  });
+
   test('renders a readable comparison document', () => {
     const markdown = Baseline.toMarkdown({
       commit: 'abc',

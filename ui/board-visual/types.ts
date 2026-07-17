@@ -307,6 +307,9 @@ export interface BoardVisualBackend {
   /** Resolve only after the requested frame's async visual resources settle. */
   waitForVisualSettlement?(frame?: BoardVisualFrame): void | Promise<void>;
   getRenderedCell?(row: number, col: number): unknown;
+  getDiagnostics?(): unknown;
+  getDisplayObjectCounts?(): Readonly<Record<string, number>>;
+  getTextureLeaseCounts?(): Readonly<Record<string, number>>;
   getCellClientRect(row: number, col: number): BoardClientRect | null;
   resize(layout: BoardViewportLayout): void;
   restore(frame: BoardVisualFrame): void | Promise<void>;

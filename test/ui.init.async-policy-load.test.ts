@@ -24,10 +24,15 @@ function readyBoardVisualController() {
 }
 
 describe('initializeUI async policy loading', () => {
-  beforeEach(() => {
+  let dom: JSDOM;
+
+  beforeEach(async () => {
     jest.resetModules();
 
-    const dom = new JSDOM('<!doctype html><html><body></body></html>');
+    dom = new JSDOM('<!doctype html><html><body></body></html>');
+    if (dom.window.document.readyState === 'loading') {
+      await new Promise<void>((resolve) => dom.window.document.addEventListener('DOMContentLoaded', () => resolve(), { once: true }));
+    }
     global.window = dom.window;
     global.document = dom.window.document;
     global.CpuPolicy = { loadPolicyForLevel: jest.fn() };
@@ -35,7 +40,18 @@ describe('initializeUI async policy loading', () => {
     global.resetGame = jest.fn();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await flushMicrotasks();
+    await flushMicrotasks();
+    try {
+      require('../ui/playback-runtime').clearDebugRuntime();
+    } catch (_error) { /* best-effort test runtime cleanup */ }
+    for (const key of ['_uiMirrorIntervalId', '_playbackWatchdogId', '_watchdogIntervalId']) {
+      const timer = (dom.window as any)[key];
+      if (timer !== null && typeof timer !== 'undefined') clearInterval(timer);
+      (dom.window as any)[key] = null;
+    }
+    dom.window.close();
     delete global.window;
     delete global.document;
     delete global.CpuPolicy;
@@ -45,6 +61,8 @@ describe('initializeUI async policy loading', () => {
     delete global.resetGame;
     delete global.setupMatchModeControls;
     delete global.restoreStoredNetworkSessionOnBoot;
+    delete (global as any).location;
+    delete global.__uiInitialized;
   });
 
   test('bootstrap reset does not eagerly load ONNX or policy-table initialization', async () => {
@@ -95,6 +113,46 @@ describe('initializeUI async policy loading', () => {
     expect(global.restoreStoredNetworkSessionOnBoot).toHaveBeenCalledTimes(1);
     expect(calls).toEqual(expect.arrayContaining(['setup:defer', 'reset', 'restore']));
     expect(calls.indexOf('reset')).toBeLessThan(calls.indexOf('restore'));
+  });
+
+  test('isolated board performance startup skips stored network restore and installs its harness', async () => {
+    dom.reconfigure({ url: 'http://localhost/?debug=1&boardPerf=1&boardRenderer=pixi' });
+    (global as any).location = dom.window.location;
+    global.restoreStoredNetworkSessionOnBoot = jest.fn(async () => undefined);
+    const harness = require('../ui/board-visual/performance-harness');
+    const browserArtifactSha256 = 'a'.repeat(64);
+    (global.window as any).fetch = jest.fn(async (_input: unknown, init?: RequestInit) => (
+      init?.method === 'HEAD'
+        ? { headers: { get: () => browserArtifactSha256 } }
+        : {
+          ok: true,
+          json: async () => ({
+            schemaVersion: harness.BOARD_PERFORMANCE_META_SCHEMA_VERSION,
+            candidateCommit: `${'0'.repeat(38)}00`,
+            browserArtifactSha256,
+            fixtureDigest: harness.BOARD_PERFORMANCE_FIXTURE_DIGEST,
+            eventDigest: harness.BOARD_PERFORMANCE_EVENT_DIGEST,
+            lane: 'vite',
+            captureProfile: 'desktop',
+            referenceDevice: {},
+            captureOrder: 'dom-first'
+          })
+        }
+    ));
+    const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
+    jest.doMock(bootstrapPath, () => ({
+      installGameDI: jest.fn(),
+      getBoardVisualController: jest.fn(() => readyBoardVisualController())
+    }), { virtual: false });
+
+    const initModule = require('../ui/handlers/init.js');
+    expect(initModule.isBoardPerformanceStartup()).toBe(true);
+    await initModule.initializeUI();
+
+    expect(global.restoreStoredNetworkSessionOnBoot).not.toHaveBeenCalled();
+    expect((global.window as any).__boardPerfHarness).toBeTruthy();
+    expect(global.document.querySelector('[data-board-perf-controls]')).not.toBeNull();
+    expect(global.__uiInitialized).toBe(true);
   });
 
   test('board readiness gates input listeners, stored-session restore, and app-ready', async () => {

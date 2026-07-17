@@ -104,6 +104,10 @@ function createDomBoardVisualBackend(options?: {
     });
   };
 
+  const getDomCellCount = (): number => host
+    ? host.querySelectorAll('.cell[data-row][data-col]').length
+    : 0;
+
   const applyFrame = (frame: BoardVisualFrame) => {
     if (!host) throw new Error('DOM board backend is not mounted');
     if (options && typeof options.beforeApplyFrame === 'function') {
@@ -165,6 +169,19 @@ function createDomBoardVisualBackend(options?: {
       return null;
     },
     getRenderedCell,
+    getDiagnostics() {
+      return Object.freeze({
+        canvasCount: 0,
+        contextCount: 0,
+        domCellCount: getDomCellCount()
+      });
+    },
+    getDisplayObjectCounts() {
+      return Object.freeze({ total: getDomCellCount(), active: getDomCellCount(), pooled: 0 });
+    },
+    getTextureLeaseCounts() {
+      return Object.freeze({ total: 0, active: 0, pooled: 0 });
+    },
     resize(_layout: BoardViewportLayout) {
       // Existing DOM sizing remains in board-renderer during the parity phase.
     },

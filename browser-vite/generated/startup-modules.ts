@@ -467,6 +467,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/board-visual/layout": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/layout.js"),
   "ui/board-visual/model": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/model.js"),
   "ui/board-visual/model-builder": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/model-builder.js"),
+  "ui/board-visual/performance-harness": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/performance-harness.js"),
   "ui/board-visual/playback-types": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/playback-types.js"),
   "ui/board-visual/theme": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/theme.js"),
   "ui/board-visual/types": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/types.js"),
@@ -1132,6 +1133,7 @@ installBootModuleMetadata({
     "ui/board-visual/layout",
     "ui/board-visual/model",
     "ui/board-visual/model-builder",
+    "ui/board-visual/performance-harness",
     "ui/board-visual/playback-types",
     "ui/board-visual/theme",
     "ui/board-visual/types",
@@ -1412,4 +1414,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 660;
+export const startupModuleCount = 661;

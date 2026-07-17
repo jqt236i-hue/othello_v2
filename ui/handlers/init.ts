@@ -93,6 +93,30 @@ function setUiInitializedFlag(value: boolean): void {
   } catch (e) { /* ignore */ }
 }
 
+function isBoardPerformanceStartup(): boolean {
+  if (typeof location === 'undefined') return false;
+  try {
+    const params = new URLSearchParams(String(location.search || ''));
+    return params.get('debug') === '1' && params.get('boardPerf') === '1';
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function installBoardPerformanceHarnessIfRequested(): Promise<void> {
+  if (!isBoardPerformanceStartup() || typeof window === 'undefined' || typeof document === 'undefined') return;
+  try {
+    const module = requireInitHandlerModuleOrNull('../board-visual/performance-harness');
+    if (typeof module?.installBoardVisualPerformanceHarness === 'function') {
+      await module.installBoardVisualPerformanceHarness({ root: window, document });
+    }
+  } catch (error) {
+    // The isolated page remains inspectable, but capture stays disabled when its
+    // immutable artifact metadata cannot be authenticated.
+    console.error('[board-perf] harness installation failed', error);
+  }
+}
+
 async function waitForInitialBoardVisualReady(uiBootstrap: typeof UIBootstrap | null): Promise<void> {
   if (!uiBootstrap || typeof uiBootstrap.getBoardVisualController !== 'function') {
     throw new Error('board_visual_controller_api_unavailable');
@@ -291,7 +315,7 @@ async function initializeUI(): Promise<void> {
     attachInitEventListeners(refs, debugAllowed);
   }
 
-  if (typeof restoreStoredNetworkSessionOnBoot === 'function') {
+  if (!isBoardPerformanceStartup() && typeof restoreStoredNetworkSessionOnBoot === 'function') {
     await restoreStoredNetworkSessionOnBoot();
   }
 
@@ -311,6 +335,8 @@ async function initializeUI(): Promise<void> {
   if (typeof initNetworkAndDebug === 'function') {
     await initNetworkAndDebug();
   }
+
+  await installBoardPerformanceHarnessIfRequested();
 }
 
 // Auto-initialize UI when DOM is ready
@@ -327,7 +353,8 @@ export = {
   setupSoundControls: (typeof setupSoundControls !== 'undefined') ? setupSoundControls : function () {},
   setupBgmControls: (typeof setupBgmControls !== 'undefined') ? setupBgmControls : function () {},
   loadCpuPolicy: (typeof loadCpuPolicy !== 'undefined') ? loadCpuPolicy : function () {},
-  setUiInitializedFlag
+  setUiInitializedFlag,
+  isBoardPerformanceStartup
 };
 
 if (typeof window !== 'undefined') {

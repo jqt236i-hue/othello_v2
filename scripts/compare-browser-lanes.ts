@@ -108,6 +108,7 @@ function summarizeLane(result: any): any {
     optionalRegistryAtStartup: result.sample.startupScriptSignals.some((value: string) => value.includes('module-registry.optional')),
     optionalPayloadAtStartup: startupPaths.some((value) => /\/optional-[a-z-]+-[^/]+\.mjs(?:\?|$)/.test(value)),
     onnxRuntimeAtStartup: result.sample.startupScriptSignals.some((value: string) => value.includes('onnxruntime-web/dist/ort.min.js')),
+    boardPerformanceIsolation: result.afterReadyResult?.boardPerformanceIsolation || null,
     pageErrors: result.sample.pageErrors,
     consoleErrors: result.sample.consoleErrors,
     resourceErrors: result.sample.resourceErrors || []
@@ -153,6 +154,14 @@ function evaluateReport(classic: any, vite: any, visual: any): { ok: boolean; er
     ) {
       errors.push(`${label} did not preserve the Phase 2 exclusive DOM board surface`);
     }
+    if (!lane.boardPerformanceIsolation
+      || lane.boardPerformanceIsolation.harnessGlobalPresent !== false
+      || lane.boardPerformanceIsolation.controlsPresent !== false) {
+      errors.push(`${label} normal startup leaked the board performance harness`);
+    }
+  }
+  if (vite.boardPerformanceIsolation?.capabilityEligible !== false) {
+    errors.push('Vite normal startup reported the board performance harness as eligible');
   }
   for (const [name, expectedType] of Object.entries(REQUIRED_GLOBAL_TYPES)) {
     if (classic.globals[name] !== expectedType) errors.push(`classic global ${name} is ${classic.globals[name]}, expected ${expectedType}`);
@@ -258,7 +267,14 @@ async function compareBrowserLanes(options: CompareBrowserLanesOptions = {}): Pr
       rootDir,
       entryPath,
       captureComparison: true,
-      log: false
+      log: false,
+      afterReady: async (page: any) => ({
+        boardPerformanceIsolation: await page.evaluate(() => ({
+          harnessGlobalPresent: Object.prototype.hasOwnProperty.call(window, '__boardPerfHarness'),
+          controlsPresent: !!document.querySelector('[data-board-perf-controls], #board-performance-controls'),
+          capabilityEligible: (window as any).__CARD_REVERSI_BROWSER_CAPABILITIES__?.boardPerformanceHarnessEligible ?? null
+        }))
+      })
     });
     const firstResult = await capture(classicFirst ? '/index.classic.html' : '/');
     const secondResult = await capture(classicFirst ? '/' : '/index.classic.html');

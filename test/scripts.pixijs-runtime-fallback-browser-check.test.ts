@@ -17,6 +17,20 @@ describe('Pixi runtime fallback browser check', () => {
       canvasCount: 0,
       bootError: ''
     }, 'classic')).toEqual([]);
+
+    expect(evaluatePixiRuntimeFallbackProbe({
+      ready: true,
+      capability: {
+        lane: 'vite',
+        injected: false,
+        version: null,
+        unavailableReason: 'pixi-import-failed'
+      },
+      renderer: 'dom',
+      cellCount: 64,
+      canvasCount: 0,
+      bootError: ''
+    }, 'vite')).toEqual([]);
   });
 
   test('rejects simultaneous canvas/DOM mounting and missing fallback evidence', () => {

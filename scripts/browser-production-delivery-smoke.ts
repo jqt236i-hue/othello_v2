@@ -7,7 +7,7 @@ const ROOT = process.cwd();
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
-  "worker-src 'self'",
+  "worker-src 'self' blob:",
   "connect-src 'self'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
@@ -131,52 +131,102 @@ async function exerciseWorkerWasm(page: Page): Promise<any> {
   });
 }
 
+async function waitForProductionReady(
+  page: Page,
+  backend: 'dom' | 'pixi',
+  pageErrors: string[],
+  consoleErrors: string[]
+): Promise<void> {
+  try {
+    await page.waitForFunction(() => (
+      (window as any).__uiInitialized === true
+      && document.documentElement.getAttribute('data-browser-boot-state') === 'ready'
+    ), null, { timeout: 30000 });
+  } catch (error) {
+    const diagnostics = await page.evaluate(() => {
+      const root = window as any;
+      return {
+        uiInitialized: root.__uiInitialized === true,
+        bootState: document.documentElement.getAttribute('data-browser-boot-state'),
+        bootError: document.getElementById('browserViteBootError')?.textContent || '',
+        metrics: root.__CARD_REVERSI_BROWSER_METRICS__ || null,
+        capabilities: root.__CARD_REVERSI_BROWSER_CAPABILITIES__ || null,
+        pixiPreload: root.__CARD_REVERSI_PIXI_PRELOAD_STATE__ || null,
+        cspViolations: root.__deliveryCspViolations || []
+      };
+    }).catch((diagnosticError) => ({ diagnosticError: String(diagnosticError) }));
+    throw new Error([
+      `${backend} production UI did not become ready`,
+      error instanceof Error ? error.message : String(error),
+      `diagnostics=${JSON.stringify(diagnostics)}`,
+      `pageErrors=${JSON.stringify(pageErrors.filter((entry) => entry.startsWith(`${backend}:`)))}`,
+      `consoleErrors=${JSON.stringify(consoleErrors.filter((entry) => entry.startsWith(`${backend}:`)))}`
+    ].join('; '));
+  }
+}
+
 async function runBrowserProductionDeliverySmoke(options: { log?: boolean } = {}): Promise<any> {
   const server = createProductionLikeServer();
   let browser: Browser | null = null;
   try {
     const baseUrl = await listen(server);
     browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     const violations: any[] = [];
     const pageErrors: string[] = [];
     const consoleErrors: string[] = [];
     const responses: any[] = [];
-    await page.addInitScript(() => {
-      (window as any).__deliveryCspViolations = [];
-      document.addEventListener('securitypolicyviolation', (event) => {
-        (window as any).__deliveryCspViolations.push({
-          blockedURI: event.blockedURI,
-          violatedDirective: event.violatedDirective,
-          effectiveDirective: event.effectiveDirective
+    const backendProbes: any[] = [];
+    let workerWasm: any = null;
+    for (const backend of ['dom', 'pixi'] as const) {
+      const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+      await page.addInitScript(() => {
+        (window as any).__deliveryCspViolations = [];
+        document.addEventListener('securitypolicyviolation', (event) => {
+          (window as any).__deliveryCspViolations.push({
+            blockedURI: event.blockedURI,
+            violatedDirective: event.violatedDirective,
+            effectiveDirective: event.effectiveDirective
+          });
         });
       });
-    });
-    page.on('pageerror', (error) => pageErrors.push(error.message));
-    page.on('console', (message) => {
-      if (message.type() === 'error') consoleErrors.push(message.text());
-    });
-    page.on('response', (response) => {
-      const url = response.url();
-      const responsePathname = new URL(url).pathname;
-      if (/\.(?:html|js|mjs|css|wasm|woff2|webp)(?:\?|$)/i.test(url) || responsePathname === '/') {
-        responses.push({
-          url,
-          status: response.status(),
-          contentType: response.headers()['content-type'] || '',
-          cacheControl: response.headers()['cache-control'] || '',
-          csp: response.headers()['content-security-policy'] || ''
-        });
-      }
-    });
-    await page.goto(`${baseUrl}/?debug=1`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await page.waitForFunction(() => (
-      (window as any).__uiInitialized === true
-      && document.documentElement.getAttribute('data-browser-boot-state') === 'ready'
-    ), null, { timeout: 30000 });
-    const workerWasm = await exerciseWorkerWasm(page);
-    await page.waitForTimeout(250);
-    violations.push(...await page.evaluate(() => (window as any).__deliveryCspViolations || []));
+      page.on('pageerror', (error) => pageErrors.push(`${backend}: ${error.message}`));
+      page.on('console', (message) => {
+        if (message.type() === 'error') consoleErrors.push(`${backend}: ${message.text()}`);
+      });
+      page.on('response', (response) => {
+        const url = response.url();
+        const responsePathname = new URL(url).pathname;
+        if (/\.(?:html|js|mjs|css|wasm|woff2|webp)(?:\?|$)/i.test(url) || responsePathname === '/') {
+          responses.push({
+            backend,
+            url,
+            status: response.status(),
+            contentType: response.headers()['content-type'] || '',
+            cacheControl: response.headers()['cache-control'] || '',
+            csp: response.headers()['content-security-policy'] || ''
+          });
+        }
+      });
+      await page.goto(`${baseUrl}/?debug=1&boardRenderer=${backend}&noanim=1`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await waitForProductionReady(page, backend, pageErrors, consoleErrors);
+      const backendProbe = await page.evaluate(() => {
+        const root = window as any;
+        const diagnostics = root.__boardVisualDebug?.getBackendDiagnostics?.() || {};
+        return {
+          backend: root.__boardVisualDebug?.getBackendKind?.() || null,
+          canvasCount: Number(diagnostics.canvasCount || 0),
+          contextCount: Number(diagnostics.contextCount || 0),
+          domCellCount: Number(diagnostics.domCellCount || 0),
+          harnessGlobalPresent: Object.prototype.hasOwnProperty.call(root, '__boardPerfHarness'),
+          controlsPresent: !!document.querySelector('[data-board-perf-controls], #board-performance-controls')
+        };
+      });
+      backendProbes.push({ expected: backend, ...backendProbe });
+      if (backend === 'pixi') workerWasm = await exerciseWorkerWasm(page);
+      await page.waitForTimeout(250);
+      violations.push(...await page.evaluate(() => (window as any).__deliveryCspViolations || []));
+      await page.close();
+    }
 
     const errors: string[] = [];
     const documentResponse = responses.find((entry) => new URL(entry.url).pathname === '/');
@@ -194,9 +244,19 @@ async function runBrowserProductionDeliverySmoke(options: { log?: boolean } = {}
     if (wasmResponses.length === 0) errors.push('ONNX Worker did not request a WASM runtime');
     if (wasmResponses.some((entry) => entry.contentType !== 'application/wasm')) errors.push('a WASM response has the wrong MIME type');
     if (violations.length > 0) errors.push(`CSP violations: ${JSON.stringify(violations)}`);
+    for (const probe of backendProbes) {
+      if (probe.backend !== probe.expected) errors.push(`${probe.expected} production delivery selected ${probe.backend}`);
+      if (probe.expected === 'pixi' && (probe.canvasCount !== 1 || probe.contextCount !== 1 || probe.domCellCount !== 0)) {
+        errors.push('Pixi production delivery did not keep an exclusive one-context canvas surface');
+      }
+      if (probe.expected === 'dom' && (probe.canvasCount !== 0 || probe.domCellCount !== 64)) {
+        errors.push('DOM production delivery did not keep an exclusive 64-cell board surface');
+      }
+      if (probe.harnessGlobalPresent || probe.controlsPresent) errors.push(`${probe.expected} normal production delivery leaked performance harness state`);
+    }
     pageErrors.forEach((error) => errors.push(`page error: ${error}`));
     consoleErrors.forEach((error) => errors.push(`console error: ${error}`));
-    const report = { ok: errors.length === 0, errors, workerWasm, violations, responses };
+    const report = { ok: errors.length === 0, errors, workerWasm, backendProbes, violations, responses };
     if (options.log !== false) console.log(JSON.stringify(report, null, 2));
     return report;
   } finally {

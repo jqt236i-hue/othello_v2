@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "pixijs_playfield_reference_devices.v1",
+  "status": "operator-input-required",
+  "devices": [
+    {
+      "id": "android-reference",
+      "platform": "android",
+      "ready": false,
+      "model": "",
+      "osVersion": "",
+      "osBuild": "",
+      "browser": "Chrome",
+      "browserVersion": "",
+      "screen": {
+        "width": 0,
+        "height": 0
+      },
+      "viewport": {
+        "width": 0,
+        "height": 0
+      },
+      "dpr": 0,
+      "refreshSetting": "",
+      "orientation": "",
+      "powerMode": ""
+    },
+    {
+      "id": "iphone-reference",
+      "platform": "ios",
+      "ready": false,
+      "model": "",
+      "osVersion": "",
+      "osBuild": "",
+      "browser": "Safari",
+      "browserVersion": "",
+      "screen": {
+        "width": 0,
+        "height": 0
+      },
+      "viewport": {
+        "width": 0,
+        "height": 0
+      },
+      "dpr": 0,
+      "refreshSetting": "",
+      "orientation": "",
+      "powerMode": ""
+    }
+  ]
+}

@@ -1,0 +1,431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://card-reversi.invalid/schemas/pixijs-playfield-performance-report-v1.json",
+  "title": "Card Reversi PixiJS playfield physical performance report v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "reportId",
+    "capturedAt",
+    "captureStartedAt",
+    "captureUrl",
+    "captureDurationMs",
+    "captureProfile",
+    "standardRun",
+    "candidateCommit",
+    "browserArtifactSha256",
+    "fixtureDigest",
+    "eventDigest",
+    "lane",
+    "backend",
+    "captureOrder",
+    "cooldown",
+    "environment",
+    "readiness",
+    "delivery",
+    "validity",
+    "nominal",
+    "percentileRule",
+    "rawSamplePolicy",
+    "support",
+    "runConfig",
+    "scenarios"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "pixijs_playfield_performance_report.v1"
+    },
+    "reportId": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    },
+    "capturedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "captureStartedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "captureUrl": {
+      "type": "string",
+      "format": "uri"
+    },
+    "captureDurationMs": {
+      "type": "number",
+      "minimum": 0
+    },
+    "captureProfile": {
+      "enum": ["physical", "desktop", "development"]
+    },
+    "standardRun": {
+      "type": "boolean"
+    },
+    "candidateCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "browserArtifactSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifactFileCount": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    },
+    "fixtureDigest": {
+      "type": "string",
+      "pattern": "^fnv1a32:[0-9a-f]{8}$"
+    },
+    "eventDigest": {
+      "type": "string",
+      "pattern": "^fnv1a32:[0-9a-f]{8}$"
+    },
+    "lane": {
+      "enum": ["classic", "vite"]
+    },
+    "backend": {
+      "enum": ["dom", "pixi"]
+    },
+    "captureOrder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expected", "actual", "sequenceIndex"],
+      "properties": {
+        "expected": {
+          "enum": ["dom-first", "pixi-first"]
+        },
+        "actual": {
+          "enum": ["dom-first", "pixi-first", ""]
+        },
+        "sequenceIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        }
+      }
+    },
+    "cooldown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiredMs", "observedMs", "passed"],
+      "properties": {
+        "requiredMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "observedMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "passed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "required": ["referenceDevice", "userAgent", "screen", "viewport", "dpr", "orientation"],
+      "properties": {
+        "referenceDevice": {
+          "type": "object"
+        },
+        "userAgent": {
+          "type": "string",
+          "minLength": 1
+        },
+        "screen": {
+          "$ref": "#/$defs/size"
+        },
+        "viewport": {
+          "$ref": "#/$defs/size"
+        },
+        "dpr": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "orientation": {
+          "type": "string"
+        }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "required": ["fontsReady", "texturesReady", "applicationReady", "writerMode", "backendDiagnostics"],
+      "properties": {
+        "fontsReady": {
+          "const": true
+        },
+        "texturesReady": {
+          "const": true
+        },
+        "applicationReady": {
+          "const": true
+        },
+        "writerMode": {
+          "type": "string"
+        },
+        "backendDiagnostics": {
+          "type": "object"
+        }
+      }
+    },
+    "delivery": {
+      "type": "object",
+      "required": [
+        "applicationReadyAtMs",
+        "resourceCount",
+        "transferSizeBytes",
+        "encodedBodySizeBytes",
+        "decodedBodySizeBytes",
+        "resources",
+        "textureUploadCount",
+        "textureReadyPixelCount",
+        "textureActivePixelCount"
+      ],
+      "properties": {
+        "resources": {
+          "type": "array"
+        }
+      }
+    },
+    "validity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visibleAtStart", "focusedAtStart", "visibilityChangeCount", "focusChangeCount", "invalidReasons", "valid"],
+      "properties": {
+        "visibleAtStart": {
+          "type": "boolean"
+        },
+        "focusedAtStart": {
+          "type": "boolean"
+        },
+        "visibilityChangeCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "focusChangeCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "invalidReasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "valid": {
+          "type": "boolean"
+        }
+      }
+    },
+    "nominal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sampleCount", "rawTimestampsMs", "rawIntervalsMs", "nominalFrameIntervalMs", "aggregation"],
+      "properties": {
+        "sampleCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "rawTimestampsMs": {
+          "$ref": "#/$defs/numberArray"
+        },
+        "rawIntervalsMs": {
+          "$ref": "#/$defs/numberArray"
+        },
+        "nominalFrameIntervalMs": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "aggregation": {
+          "const": "median"
+        }
+      }
+    },
+    "percentileRule": {
+      "const": "nearest-rank:ceil(p*N)-1"
+    },
+    "rawSamplePolicy": {
+      "const": "unfiltered-no-winsorization"
+    },
+    "support": {
+      "type": "object",
+      "required": ["longAnimationFrame", "longTask"],
+      "properties": {
+        "longAnimationFrame": {
+          "enum": ["supported", "unsupported"]
+        },
+        "longTask": {
+          "enum": ["supported", "unsupported"]
+        }
+      }
+    },
+    "runConfig": {
+      "type": "object",
+      "required": [
+        "profile",
+        "warmupCount",
+        "basicSampleCount",
+        "heavySampleCount",
+        "microSampleCount",
+        "nominalRafSampleCount",
+        "stabilityDurationMs",
+        "sameModelApplyCount",
+        "resetCount",
+        "skinSwitchCount",
+        "standard"
+      ]
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/scenario"
+      }
+    }
+  },
+  "$defs": {
+    "size": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": {
+          "type": "number",
+          "minimum": 0
+        },
+        "height": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "numberArray": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "minimum": 0
+      }
+    },
+    "numericSummary": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["count", "p50", "p95", "p99", "max"],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "p50": {
+          "type": "number",
+          "minimum": 0
+        },
+        "p95": {
+          "type": "number",
+          "minimum": 0
+        },
+        "p99": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "rafSummary": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/numericSummary"
+        },
+        {
+          "type": "object",
+          "required": ["jankThresholdMs", "jankFrameCount", "jankRatio", "rafStall50msCount"],
+          "properties": {
+            "jankThresholdMs": {
+              "type": "number",
+              "minimum": 0
+            },
+            "jankFrameCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "jankRatio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "rafStall50msCount": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "iteration": {
+      "type": "object",
+      "required": [
+        "rafTimestampsMs",
+        "rafIntervalsMs",
+        "presentationStartLatencyMs",
+        "modelBuildMs",
+        "backendApplySyncMs",
+        "backendApplySettlementMs",
+        "boardLocalPlaybackMs",
+        "globalDomHudMs",
+        "wholeTurnSettlementMs",
+        "hitTestMs",
+        "diagnosticsBefore",
+        "diagnosticsAfter"
+      ],
+      "properties": {
+        "rafTimestampsMs": {
+          "$ref": "#/$defs/numberArray"
+        },
+        "rafIntervalsMs": {
+          "$ref": "#/$defs/numberArray"
+        },
+        "hitTestMs": {
+          "type": ["number", "null"],
+          "minimum": 0
+        }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "required": ["id", "warmupCount", "sampleCount", "rawSamples", "summary"],
+      "properties": {
+        "id": {
+          "enum": [
+            "basic.multi-flip-8x8",
+            "heavy.move-8x8",
+            "heavy.destroy-spawn-8x8",
+            "heavy.status-8x8",
+            "heavy.destroy-source-8x8",
+            "heavy.theory-manifest-8x8",
+            "micro.full-marker-16x16",
+            "stability.expansion-skin"
+          ]
+        },
+        "warmupCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sampleCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "rawSamples": {
+          "type": "array"
+        },
+        "summary": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

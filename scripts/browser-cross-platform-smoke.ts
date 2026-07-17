@@ -38,6 +38,7 @@ function createScenarios(): BrowserScenario[] {
       pageOptions: {
         ...pixel,
         viewport: pixel.viewport,
+        deviceScaleFactor: 2,
         reducedMotion: 'reduce'
       },
       interactionMode: 'touch'
@@ -54,39 +55,61 @@ async function runBrowserCrossPlatformSmoke(options: { log?: boolean; scenarioNa
   ));
   if (scenarios.length === 0) throw new Error('no matching cross-platform browser scenario');
   for (const scenario of scenarios) {
-    try {
-      const result = await runBrowserUiControlSmoke({
-        entryPath: '/',
-        launch: scenario.launch,
-        pageOptions: scenario.pageOptions,
-        interactionMode: scenario.interactionMode,
-        log: false
-      });
-      const registryRequests = result.requestedUrls.filter((url: string) => url.includes('module-registry'));
-      const probe = {
-        name: scenario.name,
-        evaluation: result.evaluation,
-        failedHitTests: Object.fromEntries(
-          Object.entries(result.sample.controls)
-            .filter(([, control]: any) => control?.hitTest)
-            .map(([name, control]: any) => [name, control.hitTest])
-        ),
-        registryRequests,
-        pageErrors: result.sample.pageErrors,
-        consoleErrors: result.sample.consoleErrors,
-        resourceErrors: result.sample.resourceErrors || []
-      };
-      probes.push(probe);
-      if (!result.evaluation.ok) {
-        errors.push(`${scenario.name}: ${result.evaluation.errors.join('; ')}`);
+    for (const backend of ['dom', 'pixi'] as const) {
+      try {
+        const result = await runBrowserUiControlSmoke({
+          entryPath: `/?boardRenderer=${backend}&noanim=1`,
+          launch: scenario.launch,
+          pageOptions: scenario.pageOptions,
+          interactionMode: scenario.interactionMode,
+          log: false,
+          afterReady: async (page: any) => page.evaluate(() => {
+            const root = window as any;
+            const diagnostics = root.__boardVisualDebug?.getBackendDiagnostics?.() || {};
+            return {
+              backend: root.__boardVisualDebug?.getBackendKind?.() || null,
+              canvasCount: Number(diagnostics.canvasCount || 0),
+              contextCount: Number(diagnostics.contextCount || 0),
+              domCellCount: Number(diagnostics.domCellCount || 0),
+              dpr: window.devicePixelRatio,
+              harnessGlobalPresent: Object.prototype.hasOwnProperty.call(root, '__boardPerfHarness'),
+              controlsPresent: !!document.querySelector('[data-board-perf-controls], #board-performance-controls')
+            };
+          })
+        });
+        const registryRequests = result.requestedUrls.filter((url: string) => url.includes('module-registry'));
+        const backendProbe = result.afterReadyResult || {};
+        const probe = {
+          name: scenario.name,
+          backend,
+          evaluation: result.evaluation,
+          backendProbe,
+          failedHitTests: Object.fromEntries(
+            Object.entries(result.sample.controls)
+              .filter(([, control]: any) => control?.hitTest)
+              .map(([name, control]: any) => [name, control.hitTest])
+          ),
+          registryRequests,
+          pageErrors: result.sample.pageErrors,
+          consoleErrors: result.sample.consoleErrors,
+          resourceErrors: result.sample.resourceErrors || []
+        };
+        probes.push(probe);
+        if (!result.evaluation.ok) errors.push(`${scenario.name}/${backend}: ${result.evaluation.errors.join('; ')}`);
+        if (registryRequests.length > 0) errors.push(`${scenario.name}/${backend}: Vite requested compatibility registry`);
+        if (backendProbe.backend !== backend) errors.push(`${scenario.name}/${backend}: selected backend was ${backendProbe.backend}`);
+        if (backend === 'pixi' && (backendProbe.canvasCount !== 1 || backendProbe.contextCount !== 1 || backendProbe.domCellCount !== 0)) {
+          errors.push(`${scenario.name}/${backend}: Pixi did not remain the exclusive board surface`);
+        }
+        if (backend === 'dom' && (backendProbe.canvasCount !== 0 || backendProbe.domCellCount !== 64)) {
+          errors.push(`${scenario.name}/${backend}: DOM did not remain the exclusive 64-cell board surface`);
+        }
+        if (backendProbe.harnessGlobalPresent || backendProbe.controlsPresent) errors.push(`${scenario.name}/${backend}: normal startup leaked performance harness state`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        probes.push({ name: scenario.name, backend, error: message });
+        errors.push(`${scenario.name}/${backend}: ${message}`);
       }
-      if (registryRequests.length > 0) {
-        errors.push(`${scenario.name}: Vite default requested compatibility registry`);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      probes.push({ name: scenario.name, error: message });
-      errors.push(`${scenario.name}: ${message}`);
     }
   }
   const report = { ok: errors.length === 0, errors, probes };

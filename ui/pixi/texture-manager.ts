@@ -110,6 +110,8 @@ export interface PixiTextureManagerDiagnostics {
   readonly maxTextureSize: number;
   readonly cacheEntryCount: number;
   readonly readyResourceCount: number;
+  readonly readyResourcePixelCount: number;
+  readonly activeResourcePixelCount: number;
   readonly pendingLoadCount: number;
   readonly referenceCount: number;
   readonly preparedSetCount: number;
@@ -928,11 +930,25 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
 
   function getDiagnostics(): PixiTextureManagerDiagnostics {
     let readyResourceCount = 0;
+    let readyResourcePixelCount = 0;
     let referenceCount = 0;
     cache.forEach((entry) => {
-      if (entry.state === 'ready' && entry.resource) readyResourceCount += 1;
+      if (entry.state === 'ready' && entry.resource) {
+        readyResourceCount += 1;
+        readyResourcePixelCount += positiveInteger(entry.resource.width, 0)
+          * positiveInteger(entry.resource.height, 0);
+      }
       referenceCount += entry.refCount;
     });
+    const activeSourceKeys = new Set<string>();
+    let activeResourcePixelCount = 0;
+    if (activeBatch && activeBatch.state === 'active' && !activeBatch.resourcesReleased) {
+      activeBatch.publicSet.resources.forEach((resource) => {
+        if (activeSourceKeys.has(resource.sourceKey)) return;
+        activeSourceKeys.add(resource.sourceKey);
+        activeResourcePixelCount += positiveInteger(resource.width, 0) * positiveInteger(resource.height, 0);
+      });
+    }
     let preparedSetCount = 0;
     let sourceLeaseCount = 0;
     batches.forEach((batch) => {
@@ -945,6 +961,8 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
       maxTextureSize,
       cacheEntryCount: cache.size,
       readyResourceCount,
+      readyResourcePixelCount,
+      activeResourcePixelCount,
       pendingLoadCount,
       referenceCount,
       preparedSetCount,

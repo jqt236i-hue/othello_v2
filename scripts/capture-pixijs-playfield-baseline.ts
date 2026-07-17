@@ -4,6 +4,10 @@ import * as path from 'path';
 import { execFileSync } from 'child_process';
 
 import BrowserUiControlSmoke from './browser-ui-control-smoke';
+import {
+  BOARD_PERFORMANCE_PHASE_ZERO_COORDINATES,
+  BOARD_PERFORMANCE_PHASE_ZERO_MICRO_DIGEST
+} from '../ui/board-visual/performance-harness';
 
 const SharedBoardUtils: any = require('../shared/shared-board-utils');
 const PlaybackDigest: any = require('../shared/playback-digest');
@@ -1151,7 +1155,7 @@ async function captureBrowserPerformance(page: any): Promise<any> {
       pixiTickerPresent: !!(root.PIXI && root.__PIXI_APP__ && root.__PIXI_APP__.ticker)
     };
   });
-  const measurements = await page.evaluate(async () => {
+  const measurements = await page.evaluate(async (coordinates: readonly (readonly [number, number])[]) => {
     const root = window as any;
     const board = document.getElementById('board');
     const core = root.CoreLogic || root.Core || (typeof root.require === 'function' ? root.require('game/logic/core') : null);
@@ -1159,7 +1163,6 @@ async function captureBrowserPerformance(page: any): Promise<any> {
     const state = core.createGameState({ rows: 8, cols: 8, shape: 'rectangle' });
     root.gameState = state;
     root.forceFullRender(board);
-    const coordinates = [[2, 2], [2, 3], [2, 4], [3, 2], [3, 5], [4, 2], [4, 5], [5, 3]];
     const frameDeltas: number[] = [];
     for (let index = 0; index < 30; index += 1) {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -1184,7 +1187,7 @@ async function captureBrowserPerformance(page: any): Promise<any> {
       sixteenBySixteenCellCount: board.querySelectorAll('.cell').length,
       sixteenBySixteenDomNodeCount: document.querySelectorAll('*').length
     };
-  });
+  }, BOARD_PERFORMANCE_PHASE_ZERO_COORDINATES);
   return {
     idle,
     frameSampleCount: measurements.frameSampleCount,
@@ -1374,6 +1377,45 @@ function buildBrowserLaneParity(lanes: Record<string, any>): any {
   };
 }
 
+function buildPhaseZeroPixiComparison(
+  phaseZeroReport: any,
+  currentReports: readonly any[],
+  phaseZeroReportSha256: string
+): any {
+  const lanes = Object.fromEntries(['classic', 'vite'].map((lane) => {
+    const baselineLane = phaseZeroReport?.browserLanes?.[lane] || null;
+    const dom = currentReports.find((report) => report.lane === lane && report.backend === 'dom') || null;
+    const pixi = currentReports.find((report) => report.lane === lane && report.backend === 'pixi') || null;
+    for (const [backend, report] of [['dom', dom], ['pixi', pixi]] as const) {
+      if (!report?.phaseZeroMicroComparison) throw new Error(`Current ${lane}/${backend} Phase 0 microcomparison is missing`);
+      if (report.phaseZeroMicroComparison.fixtureDigest !== BOARD_PERFORMANCE_PHASE_ZERO_MICRO_DIGEST) {
+        throw new Error(`Current ${lane}/${backend} Phase 0 micro fixture digest mismatch`);
+      }
+    }
+    return [lane, Object.freeze({
+      immutableDomBaseline: baselineLane?.performance || null,
+      immutableBrowserVersion: phaseZeroReport?.environment?.browserVersions?.[lane] || null,
+      immutableUserAgent: phaseZeroReport?.environment?.userAgents?.[lane] || null,
+      currentDom: dom.phaseZeroMicroComparison,
+      currentPixi: pixi.phaseZeroMicroComparison
+    })];
+  }));
+  return Object.freeze({
+    role: 'Phase 0 DOM values remain an immutable synthetic model/apply microbaseline; current values are not animation evidence.',
+    source: Object.freeze({
+      path: REPORT_JSON_PATH,
+      sha256: phaseZeroReportSha256,
+      schemaVersion: phaseZeroReport?.schemaVersion || null,
+      commit: phaseZeroReport?.commit || null,
+      viewport: phaseZeroReport?.environment?.viewport || null,
+      dpr: phaseZeroReport?.environment?.dpr || null
+    }),
+    fixtureDigest: BOARD_PERFORMANCE_PHASE_ZERO_MICRO_DIGEST,
+    coordinates: BOARD_PERFORMANCE_PHASE_ZERO_COORDINATES,
+    lanes: Object.freeze(lanes)
+  });
+}
+
 function toMarkdown(report: any): string {
   const topologyRows = report.topologyFixtures.map((fixture: any) => (
     `| ${fixture.name} | ${fixture.config.rows}x${fixture.config.cols} ${fixture.config.shape} | ${fixture.existingKeys.length} | ${fixture.holeKeys.length} | \`${fixture.digest}\` |`
@@ -1555,6 +1597,7 @@ export = {
   SELECTOR_TOKENS,
   TOPOLOGY_FIXTURES,
   buildNetworkVisualBaselines,
+  buildPhaseZeroPixiComparison,
   buildPlaybackEventFixtureContract,
   normalizePhaseZeroPlaybackCompletionTrace,
   buildStablePlaybackAggregateDigest,

@@ -1,119 +1,167 @@
 {
-  "_BufferResource-THE6zpTV.js": {
-    "file": "assets/BufferResource-THE6zpTV.js",
-    "name": "BufferResource",
+  "_AbstractRenderer-GQgU6Z_I.js": {
+    "file": "assets/AbstractRenderer-GQgU6Z_I.js",
+    "name": "AbstractRenderer",
     "imports": [
-      "_Geometry-BU6TUmLD.js",
-      "_RenderTargetSystem-Li4ySkzE.js",
-      "_GCManagedHash-CS_ntgxT.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js"
     ]
   },
-  "_Cache-4NLpjVOm.js": {
-    "file": "assets/Cache-4NLpjVOm.js",
+  "_Cache-B8IRbCgz.js": {
+    "file": "assets/Cache-B8IRbCgz.js",
     "name": "Cache",
     "imports": [
-      "_Geometry-BU6TUmLD.js"
+      "_Geometry-CZCQfHLF.js"
     ]
   },
-  "_CanvasPool-Bq925mTT.js": {
-    "file": "assets/CanvasPool-Bq925mTT.js",
+  "_CanvasPool-CPoFfVNI.js": {
+    "file": "assets/CanvasPool-CPoFfVNI.js",
     "name": "CanvasPool",
     "imports": [
-      "_Geometry-BU6TUmLD.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Shader-Dff_yvjw.js"
     ]
   },
-  "_FederatedEventTarget-BprZznEk.js": {
-    "file": "assets/FederatedEventTarget-BprZznEk.js",
+  "_Container--DC3sRrW.js": {
+    "file": "assets/Container--DC3sRrW.js",
+    "name": "Container",
+    "imports": [
+      "_Geometry-CZCQfHLF.js"
+    ]
+  },
+  "_FederatedEventTarget-C-UmVFe2.js": {
+    "file": "assets/FederatedEventTarget-C-UmVFe2.js",
     "name": "FederatedEventTarget",
     "imports": [
-      "_Geometry-BU6TUmLD.js",
-      "_Filter-CvF2W6EG.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_Filter-CxXus6PE.js"
     ]
   },
-  "_Filter-CvF2W6EG.js": {
-    "file": "assets/Filter-CvF2W6EG.js",
+  "_Filter-CxXus6PE.js": {
+    "file": "assets/Filter-CxXus6PE.js",
     "name": "Filter",
     "imports": [
-      "_Geometry-BU6TUmLD.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_Shader-Dff_yvjw.js"
     ]
   },
-  "_FilterSystem-DSMXPk6a.js": {
-    "file": "assets/FilterSystem-DSMXPk6a.js",
+  "_FilterSystem-lINCcHw8.js": {
+    "file": "assets/FilterSystem-lINCcHw8.js",
     "name": "FilterSystem",
     "imports": [
-      "_Geometry-BU6TUmLD.js",
-      "_Filter-CvF2W6EG.js",
-      "_Cache-4NLpjVOm.js",
-      "_ImageSource-GD0LtTbh.js",
-      "_canvasUtils-DgWfguSs.js",
-      "_CanvasPool-Bq925mTT.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_Filter-CxXus6PE.js",
+      "_Shader-Dff_yvjw.js",
+      "_Cache-B8IRbCgz.js",
+      "_ImageSource-D2JHCQ3v.js",
+      "_canvasUtils-C8xQnZmC.js",
+      "_CanvasPool-CPoFfVNI.js"
     ]
   },
-  "_GCManagedHash-CS_ntgxT.js": {
-    "file": "assets/GCManagedHash-CS_ntgxT.js",
+  "_GCManagedHash-Igj10gjP.js": {
+    "file": "assets/GCManagedHash-Igj10gjP.js",
     "name": "GCManagedHash",
     "imports": [
-      "_Geometry-BU6TUmLD.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Shader-Dff_yvjw.js",
+      "_ViewableBuffer-CObpe3su.js"
     ]
   },
-  "_Geometry-BU6TUmLD.js": {
-    "file": "assets/Geometry-BU6TUmLD.js",
+  "_Geometry-CZCQfHLF.js": {
+    "file": "assets/Geometry-CZCQfHLF.js",
     "name": "Geometry",
     "imports": [
       "_rolldown-runtime-aKtaBQYM.js"
     ]
   },
-  "_GraphicsContext-D1wfcT7m.js": {
-    "file": "assets/GraphicsContext-D1wfcT7m.js",
+  "_GpuStencilModesToPixi-D7_3d2fF.js": {
+    "file": "assets/GpuStencilModesToPixi-D7_3d2fF.js",
+    "name": "GpuStencilModesToPixi",
+    "imports": [
+      "_Geometry-CZCQfHLF.js",
+      "_GCManagedHash-Igj10gjP.js"
+    ]
+  },
+  "_GraphicsContext-H5W9uhhZ.js": {
+    "file": "assets/GraphicsContext-H5W9uhhZ.js",
     "name": "GraphicsContext",
     "imports": [
       "_rolldown-runtime-aKtaBQYM.js",
-      "_Geometry-BU6TUmLD.js",
-      "_ImageSource-GD0LtTbh.js",
-      "_getTextureBatchBindGroup-o4mzMUng.js",
-      "_GCManagedHash-CS_ntgxT.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Shader-Dff_yvjw.js",
+      "_ImageSource-D2JHCQ3v.js",
+      "_getTextureBatchBindGroup-DoAcu5ce.js",
+      "_GCManagedHash-Igj10gjP.js"
     ]
   },
-  "_ImageSource-GD0LtTbh.js": {
-    "file": "assets/ImageSource-GD0LtTbh.js",
+  "_ImageSource-D2JHCQ3v.js": {
+    "file": "assets/ImageSource-D2JHCQ3v.js",
     "name": "ImageSource",
     "imports": [
-      "_Geometry-BU6TUmLD.js"
+      "_Geometry-CZCQfHLF.js"
     ]
   },
-  "_RenderTargetSystem-Li4ySkzE.js": {
-    "file": "assets/RenderTargetSystem-Li4ySkzE.js",
+  "_ParticleBuffer-B-PCZxN0.js": {
+    "file": "assets/ParticleBuffer-B-PCZxN0.js",
+    "name": "ParticleBuffer",
+    "imports": [
+      "_Geometry-CZCQfHLF.js",
+      "_AbstractRenderer-GQgU6Z_I.js",
+      "_ViewableBuffer-CObpe3su.js"
+    ]
+  },
+  "_RenderTargetSystem-BOQSKBfs.js": {
+    "file": "assets/RenderTargetSystem-BOQSKBfs.js",
     "name": "RenderTargetSystem",
     "imports": [
-      "_Geometry-BU6TUmLD.js",
-      "_Filter-CvF2W6EG.js",
-      "_GCManagedHash-CS_ntgxT.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_Filter-CxXus6PE.js",
+      "_Shader-Dff_yvjw.js",
+      "_AbstractRenderer-GQgU6Z_I.js",
+      "_GCManagedHash-Igj10gjP.js"
     ]
+  },
+  "_Shader-Dff_yvjw.js": {
+    "file": "assets/Shader-Dff_yvjw.js",
+    "name": "Shader",
+    "imports": [
+      "_Geometry-CZCQfHLF.js"
+    ]
+  },
+  "_ViewableBuffer-CObpe3su.js": {
+    "file": "assets/ViewableBuffer-CObpe3su.js",
+    "name": "ViewableBuffer"
   },
   "_bridge-DaXBrZaL.js": {
     "file": "assets/bridge-DaXBrZaL.js",
     "name": "bridge"
   },
-  "_canvasUtils-DgWfguSs.js": {
-    "file": "assets/canvasUtils-DgWfguSs.js",
+  "_canvasUtils-C8xQnZmC.js": {
+    "file": "assets/canvasUtils-C8xQnZmC.js",
     "name": "canvasUtils",
     "imports": [
-      "_Geometry-BU6TUmLD.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Shader-Dff_yvjw.js"
     ]
   },
-  "_getTextureBatchBindGroup-o4mzMUng.js": {
-    "file": "assets/getTextureBatchBindGroup-o4mzMUng.js",
+  "_getTextureBatchBindGroup-DoAcu5ce.js": {
+    "file": "assets/getTextureBatchBindGroup-DoAcu5ce.js",
     "name": "getTextureBatchBindGroup",
     "imports": [
-      "_Geometry-BU6TUmLD.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Shader-Dff_yvjw.js"
     ]
   },
-  "_init-D0nup9lV.js": {
-    "file": "assets/init-D0nup9lV.js",
+  "_init-Dov3IVMy.js": {
+    "file": "assets/init-Dov3IVMy.js",
     "name": "init",
     "imports": [
-      "_Geometry-BU6TUmLD.js",
-      "_FilterSystem-DSMXPk6a.js"
+      "_Geometry-CZCQfHLF.js",
+      "_FilterSystem-lINCcHw8.js"
     ]
   },
   "_preload-helper-HclGiUj8.js": {
@@ -187,7 +235,7 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-B9rQsabK.js",
+    "file": "assets/index.vite-DXP6sTpq.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
@@ -199,6 +247,7 @@
     "dynamicImports": [
       "ui/layout-stage.js",
       "entry-browser.js",
+      "node_modules/pixi.js/lib/unsafe-eval/init.mjs",
       "node_modules/pixi.js/lib/index.mjs"
     ],
     "assets": [
@@ -216,50 +265,55 @@
     ]
   },
   "node_modules/pixi.js/lib/environment-browser/browserAll.mjs": {
-    "file": "assets/browserAll-DH4vY9WY.js",
+    "file": "assets/browserAll-D2z7_yPU.js",
     "name": "browserAll",
     "src": "node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
     "isDynamicEntry": true,
     "imports": [
-      "_Geometry-BU6TUmLD.js",
-      "_Filter-CvF2W6EG.js",
-      "_FederatedEventTarget-BprZznEk.js",
-      "_FilterSystem-DSMXPk6a.js",
-      "_init-D0nup9lV.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_FederatedEventTarget-C-UmVFe2.js",
+      "_FilterSystem-lINCcHw8.js",
+      "_init-Dov3IVMy.js"
     ]
   },
   "node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs": {
-    "file": "assets/webworkerAll-zsHQgvLW.js",
+    "file": "assets/webworkerAll-DL-vOdK_.js",
     "name": "webworkerAll",
     "src": "node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
     "isDynamicEntry": true,
     "imports": [
-      "_FilterSystem-DSMXPk6a.js",
-      "_init-D0nup9lV.js"
+      "_FilterSystem-lINCcHw8.js",
+      "_init-Dov3IVMy.js"
     ]
   },
   "node_modules/pixi.js/lib/index.mjs": {
-    "file": "assets/lib-CszWuAp3.js",
+    "file": "assets/lib-C6wNKBqx.js",
     "name": "lib",
     "src": "node_modules/pixi.js/lib/index.mjs",
     "isDynamicEntry": true,
     "imports": [
       "_rolldown-runtime-aKtaBQYM.js",
       "_preload-helper-HclGiUj8.js",
-      "_Geometry-BU6TUmLD.js",
-      "_Filter-CvF2W6EG.js",
-      "_FederatedEventTarget-BprZznEk.js",
-      "_FilterSystem-DSMXPk6a.js",
-      "_Cache-4NLpjVOm.js",
-      "_ImageSource-GD0LtTbh.js",
-      "_canvasUtils-DgWfguSs.js",
-      "_CanvasPool-Bq925mTT.js",
-      "_GraphicsContext-D1wfcT7m.js",
-      "_RenderTargetSystem-Li4ySkzE.js",
-      "_getTextureBatchBindGroup-o4mzMUng.js",
-      "_GCManagedHash-CS_ntgxT.js",
-      "_BufferResource-THE6zpTV.js",
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_Filter-CxXus6PE.js",
+      "_FederatedEventTarget-C-UmVFe2.js",
+      "_FilterSystem-lINCcHw8.js",
+      "_Shader-Dff_yvjw.js",
+      "_Cache-B8IRbCgz.js",
+      "_ImageSource-D2JHCQ3v.js",
+      "_canvasUtils-C8xQnZmC.js",
+      "_CanvasPool-CPoFfVNI.js",
+      "_GraphicsContext-H5W9uhhZ.js",
+      "_AbstractRenderer-GQgU6Z_I.js",
+      "_RenderTargetSystem-BOQSKBfs.js",
+      "_getTextureBatchBindGroup-DoAcu5ce.js",
+      "_ViewableBuffer-CObpe3su.js",
+      "_GCManagedHash-Igj10gjP.js",
+      "_GpuStencilModesToPixi-D7_3d2fF.js",
       "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+      "_ParticleBuffer-B-PCZxN0.js",
       "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
     ],
     "dynamicImports": [
@@ -271,21 +325,24 @@
     ]
   },
   "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs": {
-    "file": "assets/CanvasRenderer-YiR86zGa.js",
+    "file": "assets/CanvasRenderer-y3G8kg5_.js",
     "name": "CanvasRenderer",
     "src": "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
     "isDynamicEntry": true,
     "imports": [
-      "_Geometry-BU6TUmLD.js",
-      "_Filter-CvF2W6EG.js",
-      "_canvasUtils-DgWfguSs.js",
-      "_GraphicsContext-D1wfcT7m.js",
-      "_RenderTargetSystem-Li4ySkzE.js",
-      "_GCManagedHash-CS_ntgxT.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_Filter-CxXus6PE.js",
+      "_Shader-Dff_yvjw.js",
+      "_canvasUtils-C8xQnZmC.js",
+      "_GraphicsContext-H5W9uhhZ.js",
+      "_AbstractRenderer-GQgU6Z_I.js",
+      "_RenderTargetSystem-BOQSKBfs.js",
+      "_GCManagedHash-Igj10gjP.js"
     ]
   },
   "node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs": {
-    "file": "assets/WebGLRenderer-yEqs23Aj.js",
+    "file": "assets/WebGLRenderer-BR3rkl_X.js",
     "name": "WebGLRenderer",
     "src": "node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs",
     "isDynamicEntry": true,
@@ -294,7 +351,7 @@
     ]
   },
   "node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs": {
-    "file": "assets/WebGPURenderer-AhscsYP6.js",
+    "file": "assets/WebGPURenderer-DlC4Q43s.js",
     "name": "WebGPURenderer",
     "src": "node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs",
     "isDynamicEntry": true,
@@ -303,16 +360,28 @@
     ]
   },
   "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs": {
-    "file": "assets/BitmapFont-Bo2aAycx.js",
+    "file": "assets/BitmapFont-3_bdR0G-.js",
     "name": "BitmapFont",
     "src": "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs",
     "isDynamicEntry": true,
     "imports": [
-      "_Geometry-BU6TUmLD.js",
-      "_Cache-4NLpjVOm.js",
-      "_ImageSource-GD0LtTbh.js",
-      "_CanvasPool-Bq925mTT.js",
-      "_GraphicsContext-D1wfcT7m.js"
+      "_Geometry-CZCQfHLF.js",
+      "_Shader-Dff_yvjw.js",
+      "_Cache-B8IRbCgz.js",
+      "_ImageSource-D2JHCQ3v.js",
+      "_CanvasPool-CPoFfVNI.js",
+      "_GraphicsContext-H5W9uhhZ.js"
+    ]
+  },
+  "node_modules/pixi.js/lib/unsafe-eval/init.mjs": {
+    "file": "assets/init-BtrWJfXd.js",
+    "name": "init",
+    "src": "node_modules/pixi.js/lib/unsafe-eval/init.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Geometry-CZCQfHLF.js",
+      "_AbstractRenderer-GQgU6Z_I.js",
+      "_ParticleBuffer-B-PCZxN0.js"
     ]
   },
   "ui/layout-stage.js": {

@@ -606,18 +606,23 @@ describe('Pixi board CSS and classic delivery wiring', () => {
     expect(responsiveCss).toMatch(/#board\s*\{\s*--board-max-size:/);
   });
 
-  test('loads the classic Pixi vendor exactly once before every app runtime entry', () => {
+  test('loads the classic Pixi runtime pair exactly once before every app runtime entry', () => {
     const classic = fs.readFileSync(path.join(root, 'index.classic.html'), 'utf8');
     const vendor = 'public/vendor/pixi-8.18.1.min.js';
+    const unsafeEvalVendor = 'public/vendor/pixi-unsafe-eval-8.18.1.min.js';
     const vendorMatches = classic.match(/public\/vendor\/pixi-8\.18\.1\.min\.js/g) || [];
+    const unsafeEvalVendorMatches = classic.match(/public\/vendor\/pixi-unsafe-eval-8\.18\.1\.min\.js/g) || [];
     const vendorIndex = classic.indexOf(vendor);
+    const unsafeEvalVendorIndex = classic.indexOf(unsafeEvalVendor);
     const runtimeIndex = classic.indexOf('public/runtime.js');
     const registryIndex = classic.indexOf('public/module-registry.js');
     const entryIndex = classic.indexOf('entry-browser.js');
 
     expect(vendorMatches).toHaveLength(1);
+    expect(unsafeEvalVendorMatches).toHaveLength(1);
     expect(vendorIndex).toBeGreaterThanOrEqual(0);
-    expect(runtimeIndex).toBeGreaterThan(vendorIndex);
+    expect(unsafeEvalVendorIndex).toBeGreaterThan(vendorIndex);
+    expect(runtimeIndex).toBeGreaterThan(unsafeEvalVendorIndex);
     expect(registryIndex).toBeGreaterThan(runtimeIndex);
     expect(entryIndex).toBeGreaterThan(registryIndex);
   });

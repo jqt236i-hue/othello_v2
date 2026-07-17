@@ -58,6 +58,15 @@ describe('DomBoardVisualBackend diagnostics', () => {
     backend.mount(host, {});
     backend.applyFrame(frame);
 
+    expect(backend.getDiagnostics()).toEqual({
+      canvasCount: 0,
+      contextCount: 0,
+      domCellCount: 3
+    });
+    expect(backend.getDisplayObjectCounts()).toEqual({ total: 3, active: 3, pooled: 0 });
+    expect(backend.getTextureLeaseCounts()).toEqual({ total: 0, active: 0, pooled: 0 });
+    expect(Object.isFrozen(backend.getDiagnostics())).toBe(true);
+
     expect(backend.getRenderedCell(0, 0)).toMatchObject({
       kind: 'playable', semanticKind: 'playable', rendered: true, ephemeral: false
     });
@@ -89,6 +98,7 @@ describe('DomBoardVisualBackend diagnostics', () => {
 
     backend.destroy();
     expect(backend.getRenderedCell(0, 0)).toBeNull();
+    expect(backend.getDiagnostics()).toMatchObject({ domCellCount: 0 });
     dom.window.close();
   });
 

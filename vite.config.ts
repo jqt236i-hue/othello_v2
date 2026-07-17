@@ -2,6 +2,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { defineConfig } from 'vite';
 
+function writeTextIfChanged(filePath: string, content: string): void {
+  if (fs.existsSync(filePath) && fs.readFileSync(filePath, 'utf8') === content) return;
+  fs.writeFileSync(filePath, content, 'utf8');
+}
+
 export default defineConfig(({ command }) => ({
   root: __dirname,
   base: './',
@@ -32,8 +37,8 @@ export default defineConfig(({ command }) => ({
       const source = fs.readFileSync(documentPath, 'utf8')
         .replace('<base href="./">', '<base href="../">')
         .replace(/(["'])\.\/assets\//g, '$1./vite-dist/assets/');
-      fs.writeFileSync(documentPath, source, 'utf8');
-      fs.writeFileSync(path.resolve(__dirname, 'index.html'), source, 'utf8');
+      writeTextIfChanged(documentPath, source);
+      writeTextIfChanged(path.resolve(__dirname, 'index.html'), source);
 
       // The staged CommonJS inputs are only needed while Rolldown resolves the
       // generated startup entry. Removing them keeps later classic builds

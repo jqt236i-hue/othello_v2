@@ -25,6 +25,8 @@
     "match:boot-performance-check": "npm run build:vite && node dist/scripts/browser-boot-performance-check.js",
     "baseline:browser-modernization": "npm run build:browser && node dist/scripts/capture-browser-modernization-baseline.js",
     "baseline:pixijs-playfield": "npm run build:vite && node dist/scripts/capture-pixijs-playfield-baseline.js",
+    "match:pixijs-board-performance": "npm run worker:prepare && node dist/scripts/capture-pixijs-playfield-performance.js",
+    "match:pixijs-mobile-performance:validate": "npm run build:ts && node dist/scripts/validate-pixijs-mobile-performance-report.js",
     "assets:fonts:build": ".\\.venv\\Scripts\\python.exe scripts\\assets\\build-font-assets.py",
     "assets:fonts:check": ".\\.venv\\Scripts\\python.exe scripts\\assets\\build-font-assets.py --check",
     "assets:backgrounds:build": "npm run build:ts && node dist/scripts/assets/build-background-images.js",

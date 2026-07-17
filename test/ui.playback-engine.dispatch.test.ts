@@ -35,6 +35,29 @@ describe('ui playback engine dispatch', () => {
     }));
   });
 
+  test('reports presentation handoff immediately before the selected executor without changing events', async () => {
+    const playbackEngine = require('../ui/playback-engine.js');
+    const order: string[] = [];
+    const events = [{ type: 'flip', phase: 1 }];
+    const animationEngine = {
+      play: jest.fn(async (payload) => {
+        order.push('play');
+        expect(payload).toEqual(events);
+      })
+    };
+
+    await playbackEngine.dispatchPresentationEvent({
+      type: 'PLAYBACK_EVENTS',
+      events
+    }, {
+      AnimationEngine: animationEngine,
+      onPresentationStart: () => order.push('start')
+    });
+
+    expect(order).toEqual(['start', 'play']);
+    expect(events).toEqual([{ type: 'flip', phase: 1 }]);
+  });
+
   test('playPresentationEvents consumes buffered presentation events', async () => {
     const playbackEngine = require('../ui/playback-engine.js');
     const animationEngine = { play: jest.fn().mockResolvedValue(undefined) };

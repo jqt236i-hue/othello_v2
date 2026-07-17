@@ -37,6 +37,7 @@ interface UIImplPlayback {
 
 interface PlaybackDeps {
   AnimationEngine?: AnimationEngine;
+  onPresentationStart?: () => void;
   strictNetworkPlayback?: boolean;
   deferFinalSettlement?: boolean;
   onFinalizationReady?: (finalize: () => boolean) => void;
@@ -108,6 +109,7 @@ async function playPlaybackBatch(events: PresentationEvent[], deps: PlaybackDeps
   } : undefined;
   const AnimationEngine = resolveAnimationEngine(deps);
   if (AnimationEngine && typeof AnimationEngine.play === 'function') {
+    config.onPresentationStart?.();
     if (playbackOptions) {
       await AnimationEngine.play(payload, playbackOptions);
     } else {
@@ -119,6 +121,7 @@ async function playPlaybackBatch(events: PresentationEvent[], deps: PlaybackDeps
     if (strictNetworkPlayback) {
       throw new Error('strict_network_playback_animation_engine_unavailable');
     }
+    config.onPresentationStart?.();
     await __uiImpl_playback.runMoveVisualSequence(payload);
     return;
   }

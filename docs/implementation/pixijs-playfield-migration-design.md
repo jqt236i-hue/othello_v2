@@ -426,7 +426,7 @@ texture manager の規則:
 
 Vite lane:
 
-1. `browser-vite/main.ts` が catch 可能な dynamic `import('pixi.js')` を boot promise の先頭で行い、Pixi chunk の preload/load failure でも app boot を続けられるようにする。
+1. `browser-vite/main.ts` が catch 可能な dynamic import 境界の先頭で `import('pixi.js/unsafe-eval')`、続けて `import('pixi.js')` を行う。前者は PixiJS 公式の CSP-safe generator replacement を renderer 生成前に自己 install するためのものであり、production CSP に `'unsafe-eval'` を追加しない。いずれかの Pixi chunk の preload/load failure でも app boot を続けられるようにする。
 2. 成功時だけ既存 `beforeInitialize` 境界で `UIBootstrap.configurePixiRuntime(PIXI)` を呼び、失敗時は capability に unavailable reason を記録して DOM compatibility backend を選ぶ。
 3. UI の Pixi modules は注入された namespace を使い、headless/module registry が npm package を runtime `require()` しないようにする。
 
@@ -434,11 +434,11 @@ Vite lane:
 
 classic lane:
 
-1. `scripts/prepare-pixi-classic-assets.ts` が npm package 内の production UMD を、生成物 `public/vendor/pixi-8.18.1.min.js` として検証付きでコピーする。
-2. `index.classic.html` は app entry より前に local vendor script を読む。
+1. `scripts/prepare-pixi-classic-assets.ts` が npm package 内の production UMD と公式 CSP-safe replacement UMD を、それぞれ生成物 `public/vendor/pixi-8.18.1.min.js` と `public/vendor/pixi-unsafe-eval-8.18.1.min.js` として version/banner/content hash 検証付きでコピーする。両入力の検証が終わるまでどちらの出力も更新しない。
+2. `index.classic.html` は core UMD、CSP-safe replacement UMD の順で、app entry より前に local vendor script を読む。replacement は Pixi renderer が classic lane の既存 CSP 要件へ追加の eval 要件を持ち込まないためのものである。生成 CommonJS registry を実行する `public/runtime.js` 自体は既存どおり `new Function` を使うため、strict CSP の production delivery gate は Vite laneで行い、classic rollback/performance smoke は既存の `'unsafe-eval'` 要件を明示して隔離する。Pixi Assets の worker texture decode を維持する配信では `worker-src 'self' blob:` を許可し、worker を禁止して未解決の texture load promise を作らない。
 3. bootstrap 境界だけが `window.PIXI` を読み、同じ `configurePixiRuntime()` へ注入する。
 
-`public/vendor/pixi-8.18.1.min.js`、生成済み `index.html`、`vite-dist/`、`worker-public/` を source-edit しない。root script/HTML/TS を変更後、既存 build と `worker:prepare` で生成する。Worker/headless の実行 graph に PixiJS を含めない。
+`public/vendor/pixi-8.18.1.min.js`、`public/vendor/pixi-unsafe-eval-8.18.1.min.js`、生成済み `index.html`、`vite-dist/`、`worker-public/` を source-edit しない。root script/HTML/TS を変更後、既存 build と `worker:prepare` で生成する。Worker/headless の実行 graph に PixiJS を含めない。
 
 classic と Vite は同じ Pixi backend を使う。classic は browser boot の rollback lane であって、最終的な DOM board renderer lane ではない。
 

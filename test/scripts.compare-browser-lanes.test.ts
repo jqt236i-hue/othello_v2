@@ -51,6 +51,11 @@ function lane(name: 'classic' | 'vite'): any {
     moduleRegistryAtStartup: name === 'classic',
     optionalPayloadAtStartup: false,
     onnxRuntimeAtStartup: false,
+    boardPerformanceIsolation: {
+      harnessGlobalPresent: false,
+      controlsPresent: false,
+      capabilityEligible: name === 'vite' ? false : null
+    },
     pageErrors: [],
     consoleErrors: [],
     resourceErrors: [],
