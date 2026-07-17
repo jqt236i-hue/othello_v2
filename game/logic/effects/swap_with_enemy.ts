@@ -83,9 +83,6 @@ interface SwapDeps {
 }
 
 function resolveBoardBounds(gameState: any): BoardBounds | null {
-    if (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardBounds === 'function') {
-        return SharedBoardUtils.resolveBoardBounds(gameState && gameState.board);
-    }
     const board = gameState && gameState.board;
     if (!Array.isArray(board) || board.length <= 0) return null;
     let maxCol = -1;
@@ -99,6 +96,9 @@ function resolveBoardBounds(gameState: any): BoardBounds | null {
 }
 
 function isMainBoardCell(gameState: any, row: number, col: number): boolean {
+    if (SharedBoardUtils && typeof SharedBoardUtils.isMainBoardCell === 'function') {
+        return SharedBoardUtils.isMainBoardCell(row, col, gameState);
+    }
     const bounds = resolveBoardBounds(gameState);
     return !!(
         bounds &&
