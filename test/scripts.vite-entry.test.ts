@@ -14,6 +14,14 @@ const classicTail = `
 `;
 
 describe('Vite comparison entry generator', () => {
+  test('forwards npm run dev arguments through the Vite alias separator', () => {
+    const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+    expect(packageJson.scripts.dev).toBe('npm run dev:vite --');
+    expect(packageJson.scripts['dev:vite']).toBe(
+      'npm run build:vite && node scripts/serve-with-fallback.js --host 127.0.0.1 --port 5174'
+    );
+  });
+
   test('preserves the classic document shell while replacing only the final scripts', () => {
     const rendered = renderViteEntry(`<!doctype html><html lang="ja"><head><link rel="stylesheet" href="styles.css"></head><body><main id="board"></main>${classicTail}</body></html>`);
     expect(rendered.scriptSources.map((value: string) => value.split('?')[0])).toEqual(CLASSIC_SCRIPT_ORDER);
