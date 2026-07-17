@@ -1,9 +1,21 @@
 import { JSDOM } from 'jsdom';
 
+const ORIGINAL_NOANIM = process.env.NOANIM;
+const ORIGINAL_DISABLE_ANIMATIONS = process.env.DISABLE_ANIMATIONS;
+
+function restoreAnimationEnv(): void {
+  if (typeof ORIGINAL_NOANIM === 'undefined') delete process.env.NOANIM;
+  else process.env.NOANIM = ORIGINAL_NOANIM;
+  if (typeof ORIGINAL_DISABLE_ANIMATIONS === 'undefined') delete process.env.DISABLE_ANIMATIONS;
+  else process.env.DISABLE_ANIMATIONS = ORIGINAL_DISABLE_ANIMATIONS;
+}
+
 describe('animation-engine observer bubble', () => {
   let dom;
 
   beforeEach(() => {
+    delete process.env.NOANIM;
+    delete process.env.DISABLE_ANIMATIONS;
     jest.resetModules();
     jest.useFakeTimers();
     dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>', { pretendToBeVisual: true });
@@ -40,6 +52,27 @@ describe('animation-engine observer bubble', () => {
     delete global.requestAnimationFrame;
     delete global.window;
     delete global.document;
+    restoreAnimationEnv();
+  });
+
+  test.each([
+    {
+      name: 'observer speech',
+      event: { type: 'observer_bubble', targets: [{ r: 2, col: 3, owner: 'black', gained: 4 }] },
+      selector: '.observer-speech-bubble'
+    },
+    {
+      name: 'charge bubble',
+      event: { type: 'observer_bubble', targets: [{ r: 2, col: 3, owner: 'black', gained: 5, bubbleKind: 'charge' }] },
+      selector: '.board-charge-bubble'
+    }
+  ])('NOANIM $name settles without mounting transient DOM', async ({ event, selector }) => {
+    window.DISABLE_ANIMATIONS = true;
+    const engine = require('../ui/animation-engine.js');
+
+    await expect(engine.executeEvent(event)).resolves.toBeUndefined();
+
+    expect(document.querySelector(selector)).toBeNull();
   });
 
   test('observer_bubble を石アンカー近くに表示し、約3秒で消す', async () => {

@@ -6,6 +6,15 @@ import {
 } from './helpers/animation-engine-dom-backend';
 const AnimationConstants = require('../ui/animation-constants.js');
 const EXTENDED_EFFECT_HIGHLIGHT_MIN_VISIBLE_MS = 500;
+const ORIGINAL_NOANIM = process.env.NOANIM;
+const ORIGINAL_DISABLE_ANIMATIONS = process.env.DISABLE_ANIMATIONS;
+
+function restoreAnimationEnv(): void {
+  if (typeof ORIGINAL_NOANIM === 'undefined') delete process.env.NOANIM;
+  else process.env.NOANIM = ORIGINAL_NOANIM;
+  if (typeof ORIGINAL_DISABLE_ANIMATIONS === 'undefined') delete process.env.DISABLE_ANIMATIONS;
+  else process.env.DISABLE_ANIMATIONS = ORIGINAL_DISABLE_ANIMATIONS;
+}
 
 installAnimationEngineDomBackendMock();
 
@@ -27,6 +36,8 @@ describe('animation-engine guard timer rendering', () => {
   };
 
   beforeEach(() => {
+    delete process.env.NOANIM;
+    delete process.env.DISABLE_ANIMATIONS;
     jest.resetModules();
     dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
@@ -43,6 +54,7 @@ describe('animation-engine guard timer rendering', () => {
     delete global.window;
     delete global.document;
     delete global.SoundEngine;
+    restoreAnimationEnv();
   });
 
   test('uses only guard-timer for GUARD status updates', async () => {

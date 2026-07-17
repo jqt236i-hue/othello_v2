@@ -2,6 +2,9 @@ import { JSDOM } from 'jsdom';
 
 const diffRenderer = require('../ui/diff-renderer.js');
 const playbackState = require('../ui/playback-state-manager.js');
+const IS_NOANIM = process.env.NOANIM === '1'
+	|| process.env.NOANIM === 'true'
+	|| process.env.DISABLE_ANIMATIONS === '1';
 
 describe('DiffRenderer flip fallback', () => {
 	beforeEach(() => {
@@ -65,7 +68,8 @@ describe('DiffRenderer flip fallback', () => {
 
 		const disc = boardEl.querySelector('.cell[data-row="0"][data-col="0"] .disc');
 		expect(disc).toBeTruthy();
-		expect(disc.classList.contains('flip')).toBe(true);
+		expect(disc.classList.contains('flip')).toBe(!IS_NOANIM);
+		expect(disc.classList.contains('white')).toBe(true);
 
 		jest.advanceTimersByTime(500);
 
@@ -132,7 +136,8 @@ describe('DiffRenderer flip fallback', () => {
 
 		const disc = boardEl.querySelector('.cell[data-row="0"][data-col="0"] .disc');
 		expect(disc).toBeTruthy();
-		expect(disc.classList.contains('flip')).toBe(true);
+		expect(disc.classList.contains('flip')).toBe(!IS_NOANIM);
+		expect(disc.classList.contains('black')).toBe(true);
 	});
 
 	test('keeps pending playback flip targets for AnimationEngine instead of diff fallback', () => {

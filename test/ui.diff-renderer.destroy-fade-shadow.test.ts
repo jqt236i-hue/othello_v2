@@ -19,6 +19,10 @@ describe('DiffRenderer destroy-fade cleanup', () => {
 
   beforeEach(() => {
     jest.resetModules();
+    jest.doMock('../ui/animation-helpers', () => ({
+      ...jest.requireActual('../ui/animation-helpers'),
+      isNoAnim: () => false
+    }));
     sharedInputController = null;
     const boardRendererHelpers = {
       getBoardInputController: () => getSharedInputController()
@@ -77,6 +81,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     delete global.cardState;
     delete global.gameState;
     delete (global as any).BoardRendererStoneHelpers;
+    jest.dontMock('../ui/animation-helpers');
   });
 
   test('removes has-disc after deferred destroy cleanup', () => {

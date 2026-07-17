@@ -3,6 +3,13 @@ import { JSDOM } from 'jsdom';
 describe('gacha reveal player', () => {
   let dom;
 
+  beforeEach(() => {
+    jest.doMock('../dist/ui/animation-shared', () => ({
+      ...jest.requireActual('../dist/ui/animation-shared'),
+      isNoAnim: () => !!(global.window && global.window.DISABLE_ANIMATIONS === true)
+    }));
+  });
+
   function setDom() {
     dom = new JSDOM(`<!doctype html><html><body>
       <div id="gachaOverlay"></div>
@@ -53,6 +60,7 @@ describe('gacha reveal player', () => {
     } catch (e) { /* Intentionally empty: test cleanup guard */ }
     delete global.window;
     delete global.document;
+    jest.dontMock('../dist/ui/animation-shared');
   });
 
   test('plays a single-pull reveal and leaves hero content for the final item', async () => {

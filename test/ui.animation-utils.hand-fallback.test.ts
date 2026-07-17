@@ -115,6 +115,10 @@ describe('animation-utils hand fallback', () => {
   beforeEach(() => {
     jest.resetModules();
     jest.dontMock(animationSharedPath);
+    jest.doMock(animationSharedPath, () => ({
+      ...jest.requireActual(animationSharedPath),
+      isNoAnim: () => false
+    }));
     const dom = new JSDOM(`
       <!doctype html><html><body>
         <div id="board">
@@ -168,6 +172,7 @@ describe('animation-utils hand fallback', () => {
     delete global.createCardFaceElement;
     delete global.resolveCardBackgroundArtPath;
     delete global.applyStoneVisualEffect;
+    jest.dontMock(animationSharedPath);
     jest.dontMock(boardRendererPath);
   });
 

@@ -102,6 +102,10 @@ describe('Network snapshot move-source empty handling', () => {
 
   beforeEach(() => {
     jest.resetModules();
+    jest.doMock('../ui/animation-helpers', () => ({
+      ...jest.requireActual('../ui/animation-helpers'),
+      isNoAnim: () => false
+    }));
     dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
@@ -164,6 +168,7 @@ describe('Network snapshot move-source empty handling', () => {
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
     delete global.BoardOps;
+    jest.dontMock('../ui/animation-helpers');
     if (dom && dom.window && typeof dom.window.close === 'function') {
       dom.window.close();
     }

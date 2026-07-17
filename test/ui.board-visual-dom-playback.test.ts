@@ -80,7 +80,8 @@ describe('DOM board playback phase ownership', () => {
     const { createDomBoardPlaybackExecutor } = require('../ui/board-visual/dom-playback');
     const handlers = createDomBoardPlaybackHandlers({
       boardElement: document.getElementById('board'),
-      documentRef: document
+      documentRef: document,
+      isNoAnim: () => false
     });
     const executor = createDomBoardPlaybackExecutor(handlers);
     const event = {
@@ -115,6 +116,7 @@ describe('DOM board playback phase ownership', () => {
     const handlers = createDomBoardPlaybackHandlers({
       boardElement: document.getElementById('board'),
       documentRef: document,
+      isNoAnim: () => false,
       getTimer: () => ({
         setTimeout: (fn: () => void, ms: number) => setTimeout(fn, ms),
         clearTimeout: (id: any) => clearTimeout(id)
@@ -214,7 +216,11 @@ describe('DOM board playback phase ownership', () => {
     dom.window.cancelAnimationFrame = jest.fn();
     const { createDomBoardPlaybackHandlers } = require('../ui/board-visual/dom-runtime');
     const { createDomBoardPlaybackExecutor } = require('../ui/board-visual/dom-playback');
-    const handlers = createDomBoardPlaybackHandlers({ boardElement: board, documentRef: document });
+    const handlers = createDomBoardPlaybackHandlers({
+      boardElement: board,
+      documentRef: document,
+      isNoAnim: () => false
+    });
     const executor = createDomBoardPlaybackExecutor(handlers);
     const event = {
       type: 'legacy_hyperactive_move',
@@ -251,7 +257,8 @@ describe('DOM board playback phase ownership', () => {
     const { createDomBoardPlaybackExecutor } = require('../ui/board-visual/dom-playback');
     const handlers = createDomBoardPlaybackHandlers({
       boardElement: document.getElementById('board'),
-      documentRef: document
+      documentRef: document,
+      isNoAnim: () => false
     });
     const executor = createDomBoardPlaybackExecutor(handlers);
     const event = { type: 'legacy_sacrifice_absorb_pulse', row: 2, col: 3, durationMs: 2600 };
