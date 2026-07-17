@@ -510,6 +510,8 @@ Pixi display tree、WebGL context、pixel 結果は real browser test で確認�
 - `getTextureLeaseCounts()`
 - `waitForIdle()`
 
+`getDisplayObjectCounts()` は backend 間の materialized view lifecycle 診断面として扱う。Pixi backend では live/pooled DisplayObject、DOM compatibility backend では live `.cell` を返し、backend 固有の `domCellCount`、canvas/context 数は `getBackendDiagnostics()` でも独立に確認する。したがって Pixi→DOM fallback の排他性は DOM backend の count を 0 と仮定せず、Pixi canvas/context/texture lease が 0 であることと DOM count が実体化セル数に一致することの両方で判定する。
+
 Pixi object、mutable model、network token、canonical state の setter は公開しない。通常 play では global 自体を作らない。
 
 既存 E2E は `.cell` query を diagnostics/座標操作へ移す。visual regression は `#board` host を capture し、canvas の安定描画完了を `waitForIdle()` で待つ。classic-vs-Vite は双方を Pixi backend に揃え、比較 tolerance を移行のために緩めない。
@@ -559,6 +561,7 @@ performance gate は「hardware-accelerated desktop Chromium の再現可能な 
 
 - Phase 0 と同じ machine/browser/viewport/DPR で DOM/Pixi の actual playback と microbenchmark を取得する。
 - 8x8 basic board-local scenario の Pixi p95 は「観測した nominal frame interval + 1 ms」以内、jank frame 比率は5%以下、`rafStall50msCount === 0` とする。
+- 各heavy board-local scenarioはPixi p95がnominal intervalの2倍以内、maxが100 ms未満、`rafStall50msCount === 0`とし、DOMがtarget外ならPixi p95を20%以上短縮、DOMがtarget内なら5%超悪化なしとする。
 - DOM p95 が上記 frame target を外す scenario は Pixi p95 が DOM より20%以上短いこと。DOM が既に target 内なら Pixi は DOM より5%を超えて悪化しないこと。
 - 16x16/full marker fixture の個々の input hit test と model apply の同期 measure は50 ms未満とする。
 - whole-turn p95 と presentation start latency は DOM より5%を超えて悪化せず、board-local 改善を HUD/global effect の追加負荷で相殺しない。

@@ -1,5 +1,9 @@
+import { execFileSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 import { chromium, devices, firefox, webkit, type Browser, type BrowserContextOptions } from 'playwright';
 import BrowserUiControlSmoke from './browser-ui-control-smoke';
+import { computeBrowserArtifactManifest } from './capture-pixijs-playfield-performance';
 
 const { runBrowserUiControlSmoke } = BrowserUiControlSmoke as any;
 
@@ -16,6 +20,13 @@ const desktopOptions: BrowserContextOptions = {
 
 function createScenarios(): BrowserScenario[] {
   const pixel = devices['Pixel 7'];
+  const iphone = devices['iPhone 13'];
+  const genericMobile: BrowserContextOptions = {
+    viewport: { width: 412, height: 800 },
+    deviceScaleFactor: 2,
+    hasTouch: true,
+    reducedMotion: 'reduce'
+  };
   return [
     {
       name: 'chromium-desktop',
@@ -38,6 +49,23 @@ function createScenarios(): BrowserScenario[] {
       pageOptions: {
         ...pixel,
         viewport: pixel.viewport,
+        deviceScaleFactor: 2,
+        reducedMotion: 'reduce'
+      },
+      interactionMode: 'touch'
+    },
+    {
+      name: 'firefox-touch-mobile',
+      launch: firefox.launch.bind(firefox),
+      pageOptions: genericMobile,
+      interactionMode: 'touch'
+    },
+    {
+      name: 'webkit-touch-mobile',
+      launch: webkit.launch.bind(webkit),
+      pageOptions: {
+        ...iphone,
+        viewport: iphone.viewport,
         deviceScaleFactor: 2,
         reducedMotion: 'reduce'
       },
@@ -117,14 +145,45 @@ async function runBrowserCrossPlatformSmoke(options: { log?: boolean; scenarioNa
   return report;
 }
 
+function candidateCommit(rootDir: string): string {
+  return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: rootDir, encoding: 'utf8' }).trim();
+}
+
+function createCrossPlatformEvidenceReceipt(
+  report: any,
+  rootDir = process.cwd(),
+  capturedAt = new Date().toISOString()
+): any {
+  const artifact = computeBrowserArtifactManifest(path.join(rootDir, 'worker-public'));
+  return Object.freeze({
+    ...report,
+    schemaVersion: 'pixijs_playfield_cross_platform_smoke.v1',
+    capturedAt,
+    candidateCommit: candidateCommit(rootDir),
+    browserArtifactSha256: artifact.sha256,
+    artifactFileCount: artifact.fileCount
+  });
+}
+
 if (require.main === module) {
   const scenarioNames = process.argv
     .filter((value) => value.startsWith('--scenario='))
     .map((value) => value.slice('--scenario='.length));
+  const outputArgIndex = process.argv.indexOf('--output');
+  const outputPath = outputArgIndex >= 0
+    ? process.argv[outputArgIndex + 1]
+    : process.argv.find((value) => value.startsWith('--output='))?.slice('--output='.length);
   runBrowserCrossPlatformSmoke({ scenarioNames }).then((report) => {
     if (!report.ok) {
       console.error(`[browser-cross-platform-smoke] failed: ${report.errors.join('; ')}`);
       process.exit(1);
+    }
+    if (outputPath) {
+      const resolved = path.resolve(process.cwd(), outputPath);
+      const receipt = createCrossPlatformEvidenceReceipt(report);
+      fs.mkdirSync(path.dirname(resolved), { recursive: true });
+      fs.writeFileSync(resolved, `${JSON.stringify(receipt, null, 2)}\n`, 'utf8');
+      console.log(`[browser-cross-platform-smoke] wrote ${path.relative(process.cwd(), resolved)}`);
     }
     console.log('[browser-cross-platform-smoke] success');
   }).catch((error) => {
@@ -133,4 +192,4 @@ if (require.main === module) {
   });
 }
 
-export = { createScenarios, runBrowserCrossPlatformSmoke };
+export = { createScenarios, createCrossPlatformEvidenceReceipt, runBrowserCrossPlatformSmoke };

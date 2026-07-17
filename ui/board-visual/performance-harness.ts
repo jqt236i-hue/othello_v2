@@ -612,7 +612,7 @@ export function createBoardPerformanceRunConfig(
         heavySampleCount: FIXED_HEAVY_SAMPLE_COUNT,
         microSampleCount: FIXED_MICRO_SAMPLE_COUNT,
         nominalRafSampleCount: FIXED_NOMINAL_RAF_SAMPLE_COUNT,
-        stabilityDurationMs: 10_000,
+        stabilityDurationMs: PHYSICAL_STABILITY_DURATION_MS,
         stabilitySampleIntervalMs: 500,
         sameModelApplyCount: 100,
         resetCount: 50,

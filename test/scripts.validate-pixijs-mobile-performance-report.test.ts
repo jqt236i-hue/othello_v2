@@ -6,6 +6,8 @@ import * as path from 'path';
 import {
   evaluatePhysicalPerformancePair,
   parseValidatorArgs,
+  validateAutomatedPrecutoverEvidence,
+  validateDesktopReport,
   validatePhysicalReport,
   validatePrecutoverEvidence
 } from '../scripts/validate-pixijs-mobile-performance-report';
@@ -140,7 +142,12 @@ function stabilityScenario(backend: 'dom' | 'pixi'): any {
   };
 }
 
-function report(reference: any, backend: 'dom' | 'pixi', reportId: string): any {
+function report(
+  reference: any,
+  backend: 'dom' | 'pixi',
+  reportId: string,
+  profile: 'physical' | 'desktop' = 'physical'
+): any {
   const sequenceIndex = backend === 'dom' ? 1 : 2;
   const scenarios = BOARD_PERFORMANCE_SCENARIO_IDS.map((id) => {
     if (id === 'stability.expansion-skin') return stabilityScenario(backend);
@@ -154,7 +161,7 @@ function report(reference: any, backend: 'dom' | 'pixi', reportId: string): any 
     captureStartedAt: '2026-07-17T00:00:00.000Z',
     captureUrl: `http://192.0.2.1/?debug=1&boardPerf=1&boardRenderer=${backend}&referenceDevice=${reference.id}&captureOrder=dom-first&captureIndex=${sequenceIndex}&cooldownMs=300000`,
     captureDurationMs: 700_000,
-    captureProfile: 'physical',
+    captureProfile: profile,
     standardRun: true,
     candidateCommit: COMMIT,
     browserArtifactSha256: ARTIFACT,
@@ -186,7 +193,7 @@ function report(reference: any, backend: 'dom' | 'pixi', reportId: string): any 
     attribution: {},
     support: { longAnimationFrame: 'unsupported', longTask: 'unsupported' },
     optionalPerformanceEntries: { longAnimationFrame: [], longTask: [] },
-    runConfig: createBoardPerformanceRunConfig('physical'),
+    runConfig: createBoardPerformanceRunConfig(profile),
     scenarios
   };
 }
@@ -249,7 +256,7 @@ describe('Pixi physical performance evidence validator', () => {
       fs.writeFileSync(path.join(incoming, filename), `${JSON.stringify(value)}\n`);
     }
     const desktopReports = (['classic', 'vite'] as const).flatMap((lane) => (['dom', 'pixi'] as const).map((backend) => {
-      const value = report(android, backend, backend === 'dom' ? '55555555-5555-4555-8555-555555555555' : '66666666-6666-4666-8666-666666666666');
+      const value = report(android, backend, backend === 'dom' ? '55555555-5555-4555-8555-555555555555' : '66666666-6666-4666-8666-666666666666', 'desktop');
       value.lane = lane;
       value.browserArtifactSha256 = artifactSha;
       value.phaseZeroMicroComparison = {
@@ -265,6 +272,13 @@ describe('Pixi physical performance evidence validator', () => {
       browserArtifact: { fileCount: artifactFiles.length, files: artifactFiles, sha256: artifactSha },
       fixtureDigest: BOARD_PERFORMANCE_FIXTURE_DIGEST,
       eventDigest: BOARD_PERFORMANCE_EVENT_DIGEST,
+      environment: {
+        graphics: {
+          hardwareAccelerated: true,
+          glRenderer: 'ANGLE (Hardware GPU)',
+          glVendor: 'Test Vendor'
+        }
+      },
       phaseZeroEnvironment: { pass: true, checks: [] },
       phaseZeroModelApplyComparison: {
         fixtureDigest: BOARD_PERFORMANCE_PHASE_ZERO_MICRO_DIGEST,
@@ -291,8 +305,108 @@ describe('Pixi physical performance evidence validator', () => {
     });
     expect(validation.pass).toBe(true);
     expect(validation.rawReports).toHaveLength(4);
-    expect(fs.existsSync(path.join(root, 'docs', 'perf', 'pixijs-playfield-precutover.json'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'docs', 'perf', 'pixijs-playfield-mobile', 'optional-physical-validation.json'))).toBe(true);
     expect(fs.readdirSync(path.join(root, 'docs', 'perf', 'pixijs-playfield-mobile', 'reports'))).toHaveLength(4);
+  });
+
+  test('validates automated hardware desktop and cross-browser evidence without physical reports', () => {
+    const artifactFiles = [{ path: 'index.classic.html', sha256: '1'.repeat(64) }, { path: 'index.html', sha256: '2'.repeat(64) }];
+    const artifactSha = hash(stablePerformanceJson(artifactFiles));
+    const desktopReports = (['classic', 'vite'] as const).flatMap((lane) => (['dom', 'pixi'] as const).map((backend, index) => {
+      const value = report(
+        android,
+        backend,
+        `${lane === 'classic' ? '7' : '8'}${String(index + 1).repeat(7)}-${String(index + 1).repeat(4)}-4${String(index + 1).repeat(3)}-8${String(index + 1).repeat(3)}-${String(index + 1).repeat(12)}`,
+        'desktop'
+      );
+      value.lane = lane;
+      value.browserArtifactSha256 = artifactSha;
+      value.phaseZeroMicroComparison = { fixtureDigest: BOARD_PERFORMANCE_PHASE_ZERO_MICRO_DIGEST, standard: true };
+      return value;
+    }));
+    const desktopCapture = {
+      schemaVersion: 'pixijs_playfield_desktop_capture.v1',
+      candidateCommit: COMMIT,
+      browserArtifact: { fileCount: artifactFiles.length, files: artifactFiles, sha256: artifactSha },
+      fixtureDigest: BOARD_PERFORMANCE_FIXTURE_DIGEST,
+      eventDigest: BOARD_PERFORMANCE_EVENT_DIGEST,
+      environment: {
+        graphics: {
+          hardwareAccelerated: true,
+          glRenderer: 'ANGLE (Hardware GPU)',
+          glVendor: 'Test Vendor'
+        }
+      },
+      phaseZeroEnvironment: { pass: true, checks: [] },
+      phaseZeroModelApplyComparison: {
+        fixtureDigest: BOARD_PERFORMANCE_PHASE_ZERO_MICRO_DIGEST,
+        lanes: {
+          classic: { immutableDomBaseline: {}, currentDom: {}, currentPixi: {} },
+          vite: { immutableDomBaseline: {}, currentDom: {}, currentPixi: {} }
+        }
+      },
+      profile: 'desktop',
+      standardRun: true,
+      reports: desktopReports,
+      crossLaneIdentity: true,
+      pass: true
+    };
+    expect(validateDesktopReport(desktopReports[0], 'classic', 'dom', desktopCapture)).toEqual([]);
+
+    const scenarioNames = [
+      'chromium-desktop',
+      'firefox-desktop',
+      'webkit-desktop',
+      'chromium-touch-mobile',
+      'firefox-touch-mobile',
+      'webkit-touch-mobile'
+    ];
+    const probes = scenarioNames.flatMap((name) => (['dom', 'pixi'] as const).map((backend) => ({
+      name,
+      backend,
+      evaluation: { ok: true, errors: [] },
+      backendProbe: {
+        backend,
+        canvasCount: backend === 'pixi' ? 1 : 0,
+        contextCount: backend === 'pixi' ? 1 : 0,
+        domCellCount: backend === 'dom' ? 64 : 0,
+        dpr: name.includes('mobile') ? 2 : 1,
+        harnessGlobalPresent: false,
+        controlsPresent: false
+      },
+      registryRequests: [],
+      pageErrors: [],
+      consoleErrors: [],
+      resourceErrors: []
+    })));
+    const crossPlatform = {
+      schemaVersion: 'pixijs_playfield_cross_platform_smoke.v1',
+      capturedAt: '2026-07-18T00:00:00.000Z',
+      candidateCommit: COMMIT,
+      browserArtifactSha256: artifactSha,
+      artifactFileCount: artifactFiles.length,
+      ok: true,
+      errors: [],
+      probes
+    };
+    const desktopPath = path.join(root, 'desktop.json');
+    const crossPlatformPath = path.join(root, 'cross-platform.json');
+    fs.writeFileSync(desktopPath, JSON.stringify(desktopCapture));
+    fs.writeFileSync(crossPlatformPath, JSON.stringify(crossPlatform));
+    fs.mkdirSync(path.join(root, 'docs', 'perf'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'perf', 'pixijs-playfield-baseline.json'), '{}\n');
+    const validation = validateAutomatedPrecutoverEvidence({
+      rootDir: root,
+      desktopCapturePath: desktopPath,
+      crossPlatformSmokePath: crossPlatformPath,
+      write: true,
+      log: false
+    });
+    expect(validation.pass).toBe(true);
+    expect(validation.physicalDeviceEvidenceRequired).toBe(false);
+    expect(validation.residualRisks).toEqual(expect.arrayContaining([expect.stringMatching(/iPhone GPU/)]));
+    expect(fs.readFileSync(path.join(root, 'docs', 'perf', 'pixijs-playfield-precutover.md'), 'utf8'))
+      .toContain('not represented as physical Android/iPhone performance evidence');
   });
 
   test('refuses incomplete evidence and parses only documented CLI options', () => {
@@ -300,6 +414,11 @@ describe('Pixi physical performance evidence validator', () => {
     expect(result.pass).toBe(false);
     expect(result.errors).toEqual(expect.arrayContaining([expect.stringMatching(/Exactly four raw physical reports/)]));
     expect(parseValidatorArgs(['--write', '--reports-dir', 'incoming'])).toEqual({ write: true, reportsDir: 'incoming' });
+    expect(parseValidatorArgs(['--automated', '--cross-platform-report', 'cross.json'])).toEqual({
+      write: false,
+      mode: 'automated',
+      crossPlatformSmokePath: 'cross.json'
+    });
     expect(() => parseValidatorArgs(['--unknown'])).toThrow(/Unknown argument/);
   });
 });

@@ -89,6 +89,18 @@ describe('board visual performance harness contract', () => {
     expect(createBoardPerformanceRunConfig('physical', { basicSampleCount: 1 }).standard).toBe(false);
   });
 
+  test('uses the same ten-minute stability gate for the automated desktop release profile', () => {
+    const desktop = createBoardPerformanceRunConfig('desktop');
+    expect(desktop).toMatchObject({
+      stabilityDurationMs: BOARD_PERFORMANCE_PHYSICAL_STABILITY_MS,
+      sameModelApplyCount: 100,
+      resetCount: 50,
+      skinSwitchCount: 50,
+      standard: true
+    });
+    expect(createBoardPerformanceRunConfig('desktop', { stabilityDurationMs: 10_000 }).standard).toBe(false);
+  });
+
   test('does not install controls or globals outside the exact query gate', async () => {
     const root: any = { location: { search: '?debug=1' } };
     expect(isBoardPerformanceHarnessRequested(root.location)).toBe(false);

@@ -182,6 +182,12 @@ describe('Pixi playfield performance capture tooling', () => {
     const failing = evaluateDesktopPerformancePair(performanceReport('dom', 16), performanceReport('pixi', 30));
     expect(failing.pass).toBe(false);
     expect((failing.checks as any[]).some((check) => check.name === 'basic.pixi-frame-target' && !check.pass)).toBe(true);
+    const dom = performanceReport('dom', 16);
+    const pixi = performanceReport('pixi', 16);
+    pixi.scenarios.find((entry: any) => entry.id === 'heavy.move-8x8').summary.raf = rafSummary(40);
+    const heavyFailure = evaluateDesktopPerformancePair(dom, pixi);
+    expect(heavyFailure.pass).toBe(false);
+    expect((heavyFailure.checks as any[]).some((check) => check.name === 'heavy.move-8x8.pixi-p95' && !check.pass)).toBe(true);
   });
 
   test('pins the Windows desktop lane to hardware ANGLE and rejects software WebGL', () => {

@@ -85,7 +85,7 @@ npm run match:pixijs-mobile-performance:validate -- `
   --desktop-report artifacts/pixijs-playfield-performance/desktop-capture.json
 ```
 
-After a clean validation pass, write the report-only evidence:
+After a clean validation pass, write the optional physical diagnostic:
 
 ```powershell
 npm run match:pixijs-mobile-performance:validate -- `
@@ -98,7 +98,7 @@ The validator independently recomputes nearest-rank p50/p95/p99/max, jank ratio,
 
 `presentationStartLatencyMs` runs from public `PlaybackEngine` dispatch to the first subsequent `requestAnimationFrame` presentation opportunity. Harness setup completes first, then every measured dispatch starts inside a common rAF callback so DOM/Pixi are compared from the same frame-cycle phase; a missed next frame remains visible as start latency. Board-local time begins when `PlaybackEngine` hands the batch to its selected presentation executor and continues through `playBoardVisualPhase` settlement, so planner work, Pixi capability preflight, source-snapshot preparation, and renderer GC remain attributed to the board rather than hidden inside global DOM/HUD time. The optional attribution hook is absent during normal play and does not change `events[]` or executor order.
 
-Commit only the four imported raw reports plus `pixijs-playfield-precutover.json` and `.md` as the Unit A report-only commit. Do not change the default selector in Unit A.
+The command writes `optional-physical-validation.json` and `.md` in this directory. These optional files and raw reports are not the Unit A release report and must not overwrite `docs/perf/pixijs-playfield-precutover.*`.
 
 ## Invalid evidence and restart rules
 

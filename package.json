@@ -27,6 +27,8 @@
     "baseline:pixijs-playfield": "npm run build:vite && node dist/scripts/capture-pixijs-playfield-baseline.js",
     "match:pixijs-board-performance": "npm run worker:prepare && node dist/scripts/capture-pixijs-playfield-performance.js",
     "match:pixijs-mobile-performance:validate": "npm run build:ts && node dist/scripts/validate-pixijs-mobile-performance-report.js",
+    "match:pixijs-precutover-cross-platform": "npm run worker:prepare && node dist/scripts/browser-cross-platform-smoke.js --output artifacts/pixijs-playfield-performance/cross-platform-smoke.json",
+    "match:pixijs-precutover-performance:validate": "npm run build:ts && node dist/scripts/validate-pixijs-mobile-performance-report.js --automated",
     "assets:fonts:build": ".\\.venv\\Scripts\\python.exe scripts\\assets\\build-font-assets.py",
     "assets:fonts:check": ".\\.venv\\Scripts\\python.exe scripts\\assets\\build-font-assets.py --check",
     "assets:backgrounds:build": "npm run build:ts && node dist/scripts/assets/build-background-images.js",

@@ -225,7 +225,12 @@ describe('Pixi WebGL context recovery E2E', () => {
         backend: 'dom',
         writerMode: 'idle'
       });
-      expect(result.displayObjects.total).toBe(0);
+      expect(result.diagnostics.domCellCount).toBeGreaterThan(0);
+      expect(result.displayObjects).toEqual({
+        total: result.diagnostics.domCellCount,
+        active: result.diagnostics.domCellCount,
+        pooled: 0
+      });
       expect(await session.page.locator('#board canvas').count()).toBe(0);
       expect(await session.page.locator('[data-reload-required="true"]').count()).toBe(0);
     } finally {

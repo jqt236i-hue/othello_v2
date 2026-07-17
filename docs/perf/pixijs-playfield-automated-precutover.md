@@ -20,6 +20,7 @@ Phase 9 Unit Aのrelease evidenceは、physical device inputを要求せず、�
 
 ```powershell
 npm run match:pixijs-board-performance
+npm run match:pixijs-precutover-cross-platform
 npm run match:pixijs-precutover-performance:validate -- --write
 ```
 

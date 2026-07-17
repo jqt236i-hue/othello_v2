@@ -604,6 +604,22 @@ export function evaluateDesktopPerformancePair(dom: any, pixi: any): Readonly<Re
   ]) {
     const domScenario = scenario(dom, scenarioId);
     const pixiScenario = scenario(pixi, scenarioId);
+    const pixiRaf = pixiScenario.summary.raf;
+    checks.push(comparisonCheck(`${scenarioId}.pixi-stall50`, Number(pixiRaf.rafStall50msCount) === 0, { actual: pixiRaf.rafStall50msCount }));
+    if (scenarioId.startsWith('heavy.')) {
+      const domRaf = domScenario.summary.raf;
+      const pixiP95 = Number(pixiRaf.p95);
+      const domP95 = Number(domRaf.p95);
+      const heavyTarget = pixiNominal * 2;
+      const domHeavyTarget = Number(dom.nominal.nominalFrameIntervalMs) * 2;
+      checks.push(comparisonCheck(`${scenarioId}.pixi-p95`, pixiP95 <= heavyTarget, { actual: pixiP95, target: heavyTarget }));
+      checks.push(comparisonCheck(`${scenarioId}.pixi-max`, Number(pixiRaf.max) < 100, { actual: pixiRaf.max, target: 100 }));
+      checks.push(comparisonCheck(
+        `${scenarioId}.dom-comparison`,
+        domP95 > domHeavyTarget ? pixiP95 <= domP95 * 0.8 : ratioWithin(pixiP95, domP95, 1.05),
+        { domP95, pixiP95, domTarget: domHeavyTarget }
+      ));
+    }
     for (const metric of ['wholeTurnSettlementMs', 'presentationStartLatencyMs']) {
       const domP95 = Number(domScenario.summary[metric].p95);
       const pixiP95 = Number(pixiScenario.summary[metric].p95);

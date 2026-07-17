@@ -22,13 +22,18 @@ import {
 } from '../ui/board-visual/performance-harness';
 
 const VALIDATION_SCHEMA_VERSION = 'pixijs_playfield_precutover_validation.v1';
+const AUTOMATED_VALIDATION_SCHEMA_VERSION = 'pixijs_playfield_precutover_validation.v2';
 const DESKTOP_CAPTURE_SCHEMA_VERSION = 'pixijs_playfield_desktop_capture.v1';
+const CROSS_PLATFORM_SMOKE_SCHEMA_VERSION = 'pixijs_playfield_cross_platform_smoke.v1';
 const REFERENCE_DEVICE_SCHEMA_VERSION = 'pixijs_playfield_reference_devices.v1';
 const DEFAULT_REPORTS_DIR = 'docs/perf/pixijs-playfield-mobile/reports';
 const DEFAULT_REFERENCE_MANIFEST = 'docs/perf/pixijs-playfield-mobile/reference-devices.json';
 const DEFAULT_DESKTOP_CAPTURE = 'artifacts/pixijs-playfield-performance/desktop-capture.json';
-const DEFAULT_JSON_OUTPUT = 'docs/perf/pixijs-playfield-precutover.json';
-const DEFAULT_MARKDOWN_OUTPUT = 'docs/perf/pixijs-playfield-precutover.md';
+const DEFAULT_CROSS_PLATFORM_SMOKE = 'artifacts/pixijs-playfield-performance/cross-platform-smoke.json';
+const DEFAULT_AUTOMATED_JSON_OUTPUT = 'docs/perf/pixijs-playfield-precutover.json';
+const DEFAULT_AUTOMATED_MARKDOWN_OUTPUT = 'docs/perf/pixijs-playfield-precutover.md';
+const DEFAULT_PHYSICAL_JSON_OUTPUT = 'docs/perf/pixijs-playfield-mobile/optional-physical-validation.json';
+const DEFAULT_PHYSICAL_MARKDOWN_OUTPUT = 'docs/perf/pixijs-playfield-mobile/optional-physical-validation.md';
 const PHYSICAL_MEASURED_IDS = BOARD_PERFORMANCE_SCENARIO_IDS.filter((id) => id !== 'stability.expansion-skin');
 const PLAYBACK_IDS = PHYSICAL_MEASURED_IDS.filter((id) => id !== 'micro.full-marker-16x16');
 const HEAVY_IDS = BOARD_PERFORMANCE_SCENARIO_IDS.filter((id) => id.startsWith('heavy.'));
@@ -39,6 +44,8 @@ interface ValidationOptions {
   readonly reportsDir?: string;
   readonly referenceManifestPath?: string;
   readonly desktopCapturePath?: string;
+  readonly crossPlatformSmokePath?: string;
+  readonly mode?: 'physical' | 'automated';
   readonly write?: boolean;
   readonly jsonOutputPath?: string;
   readonly markdownOutputPath?: string;
@@ -418,11 +425,62 @@ function loadReports(reportsDir: string): LoadedReport[] {
     });
 }
 
+export function validateDesktopReport(
+  report: any,
+  expectedLane: 'classic' | 'vite',
+  expectedBackend: 'dom' | 'pixi',
+  capture: any
+): readonly string[] {
+  const check = collector();
+  const prefix = `desktop/${expectedLane}/${expectedBackend}`;
+  check.check(report?.schemaVersion === BOARD_PERFORMANCE_REPORT_SCHEMA_VERSION, `${prefix} schemaVersion mismatch`);
+  check.check(report?.captureProfile === 'desktop', `${prefix} captureProfile must be desktop`);
+  check.check(report?.standardRun === true, `${prefix} must be an unmodified standard run`);
+  check.check(report?.lane === expectedLane, `${prefix} lane mismatch`);
+  check.check(report?.backend === expectedBackend, `${prefix} backend mismatch`);
+  check.check(report?.candidateCommit === capture?.candidateCommit, `${prefix} candidate commit mismatch`);
+  check.check(report?.browserArtifactSha256 === capture?.browserArtifact?.sha256, `${prefix} browser artifact digest mismatch`);
+  check.check(report?.fixtureDigest === BOARD_PERFORMANCE_FIXTURE_DIGEST, `${prefix} fixture digest mismatch`);
+  check.check(report?.eventDigest === BOARD_PERFORMANCE_EVENT_DIGEST, `${prefix} event digest mismatch`);
+  check.check(typeof report?.captureUrl === 'string' && report.captureUrl.includes('debug=1') && report.captureUrl.includes('boardPerf=1'), `${prefix} capture URL gate mismatch`);
+  check.check(report?.validity?.valid === true, `${prefix} visibility/focus validity failed`);
+  check.check(report?.validity?.visibilityChangeCount === 0 && report?.validity?.focusChangeCount === 0, `${prefix} changed visibility/focus during capture`);
+  check.check(Array.isArray(report?.validity?.invalidReasons) && report.validity.invalidReasons.length === 0, `${prefix} has visibility/focus invalid reasons`);
+  check.check(report?.readiness?.fontsReady === true && report?.readiness?.texturesReady === true && report?.readiness?.applicationReady === true, `${prefix} readiness evidence failed`);
+  check.check(report?.nominal?.sampleCount === 120, `${prefix} nominal rAF count must be 120`);
+  check.check(Array.isArray(report?.nominal?.rawIntervalsMs) && report.nominal.rawIntervalsMs.length === 120, `${prefix} nominal raw intervals must contain 120 samples`);
+  check.check(Array.isArray(report?.nominal?.rawTimestampsMs) && report.nominal.rawTimestampsMs.length === 121, `${prefix} nominal raw timestamps must contain 121 samples`);
+  if (Array.isArray(report?.nominal?.rawIntervalsMs)) {
+    check.check(finite(report.nominal.nominalFrameIntervalMs) === median(report.nominal.rawIntervalsMs.map(Number)), `${prefix} nominal median mismatch`);
+    if (Array.isArray(report?.nominal?.rawTimestampsMs)) {
+      report.nominal.rawIntervalsMs.forEach((value: unknown, index: number) => {
+        check.check(Math.abs(rounded(finite(report.nominal.rawTimestampsMs[index + 1]) - finite(report.nominal.rawTimestampsMs[index])) - finite(value)) <= 0.002, `${prefix} nominal timestamp delta mismatch`);
+      });
+    }
+  }
+  check.check(report?.percentileRule === 'nearest-rank:ceil(p*N)-1', `${prefix} percentile rule mismatch`);
+  check.check(report?.rawSamplePolicy === 'unfiltered-no-winsorization', `${prefix} raw sample policy mismatch`);
+  check.equal(report?.runConfig, createBoardPerformanceRunConfig('desktop'), `${prefix} desktop runConfig mismatch`);
+  check.check(['supported', 'unsupported'].includes(report?.support?.longAnimationFrame), `${prefix} LoAF support status missing`);
+  check.check(['supported', 'unsupported'].includes(report?.support?.longTask), `${prefix} Long Task support status missing`);
+  check.check(report?.delivery && Array.isArray(report.delivery.resources), `${prefix} delivery/resource evidence missing`);
+  check.check(Number.isFinite(Number(report?.delivery?.textureReadyPixelCount)), `${prefix} texture pixel evidence missing`);
+  check.equal(report?.scenarios?.map((entry: any) => entry.id), BOARD_PERFORMANCE_SCENARIO_IDS, `${prefix} scenario ID/order mismatch`);
+  for (const id of PHYSICAL_MEASURED_IDS) validateMeasuredScenario(check, report, scenario(report, id), id);
+  validateStabilityScenario(check, report, scenario(report, 'stability.expansion-skin'));
+  return Object.freeze(check.errors);
+}
+
 function validateDesktopCapture(capture: any, errors: string[]): readonly Readonly<Record<string, unknown>>[] {
   if (capture?.schemaVersion !== DESKTOP_CAPTURE_SCHEMA_VERSION) errors.push('Desktop capture schema mismatch');
   if (capture?.standardRun !== true || capture?.profile !== 'desktop') errors.push('Desktop capture is not a standard desktop run');
   if (!Array.isArray(capture?.reports) || capture.reports.length !== 4) errors.push('Desktop capture must contain classic/Vite × DOM/Pixi reports');
   if (capture?.crossLaneIdentity !== true) errors.push('Desktop capture cross-lane identity failed');
+  const graphics = capture?.environment?.graphics || {};
+  if (graphics.hardwareAccelerated !== true
+    || /swiftshader|llvmpipe|software(?: rasterizer)?/i.test(`${graphics.glRenderer || ''} ${graphics.glVendor || ''}`)) {
+    errors.push('Desktop capture did not use hardware-accelerated WebGL');
+  }
   if (capture?.phaseZeroEnvironment?.pass !== true) errors.push('Desktop capture no longer matches the immutable Phase 0 machine/browser/viewport/DPR');
   if (capture?.phaseZeroModelApplyComparison?.fixtureDigest !== BOARD_PERFORMANCE_PHASE_ZERO_MICRO_DIGEST) {
     errors.push('Desktop Phase 0 synthetic model/apply comparison digest mismatch');
@@ -447,6 +505,8 @@ function validateDesktopCapture(capture: any, errors: string[]): readonly Readon
       errors.push(`Desktop ${lane} DOM/Pixi pair is missing`);
       continue;
     }
+    errors.push(...validateDesktopReport(dom, lane as 'classic' | 'vite', 'dom', capture));
+    errors.push(...validateDesktopReport(pixi, lane as 'classic' | 'vite', 'pixi', capture));
     const comparison = Object.freeze({ lane, ...evaluateDesktopPerformancePair(dom, pixi) });
     comparisons.push(comparison);
     if ((comparison as any).pass !== true) errors.push(`Desktop ${lane} performance gate failed`);
@@ -502,7 +562,186 @@ function markdownReport(validation: any): string {
   ].join('\n');
 }
 
+function validateCrossPlatformSmoke(receipt: any, candidateCommit: string, artifactSha256: string, errors: string[]): void {
+  if (receipt?.schemaVersion !== CROSS_PLATFORM_SMOKE_SCHEMA_VERSION) errors.push('Cross-platform smoke schema mismatch');
+  if (receipt?.candidateCommit !== candidateCommit) errors.push('Cross-platform smoke candidate commit mismatch');
+  if (receipt?.browserArtifactSha256 !== artifactSha256) errors.push('Cross-platform smoke browser artifact digest mismatch');
+  if (receipt?.ok !== true || !Array.isArray(receipt?.errors) || receipt.errors.length !== 0) errors.push('Cross-platform smoke did not pass');
+  const expectedScenarios = [
+    'chromium-desktop',
+    'firefox-desktop',
+    'webkit-desktop',
+    'chromium-touch-mobile',
+    'firefox-touch-mobile',
+    'webkit-touch-mobile'
+  ];
+  const probes = Array.isArray(receipt?.probes) ? receipt.probes : [];
+  const expectedKeys = expectedScenarios.flatMap((name) => ['dom', 'pixi'].map((backend) => `${name}/${backend}`));
+  const actualKeys = probes.map((probe: any) => `${probe?.name}/${probe?.backend}`).sort();
+  if (stablePerformanceJson(actualKeys) !== stablePerformanceJson(expectedKeys.slice().sort())) {
+    errors.push('Cross-platform smoke scenario/backend matrix mismatch');
+  }
+  for (const probe of probes) {
+    const prefix = `cross-platform/${probe?.name}/${probe?.backend}`;
+    if (probe?.evaluation?.ok !== true) errors.push(`${prefix} UI control evaluation failed`);
+    if (!Array.isArray(probe?.registryRequests) || probe.registryRequests.length !== 0) errors.push(`${prefix} requested the compatibility registry`);
+    for (const field of ['pageErrors', 'consoleErrors', 'resourceErrors']) {
+      if (!Array.isArray(probe?.[field]) || probe[field].length !== 0) errors.push(`${prefix} ${field} is not empty`);
+    }
+    const backendProbe = probe?.backendProbe || {};
+    if (backendProbe.backend !== probe?.backend) errors.push(`${prefix} selected backend mismatch`);
+    if (backendProbe.harnessGlobalPresent || backendProbe.controlsPresent) errors.push(`${prefix} leaked performance harness state`);
+    if (probe?.backend === 'pixi'
+      && (finite(backendProbe.canvasCount) !== 1 || finite(backendProbe.contextCount) !== 1 || finite(backendProbe.domCellCount) !== 0)) {
+      errors.push(`${prefix} Pixi was not the exclusive board surface`);
+    }
+    if (probe?.backend === 'dom'
+      && (finite(backendProbe.canvasCount) !== 0 || finite(backendProbe.domCellCount) !== 64)) {
+      errors.push(`${prefix} DOM was not the exclusive board surface`);
+    }
+    const expectedDpr = String(probe?.name || '').includes('mobile') ? 2 : 1;
+    if (finite(backendProbe.dpr) !== expectedDpr) errors.push(`${prefix} DPR mismatch`);
+  }
+}
+
+function desktopFollowUpInventory(capture: any): readonly Readonly<Record<string, unknown>>[] {
+  const entries: Readonly<Record<string, unknown>>[] = [];
+  for (const report of (capture?.reports || []).filter((item: any) => item.backend === 'pixi')) {
+    for (const id of PLAYBACK_IDS) {
+      const item = scenario(report, id);
+      if (finite(item?.summary?.raf?.jankRatio) > 0 && finite(item?.summary?.globalDomHudMs?.p95) > 0) {
+        entries.push(Object.freeze({
+          lane: report.lane,
+          scenarioId: id,
+          owner: 'HUD/hand/global DOM effect/CPU follow-up',
+          jankRatio: item.summary.raf.jankRatio,
+          globalDomHudP95Ms: item.summary.globalDomHudMs.p95,
+          scopeDecision: 'Pixi playfield ownership and player-visible timing remain unchanged.'
+        }));
+      }
+    }
+  }
+  return Object.freeze(entries);
+}
+
+function automatedMarkdownReport(validation: any): string {
+  const rows = validation.desktopComparisons.map((comparison: any) => (
+    `| ${comparison.lane} | ${comparison.pass ? 'PASS' : 'FAIL'} | ${(comparison.checks || []).length} |`
+  ));
+  return [
+    '# PixiJS playfield pre-cutover evidence',
+    '',
+    `- Result: **${validation.pass ? 'PASS' : 'FAIL'}**`,
+    '- Evidence mode: automated hardware-desktop release gate',
+    `- Candidate commit: \`${validation.candidateCommit || 'unavailable'}\``,
+    `- Browser artifact SHA-256: \`${validation.browserArtifactSha256 || 'unavailable'}\``,
+    `- Desktop capture SHA-256: \`${validation.desktopCaptureSha256 || 'unavailable'}\``,
+    `- Cross-platform smoke SHA-256: \`${validation.crossPlatformSmokeSha256 || 'unavailable'}\``,
+    `- Fixture digest: \`${validation.fixtureDigest}\``,
+    `- Event digest: \`${validation.eventDigest}\``,
+    `- Validated at: ${validation.validatedAt}`,
+    '',
+    '| Browser lane | DOM/Pixi gate | Checks |',
+    '| --- | --- | ---: |',
+    ...rows,
+    '',
+    `Cross-browser desktop/mobile-viewport functional gate: ${validation.crossPlatformPass ? 'PASS' : 'FAIL'}`,
+    `Follow-up attribution entries: ${validation.followUpInventory.length}.`,
+    '',
+    '## Residual risk accepted by operator decision',
+    '',
+    ...validation.residualRisks.map((risk: string) => `- ${risk}`),
+    '',
+    'Desktop/mobile viewport automation is not represented as physical Android/iPhone performance evidence.',
+    'This evidence does not change player-visible timing, events[] ordering, network authority, or Pixi playfield ownership.',
+    ''
+  ].join('\n');
+}
+
+export function validateAutomatedPrecutoverEvidence(options: ValidationOptions = {}): any {
+  const rootDir = path.resolve(options.rootDir || process.cwd());
+  const desktopCapturePath = path.resolve(rootDir, options.desktopCapturePath || DEFAULT_DESKTOP_CAPTURE);
+  const crossPlatformSmokePath = path.resolve(rootDir, options.crossPlatformSmokePath || DEFAULT_CROSS_PLATFORM_SMOKE);
+  const errors: string[] = [];
+  let desktopCapture: any = null;
+  let crossPlatformSmoke: any = null;
+  try {
+    desktopCapture = JSON.parse(fs.readFileSync(desktopCapturePath, 'utf8'));
+  } catch (error: any) {
+    errors.push(`Desktop capture unavailable: ${error?.message || error}`);
+  }
+  try {
+    crossPlatformSmoke = JSON.parse(fs.readFileSync(crossPlatformSmokePath, 'utf8'));
+  } catch (error: any) {
+    errors.push(`Cross-platform smoke unavailable: ${error?.message || error}`);
+  }
+  const desktopComparisons = desktopCapture ? validateDesktopCapture(desktopCapture, errors) : [];
+  const candidateCommit = desktopCapture?.candidateCommit || null;
+  const browserArtifactSha256 = desktopCapture?.browserArtifact?.sha256 || null;
+  if (desktopCapture?.fixtureDigest !== BOARD_PERFORMANCE_FIXTURE_DIGEST
+    || desktopCapture?.eventDigest !== BOARD_PERFORMANCE_EVENT_DIGEST) {
+    errors.push('Desktop evidence does not use the compiled deterministic fixture/event digest');
+  }
+  if (crossPlatformSmoke && candidateCommit && browserArtifactSha256) {
+    validateCrossPlatformSmoke(crossPlatformSmoke, candidateCommit, browserArtifactSha256, errors);
+  }
+  const baselinePath = path.join(rootDir, 'docs/perf/pixijs-playfield-baseline.json');
+  const residualRisks = Object.freeze([
+    'Physical Android Chrome and iPhone Safari paint/composite performance was not measured.',
+    'Safari on an actual iPhone GPU was not measured; Playwright WebKit is functional compatibility evidence only.',
+    'Mobile-device thermal throttling and battery/power-mode behavior were not measured.'
+  ]);
+  const validation = {
+    schemaVersion: AUTOMATED_VALIDATION_SCHEMA_VERSION,
+    validatedAt: new Date().toISOString(),
+    evidenceMode: 'automated-hardware-desktop',
+    physicalDeviceEvidenceRequired: false,
+    operatorDecisionDate: '2026-07-18',
+    pass: errors.length === 0,
+    errors: Object.freeze(errors.slice()),
+    candidateCommit,
+    browserArtifactSha256,
+    fixtureDigest: BOARD_PERFORMANCE_FIXTURE_DIGEST,
+    eventDigest: BOARD_PERFORMANCE_EVENT_DIGEST,
+    desktopCaptureSha256: fs.existsSync(desktopCapturePath) ? sha256(fs.readFileSync(desktopCapturePath)) : null,
+    crossPlatformSmokeSha256: fs.existsSync(crossPlatformSmokePath) ? sha256(fs.readFileSync(crossPlatformSmokePath)) : null,
+    desktopPass: !!desktopCapture && desktopComparisons.length === 2 && desktopComparisons.every((entry: any) => entry.pass === true),
+    crossPlatformPass: !!crossPlatformSmoke && crossPlatformSmoke.ok === true,
+    desktopComparisons,
+    desktopCapture,
+    crossPlatformSmoke,
+    followUpInventory: desktopFollowUpInventory(desktopCapture),
+    residualRisks,
+    optionalPhysicalDiagnostics: Object.freeze({ required: false, status: 'not-collected' }),
+    immutablePhaseZeroBaseline: Object.freeze({
+      path: 'docs/perf/pixijs-playfield-baseline.json',
+      sha256: fs.existsSync(baselinePath) ? sha256(fs.readFileSync(baselinePath)) : null,
+      role: 'synthetic model/apply microbaseline only'
+    })
+  };
+  if (options.write) {
+    if (!validation.pass) throw new Error(`Refusing to write failing automated pre-cutover evidence:\n${errors.join('\n')}`);
+    const jsonPath = path.resolve(rootDir, options.jsonOutputPath || DEFAULT_AUTOMATED_JSON_OUTPUT);
+    const markdownPath = path.resolve(rootDir, options.markdownOutputPath || DEFAULT_AUTOMATED_MARKDOWN_OUTPUT);
+    fs.mkdirSync(path.dirname(jsonPath), { recursive: true });
+    fs.mkdirSync(path.dirname(markdownPath), { recursive: true });
+    fs.writeFileSync(jsonPath, `${JSON.stringify(validation, null, 2)}\n`, 'utf8');
+    fs.writeFileSync(markdownPath, automatedMarkdownReport(validation), 'utf8');
+  }
+  if (options.log !== false) process.stdout.write(`${JSON.stringify({
+    pass: validation.pass,
+    evidenceMode: validation.evidenceMode,
+    candidateCommit,
+    browserArtifactSha256,
+    desktopPass: validation.desktopPass,
+    crossPlatformPass: validation.crossPlatformPass,
+    errors
+  }, null, 2)}\n`);
+  return Object.freeze(validation);
+}
+
 export function validatePrecutoverEvidence(options: ValidationOptions = {}): any {
+  if (options.mode === 'automated') return validateAutomatedPrecutoverEvidence(options);
   const rootDir = path.resolve(options.rootDir || process.cwd());
   const reportsDir = path.resolve(rootDir, options.reportsDir || DEFAULT_REPORTS_DIR);
   const referenceManifestPath = path.resolve(rootDir, options.referenceManifestPath || DEFAULT_REFERENCE_MANIFEST);
@@ -608,8 +847,8 @@ export function validatePrecutoverEvidence(options: ValidationOptions = {}): any
       const destination = path.join(canonicalReportsDir, loaded.filename);
       if (path.resolve(destination) !== path.resolve(loaded.sourcePath)) fs.copyFileSync(loaded.sourcePath, destination);
     }
-    const jsonPath = path.resolve(rootDir, options.jsonOutputPath || DEFAULT_JSON_OUTPUT);
-    const markdownPath = path.resolve(rootDir, options.markdownOutputPath || DEFAULT_MARKDOWN_OUTPUT);
+    const jsonPath = path.resolve(rootDir, options.jsonOutputPath || DEFAULT_PHYSICAL_JSON_OUTPUT);
+    const markdownPath = path.resolve(rootDir, options.markdownOutputPath || DEFAULT_PHYSICAL_MARKDOWN_OUTPUT);
     fs.mkdirSync(path.dirname(jsonPath), { recursive: true });
     fs.mkdirSync(path.dirname(markdownPath), { recursive: true });
     fs.writeFileSync(jsonPath, `${JSON.stringify(validation, null, 2)}\n`, 'utf8');
@@ -627,9 +866,11 @@ export function validatePrecutoverEvidence(options: ValidationOptions = {}): any
 
 interface CliArgs {
   write: boolean;
+  mode?: 'physical' | 'automated';
   reportsDir?: string;
   referenceManifestPath?: string;
   desktopCapturePath?: string;
+  crossPlatformSmokePath?: string;
 }
 
 export function parseValidatorArgs(argv: readonly string[]): CliArgs {
@@ -637,9 +878,12 @@ export function parseValidatorArgs(argv: readonly string[]): CliArgs {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--write') result.write = true;
+    else if (arg === '--automated') result.mode = 'automated';
+    else if (arg === '--physical') result.mode = 'physical';
     else if (arg === '--reports-dir') result.reportsDir = argv[++index];
     else if (arg === '--reference-devices') result.referenceManifestPath = argv[++index];
     else if (arg === '--desktop-report') result.desktopCapturePath = argv[++index];
+    else if (arg === '--cross-platform-report') result.crossPlatformSmokePath = argv[++index];
     else throw new Error(`Unknown argument: ${arg}`);
   }
   return result;
