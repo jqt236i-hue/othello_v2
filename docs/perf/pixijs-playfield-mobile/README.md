@@ -1,10 +1,10 @@
-# PixiJS playfield physical performance capture
+# PixiJS playfield optional physical performance capture
 
-This directory is the Phase 9 Unit A evidence import surface. It does not define the product's minimum supported device. It freezes two real reference devices solely for the DOM/Pixi default-cutover decision.
+This directory is an optional physical-device diagnostic surface. It does not define the product's minimum supported device and, after the 2026-07-18 operator decision, it is not a Phase 9 Unit A release gate. The automated release evidence is documented in `../pixijs-playfield-automated-precutover.md`.
 
-## Entry conditions
+## Optional entry conditions
 
-Before the candidate commit is created, replace every empty value in `reference-devices.json` with observed values from one physical Android/Chrome device and one physical iPhone/Safari device, then set each `ready` field to `true`.
+When optional physical diagnostics are requested, replace every empty value in `reference-devices.json` with observed values from one physical Android/Chrome device and one physical iPhone/Safari device, then set each `ready` field to `true` before those optional captures.
 
 To collect browser-reported screen, viewport, DPR, orientation, and user-agent values before freezing the manifest, run `npm run match:pixijs-board-performance -- --probe-host 0.0.0.0`, open the printed probe URL on each phone, establish the intended address-bar/orientation state, and use `Copy JSON`. This probe is preparation only and is not performance evidence.
 
@@ -106,4 +106,4 @@ Commit only the four imported raw reports plus `pixijs-playfield-precutover.json
 - If any source, runtime, or generated artifact changes, return to candidate freeze and recapture desktop plus all four physical reports.
 - If a reference device changes, update and commit the manifest before measurement, then recapture all reports.
 - Do not loosen a threshold, remove a raw sample, winsorize data, shorten an animation, or expand Pixi ownership into HUD/card UI to obtain a pass.
-- Unit B default selection may begin only after the Unit A report-only commit says `PASS`.
+- Optional physical results never override an automated gate failure and are not required before Unit B.
