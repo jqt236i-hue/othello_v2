@@ -37,6 +37,7 @@ const PUBLIC_NETWORK_MATCH_CLIENT_METHODS = [
   'publishSnapshot',
   'requestRematch',
   'restoreStoredSession',
+  'retryPresentationTimeline',
   'sendChatMessage',
   'setChatListener',
   'setRematchRequestListener',

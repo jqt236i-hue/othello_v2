@@ -25,7 +25,7 @@ describe('side panel anchor positioning', () => {
   test('phone portrait centers the settings panel in the viewport', () => {
     const dom = new JSDOM(`<!doctype html><html><body>
       <button id="sidePanelToggleBtn" type="button">設定</button>
-      <div id="side-panel"></div>
+      <div id="side-panel" class="side-panel-collapsed"></div>
     </body></html>`);
     const { window } = dom;
     setViewport(window, 390, 844);
@@ -47,7 +47,7 @@ describe('side panel anchor positioning', () => {
   test('phone portrait centers the visible control panel when it differs from the side-panel box', () => {
     const dom = new JSDOM(`<!doctype html><html><body>
       <button id="sidePanelToggleBtn" type="button">設定</button>
-      <div id="side-panel"><div id="control-panel"></div></div>
+      <div id="side-panel" class="side-panel-collapsed"><div id="control-panel"></div></div>
     </body></html>`);
     const { window } = dom;
     setViewport(window, 390, 844);

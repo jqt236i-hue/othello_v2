@@ -30,18 +30,20 @@ describe('network room list style', () => {
     const spectateLayoutBlock = spectateBlocks.at(-1)?.[1] ?? '';
 
     expect(panelBlock).toMatch(/grid-template-rows:\s*clamp\(36px,\s*3vw,\s*50px\)\s+minmax\(0,\s*1fr\)/);
-    expect(listBlock).toMatch(/align-content:\s*end/);
-    expect(listBlock).toMatch(/align-items:\s*end/);
-    expect(listBlock).toMatch(/height:\s*100%/);
+    expect(listBlock).toMatch(/align-content:\s*start/);
+    expect(listBlock).toMatch(/align-items:\s*start/);
+    expect(listBlock).toMatch(/min-height:\s*100%/);
+    expect(listBlock).toMatch(/height:\s*auto/);
     expect(listBlock).toMatch(/padding:\s*0\s+0\.5%\s+0/);
     expect(entryBlock).toMatch(/grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
     expect(entryBlock).toMatch(/grid-template-rows:\s*minmax\(0,\s*1fr\)\s+auto/);
     expect(entryBlock).toMatch(/min-height:\s*clamp\(244px,\s*15\.9vw,\s*286px\)/);
     expect(entryBlock).toMatch(/--network-room-card-cut-x:\s*clamp\(13px,\s*1vw,\s*19px\)/);
     expect(entryBlock).toMatch(/--network-room-card-step-x:\s*clamp\(30px,\s*2\.15vw,\s*42px\)/);
-    expect(entryBlock).toMatch(/clip-path:\s*polygon\(/);
-    expect(entryBlock).toMatch(/var\(--network-room-card-step-y\)/);
+    expect(entryBlock).toMatch(/clip-path:\s*none/);
+    expect(entryBlock).toMatch(/overflow:\s*visible/);
     expect(entryFrameBlock).toMatch(/clip-path:\s*polygon\(/);
+    expect(entryFrameBlock).toMatch(/var\(--network-room-card-step-y\)/);
     expect(bodyBlock).toMatch(/grid-column:\s*1\s*\/\s*-1/);
     expect(bodyBlock).toMatch(/min-height:\s*0/);
     expect(bodyBlock).toMatch(/padding-bottom:\s*0/);

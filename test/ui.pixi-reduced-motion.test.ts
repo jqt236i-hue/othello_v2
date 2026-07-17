@@ -151,6 +151,7 @@ function createEffectHarness(options: {
     timings: TIMINGS,
     noAnimation: false,
     reducedMotion: options.reducedMotion,
+    waitForTargetPrelude: async () => undefined,
     getPhaseSourceStone(row, col) {
       return phaseSourceStones.get(`${row},${col}`) || null;
     },

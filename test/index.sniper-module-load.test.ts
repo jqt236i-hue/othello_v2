@@ -73,10 +73,10 @@ function assertBrowserRuntimeCompanions(registry: string, targetLabel: string) {
 }
 
 describe('sniper module load order', () => {
-  test('index.html loads sniper.js before cards.js', () => {
-    const htmlPath = path.join(__dirname, '..', 'index.html');
+  test('index.classic.html loads the module registry before entry-browser.js', () => {
+    const htmlPath = path.join(__dirname, '..', 'index.classic.html');
     const html = fs.readFileSync(htmlPath, 'utf8');
-    assertSniperScriptOrder(html, 'index.html');
+    assertSniperScriptOrder(html, 'index.classic.html');
     const registryPath = path.join(__dirname, '..', 'public', 'module-registry.js');
     const registry = fs.readFileSync(registryPath, 'utf8');
     const optionalRegistryPath = path.join(__dirname, '..', 'public', 'module-registry.optional.js');
@@ -86,10 +86,10 @@ describe('sniper module load order', () => {
     assertBrowserRuntimeCompanions(registry, 'public/module-registry.js');
   });
 
-  test('worker-public/index.html loads sniper.js before cards.js', () => {
-    const htmlPath = path.join(__dirname, '..', 'worker-public', 'index.html');
+  test('worker-public/index.classic.html loads the module registry before entry-browser.js', () => {
+    const htmlPath = path.join(__dirname, '..', 'worker-public', 'index.classic.html');
     const html = fs.readFileSync(htmlPath, 'utf8');
-    assertSniperScriptOrder(html, 'worker-public/index.html');
+    assertSniperScriptOrder(html, 'worker-public/index.classic.html');
     const registryPath = path.join(__dirname, '..', 'worker-public', 'public', 'module-registry.js');
     const registry = fs.readFileSync(registryPath, 'utf8');
     const optionalRegistryPath = path.join(__dirname, '..', 'worker-public', 'public', 'module-registry.optional.js');

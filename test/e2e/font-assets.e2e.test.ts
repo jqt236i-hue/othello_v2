@@ -27,7 +27,7 @@ describe('font subset/full fallback browser contract', () => {
   }, 30000);
 
   test.each([
-    ['classic', 'index.html'],
+    ['classic', 'index.classic.html'],
     ['vite', 'vite-dist/index.vite.html']
   ])('%s uses subset glyphs and loads full WOFF2 only for the explicit fallback glyph', async (_lane, entry) => {
     if (!browser) throw new Error('browser is not initialized');

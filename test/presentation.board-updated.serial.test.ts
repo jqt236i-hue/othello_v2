@@ -6,6 +6,27 @@ function createDeferred() {
   return { promise, resolve };
 }
 
+async function waitUntil(predicate, maxTurns = 50) {
+  for (let turn = 0; turn < maxTurns; turn += 1) {
+    if (predicate()) return;
+    await Promise.resolve();
+  }
+  throw new Error('Timed out waiting for presentation test state');
+}
+
+function registerPlaybackFinalizer(options) {
+  if (options && typeof options.onFinalizationReady === 'function') {
+    options.onFinalizationReady(() => true);
+  }
+}
+
+function mockReadyBoardRenderer() {
+  jest.doMock('../ui/board-renderer', () => ({
+    getBoardVisualControllerReady: jest.fn(async () => undefined),
+    settleAutoBoardVisualWriter: jest.fn(async () => true)
+  }));
+}
+
 function mockPresentationRuntime(overridesFactory) {
   jest.doMock('../game/cpu-turn-handler', () => {
     const actual = jest.requireActual('../game/cpu-turn-handler');
@@ -23,11 +44,16 @@ function mockPresentationRuntime(overridesFactory) {
 }
 
 describe('presentation handler boardUpdated draining', () => {
+  beforeEach(() => {
+    mockReadyBoardRenderer();
+  });
+
   afterEach(() => {
     jest.useRealTimers();
     jest.resetModules();
     jest.unmock('../game/cpu-turn-handler');
     jest.unmock('../ui/stone-visuals');
+    jest.unmock('../ui/board-renderer');
     delete global.CardLogic;
     delete global.cardState;
     delete global.AnimationEngine;
@@ -58,8 +84,12 @@ describe('presentation handler boardUpdated draining', () => {
     global.AnimationEngine = {
       play: jest
         .fn()
-        .mockReturnValueOnce(firstPlayback.promise)
-        .mockImplementationOnce(() => {
+        .mockImplementationOnce((_events, options) => {
+          registerPlaybackFinalizer(options);
+          return firstPlayback.promise;
+        })
+        .mockImplementationOnce((_events, options) => {
+          registerPlaybackFinalizer(options);
           secondPlaybackStarted.resolve();
           return secondPlayback.promise;
         })
@@ -68,7 +98,7 @@ describe('presentation handler boardUpdated draining', () => {
 
     const ph = require('../ui/presentation-handler.js');
     const firstDrain = ph.onBoardUpdated();
-    await Promise.resolve();
+    await waitUntil(() => global.AnimationEngine.play.mock.calls.length === 1);
     expect(global.AnimationEngine.play).toHaveBeenCalledTimes(1);
 
     const secondDrain = ph.onBoardUpdated();
@@ -109,13 +139,16 @@ describe('presentation handler boardUpdated draining', () => {
         .mockReturnValue([])
     };
     global.AnimationEngine = {
-      play: jest.fn().mockReturnValue(firstPlayback.promise)
+      play: jest.fn((_events, options) => {
+        registerPlaybackFinalizer(options);
+        return firstPlayback.promise;
+      })
     };
     global.renderCardUI = jest.fn();
 
     const ph = require('../ui/presentation-handler.js');
     const firstDrain = ph.onBoardUpdated();
-    await Promise.resolve();
+    await waitUntil(() => global.AnimationEngine.play.mock.calls.length === 1);
     ph.onBoardUpdated();
     await Promise.resolve();
 
@@ -124,6 +157,8 @@ describe('presentation handler boardUpdated draining', () => {
 
     firstPlayback.resolve();
     await firstDrain;
+
+    await waitUntil(() => global.CardLogic.flushPresentationEvents.mock.calls.length === 2);
 
     jest.runOnlyPendingTimers();
 
@@ -196,19 +231,25 @@ describe('presentation handler boardUpdated draining', () => {
         .mockReturnValue([])
     };
     global.AnimationEngine = {
-      play: jest.fn().mockResolvedValue(undefined)
+      play: jest.fn(async (_events, options) => {
+        registerPlaybackFinalizer(options);
+      })
     };
     global.renderCardUI = jest.fn();
 
     const ph = require('../ui/presentation-handler.js');
     await ph.onBoardUpdated();
 
-    expect(global.AnimationEngine.play).toHaveBeenCalledWith([
-      expect.objectContaining({
+    expect(global.AnimationEngine.play).toHaveBeenCalledWith(
+      [expect.objectContaining({
         type: 'spawn',
         targets: [expect.objectContaining({ r: 3, col: 4, ownerAfter: 'black' })]
+      })],
+      expect.objectContaining({
+        deferFinalSettlement: true,
+        onFinalizationReady: expect.any(Function)
       })
-    ]);
+    );
   });
 
 });

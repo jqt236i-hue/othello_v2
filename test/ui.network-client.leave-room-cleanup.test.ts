@@ -158,7 +158,7 @@ describe('NetworkMatchClient leaveRoom cleanup', () => {
     expect(localStorage.getItem('network_match_seat_ABC')).not.toBeNull();
     expect(eventSources).toHaveLength(1);
     expect(eventSources[0].close).not.toHaveBeenCalled();
-    expect(abortSpy).toHaveBeenCalledTimes(1);
+    expect(abortSpy).not.toHaveBeenCalled();
     expect(global.addLog).toHaveBeenCalledWith(expect.stringContaining('退出に失敗'));
   });
 

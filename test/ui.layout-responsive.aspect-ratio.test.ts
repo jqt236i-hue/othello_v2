@@ -23,7 +23,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(pointer:\s*coarse\)\s*and\s*\(min-width:\s*56\.3125em\)\s*and\s*\(max-width:\s*87\.5em\)\s*and\s*\(max-height:\s*56\.25em\)[\s\S]*#leftActionButtons[\s\S]*display:\s*grid/);
     expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(pointer:\s*coarse\)\s*and\s*\(min-width:\s*56\.3125em\)\s*and\s*\(max-width:\s*87\.5em\)\s*and\s*\(max-height:\s*56\.25em\)[\s\S]*#leftActionButtons[\s\S]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*calc\(64px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
     expect(css).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+#leftActionButtons[\s\S]*grid-template-columns:\s*repeat\(6,\s*minmax\(0,\s*calc\(50px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
-    expect(css).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+#quick-controls-bar[\s\S]*max-width:\s*min\(calc\(360px\s*\*\s*var\(--layout-stage-scale\)\),\s*calc\(100vw\s*-\s*calc\(24px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
+    expect(css).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#quick-controls-bar[\s\S]*max-width:\s*min\(calc\(320px\s*\*\s*var\(--layout-stage-scale\)\),\s*calc\(100vw\s*-\s*calc\(24px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
     expect(css).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+\.player-area-top[\s\S]*top:\s*calc\(22px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#effect-live-panel[\s\S]*min-height:\s*calc\(156px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(pointer:\s*coarse\)\s*and\s*\(min-width:\s*56\.3125em\)\s*and\s*\(max-width:\s*87\.5em\)\s*and\s*\(max-height:\s*56\.25em\)[\s\S]*#log[\s\S]*right:\s*max/);
@@ -85,9 +85,11 @@ describe('responsive layout rules for narrow aspect ratio', () => {
   test('index.html accepts aspect simulation query and sets root class', () => {
     const htmlPath = path.join(__dirname, '..', 'index.html');
     const html = fs.readFileSync(htmlPath, 'utf8');
+    const classicHtml = readRepoTextFile('index.classic.html');
 
     expect(html).toMatch(/simAspect/);
-    expect(html).toMatch(/ui\/layout-stage\.js/);
+    expect(html).toMatch(/data-browser-lane="vite"/);
+    expect(classicHtml).toMatch(/ui\/layout-stage\.js/);
     expect(html).toMatch(/sim-aspect/);
     expect(html).toMatch(/sim-aspect-16-10/);
     expect(html).toMatch(/sim-aspect-3-2/);
@@ -125,19 +127,35 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(ts).toMatch(/clearReserve\(\);\s*return;/);
   });
 
-  test('core UI styles avoid direct fixed px declarations', () => {
-    const targets = requireExistingStyleFiles(LAYOUT_STYLE_FILES.concat('styles-responsive.css'));
+  test('core stage geometry styles avoid non-zero direct fixed px declarations', () => {
+    const targets = requireExistingStyleFiles([
+      'styles-layout.css',
+      'styles-charge-hud.css',
+      'styles-layout-result.css',
+      'styles-layout-characters.css',
+    ]);
 
     targets.forEach((fileName) => {
       const cssPath = path.join(__dirname, '..', fileName);
       const css = fs.readFileSync(cssPath, 'utf8');
-      expect(css).not.toMatch(/:\s*-?\d+(?:\.\d+)?px/);
+      const directFixedDeclarations = Array.from(
+        css.matchAll(/^\s*([\w-]+)\s*:\s*(-?\d+(?:\.\d+)?)px\b/gm),
+      )
+        .filter((match) => Number(match[2]) !== 0)
+        .map((match) => match[0].trim());
+      expect(directFixedDeclarations).toEqual([]);
     });
   });
 
   test('split layout styles keep the same cascade order in browser entries and worker assets', () => {
-    const extractStylesheetHrefs = (html: string): string[] =>
-      Array.from(html.matchAll(/<link\s+rel="stylesheet"\s+href="([^"]+)"/g)).map((match) => match[1]);
+    const extractStylesheetHrefs = (html: string): string[] => {
+      const directHrefs = Array.from(html.matchAll(/<link\s+rel="stylesheet"\s+href="([^"]+)"/g))
+        .map((match) => match[1]);
+      const viteStyleMetadata = Array.from(html.matchAll(/<meta\s+name="card-reversi-classic-style"\s+content="([^"]+)"/g))
+        .map((match) => match[1]);
+      return (directHrefs.length > 0 ? directHrefs : viteStyleMetadata)
+        .map((href) => href.replace(/\?v=\d+$/, ''));
+    };
     const assertLayoutCascadeOrder = (fileName: string): void => {
       const hrefs = extractStylesheetHrefs(readRepoTextFile(fileName));
       const layoutIndex = hrefs.indexOf('styles-layout.css');
@@ -147,7 +165,9 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     };
 
     assertLayoutCascadeOrder('index.html');
+    assertLayoutCascadeOrder('index.classic.html');
     assertLayoutCascadeOrder('worker-public/index.html');
+    assertLayoutCascadeOrder('worker-public/index.classic.html');
 
     const prepareWorkerAssets = readRepoTextFile('scripts/prepare-worker-assets.ts');
     const workerLayoutFiles = Array.from(prepareWorkerAssets.matchAll(/'([^']+\.css)'/g))

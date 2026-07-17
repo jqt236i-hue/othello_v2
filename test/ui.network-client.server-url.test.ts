@@ -12,8 +12,9 @@ function loadClientWithLocation(pageUrl, storedServerUrl) {
     dom.window.localStorage.setItem('network_match_server_url', storedServerUrl);
   }
 
-  require('../ui/network-client');
-  return dom.window.NetworkMatchClient;
+  const client = require('../ui/network-client');
+  client.initializeNetworkMatchClientRuntime(dom.window);
+  return client;
 }
 
 describe('NetworkMatchClient server URL initialization', () => {

@@ -192,15 +192,17 @@ describe('card surface layout contract', () => {
     expect(cardsCss).not.toMatch(/#hand-black \.card-item\.affordable:not\(\.selected\),/);
   });
 
-  test('use card reason is defined once as a compact warning chip', () => {
+  test('use card reason keeps one compact layout block plus a visual skin override', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
     const reasonBlocks = cardsCss.match(/#use-card-reason\s*\{[^}]*\}/g) || [];
 
-    expect(reasonBlocks).toHaveLength(1);
+    expect(reasonBlocks).toHaveLength(2);
     expectCssBlockToContain(cardsCss, '#use-card-reason', /display:\s*inline-flex/);
     expectCssBlockToContain(cardsCss, '#use-card-reason', /width:\s*auto/);
     expectCssBlockToContain(cardsCss, '#use-card-reason', /text-align:\s*left/);
     expectCssBlockToContain(cardsCss, '#use-card-reason', /min-height:\s*0/);
+    expect(reasonBlocks[1]).toMatch(/linear-gradient\(180deg,\s*rgba\(185,\s*154,\s*87,\s*0\.14\),\s*transparent 48%\)/);
+    expect(reasonBlocks[1]).not.toMatch(/(?:display|position|min-height|width):/);
     expectCssBlockToContain(cardsCss, '#card-detail-panel > #use-card-reason:empty', /display:\s*none/);
     expect(cardsCss).not.toMatch(/#card-detail-panel > #use-card-reason\s*\{[\s\S]*display:\s*block/);
   });

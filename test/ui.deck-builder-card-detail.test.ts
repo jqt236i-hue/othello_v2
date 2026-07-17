@@ -195,8 +195,8 @@ describe('deck builder card detail button', () => {
 
     expect(tagLabels).toEqual(expect.arrayContaining([
       '特殊石',
-      '反転回避3回',
-      '破壊回避3回'
+      '反転回避6回',
+      '破壊回避6回'
     ]));
 
     const durationCardDef = DeckSpecHelpers.getEnabledCardDefs()

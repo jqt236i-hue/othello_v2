@@ -48,10 +48,10 @@ describe('status-display cpu image scaling', () => {
     expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-tier-8,[\s\S]*\.cpu-level-menu-item\.cpu-level-profile-theory[\s\S]*--cpu-tier-accent:\s*224,\s*52,\s*64/);
     expect(css).toMatch(/\.cpu-level-menu-item\.cpu-level-tier-9,[\s\S]*\.cpu-level-menu-item\.cpu-level-profile-ending-ash[\s\S]*--cpu-tier-accent:\s*154,\s*168,\s*174/);
     expect(css).toMatch(/#hero-label[\s\S]*margin-top:\s*0/);
-    expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\s*!important/);
-    expect(responsiveCss).toMatch(/#cpu-level-label[\s\S]*transform:\s*translateY\(calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
-    expect(responsiveCss).toMatch(/#hero-label[\s\S]*margin-top:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\s*!important/);
-    expect(responsiveCss).toMatch(/#hero-label[\s\S]*transform:\s*translateY\(calc\(48px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
+    expect(css).toMatch(/#cpu-level-label[\s\S]*margin-top:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\s*!important/);
+    expect(css).toMatch(/#cpu-level-label[\s\S]*transform:\s*translateY\(calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
+    expect(css).toMatch(/#hero-label[\s\S]*margin-top:\s*calc\(1px\s*\*\s*var\(--layout-stage-scale\)\)\s*!important/);
+    expect(css).toMatch(/#hero-label[\s\S]*transform:\s*translateY\(calc\(48px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+#cpu-character-img[\s\S]*width:\s*calc\(var\(--layout-anchor-hero-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-character-image-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+#hero-character-img[\s\S]*width:\s*calc\(var\(--layout-anchor-hero-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-character-image-scale\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+#hero-character-img[\s\S]*transform:\s*translateY\(calc\(var\(--layout-anchor-character-offset-y\)\s*\*\s*var\(--layout-stage-scale\)\)\)/);

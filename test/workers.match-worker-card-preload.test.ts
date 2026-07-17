@@ -44,31 +44,48 @@ describe('match worker card module preload', () => {
     expect(source).toContain("require('../game/logic/card-resolution/chaos-summon.js')");
   });
 
-  test('worker global importer unwraps nested module exports and prefers usable runtime modules', () => {
-    const source = fs.readFileSync(
+  test('centralized runtime preload unwraps nested module exports and validates registered globals', () => {
+    const workerSource = fs.readFileSync(
       path.resolve(__dirname, '../workers/match-worker.ts'),
       'utf8'
     );
+    const runtimePreloadSource = fs.readFileSync(
+      path.resolve(__dirname, '../workers/match-worker-runtime-preload.ts'),
+      'utf8'
+    );
 
-    expect(source).toContain("const ModuleExportUtils = require('../shared/module-export-utils');");
-    expect(source).toContain('function unwrapRuntimeModule(value: unknown, depth = 0): unknown {');
-    expect(source).toContain("const moduleExports = source['module.exports'];");
-    expect(source).toContain('const defaultExport = source.default;');
-    expect(source).toContain('return unwrapRuntimeModule(moduleExports, depth + 1);');
-    expect(source).toContain('return unwrapRuntimeModule(defaultExport, depth + 1);');
-    expect(source).toContain('ModuleExportUtils.hasUsableModuleExport(value)');
-    expect(source).toContain('ModuleExportUtils.preferUsableModuleExport(resolved, globalAfterLoad)');
-    expect(source).toContain("'../game/logic/board_ops.js': () => require('../game/logic/board_ops.js')");
-    expect(source).toContain("'../game/logic/effects/destroy_one_stone.js': () => require('../game/logic/effects/destroy_one_stone.js')");
-    expect(source).toContain("'../game/logic/effects/swap_with_enemy.js': () => require('../game/logic/effects/swap_with_enemy.js')");
-    expect(source).toContain("'../game/logic/card-resolution/status-cells': () => require('../game/logic/card-resolution/status-cells')");
-    expect(source).toContain("'../game/logic/card-resolution/observer-will': () => require('../game/logic/card-resolution/observer-will')");
-    expect(source).toContain("'../game/logic/card-resolution/chaos-summon': () => require('../game/logic/card-resolution/chaos-summon')");
-    expect(source).toContain("['../game/logic/board_ops.js', 'BoardOps']");
-    expect(source).toContain("['../game/cards/effect-resolver.js', 'CardEffectResolver']");
-    expect(source).toContain("['../game/logic/card-resolution/status-cells', 'CardStatusCellsEffects']");
-    expect(source).toContain("['../game/logic/card-resolution/observer-will', 'CardObserverWillResolution']");
-    expect(source).toContain("['../game/logic/card-resolution/chaos-summon', 'CardChaosSummonResolution']");
-    expect(source).toContain('requiredGlobals.reduce(');
+    expect(runtimePreloadSource).toContain("const ModuleExportUtils = require('../shared/module-export-utils');");
+    expect(runtimePreloadSource).toContain('ModuleExportUtils.unwrapModuleExport(mod)');
+    expect(runtimePreloadSource).toContain('ModuleExportUtils.hasUsableModuleExport(mod)');
+    expect(runtimePreloadSource.match(
+      /if \(hasUsableGlobalRuntimeModule\(globalKey\)\) return;/g
+    )).toHaveLength(2);
+    expect(runtimePreloadSource).toContain(
+      "installRuntimeModule('BoardOps', () => require('../game/logic/board_ops.js'));"
+    );
+    expect(runtimePreloadSource).toContain(
+      "installRuntimeModule('DestroyOneStoneEffects', () => require('../game/logic/effects/destroy_one_stone.js'));"
+    );
+    expect(runtimePreloadSource).toContain(
+      "installRuntimeModule('SwapWithEnemyEffects', () => require('../game/logic/effects/swap_with_enemy.js'));"
+    );
+    expect(runtimePreloadSource).toContain(
+      "installRuntimeModule('CardStatusCellsEffects', () => require('../game/logic/card-resolution/status-cells.js'));"
+    );
+    expect(runtimePreloadSource).toContain(
+      "installRuntimeModule('CardObserverWillResolution', () => require('../game/logic/card-resolution/observer-will.js'));"
+    );
+    expect(runtimePreloadSource).toContain(
+      "installRuntimeModule('CardChaosSummonResolution', () => require('../game/logic/card-resolution/chaos-summon.js'));"
+    );
+    expect(workerSource).toContain(
+      "import { WORKER_RUNTIME_GLOBAL_KEYS } from './match-worker-runtime-preload.js';"
+    );
+    expect(workerSource).toContain('const missingGlobals = WORKER_RUNTIME_GLOBAL_KEYS.filter(');
+    expect(workerSource).toContain('function requireWorkerRuntimeGlobal(globalKey: string): unknown {');
+    expect(workerSource).toContain(
+      "return resolveModuleDefault(requireWorkerRuntimeGlobal('TurnSubPlacementContinuation'));"
+    );
+    expect(workerSource).not.toContain('WORKER_PRELOAD_MODULE_LOADERS');
   });
 });

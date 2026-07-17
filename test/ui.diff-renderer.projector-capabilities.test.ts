@@ -4,7 +4,7 @@ import * as path from 'path';
 describe('diff renderer projector capabilities', () => {
   test('passes grouped projector capabilities instead of a flat renderer context', () => {
     const rendererSource = fs.readFileSync(path.resolve(__dirname, '..', 'ui', 'diff-renderer.ts'), 'utf8');
-    const projectorSource = fs.readFileSync(path.resolve(__dirname, '..', 'ui', 'diff-renderer', 'projector.ts'), 'utf8');
+    const projectorSource = fs.readFileSync(path.resolve(__dirname, '..', 'ui', 'board-visual', 'model-builder.ts'), 'utf8');
 
     expect(rendererSource).toContain('state: {');
     expect(rendererSource).toContain('hints: {');

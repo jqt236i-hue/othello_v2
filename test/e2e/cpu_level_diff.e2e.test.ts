@@ -1,8 +1,18 @@
 import { chromium } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightPage, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } from './e2e-runtime-helpers.js';
+import { startStaticServer, stopStaticServer, stopPlaywrightPage, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent, closeSidePanelIfPresent } from './e2e-runtime-helpers.js';
 
 function startServer(port = 0) {
   return startStaticServer(port);
+}
+
+async function waitForViteReady(page) {
+  await page.waitForFunction(() => {
+    const root = window as any;
+    return root.__uiInitialized === true
+      && root.__CARD_REVERSI_BROWSER_LANE__ === 'vite'
+      && document.documentElement.getAttribute('data-browser-boot-state') === 'ready'
+      && Array.isArray(root.gameState?.board);
+  }, undefined, { timeout: 30000 });
 }
 
 describe('CPU level difference E2E', () => {
@@ -33,12 +43,13 @@ describe('CPU level difference E2E', () => {
       try { consoles.push({ type: msg.type(), text: msg.text() }); } catch (e) { /* ignore */ }
     });
 
-    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
+    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`, { waitUntil: 'domcontentloaded' });
     await closeMaintenanceNoticeIfPresent(page);
+    await waitForViteReady(page);
 
     // Wait for selects
-    await page.waitForSelector('#smartBlack');
-    await page.waitForSelector('#smartWhite');
+    await page.waitForSelector('#smartBlack', { state: 'attached' });
+    await page.waitForSelector('#smartWhite', { state: 'attached' });
 
     // Set levels: black=1, white=3
     await page.selectOption('#smartBlack', '1').catch(() => {});
@@ -52,8 +63,10 @@ describe('CPU level difference E2E', () => {
       if (w) w.dispatchEvent(new Event('change'));
     });
 
+    await closeSidePanelIfPresent(page);
+
     // Click reset to apply
-    await page.click('button:has-text("リセット")');
+    await page.click('#resetBtn');
 
     // Wait for console entry confirming White level change
     try {
@@ -90,12 +103,11 @@ describe('CPU level difference E2E', () => {
 
   test('white draw uses CPU hand image from level selects even when window cpuSmartness is not mirrored', async () => {
     page = await browser.newPage();
-    await page.goto(`http://127.0.0.1:${serverPort}/`);
+    await page.goto(`http://127.0.0.1:${serverPort}/`, { waitUntil: 'domcontentloaded' });
     await closeMaintenanceNoticeIfPresent(page);
-
-    await page.click('#sidePanelToggleBtn');
-    await page.waitForSelector('#smartBlack');
-    await page.waitForSelector('#smartWhite');
+    await waitForViteReady(page);
+    await page.waitForSelector('#smartBlack', { state: 'attached' });
+    await page.waitForSelector('#smartWhite', { state: 'attached' });
     await page.waitForSelector('#autoToggleBtn');
 
     await page.evaluate(() => {
@@ -115,18 +127,23 @@ describe('CPU level difference E2E', () => {
       };
     });
 
-    await page.selectOption('#smartBlack', '1').catch(() => {});
-    await page.selectOption('#smartWhite', '4').catch(() => {});
     await page.evaluate(() => {
-      const b = document.getElementById('smartBlack');
-      const w = document.getElementById('smartWhite');
-      if (b) b.dispatchEvent(new Event('change'));
-      if (w) w.dispatchEvent(new Event('change'));
+      const b = document.getElementById('smartBlack') as HTMLSelectElement | null;
+      const w = document.getElementById('smartWhite') as HTMLSelectElement | null;
+      if (b) {
+        b.value = '1';
+        b.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      if (w) {
+        w.value = '4';
+        w.dispatchEvent(new Event('change', { bubbles: true }));
+      }
     });
 
     expect(await page.evaluate(() => typeof window.cpuSmartness)).toBe('undefined');
 
-    await page.click('button:has-text("リセット")');
+    await closeSidePanelIfPresent(page);
+    await page.click('#resetBtn');
     await page.click('#autoToggleBtn');
 
     await page.waitForFunction(

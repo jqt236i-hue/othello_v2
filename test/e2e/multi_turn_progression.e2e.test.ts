@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } from './e2e-runtime-helpers.js';
+import { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent, closeSidePanelIfPresent } from './e2e-runtime-helpers.js';
 
 function startServer(port = 0) {
   return startStaticServer(port);
@@ -30,15 +30,28 @@ describe('Multi-turn progression E2E', () => {
       try { consoles.push({ type: msg.type(), text: msg.text() }); } catch (e) { /* ignore */ }
     });
 
-    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
+    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`, { waitUntil: 'domcontentloaded' });
     await closeMaintenanceNoticeIfPresent(page);
 
     // Wait for board initialised
-    await page.waitForFunction(() => !!(window.gameState && Array.isArray(window.gameState.board) && window.gameState.board.length === 8), { timeout: 10000 });
+    await page.waitForFunction(() => {
+      const root = window as any;
+      return root.__uiInitialized === true
+        && root.__CARD_REVERSI_BROWSER_LANE__ === 'vite'
+        && document.documentElement.getAttribute('data-browser-boot-state') === 'ready'
+        && Array.isArray(root.gameState?.board)
+        && root.gameState.board.length === 8;
+    }, undefined, { timeout: 30000 });
+    await closeSidePanelIfPresent(page);
 
     // Reset and ensure initial state
-    await page.click('button:has-text("リセット")');
-    await page.waitForTimeout(300);
+    await page.click('#resetBtn');
+    await page.waitForFunction(() => {
+      const root = window as any;
+      return root.isProcessing !== true
+        && root.isCardAnimating !== true
+        && Array.isArray(root.gameState?.board);
+    }, undefined, { timeout: 10000 });
 
     // Run for up to N turns, tracking changes
     const maxCycles = 6;

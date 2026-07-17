@@ -30,6 +30,13 @@ describe('UI stone rendering', () => {
     // Minimal stubs for other code paths (not used here)
     global.getLegalMoves = () => [];
     global.getPlayerKey = (p) => (p === BLACK ? 'black' : 'white');
+    global.countDiscs = (state) => {
+      const values = Array.isArray(state?.board) ? state.board.flat() : [];
+      return {
+        black: values.filter((value) => value === BLACK).length,
+        white: values.filter((value) => value === WHITE).length
+      };
+    };
     global.CardLogic = { getCardContext: () => ({}) };
     global.applyStoneVisualEffect = () => {};
 
@@ -343,8 +350,9 @@ describe('UI stone rendering', () => {
     assert.strictEqual(workDisc.querySelector('.work-timer').textContent, '4');
   });
 
-  test('board-renderer keeps living will aura as an overlay on special stones', () => {
+  test('board-renderer keeps living will aura as an overlay on special stones', async () => {
     const boardRenderer = require('../ui/board-renderer.js');
+    await boardRenderer.getBoardVisualControllerReady();
     const boardEl = document.getElementById('board') || document.createElement('div');
     boardEl.id = 'board';
     global.boardEl = boardEl;
@@ -418,8 +426,9 @@ describe('UI stone rendering', () => {
     assert.ok(!blackDisc.classList.contains('manifest-stone-aura-white'));
   });
 
-  test('board-renderer adds owner-colored aura to manifestation stones', () => {
+  test('board-renderer adds owner-colored aura to manifestation stones', async () => {
     const boardRenderer = require('../ui/board-renderer.js');
+    await boardRenderer.getBoardVisualControllerReady();
     const boardEl = document.getElementById('board') || document.createElement('div');
     boardEl.id = 'board';
     global.boardEl = boardEl;
@@ -459,8 +468,9 @@ describe('UI stone rendering', () => {
     assert.ok(!whiteDisc.classList.contains('manifest-stone-aura-black'));
   });
 
-  test('board-renderer does not render manifestation stones as ordinary special stones', () => {
+  test('board-renderer does not render manifestation stones as ordinary special stones', async () => {
     const boardRenderer = require('../ui/board-renderer.js');
+    await boardRenderer.getBoardVisualControllerReady();
     const boardEl = document.getElementById('board') || document.createElement('div');
     boardEl.id = 'board';
     global.boardEl = boardEl;
@@ -651,8 +661,9 @@ describe('UI stone rendering', () => {
     assert.strictEqual(destroyEvadeTimer.textContent, '2');
   });
 
-  test('board-renderer keeps hidden trap as normal stone for both seats', () => {
+  test('board-renderer keeps hidden trap as normal stone for both seats', async () => {
     const boardRenderer = require('../ui/board-renderer.js');
+    await boardRenderer.getBoardVisualControllerReady();
     if (typeof document === 'undefined') {
       const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
       global.window = dom.window;
@@ -697,8 +708,9 @@ describe('UI stone rendering', () => {
     assert.strictEqual(opponentDisc.classList.contains('trap-stone'), false);
   });
 
-  test('board-renderer shows bomb countdown for unified TIME_BOMB markers', () => {
+  test('board-renderer shows bomb countdown for unified TIME_BOMB markers', async () => {
     const boardRenderer = require('../ui/board-renderer.js');
+    await boardRenderer.getBoardVisualControllerReady();
     if (typeof document === 'undefined') {
       const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
       global.window = dom.window;
@@ -731,8 +743,9 @@ describe('UI stone rendering', () => {
     assert.strictEqual(disc.querySelector('.special-timer'), null);
   });
 
-  test('board-renderer uses shared special-stone timer classes for body duration labels', () => {
+  test('board-renderer uses shared special-stone timer classes for body duration labels', async () => {
     const boardRenderer = require('../ui/board-renderer.js');
+    await boardRenderer.getBoardVisualControllerReady();
     const SpecialStoneRegistry = require('../shared/special-stone-registry.js');
     const boardEl = document.getElementById('board') || document.createElement('div');
     boardEl.id = 'board';

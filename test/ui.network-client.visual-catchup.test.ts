@@ -1,3 +1,7 @@
+jest.mock('../ui/board-renderer.ts', () => ({
+  getBoardVisualControllerReady: jest.fn(async () => undefined)
+}));
+
 function createSnapshot(stateVersion: number, label: string) {
   return {
     stateVersion,
@@ -23,9 +27,24 @@ function flushAsyncWork() {
   return new Promise((resolve) => setImmediate(resolve));
 }
 
+let strictNetworkSettlementHandles: any[] = [];
+
+function createStrictNetworkSettlementHandle(event: any) {
+  const handle = Object.freeze({
+    kind: 'strict-network-settlement',
+    visualSeq: Number(event?.meta?.visualSeq),
+    applyCommittedFrame: jest.fn(async () => true),
+    settle: jest.fn(async () => true),
+    cancel: jest.fn(async () => true)
+  });
+  strictNetworkSettlementHandles.push(handle);
+  return handle;
+}
+
 describe('network client visual catch-up', () => {
   beforeEach(() => {
     jest.resetModules();
+    strictNetworkSettlementHandles = [];
     (global as any).gameState = createSnapshot(1, 'old').gameState;
     (global as any).cardState = createSnapshot(1, 'old').cardState;
     (global as any).BoardOps = {
@@ -111,9 +130,9 @@ describe('network client visual catch-up', () => {
     });
   });
 
-  test('requests a board update after a network presentation frame commits without direct board render', async () => {
+  test('applies the committed frame through the strict settlement handle without a legacy board refresh', async () => {
     (global as any).PresentationHandler = {
-      handlePresentationEvent: jest.fn(async () => undefined),
+      handlePresentationEvent: jest.fn(async (event: any) => createStrictNetworkSettlementHandle(event)),
       onBoardUpdated: jest.fn(async () => undefined)
     };
     const client = require('../ui/network-client.js');
@@ -138,18 +157,18 @@ describe('network client visual catch-up', () => {
     await flushAsyncWork();
     await flushAsyncWork();
 
-    expect((global as any).emitBoardUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      source: 'network_timeline',
-      reason: 'presentation_frame_committed',
-      visualSeq: 1,
-      visualVersion: 2
+    expect(strictNetworkSettlementHandles).toHaveLength(1);
+    expect(strictNetworkSettlementHandles[0].applyCommittedFrame).toHaveBeenCalledTimes(1);
+    expect(strictNetworkSettlementHandles[0].settle).toHaveBeenCalledTimes(1);
+    expect((global as any).emitBoardUpdate).not.toHaveBeenCalledWith(expect.objectContaining({
+      source: 'network_timeline'
     }));
     expect((global as any).renderBoard).not.toHaveBeenCalled();
   });
 
   test('does not fall back to direct renderBoard when no board writer is available', async () => {
     (global as any).PresentationHandler = {
-      handlePresentationEvent: jest.fn(async () => undefined),
+      handlePresentationEvent: jest.fn(async (event: any) => createStrictNetworkSettlementHandle(event)),
       onBoardUpdated: jest.fn(async () => undefined)
     };
     delete (global as any).emitBoardUpdate;
@@ -180,7 +199,7 @@ describe('network client visual catch-up', () => {
 
   test('marks network visual settlement after a presentation frame commits', async () => {
     (global as any).PresentationHandler = {
-      handlePresentationEvent: jest.fn(async () => undefined),
+      handlePresentationEvent: jest.fn(async (event: any) => createStrictNetworkSettlementHandle(event)),
       onBoardUpdated: jest.fn(async () => undefined)
     };
     const client = require('../ui/network-client.js');
@@ -210,9 +229,9 @@ describe('network client visual catch-up', () => {
     await expect(waiter).resolves.toEqual({ ok: true, visualSeq: 1 });
   });
 
-  test('requests RenderScheduler board updates without forcing playback bypass', async () => {
+  test('does not request RenderScheduler board updates after strict committed-frame apply', async () => {
     (global as any).PresentationHandler = {
-      handlePresentationEvent: jest.fn(async () => undefined),
+      handlePresentationEvent: jest.fn(async (event: any) => createStrictNetworkSettlementHandle(event)),
       onBoardUpdated: jest.fn(async () => undefined)
     };
     const flushOrder: string[] = [];
@@ -247,18 +266,17 @@ describe('network client visual catch-up', () => {
     await flushAsyncWork();
     await flushAsyncWork();
 
-    expect((global as any).RenderScheduler.requestBoardRender).toHaveBeenCalledWith(expect.objectContaining({
-      source: 'network_timeline',
-      reason: 'presentation_frame_committed'
-    }));
-    expect((global as any).RenderScheduler.flushVisualUpdates.mock.calls[0]).toEqual([]);
-    expect(flushOrder).toEqual(['request', 'flush']);
+    expect((global as any).RenderScheduler.requestBoardRender).not.toHaveBeenCalled();
+    expect((global as any).RenderScheduler.flushVisualUpdates).not.toHaveBeenCalled();
+    expect(strictNetworkSettlementHandles[0].applyCommittedFrame).toHaveBeenCalledTimes(1);
+    expect(strictNetworkSettlementHandles[0].settle).toHaveBeenCalledTimes(1);
+    expect(flushOrder).toEqual([]);
     expect((global as any).renderBoard).not.toHaveBeenCalled();
   });
 
-  test('RenderScheduler can flush timeline board update after playback becomes idle', async () => {
+  test('does not bypass a busy RenderScheduler after strict committed-frame apply', async () => {
     (global as any).PresentationHandler = {
-      handlePresentationEvent: jest.fn(async () => undefined),
+      handlePresentationEvent: jest.fn(async (event: any) => createStrictNetworkSettlementHandle(event)),
       onBoardUpdated: jest.fn(async () => undefined)
     };
     let busy = true;
@@ -296,22 +314,17 @@ describe('network client visual catch-up', () => {
     await flushAsyncWork();
     await flushAsyncWork();
 
-    expect((global as any).RenderScheduler.requestBoardRender).toHaveBeenCalledWith(expect.objectContaining({
-      source: 'network_timeline',
-      reason: 'presentation_frame_committed'
-    }));
-    expect(flushOrder).toEqual(['request', 'flush']);
+    expect((global as any).RenderScheduler.requestBoardRender).not.toHaveBeenCalled();
+    expect((global as any).RenderScheduler.flushVisualUpdates).not.toHaveBeenCalled();
+    expect(strictNetworkSettlementHandles[0].applyCommittedFrame).toHaveBeenCalledTimes(1);
+    expect(strictNetworkSettlementHandles[0].settle).toHaveBeenCalledTimes(1);
+    expect(flushOrder).toEqual([]);
     expect((global as any).renderBoard).not.toHaveBeenCalled();
-
-    busy = false;
-    (global as any).RenderScheduler.flushVisualUpdates();
-
-    expect((global as any).renderBoard).toHaveBeenCalledTimes(1);
   });
 
-  test('retries timeline board flush after playback idle when the first flush is deferred', async () => {
+  test('does not schedule a legacy playback-idle retry after strict committed-frame apply', async () => {
     (global as any).PresentationHandler = {
-      handlePresentationEvent: jest.fn(async () => undefined),
+      handlePresentationEvent: jest.fn(async (event: any) => createStrictNetworkSettlementHandle(event)),
       onBoardUpdated: jest.fn(async () => undefined)
     };
     let releaseIdle: (() => void) | null = null;
@@ -352,19 +365,17 @@ describe('network client visual catch-up', () => {
     await flushAsyncWork();
     await flushAsyncWork();
 
-    expect((global as any).waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect((global as any).waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(strictNetworkSettlementHandles[0].applyCommittedFrame).toHaveBeenCalledTimes(1);
+    expect(strictNetworkSettlementHandles[0].settle).toHaveBeenCalledTimes(1);
     expect((global as any).renderBoard).not.toHaveBeenCalled();
-
-    releaseIdle && releaseIdle();
-    await flushAsyncWork();
-
-    expect(flushOrder).toEqual(['request', 'flush', 'request', 'flush']);
-    expect((global as any).renderBoard).toHaveBeenCalledTimes(1);
+    expect(releaseIdle).toBeNull();
+    expect(flushOrder).toEqual([]);
   });
 
-  test('runs a post-playback board refresh even when the first timeline flush reports success', async () => {
+  test('does not run a post-playback legacy refresh after strict committed-frame apply', async () => {
     (global as any).PresentationHandler = {
-      handlePresentationEvent: jest.fn(async () => undefined),
+      handlePresentationEvent: jest.fn(async (event: any) => createStrictNetworkSettlementHandle(event)),
       onBoardUpdated: jest.fn(async () => undefined)
     };
     let releaseIdle: (() => void) | null = null;
@@ -410,14 +421,11 @@ describe('network client visual catch-up', () => {
     await flushAsyncWork();
     await flushAsyncWork();
 
-    expect((global as any).waitForPlaybackIdle).toHaveBeenCalledTimes(1);
-    expect(flushOrder).toEqual(['request', 'flush']);
+    expect((global as any).waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(strictNetworkSettlementHandles[0].applyCommittedFrame).toHaveBeenCalledTimes(1);
+    expect(strictNetworkSettlementHandles[0].settle).toHaveBeenCalledTimes(1);
+    expect(flushOrder).toEqual([]);
     expect((global as any).renderBoard).not.toHaveBeenCalled();
-
-    releaseIdle && releaseIdle();
-    await flushAsyncWork();
-
-    expect(flushOrder).toEqual(['request', 'flush', 'request', 'flush']);
-    expect((global as any).renderBoard).toHaveBeenCalledTimes(1);
+    expect(releaseIdle).toBeNull();
   });
 });

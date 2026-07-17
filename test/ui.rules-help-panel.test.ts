@@ -648,8 +648,9 @@ describe('rules help panel', () => {
 
   test('index html includes slide-based rules guide controls', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const classicHtml = fs.readFileSync(path.resolve(__dirname, '../index.classic.html'), 'utf8');
     expect(html).toMatch(/id="rules-help-guide-slide-img"/);
-    expect(html).toMatch(/src="assets\/images\/help\/player-guide\/card-reversi-player-guide-slide-01\.png"/);
+    expect(classicHtml).toMatch(/src="assets\/images\/help\/player-guide\/card-reversi-player-guide-slide-01\.png"/);
     expect(html).toMatch(/id="rules-help-guide-prev"/);
     expect(html).toMatch(/id="rules-help-guide-next"/);
     expect(html).toMatch(/id="rules-help-guide-page-status"/);
@@ -657,10 +658,11 @@ describe('rules help panel', () => {
 
   test('index html includes protection penetration map help tab and image', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const classicHtml = fs.readFileSync(path.resolve(__dirname, '../index.classic.html'), 'utf8');
     expect(html).toMatch(/data-help-tab="protection-map">耐性貫通表<\/button>/);
     expect(html).toMatch(/id="rules-help-page-protection-map"/);
     expect(html).toMatch(/id="rules-help-protection-map-img"/);
-    expect(html).toMatch(/src="assets\/images\/help\/protection-penetration\/protection-penetration-quick-reference\.png"/);
+    expect(classicHtml).toMatch(/src="assets\/images\/help\/protection-penetration\/protection-penetration-quick-reference\.png"/);
     expect(html).toMatch(/alt="耐性貫通の〇×早見表 1 \/ 2"/);
     expect(html).toMatch(/id="rules-help-protection-map-prev"/);
     expect(html).toMatch(/id="rules-help-protection-map-next"/);

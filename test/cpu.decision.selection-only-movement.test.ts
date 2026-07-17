@@ -8,17 +8,21 @@ const CASES = [
     label: 'SUPER_BUOYANCY_WILL',
     handlerName: 'cpuSelectSuperBuoyancyWillWithPolicy',
     pendingType: 'SUPER_BUOYANCY_WILL',
-    actionField: 'superBuoyancyTarget'
+    actionField: 'superBuoyancyTarget',
+    target: { row: 7, col: 0 },
+    blocker: { row: 0, col: 0 }
   },
   {
     label: 'SUPER_GRAVITY_WILL',
     handlerName: 'cpuSelectSuperGravityWillWithPolicy',
     pendingType: 'SUPER_GRAVITY_WILL',
-    actionField: 'superGravityTarget'
+    actionField: 'superGravityTarget',
+    target: { row: 0, col: 0 },
+    blocker: { row: 7, col: 0 }
   }
 ];
 
-describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType, actionField }) => {
+describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType, actionField, target, blocker }) => {
   let runTurnMock;
 
   beforeEach(() => {
@@ -33,6 +37,7 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
       turnNumber: 7,
       consecutivePasses: 0
     };
+    global.gameState.board[target.row][target.col] = global.BLACK;
     global.cardState = {
       hands: { white: [], black: [] },
       pendingEffectByPlayer: {
@@ -40,10 +45,17 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
         black: null
       },
       hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      markers: [{
+        id: 'movement-blocker',
+        kind: 'specialStone',
+        row: blocker.row,
+        col: blocker.col,
+        data: { type: 'BLOCKADE' }
+      }],
       turnIndex: 3
     };
     global.CardLogic = {
-      getSelectableTargets: () => [{ row: 2, col: 3 }]
+      getSelectableTargets: () => [target]
     };
     global.waitForPlaybackIdle = jest.fn(async () => {});
     globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
@@ -137,7 +149,7 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
 
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
     const action = runTurnMock.mock.calls[0][3];
-    expect(action[actionField]).toEqual({ row: 2, col: 3 });
+    expect(action[actionField]).toEqual(target);
     expect(action.deferNetworkPublish).toBe(true);
 
     expect(global.waitForPlaybackIdle).toHaveBeenCalled();

@@ -1,4 +1,5 @@
 import * as CardLogic from '../game/logic/cards.js';
+import * as CardSelectors from '../game/logic/cards/selectors.js';
 import * as Core from '../game/logic/core.js';
 import * as SharedConstants from '../shared-constants.js';
 
@@ -69,6 +70,16 @@ describe('CELL_TELEPORT_WILL（マステレポート）', () => {
     expect(targets).not.toEqual(expect.arrayContaining([{ row: 4, col: 8 }]));
 
     gameState.boardExpansion.cells = getAllOuterExpansionCells(Core.BLACK);
+    const destinationsToBlock = CardSelectors.getCellTeleportDestinations(cardState, gameState);
+    expect(destinationsToBlock.length).toBeGreaterThan(0);
+    cardState.markers.push(...destinationsToBlock.map((destination, index) => ({
+      id: `cell-teleport-block-${index}`,
+      kind: 'specialStone',
+      row: destination.row,
+      col: destination.col,
+      data: { type: 'METEOR_HOLE' }
+    })));
+    expect(CardSelectors.getCellTeleportDestinations(cardState, gameState)).toEqual([]);
     const noTargets = CardLogic.getCellTeleportTargets(cardState, gameState);
     expect(noTargets).toEqual([]);
   });
@@ -153,11 +164,19 @@ describe('CELL_TELEPORT_WILL（マステレポート）', () => {
       cardId: 'cell_teleport_01'
     };
 
-    const res = CardLogic.applyCellTeleportWill(cardState, gameState, 'black', 4, 4, createPrng(0.67));
+    const randomValue = 0.67;
+    const destinations = CardSelectors.getCellTeleportDestinations(cardState, gameState);
+    const expectedDestination = destinations[Math.floor(randomValue * destinations.length)];
+    expect(expectedDestination).toEqual(expect.objectContaining({ active: false }));
+    const expectedDestinationKey = `${expectedDestination.row},${expectedDestination.col}`;
+    const res = CardLogic.applyCellTeleportWill(cardState, gameState, 'black', 4, 4, createPrng(randomValue));
 
     expect(res && res.applied).toBe(true);
     expect(res.from).toEqual({ row: 4, col: 4 });
-    expect(res.to).toEqual({ row: -1, col: 0 });
+    expect(res.to).toEqual({
+      row: expectedDestination.row,
+      col: expectedDestination.col
+    });
     expect(res.createdDestination).toBe(true);
 
     expect(gameState.board[4][4]).toBe(Core.EMPTY);
@@ -180,17 +199,21 @@ describe('CELL_TELEPORT_WILL（マステレポート）', () => {
     });
 
     const addedCell = (gameState.boardExpansion && Array.isArray(gameState.boardExpansion.cells))
-      ? gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === 0)
+      ? gameState.boardExpansion.cells.find((cell) => (
+        cell &&
+        cell.row === expectedDestination.row &&
+        cell.col === expectedDestination.col
+      ))
       : null;
     expect(addedCell).toBeTruthy();
     expect(addedCell.owner).toBe(Core.BLACK);
-    expect(cardState.expansionStoneIdByCell['-1,0']).toBe('ctp1');
+    expect(cardState.expansionStoneIdByCell[expectedDestinationKey]).toBe('ctp1');
     expect(cardState.stoneIdMap[4][4]).toBeNull();
 
     const movedBomb = cardState.markers.find((marker) => marker && marker.id === 'bomb_1');
     expect(movedBomb).toBeTruthy();
-    expect(movedBomb.row).toBe(-1);
-    expect(movedBomb.col).toBe(0);
+    expect(movedBomb.row).toBe(expectedDestination.row);
+    expect(movedBomb.col).toBe(expectedDestination.col);
 
     const moveEvents = (cardState._presentationEventsPersist || []).filter((ev) => ev && ev.type === 'MOVE');
     expect(moveEvents.length).toBeGreaterThanOrEqual(1);

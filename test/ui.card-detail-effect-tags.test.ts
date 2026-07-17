@@ -247,7 +247,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['特殊石', '反転回避3回', '破壊回避3回']);
+    expect(getTagLabels()).toEqual(['特殊石', '反転回避6回', '破壊回避6回']);
   });
 
   test('TIME_STOP_GOD detail follows rulebook timing text and keeps delayed activation tag', () => {

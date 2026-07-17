@@ -17,10 +17,7 @@ function attachShape(
 describe("shared board expansion sockets", () => {
   const leaf = createExpansionSockets({
     toBoardCellKey: SharedBoardUtils.toBoardCellKey,
-    getBoardShapeMeta: SharedBoardUtils.getBoardShapeMeta,
-    collectBoardCoordinates: SharedBoardUtils.collectBoardCoordinates,
-    resolveBoardConfig: SharedBoardUtils.resolveBoardConfig,
-    isExpansionCoordinate: SharedBoardUtils.isExpansionCoordinate,
+    buildBoardTopology: SharedBoardUtils.buildBoardTopology,
   });
 
   test("enumerates stable edge sockets on every side and keeps corner directions distinct", () => {
@@ -159,7 +156,7 @@ describe("shared board expansion sockets", () => {
     ).toBe(false);
   });
 
-  test("recomputes sockets from active expansion cells and stays inside outer bounds", () => {
+  test("recomputes sockets from active expansion cells inside the current candidate bounds", () => {
     const board = attachShape(createBoard(), {
       boardExpansion: {
         cells: [{ side: "top", row: -1, col: 1, owner: 0 }],
@@ -167,6 +164,9 @@ describe("shared board expansion sockets", () => {
     });
     const edgeSockets = leaf.getBoardExpansionEdgeSockets(board);
     const cornerSockets = leaf.getBoardExpansionCornerSockets(board);
+    const topology = SharedBoardUtils.buildBoardTopology(board, {
+      boardConfig: board,
+    });
 
     expect(
       edgeSockets.some(
@@ -176,14 +176,23 @@ describe("shared board expansion sockets", () => {
           socket.directionKey === "up",
       ),
     ).toBe(false);
+    expect(edgeSockets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          anchor: { row: -1, col: 1 },
+          directionKey: "up",
+          additions: [{ row: -2, col: 1 }],
+        }),
+      ]),
+    );
     expect(
       [...edgeSockets, ...cornerSockets].every((socket) =>
         socket.additions.every(
           (cell) =>
-            cell.row >= -1 &&
-            cell.row <= 4 &&
-            cell.col >= -1 &&
-            cell.col <= 4,
+            cell.row >= topology.candidateBounds.minRow &&
+            cell.row <= topology.candidateBounds.maxRow &&
+            cell.col >= topology.candidateBounds.minCol &&
+            cell.col <= topology.candidateBounds.maxCol,
         ),
       ),
     ).toBe(true);

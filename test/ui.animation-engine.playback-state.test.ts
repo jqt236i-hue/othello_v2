@@ -1,5 +1,13 @@
 import { JSDOM } from 'jsdom';
 
+async function waitUntil(predicate: () => boolean, label: string, attempts = 100) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (predicate()) return;
+    await new Promise<void>((resolve) => setTimeout(resolve, 1));
+  }
+  throw new Error(`Timed out waiting for ${label}`);
+}
+
 describe('animation-engine playback-state integration', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -117,9 +125,10 @@ describe('animation-engine playback-state integration', () => {
 
     try {
       const playPromise = engine.play([{ type: 'place', phase: 1, targets: [] }]);
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
+      await waitUntil(() => (
+        typeof resolvePhase === 'function'
+        && renderer.getBoardVisualController().getSnapshot().mode === 'playback'
+      ), 'local board writer claim');
 
       expect(renderer.getBoardVisualController().getSnapshot()).toEqual(expect.objectContaining({
         mode: 'playback',
@@ -165,7 +174,7 @@ describe('animation-engine playback-state integration', () => {
         { type: 'place', phase: 2, targets: [] },
         { type: 'flip', phase: 2, targets: [] }
       ]);
-      for (let turn = 0; turn < 8 && phaseResolvers.length < 2; turn += 1) await Promise.resolve();
+      await waitUntil(() => phaseResolvers.length === 2, 'parallel board phase launch');
 
       expect(claimSpy).toHaveBeenCalledTimes(1);
       expect(playPhaseSpy).toHaveBeenCalledTimes(2);
@@ -193,8 +202,18 @@ describe('animation-engine playback-state integration', () => {
   });
 
   test('overlapping play waits for the active playback instead of aborting it', async () => {
+    const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.window.__telemetry__ = { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };
     jest.unmock('../ui/playback-state-manager');
     const manager = require('../ui/playback-state-manager.js');
+    const renderer = require('../ui/board-renderer.js');
+    await renderer.getBoardVisualControllerReady();
+    const settleSpy = jest.spyOn(renderer, 'settleBoardVisualWriter').mockImplementation((token: any) => {
+      renderer.releaseBoardVisualWriter(token);
+      return Promise.resolve();
+    });
     const engine = require('../ui/animation-engine.js');
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     let resolveFirstPhase = null;
@@ -223,9 +242,7 @@ describe('animation-engine playback-state integration', () => {
       expect(typeof resolveFirstPhase).toBe('function');
       resolveFirstPhase();
       await firstPlayPromise;
-      await new Promise((resolve) => setTimeout(resolve, 30));
-      await Promise.resolve();
-      await Promise.resolve();
+      await waitUntil(() => executePhaseSpy.mock.calls.length === 2, 'queued overlapping playback');
 
       expect(executePhaseSpy).toHaveBeenCalledTimes(2);
       expect(typeof resolveSecondPhase).toBe('function');
@@ -235,8 +252,10 @@ describe('animation-engine playback-state integration', () => {
       expect(manager.getPlaybackActive()).toBe(false);
       expect(engine.isPlaying).toBe(false);
     } finally {
+      settleSpy.mockRestore();
       warnSpy.mockRestore();
       executePhaseSpy.mockRestore();
+      dom.window.close();
     }
   });
 

@@ -37,7 +37,7 @@ describe('CPU auto-response E2E', () => {
   }, 30000);
 
   test.each([
-    ['classic', 'index.html'],
+    ['classic', 'index.classic.html'],
     ['vite', 'vite-dist/index.vite.html']
   ])('%s lane: player move triggers CPU turn and CPU performs an action', async (lane: string, entry: string) => {
     if (!browser || serverPort === null) throw new Error('E2E runtime is not initialized');

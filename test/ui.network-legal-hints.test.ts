@@ -105,8 +105,9 @@ describe('network legal hints for join seat', () => {
     cleanupGlobals(dom);
   });
 
-  test('board-renderer shows legal hints for white joiner on white turn', () => {
+  test('board-renderer shows legal hints for white joiner on white turn', async () => {
     const boardRenderer = require('../ui/board-renderer.js');
+    await boardRenderer.getBoardVisualControllerReady();
     boardRenderer.renderBoardFull();
 
     const legalCell = global.boardEl.querySelector('.cell[data-row="2"][data-col="3"]');

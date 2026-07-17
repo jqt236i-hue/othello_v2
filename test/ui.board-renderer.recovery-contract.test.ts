@@ -95,6 +95,7 @@ describe('board renderer recovery boundary', () => {
       createBoardRenderProjection: jest.fn(() => ({})),
       buildCurrentCellState: jest.fn(() => ({})),
       createBoardPresentationOverlayState: jest.fn(() => ({})),
+      createCommittedManifestPresentationState: jest.fn(() => ({})),
       buildBoardRenderModel: buildModel
     }));
     jest.doMock('../ui/board-visual/layout', () => ({

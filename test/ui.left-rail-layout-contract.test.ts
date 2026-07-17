@@ -47,7 +47,7 @@ describe('left action rail layout contract', () => {
     expect(layoutCss).toMatch(/:is\(#ratedMatchModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)::before[\s\S]*linear-gradient\(90deg,\s*transparent,\s*rgba\(83,\s*214,\s*209/);
     expect(layoutCss).toMatch(/:is\(#networkCloseBtn,\s*#ratedMatchCloseBtn,\s*#leaderboardCloseBtn,\s*#gachaCloseBtn,\s*#deckBuilderCloseBtn,\s*#handSkinCloseBtn,\s*#rules-help-close-btn\)[\s\S]*border-radius:\s*50%/);
     expect(layoutCss).toMatch(/:is\(#networkModalHeader,\s*#ratedMatchModalHeader,\s*#leaderboardModalHeader,\s*#gachaModalHeader,\s*#deckBuilderModalHeader,\s*#handSkinPanelHeader,\s*#rules-help-title-row\)[\s\S]*background:/);
-    expect(layoutCss).toMatch(/:is\(#networkPanel,\s*#ratedMatchModalBody,\s*#networkRoomListViewport,\s*#leaderboardModalBody,\s*#gachaModalBody,\s*#deckBuilderBody,\s*#handSkinOptions,\s*#backgroundSkinOptions,\s*#boardSkinOptions,\s*#fontSkinOptions,\s*#stoneSkinOptions,\s*#rules-help-pages\)[\s\S]*scrollbar-width:\s*thin/);
+    expect(layoutCss).toMatch(/:is\(#networkPanel,\s*#ratedMatchModalBody,\s*#networkRoomListViewport,\s*#leaderboardModalBody,\s*#gachaModalBody,\s*#deckBuilderBody,\s*#handSkinOptions,\s*#backgroundSkinOptions,\s*#boardSkinOptions,\s*#fontSkinOptions,\s*#stoneSkinOptions,\s*#mySkinOptions,\s*#rules-help-pages\)[\s\S]*scrollbar-width:\s*thin/);
     expect(layoutCss).toMatch(/#handSkinPanel[\s\S]*position:\s*fixed/);
     expect(layoutCss).toMatch(/#rules-help-panel[\s\S]*position:\s*fixed/);
     expect(layoutCss).not.toMatch(/:is\(#networkModal,\s*#ratedMatchModal,\s*#leaderboardModal,\s*#gachaModal,\s*#deckBuilderModal,\s*#handSkinPanel,\s*#rules-help-panel,\s*#control-panel\)\s*\{[^}]*position:\s*relative/);
@@ -117,8 +117,8 @@ describe('left action rail layout contract', () => {
 
     expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#leftActionButtons[\s\S]*top:\s*max\(calc\(240px\s*\*\s*var\(--layout-stage-scale\)\),\s*env\(safe-area-inset-top\)\s*\+\s*calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)\)\s*!important/);
     expect(responsiveCss).toMatch(/@media\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*#leftActionButtons[\s\S]*top:/);
-    expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#leftActionButtons[\s\S]*top:\s*auto/);
-    expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#leftActionButtons[\s\S]*bottom:\s*max\(calc\(10px\s*\*\s*var\(--layout-stage-scale\)\),\s*env\(safe-area-inset-bottom\)\)/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#leftActionButtons[\s\S]*top:\s*auto/);
+    expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#leftActionButtons[\s\S]*bottom:\s*max\(calc\(10px\s*\*\s*var\(--layout-stage-scale\)\),\s*env\(safe-area-inset-bottom\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#hero-character-panel[\s\S]*bottom:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*calc\(120px\s*\*\s*var\(--layout-stage-scale\)\)\s*\+\s*var\(--layout-stage-bottom-safe-shift\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#left-info-stack[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*calc\(150px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#leftActionButtons[\s\S]*bottom:/);

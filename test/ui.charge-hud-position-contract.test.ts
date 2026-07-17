@@ -13,14 +13,14 @@ describe('charge HUD position contract', () => {
     expect(layoutCss).toMatch(/\.charge-display[\s\S]*font-size:\s*var\(--layout-size-charge-font\)/);
     expect(layoutCss).toMatch(/\.charge-display[\s\S]*z-index:\s*var\(--layout-z-charge-display\)/);
     expect(layoutCss).toMatch(/#charge-hud-layer[\s\S]*transform:\s*translateY\(var\(--layout-charge-board-offset-y\)\)/);
-    expect(layoutCss).toMatch(/#charge-black[\s\S]*bottom:\s*calc\(var\(--layout-size-charge-offset\)\s*\+\s*var\(--layout-charge-own-offset\)\)/);
-    expect(layoutCss).toMatch(/#charge-white[\s\S]*top:\s*calc\(var\(--layout-size-charge-offset\)\s*\+\s*var\(--layout-charge-opponent-offset\)\s*-\s*14px\)/);
+    expect(layoutCss).toMatch(/#charge-black[\s\S]*bottom:\s*calc\(var\(--layout-size-charge-offset\)\s*\+\s*var\(--layout-charge-own-offset\)\s*-\s*3px\)/);
+    expect(layoutCss).toMatch(/#charge-white[\s\S]*top:\s*calc\(var\(--layout-size-charge-offset\)\s*\+\s*var\(--layout-charge-opponent-offset\)\s*-\s*19px\)/);
     expect(layoutCss).toMatch(/#charge-white \.time-stop-status-badge[\s\S]*bottom:\s*calc\(100%\s*\+\s*\(6px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(variablesCss).toMatch(/--layout-size-charge-font:\s*calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(variablesCss).toMatch(/--layout-size-charge-pad-x:\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(variablesCss).toMatch(/--layout-size-charge-offset:\s*calc\(\(-28px\s*\+\s*clamp\(8px,\s*1\.8vmin,\s*19px\)\)\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(variablesCss).toMatch(/--layout-charge-board-offset-y:\s*calc\(-18px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(variablesCss).toMatch(/--layout-charge-own-offset:\s*calc\(5px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(variablesCss).toMatch(/--layout-charge-own-offset:\s*calc\(3px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(variablesCss).toMatch(/--layout-charge-opponent-offset:\s*calc\(17px\s*\*\s*var\(--layout-stage-scale\)\)/);
   });
 });

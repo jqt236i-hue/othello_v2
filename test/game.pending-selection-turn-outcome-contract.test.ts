@@ -26,6 +26,7 @@ const ACTION_VALUE_BY_FIELD: Record<string, any> = {
   livingWillTarget: { row: 1, col: 1 },
   meteorTarget: { row: 1, col: 1 },
   observerWillTargetIndex: 0,
+  poisonTarget: { row: 1, col: 1 },
   positionSwapTarget: { row: 1, col: 1 },
   reverseWillTarget: { row: 1, col: 1 },
   seedTarget: { row: 1, col: 1 },

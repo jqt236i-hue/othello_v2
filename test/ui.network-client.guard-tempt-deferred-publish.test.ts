@@ -921,7 +921,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     expect(publishBodies[0].playbackEvents).toBeUndefined();
     expect(global.gameState.turnNumber).toBe(12);
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
     expect(presentation.emitPresentationEvent).not.toHaveBeenCalled();
     assertAppliedState({
       gameState: global.gameState,

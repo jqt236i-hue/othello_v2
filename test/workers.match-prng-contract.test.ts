@@ -2,6 +2,27 @@ jest.mock('../workers/match-worker-runtime-preload.js', () => ({}), { virtual: t
 
 const { createWorkerTurnPipelineModule } = require('../workers/match-worker.ts');
 
+const runtimeScope = globalThis as typeof globalThis & {
+  TurnSubPlacementContinuation?: {
+    isSubPlacementTurnActive: (cardState: unknown, playerKey: unknown) => boolean;
+  };
+};
+const originalSubPlacementContinuation = runtimeScope.TurnSubPlacementContinuation;
+
+beforeEach(() => {
+  runtimeScope.TurnSubPlacementContinuation = {
+    isSubPlacementTurnActive: () => false
+  };
+});
+
+afterEach(() => {
+  if (originalSubPlacementContinuation === undefined) {
+    delete runtimeScope.TurnSubPlacementContinuation;
+    return;
+  }
+  runtimeScope.TurnSubPlacementContinuation = originalSubPlacementContinuation;
+});
+
 test('worker TurnPipeline applyTurnSafe persists next prngState and returns a stateHash', () => {
   const CardLogic = {
     flushPresentationEvents: jest.fn(() => [])

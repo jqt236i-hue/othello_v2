@@ -20,6 +20,13 @@ describe('presentation handler CPU scheduling', () => {
         on: jest.fn()
       }
     };
+    global.AnimationEngine = {
+      play: jest.fn(async (_events, options) => {
+        if (options && typeof options.onFinalizationReady === 'function') {
+          options.onFinalizationReady(() => true);
+        }
+      })
+    };
   });
 
   afterEach(() => {
@@ -35,6 +42,7 @@ describe('presentation handler CPU scheduling', () => {
     delete global.gameState;
     delete global.GamePresentationRuntime;
     delete global.GameEvents;
+    delete global.AnimationEngine;
   });
 
   test('SCHEDULE_CPU_TURN delegates to game presentation runtime', () => {
