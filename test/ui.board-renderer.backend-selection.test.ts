@@ -188,6 +188,24 @@ describe('board renderer backend selection and initial compatibility fallback', 
     expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('pixi');
   });
 
+  test('materializes the expansion layer only after the DOM compatibility backend is selected', async () => {
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
+    const createPixiBackend = jest.fn(() => createBackend('pixi'));
+    renderer.configureBoardVisualBackendForTest({ createPixiBackend });
+
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+
+    const board = document.getElementById('board') as HTMLElement;
+    document.getElementById('board-expansion-layer')?.remove();
+    renderer.syncBoardExpansionLayerGeometry(board, { rows: 8, cols: 8 });
+    expect(document.getElementById('board-expansion-layer')).toBeNull();
+
+    board.setAttribute('data-board-renderer', 'dom');
+    renderer.syncBoardExpansionLayerGeometry(board, { rows: 8, cols: 8 });
+    expect(document.getElementById('board-expansion-layer')?.parentElement?.id).toBe('board-stack');
+  });
+
   test('allows only the exact debug query to select the DOM compatibility backend', async () => {
     const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=dom&noanim=1');
     const domBackend = createBackend('dom');

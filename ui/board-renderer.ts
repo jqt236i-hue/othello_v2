@@ -469,7 +469,11 @@ function resolveBoardExpansionLayerElement(boardElement: any, createIfMissing?: 
     if (typeof boardStack.querySelector === 'function') {
         layer = boardStack.querySelector('#board-expansion-layer');
     }
-    if (layer || !createIfMissing || typeof document.createElement !== 'function') {
+    const rendererKind = boardElement && typeof boardElement.getAttribute === 'function'
+        ? boardElement.getAttribute('data-board-renderer')
+        : null;
+    const mayCreateCompatibilityLayer = !!createIfMissing && rendererKind === 'dom';
+    if (layer || !mayCreateCompatibilityLayer || typeof document.createElement !== 'function') {
         return layer;
     }
 
