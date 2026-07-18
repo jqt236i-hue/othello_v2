@@ -2,7 +2,7 @@
 
 - Status: proposed
 - Date: 2026-07-14
-- Last reviewed: 2026-07-18（実機入力を release gate から外し、実GPU desktop 長時間 A/B と cross-browser mobile-viewport gate へ置換）
+- Last reviewed: 2026-07-18（共有PCの長時間soakをoptional diagnosticsへ分離し、短時間readinessとcross-browser gateへ置換）
 - Target: ブラウザの盤面、石、盤面上の入力表示、盤面に属する再生演出を PixiJS へ移行する
 - Source of truth: root `AGENTS.md`、`01-rulebook.md`、`正本/演出正本.md`、`正本/ターン進行正本.md`、`docs/architecture-contracts.md`、現行 root 実装
 - Design dependency: PixiJS `8.18.1` を完全固定して使用する
@@ -85,9 +85,11 @@ Phase 0 の同一 desktop Chrome capture では、DOM lane の8x8複数石更新
 一方、Phase 0 の当該 frame 値は synthetic state mutation と `forceFullRender()` を使う desktop microbenchmark であり、`AnimationEngine` / `PlaybackEngine` が実際に `PLACE`、`FLIP`、`MOVE`、`DESTROY`、`SPAWN`、`STATUS`、特殊演出を dispatch する一手全体の負荷や、physical mobile device の paint/composite、texture upload、thermal throttling を証明しない。したがって次を区別する。
 
 - Phase 0 baseline: topology、pixel、digest、desktop apply cost を固定する再現可能な移行前基準。
-- Phase 9 release evidence: public presentation path を使った DOM/Pixi A/B、hardware-accelerated desktop Chromium の長時間安定性、Chromium/Firefox/WebKit の mobile viewport 機能検証を含む default cutover 判定。
+- Phase 9 release evidence: public presentation path を使った DOM/Pixi readiness、hardware-accelerated desktop Chromium のアプリ帰属同期処理/lifecycle、Chromium/Firefox/WebKit の mobile viewport 機能検証を含む default cutover 判定。共有 workstation の長時間 rAF soak は環境ノイズをアプリ不具合と誤認し得るため、専用計測環境での optional diagnostics と分離する。
 
 2026-07-18 の operator decision により、physical Android Chrome / iPhone Safari の入力は release gate から外す。これは mobile 対応を保証する証拠へ desktop emulation を偽装する判断ではない。actual mobile の paint/composite、Safari 実機 GPU、thermal throttling は未検証の residual risk として pre-cutover/final report に明記し、将来取得できる physical capture tooling は optional diagnostics として保持する。
+
+同日の追加 operator decision により、classic/Vite × DOM/Pixi の各10分 soak と workstation 全体の `rafStall50msCount === 0` も release-blocking gate から外す。候補実装の長時間 capture では classic が全 comparison を通り、Vite DOM のみ55回の50 ms stallを記録した直後のVite Pixiはstall 0だった一方、capture後の共有PC負荷は20～45%だった。これはstrict soakを削除または成功扱いする根拠ではなく、実行環境を隔離できない計測をdefault cutoverの停止条件にしない根拠である。既存の4run×10分 schema、raw sample、threshold、validatorは専用環境用の厳格なoptional diagnosticsとして維持し、失敗sampleを破棄・改変しない。
 
 現行実装には `RenderScheduler`、`syncBoardPixelSizing()` の dirty/signature gate、差分 renderer、Single Visual Writer、CPU candidate scoring Worker、lazy runtime loading がすでにある。Pixi 移行はこれらを置き換えず、盤面 DOM/CSS writer と board-local effect の残存負荷を backend 内へ集約する。HUD、手札、global DOM effect、CPU の残存負荷は計測上分離し、盤面の性能問題を理由に全 UI を canvas 化しない。
 
@@ -456,7 +458,7 @@ classic と Vite は同じ Pixi backend を使う。classic は browser boot の
 
 cutover release は、証拠と deployment を循環させないため次の3 unitに分ける。
 
-1. pre-cutover evidence: DOM-default の clean candidate commit から DOM/Pixi を排他的に選べる debug harness を配信し、hardware-accelerated desktop performance、10分 lifecycle、cross-browser/mobile-viewport、visual、network gate を通す。同一 commit/artifact の classic/Vite × DOM/Pixi raw report と pre-cutover 判定を report-only commit に保存する。physical device report は optional diagnostics であり release gate には使わない。
+1. pre-cutover evidence: DOM-default の clean candidate commit から DOM/Pixi を排他的に選べる debug harness を配信し、hardware-accelerated desktop readiness、cross-browser/mobile-viewport、visual、network gate を通す。同一 commit/artifact の classic/Vite × DOM/Pixi 短時間raw reportとpre-cutover判定をreport-only commitに保存する。4run×10分soakとphysical device reportはoptional diagnosticsでありrelease gateには使わないが、取得済みの失敗結果をreportから隠さない。
 2. default cutover: unit 1 が pass した後、classic/Vite の default selector と必要な生成物だけを一つの isolated commit で Pixi へ切り替え、その commit SHA の immutable artifact を deploy する。WebGL/runtime/initial texture preflight に失敗した場合だけ、最初の board render 前に DOM compatibility backend を mount する。`?debug=1&boardRenderer=dom` は fallback の継続検証用に残し、通常 query では選択できない。
 3. post-deploy evidence: unit 2 の deployed commit SHA に対して production smoke、network match、reconnect、主要特殊演出、supported browser bundle を実行し、結果だけを final cutover report commit に保存する。この report commit まで Phase 9 を完了扱いにしない。
 
@@ -543,7 +545,7 @@ baseline 更新は「renderer を変更したため」だけで一括承認し�
 
 ### 7.3 performance gates
 
-performance gate は「hardware-accelerated desktop Chromium の再現可能な A/B・10分 stability」と「Chromium/Firefox/WebKit の mobile viewport 機能 gate」の二層にする。どちらも DOM/Pixi を同時 mount せず、同一 fixture/event digest を backend 切替ごとに reload して測る。後者は実機性能の代替とは呼ばず、responsive layout、exclusive mount、scroll、fallback、browser API 差の機能検証に限定する。
+release-blocking gate は「hardware-accelerated desktop Chromium の短時間readiness」と「Chromium/Firefox/WebKit の mobile viewport機能gate」の二層にする。どちらもDOM/Pixiを同時mountせず、同一fixture/event digestをbackend切替ごとにreloadして測る。共有workstationの4run×10分stabilityは第三層のoptional strict soakとし、専用計測環境を用意できる場合の診断に限定する。mobile viewportは実機性能の代替とは呼ばず、responsive layout、exclusive mount、scroll、fallback、browser API差の機能検証に限定する。
 
 #### 7.3.1 計測経路と attribution
 
@@ -551,28 +553,25 @@ performance gate は「hardware-accelerated desktop Chromium の再現可能な 
 - animation 計測は isolated fixture でも public `PlaybackEngine` → phase planner/dispatcher → `BoardVisualController.playPhase()` 経路を通す。event を直接 backend method へ注入して成功扱いにしない。
 - report schema v1 の scenario ID を `basic.multi-flip-8x8`、`heavy.move-8x8`、`heavy.destroy-spawn-8x8`、`heavy.status-8x8`、`heavy.destroy-source-8x8`、`heavy.theory-manifest-8x8`、`micro.full-marker-16x16`、`stability.expansion-skin` に固定する。heavy threshold は各 scenario を個別判定し、sample を混ぜて遅い effect を隠さない。
 - board model build、backend apply、board-local playback、global DOM overlay/HUD、whole-turn settlement を別 measure にし、Pixi 改善と残存 DOM/CPU 負荷を混同しない。
-- capture は `document.visibilityState === 'visible'`、focus、font/texture/application ready を確認し、最初の120個の連続 idle rAF interval の median を `nominalFrameIntervalMs` とする。途中の visibility/focus change は report 全体を invalid にする。
-- 各 scenario は5回の非集計 warm-up 後、basicを30回、各heavyを20回、micro operationを100回測る。p50/p95/p99 は昇順 sample の `ceil(p * N) - 1` を使う nearest-rank とし、raw sample を削除・winsorizeしない。
-- requestAnimationFrame interval の p50/p95/p99/max、nominal interval の1.5倍を超える jank frame 比率、`interval >= 50 ms` の `rafStall50msCount`、presentation start latency、display object/texture lease/canvas backing size を保存する。`rafStall50msCount` は全対象 browser の必須 gate とし、Long Animation Frame / Long Task は対応時だけ CPU attribution に使う optional field とする。
+- capture は `document.visibilityState === 'visible'`、focus、font/texture/application readyを確認し、readinessでは最初の8個、strict soakでは120個の連続idle rAF intervalのmedianを`nominalFrameIntervalMs`とする。途中のvisibility/focus changeはreport全体をinvalidにする。
+- release readiness は1回のwarm-up後、basicを2回、各heavyを1回、micro operationを3回、stability/lifecycleを500 ms・各2操作で実行する。strict soakは従来どおり5回の非集計warm-up後、basicを30回、各heavyを20回、micro operationを100回、stabilityを10分測る。どちらもp50/p95/p99は昇順sampleの`ceil(p * N) - 1`を使うnearest-rankとし、raw sampleを削除・winsorizeしない。
+- requestAnimationFrame interval の p50/p95/p99/max、nominal interval の1.5倍を超える jank frame 比率、`interval >= 50 ms` の `rafStall50msCount`、presentation start latency、display object/texture lease/canvas backing size を保存する。readinessではOS/他processを含むrAF stallとDOM/Pixi比率を診断値として保存し、release PASSを単独で阻止させない。strict soakでは既存のstall 0と比較thresholdを変更せず判定する。Long Animation Frame / Long Task は対応時だけ CPU attribution に使う optional field とする。
 - `browserArtifactSha256` は配信対象fileごとの `{ path, sha256 }` をpath昇順にしたUTF-8 stable JSONのSHA-256とし、LAN URLや生成時刻をdigest入力へ含めない。serverとbrowser reportが同じ値を持たなければcaptureを開始しない。
 - event の player-visible duration は正本どおり維持し、短縮を性能改善として数えない。
 
-#### 7.3.2 再現可能な desktop gate
+#### 7.3.2 再現可能な desktop readiness と optional strict soak
 
-- Phase 0 と同じ machine/browser/viewport/DPR で DOM/Pixi の actual playback と microbenchmark を取得する。
-- 8x8 basic board-local scenario の Pixi p95 は「観測した nominal frame interval + 1 ms」以内、jank frame 比率は5%以下、`rafStall50msCount === 0` とする。
-- 各heavy board-local scenarioはPixi p95がnominal intervalの2倍以内、maxが100 ms未満、`rafStall50msCount === 0`とし、DOMがtarget外ならPixi p95を20%以上短縮、DOMがtarget内なら5%超悪化なしとする。
-- DOM p95 が上記 frame target を外す scenario は Pixi p95 が DOM より20%以上短いこと。DOM が既に target 内なら Pixi は DOM より5%を超えて悪化しないこと。
-- 16x16/full marker fixture の個々の input hit test と model apply の同期 measure は50 ms未満とする。
-- whole-turn p95 と presentation start latency は DOM より5%を超えて悪化せず、board-local 改善を HUD/global effect の追加負荷で相殺しない。
-- classic/Vite × DOM/Pixi の各runで `stability.expansion-skin` を10分実行する。最後の2分のp95/jank比率は最初の2分から20%を超えて悪化せず、context loss、canvas backing growth、display object/texture lease の単調増加を起こさない。
-- desktop capture は Chromium の GPU diagnostics を保存し、SwiftShader、llvmpipe、software rasterizer、GPU compositing/WebGL disabled を拒否する。
+- Phase 0 と同じ machine/browser/viewport/DPR で DOM/Pixi の actual playback と microbenchmark を取得する。readiness/soakともChromiumのGPU diagnosticsを保存し、SwiftShader、llvmpipe、software rasterizer、GPU compositing/WebGL disabledを拒否する。
+- blocking readinessはcandidate/artifact/fixture/event digest、visible/focused、font/texture/application ready、classic/Vite × DOM/Pixiの排他的mount、public playback、Pixiの各model build/backend同期apply 50 ms未満、context loss 0、canvas/context 1、DOM cell 0、viewport materialization上限、same-model/reset/skin-switch後のobject/texture/backing steady stateを独立再計算する。
+- readinessのraw rAF、DOM/Pixi p95、whole-turn/start latencyは保存し、follow-up inventoryに使うが、共有workstation上の他processやthermal状態を分離できないためblocking thresholdにしない。player-visible durationを短縮して数値を改善してはならない。
+- optional strict soakでは、8x8 basic Pixi p95をnominal interval + 1 ms以内、jank 5%以下、stall 0とし、各heavyをp95 ≤ 2 frame intervals、max < 100 ms、stall 0とする。DOMがtarget外なら20%以上短縮、target内なら5%超悪化なし、whole-turn/start latencyもDOM比5%超悪化なしとする。
+- optional strict soakはclassic/Vite × DOM/Pixiの各runで`stability.expansion-skin`を10分実行し、最後の2分のp95/jank比率が最初の2分から20%を超えて悪化せず、context loss、canvas backing growth、display object/texture leaseの単調増加を起こさない。結果はPASS/FAILとも保存できるがrelease PASSを上書きしない。
 
 #### 7.3.3 automated cross-browser / mobile-viewport release gate
 
 - production Vite artifact を Playwright Chromium、Firefox、WebKit で起動し、desktop と mobile-width viewport、DPR 1/2、scroll、local/CPU/network/spectator、Pixi exclusive mount、forced DOM fallback を検証する。WebKit は iOS Safari 実機性能の代替ではなく、engine-level compatibility smoke として扱う。
 - performance threshold は hardware-accelerated desktop Chromium の raw rAF だけで判定する。Playwright engine 間の wall-clock 数値や CPU throttling を cutover の優劣判定へ使わない。
-- automated pre-cutover validator は candidate commit、browser artifact SHA-256、fixture/event digest、classic/Vite × DOM/Pixi の4 raw report、120 nominal sample、scenario sample数、nearest-rank summary、`rafStall50msCount`、10分区間、object/lease/backing lifecycleを独立再計算する。raw sample欠落、digest不一致、visibility/focus change、software WebGL、summary不一致をfailにする。
+- automated pre-cutover validator v3はcandidate commit、browser artifact SHA-256、fixture/event digest、classic/Vite × DOM/Pixiの4 readiness raw report、scenario sample数、nearest-rank summary、アプリ帰属同期measure、object/lease/backing lifecycleを独立再計算する。raw sample欠落、digest不一致、visibility/focus change、software WebGL、summary不一致、Pixi同期measure超過、排他的mount/lifecycle違反をfailにする。optional strict soakがあれば別欄で既存v2相当の全thresholdを再計算し、FAILを隠さないがtop-level release PASSには合成しない。
 - physical capture schema、reference-device manifest、LAN host、import validatorは optional diagnostics として残す。取得した場合も release PASS を上書きせず、別の補強証拠として保存する。
 - pre-cutover と final cutover report は、actual Android/iPhone、Safari実機GPU、mobile thermal throttlingを検証していないことを residual risk として明記する。
 
@@ -655,8 +654,8 @@ backend/controller/model の責務が実装と contract test で安定した段�
 - 全盤面種別、skin、入力、keyboard、spectator、`NOANIM` が既存 player-visible contract と一致する。
 - 全 presentation event が正本順で再生され、strict network playback と reconnect が最終 visual state を先送りしない。
 - DOM hand/card/HUD/global presentation が座標 bridge 経由で Pixi 盤面と整合する。
-- supported browser matrix、visual regression、classic-vs-Vite、network parity、Worker mirror、performance gate が通る。
-- actual playback の desktop DOM/Pixi A/B、各runの10分 lifecycle gate、Chromium/Firefox/WebKit mobile-viewport機能gateが通る。mobile thermal/Safari実機GPUは未検証リスクとして明記される。
+- supported browser matrix、visual regression、classic-vs-Vite、network parity、Worker mirror、readiness gate が通る。
+- actual playbackのdesktop DOM/Pixi readiness、アプリ帰属同期/lifecycle gate、Chromium/Firefox/WebKit mobile-viewport機能gateが通る。4run×10分strict soak、mobile thermal、Safari実機GPUはoptionalまたは未検証リスクとして明記される。
 - Phase 9のpre-cutover evidence、isolated default-selector deployment、deployed SHAのpost-smoke reportが別unit/commitで完了し、final cutover reportが実際のdeploymentを参照する。
 - idle ticker、display object、texture、listener、ResizeObserver、WebGL context の leak がない。
 - `docs/architecture-contracts.md`、build scripts、test harness が Pixi default と mutually exclusive DOM compatibility fallback を説明している。
@@ -673,7 +672,7 @@ backend/controller/model の責務が実装と contract test で安定した段�
 - compatibility: WebGL init/recovery failure では mutually exclusive DOM backend を使い、今回の移行で対応環境を狭めない。
 - scope: カード/HUD/フォームを DOM に残し、第二 Pixi Application と全画面 canvas 化を除外した。
 - verification: unit、real browser、network、visual、performance、mirror の gate を分離した。
-- performance evidence: synthetic `forceFullRender()` を microbenchmark に限定し、actual public playback、hardware desktopの`rafStall50msCount`、versioned schema/runbook、4run×10分 stability、cross-browser/mobile-viewport機能smoke、board/global attribution を release gate に追加した。
+- performance evidence: synthetic `forceFullRender()`をmicrobenchmarkに限定し、actual public playback、アプリ帰属同期measure、versioned readiness schema/runbook、cross-browser/mobile-viewport機能smoke、board/global attributionをrelease gateにした。raw `rafStall50msCount`と4run×10分stabilityはthresholdを維持したoptional strict soakへ分離した。
 - cutover evidence: pre-cutover、isolated default deployment、deployed-SHA reportを3 unitに分け、deployment前のcommitへproduction結果を要求する循環を除いた。
 
-自己レビューでは、旧 performance gate が desktop synthetic apply と実 animation を区別しない問題、default cutoverとproduction証拠の循環、raw stall/lifecycleの検証不足を確認した。当初はphysical Android/iPhoneを必須化したが、2026-07-18のoperator decisionで外部入力をrelease gateから外した。代替は実機を装うemulationではなく、hardware desktop actual playback、4run×10分stability、cross-browser/mobile-viewport機能smoke、versioned fail-closed validatorである。actual mobile paint/composite、Safari実機GPU、thermal throttlingは証明できないため、pre-cutover/final reportに未検証リスクとして固定する。Unit A/B/C境界、authority、player-visible timing、Pixi ownershipは変更しない。
+自己レビューでは、旧performance gateがdesktop synthetic applyと実animationを区別しない問題、default cutoverとproduction証拠の循環、raw stall/lifecycleの検証不足を確認した。当初はphysical Android/iPhoneを必須化したが、2026-07-18のoperator decisionで外部入力をrelease gateから外した。その後、共有workstationで4run×10分stall 0を必須化するとアプリ外負荷をrelease failureへ誤分類し、完了可能性を計測環境へ委ねる設計欠陥が実測で判明した。修正版はhardware desktop actual playbackの短時間readinessで同期処理/lifecycle/排他的mountをfail-closed検証し、cross-browser/mobile-viewport機能smokeを組み合わせる。strict soak、actual mobile paint/composite、Safari実機GPU、thermal throttlingは未検証またはoptional evidenceとしてreportへ固定し、取得済みFAILを隠さない。Unit A/B/C境界、authority、player-visible timing、Pixi ownershipは変更しない。

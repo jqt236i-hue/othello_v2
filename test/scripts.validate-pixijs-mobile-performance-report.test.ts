@@ -7,6 +7,7 @@ import {
   evaluatePhysicalPerformancePair,
   parseValidatorArgs,
   validateAutomatedPrecutoverEvidence,
+  validateDesktopReadinessReport,
   validateDesktopReport,
   validatePhysicalReport,
   validatePrecutoverEvidence
@@ -85,7 +86,7 @@ function summary(samples: any[], nominal = 16): any {
   };
 }
 
-function measuredScenario(id: string, count: number, backend: 'dom' | 'pixi'): any {
+function measuredScenario(id: string, count: number, backend: 'dom' | 'pixi', warmupCount = 5): any {
   const micro = id === 'micro.full-marker-16x16';
   const samples = Array.from({ length: count }, () => ({
     rafTimestampsMs: micro ? [] : [0, 16],
@@ -101,30 +102,43 @@ function measuredScenario(id: string, count: number, backend: 'dom' | 'pixi'): a
     diagnosticsBefore: diagnostics(backend),
     diagnosticsAfter: diagnostics(backend)
   }));
-  return { id, warmupCount: 5, sampleCount: count, rawSamples: samples, summary: summary(samples) };
+  return { id, warmupCount, sampleCount: count, rawSamples: samples, summary: summary(samples) };
 }
 
-let stabilityTimestamps: number[] | null = null;
-function stabilityScenario(backend: 'dom' | 'pixi'): any {
-  if (!stabilityTimestamps) stabilityTimestamps = Array.from({ length: 37_501 }, (_value, index) => index * 16);
+const stabilityTimestampCache = new Map<number, number[]>();
+function stabilityScenario(backend: 'dom' | 'pixi', config = createBoardPerformanceRunConfig('physical')): any {
+  let stabilityTimestamps = stabilityTimestampCache.get(config.stabilityDurationMs);
+  if (!stabilityTimestamps) {
+    stabilityTimestamps = Array.from(
+      { length: Math.ceil(config.stabilityDurationMs / 16) + 1 },
+      (_value, index) => index * 16
+    );
+    stabilityTimestampCache.set(config.stabilityDurationMs, stabilityTimestamps);
+  }
   const intervals = Array.from({ length: stabilityTimestamps.length - 1 }, () => 16);
-  const rawSamples = Array.from({ length: 601 }, (_value, index) => ({
-    elapsedMs: index * 1000,
+  const rawSamples = Array.from({ length: Math.ceil(config.stabilityDurationMs / config.stabilitySampleIntervalMs) + 1 }, (_value, index) => ({
+    elapsedMs: Math.min(config.stabilityDurationMs, index * config.stabilitySampleIntervalMs),
     apply: { modelBuildMs: 1, backendApplySyncMs: 1, backendApplySettlementMs: 1 },
     diagnostics: diagnostics(backend)
   }));
-  const firstRaf = intervals.slice(0, 7_500);
-  const lastRaf = intervals.slice(-7_501);
+  const firstWindowIntervalCount = Math.min(intervals.length, Math.floor(120_000 / 16));
+  const lastWindowStart = Math.max(0, config.stabilityDurationMs - 120_000);
+  const lastWindowIntervalCount = Math.min(
+    intervals.length,
+    Math.ceil((config.stabilityDurationMs - lastWindowStart) / 16) + (lastWindowStart > 0 ? 1 : 0)
+  );
+  const firstRaf = intervals.slice(0, firstWindowIntervalCount);
+  const lastRaf = intervals.slice(-lastWindowIntervalCount);
   const firstApply = rawSamples.filter((sample) => sample.elapsedMs <= 120_000).map(() => 1);
-  const lastApply = rawSamples.filter((sample) => sample.elapsedMs >= 480_000).map(() => 1);
+  const lastApply = rawSamples.filter((sample) => sample.elapsedMs >= lastWindowStart).map(() => 1);
   const steady = diagnostics(backend);
   return {
     id: 'stability.expansion-skin',
-    warmupCount: 5,
+    warmupCount: config.warmupCount,
     sampleCount: rawSamples.length,
     startedAtPerformanceMs: 0,
-    durationMs: 600_000,
-    requiredDurationMs: 600_000,
+    durationMs: config.stabilityDurationMs,
+    requiredDurationMs: config.stabilityDurationMs,
     rawSamples,
     rawRafTimestampsMs: stabilityTimestamps,
     rawRafIntervalsMs: intervals,
@@ -135,9 +149,9 @@ function stabilityScenario(backend: 'dom' | 'pixi'): any {
     },
     lifecycle: {
       steadyState: steady,
-      sameModelApply: { count: 100, diagnostics: diagnostics(backend) },
-      reset: { count: 50, diagnostics: diagnostics(backend) },
-      skinSwitch: { count: 50, diagnostics: diagnostics(backend) }
+      sameModelApply: { count: config.sameModelApplyCount, diagnostics: diagnostics(backend) },
+      reset: { count: config.resetCount, diagnostics: diagnostics(backend) },
+      skinSwitch: { count: config.skinSwitchCount, diagnostics: diagnostics(backend) }
     }
   };
 }
@@ -146,13 +160,18 @@ function report(
   reference: any,
   backend: 'dom' | 'pixi',
   reportId: string,
-  profile: 'physical' | 'desktop' = 'physical'
+  profile: 'physical' | 'desktop' | 'development' = 'physical'
 ): any {
+  const config = createBoardPerformanceRunConfig(profile);
   const sequenceIndex = backend === 'dom' ? 1 : 2;
   const scenarios = BOARD_PERFORMANCE_SCENARIO_IDS.map((id) => {
-    if (id === 'stability.expansion-skin') return stabilityScenario(backend);
-    const count = id === 'basic.multi-flip-8x8' ? 30 : id.startsWith('heavy.') ? 20 : 100;
-    return measuredScenario(id, count, backend);
+    if (id === 'stability.expansion-skin') return stabilityScenario(backend, config);
+    const count = id === 'basic.multi-flip-8x8'
+      ? config.basicSampleCount
+      : id.startsWith('heavy.')
+        ? config.heavySampleCount
+        : config.microSampleCount;
+    return measuredScenario(id, count, backend, config.warmupCount);
   });
   return {
     schemaVersion: BOARD_PERFORMANCE_REPORT_SCHEMA_VERSION,
@@ -160,9 +179,9 @@ function report(
     capturedAt: '2026-07-17T00:00:00.000Z',
     captureStartedAt: '2026-07-17T00:00:00.000Z',
     captureUrl: `http://192.0.2.1/?debug=1&boardPerf=1&boardRenderer=${backend}&referenceDevice=${reference.id}&captureOrder=dom-first&captureIndex=${sequenceIndex}&cooldownMs=300000`,
-    captureDurationMs: 700_000,
+    captureDurationMs: config.stabilityDurationMs + 100_000,
     captureProfile: profile,
-    standardRun: true,
+    standardRun: config.standard,
     candidateCommit: COMMIT,
     browserArtifactSha256: ARTIFACT,
     artifactFileCount: 3,
@@ -187,7 +206,13 @@ function report(
     readiness: { fontsReady: true, texturesReady: true, applicationReady: true, writerMode: 'idle', backendDiagnostics: diagnostics(backend) },
     delivery: { applicationReadyAtMs: 100, resourceCount: 0, transferSizeBytes: 0, encodedBodySizeBytes: 0, decodedBodySizeBytes: 0, resources: [], textureUploadCount: backend === 'pixi' ? 3 : 0, textureReadyPixelCount: backend === 'pixi' ? 65536 : 0, textureActivePixelCount: backend === 'pixi' ? 65536 : 0 },
     validity: { visibleAtStart: true, focusedAtStart: true, visibilityChangeCount: 0, focusChangeCount: 0, invalidReasons: [], valid: true },
-    nominal: { sampleCount: 120, rawTimestampsMs: Array.from({ length: 121 }, (_value, index) => index * 16), rawIntervalsMs: Array.from({ length: 120 }, () => 16), nominalFrameIntervalMs: 16, aggregation: 'median' },
+    nominal: {
+      sampleCount: config.nominalRafSampleCount,
+      rawTimestampsMs: Array.from({ length: config.nominalRafSampleCount + 1 }, (_value, index) => index * 16),
+      rawIntervalsMs: Array.from({ length: config.nominalRafSampleCount }, () => 16),
+      nominalFrameIntervalMs: 16,
+      aggregation: 'median'
+    },
     percentileRule: 'nearest-rank:ceil(p*N)-1',
     rawSamplePolicy: 'unfiltered-no-winsorization',
     attribution: {},
@@ -309,22 +334,22 @@ describe('Pixi physical performance evidence validator', () => {
     expect(fs.readdirSync(path.join(root, 'docs', 'perf', 'pixijs-playfield-mobile', 'reports'))).toHaveLength(4);
   });
 
-  test('validates automated hardware desktop and cross-browser evidence without physical reports', () => {
+  test('validates automated hardware desktop readiness and cross-browser evidence without physical reports', () => {
     const artifactFiles = [{ path: 'index.classic.html', sha256: '1'.repeat(64) }, { path: 'index.html', sha256: '2'.repeat(64) }];
     const artifactSha = hash(stablePerformanceJson(artifactFiles));
-    const desktopReports = (['classic', 'vite'] as const).flatMap((lane) => (['dom', 'pixi'] as const).map((backend, index) => {
+    const readinessReports = (['classic', 'vite'] as const).flatMap((lane) => (['dom', 'pixi'] as const).map((backend, index) => {
       const value = report(
         android,
         backend,
         `${lane === 'classic' ? '7' : '8'}${String(index + 1).repeat(7)}-${String(index + 1).repeat(4)}-4${String(index + 1).repeat(3)}-8${String(index + 1).repeat(3)}-${String(index + 1).repeat(12)}`,
-        'desktop'
+        'development'
       );
       value.lane = lane;
       value.browserArtifactSha256 = artifactSha;
       value.phaseZeroMicroComparison = { fixtureDigest: BOARD_PERFORMANCE_PHASE_ZERO_MICRO_DIGEST, standard: true };
       return value;
     }));
-    const desktopCapture = {
+    const readinessCapture = {
       schemaVersion: 'pixijs_playfield_desktop_capture.v1',
       candidateCommit: COMMIT,
       browserArtifact: { fileCount: artifactFiles.length, files: artifactFiles, sha256: artifactSha },
@@ -345,25 +370,36 @@ describe('Pixi physical performance evidence validator', () => {
           vite: { immutableDomBaseline: {}, currentDom: {}, currentPixi: {} }
         }
       },
-      profile: 'desktop',
-      standardRun: true,
-      reports: desktopReports,
+      profile: 'development',
+      standardRun: false,
+      reports: readinessReports,
       crossLaneIdentity: true,
       pass: true
     };
-    expect(validateDesktopReport(desktopReports[0], 'classic', 'dom', desktopCapture)).toEqual([]);
-    const stalledReport = JSON.parse(JSON.stringify(desktopReports[1]));
+    expect(validateDesktopReadinessReport(readinessReports[0], 'classic', 'dom', readinessCapture)).toEqual([]);
+    const slowSyncReport = JSON.parse(JSON.stringify(readinessReports[1]));
+    slowSyncReport.scenarios[0].rawSamples[0].backendApplySyncMs = 60;
+    slowSyncReport.scenarios[0].summary = summary(slowSyncReport.scenarios[0].rawSamples);
+    expect(validateDesktopReadinessReport(slowSyncReport, 'classic', 'pixi', readinessCapture)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/backend sync apply exceeded 50 ms/)]),
+    );
+
+    const strictReport = report(android, 'pixi', '99999999-9999-4999-8999-999999999999', 'desktop');
+    strictReport.lane = 'classic';
+    strictReport.browserArtifactSha256 = artifactSha;
+    expect(validateDesktopReport(strictReport, 'classic', 'pixi', readinessCapture)).toEqual([]);
+    const stalledReport = JSON.parse(JSON.stringify(strictReport));
     stalledReport.scenarios
       .find((entry: any) => entry.id === 'stability.expansion-skin')
       .rawRafIntervalsMs[10] = 60;
-    expect(validateDesktopReport(stalledReport, 'classic', 'pixi', desktopCapture)).toEqual(
+    expect(validateDesktopReport(stalledReport, 'classic', 'pixi', readinessCapture)).toEqual(
       expect.arrayContaining([expect.stringMatching(/rAF stall >= 50ms/)]),
     );
-    const staleTimestampReport = JSON.parse(JSON.stringify(desktopReports[1]));
+    const staleTimestampReport = JSON.parse(JSON.stringify(strictReport));
     const staleStability = staleTimestampReport.scenarios
       .find((entry: any) => entry.id === 'stability.expansion-skin');
     staleStability.startedAtPerformanceMs = 1;
-    expect(validateDesktopReport(staleTimestampReport, 'classic', 'pixi', desktopCapture)).toEqual(
+    expect(validateDesktopReport(staleTimestampReport, 'classic', 'pixi', readinessCapture)).toEqual(
       expect.arrayContaining([expect.stringMatching(/first rAF timestamp predates the measurement start/)]),
     );
 
@@ -405,7 +441,7 @@ describe('Pixi physical performance evidence validator', () => {
     };
     const desktopPath = path.join(root, 'desktop.json');
     const crossPlatformPath = path.join(root, 'cross-platform.json');
-    fs.writeFileSync(desktopPath, JSON.stringify(desktopCapture));
+    fs.writeFileSync(desktopPath, JSON.stringify(readinessCapture));
     fs.writeFileSync(crossPlatformPath, JSON.stringify(crossPlatform));
     fs.mkdirSync(path.join(root, 'docs', 'perf'), { recursive: true });
     fs.writeFileSync(path.join(root, 'docs', 'perf', 'pixijs-playfield-baseline.json'), '{}\n');
@@ -417,10 +453,46 @@ describe('Pixi physical performance evidence validator', () => {
       log: false
     });
     expect(validation.pass).toBe(true);
+    expect(validation.readinessPass).toBe(true);
     expect(validation.physicalDeviceEvidenceRequired).toBe(false);
+    expect(validation.strictSoakEvidenceRequired).toBe(false);
+    expect(validation.optionalStrictSoak.status).toBe('not-collected');
     expect(validation.residualRisks).toEqual(expect.arrayContaining([expect.stringMatching(/iPhone GPU/)]));
     expect(fs.readFileSync(path.join(root, 'docs', 'perf', 'pixijs-playfield-precutover.md'), 'utf8'))
       .toContain('not represented as physical Android/iPhone performance evidence');
+
+    const soakReports = (['classic', 'vite'] as const).flatMap((lane) => (['dom', 'pixi'] as const).map((backend, index) => {
+      const value = report(
+        android,
+        backend,
+        `${lane === 'classic' ? 'a' : 'b'}${String(index + 1).repeat(7)}-${String(index + 1).repeat(4)}-4${String(index + 1).repeat(3)}-8${String(index + 1).repeat(3)}-${String(index + 1).repeat(12)}`,
+        'desktop'
+      );
+      value.lane = lane;
+      value.browserArtifactSha256 = artifactSha;
+      return value;
+    }));
+    soakReports[0].scenarios
+      .find((entry: any) => entry.id === 'stability.expansion-skin')
+      .rawRafIntervalsMs[10] = 60;
+    const soakPath = path.join(root, 'soak.json');
+    fs.writeFileSync(soakPath, JSON.stringify({
+      ...readinessCapture,
+      profile: 'desktop',
+      standardRun: true,
+      reports: soakReports,
+      pass: false
+    }));
+    const withFailedSoak = validateAutomatedPrecutoverEvidence({
+      rootDir: root,
+      desktopCapturePath: desktopPath,
+      crossPlatformSmokePath: crossPlatformPath,
+      soakCapturePath: soakPath,
+      log: false
+    });
+    expect(withFailedSoak.pass).toBe(true);
+    expect(withFailedSoak.optionalStrictSoak.status).toBe('current-fail');
+    expect(withFailedSoak.optionalStrictSoak.errors.length).toBeGreaterThan(0);
   });
 
   test('refuses incomplete evidence and parses only documented CLI options', () => {
@@ -432,6 +504,11 @@ describe('Pixi physical performance evidence validator', () => {
       write: false,
       mode: 'automated',
       crossPlatformSmokePath: 'cross.json'
+    });
+    expect(parseValidatorArgs(['--automated', '--soak-report', 'soak.json'])).toEqual({
+      write: false,
+      mode: 'automated',
+      soakCapturePath: 'soak.json'
     });
     expect(() => parseValidatorArgs(['--unknown'])).toThrow(/Unknown argument/);
   });

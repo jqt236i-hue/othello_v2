@@ -26,6 +26,7 @@
     "baseline:browser-modernization": "npm run build:browser && node dist/scripts/capture-browser-modernization-baseline.js",
     "baseline:pixijs-playfield": "npm run build:vite && node dist/scripts/capture-pixijs-playfield-baseline.js",
     "match:pixijs-board-performance": "npm run worker:prepare && node dist/scripts/capture-pixijs-playfield-performance.js",
+    "match:pixijs-precutover-readiness:capture": "npm run worker:prepare && node dist/scripts/capture-pixijs-playfield-performance.js --quick --output artifacts/pixijs-playfield-performance/desktop-readiness.json",
     "match:pixijs-mobile-performance:validate": "npm run build:ts && node dist/scripts/validate-pixijs-mobile-performance-report.js",
     "match:pixijs-precutover-cross-platform": "npm run worker:prepare && node dist/scripts/browser-cross-platform-smoke.js --output artifacts/pixijs-playfield-performance/cross-platform-smoke.json",
     "match:pixijs-precutover-performance:validate": "npm run build:ts && node dist/scripts/validate-pixijs-mobile-performance-report.js --automated",

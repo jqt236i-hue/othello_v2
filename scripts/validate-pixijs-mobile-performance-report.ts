@@ -10,7 +10,6 @@ import {
   BOARD_PERFORMANCE_EVENT_DIGEST,
   BOARD_PERFORMANCE_FIXTURE_DIGEST,
   BOARD_PERFORMANCE_PHYSICAL_COOLDOWN_MS,
-  BOARD_PERFORMANCE_PHYSICAL_STABILITY_MS,
   BOARD_PERFORMANCE_PHASE_ZERO_MICRO_DIGEST,
   BOARD_PERFORMANCE_REPORT_SCHEMA_VERSION,
   BOARD_PERFORMANCE_SCENARIO_IDS,
@@ -22,13 +21,14 @@ import {
 } from '../ui/board-visual/performance-harness';
 
 const VALIDATION_SCHEMA_VERSION = 'pixijs_playfield_precutover_validation.v1';
-const AUTOMATED_VALIDATION_SCHEMA_VERSION = 'pixijs_playfield_precutover_validation.v2';
+const AUTOMATED_VALIDATION_SCHEMA_VERSION = 'pixijs_playfield_precutover_validation.v3';
 const DESKTOP_CAPTURE_SCHEMA_VERSION = 'pixijs_playfield_desktop_capture.v1';
 const CROSS_PLATFORM_SMOKE_SCHEMA_VERSION = 'pixijs_playfield_cross_platform_smoke.v1';
 const REFERENCE_DEVICE_SCHEMA_VERSION = 'pixijs_playfield_reference_devices.v1';
 const DEFAULT_REPORTS_DIR = 'docs/perf/pixijs-playfield-mobile/reports';
 const DEFAULT_REFERENCE_MANIFEST = 'docs/perf/pixijs-playfield-mobile/reference-devices.json';
-const DEFAULT_DESKTOP_CAPTURE = 'artifacts/pixijs-playfield-performance/desktop-capture.json';
+const DEFAULT_DESKTOP_READINESS_CAPTURE = 'artifacts/pixijs-playfield-performance/desktop-readiness.json';
+const DEFAULT_DESKTOP_SOAK_CAPTURE = 'artifacts/pixijs-playfield-performance/desktop-capture.json';
 const DEFAULT_CROSS_PLATFORM_SMOKE = 'artifacts/pixijs-playfield-performance/cross-platform-smoke.json';
 const DEFAULT_AUTOMATED_JSON_OUTPUT = 'docs/perf/pixijs-playfield-precutover.json';
 const DEFAULT_AUTOMATED_MARKDOWN_OUTPUT = 'docs/perf/pixijs-playfield-precutover.md';
@@ -44,6 +44,7 @@ interface ValidationOptions {
   readonly reportsDir?: string;
   readonly referenceManifestPath?: string;
   readonly desktopCapturePath?: string;
+  readonly soakCapturePath?: string;
   readonly crossPlatformSmokePath?: string;
   readonly mode?: 'physical' | 'automated';
   readonly write?: boolean;
@@ -107,10 +108,10 @@ function scenario(report: any, id: string): any {
   return Array.isArray(report?.scenarios) ? report.scenarios.find((entry: any) => entry?.id === id) : null;
 }
 
-function expectedSampleCount(id: string): number {
-  if (id === 'basic.multi-flip-8x8') return 30;
-  if (id.startsWith('heavy.')) return 20;
-  if (id === 'micro.full-marker-16x16') return 100;
+function expectedSampleCount(id: string, config: any): number {
+  if (id === 'basic.multi-flip-8x8') return finite(config?.basicSampleCount);
+  if (id.startsWith('heavy.')) return finite(config?.heavySampleCount);
+  if (id === 'micro.full-marker-16x16') return finite(config?.microSampleCount);
   return 0;
 }
 
@@ -133,12 +134,12 @@ function validateRafSummary(
   check.equal(actual, summarizeRafIntervals(values, nominal), `${label} rAF summary mismatch`);
 }
 
-function validateMeasuredScenario(check: ErrorCollector, report: any, entry: any, id: string): void {
+function validateMeasuredScenario(check: ErrorCollector, report: any, entry: any, id: string, config: any): void {
   const prefix = `${report.reportId}/${id}`;
-  const expectedCount = expectedSampleCount(id);
+  const expectedCount = expectedSampleCount(id, config);
   check.check(!!entry, `${prefix} is missing`);
   if (!entry) return;
-  check.check(entry.warmupCount === 5, `${prefix} warmupCount must be 5`);
+  check.check(entry.warmupCount === finite(config?.warmupCount), `${prefix} warmupCount mismatch`);
   check.check(entry.sampleCount === expectedCount, `${prefix} sampleCount must be ${expectedCount}`);
   check.check(Array.isArray(entry.rawSamples) && entry.rawSamples.length === expectedCount, `${prefix} rawSamples count mismatch`);
   if (!Array.isArray(entry.rawSamples)) return;
@@ -201,19 +202,26 @@ function degradationWithin(last: number, first: number, allowance = 1.2): boolea
   return first === 0 ? last === 0 : last <= first * allowance;
 }
 
-function validateStabilityScenario(check: ErrorCollector, report: any, entry: any): void {
+function validateStabilityScenario(
+  check: ErrorCollector,
+  report: any,
+  entry: any,
+  config: any,
+  strictSoak: boolean
+): void {
   const prefix = `${report.reportId}/stability.expansion-skin`;
   check.check(!!entry, `${prefix} is missing`);
   if (!entry) return;
-  check.check(entry.warmupCount === 5, `${prefix} warmupCount must be 5`);
-  check.check(finite(entry.requiredDurationMs) === BOARD_PERFORMANCE_PHYSICAL_STABILITY_MS, `${prefix} required duration must be 10 minutes`);
-  check.check(finite(entry.durationMs) >= BOARD_PERFORMANCE_PHYSICAL_STABILITY_MS, `${prefix} duration is shorter than 10 minutes`);
+  const requiredDurationMs = finite(config?.stabilityDurationMs);
+  check.check(entry.warmupCount === finite(config?.warmupCount), `${prefix} warmupCount mismatch`);
+  check.check(finite(entry.requiredDurationMs) === requiredDurationMs, `${prefix} required duration mismatch`);
+  check.check(finite(entry.durationMs) >= requiredDurationMs, `${prefix} duration is shorter than configured`);
   check.check(Array.isArray(entry.rawSamples) && entry.rawSamples.length > 0, `${prefix} object/backing samples missing`);
   check.check(Array.isArray(entry.rawRafTimestampsMs) && Array.isArray(entry.rawRafIntervalsMs), `${prefix} raw rAF series missing`);
   if (!Array.isArray(entry.rawSamples) || !Array.isArray(entry.rawRafTimestampsMs) || !Array.isArray(entry.rawRafIntervalsMs)) return;
   check.check(entry.rawRafTimestampsMs.length === entry.rawRafIntervalsMs.length + 1, `${prefix} rAF timestamp/interval lengths mismatch`);
   const stabilityStallCount = entry.rawRafIntervalsMs.filter((value: unknown) => finite(value) >= 50).length;
-  check.check(stabilityStallCount === 0, `${prefix} rAF stall >= 50ms occurred during the 10-minute run`);
+  if (strictSoak) check.check(stabilityStallCount === 0, `${prefix} rAF stall >= 50ms occurred during the strict soak`);
   const nominal = finite(report.nominal?.nominalFrameIntervalMs);
   const startedAt = finite(entry.startedAtPerformanceMs);
   check.check(Number.isFinite(startedAt) && startedAt >= 0, `${prefix} start performance timestamp is invalid`);
@@ -240,14 +248,16 @@ function validateStabilityScenario(check: ErrorCollector, report: any, entry: an
   validateNumericSummary(check, entry.summary?.firstTwoMinutes?.backendApplySettlementMs, applyValues(firstSamples), `${prefix}/first-two-minutes/apply`);
   validateNumericSummary(check, entry.summary?.lastTwoMinutes?.backendApplySettlementMs, applyValues(lastSamples), `${prefix}/last-two-minutes/apply`);
   check.check(firstRaf.length > 0 && lastRaf.length > 0, `${prefix} first/last two-minute rAF windows are empty`);
-  check.check(degradationWithin(
-    finite(entry.summary?.lastTwoMinutes?.raf?.p95),
-    finite(entry.summary?.firstTwoMinutes?.raf?.p95)
-  ), `${prefix} last-two-minute rAF p95 degraded by more than 20%`);
-  check.check(degradationWithin(
-    finite(entry.summary?.lastTwoMinutes?.raf?.jankRatio),
-    finite(entry.summary?.firstTwoMinutes?.raf?.jankRatio)
-  ), `${prefix} last-two-minute jank ratio degraded by more than 20%`);
+  if (strictSoak) {
+    check.check(degradationWithin(
+      finite(entry.summary?.lastTwoMinutes?.raf?.p95),
+      finite(entry.summary?.firstTwoMinutes?.raf?.p95)
+    ), `${prefix} last-two-minute rAF p95 degraded by more than 20%`);
+    check.check(degradationWithin(
+      finite(entry.summary?.lastTwoMinutes?.raf?.jankRatio),
+      finite(entry.summary?.firstTwoMinutes?.raf?.jankRatio)
+    ), `${prefix} last-two-minute jank ratio degraded by more than 20%`);
+  }
 
   const diagnosticValues = (field: string) => entry.rawSamples.map((sample: any) => finite(sample.diagnostics?.[field]));
   const contextLoss = diagnosticValues('contextLossCount');
@@ -266,9 +276,9 @@ function validateStabilityScenario(check: ErrorCollector, report: any, entry: an
   }
 
   const lifecycle = entry.lifecycle;
-  check.check(lifecycle?.sameModelApply?.count === 100, `${prefix} same-model apply count must be 100`);
-  check.check(lifecycle?.reset?.count === 50, `${prefix} reset count must be 50`);
-  check.check(lifecycle?.skinSwitch?.count === 50, `${prefix} skin-switch count must be 50`);
+  check.check(lifecycle?.sameModelApply?.count === finite(config?.sameModelApplyCount), `${prefix} same-model apply count mismatch`);
+  check.check(lifecycle?.reset?.count === finite(config?.resetCount), `${prefix} reset count mismatch`);
+  check.check(lifecycle?.skinSwitch?.count === finite(config?.skinSwitchCount), `${prefix} skin-switch count mismatch`);
   const steady = lifecycle?.steadyState || {};
   for (const phase of ['sameModelApply', 'reset', 'skinSwitch']) {
     const diagnostics = lifecycle?.[phase]?.diagnostics || {};
@@ -359,8 +369,9 @@ export function validatePhysicalReport(report: any, filename: string, referenceD
   check.check(report?.delivery && Array.isArray(report.delivery.resources), `${filename} delivery/resource evidence missing`);
   check.check(Number.isFinite(Number(report?.delivery?.textureReadyPixelCount)), `${filename} texture pixel evidence missing`);
   check.equal(report?.scenarios?.map((entry: any) => entry.id), BOARD_PERFORMANCE_SCENARIO_IDS, `${filename} scenario ID/order mismatch`);
-  for (const id of PHYSICAL_MEASURED_IDS) validateMeasuredScenario(check, report, scenario(report, id), id);
-  validateStabilityScenario(check, report, scenario(report, 'stability.expansion-skin'));
+  const config = createBoardPerformanceRunConfig('physical');
+  for (const id of PHYSICAL_MEASURED_IDS) validateMeasuredScenario(check, report, scenario(report, id), id, config);
+  validateStabilityScenario(check, report, scenario(report, 'stability.expansion-skin'), config, true);
   return Object.freeze(check.errors);
 }
 
@@ -472,9 +483,142 @@ export function validateDesktopReport(
   check.check(report?.delivery && Array.isArray(report.delivery.resources), `${prefix} delivery/resource evidence missing`);
   check.check(Number.isFinite(Number(report?.delivery?.textureReadyPixelCount)), `${prefix} texture pixel evidence missing`);
   check.equal(report?.scenarios?.map((entry: any) => entry.id), BOARD_PERFORMANCE_SCENARIO_IDS, `${prefix} scenario ID/order mismatch`);
-  for (const id of PHYSICAL_MEASURED_IDS) validateMeasuredScenario(check, report, scenario(report, id), id);
-  validateStabilityScenario(check, report, scenario(report, 'stability.expansion-skin'));
+  const config = createBoardPerformanceRunConfig('desktop');
+  for (const id of PHYSICAL_MEASURED_IDS) validateMeasuredScenario(check, report, scenario(report, id), id, config);
+  validateStabilityScenario(check, report, scenario(report, 'stability.expansion-skin'), config, true);
   return Object.freeze(check.errors);
+}
+
+export function validateDesktopReadinessReport(
+  report: any,
+  expectedLane: 'classic' | 'vite',
+  expectedBackend: 'dom' | 'pixi',
+  capture: any
+): readonly string[] {
+  const check = collector();
+  const prefix = `readiness/${expectedLane}/${expectedBackend}`;
+  const config = createBoardPerformanceRunConfig('development');
+  check.check(report?.schemaVersion === BOARD_PERFORMANCE_REPORT_SCHEMA_VERSION, `${prefix} schemaVersion mismatch`);
+  check.check(report?.captureProfile === 'development', `${prefix} captureProfile must be development`);
+  check.check(report?.standardRun === false, `${prefix} must use the fixed readiness profile`);
+  check.check(report?.lane === expectedLane, `${prefix} lane mismatch`);
+  check.check(report?.backend === expectedBackend, `${prefix} backend mismatch`);
+  check.check(report?.candidateCommit === capture?.candidateCommit, `${prefix} candidate commit mismatch`);
+  check.check(report?.browserArtifactSha256 === capture?.browserArtifact?.sha256, `${prefix} browser artifact digest mismatch`);
+  check.check(report?.fixtureDigest === BOARD_PERFORMANCE_FIXTURE_DIGEST, `${prefix} fixture digest mismatch`);
+  check.check(report?.eventDigest === BOARD_PERFORMANCE_EVENT_DIGEST, `${prefix} event digest mismatch`);
+  check.check(typeof report?.captureUrl === 'string' && report.captureUrl.includes('debug=1') && report.captureUrl.includes('boardPerf=1'), `${prefix} capture URL gate mismatch`);
+  check.check(report?.validity?.valid === true, `${prefix} visibility/focus validity failed`);
+  check.check(report?.validity?.visibilityChangeCount === 0 && report?.validity?.focusChangeCount === 0, `${prefix} changed visibility/focus during capture`);
+  check.check(Array.isArray(report?.validity?.invalidReasons) && report.validity.invalidReasons.length === 0, `${prefix} has visibility/focus invalid reasons`);
+  check.check(report?.readiness?.fontsReady === true && report?.readiness?.texturesReady === true && report?.readiness?.applicationReady === true, `${prefix} application readiness failed`);
+  check.check(report?.nominal?.sampleCount === config.nominalRafSampleCount, `${prefix} nominal rAF count mismatch`);
+  check.check(Array.isArray(report?.nominal?.rawIntervalsMs) && report.nominal.rawIntervalsMs.length === config.nominalRafSampleCount, `${prefix} nominal raw intervals count mismatch`);
+  check.check(Array.isArray(report?.nominal?.rawTimestampsMs) && report.nominal.rawTimestampsMs.length === config.nominalRafSampleCount + 1, `${prefix} nominal raw timestamps count mismatch`);
+  if (Array.isArray(report?.nominal?.rawIntervalsMs)) {
+    check.check(finite(report.nominal.nominalFrameIntervalMs) === median(report.nominal.rawIntervalsMs.map(Number)), `${prefix} nominal median mismatch`);
+    if (Array.isArray(report?.nominal?.rawTimestampsMs)) {
+      report.nominal.rawIntervalsMs.forEach((value: unknown, index: number) => {
+        check.check(Math.abs(rounded(finite(report.nominal.rawTimestampsMs[index + 1]) - finite(report.nominal.rawTimestampsMs[index])) - finite(value)) <= 0.002, `${prefix} nominal timestamp delta mismatch`);
+      });
+    }
+  }
+  check.check(report?.percentileRule === 'nearest-rank:ceil(p*N)-1', `${prefix} percentile rule mismatch`);
+  check.check(report?.rawSamplePolicy === 'unfiltered-no-winsorization', `${prefix} raw sample policy mismatch`);
+  check.equal(report?.runConfig, config, `${prefix} readiness runConfig mismatch`);
+  check.check(['supported', 'unsupported'].includes(report?.support?.longAnimationFrame), `${prefix} LoAF support status missing`);
+  check.check(['supported', 'unsupported'].includes(report?.support?.longTask), `${prefix} Long Task support status missing`);
+  check.check(report?.delivery && Array.isArray(report.delivery.resources), `${prefix} delivery/resource evidence missing`);
+  check.check(Number.isFinite(Number(report?.delivery?.textureReadyPixelCount)), `${prefix} texture pixel evidence missing`);
+  check.equal(report?.scenarios?.map((entry: any) => entry.id), BOARD_PERFORMANCE_SCENARIO_IDS, `${prefix} scenario ID/order mismatch`);
+  for (const id of PHYSICAL_MEASURED_IDS) {
+    const entry = scenario(report, id);
+    validateMeasuredScenario(check, report, entry, id, config);
+    if (expectedBackend === 'pixi' && Array.isArray(entry?.rawSamples)) {
+      entry.rawSamples.forEach((sample: any, index: number) => {
+        check.check(finite(sample?.modelBuildMs) < 50, `${prefix}/${id}/sample-${index + 1} model build exceeded 50 ms`);
+        check.check(finite(sample?.backendApplySyncMs) < 50, `${prefix}/${id}/sample-${index + 1} backend sync apply exceeded 50 ms`);
+      });
+    }
+  }
+  const stability = scenario(report, 'stability.expansion-skin');
+  validateStabilityScenario(check, report, stability, config, false);
+  if (expectedBackend === 'pixi' && Array.isArray(stability?.rawSamples)) {
+    stability.rawSamples.forEach((sample: any, index: number) => {
+      check.check(finite(sample?.apply?.modelBuildMs) < 50, `${prefix}/stability/sample-${index + 1} model build exceeded 50 ms`);
+      check.check(finite(sample?.apply?.backendApplySyncMs) < 50, `${prefix}/stability/sample-${index + 1} backend sync apply exceeded 50 ms`);
+    });
+  }
+  const backendDiagnostics = report?.readiness?.backendDiagnostics || {};
+  if (expectedBackend === 'pixi') {
+    check.check(finite(backendDiagnostics.canvasCount) === 1, `${prefix} Pixi canvas count must be one`);
+    check.check(finite(backendDiagnostics.contextCount) === 1, `${prefix} Pixi context count must be one`);
+    check.check(finite(backendDiagnostics.domCellCount) === 0, `${prefix} Pixi readiness mounted DOM board cells`);
+  } else {
+    check.check(finite(backendDiagnostics.canvasCount) === 0, `${prefix} DOM readiness mounted a board canvas`);
+    check.check(finite(backendDiagnostics.contextCount) === 0, `${prefix} DOM readiness created a WebGL context`);
+    check.check(finite(backendDiagnostics.domCellCount) === 64, `${prefix} DOM readiness cell count mismatch`);
+  }
+  return Object.freeze(check.errors);
+}
+
+function validateDesktopReadinessCapture(capture: any, errors: string[]): readonly Readonly<Record<string, unknown>>[] {
+  if (capture?.schemaVersion !== DESKTOP_CAPTURE_SCHEMA_VERSION) errors.push('Desktop readiness capture schema mismatch');
+  if (capture?.standardRun !== false || capture?.profile !== 'development') errors.push('Desktop readiness capture does not use the fixed development profile');
+  if (!/^[0-9a-f]{40}$/.test(String(capture?.candidateCommit || ''))) errors.push('Desktop readiness candidate commit is invalid');
+  if (!/^[0-9a-f]{64}$/.test(String(capture?.browserArtifact?.sha256 || ''))) errors.push('Desktop readiness browser artifact digest is invalid');
+  if (!Array.isArray(capture?.reports) || capture.reports.length !== 4) errors.push('Desktop readiness capture must contain classic/Vite × DOM/Pixi reports');
+  if (capture?.crossLaneIdentity !== true) errors.push('Desktop readiness cross-lane identity failed');
+  const graphics = capture?.environment?.graphics || {};
+  if (graphics.hardwareAccelerated !== true
+    || /swiftshader|llvmpipe|software(?: rasterizer)?/i.test(`${graphics.glRenderer || ''} ${graphics.glVendor || ''}`)) {
+    errors.push('Desktop readiness did not use hardware-accelerated WebGL');
+  }
+  if (capture?.phaseZeroEnvironment?.pass !== true) errors.push('Desktop readiness no longer matches the immutable Phase 0 machine/browser/viewport/DPR');
+  if (capture?.phaseZeroModelApplyComparison?.fixtureDigest !== BOARD_PERFORMANCE_PHASE_ZERO_MICRO_DIGEST) {
+    errors.push('Desktop readiness Phase 0 synthetic model/apply comparison digest mismatch');
+  }
+  for (const lane of ['classic', 'vite']) {
+    const comparisonLane = capture?.phaseZeroModelApplyComparison?.lanes?.[lane];
+    if (!comparisonLane?.immutableDomBaseline || !comparisonLane?.currentDom || !comparisonLane?.currentPixi) {
+      errors.push(`Desktop readiness Phase 0 ${lane} DOM/Pixi model/apply comparison is incomplete`);
+    }
+  }
+  const artifact = capture?.browserArtifact;
+  if (!artifact || !Array.isArray(artifact.files)
+    || artifact.fileCount !== artifact.files.length
+    || sha256(stablePerformanceJson(artifact.files)) !== artifact.sha256) {
+    errors.push('Desktop readiness browser artifact file manifest digest mismatch');
+  }
+  const comparisons: Readonly<Record<string, unknown>>[] = [];
+  const captureOrder = /^[0-9a-f]{40}$/.test(String(capture?.candidateCommit || ''))
+    ? expectedCaptureOrder(capture.candidateCommit)
+    : null;
+  const backendOrder = captureOrder === 'dom-first' ? ['dom', 'pixi'] : ['pixi', 'dom'];
+  for (const lane of ['classic', 'vite'] as const) {
+    const dom = capture?.reports?.find((report: any) => report.lane === lane && report.backend === 'dom');
+    const pixi = capture?.reports?.find((report: any) => report.lane === lane && report.backend === 'pixi');
+    if (!dom || !pixi) {
+      errors.push(`Desktop readiness ${lane} DOM/Pixi pair is missing`);
+      continue;
+    }
+    errors.push(...validateDesktopReadinessReport(dom, lane, 'dom', capture));
+    errors.push(...validateDesktopReadinessReport(pixi, lane, 'pixi', capture));
+    for (const report of [dom, pixi]) {
+      const expectedSequenceIndex = backendOrder.indexOf(report.backend) + 1;
+      if (report?.captureOrder?.expected !== captureOrder
+        || report?.captureOrder?.actual !== captureOrder
+        || report?.captureOrder?.sequenceIndex !== expectedSequenceIndex) {
+        errors.push(`Desktop readiness ${lane}/${report.backend} capture order mismatch`);
+      }
+    }
+    const comparison = Object.freeze({ lane, ...evaluateDesktopPerformancePair(dom, pixi) });
+    comparisons.push(comparison);
+    for (const identityCheck of ((comparison as any).checks || []).filter((entry: any) => String(entry?.name || '').startsWith('identity.'))) {
+      if (identityCheck.pass !== true) errors.push(`Desktop readiness ${lane} ${identityCheck.name} failed`);
+    }
+  }
+  return Object.freeze(comparisons);
 }
 
 function validateDesktopCapture(capture: any, errors: string[]): readonly Readonly<Record<string, unknown>>[] {
@@ -631,27 +775,30 @@ function desktopFollowUpInventory(capture: any): readonly Readonly<Record<string
 }
 
 function automatedMarkdownReport(validation: any): string {
-  const rows = validation.desktopComparisons.map((comparison: any) => (
+  const rows = validation.readinessComparisons.map((comparison: any) => (
     `| ${comparison.lane} | ${comparison.pass ? 'PASS' : 'FAIL'} | ${(comparison.checks || []).length} |`
   ));
   return [
     '# PixiJS playfield pre-cutover evidence',
     '',
     `- Result: **${validation.pass ? 'PASS' : 'FAIL'}**`,
-    '- Evidence mode: automated hardware-desktop release gate',
+    '- Evidence mode: automated hardware-desktop readiness',
     `- Candidate commit: \`${validation.candidateCommit || 'unavailable'}\``,
     `- Browser artifact SHA-256: \`${validation.browserArtifactSha256 || 'unavailable'}\``,
-    `- Desktop capture SHA-256: \`${validation.desktopCaptureSha256 || 'unavailable'}\``,
+    `- Desktop readiness SHA-256: \`${validation.readinessCaptureSha256 || 'unavailable'}\``,
     `- Cross-platform smoke SHA-256: \`${validation.crossPlatformSmokeSha256 || 'unavailable'}\``,
     `- Fixture digest: \`${validation.fixtureDigest}\``,
     `- Event digest: \`${validation.eventDigest}\``,
     `- Validated at: ${validation.validatedAt}`,
     '',
-    '| Browser lane | DOM/Pixi gate | Checks |',
+    `Blocking readiness gate: ${validation.readinessPass ? 'PASS' : 'FAIL'}`,
+    `Cross-browser desktop/mobile-viewport functional gate: ${validation.crossPlatformPass ? 'PASS' : 'FAIL'}`,
+    `Optional 4x10-minute strict soak: ${validation.optionalStrictSoak.status}`,
+    '',
+    '| Browser lane | Non-blocking rAF/DOM comparison | Checks |',
     '| --- | --- | ---: |',
     ...rows,
     '',
-    `Cross-browser desktop/mobile-viewport functional gate: ${validation.crossPlatformPass ? 'PASS' : 'FAIL'}`,
     `Follow-up attribution entries: ${validation.followUpInventory.length}.`,
     '',
     '## Residual risk accepted by operator decision',
@@ -659,6 +806,7 @@ function automatedMarkdownReport(validation: any): string {
     ...validation.residualRisks.map((risk: string) => `- ${risk}`),
     '',
     'Desktop/mobile viewport automation is not represented as physical Android/iPhone performance evidence.',
+    'Shared-workstation raw rAF stalls and DOM/Pixi timing ratios remain diagnostics; app-attributed synchronous work and lifecycle remain blocking.',
     'This evidence does not change player-visible timing, events[] ordering, network authority, or Pixi playfield ownership.',
     ''
   ].join('\n');
@@ -666,33 +814,67 @@ function automatedMarkdownReport(validation: any): string {
 
 export function validateAutomatedPrecutoverEvidence(options: ValidationOptions = {}): any {
   const rootDir = path.resolve(options.rootDir || process.cwd());
-  const desktopCapturePath = path.resolve(rootDir, options.desktopCapturePath || DEFAULT_DESKTOP_CAPTURE);
+  const readinessCapturePath = path.resolve(rootDir, options.desktopCapturePath || DEFAULT_DESKTOP_READINESS_CAPTURE);
+  const soakCapturePath = path.resolve(rootDir, options.soakCapturePath || DEFAULT_DESKTOP_SOAK_CAPTURE);
   const crossPlatformSmokePath = path.resolve(rootDir, options.crossPlatformSmokePath || DEFAULT_CROSS_PLATFORM_SMOKE);
-  const errors: string[] = [];
-  let desktopCapture: any = null;
+  const readinessErrors: string[] = [];
+  const crossPlatformErrors: string[] = [];
+  let readinessCapture: any = null;
   let crossPlatformSmoke: any = null;
   try {
-    desktopCapture = JSON.parse(fs.readFileSync(desktopCapturePath, 'utf8'));
+    readinessCapture = JSON.parse(fs.readFileSync(readinessCapturePath, 'utf8'));
   } catch (error: any) {
-    errors.push(`Desktop capture unavailable: ${error?.message || error}`);
+    readinessErrors.push(`Desktop readiness capture unavailable: ${error?.message || error}`);
   }
   try {
     crossPlatformSmoke = JSON.parse(fs.readFileSync(crossPlatformSmokePath, 'utf8'));
   } catch (error: any) {
-    errors.push(`Cross-platform smoke unavailable: ${error?.message || error}`);
+    crossPlatformErrors.push(`Cross-platform smoke unavailable: ${error?.message || error}`);
   }
-  const desktopComparisons = desktopCapture ? validateDesktopCapture(desktopCapture, errors) : [];
-  const candidateCommit = desktopCapture?.candidateCommit || null;
-  const browserArtifactSha256 = desktopCapture?.browserArtifact?.sha256 || null;
-  if (desktopCapture?.fixtureDigest !== BOARD_PERFORMANCE_FIXTURE_DIGEST
-    || desktopCapture?.eventDigest !== BOARD_PERFORMANCE_EVENT_DIGEST) {
-    errors.push('Desktop evidence does not use the compiled deterministic fixture/event digest');
+  const readinessComparisons = readinessCapture
+    ? validateDesktopReadinessCapture(readinessCapture, readinessErrors)
+    : [];
+  const candidateCommit = readinessCapture?.candidateCommit || null;
+  const browserArtifactSha256 = readinessCapture?.browserArtifact?.sha256 || null;
+  if (readinessCapture?.fixtureDigest !== BOARD_PERFORMANCE_FIXTURE_DIGEST
+    || readinessCapture?.eventDigest !== BOARD_PERFORMANCE_EVENT_DIGEST) {
+    readinessErrors.push('Desktop readiness does not use the compiled deterministic fixture/event digest');
   }
   if (crossPlatformSmoke && candidateCommit && browserArtifactSha256) {
-    validateCrossPlatformSmoke(crossPlatformSmoke, candidateCommit, browserArtifactSha256, errors);
+    validateCrossPlatformSmoke(crossPlatformSmoke, candidateCommit, browserArtifactSha256, crossPlatformErrors);
   }
+  const soakErrors: string[] = [];
+  let soakCapture: any = null;
+  let soakCaptureSha256: string | null = null;
+  if (fs.existsSync(soakCapturePath)) {
+    try {
+      const body = fs.readFileSync(soakCapturePath);
+      soakCaptureSha256 = sha256(body);
+      soakCapture = JSON.parse(body.toString('utf8'));
+      validateDesktopCapture(soakCapture, soakErrors);
+    } catch (error: any) {
+      soakErrors.push(`Optional strict soak unavailable: ${error?.message || error}`);
+    }
+  }
+  const soakIdentityMatches = !!soakCapture
+    && soakCapture.candidateCommit === candidateCommit
+    && soakCapture.browserArtifact?.sha256 === browserArtifactSha256;
+  const optionalStrictSoak = Object.freeze({
+    required: false,
+    status: !soakCapture
+      ? 'not-collected'
+      : `${soakIdentityMatches ? 'current' : 'historical-candidate'}-${soakErrors.length === 0 ? 'pass' : 'fail'}`,
+    candidateCommit: soakCapture?.candidateCommit || null,
+    browserArtifactSha256: soakCapture?.browserArtifact?.sha256 || null,
+    captureSha256: soakCaptureSha256,
+    identityMatchesCurrentCandidate: soakIdentityMatches,
+    strictThresholdPass: !!soakCapture && soakErrors.length === 0,
+    errors: Object.freeze(soakErrors.slice())
+  });
+  const errors = [...readinessErrors, ...crossPlatformErrors];
   const baselinePath = path.join(rootDir, 'docs/perf/pixijs-playfield-baseline.json');
   const residualRisks = Object.freeze([
+    `The optional 4x10-minute strict soak is ${optionalStrictSoak.status}; shared-workstation rAF stalls are not a release-blocking signal.`,
     'Physical Android Chrome and iPhone Safari paint/composite performance was not measured.',
     'Safari on an actual iPhone GPU was not measured; Playwright WebKit is functional compatibility evidence only.',
     'Mobile-device thermal throttling and battery/power-mode behavior were not measured.'
@@ -700,8 +882,9 @@ export function validateAutomatedPrecutoverEvidence(options: ValidationOptions =
   const validation = {
     schemaVersion: AUTOMATED_VALIDATION_SCHEMA_VERSION,
     validatedAt: new Date().toISOString(),
-    evidenceMode: 'automated-hardware-desktop',
+    evidenceMode: 'automated-hardware-desktop-readiness',
     physicalDeviceEvidenceRequired: false,
+    strictSoakEvidenceRequired: false,
     operatorDecisionDate: '2026-07-18',
     pass: errors.length === 0,
     errors: Object.freeze(errors.slice()),
@@ -709,14 +892,15 @@ export function validateAutomatedPrecutoverEvidence(options: ValidationOptions =
     browserArtifactSha256,
     fixtureDigest: BOARD_PERFORMANCE_FIXTURE_DIGEST,
     eventDigest: BOARD_PERFORMANCE_EVENT_DIGEST,
-    desktopCaptureSha256: fs.existsSync(desktopCapturePath) ? sha256(fs.readFileSync(desktopCapturePath)) : null,
+    readinessCaptureSha256: fs.existsSync(readinessCapturePath) ? sha256(fs.readFileSync(readinessCapturePath)) : null,
     crossPlatformSmokeSha256: fs.existsSync(crossPlatformSmokePath) ? sha256(fs.readFileSync(crossPlatformSmokePath)) : null,
-    desktopPass: !!desktopCapture && desktopComparisons.length === 2 && desktopComparisons.every((entry: any) => entry.pass === true),
-    crossPlatformPass: !!crossPlatformSmoke && crossPlatformSmoke.ok === true,
-    desktopComparisons,
-    desktopCapture,
+    readinessPass: !!readinessCapture && readinessErrors.length === 0,
+    crossPlatformPass: !!crossPlatformSmoke && crossPlatformErrors.length === 0,
+    readinessComparisons,
+    readinessCapture,
     crossPlatformSmoke,
-    followUpInventory: desktopFollowUpInventory(desktopCapture),
+    optionalStrictSoak,
+    followUpInventory: desktopFollowUpInventory(readinessCapture),
     residualRisks,
     optionalPhysicalDiagnostics: Object.freeze({ required: false, status: 'not-collected' }),
     immutablePhaseZeroBaseline: Object.freeze({
@@ -739,8 +923,9 @@ export function validateAutomatedPrecutoverEvidence(options: ValidationOptions =
     evidenceMode: validation.evidenceMode,
     candidateCommit,
     browserArtifactSha256,
-    desktopPass: validation.desktopPass,
+    readinessPass: validation.readinessPass,
     crossPlatformPass: validation.crossPlatformPass,
+    optionalStrictSoak: validation.optionalStrictSoak.status,
     errors
   }, null, 2)}\n`);
   return Object.freeze(validation);
@@ -751,7 +936,7 @@ export function validatePrecutoverEvidence(options: ValidationOptions = {}): any
   const rootDir = path.resolve(options.rootDir || process.cwd());
   const reportsDir = path.resolve(rootDir, options.reportsDir || DEFAULT_REPORTS_DIR);
   const referenceManifestPath = path.resolve(rootDir, options.referenceManifestPath || DEFAULT_REFERENCE_MANIFEST);
-  const desktopCapturePath = path.resolve(rootDir, options.desktopCapturePath || DEFAULT_DESKTOP_CAPTURE);
+  const desktopCapturePath = path.resolve(rootDir, options.desktopCapturePath || DEFAULT_DESKTOP_SOAK_CAPTURE);
   const errors: string[] = [];
   let referenceManifest: any = null;
   let desktopCapture: any = null;
@@ -876,6 +1061,7 @@ interface CliArgs {
   reportsDir?: string;
   referenceManifestPath?: string;
   desktopCapturePath?: string;
+  soakCapturePath?: string;
   crossPlatformSmokePath?: string;
 }
 
@@ -889,6 +1075,7 @@ export function parseValidatorArgs(argv: readonly string[]): CliArgs {
     else if (arg === '--reports-dir') result.reportsDir = argv[++index];
     else if (arg === '--reference-devices') result.referenceManifestPath = argv[++index];
     else if (arg === '--desktop-report') result.desktopCapturePath = argv[++index];
+    else if (arg === '--soak-report') result.soakCapturePath = argv[++index];
     else if (arg === '--cross-platform-report') result.crossPlatformSmokePath = argv[++index];
     else throw new Error(`Unknown argument: ${arg}`);
   }
