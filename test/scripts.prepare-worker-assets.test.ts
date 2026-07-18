@@ -64,12 +64,14 @@ describe('prepare-worker-assets', () => {
             expect(VERIFY_ROOT_FILES).toContain(`public/module-registry.optional.${group}.js`);
         }
         expect(ROOT_FILES).toContain('styles-leaderboard.css');
+        expect(ROOT_FILES).toContain('styles-board-dom-compat.css');
         expect(VERIFY_ROOT_FILES).toContain('entry-browser.js');
         expect(VERIFY_ROOT_FILES).toContain('public/vendor/pixi-8.18.1.min.js');
         expect(VERIFY_ROOT_FILES).toContain('public/vendor/pixi-unsafe-eval-8.18.1.min.js');
         expect(VERIFY_ROOT_FILES).toContain('public/runtime.js');
         expect(VERIFY_ROOT_FILES).toContain('public/module-registry.js');
         expect(VERIFY_ROOT_FILES).toContain('styles-leaderboard.css');
+        expect(VERIFY_ROOT_FILES).toContain('styles-board-dom-compat.css');
     });
 
     test('excludes temp, AGENTS, ts/types files from worker mirror', () => {

@@ -76,6 +76,7 @@ const ROOT_FILES: readonly string[] = Object.freeze([
     'styles-animations.css',
     'styles-base.css',
     'styles-board.css',
+    'styles-board-dom-compat.css',
     'styles-cards.css',
     'styles-layout.css',
     'styles-charge-hud.css',
