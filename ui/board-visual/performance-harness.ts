@@ -876,11 +876,13 @@ function readDeliveryMetrics(root: any, diagnostics: Readonly<Record<string, unk
   });
 }
 
-function startRafRecorder(root: any): Readonly<{
+type RafRecorder = Readonly<{
   timestamps: number[];
   intervals: number[];
   stop: () => void;
-}> {
+}>;
+
+function startRafRecorder(root: any): RafRecorder {
   const timestamps: number[] = [];
   const intervals: number[] = [];
   let lastTimestamp: number | null = null;
@@ -903,6 +905,32 @@ function startRafRecorder(root: any): Readonly<{
         root.cancelAnimationFrame(requestId);
       }
     }
+  });
+}
+
+export async function startPrimedRafRecorder(root: any): Promise<Readonly<{
+  startedAtPerformanceMs: number;
+  recorder: RafRecorder;
+}>> {
+  let startedAtPerformanceMs: number | null = null;
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const sample = await new Promise<Readonly<{ timestamp: number; observedAt: number }>>((resolve) => {
+      root.requestAnimationFrame((timestamp: number) => resolve(Object.freeze({
+        timestamp,
+        observedAt: now(root)
+      })));
+    });
+    if (sample.timestamp >= 0 && sample.observedAt - sample.timestamp < 50) {
+      startedAtPerformanceMs = sample.timestamp;
+      break;
+    }
+  }
+  if (startedAtPerformanceMs === null) {
+    throw new Error('Unable to establish a fresh rAF measurement boundary');
+  }
+  return Object.freeze({
+    startedAtPerformanceMs,
+    recorder: startRafRecorder(root)
   });
 }
 
@@ -1166,8 +1194,9 @@ async function runStabilityScenario(
   const previousBoardSkinId = runtime.boardElement.dataset.boardSkinId || null;
   const previousStoneSkinId = rootElement.dataset.stoneSkinId || null;
   const rawSamples: Array<Readonly<Record<string, unknown>>> = [];
-  const startedAt = now(runtime.root);
-  const stabilityRaf = startRafRecorder(runtime.root);
+  const primedStabilityRaf = await startPrimedRafRecorder(runtime.root);
+  const stabilityRaf = primedStabilityRaf.recorder;
+  const startedAt = primedStabilityRaf.startedAtPerformanceMs;
   let index = 0;
   try {
     do {

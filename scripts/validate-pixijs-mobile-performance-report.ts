@@ -217,6 +217,10 @@ function validateStabilityScenario(check: ErrorCollector, report: any, entry: an
   const nominal = finite(report.nominal?.nominalFrameIntervalMs);
   const startedAt = finite(entry.startedAtPerformanceMs);
   check.check(Number.isFinite(startedAt) && startedAt >= 0, `${prefix} start performance timestamp is invalid`);
+  check.check(
+    entry.rawRafTimestampsMs.length > 0 && finite(entry.rawRafTimestampsMs[0]) >= startedAt,
+    `${prefix} first rAF timestamp predates the measurement start`,
+  );
   const lastWindowStart = Math.max(0, finite(entry.requiredDurationMs) - 120_000);
   const firstRaf: number[] = [];
   const lastRaf: number[] = [];

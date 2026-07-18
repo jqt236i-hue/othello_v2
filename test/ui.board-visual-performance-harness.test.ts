@@ -14,6 +14,7 @@ import {
   isBoardPerformanceHarnessRequested,
   nearestRank,
   stablePerformanceJson,
+  startPrimedRafRecorder,
   summarizeRafIntervals
 } from '../ui/board-visual/performance-harness';
 
@@ -63,6 +64,39 @@ describe('board visual performance harness contract', () => {
       jankRatio: 0.25,
       rafStall50msCount: 1
     });
+  });
+
+  test('primes the rAF recorder from callback execution time instead of a stale frame timestamp', async () => {
+    let performanceNow = 7_000;
+    let nextRequestId = 1;
+    const callbacks = new Map<number, (timestamp: number) => void>();
+    const root: any = {
+      performance: { now: () => performanceNow },
+      requestAnimationFrame: (callback: (timestamp: number) => void) => {
+        const requestId = nextRequestId;
+        nextRequestId += 1;
+        callbacks.set(requestId, callback);
+        return requestId;
+      },
+      cancelAnimationFrame: (requestId: number) => callbacks.delete(requestId)
+    };
+
+    const recorderPromise = startPrimedRafRecorder(root);
+    callbacks.get(1)?.(1_000);
+    await Promise.resolve();
+    performanceNow = 7_016;
+    callbacks.get(2)?.(7_010);
+    const primed = await recorderPromise;
+    expect(primed.startedAtPerformanceMs).toBe(7_010);
+    expect(primed.recorder.timestamps).toEqual([]);
+
+    performanceNow = 7_032;
+    callbacks.get(3)?.(7_026);
+    performanceNow = 7_048;
+    callbacks.get(4)?.(7_042);
+    expect(primed.recorder.timestamps).toEqual([7_026, 7_042]);
+    expect(primed.recorder.intervals).toEqual([16]);
+    primed.recorder.stop();
   });
 
   test('derives capture order from the final commit byte', () => {
