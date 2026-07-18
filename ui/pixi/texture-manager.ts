@@ -111,6 +111,8 @@ export interface PixiTextureManagerDiagnostics {
   readonly cacheEntryCount: number;
   readonly readyResourceCount: number;
   readonly readyResourcePixelCount: number;
+  readonly idleCacheEntryCount: number;
+  readonly idleCachePixelCount: number;
   readonly activeResourcePixelCount: number;
   readonly pendingLoadCount: number;
   readonly referenceCount: number;
@@ -121,6 +123,7 @@ export interface PixiTextureManagerDiagnostics {
   readonly loadStartCount: number;
   readonly dedupeHitCount: number;
   readonly uploadCount: number;
+  readonly evictionCount: number;
   readonly fallbackCount: number;
   readonly failureCount: number;
   readonly derivedBitmapCount: number;
@@ -196,7 +199,9 @@ interface LoadedResource {
 interface CacheEntry {
   readonly key: string;
   readonly promise: Promise<LoadedResource>;
+  readonly cacheableWhenIdle: boolean;
   refCount: number;
+  lastUsedSequence: number;
   state: 'loading' | 'ready' | 'failed' | 'destroyed';
   resource: LoadedResource | null;
 }
@@ -228,6 +233,11 @@ interface ExternalLeaseRecord {
 }
 
 const DEFAULT_MAX_TEXTURE_SIZE = 4096;
+// Keep a small GPU-resident working set so repeated built-in skin switches do
+// not decode/upload the same URLs every frame. Blob-backed custom textures are
+// never admitted and still follow their source-lease release boundary.
+const MAX_IDLE_CACHE_ENTRIES = 12;
+const MAX_IDLE_CACHE_PIXELS = 16 * 1024 * 1024;
 
 function errorOf(error: unknown, fallbackCode: string, message: string): PixiTextureManagerError {
   if (error instanceof PixiTextureManagerError) return error;
@@ -397,6 +407,7 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
   let loadStartCount = 0;
   let dedupeHitCount = 0;
   let uploadCount = 0;
+  let evictionCount = 0;
   let fallbackCount = 0;
   let failureCount = 0;
   let derivedBitmapCount = 0;
@@ -406,6 +417,7 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
   let destroyFailureCount = 0;
   let commitCount = 0;
   let lastFailureCode: string | null = null;
+  let useSequence = 0;
 
   function assertReady(): void {
     if (managerState !== 'ready') {
@@ -588,7 +600,32 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
     if (cache.get(entry.key) === entry) cache.delete(entry.key);
   }
 
-  function createEntry(key: string, loader: () => Promise<LoadedResource>): CacheEntry {
+  function resourcePixelCount(resource: LoadedResource | null): number {
+    return positiveInteger(resource?.width, 0) * positiveInteger(resource?.height, 0);
+  }
+
+  function evictIdleEntries(): void {
+    const idle = Array.from(cache.values())
+      .filter((entry) => entry.cacheableWhenIdle
+        && entry.refCount === 0
+        && entry.state === 'ready'
+        && !!entry.resource)
+      .sort((left, right) => left.lastUsedSequence - right.lastUsedSequence);
+    let pixelCount = idle.reduce((total, entry) => total + resourcePixelCount(entry.resource), 0);
+    while (idle.length > MAX_IDLE_CACHE_ENTRIES || pixelCount > MAX_IDLE_CACHE_PIXELS) {
+      const entry = idle.shift();
+      if (!entry) break;
+      pixelCount -= resourcePixelCount(entry.resource);
+      destroyEntryResource(entry);
+      evictionCount += 1;
+    }
+  }
+
+  function createEntry(
+    key: string,
+    loader: () => Promise<LoadedResource>,
+    cacheableWhenIdle: boolean
+  ): CacheEntry {
     let entry!: CacheEntry;
     loadStartCount += 1;
     pendingLoadCount += 1;
@@ -597,7 +634,11 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
         const resource = await loader();
         entry.resource = resource;
         entry.state = 'ready';
-        if (entry.refCount === 0 || managerState === 'destroyed') destroyEntryResource(entry);
+        if (managerState === 'destroyed' || (entry.refCount === 0 && !entry.cacheableWhenIdle)) {
+          destroyEntryResource(entry);
+        } else if (entry.refCount === 0) {
+          evictIdleEntries();
+        }
         return resource;
       } catch (error) {
         entry.state = 'failed';
@@ -610,20 +651,30 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
     // A prepare operation observes this rejection. This additional observer
     // prevents an unhandled rejection if destroy races the loader.
     promise.catch(() => undefined);
-    entry = { key, promise, refCount: 0, state: 'loading', resource: null };
+    entry = {
+      key,
+      promise,
+      cacheableWhenIdle,
+      refCount: 0,
+      lastUsedSequence: ++useSequence,
+      state: 'loading',
+      resource: null
+    };
     cache.set(key, entry);
     return entry;
   }
 
   async function acquireEntry(
     key: string,
-    loader: () => Promise<LoadedResource>
+    loader: () => Promise<LoadedResource>,
+    cacheableWhenIdle: boolean
   ): Promise<CacheEntry> {
     assertReady();
     let entry = cache.get(key);
     if (entry) dedupeHitCount += 1;
-    else entry = createEntry(key, loader);
+    else entry = createEntry(key, loader, cacheableWhenIdle);
     entry.refCount += 1;
+    entry.lastUsedSequence = ++useSequence;
     let retained = true;
     try {
       await entry.promise;
@@ -644,12 +695,16 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
       throw new PixiTextureManagerError('texture resource is unavailable', 'texture-resource-unavailable');
     }
     entry.refCount += 1;
+    entry.lastUsedSequence = ++useSequence;
   }
 
   function releaseEntry(entry: CacheEntry): void {
     if (entry.refCount <= 0) return;
     entry.refCount -= 1;
-    if (entry.refCount === 0 && entry.state === 'ready') destroyEntryResource(entry);
+    if (entry.refCount !== 0 || entry.state !== 'ready') return;
+    entry.lastUsedSequence = ++useSequence;
+    if (managerState === 'ready' && entry.cacheableWhenIdle) evictIdleEntries();
+    else destroyEntryResource(entry);
   }
 
   async function acquirePrimary(
@@ -661,7 +716,7 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
       if (request.kind === 'custom') return loadCustom(request);
       if (request.kind === 'procedural') return loadProcedural(request, proceduralId || request.purpose);
       return loadBuiltIn(request);
-    });
+    }, request.kind !== 'custom' && !/^blob:/i.test(String(request.absoluteUrl || '')));
     return { entry, sourceKey: key };
   }
 
@@ -931,12 +986,18 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
   function getDiagnostics(): PixiTextureManagerDiagnostics {
     let readyResourceCount = 0;
     let readyResourcePixelCount = 0;
+    let idleCacheEntryCount = 0;
+    let idleCachePixelCount = 0;
     let referenceCount = 0;
     cache.forEach((entry) => {
       if (entry.state === 'ready' && entry.resource) {
         readyResourceCount += 1;
-        readyResourcePixelCount += positiveInteger(entry.resource.width, 0)
-          * positiveInteger(entry.resource.height, 0);
+        const pixels = resourcePixelCount(entry.resource);
+        readyResourcePixelCount += pixels;
+        if (entry.refCount === 0) {
+          idleCacheEntryCount += 1;
+          idleCachePixelCount += pixels;
+        }
       }
       referenceCount += entry.refCount;
     });
@@ -962,6 +1023,8 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
       cacheEntryCount: cache.size,
       readyResourceCount,
       readyResourcePixelCount,
+      idleCacheEntryCount,
+      idleCachePixelCount,
       activeResourcePixelCount,
       pendingLoadCount,
       referenceCount,
@@ -972,6 +1035,7 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
       loadStartCount,
       dedupeHitCount,
       uploadCount,
+      evictionCount,
       fallbackCount,
       failureCount,
       derivedBitmapCount,
@@ -990,6 +1054,7 @@ export function createPixiTextureManager(options: PixiTextureManagerOptions = {}
     activeBatch = null;
     for (const batch of Array.from(batches)) retireBatch(batch);
     for (const lease of Array.from(externalLeases)) lease.publicLease.release();
+    for (const entry of Array.from(cache.values())) destroyEntryResource(entry);
     // Ready entries with no leases were destroyed by releaseEntry. Loading
     // entries self-destroy when their promises settle under destroyed state.
   }

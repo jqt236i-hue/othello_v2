@@ -129,6 +129,14 @@ describe('Pixi texture manager resource lifecycle', () => {
 
     first.release();
     second.release();
+    expect(fixture.destroyed).toHaveLength(0);
+    expect(manager.getDiagnostics()).toMatchObject({
+      cacheEntryCount: 1,
+      referenceCount: 0,
+      idleCacheEntryCount: 1,
+      idleCachePixelCount: 4096
+    });
+    manager.destroy();
     expect(fixture.destroyed).toHaveLength(1);
     expect(manager.getDiagnostics()).toMatchObject({ cacheEntryCount: 0, referenceCount: 0 });
     expect(TextureManager.resolvePixiTextureAssetUrl('blob:skin-1', null)).toBe('blob:skin-1');
@@ -217,10 +225,51 @@ describe('Pixi texture manager resource lifecycle', () => {
     expect(events).toEqual([
       'apply:failed',
       'apply:next',
-      'destroy:https://example.test/game/assets/old.png',
       'release:old-url'
     ]);
     manager.releaseActive();
+    manager.destroy();
+    expect(events).toEqual([
+      'apply:failed',
+      'apply:next',
+      'release:old-url',
+      'destroy:https://example.test/game/assets/old.png',
+      'destroy:https://example.test/game/assets/next.png'
+    ]);
+  });
+
+  test('reuses alternating built-in skins and evicts the oldest idle texture at the bounded cache limit', async () => {
+    const fixture = createRuntime();
+    const manager = TextureManager.createPixiTextureManager({
+      runtime: fixture.runtime,
+      documentRef: documentAt()
+    });
+
+    for (let index = 0; index < 14; index += 1) {
+      manager.commit(await manager.prepare(`skin-${index}`, [
+        { purpose: 'board', url: `assets/skin-${index}.png` }
+      ]));
+    }
+    expect(fixture.loadTexture).toHaveBeenCalledTimes(14);
+    expect(manager.getDiagnostics()).toMatchObject({
+      readyResourceCount: 13,
+      idleCacheEntryCount: 12,
+      evictionCount: 1
+    });
+
+    manager.commit(await manager.prepare('skin-0-again', [
+      { purpose: 'board', url: 'assets/skin-0.png' }
+    ]));
+    expect(fixture.loadTexture).toHaveBeenCalledTimes(15);
+    expect(manager.getDiagnostics()).toMatchObject({ uploadCount: 15, evictionCount: 2 });
+
+    const cached = await manager.prepare('skin-13-again', [
+      { purpose: 'board', url: 'assets/skin-13.png' }
+    ]);
+    expect(fixture.loadTexture).toHaveBeenCalledTimes(15);
+    expect(manager.getDiagnostics()).toMatchObject({ uploadCount: 15, evictionCount: 2 });
+    cached.release();
+    manager.destroy();
   });
 
   test('keeps old GPU and Blob leases alive until an external texture lease ends', async () => {
