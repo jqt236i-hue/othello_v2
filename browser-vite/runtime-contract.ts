@@ -19,7 +19,6 @@ export const REQUIRED_GLOBAL_TYPES = Object.freeze({
   cardState: 'object',
   initializeUI: 'function',
   resetGame: 'function',
-  forceFullRender: 'function',
   LazyRuntimeLoaderModule: 'object'
 } as const);
 

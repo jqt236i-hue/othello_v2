@@ -130,7 +130,7 @@ describe('board renderer network visual state', () => {
     (global as any).NetworkVisualStateStore.getRenderSnapshot
       .mockImplementationOnce(() => firstSnapshot)
       .mockImplementation(() => secondSnapshot);
-    const diff = require('../ui/diff-renderer.js');
+    const diff = require('../ui/board-visual/state-adapter');
 
     const inputs = diff.createBoardRenderInputs();
 
@@ -141,7 +141,7 @@ describe('board renderer network visual state', () => {
   });
 
   test('createBoardRenderInputs reads the local game/card pair once each', () => {
-    const diff = require('../ui/diff-renderer.js');
+    const diff = require('../ui/board-visual/state-adapter');
     delete (global as any).NetworkVisualStateStore;
     delete (global as any).gameState;
     delete (global as any).cardState;
@@ -191,7 +191,7 @@ describe('board renderer network visual state', () => {
         getSeatKey: () => 'white'
       }
     });
-    const diff = require('../ui/diff-renderer.js');
+    const diff = require('../ui/board-visual/state-adapter');
 
     const inputs = diff.createBoardRenderInputs();
     // Canonical globals are already ahead; the prepared visual pair remains
@@ -219,7 +219,7 @@ describe('board renderer network visual state', () => {
         getSeatKey: () => null
       }
     });
-    const diff = require('../ui/diff-renderer.js');
+    const diff = require('../ui/board-visual/state-adapter');
     const inputs = diff.createBoardRenderInputs();
     const projection = diff.createBoardRenderProjection(undefined, inputs);
     const cellState = diff.buildCurrentCellState(projection, inputs);

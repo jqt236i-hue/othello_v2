@@ -135,7 +135,7 @@ describe('NetworkVisualStateStore clone inventory and readonly rendering', () =>
       const before = JSON.stringify(frozenRenderSnapshot);
       (global as any).gameState = frozenRenderSnapshot.gameState;
       (global as any).cardState = frozenRenderSnapshot.cardState;
-      const diff = require('../ui/diff-renderer.js');
+      const diff = require('../ui/board-visual/state-adapter');
 
       expect(Object.isFrozen(frozenRenderSnapshot)).toBe(true);
       expect(Object.isFrozen(frozenRenderSnapshot.gameState.board)).toBe(true);

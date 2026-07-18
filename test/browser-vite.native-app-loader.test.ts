@@ -16,7 +16,6 @@ function installReadyGlobals(root: any): void {
   root.gameState = {};
   root.cardState = {};
   root.resetGame = () => {};
-  root.forceFullRender = () => {};
   root.LazyRuntimeLoaderModule = {};
 }
 

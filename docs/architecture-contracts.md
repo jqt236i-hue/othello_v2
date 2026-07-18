@@ -325,19 +325,24 @@ For end-turn pending selections that schedule a local white CPU turn, the schedu
 
 ### 7.3 Single Visual Writer
 
-During playback, board DOM writes must be coordinated so there is a single effective board writer.
+During playback, all board visual writes must be coordinated so there is one effective writer, independent of the active rendering backend.
 
-The existing contract is visible in code:
+The contract is implemented by the following ownership chain:
 
-- `ui/animation-engine.ts` describes the Single Visual Writer
-- `ui/board-renderer.ts` and `ui/diff-renderer.ts` skip board writes while playback is active
-- `ui/playback-state-manager.ts` mirrors playback lock state
+- `ui/playback-state-manager.ts` owns the playback claim/busy lifecycle.
+- `ui/board-visual/controller.ts` owns the board writer claim and mounts exactly one backend.
+- `ui/board-renderer.ts` routes canonical or committed visual frames through that controller and defers ordinary render requests while playback owns the writer.
+- `ui/board-visual/pixi-backend.ts` is the normal backend. `ui/board-dom-compat/` is a mutually exclusive compatibility package that is loaded only for explicit debug fallback, Pixi/WebGL initialization failure, or unrecoverable context loss.
 
-Any new board-writing path must preserve that contract rather than bypass it.
+Pixi and DOM compatibility backends must never be mounted or receive input concurrently. The normal `#board` subtree contains the Pixi canvas and semantic accessibility layer; compatibility-only cells and `#board-expansion-layer` are materialized dynamically only after the DOM backend has been selected.
 
-For board updates that contain `PLAYBACK_EVENTS`, draining the presentation queue and handing board ownership to `AnimationEngine` are one visual transaction. `DiffRenderer` / board render must not draw the final canonical board between those steps; final board sync happens after playback completion emits the follow-up board update.
+For strict network playback, the writer claim and settlement handle remain owned until the visual store commit has succeeded and the required `applyCommittedFrame` hook has applied that committed frame. Only then may visual settlement be marked complete, observers run, and writer/playback claims be released. Recovery retries the committed visual frame without replaying authoritative events.
 
-Playback active, claimed, or pending means only the playback/presentation writer may mutate board cells. Network snapshot application, presentation timeline catch-up, and canonical state reconciliation may update model state immediately, but they must queue board DOM sync until playback is idle. Flags or options such as `allowBoardUpdateDuringPlayback`, `ignorePlayback`, or similarly named urgent-refresh paths must not grant board DOM write permission during playback; at most they may carry source/reason metadata or flush non-board UI.
+Any new board-writing path must enter through this controller/backend contract. It must not write the board directly, reorder `events[]`, treat client presentation state as authority, or add a second backend-specific settlement path.
+
+For board updates that contain `PLAYBACK_EVENTS`, draining the presentation queue and handing board ownership to `AnimationEngine` are one visual transaction. Ordinary board rendering must not draw the final canonical board between those steps; final board sync happens through the controller after playback completion emits the follow-up board update.
+
+Playback active, claimed, or pending means only the playback/presentation writer may mutate board visuals. Network snapshot application, presentation timeline catch-up, and canonical state reconciliation may update model state immediately, but they must queue backend frame application until playback is idle. Flags or options such as `allowBoardUpdateDuringPlayback`, `ignorePlayback`, or similarly named urgent-refresh paths must not grant board visual write permission during playback; at most they may carry source/reason metadata or flush non-board UI.
 
 #### 7.3.1 Snapshot / playback / busy ownership
 

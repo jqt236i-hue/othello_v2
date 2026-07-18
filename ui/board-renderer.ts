@@ -47,7 +47,7 @@ declare const countDiscs: (...args: any[]) => any;
  * 盤面を描画（差分レンダリング使用）
  * Render board using differential rendering for performance
  * 
- * Note: Requires diff-renderer.js to be loaded first
+ * DOM compatibility rendering is loaded lazily only when its backend is selected.
  */
 var OwnerHelpersModule: any = null;
 if (typeof require === 'function') {
@@ -1295,7 +1295,7 @@ function _createFailedBoardVisualBackendForBoardRenderer(kind: 'dom' | 'pixi', e
 }
 
 function _createDomBoardVisualBackendForBoardRenderer() {
-    const compatibilityRenderer = _require('./diff-renderer');
+    const compatibilityRenderer = _require('./board-dom-compat/renderer');
     const options = {
         compatibilityRenderer,
         beforeApplyFrame(activeHost: any, frame: any) {
@@ -1313,7 +1313,7 @@ function _createDomBoardVisualBackendForBoardRenderer() {
     const testFactory = BoardVisualBackendTestConfigForBoardRenderer
         && BoardVisualBackendTestConfigForBoardRenderer.createDomBackend;
     const factory = testFactory || (() => {
-        const DomBackendModule = _require('./board-visual/dom-backend');
+        const DomBackendModule = _require('./board-dom-compat/backend');
         if (!DomBackendModule || typeof DomBackendModule.createDomBoardVisualBackend !== 'function') {
             throw new Error('DOM board visual backend factory is unavailable');
         }
@@ -1553,13 +1553,16 @@ function getBoardInputController() {
     if (!InputModule || typeof InputModule.createBoardInputController !== 'function') {
         throw new Error('Board input controller capability is unavailable');
     }
-    const DiffRendererModule = _require('./diff-renderer');
-    const presentation = DiffRendererModule
-        && typeof DiffRendererModule.getBoardInputPresentationCapabilities === 'function'
-        ? DiffRendererModule.getBoardInputPresentationCapabilities()
+    const StateAdapterModule = _require('./board-visual/state-adapter');
+    const StoneInfoModule = _require('./presentation/stone-info-controller');
+    const presentation = StoneInfoModule
+        && typeof StoneInfoModule.getStoneInfoPresentationCapabilities === 'function'
+        ? StoneInfoModule.getStoneInfoPresentationCapabilities()
         : {};
     const input = InputModule.createBoardInputController({
         ...presentation,
+        setHoveredCell: (row: number, col: number) => StateAdapterModule.setBoardVisualHoverCell(row, col),
+        clearHoveredCell: () => StateAdapterModule.clearBoardVisualHoverPreview(),
         handleCellClick: (row: number, col: number, directionKey?: string) => {
             if (typeof handleCellClick !== 'function') throw new Error('handleCellClick is unavailable');
             return handleCellClick(row, col, directionKey);
@@ -2329,14 +2332,14 @@ function _createCommittedWorldStateCallbackForBoardRenderer(frame: any, backendK
     const captured = frame && typeof frame === 'object'
         ? BoardVisualWorldStateByFrameForBoardRenderer.get(frame)
         : null;
-    const DiffRendererModule = _require('./diff-renderer');
+    const CommittedWorldStateModule = _require('./presentation/committed-world-state');
     const manifestPresentationState = captured
         && Object.prototype.hasOwnProperty.call(captured, 'manifestPresentationState')
         ? captured.manifestPresentationState
         : (
-            DiffRendererModule
-            && typeof DiffRendererModule.createCommittedManifestPresentationState === 'function'
-                ? DiffRendererModule.createCommittedManifestPresentationState(
+            CommittedWorldStateModule
+            && typeof CommittedWorldStateModule.createCommittedManifestPresentationState === 'function'
+                ? CommittedWorldStateModule.createCommittedManifestPresentationState(
                     _resolveBoardRenderStateForBoardRenderer().cardState
                 )
                 : null
@@ -2344,8 +2347,8 @@ function _createCommittedWorldStateCallbackForBoardRenderer(frame: any, backendK
     return () => {
         if (committed) return;
         committed = true;
-        if (!DiffRendererModule || typeof DiffRendererModule.presentCommittedWorldState !== 'function') return;
-        DiffRendererModule.presentCommittedWorldState(manifestPresentationState);
+        if (!CommittedWorldStateModule || typeof CommittedWorldStateModule.presentCommittedWorldState !== 'function') return;
+        CommittedWorldStateModule.presentCommittedWorldState(manifestPresentationState);
         if (backendKind === 'pixi') {
             if (captured && captured.boardUpdateSyncContext) {
                 const syncRuntime = _getBoardUpdateSyncRuntimeForBoardRenderer();
@@ -2467,16 +2470,16 @@ function _readBoardFrameGeometryForLayout(host: any, appearance: any) {
 }
 
 function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualStateOverride?: any) {
-    const DiffRendererModule = _require('./diff-renderer');
+    const StateAdapterModule = _require('./board-visual/state-adapter');
     const LayoutModule = _require('./board-visual/layout');
     const ThemeModule = _require('./board-visual/theme');
     const FramePresenterModule = _require('./board-visual/frame-presenter');
-    const baseInputs = DiffRendererModule.createBoardRenderInputs({
+    const baseInputs = StateAdapterModule.createBoardRenderInputs({
         keyboardCursorKey: BoardInputKeyboardCursorKeyForBoardRenderer
     }, baseVisualStateOverride);
-    const projection = DiffRendererModule.createBoardRenderProjection(undefined, baseInputs);
-    const cellState = DiffRendererModule.buildCurrentCellState(projection, baseInputs);
-    const presentationOverlayState = DiffRendererModule.createBoardPresentationOverlayState(
+    const projection = StateAdapterModule.createBoardRenderProjection(undefined, baseInputs);
+    const cellState = StateAdapterModule.buildCurrentCellState(projection, baseInputs);
+    const presentationOverlayState = StateAdapterModule.createBoardPresentationOverlayState(
         projection,
         cellState,
         baseInputs.presentationOverlayState
@@ -2486,7 +2489,7 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
         presentationOverlayState
     });
     const frameSerial = ++BoardVisualFrameSerialForBoardRenderer;
-    const model = DiffRendererModule.buildBoardRenderModel(projection, cellState, {
+    const model = StateAdapterModule.buildBoardRenderModel(projection, cellState, {
         visualRevision: 0,
         overlay: inputs.presentationOverlayState,
         inputs
@@ -2544,11 +2547,12 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
         }
     } catch (e: any) { /* absent context */ }
     const boardUpdateSyncContextValue = _peekBoardUpdateSyncContextForBoardRenderer();
-    if (typeof DiffRendererModule.createCommittedManifestPresentationState !== 'function') {
+    const CommittedWorldStateModule = _require('./presentation/committed-world-state');
+    if (typeof CommittedWorldStateModule.createCommittedManifestPresentationState !== 'function') {
         throw new Error('Committed manifest presentation snapshot capability is unavailable');
     }
     BoardVisualWorldStateByFrameForBoardRenderer.set(frame, Object.freeze({
-        manifestPresentationState: DiffRendererModule.createCommittedManifestPresentationState(
+        manifestPresentationState: CommittedWorldStateModule.createCommittedManifestPresentationState(
             inputs.baseVisualState && (inputs.baseVisualState as any).cardState
         ),
         boardUpdateContext,

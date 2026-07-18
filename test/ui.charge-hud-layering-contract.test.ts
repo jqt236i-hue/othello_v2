@@ -1,5 +1,6 @@
 import {
   expectCssBlockToContain,
+  readDomCompatBoardCssSurface,
   readLayoutCssSurface,
   readRepoTextFile
 } from './helpers/css-test-helpers';
@@ -7,13 +8,14 @@ import {
 describe('charge HUD layering contract', () => {
   test('expanded board layer sits above hand and left HUD layers while charge HUD stays above the board', () => {
     const layoutCss = readLayoutCssSurface();
-    const boardCss = readRepoTextFile('styles-board.css');
+    const boardCss = readDomCompatBoardCssSurface();
     const variablesCss = readRepoTextFile('styles-variables.css');
     const cardsCss = readRepoTextFile('styles-cards.css');
     const animationsCss = readRepoTextFile('styles-animations.css');
     const indexHtml = readRepoTextFile('index.html');
 
-    expect(indexHtml).toMatch(/<div id="board-stack">[\s\S]*<div id="board-frame">[\s\S]*<div id="board-expansion-layer"[\s\S]*<div id="charge-hud-layer">/);
+    expect(indexHtml).toMatch(/<div id="board-stack">[\s\S]*<div id="board-frame">[\s\S]*<div id="charge-hud-layer">/);
+    expect(indexHtml).not.toMatch(/id="board-expansion-layer"/);
     expect(layoutCss).toMatch(/#game-container\s*\{[\s\S]*position:\s*relative/);
     expect(layoutCss).not.toMatch(/#game-container\s*\{[^}]*z-index:/);
     expect(layoutCss).toMatch(/#board-stack[\s\S]*position:\s*relative/);

@@ -46,11 +46,11 @@ describe('UI network boundary imports', () => {
 describe('UI renderer board hint boundaries', () => {
   test('renderers consume the shared board hint projection helper', () => {
     expect(read('ui/board-renderer.ts')).toContain('board-hint-projection');
-    expect(read('ui/diff-renderer.ts')).toContain('board-hint-projection');
+    expect(read('ui/board-dom-compat/renderer.ts')).toContain('board-hint-projection');
   });
 
   test('renderers do not define duplicate random spawn preview helpers', () => {
     expect(read('ui/board-renderer.ts')).not.toContain('function collectRandomSpawnPreviewHighlightKeys');
-    expect(read('ui/diff-renderer.ts')).not.toContain('function _collectRandomSpawnPreviewHighlightKeysForDiff');
+    expect(read('ui/board-dom-compat/renderer.ts')).not.toContain('function _collectRandomSpawnPreviewHighlightKeysForDiff');
   });
 });

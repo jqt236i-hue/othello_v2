@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
+import { readDomCompatBoardCssSurface } from './helpers/css-test-helpers';
 
 describe('stone image assets', () => {
   const specialStonesDir = path.join(__dirname, '..', 'assets', 'images', 'special-stones');
@@ -33,25 +34,25 @@ describe('stone image assets', () => {
   });
 
   it('uses the shared render skeleton hooks in board styles', () => {
-    const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+    const boardCss = readDomCompatBoardCssSurface();
     assert.ok(boardCss.includes('.disc[data-render-mode="overlay"] .disc__overlay-image'));
     assert.ok(boardCss.includes('.disc[data-render-mode="replace"] .disc__overlay-image'));
   });
 
   it('includes a rule to hide base backgrounds when stone images are loaded', () => {
-    const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+    const boardCss = readDomCompatBoardCssSurface();
     assert.ok(boardCss.includes('html.stone-images-loaded .disc.black'));
     assert.ok(boardCss.includes('html.stone-images-loaded .disc.white'));
   });
 
   it('keeps the stone-images-loaded compatibility selectors for black/white discs', () => {
-    const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+    const boardCss = readDomCompatBoardCssSurface();
     assert.ok(boardCss.includes('html.stone-images-loaded .disc.black'));
     assert.ok(boardCss.includes('html.stone-images-loaded .disc.white'));
   });
 
   it('keeps HUD layers above image overlays in the shared skeleton', () => {
-    const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+    const boardCss = readDomCompatBoardCssSurface();
     assert.ok(boardCss.includes('.disc__hud'));
     assert.ok(boardCss.includes('z-index: 40'));
     assert.ok(boardCss.includes('.disc.stone-fade-overlay'));

@@ -491,7 +491,7 @@ async function runMoveVisualSequence(move: any, hadSelection: boolean, phases: a
           if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[Visuals] hyperactivePlaced with immediate move detected — syncing placed cell before movement', move.row, move.col);
           syncDiscVisualToCurrentState(move.row, move.col);
         } else {
-          if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[Visuals] hyperactivePlaced detected — relying on diff-renderer visuals');
+          if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[Visuals] hyperactivePlaced detected — relying on board visual backend');
         }
       }
     } catch (e) {

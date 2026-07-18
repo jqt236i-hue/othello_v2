@@ -352,7 +352,7 @@ async function measureBrowserFixture(
 ): Promise<Record<string, NumericSummary>> {
   const samples = await page.evaluate(({ snapshot, warmupCount, measuredCount }) => {
     const root = window as any;
-    const diffRenderer = root.require('ui/diff-renderer') || root.DiffRenderer;
+    const diffRenderer = root.require('ui/board-dom-compat/renderer') || root.DiffRenderer;
     const visualStoreModule = root.require('ui/network/visual-state-store');
     if (!diffRenderer || typeof diffRenderer.buildCurrentCellState !== 'function') {
       throw new Error('DiffRenderer.buildCurrentCellState unavailable');

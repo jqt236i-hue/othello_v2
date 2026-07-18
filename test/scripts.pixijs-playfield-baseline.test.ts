@@ -66,7 +66,7 @@ describe('PixiJS playfield DOM baseline capture', () => {
   test('keeps real selector and regex dependencies from the repository inventory', () => {
     const inventory = Baseline.collectSelectorInventory(path.resolve(__dirname, '..'));
     const byPath = new Map(inventory.entries.map((entry: any) => [entry.path, entry.tokens]));
-    expect(byPath.get('ui/diff-renderer/dom-patcher.ts')).toMatchObject({ '.disc': expect.any(Number) });
+    expect(byPath.get('ui/board-dom-compat/dom-patcher.ts')).toMatchObject({ '.disc': expect.any(Number) });
     expect(byPath.get('test/ui.board-frame.custom-size.test.ts')).toMatchObject({ '.cell': expect.any(Number) });
     expect(byPath.get('test/ui.board-css-contract.test.ts')).toMatchObject({ '.cell': expect.any(Number) });
   });

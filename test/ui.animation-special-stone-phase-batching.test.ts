@@ -88,8 +88,8 @@ describe('special-stone playback phase batching', () => {
     (global as any).window = dom.window;
     (global as any).document = dom.window.document;
 
-    const { createDomBoardPlaybackHandlers } = require('../ui/board-visual/dom-runtime');
-    const { createDomBoardPlaybackExecutor } = require('../ui/board-visual/dom-playback');
+    const { createDomBoardPlaybackHandlers } = require('../ui/board-dom-compat/runtime');
+    const { createDomBoardPlaybackExecutor } = require('../ui/board-dom-compat/playback');
     const board = document.getElementById('board') as HTMLElement;
     const querySelector = jest.spyOn(board, 'querySelector');
     const executor = createDomBoardPlaybackExecutor(createDomBoardPlaybackHandlers({
@@ -136,8 +136,8 @@ describe('special-stone playback phase batching', () => {
     (global as any).window = dom.window;
     (global as any).document = dom.window.document;
 
-    const { createDomBoardPlaybackHandlers } = require('../ui/board-visual/dom-runtime');
-    const { createDomBoardPlaybackExecutor } = require('../ui/board-visual/dom-playback');
+    const { createDomBoardPlaybackHandlers } = require('../ui/board-dom-compat/runtime');
+    const { createDomBoardPlaybackExecutor } = require('../ui/board-dom-compat/playback');
     const executor = createDomBoardPlaybackExecutor(createDomBoardPlaybackHandlers({
       boardElement: document.getElementById('board'),
       documentRef: document,

@@ -182,6 +182,13 @@ const OPTIONAL_BOOT_MODULE_PREFIXES = [
     'ui/storage/gacha'
 ];
 
+// The DOM compatibility backend stays synchronously registered so context-loss
+// recovery can construct it without a second network round trip. It is not an
+// entry-browser module and therefore remains unevaluated on the default Pixi path.
+const MUTUALLY_EXCLUSIVE_COMPATIBILITY_MODULE_PREFIXES = [
+    'ui/board-dom-compat/'
+];
+
 const OPTIONAL_GROUP_PREFIXES: Record<OptionalRuntimeGroup, readonly string[]> = Object.freeze({
     gacha: Object.freeze([
         'shared/gacha',
@@ -227,6 +234,9 @@ function normalizeBootModuleKey(key: string): string {
 function classifyBrowserBootModule(key: string): BrowserBootModuleClass {
     const normalized = normalizeBootModuleKey(key);
     if (REQUIRED_BOOT_MODULE_KEYS.has(normalized)) return 'required';
+    if (MUTUALLY_EXCLUSIVE_COMPATIBILITY_MODULE_PREFIXES.some(prefix => matchesModulePrefix(normalized, prefix))) {
+        return 'required';
+    }
     if (OPTIONAL_BOOT_MODULE_PREFIXES.some(prefix => normalized === prefix.replace(/\/$/, '') || normalized.startsWith(prefix))) {
         return 'optional';
     }

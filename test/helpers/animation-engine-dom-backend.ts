@@ -26,8 +26,8 @@ export function installAnimationEngineDomBackendMock(): void {
 
     const getExecutor = () => {
       if (executor) return executor;
-      const { createDomBoardPlaybackHandlers } = jest.requireActual('../../ui/board-visual/dom-runtime');
-      const { createDomBoardPlaybackExecutor } = jest.requireActual('../../ui/board-visual/dom-playback');
+      const { createDomBoardPlaybackHandlers } = jest.requireActual('../../ui/board-dom-compat/runtime');
+      const { createDomBoardPlaybackExecutor } = jest.requireActual('../../ui/board-dom-compat/playback');
       const handlers = createDomBoardPlaybackHandlers({
         getBoardElement: () => (
           typeof document !== 'undefined' ? document.getElementById('board') : null

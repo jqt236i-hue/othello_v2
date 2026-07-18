@@ -89,8 +89,8 @@ describe('board renderer committed manifestation state', () => {
     (global as any).NetworkVisualStateStore = store;
     (global as any).window.NetworkVisualStateStore = store;
 
-    const diffRenderer = require('../ui/diff-renderer.js');
-    const presentCommittedWorldState = jest.spyOn(diffRenderer, 'presentCommittedWorldState');
+    const committedWorldState = require('../ui/presentation/committed-world-state');
+    const presentCommittedWorldState = jest.spyOn(committedWorldState, 'presentCommittedWorldState');
     const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.configureBoardVisualBackendForTest({
       selection: 'pixi',

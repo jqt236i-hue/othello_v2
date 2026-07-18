@@ -41,6 +41,16 @@ export function readLayoutCssSurface(): string {
   return readStyleSurface(LAYOUT_STYLE_FILES);
 }
 
+export function readDomCompatBoardCssSurface(): string {
+  return readStyleSurface([
+    'styles-board.css',
+    'styles-board-dom-compat.css',
+  ])
+    .replace(/#board-stack:has\(#board\[data-board-renderer="dom"\]\)\s*>\s*#board-expansion-layer/g, '#board-expansion-layer')
+    .replace(/#board\[data-board-renderer="dom"\]/g, '#board')
+    .replace(/\[data-board-renderer="dom"\]\s+/g, '');
+}
+
 export function escapeCssSelectorForRegExp(selector: string): string {
   return selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

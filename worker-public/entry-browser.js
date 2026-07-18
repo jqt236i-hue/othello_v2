@@ -289,7 +289,6 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/ui/playback-state-manager" },
   { moduleKey: "./dist/ui/board-update-dispatch" },
   { moduleKey: "./dist/ui/board-update-sync-runtime" },
-  { moduleKey: "./dist/ui/diff-renderer" },
   { moduleKey: "./dist/ui/board-renderer" },
   { moduleKey: "./dist/ui/status-display" },
   { moduleKey: "./dist/ui/animation-utils", lateGlobalNames: ["AnimationUtils"] },

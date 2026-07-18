@@ -1,12 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { readLayoutCssSurface } from './helpers/css-test-helpers';
+import { readDomCompatBoardCssSurface, readLayoutCssSurface } from './helpers/css-test-helpers';
 
 describe('adaptive board frame styling', () => {
   test('normal boards use image frames while cutout boards use CSS contours', () => {
     const baseCss = fs.readFileSync(path.join(__dirname, '..', 'styles-base.css'), 'utf8');
     const layoutCss = readLayoutCssSurface();
-    const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+    const boardCss = readDomCompatBoardCssSurface();
 
     expect(baseCss).toMatch(/body\.board-oversize-active[\s\S]*overflow:\s*auto/);
     expect(layoutCss).toMatch(/#game-container\.board-oversize-active[\s\S]*width:\s*max-content/);

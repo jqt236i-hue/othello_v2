@@ -87,7 +87,7 @@ describe('board renderer recovery boundary', () => {
       getPlaybackActive: jest.fn(() => true),
       hasPendingVisualPlayback: jest.fn(() => true)
     }));
-    jest.doMock('../ui/diff-renderer', () => ({
+    jest.doMock('../ui/board-visual/state-adapter', () => ({
       createBoardRenderInputs: jest.fn(() => ({
         baseVisualState: { gameState: {}, cardState: {} },
         presentationOverlayState: {}
@@ -95,8 +95,11 @@ describe('board renderer recovery boundary', () => {
       createBoardRenderProjection: jest.fn(() => ({})),
       buildCurrentCellState: jest.fn(() => ({})),
       createBoardPresentationOverlayState: jest.fn(() => ({})),
-      createCommittedManifestPresentationState: jest.fn(() => ({})),
       buildBoardRenderModel: buildModel
+    }));
+    jest.doMock('../ui/presentation/committed-world-state', () => ({
+      createCommittedManifestPresentationState: jest.fn(() => ({})),
+      presentCommittedWorldState: jest.fn()
     }));
     jest.doMock('../ui/board-visual/layout', () => ({
       createBoardViewportLayout: jest.fn((_topology: any, options: any) => ({

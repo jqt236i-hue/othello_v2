@@ -19,18 +19,18 @@ const SCAN_ROOTS = Object.freeze([
 const SELF_PATH = 'scripts/check-board-test-selectors.ts';
 
 /**
- * Phase 8 compatibility inventory. Every entry is an explicit DOM-only lane;
- * Phase 10 moves/removes these while isolating `ui/board-dom-compat/`.
+ * Every entry is an explicit DOM-only lane. Default/Pixi browser tests are
+ * intentionally absent from this allowlist.
  */
 const DOM_COMPATIBILITY_ALLOWLIST: Readonly<Record<string, string>> = Object.freeze({
   'scripts/capture-pixijs-playfield-baseline.ts': 'pre-cutover DOM/Pixi A/B evidence and legacy DOM microbenchmark',
   'scripts/pixijs-runtime-fallback-browser-check.ts': 'forced DOM compatibility fallback browser scenario',
   'scripts/perf/measure-pr2-v2.ts': 'archived DOM renderer PR2 performance probe',
-  'test/e2e/reset_click.e2e.test.ts': 'legacy DOM-default compatibility E2E pending Phase 10 isolation',
-  'test/e2e/destroy_hand_click.e2e.test.ts': 'legacy DOM-default compatibility E2E pending Phase 10 isolation',
-  'test/e2e/cpu_level_diff.e2e.test.ts': 'legacy DOM-default compatibility E2E pending Phase 10 isolation',
-  'test/e2e/cpu_auto_response.e2e.test.ts': 'legacy DOM-default compatibility E2E pending Phase 10 isolation',
-  'test/e2e/multi_turn_progression.e2e.test.ts': 'legacy DOM-default compatibility E2E pending Phase 10 isolation'
+  'test/e2e/board-dom-compat.reset-click.e2e.test.ts': 'forced DOM compatibility reset scenario',
+  'test/e2e/board-dom-compat.destroy-hand-click.e2e.test.ts': 'forced DOM compatibility hand interaction scenario',
+  'test/e2e/board-dom-compat.cpu-level-diff.e2e.test.ts': 'forced DOM compatibility CPU input scenario',
+  'test/e2e/board-dom-compat.cpu-auto-response.e2e.test.ts': 'forced DOM compatibility CPU response scenario',
+  'test/e2e/board-dom-compat.multi-turn-progression.e2e.test.ts': 'forced DOM compatibility multi-turn scenario'
 });
 
 function normalizeRelative(value: string): string {

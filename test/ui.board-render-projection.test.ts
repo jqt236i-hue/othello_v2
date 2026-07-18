@@ -45,7 +45,7 @@ describe('per-render board projection', () => {
   });
 
   test('reuses context, selectable targets, legal moves, viewer context, and marker maps within one render', () => {
-    const diff = require('../ui/diff-renderer.js');
+    const diff = require('../ui/board-dom-compat/renderer');
     const counters = { cardContextBuilds: 0, selectableTargetBuilds: 0, legalMoveBuilds: 0 };
     const projection = diff.createBoardRenderProjection(counters);
     const projectedState = diff.buildCurrentCellState(projection);
@@ -67,7 +67,7 @@ describe('per-render board projection', () => {
   });
 
   test('prepared and direct cell states are deeply equal without cross-render caching', () => {
-    const diff = require('../ui/diff-renderer.js');
+    const diff = require('../ui/board-dom-compat/renderer');
     const projection = diff.createBoardRenderProjection();
     const preparedState = diff.buildCurrentCellState(projection);
     const directState = diff.buildCurrentCellState();
@@ -92,7 +92,7 @@ describe('per-render board projection', () => {
         flipEvadeRemaining: 2
       }
     });
-    const diff = require('../ui/diff-renderer.js');
+    const diff = require('../ui/board-dom-compat/renderer');
 
     const state = diff.buildCurrentCellState(diff.createBoardRenderProjection());
 
@@ -105,7 +105,7 @@ describe('per-render board projection', () => {
   });
 
   test('builds one immutable sparse semantic model from explicit render inputs', () => {
-    const diff = require('../ui/diff-renderer.js');
+    const diff = require('../ui/board-dom-compat/renderer');
     const inputs = diff.createBoardRenderInputs({ hoveredCellKey: '2,3', keyboardCursorKey: '2,3' });
     const projection = diff.createBoardRenderProjection(undefined, inputs);
     const cellState = diff.buildCurrentCellState(projection, inputs);
@@ -162,7 +162,7 @@ describe('per-render board projection', () => {
   });
 
   test('applies the prepared visual frame atomically after canonical globals advance', () => {
-    const diff = require('../ui/diff-renderer.js');
+    const diff = require('../ui/board-dom-compat/renderer');
     const modelBuilder = require('../ui/board-visual/model-builder');
     const inputs = diff.createBoardRenderInputs();
     const projection = diff.createBoardRenderProjection(undefined, inputs);
@@ -208,7 +208,7 @@ describe('per-render board projection', () => {
   });
 
   test('DOM compatibility materializes only the frame viewport plus bounded overscan/gutter', () => {
-    const diff = require('../ui/diff-renderer.js');
+    const diff = require('../ui/board-dom-compat/renderer');
     const inputs = diff.createBoardRenderInputs();
     const projection = diff.createBoardRenderProjection(undefined, inputs);
     const cellState = diff.buildCurrentCellState(projection, inputs);

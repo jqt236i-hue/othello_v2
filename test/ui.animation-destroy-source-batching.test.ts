@@ -56,8 +56,8 @@ describe('destroy source animation batching', () => {
       })
     }));
 
-    const { createDomBoardPlaybackHandlers } = require('../ui/board-visual/dom-runtime');
-    const { createDomBoardPlaybackExecutor } = require('../ui/board-visual/dom-playback');
+    const { createDomBoardPlaybackHandlers } = require('../ui/board-dom-compat/runtime');
+    const { createDomBoardPlaybackExecutor } = require('../ui/board-dom-compat/playback');
     const handlers = createDomBoardPlaybackHandlers({
       boardElement: document.getElementById('board'),
       documentRef: document,

@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { readDomCompatBoardCssSurface, readRepoTextFile } from './helpers/css-test-helpers';
 
 function extractRuleBody(css: string, selector: string): string {
     const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -32,11 +33,12 @@ describe('stone shadow styles', () => {
     });
 
     test('styles-stone-shadows.css enables only the canonical cell/disc shadow selectors', () => {
-        const css = fs.readFileSync(path.join(__dirname, '..', 'styles-stone-shadows.css'), 'utf8');
-        const cellEnabledShadowBlock = extractRuleBody(css, 'html.stone-shadow-enabled .cell.has-disc::before');
-        const discEnabledShadowBlock = extractRuleBody(css, 'html.stone-shadow-enabled .disc::before');
-        expect(css).toMatch(/html\.stone-shadow-enabled\s+\.cell\.has-disc::before/);
-        expect(css).toMatch(/html\.stone-shadow-enabled\s+\.disc::before/);
+        const compatCss = readRepoTextFile('styles-board-dom-compat.css');
+        const css = compatCss.slice(compatCss.indexOf('/* from styles-stone-shadows.css */'));
+        const cellEnabledShadowBlock = extractRuleBody(css, 'html.stone-shadow-enabled [data-board-renderer="dom"] .cell.has-disc::before');
+        const discEnabledShadowBlock = extractRuleBody(css, 'html.stone-shadow-enabled [data-board-renderer="dom"] .disc::before');
+        expect(css).toMatch(/html\.stone-shadow-enabled\s+\[data-board-renderer="dom"\]\s+\.cell\.has-disc::before/);
+        expect(css).toMatch(/html\.stone-shadow-enabled\s+\[data-board-renderer="dom"\]\s+\.disc::before/);
         expect(cellEnabledShadowBlock).toMatch(/opacity:\s*0\.48/);
         expect(discEnabledShadowBlock).toMatch(/opacity:\s*0\.53/);
         expect(css).not.toMatch(/:has\(/);
@@ -46,7 +48,7 @@ describe('stone shadow styles', () => {
     });
 
     test('styles-board.css contains board depth shadow, contact shadow, and disc skeleton', () => {
-        const css = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
+        const css = readDomCompatBoardCssSurface();
         const discRootBlock = css.match(/\.disc\s*\{[^}]*\}/);
         const blackDiscBlock = extractRuleBody(css, '.disc.black');
         const whiteDiscBlock = extractRuleBody(css, '.disc.white');

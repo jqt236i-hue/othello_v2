@@ -1,6 +1,7 @@
 import { JSDOM } from 'jsdom';
 const fs = require('fs');
 const path = require('path');
+const { readDomCompatBoardCssSurface } = require('./helpers/css-test-helpers');
 describe('rules help panel', () => {
   function setDom(html) {
     const dom = new JSDOM(html);
@@ -845,7 +846,7 @@ describe('rules help panel', () => {
 
   test('index html includes stone marker help tab and key legend texts', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    const boardCss = fs.readFileSync(path.resolve(__dirname, '../styles-board.css'), 'utf8');
+    const boardCss = readDomCompatBoardCssSurface();
     expect(html).toMatch(/data-help-tab="guide">ルールと操作<\/button>/);
     expect(html).toMatch(/data-help-tab="protection-map">耐性貫通表<\/button>/);
     expect(html).toMatch(/data-help-tab="counters">石マーカー<\/button>/);
@@ -878,7 +879,7 @@ describe('rules help panel', () => {
   });
 
   test('special stone duration timer classes share the green duration palette', () => {
-    const boardCss = fs.readFileSync(path.resolve(__dirname, '../styles-board.css'), 'utf8');
+    const boardCss = readDomCompatBoardCssSurface();
     const cssRules = Array.from(boardCss.matchAll(/([^{}]+)\{([^{}]+)\}/g)).map((match) => ({
       selectors: match[1].split(',').map((selector) => selector.trim()),
       body: match[2]
@@ -894,7 +895,7 @@ describe('rules help panel', () => {
   });
 
   test('special stone duration timer frames stay compact around the number', () => {
-    const boardCss = fs.readFileSync(path.resolve(__dirname, '../styles-board.css'), 'utf8');
+    const boardCss = readDomCompatBoardCssSurface();
     const cssRules = Array.from(boardCss.matchAll(/([^{}]+)\{([^{}]+)\}/g)).map((match) => ({
       selectors: match[1].split(',').map((selector) => selector.trim()),
       body: match[2]

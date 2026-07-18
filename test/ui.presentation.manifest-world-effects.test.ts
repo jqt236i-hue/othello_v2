@@ -1,0 +1,18 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
+describe('diff renderer world effects', () => {
+  test('keeps manifestation BGM and background side effects in their focused module', () => {
+    const rendererSource = fs.readFileSync(path.resolve(__dirname, '..', 'ui', 'presentation', 'committed-world-state.ts'), 'utf8');
+    const worldEffectsSource = fs.readFileSync(path.resolve(__dirname, '..', 'ui', 'presentation', 'manifest-world-effects.ts'), 'utf8');
+
+    expect(rendererSource).toContain("_require('./manifest-world-effects')");
+    expect(rendererSource).toContain('function presentCommittedWorldState(cardStateValue: any)');
+    expect(rendererSource).toContain('DiffRendererWorldEffects.syncManifestWorldEffects({');
+    expect(worldEffectsSource).toContain('resetManifestWorldEffects');
+    expect(rendererSource).not.toContain('function _syncManifestBgmForDiff');
+    expect(rendererSource).not.toContain('function _syncManifestWorldBackgroundForDiff');
+    expect(worldEffectsSource).toContain('syncManifestWorldEffects');
+    expect(worldEffectsSource).toContain('resetManifestWorldEffects');
+  });
+});
