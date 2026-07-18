@@ -1,8 +1,8 @@
 # PixiJS 盤面移行設計
 
-- Status: proposed
+- Status: completed
 - Date: 2026-07-14
-- Last reviewed: 2026-07-18（共有PCの長時間soakをoptional diagnosticsへ分離し、短時間readinessとcross-browser gateへ置換）
+- Last reviewed: 2026-07-18（Phase 0～10、DOM compatibility隔離、production deployment、completion evidenceを完了）
 - Target: ブラウザの盤面、石、盤面上の入力表示、盤面に属する再生演出を PixiJS へ移行する
 - Source of truth: root `AGENTS.md`、`01-rulebook.md`、`正本/演出正本.md`、`正本/ターン進行正本.md`、`docs/architecture-contracts.md`、現行 root 実装
 - Design dependency: PixiJS `8.18.1` を完全固定して使用する
@@ -659,6 +659,10 @@ backend/controller/model の責務が実装と contract test で安定した段�
 - Phase 9のpre-cutover evidence、isolated default-selector deployment、deployed SHAのpost-smoke reportが別unit/commitで完了し、final cutover reportが実際のdeploymentを参照する。
 - idle ticker、display object、texture、listener、ResizeObserver、WebGL context の leak がない。
 - `docs/architecture-contracts.md`、build scripts、test harness が Pixi default と mutually exclusive DOM compatibility fallback を説明している。
+
+### 実装完了記録
+
+Phase 0～10は依存順に完了した。最終実装、verification、deployment、既知のoptional diagnosticsは `docs/perf/pixijs-playfield-completion.md` を正本とする。通常経路はPixi canvasとsemantic layerだけをmaterializeし、DOM compatibility subtreeと`#board-expansion-layer`は排他的fallback選択後だけ生成する。player-visible behavior、`events[]`順序、network authority、Single Visual Writerは変更していない。
 
 ## 13. 自己レビュー
 

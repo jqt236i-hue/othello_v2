@@ -1,9 +1,9 @@
 # PixiJS 盤面移行実装計画
 
-- Status: proposed
+- Status: completed
 - Design: `docs/implementation/pixijs-playfield-migration-design.md`
 - Date: 2026-07-14
-- Last reviewed: 2026-07-18（共有PCの長時間soakを任意診断へ分離し、短時間readinessとcross-browser gateへ置換）
+- Last reviewed: 2026-07-18（Phase 0～10の実装、全verification、production deployment、完了証跡を確認）
 - Execution mode: behavior-preserving な直列 phase。各 phase を focused verification 後に task-owned files だけで commit する
 - Player-visible specification: 原則変更なし。表示・入力・演出時間・対応条件を変更する必要が生じた場合は実装を止め、`01-rulebook.md` と該当 `正本/*.md` を先に更新する
 - Final boundary: 通常の盤面/石/盤面内演出は PixiJS、カード/HUD/フォーム/文字 UI と装飾フレームは DOM。WebGL init/recovery failure だけは isolated DOM board compatibility backend
@@ -647,6 +647,10 @@ Phase 9 Unit BのPixi-default artifactがproductionへdeploy済みで、そのex
 
 通常起動の `#board` は scroll surface、Pixi canvas、semantic layer だけを持ち、DOM board code/CSS/tests は mutually exclusive compatibility package に隔離され、forced fallback と classic/Vite/network/local の全 gateが通り、architecture contract と completion report が最終実装を説明している。
 
+### 完了記録
+
+Done whenを満たした。Phase 10の実装は`5943319fe`、Worker配信漏れの修正は`ffa1e9b90`、Pixi経路での互換DOM materialization防止は`dc9c72633`で完了し、最終commit `dc9c726331aaf69254cfe4cab9d0cd947e85fc36`をproductionへdeployした。全verification、失敗した最初のdeployment attempt、最終production smoke、optional diagnosticsは`docs/perf/pixijs-playfield-completion.md`に記録する。
+
 ## Commit boundaries
 
 各 phase は最低一つ、必要なら以下の coherent unit ごとに分けて commit する。
@@ -670,28 +674,28 @@ Phase 9 Unit BのPixi-default artifactがproductionへdeploy済みで、そのex
 
 ## Completion checklist
 
-- [ ] PixiJS `8.18.1` が exact dependency で、classic/Vite とも local artifact から同じ runtime を使う
-- [ ] `game/`、`shared/`、CPU、Worker は PixiJS 非依存
-- [ ] render model/layout/controller が DOM/Pixi object と canonical mutation を含まない
-- [ ] network 描画は `visual-state-store` を bypass しない
-- [ ] playback 中は一つの board visual writer だけが動く
-- [ ] 全 presentation event inventory に Pixi renderer と fixture がある
-- [ ] mouse/touch/pen/long press/keyboard/direction/spectator lock が維持される
-- [ ] board/frame/stone/custom Blob skin が動作し texture/object URL leak がない
-- [ ] idle tickerが停止し、blocking readiness gateを満たす
-- [ ] actual `PlaybackEngine` 経路のdesktop DOM/Pixi A/Bが同一event digestで通る
-- [ ] clean candidateのclassic/Vite × DOM/Pixi 4 readiness report、hardware GPU、同期measure/lifecycleがautomated validator v3を通り、actual mobile未検証リスクがreportにある
-- [ ] `rafStall50msCount`をraw diagnosticとして保存し、optional strict soakのthreshold/FAILを改変せず、共有workstationのstallだけをblocking PASSへ合成していない
-- [ ] board-local、global DOM/HUD、whole-turnの性能が分離され、残存負荷がfollow-up inventoryに記録される
-- [ ] Phase 9 Unit A evidence、Unit B isolated cutover/deploy、Unit C deployed-SHA reportが別commitで順序どおり完了している
-- [ ] context loss は Pixi復旧、DOM checkpoint fallback、または両backend失敗時の明示 reload error に収束する
-- [ ] default Pixi browser test は `.cell`/`.disc` compatibility DOM に依存しない
-- [ ] classic/Vite、Chromium/Firefox/WebKit、DPR 1/2、全 topology が通る
-- [ ] network parity、visual、no-animation、mirror が通る
-- [ ] DOM board code/CSS/test は `ui/board-dom-compat/` と scoped compatibility surface に隔離される
-- [ ] WebGL init/recovery failure の DOM fallback が classic/Vite で検証される
-- [ ] `docs/architecture-contracts.md` と completion report が最終構造を説明する
-- [ ] player-visible behavior が変わっていないため `01-rulebook.md` と `正本/*.md` に不要な変更がない
+- [x] PixiJS `8.18.1` が exact dependency で、classic/Vite とも local artifact から同じ runtime を使う
+- [x] `game/`、`shared/`、CPU、Worker は PixiJS 非依存
+- [x] render model/layout/controller が DOM/Pixi object と canonical mutation を含まない
+- [x] network 描画は `visual-state-store` を bypass しない
+- [x] playback 中は一つの board visual writer だけが動く
+- [x] 全 presentation event inventory に Pixi renderer と fixture がある
+- [x] mouse/touch/pen/long press/keyboard/direction/spectator lock が維持される
+- [x] board/frame/stone/custom Blob skin が動作し texture/object URL leak がない
+- [x] idle tickerが停止し、blocking readiness gateを満たす
+- [x] actual `PlaybackEngine` 経路のdesktop DOM/Pixi A/Bが同一event digestで通る
+- [x] clean candidateのclassic/Vite × DOM/Pixi 4 readiness report、hardware GPU、同期measure/lifecycleがautomated validator v3を通り、actual mobile未検証リスクがreportにある
+- [x] `rafStall50msCount`をraw diagnosticとして保存し、optional strict soakのthreshold/FAILを改変せず、共有workstationのstallだけをblocking PASSへ合成していない
+- [x] board-local、global DOM/HUD、whole-turnの性能が分離され、残存負荷がfollow-up inventoryに記録される
+- [x] Phase 9 Unit A evidence、Unit B isolated cutover/deploy、Unit C deployed-SHA reportが別commitで順序どおり完了している
+- [x] context loss は Pixi復旧、DOM checkpoint fallback、または両backend失敗時の明示 reload error に収束する
+- [x] default Pixi browser test は `.cell`/`.disc` compatibility DOM に依存しない
+- [x] classic/Vite、Chromium/Firefox/WebKit、DPR 1/2、全 topology が通る
+- [x] network parity、visual、no-animation、mirror が通る
+- [x] DOM board code/CSS/test は `ui/board-dom-compat/` と scoped compatibility surface に隔離される
+- [x] WebGL init/recovery failure の DOM fallback が classic/Vite で検証される
+- [x] `docs/architecture-contracts.md` と completion report が最終構造を説明する
+- [x] player-visible behavior が変わっていないため `01-rulebook.md` と `正本/*.md` に不要な変更がない
 
 ## 自己レビュー
 
