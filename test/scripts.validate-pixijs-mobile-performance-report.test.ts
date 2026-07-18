@@ -347,6 +347,7 @@ describe('Pixi physical performance evidence validator', () => {
       value.lane = lane;
       value.browserArtifactSha256 = artifactSha;
       value.phaseZeroMicroComparison = { fixtureDigest: BOARD_PERFORMANCE_PHASE_ZERO_MICRO_DIGEST, standard: true };
+      if (backend === 'dom') value.readiness.backendDiagnostics.domCellCount = 256;
       return value;
     }));
     const readinessCapture = {

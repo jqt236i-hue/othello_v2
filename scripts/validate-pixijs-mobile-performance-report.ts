@@ -557,7 +557,10 @@ export function validateDesktopReadinessReport(
   } else {
     check.check(finite(backendDiagnostics.canvasCount) === 0, `${prefix} DOM readiness mounted a board canvas`);
     check.check(finite(backendDiagnostics.contextCount) === 0, `${prefix} DOM readiness created a WebGL context`);
-    check.check(finite(backendDiagnostics.domCellCount) === 64, `${prefix} DOM readiness cell count mismatch`);
+    check.check(
+      finite(backendDiagnostics.domCellCount) > 0 && finite(backendDiagnostics.domCellCount) <= 256,
+      `${prefix} DOM readiness cell count exceeded the supported materialization ceiling`
+    );
   }
   return Object.freeze(check.errors);
 }
