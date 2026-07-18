@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import type { Browser, ConsoleMessage } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } from './e2e-runtime-helpers.js';
+import { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent, closeSidePanelIfPresent } from './e2e-runtime-helpers.js';
 
 declare const describe: any;
 declare const beforeAll: any;
@@ -35,7 +35,7 @@ describe('UI Reset & Click E2E', () => {
     const page = await browser.newPage();
     const logs: Array<{ type: string; text: string }> = [];
     page.on('console', (msg: ConsoleMessage) => logs.push({ type: msg.type(), text: msg.text() }));
-    await page.goto(`http://127.0.0.1:${serverPort}/`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1&boardRenderer=dom&noanim=1`, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await closeMaintenanceNoticeIfPresent(page);
 
     // Wait for board and game state to be ready
@@ -44,6 +44,7 @@ describe('UI Reset & Click E2E', () => {
       const root = window as unknown as { gameState?: { board?: unknown[] } };
       return !!(root.gameState && Array.isArray(root.gameState.board) && root.gameState.board.length === 8);
     }, { timeout: 10000 });
+    await closeSidePanelIfPresent(page);
 
     // Click the Reset button and wait a little for init
     await page.click('button:has-text("リセット")');

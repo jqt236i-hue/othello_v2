@@ -148,11 +148,11 @@ function evaluateReport(classic: any, vite: any, visual: any): { ok: boolean; er
     }
     if (
       !lane.boardRenderSurface
-      || lane.boardRenderSurface.renderer !== 'dom'
+      || lane.boardRenderSurface.renderer !== 'pixi'
       || lane.boardRenderSurface.cellCount <= 0
-      || lane.boardRenderSurface.canvasCount !== 0
+      || lane.boardRenderSurface.canvasCount !== 1
     ) {
-      errors.push(`${label} did not preserve the Phase 2 exclusive DOM board surface`);
+      errors.push(`${label} did not mount the exclusive default Pixi board surface`);
     }
     if (!lane.boardPerformanceIsolation
       || lane.boardPerformanceIsolation.harnessGlobalPresent !== false
@@ -219,7 +219,7 @@ function toMarkdown(report: any): string {
     return `| ${laneName} | ${lane.readyMs} | ${lane.readyMsSamples.join(', ')} | ${lane.startupResources.count} | ${lane.startupResources.transferBytes} | ${lane.startupResources.decodedBodyBytes} | ${lane.startupScriptPaths.length} |`;
   }).join('\n');
   return [
-    '# Classic rollback / Vite default browser lane comparison (2026-07-14)',
+    '# Classic / Vite default browser lane comparison (2026-07-14)',
     '',
     `- Status: ${report.evaluation.ok ? 'PASS' : 'FAIL'}`,
     `- Captured at: ${report.capturedAt}`,

@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import type { Browser } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent } from './e2e-runtime-helpers.js';
+import { startStaticServer, stopStaticServer, stopPlaywrightBrowser, closeMaintenanceNoticeIfPresent, closeSidePanelIfPresent } from './e2e-runtime-helpers.js';
 
 declare const describe: any;
 declare const beforeAll: any;
@@ -34,7 +34,7 @@ describe('Destroy hand card then place E2E', () => {
   test('destroying a hand card does not block same-turn normal placement', async () => {
     if (!browser || serverPort === null) throw new Error('E2E runtime is not initialized');
     const page = await browser.newPage();
-    await page.goto(`http://127.0.0.1:${serverPort}/`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1&boardRenderer=dom&noanim=1`, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await closeMaintenanceNoticeIfPresent(page);
 
     await page.waitForSelector('#board .cell');
@@ -42,6 +42,7 @@ describe('Destroy hand card then place E2E', () => {
       const root = window as unknown as { gameState?: { board?: unknown[] } };
       return !!(root.gameState && Array.isArray(root.gameState.board) && root.gameState.board.length === 8);
     }, { timeout: 10000 });
+    await closeSidePanelIfPresent(page);
 
     await page.click('button:has-text("リセット")');
     await page.waitForTimeout(300);

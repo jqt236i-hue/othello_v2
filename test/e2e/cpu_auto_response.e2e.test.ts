@@ -5,7 +5,8 @@ import {
   stopStaticServer,
   stopPlaywrightBrowser,
   stopPlaywrightPage,
-  closeMaintenanceNoticeIfPresent
+  closeMaintenanceNoticeIfPresent,
+  closeSidePanelIfPresent
 } from './e2e-runtime-helpers.js';
 
 declare const describe: any;
@@ -48,7 +49,7 @@ describe('CPU auto-response E2E', () => {
         try { consoles.push({ type: msg.type(), text: msg.text() }); } catch (e) { /* ignore */ }
       });
 
-      await page.goto(`http://127.0.0.1:${serverPort}/${entry}`);
+      await page.goto(`http://127.0.0.1:${serverPort}/${entry}?debug=1&boardRenderer=dom&noanim=1`);
       await closeMaintenanceNoticeIfPresent(page);
 
       await page.waitForFunction(
@@ -78,6 +79,7 @@ describe('CPU auto-response E2E', () => {
         const root = window as unknown as { gameState?: { board?: unknown[] } };
         return !!(root.gameState && Array.isArray(root.gameState.board) && root.gameState.board.length === 8);
       }, undefined, { timeout: 10000 });
+      await closeSidePanelIfPresent(page);
 
       // Lv3 is the first normal policy path eligible for Dedicated Worker candidate scoring.
       await page.waitForSelector('#smartWhite option[value="3"]', { state: 'attached', timeout: 10000 });

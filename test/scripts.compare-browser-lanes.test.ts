@@ -38,9 +38,9 @@ function lane(name: 'classic' | 'vite'): any {
       unavailableReason: null
     },
     boardRenderSurface: {
-      renderer: 'dom',
+      renderer: 'pixi',
       cellCount: 64,
-      canvasCount: 0
+      canvasCount: 1
     },
     globals: { ...REQUIRED_GLOBAL_TYPES },
     missingElements: [],

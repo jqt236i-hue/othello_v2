@@ -1252,10 +1252,10 @@ function _readBoardVisualRendererQueryForBoardRenderer() {
 function _selectBoardVisualBackendForBoardRenderer() {
     const testConfig = BoardVisualBackendTestConfigForBoardRenderer;
     const params = _readBoardVisualRendererQueryForBoardRenderer();
-    const queryRequestsPixi = params.get('debug') === '1' && params.get('boardRenderer') === 'pixi';
+    const queryRequestsDom = params.get('debug') === '1' && params.get('boardRenderer') === 'dom';
     const kind = testConfig && testConfig.selection
         ? testConfig.selection
-        : (queryRequestsPixi ? 'pixi' : 'dom');
+        : (queryRequestsDom ? 'dom' : 'pixi');
     const noAnimation = kind === 'pixi'
         ? (testConfig && typeof testConfig.noAnimation === 'boolean'
             ? testConfig.noAnimation

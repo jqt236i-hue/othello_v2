@@ -133,25 +133,26 @@ describe('board renderer backend selection and initial compatibility fallback', 
 
   test.each([
     'https://example.test/game',
-    'https://example.test/game?boardRenderer=pixi&noanim=1',
-    'https://example.test/game?debug=0&boardRenderer=pixi&noanim=1'
-  ])('keeps DOM as the production/default backend for %s', async (url) => {
+    'https://example.test/game?boardRenderer=dom',
+    'https://example.test/game?debug=0&boardRenderer=dom',
+    'https://example.test/game?boardRenderer=pixi&noanim=1'
+  ])('keeps Pixi as the production/default backend for %s', async (url) => {
     const renderer = loadRenderer(url);
-    const domBackend = createBackend('dom');
-    const createDomBackend = jest.fn(() => domBackend);
-    const createPixiBackend = jest.fn(() => createBackend('pixi'));
+    const pixiBackend = createBackend('pixi');
+    const createDomBackend = jest.fn(() => createBackend('dom'));
+    const createPixiBackend = jest.fn(() => pixiBackend);
     renderer.configureBoardVisualBackendForTest({ createDomBackend, createPixiBackend });
 
     controller = renderer.getBoardVisualController();
     await controller.waitUntilReady();
 
-    expect(createDomBackend).toHaveBeenCalledTimes(1);
-    expect(createPixiBackend).not.toHaveBeenCalled();
-    expect(controller.getBackendKind()).toBe('dom');
-    expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('dom');
+    expect(createPixiBackend).toHaveBeenCalledTimes(1);
+    expect(createDomBackend).not.toHaveBeenCalled();
+    expect(controller.getBackendKind()).toBe('pixi');
+    expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('pixi');
   });
 
-  test('enables Pixi only for the exact debug/noanim query and mounts one canvas without cell DOM', async () => {
+  test('keeps the exact debug/noanim Pixi query and mounts one canvas without cell DOM', async () => {
     const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=pixi&noanim=1');
     const createDomBackend = jest.fn(() => createBackend('dom'));
     const createPixiBackend = jest.fn((options: any) => createBackend('pixi', {
@@ -185,6 +186,22 @@ describe('board renderer backend selection and initial compatibility fallback', 
     expect(document.querySelectorAll('#board > canvas')).toHaveLength(1);
     expect(document.querySelectorAll('#board .cell')).toHaveLength(0);
     expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('pixi');
+  });
+
+  test('allows only the exact debug query to select the DOM compatibility backend', async () => {
+    const renderer = loadRenderer('https://example.test/game?debug=1&boardRenderer=dom&noanim=1');
+    const domBackend = createBackend('dom');
+    const createDomBackend = jest.fn(() => domBackend);
+    const createPixiBackend = jest.fn(() => createBackend('pixi'));
+    renderer.configureBoardVisualBackendForTest({ createDomBackend, createPixiBackend });
+
+    controller = renderer.getBoardVisualController();
+    await controller.waitUntilReady();
+
+    expect(createDomBackend).toHaveBeenCalledTimes(1);
+    expect(createPixiBackend).not.toHaveBeenCalled();
+    expect(controller.getBackendKind()).toBe('dom');
+    expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('dom');
   });
 
   test('allows an explicit test harness to select the animated Pixi backend without query flags', async () => {

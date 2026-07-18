@@ -30,7 +30,7 @@ describe('Multi-turn progression E2E', () => {
       try { consoles.push({ type: msg.type(), text: msg.text() }); } catch (e) { /* ignore */ }
     });
 
-    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`http://127.0.0.1:${serverPort}/?debug=1&boardRenderer=dom&noanim=1`, { waitUntil: 'domcontentloaded' });
     await closeMaintenanceNoticeIfPresent(page);
 
     // Wait for board initialised

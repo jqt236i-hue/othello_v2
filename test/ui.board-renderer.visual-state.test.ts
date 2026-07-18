@@ -3,6 +3,12 @@ import { JSDOM } from 'jsdom';
 describe('board renderer network visual state', () => {
   let dom: JSDOM;
 
+  function loadDomBoardRenderer() {
+    const boardRenderer = require('../ui/board-renderer.js');
+    boardRenderer.configureBoardVisualBackendForTest({ selection: 'dom' });
+    return boardRenderer;
+  }
+
   beforeEach(() => {
     jest.resetModules();
     dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
@@ -79,7 +85,7 @@ describe('board renderer network visual state', () => {
   });
 
   test('renderBoardFull reads visual store snapshot while network visual playback is lagging', async () => {
-    const boardRenderer = require('../ui/board-renderer.js');
+    const boardRenderer = loadDomBoardRenderer();
 
     boardRenderer.renderBoardFull();
     await boardRenderer.getBoardVisualController().ready;
@@ -98,7 +104,7 @@ describe('board renderer network visual state', () => {
       lagging: false,
       hasVisualSnapshot: true
     });
-    const boardRenderer = require('../ui/board-renderer.js');
+    const boardRenderer = loadDomBoardRenderer();
 
     boardRenderer.renderBoardFull();
     await boardRenderer.getBoardVisualController().ready;
@@ -236,7 +242,7 @@ describe('board renderer network visual state', () => {
     }, { visualSeq: 0, visualVersion: 1 });
     (global as any).NetworkVisualStateStore = store;
     (global as any).window.NetworkVisualStateStore = store;
-    const boardRenderer = require('../ui/board-renderer.js');
+    const boardRenderer = loadDomBoardRenderer();
     boardRenderer.renderBoardFull();
     await boardRenderer.getBoardVisualControllerReady();
     const token = boardRenderer.claimBoardVisualWriter('network:1', 'network');
