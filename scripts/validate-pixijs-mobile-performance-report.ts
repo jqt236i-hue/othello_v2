@@ -212,6 +212,8 @@ function validateStabilityScenario(check: ErrorCollector, report: any, entry: an
   check.check(Array.isArray(entry.rawRafTimestampsMs) && Array.isArray(entry.rawRafIntervalsMs), `${prefix} raw rAF series missing`);
   if (!Array.isArray(entry.rawSamples) || !Array.isArray(entry.rawRafTimestampsMs) || !Array.isArray(entry.rawRafIntervalsMs)) return;
   check.check(entry.rawRafTimestampsMs.length === entry.rawRafIntervalsMs.length + 1, `${prefix} rAF timestamp/interval lengths mismatch`);
+  const stabilityStallCount = entry.rawRafIntervalsMs.filter((value: unknown) => finite(value) >= 50).length;
+  check.check(stabilityStallCount === 0, `${prefix} rAF stall >= 50ms occurred during the 10-minute run`);
   const nominal = finite(report.nominal?.nominalFrameIntervalMs);
   const startedAt = finite(entry.startedAtPerformanceMs);
   check.check(Number.isFinite(startedAt) && startedAt >= 0, `${prefix} start performance timestamp is invalid`);

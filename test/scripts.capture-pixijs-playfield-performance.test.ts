@@ -75,6 +75,14 @@ function performanceReport(backend: 'dom' | 'pixi', rafP95: number): any {
     rawSamples: [{ modelBuildMs: 2, backendApplySyncMs: 3, hitTestMs: 1 }],
     summary: { raf: rafSummary(0) }
   });
+  scenarios.push({
+    id: 'stability.expansion-skin',
+    rawRafIntervalsMs: [16, 16],
+    summary: {
+      firstTwoMinutes: { raf: rafSummary(16) },
+      lastTwoMinutes: { raf: rafSummary(16) }
+    }
+  });
   return {
     candidateCommit: 'a'.repeat(40),
     browserArtifactSha256: 'b'.repeat(64),
@@ -188,6 +196,12 @@ describe('Pixi playfield performance capture tooling', () => {
     const heavyFailure = evaluateDesktopPerformancePair(dom, pixi);
     expect(heavyFailure.pass).toBe(false);
     expect((heavyFailure.checks as any[]).some((check) => check.name === 'heavy.move-8x8.pixi-p95' && !check.pass)).toBe(true);
+
+    pixi.scenarios.find((entry: any) => entry.id === 'heavy.move-8x8').summary.raf = rafSummary(16);
+    pixi.scenarios.find((entry: any) => entry.id === 'stability.expansion-skin').rawRafIntervalsMs[1] = 60;
+    const stabilityFailure = evaluateDesktopPerformancePair(dom, pixi);
+    expect(stabilityFailure.pass).toBe(false);
+    expect((stabilityFailure.checks as any[]).some((check) => check.name === 'stability.pixi-stall50' && !check.pass)).toBe(true);
   });
 
   test('pins the Windows desktop lane to hardware ANGLE and rejects software WebGL', () => {

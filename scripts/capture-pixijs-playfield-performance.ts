@@ -626,6 +626,13 @@ export function evaluateDesktopPerformancePair(dom: any, pixi: any): Readonly<Re
       checks.push(comparisonCheck(`${scenarioId}.${metric}.dom-comparison`, ratioWithin(pixiP95, domP95, 1.05), { domP95, pixiP95 }));
     }
   }
+  for (const [backend, report] of [['dom', dom], ['pixi', pixi]] as const) {
+    const stability = scenario(report, 'stability.expansion-skin');
+    const stallCount = Array.isArray(stability?.rawRafIntervalsMs)
+      ? stability.rawRafIntervalsMs.filter((value: unknown) => Number(value) >= 50).length
+      : Number.POSITIVE_INFINITY;
+    checks.push(comparisonCheck(`stability.${backend}-stall50`, stallCount === 0, { actual: stallCount }));
+  }
   const pass = checks.every((check: any) => check.pass === true);
   return Object.freeze({ pass, checks: Object.freeze(checks) });
 }

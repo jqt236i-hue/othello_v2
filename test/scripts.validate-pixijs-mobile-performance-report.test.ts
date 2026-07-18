@@ -352,6 +352,13 @@ describe('Pixi physical performance evidence validator', () => {
       pass: true
     };
     expect(validateDesktopReport(desktopReports[0], 'classic', 'dom', desktopCapture)).toEqual([]);
+    const stalledReport = JSON.parse(JSON.stringify(desktopReports[1]));
+    stalledReport.scenarios
+      .find((entry: any) => entry.id === 'stability.expansion-skin')
+      .rawRafIntervalsMs[10] = 60;
+    expect(validateDesktopReport(stalledReport, 'classic', 'pixi', desktopCapture)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/rAF stall >= 50ms/)]),
+    );
 
     const scenarioNames = [
       'chromium-desktop',
