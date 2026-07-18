@@ -849,6 +849,17 @@ function readDiagnostics(runtime: RuntimeModules): Readonly<Record<string, unkno
   });
 }
 
+async function waitForLifecycleIdle(runtime: RuntimeModules, timeoutMs = 2_000): Promise<void> {
+  await runtime.debug.waitForIdle();
+  const startedAt = now(runtime.root);
+  while (readDiagnostics(runtime).tickerRunning === true) {
+    if (now(runtime.root) - startedAt >= timeoutMs) {
+      throw new Error('Board performance lifecycle did not reach ticker idle');
+    }
+    await nextAnimationFrames(runtime.root, 1);
+  }
+}
+
 function readDeliveryMetrics(root: any, diagnostics: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
   const resourceEntries = typeof root.performance?.getEntriesByType === 'function'
     ? root.performance.getEntriesByType('resource')
@@ -1193,6 +1204,18 @@ async function runStabilityScenario(
   const rootElement = runtime.document.documentElement;
   const previousBoardSkinId = runtime.boardElement.dataset.boardSkinId || null;
   const previousStoneSkinId = rootElement.dataset.stoneSkinId || null;
+  // Prime both skin families before raw stability sampling. Texture creation is
+  // deliberately lazy in production; the readiness gate measures reuse after
+  // that first-use work instead of misclassifying the expected warm-up upload
+  // as monotonic lifecycle growth.
+  runtime.boardElement.dataset.boardSkinId = 'emerald-stone';
+  rootElement.dataset.stoneSkinId = 'jade-rim';
+  applyFixtureState(runtime, stabilityFixture(fixture, true), true);
+  await renderCurrentState(runtime);
+  runtime.boardElement.dataset.boardSkinId = 'bluegreen-felt';
+  rootElement.dataset.stoneSkinId = 'o-stone';
+  applyFixtureState(runtime, stabilityFixture(fixture, false), true);
+  await renderCurrentState(runtime);
   const rawSamples: Array<Readonly<Record<string, unknown>>> = [];
   const primedStabilityRaf = await startPrimedRafRecorder(runtime.root);
   const stabilityRaf = primedStabilityRaf.recorder;
@@ -1222,8 +1245,10 @@ async function runStabilityScenario(
     const lifecycle: Record<string, unknown> = {};
     applyFixtureState(runtime, stabilityFixture(fixture, false), true);
     await renderCurrentState(runtime);
+    await waitForLifecycleIdle(runtime);
     const steadyState = readDiagnostics(runtime);
     for (let run = 0; run < config.sameModelApplyCount; run += 1) await renderCurrentState(runtime);
+    await waitForLifecycleIdle(runtime);
     lifecycle.sameModelApply = Object.freeze({
       count: config.sameModelApplyCount,
       diagnostics: readDiagnostics(runtime)
@@ -1232,6 +1257,7 @@ async function runStabilityScenario(
       runtime.renderer.resetBoardVisualRenderSession?.();
       await renderCurrentState(runtime);
     }
+    await waitForLifecycleIdle(runtime);
     lifecycle.reset = Object.freeze({ count: config.resetCount, diagnostics: readDiagnostics(runtime) });
     for (let run = 0; run < config.skinSwitchCount; run += 1) {
       const alternate = run % 2 === 0;
@@ -1242,6 +1268,7 @@ async function runStabilityScenario(
     runtime.boardElement.dataset.boardSkinId = 'bluegreen-felt';
     rootElement.dataset.stoneSkinId = 'o-stone';
     await renderCurrentState(runtime);
+    await waitForLifecycleIdle(runtime);
     lifecycle.skinSwitch = Object.freeze({ count: config.skinSwitchCount, diagnostics: readDiagnostics(runtime) });
     lifecycle.steadyState = steadyState;
 

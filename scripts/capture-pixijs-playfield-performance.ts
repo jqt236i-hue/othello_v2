@@ -479,9 +479,29 @@ export function buildPhysicalCaptureUrls(
   }));
 }
 
-function desktopHarnessUrl(baseUrl: string, lane: 'classic' | 'vite', backend: 'dom' | 'pixi'): string {
+export function buildDesktopCaptureUrls(
+  baseUrl: string,
+  lane: 'classic' | 'vite',
+  candidateCommit: string
+): readonly Readonly<{ sequenceIndex: 1 | 2; backend: 'dom' | 'pixi'; url: string }>[] {
   const pathname = lane === 'classic' ? '/index.classic.html' : '/';
-  return `${baseUrl}${pathname}?debug=1&boardPerf=1&boardRenderer=${backend}`;
+  const captureOrder = expectedCaptureOrder(candidateCommit);
+  const backends: readonly ('dom' | 'pixi')[] = captureOrder === 'dom-first' ? ['dom', 'pixi'] : ['pixi', 'dom'];
+  return Object.freeze(backends.map((backend, index) => {
+    const sequenceIndex = (index + 1) as 1 | 2;
+    const params = new URLSearchParams({
+      debug: '1',
+      boardPerf: '1',
+      boardRenderer: backend,
+      captureOrder,
+      captureIndex: String(sequenceIndex)
+    });
+    return Object.freeze({
+      sequenceIndex,
+      backend,
+      url: `${baseUrl}${pathname}?${params.toString()}`
+    });
+  }));
 }
 
 async function capturePageReport(
@@ -672,11 +692,11 @@ export async function captureDesktopPerformance(options: DesktopCaptureOptions =
       throw new Error(`Desktop performance capture requires hardware-accelerated WebGL; renderer=${graphics.glRenderer || 'unknown'}`);
     }
     const reports: any[] = [];
-    const backendOrder = expectedCaptureOrder(commit) === 'dom-first' ? ['dom', 'pixi'] : ['pixi', 'dom'];
     for (const lane of ['classic', 'vite'] as const) {
-      for (const backend of backendOrder as readonly ('dom' | 'pixi')[]) {
+      for (const capture of buildDesktopCaptureUrls(baseUrl, lane, commit)) {
+        const { backend } = capture;
         if (options.log !== false) process.stdout.write(`[board-perf] ${lane}/${backend} capture start\n`);
-        const report = await capturePageReport(browser, desktopHarnessUrl(baseUrl, lane, backend), options.quick === true, options.log !== false);
+        const report = await capturePageReport(browser, capture.url, options.quick === true, options.log !== false);
         assertCapturedReport(report, lane, backend, artifact, commit);
         reports.push(report);
       }

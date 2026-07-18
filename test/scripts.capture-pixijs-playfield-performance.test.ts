@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import {
+  buildDesktopCaptureUrls,
   buildPhysicalCaptureUrls,
   computeBrowserArtifactManifest,
   createDesktopChromiumLaunchOptions,
@@ -136,6 +137,22 @@ describe('Pixi playfield performance capture tooling', () => {
     expect(new URL(even[1].url).searchParams.get('captureIndex')).toBe('2');
     const odd = buildPhysicalCaptureUrls('http://192.0.2.1:4173', `${'0'.repeat(38)}01`, 'iphone-ref');
     expect(odd.map((item) => item.backend)).toEqual(['pixi', 'dom']);
+  });
+
+  test('embeds the immutable order and sequence in every desktop capture URL', () => {
+    const evenCommit = `${'0'.repeat(38)}00`;
+    const classic = buildDesktopCaptureUrls('http://127.0.0.1:4173', 'classic', evenCommit);
+    expect(classic.map((item) => item.backend)).toEqual(['dom', 'pixi']);
+    expect(classic.map((item) => item.sequenceIndex)).toEqual([1, 2]);
+    expect(new URL(classic[0].url).pathname).toBe('/index.classic.html');
+    expect(new URL(classic[0].url).searchParams.get('captureOrder')).toBe('dom-first');
+    expect(new URL(classic[1].url).searchParams.get('captureIndex')).toBe('2');
+
+    const oddCommit = `${'0'.repeat(38)}01`;
+    const vite = buildDesktopCaptureUrls('http://127.0.0.1:4173', 'vite', oddCommit);
+    expect(vite.map((item) => item.backend)).toEqual(['pixi', 'dom']);
+    expect(new URL(vite[0].url).pathname).toBe('/');
+    expect(new URL(vite[0].url).searchParams.get('captureOrder')).toBe('pixi-first');
   });
 
   test('serves read-only metadata and the artifact digest header', async () => {

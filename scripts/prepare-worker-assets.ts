@@ -390,7 +390,6 @@ function writeModelAssetManifest(optionalFiles: any, generatedAssets: any, confi
     }
     const payload = {
         schemaVersion: 'model_assets.v1',
-        generatedAt: new Date().toISOString(),
         files: Array.from(files).filter(Boolean).sort()
     };
     const dst = path.join(settings.outDir, MODEL_ASSET_MANIFEST_PATH);

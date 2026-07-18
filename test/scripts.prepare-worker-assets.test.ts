@@ -389,12 +389,18 @@ describe('prepare-worker-assets', () => {
         writeFile(path.join(rootDir, 'data/models/othello/policy-value.onnx'), 'abc');
         prepareWorkerAssets(options);
 
-        const manifest = JSON.parse(fs.readFileSync(path.join(outDir, 'data/models/model-assets.json'), 'utf8'));
+        const manifestPath = path.join(outDir, 'data/models/model-assets.json');
+        const firstManifestBytes = fs.readFileSync(manifestPath, 'utf8');
+        const manifest = JSON.parse(firstManifestBytes);
         expect(manifest.schemaVersion).toBe('model_assets.v1');
+        expect(manifest.generatedAt).toBeUndefined();
         expect(manifest.files).toEqual(expect.arrayContaining([
             'data/models/policy-table.json',
             'data/models/othello/policy-value.onnx'
         ]));
         expect(manifest.files).not.toContain('data/models/policy-target.onnx');
+
+        prepareWorkerAssets(options);
+        expect(fs.readFileSync(manifestPath, 'utf8')).toBe(firstManifestBytes);
     });
 });
