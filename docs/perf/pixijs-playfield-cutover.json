@@ -1,0 +1,233 @@
+{
+  "schemaVersion": "pixijs_playfield_cutover.v1",
+  "recordedAt": "2026-07-18T15:07:41.293Z",
+  "pass": true,
+  "errors": [],
+  "phase9Units": {
+    "unitA": {
+      "reportCommit": "79d694155fbc4838ab024e9c2bfc48e477e272a2",
+      "candidateCommit": "ff9fe537775c081f5ba018b19a25091b2919872d",
+      "browserArtifactSha256": "0ead37b9c937f3e71d7a190228bdc3bfdd9668cd9da8da32974732d1235e523f",
+      "reportPath": "docs/perf/pixijs-playfield-precutover.json",
+      "pass": true,
+      "optionalStrictSoak": "historical-candidate-fail"
+    },
+    "unitB": {
+      "commit": "f2fd541ad4b63d57872e8c0f7f5258dadffe6dba",
+      "browserArtifactSha256": "2ca0ed925229ef1e8da186054900e85b13f6ff89af87e571e27f18b97e0cbc43",
+      "artifactFileCount": 913,
+      "deploymentUrl": "https://card.reversi-0.workers.dev",
+      "workerVersionId": "e2acc82d-f533-40cb-87f3-57ce4fabd2de",
+      "workerVersionNumber": 686,
+      "workerVersionCreatedAt": "2026-07-18T14:56:13.778961Z",
+      "deploymentId": "b505ed26-03fe-4953-b09e-885c9f3fd874",
+      "deployedAt": "2026-07-18T14:56:15.262554Z",
+      "trafficPercent": 100,
+      "attempts": [
+        {
+          "attempt": 1,
+          "commit": "f2fd541ad4b63d57872e8c0f7f5258dadffe6dba",
+          "workerVersionId": "e2acc82d-f533-40cb-87f3-57ce4fabd2de",
+          "result": "pass"
+        }
+      ]
+    },
+    "unitC": {
+      "testedCommit": "f2fd541ad4b63d57872e8c0f7f5258dadffe6dba",
+      "testedUrl": "https://card.reversi-0.workers.dev",
+      "testedWorkerVersionId": "e2acc82d-f533-40cb-87f3-57ce4fabd2de",
+      "pass": true
+    }
+  },
+  "artifactVerification": {
+    "allMatched": true,
+    "files": [
+      {
+        "path": "index.html",
+        "bytes": 71469,
+        "sha256": "ddd6e2729c76047b2b1dc939dc86656a59321bcddf4dc7b5b1ee95be15357587"
+      },
+      {
+        "path": "vite-dist/assets/index.vite-CnrWFwOH.js",
+        "bytes": 3938069,
+        "sha256": "3ffad900cf5f9519758c88b5f25ccd393bd138de8bcb3322c7d6d8629156389d"
+      },
+      {
+        "path": "public/module-registry.js",
+        "bytes": 9086008,
+        "sha256": "630be28645e38d8a518dbf89b14a91cb071c8a706c78702291a39d31bdd57504"
+      },
+      {
+        "path": "assets/images/board/board-surface-bluegreen-felt-v1.png",
+        "bytes": 3250918,
+        "sha256": "95347a8f71b86e6a51084cad2f8c9633772aa11c0c349649d093b8e874e25151"
+      }
+    ]
+  },
+  "productionSmoke": {
+    "boot": {
+      "pass": true,
+      "httpStatus": 200,
+      "renderer": "pixi",
+      "canvasCount": 1,
+      "domCellCount": 0,
+      "pageErrors": 0,
+      "consoleErrors": 0
+    },
+    "localAndCpuMove": {
+      "pass": true,
+      "localMove": {
+        "row": 2,
+        "col": 3
+      },
+      "turnBefore": 0,
+      "turnAfterCpu": 2,
+      "currentPlayerAfterCpu": "black",
+      "renderer": "pixi",
+      "canvasCount": 1,
+      "domCellCount": 0
+    },
+    "networkContractAndReconnect": {
+      "pass": true,
+      "roomId": "6X4",
+      "checks": [
+        "create",
+        "join",
+        "authenticated-rejoin",
+        "SSE-bootstrap",
+        "authoritative-publish",
+        "projected-state",
+        "leave"
+      ]
+    },
+    "networkMatchCompletion": {
+      "pass": true,
+      "roomId": "683",
+      "stateVersion": 64,
+      "moves": 60,
+      "passes": 3,
+      "gameOver": true,
+      "postCompletionRejoin": true,
+      "discCounts": {
+        "black": 24,
+        "white": 40
+      },
+      "roomCleanupAttempted": true
+    },
+    "majorSpecialEffects": {
+      "pass": true,
+      "publicPlaybackPath": true,
+      "scenarios": [
+        {
+          "name": "special-destroy-hybrid",
+          "finalVisualDigest": "fnv1a32:ab1e1d2f"
+        },
+        {
+          "name": "theory-incarnation",
+          "finalVisualDigest": "fnv1a32:abca433d"
+        },
+        {
+          "name": "manifest-ending-world",
+          "finalVisualDigest": "fnv1a32:dfc704cf"
+        },
+        {
+          "name": "topology-expansion",
+          "finalVisualDigest": "fnv1a32:aa0bf8a0"
+        },
+        {
+          "name": "topology-shrink",
+          "finalVisualDigest": "fnv1a32:9830b1cb"
+        }
+      ],
+      "allSettledWith": {
+        "renderer": "pixi",
+        "canvasCount": 1,
+        "contextCount": 1,
+        "domCellCount": 0,
+        "activeTimelineRunCount": 0
+      }
+    },
+    "skinSwitch": {
+      "pass": true,
+      "from": "bluegreen-felt",
+      "to": "emerald-stone",
+      "renderer": "pixi",
+      "canvasCount": 1,
+      "domCellCount": 0
+    },
+    "mobileWidthScroll": {
+      "pass": true,
+      "requestedViewport": {
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 2
+      },
+      "boardCssSize": {
+        "width": 320,
+        "height": 320
+      },
+      "horizontalScroll": {
+        "leftActionButtons": 225,
+        "quickControlsBar": 167,
+        "blackHand": 211
+      },
+      "renderer": "pixi",
+      "canvasCount": 1,
+      "domCellCount": 0
+    },
+    "forcedDomCompatibilityFallback": {
+      "pass": true,
+      "query": "?debug=1&boardRenderer=dom&noanim=1",
+      "renderer": "dom",
+      "canvasCount": 0,
+      "domCellCount": 64,
+      "turnAfterLocalAndCpuMove": 2,
+      "normalQueryCannotSelectDom": true
+    },
+    "supportedBrowserBundle": {
+      "pass": true,
+      "browsers": [
+        {
+          "name": "Chromium",
+          "renderer": "pixi",
+          "canvasCount": 1,
+          "domCellCount": 0
+        },
+        {
+          "name": "Firefox",
+          "renderer": "pixi",
+          "canvasCount": 1,
+          "contextCount": 1,
+          "contextRecoveryLossCount": 0,
+          "domCellCount": 0,
+          "boardTextureDecode": "1254x1254 pass"
+        },
+        {
+          "name": "WebKit",
+          "renderer": "pixi",
+          "canvasCount": 1,
+          "domCellCount": 0
+        }
+      ]
+    }
+  },
+  "observations": [
+    "The first Firefox bundle probe logged two image-truncated messages for the board texture. A focused retry fetched the complete 3250918-byte PNG, decoded it as 1254x1254, rendered it, and reported texture failureCount=0 and contextRecovery.lossCount=0.",
+    "Firefox reports existing subset-font maxZones warnings and a renderer-probe WebGL context-loss warning; the active board backend remained ready with one context and contextRecovery.lossCount=0.",
+    "The first special-effect page recorded two generic 404 console messages without a URL. Re-running theory-incarnation and manifest-ending-world with non-2xx response capture produced no HTTP or console errors.",
+    "Screenshots were inspected for boot, local/CPU placement, skin switch, mobile layout, DOM fallback, Firefox texture rendering, and active special-effect frames. No playfield obstruction or missing final state was observed."
+  ],
+  "residualRisks": [
+    "The optional 4x10-minute strict soak remains historical-candidate-fail and is not a release-blocking signal on the shared workstation.",
+    "Physical Android Chrome and iPhone Safari paint/composite performance was not measured.",
+    "Safari on an actual iPhone GPU was not measured; Playwright WebKit is functional compatibility evidence only.",
+    "Mobile-device thermal throttling and battery/power-mode behavior were not measured."
+  ],
+  "contractAssertions": {
+    "playerVisibleBehaviorChanged": false,
+    "eventsOrderChanged": false,
+    "networkAuthorityChanged": false,
+    "singleVisualWriterChanged": false,
+    "domAndPixiMountedTogether": false
+  }
+}
