@@ -4,7 +4,11 @@ describe('Pixi runtime injection contract', () => {
   });
 
   function fakeRuntime(version = '8.18.1'): any {
-    return { VERSION: version, Application: jest.fn() };
+    return {
+      VERSION: version,
+      Application: jest.fn(),
+      CanvasTextMetrics: { METRICS_STRING: '|ÉqÅ' }
+    };
   }
 
   test('keeps the first valid runtime private and publishes a frozen capability', () => {
@@ -18,6 +22,10 @@ describe('Pixi runtime injection contract', () => {
     expect(contract.configurePixiRuntime(runtime, { root })).toBe(true);
     expect(contract.configurePixiRuntime(runtime, { root })).toBe(true);
     expect(contract.getPixiRuntime()).toBe(runtime);
+    expect(runtime.CanvasTextMetrics.METRICS_STRING).toBe(
+      contract.PIXI_BOARD_SUBSET_SAFE_METRICS_STRING
+    );
+    expect(runtime.CanvasTextMetrics.METRICS_STRING).toBe('|Mq');
     expect(runtime.Application).not.toHaveBeenCalled();
     expect(contract.getPixiRuntimeCapability()).toEqual({
       lane: 'vite', injected: true, version: '8.18.1', unavailableReason: null
@@ -29,6 +37,15 @@ describe('Pixi runtime injection contract', () => {
       pixiRuntime: { lane: 'vite', injected: true, version: '8.18.1', unavailableReason: null }
     });
     expect(root.__CARD_REVERSI_BROWSER_CAPABILITIES__.pixiRuntime).not.toHaveProperty('Application');
+  });
+
+  test('does not override an explicitly customized Pixi metrics probe', () => {
+    const contract = require('../ui/pixi/runtime-contract');
+    const runtime = fakeRuntime();
+    runtime.CanvasTextMetrics.METRICS_STRING = '|Custom';
+
+    expect(contract.configurePixiRuntime(runtime, { lane: 'test' })).toBe(true);
+    expect(runtime.CanvasTextMetrics.METRICS_STRING).toBe('|Custom');
   });
 
   test('rejects malformed, mismatched, and conflicting runtimes without constructing Application', () => {

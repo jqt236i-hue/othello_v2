@@ -13,6 +13,7 @@ interface PixiRuntimeContractOptions {
 }
 
 const PIXI_RUNTIME_VERSION = '8.18.1';
+const PIXI_BOARD_SUBSET_SAFE_METRICS_STRING = '|Mq';
 
 let pixiRuntime: any = null;
 let pixiCapability: PixiRuntimeCapability = Object.freeze({
@@ -77,6 +78,17 @@ function validateRuntime(runtime: any): { valid: boolean; version: string | null
   return { valid: true, version, reason: null };
 }
 
+function configureSubsetSafeCanvasTextMetrics(runtime: any): void {
+  const metrics = runtime?.CanvasTextMetrics;
+  if (!metrics || metrics.METRICS_STRING !== '|ÉqÅ') return;
+  // Pixi's default font-height probe contains accented Latin glyphs that are
+  // intentionally absent from the game's startup subset. Configure the shared
+  // runtime before either browser lane can create Text, so numeric board labels
+  // do not fetch the multi-megabyte full fallback face. M/q retain ascender and
+  // descender coverage; actual missing glyphs keep the unchanged font fallback.
+  metrics.METRICS_STRING = PIXI_BOARD_SUBSET_SAFE_METRICS_STRING;
+}
+
 function configurePixiRuntime(runtime: any, options: PixiRuntimeContractOptions = {}): boolean {
   const target = resolveRoot(options.root);
   const lane = resolveLane(target, options.lane || null);
@@ -95,6 +107,7 @@ function configurePixiRuntime(runtime: any, options: PixiRuntimeContractOptions 
     }, target);
     return false;
   }
+  configureSubsetSafeCanvasTextMetrics(runtime);
   pixiRuntime = runtime;
   publishCapability({ lane, injected: true, version: validation.version, unavailableReason: null }, target);
   return true;
@@ -124,6 +137,7 @@ function getPixiRuntimeCapability(): PixiRuntimeCapability {
 }
 
 export = {
+  PIXI_BOARD_SUBSET_SAFE_METRICS_STRING,
   PIXI_RUNTIME_VERSION,
   configurePixiRuntime,
   getPixiRuntime,

@@ -27,9 +27,11 @@ describe('font subset/full fallback browser contract', () => {
   }, 30000);
 
   test.each([
-    ['classic', 'index.classic.html'],
-    ['vite', 'vite-dist/index.vite.html']
-  ])('%s uses subset glyphs and loads full WOFF2 only for the explicit fallback glyph', async (_lane, entry) => {
+    ['classic DOM', 'index.classic.html', ''],
+    ['classic Pixi', 'index.classic.html', '?debug=1&boardRenderer=pixi'],
+    ['vite DOM', 'vite-dist/index.vite.html', ''],
+    ['vite Pixi', 'vite-dist/index.vite.html', '?debug=1&boardRenderer=pixi']
+  ])('%s uses subset glyphs and loads full WOFF2 only for the explicit fallback glyph', async (_lane, entry, query) => {
     if (!browser) throw new Error('browser is not initialized');
     const page = await browser.newPage();
     const requests: string[] = [];
@@ -41,7 +43,7 @@ describe('font subset/full fallback browser contract', () => {
       if (message.type() === 'error') consoleErrors.push(message.text());
     });
 
-    await page.goto(`http://127.0.0.1:${port}/${entry}`, {
+    await page.goto(`http://127.0.0.1:${port}/${entry}${query}`, {
       waitUntil: 'domcontentloaded',
       timeout: 30000
     });
