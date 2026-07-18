@@ -48,6 +48,17 @@ describe('DOM board compatibility isolation', () => {
     }
   });
 
+  test('NOANIM selectors keep the root class outside the DOM compatibility scope', () => {
+    const css = read('styles-board-dom-compat.css').replace(/\/\*[\s\S]*?\*\//g, '');
+
+    expect(css).toContain('.no-anim [data-board-renderer="dom"] .stone-fade-overlay');
+    expect(css).toContain(
+      '.no-anim #board-stack:has(#board[data-board-renderer="dom"]) > #board-expansion-layer .cell-expanded-reveal'
+    );
+    expect(css).not.toContain('[data-board-renderer="dom"] .no-anim');
+    expect(css).not.toContain('> .no-anim #board-expansion-layer');
+  });
+
   test('registry documents compatibility modules as registered but entry-lazy', () => {
     const registryBuilder = read('scripts/build-module-registry.ts');
     expect(registryBuilder).toContain("'ui/board-dom-compat/'");

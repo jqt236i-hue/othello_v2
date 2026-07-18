@@ -1593,16 +1593,16 @@ body.othello-mode-active [data-board-renderer="dom"] :is(
     --special-stone-image: url('assets/images/special-stones/ULTIMATE_DESTROY_GOD-white.png');
 }
 .no-anim #board[data-board-renderer="dom"] .disc,
-[data-board-renderer="dom"] .no-anim .board .disc,
+.no-anim .board[data-board-renderer="dom"] .disc,
 .no-anim #board[data-board-renderer="dom"] .disc__base-image,
 .no-anim #board[data-board-renderer="dom"] .disc__overlay-image,
-[data-board-renderer="dom"] .no-anim .stone-fade-overlay,
-#board-stack:has(#board[data-board-renderer="dom"]) > .no-anim #board-expansion-layer .cell-expanded-reveal {
+.no-anim [data-board-renderer="dom"] .stone-fade-overlay,
+.no-anim #board-stack:has(#board[data-board-renderer="dom"]) > #board-expansion-layer .cell-expanded-reveal {
     transition: none !important;
     animation: none !important;
     opacity: 1 !important;
 }
-[data-board-renderer="dom"] .no-anim .stone-fade-overlay {
+.no-anim [data-board-renderer="dom"] .stone-fade-overlay {
     display: none !important;
 }
 [data-board-renderer="dom"] .disc.gold-stone {
