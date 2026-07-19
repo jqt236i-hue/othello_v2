@@ -170,8 +170,16 @@ function pointInsideRect(candidate: PixiSourceTrajectoryPoint, rect: PixiSourceT
     && candidate.y >= rect.top && candidate.y <= rect.bottom;
 }
 
-function clampPointToRect(candidate: PixiSourceTrajectoryPoint, rect: PixiSourceTrajectoryRect): PixiSourceTrajectoryPoint {
-  return point(clamp(candidate.x, rect.left, rect.right), clamp(candidate.y, rect.top, rect.bottom));
+function centeredSquareIntersectsRect(
+  center: PixiSourceTrajectoryPoint,
+  sideLength: number,
+  rect: PixiSourceTrajectoryRect
+): boolean {
+  const halfExtent = Math.max(0, sideLength) / 2;
+  return center.x + halfExtent >= rect.left
+    && center.x - halfExtent <= rect.right
+    && center.y + halfExtent >= rect.top
+    && center.y - halfExtent <= rect.bottom;
 }
 
 function clipSegment(
@@ -215,6 +223,83 @@ function clipPath(
     if (clipped) segments.push(clipped);
   }
   return Object.freeze(segments);
+}
+
+function clipPolygonToRect(
+  points: readonly PixiSourceTrajectoryPoint[],
+  rect: PixiSourceTrajectoryRect
+): readonly PixiSourceTrajectoryPoint[] {
+  type Boundary = Readonly<{
+    inside: (candidate: PixiSourceTrajectoryPoint) => boolean;
+    intersect: (
+      start: PixiSourceTrajectoryPoint,
+      end: PixiSourceTrajectoryPoint
+    ) => PixiSourceTrajectoryPoint;
+  }>;
+  const verticalIntersection = (
+    start: PixiSourceTrajectoryPoint,
+    end: PixiSourceTrajectoryPoint,
+    x: number
+  ): PixiSourceTrajectoryPoint => {
+    const span = end.x - start.x;
+    const progress = Math.abs(span) < 1e-9 ? 0 : (x - start.x) / span;
+    return point(x, lerp(start.y, end.y, progress));
+  };
+  const horizontalIntersection = (
+    start: PixiSourceTrajectoryPoint,
+    end: PixiSourceTrajectoryPoint,
+    y: number
+  ): PixiSourceTrajectoryPoint => {
+    const span = end.y - start.y;
+    const progress = Math.abs(span) < 1e-9 ? 0 : (y - start.y) / span;
+    return point(lerp(start.x, end.x, progress), y);
+  };
+  const boundaries: readonly Boundary[] = Object.freeze([
+    Object.freeze({
+      inside: (candidate: PixiSourceTrajectoryPoint) => candidate.x >= rect.left,
+      intersect: (start: PixiSourceTrajectoryPoint, end: PixiSourceTrajectoryPoint) => (
+        verticalIntersection(start, end, rect.left)
+      )
+    }),
+    Object.freeze({
+      inside: (candidate: PixiSourceTrajectoryPoint) => candidate.x <= rect.right,
+      intersect: (start: PixiSourceTrajectoryPoint, end: PixiSourceTrajectoryPoint) => (
+        verticalIntersection(start, end, rect.right)
+      )
+    }),
+    Object.freeze({
+      inside: (candidate: PixiSourceTrajectoryPoint) => candidate.y >= rect.top,
+      intersect: (start: PixiSourceTrajectoryPoint, end: PixiSourceTrajectoryPoint) => (
+        horizontalIntersection(start, end, rect.top)
+      )
+    }),
+    Object.freeze({
+      inside: (candidate: PixiSourceTrajectoryPoint) => candidate.y <= rect.bottom,
+      intersect: (start: PixiSourceTrajectoryPoint, end: PixiSourceTrajectoryPoint) => (
+        horizontalIntersection(start, end, rect.bottom)
+      )
+    })
+  ]);
+  let output = Array.from(points);
+  for (const boundary of boundaries) {
+    if (!output.length) break;
+    const input = output;
+    output = [];
+    let previous = input[input.length - 1];
+    let previousInside = boundary.inside(previous);
+    for (const current of input) {
+      const currentInside = boundary.inside(current);
+      if (currentInside) {
+        if (!previousInside) output.push(boundary.intersect(previous, current));
+        output.push(current);
+      } else if (previousInside) {
+        output.push(boundary.intersect(previous, current));
+      }
+      previous = current;
+      previousInside = currentInside;
+    }
+  }
+  return Object.freeze(output);
 }
 
 function lineVisuals(
@@ -316,22 +401,22 @@ function projectileVisual(
   progress: number
 ): PixiSourceTrajectoryVisualState {
   const traveled = easedProgress(profile, progress);
-  const visible = geometry.visibleSegment
-    && traveled >= geometry.visibleSegment.startT - 1e-7
-    && traveled <= geometry.visibleSegment.endT + 1e-7;
-  if (!visible) return Object.freeze({ visible: false });
   const position = pointAt(geometry.movementStart, geometry.movementEnd, traveled);
   const suction = request.profileKey === 'robotVacuumSuck';
   const size = suction
     ? Math.max(18, Math.round(geometry.cellSize * 0.82))
     : Math.max(8, Math.round(geometry.cellSize * 0.82 * 0.25));
+  const scale = suction ? lerp(1, 0.68, traveled) : 1;
+  if (!centeredSquareIntersectsRect(position, size * scale, profilePaintRect(geometry, profile))) {
+    return Object.freeze({ visible: false });
+  }
   return Object.freeze({
     visible: true,
     sprite: Object.freeze({
       x: position.x,
       y: position.y,
       size,
-      scale: suction ? lerp(1, 0.68, traveled) : 1,
+      scale,
       alpha: suction ? lerp(1, 0.78, traveled) : 1,
       rotation: geometry.angleRad,
       visible: true
@@ -373,17 +458,12 @@ function beamVisual(
     : keyframed(progress, [[0, 0], [0.24, 1], [0.68, 0.86], [1, 0]]);
   const muzzleRadius = (blackBeam ? geometry.cellSize * 0.38 : geometry.cellSize * 0.25)
     * keyframed(progress, [[0, 0.45], [0.22, 1.08], [0.72, 0.96], [1, 0.62]]);
-  const muzzleCenter = clampPointToRect(geometry.sourceCenter, Object.freeze({
-    ...paintRect,
-    left: paintRect.left + muzzleRadius,
-    top: paintRect.top + muzzleRadius,
-    right: Math.max(paintRect.left + muzzleRadius, paintRect.right - muzzleRadius),
-    bottom: Math.max(paintRect.top + muzzleRadius, paintRect.bottom - muzzleRadius)
-  }));
-  const sourceNearPaint = geometry.sourceCenter.x + muzzleRadius >= paintRect.left
-    && geometry.sourceCenter.x - muzzleRadius <= paintRect.right
-    && geometry.sourceCenter.y + muzzleRadius >= paintRect.top
-    && geometry.sourceCenter.y - muzzleRadius <= paintRect.bottom;
+  const muzzleCenter = geometry.sourceCenter;
+  const muzzlePaintRadius = muzzleRadius * (blackBeam ? 1 : 1.9);
+  const sourceNearPaint = geometry.sourceCenter.x + muzzlePaintRadius >= paintRect.left
+    && geometry.sourceCenter.x - muzzlePaintRadius <= paintRect.right
+    && geometry.sourceCenter.y + muzzlePaintRadius >= paintRect.top
+    && geometry.sourceCenter.y - muzzlePaintRadius <= paintRect.bottom;
   const circles = sourceNearPaint && muzzleProgress > 0
     ? blackBeam
       ? Object.freeze([Object.freeze({
@@ -463,8 +543,7 @@ function rotatedFang(
   sign: -1 | 1,
   gap: number,
   size: number,
-  width: number,
-  rect: PixiSourceTrajectoryRect
+  width: number
 ): readonly PixiSourceTrajectoryPoint[] {
   const tip = point(center.x + normalX * sign * gap, center.y + normalY * sign * gap);
   const baseCenter = point(
@@ -472,9 +551,9 @@ function rotatedFang(
     center.y + normalY * sign * (gap + size)
   );
   return Object.freeze([
-    clampPointToRect(tip, rect),
-    clampPointToRect(point(baseCenter.x + directionX * width, baseCenter.y + directionY * width), rect),
-    clampPointToRect(point(baseCenter.x - directionX * width, baseCenter.y - directionY * width), rect)
+    tip,
+    point(baseCenter.x + directionX * width, baseCenter.y + directionY * width),
+    point(baseCenter.x - directionX * width, baseCenter.y - directionY * width)
   ]);
 }
 
@@ -495,10 +574,6 @@ function biteVisual(
     : Object.freeze([]);
   const fangAlpha = keyframed(progress, [[0, 0], [0.42, 0], [0.56, 0.72], [0.82, 0.64], [1, 0]]);
   const paintRect = profilePaintRect(geometry, profile);
-  const targetNearPaint = geometry.targetCenter.x >= paintRect.left - geometry.cellSize
-    && geometry.targetCenter.x <= paintRect.right + geometry.cellSize
-    && geometry.targetCenter.y >= paintRect.top - geometry.cellSize
-    && geometry.targetCenter.y <= paintRect.bottom + geometry.cellSize;
   const dx = geometry.targetCenter.x - geometry.sourceCenter.x;
   const dy = geometry.targetCenter.y - geometry.sourceCenter.y;
   const length = Math.max(1, Math.hypot(dx, dy));
@@ -510,9 +585,9 @@ function biteVisual(
   const gap = lerp(geometry.cellSize * 0.42, geometry.cellSize * 0.08, close);
   const size = geometry.cellSize * 0.34;
   const width = geometry.cellSize * 0.18;
-  const polygons = targetNearPaint && fangAlpha > 0
-    ? Object.freeze(([-1, 1] as const).map((sign) => Object.freeze({
-      points: rotatedFang(
+  const polygons = fangAlpha > 0
+    ? Object.freeze(([-1, 1] as const).flatMap((sign) => {
+      const points = clipPolygonToRect(rotatedFang(
         geometry.targetCenter,
         directionX,
         directionY,
@@ -521,15 +596,19 @@ function biteVisual(
         sign,
         gap,
         size,
-        width,
-        paintRect
-      ),
-      color: '#31133d',
-      alpha: fangAlpha,
-      strokeColor: '#9b67a8',
-      strokeAlpha: fangAlpha * 0.48,
-      strokeWidth: Math.max(1, geometry.cellSize * 0.035)
-    })))
+        width
+      ), paintRect);
+      return points.length >= 3
+        ? [Object.freeze({
+          points,
+          color: '#31133d',
+          alpha: fangAlpha,
+          strokeColor: '#9b67a8',
+          strokeAlpha: fangAlpha * 0.48,
+          strokeWidth: Math.max(1, geometry.cellSize * 0.035)
+        })]
+        : [];
+    }))
     : Object.freeze([]);
   return Object.freeze({ visible: lines.length > 0 || polygons.length > 0, lines, polygons });
 }
@@ -695,6 +774,7 @@ export function createPixiSourceTrajectoryRenderer(
           profileKey: request.profileKey,
           primitive: profile.primitive,
           geometry,
+          clipRect: profilePaintRect(geometry, profile),
           textureLease
         });
       } catch (error) {

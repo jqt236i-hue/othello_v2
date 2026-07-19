@@ -163,6 +163,8 @@ export interface PixiSourceTrajectoryOptions {
   readonly profileKey: BoardSourceTrajectoryProfileKey;
   readonly primitive: BoardSourceTrajectoryPrimitive;
   readonly geometry: PixiSourceTrajectoryGeometrySnapshot;
+  /** Pixel mask only; logical source/target coordinates remain unchanged. */
+  readonly clipRect?: PixiSourceTrajectoryRect | null;
   /** Ownership transfers to the scene record and is released exactly once. */
   readonly textureLease?: PixiSourceTrajectoryTextureLease | null;
 }
@@ -528,6 +530,7 @@ interface PlaybackEffectRecord {
 
 interface SourceTrajectoryView {
   readonly root: any;
+  readonly mask: any;
   readonly graphics: any;
   readonly sprite: any | null;
 }
@@ -1002,13 +1005,16 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   const sourceTrajectoryPool: ObjectPool<SourceTrajectoryView> = createObjectPool({
     create: () => {
       const root = createPixiContainer(runtime, 'pixi-source-trajectory');
+      const mask = createPixiGraphics(runtime, 'pixi-source-trajectory-mask');
       const graphics = createPixiGraphics(runtime, 'pixi-source-trajectory-graphics');
       const sprite = createPixiSprite(runtime, 'pixi-source-trajectory-sprite');
       addPixiChild(root, graphics, sprite);
       root.eventMode = 'none';
-      return Object.freeze({ root, graphics, sprite });
+      return Object.freeze({ root, mask, graphics, sprite });
     },
     reset: (view) => {
+      view.root.mask = null;
+      clearPixiGraphics(view.mask);
       clearPixiGraphics(view.graphics);
       if (view.sprite) {
         view.sprite.texture = runtime.Texture?.EMPTY || null;
@@ -1024,8 +1030,13 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       view.root.alpha = 1;
       view.root.visible = false;
       removePixiFromParent(view.root);
+      removePixiFromParent(view.mask);
     },
-    destroy: (view) => destroyPixiDisplayObject(view.root),
+    destroy: (view) => {
+      view.root.mask = null;
+      destroyPixiDisplayObject(view.root);
+      destroyPixiDisplayObject(view.mask);
+    },
     maxRetained: maxRetainedEffects
   });
   const active = new Map<string, RetainedCellViews>();
@@ -1950,6 +1961,13 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     if (!rawOptions.geometry?.visibleSegment) {
       throw new Error('Pixi source trajectory requires a visible clipped segment');
     }
+    const rawClipRect = rawOptions.clipRect || rawOptions.geometry.paintedHaloClip;
+    const clipRect = trajectoryRect(
+      rawClipRect?.left,
+      rawClipRect?.top,
+      rawClipRect?.right,
+      rawClipRect?.bottom
+    );
     const handle = Object.freeze({ id: nextSourceTrajectoryId++, scopeId: scope.id });
     const record: SourceTrajectoryRecord = {
       handle,
@@ -1969,7 +1987,16 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
         view.sprite.texture = record.textureLease?.texture || runtime.Texture?.EMPTY || null;
         view.sprite.visible = false;
       }
-      addPixiChild(layers.effect, view.root);
+      drawPixiRect(
+        view.mask,
+        clipRect.left,
+        clipRect.top,
+        clipRect.width,
+        clipRect.height,
+        { color: 0xffffff, alpha: 1 }
+      );
+      view.root.mask = view.mask;
+      addPixiChild(layers.effect, view.mask, view.root);
       sourceTrajectories.set(handle.id, record);
       const profileCounter = sourceTrajectoryByProfile[record.profileKey];
       const primitiveCounter = sourceTrajectoryByPrimitive[record.primitive];

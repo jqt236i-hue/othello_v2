@@ -119,6 +119,32 @@ describe('board source trajectory typed contract', () => {
     expect(batch.requests[0].owner).toBe(expectedOwner);
   });
 
+  test('truncates finite source coordinates without relaxing target-coordinate validation', () => {
+    const event = {
+      type: 'destroy',
+      targets: [{
+        r: 3,
+        col: 4,
+        sourceRow: 1.9,
+        sourceCol: -2.7,
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        ownerBefore: 'white'
+      }]
+    };
+
+    expect(collectBoardSourceTrajectoryRequests([event]).requests[0]).toMatchObject({
+      source: { row: 1, col: -2 },
+      target: { row: 3, col: 4 }
+    });
+    expect(() => collectBoardSourceTrajectoryRequests([{
+      ...event,
+      targets: [{ ...event.targets[0], r: 3.5 }]
+    }])).toThrow(expect.objectContaining<Partial<BoardSourceTrajectoryError>>({
+      code: 'invalid_target_coordinate'
+    }));
+  });
+
   test('maps every raw zombie request to one coordinate-deduped target in raw order', () => {
     const first = {
       r: 3, col: 4, ownerBefore: 'black',

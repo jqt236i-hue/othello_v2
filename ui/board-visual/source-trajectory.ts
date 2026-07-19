@@ -194,8 +194,16 @@ function readIntegerCoordinate(
 
 function resolveSourceCoordinate(target: unknown): Readonly<{ row: number; col: number }> | null {
   const source = asRecord(target);
-  const direct = readIntegerCoordinate(source, ['sourceRow'], ['sourceCol']);
-  return direct || readIntegerCoordinate(source.meta, ['sourceRow'], ['sourceCol']);
+  const meta = asRecord(source.meta);
+  const row = Number(Object.prototype.hasOwnProperty.call(source, 'sourceRow')
+    ? source.sourceRow
+    : meta.sourceRow);
+  const col = Number(Object.prototype.hasOwnProperty.call(source, 'sourceCol')
+    ? source.sourceCol
+    : meta.sourceCol);
+  return Number.isFinite(row) && Number.isFinite(col)
+    ? Object.freeze({ row: Math.trunc(row), col: Math.trunc(col) })
+    : null;
 }
 
 function resolveTargetCoordinate(target: unknown): Readonly<{ row: number; col: number }> | null {

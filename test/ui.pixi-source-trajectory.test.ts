@@ -302,6 +302,42 @@ function geometry(options: {
   });
 }
 
+function horizontalGeometry(
+  sourceX: number,
+  targetX: number,
+  direction: 'source-to-target' | 'target-to-source' = 'source-to-target'
+): BoardScene.PixiSourceTrajectoryGeometrySnapshot {
+  const base = geometry({ distance: Math.abs(targetX - sourceX), direction });
+  const sourceCenter = Object.freeze({ x: sourceX, y: 100 });
+  const targetCenter = Object.freeze({ x: targetX, y: 100 });
+  const movementStart = direction === 'source-to-target' ? sourceCenter : targetCenter;
+  const movementEnd = direction === 'source-to-target' ? targetCenter : sourceCenter;
+  const dx = movementEnd.x - movementStart.x;
+  const startT = dx >= 0
+    ? Math.max(0, (base.visibleClip.left - movementStart.x) / Math.max(1e-9, dx))
+    : Math.max(0, (base.visibleClip.right - movementStart.x) / Math.min(-1e-9, dx));
+  const endT = dx >= 0
+    ? Math.min(1, (base.visibleClip.right - movementStart.x) / Math.max(1e-9, dx))
+    : Math.min(1, (base.visibleClip.left - movementStart.x) / Math.min(-1e-9, dx));
+  const at = (progress: number) => Object.freeze({
+    x: movementStart.x + dx * progress,
+    y: movementStart.y
+  });
+  return Object.freeze({
+    ...base,
+    direction,
+    sourceCenter,
+    targetCenter,
+    movementStart,
+    movementEnd,
+    distancePx: Math.abs(dx),
+    angleRad: Math.atan2(0, dx),
+    visibleSegment: startT <= endT
+      ? Object.freeze({ start: at(startT), end: at(endT), startT, endT })
+      : null
+  });
+}
+
 function createManualTimeline() {
   let nextRunId = 1;
   const pending: Array<{
@@ -507,6 +543,38 @@ describe('Pixi board source trajectory renderer', () => {
     expect((lightning.lines || []).some((line) => line.width >= 12 && line.alpha < 0.4)).toBe(true);
   });
 
+  test('keeps source visuals on logical coordinates and clips their pixels at the profile boundary', () => {
+    const partiallyVisibleProjectile = buildPixiSourceTrajectoryVisualState(
+      requestFor('sniperShot'),
+      horizontalGeometry(-18, 100),
+      0
+    );
+    const fullyOutsideProjectile = buildPixiSourceTrajectoryVisualState(
+      requestFor('sniperShot'),
+      horizontalGeometry(-21, 100),
+      0
+    );
+    const beam = buildPixiSourceTrajectoryVisualState(
+      requestFor('destroyDragonBreath'),
+      horizontalGeometry(-22, 100),
+      0.5
+    );
+    const bite = buildPixiSourceTrajectoryVisualState(
+      requestFor('zombieBite'),
+      horizontalGeometry(100, -55),
+      0.7
+    );
+
+    expect(partiallyVisibleProjectile).toMatchObject({
+      visible: true,
+      sprite: { x: -18, visible: true }
+    });
+    expect(fullyOutsideProjectile).toEqual({ visible: false });
+    expect(beam.circles).toHaveLength(3);
+    expect(beam.circles?.every((circle) => circle.x === -22)).toBe(true);
+    expect(bite.polygons).toEqual([]);
+  });
+
   test('starts every raw source synchronously before the first board callback', async () => {
     const log: string[] = [];
     const harness = createProjection({ log });
@@ -648,8 +716,19 @@ describe('Pixi board source trajectory renderer', () => {
       trajectoryId: request.trajectoryId,
       profileKey: request.profileKey,
       primitive: 'beam',
-      geometry: snapshot
+      geometry: snapshot,
+      clipRect: { left: 40, top: 40, right: 216, bottom: 216, width: 176, height: 176 }
     });
+    const trajectoryRoot = scene.layers.effect.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-source-trajectory'
+    )) as FakeDisplayObject & { mask: unknown };
+    const trajectoryMask = scene.layers.effect.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-source-trajectory-mask'
+    )) as FakeGraphics;
+    expect(trajectoryRoot.mask).toBe(trajectoryMask);
+    expect(trajectoryMask.commands).toEqual(expect.arrayContaining([
+      ['rect', 40, 40, 176, 176]
+    ]));
     scene.updateSourceTrajectory(scope, handle, buildPixiSourceTrajectoryVisualState(request, snapshot, 0.5));
     expect(scene.getSourceTrajectory(handle)).toMatchObject({
       layoutRevision: 1,
