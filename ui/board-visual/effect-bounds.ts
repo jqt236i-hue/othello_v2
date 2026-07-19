@@ -75,6 +75,9 @@ const RAW_EFFECT_BOUNDS_MANIFEST = Object.freeze({
   legacy_sacrifice_absorb_pulse: { route: 'board-local', extentCells: localExtent(2) },
   theory_incarnation_spawn_roulette: { route: 'board-local', extentCells: localExtent(1.5) },
   manifest_ending_board: { route: 'board-local', extentCells: localExtent(2) },
+  // Dormant until the source-trajectory backend cutover. Distance is
+  // unbounded, but its painted halo remains inside the existing 2-cell owner.
+  'board-source-trajectory': { route: 'board-local', extentCells: localExtent(2) },
   observer_bubble: { route: 'global-dom', extentCells: UNBOUNDED_EXTENT },
   'source-to-board': { route: 'global-dom', extentCells: UNBOUNDED_EXTENT },
   fullscreen: { route: 'global-dom', extentCells: UNBOUNDED_EXTENT }

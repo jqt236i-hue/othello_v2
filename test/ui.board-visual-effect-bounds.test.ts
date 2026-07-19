@@ -75,6 +75,11 @@ describe('board visual effect bounds manifest', () => {
       bottom: 2,
       left: 2
     });
+    expect(EffectBounds.getBoardVisualEffectBounds('board-source-trajectory')).toEqual({
+      family: 'board-source-trajectory',
+      route: 'board-local',
+      extentCells: { top: 2, right: 2, bottom: 2, left: 2 }
+    });
   });
 
   test('unknown families and invalid bounds fail explicitly', () => {

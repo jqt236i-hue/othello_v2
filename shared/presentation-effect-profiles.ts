@@ -63,6 +63,16 @@ const GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS = Object.freeze([
     'robotVacuumSuck'
 ] as const);
 
+const BOARD_SOURCE_TRAJECTORY_PROFILE_KEYS = Object.freeze([
+    ...GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS,
+    'zombieBite'
+] as const);
+
+const ZOMBIE_INFECTION_PROFILE = Object.freeze({
+    causes: Object.freeze(['ZOMBIE']),
+    reasonPrefix: 'zombie_infection'
+});
+
 const SUPER_CRUSH_DESTROY_TARGET_PROFILES = Object.freeze({
     superBuoyancyCollision: Object.freeze({
         causes: Object.freeze(['BUOYANCY_WILL', 'SUPER_BUOYANCY_WILL']),
@@ -157,6 +167,24 @@ function requiresGlobalDestroyPrelude(subject: PresentationSubject | null | unde
     return !!key && (GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS as readonly string[]).includes(key);
 }
 
+function isZombieInfectionTarget(subject: PresentationSubject | null | undefined): boolean {
+    return matchesCauseReasonProfile(subject, ZOMBIE_INFECTION_PROFILE);
+}
+
+/** Shared cause/reason classifier for board-cell-to-board-cell trajectories. */
+function getBoardSourceTrajectoryProfileKey(
+    eventType: unknown,
+    subject: PresentationSubject | null | undefined
+): string | null {
+    const normalizedType = String(eventType || '').trim().toLowerCase();
+    if (normalizedType === 'flip') return isZombieInfectionTarget(subject) ? 'zombieBite' : null;
+    if (normalizedType !== 'destroy') return null;
+    const key = getSpecialDestroyTargetProfileKey(subject);
+    return key && (GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS as readonly string[]).includes(key)
+        ? key
+        : null;
+}
+
 function matchesSpawnProfileTarget(target: PresentationSubject | null | undefined, cause: unknown, reason: unknown, profile: CauseReasonProfile | null | undefined): boolean {
     if (!matchesCauseAndReasonPrefix(cause, reason, profile)) return false;
     const expectedIntent = profile && profile.spawnIntent;
@@ -195,6 +223,8 @@ export = {
     STONE_SALVATION_GOD_REVIVE_REASON,
     SPECIAL_DESTROY_TARGET_PROFILES,
     GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS,
+    BOARD_SOURCE_TRAJECTORY_PROFILE_KEYS,
+    ZOMBIE_INFECTION_PROFILE,
     SUPER_CRUSH_DESTROY_TARGET_PROFILES,
     POSITIVE_SPAWN_LIKE_EFFECTS,
     POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS,
@@ -205,6 +235,8 @@ export = {
     isNonGenericDestroyTarget,
     getSpecialDestroyTargetProfileKey,
     requiresGlobalDestroyPrelude,
+    isZombieInfectionTarget,
+    getBoardSourceTrajectoryProfileKey,
     matchesSpawnProfileTarget,
     isSpawnEventLike
 };

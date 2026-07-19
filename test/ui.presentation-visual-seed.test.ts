@@ -1,4 +1,5 @@
 const VisualSeed = require('../ui/presentation/visual-seed');
+const SourceTrajectory = require('../ui/board-visual/source-trajectory');
 
 describe('presentation-only visual seed', () => {
   const networkEvent = {
@@ -146,5 +147,29 @@ describe('presentation-only visual seed', () => {
       effectKind: 'TRAIL',
       target: { row: -3, col: 16 }
     })).toBe(155224080);
+  });
+
+  test('board lightning requests preserve the existing destroy-source seed tuple', () => {
+    const event = {
+      ...networkEvent,
+      type: 'destroy',
+      targets: [{
+        r: -2,
+        col: 11,
+        sourceRow: -3,
+        sourceCol: 10,
+        cause: 'LIGHTNING_WILL',
+        reason: 'lightning_destroyed'
+      }]
+    };
+    const request = SourceTrajectory.collectBoardSourceTrajectoryRequests([event]).requests[0];
+    expect(request.visualSeed).toBe(VisualSeed.createVisualSeed({
+      event: {
+        ...event,
+        presentationBatchId: 'local-presentation:0',
+        effectKind: 'destroy-source',
+        target: { row: -2, col: 11 }
+      }
+    }));
   });
 });
