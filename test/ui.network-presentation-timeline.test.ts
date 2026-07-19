@@ -427,18 +427,60 @@ describe('NetworkPresentationTimeline', () => {
     });
   });
 
-  test('retries only committed-frame apply and preserves dispatch/commit/tracker/observer/settle order', async () => {
+  test('retries only committed-frame apply after original source trajectories and preserves settlement order', async () => {
     const order: string[] = [];
+    const trajectoryTrace: string[] = [];
+    const soundCalls: string[] = [];
+    const effectLogs: string[] = [];
+    const originalEvents = Object.freeze([
+      Object.freeze({
+        type: 'destroy',
+        phase: 4,
+        sequenceIndex: 0,
+        actionId: 'op_1',
+        effectBlockId: 'op_1:destroy',
+        targets: Object.freeze([Object.freeze({
+          r: 0,
+          col: 0,
+          sourceRow: 1,
+          sourceCol: 1,
+          cause: 'SNIPER_WILL',
+          reason: 'sniper_shot'
+        })])
+      }),
+      Object.freeze({
+        type: 'flip',
+        phase: 5,
+        sequenceIndex: 1,
+        actionId: 'op_1',
+        effectBlockId: 'op_1:zombie',
+        targets: Object.freeze([Object.freeze({
+          r: 2,
+          col: 3,
+          cause: 'ZOMBIE',
+          reason: 'zombie_infection',
+          meta: Object.freeze({ sourceRow: 3, sourceCol: 3 })
+        })])
+      })
+    ]);
+    let observedEvents: readonly any[] = [];
+    let strictClaimHeld = true;
     let applyAttempt = 0;
+    let rejectFirstApply!: (error: Error) => void;
+    const firstApply = new Promise<boolean>((_resolve, reject) => {
+      rejectFirstApply = reject;
+    });
     const handle = settlementHandle(1, {
       applyCommittedFrame: async (receipt: any) => {
         applyAttempt += 1;
         order.push(`apply:${applyAttempt}:${receipt.visualSeq}`);
-        if (applyAttempt === 1) throw new Error('context lost after commit');
+        expect(strictClaimHeld).toBe(true);
+        if (applyAttempt === 1) return firstApply;
         return true;
       },
       settle: async () => {
         order.push('settle');
+        strictClaimHeld = false;
         return true;
       }
     });
@@ -447,32 +489,69 @@ describe('NetworkPresentationTimeline', () => {
         return commitReceipt(playedFrame, meta);
       });
     const dispatcher = {
-      dispatchNetworkPlaybackEvents: jest.fn(async () => {
+      dispatchNetworkPlaybackEvents: jest.fn(async (events: readonly any[]) => {
         order.push('dispatch');
+        observedEvents = events;
+        for (const event of events) {
+          const profile = event.type === 'destroy' ? 'sniperShot' : 'zombieBite';
+          trajectoryTrace.push(`trajectory:start:${profile}`);
+          soundCalls.push(`sound:${event.type}`);
+          effectLogs.push(`log:${event.type}`);
+          trajectoryTrace.push(`trajectory:settle:${profile}`);
+        }
         return { started: true, method: 'test', settlementHandle: handle };
       })
     };
+    const tracker = { markVisualSeqCompleted: jest.fn(() => {
+      order.push('tracker');
+      return true;
+    }) };
     const timeline = TimelineModule.createNetworkPresentationTimeline({
       initialVisualSeq: 0,
       initialVisualVersion: 1,
       visualStateStore,
-      visualSettlementTracker: {
-        markVisualSeqCompleted: jest.fn(() => {
-          order.push('tracker');
-          return true;
-        })
-      },
+      visualSettlementTracker: tracker,
       onFrameCommitted: jest.fn(() => order.push('observer'))
     });
-    timeline.enqueueFrames([frame(1, 1, 2)], { source: 'stream' });
+    const trajectoryFrame = frame(1, 1, 2);
+    trajectoryFrame.playbackEvents = originalEvents;
+    timeline.enqueueFrames([trajectoryFrame], { source: 'stream' });
 
-    await expect(timeline.drainPlayableFrames(dispatcher)).resolves.toBe(0);
+    const firstDrain = timeline.drainPlayableFrames(dispatcher);
+    for (let turn = 0; turn < 6; turn += 1) await Promise.resolve();
     expect(order).toEqual(['dispatch', 'commit', 'apply:1:1']);
+    expect(observedEvents).toEqual(originalEvents);
+    expect(observedEvents.map((event) => event.type)).toEqual(['destroy', 'flip']);
+    expect(observedEvents[0]).toBe(originalEvents[0]);
+    expect(observedEvents[1]).toBe(originalEvents[1]);
+    expect(trajectoryTrace).toEqual([
+      'trajectory:start:sniperShot',
+      'trajectory:settle:sniperShot',
+      'trajectory:start:zombieBite',
+      'trajectory:settle:zombieBite'
+    ]);
+    expect(soundCalls).toEqual(['sound:destroy', 'sound:flip']);
+    expect(effectLogs).toEqual(['log:destroy', 'log:flip']);
+    expect(strictClaimHeld).toBe(true);
+    expect(visualStateStore.commitFrame).toHaveBeenCalledTimes(1);
+    expect(tracker.markVisualSeqCompleted).not.toHaveBeenCalled();
+    expect(timeline.getDiagnostics()).toMatchObject({
+      visualSeq: 0,
+      paused: false,
+      blocksInput: true,
+      activeSettlementStage: 'apply-committed-frame'
+    });
+
+    rejectFirstApply(new Error('context lost after commit'));
+    await expect(firstDrain).resolves.toBe(0);
     expect(timeline.getDiagnostics()).toMatchObject({
       visualSeq: 0,
       paused: true,
+      blocksInput: true,
       activeSettlementStage: 'apply-committed-frame'
     });
+    expect(strictClaimHeld).toBe(true);
+    expect(tracker.markVisualSeqCompleted).not.toHaveBeenCalled();
 
     await expect(timeline.retryPausedSettlement(dispatcher)).resolves.toBe(1);
     expect(order).toEqual([
@@ -486,6 +565,17 @@ describe('NetworkPresentationTimeline', () => {
     ]);
     expect(dispatcher.dispatchNetworkPlaybackEvents).toHaveBeenCalledTimes(1);
     expect(visualStateStore.commitFrame).toHaveBeenCalledTimes(1);
+    expect(tracker.markVisualSeqCompleted).toHaveBeenCalledTimes(1);
+    expect(trajectoryTrace).toHaveLength(4);
+    expect(soundCalls).toHaveLength(2);
+    expect(effectLogs).toHaveLength(2);
+    expect(strictClaimHeld).toBe(false);
+    expect(timeline.getDiagnostics()).toMatchObject({
+      visualSeq: 1,
+      paused: false,
+      blocksInput: false,
+      activeSettlementStage: null
+    });
   });
 
   test('pauses diagnostics when strict playback dispatch fails', async () => {

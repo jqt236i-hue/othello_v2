@@ -269,10 +269,43 @@ describe('BoardVisualController async visual settlement', () => {
     expect(controller.getSnapshot().lastAppliedFrameToken).toBe('idle:latest');
   });
 
-  test('does not report a strict committed frame successful before visual settlement', async () => {
+  test('retains the strict writer after original trajectory events until committed-frame visual settlement', async () => {
+    const trajectoryPhase = deferred();
     const settlement = deferred();
     let waitForCommitted = false;
+    const originalEvents = Object.freeze([
+      Object.freeze({
+        type: 'destroy',
+        phase: 4,
+        sequenceIndex: 0,
+        actionId: 'op_21',
+        effectBlockId: 'op_21:destroy',
+        targets: Object.freeze([Object.freeze({
+          r: 0,
+          col: 0,
+          sourceRow: 1,
+          sourceCol: 1,
+          cause: 'SNIPER_WILL',
+          reason: 'sniper_shot'
+        })])
+      }),
+      Object.freeze({
+        type: 'flip',
+        phase: 5,
+        sequenceIndex: 1,
+        actionId: 'op_21',
+        effectBlockId: 'op_21:zombie',
+        targets: Object.freeze([Object.freeze({
+          r: 2,
+          col: 3,
+          cause: 'ZOMBIE',
+          reason: 'zombie_infection',
+          meta: Object.freeze({ sourceRow: 3, sourceCol: 3 })
+        })])
+      })
+    ]);
     const visualBackend = backend({
+      playPhase: jest.fn(() => trajectoryPhase.promise),
       waitForVisualSettlement: jest.fn((value?: any) => (
         waitForCommitted && value?.frameToken === 'network:21' ? settlement.promise : Promise.resolve()
       ))
@@ -280,6 +313,20 @@ describe('BoardVisualController async visual settlement', () => {
     const controller = ControllerModule.createBoardVisualController({ backend: visualBackend });
     await controller.mount({} as HTMLElement);
     const token = controller.claimWriter('network:21', 'network');
+    const playing = controller.playPhase(token, originalEvents);
+    await Promise.resolve();
+
+    expect(visualBackend.playPhase).toHaveBeenCalledTimes(1);
+    expect(visualBackend.playPhase.mock.calls[0][0]).toBe(originalEvents);
+    expect(visualBackend.playPhase.mock.calls[0][0].map((event: any) => event.type)).toEqual(['destroy', 'flip']);
+    expect(controller.getMode()).toBe('playback');
+    expect(controller.getSnapshot().activeFrameToken).toBe('network:21');
+
+    trajectoryPhase.resolve();
+    await playing;
+    expect(controller.getMode()).toBe('playback');
+    expect(controller.getSnapshot().activeFrameToken).toBe('network:21');
+
     controller.beginAwaitingFrameCommit(token);
     waitForCommitted = true;
     let resolved = false;

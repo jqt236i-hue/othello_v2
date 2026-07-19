@@ -294,13 +294,52 @@ describe('PresentationHandler playback claim', () => {
     expect(boardUpdateResolved).toBe(true);
   });
 
-  test('hands strict network ownership to an opaque settlement handle until committed-frame sync succeeds', async () => {
+  test('returns an opaque strict handle after source trajectories and holds ownership until committed-frame sync succeeds', async () => {
     const order: string[] = [];
+    const playedEvents: any[] = [];
+    const soundCalls: string[] = [];
+    const effectLogs: string[] = [];
+    const originalEvents = [
+      {
+        type: 'destroy',
+        phase: 4,
+        sequenceIndex: 0,
+        actionId: 'op_7',
+        effectBlockId: 'op_7:destroy',
+        targets: [{
+          r: 0,
+          col: 0,
+          sourceRow: 1,
+          sourceCol: 1,
+          cause: 'SNIPER_WILL',
+          reason: 'sniper_shot'
+        }]
+      },
+      {
+        type: 'flip',
+        phase: 5,
+        sequenceIndex: 1,
+        actionId: 'op_7',
+        effectBlockId: 'op_7:zombie',
+        targets: [{
+          r: 2,
+          col: 3,
+          cause: 'ZOMBIE',
+          reason: 'zombie_infection',
+          meta: { sourceRow: 3, sourceCol: 3 }
+        }]
+      }
+    ];
     const managerClaim = { id: 31 };
     const boardWriterToken = { id: 32, frameToken: 'network:7', mode: 'network' };
+    let boardClaimHeld = false;
+    let managerClaimHeld = false;
+    let inputLocked = false;
+    let applyAttempt = 0;
     jest.doMock('../ui/board-renderer', () => ({
       claimBoardVisualWriter: jest.fn((frameToken, mode) => {
         order.push(`board-claim:${frameToken}:${mode}`);
+        boardClaimHeld = true;
         return boardWriterToken;
       }),
       beginBoardVisualFrameCommit: jest.fn((token) => {
@@ -314,12 +353,15 @@ describe('PresentationHandler playback claim', () => {
           kind: 'network-visual-commit',
           visualSeq: 7
         }));
-        order.push('board-apply-committed');
+        applyAttempt += 1;
+        order.push(`board-apply-committed:${applyAttempt}`);
+        if (applyAttempt === 1) throw new Error('context lost after trajectory phase');
         return true;
       }),
       releaseBoardVisualWriter: jest.fn((token) => {
         expect(token).toBe(boardWriterToken);
         order.push('board-release');
+        boardClaimHeld = false;
         return true;
       })
     }));
@@ -327,17 +369,26 @@ describe('PresentationHandler playback claim', () => {
     (global as any).PlaybackStateManager = {
       claimVisualPlayback: jest.fn(() => {
         order.push('manager-claim');
+        managerClaimHeld = true;
+        inputLocked = true;
         return managerClaim;
       }),
       releaseVisualPlaybackClaim: jest.fn((claim) => {
         expect(claim).toBe(managerClaim);
         order.push('manager-release');
+        managerClaimHeld = false;
+        inputLocked = false;
         return true;
       })
     };
     (global as any).AnimationEngine = {
-      play: jest.fn(async (_events, options) => {
+      play: jest.fn(async (events, options) => {
         order.push('play');
+        playedEvents.push(...events);
+        for (const event of events) {
+          soundCalls.push(`sound:${event.type}`);
+          effectLogs.push(`log:${event.type}`);
+        }
         options.onFinalizationReady(() => {
           order.push('manager-finalize');
           return true;
@@ -348,7 +399,7 @@ describe('PresentationHandler playback claim', () => {
     const PresentationHandler = require('../ui/presentation-handler.js');
     const handle = await PresentationHandler.handlePresentationEvent({
       type: 'PLAYBACK_EVENTS',
-      events: [{ type: 'move', phase: 1 }],
+      events: originalEvents,
       meta: { source: 'network_timeline', strictNetworkPlayback: true, visualSeq: 7 }
     });
 
@@ -367,14 +418,33 @@ describe('PresentationHandler playback claim', () => {
       'play',
       'board-await-commit'
     ]);
+    expect(playedEvents.map((event) => event.type)).toEqual(['destroy', 'flip']);
+    expect(playedEvents.map((event) => event.sequenceIndex)).toEqual([0, 1]);
+    expect(playedEvents.map((event) => event.actionId)).toEqual(['op_7', 'op_7']);
+    expect(playedEvents.map((event) => event.effectBlockId)).toEqual(['op_7:destroy', 'op_7:zombie']);
+    expect(soundCalls).toEqual(['sound:destroy', 'sound:flip']);
+    expect(effectLogs).toEqual(['log:destroy', 'log:flip']);
+    expect(boardClaimHeld).toBe(true);
+    expect(managerClaimHeld).toBe(true);
+    expect(inputLocked).toBe(true);
 
     const receipt = Object.freeze({
       kind: 'network-visual-commit',
       visualSeq: 7,
       visualVersion: 8
     });
+    await expect(handle.applyCommittedFrame(receipt)).rejects.toThrow('context lost after trajectory phase');
+    expect(boardClaimHeld).toBe(true);
+    expect(managerClaimHeld).toBe(true);
+    expect(inputLocked).toBe(true);
+    expect((global as any).AnimationEngine.play).toHaveBeenCalledTimes(1);
+    expect(soundCalls).toHaveLength(2);
+    expect(effectLogs).toHaveLength(2);
     await handle.applyCommittedFrame(receipt);
     await handle.applyCommittedFrame(receipt);
+    expect(boardClaimHeld).toBe(true);
+    expect(managerClaimHeld).toBe(true);
+    expect(inputLocked).toBe(true);
     await handle.settle();
     await expect(handle.settle()).resolves.toBe(false);
     expect(order).toEqual([
@@ -382,11 +452,18 @@ describe('PresentationHandler playback claim', () => {
       'board-claim:network:7:network',
       'play',
       'board-await-commit',
-      'board-apply-committed',
+      'board-apply-committed:1',
+      'board-apply-committed:2',
       'board-release',
       'manager-finalize',
       'manager-release'
     ]);
+    expect(boardClaimHeld).toBe(false);
+    expect(managerClaimHeld).toBe(false);
+    expect(inputLocked).toBe(false);
+    expect((global as any).AnimationEngine.play).toHaveBeenCalledTimes(1);
+    expect(soundCalls).toEqual(['sound:destroy', 'sound:flip']);
+    expect(effectLogs).toEqual(['log:destroy', 'log:flip']);
   });
 
   test('releases strict network ownership in the handler when playback fails before handoff', async () => {

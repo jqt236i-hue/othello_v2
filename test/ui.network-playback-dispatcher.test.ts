@@ -11,8 +11,39 @@ function settlementHandle(visualSeq: number) {
 }
 
 describe('NetworkPlaybackDispatcher', () => {
-  test('dispatches PLAYBACK_EVENTS through the presentation handler', async () => {
+  test('preserves original source-trajectory event order through the presentation handler', async () => {
     const handled: any[] = [];
+    const originalEvents = [
+      {
+        type: 'destroy',
+        phase: 4,
+        sequenceIndex: 0,
+        actionId: 'op_4',
+        effectBlockId: 'op_4:destroy',
+        targets: [{
+          r: 0,
+          col: 0,
+          sourceRow: 1,
+          sourceCol: 1,
+          cause: 'SNIPER_WILL',
+          reason: 'sniper_shot'
+        }]
+      },
+      {
+        type: 'flip',
+        phase: 5,
+        sequenceIndex: 1,
+        actionId: 'op_4',
+        effectBlockId: 'op_4:zombie',
+        targets: [{
+          r: 2,
+          col: 3,
+          cause: 'ZOMBIE',
+          reason: 'zombie_infection',
+          meta: { sourceRow: 3, sourceCol: 3 }
+        }]
+      }
+    ];
     const dispatcher = Dispatcher.createNetworkPlaybackDispatcher({
       handlePresentationEvent: jest.fn(async (event: any) => {
         handled.push(event);
@@ -20,7 +51,7 @@ describe('NetworkPlaybackDispatcher', () => {
       })
     });
 
-    const result = await dispatcher.dispatchNetworkPlaybackEvents([{ type: 'flip' }], {
+    const result = await dispatcher.dispatchNetworkPlaybackEvents(originalEvents, {
       source: 'network_timeline',
       visualSeq: 4,
       strictNetworkPlayback: true
@@ -30,7 +61,7 @@ describe('NetworkPlaybackDispatcher', () => {
     expect(handled).toEqual([
       expect.objectContaining({
         type: 'PLAYBACK_EVENTS',
-        events: [{ type: 'flip' }],
+        events: originalEvents,
         meta: expect.objectContaining({
           source: 'network_timeline',
           visualSeq: 4,
@@ -38,6 +69,10 @@ describe('NetworkPlaybackDispatcher', () => {
         })
       })
     ]);
+    expect(handled[0].events).not.toBe(originalEvents);
+    expect(handled[0].events[0]).toBe(originalEvents[0]);
+    expect(handled[0].events[1]).toBe(originalEvents[1]);
+    expect(handled[0].events.map((event: any) => event.type)).toEqual(['destroy', 'flip']);
   });
 
   test('does not invoke a second board drain after direct strict presentation playback', async () => {
