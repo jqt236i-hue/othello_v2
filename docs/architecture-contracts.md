@@ -332,11 +332,28 @@ The contract is implemented by the following ownership chain:
 - `ui/playback-state-manager.ts` owns the playback claim/busy lifecycle.
 - `ui/board-visual/controller.ts` owns the board writer claim and mounts exactly one backend.
 - `ui/board-renderer.ts` routes canonical or committed visual frames through that controller and defers ordinary render requests while playback owns the writer.
-- `ui/board-visual/pixi-backend.ts` is the normal backend. `ui/board-dom-compat/` is a mutually exclusive compatibility package that is loaded only for explicit debug fallback, Pixi/WebGL initialization failure, or unrecoverable context loss.
+- `ui/pixi/board-backend.ts` is the normal backend. `ui/board-dom-compat/` is a mutually exclusive compatibility package whose runtime is evaluated and constructed only for explicit debug fallback, Pixi/WebGL initialization failure, or unrecoverable context loss.
 
 Pixi and DOM compatibility backends must never be mounted or receive input concurrently. The normal `#board` subtree contains the Pixi canvas and semantic accessibility layer; compatibility-only cells and `#board-expansion-layer` are materialized dynamically only after the DOM backend has been selected.
 
+#### 7.3.1 Board-cell source trajectory ownership
+
+A visual trajectory whose logical source and target are both board-topology coordinates is board-owned phase work. It is part of the active `BoardVisualBackend.playPhase()` call for the original `destroy` or `flip` event; it is not a synthetic global event, a second visual port, or a separate recovery/settlement unit.
+
+The following boundaries apply:
+
+- `ui/presentation/dispatcher.ts` forwards the original ordered events to the board backend. It must not synthesize or reorder source-trajectory events.
+- Within each `playPhase()` launch, the active backend starts all raw source trajectories in received event/target order before the first target-local impact. A target removal or change waits for every trajectory associated with that target, including raw trajectories merged into one deduplicated flip target.
+- The normal Pixi backend draws these trajectories in its existing effect layer, canvas, timeline, and resource lifecycle. The DOM compatibility backend draws the equivalent trajectory only when that backend has been selected exclusively. A Pixi phase must not fall back one trajectory at a time to DOM/SVG.
+- Logical endpoints are validated against topology `existingKeys`, not the currently materialized viewport window. Offscreen or negative expanded-board coordinates remain valid topology coordinates; the renderer must not create extra cell/void views or grow the canvas backing store to reach them.
+- Source and target coordinates, direction, duration, and target gate remain unchanged when an endpoint is outside the visible viewport. Viewport inclusion is never a targeting rule: every trajectory still travels from the actual source-stone center to the actual target-stone center. Only painted pixels are clipped to the board viewport and its bounded effect gutter; the renderer must not substitute the viewport edge, retarget another stone, or report impact early. A fully clipped trajectory still participates in phase timing and settlement without materializing a display object.
+- Hand/card/HUD-to-board trajectories and fullscreen/global UI remain global DOM presentation. They may read a board cell rectangle through the public board-visual API, but they do not become board writers or join the board-cell trajectory port.
+
+DOM compatibility module definitions/accessors may be registered at browser startup so initial failure or context-loss recovery needs no second network fetch. Registration is not evaluation: the default Pixi execution graph must not require or evaluate the DOM source-trajectory runtime. Its stylesheet may be available before fallback, but its selectors must remain compatibility-only: board selectors are scoped to `[data-board-renderer="dom"]`, and source-trajectory selectors use dedicated classes prefixed with `.dom-board-source-trajectory` on nodes that only the DOM backend creates. No compatibility selector may match or paint the active Pixi board.
+
 For strict network playback, the writer claim and settlement handle remain owned until the visual store commit has succeeded and the required `applyCommittedFrame` hook has applied that committed frame. Only then may visual settlement be marked complete, observers run, and writer/playback claims be released. Recovery retries the committed visual frame without replaying authoritative events.
+
+Board-cell source trajectories are included in the owning backend phase settlement. Their completion alone must not release a strict-network writer or settlement handle; release still occurs only after the required committed-frame apply succeeds.
 
 Any new board-writing path must enter through this controller/backend contract. It must not write the board directly, reorder `events[]`, treat client presentation state as authority, or add a second backend-specific settlement path.
 
@@ -344,7 +361,7 @@ For board updates that contain `PLAYBACK_EVENTS`, draining the presentation queu
 
 Playback active, claimed, or pending means only the playback/presentation writer may mutate board visuals. Network snapshot application, presentation timeline catch-up, and canonical state reconciliation may update model state immediately, but they must queue backend frame application until playback is idle. Flags or options such as `allowBoardUpdateDuringPlayback`, `ignorePlayback`, or similarly named urgent-refresh paths must not grant board visual write permission during playback; at most they may carry source/reason metadata or flush non-board UI.
 
-#### 7.3.1 Snapshot / playback / busy ownership
+#### 7.3.2 Snapshot / playback / busy ownership
 
 Network playback must keep these ownership boundaries explicit:
 

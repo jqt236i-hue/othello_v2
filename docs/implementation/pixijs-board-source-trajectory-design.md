@@ -1,6 +1,6 @@
 # PixiJS board source trajectory migration design
 
-- Status: implementation-ready follow-up design
+- Status: implemented
 - Last reviewed: 2026-07-19
 - Scope: 盤面セルから盤面セルへ移動する破壊前・変化前の source trajectory
 - Player-visible specification: 2026-07-19にoffscreen区間の表示を明確化
@@ -16,7 +16,7 @@
 3. sparse render model、viewport materialization、排他的 DOM compatibility fallback など、完了済み移行の契約は `docs/implementation/pixijs-playfield-migration-design.md` を引き継ぐ。
 4. この文書は、盤面セル間 source trajectory の renderer ownership と実装境界だけを上書きする。
 
-2026-07-19のユーザー確認により、盤面セル間trajectoryはlogical source/targetを維持しつつ、現在の盤面表示領域から外れて見えていない区間を描かないことを `01-rulebook.md` と `正本/演出正本.md` に明記した。それ以外の色、形、意味、表示時間、発動順、対象への到達順、効果音、ハイライト、対応環境を変える必要が判明した場合は実装を止め、先に仕様更新の要否をユーザーへ確認する。
+2026-07-19のユーザー確認により、盤面セル間trajectoryはlogical source/targetを維持しつつ、現在の盤面表示領域から外れて見えていない区間を描かないことを `01-rulebook.md` と `正本/演出正本.md` に明記した。ここで「表示領域の内外」は攻撃対象を決める条件ではない。狙撃を含む全profileは、常に実際のsource石中心から実際のtarget石中心まで同じ軌道と到達時点で進み、viewportは見えるpixelだけをclipする。viewport端への終点置換、別石へのretarget、画面端でのearly impactは行わない。それ以外の色、形、意味、表示時間、発動順、対象への到達順、効果音、ハイライト、対応環境を変える必要が判明した場合は実装を止め、先に仕様更新の要否をユーザーへ確認する。
 
 ## 2. Decision summary
 
@@ -306,8 +306,8 @@ profile schemaは将来 `baseline` / `high` などのquality variantを追加で
 
 DOM compatibility backendは現在の `ui/animation-destroy-source-events.ts` とzombie source実装をbackend内部から使える。ただし旧global gateを単に削除すると、highlight/target処理に入ってからsourceを始める順序へ変わるため、そのまま使ってはならない。移行時は次を満たすよう整理する。
 
-- 通常Pixi startup graphから `ui/presentation/global-board-effect-presenter.ts` とDOM source modulesを外す。
-- DOM compatibility backendはlazy loadされた後だけDOM/WAAPI/SVG implementationを評価する。
+- 通常Pixiの**評価済み実行graph**から `ui/presentation/global-board-effect-presenter.ts` とDOM source modulesを外す。初期化失敗/context-loss時に追加fetchなしで復旧するため、browser registryがDOM compatibility moduleの未評価accessorを登録しておくことは許容する。
+- DOM compatibility backendは排他的に選択された後だけDOM/WAAPI/SVG implementationを評価する。compatibility CSSを先に配布する場合も、board selectorは`[data-board-renderer="dom"]`、source trajectoryはDOM backendだけが生成する`.dom-board-source-trajectory` prefixの専用classへ限定し、Pixi active中はmatch/paintへ関与させない。
 - DOM backendもraw events/targetsから全trajectoryを先に開始するbackend-local Promise mapを作り、既存event handlerはそのgateを待つ。controllerやdispatcherへcallbackを戻さない。
 - current global presenterとDOM backend内部実装に差があるprofileは、current behaviorを一つのcompatibility実装へ統合してからdispatcherのglobal pathを削除する。特にzombieはfixed body overlayとboard-host内版の座標、z-order、CSS pulseを比較する。色、時間、順序、viewport内形状はPhase 0 baselineと一致させる一方、clipはPixiと同じ更新済みoffscreen仕様へ統一し、旧fullscreen overflowをfallbackへ残さない。
 - DOM backendも元の`destroy` / `flip` eventを受け、synthetic source eventを必要としない。
@@ -400,9 +400,9 @@ debug/test diagnosticsへ最低限次を追加する。
 | Concern | Owner after migration |
 | --- | --- |
 | cause/reason classification | `shared/presentation-effect-profiles.ts` |
-| UI-only trajectory request/profile contract | `ui/board-visual/source-trajectory.ts`（新設想定） |
+| UI-only trajectory request/profile contract | `ui/board-visual/source-trajectory.ts` |
 | phase/event routing | `ui/presentation/dispatcher.ts`、original eventsのみ |
-| Pixi trajectory composition | `ui/pixi/effects/source-trajectory.ts`（新設想定） |
+| Pixi trajectory composition | `ui/pixi/effects/source-trajectory.ts` |
 | target impact/removal/change | existing `ui/pixi/effects/destroy.ts` / `flip.ts` |
 | geometry and clip | existing topology/layout/camera + Pixi effect layer |
 | timeline/ticker | existing `ui/pixi/timeline.ts` |

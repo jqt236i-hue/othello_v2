@@ -1,6 +1,6 @@
 # PixiJS board source trajectory migration implementation plan
 
-- Status: implementation-ready
+- Status: completed
 - Last reviewed: 2026-07-19
 - Design authority: `docs/implementation/pixijs-board-source-trajectory-design.md`
 - Predecessor: completed `docs/implementation/pixijs-playfield-migration-plan.md` Phase 0～10
@@ -15,7 +15,7 @@
 4. Phase 0から依存順に進め、各PhaseのVerificationとDone whenを満たしてから次へ進む。
 5. coherent unitごとにtask-owned filesだけを明示stage/commitする。`git add -A`を使わない。
 6. root `.ts`を正本として編集し、browser/Worker mirrorは既存generatorから更新する。generated/mirrorをsource-editしない。
-7. offscreen区間は `01-rulebook.md` と `正本/演出正本.md` の明確化に従ってowner clip内だけを描く。それ以外の色、形、意味、表示時間、発動順、対応条件、可視範囲を変える必要が出た場合は停止し、該当正本の更新要否をユーザーへ確認する。
+7. offscreen区間は `01-rulebook.md` と `正本/演出正本.md` の明確化に従ってowner clip内だけを描く。全profileの移動は常に実source石中心から実target石中心までであり、offscreenを理由にviewport端へ終点を置き換える、別石へretargetする、画面端でearly impactすることを禁止する。それ以外の色、形、意味、表示時間、発動順、対応条件、可視範囲を変える必要が出た場合は停止し、該当正本の更新要否をユーザーへ確認する。
 8. canonical `events[]`、`sequenceIndex`、`actionId`、`effectBlockId`、`phase`、network authority/payload、game RNGを変更しない。
 9. Single Visual Writer、strict-network settlement handle、required `applyCommittedFrame`後のvisual settlement、sparse model、viewport materialization、排他的DOM fallbackを維持する。
 10. 新しいPixi Application/canvas/WebGL context、第二board writer、effect単位のDOM fallbackを追加しない。
@@ -211,7 +211,7 @@ Pixi/DOM両backendを同じcommitでbackend-owned二段preludeへ切り替え、
 9. Pixi/DOM `validatePhase()`がprofile、endpoint、owner、assetをstep launch前にfail-closed検証する。
 10. current inventoryを `board-source-trajectory` と `cross-surface-trajectory` へ分け、historical Phase 0 inventoryは保持する。
 11. zombie source CSSをDOM compatibility scopeへ移し、Pixi laneでtrajectory DOM/SVG classを生成しない。
-12. default classic/Vite startup graphからDOM source modulesを外し、compatibility lazy graphだけが評価する。
+12. default classic/Viteの評価済み実行graphからDOM source modulesを外し、compatibility backendが排他的に選択された時だけ評価する。復旧用の未評価registry accessorとDOM scope限定CSSは許容する。
 13. default cutoverをcommitする前に、active trajectory中のcontext lossを一回発生させ、Pixi restoreまたは排他的DOM fallbackへ収束し、final digest一致、sound/log重複0、canvas/DOM同時writer 0をfocused fixtureとbrowser smokeで確認する。
 14. 両backend、dispatcher、inventory、minimum recovery/fallback smoke、testsがpassしてからatomic commitする。
 
@@ -335,7 +335,7 @@ npm run check:board-test-selectors
 ### Work
 
 1. architecture contractへ、board-cell trajectoryがactive backend `playPhase()`の一部でsecond visual portではないことを記載する。
-2. default Pixi startup graphにDOM source implementationがなく、compatibility lazy graphには必要module/CSSが揃うことを固定する。
+2. default Pixiの評価済み実行graphにDOM source implementationがなく、compatibility選択時にはregistryの未評価accessorとDOM scope限定CSSから必要module/styleが揃うことを固定する。
 3. browser/Vite/Worker outputsをgeneratorから更新し、mirror driftを検証する。
 4. focused suites後にfull Jestを一回だけ実行する。NOANIMはPhase 3 focused pathsをblocking evidenceとし、全suite二重実行は新failureが示さない限り要求しない。
 5. `01-rulebook.md`と`正本/*.md`に変更がないことを確認する。必要ならcommitせず仕様判断へ戻る。
@@ -368,31 +368,31 @@ git status --short
 
 - Phase 0～5のDone whenがすべて満たされる。
 - focused/full tests、network parity、classic/Vite、fallback、cross-platform、visual、selector、mirrorがpassする。
-- generated driftがなく、default startup graphからDOM source codeが外れる。
+- generated driftがなく、default Pixiの評価済み実行graphからDOM source runtimeが外れる。復旧用registry accessorは通常経路で未評価のままである。
 - architecture contractと最終ownershipが一致する。
 - task-owned diffだけがcoherent commitsになり、production deployは行っていない。
 
 ## 4. Final checklist
 
-- [ ] 7profileが通常Pixi effect layerから描画される
-- [ ] `willHunterKingSlash`を重複実装していない
-- [ ] UI↔board / fullscreen / global UIはDOMのまま
-- [ ] raw順で全sourceをfirst board impactより前にstartする
-- [ ] flip dedupe前requestとdedupe後target gateが対応する
-- [ ] target removal/changeは対応trajectory/impact完了後だけ
-- [ ] duration/deadline/owner/direction/NOANIM/reduced-motionが一致する
-- [ ] canonical `events[]`、sound、log、phase/final digestが完全一致し、旧/new routeはsemantic trajectory traceで順序一致する
-- [ ] game RNG、network payload/authorityを変更していない
-- [ ] one Application/canvas/context/backend/board writer
-- [ ] sparse model/viewport materializationを維持し、cell/voidを増やさない
-- [ ] backingはvisible viewport +既存2cell gutter上限
-- [ ] Pixi laneのtrajectory DOM/SVG overlay 0
-- [ ] DOM compatibilityはlazy/排他的で7profileを完了する
-- [ ] context recoveryのsound/log/global UI重複0
-- [ ] strict handleはrequired `applyCommittedFrame`成功後まで保持
-- [ ] abort/reset/recovery/skin switch後にobject/lease/tickerがbaselineへ戻る
-- [ ] offscreen区間は更新済み`01-rulebook.md`/`正本/演出正本.md`どおりで、それ以外のdisplay spec変更がない
-- [ ] task-owned filesだけをverified commitsへ含めた
+- [x] 7profileが通常Pixi effect layerから描画される
+- [x] `willHunterKingSlash`を重複実装していない
+- [x] UI↔board / fullscreen / global UIはDOMのまま
+- [x] raw順で全sourceをfirst board impactより前にstartする
+- [x] flip dedupe前requestとdedupe後target gateが対応する
+- [x] target removal/changeは対応trajectory/impact完了後だけ
+- [x] duration/deadline/owner/direction/NOANIM/reduced-motionが一致する
+- [x] canonical `events[]`、sound、log、phase/final digestが完全一致し、旧/new routeはsemantic trajectory traceで順序一致する
+- [x] game RNG、network payload/authorityを変更していない
+- [x] one Application/canvas/context/backend/board writer
+- [x] sparse model/viewport materializationを維持し、cell/voidを増やさない
+- [x] backingはvisible viewport +既存2cell gutter上限
+- [x] Pixi laneのtrajectory DOM/SVG overlay 0
+- [x] DOM compatibilityはlazy/排他的で7profileを完了する
+- [x] context recoveryのsound/log/global UI重複0
+- [x] strict handleはrequired `applyCommittedFrame`成功後まで保持
+- [x] abort/reset/recovery/skin switch後にobject/lease/tickerがbaselineへ戻る
+- [x] offscreen区間は更新済み`01-rulebook.md`/`正本/演出正本.md`どおりで、それ以外のdisplay spec変更がない
+- [x] task-owned filesだけをverified commitsへ含めた
 
 ## 5. Self-review decisions
 

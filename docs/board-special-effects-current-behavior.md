@@ -1,23 +1,24 @@
 # 盤面特殊効果の現行挙動調査メモ
 
-文書の位置づけ: 後続リファクタリング前に、現行実装で確認できる盤面特殊効果の挙動を固定する調査メモです。
+文書の位置づけ: 現行実装で確認できる盤面特殊効果の挙動と、そのrenderer ownershipを固定する運用参照です。初版の調査結果を保ちつつ、完了したPixiJS盤面移行後のownershipへ更新しています。
 
 対象: カード効果によって盤面上に発生する石・マス・特殊状態の変化、presentation event、playback phase、アニメーション、効果音です。
 
-一次情報: ゲーム仕様は `01-rulebook.md`、内部境界は `docs/architecture-contracts.md`、現行挙動の根拠は `game/logic/board_ops.ts`、`game/logic/cards.ts`、`game/logic/cards/*`、`game/turn/*`、`ui/animation-engine.ts`、関連テストです。
+一次情報: ゲーム仕様は `01-rulebook.md`、内部境界は `docs/architecture-contracts.md`、現行挙動の根拠は `game/logic/board_ops.ts`、`game/logic/cards.ts`、`game/logic/cards/*`、`game/turn/*`、`ui/animation-engine.ts`、`ui/presentation/dispatcher.ts`、`ui/board-visual/controller.ts`、active board backend、関連テストです。
 
 非目標: 仕様変更の提案、理想設計、全カードの乱択分布、`worker-public/` mirror の再調査は扱いません。
 
 ## 確認した一次情報
 
 - `01-rulebook.md`: 破壊、反転、ターン進行、保護、特殊石、カード個別仕様。特に `STONE_SALVATION_GOD` は「同一破壊ブロック完了後に救済」「救済神自身は通常破壊される」「隕石/盤面縮小は石破壊と穴化を同じセル消滅ブロックで解決し、穴化後に救済」と書かれている。
-- `docs/architecture-contracts.md`: `game/` は headless rules、`ui/` は playback/animation、snapshot と playback は別責務、Single Visual Writer は `ui/animation-engine.ts` を中心に維持する契約。
+- `docs/architecture-contracts.md`: `game/` は headless rules、`ui/` は playback/animation、snapshot と playback は別責務。盤面visualは `ui/board-visual/controller.ts` が一つのactive backendへ排他的に委譲し、Single Visual Writerを維持する契約。
 - `game/logic/board_ops.ts`: `spawnAt()`, `destroyAt()`, `changeAt()`, `moveAt()`, `swapOccupiedCells()`, `applyHoleAt()`, `runDestroyBlock()`, `runEffectBlock()` が盤面 mutation と presentation event の主経路。
 - `game/logic/cards.ts` / `game/logic/cards/*`: カード固有の効果解決。カード hub は各 module を解決し、`BoardOps` を注入する。
 - `game/turn/turn_pipeline.ts`: `applyTurn()` は turn start → card usage → action の順で `TurnPipelinePhases` を呼び、`CardLogic.flushPresentationEvents()` で presentation event を回収する。
 - `game/turn/turn_pipeline_phases.ts`: ターン開始マーカーを `createdSeq` 昇順で処理し、pending target 解決と即時発動を担当する。
 - `game/turn/pipeline_ui_adapter.ts`: presentation event を playback event に変換し、phase と sound cue を決める。
-- `ui/animation-engine.ts`: playback event を実 DOM アニメーション・効果音へ適用する。`PlaybackState.beginPlayback()` / `finalizePlayback()` により Single Visual Writer を守る。
+- `ui/animation-engine.ts` / `ui/presentation/dispatcher.ts`: ordered playbackを進行し、board eventをactive backendの`playPhase()`へ、global/cross-surface eventと効果音を各presentation ownerへ振り分ける。盤面pixel自体はAnimationEngineが直接書かない。
+- `ui/board-visual/controller.ts`: writer claim、backend排他mount、context recovery、strict-network visual settlementを所有する。通常は`ui/pixi/board-backend.ts`、明示debug/Pixi初期化失敗/復旧不能context loss時だけ`ui/board-dom-compat/`を使う。
 - 関連テスト: `test/game.stone-salvation-god.test.ts`, `test/game.pipeline-ui-adapter.spawn.test.ts`, `test/game.pipeline-ui-adapter.sound-cue.test.ts`, `test/ui.animation-engine.guard-timer.test.ts`, `test/game.x-bomb.test.ts`, `test/game.meteor-will.test.ts`, `test/game.logic.meteor-module.test.ts`, `test/game.freeze-will.test.ts`, `test/game.seed-will.test.ts`, `test/game.cell-teleport-will.test.ts`, `test/game.udg-duration.test.ts`, `test/game.will-hunter-king.test.ts`, `test/game.proliferation-will.test.ts`, `test/game.destroy-dragon-will.test.ts`, `test/game.lightning-will.test.ts`, `test/game.sniper-will.test.ts`, `test/game.pipeline-ui-adapter.move-metadata.test.ts`。
 
 ## 共通 event / playback / animation 経路
@@ -27,8 +28,10 @@
 - `BoardOps.runDestroyBlock()` は destroy-only 互換 API。外側 effect block がなければ destroy block 用の `effectBlockId` を作り、`_stoneSalvationGodDestroyBlockDepth` を増やし、外側 block 終了時に救済神 revive queue を flush する。
 - `pipeline_ui_adapter.mapToPlaybackEvents()` は `SPAWN` → `spawn`/`move`, `DESTROY` → `destroy`, `CHANGE` → `flip`, `MOVE` → `move`, `STATUS_APPLIED` → `status_applied`, `STATUS_REMOVED` → `status_removed` へ変換する。
 - phase は `pipeline_ui_adapter.ts` の `_createPlaybackPhaseState()`, `_planSpawnPlayback()`, `_planDestroyPlayback()`, `_planChangePlaybackPhase()`, `_planMovePlaybackPhase()` で決まる。
-- `ui/animation-engine.ts` は phase ごとに `executePhase()` を呼び、同一 phase の flip は `executeFlipBatch()` で並列化し、非 flip event も `Promise.all()` で同 phase 内並列実行する。
+- `ui/animation-engine.ts` は phase ごとに `executePhase()` を呼び、`ui/presentation/dispatcher.ts` がplanner順を保ってboard/global/sound launchを開始する。board launchはoriginal eventのままactive backendの`playPhase()`へ渡り、同一phaseの許可された処理はbackend内で並列実行される。
 - 効果音は `pipeline_ui_adapter.appendSoundEffectPlaybackEvents()` が playback event に `sound_effect` を追加し、`ui/animation-engine.ts` の `handleSoundEffect()` が `SoundEngine.playEffectByKey()` を呼ぶ。
+- board-cell source trajectoryはactive backendのphase settlementに含まれる。strict networkではtrajectoryが終わってもclaim/settlement handleを解放せず、visual store commitとrequired `applyCommittedFrame`の成功後にだけvisual settlementを完了する。
+- 手札/カード/HUDと盤面を横断するtrajectory、およびfullscreen/global UIはDOM presentationのままであり、board-cell trajectoryのportやboard writerには入らない。
 
 ## 石を置く / 増やす系
 
@@ -60,9 +63,9 @@
 - `_orderDeferredSpawnsForPlayback()` は救済神 revive の `SPAWN` を同一 block の `DESTROY` / `MOVE` 後へ遅延配置する。
 
 **アニメーションの扱い**
-- `ui/animation-engine.ts`: `handleSpawn()` は繁殖 spawn だけ `BREEDING_SPAWN_FADE_MS` の fade-in。その他の spawn は `handlePlace()` と同じ即時出現。
-- 平等/増援/救済神/救済の spawn は `_isPositiveSpawnLikeEffectTarget()` により紫系 positive highlight。救済神 revive は `POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS` に含まれ、最小表示時間がある。
-- clone-like spawn は `handleMove()` 経路で移動アニメーション扱い。
+- 通常Pixi laneは `ui/pixi/effects/spawn.ts` がspawnを描画する。繁殖spawnだけfade-inし、その他のspawnは即時出現する現行timingをactive backend内で維持する。DOM compatibility laneは`ui/board-dom-compat/runtime.ts`の同等handlerを使う。
+- 平等/増援/救済神/救済のspawnはshared presentation profileにより紫系positive highlightになる。救済神reviveは`POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS`に含まれ、active backendで最小表示時間を保つ。
+- clone-like spawnは`move` playbackとしてactive backendのmove effectへ入る。
 
 **効果音の扱い**
 - `pipeline_ui_adapter.ts`: `_planCoreSoundCues()` と `_pushRepeatedCueForCardEffectSpawnProfiles()` が `breeding_spawn` を追加する。救済神 revive も `soundSourceType: stone_salvation_god_revive` だが sound key は `breeding_spawn`。
@@ -85,7 +88,7 @@
 - `game/logic/board_ops.ts`: `spawnAt()`, `spawnMany()`, `_inferSpawnIntent()`, `_invalidateSeedMarkerAt()`。
 - `game/logic/cards/breeding.ts`: `deps.BoardOps.spawnAt()`。
 - `game/turn/pipeline_ui_adapter.ts`: `_planSpawnPlayback()`, `_orderDeferredSpawnsForPlayback()`, `CARD_EFFECT_SPAWN_PROFILES`, `_planCoreSoundCues()`。
-- `ui/animation-engine.ts`: `handleSpawn()`, `handlePlace()`, `isBreedingSpawnTarget()`, `_resolveSpawnTargetHighlightMinimumMs()`。
+- `ui/pixi/effects/spawn.ts`, `ui/pixi/board-playback.ts`, `ui/board-dom-compat/runtime.ts`。
 
 **関連テスト**
 - `test/game.pipeline-ui-adapter.spawn.test.ts`
@@ -132,14 +135,18 @@
 - その他の destroy は基本的に phase を 1 つ進める。
 
 **アニメーションの扱い**
-- `ui/animation-engine.ts`: `handleDestroy()` が `animateFadeOutAt()` または ghost fade で消す。
-- 狙撃・破壊龍・雷撃・究極破壊神・意志狩り・ロボ掃除機は `DESTROY_SOURCE_ANIMATION_PROFILES` により source animation がある。
-  - 狙撃: `animateSniperProjectile()`
-  - 破壊龍: `animateDestroyDragonBreath()`
-  - 雷撃/究極破壊神: `animateUdgLightningStrike()`
-  - 意志狩り: `animateWillHunterKingSlash()`
-  - ロボ掃除機: `animateRobotVacuumSuction()` と `afterDestroy: clearCell`
-- 増殖/Regen/Ghost など preserve 系は `_shouldPreserveDiscOnDestroy()` で盤面 disc を保持し、短い highlight/待機になる。
+- `ui/presentation/dispatcher.ts` はsynthetic source eventを作らず、original `destroy` eventだけをactive backendへ渡す。通常Pixi laneでは `ui/pixi/board-playback.ts` と `ui/pixi/effects/destroy.ts` がtarget impact、highlight、消去を所有する。
+- 次の6profileはboard-cell source trajectoryとして `ui/board-visual/source-trajectory.ts` が分類し、`ui/pixi/effects/source-trajectory.ts` が既存Pixi effect layerで描く。
+  - 狙撃: `sniperShot`
+  - 破壊龍: `destroyDragonBreath`
+  - 雷撃: `lightningDestroyed`
+  - 究極破壊神: `udgDestroyed`
+  - 隕石神の黒い光線: `meteorGodBlackBeam`
+  - ロボット掃除機: `robotVacuumSuck`（targetからsourceへ吸引し、generic fadeを重ねずcell clear）
+- 一つの`playPhase()` launchではraw event/target順の全trajectoryを最初のtarget impactより前に開始し、各targetの消去は対応trajectoryとimpactの完了を待つ。`events[]`、phase、sound/log順は変更しない。
+- 「表示領域の内外」は攻撃対象の条件ではない。logical source/targetは常に実source石中心と実target石中心のまま変えず、offscreen座標をviewport端や別targetへ置き換えず、画面端でearly impactもしない。見えているpixelだけをboard viewportと既存effect gutterでclipし、遠いendpointのためにcell/void viewやcanvas backingを増やさない。
+- `willHunterKingSlash`はsource trajectoryへ重複移植せず、`ui/pixi/effects/destroy.ts`のtarget-local slashとして残る。増殖/Regen/Ghostなどpreserve系もactive backendがstoneを保持し、短いhighlight/待機にする。
+- DOM compatibility laneを排他的に選択した場合は `ui/board-dom-compat/source-trajectory.ts` と`runtime.ts`が同じoriginal event、launch順、target gate、clipを完了する。Pixi実行中に一trajectoryだけDOMへfallbackしない。
 
 **効果音の扱い**
 - `pipeline_ui_adapter.ts`: `_planDestroySoundCues()`。
@@ -176,7 +183,7 @@
 - `game/logic/cards/will_hunter_king.ts`: `processWillHunterKingEffectsAtTurnStartAnchor()`。
 - `game/logic/cards/meteor.ts`, `game/logic/cards/shrink.ts`。
 - `game/turn/pipeline_ui_adapter.ts`: `_planDestroyPlayback()`, `_planDestroySoundCues()`。
-- `ui/animation-engine.ts`: `handleDestroy()`, `DESTROY_SOURCE_ANIMATION_PROFILES`。
+- `shared/presentation-effect-profiles.ts`, `ui/board-visual/source-trajectory.ts`, `ui/pixi/board-playback.ts`, `ui/pixi/effects/source-trajectory.ts`, `ui/pixi/effects/destroy.ts`, `ui/board-dom-compat/source-trajectory.ts`。
 
 **関連テスト**
 - `test/game.sniper-will.test.ts`
@@ -188,6 +195,10 @@
 - `test/game.stone-salvation-god.test.ts`
 - `test/game.pipeline-ui-adapter.sound-cue.test.ts`
 - `test/ui.animation-engine.guard-timer.test.ts`
+- `test/ui.pixi-source-trajectory.test.ts`
+- `test/ui.pixi-board-playback.test.ts`
+- `test/ui.board-dom-source-trajectory.test.ts`
+- `test/ui.board-visual-effect-branch-inventory.test.ts`
 
 **確認範囲外**
 - 時限爆弾/CROSS/X の対象集合生成順は個別 module 側に依存する。本メモでは `BoardOps` 以降の共通破壊順を中心に確認した。
@@ -227,10 +238,10 @@
 - 極悪多動魔の forced swap は `_findExtremeForcedSwapMovePairPresentationIndex()` が 2 個の `MOVE` を 1 つの `move` playback にまとめる。
 
 **アニメーションの扱い**
-- `ui/animation-engine.ts`: `handleMove()` 系。ghost を `document.body` 上で動かし、最後に destination cell へ settle する。
-- `moveIntent` / cause / reason により `_buildMoveGhostAnimationSpec()` が変わる。強風は gust、超浮力/超重力は lift/drop、overlap return は往復、forced swap は専用。
+- 通常Pixi laneは `ui/pixi/effects/move.ts` がbackend内ghostをdestinationへsettleする。DOM compatibility laneだけが`ui/board-dom-compat/runtime.ts`経由でDOM ghostを使う。
+- `moveIntent` / cause / reason によりactive backendのmotion specが変わる。強風はgust、超浮力/超重力はlift/drop、overlap returnは往復、forced swapは専用。
 - テレポート系や no-anim では即時 final state に寄せる分岐がある。
-- highlight は `_getMoveHighlightCells()` で、破壊/反転回避 move は source、位置交換は両セル、それ以外は destination が中心。
+- highlight対象はmove semanticsに従い、破壊/反転回避moveはsource、位置交換は両セル、それ以外はdestinationが中心になる。
 
 **効果音の扱い**
 - `strong_wind_move`, `teleport_select`, `super_buoyancy_move`, `super_gravity_move`, `ultimate_anchor_move`, `hyperactive_move` など。
@@ -259,7 +270,7 @@
 - `game/logic/cards/will_hunter_king.ts`。
 - `game/cards/effects/position-swap.ts`。
 - `game/turn/pipeline_ui_adapter.ts`: `_planMovePlaybackPhase()`, `_getMoveIntent()`。
-- `ui/animation-engine.ts`: `handleMove()`, `_getMoveSemantics()`, `_buildMoveGhostAnimationSpec()`。
+- `ui/pixi/effects/move.ts`, `ui/pixi/board-playback.ts`, `ui/board-dom-compat/runtime.ts`。
 
 **関連テスト**
 - `test/game.pipeline-ui-adapter.move-metadata.test.ts`
@@ -302,11 +313,11 @@
 - `pipeline_ui_adapter.ts`: `_planChangePlaybackPhase()`。
 - chain flip は `chainLink` ごとに phase を進める。
 - Regen trigger / Living Will restore change は phase を進める。
-- 同一 phase の flip は `ui/animation-engine.ts`: `executeFlipBatch()` でまとめて再生される。
+- 同一phaseのflipはdispatcherが一つのboard launchとしてactive backendへ渡し、backendがraw eventsを保持したまま座標単位のtarget visualへまとめる。
 
 **アニメーションの扱い**
-- `ui/animation-engine.ts`: `handleFlip()` は `FLIP_MS` の中間で `syncDiscVisual()` を行う。
-- Ghost ブロックは実反転せず、highlight と短い待機だけ。
+- 通常Pixi laneは `ui/pixi/effects/flip.ts` が`FLIP_MS`の反転表現を再生し、target animationと対応source trajectory gateの両方が完了した後にprojected stone visualを確定する。Ghostブロックは実反転せず、highlightと短い待機だけ。
+- zombie infectionは7番目のboard-cell source trajectory `zombieBite`である。dedupe前のraw trajectoryをすべて先に開始し、同じ座標へまとめられたtarget visualは関連する全trajectoryの完了を待ってから屍石化する。通常はPixi effect layer、排他的DOM compatibility時だけDOM source layerが描く。
 
 **効果音の扱い**
 - `pipeline_ui_adapter.ts`: `_planCoreSoundCues()` が card effect flip phases に `card_effect_flip` を追加する。
@@ -326,7 +337,7 @@
 - `game/logic/board_ops.ts`: `changeAt()`。
 - `game/logic/cards/flips.ts`, `game/logic/cards/chain.ts`, `game/cards/effects/ownership.ts`。
 - `game/turn/pipeline_ui_adapter.ts`: `isCardEffectFlipPresentationEvent()`, `_planChangePlaybackPhase()`。
-- `ui/animation-engine.ts`: `handleFlip()`, `executeFlipBatch()`。
+- `ui/pixi/effects/flip.ts`, `ui/pixi/effects/source-trajectory.ts`, `ui/pixi/board-playback.ts`, `ui/board-dom-compat/source-trajectory.ts`。
 
 **関連テスト**
 - `test/game.pipeline-ui-adapter.sound-cue.test.ts`
@@ -370,8 +381,8 @@
 - `STATUS_REMOVED` は通常 `status_removed`。特殊石の duration end は `_planDurationEndRevertPlaybackPhase()` で前 event があれば phase を進めて再生する。
 
 **アニメーションの扱い**
-- `ui/animation-engine.ts`: `handleStatusChange()`（下流）で status visual を crossfade / overlay fade する。テスト上、`METEOR_HOLE` の `STATUS_APPLIED` は残っていた disc を消す。
-- `BLOCKADE` / `FREEZE` は `_resolveStatusChangeHighlightTone()` で highlight なし。`TIME_BOMB` は赤、その他 `STATUS_APPLIED` は原則 purple/positive。
+- 通常Pixi laneは `ui/pixi/effects/status.ts` がstatus visualをcrossfade / overlay fadeする。`METEOR_HOLE`の`STATUS_APPLIED`は残っていたstone visualを消す。DOM compatibility laneは`ui/board-dom-compat/runtime.ts`の同等handlerを使う。
+- `BLOCKADE` / `FREEZE` はhighlightなし。`TIME_BOMB`は赤、その他`STATUS_APPLIED`は原則purple/positive。
 
 **効果音の扱い**
 - 凍結成功は `freeze_select`。
@@ -403,7 +414,7 @@
 - `game/cards/effects/status-cells.ts`: `applyBlockadeWill()`, `applyFreezeWill()`, `applySeedWill()`。
 - `game/logic/cards/markers.ts`: `addMarker()`。
 - `game/turn/pipeline_ui_adapter.ts`: `mapToPlaybackEvents()`, `_planSelectionSoundCues()`。
-- `ui/animation-engine.ts`: `_resolveStatusChangeHighlightTone()`, `handleStatusChange()`。
+- `ui/pixi/effects/status.ts`, `ui/pixi/board-playback.ts`, `ui/board-dom-compat/runtime.ts`。
 
 **関連テスト**
 - `test/game.meteor-will.test.ts`
@@ -415,7 +426,7 @@
 - `test/ui.animation-engine.guard-timer.test.ts`
 
 **確認範囲外**
-- `handleStatusChange()` 本体の全分岐は長大なため、ここでは検索結果と既存テストで確認できる挙動を中心に記録した。
+- Pixi/DOM両backendのstatus effect全分岐は長大なため、ここではinventoryと既存テストで確認できる挙動を中心に記録した。
 
 **壊れやすい点**
 - `DESTROY` と `STATUS_APPLIED` を同一視すると、救済神 queue と穴演出が崩れる。
@@ -472,7 +483,7 @@
 - `game/logic/board_ops.ts`: `revertSpecialStoneAt()`。
 - `game/turn/turn_pipeline_phases.ts`: `applyTurnStartPhase()`, `timerSnapshot`, `STATUS_TICK` emission。
 - `game/turn/pipeline_ui_adapter.ts`: duration end phase helpers, `_planCoreSoundCues()`。
-- `ui/animation-engine.ts`: `_resolveStatusChangeHighlightTone()`。
+- `ui/pixi/effects/status.ts`, `ui/board-dom-compat/runtime.ts`。
 
 **関連テスト**
 - `test/game.cards.markers-module.test.ts`
@@ -693,7 +704,7 @@
 - `pipeline_ui_adapter.ts`: `CARD_EFFECT_SPAWN_PROFILES` で `STONE_SALVATION_GOD` + `stone_salvation_god_revive` は `alwaysAdvancePhase: true`。
 - `_orderDeferredSpawnsForPlayback()` は救済 revive を deferred spawn として、関連 destroy/move block の後に並べる。
 - sound は `breeding_spawn`（sourceType は `stone_salvation_god_revive`）。`test/game.pipeline-ui-adapter.sound-cue.test.ts` で確認されている。
-- animation は `ui/animation-engine.ts` の positive spawn highlight。`test/ui.animation-engine.guard-timer.test.ts` に「Stone Salvation God revive keeps purple cell highlight visible briefly」がある。
+- animationはactive backendのpositive spawn highlight。通常Pixi laneは`ui/pixi/effects/spawn.ts`、DOM compatibility laneは`ui/board-dom-compat/runtime.ts`が所有する。
 
 **破壊系カードとの組み合わせ**
 - 狙撃・雷撃・破壊龍・究極破壊神・悪食・意志狩り・ロボ掃除機など、最終的に `BoardOps.destroyAt()` の通常破壊 branch に入るものは救済 queue 対象。
@@ -716,7 +727,7 @@
 ## 追加の確認範囲外
 
 - `worker-public/` mirror は調査対象として読んでいない。root 実装が正本であり、本メモは root 実装に基づく。
-- 実ブラウザで全カードを手動再生して確認したわけではない。演出事実は `ui/animation-engine.ts` と既存 UI/Jest テストから確認した範囲。
+- 実ブラウザで全カードを手動再生して確認したわけではない。演出事実はdispatcher、active board backend、既存browser check/UI/Jestテストから確認した範囲。
 - `01-rulebook.md` のカード節は仕様正本として扱い、本メモでは実装・テストと照合できる盤面特殊効果の範囲だけを採用した。
 
 ## Known Fragile Areas
@@ -730,7 +741,8 @@
 | `DESTROY` outcome meta | Ghost/Regen/増殖/破壊回避は `DESTROY` event を出しても盤面から消えないことがある。`DESTROY` を常に空化とみなすと animation/sound が壊れる。 | `game/logic/board_ops.ts`: `_destroyAtCore()` / `shared/destroy-outcome-contract.ts` |
 | `STATUS_APPLIED` と穴マス化 | 隕石・盤面縮小は共通セル消滅で穴化する。石があるマスは破壊+穴化、石がない封鎖・凍結・種などは状態上書きの穴化として扱い、救済神 trigger は石破壊を伴う場合だけ発生する。 | `game/logic/cards/meteor.ts`, `game/logic/cards/shrink.ts`, `game/logic/board_ops.ts`: `applyCellRemovalAt()` / `applyHoleAt()` |
 | ターン開始アンカー順 | `createdSeq` 順の解決と、各アンカーを個別 effect block にする前提が演出順・救済順に影響する。 | `game/turn/turn_pipeline_phases.ts` |
-| presentation と UI playback の境界 | `game/` は headless で、音・DOM・timer を持たない。UI 側の都合を `game/` に持ち込むと network/headless parity が壊れる。 | `docs/architecture-contracts.md`, `game/turn/pipeline_ui_adapter.ts`, `ui/animation-engine.ts` |
+| presentation と UI playback の境界 | `game/` は headless で、音・DOM・timer を持たない。UI 側の都合を `game/` に持ち込むと network/headless parity が壊れる。 | `docs/architecture-contracts.md`, `game/turn/pipeline_ui_adapter.ts`, `ui/animation-engine.ts`, `ui/presentation/dispatcher.ts` |
+| board-cell source trajectory | original `destroy`/`flip`から別global eventを作る、PixiとDOMを同時に動かす、offscreen endpoint用のcellを実体化する、trajectory完了だけでstrict handleを解放する、のいずれでもSingle Visual Writer・順序・bounded backing・network settlementが壊れる。 | `ui/board-visual/source-trajectory.ts`, `ui/pixi/board-playback.ts`, `ui/board-dom-compat/source-trajectory.ts`, `docs/architecture-contracts.md` §7.3.1 |
 | worker mirror / network parity | root 実装が正本で `worker-public/` は mirror。root 変更後に mirror や playback contract を同期しないとネット対戦とブラウザ配布面がずれる。 | `scripts/prepare-worker-assets.ts`, `test/network.playback-event-assembly.contract.test.ts`, `npm run test:network:parity` |
 
 ## Verification Map
@@ -743,6 +755,10 @@
 | `test/game.pipeline-ui-adapter.move.test.ts` | `MOVE` playback、移動 phase、移動系 presentation event の基本変換。 |
 | `test/game.pipeline-ui-adapter.move-metadata.test.ts` | move metadata、stone/status/marker 表示情報、特殊移動の playback target。 |
 | `test/ui.animation-engine.guard-timer.test.ts` | special/timer 表示、guard/timer 系 animation integration。 |
+| `test/ui.pixi-source-trajectory.test.ts` | 7profileのgeometry/timing/clip、offscreen no-object、resource lifecycle。 |
+| `test/ui.pixi-board-playback.test.ts` | raw trajectory先行start、target gate、phase settlement、abort/reset。 |
+| `test/ui.board-dom-source-trajectory.test.ts` | 排他的DOM compatibilityのtrajectory順、clip、zombie dedupe gate、NOANIM/reduced-motion。 |
+| `test/ui.board-visual-effect-branch-inventory.test.ts` | board-local source trajectoryとretained cross-surface/global branchのownership。 |
 | `test/game.sniper-will.test.ts` | 狙撃の意志のターン開始破壊、対象選択、持続処理。 |
 | `test/game.lightning-will.test.ts` | 雷撃の意志のターン開始破壊、対象選択、持続処理。 |
 | `test/game.destroy-dragon-will.test.ts` | 破壊龍の隣接破壊、持続処理。 |
