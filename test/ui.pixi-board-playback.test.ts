@@ -546,6 +546,54 @@ describe('Pixi board playback contract', () => {
     });
   });
 
+  test('records target start and commit around the real source settlement gate', async () => {
+    const harness = createHarness({
+      frame: makeFrame([
+        [1, 1, stone('black')],
+        [2, 2, stone('white')]
+      ]),
+      noAnimation: true
+    });
+    const event = {
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 2,
+        sourceRow: 1,
+        sourceCol: 1,
+        ownerBefore: 'white',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        before: { owner: 'white', color: -1 }
+      }]
+    };
+
+    await harness.playback.playPhase([event], context(false, [event]));
+
+    const semanticEvents = harness.record.mock.calls
+      .map(([name]) => name)
+      .filter((name) => [
+        'pixi-source-trajectory:start',
+        'pixi-playback:target-impact-start',
+        'pixi-source-trajectory:settle',
+        'pixi-playback:target-commit'
+      ].includes(name));
+    expect(semanticEvents).toEqual([
+      'pixi-source-trajectory:start',
+      'pixi-playback:target-impact-start',
+      'pixi-source-trajectory:settle',
+      'pixi-playback:target-commit'
+    ]);
+    expect(harness.record).toHaveBeenCalledWith(
+      'pixi-playback:target-impact-start',
+      expect.objectContaining({ eventType: 'destroy', row: 2, col: 2, profileKey: 'sniperShot' })
+    );
+    expect(harness.record).toHaveBeenCalledWith(
+      'pixi-playback:target-commit',
+      expect.objectContaining({ eventType: 'destroy', row: 2, col: 2, profileKey: 'sniperShot' })
+    );
+  });
+
   test('fails closed when a trajectory-required destroy loses launch membership', async () => {
     const harness = createHarness({
       frame: makeFrame([

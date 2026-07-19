@@ -638,11 +638,24 @@ export function createPixiSourceTrajectoryRenderer(
       trajectoryId: request.trajectoryId,
       profileKey: request.profileKey,
       primitive: profile.primitive,
+      source: request.source,
+      target: request.target,
+      direction: request.direction,
       animationDurationMs: timing.animationDurationMs,
       settlementDurationMs: timing.settlementDurationMs,
       noObjectReason: timing.noObjectReason,
       layoutRevision: geometry.layoutRevision,
-      topologySignature: geometry.topologySignature
+      topologySignature: geometry.topologySignature,
+      geometry: Object.freeze({
+        sourceCenter: geometry.sourceCenter,
+        targetCenter: geometry.targetCenter,
+        movementStart: geometry.movementStart,
+        movementEnd: geometry.movementEnd,
+        distancePx: geometry.distancePx,
+        visibleClip: geometry.visibleClip,
+        paintedHaloClip: geometry.paintedHaloClip,
+        visibleSegment: geometry.visibleSegment
+      })
     });
 
     let handle: PixiSourceTrajectoryHandle | null = null;

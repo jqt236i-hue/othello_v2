@@ -108,6 +108,62 @@ describe('DOM board playback phase ownership', () => {
     expect(settled).toBe(true);
   });
 
+  test('records target start and commit around the DOM source settlement gate', async () => {
+    document.body.innerHTML = `
+      <div id="board">
+        <div class="cell" data-row="1" data-col="1"><div class="disc black"></div></div>
+        <div class="cell" data-row="2" data-col="2"><div class="disc white"></div></div>
+      </div>`;
+    const record = jest.fn();
+    const { createDomBoardPlaybackHandlers } = require('../ui/board-dom-compat/runtime');
+    const { createDomBoardPlaybackExecutor } = require('../ui/board-dom-compat/playback');
+    const handlers = createDomBoardPlaybackHandlers({
+      boardElement: document.getElementById('board'),
+      documentRef: document,
+      isNoAnim: () => true,
+      record
+    });
+    const executor = createDomBoardPlaybackExecutor(handlers);
+    const event = {
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 2,
+        sourceRow: 1,
+        sourceCol: 1,
+        ownerBefore: 'white',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        before: { owner: 'white', color: -1 }
+      }]
+    };
+
+    await executor.playPhase([event], createPlaybackContext(event));
+
+    const semanticEvents = record.mock.calls
+      .map(([name]) => name)
+      .filter((name) => [
+        'dom-source-trajectory:start',
+        'dom-playback:target-impact-start',
+        'dom-source-trajectory:settle',
+        'dom-playback:target-commit'
+      ].includes(name));
+    expect(semanticEvents).toEqual([
+      'dom-source-trajectory:start',
+      'dom-playback:target-impact-start',
+      'dom-source-trajectory:settle',
+      'dom-playback:target-commit'
+    ]);
+    expect(record).toHaveBeenCalledWith(
+      'dom-playback:target-impact-start',
+      expect.objectContaining({ eventType: 'destroy', row: 2, col: 2, profileKey: 'sniperShot' })
+    );
+    expect(record).toHaveBeenCalledWith(
+      'dom-playback:target-commit',
+      expect.objectContaining({ eventType: 'destroy', row: 2, col: 2, profileKey: 'sniperShot' })
+    );
+  });
+
   test('legacy fade-out mutates the disc only inside the DOM backend and settles its timer', async () => {
     jest.useFakeTimers();
     document.body.innerHTML = '<div id="board"><div class="cell" data-row="1" data-col="2"><div class="disc black flip"></div></div></div>';

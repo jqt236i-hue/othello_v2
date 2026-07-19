@@ -25,6 +25,8 @@ type AnimationDestroyEventDeps = {
     resolveOwnerClassFromColor: (ownerColor: any) => string;
     onDestroyGhostFallback?: (target: any, context: any) => void;
     animateFadeOutAt?: (row: any, col: any, options?: any) => Promise<any>;
+    onTargetImpactStart?: (target: any) => void;
+    onTargetCommit?: (target: any) => void;
 };
 
 function getDocumentRef(): any {
@@ -80,8 +82,12 @@ async function handleDestroyEvent(ev: any, deps: AnimationDestroyEventDeps) {
             await deps.sleep(superCrushDelay);
         }
 
+        if (typeof deps.onTargetImpactStart === 'function') deps.onTargetImpactStart(target);
         const cell = deps.getCellEl(target.r, target.col);
-        if (!cell) return;
+        if (!cell) {
+            if (typeof deps.onTargetCommit === 'function') deps.onTargetCommit(target);
+            return;
+        }
         const destroyCause = deps.getTargetCause(target);
         const destroyReason = deps.getTargetReason(target);
         const isSuperCrushCollision = deps.isSuperCrushCause(destroyCause) && (
@@ -101,7 +107,10 @@ async function handleDestroyEvent(ev: any, deps: AnimationDestroyEventDeps) {
             isSuperCrushCollision ||
             canRenderDestroyGhostWithoutDisc ||
             !!deps.resolveEffectTargetHighlightTone(deps.eventTypes.DESTROY, target);
-        if (!disc && !shouldPreserveDestroyPlaybackWithoutDisc) return;
+        if (!disc && !shouldPreserveDestroyPlaybackWithoutDisc) {
+            if (typeof deps.onTargetCommit === 'function') deps.onTargetCommit(target);
+            return;
+        }
 
         await deps.runWithEffectTargetHighlight(cell, deps.eventTypes.DESTROY, target, async () => {
             const sourceAnimationProfile = deps.resolveDestroySourceAnimationProfile(target);
@@ -182,6 +191,7 @@ async function handleDestroyEvent(ev: any, deps: AnimationDestroyEventDeps) {
             }
             deps.removeDiscFromCell(cell, disc);
         }, destroyHighlightMinimumMs);
+        if (typeof deps.onTargetCommit === 'function') deps.onTargetCommit(target);
     });
     await Promise.all(promises);
 }

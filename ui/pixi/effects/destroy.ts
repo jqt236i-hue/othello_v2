@@ -39,6 +39,21 @@ function superCrushDelayMs(target: any, projection: PixiBoardEffectProjection): 
   return Math.max(0, Math.round(duration * Math.max(0, Math.min(0.88, progress))));
 }
 
+function recordTargetStage(
+  projection: PixiBoardEffectProjection,
+  stage: 'impact-start' | 'commit',
+  target: any,
+  row: number,
+  col: number
+): void {
+  projection.record?.(`pixi-playback:target-${stage}`, {
+    eventType: 'destroy',
+    row,
+    col,
+    profileKey: PresentationEffectProfiles.getBoardSourceTrajectoryProfileKey('destroy', target) || null
+  });
+}
+
 function impactProfile(profileKey: string | null, target: any): Readonly<{
   family: string;
   tone: 'blue' | 'purple' | 'red' | 'white';
@@ -130,6 +145,7 @@ async function playDestroyTarget(
       onUpdate: () => undefined
     });
   }
+  recordTargetStage(projection, 'impact-start', target, coordinate.row, coordinate.col);
   const impact = impactProfile(profileKey, target);
   const impactPromise = playTargetImpact(event, target, projection, impact);
   await Promise.all([
@@ -164,6 +180,7 @@ async function playDestroyTarget(
 
   if (profileKey === 'robotVacuumSuck') {
     projection.setProjectedStone(coordinate.row, coordinate.col, null);
+    recordTargetStage(projection, 'commit', target, coordinate.row, coordinate.col);
     return;
   }
 
@@ -186,6 +203,7 @@ async function playDestroyTarget(
     } finally {
       releaseHighlight();
     }
+    recordTargetStage(projection, 'commit', target, coordinate.row, coordinate.col);
     return;
   }
 
@@ -201,7 +219,10 @@ async function playDestroyTarget(
   // parity is determined from the immutable phase-boundary visual, never from
   // whichever launch happened to write first.
   const hasLiveSource = phaseSource !== null;
-  if (!before && !tone) return;
+  if (!before && !tone) {
+    recordTargetStage(projection, 'commit', target, coordinate.row, coordinate.col);
+    return;
+  }
   try {
     await projection.timeline.run({
       // DOM destroy uses a 500 ms visual fade plus its 200 ms safety settle.
@@ -241,6 +262,7 @@ async function playDestroyTarget(
     releaseGhost();
     releaseHighlight();
   }
+  recordTargetStage(projection, 'commit', target, coordinate.row, coordinate.col);
 }
 
 export async function playPixiDestroyEffect(

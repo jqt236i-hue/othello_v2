@@ -28,6 +28,21 @@ function mergeFlipTarget(previous: any, next: any): any {
   return merged;
 }
 
+function recordTargetStage(
+  projection: PixiBoardEffectProjection,
+  stage: 'impact-start' | 'commit',
+  target: any,
+  row: number,
+  col: number
+): void {
+  projection.record?.(`pixi-playback:target-${stage}`, {
+    eventType: 'flip',
+    row,
+    col,
+    profileKey: isZombieInfectionTarget(target) ? 'zombieBite' : null
+  });
+}
+
 export function dedupePixiFlipTargets(targets: readonly unknown[]): readonly any[] {
   const output: any[] = [];
   const indexByKey = new Map<string, number>();
@@ -52,6 +67,7 @@ async function playFlipTarget(
   const coordinate = normalizePlaybackCoordinate(target);
   if (!coordinate) return;
   const sourceTrajectoryGate = projection.waitForSourceTrajectories(event, target);
+  recordTargetStage(projection, 'impact-start', target, coordinate.row, coordinate.col);
   const tone = resolvePlaybackHighlightTone(event.type, target, projection.noAnimation);
   let highlight: PixiPlaybackCellHighlightHandle | null = null;
   const releaseHighlight = () => {
@@ -82,6 +98,7 @@ async function playFlipTarget(
     } finally {
       releaseHighlight();
     }
+    recordTargetStage(projection, 'commit', target, coordinate.row, coordinate.col);
     return;
   }
 
@@ -186,6 +203,7 @@ async function playFlipTarget(
     releaseGhost();
     releaseHighlight();
   }
+  recordTargetStage(projection, 'commit', target, coordinate.row, coordinate.col);
 }
 
 export async function playPixiFlipEffect(

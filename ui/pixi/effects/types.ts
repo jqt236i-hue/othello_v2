@@ -48,6 +48,8 @@ export interface PixiBoardEffectProjection {
   readonly timings: PixiBoardEffectTimings;
   readonly noAnimation: boolean;
   readonly reducedMotion: boolean;
+  /** Debug diagnostics only; must not drive presentation or canonical state. */
+  record?(event: string, detail?: unknown): void;
   /** Backend-local gate over raw source trajectories for this visual target. */
   waitForSourceTrajectories(event: PresentationPlaybackEvent, target: unknown): Promise<void>;
   /** Render a post-timeline terminal write without creating another clock run. */

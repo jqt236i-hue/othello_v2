@@ -740,6 +740,9 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       timings,
       noAnimation: resolveBoolean(options.noAnimation),
       reducedMotion: resolveBoolean(options.reducedMotion),
+      record(event: string, detail?: unknown): void {
+        record(event, detail);
+      },
       waitForSourceTrajectories(event: PresentationPlaybackEvent, target: unknown): Promise<void> {
         const eventType = normalizePresentationEventType(event);
         if (eventType !== 'destroy' && eventType !== 'flip') return Promise.resolve();

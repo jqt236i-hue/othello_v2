@@ -200,10 +200,12 @@ describe('DOM board source trajectory ownership', () => {
     const TransientOverlayBatch = require('../ui/transient-overlay-batch');
     const overlayBatch = TransientOverlayBatch.createTransientOverlayBatch({ documentRef: document });
     const SourceTrajectory = require('../ui/board-dom-compat/source-trajectory');
+    const record = jest.fn();
 
     const run = SourceTrajectory.startDomBoardSourceTrajectoryBatch(events, contextFor(events), baseDeps(document, board, {
       frame,
       transientOverlayBatch: overlayBatch,
+      record,
       waitForAnimationFinish: () => new Promise<void>((resolve) => { finishAnimation = resolve; })
     }));
 
@@ -214,6 +216,19 @@ describe('DOM board source trajectory ownership', () => {
       { transform: 'translate(0, 0)', opacity: 1 },
       { transform: 'translate(80px, 0px)', opacity: 1 }
     ], expect.objectContaining({ duration: 120, easing: 'linear' }));
+    expect(record).toHaveBeenCalledWith('dom-source-trajectory:start', expect.objectContaining({
+      source: { row: 0, col: -2 },
+      target: { row: 0, col: 2 },
+      direction: 'source-to-target',
+      geometry: expect.objectContaining({
+        sourceCenter: { x: 70, y: 60 },
+        targetCenter: { x: 150, y: 60 },
+        movementStart: { x: 70, y: 60 },
+        movementEnd: { x: 150, y: 60 },
+        visibleClip: expect.objectContaining({ left: 100, top: 50, right: 140, bottom: 70 }),
+        pathIntersectsViewport: true
+      })
+    }));
     finishAnimation();
     await run.settlement;
     overlayBatch.cleanup();
@@ -276,6 +291,10 @@ describe('DOM board source trajectory ownership', () => {
     await expect(run.waitForTarget('destroy', event.targets[0], event)).resolves.toBeUndefined();
     expect(record).toHaveBeenCalledWith('dom-source-trajectory:start', expect.objectContaining({
       profileKey: 'sniperShot',
+      source: { row: 0, col: 0 },
+      target: { row: 7, col: 7 },
+      direction: 'source-to-target',
+      geometry: null,
       visible: false
     }));
   });

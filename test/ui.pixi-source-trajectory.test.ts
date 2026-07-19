@@ -523,6 +523,33 @@ describe('Pixi board source trajectory renderer', () => {
     });
   });
 
+  test('records the logical endpoints and frozen movement geometry actually used by the renderer', async () => {
+    const snapshot = geometry({ distance: 176, direction: 'source-to-target' });
+    const harness = createProjection({ snapshot });
+    const record = jest.fn();
+    const renderer = createPixiSourceTrajectoryRenderer({ record });
+    const request = requestFor('sniperShot', { row: -2, col: 1 }, { row: 6, col: 7 });
+
+    const pending = renderer.start(request, harness.projection);
+    expect(record).toHaveBeenCalledWith('pixi-source-trajectory:start', expect.objectContaining({
+      profileKey: 'sniperShot',
+      source: { row: -2, col: 1 },
+      target: { row: 6, col: 7 },
+      direction: 'source-to-target',
+      geometry: expect.objectContaining({
+        sourceCenter: snapshot.sourceCenter,
+        targetCenter: snapshot.targetCenter,
+        movementStart: snapshot.sourceCenter,
+        movementEnd: snapshot.targetCenter,
+        visibleClip: snapshot.visibleClip,
+        visibleSegment: snapshot.visibleSegment
+      })
+    }));
+
+    harness.timeline.finishAll();
+    await pending;
+  });
+
   test('fully offscreen trajectory materializes no object or texture but settles at normal duration', async () => {
     const harness = createProjection({ snapshot: geometry({ visible: false }) });
     const renderer = createPixiSourceTrajectoryRenderer();

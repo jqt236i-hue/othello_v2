@@ -361,6 +361,10 @@ function playRequest(
     deps.record?.('dom-source-trajectory:start', {
       trajectoryId: request.trajectoryId,
       profileKey: request.profileKey,
+      source: request.source,
+      target: request.target,
+      direction: request.direction,
+      geometry: null,
       layoutRevision: null,
       visible: false
     });
@@ -374,15 +378,30 @@ function playRequest(
   }
   const sourceCenter = center(sourceRect);
   const targetCenter = center(targetRect);
+  const movementStart = request.direction === 'target-to-source' ? targetCenter : sourceCenter;
+  const movementEnd = request.direction === 'target-to-source' ? sourceCenter : targetCenter;
   const distancePx = Math.hypot(targetCenter.x - sourceCenter.x, targetCenter.y - sourceCenter.y);
   const durationMs = settlementDurationMs(request, distancePx);
+  const pathIntersectsViewport = segmentIntersectsRect(sourceCenter, targetCenter, boardRect);
   deps.record?.('dom-source-trajectory:start', {
     trajectoryId: request.trajectoryId,
     profileKey: request.profileKey,
+    source: request.source,
+    target: request.target,
+    direction: request.direction,
+    geometry: Object.freeze({
+      sourceCenter,
+      targetCenter,
+      movementStart,
+      movementEnd,
+      distancePx,
+      visibleClip: boardRect,
+      pathIntersectsViewport
+    }),
     layoutRevision: sourceRect.layoutRevision,
-    visible: segmentIntersectsRect(sourceCenter, targetCenter, boardRect)
+    visible: pathIntersectsViewport
   });
-  if (!segmentIntersectsRect(sourceCenter, targetCenter, boardRect)) {
+  if (!pathIntersectsViewport) {
     return abortable(deps.sleep(durationMs), deps.abortSignal);
   }
   const overlayBatch = prepareClippedOverlayBatch(deps.transientOverlayBatch, boardRect, deps.documentRef);

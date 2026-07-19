@@ -181,6 +181,25 @@ class DomBoardPlaybackRuntime {
     if (typeof this.options.record === 'function') this.options.record(event, detail);
   }
 
+  recordTargetStage(
+    stage: 'impact-start' | 'commit',
+    eventType: 'destroy' | 'flip',
+    target: any
+  ): void {
+    const rowValue = Object.prototype.hasOwnProperty.call(target || {}, 'r') ? target.r : target?.row;
+    const colValue = Object.prototype.hasOwnProperty.call(target || {}, 'col')
+      ? target.col
+      : (Object.prototype.hasOwnProperty.call(target || {}, 'c') ? target.c : target?.column);
+    const row = Number(rowValue);
+    const col = Number(colValue);
+    this.record(`dom-playback:target-${stage}`, {
+      eventType,
+      row: Number.isInteger(row) ? row : null,
+      col: Number.isInteger(col) ? col : null,
+      profileKey: PresentationEffectProfiles.getBoardSourceTrajectoryProfileKey(eventType, target) || null
+    });
+  }
+
   isNoAnim(): boolean {
     if (typeof this.options.isNoAnim === 'function') return this.options.isNoAnim() === true;
     return !!(AnimationShared && typeof AnimationShared.isNoAnim === 'function' && AnimationShared.isNoAnim());
@@ -1067,7 +1086,9 @@ class DomBoardPlaybackRuntime {
           // shared membership contract waits every raw zombie trajectory in
           // received order for that merged target.
           await sourceTrajectories.waitForOptionalFlipTarget(target);
-        }
+        },
+        onTargetImpactStart: (target: unknown) => this.recordTargetStage('impact-start', 'flip', target),
+        onTargetCommit: (target: unknown) => this.recordTargetStage('commit', 'flip', target)
       });
     });
   }
@@ -1121,7 +1142,9 @@ class DomBoardPlaybackRuntime {
         onDestroyGhostFallback: (target: any, details: any) => {
           const registry = readGlobal('__destroyGhostFallbackEvents');
           if (Array.isArray(registry)) registry.push({ target, context: details });
-        }
+        },
+        onTargetImpactStart: (target: unknown) => this.recordTargetStage('impact-start', 'destroy', target),
+        onTargetCommit: (target: unknown) => this.recordTargetStage('commit', 'destroy', target)
       });
     });
   }

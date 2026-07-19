@@ -30,6 +30,8 @@ type AnimationFlipEventDeps = {
     sleep: (ms: any) => Promise<any>;
     animationShared: any;
     waitForSourceTrajectories?: (target: any) => Promise<void>;
+    onTargetImpactStart?: (target: any) => void;
+    onTargetCommit?: (target: any) => void;
 };
 
 function getDocumentRef(): any {
@@ -169,9 +171,11 @@ async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
         const sourceTrajectoryGate = typeof deps.waitForSourceTrajectories === 'function'
             ? Promise.resolve(deps.waitForSourceTrajectories(target))
             : Promise.resolve();
+        if (typeof deps.onTargetImpactStart === 'function') deps.onTargetImpactStart(target);
         const cell = deps.getCellEl(target.r, target.col);
         if (!cell) {
             await sourceTrajectoryGate;
+            if (typeof deps.onTargetCommit === 'function') deps.onTargetCommit(target);
             return;
         }
 
@@ -183,6 +187,7 @@ async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
                 }, 0),
                 sourceTrajectoryGate
             ]);
+            if (typeof deps.onTargetCommit === 'function') deps.onTargetCommit(target);
             return;
         }
 
@@ -191,6 +196,7 @@ async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
             const documentRef = getDocumentRef();
             if (!documentRef || typeof documentRef.createElement !== 'function') {
                 await sourceTrajectoryGate;
+                if (typeof deps.onTargetCommit === 'function') deps.onTargetCommit(target);
                 return;
             }
             const missingSourceVisual = (async () => {
@@ -206,6 +212,7 @@ async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
                 } catch (e: any) { /* ignore */ }
             })();
             await Promise.all([missingSourceVisual, sourceTrajectoryGate]);
+            if (typeof deps.onTargetCommit === 'function') deps.onTargetCommit(target);
             return;
         }
 
@@ -247,6 +254,7 @@ async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
                 }
             } catch (e: any) { /* ignore */ }
         }, 0);
+        if (typeof deps.onTargetCommit === 'function') deps.onTargetCommit(target);
     });
     await Promise.all(promises);
 }
