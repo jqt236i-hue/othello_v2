@@ -13,6 +13,7 @@ othello_v2/
 ├── 01-rulebook.md              # ゲーム仕様・カード仕様・UI表示仕様の一次情報
 ├── index.html                  # main browser entry
 ├── entry-browser.js            # classic browser bootstrap / module loading
+├── browser-vite/               # Vite bootstrap, optional runtime loading, and generated startup registry
 ├── 正本/                       # detailed desired behavior notes for cards, turn flow, presentation, sound, and audit status
 ├── cards/                      # display catalog and card UI surfaces
 ├── game/                       # headless rules, turn flow, CPU runtime helpers
@@ -35,7 +36,7 @@ othello_v2/
 | Player-visible behavior | `01-rulebook.md` | Update before implementation when rules, cards, UI timing, or visible text change. |
 | Detailed desired behavior / audit notes | `正本/*.md` | Use for card-specific behavior, turn order, animation, sound, and confidence/audit notes. Update only when a player-visible spec is changed or clarified and the existing note would become stale. |
 | Architecture boundary | `docs/architecture-contracts.md` | Module contracts, authority, DI, runtime equivalence. |
-| Browser boot | `index.html`, `entry-browser.js`, `ui/bootstrap.ts`, `ui/bootstrap/init-*.ts` | Load order and DI are fragile. |
+| Browser boot | `index.html`, `entry-browser.js`, `browser-vite/main.ts`, `browser-vite/pixi-runtime-loader.ts`, `ui/bootstrap.ts`, `ui/bootstrap/init-*.ts` | Load order, optional Pixi runtime injection, and DI are fragile. |
 | Board visual / PixiJS | `ui/board-visual/*`, `ui/pixi/*`, `ui/board-dom-compat/*` | `ui/board-visual/controller.ts` owns the writer. Pixi is normal; DOM is lazy, mutually exclusive compatibility fallback. |
 | Game progression | `game/turn/*`, `game/turn-manager.ts`, `game/move-executor.ts` | Keep headless; UI bridge is explicit. |
 | Card logic | `cards/catalog.json`, `game/logic/cards/*`, `game/logic/card-resolution/*`, `game/card-effects/*` | Catalog display, pure logic, card-resolution modules, and pending/UI bridge are separate layers. |
@@ -53,6 +54,7 @@ othello_v2/
 | Symbol / file | Type | Role |
 | --- | --- | --- |
 | `entry-browser.js` | browser bootstrap | Large classic loader for runtime modules and compatibility globals. |
+| `browser-vite/pixi-runtime-loader.ts` | Vite runtime boundary | Loads and injects Pixi behind a catchable optional boundary so boot can select DOM compatibility on failure. |
 | `ui/bootstrap.ts` | DI/bootstrap module | Installs UI/game/network dependency bridges. |
 | `ui/board-visual/controller.ts` | board visual controller | Owns the Single Visual Writer claim, backend lifecycle, committed-frame application, and recovery. |
 | `ui/pixi/board-backend.ts` | normal board backend | Renders the board, stones, input feedback, and board-owned playback through the single Pixi application. |
@@ -88,7 +90,7 @@ othello_v2/
 - Violations include `game/` or `shared/` discovering `NetworkMatchClient`, reading `window` / `document` / `globalThis` UI state directly, invoking UI handler names, deciding results from animation/sound/playback state, or using normal-play debug side effects as control flow.
 - Valid bridges are explicit DI hooks, public game APIs, canonical snapshots, and ordered `events[]`. If a new bridge is needed, add it at the boundary layer and keep the core logic headless.
 - All board frames, board input, and board-owned playback enter through `ui/board-visual/controller.ts` and the active `BoardVisualBackend`; do not write board pixels or settle a board phase through a parallel path.
-- Pixi and DOM compatibility backends must not mount, write, or accept input concurrently. Keep one board writer and one Pixi application/canvas/WebGL context.
+- Pixi and DOM compatibility backends must not mount, write, or accept input concurrently. Keep at most one board writer; the active Pixi lane has exactly one application/canvas/WebGL context, while the DOM compatibility lane has none.
 - A trajectory whose source and target are both board coordinates is board-owned phase work. Hand/card/HUD-to-board trajectories and fullscreen/global UI remain global DOM presentation and may only read board geometry through the public board-visual API.
 - `ui/board-dom-compat/` is fallback as a whole, never a per-effect fallback for an active Pixi phase. Do not make the normal Pixi import/caller graph evaluate DOM compatibility runtime modules.
 - When auditing this contract, start with `npm run check:window` and a focused search such as `rg -n "window\\.|document\\.|globalThis\\.|self\\.|NetworkMatchClient" game shared --glob "*.ts"`.
@@ -197,6 +199,7 @@ npm run typecheck
 npm run build:ts
 npm run checkall
 npm run build:browser    # public/module-registry.js と index.html のキャッシュバスターを再生成。Worker 経路の worker:prepare のような自動連結はないので、ブラウザ表示に影響する root ソース変更後はテスト通過後に手動で実行する
+npm run build:vite
 npm run test:jest
 npm run test:network:parity
 npm run test:visual       # Visual / browser verification; run the smallest relevant scenario
