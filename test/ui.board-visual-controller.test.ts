@@ -631,6 +631,7 @@ describe('BoardVisualController', () => {
       'getBackendDiagnostics',
       'getBackendKind',
       'getCellClientRect',
+      'getDiagnosticEntries',
       'getDisplayObjectCounts',
       'getRenderedCell',
       'getTextureLeaseCounts',
@@ -643,6 +644,19 @@ describe('BoardVisualController', () => {
       pool: { activePlaybackGhostCount: 0 },
       tickerRunning: false
     });
+    diagnostics.record('test:immutable-entry', { nested: { value: 3 } });
+    const diagnosticEntries = debug.getDiagnosticEntries();
+    expect(diagnosticEntries).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        event: 'test:immutable-entry',
+        detail: { nested: { value: 3 } }
+      })
+    ]));
+    expect(Object.isFrozen(diagnosticEntries)).toBe(true);
+    const immutableEntry = diagnosticEntries.find((entry: any) => entry.event === 'test:immutable-entry');
+    expect(Object.isFrozen(immutableEntry)).toBe(true);
+    expect(Object.isFrozen(immutableEntry.detail)).toBe(true);
+    expect(Object.isFrozen(immutableEntry.detail.nested)).toBe(true);
     expect(debug.getWriterMode()).toBe('idle');
     expect(debug.getVisualFrameDigest()).toMatch(/^fnv1a32:[a-f0-9]{8}$/);
     expect(controller.captureDebugFramePngDataUrl()).toBe('data:image/png;base64,AA==');

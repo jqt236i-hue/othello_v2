@@ -89,6 +89,7 @@ function installBoardVisualDebugContract(
   const contract = Object.freeze({
     getBackendKind: () => String(source.getBackendKind()),
     getBackendDiagnostics: () => cloneForDiagnostics(source.getBackendDiagnostics()),
+    getDiagnosticEntries: () => cloneForDiagnostics(diagnostics.snapshot()),
     getWriterMode: () => String(source.getMode()),
     getVisualFrameDigest: () => cloneForDiagnostics(source.getVisualFrameDigest()),
     getRenderedCell: (row: number, col: number) => cloneForDiagnostics(
