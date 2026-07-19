@@ -5,6 +5,9 @@ import * as path from 'path';
 import BrowserUiControlSmoke from './browser-ui-control-smoke';
 
 const { runBrowserUiControlSmoke } = BrowserUiControlSmoke as any;
+const PNG = require('pngjs').PNG;
+const pixelmatchModule = require('pixelmatch');
+const pixelmatch = pixelmatchModule.default || pixelmatchModule;
 
 type BrowserLane = 'classic' | 'vite';
 type BoardRenderer = 'dom' | 'pixi';
@@ -39,6 +42,16 @@ interface PlaybackScenarioDefinition {
   readonly events: readonly unknown[];
   readonly expectedGlobalEventTypes?: readonly string[];
   readonly expectedDispatchLaunchOrder?: readonly string[];
+  readonly sourceTrajectory?: Readonly<{
+    readonly profileKey: string;
+    readonly trajectoryId: string;
+    readonly sourceId: string;
+    readonly targetId: string;
+    readonly direction: 'source-to-target' | 'target-to-source';
+    readonly primitive: 'projectile' | 'suction' | 'beam' | 'lightning' | 'bite';
+    readonly captureDelayMs: number;
+    readonly maxPixelDiffRatio: number;
+  }>;
   readonly execution?: 'playback' | 'committed-frame';
   readonly pixiEvidence?: 'timeline' | 'immediate' | 'topology-reveal';
 }
@@ -63,6 +76,22 @@ const PLAYBACK_MODES: readonly PlaybackMode[] = Object.freeze([
   'noanim'
 ]);
 const PHASE7_PARITY_MODES: readonly PlaybackMode[] = Object.freeze(['normal', 'noanim']);
+const SOURCE_TRAJECTORY_CAPTURE_TIMEOUT_MS = 8000;
+const SOURCE_TRAJECTORY_PIXELMATCH_THRESHOLD = 0.18;
+
+// Phase 0 established meaning-level parity: endpoints, direction, impact and
+// primitive silhouette must stay recognizable while renderer antialiasing may
+// differ. These fixed per-primitive ceilings therefore tolerate rasterization
+// variance only; the check never derives or relaxes a limit from its input.
+const SOURCE_TRAJECTORY_VISUAL_POLICY = Object.freeze({
+  sniperShot: Object.freeze({ primitive: 'projectile' as const, direction: 'source-to-target' as const, captureDelayMs: 72, maxPixelDiffRatio: 0.08 }),
+  robotVacuumSuck: Object.freeze({ primitive: 'suction' as const, direction: 'target-to-source' as const, captureDelayMs: 92, maxPixelDiffRatio: 0.09 }),
+  destroyDragonBreath: Object.freeze({ primitive: 'beam' as const, direction: 'source-to-target' as const, captureDelayMs: 140, maxPixelDiffRatio: 0.12 }),
+  meteorGodBlackBeam: Object.freeze({ primitive: 'beam' as const, direction: 'source-to-target' as const, captureDelayMs: 130, maxPixelDiffRatio: 0.12 }),
+  lightningDestroyed: Object.freeze({ primitive: 'lightning' as const, direction: 'source-to-target' as const, captureDelayMs: 88, maxPixelDiffRatio: 0.16 }),
+  udgDestroyed: Object.freeze({ primitive: 'lightning' as const, direction: 'source-to-target' as const, captureDelayMs: 88, maxPixelDiffRatio: 0.16 }),
+  zombieBite: Object.freeze({ primitive: 'bite' as const, direction: 'source-to-target' as const, captureDelayMs: 240, maxPixelDiffRatio: 0.14 })
+});
 
 function specialMarker(
   id: string,
@@ -97,6 +126,63 @@ function manifestMarker(
     col,
     owner,
     data: Object.freeze({ type, remainingOwnerTurns })
+  });
+}
+
+function sourceTrajectoryMetadata(
+  profileKey: keyof typeof SOURCE_TRAJECTORY_VISUAL_POLICY,
+  sourceId: string,
+  targetId: string
+): NonNullable<PlaybackScenarioDefinition['sourceTrajectory']> {
+  const policy = SOURCE_TRAJECTORY_VISUAL_POLICY[profileKey];
+  return Object.freeze({
+    profileKey,
+    trajectoryId: `1/0/0/0/${profileKey}`,
+    sourceId,
+    targetId,
+    primitive: policy.primitive,
+    direction: policy.direction,
+    captureDelayMs: policy.captureDelayMs,
+    maxPixelDiffRatio: policy.maxPixelDiffRatio
+  });
+}
+
+function destroySourceTrajectoryScenario(input: Readonly<{
+  name: string;
+  profileKey: Exclude<keyof typeof SOURCE_TRAJECTORY_VISUAL_POLICY, 'zombieBite'>;
+  cause: string;
+  reason: string;
+}>): PlaybackScenarioDefinition {
+  return Object.freeze({
+    name: input.name,
+    eventType: 'destroy',
+    soundKey: 'stone_destroy',
+    modes: PHASE7_PARITY_MODES,
+    initialStones: Object.freeze([
+      { row: 2, col: 1, color: 1 as const },
+      { row: 2, col: 5, color: -1 as const }
+    ]),
+    finalStones: Object.freeze([{ row: 2, col: 1, color: 1 as const }]),
+    probeCells: Object.freeze([{ row: 2, col: 1 }, { row: 2, col: 5 }]),
+    expectedDispatchLaunchOrder: Object.freeze(['board:destroy', 'sound:stone_destroy']),
+    sourceTrajectory: sourceTrajectoryMetadata(input.profileKey, '2,1', '2,5'),
+    events: Object.freeze([
+      Object.freeze({
+        type: 'destroy',
+        phase: 1,
+        targets: Object.freeze([Object.freeze({
+          r: 2,
+          col: 5,
+          sourceRow: 2,
+          sourceCol: 1,
+          ownerBefore: 'white',
+          before: Object.freeze({ color: -1 }),
+          cause: input.cause,
+          reason: input.reason
+        })])
+      }),
+      Object.freeze({ type: 'sound_effect', phase: 1, targets: Object.freeze([{ soundKey: 'stone_destroy' }]) })
+    ])
   });
 }
 
@@ -155,8 +241,6 @@ const PLAYBACK_SCENARIOS: readonly PlaybackScenarioDefinition[] = Object.freeze(
     soundKey: 'stone_flip',
     initialStones: Object.freeze([{ row: 3, col: 3, color: -1 as const }]),
     finalStones: Object.freeze([{ row: 3, col: 3, color: 1 as const }]),
-    finalMarkers: Object.freeze([specialMarker('pixi-playback-zombie', 3, 3, 'black', 'ZOMBIE')]),
-    expectedGlobalEventTypes: Object.freeze(['zombie_bite_source_animation']),
     probeCells: Object.freeze([{ row: 3, col: 3 }]),
     events: Object.freeze([
       Object.freeze({
@@ -168,9 +252,9 @@ const PLAYBACK_SCENARIOS: readonly PlaybackScenarioDefinition[] = Object.freeze(
           ownerBefore: 'white',
           ownerAfter: 'black',
           before: Object.freeze({ color: -1 }),
-          after: Object.freeze({ color: 1, special: 'ZOMBIE', remainingOwnerTurns: 3 }),
-          cause: 'ZOMBIE',
-          reason: 'zombie_infection'
+          after: Object.freeze({ color: 1 }),
+          cause: 'SYSTEM',
+          reason: 'standard_flip'
         })])
       }),
       Object.freeze({ type: 'sound_effect', phase: 1, targets: Object.freeze([{ soundKey: 'stone_flip' }]) })
@@ -249,40 +333,41 @@ const PLAYBACK_SCENARIOS: readonly PlaybackScenarioDefinition[] = Object.freeze(
       Object.freeze({ type: 'sound_effect', phase: 1, targets: Object.freeze([{ soundKey: 'guard_apply' }]) })
     ])
   }),
-  Object.freeze({
+  destroySourceTrajectoryScenario({
+    name: 'trajectory-sniper-shot',
+    profileKey: 'sniperShot',
+    cause: 'SNIPER_WILL',
+    reason: 'sniper_shot'
+  }),
+  destroySourceTrajectoryScenario({
+    name: 'trajectory-robot-vacuum-suck',
+    profileKey: 'robotVacuumSuck',
+    cause: 'ROBOT_VACUUM',
+    reason: 'robot_vacuum_suck'
+  }),
+  destroySourceTrajectoryScenario({
     name: 'special-destroy-hybrid',
-    eventType: 'destroy',
-    soundKey: 'stone_destroy',
-    modes: PHASE7_PARITY_MODES,
-    initialStones: Object.freeze([
-      { row: 2, col: 1, color: 1 as const },
-      { row: 2, col: 5, color: -1 as const }
-    ]),
-    finalStones: Object.freeze([{ row: 2, col: 1, color: 1 as const }]),
-    probeCells: Object.freeze([{ row: 2, col: 1 }, { row: 2, col: 5 }]),
-    expectedGlobalEventTypes: Object.freeze(['destroy_source_animation']),
-    expectedDispatchLaunchOrder: Object.freeze([
-      'global:destroy_source_animation',
-      'board:destroy',
-      'sound:stone_destroy'
-    ]),
-    events: Object.freeze([
-      Object.freeze({
-        type: 'destroy',
-        phase: 1,
-        targets: Object.freeze([Object.freeze({
-          r: 2,
-          col: 5,
-          sourceRow: 2,
-          sourceCol: 1,
-          ownerBefore: 'white',
-          before: Object.freeze({ color: -1 }),
-          cause: 'DESTROY_DRAGON_WILL',
-          reason: 'destroy_dragon_breath'
-        })])
-      }),
-      Object.freeze({ type: 'sound_effect', phase: 1, targets: Object.freeze([{ soundKey: 'stone_destroy' }]) })
-    ])
+    profileKey: 'destroyDragonBreath',
+    cause: 'DESTROY_DRAGON_WILL',
+    reason: 'destroy_dragon_breath'
+  }),
+  destroySourceTrajectoryScenario({
+    name: 'trajectory-meteor-black-beam',
+    profileKey: 'meteorGodBlackBeam',
+    cause: 'METEOR_GOD',
+    reason: 'meteor_god_cell_destroy'
+  }),
+  destroySourceTrajectoryScenario({
+    name: 'trajectory-lightning-destroyed',
+    profileKey: 'lightningDestroyed',
+    cause: 'LIGHTNING_WILL',
+    reason: 'lightning_destroyed'
+  }),
+  destroySourceTrajectoryScenario({
+    name: 'trajectory-udg-destroyed',
+    profileKey: 'udgDestroyed',
+    cause: 'ULTIMATE_DESTROY_GOD',
+    reason: 'udg_destroyed'
   }),
   Object.freeze({
     name: 'zombie-infection-source',
@@ -302,12 +387,11 @@ const PLAYBACK_SCENARIOS: readonly PlaybackScenarioDefinition[] = Object.freeze(
       specialMarker('pixi-playback-zombie-target', 3, 5, 'black', 'ZOMBIE')
     ]),
     probeCells: Object.freeze([{ row: 3, col: 2 }, { row: 3, col: 5 }]),
-    expectedGlobalEventTypes: Object.freeze(['zombie_bite_source_animation']),
     expectedDispatchLaunchOrder: Object.freeze([
-      'global:zombie_bite_source_animation',
       'board:flip',
       'sound:zombie_will_bite'
     ]),
+    sourceTrajectory: sourceTrajectoryMetadata('zombieBite', '3,2', '3,5'),
     events: Object.freeze([
       Object.freeze({
         type: 'flip',
@@ -586,20 +670,342 @@ function sha256(value: string | Buffer): string {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
 
+type SemanticTrajectoryObservation = Readonly<{
+  sequence: number;
+  kind: 'trajectory-start' | 'target-impact-start' | 'trajectory-settle' | 'target-commit';
+  profileKey?: string;
+  trajectoryId?: string;
+  targetId?: string;
+  diagnosticEvent?: string;
+}>;
+
+function normalizeSemanticTrajectoryTrace(
+  observations: readonly SemanticTrajectoryObservation[] = []
+): readonly string[] {
+  return Object.freeze(Array.from(observations).sort((left, right) => (
+    Number(left.sequence) - Number(right.sequence)
+  )).map((observation) => {
+    if (observation.kind === 'trajectory-start') {
+      return `trajectory:start(${observation.profileKey},${observation.trajectoryId})`;
+    }
+    if (observation.kind === 'trajectory-settle') {
+      return `trajectory:settle(${observation.profileKey},${observation.trajectoryId})`;
+    }
+    if (observation.kind === 'target-impact-start') {
+      return `impact:start(${observation.targetId})`;
+    }
+    return `target:commit(${observation.targetId})`;
+  }));
+}
+
+function buildTrajectoryDeltaPng(
+  baselinePngBase64: unknown,
+  activePngBase64: unknown
+): Readonly<Record<string, unknown>> {
+  try {
+    const baseline = PNG.sync.read(Buffer.from(String(baselinePngBase64 || ''), 'base64'));
+    const active = PNG.sync.read(Buffer.from(String(activePngBase64 || ''), 'base64'));
+    if (baseline.width !== active.width || baseline.height !== active.height) {
+      return Object.freeze({
+        ok: false,
+        error: `Baseline/active dimensions differ: ${baseline.width}x${baseline.height} / ${active.width}x${active.height}`
+      });
+    }
+    const delta = new PNG({ width: active.width, height: active.height });
+    for (let offset = 0; offset < active.data.length; offset += 4) {
+      delta.data[offset] = Math.abs(active.data[offset] - baseline.data[offset]);
+      delta.data[offset + 1] = Math.abs(active.data[offset + 1] - baseline.data[offset + 1]);
+      delta.data[offset + 2] = Math.abs(active.data[offset + 2] - baseline.data[offset + 2]);
+      delta.data[offset + 3] = 255;
+    }
+    const buffer = PNG.sync.write(delta);
+    return Object.freeze({
+      ok: true,
+      width: delta.width,
+      height: delta.height,
+      pngBase64: buffer.toString('base64'),
+      sha256: sha256(buffer)
+    });
+  } catch (error) {
+    return Object.freeze({ ok: false, error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+function createOpaqueDeltaPng(width: number, height: number): any {
+  const output = new PNG({ width, height });
+  for (let offset = 3; offset < output.data.length; offset += 4) output.data[offset] = 255;
+  return output;
+}
+
+function deltaPixelChanged(png: any, pixelIndex: number): boolean {
+  const offset = pixelIndex * 4;
+  return png.data[offset] > 3 || png.data[offset + 1] > 3 || png.data[offset + 2] > 3;
+}
+
+function trajectoryPointInRoi(metadata: any, key: 'sourceCenter' | 'targetCenter'): Readonly<{ x: number; y: number }> | null {
+  const point = metadata?.[key];
+  const clip = metadata?.clip;
+  if (!point || !clip || !Number.isFinite(Number(point.x)) || !Number.isFinite(Number(point.y))) return null;
+  return Object.freeze({ x: Number(point.x) - Number(clip.x), y: Number(point.y) - Number(clip.y) });
+}
+
+function distanceToSegment(
+  point: Readonly<{ x: number; y: number }>,
+  start: Readonly<{ x: number; y: number }>,
+  end: Readonly<{ x: number; y: number }>
+): number {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared <= 1e-9) return Math.hypot(point.x - start.x, point.y - start.y);
+  const progress = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  return Math.hypot(point.x - (start.x + dx * progress), point.y - (start.y + dy * progress));
+}
+
+function isolateTrajectoryPrimitiveDelta(
+  input: any,
+  metadata: any,
+  profileKey: keyof typeof SOURCE_TRAJECTORY_VISUAL_POLICY
+): any {
+  const policy = SOURCE_TRAJECTORY_VISUAL_POLICY[profileKey];
+  const source = trajectoryPointInRoi(metadata, 'sourceCenter');
+  const target = trajectoryPointInRoi(metadata, 'targetCenter');
+  const cellSize = Number(metadata?.cellSize);
+  if (!policy || !source || !target || !(cellSize > 0) || policy.primitive === 'bite') return input;
+  const output = createOpaqueDeltaPng(input.width, input.height);
+
+  if (policy.primitive === 'projectile' || policy.primitive === 'suction') {
+    const visited = new Uint8Array(input.width * input.height);
+    const components: Array<Readonly<{
+      pixels: readonly number[];
+      count: number;
+      minX: number;
+      maxX: number;
+      minY: number;
+      maxY: number;
+      center: Readonly<{ x: number; y: number }>;
+    }>> = [];
+    for (let pixelIndex = 0; pixelIndex < visited.length; pixelIndex += 1) {
+      if (visited[pixelIndex] || !deltaPixelChanged(input, pixelIndex)) continue;
+      const queue = [pixelIndex];
+      const pixels: number[] = [];
+      visited[pixelIndex] = 1;
+      let minX = input.width;
+      let maxX = 0;
+      let minY = input.height;
+      let maxY = 0;
+      while (queue.length) {
+        const current = queue.pop()!;
+        const x = current % input.width;
+        const y = Math.floor(current / input.width);
+        pixels.push(current);
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+        for (const [offsetX, offsetY] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
+          const nextX = x + offsetX;
+          const nextY = y + offsetY;
+          if (nextX < 0 || nextX >= input.width || nextY < 0 || nextY >= input.height) continue;
+          const next = nextY * input.width + nextX;
+          if (visited[next] || !deltaPixelChanged(input, next)) continue;
+          visited[next] = 1;
+          queue.push(next);
+        }
+      }
+      const center = Object.freeze({ x: (minX + maxX) / 2, y: (minY + maxY) / 2 });
+      const width = maxX - minX + 1;
+      const height = maxY - minY + 1;
+      if (pixels.length >= 4
+        && Math.max(width, height) <= cellSize * 0.95
+        && distanceToSegment(center, source, target) <= cellSize * 0.75) {
+        components.push(Object.freeze({ pixels, count: pixels.length, minX, maxX, minY, maxY, center }));
+      }
+    }
+    const expectedArea = cellSize * cellSize * (policy.primitive === 'projectile' ? 0.04 : 0.2);
+    const selected = components.sort((left, right) => (
+      Math.abs(left.count - expectedArea) - Math.abs(right.count - expectedArea)
+    ))[0];
+    if (!selected) return input;
+    for (const pixelIndex of selected.pixels) {
+      const offset = pixelIndex * 4;
+      input.data.copy(output.data, offset, offset, offset + 4);
+    }
+    return output;
+  }
+
+  const targetRadius = cellSize * 0.68;
+  const corridorRadius = cellSize * 0.9;
+  for (let y = 0; y < input.height; y += 1) {
+    for (let x = 0; x < input.width; x += 1) {
+      const pixelIndex = y * input.width + x;
+      if (!deltaPixelChanged(input, pixelIndex)) continue;
+      const point = { x, y };
+      if (distanceToSegment(point, source, target) > corridorRadius) continue;
+      if (Math.hypot(x - target.x, y - target.y) < targetRadius) continue;
+      const offset = pixelIndex * 4;
+      input.data.copy(output.data, offset, offset, offset + 4);
+    }
+  }
+  return output;
+}
+
+function changedPixelCentroid(png: any): Readonly<{ x: number; y: number }> | null {
+  let count = 0;
+  let xTotal = 0;
+  let yTotal = 0;
+  for (let y = 0; y < png.height; y += 1) {
+    for (let x = 0; x < png.width; x += 1) {
+      if (!deltaPixelChanged(png, y * png.width + x)) continue;
+      count += 1;
+      xTotal += x;
+      yTotal += y;
+    }
+  }
+  return count ? Object.freeze({ x: xTotal / count, y: yTotal / count }) : null;
+}
+
+function shiftTrajectoryDelta(png: any, offsetX: number, offsetY: number): any {
+  const output = createOpaqueDeltaPng(png.width, png.height);
+  for (let y = 0; y < png.height; y += 1) {
+    for (let x = 0; x < png.width; x += 1) {
+      const nextX = x + offsetX;
+      const nextY = y + offsetY;
+      if (nextX < 0 || nextX >= png.width || nextY < 0 || nextY >= png.height) continue;
+      const sourceOffset = (y * png.width + x) * 4;
+      const targetOffset = (nextY * png.width + nextX) * 4;
+      png.data.copy(output.data, targetOffset, sourceOffset, sourceOffset + 4);
+    }
+  }
+  return output;
+}
+
+function compareTrajectoryRoiPng(
+  domPngBase64: unknown,
+  pixiPngBase64: unknown,
+  profileKey: keyof typeof SOURCE_TRAJECTORY_VISUAL_POLICY,
+  domMetadata?: any,
+  pixiMetadata?: any
+): Readonly<Record<string, unknown>> {
+  const policy = SOURCE_TRAJECTORY_VISUAL_POLICY[profileKey];
+  if (!policy) {
+    return Object.freeze({ ok: false, error: `Unknown source trajectory profile: ${String(profileKey)}` });
+  }
+  try {
+    const rawDom = PNG.sync.read(Buffer.from(String(domPngBase64 || ''), 'base64'));
+    const rawPixi = PNG.sync.read(Buffer.from(String(pixiPngBase64 || ''), 'base64'));
+    const dom = isolateTrajectoryPrimitiveDelta(rawDom, domMetadata, profileKey);
+    let pixi = isolateTrajectoryPrimitiveDelta(rawPixi, pixiMetadata, profileKey);
+    if (dom.width !== pixi.width || dom.height !== pixi.height) {
+      return Object.freeze({
+        ok: false,
+        error: `ROI dimensions differ: DOM ${dom.width}x${dom.height}, Pixi ${pixi.width}x${pixi.height}`,
+        width: dom.width,
+        height: dom.height,
+        pixiWidth: pixi.width,
+        pixiHeight: pixi.height,
+        threshold: SOURCE_TRAJECTORY_PIXELMATCH_THRESHOLD,
+        maxPixelDiffRatio: policy.maxPixelDiffRatio
+      });
+    }
+    let alignment: Readonly<{ x: number; y: number }> = Object.freeze({ x: 0, y: 0 });
+    if (policy.primitive === 'projectile' || policy.primitive === 'suction') {
+      const domCentroid = changedPixelCentroid(dom);
+      const pixiCentroid = changedPixelCentroid(pixi);
+      if (domCentroid && pixiCentroid) {
+        alignment = Object.freeze({
+          x: Math.round(domCentroid.x - pixiCentroid.x),
+          y: Math.round(domCentroid.y - pixiCentroid.y)
+        });
+        pixi = shiftTrajectoryDelta(pixi, alignment.x, alignment.y);
+      }
+    } else if (policy.primitive === 'beam' || policy.primitive === 'lightning') {
+      const domSource = trajectoryPointInRoi(domMetadata, 'sourceCenter');
+      const pixiSource = trajectoryPointInRoi(pixiMetadata, 'sourceCenter');
+      if (domSource && pixiSource) {
+        alignment = Object.freeze({
+          x: Math.round(domSource.x - pixiSource.x),
+          y: Math.round(domSource.y - pixiSource.y)
+        });
+        pixi = shiftTrajectoryDelta(pixi, alignment.x, alignment.y);
+      }
+    }
+    const diff = new PNG({ width: dom.width, height: dom.height });
+    const diffPixelCount = pixelmatch(
+      dom.data,
+      pixi.data,
+      diff.data,
+      dom.width,
+      dom.height,
+      { threshold: SOURCE_TRAJECTORY_PIXELMATCH_THRESHOLD }
+    );
+    let domChangedPixelCount = 0;
+    let pixiChangedPixelCount = 0;
+    let changedUnionPixelCount = 0;
+    for (let offset = 0; offset < dom.data.length; offset += 4) {
+      const domChanged = dom.data[offset] > 3 || dom.data[offset + 1] > 3 || dom.data[offset + 2] > 3;
+      const pixiChanged = pixi.data[offset] > 3 || pixi.data[offset + 1] > 3 || pixi.data[offset + 2] > 3;
+      if (domChanged) domChangedPixelCount += 1;
+      if (pixiChanged) pixiChangedPixelCount += 1;
+      if (domChanged || pixiChanged) changedUnionPixelCount += 1;
+    }
+    const diffRatio = diffPixelCount / Math.max(1, changedUnionPixelCount);
+    return Object.freeze({
+      ok: domChangedPixelCount > 0
+        && pixiChangedPixelCount > 0
+        && diffRatio <= policy.maxPixelDiffRatio,
+      width: dom.width,
+      height: dom.height,
+      diffPixelCount,
+      pixelCount: dom.width * dom.height,
+      domChangedPixelCount,
+      pixiChangedPixelCount,
+      changedUnionPixelCount,
+      diffRatio,
+      threshold: SOURCE_TRAJECTORY_PIXELMATCH_THRESHOLD,
+      maxPixelDiffRatio: policy.maxPixelDiffRatio,
+      alignment,
+      diffPngBase64: PNG.sync.write(diff).toString('base64')
+    });
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+      threshold: SOURCE_TRAJECTORY_PIXELMATCH_THRESHOLD,
+      maxPixelDiffRatio: policy.maxPixelDiffRatio
+    });
+  }
+}
+
+function sameTrajectoryCaptureClip(left: any, right: any, tolerancePx = 1): boolean {
+  if (!left || !right) return false;
+  return ['x', 'y', 'width', 'height'].every((key) => (
+    Number.isFinite(Number(left[key]))
+    && Number.isFinite(Number(right[key]))
+    && Math.abs(Number(left[key]) - Number(right[key])) <= tolerancePx
+  ));
+}
+
 function buildPlaybackParityDigest(value: {
+  inputDigest?: string;
   eventTypes: readonly string[];
   phaseEventTypes?: readonly string[];
   globalEventTypes?: readonly string[];
   dispatchLaunchOrder?: readonly string[];
+  semanticTrajectoryTrace?: readonly string[];
   soundKeys: readonly string[];
+  logDigest?: string;
   finalModelDigest: string;
 }): string {
   return sha256(stableJson({
+    inputDigest: value.inputDigest || '',
     eventTypes: value.eventTypes,
     phaseEventTypes: value.phaseEventTypes || [],
     globalEventTypes: value.globalEventTypes || [],
     dispatchLaunchOrder: value.dispatchLaunchOrder || [],
+    semanticTrajectoryTrace: value.semanticTrajectoryTrace || [],
     soundKeys: value.soundKeys,
+    logDigest: value.logDigest || '',
     finalModelDigest: value.finalModelDigest
   }));
 }
@@ -707,6 +1113,18 @@ function expectedDispatchLaunchOrder(scenario: PlaybackScenarioDefinition): read
   ]);
 }
 
+function expectedSemanticTrajectoryTrace(scenario: PlaybackScenarioDefinition): readonly string[] {
+  const trajectory = scenario.sourceTrajectory;
+  if (!trajectory) return Object.freeze([]);
+  const identity = `${trajectory.profileKey},${trajectory.trajectoryId}`;
+  return Object.freeze([
+    `trajectory:start(${identity})`,
+    `impact:start(${trajectory.targetId})`,
+    `trajectory:settle(${identity})`,
+    `target:commit(${trajectory.targetId})`
+  ]);
+}
+
 function publicEntryPath(lane: BrowserLane, renderer: BoardRenderer, mode: PlaybackMode): string {
   const query = new URLSearchParams({ debug: '1', boardRenderer: renderer });
   if (mode === 'noanim') query.set('noanim', '1');
@@ -736,6 +1154,7 @@ async function startScenario(
 ): Promise<any> {
   return page.evaluate(async (input: ReturnType<typeof createBrowserScenarioPayload> & {
     readonly mode: PlaybackMode;
+    readonly captureTimeoutMs: number;
   }) => {
     const definition = input.definition;
     const boardRows = Number(input.boardSize.rows);
@@ -753,6 +1172,7 @@ async function startScenario(
     const boardUtils = resolveModule(['SharedBoardUtils'], 'shared/shared-board-utils');
     const engine = resolveModule(['AnimationEngine'], 'ui/animation-engine');
     const renderer = resolveModule(['BoardRenderer'], 'ui/board-renderer');
+    const sourceTrajectoryContract = resolveModule([], 'ui/board-visual/source-trajectory');
     const debug = root.__boardVisualDebug;
     const boardElement = document.getElementById('board');
     if (!core || !cardLogic || !boardUtils || !engine || !renderer || !debug || !boardElement) {
@@ -762,11 +1182,25 @@ async function startScenario(
       || typeof renderer.getBoardVisualControllerReady !== 'function'
       || typeof renderer.getBoardVisualController !== 'function'
       || typeof engine._playBoardPhaseThroughBackend !== 'function'
-      || typeof root.renderBoard !== 'function') {
+      || typeof root.renderBoard !== 'function'
+      || typeof debug.getDiagnosticEntries !== 'function') {
       throw new Error('Pixi playback browser fixture seam is unavailable');
     }
-    await renderer.getBoardVisualControllerReady();
-    await debug.waitForIdle();
+    const withTimeout = <T>(pending: Promise<T> | T, label: string): Promise<T> => {
+      let timerId: number | null = null;
+      const timeout = new Promise<never>((_resolve, reject) => {
+        timerId = window.setTimeout(() => {
+          const error = new Error(`${label} timed out after ${input.captureTimeoutMs}ms`);
+          error.name = 'PlaybackBrowserCheckTimeoutError';
+          reject(error);
+        }, input.captureTimeoutMs);
+      });
+      return Promise.race([Promise.resolve(pending), timeout]).finally(() => {
+        if (timerId !== null) window.clearTimeout(timerId);
+      });
+    };
+    await withTimeout(renderer.getBoardVisualControllerReady(), 'board visual controller readiness');
+    await withTimeout(debug.waitForIdle(), 'initial board visual idle');
 
     const createState = (
       stones: readonly PlaybackStoneFixture[],
@@ -823,13 +1257,19 @@ async function startScenario(
       initialMarkers,
       Array.from(definition.initialExpansionCells || [])
     );
-    await Promise.resolve(root.renderBoard());
-    await debug.waitForIdle();
-    if ((document as any).fonts?.ready) await (document as any).fonts.ready;
-    await debug.waitForIdle();
+    await withTimeout(Promise.resolve(root.renderBoard()), 'initial board render');
+    await withTimeout(debug.waitForIdle(), 'initial board render settlement');
+    if ((document as any).fonts?.ready) {
+      await withTimeout((document as any).fonts.ready, 'font readiness');
+    }
+    await withTimeout(debug.waitForIdle(), 'font-stable board visual idle');
 
     const initialVisualDigest = debug.getVisualFrameDigest();
     const initialBackendDiagnostics = debug.getBackendDiagnostics();
+    const readLogEntries = (): readonly string[] => Object.freeze(Array.from(
+      document.querySelectorAll('#log .logEntry')
+    ).map((entry) => String(entry.textContent || '')));
+    const initialLogEntries = readLogEntries();
     const cardState = configureCardState(finalMarkers);
     root.gameState = createState(
       definition.finalStones,
@@ -842,8 +1282,6 @@ async function startScenario(
     const originalPlayBoardPhaseThroughBackend = engine._playBoardPhaseThroughBackend;
     const originalExecutePhase = engine.executePhase;
     const originalHandleSoundEffect = engine.handleSoundEffect;
-    const originalHandleDestroySourceAnimation = engine.handleDestroySourceAnimation;
-    const originalHandleZombieBiteSourceAnimation = engine.handleZombieBiteSourceAnimation;
     const originalHandleManifestEndingGlobal = engine.handleManifestEndingGlobal;
     const soundEngine = root.SoundEngine && typeof root.SoundEngine === 'object'
       ? root.SoundEngine
@@ -851,6 +1289,10 @@ async function startScenario(
     const originalSoundInit = soundEngine?.init;
     const originalPlayEffectByKey = soundEngine?.playEffectByKey;
     const originalSyncManifestBgmOverride = soundEngine?.syncManifestBgmOverride;
+    const initialDiagnosticEntries = Array.from(debug.getDiagnosticEntries() || []);
+    let diagnosticCursor = initialDiagnosticEntries.reduce((maximum: number, entry: any) => (
+      Math.max(maximum, Number(entry?.index) + 1 || 0)
+    ), 0);
     const probe: any = {
       scenario: definition.name,
       boardLaunches: [],
@@ -860,6 +1302,10 @@ async function startScenario(
       globalLaunches: [],
       globalCompletions: [],
       dispatchLaunchOrder: [],
+      semanticTrajectoryObservations: [],
+      trajectoryDiagnosticEntries: [],
+      actualTrajectoryRequests: [],
+      semanticTrajectoryEvidence: [],
       soundKeys: [],
       manifestWorldStarts: [],
       manifestWorldCompletions: [],
@@ -869,14 +1315,28 @@ async function startScenario(
       keyFrame: null,
       keyFrameProbeError: null,
       keyFrameReady: null,
+      trajectoryRoiReady: false,
+      trajectoryRoi: null,
+      trajectoryRoiError: null,
       done: false,
       error: null,
-      promise: null
+      promise: null,
+      startGate: null,
+      releasePlayback: null,
+      initialLogEntries,
+      finalLogEntries: null,
+      canonicalInputBefore: JSON.parse(JSON.stringify(definition.events)),
+      canonicalInputAfter: null
     };
     let resolveKeyFrameReady!: () => void;
     probe.keyFrameReady = new Promise<void>((resolve) => {
       resolveKeyFrameReady = resolve;
     });
+    let releasePlayback!: () => void;
+    probe.startGate = new Promise<void>((resolve) => {
+      releasePlayback = resolve;
+    });
+    probe.releasePlayback = releasePlayback;
 
     const captureCanvasPngDataUrl = (): Readonly<{
       dataUrl: string | null;
@@ -942,12 +1402,29 @@ async function startScenario(
       }
       return renderedCells;
     };
+    const countTrajectoryDomOverlays = (): number => {
+      const matches = new Set<Element>();
+      for (const node of Array.from(document.querySelectorAll([
+        '.dom-board-source-trajectory-layer',
+        '.zombie-bite-global-overlay',
+        '.zombie-bite-shadow',
+        '.zombie-bite-fang'
+      ].join(',')))) matches.add(node);
+      for (const node of Array.from(document.body?.children || [])) {
+        if (!(node instanceof HTMLElement) || node.classList.contains('manifest-ending-overlay')) continue;
+        const zIndex = String(node.style.zIndex || '');
+        if (node.style.position !== 'fixed' || !['1200', '1250', '1251', '1260'].includes(zIndex)) continue;
+        matches.add(node);
+      }
+      return matches.size;
+    };
     const readKeyFrameCandidate = (captureStage: string): any => ({
       captureStage,
       writerMode: debug.getWriterMode(),
       visualFrameDigest: debug.getVisualFrameDigest(),
       backendDiagnostics: debug.getBackendDiagnostics(),
       displayObjectCounts: debug.getDisplayObjectCounts(),
+      trajectoryDomOverlayCount: countTrajectoryDomOverlays(),
       renderedCells: readRenderedCells(),
       activeBoardLaunches: Number(probe.activeBoardLaunches || 0)
     });
@@ -956,7 +1433,8 @@ async function startScenario(
       const scene = candidate?.backendDiagnostics?.scene || {};
       return Number(pool.activePlaybackGhostCount || 0)
         + Number(pool.activePlaybackHighlightLeaseCount || 0)
-        + Number(pool.activePlaybackEffectCount ?? scene.activePlaybackEffectCount ?? 0);
+        + Number(pool.activePlaybackEffectCount ?? scene.activePlaybackEffectCount ?? 0)
+        + Number(scene.activeSourceTrajectoryCount || 0);
     };
     const baselineRenderCount = Number(initialBackendDiagnostics?.application?.renderCount || 0);
     const isRenderedActiveCandidate = (candidate: any): boolean => {
@@ -1004,6 +1482,201 @@ async function startScenario(
     const normalizeEventTypes = (events: readonly any[]): string[] => events.map((event: any) => (
       String(event?.type || '').trim().toLowerCase()
     ));
+    const coordinateId = (value: any): string | null => {
+      if (typeof value === 'string' && /^-?\d+,-?\d+$/.test(value)) return value;
+      const row = Number(value?.row ?? value?.r ?? value?.target?.row ?? value?.target?.r);
+      const col = Number(value?.col ?? value?.c ?? value?.target?.col ?? value?.target?.c);
+      return Number.isInteger(row) && Number.isInteger(col) ? `${row},${col}` : null;
+    };
+    let trajectoryRoiTimer: number | null = null;
+    const scheduleTrajectoryRoi = (request: any, diagnosticDetail?: any): void => {
+      const trajectoryDefinition = definition.sourceTrajectory;
+      if (!trajectoryDefinition || input.mode !== 'normal' || trajectoryRoiTimer !== null
+        || probe.trajectoryRoiReady === true) return;
+      const sourceRect = debug.getCellClientRect(request.source.row, request.source.col);
+      const targetRect = debug.getCellClientRect(request.target.row, request.target.col);
+      const boardRect = boardElement.getBoundingClientRect();
+      const finiteRect = (rect: any): boolean => rect
+        && ['left', 'top', 'right', 'bottom', 'width', 'height'].every((key) => Number.isFinite(Number(rect[key])));
+      if (!finiteRect(sourceRect) || !finiteRect(targetRect) || !finiteRect(boardRect)) {
+        probe.trajectoryRoiError = serializeProbeError(new Error('Logical source/target ROI geometry is unavailable'));
+        probe.trajectoryRoiReady = true;
+        return;
+      }
+      const halo = Math.max(Number(sourceRect.width), Number(targetRect.width)) * 0.75;
+      // The logical endpoints remain the real source and target cells. Only the
+      // screenshot rectangle is intersected with the board viewport.
+      const left = Math.floor(Math.max(Number(boardRect.left), Math.min(
+        Number(sourceRect.left), Number(targetRect.left)
+      ) - halo));
+      const top = Math.floor(Math.max(Number(boardRect.top), Math.min(
+        Number(sourceRect.top), Number(targetRect.top)
+      ) - halo));
+      const right = Math.ceil(Math.min(Number(boardRect.right), Math.max(
+        Number(sourceRect.right), Number(targetRect.right)
+      ) + halo));
+      const bottom = Math.ceil(Math.min(Number(boardRect.bottom), Math.max(
+        Number(sourceRect.bottom), Number(targetRect.bottom)
+      ) + halo));
+      if (right <= left || bottom <= top) {
+        probe.trajectoryRoiError = serializeProbeError(new Error('Logical trajectory does not intersect the board viewport'));
+        probe.trajectoryRoiReady = true;
+        return;
+      }
+      const sourceStartedAt = performance.now();
+      const liveSourceCenter = {
+        x: (Number(sourceRect.left) + Number(sourceRect.right)) / 2,
+        y: (Number(sourceRect.top) + Number(sourceRect.bottom)) / 2
+      };
+      const liveTargetCenter = {
+        x: (Number(targetRect.left) + Number(targetRect.right)) / 2,
+        y: (Number(targetRect.top) + Number(targetRect.bottom)) / 2
+      };
+      const recordedGeometry = diagnosticDetail?.geometry;
+      const recordedPoint = (key: 'sourceCenter' | 'targetCenter') => {
+        const candidate = recordedGeometry?.[key];
+        return candidate && Number.isFinite(Number(candidate.x)) && Number.isFinite(Number(candidate.y))
+          ? { x: Number(candidate.x), y: Number(candidate.y) }
+          : null;
+      };
+      // DOM compatibility paints from the phase-frozen layout recorded by its
+      // trajectory start diagnostic. Pixi diagnostics use scene coordinates,
+      // so their CSS-space endpoint remains the live canvas projection.
+      const sourceCenter = debug.getBackendKind() === 'dom'
+        ? recordedPoint('sourceCenter') || liveSourceCenter
+        : liveSourceCenter;
+      const targetCenter = debug.getBackendKind() === 'dom'
+        ? recordedPoint('targetCenter') || liveTargetCenter
+        : liveTargetCenter;
+      const cellSize = Math.max(
+        Number(sourceRect.width),
+        Number(sourceRect.height),
+        Number(targetRect.width),
+        Number(targetRect.height)
+      );
+      trajectoryRoiTimer = window.setTimeout(async () => {
+        const timerFiredAtMs = performance.now();
+        let pixiFrame: any = null;
+        if (debug.getBackendKind() === 'pixi') {
+          const controller = renderer.getBoardVisualController();
+          const canvas = boardElement.querySelector('canvas');
+          if (controller && typeof controller.captureDebugFramePngDataUrl === 'function'
+            && canvas instanceof HTMLCanvasElement) {
+            const canvasRect = canvas.getBoundingClientRect();
+            pixiFrame = {
+              dataUrl: controller.captureDebugFramePngDataUrl(),
+              canvasRect: {
+                left: Number(canvasRect.left),
+                top: Number(canvasRect.top),
+                width: Number(canvasRect.width),
+                height: Number(canvasRect.height)
+              }
+            };
+          }
+        } else {
+          // Freeze the actual DOM/WAAPI frame selected by the logical timer.
+          // The Playwright screenshot happens in a later task; without this
+          // hold, short trajectories may settle before pixels are captured.
+          const animations = Array.from(document.getAnimations()).filter((animation) => (
+            animation.playState === 'running' || animation.pending === true
+          ));
+          for (const animation of animations) animation.pause();
+          await Promise.allSettled(animations.map((animation) => animation.ready));
+          // Select the same logical frame even when browser scheduling delays
+          // the DOM observer by a few milliseconds. The Pixi frame is sampled
+          // by the in-page timer at this same configured elapsed time.
+          for (const animation of animations) {
+            const timing = animation.effect?.getComputedTiming?.();
+            const duration = Number(timing?.duration);
+            if (Number.isFinite(duration) && duration > 0) {
+              animation.currentTime = Math.min(Number(trajectoryDefinition.captureDelayMs), duration);
+            }
+          }
+          probe.trajectoryPausedAnimations = animations;
+        }
+        probe.trajectoryRoi = {
+          profileKey: request.profileKey,
+          trajectoryId: request.trajectoryId,
+          sourceId: `${request.source.row},${request.source.col}`,
+          targetId: `${request.target.row},${request.target.col}`,
+          direction: request.direction,
+          sourceCenter,
+          targetCenter,
+          cellSize,
+          captureDelayMs: Number(trajectoryDefinition.captureDelayMs),
+          captureElapsedMs: timerFiredAtMs - sourceStartedAt,
+          sourceStartedAtMs: sourceStartedAt,
+          readyAtMs: performance.now(),
+          clip: { x: left, y: top, width: right - left, height: bottom - top },
+          boardViewport: {
+            left: Number(boardRect.left),
+            top: Number(boardRect.top),
+            right: Number(boardRect.right),
+            bottom: Number(boardRect.bottom)
+          },
+          endpointPolicy: 'logical-source-target-with-pixel-clipping'
+        };
+        probe.trajectoryPixiFrame = pixiFrame;
+        probe.trajectoryRoiReady = true;
+      }, Number(trajectoryDefinition.captureDelayMs));
+    };
+    const appendTrajectoryObservation = (
+      entry: any,
+      kind: SemanticTrajectoryObservation['kind'],
+      request: any
+    ): void => {
+      probe.semanticTrajectoryObservations.push({
+        sequence: Number(entry.index),
+        kind,
+        profileKey: request.profileKey,
+        trajectoryId: request.trajectoryId,
+        targetId: `${request.target.row},${request.target.col}`,
+        diagnosticEvent: String(entry.event || '')
+      });
+      probe.trajectoryDiagnosticEntries.push(entry);
+      if (kind === 'trajectory-start') {
+        probe.trajectoryStartDiagnostics = debug.getBackendDiagnostics() || {};
+        scheduleTrajectoryRoi(request, entry.detail);
+      }
+    };
+    const ingestTrajectoryDiagnostics = (): void => {
+      const request = probe.actualTrajectoryRequests[0] || null;
+      const trajectory = definition.sourceTrajectory || null;
+      const entries = Array.from(debug.getDiagnosticEntries() || []) as any[];
+      for (const entry of entries) {
+        const index = Number(entry?.index);
+        if (!Number.isInteger(index) || index < diagnosticCursor) continue;
+        diagnosticCursor = Math.max(diagnosticCursor, index + 1);
+        if (!request || !trajectory) continue;
+        const event = String(entry?.event || '');
+        const detail = entry?.detail || {};
+        const sameIdentity = String(detail.profileKey || '') === String(request.profileKey)
+          && String(detail.trajectoryId || '') === String(request.trajectoryId);
+        if ((event === 'pixi-source-trajectory:start' || event === 'dom-source-trajectory:start')
+          && sameIdentity) {
+          appendTrajectoryObservation(entry, 'trajectory-start', request);
+          continue;
+        }
+        if ((event === 'pixi-source-trajectory:settle' || event === 'dom-source-trajectory:settle')
+          && sameIdentity) {
+          appendTrajectoryObservation(entry, 'trajectory-settle', request);
+          continue;
+        }
+        if (event === 'pixi-playback:target-impact-start'
+          || event === 'pixi-playback:target-commit'
+          || event === 'dom-playback:target-impact-start'
+          || event === 'dom-playback:target-commit') {
+          const recordedTargetId = coordinateId(detail.targetId || detail);
+          if (recordedTargetId && recordedTargetId !== `${request.target.row},${request.target.col}`) continue;
+          if (detail.profileKey && String(detail.profileKey) !== String(request.profileKey)) continue;
+          appendTrajectoryObservation(
+            entry,
+            event.endsWith('target-impact-start') ? 'target-impact-start' : 'target-commit',
+            request
+          );
+        }
+      }
+    };
     const recordSoundKey = (value: unknown): void => {
       const key = String(value || '').trim();
       if (!key) return;
@@ -1050,14 +1723,6 @@ async function startScenario(
         throw error;
       }
     };
-    engine.handleDestroySourceAnimation = wrapGlobalEvent(
-      'destroy_source_animation',
-      originalHandleDestroySourceAnimation
-    );
-    engine.handleZombieBiteSourceAnimation = wrapGlobalEvent(
-      'zombie_bite_source_animation',
-      originalHandleZombieBiteSourceAnimation
-    );
     engine.handleManifestEndingGlobal = wrapGlobalEvent(
       'manifest_ending',
       originalHandleManifestEndingGlobal,
@@ -1092,11 +1757,64 @@ async function startScenario(
     renderer.playBoardVisualPhase = async function (...args: any[]) {
       let phaseSettled = false;
       let samplingPromise: Promise<void> | null = null;
+      let trajectorySamplingPromise: Promise<void> | null = null;
+      const trajectory = definition.sourceTrajectory || null;
+      const beforeDiagnostics = trajectory ? debug.getBackendDiagnostics() || {} : null;
+      const beforeSourceDiagnostics = beforeDiagnostics?.playback?.sourceTrajectory || {};
+      const beforeProfileDiagnostics = trajectory
+        ? beforeSourceDiagnostics?.byProfile?.[trajectory.profileKey] || {}
+        : {};
       try {
+        if (trajectory) {
+          if (!sourceTrajectoryContract
+            || typeof sourceTrajectoryContract.collectBoardSourceTrajectoryRequests !== 'function') {
+            throw new Error('Board source trajectory contract is unavailable');
+          }
+          const rawEvents = Array.isArray(args[1]) ? args[1] : [];
+          const phaseScope = args[2] || {};
+          const scopedEvents = Array.isArray(phaseScope.events) && phaseScope.events.length
+            ? phaseScope.events
+            : rawEvents;
+          const launchEvents = new Set(rawEvents);
+          const batch = sourceTrajectoryContract.collectBoardSourceTrajectoryRequests(scopedEvents, {
+            phaseKey: phaseScope.phaseKey,
+            stepIndex: phaseScope.stepIndex
+          });
+          const requests = Array.from(batch.requests || []).filter((request: any) => (
+            launchEvents.has(request.event)
+          ));
+          probe.actualTrajectoryRequests = requests.map((request: any) => ({
+            trajectoryId: String(request.trajectoryId),
+            profileKey: String(request.profileKey),
+            eventType: String(request.eventType),
+            direction: String(request.direction),
+            source: { row: Number(request.source.row), col: Number(request.source.col) },
+            target: { row: Number(request.target.row), col: Number(request.target.col) },
+            sourceId: `${request.source.row},${request.source.col}`,
+            targetId: `${request.target.row},${request.target.col}`
+          }));
+          if (probe.actualTrajectoryRequests.length !== 1) {
+            throw new Error(`Expected one actual source trajectory request, got ${probe.actualTrajectoryRequests.length}`);
+          }
+        }
         const playbackResult = originalPlayBoardVisualPhase.apply(this, args);
+        if (trajectory) {
+          ingestTrajectoryDiagnostics();
+          trajectorySamplingPromise = (async () => {
+            await Promise.resolve();
+            ingestTrajectoryDiagnostics();
+            let frame = 0;
+            while (!phaseSettled && frame < 180 && !probe.trajectoryRoiReady) {
+              await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+              frame += 1;
+              ingestTrajectoryDiagnostics();
+            }
+          })();
+        }
         if (debug.getBackendKind() === 'pixi') {
           samplingPromise = (async () => {
             const sample = (captureStage: string): boolean => {
+              ingestTrajectoryDiagnostics();
               const candidate = readKeyFrameCandidate(captureStage);
               if (input.mode !== 'noanim' && isRenderedActiveCandidate(candidate)) {
                 commitKeyFrame(candidate, 'active');
@@ -1127,10 +1845,44 @@ async function startScenario(
             resolveKeyFrameReady();
           });
         }
-        const result = await playbackResult;
+        const result = await withTimeout(playbackResult, `${definition.name} board visual phase`);
+        if (trajectory) {
+          ingestTrajectoryDiagnostics();
+          const settledDiagnostics = debug.getBackendDiagnostics() || {};
+          const startedDiagnostics = probe.trajectoryStartDiagnostics || {};
+          const startedSourceDiagnostics = startedDiagnostics?.playback?.sourceTrajectory || {};
+          const settledSourceDiagnostics = settledDiagnostics?.playback?.sourceTrajectory || {};
+          const actualRequest = probe.actualTrajectoryRequests[0];
+          probe.semanticTrajectoryEvidence.push({
+            backendKind: debug.getBackendKind(),
+            trajectoryId: actualRequest?.trajectoryId || null,
+            profileKey: actualRequest?.profileKey || null,
+            sourceId: actualRequest?.sourceId || null,
+            targetId: actualRequest?.targetId || null,
+            startedRunDelta: Number(startedSourceDiagnostics.startedRunCount || 0)
+              - Number(beforeSourceDiagnostics.startedRunCount || 0),
+            profileStartedRunDelta: Number(
+              startedSourceDiagnostics?.byProfile?.[trajectory.profileKey]?.started || 0
+            ) - Number(beforeProfileDiagnostics.started || 0),
+            activeRunCount: Number(startedSourceDiagnostics.activeRunCount || 0),
+            inFlightEffectCount: Number(startedDiagnostics?.playback?.inFlightEffectCount || 0),
+            trajectoryDomOverlayCount: countTrajectoryDomOverlays(),
+            completedRunDelta: Number(settledSourceDiagnostics.completedRunCount || 0)
+              - Number(beforeSourceDiagnostics.completedRunCount || 0),
+            profileCompletedRunDelta: Number(
+              settledSourceDiagnostics?.byProfile?.[trajectory.profileKey]?.completed || 0
+            ) - Number(beforeProfileDiagnostics.completed || 0),
+            failedRunDelta: Number(settledSourceDiagnostics.failedRunCount || 0)
+              - Number(beforeSourceDiagnostics.failedRunCount || 0),
+            diagnosticEvents: probe.trajectoryDiagnosticEntries.map((entry: any) => String(entry.event || '')),
+            targetCommitted: false
+          });
+        }
         return result;
       } finally {
         phaseSettled = true;
+        ingestTrajectoryDiagnostics();
+        if (trajectorySamplingPromise) await trajectorySamplingPromise;
         if (samplingPromise) await samplingPromise;
       }
     };
@@ -1145,6 +1897,7 @@ async function startScenario(
 
     const playbackPromise = (async () => {
       try {
+        await withTimeout(probe.startGate, `${definition.name} external playback release`);
         try {
           if (definition.execution === 'committed-frame') {
             probe.frameCommitStarted = true;
@@ -1185,7 +1938,7 @@ async function startScenario(
               });
             }
             try {
-              await frameCommit;
+              await withTimeout(frameCommit, `${definition.name} committed frame`);
             } finally {
               frameSettled = true;
             }
@@ -1210,7 +1963,7 @@ async function startScenario(
                 && Number(timeline.activeRunCount || 0) === 0) break;
             }
           } else {
-            await engine.play(definition.events);
+            await withTimeout(engine.play(definition.events), `${definition.name} canonical events playback`);
           }
         } catch (error: any) {
           probe.error = {
@@ -1219,25 +1972,33 @@ async function startScenario(
             code: error?.code == null ? null : String(error.code)
           };
         }
-        await debug.waitForIdle();
+        await withTimeout(debug.waitForIdle(), `${definition.name} first idle settlement`);
         // Committed-frame topology sound is intentionally queued in rAF after
         // the renderer settlement callback. Keep the probe installed through
         // that boundary so DOM/Pixi compare the actual audible order.
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-        await debug.waitForIdle();
+        await withTimeout(debug.waitForIdle(), `${definition.name} final idle settlement`);
       } finally {
         renderer.playBoardVisualPhase = originalPlayBoardVisualPhase;
         engine._playBoardPhaseThroughBackend = originalPlayBoardPhaseThroughBackend;
         engine.executePhase = originalExecutePhase;
         engine.handleSoundEffect = originalHandleSoundEffect;
-        engine.handleDestroySourceAnimation = originalHandleDestroySourceAnimation;
-        engine.handleZombieBiteSourceAnimation = originalHandleZombieBiteSourceAnimation;
         engine.handleManifestEndingGlobal = originalHandleManifestEndingGlobal;
         if (soundEngine) {
           soundEngine.init = originalSoundInit;
           soundEngine.playEffectByKey = originalPlayEffectByKey;
           soundEngine.syncManifestBgmOverride = originalSyncManifestBgmOverride;
         }
+        ingestTrajectoryDiagnostics();
+        probe.finalLogEntries = readLogEntries();
+        if (definition.sourceTrajectory && input.mode === 'normal' && !probe.trajectoryRoiReady) {
+          if (trajectoryRoiTimer !== null) window.clearTimeout(trajectoryRoiTimer);
+          probe.trajectoryRoiError = probe.trajectoryRoiError || serializeProbeError(
+            new Error('Source trajectory settled before its same-time ROI capture')
+          );
+          probe.trajectoryRoiReady = true;
+        }
+        probe.canonicalInputAfter = JSON.parse(JSON.stringify(definition.events));
         probe.done = true;
       }
       return true;
@@ -1251,7 +2012,11 @@ async function startScenario(
       initialBackendDiagnostics,
       finalMarkerCount: cardState.markers.length
     };
-  }, { ...createBrowserScenarioPayload(scenario), mode });
+  }, {
+    ...createBrowserScenarioPayload(scenario),
+    mode,
+    captureTimeoutMs: SOURCE_TRAJECTORY_CAPTURE_TIMEOUT_MS
+  });
 }
 
 async function waitForScenarioStart(page: any): Promise<void> {
@@ -1269,6 +2034,23 @@ async function readScenarioProbe(
     const root = window as any;
     const debug = root.__boardVisualDebug;
     const probe = root.__pixiPlaybackBrowserCheckProbe;
+    const countTrajectoryDomOverlays = (): number => {
+      const matches = new Set<Element>();
+      for (const node of Array.from(document.querySelectorAll([
+        '.dom-board-source-trajectory-layer',
+        '.zombie-bite-global-overlay',
+        '.zombie-bite-shadow',
+        '.zombie-bite-fang'
+      ].join(',')))) matches.add(node);
+      for (const node of Array.from(document.body?.children || [])) {
+        if (!(node instanceof HTMLElement) || node.classList.contains('manifest-ending-overlay')) continue;
+        const zIndex = String(node.style.zIndex || '');
+        if (node.style.position === 'fixed' && ['1200', '1250', '1251', '1260'].includes(zIndex)) {
+          matches.add(node);
+        }
+      }
+      return matches.size;
+    };
     const renderedCells: Record<string, unknown> = {};
     for (const cell of cells) {
       const rendered = debug.getRenderedCell(cell.row, cell.col);
@@ -1304,6 +2086,7 @@ async function readScenarioProbe(
       visualFrameDigest: debug.getVisualFrameDigest(),
       backendDiagnostics: debug.getBackendDiagnostics(),
       displayObjectCounts: debug.getDisplayObjectCounts(),
+      trajectoryDomOverlayCount: countTrajectoryDomOverlays(),
       renderedCells,
       playbackDone: probe?.done === true,
       activeBoardLaunches: Number(probe?.activeBoardLaunches || 0)
@@ -1346,12 +2129,26 @@ function renderedCellSemantics(cells: unknown): Readonly<Record<string, Readonly
 }
 
 async function completeScenario(page: any): Promise<any> {
-  return page.evaluate(async (boardSize: Readonly<{ rows: number; cols: number }>) => {
+  return page.evaluate(async (input: Readonly<{
+    boardSize: { rows: number; cols: number };
+    timeoutMs: number;
+  }>) => {
     const root = window as any;
     const probe = root.__pixiPlaybackBrowserCheckProbe;
     if (!probe?.promise) throw new Error('Pixi playback browser scenario promise is unavailable');
-    await probe.promise;
-    await root.__boardVisualDebug.waitForIdle();
+    const withTimeout = <T>(pending: Promise<T> | T, label: string): Promise<T> => {
+      let timerId: number | null = null;
+      const timeout = new Promise<never>((_resolve, reject) => {
+        timerId = window.setTimeout(() => reject(new Error(
+          `${label} timed out after ${input.timeoutMs}ms`
+        )), input.timeoutMs);
+      });
+      return Promise.race([Promise.resolve(pending), timeout]).finally(() => {
+        if (timerId !== null) window.clearTimeout(timerId);
+      });
+    };
+    await withTimeout(probe.promise, 'playback scenario completion');
+    await withTimeout(root.__boardVisualDebug.waitForIdle(), 'playback scenario final idle');
     const stable = (value: any): any => {
       if (Array.isArray(value)) return value.map(stable);
       if (!value || typeof value !== 'object') return value;
@@ -1368,16 +2165,26 @@ async function completeScenario(page: any): Promise<any> {
       globalLaunches: probe.globalLaunches,
       globalCompletions: probe.globalCompletions,
       dispatchLaunchOrder: probe.dispatchLaunchOrder,
+      semanticTrajectoryObservations: probe.semanticTrajectoryObservations,
+      trajectoryDiagnosticEntries: probe.trajectoryDiagnosticEntries,
+      actualTrajectoryRequests: probe.actualTrajectoryRequests,
+      semanticTrajectoryEvidence: probe.semanticTrajectoryEvidence,
+      trajectoryRoi: probe.trajectoryRoi,
+      trajectoryRoiError: probe.trajectoryRoiError,
       soundKeys: probe.soundKeys,
+      initialLogEntries: probe.initialLogEntries,
+      finalLogEntries: probe.finalLogEntries,
       manifestWorldStarts: probe.manifestWorldStarts,
       manifestWorldCompletions: probe.manifestWorldCompletions,
       manifestBgmTransitions: probe.manifestBgmTransitions,
       error: probe.error,
+      canonicalInputBefore: probe.canonicalInputBefore,
+      canonicalInputAfter: probe.canonicalInputAfter,
       finalModel: {
         board: root.gameState.board.map((row: any[]) => Array.from(row)),
         boardConfig: {
-          rows: Number(root.gameState.boardConfig?.rows || boardSize.rows),
-          cols: Number(root.gameState.boardConfig?.cols || boardSize.cols),
+          rows: Number(root.gameState.boardConfig?.rows || input.boardSize.rows),
+          cols: Number(root.gameState.boardConfig?.cols || input.boardSize.cols),
           shape: String(root.gameState.boardConfig?.shape || 'rectangle')
         },
         boardExpansion: {
@@ -1401,7 +2208,7 @@ async function completeScenario(page: any): Promise<any> {
       backendDiagnostics: root.__boardVisualDebug.getBackendDiagnostics(),
       displayObjectCounts: root.__boardVisualDebug.getDisplayObjectCounts()
     };
-  }, PLAYBACK_BOARD_SIZE);
+  }, { boardSize: PLAYBACK_BOARD_SIZE, timeoutMs: SOURCE_TRAJECTORY_CAPTURE_TIMEOUT_MS });
 }
 
 function pngBufferFromDataUrl(value: unknown): Buffer | null {
@@ -1415,6 +2222,218 @@ function pngBufferFromDataUrl(value: unknown): Buffer | null {
     : null;
 }
 
+function cropCapturedCanvasPng(
+  source: Buffer,
+  canvasRect: Readonly<{ left: number; top: number; width: number; height: number }>,
+  clip: Readonly<{ x: number; y: number; width: number; height: number }>
+): Buffer {
+  const png = PNG.sync.read(source);
+  if (!(canvasRect.width > 0) || !(canvasRect.height > 0)) {
+    throw new Error('Captured Pixi canvas has invalid CSS geometry');
+  }
+  const scaleX = png.width / canvasRect.width;
+  const scaleY = png.height / canvasRect.height;
+  const left = Math.max(0, Math.round((clip.x - canvasRect.left) * scaleX));
+  const top = Math.max(0, Math.round((clip.y - canvasRect.top) * scaleY));
+  const width = Math.min(png.width - left, Math.max(1, Math.round(clip.width * scaleX)));
+  const height = Math.min(png.height - top, Math.max(1, Math.round(clip.height * scaleY)));
+  if (width <= 0 || height <= 0) throw new Error('Trajectory ROI does not intersect the captured Pixi canvas');
+  const cropped = new PNG({ width, height });
+  PNG.bitblt(png, cropped, left, top, width, height, 0, 0);
+  return PNG.sync.write(cropped);
+}
+
+async function capturePixiTrajectoryFrame(page: any, clip: any): Promise<Buffer> {
+  const frame = await page.evaluate(() => {
+    const root = window as any;
+    const renderer = root.BoardRenderer || root.require?.('ui/board-renderer');
+    const board = document.getElementById('board');
+    const canvas = board?.querySelector('canvas');
+    const controller = renderer?.getBoardVisualController?.();
+    if (!controller || typeof controller.captureDebugFramePngDataUrl !== 'function'
+      || !(canvas instanceof HTMLCanvasElement)) return null;
+    const canvasRect = canvas.getBoundingClientRect();
+    return {
+      dataUrl: controller.captureDebugFramePngDataUrl(),
+      canvasRect: {
+        left: Number(canvasRect.left),
+        top: Number(canvasRect.top),
+        width: Number(canvasRect.width),
+        height: Number(canvasRect.height)
+      }
+    };
+  });
+  const source = pngBufferFromDataUrl(frame?.dataUrl);
+  if (!source || !frame?.canvasRect) throw new Error('Pixi trajectory frame extraction failed');
+  return cropCapturedCanvasPng(source, frame.canvasRect, clip);
+}
+
+async function captureTrajectoryBaselineFrame(
+  page: any,
+  scenario: PlaybackScenarioDefinition,
+  renderer: BoardRenderer,
+  mode: PlaybackMode,
+  artifactDir: string,
+  writeArtifacts: boolean
+): Promise<any> {
+  const trajectory = scenario.sourceTrajectory;
+  if (!trajectory || mode !== 'normal') return null;
+  const parseId = (value: string): Readonly<{ row: number; col: number }> => {
+    const [row, col] = value.split(',').map(Number);
+    if (!Number.isInteger(row) || !Number.isInteger(col)) {
+      throw new Error(`Invalid logical trajectory endpoint: ${value}`);
+    }
+    return Object.freeze({ row, col });
+  };
+  const geometry = await page.evaluate((endpoints: Readonly<{
+    source: { row: number; col: number };
+    target: { row: number; col: number };
+  }>) => {
+    const root = window as any;
+    const debug = root.__boardVisualDebug;
+    const board = document.getElementById('board');
+    if (!debug || !board) throw new Error('Board baseline geometry seam is unavailable');
+    const sourceRect = debug.getCellClientRect(endpoints.source.row, endpoints.source.col);
+    const targetRect = debug.getCellClientRect(endpoints.target.row, endpoints.target.col);
+    const boardRect = board.getBoundingClientRect();
+    const finiteRect = (rect: any): boolean => rect
+      && ['left', 'top', 'right', 'bottom', 'width', 'height'].every((key) => Number.isFinite(Number(rect[key])));
+    if (!finiteRect(sourceRect) || !finiteRect(targetRect) || !finiteRect(boardRect)) {
+      throw new Error('Logical source/target baseline geometry is unavailable');
+    }
+    const halo = Math.max(Number(sourceRect.width), Number(targetRect.width)) * 0.75;
+    const left = Math.floor(Math.max(Number(boardRect.left), Math.min(
+      Number(sourceRect.left), Number(targetRect.left)
+    ) - halo));
+    const top = Math.floor(Math.max(Number(boardRect.top), Math.min(
+      Number(sourceRect.top), Number(targetRect.top)
+    ) - halo));
+    const right = Math.ceil(Math.min(Number(boardRect.right), Math.max(
+      Number(sourceRect.right), Number(targetRect.right)
+    ) + halo));
+    const bottom = Math.ceil(Math.min(Number(boardRect.bottom), Math.max(
+      Number(sourceRect.bottom), Number(targetRect.bottom)
+    ) + halo));
+    if (right <= left || bottom <= top) throw new Error('Logical trajectory baseline is outside the board viewport');
+    return {
+      sourceId: `${endpoints.source.row},${endpoints.source.col}`,
+      targetId: `${endpoints.target.row},${endpoints.target.col}`,
+      clip: { x: left, y: top, width: right - left, height: bottom - top },
+      endpointPolicy: 'logical-source-target-with-pixel-clipping'
+    };
+  }, { source: parseId(trajectory.sourceId), target: parseId(trajectory.targetId) });
+  const screenshot = renderer === 'pixi'
+    ? await capturePixiTrajectoryFrame(page, geometry.clip)
+    : await page.screenshot({ animations: 'allow', clip: geometry.clip });
+  const png = PNG.sync.read(screenshot);
+  let artifactPath: string | null = null;
+  if (writeArtifacts) {
+    artifactPath = path.join(artifactDir, `${mode}-${scenario.name}-trajectory-baseline-roi.png`);
+    fs.mkdirSync(path.dirname(artifactPath), { recursive: true });
+    fs.writeFileSync(artifactPath, screenshot);
+  }
+  return {
+    renderer,
+    metadata: geometry,
+    pngBase64: screenshot.toString('base64'),
+    screenshotSha256: sha256(screenshot),
+    width: png.width,
+    height: png.height,
+    artifactPath
+  };
+}
+
+async function releaseScenarioPlayback(page: any): Promise<void> {
+  await page.evaluate(() => {
+    const probe = (window as any).__pixiPlaybackBrowserCheckProbe;
+    if (!probe || typeof probe.releasePlayback !== 'function') {
+      throw new Error('Playback release gate is unavailable');
+    }
+    const release = probe.releasePlayback;
+    probe.releasePlayback = null;
+    release();
+  });
+}
+
+async function captureTrajectoryRoiFrame(
+  page: any,
+  scenario: PlaybackScenarioDefinition,
+  renderer: BoardRenderer,
+  mode: PlaybackMode,
+  artifactDir: string,
+  writeArtifacts: boolean
+): Promise<any> {
+  if (!scenario.sourceTrajectory || mode !== 'normal') return null;
+  await page.waitForFunction(() => {
+    const probe = (window as any).__pixiPlaybackBrowserCheckProbe;
+    return !!probe && (probe.trajectoryRoiReady === true || probe.done === true);
+  }, null, { timeout: SOURCE_TRAJECTORY_CAPTURE_TIMEOUT_MS });
+  const roi = await page.evaluate(() => {
+    const probe = (window as any).__pixiPlaybackBrowserCheckProbe;
+    return {
+      metadata: probe?.trajectoryRoi ? { ...probe.trajectoryRoi } : null,
+      error: probe?.trajectoryRoiError || null,
+      playbackDone: probe?.done === true,
+      pixiFrame: probe?.trajectoryPixiFrame || null
+    };
+  });
+  const resumePausedDomFrame = async () => page.evaluate(() => {
+    const probe = (window as any).__pixiPlaybackBrowserCheckProbe;
+    const animations = Array.from(probe?.trajectoryPausedAnimations || []) as Animation[];
+    probe.trajectoryPausedAnimations = [];
+    for (const animation of animations) {
+      if (animation.playState === 'paused') animation.play();
+    }
+  });
+  if (!roi.metadata || roi.error) {
+    await resumePausedDomFrame();
+    return roi;
+  }
+  const clip = roi.metadata.clip;
+  let screenshot: Buffer;
+  try {
+    if (renderer === 'pixi') {
+      const source = pngBufferFromDataUrl(roi.pixiFrame?.dataUrl);
+      if (!source || !roi.pixiFrame?.canvasRect) {
+        throw new Error('Timed Pixi trajectory frame extraction failed');
+      }
+      screenshot = cropCapturedCanvasPng(source, roi.pixiFrame.canvasRect, clip);
+    } else {
+      screenshot = await page.screenshot({
+        animations: 'allow',
+        clip: {
+          x: Number(clip.x),
+          y: Number(clip.y),
+          width: Number(clip.width),
+          height: Number(clip.height)
+        }
+      });
+    }
+  } finally {
+    await resumePausedDomFrame();
+  }
+  const screenshotObservedAtMs = await page.evaluate(() => performance.now());
+  const png = PNG.sync.read(screenshot);
+  let artifactPath: string | null = null;
+  if (writeArtifacts) {
+    artifactPath = path.join(artifactDir, `${mode}-${scenario.name}-trajectory-roi.png`);
+    fs.mkdirSync(path.dirname(artifactPath), { recursive: true });
+    fs.writeFileSync(artifactPath, screenshot);
+  }
+  return {
+    ...roi,
+    pixiFrame: undefined,
+    renderer,
+    screenshotElapsedMs: Number(roi.metadata.captureElapsedMs),
+    screenshotObservedElapsedMs: screenshotObservedAtMs - Number(roi.metadata.sourceStartedAtMs),
+    pngBase64: screenshot.toString('base64'),
+    screenshotSha256: sha256(screenshot),
+    width: png.width,
+    height: png.height,
+    artifactPath
+  };
+}
+
 async function captureScenario(
   page: any,
   scenario: PlaybackScenarioDefinition,
@@ -1424,7 +2443,43 @@ async function captureScenario(
   writeArtifacts: boolean
 ): Promise<any> {
   const started = await startScenario(page, scenario, mode);
+  const trajectoryBaseline = await captureTrajectoryBaselineFrame(
+    page,
+    scenario,
+    renderer,
+    mode,
+    artifactDir,
+    writeArtifacts
+  );
+  await releaseScenarioPlayback(page);
   await waitForScenarioStart(page);
+  const trajectoryActive = await captureTrajectoryRoiFrame(
+    page,
+    scenario,
+    renderer,
+    mode,
+    artifactDir,
+    writeArtifacts
+  );
+  const trajectoryDelta = trajectoryBaseline?.pngBase64 && trajectoryActive?.pngBase64
+    ? buildTrajectoryDeltaPng(trajectoryBaseline.pngBase64, trajectoryActive.pngBase64)
+    : null;
+  let trajectoryDeltaArtifactPath: string | null = null;
+  if (writeArtifacts && trajectoryDelta?.ok === true && trajectoryDelta.pngBase64) {
+    trajectoryDeltaArtifactPath = path.join(
+      artifactDir,
+      `${mode}-${scenario.name}-trajectory-delta-roi.png`
+    );
+    fs.mkdirSync(path.dirname(trajectoryDeltaArtifactPath), { recursive: true });
+    fs.writeFileSync(trajectoryDeltaArtifactPath, Buffer.from(String(trajectoryDelta.pngBase64), 'base64'));
+  }
+  const trajectoryRoi = scenario.sourceTrajectory && mode === 'normal' ? {
+    metadata: trajectoryActive?.metadata || null,
+    error: trajectoryBaseline?.error || trajectoryActive?.error || trajectoryDelta?.error || null,
+    baseline: trajectoryBaseline,
+    active: trajectoryActive,
+    delta: trajectoryDelta ? { ...trajectoryDelta, artifactPath: trajectoryDeltaArtifactPath } : null
+  } : null;
   const keyFrameProbe = renderer === 'pixi'
     ? await readInPageKeyFrame(page)
     : null;
@@ -1453,10 +2508,30 @@ async function captureScenario(
   const completedEventTypes = completion.boardCompletions.flatMap((launch: string[]) => launch);
   const phaseEventTypes = completion.phaseLaunches.flatMap((launch: string[]) => launch);
   const completedPhaseEventTypes = completion.phaseCompletions.flatMap((launch: string[]) => launch);
+  const expectedInputDigest = sha256(stableJson(scenario.events));
+  const inputDigest = sha256(stableJson(completion.canonicalInputBefore));
+  const settledInputDigest = sha256(stableJson(completion.canonicalInputAfter));
   const finalVisualSemanticDigest = buildFinalVisualSemanticDigest({
     finalModelDigest,
     renderedCells: finalProbe.renderedCells
   });
+  const semanticTrajectoryObservations = Array.from(
+    completion.semanticTrajectoryObservations || []
+  ) as SemanticTrajectoryObservation[];
+  const semanticTrajectoryTrace = normalizeSemanticTrajectoryTrace(semanticTrajectoryObservations);
+  const semanticTrajectoryEvidence = Array.from(completion.semanticTrajectoryEvidence || []).map((entry: any) => ({
+    ...entry
+  }));
+  if (scenario.sourceTrajectory && semanticTrajectoryEvidence.length) {
+    const targetId = scenario.sourceTrajectory.targetId;
+    const expectedTarget = renderedCellSemantics(expectedFinalRenderedCells(scenario))[targetId];
+    const renderedTarget = renderedCellSemantics(finalProbe.renderedCells)[targetId];
+    semanticTrajectoryEvidence[0].targetCommitted = stableJson(renderedTarget) === stableJson(expectedTarget);
+  }
+  const initialLogEntries = Array.from(completion.initialLogEntries || []).map(String);
+  const finalLogEntries = Array.from(completion.finalLogEntries || []).map(String);
+  const logEntries = finalLogEntries.slice(initialLogEntries.length);
+  const logDigest = sha256(stableJson(logEntries));
   return {
     scenario: scenario.name,
     expectedEventType: scenario.eventType,
@@ -1465,11 +2540,14 @@ async function captureScenario(
     expectedPhaseEventTypes: expectedPhaseEventTypes(scenario),
     expectedGlobalEventTypes: scenario.expectedGlobalEventTypes || Object.freeze([]),
     expectedDispatchLaunchOrder: expectedDispatchLaunchOrder(scenario),
+    expectedSemanticTrajectoryTrace: expectedSemanticTrajectoryTrace(scenario),
     pixiEvidence: scenario.pixiEvidence || 'timeline',
     execution: scenario.execution || 'playback',
     expectedFinalModelDigest: canonicalFinalModelDigest(scenario),
     expectedFinalRenderedCells: expectedFinalRenderedCells(scenario),
-    inputDigest: sha256(stableJson(scenario.events)),
+    expectedInputDigest,
+    inputDigest,
+    settledInputDigest,
     started,
     eventTypes,
     completedEventTypes,
@@ -1478,7 +2556,14 @@ async function captureScenario(
     globalEventTypes: completion.globalLaunches,
     completedGlobalEventTypes: completion.globalCompletions,
     dispatchLaunchOrder: completion.dispatchLaunchOrder,
+    semanticTrajectoryObservations,
+    semanticTrajectoryTrace,
+    trajectoryDiagnosticEntries: completion.trajectoryDiagnosticEntries,
+    actualTrajectoryRequests: completion.actualTrajectoryRequests,
+    semanticTrajectoryEvidence,
     soundKeys: completion.soundKeys,
+    logEntries,
+    logDigest,
     manifestWorldStarts: completion.manifestWorldStarts,
     manifestWorldCompletions: completion.manifestWorldCompletions,
     manifestBgmTransitions: completion.manifestBgmTransitions,
@@ -1492,6 +2577,10 @@ async function captureScenario(
       cardAnimating: completion.cardAnimating,
       writerMode: completion.writerMode
     },
+    sourceTrajectory: scenario.sourceTrajectory || null,
+    trajectoryRoi: trajectoryRoi || (completion.trajectoryRoi || completion.trajectoryRoiError
+      ? { metadata: completion.trajectoryRoi, error: completion.trajectoryRoiError }
+      : null),
     keyFrame: keyFrameProbe ? {
       ...Object.fromEntries(Object.entries(keyFrameProbe).filter(([key]) => key !== 'canvasPngDataUrl')),
       screenshotSha256: keyFrameScreenshotSha256,
@@ -1500,11 +2589,14 @@ async function captureScenario(
     } : null,
     final: finalProbe,
     parityDigest: buildPlaybackParityDigest({
+      inputDigest,
       eventTypes,
       phaseEventTypes,
       globalEventTypes: completion.globalLaunches,
       dispatchLaunchOrder: completion.dispatchLaunchOrder,
+      semanticTrajectoryTrace,
       soundKeys: completion.soundKeys,
+      logDigest,
       finalModelDigest
     })
   };
@@ -1557,6 +2649,10 @@ async function captureRendererLane(
 function evaluateScenario(report: any, errors: string[]): void {
   const prefix = `${report.lane}/${report.renderer}/${report.mode}/${report.scenario}`;
   const expectedEventTypes = report.expectedEventTypes || [report.expectedEventType];
+  if (report.inputDigest !== report.expectedInputDigest
+    || report.settledInputDigest !== report.expectedInputDigest) {
+    errors.push(`${prefix}: canonical input events[] digest drifted`);
+  }
   if (stableJson(report.eventTypes) !== stableJson(expectedEventTypes)) {
     errors.push(`${prefix}: board event start order drifted`);
   }
@@ -1578,8 +2674,92 @@ function evaluateScenario(report: any, errors: string[]): void {
   if (stableJson(report.dispatchLaunchOrder) !== stableJson(report.expectedDispatchLaunchOrder)) {
     errors.push(`${prefix}: board/global/sound launch order drifted`);
   }
+  if (stableJson(report.semanticTrajectoryTrace)
+    !== stableJson(report.expectedSemanticTrajectoryTrace || [])) {
+    errors.push(`${prefix}: backend-local semantic trajectory trace drifted`);
+  }
+  if (stableJson(report.semanticTrajectoryTrace)
+    !== stableJson(normalizeSemanticTrajectoryTrace(report.semanticTrajectoryObservations || []))) {
+    errors.push(`${prefix}: semantic trajectory trace was not derived from runtime diagnostics`);
+  }
   if (stableJson(report.soundKeys) !== stableJson([report.expectedSoundKey])) {
     errors.push(`${prefix}: sound order drifted`);
+  }
+  if (report.logDigest !== sha256(stableJson(report.logEntries || []))) {
+    errors.push(`${prefix}: player log digest is inconsistent`);
+  }
+  if (report.sourceTrajectory) {
+    const expected = report.sourceTrajectory;
+    const requests = Array.isArray(report.actualTrajectoryRequests) ? report.actualTrajectoryRequests : [];
+    const request = requests[0];
+    if (requests.length !== 1
+      || request?.profileKey !== expected.profileKey
+      || request?.trajectoryId !== expected.trajectoryId
+      || request?.sourceId !== expected.sourceId
+      || request?.targetId !== expected.targetId
+      || request?.direction !== expected.direction) {
+      errors.push(`${prefix}: canonical source trajectory request or logical endpoints drifted`);
+    }
+    const diagnosticEntries = Array.isArray(report.trajectoryDiagnosticEntries)
+      ? report.trajectoryDiagnosticEntries
+      : [];
+    const observations = Array.isArray(report.semanticTrajectoryObservations)
+      ? report.semanticTrajectoryObservations
+      : [];
+    if (observations.some((observation: any) => !diagnosticEntries.some((entry: any) => (
+      Number(entry?.index) === Number(observation?.sequence)
+      && String(entry?.event || '') === String(observation?.diagnosticEvent || '')
+    )))) {
+      errors.push(`${prefix}: semantic trajectory observations are not backed by diagnostic records`);
+    }
+    const sourceStart = diagnosticEntries.find((entry: any) => (
+      entry?.event === 'pixi-source-trajectory:start'
+      || entry?.event === 'dom-source-trajectory:start'
+    ));
+    const detail = sourceStart?.detail || {};
+    const coordinateKey = (value: any): string | null => {
+      const row = Number(value?.row ?? value?.r);
+      const col = Number(value?.col ?? value?.c);
+      return Number.isInteger(row) && Number.isInteger(col) ? `${row},${col}` : null;
+    };
+    const samePoint = (left: any, right: any): boolean => (
+      Number.isFinite(Number(left?.x))
+      && Number.isFinite(Number(left?.y))
+      && Math.abs(Number(left.x) - Number(right?.x)) <= 0.01
+      && Math.abs(Number(left.y) - Number(right?.y)) <= 0.01
+    );
+    const geometry = detail.geometry || null;
+    const expectedMovementStart = detail.direction === 'target-to-source'
+      ? geometry?.targetCenter
+      : geometry?.sourceCenter;
+    const expectedMovementEnd = detail.direction === 'target-to-source'
+      ? geometry?.sourceCenter
+      : geometry?.targetCenter;
+    if (!sourceStart
+      || coordinateKey(detail.source) !== expected.sourceId
+      || coordinateKey(detail.target) !== expected.targetId
+      || detail.direction !== expected.direction
+      || (report.mode === 'normal' && (!geometry
+        || !samePoint(geometry.movementStart, expectedMovementStart)
+        || !samePoint(geometry.movementEnd, expectedMovementEnd)))) {
+      errors.push(`${prefix}: runtime trajectory geometry retargeted or truncated its logical endpoints`);
+    }
+    if (report.mode === 'normal') {
+      const roi = report.trajectoryRoi || {};
+      const activeMetadata = roi.metadata || {};
+      if (roi.error
+        || roi.baseline?.metadata?.sourceId !== expected.sourceId
+        || roi.baseline?.metadata?.targetId !== expected.targetId
+        || activeMetadata.sourceId !== expected.sourceId
+        || activeMetadata.targetId !== expected.targetId
+        || activeMetadata.direction !== expected.direction
+        || activeMetadata.endpointPolicy !== 'logical-source-target-with-pixel-clipping'
+        || stableJson(roi.baseline?.metadata?.clip) !== stableJson(activeMetadata.clip)
+        || roi.delta?.ok !== true
+        || !/^[a-f0-9]{64}$/.test(String(roi.delta?.sha256 || ''))) {
+        errors.push(`${prefix}: same-ROI baseline/active trajectory evidence is incomplete`);
+      }
+    }
   }
   if (report.error) errors.push(`${prefix}: playback failed: ${report.error.message || report.error}`);
   if (report.finalModelDigest !== report.expectedFinalModelDigest) {
@@ -1648,6 +2828,15 @@ function evaluateScenario(report: any, errors: string[]): void {
   if (report.keyFrame?.screenshotSource !== 'pixi-extract') {
     errors.push(`${prefix}: key-frame screenshot was not captured through Pixi's offscreen extractor`);
   }
+  if (Number(report.keyFrame?.trajectoryDomOverlayCount || 0) !== 0) {
+    errors.push(`${prefix}: Pixi lane materialized a DOM/SVG trajectory overlay`);
+  }
+  const keyFrameDiagnostics = report.keyFrame?.backendDiagnostics || {};
+  if (Number(keyFrameDiagnostics.canvasCount || 0) !== 1
+    || Number(keyFrameDiagnostics.contextCount || 0) !== 1
+    || Number(keyFrameDiagnostics.domCellCount || 0) !== 0) {
+    errors.push(`${prefix}: active Pixi canvas/context exclusivity drifted`);
+  }
   if (report.pixiEvidence === 'topology-reveal') {
     const scene = report.keyFrame?.backendDiagnostics?.scene || {};
     if (report.mode === 'noanim') {
@@ -1666,7 +2855,8 @@ function evaluateScenario(report: any, errors: string[]): void {
     const timeline = report.keyFrame?.backendDiagnostics?.timeline || {};
     const activeProjectionCount = Number(pool.activePlaybackGhostCount || 0)
       + Number(pool.activePlaybackHighlightLeaseCount || 0)
-      + Number(pool.activePlaybackEffectCount ?? scene.activePlaybackEffectCount ?? 0);
+      + Number(pool.activePlaybackEffectCount ?? scene.activePlaybackEffectCount ?? 0)
+      + Number(scene.activeSourceTrajectoryCount || 0);
     const observedBeforeSettlement = report.keyFrame?.writerMode === 'playback'
       && report.keyFrame?.playbackDone !== true
       && Number(timeline.activeRunCount || 0) >= 1;
@@ -1695,6 +2885,7 @@ function evaluateScenario(report: any, errors: string[]): void {
   const playback = diagnostics.playback || {};
   const pool = diagnostics.pool || {};
   const scene = diagnostics.scene || {};
+  const sourceTrajectory = playback.sourceTrajectory || {};
   if (diagnostics.tickerRunning === true
     || timeline.tickerRunning === true
     || timeline.tickerSubscribed === true
@@ -1724,14 +2915,39 @@ function evaluateScenario(report: any, errors: string[]): void {
     || Number(scene.activeTopologyRevealCount || 0) !== 0) {
     errors.push(`${prefix}: playback object-pool lease remained active after settlement`);
   }
+  if (Number(sourceTrajectory.activeRunCount || 0) !== 0
+    || Number(sourceTrajectory.activeTextureLeaseCount || 0) !== 0
+    || Number(scene.activeSourceTrajectoryCount || 0) !== 0
+    || Number(scene.activeSourceTrajectoryTextureLeaseCount || 0) !== 0) {
+    errors.push(`${prefix}: source trajectory resource remained active after settlement`);
+  }
   if (Number(pool.pooledPlaybackGhostCount || 0) > 2
     || Number(pool.pooledPlaybackHighlightCount || 0) > 1
     || Number(pool.pooledPlaybackEffectCount ?? scene.pooledPlaybackEffectCount ?? 0) > 4) {
     errors.push(`${prefix}: playback object pool exceeded the scenario-matrix bound`);
   }
+  if (Number(report.final?.trajectoryDomOverlayCount || 0) !== 0) {
+    errors.push(`${prefix}: settled Pixi lane retained a DOM/SVG trajectory overlay`);
+  }
   if (Number(diagnostics.domCellCount || 0) !== 0
-    || Number(diagnostics.canvasCount || 0) !== 1) {
+    || Number(diagnostics.canvasCount || 0) !== 1
+    || Number(diagnostics.contextCount || 0) !== 1) {
     errors.push(`${prefix}: Pixi/DOM exclusive render surface contract drifted`);
+  }
+  if ((report.expectedSemanticTrajectoryTrace || []).length) {
+    const evidence = Array.isArray(report.semanticTrajectoryEvidence)
+      ? report.semanticTrajectoryEvidence[0]
+      : null;
+    if (!evidence
+      || Number(evidence.startedRunDelta || 0) !== 1
+      || Number(evidence.profileStartedRunDelta || 0) !== 1
+      || Number(evidence.completedRunDelta || 0) !== 1
+      || Number(evidence.profileCompletedRunDelta || 0) !== 1
+      || Number(evidence.failedRunDelta || 0) !== 0
+      || evidence.targetCommitted !== true
+      || Number(evidence.trajectoryDomOverlayCount || 0) !== 0) {
+      errors.push(`${prefix}: Pixi source trajectory did not start, settle, and commit exactly once`);
+    }
   }
 }
 
@@ -1778,6 +2994,43 @@ function evaluatePixiPlaybackBrowserReport(result: any): { ok: boolean; errors: 
         }
         if (domScenario.finalVisualSemanticDigest !== pixiScenario.finalVisualSemanticDigest) {
           errors.push(`${lane}/${mode}/${definition.name}: DOM/Pixi final visual semantic digest drifted`);
+        }
+        if (definition.sourceTrajectory && mode === 'normal') {
+          const domRoi = domScenario.trajectoryRoi || {};
+          const pixiRoi = pixiScenario.trajectoryRoi || {};
+          const comparison = compareTrajectoryRoiPng(
+            domRoi.delta?.pngBase64,
+            pixiRoi.delta?.pngBase64,
+            definition.sourceTrajectory.profileKey as keyof typeof SOURCE_TRAJECTORY_VISUAL_POLICY,
+            domRoi.metadata,
+            pixiRoi.metadata
+          );
+          domScenario.trajectoryRoiComparison = comparison;
+          pixiScenario.trajectoryRoiComparison = comparison;
+          const configuredDelay = Number(definition.sourceTrajectory.captureDelayMs);
+          const domElapsed = Number(domRoi.active?.screenshotElapsedMs);
+          const pixiElapsed = Number(pixiRoi.active?.screenshotElapsedMs);
+          // DOM layout and Pixi canvas placement can quantize the same CSS
+          // endpoint rectangle to adjacent device pixels. This tolerance is
+          // geometry-only; the fixed per-profile pixel-diff limits remain
+          // unchanged and still judge the actual delta masks.
+          const sameClip = sameTrajectoryCaptureClip(
+            domRoi.metadata?.clip,
+            pixiRoi.metadata?.clip
+          );
+          const sameLogicalTime = Number.isFinite(domElapsed)
+            && Number.isFinite(pixiElapsed)
+            && domElapsed >= configuredDelay
+            && pixiElapsed >= configuredDelay
+            && Math.abs(domElapsed - pixiElapsed) <= 48;
+          if (!sameClip || !sameLogicalTime) {
+            errors.push(`${lane}/${mode}/${definition.name}: DOM/Pixi trajectory ROI or capture time drifted`);
+          }
+          if (comparison.ok !== true) {
+            errors.push(
+              `${lane}/${mode}/${definition.name}: DOM/Pixi trajectory delta-mask pixelmatch exceeded ${definition.sourceTrajectory.maxPixelDiffRatio}`
+            );
+          }
         }
       }
     }
@@ -1950,14 +3203,21 @@ export = {
   PHASE7_PARITY_MODES,
   PLAYBACK_BOARD_SIZE,
   PLAYBACK_SCENARIOS,
+  SOURCE_TRAJECTORY_CAPTURE_TIMEOUT_MS,
+  SOURCE_TRAJECTORY_PIXELMATCH_THRESHOLD,
+  SOURCE_TRAJECTORY_VISUAL_POLICY,
+  buildTrajectoryDeltaPng,
+  compareTrajectoryRoiPng,
   buildFinalVisualSemanticDigest,
   buildPlaybackParityDigest,
   canonicalFinalModelDigest,
   createBrowserScenarioPayload,
   expectedBoardEventTypes,
   expectedDispatchLaunchOrder,
+  expectedSemanticTrajectoryTrace,
   expectedFinalRenderedCells,
   expectedPhaseEventTypes,
+  normalizeSemanticTrajectoryTrace,
   renderedCellSemantics,
   scenariosForMode,
   evaluatePixiPlaybackBrowserReport,

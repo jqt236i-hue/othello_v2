@@ -1,9 +1,60 @@
+// Jest's CommonJS runtime cannot parse pixelmatch 7's ESM entry. Production
+// browser checks load the real package; this deterministic mechanical mock
+// keeps evaluator units focused on threshold wiring and failure propagation.
+jest.mock('pixelmatch', () => ({
+  default: (left: Uint8Array, right: Uint8Array, output: Uint8Array | null) => {
+    let different = 0;
+    for (let offset = 0; offset < Math.min(left.length, right.length); offset += 4) {
+      const mismatch = left[offset] !== right[offset]
+        || left[offset + 1] !== right[offset + 1]
+        || left[offset + 2] !== right[offset + 2]
+        || left[offset + 3] !== right[offset + 3];
+      if (mismatch) different += 1;
+      if (output) {
+        output[offset] = mismatch ? 255 : 0;
+        output[offset + 1] = 0;
+        output[offset + 2] = 0;
+        output[offset + 3] = 255;
+      }
+    }
+    return different;
+  }
+}));
+
 const Check = require('../scripts/pixijs-board-playback-browser-check');
+const crypto = require('crypto');
+const { PNG } = require('pngjs');
+
+function rgbaPng(red: number, green: number, blue: number): string {
+  const png = new PNG({ width: 2, height: 2 });
+  for (let offset = 0; offset < png.data.length; offset += 4) {
+    png.data[offset] = red;
+    png.data[offset + 1] = green;
+    png.data[offset + 2] = blue;
+    png.data[offset + 3] = 255;
+  }
+  return PNG.sync.write(png).toString('base64');
+}
+
+function pointDeltaPng(width: number, height: number, x: number, y: number): string {
+  const png = new PNG({ width, height });
+  for (let offset = 3; offset < png.data.length; offset += 4) png.data[offset] = 255;
+  const offset = (y * width + x) * 4;
+  png.data[offset] = 120;
+  png.data[offset + 1] = 48;
+  png.data[offset + 2] = 12;
+  return PNG.sync.write(png).toString('base64');
+}
+
+function sha256(value: string): string {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
 
 function goodBackendDiagnostics(): any {
   return {
     tickerRunning: false,
     canvasCount: 1,
+    contextCount: 1,
     domCellCount: 0,
     application: { tickerListenerCount: 0 },
     timeline: {
@@ -17,7 +68,14 @@ function goodBackendDiagnostics(): any {
       projectedStoneCount: 0,
       retainedFinalGhostCount: 0,
       inFlightEffectCount: 0,
-      inFlightTopologyRevealCount: 0
+      inFlightTopologyRevealCount: 0,
+      sourceTrajectory: {
+        activeRunCount: 0,
+        activeTextureLeaseCount: 0,
+        startedRunCount: 1,
+        completedRunCount: 1,
+        failedRunCount: 0
+      }
     },
     pool: {
       activePlaybackGhostCount: 0,
@@ -29,8 +87,115 @@ function goodBackendDiagnostics(): any {
     scene: {
       activePlaybackEffectCount: 0,
       activeTopologyRevealCount: 0,
+      activeSourceTrajectoryCount: 0,
+      activeSourceTrajectoryTextureLeaseCount: 0,
       pooledPlaybackEffectCount: 4
     }
+  };
+}
+
+function trajectoryRuntimeEvidence(definition: any, renderer: 'dom' | 'pixi', mode: string): any {
+  const trajectory = definition.sourceTrajectory;
+  if (!trajectory) return {
+    actualTrajectoryRequests: [],
+    semanticTrajectoryObservations: [],
+    trajectoryDiagnosticEntries: [],
+    trajectoryRoi: null
+  };
+  const [sourceRow, sourceCol] = trajectory.sourceId.split(',').map(Number);
+  const [targetRow, targetCol] = trajectory.targetId.split(',').map(Number);
+  const direction = trajectory.profileKey === 'robotVacuumSuck' ? 'target-to-source' : 'source-to-target';
+  const sourceCenter = { x: 20, y: 20 };
+  const targetCenter = { x: 80, y: 20 };
+  const geometry = mode === 'normal' ? {
+    sourceCenter,
+    targetCenter,
+    movementStart: direction === 'target-to-source' ? targetCenter : sourceCenter,
+    movementEnd: direction === 'target-to-source' ? sourceCenter : targetCenter,
+    distancePx: 60,
+    visibleClip: { left: 0, top: 0, right: 100, bottom: 100 }
+  } : null;
+  const sourceEvent = `${renderer}-source-trajectory:start`;
+  const settleEvent = `${renderer}-source-trajectory:settle`;
+  const impactEvent = `${renderer}-playback:target-impact-start`;
+  const commitEvent = `${renderer}-playback:target-commit`;
+  const startDetail = {
+    trajectoryId: trajectory.trajectoryId,
+    profileKey: trajectory.profileKey,
+    source: { row: sourceRow, col: sourceCol },
+    target: { row: targetRow, col: targetCol },
+    direction,
+    geometry
+  };
+  const targetDetail = {
+    eventType: definition.eventType,
+    row: targetRow,
+    col: targetCol,
+    profileKey: trajectory.profileKey
+  };
+  const trajectoryDiagnosticEntries = [
+    { index: 10, event: sourceEvent, detail: startDetail },
+    { index: 11, event: impactEvent, detail: targetDetail },
+    { index: 12, event: settleEvent, detail: { trajectoryId: trajectory.trajectoryId, profileKey: trajectory.profileKey } },
+    { index: 13, event: commitEvent, detail: targetDetail }
+  ];
+  const semanticTrajectoryObservations = [
+    { sequence: 10, kind: 'trajectory-start', profileKey: trajectory.profileKey, trajectoryId: trajectory.trajectoryId, targetId: trajectory.targetId, diagnosticEvent: sourceEvent },
+    { sequence: 11, kind: 'target-impact-start', profileKey: trajectory.profileKey, trajectoryId: trajectory.trajectoryId, targetId: trajectory.targetId, diagnosticEvent: impactEvent },
+    { sequence: 12, kind: 'trajectory-settle', profileKey: trajectory.profileKey, trajectoryId: trajectory.trajectoryId, targetId: trajectory.targetId, diagnosticEvent: settleEvent },
+    { sequence: 13, kind: 'target-commit', profileKey: trajectory.profileKey, trajectoryId: trajectory.trajectoryId, targetId: trajectory.targetId, diagnosticEvent: commitEvent }
+  ];
+  let trajectoryRoi = null;
+  if (mode === 'normal') {
+    const baselineColor = renderer === 'dom' ? 10 : 30;
+    const baselinePngBase64 = rgbaPng(baselineColor, baselineColor, baselineColor);
+    const activePngBase64 = rgbaPng(baselineColor + 100, baselineColor + 20, baselineColor + 5);
+    const delta = Check.buildTrajectoryDeltaPng(baselinePngBase64, activePngBase64);
+    const clip = { x: 100, y: 120, width: 2, height: 2 };
+    const baselineMetadata = {
+      sourceId: trajectory.sourceId,
+      targetId: trajectory.targetId,
+      clip,
+      endpointPolicy: 'logical-source-target-with-pixel-clipping'
+    };
+    const activeMetadata = {
+      ...baselineMetadata,
+      profileKey: trajectory.profileKey,
+      trajectoryId: trajectory.trajectoryId,
+      direction,
+      captureDelayMs: trajectory.captureDelayMs,
+      captureElapsedMs: trajectory.captureDelayMs + 5,
+      sourceStartedAtMs: 100,
+      readyAtMs: 100 + trajectory.captureDelayMs + 5
+    };
+    trajectoryRoi = {
+      metadata: activeMetadata,
+      error: null,
+      baseline: { metadata: baselineMetadata, pngBase64: baselinePngBase64, width: 2, height: 2 },
+      active: {
+        metadata: activeMetadata,
+        pngBase64: activePngBase64,
+        width: 2,
+        height: 2,
+        screenshotElapsedMs: trajectory.captureDelayMs + 12
+      },
+      delta
+    };
+  }
+  return {
+    actualTrajectoryRequests: [{
+      trajectoryId: trajectory.trajectoryId,
+      profileKey: trajectory.profileKey,
+      eventType: definition.eventType,
+      direction,
+      source: { row: sourceRow, col: sourceCol },
+      target: { row: targetRow, col: targetCol },
+      sourceId: trajectory.sourceId,
+      targetId: trajectory.targetId
+    }],
+    semanticTrajectoryObservations,
+    trajectoryDiagnosticEntries,
+    trajectoryRoi
   };
 }
 
@@ -40,6 +205,9 @@ function scenarioReport(definition: any, renderer: 'dom' | 'pixi', mode: string)
   const immediateEvidence = definition.pixiEvidence === 'immediate';
   const topologyEvidence = definition.pixiEvidence === 'topology-reveal';
   const settledKeyFrame = mode === 'noanim' || immediateEvidence;
+  const expectedSemanticTrajectoryTrace = Check.expectedSemanticTrajectoryTrace(definition);
+  const trajectoryRuntime = trajectoryRuntimeEvidence(definition, renderer, mode);
+  const inputDigest = `input:${definition.name}`;
   const renderedCells = Object.fromEntries(Object.entries(finalRenderedCells).map(([key, value]: [string, any]) => [
     key,
     { rendered: true, ...value, playbackHidden: false }
@@ -55,11 +223,14 @@ function scenarioReport(definition: any, renderer: 'dom' | 'pixi', mode: string)
     expectedPhaseEventTypes: Check.expectedPhaseEventTypes(definition),
     expectedGlobalEventTypes: definition.expectedGlobalEventTypes || [],
     expectedDispatchLaunchOrder: Check.expectedDispatchLaunchOrder(definition),
+    expectedSemanticTrajectoryTrace,
     pixiEvidence: definition.pixiEvidence || 'timeline',
     execution: definition.execution || 'playback',
     expectedFinalModelDigest: finalModelDigest,
     expectedFinalRenderedCells: Check.expectedFinalRenderedCells(definition),
-    inputDigest: `input:${definition.name}`,
+    expectedInputDigest: inputDigest,
+    inputDigest,
+    settledInputDigest: inputDigest,
     eventTypes: Check.expectedBoardEventTypes(definition),
     completedEventTypes: Check.expectedBoardEventTypes(definition),
     phaseEventTypes: Check.expectedPhaseEventTypes(definition),
@@ -67,7 +238,29 @@ function scenarioReport(definition: any, renderer: 'dom' | 'pixi', mode: string)
     globalEventTypes: definition.expectedGlobalEventTypes || [],
     completedGlobalEventTypes: definition.expectedGlobalEventTypes || [],
     dispatchLaunchOrder: Check.expectedDispatchLaunchOrder(definition),
+    semanticTrajectoryObservations: trajectoryRuntime.semanticTrajectoryObservations,
+    semanticTrajectoryTrace: Check.normalizeSemanticTrajectoryTrace(
+      trajectoryRuntime.semanticTrajectoryObservations
+    ),
+    trajectoryDiagnosticEntries: trajectoryRuntime.trajectoryDiagnosticEntries,
+    actualTrajectoryRequests: trajectoryRuntime.actualTrajectoryRequests,
+    semanticTrajectoryEvidence: definition.sourceTrajectory ? [{
+      backendKind: renderer,
+      trajectoryId: definition.sourceTrajectory.trajectoryId,
+      profileKey: definition.sourceTrajectory.profileKey,
+      startedRunDelta: renderer === 'pixi' ? 1 : 0,
+      profileStartedRunDelta: renderer === 'pixi' ? 1 : 0,
+      activeRunCount: renderer === 'pixi' ? 1 : 0,
+      inFlightEffectCount: renderer === 'pixi' ? 2 : 0,
+      trajectoryDomOverlayCount: renderer === 'pixi' ? 0 : 1,
+      completedRunDelta: renderer === 'pixi' ? 1 : 0,
+      profileCompletedRunDelta: renderer === 'pixi' ? 1 : 0,
+      failedRunDelta: 0,
+      targetCommitted: true
+    }] : [],
     soundKeys: [definition.soundKey],
+    logEntries: [],
+    logDigest: sha256('[]'),
     manifestWorldStarts: definition.name === 'manifest-ending-world'
       ? [{ overlayPresent: mode !== 'noanim', noAnimation: mode === 'noanim' }]
       : [],
@@ -94,6 +287,8 @@ function scenarioReport(definition: any, renderer: 'dom' | 'pixi', mode: string)
       cardAnimating: false,
       writerMode: 'idle'
     },
+    sourceTrajectory: definition.sourceTrajectory || null,
+    trajectoryRoi: trajectoryRuntime.trajectoryRoi,
     keyFrame: renderer === 'pixi' ? {
       capturedInsidePlayback: !topologyEvidence,
       capturedFromCommittedFrame: topologyEvidence,
@@ -103,7 +298,11 @@ function scenarioReport(definition: any, renderer: 'dom' | 'pixi', mode: string)
       playbackDone: settledKeyFrame,
       screenshotSha256: 'a'.repeat(64),
       screenshotSource: 'pixi-extract',
+      trajectoryDomOverlayCount: 0,
       backendDiagnostics: {
+        canvasCount: 1,
+        contextCount: 1,
+        domCellCount: 0,
         timeline: {
           activeRunCount: settledKeyFrame ? 0 : 1
         },
@@ -123,9 +322,11 @@ function scenarioReport(definition: any, renderer: 'dom' | 'pixi', mode: string)
     } : null,
     final: renderer === 'pixi' ? {
       backendDiagnostics: goodBackendDiagnostics(),
+      trajectoryDomOverlayCount: 0,
       renderedCells
     } : {
       backendDiagnostics: null,
+      trajectoryDomOverlayCount: 0,
       renderedCells
     }
   };
@@ -158,6 +359,8 @@ function goodReport(): any {
 describe('Pixi playback browser scenario matrix', () => {
   test('keeps the six Phase 6 groups and adds the Phase 7 normal/NOANIM matrix', () => {
     expect(Check.KEY_FRAME_DELAY_MS).toBeUndefined();
+    expect(Check.SOURCE_TRAJECTORY_CAPTURE_TIMEOUT_MS).toBe(8000);
+    expect(Check.SOURCE_TRAJECTORY_PIXELMATCH_THRESHOLD).toBe(0.18);
     expect(Check.PLAYBACK_SCENARIOS.slice(0, 6).map((scenario: any) => scenario.eventType)).toEqual([
       'place',
       'spawn',
@@ -167,7 +370,12 @@ describe('Pixi playback browser scenario matrix', () => {
       'status_applied'
     ]);
     expect(Check.PLAYBACK_SCENARIOS.slice(6).map((scenario: any) => scenario.name)).toEqual([
+      'trajectory-sniper-shot',
+      'trajectory-robot-vacuum-suck',
       'special-destroy-hybrid',
+      'trajectory-meteor-black-beam',
+      'trajectory-lightning-destroyed',
+      'trajectory-udg-destroyed',
       'zombie-infection-source',
       'theory-incarnation',
       'manifest-ending-world',
@@ -181,8 +389,22 @@ describe('Pixi playback browser scenario matrix', () => {
       'legacy-sacrifice-absorb-pulse'
     ]);
     expect(Check.scenariosForMode('reduced-motion')).toHaveLength(6);
-    expect(Check.scenariosForMode('normal')).toHaveLength(18);
-    expect(Check.scenariosForMode('noanim')).toHaveLength(18);
+    expect(Check.scenariosForMode('normal')).toHaveLength(23);
+    expect(Check.scenariosForMode('noanim')).toHaveLength(23);
+    const sourceScenarios = Check.PLAYBACK_SCENARIOS.filter((scenario: any) => scenario.sourceTrajectory);
+    expect(sourceScenarios.map((scenario: any) => scenario.sourceTrajectory.profileKey)).toEqual([
+      'sniperShot',
+      'robotVacuumSuck',
+      'destroyDragonBreath',
+      'meteorGodBlackBeam',
+      'lightningDestroyed',
+      'udgDestroyed',
+      'zombieBite'
+    ]);
+    expect(sourceScenarios.every((scenario: any) => (
+      scenario.events[0].type === scenario.eventType
+      && scenario.events[1].type === 'sound_effect'
+    ))).toBe(true);
     expect(Check.publicEntryPath('classic', 'pixi', 'normal'))
       .toBe('/index.classic.html?debug=1&boardRenderer=pixi');
     expect(Check.publicEntryPath('vite', 'pixi', 'noanim'))
@@ -219,6 +441,44 @@ describe('Pixi playback browser scenario matrix', () => {
       owner: 'black',
       specialType: 'THEORY_INCARNATION'
     });
+
+    const destroySource = Check.PLAYBACK_SCENARIOS.find((scenario: any) => (
+      scenario.name === 'special-destroy-hybrid'
+    ));
+    const zombieSource = Check.PLAYBACK_SCENARIOS.find((scenario: any) => (
+      scenario.name === 'zombie-infection-source'
+    ));
+    expect(destroySource.expectedGlobalEventTypes).toBeUndefined();
+    expect(zombieSource.expectedGlobalEventTypes).toBeUndefined();
+    expect(Check.expectedDispatchLaunchOrder(destroySource)).toEqual([
+      'board:destroy',
+      'sound:stone_destroy'
+    ]);
+    expect(Check.expectedSemanticTrajectoryTrace(destroySource)).toEqual([
+      'trajectory:start(destroyDragonBreath,1/0/0/0/destroyDragonBreath)',
+      'impact:start(2,5)',
+      'trajectory:settle(destroyDragonBreath,1/0/0/0/destroyDragonBreath)',
+      'target:commit(2,5)'
+    ]);
+    expect(Check.expectedSemanticTrajectoryTrace(zombieSource)).toEqual([
+      'trajectory:start(zombieBite,1/0/0/0/zombieBite)',
+      'impact:start(3,5)',
+      'trajectory:settle(zombieBite,1/0/0/0/zombieBite)',
+      'target:commit(3,5)'
+    ]);
+    const sniper = Check.PLAYBACK_SCENARIOS.find((scenario: any) => scenario.name === 'trajectory-sniper-shot');
+    expect(sniper.sourceTrajectory).toEqual(expect.objectContaining({
+      sourceId: '2,1',
+      targetId: '2,5',
+      direction: 'source-to-target',
+      primitive: 'projectile'
+    }));
+    expect(sniper.events[0].targets[0]).toEqual(expect.objectContaining({
+      sourceRow: 2,
+      sourceCol: 1,
+      r: 2,
+      col: 5
+    }));
   });
 
   test('accepts DOM/Pixi and classic/Vite parity with settled private resources', () => {
@@ -308,5 +568,112 @@ describe('Pixi playback browser scenario matrix', () => {
       expect.stringMatching(/parity digest is inconsistent/),
       expect.stringMatching(/DOM\/Pixi event, sound, or final-model digest drifted/)
     ]));
+  });
+
+  test('rejects canonical input drift, synthetic-route-shaped trace drift, and Pixi surface overlap', () => {
+    const report = goodReport();
+    const pixi = report.reports.find((entry: any) => (
+      entry.lane === 'classic' && entry.renderer === 'pixi' && entry.mode === 'normal'
+    ));
+    const scenario = pixi.scenarios.find((entry: any) => entry.scenario === 'special-destroy-hybrid');
+    scenario.settledInputDigest = 'mutated-events';
+    scenario.semanticTrajectoryTrace = [
+      'global:destroy_source_animation',
+      ...scenario.semanticTrajectoryTrace
+    ];
+    scenario.keyFrame.trajectoryDomOverlayCount = 1;
+    scenario.keyFrame.backendDiagnostics.contextCount = 2;
+    scenario.final.trajectoryDomOverlayCount = 1;
+    scenario.final.backendDiagnostics.contextCount = 2;
+    scenario.semanticTrajectoryEvidence[0].completedRunDelta = 0;
+
+    const evaluation = Check.evaluatePixiPlaybackBrowserReport(report);
+    expect(evaluation.ok).toBe(false);
+    expect(evaluation.errors).toEqual(expect.arrayContaining([
+      expect.stringMatching(/canonical input events\[\] digest drifted/),
+      expect.stringMatching(/backend-local semantic trajectory trace drifted/),
+      expect.stringMatching(/materialized a DOM\/SVG trajectory overlay/),
+      expect.stringMatching(/active Pixi canvas\/context exclusivity drifted/),
+      expect.stringMatching(/retained a DOM\/SVG trajectory overlay/),
+      expect.stringMatching(/Pixi\/DOM exclusive render surface contract drifted/),
+      expect.stringMatching(/did not start, settle, and commit exactly once/)
+    ]));
+  });
+
+  test('rejects an actual diagnostic trace whose settle precedes target impact', () => {
+    const report = goodReport();
+    const pixi = report.reports.find((entry: any) => (
+      entry.lane === 'classic' && entry.renderer === 'pixi' && entry.mode === 'normal'
+    ));
+    const scenario = pixi.scenarios.find((entry: any) => entry.scenario === 'trajectory-sniper-shot');
+    const settleObservation = scenario.semanticTrajectoryObservations.find((entry: any) => (
+      entry.kind === 'trajectory-settle'
+    ));
+    const impactObservation = scenario.semanticTrajectoryObservations.find((entry: any) => (
+      entry.kind === 'target-impact-start'
+    ));
+    settleObservation.sequence = 11;
+    impactObservation.sequence = 12;
+    const settleDiagnostic = scenario.trajectoryDiagnosticEntries.find((entry: any) => (
+      entry.event === 'pixi-source-trajectory:settle'
+    ));
+    const impactDiagnostic = scenario.trajectoryDiagnosticEntries.find((entry: any) => (
+      entry.event === 'pixi-playback:target-impact-start'
+    ));
+    settleDiagnostic.index = 11;
+    impactDiagnostic.index = 12;
+    scenario.semanticTrajectoryTrace = Check.normalizeSemanticTrajectoryTrace(
+      scenario.semanticTrajectoryObservations
+    );
+    scenario.parityDigest = Check.buildPlaybackParityDigest(scenario);
+
+    const evaluation = Check.evaluatePixiPlaybackBrowserReport(report);
+    expect(evaluation.ok).toBe(false);
+    expect(evaluation.errors).toEqual(expect.arrayContaining([
+      expect.stringMatching(/backend-local semantic trajectory trace drifted/)
+    ]));
+  });
+
+  test('pixelmatches backend-local baseline-to-active masks and rejects a meaning-level drift', () => {
+    const report = goodReport();
+    expect(Check.evaluatePixiPlaybackBrowserReport(report)).toEqual({ ok: true, errors: [] });
+    const pixi = report.reports.find((entry: any) => (
+      entry.lane === 'classic' && entry.renderer === 'pixi' && entry.mode === 'normal'
+    ));
+    const scenario = pixi.scenarios.find((entry: any) => entry.scenario === 'trajectory-sniper-shot');
+    scenario.trajectoryRoi.delta = {
+      ...scenario.trajectoryRoi.delta,
+      pngBase64: rgbaPng(255, 255, 255)
+    };
+
+    const evaluation = Check.evaluatePixiPlaybackBrowserReport(report);
+    expect(evaluation.ok).toBe(false);
+    expect(evaluation.errors).toEqual(expect.arrayContaining([
+      expect.stringMatching(/trajectory delta-mask pixelmatch exceeded/)
+    ]));
+  });
+
+  test('aligns beam ROI masks by the actual backend-local source endpoint', () => {
+    const dom = pointDeltaPng(12, 8, 2, 3);
+    const pixi = pointDeltaPng(12, 8, 5, 3);
+    const comparison = Check.compareTrajectoryRoiPng(
+      dom,
+      pixi,
+      'destroyDragonBreath',
+      {
+        clip: { x: 100, y: 200, width: 12, height: 8 },
+        sourceCenter: { x: 102, y: 203 },
+        targetCenter: { x: 110, y: 203 },
+        cellSize: 2
+      },
+      {
+        clip: { x: 100, y: 200, width: 12, height: 8 },
+        sourceCenter: { x: 105, y: 203 },
+        targetCenter: { x: 113, y: 203 },
+        cellSize: 2
+      }
+    );
+
+    expect(comparison).toMatchObject({ ok: true, diffPixelCount: 0, alignment: { x: -3, y: 0 } });
   });
 });
