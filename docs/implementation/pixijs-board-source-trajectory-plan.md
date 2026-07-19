@@ -4,7 +4,7 @@
 - Last reviewed: 2026-07-19
 - Design authority: `docs/implementation/pixijs-board-source-trajectory-design.md`
 - Predecessor: completed `docs/implementation/pixijs-playfield-migration-plan.md` Phase 0～10
-- Player-visible specification: 変更なし
+- Player-visible specification: 2026-07-19にoffscreen区間の表示を明確化
 - Deployment: 本計画外。別途ユーザー指示がある場合だけ行う
 
 ## 1. Execution rules
@@ -15,11 +15,11 @@
 4. Phase 0から依存順に進め、各PhaseのVerificationとDone whenを満たしてから次へ進む。
 5. coherent unitごとにtask-owned filesだけを明示stage/commitする。`git add -A`を使わない。
 6. root `.ts`を正本として編集し、browser/Worker mirrorは既存generatorから更新する。generated/mirrorをsource-editしない。
-7. 色、形、意味、表示時間、発動順、対応条件、可視範囲を変える必要が出た場合は停止し、`01-rulebook.md`と該当`正本/*.md`の更新要否をユーザーへ確認する。
+7. offscreen区間は `01-rulebook.md` と `正本/演出正本.md` の明確化に従ってowner clip内だけを描く。それ以外の色、形、意味、表示時間、発動順、対応条件、可視範囲を変える必要が出た場合は停止し、該当正本の更新要否をユーザーへ確認する。
 8. canonical `events[]`、`sequenceIndex`、`actionId`、`effectBlockId`、`phase`、network authority/payload、game RNGを変更しない。
 9. Single Visual Writer、strict-network settlement handle、required `applyCommittedFrame`後のvisual settlement、sparse model、viewport materialization、排他的DOM fallbackを維持する。
 10. 新しいPixi Application/canvas/WebGL context、第二board writer、effect単位のDOM fallbackを追加しない。
-11. Phase 0でowner範囲外pixelを一frameでも検出した場合はDone when未達のblocked状態とする。ユーザー判断または設計改訂なしにPhase 1以降へ進まない。
+11. Phase 0では現行DOMのowner範囲外pixelをlegacy overflowとして記録する。移行後の期待値はlogical endpoint/durationを維持したowner clip交差であり、旧overflowを新baselineへ要求しない。
 
 ## 2. Fixed scope
 
@@ -31,7 +31,7 @@
 
 | Unit | Content | Commit condition |
 | --- | --- | --- |
-| A | Phase 0 parity baseline | fixture/testだけ、runtime route差分なし、全profileの時間方向pixel unionがowner範囲内 |
+| A | Phase 0 parity baseline | fixture/testだけ、runtime route差分なし、全profileの時間方向pixel unionとlegacy overflowを記録 |
 | B | Phase 1 typed contract | dormant contractがcurrent classifierと一致 |
 | C | Phase 2 dormant Pixi renderer | default route未変更、unit/lifecycle pass |
 | D | Phase 3 atomic cutover | Pixi/DOM両backend、旧path cleanup、active-trajectory context-loss/排他的fallback smokeが同一commitでpass |
@@ -65,7 +65,7 @@ Pixiだけ、またはDOMだけが未実装の中間default commitを作らな�
 5. canonical input `events[]` digestはそのまま保存する。旧global/new backend固有route名は診断欄へ分離し、source start、impact/pulse start、trajectory settle、removal/changeを共通のsemantic trajectory traceへ正規化して相対順を比較できるfixtureにする。
 6. normal、`NOANIM=1`、reduced-motionのduration/gate digestとlightning seed digestを保存し、game RNG非消費を確認する。
 7. DOM browser checkでdesktop/mobile viewport、DPR 1/2、通常/scroll済み拡張盤面を実行する。各profileの同期start直前からsettleまで毎animation frameのpainted nontransparent pixel boundsを採取し、その時間方向union、board viewport、2cell gutter、z-order、overlay node数を記録する。
-8. current DOM pixelが `board viewport + 2cell gutter` の外へ出る場合は停止する。別writer/contextなしで同じ可視範囲を維持できなければ、表示範囲変更をユーザーへ確認する。baseline更新で差を隠さない。
+8. current DOM pixelが `board viewport + 2cell gutter` の外へ出るfixtureはlegacy overflowとして明示する。移行後はlogical source/targetとdurationを保ち、owner clipと交差する区間だけを描く期待値を別欄へ固定する。
 
 ### Verification
 
@@ -80,10 +80,8 @@ git diff --check
 
 - 7profileのcurrent visual/timing/order/motion/seed contractが一意にfixture化される。
 - raw multi-target start順とflip dedupe前後を再現できる。
-- 全profile・全supported fixtureの時間方向pixel unionがPixi owner範囲内と証明される。
+- 全profile・全supported fixtureの時間方向pixel union、owner範囲外pixel、移行後のclip交差期待値が記録される。
 - production routeとplayer-visible behaviorは未変更である。
-
-owner範囲外pixelを一frameでも検出した場合、このDone whenは未達でPhase 0はblockedである。診断結果を報告して停止し、Phase 1へ進まない。
 
 ## Phase 1 — Typed classifier, request and profile contract
 
@@ -393,7 +391,7 @@ git status --short
 - [ ] context recoveryのsound/log/global UI重複0
 - [ ] strict handleはrequired `applyCommittedFrame`成功後まで保持
 - [ ] abort/reset/recovery/skin switch後にobject/lease/tickerがbaselineへ戻る
-- [ ] display spec変更がなく`01-rulebook.md`/`正本/*.md`に不要な変更がない
+- [ ] offscreen区間は更新済み`01-rulebook.md`/`正本/演出正本.md`どおりで、それ以外のdisplay spec変更がない
 - [ ] task-owned filesだけをverified commitsへ含めた
 
 ## 5. Self-review decisions
@@ -401,7 +399,7 @@ git status --short
 - dispatcherに`playSourceTrajectory()`を増やす案はsecond visual pathと別recovery unitを作るため不採用。
 - target内でsource/impactを交互に始める案はcurrent launch順を崩すため、backend内二段preludeへ修正。
 - DOM内蔵animationのgate削除だけでは順序とzombie座標/clipが変わるため、DOMにも同じ二段Promise mapを要求。
-- Pixi 2cell clipはcurrent fixed overlayのpixelを減らし得るため、Phase 0で演出全時間の毎frame pixel-bounds unionを測るblocking gateを追加。差が一frameでもあればDone扱いにせず、仕様判断なしに進めない。
+- Pixi 2cell clipはcurrent fixed overlayのpixelを減らし得るため、Phase 0で演出全時間の毎frame pixel-bounds unionを測る。2026-07-19に長距離狙撃のlegacy overflowを実測し、ユーザー確認によりlogical endpointを保ちつつ見えていない区間を描かない契約へ改訂した。
 - 旧synthetic global event名と新backend-local call名は一致しないため、canonical `events[]`は完全一致、内部routeは共通semantic trajectory traceで比較する。
 - default cutoverをrecovery未検証でcommitしないよう、active-trajectory context-loss/排他的fallbackのminimum smokeをPhase 3 commit gateへ前倒しする。
 - long soak/physical inputはblockingへ戻さず、short lifecycle stressとcross-browser機能smokeでriskを検証する。

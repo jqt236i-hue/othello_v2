@@ -3,7 +3,7 @@
 - Status: implementation-ready follow-up design
 - Last reviewed: 2026-07-19
 - Scope: 盤面セルから盤面セルへ移動する破壊前・変化前の source trajectory
-- Player-visible specification: 変更なし
+- Player-visible specification: 2026-07-19にoffscreen区間の表示を明確化
 
 ## 1. Authority and relationship to the completed playfield migration
 
@@ -16,7 +16,7 @@
 3. sparse render model、viewport materialization、排他的 DOM compatibility fallback など、完了済み移行の契約は `docs/implementation/pixijs-playfield-migration-design.md` を引き継ぐ。
 4. この文書は、盤面セル間 source trajectory の renderer ownership と実装境界だけを上書きする。
 
-この移行自体では `01-rulebook.md` と `正本/*.md` を変更しない。色、形、意味、表示時間、発動順、対象への到達順、効果音、ハイライト、対応環境のいずれかを変える必要が判明した場合は実装を止め、先に仕様更新の要否をユーザーへ確認する。
+2026-07-19のユーザー確認により、盤面セル間trajectoryはlogical source/targetを維持しつつ、現在の盤面表示領域から外れて見えていない区間を描かないことを `01-rulebook.md` と `正本/演出正本.md` に明記した。それ以外の色、形、意味、表示時間、発動順、対象への到達順、効果音、ハイライト、対応環境を変える必要が判明した場合は実装を止め、先に仕様更新の要否をユーザーへ確認する。
 
 ## 2. Decision summary
 
@@ -278,7 +278,7 @@ source-to-target距離はunboundedでも、描画面はunboundedにしない。
 - segmentがclipと交差しない場合はDisplayObjectを作らず、同じsemantic durationだけtimelineをsettleさせる。
 - glow、branch、fangなどpath外側のhaloは最大2cell gutter内に収める。超える品質案は別の表示仕様判断とする。
 
-ただし、現行fixed DOM/SVG overlayがsupported viewport/scroll fixtureで`board viewport + 2cell gutter`の外へ実際に非透明pixelを出している場合、そのpixelを無条件に切り捨てることはbehavior parityではない。実装Phase 0では各profileの同期start直前からsettleまで毎animation frameのpainted pixel boundsを採取し、その時間方向unionを計測する。開始/終了frameだけの測定や単一screenshotで判定してはならない。外側pixelが一frameでも観測された場合、Phase 0は未完了のblocked状態としてcutoverと後続Phaseを止める。既存可視範囲を別writer/contextなしで維持できるか再設計し、維持できなければ`01-rulebook.md`と`正本/演出正本.md`の表示範囲更新をユーザーへ確認する。ユーザー判断なしにclip差をbaseline更新で吸収してはならない。
+現行fixed DOM/SVG overlayは、16x16相当の長距離狙撃などで`board viewport + 2cell gutter`の外へ非透明pixelを出す。この旧overflowはPhase 0で各profileの同期start直前からsettleまで毎animation frameのpainted pixel boundsを採取し、時間方向unionとして記録する。2026-07-19の表示仕様明確化により、移行後はlogical source/targetを変えず、canvas effect clipと交差する可視区間だけを描く。対象がclip内なら対象まで到達し、clip外なら見えない終端までのsemantic durationをsettleさせる。旧DOMがHUD上へ描いたoffscreen区間をPixi baselineへ持ち込まない。
 
 `effect-bounds.ts` では、旧 `source-to-board` を次の二系統へ分ける。
 
@@ -376,7 +376,7 @@ debug/test diagnosticsへ最低限次を追加する。
 
 - 四隅、四辺、負world coordinate、拡張/縮小後topology。
 - sourceのみoffscreen、targetのみoffscreen、両方offscreenでpathが横切る、完全に非交差。
-- current DOM pixel boundsを各profileのstart直前からsettleまで毎animation frame採取し、時間方向unionがboard viewport + 2cell gutter外へ出るかをsupported viewport/scrollで計測する。差があればPhase 0を完了扱いにせず、仕様判断まで後続Phaseをfail-closed停止。
+- current DOM pixel boundsを各profileのstart直前からsettleまで毎animation frame採取し、時間方向unionとowner範囲外pixelをsupported viewport/scrollで記録する。移行後はlogical endpoint/durationを保ったままowner clipとの交差だけを描くことをfixture化する。
 - scroll/resize/layout revision change直前とactive中。
 - source/target cellが最終modelでempty/holeでもevent geometryから再生。
 - 連続50回、abort、reset、skin switch、context lossでobject/lease/ticker/backingが単調増加しない。
@@ -421,4 +421,10 @@ debug/test diagnosticsへ最低限次を追加する。
 - context recoveryとDOM fallbackが元eventのphase replayだけで完了し、sound/logを重複しない。
 - strict-network settlement handleがrequired `applyCommittedFrame`成功後まで保持される。
 - abort/reset/recovery後にobject、texture lease、tickerがbaselineへ戻る。
-- player-visible specification変更がないため、`01-rulebook.md` と `正本/*.md` に不要な変更がない。
+- `01-rulebook.md` と `正本/演出正本.md` のoffscreen区間表示の明確化に一致し、それ以外のplayer-visible specificationを変更していない。
+
+## 17. Self-review
+
+- 現行DOMのfullscreen overlayが拡張盤面の長距離狙撃でboard owner範囲外へ描画する可能性を、Phase 0のfail-closed判断として設計した。
+- 2026-07-19の実測では、16x16相当の狙撃 `0,0 → 15,15` がowner範囲を約70px超えた。ユーザー確認により「攻撃先は対象石のまま、現在見えていない区間は描かない」が意図した表示と明確になったため、logical endpoint/timingを保つclip契約へ設計を改訂した。
+- 新しいfullscreen canvas、第二writer、effect単位DOM fallbackで旧overflowを再現する案は、Single Visual Writerとbounded backingを弱めるため採用していない。
