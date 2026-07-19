@@ -453,6 +453,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/board-dom-compat/playback": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/playback.js"),
   "ui/board-dom-compat/renderer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/renderer.js"),
   "ui/board-dom-compat/runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/runtime.js"),
+  "ui/board-dom-compat/source-trajectory": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/source-trajectory.js"),
   "ui/board-dom-compat/special-marker-renderer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/special-marker-renderer.js"),
   "ui/board-input-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-input-controller.js"),
   "ui/board-renderer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-renderer.js"),
@@ -474,6 +475,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/board-visual/model-builder": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/model-builder.js"),
   "ui/board-visual/performance-harness": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/performance-harness.js"),
   "ui/board-visual/playback-types": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/playback-types.js"),
+  "ui/board-visual/source-trajectory": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/source-trajectory.js"),
   "ui/board-visual/state-adapter": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/state-adapter.js"),
   "ui/board-visual/theme": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/theme.js"),
   "ui/board-visual/types": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/types.js"),
@@ -592,6 +594,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/pixi/effects/manifest": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/manifest.js"),
   "ui/pixi/effects/move": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/move.js"),
   "ui/pixi/effects/place": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/place.js"),
+  "ui/pixi/effects/source-trajectory": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/source-trajectory.js"),
   "ui/pixi/effects/spawn": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/spawn.js"),
   "ui/pixi/effects/special-stone": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/special-stone.js"),
   "ui/pixi/effects/status": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/effects/status.js"),
@@ -1121,6 +1124,7 @@ installBootModuleMetadata({
     "ui/board-dom-compat/playback",
     "ui/board-dom-compat/renderer",
     "ui/board-dom-compat/runtime",
+    "ui/board-dom-compat/source-trajectory",
     "ui/board-dom-compat/special-marker-renderer",
     "ui/board-input-controller",
     "ui/board-renderer",
@@ -1142,6 +1146,7 @@ installBootModuleMetadata({
     "ui/board-visual/model-builder",
     "ui/board-visual/performance-harness",
     "ui/board-visual/playback-types",
+    "ui/board-visual/source-trajectory",
     "ui/board-visual/state-adapter",
     "ui/board-visual/theme",
     "ui/board-visual/types",
@@ -1260,6 +1265,7 @@ installBootModuleMetadata({
     "ui/pixi/effects/manifest",
     "ui/pixi/effects/move",
     "ui/pixi/effects/place",
+    "ui/pixi/effects/source-trajectory",
     "ui/pixi/effects/spawn",
     "ui/pixi/effects/special-stone",
     "ui/pixi/effects/status",
@@ -1418,4 +1424,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 663;
+export const startupModuleCount = 666;
