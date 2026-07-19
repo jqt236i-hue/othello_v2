@@ -132,14 +132,37 @@ describe('special-stone playback phase batching', () => {
         deps.transientOverlayBatch.append(document.createElement('div'));
       }
     }));
-    const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+    const dom = new JSDOM(`<!doctype html><html><body><div id="board">
+      <div class="cell" data-row="1" data-col="3"></div>
+      <div class="cell" data-row="2" data-col="3"></div>
+      <div class="cell" data-row="2" data-col="4"></div>
+    </div></body></html>`);
     (global as any).window = dom.window;
     (global as any).document = dom.window.document;
+
+    const board = document.getElementById('board') as HTMLElement;
+    Object.defineProperty(board, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, right: 300, bottom: 300, width: 300, height: 300 })
+    });
+    for (const cell of Array.from(board.querySelectorAll<HTMLElement>('.cell'))) {
+      const row = Number(cell.dataset.row);
+      const col = Number(cell.dataset.col);
+      Object.defineProperty(cell, 'getBoundingClientRect', {
+        value: () => ({
+          left: col * 30,
+          top: row * 30,
+          right: (col + 1) * 30,
+          bottom: (row + 1) * 30,
+          width: 30,
+          height: 30
+        })
+      });
+    }
 
     const { createDomBoardPlaybackHandlers } = require('../ui/board-dom-compat/runtime');
     const { createDomBoardPlaybackExecutor } = require('../ui/board-dom-compat/playback');
     const executor = createDomBoardPlaybackExecutor(createDomBoardPlaybackHandlers({
-      boardElement: document.getElementById('board'),
+      boardElement: board,
       documentRef: document,
       isNoAnim: () => false
     }));
