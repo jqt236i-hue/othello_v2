@@ -1,6 +1,19 @@
 const gameVisuals = require('../game/move-executor-visuals');
 
 describe('hyperactive playback detection', () => {
+  test('treats an empty precomputed turn-start event batch as a normal no-op', async () => {
+    jest.resetModules();
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const hyper = require('../game/special-effects/hyperactive');
+
+    try {
+      await expect(hyper.processHyperactiveMovesAtTurnStart(1, null, [])).resolves.toBeUndefined();
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   test('uses bootstrap registered PlaybackEngine when available and does not force emitBoardUpdate', async () => {
     jest.resetModules();
     // stub emitBoardUpdate

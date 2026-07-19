@@ -79,6 +79,23 @@ function createRuntime() {
   return { Container: FakeContainer, Graphics: FakeGraphics };
 }
 
+test('Pixi display-object labels do not write the removed v8 name property', () => {
+  class LabelOnlyContainer {
+    label = '';
+    constructor(options?: any) {
+      this.label = String(options && options.label || '');
+    }
+    set name(_value: string) {
+      throw new Error('removed Pixi v8 name property was written');
+    }
+  }
+
+  expect(() => CellView.createPixiContainer(
+    { Container: LabelOnlyContainer, Graphics: FakeGraphics },
+    'board-cell'
+  )).not.toThrow();
+});
+
 function createCell(visualSignature: string, marker: Record<string, any>): any {
   return {
     key: '0,0',

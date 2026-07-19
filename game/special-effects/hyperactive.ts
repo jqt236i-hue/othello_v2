@@ -125,10 +125,14 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
 
     // Prefer pipeline-produced precomputedResult; otherwise consume pipeline events.
     let result = precomputedResult;
-    let events = Array.isArray(precomputedEvents) ? precomputedEvents.slice() : [];
+    const hasPrecomputedEventBatch = Array.isArray(precomputedEvents);
+    let events = hasPrecomputedEventBatch ? precomputedEvents.slice() : [];
     if (!result) {
-        if (events.length === 0) {
+        if (!hasPrecomputedEventBatch) {
             console.error('[HYPERACTIVE] No precomputed pipeline events provided; skipping hyperactive presentation');
+            return;
+        }
+        if (events.length === 0) {
             return;
         }
 

@@ -45,6 +45,54 @@ describe('animation-engine playback-state integration', () => {
     expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
   });
 
+  test('local watchdog preserves deferred presentation claims and hands back an abort settlement finalizer', async () => {
+    jest.useFakeTimers();
+    jest.unmock('../ui/playback-state-manager');
+    global.window.PLAYBACK_WATCHDOG_MS = 10;
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const manager = require('../ui/playback-state-manager.js');
+    const engine = require('../ui/animation-engine.js');
+    const presentationClaim = manager.claimVisualPlayback({ scope: 'presentation_drain' });
+    let resolvePhase: (() => void) | null = null;
+    let deferredFinalizer: (() => boolean) | null = null;
+    const executePhaseSpy = jest.spyOn(engine, 'executePhase').mockImplementation(() => (
+      new Promise<void>((resolve) => { resolvePhase = resolve; })
+    ));
+
+    try {
+      const playPromise = engine.play(
+        [{ type: 'move', phase: 1, targets: [] }],
+        {
+          deferFinalSettlement: true,
+          onFinalizationReady(finalizer: () => boolean) {
+            deferredFinalizer = finalizer;
+          }
+        }
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+
+      jest.advanceTimersByTime(20);
+      await Promise.resolve();
+      expect((global.window as any).__telemetry__.watchdogFired).toBe(1);
+      expect(manager.hasClaimedVisualPlayback()).toBe(true);
+
+      expect(typeof resolvePhase).toBe('function');
+      resolvePhase!();
+      await playPromise;
+
+      expect(typeof deferredFinalizer).toBe('function');
+      expect(deferredFinalizer!()).toBe(true);
+      expect(manager.releaseVisualPlaybackClaim(presentationClaim)).toBe(true);
+      expect(manager.hasClaimedVisualPlayback()).toBe(false);
+    } finally {
+      executePhaseSpy.mockRestore();
+      warnSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
   test('abortAndSync delegates playback abort to PlaybackStateManager when available', () => {
     const playbackStateMock = {
       abortPlayback: jest.fn()

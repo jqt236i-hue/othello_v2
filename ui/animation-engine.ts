@@ -874,6 +874,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 scope: null,
                 watchdogId: null,
                 externallyAborted: false,
+                visualPlaybackClaimsPreservedOnAbort: false,
                 abortController: (typeof AbortController === 'function') ? new AbortController() : null
             };
             let abortHandle: any = null;
@@ -902,10 +903,15 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     if (previousWatchdogId) {
                         try { _Timer().clearTimeout(previousWatchdogId); } catch (e: any) { /* ignore */ }
                     }
+                    const handleWatchdogForRun = () => {
+                        const preserveVisualPlaybackClaims = strictNetworkPlaybackThisRun || deferFinalSettlement;
+                        runState.visualPlaybackClaimsPreservedOnAbort = preserveVisualPlaybackClaims;
+                        return this.handleWatchdog({ preserveVisualPlaybackClaims });
+                    };
                     if (this.playbackScope !== null) {
-                        this._watchdogId = _Timer().setTimeout(() => this.handleWatchdog(), WATCHDOG_TIMEOUT_MS, this.playbackScope);
+                        this._watchdogId = _Timer().setTimeout(handleWatchdogForRun, WATCHDOG_TIMEOUT_MS, this.playbackScope);
                     } else {
-                        this._watchdogId = _Timer().setTimeout(() => this.handleWatchdog(), WATCHDOG_TIMEOUT_MS);
+                        this._watchdogId = _Timer().setTimeout(handleWatchdogForRun, WATCHDOG_TIMEOUT_MS);
                     }
                     runState.watchdogId = this._watchdogId;
                 };
@@ -1071,6 +1077,25 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                         _requestBoardUpdate();
                     }
                 }
+                if (
+                    !strictNetworkPlaybackThisRun
+                    && deferFinalSettlement
+                    && runState.externallyAborted
+                    && runState.visualPlaybackClaimsPreservedOnAbort
+                    && localWriterSettlementResolved
+                ) {
+                    // The watchdog already aborted the engine-owned playback state.
+                    // Keep the outer presentation claim alive until its board writer
+                    // settles, then acknowledge that no second manager finalization is
+                    // required. This preserves the drain's settlement ownership without
+                    // clearing a newer playback run through a late finalizePlayback().
+                    let abortSettlementAcknowledged = false;
+                    playOptions.onFinalizationReady(() => {
+                        if (abortSettlementAcknowledged) return false;
+                        abortSettlementAcknowledged = true;
+                        return true;
+                    });
+                }
                 if (isCurrentRun && localWriterSettlementResolved) {
                     this._strictNetworkPlaybackReject = null;
                     this._strictNetworkPlayback = false;
@@ -1203,7 +1228,8 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             });
         }
 
-        async handleWatchdog() {
+        async handleWatchdog(options?: any) {
+            const watchdogOptions = (options && typeof options === 'object') ? options : {};
             console.warn('[AnimationEngine] WATCHDOG fired. Forcing playback abort and sync.');
             this._watchdogFired = true;
             // Telemetry increment
@@ -1239,7 +1265,10 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             } catch (e: any) { console.error('[AnimationEngine] watchdog emitBoardUpdate failed', e); }
             // Ensure flags cleared
             if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
-                PlaybackState.abortPlayback({ boardElement: this.boardEl });
+                PlaybackState.abortPlayback({
+                    boardElement: this.boardEl,
+                    preserveVisualPlaybackClaims: watchdogOptions.preserveVisualPlaybackClaims === true
+                });
             } else if (typeof window !== 'undefined') {
                 this.setGlobalInteractionLock(false);
             }

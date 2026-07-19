@@ -61,7 +61,6 @@ export interface PixiCellView {
 function setLabel(target: any, label: string): void {
   if (!target) return;
   target.label = label;
-  target.name = label;
 }
 
 export function createPixiContainer(runtime: PixiStaticViewRuntime, label: string): any {
