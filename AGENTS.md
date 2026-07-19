@@ -36,6 +36,7 @@ othello_v2/
 | Detailed desired behavior / audit notes | `正本/*.md` | Use for card-specific behavior, turn order, animation, sound, and confidence/audit notes. Update only when a player-visible spec is changed or clarified and the existing note would become stale. |
 | Architecture boundary | `docs/architecture-contracts.md` | Module contracts, authority, DI, runtime equivalence. |
 | Browser boot | `index.html`, `entry-browser.js`, `ui/bootstrap.ts`, `ui/bootstrap/init-*.ts` | Load order and DI are fragile. |
+| Board visual / PixiJS | `ui/board-visual/*`, `ui/pixi/*`, `ui/board-dom-compat/*` | `ui/board-visual/controller.ts` owns the writer. Pixi is normal; DOM is lazy, mutually exclusive compatibility fallback. |
 | Game progression | `game/turn/*`, `game/turn-manager.ts`, `game/move-executor.ts` | Keep headless; UI bridge is explicit. |
 | Card logic | `cards/catalog.json`, `game/logic/cards/*`, `game/logic/card-resolution/*`, `game/card-effects/*` | Catalog display, pure logic, card-resolution modules, and pending/UI bridge are separate layers. |
 | CPU runtime | `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, `game/ai/*` | `cpu/` is compatibility/read-only; runtime policy lives under `game/`. |
@@ -53,6 +54,9 @@ othello_v2/
 | --- | --- | --- |
 | `entry-browser.js` | browser bootstrap | Large classic loader for runtime modules and compatibility globals. |
 | `ui/bootstrap.ts` | DI/bootstrap module | Installs UI/game/network dependency bridges. |
+| `ui/board-visual/controller.ts` | board visual controller | Owns the Single Visual Writer claim, backend lifecycle, committed-frame application, and recovery. |
+| `ui/pixi/board-backend.ts` | normal board backend | Renders the board, stones, input feedback, and board-owned playback through the single Pixi application. |
+| `ui/board-dom-compat/*` | compatibility backend | Lazy fallback for explicit debug selection, Pixi/WebGL initialization failure, or unrecoverable context loss only. |
 | `workers/match-worker.ts` | Worker source | Canonical server-authoritative match state. |
 | `workers/match-worker.mjs` | Worker shim | Thin entry over built worker output. |
 | `game/logic/cards.ts` | rules hub | Central card rule registry / resolution surface. |
@@ -69,6 +73,8 @@ othello_v2/
 - Root files are source of truth; `dist/` and `worker-public/` are generated or mirrored surfaces.
 - Prefer `.ts` when a `.ts`/`.js` pair exists. Adjacent `.js` is usually a dist wrapper; check `docs/typescript-migration-js-allowlist.md` before editing `.js`.
 - UI preview, busy flags, playback locks, and animation state are settlement/presentation state, not canonical gameplay state.
+- The normal board is a Pixi canvas plus the DOM semantic accessibility layer. DOM cells/discs and `#board-expansion-layer` belong only to the selected DOM compatibility backend.
+- Hand, card, HUD, text, modal, chat, fullscreen, and cross-surface presentation remain DOM-owned unless a separate approved design changes that boundary; they are not board writers.
 - Debug behavior is gated by explicit flags such as `?debug=1`; normal play must not get debug side effects.
 - `owner` / `player` / color forms are normalized at boundaries; do not mix internal representations.
 - Generated catalogs and manifests come from scripts, not hand edits.
@@ -81,6 +87,10 @@ othello_v2/
 - Presentation and settlement state such as preview, animation locks, busy flags, playback locks, hover/highlight state, and sound state must not become canonical gameplay authority.
 - Violations include `game/` or `shared/` discovering `NetworkMatchClient`, reading `window` / `document` / `globalThis` UI state directly, invoking UI handler names, deciding results from animation/sound/playback state, or using normal-play debug side effects as control flow.
 - Valid bridges are explicit DI hooks, public game APIs, canonical snapshots, and ordered `events[]`. If a new bridge is needed, add it at the boundary layer and keep the core logic headless.
+- All board frames, board input, and board-owned playback enter through `ui/board-visual/controller.ts` and the active `BoardVisualBackend`; do not write board pixels or settle a board phase through a parallel path.
+- Pixi and DOM compatibility backends must not mount, write, or accept input concurrently. Keep one board writer and one Pixi application/canvas/WebGL context.
+- A trajectory whose source and target are both board coordinates is board-owned phase work. Hand/card/HUD-to-board trajectories and fullscreen/global UI remain global DOM presentation and may only read board geometry through the public board-visual API.
+- `ui/board-dom-compat/` is fallback as a whole, never a per-effect fallback for an active Pixi phase. Do not make the normal Pixi import/caller graph evaluate DOM compatibility runtime modules.
 - When auditing this contract, start with `npm run check:window` and a focused search such as `rg -n "window\\.|document\\.|globalThis\\.|self\\.|NetworkMatchClient" game shared --glob "*.ts"`.
 
 ## WORK RULES
@@ -90,6 +100,8 @@ othello_v2/
 - For card behavior, turn order, animation, sound, highlight, or network-visible gameplay changes, also check the relevant `正本/` document. Update `正本/` only when the intended player-visible spec changes, is clarified, or would otherwise become stale; do not touch it for internal-only refactors, generated/mirror sync, or test-only changes.
 - Keep headless layers headless: do not introduce DOM, `window`, audio, timer, or network dependencies into `game/`, `shared/`, CPU logic, or pure card logic.
 - For UI changes, preserve `events[]` playback order and the Single Visual Writer contract. Add presentation through the existing UI bridge instead of creating another board writer.
+- For board rendering or board-local animation changes, inspect `docs/architecture-contracts.md` section 7.3, `ui/board-visual/effect-branch-inventory.ts`, and the active backend before implementing. Extend the existing backend/timeline/resource lifecycle instead of adding a second canvas, animation clock, or settlement path.
+- Normal Pixi behavior and tests must not infer board state or geometry from compatibility-only `.cell`, `.disc`, or `#board-expansion-layer` DOM. Use the render model, public board-visual geometry/diagnostics, or semantic layer appropriate to the task.
 - For network changes, treat Worker/local-server snapshots and authority helpers as canonical. Client runtime, preview, and reconciliation state must not become authority.
 - Pending selection network publish must stay behind the UI/network signal bridge. Do not make `game/card-effects/selection-flow.ts` discover or publish through a root `NetworkMatchClient` global.
 - Do not let Worker, local server, browser, and headless behavior drift through parallel implementations. Prefer shared contracts, codecs, and authority helpers, and keep runtime-specific differences at the boundary layer.
@@ -110,6 +122,7 @@ othello_v2/
 - Do not delete, skip, or weaken a failing test merely to obtain a passing result. Change test expectations only when the intended behavior has changed and the source-of-truth spec or contract is updated as needed. If a retry passes after an initial failure, report both results and the suspected reason for the instability.
 - 実機ゲーム検証（ブラウザでのプレイ・操作確認、Playwright などの自動操作を含む）は、変更のリスクに応じて事前承認なしで実行できる。ユーザーが実行しないよう指定した場合はそれに従う。
 - `test/e2e/*`, `npm run test:visual`, and Playwright/browser-driven game UI checks are Level 3 or visual verification tools. Run the smallest relevant scenario and report what was exercised.
+- For Pixi board changes, run the smallest focused board/Pixi Jest coverage first. Add `npm run match:pixijs-board-playback-check`, `npm run match:pixi-runtime-fallback-check`, `npm run match:cross-platform-smoke:vite`, and selector/visual checks in proportion to playback, recovery, delivery, and browser risk.
 - Do not run long selfplay or training jobs unless explicitly requested. Use a focused preflight or small sample before any expensive run.
 
 ## IMPLEMENTATION QUALITY
@@ -172,7 +185,8 @@ othello_v2/
 
 - Treating client-authored state, `snapshot-runtime.ts`, or preview state as authority.
 - Adding DOM/window/sound/timer dependencies to `game/`, `shared/`, CPU logic, or card logic.
-- Creating a second board DOM writer during playback or reordering `events[]`.
+- Creating a second board writer, Pixi application/canvas/WebGL context, animation clock, or backend-specific settlement path; mounting Pixi and DOM compatibility together; or reordering `events[]`.
+- Using `ui/board-dom-compat/` as a normal-path implementation or making default Pixi behavior depend on compatibility-only board DOM selectors.
 - Editing `worker-public/`, `dist/`, generated catalog files, or `public/module-registry.js` as source.
 - Duplicating constants, Lv6 decision-mode parsing, owner/player normalization, or card target/cost checks.
 
@@ -186,6 +200,10 @@ npm run build:browser    # public/module-registry.js と index.html のキャッ
 npm run test:jest
 npm run test:network:parity
 npm run test:visual       # Visual / browser verification; run the smallest relevant scenario
+npm run match:pixijs-board-playback-check
+npm run match:pixi-runtime-fallback-check
+npm run match:cross-platform-smoke:vite
+npm run check:board-test-selectors
 npm run match:check
 npm run worker:prepare    # Standalone mirror generation/verification, or before direct npx wrangler use
 ```
