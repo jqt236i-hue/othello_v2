@@ -2156,6 +2156,25 @@ async function completeScenario(page: any): Promise<any> {
     };
     await withTimeout(probe.promise, 'playback scenario completion');
     await withTimeout(root.__boardVisualDebug.waitForIdle(), 'playback scenario final idle');
+    let previousVisualDigest = root.__boardVisualDebug.getVisualFrameDigest();
+    let stableVisualFrames = 0;
+    for (let attempt = 0; attempt < 4 && stableVisualFrames < 2; attempt += 1) {
+      await withTimeout(new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => resolve());
+      }), 'playback scenario final animation frame');
+      await withTimeout(root.__boardVisualDebug.waitForIdle(), 'playback scenario final frame idle');
+      const currentVisualDigest = root.__boardVisualDebug.getVisualFrameDigest();
+      if (currentVisualDigest === previousVisualDigest
+        && root.__boardVisualDebug.getWriterMode() === 'idle') {
+        stableVisualFrames += 1;
+      } else {
+        stableVisualFrames = 0;
+      }
+      previousVisualDigest = currentVisualDigest;
+    }
+    if (stableVisualFrames < 2) {
+      throw new Error('Playback scenario final visual digest did not stabilize');
+    }
     const stable = (value: any): any => {
       if (Array.isArray(value)) return value.map(stable);
       if (!value || typeof value !== 'object') return value;
