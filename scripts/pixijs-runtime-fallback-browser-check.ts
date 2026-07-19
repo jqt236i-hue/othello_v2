@@ -20,6 +20,20 @@ interface PixiFallbackProbe {
   renderer: string;
   cellCount: number;
   canvasCount: number;
+  trajectoryOverlayCount: number;
+  trajectorySmoke: {
+    attempted: boolean;
+    originalEventTypes: string[];
+    trajectoryObserved: boolean;
+    phaseSettled: boolean;
+    canvasCountWhileActive: number;
+    trajectoryOverlayCountAfterSettle: number;
+    initialVisualDigest: string | null;
+    finalVisualDigest: string | null;
+    soundCallCount: number;
+    logEntryDelta: number;
+    error: string;
+  } | null;
   bootError: string;
 }
 
@@ -48,14 +62,177 @@ function evaluatePixiRuntimeFallbackProbe(
   }
   if (!probe || probe.cellCount <= 0) errors.push(`${expectedLane}: DOM cells were not materialized`);
   if (probe?.canvasCount !== 0) errors.push(`${expectedLane}: canvas and DOM fallback were mounted together`);
+  if (probe?.trajectoryOverlayCount !== 0) {
+    errors.push(`${expectedLane}: a DOM trajectory overlay survived settlement`);
+  }
+  if (!probe?.trajectorySmoke?.attempted) {
+    errors.push(`${expectedLane}: DOM trajectory fallback smoke did not run`);
+  } else {
+    if (JSON.stringify(probe.trajectorySmoke.originalEventTypes) !== JSON.stringify(['destroy', 'flip'])) {
+      errors.push(`${expectedLane}: trajectory fallback did not receive the original destroy/flip events`);
+    }
+    if (!probe.trajectorySmoke.trajectoryObserved) {
+      errors.push(`${expectedLane}: DOM trajectory was not observed while active`);
+    }
+    if (!probe.trajectorySmoke.phaseSettled) {
+      errors.push(`${expectedLane}: DOM trajectory phase did not settle`);
+    }
+    if (probe.trajectorySmoke.canvasCountWhileActive !== 0) {
+      errors.push(`${expectedLane}: canvas and active DOM trajectory were mounted together`);
+    }
+    if (probe.trajectorySmoke.trajectoryOverlayCountAfterSettle !== 0) {
+      errors.push(`${expectedLane}: DOM trajectory overlay was not cleaned up`);
+    }
+    if (!probe.trajectorySmoke.initialVisualDigest
+      || probe.trajectorySmoke.finalVisualDigest !== probe.trajectorySmoke.initialVisualDigest) {
+      errors.push(`${expectedLane}: final visual digest changed during fallback trajectory smoke`);
+    }
+    if (probe.trajectorySmoke.soundCallCount !== 0) {
+      errors.push(`${expectedLane}: board-only trajectory replayed sound`);
+    }
+    if (probe.trajectorySmoke.logEntryDelta !== 0) {
+      errors.push(`${expectedLane}: board-only trajectory replayed a log entry`);
+    }
+    if (probe.trajectorySmoke.error) {
+      errors.push(`${expectedLane}: trajectory fallback smoke failed: ${probe.trajectorySmoke.error}`);
+    }
+  }
   if (probe?.bootError) errors.push(`${expectedLane}: fatal boot error was rendered`);
   return errors;
 }
 
 async function captureFallbackProbe(page: any): Promise<PixiFallbackProbe> {
-  return page.evaluate(() => {
+  return page.evaluate(async () => {
     const root = window as any;
     const capability = root.__CARD_REVERSI_BROWSER_CAPABILITIES__?.pixiRuntime || null;
+    const resolveModule = (globalName: string, moduleId: string): any => {
+      if (root[globalName]) return root[globalName];
+      try {
+        return typeof root.require === 'function' ? root.require(moduleId) : null;
+      } catch (_error) {
+        return null;
+      }
+    };
+    const renderer = resolveModule('BoardRenderer', 'ui/board-renderer');
+    const debug = root.__boardVisualDebug;
+    const trajectorySelector = [
+      '.dom-board-source-trajectory-layer',
+      '.dom-board-source-trajectory__zombie-shadow',
+      '.dom-board-source-trajectory__zombie-fang'
+    ].join(',');
+    let trajectorySmoke: PixiFallbackProbe['trajectorySmoke'] = null;
+
+    if (renderer && debug
+      && typeof renderer.getBoardVisualControllerReady === 'function'
+      && typeof renderer.getBoardVisualController === 'function'
+      && typeof renderer.validateBoardVisualPhase === 'function'
+      && typeof renderer.claimBoardVisualWriter === 'function'
+      && typeof renderer.playBoardVisualPhase === 'function'
+      && typeof renderer.releaseBoardVisualWriter === 'function') {
+      const events = Object.freeze([
+        Object.freeze({
+          type: 'destroy',
+          phase: 2,
+          actionId: 'pixi-runtime-fallback-smoke',
+          effectBlockId: 'pixi-runtime-fallback-destroy',
+          targets: Object.freeze([Object.freeze({
+            r: 3,
+            col: 4,
+            sourceRow: 3,
+            sourceCol: 3,
+            cause: 'SNIPER_WILL',
+            reason: 'sniper_shot',
+            ownerBefore: 'white'
+          })])
+        }),
+        Object.freeze({
+          type: 'flip',
+          phase: 2,
+          actionId: 'pixi-runtime-fallback-smoke',
+          effectBlockId: 'pixi-runtime-fallback-flip',
+          targets: Object.freeze([Object.freeze({
+            r: 4,
+            col: 3,
+            ownerBefore: 'white',
+            ownerAfter: 'black',
+            cause: 'ZOMBIE',
+            reason: 'zombie_infection',
+            meta: Object.freeze({ sourceRow: 4, sourceCol: 4 })
+          })])
+        })
+      ]);
+      const phaseScope = Object.freeze({
+        events,
+        phaseKey: 'pixi-runtime-fallback-smoke',
+        stepIndex: 0
+      });
+      let token: any = null;
+      let trajectoryObserved = false;
+      let canvasCountWhileActive = 0;
+      let soundCallCount = 0;
+      let originalSound: ((...args: any[]) => unknown) | null = null;
+      const soundEngine = root.SoundEngine;
+      const logEntryCountBefore = document.querySelectorAll('#log .logEntry').length;
+      let initialVisualDigest: string | null = null;
+      let finalVisualDigest: string | null = null;
+      let phaseSettled = false;
+      let smokeError = '';
+      try {
+        await renderer.getBoardVisualControllerReady();
+        await debug.waitForIdle();
+        initialVisualDigest = debug.getVisualFrameDigest();
+        if (soundEngine && typeof soundEngine.playEffectByKey === 'function') {
+          originalSound = soundEngine.playEffectByKey;
+          soundEngine.playEffectByKey = function (...args: any[]) {
+            soundCallCount += 1;
+            return originalSound!.apply(this, args);
+          };
+        }
+        await renderer.validateBoardVisualPhase(events, phaseScope, false);
+        const controller = renderer.getBoardVisualController();
+        const checkpoint = controller?.getSettledFrame?.();
+        if (!checkpoint) throw new Error('settled fallback board checkpoint is unavailable');
+        const frameToken = 'local:pixi-runtime-fallback-smoke';
+        const finalFrame = Object.freeze({ ...checkpoint, frameToken });
+        token = renderer.claimBoardVisualWriter(frameToken, 'local');
+        const phasePromise = renderer.playBoardVisualPhase(token, events, phaseScope);
+        for (let frameIndex = 0; frameIndex < 12; frameIndex += 1) {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          const activeOverlayCount = document.querySelectorAll(trajectorySelector).length;
+          if (activeOverlayCount > 0) {
+            trajectoryObserved = true;
+            canvasCountWhileActive = document.querySelectorAll('#board canvas').length;
+            break;
+          }
+        }
+        await phasePromise;
+        renderer.releaseBoardVisualWriter(token, finalFrame);
+        token = null;
+        await debug.waitForIdle();
+        phaseSettled = true;
+        finalVisualDigest = debug.getVisualFrameDigest();
+      } catch (error) {
+        smokeError = error instanceof Error ? error.message : String(error);
+        try {
+          if (token) renderer.releaseBoardVisualWriter(token);
+        } catch (_releaseError) { /* primary smoke failure remains authoritative */ }
+      } finally {
+        if (soundEngine && originalSound) soundEngine.playEffectByKey = originalSound;
+      }
+      trajectorySmoke = {
+        attempted: true,
+        originalEventTypes: events.map((event) => event.type),
+        trajectoryObserved,
+        phaseSettled,
+        canvasCountWhileActive,
+        trajectoryOverlayCountAfterSettle: document.querySelectorAll(trajectorySelector).length,
+        initialVisualDigest,
+        finalVisualDigest,
+        soundCallCount,
+        logEntryDelta: document.querySelectorAll('#log .logEntry').length - logEntryCountBefore,
+        error: smokeError
+      };
+    }
     return {
       ready: root.__uiInitialized === true,
       capability: capability ? {
@@ -67,6 +244,8 @@ async function captureFallbackProbe(page: any): Promise<PixiFallbackProbe> {
       renderer: document.getElementById('board')?.getAttribute('data-board-renderer') || 'legacy-dom',
       cellCount: document.querySelectorAll('#board .cell, #board-expansion-layer .cell').length,
       canvasCount: document.querySelectorAll('#board canvas').length,
+      trajectoryOverlayCount: document.querySelectorAll(trajectorySelector).length,
+      trajectorySmoke,
       bootError: document.getElementById('browserViteBootError')?.textContent || ''
     };
   });

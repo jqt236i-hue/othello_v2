@@ -132,14 +132,10 @@ async function playDestroyTarget(
   }
   const impact = impactProfile(profileKey, target);
   const impactPromise = playTargetImpact(event, target, projection, impact);
-  if (PresentationEffectProfiles.requiresGlobalDestroyPrelude(target)) {
-    await Promise.all([
-      projection.waitForTargetPrelude(event, target),
-      impactPromise
-    ]);
-  } else {
-    await impactPromise;
-  }
+  await Promise.all([
+    projection.waitForSourceTrajectories(event, target),
+    impactPromise
+  ]);
   const meta = target && target.meta && typeof target.meta === 'object' ? target.meta : {};
   const preserveStone = meta.blockedByGhost === true
     || meta.proliferated === true

@@ -70,7 +70,7 @@ describe('Pixi theory incarnation effect', () => {
       timings: { theoryRouletteMs: 2500, theoryMaterializeMs: 2000 },
       noAnimation: false,
       reducedMotion: false,
-      waitForTargetPrelude: jest.fn(async () => undefined),
+      waitForSourceTrajectories: jest.fn(async () => undefined),
       getPhaseSourceStone: jest.fn(() => null),
       getProjectedStone: jest.fn((row: number, col: number) => (
         projected.get(`${row},${col}`) || null

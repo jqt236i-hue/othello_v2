@@ -2,6 +2,13 @@ import AnimationConstants = require('../animation-constants');
 import PresentationEffectProfiles = require('../../shared/presentation-effect-profiles');
 import type { PresentationPlaybackEvent } from '../board-visual/playback-types';
 import {
+  BOARD_SOURCE_TRAJECTORY_PROFILE_REGISTRY,
+  collectBoardSourceTrajectoryRequests,
+  getBoardSourceTrajectoryIdsForTarget,
+  type BoardSourceTrajectoryBatch,
+  type BoardSourceTrajectoryRequest
+} from '../board-visual/source-trajectory';
+import {
   PresentationPlaybackError,
   isBoardPlaybackEvent,
   isHybridPresentationEvent,
@@ -58,7 +65,8 @@ import { createPixiSourceTrajectoryRenderer } from './effects/source-trajectory'
 import type {
   PixiBoardEffectPlayer,
   PixiBoardEffectProjection,
-  PixiBoardEffectTimings
+  PixiBoardEffectTimings,
+  PixiSourceTrajectoryProjection
 } from './effects/types';
 
 export interface PixiBoardPlaybackApplicationPort extends PixiApplicationTickerPort {
@@ -120,6 +128,13 @@ interface PixiPhaseSettlementState {
 interface PixiValidatedPhase {
   readonly sourceSnapshot: ReadonlyMap<string, PixiPlaybackStoneVisual | null>;
   readonly settlement: PixiPhaseSettlementState;
+  readonly trajectoryBatch: BoardSourceTrajectoryBatch;
+}
+
+interface PixiPhaseTrajectoryState {
+  readonly batch: BoardSourceTrajectoryBatch;
+  readonly trajectoryById: ReadonlyMap<string, Promise<void>>;
+  readonly settlement: Promise<void>;
 }
 
 const DEFAULT_TIMINGS: PixiBoardEffectTimings = Object.freeze({
@@ -245,21 +260,6 @@ function collectValidationEvents(
   return Object.freeze(output);
 }
 
-function validateDestroyPresentation(
-  event: PresentationPlaybackEvent,
-  context: BoardPlaybackValidationContext
-): void {
-  const targets = Array.isArray(event.targets) ? event.targets : [];
-  const unsupported = targets.find((target) => (
-    PresentationEffectProfiles.requiresGlobalDestroyPrelude(target as any)
-      && typeof context?.phaseScope?.waitForTargetPrelude !== 'function'
-  ));
-  if (!unsupported) return;
-  throw new PresentationPlaybackError('board_event_unimplemented', event, {
-    strictNetworkPlayback: context?.strictNetworkPlayback === true
-  });
-}
-
 function validatePixiCapabilityEvent(
   candidate: unknown,
   context: BoardPlaybackValidationContext
@@ -274,7 +274,33 @@ function validatePixiCapabilityEvent(
   const type = normalizePresentationEventType(event);
   if (type === 'flip') return;
   requirePlayer(event, context);
-  if (type === 'destroy') validateDestroyPresentation(event, context);
+}
+
+function collectTrajectoryBatch(
+  events: readonly unknown[],
+  context: BoardPlaybackValidationContext
+): BoardSourceTrajectoryBatch {
+  const rawEvents = events.filter((candidate) => (
+    candidate && typeof candidate === 'object'
+  )) as PresentationPlaybackEvent[];
+  const scopedEvents = context?.phaseScope && Array.isArray(context.phaseScope.events)
+    ? context.phaseScope.events.filter((candidate) => candidate && typeof candidate === 'object') as PresentationPlaybackEvent[]
+    : [];
+  const collected = collectBoardSourceTrajectoryRequests(
+    scopedEvents.length ? scopedEvents : rawEvents,
+    {
+      phaseKey: context?.phaseScope?.phaseKey,
+      stepIndex: context?.phaseScope?.stepIndex
+    }
+  );
+  if (!scopedEvents.length) return collected;
+  const launchEvents = new Set(rawEvents);
+  return Object.freeze({
+    phaseKey: collected.phaseKey,
+    stepIndex: collected.stepIndex,
+    requests: Object.freeze(collected.requests.filter((request) => launchEvents.has(request.event))),
+    memberships: Object.freeze(collected.memberships.filter((membership) => launchEvents.has(membership.event)))
+  });
 }
 
 function collectPhaseCoordinateKeys(events: readonly unknown[]): readonly string[] {
@@ -525,15 +551,71 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     if (destroyed) throw new Error('Pixi board playback is destroyed');
     const validationEvents = collectValidationEvents(events, context);
     for (const event of validationEvents) validatePixiCapabilityEvent(event, context);
+    const trajectoryBatch = collectTrajectoryBatch(events, context);
+    const frame = options.getFrame();
+    if (!frame) throw new Error('Pixi board playback requires an applied visual frame');
+    const existingCoordinates = new Set(frame.model.topology.existingKeys);
+    for (const request of trajectoryBatch.requests) {
+      const sourceKey = coordinateKey(request.source.row, request.source.col);
+      const targetKey = coordinateKey(request.target.row, request.target.col);
+      if (!existingCoordinates.has(sourceKey) || !existingCoordinates.has(targetKey)) {
+        throw new PresentationPlaybackError(
+          'board_source_trajectory_endpoint_invalid',
+          request.event,
+          { strictNetworkPlayback: context?.strictNetworkPlayback === true }
+        );
+      }
+    }
+    if (!resolveBoolean(options.noAnimation)) {
+      const checkedTextureOwners = new Set<'black' | 'white'>();
+      for (const request of trajectoryBatch.requests) {
+        const profile = BOARD_SOURCE_TRAJECTORY_PROFILE_REGISTRY[request.profileKey];
+        if (profile.texturePolicy !== 'normal-stone') continue;
+        if (request.owner !== 'black' && request.owner !== 'white') {
+          throw new PresentationPlaybackError(
+            'board_source_trajectory_owner_invalid',
+            request.event,
+            { strictNetworkPlayback: context?.strictNetworkPlayback === true }
+          );
+        }
+        if (checkedTextureOwners.has(request.owner)) continue;
+        if (typeof options.acquireStoneTextureLease !== 'function') {
+          throw new PresentationPlaybackError(
+            'board_source_trajectory_asset_unavailable',
+            request.event,
+            { strictNetworkPlayback: context?.strictNetworkPlayback === true }
+          );
+        }
+        try {
+          const lease = options.acquireStoneTextureLease(request.owner);
+          try {
+            if (!lease || lease.texture == null || typeof lease.release !== 'function') {
+              throw new Error(`Pixi source trajectory ${request.profileKey} stone texture is unavailable`);
+            }
+          } finally {
+            lease?.release?.();
+          }
+        } catch (cause) {
+          throw new PresentationPlaybackError(
+            'board_source_trajectory_asset_unavailable',
+            request.event,
+            { strictNetworkPlayback: context?.strictNetworkPlayback === true, cause }
+          );
+        }
+        checkedTextureOwners.add(request.owner);
+      }
+    }
     const settlement = ensurePhaseSettlement(validationEvents, context);
 
     const phaseScope = context?.phaseScope;
     if (phaseScope && typeof phaseScope === 'object') {
       const installed = phaseSourceSnapshots.get(phaseScope);
-      if (installed) return Object.freeze({ sourceSnapshot: installed, settlement });
+      if (installed) return Object.freeze({
+        sourceSnapshot: installed,
+        settlement,
+        trajectoryBatch
+      });
     }
-    const frame = options.getFrame();
-    if (!frame) throw new Error('Pixi board playback requires an applied visual frame');
     const snapshot = new Map<string, PixiPlaybackStoneVisual | null>();
     for (const key of collectPhaseCoordinateKeys(validationEvents)) {
       const [row, col] = key.split(',').map(Number);
@@ -543,7 +625,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     if (phaseScope && typeof phaseScope === 'object') {
       phaseSourceSnapshots.set(phaseScope, immutableSnapshot);
     }
-    return Object.freeze({ sourceSnapshot: immutableSnapshot, settlement });
+    return Object.freeze({ sourceSnapshot: immutableSnapshot, settlement, trajectoryBatch });
   }
 
   function getScope(context: BoardPlaybackContext): PixiPlaybackProjectionScope {
@@ -560,6 +642,63 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     if (!frame) throw new Error('Pixi board playback requires an applied visual frame');
     activeScope = scene.beginPlaybackScope(key);
     return activeScope;
+  }
+
+  function createSourceTrajectoryProjection(
+    context: BoardPlaybackContext
+  ): PixiSourceTrajectoryProjection {
+    const scope = getScope(context);
+    return Object.freeze({
+      scene,
+      scope,
+      timeline,
+      noAnimation: resolveBoolean(options.noAnimation),
+      reducedMotion: resolveBoolean(options.reducedMotion),
+      acquireStoneTextureLease(owner: 'black' | 'white'): PixiSourceTrajectoryTextureLease {
+        if (typeof options.acquireStoneTextureLease !== 'function') {
+          throw new Error('Pixi source trajectory stone texture lease is unavailable');
+        }
+        return options.acquireStoneTextureLease(owner);
+      }
+    });
+  }
+
+  function trackTrajectoryPromise(
+    request: BoardSourceTrajectoryRequest,
+    promise: Promise<void>
+  ): Promise<void> {
+    let tracked!: Promise<void>;
+    tracked = Promise.resolve(promise).finally(() => {
+      inFlightEffects.delete(tracked);
+    });
+    // Trajectories are first-class phase work. They remain in the same
+    // abort/reset accounting as target effects even when no target gate reads
+    // their promise (for example, an offscreen source path).
+    inFlightEffects.add(tracked);
+    record('pixi-playback:trajectory-track', {
+      trajectoryId: request.trajectoryId,
+      profileKey: request.profileKey
+    });
+    return tracked;
+  }
+
+  function createPhaseTrajectoryState(
+    batch: BoardSourceTrajectoryBatch,
+    rawTrajectoryById: ReadonlyMap<string, Promise<void>>
+  ): PixiPhaseTrajectoryState {
+    const trajectoryById = new Map<string, Promise<void>>();
+    for (const request of batch.requests) {
+      const raw = rawTrajectoryById.get(request.trajectoryId);
+      if (!raw) {
+        throw new Error(`Pixi source trajectory promise is missing: ${request.trajectoryId}`);
+      }
+      trajectoryById.set(request.trajectoryId, trackTrajectoryPromise(request, raw));
+    }
+    return Object.freeze({
+      batch,
+      trajectoryById,
+      settlement: Promise.all(Array.from(trajectoryById.values())).then(() => undefined)
+    });
   }
 
   function releaseRetainedFinalGhost(key: string, scope: PixiPlaybackProjectionScope): void {
@@ -582,7 +721,8 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
 
   function createProjection(
     context: BoardPlaybackContext,
-    phaseSourceSnapshot: ReadonlyMap<string, PixiPlaybackStoneVisual | null>
+    phaseSourceSnapshot: ReadonlyMap<string, PixiPlaybackStoneVisual | null>,
+    phaseTrajectories: PixiPhaseTrajectoryState
   ): PixiBoardEffectProjection {
     const scope = getScope(context);
     const frame = options.getFrame();
@@ -600,11 +740,40 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       timings,
       noAnimation: resolveBoolean(options.noAnimation),
       reducedMotion: resolveBoolean(options.reducedMotion),
-      waitForTargetPrelude(event: PresentationPlaybackEvent, target: unknown): Promise<void> {
-        const gate = context?.phaseScope?.waitForTargetPrelude;
-        return typeof gate === 'function'
-          ? Promise.resolve(gate(event, target))
-          : Promise.resolve();
+      waitForSourceTrajectories(event: PresentationPlaybackEvent, target: unknown): Promise<void> {
+        const eventType = normalizePresentationEventType(event);
+        if (eventType !== 'destroy' && eventType !== 'flip') return Promise.resolve();
+        const ids = getBoardSourceTrajectoryIdsForTarget(
+          phaseTrajectories.batch,
+          eventType,
+          target,
+          eventType === 'destroy' ? event : null
+        );
+        if (!ids.length) {
+          const targetCoordinate = normalizePlaybackCoordinate(target);
+          const requiresTrajectory = !!PresentationEffectProfiles.getBoardSourceTrajectoryProfileKey(
+            eventType,
+            target as any
+          ) || (eventType === 'flip' && !!targetCoordinate && (event.targets || []).some((rawTarget) => {
+            const rawCoordinate = normalizePlaybackCoordinate(rawTarget);
+            return !!rawCoordinate
+              && rawCoordinate.row === targetCoordinate.row
+              && rawCoordinate.col === targetCoordinate.col
+              && !!PresentationEffectProfiles.getBoardSourceTrajectoryProfileKey('flip', rawTarget as any);
+          }));
+          if (requiresTrajectory) {
+            throw new Error(`Pixi source trajectory membership is missing for ${eventType} target`);
+          }
+          return Promise.resolve();
+        }
+        return Promise.all(ids.map((id) => {
+          const trajectory = phaseTrajectories.trajectoryById.get(id);
+          if (!trajectory) throw new Error(`Pixi source trajectory gate is missing: ${id}`);
+          return trajectory;
+        })).then(() => undefined);
+      },
+      render(): void {
+        application.render();
       },
       getProjectedStone(row: number, col: number): PixiPlaybackStoneVisual | null {
         return readProjectedStone(frame, row, col);
@@ -757,14 +926,15 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     // Validate every handler before starting the first visual mutation. This
     // keeps unsupported Phase 7 events from leaving a partially-started phase.
     const nonFlipPlayers = nonFlipEvents.map((event) => requirePlayer(event, context));
-    const projection = createProjection(context, validated.sourceSnapshot);
     const phaseId = ++phaseCount;
     record('pixi-playback:phase-start', {
       phaseId,
       eventTypes: typedEvents.map(normalizePresentationEventType)
     });
-    const launches: Promise<void>[] = [];
-    try {
+    let projection: PixiBoardEffectProjection | null = null;
+    const launchBoardEffects = (trajectoryState: PixiPhaseTrajectoryState): Promise<void> => {
+      projection = createProjection(context, validated.sourceSnapshot, trajectoryState);
+      const launches: Promise<void>[] = [];
       // Match DOM playback: one consolidated FLIP launch starts first, then
       // every non-FLIP event starts in its received order. Do not type-sort.
       if (flipEvents.length) {
@@ -778,12 +948,40 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       for (let index = 0; index < nonFlipEvents.length; index += 1) {
         launches.push(trackEffect(nonFlipEvents[index], nonFlipPlayers[index], projection));
       }
-      await Promise.all(launches);
+      return Promise.all(launches).then(() => undefined);
+    };
+    try {
+      const sourceProjection = createSourceTrajectoryProjection(context);
+      let initializedTrajectoryState: PixiPhaseTrajectoryState | null = null;
+      const batchRun = sourceTrajectoryRenderer.startBatch(
+        validated.trajectoryBatch.requests,
+        sourceProjection,
+        (rawTrajectoryById) => {
+          // startBatch invokes this callback only after every raw request in
+          // this playPhase launch has synchronously entered the renderer.
+          // Later dispatcher launches retain their existing relative order.
+          const state = createPhaseTrajectoryState(
+            validated.trajectoryBatch,
+            rawTrajectoryById
+          );
+          initializedTrajectoryState = state;
+          return launchBoardEffects(state);
+        }
+      );
+      // This launch result directly includes each of its source trajectories
+      // in addition to the target gates used inside destroy/flip.
+      const trackedSettlement = (initializedTrajectoryState as PixiPhaseTrajectoryState | null)?.settlement;
+      await Promise.all([
+        batchRun.settlement,
+        trackedSettlement || Promise.resolve()
+      ]);
+      const settledProjection = projection as PixiBoardEffectProjection | null;
+      if (!settledProjection) throw new Error('Pixi board playback projection was not created');
       if (completePhaseLaunch(validated.settlement, typedEvents)) {
         let terminalProjectionChanged = false;
         for (const { key, visual } of validated.settlement.terminalProjectionWrites) {
           const [row, col] = key.split(',').map(Number);
-          projection.setProjectedStone(row, col, visual);
+          settledProjection.setProjectedStone(row, col, visual);
           terminalProjectionChanged = true;
         }
         if (terminalProjectionChanged) application.render();

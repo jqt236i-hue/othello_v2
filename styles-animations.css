@@ -527,68 +527,12 @@ the fade-in starts. */
         animation: none !important;
     }
 }
-/* Zombie infection: a low, purple-black shadow closes into a pair of fangs. */
+/* Board-local zombie source visuals live in styles-board-dom-compat.css.
+   The target pulse remains here because it belongs to the stone change. */
 #board,
 .board,
 .game-board {
   isolation: isolate;
-}
-
-.zombie-bite-shadow,
-.zombie-bite-fang {
-  position: absolute;
-  z-index: 18;
-  pointer-events: none;
-  transform-origin: 0 50%;
-}
-
-.zombie-bite-shadow {
-  height: 8px;
-  margin-top: -4px;
-  border-radius: 50%;
-  background: linear-gradient(90deg, rgba(21, 4, 28, 0.15), rgba(69, 15, 91, 0.9), rgba(126, 37, 151, 0.42));
-  box-shadow: 0 0 10px rgba(106, 35, 142, 0.8);
-  animation: zombie-bite-shadow-crawl 440ms ease-out both;
-}
-
-.zombie-bite-fang {
-  width: clamp(10px, 1.6vmin, 18px);
-  height: clamp(24px, 3.8vmin, 42px);
-  margin-left: -7px;
-  margin-top: -20px;
-  clip-path: polygon(12% 0, 88% 0, 62% 100%, 38% 100%);
-  background: linear-gradient(180deg, rgba(225, 208, 235, 0.9), rgba(113, 44, 136, 0.82));
-  filter: drop-shadow(0 0 5px rgba(110, 31, 143, 0.85));
-}
-
-.zombie-bite-fang--upper {
-  transform: rotate(var(--zombie-bite-angle)) translateY(-30px);
-  animation: zombie-bite-fang-upper 800ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
-}
-
-.zombie-bite-fang--lower {
-  transform: rotate(calc(var(--zombie-bite-angle) + 180deg)) translateY(-30px);
-  animation: zombie-bite-fang-lower 800ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
-}
-
-@keyframes zombie-bite-shadow-crawl {
-  0% { opacity: 0; scale: 0 0.45; }
-  35% { opacity: 0.85; }
-  100% { opacity: 1; scale: 1 1; }
-}
-
-@keyframes zombie-bite-fang-upper {
-  0%, 42% { opacity: 0; translate: 0 -18px; }
-  55% { opacity: 0.9; }
-  76% { opacity: 1; translate: 0 12px; }
-  100% { opacity: 0; translate: 0 8px; }
-}
-
-@keyframes zombie-bite-fang-lower {
-  0%, 42% { opacity: 0; translate: 0 -18px; }
-  55% { opacity: 0.9; }
-  76% { opacity: 1; translate: 0 12px; }
-  100% { opacity: 0; translate: 0 8px; }
 }
 
 @keyframes zombie-bite-infection-pulse {
@@ -596,11 +540,4 @@ the fade-in starts. */
   68% { filter: drop-shadow(0 0 9px rgba(138, 43, 170, 0.95)); transform: scale(0.88, 1.05); }
   82% { filter: drop-shadow(0 0 13px rgba(90, 22, 118, 0.92)); transform: scale(1.06, 0.94); }
   100% { filter: none; transform: scale(1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .zombie-bite-shadow,
-.zombie-bite-fang {
-    animation: none !important;
-  }
 }

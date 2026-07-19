@@ -10,6 +10,80 @@ function frame(frameToken: string, revision: number) {
   } as any;
 }
 
+function sourceTrajectoryEvents() {
+  return Object.freeze([
+    Object.freeze({
+      type: 'destroy',
+      phase: 2,
+      actionId: 'context-trajectory',
+      effectBlockId: 'context-trajectory-destroy',
+      targets: Object.freeze([Object.freeze({
+        r: 3,
+        col: 4,
+        sourceRow: 3,
+        sourceCol: 3,
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        ownerBefore: 'white'
+      })])
+    }),
+    Object.freeze({
+      type: 'flip',
+      phase: 2,
+      actionId: 'context-trajectory',
+      effectBlockId: 'context-trajectory-flip',
+      targets: Object.freeze([Object.freeze({
+        r: 4,
+        col: 3,
+        ownerBefore: 'white',
+        ownerAfter: 'black',
+        cause: 'ZOMBIE',
+        reason: 'zombie_infection',
+        meta: Object.freeze({ sourceRow: 4, sourceCol: 4 })
+      })])
+    })
+  ]);
+}
+
+function trajectoryFrame(frameToken: string, revision: number, settled: boolean) {
+  const signatures = settled
+    ? ['black:source', 'empty:destroyed', 'black:zombie', 'black:zombie-source']
+    : ['black:source', 'white:target', 'white:target', 'black:zombie-source'];
+  return {
+    frameToken,
+    model: {
+      visualRevision: revision,
+      topology: {
+        baseRows: 8,
+        baseCols: 8,
+        minRow: 0,
+        maxRow: 7,
+        minCol: 0,
+        maxCol: 7,
+        renderRowOffset: 0,
+        renderColOffset: 0,
+        renderRows: 8,
+        renderCols: 8,
+        existingKeys: ['3,3', '3,4', '4,3', '4,4'],
+        playableKeys: ['3,3', '3,4', '4,3', '4,4'],
+        holeKeys: []
+      },
+      cells: ['3,3', '3,4', '4,3', '4,4'].map((key, index) => ({
+        key,
+        visualSignature: signatures[index]
+      })),
+      keyboardCursorKey: null,
+      viewerContext: 'black',
+      currentPlayer: 'black',
+      canControlCurrentTurn: true,
+      isHumanTurn: true
+    },
+    layout: {},
+    appearance: {},
+    theme: {}
+  } as any;
+}
+
 function deferred<T = void>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
   let reject!: (error: unknown) => void;
@@ -62,7 +136,7 @@ describe('BoardVisualController context recovery', () => {
       playPhase: jest.fn((events: any[], context: any) => {
         const type = String(events[0]?.type || '');
         calls.push({ type, recoveryReplay: context.recoveryReplay === true });
-        if (type === 'active' && context.recoveryReplay !== true) return activePhase.promise;
+        if (type === 'destroy' && context.recoveryReplay !== true) return activePhase.promise;
         return Promise.resolve();
       })
     });
@@ -75,9 +149,16 @@ describe('BoardVisualController context recovery', () => {
 
     const completedScope = Object.freeze({ events: Object.freeze([{ type: 'completed' }]) });
     await controller.playPhase(token, [{ type: 'completed' }], completedScope);
-    const activeScope = Object.freeze({ events: Object.freeze([{ type: 'active' }]) });
+    const activeEvents = sourceTrajectoryEvents();
+    const activeScope = Object.freeze({
+      events: activeEvents,
+      phaseKey: 'context-trajectory-restore',
+      stepIndex: 0
+    });
+    const soundEvents = ['stone_destroy'];
+    const logEvents = ['context trajectory action'];
     let originalSettled = false;
-    const active = controller.playPhase(token, [{ type: 'active' }], activeScope)
+    const active = controller.playPhase(token, activeEvents, activeScope)
       .then(() => { originalSettled = true; });
     await Promise.resolve();
 
@@ -93,10 +174,12 @@ describe('BoardVisualController context recovery', () => {
     expect(visualBackend.restore).toHaveBeenCalledWith(checkpoint);
     expect(calls).toEqual([
       { type: 'completed', recoveryReplay: false },
-      { type: 'active', recoveryReplay: false },
+      { type: 'destroy', recoveryReplay: false },
       { type: 'completed', recoveryReplay: true },
-      { type: 'active', recoveryReplay: true }
+      { type: 'destroy', recoveryReplay: true }
     ]);
+    expect(soundEvents).toEqual(['stone_destroy']);
+    expect(logEvents).toEqual(['context trajectory action']);
     expect(controller.getMode()).toBe('playback');
     expect(controller.releaseWriter(token)).toBe(true);
   });
@@ -158,17 +241,42 @@ describe('BoardVisualController context recovery', () => {
     expect(controller.releaseWriter(token)).toBe(true);
   });
 
-  test('switches exclusively to DOM and replays the same board checkpoint once', async () => {
+  test('switches an active original source trajectory exclusively to DOM with identical final digest', async () => {
     const activePhase = deferred();
     const order: string[] = [];
+    let canvasWriterCount = 0;
+    let domWriterCount = 0;
+    let maximumWriterCount = 0;
+    const observeWriters = () => {
+      maximumWriterCount = Math.max(maximumWriterCount, canvasWriterCount + domWriterCount);
+    };
+    const originalEvents = sourceTrajectoryEvents();
+    const soundEvents = ['zombie_will_bite'];
+    const logEvents = ['context trajectory action'];
     const pixi = backend('pixi', {
-      playPhase: jest.fn(() => activePhase.promise),
-      destroy: jest.fn(() => { order.push('pixi:destroy'); })
+      mount: jest.fn(() => {
+        canvasWriterCount = 1;
+        observeWriters();
+      }),
+      playPhase: jest.fn((events: readonly any[]) => {
+        expect(events).toEqual(originalEvents);
+        return activePhase.promise;
+      }),
+      destroy: jest.fn(() => {
+        canvasWriterCount = 0;
+        order.push('pixi:destroy');
+        observeWriters();
+      })
     });
     const dom = backend('dom', {
-      mount: jest.fn(() => { order.push('dom:mount'); }),
+      mount: jest.fn(() => {
+        domWriterCount = 1;
+        order.push('dom:mount');
+        observeWriters();
+      }),
       restore: jest.fn(async () => { order.push('dom:restore'); }),
-      playPhase: jest.fn(async (_events: unknown[], context: any) => {
+      playPhase: jest.fn(async (events: readonly any[], context: any) => {
+        expect(events).toEqual(originalEvents);
         order.push(`dom:phase:${context.recoveryReplay === true}`);
       })
     });
@@ -179,11 +287,16 @@ describe('BoardVisualController context recovery', () => {
       removeAttribute: jest.fn()
     } as unknown as HTMLElement;
     await controller.mount(host);
-    const checkpoint = frame('idle:dom-fallback', 6);
+    const checkpoint = trajectoryFrame('idle:dom-fallback', 6, false);
     controller.submitFrame(checkpoint);
     await controller.waitForIdle();
     const token = controller.claimWriter('local:dom-fallback', 'local');
-    const active = controller.playPhase(token, [{ type: 'move' }], Object.freeze({ events: [] }));
+    const phaseScope = Object.freeze({
+      events: originalEvents,
+      phaseKey: 'context-trajectory-fallback',
+      stepIndex: 0
+    });
+    const active = controller.playPhase(token, originalEvents, phaseScope);
     await Promise.resolve();
     const recovery = controller.beginContextRecovery(new Error('context lost'));
     activePhase.reject(new Error('context lost'));
@@ -194,8 +307,23 @@ describe('BoardVisualController context recovery', () => {
     await active;
 
     expect(order).toEqual(['pixi:destroy', 'dom:mount', 'dom:restore', 'dom:phase:true']);
+    expect(maximumWriterCount).toBe(1);
+    expect(canvasWriterCount).toBe(0);
+    expect(domWriterCount).toBe(1);
+    expect(soundEvents).toEqual(['zombie_will_bite']);
+    expect(logEvents).toEqual(['context trajectory action']);
     expect(controller.getBackendKind()).toBe('dom');
     expect(controller.getMode()).toBe('playback');
-    expect(controller.releaseWriter(token)).toBe(true);
+    const finalFrame = trajectoryFrame('local:dom-fallback', 7, true);
+    expect(controller.releaseWriter(token, finalFrame)).toBe(true);
+    await controller.waitForIdle();
+
+    const baselineBackend = backend('dom');
+    const baselineController = ControllerModule.createBoardVisualController({ backend: baselineBackend });
+    await baselineController.mount({} as HTMLElement);
+    baselineController.submitFrame(finalFrame);
+    await baselineController.waitForIdle();
+    expect(controller.getVisualFrameDigest()).toBe(baselineController.getVisualFrameDigest());
+    baselineController.destroy();
   });
 });

@@ -2,7 +2,10 @@ import {
   dispatchPresentationPhase,
   normalizePresentationPhaseSoundEvents
 } from '../ui/presentation/dispatcher';
-import { PresentationPlaybackError } from '../ui/board-visual/playback-types';
+import {
+  PresentationPlaybackError,
+  isKnownGlobalPresentationEvent
+} from '../ui/board-visual/playback-types';
 
 describe('presentation dispatcher', () => {
   test('manifest is serial, then flip batch and non-flips launch in legacy order', async () => {
@@ -122,10 +125,7 @@ describe('presentation dispatcher', () => {
     ]);
   });
 
-  test('starts zombie source decoration before the board batch and shares its target gate', async () => {
-    const calls: string[] = [];
-    let resolvePrelude!: () => void;
-    const prelude = new Promise<void>((resolve) => { resolvePrelude = resolve; });
+  test('routes zombie flip only through the board backend without a synthetic global event', async () => {
     const target = {
       r: 2,
       col: 3,
@@ -133,32 +133,25 @@ describe('presentation dispatcher', () => {
       reason: 'zombie_infection',
       meta: { sourceRow: 2, sourceCol: 2 }
     };
-    const dispatch = dispatchPresentationPhase([{ type: 'flip', phase: 7, targets: [target] }], {
-      playGlobalEvent(event) {
-        calls.push(`global:${event.type}`);
-        return prelude;
-      },
-      async playBoardPhase(_events, scope) {
-        calls.push('board:start');
-        await scope?.waitForTargetPrelude?.(_events[0], target);
-        calls.push('board:settled');
-      }
+    const event = { type: 'flip', phase: 7, targets: [target] };
+    const playGlobalEvent = jest.fn();
+    const playBoardPhase = jest.fn();
+
+    await dispatchPresentationPhase([event], {
+      playGlobalEvent,
+      playBoardPhase
     });
 
-    await Promise.resolve();
-    expect(calls).toEqual(['global:zombie_bite_source_animation', 'board:start']);
-    resolvePrelude();
-    await dispatch;
-    expect(calls).toEqual([
-      'global:zombie_bite_source_animation',
-      'board:start',
-      'board:settled'
-    ]);
+    expect(playGlobalEvent).not.toHaveBeenCalled();
+    expect(playBoardPhase).toHaveBeenCalledTimes(1);
+    expect(playBoardPhase).toHaveBeenCalledWith(
+      [event],
+      expect.objectContaining({ events: [event], phaseKey: '7', stepIndex: 0 })
+    );
+    expect(playBoardPhase.mock.calls[0][1]).not.toHaveProperty('waitForTargetPrelude');
   });
 
-  test('settles each special DESTROY source trajectory before its matching Pixi target impact', async () => {
-    const calls: string[] = [];
-    const resolvers = new Map<string, () => void>();
+  test('routes special DESTROY targets unchanged through the board backend', async () => {
     const sniper = {
       r: 1,
       col: 1,
@@ -182,42 +175,26 @@ describe('presentation dispatcher', () => {
       reason: 'board_effect'
     };
     const event = { type: 'destroy', phase: 9, targets: [sniper, ordinary, robot] };
-    let boardSettled = false;
-    const dispatch = dispatchPresentationPhase([event], {
-      playGlobalEvent(globalEvent) {
-        const target = globalEvent.target as any;
-        const key = `${target.r},${target.col}`;
-        calls.push(`global:${key}`);
-        return new Promise<void>((resolve) => { resolvers.set(key, resolve); });
-      },
-      async playBoardPhase(events, scope) {
-        expect(events).toEqual([event]);
-        calls.push('board:start');
-        await Promise.all([
-          scope?.waitForTargetPrelude?.(event, sniper),
-          scope?.waitForTargetPrelude?.(event, ordinary),
-          scope?.waitForTargetPrelude?.(event, robot)
-        ]);
-        boardSettled = true;
-        calls.push('board:settled');
-      }
+    const playGlobalEvent = jest.fn();
+    const playBoardPhase = jest.fn();
+
+    await dispatchPresentationPhase([event], {
+      playGlobalEvent,
+      playBoardPhase
     });
 
-    await Promise.resolve();
-    expect(calls).toEqual(['global:1,1', 'global:4,4', 'board:start']);
-    expect(boardSettled).toBe(false);
-    resolvers.get('1,1')?.();
-    await Promise.resolve();
-    expect(boardSettled).toBe(false);
-    resolvers.get('4,4')?.();
-    await dispatch;
-    expect(boardSettled).toBe(true);
-    expect(calls).toEqual([
-      'global:1,1',
-      'global:4,4',
-      'board:start',
-      'board:settled'
-    ]);
+    expect(playGlobalEvent).not.toHaveBeenCalled();
+    expect(playBoardPhase).toHaveBeenCalledWith(
+      [event],
+      expect.objectContaining({ events: [event], phaseKey: '9', stepIndex: 0 })
+    );
+    expect(playBoardPhase.mock.calls[0][0][0].targets).toEqual([sniper, ordinary, robot]);
+    expect(playBoardPhase.mock.calls[0][1]).not.toHaveProperty('waitForTargetPrelude');
+  });
+
+  test('synthetic source event names are not public global presentation events', () => {
+    expect(isKnownGlobalPresentationEvent({ type: 'destroy_source_animation' })).toBe(false);
+    expect(isKnownGlobalPresentationEvent({ type: 'zombie_bite_source_animation' })).toBe(false);
   });
 
   test('local unknown event uses the exclusive DOM compatibility board port', async () => {

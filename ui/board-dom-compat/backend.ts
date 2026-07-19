@@ -11,6 +11,7 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require;
 const DomPlayback = _require('./playback');
 const DomRuntime = _require('./runtime');
+const DomSourceTrajectory = _require('./source-trajectory');
 
 function createDomBoardVisualBackend(options?: {
   playPhase?: (events: readonly unknown[], context: BoardPlaybackContext) => Promise<void>;
@@ -28,7 +29,11 @@ function createDomBoardVisualBackend(options?: {
   let diagnostics: BoardVisualBackendDeps['diagnostics'] = undefined;
   let lastFrame: BoardVisualFrame | null = null;
   const runtimeHandlers = !options?.playPhase
-    ? DomRuntime.createDomBoardPlaybackHandlers({ getBoardElement: () => host })
+    ? DomRuntime.createDomBoardPlaybackHandlers({
+      getBoardElement: () => host,
+      getBoardFrame: () => lastFrame,
+      record: (event: string, detail?: unknown) => diagnostics?.record(event, detail)
+    })
     : null;
   const playbackExecutor = runtimeHandlers
     ? DomPlayback.createDomBoardPlaybackExecutor(runtimeHandlers)
@@ -136,10 +141,10 @@ function createDomBoardVisualBackend(options?: {
       diagnostics?.record('dom:mounted');
     },
     applyFrame,
-    validatePhase() {
-      // The compatibility executor remains the complete presentation backend.
-      // Its handler validation stays in dom-playback at launch time so legacy
-      // local unknown-event fallback and launch order are unchanged.
+    validatePhase(events, context) {
+      if (!runtimeHandlers) return;
+      const phaseEvents = Array.isArray(events) ? events as any[] : [];
+      DomSourceTrajectory.validateDomBoardSourceTrajectoryPhase(phaseEvents, context, lastFrame);
     },
     async playPhase(events: readonly unknown[], context: BoardPlaybackContext) {
       const playPhase = options && typeof options.playPhase === 'function'

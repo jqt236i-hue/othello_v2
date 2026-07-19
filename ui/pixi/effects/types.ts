@@ -48,7 +48,10 @@ export interface PixiBoardEffectProjection {
   readonly timings: PixiBoardEffectTimings;
   readonly noAnimation: boolean;
   readonly reducedMotion: boolean;
-  waitForTargetPrelude(event: PresentationPlaybackEvent, target: unknown): Promise<void>;
+  /** Backend-local gate over raw source trajectories for this visual target. */
+  waitForSourceTrajectories(event: PresentationPlaybackEvent, target: unknown): Promise<void>;
+  /** Render a post-timeline terminal write without creating another clock run. */
+  render(): void;
   /** Stone visible at the planner phase-scope boundary, before parallel writes. */
   getPhaseSourceStone(row: number, col: number): PixiPlaybackStoneVisual | null;
   getProjectedStone(row: number, col: number): PixiPlaybackStoneVisual | null;

@@ -74,7 +74,6 @@ var AnimationHandEvents = requireRuntimeModuleOrWindowGlobal('./animation-hand-e
 var PresentationPhasePlanner = requireRuntimeModuleOrWindowGlobal('./presentation/phase-planner', 'PresentationPhasePlanner');
 var PresentationDispatcher = requireRuntimeModuleOrWindowGlobal('./presentation/dispatcher', 'PresentationDispatcher');
 var PresentationVisualSeed = requireRuntimeModuleOrWindowGlobal('./presentation/visual-seed', 'PresentationVisualSeed');
-var GlobalBoardEffectPresenter = requireRuntimeModuleOrWindowGlobal('./presentation/global-board-effect-presenter', 'GlobalBoardEffectPresenter');
 var BoardPlaybackTypes = requireRuntimeModuleOrWindowGlobal('./board-visual/playback-types', 'BoardPlaybackTypes');
 var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
         ? AnimationResolver.getAnimationShared()
@@ -1283,10 +1282,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     return this._playBoardPhaseThroughBackend([ev]);
                 case EVENT_TYPES.OBSERVER_BUBBLE:
                     return this.handleObserverBubble(ev);
-                case 'destroy_source_animation':
-                    return this.handleDestroySourceAnimation(ev);
-                case 'zombie_bite_source_animation':
-                    return this.handleZombieBiteSourceAnimation(ev);
                 case EVENT_TYPES.ROUND_BONUS_BANNER:
                     return this.handleRoundBonusBanner(ev);
                 case EVENT_TYPES.SPECIAL_CARD_CINEMATIC:
@@ -1472,73 +1467,6 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 observerBubbleMs: Constants.OBSERVER_BUBBLE_MS,
                 observerBubbleFadeMs: Constants.OBSERVER_BUBBLE_FADE_MS,
                 getCellClientRect: (row: any, col: any) => renderer.getBoardCellClientRect(row, col)
-            });
-        }
-
-        async handleDestroySourceAnimation(ev: any) {
-            if (!(GlobalBoardEffectPresenter && typeof GlobalBoardEffectPresenter.presentDestroySourceAnimation === 'function')) {
-                throw new Error('AnimationEngine global board effect presenter unavailable');
-            }
-            const renderer = requireRuntimeModuleOrWindowGlobal('./board-renderer', 'BoardRenderer');
-            if (!renderer || typeof renderer.getBoardCellClientRect !== 'function') {
-                throw this._createPlaybackError('board_geometry_unavailable', ev);
-            }
-            if (typeof renderer.getBoardVisualControllerReady === 'function') {
-                await renderer.getBoardVisualControllerReady();
-            }
-            const controller = typeof renderer.getBoardVisualController === 'function'
-                ? renderer.getBoardVisualController()
-                : null;
-            const suppressTargetImpact = !!(
-                controller
-                && typeof controller.getBackendKind === 'function'
-                && controller.getBackendKind() === 'pixi'
-            );
-            let random = () => 0.5;
-            if (PresentationVisualSeed && typeof PresentationVisualSeed.createVisualRandom === 'function') {
-                try {
-                    const target = ev && (ev.target || (Array.isArray(ev.targets) ? ev.targets[0] : null));
-                    random = PresentationVisualSeed.createVisualRandom({
-                        event: Object.assign({}, ev && ev.sourceEvent || ev, {
-                            presentationBatchId: ev && ev.presentationBatchId || 'local-presentation:0',
-                            effectKind: 'destroy-source',
-                            target: target && { row: target.r ?? target.row, col: target.col ?? target.c }
-                        })
-                    });
-                } catch (e: any) { /* deterministic midpoint fallback */ }
-            }
-            return GlobalBoardEffectPresenter.presentDestroySourceAnimation(ev, {
-                isNoAnim: _isNoAnim,
-                getCellClientRect: (row: any, col: any) => renderer.getBoardCellClientRect(row, col),
-                sleep: (ms: any) => this._sleep(ms),
-                timer: _Timer,
-                playbackScope: this.playbackScope,
-                abortSignal: this._playbackAbortController?.signal || null,
-                random,
-                suppressTargetImpact,
-                documentRef: (typeof document !== 'undefined') ? document : null
-            });
-        }
-
-        async handleZombieBiteSourceAnimation(ev: any) {
-            if (!(GlobalBoardEffectPresenter && typeof GlobalBoardEffectPresenter.presentZombieBiteSourceAnimation === 'function')) {
-                throw new Error('AnimationEngine zombie bite global presenter unavailable');
-            }
-            const renderer = requireRuntimeModuleOrWindowGlobal('./board-renderer', 'BoardRenderer');
-            if (!renderer || typeof renderer.getBoardCellClientRect !== 'function') {
-                throw this._createPlaybackError('board_geometry_unavailable', ev);
-            }
-            if (typeof renderer.getBoardVisualControllerReady === 'function') {
-                await renderer.getBoardVisualControllerReady();
-            }
-            return GlobalBoardEffectPresenter.presentZombieBiteSourceAnimation(ev, {
-                isNoAnim: _isNoAnim,
-                getCellClientRect: (row: any, col: any) => renderer.getBoardCellClientRect(row, col),
-                sleep: (ms: any) => this._sleep(ms),
-                timer: _Timer,
-                playbackScope: this.playbackScope,
-                abortSignal: this._playbackAbortController?.signal || null,
-                documentRef: (typeof document !== 'undefined') ? document : null
             });
         }
 

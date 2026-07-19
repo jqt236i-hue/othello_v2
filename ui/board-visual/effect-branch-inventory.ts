@@ -18,6 +18,7 @@ export type BoardVisualEffectBlockPolicy =
   | 'cause-action-effect-block-batch'
   | 'presentation-batch-only'
   | 'hybrid-shared-settlement'
+  | 'board-source-shared-settlement'
   | 'frame-revision-only';
 
 export interface BoardVisualEffectBranchInventoryEntry {
@@ -136,40 +137,40 @@ interface SpecialDestroyInput {
   readonly profileKey: string;
   readonly causes: readonly string[];
   readonly reasonPrefix: string;
-  readonly globalPrelude?: boolean;
+  readonly sourceTrajectory?: boolean;
   readonly effectBlockPolicy?: BoardVisualEffectBlockPolicy;
   readonly browserAssertion?: string;
 }
 
 function specialDestroy(input: SpecialDestroyInput): BoardVisualEffectBranchInventoryEntry {
-  const globalPrelude = input.globalPrelude === true;
+  const sourceTrajectory = input.sourceTrajectory === true;
   return defineBranch({
     id: input.id,
     category: 'special-destroy',
     sourceKind: 'playback-event',
     source: 'game/turn/pipeline-ui/board-event-playback.ts#planDestroyPlayback',
-    eventTypes: globalPrelude ? ['destroy', 'destroy_source_animation'] : ['destroy'],
+    eventTypes: ['destroy'],
     rawTypes: ['DESTROY'],
     profileKey: input.profileKey,
     causes: input.causes,
     reasonPrefixes: [input.reasonPrefix],
     effectBlockPolicy: input.effectBlockPolicy || 'ordered-event',
-    effectFamilies: globalPrelude ? ['destroy', 'source-to-board'] : ['destroy'],
-    route: globalPrelude ? 'hybrid' : 'board-local',
+    effectFamilies: sourceTrajectory ? ['destroy', 'board-source-trajectory'] : ['destroy'],
+    route: 'board-local',
     finalPixelWriter: 'pixi',
-    renderers: globalPrelude
+    renderers: sourceTrajectory
       ? [
         'ui/pixi/effects/destroy.ts#playPixiDestroyEffect',
-        'ui/presentation/global-board-effect-presenter.ts#presentDestroySourceAnimation'
+        'ui/pixi/effects/source-trajectory.ts#createPixiSourceTrajectoryRenderer'
       ]
       : ['ui/pixi/effects/destroy.ts#playPixiDestroyEffect'],
     unitFixture: 'test/ui.pixi-board-playback.test.ts#special DESTROY profile fixture',
     browserAssertion: input.browserAssertion || playbackBrowserScenario(
-      globalPrelude ? 'special-destroy-hybrid' : 'destroy'
+      sourceTrajectory ? 'special-destroy-hybrid' : 'destroy'
     ),
     noAnimationAssertion: PIXI_NOANIM,
-    cornerEdgeAssertion: globalPrelude
-      ? 'test/ui.board-visual-effect-bounds.test.ts#destroy local gutter plus source-to-board global route'
+    cornerEdgeAssertion: sourceTrajectory
+      ? localEdge('board-source-trajectory')
       : localEdge('destroy')
   });
 }
@@ -360,22 +361,22 @@ export const PHASE7_EFFECT_BRANCH_INVENTORY = Object.freeze([
     category: 'special-stone',
     sourceKind: 'playback-event',
     source: 'game/turn/pipeline-ui/board-event-playback.ts#planChangePlaybackPhase',
-    eventTypes: ['flip', 'zombie_bite_source_animation'],
+    eventTypes: ['flip'],
     rawTypes: ['CHANGE'],
     causes: ['ZOMBIE'],
     reasonPrefixes: ['zombie_infection'],
-    effectBlockPolicy: 'hybrid-shared-settlement',
-    effectFamilies: ['flip', 'source-to-board'],
-    route: 'hybrid',
+    effectBlockPolicy: 'board-source-shared-settlement',
+    effectFamilies: ['flip', 'board-source-trajectory'],
+    route: 'board-local',
     finalPixelWriter: 'pixi',
     renderers: [
       'ui/pixi/effects/flip.ts#playPixiFlipEffect',
-      'ui/presentation/global-board-effect-presenter.ts#presentZombieBiteSourceAnimation'
+      'ui/pixi/effects/source-trajectory.ts#createPixiSourceTrajectoryRenderer'
     ],
     unitFixture: 'test/ui.animation-flip-events.test.ts#zombie infection source and target fixture',
     browserAssertion: playbackBrowserScenario('zombie-infection-source'),
     noAnimationAssertion: 'test/ui.animation-flip-events.test.ts#NOANIM zombie uses immediate shared settlement',
-    cornerEdgeAssertion: 'test/ui.board-visual-effect-bounds.test.ts#flip gutter plus source-to-board global route'
+    cornerEdgeAssertion: localEdge('board-source-trajectory')
   }),
   defineBranch({
     id: 'destroy-generic-remove',
@@ -413,12 +414,12 @@ export const PHASE7_EFFECT_BRANCH_INVENTORY = Object.freeze([
     cornerEdgeAssertion: localEdge('destroy')
   }),
 
-  specialDestroy({ id: 'destroy-sniper-shot', profileKey: 'sniperShot', causes: ['SNIPER_WILL'], reasonPrefix: 'sniper_shot', globalPrelude: true }),
-  specialDestroy({ id: 'destroy-lightning-will', profileKey: 'lightningDestroyed', causes: ['LIGHTNING_WILL'], reasonPrefix: 'lightning_destroyed', globalPrelude: true }),
-  specialDestroy({ id: 'destroy-dragon-breath', profileKey: 'destroyDragonBreath', causes: ['DESTROY_DRAGON_WILL', 'DESTROY_DRAGON'], reasonPrefix: 'destroy_dragon_breath', globalPrelude: true }),
-  specialDestroy({ id: 'destroy-ultimate-destroy-god', profileKey: 'udgDestroyed', causes: ['ULTIMATE_DESTROY_GOD'], reasonPrefix: 'udg_destroyed', globalPrelude: true, effectBlockPolicy: 'cause-action-effect-block-batch' }),
-  specialDestroy({ id: 'destroy-meteor-god-black-beam', profileKey: 'meteorGodBlackBeam', causes: ['METEOR_GOD'], reasonPrefix: 'meteor_god_cell_destroy', globalPrelude: true }),
-  specialDestroy({ id: 'destroy-robot-vacuum-suck', profileKey: 'robotVacuumSuck', causes: ['ROBOT_VACUUM'], reasonPrefix: 'robot_vacuum_suck', globalPrelude: true }),
+  specialDestroy({ id: 'destroy-sniper-shot', profileKey: 'sniperShot', causes: ['SNIPER_WILL'], reasonPrefix: 'sniper_shot', sourceTrajectory: true }),
+  specialDestroy({ id: 'destroy-lightning-will', profileKey: 'lightningDestroyed', causes: ['LIGHTNING_WILL'], reasonPrefix: 'lightning_destroyed', sourceTrajectory: true }),
+  specialDestroy({ id: 'destroy-dragon-breath', profileKey: 'destroyDragonBreath', causes: ['DESTROY_DRAGON_WILL', 'DESTROY_DRAGON'], reasonPrefix: 'destroy_dragon_breath', sourceTrajectory: true }),
+  specialDestroy({ id: 'destroy-ultimate-destroy-god', profileKey: 'udgDestroyed', causes: ['ULTIMATE_DESTROY_GOD'], reasonPrefix: 'udg_destroyed', sourceTrajectory: true, effectBlockPolicy: 'cause-action-effect-block-batch' }),
+  specialDestroy({ id: 'destroy-meteor-god-black-beam', profileKey: 'meteorGodBlackBeam', causes: ['METEOR_GOD'], reasonPrefix: 'meteor_god_cell_destroy', sourceTrajectory: true }),
+  specialDestroy({ id: 'destroy-robot-vacuum-suck', profileKey: 'robotVacuumSuck', causes: ['ROBOT_VACUUM'], reasonPrefix: 'robot_vacuum_suck', sourceTrajectory: true }),
   specialDestroy({ id: 'destroy-gluttonous-eat', profileKey: 'gluttonousEat', causes: ['GLUTTONOUS_WILL'], reasonPrefix: 'gluttonous_eat', effectBlockPolicy: 'action-scoped-shared-destroy-move' }),
   specialDestroy({
     id: 'destroy-will-hunter-king-slash',
@@ -780,14 +781,14 @@ export const PHASE7_EFFECT_BRANCH_INVENTORY = Object.freeze([
     eventTypes: ['place_hand_animation'],
     rawTypes: ['PLAY_HAND_ANIMATION'],
     effectBlockPolicy: 'preserve-playback-base',
-    effectFamilies: ['source-to-board'],
+    effectFamilies: ['cross-surface-trajectory'],
     route: 'global-dom',
     finalPixelWriter: 'none',
     renderers: ['ui/animation-hand-events.ts#handleHandPlaybackEvent'],
     unitFixture: 'test/ui.animation-engine.guard-timer.test.ts#place hand endpoint fixture',
     browserAssertion: RETAINED_GLOBAL_BROWSER,
     noAnimationAssertion: 'test/ui.animation-engine.guard-timer.test.ts#NOANIM place hand settles without DOM final pixel',
-    cornerEdgeAssertion: globalEdge('source-to-board')
+    cornerEdgeAssertion: globalEdge('cross-surface-trajectory')
   }),
   defineBranch({
     id: 'retained-capture-to-hand-trajectory',
@@ -796,14 +797,14 @@ export const PHASE7_EFFECT_BRANCH_INVENTORY = Object.freeze([
     source: 'game/turn/pipeline-ui/passive-event-playback.ts#mapPassivePresentationEvent',
     eventTypes: ['capture_to_hand_animation'],
     effectBlockPolicy: 'preserve-playback-base',
-    effectFamilies: ['source-to-board'],
+    effectFamilies: ['cross-surface-trajectory'],
     route: 'global-dom',
     finalPixelWriter: 'none',
     renderers: ['ui/animation-hand-events.ts#handleHandPlaybackEvent'],
     unitFixture: 'test/ui.animation-engine.guard-timer.test.ts#capture trajectory endpoint fixture',
     browserAssertion: RETAINED_GLOBAL_BROWSER,
     noAnimationAssertion: 'test/ui.animation-engine.guard-timer.test.ts#NOANIM capture settles immediately',
-    cornerEdgeAssertion: globalEdge('source-to-board')
+    cornerEdgeAssertion: globalEdge('cross-surface-trajectory')
   }),
   defineBranch({
     id: 'retained-card-use-trajectory',
@@ -813,14 +814,14 @@ export const PHASE7_EFFECT_BRANCH_INVENTORY = Object.freeze([
     eventTypes: ['card_use_animation'],
     rawTypes: ['CARD_USED'],
     effectBlockPolicy: 'preserve-playback-base',
-    effectFamilies: ['source-to-board'],
+    effectFamilies: ['cross-surface-trajectory'],
     route: 'global-dom',
     finalPixelWriter: 'none',
     renderers: ['ui/animation-hand-events.ts#handleHandPlaybackEvent'],
     unitFixture: 'test/ui.animation-engine.guard-timer.test.ts#card use endpoint fixture',
     browserAssertion: RETAINED_GLOBAL_BROWSER,
     noAnimationAssertion: 'test/ui.animation-engine.guard-timer.test.ts#NOANIM card use settles immediately',
-    cornerEdgeAssertion: globalEdge('source-to-board')
+    cornerEdgeAssertion: globalEdge('cross-surface-trajectory')
   }),
   defineBranch({
     id: 'retained-nonmanifest-special-cinematic',

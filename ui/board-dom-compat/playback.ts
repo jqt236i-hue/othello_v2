@@ -10,6 +10,10 @@ import {
 
 export interface DomBoardPlaybackHandlers {
   beginPhase?(events: readonly PresentationPlaybackEvent[], context: BoardPlaybackContext): void;
+  startSourceTrajectories?(
+    events: readonly PresentationPlaybackEvent[],
+    context: BoardPlaybackContext
+  ): readonly Promise<void>[];
   endPhase?(context: BoardPlaybackContext): void;
   playPlace(event: PresentationPlaybackEvent, context: BoardPlaybackContext): Promise<void> | void;
   playFlipBatch(events: readonly PresentationPlaybackEvent[], context: BoardPlaybackContext): Promise<void> | void;
@@ -89,6 +93,11 @@ export function createDomBoardPlaybackExecutor(
 
       try {
         if (typeof handlers.beginPhase === 'function') handlers.beginPhase(phaseEvents, context);
+        // All raw source trajectories must synchronously enter the backend-local
+        // Promise map before the first target highlight/impact callback starts.
+        const sourceSettlements = typeof handlers.startSourceTrajectories === 'function'
+          ? Array.from(handlers.startSourceTrajectories(phaseEvents, context) || [])
+          : [];
         const flipEvents = phaseEvents.filter((event) => normalizePresentationEventType(event) === 'flip') as PresentationPlaybackEvent[];
         const nonFlipEvents = phaseEvents.filter((event) => normalizePresentationEventType(event) !== 'flip') as PresentationPlaybackEvent[];
         const launches: Promise<void>[] = [];
@@ -102,7 +111,7 @@ export function createDomBoardPlaybackExecutor(
           const handler = requireHandler(handlers, event, context);
           launches.push(Promise.resolve(handler.call(handlers, event, context)));
         }
-        await Promise.all(launches);
+        await Promise.all([...sourceSettlements, ...launches]);
       } catch (error) {
         if (error instanceof PresentationPlaybackError) throw error;
         if (context?.strictNetworkPlayback === true) {

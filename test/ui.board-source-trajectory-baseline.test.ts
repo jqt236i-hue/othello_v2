@@ -1,5 +1,9 @@
 import PresentationEffectProfiles = require('../shared/presentation-effect-profiles');
 import { dispatchPresentationPhase } from '../ui/presentation/dispatcher';
+import {
+  collectBoardSourceTrajectoryRequests,
+  getBoardSourceTrajectoryIdsForTarget
+} from '../ui/board-visual/source-trajectory';
 import { dedupePixiFlipTargets } from '../ui/pixi/effects/flip';
 import {
   BOARD_SOURCE_TRAJECTORY_BASELINE_BY_KEY,
@@ -78,6 +82,7 @@ describe('board source trajectory Phase 0 baseline', () => {
   test('starts every raw destroy trajectory before the first board impact and gates each target', async () => {
     const trace: string[] = [];
     const resolvers = new Map<string, () => void>();
+    const promises = new Map<string, Promise<void>>();
     const sniper = {
       r: 0, col: 0, sourceRow: 1, sourceCol: 1,
       cause: 'SNIPER_WILL', reason: 'sniper_shot'
@@ -88,21 +93,22 @@ describe('board source trajectory Phase 0 baseline', () => {
     };
     const event = { type: 'destroy', phase: 4, targets: [sniper, robot] };
     const dispatch = dispatchPresentationPhase([event], {
-      playGlobalEvent(globalEvent) {
-        const target = globalEvent.target as any;
-        const profile = PresentationEffectProfiles.getSpecialDestroyTargetProfileKey(target);
-        const key = `${profile}:${target.r}:${target.col}`;
-        trace.push(`trajectory:start:${key}`);
-        return new Promise<void>((resolve) => resolvers.set(key, () => {
-          trace.push(`trajectory:settle:${key}`);
-          resolve();
-        }));
-      },
+      playGlobalEvent: jest.fn(),
       async playBoardPhase(events, scope) {
+        const batch = collectBoardSourceTrajectoryRequests(scope?.events || events, scope);
+        for (const request of batch.requests) {
+          const key = `${request.profileKey}:${request.target.row}:${request.target.col}`;
+          trace.push(`trajectory:start:${key}`);
+          promises.set(request.trajectoryId, new Promise<void>((resolve) => resolvers.set(key, () => {
+            trace.push(`trajectory:settle:${key}`);
+            resolve();
+          })));
+        }
         trace.push('board:impact:first');
-        await Promise.all((events[0].targets || []).map((target) => (
-          scope?.waitForTargetPrelude?.(events[0], target)
-        )));
+        const ids = (events[0].targets || []).flatMap((target) => (
+          getBoardSourceTrajectoryIdsForTarget(batch, 'destroy', target, events[0])
+        ));
+        await Promise.all(ids.map((trajectoryId) => promises.get(trajectoryId)));
         trace.push('board:commit');
       }
     });
@@ -116,7 +122,7 @@ describe('board source trajectory Phase 0 baseline', () => {
     expect(trace).toEqual(BOARD_SOURCE_TRAJECTORY_MULTI_TARGET_TRACE);
   });
 
-  test('records raw zombie launches before coordinate dedupe and shares the target gate', async () => {
+  test('records backend-owned raw zombie launches before coordinate dedupe', async () => {
     const first = {
       r: 3, col: 4, ownerBefore: 'black',
       cause: 'ZOMBIE', reason: 'zombie_infection',
@@ -128,19 +134,27 @@ describe('board source trajectory Phase 0 baseline', () => {
       meta: { sourceRow: 3, sourceCol: 2 }
     };
     const rawStarts: unknown[] = [];
+    let mergedTrajectoryIds: readonly string[] = [];
     let boardDedupeCount = 0;
     await dispatchPresentationPhase([{ type: 'flip', phase: 5, targets: [first, second] }], {
-      playGlobalEvent(event) {
-        rawStarts.push(event.target);
-      },
+      playGlobalEvent: jest.fn(),
       async playBoardPhase(events, scope) {
+        const batch = collectBoardSourceTrajectoryRequests(scope?.events || events, scope);
+        rawStarts.push(...batch.requests.map((request) => request.targetPayload));
         const rawTargets = events.flatMap((event) => event.targets || []);
-        boardDedupeCount = dedupePixiFlipTargets(rawTargets).length;
-        await Promise.all(rawTargets.map((target) => scope?.waitForTargetPrelude?.(events[0], target)));
+        const dedupedTargets = dedupePixiFlipTargets(rawTargets);
+        boardDedupeCount = dedupedTargets.length;
+        mergedTrajectoryIds = getBoardSourceTrajectoryIdsForTarget(
+          batch,
+          'flip',
+          dedupedTargets[0],
+          events[0]
+        );
       }
     });
     expect(rawStarts).toEqual([first, second]);
     expect(boardDedupeCount).toBe(1);
+    expect(mergedTrajectoryIds).toHaveLength(2);
   });
 
   test('records long-range sniper as logical endpoint preservation plus visible-owner clipping', () => {

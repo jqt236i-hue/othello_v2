@@ -35,6 +35,52 @@ function timerHarness() {
   };
 }
 
+function originalTrajectoryEvents() {
+  return Object.freeze([
+    Object.freeze({
+      type: 'destroy',
+      targets: Object.freeze([Object.freeze({
+        r: 3,
+        col: 4,
+        sourceRow: 3,
+        sourceCol: 3,
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        ownerBefore: 'white'
+      })])
+    }),
+    Object.freeze({
+      type: 'flip',
+      targets: Object.freeze([Object.freeze({
+        r: 4,
+        col: 3,
+        ownerBefore: 'white',
+        ownerAfter: 'black',
+        cause: 'ZOMBIE',
+        reason: 'zombie_infection',
+        meta: Object.freeze({ sourceRow: 4, sourceCol: 4 })
+      })])
+    })
+  ]);
+}
+
+function settleTrajectoryDigest(events: readonly any[]): string {
+  const board: Record<string, string | null> = {
+    '3,3': 'black',
+    '3,4': 'white',
+    '4,3': 'white',
+    '4,4': 'black'
+  };
+  for (const event of events) {
+    for (const target of event.targets || []) {
+      const key = `${target.r},${target.col}`;
+      if (event.type === 'destroy') board[key] = null;
+      if (event.type === 'flip') board[key] = target.ownerAfter || null;
+    }
+  }
+  return JSON.stringify(Object.fromEntries(Object.entries(board).sort(([left], [right]) => left.localeCompare(right))));
+}
+
 describe('Pixi context recovery state machine', () => {
   test('prevents context loss and settles a restored checkpoint without fallback', async () => {
     const target = new EventTarget();
@@ -71,14 +117,33 @@ describe('Pixi context recovery state machine', () => {
     });
   });
 
-  test('switches to fallback exactly once when restore does not finish by the deadline', async () => {
+  test('switches an active original source trajectory to the exclusive DOM fallback exactly once', async () => {
     const target = new EventTarget();
     const timers = timerHarness();
     const restore = deferred<boolean>();
-    const onFallbackRequired = jest.fn(async () => true);
+    const events = originalTrajectoryEvents();
+    const expectedDigest = settleTrajectoryDigest(events);
+    const sounds = ['zombie_will_bite'];
+    const logs = ['context trajectory action'];
+    let activePixiTrajectory = true;
+    let canvasWriterCount = 1;
+    let domWriterCount = 0;
+    let maximumWriterCount = 1;
+    let finalDigest: string | null = null;
+    const onFallbackRequired = jest.fn(async () => {
+      expect(activePixiTrajectory).toBe(false);
+      expect(canvasWriterCount).toBe(0);
+      domWriterCount = 1;
+      maximumWriterCount = Math.max(maximumWriterCount, canvasWriterCount + domWriterCount);
+      finalDigest = settleTrajectoryDigest(events);
+      return true;
+    });
     const recovery = createPixiContextRecovery({
       target,
-      onContextLost: jest.fn(),
+      onContextLost: jest.fn(() => {
+        activePixiTrajectory = false;
+        canvasWriterCount = 0;
+      }),
       onContextRestored: jest.fn(() => restore.promise),
       onFallbackRequired,
       setTimeout: timers.setTimeout,
@@ -98,6 +163,13 @@ describe('Pixi context recovery state machine', () => {
       fallbackAttemptCount: 1,
       fallbackSuccessCount: 1
     });
+    expect(finalDigest).toBe(expectedDigest);
+    expect(events.map((event) => event.type)).toEqual(['destroy', 'flip']);
+    expect(sounds).toEqual(['zombie_will_bite']);
+    expect(logs).toEqual(['context trajectory action']);
+    expect(maximumWriterCount).toBe(1);
+    expect(canvasWriterCount).toBe(0);
+    expect(domWriterCount).toBe(1);
 
     restore.resolve(true);
     target.dispatchEvent(new Event('webglcontextrestored'));

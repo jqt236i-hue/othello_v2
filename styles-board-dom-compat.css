@@ -1810,3 +1810,75 @@ html.stone-shadow-enabled [data-board-renderer="dom"] .disc::before {
         inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 231, 160, 0.025),
         inset 0 calc(-1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.18);
 }
+
+/* Backend-local board-cell trajectory overlay. The runtime sets an exact
+   board viewport clip-path; this stylesheet only owns compatibility visuals. */
+.dom-board-source-trajectory-layer {
+    pointer-events: none;
+    overflow: hidden;
+    contain: layout style paint;
+}
+
+.dom-board-source-trajectory__zombie-shadow,
+.dom-board-source-trajectory__zombie-fang {
+    position: absolute;
+    z-index: 18;
+    pointer-events: none;
+    transform-origin: 0 50%;
+}
+
+.dom-board-source-trajectory__zombie-shadow {
+    height: 8px;
+    margin-top: -4px;
+    border-radius: 50%;
+    background: linear-gradient(90deg, rgba(21, 4, 28, 0.15), rgba(69, 15, 91, 0.9), rgba(126, 37, 151, 0.42));
+    box-shadow: 0 0 10px rgba(106, 35, 142, 0.8);
+    animation: dom-board-zombie-shadow-crawl 440ms ease-out both;
+}
+
+.dom-board-source-trajectory__zombie-fang {
+    width: clamp(10px, 1.6vmin, 18px);
+    height: clamp(24px, 3.8vmin, 42px);
+    margin-left: -7px;
+    margin-top: -20px;
+    clip-path: polygon(12% 0, 88% 0, 62% 100%, 38% 100%);
+    background: linear-gradient(180deg, rgba(225, 208, 235, 0.9), rgba(113, 44, 136, 0.82));
+    filter: drop-shadow(0 0 5px rgba(110, 31, 143, 0.85));
+}
+
+.dom-board-source-trajectory__zombie-fang--upper {
+    transform: rotate(var(--dom-zombie-bite-angle)) translateY(-30px);
+    animation: dom-board-zombie-fang-upper 800ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.dom-board-source-trajectory__zombie-fang--lower {
+    transform: rotate(calc(var(--dom-zombie-bite-angle) + 180deg)) translateY(-30px);
+    animation: dom-board-zombie-fang-lower 800ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+@keyframes dom-board-zombie-shadow-crawl {
+    0% { opacity: 0; scale: 0 0.45; }
+    35% { opacity: 0.85; }
+    100% { opacity: 1; scale: 1 1; }
+}
+
+@keyframes dom-board-zombie-fang-upper {
+    0%, 42% { opacity: 0; translate: 0 -18px; }
+    55% { opacity: 0.9; }
+    76% { opacity: 1; translate: 0 12px; }
+    100% { opacity: 0; translate: 0 8px; }
+}
+
+@keyframes dom-board-zombie-fang-lower {
+    0%, 42% { opacity: 0; translate: 0 -18px; }
+    55% { opacity: 0.9; }
+    76% { opacity: 1; translate: 0 12px; }
+    100% { opacity: 0; translate: 0 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dom-board-source-trajectory__zombie-shadow,
+    .dom-board-source-trajectory__zombie-fang {
+        animation: none !important;
+    }
+}

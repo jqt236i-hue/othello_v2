@@ -75,6 +75,43 @@ describe('AnimationFlipEvents', () => {
     expect(disc.classList.contains('white')).toBe(true);
   });
 
+  test('waits raw source membership even when a later duplicate overwrites the zombie profile', async () => {
+    const flipEvents = require('../ui/animation-flip-events.js');
+    const deps: any = createDeps(jest.fn());
+    let releaseGate!: () => void;
+    const gate = new Promise<void>((resolve) => { releaseGate = resolve; });
+    deps.waitForSourceTrajectories = jest.fn(() => gate);
+
+    const playback = flipEvents.handleFlipEvent({
+      type: 'flip',
+      targets: [{
+        r: 2,
+        col: 3,
+        ownerBefore: 'white',
+        cause: 'ZOMBIE',
+        reason: 'zombie_infection',
+        meta: { sourceRow: 2, sourceCol: 2 },
+        after: { color: 1, special: 'ZOMBIE' }
+      }, {
+        r: 2,
+        col: 3,
+        ownerBefore: 'white',
+        cause: 'SYSTEM',
+        reason: 'standard_flip',
+        after: { color: 1, special: null }
+      }]
+    }, deps);
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(deps.waitForSourceTrajectories).toHaveBeenCalledTimes(1);
+    expect(deps.syncDiscVisual).not.toHaveBeenCalled();
+
+    releaseGate();
+    await playback;
+    expect(deps.syncDiscVisual).toHaveBeenCalledTimes(1);
+  });
+
   test('syncs flipped color before starting the CSS flip animation', async () => {
     const flipEvents = require('../ui/animation-flip-events.js');
     const calls: string[] = [];

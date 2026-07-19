@@ -264,11 +264,6 @@ export interface BoardPlaybackPhaseScope {
   readonly events: readonly unknown[];
   readonly phaseKey?: string;
   readonly stepIndex?: number;
-  /**
-   * Presentation-only gate for a target whose cross-surface trajectory must
-   * settle before the board backend starts its local landing/removal visual.
-   */
-  readonly waitForTargetPrelude?: (event: unknown, target: unknown) => Promise<void>;
 }
 
 export interface BoardPlaybackContext {

@@ -55,8 +55,6 @@ const GLOBAL_EVENT_TYPES = Object.freeze([
   'special_card_cinematic',
   'round_bonus_banner',
   'observer_bubble',
-  'destroy_source_animation',
-  'zombie_bite_source_animation',
   'sound_effect',
   'log'
 ] as const);

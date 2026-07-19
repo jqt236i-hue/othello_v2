@@ -19,7 +19,7 @@ describe('destroy source animation batching', () => {
     jest.resetModules();
   });
 
-  test('DOM runtime owns cached cell-to-client-rect reads for destroy source effects', async () => {
+  test('DOM runtime keeps shared-launch order while owning cached cell-to-client-rect reads', async () => {
     const dom = new JSDOM(`<!doctype html><html><body><div id="board">
       <div class="cell" data-row="1" data-col="1"></div>
       <div class="cell" data-row="3" data-col="3"></div>
@@ -41,8 +41,10 @@ describe('destroy source animation batching', () => {
     targetCellB.getBoundingClientRect = targetRectB;
 
     const observedRects: any[] = [];
+    const launchOrder: string[] = [];
     jest.doMock('../ui/animation-destroy-source-events', () => ({
       animateUdgLightningStrike: jest.fn(async (target: any, deps: any) => {
+        launchOrder.push(`source:${target.r},${target.col}`);
         observedRects.push(deps.getCellClientRect(1, 1));
         observedRects.push(deps.getCellClientRect(target.r, target.col));
       })
@@ -50,6 +52,7 @@ describe('destroy source animation batching', () => {
     jest.doMock('../ui/animation-destroy-events', () => ({
       handleDestroyEvent: jest.fn(async (event: any, deps: any) => {
         for (const target of event.targets || []) {
+          launchOrder.push(`board:${target.r},${target.col}`);
           const profile = deps.resolveDestroySourceAnimationProfile(target);
           await deps.playDestroySourceAnimation(target, profile);
         }
@@ -61,6 +64,7 @@ describe('destroy source animation batching', () => {
     const handlers = createDomBoardPlaybackHandlers({
       boardElement: document.getElementById('board'),
       documentRef: document,
+      isNoAnim: () => false,
       getTimer: makeTimer
     });
     const executor = createDomBoardPlaybackExecutor(handlers);
@@ -74,8 +78,17 @@ describe('destroy source animation batching', () => {
       phaseScope: { phaseKey: '0', stepIndex: 0, events }
     };
 
-    await executor.playPhase(events, context);
+    await Promise.all([
+      executor.playPhase([events[0]], context),
+      executor.playPhase([events[1]], context)
+    ]);
 
+    expect(launchOrder).toEqual([
+      'source:3,3',
+      'board:3,3',
+      'source:4,4',
+      'board:4,4'
+    ]);
     expect(sourceRect).toHaveBeenCalledTimes(1);
     expect(targetRectA).toHaveBeenCalledTimes(1);
     expect(targetRectB).toHaveBeenCalledTimes(1);

@@ -11,7 +11,6 @@ import {
   type PresentationPhasePlan,
   type PresentationParallelLaunch
 } from './phase-planner';
-import PresentationEffectProfiles = require('../../shared/presentation-effect-profiles');
 
 export interface PresentationDispatcherDeps {
   readonly strictNetworkPlayback?: boolean;
@@ -40,107 +39,6 @@ export interface PresentationBoardPhaseScope {
   readonly events: readonly PresentationPlaybackEvent[];
   readonly phaseKey: string;
   readonly stepIndex: number;
-  readonly waitForTargetPrelude?: (
-    event: PresentationPlaybackEvent,
-    target: unknown
-  ) => Promise<void>;
-}
-
-function destroyTargetNeedsGlobalPrelude(target: unknown): boolean {
-  return PresentationEffectProfiles.requiresGlobalDestroyPrelude(target as any);
-}
-
-function isZombieInfectionTarget(target: unknown): boolean {
-  const candidate = target && typeof target === 'object' ? target as any : {};
-  return String(candidate.cause || '').trim().toUpperCase() === 'ZOMBIE'
-    && String(candidate.reason || '').trim().toLowerCase() === 'zombie_infection';
-}
-
-async function dispatchDestroyEvent(
-  event: PresentationPlaybackEvent,
-  deps: PresentationDispatcherDeps,
-  scope?: PresentationBoardPhaseScope
-): Promise<void> {
-  const targets = Array.isArray(event?.targets) ? event.targets : [];
-  const preludeByTarget = new Map<unknown, Promise<void>>();
-  const preludes: Promise<void>[] = [];
-  for (const target of targets) {
-    if (!destroyTargetNeedsGlobalPrelude(target)) continue;
-    // Launch every source trajectory synchronously in received target order,
-    // matching the old per-target DOM executor before any await boundary.
-    const prelude = Promise.resolve(deps.playGlobalEvent({
-      ...event,
-      type: 'destroy_source_animation',
-      sourceEvent: event,
-      target,
-      targets: Object.freeze([target])
-    }));
-    preludeByTarget.set(target, prelude);
-    preludes.push(prelude);
-  }
-  if (!preludes.length) {
-    await deps.playBoardPhase([event], scope);
-    return;
-  }
-  const gatedScope: PresentationBoardPhaseScope = Object.freeze({
-    events: scope?.events || Object.freeze([event]),
-    phaseKey: scope?.phaseKey || `destroy:${String(event.phase ?? 'phase')}`,
-    stepIndex: scope?.stepIndex ?? 0,
-    waitForTargetPrelude: async (candidateEvent: PresentationPlaybackEvent, target: unknown) => {
-      const prelude = candidateEvent === event ? preludeByTarget.get(target) : null;
-      if (prelude) await prelude;
-      if (typeof scope?.waitForTargetPrelude === 'function') {
-        await scope.waitForTargetPrelude(candidateEvent, target);
-      }
-    }
-  });
-  await Promise.all([
-    Promise.resolve(deps.playBoardPhase([event], gatedScope)),
-    ...preludes
-  ]);
-}
-
-async function dispatchFlipBatch(
-  events: readonly PresentationPlaybackEvent[],
-  deps: PresentationDispatcherDeps,
-  scope: PresentationBoardPhaseScope
-): Promise<void> {
-  const preludeByTarget = new Map<unknown, Promise<void>>();
-  const preludes: Promise<void>[] = [];
-  for (const event of events) {
-    for (const target of Array.isArray(event.targets) ? event.targets : []) {
-      if (!isZombieInfectionTarget(target)) continue;
-      const prelude = Promise.resolve(deps.playGlobalEvent({
-        ...event,
-        type: 'zombie_bite_source_animation',
-        sourceEvent: event,
-        target,
-        targets: Object.freeze([target])
-      }));
-      preludeByTarget.set(target, prelude);
-      preludes.push(prelude);
-    }
-  }
-  if (!preludes.length) {
-    await deps.playBoardPhase(events, scope);
-    return;
-  }
-  const gatedScope: PresentationBoardPhaseScope = Object.freeze({
-    events: scope.events,
-    phaseKey: scope.phaseKey,
-    stepIndex: scope.stepIndex,
-    waitForTargetPrelude: async (candidateEvent: PresentationPlaybackEvent, target: unknown) => {
-      const prelude = preludeByTarget.get(target);
-      if (prelude) await prelude;
-      if (typeof scope.waitForTargetPrelude === 'function') {
-        await scope.waitForTargetPrelude(candidateEvent, target);
-      }
-    }
-  });
-  await Promise.all([
-    Promise.resolve(deps.playBoardPhase(events, gatedScope)),
-    ...preludes
-  ]);
 }
 
 function createBoardPhaseScope(
@@ -148,19 +46,10 @@ function createBoardPhaseScope(
   stepIndex: number,
   events: readonly PresentationPlaybackEvent[]
 ): PresentationBoardPhaseScope {
-  const requiresTargetPrelude = events.some((event) => (
-    (String(event?.type || '').trim().toLowerCase() === 'destroy'
-      && (event.targets || []).some(destroyTargetNeedsGlobalPrelude))
-    || (String(event?.type || '').trim().toLowerCase() === 'flip'
-      && (event.targets || []).some(isZombieInfectionTarget))
-  ));
   return Object.freeze({
     events: Object.freeze(Array.from(events)),
     phaseKey: plan.phaseKey,
-    stepIndex,
-    ...(requiresTargetPrelude
-      ? { waitForTargetPrelude: async () => undefined }
-      : {})
+    stepIndex
   });
 }
 
@@ -266,10 +155,6 @@ async function launchEvent(
   scope?: PresentationBoardPhaseScope
 ): Promise<void> {
   if (isBoardPlaybackEvent(event)) {
-    if (String(event.type || '').trim().toLowerCase() === 'destroy') {
-      await dispatchDestroyEvent(event, deps, scope);
-      return;
-    }
     await deps.playBoardPhase([event], scope);
     return;
   }
@@ -290,7 +175,7 @@ function launchParallel(
   scope: PresentationBoardPhaseScope
 ): Promise<void> {
   if (launch.kind === 'flip-batch') {
-    return dispatchFlipBatch(launch.events, deps, scope);
+    return Promise.resolve(deps.playBoardPhase(launch.events, scope));
   }
   return Promise.resolve(launchEvent(launch.event, deps, scope));
 }

@@ -29,7 +29,7 @@ type AnimationFlipEventDeps = {
     runWithEffectTargetHighlight: (cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) => Promise<any>;
     sleep: (ms: any) => Promise<any>;
     animationShared: any;
-    waitForZombieSourcePrelude?: (target: any) => Promise<void>;
+    waitForSourceTrajectories?: (target: any) => Promise<void>;
 };
 
 function getDocumentRef(): any {
@@ -94,12 +94,17 @@ function prefersReducedMotion() {
     }
 }
 
-async function playZombieBiteAnimation(target: any, targetCell: any, deps: AnimationFlipEventDeps) {
+async function playZombieBiteAnimation(
+    target: any,
+    targetCell: any,
+    deps: AnimationFlipEventDeps,
+    sourceTrajectoryGate: Promise<void>
+) {
     if (!isZombieInfectionTarget(target) || deps.isNoAnim() || prefersReducedMotion()) return;
-    if (typeof deps.waitForZombieSourcePrelude === 'function') {
+    if (typeof deps.waitForSourceTrajectories === 'function') {
         try {
             targetCell.classList.add('zombie-bite-active');
-            await deps.waitForZombieSourcePrelude(target);
+            await sourceTrajectoryGate;
         } finally {
             targetCell.classList.remove('zombie-bite-active');
         }
@@ -161,43 +166,62 @@ async function playZombieBiteAnimation(target: any, targetCell: any, deps: Anima
 async function handleFlipEvent(ev: any, deps: AnimationFlipEventDeps) {
     const targets = dedupeFlipTargets(Array.isArray(ev && ev.targets) ? ev.targets : []);
     const promises = targets.map(async (target: any) => {
+        const sourceTrajectoryGate = typeof deps.waitForSourceTrajectories === 'function'
+            ? Promise.resolve(deps.waitForSourceTrajectories(target))
+            : Promise.resolve();
         const cell = deps.getCellEl(target.r, target.col);
-        if (!cell) return;
+        if (!cell) {
+            await sourceTrajectoryGate;
+            return;
+        }
 
         const blockedByGhost = !!(target && target.meta && target.meta.blockedByGhost);
         if (blockedByGhost) {
-            await deps.runWithEffectTargetHighlight(cell, deps.eventTypes.FLIP, target, async () => {
-                await deps.sleep(Math.max(120, Math.floor(Number(deps.flipMs) / 2)));
-            }, 0);
+            await Promise.all([
+                deps.runWithEffectTargetHighlight(cell, deps.eventTypes.FLIP, target, async () => {
+                    await deps.sleep(Math.max(120, Math.floor(Number(deps.flipMs) / 2)));
+                }, 0),
+                sourceTrajectoryGate
+            ]);
             return;
         }
 
         const disc = cell.querySelector('.disc');
         if (!disc) {
             const documentRef = getDocumentRef();
-            if (!documentRef || typeof documentRef.createElement !== 'function') return;
-            try {
-                const ghost = documentRef.createElement('div');
-                const ownerColor = deps.resolveOwnerColorFromBefore(target && target.ownerBefore);
-                ghost.className = 'disc ' + deps.resolveOwnerClassFromColor(ownerColor);
-                ghost.style.pointerEvents = 'none';
-                ghost.classList.add('destroy-fade');
-                cell.appendChild(ghost);
-                await deps.sleep(deps.fadeOutMs);
-                if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
-            } catch (e: any) { /* ignore */ }
+            if (!documentRef || typeof documentRef.createElement !== 'function') {
+                await sourceTrajectoryGate;
+                return;
+            }
+            const missingSourceVisual = (async () => {
+                try {
+                    const ghost = documentRef.createElement('div');
+                    const ownerColor = deps.resolveOwnerColorFromBefore(target && target.ownerBefore);
+                    ghost.className = 'disc ' + deps.resolveOwnerClassFromColor(ownerColor);
+                    ghost.style.pointerEvents = 'none';
+                    ghost.classList.add('destroy-fade');
+                    cell.appendChild(ghost);
+                    await deps.sleep(deps.fadeOutMs);
+                    if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
+                } catch (e: any) { /* ignore */ }
+            })();
+            await Promise.all([missingSourceVisual, sourceTrajectoryGate]);
             return;
         }
 
         const after = target.after || {};
         await deps.runWithEffectTargetHighlight(cell, deps.eventTypes.FLIP, target, async () => {
             if (deps.isNoAnim()) {
+                await sourceTrajectoryGate;
                 deps.syncDiscVisual(disc, after);
                 try { disc.classList.remove('flip'); } catch (e: any) { /* ignore */ }
                 return;
             }
 
-            await playZombieBiteAnimation(target, cell, deps);
+            await playZombieBiteAnimation(target, cell, deps, sourceTrajectoryGate);
+            // Raw membership owns this gate. A later duplicate can overwrite
+            // cause/reason during merge without cancelling an earlier bite.
+            await sourceTrajectoryGate;
             deps.syncDiscVisual(disc, after);
 
             if (isZombieInfectionTarget(target)) {

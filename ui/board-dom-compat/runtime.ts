@@ -1,5 +1,6 @@
 import type { DomBoardPlaybackHandlers } from './playback';
-import type { BoardPlaybackContext } from '../board-visual/types';
+import type { DomBoardSourceTrajectoryRun } from './source-trajectory';
+import type { BoardPlaybackContext, BoardVisualFrame } from '../board-visual/types';
 import type { PresentationPlaybackEvent } from '../board-visual/playback-types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
@@ -25,6 +26,7 @@ const PresentationEffectProfiles = _require('../../shared/presentation-effect-pr
 const PresentationVisualSeed = _require('../presentation/visual-seed');
 const StoneStatusSnapshot = _require('../../shared/stone-status-snapshot');
 const SpecialMarkerRenderer = _require('./special-marker-renderer');
+const DomSourceTrajectory = _require('./source-trajectory');
 
 const {
   EVENT_TYPES,
@@ -59,13 +61,13 @@ const POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS = PresentationEffectProfiles.POSITIVE_S
 const SPECIAL_DESTROY_TARGET_PROFILES = PresentationEffectProfiles.SPECIAL_DESTROY_TARGET_PROFILES;
 
 const DESTROY_SOURCE_ANIMATION_PROFILES = Object.freeze([
-  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.sniperShot, sourceResolver: 'sniper', animationMethod: 'animateSniperProjectile' }),
-  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.destroyDragonBreath, sourceResolver: 'dragon', animationMethod: 'animateDestroyDragonBreath' }),
-  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.udgDestroyed, sourceResolver: 'sniper', animationMethod: 'animateUdgLightningStrike' }),
-  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.lightningDestroyed, sourceResolver: 'sniper', animationMethod: 'animateUdgLightningStrike' }),
-  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.meteorGodBlackBeam, sourceResolver: 'sniper', animationMethod: 'animateMeteorGodBlackBeam' }),
-  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.willHunterKingSlash, sourceResolver: null, animationMethod: 'animateWillHunterKingSlash' }),
-  Object.freeze({ ...SPECIAL_DESTROY_TARGET_PROFILES.robotVacuumSuck, sourceResolver: 'vacuum', animationMethod: 'animateRobotVacuumSuction', afterDestroy: 'clearCell' })
+  Object.freeze({ profileKey: 'sniperShot', ...SPECIAL_DESTROY_TARGET_PROFILES.sniperShot, sourceResolver: 'sniper', animationMethod: 'animateSniperProjectile' }),
+  Object.freeze({ profileKey: 'destroyDragonBreath', ...SPECIAL_DESTROY_TARGET_PROFILES.destroyDragonBreath, sourceResolver: 'dragon', animationMethod: 'animateDestroyDragonBreath' }),
+  Object.freeze({ profileKey: 'udgDestroyed', ...SPECIAL_DESTROY_TARGET_PROFILES.udgDestroyed, sourceResolver: 'sniper', animationMethod: 'animateUdgLightningStrike' }),
+  Object.freeze({ profileKey: 'lightningDestroyed', ...SPECIAL_DESTROY_TARGET_PROFILES.lightningDestroyed, sourceResolver: 'sniper', animationMethod: 'animateUdgLightningStrike' }),
+  Object.freeze({ profileKey: 'meteorGodBlackBeam', ...SPECIAL_DESTROY_TARGET_PROFILES.meteorGodBlackBeam, sourceResolver: 'sniper', animationMethod: 'animateMeteorGodBlackBeam' }),
+  Object.freeze({ profileKey: 'willHunterKingSlash', ...SPECIAL_DESTROY_TARGET_PROFILES.willHunterKingSlash, sourceResolver: null, animationMethod: 'animateWillHunterKingSlash' }),
+  Object.freeze({ profileKey: 'robotVacuumSuck', ...SPECIAL_DESTROY_TARGET_PROFILES.robotVacuumSuck, sourceResolver: 'vacuum', animationMethod: 'animateRobotVacuumSuction', afterDestroy: 'clearCell' })
 ]);
 
 interface DomPhaseRuntimeContext {
@@ -74,6 +76,8 @@ interface DomPhaseRuntimeContext {
   cellElements: Map<string, HTMLElement | null>;
   layoutBatch: any;
   transientOverlayBatch: any;
+  sourceTrajectoriesByEvent: Map<PresentationPlaybackEvent, DomBoardSourceTrajectoryRun>;
+  abortController: AbortController;
 }
 
 interface ActiveDomPhase {
@@ -88,6 +92,8 @@ export interface DomBoardPlaybackRuntimeOptions {
   isNoAnim?: () => boolean;
   getTimer?: () => any;
   getPlaybackScope?: () => unknown;
+  getBoardFrame?: () => BoardVisualFrame | null;
+  record?: (event: string, detail?: unknown) => void;
 }
 
 export interface DomBoardPlaybackRuntimeHandlers extends DomBoardPlaybackHandlers {
@@ -167,6 +173,14 @@ class DomBoardPlaybackRuntime {
       : null;
   }
 
+  get boardFrame(): BoardVisualFrame | null {
+    return typeof this.options.getBoardFrame === 'function' ? this.options.getBoardFrame() : null;
+  }
+
+  record(event: string, detail?: unknown): void {
+    if (typeof this.options.record === 'function') this.options.record(event, detail);
+  }
+
   isNoAnim(): boolean {
     if (typeof this.options.isNoAnim === 'function') return this.options.isNoAnim() === true;
     return !!(AnimationShared && typeof AnimationShared.isNoAnim === 'function' && AnimationShared.isNoAnim());
@@ -214,6 +228,48 @@ class DomBoardPlaybackRuntime {
     });
   }
 
+  startSourceTrajectories(
+    events: readonly PresentationPlaybackEvent[],
+    context: BoardPlaybackContext
+  ): readonly Promise<void>[] {
+    const active = this.activePhases.get(phaseMapKey(context));
+    if (!active) throw new Error('DOM source trajectories require an active playback phase');
+    const phase = active.phase;
+    const installed = new Set(
+      events.map((event) => phase.sourceTrajectoriesByEvent.get(event)).filter(Boolean)
+    );
+    if (
+      installed.size > 1
+      || (installed.size === 1 && events.some((event) => !phase.sourceTrajectoriesByEvent.has(event)))
+    ) {
+      throw new Error('DOM source trajectory launch membership is inconsistent');
+    }
+    let trajectories = installed.size === 1
+      ? Array.from(installed)[0] as DomBoardSourceTrajectoryRun
+      : null;
+    if (!trajectories) {
+      const started = DomSourceTrajectory.startDomBoardSourceTrajectoryBatch(events, context, {
+        documentRef: this.documentRef,
+        boardElement: this.boardElement,
+        frame: this.boardFrame,
+        isNoAnim: () => this.isNoAnim(),
+        getFallbackCellClientRect: (row: unknown, col: unknown) => this.getCellClientRect(row, col, phase),
+        waitForAnimationFinish: (animation: unknown, duration: unknown, padding: unknown) => this.waitForAnimationFinish(animation, duration, padding),
+        sleep: (ms: unknown) => this.sleep(ms),
+        timer: () => this.timer(),
+        playbackScope: this.playbackScope(),
+        transientOverlayBatch: phase.transientOverlayBatch,
+        createVisualRandom: (event: PresentationPlaybackEvent, target: unknown) => this.createVisualRandom(event, target),
+        record: (event: string, detail?: unknown) => this.record(event, detail),
+        abortSignal: phase.abortController.signal
+      }) as DomBoardSourceTrajectoryRun | null;
+      if (!started) throw new Error('DOM source trajectory batch failed to initialize');
+      trajectories = started;
+      for (const event of events) phase.sourceTrajectoriesByEvent.set(event, started);
+    }
+    return Object.freeze(Array.from(trajectories.trajectoryById.values()));
+  }
+
   endPhase(context: BoardPlaybackContext): void {
     const key = phaseMapKey(context);
     const active = this.activePhases.get(key);
@@ -230,9 +286,11 @@ class DomBoardPlaybackRuntime {
   }
 
   private cleanupPhase(phase: DomPhaseRuntimeContext): void {
+    try { phase.abortController.abort(new Error('DOM board playback phase ended')); } catch (_error) { /* compatibility cleanup */ }
     try { if (phase.transientOverlayBatch && typeof phase.transientOverlayBatch.cleanup === 'function') phase.transientOverlayBatch.cleanup(); } catch (_error) { /* compatibility cleanup */ }
     try { if (phase.layoutBatch && typeof phase.layoutBatch.clear === 'function') phase.layoutBatch.clear(); } catch (_error) { /* compatibility cleanup */ }
     phase.cellElements.clear();
+    phase.sourceTrajectoriesByEvent.clear();
   }
 
   private buildPhase(events: readonly PresentationPlaybackEvent[], key: string): DomPhaseRuntimeContext {
@@ -245,7 +303,9 @@ class DomBoardPlaybackRuntime {
         : null,
       transientOverlayBatch: TransientOverlayBatch && typeof TransientOverlayBatch.createTransientOverlayBatch === 'function'
         ? TransientOverlayBatch.createTransientOverlayBatch({ documentRef: this.documentRef })
-        : null
+        : null,
+      sourceTrajectoriesByEvent: new Map(),
+      abortController: new AbortController()
     };
     for (const event of events || []) {
       if (!event || event.type !== EVENT_TYPES.MOVE || !Array.isArray(event.targets)) continue;
@@ -282,6 +342,15 @@ class DomBoardPlaybackRuntime {
     } finally {
       this.cleanupPhase(implicit);
     }
+  }
+
+  private sourceTrajectoryRunForEvent(
+    phase: DomPhaseRuntimeContext,
+    event: PresentationPlaybackEvent
+  ): DomBoardSourceTrajectoryRun {
+    const run = phase.sourceTrajectoriesByEvent.get(event);
+    if (!run) throw new Error('DOM source trajectory launch is unavailable');
+    return run;
   }
 
   private getCellEl(row: unknown, col: unknown, phase?: DomPhaseRuntimeContext): HTMLElement | null {
@@ -833,6 +902,10 @@ class DomBoardPlaybackRuntime {
 
   private async playDestroySourceAnimation(target: any, profile: any, event: any, phase: DomPhaseRuntimeContext): Promise<void> {
     if (!profile || !profile.animationMethod) return;
+    if (profile.profileKey !== 'willHunterKingSlash') {
+      await this.sourceTrajectoryRunForEvent(phase, event).waitForTarget('destroy', target, event);
+      return;
+    }
     const animation = AnimationDestroySourceEvents && AnimationDestroySourceEvents[profile.animationMethod];
     if (typeof animation === 'function') await animation(target, this.destroySourceDeps(event, target, phase));
   }
@@ -967,11 +1040,12 @@ class DomBoardPlaybackRuntime {
   async playFlipBatch(events: readonly PresentationPlaybackEvent[], context: BoardPlaybackContext): Promise<void> {
     await this.runInPhase(events, context, async (phase) => {
       if (!AnimationFlipEvents || typeof AnimationFlipEvents.handleFlipEvent !== 'function') throw new Error('DOM flip event module unavailable');
+      const sourceRuns = new Set(events.map((event) => this.sourceTrajectoryRunForEvent(phase, event)));
+      if (sourceRuns.size !== 1) throw new Error('DOM flip source trajectory launch is inconsistent');
+      const sourceTrajectories = Array.from(sourceRuns)[0];
       const targets: unknown[] = [];
-      const eventByTarget = new Map<unknown, PresentationPlaybackEvent>();
       for (const event of events) for (const target of Array.isArray(event.targets) ? event.targets : []) {
         targets.push(target);
-        eventByTarget.set(target, event);
       }
       if (!targets.length) return;
       await AnimationFlipEvents.handleFlipEvent({ type: EVENT_TYPES.FLIP, targets }, {
@@ -988,14 +1062,12 @@ class DomBoardPlaybackRuntime {
         runWithEffectTargetHighlight: (cell: HTMLElement, type: unknown, target: any, runner: () => Promise<any>, minimum: unknown) => this.runWithEffectTargetHighlight(cell, type, target, runner, minimum),
         sleep: (ms: unknown) => this.sleep(ms),
         animationShared: AnimationShared,
-        ...(typeof context?.phaseScope?.waitForTargetPrelude === 'function'
-          ? {
-            waitForZombieSourcePrelude: (target: unknown) => context.phaseScope!.waitForTargetPrelude!(
-              eventByTarget.get(target) || events[0],
-              target
-            )
-          }
-          : {})
+        waitForSourceTrajectories: async (target: unknown) => {
+          // handleFlipEvent dedupes by coordinate. Coordinate fallback in the
+          // shared membership contract waits every raw zombie trajectory in
+          // received order for that merged target.
+          await sourceTrajectories.waitForOptionalFlipTarget(target);
+        }
       });
     });
   }
@@ -1040,15 +1112,7 @@ class DomBoardPlaybackRuntime {
         resolveEffectTargetHighlightTone: (type: unknown, target: any) => this.resolveEffectTargetHighlightTone(type, target),
         runWithEffectTargetHighlight: (cell: HTMLElement, type: unknown, target: any, runner: () => Promise<any>, minimum: unknown) => this.runWithEffectTargetHighlight(cell, type, target, runner, minimum),
         resolveDestroySourceAnimationProfile: (target: any) => this.resolveDestroySourceAnimationProfile(target),
-        playDestroySourceAnimation: async (target: any, profile: any) => {
-          const gate = context?.phaseScope?.waitForTargetPrelude;
-          if (profile && typeof gate === 'function'
-            && PresentationEffectProfiles.requiresGlobalDestroyPrelude(target)) {
-            await gate(event, target);
-            return;
-          }
-          await this.playDestroySourceAnimation(target, profile, event, phase);
-        },
+        playDestroySourceAnimation: (target: any, profile: any) => this.playDestroySourceAnimation(target, profile, event, phase),
         animateDestroyGhostAtCell: (cell: HTMLElement, color: unknown) => this.animateDestroyGhostAtCell(cell, color),
         createDisc: (state: any) => this.createDisc(state),
         removeDiscFromCell: (cell: HTMLElement, disc: HTMLElement) => this.removeDiscFromCell(cell, disc),
@@ -1448,6 +1512,7 @@ export function createDomBoardPlaybackHandlers(
   const runtime = new DomBoardPlaybackRuntime(options);
   return Object.freeze({
     beginPhase: (events: readonly PresentationPlaybackEvent[], context: BoardPlaybackContext) => runtime.beginPhase(events, context),
+    startSourceTrajectories: (events: readonly PresentationPlaybackEvent[], context: BoardPlaybackContext) => runtime.startSourceTrajectories(events, context),
     endPhase: (context: BoardPlaybackContext) => runtime.endPhase(context),
     destroy: () => runtime.destroy(),
     playPlace: (event: PresentationPlaybackEvent, context: BoardPlaybackContext) => runtime.playPlace(event, context),

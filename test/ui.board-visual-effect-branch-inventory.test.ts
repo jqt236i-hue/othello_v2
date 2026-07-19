@@ -117,12 +117,12 @@ const MOVE_RENDERER = Object.freeze(['ui/pixi/effects/move.ts#playPixiMoveEffect
 const FLIP_RENDERER = Object.freeze(['ui/pixi/effects/flip.ts#playPixiFlipEffect']);
 const ZOMBIE_FLIP_RENDERERS = Object.freeze([
   'ui/pixi/effects/flip.ts#playPixiFlipEffect',
-  'ui/presentation/global-board-effect-presenter.ts#presentZombieBiteSourceAnimation'
+  'ui/pixi/effects/source-trajectory.ts#createPixiSourceTrajectoryRenderer'
 ]);
 const DESTROY_RENDERER = Object.freeze(['ui/pixi/effects/destroy.ts#playPixiDestroyEffect']);
-const HYBRID_DESTROY_RENDERERS = Object.freeze([
+const TRAJECTORY_DESTROY_RENDERERS = Object.freeze([
   'ui/pixi/effects/destroy.ts#playPixiDestroyEffect',
-  'ui/presentation/global-board-effect-presenter.ts#presentDestroySourceAnimation'
+  'ui/pixi/effects/source-trajectory.ts#createPixiSourceTrajectoryRenderer'
 ]);
 const STATUS_RENDERER = Object.freeze(['ui/pixi/effects/status.ts#playPixiStatusEffect']);
 const SCENE_RENDERER = Object.freeze(['ui/pixi/board-scene.ts#createPixiBoardScene']);
@@ -231,39 +231,37 @@ const PHASE7_EXECUTABLE_FIXTURE_REGISTRY: readonly ExecutableFixture[] = Object.
     target: { from: Object.freeze({ row: 0, col: 0 }), to: Object.freeze({ row: 0, col: 1 }) }
   }),
   playbackFixture('flip-standard', 'flip', ['flip'], FLIP_RENDERER),
-  playbackFixture('flip-zombie-infection', 'flip', ['flip', 'source-to-board'], ZOMBIE_FLIP_RENDERERS, {
-    route: 'hybrid',
-    target: { cause: 'ZOMBIE', reason: 'zombie_infection', source: Object.freeze({ row: 1, col: 1 }) },
-    inventoryEventTypes: ['flip', 'zombie_bite_source_animation'],
-    expectedGlobalEventType: 'zombie_bite_source_animation'
+  playbackFixture('flip-zombie-infection', 'flip', ['flip', 'board-source-trajectory'], ZOMBIE_FLIP_RENDERERS, {
+    target: { cause: 'ZOMBIE', reason: 'zombie_infection', sourceRow: 1, sourceCol: 1 },
+    inventoryEventTypes: ['flip']
   }),
   playbackFixture('destroy-generic-remove', 'destroy', ['destroy'], DESTROY_RENDERER),
   playbackFixture('destroy-preserved-outcome', 'destroy', ['destroy'], DESTROY_RENDERER, {
     target: { meta: Object.freeze({ blockedByGhost: true }) }
   }),
-  playbackFixture('destroy-sniper-shot', 'destroy', ['destroy', 'source-to-board'], HYBRID_DESTROY_RENDERERS, {
-    route: 'hybrid', target: { cause: 'SNIPER_WILL', reason: 'sniper_shot', source: { row: 1, col: 1 } },
-    inventoryEventTypes: ['destroy', 'destroy_source_animation'], expectedGlobalEventType: 'destroy_source_animation'
+  playbackFixture('destroy-sniper-shot', 'destroy', ['destroy', 'board-source-trajectory'], TRAJECTORY_DESTROY_RENDERERS, {
+    target: { cause: 'SNIPER_WILL', reason: 'sniper_shot', sourceRow: 1, sourceCol: 1 },
+    inventoryEventTypes: ['destroy']
   }),
-  playbackFixture('destroy-lightning-will', 'destroy', ['destroy', 'source-to-board'], HYBRID_DESTROY_RENDERERS, {
-    route: 'hybrid', target: { cause: 'LIGHTNING_WILL', reason: 'lightning_destroyed', source: { row: 1, col: 1 } },
-    inventoryEventTypes: ['destroy', 'destroy_source_animation'], expectedGlobalEventType: 'destroy_source_animation'
+  playbackFixture('destroy-lightning-will', 'destroy', ['destroy', 'board-source-trajectory'], TRAJECTORY_DESTROY_RENDERERS, {
+    target: { cause: 'LIGHTNING_WILL', reason: 'lightning_destroyed', sourceRow: 1, sourceCol: 1 },
+    inventoryEventTypes: ['destroy']
   }),
-  playbackFixture('destroy-dragon-breath', 'destroy', ['destroy', 'source-to-board'], HYBRID_DESTROY_RENDERERS, {
-    route: 'hybrid', target: { cause: 'DESTROY_DRAGON', reason: 'destroy_dragon_breath', source: { row: 1, col: 1 } },
-    inventoryEventTypes: ['destroy', 'destroy_source_animation'], expectedGlobalEventType: 'destroy_source_animation'
+  playbackFixture('destroy-dragon-breath', 'destroy', ['destroy', 'board-source-trajectory'], TRAJECTORY_DESTROY_RENDERERS, {
+    target: { cause: 'DESTROY_DRAGON', reason: 'destroy_dragon_breath', sourceRow: 1, sourceCol: 1 },
+    inventoryEventTypes: ['destroy']
   }),
-  playbackFixture('destroy-ultimate-destroy-god', 'destroy', ['destroy', 'source-to-board'], HYBRID_DESTROY_RENDERERS, {
-    route: 'hybrid', target: { cause: 'ULTIMATE_DESTROY_GOD', reason: 'udg_destroyed', source: { row: 1, col: 1 } },
-    inventoryEventTypes: ['destroy', 'destroy_source_animation'], expectedGlobalEventType: 'destroy_source_animation'
+  playbackFixture('destroy-ultimate-destroy-god', 'destroy', ['destroy', 'board-source-trajectory'], TRAJECTORY_DESTROY_RENDERERS, {
+    target: { cause: 'ULTIMATE_DESTROY_GOD', reason: 'udg_destroyed', sourceRow: 1, sourceCol: 1 },
+    inventoryEventTypes: ['destroy']
   }),
-  playbackFixture('destroy-meteor-god-black-beam', 'destroy', ['destroy', 'source-to-board'], HYBRID_DESTROY_RENDERERS, {
-    route: 'hybrid', target: { cause: 'METEOR_GOD', reason: 'meteor_god_cell_destroy', source: { row: 1, col: 1 } },
-    inventoryEventTypes: ['destroy', 'destroy_source_animation'], expectedGlobalEventType: 'destroy_source_animation'
+  playbackFixture('destroy-meteor-god-black-beam', 'destroy', ['destroy', 'board-source-trajectory'], TRAJECTORY_DESTROY_RENDERERS, {
+    target: { cause: 'METEOR_GOD', reason: 'meteor_god_cell_destroy', sourceRow: 1, sourceCol: 1 },
+    inventoryEventTypes: ['destroy']
   }),
-  playbackFixture('destroy-robot-vacuum-suck', 'destroy', ['destroy', 'source-to-board'], HYBRID_DESTROY_RENDERERS, {
-    route: 'hybrid', target: { cause: 'ROBOT_VACUUM', reason: 'robot_vacuum_suck', source: { row: 1, col: 1 } },
-    inventoryEventTypes: ['destroy', 'destroy_source_animation'], expectedGlobalEventType: 'destroy_source_animation'
+  playbackFixture('destroy-robot-vacuum-suck', 'destroy', ['destroy', 'board-source-trajectory'], TRAJECTORY_DESTROY_RENDERERS, {
+    target: { cause: 'ROBOT_VACUUM', reason: 'robot_vacuum_suck', sourceRow: 1, sourceCol: 1 },
+    inventoryEventTypes: ['destroy']
   }),
   playbackFixture('destroy-gluttonous-eat', 'destroy', ['destroy'], DESTROY_RENDERER, {
     target: { cause: 'GLUTTONOUS_WILL', reason: 'gluttonous_eat' }
@@ -323,9 +321,9 @@ const PHASE7_EXECUTABLE_FIXTURE_REGISTRY: readonly ExecutableFixture[] = Object.
     'ui/pixi/board-scene.ts#createPixiBoardScene',
     'ui/pixi/effects/status.ts#playPixiStatusEffect'
   ]),
-  globalFixture('retained-place-hand-trajectory', 'place_hand_animation', 'source-to-board', HAND_RENDERER),
-  globalFixture('retained-capture-to-hand-trajectory', 'capture_to_hand_animation', 'source-to-board', HAND_RENDERER),
-  globalFixture('retained-card-use-trajectory', 'card_use_animation', 'source-to-board', HAND_RENDERER),
+  globalFixture('retained-place-hand-trajectory', 'place_hand_animation', 'cross-surface-trajectory', HAND_RENDERER),
+  globalFixture('retained-capture-to-hand-trajectory', 'capture_to_hand_animation', 'cross-surface-trajectory', HAND_RENDERER),
+  globalFixture('retained-card-use-trajectory', 'card_use_animation', 'cross-surface-trajectory', HAND_RENDERER),
   globalFixture('retained-nonmanifest-special-cinematic', 'special_card_cinematic', 'fullscreen', CINEMATIC_RENDERER),
   globalFixture('retained-round-bonus-banner', 'round_bonus_banner', 'fullscreen', [
     'ui/animation-feedback-events.ts#handleRoundBonusBannerEvent'
@@ -396,7 +394,15 @@ function validationFrame(): any {
     frameToken: 'phase7-fixture-frame',
     model: Object.freeze({
       cells: Object.freeze([]),
-      topology: Object.freeze({ existingKeys: Object.freeze([]) })
+      topology: Object.freeze({
+        minRow: 0,
+        maxRow: 1,
+        minCol: 0,
+        maxCol: 1,
+        existingKeys: Object.freeze(['0,0', '0,1', '1,0', '1,1']),
+        playableKeys: Object.freeze(['0,0', '0,1', '1,0', '1,1']),
+        holeKeys: Object.freeze([])
+      })
     }),
     layout: Object.freeze({}),
     appearance: Object.freeze({}),
@@ -414,7 +420,11 @@ function createValidationPlayback(noAnimation: boolean): any {
     },
     scene: {},
     getFrame: validationFrame,
-    noAnimation
+    noAnimation,
+    acquireStoneTextureLease: () => Object.freeze({
+      texture: Object.freeze({ id: 'phase7-validation-stone' }),
+      release: () => true
+    })
   });
 }
 
@@ -718,7 +728,7 @@ describe('Phase 7 board visual branch inventory', () => {
     }
   });
 
-  test('assigns all shared special DESTROY profiles, including every global prelude', () => {
+  test('assigns all shared special DESTROY profiles, including every board source trajectory', () => {
     const sharedProfiles = {
       ...PresentationEffectProfiles.SPECIAL_DESTROY_TARGET_PROFILES,
       ...PresentationEffectProfiles.SUPER_CRUSH_DESTROY_TARGET_PROFILES
@@ -726,15 +736,15 @@ describe('Phase 7 board visual branch inventory', () => {
     const profileEntries = inventory().filter((entry) => entry.profileKey !== null);
     expect(profileEntries.map((entry) => entry.profileKey).sort()).toEqual(Object.keys(sharedProfiles).sort());
 
-    const globalPreludeKeys = new Set<string>(PresentationEffectProfiles.GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS);
+    const trajectoryKeys = new Set<string>(PresentationEffectProfiles.GLOBAL_DESTROY_PRELUDE_PROFILE_KEYS);
     for (const entry of profileEntries) {
       const profile = sharedProfiles[entry.profileKey!];
       expect(entry.causes).toEqual(profile.causes);
       expect(entry.reasonPrefixes).toEqual([profile.reasonPrefix]);
-      if (globalPreludeKeys.has(entry.profileKey!)) {
-        expect(entry.route).toBe('hybrid');
-        expect(entry.eventTypes).toEqual(['destroy', 'destroy_source_animation']);
-        expect(entry.effectFamilies).toEqual(['destroy', 'source-to-board']);
+      if (trajectoryKeys.has(entry.profileKey!)) {
+        expect(entry.route).toBe('board-local');
+        expect(entry.eventTypes).toEqual(['destroy']);
+        expect(entry.effectFamilies).toEqual(['destroy', 'board-source-trajectory']);
       } else {
         expect(entry.route).toBe('board-local');
         expect(entry.eventTypes).toEqual(['destroy']);

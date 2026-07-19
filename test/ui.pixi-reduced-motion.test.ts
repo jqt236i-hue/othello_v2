@@ -151,7 +151,8 @@ function createEffectHarness(options: {
     timings: TIMINGS,
     noAnimation: false,
     reducedMotion: options.reducedMotion,
-    waitForTargetPrelude: async () => undefined,
+    waitForSourceTrajectories: async () => undefined,
+    render: jest.fn(),
     getPhaseSourceStone(row, col) {
       return phaseSourceStones.get(`${row},${col}`) || null;
     },

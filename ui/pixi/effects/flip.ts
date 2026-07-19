@@ -51,6 +51,7 @@ async function playFlipTarget(
 ): Promise<void> {
   const coordinate = normalizePlaybackCoordinate(target);
   if (!coordinate) return;
+  const sourceTrajectoryGate = projection.waitForSourceTrajectories(event, target);
   const tone = resolvePlaybackHighlightTone(event.type, target, projection.noAnimation);
   let highlight: PixiPlaybackCellHighlightHandle | null = null;
   const releaseHighlight = () => {
@@ -61,20 +62,23 @@ async function playFlipTarget(
   };
   if (target?.meta?.blockedByGhost === true) {
     try {
-      await projection.timeline.run({
-        durationMs: Math.max(
-          Math.max(120, Math.floor(projection.timings.flipMs / 2)),
-          tone ? projection.timings.positiveHighlightMinimumMs : 0
-        ),
-        effectFamily: 'flip-blocked',
-        event,
-        onStart: () => {
-          if (tone) highlight = projection.acquireHighlight(coordinate.row, coordinate.col, tone);
-        },
-        onUpdate: (progress) => {
-          if (progress >= 1) releaseHighlight();
-        }
-      });
+      await Promise.all([
+        projection.timeline.run({
+          durationMs: Math.max(
+            Math.max(120, Math.floor(projection.timings.flipMs / 2)),
+            tone ? projection.timings.positiveHighlightMinimumMs : 0
+          ),
+          effectFamily: 'flip-blocked',
+          event,
+          onStart: () => {
+            if (tone) highlight = projection.acquireHighlight(coordinate.row, coordinate.col, tone);
+          },
+          onUpdate: (progress) => {
+            if (progress >= 1) releaseHighlight();
+          }
+        }),
+        sourceTrajectoryGate
+      ]);
     } finally {
       releaseHighlight();
     }
@@ -132,17 +136,13 @@ async function playFlipTarget(
     finalApplied = true;
   };
   try {
-    const sourcePrelude = zombie
-      ? projection.waitForTargetPrelude(event, target)
-      : Promise.resolve();
-    await Promise.all([projection.timeline.run({
+    const targetAnimation = projection.timeline.run({
       durationMs,
       effectFamily: zombie ? 'flip-zombie' : (missingSource ? 'flip-missing-source' : 'flip'),
       event,
       onStart: () => {
         projection.setProjectedStone(coordinate.row, coordinate.col, null);
-        if (projection.noAnimation) applyFinal();
-        else showGhost(missingSource || zombie ? before : after);
+        if (!projection.noAnimation) showGhost(missingSource || zombie ? before : after);
         if (tone) highlight = projection.acquireHighlight(coordinate.row, coordinate.col, tone);
       },
       onUpdate: (progress, frame) => {
@@ -152,7 +152,6 @@ async function playFlipTarget(
             : Math.min(1, frame.elapsedMs / Math.max(1, projection.timings.fadeOutMs));
           if (ghost) projection.updateGhost(ghost, { alpha: 1 - visualProgress });
         } else if (zombie) {
-          if (frame.reducedMotion && !frame.noAnimation) applyFinal();
           const visualProgress = frame.noAnimation || frame.reducedMotion
             ? 1
             : Math.min(1, frame.elapsedMs / Math.max(1, projection.timings.zombieBiteMs));
@@ -172,11 +171,17 @@ async function playFlipTarget(
           if (ghost) projection.updateGhost(ghost, { scaleX });
         }
         if (progress >= 1) {
-          applyFinal();
           releaseHighlight();
         }
       }
-    }), sourcePrelude]);
+    });
+    await Promise.all([targetAnimation, sourceTrajectoryGate]);
+    if (!finalApplied) {
+      // Membership, not the merged target's final profile, owns the gate. A
+      // deduped normal target can still carry an earlier raw zombie request.
+      applyFinal();
+      projection.render();
+    }
   } finally {
     releaseGhost();
     releaseHighlight();

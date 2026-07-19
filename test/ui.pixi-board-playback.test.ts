@@ -158,22 +158,28 @@ function createMockScene(log: string[]) {
   let nextGhostId = 1;
   let nextHighlightId = 1;
   let nextEffectId = 1;
+  let nextSourceTrajectoryId = 1;
   let scope: { id: number; key: string } | null = null;
   const ghosts = new Map<number, any>();
   const highlights = new Map<number, any>();
   const effects = new Map<number, any>();
+  const sourceTrajectories = new Map<number, any>();
   let pooledGhosts = 0;
   let pooledHighlights = 0;
   let pooledEffects = 0;
+  let pooledSourceTrajectories = 0;
 
   function clearProjection(label: string) {
     log.push(label);
     pooledGhosts += ghosts.size;
     pooledHighlights += highlights.size;
     pooledEffects += effects.size;
+    pooledSourceTrajectories += sourceTrajectories.size;
+    for (const trajectory of sourceTrajectories.values()) trajectory.textureLease?.release();
     ghosts.clear();
     highlights.clear();
     effects.clear();
+    sourceTrajectories.clear();
     scope = null;
   }
 
@@ -239,6 +245,56 @@ function createMockScene(log: string[]) {
       if (effects.delete(handle.id)) pooledEffects += 1;
       log.push(`scene:effect-release:${handle.id}`);
     }),
+    snapshotSourceTrajectoryGeometry: jest.fn((request: any) => {
+      const sourceCenter = Object.freeze({
+        x: request.source.col * 32 + 16,
+        y: request.source.row * 32 + 16
+      });
+      const targetCenter = Object.freeze({
+        x: request.target.col * 32 + 16,
+        y: request.target.row * 32 + 16
+      });
+      const movementStart = request.direction === 'target-to-source' ? targetCenter : sourceCenter;
+      const movementEnd = request.direction === 'target-to-source' ? sourceCenter : targetCenter;
+      const visibleClip = Object.freeze({ left: 0, top: 0, right: 256, bottom: 256, width: 256, height: 256 });
+      return Object.freeze({
+        frameToken: 'pixi-playback-frame:1',
+        layoutRevision: 1,
+        topologySignature: '8x8',
+        direction: request.direction,
+        cellSize: 32,
+        sourceCenter,
+        targetCenter,
+        movementStart,
+        movementEnd,
+        distancePx: Math.hypot(targetCenter.x - sourceCenter.x, targetCenter.y - sourceCenter.y),
+        angleRad: Math.atan2(movementEnd.y - movementStart.y, movementEnd.x - movementStart.x),
+        visibleClip,
+        paintedHaloClip: Object.freeze({ left: 0, top: 0, right: 256, bottom: 256, width: 256, height: 256 }),
+        visibleSegment: Object.freeze({ start: movementStart, end: movementEnd, startT: 0, endT: 1 })
+      });
+    }),
+    acquireSourceTrajectory: jest.fn((ownedScope: any, options: any) => {
+      const handle = Object.freeze({ id: nextSourceTrajectoryId++, scopeId: ownedScope.id });
+      sourceTrajectories.set(handle.id, { handle, ...options, visible: false });
+      log.push(`scene:source-acquire:${options.profileKey}:${options.trajectoryId}`);
+      return handle;
+    }),
+    updateSourceTrajectory: jest.fn((_scope: any, handle: any, visual: any) => {
+      const current = sourceTrajectories.get(handle.id);
+      if (current) sourceTrajectories.set(handle.id, { ...current, ...visual });
+      log.push(`scene:source-update:${handle.id}`);
+    }),
+    releaseSourceTrajectory: jest.fn((_scope: any, handle: any) => {
+      const current = sourceTrajectories.get(handle.id);
+      if (current) {
+        sourceTrajectories.delete(handle.id);
+        current.textureLease?.release();
+        pooledSourceTrajectories += 1;
+      }
+      log.push(`scene:source-release:${handle.id}`);
+    }),
+    getSourceTrajectory: jest.fn((handle: any) => sourceTrajectories.get(handle.id) || null),
     getPlaybackGhost: jest.fn((handle: any) => ghosts.get(handle.id) || null),
     getPlaybackEffect: jest.fn((handle: any) => effects.get(handle.id) || null),
     resetPlaybackProjection: jest.fn(() => clearProjection('scene:projection-reset')),
@@ -255,7 +311,11 @@ function createMockScene(log: string[]) {
       activePlaybackHighlightLeaseCount: highlights.size,
       pooledPlaybackHighlightCount: pooledHighlights,
       activePlaybackEffectCount: effects.size,
-      pooledPlaybackEffectCount: pooledEffects
+      pooledPlaybackEffectCount: pooledEffects,
+      activeSourceTrajectoryCount: sourceTrajectories.size,
+      pooledSourceTrajectoryCount: pooledSourceTrajectories,
+      activeSourceTrajectoryTextureLeaseCount: Array.from(sourceTrajectories.values())
+        .filter((trajectory) => trajectory.textureLease && trajectory.textureLease.released !== true).length
     })),
     reset: jest.fn(() => clearProjection('scene:reset')),
     destroy: jest.fn(() => clearProjection('scene:destroy'))
@@ -265,8 +325,7 @@ function createMockScene(log: string[]) {
 
 function context(
   strictNetworkPlayback = false,
-  events: readonly unknown[] = [],
-  waitForTargetPrelude?: (event: unknown, target: unknown) => Promise<void>
+  events: readonly unknown[] = []
 ): BoardPlaybackContext {
   return Object.freeze({
     token: Object.freeze({
@@ -278,8 +337,7 @@ function context(
     phaseScope: Object.freeze({
       events: Object.freeze(Array.from(events)),
       phaseKey: '1',
-      stepIndex: 0,
-      ...(waitForTargetPrelude ? { waitForTargetPrelude } : {})
+      stepIndex: 0
     })
   });
 }
@@ -290,13 +348,18 @@ function createHarness(options: {
   reducedMotion?: boolean;
   timings?: Record<string, number>;
   renderImpl?: () => void;
+  failSourceTextureLease?: boolean;
 } = {}) {
   const log: string[] = [];
   const application = createManualApplication(log, options.renderImpl);
   const scene = createMockScene(log);
   const record = jest.fn((event: string, detail?: any) => {
-    const eventType = detail && detail.eventType ? `:${detail.eventType}` : '';
-    log.push(`record:${event}${eventType}`);
+    const label = detail?.eventType
+      ? `:${detail.eventType}`
+      : detail?.profileKey
+        ? `:${detail.profileKey}`
+        : '';
+    log.push(`record:${event}${label}`);
   });
   const frame = options.frame || makeFrame();
   const playback = createPixiBoardPlayback({
@@ -306,6 +369,23 @@ function createHarness(options: {
     noAnimation: options.noAnimation,
     reducedMotion: options.reducedMotion,
     timings: options.timings,
+    acquireStoneTextureLease(owner) {
+      if (options.failSourceTextureLease) {
+        throw new Error('source texture unavailable');
+      }
+      let released = false;
+      log.push(`texture:source-acquire:${owner}`);
+      return Object.freeze({
+        texture: Object.freeze({ owner }),
+        get released() { return released; },
+        release() {
+          if (released) return false;
+          released = true;
+          log.push(`texture:source-release:${owner}`);
+          return true;
+        }
+      });
+    },
     record
   });
   return { application, frame, log, playback, record, scene };
@@ -389,6 +469,123 @@ describe('Pixi board playback contract', () => {
         eventTypes: ['place', 'flip', 'status_applied', 'flip', 'destroy', 'spawn']
       })
     );
+  });
+
+  test('starts trajectories inside each playPhase launch without overtaking later dispatcher launches', async () => {
+    const harness = createHarness({
+      frame: makeFrame([
+        [2, 2, stone('white')],
+        [4, 4, stone('black')]
+      ]),
+      noAnimation: true
+    });
+    const sniper = {
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 2,
+        sourceRow: 1,
+        sourceCol: 1,
+        ownerBefore: 'white',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        before: { owner: 'white', color: -1 }
+      }]
+    };
+    const secondSniper = {
+      type: 'destroy',
+      targets: [{
+        r: 4,
+        col: 4,
+        sourceRow: 3,
+        sourceCol: 4,
+        ownerBefore: 'black',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        before: { owner: 'black', color: 1 }
+      }]
+    };
+    const sharedContext = context(false, [sniper, secondSniper]);
+
+    const first = harness.playback.playPhase([sniper], sharedContext);
+    const second = harness.playback.playPhase([secondSniper], sharedContext);
+    await Promise.all([first, second]);
+
+    const sourceStarts = harness.log.filter((entry) => (
+      entry.startsWith('record:pixi-source-trajectory:start:')
+    ));
+    expect(sourceStarts).toEqual([
+      'record:pixi-source-trajectory:start:sniperShot',
+      'record:pixi-source-trajectory:start:sniperShot'
+    ]);
+    const launchOrder = harness.log.filter((entry) => (
+      entry.startsWith('record:pixi-source-trajectory:start:')
+      || entry === 'record:pixi-playback:event-start:destroy'
+    ));
+    expect(launchOrder.slice(0, 4)).toEqual([
+      'record:pixi-source-trajectory:start:sniperShot',
+      'record:pixi-playback:event-start:destroy',
+      'record:pixi-source-trajectory:start:sniperShot',
+      'record:pixi-playback:event-start:destroy'
+    ]);
+    const trajectoryIds = harness.record.mock.calls
+      .filter(([event]) => event === 'pixi-source-trajectory:start')
+      .map(([, detail]) => detail.trajectoryId);
+    expect(trajectoryIds).toHaveLength(2);
+    expect(trajectoryIds[0]).toContain('/0/0/sniperShot');
+    expect(trajectoryIds[1]).toContain('/1/0/sniperShot');
+    expect(trajectoryIds[0]).not.toBe(trajectoryIds[1]);
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      phaseCount: 2,
+      completedPhaseCount: 2,
+      inFlightEffectCount: 0,
+      sourceTrajectory: expect.objectContaining({
+        startedRunCount: 2,
+        completedRunCount: 2
+      })
+    });
+  });
+
+  test('fails closed when a trajectory-required destroy loses launch membership', async () => {
+    const harness = createHarness({
+      frame: makeFrame([
+        [1, 1, stone('black')],
+        [2, 2, stone('white')]
+      ]),
+      noAnimation: true
+    });
+    const scopedEvent = {
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 2,
+        sourceRow: 1,
+        sourceCol: 1,
+        ownerBefore: 'white',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        before: { owner: 'white', color: -1 }
+      }]
+    };
+    const detachedLaunchEvent = {
+      ...scopedEvent,
+      targets: scopedEvent.targets.map((target) => ({ ...target }))
+    };
+
+    await expect(harness.playback.playPhase(
+      [detachedLaunchEvent],
+      context(false, [scopedEvent])
+    )).rejects.toEqual(expect.objectContaining({
+      name: 'PresentationPlaybackError',
+      code: 'board_renderer_failed',
+      cause: expect.objectContaining({
+        message: 'Pixi source trajectory membership is missing for destroy target'
+      })
+    }));
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      failedPhaseCount: 1,
+      inFlightEffectCount: 0
+    });
   });
 
   test.each([
@@ -522,7 +719,7 @@ describe('Pixi board playback contract', () => {
     ['lightning strike', 'LIGHTNING_WILL', 'lightning_destroyed'],
     ['meteor black beam', 'METEOR_GOD', 'meteor_god_cell_destroy'],
     ['robot vacuum', 'ROBOT_VACUUM', 'robot_vacuum_suck']
-  ])('preflights the Phase 7 global DESTROY trajectory gate for %s', async (
+  ])('preflights the board-owned DESTROY trajectory endpoint for %s', async (
     _name,
     cause,
     reason
@@ -533,8 +730,6 @@ describe('Pixi board playback contract', () => {
       targets: [{
         r: 3,
         col: 3,
-        sourceRow: 2,
-        sourceCol: 3,
         ownerBefore: 'black',
         cause,
         reason,
@@ -544,10 +739,8 @@ describe('Pixi board playback contract', () => {
 
     await expect(harness.playback.playPhase([event], context(false, [event])))
       .rejects.toEqual(expect.objectContaining({
-        name: 'PresentationPlaybackError',
-        code: 'board_event_unimplemented',
-        eventType: 'destroy',
-        strictNetworkPlayback: false
+        name: 'BoardSourceTrajectoryError',
+        code: 'invalid_source_coordinate'
       }));
 
     expect(harness.scene.beginPlaybackScope).not.toHaveBeenCalled();
@@ -556,6 +749,78 @@ describe('Pixi board playback contract', () => {
       phaseCount: 0,
       activeScopeKey: null,
       inFlightEffectCount: 0
+    });
+  });
+
+  test('rejects an integer trajectory endpoint outside sparse logical topology before writer claim', async () => {
+    const harness = createHarness({ noAnimation: true });
+    const event = {
+      type: 'destroy',
+      targets: [{
+        r: 8,
+        col: 3,
+        sourceRow: 7,
+        sourceCol: 3,
+        ownerBefore: 'black',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        before: { owner: 'black', color: 1 }
+      }]
+    };
+
+    await expect(harness.playback.playPhase([event], context(false, [event])))
+      .rejects.toEqual(expect.objectContaining({
+        name: 'PresentationPlaybackError',
+        code: 'board_source_trajectory_endpoint_invalid',
+        eventType: 'destroy'
+      }));
+    expect(harness.scene.beginPlaybackScope).not.toHaveBeenCalled();
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      phaseCount: 0,
+      activeScopeKey: null,
+      inFlightEffectCount: 0
+    });
+  });
+
+  test('fails a required source texture before writer claim, while NOANIM needs no lease', async () => {
+    const event = {
+      type: 'destroy',
+      targets: [{
+        r: 3,
+        col: 3,
+        sourceRow: 2,
+        sourceCol: 3,
+        ownerBefore: 'black',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        before: { owner: 'black', color: 1 }
+      }]
+    };
+    const unavailable = createHarness({ failSourceTextureLease: true });
+
+    await expect(unavailable.playback.playPhase([event], context(false, [event])))
+      .rejects.toEqual(expect.objectContaining({
+        name: 'PresentationPlaybackError',
+        code: 'board_source_trajectory_asset_unavailable',
+        eventType: 'destroy',
+        strictNetworkPlayback: false
+      }));
+    expect(unavailable.scene.beginPlaybackScope).not.toHaveBeenCalled();
+    expect(unavailable.log.some((entry) => entry.startsWith('record:pixi-playback:event-start:')))
+      .toBe(false);
+
+    const noAnimation = createHarness({
+      frame: makeFrame([[3, 3, stone('black')]]),
+      failSourceTextureLease: true,
+      noAnimation: true
+    });
+    await expect(noAnimation.playback.playPhase([event], context(false, [event])))
+      .resolves.toBeUndefined();
+    expect(noAnimation.log.some((entry) => entry.startsWith('texture:source-acquire:'))).toBe(false);
+    expect(noAnimation.playback.getDiagnostics().sourceTrajectory).toMatchObject({
+      startedRunCount: 1,
+      completedRunCount: 1,
+      noObjectRunCount: 1
     });
   });
 
@@ -591,24 +856,25 @@ describe('Pixi board playback contract', () => {
         before: { owner: 'black', color: 1 }
       }]
     };
-    const gate = jest.fn(async () => undefined);
-
     await expect(harness.playback.playPhase(
       [event],
-      context(false, [event], gate)
+      context(false, [event])
     )).resolves.toBeUndefined();
 
-    const needsGlobalGate = ![
+    const hasSourceTrajectory = ![
       'WILL_HUNTER_KING',
       'GLUTTONOUS_WILL',
       'SUPER_GRAVITY_WILL'
     ].includes(cause);
-    expect(gate).toHaveBeenCalledTimes(needsGlobalGate ? 1 : 0);
     expect(harness.playback.getDiagnostics()).toMatchObject({
       phaseCount: 1,
       completedPhaseCount: 1,
       failedPhaseCount: 0,
-      inFlightEffectCount: 0
+      inFlightEffectCount: 0,
+      sourceTrajectory: expect.objectContaining({
+        startedRunCount: hasSourceTrajectory ? 1 : 0,
+        completedRunCount: hasSourceTrajectory ? 1 : 0
+      })
     });
     expect(harness.scene.getDiagnostics()).toMatchObject({ activePlaybackEffectCount: 0 });
   });
@@ -705,14 +971,61 @@ describe('Pixi board playback contract', () => {
     expect(harness.scene.getDiagnostics().activePlaybackEffectCount).toBe(0);
   });
 
-  test('zombie terminal flip waits for its DOM-global source decoration gate', async () => {
+  test('deduped zombie target waits for every raw board-owned source trajectory', async () => {
     const harness = createHarness({
       frame: makeFrame([[2, 3, stone('white')]]),
-      noAnimation: true
+      timings: {
+        zombieBiteMs: 100,
+        positiveHighlightMinimumMs: 0
+      }
     });
-    let resolvePrelude!: () => void;
-    const prelude = new Promise<void>((resolve) => { resolvePrelude = resolve; });
-    const gate = jest.fn(() => prelude);
+    const event = {
+      type: 'flip',
+      targets: [1, 2].map((sourceCol) => ({
+          r: 2,
+          col: 3,
+          ownerBefore: 'white',
+          ownerAfter: 'black',
+          cause: 'ZOMBIE',
+          reason: 'zombie_infection',
+          meta: { sourceRow: 2, sourceCol },
+          after: { owner: 'black', color: 1, special: 'ZOMBIE' }
+        }))
+    };
+    let settled = false;
+    const playback = harness.playback.playPhase([event], context(false, [event]))
+      .then(() => { settled = true; });
+
+    await flushMicrotasks();
+    expect(harness.playback.getDiagnostics().sourceTrajectory).toMatchObject({
+      startedRunCount: 2,
+      activeRunCount: 2
+    });
+    expect(harness.log.filter((entry) => entry.startsWith('scene:source-acquire:zombieBite:')))
+      .toHaveLength(2);
+    harness.application.tick(100);
+    await flushMicrotasks();
+    expect(settled).toBe(false);
+    expect(harness.log).not.toContain('scene:ghost-acquire:2,3:black');
+    harness.application.tick(700);
+    await playback;
+    expect(settled).toBe(true);
+    expect(harness.log).toContain('scene:ghost-acquire:2,3:black');
+    expect(harness.playback.getDiagnostics().sourceTrajectory).toMatchObject({
+      startedRunCount: 2,
+      completedRunCount: 2,
+      activeRunCount: 0
+    });
+  });
+
+  test('deduped normal flip still waits an earlier raw zombie trajectory before terminal write', async () => {
+    const harness = createHarness({
+      frame: makeFrame([[2, 3, stone('white')]]),
+      timings: {
+        flipMs: 100,
+        positiveHighlightMinimumMs: 0
+      }
+    });
     const event = {
       type: 'flip',
       targets: [{
@@ -722,20 +1035,41 @@ describe('Pixi board playback contract', () => {
         ownerAfter: 'black',
         cause: 'ZOMBIE',
         reason: 'zombie_infection',
-        meta: { sourceRow: 2, sourceCol: 2 },
+        meta: { sourceRow: 2, sourceCol: 1 },
         after: { owner: 'black', color: 1, special: 'ZOMBIE' }
+      }, {
+        r: 2,
+        col: 3,
+        ownerBefore: 'white',
+        ownerAfter: 'black',
+        cause: 'SYSTEM',
+        reason: 'standard_flip',
+        after: { owner: 'black', color: 1, special: null }
       }]
     };
     let settled = false;
-    const playback = harness.playback.playPhase([event], context(false, [event], gate))
+    const playback = harness.playback.playPhase([event], context(false, [event]))
       .then(() => { settled = true; });
 
     await flushMicrotasks();
-    expect(gate).toHaveBeenCalledTimes(1);
+    harness.application.tick(100);
+    await flushMicrotasks();
     expect(settled).toBe(false);
-    resolvePrelude();
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      retainedFinalGhostCount: 0,
+      sourceTrajectory: expect.objectContaining({ activeRunCount: 1 })
+    });
+
+    harness.application.tick(700);
     await playback;
     expect(settled).toBe(true);
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      retainedFinalGhostCount: 1,
+      sourceTrajectory: expect.objectContaining({
+        activeRunCount: 0,
+        completedRunCount: 1
+      })
+    });
   });
 
   test('source-empty DESTROY and MOVE consume their logical durations', async () => {
@@ -858,6 +1192,7 @@ describe('Pixi board playback contract', () => {
         ownerAfter: 'white',
         cause: 'ZOMBIE',
         reason: 'zombie_infection',
+        meta: { sourceRow: 3, sourceCol: 2 },
         before: { owner: 'black', color: 1 },
         after: { owner: 'white', color: -1, special: 'ZOMBIE' }
       }]
@@ -876,7 +1211,7 @@ describe('Pixi board playback contract', () => {
     await destroyPromise;
     expect(flipSettled).toBe(false);
 
-    harness.application.tick(10);
+    harness.application.tick(730);
     await flipPromise;
     expect(flipSettled).toBe(true);
     expect(harness.playback.getDiagnostics()).toMatchObject({
@@ -1053,13 +1388,14 @@ describe('Pixi board playback contract', () => {
         ownerAfter: 'white',
         cause: 'ZOMBIE',
         reason: 'zombie_infection',
+        meta: { sourceRow: 2, sourceCol: 1 },
         before: { owner: 'black', color: 1 },
         after: { owner: 'white', color: -1, special: 'ZOMBIE' }
       }]
     };
     let settled = false;
     const pending = harness.playback.playPhase([event], context()).then(() => { settled = true; });
-    await flushMicrotasks();
+    await flushMicrotasks(16);
 
     expect(harness.application.running).toBe(true);
     expect(harness.scene.getDiagnostics().activePlaybackHighlightLeaseCount).toBe(1);

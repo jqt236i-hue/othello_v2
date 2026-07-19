@@ -7,6 +7,7 @@ const read = (relative: string) => fs.readFileSync(path.join(root, relative), 'u
 describe('DOM board compatibility isolation', () => {
   test('default browser entry and frame builder do not import the compatibility package', () => {
     const entry = read('entry-browser.js');
+    const animationEngine = read('ui/animation-engine.ts');
     const renderer = read('ui/board-renderer.ts');
     const fallbackStart = renderer.indexOf('function _createDomBoardVisualBackendForBoardRenderer()');
     const fallbackEnd = renderer.indexOf('function _playPixiBoardExpansionRevealSoundForBoardRenderer', fallbackStart);
@@ -15,6 +16,9 @@ describe('DOM board compatibility isolation', () => {
 
     expect(entry).not.toContain('board-dom-compat');
     expect(defaultGraph).not.toContain('board-dom-compat');
+    expect(animationEngine).not.toContain('global-board-effect-presenter');
+    expect(animationEngine).not.toContain('destroy_source_animation');
+    expect(animationEngine).not.toContain('zombie_bite_source_animation');
     expect(fallbackFactory).toContain("_require('./board-dom-compat/renderer')");
     expect(fallbackFactory).toContain("_require('./board-dom-compat/backend')");
   });
@@ -46,6 +50,17 @@ describe('DOM board compatibility isolation', () => {
     for (const line of selectorLines) {
       expect(line).toMatch(/data-board-renderer="dom"/);
     }
+  });
+
+  test('zombie source trajectory CSS exists only in the compatibility scope', () => {
+    const defaultCss = read('styles-animations.css');
+    const compatibilityCss = read('styles-board-dom-compat.css');
+
+    expect(defaultCss).not.toContain('.zombie-bite-shadow');
+    expect(defaultCss).not.toContain('.zombie-bite-fang');
+    expect(compatibilityCss).toContain('.dom-board-source-trajectory-layer');
+    expect(compatibilityCss).toContain('.dom-board-source-trajectory__zombie-shadow');
+    expect(compatibilityCss).toContain('.dom-board-source-trajectory__zombie-fang');
   });
 
   test('NOANIM selectors keep the root class outside the DOM compatibility scope', () => {

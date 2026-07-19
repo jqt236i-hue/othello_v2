@@ -55,8 +55,8 @@ const UNBOUNDED_EXTENT = Object.freeze({
  * Visual-family inventory fixed from the Phase 0 presentation surface.
  *
  * A presentation event can use more than one family. For example, DESTROY's
- * target fragment is board-local while a projectile/beam travelling from a
- * source cell remains a mutually-exclusive global DOM overlay.
+ * target fragment and a board-cell trajectory now share the active board
+ * backend. Hand/card trajectories remain cross-surface global DOM effects.
  */
 const RAW_EFFECT_BOUNDS_MANIFEST = Object.freeze({
   place: { route: 'board-local', extentCells: localExtent(0.5) },
@@ -75,10 +75,12 @@ const RAW_EFFECT_BOUNDS_MANIFEST = Object.freeze({
   legacy_sacrifice_absorb_pulse: { route: 'board-local', extentCells: localExtent(2) },
   theory_incarnation_spawn_roulette: { route: 'board-local', extentCells: localExtent(1.5) },
   manifest_ending_board: { route: 'board-local', extentCells: localExtent(2) },
-  // Dormant until the source-trajectory backend cutover. Distance is
-  // unbounded, but its painted halo remains inside the existing 2-cell owner.
+  // Distance is unbounded, but the clipped path's painted halo remains inside
+  // the existing 2-cell board owner.
   'board-source-trajectory': { route: 'board-local', extentCells: localExtent(2) },
   observer_bubble: { route: 'global-dom', extentCells: UNBOUNDED_EXTENT },
+  'cross-surface-trajectory': { route: 'global-dom', extentCells: UNBOUNDED_EXTENT },
+  // Historical Phase 0 family ID retained only by the immutable baseline.
   'source-to-board': { route: 'global-dom', extentCells: UNBOUNDED_EXTENT },
   fullscreen: { route: 'global-dom', extentCells: UNBOUNDED_EXTENT }
 } as const);
@@ -210,8 +212,8 @@ export const PHASE0_PRESENTATION_EFFECT_FAMILY_INVENTORY = Object.freeze({
  */
 export const PRESENTATION_EVENT_EFFECT_FAMILY_INVENTORY = Object.freeze({
   place: Object.freeze(['place'] as const),
-  flip: Object.freeze(['flip'] as const),
-  destroy: Object.freeze(['destroy', 'source-to-board'] as const),
+  flip: Object.freeze(['flip', 'board-source-trajectory'] as const),
+  destroy: Object.freeze(['destroy', 'board-source-trajectory'] as const),
   spawn: Object.freeze(['spawn'] as const),
   move: Object.freeze(['move'] as const),
   status_applied: Object.freeze(['status'] as const),
@@ -223,15 +225,13 @@ export const PRESENTATION_EVENT_EFFECT_FAMILY_INVENTORY = Object.freeze({
   legacy_hyperactive_move: Object.freeze(['legacy_hyperactive_move'] as const),
   legacy_sacrifice_absorb_pulse: Object.freeze(['legacy_sacrifice_absorb_pulse'] as const),
   observer_bubble: Object.freeze(['observer_bubble'] as const),
-  destroy_source_animation: Object.freeze(['source-to-board'] as const),
-  zombie_bite_source_animation: Object.freeze(['source-to-board'] as const),
   theory_incarnation_spawn_roulette: Object.freeze(['theory_incarnation_spawn_roulette'] as const),
   manifest_ending: Object.freeze(['manifest_ending_board', 'fullscreen'] as const),
-  place_hand_animation: Object.freeze(['source-to-board'] as const),
+  place_hand_animation: Object.freeze(['cross-surface-trajectory'] as const),
   hand_add: Object.freeze([] as const),
-  capture_to_hand_animation: Object.freeze(['source-to-board'] as const),
+  capture_to_hand_animation: Object.freeze(['cross-surface-trajectory'] as const),
   hand_remove: Object.freeze([] as const),
-  card_use_animation: Object.freeze(['source-to-board'] as const),
+  card_use_animation: Object.freeze(['cross-surface-trajectory'] as const),
   special_card_cinematic: Object.freeze(['fullscreen'] as const),
   round_bonus_banner: Object.freeze(['fullscreen'] as const),
   sound_effect: Object.freeze([] as const),

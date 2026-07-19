@@ -38,6 +38,7 @@ describe('board visual effect bounds manifest', () => {
 
     expect(EffectBounds.GLOBAL_DOM_EFFECT_FAMILIES).toEqual([
       'observer_bubble',
+      'cross-surface-trajectory',
       'source-to-board',
       'fullscreen'
     ]);
@@ -80,6 +81,13 @@ describe('board visual effect bounds manifest', () => {
       route: 'board-local',
       extentCells: { top: 2, right: 2, bottom: 2, left: 2 }
     });
+    expect(EffectBounds.PRESENTATION_EVENT_EFFECT_FAMILY_INVENTORY.destroy).toEqual([
+      'destroy',
+      'board-source-trajectory'
+    ]);
+    expect(EffectBounds.PRESENTATION_EVENT_EFFECT_FAMILY_INVENTORY.place_hand_animation).toEqual([
+      'cross-surface-trajectory'
+    ]);
   });
 
   test('unknown families and invalid bounds fail explicitly', () => {
