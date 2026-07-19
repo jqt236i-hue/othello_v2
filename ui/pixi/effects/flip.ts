@@ -160,7 +160,9 @@ async function playFlipTarget(
       event,
       onStart: () => {
         projection.setProjectedStone(coordinate.row, coordinate.col, null);
-        if (!projection.noAnimation) showGhost(missingSource || zombie ? before : after);
+        if (!projection.noAnimation && !(zombie && projection.reducedMotion)) {
+          showGhost(missingSource || zombie ? before : after);
+        }
         if (tone) highlight = projection.acquireHighlight(coordinate.row, coordinate.col, tone);
       },
       onUpdate: (progress, frame) => {

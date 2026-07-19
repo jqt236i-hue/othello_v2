@@ -6,8 +6,15 @@ import BrowserUiControlSmoke from './browser-ui-control-smoke';
 
 const { runBrowserUiControlSmoke } = BrowserUiControlSmoke as any;
 const PNG = require('pngjs').PNG;
-const pixelmatchModule = require('pixelmatch');
-const pixelmatch = pixelmatchModule.default || pixelmatchModule;
+
+let cachedPixelmatch: any = null;
+
+function resolvePixelmatch(): any {
+  if (cachedPixelmatch) return cachedPixelmatch;
+  const pixelmatchModule = require('pixelmatch');
+  cachedPixelmatch = pixelmatchModule.default || pixelmatchModule;
+  return cachedPixelmatch;
+}
 
 type BrowserLane = 'classic' | 'vite';
 type BoardRenderer = 'dom' | 'pixi';
@@ -931,7 +938,7 @@ function compareTrajectoryRoiPng(
       }
     }
     const diff = new PNG({ width: dom.width, height: dom.height });
-    const diffPixelCount = pixelmatch(
+    const diffPixelCount = resolvePixelmatch()(
       dom.data,
       pixi.data,
       diff.data,

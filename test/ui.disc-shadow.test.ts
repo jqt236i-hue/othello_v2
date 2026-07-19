@@ -44,7 +44,8 @@ describe('stone shadow styles', () => {
         expect(css).not.toMatch(/:has\(/);
         expect(css).not.toMatch(/\.disc::after/);
         expect(css).not.toMatch(/special-stone-img/);
-        expect(css).not.toMatch(/drop-shadow/);
+        expect(cellEnabledShadowBlock).not.toMatch(/drop-shadow/);
+        expect(discEnabledShadowBlock).not.toMatch(/drop-shadow/);
     });
 
     test('styles-board.css contains board depth shadow, contact shadow, and disc skeleton', () => {

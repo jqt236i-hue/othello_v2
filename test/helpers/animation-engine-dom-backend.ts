@@ -24,6 +24,34 @@ export function installAnimationEngineDomBackendMock(): void {
     let nextTokenId = 1;
     let executor: any = null;
 
+    const ensureSyntheticCellRects = () => {
+      if (typeof document === 'undefined') return;
+      for (const cell of Array.from(document.querySelectorAll<HTMLElement>('.cell[data-row][data-col]'))) {
+        const current = typeof cell.getBoundingClientRect === 'function'
+          ? cell.getBoundingClientRect()
+          : null;
+        if (current && Number(current.width) > 0 && Number(current.height) > 0) continue;
+        const row = Number(cell.dataset.row);
+        const col = Number(cell.dataset.col);
+        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+        cell.getBoundingClientRect = () => {
+          const left = col * 48;
+          const top = row * 48;
+          return {
+            x: left,
+            y: top,
+            left,
+            top,
+            right: left + 48,
+            bottom: top + 48,
+            width: 48,
+            height: 48,
+            toJSON: () => undefined
+          } as DOMRect;
+        };
+      }
+    };
+
     const getExecutor = () => {
       if (executor) return executor;
       const { createDomBoardPlaybackHandlers } = jest.requireActual('../../ui/board-dom-compat/runtime');
@@ -72,13 +100,14 @@ export function installAnimationEngineDomBackendMock(): void {
         frameToken,
         mode
       }),
-      playBoardVisualPhase: (token: any, events: readonly unknown[], phaseScope?: any) => (
-        getExecutor().playPhase(events, {
+      playBoardVisualPhase: (token: any, events: readonly unknown[], phaseScope?: any) => {
+        ensureSyntheticCellRects();
+        return getExecutor().playPhase(events, {
           token,
           strictNetworkPlayback: token && token.mode === 'network',
           phaseScope
-        })
-      ),
+        });
+      },
       settleBoardVisualWriter: () => Promise.resolve(),
       releaseBoardVisualWriter: () => undefined
     };
