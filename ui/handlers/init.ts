@@ -179,6 +179,8 @@ interface InitDomElements {
   smartBlack: HTMLSelectElement | null;
   smartWhite: HTMLSelectElement | null;
   debugModeBtn: HTMLElement | null;
+  fpsToggleBtn: HTMLElement | null;
+  fpsDisplay: HTMLElement | null;
   humanVsHumanBtn: HTMLElement | null;
   visualTestBtn: HTMLElement | null;
   modeCpuBtn: HTMLElement | null;

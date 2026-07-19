@@ -5782,7 +5782,7 @@ body #control-panel :is(.btn-small, select.compact-select, .compact-number-input
         inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(var(--settings-control-rgb), 0.28);
 }
 
-body #control-panel :is(#modeReversiBtn, #debugModeBtn, #logToggleBtn, #boardSizeOpenBtn, #boardSizeCloseBtn, #bgmPlayBtn, #bgmPauseBtn) {
+body #control-panel :is(#modeReversiBtn, #debugModeBtn, #fpsToggleBtn, #logToggleBtn, #boardSizeOpenBtn, #boardSizeCloseBtn, #bgmPlayBtn, #bgmPauseBtn) {
     background:
         linear-gradient(180deg, rgba(var(--settings-control-rgb), 0.20), transparent 46%),
         repeating-linear-gradient(0deg, rgba(255, 244, 210, 0.018) 0 1px, transparent 1px 5px),
@@ -5792,7 +5792,7 @@ body #control-panel :is(#modeReversiBtn, #debugModeBtn, #logToggleBtn, #boardSiz
 }
 
 body #control-panel :is(#modeReversiBtn, #boardSizeOpenBtn, #bgmPlayBtn, #bgmPauseBtn):hover,
-body #control-panel :is(#debugModeBtn, #logToggleBtn, #boardSizeCloseBtn):hover {
+body #control-panel :is(#debugModeBtn, #fpsToggleBtn, #logToggleBtn, #boardSizeCloseBtn):hover {
     border-color: rgba(var(--settings-control-rgb), 0.74);
     filter: brightness(1.05);
     box-shadow:
@@ -5815,6 +5815,21 @@ body #control-panel select.compact-select {
 
 body #control-panel #debugModeBtn {
     --settings-control-rgb: 174, 100, 79;
+}
+
+body #control-panel #fpsToggleBtn {
+    --settings-control-rgb: 92, 178, 170;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+body #control-panel #fpsToggleBtn.btn-active {
+    border-color: rgba(103, 231, 217, 0.82);
+    color: rgba(221, 255, 250, 0.98) !important;
+    box-shadow:
+        0 0 calc(10px * var(--layout-stage-scale)) rgba(92, 178, 170, 0.24),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.10),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(103, 231, 217, 0.52);
 }
 
 body #control-panel #modeReversiBtn {
@@ -5923,6 +5938,37 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     box-shadow:
         0 0 calc(8px * var(--layout-stage-scale)) rgba(var(--settings-control-rgb), 0.32),
         0 calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.50);
+}
+
+#fpsDisplay {
+    position: fixed;
+    top: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-top));
+    right: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-right));
+    z-index: calc(var(--z-modal-result) + 1);
+    min-width: 7ch;
+    padding: calc(4px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid rgba(103, 231, 217, 0.54);
+    border-radius: calc(3px * var(--layout-stage-scale));
+    background: rgba(4, 12, 12, 0.82);
+    color: rgba(221, 255, 250, 0.98);
+    box-shadow:
+        0 calc(3px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.48),
+        inset calc(2px * var(--layout-stage-scale)) 0 0 rgba(103, 231, 217, 0.42);
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: clamp(10px, calc(12px * var(--layout-stage-scale)), 13px);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    text-align: right;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+}
+
+#fpsDisplay[hidden] {
+    display: none;
 }
 
 /* ============================================================

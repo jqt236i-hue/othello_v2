@@ -504,6 +504,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/deck-builder-state": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/deck-builder-state.js"),
   "ui/element-cache": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/element-cache.js"),
   "ui/event-handlers": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/event-handlers.js"),
+  "ui/fps-display": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/fps-display.js"),
   "ui/gacha-reveal-player": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/gacha-reveal-player.js"),
   "ui/gacha/catalog-access": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/gacha/catalog-access.js"),
   "ui/gacha/gacha-events": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/gacha/gacha-events.js"),
@@ -1175,6 +1176,7 @@ installBootModuleMetadata({
     "ui/deck-builder-state",
     "ui/element-cache",
     "ui/event-handlers",
+    "ui/fps-display",
     "ui/gacha-reveal-player",
     "ui/gacha/catalog-access",
     "ui/gacha/gacha-events",
@@ -1424,4 +1426,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 666;
+export const startupModuleCount = 667;

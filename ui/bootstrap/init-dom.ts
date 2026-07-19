@@ -44,6 +44,8 @@ interface InitDomElements {
   smartBlack: HTMLSelectElement | null;
   smartWhite: HTMLSelectElement | null;
   debugModeBtn: HTMLElement | null;
+  fpsToggleBtn: HTMLElement | null;
+  fpsDisplay: HTMLElement | null;
   humanVsHumanBtn: HTMLElement | null;
   visualTestBtn: HTMLElement | null;
   modeCpuBtn: HTMLElement | null;
@@ -150,7 +152,7 @@ function getInitDomElements(): InitDomElements {
     gachaResults: $('gachaResults'), handSkinBtn: $('handSkinBtn'), handSkinPanel: $('handSkinPanel'),
     handSkinCloseBtn: $('handSkinCloseBtn'), handSkinOptions: $('handSkinOptions'),
     handImage: $('handImage') as HTMLImageElement | null, autoToggleBtn: $('autoToggleBtn'), smartBlack: $('smartBlack') as HTMLSelectElement | null,
-    smartWhite: $('smartWhite') as HTMLSelectElement | null, debugModeBtn: $('debugModeBtn'), humanVsHumanBtn: $('humanVsHumanBtn'),
+    smartWhite: $('smartWhite') as HTMLSelectElement | null, debugModeBtn: $('debugModeBtn'), fpsToggleBtn: $('fpsToggleBtn'), fpsDisplay: $('fpsDisplay'), humanVsHumanBtn: $('humanVsHumanBtn'),
     visualTestBtn: $('visualTestBtn'), modeCpuBtn: $('modeCpuBtn'), modeReversiBtn: $('modeReversiBtn') || $('modeOthelloBtn'), modeOthelloBtn: $('modeOthelloBtn'), modeNetworkBtn: $('modeNetworkBtn'),
     ratedMatchOpenBtn: $('ratedMatchOpenBtn'),
     controlPanel: $('control-panel'), deckBuilderOpenBtn: $('deckBuilderOpenBtn'),

@@ -5,6 +5,7 @@
 
 import { setupSidePanelAnchor } from './side-panel-anchor';
 import GameKeyboardShortcuts = require('../game-keyboard-shortcuts');
+import FpsDisplay = require('../fps-display');
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -47,6 +48,8 @@ interface InitDomElements {
   smartBlack: HTMLSelectElement | null;
   smartWhite: HTMLSelectElement | null;
   debugModeBtn: HTMLElement | null;
+  fpsToggleBtn: HTMLElement | null;
+  fpsDisplay: HTMLElement | null;
   humanVsHumanBtn: HTMLElement | null;
   visualTestBtn: HTMLElement | null;
   modeCpuBtn: HTMLElement | null;
@@ -335,6 +338,11 @@ function activateBoardInputAfterVisualReady() {
 function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean): void {
   const root = (typeof window !== 'undefined') ? window : null;
   setupBattleLogToggle(refs.logToggleBtn, refs.logPanel);
+  FpsDisplay.setupFpsDisplay({
+    button: refs.fpsToggleBtn,
+    display: refs.fpsDisplay,
+    root
+  });
 
   if (refs.resetBtn) {
     syncQuickResetButtonLabel(root, refs.resetBtn);
