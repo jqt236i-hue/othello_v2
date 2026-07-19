@@ -488,6 +488,25 @@ describe('Pixi board source trajectory renderer', () => {
     expect(first.lines?.length).toBeGreaterThan(0);
   });
 
+  test('beam and lightning include translucent glow layers matching the DOM fallback footprint', () => {
+    const snapshot = geometry();
+    const beam = buildPixiSourceTrajectoryVisualState(
+      requestFor('destroyDragonBreath'),
+      snapshot,
+      0.5
+    );
+    const lightning = buildPixiSourceTrajectoryVisualState(
+      requestFor('lightningDestroyed'),
+      snapshot,
+      0.44
+    );
+
+    expect(Math.max(...(beam.lines || []).map((line) => line.width))).toBeGreaterThanOrEqual(48);
+    expect((beam.lines || []).some((line) => line.width >= 28 && line.alpha < 0.4)).toBe(true);
+    expect(Math.max(...(lightning.lines || []).map((line) => line.width))).toBeGreaterThanOrEqual(23);
+    expect((lightning.lines || []).some((line) => line.width >= 12 && line.alpha < 0.4)).toBe(true);
+  });
+
   test('starts every raw source synchronously before the first board callback', async () => {
     const log: string[] = [];
     const harness = createProjection({ log });
@@ -635,7 +654,7 @@ describe('Pixi board source trajectory renderer', () => {
     expect(scene.getSourceTrajectory(handle)).toMatchObject({
       layoutRevision: 1,
       visible: true,
-      lineCount: 3
+      lineCount: 5
     });
 
     scene.applyFrame(makeFrame({ revision: 2, scrollLeft: 32 }), {

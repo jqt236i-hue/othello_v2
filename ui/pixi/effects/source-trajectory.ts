@@ -21,6 +21,7 @@ import type {
   PixiSourceTrajectoryRendererDiagnostics,
   PixiSourceTrajectoryRuntimeCounter
 } from './types';
+import * as PresentationVisualSeed from '../../presentation/visual-seed';
 
 export interface PixiSourceTrajectoryTiming {
   readonly animationDurationMs: number;
@@ -239,17 +240,6 @@ function hashText(value: string): number {
   return hash >>> 0;
 }
 
-function seededRandom(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state += 0x6D2B79F5;
-    let value = state;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 function buildJaggedPath(
   start: PixiSourceTrajectoryPoint,
   end: PixiSourceTrajectoryPoint,
@@ -286,7 +276,10 @@ function buildLightningGeometry(
   const seed = Number.isInteger(request.visualSeed)
     ? Number(request.visualSeed) >>> 0
     : hashText(request.trajectoryId);
-  const random = seededRandom(seed);
+  // The DOM compatibility renderer consumes this shared visual PRNG with the
+  // same seed. Reusing it here keeps the lightning polyline identical across
+  // the mutually exclusive renderers without involving canonical game RNG.
+  const random = PresentationVisualSeed.createVisualRandom(seed);
   const segmentCount = Math.max(5, Math.min(11, Math.round(geometry.distancePx / 42)));
   const jitter = Math.max(8, Math.min(24, Math.round(geometry.distancePx / 13)));
   const main = buildJaggedPath(
@@ -368,9 +361,11 @@ function beamVisual(
       ...lineVisuals(segments, '#08050d', alpha, Math.max(3, geometry.cellSize * 0.19))
     ])
     : Object.freeze([
-      ...lineVisuals(segments, '#ff5a1f', alpha * 0.68, Math.max(5, geometry.cellSize * 0.38)),
-      ...lineVisuals(segments, '#ffb234', alpha, Math.max(3, geometry.cellSize * 0.24)),
-      ...lineVisuals(segments, '#fff0a8', alpha * 0.94, Math.max(1.5, geometry.cellSize * 0.08))
+      ...lineVisuals(segments, '#ff4614', alpha * 0.04, Math.max(18, geometry.cellSize * 1.5)),
+      ...lineVisuals(segments, '#ff781e', alpha * 0.07, Math.max(12, geometry.cellSize * 0.9)),
+      ...lineVisuals(segments, '#ff5a1f', alpha * 0.12, Math.max(5, geometry.cellSize * 0.38)),
+      ...lineVisuals(segments, '#ffb234', alpha * 0.18, Math.max(3, geometry.cellSize * 0.24)),
+      ...lineVisuals(segments, '#fff0a8', alpha * 0.22, Math.max(1.5, geometry.cellSize * 0.08))
     ]);
   const paintRect = profilePaintRect(geometry, profile);
   const muzzleProgress = blackBeam
@@ -390,13 +385,37 @@ function beamVisual(
     && geometry.sourceCenter.y + muzzleRadius >= paintRect.top
     && geometry.sourceCenter.y - muzzleRadius <= paintRect.bottom;
   const circles = sourceNearPaint && muzzleProgress > 0
-    ? Object.freeze([Object.freeze({
-      x: muzzleCenter.x,
-      y: muzzleCenter.y,
-      radius: muzzleRadius,
-      color: blackBeam ? '#160b24' : '#ff9a28',
-      alpha: muzzleProgress
-    })])
+    ? blackBeam
+      ? Object.freeze([Object.freeze({
+        x: muzzleCenter.x,
+        y: muzzleCenter.y,
+        radius: muzzleRadius,
+        color: '#160b24',
+        alpha: muzzleProgress
+      })])
+      : Object.freeze([
+        Object.freeze({
+          x: muzzleCenter.x,
+          y: muzzleCenter.y,
+          radius: muzzleRadius * 1.9,
+          color: '#ff5014',
+          alpha: muzzleProgress * 0.07
+        }),
+        Object.freeze({
+          x: muzzleCenter.x,
+          y: muzzleCenter.y,
+          radius: muzzleRadius,
+          color: '#ff9a28',
+          alpha: muzzleProgress * 0.2
+        }),
+        Object.freeze({
+          x: muzzleCenter.x,
+          y: muzzleCenter.y,
+          radius: muzzleRadius * 0.34,
+          color: '#fff5be',
+          alpha: muzzleProgress * 0.52
+        })
+      ])
     : Object.freeze([]);
   return Object.freeze({
     visible: lines.length > 0 || circles.length > 0,
@@ -424,10 +443,13 @@ function lightningVisual(
   const paintRect = profilePaintRect(geometry, profile);
   const branchSegments = lightning.branches.flatMap((branch) => clipPath(branch, paintRect));
   const lines = Object.freeze([
-    ...lineVisuals(mainSegments, '#86e3ff', mainAlpha * 0.95, Math.max(3, geometry.cellSize * 0.145)),
-    ...lineVisuals(mainSegments, '#ffffff', mainAlpha * 0.98, Math.max(1.4, geometry.cellSize * 0.066)),
-    ...lineVisuals(branchSegments, '#97eaff', branchAlpha * 0.76, Math.max(1.8, geometry.cellSize * 0.075)),
-    ...lineVisuals(branchSegments, '#ffffff', branchAlpha * 0.9, Math.max(0.9, geometry.cellSize * 0.038))
+    ...lineVisuals(mainSegments, '#4bbfff', mainAlpha * 0.04, Math.max(14, geometry.cellSize * 0.72)),
+    ...lineVisuals(mainSegments, '#70d8ff', mainAlpha * 0.1, Math.max(8, geometry.cellSize * 0.4)),
+    ...lineVisuals(mainSegments, '#86e3ff', mainAlpha * 0.86, Math.max(3, geometry.cellSize * 0.145)),
+    ...lineVisuals(mainSegments, '#ffffff', mainAlpha * 0.8, Math.max(1.4, geometry.cellSize * 0.066)),
+    ...lineVisuals(branchSegments, '#65cfff', branchAlpha * 0.06, Math.max(7, geometry.cellSize * 0.34)),
+    ...lineVisuals(branchSegments, '#97eaff', branchAlpha * 0.72, Math.max(1.8, geometry.cellSize * 0.075)),
+    ...lineVisuals(branchSegments, '#ffffff', branchAlpha * 0.78, Math.max(0.9, geometry.cellSize * 0.038))
   ]);
   return Object.freeze({ visible: lines.length > 0 && (mainAlpha > 0 || branchAlpha > 0), lines });
 }
