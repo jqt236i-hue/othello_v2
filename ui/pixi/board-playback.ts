@@ -22,7 +22,8 @@ import type {
   PixiPlaybackEffectUpdate,
   PixiPlaybackGhostHandle,
   PixiPlaybackGhostUpdate,
-  PixiPlaybackProjectionScope
+  PixiPlaybackProjectionScope,
+  PixiSourceTrajectoryTextureLease
 } from './board-scene';
 import {
   createPixiApplicationTickerClock,
@@ -53,6 +54,7 @@ import {
 } from './effects/special-stone';
 import { playPixiTheoryIncarnationEffect } from './effects/theory-incarnation';
 import { playPixiManifestEndingBoardEffect } from './effects/manifest';
+import { createPixiSourceTrajectoryRenderer } from './effects/source-trajectory';
 import type {
   PixiBoardEffectPlayer,
   PixiBoardEffectProjection,
@@ -72,6 +74,8 @@ export interface PixiBoardPlaybackOptions {
   readonly timings?: Partial<PixiBoardEffectTimings>;
   readonly record?: (event: string, detail?: unknown) => void;
   readonly timelineFactory?: (options: PixiTimelineOptions) => PixiTimeline;
+  /** Dormant until the atomic backend cutover; never reads a cell view. */
+  readonly acquireStoneTextureLease?: (owner: 'black' | 'white') => PixiSourceTrajectoryTextureLease;
 }
 
 export interface PixiBoardPlaybackDiagnostics {
@@ -86,6 +90,7 @@ export interface PixiBoardPlaybackDiagnostics {
   readonly completedPhaseCount: number;
   readonly failedPhaseCount: number;
   readonly timeline: ReturnType<PixiTimeline['getDiagnostics']>;
+  readonly sourceTrajectory: ReturnType<ReturnType<typeof createPixiSourceTrajectoryRenderer>['getDiagnostics']>;
 }
 
 export interface PixiBoardPlayback {
@@ -317,6 +322,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     noAnimation: options.noAnimation,
     reducedMotion: options.reducedMotion
   });
+  const sourceTrajectoryRenderer = createPixiSourceTrajectoryRenderer({ record });
   const projectedStones = new Map<string, PixiPlaybackStoneVisual | null>();
   const retainedFinalGhosts = new Map<string, PixiPlaybackGhostHandle>();
   const retainedFinalEffects = new Map<string, PixiPlaybackEffectHandle>();
@@ -879,7 +885,8 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       phaseCount,
       completedPhaseCount,
       failedPhaseCount,
-      timeline: timeline.getDiagnostics()
+      timeline: timeline.getDiagnostics(),
+      sourceTrajectory: sourceTrajectoryRenderer.getDiagnostics()
     });
   }
 

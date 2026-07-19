@@ -588,6 +588,13 @@ describe('Pixi board backend integration', () => {
     expect(fixture.playback.onFrameApplied).toHaveBeenCalledTimes(1);
     expect(playbackOptions.getFrame()).toMatchObject({ frameToken: 'playback-final' });
     expect(harness.scene.applyCalls.at(-1)!.context).not.toHaveProperty('preservePlaybackProjection');
+    const trajectoryTextureLease = playbackOptions.acquireStoneTextureLease('black');
+    expect(trajectoryTextureLease.texture).toBeTruthy();
+    expect(trajectoryTextureLease.released).toBe(false);
+    expect(harness.backend.getTextureLeaseCounts().external).toBe(1);
+    expect(trajectoryTextureLease.release()).toBe(true);
+    expect(trajectoryTextureLease.released).toBe(true);
+    expect(harness.backend.getTextureLeaseCounts().external).toBe(0);
 
     playbackOptions.application.startTicker();
     const ticker = harness.app.instances[0].ticker;

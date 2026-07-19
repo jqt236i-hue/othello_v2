@@ -1259,6 +1259,15 @@ export function createPixiBoardVisualBackend(
           getFrame: () => currentFrame,
           noAnimation,
           reducedMotion: () => prefersReducedMotion(root),
+          acquireStoneTextureLease(owner) {
+            if (!textureManager) throw new Error('Pixi texture manager is unavailable');
+            const lease = textureManager.acquireActive(`${owner}-stone`);
+            return Object.freeze({
+              texture: lease.resource.texture,
+              get released() { return lease.released; },
+              release: () => lease.release()
+            });
+          },
           record
         });
       } catch (error) {

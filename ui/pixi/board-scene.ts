@@ -5,6 +5,12 @@ import {
 } from '../board-visual/model';
 import { worldToScene } from '../board-visual/layout';
 import type {
+  BoardSourceTrajectoryDirection,
+  BoardSourceTrajectoryPrimitive,
+  BoardSourceTrajectoryProfileKey,
+  BoardSourceTrajectoryRequest
+} from '../board-visual/source-trajectory';
+import type {
   BoardMarkerVisualState,
   BoardStoneVisualState,
   BoardVisualFrame,
@@ -25,6 +31,7 @@ import {
   drawPixiBoardFrameHoleSurface,
   drawPixiCircle,
   drawPixiLine,
+  drawPixiPolygon,
   drawPixiRect,
   removePixiFromParent,
   resolvePixiStaticTexture,
@@ -64,6 +71,133 @@ export interface PixiBoardSceneOptions {
   readonly maxRetainedViews?: number;
   readonly maxRetainedGhosts?: number;
   readonly maxRetainedEffects?: number;
+}
+
+export interface PixiSourceTrajectoryPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface PixiSourceTrajectoryRect {
+  readonly left: number;
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface PixiSourceTrajectoryVisibleSegment {
+  readonly start: PixiSourceTrajectoryPoint;
+  readonly end: PixiSourceTrajectoryPoint;
+  /** Parametric interval along movementStart -> movementEnd. */
+  readonly startT: number;
+  readonly endT: number;
+}
+
+/** Frozen at trajectory start; later reflow/skin frames must not move it. */
+export interface PixiSourceTrajectoryGeometrySnapshot {
+  readonly frameToken: string;
+  readonly layoutRevision: number;
+  readonly topologySignature: string;
+  readonly direction: BoardSourceTrajectoryDirection;
+  readonly cellSize: number;
+  readonly sourceCenter: PixiSourceTrajectoryPoint;
+  readonly targetCenter: PixiSourceTrajectoryPoint;
+  readonly movementStart: PixiSourceTrajectoryPoint;
+  readonly movementEnd: PixiSourceTrajectoryPoint;
+  readonly distancePx: number;
+  readonly angleRad: number;
+  readonly visibleClip: PixiSourceTrajectoryRect;
+  readonly paintedHaloClip: PixiSourceTrajectoryRect;
+  readonly visibleSegment: PixiSourceTrajectoryVisibleSegment | null;
+}
+
+export interface PixiSourceTrajectorySpriteVisual {
+  readonly x: number;
+  readonly y: number;
+  readonly size: number;
+  readonly alpha: number;
+  readonly scale?: number;
+  readonly rotation?: number;
+  readonly visible?: boolean;
+}
+
+export interface PixiSourceTrajectoryLineVisual {
+  readonly points: readonly PixiSourceTrajectoryPoint[];
+  readonly color: string | number;
+  readonly alpha: number;
+  readonly width: number;
+}
+
+export interface PixiSourceTrajectoryCircleVisual {
+  readonly x: number;
+  readonly y: number;
+  readonly radius: number;
+  readonly color: string | number;
+  readonly alpha: number;
+  readonly strokeColor?: string | number;
+  readonly strokeAlpha?: number;
+  readonly strokeWidth?: number;
+}
+
+export interface PixiSourceTrajectoryPolygonVisual {
+  readonly points: readonly PixiSourceTrajectoryPoint[];
+  readonly color: string | number;
+  readonly alpha: number;
+  readonly strokeColor?: string | number;
+  readonly strokeAlpha?: number;
+  readonly strokeWidth?: number;
+}
+
+export interface PixiSourceTrajectoryVisualState {
+  readonly visible: boolean;
+  readonly sprite?: PixiSourceTrajectorySpriteVisual | null;
+  readonly lines?: readonly PixiSourceTrajectoryLineVisual[];
+  readonly circles?: readonly PixiSourceTrajectoryCircleVisual[];
+  readonly polygons?: readonly PixiSourceTrajectoryPolygonVisual[];
+}
+
+export interface PixiSourceTrajectoryOptions {
+  readonly trajectoryId: string;
+  readonly profileKey: BoardSourceTrajectoryProfileKey;
+  readonly primitive: BoardSourceTrajectoryPrimitive;
+  readonly geometry: PixiSourceTrajectoryGeometrySnapshot;
+  /** Ownership transfers to the scene record and is released exactly once. */
+  readonly textureLease?: PixiSourceTrajectoryTextureLease | null;
+}
+
+export interface PixiSourceTrajectoryTextureLease {
+  readonly texture: unknown;
+  readonly released?: boolean;
+  release(): boolean | void;
+}
+
+export interface PixiSourceTrajectoryHandle {
+  readonly id: number;
+  readonly scopeId: number;
+}
+
+export interface PixiSourceTrajectoryDiagnostics {
+  readonly id: number;
+  readonly scopeId: number;
+  readonly trajectoryId: string;
+  readonly profileKey: BoardSourceTrajectoryProfileKey;
+  readonly primitive: BoardSourceTrajectoryPrimitive;
+  readonly layoutRevision: number;
+  readonly topologySignature: string;
+  readonly visible: boolean;
+  readonly spriteVisible: boolean;
+  readonly lineCount: number;
+  readonly circleCount: number;
+  readonly polygonCount: number;
+  readonly geometry: PixiSourceTrajectoryGeometrySnapshot;
+}
+
+export interface PixiSourceTrajectoryCounterDiagnostics {
+  readonly started: number;
+  readonly active: number;
+  readonly released: number;
 }
 
 export interface PixiBoardSceneApplyContext {
@@ -260,6 +394,13 @@ export interface PixiBoardSceneDiagnostics {
   readonly pooledPlaybackEffectCount: number;
   readonly createdPlaybackEffectCount: number;
   readonly destroyedPlaybackEffectCount: number;
+  readonly activeSourceTrajectoryCount: number;
+  readonly activeSourceTrajectoryTextureLeaseCount: number;
+  readonly pooledSourceTrajectoryCount: number;
+  readonly createdSourceTrajectoryViewCount: number;
+  readonly destroyedSourceTrajectoryViewCount: number;
+  readonly sourceTrajectoryByProfile: Readonly<Record<BoardSourceTrajectoryProfileKey, PixiSourceTrajectoryCounterDiagnostics>>;
+  readonly sourceTrajectoryByPrimitive: Readonly<Record<BoardSourceTrajectoryPrimitive, PixiSourceTrajectoryCounterDiagnostics>>;
   readonly activeTopologyRevealCount: number;
   readonly topologyRevealKeys: readonly string[];
 }
@@ -312,6 +453,23 @@ export interface PixiBoardScene {
     scope: PixiPlaybackProjectionScope,
     handle: PixiPlaybackEffectHandle
   ): void;
+  snapshotSourceTrajectoryGeometry(
+    request: Pick<BoardSourceTrajectoryRequest, 'source' | 'target' | 'direction'>
+  ): PixiSourceTrajectoryGeometrySnapshot;
+  acquireSourceTrajectory(
+    scope: PixiPlaybackProjectionScope,
+    options: PixiSourceTrajectoryOptions
+  ): PixiSourceTrajectoryHandle;
+  updateSourceTrajectory(
+    scope: PixiPlaybackProjectionScope,
+    handle: PixiSourceTrajectoryHandle,
+    visual: PixiSourceTrajectoryVisualState
+  ): void;
+  releaseSourceTrajectory(
+    scope: PixiPlaybackProjectionScope,
+    handle: PixiSourceTrajectoryHandle
+  ): void;
+  getSourceTrajectory(handle: PixiSourceTrajectoryHandle): PixiSourceTrajectoryDiagnostics | null;
   getPlaybackGhost(handle: PixiPlaybackGhostHandle): PixiPlaybackGhostDiagnostics | null;
   getPlaybackEffect(handle: PixiPlaybackEffectHandle): PixiPlaybackEffectDiagnostics | null;
   beginTopologyReveal(keys: readonly string[], initialProgress?: number): PixiTopologyRevealHandle;
@@ -366,6 +524,24 @@ interface PlaybackEffectRecord {
     innerBoundaryEdges: readonly BoardFrameInnerBoundaryEdge[];
   }>;
   transform: Required<PixiPlaybackEffectUpdate>;
+}
+
+interface SourceTrajectoryView {
+  readonly root: any;
+  readonly graphics: any;
+  readonly sprite: any | null;
+}
+
+interface SourceTrajectoryRecord {
+  readonly handle: PixiSourceTrajectoryHandle;
+  readonly trajectoryId: string;
+  readonly profileKey: BoardSourceTrajectoryProfileKey;
+  readonly primitive: BoardSourceTrajectoryPrimitive;
+  readonly geometry: PixiSourceTrajectoryGeometrySnapshot;
+  readonly textureLease: PixiSourceTrajectoryTextureLease | null;
+  view: SourceTrajectoryView | null;
+  visual: PixiSourceTrajectoryVisualState;
+  disposed: boolean;
 }
 
 interface TopologyRevealRecord {
@@ -622,6 +798,126 @@ function destroyRetainedViews(views: RetainedCellViews): void {
   views.hint.destroy();
 }
 
+const SOURCE_TRAJECTORY_PROFILE_KEYS: readonly BoardSourceTrajectoryProfileKey[] = Object.freeze([
+  'sniperShot',
+  'robotVacuumSuck',
+  'destroyDragonBreath',
+  'meteorGodBlackBeam',
+  'lightningDestroyed',
+  'udgDestroyed',
+  'zombieBite'
+]);
+
+const SOURCE_TRAJECTORY_PRIMITIVES: readonly BoardSourceTrajectoryPrimitive[] = Object.freeze([
+  'projectile',
+  'suction',
+  'beam',
+  'lightning',
+  'bite'
+]);
+
+function trajectoryPoint(x: unknown, y: unknown): PixiSourceTrajectoryPoint {
+  return Object.freeze({ x: finiteNumber(x, 0), y: finiteNumber(y, 0) });
+}
+
+function trajectoryRect(
+  left: unknown,
+  top: unknown,
+  right: unknown,
+  bottom: unknown
+): PixiSourceTrajectoryRect {
+  const normalizedLeft = finiteNumber(left, 0);
+  const normalizedTop = finiteNumber(top, 0);
+  const normalizedRight = Math.max(normalizedLeft, finiteNumber(right, normalizedLeft));
+  const normalizedBottom = Math.max(normalizedTop, finiteNumber(bottom, normalizedTop));
+  return Object.freeze({
+    left: normalizedLeft,
+    top: normalizedTop,
+    right: normalizedRight,
+    bottom: normalizedBottom,
+    width: normalizedRight - normalizedLeft,
+    height: normalizedBottom - normalizedTop
+  });
+}
+
+function clipTrajectorySegment(
+  start: PixiSourceTrajectoryPoint,
+  end: PixiSourceTrajectoryPoint,
+  rect: PixiSourceTrajectoryRect
+): PixiSourceTrajectoryVisibleSegment | null {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) {
+    const inside = start.x >= rect.left && start.x <= rect.right
+      && start.y >= rect.top && start.y <= rect.bottom;
+    return inside
+      ? Object.freeze({ start, end, startT: 0, endT: 1 })
+      : null;
+  }
+  let startT = 0;
+  let endT = 1;
+  const boundaries = [
+    [-dx, start.x - rect.left],
+    [dx, rect.right - start.x],
+    [-dy, start.y - rect.top],
+    [dy, rect.bottom - start.y]
+  ] as const;
+  for (const [p, q] of boundaries) {
+    if (Math.abs(p) < 1e-9) {
+      if (q < 0) return null;
+      continue;
+    }
+    const ratio = q / p;
+    if (p < 0) startT = Math.max(startT, ratio);
+    else endT = Math.min(endT, ratio);
+    if (startT > endT) return null;
+  }
+  return Object.freeze({
+    start: trajectoryPoint(start.x + dx * startT, start.y + dy * startT),
+    end: trajectoryPoint(start.x + dx * endT, start.y + dy * endT),
+    startT,
+    endT
+  });
+}
+
+function sourceTrajectoryTopologySignature(frame: BoardVisualFrame): string {
+  const topology = frame.model.topology;
+  return [
+    topology.baseRows,
+    topology.baseCols,
+    topology.minRow,
+    topology.maxRow,
+    topology.minCol,
+    topology.maxCol,
+    topology.renderRowOffset,
+    topology.renderColOffset,
+    topology.renderRows,
+    topology.renderCols,
+    frame.layout.orientation
+  ].join(':');
+}
+
+function makeTrajectoryCounterMap<K extends string>(keys: readonly K[]): Record<K, {
+  started: number;
+  active: number;
+  released: number;
+}> {
+  return Object.fromEntries(keys.map((key) => [key, { started: 0, active: 0, released: 0 }])) as Record<K, {
+    started: number;
+    active: number;
+    released: number;
+  }>;
+}
+
+function freezeTrajectoryCounters<K extends string>(
+  counters: Record<K, { started: number; active: number; released: number }>
+): Readonly<Record<K, PixiSourceTrajectoryCounterDiagnostics>> {
+  return Object.freeze(Object.fromEntries(Object.entries(counters).map(([key, value]) => [
+    key,
+    Object.freeze({ ...(value as PixiSourceTrajectoryCounterDiagnostics) })
+  ]))) as Readonly<Record<K, PixiSourceTrajectoryCounterDiagnostics>>;
+}
+
 export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardScene {
   if (!options || !options.runtime) throw new Error('Pixi board scene runtime is required');
   const runtime = options.runtime;
@@ -703,6 +999,35 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     destroy: (view) => destroyPixiDisplayObject(view.root),
     maxRetained: maxRetainedEffects
   });
+  const sourceTrajectoryPool: ObjectPool<SourceTrajectoryView> = createObjectPool({
+    create: () => {
+      const root = createPixiContainer(runtime, 'pixi-source-trajectory');
+      const graphics = createPixiGraphics(runtime, 'pixi-source-trajectory-graphics');
+      const sprite = createPixiSprite(runtime, 'pixi-source-trajectory-sprite');
+      addPixiChild(root, graphics, sprite);
+      root.eventMode = 'none';
+      return Object.freeze({ root, graphics, sprite });
+    },
+    reset: (view) => {
+      clearPixiGraphics(view.graphics);
+      if (view.sprite) {
+        view.sprite.texture = runtime.Texture?.EMPTY || null;
+        view.sprite.visible = false;
+        view.sprite.alpha = 1;
+        view.sprite.rotation = 0;
+        setPixiPosition(view.sprite, 0, 0);
+        setPixiScale(view.sprite, 1, 1);
+      }
+      setPixiPosition(view.root, 0, 0);
+      setPixiScale(view.root, 1, 1);
+      view.root.rotation = 0;
+      view.root.alpha = 1;
+      view.root.visible = false;
+      removePixiFromParent(view.root);
+    },
+    destroy: (view) => destroyPixiDisplayObject(view.root),
+    maxRetained: maxRetainedEffects
+  });
   const active = new Map<string, RetainedCellViews>();
   const materializedByKey = new Map<string, MaterializedBoardCellVisualState>();
   const retainedStoneBaseVisibility = new Map<string, boolean>();
@@ -712,13 +1037,17 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   const playbackHighlightLeases = new Map<number, PlaybackHighlightLease>();
   const playbackHighlightsByKey = new Map<string, any>();
   const playbackEffects = new Map<number, PlaybackEffectRecord>();
+  const sourceTrajectories = new Map<number, SourceTrajectoryRecord>();
   const topologyReveals = new Map<number, TopologyRevealRecord>();
+  const sourceTrajectoryByProfile = makeTrajectoryCounterMap(SOURCE_TRAJECTORY_PROFILE_KEYS);
+  const sourceTrajectoryByPrimitive = makeTrajectoryCounterMap(SOURCE_TRAJECTORY_PRIMITIVES);
   const textureIds = new WeakMap<object, number>();
   let nextTextureId = 1;
   let nextPlaybackScopeId = 1;
   let nextPlaybackGhostId = 1;
   let nextPlaybackHighlightId = 1;
   let nextPlaybackEffectId = 1;
+  let nextSourceTrajectoryId = 1;
   let nextTopologyRevealId = 1;
   let playbackScope: PixiPlaybackProjectionScope | null = null;
   let latestFrame: BoardVisualFrame | null = null;
@@ -1427,6 +1756,283 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     });
   }
 
+  function snapshotSourceTrajectoryGeometry(
+    request: Pick<BoardSourceTrajectoryRequest, 'source' | 'target' | 'direction'>
+  ): PixiSourceTrajectoryGeometrySnapshot {
+    assertAlive();
+    if (!latestFrame || !latestViewContext) {
+      throw new Error('Pixi source trajectory requires an applied visual frame');
+    }
+    const sourceRow = Number(request?.source?.row);
+    const sourceCol = Number(request?.source?.col);
+    const targetRow = Number(request?.target?.row);
+    const targetCol = Number(request?.target?.col);
+    if (![sourceRow, sourceCol, targetRow, targetCol].every(Number.isInteger)) {
+      throw new Error('Pixi source trajectory coordinates must be integers');
+    }
+    const direction = request.direction === 'target-to-source'
+      ? 'target-to-source'
+      : 'source-to-target';
+    const frame = latestFrame;
+    const context = latestViewContext;
+    const cellSize = frame.layout.cellSize;
+    const sourceScene = worldToScene(frame.model.topology, frame.layout, sourceRow, sourceCol);
+    const targetScene = worldToScene(frame.model.topology, frame.layout, targetRow, targetCol);
+    const sourceCenter = trajectoryPoint(
+      sourceScene.x + context.sceneOffsetX + cellSize / 2,
+      sourceScene.y + context.sceneOffsetY + cellSize / 2
+    );
+    const targetCenter = trajectoryPoint(
+      targetScene.x + context.sceneOffsetX + cellSize / 2,
+      targetScene.y + context.sceneOffsetY + cellSize / 2
+    );
+    const movementStart = direction === 'source-to-target' ? sourceCenter : targetCenter;
+    const movementEnd = direction === 'source-to-target' ? targetCenter : sourceCenter;
+    const visibleClip = trajectoryRect(
+      context.sceneOffsetX,
+      context.sceneOffsetY,
+      context.sceneOffsetX + frame.layout.camera.viewportWidth,
+      context.sceneOffsetY + frame.layout.camera.viewportHeight
+    );
+    const maximumGutterPx = effectGutterCells * cellSize;
+    const horizontalGutterPx = Math.min(maximumGutterPx, Math.max(0, context.sceneOffsetX));
+    const verticalGutterPx = Math.min(maximumGutterPx, Math.max(0, context.sceneOffsetY));
+    const paintedHaloClip = trajectoryRect(
+      visibleClip.left - horizontalGutterPx,
+      visibleClip.top - verticalGutterPx,
+      visibleClip.right + horizontalGutterPx,
+      visibleClip.bottom + verticalGutterPx
+    );
+    const dx = movementEnd.x - movementStart.x;
+    const dy = movementEnd.y - movementStart.y;
+    return Object.freeze({
+      frameToken: frame.frameToken,
+      layoutRevision: frame.layout.revision,
+      topologySignature: sourceTrajectoryTopologySignature(frame),
+      direction,
+      cellSize,
+      sourceCenter,
+      targetCenter,
+      movementStart,
+      movementEnd,
+      distancePx: Math.hypot(dx, dy),
+      angleRad: Math.atan2(dy, dx),
+      visibleClip,
+      paintedHaloClip,
+      visibleSegment: clipTrajectorySegment(movementStart, movementEnd, visibleClip)
+    });
+  }
+
+  function drawSourceTrajectoryVisual(record: SourceTrajectoryRecord): void {
+    const view = record.view;
+    if (!view) return;
+    const visual = record.visual;
+    clearPixiGraphics(view.graphics);
+    view.root.visible = visual.visible !== false;
+    const lines = Array.isArray(visual.lines) ? visual.lines : [];
+    for (const line of lines) {
+      const points = Array.isArray(line.points) ? line.points : [];
+      for (let index = 1; index < points.length; index += 1) {
+        drawPixiLine(
+          view.graphics,
+          finiteNumber(points[index - 1]?.x, 0),
+          finiteNumber(points[index - 1]?.y, 0),
+          finiteNumber(points[index]?.x, 0),
+          finiteNumber(points[index]?.y, 0),
+          {
+            color: line.color,
+            alpha: Math.max(0, Math.min(1, finiteNumber(line.alpha, 1))),
+            width: Math.max(0, finiteNumber(line.width, 0))
+          }
+        );
+      }
+    }
+    const circles = Array.isArray(visual.circles) ? visual.circles : [];
+    for (const circle of circles) {
+      const strokeWidth = Math.max(0, finiteNumber(circle.strokeWidth, 0));
+      drawPixiCircle(
+        view.graphics,
+        finiteNumber(circle.x, 0),
+        finiteNumber(circle.y, 0),
+        Math.max(0, finiteNumber(circle.radius, 0)),
+        { color: circle.color, alpha: Math.max(0, Math.min(1, finiteNumber(circle.alpha, 1))) },
+        strokeWidth > 0
+          ? {
+            color: circle.strokeColor ?? circle.color,
+            alpha: Math.max(0, Math.min(1, finiteNumber(circle.strokeAlpha, circle.alpha))),
+            width: strokeWidth
+          }
+          : null
+      );
+    }
+    const polygons = Array.isArray(visual.polygons) ? visual.polygons : [];
+    for (const polygon of polygons) {
+      const strokeWidth = Math.max(0, finiteNumber(polygon.strokeWidth, 0));
+      drawPixiPolygon(
+        view.graphics,
+        polygon.points,
+        { color: polygon.color, alpha: Math.max(0, Math.min(1, finiteNumber(polygon.alpha, 1))) },
+        strokeWidth > 0
+          ? {
+            color: polygon.strokeColor ?? polygon.color,
+            alpha: Math.max(0, Math.min(1, finiteNumber(polygon.strokeAlpha, polygon.alpha))),
+            width: strokeWidth
+          }
+          : null
+      );
+    }
+    const spriteVisual = visual.sprite;
+    if (view.sprite) {
+      const showSprite = visual.visible !== false && !!spriteVisual && spriteVisual.visible !== false;
+      view.sprite.visible = showSprite;
+      if (showSprite && spriteVisual) {
+        const size = Math.max(0, finiteNumber(spriteVisual.size, 0));
+        setPixiAnchor(view.sprite, 0.5);
+        setPixiPosition(view.sprite, finiteNumber(spriteVisual.x, 0), finiteNumber(spriteVisual.y, 0));
+        const scale = Math.max(0, finiteNumber(spriteVisual.scale, 1));
+        setPixiScale(view.sprite, 1, 1);
+        view.sprite.width = size * scale;
+        view.sprite.height = size * scale;
+        view.sprite.alpha = Math.max(0, Math.min(1, finiteNumber(spriteVisual.alpha, 1)));
+        view.sprite.rotation = finiteNumber(spriteVisual.rotation, 0);
+      }
+    }
+  }
+
+  function findSourceTrajectory(
+    scope: PixiPlaybackProjectionScope,
+    handle: PixiSourceTrajectoryHandle
+  ): SourceTrajectoryRecord {
+    assertPlaybackScope(scope);
+    if (!handle || handle.scopeId !== scope.id) {
+      throw new Error('Pixi source trajectory belongs to a different scope');
+    }
+    const record = sourceTrajectories.get(handle.id);
+    if (!record || record.handle.scopeId !== handle.scopeId || record.disposed) {
+      throw new Error('Pixi source trajectory is not active');
+    }
+    return record;
+  }
+
+  function releaseSourceTrajectoryRecord(record: SourceTrajectoryRecord): void {
+    if (record.disposed) return;
+    record.disposed = true;
+    sourceTrajectories.delete(record.handle.id);
+    const profileCounter = sourceTrajectoryByProfile[record.profileKey];
+    const primitiveCounter = sourceTrajectoryByPrimitive[record.primitive];
+    profileCounter.active = Math.max(0, profileCounter.active - 1);
+    profileCounter.released += 1;
+    primitiveCounter.active = Math.max(0, primitiveCounter.active - 1);
+    primitiveCounter.released += 1;
+    const view = record.view;
+    record.view = null;
+    try {
+      if (view) sourceTrajectoryPool.release(view);
+    } finally {
+      try { record.textureLease?.release(); }
+      catch (_error) { /* disposal remains terminal and idempotent */ }
+    }
+  }
+
+  function acquireSourceTrajectory(
+    scope: PixiPlaybackProjectionScope,
+    rawOptions: PixiSourceTrajectoryOptions
+  ): PixiSourceTrajectoryHandle {
+    assertPlaybackScope(scope);
+    const trajectoryId = String(rawOptions?.trajectoryId || '').trim();
+    if (!trajectoryId) throw new Error('Pixi source trajectory id is required');
+    if (!SOURCE_TRAJECTORY_PROFILE_KEYS.includes(rawOptions.profileKey)) {
+      throw new Error(`Pixi source trajectory profile is unsupported: ${String(rawOptions?.profileKey)}`);
+    }
+    if (!SOURCE_TRAJECTORY_PRIMITIVES.includes(rawOptions.primitive)) {
+      throw new Error(`Pixi source trajectory primitive is unsupported: ${String(rawOptions?.primitive)}`);
+    }
+    if (!rawOptions.geometry?.visibleSegment) {
+      throw new Error('Pixi source trajectory requires a visible clipped segment');
+    }
+    const handle = Object.freeze({ id: nextSourceTrajectoryId++, scopeId: scope.id });
+    const record: SourceTrajectoryRecord = {
+      handle,
+      trajectoryId,
+      profileKey: rawOptions.profileKey,
+      primitive: rawOptions.primitive,
+      geometry: rawOptions.geometry,
+      textureLease: rawOptions.textureLease || null,
+      view: null,
+      visual: Object.freeze({ visible: false }),
+      disposed: false
+    };
+    try {
+      const view = sourceTrajectoryPool.acquire();
+      record.view = view;
+      if (view.sprite) {
+        view.sprite.texture = record.textureLease?.texture || runtime.Texture?.EMPTY || null;
+        view.sprite.visible = false;
+      }
+      addPixiChild(layers.effect, view.root);
+      sourceTrajectories.set(handle.id, record);
+      const profileCounter = sourceTrajectoryByProfile[record.profileKey];
+      const primitiveCounter = sourceTrajectoryByPrimitive[record.primitive];
+      profileCounter.started += 1;
+      profileCounter.active += 1;
+      primitiveCounter.started += 1;
+      primitiveCounter.active += 1;
+      return handle;
+    } catch (error) {
+      const view = record.view;
+      record.view = null;
+      try {
+        if (view) sourceTrajectoryPool.release(view);
+      } finally {
+        try { record.textureLease?.release(); }
+        catch (_releaseError) { /* acquisition error remains authoritative */ }
+      }
+      throw error;
+    }
+  }
+
+  function updateSourceTrajectory(
+    scope: PixiPlaybackProjectionScope,
+    handle: PixiSourceTrajectoryHandle,
+    visual: PixiSourceTrajectoryVisualState
+  ): void {
+    const record = findSourceTrajectory(scope, handle);
+    record.visual = visual && typeof visual === 'object'
+      ? visual
+      : Object.freeze({ visible: false });
+    drawSourceTrajectoryVisual(record);
+  }
+
+  function releaseSourceTrajectory(
+    scope: PixiPlaybackProjectionScope,
+    handle: PixiSourceTrajectoryHandle
+  ): void {
+    releaseSourceTrajectoryRecord(findSourceTrajectory(scope, handle));
+  }
+
+  function getSourceTrajectory(
+    handle: PixiSourceTrajectoryHandle
+  ): PixiSourceTrajectoryDiagnostics | null {
+    const record = handle && sourceTrajectories.get(handle.id);
+    if (!record || record.handle.scopeId !== handle.scopeId || record.disposed) return null;
+    const visual = record.visual;
+    return Object.freeze({
+      id: record.handle.id,
+      scopeId: record.handle.scopeId,
+      trajectoryId: record.trajectoryId,
+      profileKey: record.profileKey,
+      primitive: record.primitive,
+      layoutRevision: record.geometry.layoutRevision,
+      topologySignature: record.geometry.topologySignature,
+      visible: !!record.view?.root.visible,
+      spriteVisible: !!record.view?.sprite?.visible,
+      lineCount: Array.isArray(visual.lines) ? visual.lines.length : 0,
+      circleCount: Array.isArray(visual.circles) ? visual.circles.length : 0,
+      polygonCount: Array.isArray(visual.polygons) ? visual.polygons.length : 0,
+      geometry: record.geometry
+    });
+  }
+
   function topologyRevealAlphaForKey(key: string): number {
     let alpha = 1;
     for (const reveal of topologyReveals.values()) {
@@ -1533,6 +2139,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     for (const record of Array.from(playbackEffects.values())) {
       playbackEffects.delete(record.handle.id);
       dematerializePlaybackEffect(record);
+    }
+    for (const record of Array.from(sourceTrajectories.values())) {
+      releaseSourceTrajectoryRecord(record);
     }
     retainedStoneOverrides.clear();
     hiddenStoneKeys.clear();
@@ -1927,6 +2536,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     playbackGhostPool.destroy();
     playbackHighlightPool.destroy();
     playbackEffectPool.destroy();
+    sourceTrajectoryPool.destroy();
     removePixiFromParent(root);
     destroyPixiDisplayObject(root);
   }
@@ -1936,6 +2546,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     const ghostPoolDiagnostics = playbackGhostPool.getDiagnostics();
     const highlightPoolDiagnostics = playbackHighlightPool.getDiagnostics();
     const effectPoolDiagnostics = playbackEffectPool.getDiagnostics();
+    const sourceTrajectoryPoolDiagnostics = sourceTrajectoryPool.getDiagnostics();
     let textureBackedStoneCount = 0;
     let proceduralStoneCount = 0;
     let ephemeralVoidCount = 0;
@@ -1995,6 +2606,14 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       pooledPlaybackEffectCount: effectPoolDiagnostics.available,
       createdPlaybackEffectCount: effectPoolDiagnostics.created,
       destroyedPlaybackEffectCount: effectPoolDiagnostics.destroyed,
+      activeSourceTrajectoryCount: sourceTrajectories.size,
+      activeSourceTrajectoryTextureLeaseCount: Array.from(sourceTrajectories.values())
+        .filter((record) => !!record.textureLease && record.textureLease.released !== true).length,
+      pooledSourceTrajectoryCount: sourceTrajectoryPoolDiagnostics.available,
+      createdSourceTrajectoryViewCount: sourceTrajectoryPoolDiagnostics.created,
+      destroyedSourceTrajectoryViewCount: sourceTrajectoryPoolDiagnostics.destroyed,
+      sourceTrajectoryByProfile: freezeTrajectoryCounters(sourceTrajectoryByProfile),
+      sourceTrajectoryByPrimitive: freezeTrajectoryCounters(sourceTrajectoryByPrimitive),
       activeTopologyRevealCount: topologyReveals.size,
       topologyRevealKeys: Object.freeze(sortedWorldKeys(new Set(
         Array.from(topologyReveals.values()).flatMap((reveal) => Array.from(reveal.keys))
@@ -2017,6 +2636,11 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     acquirePlaybackEffect,
     updatePlaybackEffect,
     releasePlaybackEffect,
+    snapshotSourceTrajectoryGeometry,
+    acquireSourceTrajectory,
+    updateSourceTrajectory,
+    releaseSourceTrajectory,
+    getSourceTrajectory,
     getPlaybackGhost,
     getPlaybackEffect,
     beginTopologyReveal,
