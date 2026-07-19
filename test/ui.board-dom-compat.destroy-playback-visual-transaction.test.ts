@@ -188,4 +188,68 @@ describe('destroy playback visual transaction', () => {
 
     expect(onDestroyGhostFallback).not.toHaveBeenCalled();
   });
+
+  test('missing DOM target does not commit before its source trajectory settles', async () => {
+    const AnimationDestroyEvents = require('../ui/animation-destroy-events.js');
+    let settleTrajectory!: () => void;
+    const trajectoryGate = new Promise<void>((resolve) => {
+      settleTrajectory = resolve;
+    });
+    const stages: string[] = [];
+    const deps = {
+      ...createDestroyDeps(document.createElement('div')),
+      getCellEl: () => null,
+      waitForSourceTrajectories: () => trajectoryGate,
+      onTargetImpactStart: () => stages.push('impact-start'),
+      onTargetCommit: () => stages.push('commit')
+    };
+
+    const playback = AnimationDestroyEvents.handleDestroyEvent({
+      type: 'destroy',
+      targets: [{
+        r: 20,
+        col: 20,
+        ownerBefore: 'white',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot'
+      }]
+    }, deps);
+
+    await Promise.resolve();
+    expect(stages).toEqual(['impact-start']);
+    settleTrajectory();
+    await playback;
+    expect(stages).toEqual(['impact-start', 'commit']);
+  });
+
+  test('missing DOM target never commits when its source trajectory rejects', async () => {
+    const AnimationDestroyEvents = require('../ui/animation-destroy-events.js');
+    let rejectTrajectory!: (error: Error) => void;
+    const trajectoryGate = new Promise<void>((_resolve, reject) => {
+      rejectTrajectory = reject;
+    });
+    const onTargetCommit = jest.fn();
+    const deps = {
+      ...createDestroyDeps(document.createElement('div')),
+      getCellEl: () => null,
+      waitForSourceTrajectories: () => trajectoryGate,
+      onTargetCommit
+    };
+
+    const playback = AnimationDestroyEvents.handleDestroyEvent({
+      type: 'destroy',
+      targets: [{
+        r: 20,
+        col: 20,
+        ownerBefore: 'white',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot'
+      }]
+    }, deps);
+    const failure = new Error('source trajectory failed');
+
+    rejectTrajectory(failure);
+    await expect(playback).rejects.toBe(failure);
+    expect(onTargetCommit).not.toHaveBeenCalled();
+  });
 });

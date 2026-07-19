@@ -3,6 +3,7 @@ import type {
   PixiPlaybackCellHighlightHandle,
   PixiPlaybackGhostHandle
 } from '../board-scene';
+import PresentationEffectProfiles = require('../../../shared/presentation-effect-profiles');
 import {
   createPlaybackStoneVisual,
   interpolate,
@@ -39,7 +40,7 @@ function recordTargetStage(
     eventType: 'flip',
     row,
     col,
-    profileKey: isZombieInfectionTarget(target) ? 'zombieBite' : null
+    profileKey: PresentationEffectProfiles.getBoardSourceTrajectoryProfileKey('flip', target) || null
   });
 }
 

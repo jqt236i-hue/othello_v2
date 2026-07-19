@@ -1139,6 +1139,11 @@ class DomBoardPlaybackRuntime {
         removeDiscFromCell: (cell: HTMLElement, disc: HTMLElement) => this.removeDiscFromCell(cell, disc),
         resolveOwnerClassFromColor: (color: unknown) => this.resolveOwnerClassFromColor(color),
         animateFadeOutAt: (row: unknown, col: unknown, options: any) => this.animateLegacyFadeOut(row, col, options, phase),
+        waitForSourceTrajectories: async (target: unknown) => {
+          const profileKey = PresentationEffectProfiles.getBoardSourceTrajectoryProfileKey('destroy', target);
+          if (!profileKey) return;
+          await this.sourceTrajectoryRunForEvent(phase, event).waitForTarget('destroy', target, event);
+        },
         onDestroyGhostFallback: (target: any, details: any) => {
           const registry = readGlobal('__destroyGhostFallbackEvents');
           if (Array.isArray(registry)) registry.push({ target, context: details });

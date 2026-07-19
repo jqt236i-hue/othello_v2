@@ -25,6 +25,7 @@ type AnimationDestroyEventDeps = {
     resolveOwnerClassFromColor: (ownerColor: any) => string;
     onDestroyGhostFallback?: (target: any, context: any) => void;
     animateFadeOutAt?: (row: any, col: any, options?: any) => Promise<any>;
+    waitForSourceTrajectories?: (target: any) => Promise<void>;
     onTargetImpactStart?: (target: any) => void;
     onTargetCommit?: (target: any) => void;
 };
@@ -75,6 +76,9 @@ async function animateDestroyVisualGhostAtCell(cell: any, target: any, ownerColo
 async function handleDestroyEvent(ev: any, deps: AnimationDestroyEventDeps) {
     const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
     const promises = targets.map(async (target: any) => {
+        const sourceTrajectoryGate = typeof deps.waitForSourceTrajectories === 'function'
+            ? Promise.resolve(deps.waitForSourceTrajectories(target))
+            : Promise.resolve();
         const superCrushDelay = deps.resolveSuperCrushTargetDelayMs
             ? deps.resolveSuperCrushTargetDelayMs(target)
             : 0;
@@ -85,6 +89,7 @@ async function handleDestroyEvent(ev: any, deps: AnimationDestroyEventDeps) {
         if (typeof deps.onTargetImpactStart === 'function') deps.onTargetImpactStart(target);
         const cell = deps.getCellEl(target.r, target.col);
         if (!cell) {
+            await sourceTrajectoryGate;
             if (typeof deps.onTargetCommit === 'function') deps.onTargetCommit(target);
             return;
         }
@@ -108,6 +113,7 @@ async function handleDestroyEvent(ev: any, deps: AnimationDestroyEventDeps) {
             canRenderDestroyGhostWithoutDisc ||
             !!deps.resolveEffectTargetHighlightTone(deps.eventTypes.DESTROY, target);
         if (!disc && !shouldPreserveDestroyPlaybackWithoutDisc) {
+            await sourceTrajectoryGate;
             if (typeof deps.onTargetCommit === 'function') deps.onTargetCommit(target);
             return;
         }
@@ -191,6 +197,7 @@ async function handleDestroyEvent(ev: any, deps: AnimationDestroyEventDeps) {
             }
             deps.removeDiscFromCell(cell, disc);
         }, destroyHighlightMinimumMs);
+        await sourceTrajectoryGate;
         if (typeof deps.onTargetCommit === 'function') deps.onTargetCommit(target);
     });
     await Promise.all(promises);

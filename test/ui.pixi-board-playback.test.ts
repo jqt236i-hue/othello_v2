@@ -1049,11 +1049,23 @@ describe('Pixi board playback contract', () => {
       startedRunCount: 2,
       activeRunCount: 2
     });
+    expect(harness.record).toHaveBeenCalledWith(
+      'pixi-playback:target-impact-start',
+      expect.objectContaining({ eventType: 'flip', row: 2, col: 3, profileKey: 'zombieBite' })
+    );
+    expect(harness.record).not.toHaveBeenCalledWith(
+      'pixi-playback:target-commit',
+      expect.anything()
+    );
     expect(harness.log.filter((entry) => entry.startsWith('scene:source-acquire:zombieBite:')))
       .toHaveLength(2);
     harness.application.tick(100);
     await flushMicrotasks();
     expect(settled).toBe(false);
+    expect(harness.record).not.toHaveBeenCalledWith(
+      'pixi-playback:target-commit',
+      expect.anything()
+    );
     expect(harness.log).not.toContain('scene:ghost-acquire:2,3:black');
     harness.application.tick(700);
     await playback;
@@ -1064,6 +1076,41 @@ describe('Pixi board playback contract', () => {
       completedRunCount: 2,
       activeRunCount: 0
     });
+    expect(harness.record).toHaveBeenCalledWith(
+      'pixi-playback:target-commit',
+      expect.objectContaining({ eventType: 'flip', row: 2, col: 3, profileKey: 'zombieBite' })
+    );
+  });
+
+  test('flip diagnostics use the shared zombie reason-prefix classifier', async () => {
+    const harness = createHarness({
+      frame: makeFrame([[2, 3, stone('white')]]),
+      noAnimation: true
+    });
+    const event = {
+      type: 'flip',
+      targets: [{
+        r: 2,
+        col: 3,
+        ownerBefore: 'white',
+        ownerAfter: 'black',
+        cause: 'ZOMBIE',
+        reason: 'zombie_infection_chain',
+        meta: { sourceRow: 2, sourceCol: 1 },
+        after: { owner: 'black', color: 1, special: 'ZOMBIE' }
+      }]
+    };
+
+    await harness.playback.playPhase([event], context(false, [event]));
+
+    expect(harness.record).toHaveBeenCalledWith(
+      'pixi-playback:target-impact-start',
+      expect.objectContaining({ eventType: 'flip', row: 2, col: 3, profileKey: 'zombieBite' })
+    );
+    expect(harness.record).toHaveBeenCalledWith(
+      'pixi-playback:target-commit',
+      expect.objectContaining({ eventType: 'flip', row: 2, col: 3, profileKey: 'zombieBite' })
+    );
   });
 
   test('deduped normal flip still waits an earlier raw zombie trajectory before terminal write', async () => {
