@@ -65,7 +65,7 @@ Pixiだけ、またはDOMだけが未実装の中間default commitを作らな�
 5. canonical input `events[]` digestはそのまま保存する。旧global/new backend固有route名は診断欄へ分離し、source start、impact/pulse start、trajectory settle、removal/changeを共通のsemantic trajectory traceへ正規化して相対順を比較できるfixtureにする。
 6. normal、`NOANIM=1`、reduced-motionのduration/gate digestとlightning seed digestを保存し、game RNG非消費を確認する。
 7. DOM browser checkでdesktop/mobile viewport、DPR 1/2、通常/scroll済み拡張盤面を実行する。各profileの同期start直前からsettleまで毎animation frameのpainted nontransparent pixel boundsを採取し、その時間方向union、board viewport、2cell gutter、z-order、overlay node数を記録する。
-8. current DOM pixelが `board viewport + 2cell gutter` の外へ出るfixtureはlegacy overflowとして明示する。移行後はlogical source/targetとdurationを保ち、owner clipと交差する区間だけを描く期待値を別欄へ固定する。
+8. current DOM pixelが `board viewport + 2cell gutter` の外へ出るfixtureはlegacy overflowとして明示する。移行後はlogical source/targetとdurationを保ち、中心線は実board viewportとの交差だけ、painted haloはviewport +既存2cell gutter内だけを描く期待値を別欄へ固定する。
 
 ### Verification
 
@@ -151,7 +151,7 @@ git diff --check
 5. 全raw requestを同期startしてPromise mapを作った後だけboard callbackを呼ぶ二段executorを実装する。
 6. geometryを同一frame/topology/layout revisionからsnapshotし、開始前revision changeだけ再計算する。開始後endpointを動かさない。
 7. cell objectを参照せずworld→sceneを求め、source/target/path/void cellを追加materializeしない。
-8. effect clipとの交差だけを描く。pathが横切ればoffscreen endpointsでも描き、完全非交差はobject 0で同じdurationをsettleする。
+8. 中心line/pathは実board viewportとの交差だけを描く。pathが横切ればoffscreen endpointsでも描き、完全非交差はobject 0で同じdurationをsettleする。glow/branch/fangのpainted haloだけは既存2cell gutterまで許可する。
 9. backing storeをvisible viewport +既存2cell gutter以上へ拡大しない。
 10. NOANIMはobject 0/duration 0。destroy系reduced-motionはcurrent durationを維持し、zombie sourceだけ省略する。
 11. completion/abort/reset/destroy/skin switchでhandle/leaseを一度だけ解放し、最後のrender後にtickerを止める。
@@ -203,7 +203,7 @@ Pixi/DOM両backendを同じcommitでbackend-owned二段preludeへ切り替え、
 1. Pixi `playPhase()`は全raw trajectoryを先にstartし、backend-local Promise mapをprojectionへ渡す。
 2. `destroy.ts`/`flip.ts`は対応trajectoryIdを待つ。impact/pulseは並行可だが全source startより後に始める。
 3. flip requestはdedupe前に全startし、deduped target visualは関連する全Promiseを待つ。
-4. DOM backendも同じ二段mapを作り、既存handlersはgateを待ってsourceを二重startしない。
+4. DOM backendも同じ二段mapを作り、既存handlersはgateを待ってsourceを二重startしない。DOM trajectoryも中心line/pathを実board viewportでclipし、旧fullscreen overflowを残さない。
 5. zombie fixed-body版とboard-host版をPhase 0 baselineで比較し、current parityを満たす一実装へ統合する。
 6. dispatcherはoriginal `destroy`/`flip`だけをboard backendへ渡し、synthetic source eventsを作らない。
 7. AnimationEngineのsynthetic handlers、global presenter import、geometry/timer/random glueを削除する。real globalとUI↔board trajectoryは変更しない。

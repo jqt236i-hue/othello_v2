@@ -273,7 +273,9 @@ source-to-target距離はunboundedでも、描画面はunboundedにしない。
 - `BoardRenderModel.cells` はexisting/playableとexplicit holeだけのsparse DTOのままにする。
 - trajectoryのためにsource、target、経路上のcell view、void cellをmaterializeしない。
 - canvas backing storeは現在のvisible viewport +既存最大2cell effect gutterを超えて拡大しない。
-- line/beam/lightningは、論理segmentとcanvas effect clipの交差部分だけを描く。
+- trajectoryの中心線/中心点に使う`visible trajectory clip`は実際のboard viewportとする。source/targetがviewport外なら、論理segmentをviewport境界で切った可視部分だけを進行させる。
+- glow、太さ、branch、fangなど中心線周囲のpainted haloだけは`visible trajectory clip`の外へ広がってよいが、そのpainted boundsはviewport +既存最大2cell effect gutter内に収める。backing-store上限をtrajectoryの論理終端と誤解してはならない。
+- line/beam/lightningは、論理segmentと`visible trajectory clip`の交差部分だけを描く。
 - 両endpointがoffscreenでもsegmentがviewportを横切る場合は交差部分を描く。
 - segmentがclipと交差しない場合はDisplayObjectを作らず、同じsemantic durationだけtimelineをsettleさせる。
 - glow、branch、fangなどpath外側のhaloは最大2cell gutter内に収める。超える品質案は別の表示仕様判断とする。
@@ -307,7 +309,7 @@ DOM compatibility backendは現在の `ui/animation-destroy-source-events.ts` �
 - 通常Pixi startup graphから `ui/presentation/global-board-effect-presenter.ts` とDOM source modulesを外す。
 - DOM compatibility backendはlazy loadされた後だけDOM/WAAPI/SVG implementationを評価する。
 - DOM backendもraw events/targetsから全trajectoryを先に開始するbackend-local Promise mapを作り、既存event handlerはそのgateを待つ。controllerやdispatcherへcallbackを戻さない。
-- current global presenterとDOM backend内部実装に差があるprofileは、current behaviorを一つのcompatibility実装へ統合してからdispatcherのglobal pathを削除する。特にzombieはfixed body overlayとboard-host内版の座標、clip、z-order、CSS pulseを比較し、Phase 0 baselineと一致する方をcompatibility正本にする。
+- current global presenterとDOM backend内部実装に差があるprofileは、current behaviorを一つのcompatibility実装へ統合してからdispatcherのglobal pathを削除する。特にzombieはfixed body overlayとboard-host内版の座標、z-order、CSS pulseを比較する。色、時間、順序、viewport内形状はPhase 0 baselineと一致させる一方、clipはPixiと同じ更新済みoffscreen仕様へ統一し、旧fullscreen overflowをfallbackへ残さない。
 - DOM backendも元の`destroy` / `flip` eventを受け、synthetic source eventを必要としない。
 - Pixi→DOM context recoveryは同じcheckpointと元eventをDOM `playPhase()`で再生し、sound/logを再発火しない。
 - backendは常に排他的にmountし、Pixi effectとDOM overlayを同時表示しない。
@@ -370,7 +372,7 @@ debug/test diagnosticsへ最低限次を追加する。
 - flip dedupe: raw trajectory本数/順、deduped target visual本数、trajectoryId gate対応を個別に検証。
 - visual-seed: classic/Vite/local/network/recoveryで同一digest、game RNG非消費。
 - `NOANIM` / reduced-motion: 5.3のpolicyを固定。
-- DOM compatibility: current visual/timing digestと同一、Pixi moduleを要求しない。
+- DOM compatibility: 色、時間、順序、viewport内visual digestはcurrentと同一、clipは更新済みoffscreen仕様と同一、Pixi moduleを要求しない。
 
 ### 14.2 Sparse, viewport and lifecycle
 
