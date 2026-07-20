@@ -1,4 +1,5 @@
 import * as path from 'path';
+import { createCpuDecisionCardChoice } from '../game/cpu-decision-card-choice';
 const cpuDecision = require(path.resolve(__dirname, '..', 'game', 'cpu-decision.js'));
 const cpuPolicyCore = require(path.resolve(__dirname, '..', 'game', 'ai', 'cpu-policy-core.js'));
 const catalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
@@ -57,6 +58,11 @@ describe('cpu decision refactor helpers', () => {
 
   test('selectCardToUse returns AISystem suggestion when present', () => {
     global.cardState.hands.white = ['card_a'];
+    global.CardLogic = {
+      getUsableCardIds: () => ['card_a'],
+      getCardDef: (id) => ({ id, name: 'A', type: 'TREASURE_BOX' }),
+      getCardCost: () => 1
+    };
     global.AISystem = { selectCardToUse: () => ({ cardId: 'card_a', cardDef: { name: 'A' } }) };
 
     const res = cpuDecision.selectCardToUse('white');
@@ -92,6 +98,108 @@ describe('cpu decision refactor helpers', () => {
     const res = cpuDecision.selectCardToUse('white');
 
     expect(res).toBeNull();
+  });
+
+  test('card choice prepares debug trap first and skips all heavy context when usable is empty', () => {
+    const order: string[] = [];
+    const getLegalMoves = jest.fn(() => []);
+    const buildCardUseDecisionContext = jest.fn(() => ({}));
+    const buildCardQuiescenceSnapshot = jest.fn(() => ({}));
+    const buildCornerPlanState = jest.fn(() => ({}));
+    const moduleRef = createCpuDecisionCardChoice({
+      prepareCpuTrapOnlyCard: jest.fn(() => { order.push('trap'); return null; }),
+      getTargetAwareCardUsabilityAnalysis: jest.fn(() => {
+        order.push('analysis');
+        return { usableCardIds: [], usableCardTypes: [], selectorEvidence: {}, usableSlots: [] };
+      }),
+      getTargetAwareUsableCardIds: jest.fn(() => []),
+      buildCardUseDecisionContext,
+      buildCardQuiescenceSnapshot,
+      buildCornerPlanState,
+      cpuDebugLog: jest.fn(),
+      getActiveProtectionForPlayer: jest.fn(() => []),
+      getAISystem: jest.fn(() => null),
+      getCardLogic: jest.fn(() => ({ getCardDef: jest.fn(), getCardCost: jest.fn() })),
+      getCardState: jest.fn(() => ({ hands: { white: [] } })),
+      getCpuPolicyCore: jest.fn(() => null),
+      getFlipBlockers: jest.fn(() => []),
+      getGameState: jest.fn(() => ({ board: [] })),
+      getLegalMoves,
+      isAISystemAvailable: jest.fn(() => false),
+      isCardChoiceAllowedByHighConfidence: jest.fn(() => true),
+      isCardChoiceAllowedByPlan: jest.fn(() => true),
+      isCardChoiceAllowedByRisk: jest.fn(() => true),
+      resolveCpuSmartnessLevel: jest.fn(() => 1),
+      resolvePlayerValue: jest.fn(() => -1),
+      selectCardByLevel6Consensus: jest.fn(() => null),
+      selectCardBySharedPolicyTableCore: jest.fn(() => null),
+      shouldHoldCardByQuiescence: jest.fn(() => false),
+      shouldUseSharedPolicyTableCoreCardDecision: jest.fn(() => false),
+      warn: jest.fn()
+    } as any);
+
+    expect(moduleRef.selectCardToUse('white')).toBeNull();
+    expect(order).toEqual(['trap', 'analysis']);
+    expect(getLegalMoves).not.toHaveBeenCalled();
+    expect(buildCardUseDecisionContext).not.toHaveBeenCalled();
+    expect(buildCardQuiescenceSnapshot).not.toHaveBeenCalled();
+    expect(buildCornerPlanState).not.toHaveBeenCalled();
+  });
+
+  test('card fallback reuses one usability analysis and one decision context', () => {
+    const cardStateForChoice = { hands: { white: ['card_a'] } };
+    const gameStateForChoice = { board: [] };
+    const getAnalysis = jest.fn(() => ({
+      usableCardIds: ['card_a'],
+      usableCardTypes: ['TREASURE_BOX'],
+      selectorEvidence: {},
+      usableSlots: []
+    }));
+    const buildContext = jest.fn(() => ({
+      cornerPlanState: {},
+      discDiff: 0,
+      handSize: 1,
+      ownCharge: 1,
+      legalMovesCount: 1
+    }));
+    const moduleRef = createCpuDecisionCardChoice({
+      prepareCpuTrapOnlyCard: jest.fn(() => null),
+      getTargetAwareCardUsabilityAnalysis: getAnalysis,
+      getTargetAwareUsableCardIds: jest.fn(() => ['card_a']),
+      buildCardUseDecisionContext: buildContext,
+      buildCardQuiescenceSnapshot: jest.fn(() => ({})),
+      buildCornerPlanState: jest.fn(() => ({})),
+      cpuDebugLog: jest.fn(),
+      getActiveProtectionForPlayer: jest.fn(() => []),
+      getAISystem: jest.fn(() => null),
+      getCardLogic: jest.fn(() => ({
+        getCardDef: jest.fn(() => ({ id: 'card_a', type: 'TREASURE_BOX' })),
+        getCardCost: jest.fn(() => 1)
+      })),
+      getCardState: jest.fn(() => cardStateForChoice),
+      getCpuPolicyCore: jest.fn(() => ({
+        chooseCardWithRiskProfile: jest.fn(() => null),
+        chooseHighestCostCard: jest.fn(() => null)
+      })),
+      getFlipBlockers: jest.fn(() => []),
+      getGameState: jest.fn(() => gameStateForChoice),
+      getLegalMoves: jest.fn(() => [{ row: 2, col: 3 }]),
+      isAISystemAvailable: jest.fn(() => false),
+      isCardChoiceAllowedByHighConfidence: jest.fn(() => true),
+      isCardChoiceAllowedByPlan: jest.fn(() => false),
+      isCardChoiceAllowedByRisk: jest.fn(() => false),
+      resolveCpuSmartnessLevel: jest.fn(() => 4),
+      resolvePlayerValue: jest.fn(() => -1),
+      selectCardByLevel6Consensus: jest.fn(() => null),
+      selectCardBySharedPolicyTableCore: jest.fn(() => null),
+      shouldHoldCardByQuiescence: jest.fn(() => false),
+      shouldUseSharedPolicyTableCoreCardDecision: jest.fn(() => false),
+      warn: jest.fn()
+    } as any);
+
+    expect(moduleRef.selectCardToUse('white')).toBeNull();
+    expect(getAnalysis).toHaveBeenCalledTimes(1);
+    expect(buildContext).toHaveBeenCalledTimes(1);
   });
 
   test('selectCardToUse uses shared card policy after risk profile declines', () => {

@@ -34,8 +34,9 @@ function createController(overrides?: Record<string, unknown>) {
   const cpuDebugLog = jest.fn();
   const warn = jest.fn();
   const selectCardToUse = jest.fn(() => ({ cardId: 'c1', cardDef: { id: 'c1', name: 'C1', cost: 2 } }));
+  const getTargetAwareUsableCardIds = jest.fn(() => ['c1', 'c2']);
 
-  const controller = createCpuDecisionCardActions({
+  const controllerConfig: any = {
     getCardState: () => cardState,
     getGameState: () => gameState,
     resolveCardLogic: () => cardLogic,
@@ -46,7 +47,7 @@ function createController(overrides?: Record<string, unknown>) {
     getActiveProtectionForPlayer: jest.fn(() => []),
     getFlipBlockers: jest.fn(() => []),
     getLegalMoves: jest.fn(() => [{ row: 2, col: 3 }]),
-    getTargetAwareUsableCardIds: jest.fn(() => ['c1', 'c2']),
+    getTargetAwareUsableCardIds,
     buildCardUseDecisionContext: jest.fn(() => ({ level: 6 })),
     chooseHandDestroyTargetForCycle,
     runCpuHandDestroyViaPipeline,
@@ -63,7 +64,11 @@ function createController(overrides?: Record<string, unknown>) {
     isOthelloModeForCpuDecision: () => false,
     selectCardToUse,
     warn
-  });
+  };
+  if (overrides && overrides.config && typeof overrides.config === 'object') {
+    Object.assign(controllerConfig, overrides.config);
+  }
+  const controller = createCpuDecisionCardActions(controllerConfig);
 
   if (overrides) {
     if (overrides.runtime) Object.assign(runtime, overrides.runtime);
@@ -91,7 +96,8 @@ function createController(overrides?: Record<string, unknown>) {
     emitCpuCardUseLog,
     cpuDebugLog,
     warn,
-    selectCardToUse
+    selectCardToUse,
+    getTargetAwareUsableCardIds
   };
 }
 
@@ -165,5 +171,41 @@ describe('cpu decision card actions controller', () => {
     expect(ctx.cardLogic.applyCardUsage).toHaveBeenNthCalledWith(2, ctx.cardState, ctx.gameState, 'white', 'c2');
     expect(ctx.emitCpuCardUseLog).toHaveBeenCalledTimes(1);
     expect(ctx.cpuDebugLog).not.toHaveBeenCalledWith('[CPU] Lv6 white: カード使用に失敗');
+  });
+
+  test('cpuMaybeUseCardWithPolicy reuses prepared usability after a non-mutating apply failure', () => {
+    let ctx: ReturnType<typeof createController>;
+    const selectCardDecision = jest.fn((_playerKey: any, _scope: any, prepared: any) => {
+      const preparedBundle = prepared || {};
+      const usability = {
+        usableCardIds: ['c1', 'c2'],
+        usableCardTypes: ['GENERIC', 'GENERIC'],
+        selectorEvidence: {},
+        usableSlots: []
+      };
+      Object.assign(preparedBundle, {
+        cardState: ctx.cardState,
+        gameState: ctx.gameState,
+        playerKey: 'white',
+        handSnapshot: ctx.cardState.hands.white.slice(),
+        usability,
+        decisionContext: { level: 6 }
+      });
+      return {
+        choice: { cardId: 'c1', cardDef: { id: 'c1', name: 'C1', cost: 1 } },
+        prepared: preparedBundle
+      };
+    });
+    ctx = createController({
+      config: { selectCardDecision },
+      cardLogic: {
+        applyCardUsage: jest.fn((_state: any, _game: any, _playerKey: any, cardId: any) => cardId === 'c2')
+      }
+    });
+
+    expect(ctx.controller.cpuMaybeUseCardWithPolicy('white')).toBe(true);
+    expect(selectCardDecision).toHaveBeenCalledTimes(1);
+    expect(ctx.getTargetAwareUsableCardIds).not.toHaveBeenCalled();
+    expect(ctx.cardLogic.applyCardUsage).toHaveBeenCalledTimes(2);
   });
 });

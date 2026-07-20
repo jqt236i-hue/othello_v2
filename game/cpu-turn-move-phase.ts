@@ -15,6 +15,7 @@ type CpuTurnMovePhaseConfig = {
     getActiveProtectionSafe: (playerValue: any) => any;
     getAnimationRetryDelayMs: () => any;
     getCardState: () => any;
+    getCardUsabilityAnalysis?: (playerKey: any) => any;
     getCurrentPlayerKeySafe: () => any;
     getCurrentStateVersionSafe: () => number | string | null;
     getCurrentTurnNumberSafe: () => any;
@@ -46,7 +47,7 @@ type CpuTurnMovePhaseConfig = {
     setCpuProcessing: (active: any) => any;
     shouldAbortCpuForHumanMode: (playerKey: any, context: any) => any;
     shouldUseOnnxMoveDecision: (level: any) => any;
-    tryApplyAnyUsableCard: (playerKey: any, level?: any, legalMovesCount?: any, legalMoves?: any[]) => any;
+    tryApplyAnyUsableCard: (playerKey: any, level?: any, legalMovesCount?: any, legalMoves?: any[], prepared?: any) => any;
     whiteValue: any;
 };
 
@@ -149,18 +150,58 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
         }
 
         if (!candidateMoves.length) {
-            const cardLogicForRetry = cfg.resolveCpuCardLogic();
+            const preparedCardDecision: any = {};
             const cardState = cfg.getCardState();
             const gameState = cfg.getGameState();
-            const stillUsableCard = (cardLogicForRetry && typeof cardLogicForRetry.hasUsableCard === 'function')
-                ? (performanceScope
-                    ? measureCpuTurnSync(
-                        performanceScope,
-                        'card-availability',
-                        () => !!cardLogicForRetry.hasUsableCard(cardState, gameState, playerKey)
-                    )
-                    : !!cardLogicForRetry.hasUsableCard(cardState, gameState, playerKey))
-                : false;
+            const resolveCardUsability = () => {
+                if (typeof cfg.getCardUsabilityAnalysis === 'function') {
+                    return cfg.getCardUsabilityAnalysis(playerKey);
+                }
+                const cardLogicForRetry = cfg.resolveCpuCardLogic();
+                if (cardLogicForRetry && typeof cardLogicForRetry.analyzeCardUsability === 'function') {
+                    return cardLogicForRetry.analyzeCardUsability(cardState, gameState, playerKey);
+                }
+                if (cardLogicForRetry && typeof cardLogicForRetry.getUsableCardIds === 'function') {
+                    const ids = cardLogicForRetry.getUsableCardIds(cardState, gameState, playerKey);
+                    return { usableCardIds: Array.isArray(ids) ? ids : [] };
+                }
+                if (cardLogicForRetry && typeof cardLogicForRetry.hasUsableCard === 'function') {
+                    const hand = cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])
+                        ? cardState.hands[playerKey]
+                        : [];
+                    const hasUsableCard = cardLogicForRetry.hasUsableCard(cardState, gameState, playerKey) === true;
+                    return {
+                        hasUsableCard,
+                        usableCardIds: hasUsableCard
+                            ? hand.slice()
+                            : []
+                    };
+                }
+                return { usableCardIds: [] };
+            };
+            const cardUsability = performanceScope
+                ? measureCpuTurnSync(
+                    performanceScope,
+                    'card-availability',
+                    resolveCardUsability
+                )
+                : resolveCardUsability();
+            preparedCardDecision.cardState = cardState;
+            preparedCardDecision.gameState = gameState;
+            preparedCardDecision.playerKey = playerKey;
+            preparedCardDecision.usability = cardUsability;
+            preparedCardDecision.handSnapshot = cardState
+                && cardState.hands
+                && Array.isArray(cardState.hands[playerKey])
+                ? cardState.hands[playerKey].slice()
+                : [];
+            const stillUsableCard = !!(
+                cardUsability
+                && (
+                    cardUsability.hasUsableCard === true
+                    || (Array.isArray(cardUsability.usableCardIds) && cardUsability.usableCardIds.length > 0)
+                )
+            );
             if (!othelloMode && stillUsableCard) {
                 const expectedRetryTurnNumber = cfg.getCurrentTurnNumberSafe();
                 let retried = false;
@@ -170,9 +211,9 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                         ? measureCpuTurnSync(
                             performanceScope,
                             'card-context-base',
-                            () => !!useCardWithPolicyFn(playerKey)
+                            () => !!useCardWithPolicyFn(playerKey, performanceScope, preparedCardDecision)
                         )
-                        : !!useCardWithPolicyFn(playerKey);
+                        : !!useCardWithPolicyFn(playerKey, null, preparedCardDecision);
                 }
                 const currentPlayerKeyAfterRetry = cfg.getCurrentPlayerKeySafe();
                 const currentTurnNumberAfterRetry = cfg.getCurrentTurnNumberSafe();
@@ -188,9 +229,9 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                         ? measureCpuTurnSync(
                             performanceScope,
                             'card-context-base',
-                            () => cfg.tryApplyAnyUsableCard(playerKey, level, 0, [])
+                            () => cfg.tryApplyAnyUsableCard(playerKey, level, 0, [], preparedCardDecision)
                         )
-                        : cfg.tryApplyAnyUsableCard(playerKey, level, 0, []);
+                        : cfg.tryApplyAnyUsableCard(playerKey, level, 0, [], preparedCardDecision);
                 }
                 if (retried) {
                     cfg.setCpuProcessing(false);

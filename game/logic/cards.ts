@@ -2307,6 +2307,14 @@ const {
     }
 
     /**
+     * Analyze usable cards once and retain invocation-local selector evidence.
+     * The result is ephemeral and must not be serialized into canonical state.
+     */
+    function analyzeCardUsability(cardState: any, gameState: any, playerKey: any, opts?: any) {
+        return requireCardHandAccess().analyzeCardUsability(cardState, gameState, playerKey, opts);
+    }
+
+    /**
      * Check if player has any usable card right now.
      * @param {Object} cardState
      * @param {Object} gameState
@@ -4648,6 +4656,7 @@ const cardsApi: any = {
         removeHandCardAt,
         clearHandToDiscard,
         moveDiscardCardToHandByCardId,
+        analyzeCardUsability,
         getUsableCardIds,
         hasUsableCard,
         applyCardUsage,

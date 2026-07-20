@@ -1325,6 +1325,7 @@ const CpuDecisionCardActions = (CpuDecisionCardActionsModule && typeof CpuDecisi
         getActiveProtectionForPlayer: (playerValue: any) => ((typeof getActiveProtectionForPlayer === 'function') ? getActiveProtectionForPlayer(playerValue) : []),
         getFlipBlockers: () => ((typeof getFlipBlockers === 'function') ? getFlipBlockers() : []),
         getLegalMoves: (gameStateValue: any, protection: any, perma: any) => ((typeof getLegalMoves === 'function') ? (getLegalMoves(gameStateValue, protection, perma) || []) : []),
+        getTargetAwareCardUsabilityAnalysis: (playerKey: any) => getTargetAwareCardUsabilityAnalysis(playerKey),
         getTargetAwareUsableCardIds: (playerKey: any) => getTargetAwareUsableCardIds(playerKey),
         buildCardUseDecisionContext: (
             playerKey: any,
@@ -1363,6 +1364,7 @@ const CpuDecisionCardActions = (CpuDecisionCardActionsModule && typeof CpuDecisi
         emitCpuCardUseLog: (playerKey: any, level: any, cardDefOrNull: any, cardIdOrNull: any) => emitCpuCardUseLog(playerKey, level, cardDefOrNull, cardIdOrNull),
         cpuDebugLog: (...args: any[]) => cpuDebugLog(...args),
         isOthelloModeForCpuDecision: () => isOthelloModeForCpuDecision(),
+        selectCardDecision: (playerKey: any, performanceScope?: CpuTurnPerformanceScope | null, prepared?: any) => selectCardDecision(playerKey, performanceScope, prepared),
         selectCardToUse: (playerKey: any, performanceScope?: CpuTurnPerformanceScope | null) => selectCardToUse(playerKey, performanceScope),
         warn: (...args: any[]) => console.warn(...args)
     })
@@ -1925,29 +1927,74 @@ function emitCpuEffectLog(message: any): any {
     emitCpuDecisionEffectLog(message);
 }
 
-function getTargetAwareUsableCardIds(playerKey: any): any {
+function buildFallbackCardUsabilityAnalysis(playerKey: any, usableCardIds: any, cardLogicRef: any): any {
+    const ids = Array.isArray(usableCardIds) ? usableCardIds.slice() : [];
+    const cs = (typeof cardState !== 'undefined') ? cardState : null;
+    const hand = cs && cs.hands && Array.isArray(cs.hands[playerKey]) ? cs.hands[playerKey] : [];
+    const copyIds = cs && cs._handCopyIdsByPlayer && Array.isArray(cs._handCopyIdsByPlayer[playerKey])
+        ? cs._handCopyIdsByPlayer[playerKey]
+        : [];
+    const consumedIndexes = new Set<number>();
+    const usableCardTypes: string[] = [];
+    const usableSlots: any[] = [];
+    for (const cardId of ids) {
+        let handIndex = hand.findIndex((one: any, index: number) => !consumedIndexes.has(index) && one === cardId);
+        if (handIndex < 0) handIndex = hand.indexOf(cardId);
+        if (handIndex >= 0) consumedIndexes.add(handIndex);
+        const def = cardLogicRef && typeof cardLogicRef.getCardDef === 'function'
+            ? cardLogicRef.getCardDef(cardId)
+            : null;
+        const cardType = String(def && def.type || '');
+        const rawCopyId = Number(handIndex >= 0 ? copyIds[handIndex] : NaN);
+        const cardCopyId = Number.isInteger(rawCopyId) && rawCopyId > 0 ? rawCopyId : null;
+        usableCardTypes.push(cardType);
+        usableSlots.push(Object.freeze({ cardId, cardType, handIndex, cardCopyId }));
+    }
+    return Object.freeze({
+        usableCardIds: Object.freeze(ids),
+        usableCardTypes: Object.freeze(usableCardTypes),
+        selectorEvidence: Object.freeze({}),
+        usableSlots: Object.freeze(usableSlots)
+    });
+}
+
+function getTargetAwareCardUsabilityAnalysis(playerKey: any): any {
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
     const cardLogicRef = resolveCardLogicForCpuDecision();
-    if (!cardLogicRef) return [];
-    if (!cs || !gs) return [];
+    if (!cardLogicRef || !cs || !gs) return buildFallbackCardUsabilityAnalysis(playerKey, [], cardLogicRef);
+    if (typeof cardLogicRef.analyzeCardUsability === 'function') {
+        try {
+            const analysis = cardLogicRef.analyzeCardUsability(cs, gs, playerKey);
+            if (analysis && Array.isArray(analysis.usableCardIds)) return analysis;
+        } catch (e) { /* preserve compatibility fallback */ }
+    }
     if (typeof cardLogicRef.getUsableCardIds === 'function') {
         try {
-            return cardLogicRef.getUsableCardIds(cs, gs, playerKey) || [];
+            return buildFallbackCardUsabilityAnalysis(
+                playerKey,
+                cardLogicRef.getUsableCardIds(cs, gs, playerKey) || [],
+                cardLogicRef
+            );
         } catch (e) { /* ignore */ }
     }
     if (typeof cardLogicRef.hasUsableCard === 'function' && cardLogicRef.hasUsableCard(cs, gs, playerKey)) {
         // Fallback when only boolean API is available.
         const hand = (cs.hands && cs.hands[playerKey]) ? cs.hands[playerKey] : [];
-        return hand.slice();
+        return buildFallbackCardUsabilityAnalysis(playerKey, hand, cardLogicRef);
     }
     if (typeof cardLogicRef.canUseCard === 'function') {
         const hand = (cs.hands && cs.hands[playerKey]) ? cs.hands[playerKey] : [];
-        return hand.filter((id: any) => {
+        const usable = hand.filter((id: any) => {
             try { return !!cardLogicRef.canUseCard(cs, playerKey, id); } catch (e) { return false; }
         });
+        return buildFallbackCardUsabilityAnalysis(playerKey, usable, cardLogicRef);
     }
-    return [];
+    return buildFallbackCardUsabilityAnalysis(playerKey, [], cardLogicRef);
+}
+
+function getTargetAwareUsableCardIds(playerKey: any): any {
+    return getTargetAwareCardUsabilityAnalysis(playerKey).usableCardIds.slice();
 }
 
 const makePlanPressureProfile = (CpuDecisionPlanPressureModule && typeof CpuDecisionPlanPressureModule.makePlanPressureProfile === 'function')
@@ -2227,6 +2274,9 @@ function buildCardUseDecisionContext(
     usableCardIds?: any,
     performanceScope?: CpuTurnPerformanceScope | null
 ): any {
+    const normalizedUsableCardIds = Array.isArray(usableCardIds && usableCardIds.usableCardIds)
+        ? usableCardIds.usableCardIds.slice()
+        : (Array.isArray(usableCardIds) ? usableCardIds.slice() : []);
     if (CpuDecisionCardContext && typeof CpuDecisionCardContext.buildCardUseDecisionContext === 'function') {
         return CpuDecisionCardContext.buildCardUseDecisionContext(
             playerKey,
@@ -2255,9 +2305,18 @@ function buildCardUseDecisionContext(
         ownCorners: 0,
         oppCorners: 0,
         swapEnemyNormalCornerTargetCount: 0,
+        temptHighValueTargetCount: 0,
         boardExpansionEnemyCornerTargetCount: 0,
         boardExpansionWillEnemyCornerTargetCount: 0,
         boardExpansionGodEnemyCornerTargetCount: 0,
+        movementCornerSwingTargetCounts: {
+            BUOYANCY_WILL: 0,
+            GRAVITY_WILL: 0,
+            SUPER_BUOYANCY_WILL: 0,
+            SUPER_GRAVITY_WILL: 0,
+            SUPER_ATTRACTION_WILL: 0
+        },
+        movementCornerSwingTargetCount: 0,
         ownEdges: 0,
         oppEdges: 0,
         hasCornerMoveNow: false,
@@ -2273,10 +2332,13 @@ function buildCardUseDecisionContext(
         cloneSplitEligibleSourceCount: 0,
         ownSpecialCount: 0,
         oppSpecialCount: 0,
+        ownBombCount: 0,
+        massFreezeOwnTargetCount: 0,
+        massFreezeOpponentTargetCount: 0,
         ownGuardCount: 0,
         oppGuardCount: 0,
-        usableCardIds: Array.isArray(usableCardIds) ? usableCardIds.slice() : [],
-        cornerPlanState: buildCornerPlanState(playerKey, legalMoves, usableCardIds)
+        usableCardIds: normalizedUsableCardIds,
+        cornerPlanState: buildCornerPlanState(playerKey, legalMoves, normalizedUsableCardIds)
     };
 }
 
@@ -2446,6 +2508,7 @@ const CpuDecisionCardChoice = (CpuDecisionCardChoiceModule && typeof CpuDecision
         getFlipBlockers: () => ((typeof getFlipBlockers === 'function') ? getFlipBlockers() : []),
         getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
         getLegalMoves: (state: any, protection: any, perma: any) => ((typeof getLegalMoves === 'function') ? getLegalMoves(state, protection, perma) : []),
+        getTargetAwareCardUsabilityAnalysis,
         getTargetAwareUsableCardIds,
         isAISystemAvailable,
         isCardChoiceAllowedByHighConfidence,
@@ -2529,9 +2592,13 @@ function applyCardChoice(
     return false;
 }
 
-function cpuMaybeUseCardWithPolicy(playerKey: any, performanceScope?: CpuTurnPerformanceScope | null): any {
+function cpuMaybeUseCardWithPolicy(
+    playerKey: any,
+    performanceScope?: CpuTurnPerformanceScope | null,
+    prepared?: any
+): any {
     if (CpuDecisionCardActions && typeof CpuDecisionCardActions.cpuMaybeUseCardWithPolicy === 'function') {
-        return CpuDecisionCardActions.cpuMaybeUseCardWithPolicy(playerKey, performanceScope);
+        return CpuDecisionCardActions.cpuMaybeUseCardWithPolicy(playerKey, performanceScope, prepared);
     }
     return false;
 }
@@ -2582,6 +2649,17 @@ function prepareCpuCandidateScoringRequest(candidateMoves: any, playerKey: any, 
         return CpuDecisionMoveSelection.prepareCpuCandidateScoringRequest(candidateMoves, playerKey, identity);
     }
     return null;
+}
+
+function selectCardDecision(
+    playerKey: any,
+    performanceScope?: CpuTurnPerformanceScope | null,
+    prepared?: any
+): any {
+    if (CpuDecisionCardChoice && typeof CpuDecisionCardChoice.selectCardDecision === 'function') {
+        return CpuDecisionCardChoice.selectCardDecision(playerKey, performanceScope, prepared);
+    }
+    return { choice: selectCardToUse(playerKey, performanceScope), prepared: null };
 }
 
 function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any, candidateScoringPrecompute?: any): any {

@@ -20,6 +20,9 @@ describe('cpu decision card context module', () => {
     };
     const moduleRef = createCpuDecisionCardContext({
       getGameState: () => ({ board }),
+      getCardLogic: () => ({
+        getCardDef: (cardId: string) => ({ id: cardId, type: cardId === 'a' ? 'CLONE_WILL' : 'TREASURE_BOX' })
+      }),
       getCardState: () => ({
         charge: { black: 10, white: 5 },
         hands: { black: ['a', 'b'], white: ['x'] },
@@ -110,6 +113,7 @@ describe('cpu decision card context module', () => {
         markers: []
       }),
       getCardLogic: () => ({
+        getCardDef: (cardId: string) => ({ id: cardId, type: 'BOARD_EXPANSION_GOD' }),
         getBoardExpansionTargets: () => [],
         getBoardExpansionGodTargets: () => [
           { row: 0, col: 0 },
@@ -169,6 +173,7 @@ describe('cpu decision card context module', () => {
         ]
       }),
       getCardLogic: () => ({
+        getCardDef: (cardId: string) => ({ id: cardId, type: cardId === 'tempt_01' ? 'TEMPT_WILL' : '' }),
         getBoardExpansionTargets: () => [],
         getBoardExpansionGodTargets: () => [],
         getSwapTargets: () => [],
@@ -216,11 +221,30 @@ describe('cpu decision card context module', () => {
       getGameState: () => ({ board }),
       getCardState: () => ({
         charge: { black: 0, white: 80 },
-        hands: { black: [], white: [] },
+        hands: {
+          black: [],
+          white: [
+            'buoyancy_01',
+            'gravity_01',
+            'super_buoyancy_01',
+            'super_gravity_01',
+            'super_attraction_01'
+          ]
+        },
         decks: { black: [], white: [] },
         markers: []
       }),
       getCardLogic: () => ({
+        getCardDef: (cardId: string) => ({
+          id: cardId,
+          type: ({
+            buoyancy_01: 'BUOYANCY_WILL',
+            gravity_01: 'GRAVITY_WILL',
+            super_buoyancy_01: 'SUPER_BUOYANCY_WILL',
+            super_gravity_01: 'SUPER_GRAVITY_WILL',
+            super_attraction_01: 'SUPER_ATTRACTION_WILL'
+          } as Record<string, string>)[cardId]
+        }),
         getBoardExpansionTargets: () => [],
         getBoardExpansionGodTargets: () => [],
         getSwapTargets: () => [],
@@ -263,7 +287,13 @@ describe('cpu decision card context module', () => {
       )
     });
 
-    const context = moduleRef.buildCardUseDecisionContext('white', 6, 1, [], []);
+    const context = moduleRef.buildCardUseDecisionContext('white', 6, 1, [], [
+      'buoyancy_01',
+      'gravity_01',
+      'super_buoyancy_01',
+      'super_gravity_01',
+      'super_attraction_01'
+    ]);
 
     expect(context.movementCornerSwingTargetCounts).toMatchObject({
       BUOYANCY_WILL: 1,
@@ -273,5 +303,170 @@ describe('cpu decision card context module', () => {
       SUPER_ATTRACTION_WILL: 1
     });
     expect(context.movementCornerSwingTargetCount).toBe(1);
+  });
+
+  test('feature-demand runs only getters required by usable card types', () => {
+    const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    board[3][3] = -1;
+    const gameState = { board };
+    const cardState = {
+      charge: { black: 0, white: 99 },
+      hands: { black: [], white: [] },
+      decks: { black: [], white: [] },
+      markers: [{ kind: 'specialStone', owner: 'white', row: 3, col: 3, data: { type: 'GUARD' } }]
+    };
+    const typesById: Record<string, string> = {
+      expand: 'BOARD_EXPANSION_WILL',
+      swap: 'SWAP_WITH_ENEMY',
+      tempt: 'TEMPT_WILL',
+      buoyancy: 'BUOYANCY_WILL',
+      clone: 'CLONE_WILL',
+      freeze: 'MASS_FREEZE_WILL'
+    };
+    const getters = {
+      getBoardExpansionTargets: jest.fn(() => []),
+      getBoardExpansionGodTargets: jest.fn(() => []),
+      getSwapTargets: jest.fn(() => []),
+      getTemptWillTargets: jest.fn(() => []),
+      getBuoyancyTargets: jest.fn(() => []),
+      getGravityTargets: jest.fn(() => []),
+      getSuperBuoyancyTargets: jest.fn(() => []),
+      getSuperGravityTargets: jest.fn(() => []),
+      getSuperAttractionTargets: jest.fn(() => []),
+      collectMassFreezeWillTargets: jest.fn(() => [])
+    };
+    const moduleRef = createCpuDecisionCardContext({
+      getGameState: () => gameState,
+      getCardState: () => cardState,
+      getCardLogic: () => ({
+        getCardDef: (cardId: string) => ({ id: cardId, type: typesById[cardId] }),
+        ...getters
+      }),
+      resolvePlayerValue: () => -1,
+      getShapeAwareBoard: (sourceBoard: any) => sourceBoard,
+      countBoardStatsForPlayer: () => ({ discDiff: 0, empties: 64 }),
+      countEdgeControl: () => ({ ownEdges: 0, oppEdges: 0 }),
+      buildCornerPlanState: () => ({
+        ownCorners: 0,
+        oppCorners: 0,
+        hasCornerMoveNow: false,
+        hasEdgeMoveNow: false,
+        cornerEmergency: false,
+        cornerHoldMode: false,
+        recoveryCostGap: 0,
+        highBonusMoveAvailable: false
+      }),
+      getBoardBonusValueAt: () => 0,
+      getBoardCellValueSafe: (sourceBoard: any, row: number, col: number) => sourceBoard[row][col],
+      getCpuPolicyCore: () => null,
+      isCornerCell: () => false
+    });
+
+    const cases = [
+      ['expand', 'getBoardExpansionTargets'],
+      ['swap', 'getSwapTargets'],
+      ['tempt', 'getTemptWillTargets'],
+      ['buoyancy', 'getBuoyancyTargets'],
+      ['freeze', 'collectMassFreezeWillTargets']
+    ] as const;
+    for (const [cardId, expectedGetter] of cases) {
+      Object.values(getters).forEach((getter) => getter.mockClear());
+      moduleRef.buildCardUseDecisionContext('white', 6, 1, [], [cardId]);
+      for (const [name, getter] of Object.entries(getters)) {
+        expect(getter).toHaveBeenCalledTimes(name === expectedGetter ? 1 : 0);
+      }
+    }
+
+    Object.values(getters).forEach((getter) => getter.mockClear());
+    const cloneContext = moduleRef.buildCardUseDecisionContext('white', 6, 1, [], ['clone']);
+    expect(cloneContext.cloneSplitEligibleSourceCount).toBe(1);
+    expect(Object.values(getters).every((getter) => getter.mock.calls.length === 0)).toBe(true);
+
+    const emptyContext = moduleRef.buildCardUseDecisionContext('white', 6, 1, [], []);
+    expect(emptyContext).toMatchObject({
+      boardExpansionEnemyCornerTargetCount: 0,
+      swapEnemyNormalCornerTargetCount: 0,
+      temptHighValueTargetCount: 0,
+      cloneSplitEligibleSourceCount: 0,
+      massFreezeOwnTargetCount: 0,
+      massFreezeOpponentTargetCount: 0,
+      movementCornerSwingTargetCounts: {
+        BUOYANCY_WILL: 0,
+        GRAVITY_WILL: 0,
+        SUPER_BUOYANCY_WILL: 0,
+        SUPER_GRAVITY_WILL: 0,
+        SUPER_ATTRACTION_WILL: 0
+      }
+    });
+  });
+
+  test('reuses exact public selector evidence but never local-lane evidence', () => {
+    const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    board[0][0] = 1;
+    const gameState = { board };
+    const cardState = {
+      charge: { black: 0, white: 99 },
+      hands: { black: [], white: ['expand'] },
+      decks: { black: [], white: [] },
+      markers: []
+    };
+    const getBoardExpansionTargets = jest.fn(() => [{ row: 7, col: 7 }]);
+    const cardLogic = {
+      getCardDef: () => ({ id: 'expand', type: 'BOARD_EXPANSION_WILL' }),
+      getBoardExpansionTargets
+    };
+    const moduleRef = createCpuDecisionCardContext({
+      getGameState: () => gameState,
+      getCardState: () => cardState,
+      getCardLogic: () => cardLogic,
+      resolvePlayerValue: () => -1,
+      getShapeAwareBoard: (sourceBoard: any) => sourceBoard,
+      countBoardStatsForPlayer: () => ({ discDiff: 0, empties: 63 }),
+      countEdgeControl: () => ({ ownEdges: 0, oppEdges: 0 }),
+      buildCornerPlanState: () => ({
+        ownCorners: 0,
+        oppCorners: 1,
+        hasCornerMoveNow: false,
+        hasEdgeMoveNow: false,
+        cornerEmergency: true,
+        cornerHoldMode: false,
+        recoveryCostGap: 0,
+        highBonusMoveAvailable: false
+      }),
+      getBoardBonusValueAt: () => 0,
+      getBoardCellValueSafe: (sourceBoard: any, row: number, col: number) => sourceBoard[row][col],
+      getCpuPolicyCore: () => null,
+      isCornerCell: (row: number, col: number) => (row === 0 || row === 7) && (col === 0 || col === 7)
+    });
+    const makeAnalysis = (lane: string) => ({
+      usableCardIds: ['expand'],
+      usableCardTypes: ['BOARD_EXPANSION_WILL'],
+      usableSlots: [{ cardId: 'expand', cardType: 'BOARD_EXPANSION_WILL', handIndex: 0, cardCopyId: 41 }],
+      selectorEvidence: {
+        evidence: {
+          lane,
+          method: 'getBoardExpansionTargets',
+          cardState,
+          gameState,
+          playerKey: 'white',
+          cardId: 'expand',
+          cardType: 'BOARD_EXPANSION_WILL',
+          handIndex: 0,
+          cardCopyId: 41,
+          args: [cardState, gameState, 'white'],
+          resolver: getBoardExpansionTargets,
+          available: true,
+          result: [{ row: 0, col: 0 }]
+        }
+      }
+    });
+
+    const fromPublicEvidence = moduleRef.buildCardUseDecisionContext('white', 6, 1, [], makeAnalysis('public'));
+    expect(fromPublicEvidence.boardExpansionWillEnemyCornerTargetCount).toBe(1);
+    expect(getBoardExpansionTargets).not.toHaveBeenCalled();
+
+    const fromLocalEvidence = moduleRef.buildCardUseDecisionContext('white', 6, 1, [], makeAnalysis('local'));
+    expect(fromLocalEvidence.boardExpansionWillEnemyCornerTargetCount).toBe(0);
+    expect(getBoardExpansionTargets).toHaveBeenCalledTimes(1);
   });
 });

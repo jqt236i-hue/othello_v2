@@ -27,6 +27,7 @@ interface Context {
     constants?: any;
     helpers?: any;
     modules?: any;
+    helperSelectorLane?: CardSelectorLane;
 }
 
 interface Constants {
@@ -52,6 +53,102 @@ interface DestroyResult {
     reason?: string;
     destroyedCardId?: string;
     destroyedCardCopyId?: number;
+}
+
+type CardSelectorLane = 'local' | 'module' | 'public';
+
+interface CardSelectorEvidence {
+    key: string;
+    lane: CardSelectorLane;
+    method: string;
+    cardState: any;
+    gameState: any;
+    playerKey: string;
+    handIndex: number;
+    cardId: string;
+    cardType: string;
+    cardCopyId: number | null;
+    args: readonly any[];
+    resolver: any;
+    resolverOwner: any;
+    available: boolean;
+    status: 'value' | 'missing' | 'threw';
+    result: any;
+}
+
+interface CardUsabilityAnalysis {
+    usableCardIds: readonly string[];
+    usableCardTypes: readonly string[];
+    selectorEvidence: Readonly<Record<string, Readonly<CardSelectorEvidence>>>;
+    usableSlots: readonly Readonly<{
+        cardId: string;
+        cardType: string;
+        handIndex: number;
+        cardCopyId: number | null;
+    }>[];
+}
+
+interface SelectorEvidenceScope {
+    cardState: any;
+    gameState: any;
+    playerKey: string;
+    handIndex: number;
+    cardId: string;
+    cardType: string;
+    cardCopyId: number | null;
+    options: any;
+    evidence: Record<string, Readonly<CardSelectorEvidence>>;
+}
+
+const selectorObjectIdentities = new WeakMap<object, number>();
+let nextSelectorObjectIdentity = 1;
+
+function getSelectorValueIdentity(value: any): string {
+    if ((typeof value === 'object' && value !== null) || typeof value === 'function') {
+        const objectValue = value as object;
+        let identity = selectorObjectIdentities.get(objectValue);
+        if (!identity) {
+            identity = nextSelectorObjectIdentity;
+            nextSelectorObjectIdentity += 1;
+            selectorObjectIdentities.set(objectValue, identity);
+        }
+        return `object:${identity}`;
+    }
+    if (typeof value === 'number' && Number.isNaN(value)) return 'number:NaN';
+    if (typeof value === 'number' && Object.is(value, -0)) return 'number:-0';
+    return `${typeof value}:${String(value)}`;
+}
+
+function buildSelectorEvidenceKey(
+    scope: SelectorEvidenceScope,
+    lane: CardSelectorLane,
+    methodName: string,
+    args: any[],
+    resolver?: any
+): string {
+    return JSON.stringify([
+        getSelectorValueIdentity(scope.cardState),
+        getSelectorValueIdentity(scope.gameState),
+        getSelectorValueIdentity(scope.options),
+        scope.playerKey,
+        scope.handIndex,
+        scope.cardCopyId,
+        scope.cardId,
+        scope.cardType,
+        lane,
+        methodName,
+        getSelectorValueIdentity(resolver),
+        ...(Array.isArray(args) ? args : []).map(getSelectorValueIdentity)
+    ]);
+}
+
+function createEmptyCardUsabilityAnalysis(): CardUsabilityAnalysis {
+    return Object.freeze({
+        usableCardIds: Object.freeze([] as string[]),
+        usableCardTypes: Object.freeze([] as string[]),
+        selectorEvidence: Object.freeze({}),
+        usableSlots: Object.freeze([])
+    });
 }
 
 function getConstants(context: Context): Constants {
@@ -499,35 +596,91 @@ function hasTargets(targets: any[], minimumCount: number): boolean {
     return Array.isArray(targets) && targets.length >= safeMinimumCount;
 }
 
-function invokeLocalSelector(context: Context, methodName: string, args: any[]): any {
-    const helpers = getHelpers(context);
-    const selector = helpers[methodName];
-    if (typeof selector !== 'function') return null;
-    try {
-        return selector.apply(null, args);
-    } catch (e) {
-        return null;
+function invokeSelectorWithEvidence(
+    context: Context,
+    scope: SelectorEvidenceScope,
+    lane: CardSelectorLane,
+    methodName: string,
+    args: any[],
+    propagateErrors: boolean = false
+): any {
+    let owner: any = null;
+    let selector: any = null;
+    if (lane === 'local' || lane === 'public') {
+        owner = null;
+        selector = getHelpers(context)[methodName];
+    } else if (lane === 'module') {
+        owner = getCardSelectorsModule(context);
+        selector = owner && owner[methodName];
     }
+    const available = typeof selector === 'function';
+    const key = buildSelectorEvidenceKey(scope, lane, methodName, args, selector);
+    const existing = scope.evidence[key];
+    if (existing) {
+        return Array.isArray(existing.result) ? existing.result.slice() : existing.result;
+    }
+    let result: any = null;
+    let status: CardSelectorEvidence['status'] = available ? 'value' : 'missing';
+    let thrownError: any = null;
+    if (available) {
+        try {
+            result = selector.apply(owner, args);
+        } catch (e) {
+            status = 'threw';
+            thrownError = e;
+            result = null;
+        }
+    }
+    const evidenceResult = Array.isArray(result) ? Object.freeze(result.slice()) : result;
+    scope.evidence[key] = Object.freeze({
+        key,
+        lane,
+        method: methodName,
+        cardState: scope.cardState,
+        gameState: scope.gameState,
+        playerKey: scope.playerKey,
+        handIndex: scope.handIndex,
+        cardId: scope.cardId,
+        cardType: scope.cardType,
+        cardCopyId: scope.cardCopyId,
+        args: Object.freeze((Array.isArray(args) ? args : []).slice()),
+        resolver: selector,
+        resolverOwner: owner,
+        available,
+        status,
+        result: evidenceResult
+    });
+    if (thrownError && propagateErrors) throw thrownError;
+    return Array.isArray(evidenceResult) ? evidenceResult.slice() : evidenceResult;
 }
 
-function invokeModuleSelector(context: Context, methodName: string, args: any[]): any {
+function invokeLocalSelector(context: Context, scope: SelectorEvidenceScope, methodName: string, args: any[]): any {
+    const lane = context && context.helperSelectorLane === 'public' ? 'public' : 'local';
+    return invokeSelectorWithEvidence(context, scope, lane, methodName, args);
+}
+
+function invokeModuleSelector(context: Context, scope: SelectorEvidenceScope, methodName: string, args: any[]): any {
+    return invokeSelectorWithEvidence(context, scope, 'module', methodName, args);
+}
+
+function requireLocalTargets(context: Context, scope: SelectorEvidenceScope, methodName: string, args: any[], minimumCount: number): boolean {
+    const targets = invokeLocalSelector(context, scope, methodName, args);
+    const lane = context && context.helperSelectorLane === 'public' ? 'public' : 'local';
+    const selector = getHelpers(context)[methodName];
+    const evidence = scope.evidence[buildSelectorEvidenceKey(scope, lane, methodName, args, selector)];
+    return !evidence || evidence.available === false || targets === null
+        ? true
+        : hasTargets(targets, minimumCount);
+}
+
+function requireModuleTargets(context: Context, scope: SelectorEvidenceScope, methodName: string, args: any[], minimumCount: number): boolean {
+    const targets = invokeModuleSelector(context, scope, methodName, args);
     const selectorsModule = getCardSelectorsModule(context);
-    if (!selectorsModule || typeof selectorsModule[methodName] !== 'function') return null;
-    try {
-        return selectorsModule[methodName].apply(selectorsModule, args);
-    } catch (e) {
-        return null;
-    }
-}
-
-function requireLocalTargets(context: Context, methodName: string, args: any[], minimumCount: number): boolean {
-    const targets = invokeLocalSelector(context, methodName, args);
-    return targets === null ? true : hasTargets(targets, minimumCount);
-}
-
-function requireModuleTargets(context: Context, methodName: string, args: any[], minimumCount: number): boolean {
-    const targets = invokeModuleSelector(context, methodName, args);
-    return targets === null ? true : hasTargets(targets, minimumCount);
+    const selector = selectorsModule && selectorsModule[methodName];
+    const evidence = scope.evidence[buildSelectorEvidenceKey(scope, 'module', methodName, args, selector)];
+    return !evidence || evidence.available === false || targets === null
+        ? true
+        : hasTargets(targets, minimumCount);
 }
 
 const USAGE_PRECHECK_TARGET_METHODS = [
@@ -561,27 +714,31 @@ const USAGE_PRECHECK_TARGET_METHODS = [
     'getMeteorTargets',
     'getCausalReplayTargets',
     'getFreezeTargets',
-    'getSeedTargets'
+    'getSeedTargets',
+    'getMassFreezeWillTargetCount'
 ];
 
-function resolveUsagePrecheckTargetResolver(context: Context, methodName: string): any {
+function resolveUsagePrecheckTargetResolver(context: Context, scope: SelectorEvidenceScope, methodName: string): any {
     const helpers = getHelpers(context);
     if (typeof helpers[methodName] === 'function') {
-        return helpers[methodName];
+        return function localTargetResolver(...args: any[]) {
+            const lane = context && context.helperSelectorLane === 'public' ? 'public' : 'local';
+            return invokeSelectorWithEvidence(context, scope, lane, methodName, args, true);
+        };
     }
     const selectorsModule = getCardSelectorsModule(context);
     if (selectorsModule && typeof selectorsModule[methodName] === 'function') {
         return function moduleTargetResolver(...args: any[]) {
-            return selectorsModule[methodName].apply(selectorsModule, args);
+            return invokeSelectorWithEvidence(context, scope, 'module', methodName, args, true);
         };
     }
     return undefined;
 }
 
-function buildUsagePrecheckTargetResolvers(context: Context): Record<string, any> {
+function buildUsagePrecheckTargetResolvers(context: Context, scope: SelectorEvidenceScope): Record<string, any> {
     const resolvers: Record<string, any> = {};
     for (const methodName of USAGE_PRECHECK_TARGET_METHODS) {
-        const resolver = resolveUsagePrecheckTargetResolver(context, methodName);
+        const resolver = resolveUsagePrecheckTargetResolver(context, scope, methodName);
         if (typeof resolver === 'function') {
             resolvers[methodName] = resolver;
         }
@@ -595,7 +752,8 @@ function passesUsagePreconditionsForUsableList(
     playerKey: string,
     cardId: string,
     cardType: string,
-    context: Context
+    context: Context,
+    scope: SelectorEvidenceScope
 ): boolean {
     if (!CardUsagePrechecksModule || typeof CardUsagePrechecksModule.validateCardUsagePreconditions !== 'function') {
         return true;
@@ -607,7 +765,7 @@ function passesUsagePreconditionsForUsableList(
         : '';
     const result = CardUsagePrechecksModule.validateCardUsagePreconditions({
         ...helpers,
-        ...buildUsagePrecheckTargetResolvers(context),
+        ...buildUsagePrecheckTargetResolvers(context, scope),
         cardState,
         gameState,
         playerKey,
@@ -859,11 +1017,27 @@ function destroyHandCard(cardState: any, playerKey: string, cardId: string, opts
     return { applied: true, destroyedCardId: removed.cardId, destroyedCardCopyId: removed.cardCopyId };
 }
 
-function getUsableCardIds(cardState: any, gameState: any, playerKey: string, context: Context, opts?: any): string[] {
-    if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return [];
+function analyzeCardUsability(
+    cardState: any,
+    gameState: any,
+    playerKey: string,
+    context: Context,
+    opts?: any
+): CardUsabilityAnalysis {
+    if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) {
+        return createEmptyCardUsabilityAnalysis();
+    }
     const helpers = getHelpers(context);
     const hand = cardState.hands[playerKey];
     const res: string[] = [];
+    const usableCardTypes: string[] = [];
+    const usableSlots: Array<Readonly<{
+        cardId: string;
+        cardType: string;
+        handIndex: number;
+        cardCopyId: number | null;
+    }>> = [];
+    const selectorEvidence: Record<string, Readonly<CardSelectorEvidence>> = {};
 
     for (let handIndex = 0; handIndex < hand.length; handIndex += 1) {
         const cardId = hand[handIndex];
@@ -872,9 +1046,26 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
         const def = getCardDef(cardId, context);
         if (!def) continue;
         const type = def.type;
-        if (gameState && !passesUsagePreconditionsForUsableList(cardState, gameState, playerKey, cardId, type, context)) continue;
+        const rawCopyId = Number(getHandCopyIdAt(cardState, playerKey, handIndex));
+        const scope: SelectorEvidenceScope = {
+            cardState,
+            gameState,
+            playerKey,
+            handIndex,
+            cardId,
+            cardType: type,
+            cardCopyId: Number.isInteger(rawCopyId) && rawCopyId > 0 ? rawCopyId : null,
+            options: opts || null,
+            evidence: selectorEvidence
+        };
+        const usagePreconditionsChecked = !!(
+            gameState
+            && CardUsagePrechecksModule
+            && typeof CardUsagePrechecksModule.validateCardUsagePreconditions === 'function'
+        );
+        if (usagePreconditionsChecked && !passesUsagePreconditionsForUsableList(cardState, gameState, playerKey, cardId, type, context, scope)) continue;
 
-        if (type === 'EQUALITY_WILL') {
+        if (type === 'EQUALITY_WILL' && !usagePreconditionsChecked) {
             if (typeof helpers.canUseEqualityWillForPlayer !== 'function') continue;
             if (!helpers.canUseEqualityWillForPlayer(cardState, gameState, playerKey)) continue;
         }
@@ -917,52 +1108,58 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (destroyedOwnStoneCount <= 0) continue;
         }
 
-        if (type === 'MASS_FREEZE_WILL') {
+        if (type === 'MASS_FREEZE_WILL' && !usagePreconditionsChecked) {
             if (typeof helpers.getMassFreezeWillTargetCount !== 'function') continue;
-            if (helpers.getMassFreezeWillTargetCount(cardState, gameState, playerKey) <= 0) continue;
+            const massFreezeTargetCount = invokeLocalSelector(
+                context,
+                scope,
+                'getMassFreezeWillTargetCount',
+                [cardState, gameState, playerKey]
+            );
+            if (massFreezeTargetCount <= 0) continue;
         }
 
         if (gameState) {
-            if (type === 'LAST_RESORT') {
+            if (type === 'LAST_RESORT' && !usagePreconditionsChecked) {
                 if (typeof helpers.canUseLastResortForPlayer !== 'function') continue;
                 if (!helpers.canUseLastResortForPlayer(cardState, gameState, playerKey)) continue;
             }
 
-            if (type === 'REINFORCEMENT_WILL') {
+            if (type === 'REINFORCEMENT_WILL' && !usagePreconditionsChecked) {
                 if (typeof helpers.canUseReinforcementWillForPlayer !== 'function') continue;
                 if (!helpers.canUseReinforcementWillForPlayer(cardState, gameState, playerKey)) continue;
             }
 
-            if (type === 'SUPPORT_TROOPS_WILL') {
+            if (type === 'SUPPORT_TROOPS_WILL' && !usagePreconditionsChecked) {
                 if (typeof helpers.canUseSupportTroopsWillForPlayer !== 'function') continue;
                 if (!helpers.canUseSupportTroopsWillForPlayer(cardState, gameState, playerKey)) continue;
             }
 
-            if (type === 'TIME_STOP_GOD') {
+            if (type === 'TIME_STOP_GOD' && !usagePreconditionsChecked) {
                 if (typeof helpers.canUseTimeStopGodForPlayer !== 'function') continue;
                 if (!helpers.canUseTimeStopGodForPlayer(cardState, gameState, playerKey)) continue;
             }
 
-            if (type === 'TIME_STOP_DEITY') {
+            if (type === 'TIME_STOP_DEITY' && !usagePreconditionsChecked) {
                 if (typeof helpers.canUseTimeStopDeityForPlayer !== 'function') continue;
                 if (!helpers.canUseTimeStopDeityForPlayer(cardState, gameState, playerKey)) continue;
             }
 
-            if (type === 'TEMPT_WILL' && !requireLocalTargets(context, 'getTemptWillTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'TRAP_WILL' && !requireLocalTargets(context, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;
-            if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') && !requireLocalTargets(context, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'LIVING_WILL' && !requireLocalTargets(context, 'getLivingWillTargets', [cardState, gameState, playerKey], 1)) continue;
-            if ((type === 'EXTEND_LIFE_WILL' || type === 'EXTEND_LIFE_GOD') && !requireLocalTargets(context, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'CORROSION_WILL' && !requireLocalTargets(context, 'getCorrosionTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'TIME_BOMB' && !requireLocalTargets(context, 'getTimeBombTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'TELEPORT_WILL' && !requireLocalTargets(context, 'getTeleportTargets', [cardState, gameState], 1)) continue;
-            if (type === 'CELL_TELEPORT_WILL' && !requireLocalTargets(context, 'getCellTeleportTargets', [cardState, gameState], 1)) continue;
-            if (type === 'BUOYANCY_WILL' && !requireLocalTargets(context, 'getBuoyancyTargets', [cardState, gameState], 1)) continue;
-            if (type === 'SUPER_BUOYANCY_WILL' && !requireLocalTargets(context, 'getSuperBuoyancyTargets', [cardState, gameState], 1)) continue;
-            if (type === 'GRAVITY_WILL' && !requireLocalTargets(context, 'getGravityTargets', [cardState, gameState], 1)) continue;
-            if (type === 'SUPER_GRAVITY_WILL' && !requireLocalTargets(context, 'getSuperGravityTargets', [cardState, gameState], 1)) continue;
-            if (type === 'SUPER_ATTRACTION_WILL' && !requireLocalTargets(context, 'getSuperAttractionTargets', [cardState, gameState, playerKey, null], 1)) continue;
-            if (type === 'CLONE_WILL' && !requireLocalTargets(context, 'getCloneTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'TEMPT_WILL' && !requireLocalTargets(context, scope, 'getTemptWillTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'TRAP_WILL' && !requireLocalTargets(context, scope, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;
+            if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') && !requireLocalTargets(context, scope, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'LIVING_WILL' && !requireLocalTargets(context, scope, 'getLivingWillTargets', [cardState, gameState, playerKey], 1)) continue;
+            if ((type === 'EXTEND_LIFE_WILL' || type === 'EXTEND_LIFE_GOD') && !requireLocalTargets(context, scope, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'CORROSION_WILL' && !requireLocalTargets(context, scope, 'getCorrosionTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'TIME_BOMB' && !requireLocalTargets(context, scope, 'getTimeBombTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'TELEPORT_WILL' && !requireLocalTargets(context, scope, 'getTeleportTargets', [cardState, gameState], 1)) continue;
+            if (type === 'CELL_TELEPORT_WILL' && !requireLocalTargets(context, scope, 'getCellTeleportTargets', [cardState, gameState], 1)) continue;
+            if (type === 'BUOYANCY_WILL' && !requireLocalTargets(context, scope, 'getBuoyancyTargets', [cardState, gameState], 1)) continue;
+            if (type === 'SUPER_BUOYANCY_WILL' && !requireLocalTargets(context, scope, 'getSuperBuoyancyTargets', [cardState, gameState], 1)) continue;
+            if (type === 'GRAVITY_WILL' && !requireLocalTargets(context, scope, 'getGravityTargets', [cardState, gameState], 1)) continue;
+            if (type === 'SUPER_GRAVITY_WILL' && !requireLocalTargets(context, scope, 'getSuperGravityTargets', [cardState, gameState], 1)) continue;
+            if (type === 'SUPER_ATTRACTION_WILL' && !requireLocalTargets(context, scope, 'getSuperAttractionTargets', [cardState, gameState, playerKey, null], 1)) continue;
+            if (type === 'CLONE_WILL' && !requireLocalTargets(context, scope, 'getCloneTargets', [cardState, gameState, playerKey], 1)) continue;
 
             if (type === 'POSITION_SWAP_WILL') {
                 const getOccupiedBoardShapeCellsForCard = helpers.getOccupiedBoardShapeCellsForCard;
@@ -972,49 +1169,65 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
                 if (occupied < 2) continue;
             }
 
-            if (type === 'BOARD_EXPANSION_WILL' && !requireLocalTargets(context, 'getBoardExpansionTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'BOARD_EXPANSION_GOD' && !requireLocalTargets(context, 'getBoardExpansionGodTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'BOARD_SHRINK_WILL' && !requireLocalTargets(context, 'getBoardShrinkTargets', [cardState, gameState, playerKey], 3)) continue;
-            if (type === 'BOARD_SHRINK_GOD' && !requireLocalTargets(context, 'getBoardShrinkGodTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'BLOCKADE_WILL' && !requireLocalTargets(context, 'getBlockadeTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'POISON_WILL' && !requireLocalTargets(context, 'getPoisonTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'METEOR_WILL' && !requireLocalTargets(context, 'getMeteorTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'CAUSAL_REPLAY_WILL' && !requireLocalTargets(context, 'getCausalReplayTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'FREEZE_WILL' && !requireLocalTargets(context, 'getFreezeTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'SEED_WILL' && !requireLocalTargets(context, 'getSeedTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'BOARD_EXPANSION_WILL' && !requireLocalTargets(context, scope, 'getBoardExpansionTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'BOARD_EXPANSION_GOD' && !requireLocalTargets(context, scope, 'getBoardExpansionGodTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'BOARD_SHRINK_WILL' && !requireLocalTargets(context, scope, 'getBoardShrinkTargets', [cardState, gameState, playerKey], 3)) continue;
+            if (type === 'BOARD_SHRINK_GOD' && !requireLocalTargets(context, scope, 'getBoardShrinkGodTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'BLOCKADE_WILL' && !requireLocalTargets(context, scope, 'getBlockadeTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'POISON_WILL' && !requireLocalTargets(context, scope, 'getPoisonTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'METEOR_WILL' && !requireLocalTargets(context, scope, 'getMeteorTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'CAUSAL_REPLAY_WILL' && !requireLocalTargets(context, scope, 'getCausalReplayTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'FREEZE_WILL' && !requireLocalTargets(context, scope, 'getFreezeTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'SEED_WILL' && !requireLocalTargets(context, scope, 'getSeedTargets', [cardState, gameState, playerKey], 1)) continue;
 
-            if (type === 'DESTROY_ONE_STONE' && !requireModuleTargets(context, 'getDestroyTargets', [cardState, gameState], 1)) continue;
-            if (type === 'STRONG_WIND_WILL' && !requireModuleTargets(context, 'getStrongWindTargets', [cardState, gameState], 1)) continue;
-            if (type === 'BUOYANCY_WILL' && !requireModuleTargets(context, 'getBuoyancyTargets', [cardState, gameState], 1)) continue;
-            if (type === 'SUPER_BUOYANCY_WILL' && !requireModuleTargets(context, 'getSuperBuoyancyTargets', [cardState, gameState], 1)) continue;
-            if (type === 'GRAVITY_WILL' && !requireModuleTargets(context, 'getGravityTargets', [cardState, gameState], 1)) continue;
-            if (type === 'SUPER_GRAVITY_WILL' && !requireModuleTargets(context, 'getSuperGravityTargets', [cardState, gameState], 1)) continue;
-            if (type === 'SUPER_ATTRACTION_WILL' && !requireModuleTargets(context, 'getSuperAttractionTargets', [cardState, gameState, playerKey, null], 1)) continue;
-            if (type === 'SWAP_WITH_ENEMY' && !requireModuleTargets(context, 'getSwapTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'POSITION_SWAP_WILL' && !requireModuleTargets(context, 'getPositionSwapTargets', [cardState, gameState, playerKey, null], 2)) continue;
-            if (type === 'TRAP_WILL' && !requireModuleTargets(context, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;
-            if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') && !requireModuleTargets(context, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'LIVING_WILL' && !requireModuleTargets(context, 'getLivingWillTargets', [cardState, gameState, playerKey], 1)) continue;
-            if ((type === 'EXTEND_LIFE_WILL' || type === 'EXTEND_LIFE_GOD') && !requireModuleTargets(context, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'TIME_BOMB' && !requireModuleTargets(context, 'getTimeBombTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'TELEPORT_WILL' && !requireModuleTargets(context, 'getTeleportTargets', [cardState, gameState], 1)) continue;
-            if (type === 'CELL_TELEPORT_WILL' && !requireModuleTargets(context, 'getCellTeleportTargets', [cardState, gameState], 1)) continue;
-            if (type === 'CLONE_WILL' && !requireModuleTargets(context, 'getCloneTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'BOARD_EXPANSION_GOD' && !requireModuleTargets(context, 'getBoardExpansionGodTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'BOARD_SHRINK_WILL' && !requireModuleTargets(context, 'getBoardShrinkTargets', [cardState, gameState, playerKey], 3)) continue;
-            if (type === 'BOARD_SHRINK_GOD' && !requireModuleTargets(context, 'getBoardShrinkGodTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'BLOCKADE_WILL' && !requireModuleTargets(context, 'getBlockadeTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'POISON_WILL' && !requireModuleTargets(context, 'getPoisonTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'METEOR_WILL' && !requireModuleTargets(context, 'getMeteorTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'CAUSAL_REPLAY_WILL' && !requireModuleTargets(context, 'getCausalReplayTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'FREEZE_WILL' && !requireModuleTargets(context, 'getFreezeTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'SEED_WILL' && !requireModuleTargets(context, 'getSeedTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'DESTROY_ONE_STONE' && !requireModuleTargets(context, scope, 'getDestroyTargets', [cardState, gameState], 1)) continue;
+            if (type === 'STRONG_WIND_WILL' && !requireModuleTargets(context, scope, 'getStrongWindTargets', [cardState, gameState], 1)) continue;
+            if (type === 'BUOYANCY_WILL' && !requireModuleTargets(context, scope, 'getBuoyancyTargets', [cardState, gameState], 1)) continue;
+            if (type === 'SUPER_BUOYANCY_WILL' && !requireModuleTargets(context, scope, 'getSuperBuoyancyTargets', [cardState, gameState], 1)) continue;
+            if (type === 'GRAVITY_WILL' && !requireModuleTargets(context, scope, 'getGravityTargets', [cardState, gameState], 1)) continue;
+            if (type === 'SUPER_GRAVITY_WILL' && !requireModuleTargets(context, scope, 'getSuperGravityTargets', [cardState, gameState], 1)) continue;
+            if (type === 'SUPER_ATTRACTION_WILL' && !requireModuleTargets(context, scope, 'getSuperAttractionTargets', [cardState, gameState, playerKey, null], 1)) continue;
+            if (type === 'SWAP_WITH_ENEMY' && !requireModuleTargets(context, scope, 'getSwapTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'POSITION_SWAP_WILL' && !requireModuleTargets(context, scope, 'getPositionSwapTargets', [cardState, gameState, playerKey, null], 2)) continue;
+            if (type === 'TRAP_WILL' && !requireModuleTargets(context, scope, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;
+            if ((type === 'GUARD_WILL' || type === 'GUARDIAN_GOD') && !requireModuleTargets(context, scope, 'getGuardTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'LIVING_WILL' && !requireModuleTargets(context, scope, 'getLivingWillTargets', [cardState, gameState, playerKey], 1)) continue;
+            if ((type === 'EXTEND_LIFE_WILL' || type === 'EXTEND_LIFE_GOD') && !requireModuleTargets(context, scope, 'getExtendLifeTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'TIME_BOMB' && !requireModuleTargets(context, scope, 'getTimeBombTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'TELEPORT_WILL' && !requireModuleTargets(context, scope, 'getTeleportTargets', [cardState, gameState], 1)) continue;
+            if (type === 'CELL_TELEPORT_WILL' && !requireModuleTargets(context, scope, 'getCellTeleportTargets', [cardState, gameState], 1)) continue;
+            if (type === 'CLONE_WILL' && !requireModuleTargets(context, scope, 'getCloneTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'BOARD_EXPANSION_GOD' && !requireModuleTargets(context, scope, 'getBoardExpansionGodTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'BOARD_SHRINK_WILL' && !requireModuleTargets(context, scope, 'getBoardShrinkTargets', [cardState, gameState, playerKey], 3)) continue;
+            if (type === 'BOARD_SHRINK_GOD' && !requireModuleTargets(context, scope, 'getBoardShrinkGodTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'BLOCKADE_WILL' && !requireModuleTargets(context, scope, 'getBlockadeTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'POISON_WILL' && !requireModuleTargets(context, scope, 'getPoisonTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'METEOR_WILL' && !requireModuleTargets(context, scope, 'getMeteorTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'CAUSAL_REPLAY_WILL' && !requireModuleTargets(context, scope, 'getCausalReplayTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'FREEZE_WILL' && !requireModuleTargets(context, scope, 'getFreezeTargets', [cardState, gameState, playerKey], 1)) continue;
+            if (type === 'SEED_WILL' && !requireModuleTargets(context, scope, 'getSeedTargets', [cardState, gameState, playerKey], 1)) continue;
         }
 
         res.push(cardId);
+        usableCardTypes.push(type);
+        usableSlots.push(Object.freeze({
+            cardId,
+            cardType: type,
+            handIndex,
+            cardCopyId: scope.cardCopyId
+        }));
     }
 
-    return res;
+    return Object.freeze({
+        usableCardIds: Object.freeze(res.slice()),
+        usableCardTypes: Object.freeze(usableCardTypes.slice()),
+        selectorEvidence: Object.freeze({ ...selectorEvidence }),
+        usableSlots: Object.freeze(usableSlots.slice())
+    });
+}
+
+function getUsableCardIds(cardState: any, gameState: any, playerKey: string, context: Context, opts?: any): string[] {
+    return analyzeCardUsability(cardState, gameState, playerKey, context, opts).usableCardIds.slice();
 }
 
 function hasUsableCard(cardState: any, gameState: any, playerKey: string, context: Context): boolean {
@@ -1046,6 +1259,7 @@ export = {
     clearHandToDiscard,
     moveDiscardCardToHandByCardId,
     destroyHandCard,
+    analyzeCardUsability,
     getUsableCardIds,
     hasUsableCard
 };

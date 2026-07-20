@@ -24,6 +24,7 @@ type MovementCornerSwingConfig = {
     pending?: any;
     getBoardCellValueSafe?: (board: any, row: any, col: any) => any;
     isCornerCell?: (row: any, col: any, board?: any) => any;
+    cardTypes?: readonly string[];
 };
 
 function normalizeConfig(config: MovementCornerSwingConfig): MovementCornerSwingConfig {
@@ -196,7 +197,7 @@ function getTargetsByCardType(cardType: any, config: MovementCornerSwingConfig, 
     if (String(cardType || '') === 'SUPER_ATTRACTION_WILL') {
         return logic[methodName](cfg.cardState, cfg.gameState, cfg.playerKey, pending || null) || [];
     }
-    return logic[methodName](cfg.cardState, cfg.gameState, cfg.playerKey) || [];
+    return logic[methodName](cfg.cardState, cfg.gameState) || [];
 }
 
 function makeSuperAttractionPendingForSource(source: any): any {
@@ -257,6 +258,14 @@ function countMovementCornerSwingTargetsForCardType(cardType: any, config: Movem
 function getMovementCornerSwingTargetCounts(config: MovementCornerSwingConfig): Record<string, number> {
     const counts: Record<string, number> = {};
     for (const cardType of MOVEMENT_CORNER_SWING_CARD_TYPES) {
+        counts[cardType] = 0;
+    }
+    const suppliedCardTypes = config && config.cardTypes;
+    const requestedTypes = Array.isArray(suppliedCardTypes)
+        ? new Set(suppliedCardTypes.map((value) => String(value || '')))
+        : new Set(MOVEMENT_CORNER_SWING_CARD_TYPES);
+    for (const cardType of MOVEMENT_CORNER_SWING_CARD_TYPES) {
+        if (!requestedTypes.has(cardType)) continue;
         counts[cardType] = countMovementCornerSwingTargetsForCardType(cardType, config);
     }
     return counts;

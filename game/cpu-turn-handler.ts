@@ -1166,34 +1166,58 @@ function resolveApplyCardChoiceFn() {
     return null;
 }
 
-function getUsableCardIdsForCpuRetry(playerKey: any) {
+function getCardUsabilityAnalysisForCpuRetry(playerKey: any) {
     const cardLogicForRetry = resolveCpuCardLogic();
-    if (!cardLogicForRetry) return [];
+    if (!cardLogicForRetry) return { usableCardIds: [], usableCardTypes: [], selectorEvidence: {}, usableSlots: [] };
+    if (typeof cardLogicForRetry.analyzeCardUsability === 'function') {
+        const analysis = cardLogicForRetry.analyzeCardUsability(cardState, gameState, playerKey);
+        if (analysis && Array.isArray(analysis.usableCardIds)) return analysis;
+    }
     if (typeof cardLogicForRetry.getUsableCardIds === 'function') {
         const usable = cardLogicForRetry.getUsableCardIds(cardState, gameState, playerKey);
-        return Array.isArray(usable) ? usable.slice() : [];
+        return {
+            usableCardIds: Array.isArray(usable) ? usable.slice() : [],
+            usableCardTypes: [],
+            selectorEvidence: {},
+            usableSlots: []
+        };
     }
     if (typeof cardLogicForRetry.hasUsableCard === 'function' && cardLogicForRetry.hasUsableCard(cardState, gameState, playerKey)) {
         const hand = (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey]))
             ? cardState.hands[playerKey]
             : [];
-        return hand.slice();
+        return { usableCardIds: hand.slice(), usableCardTypes: [], selectorEvidence: {}, usableSlots: [] };
     }
-    return [];
+    return { usableCardIds: [], usableCardTypes: [], selectorEvidence: {}, usableSlots: [] };
 }
 
-function isCpuRetryCardChoiceAllowed(playerKey: any, level: any, legalMovesCount: any, legalMoves: any[], cardId: any, usableIds: any[]) {
+function buildCpuRetryCardDecisionContext(
+    playerKey: any,
+    level: any,
+    legalMovesCount: any,
+    legalMoves: any[],
+    usability: any
+): any {
     const buildCardUseDecisionContextFn = resolveCpuDecisionFunction('buildCardUseDecisionContext')
         || (typeof buildCardUseDecisionContext === 'function' ? buildCardUseDecisionContext : null);
+    if (typeof buildCardUseDecisionContextFn !== 'function') return null;
+    try {
+        return buildCardUseDecisionContextFn(playerKey, level, legalMovesCount, legalMoves, usability);
+    } catch (e) {
+        return null;
+    }
+}
+
+function isCpuRetryCardChoiceAllowed(
+    playerKey: any,
+    level: any,
+    legalMovesCount: any,
+    cardId: any,
+    decisionContext: any
+) {
     const isCardChoiceAllowedByRiskFn = resolveCpuDecisionFunction('isCardChoiceAllowedByRisk')
         || (typeof isCardChoiceAllowedByRisk === 'function' ? isCardChoiceAllowedByRisk : null);
     if (typeof isCardChoiceAllowedByRiskFn !== 'function') return true;
-    let decisionContext = null;
-    if (typeof buildCardUseDecisionContextFn === 'function') {
-        try {
-            decisionContext = buildCardUseDecisionContextFn(playerKey, level, legalMovesCount, legalMoves, usableIds);
-        } catch (e) { /* ignore */ }
-    }
     try {
         return isCardChoiceAllowedByRiskFn(playerKey, level, legalMovesCount, cardId, decisionContext) === true;
     } catch (e) {
@@ -1201,7 +1225,13 @@ function isCpuRetryCardChoiceAllowed(playerKey: any, level: any, legalMovesCount
     }
 }
 
-function tryApplyAnyUsableCard(playerKey: any, level?: any, legalMovesCount?: any, legalMoves?: any[]) {
+function tryApplyAnyUsableCard(
+    playerKey: any,
+    level?: any,
+    legalMovesCount?: any,
+    legalMoves?: any[],
+    preparedInput?: any
+) {
     const hasUsedCardThisTurn = !!(
         cardState &&
         cardState.hasUsedCardThisTurnByPlayer &&
@@ -1214,17 +1244,44 @@ function tryApplyAnyUsableCard(playerKey: any, level?: any, legalMovesCount?: an
     if (hasUsedCardThisTurn || hasPendingSelection) return false;
     const applyChoice = resolveApplyCardChoiceFn();
     if (typeof applyChoice !== 'function') return false;
-    const usableIds = getUsableCardIdsForCpuRetry(playerKey);
+    const prepared = preparedInput && typeof preparedInput === 'object' ? preparedInput : {};
+    const hand = cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])
+        ? cardState.hands[playerKey]
+        : [];
+    const preparedIsCurrent = !!(
+        prepared.cardState === cardState
+        && prepared.gameState === gameState
+        && prepared.playerKey === playerKey
+        && prepared.usability
+        && Array.isArray(prepared.handSnapshot)
+        && prepared.handSnapshot.length === hand.length
+        && prepared.handSnapshot.every((cardId: any, index: number) => cardId === hand[index])
+    );
+    const usability = preparedIsCurrent
+        ? prepared.usability
+        : getCardUsabilityAnalysisForCpuRetry(playerKey);
+    const usableIds = Array.isArray(usability && usability.usableCardIds)
+        ? usability.usableCardIds
+        : [];
     if (!usableIds.length) return false;
     const resolvedLevel = Number.isFinite(Number(level)) ? Number(level) : resolveCpuDecisionLevelForTurn(playerKey);
     const safeMoves = Array.isArray(legalMoves) ? legalMoves : [];
     const safeLegalMovesCount = Number.isFinite(Number(legalMovesCount)) ? Number(legalMovesCount) : safeMoves.length;
+    const decisionContext = preparedIsCurrent && prepared.decisionContext
+        ? prepared.decisionContext
+        : buildCpuRetryCardDecisionContext(
+            playerKey,
+            resolvedLevel,
+            safeLegalMovesCount,
+            safeMoves,
+            usability
+        );
     for (const cardId of usableIds) {
         const cardLogicForRetry = resolveCpuCardLogic();
         const cardDef = (cardLogicForRetry && typeof cardLogicForRetry.getCardDef === 'function')
             ? cardLogicForRetry.getCardDef(cardId)
             : null;
-        if (!isCpuRetryCardChoiceAllowed(playerKey, resolvedLevel, safeLegalMovesCount, safeMoves, cardId, usableIds)) {
+        if (!isCpuRetryCardChoiceAllowed(playerKey, resolvedLevel, safeLegalMovesCount, cardId, decisionContext)) {
             continue;
         }
         if (applyChoice(playerKey, { cardId, cardDef })) {
@@ -1331,6 +1388,7 @@ const CpuTurnMovePhase = (CpuTurnMovePhaseModule && typeof CpuTurnMovePhaseModul
         getActiveProtectionSafe,
         getAnimationRetryDelayMs,
         getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        getCardUsabilityAnalysis: (playerKey: any) => getCardUsabilityAnalysisForCpuRetry(playerKey),
         getCurrentPlayerKeySafe,
         getCurrentStateVersionSafe,
         getCurrentTurnNumberSafe,

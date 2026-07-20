@@ -169,6 +169,109 @@ describe('CardHandManager module', () => {
     ]);
   });
 
+  test('analyzeCardUsability preserves duplicate card-copy order and effective costs', () => {
+    const CardHandManager = require('../game/logic/cards-internal/hand-manager.js');
+    const context = {
+      constants: { MAX_HAND_SIZE: 5, RIBO_WILL_UNLOCK_TURN_INDEX: 19 },
+      modules: {
+        CardDefsModule: {
+          getCardDef: (cardId) => ({ id: cardId, type: 'GENERIC', cost: 1, name: cardId }),
+          getCardType: () => 'GENERIC'
+        },
+        CardCostsModule: { getCardCost: () => 1 }
+      },
+      helpers: {}
+    };
+    const cardState = {
+      hands: { black: ['same_card', 'same_card'], white: [] },
+      charge: { black: 2, white: 0 },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      _handCopyIdsByPlayer: { black: [101, 102], white: [] },
+      cardCostOverridesByCopyId: {
+        '101': { cost: 5, sourceType: 'test' }
+      }
+    };
+
+    const analysis = CardHandManager.analyzeCardUsability(cardState, { board: [] }, 'black', context);
+
+    expect(analysis.usableCardIds).toEqual(['same_card']);
+    expect(analysis.usableCardTypes).toEqual(['GENERIC']);
+    expect(analysis.usableSlots).toEqual([{
+      cardId: 'same_card',
+      cardType: 'GENERIC',
+      handIndex: 1,
+      cardCopyId: 102
+    }]);
+    expect(CardHandManager.getUsableCardIds(cardState, { board: [] }, 'black', context)).toEqual(['same_card']);
+    expect(Object.isFrozen(analysis)).toBe(true);
+    expect(Object.isFrozen(analysis.usableCardIds)).toBe(true);
+  });
+
+  test('analyzeCardUsability evaluates an exact selector at most once per lane', () => {
+    const CardHandManager = require('../game/logic/cards-internal/hand-manager.js');
+    const publicSelector = jest.fn(() => [{ row: 3, col: 2 }]);
+    const moduleSelector = jest.fn(() => [{ row: 3, col: 2 }]);
+    const context = {
+      helperSelectorLane: 'public',
+      constants: { MAX_HAND_SIZE: 5, RIBO_WILL_UNLOCK_TURN_INDEX: 19 },
+      modules: {
+        CardDefsModule: {
+          getCardDef: (cardId) => ({ id: cardId, type: 'BUOYANCY_WILL', cost: 0, name: cardId }),
+          getCardType: () => 'BUOYANCY_WILL'
+        },
+        CardCostsModule: { getCardCost: () => 0 },
+        CardSelectorsModule: { getBuoyancyTargets: moduleSelector }
+      },
+      helpers: { getBuoyancyTargets: publicSelector }
+    };
+    const cardState = {
+      hands: { black: ['buoyancy_01'], white: [] },
+      charge: { black: 0, white: 0 },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false }
+    };
+    const gameState = { board: [] };
+
+    const analysis = CardHandManager.analyzeCardUsability(cardState, gameState, 'black', context);
+    const evidence = Object.values(analysis.selectorEvidence) as any[];
+
+    expect(analysis.usableCardIds).toEqual(['buoyancy_01']);
+    expect(publicSelector).toHaveBeenCalledTimes(1);
+    expect(moduleSelector).toHaveBeenCalledTimes(1);
+    expect(evidence.filter((entry) => entry.method === 'getBuoyancyTargets').map((entry) => entry.lane).sort())
+      .toEqual(['module', 'public']);
+    expect(evidence.every((entry) => Object.isFrozen(entry))).toBe(true);
+    expect(evidence.every((entry) => !Array.isArray(entry.result) || Object.isFrozen(entry.result))).toBe(true);
+  });
+
+  test('target-none analysis stops after the one required selector evaluation', () => {
+    const CardHandManager = require('../game/logic/cards-internal/hand-manager.js');
+    const localSelector = jest.fn(() => []);
+    const moduleSelector = jest.fn(() => [{ row: 0, col: 0 }]);
+    const context = {
+      constants: { MAX_HAND_SIZE: 5, RIBO_WILL_UNLOCK_TURN_INDEX: 19 },
+      modules: {
+        CardDefsModule: {
+          getCardDef: (cardId) => ({ id: cardId, type: 'TEMPT_WILL', cost: 0, name: cardId }),
+          getCardType: () => 'TEMPT_WILL'
+        },
+        CardCostsModule: { getCardCost: () => 0 },
+        CardSelectorsModule: { getTemptWillTargets: moduleSelector }
+      },
+      helpers: { getTemptWillTargets: localSelector }
+    };
+    const cardState = {
+      hands: { black: ['tempt_01'], white: [] },
+      charge: { black: 0, white: 0 },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false }
+    };
+
+    const analysis = CardHandManager.analyzeCardUsability(cardState, { board: [] }, 'black', context);
+
+    expect(analysis.usableCardIds).toEqual([]);
+    expect(localSelector).toHaveBeenCalledTimes(1);
+    expect(moduleSelector).not.toHaveBeenCalled();
+  });
+
   test('copy ids keep reveal ledger stable across destroy, redraw, and discard restore', () => {
     const CardHandManager = require('../game/logic/cards-internal/hand-manager.js');
     const context = {

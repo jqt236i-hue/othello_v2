@@ -5,7 +5,7 @@ import {
 
 type CpuDecisionCardChoiceConfig = {
     buildCardQuiescenceSnapshot: (playerKey: any, level: any, legalMoves: any, context: any) => any;
-    buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, performanceScope?: CpuTurnPerformanceScope | null) => any;
+    buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usability: any, performanceScope?: CpuTurnPerformanceScope | null) => any;
     buildCornerPlanState: (playerKey: any, legalMoves?: any, usableCardIds?: any) => any;
     cpuDebugLog: (...args: any[]) => void;
     getActiveProtectionForPlayer: (playerValue: any) => any;
@@ -16,6 +16,7 @@ type CpuDecisionCardChoiceConfig = {
     getFlipBlockers: () => any;
     getGameState: () => any;
     getLegalMoves: (gameState: any, protection: any, perma: any) => any;
+    getTargetAwareCardUsabilityAnalysis?: (playerKey: any) => any;
     getTargetAwareUsableCardIds: (playerKey: any) => any;
     isAISystemAvailable: () => any;
     isCardChoiceAllowedByHighConfidence: (playerKey: any, level: any, legalMovesCount: any, cardId: any, prebuiltContext: any) => any;
@@ -38,30 +39,51 @@ export function createCpuDecisionCardChoice(config: CpuDecisionCardChoiceConfig)
         return cfg.getCardLogic ? cfg.getCardLogic() : null;
     }
 
+    function buildCompatibilityUsabilityAnalysis(playerKey: any): any {
+        const ids = typeof cfg.getTargetAwareUsableCardIds === 'function'
+            ? cfg.getTargetAwareUsableCardIds(playerKey)
+            : [];
+        const cardLogic = readCardLogic();
+        const usableCardIds = Array.isArray(ids) ? ids.slice() : [];
+        const usableCardTypes = usableCardIds.map((cardId: any) => {
+            const def = cardLogic && typeof cardLogic.getCardDef === 'function'
+                ? cardLogic.getCardDef(cardId)
+                : null;
+            return String(def && def.type || '');
+        });
+        return Object.freeze({
+            usableCardIds: Object.freeze(usableCardIds),
+            usableCardTypes: Object.freeze(usableCardTypes),
+            selectorEvidence: Object.freeze({}),
+            usableSlots: Object.freeze([])
+        });
+    }
+
+    function getCardUsabilityAnalysis(playerKey: any): any {
+        if (typeof cfg.getTargetAwareCardUsabilityAnalysis === 'function') {
+            const analysis = cfg.getTargetAwareCardUsabilityAnalysis(playerKey);
+            if (analysis && Array.isArray(analysis.usableCardIds)) return analysis;
+        }
+        return buildCompatibilityUsabilityAnalysis(playerKey);
+    }
+
     function selectCardFallback(
         cardState: any,
         _gameState: any,
         playerKey: any,
         level: any,
         legalMoves: any,
-        performanceScope?: CpuTurnPerformanceScope | null
+        prepared: any
     ): any {
         if (typeof cardState === 'undefined' || !cardState) return null;
         const cardLogic = readCardLogic();
         if (!cardLogic) return null;
-        const usable = performanceScope
-            ? measureCpuTurnSync(performanceScope, 'card-availability', () => cfg.getTargetAwareUsableCardIds(playerKey))
-            : cfg.getTargetAwareUsableCardIds(playerKey);
+        const usable = prepared && prepared.usability && Array.isArray(prepared.usability.usableCardIds)
+            ? prepared.usability.usableCardIds
+            : [];
         if (!usable.length) return null;
         const legalMovesCount = Array.isArray(legalMoves) ? legalMoves.length : 0;
-        const decisionContext = cfg.buildCardUseDecisionContext(
-            playerKey,
-            level,
-            legalMovesCount,
-            legalMoves,
-            usable,
-            performanceScope
-        );
+        const decisionContext = prepared && prepared.decisionContext;
         const cpuPolicyCore = cfg.getCpuPolicyCore ? cfg.getCpuPolicyCore() : null;
 
         if (cpuPolicyCore && typeof cpuPolicyCore.chooseCardWithRiskProfile === 'function') {
@@ -86,30 +108,71 @@ export function createCpuDecisionCardChoice(config: CpuDecisionCardChoiceConfig)
         return { cardId: choiceId, cardDef };
     }
 
-    function selectCardToUseImpl(playerKey: any, performanceScope?: CpuTurnPerformanceScope | null): any {
+    function selectCardToUseImpl(
+        playerKey: any,
+        performanceScope: CpuTurnPerformanceScope | null,
+        prepared: any
+    ): any {
+        const trapId = cfg.prepareCpuTrapOnlyCard(playerKey);
         const level = cfg.resolveCpuSmartnessLevel(playerKey);
+        const cardLogic = readCardLogic();
+        const currentCardState = cfg.getCardState();
+        const currentGameState = cfg.getGameState();
+        const currentHand = currentCardState
+            && currentCardState.hands
+            && Array.isArray(currentCardState.hands[playerKey])
+            ? currentCardState.hands[playerKey]
+            : [];
+        const preparedUsabilityIsCurrent = !!(
+            prepared.usability
+            && prepared.cardState === currentCardState
+            && prepared.gameState === currentGameState
+            && prepared.playerKey === playerKey
+            && Array.isArray(prepared.handSnapshot)
+            && prepared.handSnapshot.length === currentHand.length
+            && prepared.handSnapshot.every((cardId: any, index: number) => cardId === currentHand[index])
+        );
+        const usability = preparedUsabilityIsCurrent
+            ? prepared.usability
+            : (performanceScope
+                ? measureCpuTurnSync(
+                    performanceScope,
+                    'card-availability',
+                    () => getCardUsabilityAnalysis(playerKey)
+                )
+                : getCardUsabilityAnalysis(playerKey));
+        const usableNow = Array.isArray(usability && usability.usableCardIds)
+            ? usability.usableCardIds
+            : [];
+        prepared.cardState = currentCardState;
+        prepared.gameState = currentGameState;
+        prepared.playerKey = playerKey;
+        prepared.level = level;
+        prepared.usability = usability;
+        prepared.handSnapshot = currentHand.slice();
+        if (!cardLogic || usableNow.length === 0) return null;
+
         const player = cfg.resolvePlayerValue(playerKey);
         const protection = cfg.getActiveProtectionForPlayer(player);
         const perma = cfg.getFlipBlockers();
         const safeGameState = cfg.getGameState();
         const legalMoves = cfg.getLegalMoves(safeGameState, protection, perma);
         const legalMovesCount = Array.isArray(legalMoves) ? legalMoves.length : 0;
-        const cardLogic = readCardLogic();
-        const usableNow = cardLogic
-            ? (performanceScope
-                ? measureCpuTurnSync(performanceScope, 'card-availability', () => cfg.getTargetAwareUsableCardIds(playerKey))
-                : cfg.getTargetAwareUsableCardIds(playerKey))
-            : [];
         const decisionContext = cfg.buildCardUseDecisionContext(
             playerKey,
             level,
             legalMovesCount,
             legalMoves,
-            usableNow,
+            usability,
             performanceScope
         );
         const quiescenceSnapshot = cfg.buildCardQuiescenceSnapshot(playerKey, level, legalMoves, decisionContext);
         const cornerPlanState = decisionContext.cornerPlanState || cfg.buildCornerPlanState(playerKey, legalMoves, usableNow);
+        prepared.legalMoves = Array.isArray(legalMoves) ? legalMoves : [];
+        prepared.legalMovesCount = legalMovesCount;
+        prepared.decisionContext = decisionContext;
+        prepared.quiescenceSnapshot = quiescenceSnapshot;
+        prepared.cornerPlanState = cornerPlanState;
         const isAllowedChoice = (choice: any) => {
             if (!choice || !choice.cardId) return false;
             if (!cfg.isCardChoiceAllowedByPlan(playerKey, level, legalMovesCount, choice.cardId, choice.cardDef, cornerPlanState, decisionContext)) {
@@ -142,12 +205,8 @@ export function createCpuDecisionCardChoice(config: CpuDecisionCardChoiceConfig)
             return true;
         };
 
-        const trapId = cfg.prepareCpuTrapOnlyCard(playerKey);
         if (trapId) {
-            const usableTrap = performanceScope
-                ? measureCpuTurnSync(performanceScope, 'card-availability', () => cfg.getTargetAwareUsableCardIds(playerKey))
-                : cfg.getTargetAwareUsableCardIds(playerKey);
-            if (usableTrap.includes(trapId)) {
+            if (usableNow.includes(trapId)) {
                 const trapDef = (cardLogic && typeof cardLogic.getCardDef === 'function')
                     ? cardLogic.getCardDef(trapId)
                     : null;
@@ -230,7 +289,7 @@ export function createCpuDecisionCardChoice(config: CpuDecisionCardChoiceConfig)
                 playerKey,
                 level,
                 legalMoves,
-                performanceScope
+                prepared
             );
         }
         if (cardChoice && !isAllowedChoice(cardChoice)) {
@@ -239,17 +298,28 @@ export function createCpuDecisionCardChoice(config: CpuDecisionCardChoiceConfig)
         return cardChoice || null;
     }
 
-    function selectCardToUse(playerKey: any, performanceScope?: CpuTurnPerformanceScope | null): any {
-        return performanceScope
+    function selectCardDecision(
+        playerKey: any,
+        performanceScope?: CpuTurnPerformanceScope | null,
+        preparedInput?: any
+    ): any {
+        const prepared: any = preparedInput && typeof preparedInput === 'object' ? preparedInput : {};
+        const choice = performanceScope
             ? measureCpuTurnSync(
                 performanceScope,
                 'card-context-base',
-                () => selectCardToUseImpl(playerKey, performanceScope)
+                () => selectCardToUseImpl(playerKey, performanceScope, prepared)
             )
-            : selectCardToUseImpl(playerKey, null);
+            : selectCardToUseImpl(playerKey, null, prepared);
+        return { choice: choice || null, prepared };
+    }
+
+    function selectCardToUse(playerKey: any, performanceScope?: CpuTurnPerformanceScope | null): any {
+        return selectCardDecision(playerKey, performanceScope).choice;
     }
 
     return {
+        selectCardDecision,
         selectCardToUse
     };
 }

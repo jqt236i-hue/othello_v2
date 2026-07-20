@@ -233,6 +233,16 @@ export function createCardHandAccess(deps?: HandAccessDeps) {
         );
     }
 
+    function analyzeCardUsability(cardState: any, gameState: any, playerKey: any, opts?: any) {
+        return requireHandManagerMethod(cardHandManagerModule, 'analyzeCardUsability')(
+            cardState,
+            gameState,
+            playerKey,
+            getCardHandManagerContext(),
+            opts
+        );
+    }
+
     function hasUsableCard(cardState: any, gameState: any, playerKey: any) {
         return requireHandManagerMethod(cardHandManagerModule, 'hasUsableCard')(
             cardState,
@@ -266,6 +276,7 @@ export function createCardHandAccess(deps?: HandAccessDeps) {
         canUseCard,
         ensureHandDestroyFlags,
         destroyHandCard,
+        analyzeCardUsability,
         getUsableCardIds,
         hasUsableCard
     };

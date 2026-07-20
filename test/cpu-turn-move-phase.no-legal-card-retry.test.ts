@@ -97,6 +97,50 @@ describe('cpu turn move phase no-legal card retry', () => {
     expect(scheduleRunCpuTurn).not.toHaveBeenCalled();
   });
 
+  test('shares one prepared usability bundle across no-legal card retries', async () => {
+    const usability = {
+      usableCardIds: ['card_a'],
+      usableCardTypes: ['TREASURE_BOX'],
+      selectorEvidence: {},
+      usableSlots: []
+    };
+    const getCardUsabilityAnalysis = jest.fn(() => usability);
+    const useCardWithPolicy = jest.fn((_playerKey: any, _scope: any, prepared: any) => {
+      prepared.decisionContext = { legalMovesCount: 0 };
+      return false;
+    });
+    const tryApplyAnyUsableCard = jest.fn(() => false);
+    const { config } = createConfig({
+      getCardState: jest.fn(() => ({ hands: { white: ['card_a'] } })),
+      getCardUsabilityAnalysis,
+      getUseCardWithPolicyFn: jest.fn(() => useCardWithPolicy),
+      tryApplyAnyUsableCard
+    });
+    const phase = createCpuTurnMovePhase(config as any);
+
+    await phase.runCpuTurnMovePhase({
+      playerKey: 'white',
+      autoMode: false,
+      level: 6,
+      selfColor: -1,
+      selfName: '白',
+      othelloMode: false,
+      pending: null,
+      turnStartMs: Date.now()
+    });
+
+    expect(getCardUsabilityAnalysis).toHaveBeenCalledTimes(1);
+    expect(useCardWithPolicy).toHaveBeenCalledTimes(1);
+    expect(tryApplyAnyUsableCard).toHaveBeenCalledTimes(1);
+    const preparedFromUse = useCardWithPolicy.mock.calls[0][2];
+    const preparedFromFallback = tryApplyAnyUsableCard.mock.calls[0][4];
+    expect(preparedFromFallback).toBe(preparedFromUse);
+    expect(preparedFromFallback).toMatchObject({
+      usability,
+      decisionContext: { legalMovesCount: 0 }
+    });
+  });
+
   test('uses a normal pass when a card pending action remains after no legal moves', async () => {
     const { config, passFn, scheduleRunCpuTurn } = createConfig({
       resolveCpuCardLogic: jest.fn(() => ({

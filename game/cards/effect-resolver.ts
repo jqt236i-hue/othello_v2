@@ -185,6 +185,7 @@ function getCardHandManagerContext(deps: any) {
     : {};
 
   return {
+    helperSelectorLane: 'public',
     constants: {
       CARD_DEFS,
       CARD_TYPE_BY_ID,

@@ -23,6 +23,7 @@ describe('card hand access module', () => {
     const canUseCard = jest.fn(() => true);
     const ensureHandDestroyFlags = jest.fn(() => ({ black: false, white: false }));
     const destroyHandCard = jest.fn(() => ({ applied: true }));
+    const analyzeCardUsability = jest.fn(() => ({ usableCardIds: ['card_a'] }));
     const getUsableCardIds = jest.fn(() => ['card_a']);
     const hasUsableCard = jest.fn(() => true);
 
@@ -48,6 +49,7 @@ describe('card hand access module', () => {
         canUseCard,
         ensureHandDestroyFlags,
         destroyHandCard,
+        analyzeCardUsability,
         getUsableCardIds,
         hasUsableCard
       }
@@ -79,6 +81,15 @@ describe('card hand access module', () => {
     expect(access.ensureHandDestroyFlags({ state: true })).toEqual({ black: false, white: false });
     expect(access.destroyHandCard({}, 'black', 'card_a', { reason: 'test' })).toEqual({ applied: true });
     expect(destroyHandCard).toHaveBeenCalledWith({}, 'black', 'card_a', { reason: 'test' }, { token: 'ctx' });
+    expect(access.analyzeCardUsability({}, { board: [] }, 'black', { skipCostAndTurnLimit: true }))
+      .toEqual({ usableCardIds: ['card_a'] });
+    expect(analyzeCardUsability).toHaveBeenCalledWith(
+      {},
+      { board: [] },
+      'black',
+      { token: 'ctx' },
+      { skipCostAndTurnLimit: true }
+    );
     expect(access.getUsableCardIds({}, { board: [] }, 'black', { skipCostAndTurnLimit: true })).toEqual(['card_a']);
     expect(access.hasUsableCard({}, { board: [] }, 'black')).toBe(true);
     expect(getCardHandManagerContext).toHaveBeenCalled();

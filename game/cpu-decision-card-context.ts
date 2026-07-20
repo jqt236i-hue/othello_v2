@@ -1,5 +1,32 @@
 const MovementCornerSwing = require('./cpu-decision-movement-corner-swing');
 const TemptValue = require('./cpu-decision-tempt-value');
+import {
+    measureCpuTurnSync,
+    type CpuTurnPerformanceScope
+} from './cpu-turn-performance';
+
+type CardUsabilityAnalysisLike = Readonly<{
+    usableCardIds: readonly string[];
+    usableCardTypes?: readonly string[];
+    selectorEvidence?: Readonly<Record<string, Readonly<{
+        lane?: string;
+        method?: string;
+        cardState?: any;
+        gameState?: any;
+        playerKey?: any;
+        cardType?: any;
+        args?: readonly any[];
+        available?: boolean;
+        result?: any;
+        resolver?: any;
+    }>>>;
+    usableSlots?: readonly Readonly<{
+        cardId?: string;
+        cardType?: string;
+        handIndex?: number;
+        cardCopyId?: number | null;
+    }>[];
+}>;
 
 type CpuDecisionCardContextConfig = {
     getGameState: () => any;
@@ -36,6 +63,84 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         return cfg.getCardLogic ? cfg.getCardLogic() : null;
     }
 
+    function normalizeUsabilityAnalysis(value: any): CardUsabilityAnalysisLike {
+        const cardLogic = readCardLogic();
+        const usableCardIds = Array.isArray(value && value.usableCardIds)
+            ? value.usableCardIds.slice()
+            : (Array.isArray(value) ? value.slice() : []);
+        const suppliedTypes = Array.isArray(value && value.usableCardTypes)
+            ? value.usableCardTypes.slice()
+            : null;
+        const usableCardTypes = suppliedTypes || usableCardIds.map((cardId: any) => {
+            const def = cardLogic && typeof cardLogic.getCardDef === 'function'
+                ? cardLogic.getCardDef(cardId)
+                : null;
+            return String(def && def.type || '');
+        });
+        return {
+            usableCardIds: Object.freeze(usableCardIds),
+            usableCardTypes: Object.freeze(usableCardTypes),
+            selectorEvidence: value && value.selectorEvidence && typeof value.selectorEvidence === 'object'
+                ? value.selectorEvidence
+                : Object.freeze({}),
+            usableSlots: Array.isArray(value && value.usableSlots)
+                ? value.usableSlots.slice()
+                : undefined
+        };
+    }
+
+    function readPublicSelectorEvidence(
+        analysis: CardUsabilityAnalysisLike,
+        method: string,
+        args: any[],
+        acceptedCardTypes: ReadonlySet<string>
+    ): { found: boolean; result: any } {
+        const evidence = analysis && analysis.selectorEvidence;
+        if (!evidence || typeof evidence !== 'object') return { found: false, result: null };
+        const cs = readCardState();
+        const gs = readGameState();
+        const cardLogic = readCardLogic();
+        const expectedResolver = cardLogic && cardLogic[method];
+        const usableSlots: readonly any[] = Array.isArray(analysis && analysis.usableSlots)
+            ? analysis.usableSlots as readonly any[]
+            : [];
+        for (const entry of Object.values(evidence)) {
+            if (!entry || entry.lane !== 'public' || entry.method !== method || entry.available !== true) continue;
+            if (entry.cardState !== cs || entry.gameState !== gs) continue;
+            if (typeof expectedResolver === 'function' && entry.resolver !== expectedResolver) continue;
+            if (!acceptedCardTypes.has(String(entry.cardType || ''))) continue;
+            if (usableSlots.length > 0 && !usableSlots.some((slot: any) => (
+                slot
+                && slot.handIndex === (entry as any).handIndex
+                && slot.cardCopyId === (entry as any).cardCopyId
+                && slot.cardId === (entry as any).cardId
+                && slot.cardType === entry.cardType
+            ))) continue;
+            const entryArgs = Array.isArray(entry.args) ? entry.args : [];
+            if (entryArgs.length !== args.length) continue;
+            if (!entryArgs.every((value: any, index: number) => Object.is(value, args[index]))) continue;
+            return {
+                found: true,
+                result: Array.isArray(entry.result) ? entry.result.slice() : entry.result
+            };
+        }
+        return { found: false, result: null };
+    }
+
+    function getEvidenceAwareTargets(
+        analysis: CardUsabilityAnalysisLike,
+        method: string,
+        args: any[],
+        acceptedCardTypes: ReadonlySet<string>
+    ): any[] {
+        const cached = readPublicSelectorEvidence(analysis, method, args, acceptedCardTypes);
+        if (cached.found) return Array.isArray(cached.result) ? cached.result : [];
+        const cardLogic = readCardLogic();
+        if (!cardLogic || typeof cardLogic[method] !== 'function') return [];
+        const result = cardLogic[method].apply(cardLogic, args);
+        return Array.isArray(result) ? result : [];
+    }
+
     function isEnemyOccupiedCornerTarget(board: any, playerValue: any, target: any): boolean {
         if (!target) return false;
         const row = Number(target.row);
@@ -54,15 +159,30 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         return count;
     }
 
-    function getBoardExpansionEnemyCornerTargetCounts(playerKey: any, board: any, playerValue: any) {
-        const cardLogic = readCardLogic();
+    function getBoardExpansionEnemyCornerTargetCounts(
+        playerKey: any,
+        board: any,
+        playerValue: any,
+        analysis: CardUsabilityAnalysisLike,
+        usableTypes: ReadonlySet<string>
+    ) {
         const cs = readCardState();
         const gs = readGameState();
-        const willTargets = cardLogic && typeof cardLogic.getBoardExpansionTargets === 'function'
-            ? cardLogic.getBoardExpansionTargets(cs, gs, playerKey)
+        const willTargets = usableTypes.has('BOARD_EXPANSION_WILL')
+            ? getEvidenceAwareTargets(
+                analysis,
+                'getBoardExpansionTargets',
+                [cs, gs, playerKey],
+                new Set(['BOARD_EXPANSION_WILL'])
+            )
             : [];
-        const godTargets = cardLogic && typeof cardLogic.getBoardExpansionGodTargets === 'function'
-            ? cardLogic.getBoardExpansionGodTargets(cs, gs, playerKey)
+        const godTargets = usableTypes.has('BOARD_EXPANSION_GOD')
+            ? getEvidenceAwareTargets(
+                analysis,
+                'getBoardExpansionGodTargets',
+                [cs, gs, playerKey],
+                new Set(['BOARD_EXPANSION_GOD'])
+            )
             : [];
         const will = countEnemyOccupiedCornerTargets(board, playerValue, willTargets);
         const god = countEnemyOccupiedCornerTargets(board, playerValue, godTargets);
@@ -73,17 +193,30 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         };
     }
 
-    function getSwapEnemyNormalCornerTargetCount(playerKey: any, board: any, playerValue: any): number {
-        const cardLogic = readCardLogic();
-        if (!cardLogic || typeof cardLogic.getSwapTargets !== 'function') return 0;
-        const targets = cardLogic.getSwapTargets(readCardState(), readGameState(), playerKey);
+    function getSwapEnemyNormalCornerTargetCount(
+        playerKey: any,
+        board: any,
+        playerValue: any,
+        analysis: CardUsabilityAnalysisLike
+    ): number {
+        const targets = getEvidenceAwareTargets(
+            analysis,
+            'getSwapTargets',
+            [readCardState(), readGameState(), playerKey],
+            new Set(['SWAP_WITH_ENEMY'])
+        );
         return countEnemyOccupiedCornerTargets(board, playerValue, targets);
     }
 
-    function getTemptHighValueTargetCount(playerKey: any): number {
+    function getTemptHighValueTargetCount(playerKey: any, analysis: CardUsabilityAnalysisLike): number {
         const cardLogic = readCardLogic();
-        if (!cardLogic || typeof cardLogic.getTemptWillTargets !== 'function') return 0;
-        const targets = cardLogic.getTemptWillTargets(readCardState(), readGameState(), playerKey);
+        if (!cardLogic) return 0;
+        const targets = getEvidenceAwareTargets(
+            analysis,
+            'getTemptWillTargets',
+            [readCardState(), readGameState(), playerKey],
+            new Set(['TEMPT_WILL'])
+        );
         return TemptValue && typeof TemptValue.countHighValueTemptTargetsForCpu === 'function'
             ? TemptValue.countHighValueTemptTargetsForCpu(playerKey, targets, {
                 cardLogic,
@@ -93,17 +226,53 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             : 0;
     }
 
-    function getMovementCornerSwingTargetCounts(playerKey: any, board: any, playerValue: any): any {
+    function getMovementCornerSwingTargetCounts(
+        playerKey: any,
+        board: any,
+        playerValue: any,
+        analysis: CardUsabilityAnalysisLike,
+        movementTypes: readonly string[]
+    ): any {
         if (!MovementCornerSwing || typeof MovementCornerSwing.getMovementCornerSwingTargetCounts !== 'function') {
             return {};
         }
+        const cardLogic = readCardLogic();
+        const cs = readCardState();
+        const gs = readGameState();
+        const evidenceAwareCardLogic = cardLogic ? { ...cardLogic } : null;
+        const methodByType: Record<string, string> = {
+            BUOYANCY_WILL: 'getBuoyancyTargets',
+            GRAVITY_WILL: 'getGravityTargets',
+            SUPER_BUOYANCY_WILL: 'getSuperBuoyancyTargets',
+            SUPER_GRAVITY_WILL: 'getSuperGravityTargets',
+            SUPER_ATTRACTION_WILL: 'getSuperAttractionTargets'
+        };
+        if (evidenceAwareCardLogic) {
+            for (const cardType of movementTypes) {
+                const method = methodByType[cardType];
+                if (!method) continue;
+                evidenceAwareCardLogic[method] = (...args: any[]) => {
+                    const cached = readPublicSelectorEvidence(
+                        analysis,
+                        method,
+                        args,
+                        new Set([cardType])
+                    );
+                    if (cached.found) return Array.isArray(cached.result) ? cached.result : [];
+                    return cardLogic && typeof cardLogic[method] === 'function'
+                        ? cardLogic[method].apply(cardLogic, args)
+                        : [];
+                };
+            }
+        }
         return MovementCornerSwing.getMovementCornerSwingTargetCounts({
-            cardLogic: readCardLogic(),
-            cardState: readCardState(),
-            gameState: readGameState(),
+            cardLogic: evidenceAwareCardLogic,
+            cardState: cs,
+            gameState: gs,
             playerKey,
             board,
             playerValue,
+            cardTypes: movementTypes,
             getBoardCellValueSafe: cfg.getBoardCellValueSafe,
             isCornerCell: cfg.isCornerCell
         });
@@ -114,41 +283,89 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         level: any,
         legalMovesCount: any,
         legalMoves?: any,
-        usableCardIds?: any,
+        usabilityInput?: any,
         performanceScope?: CpuTurnPerformanceScope | null
     ): any {
         const cs = readCardState();
         const gs = readGameState();
+        const usability = normalizeUsabilityAnalysis(usabilityInput);
+        const usableCardIds = usability.usableCardIds.slice();
+        const usableTypes = new Set((usability.usableCardTypes || []).map((value) => String(value || '')));
         const board = cfg.getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
         const playerValue = cfg.resolvePlayerValue(playerKey);
-        const boardExpansionTargetCounts = performanceScope
-            ? measureCpuTurnSync(
-                performanceScope,
-                'card-context-feature:board-expansion',
-                () => getBoardExpansionEnemyCornerTargetCounts(playerKey, board, playerValue)
-            )
-            : getBoardExpansionEnemyCornerTargetCounts(playerKey, board, playerValue);
-        const swapEnemyNormalCornerTargetCount = performanceScope
-            ? measureCpuTurnSync(
-                performanceScope,
-                'card-context-feature:swap-enemy-corner',
-                () => getSwapEnemyNormalCornerTargetCount(playerKey, board, playerValue)
-            )
-            : getSwapEnemyNormalCornerTargetCount(playerKey, board, playerValue);
-        const temptHighValueTargetCount = performanceScope
-            ? measureCpuTurnSync(
-                performanceScope,
-                'card-context-feature:tempt-high-value',
-                () => getTemptHighValueTargetCount(playerKey)
-            )
-            : getTemptHighValueTargetCount(playerKey);
-        const movementCornerSwingTargetCounts = performanceScope
-            ? measureCpuTurnSync(
-                performanceScope,
-                'card-context-feature:movement-corner-swing',
-                () => getMovementCornerSwingTargetCounts(playerKey, board, playerValue)
-            )
-            : getMovementCornerSwingTargetCounts(playerKey, board, playerValue);
+        let boardExpansionTargetCounts = {
+            boardExpansionWillEnemyCornerTargetCount: 0,
+            boardExpansionGodEnemyCornerTargetCount: 0,
+            boardExpansionEnemyCornerTargetCount: 0
+        };
+        if (usableTypes.has('BOARD_EXPANSION_WILL') || usableTypes.has('BOARD_EXPANSION_GOD')) {
+            const buildBoardExpansionCounts = () => getBoardExpansionEnemyCornerTargetCounts(
+                playerKey,
+                board,
+                playerValue,
+                usability,
+                usableTypes
+            );
+            boardExpansionTargetCounts = performanceScope
+                ? measureCpuTurnSync(
+                    performanceScope,
+                    'card-context-feature:board-expansion',
+                    buildBoardExpansionCounts
+                )
+                : buildBoardExpansionCounts();
+        }
+        let swapEnemyNormalCornerTargetCount = 0;
+        if (usableTypes.has('SWAP_WITH_ENEMY')) {
+            const buildSwapCount = () => getSwapEnemyNormalCornerTargetCount(
+                playerKey,
+                board,
+                playerValue,
+                usability
+            );
+            swapEnemyNormalCornerTargetCount = performanceScope
+                ? measureCpuTurnSync(
+                    performanceScope,
+                    'card-context-feature:swap-enemy-corner',
+                    buildSwapCount
+                )
+                : buildSwapCount();
+        }
+        let temptHighValueTargetCount = 0;
+        if (usableTypes.has('TEMPT_WILL')) {
+            const buildTemptCount = () => getTemptHighValueTargetCount(playerKey, usability);
+            temptHighValueTargetCount = performanceScope
+                ? measureCpuTurnSync(
+                    performanceScope,
+                    'card-context-feature:tempt-high-value',
+                    buildTemptCount
+                )
+                : buildTemptCount();
+        }
+        const movementCardTypes = Array.isArray(MovementCornerSwing && MovementCornerSwing.MOVEMENT_CORNER_SWING_CARD_TYPES)
+            ? MovementCornerSwing.MOVEMENT_CORNER_SWING_CARD_TYPES.filter((cardType: string) => usableTypes.has(cardType))
+            : [];
+        let movementCornerSwingTargetCounts: any = {};
+        if (MovementCornerSwing && Array.isArray(MovementCornerSwing.MOVEMENT_CORNER_SWING_CARD_TYPES)) {
+            for (const cardType of MovementCornerSwing.MOVEMENT_CORNER_SWING_CARD_TYPES) {
+                movementCornerSwingTargetCounts[cardType] = 0;
+            }
+        }
+        if (movementCardTypes.length > 0) {
+            const buildMovementCounts = () => getMovementCornerSwingTargetCounts(
+                playerKey,
+                board,
+                playerValue,
+                usability,
+                movementCardTypes
+            );
+            movementCornerSwingTargetCounts = performanceScope
+                ? measureCpuTurnSync(
+                    performanceScope,
+                    'card-context-feature:movement-corner-swing',
+                    buildMovementCounts
+                )
+                : buildMovementCounts();
+        }
         const movementCornerSwingTargetCount = (
             MovementCornerSwing &&
             typeof MovementCornerSwing.getMaxMovementCornerSwingTargetCount === 'function'
@@ -197,12 +414,13 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         let massFreezeOpponentTargetCount = 0;
         let cloneSplitEligibleSourceCount = 0;
         const cloneSplitEligibleSourceKeys = new Set();
+        const shouldScanCloneSources = usableTypes.has('CLONE_WILL');
         for (const marker of markers) {
             if (!marker || (marker.kind !== 'specialStone' && marker.kind !== 'bomb')) continue;
             const row = Number(marker.row);
             const col = Number(marker.col);
             if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-            if (cfg.getBoardCellValueSafe(board, row, col) === playerValue) {
+            if (shouldScanCloneSources && cfg.getBoardCellValueSafe(board, row, col) === playerValue) {
                 const sourceKey = `${row},${col}`;
                 if (!cloneSplitEligibleSourceKeys.has(sourceKey)) {
                     cloneSplitEligibleSourceKeys.add(sourceKey);
@@ -244,14 +462,16 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
                 }
             }
         };
-        if (performanceScope) {
-            measureCpuTurnSync(
-                performanceScope,
-                'card-context-feature:mass-freeze',
-                collectMassFreezeCounts
-            );
-        } else {
-            collectMassFreezeCounts();
+        if (usableTypes.has('MASS_FREEZE_WILL')) {
+            if (performanceScope) {
+                measureCpuTurnSync(
+                    performanceScope,
+                    'card-context-feature:mass-freeze',
+                    collectMassFreezeCounts
+                );
+            } else {
+                collectMassFreezeCounts();
+            }
         }
 
         return {
@@ -298,7 +518,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             massFreezeOpponentTargetCount,
             ownGuardCount,
             oppGuardCount,
-            usableCardIds: Array.isArray(usableCardIds) ? usableCardIds.slice() : [],
+            usableCardIds: usableCardIds.slice(),
             cornerPlanState: planState
         };
     }
@@ -403,7 +623,3 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
 module.exports = {
     createCpuDecisionCardContext
 };
-import {
-    measureCpuTurnSync,
-    type CpuTurnPerformanceScope
-} from './cpu-turn-performance';
