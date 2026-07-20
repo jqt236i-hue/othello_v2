@@ -95,6 +95,15 @@ export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registe
         } : {}),
         processCpuTurn: createLazyProcessCpuTurn(runtimeResolvers),
         resolveCpuDecisionLevelForPlayer: createLazyCpuDecisionLevelResolver(runtimeResolvers),
+        readExplicitCpuTurnDelayMs: () => {
+          try {
+            return typeof runtimeResolvers.readExplicitCpuTurnDelayMs === 'function'
+              ? runtimeResolvers.readExplicitCpuTurnDelayMs()
+              : null;
+          } catch (e: any) {
+            return null;
+          }
+        },
         readMatchMode: runtimeResolvers.readMatchMode,
         readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
         readNetworkSeatKey: () => {

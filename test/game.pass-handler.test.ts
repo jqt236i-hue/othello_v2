@@ -12,11 +12,12 @@ const makeTurnPipeline = () => ({
     }))
 });
 
-const injectPassHandlerRuntimeFromGlobals = (ph: any) => {
+const injectPassHandlerRuntimeFromGlobals = (ph: any, explicitCpuTurnDelayMs: number | null = null) => {
     ph.setPassHandlerRuntime({
         processCpuTurn: (global as any).processCpuTurn,
         readMatchMode: () => (global as any).MATCH_MODE,
         readHumanVsHumanMode: () => (global as any).DEBUG_HUMAN_VS_HUMAN === true,
+        readExplicitCpuTurnDelayMs: () => explicitCpuTurnDelayMs,
         readNetworkSeatKey: () => {
             const client = (global as any).NetworkMatchClient;
             if (client && typeof client.getSeatKey === 'function') return client.getSeatKey();
@@ -767,7 +768,6 @@ describe('pass-handler flows', () => {
         delete require.cache[modPath];
         const cpuTurnMock = jest.fn();
         const delayedCallbacks: Array<() => void> = [];
-        (global as any).CPU_TURN_DELAY_MS = 10;
         (global as any).processCpuTurn = jest.fn();
         (global as any).cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
         (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 3 };
@@ -798,6 +798,7 @@ describe('pass-handler flows', () => {
                 processCpuTurn: cpuTurnMock,
                 readMatchMode: () => 'cpu',
                 readHumanVsHumanMode: () => false,
+                readExplicitCpuTurnDelayMs: () => 10,
                 resolveRuntimeValue: (name: string) => name === 'gameState' ? runtimeGameState : (global as any)[name],
                 setProcessing: (next: boolean) => {
                     (global as any).isProcessing = next === true;
@@ -813,9 +814,7 @@ describe('pass-handler flows', () => {
 
             expect(cpuTurnMock).toHaveBeenCalledTimes(1);
             expect((global as any).isProcessing).toBe(false);
-        } finally {
-            delete (global as any).CPU_TURN_DELAY_MS;
-        }
+        } finally { /* runtime override is isolated to this module instance */ }
     });
 
     test('white CPU scheduling retries briefly when processCpuTurn becomes available after pass', async () => {
@@ -823,7 +822,6 @@ describe('pass-handler flows', () => {
         delete require.cache[modPath];
         const cpuTurnMock = jest.fn();
         (global as any).processCpuTurn = cpuTurnMock;
-        (global as any).CPU_TURN_DELAY_MS = 10;
         (global as any).cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
         (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 3 };
         (global as any).Core = { getLegalMoves: jest.fn(() => [{ row: 0, col: 0, flips: [[0, 1]] }]) };
@@ -851,7 +849,6 @@ describe('pass-handler flows', () => {
         } finally {
             jest.clearAllTimers();
             jest.useRealTimers();
-            delete (global as any).CPU_TURN_DELAY_MS;
         }
     });
 
@@ -861,7 +858,6 @@ describe('pass-handler flows', () => {
         const legacyCpuTurnMock = jest.fn();
         const injectedCpuTurnMock = jest.fn();
         (global as any).processCpuTurn = legacyCpuTurnMock;
-        (global as any).CPU_TURN_DELAY_MS = 10;
         (global as any).cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
         (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 3 };
         (global as any).Core = { getLegalMoves: jest.fn(() => [{ row: 0, col: 0, flips: [[0, 1]] }]) };
@@ -880,7 +876,8 @@ describe('pass-handler flows', () => {
             ph.setPassHandlerRuntime({
                 processCpuTurn: injectedCpuTurnMock,
                 readMatchMode: () => 'cpu',
-                readHumanVsHumanMode: () => false
+                readHumanVsHumanMode: () => false,
+                readExplicitCpuTurnDelayMs: () => 10
             });
 
             await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
@@ -891,13 +888,11 @@ describe('pass-handler flows', () => {
         } finally {
             jest.clearAllTimers();
             jest.useRealTimers();
-            delete (global as any).CPU_TURN_DELAY_MS;
         }
     });
 
     test('white CPU scheduling resolves Lv1 delay through the injected runtime without loading cpu-decision', async () => {
         delete require.cache[modPath];
-        delete (global as any).CPU_TURN_DELAY_MS;
         const delayedCallbacks: Array<() => void> = [];
         const delayedValues: number[] = [];
         const resolveCpuDecisionLevelForPlayer = jest.fn(() => 1);
@@ -942,7 +937,6 @@ describe('pass-handler flows', () => {
         (global as any).processCpuTurn = jest.fn(() => {
             processingStates.push((global as any).isProcessing === true);
         });
-        (global as any).CPU_TURN_DELAY_MS = 10;
         (global as any).cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
         (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 3 };
         (global as any).Core = { getLegalMoves: jest.fn(() => [{ row: 0, col: 0, flips: [[0, 1]] }]) };
@@ -958,7 +952,7 @@ describe('pass-handler flows', () => {
         try {
             const ph = require('../game/pass-handler');
             injectPassHandlerFakeTimerService(ph);
-            injectPassHandlerRuntimeFromGlobals(ph);
+            injectPassHandlerRuntimeFromGlobals(ph, 10);
 
             await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
             expect((global as any).isProcessing).toBe(true);
@@ -971,7 +965,6 @@ describe('pass-handler flows', () => {
         } finally {
             jest.clearAllTimers();
             jest.useRealTimers();
-            delete (global as any).CPU_TURN_DELAY_MS;
         }
     });
 

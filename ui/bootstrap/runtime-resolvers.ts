@@ -54,11 +54,30 @@ export function createRuntimeResolvers(deps: RuntimeResolverDeps) {
     return false;
   }
 
+  function readExplicitCpuTurnDelayMs(): number | null {
+    try {
+      if (
+        typeof safeDeps.isDebugSessionEnabled !== 'function'
+        || safeDeps.isDebugSessionEnabled() !== true
+        || typeof globalThis === 'undefined'
+      ) {
+        return null;
+      }
+      const rawValue = (globalThis as any).CPU_TURN_DELAY_MS;
+      if (rawValue === null || typeof rawValue === 'undefined') return null;
+      const value = Number(rawValue);
+      return Number.isFinite(value) ? value : null;
+    } catch (e: any) {
+      return null;
+    }
+  }
+
   return {
     resolveRuntimeFunction,
     resolveRuntimeValue,
     readMatchMode,
     readHumanVsHumanMode,
+    readExplicitCpuTurnDelayMs,
     readQuerySearch: () => (
       typeof safeDeps.readDebugQueryString === 'function' ? safeDeps.readDebugQueryString() : ''
     ),

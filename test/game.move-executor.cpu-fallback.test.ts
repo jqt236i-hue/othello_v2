@@ -16,6 +16,14 @@ describe('move-executor CPU scheduling DI', () => {
         delete global.DEBUG_HUMAN_VS_HUMAN;
         global.WHITE = -1;
     });
+    afterEach(() => {
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            getNetworkTurnHandoff: null,
+            resolveCpuDecisionLevelForPlayer: null,
+            readExplicitCpuTurnDelayMs: null
+        });
+    });
     function installProcessingMirror(moveExecutor: any) {
         moveExecutor.setUIImpl({
             setProcessing: (next: boolean) => {
@@ -23,6 +31,125 @@ describe('move-executor CPU scheduling DI', () => {
             }
         });
     }
+
+    test.each([
+        { nextPlayerKey: 'white', nextPlayerValue: -1, actingPlayerKey: 'black', controllerMap: {} },
+        { nextPlayerKey: 'black', nextPlayerValue: 1, actingPlayerKey: 'white', controllerMap: { black: 'white' } }
+    ])('uses the actual $nextPlayerKey Lv1 policy for place handoff', async ({
+        nextPlayerKey,
+        nextPlayerValue,
+        actingPlayerKey,
+        controllerMap
+    }) => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            fateWillControllerByTurnOwner: controllerMap,
+            turnIndex: 0
+        };
+        global.gameState = {
+            currentPlayer: actingPlayerKey === 'black' ? 1 : -1,
+            board: Array(8).fill(null).map(() => Array(8).fill(0)),
+            turnNumber: 6
+        };
+
+        const moveExecutor = require('../game/move-executor.js');
+        installProcessingMirror(moveExecutor);
+        const resolveCpuDecisionLevelForPlayer = jest.fn(() => 1);
+        const scheduleCpuTurn = jest.fn(() => true);
+        const networkTurnHandoff = {
+            finalizeNetworkTurnHandoff: jest.fn(async (options: any) => {
+                options.scheduleCpuTurn({
+                    delayMs: options.cpuDelayMs,
+                    expectedTurnNumber: 6,
+                    nextPlayerKey
+                });
+                return { ok: true, scheduledCpu: true, nextPlayerKey };
+            })
+        };
+        moveExecutor.setUIImpl({
+            scheduleCpuTurn,
+            processCpuTurn: jest.fn(),
+            resolveCpuDecisionLevelForPlayer,
+            readExplicitCpuTurnDelayMs: () => null,
+            getNetworkTurnHandoff: () => networkTurnHandoff
+        });
+
+        await moveExecutor.executeMoveViaPipeline(
+            { row: 2, col: 3, player: actingPlayerKey === 'black' ? 1 : -1 },
+            false,
+            actingPlayerKey,
+            {
+                runTurnWithAdapter: jest.fn(() => ({
+                    ok: true,
+                    nextGameState: { ...global.gameState, currentPlayer: nextPlayerValue },
+                    nextCardState: global.cardState,
+                    playbackEvents: [],
+                    phases: {},
+                    placementEffects: {},
+                    immediate: {}
+                }))
+            },
+            {}
+        );
+
+        expect(resolveCpuDecisionLevelForPlayer).toHaveBeenCalledWith(nextPlayerKey);
+        expect(scheduleCpuTurn).toHaveBeenCalledWith(0, expect.any(Function));
+    });
+
+    test('place handoff gives an explicit UI override priority over Lv1', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            fateWillControllerByTurnOwner: {},
+            turnIndex: 0
+        };
+        global.gameState = {
+            currentPlayer: 1,
+            board: Array(8).fill(null).map(() => Array(8).fill(0)),
+            turnNumber: 6
+        };
+        const moveExecutor = require('../game/move-executor.js');
+        installProcessingMirror(moveExecutor);
+        const scheduleCpuTurn = jest.fn(() => true);
+        const networkTurnHandoff = {
+            finalizeNetworkTurnHandoff: jest.fn(async (options: any) => {
+                options.scheduleCpuTurn({
+                    delayMs: options.cpuDelayMs,
+                    expectedTurnNumber: 6,
+                    nextPlayerKey: 'white'
+                });
+                return { ok: true, scheduledCpu: true, nextPlayerKey: 'white' };
+            })
+        };
+        moveExecutor.setUIImpl({
+            scheduleCpuTurn,
+            processCpuTurn: jest.fn(),
+            resolveCpuDecisionLevelForPlayer: () => 1,
+            readExplicitCpuTurnDelayMs: () => 19.8,
+            getNetworkTurnHandoff: () => networkTurnHandoff
+        });
+
+        await moveExecutor.executeMoveViaPipeline(
+            { row: 2, col: 3, player: 1 },
+            false,
+            'black',
+            {
+                runTurnWithAdapter: jest.fn(() => ({
+                    ok: true,
+                    nextGameState: { ...global.gameState, currentPlayer: -1 },
+                    nextCardState: global.cardState,
+                    playbackEvents: [],
+                    phases: {},
+                    placementEffects: {},
+                    immediate: {}
+                }))
+            },
+            {}
+        );
+
+        expect(scheduleCpuTurn).toHaveBeenCalledWith(19, expect.any(Function));
+    });
 
     test('uses injected scheduler and CPU processor instead of global processCpuTurn', async () => {
         global.BoardOps = { emitPresentationEvent: jest.fn() };

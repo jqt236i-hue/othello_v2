@@ -469,11 +469,22 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             } catch (e: any) { /* ignore */ }
             return false;
         }
+        function readExplicitCpuTurnDelayMs() {
+            try {
+                if (!isDebugSessionEnabled() || typeof globalThis === 'undefined') return null;
+                const rawValue = (globalThis as any).CPU_TURN_DELAY_MS;
+                if (rawValue === null || typeof rawValue === 'undefined') return null;
+                const value = Number(rawValue);
+                return Number.isFinite(value) ? value : null;
+            } catch (e: any) { /* ignore */ }
+            return null;
+        }
         return {
             resolveRuntimeFunction,
             resolveRuntimeValue,
             readMatchMode,
             readHumanVsHumanMode,
+            readExplicitCpuTurnDelayMs,
             readQuerySearch: readDebugQueryString,
             isDebugLogAvailable: isDebugSessionEnabled,
             debugLog

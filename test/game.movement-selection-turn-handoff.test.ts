@@ -39,7 +39,6 @@ describe.each(CASES)('$label selection turn handoff', ({ handlerName, pendingTyp
 
     global.BLACK = 1;
     global.WHITE = -1;
-    global.CPU_TURN_DELAY_MS = 0;
     global.isProcessing = false;
     global.isCardAnimating = false;
     global.cardState = {
@@ -127,7 +126,6 @@ describe.each(CASES)('$label selection turn handoff', ({ handlerName, pendingTyp
 
     delete global.BLACK;
     delete global.WHITE;
-    delete global.CPU_TURN_DELAY_MS;
     delete global.isProcessing;
     delete global.isCardAnimating;
     delete global.cardState;

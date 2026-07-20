@@ -63,7 +63,6 @@ async function installStandardDebugState(page: any, cardId: string, humanVsHuman
       window[key].DEBUG_UNLIMITED_USAGE = true;
       window[key].DEBUG_HUMAN_VS_HUMAN = hvh === true;
       window[key].MATCH_MODE = 'cpu';
-      window[key].CPU_TURN_DELAY_MS = 0;
     }
 
     window.gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));

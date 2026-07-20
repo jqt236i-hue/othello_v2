@@ -96,7 +96,6 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
     global.DEBUG_HUMAN_VS_HUMAN = false;
     global.MATCH_MODE = 'cpu';
     global.processCpuTurn = jest.fn();
-    global.CPU_TURN_DELAY_MS = 0;
     global.requestAnimationFrame = jest.fn();
     cpuDecision.setCpuDecisionRuntime({
       readMatchMode: () => 'cpu',
@@ -138,7 +137,6 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
     delete global.DEBUG_HUMAN_VS_HUMAN;
     delete global.MATCH_MODE;
     delete global.processCpuTurn;
-    delete global.CPU_TURN_DELAY_MS;
     delete global.requestAnimationFrame;
   });
 

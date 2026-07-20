@@ -134,12 +134,14 @@ Lv1のhandoffを確実に0msにし、黒/白CPU、pass、network/local handoff�
 - `game/pass-handler.ts`
 - `game/network-turn-handoff.ts`
 - `ui/bootstrap.ts`
+- `ui/bootstrap/runtime-resolvers.ts`
 - `ui/bootstrap/pass-runtime-wiring.ts`
 - 関連するmove/pass/bootstrap runtime wiring
 - `test/game.cpu-turn-delay.test.ts`（新規）
 - `test/game.move-executor.cpu-fallback.test.ts`
 - `test/game.pass-handler.test.ts`
 - `test/game.network-turn-handoff.test.ts`
+- `test/ui.bootstrap.runtime-resolvers.test.ts`（新規）
 - delay overrideを使うE2E/unit tests
 
 ### Behavior / contract

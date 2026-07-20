@@ -171,6 +171,33 @@ describe('network-turn-handoff', () => {
     expect(result).toMatchObject({ scheduledCpu: true, gameOver: false, nextPlayerKey: 'white' });
   });
 
+  test('missing cpuDelayMs normalizes to 200ms without reading the legacy global', async () => {
+    global.gameState = { currentPlayer: 'white', turnNumber: 12 };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      fateWillControllerByTurnOwner: { black: null, white: null }
+    };
+    global.CPU_TURN_DELAY_MS = 7;
+    const handoff = require('../game/network-turn-handoff.js');
+    const scheduleCpuTurn = jest.fn();
+
+    const result = await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      publishSnapshot: jest.fn(),
+      scheduleCpuTurn,
+      humanMode: false
+    });
+
+    expect(scheduleCpuTurn).toHaveBeenCalledWith({
+      delayMs: 200,
+      expectedTurnNumber: 12,
+      nextPlayerKey: 'white'
+    });
+    expect(result).toMatchObject({ scheduledCpu: true, nextPlayerKey: 'white' });
+  });
+
   test('scheduleCpuTurn が false を返したら processing を戻して human handoff 扱いにする', async () => {
     global.gameState = { currentPlayer: 'white', turnNumber: 12 };
     global.cardState = {

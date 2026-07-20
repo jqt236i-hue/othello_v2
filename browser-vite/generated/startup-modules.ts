@@ -184,6 +184,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/cpu-decision-tempt-value": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-decision-tempt-value.js"),
   "game/cpu-network-command-planner": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-network-command-planner.js"),
   "game/cpu-turn-card-phase": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-card-phase.js"),
+  "game/cpu-turn-delay": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-delay.js"),
   "game/cpu-turn-handler": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-handler.js"),
   "game/cpu-turn-move-phase": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-move-phase.js"),
   "game/cpu-turn-pending-phase": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-pending-phase.js"),
@@ -857,6 +858,7 @@ installBootModuleMetadata({
     "game/cpu-decision-tempt-value",
     "game/cpu-network-command-planner",
     "game/cpu-turn-card-phase",
+    "game/cpu-turn-delay",
     "game/cpu-turn-handler",
     "game/cpu-turn-move-phase",
     "game/cpu-turn-pending-phase",
@@ -1428,4 +1430,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 668;
+export const startupModuleCount = 669;

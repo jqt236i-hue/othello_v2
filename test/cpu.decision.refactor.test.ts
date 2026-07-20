@@ -30,7 +30,6 @@ describe('cpu decision refactor helpers', () => {
     delete global.processCpuTurn;
     delete global.DEBUG_HUMAN_VS_HUMAN;
     delete global.MATCH_MODE;
-    delete global.CPU_TURN_DELAY_MS;
     delete global.OthelloBrowserCpuRuntime;
     delete global.AISystem;
     if (typeof cpuDecision.setCpuDecisionRuntime === 'function') {

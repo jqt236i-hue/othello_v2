@@ -160,6 +160,25 @@ function installMoveExecutorRuntime(deps: any): void {
         }
       } : {}),
       scheduleCpuTurn: (ms: any, cb: any) => { return timers.waitMs(ms || 0).then(cb); },
+      resolveCpuDecisionLevelForPlayer: (playerKey: any) => {
+        try {
+          const resolver = runtimeResolvers && typeof runtimeResolvers.resolveRuntimeFunction === 'function'
+            ? runtimeResolvers.resolveRuntimeFunction('resolveCpuDecisionLevelForPlayer')
+            : null;
+          return typeof resolver === 'function' ? resolver(playerKey) : undefined;
+        } catch (e) {
+          return undefined;
+        }
+      },
+      readExplicitCpuTurnDelayMs: () => {
+        try {
+          return runtimeResolvers && typeof runtimeResolvers.readExplicitCpuTurnDelayMs === 'function'
+            ? runtimeResolvers.readExplicitCpuTurnDelayMs()
+            : null;
+        } catch (e) {
+          return null;
+        }
+      },
       processCpuTurn: (() => {
         try {
           const cpu = requireModule('../game/cpu-turn-handler');

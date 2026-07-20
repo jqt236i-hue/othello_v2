@@ -11,6 +11,7 @@ import {
     withCpuTurnPerformanceOptions,
     type CpuTurnPerformanceScope
 } from './cpu-turn-performance';
+import { resolveCpuTurnDelayMs } from './cpu-turn-delay';
 
 declare let cardState: any;
 declare let gameState: any;
@@ -20,7 +21,6 @@ declare const TurnPipeline: any;
 declare const TurnPipelineUIAdapter: any;
 declare const processCpuTurn: any;
 declare const onTurnStart: any;
-declare const CPU_TURN_DELAY_MS: any;
 
 let __uiImpl_move_executor: any = {};
 function setUIImpl(obj: any) {
@@ -94,27 +94,48 @@ function requireMoveExecutorModuleOrNull(id: string): any {
     }
 }
 
-// Lv1 CPU は応答性最優先 (cpu-turn-move-phase.ts:138) のため、
-// 着手前ウェイト (CPU_TURN_DELAY_MS フォールバック) を 0 に短縮する。
-// テスト等で CPU_TURN_DELAY_MS が明示的に設定されている場合は尊重して base を維持。
-// レベル解決に失敗した場合は安全側 (base) に倒す。
-function resolveLv1AwareCpuDelay(baseCpuDelay: any): number {
-    const base = Number.isFinite(Number(baseCpuDelay))
-        ? Math.max(0, Math.trunc(Number(baseCpuDelay)))
-        : 200;
-    if (typeof CPU_TURN_DELAY_MS !== 'undefined') {
-        return base;
-    }
+function resolveMoveExecutorCpuDecisionLevel(playerKey: 'black' | 'white'): number | null {
     try {
-        const CpuDecision = (typeof require === 'function') ? require('./cpu-decision') : null;
-        if (CpuDecision && typeof CpuDecision.resolveCpuDecisionLevelForPlayer === 'function') {
-            const level = Number(CpuDecision.resolveCpuDecisionLevelForPlayer('white'));
-            if (Number.isFinite(level) && Math.floor(level) === 1) {
-                return 0;
-            }
+        const injectedResolver = __uiImpl_move_executor
+            && typeof __uiImpl_move_executor.resolveCpuDecisionLevelForPlayer === 'function'
+            ? __uiImpl_move_executor.resolveCpuDecisionLevelForPlayer
+            : null;
+        if (injectedResolver) {
+            const injectedLevel = Number(injectedResolver(playerKey));
+            if (Number.isFinite(injectedLevel)) return Math.trunc(injectedLevel);
         }
-    } catch (e) { /* fall through to base */ }
-    return base;
+        const CpuDecision = requireMoveExecutorModuleOrNull('./cpu-decision');
+        if (CpuDecision && typeof CpuDecision.resolveCpuDecisionLevelForPlayer === 'function') {
+            const level = Number(CpuDecision.resolveCpuDecisionLevelForPlayer(playerKey));
+            return Number.isFinite(level) ? Math.trunc(level) : null;
+        }
+    } catch (e) { /* fall through to unresolved level */ }
+    return null;
+}
+
+function readMoveExecutorExplicitCpuTurnDelayMs(): number | null {
+    try {
+        const reader = __uiImpl_move_executor
+            && typeof __uiImpl_move_executor.readExplicitCpuTurnDelayMs === 'function'
+            ? __uiImpl_move_executor.readExplicitCpuTurnDelayMs
+            : null;
+        if (!reader) return null;
+        const rawValue = reader();
+        if (rawValue === null || typeof rawValue === 'undefined') return null;
+        const value = Number(rawValue);
+        return Number.isFinite(value) ? value : null;
+    } catch (e) { /* fall through to no override */ }
+    return null;
+}
+
+function resolveMoveExecutorCpuTurnDelayMs(playerValue: any): number {
+    const playerKey = normalizeMoveExecutorPlayerKey(playerValue, 'white') as 'black' | 'white';
+    return resolveCpuTurnDelayMs({
+        playerKey,
+        decisionLevel: resolveMoveExecutorCpuDecisionLevel(playerKey),
+        explicitDelayMs: readMoveExecutorExplicitCpuTurnDelayMs(),
+        defaultDelayMs: 200
+    });
 }
 
 // Import event emitters from controller-events; fall back to global scope
@@ -697,9 +718,11 @@ async function executeMoveViaPipeline(
     }
 
     const humanMode = isHumanVsHumanModeEnabled();
-    const safeCpuDelay = resolveLv1AwareCpuDelay(
-        (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 200
+    const nextPlayerKeyForDelay = normalizeMoveExecutorPlayerKey(
+        gameState && gameState.currentPlayer,
+        'white'
     );
+    const safeCpuDelay = resolveMoveExecutorCpuTurnDelayMs(nextPlayerKeyForDelay);
     const handoff = resolveMoveExecutorNetworkTurnHandoff();
     const finalizeTurn = (handoff && typeof handoff.finalizeNetworkTurnHandoff === 'function')
         ? handoff.finalizeNetworkTurnHandoff

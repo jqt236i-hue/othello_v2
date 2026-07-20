@@ -67,7 +67,6 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
     global.DEBUG_HUMAN_VS_HUMAN = false;
     global.MATCH_MODE = 'cpu';
     global.processCpuTurn = jest.fn();
-    global.CPU_TURN_DELAY_MS = 0;
     global.requestAnimationFrame = jest.fn();
     cpuDecision.setCpuDecisionRuntime({
       readMatchMode: () => 'cpu',
@@ -100,7 +99,6 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
     delete global.DEBUG_HUMAN_VS_HUMAN;
     delete global.MATCH_MODE;
     delete global.processCpuTurn;
-    delete global.CPU_TURN_DELAY_MS;
     delete global.requestAnimationFrame;
   });
 
