@@ -10,6 +10,7 @@ type CardUsabilityAnalysisLike = Readonly<{
     usableCardTypes?: readonly string[];
     selectorEvidence?: Readonly<Record<string, Readonly<{
         lane?: string;
+        status?: string;
         method?: string;
         cardState?: any;
         gameState?: any;
@@ -105,7 +106,13 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             ? analysis.usableSlots as readonly any[]
             : [];
         for (const entry of Object.values(evidence)) {
-            if (!entry || entry.lane !== 'public' || entry.method !== method || entry.available !== true) continue;
+            if (
+                !entry
+                || entry.lane !== 'public'
+                || entry.status !== 'value'
+                || entry.method !== method
+                || entry.available !== true
+            ) continue;
             if (entry.cardState !== cs || entry.gameState !== gs) continue;
             if (typeof expectedResolver === 'function' && entry.resolver !== expectedResolver) continue;
             if (!acceptedCardTypes.has(String(entry.cardType || ''))) continue;

@@ -840,6 +840,8 @@ describe('PresentationHandler playback claim', () => {
 
   test('holds a drain claim across multiple drained playback batches', async () => {
     const order: string[] = [];
+    let activeRunId: number | null = null;
+    let nextRunId = 0;
     const drainClaim = { id: 1 };
     const batchClaimOne = { id: 2 };
     const batchClaimTwo = { id: 3 };
@@ -893,8 +895,20 @@ describe('PresentationHandler playback claim', () => {
     (global as any).AnimationEngine = {
       play: jest.fn(async (payload) => {
         order.push(`play:${payload[0].type}`);
-        const settlement = createPlaybackSettlement(() => {
-          order.push(`finalize:${payload[0].type}`);
+        const runId = ++nextRunId;
+        activeRunId = runId;
+        let finalized = false;
+        const settlement = Object.freeze({
+          kind: 'deferred-finalization' as const,
+          runId,
+          mode: 'finalize' as const,
+          finalize() {
+            if (finalized || activeRunId !== runId) return false;
+            order.push(`finalize:${payload[0].type}`);
+            finalized = true;
+            activeRunId = null;
+            return true;
+          }
         });
         if (payload[0].type === 'move') {
           order.push(`between:${(global as any).PlaybackStateManager.hasClaimedVisualPlayback()}`);
@@ -914,12 +928,12 @@ describe('PresentationHandler playback claim', () => {
       'play:move',
       'between:true',
       'release:2',
+      'finalize:move',
       'claim:batch_handoff',
       'play:destroy',
       'release:3',
       'board-final-sync',
       'board-release',
-      'finalize:move',
       'finalize:destroy',
       'release:1'
     ]);

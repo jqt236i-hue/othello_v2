@@ -445,6 +445,7 @@ describe('cpu decision card context module', () => {
       selectorEvidence: {
         evidence: {
           lane,
+          status: 'value',
           method: 'getBoardExpansionTargets',
           cardState,
           gameState,
@@ -467,6 +468,16 @@ describe('cpu decision card context module', () => {
 
     const fromLocalEvidence = moduleRef.buildCardUseDecisionContext('white', 6, 1, [], makeAnalysis('local'));
     expect(fromLocalEvidence.boardExpansionWillEnemyCornerTargetCount).toBe(0);
+    expect(getBoardExpansionTargets).toHaveBeenCalledTimes(1);
+
+    getBoardExpansionTargets.mockClear();
+    getBoardExpansionTargets.mockReturnValue([{ row: 0, col: 0 }]);
+    const thrownEvidence = makeAnalysis('public');
+    thrownEvidence.selectorEvidence.evidence.status = 'threw';
+    thrownEvidence.selectorEvidence.evidence.result = null;
+
+    const afterThrownEvidence = moduleRef.buildCardUseDecisionContext('white', 6, 1, [], thrownEvidence);
+    expect(afterThrownEvidence.boardExpansionWillEnemyCornerTargetCount).toBe(1);
     expect(getBoardExpansionTargets).toHaveBeenCalledTimes(1);
   });
 });

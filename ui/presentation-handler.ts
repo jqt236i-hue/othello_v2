@@ -572,6 +572,22 @@ function requestBoardSyncAfterPlaybackClaimRelease(reason: string): boolean {
   return false;
 }
 
+function finalizePlaybackSettlements(claim: any): void {
+  const playbackSettlements = claim && Array.isArray(claim.playbackSettlements)
+    ? claim.playbackSettlements
+    : [];
+  while (playbackSettlements.length > 0) {
+    const settlement = requirePlaybackSettlementResult(playbackSettlements[0]);
+    if (settlement.finalize() !== true) {
+      throw createPlaybackSettlementContractError(
+        'local_playback_settlement_rejected',
+        `Local playback settlement rejected run ${settlement.runId}`
+      );
+    }
+    playbackSettlements.shift();
+  }
+}
+
 async function releasePlaybackClaimAndRequestBoardSync(claim: any, reason: string): Promise<boolean> {
   const isFinalLocalSettlement = !!(
     claim && claim.meta && claim.meta.strictNetworkPlayback !== true
@@ -595,19 +611,7 @@ async function releasePlaybackClaimAndRequestBoardSync(claim: any, reason: strin
       throw error;
     }
   }
-  const playbackSettlements = claim && Array.isArray(claim.playbackSettlements)
-    ? claim.playbackSettlements
-    : [];
-  while (playbackSettlements.length > 0) {
-    const settlement = requirePlaybackSettlementResult(playbackSettlements[0]);
-    if (settlement.finalize() !== true) {
-      throw createPlaybackSettlementContractError(
-        'local_playback_settlement_rejected',
-        `Local playback settlement rejected run ${settlement.runId}`
-      );
-    }
-    playbackSettlements.shift();
-  }
+  finalizePlaybackSettlements(claim);
   const released = releasePlaybackClaimForPresentation(claim);
   if (released && !hasActivePlaybackClaimForPresentation()) {
     requestBoardSyncAfterPlaybackClaimRelease(reason);
@@ -955,6 +959,9 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
     return;
   }
 
+  if (!strictNetworkPlayback && activeLocalPresentationDrainClaim) {
+    finalizePlaybackSettlements(activeLocalPresentationDrainClaim);
+  }
   const playbackClaim = claimPlaybackBatchForPresentation(ev, payload);
   let strictSettlement: any = null;
   let strictOwnershipTransferred = false;
