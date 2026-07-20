@@ -259,6 +259,7 @@ function createSceneFixture() {
       applyCalls.push({ frame, context });
       return { materializedCount: 1, createdViews: 1, reusedViews: 0, updatedViews: 1, skippedViews: 0, releasedViews: 0, materializationWindow: null };
     }),
+    invalidateStaticViews: jest.fn(),
     getRenderedCell: jest.fn((row: number, col: number) => row === 0 && col === 0 ? { key: '0,0' } : null),
     getDiagnostics: jest.fn(() => ({
       destroyed,
@@ -689,6 +690,25 @@ describe('Pixi board backend integration', () => {
     });
   });
 
+  test('keeps lane texture identities stable across committed transaction generations', async () => {
+    const harness = createHarness();
+    await harness.backend.mount(harness.host, {});
+    const first = makeFrame('texture-generation-first', 1);
+    const second = makeFrame('texture-generation-second', 1);
+
+    await harness.backend.prepareFrame(first);
+    harness.backend.applyFrame(first);
+    await harness.backend.waitForVisualSettlement(first);
+    await harness.backend.prepareFrame(second);
+    harness.backend.applyFrame(second);
+    await harness.backend.waitForVisualSettlement(second);
+
+    const [firstContext, secondContext] = harness.scene.applyCalls.map((entry) => entry.context);
+    expect(secondContext.textureRevision).toBeGreaterThan(firstContext.textureRevision);
+    expect(secondContext.surfaceTextureRevision).toBe(firstContext.surfaceTextureRevision);
+    expect(secondContext.stoneTextureRevision).toBe(firstContext.stoneTextureRevision);
+  });
+
   test('drops stale asynchronous preparation without reporting it as a visual commit', async () => {
     const harness = createHarness();
     await harness.backend.mount(harness.host, {});
@@ -916,7 +936,10 @@ describe('Pixi board backend integration', () => {
     expect(diagnostics.canvasBackingHeight).toBe(560);
     expect(diagnostics.canvasBackingWidth).toBeLessThan(640 * 2);
     harness.fireResize();
-    expect(harness.backend.getDiagnostics().resizeRenderCount).toBe(1);
+    expect(harness.backend.getDiagnostics()).toMatchObject({
+      resizeRenderCount: 1,
+      application: { resizeCount: 1, resizeSkippedCount: 1 }
+    });
 
     harness.backend.destroy();
     harness.backend.destroy();
@@ -1271,6 +1294,7 @@ describe('Pixi board backend integration', () => {
     await nextTurn();
 
     expect(onContextRestored).toHaveBeenCalledTimes(1);
+    expect(harness.scene.scene.invalidateStaticViews).toHaveBeenCalledTimes(1);
     expect(onFallbackRequired).not.toHaveBeenCalled();
     expect(harness.backend.getDiagnostics()).toMatchObject({
       lastErrorCode: null,

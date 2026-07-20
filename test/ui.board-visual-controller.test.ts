@@ -616,6 +616,10 @@ describe('BoardVisualController', () => {
       getDisplayObjectCounts: jest.fn(() => ({ total: 3, sprites: 2, renderer: {} })),
       getTextureLeaseCounts: jest.fn(() => ({ total: 4, leased: 1 })),
       captureDebugFramePngDataUrl: jest.fn(() => 'data:image/png;base64,AA=='),
+      captureDebugFrameAfterTickerElapsed: jest.fn(async (elapsedMs: number) => ({
+        dataUrl: 'data:image/png;base64,AA==',
+        elapsedMs
+      })),
       getDiagnostics: jest.fn(() => ({ tickerRunning: false, pool: { activePlaybackGhostCount: 0 } }))
     });
     const diagnostics = DiagnosticsModule.createBoardVisualDiagnostics({ enabled: true });
@@ -660,6 +664,10 @@ describe('BoardVisualController', () => {
     expect(debug.getWriterMode()).toBe('idle');
     expect(debug.getVisualFrameDigest()).toMatch(/^fnv1a32:[a-f0-9]{8}$/);
     expect(controller.captureDebugFramePngDataUrl()).toBe('data:image/png;base64,AA==');
+    await expect(controller.captureDebugFrameAfterTickerElapsed(72)).resolves.toEqual({
+      dataUrl: 'data:image/png;base64,AA==',
+      elapsedMs: 72
+    });
 
     const firstDigest = debug.getVisualFrameDigest();
     expect(controller.submitFrame(diagnosticFrame('private-frame-token:2', 2))).toBe(true);

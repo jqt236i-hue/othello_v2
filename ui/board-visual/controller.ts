@@ -955,6 +955,17 @@ function createBoardVisualController(options: {
       const candidate = (backend as any).captureDebugFramePngDataUrl;
       return typeof candidate === 'function' ? candidate.call(backend) : null;
     },
+    captureDebugFrameAfterTickerElapsed(elapsedMs: number) {
+      assertAlive();
+      if (diagnostics.enabled !== true) {
+        return Promise.reject(new Error('Board visual ticker frame capture requires gated diagnostics'));
+      }
+      const candidate = (backend as any).captureDebugFrameAfterTickerElapsed;
+      if (typeof candidate !== 'function') {
+        return Promise.reject(new Error('Active board backend does not support ticker frame capture'));
+      }
+      return Promise.resolve(candidate.call(backend, elapsedMs));
+    },
     getVisualFrameDigest() {
       return computeVisualFrameDigest(lastSettled);
     },

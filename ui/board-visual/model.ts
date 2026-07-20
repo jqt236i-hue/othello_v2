@@ -8,6 +8,32 @@ import type {
   MaterializedBoardCellVisualState
 } from './types';
 
+type BoardCellSignatureField =
+  | 'visualSignature'
+  | 'surfaceSignature'
+  | 'stoneSignature'
+  | 'interactionSignature';
+
+type UnsignedBoardCellVisualState = Omit<BoardCellVisualState, BoardCellSignatureField>;
+
+const SURFACE_MARKER_KINDS = new Set([
+  'blockade',
+  'seed',
+  'poison-cell',
+  'theory-number-cell'
+]);
+
+const STONE_MARKER_KINDS = new Set([
+  'special',
+  'living-will-aura',
+  'manifest-aura',
+  'guard',
+  'bomb',
+  'frozen',
+  'poisoned',
+  'breeding-sprout'
+]);
+
 const OVERLAY_KEYS = new Set([
   'hoveredCellKey',
   'keyboardCursorKey',
@@ -90,9 +116,9 @@ export function validateBoardPresentationOverlayState(value: unknown): BoardPres
 }
 
 function withOverlayInteraction(
-  cell: BoardCellVisualState,
+  cell: UnsignedBoardCellVisualState,
   overlay: BoardPresentationOverlayState
-): BoardCellVisualState {
+): UnsignedBoardCellVisualState {
   const directionHints = overlay.directionHints
     .filter((hint) => hint.cellKey === cell.key)
     .map((hint) => ({ id: hint.id, kind: hint.kind || 'generic', directionKey: hint.directionKey }));
@@ -119,7 +145,20 @@ function withOverlayInteraction(
   return { ...cell, interaction };
 }
 
-function signatureForCell(cell: Omit<BoardCellVisualState, 'visualSignature'>): string {
+function normalizedMarkerKind(kind: unknown): string {
+  return String(kind || '').trim().toLowerCase().replace(/_/g, '-');
+}
+
+function isSurfaceMarkerKind(kind: unknown): boolean {
+  const normalized = normalizedMarkerKind(kind);
+  return SURFACE_MARKER_KINDS.has(normalized) || normalized.includes('board-bonus');
+}
+
+function isStoneMarkerKind(kind: unknown): boolean {
+  return STONE_MARKER_KINDS.has(normalizedMarkerKind(kind));
+}
+
+function signatureForCell(cell: UnsignedBoardCellVisualState): string {
   return JSON.stringify([
     cell.key,
     cell.kind,
@@ -131,10 +170,47 @@ function signatureForCell(cell: Omit<BoardCellVisualState, 'visualSignature'>): 
   ]);
 }
 
+function signatureForSurface(cell: UnsignedBoardCellVisualState): string {
+  const markers = cell.markers.filter((marker) => isSurfaceMarkerKind(marker.kind));
+  return JSON.stringify([
+    cell.kind,
+    cell.expansionSide,
+    cell.boundaryEdges,
+    markers,
+    markers.some((marker) => normalizedMarkerKind(marker.kind) === 'seed') && cell.stone !== null
+  ]);
+}
+
+function signatureForStone(cell: UnsignedBoardCellVisualState): string {
+  return JSON.stringify([
+    cell.kind,
+    cell.stone,
+    cell.markers.filter((marker) => isStoneMarkerKind(marker.kind))
+  ]);
+}
+
+function signatureForInteraction(cell: UnsignedBoardCellVisualState): string {
+  const interaction = cell.interaction;
+  return JSON.stringify([
+    cell.kind,
+    interaction.legal,
+    interaction.legalFree,
+    interaction.tabooLegal,
+    interaction.selectable,
+    interaction.interactionLocked,
+    interaction.hovered,
+    interaction.keyboardCursor,
+    interaction.previewKinds,
+    interaction.selected,
+    interaction.selectionKinds,
+    interaction.directionHints
+  ]);
+}
+
 export function createBoardRenderModel(options: {
   visualRevision?: number;
   topology: BoardRenderTopologyModel;
-  cells: readonly Omit<BoardCellVisualState, 'visualSignature'>[];
+  cells: readonly UnsignedBoardCellVisualState[];
   viewerContext?: BoardRenderModel['viewerContext'];
   currentPlayer?: BoardRenderModel['currentPlayer'];
   canControlCurrentTurn?: boolean;
@@ -165,10 +241,14 @@ export function createBoardRenderModel(options: {
     if (rawCell.kind === 'playable' !== playableKeys.has(rawCell.key)) {
       throw new Error(`Board model playable mismatch: ${rawCell.key}`);
     }
-    const overlaid = withOverlayInteraction({ ...rawCell, visualSignature: '' }, overlay);
-    const withoutSignature = { ...overlaid } as BoardCellVisualState;
-    delete (withoutSignature as any).visualSignature;
-    return deepFreeze({ ...overlaid, visualSignature: signatureForCell(withoutSignature as any) });
+    const overlaid = withOverlayInteraction(rawCell, overlay);
+    return deepFreeze({
+      ...overlaid,
+      visualSignature: signatureForCell(overlaid),
+      surfaceSignature: signatureForSurface(overlaid),
+      stoneSignature: signatureForStone(overlaid),
+      interactionSignature: signatureForInteraction(overlaid)
+    });
   });
   if (seen.size !== existingKeys.size) {
     const missing = topology.existingKeys.filter((key) => !seen.has(key));
@@ -241,6 +321,9 @@ export function materializeBoardViewport(options: {
           localPendingHintIds: []
         },
         visualSignature: `void:${key}`,
+        surfaceSignature: 'surface:void',
+        stoneSignature: 'stone:void',
+        interactionSignature: 'interaction:void',
         ephemeral: true
       }));
     }

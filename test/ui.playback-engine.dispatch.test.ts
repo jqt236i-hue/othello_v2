@@ -121,6 +121,30 @@ describe('ui playback engine dispatch', () => {
     );
   });
 
+  test('passes a deferred settlement result through without converting it', async () => {
+    const playbackEngine = require('../ui/playback-engine.js');
+    const settlement = Object.freeze({
+      kind: 'deferred-finalization',
+      runId: 17,
+      mode: 'finalize',
+      finalize: jest.fn(() => true)
+    });
+    const animationEngine = { play: jest.fn().mockResolvedValue(settlement) };
+
+    await expect(playbackEngine.dispatchPresentationEvent({
+      type: 'PLAYBACK_EVENTS',
+      events: [{ type: 'flip', phase: 1 }]
+    }, {
+      AnimationEngine: animationEngine,
+      deferFinalSettlement: true
+    })).resolves.toBe(settlement);
+
+    expect(animationEngine.play).toHaveBeenCalledWith(
+      [{ type: 'flip', phase: 1 }],
+      expect.objectContaining({ deferFinalSettlement: true })
+    );
+  });
+
   test('strict network playback rejects when no playback implementation is available', async () => {
     const playbackEngine = require('../ui/playback-engine.js');
 

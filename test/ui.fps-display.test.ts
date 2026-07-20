@@ -9,7 +9,7 @@ type ScheduledFrame = {
 };
 
 function createHarness(storedEnabled = false) {
-  const dom = new JSDOM('<button id="toggle" aria-pressed="false">FPS: OFF</button><div id="display" hidden>FPS: --</div>', {
+  const dom = new JSDOM('<button id="toggle" aria-pressed="false">FPS: OFF</button><div id="display" aria-hidden="true" hidden><span data-fps-value>FPS: --</span><span data-max-frame-value>MAX: -- ms</span></div>', {
     url: 'https://example.com/'
   });
   const scheduled: ScheduledFrame[] = [];
@@ -35,6 +35,8 @@ function createHarness(storedEnabled = false) {
   };
   const button = dom.window.document.getElementById('toggle') as HTMLButtonElement;
   const display = dom.window.document.getElementById('display') as HTMLElement;
+  const fpsValue = display.querySelector('[data-fps-value]') as HTMLElement;
+  const maxFrameValue = display.querySelector('[data-max-frame-value]') as HTMLElement;
   const runNextFrame = (timestamp: number) => {
     const next = scheduled.shift();
     if (!next) throw new Error('no scheduled frame');
@@ -45,6 +47,8 @@ function createHarness(storedEnabled = false) {
     root,
     button,
     display,
+    fpsValue,
+    maxFrameValue,
     scheduled,
     cancelled,
     requestAnimationFrame,
@@ -78,11 +82,21 @@ describe('FPS display', () => {
     expect(harness.button.getAttribute('aria-pressed')).toBe('true');
     expect(harness.button.classList.contains('btn-active')).toBe(true);
     expect(harness.display.hidden).toBe(false);
+    expect(harness.display.getAttribute('aria-hidden')).toBe('false');
     expect(harness.root.sessionStorage.getItem(FpsDisplay.FPS_DISPLAY_STORAGE_KEY)).toBe('1');
     expect(harness.scheduled).toHaveLength(1);
 
     [0, 100, 200, 300, 400, 500].forEach(harness.runNextFrame);
-    expect(harness.display.textContent).toBe('FPS: 10');
+    expect(harness.fpsValue.textContent).toBe('FPS: 10');
+    expect(harness.maxFrameValue.textContent).toBe('MAX: 100 ms');
+    expect(harness.display.getAttribute('data-stall')).toBe('true');
+
+    for (let frame = 1; frame <= 30; frame += 1) {
+      harness.runNextFrame(500 + ((500 / 30) * frame));
+    }
+    expect(harness.fpsValue.textContent).toBe('FPS: 60');
+    expect(harness.maxFrameValue.textContent).toBe('MAX: 17 ms');
+    expect(harness.display.hasAttribute('data-stall')).toBe(false);
 
     harness.button.click();
 
@@ -90,6 +104,9 @@ describe('FPS display', () => {
     expect(harness.button.textContent).toBe('FPS: OFF');
     expect(harness.button.getAttribute('aria-pressed')).toBe('false');
     expect(harness.display.hidden).toBe(true);
+    expect(harness.display.getAttribute('aria-hidden')).toBe('true');
+    expect(harness.fpsValue.textContent).toBe('FPS: --');
+    expect(harness.maxFrameValue.textContent).toBe('MAX: -- ms');
     expect(harness.scheduled).toHaveLength(0);
     expect(harness.cancelAnimationFrame).toHaveBeenCalledTimes(1);
     expect(harness.root.sessionStorage.getItem(FpsDisplay.FPS_DISPLAY_STORAGE_KEY)).toBe('0');
@@ -109,10 +126,39 @@ describe('FPS display', () => {
     expect(harness.display.hidden).toBe(false);
     harness.runNextFrame(0);
     harness.runNextFrame(3000);
-    expect(harness.display.textContent).toBe('FPS: --');
+    expect(harness.fpsValue.textContent).toBe('FPS: --');
+    expect(harness.maxFrameValue.textContent).toBe('MAX: -- ms');
+    expect(harness.display.hasAttribute('data-stall')).toBe(false);
 
     [3100, 3200, 3300, 3400, 3500].forEach(harness.runNextFrame);
-    expect(harness.display.textContent).toBe('FPS: 10');
+    expect(harness.fpsValue.textContent).toBe('FPS: 10');
+    expect(harness.maxFrameValue.textContent).toBe('MAX: 100 ms');
+    controller?.destroy();
+  });
+
+  test('marks an exact 50ms maximum as a stall and clears it in the next normal window', () => {
+    const harness = createHarness();
+    const controller = FpsDisplay.setupFpsDisplay({
+      button: harness.button,
+      display: harness.display,
+      root: harness.root,
+      sampleWindowMs: 500
+    });
+    controller?.setEnabled(true);
+
+    for (let timestamp = 0; timestamp <= 500; timestamp += 50) {
+      harness.runNextFrame(timestamp);
+    }
+    expect(harness.fpsValue.textContent).toBe('FPS: 20');
+    expect(harness.maxFrameValue.textContent).toBe('MAX: 50 ms');
+    expect(harness.display.getAttribute('data-stall')).toBe('true');
+
+    for (let frame = 1; frame <= 50; frame += 1) {
+      harness.runNextFrame(500 + (10 * frame));
+    }
+    expect(harness.fpsValue.textContent).toBe('FPS: 100');
+    expect(harness.maxFrameValue.textContent).toBe('MAX: 10 ms');
+    expect(harness.display.hasAttribute('data-stall')).toBe(false);
     controller?.destroy();
   });
 
@@ -179,8 +225,9 @@ describe('FPS display', () => {
     const css = fs.readFileSync(path.join(__dirname, '..', 'styles-layout-controls.css'), 'utf8');
 
     expect(html).toMatch(/id="fpsToggleBtn"[\s\S]*aria-pressed="false"[\s\S]*aria-controls="fpsDisplay"[\s\S]*>FPS: OFF<\/button>/);
-    expect(html).toMatch(/id="fpsDisplay"[\s\S]*aria-hidden="true"[\s\S]*hidden>FPS: --<\/div>/);
-    expect(css).toMatch(/#fpsDisplay\s*\{[\s\S]*position:\s*fixed[\s\S]*top:\s*max\([\s\S]*right:\s*max\([\s\S]*pointer-events:\s*none/);
+    expect(html).toMatch(/id="fpsDisplay"[\s\S]*aria-hidden="true"[\s\S]*hidden>[\s\S]*data-fps-value>FPS: --<\/span>[\s\S]*data-max-frame-value>MAX: -- ms<\/span>/);
+    expect(css).toMatch(/#fpsDisplay\s*\{[\s\S]*position:\s*fixed[\s\S]*top:\s*max\([\s\S]*right:\s*max\([\s\S]*display:\s*grid[\s\S]*pointer-events:\s*none/);
+    expect(css).toMatch(/#fpsDisplay\[data-stall="true"\]\s*\{[\s\S]*border-color:[\s\S]*color:/);
     expect(css).toMatch(/#fpsDisplay\[hidden\]\s*\{[\s\S]*display:\s*none/);
     expect(css).toMatch(/#fpsToggleBtn\.btn-active\s*\{/);
   });

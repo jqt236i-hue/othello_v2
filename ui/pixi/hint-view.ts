@@ -39,6 +39,7 @@ export interface PixiHintView {
   readonly root: any;
   readonly interactionRoot: any;
   update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean;
+  invalidate(): void;
   reset(): void;
   destroy(): void;
   getDiagnostics(): PixiHintViewDiagnostics;
@@ -137,7 +138,14 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
 
   function update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean {
     assertAlive();
-    const nextSignature = `${context.revisionSignature}|${cell.visualSignature}`;
+    const nextSignature = JSON.stringify([
+      context.interactionRevisionSignature,
+      context.sceneX,
+      context.sceneY,
+      context.sceneOffsetX,
+      context.sceneOffsetY,
+      cell.interactionSignature
+    ]);
     if (signature === nextSignature) return false;
     signature = nextSignature;
     key = cell.key;
@@ -314,6 +322,10 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     return true;
   }
 
+  function invalidate(): void {
+    if (!destroyed) signature = null;
+  }
+
   function reset(): void {
     if (destroyed) return;
     signature = null;
@@ -369,5 +381,5 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     });
   }
 
-  return Object.freeze({ root, interactionRoot, update, reset, destroy, getDiagnostics });
+  return Object.freeze({ root, interactionRoot, update, invalidate, reset, destroy, getDiagnostics });
 }

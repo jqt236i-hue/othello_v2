@@ -92,11 +92,24 @@ export interface PixiTimelineDiagnostics {
   readonly abortedRunCount: number;
   readonly tickerStartCount: number;
   readonly tickerStopCount: number;
+  readonly activeDebugFrameCaptureCount: number;
+  readonly completedDebugFrameCaptureCount: number;
+  readonly failedDebugFrameCaptureCount: number;
   readonly lastError: unknown | null;
+}
+
+export interface PixiTimelineDebugFrameCapture<T> {
+  readonly value: T;
+  readonly elapsedMs: number;
 }
 
 export interface PixiTimeline {
   run(options: PixiTimelineRunOptions): Promise<PixiTimelineRunResult>;
+  /** Debug-only sampling on the existing clock; production playback never calls this. */
+  captureDebugFrameAtElapsed<T>(
+    elapsedMs: number,
+    capture: () => T
+  ): Promise<PixiTimelineDebugFrameCapture<T>>;
   abort(reason?: unknown): number;
   destroy(): void;
   getDiagnostics(): PixiTimelineDiagnostics;
@@ -124,6 +137,14 @@ interface ActiveRun {
   elapsedMs: number;
   progress: number;
   done: boolean;
+}
+
+interface PendingDebugFrameCapture {
+  readonly requestedElapsedMs: number;
+  readonly capture: () => unknown;
+  readonly resolve: (result: PixiTimelineDebugFrameCapture<unknown>) => void;
+  readonly reject: (error: unknown) => void;
+  remainingMs: number;
 }
 
 function resolveBooleanPolicy(policy: PixiTimelineBooleanPolicy | undefined): boolean {
@@ -197,6 +218,9 @@ export function createPixiTimeline(options: PixiTimelineOptions): PixiTimeline {
   let abortedRunCount = 0;
   let tickerStartCount = 0;
   let tickerStopCount = 0;
+  const pendingDebugFrameCaptures = new Set<PendingDebugFrameCapture>();
+  let completedDebugFrameCaptureCount = 0;
+  let failedDebugFrameCaptureCount = 0;
   let lastError: unknown | null = null;
   let initialFlushScheduled = false;
 
@@ -295,7 +319,10 @@ export function createPixiTimeline(options: PixiTimelineOptions): PixiTimeline {
     activeRuns.delete(run);
     if (status === 'aborted') abortedRunCount += 1;
     else failedRunCount += 1;
-    stopClockWhenIdle();
+    const clockError = stopClockWhenIdle();
+    if (activeRuns.size === 0 && pendingDebugFrameCaptures.size > 0) {
+      rejectDebugFrameCaptures(error || clockError);
+    }
     run.reject(error);
   }
 
@@ -322,6 +349,13 @@ export function createPixiTimeline(options: PixiTimelineOptions): PixiTimeline {
     activeRuns.delete(run);
     completedRunCount += 1;
     const clockError = stopClockWhenIdle();
+    if (activeRuns.size === 0 && pendingDebugFrameCaptures.size > 0) {
+      rejectDebugFrameCaptures(
+        settlementError
+        || clockError
+        || new Error('Pixi timeline became idle before debug frame capture')
+      );
+    }
     if (settlementError || clockError) {
       failedRunCount += 1;
       run.reject(settlementError || clockError);
@@ -354,9 +388,7 @@ export function createPixiTimeline(options: PixiTimelineOptions): PixiTimeline {
     }
   }
 
-  function handleTick(rawDeltaMs: number): void {
-    const deltaMs = Number(rawDeltaMs);
-    if (!Number.isFinite(deltaMs) || deltaMs <= 0 || destroyed) return;
+  function advanceRuns(deltaMs: number): void {
     const updatedRuns: ActiveRun[] = [];
     const finishing = new Set<ActiveRun>();
     for (const run of Array.from(activeRuns)) {
@@ -371,6 +403,56 @@ export function createPixiTimeline(options: PixiTimelineOptions): PixiTimeline {
     // All effects on one board timeline share a single explicit render.
     for (const run of renderLiveRuns(updatedRuns)) {
       if (finishing.has(run)) settleCompletedRun(run);
+    }
+  }
+
+  function rejectDebugFrameCaptures(error: unknown): void {
+    const captures = Array.from(pendingDebugFrameCaptures);
+    pendingDebugFrameCaptures.clear();
+    failedDebugFrameCaptureCount += captures.length;
+    for (const capture of captures) capture.reject(error);
+  }
+
+  function settleReadyDebugFrameCaptures(): void {
+    const readyCaptures = Array.from(pendingDebugFrameCaptures).filter((capture) => (
+      capture.remainingMs <= 1e-6
+    ));
+    for (const capture of readyCaptures) {
+      pendingDebugFrameCaptures.delete(capture);
+      try {
+        const value = capture.capture();
+        completedDebugFrameCaptureCount += 1;
+        capture.resolve(Object.freeze({ value, elapsedMs: capture.requestedElapsedMs }));
+      } catch (error) {
+        failedDebugFrameCaptureCount += 1;
+        capture.reject(error);
+      }
+    }
+  }
+
+  function handleTick(rawDeltaMs: number): void {
+    let remainingDeltaMs = Number(rawDeltaMs);
+    if (!Number.isFinite(remainingDeltaMs) || remainingDeltaMs <= 0 || destroyed) return;
+    while (remainingDeltaMs > 1e-6 && !destroyed) {
+      let segmentDeltaMs = remainingDeltaMs;
+      for (const capture of pendingDebugFrameCaptures) {
+        if (capture.remainingMs > 1e-6) {
+          segmentDeltaMs = Math.min(segmentDeltaMs, capture.remainingMs);
+        }
+      }
+      if (!(segmentDeltaMs > 1e-6)) {
+        settleReadyDebugFrameCaptures();
+        continue;
+      }
+      advanceRuns(segmentDeltaMs);
+      for (const capture of pendingDebugFrameCaptures) {
+        capture.remainingMs = Math.max(0, capture.remainingMs - segmentDeltaMs);
+      }
+      settleReadyDebugFrameCaptures();
+      remainingDeltaMs = Math.max(0, remainingDeltaMs - segmentDeltaMs);
+      if (activeRuns.size === 0 && pendingDebugFrameCaptures.size > 0) {
+        rejectDebugFrameCaptures(new Error('Pixi timeline became idle before debug frame capture'));
+      }
     }
   }
 
@@ -482,12 +564,49 @@ export function createPixiTimeline(options: PixiTimelineOptions): PixiTimeline {
     }
   }
 
+  function captureDebugFrameAtElapsed<T>(
+    elapsedMs: number,
+    capture: () => T
+  ): Promise<PixiTimelineDebugFrameCapture<T>> {
+    const requestedElapsedMs = Number(elapsedMs);
+    if (destroyed) return Promise.reject(new PixiTimelineAbortError('pixi_timeline_destroyed'));
+    if (!Number.isFinite(requestedElapsedMs) || requestedElapsedMs < 0) {
+      return Promise.reject(new Error('Pixi debug frame capture requires a finite non-negative elapsed duration'));
+    }
+    if (typeof capture !== 'function') {
+      return Promise.reject(new Error('Pixi debug frame capture callback is unavailable'));
+    }
+    if (activeRuns.size === 0) {
+      return Promise.reject(new Error('Pixi debug frame capture requires an active timeline run'));
+    }
+    if (requestedElapsedMs === 0) {
+      try {
+        const value = capture();
+        completedDebugFrameCaptureCount += 1;
+        return Promise.resolve(Object.freeze({ value, elapsedMs: 0 }));
+      } catch (error) {
+        failedDebugFrameCaptureCount += 1;
+        return Promise.reject(error);
+      }
+    }
+    return new Promise<PixiTimelineDebugFrameCapture<T>>((resolve, reject) => {
+      pendingDebugFrameCaptures.add({
+        requestedElapsedMs,
+        remainingMs: requestedElapsedMs,
+        capture,
+        resolve: resolve as (result: PixiTimelineDebugFrameCapture<unknown>) => void,
+        reject
+      });
+    });
+  }
+
   function abortRuns(error: Error, stage: 'abort' | 'destroy'): number {
     if (aborting) return 0;
     aborting = true;
     const targets = Array.from(activeRuns).filter((run) => !run.done);
     try {
       for (const run of targets) settleFailedRun(run, error, stage, 'aborted');
+      rejectDebugFrameCaptures(error);
     } finally {
       aborting = false;
       stopClockWhenIdle(true);
@@ -519,9 +638,12 @@ export function createPixiTimeline(options: PixiTimelineOptions): PixiTimeline {
       abortedRunCount,
       tickerStartCount,
       tickerStopCount,
+      activeDebugFrameCaptureCount: pendingDebugFrameCaptures.size,
+      completedDebugFrameCaptureCount,
+      failedDebugFrameCaptureCount,
       lastError
     });
   }
 
-  return Object.freeze({ run, abort, destroy, getDiagnostics });
+  return Object.freeze({ run, captureDebugFrameAtElapsed, abort, destroy, getDiagnostics });
 }

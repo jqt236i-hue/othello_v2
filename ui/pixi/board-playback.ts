@@ -71,6 +71,7 @@ import type {
 
 export interface PixiBoardPlaybackApplicationPort extends PixiApplicationTickerPort {
   render(): void;
+  captureFramePngDataUrl?(target?: any): string;
 }
 
 export interface PixiBoardPlaybackOptions {
@@ -108,6 +109,8 @@ export interface PixiBoardPlayback {
   revealTopologyCells(keys: readonly string[]): Promise<void>;
   /** Call only after a non-reflow scene frame has rendered successfully. */
   onFrameApplied(): void;
+  /** Debug-only exact logical-frame extraction through the existing timeline clock. */
+  captureDebugFrameAtElapsed(elapsedMs: number): Promise<Readonly<{ dataUrl: string; elapsedMs: number }>>;
   abort(reason?: unknown): number;
   getDiagnostics(): PixiBoardPlaybackDiagnostics;
   destroy(): void;
@@ -1091,6 +1094,18 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     });
   }
 
+  function captureDebugFrameAtElapsed(
+    elapsedMs: number
+  ): Promise<Readonly<{ dataUrl: string; elapsedMs: number }>> {
+    if (destroyed) return Promise.reject(new Error('Pixi board playback is destroyed'));
+    const capture = options.application.captureFramePngDataUrl;
+    if (typeof capture !== 'function') {
+      return Promise.reject(new Error('Pixi board playback frame extraction is unavailable'));
+    }
+    return timeline.captureDebugFrameAtElapsed(elapsedMs, () => capture.call(options.application, scene.root))
+      .then((result) => Object.freeze({ dataUrl: result.value, elapsedMs: result.elapsedMs }));
+  }
+
   function destroy(): void {
     if (destroyed) return;
     abort(new Error('Pixi board playback was destroyed'));
@@ -1107,6 +1122,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     playPhase,
     revealTopologyCells,
     onFrameApplied,
+    captureDebugFrameAtElapsed,
     abort,
     getDiagnostics,
     destroy

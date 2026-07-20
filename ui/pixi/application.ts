@@ -17,7 +17,9 @@ export interface PixiBoardApplicationDiagnostics {
   readonly systemTickerAutoStart: boolean;
   readonly renderCount: number;
   readonly resizeCount: number;
+  readonly resizeSkippedCount: number;
   readonly tickerListenerCount: number;
+  readonly tickerMaxFps: number;
   readonly resolution: number;
 }
 
@@ -36,6 +38,8 @@ export interface PixiBoardApplication {
   captureFramePngDataUrl(target?: any): string;
   render(): void;
   resize(width: number, height: number, resolution?: number): void;
+  /** Invalidate physical resize idempotency after context replacement/restoration. */
+  invalidateResizeCache(): void;
   /** Subscribe to this Application's private ticker. The caller owns start/stop. */
   subscribeTicker(listener: PixiBoardTickerListener): () => void;
   startTicker(): void;
@@ -53,6 +57,8 @@ export const PIXI_BOARD_APPLICATION_OPTIONS = Object.freeze({
   antialias: true,
   backgroundAlpha: 0
 });
+
+export const PIXI_BOARD_MAX_FPS = 60;
 
 function normalizeResolution(value: unknown): number {
   const numeric = Number(value);
@@ -121,6 +127,8 @@ export function createPixiBoardApplication(
   let tickerRunning = false;
   let renderCount = 0;
   let resizeCount = 0;
+  let resizeSkippedCount = 0;
+  let lastResize: Readonly<{ width: number; height: number; resolution: number }> | null = null;
   const tickerSubscriptions = new Set<{
     readonly ticker: any;
     readonly adapter: (ticker: any) => void;
@@ -221,6 +229,7 @@ export function createPixiBoardApplication(
     if (application === candidate) application = null;
     if (canvas && canvas === candidateCanvas) canvas = null;
     host = null;
+    lastResize = null;
   }
 
   async function initialize(): Promise<void> {
@@ -254,6 +263,10 @@ export function createPixiBoardApplication(
         const candidateCanvas = resolveCanvas(candidate);
         if (!candidateCanvas) throw new Error('Pixi Application canvas is unavailable');
         canvas = candidateCanvas;
+        if (!candidate.ticker || typeof candidate.ticker !== 'object') {
+          throw new Error('Pixi private ticker is unavailable');
+        }
+        candidate.ticker.maxFPS = PIXI_BOARD_MAX_FPS;
         detachAutomaticTickerRender(candidate);
         stopPrivateTicker(candidate, true);
         disableRuntimeIdleTickers();
@@ -289,7 +302,10 @@ export function createPixiBoardApplication(
       throw new Error('PixiBoardApplication canvas already belongs to another host');
     }
     host = nextHost;
-    if (canvas.parentNode !== nextHost) nextHost.appendChild(canvas);
+    if (canvas.parentNode !== nextHost) {
+      lastResize = null;
+      nextHost.appendChild(canvas);
+    }
     return canvas;
   }
 
@@ -365,10 +381,24 @@ export function createPixiBoardApplication(
     const cappedResolution = typeof nextResolution === 'undefined'
       ? resolution
       : normalizeResolution(nextResolution);
+    if (
+      lastResize
+      && lastResize.width === pixelWidth
+      && lastResize.height === pixelHeight
+      && lastResize.resolution === cappedResolution
+    ) {
+      resizeSkippedCount += 1;
+      return;
+    }
     if ('resolution' in renderer) renderer.resolution = cappedResolution;
     renderer.resize(pixelWidth, pixelHeight, cappedResolution);
     currentResolution = cappedResolution;
+    lastResize = Object.freeze({ width: pixelWidth, height: pixelHeight, resolution: cappedResolution });
     resizeCount += 1;
+  }
+
+  function invalidateResizeCache(): void {
+    lastResize = null;
   }
 
   function startTicker(): void {
@@ -438,6 +468,7 @@ export function createPixiBoardApplication(
     canvas = null;
     host = null;
     application = null;
+    lastResize = null;
     if (!readySettled) settleReadyFailure(getDestroyError());
   }
 
@@ -457,7 +488,9 @@ export function createPixiBoardApplication(
       systemTickerAutoStart: runtime?.Ticker?.system?.autoStart === true,
       renderCount,
       resizeCount,
+      resizeSkippedCount,
       tickerListenerCount: tickerSubscriptions.size,
+      tickerMaxFps: Number(application?.ticker?.maxFPS) || 0,
       resolution: currentResolution
     });
   }
@@ -474,6 +507,7 @@ export function createPixiBoardApplication(
     captureFramePngDataUrl,
     render,
     resize,
+    invalidateResizeCache,
     subscribeTicker,
     startTicker,
     stopTicker,

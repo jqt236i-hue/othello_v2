@@ -7,6 +7,7 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+const PlaybackSettlementContract = _require('./playback-settlement');
 
 let gamePresentationRuntime: any = null;
 let boardUpdateDrainController: any = null;
@@ -527,7 +528,7 @@ function claimPresentationDrainForEvents(events: any[]): any {
   return {
     managerClaim,
     boardWriterToken,
-    managerFinalizers: [],
+    playbackSettlements: [],
     boardPresentationSettlements: [],
     meta: {
       scope: 'presentation_drain',
@@ -594,15 +595,18 @@ async function releasePlaybackClaimAndRequestBoardSync(claim: any, reason: strin
       throw error;
     }
   }
-  const managerFinalizers = claim && Array.isArray(claim.managerFinalizers)
-    ? claim.managerFinalizers
+  const playbackSettlements = claim && Array.isArray(claim.playbackSettlements)
+    ? claim.playbackSettlements
     : [];
-  while (managerFinalizers.length > 0) {
-    const finalizer = managerFinalizers[0];
-    if (typeof finalizer !== 'function' || finalizer() !== true) {
-      throw new Error('Local playback manager did not finalize');
+  while (playbackSettlements.length > 0) {
+    const settlement = requirePlaybackSettlementResult(playbackSettlements[0]);
+    if (settlement.finalize() !== true) {
+      throw createPlaybackSettlementContractError(
+        'local_playback_settlement_rejected',
+        `Local playback settlement rejected run ${settlement.runId}`
+      );
     }
-    managerFinalizers.shift();
+    playbackSettlements.shift();
   }
   const released = releasePlaybackClaimForPresentation(claim);
   if (released && !hasActivePlaybackClaimForPresentation()) {
@@ -628,11 +632,39 @@ function createStrictNetworkSettlementError(
   return error;
 }
 
+function createPlaybackSettlementContractError(code: string, message: string, cause?: unknown): any {
+  if (
+    PlaybackSettlementContract
+    && typeof PlaybackSettlementContract.createPlaybackSettlementError === 'function'
+  ) {
+    return PlaybackSettlementContract.createPlaybackSettlementError(code, message, cause);
+  }
+  const error: any = new Error(message);
+  error.name = 'PresentationPlaybackError';
+  error.code = code;
+  if (typeof cause !== 'undefined') error.cause = cause;
+  return error;
+}
+
+function requirePlaybackSettlementResult(value: unknown): any {
+  if (
+    PlaybackSettlementContract
+    && typeof PlaybackSettlementContract.assertPlaybackSettlementResult === 'function'
+  ) {
+    return PlaybackSettlementContract.assertPlaybackSettlementResult(value);
+  }
+  throw createPlaybackSettlementContractError(
+    'playback_settlement_contract_unavailable',
+    'Playback settlement contract is unavailable'
+  );
+}
+
 function createStrictNetworkSettlementHandle(options: {
   visualSeq: number;
   managerClaim: any;
   boardWriterToken: any;
   renderer: any;
+  requiresPlaybackSettlement: boolean;
 }) {
   const manager = resolvePlaybackStateManagerForPresentation();
   let handedOff = false;
@@ -640,8 +672,8 @@ function createStrictNetworkSettlementHandle(options: {
   let committedFrameApplied = false;
   let boardReleased = false;
   let managerReleased = false;
-  let managerFinalized = false;
-  let managerFinalizer: (() => boolean) | null = null;
+  let playbackSettlementFinalized = false;
+  let playbackSettlementResult: any = null;
   let applyPromise: Promise<boolean> | null = null;
   let settlePromise: Promise<boolean> | null = null;
   let cancelPromise: Promise<boolean> | null = null;
@@ -650,6 +682,25 @@ function createStrictNetworkSettlementHandle(options: {
     if (!options.boardWriterToken || !options.managerClaim) {
       throw new Error('Strict network settlement handle has no active ownership');
     }
+  };
+  const finalizePlaybackSettlement = (allowMissing = false) => {
+    if (!options.requiresPlaybackSettlement) return true;
+    if (playbackSettlementFinalized) return true;
+    if (!playbackSettlementResult) {
+      if (allowMissing) return true;
+      throw createPlaybackSettlementContractError(
+        'strict_network_playback_settlement_unavailable',
+        'Strict network playback settlement result is unavailable'
+      );
+    }
+    if (playbackSettlementResult.finalize() !== true) {
+      throw createPlaybackSettlementContractError(
+        'strict_network_playback_settlement_rejected',
+        `Strict network playback settlement rejected run ${playbackSettlementResult.runId}`
+      );
+    }
+    playbackSettlementFinalized = true;
+    return true;
   };
   const abortBeforeHandoff = async (primaryError?: unknown) => {
     if (handedOff || managerReleased) return false;
@@ -661,6 +712,11 @@ function createStrictNetworkSettlementHandle(options: {
         await options.renderer.abortBoardVisualWriterBeforeHandoff(options.boardWriterToken);
         boardReleased = true;
       }
+      // Animation may already have returned its run-scoped manager settlement
+      // before committed-frame preparation fails. Consume that registered
+      // result after the writer abort and before releasing the outer claim so
+      // VisualPlaybackActive cannot outlive the recovery owner.
+      finalizePlaybackSettlement(true);
       if (!manager || typeof manager.releaseVisualPlaybackClaim !== 'function') {
         throw createStrictNetworkSettlementError(
           'strict_network_manager_release_unavailable',
@@ -731,15 +787,11 @@ function createStrictNetworkSettlementHandle(options: {
         settlePromise = (async () => {
           if (applyPromise) await applyPromise;
           if (!committedFrameApplied) throw new Error('Strict network visual frame has not been committed');
-          if (!managerFinalizer) throw new Error('Strict network manager finalizer is unavailable');
           if (!boardReleased) {
             options.renderer.releaseBoardVisualWriter(options.boardWriterToken);
             boardReleased = true;
           }
-          if (!managerFinalized && managerFinalizer() !== true) {
-            throw new Error('Strict network playback manager did not finalize');
-          }
-          managerFinalized = true;
+          finalizePlaybackSettlement();
           if (!manager || typeof manager.releaseVisualPlaybackClaim !== 'function') {
             throw new Error('PlaybackStateManager cannot release strict network settlement');
           }
@@ -792,12 +844,7 @@ function createStrictNetworkSettlementHandle(options: {
           }
           boardReleased = true;
         }
-        if (managerFinalizer && !managerFinalized) {
-          if (managerFinalizer() !== true) {
-            throw new Error('Strict network playback manager did not finalize during cancellation');
-          }
-          managerFinalized = true;
-        }
+        finalizePlaybackSettlement(!handedOff);
         if (typeof manager.releaseVisualPlaybackClaim !== 'function') {
           throw new Error('PlaybackStateManager cannot release strict network cancellation');
         }
@@ -822,15 +869,30 @@ function createStrictNetworkSettlementHandle(options: {
       assertOwned();
       if (handedOff) throw new Error('Strict network settlement ownership was handed off before commit wait began');
       if (!awaitingFrameCommit) {
-        options.renderer.beginBoardVisualFrameCommit(options.boardWriterToken);
+        try {
+          const prepared = options.renderer.beginBoardVisualFrameCommit(options.boardWriterToken);
+          if (prepared === false) {
+            throw new Error('Strict network committed-frame preparation was rejected');
+          }
+        } catch (cause) {
+          throw createStrictNetworkSettlementError(
+            'strict_network_commit_prepare_failed',
+            'Strict network committed-frame preparation failed',
+            options.visualSeq
+          );
+        }
         awaitingFrameCommit = true;
       }
       return true;
     },
-    setManagerFinalizer(finalizer: unknown) {
-      if (typeof finalizer !== 'function') throw new Error('Strict network manager finalizer is unavailable');
-      if (managerFinalizer) throw new Error('Strict network manager finalizer was registered twice');
-      managerFinalizer = finalizer as () => boolean;
+    setPlaybackSettlement(result: unknown) {
+      if (playbackSettlementResult) {
+        throw createPlaybackSettlementContractError(
+          'strict_network_playback_settlement_registered_twice',
+          'Strict network playback settlement was registered twice'
+        );
+      }
+      playbackSettlementResult = requirePlaybackSettlementResult(result);
       return true;
     },
     handoff() {
@@ -897,7 +959,18 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
   let strictSettlement: any = null;
   let strictOwnershipTransferred = false;
   let activeBoardWriterToken: any = null;
-  let deferredManagerFinalizer: (() => boolean) | null = payload.length === 0 ? (() => true) : null;
+  let playbackSettlementResult: any = null;
+  const registerPlaybackSettlementResult = (value: unknown) => {
+    if (payload.length === 0) return null;
+    if (playbackSettlementResult) {
+      throw createPlaybackSettlementContractError(
+        'playback_settlement_result_registered_twice',
+        'Playback settlement result was registered twice'
+      );
+    }
+    playbackSettlementResult = requirePlaybackSettlementResult(value);
+    return playbackSettlementResult;
+  };
   if (strictNetworkPlayback) {
     let renderer: any = null;
     let boardWriterToken: any = null;
@@ -917,7 +990,8 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
         visualSeq,
         managerClaim: playbackClaim,
         boardWriterToken,
-        renderer
+        renderer,
+        requiresPlaybackSettlement: payload.length > 0
       });
     } catch (error) {
       if (boardWriterToken && renderer) {
@@ -951,7 +1025,7 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
         `local-batch:${String(playbackClaim.id)}`,
         'local'
       );
-      playbackClaim.managerFinalizers = [];
+      playbackClaim.playbackSettlements = [];
       activeBoardWriterToken = playbackClaim.boardWriterToken;
     } catch (error) {
       releasePlaybackClaimForPresentation(playbackClaim);
@@ -966,11 +1040,6 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
     const playbackEngineDeps = Object.assign({}, playbackDispatchDeps, {
       strictNetworkPlayback,
       deferFinalSettlement: true,
-      onFinalizationReady(finalizer: unknown) {
-        if (typeof finalizer !== 'function') throw new Error('playback_manager_finalizer_invalid');
-        if (deferredManagerFinalizer) throw new Error('playback_manager_finalizer_registered_twice');
-        deferredManagerFinalizer = finalizer as () => boolean;
-      },
       boardWriterToken: activeBoardWriterToken
     });
     const playbackEventForDispatch = {
@@ -992,7 +1061,11 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
             hasAnimationEngine: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine),
             animationEngineHasPlay: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine && typeof playbackDispatchDeps.AnimationEngine.play === 'function')
           });
-          await playbackEngine.dispatchPresentationEvent(playbackEventForDispatch, playbackEngineDeps);
+          const dispatchResult = await playbackEngine.dispatchPresentationEvent(
+            playbackEventForDispatch,
+            playbackEngineDeps
+          );
+          registerPlaybackSettlementResult(dispatchResult);
           emitPresentationDebugConsole('playback_batch_dispatch_engine_resolved', {
             payloadCount: payload.length,
             payloadTypes,
@@ -1024,18 +1097,18 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
             payloadTypes
           });
           if (strictNetworkPlayback) {
-            await animationEngine.play(payload, {
+            const directResult = await animationEngine.play(payload, {
               strictNetworkPlayback: true,
               deferFinalSettlement: true,
-              onFinalizationReady: playbackEngineDeps.onFinalizationReady,
               boardWriterToken: activeBoardWriterToken
             });
+            registerPlaybackSettlementResult(directResult);
           } else {
-            await animationEngine.play(payload, {
+            const directResult = await animationEngine.play(payload, {
               deferFinalSettlement: true,
-              onFinalizationReady: playbackEngineDeps.onFinalizationReady,
               boardWriterToken: activeBoardWriterToken
             });
+            registerPlaybackSettlementResult(directResult);
           }
           emitPresentationDebugConsole('playback_batch_animation_engine_resolved', {
             payloadCount: payload.length,
@@ -1067,16 +1140,27 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<any> {
     }
 
     if (strictNetworkPlayback) {
-      strictSettlement.setManagerFinalizer(deferredManagerFinalizer);
+      if (payload.length > 0) strictSettlement.setPlaybackSettlement(playbackSettlementResult);
       strictSettlement.beginAwaiting();
       const settlementHandle = strictSettlement.handoff();
       strictOwnershipTransferred = true;
       return settlementHandle;
     }
-    if (!deferredManagerFinalizer) throw new Error('local_playback_manager_finalizer_unavailable');
+    if (!playbackSettlementResult) {
+      throw createPlaybackSettlementContractError(
+        'local_playback_settlement_unavailable',
+        'Local playback settlement result is unavailable'
+      );
+    }
     const finalizationOwner = activeLocalPresentationDrainClaim || playbackClaim;
-    if (!Array.isArray(finalizationOwner.managerFinalizers)) finalizationOwner.managerFinalizers = [];
-    finalizationOwner.managerFinalizers.push(deferredManagerFinalizer);
+    if (!finalizationOwner) {
+      throw createPlaybackSettlementContractError(
+        'local_playback_settlement_owner_unavailable',
+        'Local playback settlement owner is unavailable'
+      );
+    }
+    if (!Array.isArray(finalizationOwner.playbackSettlements)) finalizationOwner.playbackSettlements = [];
+    finalizationOwner.playbackSettlements.push(playbackSettlementResult);
   } catch (error) {
     if (strictNetworkPlayback && strictSettlement) {
       try {

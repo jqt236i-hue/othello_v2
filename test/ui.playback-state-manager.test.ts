@@ -134,6 +134,22 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(manager.isPlaybackStale()).toBe(false);
   });
 
+  test('run-scoped finalization cannot clear a newer playback run', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const board = document.getElementById('board');
+
+    manager.beginPlayback({ boardElement: board, runId: 41 });
+    manager.beginPlayback({ boardElement: board, runId: 42 });
+
+    expect(manager.finalizePlayback({ boardElement: board, expectedRunId: 41 })).toBe(false);
+    expect(manager.getPlaybackActive()).toBe(true);
+    expect(board.classList.contains('playback-locked')).toBe(true);
+
+    expect(manager.finalizePlayback({ boardElement: board, expectedRunId: 42 })).not.toBe(false);
+    expect(manager.getPlaybackActive()).toBe(false);
+    expect(board.classList.contains('playback-locked')).toBe(false);
+  });
+
   test('ensureDebugRuntime aborts stuck playback that was started through the manager', () => {
     const manager = require('../ui/playback-state-manager.js');
     const abortPlayback = jest.fn();

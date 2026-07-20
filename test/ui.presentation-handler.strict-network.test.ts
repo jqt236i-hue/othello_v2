@@ -57,10 +57,10 @@ describe('PresentationHandler strict network playback', () => {
         })],
         expect.objectContaining({
           strictNetworkPlayback: true,
-          deferFinalSettlement: true,
-          onFinalizationReady: expect.any(Function)
+          deferFinalSettlement: true
         })
       );
+      expect((global as any).AnimationEngine.play.mock.calls[0][1]).not.toHaveProperty('onFinalizationReady');
       expect(abortBoardVisualWriterBeforeHandoff).toHaveBeenCalledWith(boardWriterToken);
     } finally {
       warnSpy.mockRestore();

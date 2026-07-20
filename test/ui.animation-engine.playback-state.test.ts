@@ -45,7 +45,7 @@ describe('animation-engine playback-state integration', () => {
     expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
   });
 
-  test('local watchdog preserves deferred presentation claims and hands back an abort settlement finalizer', async () => {
+  test('local watchdog preserves deferred presentation claims and returns one abort acknowledgement', async () => {
     jest.useFakeTimers();
     jest.unmock('../ui/playback-state-manager');
     global.window.PLAYBACK_WATCHDOG_MS = 10;
@@ -55,7 +55,6 @@ describe('animation-engine playback-state integration', () => {
     const engine = require('../ui/animation-engine.js');
     const presentationClaim = manager.claimVisualPlayback({ scope: 'presentation_drain' });
     let resolvePhase: (() => void) | null = null;
-    let deferredFinalizer: (() => boolean) | null = null;
     const executePhaseSpy = jest.spyOn(engine, 'executePhase').mockImplementation(() => (
       new Promise<void>((resolve) => { resolvePhase = resolve; })
     ));
@@ -63,12 +62,7 @@ describe('animation-engine playback-state integration', () => {
     try {
       const playPromise = engine.play(
         [{ type: 'move', phase: 1, targets: [] }],
-        {
-          deferFinalSettlement: true,
-          onFinalizationReady(finalizer: () => boolean) {
-            deferredFinalizer = finalizer;
-          }
-        }
+        { deferFinalSettlement: true }
       );
       await Promise.resolve();
       await Promise.resolve();
@@ -80,10 +74,16 @@ describe('animation-engine playback-state integration', () => {
 
       expect(typeof resolvePhase).toBe('function');
       resolvePhase!();
-      await playPromise;
+      const settlement = await playPromise;
 
-      expect(typeof deferredFinalizer).toBe('function');
-      expect(deferredFinalizer!()).toBe(true);
+      expect(settlement).toEqual(expect.objectContaining({
+        kind: 'deferred-finalization',
+        runId: expect.any(Number),
+        mode: 'already-aborted-ack',
+        finalize: expect.any(Function)
+      }));
+      expect(settlement.finalize()).toBe(true);
+      expect(settlement.finalize()).toBe(false);
       expect(manager.releaseVisualPlaybackClaim(presentationClaim)).toBe(true);
       expect(manager.hasClaimedVisualPlayback()).toBe(false);
     } finally {
@@ -91,6 +91,53 @@ describe('animation-engine playback-state integration', () => {
       warnSpy.mockRestore();
       jest.useRealTimers();
     }
+  });
+
+  test('deferred success returns a run-scoped finalizer that settles the manager exactly once', async () => {
+    const finalizePlayback = jest.fn(() => true);
+    const playbackStateMock = {
+      beginPlayback: jest.fn(() => ({ playbackActive: true })),
+      getPlaybackActive: jest.fn(() => true),
+      finalizePlayback
+    };
+    jest.doMock('../ui/playback-state-manager', () => playbackStateMock);
+    const engine = require('../ui/animation-engine.js');
+    const executePhaseSpy = jest.spyOn(engine, 'executePhase').mockResolvedValue(undefined);
+
+    try {
+      const settlement = await engine.play(
+        [{ type: 'move', phase: 1, targets: [] }],
+        { deferFinalSettlement: true }
+      );
+
+      expect(settlement).toEqual(expect.objectContaining({
+        kind: 'deferred-finalization',
+        runId: 1,
+        mode: 'finalize',
+        finalize: expect.any(Function)
+      }));
+      expect(finalizePlayback).not.toHaveBeenCalled();
+      expect(settlement.finalize()).toBe(true);
+      expect(settlement.finalize()).toBe(false);
+      expect(finalizePlayback).toHaveBeenCalledTimes(1);
+      expect(playbackStateMock.beginPlayback).toHaveBeenCalledWith(expect.objectContaining({ runId: 1 }));
+      expect(finalizePlayback).toHaveBeenCalledWith(expect.objectContaining({ expectedRunId: 1 }));
+    } finally {
+      executePhaseSpy.mockRestore();
+    }
+  });
+
+  test('empty deferred playback produces no result and does not mutate manager playback state', async () => {
+    const playbackStateMock = {
+      beginPlayback: jest.fn(),
+      finalizePlayback: jest.fn()
+    };
+    jest.doMock('../ui/playback-state-manager', () => playbackStateMock);
+    const engine = require('../ui/animation-engine.js');
+
+    await expect(engine.play([], { deferFinalSettlement: true })).resolves.toBeUndefined();
+    expect(playbackStateMock.beginPlayback).not.toHaveBeenCalled();
+    expect(playbackStateMock.finalizePlayback).not.toHaveBeenCalled();
   });
 
   test('abortAndSync delegates playback abort to PlaybackStateManager when available', () => {
@@ -172,7 +219,10 @@ describe('animation-engine playback-state integration', () => {
     const engine = require('../ui/animation-engine.js');
 
     try {
-      const playPromise = engine.play([{ type: 'place', phase: 1, targets: [] }]);
+      const playPromise = engine.play(
+        [{ type: 'place', phase: 1, targets: [] }],
+        { deferFinalSettlement: true }
+      );
       await waitUntil(() => (
         typeof resolvePhase === 'function'
         && renderer.getBoardVisualController().getSnapshot().mode === 'playback'
@@ -186,12 +236,18 @@ describe('animation-engine playback-state integration', () => {
       manager.abortPlayback();
       expect(typeof resolvePhase).toBe('function');
       resolvePhase();
-      await playPromise;
+      const settlement = await playPromise;
 
       expect(renderer.getBoardVisualController().getSnapshot()).toEqual(expect.objectContaining({
         mode: 'idle',
         activeFrameToken: null
       }));
+      expect(settlement).toEqual(expect.objectContaining({
+        kind: 'deferred-finalization',
+        mode: 'already-aborted-ack'
+      }));
+      expect(settlement.finalize()).toBe(true);
+      expect(settlement.finalize()).toBe(false);
     } finally {
       settleSpy.mockRestore();
       playPhaseSpy.mockRestore();

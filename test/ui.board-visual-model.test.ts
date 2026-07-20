@@ -109,6 +109,50 @@ describe('BoardRenderModel sparse projection', () => {
     expect(() => BoardVisualModel.validateBoardPresentationOverlayState({ topology: {} })).toThrow(/cannot mutate base field/i);
   });
 
+  test('derives independent surface, stone, and interaction signatures while preserving the aggregate signature', () => {
+    const topology = createTopology(['0,0'], [], { minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 });
+    const project = (cell: any, overlay?: any) => BoardVisualModel.createBoardRenderModel({
+      topology,
+      cells: [cell],
+      overlay
+    }).cells[0];
+    const base = project(createCell('0,0'));
+
+    const interactionCell = createCell('0,0');
+    interactionCell.interaction.legal = true;
+    const interactionChanged = project(interactionCell);
+    expect(interactionChanged.interactionSignature).not.toBe(base.interactionSignature);
+    expect(interactionChanged.surfaceSignature).toBe(base.surfaceSignature);
+    expect(interactionChanged.stoneSignature).toBe(base.stoneSignature);
+
+    const localPendingChanged = project(createCell('0,0'), {
+      localPendingHints: [{ id: 'pending:a', cellKey: '0,0', kind: 'selection' }]
+    });
+    expect(localPendingChanged.interactionSignature).toBe(base.interactionSignature);
+    expect(localPendingChanged.visualSignature).not.toBe(base.visualSignature);
+
+    const stoneCell: any = createCell('0,0');
+    stoneCell.stone = { owner: 'black', value: 1, specialType: null, status: {} };
+    const stoneChanged = project(stoneCell);
+    expect(stoneChanged.stoneSignature).not.toBe(base.stoneSignature);
+    expect(stoneChanged.surfaceSignature).toBe(base.surfaceSignature);
+    expect(stoneChanged.interactionSignature).toBe(base.interactionSignature);
+
+    const surfaceCell: any = createCell('0,0');
+    surfaceCell.markers = [{ kind: 'board-bonus', owner: null, value: 3, data: {} }];
+    const surfaceChanged = project(surfaceCell);
+    expect(surfaceChanged.surfaceSignature).not.toBe(base.surfaceSignature);
+    expect(surfaceChanged.stoneSignature).toBe(base.stoneSignature);
+    expect(surfaceChanged.interactionSignature).toBe(base.interactionSignature);
+
+    expect(new Set([
+      base.visualSignature,
+      interactionChanged.visualSignature,
+      stoneChanged.visualSignature,
+      surfaceChanged.visualSignature
+    ])).toHaveProperty('size', 4);
+  });
+
   test('far expansion does not create a dense void model or unbounded narrow materialization', () => {
     const keys = ['0,0', '256,256'];
     const model = BoardVisualModel.createBoardRenderModel({

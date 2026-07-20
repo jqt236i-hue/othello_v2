@@ -154,6 +154,7 @@ export interface PixiBoardVisualBackend extends BoardVisualBackend {
   getDisplayObjectCounts(): Readonly<Record<string, number>>;
   getTextureLeaseCounts(): Readonly<Record<string, number>>;
   captureDebugFramePngDataUrl(): string;
+  captureDebugFrameAfterTickerElapsed(elapsedMs: number): Promise<Readonly<{ dataUrl: string; elapsedMs: number }>>;
   getDiagnostics(): PixiBoardBackendDiagnostics;
 }
 
@@ -295,6 +296,19 @@ function textureSource(snapshot: PixiCommittedTextureSet): PixiStaticTextureSour
       return snapshot.get(purpose)?.texture || null;
     }
   });
+}
+
+function textureLaneRevision(
+  snapshot: PixiCommittedTextureSet,
+  lane: 'surface' | 'stone'
+): string {
+  const resources = snapshot.resources
+    .filter((resource) => lane === 'surface' ? resource.purpose === 'board' : resource.purpose !== 'board')
+    .map((resource) => [resource.purpose, resource.key] as const)
+    .sort(([leftPurpose, leftKey], [rightPurpose, rightKey]) => (
+      leftPurpose.localeCompare(rightPurpose) || leftKey.localeCompare(rightKey)
+    ));
+  return JSON.stringify(resources);
 }
 
 function frameTextureKey(frame: BoardVisualFrame, sequence: number): string {
@@ -544,6 +558,8 @@ export function createPixiBoardVisualBackend(
         record('pixi-backend:context-restore-start', { frameToken: currentFrame?.frameToken || null });
         try {
           await reloadContextTextureResources();
+          application?.invalidateResizeCache();
+          scene?.invalidateStaticViews();
           contextLostError = null;
           const recovered = await hooks.onContextRestored(event);
           if (recovered !== true) {
@@ -762,6 +778,8 @@ export function createPixiBoardVisualBackend(
       const sceneContext = {
         textures: textureSource(snapshot),
         textureRevision: snapshot.generation,
+        surfaceTextureRevision: textureLaneRevision(snapshot, 'surface'),
+        stoneTextureRevision: textureLaneRevision(snapshot, 'stone'),
         canvasViewport,
         ...(options.preservePlaybackProjection === true
           ? { preservePlaybackProjection: true as const }
@@ -1464,6 +1482,14 @@ export function createPixiBoardVisualBackend(
     return application!.captureFramePngDataUrl(scene!.root);
   }
 
+  function captureDebugFrameAfterTickerElapsed(
+    elapsedMs: number
+  ): Promise<Readonly<{ dataUrl: string; elapsedMs: number }>> {
+    assertMounted();
+    if (!playback) return Promise.reject(new Error('Pixi board playback is unavailable'));
+    return playback.captureDebugFrameAtElapsed(elapsedMs);
+  }
+
   function getDiagnostics(): PixiBoardBackendDiagnostics {
     const appDiagnostics = application?.getDiagnostics() || null;
     const cameraDiagnostics = camera?.getDiagnostics() || null;
@@ -1536,6 +1562,7 @@ export function createPixiBoardVisualBackend(
     getDisplayObjectCounts,
     getTextureLeaseCounts,
     captureDebugFramePngDataUrl,
+    captureDebugFrameAfterTickerElapsed,
     getDiagnostics,
     destroy
   });

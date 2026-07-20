@@ -2,6 +2,22 @@ async function flushMicrotasks(iterations = 16): Promise<void> {
   for (let index = 0; index < iterations; index += 1) await Promise.resolve();
 }
 
+let playbackSettlementRunId = 0;
+function createPlaybackSettlement(onFinalize: () => void = () => {}, mode: 'finalize' | 'already-aborted-ack' = 'finalize') {
+  let finalized = false;
+  return Object.freeze({
+    kind: 'deferred-finalization' as const,
+    runId: ++playbackSettlementRunId,
+    mode,
+    finalize() {
+      if (finalized) return false;
+      onFinalize();
+      finalized = true;
+      return true;
+    }
+  });
+}
+
 describe('PresentationHandler playback claim', () => {
   afterEach(() => {
     jest.dontMock('../game/cpu-turn-handler');
@@ -17,6 +33,7 @@ describe('PresentationHandler playback claim', () => {
   test('claims visual playback before dispatching AnimationEngine playback', async () => {
     const order: string[] = [];
     const claim = { id: 7 };
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     (global as any).GameEvents = {
       gameEvents: {
         on: jest.fn()
@@ -34,22 +51,26 @@ describe('PresentationHandler playback claim', () => {
       })
     };
     (global as any).AnimationEngine = {
-      play: jest.fn(async (_events, options) => {
+      play: jest.fn(async () => {
         order.push('play');
-        options.onFinalizationReady(() => {
+        return createPlaybackSettlement(() => {
           order.push('finalize');
-          return true;
         });
       })
     };
 
     const PresentationHandler = require('../ui/presentation-handler.js');
 
-    await PresentationHandler.handlePresentationEvent({
-      type: 'PLAYBACK_EVENTS',
-      events: [{ type: 'destroy', phase: 1, targets: [{ r: 2, col: 3 }] }],
-      meta: { source: 'unit-test' }
-    });
+    try {
+      await PresentationHandler.handlePresentationEvent({
+        type: 'PLAYBACK_EVENTS',
+        events: [{ type: 'destroy', phase: 1, targets: [{ r: 2, col: 3 }] }],
+        meta: { source: 'unit-test' }
+      });
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
 
     expect(order).toEqual(['claim', 'play', 'finalize', 'release']);
     expect((global as any).PlaybackStateManager.claimVisualPlayback).toHaveBeenCalledWith(
@@ -69,6 +90,49 @@ describe('PresentationHandler playback claim', () => {
       expect.objectContaining({ deferFinalSettlement: true })
     );
     expect((global as any).AnimationEngine.play).toHaveBeenCalledTimes(1);
+  });
+
+  test('empty local payload creates no playback result and no manager claim', async () => {
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn(),
+      releaseVisualPlaybackClaim: jest.fn()
+    };
+    (global as any).AnimationEngine = { play: jest.fn() };
+    const PresentationHandler = require('../ui/presentation-handler.js');
+
+    await expect(PresentationHandler.handlePresentationEvent({
+      type: 'PLAYBACK_EVENTS',
+      events: [],
+      meta: { source: 'unit-test' }
+    })).resolves.toBeUndefined();
+
+    expect((global as any).PlaybackStateManager.claimVisualPlayback).not.toHaveBeenCalled();
+    expect((global as any).PlaybackStateManager.releaseVisualPlaybackClaim).not.toHaveBeenCalled();
+    expect((global as any).AnimationEngine.play).not.toHaveBeenCalled();
+  });
+
+  test('payload success without a typed settlement rejects and releases its outer claim once', async () => {
+    const claim = { id: 71 };
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn(() => claim),
+      releaseVisualPlaybackClaim: jest.fn(() => true)
+    };
+    (global as any).AnimationEngine = { play: jest.fn().mockResolvedValue(undefined) };
+    const PresentationHandler = require('../ui/presentation-handler.js');
+
+    await expect(PresentationHandler.handlePresentationEvent({
+      type: 'PLAYBACK_EVENTS',
+      events: [{ type: 'move', phase: 1 }],
+      meta: { source: 'unit-test' }
+    })).rejects.toEqual(expect.objectContaining({
+      name: 'PresentationPlaybackError',
+      code: 'playback_settlement_result_invalid'
+    }));
+
+    expect((global as any).PlaybackStateManager.releaseVisualPlaybackClaim).toHaveBeenCalledTimes(1);
+    expect((global as any).PlaybackStateManager.releaseVisualPlaybackClaim).toHaveBeenCalledWith(claim);
   });
 
   test('does not replay a non-strict batch when dispatcher playback rejects after side effects start', async () => {
@@ -121,11 +185,10 @@ describe('PresentationHandler playback claim', () => {
       })
     };
     (global as any).AnimationEngine = {
-      play: jest.fn(async (_events, options) => {
+      play: jest.fn(async () => {
         order.push('fallback-play');
-        options.onFinalizationReady(() => {
+        return createPlaybackSettlement(() => {
           order.push('finalize');
-          return true;
         });
       })
     };
@@ -199,12 +262,11 @@ describe('PresentationHandler playback claim', () => {
       })
     };
     (global as any).AnimationEngine = {
-      play: jest.fn(async (_events, options) => {
+      play: jest.fn(async () => {
         order.push('play');
         (global as any).emitBoardUpdate();
-        options.onFinalizationReady(() => {
+        return createPlaybackSettlement(() => {
           order.push('finalize');
-          return true;
         });
       })
     };
@@ -382,16 +444,15 @@ describe('PresentationHandler playback claim', () => {
       })
     };
     (global as any).AnimationEngine = {
-      play: jest.fn(async (events, options) => {
+      play: jest.fn(async (events) => {
         order.push('play');
         playedEvents.push(...events);
         for (const event of events) {
           soundCalls.push(`sound:${event.type}`);
           effectLogs.push(`log:${event.type}`);
         }
-        options.onFinalizationReady(() => {
+        return createPlaybackSettlement(() => {
           order.push('manager-finalize');
-          return true;
         });
       })
     };
@@ -516,6 +577,69 @@ describe('PresentationHandler playback claim', () => {
     ]);
   });
 
+  test('finalizes a registered strict playback run when committed-frame preparation fails before handoff', async () => {
+    const order: string[] = [];
+    const managerClaim = { id: 45 };
+    const boardWriterToken = { id: 46 };
+    jest.doMock('../ui/board-renderer', () => ({
+      claimBoardVisualWriter: jest.fn(() => {
+        order.push('board-claim');
+        return boardWriterToken;
+      }),
+      beginBoardVisualFrameCommit: jest.fn(() => {
+        order.push('board-prepare');
+        return false;
+      }),
+      abortBoardVisualWriterBeforeHandoff: jest.fn(async (token) => {
+        expect(token).toBe(boardWriterToken);
+        order.push('board-abort');
+        return true;
+      })
+    }));
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn(() => {
+        order.push('manager-claim');
+        return managerClaim;
+      }),
+      releaseVisualPlaybackClaim: jest.fn((claim) => {
+        expect(claim).toBe(managerClaim);
+        order.push('manager-release');
+        return true;
+      })
+    };
+    (global as any).AnimationEngine = {
+      play: jest.fn(async () => {
+        order.push('play');
+        return createPlaybackSettlement(() => {
+          order.push('manager-finalize');
+        });
+      })
+    };
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+    await expect(PresentationHandler.handlePresentationEvent({
+      type: 'PLAYBACK_EVENTS',
+      events: [{ type: 'move', phase: 1 }],
+      meta: { source: 'network_timeline', strictNetworkPlayback: true, visualSeq: 82 }
+    })).rejects.toEqual(expect.objectContaining({
+      name: 'PresentationPlaybackError',
+      code: 'strict_network_commit_prepare_failed',
+      strictNetworkPlayback: true,
+      visualSeq: 82
+    }));
+
+    expect(order).toEqual([
+      'manager-claim',
+      'board-claim',
+      'play',
+      'board-prepare',
+      'board-abort',
+      'manager-finalize',
+      'manager-release'
+    ]);
+  });
+
   test('retains a strict recovery handle when manager release fails before handoff', async () => {
     const managerClaim = { id: 43 };
     const boardWriterToken = { id: 44 };
@@ -608,11 +732,10 @@ describe('PresentationHandler playback claim', () => {
       })
     };
     (global as any).AnimationEngine = {
-      play: jest.fn(async (_events, options) => {
+      play: jest.fn(async () => {
         order.push('play');
-        options.onFinalizationReady(() => {
+        return createPlaybackSettlement(() => {
           order.push('manager-finalize');
-          return true;
         });
       })
     };
@@ -685,9 +808,9 @@ describe('PresentationHandler playback claim', () => {
       hasClaimedVisualPlayback: jest.fn(() => true)
     };
     (global as any).AnimationEngine = {
-      play: jest.fn(async (_events, options) => {
+      play: jest.fn(async () => {
         order.push('play');
-        options.onFinalizationReady(() => true);
+        return createPlaybackSettlement();
       })
     };
 
@@ -768,15 +891,15 @@ describe('PresentationHandler playback claim', () => {
       hasClaimedVisualPlayback: jest.fn(() => true)
     };
     (global as any).AnimationEngine = {
-      play: jest.fn(async (payload, options) => {
+      play: jest.fn(async (payload) => {
         order.push(`play:${payload[0].type}`);
-        options.onFinalizationReady(() => {
+        const settlement = createPlaybackSettlement(() => {
           order.push(`finalize:${payload[0].type}`);
-          return true;
         });
         if (payload[0].type === 'move') {
           order.push(`between:${(global as any).PlaybackStateManager.hasClaimedVisualPlayback()}`);
         }
+        return settlement;
       })
     };
 
@@ -846,11 +969,10 @@ describe('PresentationHandler playback claim', () => {
       hasClaimedVisualPlayback: jest.fn(() => true)
     };
     (global as any).AnimationEngine = {
-      play: jest.fn(async (_payload, options) => {
+      play: jest.fn(async () => {
         order.push('play');
-        options.onFinalizationReady(() => {
+        return createPlaybackSettlement(() => {
           order.push('manager-finalize');
-          return true;
         });
       })
     };
@@ -875,6 +997,83 @@ describe('PresentationHandler playback claim', () => {
       'board-release:2',
       'manager-finalize',
       'manager-release:21'
+    ]);
+  });
+
+  test('retains a drain settlement after a transient finalizer failure and retries without replay', async () => {
+    const order: string[] = [];
+    const drainClaim = { id: 31 };
+    const batchClaim = { id: 32 };
+    const boardWriterToken = { id: 33, frameToken: 'local:31', mode: 'local' };
+    let flushCount = 0;
+    let finalizeAttempts = 0;
+    const runtime = {
+      createBoardUpdateDrainController: jest.fn(() => ({
+        requestDrain: async (runDrain: any) => runDrain()
+      })),
+      scheduleCpuTurn: jest.fn(),
+      flushPendingPresentationEvents: jest.fn(() => {
+        flushCount += 1;
+        return flushCount === 1
+          ? [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'move', phase: 1 }] }]
+          : [];
+      })
+    };
+    jest.doMock('../game/cpu-turn-handler', () => ({ PresentationRuntime: runtime }));
+    jest.doMock('../ui/board-renderer', () => ({
+      getBoardVisualControllerReady: jest.fn(async () => undefined),
+      claimBoardVisualWriter: jest.fn(() => {
+        order.push('board-claim');
+        return boardWriterToken;
+      }),
+      settleBoardVisualWriter: jest.fn(async (token) => {
+        expect(token).toBe(boardWriterToken);
+        order.push('board-settle');
+        return true;
+      }),
+      releaseBoardVisualWriter: jest.fn(() => true),
+      settleAutoBoardVisualWriter: jest.fn(async () => true)
+    }));
+    (global as any).GameEvents = { gameEvents: { on: jest.fn() } };
+    (global as any).PlaybackStateManager = {
+      claimVisualPlayback: jest.fn((meta) => (
+        meta.scope === 'presentation_drain' ? drainClaim : batchClaim
+      )),
+      releaseVisualPlaybackClaim: jest.fn((claim) => {
+        order.push(`manager-release:${claim.id}`);
+        return true;
+      }),
+      hasClaimedVisualPlayback: jest.fn(() => true)
+    };
+    (global as any).AnimationEngine = {
+      play: jest.fn(async () => {
+        order.push('play');
+        return createPlaybackSettlement(() => {
+          finalizeAttempts += 1;
+          order.push(`manager-finalize:${finalizeAttempts}`);
+          if (finalizeAttempts === 1) throw new Error('temporary manager failure');
+        });
+      })
+    };
+
+    const PresentationHandler = require('../ui/presentation-handler.js');
+
+    await expect(PresentationHandler.onBoardUpdated()).rejects.toThrow('temporary manager failure');
+    expect((global as any).AnimationEngine.play).toHaveBeenCalledTimes(1);
+    expect((global as any).PlaybackStateManager.releaseVisualPlaybackClaim).toHaveBeenCalledTimes(1);
+    expect((global as any).PlaybackStateManager.releaseVisualPlaybackClaim).toHaveBeenCalledWith(batchClaim);
+
+    await expect(PresentationHandler.onBoardUpdated()).resolves.toBeUndefined();
+
+    expect((global as any).AnimationEngine.play).toHaveBeenCalledTimes(1);
+    expect(order).toEqual([
+      'board-claim',
+      'play',
+      'manager-release:32',
+      'board-settle',
+      'manager-finalize:1',
+      'manager-finalize:2',
+      'manager-release:31'
     ]);
   });
 

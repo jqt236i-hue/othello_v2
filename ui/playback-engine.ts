@@ -12,14 +12,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 const PresentationQueue = _require('../shared/presentation-queue');
 
 import type { CardState } from '../src/types';
+import type { PlaybackSettlementResult } from './playback-settlement';
 
 interface AnimationEngine {
   play: (payload: PresentationEvent[], options?: {
     strictNetworkPlayback?: boolean;
     deferFinalSettlement?: boolean;
-    onFinalizationReady?: (finalize: () => boolean) => void;
     boardWriterToken?: unknown;
-  }) => Promise<void>;
+  }) => Promise<PlaybackSettlementResult | undefined>;
 }
 
 interface PresentationEvent {
@@ -40,7 +40,6 @@ interface PlaybackDeps {
   onPresentationStart?: () => void;
   strictNetworkPlayback?: boolean;
   deferFinalSettlement?: boolean;
-  onFinalizationReady?: (finalize: () => boolean) => void;
   boardWriterToken?: unknown;
   scheduleCpuTurnEvent?: (ev: PresentationEvent) => unknown;
   scheduleCpuTurn?: (delay: number, callback: () => void) => unknown;
@@ -95,7 +94,10 @@ function removePersistedPresentationEvent(cardState: CardState | null | undefine
   return false;
 }
 
-async function playPlaybackBatch(events: PresentationEvent[], deps: PlaybackDeps | null | undefined): Promise<void> {
+async function playPlaybackBatch(
+  events: PresentationEvent[],
+  deps: PlaybackDeps | null | undefined
+): Promise<PlaybackSettlementResult | undefined> {
   const payload = Array.isArray(events) ? events : [];
   if (!payload.length) return;
   const config = (deps && typeof deps === 'object') ? deps : {};
@@ -104,18 +106,15 @@ async function playPlaybackBatch(events: PresentationEvent[], deps: PlaybackDeps
   const playbackOptions = (strictNetworkPlayback || deferFinalSettlement || !!config.boardWriterToken) ? {
     strictNetworkPlayback,
     deferFinalSettlement: config.deferFinalSettlement === true,
-    onFinalizationReady: config.onFinalizationReady,
     boardWriterToken: config.boardWriterToken
   } : undefined;
   const AnimationEngine = resolveAnimationEngine(deps);
   if (AnimationEngine && typeof AnimationEngine.play === 'function') {
     config.onPresentationStart?.();
     if (playbackOptions) {
-      await AnimationEngine.play(payload, playbackOptions);
-    } else {
-      await AnimationEngine.play(payload);
+      return AnimationEngine.play(payload, playbackOptions);
     }
-    return;
+    return AnimationEngine.play(payload);
   }
   if (typeof __uiImpl_playback.runMoveVisualSequence === 'function') {
     if (strictNetworkPlayback) {
@@ -123,6 +122,12 @@ async function playPlaybackBatch(events: PresentationEvent[], deps: PlaybackDeps
     }
     config.onPresentationStart?.();
     await __uiImpl_playback.runMoveVisualSequence(payload);
+    if (deferFinalSettlement) {
+      const error: any = new Error('playback_deferred_settlement_unavailable');
+      error.name = 'PresentationPlaybackError';
+      error.code = 'playback_deferred_settlement_unavailable';
+      throw error;
+    }
     return;
   }
   if (strictNetworkPlayback) {

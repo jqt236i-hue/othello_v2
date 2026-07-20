@@ -19,6 +19,7 @@ function resolvePixelmatch(): any {
 type BrowserLane = 'classic' | 'vite';
 type BoardRenderer = 'dom' | 'pixi';
 type PlaybackMode = 'normal' | 'reduced-motion' | 'noanim';
+type TrajectoryCaptureElapsedOverrides = Readonly<Record<string, number>>;
 
 interface PlaybackStoneFixture {
   readonly row: number;
@@ -1157,11 +1158,13 @@ async function installPlaybackProbe(page: any, mode: PlaybackMode): Promise<void
 async function startScenario(
   page: any,
   scenario: PlaybackScenarioDefinition,
-  mode: PlaybackMode
+  mode: PlaybackMode,
+  trajectoryCaptureElapsedOverrideMs?: number
 ): Promise<any> {
   return page.evaluate(async (input: ReturnType<typeof createBrowserScenarioPayload> & {
     readonly mode: PlaybackMode;
     readonly captureTimeoutMs: number;
+    readonly trajectoryCaptureElapsedOverrideMs: number | null;
   }) => {
     const definition = input.definition;
     const boardRows = Number(input.boardSize.rows);
@@ -1496,9 +1499,12 @@ async function startScenario(
       return Number.isInteger(row) && Number.isInteger(col) ? `${row},${col}` : null;
     };
     let trajectoryRoiTimer: number | null = null;
+    let captureTrajectoryRoiOnAnimationFrame: (() => Promise<void>) | null = null;
+    let trajectoryRoiCaptureInFlight = false;
+    let trajectoryRoiScheduled = false;
     const scheduleTrajectoryRoi = (request: any, diagnosticDetail?: any): void => {
       const trajectoryDefinition = definition.sourceTrajectory;
-      if (!trajectoryDefinition || input.mode !== 'normal' || trajectoryRoiTimer !== null
+      if (!trajectoryDefinition || input.mode !== 'normal' || trajectoryRoiScheduled
         || probe.trajectoryRoiReady === true) return;
       const sourceRect = debug.getCellClientRect(request.source.row, request.source.col);
       const targetRect = debug.getCellClientRect(request.target.row, request.target.col);
@@ -1531,6 +1537,12 @@ async function startScenario(
         return;
       }
       const sourceStartedAt = performance.now();
+      const configuredCaptureDelayMs = Number(trajectoryDefinition.captureDelayMs);
+      const overrideCaptureElapsedMs = Number(input.trajectoryCaptureElapsedOverrideMs);
+      const targetCaptureElapsedMs = Number.isFinite(overrideCaptureElapsedMs)
+        && overrideCaptureElapsedMs >= configuredCaptureDelayMs
+        ? overrideCaptureElapsedMs
+        : configuredCaptureDelayMs;
       const liveSourceCenter = {
         x: (Number(sourceRect.left) + Number(sourceRect.right)) / 2,
         y: (Number(sourceRect.top) + Number(sourceRect.bottom)) / 2
@@ -1561,46 +1573,13 @@ async function startScenario(
         Number(targetRect.width),
         Number(targetRect.height)
       );
-      trajectoryRoiTimer = window.setTimeout(async () => {
-        const timerFiredAtMs = performance.now();
-        let pixiFrame: any = null;
-        if (debug.getBackendKind() === 'pixi') {
-          const controller = renderer.getBoardVisualController();
-          const canvas = boardElement.querySelector('canvas');
-          if (controller && typeof controller.captureDebugFramePngDataUrl === 'function'
-            && canvas instanceof HTMLCanvasElement) {
-            const canvasRect = canvas.getBoundingClientRect();
-            pixiFrame = {
-              dataUrl: controller.captureDebugFramePngDataUrl(),
-              canvasRect: {
-                left: Number(canvasRect.left),
-                top: Number(canvasRect.top),
-                width: Number(canvasRect.width),
-                height: Number(canvasRect.height)
-              }
-            };
-          }
-        } else {
-          // Freeze the actual DOM/WAAPI frame selected by the logical timer.
-          // The Playwright screenshot happens in a later task; without this
-          // hold, short trajectories may settle before pixels are captured.
-          const animations = Array.from(document.getAnimations()).filter((animation) => (
-            animation.playState === 'running' || animation.pending === true
-          ));
-          for (const animation of animations) animation.pause();
-          await Promise.allSettled(animations.map((animation) => animation.ready));
-          // Select the same logical frame even when browser scheduling delays
-          // the DOM observer by a few milliseconds. The Pixi frame is sampled
-          // by the in-page timer at this same configured elapsed time.
-          for (const animation of animations) {
-            const timing = animation.effect?.getComputedTiming?.();
-            const duration = Number(timing?.duration);
-            if (Number.isFinite(duration) && duration > 0) {
-              animation.currentTime = Math.min(Number(trajectoryDefinition.captureDelayMs), duration);
-            }
-          }
-          probe.trajectoryPausedAnimations = animations;
-        }
+      trajectoryRoiScheduled = true;
+      const commitTrajectoryRoi = (
+        pixiFrame: any,
+        captureElapsedMs: number,
+        captureClock: string,
+        captureObservedElapsedMs = captureElapsedMs
+      ): void => {
         probe.trajectoryRoi = {
           profileKey: request.profileKey,
           trajectoryId: request.trajectoryId,
@@ -1610,8 +1589,11 @@ async function startScenario(
           sourceCenter,
           targetCenter,
           cellSize,
-          captureDelayMs: Number(trajectoryDefinition.captureDelayMs),
-          captureElapsedMs: timerFiredAtMs - sourceStartedAt,
+          captureDelayMs: configuredCaptureDelayMs,
+          captureTargetElapsedMs: targetCaptureElapsedMs,
+          captureElapsedMs,
+          captureObservedElapsedMs,
+          captureClock,
           sourceStartedAtMs: sourceStartedAt,
           readyAtMs: performance.now(),
           clip: { x: left, y: top, width: right - left, height: bottom - top },
@@ -1625,7 +1607,81 @@ async function startScenario(
         };
         probe.trajectoryPixiFrame = pixiFrame;
         probe.trajectoryRoiReady = true;
-      }, Number(trajectoryDefinition.captureDelayMs));
+        captureTrajectoryRoiOnAnimationFrame = null;
+        if (trajectoryRoiTimer !== null) {
+          window.clearTimeout(trajectoryRoiTimer);
+          trajectoryRoiTimer = null;
+        }
+      };
+      const failTrajectoryRoiCapture = (error: unknown): void => {
+        probe.trajectoryRoiError = serializeProbeError(error);
+        probe.trajectoryRoiReady = true;
+        captureTrajectoryRoiOnAnimationFrame = null;
+      };
+      trajectoryRoiTimer = window.setTimeout(() => {
+        if (probe.trajectoryRoiReady === true) return;
+        failTrajectoryRoiCapture(
+          new Error('Source trajectory frame capture did not reach its configured logical frame')
+        );
+      }, input.captureTimeoutMs);
+      if (debug.getBackendKind() === 'pixi') {
+        const controller = renderer.getBoardVisualController();
+        const canvas = boardElement.querySelector('canvas');
+        if (!controller || typeof controller.captureDebugFrameAfterTickerElapsed !== 'function'
+          || !(canvas instanceof HTMLCanvasElement)) {
+          failTrajectoryRoiCapture(new Error('Pixi logical ticker frame capture is unavailable'));
+          return;
+        }
+        const canvasRect = canvas.getBoundingClientRect();
+        Promise.resolve(controller.captureDebugFrameAfterTickerElapsed(
+          targetCaptureElapsedMs
+        )).then((capture: any) => {
+          commitTrajectoryRoi({
+            dataUrl: capture?.dataUrl || null,
+            canvasRect: {
+              left: Number(canvasRect.left),
+              top: Number(canvasRect.top),
+              width: Number(canvasRect.width),
+              height: Number(canvasRect.height)
+            }
+          }, Number(capture?.elapsedMs), 'pixi-private-ticker-delta');
+        }).catch(failTrajectoryRoiCapture);
+        return;
+      }
+      captureTrajectoryRoiOnAnimationFrame = async () => {
+        if (probe.trajectoryRoiReady === true || trajectoryRoiCaptureInFlight) return;
+        const captureStartedAtMs = performance.now();
+        if (captureStartedAtMs - sourceStartedAt < configuredCaptureDelayMs) return;
+        trajectoryRoiCaptureInFlight = true;
+        try {
+          // Freeze and seek the DOM/WAAPI lane to the configured logical
+          // frame. Pixi is captured independently by its private ticker after
+          // the same elapsed delta has been applied and rendered.
+          const animations = Array.from(document.getAnimations()).filter((animation) => (
+            animation.playState === 'running' || animation.pending === true
+          ));
+          for (const animation of animations) animation.pause();
+          await Promise.allSettled(animations.map((animation) => animation.ready));
+          for (const animation of animations) {
+            const timing = animation.effect?.getComputedTiming?.();
+            const duration = Number(timing?.duration);
+            if (Number.isFinite(duration) && duration > 0) {
+              animation.currentTime = Math.min(targetCaptureElapsedMs, duration);
+            }
+          }
+          probe.trajectoryPausedAnimations = animations;
+          commitTrajectoryRoi(
+            null,
+            targetCaptureElapsedMs,
+            'request-animation-frame-dom-seek',
+            captureStartedAtMs - sourceStartedAt
+          );
+        } catch (error) {
+          failTrajectoryRoiCapture(error);
+        } finally {
+          trajectoryRoiCaptureInFlight = false;
+        }
+      };
     };
     const appendTrajectoryObservation = (
       entry: any,
@@ -1815,6 +1871,9 @@ async function startScenario(
               await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
               frame += 1;
               ingestTrajectoryDiagnostics();
+              if (captureTrajectoryRoiOnAnimationFrame) {
+                await captureTrajectoryRoiOnAnimationFrame();
+              }
             }
           })();
         }
@@ -2022,7 +2081,10 @@ async function startScenario(
   }, {
     ...createBrowserScenarioPayload(scenario),
     mode,
-    captureTimeoutMs: SOURCE_TRAJECTORY_CAPTURE_TIMEOUT_MS
+    captureTimeoutMs: SOURCE_TRAJECTORY_CAPTURE_TIMEOUT_MS,
+    trajectoryCaptureElapsedOverrideMs: Number.isFinite(Number(trajectoryCaptureElapsedOverrideMs))
+      ? Number(trajectoryCaptureElapsedOverrideMs)
+      : null
   });
 }
 
@@ -2466,9 +2528,10 @@ async function captureScenario(
   renderer: BoardRenderer,
   mode: PlaybackMode,
   artifactDir: string,
-  writeArtifacts: boolean
+  writeArtifacts: boolean,
+  trajectoryCaptureElapsedOverrideMs?: number
 ): Promise<any> {
-  const started = await startScenario(page, scenario, mode);
+  const started = await startScenario(page, scenario, mode, trajectoryCaptureElapsedOverrideMs);
   const trajectoryBaseline = await captureTrajectoryBaselineFrame(
     page,
     scenario,
@@ -2635,7 +2698,8 @@ async function captureRendererLane(
   mode: PlaybackMode,
   scenarioNames: readonly string[],
   artifactRoot: string,
-  writeArtifacts: boolean
+  writeArtifacts: boolean,
+  trajectoryCaptureElapsedOverrides: TrajectoryCaptureElapsedOverrides = Object.freeze({})
 ): Promise<any> {
   const artifactDir = path.join(artifactRoot, lane, renderer);
   const smoke = await runBrowserUiControlSmoke({
@@ -2654,7 +2718,8 @@ async function captureRendererLane(
           renderer,
           mode,
           artifactDir,
-          writeArtifacts
+          writeArtifacts,
+          trajectoryCaptureElapsedOverrides[scenario.name]
         ));
       }
       return { scenarios };
@@ -3138,18 +3203,31 @@ async function runPixiPlaybackBrowserCheck(options: PlaybackBrowserCheckOptions 
   const reports: any[] = [];
   for (const lane of lanes) {
     for (const mode of modes) {
-      for (const renderer of ['dom', 'pixi'] as const) {
+      let trajectoryCaptureElapsedOverrides: TrajectoryCaptureElapsedOverrides = Object.freeze({});
+      for (const renderer of ['pixi', 'dom'] as const) {
         if (options.log !== false) console.log(`[pixijs-board-playback-check] ${lane}/${renderer}/${mode}`);
         try {
-          reports.push(await captureRendererLane(
+          const report = await captureRendererLane(
             rootDir,
             lane,
             renderer,
             mode,
             scenarioNames,
             artifactRoot,
-            options.writeArtifacts !== false
-          ));
+            options.writeArtifacts !== false,
+            trajectoryCaptureElapsedOverrides
+          );
+          reports.push(report);
+          if (renderer === 'pixi' && mode === 'normal') {
+            trajectoryCaptureElapsedOverrides = Object.freeze(Object.fromEntries(
+              (report.scenarios || []).flatMap((scenario: any) => {
+                const elapsedMs = Number(scenario.trajectoryRoi?.active?.screenshotElapsedMs);
+                return Number.isFinite(elapsedMs) && elapsedMs >= 0
+                  ? [[String(scenario.scenario), elapsedMs] as const]
+                  : [];
+              })
+            ));
+          }
         } catch (error) {
           reports.push({ lane, renderer, mode, failure: serializeError(error), scenarios: [] });
         }

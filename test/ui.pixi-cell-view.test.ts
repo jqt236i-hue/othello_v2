@@ -110,6 +110,9 @@ function createCell(visualSignature: string, marker: Record<string, any>): any {
     markers: [marker],
     interaction: {},
     visualSignature,
+    surfaceSignature: visualSignature,
+    stoneSignature: `stone:${visualSignature}`,
+    interactionSignature: `interaction:${visualSignature}`,
     ephemeral: false
   };
 }
@@ -123,7 +126,9 @@ function createContext(revisionSignature = 'cell-view:1'): any {
       outerBoundaryColor: '#d5b26c',
       markerColor: '#f0cf73'
     },
-    revisionSignature,
+    surfaceRevisionSignature: revisionSignature,
+    stoneRevisionSignature: 'stone-view:1',
+    interactionRevisionSignature: 'interaction-view:1',
     sceneOffsetX: 0,
     sceneOffsetY: 0,
     sceneX: 0,

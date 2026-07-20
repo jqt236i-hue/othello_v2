@@ -21,11 +21,12 @@ describe('presentation handler CPU scheduling', () => {
       }
     };
     global.AnimationEngine = {
-      play: jest.fn(async (_events, options) => {
-        if (options && typeof options.onFinalizationReady === 'function') {
-          options.onFinalizationReady(() => true);
-        }
-      })
+      play: jest.fn(async () => ({
+        kind: 'deferred-finalization',
+        runId: 1,
+        mode: 'finalize',
+        finalize: () => true
+      }))
     };
   });
 

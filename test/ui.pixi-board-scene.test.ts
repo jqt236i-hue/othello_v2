@@ -284,6 +284,7 @@ function makeFrame(options: {
   cellSize?: number;
   layoutRevision?: number;
   appearanceRevision?: number;
+  appearance?: Record<string, unknown>;
   theme?: any;
   modelRevision?: number;
 }): any {
@@ -337,7 +338,8 @@ function makeFrame(options: {
       stoneSkinId: 'stone-default',
       blackStoneImageUrl: 'https://example.test/black.png',
       whiteStoneImageUrl: 'https://example.test/white.png',
-      revision: options.appearanceRevision || 1
+      revision: options.appearanceRevision || 1,
+      ...options.appearance
     },
     theme: options.theme || Theme.createBoardVisualThemeDescriptor({ revision: 1 })
   };
@@ -347,6 +349,9 @@ function materializedCell(raw: any): any {
   return Object.freeze({
     ...raw,
     visualSignature: JSON.stringify(raw),
+    surfaceSignature: JSON.stringify([raw.kind, raw.expansionSide, raw.boundaryEdges, raw.markers, !!raw.stone]),
+    stoneSignature: JSON.stringify([raw.kind, raw.stone, raw.markers]),
+    interactionSignature: JSON.stringify([raw.kind, raw.interaction]),
     ephemeral: false
   });
 }
@@ -357,7 +362,9 @@ function viewContext(overrides: Record<string, any> = {}): any {
   return {
     layout: frame.layout,
     theme: frame.theme,
-    revisionSignature: 'static-view:1',
+    surfaceRevisionSignature: 'static-surface:1',
+    stoneRevisionSignature: 'static-stone:1',
+    interactionRevisionSignature: 'static-interaction:1',
     sceneOffsetX: 64,
     sceneOffsetY: 64,
     sceneX: 96,
@@ -479,7 +486,7 @@ describe('Pixi static retained views', () => {
     expect(hintView.interactionRoot).toMatchObject({ eventMode: 'none', hitArea: null });
 
     const playable = materializedCell(makeCell('2,3', { interaction: { legal: true } }));
-    hintView.update(playable, viewContext({ revisionSignature: 'static-view:playable' }));
+    hintView.update(playable, viewContext({ interactionRevisionSignature: 'static-interaction:playable' }));
     expect(hintView.interactionRoot).toMatchObject({ eventMode: 'static' });
 
     hintView.reset();
@@ -501,7 +508,7 @@ describe('Pixi static retained views', () => {
       stone: { owner: 'white', value: -1, specialType: 'GUARD', status: { remainingOwnerTurns: 12 } }
     }));
 
-    stoneView.update(normal, viewContext({ revisionSignature: 'static-view:2' }));
+    stoneView.update(normal, viewContext({ stoneRevisionSignature: 'static-stone:2' }));
     expect(stoneView.getDiagnostics()).toMatchObject({
       visible: true,
       owner: 'white',
@@ -521,7 +528,7 @@ describe('Pixi static retained views', () => {
     const sprout = materializedCell(makeCell('0,1', {
       markers: [{ kind: 'breeding-sprout', owner: 'white', value: true, data: { active: true } }]
     }));
-    stoneView.update(sprout, viewContext({ revisionSignature: 'static-view:3' }));
+    stoneView.update(sprout, viewContext({ stoneRevisionSignature: 'static-stone:3' }));
     expect(stoneView.getDiagnostics()).toMatchObject({
       visible: true,
       specialType: 'BREEDING',
@@ -533,7 +540,7 @@ describe('Pixi static retained views', () => {
     const seed = materializedCell(makeCell('0,2', {
       markers: [{ kind: 'seed', owner: 'white', value: null, data: { remainingOwnerTurns: 2 } }]
     }));
-    seedView.update(seed, viewContext({ revisionSignature: 'static-view:4' }));
+    seedView.update(seed, viewContext({ stoneRevisionSignature: 'static-stone:4' }));
     expect(seedView.getDiagnostics()).toMatchObject({
       markerCount: 1,
       markerLabels: ['2'],
@@ -629,6 +636,8 @@ describe('Pixi static board scene', () => {
       createdViewCount: 64,
       starPointCount: 4,
       boardTextureMode: 'single-surface',
+      boardSurfaceUpdateCount: 1,
+      boardSurfaceSkippedCount: 1,
       surfaceBoardTextureCount: 1,
       cellBoardTextureCount: 0,
       textureBackedStoneCount: 1,
@@ -658,6 +667,48 @@ describe('Pixi static board scene', () => {
       width: 256,
       height: 256
     });
+  });
+
+  test('ignores transaction generation when stable surface and stone resource identities are unchanged', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 8, baseCols: 8 });
+    const frame = makeFrame({ topology });
+    const textures = new Map<string, any>([
+      ['board', { texture: { id: 'board-texture' } }],
+      ['black-stone', { texture: { id: 'black-texture' } }]
+    ]);
+    const stableLanes = {
+      surfaceTextureRevision: '[["board","board:stable"]]',
+      stoneTextureRevision: '[["black-stone","black-stone:stable"]]'
+    };
+
+    scene.applyFrame(frame, { textures, textureRevision: 1, ...stableLanes });
+    const generationOnly = scene.applyFrame(frame, { textures, textureRevision: 2, ...stableLanes });
+
+    expect(generationOnly).toMatchObject({
+      updatedCellViews: 0,
+      updatedStoneViews: 0,
+      updatedHintViews: 0,
+      skippedViews: 64
+    });
+    expect(scene.getDiagnostics()).toMatchObject({
+      boardSurfaceUpdateCount: 1,
+      boardSurfaceSkippedCount: 1
+    });
+
+    expect(scene.applyFrame(frame, {
+      textures,
+      textureRevision: 3,
+      surfaceTextureRevision: '[["board","board:next"]]',
+      stoneTextureRevision: stableLanes.stoneTextureRevision
+    })).toMatchObject({ updatedCellViews: 64, updatedStoneViews: 0 });
+    expect(scene.applyFrame(frame, {
+      textures,
+      textureRevision: 4,
+      surfaceTextureRevision: '[["board","board:next"]]',
+      stoneTextureRevision: '[["black-stone","black-stone:next"]]'
+    })).toMatchObject({ updatedCellViews: 0, updatedStoneViews: 64 });
   });
 
   test('keeps the single board texture on the base board and textures expansion cells separately', () => {
@@ -732,7 +783,31 @@ describe('Pixi static board scene', () => {
     ]);
   });
 
-  test('updates one changed visual signature but all visible views for theme/appearance/layout changes', () => {
+  test('rebuilds star points only for their actual geometry and surface-color dependencies', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 8, baseCols: 8 });
+    const baseTheme = Theme.createBoardVisualThemeDescriptor({ revision: 1, surfaceColor: '#112233' });
+    scene.applyFrame(makeFrame({ topology, theme: baseTheme }));
+    const starGraphics = scene.layers.marker.children[0] as FakeGraphics;
+    const initialCommands = starGraphics.commands;
+
+    scene.applyFrame(makeFrame({
+      topology,
+      theme: Object.freeze({ ...baseTheme, revision: 99, markerColor: '#abcdef' })
+    }));
+    expect(starGraphics.commands).toBe(initialCommands);
+
+    scene.applyFrame(makeFrame({
+      topology,
+      theme: Object.freeze({ ...baseTheme, revision: 99, surfaceColor: '#445566' })
+    }));
+    expect(starGraphics.commands).not.toBe(initialCommands);
+    expect(starGraphics.commands.filter((command) => command.op === 'fill'))
+      .toEqual(Array(4).fill({ op: 'fill', style: { color: '#445566', alpha: 0.72 } }));
+  });
+
+  test('updates only the view whose semantic or appearance dependency changed', () => {
     const fixture = createFakeRuntime();
     const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
     const topology = makeTopology({ baseRows: 8, baseCols: 8 });
@@ -743,7 +818,13 @@ describe('Pixi static board scene', () => {
       interaction: key === '4,4' ? { legal: true } : undefined
     }));
     const visualChanged = scene.applyFrame(makeFrame({ topology, cells: changedCells, modelRevision: 2 }));
-    expect(visualChanged).toMatchObject({ updatedViews: 1, skippedViews: 63 });
+    expect(visualChanged).toMatchObject({
+      updatedViews: 1,
+      updatedCellViews: 0,
+      updatedStoneViews: 0,
+      updatedHintViews: 1,
+      skippedViews: 63
+    });
 
     const themeChanged = scene.applyFrame(makeFrame({
       topology,
@@ -751,26 +832,121 @@ describe('Pixi static board scene', () => {
       modelRevision: 2,
       theme: Theme.createBoardVisualThemeDescriptor({ revision: 2, surfaceColor: '#123456' })
     }));
-    expect(themeChanged).toMatchObject({ updatedViews: 64, skippedViews: 0 });
+    expect(themeChanged).toMatchObject({
+      updatedViews: 64,
+      updatedCellViews: 64,
+      updatedStoneViews: 0,
+      updatedHintViews: 0,
+      skippedViews: 0
+    });
 
     const appearanceChanged = scene.applyFrame(makeFrame({
       topology,
       cells: changedCells,
       modelRevision: 2,
       appearanceRevision: 2,
+      appearance: { boardImageUrl: 'https://example.test/board-next.png' },
       theme: Theme.createBoardVisualThemeDescriptor({ revision: 2, surfaceColor: '#123456' })
     }));
-    expect(appearanceChanged.updatedViews).toBe(64);
+    expect(appearanceChanged).toMatchObject({
+      updatedViews: 64,
+      updatedCellViews: 64,
+      updatedStoneViews: 0,
+      updatedHintViews: 0
+    });
+
+    const stoneAppearanceChanged = scene.applyFrame(makeFrame({
+      topology,
+      cells: changedCells,
+      modelRevision: 2,
+      appearanceRevision: 3,
+      appearance: {
+        boardImageUrl: 'https://example.test/board-next.png',
+        blackStoneImageUrl: 'https://example.test/black-next.png'
+      },
+      theme: Theme.createBoardVisualThemeDescriptor({ revision: 2, surfaceColor: '#123456' })
+    }));
+    expect(stoneAppearanceChanged).toMatchObject({
+      updatedViews: 64,
+      updatedCellViews: 0,
+      updatedStoneViews: 64,
+      updatedHintViews: 0
+    });
 
     const layoutChanged = scene.applyFrame(makeFrame({
       topology,
       cells: changedCells,
       modelRevision: 2,
-      appearanceRevision: 2,
+      appearanceRevision: 3,
+      appearance: {
+        boardImageUrl: 'https://example.test/board-next.png',
+        blackStoneImageUrl: 'https://example.test/black-next.png'
+      },
       layoutRevision: 2,
+      orientation: 'rotated-180',
       theme: Theme.createBoardVisualThemeDescriptor({ revision: 2, surfaceColor: '#123456' })
     }));
-    expect(layoutChanged.updatedViews).toBe(64);
+    expect(layoutChanged).toMatchObject({
+      updatedViews: 64,
+      updatedCellViews: 64,
+      updatedStoneViews: 64,
+      updatedHintViews: 64
+    });
+
+    const identical = scene.applyFrame(makeFrame({
+      topology,
+      cells: changedCells,
+      modelRevision: 99,
+      appearanceRevision: 99,
+      appearance: {
+        boardImageUrl: 'https://example.test/board-next.png',
+        blackStoneImageUrl: 'https://example.test/black-next.png'
+      },
+      layoutRevision: 99,
+      orientation: 'rotated-180',
+      theme: Theme.createBoardVisualThemeDescriptor({ revision: 99, surfaceColor: '#123456' })
+    }));
+    expect(identical).toMatchObject({
+      updatedViews: 0,
+      updatedCellViews: 0,
+      updatedStoneViews: 0,
+      updatedHintViews: 0,
+      skippedViews: 64
+    });
+    expect(scene.getDiagnostics()).toMatchObject({ boardSurfaceSkippedCount: expect.any(Number) });
+  });
+
+  test('partitions surface, stone, hint, and font theme dependencies', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 8, baseCols: 8 });
+    const baseTheme = Theme.createBoardVisualThemeDescriptor({ revision: 1 });
+    scene.applyFrame(makeFrame({ topology, theme: baseTheme }));
+
+    const hintTheme = Object.freeze({
+      ...baseTheme,
+      revision: 2,
+      legalHint: Object.freeze({ ...baseTheme.legalHint, ringColor: '#123456' })
+    });
+    expect(scene.applyFrame(makeFrame({ topology, theme: hintTheme }))).toMatchObject({
+      updatedCellViews: 0,
+      updatedStoneViews: 0,
+      updatedHintViews: 64
+    });
+
+    const stoneTheme = Object.freeze({ ...hintTheme, revision: 3, hintColor: '#abcdef' });
+    expect(scene.applyFrame(makeFrame({ topology, theme: stoneTheme }))).toMatchObject({
+      updatedCellViews: 0,
+      updatedStoneViews: 64,
+      updatedHintViews: 0
+    });
+
+    const fontTheme = Object.freeze({ ...stoneTheme, revision: 4, fontReadyEpoch: stoneTheme.fontReadyEpoch + 1 });
+    expect(scene.applyFrame(makeFrame({ topology, theme: fontTheme }))).toMatchObject({
+      updatedCellViews: 64,
+      updatedStoneViews: 64,
+      updatedHintViews: 64
+    });
   });
 
   test('bounds 16x16 materialization to visible + one overscan + two-cell gutter and reuses offscreen views', () => {

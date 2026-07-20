@@ -77,7 +77,14 @@ export interface BoardCellVisualState {
   stone: BoardStoneVisualState | null;
   markers: readonly BoardMarkerVisualState[];
   interaction: BoardCellInteractionState;
+  /** Aggregate compatibility signature used by frame hashing and diagnostics. */
   visualSignature: string;
+  /** Pixi cell-surface semantic dependencies only. */
+  surfaceSignature: string;
+  /** Pixi stone/status semantic dependencies only. */
+  stoneSignature: string;
+  /** Pixi hint/input semantic dependencies only. */
+  interactionSignature: string;
 }
 
 export interface MaterializedBoardCellVisualState extends Omit<BoardCellVisualState, 'kind'> {

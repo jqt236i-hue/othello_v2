@@ -23,7 +23,9 @@ export type PixiStaticBoardTextureMode = 'none' | 'single-surface' | 'per-cell';
 export interface PixiStaticViewContext {
   readonly layout: BoardViewportLayout;
   readonly theme: BoardVisualThemeDescriptor;
-  readonly revisionSignature: string;
+  readonly surfaceRevisionSignature: string;
+  readonly stoneRevisionSignature: string;
+  readonly interactionRevisionSignature: string;
   readonly sceneOffsetX: number;
   readonly sceneOffsetY: number;
   readonly sceneX: number;
@@ -53,6 +55,7 @@ export interface PixiCellView {
   readonly cellRoot: any;
   readonly markerRoot: any;
   update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean;
+  invalidate(): void;
   reset(): void;
   destroy(): void;
   getDiagnostics(): PixiCellViewDiagnostics;
@@ -544,7 +547,12 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
 
   function update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean {
     assertAlive();
-    const nextSignature = `${context.revisionSignature}|${cell.visualSignature}`;
+    const nextSignature = JSON.stringify([
+      context.surfaceRevisionSignature,
+      context.sceneX,
+      context.sceneY,
+      cell.surfaceSignature
+    ]);
     if (signature === nextSignature) return false;
     signature = nextSignature;
     key = cell.key;
@@ -747,6 +755,10 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     return true;
   }
 
+  function invalidate(): void {
+    if (!destroyed) signature = null;
+  }
+
   function reset(): void {
     if (destroyed) return;
     signature = null;
@@ -804,5 +816,5 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     });
   }
 
-  return Object.freeze({ surfaceRoot, cellRoot, markerRoot, update, reset, destroy, getDiagnostics });
+  return Object.freeze({ surfaceRoot, cellRoot, markerRoot, update, invalidate, reset, destroy, getDiagnostics });
 }

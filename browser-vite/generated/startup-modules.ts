@@ -614,6 +614,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/playback-engine": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/playback-engine.js"),
   "ui/playback-flip-marker": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/playback-flip-marker.js"),
   "ui/playback-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/playback-runtime.js"),
+  "ui/playback-settlement": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/playback-settlement.js"),
   "ui/playback-state-manager": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/playback-state-manager.js"),
   "ui/player-identity": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/player-identity.js"),
   "ui/player-profile": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/player-profile.js"),
@@ -1289,6 +1290,7 @@ installBootModuleMetadata({
     "ui/playback-engine",
     "ui/playback-flip-marker",
     "ui/playback-runtime",
+    "ui/playback-settlement",
     "ui/playback-state-manager",
     "ui/player-identity",
     "ui/player-profile",
@@ -1432,4 +1434,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 670;
+export const startupModuleCount = 671;

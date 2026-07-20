@@ -68,7 +68,10 @@ function makeFrame(
       directionHintIds: Object.freeze([]),
       localPendingHintIds: Object.freeze([])
     }),
-    visualSignature: `${row},${col}:${value.owner}`
+    visualSignature: `${row},${col}:${value.owner}`,
+    surfaceSignature: `surface:${row},${col}`,
+    stoneSignature: `stone:${row},${col}:${value.owner}:${value.specialType || 'normal'}`,
+    interactionSignature: `interaction:${row},${col}:idle`
   }));
   return Object.freeze({
     frameToken: 'pixi-playback-frame:1',

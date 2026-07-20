@@ -154,6 +154,109 @@ describe('Pixi board timeline', () => {
     });
   });
 
+  test('samples an exact debug frame when one private-ticker delta crosses the requested time', async () => {
+    const clock = createManualClock();
+    let currentProgress = -1;
+    const renderedProgress: number[] = [];
+    const timeline = TimelineModule.createPixiTimeline({
+      clock,
+      render: () => { renderedProgress.push(currentProgress); }
+    });
+    const playback = timeline.run({
+      durationMs: 200,
+      onUpdate: (progress) => { currentProgress = progress; }
+    });
+    await Promise.resolve();
+    renderedProgress.length = 0;
+
+    const capture = timeline.captureDebugFrameAtElapsed(72, () => currentProgress);
+    clock.tick(100);
+
+    await expect(capture).resolves.toEqual({ value: 0.36, elapsedMs: 72 });
+    expect(currentProgress).toBe(0.5);
+    expect(renderedProgress).toEqual([0.36, 0.5]);
+    expect(clock.listenerCount).toBe(1);
+    expect(timeline.getDiagnostics()).toMatchObject({
+      activeDebugFrameCaptureCount: 0,
+      completedDebugFrameCaptureCount: 1,
+      failedDebugFrameCaptureCount: 0
+    });
+
+    clock.tick(100);
+    await expect(playback).resolves.toMatchObject({ elapsedMs: 200 });
+  });
+
+  test('rejects a pending debug frame when playback is destroyed', async () => {
+    const clock = createManualClock();
+    const timeline = TimelineModule.createPixiTimeline({ clock, render: jest.fn() });
+    const playback = timeline.run({ durationMs: 200, onUpdate: jest.fn() });
+    await Promise.resolve();
+    const capture = timeline.captureDebugFrameAtElapsed(72, () => 'frame');
+
+    timeline.destroy();
+
+    await expect(capture).rejects.toMatchObject({ code: 'pixi_timeline_destroyed' });
+    await expect(playback).rejects.toMatchObject({ code: 'pixi_timeline_destroyed' });
+    expect(timeline.getDiagnostics()).toMatchObject({
+      activeDebugFrameCaptureCount: 0,
+      completedDebugFrameCaptureCount: 0,
+      failedDebugFrameCaptureCount: 1
+    });
+  });
+
+  test('rejects an unreachable debug frame when a zero-duration run becomes idle', async () => {
+    const clock = createManualClock();
+    const captureValue = jest.fn(() => 'stale-frame');
+    const timeline = TimelineModule.createPixiTimeline({ clock, render: jest.fn() });
+    const playback = timeline.run({ durationMs: 0, onUpdate: jest.fn() });
+    const capture = timeline.captureDebugFrameAtElapsed(1, captureValue);
+    const captureExpectation = expect(capture).rejects.toThrow('became idle');
+
+    await expect(playback).resolves.toMatchObject({ durationMs: 0, elapsedMs: 0 });
+    await captureExpectation;
+    expect(captureValue).not.toHaveBeenCalled();
+    expect(timeline.getDiagnostics()).toMatchObject({
+      state: 'idle',
+      activeDebugFrameCaptureCount: 0,
+      failedDebugFrameCaptureCount: 1
+    });
+  });
+
+  test.each(['initial-render', 'clock-start'] as const)(
+    'rejects pending debug capture on %s failure without carrying it into the next run',
+    async (failureMode) => {
+      const clock = createManualClock();
+      const failure = new Error(`${failureMode}-failed`);
+      if (failureMode === 'clock-start') clock.start.mockImplementationOnce(() => { throw failure; });
+      let failRender = failureMode === 'initial-render';
+      const render = jest.fn(() => {
+        if (!failRender) return;
+        failRender = false;
+        throw failure;
+      });
+      const captureValue = jest.fn(() => 'stale-frame');
+      const timeline = TimelineModule.createPixiTimeline({ clock, render });
+      const failedPlayback = timeline.run({ durationMs: 100, onUpdate: jest.fn() });
+      const capture = timeline.captureDebugFrameAtElapsed(72, captureValue);
+      const captureExpectation = expect(capture).rejects.toBe(failure);
+
+      await expect(failedPlayback).rejects.toBe(failure);
+      await captureExpectation;
+      expect(captureValue).not.toHaveBeenCalled();
+      expect(timeline.getDiagnostics()).toMatchObject({
+        state: 'idle',
+        activeDebugFrameCaptureCount: 0,
+        failedDebugFrameCaptureCount: 1
+      });
+
+      const nextPlayback = timeline.run({ durationMs: 10, onUpdate: jest.fn() });
+      await Promise.resolve();
+      clock.tick(10);
+      await expect(nextPlayback).resolves.toMatchObject({ elapsedMs: 10 });
+      expect(captureValue).not.toHaveBeenCalled();
+    }
+  );
+
   test('shares one ticker across parallel runs and the first completion cannot stop it', async () => {
     const log: string[] = [];
     const clock = createManualClock(log);

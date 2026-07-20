@@ -1,6 +1,7 @@
 const FPS_DISPLAY_STORAGE_KEY = 'card_reversi_fps_display_v1';
 const DEFAULT_SAMPLE_WINDOW_MS = 500;
 const LONG_GAP_MULTIPLIER = 4;
+const FRAME_STALL_THRESHOLD_MS = 50;
 
 type RequestFrame = (callback: FrameRequestCallback) => number;
 type CancelFrame = (handle: number) => void;
@@ -83,12 +84,34 @@ function setupFpsDisplay(options: FpsDisplayOptions): FpsDisplayController | nul
   const storage = resolveSessionStorage(root);
   const sampleWindowMs = normalizeSampleWindowMs(options.sampleWindowMs);
   const longGapMs = sampleWindowMs * LONG_GAP_MULTIPLIER;
+  const fpsValue = display.querySelector<HTMLElement>('[data-fps-value]');
+  const maxFrameValue = display.querySelector<HTMLElement>('[data-max-frame-value]');
 
   let enabled = false;
   let destroyed = false;
   let frameHandle: number | null = null;
   let sampleStartedAt: number | null = null;
+  let lastFrameAt: number | null = null;
   let frameCount = 0;
+  let maxFrameIntervalMs = 0;
+
+  const renderReading = (fps: number | null, maxFrameMs: number | null): void => {
+    const fpsText = `FPS: ${fps === null ? '--' : Math.max(0, Math.round(fps))}`;
+    const maxText = `MAX: ${maxFrameMs === null ? '--' : Math.max(0, Math.round(maxFrameMs))} ms`;
+    if (fpsValue && maxFrameValue) {
+      fpsValue.textContent = fpsText;
+      maxFrameValue.textContent = maxText;
+    } else {
+      display.textContent = `${fpsText}\n${maxText}`;
+    }
+    if (maxFrameMs !== null && maxFrameMs >= FRAME_STALL_THRESHOLD_MS) {
+      display.setAttribute('data-stall', 'true');
+    } else {
+      display.removeAttribute('data-stall');
+    }
+  };
+
+  const resetReading = (): void => renderReading(null, null);
 
   const syncButton = (): void => {
     button.textContent = enabled ? 'FPS: ON' : 'FPS: OFF';
@@ -101,29 +124,38 @@ function setupFpsDisplay(options: FpsDisplayOptions): FpsDisplayController | nul
     if (frameHandle !== null && cancelFrame) cancelFrame(frameHandle);
     frameHandle = null;
     sampleStartedAt = null;
+    lastFrameAt = null;
     frameCount = 0;
+    maxFrameIntervalMs = 0;
   };
 
   const tick = (timestamp: number): void => {
     frameHandle = null;
     if (!enabled || destroyed || !requestFrame) return;
 
-    if (sampleStartedAt === null) {
+    if (sampleStartedAt === null || lastFrameAt === null) {
       sampleStartedAt = timestamp;
+      lastFrameAt = timestamp;
       frameCount = 0;
+      maxFrameIntervalMs = 0;
     } else {
+      const frameIntervalMs = timestamp - lastFrameAt;
+      lastFrameAt = timestamp;
       const elapsedMs = timestamp - sampleStartedAt;
-      if (elapsedMs > longGapMs) {
-        display.textContent = 'FPS: --';
+      if (!Number.isFinite(frameIntervalMs) || frameIntervalMs < 0 || frameIntervalMs > longGapMs) {
+        resetReading();
         sampleStartedAt = timestamp;
         frameCount = 0;
+        maxFrameIntervalMs = 0;
       } else {
         frameCount += 1;
+        maxFrameIntervalMs = Math.max(maxFrameIntervalMs, frameIntervalMs);
         if (elapsedMs >= sampleWindowMs) {
           const fps = Math.max(0, Math.round((frameCount * 1000) / elapsedMs));
-          display.textContent = `FPS: ${fps}`;
+          renderReading(fps, maxFrameIntervalMs);
           sampleStartedAt = timestamp;
           frameCount = 0;
+          maxFrameIntervalMs = 0;
         }
       }
     }
@@ -133,9 +165,11 @@ function setupFpsDisplay(options: FpsDisplayOptions): FpsDisplayController | nul
 
   const startLoop = (): void => {
     if (!requestFrame || frameHandle !== null || destroyed) return;
-    display.textContent = 'FPS: --';
+    resetReading();
     sampleStartedAt = null;
+    lastFrameAt = null;
     frameCount = 0;
+    maxFrameIntervalMs = 0;
     frameHandle = requestFrame(tick);
   };
 
@@ -144,11 +178,12 @@ function setupFpsDisplay(options: FpsDisplayOptions): FpsDisplayController | nul
     enabled = nextEnabled === true && requestFrame !== null;
     syncButton();
     display.hidden = !enabled;
+    display.setAttribute('aria-hidden', enabled ? 'false' : 'true');
     if (enabled) {
       startLoop();
     } else {
       stopLoop();
-      display.textContent = 'FPS: --';
+      resetReading();
     }
     if (persist) writeStoredEnabled(storage, enabled);
   };
@@ -174,7 +209,8 @@ function setupFpsDisplay(options: FpsDisplayOptions): FpsDisplayController | nul
       button.removeEventListener('click', handleClick);
       stopLoop();
       display.hidden = true;
-      display.textContent = 'FPS: --';
+      display.setAttribute('aria-hidden', 'true');
+      resetReading();
       if (activeController === controller) activeController = null;
     }
   };
@@ -185,5 +221,6 @@ function setupFpsDisplay(options: FpsDisplayOptions): FpsDisplayController | nul
 
 export = {
   FPS_DISPLAY_STORAGE_KEY,
+  FRAME_STALL_THRESHOLD_MS,
   setupFpsDisplay
 };

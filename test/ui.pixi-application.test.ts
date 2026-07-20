@@ -1,4 +1,5 @@
 import ApplicationModule = require('../ui/pixi/application');
+import TimelineModule = require('../ui/pixi/timeline');
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -12,15 +13,28 @@ function deferred<T>() {
 
 function createTicker(initiallyStarted = true) {
   let started = initiallyStarted;
+  let pendingElapsedMs = 0;
   const listeners = new Set<(ticker: any) => void>();
   return {
     autoStart: true,
+    maxFPS: 0,
     get started() { return started; },
     get listenerCount() { return listeners.size; },
     add: jest.fn((listener: (ticker: any) => void, _context?: any, _priority?: number) => { listeners.add(listener); }),
     remove: jest.fn((listener: (ticker: any) => void, _context?: any) => { listeners.delete(listener); }),
     tick(deltaMS: number) {
       for (const listener of Array.from(listeners)) listener({ deltaMS, elapsedMS: deltaMS });
+    },
+    advance(deltaMS: number) {
+      pendingElapsedMs += deltaMS;
+      const maxFPS = Number(this.maxFPS);
+      const minimumElapsedMs = maxFPS > 0 ? 1000 / maxFPS : 0;
+      if (pendingElapsedMs + 1e-6 < minimumElapsedMs) return;
+      const emittedElapsedMs = pendingElapsedMs;
+      pendingElapsedMs = 0;
+      for (const listener of Array.from(listeners)) {
+        listener({ deltaMS: emittedElapsedMs, elapsedMS: emittedElapsedMs });
+      }
     },
     start: jest.fn(() => { started = true; }),
     stop: jest.fn(() => { started = false; })
@@ -121,6 +135,7 @@ describe('Pixi board Application lifecycle', () => {
       backgroundAlpha: 0
     });
     expect(fixture.instances[0].ticker.stop).toHaveBeenCalledTimes(1);
+    expect(fixture.instances[0].ticker.maxFPS).toBe(ApplicationModule.PIXI_BOARD_MAX_FPS);
     expect(fixture.instances[0].ticker.remove)
       .toHaveBeenCalledWith(fixture.instances[0].render, fixture.instances[0]);
     expect(fixture.sharedTicker.stop).toHaveBeenCalledTimes(1);
@@ -129,7 +144,8 @@ describe('Pixi board Application lifecycle', () => {
     expect(fixture.systemTicker.autoStart).toBe(false);
     expect(boardApp.getDiagnostics()).toMatchObject({
       state: 'ready', canvasCount: 1, contextCount: 1, tickerRunning: false,
-      privateTickerRunning: false, sharedTickerRunning: false, systemTickerRunning: false, resolution: 2
+      privateTickerRunning: false, sharedTickerRunning: false, systemTickerRunning: false,
+      tickerMaxFps: 60, resolution: 2
     });
   });
 
@@ -139,11 +155,12 @@ describe('Pixi board Application lifecycle', () => {
     await boardApp.mount(createHost());
 
     boardApp.resize(320, 240, 4);
+    boardApp.resize(320, 240, 4);
     boardApp.render();
     boardApp.startTicker();
     boardApp.startTicker();
     expect(boardApp.getDiagnostics()).toMatchObject({
-      tickerRunning: true, renderCount: 1, resizeCount: 1, resolution: 2
+      tickerRunning: true, renderCount: 1, resizeCount: 1, resizeSkippedCount: 1, resolution: 2
     });
     expect(fixture.instances[0].renderer.resize).toHaveBeenCalledWith(320, 240, 2);
     expect(fixture.instances[0].renderer.render).toHaveBeenCalledWith({ container: fixture.instances[0].stage });
@@ -158,6 +175,60 @@ describe('Pixi board Application lifecycle', () => {
     expect(fixture.systemTicker.stop).toHaveBeenCalledTimes(1);
     expect(boardApp.getDiagnostics().tickerRunning).toBe(false);
   });
+
+  test('invalidates the resize cache explicitly after context replacement', async () => {
+    const fixture = createRuntime();
+    const boardApp = ApplicationModule.createPixiBoardApplication({ runtime: fixture.runtime });
+    await boardApp.mount(createHost());
+
+    boardApp.resize(320, 240, 1);
+    boardApp.resize(320, 240, 1);
+    boardApp.invalidateResizeCache();
+    boardApp.resize(320, 240, 1);
+
+    expect(fixture.instances[0].renderer.resize).toHaveBeenCalledTimes(2);
+    expect(boardApp.getDiagnostics()).toMatchObject({ resizeCount: 2, resizeSkippedCount: 1 });
+  });
+
+  test.each([60, 144, 240])(
+    'caps integrated timeline renders while preserving duration and settlement for a %iHz source',
+    async (refreshRate) => {
+      const fixture = createRuntime();
+      const boardApp = ApplicationModule.createPixiBoardApplication({ runtime: fixture.runtime });
+      await boardApp.mount(createHost());
+      const updates: Array<{ progress: number; elapsedMs: number }> = [];
+      const settlements: any[] = [];
+      const timeline = TimelineModule.createPixiTimeline({
+        clock: TimelineModule.createPixiApplicationTickerClock(boardApp),
+        render: () => boardApp.render()
+      });
+      const playback = timeline.run({
+        durationMs: 1000,
+        onUpdate: (progress, frame) => { updates.push({ progress, elapsedMs: frame.elapsedMs }); },
+        onSettled: (settlement) => { settlements.push(settlement); }
+      });
+      await Promise.resolve();
+
+      const intervalMs = 1000 / refreshRate;
+      // A few source ticks cover floating-point boundary drift at exactly 1s;
+      // the timeline unsubscribes immediately after its terminal render.
+      for (let index = 0; index < refreshRate + 5; index += 1) {
+        fixture.instances[0].ticker.advance(intervalMs);
+      }
+
+      await expect(playback).resolves.toMatchObject({ durationMs: 1000, elapsedMs: 1000 });
+      expect(boardApp.getDiagnostics().renderCount).toBeLessThanOrEqual(65);
+      expect(boardApp.getDiagnostics().renderCount).toBeGreaterThanOrEqual(45);
+      expect(updates.at(-1)).toEqual({ progress: 1, elapsedMs: 1000 });
+      expect(settlements).toEqual([expect.objectContaining({
+        status: 'completed', progress: 1, elapsedMs: 1000
+      })]);
+      expect(timeline.getDiagnostics()).toMatchObject({
+        state: 'idle', activeRunCount: 0, tickerRunning: false, tickerSubscribed: false
+      });
+      expect(boardApp.getDiagnostics()).toMatchObject({ tickerRunning: false, privateTickerRunning: false });
+    }
+  );
 
   test('re-stops runtime tickers at the explicit idle settlement boundary', async () => {
     const fixture = createRuntime();

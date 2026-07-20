@@ -92,6 +92,7 @@ function getAnimationEngine(options?: any): any {
 }
 
 let activePlaybackAbortHandle: any = null;
+let activePlaybackRunId: number | null = null;
 let nextSelectionSettlementLockId = 1;
 const selectionSettlementLockIds = new Set<number>();
 let nextVisualPlaybackClaimId = 1;
@@ -314,6 +315,7 @@ function setPlaybackActive(active: boolean): boolean {
     }
   } else {
     setMirroredValue('__playbackActiveSince', null);
+    activePlaybackRunId = null;
   }
   syncBoardLockToPlaybackState();
   return next;
@@ -1066,6 +1068,10 @@ function consumeSuppressNextDiffFlip(): boolean {
 function beginPlayback(options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
   setInteractionLock(true);
+  const requestedRunId = Number(opts.runId);
+  activePlaybackRunId = Number.isSafeInteger(requestedRunId) && requestedRunId > 0
+    ? requestedRunId
+    : null;
   if (opts.startedAt === null) {
     setPlaybackStartedAt(null);
   } else {
@@ -1076,12 +1082,23 @@ function beginPlayback(options?: any): any {
     playbackActive: getPlaybackActive(),
     isCardAnimating: getCardAnimating(),
     isProcessing: getProcessing(),
-    startedAt: getPlaybackStartedAt()
+    startedAt: getPlaybackStartedAt(),
+    runId: activePlaybackRunId
   };
 }
 
 function finalizePlayback(options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
+  if (Object.prototype.hasOwnProperty.call(opts, 'expectedRunId')) {
+    const expectedRunId = Number(opts.expectedRunId);
+    if (
+      !Number.isSafeInteger(expectedRunId)
+      || expectedRunId <= 0
+      || activePlaybackRunId !== expectedRunId
+    ) {
+      return false;
+    }
+  }
   if (Object.prototype.hasOwnProperty.call(opts, 'boardUpdateContext')) {
     if (opts.boardUpdateContext) {
       armBoardUpdateContext(opts.boardUpdateContext);

@@ -55,6 +55,7 @@ export interface PixiStoneViewDiagnostics {
 export interface PixiStoneView {
   readonly root: any;
   update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean;
+  invalidate(): void;
   reset(): void;
   destroy(): void;
   getDiagnostics(): PixiStoneViewDiagnostics;
@@ -256,7 +257,12 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
 
   function update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean {
     assertAlive();
-    const nextSignature = `${context.revisionSignature}|${cell.visualSignature}`;
+    const nextSignature = JSON.stringify([
+      context.stoneRevisionSignature,
+      context.sceneX,
+      context.sceneY,
+      cell.stoneSignature
+    ]);
     if (signature === nextSignature) return false;
     signature = nextSignature;
     key = cell.key;
@@ -639,6 +645,10 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     return true;
   }
 
+  function invalidate(): void {
+    if (!destroyed) signature = null;
+  }
+
   function reset(): void {
     if (destroyed) return;
     signature = null;
@@ -693,5 +703,5 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     });
   }
 
-  return Object.freeze({ root, update, reset, destroy, getDiagnostics });
+  return Object.freeze({ root, update, invalidate, reset, destroy, getDiagnostics });
 }

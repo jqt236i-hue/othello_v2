@@ -14,6 +14,7 @@ declare const playHandAnimation: any;
 
 const Constants = _require('./animation-constants');
 const PlaybackStateManager = _require('./playback-state-manager');
+const PlaybackSettlement = _require('./playback-settlement');
 
 const {
         EVENT_TYPES,
@@ -278,6 +279,18 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             return error;
         }
 
+        _createDeferredPlaybackSettlement(runId: number, mode: any, finalize: () => boolean | void, event: any) {
+            try {
+                if (!PlaybackSettlement || typeof PlaybackSettlement.createPlaybackSettlementResult !== 'function') {
+                    throw new Error('Playback settlement contract is unavailable');
+                }
+                return PlaybackSettlement.createPlaybackSettlementResult({ runId, mode, finalize });
+            } catch (cause: any) {
+                if (cause && cause.name === 'PresentationPlaybackError') throw cause;
+                throw this._createPlaybackError('playback_settlement_contract_unavailable', event, cause);
+            }
+        }
+
         _throwIfLocalBoardWriterRecoveryIsUnresolved(event: any) {
             if (
                 this._unresolvedLocalBoardWriterError
@@ -510,6 +523,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 abort: () => {
                     if (runState.externallyAborted === true) return false;
                     runState.externallyAborted = true;
+                    runState.visualPlaybackClaimsPreservedOnAbort = runState.preserveVisualPlaybackClaimsOnAbort === true;
                     this.isAborted = true;
                     this.isPlaying = false;
                     this._activePlaybackRunId = null;
@@ -772,9 +786,9 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 ? events.map((ev) => this._normalizeEvent(ev))
                 : [];
             this._throwIfLocalBoardWriterRecoveryIsUnresolved(normalizedEvents[0]);
-            // No events: just ensure flags are clean and return.
+            // Empty payload has no playback ownership. The caller that owns any
+            // outer claim is solely responsible for releasing it.
             if (!normalizedEvents.length) {
-                this.setGlobalInteractionLock(false);
                 return;
             }
             const strictNetworkPlaybackThisRun = playOptions.strictNetworkPlayback === true
@@ -787,11 +801,9 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 normalizedEvents = Array.from(PresentationVisualSeed.withNextPresentationBatchId(normalizedEvents));
             }
             const deferFinalSettlement = playOptions.deferFinalSettlement === true;
-            if (deferFinalSettlement && typeof playOptions.onFinalizationReady !== 'function') {
-                throw new Error('playback_finalization_handoff_unavailable');
-            }
             let abortedDuringPlay = false;
             let playbackError: any = null;
+            let deferredSettlementResult: any = null;
             let strictWatchdogPromise: Promise<never> | null = null;
             const runBoardWriterToken = playOptions.boardWriterToken || null;
             const awaitPlaybackStep = (promise: any) => {
@@ -874,7 +886,9 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 scope: null,
                 watchdogId: null,
                 externallyAborted: false,
+                watchdogAborted: false,
                 visualPlaybackClaimsPreservedOnAbort: false,
+                preserveVisualPlaybackClaimsOnAbort: strictNetworkPlaybackThisRun || deferFinalSettlement,
                 abortController: (typeof AbortController === 'function') ? new AbortController() : null
             };
             let abortHandle: any = null;
@@ -890,7 +904,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             // VisualPlaybackActive is the single source of truth during playback
             try {
                 if (PlaybackState && typeof PlaybackState.beginPlayback === 'function') {
-                    PlaybackState.beginPlayback({ boardElement: this.boardEl });
+                    PlaybackState.beginPlayback({ boardElement: this.boardEl, runId });
                     this.isPlaying = PlaybackState.getPlaybackActive() === true;
                 } else {
                     this.setGlobalInteractionLock(true);
@@ -905,6 +919,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                     }
                     const handleWatchdogForRun = () => {
                         const preserveVisualPlaybackClaims = strictNetworkPlaybackThisRun || deferFinalSettlement;
+                        runState.watchdogAborted = true;
                         runState.visualPlaybackClaimsPreservedOnAbort = preserveVisualPlaybackClaims;
                         return this.handleWatchdog({ preserveVisualPlaybackClaims });
                     };
@@ -1032,7 +1047,12 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 }
                 // After playback completes, request a final board diff render to ensure DOM matches state.
                 // This avoids stale visuals when diff rendering was suppressed during playback.
-                if (isCurrentRun && localWriterSettlementResolved && !runState.externallyAborted) {
+                if (
+                    isCurrentRun
+                    && localWriterSettlementResolved
+                    && !runState.externallyAborted
+                    && !runState.watchdogAborted
+                ) {
                     if (strictNetworkPlaybackFailed) {
                         if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
                             PlaybackState.abortPlayback({
@@ -1044,27 +1064,27 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                         } else {
                             this.setGlobalInteractionLock(false);
                         }
-                    } else if (deferFinalSettlement) {
+                    } else if (deferFinalSettlement && !playbackError && !abortedDuringPlay) {
                         if (boardUpdateContext && PlaybackState && typeof PlaybackState.armBoardUpdateContext === 'function') {
                             PlaybackState.armBoardUpdateContext(boardUpdateContext);
                         }
-                        let finalized = false;
-                        playOptions.onFinalizationReady(() => {
-                            if (finalized) return false;
+                        deferredSettlementResult = this._createDeferredPlaybackSettlement(runId, 'finalize', () => {
                             if (PlaybackState && typeof PlaybackState.finalizePlayback === 'function') {
-                                PlaybackState.finalizePlayback({
+                                return PlaybackState.finalizePlayback({
                                     boardElement: this.boardEl,
+                                    expectedRunId: runId,
                                     clearBoardUpdateContext: true
-                                });
+                                }) !== false;
                             } else {
+                                if (this._playbackRunSequence !== runId) return false;
                                 this.setGlobalInteractionLock(false);
+                                return true;
                             }
-                            finalized = true;
-                            return true;
-                        });
+                        }, normalizedEvents[normalizedEvents.length - 1]);
                     } else if (PlaybackState && typeof PlaybackState.finalizePlayback === 'function') {
                         PlaybackState.finalizePlayback({
                             boardElement: this.boardEl,
+                            expectedRunId: runId,
                             boardUpdateContext,
                             clearBoardUpdateContext: true,
                             emitBoardUpdate: _requestBoardUpdate
@@ -1080,21 +1100,22 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 if (
                     !strictNetworkPlaybackThisRun
                     && deferFinalSettlement
-                    && runState.externallyAborted
+                    && (runState.externallyAborted || runState.watchdogAborted)
                     && runState.visualPlaybackClaimsPreservedOnAbort
                     && localWriterSettlementResolved
+                    && !playbackError
                 ) {
                     // The watchdog already aborted the engine-owned playback state.
                     // Keep the outer presentation claim alive until its board writer
                     // settles, then acknowledge that no second manager finalization is
                     // required. This preserves the drain's settlement ownership without
                     // clearing a newer playback run through a late finalizePlayback().
-                    let abortSettlementAcknowledged = false;
-                    playOptions.onFinalizationReady(() => {
-                        if (abortSettlementAcknowledged) return false;
-                        abortSettlementAcknowledged = true;
-                        return true;
-                    });
+                    deferredSettlementResult = this._createDeferredPlaybackSettlement(
+                        runId,
+                        'already-aborted-ack',
+                        () => { /* manager state was already aborted */ },
+                        normalizedEvents[normalizedEvents.length - 1]
+                    );
                 }
                 if (isCurrentRun && localWriterSettlementResolved) {
                     this._strictNetworkPlaybackReject = null;
@@ -1111,6 +1132,15 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             }
             if (playbackError) {
                 throw playbackError;
+            }
+            if (deferFinalSettlement) {
+                if (!deferredSettlementResult) {
+                    throw this._createPlaybackError(
+                        'playback_settlement_result_unavailable',
+                        normalizedEvents[normalizedEvents.length - 1]
+                    );
+                }
+                return deferredSettlementResult;
             }
         }
         groupByPhase(events: any) {

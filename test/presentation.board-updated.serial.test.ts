@@ -14,10 +14,20 @@ async function waitUntil(predicate, maxTurns = 50) {
   throw new Error('Timed out waiting for presentation test state');
 }
 
-function registerPlaybackFinalizer(options) {
-  if (options && typeof options.onFinalizationReady === 'function') {
-    options.onFinalizationReady(() => true);
-  }
+let playbackRunId = 0;
+function createPlaybackSettlement(finalize = () => {}) {
+  let finalized = false;
+  return Object.freeze({
+    kind: 'deferred-finalization',
+    runId: ++playbackRunId,
+    mode: 'finalize',
+    finalize() {
+      if (finalized) return false;
+      finalized = true;
+      finalize();
+      return true;
+    }
+  });
 }
 
 function mockReadyBoardRenderer() {
@@ -84,12 +94,10 @@ describe('presentation handler boardUpdated draining', () => {
     global.AnimationEngine = {
       play: jest
         .fn()
-        .mockImplementationOnce((_events, options) => {
-          registerPlaybackFinalizer(options);
+        .mockImplementationOnce(() => {
           return firstPlayback.promise;
         })
-        .mockImplementationOnce((_events, options) => {
-          registerPlaybackFinalizer(options);
+        .mockImplementationOnce(() => {
           secondPlaybackStarted.resolve();
           return secondPlayback.promise;
         })
@@ -105,11 +113,11 @@ describe('presentation handler boardUpdated draining', () => {
     await Promise.resolve();
     expect(global.AnimationEngine.play).toHaveBeenCalledTimes(1);
 
-    firstPlayback.resolve();
+    firstPlayback.resolve(createPlaybackSettlement());
     await secondPlaybackStarted.promise;
     expect(global.AnimationEngine.play).toHaveBeenCalledTimes(2);
 
-    secondPlayback.resolve();
+    secondPlayback.resolve(createPlaybackSettlement());
     await firstDrain;
     await secondDrain;
 
@@ -139,8 +147,7 @@ describe('presentation handler boardUpdated draining', () => {
         .mockReturnValue([])
     };
     global.AnimationEngine = {
-      play: jest.fn((_events, options) => {
-        registerPlaybackFinalizer(options);
+      play: jest.fn(() => {
         return firstPlayback.promise;
       })
     };
@@ -155,7 +162,7 @@ describe('presentation handler boardUpdated draining', () => {
     jest.runOnlyPendingTimers();
     expect(processCpuTurn).not.toHaveBeenCalled();
 
-    firstPlayback.resolve();
+    firstPlayback.resolve(createPlaybackSettlement());
     await firstDrain;
 
     await waitUntil(() => global.CardLogic.flushPresentationEvents.mock.calls.length === 2);
@@ -231,9 +238,7 @@ describe('presentation handler boardUpdated draining', () => {
         .mockReturnValue([])
     };
     global.AnimationEngine = {
-      play: jest.fn(async (_events, options) => {
-        registerPlaybackFinalizer(options);
-      })
+      play: jest.fn(async () => createPlaybackSettlement())
     };
     global.renderCardUI = jest.fn();
 
@@ -246,10 +251,10 @@ describe('presentation handler boardUpdated draining', () => {
         targets: [expect.objectContaining({ r: 3, col: 4, ownerAfter: 'black' })]
       })],
       expect.objectContaining({
-        deferFinalSettlement: true,
-        onFinalizationReady: expect.any(Function)
+        deferFinalSettlement: true
       })
     );
+    expect(global.AnimationEngine.play.mock.calls[0][1]).not.toHaveProperty('onFinalizationReady');
   });
 
 });
