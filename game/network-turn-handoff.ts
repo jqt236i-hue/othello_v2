@@ -1,5 +1,13 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
 
+import {
+    measureCpuTurnSync,
+    readCpuTurnPerformanceNowMs,
+    recordCpuTurnPerformanceInterval,
+    type CpuTurnPerformanceScope,
+    type CpuTurnPerformanceStage
+} from './cpu-turn-performance';
+
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     ? __non_webpack_require__
     : require;
@@ -271,18 +279,63 @@ try {
         return effectiveOperatorKey === 'white' ? turnOwnerKey : null;
     }
 
-    async function waitForPlaybackIdleIfNeeded(playbackEvents: any): Promise<void> {
-        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return;
+    async function waitForPlaybackIdleIfNeeded(playbackEvents: any): Promise<'skipped' | 'settled' | 'error'> {
+        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return 'skipped';
 
         const waitForPlaybackFn = (typeof root.waitForPlaybackIdle === 'function')
             ? root.waitForPlaybackIdle
             : null;
 
-        if (typeof waitForPlaybackFn !== 'function') return;
+        if (typeof waitForPlaybackFn !== 'function') return 'skipped';
 
         try {
             await waitForPlaybackFn();
-        } catch (e: any) { /* ignore */ }
+            return 'settled';
+        } catch (e: any) {
+            return 'error';
+        }
+    }
+
+    async function invokeMeasuredHandoffAsync<T>(
+        performanceScope: CpuTurnPerformanceScope | null,
+        syncStage: CpuTurnPerformanceStage,
+        waitStage: CpuTurnPerformanceStage,
+        callback: () => T | PromiseLike<T>,
+        resolveOutcome?: (result: T) => 'continue' | 'handled' | 'stale' | 'error'
+    ): Promise<T> {
+        if (!performanceScope) return await callback();
+        const pending = measureCpuTurnSync(
+            performanceScope,
+            syncStage,
+            () => Promise.resolve(callback())
+        );
+        const waitStartedAtMs = readCpuTurnPerformanceNowMs(performanceScope);
+        try {
+            const result = await pending;
+            let outcome: 'continue' | 'handled' | 'stale' | 'error' = 'continue';
+            if (typeof resolveOutcome === 'function') {
+                try { outcome = resolveOutcome(result); } catch (_error) { outcome = 'error'; }
+            }
+            recordCpuTurnPerformanceInterval(
+                performanceScope,
+                waitStage,
+                'wait',
+                waitStartedAtMs,
+                readCpuTurnPerformanceNowMs(performanceScope),
+                outcome
+            );
+            return result;
+        } catch (error) {
+            recordCpuTurnPerformanceInterval(
+                performanceScope,
+                waitStage,
+                'wait',
+                waitStartedAtMs,
+                readCpuTurnPerformanceNowMs(performanceScope),
+                'error'
+            );
+            throw error;
+        }
     }
 
     function readCurrentGameState() {
@@ -423,6 +476,7 @@ try {
 
     async function finalizeNetworkTurnHandoff(options: any): Promise<any> {
         const opts = (options && typeof options === 'object') ? options : {};
+        const performanceScope = (opts.performanceScope || null) as CpuTurnPerformanceScope | null;
         const basePlaybackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents.slice() : [];
         const publishSnapshotFn = (typeof opts.publishSnapshot === 'function') ? opts.publishSnapshot : null;
         const setProcessing = (typeof opts.setProcessing === 'function') ? opts.setProcessing : null;
@@ -450,16 +504,24 @@ try {
 
         if (isGameOverNow(opts.isGameOver, snapshotOverride)) {
             if (resultOrder === 'beforePublish') showResultIfAvailable(opts.showResult);
-            const gameOverPublish = await publishTurnHandoffSnapshot(publishSnapshotFn, {
-                playerKey,
-                actionType,
-                action,
-                playbackEvents: basePlaybackEvents,
-                snapshot: snapshotOverride
-            }, {
-                awaitPublishResult,
-                onPublishFailed
-            });
+            const publishGameOver = () => publishTurnHandoffSnapshot(publishSnapshotFn, {
+                    playerKey,
+                    actionType,
+                    action,
+                    playbackEvents: basePlaybackEvents,
+                    snapshot: snapshotOverride
+                }, {
+                    awaitPublishResult,
+                    onPublishFailed
+                });
+            const gameOverPublish = performanceScope
+                ? await invokeMeasuredHandoffAsync(
+                    performanceScope,
+                    'presentation-handoff',
+                    'presentation-handoff',
+                    publishGameOver
+                )
+                : await publishGameOver();
             if (!gameOverPublish.ok) {
                 if (setProcessing) setProcessing(false);
                 return {
@@ -487,7 +549,17 @@ try {
 
         // Single Writer: network モードではローカル playback がないため wait 不要
         if (!opts.skipLocalPlaybackWait) {
-            await waitForPlaybackIdleIfNeeded(basePlaybackEvents);
+            if (performanceScope) {
+                await invokeMeasuredHandoffAsync(
+                    performanceScope,
+                    'presentation-handoff',
+                    'presentation-handoff',
+                    () => waitForPlaybackIdleIfNeeded(basePlaybackEvents),
+                    (result) => result === 'error' ? 'error' : 'continue'
+                );
+            } else {
+                await waitForPlaybackIdleIfNeeded(basePlaybackEvents);
+            }
         }
 
         const playbackHelpers = resolvePlaybackEventHelpers();
@@ -497,7 +569,15 @@ try {
             for (let index = 0; index < MAX_TURN_START_CHAIN; index += 1) {
                 const gameStateRef = readCurrentGameState();
                 const beforePlayerKey = resolvePlayerKeyFromTurnValue(gameStateRef ? gameStateRef.currentPlayer : null);
-                const turnStartResult = await turnStartFn(gameStateRef ? gameStateRef.currentPlayer : null);
+                const invokeTurnStart = () => turnStartFn(gameStateRef ? gameStateRef.currentPlayer : null);
+                const turnStartResult = performanceScope
+                    ? await invokeMeasuredHandoffAsync(
+                        performanceScope,
+                        'canonical-commit',
+                        'presentation-handoff',
+                        invokeTurnStart
+                    )
+                    : await invokeTurnStart();
                 if (turnStartResult && Array.isArray(turnStartResult.playbackEvents)) {
                     turnStartPlaybackEvents = (playbackHelpers && typeof playbackHelpers.appendPlaybackEventsAfter === 'function')
                         ? playbackHelpers.appendPlaybackEventsAfter(turnStartPlaybackEvents, turnStartResult.playbackEvents)
@@ -519,23 +599,41 @@ try {
             : basePlaybackEvents.concat(turnStartPlaybackEvents);
 
         if (typeof opts.afterTurnStart === 'function') {
-            await opts.afterTurnStart({
-                playbackEvents: combinedPlaybackEvents.slice(),
-                turnStartPlaybackEvents: turnStartPlaybackEvents.slice(),
-                snapshot: snapshotOverride
-            });
+            const invokeAfterTurnStart = () => opts.afterTurnStart({
+                    playbackEvents: combinedPlaybackEvents.slice(),
+                    turnStartPlaybackEvents: turnStartPlaybackEvents.slice(),
+                    snapshot: snapshotOverride
+                });
+            if (performanceScope) {
+                await invokeMeasuredHandoffAsync(
+                    performanceScope,
+                    'presentation-handoff',
+                    'presentation-handoff',
+                    invokeAfterTurnStart
+                );
+            } else {
+                await invokeAfterTurnStart();
+            }
         }
 
-        const publishOutcome = await publishTurnHandoffSnapshot(publishSnapshotFn, {
-            playerKey,
-            actionType,
-            action,
-            playbackEvents: combinedPlaybackEvents,
-            snapshot: snapshotOverride
-        }, {
-            awaitPublishResult,
-            onPublishFailed
-        });
+        const publishCompletedTurn = () => publishTurnHandoffSnapshot(publishSnapshotFn, {
+                playerKey,
+                actionType,
+                action,
+                playbackEvents: combinedPlaybackEvents,
+                snapshot: snapshotOverride
+            }, {
+                awaitPublishResult,
+                onPublishFailed
+            });
+        const publishOutcome = performanceScope
+            ? await invokeMeasuredHandoffAsync(
+                performanceScope,
+                'presentation-handoff',
+                'presentation-handoff',
+                publishCompletedTurn
+            )
+            : await publishCompletedTurn();
         if (!publishOutcome.ok) {
             if (setProcessing) setProcessing(false);
             return {
@@ -574,11 +672,14 @@ try {
             if (setProcessing) setProcessing(true);
             let scheduleAccepted = true;
             try {
-                scheduleAccepted = scheduleCpuTurn({
-                    delayMs: cpuDelayMs,
-                    expectedTurnNumber: readCurrentTurnNumber(),
-                    nextPlayerKey
-                });
+                const scheduleCpu = () => scheduleCpuTurn({
+                        delayMs: cpuDelayMs,
+                        expectedTurnNumber: readCurrentTurnNumber(),
+                        nextPlayerKey
+                    });
+                scheduleAccepted = performanceScope
+                    ? measureCpuTurnSync(performanceScope, 'presentation-handoff', scheduleCpu)
+                    : scheduleCpu();
             } catch (e) {
                 if (setProcessing) setProcessing(false);
                 throw e;

@@ -21,6 +21,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 import type { CardState, GameState, PlayerKey } from '../src/types';
+import type { CpuTurnPerformanceScope } from './cpu-turn-performance';
 
 /**
  * @file cpu-decision.ts
@@ -1325,14 +1326,33 @@ const CpuDecisionCardActions = (CpuDecisionCardActionsModule && typeof CpuDecisi
         getFlipBlockers: () => ((typeof getFlipBlockers === 'function') ? getFlipBlockers() : []),
         getLegalMoves: (gameStateValue: any, protection: any, perma: any) => ((typeof getLegalMoves === 'function') ? (getLegalMoves(gameStateValue, protection, perma) || []) : []),
         getTargetAwareUsableCardIds: (playerKey: any) => getTargetAwareUsableCardIds(playerKey),
-        buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any) => buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds),
+        buildCardUseDecisionContext: (
+            playerKey: any,
+            level: any,
+            legalMovesCount: any,
+            legalMoves: any,
+            usableCardIds: any,
+            performanceScope?: CpuTurnPerformanceScope | null
+        ) => buildCardUseDecisionContext(
+            playerKey,
+            level,
+            legalMovesCount,
+            legalMoves,
+            usableCardIds,
+            performanceScope
+        ),
         chooseHandDestroyTargetForCycle: (hand: any, usableCardIds: any, getCardCost: any, getCardDef: any, decisionContext: any) => (
             CpuPolicyCore && typeof CpuPolicyCore.chooseHandDestroyTargetForCycle === 'function'
                 ? CpuPolicyCore.chooseHandDestroyTargetForCycle(hand, usableCardIds, getCardCost, getCardDef, decisionContext)
                 : null
         ),
         runCpuHandDestroyViaPipeline: (playerKey: any, destroyCardId: any) => runCpuHandDestroyViaPipeline(playerKey, destroyCardId),
-        runCpuCardUseViaPipeline: (playerKey: any, cardId: any, cardDef: any) => runCpuCardUseViaPipeline(playerKey, cardId, cardDef),
+        runCpuCardUseViaPipeline: (
+            playerKey: any,
+            cardId: any,
+            cardDef: any,
+            performanceScope?: CpuTurnPerformanceScope | null
+        ) => runCpuCardUseViaPipeline(playerKey, cardId, cardDef, performanceScope),
         resolveTurnPipelineUIAdapter: () => resolveTurnPipelineAdapter(),
         getRuntime: () => getCpuDecisionRuntime(),
         emitCpuSelectionStateChange: () => emitCpuSelectionStateChange(),
@@ -1343,7 +1363,7 @@ const CpuDecisionCardActions = (CpuDecisionCardActionsModule && typeof CpuDecisi
         emitCpuCardUseLog: (playerKey: any, level: any, cardDefOrNull: any, cardIdOrNull: any) => emitCpuCardUseLog(playerKey, level, cardDefOrNull, cardIdOrNull),
         cpuDebugLog: (...args: any[]) => cpuDebugLog(...args),
         isOthelloModeForCpuDecision: () => isOthelloModeForCpuDecision(),
-        selectCardToUse: (playerKey: any) => selectCardToUse(playerKey),
+        selectCardToUse: (playerKey: any, performanceScope?: CpuTurnPerformanceScope | null) => selectCardToUse(playerKey, performanceScope),
         warn: (...args: any[]) => console.warn(...args)
     })
     : null;
@@ -1879,9 +1899,16 @@ function emitCpuCardUseLog(playerKey: any, level: any, cardDefOrNull: any, cardI
     emitCpuDecisionLogAdded(`${playerKey === 'black' ? '黒' : '白'}(Lv${level})がカードを使用: ${shownName}`);
 }
 
-function runCpuCardUseViaPipeline(playerKey: any, cardId: any, cardDef: any): any {
+function runCpuCardUseViaPipeline(
+    playerKey: any,
+    cardId: any,
+    cardDef: any,
+    performanceScope?: CpuTurnPerformanceScope | null
+): any {
     if (CpuDecisionCardPipeline && typeof CpuDecisionCardPipeline.runCpuCardUseViaPipeline === 'function') {
-        return CpuDecisionCardPipeline.runCpuCardUseViaPipeline(playerKey, cardId, cardDef);
+        return performanceScope
+            ? CpuDecisionCardPipeline.runCpuCardUseViaPipeline(playerKey, cardId, cardDef, performanceScope)
+            : CpuDecisionCardPipeline.runCpuCardUseViaPipeline(playerKey, cardId, cardDef);
     }
     return null;
 }
@@ -2192,9 +2219,23 @@ function countBoardStatsForPlayer(playerValue: any): any {
     return { discDiff: own - opp, empties };
 }
 
-function buildCardUseDecisionContext(playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any): any {
+function buildCardUseDecisionContext(
+    playerKey: any,
+    level: any,
+    legalMovesCount: any,
+    legalMoves?: any,
+    usableCardIds?: any,
+    performanceScope?: CpuTurnPerformanceScope | null
+): any {
     if (CpuDecisionCardContext && typeof CpuDecisionCardContext.buildCardUseDecisionContext === 'function') {
-        return CpuDecisionCardContext.buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds);
+        return CpuDecisionCardContext.buildCardUseDecisionContext(
+            playerKey,
+            level,
+            legalMovesCount,
+            legalMoves,
+            usableCardIds,
+            performanceScope
+        );
     }
     return {
         level,
@@ -2434,30 +2475,34 @@ const CpuDecisionCardChoice = (CpuDecisionCardChoiceModule && typeof CpuDecision
  * @param {string} playerKey - 'black' or 'white'
  * @returns {{cardId:string,cardDef:object}|null}
  */
-function selectCardToUse(playerKey: any): any {
+function selectCardToUse(playerKey: any, performanceScope?: CpuTurnPerformanceScope | null): any {
     if (CpuDecisionCardChoice && typeof CpuDecisionCardChoice.selectCardToUse === 'function') {
-        return CpuDecisionCardChoice.selectCardToUse(playerKey);
+        return CpuDecisionCardChoice.selectCardToUse(playerKey, performanceScope);
     }
     return null;
 }
 
-function selectHandCardToDestroy(playerKey: any): any {
+function selectHandCardToDestroy(playerKey: any, performanceScope?: CpuTurnPerformanceScope | null): any {
     if (CpuDecisionCardActions && typeof CpuDecisionCardActions.selectHandCardToDestroy === 'function') {
-        return CpuDecisionCardActions.selectHandCardToDestroy(playerKey);
+        return CpuDecisionCardActions.selectHandCardToDestroy(playerKey, performanceScope);
     }
     return null;
 }
 
-function applyHandCardDestroy(playerKey: any, destroyChoice: any): any {
+function applyHandCardDestroy(
+    playerKey: any,
+    destroyChoice: any,
+    performanceScope?: CpuTurnPerformanceScope | null
+): any {
     if (CpuDecisionCardActions && typeof CpuDecisionCardActions.applyHandCardDestroy === 'function') {
-        return CpuDecisionCardActions.applyHandCardDestroy(playerKey, destroyChoice);
+        return CpuDecisionCardActions.applyHandCardDestroy(playerKey, destroyChoice, performanceScope);
     }
     return false;
 }
 
-function cpuMaybeDestroyHandCardWithPolicy(playerKey: any): any {
+function cpuMaybeDestroyHandCardWithPolicy(playerKey: any, performanceScope?: CpuTurnPerformanceScope | null): any {
     if (CpuDecisionCardActions && typeof CpuDecisionCardActions.cpuMaybeDestroyHandCardWithPolicy === 'function') {
-        return CpuDecisionCardActions.cpuMaybeDestroyHandCardWithPolicy(playerKey);
+        return CpuDecisionCardActions.cpuMaybeDestroyHandCardWithPolicy(playerKey, performanceScope);
     }
     return false;
 }
@@ -2473,16 +2518,20 @@ function playCpuCardUseHandAnimation(payload: any): void {
  * Side-effectful: mutates cardState/gameState and triggers emitters.
  * Returns true on success, false if application failed or card not in hand.
  */
-function applyCardChoice(playerKey: any, cardChoice: any): any {
+function applyCardChoice(
+    playerKey: any,
+    cardChoice: any,
+    performanceScope?: CpuTurnPerformanceScope | null
+): any {
     if (CpuDecisionCardActions && typeof CpuDecisionCardActions.applyCardChoice === 'function') {
-        return CpuDecisionCardActions.applyCardChoice(playerKey, cardChoice);
+        return CpuDecisionCardActions.applyCardChoice(playerKey, cardChoice, performanceScope);
     }
     return false;
 }
 
-function cpuMaybeUseCardWithPolicy(playerKey: any): any {
+function cpuMaybeUseCardWithPolicy(playerKey: any, performanceScope?: CpuTurnPerformanceScope | null): any {
     if (CpuDecisionCardActions && typeof CpuDecisionCardActions.cpuMaybeUseCardWithPolicy === 'function') {
-        return CpuDecisionCardActions.cpuMaybeUseCardWithPolicy(playerKey);
+        return CpuDecisionCardActions.cpuMaybeUseCardWithPolicy(playerKey, performanceScope);
     }
     return false;
 }

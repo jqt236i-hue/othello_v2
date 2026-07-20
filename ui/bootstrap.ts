@@ -941,11 +941,11 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     return undefined;
                 }
             },
-            processCpuTurn: () => {
+            processCpuTurn: (...args: any[]) => {
                 try {
                     const globals = getRegisteredUIGlobals();
                     if (globals && typeof globals.processCpuTurn === 'function') {
-                        return globals.processCpuTurn();
+                        return globals.processCpuTurn(...args);
                     }
                 } catch (e: any) { /* ignore */ }
                 return undefined;

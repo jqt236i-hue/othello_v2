@@ -109,15 +109,46 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         });
     }
 
-    function buildCardUseDecisionContext(playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any): any {
+    function buildCardUseDecisionContextImpl(
+        playerKey: any,
+        level: any,
+        legalMovesCount: any,
+        legalMoves?: any,
+        usableCardIds?: any,
+        performanceScope?: CpuTurnPerformanceScope | null
+    ): any {
         const cs = readCardState();
         const gs = readGameState();
         const board = cfg.getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
         const playerValue = cfg.resolvePlayerValue(playerKey);
-        const boardExpansionTargetCounts = getBoardExpansionEnemyCornerTargetCounts(playerKey, board, playerValue);
-        const swapEnemyNormalCornerTargetCount = getSwapEnemyNormalCornerTargetCount(playerKey, board, playerValue);
-        const temptHighValueTargetCount = getTemptHighValueTargetCount(playerKey);
-        const movementCornerSwingTargetCounts = getMovementCornerSwingTargetCounts(playerKey, board, playerValue);
+        const boardExpansionTargetCounts = performanceScope
+            ? measureCpuTurnSync(
+                performanceScope,
+                'card-context-feature:board-expansion',
+                () => getBoardExpansionEnemyCornerTargetCounts(playerKey, board, playerValue)
+            )
+            : getBoardExpansionEnemyCornerTargetCounts(playerKey, board, playerValue);
+        const swapEnemyNormalCornerTargetCount = performanceScope
+            ? measureCpuTurnSync(
+                performanceScope,
+                'card-context-feature:swap-enemy-corner',
+                () => getSwapEnemyNormalCornerTargetCount(playerKey, board, playerValue)
+            )
+            : getSwapEnemyNormalCornerTargetCount(playerKey, board, playerValue);
+        const temptHighValueTargetCount = performanceScope
+            ? measureCpuTurnSync(
+                performanceScope,
+                'card-context-feature:tempt-high-value',
+                () => getTemptHighValueTargetCount(playerKey)
+            )
+            : getTemptHighValueTargetCount(playerKey);
+        const movementCornerSwingTargetCounts = performanceScope
+            ? measureCpuTurnSync(
+                performanceScope,
+                'card-context-feature:movement-corner-swing',
+                () => getMovementCornerSwingTargetCounts(playerKey, board, playerValue)
+            )
+            : getMovementCornerSwingTargetCounts(playerKey, board, playerValue);
         const movementCornerSwingTargetCount = (
             MovementCornerSwing &&
             typeof MovementCornerSwing.getMaxMovementCornerSwingTargetCount === 'function'
@@ -196,20 +227,31 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         }
 
         const cardLogic = readCardLogic();
-        if (cardLogic && typeof cardLogic.collectMassFreezeWillTargets === 'function') {
-            const massFreezeTargets = cardLogic.collectMassFreezeWillTargets(
-                cs,
-                gs,
-                playerKey,
-                { includeHiddenOpponentTraps: true }
-            );
-            for (const target of Array.isArray(massFreezeTargets) ? massFreezeTargets : []) {
-                const owners = new Set((Array.isArray(target && target.markers) ? target.markers : [])
-                    .map((marker: any) => marker && marker.owner)
-                    .filter(Boolean));
-                if (owners.has(playerKey)) massFreezeOwnTargetCount += 1;
-                if (owners.has(opponentKey)) massFreezeOpponentTargetCount += 1;
+        const collectMassFreezeCounts = () => {
+            if (cardLogic && typeof cardLogic.collectMassFreezeWillTargets === 'function') {
+                const massFreezeTargets = cardLogic.collectMassFreezeWillTargets(
+                    cs,
+                    gs,
+                    playerKey,
+                    { includeHiddenOpponentTraps: true }
+                );
+                for (const target of Array.isArray(massFreezeTargets) ? massFreezeTargets : []) {
+                    const owners = new Set((Array.isArray(target && target.markers) ? target.markers : [])
+                        .map((marker: any) => marker && marker.owner)
+                        .filter(Boolean));
+                    if (owners.has(playerKey)) massFreezeOwnTargetCount += 1;
+                    if (owners.has(opponentKey)) massFreezeOpponentTargetCount += 1;
+                }
             }
+        };
+        if (performanceScope) {
+            measureCpuTurnSync(
+                performanceScope,
+                'card-context-feature:mass-freeze',
+                collectMassFreezeCounts
+            );
+        } else {
+            collectMassFreezeCounts();
         }
 
         return {
@@ -259,6 +301,37 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             usableCardIds: Array.isArray(usableCardIds) ? usableCardIds.slice() : [],
             cornerPlanState: planState
         };
+    }
+
+    function buildCardUseDecisionContext(
+        playerKey: any,
+        level: any,
+        legalMovesCount: any,
+        legalMoves?: any,
+        usableCardIds?: any,
+        performanceScope?: CpuTurnPerformanceScope | null
+    ): any {
+        return performanceScope
+            ? measureCpuTurnSync(
+                performanceScope,
+                'card-context-base',
+                () => buildCardUseDecisionContextImpl(
+                    playerKey,
+                    level,
+                    legalMovesCount,
+                    legalMoves,
+                    usableCardIds,
+                    performanceScope
+                )
+            )
+            : buildCardUseDecisionContextImpl(
+                playerKey,
+                level,
+                legalMovesCount,
+                legalMoves,
+                usableCardIds,
+                null
+            );
     }
 
     function buildOnnxContext(playerKey: any, level: any, legalMovesCount: any, handCardIds: any, usableCardIds: any, candidateMoves?: any): any {
@@ -330,3 +403,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
 module.exports = {
     createCpuDecisionCardContext
 };
+import {
+    measureCpuTurnSync,
+    type CpuTurnPerformanceScope
+} from './cpu-turn-performance';

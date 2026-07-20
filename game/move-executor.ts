@@ -3,6 +3,15 @@
  * Refactored to use Shared Logic via wrappers
  */
 
+import {
+    createCpuTurnPerformanceScope,
+    measureCpuTurnSync,
+    readCpuTurnPerformanceNowMs,
+    recordCpuTurnPerformanceInterval,
+    withCpuTurnPerformanceOptions,
+    type CpuTurnPerformanceScope
+} from './cpu-turn-performance';
+
 declare let cardState: any;
 declare let gameState: any;
 declare const BLACK: any;
@@ -43,6 +52,37 @@ function readMoveExecutorCardAnimating() {
         }
     } catch (e) { /* ignore */ }
     return undefined;
+}
+
+function readMoveExecutorPerformanceNowMs(): number {
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.readCpuTurnPerformanceNowMs === 'function') {
+            const value = Number(__uiImpl_move_executor.readCpuTurnPerformanceNowMs());
+            if (Number.isFinite(value)) return Math.max(0, value);
+        }
+    } catch (_error) { /* ignore */ }
+    return Number.NaN;
+}
+
+function createMoveExecutorHandoffPerformanceScope(playerKey: any): CpuTurnPerformanceScope | null {
+    const recorder = __uiImpl_move_executor && typeof __uiImpl_move_executor.recordCpuTurnStage === 'function'
+        ? __uiImpl_move_executor.recordCpuTurnStage
+        : null;
+    if (!recorder) return null;
+    let correlationId: any = null;
+    try {
+        correlationId = typeof __uiImpl_move_executor.createCpuTurnPerformanceCorrelationId === 'function'
+            ? __uiImpl_move_executor.createCpuTurnPerformanceCorrelationId()
+            : null;
+    } catch (_error) { /* ignore */ }
+    return createCpuTurnPerformanceScope({
+        recorder,
+        correlationId,
+        runId: null,
+        playerKey,
+        level: null,
+        readNowMs: readMoveExecutorPerformanceNowMs
+    });
 }
 
 function requireMoveExecutorModuleOrNull(id: string): any {
@@ -478,7 +518,7 @@ function assignMoveExecutorGameState(snapshot: any) {
     writeMoveExecutorRuntimeValue('gameState', gameState);
 }
 
-async function executeMove(move: any) {
+async function executeMove(move: any, internalOptions?: { performanceScope?: CpuTurnPerformanceScope | null }) {
     try {
         const hadSelection = cardState.selectedCardId !== null;
         cardState.selectedCardId = null;
@@ -498,7 +538,11 @@ async function executeMove(move: any) {
             throw new Error('TurnPipeline/TurnPipelineUIAdapter is not available. Legacy path has been removed.');
         }
 
-        await executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pipeline);
+        if (internalOptions && internalOptions.performanceScope) {
+            await executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pipeline, internalOptions);
+        } else {
+            await executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pipeline);
+        }
         if (pipelineSnapshot) {
             comparePipelineSnapshot(pipelineSnapshot, cardState, gameState);
         }
@@ -513,7 +557,17 @@ async function executeMove(move: any) {
     }
 }
 
-async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKey: string, adapter: any, pipeline: any) {
+async function executeMoveViaPipeline(
+    move: any,
+    hadSelection: boolean,
+    playerKey: string,
+    adapter: any,
+    pipeline: any,
+    internalOptions?: { performanceScope?: CpuTurnPerformanceScope | null }
+) {
+    const performanceScope = internalOptions && internalOptions.performanceScope
+        ? internalOptions.performanceScope
+        : null;
     const actionManager = resolveMoveExecutorActionManager();
     const actionApi = actionManager && actionManager.ActionManager ? actionManager.ActionManager : actionManager;
     const action = (actionApi && typeof actionApi.createAction === 'function')
@@ -524,7 +578,13 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
         (action as any).turnIndex = cardState.turnIndex;
     }
 
-    const res = adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
+    const res = performanceScope
+        ? measureCpuTurnSync(
+            performanceScope,
+            'canonical-commit',
+            () => adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline)
+        )
+        : adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
 
     // Single Writer: network mode ではローカル実行がスキップされている
     if (res.skippedLocalExecution === true) {
@@ -555,18 +615,24 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
         return;
     }
 
-    if (actionApi) {
-        try {
-            if (typeof actionApi.recordAction === 'function') actionApi.recordAction(action);
-            if (typeof actionApi.incrementTurnIndex === 'function') actionApi.incrementTurnIndex();
-        } catch (e) {
-            console.warn('[MoveExecutor] Failed to record action:', e);
+    const applyCanonicalMoveResult = () => {
+        if (actionApi) {
+            try {
+                if (typeof actionApi.recordAction === 'function') actionApi.recordAction(action);
+                if (typeof actionApi.incrementTurnIndex === 'function') actionApi.incrementTurnIndex();
+            } catch (e) {
+                console.warn('[MoveExecutor] Failed to record action:', e);
+            }
         }
+        // Preserve existing object references where possible so modules that keep a
+        // reference to the old cardState object see updates immediately.
+        assignMoveExecutorGameState(res.nextGameState);
+    };
+    if (performanceScope) {
+        measureCpuTurnSync(performanceScope, 'canonical-commit', applyCanonicalMoveResult);
+    } else {
+        applyCanonicalMoveResult();
     }
-
-    // Update canonical states. Preserve existing object references where possible so
-    // modules that keep a reference to the old cardState object see updates immediately.
-    assignMoveExecutorGameState(res.nextGameState);
     const hasPlaybackEvents = Array.isArray(res.playbackEvents) && res.playbackEvents.length > 0;
     const hasHandRemovePlayback = Array.isArray(res.playbackEvents)
         ? res.playbackEvents.some((ev: any) => ev && ev.type === 'hand_remove')
@@ -576,15 +642,24 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
         && hasPlaybackEvents
         && didMoveExecutorVisibleChargeValuesChange(cardState, res.nextCardState)
     );
-    if (res.nextCardState) {
-        try {
-            const applied = applyMoveExecutorCardStateSnapshot(res.nextCardState);
-            if (!applied) {
+    const applyCanonicalCardState = () => {
+        if (res.nextCardState) {
+            try {
+                const applied = applyMoveExecutorCardStateSnapshot(res.nextCardState);
+                if (!applied) {
+                    assignMoveExecutorCardState(res.nextCardState);
+                }
+            } catch (e) {
                 assignMoveExecutorCardState(res.nextCardState);
             }
-        } catch (e) {
-            assignMoveExecutorCardState(res.nextCardState);
         }
+    };
+    if (performanceScope) {
+        measureCpuTurnSync(performanceScope, 'canonical-commit', applyCanonicalCardState);
+    } else {
+        applyCanonicalCardState();
+    }
+    const handoffCardStatePresentation = () => {
         if (shouldSyncVisibleChargeDisplaysNow) {
             syncMoveExecutorVisibleChargeDisplaysNow();
         }
@@ -596,6 +671,11 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
                 cardState.presentationEvents.push({ type: 'cardAnimation', animationType: 'handSync', payload: { reason: 'move-executor:no-playback-fallback' } });
             }
         }
+    };
+    if (performanceScope) {
+        measureCpuTurnSync(performanceScope, 'presentation-handoff', handoffCardStatePresentation);
+    } else {
+        handoffCardStatePresentation();
     }
 
     const safeIsProcessing = readMoveExecutorProcessing();
@@ -606,7 +686,15 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
     const effects = res.placementEffects || {};
     const immediate = res.immediate || {};
 
-    emitMoveExecutorPlaybackHandoffBeforeStateChange(res.playbackEvents, { move, phases, effects, immediate });
+    if (performanceScope) {
+        measureCpuTurnSync(
+            performanceScope,
+            'presentation-handoff',
+            () => emitMoveExecutorPlaybackHandoffBeforeStateChange(res.playbackEvents, { move, phases, effects, immediate })
+        );
+    } else {
+        emitMoveExecutorPlaybackHandoffBeforeStateChange(res.playbackEvents, { move, phases, effects, immediate });
+    }
 
     const humanMode = isHumanVsHumanModeEnabled();
     const safeCpuDelay = resolveLv1AwareCpuDelay(
@@ -626,6 +714,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
             humanMode,
             cpuDelayMs: safeCpuDelay,
             resultOrder: 'beforePublish',
+            performanceScope,
             setProcessing: (nextValue: boolean) => { setMoveExecutorProcessing(nextValue); },
             afterTurnStart: () => {
                 try {
@@ -652,20 +741,68 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
                     playerKey: nextPlayerKey || 'white',
                     turnNumber: expectedTurnNumber
                 };
+                const performanceScope = createMoveExecutorHandoffPerformanceScope(expectedCpuSchedule.playerKey);
+                const scheduledAtMs = performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : null;
                 debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduling CPU', { CPU_DELAY: delayMs });
-                scheduleFn(delayMs, () => {
+                let handoffRecorded = false;
+                const recordHandoff = (
+                    outcome: 'continue' | 'handled' | 'stale' | 'error',
+                    callbackStartedAtMs?: number | null
+                ): void => {
+                    if (!performanceScope || scheduledAtMs === null || handoffRecorded) return;
+                    handoffRecorded = true;
+                    recordCpuTurnPerformanceInterval(
+                        performanceScope,
+                        'handoff-delay',
+                        'wait',
+                        scheduledAtMs,
+                        Number.isFinite(callbackStartedAtMs)
+                            ? Number(callbackStartedAtMs)
+                            : readCpuTurnPerformanceNowMs(performanceScope),
+                        outcome
+                    );
+                };
+                try {
+                    const scheduleResult = scheduleFn(delayMs, () => {
+                    const callbackStartedAtMs = performanceScope
+                        ? readCpuTurnPerformanceNowMs(performanceScope)
+                        : null;
                     if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
+                        recordHandoff('stale', callbackStartedAtMs);
                         setMoveExecutorProcessing(false);
                         debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale scheduled CPU callback', expectedCpuSchedule);
                         return;
                     }
                     debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduled CPU callback firing, isProcessing, isCardAnimating', { isProcessing: readMoveExecutorProcessing(), isCardAnimating: readMoveExecutorCardAnimating() });
                     setMoveExecutorProcessing(false);
-                    try { processScheduledCpuTurn(); } catch (e) {
+                    try {
+                        if (performanceScope) {
+                            processScheduledCpuTurn(withCpuTurnPerformanceOptions({}, performanceScope.correlationId));
+                        } else {
+                            processScheduledCpuTurn();
+                        }
+                        recordHandoff('continue', callbackStartedAtMs);
+                    } catch (e) {
+                        recordHandoff('error', callbackStartedAtMs);
                         setMoveExecutorProcessing(false);
                         debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] processCpuTurn threw', e);
                     }
-                });
+                    });
+                    if (scheduleResult === false) {
+                        recordHandoff('error');
+                        return false;
+                    }
+                    if (scheduleResult && typeof scheduleResult.catch === 'function') {
+                        scheduleResult.catch((error: any) => {
+                            recordHandoff('error');
+                            setMoveExecutorProcessing(false);
+                            debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] CPU schedule rejected', error);
+                        });
+                    }
+                } catch (error) {
+                    recordHandoff('error');
+                    throw error;
+                }
                 return true;
             },
             onHumanTurnReady: ({ nextPlayerKey }: any) => {
@@ -675,7 +812,11 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
                 emitMoveExecutorBoardUpdate();
             }
         });
-        emitMoveExecutorBoardUpdate();
+        if (performanceScope) {
+            measureCpuTurnSync(performanceScope, 'presentation-handoff', () => emitMoveExecutorBoardUpdate());
+        } else {
+            emitMoveExecutorBoardUpdate();
+        }
         return;
     }
 

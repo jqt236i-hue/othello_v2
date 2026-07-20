@@ -187,6 +187,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/cpu-turn-handler": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-handler.js"),
   "game/cpu-turn-move-phase": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-move-phase.js"),
   "game/cpu-turn-pending-phase": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-pending-phase.js"),
+  "game/cpu-turn-performance": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-performance.js"),
   "game/cpu-turn-presentation-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-presentation-runtime.js"),
   "game/cpu-turn-scheduler": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/cpu-turn-scheduler.js"),
   "game/debug/debug-actions": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/debug/debug-actions.js"),
@@ -859,6 +860,7 @@ installBootModuleMetadata({
     "game/cpu-turn-handler",
     "game/cpu-turn-move-phase",
     "game/cpu-turn-pending-phase",
+    "game/cpu-turn-performance",
     "game/cpu-turn-presentation-runtime",
     "game/cpu-turn-scheduler",
     "game/debug/debug-actions",
@@ -1426,4 +1428,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 667;
+export const startupModuleCount = 668;

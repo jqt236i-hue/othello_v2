@@ -1,3 +1,11 @@
+import {
+    measureCpuTurnSync,
+    readCpuTurnPerformanceNowMs,
+    recordCpuTurnPerformanceInterval,
+    withCpuTurnPerformanceOptions,
+    type CpuTurnPerformanceScope
+} from './cpu-turn-performance';
+
 type CpuTurnCardPhaseConfig = {
     emitCpuCommentary: (eventType: any, playerKey: any, extra: any) => any;
     getAnimationRetryDelayMs: () => any;
@@ -40,6 +48,10 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
         const othelloMode = opts.othelloMode === true;
         const hasUsedCardThisTurn = opts.hasUsedCardThisTurn === true;
         const hasPendingSelection = opts.hasPendingSelection === true;
+        const performanceScope = (opts.performanceScope || null) as CpuTurnPerformanceScope | null;
+        const resumeOptions = performanceScope
+            ? withCpuTurnPerformanceOptions({ autoMode }, performanceScope.correlationId, level)
+            : { autoMode };
 
         if (typeof cfg.shouldSkipCardPhaseForProfile === 'function'
             && cfg.shouldSkipCardPhaseForProfile(playerKey, level)) {
@@ -49,10 +61,18 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
         if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
             const destroyHandCardWithPolicyFn = cfg.getDestroyHandCardWithPolicyFn();
             let destroyedForCycle = (typeof destroyHandCardWithPolicyFn === 'function')
-                ? !!destroyHandCardWithPolicyFn(playerKey)
+                ? (performanceScope
+                    ? !!destroyHandCardWithPolicyFn(playerKey, performanceScope)
+                    : !!destroyHandCardWithPolicyFn(playerKey))
                 : false;
             if (!destroyedForCycle) {
-                destroyedForCycle = cfg.tryDestroyHighPriorityHandCardViaAdapter(playerKey);
+                destroyedForCycle = performanceScope
+                    ? measureCpuTurnSync(
+                        performanceScope,
+                        'card-context-base',
+                        () => cfg.tryDestroyHighPriorityHandCardViaAdapter(playerKey)
+                    )
+                    : cfg.tryDestroyHighPriorityHandCardViaAdapter(playerKey);
             }
             if (destroyedForCycle) {
                 cfg.setCpuProcessing(false);
@@ -62,19 +82,39 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
                 const expectedTurnNumber = typeof cfg.getCurrentTurnNumberSafe === 'function'
                     ? cfg.getCurrentTurnNumberSafe()
                     : null;
+                const waitStartedAtMs = performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : null;
                 const scheduled = cfg.scheduleRetry(() => {
                     if (shouldSkipStaleResume(expectedPlayerKey, expectedTurnNumber)) {
+                        if (performanceScope && waitStartedAtMs !== null) {
+                            recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'stale');
+                        }
                         cfg.setCpuProcessing(false);
                         return;
                     }
                     if (cfg.isUiAnimationBusy()) {
-                        cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                        if (performanceScope && waitStartedAtMs !== null) {
+                            recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'handled');
+                        }
+                        cfg.scheduleRunCpuTurn(playerKey, resumeOptions, cfg.getAnimationRetryDelayMs());
                         return;
                     }
-                    cfg.runCpuTurn(playerKey, { autoMode });
+                    if (performanceScope && waitStartedAtMs !== null) {
+                        recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'continue');
+                    }
+                    cfg.runCpuTurn(playerKey, resumeOptions);
                 }, cfg.getAnimationRetryDelayMs());
                 if (scheduled === false) {
-                    cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                    if (performanceScope && waitStartedAtMs !== null) {
+                        recordCpuTurnPerformanceInterval(
+                            performanceScope,
+                            'presentation-handoff',
+                            'wait',
+                            waitStartedAtMs,
+                            readCpuTurnPerformanceNowMs(performanceScope),
+                            'error'
+                        );
+                    }
+                    cfg.scheduleRunCpuTurn(playerKey, resumeOptions, cfg.getAnimationRetryDelayMs());
                 }
                 return { status: 'handled' };
             }
@@ -82,12 +122,25 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
 
         if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
             const useCardWithPolicyFn = cfg.getUseCardWithPolicyFn();
-            const applied = (typeof useCardWithPolicyFn === 'function') ? !!useCardWithPolicyFn(playerKey) : false;
+            const applied = (typeof useCardWithPolicyFn === 'function')
+                ? (performanceScope
+                    ? !!useCardWithPolicyFn(playerKey, performanceScope)
+                    : !!useCardWithPolicyFn(playerKey))
+                : false;
             if (applied) {
-                cfg.emitCpuCommentary('card_used', playerKey, {
-                    level,
-                    cardId: cfg.getLastUsedCardIdSafe(playerKey)
-                });
+                if (performanceScope) {
+                    measureCpuTurnSync(performanceScope, 'commentary-context', () => {
+                        cfg.emitCpuCommentary('card_used', playerKey, {
+                            level,
+                            cardId: cfg.getLastUsedCardIdSafe(playerKey)
+                        });
+                    });
+                } else {
+                    cfg.emitCpuCommentary('card_used', playerKey, {
+                        level,
+                        cardId: cfg.getLastUsedCardIdSafe(playerKey)
+                    });
+                }
                 cfg.setCpuProcessing(false);
                 const expectedPlayerKey = typeof cfg.getCurrentPlayerKeySafe === 'function'
                     ? cfg.getCurrentPlayerKeySafe()
@@ -95,23 +148,46 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
                 const expectedTurnNumber = typeof cfg.getCurrentTurnNumberSafe === 'function'
                     ? cfg.getCurrentTurnNumberSafe()
                     : null;
+                const waitStartedAtMs = performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : null;
                 const resumeAfterCardAnimation = () => {
                     if (cfg.shouldAbortCpuForHumanMode(playerKey, 'resume_after_card_animation')) {
+                        if (performanceScope && waitStartedAtMs !== null) {
+                            recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'handled');
+                        }
                         return;
                     }
                     if (shouldSkipStaleResume(expectedPlayerKey, expectedTurnNumber)) {
+                        if (performanceScope && waitStartedAtMs !== null) {
+                            recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'stale');
+                        }
                         cfg.setCpuProcessing(false);
                         return;
                     }
                     if (cfg.isUiAnimationBusy()) {
-                        cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                        if (performanceScope && waitStartedAtMs !== null) {
+                            recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'handled');
+                        }
+                        cfg.scheduleRunCpuTurn(playerKey, resumeOptions, cfg.getAnimationRetryDelayMs());
                         return;
                     }
-                    cfg.runCpuTurn(playerKey, { autoMode });
+                    if (performanceScope && waitStartedAtMs !== null) {
+                        recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'continue');
+                    }
+                    cfg.runCpuTurn(playerKey, resumeOptions);
                 };
                 const scheduled = cfg.scheduleRetry(resumeAfterCardAnimation, cfg.getAnimationRetryDelayMs());
                 if (scheduled === false) {
-                    cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                    if (performanceScope && waitStartedAtMs !== null) {
+                        recordCpuTurnPerformanceInterval(
+                            performanceScope,
+                            'presentation-handoff',
+                            'wait',
+                            waitStartedAtMs,
+                            readCpuTurnPerformanceNowMs(performanceScope),
+                            'error'
+                        );
+                    }
+                    cfg.scheduleRunCpuTurn(playerKey, resumeOptions, cfg.getAnimationRetryDelayMs());
                 }
                 return { status: 'handled' };
             }

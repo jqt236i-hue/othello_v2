@@ -1,3 +1,8 @@
+import {
+    measureCpuTurnSync,
+    type CpuTurnPerformanceScope
+} from './cpu-turn-performance';
+
 type CpuDecisionCardPipelineConfig = {
     resolveTurnPipelineAdapter: () => any;
     resolveTurnPipeline: () => any;
@@ -46,7 +51,12 @@ export function createCpuDecisionCardPipeline(config: CpuDecisionCardPipelineCon
         });
     }
 
-    function runCpuCardUseViaPipeline(playerKey: any, cardId: any, cardDef: any): any {
+    function runCpuCardUseViaPipeline(
+        playerKey: any,
+        cardId: any,
+        cardDef: any,
+        performanceScope?: CpuTurnPerformanceScope | null
+    ): any {
         const adapter = cfg.resolveTurnPipelineAdapter();
         const pipeline = cfg.resolveTurnPipeline();
         if (!adapter || !pipeline || typeof adapter.runTurnWithAdapter !== 'function') return null;
@@ -63,46 +73,65 @@ export function createCpuDecisionCardPipeline(config: CpuDecisionCardPipelineCon
             action.turnIndex = cardState.turnIndex;
         }
 
-        const res = adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
+        const res = performanceScope
+            ? measureCpuTurnSync(
+                performanceScope,
+                'canonical-commit',
+                () => adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline)
+            )
+            : adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
         if (!res || res.ok === false) {
             return { ok: false, res };
         }
 
-        if (res.nextCardState) cfg.setCardState(res.nextCardState);
-        if (res.nextGameState) cfg.setGameState(res.nextGameState);
+        const applyCanonicalState = () => {
+            if (res.nextCardState) cfg.setCardState(res.nextCardState);
+            if (res.nextGameState) cfg.setGameState(res.nextGameState);
+        };
+        if (performanceScope) {
+            measureCpuTurnSync(performanceScope, 'canonical-commit', applyCanonicalState);
+        } else {
+            applyCanonicalState();
+        }
 
         const cardMeta = resolveAppliedCardMeta(playerKey, cardId, cardDef);
 
         let emittedCardUsePlayback = false;
-        if (res.playbackEvents && res.playbackEvents.length) {
-            const normalizedPlaybackEvents = normalizeCardUsePlaybackEvents(res.playbackEvents, playerKey, cardMeta);
-            cfg.emitPresentationEventForCpu({
-                type: 'PLAYBACK_EVENTS',
-                events: normalizedPlaybackEvents,
-                meta: { source: 'cpu_card_use_pipeline', cardId: cardMeta.appliedCardId || null }
-            });
-            emittedCardUsePlayback = true;
-        }
+        const handoffPresentation = () => {
+            if (res.playbackEvents && res.playbackEvents.length) {
+                const normalizedPlaybackEvents = normalizeCardUsePlaybackEvents(res.playbackEvents, playerKey, cardMeta);
+                cfg.emitPresentationEventForCpu({
+                    type: 'PLAYBACK_EVENTS',
+                    events: normalizedPlaybackEvents,
+                    meta: { source: 'cpu_card_use_pipeline', cardId: cardMeta.appliedCardId || null }
+                });
+                emittedCardUsePlayback = true;
+            }
 
-        if (!emittedCardUsePlayback) {
-            cfg.emitPresentationEventForCpu({
-                type: 'PLAYBACK_EVENTS',
-                events: [{
-                    type: 'card_use_animation',
-                    phase: 1,
-                    targets: [{
-                        player: playerKey,
-                        owner: playerKey,
-                        cardId: cardMeta.appliedCardId,
-                        cost: cardMeta.appliedCardCost,
-                        name: cardMeta.appliedCardName
-                    }]
-                }],
-                meta: { source: 'cpu_card_use_pipeline_fallback' }
-            });
+            if (!emittedCardUsePlayback) {
+                cfg.emitPresentationEventForCpu({
+                    type: 'PLAYBACK_EVENTS',
+                    events: [{
+                        type: 'card_use_animation',
+                        phase: 1,
+                        targets: [{
+                            player: playerKey,
+                            owner: playerKey,
+                            cardId: cardMeta.appliedCardId,
+                            cost: cardMeta.appliedCardCost,
+                            name: cardMeta.appliedCardName
+                        }]
+                    }],
+                    meta: { source: 'cpu_card_use_pipeline_fallback' }
+                });
+            }
+            cfg.emitCpuSelectionStateChange();
+        };
+        if (performanceScope) {
+            measureCpuTurnSync(performanceScope, 'presentation-handoff', handoffPresentation);
+        } else {
+            handoffPresentation();
         }
-
-        cfg.emitCpuSelectionStateChange();
         return {
             ok: true,
             res,

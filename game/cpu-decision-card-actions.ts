@@ -1,3 +1,8 @@
+import {
+    measureCpuTurnSync,
+    type CpuTurnPerformanceScope
+} from './cpu-turn-performance';
+
 type CpuDecisionCardActionsConfig = {
     getCardState: () => any;
     getGameState: () => any;
@@ -10,10 +15,10 @@ type CpuDecisionCardActionsConfig = {
     getFlipBlockers: () => any[];
     getLegalMoves: (gameState: any, protection: any, blockers: any) => any[];
     getTargetAwareUsableCardIds: (playerKey: any) => any;
-    buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any) => any;
+    buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, performanceScope?: CpuTurnPerformanceScope | null) => any;
     chooseHandDestroyTargetForCycle: (hand: any, usableCardIds: any, getCardCost: any, getCardDef: any, decisionContext: any) => any;
     runCpuHandDestroyViaPipeline: (playerKey: any, destroyCardId: any) => any;
-    runCpuCardUseViaPipeline: (playerKey: any, cardId: any, cardDef: any) => any;
+    runCpuCardUseViaPipeline: (playerKey: any, cardId: any, cardDef: any, performanceScope?: CpuTurnPerformanceScope | null) => any;
     resolveTurnPipelineUIAdapter: () => any;
     getRuntime: () => any;
     emitCpuSelectionStateChange: () => any;
@@ -24,7 +29,7 @@ type CpuDecisionCardActionsConfig = {
     emitCpuCardUseLog: (playerKey: any, level: any, cardDefOrNull: any, cardIdOrNull: any) => any;
     cpuDebugLog: (...args: any[]) => any;
     isOthelloModeForCpuDecision: () => boolean;
-    selectCardToUse: (playerKey: any) => any;
+    selectCardToUse: (playerKey: any, performanceScope?: CpuTurnPerformanceScope | null) => any;
     warn?: (...args: any[]) => any;
 };
 
@@ -43,7 +48,7 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
         return cfg.resolveCardLogic ? cfg.resolveCardLogic() : null;
     }
 
-    function selectHandCardToDestroy(playerKey: any): any {
+    function selectHandCardToDestroy(playerKey: any, performanceScope?: CpuTurnPerformanceScope | null): any {
         const cardState = readCardState();
         if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return null;
         if (cfg.readPendingEffect(playerKey)) return null;
@@ -62,8 +67,17 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
         const blockers = cfg.getFlipBlockers();
         const gameState = readGameState();
         const legalMoves = cfg.getLegalMoves(gameState, protection, blockers) || [];
-        const usableNow = cfg.getTargetAwareUsableCardIds(playerKey);
-        const decisionContext = cfg.buildCardUseDecisionContext(playerKey, level, legalMoves.length, legalMoves, usableNow);
+        const usableNow = performanceScope
+            ? measureCpuTurnSync(performanceScope, 'card-availability', () => cfg.getTargetAwareUsableCardIds(playerKey))
+            : cfg.getTargetAwareUsableCardIds(playerKey);
+        const decisionContext = cfg.buildCardUseDecisionContext(
+            playerKey,
+            level,
+            legalMoves.length,
+            legalMoves,
+            usableNow,
+            performanceScope
+        );
 
         const selected = cfg.chooseHandDestroyTargetForCycle(
             hand,
@@ -76,7 +90,7 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
         return selected;
     }
 
-    function applyHandCardDestroy(playerKey: any, destroyChoice: any): any {
+    function applyHandCardDestroyImpl(playerKey: any, destroyChoice: any): any {
         if (!destroyChoice || !destroyChoice.cardId) return false;
         const cardState = readCardState();
         if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return false;
@@ -117,18 +131,44 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
         return true;
     }
 
-    function cpuMaybeDestroyHandCardWithPolicy(playerKey: any): any {
+    function applyHandCardDestroy(
+        playerKey: any,
+        destroyChoice: any,
+        performanceScope?: CpuTurnPerformanceScope | null
+    ): any {
+        return performanceScope
+            ? measureCpuTurnSync(
+                performanceScope,
+                'canonical-commit',
+                () => applyHandCardDestroyImpl(playerKey, destroyChoice)
+            )
+            : applyHandCardDestroyImpl(playerKey, destroyChoice);
+    }
+
+    function cpuMaybeDestroyHandCardWithPolicy(
+        playerKey: any,
+        performanceScope?: CpuTurnPerformanceScope | null
+    ): any {
         if (cfg.isOthelloModeForCpuDecision()) return false;
         const cardState = readCardState();
         if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return false;
         if (cfg.readPendingEffect(playerKey)) return false;
 
-        const destroyChoice = selectHandCardToDestroy(playerKey);
+        const destroyChoice = performanceScope
+            ? measureCpuTurnSync(
+                performanceScope,
+                'card-context-base',
+                () => selectHandCardToDestroy(playerKey, performanceScope)
+            )
+            : selectHandCardToDestroy(playerKey);
         if (!destroyChoice) return false;
-        return applyHandCardDestroy(playerKey, destroyChoice);
+        return applyHandCardDestroy(playerKey, destroyChoice, performanceScope);
     }
 
-    function playCpuCardUseHandAnimation(payload: any): void {
+    function playCpuCardUseHandAnimation(
+        payload: any,
+        performanceScope?: CpuTurnPerformanceScope | null
+    ): void {
         try {
             const runtime = cfg.getRuntime ? cfg.getRuntime() : null;
             const playFn = runtime && typeof runtime.playCardUseHandAnimation === 'function'
@@ -139,12 +179,22 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
                 ? runtime.isVisualPlaybackActive() === true
                 : false;
             if (visualPlaybackActive) return;
-            const result = playFn(payload);
+            const result = performanceScope
+                ? measureCpuTurnSync(
+                    performanceScope,
+                    'presentation-handoff',
+                    () => playFn(payload)
+                )
+                : playFn(payload);
             if (result && typeof result.catch === 'function') result.catch(() => {});
         } catch (e) { /* ignore */ }
     }
 
-    function applyCardChoice(playerKey: any, cardChoice: any): any {
+    function applyCardChoiceImpl(
+        playerKey: any,
+        cardChoice: any,
+        performanceScope?: CpuTurnPerformanceScope | null
+    ): any {
         if (!cardChoice) return false;
         const { cardId, cardDef } = cardChoice;
         const cardState = readCardState();
@@ -153,12 +203,22 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
         const level = cfg.readCardUseDisplayLevel(playerKey);
         const fallbackCardCost = (cardDef && Number.isFinite(cardDef.cost)) ? cardDef.cost : null;
         const fallbackCardName = (cardDef && cardDef.name) ? cardDef.name : null;
-        const pipelineResult = cfg.runCpuCardUseViaPipeline(playerKey, cardId, cardDef);
+        const pipelineResult = performanceScope
+            ? cfg.runCpuCardUseViaPipeline(playerKey, cardId, cardDef, performanceScope)
+            : cfg.runCpuCardUseViaPipeline(playerKey, cardId, cardDef);
         if (pipelineResult && pipelineResult.ok) {
             const appliedCardId = pipelineResult.appliedCardId || cardId;
             const appliedCardDef = pipelineResult.appliedCardDef || cardDef;
 
-            cfg.emitCpuCardUseLog(playerKey, level, appliedCardDef, appliedCardId);
+            if (performanceScope) {
+                measureCpuTurnSync(
+                    performanceScope,
+                    'presentation-handoff',
+                    () => cfg.emitCpuCardUseLog(playerKey, level, appliedCardDef, appliedCardId)
+                );
+            } else {
+                cfg.emitCpuCardUseLog(playerKey, level, appliedCardDef, appliedCardId);
+            }
             return true;
         }
         if (pipelineResult && pipelineResult.ok === false) {
@@ -175,62 +235,86 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
             warn('[CPU] CardLogic.applyCardUsage not available, skipping card use');
             return false;
         }
-        const ok = cardLogicRef.applyCardUsage(cardState, gameState, playerKey, cardId);
+        const ok = performanceScope
+            ? measureCpuTurnSync(
+                performanceScope,
+                'canonical-commit',
+                () => cardLogicRef.applyCardUsage(cardState, gameState, playerKey, cardId)
+            )
+            : cardLogicRef.applyCardUsage(cardState, gameState, playerKey, cardId);
         if (!ok) return false;
 
-        let emittedCardUsePlayback = false;
-        try {
-            if (typeof cardLogicRef.flushPresentationEvents === 'function') {
-                const pipelineUiAdapter = cfg.resolveTurnPipelineUIAdapter();
-                if (pipelineUiAdapter && typeof pipelineUiAdapter.mapToPlaybackEvents === 'function') {
-                    const pres = cardLogicRef.flushPresentationEvents(cardState) || [];
-                    const playback = pipelineUiAdapter.mapToPlaybackEvents(pres, cardState, gameState) || [];
-                    if (playback.length > 0) {
-                        cfg.emitPresentationEventForCpu({ type: 'PLAYBACK_EVENTS', events: playback, meta: { source: 'cpu_card_use' } });
-                        emittedCardUsePlayback = true;
-                    } else {
-                        for (const ev of pres) cfg.emitPresentationEventForCpu(ev);
+        const handoffFallbackPresentation = () => {
+            let emittedCardUsePlayback = false;
+            try {
+                if (typeof cardLogicRef.flushPresentationEvents === 'function') {
+                    const pipelineUiAdapter = cfg.resolveTurnPipelineUIAdapter();
+                    if (pipelineUiAdapter && typeof pipelineUiAdapter.mapToPlaybackEvents === 'function') {
+                        const pres = cardLogicRef.flushPresentationEvents(cardState) || [];
+                        const playback = pipelineUiAdapter.mapToPlaybackEvents(pres, cardState, gameState) || [];
+                        if (playback.length > 0) {
+                            cfg.emitPresentationEventForCpu({ type: 'PLAYBACK_EVENTS', events: playback, meta: { source: 'cpu_card_use' } });
+                            emittedCardUsePlayback = true;
+                        } else {
+                            for (const ev of pres) cfg.emitPresentationEventForCpu(ev);
+                        }
                     }
                 }
+            } catch (e) {
+                // Keep game flow even if animation conversion fails.
             }
-        } catch (e) {
-            // Keep game flow even if animation conversion fails.
-        }
-        if (!emittedCardUsePlayback) {
-            cfg.emitPresentationEventForCpu({
-                type: 'PLAYBACK_EVENTS',
-                events: [{
-                    type: 'card_use_animation',
-                    phase: 1,
-                    targets: [{
-                        player: playerKey,
-                        owner: playerKey,
-                        cardId: cardId,
-                        cost: fallbackCardCost,
-                        name: fallbackCardName
-                    }]
-                }],
-                meta: { source: 'cpu_card_use_fallback' }
+            if (!emittedCardUsePlayback) {
+                cfg.emitPresentationEventForCpu({
+                    type: 'PLAYBACK_EVENTS',
+                    events: [{
+                        type: 'card_use_animation',
+                        phase: 1,
+                        targets: [{
+                            player: playerKey,
+                            owner: playerKey,
+                            cardId: cardId,
+                            cost: fallbackCardCost,
+                            name: fallbackCardName
+                        }]
+                    }],
+                    meta: { source: 'cpu_card_use_fallback' }
+                });
+            }
+
+            playCpuCardUseHandAnimation({
+                player: playerKey,
+                owner: playerKey,
+                cardId: cardId,
+                cost: fallbackCardCost,
+                name: fallbackCardName
             });
+            cfg.emitCpuCardUseLog(playerKey, level, cardDef || null, cardId || null);
+            if (typeof cfg.emitCardStateChange === 'function') cfg.emitCardStateChange();
+            if (typeof cfg.emitBoardUpdate === 'function') cfg.emitBoardUpdate();
+        };
+        if (performanceScope) {
+            measureCpuTurnSync(performanceScope, 'presentation-handoff', handoffFallbackPresentation);
+        } else {
+            handoffFallbackPresentation();
         }
-
-        playCpuCardUseHandAnimation({
-            player: playerKey,
-            owner: playerKey,
-            cardId: cardId,
-            cost: fallbackCardCost,
-            name: fallbackCardName
-        });
-
-        cfg.emitCpuCardUseLog(playerKey, level, cardDef || null, cardId || null);
-
-        if (typeof cfg.emitCardStateChange === 'function') cfg.emitCardStateChange();
-        if (typeof cfg.emitBoardUpdate === 'function') cfg.emitBoardUpdate();
 
         return true;
     }
 
-    function cpuMaybeUseCardWithPolicy(playerKey: any): any {
+    function applyCardChoice(
+        playerKey: any,
+        cardChoice: any,
+        performanceScope?: CpuTurnPerformanceScope | null
+    ): any {
+        return performanceScope
+            ? applyCardChoiceImpl(playerKey, cardChoice, performanceScope)
+            : applyCardChoiceImpl(playerKey, cardChoice, null);
+    }
+
+    function cpuMaybeUseCardWithPolicy(
+        playerKey: any,
+        performanceScope?: CpuTurnPerformanceScope | null
+    ): any {
         if (cfg.isOthelloModeForCpuDecision()) return false;
         const cardState = readCardState();
         if (!cardState || !cardState.hasUsedCardThisTurnByPlayer) {
@@ -241,21 +325,25 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
         if (cardState.hasUsedCardThisTurnByPlayer[playerKey]) return false;
 
         const level = cfg.readCardUseDisplayLevel(playerKey);
-        const cardChoice = cfg.selectCardToUse(playerKey);
+        const cardChoice = performanceScope
+            ? cfg.selectCardToUse(playerKey, performanceScope)
+            : cfg.selectCardToUse(playerKey);
         if (!cardChoice) {
             cfg.cpuDebugLog(`[CPU] Lv${level} ${playerKey}: カードスキップ (no candidate)`);
             return false;
         }
 
-        if (applyCardChoice(playerKey, cardChoice)) return true;
+        if (applyCardChoice(playerKey, cardChoice, performanceScope)) return true;
 
         const cardLogicRef = resolveCardLogic();
         if (cardLogicRef) {
-            const usable = cfg.getTargetAwareUsableCardIds(playerKey);
+            const usable = performanceScope
+                ? measureCpuTurnSync(performanceScope, 'card-availability', () => cfg.getTargetAwareUsableCardIds(playerKey))
+                : cfg.getTargetAwareUsableCardIds(playerKey);
             for (const id of usable) {
                 if (id === (cardChoice && cardChoice.cardId)) continue;
                 const def = cardLogicRef.getCardDef ? cardLogicRef.getCardDef(id) : null;
-                if (applyCardChoice(playerKey, { cardId: id, cardDef: def })) return true;
+                if (applyCardChoice(playerKey, { cardId: id, cardDef: def }, performanceScope)) return true;
             }
         }
 

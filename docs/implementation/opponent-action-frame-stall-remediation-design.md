@@ -272,7 +272,7 @@ featureを計算しない場合も既存fieldは`0`、空object、空array等の
 
 ### 5. debug限定のCPU stage instrumentation
 
-`game/`はPerformance APIを呼ばない。CPU handlerへoptionalなpure callbackをDIする。
+`game/`はPerformance APIを呼ばない。portableなentry型、clock正規化、safe recorder呼出は`game/cpu-turn-performance.ts`へ集約し、CPU handlerへoptionalなpure callbackをDIする。handoff開始時点ではCPU levelがまだ確定していない経路があるため、`handoff-delay`だけは`level: null`を許し、run開始後のentryは確定したnumberを記録する。
 
 ```ts
 recordCpuTurnStage?: (entry: Readonly<{
@@ -284,12 +284,12 @@ recordCpuTurnStage?: (entry: Readonly<{
   endMs: number;
   durationMs: number;
   playerKey: 'black' | 'white';
-  level: number;
+  level: number | null;
   outcome: 'continue' | 'handled' | 'stale' | 'error';
 }>) => void;
 ```
 
-stage名は`handoff-delay`、`card-availability`、`card-context-base`、各`card-context-feature:*`、`move-candidates`、`commentary-context`、`canonical-commit`、`presentation-handoff`へ固定する。perf有効時だけhandoff schedulerがephemeralな`correlationId`を割り当て、scheduled callbackの内部optionとして`runCpuTurn()`まで渡す。`handoff-delay`は`kind: 'wait'`かつ`runId: null`で記録でき、callback開始後のstageは同じ`correlationId`と確定した`runId`を持つ。通常playではcorrelation IDを組み立てない。
+stage名は`handoff-delay`、`card-availability`、`card-context-base`、各`card-context-feature:*`、`move-candidates`、`commentary-context`、`canonical-commit`、`presentation-handoff`へ固定する。perf有効時だけhandoff schedulerがephemeralな`correlationId`を割り当て、scheduled callbackの内部optionとして`runCpuTurn()`まで渡す。カードのpending target選択とanimation retryも同じ`correlationId`を引き継ぎ、再開した各`runCpuTurn()`には新しい`runId`を割り当てる。`handoff-delay`は`kind: 'wait'`かつ`runId: null`で記録でき、callback開始後のstageは同じ`correlationId`と確定した`runId`を持つ。通常playではcorrelation IDを組み立てない。
 
 - CPU/card/move/contextの同期関数呼出は`kind: 'sync'`とし、同じtime origin上の`startMs`/`endMs`を持つ。
 - timer delay、Lv6 minimum think、Worker response待機、animation/presentation Promise待機は`kind: 'wait'`とし、250ms ceilingと70%短縮gateから除外する。
@@ -298,7 +298,7 @@ stage名は`handoff-delay`、`card-availability`、`card-context-base`、各`car
 - invocation当たりのsync合計は入れ子stageのdurationを単純加算せず、`sync` timestamp intervalのunion長として算出する。
 - UI bootstrapは`ui/perf-benchmarks.ts`が`?perf=1`で有効な時だけPerformance measureへ変換する。通常playではcallback自体を注入せず、report bufferもglobalも作らない。
 
-ブラウザcapture scriptはstage measures、Long Task、Long Animation Frame、RAF intervals、Pixi diagnostics deltaを一つの`cpu_turn_frame_stall_report.v1`へまとめる。reportにはscenario IDと集計値だけを入れ、盤面・手札の実データは含めない。
+ブラウザ内collectorは1反復を`cpu_turn_frame_stall_sample.v1`としてstage measures、Long Task、Long Animation Frame、RAF intervals、Pixi diagnostics deltaへまとめる。Node側capture scriptだけがvalid sampleを集約した`cpu_turn_frame_stall_report.v1`を生成する。reportにはscenario IDと集計値だけを入れ、盤面・手札の実データは含めない。
 
 ### 6. playback finalizationを型付き戻り値へする
 

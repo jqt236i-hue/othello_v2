@@ -36,6 +36,7 @@
     "assets:backgrounds:check": "npm run build:ts && node dist/scripts/assets/build-background-images.js --check",
     "assets:optimized:check": "npm run assets:fonts:check && npm run assets:backgrounds:check",
     "perf:network-special-stone": "npm run build:browser && node scripts/perf/measure-network-special-stone-late-game.js",
+    "perf:opponent-action-stall": "npm run build:vite && node dist/scripts/perf/measure-opponent-action-frame-stall.js",
     "match:ui-control-smoke": "npm run build:vite && node dist/scripts/browser-ui-control-smoke.js",
     "match:ui-control-smoke:vite": "npm run build:vite && node dist/scripts/browser-ui-control-smoke.js",
     "match:ui-control-smoke:classic": "npm run build:browser && node dist/scripts/browser-ui-control-smoke.js --classic",

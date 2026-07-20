@@ -1,3 +1,11 @@
+import {
+    measureCpuTurnSync,
+    readCpuTurnPerformanceNowMs,
+    recordCpuTurnPerformanceInterval,
+    withCpuTurnPerformanceOptions,
+    type CpuTurnPerformanceScope
+} from './cpu-turn-performance';
+
 type CpuTurnPendingPhaseConfig = {
     clearCpuPendingSelection: (playerKey: any) => any;
     emitCpuCommentary: (eventType: any, playerKey: any, extra: any) => any;
@@ -24,16 +32,29 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
         const playerKey = opts.playerKey;
         const autoMode = opts.autoMode === true;
         const level = opts.level;
+        const performanceScope = (opts.performanceScope || null) as CpuTurnPerformanceScope | null;
+        const resumeOptions = performanceScope
+            ? withCpuTurnPerformanceOptions({ autoMode }, performanceScope.correlationId, level)
+            : { autoMode };
 
         let pending = Object.prototype.hasOwnProperty.call(opts, 'pending')
             ? opts.pending
             : cfg.readCpuPendingSelection(playerKey);
 
         if (pending && pending.stage === 'selectTarget') {
-            cfg.emitCpuCommentary('card_targeted', playerKey, {
-                level,
-                pendingType: pending.type || ''
-            });
+            if (performanceScope) {
+                measureCpuTurnSync(performanceScope, 'commentary-context', () => {
+                    cfg.emitCpuCommentary('card_targeted', playerKey, {
+                        level,
+                        pendingType: pending.type || ''
+                    });
+                });
+            } else {
+                cfg.emitCpuCommentary('card_targeted', playerKey, {
+                    level,
+                    pendingType: pending.type || ''
+                });
+            }
         }
 
         if (pending && pending.stage === 'selectTarget') {
@@ -47,33 +68,70 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
                         pendingEffect: pending
                     });
                 }
-                await handler();
+                const handlerPromise = performanceScope
+                    ? measureCpuTurnSync(
+                        performanceScope,
+                        'canonical-commit',
+                        () => Promise.resolve(handler())
+                    )
+                    : Promise.resolve(handler());
+                const waitStartedAtMs = performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : null;
+                try {
+                    await handlerPromise;
+                } catch (error) {
+                    if (performanceScope && waitStartedAtMs !== null) {
+                        recordCpuTurnPerformanceInterval(
+                            performanceScope,
+                            'presentation-handoff',
+                            'wait',
+                            waitStartedAtMs,
+                            readCpuTurnPerformanceNowMs(performanceScope),
+                            'error'
+                        );
+                    }
+                    throw error;
+                }
                 if (cfg.shouldAbortCpuForHumanMode(playerKey, 'after_pending_selection')) {
+                    if (performanceScope && waitStartedAtMs !== null) {
+                        recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'handled');
+                    }
                     return { status: 'handled', pending };
                 }
                 pending = cfg.readCpuPendingSelection(playerKey);
                 if (cfg.isUiAnimationBusy()) {
+                    if (performanceScope && waitStartedAtMs !== null) {
+                        recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'handled');
+                    }
                     cfg.setCpuProcessing(false);
-                    cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                    cfg.scheduleRunCpuTurn(playerKey, resumeOptions, cfg.getAnimationRetryDelayMs());
                     return { status: 'handled', pending };
                 }
                 const activePlayerKeyAfterSelection = cfg.getCurrentPlayerKeySafe();
                 if (activePlayerKeyAfterSelection && activePlayerKeyAfterSelection !== playerKey) {
+                    if (performanceScope && waitStartedAtMs !== null) {
+                        recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'handled');
+                    }
                     cfg.resetPendingSelectRetryState(playerKey);
                     cfg.setCpuProcessing(false);
                     return { status: 'handled', pending };
                 }
                 if (pending && pending.stage === 'selectTarget') {
+                    if (performanceScope && waitStartedAtMs !== null) {
+                        recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'handled');
+                    }
                     if (cfg.shouldAbortStuckPendingSelection(playerKey, pending)) {
                         cfg.clearCpuPendingSelection(playerKey);
                         cfg.resetPendingSelectRetryState(playerKey);
                         cfg.setCpuProcessing(false);
-                        cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                        cfg.scheduleRunCpuTurn(playerKey, resumeOptions, cfg.getAnimationRetryDelayMs());
                         return { status: 'handled', pending: null };
                     }
                     cfg.setCpuProcessing(false);
-                    cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                    cfg.scheduleRunCpuTurn(playerKey, resumeOptions, cfg.getAnimationRetryDelayMs());
                     return { status: 'handled', pending };
+                }
+                if (performanceScope && waitStartedAtMs !== null) {
+                    recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'continue');
                 }
             } else {
                 if (cfg.shouldAbortStuckPendingSelection(playerKey, pending)) {
@@ -81,7 +139,7 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
                     cfg.resetPendingSelectRetryState(playerKey);
                 }
                 cfg.setCpuProcessing(false);
-                cfg.scheduleRunCpuTurn(playerKey, { autoMode }, cfg.getAnimationRetryDelayMs());
+                cfg.scheduleRunCpuTurn(playerKey, resumeOptions, cfg.getAnimationRetryDelayMs());
                 return { status: 'handled', pending };
             }
         }

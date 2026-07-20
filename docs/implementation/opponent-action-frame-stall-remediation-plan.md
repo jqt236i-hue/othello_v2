@@ -61,8 +61,14 @@ FPSの`MAX`表示と、CPU analysis/playback/Pixiに追加する安定内部契�
 
 ### Components
 
+- `game/cpu-turn-performance.ts`（新規。portable DTOとsafe recorder helper）
 - `game/cpu-turn-handler.ts`
 - `game/cpu-turn-card-phase.ts`
+- `game/cpu-decision.ts`
+- `game/cpu-decision-card-choice.ts`
+- `game/cpu-decision-card-context.ts`
+- `game/cpu-decision-card-actions.ts`
+- `game/cpu-turn-pending-phase.ts`
 - `game/cpu-turn-move-phase.ts`
 - `game/move-executor.ts`
 - `game/pass-handler.ts`
@@ -70,6 +76,8 @@ FPSの`MAX`表示と、CPU analysis/playback/Pixiに追加する安定内部契�
 - `game/cpu-turn-scheduler.ts`
 - `ui/perf-benchmarks.ts`
 - `ui/bootstrap/cpu-runtime-wiring.ts`
+- `ui/bootstrap/init-game.ts`
+- `ui/bootstrap/pass-runtime-wiring.ts`
 - `scripts/perf/measure-opponent-action-frame-stall.ts`（新規）
 - `test/scripts.measure-opponent-action-frame-stall.test.ts`（新規）
 - CPU phaseの既存focused tests
@@ -79,12 +87,12 @@ FPSの`MAX`表示と、CPU analysis/playback/Pixiに追加する安定内部契�
 
 - `game/`は既存の注入済み`readCpuTurnNowMs()`だけでdurationを計り、optional `recordCpuTurnStage` callbackへplain dataを渡す。Performance API、DOM、`window`を参照しない。
 - handoff schedulerはperf有効時だけephemeralな`correlationId`を作り、解決delay、schedule timestamp、callback開始timestampを同じoptional recorderへ渡す。その`correlationId`を内部optionで`runCpuTurn()`へ引き渡し、意図的な待機とcallback内同期処理を別metricのまま相関させる。通常pathではIDを生成しない。
-- 各entryは`kind: 'sync' | 'wait'`、同一time originの`startMs`/`endMs`、durationを持つ。CPU/card/context/canonical commitの連続関数実行だけを`sync`、timer、Lv6最低思考、Worker、animation/presentation Promise待機を`wait`とする。
+- 各entryは`kind: 'sync' | 'wait'`、同一time originの`startMs`/`endMs`、durationを持つ。CPU/card/context/canonical commitの連続関数実行だけを`sync`、timer、Lv6最低思考、Worker、animation/presentation Promise待機を`wait`とする。CPU level確定前に始まる`handoff-delay`だけは`level: null`を許し、run開始後は確定levelを記録する。
 - Promise全体をsync stageとして囲まず、呼出前後の同期sliceとawait区間を分ける。
 - invocation当たりのsync合計は入れ子entryの単純和ではなく、`sync` timestamp intervalのunion長として集計する。
 - stage名を設計書の固定enumへ揃え、同じ`runId`でstart/end/outcomeを一度だけ記録する。error/staleも欠落させない。
 - `ui/bootstrap/cpu-runtime-wiring.ts`は`?perf=1`の時だけrecorderを注入する。通常pathではcallback、PerformanceObserver、RAF recorder、report buffer、debug globalを生成しない。
-- debug pathは`cpu_turn_frame_stall_report.v1`としてstage、Long Task、Long Animation Frame、RAF interval、Pixi diagnostics delta、artifact/fixture/profile metadataを集約する。
+- debug browser collectorは各反復を`cpu_turn_frame_stall_sample.v1`、Node側capture scriptはvalid sampleを`cpu_turn_frame_stall_report.v1`としてstage、Long Task、Long Animation Frame、RAF interval、Pixi diagnostics delta、artifact/fixture/profile metadataを集約する。
 - Long Animation Frame API等をbrowserが提供しない場合はcapabilityを`unsupported`として記録し、そのmetric欠落だけでrunを成功形に捏造したり失敗させたりしない。
 - Long Task/Long Animation Frameは同じtime originの`sync` entryとtimestamp区間が重なる場合だけapp-attributedとし、250ms/70% gateは`sync`だけを集計する。
 - reportへ盤面全文、手札、seat token、operationIdを含めない。
@@ -499,6 +507,7 @@ blocking gateを外れた場合は、reportの最長stageをownerへ戻す。
 - browser表示へ影響する各root変更後の`npm run build:browser`、cross-runtime変更後のWorker mirror/network parityを計画へ含めた。
 - 最終Stepにresidual-stall loopを設け、想定外の重いstageが残ったまま「既知箇所だけ直して完了」としない。
 - 独立reviewで指摘されたearly rejectと一括analysisの矛盾、sync/waitを区別できない性能schema、playback失敗branchのresult個数を修正し、再確認でblocking findingなしとなった。
+- 実装前の境界確認で、game層のportable DTO/helperを既存handlerへ重複実装しないため`game/cpu-turn-performance.ts`を明示し、CPU level確定前のhandoff entryだけnullableにして虚偽のlevelを記録しない契約へ補足した。
 
 ## 完了チェックリスト
 

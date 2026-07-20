@@ -75,6 +75,8 @@ export function installCpuRuntimeWiring(deps: CpuRuntimeWiringDeps): { registere
   try { moveGenerator = deps.requireModule('../game/move-generator'); } catch (e: any) { /* ignore */ }
   let networkClient: any = null;
   try { networkClient = deps.requireModule('../ui/network-client'); } catch (e: any) { /* ignore */ }
+  let perfBenchmarks: any = null;
+  try { perfBenchmarks = deps.requireModule('../ui/perf-benchmarks'); } catch (e: any) { /* ignore */ }
 
   const cpuGlobals = registerCpuRuntimeGlobals(cpu, cpuDecision, moveGenerator);
   if (!cpu) return { registeredGlobals: cpuGlobals };
@@ -84,7 +86,40 @@ export function installCpuRuntimeWiring(deps: CpuRuntimeWiringDeps): { registere
   }
   if (typeof cpu.setCpuUIImpl === 'function') {
     const runtimeResolvers = deps.runtimeResolvers || {};
+    const perfEnabled = !!(
+      perfBenchmarks
+      && typeof perfBenchmarks.isPerfBenchEnabled === 'function'
+      && perfBenchmarks.isPerfBenchEnabled() === true
+    );
+    const recordCpuTurnStage = perfEnabled && typeof perfBenchmarks.getCpuTurnPerformanceRecorder === 'function'
+      ? perfBenchmarks.getCpuTurnPerformanceRecorder()
+      : null;
+    const createCpuTurnPerformanceCorrelationId = perfEnabled
+      && typeof perfBenchmarks.createCpuTurnPerformanceCorrelationId === 'function'
+      ? perfBenchmarks.createCpuTurnPerformanceCorrelationId
+      : null;
+    const scoreCandidatesInWorker = typeof deps.scoreCandidatesInWorker === 'function'
+      ? (perfEnabled && typeof perfBenchmarks.recordCpuTurnRuntimeEvidence === 'function'
+          ? (...args: any[]) => {
+              perfBenchmarks.recordCpuTurnRuntimeEvidence('worker-candidate-scoring');
+              return deps.scoreCandidatesInWorker!(args[0], args[1]);
+            }
+          : deps.scoreCandidatesInWorker)
+      : undefined;
     cpu.setCpuUIImpl({
+      ...(typeof recordCpuTurnStage === 'function' ? { recordCpuTurnStage } : {}),
+      ...(typeof createCpuTurnPerformanceCorrelationId === 'function' ? { createCpuTurnPerformanceCorrelationId } : {}),
+      ...(typeof recordCpuTurnStage === 'function' ? {
+        readCpuTurnPerformanceNowMs: () => {
+          try {
+            return typeof performance !== 'undefined' && typeof performance.now === 'function'
+              ? performance.now()
+              : Number.NaN;
+          } catch (e: any) {
+            return Number.NaN;
+          }
+        }
+      } : {}),
       readMatchMode: runtimeResolvers.readMatchMode,
       readHumanVsHumanMode: runtimeResolvers.readHumanVsHumanMode,
       readQuerySearch: runtimeResolvers.readQuerySearch,
@@ -105,9 +140,7 @@ export function installCpuRuntimeWiring(deps: CpuRuntimeWiringDeps): { registere
           return null;
         }
       },
-      scoreCandidatesInWorker: typeof deps.scoreCandidatesInWorker === 'function'
-        ? deps.scoreCandidatesInWorker
-        : undefined,
+      scoreCandidatesInWorker,
       isCpuCandidateScoringAvailable: typeof deps.isCpuCandidateScoringAvailable === 'function'
         ? deps.isCpuCandidateScoringAvailable
         : () => typeof deps.scoreCandidatesInWorker === 'function',

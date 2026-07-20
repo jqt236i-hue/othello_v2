@@ -411,4 +411,74 @@ describe('network-turn-handoff', () => {
     expect(onHumanTurnReady).not.toHaveBeenCalled();
     expect(setProcessing).toHaveBeenCalledWith(false);
   });
+
+  test('perf scope separates network continuation sync slices from Promise waits without leaking into publish data', async () => {
+    const handoff = require('../game/network-turn-handoff.js');
+    const performance = require('../game/cpu-turn-performance');
+    const entries: any[] = [];
+    let nowMs = 10;
+    const performanceScope = performance.createCpuTurnPerformanceScope({
+      recorder: (entry: any) => entries.push(entry),
+      correlationId: 'cpu-network-1',
+      runId: 3,
+      playerKey: 'white',
+      level: 1,
+      readNowMs: () => ++nowMs
+    });
+    const publishSnapshot = jest.fn(async () => ({ ok: true }));
+
+    await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'white',
+      actionType: 'place',
+      action: { type: 'place', row: 2, col: 3 },
+      playbackEvents: [{ type: 'flip', phase: 1 }],
+      onTurnStart: async () => ({ playbackEvents: [] }),
+      afterTurnStart: async () => undefined,
+      publishSnapshot,
+      humanMode: true,
+      performanceScope
+    });
+
+    expect(entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ stage: 'canonical-commit', kind: 'sync' }),
+      expect.objectContaining({ stage: 'presentation-handoff', kind: 'sync' }),
+      expect.objectContaining({ stage: 'presentation-handoff', kind: 'wait' })
+    ]));
+    expect(JSON.stringify(publishSnapshot.mock.calls)).not.toContain('performanceScope');
+    expect(JSON.stringify(publishSnapshot.mock.calls)).not.toContain('cpu-network-1');
+  });
+
+  test('records a swallowed playback wait rejection as an error outcome', async () => {
+    const handoff = require('../game/network-turn-handoff');
+    const performance = require('../game/cpu-turn-performance');
+    const entries: any[] = [];
+    let nowMs = 20;
+    global.waitForPlaybackIdle = jest.fn(() => Promise.reject(new Error('playback wait failed')));
+    const performanceScope = performance.createCpuTurnPerformanceScope({
+      recorder: (entry: any) => entries.push(entry),
+      correlationId: 'cpu-network-wait-error',
+      runId: 4,
+      playerKey: 'white',
+      level: 1,
+      readNowMs: () => ++nowMs
+    });
+
+    const result = await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'white',
+      actionType: 'place',
+      playbackEvents: [{ type: 'flip', phase: 1 }],
+      publishSnapshot: jest.fn(async () => ({ ok: true })),
+      humanMode: true,
+      performanceScope
+    });
+
+    expect(result.ok).toBe(true);
+    expect(entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        stage: 'presentation-handoff',
+        kind: 'wait',
+        outcome: 'error'
+      })
+    ]));
+  });
 });

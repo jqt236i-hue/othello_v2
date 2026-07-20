@@ -3,6 +3,15 @@
  * Refactored to use TurnPipeline exclusively (no legacy path)
  */
 
+import {
+    createCpuTurnPerformanceScope,
+    measureCpuTurnSync,
+    readCpuTurnPerformanceNowMs,
+    recordCpuTurnPerformanceInterval,
+    withCpuTurnPerformanceOptions,
+    type CpuTurnPerformanceScope
+} from './cpu-turn-performance';
+
 declare let cardState: any;
 declare let gameState: any;
 declare const BLACK: any;
@@ -314,22 +323,36 @@ function resolveLv1AwareCpuDelay(baseCpuDelay: any): number {
     return base;
 }
 
-function scheduleWithDelay(delayMs: number, callback: () => void, immediateWithoutTimers?: boolean) {
+function scheduleWithDelay(
+    delayMs: number,
+    callback: () => void,
+    immediateWithoutTimers?: boolean,
+    onRejected?: (error: unknown) => void
+): boolean {
     const safeDelay = Number.isFinite(delayMs) ? delayMs : 0;
     if (hasUsableWaitMs(timers)) {
-        timers.waitMs(safeDelay).then(callback);
-        return;
+        try {
+            Promise.resolve(timers.waitMs(safeDelay)).then(callback).catch((error) => {
+                if (typeof onRejected === 'function') onRejected(error);
+                else console.error('[PASS-HANDLER] scheduled wait failed', error);
+            });
+            return true;
+        } catch (error) {
+            if (typeof onRejected === 'function') onRejected(error);
+            return false;
+        }
     }
     const timerService = getPassHandlerTimerService();
     if (timerService) {
         const tid = timerService.setTimeout(callback, safeDelay);
         if (tid && typeof tid.unref === 'function') tid.unref();
-        return;
+        return true;
     }
     if (immediateWithoutTimers) {
         callback();
-        return;
+        return true;
     }
+    return false;
 }
 
 const WHITE_CPU_TURN_RETRY_DELAY_MS = 32;
@@ -345,6 +368,37 @@ function resolveCpuTurnFnForPass() {
     return null;
 }
 
+function readPassPerformanceNowMs(): number {
+    try {
+        if (passHandlerRuntime && typeof passHandlerRuntime.readCpuTurnPerformanceNowMs === 'function') {
+            const value = Number(passHandlerRuntime.readCpuTurnPerformanceNowMs());
+            if (Number.isFinite(value)) return Math.max(0, value);
+        }
+    } catch (_error) { /* ignore */ }
+    return Number.NaN;
+}
+
+function createPassHandoffPerformanceScope(playerKey: any): CpuTurnPerformanceScope | null {
+    const recorder = passHandlerRuntime && typeof passHandlerRuntime.recordCpuTurnStage === 'function'
+        ? passHandlerRuntime.recordCpuTurnStage
+        : null;
+    if (!recorder) return null;
+    let correlationId: any = null;
+    try {
+        correlationId = typeof passHandlerRuntime.createCpuTurnPerformanceCorrelationId === 'function'
+            ? passHandlerRuntime.createCpuTurnPerformanceCorrelationId()
+            : null;
+    } catch (_error) { /* ignore */ }
+    return createCpuTurnPerformanceScope({
+        recorder,
+        correlationId,
+        runId: null,
+        playerKey,
+        level: null,
+        readNowMs: readPassPerformanceNowMs
+    });
+}
+
 function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
     if (isHumanVsHumanModeEnabled()) return;
     const opts = options || {};
@@ -353,21 +407,49 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
         : ((gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null);
     const expectedPlayerKey = normalizePlayerKeyOptional(opts.nextPlayerKey);
     const retryCount = Number.isFinite(opts.retryCount) ? Math.max(0, opts.retryCount) : 0;
-    scheduleWithDelay(delayMs, () => {
+    const performanceScope = (opts.performanceScope || createPassHandoffPerformanceScope(expectedPlayerKey || 'white')) as CpuTurnPerformanceScope | null;
+    const handoffScheduledAtMs = Number.isFinite(opts.handoffScheduledAtMs)
+        ? Number(opts.handoffScheduledAtMs)
+        : (performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : null);
+    let handoffRecorded = false;
+    const recordHandoffDelay = (
+        outcome: 'continue' | 'handled' | 'stale' | 'error',
+        callbackStartedAtMs?: number | null
+    ): void => {
+        if (!performanceScope || handoffScheduledAtMs === null || handoffRecorded) return;
+        handoffRecorded = true;
+        recordCpuTurnPerformanceInterval(
+            performanceScope,
+            'handoff-delay',
+            'wait',
+            handoffScheduledAtMs,
+            Number.isFinite(callbackStartedAtMs)
+                ? Number(callbackStartedAtMs)
+                : readCpuTurnPerformanceNowMs(performanceScope),
+            outcome
+        );
+    };
+    const scheduled = scheduleWithDelay(delayMs, () => {
+        const callbackStartedAtMs = performanceScope
+            ? readCpuTurnPerformanceNowMs(performanceScope)
+            : null;
         const releaseCpuHandoffProcessing = () => {
             setPassHandlerProcessing(false);
         };
         const currentGameState = resolvePassHandlerGameState();
         const currentPlayerKey = normalizePlayerKeyOptional(currentGameState ? currentGameState.currentPlayer : null);
         if (!currentPlayerKey) {
+            recordHandoffDelay('stale', callbackStartedAtMs);
             releaseCpuHandoffProcessing();
             return;
         }
         if (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) {
+            recordHandoffDelay('stale', callbackStartedAtMs);
             releaseCpuHandoffProcessing();
             return;
         }
         if (!isCpuControlledPlayer(currentPlayerKey)) {
+            recordHandoffDelay('handled', callbackStartedAtMs);
             releaseCpuHandoffProcessing();
             return;
         }
@@ -378,9 +460,12 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
                 scheduleWhiteCpuTurnGuarded(WHITE_CPU_TURN_RETRY_DELAY_MS, {
                     nextPlayerKey: expectedPlayerKey || currentPlayerKey,
                     expectedTurnNumber: currentTurnNumber !== null ? currentTurnNumber : expectedTurnNumber,
-                    retryCount: retryCount + 1
+                    retryCount: retryCount + 1,
+                    performanceScope,
+                    handoffScheduledAtMs
                 });
             } else {
+                recordHandoffDelay('error', callbackStartedAtMs);
                 releaseCpuHandoffProcessing();
             }
             return;
@@ -389,12 +474,34 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
         // If it is still white's turn, continue with the latest white turn instead of dropping the handoff.
         if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) {
             releaseCpuHandoffProcessing();
-            cpuFn();
+            try {
+                if (performanceScope) cpuFn(withCpuTurnPerformanceOptions({}, performanceScope.correlationId));
+                else cpuFn();
+                recordHandoffDelay('continue', callbackStartedAtMs);
+            } catch (error) {
+                recordHandoffDelay('error', callbackStartedAtMs);
+                throw error;
+            }
             return;
         }
         releaseCpuHandoffProcessing();
-        cpuFn();
+        try {
+            if (performanceScope) cpuFn(withCpuTurnPerformanceOptions({}, performanceScope.correlationId));
+            else cpuFn();
+            recordHandoffDelay('continue', callbackStartedAtMs);
+        } catch (error) {
+            recordHandoffDelay('error', callbackStartedAtMs);
+            throw error;
+        }
+    }, false, () => {
+        recordHandoffDelay('error');
+        setPassHandlerProcessing(false);
     });
+    if (!scheduled) {
+        recordHandoffDelay('error');
+        setPassHandlerProcessing(false);
+    }
+    return scheduled;
 }
 
 function getCurrentMatchModeSafe() {
@@ -764,7 +871,7 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
 /**
  * Helper to apply pass via TurnPipeline with safe fallback.
  */
-function applyPassViaPipeline(playerKey: string, options?: any) {
+function applyPassViaPipelineImpl(playerKey: string, options?: any) {
     const globalTurnPipeline = (typeof TurnPipeline !== 'undefined') ? TurnPipeline : null;
     const hasTurnPipelineApi = (candidate: any) => !!candidate
         && (typeof candidate.applyTurnSafe === 'function' || typeof candidate.applyTurn === 'function');
@@ -828,14 +935,53 @@ function applyPassViaPipeline(playerKey: string, options?: any) {
     }
 }
 
-async function _postApplyPassCommon(lastPlayerKey: string, options?: any) {
+function applyPassViaPipeline(
+    playerKey: string,
+    options?: any,
+    internalOptions?: { performanceScope?: CpuTurnPerformanceScope | null }
+) {
+    const performanceScope = internalOptions && internalOptions.performanceScope
+        ? internalOptions.performanceScope
+        : null;
+    return performanceScope
+        ? measureCpuTurnSync(
+            performanceScope,
+            'canonical-commit',
+            () => applyPassViaPipelineImpl(playerKey, options)
+        )
+        : applyPassViaPipelineImpl(playerKey, options);
+}
+
+async function _postApplyPassCommon(
+    lastPlayerKey: string,
+    options?: any,
+    internalOptions?: { performanceScope?: CpuTurnPerformanceScope | null }
+) {
     // Shared continuation logic after applyPassViaPipeline
-    emitPassHandlerBoardUpdate();
-    emitPassHandlerGameStateChange();
+    const performanceScope = internalOptions && internalOptions.performanceScope
+        ? internalOptions.performanceScope
+        : null;
+    const handoffStatePresentation = () => {
+        emitPassHandlerBoardUpdate();
+        emitPassHandlerGameStateChange();
+    };
+    if (performanceScope) {
+        measureCpuTurnSync(performanceScope, 'presentation-handoff', handoffStatePresentation);
+    } else {
+        handoffStatePresentation();
+    }
 
     const publishPlayerKey = resolvePassPublishPlayerKey(lastPlayerKey || 'black');
     const publishAction = createPassNetworkAction(publishPlayerKey, cardState, options);
 
+    if (internalOptions && internalOptions.performanceScope) {
+        return finalizePassTurnHandoff(
+            lastPlayerKey || 'black',
+            publishPlayerKey,
+            publishAction,
+            internalOptions
+        );
+    }
     return finalizePassTurnHandoff(lastPlayerKey || 'black', publishPlayerKey, publishAction);
 }
 
@@ -915,7 +1061,12 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishPlaye
     return true;
 }
 
-async function finalizePassTurnHandoff(lastPlayerKey: string, publishPlayerKey: string, publishAction: any) {
+async function finalizePassTurnHandoff(
+    lastPlayerKey: string,
+    publishPlayerKey: string,
+    publishAction: any,
+    internalOptions?: { performanceScope?: CpuTurnPerformanceScope | null }
+) {
     const safeLastPlayerKey = normalizePlayerKey(lastPlayerKey, 'black');
     const safePublishPlayerKey = normalizePlayerKey(publishPlayerKey, safeLastPlayerKey);
     if (isExplicitNetworkMatchMode()) {
@@ -943,6 +1094,9 @@ async function finalizePassTurnHandoff(lastPlayerKey: string, publishPlayerKey: 
         humanMode,
         cpuDelayMs: safeCpuDelay,
         resultOrder: 'beforePublish',
+        performanceScope: internalOptions && internalOptions.performanceScope
+            ? internalOptions.performanceScope
+            : null,
         setProcessing: (nextValue: boolean) => { setPassHandlerProcessing(nextValue); },
         publishSnapshot: publishNetworkSnapshot,
         onTurnStart: (player: any) => {
@@ -950,7 +1104,7 @@ async function finalizePassTurnHandoff(lastPlayerKey: string, publishPlayerKey: 
             return null;
         },
         scheduleCpuTurn: ({ delayMs, expectedTurnNumber, nextPlayerKey }: any) => {
-            scheduleWhiteCpuTurnGuarded(delayMs, { expectedTurnNumber, nextPlayerKey });
+            return scheduleWhiteCpuTurnGuarded(delayMs, { expectedTurnNumber, nextPlayerKey });
         },
         onHumanTurnReady: () => {
             emitPassHandlerBoardUpdate();
@@ -1016,7 +1170,11 @@ async function handleBlackPassWhenNoMoves() {
     }, true);
 }
 
-async function processPassTurn(playerKey: string, autoMode?: boolean | { autoMode?: boolean; autoNoActionPass?: boolean }) {
+async function processPassTurn(
+    playerKey: string,
+    autoMode?: boolean | { autoMode?: boolean; autoNoActionPass?: boolean },
+    internalOptions?: { performanceScope?: CpuTurnPerformanceScope | null }
+) {
     const passTurnOptions = normalizeProcessPassTurnOptions(autoMode);
     const normalizedRequestPlayerKey = normalizePlayerKey(playerKey, 'black');
     const selfName = normalizedRequestPlayerKey === 'white' ? '白' : '黒';
@@ -1030,7 +1188,9 @@ async function processPassTurn(playerKey: string, autoMode?: boolean | { autoMod
         return publishNetworkPassCommand(passedPlayerKey, passOptions);
     }
 
-    const result = applyPassViaPipeline(passedPlayerKey, passOptions);
+    const result = internalOptions && internalOptions.performanceScope
+        ? applyPassViaPipeline(passedPlayerKey, passOptions, internalOptions)
+        : applyPassViaPipeline(passedPlayerKey, passOptions);
     if (!result.ok) {
         return handleRejectedPass();
     }
@@ -1039,6 +1199,9 @@ async function processPassTurn(playerKey: string, autoMode?: boolean | { autoMod
         showAutoPassNoticeForPlayer(passedPlayerKey);
     }
 
+    if (internalOptions && internalOptions.performanceScope) {
+        return _postApplyPassCommon(passedPlayerKey, passOptions, internalOptions);
+    }
     return _postApplyPassCommon(passedPlayerKey, passOptions);
 }
 

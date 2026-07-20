@@ -100,6 +100,20 @@ function installMoveExecutorRuntime(deps: any): void {
   const timerService = cfg.timerService || null;
   const runtimeResolvers = cfg.runtimeResolvers || {};
   const requireModule = typeof cfg.requireModule === 'function' ? cfg.requireModule : _require;
+  let perfBenchmarks: any = null;
+  try { perfBenchmarks = requireModule('../ui/perf-benchmarks'); } catch (e) { /* ignore */ }
+  const perfEnabled = !!(
+    perfBenchmarks
+    && typeof perfBenchmarks.isPerfBenchEnabled === 'function'
+    && perfBenchmarks.isPerfBenchEnabled() === true
+  );
+  const recordCpuTurnStage = perfEnabled && typeof perfBenchmarks.getCpuTurnPerformanceRecorder === 'function'
+    ? perfBenchmarks.getCpuTurnPerformanceRecorder()
+    : null;
+  const createCpuTurnPerformanceCorrelationId = perfEnabled
+    && typeof perfBenchmarks.createCpuTurnPerformanceCorrelationId === 'function'
+    ? perfBenchmarks.createCpuTurnPerformanceCorrelationId
+    : null;
   const getPlaybackStateModule = typeof cfg.getPlaybackStateModuleForReset === 'function'
     ? cfg.getPlaybackStateModuleForReset
     : () => null;
@@ -132,6 +146,19 @@ function installMoveExecutorRuntime(deps: any): void {
     }), timersImpl);
 
     connectUIRuntime('./move-executor-visuals', '../game/move-executor', (uiMod: any, timers: any) => ({
+      ...(typeof recordCpuTurnStage === 'function' ? { recordCpuTurnStage } : {}),
+      ...(typeof createCpuTurnPerformanceCorrelationId === 'function' ? { createCpuTurnPerformanceCorrelationId } : {}),
+      ...(typeof recordCpuTurnStage === 'function' ? {
+        readCpuTurnPerformanceNowMs: () => {
+          try {
+            return typeof performance !== 'undefined' && typeof performance.now === 'function'
+              ? performance.now()
+              : Number.NaN;
+          } catch (e) {
+            return Number.NaN;
+          }
+        }
+      } : {}),
       scheduleCpuTurn: (ms: any, cb: any) => { return timers.waitMs(ms || 0).then(cb); },
       processCpuTurn: (() => {
         try {

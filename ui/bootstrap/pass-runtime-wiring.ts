@@ -44,6 +44,20 @@ function createLazyCpuDecisionLevelResolver(runtimeResolvers: any): (playerKey: 
 
 export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registeredGlobals: Record<string, any> } {
   const passHandler = deps.requireModule('../game/pass-handler');
+  let perfBenchmarks: any = null;
+  try { perfBenchmarks = deps.requireModule('../ui/perf-benchmarks'); } catch (e: any) { /* ignore */ }
+  const perfEnabled = !!(
+    perfBenchmarks
+    && typeof perfBenchmarks.isPerfBenchEnabled === 'function'
+    && perfBenchmarks.isPerfBenchEnabled() === true
+  );
+  const recordCpuTurnStage = perfEnabled && typeof perfBenchmarks.getCpuTurnPerformanceRecorder === 'function'
+    ? perfBenchmarks.getCpuTurnPerformanceRecorder()
+    : null;
+  const createCpuTurnPerformanceCorrelationId = perfEnabled
+    && typeof perfBenchmarks.createCpuTurnPerformanceCorrelationId === 'function'
+    ? perfBenchmarks.createCpuTurnPerformanceCorrelationId
+    : null;
   const passGlobals: Record<string, any> = {};
   if (passHandler && typeof passHandler.processPassTurn === 'function') passGlobals.processPassTurn = passHandler.processPassTurn;
   if (passHandler && typeof passHandler.ensureCurrentPlayerCanActOrPass === 'function') {
@@ -66,6 +80,19 @@ export function installPassRuntimeWiring(deps: PassRuntimeWiringDeps): { registe
     if (typeof passHandler.setPassHandlerRuntime === 'function') {
       const runtimeResolvers = deps.runtimeResolvers || {};
       passHandler.setPassHandlerRuntime({
+        ...(typeof recordCpuTurnStage === 'function' ? { recordCpuTurnStage } : {}),
+        ...(typeof createCpuTurnPerformanceCorrelationId === 'function' ? { createCpuTurnPerformanceCorrelationId } : {}),
+        ...(typeof recordCpuTurnStage === 'function' ? {
+          readCpuTurnPerformanceNowMs: () => {
+            try {
+              return typeof performance !== 'undefined' && typeof performance.now === 'function'
+                ? performance.now()
+                : Number.NaN;
+            } catch (e: any) {
+              return Number.NaN;
+            }
+          }
+        } : {}),
         processCpuTurn: createLazyProcessCpuTurn(runtimeResolvers),
         resolveCpuDecisionLevelForPlayer: createLazyCpuDecisionLevelResolver(runtimeResolvers),
         readMatchMode: runtimeResolvers.readMatchMode,

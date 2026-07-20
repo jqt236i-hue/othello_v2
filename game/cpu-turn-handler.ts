@@ -5,6 +5,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 import type { CardState, GameState, PlayerKey } from '../src/types';
+import {
+    createCpuTurnPerformanceScope,
+    measureCpuTurnSync,
+    readCpuTurnPerformanceCorrelationId,
+    withCpuTurnPerformanceOptions,
+    type CpuTurnPerformanceRecorder,
+    type CpuTurnPerformanceScope
+} from './cpu-turn-performance';
 
 // Global declarations for functions not in ui/globals.d.ts
 declare const countDiscs: any;
@@ -57,12 +65,30 @@ function getCpuTurnTimerService() {
     return cpuTurnTimerService || null;
 }
 function readCpuTurnNowMs(): number {
+    if (__uiImpl_cpu && typeof __uiImpl_cpu.recordCpuTurnStage === 'function'
+        && typeof __uiImpl_cpu.readCpuTurnPerformanceNowMs === 'function') {
+        try {
+            const performanceValue = Number(__uiImpl_cpu.readCpuTurnPerformanceNowMs());
+            if (Number.isFinite(performanceValue)) return performanceValue;
+        } catch (_error) { /* fall through */ }
+    }
     const timerService = getCpuTurnTimerService();
     if (timerService && typeof timerService.now === 'function') {
         const value = Number(timerService.now());
         if (Number.isFinite(value)) return value;
     }
     return Date.now();
+}
+
+function readInjectedCpuTurnPerformanceNowMs(): number {
+    if (!getCpuTurnPerformanceRecorder()) return Number.NaN;
+    try {
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.readCpuTurnPerformanceNowMs === 'function') {
+            const value = Number(__uiImpl_cpu.readCpuTurnPerformanceNowMs());
+            if (Number.isFinite(value)) return Math.max(0, value);
+        }
+    } catch (_error) { /* invalid performance sample */ }
+    return Number.NaN;
 }
 
 // Timers abstraction (injected by UI)
@@ -127,12 +153,59 @@ if (typeof require === 'function') {
 
 // ===== Module-level DI (replaces globalThis reads for bootstrap flags) =====
 let __uiImpl_cpu: Record<string, any> = {};
+let cpuTurnPerformanceRunSequence = 0;
 function setCpuUIImpl(obj: any): void {
     if (!obj || (typeof obj === 'object' && Object.keys(obj).length === 0)) {
         __uiImpl_cpu = {};
         return;
     }
     __uiImpl_cpu = Object.assign({}, __uiImpl_cpu, obj || {});
+}
+
+function getCpuTurnPerformanceRecorder(): CpuTurnPerformanceRecorder | null {
+    return __uiImpl_cpu && typeof __uiImpl_cpu.recordCpuTurnStage === 'function'
+        ? __uiImpl_cpu.recordCpuTurnStage
+        : null;
+}
+
+function createCpuTurnPerformanceCorrelationId(): string | null {
+    if (!getCpuTurnPerformanceRecorder()) return null;
+    try {
+        const value = __uiImpl_cpu && typeof __uiImpl_cpu.createCpuTurnPerformanceCorrelationId === 'function'
+            ? __uiImpl_cpu.createCpuTurnPerformanceCorrelationId()
+            : null;
+        const normalized = String(value || '').trim();
+        return normalized || null;
+    } catch (_error) {
+        return null;
+    }
+}
+
+function createRunPerformanceScope(
+    playerKey: PlayerKey,
+    level: any,
+    options: any
+): CpuTurnPerformanceScope | null {
+    const recorder = getCpuTurnPerformanceRecorder();
+    if (!recorder) return null;
+    const correlationId = readCpuTurnPerformanceCorrelationId(options) || createCpuTurnPerformanceCorrelationId();
+    if (!correlationId) return null;
+    cpuTurnPerformanceRunSequence += 1;
+    return createCpuTurnPerformanceScope({
+        recorder,
+        correlationId,
+        runId: cpuTurnPerformanceRunSequence,
+        playerKey,
+        level,
+        readNowMs: readInjectedCpuTurnPerformanceNowMs
+    });
+}
+
+function createCpuResumeOptions(autoMode: boolean, scope: CpuTurnPerformanceScope | null): any {
+    const base = { autoMode };
+    return scope
+        ? withCpuTurnPerformanceOptions(base, scope.correlationId, scope.level)
+        : base;
 }
 const CpuTurnRuntimeBoundary = (CpuRuntimeBoundaryModule && typeof CpuRuntimeBoundaryModule.createCpuTurnRuntimeBoundary === 'function')
     ? CpuRuntimeBoundaryModule.createCpuTurnRuntimeBoundary({
@@ -1034,8 +1107,11 @@ const CpuTurnScheduler = (CpuTurnSchedulerModule && typeof CpuTurnSchedulerModul
         getAnimationRetryDelayMs,
         getCurrentPlayerKeySafe,
         getCurrentTurnNumberSafe,
+        getCpuTurnPerformanceRecorder,
         getTimerService: () => getCpuTurnTimerService(),
         getTimers,
+        createCpuTurnPerformanceCorrelationId,
+        readNowMs: () => readInjectedCpuTurnPerformanceNowMs(),
         runCpuTurn: (playerKey: any, options?: any) => runCpuTurn(playerKey, options || {}),
         shouldAbortCpuForHumanMode
     })
@@ -1305,7 +1381,14 @@ const CpuTurnMovePhase = (CpuTurnMovePhaseModule && typeof CpuTurnMovePhaseModul
     })
     : null;
 
-async function processCpuTurn(): Promise<void> {
+async function processCpuTurn(options: any = {}): Promise<void> {
+    const internalOptions = options && typeof options === 'object' ? options : {};
+    const performanceCorrelationId = getCpuTurnPerformanceRecorder()
+        ? readCpuTurnPerformanceCorrelationId(internalOptions)
+        : null;
+    const createProcessOptions = (): any => performanceCorrelationId
+        ? withCpuTurnPerformanceOptions({ autoMode: false }, performanceCorrelationId)
+        : { autoMode: false };
     if (isHumanVsHumanModeEnabled()) {
         setCpuProcessing(false);
         return;
@@ -1329,11 +1412,15 @@ async function processCpuTurn(): Promise<void> {
         return;
     }
     if (readCpuProcessing() || isUiAnimationBusy()) {
-        scheduleRunCpuTurn(cpuTurnOwnerKey, { autoMode: false }, getAnimationRetryDelayMs());
+        scheduleRunCpuTurn(
+            cpuTurnOwnerKey,
+            createProcessOptions(),
+            getAnimationRetryDelayMs()
+        );
         debugCpuTrace('[DEBUG][processCpuTurn] defer: busy');
         return;
     }
-    await runCpuTurn(cpuTurnOwnerKey, { autoMode: false });
+    await runCpuTurn(cpuTurnOwnerKey, createProcessOptions());
     debugCpuTrace('[DEBUG][processCpuTurn] exit');
 }
 
@@ -1353,7 +1440,13 @@ async function processAutoBlackTurn(): Promise<void> {
     return runCpuTurn('black', { autoMode: true });
 }
 
-function handleCpuTurnError(playerKey: PlayerKey, selfName: string, error: any, autoMode: boolean): void {
+function handleCpuTurnError(
+    playerKey: PlayerKey,
+    selfName: string,
+    error: any,
+    autoMode: boolean,
+    performanceScope?: CpuTurnPerformanceScope | null
+): void {
     const message = error && error.message ? error.message : String(error);
     console.error(`[AI] Error in runCpuTurn for ${playerKey}:`, error);
     console.error(`[AI] Error message: ${message}`);
@@ -1376,10 +1469,23 @@ function handleCpuTurnError(playerKey: PlayerKey, selfName: string, error: any, 
     setCpuProcessing(false);
     emitCpuTurnLogAdded(`${selfName}の思考中にエラーが発生しました`);
     resetPendingSelectRetryState(playerKey);
-    scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
+    scheduleRunCpuTurn(
+        playerKey,
+        performanceScope
+            ? withCpuTurnPerformanceOptions({ autoMode }, performanceScope.correlationId, performanceScope.level)
+            : { autoMode },
+        getAnimationRetryDelayMs()
+    );
 }
 
-async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode?: boolean } = {}): Promise<void> {
+async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void> {
+    const autoMode = options && options.autoMode === true;
+    const inheritedPerformanceCorrelationId = getCpuTurnPerformanceRecorder()
+        ? readCpuTurnPerformanceCorrelationId(options)
+        : null;
+    const inheritedResumeOptions = inheritedPerformanceCorrelationId
+        ? withCpuTurnPerformanceOptions({ autoMode }, inheritedPerformanceCorrelationId)
+        : { autoMode };
     const turnStartMs = readCpuTurnNowMs();
     const isWhite = playerKey === 'white';
     const selfColor = isWhite ? CONST_WHITE : CONST_BLACK;
@@ -1432,7 +1538,7 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             playerKey,
             autoMode
         });
-        scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
+        scheduleRunCpuTurn(playerKey, inheritedResumeOptions, getAnimationRetryDelayMs());
         return;
     }
 
@@ -1440,21 +1546,33 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
 
     if (isUiAnimationBusy()) {
         setCpuProcessing(false);
-        scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
+        scheduleRunCpuTurn(playerKey, inheritedResumeOptions, getAnimationRetryDelayMs());
         return;
     }
 
+    let performanceScope: CpuTurnPerformanceScope | null = null;
     try {
         const level = resolveCpuDecisionLevelForTurn(playerKey);
+        performanceScope = createRunPerformanceScope(playerKey, level, options);
         const hasUsedCardThisTurn = !!(cardState && cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey]);
         const hasPendingSelection = !!readCpuPendingSelection(playerKey);
         const othelloMode = isOthelloModeForCpuTurnHandler();
 
-        emitCpuCommentary('turn_start', playerKey, {
-            level,
-            hasPendingSelection,
-            hasUsedCardThisTurn
-        });
+        if (performanceScope) {
+            measureCpuTurnSync(performanceScope, 'commentary-context', () => {
+                emitCpuCommentary('turn_start', playerKey, {
+                    level,
+                    hasPendingSelection,
+                    hasUsedCardThisTurn
+                });
+            });
+        } else {
+            emitCpuCommentary('turn_start', playerKey, {
+                level,
+                hasPendingSelection,
+                hasUsedCardThisTurn
+            });
+        }
 
         if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
             const cardPhaseResult = await CpuTurnCardPhase.runCpuTurnCardPhase({
@@ -1464,7 +1582,8 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
                 selfColor,
                 othelloMode,
                 hasUsedCardThisTurn,
-                hasPendingSelection
+                hasPendingSelection,
+                performanceScope
             });
             if (cardPhaseResult && cardPhaseResult.status === 'handled') {
                 return;
@@ -1477,7 +1596,8 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
                 playerKey,
                 autoMode,
                 level,
-                pending
+                pending,
+                performanceScope
             });
             if (pendingPhaseResult && pendingPhaseResult.status === 'handled') {
                 return;
@@ -1495,10 +1615,11 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             selfName,
             othelloMode,
             pending,
-            turnStartMs
+            turnStartMs,
+            performanceScope
         });
     } catch (error) {
-        handleCpuTurnError(playerKey, selfName, error, autoMode);
+        handleCpuTurnError(playerKey, selfName, error, autoMode, performanceScope);
     }
 }
 
