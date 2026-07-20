@@ -1075,6 +1075,12 @@ const MODE_OTHELLO = 'othello';
             setMode,
             setNetworkOverlayVisible,
             setLeaderboardOverlayVisible,
+            ensureLeaderboardStylesheet: () => {
+                if (FeatureStylesheetLoader && typeof FeatureStylesheetLoader.ensureFeatureStylesheet === 'function') {
+                    return FeatureStylesheetLoader.ensureFeatureStylesheet('leaderboard', typeof document !== 'undefined' ? document : null);
+                }
+                return Promise.resolve({ ok: false, group: 'leaderboard', href: '', warning: 'stylesheet loader unavailable' });
+            },
             openRatedLeaderboard,
             disableAutoModeForHumanPlay,
             refreshNetworkAutoModeAccess,

@@ -38,15 +38,19 @@ describe('observation gacha typography CSS', () => {
 
   test('keeps hidden-panel artwork URLs out of startup CSS', () => {
     const css = readCss();
+    const controlsCss = readFeatureCss('styles-layout-controls.css');
     const gachaCss = readFeatureCss('styles-feature-gacha.css');
     const networkCss = readFeatureCss('styles-feature-network.css');
+    const leaderboardCss = readFeatureCss('styles-leaderboard.css');
 
     expect(css).not.toMatch(/url\(["']assets\/images\/other\/(?:gacha-observation-bg-v1|gacha-reference-banner|gacha-crystal-cluster-v1|network-lobby-frame-v1)\.png["']\)/);
+    expect(`${controlsCss}\n${css}`).not.toContain('assets/images/other/leaderboard-');
     expect(css).toContain('var(--gacha-observation-background-image, none)');
     expect(css).toContain('var(--network-lobby-frame-image, none)');
     expect(gachaCss).toContain('gacha-observation-bg-v1.png');
     expect(gachaCss).toContain('gacha-reference-banner.png');
     expect(gachaCss).toContain('gacha-crystal-cluster-v1.png');
     expect(networkCss).toContain('network-lobby-frame-v1.png');
+    expect(leaderboardCss).toContain('leaderboard-top-panel-wide-v1.png');
   });
 });

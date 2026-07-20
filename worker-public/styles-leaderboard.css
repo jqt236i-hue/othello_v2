@@ -4,6 +4,14 @@
     z-index: calc(var(--z-modal-maintenance) + 10);
 }
 
+#ratedMatchModal {
+    --rated-asset-panel: url("assets/images/other/leaderboard-top-panel-wide-v1.png");
+    --rated-asset-medal: url("assets/images/other/leaderboard-medal-gold-v1.png");
+    --rated-asset-crown: url("assets/images/other/leaderboard-icon-crown-gold-v1.png");
+    --rated-asset-rank: url("assets/images/other/leaderboard-icon-rank-v1.png");
+    --rated-asset-close: url("assets/images/other/leaderboard-icon-close-v1.png");
+}
+
 #leaderboardModal {
     --layout-stage-scale: 1;
     --leaderboard-border: rgba(233, 199, 117, 0.42);

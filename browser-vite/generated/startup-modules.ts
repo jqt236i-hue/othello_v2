@@ -448,6 +448,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/animation-theory-events": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/animation-theory-events.js"),
   "ui/animation-utils": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/animation-utils.js"),
   "ui/assets/background-image-codec": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/background-image-codec.js"),
+  "ui/assets/feature-stylesheet-loader": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/feature-stylesheet-loader.js"),
   "ui/assets/optimized-backgrounds.generated": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/optimized-backgrounds.generated.js"),
   "ui/board-accessibility-layer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-accessibility-layer.js"),
   "ui/board-dom-compat/backend": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/backend.js"),
@@ -473,6 +474,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/board-visual/effect-branch-inventory": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/effect-branch-inventory.js"),
   "ui/board-visual/equality": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/equality.js"),
   "ui/board-visual/frame-presenter": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/frame-presenter.js"),
+  "ui/board-visual/invalidation-accumulator": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/invalidation-accumulator.js"),
   "ui/board-visual/layout": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/layout.js"),
   "ui/board-visual/model": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/model.js"),
   "ui/board-visual/model-builder": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/model-builder.js"),
@@ -607,6 +609,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/pixi/hint-view": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/hint-view.js"),
   "ui/pixi/pools": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/pools.js"),
   "ui/pixi/runtime-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/runtime-contract.js"),
+  "ui/pixi/static-board-layer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/static-board-layer.js"),
   "ui/pixi/stone-view": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/stone-view.js"),
   "ui/pixi/texture-manager": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/texture-manager.js"),
   "ui/pixi/timeline": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/pixi/timeline.js"),
@@ -1124,6 +1127,7 @@ installBootModuleMetadata({
     "ui/animation-theory-events",
     "ui/animation-utils",
     "ui/assets/background-image-codec",
+    "ui/assets/feature-stylesheet-loader",
     "ui/assets/optimized-backgrounds.generated",
     "ui/board-accessibility-layer",
     "ui/board-dom-compat/backend",
@@ -1149,6 +1153,7 @@ installBootModuleMetadata({
     "ui/board-visual/effect-branch-inventory",
     "ui/board-visual/equality",
     "ui/board-visual/frame-presenter",
+    "ui/board-visual/invalidation-accumulator",
     "ui/board-visual/layout",
     "ui/board-visual/model",
     "ui/board-visual/model-builder",
@@ -1283,6 +1288,7 @@ installBootModuleMetadata({
     "ui/pixi/hint-view",
     "ui/pixi/pools",
     "ui/pixi/runtime-contract",
+    "ui/pixi/static-board-layer",
     "ui/pixi/stone-view",
     "ui/pixi/texture-manager",
     "ui/pixi/timeline",
@@ -1434,4 +1440,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 671;
+export const startupModuleCount = 674;

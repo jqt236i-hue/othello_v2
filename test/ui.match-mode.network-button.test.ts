@@ -425,12 +425,14 @@ describe('match-mode network button behavior', () => {
     const status = document.getElementById('ratedMatchStatus');
     const timer = document.getElementById('ratedMatchQueueTimer');
 
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="leaderboard"]')).toHaveLength(0);
     ratedBtn.click();
     await Promise.resolve();
     await Promise.resolve();
 
     expect(window.MatchMode.getCurrentMode()).toBe('cpu');
     expect(ratedOverlay.classList.contains('is-open')).toBe(true);
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="leaderboard"]')).toHaveLength(1);
     expect(networkOverlay.classList.contains('is-open')).toBe(false);
     expect(ratedBtn.getAttribute('aria-expanded')).toBe('true');
     expect(document.getElementById('autoToggleBtn').textContent).toBe('AUTO: OFF');

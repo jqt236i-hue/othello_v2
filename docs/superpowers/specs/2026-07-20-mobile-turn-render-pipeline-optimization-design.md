@@ -1,5 +1,5 @@
 ---
-status: active
+status: implemented
 owner: repository-maintainers
 scope: mobile-turn-render-pipeline-optimization
 created: 2026-07-20

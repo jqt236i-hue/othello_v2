@@ -1,5 +1,5 @@
 ---
-status: active
+status: completed
 owner: repository-maintainers
 scope: mobile-turn-render-pipeline-optimization
 created: 2026-07-20
@@ -548,7 +548,52 @@ Phase内で同じbuildを繰り返さない。focused test失敗が変更と無�
 
 問題報告には端末名、OS/browser、発生した画面、操作直前のカード/手番だけあればよい。詳細profilingの採取を最初から要求しない。
 
-## 6. 計画自己レビュー
+## 6. 実行結果（2026-07-20）
+
+### 実装とcommit
+
+| Phase | 結果 | Commit |
+| --- | --- | --- |
+| Phase 1 | writer単位のdirty集約とsettlement時の最終frame 1回構築を実装 | `c402f7339` |
+| Phase 2 | 背景・セル面・罫線・穴・星・数字を静的textureへ統合し、StoneViewを疎にmaterialize | `011e6d7d7` |
+| Phase 3 | deck-builder、gacha、network、leaderboardの画像所有CSSを初回open時へ遅延 | `d0f96826c` |
+| Phase 4 | browser/Worker生成物、短い統合検証、本実行記録を確定 | 最終commit |
+
+Single Visual Writer、strict network authority、`events[]` の順序は維持し、`01-rulebook.md` と `正本/*.md` は変更していない。
+
+### focused verification
+
+- Phase 0 characterization: 5 suites / 77 tests PASS。
+- Phase 1 writer・settlement・recovery focused Jest: PASS。
+- Phase 2 scene・backend・playback・context recovery focused Jest: PASS。
+- Phase 3 lazy stylesheet・各panel controller focused Jest: 10 suites / 131 tests PASS。
+- Phase 4 cross-phase focused Jest: 12 suites / 218 tests PASS。
+- 追加のランキング画像ownership・mirror確認: 4 suites / 46 tests PASS。
+- `npm run typecheck`: PASS。
+- `npm run worker:prepare`: 最終実行PASS、mirror 914 files verified。別のbuild commandは実行していない。最初の生成後のresource assertionで共有CSSに残ったランキングURLを検出してsourceを修正した。修正後の再生成1回目はWindowsの一時的な `UNKNOWN: open index.vite.html` でFAILし、同じaggregate commandの再実行でPASSした。
+- playback smoke: 引数なし実行は既定の全lane・全scenarioへ広がったため120秒で停止。計画の短時間制約に合わせた `node dist/scripts/pixijs-board-playback-browser-check.js --classic-only --mode=noanim --scenario=place --no-artifacts` は2 reports / 2 scenarios PASS。
+- mobile viewport 390×844、Pixi、NOANIM、CPU Lv1の人間1手 + CPU1手 smoke: PASS。page / console / resource errorはいずれも0。
+
+### 構造カウンタ
+
+| 対象 | writer claims | backend prepare/apply | final build/submit | stale prepare |
+| --- | ---: | ---: | ---: | ---: |
+| 人間1手 | 1 | 2 / 2 | 1 / 1 | 0 |
+| CPU Lv1応答 | 2 | 5 / 5 | 2 / 2 | 0 |
+
+backendの数には保持したordered playback phaseが含まれる。最終盤面は各writer claimにつきbuild/submit各1回であり、CPU応答の2 claimsも既存の演出境界を統合・並べ替えしていない結果である。
+
+初期8×8盤面の実ブラウザ診断は `displayObjectCount=306`、`activeViewCount=64`、`activeStoneViewCount=4`、静的layerはattached 1 / temporary 0だった。従来診断目安約1,470から縮小し、unit fixtureでは初期500未満・満盤面1,000未満のbudgetをPASSした。
+
+### lazy resource assertion
+
+代表大型画像 `deck-builder-night-manuscript-texture.png`、`gacha-reference-banner.png`、`network-lobby-frame-v1.png`、`leaderboard-top-panel-wide-v1.png` は起動時resource entryがすべて0、各panel初回open後がすべて1だった。startup CSSには対象画像URLを残さず、feature CSS linkは初回open時に1回だけ追加される。
+
+### 未実施事項
+
+長時間benchmark、全visual-regression、screenshot比較、実機温度測定は計画どおり未実施。Phase 5のスマホ実機確認だけをユーザー環境へ引き継ぐ。
+
+## 7. 計画自己レビュー
 
 ### 依存順
 

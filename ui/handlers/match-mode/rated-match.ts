@@ -30,6 +30,7 @@ type RatedMatchControllerContext = {
     setMode: (mode: any, options?: any) => Promise<any>;
     setNetworkOverlayVisible: (visible: any) => void;
     setLeaderboardOverlayVisible: (visible: any) => void;
+    ensureLeaderboardStylesheet?: () => Promise<any>;
     openRatedLeaderboard?: () => void;
     disableAutoModeForHumanPlay: () => void;
     refreshNetworkAutoModeAccess: () => void;
@@ -804,6 +805,7 @@ function createRatedMatchController(context: RatedMatchControllerContext): Rated
         if (!uiRefs.ratedMatchOverlay) return;
         const open = visible === true;
         if (open) {
+            try { void ctx.ensureLeaderboardStylesheet?.(); } catch (e) { /* fallback styling must not block the panel */ }
             try { ctx.setNetworkOverlayVisible(false); } catch (e) { /* ignore */ }
             try { ctx.setLeaderboardOverlayVisible(false); } catch (e) { /* ignore */ }
         } else {
