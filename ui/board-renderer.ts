@@ -1204,7 +1204,8 @@ const PIXI_INITIAL_FALLBACK_ERROR_CODES_FOR_BOARD_RENDERER = new Set([
     'pixi_webgl_unavailable',
     'pixi_application_init_failed',
     'pixi_webgl_init_failed',
-    'pixi_renderer_init_failed'
+    'pixi_renderer_init_failed',
+    'pixi_software_webgl_renderer'
 ]);
 
 function _createBoardVisualCapabilityErrorForBoardRenderer(
@@ -1275,6 +1276,7 @@ function _selectBoardVisualBackendForBoardRenderer() {
     const testConfig = BoardVisualBackendTestConfigForBoardRenderer;
     const params = _readBoardVisualRendererQueryForBoardRenderer();
     const queryRequestsDom = params.get('debug') === '1' && params.get('boardRenderer') === 'dom';
+    const queryForcesPixi = params.get('debug') === '1' && params.get('boardRenderer') === 'pixi';
     const kind = testConfig && testConfig.selection
         ? testConfig.selection
         : (queryRequestsDom ? 'dom' : 'pixi');
@@ -1283,7 +1285,7 @@ function _selectBoardVisualBackendForBoardRenderer() {
             ? testConfig.noAnimation
             : params.get('noanim') === '1')
         : false;
-    return Object.freeze({ kind, noAnimation });
+    return Object.freeze({ kind, noAnimation, allowSoftwareRenderer: kind === 'pixi' && queryForcesPixi });
 }
 
 function _assertBoardVisualBackendShapeForBoardRenderer(backend: any, kind: 'dom' | 'pixi') {
@@ -1380,9 +1382,14 @@ function _playPixiBoardExpansionRevealSoundForBoardRenderer(
     play();
 }
 
-function _createPixiBoardVisualBackendForBoardRenderer(noAnimation: boolean, contextRecovery?: any) {
+function _createPixiBoardVisualBackendForBoardRenderer(
+    noAnimation: boolean,
+    contextRecovery?: any,
+    allowSoftwareRenderer = false
+) {
     const options = Object.freeze({
         noAnimation,
+        allowSoftwareRenderer,
         // Backend mount precedes UI event activation. Resolve lazily so the
         // adapter can exist while BoardInputController remains disabled until
         // bootstrap finishes the visual-ready gate.
@@ -1783,7 +1790,11 @@ function _createBoardVisualRuntimeForBoardRenderer() {
         })
         : null;
     const backend = selection.kind === 'pixi'
-        ? _createPixiBoardVisualBackendForBoardRenderer(selection.noAnimation, contextRecovery)
+        ? _createPixiBoardVisualBackendForBoardRenderer(
+            selection.noAnimation,
+            contextRecovery,
+            selection.allowSoftwareRenderer
+        )
         : _createDomBoardVisualBackendForBoardRenderer();
     controller = ControllerModule.createBoardVisualController({
         backend,

@@ -127,6 +127,7 @@ describe('Pixi board Application lifecycle', () => {
     expect(fixture.instances).toHaveLength(1);
     expect(fixture.instances[0].init).toHaveBeenCalledWith({
       preference: 'webgl',
+      powerPreference: 'high-performance',
       autoStart: false,
       sharedTicker: false,
       autoDensity: true,

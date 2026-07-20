@@ -114,9 +114,22 @@ describe('opponent action frame-stall report helpers', () => {
       buildMode: 'vite-production',
       captureOrder: SCENARIO_IDS,
       minimumValidSamples: 1,
+      graphics: {
+        hardwareAccelerated: true,
+        glRenderer: 'ANGLE (NVIDIA, D3D11)',
+        glVendor: 'Google Inc. (NVIDIA)',
+        displayType: 'ANGLE_D3D11',
+        gpuCompositing: 'enabled',
+        webgl: 'enabled_on',
+        devices: []
+      },
       generatedAt: '2026-07-20T00:00:00.000Z'
     }) as any;
-    expect(report.schemaVersion).toBe('cpu_turn_frame_stall_report.v1');
+    expect(report.schemaVersion).toBe('cpu_turn_frame_stall_report.v2');
+    expect(report.capture.graphics).toMatchObject({
+      hardwareAccelerated: true,
+      displayType: 'ANGLE_D3D11'
+    });
     expect(report.scenarios[SCENARIO_IDS[0]].syncInvocationMs.p95).toBe(20);
     expect(() => assertNoForbiddenReportKeys(report)).not.toThrow();
     expect(() => assertNoForbiddenReportKeys({ nested: { seatToken: 'secret' } })).toThrow(/forbidden report key/);
@@ -125,13 +138,14 @@ describe('opponent action frame-stall report helpers', () => {
     expect(() => buildFrameStallReport(samplesByScenario, {
       profile: 'desktop', lane: 'vite', browserArtifactSha256: 'a', fixtureDigest: 'b',
       warmupIterations: 5, captureIterations: 1, minimumValidSamples: 1,
-      buildMode: 'vite-production', captureOrder: SCENARIO_IDS
+      buildMode: 'vite-production', captureOrder: SCENARIO_IDS,
+      graphics: report.capture.graphics
     })).toThrow(/valid sample count/);
   });
 
   test('blocking gate uses sync metrics and ignores wait-only duration', () => {
     const makeReport = (syncP95: number, syncMax: number) => ({
-      schemaVersion: 'cpu_turn_frame_stall_report.v1',
+      schemaVersion: 'cpu_turn_frame_stall_report.v2',
       capture: {
         profile: 'desktop',
         lane: 'vite',
@@ -139,7 +153,13 @@ describe('opponent action frame-stall report helpers', () => {
         captureIterations: 20,
         buildMode: 'vite-production',
         captureOrder: SCENARIO_IDS,
-        browserArtifactSha256: syncP95 >= 100 ? 'baseline-hash' : 'candidate-hash'
+        browserArtifactSha256: syncP95 >= 100 ? 'baseline-hash' : 'candidate-hash',
+        graphics: {
+          hardwareAccelerated: true,
+          glRenderer: 'ANGLE (NVIDIA, D3D11)',
+          glVendor: 'Google Inc. (NVIDIA)',
+          displayType: 'ANGLE_D3D11'
+        }
       },
       scenarios: Object.fromEntries(SCENARIO_IDS.slice(0, 3).map((id) => [id, {
         syncInvocationMs: { p95: syncP95, max: syncMax },

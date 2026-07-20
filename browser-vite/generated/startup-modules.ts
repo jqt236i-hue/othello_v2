@@ -430,6 +430,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "shared/state-hash": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/state-hash.js"),
   "shared/stone-status-snapshot": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/stone-status-snapshot.js"),
   "shared/ui-bootstrap-shared": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/ui-bootstrap-shared.js"),
+  "shared/webgl-renderer-classification": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/webgl-renderer-classification.js"),
   "sound-engine": () => require("../../dist/browser-vite-bridge-src/startup/modules/sound-engine.js"),
   "ui": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui.js"),
   "ui/animation-constants": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/animation-constants.js"),
@@ -1109,6 +1110,7 @@ installBootModuleMetadata({
     "shared/state-hash",
     "shared/stone-status-snapshot",
     "shared/ui-bootstrap-shared",
+    "shared/webgl-renderer-classification",
     "sound-engine",
     "ui",
     "ui/animation-constants",
@@ -1440,4 +1442,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 674;
+export const startupModuleCount = 675;

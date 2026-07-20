@@ -1,5 +1,6 @@
 const {
-  evaluatePixiRuntimeFallbackProbe
+  evaluatePixiRuntimeFallbackProbe,
+  evaluateSoftwareRendererFallbackProbe
 } = require('../scripts/pixijs-runtime-fallback-browser-check');
 
 describe('Pixi runtime fallback browser check', () => {
@@ -107,5 +108,35 @@ describe('Pixi runtime fallback browser check', () => {
       expect.stringMatching(/trajectory fallback smoke failed/),
       expect.stringMatching(/fatal boot error/)
     ]));
+  });
+
+  test('accepts a loaded Pixi runtime that falls back exclusively because the renderer is software', () => {
+    expect(evaluateSoftwareRendererFallbackProbe({
+      ready: true,
+      capability: {
+        lane: 'vite',
+        injected: true,
+        version: '8.18.1',
+        unavailableReason: null
+      },
+      renderer: 'dom',
+      cellCount: 64,
+      canvasCount: 0,
+      trajectoryOverlayCount: 0,
+      trajectorySmoke: {
+        attempted: true,
+        originalEventTypes: ['destroy', 'flip'],
+        trajectoryObserved: true,
+        phaseSettled: true,
+        canvasCountWhileActive: 0,
+        trajectoryOverlayCountAfterSettle: 0,
+        initialVisualDigest: 'digest:software',
+        finalVisualDigest: 'digest:software',
+        soundCallCount: 0,
+        logEntryDelta: 0,
+        error: ''
+      },
+      bootError: ''
+    }, 'vite')).toEqual([]);
   });
 });

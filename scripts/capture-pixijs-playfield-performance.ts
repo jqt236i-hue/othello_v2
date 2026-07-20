@@ -7,6 +7,20 @@ import * as path from 'path';
 import { chromium, type Browser, type Page } from 'playwright';
 
 import {
+  assertHardwareAcceleratedGraphics,
+  createDesktopChromiumLaunchOptions,
+  normalizeChromiumGraphicsInfo,
+  readDesktopGraphicsEnvironment,
+  type DesktopGraphicsEnvironment
+} from './browser-performance-environment';
+
+export {
+  createDesktopChromiumLaunchOptions,
+  normalizeChromiumGraphicsInfo
+} from './browser-performance-environment';
+export type { DesktopGraphicsEnvironment } from './browser-performance-environment';
+
+import {
   BOARD_PERFORMANCE_EVENT_DIGEST,
   BOARD_PERFORMANCE_FIXTURE_DIGEST,
   BOARD_PERFORMANCE_META_SCHEMA_VERSION,
@@ -97,73 +111,6 @@ interface DesktopCaptureOptions {
   readonly outputPath?: string | null;
   readonly log?: boolean;
   readonly launch?: typeof chromium.launch;
-}
-
-export interface DesktopGraphicsEnvironment {
-  readonly hardwareAccelerated: boolean;
-  readonly glRenderer: string;
-  readonly glVendor: string;
-  readonly displayType: string;
-  readonly gpuCompositing: string;
-  readonly webgl: string;
-  readonly devices: readonly Readonly<{
-    vendorId: number;
-    deviceId: number;
-    deviceString: string;
-    driverVendor: string;
-    driverVersion: string;
-  }>[];
-}
-
-export function createDesktopChromiumLaunchOptions(
-  platform = process.platform
-): Parameters<typeof chromium.launch>[0] {
-  return platform === 'win32'
-    ? { headless: true, args: ['--use-gl=angle', '--use-angle=d3d11'] }
-    : { headless: true };
-}
-
-export function normalizeChromiumGraphicsInfo(value: any): DesktopGraphicsEnvironment {
-  const gpu = value?.gpu || {};
-  const auxiliary = gpu.auxAttributes || {};
-  const featureStatus = gpu.featureStatus || {};
-  const glRenderer = String(auxiliary.glRenderer || '');
-  const glVendor = String(auxiliary.glVendor || '');
-  const displayType = String(auxiliary.displayType || '');
-  const gpuCompositing = String(featureStatus.gpu_compositing || '');
-  const webgl = String(featureStatus.webgl || '');
-  const softwareRenderer = /swiftshader|llvmpipe|software(?: rasterizer)?/i.test(`${glRenderer} ${glVendor}`);
-  const hardwareAccelerated = glRenderer.length > 0
-    && !softwareRenderer
-    && /^enabled/.test(gpuCompositing)
-    && /^enabled/.test(webgl);
-  const devices = Array.isArray(gpu.devices)
-    ? gpu.devices.map((device: any) => Object.freeze({
-      vendorId: Number(device?.vendorId) || 0,
-      deviceId: Number(device?.deviceId) || 0,
-      deviceString: String(device?.deviceString || ''),
-      driverVendor: String(device?.driverVendor || ''),
-      driverVersion: String(device?.driverVersion || '')
-    }))
-    : [];
-  return Object.freeze({
-    hardwareAccelerated,
-    glRenderer,
-    glVendor,
-    displayType,
-    gpuCompositing,
-    webgl,
-    devices: Object.freeze(devices)
-  });
-}
-
-async function readDesktopGraphicsEnvironment(browser: Browser): Promise<DesktopGraphicsEnvironment> {
-  const session = await browser.newBrowserCDPSession();
-  try {
-    return normalizeChromiumGraphicsInfo(await session.send('SystemInfo.getInfo'));
-  } finally {
-    await session.detach();
-  }
 }
 
 function sha256(value: Buffer | string): string {
@@ -688,9 +635,7 @@ export async function captureDesktopPerformance(options: DesktopCaptureOptions =
     const launch = options.launch || chromium.launch.bind(chromium);
     browser = await launch(createDesktopChromiumLaunchOptions());
     const graphics = await readDesktopGraphicsEnvironment(browser);
-    if (!graphics.hardwareAccelerated) {
-      throw new Error(`Desktop performance capture requires hardware-accelerated WebGL; renderer=${graphics.glRenderer || 'unknown'}`);
-    }
+    assertHardwareAcceleratedGraphics(graphics);
     const reports: any[] = [];
     for (const lane of ['classic', 'vite'] as const) {
       for (const capture of buildDesktopCaptureUrls(baseUrl, lane, commit)) {

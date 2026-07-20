@@ -342,7 +342,7 @@ The contract is implemented by the following ownership chain:
 - `ui/playback-state-manager.ts` owns the playback claim/busy lifecycle.
 - `ui/board-visual/controller.ts` owns the board writer claim and mounts exactly one backend.
 - `ui/board-renderer.ts` routes canonical or committed visual frames through that controller and defers ordinary render requests while playback owns the writer.
-- `ui/pixi/board-backend.ts` is the normal backend. `ui/board-dom-compat/` is a mutually exclusive compatibility package whose runtime is evaluated and constructed only for explicit debug fallback, Pixi/WebGL initialization failure, or unrecoverable context loss.
+- `ui/pixi/board-backend.ts` is the normal backend. `ui/board-dom-compat/` is a mutually exclusive compatibility package whose runtime is evaluated and constructed only for explicit debug fallback, Pixi/WebGL initialization failure (including an explicitly identified software WebGL renderer), or unrecoverable context loss. Renderer disclosure that is unavailable or unknown does not by itself force fallback. The explicit `debug=1&boardRenderer=pixi` selection may keep software Pixi only as a test/diagnostic escape hatch; normal play must not use that exception.
 
 Pixi and DOM compatibility backends must never be mounted or receive input concurrently. The normal `#board` subtree contains the Pixi canvas and semantic accessibility layer; compatibility-only cells and `#board-expansion-layer` are materialized dynamically only after the DOM backend has been selected.
 

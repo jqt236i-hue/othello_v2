@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { chromium } from 'playwright';
 import BrowserUiControlSmoke from './browser-ui-control-smoke';
 
 const { runBrowserUiControlSmoke } = BrowserUiControlSmoke as any;
@@ -99,6 +100,41 @@ function evaluatePixiRuntimeFallbackProbe(
   }
   if (probe?.bootError) errors.push(`${expectedLane}: fatal boot error was rendered`);
   return errors;
+}
+
+function evaluateSoftwareRendererFallbackProbe(
+  probe: PixiFallbackProbe | null | undefined,
+  expectedLane: 'classic' | 'vite'
+): string[] {
+  const errors = evaluatePixiRuntimeFallbackProbe(probe ? {
+    ...probe,
+    capability: {
+      lane: expectedLane,
+      injected: false,
+      version: null,
+      unavailableReason: 'software-renderer-normalized-for-common-fallback-check'
+    }
+  } : probe, expectedLane);
+  if (probe?.capability?.lane !== expectedLane) {
+    errors.push(`${expectedLane}: software fallback capability lane was ${probe?.capability?.lane || 'missing'}`);
+  }
+  if (probe?.capability?.injected !== true) {
+    errors.push(`${expectedLane}: software fallback did not load the Pixi runtime`);
+  }
+  if (probe?.capability?.version !== PIXI_VERSION) {
+    errors.push(`${expectedLane}: software fallback Pixi version was ${probe?.capability?.version || 'missing'}`);
+  }
+  if (probe?.capability?.unavailableReason) {
+    errors.push(`${expectedLane}: software fallback unexpectedly marked the runtime unavailable`);
+  }
+  return errors;
+}
+
+function launchSoftwareChromium(): ReturnType<typeof chromium.launch> {
+  return chromium.launch({
+    headless: true,
+    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+  });
 }
 
 async function captureFallbackProbe(page: any): Promise<PixiFallbackProbe> {
@@ -295,15 +331,27 @@ async function runPixiRuntimeFallbackBrowserCheck(
     beforeGoto: async (page: any) => page.route(`**${vitePixiUnsafeEvalPath}`, (route: any) => route.abort()),
     afterReady: captureFallbackProbe
   });
+  const viteSoftwareRenderer = await runBrowserUiControlSmoke({
+    rootDir,
+    entryPath: '/',
+    readyOnly: true,
+    log: false,
+    launch: launchSoftwareChromium,
+    afterReady: captureFallbackProbe
+  });
 
   const errors = [
     ...evaluatePixiRuntimeFallbackProbe(classic.afterReadyResult, 'classic'),
     ...evaluatePixiRuntimeFallbackProbe(vite.afterReadyResult, 'vite'),
-    ...evaluatePixiRuntimeFallbackProbe(viteUnsafeEval.afterReadyResult, 'vite')
+    ...evaluatePixiRuntimeFallbackProbe(viteUnsafeEval.afterReadyResult, 'vite'),
+    ...evaluateSoftwareRendererFallbackProbe(viteSoftwareRenderer.afterReadyResult, 'vite')
   ];
   if (classic.sample.pageErrors.length) errors.push(`classic: page errors ${JSON.stringify(classic.sample.pageErrors)}`);
   if (vite.sample.pageErrors.length) errors.push(`vite-core: page errors ${JSON.stringify(vite.sample.pageErrors)}`);
   if (viteUnsafeEval.sample.pageErrors.length) errors.push(`vite-csp-replacement: page errors ${JSON.stringify(viteUnsafeEval.sample.pageErrors)}`);
+  if (viteSoftwareRenderer.sample.pageErrors.length) {
+    errors.push(`vite-software-renderer: page errors ${JSON.stringify(viteSoftwareRenderer.sample.pageErrors)}`);
+  }
   if (!classic.requestedUrls.some((url: string) => new URL(url).pathname === CLASSIC_VENDOR_PATH)) {
     errors.push('classic: versioned Pixi vendor request was not observed');
   }
@@ -323,6 +371,7 @@ async function runPixiRuntimeFallbackBrowserCheck(
     classic: classic.afterReadyResult,
     vite: vite.afterReadyResult,
     viteUnsafeEval: viteUnsafeEval.afterReadyResult,
+    viteSoftwareRenderer: viteSoftwareRenderer.afterReadyResult,
     abortedAssets: {
       classic: [CLASSIC_VENDOR_PATH, CLASSIC_UNSAFE_EVAL_VENDOR_PATH],
       vite: vitePixiPath,
@@ -349,5 +398,6 @@ export = {
   VITE_PIXI_MANIFEST_KEY,
   VITE_PIXI_UNSAFE_EVAL_MANIFEST_KEY,
   evaluatePixiRuntimeFallbackProbe,
+  evaluateSoftwareRendererFallbackProbe,
   runPixiRuntimeFallbackBrowserCheck
 };

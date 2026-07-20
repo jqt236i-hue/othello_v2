@@ -51,6 +51,7 @@ export interface PixiBoardApplication {
 
 export const PIXI_BOARD_APPLICATION_OPTIONS = Object.freeze({
   preference: 'webgl' as const,
+  powerPreference: 'high-performance' as const,
   autoStart: false,
   sharedTicker: false,
   autoDensity: true,

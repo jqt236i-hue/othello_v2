@@ -4,7 +4,14 @@ import * as http from 'http';
 import * as path from 'path';
 import { chromium, type Browser, type Page } from 'playwright';
 
-export const REPORT_SCHEMA_VERSION = 'cpu_turn_frame_stall_report.v1';
+import {
+  assertHardwareAcceleratedGraphics,
+  createDesktopChromiumLaunchOptions,
+  readDesktopGraphicsEnvironment,
+  type DesktopGraphicsEnvironment
+} from '../browser-performance-environment';
+
+export const REPORT_SCHEMA_VERSION = 'cpu_turn_frame_stall_report.v2';
 export const SAMPLE_SCHEMA_VERSION = 'cpu_turn_frame_stall_sample.v1';
 export const SCENARIO_IDS = Object.freeze([
   'lv1-empty-or-unusable-hand-place-8x8',
@@ -482,10 +489,12 @@ export function buildFrameStallReport(
     captureIterations: number;
     buildMode: string;
     captureOrder: readonly string[];
+    graphics: DesktopGraphicsEnvironment;
     minimumValidSamples?: number;
     generatedAt?: string;
   }>
 ): Readonly<Record<string, unknown>> {
+  assertHardwareAcceleratedGraphics(options.graphics);
   const minimumValidSamples = Number.isFinite(options.minimumValidSamples)
     ? Math.max(1, Math.trunc(Number(options.minimumValidSamples)))
     : 5;
@@ -580,7 +589,8 @@ export function buildFrameStallReport(
       warmupIterations: options.warmupIterations,
       captureIterations: options.captureIterations,
       buildMode: options.buildMode,
-      captureOrder: Object.freeze(options.captureOrder.slice())
+      captureOrder: Object.freeze(options.captureOrder.slice()),
+      graphics: options.graphics
     }),
     scenarios: Object.freeze(scenarios)
   });
@@ -598,6 +608,16 @@ export function evaluateBlockingPerformanceGate(
   if (errors.length) return Object.freeze({ ok: false, errors: Object.freeze(errors) });
   for (const key of ['profile', 'lane', 'fixtureDigest', 'captureIterations', 'buildMode']) {
     if (baseline.capture?.[key] !== candidate.capture?.[key]) errors.push(`capture ${key} mismatch`);
+  }
+  for (const [label, report] of [['baseline', baseline], ['candidate', candidate]] as const) {
+    if (report.capture?.graphics?.hardwareAccelerated !== true) {
+      errors.push(`${label} capture hardware graphics evidence missing`);
+    }
+  }
+  for (const key of ['glRenderer', 'glVendor', 'displayType']) {
+    if (baseline.capture?.graphics?.[key] !== candidate.capture?.graphics?.[key]) {
+      errors.push(`capture graphics ${key} mismatch`);
+    }
   }
   if (JSON.stringify(baseline.capture?.captureOrder || null) !== JSON.stringify(candidate.capture?.captureOrder || null)) {
     errors.push('capture order mismatch');
@@ -1184,10 +1204,13 @@ async function runCli(): Promise<void> {
   const captureIterations = args.quick ? 5 : 20;
   const server = createAllowlistedStaticServer(rootDir);
   let browser: Browser | null = null;
+  let graphics: DesktopGraphicsEnvironment | null = null;
   const samplesByScenario: Record<string, BrowserSample[]> = Object.fromEntries(SCENARIO_IDS.map((id) => [id, []]));
   try {
     const baseUrl = await listen(server);
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch(createDesktopChromiumLaunchOptions());
+    graphics = await readDesktopGraphicsEnvironment(browser);
+    assertHardwareAcceleratedGraphics(graphics);
     const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];
@@ -1230,6 +1253,7 @@ async function runCli(): Promise<void> {
   }
   const artifactHashAfter = computeBrowserArtifactSha256(rootDir);
   if (artifactHashAfter !== artifactHashBefore) throw new Error('browser artifact changed during capture');
+  if (!graphics) throw new Error('desktop graphics environment was not captured');
   const report = buildFrameStallReport(samplesByScenario, {
     profile: args.profile,
     lane: 'vite',
@@ -1239,6 +1263,7 @@ async function runCli(): Promise<void> {
     captureIterations,
     buildMode: 'vite-production',
     captureOrder: SCENARIO_IDS,
+    graphics,
     minimumValidSamples: args.quick ? 5 : 20
   });
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });

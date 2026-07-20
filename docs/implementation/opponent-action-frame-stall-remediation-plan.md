@@ -531,3 +531,144 @@ blocking gateを外れた場合は、reportの最長stageをownerへ戻す。
 - [ ] `npm run build:browser`と`npm run worker:prepare`で生成面同期
 - [ ] `git diff --check`、task-owned diff、最終status確認
 - [ ] 検証済みtask-owned変更のみcommit
+
+## 2026-07-21 実GPU再検証フォローアップ実装計画
+
+- Status: completed
+
+設計authorityは同設計書の「2026-07-21 実GPU再検証フォローアップ」とする。既存Step 1〜9で解消済みのCPU分析、playback、Pixi invalidation/ticker、FPS表示は再実装せず、software WebGL選択と性能captureの妥当性だけを追加修正する。
+
+### Step 10: renderer分類契約とPixi初期capability gateを実装する
+
+#### Outcome
+
+通常起動でSwiftShader等の明示的software WebGLを検出した場合、canonical actionやplayback開始前にPixi mountを失敗させ、既存controller transactionでDOM compatibilityへ排他的に切り替える。hardwareまたは判定不能なrendererは従来どおりPixiを使う。
+
+#### Components
+
+- `shared/webgl-renderer-classification.ts`
+- `ui/pixi/application.ts`
+- `ui/pixi/board-backend.ts`
+- `ui/board-renderer.ts`
+- `docs/architecture-contracts.md` 7.3
+- focused tests: shared分類、Pixi Application/backend、board renderer backend selection
+
+#### Behavior / contract
+
+1. shared helperはrenderer/vendor文字列を正規化し、SwiftShader、llvmpipe/softpipe、software rasterizer、Microsoft Basic Render Driverだけを明示的softwareとする。
+2. Pixi ApplicationはWebGLとprivate tickerの既存optionに`powerPreference: high-performance`を加える。
+3. backendはApplication mount後、scene/texture/input/playback作成前にWebGL contextのunmasked renderer/vendorを読む。明示的softwareなら`pixi_software_webgl_renderer`、`stage: webgl`、fallback eligibleでrejectする。
+4. 情報取得不能・unknownはPixi継続とする。情報取得APIの例外をmount failureへ昇格しない。
+5. `debug=1&boardRenderer=pixi`で明示的にPixiを選んだtest/debug経路だけ`allowSoftwareRenderer`をbackendへ渡す。通常URL、`boardRenderer=pixi`だけ、`debug=0`はoverrideにしない。
+6. controller側の初期fallback allowlistへ新codeを追加し、Pixi cleanup後にDOM backendだけをmountする。
+
+#### Dependencies
+
+- 既存`ui/board-visual/controller.ts`のinitial mount fallback transaction
+- 既存`cleanupOwnedResources()`とSingle Visual Writer契約
+
+#### Verification
+
+- helper table test: SwiftShader / llvmpipe / software rasterizer / hardware ANGLE / empty / malformed
+- backend unit test: software reject、hardware/unknown継続、override継続、scene生成前reject、fallback eligibility
+- renderer selection test: debug強制時だけ`allowSoftwareRenderer: true`
+- Application unit test: init optionに`powerPreference: high-performance`
+- `npm run check:window`でshared/game boundaryを確認
+
+#### Done
+
+- 通常software WebGLがfallback対象になり、debug強制以外でPixi sceneを構築しない。
+- hardware/unknown経路、context recovery、ordered playback、backend排他性を回帰させない。
+
+### Step 11: desktop性能captureをhardware証明付きへ統合する
+
+#### Outcome
+
+相手アクションと盤面性能の自動captureが同じdesktop graphics contractを使い、SwiftShader等のraw RAF/Long Taskを実GPU性能として保存・判定しない。
+
+#### Components
+
+- `scripts/browser-performance-environment.ts`
+- `scripts/capture-pixijs-playfield-performance.ts`
+- `scripts/perf/measure-opponent-action-frame-stall.ts`
+- focused script tests
+- 必要に応じPixi runtime fallback browser check
+
+#### Behavior / contract
+
+1. Windows ChromiumはANGLE D3D11 optionで起動し、全platformでCDP `SystemInfo.getInfo`を正規化する。
+2. hardware判定はshared renderer分類に加えてGPU compositingとWebGL feature statusがenabledであることを要求する。
+3. 両captureは測定開始前に`hardwareAccelerated === true`を要求し、不成立ならrenderer名を示してfail closedする。
+4. 相手アクションreportをschema v2へ上げ、必須の`capture.graphics`へrenderer/vendor/display type/feature status/device情報を保存する。baseline/candidateはhardware証拠とrenderer/vendor/display typeの一致を要求し、旧schemaやsoftware captureを拒否する。private gameplay stateやtokenは含めない。
+5. `capture-pixijs-playfield-performance.ts`の既存exportは新helperのre-exportで互換維持する。
+6. capture中のbrowser artifact hash固定、scenario fixture、sample validity、既存performance gateは変更しない。
+
+#### Dependencies
+
+- Step 10のshared renderer分類helper
+- Playwright CDP session
+
+#### Verification
+
+- script testでWindows/非Windows起動option、hardware/software正規化、report graphics保存、forbidden key検査を確認
+- `npm run build:ts`
+- `npm run perf:opponent-action-stall -- --quick --output <temp>`でhardware environment、全5scenario、console/page error 0を確認
+- `npm run match:pixi-runtime-fallback-check`で通常software選択がDOMへ排他的にfallbackすることを確認
+- `npm run match:pixijs-board-playback-check`で明示debug Pixiのplaybackを回帰確認
+
+#### Done
+
+- software rendererでは性能captureが明示的に失敗し、hardware captureだけがraw frame evidenceとして残る。
+- runtime側はsoftware通常起動をDOMへ切り替え、Pixi固有debug checkは明示選択で維持される。
+
+### Step 12: browser生成面・mirror・実ブラウザ結果を確定する
+
+#### Outcome
+
+root source、classic/Vite browser artifact、Worker mirror、architecture文書が同じrenderer capability契約を持ち、実GPUとsoftware fallbackの双方で検証済みになる。
+
+#### Execution
+
+1. Step 10〜11のfocused Jestを実行する。
+2. `npm run check:window`、`npm run typecheck`、`npm run build:ts`を実行する。
+3. browser表示に影響するroot変更として`npm run build:browser`を実行する。
+4. `npm run match:pixi-runtime-fallback-check`と`npm run match:pixijs-board-playback-check`を実行する。
+5. hardware相手アクションquick captureを実行し、graphics、Long Task、CPU sync、RAF、console/page errorを確認する。
+6. `npm run worker:prepare`とmirror checkを実行する。
+7. `git diff --check`、generated source一致、task-owned diff、最終`git status --short`を確認する。
+8. 検証済みtask-owned filesだけをstageしてcoherent commitを作る。
+
+#### Done
+
+- 通常software WebGLはDOM compatibilityでreadyになり、Pixi canvas/contextとDOM cellsが同時に存在しない。
+- hardware captureは全scenarioで有効かつgraphics証拠付きで、50ms以上のLong Taskが残る場合はtrace帰属を確認してから完了判定する。
+- 全検証と生成面同期が成功し、関連しない変更をcommitへ含めない。
+
+### フォローアップ計画Self-review
+
+- CPUやカードロジックを再最適化するStepを入れず、実GPUで反証された仮説を実装範囲から外した。
+- runtime fallbackだけ、またはcapture修正だけに偏らず、ユーザー経路と診断経路の両方を同じ分類契約で閉じる順序にした。
+- software判定をApplication生成前に行うことはできないため、canvas/contextを一度取得した直後、scene/texture/playbackより前にgateし、既存cleanupを完了条件へ含めた。
+- CIのSwiftShaderでもPixi固有testを失わないよう明示debug overrideを用意する一方、通常URLとperformance captureではoverrideを使わない検証を分離した。
+- runtimeのunknown rendererを失敗させず、captureだけはhardware証明を要求する。プレイヤーの可用性はfail-safe、性能証拠はfail-closedという目的別の差を明示した。
+- 既存capture helperのexport互換を保ち、テストや外部scriptを一斉移行させる不要なblast radiusを避けた。
+- browser root source変更後の`build:browser`とWorker mirror生成を最終Stepへ含め、rootだけ直して配布面を古いままにしない。
+
+### フォローアップ完了チェックリスト
+
+- [x] shared renderer分類とtable test
+- [x] Pixi `powerPreference`とApplication test
+- [x] software WebGL初期fallbackとbackend test
+- [x] debug明示Pixi overrideとselection test
+- [x] architecture contract 7.3更新
+- [x] desktop graphics helper抽出と既存export互換
+- [x] 相手アクションcaptureのhardware起動・検証・report記録
+- [x] focused Jest、window boundary、task-scoped typecheck/build成功
+- [x] software runtime fallback browser check成功
+- [x] Pixi playback browser check成功
+- [x] hardware相手アクションquick capture成功
+- [x] browser生成、`worker:prepare`相当、mirror check成功
+- [x] `git diff --check`、task-owned diff、最終status確認
+- [x] 検証済みtask-owned変更だけをcommit対象に限定
+
+完了時点で別作業の未追跡`shared/leaderboard-score.ts`と`workers/match-worker-leaderboard-proof.ts`が同一checkoutへ出現し、前者の型エラーが標準`typecheck`/`build:browser` wrapperを遮った。この2ファイルを変更・生成・stageせずに除外する一時tsconfigでtask-scoped `tsc`を成功させ、その出力から`build:browser`/`build:vite`の各生成stepとWorker mirror生成を実行した。一時tsconfigは削除済みであり、このフォローアップの配布artifactとmirror checkは成功している。

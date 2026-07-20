@@ -531,3 +531,89 @@ raw RAF interval、Long Task、Long Animation Frameは全sampleをreportへ保�
 - 独立reviewを受け、identityへ`stateVersion`と`decisionEpoch`を追加し、stateVersion不明の非同期境界では再利用しないfail-closed契約へ修正した。
 - 独立reviewを受け、strict成功settleとcancel/abort-finalizeを分離した識別union、Application/ticker adapter境界の60Hz検証、共有workstationと隔離reference環境を分けた性能gateへ修正した。
 - FPSの`MAX`は累積値ではなく500ms sample窓内の最大RAF間隔であり、初回/background復帰timestampを除外することまで定義した。
+
+## 2026-07-21 実GPU再検証フォローアップ
+
+- Status: implemented and verified
+
+### 結論の修正
+
+既存修正後の現行HEADを再計測した結果、CPUがカードを使う、または石を置くたびにゲームロジックが50ms以上メインスレッドを占有する、という説明は現時点では成立しない。RTX 2070 / ANGLE D3D11の実GPU経路で5シナリオを各3回、合計15回計測したところ、Long Taskは全件0、CPU同期処理は約6〜16ms、初回warmup後の最大RAF間隔は通常着手・Lv6で約16.8ms、カード演出で主に約16.8〜33.4msだった。
+
+一方、従来の相手アクション性能captureが使う既定Playwright ChromiumはANGLE SwiftShaderで、Pixi経路に限って約50〜66msのLong Taskを再現した。traceでは`FireAnimationFrame`約29msに加えてPrePaintと`GLES2::ReadPixels`待ち約21msが同じtaskへ含まれた。同じSwiftShader環境でDOM compatibilityを使うと10回すべてLong Task 0だった。したがって残存問題は次の二つへ分離する。
+
+1. 通常起動で明示的なソフトウェアWebGLをPixi正常系として選び、CPU処理と無関係なGPU/ReadPixels待ちを相手アクションの瞬間へ重ね得る。
+2. 性能captureがソフトウェアWebGLを実機GPU性能として扱い、raw RAF/Long Taskをアプリ固有の退行と誤認し得る。
+
+画面のFPS表示はブラウザ`requestAnimationFrame` callback頻度であり、Pixiの実render回数やGPUだけのFPSではない。240Hz表示で約220を示す値と、別ゲームの内部FPS 300は同じ計測対象ではない。現行Pixiはactive playbackのprivate tickerを60Hz以下に制限し、idle時は停止するため、この表示差だけを定常負荷の証拠にはしない。
+
+### 対象と非目標
+
+- 対象: 通常起動時のPixi初期capability判定、明示的software WebGLからDOM compatibilityへの排他的fallback、Pixi ApplicationのGPU選好、desktop性能captureのGPU妥当性確認、分類契約とbrowser fallbackの回帰検証。
+- 非目標: CPU選択、カード効果、turn order、animation duration、Single Visual Writer、FPS表示仕様、60Hz ticker上限、ネットワークauthorityの変更。
+- `01-rulebook.md`と`正本/*.md`は変更しない。描画backendのcapability選択は内部品質契約で、盤面の意味・入力・演出順を変えない。
+
+### 選択した設計
+
+#### 1. software WebGL分類をportable helperへ一元化する
+
+`shared/webgl-renderer-classification.ts`を追加し、renderer/vendor文字列だけから明示的software rendererかを判定する純粋関数を持たせる。SwiftShader、llvmpipe/softpipe、`software rasterizer`、Microsoft Basic Render Driverをsoftwareとして分類し、不明・空文字・一般的なANGLE文字列はhardwareと断定せず`unknown`相当の非softwareとして扱う。
+
+このhelperはDOM、`window`、Playwright、Pixiへ依存しない。browser runtimeのWebGL context情報とNode captureのCDP SystemInfoが同じ分類規則を利用し、regexのdriftを防ぐ。
+
+#### 2. 通常Pixi mountをcapability gateにする
+
+`ui/pixi/board-backend.ts`はApplication mount後、scene/texture/input/playback生成前にWebGL contextを確認する。`WEBGL_debug_renderer_info`が使える場合はunmasked renderer/vendorを読み、使えない場合は標準`RENDERER`/`VENDOR`へ限定的に戻す。明示的softwareと分類できた場合は`pixi_software_webgl_renderer`を`stage: webgl`かつcompatibility fallback eligibleな初期化失敗として返す。
+
+不明なrendererをsoftwareと推測してfallbackしない。拡張非対応、privacy制限、文字列取得失敗はPixi継続とし、誤判定で正常なGPUをDOMへ落とさない。失敗mountは既存`cleanupOwnedResources()`でcanvas/context/cameraを破棄してから、controllerがDOM backendを排他的にmountするため、二重writer・二重canvasは作らない。
+
+`debug=1&boardRenderer=pixi`という明示的debug選択だけはsoftware Pixiを許可する。これはSwiftShaderしかないCIでPixi固有のplayback/testを継続するための診断escape hatchであり、通常URLには適用しない。normal pathと性能captureはこの例外で成功扱いにしない。
+
+#### 3. Pixi Applicationは高性能GPUを選好する
+
+`ui/pixi/application.ts`の既存WebGL固定optionへ`powerPreference: 'high-performance'`を追加する。これはOS/ブラウザへの選好であり、hardware利用の保証には使わない。実際のrenderer分類が最終gateである。
+
+#### 4. desktop性能captureはhardwareを証明してから測る
+
+`scripts/browser-performance-environment.ts`へdesktop Chromium起動option、CDP SystemInfo正規化、graphics environment読取を集約する。Windowsでは既存どおりANGLE D3D11を要求し、他platformでは既定起動後の実情報を検査する。
+
+`capture-pixijs-playfield-performance.ts`と`perf/measure-opponent-action-frame-stall.ts`は同じhelperを使い、`hardwareAccelerated !== true`ならrenderer名を含む明示的な失敗にする。相手アクションreportはschema v2とし、必須の`capture.graphics`へsanitized graphics情報を保存する。baseline/candidate比較はhardware証拠とrenderer/vendor/display typeの一致を要求し、旧schemaやsoftware captureを性能baselineとして再利用しない。raw RAF/Long Taskはhardware証明済みcaptureだけを性能根拠にする。
+
+Pixi固有browser checkは明示的debug Pixi選択を維持するため、software CIでもrendererロジック自体を検証できる。runtime fallback checkには通常選択かつsoftware rendererのシナリオを追加し、DOMへ排他的に切り替わることを確認する。
+
+### 代替案と不採用理由
+
+- Pixiを全環境で無効化する: hardware経路ではstallを再現せず、通常backendと演出品質を不必要に失うため不採用。
+- softwareでもPixiのantialiasやresolutionだけを下げる: traceのReadPixels/compositor待ちを確実に除けず、端末依存の調整を正常系へ増やすため不採用。
+- user agentやGPU vendor名で判定する: renderer実体と一致せず、remote desktopやhybrid GPUで誤判定するため不採用。
+- capture側だけ直す: 測定誤認は防げるが、実ユーザーのhardware acceleration無効・remote/driver fallback時の瞬間停止を残すため不採用。
+- software判定時にPixi phaseの途中だけDOM描画する: Single Visual Writer、ordered playback、settlementを破るため禁止。
+
+### 失敗・復旧契約
+
+- software判定は初期mount中だけ行い、canonical game stateやpresentation eventを消費する前に失敗する。
+- `pixi_software_webgl_renderer`は既存のruntime/WebGL/Application初期化失敗と同じcontroller fallback transactionへ入る。
+- mount失敗時はPixi資源を全破棄し、hostのrenderer属性をDOMへ切り替えた後でcompatibility backendをmountする。
+- debug強制Pixiを除き、software rendererを検出したのにfallbackできない場合は成功形へ隠さずreadyをrejectする。
+- runtime中のcontext lossは既存recovery/fallback契約を変更しない。GPUが途中でsoftwareへ変わるケースを新しいpollingや第二clockで監視しない。
+
+### 検証と完了条件
+
+- 分類helperのtable testでSwiftShader/llvmpipe/software rasterizer、hardware ANGLE、空・不明値を固定する。
+- Pixi backend testでsoftware WebGLはscene生成前にfallback eligible errorとなり、hardware/unknownは従来mountを継続し、debug overrideは明示時だけ許可される。
+- board renderer selection testで通常選択と明示的debug Pixiのoption伝播を固定する。
+- Application testで`powerPreference: high-performance`を固定する。
+- capture helper testでWindows D3D11 option、hardware/software判定、CDP environmentのreport付与を固定する。
+- software Chromiumの通常URLがDOM backendでreadyになり、canvas/contextとDOM cellsが同時に残らない。
+- 実GPUの相手アクションquick captureで全scenarioの有効sampleを取得し、Long Task 0、console/page error 0、hardware environmentがreportへ記録される。
+- focused Jest、`check:window`、typecheck、browser build、Pixi playback/fallback check、Worker mirror生成を通し、task-owned diffだけをcommitする。
+
+### フォローアップSelf-review
+
+- 最初のraw RAF 50〜66msを現行ゲームの回帰と断定せず、CDP traceとSystemInfoでSwiftShaderの`ReadPixels`待ちへ帰属させ、実GPU15回・software DOM 10回との反証比較を追加した。
+- hardwareでLong Task 0だったため、CPUロジックをさらに分割・Worker化する案を撤回した。選択結果やauthorityを動かさず、観測された残存原因だけを修正対象にした。
+- softwareを一律「低性能GPU」と推測せず、明示文字列に限定したfail-safe分類にした。不明値はPixi継続とし、privacy制限下の誤fallbackを避けた。
+- captureとruntimeで別regexを持つ案を撤回し、portable helperへ一元化した。
+- software Pixiを完全禁止するとCIのPixi固有検証を失うため、明示的debug選択だけのescape hatchを設けた。通常起動と性能証拠には使えない境界を明記した。
+- fallbackをactive phase内に入れず、scene生成前のmount capability failureへ置いたため、Single Visual Writerとsettlement順を維持できることを確認した。
+- `powerPreference`だけではhardwareを保証しないため、runtime実体判定とcaptureのCDP検証を別々の必須条件にした。

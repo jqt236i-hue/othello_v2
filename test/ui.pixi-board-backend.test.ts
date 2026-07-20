@@ -164,6 +164,8 @@ function createApplicationRuntime(document: Document, options: {
   initError?: Error;
   rendererMissing?: boolean;
   rendererType?: string | number;
+  rendererText?: string;
+  vendorText?: string;
 } = {}) {
   const instances: any[] = [];
   class Application {
@@ -182,7 +184,22 @@ function createApplicationRuntime(document: Document, options: {
         start: jest.fn(() => { this.ticker.started = true; }),
         stop: jest.fn(() => { this.ticker.started = false; })
       };
-      const gl = { MAX_TEXTURE_SIZE: 3379, getParameter: jest.fn(() => 2048) };
+      const debugRendererInfo = options.rendererText != null || options.vendorText != null
+        ? { UNMASKED_RENDERER_WEBGL: 37446, UNMASKED_VENDOR_WEBGL: 37445 }
+        : null;
+      const gl = {
+        MAX_TEXTURE_SIZE: 3379,
+        RENDERER: 7937,
+        VENDOR: 7936,
+        getExtension: jest.fn(() => debugRendererInfo),
+        getParameter: jest.fn((parameter: number) => {
+          if (parameter === 37446) return options.rendererText || '';
+          if (parameter === 37445) return options.vendorText || '';
+          if (parameter === 7937) return options.rendererText || '';
+          if (parameter === 7936) return options.vendorText || '';
+          return 2048;
+        })
+      };
       this.renderer = options.rendererMissing ? null : {
         type: typeof options.rendererType === 'undefined' ? 'webgl' : options.rendererType,
         gl,
@@ -377,6 +394,9 @@ function createHarness(options: {
   initError?: Error;
   rendererMissing?: boolean;
   rendererType?: string | number;
+  rendererText?: string;
+  vendorText?: string;
+  allowSoftwareRenderer?: boolean;
   webglAvailable?: boolean;
   sceneFactoryThrows?: boolean;
   cameraFactory?: any;
@@ -418,12 +438,16 @@ function createHarness(options: {
       viewportListeners.get(type)?.delete(listener);
     }
   };
+  const sceneFactory = options.sceneFactoryThrows
+    ? jest.fn(() => { throw new Error('scene-init-failed'); })
+    : jest.fn(() => scene.scene);
   const backend = Backend.createPixiBoardVisualBackend({
     runtime: app.runtime,
     root: dom.window as any,
     document,
     devicePixelRatio: 2,
     noAnimation: options.noAnimation !== false,
+    allowSoftwareRenderer: options.allowSoftwareRenderer,
     webglPreflight: () => options.webglAvailable !== false,
     textureRuntime: textures.runtime as any,
     measureViewport: () => ({ width: 160, height: 120 }),
@@ -432,9 +456,7 @@ function createHarness(options: {
       resizeCallback = callback;
       return { observe() {}, disconnect() { observerDisconnected = true; } };
     },
-    sceneFactory: options.sceneFactoryThrows
-      ? (() => { throw new Error('scene-init-failed'); })
-      : (() => scene.scene),
+    sceneFactory,
     cameraFactory: options.cameraFactory,
     inputFactory: options.inputFactory,
     playbackFactory: options.playbackFactory,
@@ -464,6 +486,7 @@ function createHarness(options: {
     app,
     textures,
     scene,
+    sceneFactory,
     leases,
     backend,
     matchMedia,
@@ -1099,15 +1122,26 @@ describe('Pixi board backend integration', () => {
     await expect(webglInit.backend.mount(webglInit.host, {})).rejects.toMatchObject({ code: 'pixi_webgl_init_failed' });
     const renderer = createHarness({ rendererMissing: true });
     await expect(renderer.backend.mount(renderer.host, {})).rejects.toMatchObject({ code: 'pixi_renderer_init_failed' });
+    const software = createHarness({
+      rendererText: 'ANGLE (Google, Vulkan SwiftShader Device)',
+      vendorText: 'Google Inc.'
+    });
+    await expect(software.backend.mount(software.host, {})).rejects.toMatchObject({
+      code: 'pixi_software_webgl_renderer',
+      stage: 'webgl',
+      fallbackEligible: true
+    });
 
     const fallbackErrors = [
       await missingRuntime.mount(runtimeUnavailable.host, {}).catch((error) => error),
       await webgl.backend.mount(webgl.host, {}).catch((error) => error),
       await application.backend.mount(application.host, {}).catch((error) => error),
       await webglInit.backend.mount(webglInit.host, {}).catch((error) => error),
-      await renderer.backend.mount(renderer.host, {}).catch((error) => error)
+      await renderer.backend.mount(renderer.host, {}).catch((error) => error),
+      await software.backend.mount(software.host, {}).catch((error) => error)
     ];
     expect(fallbackErrors.every(Backend.isPixiCompatibilityFallbackError)).toBe(true);
+    expect(software.sceneFactory).not.toHaveBeenCalled();
 
     const camera = createHarness({ cameraFactory: () => { throw new Error('camera-failed'); } });
     const cameraError = await camera.backend.mount(camera.host, {}).catch((error) => error);
@@ -1142,6 +1176,18 @@ describe('Pixi board backend integration', () => {
       fallbackEligible: false
     });
     expect(Backend.isPixiCompatibilityFallbackError(playbackError)).toBe(false);
+  });
+
+  test('allows explicit debug/test software Pixi without changing normal classification', async () => {
+    const harness = createHarness({
+      rendererText: 'ANGLE (Google, Vulkan SwiftShader Device)',
+      vendorText: 'Google Inc.',
+      allowSoftwareRenderer: true
+    });
+
+    await expect(harness.backend.mount(harness.host, {})).resolves.toBeUndefined();
+    expect(harness.sceneFactory).toHaveBeenCalledTimes(1);
+    harness.backend.destroy();
   });
 
   test('accepts Pixi v8 numeric WEBGL and rejects numeric WEBGPU/CANVAS renderers', async () => {

@@ -57,6 +57,10 @@ import {
 } from './board-playback';
 import type { PixiStaticTextureSource } from './cell-view';
 import {
+  classifyWebGlRenderer,
+  type WebGlRendererClassification
+} from '../../shared/webgl-renderer-classification';
+import {
   createPixiContextRecovery,
   type PixiContextRecovery,
   type PixiContextRecoveryDiagnostics
@@ -175,6 +179,8 @@ export interface PixiBoardBackendOptions {
   readonly measureViewport?: PixiBoardCameraOptions['measureViewport'];
   readonly effectGutterCells?: number;
   readonly noAnimation?: boolean;
+  /** Explicit debug/test escape hatch; normal play must reject software WebGL. */
+  readonly allowSoftwareRenderer?: boolean;
   readonly webglPreflight?: (runtime: any) => boolean | Promise<boolean>;
   readonly textureRuntime?: PixiTextureManagerRuntime;
   readonly applicationFactory?: (options: PixiBoardApplicationOptions) => PixiBoardApplication;
@@ -232,7 +238,8 @@ const COMPATIBILITY_FALLBACK_CODES = new Set([
   'pixi_webgl_unavailable',
   'pixi_application_init_failed',
   'pixi_webgl_init_failed',
-  'pixi_renderer_init_failed'
+  'pixi_renderer_init_failed',
+  'pixi_software_webgl_renderer'
 ]);
 
 function finitePositive(value: unknown): number | null {
@@ -383,6 +390,29 @@ function readRendererMaxTextureSize(renderer: any): number | null {
   } catch (_error) {
     return null;
   }
+}
+
+function readWebGlRendererClassification(renderer: any): WebGlRendererClassification {
+  const gl = renderer && (renderer.gl || renderer.context?.gl || renderer.context?.webGLContext);
+  if (!gl || typeof gl.getParameter !== 'function') return classifyWebGlRenderer('', '');
+  let rendererValue: unknown = '';
+  let vendorValue: unknown = '';
+  try {
+    const extension = typeof gl.getExtension === 'function'
+      ? gl.getExtension('WEBGL_debug_renderer_info')
+      : null;
+    if (extension) {
+      rendererValue = gl.getParameter(extension.UNMASKED_RENDERER_WEBGL);
+      vendorValue = gl.getParameter(extension.UNMASKED_VENDOR_WEBGL);
+    } else {
+      rendererValue = gl.getParameter(gl.RENDERER);
+      vendorValue = gl.getParameter(gl.VENDOR);
+    }
+  } catch (_error) {
+    // Renderer disclosure may be unavailable for privacy or driver reasons.
+    // Unknown is allowed in normal play; only explicit software evidence falls back.
+  }
+  return classifyWebGlRenderer(rendererValue, vendorValue);
 }
 
 function rendererExplicitlyNotWebGl(renderer: any, runtime: any): boolean {
@@ -1217,6 +1247,21 @@ export function createPixiBoardVisualBackend(
             stage: 'webgl',
             message: 'Pixi WebGL renderer was not created',
             fallbackEligible: true
+          });
+        }
+        const rendererClassification = readWebGlRendererClassification(renderer);
+        record('pixi-backend:webgl-renderer', {
+          renderer: rendererClassification.renderer,
+          vendor: rendererClassification.vendor,
+          explicitSoftware: rendererClassification.explicitSoftware
+        });
+        if (rendererClassification.explicitSoftware && options.allowSoftwareRenderer !== true) {
+          throw backendError({
+            code: 'pixi_software_webgl_renderer',
+            stage: 'webgl',
+            message: 'Pixi software WebGL renderer is not supported in normal play',
+            fallbackEligible: true,
+            detail: rendererClassification
           });
         }
       } catch (error) {

@@ -147,6 +147,9 @@ describe('board renderer backend selection and initial compatibility fallback', 
     await controller.waitUntilReady();
 
     expect(createPixiBackend).toHaveBeenCalledTimes(1);
+    expect(createPixiBackend).toHaveBeenCalledWith(expect.objectContaining({
+      allowSoftwareRenderer: false
+    }));
     expect(createDomBackend).not.toHaveBeenCalled();
     expect(controller.getBackendKind()).toBe('pixi');
     expect(document.getElementById('board')?.getAttribute('data-board-renderer')).toBe('pixi');
@@ -168,6 +171,7 @@ describe('board renderer backend selection and initial compatibility fallback', 
 
     expect(createPixiBackend).toHaveBeenCalledWith(expect.objectContaining({
       noAnimation: true,
+      allowSoftwareRenderer: true,
       getInputController: expect.any(Function),
       onTopologyRevealStart: expect.any(Function),
       contextRecovery: expect.objectContaining({
@@ -232,6 +236,7 @@ describe('board renderer backend selection and initial compatibility fallback', 
 
     expect(createPixiBackend).toHaveBeenCalledWith(expect.objectContaining({
       noAnimation: false,
+      allowSoftwareRenderer: false,
       getInputController: expect.any(Function),
       onTopologyRevealStart: expect.any(Function)
     }));
@@ -338,6 +343,7 @@ describe('board renderer backend selection and initial compatibility fallback', 
 
     expect(createPixiBackend).toHaveBeenCalledWith(expect.objectContaining({
       noAnimation: false,
+      allowSoftwareRenderer: true,
       getInputController: expect.any(Function),
       onTopologyRevealStart: expect.any(Function)
     }));
