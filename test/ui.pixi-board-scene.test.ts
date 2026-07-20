@@ -600,7 +600,7 @@ describe('Pixi static retained views', () => {
 });
 
 describe('Pixi static board scene', () => {
-  test('uses the fixed layer order, one retained view per key, and four 8x8 star points', () => {
+  test('uses the fixed layer order, one static sprite, sparse stones, and four 8x8 star points', () => {
     const fixture = createFakeRuntime();
     const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime, stage: fixture.stage });
     const topology = makeTopology({ baseRows: 8, baseCols: 8 });
@@ -641,32 +641,27 @@ describe('Pixi static board scene', () => {
       surfaceBoardTextureCount: 1,
       cellBoardTextureCount: 0,
       textureBackedStoneCount: 1,
+      activeStoneViewCount: 1,
+      staticBakeCount: 1,
+      staticBakeSkipCount: 1,
+      staticAttachedObjectCount: 1,
+      staticTemporaryObjectCount: 0,
       canvasCount: 0,
       domNodeCount: 0,
       layerOrder: BoardScene.PIXI_BOARD_SCENE_LAYER_ORDER
     });
-    const starGraphics = scene.layers.marker.children[0] as FakeGraphics;
-    expect(starGraphics.commands.filter((command) => command.op === 'circle').map((command) => command.args)).toEqual([
-      [128, 128, expect.any(Number)],
-      [256, 128, expect.any(Number)],
-      [128, 256, expect.any(Number)],
-      [256, 256, expect.any(Number)]
-    ]);
     expect(scene.getRenderedCell(3, 3)).toMatchObject({
       kind: 'playable',
       cell: { usesBoardTexture: false },
       stone: { textureBacked: true, texturePurpose: 'black-stone' }
     });
     expect(scene.layers.surface.children[0]).toMatchObject({
-      label: 'pixi-board-surface-fill',
-      visible: true
-    });
-    expect(scene.layers.surface.children[1]).toMatchObject({
-      label: 'pixi-board-surface-texture',
+      label: 'pixi-static-board-texture',
       visible: true,
-      width: 256,
-      height: 256
+      width: 320,
+      height: 320
     });
+    expect(scene.layers.surface.children).toHaveLength(1);
   });
 
   test('ignores transaction generation when stable surface and stone resource identities are unchanged', () => {
@@ -708,7 +703,7 @@ describe('Pixi static board scene', () => {
       textureRevision: 4,
       surfaceTextureRevision: '[["board","board:next"]]',
       stoneTextureRevision: '[["black-stone","black-stone:next"]]'
-    })).toMatchObject({ updatedCellViews: 0, updatedStoneViews: 64 });
+    })).toMatchObject({ updatedCellViews: 0, updatedStoneViews: 0 });
   });
 
   test('keeps the single board texture on the base board and textures expansion cells separately', () => {
@@ -738,14 +733,9 @@ describe('Pixi static board scene', () => {
       textureRevision: 1
     });
 
-    const surfaceTexture = scene.layers.surface.children.find((child: any) => (
-      child.label === 'pixi-board-surface-texture'
-    ));
-    expect(surfaceTexture).toMatchObject({
-      texture: boardTexture,
-      position: { x: 64, y: 96 },
-      width: 128,
-      height: 128,
+    expect(scene.layers.surface.children).toHaveLength(1);
+    expect(scene.layers.surface.children[0]).toMatchObject({
+      label: 'pixi-static-board-texture',
       visible: true
     });
     expect(scene.getRenderedCell(0, 0)?.cell.usesBoardTexture).toBe(false);
@@ -775,36 +765,35 @@ describe('Pixi static board scene', () => {
     }));
     theoryScene.applyFrame(makeFrame({ topology, cells }));
     expect(theoryScene.getDiagnostics().starPointCount).toBe(3);
-    const starGraphics = theoryScene.layers.marker.children[0] as FakeGraphics;
-    expect(starGraphics.commands.filter((command) => command.op === 'circle').map((command) => command.args)).toEqual([
-      [128, 128, expect.any(Number)],
-      [128, 256, expect.any(Number)],
-      [256, 256, expect.any(Number)]
-    ]);
+    expect(theoryScene.getDiagnostics()).toMatchObject({
+      staticBakeCount: 1,
+      staticAttachedObjectCount: 1
+    });
   });
 
-  test('rebuilds star points only for their actual geometry and surface-color dependencies', () => {
+  test('rebakes the static texture for surface dependencies while keeping star count stable', () => {
     const fixture = createFakeRuntime();
     const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
     const topology = makeTopology({ baseRows: 8, baseCols: 8 });
     const baseTheme = Theme.createBoardVisualThemeDescriptor({ revision: 1, surfaceColor: '#112233' });
     scene.applyFrame(makeFrame({ topology, theme: baseTheme }));
-    const starGraphics = scene.layers.marker.children[0] as FakeGraphics;
-    const initialCommands = starGraphics.commands;
+    const initialBakeCount = scene.getDiagnostics().staticBakeCount;
 
     scene.applyFrame(makeFrame({
       topology,
       theme: Object.freeze({ ...baseTheme, revision: 99, markerColor: '#abcdef' })
     }));
-    expect(starGraphics.commands).toBe(initialCommands);
+    expect(scene.getDiagnostics().staticBakeCount).toBe(initialBakeCount + 1);
 
     scene.applyFrame(makeFrame({
       topology,
       theme: Object.freeze({ ...baseTheme, revision: 99, surfaceColor: '#445566' })
     }));
-    expect(starGraphics.commands).not.toBe(initialCommands);
-    expect(starGraphics.commands.filter((command) => command.op === 'fill'))
-      .toEqual(Array(4).fill({ op: 'fill', style: { color: '#445566', alpha: 0.72 } }));
+    expect(scene.getDiagnostics()).toMatchObject({
+      staticBakeCount: initialBakeCount + 2,
+      starPointCount: 4,
+      staticTemporaryObjectCount: 0
+    });
   });
 
   test('updates only the view whose semantic or appearance dependency changed', () => {
@@ -867,9 +856,9 @@ describe('Pixi static board scene', () => {
       theme: Theme.createBoardVisualThemeDescriptor({ revision: 2, surfaceColor: '#123456' })
     }));
     expect(stoneAppearanceChanged).toMatchObject({
-      updatedViews: 64,
+      updatedViews: 0,
       updatedCellViews: 0,
-      updatedStoneViews: 64,
+      updatedStoneViews: 0,
       updatedHintViews: 0
     });
 
@@ -889,7 +878,7 @@ describe('Pixi static board scene', () => {
     expect(layoutChanged).toMatchObject({
       updatedViews: 64,
       updatedCellViews: 64,
-      updatedStoneViews: 64,
+      updatedStoneViews: 0,
       updatedHintViews: 64
     });
 
@@ -937,16 +926,42 @@ describe('Pixi static board scene', () => {
     const stoneTheme = Object.freeze({ ...hintTheme, revision: 3, hintColor: '#abcdef' });
     expect(scene.applyFrame(makeFrame({ topology, theme: stoneTheme }))).toMatchObject({
       updatedCellViews: 0,
-      updatedStoneViews: 64,
+      updatedStoneViews: 0,
       updatedHintViews: 0
     });
 
     const fontTheme = Object.freeze({ ...stoneTheme, revision: 4, fontReadyEpoch: stoneTheme.fontReadyEpoch + 1 });
     expect(scene.applyFrame(makeFrame({ topology, theme: fontTheme }))).toMatchObject({
       updatedCellViews: 64,
-      updatedStoneViews: 64,
+      updatedStoneViews: 0,
       updatedHintViews: 64
     });
+  });
+
+  test('keeps 8x8 initial and full-board display objects within the sparse budgets', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 8, baseCols: 8 });
+    const initialCells = topology.existingKeys.map((key) => makeCell(key, {
+      stone: ['3,3', '3,4', '4,3', '4,4'].includes(key)
+        ? { owner: key === '3,3' || key === '4,4' ? 'white' : 'black', value: 1, specialType: null, status: {} }
+        : null
+    }));
+
+    scene.applyFrame(makeFrame({ topology, cells: initialCells }));
+    expect(scene.getDiagnostics()).toMatchObject({
+      activeStoneViewCount: 4,
+      staticAttachedObjectCount: 1,
+      staticTemporaryObjectCount: 0
+    });
+    expect(scene.getDiagnostics().displayObjectCount).toBeLessThan(500);
+
+    const fullCells = topology.existingKeys.map((key, index) => makeCell(key, {
+      stone: { owner: index % 2 ? 'white' : 'black', value: 1, specialType: null, status: {} }
+    }));
+    scene.applyFrame(makeFrame({ topology, cells: fullCells, modelRevision: 2 }));
+    expect(scene.getDiagnostics().activeStoneViewCount).toBe(64);
+    expect(scene.getDiagnostics().displayObjectCount).toBeLessThan(1000);
   });
 
   test('bounds 16x16 materialization to visible + one overscan + two-cell gutter and reuses offscreen views', () => {
@@ -1633,11 +1648,12 @@ describe('Pixi board scene playback projection', () => {
     scene.updateTopologyReveal(handle, 0.35);
     const beforeReflow = scene.getRenderedCell(0, 8)!;
     expect(beforeReflow.topologyRevealAlpha).toBeCloseTo(0.35);
+    const staticPatch = scene.layers.surface.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-static-board-topology-patch'
+    ));
+    expect(staticPatch).toBeTruthy();
+    expect(staticPatch.alpha).toBeCloseTo(0.35);
     const expectedRoots = [
-      ['surface', 'pixi-cell-surface'],
-      ['cell', 'pixi-cell-grid'],
-      ['marker', 'pixi-cell-markers'],
-      ['stone', 'pixi-stone-view'],
       ['hint', 'pixi-hint-view'],
       ['interaction', 'pixi-interaction-hit-area']
     ] as const;

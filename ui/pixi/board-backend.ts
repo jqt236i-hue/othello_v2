@@ -781,6 +781,9 @@ export function createPixiBoardVisualBackend(
         surfaceTextureRevision: textureLaneRevision(snapshot, 'surface'),
         stoneTextureRevision: textureLaneRevision(snapshot, 'stone'),
         canvasViewport,
+        ...(Array.isArray(options.topologyRevealKeys) && options.topologyRevealKeys.length
+          ? { topologyRevealKeys: options.topologyRevealKeys }
+          : {}),
         ...(options.preservePlaybackProjection === true
           ? { preservePlaybackProjection: true as const }
           : {})
@@ -1229,7 +1232,12 @@ export function createPixiBoardVisualBackend(
       }
       assertMountActive();
       try {
-        scene = sceneFactory({ runtime, stage: application!.getStage(), effectGutterCells });
+        scene = sceneFactory({
+          runtime,
+          stage: application!.getStage(),
+          renderer: application!.getRenderer(),
+          effectGutterCells
+        });
       } catch (error) {
         throw backendError({
           code: 'pixi_scene_init_failed',

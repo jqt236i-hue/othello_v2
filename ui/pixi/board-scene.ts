@@ -47,7 +47,16 @@ import {
   createPixiCellView
 } from './cell-view';
 import { createPixiHintView, type PixiHintView } from './hint-view';
-import { createPixiStoneView, hasPixiStoneVisual, type PixiStoneView } from './stone-view';
+import {
+  createPixiStoneView,
+  hasPixiStoneVisual,
+  type PixiStoneView,
+  type PixiStoneViewDiagnostics
+} from './stone-view';
+import {
+  createPixiStaticBoardLayer,
+  type PixiStaticBoardLayer
+} from './static-board-layer';
 
 export const PIXI_BOARD_SCENE_LAYER_ORDER = Object.freeze([
   'surface',
@@ -67,6 +76,7 @@ export type PixiBoardSceneLayerName = typeof PIXI_BOARD_SCENE_LAYER_ORDER[number
 export interface PixiBoardSceneOptions {
   readonly runtime: PixiStaticViewRuntime;
   readonly stage?: any;
+  readonly renderer?: any;
   readonly effectGutterCells?: number;
   readonly maxRetainedViews?: number;
   readonly maxRetainedGhosts?: number;
@@ -211,6 +221,8 @@ export interface PixiBoardSceneApplyContext {
   /** Compatibility fallback when callers cannot partition texture resources. */
   readonly textureRevision?: string | number | null;
   readonly canvasViewport?: Pick<PixiBoardCanvasViewport, 'sceneOffsetX' | 'sceneOffsetY'> | null;
+  /** Added topology cells are baked into a separate alpha-controlled patch. */
+  readonly topologyRevealKeys?: readonly string[];
   /** Resize/scroll reflow must not settle an in-flight playback projection. */
   readonly preservePlaybackProjection?: boolean;
 }
@@ -418,6 +430,15 @@ export interface PixiBoardSceneDiagnostics {
   readonly sourceTrajectoryByPrimitive: Readonly<Record<BoardSourceTrajectoryPrimitive, PixiSourceTrajectoryCounterDiagnostics>>;
   readonly activeTopologyRevealCount: number;
   readonly topologyRevealKeys: readonly string[];
+  readonly activeStoneViewCount: number;
+  readonly pooledStoneViewCount: number;
+  readonly staticBakeCount: number;
+  readonly staticBakeSkipCount: number;
+  readonly staticPatchBakeCount: number;
+  readonly staticAttachedObjectCount: number;
+  readonly staticTemporaryObjectCount: number;
+  readonly staticTexturePhysicalWidth: number;
+  readonly staticTexturePhysicalHeight: number;
 }
 
 export interface PixiBoardScene {
@@ -500,8 +521,6 @@ export interface PixiBoardScene {
 }
 
 interface RetainedCellViews {
-  readonly cell: PixiCellView;
-  readonly stone: PixiStoneView;
   readonly hint: PixiHintView;
 }
 
@@ -822,23 +841,15 @@ function frameInteractionRevisionSignature(
 
 function resetRetainedViews(views: RetainedCellViews): void {
   for (const target of [
-    views.cell.surfaceRoot,
-    views.cell.cellRoot,
-    views.cell.markerRoot,
-    views.stone.root,
     views.hint.root,
     views.hint.interactionRoot
   ]) {
     if (target) target.alpha = 1;
   }
-  views.cell.reset();
-  views.stone.reset();
   views.hint.reset();
 }
 
 function destroyRetainedViews(views: RetainedCellViews): void {
-  views.cell.destroy();
-  views.stone.destroy();
   views.hint.destroy();
 }
 
@@ -986,20 +997,27 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   layers.interaction.cursor = 'default';
   layers.interaction.hitArea = null;
   if (options.stage) addPixiChild(options.stage, root);
+  const staticBoardLayer: PixiStaticBoardLayer = createPixiStaticBoardLayer({
+    runtime,
+    renderer: options.renderer,
+    parent: layers.surface
+  });
   const boardSurfaceFill = createPixiGraphics(runtime, 'pixi-board-surface-fill');
   const boardSurfaceTexture = createPixiSprite(runtime, 'pixi-board-surface-texture');
   const boardSurfaceOverlay = createPixiGraphics(runtime, 'pixi-board-surface-overlay');
-  addPixiChild(layers.surface, boardSurfaceFill, boardSurfaceTexture, boardSurfaceOverlay);
   const starPoints = createPixiGraphics(runtime, 'pixi-board-star-points');
-  addPixiChild(layers.marker, starPoints);
   const pool: ObjectPool<RetainedCellViews> = createObjectPool({
     create: () => Object.freeze({
-      cell: createPixiCellView(runtime),
-      stone: createPixiStoneView(runtime),
       hint: createPixiHintView(runtime)
     }),
     reset: resetRetainedViews,
     destroy: destroyRetainedViews,
+    maxRetained: maxRetainedViews
+  });
+  const stonePool: ObjectPool<PixiStoneView> = createObjectPool({
+    create: () => createPixiStoneView(runtime),
+    reset: (view) => view.reset(),
+    destroy: (view) => view.destroy(),
     maxRetained: maxRetainedViews
   });
   const playbackGhostPool: ObjectPool<PixiStoneView> = createObjectPool({
@@ -1081,7 +1099,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     maxRetained: maxRetainedEffects
   });
   const active = new Map<string, RetainedCellViews>();
+  const activeStones = new Map<string, PixiStoneView>();
   const materializedByKey = new Map<string, MaterializedBoardCellVisualState>();
+  const cellDiagnosticsByKey = new Map<string, ReturnType<PixiCellView['getDiagnostics']>>();
   const retainedStoneBaseVisibility = new Map<string, boolean>();
   const retainedStoneOverrides = new Map<string, Required<PixiRetainedStoneOverride>>();
   const hiddenStoneKeys = new Set<string>();
@@ -1104,6 +1124,10 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   let playbackScope: PixiPlaybackProjectionScope | null = null;
   let latestFrame: BoardVisualFrame | null = null;
   let latestViewContext: Omit<PixiStaticViewContext, 'sceneX' | 'sceneY'> | null = null;
+  let latestApplyContext: PixiBoardSceneApplyContext | null = null;
+  let latestSceneOffsetX = 0;
+  let latestSceneOffsetY = 0;
+  let topologyPatchKeys = new Set<string>();
   let destroyed = false;
   let applyCount = 0;
   let resetCount = 0;
@@ -1390,10 +1414,11 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     assertPlaybackScope(scope);
     const key = integerWorldKey(row, col);
     retainedStoneOverrides.set(key, normalizeRetainedOverride(override, retainedStoneOverrides.get(key)));
+    const stoneView = activeStones.get(key);
     const views = active.get(key);
-    if (views && latestFrame) {
-      applyRetainedStoneProjection(key, views.stone, latestFrame.layout.cellSize);
-      applyTopologyRevealAlpha(key, views);
+    if (stoneView && latestFrame) {
+      applyRetainedStoneProjection(key, stoneView, latestFrame.layout.cellSize);
+      if (views) applyTopologyRevealAlpha(key, views);
     }
   }
 
@@ -1401,8 +1426,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     assertPlaybackScope(scope);
     const key = integerWorldKey(row, col);
     hiddenStoneKeys.add(key);
-    const views = active.get(key);
-    if (views) views.stone.root.visible = false;
+    const stoneView = activeStones.get(key);
+    if (stoneView) stoneView.root.visible = false;
   }
 
   function acquirePlaybackGhost(
@@ -2130,16 +2155,14 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   function applyTopologyRevealAlpha(key: string, views: RetainedCellViews): void {
     const alpha = topologyRevealAlphaForKey(key);
     for (const target of [
-      views.cell.surfaceRoot,
-      views.cell.cellRoot,
-      views.cell.markerRoot,
       views.hint.root,
       views.hint.interactionRoot
     ]) {
       if (target) target.alpha = alpha;
     }
     const stoneBaseAlpha = retainedStoneOverrides.get(key)?.alpha ?? 1;
-    views.stone.root.alpha = stoneBaseAlpha * alpha;
+    const stoneView = activeStones.get(key);
+    if (stoneView) stoneView.root.alpha = stoneBaseAlpha * alpha;
   }
 
   function normalizedTopologyRevealKeys(keys: readonly string[]): readonly string[] {
@@ -2170,6 +2193,12 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       keys: new Set(normalizedKeys),
       progress
     });
+    const nextPatchKeys = new Set(Array.from(topologyReveals.values()).flatMap((value) => Array.from(value.keys)));
+    if (sortedWorldKeys(nextPatchKeys).join('|') !== sortedWorldKeys(topologyPatchKeys).join('|')) {
+      topologyPatchKeys = nextPatchKeys;
+      rebakeLatestStaticSurface();
+    }
+    staticBoardLayer.setPatchAlpha(progress);
     for (const key of normalizedKeys) {
       const views = active.get(key);
       if (views) applyTopologyRevealAlpha(key, views);
@@ -2186,6 +2215,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       const views = active.get(key);
       if (views) applyTopologyRevealAlpha(key, views);
     }
+    staticBoardLayer.setPatchAlpha(Math.min(...Array.from(topologyReveals.values()).map((value) => value.progress)));
   }
 
   function endTopologyReveal(handle: PixiTopologyRevealHandle): void {
@@ -2197,6 +2227,12 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       const views = active.get(key);
       if (views) applyTopologyRevealAlpha(key, views);
     }
+    topologyPatchKeys = new Set(Array.from(topologyReveals.values()).flatMap((value) => Array.from(value.keys)));
+    if (topologyReveals.size) {
+      staticBoardLayer.setPatchAlpha(Math.min(...Array.from(topologyReveals.values()).map((value) => value.progress)));
+    } else {
+      rebakeLatestStaticSurface();
+    }
   }
 
   function resetTopologyRevealsInternal(): void {
@@ -2206,6 +2242,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       for (const key of reveal.keys) keys.add(key);
     }
     topologyReveals.clear();
+    topologyPatchKeys.clear();
+    rebakeLatestStaticSurface();
     for (const key of keys) {
       const views = active.get(key);
       if (views) applyTopologyRevealAlpha(key, views);
@@ -2232,9 +2270,10 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     retainedStoneOverrides.clear();
     hiddenStoneKeys.clear();
     playbackScope = null;
-    for (const [key, views] of active) {
-      restoreRetainedStoneRoot(key, views.stone);
-      applyTopologyRevealAlpha(key, views);
+    for (const [key, stoneView] of activeStones) {
+      restoreRetainedStoneRoot(key, stoneView);
+      const views = active.get(key);
+      if (views) applyTopologyRevealAlpha(key, views);
     }
   }
 
@@ -2245,10 +2284,6 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   }
 
   function attachViews(views: RetainedCellViews): void {
-    addPixiChild(layers.surface, views.cell.surfaceRoot);
-    addPixiChild(layers.cell, views.cell.cellRoot);
-    addPixiChild(layers.marker, views.cell.markerRoot);
-    addPixiChild(layers.stone, views.stone.root);
     addPixiChild(layers.hint, views.hint.root);
     addPixiChild(layers.interaction, views.hint.interactionRoot);
   }
@@ -2256,10 +2291,16 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   function releaseKey(key: string): boolean {
     const views = active.get(key);
     if (!views) return false;
-    restoreRetainedStoneRoot(key, views.stone);
     active.delete(key);
     materializedByKey.delete(key);
+    cellDiagnosticsByKey.delete(key);
     retainedStoneBaseVisibility.delete(key);
+    const stoneView = activeStones.get(key);
+    if (stoneView) {
+      restoreRetainedStoneRoot(key, stoneView);
+      activeStones.delete(key);
+      stonePool.release(stoneView);
+    }
     const released = pool.release(views);
     if (released) cumulativeReleasedViewCount += 1;
     return released;
@@ -2488,6 +2529,166 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     }
   }
 
+  function staticSurfaceSignature(
+    frame: BoardVisualFrame,
+    materialized: readonly MaterializedBoardCellVisualState[],
+    context: PixiBoardSceneApplyContext,
+    textureMode: PixiStaticBoardTextureMode,
+    sceneOffsetX: number,
+    sceneOffsetY: number
+  ): string {
+    return JSON.stringify([
+      frame.renderSessionId,
+      frameSurfaceRevisionSignature(frame, textureIdentity(context, 'surface'), textureMode),
+      frame.model.topology.existingKeys,
+      frame.model.topology.playableKeys,
+      frame.model.topology.holeKeys,
+      frame.model.topology.renderRowOffset,
+      frame.model.topology.renderColOffset,
+      frame.layout.dpr,
+      frame.layout.visibleWorldWindow,
+      frame.layout.camera.scrollLeft,
+      frame.layout.camera.scrollTop,
+      frame.layout.camera.viewportWidth,
+      frame.layout.camera.viewportHeight,
+      sceneOffsetX,
+      sceneOffsetY,
+      materialized.map((cell) => [cell.key, cell.surfaceSignature]),
+      sortedWorldKeys(topologyPatchKeys)
+    ]);
+  }
+
+  function bakeStaticSurface(
+    frame: BoardVisualFrame,
+    context: PixiBoardSceneApplyContext,
+    materialized: readonly MaterializedBoardCellVisualState[],
+    textureMode: PixiStaticBoardTextureMode,
+    sceneOffsetX: number,
+    sceneOffsetY: number
+  ): void {
+    const signature = staticSurfaceSignature(
+      frame,
+      materialized,
+      context,
+      textureMode,
+      sceneOffsetX,
+      sceneOffsetY
+    );
+    const overscanPixels = PIXI_BOARD_OBJECT_OVERSCAN_CELLS * frame.layout.cellSize;
+    const textureOriginX = sceneOffsetX - overscanPixels;
+    const textureOriginY = sceneOffsetY - overscanPixels;
+    const bakeOptions = {
+      signature,
+      width: frame.layout.camera.viewportWidth + overscanPixels * 2,
+      height: frame.layout.camera.viewportHeight + overscanPixels * 2,
+      resolution: frame.layout.dpr,
+      sceneOffsetX: textureOriginX,
+      sceneOffsetY: textureOriginY
+    };
+    if (staticBoardLayer.getDiagnostics().signature === signature) {
+      staticBoardLayer.applyBase({ ...bakeOptions, source: null });
+      return;
+    }
+
+    updateStarPoints(frame, sceneOffsetX, sceneOffsetY);
+    const baseSource = createPixiContainer(runtime, 'pixi-static-board-bake-source');
+    const patchSource = topologyPatchKeys.size
+      ? createPixiContainer(runtime, 'pixi-static-board-patch-source')
+      : null;
+    const temporaryViews: PixiCellView[] = [];
+    const nextDiagnostics = new Map<string, ReturnType<PixiCellView['getDiagnostics']>>();
+    try {
+      addPixiChild(baseSource, boardSurfaceFill, boardSurfaceTexture, boardSurfaceOverlay, starPoints);
+      const surfaceRevisionSignature = frameSurfaceRevisionSignature(
+        frame,
+        textureIdentity(context, 'surface'),
+        textureMode
+      );
+      const stoneRevisionSignature = frameStoneRevisionSignature(frame, textureIdentity(context, 'stone'));
+      const interactionRevisionSignature = frameInteractionRevisionSignature(frame, textureMode);
+      for (const cell of materialized) {
+        const scene = worldToScene(frame.model.topology, frame.layout, cell.row, cell.col);
+        const view = createPixiCellView(runtime);
+        temporaryViews.push(view);
+        view.update(cell, {
+          layout: frame.layout,
+          theme: frame.theme,
+          surfaceRevisionSignature,
+          stoneRevisionSignature,
+          interactionRevisionSignature,
+          sceneOffsetX,
+          sceneOffsetY,
+          sceneX: scene.x + sceneOffsetX,
+          sceneY: scene.y + sceneOffsetY,
+          textures: context.textures,
+          boardTextureMode: textureMode
+        });
+        nextDiagnostics.set(cell.key, view.getDiagnostics());
+        const target = patchSource && topologyPatchKeys.has(cell.key) ? patchSource : baseSource;
+        addPixiChild(target, view.surfaceRoot, view.cellRoot, view.markerRoot);
+      }
+      staticBoardLayer.applyBase({ ...bakeOptions, source: baseSource });
+      staticBoardLayer.applyPatch(patchSource
+        ? { ...bakeOptions, source: patchSource, signature: `${signature}:patch` }
+        : null);
+      cellDiagnosticsByKey.clear();
+      for (const [key, diagnostics] of nextDiagnostics) cellDiagnosticsByKey.set(key, diagnostics);
+    } finally {
+      removePixiFromParent(boardSurfaceFill);
+      removePixiFromParent(boardSurfaceTexture);
+      removePixiFromParent(boardSurfaceOverlay);
+      removePixiFromParent(starPoints);
+      for (const view of temporaryViews) view.destroy();
+      destroyPixiDisplayObject(baseSource);
+      if (patchSource) destroyPixiDisplayObject(patchSource);
+    }
+  }
+
+  function rebakeLatestStaticSurface(): void {
+    if (!latestFrame || !latestApplyContext) {
+      staticBoardLayer.applyPatch(null);
+      return;
+    }
+    const materialized = materializeBoardViewport({
+      model: latestFrame.model,
+      visibleWindow: latestFrame.layout.visibleWorldWindow,
+      overscanCells: PIXI_BOARD_OBJECT_OVERSCAN_CELLS,
+      effectGutterCells
+    });
+    bakeStaticSurface(
+      latestFrame,
+      latestApplyContext,
+      materialized,
+      boardTextureMode,
+      latestSceneOffsetX,
+      latestSceneOffsetY
+    );
+  }
+
+  function emptyStoneDiagnostics(
+    cell: MaterializedBoardCellVisualState,
+    sceneX: number,
+    sceneY: number
+  ): PixiStoneViewDiagnostics {
+    return Object.freeze({
+      updateCount: 0,
+      resetCount: 0,
+      destroyed: false,
+      key: cell.key,
+      visible: false,
+      owner: null,
+      specialType: null,
+      timerLabel: '',
+      badgeLabel: '',
+      flipProtectionBadgeVisible: false,
+      statusLabels: Object.freeze([]),
+      textureBacked: false,
+      texturePurpose: null,
+      renderedMarkerKinds: Object.freeze([]),
+      position: Object.freeze({ x: sceneX, y: sceneY })
+    });
+  }
+
   function applyFrame(
     frame: BoardVisualFrame,
     context: PixiBoardSceneApplyContext = {}
@@ -2503,6 +2704,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     const sceneOffsetY = Number.isFinite(Number(context.canvasViewport?.sceneOffsetY))
       ? Number(context.canvasViewport!.sceneOffsetY)
       : defaultOffset;
+    topologyPatchKeys = new Set(Array.isArray(context.topologyRevealKeys)
+      ? context.topologyRevealKeys
+      : Array.from(topologyReveals.values()).flatMap((value) => Array.from(value.keys)));
     // This one static parent receives Federated global moves and delegates
     // cell authority to the shared O(1) controller. Child hit areas exist
     // only for materialized sparse cells; no dense void model is allocated.
@@ -2546,6 +2750,19 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     );
     const stoneRevisionSignature = frameStoneRevisionSignature(frame, currentStoneTextureIdentity);
     const interactionRevisionSignature = frameInteractionRevisionSignature(frame, nextBoardTextureMode);
+    const staticBakeCountBefore = staticBoardLayer.getDiagnostics().bakeCount;
+    bakeStaticSurface(
+      frame,
+      context,
+      materialized,
+      nextBoardTextureMode,
+      sceneOffsetX,
+      sceneOffsetY
+    );
+    if (topologyReveals.size) {
+      staticBoardLayer.setPatchAlpha(Math.min(...Array.from(topologyReveals.values()).map((value) => value.progress)));
+    }
+    const staticSurfaceChanged = staticBoardLayer.getDiagnostics().bakeCount !== staticBakeCountBefore;
     for (const cell of materialized) {
       let views = active.get(cell.key);
       if (!views) {
@@ -2570,10 +2787,28 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
         textures: context.textures,
         boardTextureMode: nextBoardTextureMode
       };
-      const cellChanged = views.cell.update(cell, viewContext);
-      const stoneChanged = views.stone.update(cell, viewContext);
-      retainedStoneBaseVisibility.set(cell.key, hasPixiStoneVisual(cell));
-      applyRetainedStoneProjection(cell.key, views.stone, frame.layout.cellSize);
+      const cellChanged = staticSurfaceChanged;
+      let stoneChanged = false;
+      if (hasPixiStoneVisual(cell)) {
+        let stoneView = activeStones.get(cell.key);
+        if (!stoneView) {
+          stoneView = stonePool.acquire();
+          activeStones.set(cell.key, stoneView);
+          addPixiChild(layers.stone, stoneView.root);
+          stoneChanged = true;
+        }
+        stoneChanged = stoneView.update(cell, viewContext) || stoneChanged;
+        retainedStoneBaseVisibility.set(cell.key, true);
+        applyRetainedStoneProjection(cell.key, stoneView, frame.layout.cellSize);
+      } else {
+        const stoneView = activeStones.get(cell.key);
+        if (stoneView) {
+          activeStones.delete(cell.key);
+          stonePool.release(stoneView);
+          stoneChanged = true;
+        }
+        retainedStoneBaseVisibility.delete(cell.key);
+      }
       const hintChanged = views.hint.update(cell, viewContext);
       if (cellChanged) updatedCellViews += 1;
       if (stoneChanged) updatedStoneViews += 1;
@@ -2582,8 +2817,10 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       if (cellChanged || stoneChanged || hintChanged) updatedViews += 1;
       else skippedViews += 1;
     }
-    updateStarPoints(frame, sceneOffsetX, sceneOffsetY);
     latestFrame = frame;
+    latestApplyContext = Object.freeze({ ...context });
+    latestSceneOffsetX = sceneOffsetX;
+    latestSceneOffsetY = sceneOffsetY;
     latestViewContext = {
       layout: frame.layout,
       theme: frame.theme,
@@ -2625,13 +2862,20 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     const key = `${Math.trunc(row)},${Math.trunc(col)}`;
     const views = active.get(key);
     if (!views) return null;
-    const cell = views.cell.getDiagnostics();
+    const cell = cellDiagnosticsByKey.get(key);
+    const materialized = materializedByKey.get(key);
+    if (!cell || !materialized) return null;
+    const stone = activeStones.get(key)?.getDiagnostics() || emptyStoneDiagnostics(
+      materialized,
+      cell.position.x,
+      cell.position.y
+    );
     return Object.freeze({
       key,
       kind: materializedByKey.get(key)?.kind || null,
       position: cell.position,
       cell,
-      stone: views.stone.getDiagnostics(),
+      stone,
       hint: views.hint.getDiagnostics(),
       topologyRevealAlpha: topologyRevealAlphaForKey(key),
       playback: retainedPlaybackDiagnostics(key)
@@ -2642,19 +2886,21 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     assertAlive();
     boardSurfaceSignature = null;
     starPointSignature = null;
+    staticBoardLayer.invalidate();
     for (const views of active.values()) {
-      views.cell.invalidate();
-      views.stone.invalidate();
       views.hint.invalidate();
     }
+    for (const stoneView of activeStones.values()) stoneView.invalidate();
   }
 
   function reset(): void {
     if (destroyed) return;
+    latestApplyContext = null;
     resetTopologyRevealsInternal();
     resetPlaybackProjectionInternal();
     for (const key of Array.from(active.keys())) releaseKey(key);
     materializedByKey.clear();
+    cellDiagnosticsByKey.clear();
     retainedStoneBaseVisibility.clear();
     clearPixiGraphics(starPoints);
     starPointCount = 0;
@@ -2666,11 +2912,13 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     boardSurfaceFill.visible = false;
     boardSurfaceOverlay.visible = false;
     if (boardSurfaceTexture) boardSurfaceTexture.visible = false;
+    staticBoardLayer.reset();
     layers.interaction.eventMode = 'none';
     layers.interaction.hitArea = null;
     materializationWindow = null;
     latestFrame = null;
     latestViewContext = null;
+    topologyPatchKeys.clear();
     resetCount += 1;
   }
 
@@ -2679,16 +2927,24 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     reset();
     destroyed = true;
     pool.destroy();
+    stonePool.destroy();
     playbackGhostPool.destroy();
     playbackHighlightPool.destroy();
     playbackEffectPool.destroy();
     sourceTrajectoryPool.destroy();
+    staticBoardLayer.destroy();
+    destroyPixiDisplayObject(boardSurfaceFill);
+    destroyPixiDisplayObject(boardSurfaceTexture);
+    destroyPixiDisplayObject(boardSurfaceOverlay);
+    destroyPixiDisplayObject(starPoints);
     removePixiFromParent(root);
     destroyPixiDisplayObject(root);
   }
 
   function getDiagnostics(): PixiBoardSceneDiagnostics {
     const poolDiagnostics = pool.getDiagnostics();
+    const stonePoolDiagnostics = stonePool.getDiagnostics();
+    const staticDiagnostics = staticBoardLayer.getDiagnostics();
     const ghostPoolDiagnostics = playbackGhostPool.getDiagnostics();
     const highlightPoolDiagnostics = playbackHighlightPool.getDiagnostics();
     const effectPoolDiagnostics = playbackEffectPool.getDiagnostics();
@@ -2702,8 +2958,9 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       const materialized = materializedByKey.get(key);
       if (materialized?.kind === 'void') ephemeralVoidCount += 1;
       if (materialized?.kind === 'hole') holeCount += 1;
-      if (views.cell.getDiagnostics().usesBoardTexture) cellBoardTextureCount += 1;
-      const stone = views.stone.getDiagnostics();
+      if (cellDiagnosticsByKey.get(key)?.usesBoardTexture) cellBoardTextureCount += 1;
+      const stone = activeStones.get(key)?.getDiagnostics();
+      if (!stone) continue;
       if (stone.visible && stone.textureBacked) textureBackedStoneCount += 1;
       if (stone.visible && !stone.textureBacked) proceduralStoneCount += 1;
     }
@@ -2768,7 +3025,16 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       activeTopologyRevealCount: topologyReveals.size,
       topologyRevealKeys: Object.freeze(sortedWorldKeys(new Set(
         Array.from(topologyReveals.values()).flatMap((reveal) => Array.from(reveal.keys))
-      )))
+      ))),
+      activeStoneViewCount: activeStones.size,
+      pooledStoneViewCount: stonePoolDiagnostics.available,
+      staticBakeCount: staticDiagnostics.bakeCount,
+      staticBakeSkipCount: staticDiagnostics.bakeSkipCount,
+      staticPatchBakeCount: staticDiagnostics.patchBakeCount,
+      staticAttachedObjectCount: staticDiagnostics.attachedObjectCount,
+      staticTemporaryObjectCount: staticDiagnostics.temporaryObjectCount,
+      staticTexturePhysicalWidth: staticDiagnostics.texturePhysicalWidth,
+      staticTexturePhysicalHeight: staticDiagnostics.texturePhysicalHeight
     });
   }
 
