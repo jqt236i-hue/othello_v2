@@ -21,6 +21,7 @@ const SharedBoardUtils = SharedBoardUtilsModule && SharedBoardUtilsModule.defaul
 const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
 const CpuOpponentStartupOptions = _require('../shared/cpu-opponent-startup-options');
 const CpuProfileSelection = _require('./cpu-profile-selection');
+const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
 
     function ensureDependencies() {
         if (!DeckSpecHelpers || !DeckCodecModule || !DeckPresetStorage || !DeckBuilderStateModule || !DeckBuilderRendererModule || !SharedBoardUtils) {
@@ -33,6 +34,7 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
 
         const opts = (options && typeof options === 'object') ? options : {};
         const rootRef = opts.root || (typeof window !== 'undefined' ? window : globalThis);
+        const featureStylesheetLoader = opts.featureStylesheetLoader || FeatureStylesheetLoader;
         const uiBootstrapShared = SharedUIBootstrap || null;
         const refs = Object.assign({
             openBtn: null,
@@ -1291,6 +1293,11 @@ const CpuProfileSelection = _require('./cpu-profile-selection');
         }
 
         function open() {
+            try {
+                if (featureStylesheetLoader && typeof featureStylesheetLoader.ensureFeatureStylesheet === 'function') {
+                    void featureStylesheetLoader.ensureFeatureStylesheet('deck-builder', rootRef && rootRef.document);
+                }
+            } catch (e) { /* fallback styling must not block the panel */ }
             clearNotice();
             state.overlayOpen = true;
             state.view = 'presets';

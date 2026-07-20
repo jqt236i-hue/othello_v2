@@ -303,7 +303,9 @@ describe('match-mode network button behavior', () => {
       getRatedLeaderboard: jest.fn(async () => ({ ok: true, entries: [], updatedAt: 0, category: 'rated' }))
     };
 
-    require('../ui/handlers/match-mode.js');
+    const matchMode = require('../ui/handlers/match-mode.ts');
+    window.setupMatchModeControls = matchMode.setupMatchModeControls;
+    window.MatchMode = matchMode;
     window.setupMatchModeControls(buildUiRefs());
   });
 
@@ -329,10 +331,12 @@ describe('match-mode network button behavior', () => {
     const closeBtn = document.getElementById('networkCloseBtn');
     const overlay = document.getElementById('networkOverlay');
 
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="network"]')).toHaveLength(0);
     networkBtn.click();
     await Promise.resolve();
     expect(window.MatchMode.getCurrentMode()).toBe('network');
     expect(overlay.classList.contains('is-open')).toBe(true);
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="network"]')).toHaveLength(1);
 
     closeBtn.click();
     expect(overlay.classList.contains('is-open')).toBe(false);
@@ -345,6 +349,7 @@ describe('match-mode network button behavior', () => {
     expect(document.getElementById('modeCpuBtn').style.outline).toBe('');
     expect(document.getElementById('modeNetworkBtn').style.outline).not.toBe('');
     expect(leaveRoom).not.toHaveBeenCalled();
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="network"]')).toHaveLength(1);
   });
 
   test('ネット対戦の名前欄は変更確定だけでプロフィール名として保存する', async () => {

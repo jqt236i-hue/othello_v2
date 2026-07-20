@@ -6582,7 +6582,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     color: #f5f1e8;
     background:
         linear-gradient(90deg, rgba(3, 8, 17, 0.94), rgba(5, 11, 23, 0.76)),
-        url('assets/images/ui/deck-atelier-observatory.png') center / cover no-repeat;
+        var(--deck-builder-atelier-observatory-image, none) center / cover no-repeat;
 }
 #deckBuilderModal .deck-builder-atelier-rail {
     position: relative;
@@ -6998,7 +6998,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     min-height: 100%;
     background:
         linear-gradient(100deg, rgba(2, 9, 17, 0.76), rgba(4, 15, 27, 0.68) 52%, rgba(3, 12, 22, 0.78)),
-        url('assets/images/ui/deck-builder-night-manuscript-texture.png') center / cover no-repeat;
+        var(--deck-builder-night-manuscript-image, none) center / cover no-repeat;
 }
 
 #deckBuilderModal .deck-builder-atelier-rail {
@@ -7158,7 +7158,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     border-radius: calc(2px * var(--layout-stage-scale)) !important;
     background:
         linear-gradient(145deg, rgba(9, 36, 50, 0.9), rgba(3, 15, 27, 0.96)),
-        url('assets/images/ui/deck-builder-night-manuscript-texture.png') center / cover !important;
+        var(--deck-builder-night-manuscript-image, none) center / cover !important;
     box-shadow: inset 0 0 0 4px rgba(2, 13, 23, 0.88), inset 0 0 0 5px rgba(176, 138, 68, 0.24) !important;
 }
 
@@ -7306,7 +7306,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     border-radius: calc(2px * var(--layout-stage-scale)) !important;
     background:
         linear-gradient(145deg, rgba(7, 29, 43, 0.94), rgba(2, 13, 25, 0.98)),
-        url('assets/images/ui/deck-builder-night-manuscript-texture.png') center / cover !important;
+        var(--deck-builder-night-manuscript-image, none) center / cover !important;
     box-shadow: inset 0 0 0 3px rgba(2, 12, 22, 0.74), inset 0 0 0 4px rgba(148, 119, 62, 0.16);
     transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
@@ -7327,7 +7327,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     border-color: rgba(221, 181, 91, 0.9) !important;
     background:
         linear-gradient(145deg, rgba(82, 60, 25, 0.86), rgba(7, 31, 43, 0.97) 58%, rgba(2, 13, 25, 0.98)),
-        url('assets/images/ui/deck-builder-night-manuscript-texture.png') center / cover !important;
+        var(--deck-builder-night-manuscript-image, none) center / cover !important;
     box-shadow: inset 0 0 0 3px rgba(2, 12, 22, 0.72), inset 0 0 0 4px rgba(223, 183, 92, 0.3), 0 0 18px rgba(167, 125, 50, 0.08) !important;
 }
 
@@ -7439,7 +7439,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     border-color: rgba(139, 169, 165, 0.44) !important;
     background:
         linear-gradient(rgba(2, 16, 28, 0.7), rgba(2, 16, 28, 0.7)),
-        url('assets/images/ui/deck-builder-night-manuscript-texture.png') center / cover !important;
+        var(--deck-builder-night-manuscript-image, none) center / cover !important;
 }
 
 #deckBuilderModal .deck-builder-save-slot-card.is-empty > .deck-builder-empty-halo {
@@ -7481,7 +7481,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     padding: calc(18px * var(--layout-stage-scale));
     background:
         linear-gradient(90deg, rgba(4, 10, 20, 0.9), rgba(7, 18, 33, 0.78)),
-        url('assets/images/ui/deck-builder-night-manuscript-texture.png') center / cover fixed;
+        var(--deck-builder-night-manuscript-image, none) center / cover fixed;
 }
 
 #deckBuilderModal .deck-builder-editor-top {
@@ -7803,7 +7803,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 
 #deckBuilderModal::after {
     background-image:
-        url('assets/images/ui/deck-builder-night-manuscript-texture.png'),
+        var(--deck-builder-night-manuscript-image, none),
         radial-gradient(circle at 18% 12%, rgba(191, 151, 71, 0.1), transparent 29%),
         radial-gradient(circle at 88% 86%, rgba(77, 153, 166, 0.1), transparent 34%);
     background-size: 720px 720px, auto, auto;
@@ -7818,7 +7818,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
     isolation: isolate;
     background-image:
         linear-gradient(100deg, rgba(2, 9, 17, 0.5), rgba(4, 15, 27, 0.42) 52%, rgba(3, 12, 22, 0.54)),
-        url('assets/images/ui/deck-builder-night-manuscript-texture.png');
+        var(--deck-builder-night-manuscript-image, none);
     background-size: auto, 660px 660px;
     background-repeat: no-repeat, repeat;
     background-blend-mode: normal, screen;
@@ -7841,14 +7841,14 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 #deckBuilderModal .deck-builder-default-hero {
     background-image:
         linear-gradient(145deg, rgba(9, 36, 50, 0.76), rgba(3, 15, 27, 0.84)),
-        url('assets/images/ui/deck-builder-night-manuscript-texture.png') !important;
+        var(--deck-builder-night-manuscript-image, none) !important;
     background-blend-mode: normal, screen;
 }
 
 #deckBuilderModal .deck-builder-workshop-grid > .deck-builder-save-slot-card {
     background-image:
         linear-gradient(145deg, rgba(7, 29, 43, 0.76), rgba(2, 13, 25, 0.84)),
-        url('assets/images/ui/deck-builder-night-manuscript-texture.png') !important;
+        var(--deck-builder-night-manuscript-image, none) !important;
     background-blend-mode: normal, screen;
     box-shadow:
         inset 0 0 0 3px rgba(2, 12, 22, 0.68),
@@ -7859,7 +7859,7 @@ body #control-panel input[type=range].compact-slider::-moz-range-thumb {
 #deckBuilderModal .deck-builder-save-slot-card.is-empty {
     background-image:
         linear-gradient(rgba(2, 16, 28, 0.5), rgba(2, 16, 28, 0.5)),
-        url('assets/images/ui/deck-builder-night-manuscript-texture.png') !important;
+        var(--deck-builder-night-manuscript-image, none) !important;
     background-blend-mode: normal, screen;
 }
 

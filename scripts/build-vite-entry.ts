@@ -78,11 +78,16 @@ function renderViteEntry(classicHtml: string): { content: string; scriptSources:
   const styleMetaTags = styleSources.map((source) => (
     `    <meta name="card-reversi-classic-style" content="${source}">`
   )).join('\n');
+  const registrySource = scriptSources.find((source) => scriptBasePath(source) === 'public/module-registry.js') || '';
+  const registryVersionMatch = registrySource.match(/[?&]v=([^&]+)/);
+  const startupVersionMeta = registryVersionMatch
+    ? `    <meta name="card-reversi-startup-version" content="${registryVersionMatch[1]}">\n`
+    : '';
   let content = normalized.replace(/^[ \t]*<link\s+rel="stylesheet"\s+href="[^"]+"\s*>[ \t]*(?:\n|$)/gm, '');
   content = content.replace(/<link\s+rel="stylesheet"\s+href="[^"]+"\s*>/g, '');
   content = content.replace(
     '</head>',
-    `    <base href="./">\n${styleMetaTags}\n${renderStyleBootstrap()}\n    <meta name="card-reversi-browser-lane" content="vite">\n</head>`
+    `    <base href="./">\n${styleMetaTags}\n${startupVersionMeta}${renderStyleBootstrap()}\n    <meta name="card-reversi-browser-lane" content="vite">\n</head>`
   );
   content = content.replace('<html lang="ja">', '<html lang="ja" data-browser-lane="vite">');
   const refreshedMarkerIndex = content.lastIndexOf('<!-- Scripts -->');

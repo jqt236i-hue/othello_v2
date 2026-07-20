@@ -6,6 +6,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 const LazyControlStatus = require('./lazy-control-status');
+const FeatureStylesheetLoader = _require('../assets/feature-stylesheet-loader');
+
+function requestGachaStylesheet(loader: any, docRef: Document): void {
+  try {
+    if (loader && typeof loader.ensureFeatureStylesheet === 'function') {
+      void loader.ensureFeatureStylesheet('gacha', docRef);
+    }
+  } catch (e) { /* fallback styling must not block the panel */ }
+}
 
 function resolveDocument(rootRef: any): Document | null {
   if (rootRef && rootRef.document) return rootRef.document;
@@ -112,6 +121,7 @@ function createLazyGachaControls(options: any, rootRef: any, docRef: Document, l
   let delegate: any = null;
   let loading: Promise<any> | null = null;
   const loadStatus = LazyControlStatus.createLazyControlStatus(openBtn, '観測ガチャ');
+  const featureStylesheetLoader = options.featureStylesheetLoader || FeatureStylesheetLoader;
 
   const ensureDelegate = (): Promise<any> => {
     if (delegate) return Promise.resolve(delegate);
@@ -140,6 +150,7 @@ function createLazyGachaControls(options: any, rootRef: any, docRef: Document, l
 
   const onOpenClick = function (event: Event) {
     if (event && typeof (event as any).preventDefault === 'function') (event as any).preventDefault();
+    requestGachaStylesheet(featureStylesheetLoader, docRef);
     void ensureDelegate().then((api) => {
       try {
         openBtn.removeEventListener('click', onOpenClick);
@@ -158,6 +169,7 @@ function createLazyGachaControls(options: any, rootRef: any, docRef: Document, l
 
   return {
     openOverlay: function () {
+      requestGachaStylesheet(featureStylesheetLoader, docRef);
       return ensureDelegate().then((api) => api && typeof api.openOverlay === 'function' ? api.openOverlay() : undefined);
     },
     closeOverlay: function () {
@@ -296,6 +308,7 @@ function setupGachaControls(options?: any): any {
       : null
   });
   if (!controller) return null;
+  const featureStylesheetLoader = opts.featureStylesheetLoader || FeatureStylesheetLoader;
 
   view.refs.openBtn.addEventListener('click', function (event: Event) {
     if (event && typeof (event as any).preventDefault === 'function') (event as any).preventDefault();
@@ -303,6 +316,7 @@ function setupGachaControls(options?: any): any {
       controller.closeOverlay();
       return;
     }
+    requestGachaStylesheet(featureStylesheetLoader, docRef);
     controller.openOverlay();
     if (canRefreshLoadedAssetManifest(rootRef, uiBootstrap)) {
       void refreshLoadedAssetManifest(rootRef, uiBootstrap);
@@ -351,7 +365,10 @@ function setupGachaControls(options?: any): any {
   }
 
   return {
-    openOverlay: controller.openOverlay,
+    openOverlay: function () {
+      requestGachaStylesheet(featureStylesheetLoader, docRef);
+      return controller.openOverlay();
+    },
     closeOverlay: function () {
       controller.closeOverlay({ force: true });
     },

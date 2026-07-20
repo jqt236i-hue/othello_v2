@@ -1,0 +1,4 @@
+#deckBuilderModal {
+    --deck-builder-night-manuscript-image: url('assets/images/ui/deck-builder-night-manuscript-texture.png');
+    --deck-builder-atelier-observatory-image: url('assets/images/ui/deck-atelier-observatory.png');
+}

@@ -291,8 +291,11 @@ describe('match-mode shared leaderboard panel', () => {
       fetchLeaderboard
     };
 
-    require('../ui/handlers/match-mode.js');
+    const matchMode = require('../ui/handlers/match-mode.ts');
+    window.setupMatchModeControls = matchMode.setupMatchModeControls;
+    window.MatchMode = matchMode;
     window.setupMatchModeControls(buildUiRefs());
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="leaderboard"]')).toHaveLength(0);
   });
 
   afterEach(() => {
@@ -393,7 +396,7 @@ describe('match-mode shared leaderboard panel', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    const stylesheet = document.querySelector('link[href="styles-leaderboard.css"]');
+    const stylesheet = document.querySelector('link[data-card-reversi-feature-style="leaderboard"]');
     const podium = document.getElementById('leaderboardPodium');
     const summary = document.getElementById('leaderboardSummary');
     const tabs = document.getElementById('leaderboardFilterTabs');

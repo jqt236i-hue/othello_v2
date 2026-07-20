@@ -49,6 +49,13 @@ const MatchModeLeaderboardControllerModule = (() => {
         return null;
     }
 })();
+const FeatureStylesheetLoader = (() => {
+    try {
+        return _require('../assets/feature-stylesheet-loader');
+    } catch (e) {
+        return null;
+    }
+})();
 const MatchModeNetworkChatModule = (() => {
     try {
         return _require('./match-mode/network-chat');
@@ -962,6 +969,13 @@ const MODE_OTHELLO = 'othello';
     function setNetworkOverlayVisible(visible: any) {
         if (!uiRefs.networkOverlay) return;
         const open = !!visible;
+        if (open) {
+            try {
+                if (FeatureStylesheetLoader && typeof FeatureStylesheetLoader.ensureFeatureStylesheet === 'function') {
+                    void FeatureStylesheetLoader.ensureFeatureStylesheet('network', typeof document !== 'undefined' ? document : null);
+                }
+            } catch (e) { /* fallback styling must not block the panel */ }
+        }
         if (!open) {
             setNetworkRoomSettingsPopupVisible(false);
         } else {

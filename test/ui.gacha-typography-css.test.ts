@@ -7,6 +7,10 @@ function readCss() {
   return fs.readFileSync(path.join(repoRoot, 'styles-layout-info.css'), 'utf8');
 }
 
+function readFeatureCss(name: string) {
+  return fs.readFileSync(path.join(repoRoot, name), 'utf8');
+}
+
 describe('observation gacha typography CSS', () => {
   test('uses skin-controlled display typography for the gacha modal', () => {
     const css = readCss();
@@ -30,5 +34,19 @@ describe('observation gacha typography CSS', () => {
     expect(css).toMatch(/#networkModal\s*{[\s\S]*--network-lobby-number-font:\s*var\(--selected-app-font-accent-family\)/);
     expect(css).toMatch(/#networkModal\s+:is\([\s\S]*\.network-title[\s\S]*font-family:\s*var\(--network-lobby-display-font\)/);
     expect(css).toMatch(/#networkModal\s+:is\([\s\S]*#networkBoardSizeSummary[\s\S]*font-family:\s*var\(--network-lobby-number-font\)/);
+  });
+
+  test('keeps hidden-panel artwork URLs out of startup CSS', () => {
+    const css = readCss();
+    const gachaCss = readFeatureCss('styles-feature-gacha.css');
+    const networkCss = readFeatureCss('styles-feature-network.css');
+
+    expect(css).not.toMatch(/url\(["']assets\/images\/other\/(?:gacha-observation-bg-v1|gacha-reference-banner|gacha-crystal-cluster-v1|network-lobby-frame-v1)\.png["']\)/);
+    expect(css).toContain('var(--gacha-observation-background-image, none)');
+    expect(css).toContain('var(--network-lobby-frame-image, none)');
+    expect(gachaCss).toContain('gacha-observation-bg-v1.png');
+    expect(gachaCss).toContain('gacha-reference-banner.png');
+    expect(gachaCss).toContain('gacha-crystal-cluster-v1.png');
+    expect(networkCss).toContain('network-lobby-frame-v1.png');
   });
 });

@@ -31,6 +31,7 @@ describe('Vite comparison entry generator', () => {
     expect(rendered.content).toContain('<base href="./">');
     expect(rendered.content).toContain('<script type="module" src="/browser-vite/main.ts"></script>');
     expect(rendered.content).toContain('name="card-reversi-classic-style" content="styles.css"');
+    expect(rendered.content).toContain('name="card-reversi-startup-version" content="2"');
     expect(rendered.content).toContain('data-card-reversi-classic-style-bootstrap');
     expect(rendered.content).not.toContain('<link rel="stylesheet" href="styles.css">');
     expect(rendered.styleSources).toEqual(['styles.css']);

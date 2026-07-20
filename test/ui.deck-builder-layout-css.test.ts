@@ -86,12 +86,16 @@ describe('deck builder layout CSS', () => {
 
   test('night manuscript theme uses the generated texture and keeps a three-by-two desktop workshop', () => {
     const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const featureCssPath = path.join(__dirname, '..', 'styles-feature-deck-builder.css');
     const texturePath = path.join(__dirname, '..', 'assets', 'images', 'ui', 'deck-builder-night-manuscript-texture.png');
     const css = fs.readFileSync(cssPath, 'utf8');
+    const featureCss = fs.readFileSync(featureCssPath, 'utf8');
     const finalSection = css.split('Deck Workshop — comparison-first workspace')[1] || '';
 
     expect(fs.existsSync(texturePath)).toBe(true);
-    expect(finalSection).toMatch(/url\(['"]assets\/images\/ui\/deck-builder-night-manuscript-texture\.png['"]\)/);
+    expect(css).not.toMatch(/url\(['"]assets\/images\/ui\/deck-builder-night-manuscript-texture\.png['"]\)/);
+    expect(css).toMatch(/var\(--deck-builder-night-manuscript-image, none\)/);
+    expect(featureCss).toMatch(/url\(['"]assets\/images\/ui\/deck-builder-night-manuscript-texture\.png['"]\)/);
     expect(finalSection).toMatch(/--deck-gold:\s*#d8b463/);
     expect(finalSection).toMatch(/font-family:\s*'Yu Mincho',[\s\S]*'Noto Serif JP'/);
     expect(finalSection).toMatch(/@media\s*\(min-width:\s*901px\)[\s\S]*grid-template-columns:\s*repeat\(3,[\s\S]*grid-template-rows:\s*repeat\(2,/);

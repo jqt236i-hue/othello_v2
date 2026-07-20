@@ -150,6 +150,16 @@ describe('deck builder controller', () => {
     expect(document.getElementById('header').textContent).toContain('ローカル設定');
   });
 
+  test('大型装飾stylesheetは初回openまで要求せず再openでもlinkを増やさない', () => {
+    const controller = createController();
+
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="deck-builder"]')).toHaveLength(0);
+    controller.open();
+    controller.open();
+
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="deck-builder"]')).toHaveLength(1);
+  });
+
   test('保存プリセットを6枠まで表示する', () => {
     const body = document.getElementById('body');
     const controller = createController();

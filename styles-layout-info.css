@@ -3729,7 +3729,7 @@
         radial-gradient(42% 34% at 86% 7%, rgba(217, 168, 65, 0.08), transparent 64%),
         radial-gradient(52% 42% at 47% 28%, rgba(83, 214, 209, 0.14), transparent 70%),
         linear-gradient(180deg, rgba(0, 7, 10, 0.66), rgba(0, 5, 8, 0.76) 54%, rgba(0, 3, 5, 0.86)),
-        url("assets/images/other/gacha-observation-bg-v1.png") center bottom / cover no-repeat,
+        var(--gacha-observation-background-image, none) center bottom / cover no-repeat,
         linear-gradient(180deg, rgba(8, 26, 30, 0.985), rgba(1, 9, 12, 0.988) 46%, rgba(0, 12, 14, 0.985));
     box-shadow:
         0 calc(24px * var(--layout-stage-scale)) calc(58px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.70),
@@ -3946,7 +3946,7 @@
         linear-gradient(180deg, rgba(0, 0, 0, 0.14), transparent 18%, rgba(0, 0, 0, 0.24) 100%),
         radial-gradient(66% 100% at 50% 54%, rgba(255, 216, 111, 0.16), transparent 42%),
         linear-gradient(90deg, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.01) 45%, rgba(0, 0, 0, 0.08)),
-        url("assets/images/other/gacha-reference-banner.png");
+        var(--gacha-reference-banner-image, none);
     background-size: cover;
     background-position: center;
     border: calc(1px * var(--layout-stage-scale)) solid rgba(111, 249, 246, 0.82);
@@ -4233,7 +4233,9 @@
     border: 0;
     border-radius: 0;
     clip-path: none;
-    background: url("assets/images/other/network-lobby-frame-v1.png") center / 100% 100% no-repeat;
+    background:
+        var(--network-lobby-frame-image, none) center / 100% 100% no-repeat,
+        linear-gradient(145deg, #101821, #030609 72%);
     box-shadow:
         0 18px 58px rgba(0, 0, 0, 0.74),
         0 0 42px rgba(36, 244, 255, 0.10),
@@ -5490,7 +5492,7 @@
         radial-gradient(42% 34% at 86% 7%, rgba(217, 168, 65, 0.08), transparent 64%),
         radial-gradient(52% 42% at 47% 28%, rgba(83, 214, 209, 0.14), transparent 70%),
         linear-gradient(180deg, rgba(0, 7, 10, 0.66), rgba(0, 5, 8, 0.76) 54%, rgba(0, 3, 5, 0.86)),
-        url("assets/images/other/gacha-observation-bg-v1.png") center bottom / cover no-repeat,
+        var(--gacha-observation-background-image, none) center bottom / cover no-repeat,
         linear-gradient(180deg, rgba(8, 26, 30, 0.985), rgba(1, 9, 12, 0.988) 46%, rgba(0, 12, 14, 0.985));
     font-family: var(--selected-app-font-family);
 }
@@ -6025,7 +6027,7 @@
     pointer-events: none;
     background:
         radial-gradient(circle at 54% 68%, rgba(102, 251, 255, 0.46), transparent 36%),
-        url("assets/images/other/gacha-crystal-cluster-v1.png") center / contain no-repeat;
+        var(--gacha-crystal-cluster-image, none) center / contain no-repeat;
     filter:
         drop-shadow(0 0 calc(12px * var(--gacha-reference-scale)) rgba(105, 248, 255, 0.88))
         drop-shadow(calc(-18px * var(--gacha-reference-scale)) calc(12px * var(--gacha-reference-scale)) calc(26px * var(--gacha-reference-scale)) rgba(18, 228, 255, 0.50));

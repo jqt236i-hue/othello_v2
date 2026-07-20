@@ -172,6 +172,7 @@ function createLeaderboardController(context: any) {
     function setLeaderboardOverlayVisible(visible: any) {
         if (!uiRefs.leaderboardOverlay) return;
         const open = !!visible;
+        if (open) ensureLeaderboardStylesheet();
         const returnToRatedMatch = !open
             && root
             && root.__returnToRatedMatchAfterLeaderboard === true;
@@ -356,7 +357,6 @@ function createLeaderboardController(context: any) {
     }
 
     function ensureLeaderboardScaffold() {
-        ensureLeaderboardStylesheet();
         if (!uiRefs.leaderboardPanel) return null;
 
         const header = uiRefs.leaderboardPanel.querySelector('#leaderboardModalHeader');

@@ -272,7 +272,9 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/#gachaModal[\s\S]*height:\s*min\(calc\(1088px\s*\*\s*var\(--gacha-reference-scale\)\)/);
     expect(layoutCss).toMatch(/\.gacha-reference-shell[\s\S]*grid-template-rows:\s*calc\(52px\s*\*\s*var\(--gacha-reference-scale\)\)\s*calc\(248px\s*\*\s*var\(--gacha-reference-scale\)\)\s*calc\(340px\s*\*\s*var\(--gacha-reference-scale\)\)\s*calc\(138px\s*\*\s*var\(--gacha-reference-scale\)\)/);
     expect(layoutCss).toMatch(/#gachaModal\s+\.gacha-rate-rarity[\s\S]*clip-path:\s*polygon\(/);
-    expect(layoutCss).toMatch(/#gachaModal\s+\.gacha-pull-showcase::after[\s\S]*gacha-crystal-cluster-v1\.png/);
+    expect(layoutCss).toMatch(/#gachaModal\s+\.gacha-pull-showcase::after[\s\S]*var\(--gacha-crystal-cluster-image, none\)/);
+    const gachaFeatureCss = fs.readFileSync(path.resolve(__dirname, '..', 'styles-feature-gacha.css'), 'utf8');
+    expect(gachaFeatureCss).toContain('gacha-crystal-cluster-v1.png');
     expect(layoutCss).toMatch(/#gachaModal\s+\.gacha-pull-main::before[\s\S]*radial-gradient\(circle at 50% 50%,\s*rgba\(255,\s*232,\s*146/);
     expect(layoutCss).toMatch(/@media\s*\(max-width:\s*56\.25em\)\s*and\s*\(min-width:\s*50em\)[\s\S]*#gachaModal[\s\S]*--gacha-reference-scale:\s*0\.5\s*!important/);
     expect(layoutCss).toMatch(/@media\s*\(max-width:\s*56\.25em\)\s*and\s*\(min-width:\s*50em\)[\s\S]*#gachaModal[\s\S]*width:\s*min\(calc\(1500px\s*\*\s*var\(--gacha-reference-scale\)\),\s*calc\(100vw\s*-\s*48px\)\)\s*!important/);

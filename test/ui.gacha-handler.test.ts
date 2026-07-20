@@ -71,7 +71,9 @@ describe('gacha handler', () => {
       createRevealPlayer: () => fakeRevealPlayer
     });
 
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="gacha"]')).toHaveLength(0);
     document.getElementById('gachaOpenBtn').click();
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="gacha"]')).toHaveLength(1);
     expect(document.getElementById('gachaOverlay').classList.contains('is-open')).toBe(true);
     expect(document.getElementById('gachaBalanceValue').textContent).toBe('250');
 
