@@ -131,8 +131,14 @@ export function createCpuTurnPendingPhase(config: CpuTurnPendingPhaseConfig): an
                     return { status: 'handled', pending };
                 }
                 if (performanceScope && waitStartedAtMs !== null) {
-                    recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'continue');
+                    recordCpuTurnPerformanceInterval(performanceScope, 'presentation-handoff', 'wait', waitStartedAtMs, readCpuTurnPerformanceNowMs(performanceScope), 'handled');
                 }
+                // Pending resolution mutates canonical state. End this invocation and
+                // let the normal resume path build a fresh analysis seed.
+                cfg.resetPendingSelectRetryState(playerKey);
+                cfg.setCpuProcessing(false);
+                cfg.scheduleRunCpuTurn(playerKey, resumeOptions, 0);
+                return { status: 'handled', pending };
             } else {
                 if (cfg.shouldAbortStuckPendingSelection(playerKey, pending)) {
                     cfg.clearCpuPendingSelection(playerKey);

@@ -83,6 +83,11 @@ export function createPresentationRuntime(dependencies: any): any {
         const counts = countDiscs(state);
         const turnNumber = getTurnNumber(state);
         const helpers = resolveContextHelpers();
+        const preparedMetrics = options && typeof options === 'object'
+            && options.preparedCommentaryMetrics
+            && typeof options.preparedCommentaryMetrics === 'object'
+            ? options.preparedCommentaryMetrics
+            : null;
         const commentaryLevel = resolveCpuLevel(
             speakerKey,
             options && typeof options === 'object' ? options.level : null
@@ -94,6 +99,7 @@ export function createPresentationRuntime(dependencies: any): any {
                 turnNumber,
                 counts,
                 board: state.board,
+                preparedMetrics,
                 cardId: (ev && ev.cardId) ? String(ev.cardId) : null,
                 extra: {
                     level: commentaryLevel,

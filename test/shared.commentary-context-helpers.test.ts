@@ -1,4 +1,5 @@
-import * as helpers from '../shared/commentary-context-helpers.js';
+const helpers = require('../shared/commentary-context-helpers.ts');
+const sharedBoardUtils = require('../shared/shared-board-utils');
 
 function createBoard() {
   return Array.from({ length: 8 }, () => Array(8).fill(0));
@@ -105,6 +106,48 @@ describe('CommentaryContextHelpers.buildCommentaryContext', () => {
       counts: { black: 20, white: 10 },
       occupiedCells: 30
     });
+  });
+
+  test('builds black/white basic mobility once and reuses prepared commentary metrics', () => {
+    const board = createBoard();
+    board[3][3] = -1;
+    board[3][4] = 1;
+    board[4][3] = 1;
+    board[4][4] = -1;
+    const mobilitySpy = jest.spyOn(sharedBoardUtils, 'getLegalMovesBasic');
+    try {
+      const fallback = helpers.buildCommentaryContext({
+        eventType: 'turn_start',
+        playerKey: 'white',
+        turnNumber: 8,
+        board
+      });
+      mobilitySpy.mockClear();
+
+      const preparedMetrics = helpers.buildCpuCommentaryMetrics({
+        gameState: { turnNumber: 8, board },
+        playerKey: 'white'
+      });
+      const prepared = helpers.buildCommentaryContext({
+        eventType: 'turn_start',
+        playerKey: 'white',
+        turnNumber: 8,
+        board,
+        preparedMetrics
+      });
+
+      expect(mobilitySpy).toHaveBeenCalledTimes(2);
+      expect(prepared).toMatchObject({
+        phase: fallback.phase,
+        advantage: fallback.advantage,
+        counts: fallback.counts,
+        occupiedCells: fallback.occupiedCells,
+        corners: expect.objectContaining({ own: expect.any(Number), opp: expect.any(Number) }),
+        mobility: expect.objectContaining({ black: expect.any(Number), white: expect.any(Number) })
+      });
+    } finally {
+      mobilitySpy.mockRestore();
+    }
   });
 
   test('does not treat the untouched initial board as commentary start', () => {

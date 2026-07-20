@@ -267,6 +267,68 @@ function generateMovesForPlayer(player: any, pending: any, protection: any, perm
     return generateMovesForPlayerInState(null, null, player, pending, protection, perma);
 }
 
+function normalizeMoveGenerationPlayerValue(value: any) {
+    if (value === 'white' || value === -1 || value === '-1') return -1;
+    if (value === 'black' || value === 1 || value === '1') return 1;
+    return null;
+}
+
+/**
+ * Card-decision legal moves and ordinary placement candidates are equivalent
+ * only while there is no pending placement effect and both consumers use the
+ * exact same state/protection inputs. The returned evidence is invocation-local
+ * and must never be serialized into gameplay state.
+ */
+function deriveEquivalentCpuMoveScanInState(input: any) {
+    const source = input && typeof input === 'object' ? input : {};
+    const state = resolveGameStateForMoveGeneration(source.gameState);
+    const currentCardState = resolveCardStateForMoveGeneration(source.cardState);
+    const player = source.playerValue;
+    const pending = source.pending || null;
+    const protection = Array.isArray(source.protection) ? source.protection : [];
+    const flipBlockers = Array.isArray(source.flipBlockers) ? source.flipBlockers : [];
+    if (!state || !Array.isArray(state.board) || pending) return null;
+    if (normalizeMoveGenerationPlayerValue(state.currentPlayer) !== normalizeMoveGenerationPlayerValue(player)) {
+        return null;
+    }
+
+    const legalMoves = getLegalMoves(state, protection, flipBlockers, currentCardState) || [];
+    const cardLegalMoves = legalMoves.slice();
+    const placementCandidates = legalMoves.map((move: any) => ({
+        ...move,
+        effectUsed: null,
+        player,
+        playerValue: player
+    }));
+    const moveScanEvidence = Object.freeze({
+        identity: source.identity || null,
+        gameState: state,
+        cardState: currentCardState,
+        playerValue: player,
+        pending: null,
+        protection,
+        flipBlockers,
+        placementCandidates: Object.freeze(placementCandidates.slice())
+    });
+    return Object.freeze({
+        cardLegalMoves: Object.freeze(cardLegalMoves),
+        moveScanEvidence
+    });
+}
+
+function reuseEquivalentCpuMoveScanEvidence(evidence: any, input: any) {
+    const source = input && typeof input === 'object' ? input : {};
+    if (!evidence || typeof evidence !== 'object') return null;
+    if (source.pending) return null;
+    if (evidence.identity !== (source.identity || null)) return null;
+    if (evidence.gameState !== source.gameState || evidence.cardState !== source.cardState) return null;
+    if (evidence.playerValue !== source.playerValue) return null;
+    if (evidence.protection !== source.protection || evidence.flipBlockers !== source.flipBlockers) return null;
+    return Array.isArray(evidence.placementCandidates)
+        ? evidence.placementCandidates.slice()
+        : null;
+}
+
 function generateTabooReverseMoves(player: any, legal: any, stateValue?: any, cardStateValue?: any) {
     const currentGameState = resolveGameStateForMoveGeneration(stateValue);
     const currentCardState = resolveCardStateForMoveGeneration(cardStateValue);
@@ -461,6 +523,9 @@ function isEdge(row: number, col: number, boardOrRows: any) {
 export = {
     getLegalMoves,
     generateMovesForPlayer,
+    generateMovesForPlayerInState,
+    deriveEquivalentCpuMoveScanInState,
+    reuseEquivalentCpuMoveScanEvidence,
     generateFreePlacementMoves,
     generateSwapMoves,
     findMoveForCell,

@@ -115,6 +115,7 @@ const CpuTurnPresentationRuntimeModule = requireCpuTurnHandlerModuleOrNull('./cp
 const CpuTurnCardPhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-card-phase');
 const CpuTurnPendingPhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-pending-phase');
 const CpuTurnMovePhaseModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-move-phase');
+const CpuTurnAnalysisModule = requireCpuTurnHandlerModuleOrNull('./cpu-turn-analysis');
 const CpuDecisionRuntimeModule = requireCpuTurnHandlerModuleOrNull('./cpu-decision');
 const CpuRuntimeBoundaryModule = requireCpuTurnHandlerModuleOrNull('./cpu-decision-runtime');
 let cardEffectsHelpers: any = null;
@@ -154,6 +155,8 @@ if (typeof require === 'function') {
 // ===== Module-level DI (replaces globalThis reads for bootstrap flags) =====
 let __uiImpl_cpu: Record<string, any> = {};
 let cpuTurnPerformanceRunSequence = 0;
+let cpuTurnInvocationRunSequence = 0;
+let cpuTurnDecisionEpochSequence = 0;
 function setCpuUIImpl(obj: any): void {
     if (!obj || (typeof obj === 'object' && Object.keys(obj).length === 0)) {
         __uiImpl_cpu = {};
@@ -289,6 +292,13 @@ function getCurrentStateVersionSafe(): number | string | null {
             : (gameState && typeof gameState === 'object' ? (gameState as any).stateVersion : null);
         if (Number.isSafeInteger(value) && Number(value) >= 0) return Number(value);
         if (typeof value === 'string' && value.length > 0 && value.length <= 160) return value;
+        const runtimeCardState = resolveRuntimeValue('cardState');
+        const turnIndex = runtimeCardState && typeof runtimeCardState === 'object'
+            ? runtimeCardState.turnIndex
+            : (cardState && typeof cardState === 'object' ? (cardState as any).turnIndex : null);
+        if (Number.isSafeInteger(turnIndex) && Number(turnIndex) >= 0) {
+            return `local-turn:${Number(turnIndex)}`;
+        }
     } catch (e) { /* ignore */ }
     return null;
 }
@@ -926,20 +936,43 @@ function resolveCommentaryCpuLevel(playerKey: any, explicitLevel: any) {
     return 1;
 }
 
-function emitCpuCommentary(eventType: any, playerKey: any, extra: any) {
+function emitCpuCommentary(eventType: any, playerKey: any, extra: any, analysisOptions?: any) {
     const runtime = resolveCpuCommentaryRuntime();
     if (!runtime || typeof runtime.requestCommentary !== 'function') return;
+    if (typeof runtime.isEnabled === 'function') {
+        try {
+            if (runtime.isEnabled() !== true) return;
+        } catch (e) { /* use the established request fallback */ }
+    }
 
     const helpers = resolveCommentaryContextHelpers();
-    const counts = countDiscsSafe(gameState);
-    const turnNumber = gameState && Number.isFinite(gameState.turnNumber) ? gameState.turnNumber : null;
+    let preparedMetrics: any = null;
+    try {
+        const invocation = analysisOptions && analysisOptions.invocation;
+        const snapshotMoment = analysisOptions && analysisOptions.snapshotMoment;
+        if (invocation && typeof invocation.deriveCommentaryAnalysis === 'function' && snapshotMoment) {
+            const analysis = invocation.deriveCommentaryAnalysis(snapshotMoment);
+            preparedMetrics = analysis && analysis.metrics ? analysis.metrics : null;
+        }
+    } catch (e) { /* fall back to the existing commentary context path */ }
+    const counts = preparedMetrics && preparedMetrics.counts
+        ? preparedMetrics.counts
+        : countDiscsSafe(gameState);
+    const turnNumber = preparedMetrics && preparedMetrics.turnNumber !== null
+        && Number.isFinite(Number(preparedMetrics.turnNumber))
+        ? Number(preparedMetrics.turnNumber)
+        : (gameState && Number.isFinite(gameState.turnNumber) ? gameState.turnNumber : null);
     const commentaryLevel = resolveCommentaryCpuLevel(playerKey, extra && extra.level);
     const fallbackContext = Object.assign({
         eventType: String(eventType || 'turn_start'),
         playerKey: playerKey === 'black' ? 'black' : 'white',
         turnNumber,
-        phase: resolvePhaseByTurn(turnNumber, (counts.black || 0) + (counts.white || 0)),
-        advantage: resolveAdvantageLabel(playerKey, counts),
+        phase: preparedMetrics && preparedMetrics.phase
+            ? preparedMetrics.phase
+            : resolvePhaseByTurn(turnNumber, (counts.black || 0) + (counts.white || 0)),
+        advantage: preparedMetrics && preparedMetrics.advantage
+            ? preparedMetrics.advantage
+            : resolveAdvantageLabel(playerKey, counts),
         counts,
         occupiedCells: (counts.black || 0) + (counts.white || 0),
         level: commentaryLevel,
@@ -956,6 +989,7 @@ function emitCpuCommentary(eventType: any, playerKey: any, extra: any) {
             turnNumber,
             counts,
             board: gameState && gameState.board,
+            preparedMetrics,
             cardId: extra && extra.cardId,
             extra: Object.assign({
                 level: commentaryLevel,
@@ -1133,6 +1167,260 @@ function scheduleRunCpuTurn(playerKey: any, options: any, delayMs: any) {
     return CpuTurnScheduler.scheduleRunCpuTurn(playerKey, options, delayMs);
 }
 
+function getCpuRetryGenerationSafe(): number {
+    if (CpuTurnScheduler && typeof CpuTurnScheduler.getCpuRetryGeneration === 'function') {
+        const value = Number(CpuTurnScheduler.getCpuRetryGeneration());
+        if (Number.isSafeInteger(value) && value >= 0) return value;
+    }
+    return 0;
+}
+
+function resolveCpuPendingIdentity(pending: any): { pendingEffectId: string | null; pendingStage: string | null } {
+    if (!pending || typeof pending !== 'object') {
+        return { pendingEffectId: null, pendingStage: null };
+    }
+    const id = pending.pendingEffectId
+        ?? pending.effectId
+        ?? pending.instanceId
+        ?? pending.id
+        ?? null;
+    return {
+        pendingEffectId: id === null || typeof id === 'undefined' ? null : String(id),
+        pendingStage: pending.stage === null || typeof pending.stage === 'undefined'
+            ? null
+            : String(pending.stage)
+    };
+}
+
+function buildCpuTurnInvocationIdentity(
+    playerKey: PlayerKey,
+    level: number,
+    runId: number,
+    decisionEpoch: number
+): any {
+    const pendingIdentity = resolveCpuPendingIdentity(readCpuPendingSelection(playerKey));
+    return {
+        runId,
+        playerKey,
+        turnNumber: getCurrentTurnNumberSafe(),
+        decisionLevel: level,
+        stateVersion: getCurrentStateVersionSafe(),
+        decisionEpoch,
+        pendingEffectId: pendingIdentity.pendingEffectId,
+        pendingStage: pendingIdentity.pendingStage,
+        retryGeneration: getCpuRetryGenerationSafe()
+    };
+}
+
+function isCpuTurnAnalysisIdentityCurrent(seed: any, crossedAsyncBoundary = false): boolean {
+    if (!seed || !seed.identity || !CpuTurnAnalysisModule
+        || typeof CpuTurnAnalysisModule.isCpuTurnInvocationIdentityCurrent !== 'function') {
+        return false;
+    }
+    const expected = seed.identity;
+    if (getCurrentPlayerKeySafe() !== expected.playerKey) return false;
+    const current = buildCpuTurnInvocationIdentity(
+        expected.playerKey,
+        resolveCpuDecisionLevelForTurn(expected.playerKey),
+        cpuTurnInvocationRunSequence,
+        cpuTurnDecisionEpochSequence
+    );
+    return CpuTurnAnalysisModule.isCpuTurnInvocationIdentityCurrent(expected, current, {
+        crossedAsyncBoundary
+    });
+}
+
+function prepareCpuTurnCardUsability(playerKey: PlayerKey, performanceScope: CpuTurnPerformanceScope | null): any {
+    const prepareFn = resolveRuntimeFunction('prepareCpuTurnCardUsabilityAnalysis')
+        || (CpuDecisionRuntimeModule && typeof CpuDecisionRuntimeModule.prepareCpuTurnCardUsabilityAnalysis === 'function'
+            ? CpuDecisionRuntimeModule.prepareCpuTurnCardUsabilityAnalysis
+            : null);
+    const prepare = () => {
+        if (typeof prepareFn === 'function') {
+            const prepared = prepareFn(playerKey);
+            if (prepared && prepared.cardUsability && Array.isArray(prepared.cardUsability.usableCardIds)) {
+                return prepared;
+            }
+        }
+        return {
+            trapPrepared: false,
+            trapId: null,
+            cardPolicyLevel: null,
+            cardUsability: getCardUsabilityAnalysisForCpuRetry(playerKey)
+        };
+    };
+    return performanceScope
+        ? measureCpuTurnSync(performanceScope, 'card-availability', prepare)
+        : prepare();
+}
+
+function createCpuTurnAnalysisForRun(args: any): any {
+    if (!CpuTurnAnalysisModule
+        || typeof CpuTurnAnalysisModule.buildCpuTurnAnalysisSeed !== 'function'
+        || typeof CpuTurnAnalysisModule.createCpuTurnAnalysisInvocation !== 'function') {
+        return null;
+    }
+    const playerKey: PlayerKey = args.playerKey === 'white' ? 'white' : 'black';
+    const level = Number(args.level) || 1;
+    const selfColor = args.selfColor;
+    const performanceScope = (args.performanceScope || null) as CpuTurnPerformanceScope | null;
+    const gameStateRef = resolveRuntimeValue('gameState') || ((typeof gameState !== 'undefined') ? gameState : null);
+    const cardStateRef = resolveRuntimeValue('cardState') || ((typeof cardState !== 'undefined') ? cardState : null);
+    const protection = getActiveProtectionSafe(selfColor);
+    const flipBlockers = getFlipBlockersSafe();
+    const cardPreparation = args.othelloMode === true
+        ? {
+            trapPrepared: false,
+            trapId: null,
+            cardPolicyLevel: null,
+            cardUsability: Object.freeze({ usableCardIds: Object.freeze([]), usableCardTypes: Object.freeze([]), selectorEvidence: Object.freeze({}), usableSlots: Object.freeze([]) })
+        }
+        : prepareCpuTurnCardUsability(playerKey, performanceScope);
+    const cardPolicyLevel = Number.isFinite(Number(cardPreparation.cardPolicyLevel))
+        ? Math.max(1, Math.floor(Number(cardPreparation.cardPolicyLevel)))
+        : Math.max(6, level);
+    const seed = CpuTurnAnalysisModule.buildCpuTurnAnalysisSeed({
+        identity: args.identity,
+        protection,
+        flipBlockers,
+        cardUsability: cardPreparation.cardUsability
+    });
+    const pendingAtSeed = readCpuPendingSelection(playerKey);
+    const runtimeGenerateMoves = resolveRuntimeFunction('generateMovesForPlayer');
+    const runtimeGetLegalMoves = resolveRuntimeFunction('getLegalMoves');
+    const canUseCanonicalSharedMoveScan = !!(
+        moveGenerator
+        && typeof moveGenerator.deriveEquivalentCpuMoveScanInState === 'function'
+        && (!runtimeGenerateMoves || runtimeGenerateMoves === moveGenerator.generateMovesForPlayer)
+        && (!runtimeGetLegalMoves || runtimeGetLegalMoves === moveGenerator.getLegalMoves)
+    );
+    const deriveEquivalentMoveScan = () => (
+        canUseCanonicalSharedMoveScan
+            ? moveGenerator.deriveEquivalentCpuMoveScanInState({
+                identity: seed.identity,
+                gameState: gameStateRef,
+                cardState: cardStateRef,
+                playerValue: selfColor,
+                pending: pendingAtSeed,
+                protection: seed.protection,
+                flipBlockers: seed.flipBlockers
+            })
+            : null
+    );
+    const getCardLegalMoves = () => {
+        if (typeof runtimeGetLegalMoves === 'function') {
+            return runtimeGetLegalMoves(gameStateRef, seed.protection, seed.flipBlockers) || [];
+        }
+        return moveGenerator && typeof moveGenerator.getLegalMoves === 'function'
+            ? (moveGenerator.getLegalMoves(gameStateRef, seed.protection, seed.flipBlockers, cardStateRef) || [])
+            : [];
+    };
+    const generatePlacementCandidates = () => {
+        if (
+            typeof runtimeGenerateMoves === 'function'
+            && (!moveGenerator || runtimeGenerateMoves !== moveGenerator.generateMovesForPlayer)
+        ) {
+            return runtimeGenerateMoves(selfColor, pendingAtSeed, seed.protection, seed.flipBlockers) || [];
+        }
+        if (moveGenerator && typeof moveGenerator.generateMovesForPlayerInState === 'function') {
+            return moveGenerator.generateMovesForPlayerInState(
+                gameStateRef,
+                cardStateRef,
+                selfColor,
+                pendingAtSeed,
+                seed.protection,
+                seed.flipBlockers
+            ) || [];
+        }
+        const generateMovesForPlayerFn = resolveGenerateMovesForPlayer();
+        return generateMovesForPlayerFn
+            ? (generateMovesForPlayerFn(selfColor, pendingAtSeed, seed.protection, seed.flipBlockers) || [])
+            : [];
+    };
+    const buildCommentaryMetrics = () => {
+        const helpers = resolveCommentaryContextHelpers();
+        if (helpers && typeof helpers.buildCpuCommentaryMetrics === 'function') {
+            return helpers.buildCpuCommentaryMetrics({
+                gameState: gameStateRef,
+                board: gameStateRef && gameStateRef.board,
+                turnNumber: gameStateRef && gameStateRef.turnNumber,
+                playerKey
+            });
+        }
+        return {};
+    };
+    const invocation = CpuTurnAnalysisModule.createCpuTurnAnalysisInvocation(seed, {
+        card: {
+            deriveEquivalentMoveScan,
+            getCardLegalMoves,
+            buildBoardMetrics: (cardLegalMoves: readonly any[]) => buildCpuRetryCardDecisionContext(
+                playerKey,
+                cardPolicyLevel,
+                cardLegalMoves.length,
+                cardLegalMoves as any[],
+                seed.cardUsability,
+                performanceScope
+            )
+        },
+        placement: {
+            generatePlacementCandidates,
+            reuseMoveScanEvidence: (evidence: any) => (
+                moveGenerator && typeof moveGenerator.reuseEquivalentCpuMoveScanEvidence === 'function'
+                    ? moveGenerator.reuseEquivalentCpuMoveScanEvidence(evidence, {
+                        identity: seed.identity,
+                        gameState: gameStateRef,
+                        cardState: cardStateRef,
+                        playerValue: selfColor,
+                        pending: pendingAtSeed,
+                        protection: seed.protection,
+                        flipBlockers: seed.flipBlockers
+                    })
+                    : null
+            )
+        },
+        commentary: {
+            'turn-start': { buildMetrics: buildCommentaryMetrics },
+            'post-card': { buildMetrics: buildCommentaryMetrics },
+            'post-move': { buildMetrics: buildCommentaryMetrics }
+        }
+    });
+    let preparedCardDecision: any = null;
+    const getPreparedCardDecision = () => {
+        if (preparedCardDecision) return preparedCardDecision;
+        const cardAnalysis = invocation.deriveCardDecisionAnalysis();
+        const hand = cardStateRef && cardStateRef.hands && Array.isArray(cardStateRef.hands[playerKey])
+            ? cardStateRef.hands[playerKey]
+            : [];
+        preparedCardDecision = {
+            analysisSeed: seed,
+            cardAnalysis,
+            cardState: cardStateRef,
+            gameState: gameStateRef,
+            playerKey,
+            level: cardPolicyLevel,
+            usability: seed.cardUsability,
+            handSnapshot: hand.slice(),
+            legalMoves: Array.from(cardAnalysis.cardLegalMoves),
+            legalMovesCount: cardAnalysis.cardLegalMoves.length,
+            decisionContext: cardAnalysis.boardMetrics,
+            trapPrepared: cardPreparation.trapPrepared === true,
+            trapId: cardPreparation.trapId || null
+        };
+        return preparedCardDecision;
+    };
+    return {
+        seed,
+        invocation,
+        getPreparedCardDecision,
+        peekPreparedCardDecision: () => preparedCardDecision,
+        isCurrent: (crossedAsyncBoundary = false) => {
+            if (!isCpuTurnAnalysisIdentityCurrent(seed, crossedAsyncBoundary)) return false;
+            if (seed.identity.pendingEffectId !== null) return true;
+            return readCpuPendingSelection(playerKey) === pendingAtSeed;
+        }
+    };
+}
+
 function resolveProcessPassTurn() {
     try {
         if (__uiImpl_cpu && typeof __uiImpl_cpu.resolveProcessPassTurn === 'function') {
@@ -1196,13 +1484,21 @@ function buildCpuRetryCardDecisionContext(
     level: any,
     legalMovesCount: any,
     legalMoves: any[],
-    usability: any
+    usability: any,
+    performanceScope?: CpuTurnPerformanceScope | null
 ): any {
     const buildCardUseDecisionContextFn = resolveCpuDecisionFunction('buildCardUseDecisionContext')
         || (typeof buildCardUseDecisionContext === 'function' ? buildCardUseDecisionContext : null);
     if (typeof buildCardUseDecisionContextFn !== 'function') return null;
     try {
-        return buildCardUseDecisionContextFn(playerKey, level, legalMovesCount, legalMoves, usability);
+        return buildCardUseDecisionContextFn(
+            playerKey,
+            level,
+            legalMovesCount,
+            legalMoves,
+            usability,
+            performanceScope || null
+        );
     } catch (e) {
         return null;
     }
@@ -1295,20 +1591,32 @@ function scheduleRetry(fn: any, delayMs: any = getAnimationRetryDelayMs()) {
     return CpuTurnScheduler.scheduleRetry(fn, delayMs);
 }
 
+function resolvePreparedCardPolicyHook(name: string, fallback: any): any {
+    const hook = resolveRuntimeFunction(name)
+        || (typeof fallback === 'function' ? fallback : null);
+    if (typeof hook !== 'function') return null;
+    return (playerKey: any, performanceScope?: CpuTurnPerformanceScope | null, prepared?: any) => {
+        if ((hook as any).supportsCpuTurnPreparedAnalysis === true) {
+            return hook(playerKey, performanceScope || null, prepared);
+        }
+        return performanceScope ? hook(playerKey, performanceScope) : hook(playerKey);
+    };
+}
+
 const CpuTurnCardPhase = (CpuTurnCardPhaseModule && typeof CpuTurnCardPhaseModule.createCpuTurnCardPhase === 'function')
     ? CpuTurnCardPhaseModule.createCpuTurnCardPhase({
         emitCpuCommentary,
         getAnimationRetryDelayMs,
         getCurrentPlayerKeySafe,
         getCurrentTurnNumberSafe,
-        getDestroyHandCardWithPolicyFn: () => (
-            resolveRuntimeFunction('cpuMaybeDestroyHandCardWithPolicy')
-            || (typeof cpuMaybeDestroyHandCardWithPolicy === 'function' ? cpuMaybeDestroyHandCardWithPolicy : null)
+        getDestroyHandCardWithPolicyFn: () => resolvePreparedCardPolicyHook(
+            'cpuMaybeDestroyHandCardWithPolicy',
+            typeof cpuMaybeDestroyHandCardWithPolicy === 'function' ? cpuMaybeDestroyHandCardWithPolicy : null
         ),
         getLastUsedCardIdSafe,
-        getUseCardWithPolicyFn: () => (
-            resolveRuntimeFunction('cpuMaybeUseCardWithPolicy')
-            || (typeof cpuMaybeUseCardWithPolicy === 'function' ? cpuMaybeUseCardWithPolicy : null)
+        getUseCardWithPolicyFn: () => resolvePreparedCardPolicyHook(
+            'cpuMaybeUseCardWithPolicy',
+            typeof cpuMaybeUseCardWithPolicy === 'function' ? cpuMaybeUseCardWithPolicy : null
         ),
         isUiAnimationBusy,
         runCpuTurn: (playerKey: any, options?: any) => runCpuTurn(playerKey, options || {}),
@@ -1615,6 +1923,22 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
         const hasUsedCardThisTurn = !!(cardState && cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey]);
         const hasPendingSelection = !!readCpuPendingSelection(playerKey);
         const othelloMode = isOthelloModeForCpuTurnHandler();
+        cpuTurnInvocationRunSequence += 1;
+        cpuTurnDecisionEpochSequence += 1;
+        const invocationIdentity = buildCpuTurnInvocationIdentity(
+            playerKey,
+            level,
+            cpuTurnInvocationRunSequence,
+            cpuTurnDecisionEpochSequence
+        );
+        const analysisForRun = createCpuTurnAnalysisForRun({
+            playerKey,
+            level,
+            selfColor,
+            othelloMode,
+            performanceScope,
+            identity: invocationIdentity
+        });
 
         if (performanceScope) {
             measureCpuTurnSync(performanceScope, 'commentary-context', () => {
@@ -1622,6 +1946,9 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
                     level,
                     hasPendingSelection,
                     hasUsedCardThisTurn
+                }, {
+                    invocation: analysisForRun && analysisForRun.invocation,
+                    snapshotMoment: 'turn-start'
                 });
             });
         } else {
@@ -1629,6 +1956,9 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
                 level,
                 hasPendingSelection,
                 hasUsedCardThisTurn
+            }, {
+                invocation: analysisForRun && analysisForRun.invocation,
+                snapshotMoment: 'turn-start'
             });
         }
 
@@ -1641,9 +1971,16 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
                 othelloMode,
                 hasUsedCardThisTurn,
                 hasPendingSelection,
-                performanceScope
+                performanceScope,
+                analysisSeed: analysisForRun && analysisForRun.seed,
+                getPreparedCardDecision: analysisForRun && analysisForRun.getPreparedCardDecision
             });
             if (cardPhaseResult && cardPhaseResult.status === 'handled') {
+                return;
+            }
+            if (analysisForRun && !analysisForRun.isCurrent(false)) {
+                setCpuProcessing(false);
+                scheduleRunCpuTurn(playerKey, inheritedResumeOptions, 0);
                 return;
             }
         }
@@ -1655,7 +1992,8 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
                 autoMode,
                 level,
                 pending,
-                performanceScope
+                performanceScope,
+                analysisSeed: analysisForRun && analysisForRun.seed
             });
             if (pendingPhaseResult && pendingPhaseResult.status === 'handled') {
                 return;
@@ -1674,7 +2012,15 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
             othelloMode,
             pending,
             turnStartMs,
-            performanceScope
+            performanceScope,
+            minThinkSatisfied: options && options.cpuMinThinkSatisfied === true,
+            skipAsyncDecision: options && options.cpuSkipAsyncDecision === true,
+            analysisSeed: analysisForRun && analysisForRun.seed,
+            analysisInvocation: analysisForRun && analysisForRun.invocation,
+            preparedCardDecision: analysisForRun && analysisForRun.peekPreparedCardDecision
+                ? analysisForRun.peekPreparedCardDecision()
+                : null,
+            isAnalysisCurrent: analysisForRun && analysisForRun.isCurrent
         });
     } catch (error) {
         handleCpuTurnError(playerKey, selfName, error, autoMode, performanceScope);

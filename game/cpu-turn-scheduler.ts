@@ -77,6 +77,10 @@ export function createCpuTurnScheduler(config: CpuTurnSchedulerConfig): any {
         scheduledRetryTimerIds.clear();
     }
 
+    function getCpuRetryGeneration(): number {
+        return cpuRetryGeneration;
+    }
+
     function shouldAbortStuckPendingSelection(playerKey: any, pending: any): boolean {
         const key = retryStateKey(playerKey);
         const retryKey = makePendingSelectRetryKey(pending);
@@ -258,6 +262,7 @@ export function createCpuTurnScheduler(config: CpuTurnSchedulerConfig): any {
     }
 
     return {
+        getCpuRetryGeneration,
         resetCpuTurnHandlerState,
         resetPendingSelectRetryState,
         scheduleRetry,

@@ -2400,6 +2400,13 @@ function buildCardQuiescenceSnapshot(playerKey: any, level: any, legalMoves: any
         : null;
 }
 
+function shouldBuildCardQuiescenceSnapshot(level: any, legalMoves: any, context: any): boolean {
+    const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
+    return !!(CpuDecisionCardRisk && typeof CpuDecisionCardRisk.shouldBuildCardQuiescenceSnapshot === 'function'
+        ? CpuDecisionCardRisk.shouldBuildCardQuiescenceSnapshot(policyLevel, legalMoves, context)
+        : true);
+}
+
 function shouldHoldCardByQuiescence(playerKey: any, level: any, cardId: any, cardDef: any, context: any, snapshot: any): any {
     const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
     return !!(CpuDecisionCardRisk && typeof CpuDecisionCardRisk.shouldHoldCardByQuiescence === 'function'
@@ -2521,6 +2528,7 @@ const CpuDecisionCardChoice = (CpuDecisionCardChoiceModule && typeof CpuDecision
             : (typeof WHITE !== 'undefined' ? WHITE : -1)),
         selectCardByLevel6Consensus,
         selectCardBySharedPolicyTableCore,
+        shouldBuildCardQuiescenceSnapshot,
         shouldHoldCardByQuiescence,
         shouldUseSharedPolicyTableCoreCardDecision,
         warn: (...args: any[]) => console.warn(...args)
@@ -2545,9 +2553,13 @@ function selectCardToUse(playerKey: any, performanceScope?: CpuTurnPerformanceSc
     return null;
 }
 
-function selectHandCardToDestroy(playerKey: any, performanceScope?: CpuTurnPerformanceScope | null): any {
+function selectHandCardToDestroy(
+    playerKey: any,
+    performanceScope?: CpuTurnPerformanceScope | null,
+    prepared?: any
+): any {
     if (CpuDecisionCardActions && typeof CpuDecisionCardActions.selectHandCardToDestroy === 'function') {
-        return CpuDecisionCardActions.selectHandCardToDestroy(playerKey, performanceScope);
+        return CpuDecisionCardActions.selectHandCardToDestroy(playerKey, performanceScope, prepared);
     }
     return null;
 }
@@ -2563,9 +2575,13 @@ function applyHandCardDestroy(
     return false;
 }
 
-function cpuMaybeDestroyHandCardWithPolicy(playerKey: any, performanceScope?: CpuTurnPerformanceScope | null): any {
+function cpuMaybeDestroyHandCardWithPolicy(
+    playerKey: any,
+    performanceScope?: CpuTurnPerformanceScope | null,
+    prepared?: any
+): any {
     if (CpuDecisionCardActions && typeof CpuDecisionCardActions.cpuMaybeDestroyHandCardWithPolicy === 'function') {
-        return CpuDecisionCardActions.cpuMaybeDestroyHandCardWithPolicy(playerKey, performanceScope);
+        return CpuDecisionCardActions.cpuMaybeDestroyHandCardWithPolicy(playerKey, performanceScope, prepared);
     }
     return false;
 }
@@ -2660,6 +2676,16 @@ function selectCardDecision(
         return CpuDecisionCardChoice.selectCardDecision(playerKey, performanceScope, prepared);
     }
     return { choice: selectCardToUse(playerKey, performanceScope), prepared: null };
+}
+
+function prepareCpuTurnCardUsabilityAnalysis(playerKey: any): any {
+    const trapId = _prepareCpuTrapOnlyCard(playerKey);
+    return Object.freeze({
+        trapPrepared: true,
+        trapId: trapId || null,
+        cardPolicyLevel: resolveCpuCardPolicyLevelForPlayer(playerKey),
+        cardUsability: getTargetAwareCardUsabilityAnalysis(playerKey)
+    });
 }
 
 function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any, candidateScoringPrecompute?: any): any {
@@ -3380,9 +3406,12 @@ function computeCpuAction(playerKey: any): any {
 
 // Node.js環境用エクスポート
 if (typeof module !== 'undefined' && module.exports) {
+    (cpuMaybeDestroyHandCardWithPolicy as any).supportsCpuTurnPreparedAnalysis = true;
+    (cpuMaybeUseCardWithPolicy as any).supportsCpuTurnPreparedAnalysis = true;
     const cpuDecisionPublicApi = {
         cpuMaybeDestroyHandCardWithPolicy,
         cpuMaybeUseCardWithPolicy,
+        prepareCpuTurnCardUsabilityAnalysis,
         selectHandCardToDestroy,
         applyHandCardDestroy,
         selectCardToUse,

@@ -48,6 +48,37 @@ function createConfig(overrides: Record<string, any> = {}) {
 }
 
 describe('cpu turn move phase no-legal card retry', () => {
+  test('derives placement once and skips card derivation/availability rescan for a usable-zero seed', async () => {
+    const getCardUsabilityAnalysis = jest.fn(() => ({ usableCardIds: ['unexpected'] }));
+    const { config } = createConfig({ getCardUsabilityAnalysis });
+    const phase = createCpuTurnMovePhase(config as any);
+    const deriveCardDecisionAnalysis = jest.fn(() => ({ cardLegalMoves: [] }));
+    const derivePlacementAnalysis = jest.fn(() => ({ placementCandidates: [] }));
+    const analysisInvocation = {
+      deriveCardDecisionAnalysis,
+      derivePlacementAnalysis,
+      peekCardDecisionAnalysis: jest.fn(() => null)
+    };
+
+    const result = await phase.runCpuTurnMovePhase({
+      playerKey: 'white',
+      autoMode: false,
+      level: 1,
+      selfColor: -1,
+      selfName: '白',
+      othelloMode: false,
+      pending: null,
+      turnStartMs: Date.now(),
+      analysisSeed: { cardUsability: { usableCardIds: [] } },
+      analysisInvocation
+    });
+
+    expect(result).toEqual({ status: 'pass' });
+    expect(derivePlacementAnalysis).toHaveBeenCalledTimes(1);
+    expect(deriveCardDecisionAnalysis).not.toHaveBeenCalled();
+    expect(getCardUsabilityAnalysis).not.toHaveBeenCalled();
+  });
+
   test('uses a normal pass when no legal moves remain but a card was still technically usable', async () => {
     const { config, passFn, scheduleRunCpuTurn } = createConfig();
     const phase = createCpuTurnMovePhase(config as any);

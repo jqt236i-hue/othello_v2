@@ -59,7 +59,7 @@ function createConfig(overrides: Record<string, any> = {}) {
   return { config, executeMove, selectCpuMoveSafe, expectedRequest, batch, prepare, score };
 }
 
-function run(phase: any) {
+function run(phase: any, overrides: Record<string, any> = {}) {
   return phase.runCpuTurnMovePhase({
     playerKey: 'white',
     autoMode: false,
@@ -68,7 +68,8 @@ function run(phase: any) {
     selfName: '白',
     othelloMode: false,
     pending: null,
-    turnStartMs: 1000
+    turnStartMs: 1000,
+    ...overrides
   });
 }
 
@@ -146,5 +147,77 @@ describe('CPU turn Worker candidate scoring', () => {
     await expect(pending).resolves.toEqual({ status: 'handled' });
     expect(harness.selectCpuMoveSafe).not.toHaveBeenCalled();
     expect(harness.executeMove).not.toHaveBeenCalled();
+  });
+
+  test('does not apply a Worker result when invocation decision/retry identity is stale', async () => {
+    const harness = createConfig();
+    const phase = createCpuTurnMovePhase(harness.config as any);
+    const isAnalysisCurrent = jest.fn(() => false);
+
+    await expect(run(phase, {
+      analysisSeed: {
+        identity: {
+          runId: 4,
+          playerKey: 'white',
+          turnNumber: 12,
+          decisionLevel: 4,
+          stateVersion: 5,
+          decisionEpoch: 1,
+          pendingEffectId: null,
+          pendingStage: null,
+          retryGeneration: 3
+        },
+        cardUsability: { usableCardIds: [] }
+      },
+      isAnalysisCurrent
+    })).resolves.toEqual({ status: 'handled' });
+
+    expect(isAnalysisCurrent).toHaveBeenCalledWith(true);
+    expect(harness.selectCpuMoveSafe).not.toHaveBeenCalled();
+    expect(harness.executeMove).not.toHaveBeenCalled();
+  });
+
+  test('fails closed across Worker await without stateVersion and resumes without async reuse', async () => {
+    const expectedRequest = {
+      requestId: 'cpu-score-1',
+      decisionEpoch: 1,
+      stateVersion: null,
+      turnNumber: 12,
+      playerKey: 'white'
+    };
+    const harness = createConfig({
+      getCurrentStateVersionSafe: jest.fn(() => null),
+      getPrepareCpuCandidateScoringRequestFn: jest.fn(() => jest.fn(() => expectedRequest)),
+      getScoreCandidatesInWorkerFn: jest.fn(() => jest.fn(async () => ({
+        request: expectedRequest,
+        response: { scores: [] }
+      })))
+    });
+    const phase = createCpuTurnMovePhase(harness.config as any);
+
+    await expect(run(phase, {
+      analysisSeed: {
+        identity: {
+          runId: 4,
+          playerKey: 'white',
+          turnNumber: 12,
+          decisionLevel: 4,
+          stateVersion: null,
+          decisionEpoch: 1,
+          pendingEffectId: null,
+          pendingStage: null,
+          retryGeneration: 3
+        },
+        cardUsability: { usableCardIds: [] }
+      },
+      isAnalysisCurrent: jest.fn(() => false)
+    })).resolves.toEqual({ status: 'handled' });
+
+    expect(harness.executeMove).not.toHaveBeenCalled();
+    expect(harness.config.scheduleRunCpuTurn).toHaveBeenCalledWith(
+      'white',
+      expect.objectContaining({ autoMode: false, cpuSkipAsyncDecision: true }),
+      0
+    );
   });
 });

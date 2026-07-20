@@ -46,6 +46,17 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
         return cfg.getCardLogic ? cfg.getCardLogic() : null;
     }
 
+    function shouldBuildCardQuiescenceSnapshot(level: any, legalMoves: any, context: any): boolean {
+        if (!Number.isFinite(level) || level < 6) return false;
+        if (!Array.isArray(legalMoves) || legalMoves.length <= 0) return false;
+        if (!context || context.forceUseCard === true || context.cornerEmergency === true) return false;
+        if (Number(context.discDiff || 0) <= -8) return false;
+        if (Number(context.handSize || 0) >= 4) return false;
+        if (Number(context.ownCharge || 0) >= 24) return false;
+        if (Number(context.legalMovesCount || 0) <= 2) return false;
+        return true;
+    }
+
     function buildCardQuiescenceSnapshot(playerKey: any, level: any, legalMoves: any, context: any): any {
         if (!Number.isFinite(level) || level < 6) return null;
         if (!Array.isArray(legalMoves) || legalMoves.length <= 0) return null;
@@ -196,6 +207,7 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
 
     return {
         buildCardQuiescenceSnapshot,
+        shouldBuildCardQuiescenceSnapshot,
         shouldHoldCardByQuiescence,
         isCardChoiceAllowedByRisk,
         isCardChoiceAllowedByHighConfidence

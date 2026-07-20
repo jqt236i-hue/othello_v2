@@ -118,4 +118,38 @@ describe('cpu decision card risk module', () => {
 
     expect(hold).toBe(true);
   });
+
+  test.each([
+    ['forced use', { forceUseCard: true }],
+    ['corner emergency', { cornerEmergency: true }],
+    ['large deficit', { discDiff: -8 }],
+    ['full hand', { handSize: 4 }],
+    ['high charge', { ownCharge: 24 }],
+    ['few legal moves', { legalMovesCount: 2 }]
+  ])('skips quiescence search when %s makes every hold decision false', (_label, override) => {
+    const cardRisk = createCardRisk();
+    const context = Object.assign({
+      forceUseCard: false,
+      cornerEmergency: false,
+      discDiff: 2,
+      handSize: 2,
+      ownCharge: 12,
+      legalMovesCount: 5
+    }, override);
+
+    expect(cardRisk.shouldBuildCardQuiescenceSnapshot(6, [{ row: 0, col: 0 }], context)).toBe(false);
+  });
+
+  test('builds quiescence search when a hold decision can still be true', () => {
+    const cardRisk = createCardRisk();
+
+    expect(cardRisk.shouldBuildCardQuiescenceSnapshot(6, [{ row: 0, col: 0 }], {
+      forceUseCard: false,
+      cornerEmergency: false,
+      discDiff: 2,
+      handSize: 2,
+      ownCharge: 12,
+      legalMovesCount: 5
+    })).toBe(true);
+  });
 });

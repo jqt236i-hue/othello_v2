@@ -27,6 +27,7 @@ type CpuDecisionCardChoiceConfig = {
     resolvePlayerValue: (playerKey: any) => any;
     selectCardByLevel6Consensus: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any) => any;
     selectCardBySharedPolicyTableCore: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any) => any;
+    shouldBuildCardQuiescenceSnapshot?: (level: any, legalMoves: any, context: any) => boolean;
     shouldHoldCardByQuiescence: (playerKey: any, level: any, cardId: any, cardDef: any, context: any, snapshot: any) => any;
     shouldUseSharedPolicyTableCoreCardDecision: (level: any) => any;
     warn: (...args: any[]) => void;
@@ -113,7 +114,9 @@ export function createCpuDecisionCardChoice(config: CpuDecisionCardChoiceConfig)
         performanceScope: CpuTurnPerformanceScope | null,
         prepared: any
     ): any {
-        const trapId = cfg.prepareCpuTrapOnlyCard(playerKey);
+        const trapId = prepared.trapPrepared === true
+            ? (prepared.trapId || null)
+            : cfg.prepareCpuTrapOnlyCard(playerKey);
         const level = cfg.resolveCpuSmartnessLevel(playerKey);
         const cardLogic = readCardLogic();
         const currentCardState = cfg.getCardState();
@@ -152,26 +155,44 @@ export function createCpuDecisionCardChoice(config: CpuDecisionCardChoiceConfig)
         prepared.handSnapshot = currentHand.slice();
         if (!cardLogic || usableNow.length === 0) return null;
 
-        const player = cfg.resolvePlayerValue(playerKey);
-        const protection = cfg.getActiveProtectionForPlayer(player);
-        const perma = cfg.getFlipBlockers();
-        const safeGameState = cfg.getGameState();
-        const legalMoves = cfg.getLegalMoves(safeGameState, protection, perma);
+        const hasPreparedLegalMoves = preparedUsabilityIsCurrent && Array.isArray(prepared.legalMoves);
+        const legalMoves = hasPreparedLegalMoves
+            ? prepared.legalMoves
+            : (() => {
+                const player = cfg.resolvePlayerValue(playerKey);
+                const protection = cfg.getActiveProtectionForPlayer(player);
+                const perma = cfg.getFlipBlockers();
+                const safeGameState = cfg.getGameState();
+                return cfg.getLegalMoves(safeGameState, protection, perma);
+            })();
         const legalMovesCount = Array.isArray(legalMoves) ? legalMoves.length : 0;
-        const decisionContext = cfg.buildCardUseDecisionContext(
-            playerKey,
-            level,
-            legalMovesCount,
-            legalMoves,
-            usability,
-            performanceScope
-        );
-        const quiescenceSnapshot = cfg.buildCardQuiescenceSnapshot(playerKey, level, legalMoves, decisionContext);
-        const cornerPlanState = decisionContext.cornerPlanState || cfg.buildCornerPlanState(playerKey, legalMoves, usableNow);
+        const decisionContext = preparedUsabilityIsCurrent && prepared.decisionContext
+            ? prepared.decisionContext
+            : cfg.buildCardUseDecisionContext(
+                playerKey,
+                level,
+                legalMovesCount,
+                legalMoves,
+                usability,
+                performanceScope
+            );
+        const hasPreparedQuiescence = preparedUsabilityIsCurrent && prepared.quiescencePrepared === true;
+        const shouldBuildQuiescence = typeof cfg.shouldBuildCardQuiescenceSnapshot === 'function'
+            ? cfg.shouldBuildCardQuiescenceSnapshot(level, legalMoves, decisionContext) !== false
+            : true;
+        const quiescenceSnapshot = hasPreparedQuiescence
+            ? prepared.quiescenceSnapshot
+            : (shouldBuildQuiescence
+                ? cfg.buildCardQuiescenceSnapshot(playerKey, level, legalMoves, decisionContext)
+                : null);
+        const cornerPlanState = preparedUsabilityIsCurrent && prepared.cornerPlanState
+            ? prepared.cornerPlanState
+            : (decisionContext.cornerPlanState || cfg.buildCornerPlanState(playerKey, legalMoves, usableNow));
         prepared.legalMoves = Array.isArray(legalMoves) ? legalMoves : [];
         prepared.legalMovesCount = legalMovesCount;
         prepared.decisionContext = decisionContext;
         prepared.quiescenceSnapshot = quiescenceSnapshot;
+        prepared.quiescencePrepared = true;
         prepared.cornerPlanState = cornerPlanState;
         const isAllowedChoice = (choice: any) => {
             if (!choice || !choice.cardId) return false;
@@ -303,7 +324,12 @@ export function createCpuDecisionCardChoice(config: CpuDecisionCardChoiceConfig)
         performanceScope?: CpuTurnPerformanceScope | null,
         preparedInput?: any
     ): any {
-        const prepared: any = preparedInput && typeof preparedInput === 'object' ? preparedInput : {};
+        const resolvedPreparedInput = typeof preparedInput === 'function'
+            ? preparedInput()
+            : preparedInput;
+        const prepared: any = resolvedPreparedInput && typeof resolvedPreparedInput === 'object'
+            ? resolvedPreparedInput
+            : {};
         const choice = performanceScope
             ? measureCpuTurnSync(
                 performanceScope,

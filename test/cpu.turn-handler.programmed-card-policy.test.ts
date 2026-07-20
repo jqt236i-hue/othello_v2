@@ -175,6 +175,34 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
         expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledWith('white');
     });
 
+    test('keeps the legacy Lv6 card-policy context when the placement decision level is Lv1', async () => {
+        const move = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+        let preparedDecision: any = null;
+        const preparedHook: any = jest.fn((_playerKey: any, _performanceScope: any, getPrepared: any) => {
+            preparedDecision = getPrepared();
+            return false;
+        });
+        preparedHook.supportsCpuTurnPreparedAnalysis = true;
+        global.cpuSmartness = { white: 1, black: 1 };
+        global.cardState = {
+            hands: { white: ['card_a'], black: [] },
+            charge: { white: 10, black: 10 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 10 };
+        global.generateMovesForPlayer = jest.fn(() => [move]);
+        global.cpuMaybeUseCardWithPolicy = preparedHook;
+
+        await mod.runCpuTurn('white');
+
+        expect(preparedHook).toHaveBeenCalledWith('white', null, expect.any(Function));
+        expect(preparedDecision.level).toBe(6);
+        expect(preparedDecision.decisionContext.level).toBe(6);
+        expect(global.executeMove).toHaveBeenCalledWith(move);
+    });
+
     test('Lv8 theory incarnation skips all card-use paths before turn 8 and places a stone', async () => {
         const move = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
         global.cpuSmartness = { white: '8-theory-incarnation', black: 1 };
@@ -524,7 +552,8 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
             charge: { white: 12, black: 8 },
             pendingEffectByPlayer: { white: null, black: null },
             hasUsedCardThisTurnByPlayer: { white: false, black: false },
-            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+            turnIndex: 30
         };
         global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 30 };
         global.MATCH_MODE = 'cpu';
@@ -555,7 +584,8 @@ describe('cpu-turn-handler programmed card policy behavior', () => {
             charge: { white: 0, black: 0 },
             pendingEffectByPlayer: { white: null, black: null },
             hasUsedCardThisTurnByPlayer: { white: false, black: false },
-            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false },
+            turnIndex: 30
         };
         global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 30 };
         global.MATCH_MODE = 'reversi';

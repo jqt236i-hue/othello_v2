@@ -49,6 +49,12 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
         const hasUsedCardThisTurn = opts.hasUsedCardThisTurn === true;
         const hasPendingSelection = opts.hasPendingSelection === true;
         const performanceScope = (opts.performanceScope || null) as CpuTurnPerformanceScope | null;
+        const preparedCardDecision = opts.getPreparedCardDecision;
+        const analyzedUsableCardIds = opts.analysisSeed
+            && opts.analysisSeed.cardUsability
+            && Array.isArray(opts.analysisSeed.cardUsability.usableCardIds)
+            ? opts.analysisSeed.cardUsability.usableCardIds
+            : null;
         const resumeOptions = performanceScope
             ? withCpuTurnPerformanceOptions({ autoMode }, performanceScope.correlationId, level)
             : { autoMode };
@@ -62,8 +68,8 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
             const destroyHandCardWithPolicyFn = cfg.getDestroyHandCardWithPolicyFn();
             let destroyedForCycle = (typeof destroyHandCardWithPolicyFn === 'function')
                 ? (performanceScope
-                    ? !!destroyHandCardWithPolicyFn(playerKey, performanceScope)
-                    : !!destroyHandCardWithPolicyFn(playerKey))
+                    ? !!destroyHandCardWithPolicyFn(playerKey, performanceScope, preparedCardDecision)
+                    : !!destroyHandCardWithPolicyFn(playerKey, null, preparedCardDecision))
                 : false;
             if (!destroyedForCycle) {
                 destroyedForCycle = performanceScope
@@ -120,12 +126,17 @@ export function createCpuTurnCardPhase(config: CpuTurnCardPhaseConfig): any {
             }
         }
 
-        if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
+        if (
+            !othelloMode
+            && !hasUsedCardThisTurn
+            && !hasPendingSelection
+            && (analyzedUsableCardIds === null || analyzedUsableCardIds.length > 0)
+        ) {
             const useCardWithPolicyFn = cfg.getUseCardWithPolicyFn();
             const applied = (typeof useCardWithPolicyFn === 'function')
                 ? (performanceScope
-                    ? !!useCardWithPolicyFn(playerKey, performanceScope)
-                    : !!useCardWithPolicyFn(playerKey))
+                    ? !!useCardWithPolicyFn(playerKey, performanceScope, preparedCardDecision)
+                    : !!useCardWithPolicyFn(playerKey, null, preparedCardDecision))
                 : false;
             if (applied) {
                 if (performanceScope) {

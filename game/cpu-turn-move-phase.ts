@@ -10,7 +10,7 @@ type CpuTurnMovePhaseConfig = {
     blackValue: any;
     countOwnedBasicCornersSafe: (state: any, playerKey: any) => any;
     debugCpuTrace: (message: any, meta?: any) => any;
-    emitCpuCommentary: (eventType: any, playerKey: any, extra: any) => any;
+    emitCpuCommentary: (eventType: any, playerKey: any, extra: any, analysisOptions?: any) => any;
     emitCpuDebugLog: (message: any, kind?: any, meta?: any) => any;
     getActiveProtectionSafe: (playerValue: any) => any;
     getAnimationRetryDelayMs: () => any;
@@ -78,10 +78,19 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
         const selfName = opts.selfName;
         const othelloMode = opts.othelloMode === true;
         const pending = opts.pending || null;
+        const analysisSeed = opts.analysisSeed || null;
+        const analysisInvocation = opts.analysisInvocation || null;
+        let preparedCardDecision = opts.preparedCardDecision || null;
+        const isAnalysisCurrent = typeof opts.isAnalysisCurrent === 'function'
+            ? opts.isAnalysisCurrent
+            : null;
         const performanceScope = (opts.performanceScope || null) as CpuTurnPerformanceScope | null;
+        const resumeOptionBase: any = { autoMode };
+        if (opts.minThinkSatisfied === true) resumeOptionBase.cpuMinThinkSatisfied = true;
+        if (opts.skipAsyncDecision === true) resumeOptionBase.cpuSkipAsyncDecision = true;
         const resumeOptions = performanceScope
-            ? withCpuTurnPerformanceOptions({ autoMode }, performanceScope.correlationId, level)
-            : { autoMode };
+            ? withCpuTurnPerformanceOptions(resumeOptionBase, performanceScope.correlationId, level)
+            : resumeOptionBase;
         const turnStartMs = Number.isFinite(opts.turnStartMs) ? opts.turnStartMs : readNowMs();
         const expectedTurnNumber = cfg.getCurrentTurnNumberSafe();
         const expectedStateVersion = typeof cfg.getCurrentStateVersionSafe === 'function'
@@ -128,29 +137,30 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             return { status: 'pass' };
         };
 
-        let candidateMoves: any[];
-        if (performanceScope) {
-            const candidateContext = measureCpuTurnSync(performanceScope, 'move-candidates', () => {
-                const protection = cfg.getActiveProtectionSafe(selfColor);
-                const perma = cfg.getFlipBlockersSafe();
-                const generateMovesForPlayerFn = cfg.resolveGenerateMovesForPlayer();
-                const measuredCandidateMoves = generateMovesForPlayerFn
-                    ? generateMovesForPlayerFn(selfColor, pending, protection, perma)
+        const deriveCandidates = () => {
+            if (analysisInvocation && typeof analysisInvocation.derivePlacementAnalysis === 'function') {
+                const priorCardAnalysis = preparedCardDecision && preparedCardDecision.cardAnalysis
+                    ? preparedCardDecision.cardAnalysis
+                    : (typeof analysisInvocation.peekCardDecisionAnalysis === 'function'
+                        ? analysisInvocation.peekCardDecisionAnalysis()
+                        : null);
+                const placement = analysisInvocation.derivePlacementAnalysis(priorCardAnalysis);
+                return placement && Array.isArray(placement.placementCandidates)
+                    ? Array.from(placement.placementCandidates)
                     : [];
-                return { candidateMoves: measuredCandidateMoves };
-            });
-            candidateMoves = candidateContext.candidateMoves;
-        } else {
+            }
             const protection = cfg.getActiveProtectionSafe(selfColor);
             const perma = cfg.getFlipBlockersSafe();
             const generateMovesForPlayerFn = cfg.resolveGenerateMovesForPlayer();
-            candidateMoves = generateMovesForPlayerFn
+            return generateMovesForPlayerFn
                 ? generateMovesForPlayerFn(selfColor, pending, protection, perma)
                 : [];
-        }
+        };
+        const candidateMoves: any[] = performanceScope
+            ? measureCpuTurnSync(performanceScope, 'move-candidates', deriveCandidates)
+            : deriveCandidates();
 
         if (!candidateMoves.length) {
-            const preparedCardDecision: any = {};
             const cardState = cfg.getCardState();
             const gameState = cfg.getGameState();
             const resolveCardUsability = () => {
@@ -179,13 +189,32 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 }
                 return { usableCardIds: [] };
             };
-            const cardUsability = performanceScope
-                ? measureCpuTurnSync(
-                    performanceScope,
-                    'card-availability',
-                    resolveCardUsability
-                )
-                : resolveCardUsability();
+            const cardUsability = analysisSeed && analysisSeed.cardUsability
+                ? analysisSeed.cardUsability
+                : (performanceScope
+                    ? measureCpuTurnSync(
+                        performanceScope,
+                        'card-availability',
+                        resolveCardUsability
+                    )
+                    : resolveCardUsability());
+            if (!preparedCardDecision || typeof preparedCardDecision !== 'object') {
+                preparedCardDecision = {};
+            }
+            if (
+                analysisInvocation
+                && typeof analysisInvocation.deriveCardDecisionAnalysis === 'function'
+                && cardUsability
+                && Array.isArray(cardUsability.usableCardIds)
+                && cardUsability.usableCardIds.length > 0
+                && !preparedCardDecision.cardAnalysis
+            ) {
+                const cardAnalysis = analysisInvocation.deriveCardDecisionAnalysis();
+                preparedCardDecision.cardAnalysis = cardAnalysis;
+                preparedCardDecision.legalMoves = Array.from(cardAnalysis.cardLegalMoves || []);
+                preparedCardDecision.legalMovesCount = preparedCardDecision.legalMoves.length;
+                preparedCardDecision.decisionContext = cardAnalysis.boardMetrics;
+            }
             preparedCardDecision.cardState = cardState;
             preparedCardDecision.gameState = gameState;
             preparedCardDecision.playerKey = playerKey;
@@ -249,12 +278,18 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                         cfg.emitCpuCommentary('pass', playerKey, {
                             level,
                             legalMovesCount: 0
+                        }, {
+                            invocation: analysisInvocation,
+                            snapshotMoment: 'turn-start'
                         });
                     });
                 } else {
                     cfg.emitCpuCommentary('pass', playerKey, {
                         level,
                         legalMovesCount: 0
+                    }, {
+                        invocation: analysisInvocation,
+                        snapshotMoment: 'turn-start'
                     });
                 }
                 const hasPendingAction = !!pending;
@@ -286,7 +321,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
         }
         if (!move) {
             const selectMoveFromOnnx = cfg.getSelectMoveFromOnnxFn();
-            if (cfg.shouldUseOnnxMoveDecision(level) && typeof selectMoveFromOnnx === 'function') {
+            if (opts.skipAsyncDecision !== true && cfg.shouldUseOnnxMoveDecision(level) && typeof selectMoveFromOnnx === 'function') {
                 let onnxWaitStartedAtMs: number | null = null;
                 try {
                     const onnxPromise = performanceScope
@@ -298,6 +333,24 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                         : Promise.resolve(selectMoveFromOnnx(candidateMoves, playerKey, level));
                     onnxWaitStartedAtMs = performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : null;
                     move = await onnxPromise;
+                    if (isAnalysisCurrent && !isAnalysisCurrent(true)) {
+                        if (performanceScope && onnxWaitStartedAtMs !== null) {
+                            recordCpuTurnPerformanceInterval(
+                                performanceScope,
+                                'move-candidates',
+                                'wait',
+                                onnxWaitStartedAtMs,
+                                readCpuTurnPerformanceNowMs(performanceScope),
+                                'stale'
+                            );
+                        }
+                        cfg.setCpuProcessing(false);
+                        cfg.scheduleRunCpuTurn(playerKey, {
+                            ...resumeOptions,
+                            cpuSkipAsyncDecision: true
+                        }, 0);
+                        return { status: 'handled' };
+                    }
                     const abortAfterOnnx = cfg.shouldAbortCpuForHumanMode(playerKey, 'after_onnx_move_decision');
                     if (performanceScope && onnxWaitStartedAtMs !== null) {
                         recordCpuTurnPerformanceInterval(
@@ -327,6 +380,14 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                         playerKey,
                         error: e && (e as any).message ? (e as any).message : String(e)
                     });
+                    if (isAnalysisCurrent && !isAnalysisCurrent(true)) {
+                        cfg.setCpuProcessing(false);
+                        cfg.scheduleRunCpuTurn(playerKey, {
+                            ...resumeOptions,
+                            cpuSkipAsyncDecision: true
+                        }, 0);
+                        return { status: 'handled' };
+                    }
                 }
             }
             if (!move) {
@@ -337,8 +398,14 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 const scoreCandidatesInWorker = typeof cfg.getScoreCandidatesInWorkerFn === 'function'
                     ? cfg.getScoreCandidatesInWorkerFn()
                     : null;
-                if (typeof prepareCandidateScoring === 'function' && typeof scoreCandidatesInWorker === 'function') {
-                    const decisionEpoch = ++candidateScoringDecisionEpoch;
+                if (
+                    opts.skipAsyncDecision !== true
+                    && typeof prepareCandidateScoring === 'function'
+                    && typeof scoreCandidatesInWorker === 'function'
+                ) {
+                    const decisionEpoch = analysisSeed && analysisSeed.identity
+                        ? analysisSeed.identity.decisionEpoch
+                        : ++candidateScoringDecisionEpoch;
                     const identity = {
                         requestId: `cpu-score-${decisionEpoch}`,
                         decisionEpoch,
@@ -404,7 +471,8 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                             ? cfg.getCurrentStateVersionSafe()
                             : null;
                         const stale = (
-                            decisionEpoch !== candidateScoringDecisionEpoch ||
+                            (!analysisSeed && decisionEpoch !== candidateScoringDecisionEpoch) ||
+                            (isAnalysisCurrent && !isAnalysisCurrent(true)) ||
                             (nowPlayerKey && nowPlayerKey !== playerKey) ||
                             (expectedTurnNumber !== null && nowTurnNumber !== expectedTurnNumber) ||
                             nowStateVersion !== expectedStateVersion
@@ -423,7 +491,13 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                                 expectedStateVersion,
                                 nowStateVersion
                             });
-                            if (decisionEpoch === candidateScoringDecisionEpoch) cfg.setCpuProcessing(false);
+                            if (analysisSeed || decisionEpoch === candidateScoringDecisionEpoch) cfg.setCpuProcessing(false);
+                            if (analysisSeed && analysisSeed.identity && analysisSeed.identity.stateVersion === null) {
+                                cfg.scheduleRunCpuTurn(playerKey, {
+                                    ...resumeOptions,
+                                    cpuSkipAsyncDecision: true
+                                }, 0);
+                            }
                             return { status: 'handled' };
                         }
                         if (batch) {
@@ -462,12 +536,15 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 flips: move.flips ? move.flips.length : 0
             });
         }
-        const minThinkMs = cfg.resolveLv6MinThinkMs(playerKey, level, autoMode);
+        const minThinkMs = opts.minThinkSatisfied === true
+            ? 0
+            : cfg.resolveLv6MinThinkMs(playerKey, level, autoMode);
         const thinkElapsedMs = Math.max(0, readNowMs() - turnStartMs);
         const extraDelayMs = Math.max(0, minThinkMs - thinkElapsedMs);
 
         const commitSelectedMove = async (
-            onGuardResolved?: (outcome: 'continue' | 'handled' | 'stale' | 'error') => void
+            onGuardResolved?: (outcome: 'continue' | 'handled' | 'stale' | 'error') => void,
+            crossedAsyncBoundary = false
         ) => {
             if (cfg.shouldAbortCpuForHumanMode(playerKey, 'commit_selected_move')) {
                 if (onGuardResolved) onGuardResolved('handled');
@@ -480,6 +557,33 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
             const nowStateVersion = typeof cfg.getCurrentStateVersionSafe === 'function'
                 ? cfg.getCurrentStateVersionSafe()
                 : null;
+            if (isAnalysisCurrent && !isAnalysisCurrent(crossedAsyncBoundary)) {
+                cfg.debugCpuTrace('[AI] skip stale delayed move commit (analysis identity changed)', {
+                    playerKey,
+                    crossedAsyncBoundary,
+                    decisionEpoch: analysisSeed && analysisSeed.identity
+                        ? analysisSeed.identity.decisionEpoch
+                        : null,
+                    retryGeneration: analysisSeed && analysisSeed.identity
+                        ? analysisSeed.identity.retryGeneration
+                        : null
+                });
+                cfg.setCpuProcessing(false);
+                if (
+                    crossedAsyncBoundary
+                    && analysisSeed
+                    && analysisSeed.identity
+                    && analysisSeed.identity.stateVersion === null
+                    && nowCurrentKey === playerKey
+                ) {
+                    cfg.scheduleRunCpuTurn(playerKey, {
+                        ...resumeOptions,
+                        cpuMinThinkSatisfied: true
+                    }, 0);
+                }
+                if (onGuardResolved) onGuardResolved('stale');
+                return;
+            }
             if (nowCurrentKey && nowCurrentKey !== playerKey) {
                 cfg.debugCpuTrace('[AI] skip stale delayed move commit (turn changed)', {
                     playerKey,
@@ -591,7 +695,7 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                         outcome
                     );
                 };
-                commitSelectedMove(finishWait).catch((error: any) => {
+                commitSelectedMove(finishWait, true).catch((error: any) => {
                     finishWait('error');
                     cfg.handleCpuTurnError(playerKey, selfName, error, autoMode, performanceScope);
                 });

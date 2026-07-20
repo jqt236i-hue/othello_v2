@@ -85,7 +85,12 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
         if (level < 4) return null;
 
         const gameState = readGameState();
-        const prepared = preparedInput && typeof preparedInput === 'object' ? preparedInput : {};
+        const resolvedPreparedInput = typeof preparedInput === 'function'
+            ? preparedInput()
+            : preparedInput;
+        const prepared = resolvedPreparedInput && typeof resolvedPreparedInput === 'object'
+            ? resolvedPreparedInput
+            : {};
         const usability = prepared.usability && Array.isArray(prepared.usability.usableCardIds)
             ? prepared.usability
             : (performanceScope
@@ -176,7 +181,8 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
 
     function cpuMaybeDestroyHandCardWithPolicy(
         playerKey: any,
-        performanceScope?: CpuTurnPerformanceScope | null
+        performanceScope?: CpuTurnPerformanceScope | null,
+        preparedInput?: any
     ): any {
         if (cfg.isOthelloModeForCpuDecision()) return false;
         const cardState = readCardState();
@@ -187,9 +193,9 @@ export function createCpuDecisionCardActions(config: CpuDecisionCardActionsConfi
             ? measureCpuTurnSync(
                 performanceScope,
                 'card-context-base',
-                () => selectHandCardToDestroy(playerKey, performanceScope)
+                () => selectHandCardToDestroy(playerKey, performanceScope, preparedInput)
             )
-            : selectHandCardToDestroy(playerKey);
+            : selectHandCardToDestroy(playerKey, null, preparedInput);
         if (!destroyChoice) return false;
         return applyHandCardDestroy(playerKey, destroyChoice, performanceScope);
     }

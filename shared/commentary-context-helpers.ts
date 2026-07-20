@@ -52,6 +52,7 @@
         advantageOptions?: Record<string, unknown>;
         diffThreshold?: number;
         scoreThreshold?: number;
+        preparedMetrics?: Record<string, unknown>;
     }
 
     interface AdvantageScore {
@@ -379,7 +380,18 @@
         const risk = countCornerRiskCells(board, playerValue);
         const cornerDiff = (corners.ownCorners || 0) - (corners.oppCorners || 0);
         const edgeDiff = (edges.ownEdges || 0) - (edges.oppEdges || 0);
-        const mobilityDiff = countLegalMoves(board, playerValue) - countLegalMoves(board, -playerValue);
+        const preparedMobility = opts.mobility && typeof opts.mobility === 'object'
+            ? opts.mobility as Record<string, unknown>
+            : null;
+        const blackMobility = preparedMobility && Number.isFinite(Number(preparedMobility.black))
+            ? Number(preparedMobility.black)
+            : null;
+        const whiteMobility = preparedMobility && Number.isFinite(Number(preparedMobility.white))
+            ? Number(preparedMobility.white)
+            : null;
+        const mobilityDiff = blackMobility !== null && whiteMobility !== null
+            ? (normalizedKey === 'black' ? blackMobility - whiteMobility : whiteMobility - blackMobility)
+            : countLegalMoves(board, playerValue) - countLegalMoves(board, -playerValue);
         const xRiskDiff = (risk.oppX || 0) - (risk.ownX || 0);
         const cRiskDiff = (risk.oppC || 0) - (risk.ownC || 0);
         const score =
@@ -411,27 +423,93 @@
         return 'even';
     }
 
-    function buildCommentaryContext(options: unknown): CommentaryContext {
+    function buildCpuCommentaryMetrics(options: unknown): Readonly<Record<string, unknown>> {
         const opts = (options && typeof options === 'object') ? options as CommentaryOptions : {};
         const state = (opts.gameState && typeof opts.gameState === 'object') ? opts.gameState : null;
         const board = Array.isArray(opts.board)
             ? opts.board
             : (state && Array.isArray(state.board) ? state.board : null);
         const counts = (opts.counts && Number.isFinite(Number(opts.counts.black)) && Number.isFinite(Number(opts.counts.white)))
+            ? { black: Number(opts.counts.black), white: Number(opts.counts.white) }
+            : countDiscsFromBoard(board, opts.countOptions);
+        const occupiedCells = Number.isFinite(Number(opts.occupiedCells))
+            ? Number(opts.occupiedCells)
+            : counts.black + counts.white;
+        const turnNumber = Number.isFinite(Number(opts.turnNumber))
+            ? Number(opts.turnNumber)
+            : (state && Number.isFinite(Number(state.turnNumber)) ? Number(state.turnNumber) : null);
+        const playerKey = normalizePlayerKey(opts.playerKey, opts.fallbackPlayerKey || 'black');
+        const phase = resolvePhaseByTurn(turnNumber, occupiedCells);
+        const mobility = Object.freeze({
+            black: board ? countLegalMoves(board, 1) : 0,
+            white: board ? countLegalMoves(board, -1) : 0
+        });
+        const advantageScore = resolveCommentaryAdvantageScore(playerKey, counts, Object.assign({}, opts.advantageOptions || {}, {
+            board,
+            turnNumber,
+            occupiedCells,
+            phase,
+            mobility
+        }));
+        const advantage = advantageScore.score >= advantageScore.threshold
+            ? 'ahead'
+            : (advantageScore.score <= -advantageScore.threshold ? 'behind' : 'even');
+        const cornerControl = board
+            ? countCornerControl(board, resolvePlayerValue(playerKey))
+            : { ownCorners: 0, oppCorners: 0 };
+        return Object.freeze({
+            counts: Object.freeze({ ...counts }),
+            occupiedCells,
+            turnNumber,
+            phase,
+            advantage,
+            mobility,
+            corners: Object.freeze({
+                own: cornerControl.ownCorners || 0,
+                opp: cornerControl.oppCorners || 0
+            }),
+            advantageScore: Object.freeze({ ...advantageScore })
+        });
+    }
+
+    function buildCommentaryContext(options: unknown): CommentaryContext {
+        const opts = (options && typeof options === 'object') ? options as CommentaryOptions : {};
+        const preparedMetrics = opts.preparedMetrics && typeof opts.preparedMetrics === 'object'
+            ? opts.preparedMetrics as Record<string, any>
+            : null;
+        const state = (opts.gameState && typeof opts.gameState === 'object') ? opts.gameState : null;
+        const board = Array.isArray(opts.board)
+            ? opts.board
+            : (state && Array.isArray(state.board) ? state.board : null);
+        const counts = preparedMetrics && preparedMetrics.counts
+            && Number.isFinite(Number(preparedMetrics.counts.black))
+            && Number.isFinite(Number(preparedMetrics.counts.white))
+            ? {
+                black: Number(preparedMetrics.counts.black),
+                white: Number(preparedMetrics.counts.white)
+            }
+            : (opts.counts && Number.isFinite(Number(opts.counts.black)) && Number.isFinite(Number(opts.counts.white)))
             ? {
                 black: Number(opts.counts.black),
                 white: Number(opts.counts.white)
             }
             : countDiscsFromBoard(board, opts.countOptions);
-        const occupiedCells = Number.isFinite(Number(opts.occupiedCells))
+        const occupiedCells = preparedMetrics && Number.isFinite(Number(preparedMetrics.occupiedCells))
+            ? Number(preparedMetrics.occupiedCells)
+            : Number.isFinite(Number(opts.occupiedCells))
             ? Number(opts.occupiedCells)
             : ((counts.black || 0) + (counts.white || 0));
-        const turnNumber = Number.isFinite(Number(opts.turnNumber))
+        const turnNumber = preparedMetrics
+            && preparedMetrics.turnNumber !== null
+            && typeof preparedMetrics.turnNumber !== 'undefined'
+            && Number.isFinite(Number(preparedMetrics.turnNumber))
+            ? Number(preparedMetrics.turnNumber)
+            : Number.isFinite(Number(opts.turnNumber))
             ? Number(opts.turnNumber)
             : (state && Number.isFinite(Number(state.turnNumber)) ? Number(state.turnNumber) : null);
         const playerKey = normalizePlayerKey(opts.playerKey, opts.fallbackPlayerKey || 'black');
-        const directPhase = String(opts.phase || '').toLowerCase();
-        const directAdvantage = String(opts.advantage || '').toLowerCase();
+        const directPhase = String((preparedMetrics && preparedMetrics.phase) || opts.phase || '').toLowerCase();
+        const directAdvantage = String((preparedMetrics && preparedMetrics.advantage) || opts.advantage || '').toLowerCase();
         const phase = (directPhase === 'opening' || directPhase === 'middle' || directPhase === 'endgame')
             ? directPhase
             : resolvePhaseByTurn(turnNumber, occupiedCells);
@@ -455,6 +533,9 @@
         });
 
         if (board) context.board = board;
+        if (preparedMetrics && preparedMetrics.corners) context.corners = preparedMetrics.corners;
+        if (preparedMetrics && preparedMetrics.mobility) context.mobility = preparedMetrics.mobility;
+        if (preparedMetrics && preparedMetrics.advantageScore) context.advantageScore = preparedMetrics.advantageScore;
         if (opts.cardId !== null && opts.cardId !== undefined && opts.cardId !== '') {
             context.cardId = String(opts.cardId);
         }
@@ -469,6 +550,7 @@
         resolvePhaseByTurn,
         resolveCommentaryAdvantageScore,
         resolveAdvantageLabel,
+        buildCpuCommentaryMetrics,
         buildCommentaryContext
     };
 }));
