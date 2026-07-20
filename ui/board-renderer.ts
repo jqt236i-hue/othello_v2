@@ -1128,6 +1128,19 @@ function prepareBoardVisualUpdate() {
         AutoBoardWriterDeferredRenderRequestedForBoardRenderer = false;
     }
     _syncTimeStopClassForBoardRenderer();
+    const activeWriterToken = typeof controller.getActiveWriterToken === 'function'
+        ? controller.getActiveWriterToken()
+        : AutoBoardWriterTokenForBoardRenderer;
+    if (activeWriterToken && controller.getMode() !== 'idle') {
+        BoardVisualInvalidationAccumulatorForBoardRenderer.mark(activeWriterToken, 'render-request');
+        const invalidated = Object.freeze({
+            controller,
+            playbackDeferred,
+            invalidated: true
+        });
+        PreparedBoardVisualUpdatesForBoardRenderer.add(invalidated);
+        return invalidated;
+    }
     const prepared = Object.freeze({
         controller,
         playbackDeferred,
@@ -1151,6 +1164,7 @@ function renderBoard(preparedVisualUpdate?: any) {
             return;
         }
         if (prepared.deferredUntilAutoWriter === true) return;
+        if (prepared.invalidated === true) return;
         const playbackDeferred = prepared.playbackDeferred === true;
         const applied = controller.submitFrame(prepared.frame);
         if (applied === true || (!playbackDeferred && controller.getMode() === 'idle')) updateOccupancyUI();
@@ -1179,6 +1193,10 @@ let BoardInputDeferredOverlayRenderForBoardRenderer: Promise<void> | null = null
 let BoardAccessibilityLayerForBoardRenderer: any = null;
 const PreparedBoardVisualUpdatesForBoardRenderer = new WeakSet<object>();
 const BoardVisualWorldStateByFrameForBoardRenderer = new WeakMap<object, any>();
+const BoardVisualInvalidationAccumulatorForBoardRenderer = (() => {
+    const module = _require('./board-visual/invalidation-accumulator');
+    return module.createBoardVisualInvalidationAccumulator();
+})();
 let LastPixiBoardExpansionRevealSoundKeyForBoardRenderer: string | null = null;
 
 const PIXI_INITIAL_FALLBACK_ERROR_CODES_FOR_BOARD_RENDERER = new Set([
@@ -1867,6 +1885,7 @@ function configureBoardVisualController(controller: any, options?: any) {
     AutoBoardWriterClaimForBoardRenderer = null;
     AutoBoardWriterSettlementForBoardRenderer = null;
     AutoBoardWriterDeferredRenderRequestedForBoardRenderer = false;
+    BoardVisualInvalidationAccumulatorForBoardRenderer.reset();
     return controller;
 }
 
@@ -1937,7 +1956,9 @@ function claimBoardVisualWriter(frameToken: string, mode: 'local' | 'network' = 
     const controller = getBoardVisualController();
     if (!controller) throw new Error('Board visual controller is unavailable');
     if (AutoBoardWriterTokenForBoardRenderer) {
-        const adopted = controller.reclaimWriter(AutoBoardWriterTokenForBoardRenderer, frameToken, mode);
+        const previousToken = AutoBoardWriterTokenForBoardRenderer;
+        const adopted = controller.reclaimWriter(previousToken, frameToken, mode);
+        BoardVisualInvalidationAccumulatorForBoardRenderer.rebind(previousToken, adopted);
         AutoBoardWriterTokenForBoardRenderer = null;
         return adopted;
     }
@@ -1947,7 +1968,9 @@ function claimBoardVisualWriter(frameToken: string, mode: 'local' | 'network' = 
 function releaseBoardVisualWriter(token: any, finalFrame?: any) {
     const controller = getBoardVisualController();
     if (!controller) throw new Error('Board visual controller is unavailable');
-    return controller.releaseWriter(token, finalFrame);
+    const released = controller.releaseWriter(token, finalFrame);
+    if (released === true) BoardVisualInvalidationAccumulatorForBoardRenderer.settle(token);
+    return released;
 }
 
 async function playBoardVisualPhase(token: any, events: readonly unknown[], phaseScope?: any) {
@@ -1982,7 +2005,9 @@ async function abortBoardVisualWriterBeforeHandoff(token: any, checkpoint?: any)
     if (!controller || typeof controller.abortWriterBeforeHandoff !== 'function') {
         throw new Error('Board visual controller cannot abort a writer before handoff');
     }
-    return controller.abortWriterBeforeHandoff(token, checkpoint);
+    const aborted = await controller.abortWriterBeforeHandoff(token, checkpoint);
+    if (aborted === true) BoardVisualInvalidationAccumulatorForBoardRenderer.discard(token);
+    return aborted;
 }
 
 async function cancelBoardVisualWriterAfterHandoff(token: any, checkpoint?: any) {
@@ -1993,15 +2018,23 @@ async function cancelBoardVisualWriterAfterHandoff(token: any, checkpoint?: any)
     if (typeof controller.getActiveWriterToken !== 'function' || controller.getActiveWriterToken() !== token) {
         throw new Error('Board visual cancel token does not own the active frame');
     }
-    return controller.cancelWriterAfterHandoff(token, checkpoint);
+    const cancelled = await controller.cancelWriterAfterHandoff(token, checkpoint);
+    if (cancelled === true) BoardVisualInvalidationAccumulatorForBoardRenderer.discard(token);
+    return cancelled;
 }
 
 async function settleBoardVisualWriter(token: any) {
     const controller = getBoardVisualController();
     if (!controller) throw new Error('Board visual controller is unavailable');
     if (typeof controller.settleLocalWriter === 'function') {
-        renderBoard();
-        return controller.settleLocalWriter(token);
+        const finalFrame = _buildFinalBoardVisualFrameForWriter(controller, token);
+        BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameSubmit(token);
+        const settled = await controller.settleLocalWriter(token, finalFrame);
+        if (settled === true) {
+            BoardVisualInvalidationAccumulatorForBoardRenderer.settle(token);
+            updateOccupancyUI();
+        }
+        return settled;
     }
     // Compatibility for an injected/older controller. Runtime controllers
     // use the async path above so writer and PlaybackState ownership remain
@@ -2009,9 +2042,18 @@ async function settleBoardVisualWriter(token: any) {
     if (controller.getMode && controller.getMode() === 'recovering') {
         await controller.restore();
     } else {
-        renderBoard();
+        const finalFrame = _buildFinalBoardVisualFrameForWriter(controller, token);
+        BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameSubmit(token);
+        const released = controller.releaseWriter(token, finalFrame);
+        if (released === true) {
+            BoardVisualInvalidationAccumulatorForBoardRenderer.settle(token);
+            updateOccupancyUI();
+        }
+        return released;
     }
-    return controller.releaseWriter(token);
+    const released = controller.releaseWriter(token);
+    if (released === true) BoardVisualInvalidationAccumulatorForBoardRenderer.settle(token);
+    return released;
 }
 
 function beginBoardVisualFrameCommit(token: any) {
@@ -2050,14 +2092,20 @@ async function applyCommittedBoardVisualFrame(token: any, receipt?: any) {
     ) {
         throw new Error('Committed board visual receipt has no bound snapshot');
     }
+    BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameBuild(token);
     const frame = _buildBoardVisualFrameForBoardRenderer(controller, committedSnapshot);
+    BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameSubmit(token);
+    let applied: boolean;
     if (controller.getMode && controller.getMode() === 'recovering') {
         if (typeof controller.restoreCommittedFrame !== 'function') {
             throw new Error('Board visual controller cannot restore a committed frame');
         }
-        return controller.restoreCommittedFrame(token, frame);
+        applied = await controller.restoreCommittedFrame(token, frame);
+    } else {
+        applied = await controller.applyCommittedFrame(token, frame);
     }
-    return controller.applyCommittedFrame(token, frame);
+    if (applied === true) BoardVisualInvalidationAccumulatorForBoardRenderer.settle(token);
+    return applied;
 }
 
 function enterBoardVisualRecovery(token: any, error?: unknown) {
@@ -2085,16 +2133,18 @@ async function settleAutoBoardVisualWriter(): Promise<boolean> {
         }
         if (!AutoBoardWriterTokenForBoardRenderer) return false;
         const token = AutoBoardWriterTokenForBoardRenderer;
-        renderBoard();
+        const finalFrame = _buildFinalBoardVisualFrameForWriter(controller, token);
         if (AutoBoardWriterTokenForBoardRenderer !== token) return true;
+        BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameSubmit(token);
         if (typeof controller.settleLocalWriter === 'function') {
-            await controller.settleLocalWriter(token);
+            await controller.settleLocalWriter(token, finalFrame);
         } else {
-            controller.releaseWriter(token);
+            controller.releaseWriter(token, finalFrame);
         }
         if (AutoBoardWriterTokenForBoardRenderer === token) {
             AutoBoardWriterTokenForBoardRenderer = null;
         }
+        BoardVisualInvalidationAccumulatorForBoardRenderer.settle(token);
         updateOccupancyUI();
         return true;
     })();
@@ -2567,6 +2617,11 @@ function _buildBoardVisualFrameForBoardRenderer(controller: any, baseVisualState
     return frame;
 }
 
+function _buildFinalBoardVisualFrameForWriter(controller: any, token: any) {
+    BoardVisualInvalidationAccumulatorForBoardRenderer.recordFinalFrameBuild(token);
+    return _buildBoardVisualFrameForBoardRenderer(controller);
+}
+
 function resetBoardVisualRenderSession() {
     BoardInputDeferredOverlayRenderGenerationForBoardRenderer += 1;
     BoardInputDeferredOverlayRenderForBoardRenderer = null;
@@ -2582,7 +2637,12 @@ function resetBoardVisualRenderSession() {
         ? 1
         : BoardVisualRenderSessionEpochForBoardRenderer + 1;
     LastPixiBoardExpansionRevealSoundKeyForBoardRenderer = null;
+    BoardVisualInvalidationAccumulatorForBoardRenderer.reset();
     return `board-render-session:${BoardVisualRenderSessionEpochForBoardRenderer}`;
+}
+
+function getBoardVisualInvalidationDiagnostics() {
+    return BoardVisualInvalidationAccumulatorForBoardRenderer.getDiagnostics();
 }
 
 function renderBoardFull() {
@@ -2797,6 +2857,7 @@ const BoardRenderer = {
             enterBoardVisualRecovery,
             settleAutoBoardVisualWriter,
             resetBoardVisualRenderSession,
+            getBoardVisualInvalidationDiagnostics,
             buildBoardVisualFrame: _buildBoardVisualFrameForBoardRenderer,
             updateOccupancyUI,
             applyTimeStopLegalEmphasis,
@@ -2821,6 +2882,7 @@ if (typeof window !== 'undefined') {
     // Prefer board-renderer as the canonical renderBoard implementation.
     window.renderBoard = renderBoard;
     (window as any).prepareBoardVisualUpdate = prepareBoardVisualUpdate;
+    (window as any).getBoardVisualInvalidationDiagnostics = getBoardVisualInvalidationDiagnostics;
     window.updateOccupancyUI = window.updateOccupancyUI || updateOccupancyUI;
     window.collectPendingSelectedTargetHighlightKeys = window.collectPendingSelectedTargetHighlightKeys || collectPendingSelectedTargetHighlightKeys;
     window.collectRandomSpawnPreviewHighlightKeys = window.collectRandomSpawnPreviewHighlightKeys || collectRandomSpawnPreviewHighlightKeys;

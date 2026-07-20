@@ -50,13 +50,14 @@ describe('board renderer recovery boundary', () => {
     expect(claimAt).toBeGreaterThan(waitAt);
   });
 
-  test('does not submit a playback frame until pending idle settlement claims a fresh active-token frame', async () => {
+  test('does not build or submit a playback frame until pending idle settlement finishes', async () => {
     jest.resetModules();
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     (global as any).window = dom.window;
     (global as any).document = dom.window.document;
     (global as any).boardEl = dom.window.document.getElementById('board');
     (global as any).cardState = {};
+    (global as any).countDiscs = jest.fn(() => ({ black: 2, white: 2 }));
     const settlement = deferred();
     const buildModel = jest.fn(() => ({
       visualRevision: 0,
@@ -143,6 +144,7 @@ describe('board renderer recovery boundary', () => {
       waitForIdle: jest.fn(() => settlement.promise),
       isIdleSettlementPending: jest.fn(() => pending),
       getMode: jest.fn(() => mode),
+      getActiveWriterToken: jest.fn(() => activeToken),
       getActiveFrameToken: jest.fn(() => activeToken && activeToken.frameToken),
       claimWriter: jest.fn((frameToken: string, writerMode: string) => {
         activeToken = Object.freeze({ id: 1, frameToken, mode: writerMode });
@@ -152,6 +154,13 @@ describe('board renderer recovery boundary', () => {
       submitFrame: jest.fn((value: any) => {
         submitted.push(value);
         return false;
+      }),
+      settleLocalWriter: jest.fn(async (token: any, frame: any) => {
+        expect(token).toBe(activeToken);
+        expect(frame.frameToken).toBe(activeToken.frameToken);
+        mode = 'idle';
+        activeToken = null;
+        return true;
       }),
       destroy: jest.fn()
     };
@@ -172,16 +181,32 @@ describe('board renderer recovery boundary', () => {
       await Promise.resolve();
 
       expect(controller.claimWriter).toHaveBeenCalledTimes(1);
-      expect(controller.submitFrame).toHaveBeenCalledTimes(1);
+      expect(controller.submitFrame).not.toHaveBeenCalled();
+      expect(buildModel).not.toHaveBeenCalled();
+
+      renderer.renderBoard();
+      renderer.renderBoard();
+      expect(controller.submitFrame).not.toHaveBeenCalled();
+      expect(buildModel).not.toHaveBeenCalled();
+
+      await renderer.settleAutoBoardVisualWriter();
+
+      expect(controller.settleLocalWriter).toHaveBeenCalledTimes(1);
       expect(buildModel).toHaveBeenCalledTimes(1);
-      expect(submitted[0].frameToken).toBe(activeToken.frameToken);
-      expect(submitted[0].frameToken).toMatch(/^legacy-playback:/);
+      expect(renderer.getBoardVisualInvalidationDiagnostics()).toMatchObject({
+        requestCount: 3,
+        mergeCount: 2,
+        finalFrameBuildCount: 1,
+        finalFrameSubmitCount: 1,
+        pending: false
+      });
     } finally {
       dom.window.close();
       delete (global as any).window;
       delete (global as any).document;
       delete (global as any).boardEl;
       delete (global as any).cardState;
+      delete (global as any).countDiscs;
     }
   });
 
@@ -192,7 +217,8 @@ describe('board renderer recovery boundary', () => {
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(cancelSource).toContain('controller.getActiveWriterToken() !== token');
-    expect(cancelSource).toContain('return controller.cancelWriterAfterHandoff(token, checkpoint);');
+    expect(cancelSource).toContain('await controller.cancelWriterAfterHandoff(token, checkpoint);');
+    expect(cancelSource).toContain('BoardVisualInvalidationAccumulatorForBoardRenderer.discard(token);');
   });
 
   test('routes real local final sync through the async controller settlement API', () => {
@@ -201,9 +227,10 @@ describe('board renderer recovery boundary', () => {
     const settlementSource = source.slice(start, end);
 
     expect(start).toBeGreaterThanOrEqual(0);
-    expect(settlementSource).toContain('renderBoard();');
     expect(settlementSource).toContain("typeof controller.settleLocalWriter === 'function'");
-    expect(settlementSource).toContain('return controller.settleLocalWriter(token);');
+    expect(settlementSource).toContain('_buildFinalBoardVisualFrameForWriter(controller, token)');
+    expect(settlementSource).toContain('controller.settleLocalWriter(token, finalFrame)');
+    expect(settlementSource).not.toContain('renderBoard();');
   });
 
   test('requires exact writer and frame identity before entering recovery', () => {
@@ -226,7 +253,7 @@ describe('board renderer recovery boundary', () => {
     const renderSource = source.slice(renderStart, renderEnd);
 
     expect(start).toBeGreaterThanOrEqual(0);
-    expect(settlementSource).toContain('await controller.settleLocalWriter(token);');
+    expect(settlementSource).toContain('await controller.settleLocalWriter(token, finalFrame);');
     expect(settlementSource).toContain('AutoBoardWriterTokenForBoardRenderer = null;');
     expect(renderSource).not.toContain('controller.releaseWriter(token);');
   });
