@@ -86,6 +86,16 @@ Explicit permanent disable of the browser CPU Worker is terminal for that client
 
 The browser turn must request Worker candidate scoring only after it knows the base policy ranking will consume that batch. It must not wait speculatively before pending-placement, Othello, learned-policy, or lookahead selectors that can return first. The current runtime therefore offloads the deterministic base ranking for Lv3-Lv5; higher-level selectors keep their existing precedence, while the scorer itself remains portable and versioned for future two-stage selection work.
 
+A CPU turn may create an invocation-scoped immutable analysis seed containing only identity, protection/blocker inputs, and the public card-usability analysis. Card-legal moves, placement candidates, and commentary mobility are distinct semantics and must be derived lazily into separate immutable results; they must not be represented by one interchangeable move list. A shared board scan may feed card and placement projections only when the move generator proves that player, pending state, protection, blockers, topology, and ordering inputs are equivalent. Commentary retains its basic black/white mobility semantics and is derived only for the snapshot moment that actually needs detailed commentary context.
+
+CPU analysis remains advisory and in-memory only. Its identity includes run, player, turn, decision level, available state version, decision epoch, pending instance/stage, and retry generation. Any mismatch discards the derived result. When no authoritative state version is available, seed or derived data may be reused only inside the same synchronous continuation; crossing a Worker, timer, animation, or explicit yield boundary is fail-closed and requires rebuilding before action application. Canonical turn, pending, and legal-action validation still runs immediately before commit.
+
+Card-usability analysis may retain selector evidence for the current invocation, but evidence is reusable only for the same state/card-state identity, player, hand slot/copy, selector lane, method, and arguments. Local, module, and public selector lanes are not assumed equivalent. Evidence is never serialized, sent to a Worker, emitted to performance reports, or treated as card authority.
+
+CPU handoff delay is resolved by one pure, player-aware policy from an explicitly injected override and the next player's public decision level. Lv1 uses zero handoff delay when no override is supplied; other or unresolved levels retain the default delay. Lv6 minimum-think time, animation retry, and pending retry remain separately owned policies. Game modules do not discover the override through browser globals, and the generic turn-handoff module accepts only the already-resolved delay.
+
+Debug CPU performance instrumentation is an optional injected boundary. Records distinguish synchronous work from timer, Worker, minimum-think, animation, and presentation waits; use an ephemeral correlation ID and a common timestamp origin; and are absent from normal play. Performance records and debug globals must not carry board contents, private hands, seat tokens, operation IDs, or canonical authority.
+
 ## 5. Runtime contracts
 
 This repository runs the same game logic across multiple runtimes:
@@ -371,6 +381,18 @@ Network playback must keep these ownership boundaries explicit:
 - local busy flags (`isProcessing`, card-animation locks, playback locks, and related guards) are UI settlement state, not authority state
 - compatibility paths such as suppressed playback or shadow playback may exist for self-originated preview/recovery flows, but they remain noncanonical and must not block canonical convergence once the same authoritative state has landed
 - if both clients have converged on the same authoritative snapshot and no further presentation work is pending, local busy state must be releasable on both clients
+
+#### 7.3.3 Deferred playback finalization
+
+Deferred playback handoff uses a typed return value propagated from `ui/animation-engine.ts` through `ui/playback-engine.ts` to `ui/presentation-handler.ts`; callback registration is not a second normal path. A non-empty deferred playback that returns successfully provides exactly one run-bound result: either a normal manager finalizer or an acknowledgement that the same run was already aborted. A second invocation returns false and must not release a newer run. Empty payloads and failures before result creation return no result; their existing outer-claim or abort-before-handoff owner performs cleanup exactly once.
+
+For local playback, the presentation drain executes received finalizers in order after writer settlement and releases its outer claim last. For strict network playback, the strict settlement handle is the only execution owner. Strict success executes the registered finalizer only after committed-frame application succeeds. Strict cancellation does not require a committed apply: it records the settlement error, cancels or aborts the writer, then performs the registered abort-finalization. A failed playback must throw rather than manufacture a no-op success result.
+
+#### 7.3.4 Pixi invalidation and render cadence
+
+The board render model keeps its aggregate visual signature for controller hashing and compatibility diagnostics, while the Pixi backend uses separate surface, stone, and interaction signatures plus matching context revisions. A view rebuilds only when its own semantic or appearance dependencies change. Identical canvas width, height, and resolution are an idempotent resize no-op; mount, DPR or viewport change, context restoration, and backend replacement invalidate the cached geometry.
+
+The existing private Pixi ticker remains the only active-playback animation clock and is capped at 60 callbacks per second. Timeline progress keeps the existing ticker `deltaMS` semantics, and initial, phase-terminal, explicit final render, settlement, and idle ticker stop remain mandatory. The cap must not create a second scheduler, canvas, context, backend-specific settlement path, or DOM fallback inside an active Pixi phase.
 
 ### 7.4 Hand animation context
 
