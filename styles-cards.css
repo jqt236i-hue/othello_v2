@@ -2881,7 +2881,8 @@
     color: #ffd36e;
 }
 
-#handImage {
+#handImage,
+.hand-animation-actor-image {
     position: relative;
     z-index: 2;
     display: block;
@@ -2892,6 +2893,11 @@
     pointer-events: none;
     user-select: none;
     -webkit-user-drag: none;
+}
+
+.hand-animation-actor-image {
+    position: absolute;
+    inset: 0;
 }
 
 .card-hand-sprite {

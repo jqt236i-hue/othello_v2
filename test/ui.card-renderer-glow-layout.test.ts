@@ -116,6 +116,34 @@ describe('card renderer hand glow layout cache', () => {
     expect(rectSpy.mock.calls.length).toBeGreaterThan(afterScroll);
   });
 
+  test('identical hand input returns before reading cached layout dimensions', () => {
+    let clientWidthReads = 0;
+    const originalDescriptor = Object.getOwnPropertyDescriptor(dom.window.HTMLElement.prototype, 'clientWidth');
+    Object.defineProperty(dom.window.HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get() {
+        clientWidthReads += 1;
+        return 100;
+      }
+    });
+
+    try {
+      const renderer = require('../cards/card-renderer.js');
+      renderer.renderCardUI();
+      const readsAfterFirstRender = clientWidthReads;
+
+      renderer.renderCardUI();
+
+      expect(clientWidthReads).toBe(readsAfterFirstRender);
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(dom.window.HTMLElement.prototype, 'clientWidth', originalDescriptor);
+      } else {
+        delete (dom.window.HTMLElement.prototype as any).clientWidth;
+      }
+    }
+  });
+
   test('rebuilds glow layout when cached glow nodes are missing', () => {
     const renderer = require('../cards/card-renderer.js');
     const rectSpy = jest.spyOn(dom.window.HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {

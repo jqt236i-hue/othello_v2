@@ -114,16 +114,37 @@ describe('CPU level difference E2E', () => {
       localStorage.setItem('othello.handSkin', 'default');
       window.__handProbe = [];
       const origDraw = window.playDrawCardHandAnimation;
-      window.playDrawCardHandAnimation = async function(payload) {
-        const result = origDraw.apply(this, arguments);
-        await Promise.resolve();
-        window.__handProbe.push({
-          player: payload && payload.player ? payload.player : null,
-          src: document.getElementById('handImage')?.getAttribute('src') || null,
-          skinId: document.getElementById('handImage')?.getAttribute('data-hand-skin-id') || null,
-          mirroredCpuSmartness: (typeof window.cpuSmartness === 'undefined') ? null : window.cpuSmartness
+      window.playDrawCardHandAnimation = function(payload) {
+        const capturedImages = new Set();
+        const recordAnimationImage = () => {
+          const actorImage = document.querySelector('.hand-animation-actor-image[data-hand-animation-active="true"]');
+          const animationImage = actorImage || document.getElementById('handImage');
+          if (!animationImage) return;
+          const src = animationImage.getAttribute('src') || null;
+          const skinId = animationImage.getAttribute('data-hand-skin-id') || null;
+          const imageKey = `${src || ''}\n${skinId || ''}`;
+          if (capturedImages.has(imageKey)) return;
+          capturedImages.add(imageKey);
+          window.__handProbe.push({
+            player: payload && payload.player ? payload.player : null,
+            src,
+            skinId,
+            mirroredCpuSmartness: (typeof window.cpuSmartness === 'undefined') ? null : window.cpuSmartness
+          });
+        };
+        const observer = new MutationObserver(recordAnimationImage);
+        observer.observe(document.body, {
+          attributes: true,
+          childList: true,
+          subtree: true,
+          attributeFilter: ['data-hand-animation-active', 'data-hand-skin-id', 'src']
         });
-        return result;
+        const result = origDraw.apply(this, arguments);
+        recordAnimationImage();
+        return Promise.resolve(result).finally(() => {
+          recordAnimationImage();
+          observer.disconnect();
+        });
       };
     });
 

@@ -297,6 +297,68 @@ function _resolveHandImageElement() {
     return _getCachedAnimationElement('handImage', 'handImage');
 }
 
+const HAND_ANIMATION_ACTOR_IMAGE_CLASS = 'hand-animation-actor-image';
+
+function _resolveHandWrapperElement() {
+    return (typeof handWrapper !== 'undefined' && handWrapper)
+        ? handWrapper
+        : _getCachedAnimationElement('handWrapper', 'handWrapper');
+}
+
+function _findCachedHandActorImage(wrapperEl: any, imagePath: any) {
+    if (!wrapperEl || typeof wrapperEl.querySelectorAll !== 'function') return null;
+    const normalizedPath = String(imagePath || '');
+    const actorImages = Array.from(wrapperEl.querySelectorAll(`.${HAND_ANIMATION_ACTOR_IMAGE_CLASS}`));
+    return actorImages.find((candidate: any) => (
+        candidate
+        && typeof candidate.getAttribute === 'function'
+        && candidate.getAttribute('data-hand-animation-image-path') === normalizedPath
+    )) || null;
+}
+
+function _createCachedHandActorImage(wrapperEl: any, handContext: any) {
+    if (!wrapperEl || typeof document === 'undefined' || !handContext || !handContext.renderedImagePath) return null;
+    const imagePath = String(handContext.renderedImagePath);
+    let actorImageEl: any = _findCachedHandActorImage(wrapperEl, imagePath);
+    if (!actorImageEl) {
+        actorImageEl = document.createElement('img');
+        actorImageEl.className = HAND_ANIMATION_ACTOR_IMAGE_CLASS;
+        actorImageEl.alt = '';
+        actorImageEl.setAttribute('aria-hidden', 'true');
+        actorImageEl.setAttribute('draggable', 'false');
+        actorImageEl.setAttribute('decoding', 'async');
+        actorImageEl.setAttribute('data-hand-animation-image-path', imagePath);
+        actorImageEl.setAttribute('data-hand-animation-active', 'false');
+        actorImageEl.style.visibility = 'hidden';
+        _setAttributeIfChanged(actorImageEl, 'src', imagePath);
+        const heldStoneEl = (typeof heldStone !== 'undefined' && heldStone)
+            ? heldStone
+            : _getCachedAnimationElement('heldStone', 'heldStone');
+        if (heldStoneEl && heldStoneEl.parentElement === wrapperEl) {
+            wrapperEl.insertBefore(actorImageEl, heldStoneEl);
+        } else {
+            wrapperEl.appendChild(actorImageEl);
+        }
+    }
+    if (handContext.renderedSkinId) {
+        _setAttributeIfChanged(actorImageEl, 'data-hand-skin-id', handContext.renderedSkinId);
+    }
+    if (handContext.selectedSkinId) {
+        _setAttributeIfChanged(actorImageEl, 'data-hand-selected-skin-id', handContext.selectedSkinId);
+    }
+    return actorImageEl;
+}
+
+function _setHandActorImageActive(actorImageEl: any, active: any) {
+    if (!actorImageEl) return;
+    const normalized = active === true;
+    _setAttributeIfChanged(actorImageEl, 'data-hand-animation-active', normalized ? 'true' : 'false');
+    const visibility = normalized ? 'visible' : 'hidden';
+    if (actorImageEl.style && actorImageEl.style.visibility !== visibility) {
+        actorImageEl.style.visibility = visibility;
+    }
+}
+
 function _getHandSkinUiModule() {
     if (__hand_skin_utils && typeof __hand_skin_utils === 'object') return __hand_skin_utils;
     try {
@@ -329,19 +391,6 @@ function _getResolveHandAnimationContext() {
     try {
         if (typeof window !== 'undefined' && window && typeof window.resolveHandAnimationContext === 'function') {
             return window.resolveHandAnimationContext;
-        }
-    } catch (e: any) { /* ignore */ }
-    return null;
-}
-
-function _getSyncDisplayedHandSkin() {
-    const handSkinUi = _getHandSkinUiModule();
-    if (handSkinUi && typeof handSkinUi.syncDisplayedHandSkin === 'function') {
-        return handSkinUi.syncDisplayedHandSkin;
-    }
-    try {
-        if (typeof window !== 'undefined' && window && typeof window.syncDisplayedHandSkin === 'function') {
-            return window.syncDisplayedHandSkin;
         }
     } catch (e: any) { /* ignore */ }
     return null;
@@ -384,16 +433,31 @@ function _resolveHandAnimationContext(ownerKey: any, visualOptions: any) {
 }
 
 function _applyResolvedHandAnimationContext(handContext: any) {
-    const imageEl = _resolveHandImageElement();
-    if (!imageEl || !handContext || !handContext.renderedImagePath) return handContext;
-    _setAttributeIfChanged(imageEl, 'src', handContext.renderedImagePath);
-    if (handContext.renderedSkinId) {
-        _setAttributeIfChanged(imageEl, 'data-hand-skin-id', handContext.renderedSkinId);
+    const selectedImageEl = _resolveHandImageElement();
+    const wrapperEl = _resolveHandWrapperElement();
+    if (!selectedImageEl || !wrapperEl || !handContext || !handContext.renderedImagePath) return handContext;
+    const selectedPath = String(selectedImageEl.getAttribute('src') || '');
+    const actorPath = String(handContext.renderedImagePath || '');
+    const selectedSkinId = String(selectedImageEl.getAttribute('data-hand-skin-id') || '');
+    const actorSkinId = String(handContext.renderedSkinId || '');
+    const usesSelectedImage = selectedPath === actorPath
+        || (selectedSkinId !== '' && actorSkinId !== '' && selectedSkinId === actorSkinId);
+    const actorImageEl = usesSelectedImage ? null : _createCachedHandActorImage(wrapperEl, handContext);
+    const previousSelectedVisibility = selectedImageEl.style ? selectedImageEl.style.visibility : '';
+
+    if (actorImageEl) {
+        if (selectedImageEl.style && selectedImageEl.style.visibility !== 'hidden') {
+            selectedImageEl.style.visibility = 'hidden';
+        }
+        _setHandActorImageActive(actorImageEl, true);
     }
-    if (handContext.selectedSkinId) {
-        _setAttributeIfChanged(imageEl, 'data-hand-selected-skin-id', handContext.selectedSkinId);
-    }
-    return handContext;
+
+    return Object.assign({}, handContext, {
+        animationImageEl: actorImageEl || selectedImageEl,
+        actorImageEl,
+        selectedImageEl,
+        previousSelectedVisibility
+    });
 }
 
 function _syncDisplayedHandSkinForAnimation(ownerKey: any, visualOptions: any) {
@@ -404,14 +468,19 @@ function _syncDisplayedHandSkinForAnimation(ownerKey: any, visualOptions: any) {
     return _resolveHandAnimationContext(ownerKey, visualOptions);
 }
 
-function _restoreDisplayedHandSkinAfterAnimation() {
+function _restoreDisplayedHandSkinAfterAnimation(handContext: any) {
     try {
-        const syncDisplayedHandSkin = _getSyncDisplayedHandSkin();
-        if (typeof syncDisplayedHandSkin !== 'function') return;
-        const rootRef = (typeof window !== 'undefined' && window)
-            ? window
-            : ((typeof globalThis !== 'undefined' && globalThis) ? globalThis : null);
-        syncDisplayedHandSkin(rootRef, null, _resolveHandImageElement());
+        const actorImageEl = handContext && handContext.actorImageEl;
+        const selectedImageEl = (handContext && handContext.selectedImageEl) || _resolveHandImageElement();
+        _setHandActorImageActive(actorImageEl, false);
+        if (selectedImageEl && selectedImageEl.style) {
+            const previousVisibility = handContext && typeof handContext.previousSelectedVisibility === 'string'
+                ? handContext.previousSelectedVisibility
+                : '';
+            if (selectedImageEl.style.visibility !== previousVisibility) {
+                selectedImageEl.style.visibility = previousVisibility;
+            }
+        }
     } catch (e: any) { /* ignore */ }
 }
 
@@ -1658,7 +1727,7 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
             layerEl.style.display = 'none';
             wrapperEl.style.display = 'none';
             heldStoneEl.style.display = 'none';
-            _restoreDisplayedHandSkinAfterAnimation();
+            _restoreDisplayedHandSkinAfterAnimation(handContext);
             if (handAnimationTimeout) {
                 _Timer().clearTimeout(handAnimationTimeout);
                 handAnimationTimeout = null;
@@ -2209,7 +2278,7 @@ function playDrawCardHandAnimation(payload: any) {
             layerEl.style.display = 'none';
             wrapperEl.style.display = 'none';
             if (heldStoneEl) heldStoneEl.style.display = 'none';
-            _restoreDisplayedHandSkinAfterAnimation();
+            _restoreDisplayedHandSkinAfterAnimation(handContext);
             if (timeoutId) {
                 _Timer().clearTimeout(timeoutId);
                 timeoutId = null;

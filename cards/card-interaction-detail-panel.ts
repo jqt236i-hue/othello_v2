@@ -145,19 +145,30 @@ function createCardDetailLandscapeAnchorSync(deps?: CardDetailLandscapeAnchorSyn
 
 export function createCardInteractionDetailPanel(deps: CardInteractionDetailPanelDeps) {
     const cfg = (deps && typeof deps === 'object') ? deps : {} as CardInteractionDetailPanelDeps;
+    const renderedGameTermSignatureByElement = new WeakMap<any, string>();
+    const renderedLiveStateSignatureByElement = new WeakMap<any, string>();
+    const renderedEffectTagsSignatureByElement = new WeakMap<any, string>();
 
     function renderGameTermText(el: any, text: any, options?: { preserveLineBreaks?: boolean }) {
         if (!el) return;
+        const normalizedText = String(text || '');
+        const signature = JSON.stringify({
+            text: normalizedText,
+            preserveLineBreaks: !!(options && options.preserveLineBreaks)
+        });
+        if (renderedGameTermSignatureByElement.get(el) === signature) return;
         const highlighter = cfg.textTermHighlighterModule;
         if (highlighter && typeof highlighter.renderTextWithGameTermHighlights === 'function') {
-            highlighter.renderTextWithGameTermHighlights(el, String(text || ''), {
+            highlighter.renderTextWithGameTermHighlights(el, normalizedText, {
                 documentRef: cfg.getDocumentRef(),
                 preserveLineBreaks: !!(options && options.preserveLineBreaks),
                 interactive: true
             });
+            renderedGameTermSignatureByElement.set(el, signature);
             return;
         }
-        el.textContent = String(text || '');
+        if (el.textContent !== normalizedText) el.textContent = normalizedText;
+        renderedGameTermSignatureByElement.set(el, signature);
     }
 
     function resolveCardDescriptionTextsForCardUi(cardDef: any) {
@@ -313,18 +324,25 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
     function renderCardDetailLiveState(stateEl: any, text: any) {
         if (!stateEl) return;
         const normalized = String(text || '').trim();
-        stateEl.textContent = normalized;
-        stateEl.style.display = normalized ? 'block' : 'none';
+        const display = normalized ? 'block' : 'none';
+        const signature = `${normalized}\u0000${display}`;
+        if (renderedLiveStateSignatureByElement.get(stateEl) === signature) return;
+        if (stateEl.textContent !== normalized) stateEl.textContent = normalized;
+        if (stateEl.style.display !== display) stateEl.style.display = display;
+        renderedLiveStateSignatureByElement.set(stateEl, signature);
     }
 
     function renderCardDetailEffectTags(tagsEl: any, tags: any) {
         if (!tagsEl) return;
         const documentRef = cfg.getDocumentRef();
         if (!documentRef) return;
-        tagsEl.textContent = '';
         const normalizedTags = normalizeResolvedCardEffectTags(tags);
+        const signature = JSON.stringify(normalizedTags);
+        if (renderedEffectTagsSignatureByElement.get(tagsEl) === signature) return;
+        tagsEl.textContent = '';
         if (normalizedTags.length === 0) {
-            tagsEl.style.display = 'none';
+            if (tagsEl.style.display !== 'none') tagsEl.style.display = 'none';
+            renderedEffectTagsSignatureByElement.set(tagsEl, signature);
             return;
         }
 
@@ -340,7 +358,8 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
             chip.setAttribute('aria-label', `${tag.label}の説明を表示`);
             tagsEl.appendChild(chip);
         }
-        tagsEl.style.display = 'flex';
+        if (tagsEl.style.display !== 'flex') tagsEl.style.display = 'flex';
+        renderedEffectTagsSignatureByElement.set(tagsEl, signature);
     }
 
     function ensureCardDetailEffectTagsElement() {
@@ -420,7 +439,9 @@ export function createCardInteractionDetailPanel(deps: CardInteractionDetailPane
     function applyCardDetailDisplayModel(nameEl: any, descEl: any, detailStateEl: any, detailMoreEl: any, detailTagsEl: any, displayModel: any) {
         if (!nameEl || !descEl) return;
         const model = displayModel || buildCardDetailDisplayModel(null, null);
-        nameEl.textContent = model.cardName;
+        if (nameEl.textContent !== String(model.cardName || '')) {
+            nameEl.textContent = model.cardName;
+        }
         renderGameTermText(descEl, model.summaryText);
         renderCardDetailLiveState(detailStateEl, model.liveStateText);
         if (detailMoreEl) renderGameTermText(detailMoreEl, model.detailPanelText, { preserveLineBreaks: true });

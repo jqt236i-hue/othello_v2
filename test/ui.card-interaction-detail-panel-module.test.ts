@@ -158,4 +158,40 @@ describe('card interaction detail panel module', () => {
     expect(detailMoreEl.textContent).toBe('破壊<script>alert(1)</script>とマス破壊を受ける。');
     expect(Array.from(detailMoreEl.querySelectorAll('.game-term-highlight')).map((el) => el.textContent)).toEqual(['破壊', 'マス破壊']);
   });
+
+  test('does not rebuild unchanged detail content', () => {
+    const ctx = createController();
+    const model = ctx.controller.buildCardDetailDisplayModel({
+      id: 'stable_01',
+      name: '安定カード',
+      type: 'SAMPLE',
+      quickText: '次に置く特殊石を守る',
+      detailText: '同じ詳細',
+      distinctDetailText: '同じ詳細',
+      effectTags: [{ kind: 'status', label: '反転保護' }]
+    }, 'black');
+    const doc = ctx.dom.window.document;
+    const elements = {
+      name: doc.getElementById('card-detail-name'),
+      desc: doc.getElementById('card-detail-desc'),
+      more: doc.getElementById('card-detail-more'),
+      live: ctx.controller.ensureCardDetailLiveStateElement(),
+      tags: ctx.controller.ensureCardDetailEffectTagsElement()
+    };
+    ctx.controller.applyCardDetailDisplayModel(elements.name, elements.desc, elements.live, elements.more, elements.tags, model);
+    const firstTag = elements.tags?.firstElementChild;
+    const observer = new ctx.dom.window.MutationObserver(() => undefined);
+    observer.observe(doc.getElementById('card-detail-panel')!, {
+      attributes: true,
+      childList: true,
+      characterData: true,
+      subtree: true
+    });
+
+    ctx.controller.applyCardDetailDisplayModel(elements.name, elements.desc, elements.live, elements.more, elements.tags, model);
+
+    expect(observer.takeRecords()).toHaveLength(0);
+    expect(elements.tags?.firstElementChild).toBe(firstTag);
+    observer.disconnect();
+  });
 });

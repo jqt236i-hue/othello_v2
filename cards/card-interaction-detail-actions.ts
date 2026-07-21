@@ -188,6 +188,23 @@ type ConsecutivePassStatusModel = {
 
 const CONSECUTIVE_PASS_STATUS_SUFFIX = '(パスカウント2で終局)';
 
+function setTextIfChanged(el: any, value: any): void {
+    if (!el) return;
+    const normalized = String(value ?? '');
+    if (el.textContent !== normalized) el.textContent = normalized;
+}
+
+function setBooleanPropertyIfChanged(el: any, key: string, value: boolean): void {
+    if (!el) return;
+    if (el[key] !== value) el[key] = value;
+}
+
+function setAttributeIfChanged(el: any, name: string, value: any): void {
+    if (!el || typeof el.getAttribute !== 'function' || typeof el.setAttribute !== 'function') return;
+    const normalized = String(value ?? '');
+    if (el.getAttribute(name) !== normalized) el.setAttribute(name, normalized);
+}
+
 function normalizeConsecutivePassDisplayCount(value: any): number {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return 0;
@@ -217,18 +234,18 @@ export function syncConsecutivePassStatus(actionState: any, documentRef: Documen
             gameState: {},
             canShowPass: actionState && actionState.canShowPass
         });
-    statusEl.hidden = !model.shouldShow;
-    statusEl.setAttribute('aria-hidden', model.shouldShow ? 'false' : 'true');
-    statusEl.setAttribute('aria-label', model.shouldShow ? model.text : '');
+    setBooleanPropertyIfChanged(statusEl, 'hidden', !model.shouldShow);
+    setAttributeIfChanged(statusEl, 'aria-hidden', model.shouldShow ? 'false' : 'true');
+    setAttributeIfChanged(statusEl, 'aria-label', model.shouldShow ? model.text : '');
     const currentEl = statusEl.querySelector('[data-pass-streak-current="true"]') as HTMLElement | null;
     if (currentEl) {
-        currentEl.textContent = String(model.count);
+        setTextIfChanged(currentEl, model.count);
         const noteEl = statusEl.querySelector('.pass-streak-note') as HTMLElement | null;
         if (noteEl) {
-            noteEl.textContent = CONSECUTIVE_PASS_STATUS_SUFFIX;
+            setTextIfChanged(noteEl, CONSECUTIVE_PASS_STATUS_SUFFIX);
         }
     } else {
-        statusEl.textContent = model.text;
+        setTextIfChanged(statusEl, model.text);
     }
 }
 
@@ -349,9 +366,9 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
 
     function syncPassButtonVisibility(passBtn: HTMLButtonElement | null, shouldShow: boolean, canPass: boolean) {
         if (!passBtn) return;
-        passBtn.hidden = !shouldShow;
-        passBtn.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
-        passBtn.disabled = !shouldShow || !canPass;
+        setBooleanPropertyIfChanged(passBtn, 'hidden', !shouldShow);
+        setAttributeIfChanged(passBtn, 'aria-hidden', shouldShow ? 'false' : 'true');
+        setBooleanPropertyIfChanged(passBtn, 'disabled', !shouldShow || !canPass);
     }
 
     function syncReversiPassButton(actionState: any) {

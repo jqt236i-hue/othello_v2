@@ -17,6 +17,30 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     ? __non_webpack_require__
     : require;
 
+function _setTextContentIfChanged(el: any, value: any) {
+    if (!el) return;
+    const normalized = String(value ?? '');
+    if (el.textContent !== normalized) {
+        el.textContent = normalized;
+    }
+}
+
+function _setDatasetValueIfChanged(el: any, key: string, value: any) {
+    if (!el || !el.dataset) return;
+    const normalized = String(value ?? '');
+    if (el.dataset[key] !== normalized) {
+        el.dataset[key] = normalized;
+    }
+}
+
+function _setStylePropertyIfChanged(el: any, propertyName: string, value: any) {
+    if (!el || !el.style || typeof el.style.getPropertyValue !== 'function') return;
+    const normalized = String(value ?? '');
+    if (el.style.getPropertyValue(propertyName) !== normalized) {
+        el.style.setProperty(propertyName, normalized);
+    }
+}
+
 // ===== Card Rendering =====
 function _resolveCardRendererModule(requirePath: string, globalKey: string): any {
     try {
@@ -659,13 +683,13 @@ function _syncCardCostBadgeForRender(cardEl: any, cost: any) {
     costBadge.classList.add(tierClass);
     const valueSpan = costBadge.querySelector ? costBadge.querySelector('.cost-value') : null;
     if (valueSpan) {
-        valueSpan.textContent = String(safeCost);
+        _setTextContentIfChanged(valueSpan, safeCost);
     }
     const labelSpan = costBadge.querySelector ? costBadge.querySelector('.cost-label') : null;
     if (labelSpan) {
-        labelSpan.textContent = 'cost';
+        _setTextContentIfChanged(labelSpan, 'cost');
     }
-    cardEl.dataset.effectiveCost = String(safeCost);
+    _setDatasetValueIfChanged(cardEl, 'effectiveCost', safeCost);
 }
 var _lastChargeForDelta = { black: null, white: null, turnIndex: null };
 function _normalizeChargeValueForRender(value: any) {
@@ -709,13 +733,13 @@ function _renderChargeDisplay(el: any, currentValue: any, maxValue: any) {
         insertBeforeNode = node;
     }
     if (labelEl)
-        labelEl.textContent = '布石: ';
+        _setTextContentIfChanged(labelEl, '布石: ');
     if (currentEl)
-        currentEl.textContent = String(safeCurrent);
+        _setTextContentIfChanged(currentEl, safeCurrent);
     if (separatorEl)
-        separatorEl.textContent = ' / ';
+        _setTextContentIfChanged(separatorEl, ' / ');
     if (maxEl)
-        maxEl.textContent = String(safeMax);
+        _setTextContentIfChanged(maxEl, safeMax);
 }
 function _resetChargeDeltaBaseline() {
     _lastChargeForDelta.black = null;
@@ -1235,7 +1259,12 @@ function _resolveHandAvailabilityGlowTierClass(cardEl: any) {
     const classes = Array.from(cardEl.classList);
     return classes.find((className: any) => /^cost-tier-/.test(String(className))) || '';
 }
-const handGlowLayoutCacheByContainer = new WeakMap<any, { signature: string; layoutKey: string; dirty: boolean }>();
+const handGlowLayoutCacheByContainer = new WeakMap<any, {
+    signature: string;
+    scrollKey: string;
+    layoutKey: string;
+    dirty: boolean;
+}>();
 let handGlowResizeListenerInstalled = false;
 function _markAllHandGlowLayoutsDirty() {
     try {
@@ -1282,6 +1311,13 @@ function _buildHandGlowLayoutEnvironmentKey(containerEl: any, handTrackEl: any) 
         childCount: handTrackEl && handTrackEl.children ? handTrackEl.children.length : 0
     });
 }
+function _buildHandGlowScrollKey(handTrackEl: any) {
+    return JSON.stringify({
+        trackScrollLeft: Number(handTrackEl && handTrackEl.scrollLeft) || 0,
+        trackScrollTop: Number(handTrackEl && handTrackEl.scrollTop) || 0,
+        childCount: handTrackEl && handTrackEl.children ? handTrackEl.children.length : 0
+    });
+}
 function _countExpectedHandAvailabilityGlows(renderEntries: any) {
     return (Array.isArray(renderEntries) ? renderEntries : [])
         .filter((entryState: any) => entryState && entryState.desiredKind === 'face' && entryState.availableGlow)
@@ -1293,19 +1329,20 @@ function _syncHandAvailabilityGlowLayer(containerEl: any, handTrackEl: any, rend
         return;
     _ensureHandGlowResizeInvalidation();
     const signature = _buildHandGlowLayoutSignature(ownerKey, renderEntries);
-    const layoutKey = _buildHandGlowLayoutEnvironmentKey(containerEl, handTrackEl);
+    const scrollKey = _buildHandGlowScrollKey(handTrackEl);
     const expectedGlowCount = _countExpectedHandAvailabilityGlows(renderEntries);
     const cached = handGlowLayoutCacheByContainer.get(containerEl);
     if (
         cached &&
         cached.signature === signature &&
-        cached.layoutKey === layoutKey &&
+        cached.scrollKey === scrollKey &&
         cached.dirty !== true &&
         glowLayerEl.children &&
         glowLayerEl.children.length === expectedGlowCount
     ) {
         return;
     }
+    const layoutKey = _buildHandGlowLayoutEnvironmentKey(containerEl, handTrackEl);
     const containerRect = typeof containerEl.getBoundingClientRect === 'function'
         ? containerEl.getBoundingClientRect()
         : { left: 0, top: 0 };
@@ -1349,7 +1386,7 @@ function _syncHandAvailabilityGlowLayer(containerEl: any, handTrackEl: any, rend
     while (glowLayerEl.children.length > glowIndex) {
         glowLayerEl.removeChild(glowLayerEl.lastElementChild);
     }
-    handGlowLayoutCacheByContainer.set(containerEl, { signature, layoutKey, dirty: false });
+    handGlowLayoutCacheByContainer.set(containerEl, { signature, scrollKey, layoutKey, dirty: false });
 }
 const handSlotElementSignatureByContainer = new WeakMap<any, string>();
 function _buildHandSlotElementSignature(
@@ -1785,9 +1822,9 @@ function renderCardUI() {
     const topOwnerKey = visibleOwners.topOwnerKey;
     const localPlayerKey = isNetworkMode ? bottomOwnerKey : null;
     if (deckBlackEl)
-        deckBlackEl.dataset.ownerKey = bottomOwnerKey;
+        _setDatasetValueIfChanged(deckBlackEl, 'ownerKey', bottomOwnerKey);
     if (deckWhiteEl)
-        deckWhiteEl.dataset.ownerKey = topOwnerKey;
+        _setDatasetValueIfChanged(deckWhiteEl, 'ownerKey', topOwnerKey);
     const chargeBlackEl = document.getElementById('charge-black');
     const chargeWhiteEl = document.getElementById('charge-white');
     renderVisibleChargeDisplays(cardState, { matchMode });
@@ -1818,17 +1855,17 @@ function renderCardUI() {
     const topDeckVisual = deckVisualByOwner[topOwnerKey as PlayerOwnerKey] || deckVisualByOwner.white;
     // Set visuals for Black deck
     if (deckBlackEl) {
-        deckBlackEl.style.setProperty('--deck-ratio', String(bottomDeckVisual.ratio));
+        _setStylePropertyIfChanged(deckBlackEl, '--deck-ratio', bottomDeckVisual.ratio);
         const countLabel = deckBlackEl.querySelector('.deck-count');
         if (countLabel)
-            countLabel.textContent = `${bottomDeckVisual.count}/${bottomDeckVisual.total}`;
+            _setTextContentIfChanged(countLabel, `${bottomDeckVisual.count}/${bottomDeckVisual.total}`);
     }
     // Set visuals for White deck
     if (deckWhiteEl) {
-        deckWhiteEl.style.setProperty('--deck-ratio', String(topDeckVisual.ratio));
+        _setStylePropertyIfChanged(deckWhiteEl, '--deck-ratio', topDeckVisual.ratio);
         const countLabel = deckWhiteEl.querySelector('.deck-count');
         if (countLabel)
-            countLabel.textContent = `${topDeckVisual.count}/${topDeckVisual.total}`;
+            _setTextContentIfChanged(countLabel, `${topDeckVisual.count}/${topDeckVisual.total}`);
     }
     const isBlackTurn = gameState.currentPlayer === BLACK;
     const isAnimating = _isCardAnimatingForRender();
@@ -2140,7 +2177,7 @@ function renderCardUI() {
     function renderHandSlot(containerEl: any, ownerKey: any, revealByDefault: any, visibleSlotKey: any) {
         if (!containerEl)
             return;
-        containerEl.dataset.ownerKey = ownerKey;
+        _setDatasetValueIfChanged(containerEl, 'ownerKey', ownerKey);
         const showTimeStopVictimOverlay = !!(timeStopStatus.active
             && timeStopStatus.viewerRole === 'victim'
             && visibleSlotKey === 'bottom');
@@ -2194,7 +2231,7 @@ function renderCardUI() {
     // Update Discard Display
     const discardCountEl = document.getElementById('discard-count');
     if (discardCountEl) {
-        discardCountEl.textContent = cardState.discard.length;
+        _setTextContentIfChanged(discardCountEl, cardState.discard.length);
     }
     // Update Active Effect Slots (Phase 2: always empty)
     const activeBlackEl = document.getElementById('active-black');
@@ -2203,14 +2240,14 @@ function renderCardUI() {
         const content = activeBlackEl.querySelector('.effect-slot-content');
         if (content) {
             const effects = (cardState.activeEffectsByPlayer && cardState.activeEffectsByPlayer.black) || [];
-            content.textContent = effects.length > 0 ? effects.map((e: any) => e.name).join(', ') : 'なし';
+            _setTextContentIfChanged(content, effects.length > 0 ? effects.map((e: any) => e.name).join(', ') : 'なし');
         }
     }
     if (activeWhiteEl) {
         const content = activeWhiteEl.querySelector('.effect-slot-content');
         if (content) {
             const effects = cardState.activeEffectsByPlayer.white;
-            content.textContent = effects.length > 0 ? effects.map((e: any) => e.name).join(', ') : 'なし';
+            _setTextContentIfChanged(content, effects.length > 0 ? effects.map((e: any) => e.name).join(', ') : 'なし');
         }
     }
     void scheduleCardNameRefitAfterFontsReady(document);

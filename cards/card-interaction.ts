@@ -27,6 +27,30 @@ type CardInteractionNullableRecord = Record<string, any> | null;
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     ? __non_webpack_require__
     : require;
+
+function _setCardUiTextIfChanged(el: any, value: any) {
+    if (!el) return;
+    const normalized = String(value ?? '');
+    if (el.textContent !== normalized) el.textContent = normalized;
+}
+
+function _setCardUiDisplayIfChanged(el: any, value: any) {
+    if (!el || !el.style) return;
+    const normalized = String(value ?? '');
+    if (el.style.display !== normalized) el.style.display = normalized;
+}
+
+function _setCardUiDisabledIfChanged(el: any, disabled: any) {
+    if (!el) return;
+    const normalized = disabled === true;
+    if (el.disabled !== normalized) el.disabled = normalized;
+}
+
+function _setCardUiAttributeIfChanged(el: any, name: any, value: any) {
+    if (!el || typeof el.getAttribute !== 'function' || typeof el.setAttribute !== 'function') return;
+    const normalized = String(value ?? '');
+    if (el.getAttribute(name) !== normalized) el.setAttribute(name, normalized);
+}
 const SpecialCardRegistry = (() => {
     try {
         return _require('../shared/special-card-registry');
@@ -670,6 +694,7 @@ const _cardDetailLandscapeAnchorSync = (_cardInteractionDetailPanelModule && typ
         getDocumentRef: () => (typeof document !== 'undefined' ? document : null)
     })
     : null;
+let _lastCardDetailLandscapeAnchorSignature: string | null = null;
 
 const _cardInteractionDetailActions = (_cardInteractionDetailActionsModule && typeof _cardInteractionDetailActionsModule.createCardInteractionDetailActions === 'function')
     ? _cardInteractionDetailActionsModule.createCardInteractionDetailActions({
@@ -2587,10 +2612,6 @@ function _getPendingSelectionPrompt(pending: any) {
 }
 
 function updateCardDetailPanel() {
-    if (_cardDetailLandscapeAnchorSync && typeof _cardDetailLandscapeAnchorSync.schedule === 'function') {
-        _cardDetailLandscapeAnchorSync.schedule();
-    }
-
     const nameEl = document.getElementById('card-detail-name');
     const descEl = document.getElementById('card-detail-desc');
     const detailTagsEl = _ensureCardDetailEffectTagsElement();
@@ -2627,12 +2648,12 @@ function updateCardDetailPanel() {
             _cardDetailTabState.mode === 'detail' &&
             _cardDetailTabState.cardId === (normalizedSelectedId || null)
         );
-        (detailBtn as HTMLButtonElement).disabled = !canToggle;
-        detailBtn.textContent = detailTabOpen ? '閉じる' : '詳細';
-        detailBtn.setAttribute('aria-expanded', detailTabOpen ? 'true' : 'false');
+        _setCardUiDisabledIfChanged(detailBtn, !canToggle);
+        _setCardUiTextIfChanged(detailBtn, detailTabOpen ? '閉じる' : '詳細');
+        _setCardUiAttributeIfChanged(detailBtn, 'aria-expanded', detailTabOpen ? 'true' : 'false');
     }
     if (detailMoreEl) {
-        detailMoreEl.style.display = 'none';
+        _setCardUiDisplayIfChanged(detailMoreEl, 'none');
     }
 
     const actionState = _resolveCardDetailActionState(selectionContext);
@@ -2640,15 +2661,15 @@ function updateCardDetailPanel() {
         _clearHeavenSelection(playerKey);
     }
 
-    (useBtn as HTMLButtonElement).disabled = !actionState.canUse;
+    _setCardUiDisabledIfChanged(useBtn, !actionState.canUse);
 
     if (destroyBtn) {
-        (destroyBtn as HTMLButtonElement).disabled = !actionState.canDestroy;
-        destroyBtn.textContent = '破壊';
+        _setCardUiDisabledIfChanged(destroyBtn, !actionState.canDestroy);
+        _setCardUiTextIfChanged(destroyBtn, '破壊');
     }
 
     if (hasSelection && !actionState.canAfford) {
-        useBtn.textContent = '布石不足';
+        _setCardUiTextIfChanged(useBtn, '布石不足');
         // Diagnostic: log situations where UI shows charge but button disabled unexpectedly
         try {
             const chargeVal = (cardState && cardState.charge) ? cardState.charge[playerKey] : undefined;
@@ -2657,23 +2678,23 @@ function updateCardDetailPanel() {
             }
         } catch (e) { /* ignore */ }
     } else {
-        useBtn.textContent = '使用';
+        _setCardUiTextIfChanged(useBtn, '使用');
     }
 
-    reasonEl.textContent = actionState.reason;
+    _setCardUiTextIfChanged(reasonEl, actionState.reason);
 
     if (actionState.isHeavenSelecting) {
         _closeCardDetailTabPanel();
-        if (destroyBtn) destroyBtn.style.display = 'none';
-        useBtn.style.display = 'none';
-        if (detailBtn) detailBtn.style.display = 'none';
-        if (detailActionsEl) detailActionsEl.style.display = 'none';
-        if (passBtn) passBtn.style.display = 'none';
+        if (destroyBtn) _setCardUiDisplayIfChanged(destroyBtn, 'none');
+        _setCardUiDisplayIfChanged(useBtn, 'none');
+        if (detailBtn) _setCardUiDisplayIfChanged(detailBtn, 'none');
+        if (detailActionsEl) _setCardUiDisplayIfChanged(detailActionsEl, 'none');
+        if (passBtn) _setCardUiDisplayIfChanged(passBtn, 'none');
     } else {
-        if (destroyBtn) destroyBtn.style.display = 'inline-block';
-        useBtn.style.display = 'inline-block';
-        if (detailBtn) detailBtn.style.display = 'inline-block';
-        if (detailActionsEl) detailActionsEl.style.display = 'flex';
+        if (destroyBtn) _setCardUiDisplayIfChanged(destroyBtn, 'inline-block');
+        _setCardUiDisplayIfChanged(useBtn, 'inline-block');
+        if (detailBtn) _setCardUiDisplayIfChanged(detailBtn, 'inline-block');
+        if (detailActionsEl) _setCardUiDisplayIfChanged(detailActionsEl, 'flex');
     }
 
     // 選択モード用のキャンセルボタン表示制御
@@ -2682,20 +2703,46 @@ function updateCardDetailPanel() {
         _isCancellablePendingSelectionForCardUi(actionState.pending.type) &&
         actionState.canActThisTurn;
     if (cancelBtn) {
-        cancelBtn.style.display = cancellableSelecting ? 'block' : 'none';
-        cancelBtn.textContent = 'キャンセル';
+        _setCardUiDisplayIfChanged(cancelBtn, cancellableSelecting ? 'block' : 'none');
+        _setCardUiTextIfChanged(cancelBtn, 'キャンセル');
         // Add specific listener for HvH mode to ensure it uses the correct context
-        cancelBtn.onclick = () => cancelPendingSelection(playerKey);
+        if ((cancelBtn as any).__cancelPendingOwnerKey !== playerKey) {
+            (cancelBtn as any).__cancelPendingOwnerKey = playerKey;
+            cancelBtn.onclick = () => cancelPendingSelection(playerKey);
+        }
     }
     if (selecting) {
-        reasonEl.textContent = _getPendingSelectionPrompt(actionState.pending);
+        _setCardUiTextIfChanged(reasonEl, _getPendingSelectionPrompt(actionState.pending));
     }
 
     if (passBtn) {
-        passBtn.style.display = actionState.canShowPass ? 'inline-block' : 'none';
-        (passBtn as HTMLButtonElement).disabled = !actionState.canPass;
+        _setCardUiDisplayIfChanged(passBtn, actionState.canShowPass ? 'inline-block' : 'none');
+        _setCardUiDisabledIfChanged(passBtn, !actionState.canPass);
     }
     _syncReversiPassButton(actionState);
+
+    const anchorSignature = JSON.stringify({
+        selectedId: normalizedSelectedId || null,
+        selectedOwnerKey: selectedOwnerKey || null,
+        displayModel,
+        detailTab: {
+            open: !!_cardDetailTabState.open,
+            mode: _cardDetailTabState.mode || null,
+            cardId: _cardDetailTabState.cardId || null
+        },
+        action: {
+            isHeavenSelecting: !!actionState.isHeavenSelecting,
+            isSelectingTarget: !!actionState.isSelectingTarget,
+            canShowPass: !!actionState.canShowPass,
+            reason: selecting ? _getPendingSelectionPrompt(actionState.pending) : actionState.reason
+        }
+    });
+    if (_lastCardDetailLandscapeAnchorSignature !== anchorSignature) {
+        _lastCardDetailLandscapeAnchorSignature = anchorSignature;
+        if (_cardDetailLandscapeAnchorSync && typeof _cardDetailLandscapeAnchorSync.schedule === 'function') {
+            _cardDetailLandscapeAnchorSync.schedule();
+        }
+    }
 
     _renderHeavenOverlay(playerKey);
 }

@@ -191,29 +191,96 @@ describe('animation-utils hand fallback', () => {
     expect(global.SoundEngine.playStoneClack).toHaveBeenCalledTimes(1);
   });
 
-  test('playHandAnimation can force CPU-only hand image for the acting owner', async () => {
+  test('playHandAnimation keeps the selected hand image stable while using a CPU actor image', async () => {
     const wrapper = document.getElementById('handWrapper');
-    wrapper.animate = undefined;
+    wrapper.animate = jest.fn(() => ({
+      addEventListener: jest.fn(),
+      finished: Promise.resolve()
+    }));
     unlockAltGachaHandSkin(window);
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
     window.cpuSmartness = { black: 3, white: 1 };
     const handSkin = require('../ui/handlers/hand-skin.js');
     window.syncDisplayedHandSkin = handSkin.syncDisplayedHandSkin;
     window.resolveHandAnimationContext = handSkin.resolveHandAnimationContext;
+    const selectedImage = document.getElementById('handImage');
+    selectedImage.setAttribute('src', 'assets/images/hand-skin/selected-local.png');
+    selectedImage.setAttribute('data-hand-skin-id', ALT_GACHA_HAND_SKIN_ID);
     const mod = require('../ui/animation-utils.js');
-    const promise = new Promise((resolve, reject) => {
+    let resolveContact;
+    const contactPromise = new Promise((resolve, reject) => {
+      resolveContact = resolve;
       const to = setTimeout(() => reject(new Error('timeout')), 2200);
-      mod.playHandAnimation(global.BLACK, 0, 0, () => {
+      resolveContact = () => {
         clearTimeout(to);
         resolve();
-      }, { cpu: true, cpuLevel: 3, ownerKey: 'black' });
+      };
+    });
+    const animationPromise = mod.playHandAnimation(global.BLACK, 0, 0, resolveContact, {
+      cpu: true,
+      cpuLevel: 3,
+      ownerKey: 'black'
     });
 
     await Promise.resolve();
-    expect(document.getElementById('handImage').getAttribute('src')).toBe('assets/images/hand-skin/lv3-5.png');
-    expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe('cpu-lv3-5');
+    const actorImage = wrapper.querySelector('.hand-animation-actor-image');
+    expect(selectedImage.getAttribute('src')).toBe('assets/images/hand-skin/selected-local.png');
+    expect(selectedImage.getAttribute('data-hand-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
+    expect(actorImage?.getAttribute('src')).toBe('assets/images/hand-skin/lv3-5.png');
+    expect(actorImage?.getAttribute('data-hand-skin-id')).toBe('cpu-lv3-5');
+    expect(actorImage?.getAttribute('data-hand-animation-active')).toBe('true');
 
-    await expect(promise).resolves.toBeUndefined();
+    await expect(contactPromise).resolves.toBeUndefined();
+    await expect(animationPromise).resolves.toBeUndefined();
+    expect(selectedImage.style.visibility).toBe('');
+    expect(actorImage?.getAttribute('data-hand-animation-active')).toBe('false');
+  });
+
+  test('playHandAnimation reuses the selected image when the same skin has a bundled URL', async () => {
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = jest.fn(() => ({
+      addEventListener: jest.fn(),
+      finished: Promise.resolve()
+    }));
+    const handSkin = require('../ui/handlers/hand-skin.js');
+    const resolvedContext = handSkin.resolveHandAnimationContext(window, null, { ownerKey: 'black' });
+    const selectedImage = document.getElementById('handImage');
+    selectedImage.setAttribute('src', './vite-dist/assets/hand-swap-hashed.png');
+    selectedImage.setAttribute('data-hand-skin-id', resolvedContext.renderedSkinId);
+    const mod = require('../ui/animation-utils.js');
+
+    await mod.playHandAnimation(global.BLACK, 0, 0, jest.fn());
+
+    expect(selectedImage.getAttribute('src')).toBe('./vite-dist/assets/hand-swap-hashed.png');
+    expect(wrapper.querySelector('.hand-animation-actor-image')).toBeNull();
+  });
+
+  test('playHandAnimation reuses the cached actor image for repeated CPU placement', async () => {
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.animate = jest.fn(() => ({
+      addEventListener: jest.fn(),
+      finished: Promise.resolve()
+    }));
+    window.cpuSmartness = { black: 3, white: 1 };
+    const handSkin = require('../ui/handlers/hand-skin.js');
+    window.resolveHandAnimationContext = handSkin.resolveHandAnimationContext;
+    const mod = require('../ui/animation-utils.js');
+
+    await mod.playHandAnimation(global.BLACK, 0, 0, jest.fn(), {
+      cpu: true,
+      cpuLevel: 3,
+      ownerKey: 'black'
+    });
+    const firstActorImage = wrapper.querySelector('.hand-animation-actor-image');
+
+    await mod.playHandAnimation(global.BLACK, 0, 0, jest.fn(), {
+      cpu: true,
+      cpuLevel: 3,
+      ownerKey: 'black'
+    });
+
+    expect(wrapper.querySelectorAll('.hand-animation-actor-image')).toHaveLength(1);
+    expect(wrapper.querySelector('.hand-animation-actor-image')).toBe(firstActorImage);
   });
 
   test('playDrawCardHandAnimation resolves without Element.animate', async () => {
@@ -553,21 +620,28 @@ describe('animation-utils hand fallback', () => {
     expect(cacheEntry.image).toBeNull();
   });
 
-  test('playDrawCardHandAnimation can force CPU-only hand image for the acting owner', async () => {
+  test('playDrawCardHandAnimation uses a CPU actor image without replacing the selected hand image', async () => {
     const wrapper = document.getElementById('handWrapper');
-    wrapper.animate = undefined;
+    wrapper.animate = jest.fn(() => ({
+      addEventListener: jest.fn(),
+      finished: Promise.resolve()
+    }));
     unlockAltGachaHandSkin(window);
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
     window.cpuSmartness = { black: 1, white: 4 };
     const handSkin = require('../ui/handlers/hand-skin.js');
     window.syncDisplayedHandSkin = handSkin.syncDisplayedHandSkin;
     window.resolveHandAnimationContext = handSkin.resolveHandAnimationContext;
+    const selectedImage = document.getElementById('handImage');
+    selectedImage.setAttribute('src', 'assets/images/hand-skin/selected-local.png');
     const mod = require('../ui/animation-utils.js');
     const promise = mod.playDrawCardHandAnimation({ player: 'white', count: 1, cpu: true, cpuLevel: 4 });
     await Promise.resolve();
 
-    expect(document.getElementById('handImage').getAttribute('src')).toBe('assets/images/hand-skin/lv4.png');
-    expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe('cpu-lv4');
+    const actorImage = wrapper.querySelector('.hand-animation-actor-image');
+    expect(selectedImage.getAttribute('src')).toBe('assets/images/hand-skin/selected-local.png');
+    expect(actorImage?.getAttribute('src')).toBe('assets/images/hand-skin/lv4.png');
+    expect(actorImage?.getAttribute('data-hand-skin-id')).toBe('cpu-lv4');
 
     await expect(promise).resolves.toBeUndefined();
   });
@@ -589,8 +663,9 @@ describe('animation-utils hand fallback', () => {
     const promise = mod.playDrawCardHandAnimation({ player: 'white', count: 1 });
     await Promise.resolve();
 
-    expect(document.getElementById('handImage').getAttribute('src')).toBe('assets/images/hand-skin/lv4.png');
-    expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe('cpu-lv4');
+    const actorImage = wrapper.querySelector('.hand-animation-actor-image');
+    expect(actorImage?.getAttribute('src')).toBe('assets/images/hand-skin/lv4.png');
+    expect(actorImage?.getAttribute('data-hand-skin-id')).toBe('cpu-lv4');
 
     await expect(promise).resolves.toBeUndefined();
   });

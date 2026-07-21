@@ -112,4 +112,21 @@ describe('card renderer hand signature', () => {
     expect(selectedBlackCard).toBe(firstBlackCard);
     expect(selectedBlackCard!.classList.contains('selected')).toBe(true);
   });
+
+  test('identical full card UI input produces no DOM mutations', () => {
+    const renderer = require('../cards/card-renderer.js');
+    renderer.renderCardUI();
+    const observer = new dom.window.MutationObserver(() => undefined);
+    observer.observe(document.body, {
+      attributes: true,
+      childList: true,
+      characterData: true,
+      subtree: true
+    });
+
+    renderer.renderCardUI();
+
+    expect(observer.takeRecords()).toHaveLength(0);
+    observer.disconnect();
+  });
 });
