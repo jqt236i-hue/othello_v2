@@ -1455,11 +1455,15 @@ describe('Pixi board scene playback projection', () => {
     }
   });
 
-  test('leases one transient highlight per cell and restores the previous tone on release', () => {
+  test('renders transient cell highlights below stones and restores the previous tone on release', () => {
     const fixture = createFakeRuntime();
     const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
     const topology = makeTopology({ baseRows: 8, baseCols: 8 });
-    const frame = makeFrame({ topology });
+    const cells = topology.existingKeys.map((key) => makeCell(key));
+    cells.find((cell) => cell.key === '2,2')!.stone = {
+      owner: 'black', value: 1, specialType: null, status: {}
+    };
+    const frame = makeFrame({ topology, cells });
     scene.applyFrame(frame);
     const scope = scene.beginPlaybackScope('writer:highlight');
     const positive = scene.acquirePlaybackCellHighlight(scope, 2, 2, 'positive');
@@ -1469,13 +1473,18 @@ describe('Pixi board scene playback projection', () => {
       activePlaybackHighlightLeaseCount: 2,
       renderedPlaybackHighlightCount: 1
     });
-    expect(scene.layers.effect.children).toHaveLength(1);
-    expect((scene.layers.effect.children[0] as FakeGraphics).commands).toEqual(expect.arrayContaining([
+    expect(scene.layers.cell.children).toHaveLength(1);
+    expect(scene.layers.stone.children).toHaveLength(1);
+    expect(scene.root.children.indexOf(scene.layers.cell)).toBeLessThan(
+      scene.root.children.indexOf(scene.layers.stone)
+    );
+    expect(scene.layers.effect.children).toHaveLength(0);
+    expect((scene.layers.cell.children[0] as FakeGraphics).commands).toEqual(expect.arrayContaining([
       expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#66a4ff' }) })
     ]));
 
     scene.releasePlaybackCellHighlight(scope, placement);
-    expect((scene.layers.effect.children[0] as FakeGraphics).commands).toEqual(expect.arrayContaining([
+    expect((scene.layers.cell.children[0] as FakeGraphics).commands).toEqual(expect.arrayContaining([
       expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#b466ff' }) })
     ]));
     expect(scene.getDiagnostics()).toMatchObject({
@@ -1484,7 +1493,7 @@ describe('Pixi board scene playback projection', () => {
     });
 
     scene.releasePlaybackCellHighlight(scope, positive);
-    expect(scene.layers.effect.children).toHaveLength(0);
+    expect(scene.layers.cell.children).toHaveLength(0);
     expect(scene.getDiagnostics()).toMatchObject({
       activePlaybackHighlightLeaseCount: 0,
       renderedPlaybackHighlightCount: 0,
@@ -1493,7 +1502,7 @@ describe('Pixi board scene playback projection', () => {
 
     scene.acquirePlaybackCellHighlight(scope, 2, 2, 'negative');
     scene.applyFrame(frame);
-    expect(scene.layers.effect.children).toHaveLength(0);
+    expect(scene.layers.cell.children).toHaveLength(0);
     expect(scene.getDiagnostics()).toMatchObject({
       playbackScopeKey: null,
       activePlaybackHighlightLeaseCount: 0,
@@ -1517,7 +1526,7 @@ describe('Pixi board scene playback projection', () => {
       renderedPlaybackHighlightCount: 0,
       pooledPlaybackHighlightCount: 0
     });
-    expect(scene.layers.effect.children).toHaveLength(0);
+    expect(scene.layers.cell.children).toHaveLength(0);
 
     scene.applyFrame(makeFrame({
       topology,
@@ -1529,7 +1538,7 @@ describe('Pixi board scene playback projection', () => {
       renderedPlaybackHighlightCount: 1,
       pooledPlaybackHighlightCount: 0
     });
-    expect(scene.layers.effect.children).toHaveLength(1);
+    expect(scene.layers.cell.children).toHaveLength(1);
 
     scene.applyFrame(firstFrame, { preservePlaybackProjection: true });
     expect(scene.getDiagnostics()).toMatchObject({
@@ -1537,7 +1546,7 @@ describe('Pixi board scene playback projection', () => {
       renderedPlaybackHighlightCount: 0,
       pooledPlaybackHighlightCount: 1
     });
-    expect(scene.layers.effect.children).toHaveLength(0);
+    expect(scene.layers.cell.children).toHaveLength(0);
 
     scene.releasePlaybackCellHighlight(scope, handle);
     expect(scene.getDiagnostics()).toMatchObject({

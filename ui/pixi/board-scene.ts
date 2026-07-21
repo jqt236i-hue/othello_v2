@@ -1525,7 +1525,10 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     if (!view) {
       view = playbackHighlightPool.acquire();
       playbackHighlightsByKey.set(key, view);
-      addPixiChild(layers.effect, view);
+      // Transient cell highlights tint the square itself. Keep them below
+      // markers and stones so the red/blue/purple fill never paints over a
+      // stone; higher playback effects continue to use the effect layer.
+      addPixiChild(layers.cell, view);
     }
     const palette = {
       placement: { fill: '#66a4ff', fillAlpha: 0.38, stroke: '#9ac6ff' },
