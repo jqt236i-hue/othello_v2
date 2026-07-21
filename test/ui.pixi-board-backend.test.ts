@@ -1203,6 +1203,69 @@ describe('Pixi board backend integration', () => {
     }
   });
 
+  test('prepares special-stone textures before placement and roulette playback draw their first frame', async () => {
+    const fixture = createPlaybackFixture();
+    const harness = createHarness({ noAnimation: false, playbackFactory: () => fixture.playback });
+    await harness.backend.mount(harness.host, {});
+    const frame = makeFrame('special-playback-textures', 1);
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+
+    fixture.playback.playPhase.mockImplementationOnce(async () => {
+      const textureSource = harness.scene.applyCalls.at(-1)?.context?.textures;
+      expect(textureSource?.get('special-stone:HYPERACTIVE:black')).toEqual({
+        url: 'https://example.test/special/HYPERACTIVE/black.png'
+      });
+      expect(harness.scene.applyCalls.at(-1)?.context?.preservePlaybackProjection).toBe(true);
+    });
+    await harness.backend.playPhase([{
+      type: 'spawn',
+      targets: [{
+        r: 2,
+        col: 3,
+        ownerAfter: 'black',
+        after: { owner: 'black', color: 1, special: 'HYPERACTIVE' }
+      }]
+    }], {
+      token: { id: 7, frameToken: frame.frameToken, mode: 'local' },
+      strictNetworkPlayback: false
+    });
+
+    fixture.playback.playPhase.mockImplementationOnce(async () => {
+      const textureSource = harness.scene.applyCalls.at(-1)?.context?.textures;
+      expect(textureSource?.get('special-stone:HYPERACTIVE:black')).toEqual({
+        url: 'https://example.test/special/HYPERACTIVE/black.png'
+      });
+      expect(textureSource?.get('special-stone:SNIPER:black')).toEqual({
+        url: 'https://example.test/special/SNIPER/black.png'
+      });
+    });
+    await harness.backend.playPhase([{
+      type: 'theory_incarnation_spawn_roulette',
+      meta: { special: 'SNIPER', owner: 'black' },
+      targets: [{
+        r: 4,
+        col: 6,
+        ownerAfter: 'black',
+        spawnedMarkerType: 'SNIPER',
+        after: { owner: 'black', color: 1, special: 'SNIPER' }
+      }]
+    }], {
+      token: { id: 7, frameToken: frame.frameToken, mode: 'local' },
+      strictNetworkPlayback: false
+    });
+
+    expect(harness.textures.loadTexture).toHaveBeenCalledWith(
+      'https://example.test/special/HYPERACTIVE/black.png',
+      'special-stone:HYPERACTIVE:black'
+    );
+    expect(harness.textures.loadTexture).toHaveBeenCalledWith(
+      'https://example.test/special/SNIPER/black.png',
+      'special-stone:SNIPER:black'
+    );
+  });
+
   test('delegates Phase 6 playback in animated mode and preserves typed failures', async () => {
     const fixture = createPlaybackFixture();
     const playbackFactory = jest.fn(() => fixture.playback);

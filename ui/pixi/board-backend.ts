@@ -10,6 +10,7 @@ import type {
 import BoardSkinCatalog = require('../board-skin/catalog');
 import StoneSkinCatalog = require('../stone-skin/catalog');
 import PixiRuntimeContract = require('./runtime-contract');
+import { parsePlayerSeatKey } from '../../shared/player-seat-contract';
 import {
   createPixiBoardApplication,
   type PixiBoardApplication,
@@ -359,6 +360,59 @@ function collectSpecialStones(frame: BoardVisualFrame): ReadonlyArray<{
   return Object.freeze(Array.from(byKey.values()));
 }
 
+interface PlaybackSpecialStone {
+  readonly type: string;
+  readonly owner: 'black' | 'white';
+}
+
+function normalizePlaybackSpecialType(value: unknown): string | null {
+  const raw = value && typeof value === 'object' ? (value as any).type : value;
+  const type = String(raw || '').trim().toUpperCase();
+  return type || null;
+}
+
+function normalizePlaybackOwner(...values: unknown[]): 'black' | 'white' | null {
+  for (const value of values) {
+    const owner = parsePlayerSeatKey(value);
+    if (owner === 'black' || owner === 'white') return owner;
+  }
+  return null;
+}
+
+function collectPlaybackSpecialStones(events: readonly unknown[]): readonly PlaybackSpecialStone[] {
+  const byKey = new Map<string, PlaybackSpecialStone>();
+  for (const rawEvent of Array.isArray(events) ? events : []) {
+    const event = rawEvent && typeof rawEvent === 'object' ? rawEvent as any : null;
+    if (!event) continue;
+    const eventMeta = event.meta && typeof event.meta === 'object' ? event.meta : null;
+    for (const rawTarget of Array.isArray(event.targets) ? event.targets : []) {
+      const target = rawTarget && typeof rawTarget === 'object' ? rawTarget as any : null;
+      if (!target) continue;
+      const after = target.after && typeof target.after === 'object' ? target.after : null;
+      const targetMeta = target.meta && typeof target.meta === 'object' ? target.meta : eventMeta;
+      const type = normalizePlaybackSpecialType(
+        after?.special
+        || after?.specialType
+        || target.spawnedMarkerType
+        || targetMeta?.special
+      );
+      const owner = normalizePlaybackOwner(
+        after?.owner,
+        after?.color,
+        target.ownerAfter,
+        target.owner,
+        target.player,
+        targetMeta?.owner,
+        event.owner,
+        event.player
+      );
+      if (!type || !owner) continue;
+      byKey.set(`${type}:${owner}`, Object.freeze({ type, owner }));
+    }
+  }
+  return Object.freeze(Array.from(byKey.values()));
+}
+
 function resourcePhysicalLimit(
   purpose: string,
   frame: BoardVisualFrame,
@@ -486,6 +540,10 @@ export function createPixiBoardVisualBackend(
   let restoreCount = 0;
   let resizeRenderCount = 0;
   let playPhaseCount = 0;
+  let playbackTextureWriterId: number | null = null;
+  let playbackTexturePrepareSequence = 0;
+  let playbackTexturePreparation: Promise<void> | null = null;
+  const playbackSpecialStones = new Map<string, PlaybackSpecialStone>();
   let settledFrameToken: string | null = null;
   let lastErrorCode: string | null = null;
   let pendingCameraRenderError: PixiBoardBackendError | null = null;
@@ -656,7 +714,8 @@ export function createPixiBoardVisualBackend(
   function buildTextureRequests(
     frame: BoardVisualFrame,
     appearance: ResolvedBoardAppearance,
-    defaults: ResolvedBoardAppearance
+    defaults: ResolvedBoardAppearance,
+    additionalSpecialStones: readonly PlaybackSpecialStone[] = []
   ): readonly PixiTextureRequest[] {
     const defaultByRole = new Map(defaults.resources.map((resource) => [resource.role, resource]));
     const requests = new Map<string, PixiTextureRequest>();
@@ -676,7 +735,14 @@ export function createPixiBoardVisualBackend(
           : Object.freeze({ kind: 'procedural' as const, id: `${resource.role}:procedural` })
       }));
     }
+    const specialStones = new Map<string, PlaybackSpecialStone>();
     for (const special of collectSpecialStones(frame)) {
+      specialStones.set(`${special.type}:${special.owner}`, special);
+    }
+    for (const special of additionalSpecialStones) {
+      specialStones.set(`${special.type}:${special.owner}`, special);
+    }
+    for (const special of specialStones.values()) {
       const resource = resolveSpecialAppearance(special.type, special.owner, frame);
       if (!resource) continue;
       const purpose = `special-stone:${special.type}:${special.owner}`;
@@ -698,6 +764,90 @@ export function createPixiBoardVisualBackend(
       }));
     }
     return Object.freeze(Array.from(requests.values()));
+  }
+
+  async function preparePlaybackTextures(
+    events: readonly unknown[],
+    context: BoardPlaybackContext
+  ): Promise<void> {
+    const writerId = Number(context?.token?.id);
+    if (!Number.isInteger(writerId)) return;
+    if (playbackTextureWriterId !== writerId) {
+      playbackTextureWriterId = writerId;
+      playbackSpecialStones.clear();
+    }
+    for (const special of collectPlaybackSpecialStones(events)) {
+      playbackSpecialStones.set(`${special.type}:${special.owner}`, special);
+    }
+    if (!playbackSpecialStones.size || !currentFrame) return;
+
+    while (true) {
+      if (playbackTexturePreparation) {
+        await playbackTexturePreparation;
+        continue;
+      }
+      const frame = currentFrame;
+      const appearance = resolveAppearance(frame);
+      const defaults = resolveDefaultAppearance(frame);
+      const requests = buildTextureRequests(
+        frame,
+        appearance,
+        defaults,
+        Object.freeze(Array.from(playbackSpecialStones.values()))
+      );
+      const specialPurposes = requests
+        .map((request) => request.purpose)
+        .filter((purpose) => purpose.startsWith('special-stone:'));
+      const active = textureManager!.getActive();
+      if (specialPurposes.every((purpose) => !!active?.get(purpose))) return;
+
+      const sourceLease = acquireAppearanceLease(appearance, frame);
+      const preparationId = `${frameTextureKey(frame, ++playbackTexturePrepareSequence)}:playback:${writerId}`;
+      let prepared: PixiPreparedTextureSet | null = null;
+      let failureStage: 'texture-prepare' | 'texture-commit' = 'texture-prepare';
+      const preparation = (async () => {
+        try {
+          prepared = await textureManager!.prepare(preparationId, requests, { sourceLease });
+          assertMounted();
+          assertContextHealthy();
+          assertCameraRenderHealthy();
+          if (!currentFrame || playbackTextureWriterId !== writerId) {
+            prepared.release();
+            prepared = null;
+            return;
+          }
+          const canvasViewport = camera!.getCanvasViewport();
+          if (!canvasViewport) throw new Error('Pixi camera canvas viewport is unavailable');
+          failureStage = 'texture-commit';
+          textureManager!.commit(prepared, (snapshot) => {
+            applySceneAndRender(currentFrame!, snapshot, canvasViewport, {
+              preservePlaybackProjection: true
+            });
+          });
+          prepared = null;
+          record('pixi-backend:playback-textures-prepared', {
+            writerId,
+            resourceCount: requests.length,
+            specialPurposes
+          });
+        } catch (error) {
+          if (prepared && prepared.state === 'prepared') prepared.release();
+          const existing = nestedBackendError(error);
+          throw rememberError(existing || backendError({
+            code: 'pixi_playback_texture_prepare_failed',
+            stage: failureStage,
+            message: `Pixi playback texture preparation failed: ${errorMessage(error)}`,
+            detail: error
+          }));
+        }
+      })();
+      playbackTexturePreparation = preparation;
+      try {
+        await preparation;
+      } finally {
+        if (playbackTexturePreparation === preparation) playbackTexturePreparation = null;
+      }
+    }
   }
 
   async function prepareResources(work: FrameWork): Promise<void> {
@@ -1454,6 +1604,7 @@ export function createPixiBoardVisualBackend(
     playPhaseCount += 1;
     try {
       assertCameraRenderHealthy();
+      await preparePlaybackTextures(events, context);
       await playback!.playPhase(events, context);
       // Multiple board event branches in one presentation phase share this
       // backend timeline. A shorter sibling must not stop the private ticker
