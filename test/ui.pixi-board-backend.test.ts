@@ -1266,6 +1266,112 @@ describe('Pixi board backend integration', () => {
     );
   });
 
+  test('supersedes an obsolete writer without looping during special-stone texture preparation', async () => {
+    const fixture = createPlaybackFixture();
+    const harness = createHarness({ playbackFactory: () => fixture.playback });
+    await harness.backend.mount(harness.host, {});
+    const frame = makeFrame('special-playback-writer-switch', 1);
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+
+    const hyperactiveTexture = harness.textures.deferUrl(
+      'https://example.test/special/HYPERACTIVE/black.png'
+    );
+    const firstContext = {
+      token: { id: 7, frameToken: frame.frameToken, mode: 'local' as const },
+      strictNetworkPlayback: false
+    };
+    const secondContext = {
+      token: { id: 8, frameToken: frame.frameToken, mode: 'local' as const },
+      strictNetworkPlayback: false
+    };
+    const firstPhase = harness.backend.playPhase([{
+      type: 'spawn',
+      targets: [{
+        r: 2,
+        col: 3,
+        after: { owner: 'black', color: 1, special: 'HYPERACTIVE' }
+      }]
+    }], firstContext);
+    await flushMicrotasks();
+    const secondEvents = [{
+      type: 'spawn',
+      targets: [{
+        r: 4,
+        col: 5,
+        after: { owner: 'black', color: 1, special: 'SNIPER' }
+      }]
+    }];
+    const secondPhase = harness.backend.playPhase(secondEvents, secondContext);
+
+    hyperactiveTexture.resolve();
+    await expect(firstPhase).rejects.toMatchObject({
+      code: 'pixi_playback_texture_prepare_superseded',
+      stage: 'texture-prepare'
+    });
+    await expect(secondPhase).resolves.toBeUndefined();
+    expect(fixture.playback.playPhase).toHaveBeenCalledTimes(1);
+    expect(fixture.playback.playPhase).toHaveBeenCalledWith(secondEvents, secondContext);
+  });
+
+  test('lets context recovery retry special-stone preparation on the replacement texture manager', async () => {
+    const fixture = createPlaybackFixture();
+    const onContextLost = jest.fn();
+    const onContextRestored = jest.fn(async () => true);
+    const harness = createHarness({
+      playbackFactory: () => fixture.playback,
+      contextRecovery: {
+        onContextLost,
+        onContextRestored,
+        onFallbackRequired: jest.fn(async () => true)
+      }
+    });
+    await harness.backend.mount(harness.host, {});
+    const frame = makeFrame('special-playback-context-recovery', 1);
+    await harness.backend.prepareFrame(frame);
+    harness.backend.applyFrame(frame);
+    await harness.backend.waitForVisualSettlement(frame);
+
+    const specialTextureUrl = 'https://example.test/special/HYPERACTIVE/black.png';
+    const specialTexture = harness.textures.deferUrl(specialTextureUrl);
+    const events = [{
+      type: 'spawn',
+      targets: [{
+        r: 2,
+        col: 3,
+        after: { owner: 'black', color: 1, special: 'HYPERACTIVE' }
+      }]
+    }];
+    const context = {
+      token: { id: 7, frameToken: frame.frameToken, mode: 'local' as const },
+      strictNetworkPlayback: false
+    };
+    const interruptedPhase = harness.backend.playPhase(events, context);
+    const interruptedOutcome = interruptedPhase.catch((error) => error);
+    await flushMicrotasks();
+
+    const canvas = harness.app.instances[0].canvas as HTMLCanvasElement;
+    canvas.dispatchEvent(new harness.dom.window.Event('webglcontextlost', { cancelable: true }));
+    canvas.dispatchEvent(new harness.dom.window.Event('webglcontextrestored'));
+    await nextTurn();
+    await nextTurn();
+    expect(onContextLost).toHaveBeenCalledTimes(1);
+    expect(onContextRestored).toHaveBeenCalledTimes(1);
+
+    const recoveryPhase = harness.backend.playPhase(events, context);
+    specialTexture.resolve();
+    await expect(interruptedOutcome).resolves.toMatchObject({
+      code: 'pixi_playback_texture_prepare_superseded'
+    });
+    await expect(recoveryPhase).resolves.toBeUndefined();
+    expect(harness.textures.loadTexture).toHaveBeenCalledWith(
+      specialTextureUrl,
+      'special-stone:HYPERACTIVE:black'
+    );
+    expect(fixture.playback.playPhase).toHaveBeenCalledTimes(1);
+  });
+
   test('delegates Phase 6 playback in animated mode and preserves typed failures', async () => {
     const fixture = createPlaybackFixture();
     const playbackFactory = jest.fn(() => fixture.playback);

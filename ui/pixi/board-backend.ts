@@ -780,13 +780,31 @@ export function createPixiBoardVisualBackend(
       playbackSpecialStones.set(`${special.type}:${special.owner}`, special);
     }
     if (!playbackSpecialStones.size || !currentFrame) return;
+    const textureManagerAtEntry = textureManager!;
 
     while (true) {
+      assertMounted();
+      assertContextHealthy();
+      if (textureManager !== textureManagerAtEntry) {
+        throw backendError({
+          code: 'pixi_playback_texture_prepare_superseded',
+          stage: 'texture-prepare',
+          message: 'Pixi playback texture preparation was superseded by texture recovery'
+        });
+      }
+      if (playbackTextureWriterId !== writerId) {
+        throw backendError({
+          code: 'pixi_playback_texture_prepare_superseded',
+          stage: 'texture-prepare',
+          message: `Pixi playback texture preparation was superseded by writer ${playbackTextureWriterId}`
+        });
+      }
       if (playbackTexturePreparation) {
         await playbackTexturePreparation;
         continue;
       }
       const frame = currentFrame;
+      const frameKey = frameTextureKey(frame, 0);
       const appearance = resolveAppearance(frame);
       const defaults = resolveDefaultAppearance(frame);
       const requests = buildTextureRequests(
@@ -798,7 +816,8 @@ export function createPixiBoardVisualBackend(
       const specialPurposes = requests
         .map((request) => request.purpose)
         .filter((purpose) => purpose.startsWith('special-stone:'));
-      const active = textureManager!.getActive();
+      const manager = textureManager;
+      const active = manager.getActive();
       if (specialPurposes.every((purpose) => !!active?.get(purpose))) return;
 
       const sourceLease = acquireAppearanceLease(appearance, frame);
@@ -807,19 +826,24 @@ export function createPixiBoardVisualBackend(
       let failureStage: 'texture-prepare' | 'texture-commit' = 'texture-prepare';
       const preparation = (async () => {
         try {
-          prepared = await textureManager!.prepare(preparationId, requests, { sourceLease });
+          prepared = await manager.prepare(preparationId, requests, { sourceLease });
           assertMounted();
           assertContextHealthy();
-          assertCameraRenderHealthy();
-          if (!currentFrame || playbackTextureWriterId !== writerId) {
+          if (
+            !currentFrame
+            || playbackTextureWriterId !== writerId
+            || textureManager !== manager
+            || frameTextureKey(currentFrame, 0) !== frameKey
+          ) {
             prepared.release();
             prepared = null;
             return;
           }
+          assertCameraRenderHealthy();
           const canvasViewport = camera!.getCanvasViewport();
           if (!canvasViewport) throw new Error('Pixi camera canvas viewport is unavailable');
           failureStage = 'texture-commit';
-          textureManager!.commit(prepared, (snapshot) => {
+          manager.commit(prepared, (snapshot) => {
             applySceneAndRender(currentFrame!, snapshot, canvasViewport, {
               preservePlaybackProjection: true
             });
@@ -832,6 +856,7 @@ export function createPixiBoardVisualBackend(
           });
         } catch (error) {
           if (prepared && prepared.state === 'prepared') prepared.release();
+          if (textureManager !== manager) return;
           const existing = nestedBackendError(error);
           throw rememberError(existing || backendError({
             code: 'pixi_playback_texture_prepare_failed',
