@@ -4,6 +4,7 @@ import {
   isDomCompatibilityFinalStateEvent,
   isBoardPlaybackEvent,
   isHybridPresentationEvent,
+  isSpawnOwnedStatusVisualEvent,
   normalizePresentationEventType,
   type PresentationPlaybackEvent
 } from '../board-visual/playback-types';
@@ -49,6 +50,8 @@ function requireHandler(
     case 'spawn': return handlers.playSpawn;
     case 'move': return handlers.playMove;
     case 'status_applied':
+      if (isSpawnOwnedStatusVisualEvent(event)) return () => undefined;
+      return handlers.playStatusChange;
     case 'status_removed': return handlers.playStatusChange;
     case 'crossfade_stone': return handlers.playCrossfadeStone;
     case 'protection_expire': return handlers.playProtectionExpire;

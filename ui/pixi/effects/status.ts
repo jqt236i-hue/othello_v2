@@ -1,4 +1,7 @@
-import type { PresentationPlaybackEvent } from '../../board-visual/playback-types';
+import {
+  isSpawnOwnedStatusVisualEvent,
+  type PresentationPlaybackEvent
+} from '../../board-visual/playback-types';
 import type {
   PixiPlaybackCellHighlightHandle,
   PixiPlaybackEffectHandle,
@@ -353,6 +356,7 @@ export async function playPixiStatusEffect(
   event: PresentationPlaybackEvent,
   projection: PixiBoardEffectProjection
 ): Promise<void> {
+  if (isSpawnOwnedStatusVisualEvent(event)) return;
   const targets: readonly unknown[] = Array.isArray(event?.targets) ? event.targets : [];
   await Promise.all(targets.map((target) => playStatusTarget(event, target, projection)));
 }

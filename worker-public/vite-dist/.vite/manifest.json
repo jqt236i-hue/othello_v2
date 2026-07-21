@@ -206,7 +206,7 @@
     "src": "browser-vite/generated-assets/optional-commentary.mjs"
   },
   "browser-vite/generated-assets/optional-compatibility.mjs": {
-    "file": "assets/optional-compatibility-C6vQvbWS.mjs",
+    "file": "assets/optional-compatibility-CQFNsOvj.mjs",
     "src": "browser-vite/generated-assets/optional-compatibility.mjs"
   },
   "browser-vite/generated-assets/optional-cosmetic.mjs": {
@@ -243,7 +243,7 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-Czajz3Gb.js",
+    "file": "assets/index.vite-CguaPuOg.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
@@ -265,7 +265,7 @@
       "assets/optional-commentary-w5vg3vdT.mjs",
       "assets/optional-cpu-BntQgZI-.mjs",
       "assets/optional-onnx-DuYtzOpL.mjs",
-      "assets/optional-compatibility-C6vQvbWS.mjs",
+      "assets/optional-compatibility-CQFNsOvj.mjs",
       "assets/optional-diagnostics-D3gTKUSE.mjs",
       "assets/black-C5I6QShq.png",
       "assets/card-reversi-player-guide-slide-01-epiawl9Y.png",

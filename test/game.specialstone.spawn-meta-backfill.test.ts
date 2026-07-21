@@ -28,6 +28,7 @@ describe('special stone placement visuals (spawn meta backfill)', () => {
 
     const status = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'STATUS_APPLIED' && e.row === 0 && e.col === 0);
     expect(status && status.meta && status.meta.special).toBe('HYPERACTIVE');
+    expect(status && status.meta && status.meta.visualOwnedBySpawn).toBe(true);
   });
 
   test('manifest stone marker backfills prior SPAWN meta through the same placement visual path', () => {
@@ -55,6 +56,7 @@ describe('special stone placement visuals (spawn meta backfill)', () => {
     const status = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'STATUS_APPLIED' && e.row === 4 && e.col === 5);
     expect(status && status.meta && status.meta.special).toBe('OBSERVER_WILL');
     expect(status && status.meta && status.meta.manifestAura).toEqual({ owner: 'black' });
+    expect(status && status.meta && status.meta.visualOwnedBySpawn).toBe(true);
   });
 
   test('ultimate hyperactive marker also backfills SPAWN meta', () => {
@@ -75,6 +77,7 @@ describe('special stone placement visuals (spawn meta backfill)', () => {
 
     const status = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'STATUS_APPLIED' && e.row === 1 && e.col === 1);
     expect(status && status.meta && status.meta.special).toBe('ULTIMATE_HYPERACTIVE');
+    expect(status && status.meta && status.meta.visualOwnedBySpawn).toBe(true);
   });
 
   test('will hunter king marker backfills SPAWN meta with destroy evasion count', () => {
@@ -98,6 +101,7 @@ describe('special stone placement visuals (spawn meta backfill)', () => {
     const status = (cardState._presentationEventsPersist || []).find(e => e && e.type === 'STATUS_APPLIED' && e.row === 2 && e.col === 2);
     expect(status && status.meta && status.meta.special).toBe('WILL_HUNTER_KING');
     expect(status && status.meta && status.meta.destroyEvadeRemaining).toBe(2);
+    expect(status && status.meta && status.meta.visualOwnedBySpawn).toBe(true);
   });
 
   test('afterimage marker backfills SPAWN meta with dual evade counts', () => {
@@ -122,5 +126,62 @@ describe('special stone placement visuals (spawn meta backfill)', () => {
     expect(status && status.meta && status.meta.special).toBe('AFTERIMAGE_WILL');
     expect(status && status.meta && status.meta.flipEvadeRemaining).toBe(6);
     expect(status && status.meta && status.meta.destroyEvadeRemaining).toBe(6);
+    expect(status && status.meta && status.meta.visualOwnedBySpawn).toBe(true);
+  });
+
+  test('status added without a matching SPAWN keeps its board status animation', () => {
+    const cardState = CardLogic.createCardState({ shuffle: (arr) => arr });
+
+    CardLogic.addMarker(cardState, 'specialStone', 5, 5, 'black', {
+      type: 'GUARD',
+      remainingOwnerTurns: 3
+    });
+
+    const status = (cardState._presentationEventsPersist || []).find(e => (
+      e && e.type === 'STATUS_APPLIED' && e.row === 5 && e.col === 5
+    ));
+    expect(status && status.meta && status.meta.special).toBe('GUARD');
+    expect(status && status.meta && status.meta.visualOwnedBySpawn).toBeUndefined();
+  });
+
+  test('roulette summon also leaves its STATUS visual owned by SPAWN', () => {
+    const cardState = CardLogic.createCardState({ shuffle: (arr) => arr });
+    const gameState = { board: Array(8).fill(null).map(() => Array(8).fill(0)) };
+    const roulette = {
+      durationMs: 2500,
+      materializeMs: 2000,
+      candidateCells: [{ row: 6, col: 5 }, { row: 6, col: 6 }],
+      selectedCell: { row: 6, col: 6 },
+      spawnedMarkerType: 'SNIPER',
+      sourceCardId: 'sniper_01',
+      sourceCardType: 'SNIPER_WILL'
+    };
+
+    BoardOps.spawnAt(
+      cardState,
+      gameState,
+      6,
+      6,
+      'black',
+      'THEORY_INCARNATION',
+      'theory_incarnation_spawn',
+      { special: 'SNIPER', owner: 'black', theorySpawnRoulette: roulette }
+    );
+    CardLogic.addMarker(cardState, 'specialStone', 6, 6, 'black', {
+      type: 'SNIPER',
+      sourceCardId: 'sniper_01',
+      sourceCardType: 'SNIPER_WILL'
+    });
+
+    const events = cardState._presentationEventsPersist || [];
+    const spawn = events.find(e => e && e.type === 'SPAWN' && e.row === 6 && e.col === 6);
+    const status = events.find(e => e && e.type === 'STATUS_APPLIED' && e.row === 6 && e.col === 6);
+
+    expect(spawn && spawn.meta && spawn.meta.theorySpawnRoulette).toEqual(roulette);
+    expect(spawn && spawn.meta && spawn.meta.special).toBe('SNIPER');
+    expect(status && status.meta).toEqual(expect.objectContaining({
+      special: 'SNIPER',
+      visualOwnedBySpawn: true
+    }));
   });
 });

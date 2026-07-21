@@ -73,6 +73,14 @@ export function isBoardPlaybackEvent(event: unknown): event is PresentationPlayb
   return BOARD_EVENT_TYPE_SET.has(normalizePresentationEventType(event));
 }
 
+export function isSpawnOwnedStatusVisualEvent(event: unknown): boolean {
+  if (normalizePresentationEventType(event) !== 'status_applied') return false;
+  const meta = event && typeof event === 'object'
+    ? (event as PresentationPlaybackEvent).meta
+    : null;
+  return !!meta && meta.visualOwnedBySpawn === true;
+}
+
 export function isHybridPresentationEvent(event: unknown): event is PresentationPlaybackEvent {
   return normalizePresentationEventType(event) === 'manifest_ending';
 }

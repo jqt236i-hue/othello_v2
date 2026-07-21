@@ -873,10 +873,7 @@ function addMarker(cardState: CardState, kind: string, row: number, col: number,
         if (marker.data && marker.data.visualEffectKey) markerMeta.visualEffectKey = marker.data.visualEffectKey;
         if (isManifestMarker) markerMeta.manifestAura = { owner };
 
-        if (special && presentationHelper && !isHiddenTrap) {
-            presentationHelper.emitPresentationEvent(cardState, { type: 'STATUS_APPLIED', row, col, meta: markerMeta });
-        }
-
+        let visualOwnedBySpawn = false;
         if (special && cardState && !isHiddenTrap) {
             const currentActionId = ((cardState as any)._currentActionMeta && (cardState as any)._currentActionMeta.actionId) || null;
             const persist = Array.isArray((cardState as any)._presentationEventsPersist) ? (cardState as any)._presentationEventsPersist : [];
@@ -892,7 +889,12 @@ function addMarker(cardState: CardState, kind: string, row: number, col: number,
                 }
                 return false;
             };
-            if (!patchSpawnMeta(persist)) patchSpawnMeta(live);
+            visualOwnedBySpawn = patchSpawnMeta(persist) || patchSpawnMeta(live);
+        }
+
+        if (special && presentationHelper && !isHiddenTrap) {
+            if (visualOwnedBySpawn) markerMeta.visualOwnedBySpawn = true;
+            presentationHelper.emitPresentationEvent(cardState, { type: 'STATUS_APPLIED', row, col, meta: markerMeta });
         }
     } catch (e) { /* ignore presentation failures */ }
 

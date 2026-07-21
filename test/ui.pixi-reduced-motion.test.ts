@@ -342,6 +342,27 @@ describe('Pixi basic-effect reduced-motion parity', () => {
     });
   });
 
+  test('spawn-owned STATUS does not start a second Pixi visual transition', async () => {
+    const placed = stone('black', 'HYPERACTIVE');
+    const harness = await run(playPixiStatusEffect, {
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      meta: { special: 'HYPERACTIVE', visualOwnedBySpawn: true },
+      targets: [{
+        r: 6,
+        col: 6,
+        before: { owner: 'black', color: 1 },
+        after: { owner: 'black', color: 1, special: 'HYPERACTIVE' }
+      }]
+    }, {
+      reducedMotion: false,
+      stones: [[6, 6, placed]]
+    });
+
+    expect(harness.durations).toEqual([]);
+    expect(harness.projectedStone(6, 6)).toBe(placed);
+  });
+
   test.each([
     {
       name: 'live source',

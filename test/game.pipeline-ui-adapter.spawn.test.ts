@@ -151,6 +151,44 @@ describe('pipeline_ui_adapter spawn mapping', () => {
     expect(out[0].materializeMs).toBe(2000);
   });
 
+  test('keeps spawn-owned status metadata for non-visual consumers', () => {
+    const out = mapPlaybackEvents([
+      {
+        type: 'SPAWN',
+        row: 3,
+        col: 5,
+        stoneId: 'special-placement-1',
+        ownerAfter: 'black',
+        cause: 'SYSTEM',
+        reason: 'standard_place',
+        meta: { special: 'HYPERACTIVE', owner: 'black' }
+      },
+      {
+        type: 'STATUS_APPLIED',
+        row: 3,
+        col: 5,
+        meta: {
+          special: 'HYPERACTIVE',
+          owner: 'black',
+          visualOwnedBySpawn: true
+        }
+      }
+    ]);
+
+    const spawn = out.find((event) => event && event.type === 'spawn');
+    const status = out.find((event) => event && event.type === 'status_applied');
+
+    expect(spawn?.targets?.[0]?.after).toEqual(expect.objectContaining({
+      color: 1,
+      special: 'HYPERACTIVE',
+      owner: 'black'
+    }));
+    expect(status?.meta).toEqual(expect.objectContaining({
+      special: 'HYPERACTIVE',
+      visualOwnedBySpawn: true
+    }));
+  });
+
   test('plays chaos summon roulette after the card use animation phase', () => {
     const out = mapPlaybackEvents([
       {

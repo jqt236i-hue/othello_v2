@@ -108,6 +108,29 @@ describe('DOM board playback phase ownership', () => {
     expect(settled).toBe(true);
   });
 
+  test('spawn-owned STATUS skips the duplicate DOM visual handler', async () => {
+    const playStatusChange = jest.fn();
+    const { createDomBoardPlaybackExecutor } = require('../ui/board-dom-compat/playback');
+    const executor = createDomBoardPlaybackExecutor({ playStatusChange } as any);
+    const spawnOwned = {
+      type: 'status_applied',
+      meta: { special: 'HYPERACTIVE', visualOwnedBySpawn: true },
+      targets: [{ r: 2, col: 2 }]
+    };
+    const existingStoneStatus = {
+      type: 'status_applied',
+      meta: { special: 'GUARD' },
+      targets: [{ r: 3, col: 3 }]
+    };
+
+    await executor.playPhase([spawnOwned], createPlaybackContext(spawnOwned));
+    expect(playStatusChange).not.toHaveBeenCalled();
+
+    await executor.playPhase([existingStoneStatus], createPlaybackContext(existingStoneStatus));
+    expect(playStatusChange).toHaveBeenCalledTimes(1);
+    expect(playStatusChange).toHaveBeenCalledWith(existingStoneStatus, expect.any(Object));
+  });
+
   test('records target start and commit around the DOM source settlement gate', async () => {
     document.body.innerHTML = `
       <div id="board">
