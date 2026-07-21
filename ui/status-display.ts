@@ -31,6 +31,11 @@ const NETWORK_OPPONENT_HERO_CLASS = 'is-network-opponent-hero';
 const NETWORK_WAITING_NAME = '接続待ち';
 const PORTRAIT_SPEECH_ROLE_CPU = 'cpu';
 const PORTRAIT_SPEECH_ROLE_HERO = 'hero';
+interface PortraitImageRequestState {
+    signature: string;
+    generation: number;
+}
+const portraitImageRequestByElement = new WeakMap<object, PortraitImageRequestState>();
 const PORTRAIT_SPEECH_CONFIG: any = {
     cpu: {
         role: PORTRAIT_SPEECH_ROLE_CPU,
@@ -45,6 +50,49 @@ const PORTRAIT_SPEECH_CONFIG: any = {
         panelId: 'hero-character-panel'
     }
 };
+
+function requestPortraitImage(
+    target: HTMLImageElement,
+    primaryPath: string,
+    fallbackPaths: readonly string[],
+    onLoad: (resolvedSrc: string) => void,
+    onError: () => void
+): boolean {
+    const candidates = [primaryPath, ...fallbackPaths]
+        .map((value) => String(value || '').trim())
+        .filter((value, index, values) => !!value && values.indexOf(value) === index);
+    const signature = candidates.join('\n');
+    const previous = portraitImageRequestByElement.get(target);
+    if (previous && previous.signature === signature) return false;
+
+    const state: PortraitImageRequestState = {
+        signature,
+        generation: (previous?.generation || 0) + 1
+    };
+    portraitImageRequestByElement.set(target, state);
+    const loader = new Image();
+    let candidateIndex = 0;
+    const isCurrent = () => portraitImageRequestByElement.get(target)?.generation === state.generation;
+    loader.onload = () => {
+        if (!isCurrent()) return;
+        onLoad(loader.src);
+    };
+    loader.onerror = () => {
+        if (!isCurrent()) return;
+        candidateIndex += 1;
+        if (candidateIndex < candidates.length) {
+            loader.src = candidates[candidateIndex];
+            return;
+        }
+        onError();
+    };
+    if (candidates.length === 0) {
+        onError();
+        return true;
+    }
+    loader.src = candidates[0];
+    return true;
+}
 
 function unrefStatusDisplayTimer(timer: any): void {
     if (timer && typeof timer.unref === 'function') {
@@ -782,21 +830,12 @@ function updateHeroCharacterForBlackCpuProfile(): void {
     heroImg.alt = label;
     if (heroLabel) heroLabel.textContent = label;
 
-    const img = new Image();
-    let triedDefault = primaryPath === HERO_IMAGE_SRC;
-    img.onload = () => {
-        heroImg.src = img.src;
+    requestPortraitImage(heroImg, primaryPath, [HERO_IMAGE_SRC], (resolvedSrc) => {
+        heroImg.src = resolvedSrc;
         heroImg.style.opacity = '';
-    };
-    img.onerror = () => {
-        if (!triedDefault) {
-            triedDefault = true;
-            img.src = HERO_IMAGE_SRC;
-            return;
-        }
+    }, () => {
         heroImg.style.opacity = '0.3';
-    };
-    img.src = primaryPath;
+    });
 }
 
 function renderBattleStatusLatestText(el: any, text: string): void {
@@ -1169,36 +1208,25 @@ function updateCpuCharacter(): void {
             if (levelImagePath !== primaryPath) fallbackCandidates.push(levelImagePath);
             fallbackCandidates.push(legacyFallbackPath);
         }
-        let fallbackIndex = 0;
         charImg.alt = useNetworkHeroPresentation
             ? '対戦相手の勇者'
             : (hasNamedProfileOverride
                 ? String(cpuProfile.name)
                 : (specialPresentation ? String(specialPresentation.label || '敵CPU') : '敵CPU'));
         setCpuCharacterNetworkHeroState(charImg, useNetworkHeroPresentation);
+        if (useNetworkHeroPresentation) resetCpuCharacterLevelScale(charImg);
+        else applyCpuCharacterLevelScale(charImg, displayLevel);
+        applySpecialCpuPanelState(specialPresentation, charImg, levelLabel);
         
-        const img = new Image();
-        img.onload = () => {
-            charImg.src = img.src;
-            if (useNetworkHeroPresentation) resetCpuCharacterLevelScale(charImg);
-            else applyCpuCharacterLevelScale(charImg, displayLevel);
-            applySpecialCpuPanelState(specialPresentation, charImg, levelLabel);
+        requestPortraitImage(charImg, primaryPath, fallbackCandidates, (resolvedSrc) => {
+            charImg.src = resolvedSrc;
             try { positionCpuSpeechBubble(); } catch (e) { /* ignore */ }
-        };
-        img.onerror = () => {
-            while (fallbackIndex < fallbackCandidates.length) {
-                const nextPath = fallbackCandidates[fallbackIndex++];
-                if (nextPath && img.src !== nextPath) {
-                    img.src = nextPath;
-                    return;
-                }
-            }
+        }, () => {
             charImg.style.opacity = '0.3';
             resetCpuCharacterLevelScale(charImg);
             applySpecialCpuPanelState(specialPresentation, charImg, levelLabel);
             console.warn(`敵キャラクター画像が見つかりません: ${primaryPath}`);
-        };
-        img.src = primaryPath;
+        });
 
         const defaultName = hasNamedProfileOverride
             ? String(cpuProfile.name)

@@ -60,6 +60,37 @@ describe('BoardVisualController async visual settlement', () => {
     expect(settled).toEqual([value]);
   });
 
+  test('coalesces equivalent idle metadata while one identical backend frame is settling', async () => {
+    const settlement = deferred();
+    const visualBackend = backend({
+      waitForVisualSettlement: jest.fn(() => settlement.promise)
+    });
+    const controller = ControllerModule.createBoardVisualController({ backend: visualBackend });
+    await controller.mount({} as HTMLElement);
+    const completeFrame = (token: string) => ({
+      ...frame(token, 3),
+      layout: { revision: 2 },
+      appearance: { revision: 4 },
+      theme: { revision: 5 },
+      renderSessionId: 'board-render-session:coalesced-idle'
+    }) as any;
+    const first = completeFrame('idle:coalesced-1');
+    const latest = completeFrame('idle:coalesced-2');
+
+    expect(controller.submitFrame(first)).toBe(true);
+    expect(controller.submitFrame(latest)).toBe(true);
+    expect(visualBackend.applyFrame).toHaveBeenCalledTimes(1);
+    expect(controller.getSettledFrame()).toBeNull();
+
+    settlement.resolve();
+    await controller.waitForIdle();
+    await Promise.resolve();
+
+    expect(visualBackend.applyFrame).toHaveBeenCalledTimes(1);
+    expect(controller.getSettledFrame()).toBe(latest);
+    expect(controller.getSnapshot().lastAppliedFrameToken).toBe('idle:coalesced-2');
+  });
+
   test('does not publish a frame whose visual settlement rolls back', async () => {
     const settlement = deferred();
     const visualBackend = backend({

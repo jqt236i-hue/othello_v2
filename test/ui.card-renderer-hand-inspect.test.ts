@@ -734,8 +734,8 @@ describe('card renderer hand inspection', () => {
     await expect(first).resolves.toBe(true);
 
     const duplicate = window.scheduleCardNameRefitAfterFontsReady(window.document);
-    callbacks.shift()!(0);
     await expect(duplicate).resolves.toBe(false);
+    expect(callbacks).toHaveLength(0);
 
     const forced = window.scheduleCardNameRefitAfterFontsReady(window.document, true);
     callbacks.shift()!(0);

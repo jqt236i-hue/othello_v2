@@ -5,6 +5,8 @@ import leaderboardUrl from '../generated-assets/optional-leaderboard.mjs?url';
 import commentaryUrl from '../generated-assets/optional-commentary.mjs?url';
 import cpuUrl from '../generated-assets/optional-cpu.mjs?url';
 import onnxUrl from '../generated-assets/optional-onnx.mjs?url';
+import compatibilityUrl from '../generated-assets/optional-compatibility.mjs?url';
+import diagnosticsUrl from '../generated-assets/optional-diagnostics.mjs?url';
 
 export const OPTIONAL_PAYLOAD_URLS = Object.freeze({
   gacha: gachaUrl,
@@ -12,5 +14,7 @@ export const OPTIONAL_PAYLOAD_URLS = Object.freeze({
   leaderboard: leaderboardUrl,
   commentary: commentaryUrl,
   cpu: cpuUrl,
-  onnx: onnxUrl
+  onnx: onnxUrl,
+  compatibility: compatibilityUrl,
+  diagnostics: diagnosticsUrl
 });

@@ -114,6 +114,27 @@ function computeVisualFrameDigest(frame: BoardVisualFrame | null): string | null
   });
 }
 
+function hasEquivalentVisualFrameContent(
+  left: BoardVisualFrame | null,
+  right: BoardVisualFrame | null
+): boolean {
+  if (!left || !right) return false;
+  const leftSession = String(left.renderSessionId || '');
+  const rightSession = String(right.renderSessionId || '');
+  if (!leftSession || leftSession !== rightSession) return false;
+  const revisions = [
+    [left.model?.visualRevision, right.model?.visualRevision],
+    [left.layout?.revision, right.layout?.revision],
+    [left.appearance?.revision, right.appearance?.revision],
+    [left.theme?.revision, right.theme?.revision]
+  ];
+  return revisions.every(([leftRevision, rightRevision]) => (
+    Number.isFinite(leftRevision)
+    && Number.isFinite(rightRevision)
+    && leftRevision === rightRevision
+  ));
+}
+
 function readBackendCountSnapshot(backend: BoardVisualBackend, methodName: string): Readonly<Record<string, number>> {
   const candidate = (backend as any)[methodName];
   if (typeof candidate !== 'function') return Object.freeze({ total: 0 });
@@ -175,6 +196,7 @@ function createBoardVisualController(options: {
   let lifecycleEpoch = 0;
   let activePresentation: ActiveBoardFramePresentation | null = null;
   let idleFrameSettlement: IdleFrameSettlement | null = null;
+  let pendingEquivalentIdleFrame: BoardVisualFrame | null = null;
   let idleFrameSettlementVersion = 0;
   const hostLeaseOwner = Object.freeze({});
   const idleWaiters = new Set<IdleWaiter>();
@@ -472,7 +494,7 @@ function createBoardVisualController(options: {
     if (cycle.returnMode === 'playback') {
       return cycle.checkpoint || writerCheckpoint || lastSettled || lastApplied;
     }
-    return pendingLatest || initialLatest || cycle.checkpoint || lastSettled || lastApplied;
+    return pendingEquivalentIdleFrame || pendingLatest || initialLatest || cycle.checkpoint || lastSettled || lastApplied;
   };
 
   const finishContextRecoveryCycle = (cycle: ContextRecoveryCycle) => {
@@ -548,6 +570,40 @@ function createBoardVisualController(options: {
     return applyReadyFrame(frame);
   };
 
+  const commitEquivalentIdleFrame = (frame: BoardVisualFrame): boolean => {
+    if (
+      !lastSettled
+      || (idleFrameSettlement && !idleFrameSettlement.settled)
+      || !hasEquivalentVisualFrameContent(lastSettled, frame)
+    ) {
+      return false;
+    }
+    const presentation = beginFramePresentation(frame);
+    commitPresentation(presentation);
+    diagnostics.record('frame:equivalent-committed', {
+      frameToken: frame.frameToken,
+      revision: frame.model.visualRevision
+    });
+    return true;
+  };
+
+  const queueEquivalentIdleFrameDuringSettlement = (frame: BoardVisualFrame): boolean => {
+    const tracked = idleFrameSettlement;
+    if (
+      !tracked
+      || tracked.settled
+      || !hasEquivalentVisualFrameContent(tracked.sourceFrame, frame)
+    ) {
+      return false;
+    }
+    pendingEquivalentIdleFrame = frame;
+    diagnostics.record('frame:equivalent-coalesced', {
+      frameToken: frame.frameToken,
+      revision: frame.model.visualRevision
+    });
+    return true;
+  };
+
   const trackIdleFrameSettlement = (
     sourceFrame: BoardVisualFrame,
     presentation: ActiveBoardFramePresentation
@@ -579,6 +635,11 @@ function createBoardVisualController(options: {
         commitPresentation(presentation);
         tracked.settled = true;
         diagnostics.record('frame:idle-settled', { frameToken: sourceFrame.frameToken });
+        if (idleFrameSettlement === tracked && pendingEquivalentIdleFrame) {
+          const equivalent = pendingEquivalentIdleFrame;
+          pendingEquivalentIdleFrame = null;
+          commitEquivalentIdleFrame(equivalent);
+        }
       },
       (error) => {
         assertLifecycleCurrent(epoch);
@@ -587,7 +648,8 @@ function createBoardVisualController(options: {
           return;
         }
         tracked.settled = true;
-        pendingLatest = sourceFrame;
+        pendingLatest = pendingEquivalentIdleFrame || sourceFrame;
+        pendingEquivalentIdleFrame = null;
         rollbackPresentation(presentation);
         throw enterFailureRecovery(error, 'idle', 'frame:idle-settlement-error');
       }
@@ -740,6 +802,7 @@ function createBoardVisualController(options: {
   ) => {
     const target = settlement.presentation.presentedFrame;
     lastApplied = target;
+    if (pendingEquivalentIdleFrame === target) pendingEquivalentIdleFrame = null;
     if (
       settlement.consumedPendingFrame
       && pendingLatest === settlement.consumedPendingFrame
@@ -1033,6 +1096,9 @@ function createBoardVisualController(options: {
       }
       if (mode === 'idle') {
         try {
+          if (queueEquivalentIdleFrameDuringSettlement(frame)) return true;
+          pendingEquivalentIdleFrame = null;
+          if (commitEquivalentIdleFrame(frame)) return true;
           const presentation = apply(frame);
           if (!presentation) return false;
           trackIdleFrameSettlement(frame, presentation);
@@ -1532,7 +1598,7 @@ function createBoardVisualController(options: {
       if (preservedContextRecovery) contextRecoveryAttemptSequence += 1;
       const checkpoint = preservedContextRecovery
         ? contextRecoveryTarget(preservedContextRecovery)
-        : (pendingLatest || initialLatest || lastApplied);
+        : (pendingEquivalentIdleFrame || pendingLatest || initialLatest || lastApplied);
       const returnMode = mode === 'recovering' ? recoveryReturnMode : mode;
       try {
         backend.destroy();
@@ -1545,7 +1611,7 @@ function createBoardVisualController(options: {
         backendMounted = true;
         const restoreTarget = preservedContextRecovery
           ? checkpoint
-          : (pendingLatest || initialLatest || checkpoint || lastApplied);
+          : (pendingEquivalentIdleFrame || pendingLatest || initialLatest || checkpoint || lastApplied);
         if (restoreTarget) {
           if (preservedContextRecovery) {
             await restoreReadyFrame(restoreTarget, epoch);
@@ -1600,7 +1666,7 @@ function createBoardVisualController(options: {
         ready,
         backendKind: backend.kind,
         activeFrameToken: activeToken?.frameToken || null,
-        pendingFrameToken: pendingLatest?.frameToken || initialLatest?.frameToken || null,
+        pendingFrameToken: pendingEquivalentIdleFrame?.frameToken || pendingLatest?.frameToken || initialLatest?.frameToken || null,
         lastAppliedFrameToken: lastApplied?.frameToken || null
       });
     },
@@ -1624,6 +1690,7 @@ function createBoardVisualController(options: {
       activeToken = null;
       writerCheckpoint = null;
       clearPendingLatestFrame();
+      pendingEquivalentIdleFrame = null;
       initialLatest = null;
       pendingCommittedRecoveryFrame = null;
       localWriterSettlement = null;

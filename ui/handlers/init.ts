@@ -106,6 +106,8 @@ function isBoardPerformanceStartup(): boolean {
 async function installBoardPerformanceHarnessIfRequested(): Promise<void> {
   if (!isBoardPerformanceStartup() || typeof window === 'undefined' || typeof document === 'undefined') return;
   try {
+    const loadPayload = (window as any).__CARD_REVERSI_LOAD_VITE_BOARD_PAYLOAD__;
+    if (typeof loadPayload === 'function') await loadPayload.call(window, 'diagnostics');
     const module = requireInitHandlerModuleOrNull('../board-visual/performance-harness');
     if (typeof module?.installBoardVisualPerformanceHarness === 'function') {
       await module.installBoardVisualPerformanceHarness({ root: window, document });

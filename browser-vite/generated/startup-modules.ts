@@ -456,14 +456,6 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/assets/feature-stylesheet-loader": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/feature-stylesheet-loader.js"),
   "ui/assets/optimized-backgrounds.generated": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/optimized-backgrounds.generated.js"),
   "ui/board-accessibility-layer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-accessibility-layer.js"),
-  "ui/board-dom-compat/backend": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/backend.js"),
-  "ui/board-dom-compat/dom-patcher": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/dom-patcher.js"),
-  "ui/board-dom-compat/input": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/input.js"),
-  "ui/board-dom-compat/playback": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/playback.js"),
-  "ui/board-dom-compat/renderer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/renderer.js"),
-  "ui/board-dom-compat/runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/runtime.js"),
-  "ui/board-dom-compat/source-trajectory": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/source-trajectory.js"),
-  "ui/board-dom-compat/special-marker-renderer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-dom-compat/special-marker-renderer.js"),
   "ui/board-input-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-input-controller.js"),
   "ui/board-renderer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-renderer.js"),
   "ui/board-renderer/stone-helpers": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-renderer/stone-helpers.js"),
@@ -483,7 +475,6 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/board-visual/layout": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/layout.js"),
   "ui/board-visual/model": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/model.js"),
   "ui/board-visual/model-builder": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/model-builder.js"),
-  "ui/board-visual/performance-harness": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/performance-harness.js"),
   "ui/board-visual/playback-types": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/playback-types.js"),
   "ui/board-visual/source-trajectory": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/source-trajectory.js"),
   "ui/board-visual/state-adapter": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-visual/state-adapter.js"),
@@ -1450,4 +1441,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 679;
+export const startupModuleCount = 670;

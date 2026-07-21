@@ -7,7 +7,16 @@ import { installCpuWorkerBridge } from './cpu-worker/bridge';
 import { applyPixiRuntimeOutcome, loadPixiRuntime } from './pixi-runtime-loader';
 
 installVitePreloadErrorHandler();
-installOptionalPayloadLoader({ payloadUrls: OPTIONAL_PAYLOAD_URLS });
+const optionalPayloadLoader = installOptionalPayloadLoader({ payloadUrls: OPTIONAL_PAYLOAD_URLS });
+
+function requestsDomCompatibility(root: Window & Record<string, any>): boolean {
+  try {
+    const params = new URLSearchParams(String(root.location?.search || ''));
+    return params.get('debug') === '1' && params.get('boardRenderer') === 'dom';
+  } catch (_error) {
+    return false;
+  }
+}
 
 const startBrowserApp = createStartViteBrowserApp({
   loadPixiRuntime: (root) => loadPixiRuntime({
@@ -20,7 +29,13 @@ const startBrowserApp = createStartViteBrowserApp({
       return import('pixi.js');
     }
   }),
-  beforeInitialize: (root, documentRef, pixiRuntime) => {
+  beforeInitialize: async (root, documentRef, pixiRuntime) => {
+    root.__CARD_REVERSI_LOAD_VITE_BOARD_PAYLOAD__ = (group: 'compatibility' | 'diagnostics') => (
+      optionalPayloadLoader.load(group)
+    );
+    if (requestsDomCompatibility(root)) {
+      await optionalPayloadLoader.load('compatibility');
+    }
     const pixiRuntimeInjected = applyPixiRuntimeOutcome(root, pixiRuntime);
     const cpuWorkerBridge = installCpuWorkerBridge(root, documentRef);
     let candidateScoringInjected = false;

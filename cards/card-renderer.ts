@@ -543,9 +543,15 @@ function scheduleCardNameRefitAfterFontsReady(
     forceCurrentCycle: boolean = false
 ): Promise<boolean> {
     const docRef = documentRef || (typeof document !== 'undefined' ? document : null);
-    const generation = ++_fontReadyRefitGeneration;
     if (!docRef)
         return Promise.resolve(false);
+    const initialFontSet = (docRef as Document & { fonts?: { ready?: Promise<any> } }).fonts;
+    const initialReady = initialFontSet && initialFontSet.ready;
+    if (!initialReady || typeof initialReady.then !== 'function')
+        return Promise.resolve(false);
+    if (!forceCurrentCycle && !_fontReadyRefitPending && _fontReadyRefitSettledReady === initialReady)
+        return Promise.resolve(false);
+    const generation = ++_fontReadyRefitGeneration;
     return new Promise((resolve) => {
         const beginWait = () => {
             const fontSet = (docRef as Document & { fonts?: { ready?: Promise<any> } }).fonts;

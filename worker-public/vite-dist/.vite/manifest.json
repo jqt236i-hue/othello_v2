@@ -205,6 +205,10 @@
     "file": "assets/optional-commentary-w5vg3vdT.mjs",
     "src": "browser-vite/generated-assets/optional-commentary.mjs"
   },
+  "browser-vite/generated-assets/optional-compatibility.mjs": {
+    "file": "assets/optional-compatibility-C6vQvbWS.mjs",
+    "src": "browser-vite/generated-assets/optional-compatibility.mjs"
+  },
   "browser-vite/generated-assets/optional-cosmetic.mjs": {
     "file": "assets/optional-cosmetic-DROcErS9.mjs",
     "src": "browser-vite/generated-assets/optional-cosmetic.mjs"
@@ -212,6 +216,10 @@
   "browser-vite/generated-assets/optional-cpu.mjs": {
     "file": "assets/optional-cpu-BntQgZI-.mjs",
     "src": "browser-vite/generated-assets/optional-cpu.mjs"
+  },
+  "browser-vite/generated-assets/optional-diagnostics.mjs": {
+    "file": "assets/optional-diagnostics-D3gTKUSE.mjs",
+    "src": "browser-vite/generated-assets/optional-diagnostics.mjs"
   },
   "browser-vite/generated-assets/optional-gacha.mjs": {
     "file": "assets/optional-gacha-B00JGPIr.mjs",
@@ -235,7 +243,7 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-DrEdJ-_X.js",
+    "file": "assets/index.vite-iQ-fXRkV.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
@@ -257,6 +265,8 @@
       "assets/optional-commentary-w5vg3vdT.mjs",
       "assets/optional-cpu-BntQgZI-.mjs",
       "assets/optional-onnx-DuYtzOpL.mjs",
+      "assets/optional-compatibility-C6vQvbWS.mjs",
+      "assets/optional-diagnostics-D3gTKUSE.mjs",
       "assets/black-C5I6QShq.png",
       "assets/card-reversi-player-guide-slide-01-epiawl9Y.png",
       "assets/protection-penetration-quick-reference-QipUvGs2.png",

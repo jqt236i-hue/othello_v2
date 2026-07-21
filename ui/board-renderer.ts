@@ -1318,6 +1318,20 @@ function _createFailedBoardVisualBackendForBoardRenderer(kind: 'dom' | 'pixi', e
     };
 }
 
+async function _ensureDomBoardVisualBackendModulesForBoardRenderer(): Promise<void> {
+    try {
+        const renderer = _require('./board-dom-compat/renderer');
+        const backend = _require('./board-dom-compat/backend');
+        if (renderer && backend) return;
+    } catch (_error) { /* Vite compatibility payload may not be registered yet */ }
+    const root: any = typeof window !== 'undefined' ? window : globalThis;
+    const loadPayload = root && root.__CARD_REVERSI_LOAD_VITE_BOARD_PAYLOAD__;
+    if (typeof loadPayload !== 'function') {
+        throw new Error('DOM compatibility board payload loader is unavailable');
+    }
+    await loadPayload.call(root, 'compatibility');
+}
+
 function _createDomBoardVisualBackendForBoardRenderer() {
     const compatibilityRenderer = _require('./board-dom-compat/renderer');
     const options = {
@@ -1765,6 +1779,7 @@ function _createBoardVisualRuntimeForBoardRenderer() {
                         from: 'pixi', message: String(error && error.message || '')
                     });
                     try {
+                        await _ensureDomBoardVisualBackendModulesForBoardRenderer();
                         const compatibilityBackend = _createDomBoardVisualBackendForBoardRenderer();
                         await controller.replaceBackend(compatibilityBackend, {
                             preserveContextRecovery: true
@@ -1813,6 +1828,7 @@ function _createBoardVisualRuntimeForBoardRenderer() {
         });
         let compatibilityBackend: any;
         try {
+            await _ensureDomBoardVisualBackendModulesForBoardRenderer();
             compatibilityBackend = _createDomBoardVisualBackendForBoardRenderer();
         } catch (cause: any) {
             compatibilityBackend = _createFailedBoardVisualBackendForBoardRenderer(

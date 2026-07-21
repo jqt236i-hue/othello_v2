@@ -106,7 +106,11 @@ describe('status-display network seat labels', () => {
     };
     window.OwnerHelpers = require('../utils/owner-helpers');
     window.MatchMode = { isNetworkModeActive: () => false };
+    let imageConstructionCount = 0;
     window.Image = class FakeImage {
+      constructor() {
+        imageConstructionCount += 1;
+      }
       set src(value) {
         this._src = value;
         if (typeof this.onload === 'function') this.onload();
@@ -125,10 +129,15 @@ describe('status-display network seat labels', () => {
 
     loadStatusDisplayIntoWindow(window);
     window.updateCpuCharacter();
+    const cpuImage = window.document.getElementById('cpu-character-img') as HTMLImageElement;
+    cpuImage.style.removeProperty('--cpu-level-scale');
+    window.updateCpuCharacter();
 
     expect(window.document.getElementById('cpu-level-label').textContent).toBe('Lv2 CPU Lv2');
     expect(window.document.getElementById('cpu-level-label').getAttribute('aria-disabled')).toBe('false');
-    expect(window.document.getElementById('cpu-character-img').classList.contains('is-network-opponent-hero')).toBe(false);
+    expect(cpuImage.classList.contains('is-network-opponent-hero')).toBe(false);
+    expect(cpuImage.style.getPropertyValue('--cpu-level-scale')).not.toBe('');
+    expect(imageConstructionCount).toBe(1);
 
     dom.window.close();
   });

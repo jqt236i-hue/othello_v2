@@ -79,6 +79,58 @@ describe('BoardVisualController', () => {
     expect(backend.mount).toHaveBeenCalledTimes(1);
   });
 
+  test('commits equivalent idle frame metadata without starting another backend apply', async () => {
+    const { backend } = createBackend();
+    const controller = ControllerModule.createBoardVisualController({ backend });
+    await controller.mount({} as HTMLElement);
+    const first = {
+      ...diagnosticFrame('idle:equivalent-1', 4),
+      renderSessionId: 'board-render-session:1'
+    } as any;
+    const duplicate = {
+      ...diagnosticFrame('idle:equivalent-2', 4),
+      renderSessionId: 'board-render-session:1'
+    } as any;
+
+    expect(controller.submitFrame(first)).toBe(true);
+    await controller.waitForIdle();
+    expect(controller.submitFrame(duplicate)).toBe(true);
+    await Promise.resolve();
+
+    expect(backend.applyFrame).toHaveBeenCalledTimes(1);
+    expect(controller.getSnapshot().lastAppliedFrameToken).toBe('idle:equivalent-2');
+    expect(controller.getSettledFrame()).toBe(duplicate);
+  });
+
+  test('does not skip an idle frame when a visual channel revision or render session changes', async () => {
+    const { backend } = createBackend();
+    const controller = ControllerModule.createBoardVisualController({ backend });
+    await controller.mount({} as HTMLElement);
+    const first = {
+      ...diagnosticFrame('idle:distinct-1', 5),
+      renderSessionId: 'board-render-session:1'
+    } as any;
+    const changedTheme = {
+      ...diagnosticFrame('idle:distinct-2', 5),
+      theme: { ...diagnosticFrame('unused', 5).theme, revision: 6 },
+      renderSessionId: 'board-render-session:1'
+    } as any;
+    const changedSession = {
+      ...diagnosticFrame('idle:distinct-3', 5),
+      theme: { ...diagnosticFrame('unused', 5).theme, revision: 6 },
+      renderSessionId: 'board-render-session:2'
+    } as any;
+
+    controller.submitFrame(first);
+    await controller.waitForIdle();
+    controller.submitFrame(changedTheme);
+    await controller.waitForIdle();
+    controller.submitFrame(changedSession);
+    await controller.waitForIdle();
+
+    expect(backend.applyFrame).toHaveBeenCalledTimes(3);
+  });
+
   test('coalesces only the active playback token and applies latest before release', async () => {
     const { backend, applied } = createBackend();
     const controller = ControllerModule.createBoardVisualController({ backend });

@@ -1,18 +1,19 @@
 import type { OptionalFeatureGroup } from './features/feature-registry';
 
 type RuntimeRoot = Window & Record<string, any>;
+export type ViteOptionalPayloadGroup = OptionalFeatureGroup | 'compatibility' | 'diagnostics';
 
 export interface OptionalPayloadLoader {
-  load: (group: OptionalFeatureGroup) => Promise<boolean>;
-  isLoaded: (group: OptionalFeatureGroup) => boolean;
-  getAttemptCount: (group: OptionalFeatureGroup) => number;
+  load: (group: ViteOptionalPayloadGroup) => Promise<boolean>;
+  isLoaded: (group: ViteOptionalPayloadGroup) => boolean;
+  getAttemptCount: (group: ViteOptionalPayloadGroup) => number;
 }
 
 export interface InstallOptionalPayloadLoaderOptions {
   root?: RuntimeRoot;
   document?: Document;
   importModule?: (url: string) => Promise<unknown>;
-  payloadUrls?: Partial<Record<OptionalFeatureGroup, string>>;
+  payloadUrls?: Partial<Record<ViteOptionalPayloadGroup, string>>;
 }
 
 function appendRetryQuery(url: string, attempt: number): string {
@@ -29,11 +30,11 @@ export function installOptionalPayloadLoader(options: InstallOptionalPayloadLoad
   if (existing && typeof existing.load === 'function') return existing;
   const payloadUrls = Object.assign({}, options.payloadUrls || {});
   const importModule = options.importModule || ((url: string) => import(/* @vite-ignore */ url));
-  const attempts = new Map<OptionalFeatureGroup, number>();
-  const inFlight = new Map<OptionalFeatureGroup, Promise<boolean>>();
-  const loaded = new Set<OptionalFeatureGroup>();
+  const attempts = new Map<ViteOptionalPayloadGroup, number>();
+  const inFlight = new Map<ViteOptionalPayloadGroup, Promise<boolean>>();
+  const loaded = new Set<ViteOptionalPayloadGroup>();
 
-  const load = (group: OptionalFeatureGroup): Promise<boolean> => {
+  const load = (group: ViteOptionalPayloadGroup): Promise<boolean> => {
     if (loaded.has(group)) return Promise.resolve(true);
     const current = inFlight.get(group);
     if (current) return current;
@@ -62,8 +63,8 @@ export function installOptionalPayloadLoader(options: InstallOptionalPayloadLoad
 
   const loader: OptionalPayloadLoader = Object.freeze({
     load,
-    isLoaded: (group: OptionalFeatureGroup) => loaded.has(group),
-    getAttemptCount: (group: OptionalFeatureGroup) => attempts.get(group) || 0
+    isLoaded: (group: ViteOptionalPayloadGroup) => loaded.has(group),
+    getAttemptCount: (group: ViteOptionalPayloadGroup) => attempts.get(group) || 0
   });
   rootRef.__CARD_REVERSI_LOAD_VITE_OPTIONAL_PAYLOAD__ = load;
   rootRef.__CARD_REVERSI_VITE_OPTIONAL_PAYLOAD_LOADER__ = loader;
