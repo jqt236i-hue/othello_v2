@@ -155,6 +155,78 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
         }
     }
 
+    async function forwardVerifiedLeaderboardSubmit(
+        env: MatchWorkerEnv,
+        body: Record<string, unknown>,
+        playerId: string
+    ): Promise<Response> {
+        const category = String(body.category || 'score').trim();
+        const mode = String(body.mode || '').trim().toLowerCase();
+        if (category !== 'score' || mode !== 'network') {
+            return cfg.jsonResponse(403, { ok: false, reason: 'LEADERBOARD_RESULT_PROOF_REQUIRED' });
+        }
+        const roomId = cfg.normalizeRoomId(body.roomId);
+        const seatKey = String(body.seatKey || '').trim().toLowerCase();
+        if (!roomId || (seatKey !== 'black' && seatKey !== 'white')) {
+            return cfg.jsonResponse(400, { ok: false, reason: 'LEADERBOARD_AUTHORITY_CONTEXT_REQUIRED' });
+        }
+
+        try {
+            const proofResponse = await getRoomStub(env, roomId).fetch(new Request('https://room/internal/leaderboard/result', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ playerId, seatKey })
+            }));
+            const proof = parseJsonBody(await proofResponse.text());
+            if (!proofResponse.ok) {
+                return cfg.jsonResponse(proofResponse.status, proof || { ok: false, reason: 'LEADERBOARD_RESULT_PROOF_REJECTED' });
+            }
+            const proofScore = Number(proof && proof.score);
+            const proofScoreVersion = Number(proof && proof.scoreVersion);
+            const proofTurnCount = Number(proof && proof.turnCount);
+            if (
+                !proof
+                || proof.ok !== true
+                || proof.authorityVerified !== true
+                || proof.playerId !== playerId
+                || proof.category !== 'score'
+                || proof.mode !== 'network'
+                || !Number.isFinite(proofScore)
+                || !Number.isFinite(proofScoreVersion)
+                || !Number.isFinite(proofTurnCount)
+            ) {
+                return cfg.jsonResponse(502, { ok: false, reason: 'LEADERBOARD_RESULT_PROOF_INVALID' });
+            }
+
+            const verifiedPayload: Record<string, unknown> = {
+                playerId,
+                playerName: body.playerName,
+                avatarStoneType: body.avatarStoneType,
+                bio: body.bio,
+                category: 'score',
+                mode: 'network',
+                score: Math.max(0, Math.trunc(proofScore)),
+                scoreVersion: Math.max(0, Math.trunc(proofScoreVersion)),
+                turnCount: Math.max(0, Math.trunc(proofTurnCount)),
+                boardConfig: proof.boardConfig,
+                debug: false,
+                authorityVerified: true,
+                authoritySource: 'match_room',
+                matchId: proof.matchId,
+                stateVersion: proof.stateVersion,
+                limit: body.limit
+            };
+            return forwardJsonToLeaderboard(env, '/internal/leaderboard/submit', verifiedPayload);
+        } catch (error) {
+            return cfg.jsonResponse(500, {
+                ok: false,
+                reason: 'LEADERBOARD_RESULT_PROOF_FAILED',
+                message: errorMessage(error),
+                roomId
+            });
+        }
+    }
+
     async function forwardJsonToRatingPool(env: MatchWorkerEnv, pathname: string, payload: unknown): Promise<Response> {
         try {
             const stub = getRatingPoolStub(env);
@@ -415,10 +487,7 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
             const verified = await verifyPlayerIdentityForPublicApi(env, body);
             if (!verified.ok) return verified.response;
             if (!verified.playerId) return cfg.jsonResponse(403, { ok: false, reason: 'PLAYER_ID_TOKEN_INVALID' });
-            body.playerId = verified.playerId;
-            delete body.playerToken;
-            delete body.recoveryCode;
-            return forwardJsonToLeaderboard(env, pathname, body);
+            return forwardVerifiedLeaderboardSubmit(env, body, verified.playerId);
         }
 
         if (request.method === 'GET' && pathname === '/api/leaderboard/list') {
@@ -465,6 +534,7 @@ export function createMatchWorkerApiController(config: MatchWorkerApiControllerC
         forwardGetToRoom,
         forwardJsonToLeaderboard,
         forwardGetToLeaderboard,
+        forwardVerifiedLeaderboardSubmit,
         forwardJsonToRatingPool,
         forwardGetToRatingPool,
         forwardJsonToLobby,

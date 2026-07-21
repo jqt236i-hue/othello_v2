@@ -527,11 +527,18 @@ describe('board-renderer fallback legal hints', () => {
     const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
-    expect(global.getLegalMoves).toHaveBeenCalled();
+    expect(global.getLegalMoves).not.toHaveBeenCalled();
     expect(global.boardEl.querySelector('.sentinel')).toBeTruthy();
     expect(boardRenderer.getBoardVisualController().getSnapshot()).toMatchObject({
       mode: 'playback',
       backendKind: 'dom'
+    });
+    expect(boardRenderer.getBoardVisualInvalidationDiagnostics()).toMatchObject({
+      requestCount: 1,
+      finalFrameBuildCount: 0,
+      finalFrameSubmitCount: 0,
+      pending: true,
+      pendingReasons: ['render-request']
     });
   });
 
@@ -551,9 +558,16 @@ describe('board-renderer fallback legal hints', () => {
     const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
-    expect(global.getLegalMoves).toHaveBeenCalled();
+    expect(global.getLegalMoves).not.toHaveBeenCalled();
     expect(global.boardEl.querySelector('.sentinel')).toBeTruthy();
     expect(boardRenderer.getBoardVisualController().getSnapshot().mode).toBe('playback');
+    expect(boardRenderer.getBoardVisualInvalidationDiagnostics()).toMatchObject({
+      requestCount: 1,
+      finalFrameBuildCount: 0,
+      finalFrameSubmitCount: 0,
+      pending: true,
+      pendingReasons: ['render-request']
+    });
     boardUpdateSyncRuntime.clearBoardUpdateSyncContext();
   });
 

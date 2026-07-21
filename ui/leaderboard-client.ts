@@ -10,7 +10,6 @@ const PlayerIdentity = _require('./player-identity');
 const PlayerProfile = _require('./player-profile');
 const IdentityContract = _require('../shared/player-identity-contract');
 const PlayerProfileContract = _require('../shared/player-profile-contract');
-const SharedBoardUtils = _require('../shared/shared-board-utils');
 
 const PLAYER_NAME_STORAGE_KEY = 'shared_leaderboard_player_name_v1';
 const PLAYER_NAME_MAX = 7;
@@ -244,28 +243,6 @@ async function updatePublicProfile(options?: any): Promise<any> {
   };
 }
 
-function normalizeBoardConfig(value: any): any {
-  if (!value || typeof value !== 'object') return null;
-  if (SharedBoardUtils && typeof SharedBoardUtils.maybeResolveBoardConfig === 'function') {
-    const normalized = SharedBoardUtils.maybeResolveBoardConfig(value);
-    if (normalized) return normalized;
-  }
-  const rows = Number(value.rows);
-  const cols = Number(value.cols);
-  if (!Number.isFinite(rows) || !Number.isFinite(cols)) return null;
-  const normalizedRows = Math.trunc(rows);
-  const normalizedCols = Math.trunc(cols);
-  if (normalizedRows <= 0 || normalizedCols <= 0) return null;
-  const shape = String(value.shape || '').toLowerCase() === 'circle' ? 'circle' : 'rectangle';
-  const circleSize = Math.max(6, Math.min(16, 6 + Math.round((normalizedRows - 6) / 2) * 2));
-  return {
-    rows: shape === 'circle' ? circleSize : normalizedRows,
-    cols: shape === 'circle' ? circleSize : normalizedCols,
-    shape,
-    standard8x8: shape === 'rectangle' && (value.standard8x8 === true || (normalizedRows === 8 && normalizedCols === 8))
-  };
-}
-
 async function fetchLeaderboard(options?: any): Promise<any> {
   const opts = options || {};
   const limit = Number.isFinite(Number(opts.limit))
@@ -334,16 +311,21 @@ async function submitScore(scoreSummary: any, options?: any): Promise<any> {
   if (score === null) {
     return { ok: false, reason: 'INVALID_SCORE' };
   }
+  if (opts.mode !== 'network') {
+    return { ok: false, reason: 'LEADERBOARD_RESULT_PROOF_REQUIRED' };
+  }
+  const roomId = String(opts.roomId || '').trim().toUpperCase();
+  const seatKey = String(opts.seatKey || '').trim().toLowerCase();
+  if (!roomId || (seatKey !== 'black' && seatKey !== 'white')) {
+    return { ok: false, reason: 'LEADERBOARD_AUTHORITY_CONTEXT_REQUIRED' };
+  }
 
   const payload = {
     playerName: getPlayerName(),
-    score,
-    scoreVersion: Number.isFinite(Number(summary.version)) ? Math.trunc(Number(summary.version)) : null,
-    turnCount: Number.isFinite(Number(summary.turnCount)) ? Math.max(0, Math.trunc(Number(summary.turnCount))) : null,
     category: 'score',
-    mode: opts.mode === 'network' ? 'network' : 'cpu',
-    cpuLevel: Number.isFinite(Number(opts.cpuLevel)) ? Math.max(1, Math.min(9, Math.trunc(Number(opts.cpuLevel)))) : null,
-    boardConfig: normalizeBoardConfig(opts.boardConfig),
+    mode: 'network',
+    roomId,
+    seatKey,
     limit: Number.isFinite(Number(opts.limit))
       ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
       : 10
@@ -373,137 +355,35 @@ async function submitScore(scoreSummary: any, options?: any): Promise<any> {
 
 async function submitTimeAttack(summary: any, options?: any): Promise<any> {
   const input = summary || {};
-  const opts = options || {};
   const elapsedMs = Number.isFinite(Number(input.elapsedMs))
     ? Math.max(1, Math.trunc(Number(input.elapsedMs)))
     : null;
   if (elapsedMs === null) {
     return { ok: false, reason: 'INVALID_TIME_ATTACK' };
   }
-
-  const payload = {
-    playerName: getPlayerName(),
-    category: 'timeAttack',
-    elapsedMs,
-    debug: opts.debug === true,
-    mode: opts.mode === 'network' ? 'network' : 'cpu',
-    cpuLevel: Number.isFinite(Number(opts.cpuLevel)) ? Math.max(1, Math.min(9, Math.trunc(Number(opts.cpuLevel)))) : null,
-    boardConfig: normalizeBoardConfig(opts.boardConfig),
-    limit: Number.isFinite(Number(opts.limit))
-      ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
-      : 10
-  };
-  appendPublicPlayerProfile(payload);
-  if (!await appendVerifiedIdentity(payload, opts)) {
-    return { ok: false, reason: 'PLAYER_IDENTITY_UNAVAILABLE' };
-  }
-
-  const res = await requestJson('POST', '/api/leaderboard/submit', payload, opts);
-  if (!res.ok) {
-    return { ok: false, reason: res.reason || 'SUBMIT_FAILED' };
-  }
-
-  const entries = Array.isArray(res.data && res.data.entries)
-    ? res.data.entries.map((entry: any) => normalizeEntry(entry)).filter(Boolean)
-    : [];
-
-  return {
-    ok: true,
-    updated: !!(res.data && res.data.updated),
-    bestTimeMs: Number.isFinite(Number(res.data && res.data.bestTimeMs)) ? Number(res.data.bestTimeMs) : elapsedMs,
-    rank: Number.isFinite(Number(res.data && res.data.rank)) ? Number(res.data.rank) : null,
-    entries
-  };
+  return { ok: false, reason: 'LEADERBOARD_RESULT_PROOF_REQUIRED' };
 }
 
 async function submitTimeDefense(summary: any, options?: any): Promise<any> {
   const input = summary || {};
-  const opts = options || {};
   const turnCount = Number.isFinite(Number(input.turnCount))
     ? Math.max(1, Math.trunc(Number(input.turnCount)))
     : null;
   if (turnCount === null) {
     return { ok: false, reason: 'INVALID_TIME_DEFENSE' };
   }
-
-  const payload = {
-    playerName: getPlayerName(),
-    category: 'timeDefense',
-    turnCount,
-    debug: opts.debug === true,
-    mode: opts.mode === 'network' ? 'network' : 'cpu',
-    cpuLevel: Number.isFinite(Number(opts.cpuLevel)) ? Math.max(1, Math.min(9, Math.trunc(Number(opts.cpuLevel)))) : null,
-    boardConfig: normalizeBoardConfig(opts.boardConfig),
-    limit: Number.isFinite(Number(opts.limit))
-      ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
-      : 10
-  };
-  appendPublicPlayerProfile(payload);
-  if (!await appendVerifiedIdentity(payload, opts)) {
-    return { ok: false, reason: 'PLAYER_IDENTITY_UNAVAILABLE' };
-  }
-
-  const res = await requestJson('POST', '/api/leaderboard/submit', payload, opts);
-  if (!res.ok) {
-    return { ok: false, reason: res.reason || 'SUBMIT_FAILED' };
-  }
-
-  const entries = Array.isArray(res.data && res.data.entries)
-    ? res.data.entries.map((entry: any) => normalizeEntry(entry)).filter(Boolean)
-    : [];
-
-  return {
-    ok: true,
-    updated: !!(res.data && res.data.updated),
-    bestTurnCount: Number.isFinite(Number(res.data && res.data.bestTurnCount)) ? Number(res.data.bestTurnCount) : turnCount,
-    rank: Number.isFinite(Number(res.data && res.data.rank)) ? Number(res.data.rank) : null,
-    entries
-  };
+  return { ok: false, reason: 'LEADERBOARD_RESULT_PROOF_REQUIRED' };
 }
 
 async function submitShortestTurns(summary: any, options?: any): Promise<any> {
   const input = summary || {};
-  const opts = options || {};
   const turnCount = Number.isFinite(Number(input.turnCount))
     ? Math.max(1, Math.trunc(Number(input.turnCount)))
     : null;
   if (turnCount === null) {
     return { ok: false, reason: 'INVALID_SHORTEST_TURNS' };
   }
-
-  const payload = {
-    playerName: getPlayerName(),
-    category: 'shortestTurns',
-    turnCount,
-    debug: opts.debug === true,
-    mode: opts.mode === 'network' ? 'network' : 'cpu',
-    cpuLevel: Number.isFinite(Number(opts.cpuLevel)) ? Math.max(1, Math.min(9, Math.trunc(Number(opts.cpuLevel)))) : null,
-    boardConfig: normalizeBoardConfig(opts.boardConfig),
-    limit: Number.isFinite(Number(opts.limit))
-      ? Math.max(1, Math.min(LEADERBOARD_FETCH_LIMIT_MAX, Math.trunc(Number(opts.limit))))
-      : 10
-  };
-  appendPublicPlayerProfile(payload);
-  if (!await appendVerifiedIdentity(payload, opts)) {
-    return { ok: false, reason: 'PLAYER_IDENTITY_UNAVAILABLE' };
-  }
-
-  const res = await requestJson('POST', '/api/leaderboard/submit', payload, opts);
-  if (!res.ok) {
-    return { ok: false, reason: res.reason || 'SUBMIT_FAILED' };
-  }
-
-  const entries = Array.isArray(res.data && res.data.entries)
-    ? res.data.entries.map((entry: any) => normalizeEntry(entry)).filter(Boolean)
-    : [];
-
-  return {
-    ok: true,
-    updated: !!(res.data && res.data.updated),
-    bestTurnCount: Number.isFinite(Number(res.data && res.data.bestTurnCount)) ? Number(res.data.bestTurnCount) : turnCount,
-    rank: Number.isFinite(Number(res.data && res.data.rank)) ? Number(res.data.rank) : null,
-    entries
-  };
+  return { ok: false, reason: 'LEADERBOARD_RESULT_PROOF_REQUIRED' };
 }
 
 const LeaderboardClient = {

@@ -401,6 +401,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "shared/game-result-event": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/game-result-event.js"),
   "shared/game-term-glossary": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/game-term-glossary.js"),
   "shared/glicko2-rating": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/glicko2-rating.js"),
+  "shared/leaderboard-score": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/leaderboard-score.js"),
   "shared/manifest-stone-registry": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/manifest-stone-registry.js"),
   "shared/match-entry-payload": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/match-entry-payload.js"),
   "shared/match-room-lobby": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/match-room-lobby.js"),
@@ -1081,6 +1082,7 @@ installBootModuleMetadata({
     "shared/game-result-event",
     "shared/game-term-glossary",
     "shared/glicko2-rating",
+    "shared/leaderboard-score",
     "shared/manifest-stone-registry",
     "shared/match-entry-payload",
     "shared/match-room-lobby",
@@ -1442,4 +1444,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 675;
+export const startupModuleCount = 676;

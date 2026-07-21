@@ -117,53 +117,50 @@ describe('leaderboard client shortest turns category', () => {
     });
   });
 
-  test('submitShortestTurns posts shortestTurns category with turn count', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        ok: true,
-        playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001'
-      })
-    });
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        ok: true,
-        updated: true,
-        bestTurnCount: 37,
-        rank: 1,
-        entries: []
-      })
-    });
-
+  test('submitShortestTurns rejects client-authored CPU results without a request', async () => {
     const client = require('../ui/leaderboard-client.js');
     const result = await client.submitShortestTurns(
       { turnCount: 37 },
       { mode: 'cpu', cpuLevel: 6, boardConfig: { rows: 8, cols: 8, standard8x8: true } }
     );
 
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ ok: false, reason: 'LEADERBOARD_RESULT_PROOF_REQUIRED' });
+  });
+
+  test('submitScore sends only network authority context, not client score fields', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001' })
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, updated: true, bestScore: 8818, rank: 1, entries: [] })
+    });
+
+    const client = require('../ui/leaderboard-client.js');
+    const result = await client.submitScore(
+      { total: 999999, turnCount: 1, version: 999 },
+      { mode: 'network', roomId: 'room1234', seatKey: 'black', limit: 10 }
+    );
+
     expect(fetchMock.mock.calls[0][0]).toBe('/api/player/identity/verify');
-    const [, requestInit] = fetchMock.mock.calls[1];
-    expect(JSON.parse(requestInit.body)).toMatchObject({
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/leaderboard/submit');
+    const payload = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(payload).toMatchObject({
       playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
       playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
-      playerName: 'アルファ',
-      avatarStoneType: 'LIGHTNING',
-      bio: 'よろしくお願いします',
-      category: 'shortestTurns',
-      turnCount: 37,
-      mode: 'cpu',
-      cpuLevel: 6,
-      boardConfig: { rows: 8, cols: 8, standard8x8: true }
+      category: 'score',
+      mode: 'network',
+      roomId: 'ROOM1234',
+      seatKey: 'black'
     });
-    expect(result).toMatchObject({
-      ok: true,
-      updated: true,
-      bestTurnCount: 37,
-      rank: 1
-    });
+    expect(payload).not.toHaveProperty('score');
+    expect(payload).not.toHaveProperty('turnCount');
+    expect(payload).not.toHaveProperty('scoreVersion');
+    expect(result).toMatchObject({ ok: true, bestScore: 8818, rank: 1 });
   });
 
   test('getPlayerName prefers profile display name over stale shared leaderboard name', () => {

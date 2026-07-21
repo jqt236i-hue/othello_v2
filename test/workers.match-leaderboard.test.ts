@@ -32,15 +32,15 @@ function runLeaderboardFlow() {
     "  const durableObject = new MatchRoomDurableObject(state);",
     "",
     "  const submit = async (payload) => {",
-    "    const response = await durableObject.fetch(new Request('https://room/api/leaderboard/submit', {",
+    "    const response = await durableObject.fetch(new Request('https://room/internal/leaderboard/submit', {",
     "      method: 'POST',",
     "      headers: { 'Content-Type': 'application/json' },",
-    "      body: JSON.stringify(payload)",
+    "      body: JSON.stringify({ ...payload, category: 'score', mode: 'network', authorityVerified: true, authoritySource: 'match_room' })",
     "    }));",
     "    return response.json();",
     "  };",
     "",
-    "  await submit({ playerId: 'player_alpha_0001', playerName: 'アルファ', score: 7200, mode: 'cpu', cpuLevel: 3 });",
+    "  await submit({ playerId: 'player_alpha_0001', playerName: 'アルファ', score: 7200 });",
     "  await submit({ playerId: 'player_alpha_0001', playerName: 'アルファ', score: 6800, mode: 'network' });",
     "  await submit({ playerId: 'player_beta_0002', playerName: 'ベータ', score: 8100, mode: 'network' });",
     "",
@@ -91,7 +91,7 @@ function runInvalidSubmit() {
 }
 
 describe('match worker shared leaderboard', () => {
-  test('総合とモード別で自己ベストを分けて降順で返す', () => {
+  test('サーバー証明済み対人スコアの自己ベストを降順で返す', () => {
     const payload = runLeaderboardFlow();
     expect(payload && payload.allPayload && payload.allPayload.ok).toBe(true);
     expect(Array.isArray(payload.allPayload.entries)).toBe(true);
@@ -104,8 +104,7 @@ describe('match worker shared leaderboard', () => {
     expect(payload.allPayload.entries[1].playerName).toBe('アルファ');
     expect(payload.allPayload.entries[1].bestScore).toBe(7200);
     expect(payload.allPayload.entries[1].rank).toBe(2);
-    expect(payload.allPayload.entries[1].mode).toBe('cpu');
-    expect(payload.allPayload.entries[1].cpuLevel).toBe(3);
+    expect(payload.allPayload.entries[1].mode).toBe('network');
 
     expect(payload.networkPayload.entries).toHaveLength(2);
     expect(payload.networkPayload.entries[0]).toMatchObject({
@@ -116,26 +115,19 @@ describe('match worker shared leaderboard', () => {
     });
     expect(payload.networkPayload.entries[1]).toMatchObject({
       playerName: 'アルファ',
-      bestScore: 6800,
+      bestScore: 7200,
       rank: 2,
       mode: 'network',
       cpuLevel: null
     });
 
-    expect(payload.cpuPayload.entries).toHaveLength(1);
-    expect(payload.cpuPayload.entries[0]).toMatchObject({
-      playerName: 'アルファ',
-      bestScore: 7200,
-      rank: 1,
-      mode: 'cpu',
-      cpuLevel: 3
-    });
+    expect(payload.cpuPayload.entries).toHaveLength(0);
   });
 
-  test('playerId未指定の送信は400で拒否する', () => {
+  test('公開Durable Object経路への直接送信は証明不足として拒否する', () => {
     const result = runInvalidSubmit();
-    expect(result.status).toBe(400);
+    expect(result.status).toBe(403);
     expect(result.payload && result.payload.ok).toBe(false);
-    expect(result.payload && result.payload.reason).toBe('PLAYER_ID_REQUIRED');
+    expect(result.payload && result.payload.reason).toBe('LEADERBOARD_RESULT_PROOF_REQUIRED');
   });
 });

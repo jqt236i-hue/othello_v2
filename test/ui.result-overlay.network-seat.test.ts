@@ -595,7 +595,7 @@ describe('result overlay seat perspective', () => {
     expect(localStorage.getItem(key)).toBeNull();
   });
 
-  test('終局時にスコアランキング送信を呼ぶ', () => {
+  test('CPU終局時はローカル記録とリザルト表示だけを更新する', () => {
     const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeDefense = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
@@ -616,37 +616,17 @@ describe('result overlay seat perspective', () => {
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(183340);
     mod.showResultOverlay();
 
-    expect(submitScore).toHaveBeenCalled();
-    expect(submitTimeAttack).toHaveBeenCalledWith(expect.objectContaining({
-      elapsedMs: 182340
-    }), expect.objectContaining({
-      mode: 'cpu',
-      cpuLevel: 1,
-      limit: 10,
-      boardConfig: expect.objectContaining({ rows: 8, cols: 8, standard8x8: true })
-    }));
-    expect(submitTimeDefense).toHaveBeenCalledWith(expect.objectContaining({
-      turnCount: 42
-    }), expect.objectContaining({
-      mode: 'cpu',
-      cpuLevel: 1,
-      limit: 10,
-      boardConfig: expect.objectContaining({ rows: 8, cols: 8, standard8x8: true })
-    }));
-    expect(submitShortestTurns).toHaveBeenCalledWith(expect.objectContaining({
-      turnCount: 42
-    }), expect.objectContaining({
-      mode: 'cpu',
-      cpuLevel: 1,
-      limit: 10,
-      boardConfig: expect.objectContaining({ rows: 8, cols: 8, standard8x8: true })
-    }));
+    expect(submitScore).not.toHaveBeenCalled();
+    expect(submitTimeAttack).not.toHaveBeenCalled();
+    expect(submitTimeDefense).not.toHaveBeenCalled();
+    expect(submitShortestTurns).not.toHaveBeenCalled();
+    expect(JSON.parse(localStorage.getItem('othello_cpu_leaderboard_v5') || '{}')).toHaveProperty('cpu.1');
     expect((document.querySelector('.result-time-attack') || {}).textContent || '').toContain('速攻 03:02.34');
     expect((document.querySelector('.result-time-defense') || {}).textContent || '').toContain('42手で勝利');
     nowSpy.mockRestore();
   });
 
-  test('LeaderboardClient未読込でも終局時にlazy runtimeを読んでランキング送信する', async () => {
+  test('CPU終局時はLeaderboardClientのlazy runtimeを読み込まない', async () => {
     const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeDefense = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
@@ -675,11 +655,11 @@ describe('result overlay seat perspective', () => {
     mod.showResultOverlay();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(loadLazyRuntimeGroup).toHaveBeenCalledWith('leaderboard');
-    expect(submitScore).toHaveBeenCalled();
-    expect(submitTimeAttack).toHaveBeenCalled();
-    expect(submitTimeDefense).toHaveBeenCalled();
-    expect(submitShortestTurns).toHaveBeenCalled();
+    expect(loadLazyRuntimeGroup).not.toHaveBeenCalled();
+    expect(submitScore).not.toHaveBeenCalled();
+    expect(submitTimeAttack).not.toHaveBeenCalled();
+    expect(submitTimeDefense).not.toHaveBeenCalled();
+    expect(submitShortestTurns).not.toHaveBeenCalled();
     nowSpy.mockRestore();
   });
 
@@ -713,7 +693,7 @@ describe('result overlay seat perspective', () => {
     nowSpy.mockRestore();
   });
 
-  test('Lv9 CPU対戦はLv9としてランキング送信する', () => {
+  test('Lv9 CPU対戦はLv9のローカル自己ベストだけを更新する', () => {
     window.MATCH_MODE = 'cpu';
     global.cpuSmartness.white = 9;
     const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
@@ -735,28 +715,20 @@ describe('result overlay seat perspective', () => {
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(61000);
     mod.showResultOverlay();
 
-    expect(submitScore).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
-      mode: 'cpu',
-      cpuLevel: 9
-    }));
-    expect(submitTimeAttack).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
-      mode: 'cpu',
-      cpuLevel: 9
-    }));
-    expect(submitTimeDefense).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
-      mode: 'cpu',
-      cpuLevel: 9
-    }));
-    expect(submitShortestTurns).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
-      mode: 'cpu',
-      cpuLevel: 9
-    }));
+    expect(submitScore).not.toHaveBeenCalled();
+    expect(submitTimeAttack).not.toHaveBeenCalled();
+    expect(submitTimeDefense).not.toHaveBeenCalled();
+    expect(submitShortestTurns).not.toHaveBeenCalled();
+    expect(JSON.parse(localStorage.getItem('othello_cpu_leaderboard_v5') || '{}')).toHaveProperty('cpu.9');
     nowSpy.mockRestore();
   });
 
-  test('ネット対戦では速攻ランキングを送信しない', () => {
+  test('ネット対戦ではroomと席だけを添えてスコア送信し、タイム系は送信しない', () => {
     window.MATCH_MODE = 'network';
-    window.NetworkMatchClient = { getSeatKey: () => 'black' };
+    window.NetworkMatchClient = {
+      getRoomId: () => 'room1234',
+      getSeatKey: () => 'black'
+    };
     const submitScore = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeAttack = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
     const submitTimeDefense = jest.fn(() => Promise.resolve({ ok: true, updated: true, rank: 1 }));
@@ -776,7 +748,11 @@ describe('result overlay seat perspective', () => {
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(61000);
     mod.showResultOverlay();
 
-    expect(submitScore).toHaveBeenCalled();
+    expect(submitScore).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
+      mode: 'network',
+      roomId: 'ROOM1234',
+      seatKey: 'black'
+    }));
     expect(submitTimeAttack).not.toHaveBeenCalled();
     expect(submitTimeDefense).not.toHaveBeenCalled();
     expect(submitShortestTurns).not.toHaveBeenCalled();

@@ -60,6 +60,7 @@ import { createMatchWorkerApiController } from './match-worker-api';
 import { createMatchWorkerBroadcastController } from './match-worker-broadcast-controller';
 import { createMatchWorkerChatController } from './match-worker-chat-controller';
 import { createMatchWorkerLeaderboardHelpers } from './match-worker-leaderboard';
+import { buildMatchWorkerLeaderboardProof } from './match-worker-leaderboard-proof';
 import { createMatchWorkerLeaderboardRoomController } from './match-worker-leaderboard-room';
 import { createMatchWorkerPlayerIdentityController } from './match-worker-player-identity';
 import { createMatchWorkerRatingHelpers } from './match-worker-rating';
@@ -97,11 +98,11 @@ const CHAT_HISTORY_LIMIT = Number(MatchAuthority.CHAT_HISTORY_LIMIT);
 const NETWORK_PLAYER_NAME_MAX = Number.isFinite(Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX))
     ? Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX)
     : 7;
-const LEADERBOARD_STORAGE_KEY = 'global_score_leaderboard_v3';
-const TIME_ATTACK_LEADERBOARD_STORAGE_KEY = 'global_time_attack_leaderboard_v1';
-const TIME_DEFENSE_LEADERBOARD_STORAGE_KEY = 'global_time_defense_leaderboard_v1';
-const SHORTEST_TURNS_LEADERBOARD_STORAGE_KEY = 'global_shortest_turns_leaderboard_v1';
-const LEADERBOARD_STORAGE_VERSION = 3;
+const LEADERBOARD_STORAGE_KEY = 'global_score_leaderboard_v4';
+const TIME_ATTACK_LEADERBOARD_STORAGE_KEY = 'global_time_attack_leaderboard_v2';
+const TIME_DEFENSE_LEADERBOARD_STORAGE_KEY = 'global_time_defense_leaderboard_v2';
+const SHORTEST_TURNS_LEADERBOARD_STORAGE_KEY = 'global_shortest_turns_leaderboard_v2';
+const LEADERBOARD_STORAGE_VERSION = 4;
 const MATCH_LOBBY_ROOM_ID = '__match_lobby__';
 const LEADERBOARD_ROOM_ID = '__leaderboard__';
 const PLAYER_IDENTITY_ROOM_ID = '__player_identity__';
@@ -3449,6 +3450,17 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return this.getLeaderboardRoomController().handleLeaderboardList(urlObj);
     }
 
+    async handleInternalLeaderboardResult(body: Record<string, unknown>): Promise<Response> {
+        if (!this.room && !this.roomLoaded) await this.loadRoom();
+        if (!this.room) return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
+        const terminal = await this.isSnapshotGameOver(this.room.snapshot as MatchWorkerPublicSnapshot);
+        const result = buildMatchWorkerLeaderboardProof(this.room, body, {
+            terminal,
+            debugEnabled: toPublicNetworkDebugEnabled(this.room)
+        });
+        return jsonResponse(result.status, result.ok ? result.payload : { ok: false, reason: result.reason });
+    }
+
     async loadRatingStore(): Promise<MatchWorkerRatingStore> {
         return this.getRatingHelpers().loadStore(await this.state.storage.get(RATING_POOL_STORAGE_KEY));
     }
@@ -3527,9 +3539,27 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
 
         if (request.method === 'POST' && pathname === '/api/leaderboard/submit') {
+            return jsonResponse(403, { ok: false, reason: 'LEADERBOARD_RESULT_PROOF_REQUIRED' });
+        }
+
+        if (request.method === 'POST' && pathname === '/internal/leaderboard/submit') {
             const parsed = parseJsonBody(await request.text());
             if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            if (
+                parsed.authorityVerified !== true
+                || parsed.authoritySource !== 'match_room'
+                || parsed.category !== 'score'
+                || parsed.mode !== 'network'
+            ) {
+                return jsonResponse(403, { ok: false, reason: 'LEADERBOARD_RESULT_PROOF_REQUIRED' });
+            }
             return this.handleLeaderboardSubmit(parsed || {});
+        }
+
+        if (request.method === 'POST' && pathname === '/internal/leaderboard/result') {
+            const parsed = parseJsonBody(await request.text());
+            if (parsed === null) return jsonResponse(400, { ok: false, reason: 'INVALID_JSON' });
+            return this.handleInternalLeaderboardResult(parsed || {});
         }
 
         if (request.method === 'POST' && pathname === '/api/leaderboard/profile') {

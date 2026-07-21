@@ -275,6 +275,118 @@ describe('match worker api controller', () => {
     expect(seen).toEqual([]);
   });
 
+  test('leaderboard submit は終局済み room のサーバー計算値だけを転送する', async () => {
+    const seen: Array<{ roomId: string; pathname: string; body: any }> = [];
+    const playerId = 'p_ABCDEFGHIJKLMNOPQRSTUV0001';
+    const controller = createMatchWorkerApiController({
+      corsHeaders: { 'Access-Control-Allow-Origin': '*' },
+      leaderboardRoomId: '__leaderboard__',
+      playerIdentityRoomId: '__player_identity__',
+      normalizeRoomId: (value) => String(value || '').trim().toUpperCase(),
+      jsonResponse,
+      withCORS,
+      handleCreate: async () => jsonResponse(200, { ok: true, created: true })
+    });
+
+    const env = createEnv(async (roomId, request) => {
+      const pathname = new URL(request.url).pathname;
+      const body = JSON.parse(String(await request.text() || '{}'));
+      seen.push({ roomId, pathname, body });
+      if (roomId === '__player_identity__') return jsonResponse(200, { ok: true, playerId });
+      if (roomId === 'ROOM1234') {
+        return jsonResponse(200, {
+          ok: true,
+          authorityVerified: true,
+          authoritySource: 'match_room',
+          matchId: 'ROOM1234',
+          stateVersion: 42,
+          playerId,
+          category: 'score',
+          mode: 'network',
+          score: 8818,
+          scoreVersion: 5,
+          turnCount: 42,
+          boardConfig: { rows: 8, cols: 8, shape: 'rectangle', standard8x8: true }
+        });
+      }
+      return jsonResponse(200, { ok: true, updated: true, bestScore: body.score });
+    });
+
+    const response = await controller.handleLeaderboardApi(new Request('https://worker/api/leaderboard/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerId,
+        playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
+        playerName: 'さかな',
+        avatarStoneType: 'GHOST',
+        bio: '自己紹介',
+        category: 'score',
+        mode: 'network',
+        roomId: 'room1234',
+        seatKey: 'black',
+        score: 100000,
+        turnCount: 1
+      })
+    }), env as any);
+
+    expect(response.status).toBe(200);
+    expect(seen).toHaveLength(3);
+    expect(seen[1]).toMatchObject({
+      roomId: 'ROOM1234',
+      pathname: '/internal/leaderboard/result',
+      body: { playerId, seatKey: 'black' }
+    });
+    expect(seen[2]).toMatchObject({
+      roomId: '__leaderboard__',
+      pathname: '/internal/leaderboard/submit',
+      body: {
+        playerId,
+        playerName: 'さかな',
+        category: 'score',
+        mode: 'network',
+        score: 8818,
+        scoreVersion: 5,
+        turnCount: 42,
+        authorityVerified: true,
+        authoritySource: 'match_room'
+      }
+    });
+  });
+
+  test('CPU とタイム系のクライアント申告は本人確認後も共有ランキングへ転送しない', async () => {
+    const seen: Array<{ roomId: string; pathname: string }> = [];
+    const controller = createMatchWorkerApiController({
+      corsHeaders: { 'Access-Control-Allow-Origin': '*' },
+      leaderboardRoomId: '__leaderboard__',
+      playerIdentityRoomId: '__player_identity__',
+      normalizeRoomId: (value) => String(value || '').trim().toUpperCase(),
+      jsonResponse,
+      withCORS,
+      handleCreate: async () => jsonResponse(200, { ok: true, created: true })
+    });
+    const env = createEnv((roomId, request) => {
+      seen.push({ roomId, pathname: new URL(request.url).pathname });
+      return jsonResponse(200, { ok: true });
+    });
+
+    const response = await controller.handleLeaderboardApi(new Request('https://worker/api/leaderboard/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerId: 'p_ABCDEFGHIJKLMNOPQRSTUV0001',
+        playerToken: 'pt_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno12',
+        category: 'timeAttack',
+        mode: 'cpu',
+        elapsedMs: 1
+      })
+    }), env as any);
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ ok: false, reason: 'LEADERBOARD_RESULT_PROOF_REQUIRED' });
+    expect(seen).toEqual([{ roomId: '__player_identity__', pathname: '/api/player/identity/verify' }]);
+  });
+
   test('player profile update は本人確認後に leaderboard と rating へ転送する', async () => {
     const seen: Array<{ roomId: string; pathname: string; body: any }> = [];
     const controller = createMatchWorkerApiController({

@@ -11,22 +11,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
  * @description ゲーム終了時の結果表示オーバーレイ
  */
 
-const SCORE_CONFIG = Object.freeze({
-    version: 5,
-    winBase: 5000,
-    drawBase: 2000,
-    loseBase: 0,
-    speedBase: 2500,
-    speedStartTurn: 0,
-    speedZeroTurn: 100,
-    monoBonus: 1500,
-    supportMax: 3000,
-    supportFlipMax: 1500,
-    supportFlipTargetCount: 150,
-    supportOwnDiscMax: 1500,
-    supportOwnDiscTargetCount: 76,
-    theoreticalMax: 12000
-});
+const LeaderboardScore = _require('../shared/leaderboard-score');
+const SCORE_CONFIG = LeaderboardScore.SCORE_CONFIG;
 
 const SCORE_LEADERBOARD_STORAGE_KEY = `othello_cpu_leaderboard_v${SCORE_CONFIG.version}`;
 const TIME_ATTACK_LIMIT_MS = 900000;
@@ -524,72 +510,10 @@ function resolveCpuLevelForViewer(viewerKey: any) {
 }
 
 function resolveTurnCountForScore() {
-    if (typeof cardState !== 'undefined' && cardState && cardState.turnCountByPlayer) {
-        const blackTurns = Math.max(0, toFiniteInteger(cardState.turnCountByPlayer.black, 0));
-        const whiteTurns = Math.max(0, toFiniteInteger(cardState.turnCountByPlayer.white, 0));
-        const totalTurns = blackTurns + whiteTurns;
-        if (totalTurns > 0) return totalTurns;
-    }
-
-    if (typeof cardState !== 'undefined' && cardState && Number.isFinite(Number(cardState.turnIndex))) {
-        const turnIndex = Math.max(0, toFiniteInteger(cardState.turnIndex, 0));
-        if (turnIndex > 0) return turnIndex;
-    }
-
-    if (typeof gameState !== 'undefined' && gameState && Number.isFinite(Number(gameState.turnNumber))) {
-        return Math.max(0, toFiniteInteger(gameState.turnNumber, 0) + 1);
-    }
-
-    return 0;
-}
-
-function computeResultBaseBonus(localOutcomeKey: any) {
-    if (localOutcomeKey === 'win') return SCORE_CONFIG.winBase;
-    if (localOutcomeKey === 'draw') return SCORE_CONFIG.drawBase;
-    return SCORE_CONFIG.loseBase;
-}
-
-function computeSpeedBonus(turnCount: any) {
-    const totalTurns = Math.max(0, toFiniteInteger(turnCount, 0));
-    if (totalTurns <= SCORE_CONFIG.speedStartTurn) return SCORE_CONFIG.speedBase;
-    if (totalTurns >= SCORE_CONFIG.speedZeroTurn) return 0;
-
-    const speedRangeTurns = Math.max(1, SCORE_CONFIG.speedZeroTurn - SCORE_CONFIG.speedStartTurn);
-    const remainTurns = SCORE_CONFIG.speedZeroTurn - totalTurns;
-    const scaled = Math.floor((SCORE_CONFIG.speedBase * remainTurns) / speedRangeTurns);
-    return Math.max(0, scaled);
-}
-
-function computeSupportComponentBonus(rawCount: any, targetCount: any, maxBonus: any) {
-    const count = Math.max(0, toFiniteInteger(rawCount, 0));
-    const target = Math.max(1, toFiniteInteger(targetCount, 1));
-    const cap = Math.max(0, toFiniteInteger(maxBonus, 0));
-    if (cap === 0) return 0;
-    const scaled = Math.floor((count * cap) / target);
-    return Math.min(cap, scaled);
-}
-
-function computeSupportBreakdown(localDiscCount: any, localFlipCount: any) {
-    const discCount = Math.max(0, toFiniteInteger(localDiscCount, 0));
-    const flipCount = Math.max(0, toFiniteInteger(localFlipCount, 0));
-
-    const flipBonus = computeSupportComponentBonus(
-        flipCount,
-        SCORE_CONFIG.supportFlipTargetCount,
-        SCORE_CONFIG.supportFlipMax
+    return LeaderboardScore.resolveLeaderboardTurnCount(
+        typeof gameState !== 'undefined' ? gameState : null,
+        typeof cardState !== 'undefined' ? cardState : null
     );
-    const ownDiscBonus = computeSupportComponentBonus(
-        discCount,
-        SCORE_CONFIG.supportOwnDiscTargetCount,
-        SCORE_CONFIG.supportOwnDiscMax
-    );
-
-    const sum = flipBonus + ownDiscBonus;
-    return {
-        flipBonus,
-        ownDiscBonus,
-        total: Math.min(SCORE_CONFIG.supportMax, sum)
-    };
 }
 
 function readResultDebugFlag(rootRef: any, key: string): boolean {
@@ -675,44 +599,14 @@ function computeScoreSummaryForViewer(options: any) {
     const opts = options || {};
     const counts = opts.counts || { black: 0, white: 0 };
     const viewerKey = parseResultPlayerKey(opts.viewerKey) || 'black';
-    const localCounts = getLocalAndOpponentCountsForViewer(counts, viewerKey);
-    const localOutcomeKey = (opts.localOutcomeKey === 'win' || opts.localOutcomeKey === 'lose' || opts.localOutcomeKey === 'draw')
-        ? opts.localOutcomeKey
-        : getLocalOutcomeKeyForCounts(counts, viewerKey);
-    const turnCount = resolveTurnCountForScore();
-
-    const baseBonus = computeResultBaseBonus(localOutcomeKey);
-    let speedBonus = 0;
-    let monoBonus = 0;
-    let supportBonus = 0;
-    let supportBreakdown = { flipBonus: 0, ownDiscBonus: 0, total: 0 };
-
-    const debugScoreSuppressed = isDebugScoreSuppressed();
-    if (!debugScoreSuppressed && localOutcomeKey === 'win') {
-        speedBonus = computeSpeedBonus(turnCount);
-        monoBonus = localCounts.opponentCount === 0 ? SCORE_CONFIG.monoBonus : 0;
-
-        const localFlipCount = Math.max(0, toFiniteInteger(opts.flipTotals && opts.flipTotals[localCounts.localKey], 0));
-        supportBreakdown = computeSupportBreakdown(localCounts.localCount, localFlipCount);
-        supportBonus = supportBreakdown.total;
-    }
-
-    const total = debugScoreSuppressed ? 0 : (baseBonus + speedBonus + monoBonus + supportBonus);
-    return {
-        version: SCORE_CONFIG.version,
-        total,
-        baseBonus: debugScoreSuppressed ? 0 : baseBonus,
-        speedBonus,
-        monoBonus,
-        supportBonus,
-        supportBreakdown,
-        turnCount,
-        localOutcomeKey,
-        localKey: localCounts.localKey,
-        localDiscCount: localCounts.localCount,
-        opponentDiscCount: localCounts.opponentCount,
-        theoreticalMax: SCORE_CONFIG.theoreticalMax
-    };
+    return LeaderboardScore.computeLeaderboardScoreSummary({
+        counts,
+        playerKey: viewerKey,
+        localOutcomeKey: opts.localOutcomeKey,
+        turnCount: resolveTurnCountForScore(),
+        flipTotals: opts.flipTotals,
+        debugSuppressed: isDebugScoreSuppressed()
+    });
 }
 
 function updateCpuLeaderboard(scoreSummary: any, viewerKey: any) {
@@ -1090,17 +984,33 @@ function canAutoSubmitSharedLeaderboard(client: any, methodName: string = 'submi
     }
 }
 
+function resolveResultLeaderboardAuthorityContext(): { roomId: string; seatKey: 'black' | 'white' } | null {
+    try {
+        const client = typeof window !== 'undefined' ? window.NetworkMatchClient : null;
+        if (!client || typeof client.getRoomId !== 'function' || typeof client.getSeatKey !== 'function') return null;
+        const roomId = String(client.getRoomId() || '').trim().toUpperCase();
+        const seatKey = parseResultPlayerKey(client.getSeatKey());
+        if (!roomId || !seatKey) return null;
+        return { roomId, seatKey };
+    } catch (e: any) {
+        return null;
+    }
+}
+
 function submitSharedLeaderboardScore(scoreSummary: any, viewerKey: any) {
     try {
         if (typeof window === 'undefined') return;
         if (!isResultRankingBoardEligible()) return;
         if (isDebugScoreSuppressed()) return;
         const mode = resolveCurrentMatchMode();
+        if (mode !== 'network') return;
+        const authorityContext = resolveResultLeaderboardAuthorityContext();
+        if (!authorityContext) return;
         const cpuLevel = resolveCpuLevelForViewer(viewerKey);
         const immediateClient = resolveResultLeaderboardClient(false);
         if (immediateClient) {
             if (!canAutoSubmitSharedLeaderboard(immediateClient)) return;
-            immediateClient.submitScore(scoreSummary, { mode, cpuLevel, limit: 10, boardConfig: resolveResultBoardConfig() })
+            immediateClient.submitScore(scoreSummary, { mode, cpuLevel, limit: 10, ...authorityContext })
                 .then((result: any) => {
                     if (result && result.ok) {
                         notifySharedLeaderboardUpdated({
@@ -1115,7 +1025,7 @@ function submitSharedLeaderboardScore(scoreSummary: any, viewerKey: any) {
         ensureResultLeaderboardClient('submitScore')
             .then((client: any) => {
                 if (!canAutoSubmitSharedLeaderboard(client)) return null;
-                return client.submitScore(scoreSummary, { mode, cpuLevel, limit: 10, boardConfig: resolveResultBoardConfig() });
+                return client.submitScore(scoreSummary, { mode, cpuLevel, limit: 10, ...authorityContext });
             })
             .then((result: any) => {
                 if (result && result.ok) {
@@ -1137,171 +1047,6 @@ function removeExistingResultOverlay(options: any = {}) {
         stopResultBgmForDismissal();
     }
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-}
-
-function submitSharedLeaderboardTimeAttack(timeAttackSummary: any, viewerKey: any) {
-    try {
-        if (!timeAttackSummary || timeAttackSummary.eligible !== true) return;
-        if (typeof window === 'undefined') return;
-        if (!isResultRankingBoardEligible()) return;
-        const mode = resolveCurrentMatchMode();
-        if (mode !== 'cpu') return;
-        if (isDebugScoreSuppressed()) return;
-        const cpuLevel = resolveCpuLevelForViewer(viewerKey);
-        const immediateClient = resolveResultLeaderboardClient(false);
-        if (immediateClient) {
-            if (!canAutoSubmitSharedLeaderboard(immediateClient, 'submitTimeAttack')) return;
-            immediateClient.submitTimeAttack({ elapsedMs: timeAttackSummary.elapsedMs }, {
-                mode,
-                cpuLevel,
-                limit: 10,
-                debug: isDebugScoreSuppressed(),
-                boardConfig: resolveResultBoardConfig()
-            })
-                .then((result: any) => {
-                    if (result && result.ok) {
-                        notifySharedLeaderboardUpdated({
-                            category: 'timeAttack',
-                            updated: !!result.updated,
-                            rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
-                        });
-                    }
-                })
-                .catch(() => {});
-            return;
-        }
-        ensureResultLeaderboardClient('submitTimeAttack')
-            .then((client: any) => {
-                if (!canAutoSubmitSharedLeaderboard(client, 'submitTimeAttack')) return null;
-                return client.submitTimeAttack({ elapsedMs: timeAttackSummary.elapsedMs }, {
-                    mode,
-                    cpuLevel,
-                    limit: 10,
-                    debug: isDebugScoreSuppressed(),
-                    boardConfig: resolveResultBoardConfig()
-                });
-            })
-            .then((result: any) => {
-                if (result && result.ok) {
-                    notifySharedLeaderboardUpdated({
-                        category: 'timeAttack',
-                        updated: !!result.updated,
-                        rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
-                    });
-                }
-            })
-            .catch(() => {});
-    } catch (e: any) { /* ignore */ }
-}
-
-function submitSharedLeaderboardTimeDefense(timeDefenseSummary: any, viewerKey: any) {
-    try {
-        if (!timeDefenseSummary || timeDefenseSummary.eligible !== true) return;
-        if (typeof window === 'undefined') return;
-        if (!isResultRankingBoardEligible()) return;
-        const mode = resolveCurrentMatchMode();
-        if (mode !== 'cpu') return;
-        if (isDebugScoreSuppressed()) return;
-        const cpuLevel = resolveCpuLevelForViewer(viewerKey);
-        const immediateClient = resolveResultLeaderboardClient(false);
-        if (immediateClient) {
-            if (!canAutoSubmitSharedLeaderboard(immediateClient, 'submitTimeDefense')) return;
-            immediateClient.submitTimeDefense({ turnCount: timeDefenseSummary.turnCount }, {
-                mode,
-                cpuLevel,
-                limit: 10,
-                debug: isDebugScoreSuppressed(),
-                boardConfig: resolveResultBoardConfig()
-            })
-                .then((result: any) => {
-                    if (result && result.ok) {
-                        notifySharedLeaderboardUpdated({
-                            category: 'timeDefense',
-                            updated: !!result.updated,
-                            rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
-                        });
-                    }
-                })
-                .catch(() => {});
-            return;
-        }
-        ensureResultLeaderboardClient('submitTimeDefense')
-            .then((client: any) => {
-                if (!canAutoSubmitSharedLeaderboard(client, 'submitTimeDefense')) return null;
-                return client.submitTimeDefense({ turnCount: timeDefenseSummary.turnCount }, {
-                    mode,
-                    cpuLevel,
-                    limit: 10,
-                    debug: isDebugScoreSuppressed(),
-                    boardConfig: resolveResultBoardConfig()
-                });
-            })
-            .then((result: any) => {
-                if (result && result.ok) {
-                    notifySharedLeaderboardUpdated({
-                        category: 'timeDefense',
-                        updated: !!result.updated,
-                        rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
-                    });
-                }
-            })
-            .catch(() => {});
-    } catch (e: any) { /* ignore */ }
-}
-
-function submitSharedLeaderboardShortestTurns(timeDefenseSummary: any, viewerKey: any) {
-    try {
-        if (!timeDefenseSummary || timeDefenseSummary.eligible !== true) return;
-        if (typeof window === 'undefined') return;
-        if (!isResultRankingBoardEligible()) return;
-        const mode = resolveCurrentMatchMode();
-        if (mode !== 'cpu') return;
-        if (isDebugScoreSuppressed()) return;
-        const cpuLevel = resolveCpuLevelForViewer(viewerKey);
-        const immediateClient = resolveResultLeaderboardClient(false);
-        if (immediateClient) {
-            if (!canAutoSubmitSharedLeaderboard(immediateClient, 'submitShortestTurns')) return;
-            immediateClient.submitShortestTurns({ turnCount: timeDefenseSummary.turnCount }, {
-                mode,
-                cpuLevel,
-                limit: 10,
-                debug: isDebugScoreSuppressed(),
-                boardConfig: resolveResultBoardConfig()
-            })
-                .then((result: any) => {
-                    if (result && result.ok) {
-                        notifySharedLeaderboardUpdated({
-                            category: 'shortestTurns',
-                            updated: !!result.updated,
-                            rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
-                        });
-                    }
-                })
-                .catch(() => {});
-            return;
-        }
-        ensureResultLeaderboardClient('submitShortestTurns')
-            .then((client: any) => {
-                if (!canAutoSubmitSharedLeaderboard(client, 'submitShortestTurns')) return null;
-                return client.submitShortestTurns({ turnCount: timeDefenseSummary.turnCount }, {
-                    mode,
-                    cpuLevel,
-                    limit: 10,
-                    debug: isDebugScoreSuppressed(),
-                    boardConfig: resolveResultBoardConfig()
-                });
-            })
-            .then((result: any) => {
-                if (result && result.ok) {
-                    notifySharedLeaderboardUpdated({
-                        category: 'shortestTurns',
-                        updated: !!result.updated,
-                        rank: Number.isFinite(Number(result.rank)) ? Number(result.rank) : null
-                    });
-                }
-            })
-            .catch(() => {});
-    } catch (e: any) { /* ignore */ }
 }
 
 function removeResultReopenButton() {
@@ -1599,9 +1344,6 @@ function showResultOverlay(options?: any) {
         : resolveTimeDefenseSummary(localOutcomeKey, scoreSummary);
     const leaderboardState = othelloMode ? null : updateCpuLeaderboard(scoreSummary, viewerKey);
     if (!othelloMode && opts.replay !== true) submitSharedLeaderboardScore(scoreSummary, viewerKey);
-    if (!othelloMode && opts.replay !== true) submitSharedLeaderboardTimeAttack(timeAttackSummary, viewerKey);
-    if (!othelloMode && opts.replay !== true) submitSharedLeaderboardTimeDefense(timeDefenseSummary, viewerKey);
-    if (!othelloMode && opts.replay !== true) submitSharedLeaderboardShortestTurns(timeDefenseSummary, viewerKey);
 
     hideConsecutivePassStatusForResultOverlay();
     removeExistingResultOverlay({ stopResultBgm: false });

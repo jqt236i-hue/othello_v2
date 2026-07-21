@@ -531,7 +531,7 @@ function createLeaderboardController(context: any) {
             details = document.createElement('div');
             details.id = 'leaderboardDetailsPanel';
             details.className = 'leaderboard-details-panel';
-            details.textContent = 'レートランキングはレート戦のGlicko-2レートで順位を決め、既存スコアランキングとは分離する。スコアランキングは高いほど上位。タイムアタックは最初の着手から勝利までが短いほど上位。最長手数は勝利までの手数が多いほど上位。最短手数は勝利までの手数が少ないほど上位。CPUはLv別に絞り込み可能。15:00超過はタイムアタック対象外。敗北、引き分け、デバッグモードはタイム系ランキング対象外。';
+            details.textContent = 'レートランキングはレート戦のGlicko-2レートで順位を決め、スコアランキングとは分離する。共有スコアはサーバーが終局を確定した標準8x8のネット対戦だけを登録する。CPUの自己ベストはこの端末内だけに保存する。タイムアタック・最長手数・最短手数の共有登録は、サーバーがCPU対戦結果を検証できる仕組みを導入するまで停止する。速攻は15:00超過を有効記録にしない。';
         }
 
         let podium = uiRefs.leaderboardPanel.querySelector('#leaderboardPodium');

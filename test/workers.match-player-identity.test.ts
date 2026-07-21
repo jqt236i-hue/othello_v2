@@ -219,7 +219,7 @@ describe('match worker anonymous player identity', () => {
     expect(result.newRecover.playerId).toBe(result.created.playerId);
   });
 
-  test('leaderboard submit verifies playerToken before forwarding sanitized playerId', () => {
+  test('leaderboard submit rejects unverifiable CPU results after verifying playerToken', () => {
     const result = runWorkerScenario(`
   const createResponse = await worker.fetch(new Request('https://worker/api/player/identity/create', { method: 'POST' }), env);
   const created = await createResponse.json();
@@ -264,12 +264,10 @@ describe('match worker anonymous player identity', () => {
   }));
 `);
 
-    expect(result.okSubmitStatus).toBe(200);
-    expect(result.okSubmit.ok).toBe(true);
-    expect(result.okSubmit.playerId).toMatch(/^p_[A-Za-z0-9_-]{26}$/);
+    expect(result.okSubmitStatus).toBe(403);
+    expect(result.okSubmit.reason).toBe('LEADERBOARD_RESULT_PROOF_REQUIRED');
     expect(result.invalidSubmitStatus).toBe(403);
     expect(result.invalidSubmit.reason).toBe('PLAYER_ID_TOKEN_INVALID');
-    expect(result.list.entries).toHaveLength(1);
-    expect(result.list.entries[0]).not.toHaveProperty('playerToken');
+    expect(result.list.entries).toHaveLength(0);
   });
 });
