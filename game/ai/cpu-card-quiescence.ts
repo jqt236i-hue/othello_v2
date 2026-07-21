@@ -160,6 +160,18 @@ function readCoordinate(value: unknown, label: string): number {
     return Object.is(value, -0) ? 0 : Number(value);
 }
 
+function readOwner(value: unknown, label: string): -1 | 0 | 1 {
+    if (value !== -1 && value !== 0 && value !== 1) {
+        fail(`${label} must be -1, 0, or 1`);
+    }
+    return value;
+}
+
+function readPlayerValue(value: unknown): -1 | 1 {
+    if (value !== -1 && value !== 1) fail('playerValue must be -1 or 1');
+    return value;
+}
+
 function readPosition(value: unknown, label: string): CpuCardQuiescencePosition {
     if (!isRecord(value)) fail(`${label} must be an object`);
     return {
@@ -256,6 +268,20 @@ function readNumberMap(value: unknown, label: string, allowBoolean = false): Rec
     return out;
 }
 
+function readOwnerMap(value: unknown, label: string): Record<string, number> {
+    if (!isRecord(value)) fail(`${label} must be an object`);
+    const entries = Object.entries(value);
+    if (entries.length > MAX_BONUS_ENTRIES) fail(`${label} has too many entries`);
+    const out: Record<string, number> = {};
+    entries
+        .map(([key, item]) => [readCoordinateKey(key, `${label} key`), item] as const)
+        .sort(([a], [b]) => compareCoordinateKeys(a, b))
+        .forEach(([key, item]) => {
+            out[key] = readOwner(item, `${label}.${key}`);
+        });
+    return out;
+}
+
 function readBoardShapeFromBoard(board: unknown): CpuCardQuiescenceBoardShape | null {
     if (!Array.isArray(board)) return null;
     const shape = (board as any)[BOARD_SHAPE_META_KEY];
@@ -275,10 +301,10 @@ function readBoardShapeFromBoard(board: unknown): CpuCardQuiescenceBoardShape | 
                 side: readBoundedString(String(cell.side || ''), `boardShape.expansionCells[${index}].side`, 32),
                 row: readCoordinate(cell.row, `boardShape.expansionCells[${index}].row`),
                 col: readCoordinate(cell.col, `boardShape.expansionCells[${index}].col`),
-                owner: Number(cell.owner) >= 0 ? 1 : -1
+                owner: readOwner(cell.owner, `boardShape.expansionCells[${index}].owner`)
             };
         }),
-        expansionOwnerByKey: readNumberMap(shape.expansionOwnerByKey || {}, 'boardShape.expansionOwnerByKey') as Record<string, number>,
+        expansionOwnerByKey: readOwnerMap(shape.expansionOwnerByKey || {}, 'boardShape.expansionOwnerByKey'),
         standard8x8: shape.standard8x8 === true
     };
 }
@@ -301,10 +327,10 @@ function readBoardShape(value: unknown): CpuCardQuiescenceBoardShape | null {
                 side: readBoundedString(cell.side, `boardShape.expansionCells[${index}].side`, 32),
                 row: readCoordinate(cell.row, `boardShape.expansionCells[${index}].row`),
                 col: readCoordinate(cell.col, `boardShape.expansionCells[${index}].col`),
-                owner: Number(cell.owner) >= 0 ? 1 : -1
+                owner: readOwner(cell.owner, `boardShape.expansionCells[${index}].owner`)
             };
         }),
-        expansionOwnerByKey: readNumberMap(value.expansionOwnerByKey || {}, 'boardShape.expansionOwnerByKey') as Record<string, number>,
+        expansionOwnerByKey: readOwnerMap(value.expansionOwnerByKey || {}, 'boardShape.expansionOwnerByKey'),
         standard8x8: value.standard8x8 === true
     };
 }
@@ -356,7 +382,7 @@ function normalizeRequestInput(value: Record<string, any>, includeBoardShapeFrom
     const decisionEpoch = readSafeNonNegativeInteger(value.decisionEpoch, 'decisionEpoch') as number;
     const turnNumber = readSafeNonNegativeInteger(value.turnNumber, 'turnNumber', true);
     const level = readSearchLimit(value.level, 'level', 1);
-    const playerValue = Number(value.playerValue) >= 0 ? 1 : -1;
+    const playerValue = readPlayerValue(value.playerValue);
     const boardShape = includeBoardShapeFromBoard
         ? readBoardShapeFromBoard(value.board)
         : readBoardShape(value.boardShape);

@@ -16,12 +16,12 @@ function createRequest() {
     value: {
       minRow: 0,
       maxRow: 3,
-      minCol: 0,
+      minCol: -1,
       maxCol: 3,
-      playableKeys: new Set(['0,0', '0,1']),
+      playableKeys: new Set(['0,-1', '0,0', '0,1']),
       meteorHoleKeys: new Set(['0,1']),
-      expansionCells: [],
-      expansionOwnerByKey: {},
+      expansionCells: [{ side: 'left', row: 0, col: -1, owner: 0 }],
+      expansionOwnerByKey: { '0,-1': 0 },
       standard8x8: false
     }
   });
@@ -55,7 +55,10 @@ describe('CPU card-quiescence portable contract', () => {
     const request = createRequest();
     const chooseMove = jest.fn((moves, options) => {
       expect(options.board).not.toBe(request.board);
-      expect((options.board as any).__sharedBoardShapeMeta.playableKeys).toEqual(new Set(['0,0', '0,1']));
+      const shape = (options.board as any).__sharedBoardShapeMeta;
+      expect(shape.playableKeys).toEqual(new Set(['0,-1', '0,0', '0,1']));
+      expect(shape.expansionCells).toEqual([{ side: 'left', row: 0, col: -1, owner: 0 }]);
+      expect(shape.expansionOwnerByKey).toEqual({ '0,-1': 0 });
       expect(options.boardBonusByCell).toEqual({ '0,0': 2 });
       return moves[0];
     });
@@ -103,6 +106,30 @@ describe('CPU card-quiescence portable contract', () => {
       ...createRequest(),
       board: Array.from({ length: 65 }, () => [0])
     } as any)).toThrow(CpuCardQuiescenceProtocolError);
+  });
+
+  test('rejects invalid player and expansion owner encodings', () => {
+    expect(() => createCpuCardQuiescenceRequest({
+      ...createRequest(),
+      playerValue: 0
+    })).toThrow(CpuCardQuiescenceProtocolError);
+
+    const request = createRequest();
+    const board = request.board.map((row) => row.slice());
+    Object.defineProperty(board, '__sharedBoardShapeMeta', {
+      configurable: true,
+      value: {
+        ...request.boardShape,
+        playableKeys: new Set(request.boardShape!.playableKeys),
+        meteorHoleKeys: new Set(request.boardShape!.meteorHoleKeys),
+        expansionCells: [{ side: 'left', row: 0, col: -1, owner: 2 }],
+        expansionOwnerByKey: { '0,-1': 2 }
+      }
+    });
+    expect(() => createCpuCardQuiescenceRequest({
+      ...request,
+      board
+    })).toThrow(CpuCardQuiescenceProtocolError);
   });
 
   test('selects the same move as the headless core for the same bounded position', () => {
@@ -173,5 +200,121 @@ describe('CPU card-quiescence portable contract', () => {
     const response = executeCpuCardQuiescenceRequest(request, chooseMoveByLookaheadInWorker);
 
     expect(response.bestMove).toMatchObject({ row: expected.row, col: expected.col });
+  });
+
+  test('keeps full edge evaluation parity with the headless lookahead', () => {
+    const board = [
+      [-1, 1, 1, -1],
+      [0, -1, -1, 1],
+      [0, 1, 0, -1],
+      [-1, -1, -1, 1]
+    ];
+    const legalMoves = [
+      { row: 1, col: 0, flips: [{ row: 1, col: 1 }, { row: 1, col: 2 }] },
+      { row: 2, col: 0, flips: [{ row: 1, col: 1 }] },
+      { row: 2, col: 2, flips: [{ row: 1, col: 2 }] }
+    ];
+    const search = {
+      depth: 4,
+      maxBranch: 6,
+      nodeBudget: 1_000_000,
+      maxTimeMs: 10_000,
+      endgameSolveEmpties: 3,
+      endgameDepth: 6,
+      endgameNodeBudget: 1_000_000,
+      endgameMaxTimeMs: 10_000
+    };
+    const expected = CpuPolicyCore.chooseMoveByLookahead(legalMoves, {
+      board,
+      playerValue: 1,
+      level: 6,
+      ...search
+    });
+    const request = createCpuCardQuiescenceRequest({
+      requestId: 'card-quiescence:edge-parity',
+      decisionEpoch: 5,
+      stateVersion: 8,
+      turnNumber: 6,
+      playerKey: 'black',
+      level: 6,
+      playerValue: 1,
+      board,
+      legalMoves,
+      search
+    });
+
+    expect(expected).toMatchObject({ row: 2, col: 2 });
+    expect(executeCpuCardQuiescenceRequest(request, chooseMoveByLookaheadInWorker).bestMove)
+      .toMatchObject({ row: expected.row, col: expected.col });
+  });
+
+  test('keeps irregular-board topology parity with the headless lookahead', () => {
+    const board = [
+      [-1, 1, 0, 1, 1],
+      [1, 1, 1, -1, -1],
+      [1, 1, -1, 1, -1],
+      [0, -1, 0, 1, 0],
+      [0, 1, 0, 1, -1]
+    ];
+    const playableKeys = Array.from({ length: 5 }, (_row, row) => (
+      Array.from({ length: 5 }, (_col, col) => ({ row, col }))
+    ))
+      .flat()
+      .filter(({ row, col }) => !((row === 0 || row === 4) && (col === 0 || col === 4)))
+      .map(({ row, col }) => `${row},${col}`);
+    Object.defineProperty(board, '__sharedBoardShapeMeta', {
+      configurable: true,
+      value: {
+        minRow: 0,
+        maxRow: 4,
+        minCol: 0,
+        maxCol: 4,
+        playableKeys: new Set(playableKeys),
+        meteorHoleKeys: new Set(),
+        expansionCells: [],
+        expansionOwnerByKey: {},
+        standard8x8: false,
+        coordinateCache: null,
+        cornerKeyCache: null,
+        xKeyCache: null,
+        cKeyCache: null
+      }
+    });
+    const legalMoves = [
+      { row: 3, col: 2, flips: [{ row: 2, col: 2 }] },
+      { row: 4, col: 2, flips: [{ row: 3, col: 1 }] }
+    ];
+    const search = {
+      depth: 4,
+      maxBranch: 6,
+      nodeBudget: 1_000_000,
+      maxTimeMs: 10_000,
+      endgameSolveEmpties: 3,
+      endgameDepth: 6,
+      endgameNodeBudget: 1_000_000,
+      endgameMaxTimeMs: 10_000
+    };
+    const expected = CpuPolicyCore.chooseMoveByLookahead(legalMoves, {
+      board,
+      playerValue: 1,
+      level: 6,
+      ...search
+    });
+    const request = createCpuCardQuiescenceRequest({
+      requestId: 'card-quiescence:irregular-parity',
+      decisionEpoch: 6,
+      stateVersion: 9,
+      turnNumber: 7,
+      playerKey: 'black',
+      level: 6,
+      playerValue: 1,
+      board,
+      legalMoves,
+      search
+    });
+
+    expect(expected).toMatchObject({ row: 4, col: 2 });
+    expect(executeCpuCardQuiescenceRequest(request, chooseMoveByLookaheadInWorker).bestMove)
+      .toMatchObject({ row: expected.row, col: expected.col });
   });
 });

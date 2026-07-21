@@ -25,6 +25,12 @@ import { createCpuPolicyLookaheadRootSearch } from './cpu-policy-lookahead-root-
 import { createCpuPolicyLookaheadPrelude } from './cpu-policy-lookahead-prelude';
 import { createCpuPolicyLookaheadNegamax } from './cpu-policy-lookahead-negamax';
 import { createCpuPolicyLookaheadController } from './cpu-policy-lookahead-controller';
+import { createCanonicalBoardEncoding } from '../../shared/board/canonical-encoding';
+import { createBoardCorners } from '../../shared/board/corners';
+import { createControlCounts } from '../../shared/board/control-counts';
+import { createEdgeRuns } from '../../shared/board/edge-runs';
+import { createOthelloPrimitives } from '../../shared/board/othello-primitives';
+import { createRiskCells } from '../../shared/board/risk-cells';
 import type { CpuPolicyBoard, CpuPolicyMove, CpuPolicyPosition } from './cpu-policy-core-types';
 
 type CpuPolicyBoardShape = CpuPolicyBoard | number | null | undefined;
@@ -38,17 +44,21 @@ function isFiniteNumber(value: unknown): boolean {
 }
 
 const BOARD_SHAPE_META_KEY = '__sharedBoardShapeMeta';
-const DIRECTIONS = Object.freeze([
-    [-1, -1], [-1, 0], [-1, 1],
-    [0, -1],            [0, 1],
-    [1, -1],  [1, 0],   [1, 1]
-]);
+const othelloPrimitives = createOthelloPrimitives({
+    empty: 0,
+    directions: [
+        [-1, -1], [-1, 0], [-1, 1],
+        [0, -1],            [0, 1],
+        [1, -1],  [1, 0],   [1, 1]
+    ]
+});
 
 function createWorkerBoardUtils() {
     const readShape = (board: any): any => Array.isArray(board) && (board as any)[BOARD_SHAPE_META_KEY]
         ? (board as any)[BOARD_SHAPE_META_KEY]
         : null;
     const keyOf = (row: number, col: number) => `${row},${col}`;
+    const normalizeOwner = (value: unknown): number => value === 1 || value === -1 ? value : 0;
     const readCoordinates = (board: any): Array<{ row: number; col: number }> => {
         const shape = readShape(board);
         if (shape && shape.playableKeys instanceof Set) {
@@ -66,18 +76,30 @@ function createWorkerBoardUtils() {
         });
         return coordinates;
     };
-    const resolveBounds = (board: any) => {
-        const shape = readShape(board);
+    const resolveBounds = (boardOrRows: any, maybeCols?: any) => {
+        if (!Array.isArray(boardOrRows)) {
+            const rows = Number(boardOrRows);
+            const cols = Number(maybeCols);
+            if (!Number.isInteger(rows) || rows <= 0 || !Number.isInteger(cols) || cols <= 0) return null;
+            return { minRow: 0, maxRow: rows - 1, minCol: 0, maxCol: cols - 1 };
+        }
+        const shape = readShape(boardOrRows);
         if (shape && [shape.minRow, shape.maxRow, shape.minCol, shape.maxCol].every(Number.isInteger)) {
             return { minRow: shape.minRow, maxRow: shape.maxRow, minCol: shape.minCol, maxCol: shape.maxCol };
         }
-        const coordinates = readCoordinates(board);
+        const coordinates = readCoordinates(boardOrRows);
+        if (coordinates.length <= 0) return null;
         return coordinates.reduce((bounds, cell) => ({
             minRow: Math.min(bounds.minRow, cell.row),
             maxRow: Math.max(bounds.maxRow, cell.row),
             minCol: Math.min(bounds.minCol, cell.col),
             maxCol: Math.max(bounds.maxCol, cell.col)
-        }), { minRow: 0, maxRow: Math.max(0, Number(board?.length || 1) - 1), minCol: 0, maxCol: Math.max(0, Number(board?.[0]?.length || 1) - 1) });
+        }), {
+            minRow: coordinates[0].row,
+            maxRow: coordinates[0].row,
+            minCol: coordinates[0].col,
+            maxCol: coordinates[0].col
+        });
     };
     const hasPlayableCell = (board: any, row: number, col: number): boolean => {
         if (!Number.isInteger(row) || !Number.isInteger(col) || !Array.isArray(board)) return false;
@@ -127,66 +149,72 @@ function createWorkerBoardUtils() {
         }
         return clone;
     };
-    const getFlipsBasic = (board: any, row: number, col: number, playerValue: number): CpuPolicyPosition[] => {
-        if (!hasPlayableCell(board, row, col) || getCellValue(board, row, col) !== 0) return [];
-        const flips: CpuPolicyPosition[] = [];
-        for (const [dr, dc] of DIRECTIONS) {
-            const line: CpuPolicyPosition[] = [];
-            let nextRow = row + dr;
-            let nextCol = col + dc;
-            while (hasPlayableCell(board, nextRow, nextCol) && getCellValue(board, nextRow, nextCol) === -playerValue) {
-                line.push({ row: nextRow, col: nextCol });
-                nextRow += dr;
-                nextCol += dc;
-            }
-            if (line.length > 0 && getCellValue(board, nextRow, nextCol) === playerValue) flips.push(...line);
-        }
-        return flips;
-    };
-    const getLegalMovesBasic = (board: any, playerValue: number): CpuPolicyMove[] => readCoordinates(board)
-        .filter((cell) => getCellValue(board, cell.row, cell.col) === 0)
-        .map((cell) => ({ ...cell, flips: getFlipsBasic(board, cell.row, cell.col, playerValue) }))
-        .filter((move) => Array.isArray(move.flips) && move.flips.length > 0);
-    const getCornerCells = (board: any): CpuPolicyPosition[] => {
-        const bounds = resolveBounds(board);
-        return [
-            { row: bounds.minRow, col: bounds.minCol },
-            { row: bounds.minRow, col: bounds.maxCol },
-            { row: bounds.maxRow, col: bounds.minCol },
-            { row: bounds.maxRow, col: bounds.maxCol }
-        ].filter((cell) => hasPlayableCell(board, cell.row, cell.col));
-    };
-    const isCorner = (row: number, col: number, board: any): boolean => getCornerCells(board)
-        .some((cell) => cell.row === row && cell.col === col);
-    const isEdge = (row: number, col: number, board: any): boolean => {
-        if (!hasPlayableCell(board, row, col)) return false;
-        const bounds = resolveBounds(board);
-        return row === bounds.minRow || row === bounds.maxRow || col === bounds.minCol || col === bounds.maxCol;
-    };
-    const getCornerProximity = (row: number, col: number, board: any): any => {
-        const corners = getCornerCells(board);
-        const corner = corners.find((cell) => Math.abs(cell.row - row) <= 1 && Math.abs(cell.col - col) <= 1);
-        return corner ? { corner: [corner.row, corner.col] } : null;
-    };
+    const cornerUtils = createBoardCorners({
+        toBoardCellKey: keyOf,
+        getBoardShapeMeta: readShape,
+        collectBoardCoordinates: readCoordinates,
+        hasPlayableCell,
+        resolveBoardBounds: resolveBounds
+    });
+    const riskUtils = createRiskCells({
+        toBoardCellKey: keyOf,
+        getBoardShapeMeta: readShape,
+        collectBoardCoordinates: readCoordinates,
+        hasPlayableCell,
+        resolveBoardBounds: resolveBounds,
+        getCornerCells: cornerUtils.getCornerCells,
+        isCornerCell: cornerUtils.isCornerCell,
+        isEdgeCell: cornerUtils.isEdgeCell
+    });
+    const edgeRuns = createEdgeRuns({
+        toBoardCellKey: keyOf,
+        normalizeOwner,
+        getCornerCells: cornerUtils.getCornerCells,
+        hasPlayableCell,
+        isCornerCell: cornerUtils.isCornerCell,
+        isEdgeCell: cornerUtils.isEdgeCell,
+        getCellValue
+    });
+    const controlCounts = createControlCounts({
+        getCellValue,
+        getCornerCells: cornerUtils.getCornerCells,
+        collectBoardCoordinates: readCoordinates,
+        isEdgeCell: cornerUtils.isEdgeCell,
+        isCornerCell: cornerUtils.isCornerCell
+    });
+    const canonicalEncoding = createCanonicalBoardEncoding({
+        resolveBoardBounds: resolveBounds,
+        collectBoardCoordinates: readCoordinates,
+        getCellValue
+    });
     return {
         cloneBoard,
         collectBoardCoordinates: readCoordinates,
-        encodeBoard: (board: any) => readCoordinates(board).map((cell) => `${cell.row},${cell.col}:${getCellValue(board, cell.row, cell.col)}`).join('|'),
+        encodeBoard: canonicalEncoding.encodeBoard,
         getCellValue,
         setCellValue,
         hasPlayableCell,
-        getFlipsBasic,
-        getLegalMovesBasic,
-        getCornerCells,
-        getCornerProximity,
-        isCorner,
-        isEdge
+        getFlipsBasic: othelloPrimitives.getFlipsBasic,
+        getLegalMovesBasic: othelloPrimitives.getLegalMovesBasic,
+        getCornerCells: cornerUtils.getCornerCells,
+        getCornerProximity: riskUtils.getCornerProximity,
+        isCorner: cornerUtils.isCornerCell,
+        isEdge: cornerUtils.isEdgeCell,
+        isXSquare: riskUtils.isXSquare,
+        isCSquare: riskUtils.isCSquare,
+        countCornerControl: controlCounts.countCornerControl,
+        countEdgeControl: controlCounts.countEdgeControl,
+        summarizeEdgeRuns: edgeRuns.summarizeEdgeRuns,
+        countAdjacentLoneEdgeDiscs: edgeRuns.countAdjacentLoneEdgeDiscs
     };
 }
 
 function createLookaheadRuntime() {
     const SharedBoardUtils: any = createWorkerBoardUtils();
-    const OthelloCore: any = null;
+    const OthelloCore: any = {
+        getFlipsBasic: SharedBoardUtils.getFlipsBasic,
+        getLegalMovesBasic: SharedBoardUtils.getLegalMovesBasic
+    };
     const primitives = CpuPolicyBoardPrimitivesModule.createCpuPolicyBoardPrimitives({
         SharedBoardUtils,
         OthelloCore,

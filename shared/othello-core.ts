@@ -3,7 +3,8 @@
  * @description Core Reversi game logic functions (shared across browser and headless)
  */
 
-import { Board, BoardValue, PlayerValue, CellPosition, Direction } from '../src/types';
+import { BoardValue, Direction } from '../src/types';
+import { createOthelloPrimitives } from './board/othello-primitives';
 
 const SharedConstants = require('../shared-constants');
 
@@ -16,102 +17,23 @@ const DIRECTIONS: Direction[] = (SharedConstants && SharedConstants.DIRECTIONS) 
   [1, -1],  [1, 0],  [1, 1]
 ];
 
-interface FlipResult {
-  row: number;
-  col: number;
-}
-
-interface LegalMove {
-  row: number;
-  col: number;
-  flips: FlipResult[];
-}
-
-/**
- * Get flips for a basic Reversi move (8 directions).
- */
-function getFlipsBasic(board: Board, row: number, col: number, playerValue: PlayerValue): FlipResult[] {
-  if (!Array.isArray(board) || !Array.isArray(board[row])) return [];
-  if (board[row][col] !== EMPTY) return [];
-  const out: FlipResult[] = [];
-  for (const [dr, dc] of DIRECTIONS) {
-    const temp: FlipResult[] = [];
-    let r = row + dr;
-    let c = col + dc;
-    while (
-      r >= 0 && c >= 0 &&
-      r < board.length && c < board.length &&
-      board[r][c] === -playerValue
-    ) {
-      temp.push({ row: r, col: c });
-      r += dr;
-      c += dc;
-    }
-    if (
-      temp.length > 0 &&
-      r >= 0 && c >= 0 &&
-      r < board.length && c < board.length &&
-      board[r][c] === playerValue
-    ) {
-      out.push(...temp);
-    }
-  }
-  return out;
-}
-
-/**
- * Get all legal moves for a player.
- */
-function getLegalMovesBasic(board: Board, playerValue: PlayerValue): LegalMove[] {
-  if (!Array.isArray(board)) return [];
-  const moves: LegalMove[] = [];
-  for (let row = 0; row < board.length; row++) {
-    for (let col = 0; col < board[row].length; col++) {
-      const flips = getFlipsBasic(board, row, col, playerValue);
-      if (flips.length > 0) {
-        moves.push({ row, col, flips });
-      }
-    }
-  }
-  return moves;
-}
+const { getFlipsBasic, getLegalMovesBasic } = createOthelloPrimitives({
+  empty: EMPTY,
+  directions: DIRECTIONS,
+});
 
 /**
  * Get legal moves for a player (alias for getLegalMovesBasic).
  */
-function getLegalMovesForPlayer(board: Board, playerValue: PlayerValue): LegalMove[] {
+function getLegalMovesForPlayer(board: number[][], playerValue: number) {
   return getLegalMovesBasic(board, playerValue);
 }
 
 /**
  * Check if a move is valid.
  */
-function isValidMove(board: Board, row: number, col: number, playerValue: PlayerValue): boolean {
-  if (!Array.isArray(board) || !Array.isArray(board[row])) return false;
-  if (board[row][col] !== EMPTY) return false;
-  for (const [dr, dc] of DIRECTIONS) {
-    let r = row + dr;
-    let c = col + dc;
-    let hasOpponent = false;
-    while (
-      r >= 0 && c >= 0 &&
-      r < board.length && c < board.length &&
-      board[r][c] === -playerValue
-    ) {
-      hasOpponent = true;
-      r += dr;
-      c += dc;
-    }
-    if (
-      hasOpponent &&
-      r >= 0 && c >= 0 &&
-      r < board.length && c < board.length &&
-      board[r][c] === playerValue
-    ) {
-      return true;
-    }
-  }
-  return false;
+function isValidMove(board: number[][], row: number, col: number, playerValue: number): boolean {
+  return getFlipsBasic(board, row, col, playerValue).length > 0;
 }
 
 export {
