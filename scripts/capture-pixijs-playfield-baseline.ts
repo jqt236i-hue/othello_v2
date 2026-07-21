@@ -117,15 +117,34 @@ const DEFAULT_SKIN = Object.freeze({
 const SPECIAL_VISUAL_MARKERS = Object.freeze([
   Object.freeze({
     id: 'baseline-hyperactive', kind: 'specialStone', row: 1, col: 1, owner: 'black',
-    data: Object.freeze({ type: 'HYPERACTIVE', remainingOwnerTurns: 12, flipEvadeRemaining: 2, regenRemaining: 3 })
+    data: Object.freeze({
+      type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 12,
+      flipEvadeRemaining: 2, destroyEvadeRemaining: 3
+    })
   }),
   Object.freeze({
     id: 'baseline-guard', kind: 'specialStone', row: 1, col: 2, owner: 'white',
     data: Object.freeze({ type: 'GUARD', remainingOwnerTurns: 4 })
   }),
   Object.freeze({
+    id: 'baseline-regen', kind: 'specialStone', row: 1, col: 3, owner: 'black',
+    data: Object.freeze({ type: 'REGEN', regenRemaining: 3 })
+  }),
+  Object.freeze({
+    id: 'baseline-zombie', kind: 'specialStone', row: 1, col: 4, owner: 'white',
+    data: Object.freeze({ type: 'ZOMBIE', turnsUntilInfection: 3, regenRemaining: 1 })
+  }),
+  Object.freeze({
+    id: 'baseline-time-stop', kind: 'specialStone', row: 2, col: 1, owner: 'white',
+    data: Object.freeze({ type: 'TIME_STOP', remainingOwnerTurns: 4 })
+  }),
+  Object.freeze({
     id: 'baseline-bomb', kind: 'bomb', row: 2, col: 2, owner: 'black',
     data: Object.freeze({ type: 'BOMB', remainingTurns: 10 })
+  }),
+  Object.freeze({
+    id: 'baseline-poison', kind: 'specialStone', row: 2, col: 3, owner: 'black',
+    data: Object.freeze({ type: 'POISONED', remainingTurns: 5 })
   }),
   Object.freeze({
     id: 'baseline-seed', kind: 'specialStone', row: 4, col: 4, owner: 'white',

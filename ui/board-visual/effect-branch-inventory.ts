@@ -542,7 +542,7 @@ export const PHASE7_EFFECT_BRANCH_INVENTORY = Object.freeze([
     route: 'board-local',
     finalPixelWriter: 'pixi',
     renderers: ['ui/pixi/board-scene.ts#createPixiBoardScene'],
-    unitFixture: 'test/ui.pixi-board-scene.test.ts#guard and protection marker fixture',
+    unitFixture: 'test/ui.pixi-board-scene.test.ts#renders canonical countdown, protection, regen, evasion, and poison marker shapes in fixed slots',
     browserAssertion: staticBrowserFixture('presentation-special-timer-badge'),
     noAnimationAssertion: 'test/ui.pixi-board-scene.test.ts#static marker digest is NOANIM invariant',
     cornerEdgeAssertion: localEdge('status')
@@ -558,7 +558,7 @@ export const PHASE7_EFFECT_BRANCH_INVENTORY = Object.freeze([
     route: 'board-local',
     finalPixelWriter: 'pixi',
     renderers: ['ui/pixi/board-scene.ts#createPixiBoardScene'],
-    unitFixture: 'test/ui.pixi-board-scene.test.ts#regen and zombie badge fixture',
+    unitFixture: 'test/ui.pixi-board-scene.test.ts#renders canonical countdown, protection, regen, evasion, and poison marker shapes in fixed slots',
     browserAssertion: staticBrowserFixture('presentation-special-timer-badge'),
     noAnimationAssertion: 'test/ui.pixi-board-scene.test.ts#static badge digest is NOANIM invariant',
     cornerEdgeAssertion: localEdge('status')
@@ -574,8 +574,8 @@ export const PHASE7_EFFECT_BRANCH_INVENTORY = Object.freeze([
     route: 'board-local',
     finalPixelWriter: 'pixi',
     renderers: ['ui/pixi/board-scene.ts#createPixiBoardScene'],
-    unitFixture: 'test/ui.pixi-board-scene.test.ts#poison and observer marker fixture',
-    browserAssertion: 'test/e2e/card_effects.e2e.test.ts#毒殺の意志は空きマスと既存石を対象に使用ボタンから選択へ進める',
+    unitFixture: 'test/ui.pixi-board-scene.test.ts#renders canonical countdown, protection, regen, evasion, and poison marker shapes in fixed slots',
+    browserAssertion: staticBrowserFixture('presentation-special-timer-badge'),
     noAnimationAssertion: 'test/ui.pixi-board-scene.test.ts#static cell marker digest is NOANIM invariant',
     cornerEdgeAssertion: localEdge('status')
   }),

@@ -29,8 +29,13 @@ interface StoneStatusSnapshotApi {
   createSpecialStoneStatusSnapshot?: (
     input: Readonly<Record<string, unknown>>,
     options: Readonly<Record<string, unknown>>
-  ) => Readonly<{ hasFlipProtection?: boolean }> | null;
+  ) => Readonly<{
+    hasFlipProtection?: boolean;
+    timerClass?: string;
+  }> | null;
 }
+
+type StoneStatusSnapshot = NonNullable<ReturnType<NonNullable<StoneStatusSnapshotApi['createSpecialStoneStatusSnapshot']>>>;
 
 const StoneStatusSnapshot = StoneStatusSnapshotModule as unknown as StoneStatusSnapshotApi;
 
@@ -125,7 +130,9 @@ function markerSpecialType(markers: readonly BoardMarkerVisual[]): string | null
 
 function collectStoneStatusLabels(
   status: Readonly<Record<string, unknown>>,
-  markers: readonly BoardMarkerVisual[]
+  markers: readonly BoardMarkerVisual[],
+  specialType: string | null,
+  snapshot: StoneStatusSnapshot | null
 ): Array<{ kind: string; value: string }> {
   const labels: Array<{ kind: string; value: string }> = [];
   const add = (kind: string, value: string) => {
@@ -136,10 +143,33 @@ function collectStoneStatusLabels(
     if (!(Number(value) > 0)) return;
     add(kind, value);
   };
-  add('special', finiteStatusLabel(status, ['remainingOwnerTurns', 'remainingTurns']));
   const specialMarker = markers.find((marker) => marker.kind === 'special');
+  const normalizedSpecialType = String(specialType || '').trim().toUpperCase();
+  const specialTimerValue = finiteStatusLabel(status, [
+    'remainingOwnerTurns',
+    'remainingTurns',
+    'turnsUntilInfection'
+  ]) || finiteStatusLabel(specialMarker?.data || {}, [
+    'remainingOwnerTurns',
+    'remainingTurns',
+    'turnsUntilInfection'
+  ]);
+  const timerMarkerKindByType: Readonly<Record<string, string>> = Object.freeze({
+    GUARD: 'guard',
+    TIME_BOMB: 'bomb',
+    BOMB: 'bomb',
+    FREEZE: 'frozen',
+    POISONED: 'poisoned',
+    BREEDING: 'breeding-sprout'
+  });
+  const dedicatedMarkerKind = timerMarkerKindByType[normalizedSpecialType];
+  const timerOwnedByDedicatedMarker = !!dedicatedMarkerKind
+    && !specialMarker
+    && markers.some((marker) => marker.kind === dedicatedMarkerKind);
+  if (normalizedSpecialType !== 'REGEN' && !timerOwnedByDedicatedMarker) {
+    add(snapshot?.timerClass === 'countdown-timer' ? 'countdown' : 'special', specialTimerValue);
+  }
   if (specialMarker) {
-    add('special', finiteStatusLabel(specialMarker.data || {}, ['remainingOwnerTurns', 'remainingTurns']));
     addPositive('regen', finiteStatusLabel(specialMarker.data || {}, ['regenRemaining']));
     addPositive('flip-evade', finiteStatusLabel(specialMarker.data || {}, ['flipEvadeRemaining']));
     addPositive('destroy-evade', finiteStatusLabel(specialMarker.data || {}, ['destroyEvadeRemaining']));
@@ -167,32 +197,40 @@ function collectStoneStatusLabels(
       'count'
     ]));
   }
-  if (!labels.some((entry) => entry.kind === 'special')) {
+  if (!labels.some((entry) => (
+    entry.kind === 'special'
+    || entry.kind === 'countdown'
+    || entry.kind === 'bomb'
+    || entry.kind === 'guard'
+    || entry.kind === 'freeze'
+    || entry.kind === 'poison'
+    || entry.kind === 'breeding'
+  ))) {
     add('countdown', finiteStatusLabel(status, ['countdown', 'timer', 'count']));
   }
   return labels;
 }
 
-function hasFlipProtectionBadge(
+function createStoneStatusSnapshot(
   specialType: string | null,
   status: Readonly<Record<string, unknown>>,
   markers: readonly BoardMarkerVisual[]
-): boolean {
+): StoneStatusSnapshot | null {
   if (!specialType || typeof StoneStatusSnapshot?.createSpecialStoneStatusSnapshot !== 'function') {
-    return false;
+    return null;
   }
   const nestedSpecial = status.special && typeof status.special === 'object'
     ? status.special as Readonly<Record<string, unknown>>
     : {};
   const specialMarker = markers.find((marker) => marker.kind === 'special');
   const markerData = specialMarker?.data || {};
-  const snapshot = StoneStatusSnapshot.createSpecialStoneStatusSnapshot({
+  return StoneStatusSnapshot.createSpecialStoneStatusSnapshot({
+    ...status,
     ...markerData,
     ...nestedSpecial,
     type: specialType,
     hasGuard: specialType === 'GUARD' || markers.some((marker) => marker.kind === 'guard')
   }, { mode: 'raw' });
-  return snapshot?.hasFlipProtection === true;
 }
 
 function statusLabelPosition(kind: string, cellSize: number): Readonly<{ x: number; y: number }> {
@@ -200,13 +238,13 @@ function statusLabelPosition(kind: string, cellSize: number): Readonly<{ x: numb
     special: [0.5, 0.82],
     regen: [0.14, 0.5],
     'flip-evade': [0.86, 0.14],
-    'destroy-evade': [0.86, 0.5],
+    'destroy-evade': [0.14, 0.86],
     bomb: [0.5, 0.86],
     guard: [0.5, 0.1],
     freeze: [0.23, 0.23],
-    poison: [0.86, 0.5],
+    poison: [0.14, 0.14],
     breeding: [0.14, 0.5],
-    countdown: [0.5, 0.5]
+    countdown: [0.5, 0.86]
   });
   const ratio = ratios[kind] || [0.5, 0.5];
   return Object.freeze({ x: cellSize * ratio[0], y: cellSize * ratio[1] });
@@ -437,6 +475,9 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       });
     }
 
+    const status = stone?.status || {};
+    const stoneStatusSnapshot = createStoneStatusSnapshot(specialType, status, stoneMarkers);
+
     if (specialBadge) specialBadge.visible = false;
     if (specialType && stone) {
       const normalizedType = specialType.trim().toUpperCase();
@@ -476,12 +517,6 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
           color: '#b71c16', alpha: 0.92, width: Math.max(1, cellSize * 0.03)
         });
         showSpecialBadge('⚠', center, center, '#ff9d22', 0.86);
-      } else if (normalizedType === 'GUARD') {
-        drawPixiCircle(specialRing, cellSize * 0.5, cellSize * 0.1, cellSize * 0.14, {
-          color: '#244f8a', alpha: 0.94
-        }, {
-          color: '#a8d4ff', alpha: 0.72, width: Math.max(1, cellSize * 0.018)
-        });
       } else if (normalizedType === 'ULTIMATE_REVERSE_DRAGON') {
         drawPixiCircle(specialRing, center, center, radius * 0.98, {
           color: '#f6ffff', alpha: owner === 'white' ? 0.82 : 0.08
@@ -499,8 +534,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       }
     }
 
-    const status = stone?.status || {};
-    flipProtectionBadgeVisible = !!stone && hasFlipProtectionBadge(specialType, status, stoneMarkers);
+    flipProtectionBadgeVisible = !!stone && stoneStatusSnapshot?.hasFlipProtection === true;
     if (flipProtectionBadge) {
       flipProtectionBadge.visible = flipProtectionBadgeVisible;
       if (flipProtectionBadgeVisible) {
@@ -552,7 +586,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
         setPixiPosition(flipProtectionBadge, badgeX, badgeY);
       }
     }
-    statusLabels = collectStoneStatusLabels(status, stoneMarkers);
+    statusLabels = collectStoneStatusLabels(status, stoneMarkers, specialType, stoneStatusSnapshot);
     timerLabel = statusLabels.find((entry) => (
       entry.kind === 'special' || entry.kind === 'countdown' || entry.kind === 'bomb' || entry.kind === 'guard'
     ))?.value || '';
@@ -566,13 +600,14 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     for (const statusLabel of statusLabels) {
       const labelPosition = statusLabel.kind === 'special'
         ? Object.freeze({ x: center, y: discOrigin + discSize - (8 * stageScale) })
-        : statusLabel.kind === 'bomb'
+        : statusLabel.kind === 'bomb' || statusLabel.kind === 'countdown'
           ? Object.freeze({ x: center, y: discOrigin + discSize - (5 * stageScale) })
           : statusLabel.kind === 'guard'
             ? Object.freeze({ x: center, y: discOrigin + (4 * stageScale) })
             : statusLabelPosition(statusLabel.kind, cellSize);
+      const isDoubleDigit = statusLabel.value.length >= 2;
       if (statusLabel.kind === 'special') {
-        const width = (statusLabel.value.length >= 2 ? 24 : 18) * fixedUiScale;
+        const width = (isDoubleDigit ? 24 : 18) * fixedUiScale;
         const height = 14 * fixedUiScale;
         drawPixiRect(
           specialRing,
@@ -595,17 +630,51 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
           3 * fixedUiScale
         );
       } else if (statusLabel.kind === 'guard') {
-        // The shield background is drawn with the guard overlay above.
-      } else if (statusLabel.kind === 'bomb') {
-        const size = 20 * fixedUiScale;
+        const width = (isDoubleDigit ? 22 : 18) * fixedUiScale;
+        const height = 18 * fixedUiScale;
         drawPixiPolygon(specialRing, Object.freeze([
-          Object.freeze({ x: labelPosition.x, y: labelPosition.y - size / 2 }),
-          Object.freeze({ x: labelPosition.x + size / 2, y: labelPosition.y + size / 2 }),
-          Object.freeze({ x: labelPosition.x - size / 2, y: labelPosition.y + size / 2 })
+          Object.freeze({ x: labelPosition.x, y: labelPosition.y - height / 2 }),
+          Object.freeze({ x: labelPosition.x + width / 2, y: labelPosition.y - height * 0.26 }),
+          Object.freeze({ x: labelPosition.x + width * 0.34, y: labelPosition.y + height / 2 }),
+          Object.freeze({ x: labelPosition.x - width * 0.34, y: labelPosition.y + height / 2 }),
+          Object.freeze({ x: labelPosition.x - width / 2, y: labelPosition.y - height * 0.26 })
+        ]), {
+          color: '#244f8a', alpha: 0.94
+        }, {
+          color: '#a8d4ff', alpha: 0.72, width: Math.max(1, stageScale) * cellScale
+        });
+      } else if (statusLabel.kind === 'bomb' || statusLabel.kind === 'countdown') {
+        const width = (isDoubleDigit ? 24 : 20) * fixedUiScale;
+        const height = 20 * fixedUiScale;
+        drawPixiPolygon(specialRing, Object.freeze([
+          Object.freeze({ x: labelPosition.x, y: labelPosition.y - height / 2 }),
+          Object.freeze({ x: labelPosition.x + width / 2, y: labelPosition.y + height / 2 }),
+          Object.freeze({ x: labelPosition.x - width / 2, y: labelPosition.y + height / 2 })
         ]), {
           color: '#ac1c1c', alpha: 0.88
         }, {
           color: '#ffb8b8', alpha: 0.72, width: Math.max(1, stageScale) * cellScale
+        });
+      } else if (statusLabel.kind === 'regen') {
+        const width = (isDoubleDigit ? 24 : 20) * fixedUiScale;
+        const height = 20 * fixedUiScale;
+        const heartColor = normalizedSpecialType === 'ZOMBIE' ? '#8739d6' : '#ff3f98';
+        const heartOutline = normalizedSpecialType === 'ZOMBIE' ? '#e8d3ff' : '#ffd2e8';
+        drawPixiPolygon(specialRing, Object.freeze([
+          Object.freeze({ x: labelPosition.x, y: labelPosition.y + height * 0.47 }),
+          Object.freeze({ x: labelPosition.x - width * 0.46, y: labelPosition.y + height * 0.02 }),
+          Object.freeze({ x: labelPosition.x - width * 0.43, y: labelPosition.y - height * 0.26 }),
+          Object.freeze({ x: labelPosition.x - width * 0.26, y: labelPosition.y - height * 0.43 }),
+          Object.freeze({ x: labelPosition.x - width * 0.08, y: labelPosition.y - height * 0.39 }),
+          Object.freeze({ x: labelPosition.x, y: labelPosition.y - height * 0.22 }),
+          Object.freeze({ x: labelPosition.x + width * 0.08, y: labelPosition.y - height * 0.39 }),
+          Object.freeze({ x: labelPosition.x + width * 0.26, y: labelPosition.y - height * 0.43 }),
+          Object.freeze({ x: labelPosition.x + width * 0.43, y: labelPosition.y - height * 0.26 }),
+          Object.freeze({ x: labelPosition.x + width * 0.46, y: labelPosition.y + height * 0.02 })
+        ]), {
+          color: heartColor, alpha: 0.96
+        }, {
+          color: heartOutline, alpha: 0.9, width: Math.max(1, stageScale) * cellScale
         });
       } else if (statusLabel.kind === 'freeze') {
         drawPixiCircle(specialRing, labelPosition.x, labelPosition.y, cellSize * 0.14, {
@@ -614,10 +683,37 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
           color: '#cbf0ff', alpha: 0.75, width: Math.max(1, cellSize * 0.018)
         });
       } else if (statusLabel.kind === 'flip-evade') {
-        drawPixiCircle(specialRing, labelPosition.x, labelPosition.y, cellSize * 0.13, {
+        const width = (isDoubleDigit ? 22 : 16) * fixedUiScale;
+        const height = 16 * fixedUiScale;
+        drawPixiEllipse(specialRing, labelPosition.x, labelPosition.y, width / 2, height / 2, {
           color: '#5e3a86', alpha: 0.9
         }, {
           color: '#e2c8ff', alpha: 0.72, width: Math.max(1, cellSize * 0.018)
+        });
+      } else if (statusLabel.kind === 'destroy-evade') {
+        const width = (isDoubleDigit ? 24 : 18) * fixedUiScale;
+        const height = 16 * fixedUiScale;
+        drawPixiPolygon(specialRing, Object.freeze([
+          Object.freeze({ x: labelPosition.x, y: labelPosition.y - height / 2 }),
+          Object.freeze({ x: labelPosition.x + width / 2, y: labelPosition.y }),
+          Object.freeze({ x: labelPosition.x, y: labelPosition.y + height / 2 }),
+          Object.freeze({ x: labelPosition.x - width / 2, y: labelPosition.y })
+        ]), {
+          color: '#972828', alpha: 0.9
+        }, {
+          color: '#ffd3d3', alpha: 0.75, width: Math.max(1, stageScale) * cellScale
+        });
+      } else if (statusLabel.kind === 'poison') {
+        const width = (isDoubleDigit ? 22 : 18) * fixedUiScale;
+        const height = 17 * fixedUiScale;
+        drawPixiPolygon(specialRing, Object.freeze([
+          Object.freeze({ x: labelPosition.x, y: labelPosition.y - height / 2 }),
+          Object.freeze({ x: labelPosition.x + width / 2, y: labelPosition.y + height / 2 }),
+          Object.freeze({ x: labelPosition.x - width / 2, y: labelPosition.y + height / 2 })
+        ]), {
+          color: '#6b2b91', alpha: 0.9
+        }, {
+          color: '#e2c8ff', alpha: 0.74, width: Math.max(1, stageScale) * cellScale
         });
       }
       const text = createPixiText(
@@ -627,18 +723,42 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
         toPixiTextStyle(context.theme.timer, cellSize, statusLabel.value)
       );
       if (!text) continue;
-      if (statusLabel.kind === 'special' || statusLabel.kind === 'bomb' || statusLabel.kind === 'guard') {
+      if (
+        statusLabel.kind === 'special'
+        || statusLabel.kind === 'bomb'
+        || statusLabel.kind === 'countdown'
+        || statusLabel.kind === 'guard'
+        || statusLabel.kind === 'regen'
+        || statusLabel.kind === 'flip-evade'
+        || statusLabel.kind === 'destroy-evade'
+        || statusLabel.kind === 'poison'
+      ) {
         text.style = {
           ...text.style,
-          fontSize: (statusLabel.kind === 'special' ? 11 : 10) * fixedUiScale,
-          lineHeight: (statusLabel.kind === 'special' ? 11 : 10) * fixedUiScale
+          fill: '#ffffff',
+          fontSize: (
+            statusLabel.kind === 'special'
+              ? (isDoubleDigit ? 9 : 11)
+              : (isDoubleDigit ? 8 : 10)
+          ) * fixedUiScale,
+          lineHeight: (
+            statusLabel.kind === 'special'
+              ? (isDoubleDigit ? 9 : 11)
+              : (isDoubleDigit ? 8 : 10)
+          ) * fixedUiScale
         };
       }
       setPixiAnchor(text, 0.5);
       setPixiPosition(
         text,
         labelPosition.x,
-        labelPosition.y + (statusLabel.kind === 'bomb' ? fixedUiScale * 1.2 : 0)
+        labelPosition.y + (
+          statusLabel.kind === 'bomb'
+          || statusLabel.kind === 'countdown'
+          || statusLabel.kind === 'poison'
+            ? fixedUiScale * 1.2
+            : 0
+        )
       );
       addPixiChild(statusLabelsRoot, text);
     }

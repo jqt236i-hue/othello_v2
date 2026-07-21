@@ -419,7 +419,7 @@ describe('Pixi static retained views', () => {
       timerLabel: '10',
       badgeLabel: '2',
       statusLabels: [
-        { kind: 'special', value: '10' },
+        { kind: 'countdown', value: '10' },
         { kind: 'regen', value: '2' },
         { kind: 'guard', value: '4' }
       ],
@@ -575,7 +575,7 @@ describe('Pixi static retained views', () => {
     stoneView.update(cell, viewContext());
 
     expect(stoneView.getDiagnostics().statusLabels).toEqual([
-      { kind: 'special', value: '12' },
+      { kind: 'countdown', value: '12' },
       { kind: 'regen', value: '11' },
       { kind: 'flip-evade', value: '10' },
       { kind: 'destroy-evade', value: '9' },
@@ -587,7 +587,7 @@ describe('Pixi static retained views', () => {
     expect(stoneView.root.children.find((child: any) => (
       child.label === 'pixi-stone-status-labels'
     )).children.map((child: any) => child.label)).toEqual([
-      'pixi-stone-status:special',
+      'pixi-stone-status:countdown',
       'pixi-stone-status:regen',
       'pixi-stone-status:flip-evade',
       'pixi-stone-status:destroy-evade',
@@ -596,6 +596,100 @@ describe('Pixi static retained views', () => {
       'pixi-stone-status:poison',
       'pixi-stone-status:breeding'
     ]);
+  });
+
+  test('renders canonical countdown, protection, regen, evasion, and poison marker shapes in fixed slots', () => {
+    const fixture = createFakeRuntime();
+    const stoneView = StoneView.createPixiStoneView(fixture.runtime);
+    let revision = 0;
+    const update = (cell: ReturnType<typeof materializedCell>) => {
+      revision += 1;
+      stoneView.update(cell, viewContext({ stoneRevisionSignature: `marker-contract:${revision}` }));
+    };
+    const statusText = (kind: string) => stoneView.root.children.find((child: any) => (
+      child.label === 'pixi-stone-status-labels'
+    )).children.find((child: any) => child.label === `pixi-stone-status:${kind}`);
+    const fillColors = () => (stoneView.root.children.find((child: any) => (
+      child.label === 'pixi-stone-special-ring'
+    )) as FakeGraphics).commands
+      .filter((command) => command.op === 'fill')
+      .map((command) => command.style?.color);
+
+    update(materializedCell(makeCell('1,1', {
+      stone: { owner: 'black', value: 1, specialType: 'REGEN', status: { regenRemaining: 3 } },
+      markers: [{
+        kind: 'special', owner: 'black', value: null, data: { type: 'REGEN', regenRemaining: 3 }
+      }]
+    })));
+    expect(stoneView.getDiagnostics().statusLabels).toEqual([{ kind: 'regen', value: '3' }]);
+    expect(statusText('regen').position.x).toBeCloseTo(4.48);
+    expect(statusText('regen').position.y).toBeCloseTo(16);
+    expect(fillColors()).toContain('#ff3f98');
+
+    update(materializedCell(makeCell('1,2', {
+      stone: {
+        owner: 'white', value: -1, specialType: 'ZOMBIE',
+        status: { remainingOwnerTurns: 3, regenRemaining: 1 }
+      },
+      markers: [{
+        kind: 'special', owner: 'white', value: null,
+        data: { type: 'ZOMBIE', remainingOwnerTurns: 3, regenRemaining: 1 }
+      }]
+    })));
+    expect(stoneView.getDiagnostics().statusLabels).toEqual([
+      { kind: 'countdown', value: '3' },
+      { kind: 'regen', value: '1' }
+    ]);
+    expect(statusText('countdown').position).toMatchObject({ x: 17, y: 27.2 });
+    expect(fillColors()).toEqual(expect.arrayContaining(['#ac1c1c', '#8739d6']));
+
+    update(materializedCell(makeCell('1,3', {
+      stone: { owner: 'black', value: 1, specialType: 'TIME_STOP', status: { remainingOwnerTurns: 12 } },
+      markers: [{
+        kind: 'special', owner: 'black', value: null, data: { type: 'TIME_STOP', remainingOwnerTurns: 12 }
+      }]
+    })));
+    expect(stoneView.getDiagnostics().statusLabels).toEqual([{ kind: 'countdown', value: '12' }]);
+    expect(fillColors()).toContain('#ac1c1c');
+
+    update(materializedCell(makeCell('2,1', {
+      stone: {
+        owner: 'black', value: 1, specialType: 'AFTERIMAGE_WILL',
+        status: { remainingOwnerTurns: 6, flipEvadeRemaining: 10, destroyEvadeRemaining: 9 }
+      },
+      markers: [{
+        kind: 'special', owner: 'black', value: null,
+        data: {
+          type: 'AFTERIMAGE_WILL', remainingOwnerTurns: 6,
+          flipEvadeRemaining: 10, destroyEvadeRemaining: 9
+        }
+      }]
+    })));
+    expect(statusText('flip-evade').position.x).toBeCloseTo(27.52);
+    expect(statusText('flip-evade').position.y).toBeCloseTo(4.48);
+    expect(statusText('destroy-evade').position.x).toBeCloseTo(4.48);
+    expect(statusText('destroy-evade').position.y).toBeCloseTo(27.52);
+    expect(fillColors()).toEqual(expect.arrayContaining(['#5e3a86', '#972828']));
+
+    update(materializedCell(makeCell('2,2', {
+      stone: { owner: 'white', value: -1, specialType: 'GUARD', status: {} },
+      markers: [{ kind: 'guard', owner: 'white', value: null, data: { remainingOwnerTurns: 4 } }]
+    })));
+    expect(stoneView.getDiagnostics()).toMatchObject({
+      statusLabels: [{ kind: 'guard', value: '4' }],
+      flipProtectionBadgeVisible: true
+    });
+    expect(statusText('guard').position).toMatchObject({ x: 17, y: 7 });
+    expect(fillColors()).toContain('#244f8a');
+
+    update(materializedCell(makeCell('2,3', {
+      stone: { owner: 'black', value: 1, specialType: 'POISONED', status: {} },
+      markers: [{ kind: 'poisoned', owner: 'black', value: null, data: { countdown: 5 } }]
+    })));
+    expect(stoneView.getDiagnostics().statusLabels).toEqual([{ kind: 'poison', value: '5' }]);
+    expect(statusText('poison').position.x).toBeCloseTo(4.48);
+    expect(statusText('poison').position.y).toBeCloseTo(5.68);
+    expect(fillColors()).toContain('#6b2b91');
   });
 });
 

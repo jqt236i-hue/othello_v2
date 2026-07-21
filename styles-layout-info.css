@@ -3065,10 +3065,58 @@
     height: 82%;
     top: 9%;
     left: 9%;
+    position: absolute;
+    border-radius: 50%;
+    overflow: visible;
+    z-index: 10;
 }
 
 .rules-help-counter-demo .disc::before {
     opacity: 1;
+}
+
+.rules-help-counter-demo .disc__face {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--disc-base-fallback-color, #141414);
+    box-shadow:
+        0 calc(3px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.52),
+        inset 0 0 0 var(--layout-size-border-thin) rgba(255, 255, 255, 0.18);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.rules-help-counter-demo .disc__base-image,
+.rules-help-counter-demo .disc__overlay-image {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
+    pointer-events: none;
+}
+
+.rules-help-counter-demo .disc__base-image {
+    z-index: 1;
+    opacity: 1;
+    background-image: var(--disc-base-image, var(--stone-image, none));
+}
+
+.rules-help-counter-demo .disc__overlay-image {
+    z-index: 2;
+    opacity: 0;
+    background-image: var(--disc-overlay-image, var(--special-stone-image, none));
+}
+
+.rules-help-counter-demo .disc__hud {
+    position: absolute;
+    inset: 0;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 40;
 }
 
 #controls {

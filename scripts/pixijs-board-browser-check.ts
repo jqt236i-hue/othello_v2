@@ -48,11 +48,18 @@ const VIEWPORT_HEIGHT = 900;
 const SPECIAL_TIMER_BADGE_FIXTURE = 'presentation-special-timer-badge';
 const SPECIAL_TIMER_BADGE_EXPECTATIONS = Object.freeze({
   '1,1': Object.freeze({
-    specialType: 'HYPERACTIVE',
-    statusLabels: Object.freeze(['special:12', 'regen:3', 'flip-evade:2'])
+    specialType: 'ULTIMATE_HYPERACTIVE',
+    statusLabels: Object.freeze(['special:12', 'flip-evade:2', 'destroy-evade:3'])
   }),
   '1,2': Object.freeze({ specialType: 'GUARD', statusLabels: Object.freeze(['guard:4']) }),
+  '1,3': Object.freeze({ specialType: 'REGEN', statusLabels: Object.freeze(['regen:3']) }),
+  '1,4': Object.freeze({
+    specialType: 'ZOMBIE',
+    statusLabels: Object.freeze(['countdown:3', 'regen:1'])
+  }),
+  '2,1': Object.freeze({ specialType: 'TIME_STOP', statusLabels: Object.freeze(['countdown:4']) }),
   '2,2': Object.freeze({ specialType: 'TIME_BOMB', statusLabels: Object.freeze(['bomb:10']) }),
+  '2,3': Object.freeze({ specialType: 'POISONED', statusLabels: Object.freeze(['poison:5']) }),
   // The frozen and manifest rows pin their dedicated marker/aura branches.
   '5,5': Object.freeze({ specialType: 'FREEZE', statusLabels: Object.freeze(['freeze:3']) }),
   '6,6': Object.freeze({
