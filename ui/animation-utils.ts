@@ -273,6 +273,7 @@ function _isOwnerOnBottomSlot(playerKey: any) {
 }
 
 const HAND_WRAPPER_WIDTH = 180;
+const HAND_TRAVEL_EASING = 'cubic-bezier(0.3, 0.2, 0.7, 0.8)';
 const HAND_MOTION_SPEED_MULTIPLIER = 1.3;
 const scaleHandMotionDuration = (baseMs: number): number => Math.max(1, Math.round(baseMs / HAND_MOTION_SPEED_MULTIPLIER));
 const PLACE_HAND_SPEED_BOOST = 1.2;
@@ -491,6 +492,37 @@ function _resolveHandLayerElements() {
         handImageEl: _resolveHandImageElement(),
         heldStoneEl: (typeof heldStone !== 'undefined' && heldStone) ? heldStone : _getCachedAnimationElement('heldStone', 'heldStone')
     };
+}
+
+function _ensureHandAnimationLayerMounted(layerEl: any) {
+    if (!layerEl || !layerEl.style) return;
+    if (layerEl.style.display !== 'block') layerEl.style.display = 'block';
+}
+
+function _setHandWrapperPresentationActive(wrapperEl: any, active: boolean) {
+    if (!wrapperEl || !wrapperEl.style) return;
+    if (wrapperEl.style.display !== 'block') wrapperEl.style.display = 'block';
+    const opacity = active ? '1' : '0';
+    if (wrapperEl.style.opacity !== opacity) wrapperEl.style.opacity = opacity;
+}
+
+function _isHandWrapperPresentationActive(wrapperEl: any) {
+    return !!(wrapperEl && wrapperEl.style && wrapperEl.style.opacity === '1');
+}
+
+function _cancelElementAnimations(el: any) {
+    if (!el || typeof el.getAnimations !== 'function') return;
+    let animations: any[] = [];
+    try {
+        animations = el.getAnimations() || [];
+    } catch (e: any) {
+        return;
+    }
+    animations.forEach((animation: any) => {
+        try {
+            if (animation && typeof animation.cancel === 'function') animation.cancel();
+        } catch (e: any) { /* ignore */ }
+    });
 }
 
 function _resolveHandSelectorByOwner(playerKey: any) {
@@ -1682,9 +1714,10 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         const playerKey = handContext && handContext.ownerKey
             ? handContext.ownerKey
             : _normalizeHandOwnerKey(player);
-        // Setup Hand
-        layerEl.style.display = 'block';
-        wrapperEl.style.display = 'block';
+        // Prepare the next frame while hidden without tearing down the composited wrapper.
+        _cancelElementAnimations(wrapperEl);
+        _ensureHandAnimationLayerMounted(layerEl);
+        _setHandWrapperPresentationActive(wrapperEl, false);
         heldStoneEl.style.display = 'block';
         heldStoneEl.className = 'held-stone ' + (player === BLACK ? 'black' : 'white');
 
@@ -1717,6 +1750,7 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
 
         // Set initial state
         wrapperEl.style.transform = `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`;
+        _setHandWrapperPresentationActive(wrapperEl, true);
         let completed = false;
         const completeMove = () => {
             if (completed) return;
@@ -1724,9 +1758,9 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
             try { if (typeof onComplete === 'function') onComplete(); } catch (e: any) { /* ignore */ }
         };
         const cleanup = () => {
-            layerEl.style.display = 'none';
-            wrapperEl.style.display = 'none';
+            _setHandWrapperPresentationActive(wrapperEl, false);
             heldStoneEl.style.display = 'none';
+            _cancelElementAnimations(wrapperEl);
             _restoreDisplayedHandSkinAfterAnimation(handContext);
             if (handAnimationTimeout) {
                 _Timer().clearTimeout(handAnimationTimeout);
@@ -1745,9 +1779,10 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
                 { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
                 duration: HAND_PLACE_APPROACH_MS,
-                easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+                easing: HAND_TRAVEL_EASING,
                 fill: 'forwards'
             }, sc);
+            if (!_isHandWrapperPresentationActive(wrapperEl)) return;
 
             // 2. Place (Bobbing effect)
             const bobOffset = (player === BLACK) ? 10 : -10;
@@ -1765,6 +1800,7 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
             _playStonePlaceSoundSafe();
             completeMove();
             await placeAnim;
+            if (!_isHandWrapperPresentationActive(wrapperEl)) return;
 
             // 3. Retreat
             await _animateCompat(wrapperEl, [
@@ -1772,7 +1808,7 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
                 { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
                 duration: HAND_PLACE_RETREAT_MS,
-                easing: 'ease-in',
+                easing: HAND_TRAVEL_EASING,
                 fill: 'forwards'
             }, sc);
         })().catch(() => {
@@ -2053,7 +2089,7 @@ function playCaptureToHandAnimation(payload: any) {
         }
 
         _setCardAnimatingState(true);
-        layerEl.style.display = 'block';
+        _ensureHandAnimationLayerMounted(layerEl);
 
         const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
         let cleanupStarted = false;
@@ -2076,7 +2112,6 @@ function playCaptureToHandAnimation(payload: any) {
                 _Timer().clearTimeout(timeoutId);
                 timeoutId = null;
             }
-            layerEl.style.display = 'none';
             _setCardAnimatingState(false);
             done();
         };
@@ -2262,13 +2297,15 @@ function playDrawCardHandAnimation(payload: any) {
         const rotation = fromBottom ? 0 : 180;
         const scale = fromBottom ? 0.76 : 0.72;
 
-        layerEl.style.display = 'block';
-        wrapperEl.style.display = 'block';
+        _cancelElementAnimations(wrapperEl);
+        _ensureHandAnimationLayerMounted(layerEl);
+        _setHandWrapperPresentationActive(wrapperEl, false);
         wrapperEl.style.transform = `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`;
 
         heldCard = document.createElement('div');
         heldCard.className = `held-draw-card ${fromBottom ? 'face-up' : 'face-down'}`;
         wrapperEl.appendChild(heldCard);
+        _setHandWrapperPresentationActive(wrapperEl, true);
 
         const cleanup = () => {
             if (cleanupStarted) return;
@@ -2276,9 +2313,9 @@ function playDrawCardHandAnimation(payload: any) {
             try {
                 if (heldCard && heldCard.parentElement) heldCard.parentElement.removeChild(heldCard);
             } catch (e: any) { /* ignore */ }
-            layerEl.style.display = 'none';
-            wrapperEl.style.display = 'none';
+            _setHandWrapperPresentationActive(wrapperEl, false);
             if (heldStoneEl) heldStoneEl.style.display = 'none';
+            _cancelElementAnimations(wrapperEl);
             _restoreDisplayedHandSkinAfterAnimation(handContext);
             if (timeoutId) {
                 _Timer().clearTimeout(timeoutId);
@@ -2300,15 +2337,17 @@ function playDrawCardHandAnimation(payload: any) {
                 easing: 'ease-out',
                 fill: 'forwards'
             }, sc);
+            if (cleanupStarted || !_isHandWrapperPresentationActive(wrapperEl)) return;
 
             await _animateCompat(wrapperEl, [
                 { transform: `translate(${startX}px, ${startY + (fromBottom ? -14 : 14)}px) rotate(${rotation}deg) scale(${scale * 0.96})` },
                 { transform: `translate(${endX}px, ${endY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
                 duration: HAND_DRAW_MOVE_MS,
-                easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)',
+                easing: HAND_TRAVEL_EASING,
                 fill: 'forwards'
             }, sc);
+            if (cleanupStarted || !_isHandWrapperPresentationActive(wrapperEl)) return;
 
             // Release near hand and retreat.
             heldCard.style.display = 'none';
@@ -2318,7 +2357,7 @@ function playDrawCardHandAnimation(payload: any) {
                 { transform: `translate(${endX}px, ${retreatY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
                 duration: HAND_DRAW_RETREAT_MS,
-                easing: 'ease-in',
+                easing: HAND_TRAVEL_EASING,
                 fill: 'forwards'
             }, sc);
         })().catch(() => {
@@ -2574,7 +2613,7 @@ function playCardUseHandAnimation(payload: any) {
             ? Number(visualDescriptor.cost)
             : ((cardDef && Number.isFinite(Number(cardDef.cost))) ? Number(cardDef.cost) : null);
 
-        layerEl.style.display = 'block';
+        _ensureHandAnimationLayerMounted(layerEl);
         movingCard = _buildCardUseMovingElement(sourceCardEl, Object.assign({}, visualDescriptor, {
             cardId: visualDescriptor.cardId || null,
             name: cardName,
@@ -2610,7 +2649,6 @@ function playCardUseHandAnimation(payload: any) {
             } catch (e: any) { /* ignore */ }
             if (handImageEl) handImageEl.style.visibility = prevHandImageVisibility;
             if (heldStoneEl) heldStoneEl.style.display = prevHeldStoneDisplay;
-            layerEl.style.display = 'none';
             if (timeoutId) {
                 _Timer().clearTimeout(timeoutId);
                 timeoutId = null;

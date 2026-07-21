@@ -288,7 +288,9 @@ describe('animation-utils hand fallback', () => {
     wrapper.animate = undefined;
     const mod = require('../ui/animation-utils.js');
     await expect(mod.playDrawCardHandAnimation({ player: 'black', count: 1 })).resolves.toBeUndefined();
-    expect(document.getElementById('handLayer').style.display).toBe('none');
+    expect(document.getElementById('handLayer').style.display).toBe('block');
+    expect(wrapper.style.display).toBe('block');
+    expect(wrapper.style.opacity).toBe('0');
   });
 
   test('playDrawCardHandAnimation skips the hand layer when draw hand animation is disabled', async () => {
@@ -737,6 +739,7 @@ describe('animation-utils hand fallback', () => {
   test('playHandAnimation uses 5%-slower placement motion durations than the current baseline', async () => {
     jest.useFakeTimers();
 
+    const cancelMock = jest.fn();
     const animateMock = jest.fn(() => ({
       addEventListener: () => {},
       finished: Promise.resolve()
@@ -745,6 +748,8 @@ describe('animation-utils hand fallback', () => {
 
     const board = document.getElementById('board');
     const cell = board.querySelector('.cell[data-row="0"][data-col="0"]');
+    const wrapper = document.getElementById('handWrapper');
+    wrapper.getAnimations = jest.fn(() => [{ cancel: cancelMock }]);
     board.getBoundingClientRect = () => ({
       left: 0,
       top: 0,
@@ -763,20 +768,31 @@ describe('animation-utils hand fallback', () => {
     });
 
     const mod = require('../ui/animation-utils.js');
-    const promise = new Promise((resolve) => {
-      mod.playHandAnimation(global.BLACK, 0, 0, resolve);
-    });
+    const onComplete = jest.fn();
+    const promise = mod.playHandAnimation(global.BLACK, 0, 0, onComplete);
 
     await Promise.resolve();
-    jest.advanceTimersByTime(4000);
-    await Promise.resolve();
+    await jest.runAllTimersAsync();
     await expect(promise).resolves.toBeUndefined();
+    expect(onComplete).toHaveBeenCalledTimes(1);
 
     const transformDurations = animateMock.mock.calls
       .filter((call) => Array.isArray(call[0]) && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')))
       .map((call) => call[1].duration);
+    const transformEasings = animateMock.mock.calls
+      .filter((call) => Array.isArray(call[0]) && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')))
+      .map((call) => call[1].easing);
 
     expect(transformDurations).toEqual([208, 78, 156]);
+    expect(transformEasings).toEqual([
+      'cubic-bezier(0.3, 0.2, 0.7, 0.8)',
+      'ease-in-out',
+      'cubic-bezier(0.3, 0.2, 0.7, 0.8)'
+    ]);
+    expect(document.getElementById('handLayer').style.display).toBe('block');
+    expect(wrapper.style.display).toBe('block');
+    expect(wrapper.style.opacity).toBe('0');
+    expect(cancelMock).toHaveBeenCalledTimes(2);
   });
 
   test('playDrawCardHandAnimation uses 10%-slower draw motion durations than the current baseline', async () => {
@@ -811,15 +827,60 @@ describe('animation-utils hand fallback', () => {
     const promise = mod.playDrawCardHandAnimation({ player: 'black', count: 1 });
 
     await Promise.resolve();
-    jest.advanceTimersByTime(4000);
-    await Promise.resolve();
+    await jest.runAllTimersAsync();
     await expect(promise).resolves.toBeUndefined();
 
     const transformDurations = animateMock.mock.calls
       .filter((call) => Array.isArray(call[0]) && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')))
       .map((call) => call[1].duration);
+    const transformEasings = animateMock.mock.calls
+      .filter((call) => Array.isArray(call[0]) && call[0].every((frame) => Object.prototype.hasOwnProperty.call(frame, 'transform')))
+      .map((call) => call[1].easing);
 
     expect(transformDurations).toEqual([109, 280, 171]);
+    expect(transformEasings).toEqual([
+      'ease-out',
+      'cubic-bezier(0.3, 0.2, 0.7, 0.8)',
+      'cubic-bezier(0.3, 0.2, 0.7, 0.8)'
+    ]);
+  });
+
+  test('playDrawCardHandAnimation does not start a later phase after reset cancels the active phase', async () => {
+    jest.useFakeTimers();
+
+    const wrapper = document.getElementById('handWrapper');
+    let activeAnimation = null;
+    const animateMock = jest.fn(() => {
+      let rejectFinished;
+      const finished = new Promise((resolve, reject) => {
+        rejectFinished = reject;
+      });
+      activeAnimation = {
+        addEventListener: () => {},
+        finished,
+        cancel: jest.fn(() => {
+          activeAnimation = null;
+          rejectFinished(new Error('reset'));
+        })
+      };
+      return activeAnimation;
+    });
+    wrapper.animate = animateMock;
+    wrapper.getAnimations = jest.fn(() => activeAnimation ? [activeAnimation] : []);
+
+    const mod = require('../ui/animation-utils.js');
+    const promise = mod.playDrawCardHandAnimation({ player: 'black', count: 1 });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(animateMock).toHaveBeenCalledTimes(1);
+    wrapper.style.opacity = '0';
+    activeAnimation.cancel();
+
+    await expect(promise).resolves.toBeUndefined();
+    expect(animateMock).toHaveBeenCalledTimes(1);
+    expect(wrapper.style.opacity).toBe('0');
+    jest.clearAllTimers();
   });
 
   test('playClearHandAnimation initializes staged reveal state with zero visible cards', async () => {
@@ -937,7 +998,9 @@ describe('animation-utils hand fallback', () => {
 
     await jest.runAllTimersAsync();
     await expect(drawPromise).resolves.toBeUndefined();
-    expect(document.getElementById('handLayer').style.display).toBe('none');
+    expect(document.getElementById('handLayer').style.display).toBe('block');
+    expect(wrapper.style.display).toBe('block');
+    expect(wrapper.style.opacity).toBe('0');
   });
 
   test('playDirectHandAddAnimation uses 1 second fade for generated throw-chain hand adds', async () => {
@@ -1079,7 +1142,8 @@ describe('animation-utils hand fallback', () => {
     await jest.advanceTimersByTimeAsync(3000);
 
     await expect(promise).resolves.toBeUndefined();
-    expect(document.getElementById('handLayer').style.display).toBe('none');
+    expect(document.getElementById('handLayer').style.display).toBe('block');
+    expect(document.getElementById('handWrapper').style.opacity).toBe('0');
   });
 
   test('playCardUseHandAnimation resolves after playback scope timers are cleared', async () => {
@@ -1098,7 +1162,7 @@ describe('animation-utils hand fallback', () => {
     await jest.advanceTimersByTimeAsync(4000);
 
     await expect(promise).resolves.toBeUndefined();
-    expect(document.getElementById('handLayer').style.display).toBe('none');
+    expect(document.getElementById('handLayer').style.display).toBe('block');
   });
 
   test('playCardUseHandAnimation lifts vertically before traveling to the charge UI', async () => {

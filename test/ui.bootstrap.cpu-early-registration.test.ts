@@ -704,6 +704,8 @@ describe('UI bootstrap early CPU registration', () => {
     global.window.__handSequentialRevealState = { index: 1 };
     global.window._currentPlaybackScope = 'scope-1';
     global.window.TimerRegistry = { clearAll: jest.fn() };
+    const cancelHandAnimation = jest.fn();
+    document.getElementById('handWrapper').getAnimations = jest.fn(() => [{ cancel: cancelHandAnimation }]);
 
     const observedContexts = [];
     global.window.AnimationEngine = {
@@ -747,9 +749,11 @@ describe('UI bootstrap early CPU registration', () => {
     expect(document.getElementById('stone-info-panel').classList.contains('visible')).toBe(true);
     expect(document.getElementById('stone-info-tag-panel').classList.contains('is-open')).toBe(false);
     expect(document.querySelector('.observer-speech-bubble')).toBeNull();
-    expect(document.getElementById('handLayer').style.display).toBe('none');
-    expect(document.getElementById('handWrapper').style.display).toBe('none');
+    expect(document.getElementById('handLayer').style.display).toBe('block');
+    expect(document.getElementById('handWrapper').style.display).toBe('block');
+    expect(document.getElementById('handWrapper').style.opacity).toBe('0');
     expect(document.getElementById('handWrapper').style.transform).toBe('');
+    expect(cancelHandAnimation).toHaveBeenCalledTimes(2);
     expect(document.getElementById('handLayer').querySelector('.moving-card')).toBeNull();
     expect(document.getElementById('handWrapper').querySelector('.transient-card')).toBeNull();
     expect(document.getElementById('handImage')).not.toBeNull();

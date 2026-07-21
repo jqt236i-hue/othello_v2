@@ -2774,7 +2774,7 @@
     pointer-events: none;
     z-index: var(--layout-z-hand-animation);
     overflow: hidden;
-    display: none;
+    display: block;
 }
 
 #handWrapper {
@@ -2784,8 +2784,11 @@
     transform-origin: center bottom;
     filter: none;
     -webkit-filter: none;
-    contain: layout style;
-    will-change: transform;
+    display: block;
+    opacity: 0;
+    contain: layout style paint;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
 }
 
 .hand-inner {

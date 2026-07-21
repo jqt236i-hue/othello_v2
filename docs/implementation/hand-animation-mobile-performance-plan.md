@@ -1,42 +1,50 @@
 # 手アニメーションのモバイル性能改善 実装計画
 
-## 1. 前提
+## 1. 文書の役割
 
-設計正本は `docs/implementation/hand-animation-mobile-performance-design.md`。プレイヤー向けの時間仕様は変更せず、既存のhand-skin runtime、animation queue、card UI sync、Single Visual Writer境界を利用する。
+`docs/implementation/hand-animation-mobile-performance-design.md` を実装・検証するための実行計画である。プレイヤー向け時間仕様は変更せず、既存のhand-skin runtime、animation queue、card UI sync、Single Visual Writer境界を使う。
 
-## 2. 実装手順
+## 2. 現在のフェーズ
 
-1. 手アニメーション用actor画像の取得・生成・再利用・表示復帰を `ui/animation-utils.ts` に実装する。
-2. 配置、ドロー、カード使用の各手演出が、ローカル選択画像とactor画像の両方を正しく扱うよう既存処理を接続する。
-3. `cards/card-renderer.ts` の全UI再同期で、値が同じDOMプロパティを再代入しないよう差分更新する。
-4. 手札グロー層の署名が同じ場合、レイアウト値を読む前に終了する。
-5. `cards/card-interaction-detail-panel.ts` の詳細本文・タグ・ライブ値を、表示モデル不変時に再構築しない。
-6. actor画像の安定性、再利用、既存タイミング、disabled復帰をfocused Jestで検証する。
-7. browser bundleを再生成し、実ブラウザで黒操作＋白CPU応答を自動操作する。
-8. PerformanceObserverとMutationObserverで完了条件を再計測し、スクリーンショットを目視確認する。
-9. 最終diffとgit statusを確認し、タスク所有ファイルだけをコミットする。
+前回のactor画像再利用とカードUI差分描画は完了済み。ただしスマートフォン実機で配置・ドローの見た目のかくつきが残ったため、モーション曲線と描画レイヤー寿命を第2段階として修正する。
 
-## 3. 検証コマンド
+## 3. 実装手順
 
-- focused Jest: `npx jest test/ui.animation-utils.hand-fallback.test.ts --runInBand`
-- card UI focused test: 変更対象に最も近い既存Jestを選択し、必要なら回帰テストを追加する。
-- timing guard: `npm run test:jest:noanim -- --runTestsByPath test/ui.animation-utils.hand-fallback.test.ts`
-- browser build: `npm run build:browser`
-- browser playtest: ローカルサーバーとPlaywright/Browserを使い、通常の1往復、DOM mutation、LongTask、rAF、最終操作可否、スクリーンショットを確認する。
-- final hygiene: `git diff --check` と `git status --short`
+1. 既存仕様と実測値を設計書へ反映し、最大移動量・rAF・レイヤー終了状態を完了条件にする。
+2. `ui/animation-utils.ts` に長距離移動用の共通イージング、レイヤーmount、ラッパー表示状態、残留Animation破棄のhelperを追加する。
+3. 配置・ドローを、opacity 0で初期状態を準備してから表示し、終了時にmountを維持する経路へ変更する。
+4. capture・カード使用・UI resetも、共有レイヤーを隠さず一時要素だけを後始末するよう揃える。
+5. `styles-cards.css` と正本HTMLの `index.classic.html` を常時mount前提へ変更する。`index.html`、`index.vite.html`、Worker mirrorは生成スクリプトに任せる。
+6. focused Jestでphase時間、easing、待機opacity、Animation破棄、reset状態、disabled/no-animation経路を検証する。
+7. typecheckとbrowser/Worker生成を通し、生成物とmirrorを同期する。
+8. 実ブラウザのモバイル条件で自分・相手の配置・ドローを再計測し、最大移動量、rAF、LongTask、終了状態を確認する。
+9. 配置中・ドロー中・終了後をスクリーンショットで目視し、最終diffを自己レビューしてタスク所有ファイルだけをコミットする。
 
-## 4. 自己レビュー
+## 4. 検証コマンド
 
-- 実装前にactor画像を使う全経路を検索し、配置だけ直してドロー/カード使用を壊さない。
-- 広いrenderer変更は、値が同じ場合だけ代入を省く純粋な最適化に限定し、表示モデルやゲーム判断を変更しない。
-- mutation件数だけでなく、操作復帰、タイミング、LongTask、スクリーンショットを合わせて判定する。
-- generated bundleはroot sourceのテスト後に既存スクリプトで生成し、手編集しない。
-- 完了条件を満たせない場合は未完了として原因を再調査し、計画を更新する。
+- focused animation Jest: `npx jest --runInBand --runTestsByPath test/ui.animation-utils.hand-fallback.test.ts`
+- focused bootstrap Jest: `npx jest --runInBand --runTestsByPath test/ui.bootstrap.cpu-early-registration.test.ts`
+- no-animation guard: `npm run test:jest:noanim -- --runTestsByPath test/ui.animation-utils.hand-fallback.test.ts`
+- TypeScript: `npm run typecheck`
+- browser/Worker mirror: `npm run worker:prepare`
+- browser playtest: ローカルサーバーとPlaywrightを使い、844×390、device scale factor 3、CPU 6倍スロットルで配置・ドローを計測する。
+- final hygiene: `git diff --check`、関連diff、`git status --short`
 
-## 5. 実施結果
+## 5. 自己レビュー
 
-1. actor画像の分離・再利用と終了時のvisibility復帰を実装した。
-2. カードrenderer、詳細本文・タグ、操作ボタン、パス表示を同値代入しない差分更新へ変更した。
-3. 手札グローは署名・scroll・dirty状態が同じ場合、寸法を読む前に終了するよう変更した。
-4. focused Jest 98件、focused no-animation Jest 45件、CPUレベル差分E2E 2件、typecheck、browser/Vite buildが通過した。
-5. モバイル横画面の通常対局、単体配置演出、配置ON/OFF比較、スクリーンショットを検証し、設計書の完了条件を満たした。
+- phase時間とイベント順を変えず、移動曲線だけを共有定数へ集約する。
+- 画面全体のレイヤーに合成を強制せず、小さいラッパーだけを透明待機させる。
+- fallback/no-animation/disabled経路が不要な表示状態変更を起こさないことを維持する。
+- `fill: forwards` の最終状態を残さず、開始時にも防御的に前回分を破棄する。
+- 生成・mirrorファイルはroot sourceのfocused test後に既存スクリプトで更新する。
+- 完了条件を実測で満たさない場合は、実装済みという理由で終了せず再設計する。
+
+## 6. 実施結果
+
+1. 長距離移動を平均速度に近い対称曲線へ統一し、既存phase時間とイベント順を維持した。
+2. 手レイヤーと小さいラッパーをmountしたまま再利用し、待機中はopacity 0、演出中だけopacity 1にした。
+3. 開始前・終了後・UI reset時に残留Animationをcancelし、reset/timeout後に後続phaseを始めないガードを追加した。
+4. 配置・ドロー・capture・カード使用・UI resetの共有レイヤー寿命を揃え、phase時間、easing、終了状態、cancel異常経路の回帰テストを追加した。
+5. focused animation Jest 47件、bootstrap resetを含むfocused Jest、no-animation Jest、TypeScript typecheck、browser/Vite build、asset case、Worker runtime preload、Worker mirror検証を通した。
+6. CPU 6倍スロットルのwarm計測で、自分・相手の配置・ドロー全4経路が最大移動量30px未満、rAF最大16.8ms、LongTask 0となった。
+7. 配置中、ドロー中、終了後のスクリーンショットで、二重表示、ちらつき、残像、UI欠落がないことを確認した。

@@ -1299,12 +1299,20 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             const heldStoneEl = doc.getElementById('heldStone');
 
             if (handLayerEl) {
-                handLayerEl.style.display = 'none';
+                handLayerEl.style.display = 'block';
                 removeNonPreservedChildren(handLayerEl, [handWrapperEl]);
             }
             if (handWrapperEl) {
+                try {
+                    if (typeof handWrapperEl.getAnimations === 'function') {
+                        handWrapperEl.getAnimations().forEach((animation: any) => {
+                            try { animation.cancel(); } catch (e: any) { /* ignore */ }
+                        });
+                    }
+                } catch (e: any) { /* ignore */ }
                 handWrapperEl.style.transform = '';
-                handWrapperEl.style.display = 'none';
+                handWrapperEl.style.display = 'block';
+                handWrapperEl.style.opacity = '0';
                 removeNonPreservedChildren(handWrapperEl, [handImageEl, heldStoneEl]);
             }
             if (handImageEl) handImageEl.style.visibility = '';
