@@ -41,6 +41,28 @@ function buildImmediateOptions(randomSource: RandomSource, extra: any = {}): any
     }, extra || {});
 }
 
+function pushOwnershipChangeReactionEvents(ctx: ImmediateEffectContext, flips: any[], sourceType: string): void {
+    if (!Array.isArray(flips) || !flips.length || typeof ctx.CardLogic.applyPostFlipRevives !== 'function') return;
+    const reaction = ctx.CardLogic.applyPostFlipRevives(ctx.cardState, ctx.gameState, flips, ctx.playerKey);
+    const regenRes = reaction && reaction.regenRes;
+    const livingWillRes = reaction && reaction.livingWillRes;
+    if (regenRes && Array.isArray(regenRes.regened) && regenRes.regened.length) {
+        ctx.events.push({ type: 'regen_triggered', details: regenRes.regened });
+    }
+    if (regenRes && Array.isArray(regenRes.captureFlips) && regenRes.captureFlips.length) {
+        const firstCapture = regenRes.captureFlips[0] || {};
+        awardCharge(ctx, regenRes.captureFlips.length, {
+            targetRow: firstCapture.row,
+            targetCol: firstCapture.col,
+            sourceType: `${sourceType}_regen_capture`
+        });
+        ctx.events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
+    }
+    if (livingWillRes && Array.isArray(livingWillRes.restored) && livingWillRes.restored.length) {
+        ctx.events.push({ type: 'living_will_triggered', details: livingWillRes.restored });
+    }
+}
+
 function resolveImmediateEffects(context: ImmediateEffectContext): void {
     const ctx = (context && typeof context === 'object') ? context : ({} as ImmediateEffectContext);
     const row = Number(ctx.row);
@@ -62,6 +84,7 @@ function resolveImmediateEffects(context: ImmediateEffectContext): void {
                 sourceType: 'dragon_immediate'
             });
             ctx.events.push({ type: 'dragon_converted_immediate', details: dragonNow.converted });
+            pushOwnershipChangeReactionEvents(ctx, dragonNow.converted, 'dragon_immediate');
         }
         return;
     }

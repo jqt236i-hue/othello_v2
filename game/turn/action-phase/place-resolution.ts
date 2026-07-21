@@ -99,10 +99,27 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
     if (pendingType === 'SWAP_WITH_ENEMY') {
         const targetCell = opts.getActionCellOwner(opts.gameState, action.row, action.col);
         if (targetCell === -playerValue) {
-            const swapped = opts.CardLogic.applySwapEffect(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col);
+            const detailed = typeof opts.CardLogic.applySwapEffectDetailed === 'function'
+                ? opts.CardLogic.applySwapEffectDetailed(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col)
+                : null;
+            const swapped = detailed
+                ? detailed.swapped === true
+                : opts.CardLogic.applySwapEffect(opts.cardState, opts.gameState, opts.playerKey, action.row, action.col);
             opts.events.push({ type: 'swap_selected', player: opts.playerKey, row: action.row, col: action.col, swapped });
             if (!swapped) {
                 throw new Error('SWAP_WITH_ENEMY: invalid target (protected/bomb?)');
+            }
+            const reaction = detailed && detailed.postFlipRevives;
+            const regenRes = reaction && reaction.regenRes;
+            const livingWillRes = reaction && reaction.livingWillRes;
+            if (regenRes && Array.isArray(regenRes.regened) && regenRes.regened.length) {
+                opts.events.push({ type: 'regen_triggered', details: regenRes.regened });
+            }
+            if (regenRes && Array.isArray(regenRes.captureFlips) && regenRes.captureFlips.length) {
+                opts.events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
+            }
+            if (livingWillRes && Array.isArray(livingWillRes.restored) && livingWillRes.restored.length) {
+                opts.events.push({ type: 'living_will_triggered', details: livingWillRes.restored });
             }
             opts.applyTrapEffectsAfterSelection();
             opts.handOffTurnAfterSelection();
@@ -194,7 +211,7 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
         flipCause,
         flipReason,
         spawnMeta: Object.keys(spawnMeta).length > 0 ? spawnMeta : null,
-        flipMeta: tabooReverseApplied ? { allowGhostFlip: true } : null
+        flipMeta: tabooReverseApplied ? { allowGhostFlip: true, ownershipChangeMode: 'transfer' } : null
     });
     if (!boardPlacement || boardPlacement.spawned !== true) {
         throw new Error('Illegal move: placement spawn failed');

@@ -61,9 +61,26 @@ function resolveSwapSelection(options: TargetEffectsStageOptions): any {
         return { matched: true, result: false };
     }
     if (!target) return { matched: true, result: false };
-    const swapped = options.CardLogic.applySwapEffect(options.cardState, options.gameState, options.playerKey, target.row, target.col);
+    const detailed = typeof options.CardLogic.applySwapEffectDetailed === 'function'
+        ? options.CardLogic.applySwapEffectDetailed(options.cardState, options.gameState, options.playerKey, target.row, target.col)
+        : null;
+    const swapped = detailed
+        ? detailed.swapped === true
+        : options.CardLogic.applySwapEffect(options.cardState, options.gameState, options.playerKey, target.row, target.col);
     options.events.push({ type: 'swap_selected', player: options.playerKey, row: target.row, col: target.col, swapped });
     if (!swapped) throw new Error('SWAP_WITH_ENEMY: invalid target (protected/bomb?)');
+    const reaction = detailed && detailed.postFlipRevives;
+    const regenRes = reaction && reaction.regenRes;
+    const livingWillRes = reaction && reaction.livingWillRes;
+    if (regenRes && Array.isArray(regenRes.regened) && regenRes.regened.length) {
+        options.events.push({ type: 'regen_triggered', details: regenRes.regened });
+    }
+    if (regenRes && Array.isArray(regenRes.captureFlips) && regenRes.captureFlips.length) {
+        options.events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
+    }
+    if (livingWillRes && Array.isArray(livingWillRes.restored) && livingWillRes.restored.length) {
+        options.events.push({ type: 'living_will_triggered', details: livingWillRes.restored });
+    }
     options.applyTrapEffectsAfterSelection();
     options.handOffTurnAfterSelection();
     return { matched: true, result: true };

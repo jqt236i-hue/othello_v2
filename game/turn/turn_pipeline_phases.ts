@@ -170,6 +170,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function applyPostFlipRevives(CardLogic: any, cardState: any, gameState: any, flips: any, ownerKey: any) {
+        if (CardLogic && typeof CardLogic.applyPostFlipRevives === 'function') {
+            return CardLogic.applyPostFlipRevives(cardState, gameState, flips, ownerKey);
+        }
         const regenRes = (CardLogic && typeof CardLogic.applyRegenAfterFlips === 'function')
             ? CardLogic.applyRegenAfterFlips(cardState, gameState, flips, ownerKey)
             : { regened: [], captureFlips: [] };

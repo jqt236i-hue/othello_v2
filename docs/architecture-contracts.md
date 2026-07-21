@@ -608,6 +608,20 @@ When adding a new destroy-protected stone status:
 - cover the blocker with registry-wide tests and one focused destruction regression
 - keep cell removal, holes, movement, ownership changes, and non-destroy effects outside this protection unless the rulebook explicitly says otherwise
 
+### 10.3 Ownership-change lifecycle
+
+`shared/special-stone-registry.ts` is the source of truth for the lifecycle of stone effects when an occupied cell actually changes owner. Each marker resolves to exactly one typed policy: `revert`, `resolve_after_change`, or `preserve`.
+
+- `game/logic/board_ops.ts::changeAt` owns the atomic board-color change and removal of `revert` markers. Callers must not infer cleanup from `reason` text or maintain card-type removal lists.
+- `resolve_after_change` markers remain until the shared CardLogic post-flip reaction queue resolves them. The queue must include follow-up flips created by regen capture and Living Will restoration, preserve ordered owner/source batches, and fail loudly on a detected cycle or safety-limit breach.
+- `preserve` is for effects whose lifecycle is independent of stone owner, such as poison and board markers. It is not a generic fallback for unknown special-stone bodies.
+- Explicit ownership-transfer effects use typed `ownershipChangeMode: 'transfer'`; they then transfer marker ownership through the ownership-resolution module. `countAsFlip` is independent: Tempt uses `false`, while Taboo forced flips remain counted.
+- Internal ownership-change metadata must not leak into presentation payloads or network snapshots.
+- Card-effect modules that perform canonical ownership changes must use BoardOps. A direct `setCellValue` fallback may exist only for isolated compatibility helpers that cannot process attached markers; normal browser, headless, local-server, and Worker paths must fail closed or resolve the root BoardOps module.
+- UI, playback, and network reconciliation consume the resulting canonical state and ordered events. They must not repair stale marker ownership.
+
+When adding a new stone effect, define its ownership-change policy in the registry and cover both the ordinary change path and any explicit transfer exception with focused tests.
+
 ## 11. Root vs mirror contracts
 
 Root files are canonical.

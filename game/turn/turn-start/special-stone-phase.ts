@@ -89,6 +89,7 @@ function pushDragonTurnStartEvents(options: ProcessTurnStartSpecialStoneOptions,
             sourceType: 'dragon_turn_start'
         });
         options.events.push({ type: 'dragon_converted_start', details: res.converted });
+        ensureHyperAggregatedOwnerBucket(options.processingState.hyperAggregated, options.playerKey).push(...res.converted);
     }
     pushTurnStartDetailsEvent(options.events, 'dragon_destroyed_anchor_start', res && res.destroyed);
 }

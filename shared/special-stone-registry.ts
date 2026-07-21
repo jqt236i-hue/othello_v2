@@ -78,6 +78,8 @@
         | 'board_marker'
         | 'placement_effect';
 
+    type OwnershipChangePolicy = 'revert' | 'resolve_after_change' | 'preserve';
+
     interface SpecialStoneCardDefinition {
         cardId: string;
         cardNameJa: string;
@@ -97,6 +99,7 @@
         theorySpawnCandidate: boolean;
         normalVisual: boolean;
         blocksTempt: boolean;
+        ownershipChangePolicy: OwnershipChangePolicy;
     }
 
     const SPECIAL_STONE_TYPE_ALIASES: Readonly<TypeAliases> = Object.freeze({
@@ -471,6 +474,11 @@
         const countsAsSpecialStone = overrides.countsAsSpecialStone !== undefined
             ? overrides.countsAsSpecialStone
             : (category === 'special_stone_body' || category === 'trap' || category === 'bomb');
+        const defaultOwnershipChangePolicy: OwnershipChangePolicy = (
+            category === 'special_stone_body' || category === 'bomb'
+        )
+            ? 'revert'
+            : (category === 'trap' ? 'resolve_after_change' : 'preserve');
         return Object.freeze({
             markerType,
             category,
@@ -482,7 +490,8 @@
             durationAffectable: overrides.durationAffectable !== undefined ? overrides.durationAffectable : category === 'special_stone_body' || category === 'stone_status',
             theorySpawnCandidate: overrides.theorySpawnCandidate !== undefined ? overrides.theorySpawnCandidate : category === 'special_stone_body',
             normalVisual: overrides.normalVisual !== undefined ? overrides.normalVisual : false,
-            blocksTempt: overrides.blocksTempt === true
+            blocksTempt: overrides.blocksTempt === true,
+            ownershipChangePolicy: overrides.ownershipChangePolicy || defaultOwnershipChangePolicy
         });
     }
 
@@ -493,6 +502,13 @@
                 out[definition.markerType] = makeStoneEffectRule(definition.markerType, {});
             }
         }
+
+        out.REGEN = makeStoneEffectRule('REGEN', {
+            ownershipChangePolicy: 'resolve_after_change'
+        });
+        out.ZOMBIE = makeStoneEffectRule('ZOMBIE', {
+            ownershipChangePolicy: 'resolve_after_change'
+        });
 
         out.TRAP = makeStoneEffectRule('TRAP', {
             category: 'trap',
@@ -524,7 +540,8 @@
             lossWillRevertible: false,
             theorySpawnCandidate: false,
             normalVisual: true,
-            willHunterPriority: false
+            willHunterPriority: false,
+            ownershipChangePolicy: 'resolve_after_change'
         });
         out.POISONED = makeStoneEffectRule('POISONED', {
             category: 'stone_status',
@@ -730,6 +747,15 @@
         return !!(rule && rule.blocksTempt);
     }
 
+    function getOwnershipChangePolicy(rawType: unknown, markerData?: any): OwnershipChangePolicy {
+        const rule = getStoneEffectRule(rawType, markerData);
+        if (rule) return rule.ownershipChangePolicy;
+        const ruleClass = classifySpecialStoneRuleClass(rawType, markerData);
+        if (ruleClass === 'true_special_stone' || ruleClass === 'bomb') return 'revert';
+        if (ruleClass === 'trap') return 'resolve_after_change';
+        return 'preserve';
+    }
+
     function classifySpecialStoneRuleClass(rawType: unknown, markerData?: any): SpecialStoneRuleClass | null {
         const type = normalizeSpecialStoneType(rawType);
         const data = (markerData && typeof markerData === 'object') ? markerData : null;
@@ -870,6 +896,7 @@
         isWillHunterPriorityTarget,
         isNormalVisualStoneEffect,
         blocksTempt,
+        getOwnershipChangePolicy,
         getStoneEffectTraits,
         countsAsSpecialStone,
         isTargetableSpecialStone,

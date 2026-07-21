@@ -53,12 +53,28 @@ function settleReverseWillSelection(options: ReverseSelectionStageOptions): void
     options.applyTrapEffectsAfterSelection();
 }
 
+function pushReverseWillReactionEvents(events: any[], result: any): void {
+    const reaction = result && result.postFlipRevives;
+    const regenRes = reaction && reaction.regenRes;
+    const livingWillRes = reaction && reaction.livingWillRes;
+    if (regenRes && Array.isArray(regenRes.regened) && regenRes.regened.length) {
+        events.push({ type: 'regen_triggered', details: regenRes.regened });
+    }
+    if (regenRes && Array.isArray(regenRes.captureFlips) && regenRes.captureFlips.length) {
+        events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
+    }
+    if (livingWillRes && Array.isArray(livingWillRes.restored) && livingWillRes.restored.length) {
+        events.push({ type: 'living_will_triggered', details: livingWillRes.restored });
+    }
+}
+
 function resolveReverseWillSelection(options: ReverseSelectionStageOptions): any {
     const target = validateReverseWillSelection(options);
     if (!target) return null;
 
     const result = applyReverseWillSelectionMutation(options, target);
     options.events.push(buildReverseWillSelectedEvent(options.playerKey, target, result));
+    pushReverseWillReactionEvents(options.events, result);
     settleReverseWillSelection(options);
     return true;
 }

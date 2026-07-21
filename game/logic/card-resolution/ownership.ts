@@ -133,7 +133,16 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
     }
 
     if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
-        BoardOpsModule.changeAt(cardState, gameState, row, col, playerKey, 'TEMPT_WILL', 'tempt_applied');
+        BoardOpsModule.changeAt(
+            cardState,
+            gameState,
+            row,
+            col,
+            playerKey,
+            'TEMPT_WILL',
+            'tempt_applied',
+            { ownershipChangeMode: 'transfer', countAsFlip: false }
+        );
     } else if (typeof setCellValueForCard === 'function') {
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         setCellValueForCard(gameState, row, col, playerVal);

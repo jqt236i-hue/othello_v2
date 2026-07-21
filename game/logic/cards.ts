@@ -3484,6 +3484,18 @@ const {
                 anchorCol: targetCell.col
             });
         }
+        const postFlipRevives = appliedFlips.length > 0
+            ? applyPostFlipRevives(cardState, gameState, appliedFlips, reverse.ownerKey)
+            : { regenRes: { regened: [], captureFlips: [] }, livingWillRes: { restored: [] }, batches: [] };
+        if (postFlipRevives.regenRes.captureFlips.length) {
+            const firstCapture = postFlipRevives.regenRes.captureFlips[0] || {};
+            addChargeWithTotal(cardState, reverse.ownerKey, postFlipRevives.regenRes.captureFlips.length, {
+                popupKind: 'board',
+                sourceType: 'reverse_will_regen_capture',
+                anchorRow: firstCapture.row,
+                anchorCol: firstCapture.col
+            });
+        }
         clearCardPendingEffect(cardState, playerKey);
         return {
             applied: true,
@@ -3493,7 +3505,8 @@ const {
             blocked: blockedFlips,
             blockedByGhost,
             logicalFlipCount: reverse.flips.length,
-            flipCount: appliedFlips.length
+            flipCount: appliedFlips.length,
+            postFlipRevives
         };
     }
 
@@ -3720,6 +3733,82 @@ const {
             flipperKey,
             getLivingWillModuleContext()
         );
+    }
+
+    function normalizePostFlipPositions(rawPositions: any): Array<{ row: number; col: number }> {
+        const positions = Array.isArray(rawPositions) ? rawPositions : [];
+        const out: Array<{ row: number; col: number }> = [];
+        const seen = new Set<string>();
+        for (const raw of positions) {
+            const row = Number.isInteger(raw && raw.row) ? raw.row : Number(raw && raw[0]);
+            const col = Number.isInteger(raw && raw.col) ? raw.col : Number(raw && raw[1]);
+            if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+            const key = `${row},${col}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push({ row, col });
+        }
+        return out;
+    }
+
+    function queuePostFlipPositionsByCurrentOwner(queue: any[], gameState: any, rawPositions: any, source: string): void {
+        const buckets: Record<string, Array<{ row: number; col: number }>> = { black: [], white: [] };
+        for (const position of normalizePostFlipPositions(rawPositions)) {
+            const value = getCellValueForCard(gameState, position.row, position.col);
+            const ownerKey = value === (WHITE || -1) ? 'white' : (value === (BLACK || 1) ? 'black' : null);
+            if (!ownerKey) continue;
+            buckets[ownerKey].push(position);
+        }
+        for (const ownerKey of ['black', 'white']) {
+            if (buckets[ownerKey].length) queue.push({ ownerKey, source, flips: buckets[ownerKey] });
+        }
+    }
+
+    function applyPostFlipRevives(cardState: any, gameState: any, flips: any, flipperKey: any) {
+        const initialFlips = normalizePostFlipPositions(flips);
+        const queue: any[] = initialFlips.length
+            ? [{ ownerKey: flipperKey === 'white' ? 'white' : 'black', source: 'initial', flips: initialFlips }]
+            : [];
+        const batches: any[] = [];
+        const regened: any[] = [];
+        const captureFlips: any[] = [];
+        const restored: any[] = [];
+        const livingWillFlips: any[] = [];
+        let processedPositionCount = 0;
+        const maxProcessedPositions = 4096;
+
+        while (queue.length) {
+            const batch = queue.shift();
+            const batchFlips = normalizePostFlipPositions(batch && batch.flips);
+            if (!batchFlips.length) continue;
+            processedPositionCount += batchFlips.length;
+            if (processedPositionCount > maxProcessedPositions) {
+                throw new Error('CardLogic.applyPostFlipRevives exceeded the ownership-change reaction safety limit');
+            }
+            const ownerKey = batch && batch.ownerKey === 'white' ? 'white' : 'black';
+            batches.push({ ownerKey, source: batch && batch.source ? batch.source : 'followup', flips: batchFlips.slice() });
+
+            const regenRes = applyRegenAfterFlips(cardState, gameState, batchFlips, ownerKey, false);
+            const batchCaptureFlips = normalizePostFlipPositions(regenRes && regenRes.captureFlips);
+            if (regenRes && Array.isArray(regenRes.regened)) regened.push(...regenRes.regened);
+            if (batchCaptureFlips.length) {
+                captureFlips.push(...batchCaptureFlips);
+                queuePostFlipPositionsByCurrentOwner(queue, gameState, batchCaptureFlips, 'regen_capture');
+            }
+
+            const livingWillRes = applyLivingWillAfterFlips(cardState, gameState, batchFlips, ownerKey);
+            const batchLivingWillFlips = normalizePostFlipPositions(livingWillRes && livingWillRes.flipped);
+            if (livingWillRes && Array.isArray(livingWillRes.restored)) restored.push(...livingWillRes.restored);
+            if (batchLivingWillFlips.length) {
+                livingWillFlips.push(...batchLivingWillFlips);
+                queuePostFlipPositionsByCurrentOwner(queue, gameState, batchLivingWillFlips, 'living_will_restore');
+            }
+        }
+
+        const regenRes = { regened, captureFlips };
+        const livingWillRes: any = { restored };
+        if (livingWillFlips.length) livingWillRes.flipped = livingWillFlips;
+        return { regenRes, livingWillRes, batches };
     }
 
 
@@ -4231,14 +4320,10 @@ const {
 
 
     function clearHyperactiveAtPositions(cardState: any, positions: any) {
-        const removeSet = new Set(positions.map((p: any) => `${p.row},${p.col}`));
-        if (!cardState || !Array.isArray(cardState.markers)) return;
-        cardState.markers = cardState.markers.filter((m: any) => {
-            if (m.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) return true;
-            if (!m.data || (m.data.type !== 'HYPERACTIVE' && m.data.type !== 'ESCAPE_HYPERACTIVE' && m.data.type !== 'EXTREME_HYPERACTIVE' && m.data.type !== 'ROBOT_VACUUM' && m.data.type !== 'GLUTTONOUS' && m.data.type !== 'ULTIMATE_HYPERACTIVE' && m.data.type !== 'SNIPER' && m.data.type !== 'AFTERIMAGE_WILL' && m.data.type !== 'WILL_HUNTER_KING')) return true;
-            if (findSpecialMarkerAt(cardState, m.row, m.col, 'GHOST')) return true;
-            return !removeSet.has(`${m.row},${m.col}`);
-        });
+        // Compatibility hook for older effect modules. Canonical ownership-change
+        // cleanup is atomic inside BoardOps.changeAt; this hook must not infer that
+        // a change succeeded from positions alone.
+        return [];
     }
 
     function moveHyperactiveOnce(cardState: any, gameState: any, entry: any, prng: any) {
@@ -4459,7 +4544,7 @@ const {
      * Apply SWAP_WITH_ENEMY
      * Delegates to effects/swap_with_enemy.js module.
      */
-    function applySwapEffect(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
+    function applySwapEffectDetailed(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         const cardContext = getCardContext(cardState);
         const r = SwapWithEnemyModule.applySwapWithEnemy(cardState, gameState, playerKey, row, col, {
             BoardOps: BoardOpsModule,
@@ -4469,7 +4554,25 @@ const {
             cardContext,
             Core: resolveCoreLogicForCards()
         });
-        return !!r.swapped;
+        if (r && r.swapped && Array.isArray(r.flipped) && r.flipped.length) {
+            r.postFlipRevives = applyPostFlipRevives(cardState, gameState, r.flipped, playerKey);
+            const captureFlips = r.postFlipRevives && r.postFlipRevives.regenRes && r.postFlipRevives.regenRes.captureFlips;
+            if (Array.isArray(captureFlips) && captureFlips.length) {
+                const firstCapture = captureFlips[0] || {};
+                addChargeWithTotal(cardState, playerKey, captureFlips.length, {
+                    popupKind: 'board',
+                    sourceType: 'swap_regen_capture',
+                    anchorRow: firstCapture.row,
+                    anchorCol: firstCapture.col
+                });
+            }
+        }
+        return r;
+    }
+
+    function applySwapEffect(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
+        const r = applySwapEffectDetailed(cardState, gameState, playerKey, row, col);
+        return !!(r && r.swapped);
     }
 
     function applyPositionSwapWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
@@ -4688,6 +4791,7 @@ const cardsApi: any = {
         applyDestroyEffect,
         applyDestroyEffectDetailed,
         applySwapEffect,
+        applySwapEffectDetailed,
         applyPositionSwapWill,
         applyStrongWill,
         applyHeavenBlessingChoice,
@@ -4754,6 +4858,7 @@ const cardsApi: any = {
         applyRegenWill,
         applyRegenAfterFlips,
         applyLivingWillAfterFlips,
+        applyPostFlipRevives,
         createZombieMarkerData,
         processZombieEffectsAtTurnStartAnchor,
         applyChainWillAfterMove,

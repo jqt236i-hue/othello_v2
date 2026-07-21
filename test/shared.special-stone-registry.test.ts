@@ -193,6 +193,20 @@ describe('special stone registry rule classification', () => {
     }
   });
 
+  test('defines ownership-change lifecycle without per-caller card lists', () => {
+    for (const type of ['SACRIFICE', 'PROLIFERATION', 'SNIPER', 'WORK', 'TIME_STOP', 'TIME_STOP_DEITY', 'TIME_BOMB']) {
+      expect(SpecialStoneRegistry.getOwnershipChangePolicy(type)).toBe('revert');
+    }
+    for (const type of ['REGEN', 'ZOMBIE', 'LIVING_WILL', 'TRAP']) {
+      expect(SpecialStoneRegistry.getOwnershipChangePolicy(type)).toBe('resolve_after_change');
+    }
+    for (const type of ['POISONED', 'BLOCKADE', 'FREEZE', 'THEORY_INCARNATION', 'GOLD']) {
+      expect(SpecialStoneRegistry.getOwnershipChangePolicy(type)).toBe('preserve');
+    }
+    expect(SpecialStoneRegistry.getOwnershipChangePolicy('FUTURE_UNKNOWN_SPECIAL_STONE')).toBe('revert');
+    expect(SpecialStoneRegistry.getOwnershipChangePolicy('CUSTOM_BOMB', { category: 'bomb' })).toBe('revert');
+  });
+
   test('late-bound global EvasionStatus still supplies evade defaults', () => {
     const previous = (globalThis as any).EvasionStatus;
     try {

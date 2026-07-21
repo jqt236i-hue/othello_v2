@@ -55,6 +55,10 @@ const CoreModule = resolveSwapWithEnemyModuleOrNull('../core', () => {
     }
     return null;
 });
+const DefaultBoardOps = resolveSwapWithEnemyModuleOrNull('../board_ops', () => {
+    if (typeof self !== 'undefined') return (self as any).BoardOps || null;
+    return null;
+});
 
 const { BLACK, WHITE, EMPTY, CHARGE_MAX } = SharedConstants || {};
 const P_BLACK = BLACK || 1;
@@ -224,12 +228,15 @@ function resolveChargeGainMultiplier(cardState: any, playerKey: string): number 
 }
 
 function applySwapWithEnemy(cardState: any, gameState: any, playerKey: string, row: number, col: number, deps: SwapDeps = {}): SwapResult {
-    const boardOpsInstance = deps.BoardOps;
+    const boardOpsInstance = deps.BoardOps || DefaultBoardOps;
     const clearHyperactiveAtPositions = deps.clearHyperactiveAtPositions;
     const clearBombAt = deps.clearBombAt;
     const core = deps.Core || CoreModule || null;
     const cardContext = deps.cardContext || {};
     const result: SwapResult = { swapped: false };
+    if (!boardOpsInstance || typeof boardOpsInstance.changeAt !== 'function') {
+        throw new Error('SwapWithEnemy requires BoardOps.changeAt for ownership changes');
+    }
 
     const player = playerKey === 'black' ? P_BLACK : P_WHITE;
     const opponent = -player;
@@ -252,12 +259,8 @@ function applySwapWithEnemy(cardState: any, gameState: any, playerKey: string, r
     });
     if (hasSpecialOrBomb) return result;
 
-    if (boardOpsInstance && typeof boardOpsInstance.changeAt === 'function') {
-        const changeResult = boardOpsInstance.changeAt(cardState, gameState, row, col, playerKey, 'SWAP', 'swap_with_enemy');
-        if (!changeResult || changeResult.changed !== true) return result;
-    } else {
-        if (!setCellValue(gameState, row, col, player)) return result;
-    }
+    const changeResult = boardOpsInstance.changeAt(cardState, gameState, row, col, playerKey, 'SWAP', 'swap_with_enemy');
+    if (!changeResult || changeResult.changed !== true) return result;
 
     if (typeof clearHyperactiveAtPositions === 'function') {
         clearHyperactiveAtPositions(cardState, [{ row, col }]);
@@ -274,16 +277,11 @@ function applySwapWithEnemy(cardState: any, gameState: any, playerKey: string, r
     }
 
     const swapFlips = resolveSwapFlips(gameState, row, col, player, cardContext, core);
+    const appliedSwapFlips: { row: number; col: number }[] = [];
     if (swapFlips.length > 0) {
-        const appliedSwapFlips: { row: number; col: number }[] = [];
         for (const [fr, fc] of swapFlips) {
-            let changed = true;
-            if (boardOpsInstance && typeof boardOpsInstance.changeAt === 'function') {
-                const changeRes = boardOpsInstance.changeAt(cardState, gameState, fr, fc, playerKey, 'SWAP', 'swap_with_enemy_capture');
-                changed = !!(changeRes && changeRes.changed);
-            } else {
-                (gameState as any).board[fr][fc] = player;
-            }
+            const changeRes = boardOpsInstance.changeAt(cardState, gameState, fr, fc, playerKey, 'SWAP', 'swap_with_enemy_capture');
+            const changed = !!(changeRes && changeRes.changed);
             if (!changed) continue;
             if (typeof clearBombAt === 'function') {
                 clearBombAt(cardState, fr, fc);
@@ -299,7 +297,7 @@ function applySwapWithEnemy(cardState: any, gameState: any, playerKey: string, r
     (cardState as any).pendingEffectByPlayer[playerKey] = null;
 
     (cardState as any).charge = cardState.charge || { black: 0, white: 0 };
-    const chargeGain = 1 + swapFlips.length;
+    const chargeGain = 1 + appliedSwapFlips.length;
     const requestedChargeGain = chargeGain * resolveChargeGainMultiplier(cardState, playerKey);
     const chargeMeta = {
         popupKind: 'board',
@@ -331,7 +329,7 @@ function applySwapWithEnemy(cardState: any, gameState: any, playerKey: string, r
     }
 
     result.swapped = true;
-    result.flipped = swapFlips.map(([fr, fc]) => ({ row: fr, col: fc }));
+    result.flipped = appliedSwapFlips.slice();
     return result;
 }
 

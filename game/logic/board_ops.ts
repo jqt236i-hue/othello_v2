@@ -874,29 +874,12 @@ function _getProliferationMarkerAt(cardState: any, row: number, col: number): an
     )) || null;
 }
 
-function _consumeProliferationMarkerOnNormalFlip(cardState: any, row: number, col: number): any {
-    if (!cardState || !Array.isArray(cardState.markers)) return null;
-    const markerKind = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
-    let removed: any = null;
-    cardState.markers = cardState.markers.filter((entry: any) => {
-        const shouldRemove = !!(
-            entry &&
-            entry.kind === markerKind &&
-            entry.row === row &&
-            entry.col === col &&
-            entry.data &&
-            String(entry.data.type || '').toUpperCase() === 'PROLIFERATION'
-        );
-        if (shouldRemove && !removed) removed = entry;
-        return !shouldRemove;
-    });
-    return removed;
-}
-
 function _clonePresentationMeta(meta: any): any {
     const out = (meta && typeof meta === 'object') ? Object.assign({}, meta) : {};
     delete out.randomSource;
     delete out.prng;
+    delete out.ownershipChangeMode;
+    delete out.countAsFlip;
     return out;
 }
 
@@ -1548,23 +1531,6 @@ function _pruneAfterimageMarkerIfDepleted(cardState: any, marker: any): void {
     cardState.markers = cardState.markers.filter((entry: any) => entry !== marker);
 }
 
-function _consumeAfterimageMarkerOnNormalChange(cardState: any, row: number, col: number): any {
-    if (!cardState || !Array.isArray(cardState.markers)) return null;
-    const marker = cardState.markers.find((entry: any) => (
-        entry &&
-        entry.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
-        entry.row === row &&
-        entry.col === col &&
-        entry.data &&
-        String(entry.data.type || '').toUpperCase() === 'AFTERIMAGE_WILL'
-    ));
-    if (!marker || !marker.data) return null;
-    const flipRemaining = _normalizeCounterValue(marker.data && marker.data.flipEvadeRemaining) || 0;
-    if (flipRemaining > 0) return null;
-    cardState.markers = cardState.markers.filter((entry: any) => entry !== marker);
-    return marker;
-}
-
 function _getForbiddenDestroyEvadeCellSet(meta: any): Set<string> {
     const out = new Set<string>();
     const cells = meta && Array.isArray(meta.forbiddenEvadeCells) ? meta.forbiddenEvadeCells : [];
@@ -1890,6 +1856,41 @@ function spawnAt(cardState: any, gameState: any, row: number, col: number, owner
         meta: metaOut
     });
     return { spawned: true, stoneId };
+}
+
+function _clearWorkAnchorReferenceAt(cardState: any, row: number, col: number): void {
+    if (!cardState || !cardState.workAnchorPosByPlayer || typeof cardState.workAnchorPosByPlayer !== 'object') return;
+    for (const ownerKey of ['black', 'white']) {
+        const anchor = cardState.workAnchorPosByPlayer[ownerKey];
+        if (!anchor) continue;
+        if (Number(anchor.row) === row && Number(anchor.col) === col) {
+            cardState.workAnchorPosByPlayer[ownerKey] = null;
+        }
+    }
+}
+
+function _removeOwnershipInvalidatedMarkersAt(cardState: any, row: number, col: number): any[] {
+    if (!cardState || !Array.isArray(cardState.markers)) return [];
+    const registry = getSpecialStoneRegistryModule();
+    if (!registry || typeof registry.getOwnershipChangePolicy !== 'function') {
+        throw new Error('SpecialStoneRegistry.getOwnershipChangePolicy is required for ownership changes');
+    }
+    const markerKind = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
+    const removed: any[] = [];
+    cardState.markers = cardState.markers.filter((marker: any) => {
+        if (!marker || marker.kind !== markerKind || marker.row !== row || marker.col !== col) return true;
+        const markerData = marker.data && typeof marker.data === 'object' ? marker.data : null;
+        const markerType = String(markerData && markerData.type ? markerData.type : '').trim().toUpperCase();
+        if (!markerType || registry.getOwnershipChangePolicy(markerType, markerData) !== 'revert') return true;
+        removed.push({
+            markerId: marker.id !== undefined && marker.id !== null ? marker.id : null,
+            type: markerType,
+            owner: marker.owner || null
+        });
+        if (markerType === 'WORK') _clearWorkAnchorReferenceAt(cardState, row, col);
+        return false;
+    });
+    return removed;
 }
 
 function _resolveGeneratedSpawnFlip(cardState: any, gameState: any, entry: any): any[] {
@@ -2487,6 +2488,8 @@ function changeAt(cardState: any, gameState: any, row: number, col: number, owne
     const ownerAfterVal = ownerAfterKey === 'black' ? (SharedConstants.BLACK || 1) : (SharedConstants.WHITE || -1);
     const forcePresentation = !!(meta && meta.forcePresentation === true);
     const allowGhostFlip = !!(meta && meta.allowGhostFlip === true);
+    const transferOwnershipState = !!(meta && meta.ownershipChangeMode === 'transfer');
+    const countAsFlip = !(meta && meta.countAsFlip === false);
     if (prev === ownerAfterVal) {
         if (!forcePresentation) return { changed: false };
         const stoneIdForced = getStoneIdAt(cardState, gameState, row, col);
@@ -2533,24 +2536,25 @@ function changeAt(cardState: any, gameState: any, row: number, col: number, owne
         return { changed: false, blockedByGhost: true, reason: 'ghost_protected' };
     }
 
-    if (String(reason || '').toLowerCase().indexOf('flip') >= 0) {
-        _consumeProliferationMarkerOnNormalFlip(cardState, row, col);
-    }
-    _consumeAfterimageMarkerOnNormalChange(cardState, row, col);
     const stoneId = getStoneIdAt(cardState, gameState, row, col);
+    const metaOutInput = _clonePresentationMeta(meta);
+    delete metaOutInput.allowGhostFlip;
+    const removedSpecialMarkers = ownerBeforeKey !== null && !transferOwnershipState
+        ? _removeOwnershipInvalidatedMarkersAt(cardState, row, col)
+        : [];
+    // CHANGE describes the canonical stone after the ownership transition.
+    // Reverted special bodies must therefore be removed before visual metadata
+    // is derived, while preserved/transfer markers remain visible as before.
+    const metaOut = _populateSpecialVisualMeta(cardState, row, col, metaOutInput);
 
     setCellValue(gameState, row, col, ownerAfterVal);
-    if (ownerBeforeKey !== null) {
+    if (ownerBeforeKey !== null && countAsFlip) {
         ensureResultTotals(cardState);
         cardState.totalFlipCountByPlayer[ownerAfterKey] = (cardState.totalFlipCountByPlayer[ownerAfterKey] || 0) + 1;
         if (ownerBeforeKey !== ownerAfterKey && isMainBoardCorner(row, col, gameState, cardState)) {
             cardState.cornerCaptureCountByPlayer[ownerAfterKey] = (cardState.cornerCaptureCountByPlayer[ownerAfterKey] || 0) + 1;
         }
     }
-    const metaOutInput = _clonePresentationMeta(meta);
-    delete metaOutInput.allowGhostFlip;
-    const metaOut = _populateSpecialVisualMeta(cardState, row, col, metaOutInput);
-
     emitPresentationEvent(cardState, {
         type: 'CHANGE',
         stoneId,
@@ -2562,7 +2566,7 @@ function changeAt(cardState: any, gameState: any, row: number, col: number, owne
         reason: reason || null,
         meta: metaOut
     });
-    return { changed: true };
+    return { changed: true, removedSpecialMarkers };
 }
 
 function revertSpecialStoneAt(cardState: any, gameState: any, row: number, col: number, specialType: string, ownerKey: string | null, cause: string | null, reason: string | null, meta: any = {}): any {

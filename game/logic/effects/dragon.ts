@@ -42,6 +42,7 @@ function resolveDragonModuleOrGlobal(id: string, globalKey: string): any {
 const SharedConstants = resolveDragonModuleOrGlobal('../../../shared-constants', 'SharedConstants');
 const RandomSourceModule = resolveDragonModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
 const ExpansionFallbackModule = resolveDragonModuleOrGlobal('../cards-internal/expansion-fallback', 'CardExpansionFallback');
+const DefaultBoardOps = resolveDragonModuleOrGlobal('../board_ops', 'BoardOps');
 
 const { BLACK, WHITE } = SharedConstants || {};
 const P_BLACK = BLACK || 1;
@@ -270,20 +271,18 @@ function collectDragonConversionTargets(gameState: any, row: number, col: number
 }
 
 function applyDragonConversions(cardState: any, gameState: any, playerKey: string, player: number, opponent: number, row: number, col: number, reason: string, protectedSet: Set<string>, clearBombAt: (row: number, col: number) => void, deps: DragonDeps): Array<{ row: number; col: number }> {
-    const BoardOps = deps.BoardOps;
+    const BoardOps = deps.BoardOps || DefaultBoardOps;
+    if (!BoardOps || typeof BoardOps.changeAt !== 'function') {
+        throw new Error('DragonEffects requires BoardOps.changeAt for ownership changes');
+    }
     const targets = collectDragonConversionTargets(gameState, row, col, opponent, protectedSet);
     const remainingTargets = resolveDragonFlipEvasion(cardState, gameState, targets, playerKey, deps);
     const converted: Array<{ row: number; col: number }> = [];
 
     for (const target of remainingTargets) {
         if (getCellValue(gameState, target.row, target.col) !== opponent) continue;
-        let changed = true;
-        if (BoardOps && typeof BoardOps.changeAt === 'function') {
-            const changeResult = BoardOps.changeAt(cardState, gameState, target.row, target.col, playerKey, 'DRAGON', reason);
-            changed = !!(changeResult && changeResult.changed);
-        } else {
-            changed = setCellValue(gameState, target.row, target.col, player);
-        }
+        const changeResult = BoardOps.changeAt(cardState, gameState, target.row, target.col, playerKey, 'DRAGON', reason);
+        const changed = !!(changeResult && changeResult.changed);
         if (!changed) continue;
         clearBombAt(target.row, target.col);
         converted.push({ row: target.row, col: target.col });
@@ -293,7 +292,7 @@ function applyDragonConversions(cardState: any, gameState: any, playerKey: strin
 }
 
 function processDragonEffects(cardState: any, gameState: any, playerKey: string, deps: DragonDeps = {}): DragonEffectResult {
-    const BoardOps = deps.BoardOps;
+    const BoardOps = deps.BoardOps || DefaultBoardOps;
     const converted: { row: number; col: number }[] = [];
     const destroyed: { row: number; col: number; owner: string; reason: string }[] = [];
     const anchors: { row: number; col: number; remainingNow: number }[] = [];
@@ -388,16 +387,6 @@ function processDragonEffects(cardState: any, gameState: any, playerKey: string,
         );
     }
 
-    if (converted.length > 0 && (cardState as any).markers) {
-        const removeSet = new Set(converted.map(p => `${p.row},${p.col}`));
-        (cardState as any).markers = (cardState as any).markers.filter((s: any) =>
-            s.kind !== 'specialStone' ||
-            !s.data ||
-            (s.data.type !== 'HYPERACTIVE' && s.data.type !== 'ESCAPE_HYPERACTIVE') ||
-            !removeSet.has(`${s.row},${s.col}`)
-        );
-    }
-
     return { converted, destroyed, anchors };
 }
 
@@ -436,21 +425,11 @@ function processDragonEffectsAtAnchor(cardState: any, gameState: any, playerKey:
         deps
     ));
 
-    if (converted.length > 0 && (cardState as any).markers) {
-        const removeSet = new Set(converted.map(p => `${p.row},${p.col}`));
-        (cardState as any).markers = (cardState as any).markers.filter((s: any) =>
-            s.kind !== 'specialStone' ||
-            !s.data ||
-            (s.data.type !== 'HYPERACTIVE' && s.data.type !== 'ESCAPE_HYPERACTIVE') ||
-            !removeSet.has(`${s.row},${s.col}`)
-        );
-    }
-
     return { converted, destroyed };
 }
 
 function processDragonEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: string, row: number, col: number, deps: DragonDeps = {}): DragonEffectAtAnchorResult {
-    const BoardOps = deps.BoardOps;
+    const BoardOps = deps.BoardOps || DefaultBoardOps;
     const moved: { from: { row: number; col: number }; to: { row: number; col: number } }[] = [];
     const converted: { row: number; col: number }[] = [];
     const destroyed: { row: number; col: number; owner: string; reason: string }[] = [];
@@ -572,16 +551,6 @@ function processDragonEffectsAtTurnStartAnchor(cardState: any, gameState: any, p
             !s.data ||
             s.data.type !== 'DRAGON' ||
             (s.data.remainingOwnerTurns !== undefined && s.data.remainingOwnerTurns !== null && s.data.remainingOwnerTurns >= 0)
-        );
-    }
-
-    if (converted.length > 0 && (cardState as any).markers) {
-        const removeSet = new Set(converted.map(p => `${p.row},${p.col}`));
-        (cardState as any).markers = (cardState as any).markers.filter((s: any) =>
-            s.kind !== 'specialStone' ||
-            !s.data ||
-            (s.data.type !== 'HYPERACTIVE' && s.data.type !== 'ESCAPE_HYPERACTIVE') ||
-            !removeSet.has(`${s.row},${s.col}`)
         );
     }
 
