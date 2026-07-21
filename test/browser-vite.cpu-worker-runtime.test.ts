@@ -9,6 +9,7 @@ import {
   createCpuCandidateScoringRequest,
   scoreCpuCandidateRequest
 } from '../game/ai/cpu-candidate-scoring';
+import { createCpuCardQuiescenceRequest } from '../game/ai/cpu-card-quiescence';
 
 function request(operation: CpuWorkerOperation, payload: unknown, requestId = 'cpu-1-1') {
   return {
@@ -64,6 +65,46 @@ describe('Dedicated CPU Worker runtime', () => {
     expect(response).toMatchObject({ ok: true, result: { ready: true } });
     expect(ortLoader).not.toHaveBeenCalled();
     expect(runtime.getStatus().ortLoaded).toBe(false);
+  });
+
+  test('runs card-quiescence in the pure policy core without loading ORT', async () => {
+    const ortLoader = jest.fn();
+    const runtime = createCpuWorkerRuntime({ ortLoader });
+    const quiescenceRequest = createCpuCardQuiescenceRequest({
+      requestId: 'runtime-card-quiescence-1',
+      decisionEpoch: 1,
+      stateVersion: null,
+      turnNumber: null,
+      playerKey: 'white',
+      level: 6,
+      playerValue: -1,
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      legalMoves: [{ row: 0, col: 0, flips: [] }],
+      search: {
+        depth: 4,
+        maxBranch: 4,
+        nodeBudget: 120000,
+        maxTimeMs: 300,
+        endgameSolveEmpties: 12,
+        endgameDepth: 10,
+        endgameNodeBudget: 600000,
+        endgameMaxTimeMs: 700
+      }
+    });
+
+    const response = await runtime.handleMessage(request(
+      CPU_WORKER_OPERATIONS.CARD_QUIESCENCE,
+      { request: quiescenceRequest }
+    ));
+
+    expect(response).toMatchObject({
+      ok: true,
+      result: {
+        requestId: 'runtime-card-quiescence-1',
+        bestMove: { row: 0, col: 0 }
+      }
+    });
+    expect(ortLoader).not.toHaveBeenCalled();
   });
 
   test('scores candidates exactly without loading ORT or fetching assets', async () => {

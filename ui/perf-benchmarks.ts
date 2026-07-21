@@ -79,6 +79,7 @@ type CpuTurnPerformanceCapture = {
     overflow: boolean;
     runtimeEvidence: {
         workerCandidateScoringRequestCount: number;
+        workerCardQuiescenceRequestCount: number;
     };
 };
 
@@ -95,7 +96,7 @@ type CpuTurnPerformanceHarness = Readonly<{
     reset: () => void;
     createCorrelationId: () => string;
     recordCpuTurnStage: (entry: CpuTurnPerformanceEntry) => void;
-    recordRuntimeEvidence: (name: 'worker-candidate-scoring') => void;
+    recordRuntimeEvidence: (name: 'worker-candidate-scoring' | 'worker-card-quiescence') => void;
 }>;
 
 const CPU_TURN_PERFORMANCE_ENTRY_LIMIT = 20_000;
@@ -142,7 +143,8 @@ function createEmptyCpuTurnCapture(): CpuTurnPerformanceCapture {
         invalidReasons: [],
         overflow: false,
         runtimeEvidence: {
-            workerCandidateScoringRequestCount: 0
+            workerCandidateScoringRequestCount: 0,
+            workerCardQuiescenceRequestCount: 0
         }
     };
 }
@@ -169,6 +171,7 @@ function sanitizeCpuTurnPerformanceEntry(value: any): CpuTurnPerformanceEntry | 
         'handoff-delay',
         'card-availability',
         'card-context-base',
+        'card-quiescence',
         'move-candidates',
         'commentary-context',
         'canonical-commit',
@@ -512,10 +515,12 @@ function installCpuTurnPerformanceHarness(): CpuTurnPerformanceHarness | null {
             return `cpu-${cpuTurnPerformanceSequence.toString(36)}`;
         },
         recordCpuTurnStage,
-        recordRuntimeEvidence: (name: 'worker-candidate-scoring') => {
+        recordRuntimeEvidence: (name: 'worker-candidate-scoring' | 'worker-card-quiescence') => {
             if (!capture.scenarioId || capture.endedAtMs !== null) return;
             if (name === 'worker-candidate-scoring') {
                 capture.runtimeEvidence.workerCandidateScoringRequestCount += 1;
+            } else if (name === 'worker-card-quiescence') {
+                capture.runtimeEvidence.workerCardQuiescenceRequestCount += 1;
             }
         }
     });
@@ -545,7 +550,7 @@ function createCpuTurnPerformanceCorrelationId(): string | null {
     return harness ? harness.createCorrelationId() : null;
 }
 
-function recordCpuTurnRuntimeEvidence(name: 'worker-candidate-scoring'): void {
+function recordCpuTurnRuntimeEvidence(name: 'worker-candidate-scoring' | 'worker-card-quiescence'): void {
     if (!PERF_BENCH_ENABLED) return;
     const harness = installCpuTurnPerformanceHarness();
     if (harness) harness.recordRuntimeEvidence(name);

@@ -672,3 +672,97 @@ root source、classic/Vite browser artifact、Worker mirror、architecture文書
 - [x] 検証済みtask-owned変更だけをcommit対象に限定
 
 完了時点で別作業の未追跡`shared/leaderboard-score.ts`と`workers/match-worker-leaderboard-proof.ts`が同一checkoutへ出現し、前者の型エラーが標準`typecheck`/`build:browser` wrapperを遮った。この2ファイルを変更・生成・stageせずに除外する一時tsconfigでtask-scoped `tsc`を成功させ、その出力から`build:browser`/`build:vite`の各生成stepとWorker mirror生成を実行した。一時tsconfigは削除済みであり、このフォローアップの配布artifactとmirror checkは成功している。
+
+## 2026-07-21 240Hz実プレイ再調査フォローアップ実装計画
+
+- Status: completed
+- 設計authority: 同設計書「2026-07-21 240Hz実プレイ再調査（前回の完了判定を更新）」
+
+### Step 13: quiescence需要判定とportable DTOを実装する
+
+#### Outcome
+
+結果を参照できる高変動カードが無いCPUターンではlookaheadを一切起動せず、必要な場合は同じpure計算を安全にWorkerへ渡せる。
+
+#### Components
+
+- `game/cpu-decision-card-risk.ts`
+- `game/cpu-decision-card-choice.ts`
+- `game/cpu-decision.ts`
+- `game/ai/cpu-card-quiescence.ts`
+- focused card-risk / DTO tests
+
+#### Verification
+
+- `GOLD_STONE` / `TREASURE_BOX`だけならbuild 0回、高変動typeを含む時だけbuild対象となる。
+- request bounds、board shape、bonus map、identity、digest、malformed DTOをtable testで固定する。
+- 同じrequestをpure executorと従来同期pathへ渡しbest moveが一致する。
+
+### Step 14: Dedicated WorkerとCPU invocationへ非同期接続する
+
+#### Outcome
+
+必要なquiescence lookaheadがメインスレッドを止めず、応答がcurrentな時だけ既存カード温存判定へ渡る。
+
+#### Components
+
+- `browser-vite/cpu-worker/protocol.ts`
+- `browser-vite/cpu-worker/client.ts`
+- `browser-vite/cpu-worker/worker-entry.ts`
+- `browser-vite/cpu-worker/bridge.ts`
+- `browser-vite/main.ts`
+- `ui/bootstrap.ts`
+- `ui/bootstrap/cpu-runtime-wiring.ts`
+- `game/cpu-turn-handler.ts`
+- `game/cpu-turn-performance.ts`
+- `ui/perf-benchmarks.ts`
+- protocol/client/runtime/bootstrap/handler focused tests
+
+#### Behavior
+
+1. request作成はprepared card context後、需要gate成功時だけ行う。
+2. Worker waitを`card-quiescence` stageとして記録する。
+3. 応答後にinvocation identityを非同期境界として照合し、staleならretryする。
+4. success時だけbest moveからsnapshotを作り、prepared decisionへ格納する。
+5. interactive Worker failure時はsnapshotなしをpreparedとして続け、同期lookaheadを実行しない。
+
+### Step 15: focused・build・実240Hz再現で完了判定する
+
+#### Execution
+
+1. card-risk、DTO、Worker protocol/client/runtime、bootstrap、CPU handlerのfocused Jestを実行する。
+2. `npm run check:window`、`npm run typecheck`、`npm run build:ts`を実行する。
+3. browser root変更として`npm run build:browser`を実行する。
+4. headed Google Chromeで静止240Hz、`gold_stone + chest_01`固定turn、高変動カード固定turnを再計測する。
+5. 50ms以上Long Task、RAF最大、CPU sync/wait stage、Worker request evidence、console/page errorを確認する。
+6. `npm run worker:prepare`とmirror checkを実行する。
+7. `git diff --check`、task-owned diff、最終statusを確認し、検証済み変更だけをcommitする。
+
+### Blocking gate
+
+- 非高変動固定fixture: quiescence Worker request 0、50ms以上Long Task 0、最大RAF interval 50ms未満。
+- 高変動固定fixture: Worker request 1、quiescenceはwait、50ms以上main-thread Long Task 0、最大RAF interval 50ms未満。
+- `card-context-base`同期stage p95/max 50ms未満。
+- stale/malformed/timeout/unavailableで同期lookaheadへ戻らず、誤ったcard/move適用0。
+- CPU card policy unit tests、turn/pending、Worker operation、generated/browser/mirror parityが成功。
+
+### フォローアップ計画Self-review
+
+- 固定再現を最初のtest条件へ昇格し、ランダムquick captureだけで完了しない順序へ変更した。
+- 無駄探索の除去と必要探索のWorker化を別Stepにし、観測fixtureだけ直して高変動カードで同じ停止を残さない。
+- Worker responseを直接カード選択結果にせず、既存main-thread policyへadvisory best moveだけ返す境界を維持した。
+- async後のstate照合とinteractive failure契約を実装Stepへ明記し、性能改善のためにstale actionを許容しない。
+- 最終gateでwait時間とsync stallを分け、CPUの思考待ちが残ることをFPS停止と誤判定しない。
+
+### 完了記録
+
+- [x] 非高変動カードだけの無駄quiescenceを需要gateで除去
+- [x] bounded DTO、digest、board-shape投影、response identity検証を実装
+- [x] Dedicated Workerへcard quiescenceを移動し、interactive同期fallbackを禁止
+- [x] 再計測で見つかったLv6配置lookaheadも同じWorker境界へ移動
+- [x] Lv6配置の候補絞り込みとlearned/move-plan prior・探索weightをWorker DTOへ投影し、従来選択入力を維持
+- [x] card phaseのcurrentなbest moveをplacementへ再利用
+- [x] stale、Worker failure、response mismatchでcanonical actionを適用しない契約をfocused testで確認
+- [x] headed Chrome 240Hzで非高変動カード、高変動カード、手札なしLv6配置を固定再計測
+- [x] CPU処理区間の50ms超Long Task 0、Lv6配置最大RAF 20.8ms、同期stage最大3.2msを確認
+- [x] prior parity補強後のhardware quick captureで25/25 sample有効、Long Task overlap 0、RAF最大16.8ms、Lv6同期invocation最大7.3msを確認

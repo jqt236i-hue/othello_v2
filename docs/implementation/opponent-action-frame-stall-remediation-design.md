@@ -617,3 +617,76 @@ Pixi固有browser checkは明示的debug Pixi選択を維持するため、softw
 - software Pixiを完全禁止するとCIのPixi固有検証を失うため、明示的debug選択だけのescape hatchを設けた。通常起動と性能証拠には使えない境界を明記した。
 - fallbackをactive phase内に入れず、scene生成前のmount capability failureへ置いたため、Single Visual Writerとsettlement順を維持できることを確認した。
 - `powerPreference`だけではhardwareを保証しないため、runtime実体判定とcaptureのCDP検証を別々の必須条件にした。
+
+## 2026-07-21 240Hz実プレイ再調査（前回の完了判定を更新）
+
+この節は、前節の「実GPUではCPU側Long Taskがない」という結論を、headed Google Chrome・240Hz表示・通常ローカルCPU対戦で再検証して更新する。前回の自動quick captureだけでは、ランダムな手札の組合せによって低頻度で発火するカード温存用先読みを踏めていなかった。
+
+### 新しい再現証拠
+
+- 設定パネルを閉じた静止状態では、10.004秒に2400 RAF、p50 4.2ms、p95 4.3ms、最大4.4msで、盤面は240 FPSを維持した。
+- 通常の対局を連続実行すると、CPUアクション時に最大541.7msのframe interval、545msのLong Task、546.7msのLong Animation Frameを再現した。
+- `gold_stone`所持中に`chest_01`を引いた状態を固定すると、同じCPUターンで最大520〜641msを反復再現した。
+- performance stageでは`card-context-base`が508〜623msを占めた。Chrome CPU profileは`cpu-policy-lookahead-root-search`から再帰negamax、move order、placement evaluation、board geometryへ続くstackを示した。
+- `game/cpu-decision.ts`は全CPUレベルのカード方針をLv6相当に正規化する。`game/cpu-decision-card-choice.ts`は使用可能カードがあると候補確定前にquiescence snapshotを同期構築し、`game/cpu-decision-card-risk.ts`は深さ4〜7、12万〜80万node、通常最大約1秒のlookaheadをブラウザのメインスレッドで実行していた。
+- `GOLD_STONE`と`TREASURE_BOX`はquiescenceのhold判定対象typeではない。現状は結果を参照できるカードが1枚もない場合にも高価なsnapshotを先に作るため、固定再現の約0.5〜0.6秒は選択結果へ一切寄与しない計算だった。
+
+### 更新した原因モデル
+
+主因はPixi、GPU、カード演出、GCではなく、CPUカード温存方針の同期lookaheadである。石を置く直前にも同じカード判断を行うため、CPUがカードを使わなかった回は「石を置いた瞬間の停止」に見える。FPS表示は500ms窓のRAF数を数えるので、1回の500ms停止が一瞬だけ30未満として現れる。
+
+静止時240 FPSに対して対局中がおおむね220 FPSになる副因は、240Hzの4.17ms予算に対してPixi playbackやDOM更新が一部のframeで予算を超え、通常アクションでも12.5〜25ms程度のframe gapが生じることにある。ただし、プレイヤーが最初に報告した30 FPS未満の急落は上記の同期lookaheadだけで十分説明できるため、今回の修正対象はそこへ限定する。既に導入済みのPixi 60Hz ticker上限や局所invalidationは維持する。
+
+### 採用設計
+
+1. `shouldBuildCardQuiescenceSnapshot`へ現在の`usableCardTypes`を渡し、hold判定対象の高変動カードtypeが一つもない場合はsnapshotを構築しない。これは`shouldHoldCardByQuiescence`が必ずfalseになる計算だけを除くため、カード選択結果を変えない。
+2. `game/ai/cpu-card-quiescence.ts`に、bounded・versioned・serializableなrequest/response、board shape投影、digest、検証、pure lookahead実行を置く。DTOはboard、合法手、数値limit、配置時だけのper-cell prior score/weight、bonus map、invocation identityだけを含み、game state object、手札、RNG、UI、network情報を含めない。
+3. `browser-vite/cpu-worker/*`へ`cpu.card-quiescence` operationを追加する。Workerは既存`CpuPolicyCore.chooseMoveByLookahead`を同じoptionで実行し、検証済みbest moveだけを返す。ONNX Runtimeはロードしない。
+4. `runCpuTurn()`は既存のprepared card decisionを同期で作った後、必要な場合だけrequestを作成してWorkerをawaitする。待機は`card-quiescence`の`kind: wait`として記録し、メインスレッド同期時間へ合算しない。
+5. 応答後にrun/player/turn/level/stateVersion/decisionEpoch/pending/retry generationを照合する。staleなら結果を破棄して既存retryへ戻し、カードも石も適用しない。currentならmain threadで軽量なsnapshot属性だけを再構築し、既存`selectCardToUse`へ渡す。
+6. interactive browserでWorker unavailable・timeout・malformed responseとなった場合は`quiescencePrepared: true, snapshot: null`として続行し、500ms級同期lookaheadへfallbackしない。この判定はadvisoryなカード温存signalだけを弱める。headless、training、直接unit callは既存同期pure pathを維持する。
+7. performance diagnosticsへWorker request countと`card-quiescence` waitを追加し、修正後の固定fixtureで「待ち時間はあり得るがRAFは止まらない」ことを証明する。
+
+### Authority・失敗契約
+
+- Workerはカードを選ばず、カードを使わず、canonical stateを変更しない。best moveは温存判定の入力にすぎない。
+- requestとresponseのprotocol、identity、digest、board/move boundsを両runtimeで検証する。不一致を部分的に採用しない。
+- Worker待機中もUI busy/turn ownershipは既存CPU invocationが保持する。別turnへ進んだ応答はstale guardで破棄する。
+- `01-rulebook.md`の「全CPUレベルでLv6カード方針」は通常Worker成功時に維持する。Worker不能時のadvisory quiescence省略は性能安全fallbackであり、ルール・カード効果・表示仕様は変更しない。
+
+### 完了条件
+
+- `gold_stone + chest_01`固定fixtureでquiescence Worker request 0、`card-context-base`同期stage最大50ms未満、50ms以上Long Task 0、最大RAF interval 50ms未満。
+- 高変動カード固定fixtureでWorker request 1、`card-quiescence`は`wait`、同期間のRAFが継続し、main-threadの50ms以上Long Task 0。
+- Worker responseと従来同期pathが同一requestで同じbest moveを返し、既存quiescence hold testが通る。
+- stale、timeout、malformed、Worker unavailableでcanonical actionを誤適用せず、interactive pathが同期lookaheadへ戻らない。
+- focused Jest、`check:window`、typecheck、browser build、実headed Chrome再計測、Worker mirror同期が成功する。
+
+### 再調査Self-review
+
+- 静止時240 FPSの実測により「ゲーム全体が常時重い」と「アクション時の単発停止」を分離し、単発停止のownerだけを今回の主修正にした。
+- profilerの最上位labelだけでなく、固定手札で再現性を作り、quiescence resultがそのカードtypeには参照されないことまで追跡した。
+- 全カード方針を軽量heuristicへ置換せず、通常pathでは既存と同じpure lookaheadを別threadで実行するため、CPU強度仕様を維持した。
+- CPUターン全体やcard authorityをWorkerへ移さず、bounded advisory calculationだけを既存Dedicated Worker境界へ追加した。
+- Worker失敗時に重いlocal fallbackへ戻すと元問題が再発するため、interactive browserだけは性能安全を優先する契約を明示した。headless互換との境界も分けた。
+- 非高変動カードのgateは「速そうだから省く」のではなく、後段predicateが必ずfalseになる集合と同じ定数authorityを使う設計にした。
+
+### 実装中に判明した第2の同期経路と最終結果
+
+高変動カードのquiescenceをWorkerへ移した後、Lv6では`game/cpu-decision-move-selection.ts`の通常配置lookaheadが同じpure negamaxをメインスレッドで約592ms実行することが、再計測で判明した。これはカード温存探索とは別であり、「CPUが石を置くとき」の独立した停止原因だったため、同じbounded request/responseとstale guardを配置選択にも適用した。
+
+- Workerはstatic ESM composition rootからpure lookaheadを構築し、classic/headless用CommonJS loaderをWorker内で実行しない。
+- card phaseのcurrentなbest moveがあり盤面未変更ならplacementで再利用する。無いLv6ターンだけ追加Worker requestを行う。
+- main threadはbest move座標を現在の合法手objectへ再対応付けし、最終選択・pending guard・canonical applyを引き続き所有する。
+- 配置requestはLv6の候補絞り込み後の合法手を使い、従来のlearned/move-plan合成点をper-cell priorとして直列化する。Worker側の`scoreMove`、`priorWeight`、`searchWeight`を従来同期pathと一致させ、FPS修正によるCPU選択方針の変化を防ぐ。
+- interactive Worker失敗時はplacementもprepared/nullとしてcheap selectorへ進み、重い同期lookaheadへ戻らない。
+
+headed Google Chrome、D3D11、240Hzでの最終固定fixtureは次の通りだった。
+
+- 非高変動`gold_stone + chest_01`、Lv1: 修正前520〜641msに対し、RAF p50 4.2ms、p95 4.3ms、最大25.0ms、50ms超0、`card-context-base`最大1.4ms、lookahead Worker request 0。
+- 高変動`bomb_01`、Lv6: card quiescence 608.8msはWorker waitとなり、同じ結果をplacementへ再利用。CPU同期stage最大3.0ms。CPU開始前のhuman move presentationに56ms Long Taskが1件あったが、608.8ms探索中もRAFは継続し、Worker capabilityとrequest identityは維持された。
+- 手札なし、Lv6配置: placement lookahead 535.1msはWorker wait。CPU処理区間のRAF p50 4.2ms、p95 4.3ms、p99 16.7ms、最大20.8ms、50ms超0、Long Task 0、同期stage最大3.2ms。
+
+この結果により、最初に報告されたCPUカード判断とCPU石配置の500〜640msメインスレッド停止は双方とも除去された。240Hzで通常presentationが4.17ms予算を一部超えるため対局中平均が静止時240より低くなる副因は残るが、30 FPS未満を作っていたCPU探索の単発停止とは分離されている。
+
+最終self-reviewで配置Worker requestに従来のlearned/move-plan priorが欠けている点を検出し、候補絞り込み後の合法手、per-cell prior、`priorWeight`、`searchWeight`をDTOへ追加した。同一prior付きrequestのheadless/Worker best move parity testを追加後、本番Vite bundleのhardware quick captureを5 scenario×5 sampleで再実行した。全25 sample有効、invalid 0、Long Task overlap 0、各scenarioのRAF最大16.8ms、Lv6 Worker配置の同期invocation最大7.3msで、Worker待機中もRAFが継続した。

@@ -27,7 +27,7 @@ type CpuDecisionCardChoiceConfig = {
     resolvePlayerValue: (playerKey: any) => any;
     selectCardByLevel6Consensus: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any) => any;
     selectCardBySharedPolicyTableCore: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any) => any;
-    shouldBuildCardQuiescenceSnapshot?: (level: any, legalMoves: any, context: any) => boolean;
+    shouldBuildCardQuiescenceSnapshot?: (level: any, legalMoves: any, context: any, usableCardTypes?: any) => boolean;
     shouldHoldCardByQuiescence: (playerKey: any, level: any, cardId: any, cardDef: any, context: any, snapshot: any) => any;
     shouldUseSharedPolicyTableCoreCardDecision: (level: any) => any;
     warn: (...args: any[]) => void;
@@ -178,7 +178,12 @@ export function createCpuDecisionCardChoice(config: CpuDecisionCardChoiceConfig)
             );
         const hasPreparedQuiescence = preparedUsabilityIsCurrent && prepared.quiescencePrepared === true;
         const shouldBuildQuiescence = typeof cfg.shouldBuildCardQuiescenceSnapshot === 'function'
-            ? cfg.shouldBuildCardQuiescenceSnapshot(level, legalMoves, decisionContext) !== false
+            ? cfg.shouldBuildCardQuiescenceSnapshot(
+                level,
+                legalMoves,
+                decisionContext,
+                usability && Array.isArray(usability.usableCardTypes) ? usability.usableCardTypes : undefined
+            ) !== false
             : true;
         const quiescenceSnapshot = hasPreparedQuiescence
             ? prepared.quiescenceSnapshot

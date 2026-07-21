@@ -2400,11 +2400,24 @@ function buildCardQuiescenceSnapshot(playerKey: any, level: any, legalMoves: any
         : null;
 }
 
-function shouldBuildCardQuiescenceSnapshot(level: any, legalMoves: any, context: any): boolean {
+function shouldBuildCardQuiescenceSnapshot(level: any, legalMoves: any, context: any, usableCardTypes?: any): boolean {
     const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
     return !!(CpuDecisionCardRisk && typeof CpuDecisionCardRisk.shouldBuildCardQuiescenceSnapshot === 'function'
-        ? CpuDecisionCardRisk.shouldBuildCardQuiescenceSnapshot(policyLevel, legalMoves, context)
+        ? CpuDecisionCardRisk.shouldBuildCardQuiescenceSnapshot(policyLevel, legalMoves, context, usableCardTypes)
         : true);
+}
+
+function prepareCardQuiescenceRequest(playerKey: any, level: any, legalMoves: any, context: any, identity: any): any {
+    const policyLevel = resolveCpuCardPolicyLevelFromLevel(level);
+    return CpuDecisionCardRisk && typeof CpuDecisionCardRisk.prepareCardQuiescenceRequest === 'function'
+        ? CpuDecisionCardRisk.prepareCardQuiescenceRequest(playerKey, policyLevel, legalMoves, context, identity)
+        : null;
+}
+
+function buildCardQuiescenceSnapshotFromBestMove(playerKey: any, context: any, bestMove: any): any {
+    return CpuDecisionCardRisk && typeof CpuDecisionCardRisk.buildCardQuiescenceSnapshotFromBestMove === 'function'
+        ? CpuDecisionCardRisk.buildCardQuiescenceSnapshotFromBestMove(playerKey, context, bestMove)
+        : null;
 }
 
 function shouldHoldCardByQuiescence(playerKey: any, level: any, cardId: any, cardDef: any, context: any, snapshot: any): any {
@@ -2667,6 +2680,13 @@ function prepareCpuCandidateScoringRequest(candidateMoves: any, playerKey: any, 
     return null;
 }
 
+function prepareCpuPlacementLookaheadRequest(candidateMoves: any, playerKey: any, identity: any): any {
+    if (CpuDecisionMoveSelection && typeof CpuDecisionMoveSelection.prepareCpuPlacementLookaheadRequest === 'function') {
+        return CpuDecisionMoveSelection.prepareCpuPlacementLookaheadRequest(candidateMoves, playerKey, identity);
+    }
+    return null;
+}
+
 function selectCardDecision(
     playerKey: any,
     performanceScope?: CpuTurnPerformanceScope | null,
@@ -2688,9 +2708,19 @@ function prepareCpuTurnCardUsabilityAnalysis(playerKey: any): any {
     });
 }
 
-function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any, candidateScoringPrecompute?: any): any {
+function selectCpuMoveWithPolicy(
+    candidateMoves: any,
+    playerKey: any,
+    candidateScoringPrecompute?: any,
+    placementLookaheadPrecompute?: any
+): any {
     if (CpuDecisionMoveSelection && typeof CpuDecisionMoveSelection.selectCpuMoveWithPolicy === 'function') {
-        return CpuDecisionMoveSelection.selectCpuMoveWithPolicy(candidateMoves, playerKey, candidateScoringPrecompute);
+        return CpuDecisionMoveSelection.selectCpuMoveWithPolicy(
+            candidateMoves,
+            playerKey,
+            candidateScoringPrecompute,
+            placementLookaheadPrecompute
+        );
     }
     return candidateMoves[Math.floor(cpuRng.random() * candidateMoves.length)];
 }
@@ -3412,11 +3442,15 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuMaybeDestroyHandCardWithPolicy,
         cpuMaybeUseCardWithPolicy,
         prepareCpuTurnCardUsabilityAnalysis,
+        prepareCardQuiescenceRequest,
+        buildCardQuiescenceSnapshotFromBestMove,
+        shouldBuildCardQuiescenceSnapshot,
         selectHandCardToDestroy,
         applyHandCardDestroy,
         selectCardToUse,
         applyCardChoice,
         prepareCpuCandidateScoringRequest,
+        prepareCpuPlacementLookaheadRequest,
         selectCpuMoveWithPolicy,
         selectMoveFromOnnxPolicyAsync,
         isCardChoiceAllowedByRisk,

@@ -22,7 +22,9 @@ type CpuTurnMovePhaseConfig = {
     getFlipBlockersSafe: () => any;
     getGameState: () => any;
     getPrepareCpuCandidateScoringRequestFn: () => any;
+    getPrepareCpuPlacementLookaheadRequestFn: () => any;
     getScoreCandidatesInWorkerFn: () => any;
+    getSearchCpuPlacementLookaheadInWorkerFn: () => any;
     getSelectMoveFromOnnxFn: () => any;
     getUseCardWithPolicyFn: () => any;
     handleCpuTurnError: (
@@ -43,7 +45,13 @@ type CpuTurnMovePhaseConfig = {
     resolveProcessPassTurn: () => any;
     scheduleRetry: (fn: any, delayMs?: any) => any;
     scheduleRunCpuTurn: (playerKey: any, options: any, delayMs: any) => any;
-    selectCpuMoveSafe: (candidateMoves: any, playerKey: any, candidateScoringPrecompute?: any) => any;
+    selectCpuMoveSafe: (
+        candidateMoves: any,
+        playerKey: any,
+        candidateScoringPrecompute?: any,
+        placementLookaheadPrecompute?: any
+    ) => any;
+    disableSynchronousPlacementLookaheadFallback?: boolean;
     setCpuProcessing: (active: any) => any;
     shouldAbortCpuForHumanMode: (playerKey: any, context: any) => any;
     shouldUseOnnxMoveDecision: (level: any) => any;
@@ -391,6 +399,127 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                 }
             }
             if (!move) {
+                let placementLookaheadPrecompute: any = null;
+                const preparedCardBestMove = preparedCardDecision
+                    && preparedCardDecision.quiescencePrepared === true
+                    && preparedCardDecision.quiescenceSnapshot
+                    ? preparedCardDecision.quiescenceSnapshot.bestMove
+                    : null;
+                if (preparedCardBestMove) {
+                    placementLookaheadPrecompute = {
+                        prepared: true,
+                        bestMove: preparedCardBestMove
+                    };
+                } else if (Number(level) >= 6 && opts.skipAsyncDecision !== true) {
+                    const preparePlacementLookahead = typeof cfg.getPrepareCpuPlacementLookaheadRequestFn === 'function'
+                        ? cfg.getPrepareCpuPlacementLookaheadRequestFn()
+                        : null;
+                    const searchPlacementLookahead = typeof cfg.getSearchCpuPlacementLookaheadInWorkerFn === 'function'
+                        ? cfg.getSearchCpuPlacementLookaheadInWorkerFn()
+                        : null;
+                    if (typeof preparePlacementLookahead === 'function' && typeof searchPlacementLookahead === 'function') {
+                        const identity = analysisSeed && analysisSeed.identity
+                            ? analysisSeed.identity
+                            : {
+                                runId: 0,
+                                decisionEpoch: ++candidateScoringDecisionEpoch,
+                                stateVersion: expectedStateVersion,
+                                turnNumber: Number.isSafeInteger(expectedTurnNumber) && expectedTurnNumber >= 0
+                                    ? expectedTurnNumber
+                                    : null
+                            };
+                        let workerWaitStartedAtMs: number | null = null;
+                        try {
+                            const request = performanceScope
+                                ? measureCpuTurnSync(
+                                    performanceScope,
+                                    'move-candidates',
+                                    () => preparePlacementLookahead(
+                                        candidateMoves,
+                                        playerKey,
+                                        identity
+                                    )
+                                )
+                                : preparePlacementLookahead(
+                                    candidateMoves,
+                                    playerKey,
+                                    identity
+                                );
+                            if (request) {
+                                workerWaitStartedAtMs = performanceScope
+                                    ? readCpuTurnPerformanceNowMs(performanceScope)
+                                    : null;
+                                const batch = await Promise.resolve(searchPlacementLookahead(request));
+                                if (performanceScope && workerWaitStartedAtMs !== null) {
+                                    recordCpuTurnPerformanceInterval(
+                                        performanceScope,
+                                        'move-candidates',
+                                        'wait',
+                                        workerWaitStartedAtMs,
+                                        readCpuTurnPerformanceNowMs(performanceScope),
+                                        'continue'
+                                    );
+                                }
+                                const nowPlayerKey = cfg.getCurrentPlayerKeySafe();
+                                const nowTurnNumber = cfg.getCurrentTurnNumberSafe();
+                                const nowStateVersion = typeof cfg.getCurrentStateVersionSafe === 'function'
+                                    ? cfg.getCurrentStateVersionSafe()
+                                    : null;
+                                const stale = (
+                                    (isAnalysisCurrent && !isAnalysisCurrent(true))
+                                    || (nowPlayerKey && nowPlayerKey !== playerKey)
+                                    || (expectedTurnNumber !== null && nowTurnNumber !== expectedTurnNumber)
+                                    || nowStateVersion !== expectedStateVersion
+                                );
+                                if (stale) {
+                                    cfg.setCpuProcessing(false);
+                                    if (analysisSeed && analysisSeed.identity && analysisSeed.identity.stateVersion === null) {
+                                        cfg.scheduleRunCpuTurn(playerKey, {
+                                            ...resumeOptions,
+                                            cpuSkipAsyncDecision: true
+                                        }, 0);
+                                    }
+                                    return { status: 'handled' };
+                                }
+                                const response = batch && batch.response ? batch.response : batch;
+                                placementLookaheadPrecompute = {
+                                    prepared: true,
+                                    bestMove: response && response.bestMove ? response.bestMove : null
+                                };
+                            } else if (cfg.disableSynchronousPlacementLookaheadFallback === true) {
+                                placementLookaheadPrecompute = { prepared: true, bestMove: null };
+                            }
+                        } catch (error) {
+                            if (performanceScope && workerWaitStartedAtMs !== null) {
+                                recordCpuTurnPerformanceInterval(
+                                    performanceScope,
+                                    'move-candidates',
+                                    'wait',
+                                    workerWaitStartedAtMs,
+                                    readCpuTurnPerformanceNowMs(performanceScope),
+                                    'error'
+                                );
+                            }
+                            if (isAnalysisCurrent && !isAnalysisCurrent(true)) {
+                                cfg.setCpuProcessing(false);
+                                cfg.scheduleRunCpuTurn(playerKey, {
+                                    ...resumeOptions,
+                                    cpuSkipAsyncDecision: true
+                                }, 0);
+                                return { status: 'handled' };
+                            }
+                            if (cfg.disableSynchronousPlacementLookaheadFallback === true) {
+                                placementLookaheadPrecompute = { prepared: true, bestMove: null };
+                            }
+                            cfg.debugCpuTrace('[AI] Dedicated Worker placement lookahead failed', {
+                                playerKey,
+                                error: error && (error as any).message ? (error as any).message : String(error)
+                            });
+                        }
+                    } else if (cfg.disableSynchronousPlacementLookaheadFallback === true) {
+                        placementLookaheadPrecompute = { prepared: true, bestMove: null };
+                    }
+                }
                 let candidateScoringPrecompute = null;
                 const prepareCandidateScoring = typeof cfg.getPrepareCpuCandidateScoringRequestFn === 'function'
                     ? cfg.getPrepareCpuCandidateScoringRequestFn()
@@ -513,9 +642,19 @@ export function createCpuTurnMovePhase(config: CpuTurnMovePhaseConfig): any {
                     ? measureCpuTurnSync(
                         performanceScope,
                         'move-candidates',
-                        () => cfg.selectCpuMoveSafe(candidateMoves, playerKey, candidateScoringPrecompute)
+                        () => cfg.selectCpuMoveSafe(
+                            candidateMoves,
+                            playerKey,
+                            candidateScoringPrecompute,
+                            placementLookaheadPrecompute
+                        )
                     )
-                    : cfg.selectCpuMoveSafe(candidateMoves, playerKey, candidateScoringPrecompute);
+                    : cfg.selectCpuMoveSafe(
+                        candidateMoves,
+                        playerKey,
+                        candidateScoringPrecompute,
+                        placementLookaheadPrecompute
+                    );
             }
         }
         if (!move) {

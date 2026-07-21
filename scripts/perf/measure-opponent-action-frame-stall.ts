@@ -257,6 +257,7 @@ function validateStageEntry(entry: StageEntry): string | null {
   if (![
     'handoff-delay',
     'card-availability',
+    'card-quiescence',
     'card-context-base',
     'move-candidates',
     'commentary-context',
@@ -448,6 +449,9 @@ function sanitizeValidSample(sample: BrowserSample): Readonly<Record<string, unk
     runtimeEvidence: Object.freeze({
       workerCandidateScoringRequestCount: Number.isFinite(Number(sample.runtimeEvidence?.workerCandidateScoringRequestCount))
         ? Number(sample.runtimeEvidence?.workerCandidateScoringRequestCount)
+        : 0,
+      workerCardQuiescenceRequestCount: Number.isFinite(Number(sample.runtimeEvidence?.workerCardQuiescenceRequestCount))
+        ? Number(sample.runtimeEvidence?.workerCardQuiescenceRequestCount)
         : 0,
       workerOnnxInferenceRequestCount: Number.isFinite(Number(sample.runtimeEvidence?.workerOnnxInferenceRequestCount))
         ? Number(sample.runtimeEvidence?.workerOnnxInferenceRequestCount)

@@ -1,3 +1,5 @@
+import { createCpuCardQuiescenceRequest } from './ai/cpu-card-quiescence';
+
 type CpuDecisionMoveSelectionConfig = {
     buildLv6LookaheadOptions: (level: any, board: any, legalMovesCount: any, playerKey: any) => any;
     buildMovePlanContext: (playerKey: any, level: any, candidateMoves: any) => any;
@@ -142,7 +144,118 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
         );
     }
 
-    function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any, candidateScoringPrecomputeInput?: any): any {
+    function buildPlacementLookaheadScoring(prepared: any, playerKey: any): any {
+        const { placementLevel, prioritizedCandidateMoves } = prepared;
+        const learnedMove = (placementLevel >= 6)
+            ? cfg.selectMoveFromLearnedPolicy(prioritizedCandidateMoves, playerKey, placementLevel)
+            : null;
+        const learnedScoreFn = cfg.createLearnedScoreFn(playerKey, placementLevel, prioritizedCandidateMoves.length);
+        const movePlanContext = (placementLevel >= 4)
+            ? cfg.buildMovePlanContext(playerKey, placementLevel, prioritizedCandidateMoves)
+            : null;
+        const cpuPolicyCore = cfg.getCpuPolicyCore ? cfg.getCpuPolicyCore() : null;
+        const movePlanScoreFn = (
+            movePlanContext
+            && cpuPolicyCore
+            && typeof cpuPolicyCore.scoreMoveForCornerEdgePlan === 'function'
+        )
+            ? (move: any) => {
+                try {
+                    return Number(cpuPolicyCore.scoreMoveForCornerEdgePlan(move, movePlanContext) || 0);
+                } catch (_error) {
+                    return 0;
+                }
+            }
+            : null;
+        const combinedScoreFn = (move: any) => {
+            let score = 0;
+            if (movePlanScoreFn) score += movePlanScoreFn(move);
+            if (learnedScoreFn) {
+                const learnedWeight = movePlanScoreFn ? (placementLevel >= 6 ? 0.35 : 0.15) : 1.0;
+                score += (Number(learnedScoreFn(move) || 0) * learnedWeight);
+            }
+            if (learnedMove && move && move.row === learnedMove.row && move.col === learnedMove.col) {
+                score += movePlanScoreFn ? 1200 : 2500;
+            }
+            return score;
+        };
+        return {
+            combinedScoreFn,
+            cpuPolicyCore,
+            learnedMove,
+            learnedScoreFn,
+            movePlanScoreFn
+        };
+    }
+
+    function prepareCpuPlacementLookaheadRequest(candidateMoves: any, playerKey: any, identity: any): any {
+        if (!identity || typeof identity !== 'object') return null;
+        const prepared = prepareCandidateMovesForPolicy(candidateMoves, playerKey, false);
+        if (
+            !Number.isFinite(prepared.placementLevel)
+            || prepared.placementLevel < 6
+            || prepared.prioritizedCandidateMoves.length <= 0
+        ) return null;
+        const gameState = cfg.getGameState();
+        const board = gameState && gameState.board;
+        if (!cfg.isPlayableBoard(board)) return null;
+        const scoring = buildPlacementLookaheadScoring(prepared, playerKey);
+        if (scoring.learnedMove && !scoring.movePlanScoreFn) return null;
+        const lv6Lookahead = cfg.buildLv6LookaheadOptions(
+            prepared.placementLevel,
+            board,
+            prepared.prioritizedCandidateMoves.length,
+            playerKey
+        );
+        const weightConfig = cfg.resolveCpuLv6LookaheadWeights();
+        const cardState = cfg.getCardState();
+        const priorScoreByCell = Object.fromEntries(prepared.prioritizedCandidateMoves.map((move: any) => {
+            const score = Number(scoring.combinedScoreFn(move) || 0);
+            return [
+                `${Number(move.row)},${Number(move.col)}`,
+                Number.isFinite(score) ? score : 0
+            ];
+        }));
+        return createCpuCardQuiescenceRequest({
+            requestId: `placement-lookahead:${Number(identity.runId) || 0}:${Number(identity.decisionEpoch) || 0}`,
+            decisionEpoch: identity.decisionEpoch,
+            stateVersion: identity.stateVersion,
+            turnNumber: Number.isSafeInteger(identity.turnNumber) && Number(identity.turnNumber) >= 0
+                ? Number(identity.turnNumber)
+                : null,
+            playerKey,
+            level: prepared.placementLevel,
+            playerValue: cfg.resolvePlayerValue(playerKey),
+            board,
+            legalMoves: prepared.prioritizedCandidateMoves,
+            search: {
+                depth: lv6Lookahead.depth,
+                maxBranch: lv6Lookahead.maxBranch,
+                nodeBudget: lv6Lookahead.nodeBudget,
+                maxTimeMs: lv6Lookahead.maxTimeMs || 2_200,
+                endgameSolveEmpties: lv6Lookahead.endgameSolveEmpties || 20,
+                endgameDepth: lv6Lookahead.endgameDepth || 16,
+                endgameNodeBudget: lv6Lookahead.endgameNodeBudget || 1_500_000,
+                endgameMaxTimeMs: lv6Lookahead.endgameMaxTimeMs || 1_600
+            },
+            priorScoreByCell,
+            priorWeight: Number(weightConfig && weightConfig.policyLookaheadPriorWeight) || 62,
+            searchWeight: Number(weightConfig && weightConfig.searchWeight) || 1.8,
+            boardBonusByCell: (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
+                ? cardState.boardBonusByCell
+                : null,
+            boardBonusConsumedByCell: (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
+                ? cardState.boardBonusConsumedByCell
+                : null
+        });
+    }
+
+    function selectCpuMoveWithPolicy(
+        candidateMoves: any,
+        playerKey: any,
+        candidateScoringPrecomputeInput?: any,
+        placementLookaheadPrecomputeInput?: any
+    ): any {
         const rng = cfg.getCpuRng();
         const prepared = prepareCandidateMovesForPolicy(candidateMoves, playerKey, true);
         const {
@@ -181,77 +294,68 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
             return othelloMove;
         }
 
-        const learnedMove = (placementLevel >= 6) ? cfg.selectMoveFromLearnedPolicy(prioritizedCandidateMoves, playerKey, placementLevel) : null;
-        const learnedScoreFn = cfg.createLearnedScoreFn(playerKey, placementLevel, prioritizedCandidateMoves.length);
-        const movePlanContext = (placementLevel >= 4) ? cfg.buildMovePlanContext(playerKey, placementLevel, prioritizedCandidateMoves) : null;
-        const cpuPolicyCore = cfg.getCpuPolicyCore ? cfg.getCpuPolicyCore() : null;
-        const movePlanScoreFn = (
-            movePlanContext &&
-            cpuPolicyCore &&
-            typeof cpuPolicyCore.scoreMoveForCornerEdgePlan === 'function'
-        )
-            ? (move: any) => {
-                try {
-                    return Number(cpuPolicyCore.scoreMoveForCornerEdgePlan(move, movePlanContext) || 0);
-                } catch (e) {
-                    return 0;
-                }
-            }
-            : null;
+        const {
+            combinedScoreFn,
+            cpuPolicyCore,
+            learnedMove,
+            learnedScoreFn,
+            movePlanScoreFn
+        } = buildPlacementLookaheadScoring(prepared, playerKey);
 
         if (learnedMove && !movePlanScoreFn) {
             cfg.cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: 学習選択 (${learnedMove.row}, ${learnedMove.col}) - 反転${learnedMove.flips.length}枚`);
             return learnedMove;
         }
 
-        const combinedScoreFn = (move: any) => {
-            let score = 0;
-            if (movePlanScoreFn) score += movePlanScoreFn(move);
-            if (learnedScoreFn) {
-                const learnedWeight = movePlanScoreFn ? (placementLevel >= 6 ? 0.35 : 0.15) : 1.0;
-                score += (Number(learnedScoreFn(move) || 0) * learnedWeight);
-            }
-            if (learnedMove && move && move.row === learnedMove.row && move.col === learnedMove.col) {
-                score += movePlanScoreFn ? 1200 : 2500;
-            }
-            return score;
-        };
-
         const gameState = cfg.getGameState();
         const cardState = cfg.getCardState();
+        const placementLookaheadWasPrepared = !!(
+            placementLookaheadPrecomputeInput
+            && placementLookaheadPrecomputeInput.prepared === true
+        );
         if (
             placementLevel >= 6 &&
             cpuPolicyCore &&
-            typeof cpuPolicyCore.chooseMoveByLookahead === 'function' &&
+            (placementLookaheadWasPrepared || typeof cpuPolicyCore.chooseMoveByLookahead === 'function') &&
             cfg.isPlayableBoard(gameState && gameState.board)
         ) {
             const playerValue = cfg.resolvePlayerValue(playerKey);
             const lv6Lookahead = cfg.buildLv6LookaheadOptions(placementLevel, gameState.board, prioritizedCandidateMoves.length, playerKey);
             const onSearchMeta = cfg.createLookaheadMetaLogger(playerKey, placementLevel, 'policy-lookahead');
             const weightConfig = cfg.resolveCpuLv6LookaheadWeights();
-            const looked = cpuPolicyCore.chooseMoveByLookahead(prioritizedCandidateMoves, {
-                board: gameState.board,
-                playerValue,
-                level: placementLevel,
-                depth: lv6Lookahead.depth,
-                maxBranch: lv6Lookahead.maxBranch,
-                nodeBudget: lv6Lookahead.nodeBudget,
-                scoreMove: combinedScoreFn,
-                priorWeight: Number(weightConfig && weightConfig.policyLookaheadPriorWeight) || 62,
-                searchWeight: Number(weightConfig && weightConfig.searchWeight) || 1.8,
-                endgameSolveEmpties: lv6Lookahead.endgameSolveEmpties || 20,
-                endgameDepth: lv6Lookahead.endgameDepth || 16,
-                endgameNodeBudget: lv6Lookahead.endgameNodeBudget || 1_500_000,
-                maxTimeMs: lv6Lookahead.maxTimeMs || 2_200,
-                endgameMaxTimeMs: lv6Lookahead.endgameMaxTimeMs || 1_600,
-                onSearchMeta,
-                boardBonusByCell: (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
-                    ? cardState.boardBonusByCell
-                    : null,
-                boardBonusConsumedByCell: (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
-                    ? cardState.boardBonusConsumedByCell
-                    : null
-            });
+            const precomputedBestMove = placementLookaheadWasPrepared
+                ? placementLookaheadPrecomputeInput.bestMove
+                : null;
+            const looked = placementLookaheadWasPrepared
+                ? prioritizedCandidateMoves.find((move: any) => (
+                    move
+                    && precomputedBestMove
+                    && Number(move.row) === Number(precomputedBestMove.row)
+                    && Number(move.col) === Number(precomputedBestMove.col)
+                )) || null
+                : cpuPolicyCore.chooseMoveByLookahead(prioritizedCandidateMoves, {
+                    board: gameState.board,
+                    playerValue,
+                    level: placementLevel,
+                    depth: lv6Lookahead.depth,
+                    maxBranch: lv6Lookahead.maxBranch,
+                    nodeBudget: lv6Lookahead.nodeBudget,
+                    scoreMove: combinedScoreFn,
+                    priorWeight: Number(weightConfig && weightConfig.policyLookaheadPriorWeight) || 62,
+                    searchWeight: Number(weightConfig && weightConfig.searchWeight) || 1.8,
+                    endgameSolveEmpties: lv6Lookahead.endgameSolveEmpties || 20,
+                    endgameDepth: lv6Lookahead.endgameDepth || 16,
+                    endgameNodeBudget: lv6Lookahead.endgameNodeBudget || 1_500_000,
+                    maxTimeMs: lv6Lookahead.maxTimeMs || 2_200,
+                    endgameMaxTimeMs: lv6Lookahead.endgameMaxTimeMs || 1_600,
+                    onSearchMeta,
+                    boardBonusByCell: (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
+                        ? cardState.boardBonusByCell
+                        : null,
+                    boardBonusConsumedByCell: (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
+                        ? cardState.boardBonusConsumedByCell
+                        : null
+                });
             if (looked) {
                 const stabilized = cfg.maybeOverrideWithStrictPendingPlacement(looked, prioritizedCandidateMoves, playerKey, movePlanScoreFn);
                 if (stabilized) {
@@ -313,6 +417,7 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
 
     return {
         prepareCpuCandidateScoringRequest,
+        prepareCpuPlacementLookaheadRequest,
         selectCpuMoveWithPolicy
     };
 }

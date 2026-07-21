@@ -8,6 +8,8 @@ import type { CardState, GameState, PlayerKey } from '../src/types';
 import {
     createCpuTurnPerformanceScope,
     measureCpuTurnSync,
+    readCpuTurnPerformanceNowMs,
+    recordCpuTurnPerformanceInterval,
     readCpuTurnPerformanceCorrelationId,
     withCpuTurnPerformanceOptions,
     type CpuTurnPerformanceRecorder,
@@ -1103,13 +1105,23 @@ const presentationRuntime = CpuTurnPresentationRuntimeModule.createPresentationR
     processCpuTurn: () => processCpuTurn()
 });
 
-function selectCpuMoveSafe(candidateMoves: any, playerKey: any, candidateScoringPrecompute?: any) {
+function selectCpuMoveSafe(
+    candidateMoves: any,
+    playerKey: any,
+    candidateScoringPrecompute?: any,
+    placementLookaheadPrecompute?: any
+) {
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
     try {
         const selectCpuMoveWithPolicyFn = resolveRuntimeFunction('selectCpuMoveWithPolicy')
             || (typeof selectCpuMoveWithPolicy === 'function' ? selectCpuMoveWithPolicy : null);
         if (typeof selectCpuMoveWithPolicyFn === 'function') {
-            const selected = selectCpuMoveWithPolicyFn(candidateMoves, playerKey, candidateScoringPrecompute);
+            const selected = selectCpuMoveWithPolicyFn(
+                candidateMoves,
+                playerKey,
+                candidateScoringPrecompute,
+                placementLookaheadPrecompute
+            );
             if (selected && Number.isFinite(selected.row) && Number.isFinite(selected.col)) {
                 return selected;
             }
@@ -1421,6 +1433,111 @@ function createCpuTurnAnalysisForRun(args: any): any {
     };
 }
 
+async function prepareCpuCardQuiescenceForRun(
+    analysisForRun: any,
+    playerKey: PlayerKey,
+    performanceScope: CpuTurnPerformanceScope | null
+): Promise<'continue' | 'stale'> {
+    if (!analysisForRun || !analysisForRun.seed || !analysisForRun.getPreparedCardDecision) return 'continue';
+    const usability = analysisForRun.seed.cardUsability;
+    if (!usability || !Array.isArray(usability.usableCardIds) || usability.usableCardIds.length === 0) return 'continue';
+
+    const prepared = analysisForRun.getPreparedCardDecision();
+    if (!prepared) return 'continue';
+    const shouldBuild = resolveCpuDecisionFunction('shouldBuildCardQuiescenceSnapshot');
+    if (typeof shouldBuild !== 'function' || shouldBuild(
+        prepared.level,
+        prepared.legalMoves,
+        prepared.decisionContext,
+        Array.isArray(usability.usableCardTypes) ? usability.usableCardTypes : undefined
+    ) !== true) {
+        prepared.quiescenceSnapshot = null;
+        prepared.quiescencePrepared = true;
+        return 'continue';
+    }
+
+    const prepareRequest = resolveCpuDecisionFunction('prepareCardQuiescenceRequest');
+    const buildSnapshot = resolveCpuDecisionFunction('buildCardQuiescenceSnapshotFromBestMove');
+    const searchInWorker = __uiImpl_cpu
+        && typeof __uiImpl_cpu.searchCardQuiescenceInWorker === 'function'
+        && (
+            typeof __uiImpl_cpu.isCpuCardQuiescenceAvailable !== 'function'
+            || __uiImpl_cpu.isCpuCardQuiescenceAvailable() === true
+        )
+        ? __uiImpl_cpu.searchCardQuiescenceInWorker
+        : null;
+    const disallowSyncFallback = __uiImpl_cpu
+        && __uiImpl_cpu.disableSynchronousCardQuiescenceFallback === true;
+    if (typeof prepareRequest !== 'function' || typeof buildSnapshot !== 'function' || typeof searchInWorker !== 'function') {
+        if (disallowSyncFallback) {
+            prepared.quiescenceSnapshot = null;
+            prepared.quiescencePrepared = true;
+        }
+        return 'continue';
+    }
+
+    let request: any = null;
+    try {
+        request = prepareRequest(
+            playerKey,
+            prepared.level,
+            prepared.legalMoves,
+            prepared.decisionContext,
+            analysisForRun.seed.identity
+        );
+    } catch (_error) {
+        request = null;
+    }
+    if (!request) {
+        if (disallowSyncFallback) {
+            prepared.quiescenceSnapshot = null;
+            prepared.quiescencePrepared = true;
+        }
+        return 'continue';
+    }
+
+    const waitStartedAtMs = performanceScope ? readCpuTurnPerformanceNowMs(performanceScope) : Number.NaN;
+    try {
+        const batch = await Promise.resolve(searchInWorker(request));
+        if (performanceScope) {
+            recordCpuTurnPerformanceInterval(
+                performanceScope,
+                'card-quiescence',
+                'wait',
+                waitStartedAtMs,
+                readCpuTurnPerformanceNowMs(performanceScope),
+                'continue'
+            );
+        }
+        if (!analysisForRun.isCurrent(true)) return 'stale';
+        const response = batch && batch.response ? batch.response : batch;
+        prepared.quiescenceSnapshot = buildSnapshot(
+            playerKey,
+            prepared.decisionContext,
+            response && response.bestMove
+        );
+        prepared.quiescencePrepared = true;
+        return 'continue';
+    } catch (_error) {
+        if (performanceScope) {
+            recordCpuTurnPerformanceInterval(
+                performanceScope,
+                'card-quiescence',
+                'wait',
+                waitStartedAtMs,
+                readCpuTurnPerformanceNowMs(performanceScope),
+                'error'
+            );
+        }
+        if (!analysisForRun.isCurrent(true)) return 'stale';
+        if (disallowSyncFallback) {
+            prepared.quiescenceSnapshot = null;
+            prepared.quiescencePrepared = true;
+        }
+        return 'continue';
+    }
+}
+
 function resolveProcessPassTurn() {
     try {
         if (__uiImpl_cpu && typeof __uiImpl_cpu.resolveProcessPassTurn === 'function') {
@@ -1712,6 +1829,26 @@ const CpuTurnMovePhase = (CpuTurnMovePhaseModule && typeof CpuTurnMovePhaseModul
                 ? CpuDecisionRuntimeModule.prepareCpuCandidateScoringRequest
                 : null)
         ),
+        getPrepareCpuPlacementLookaheadRequestFn: () => (
+            resolveRuntimeFunction('prepareCpuPlacementLookaheadRequest')
+            || (CpuDecisionRuntimeModule && typeof CpuDecisionRuntimeModule.prepareCpuPlacementLookaheadRequest === 'function'
+                ? CpuDecisionRuntimeModule.prepareCpuPlacementLookaheadRequest
+                : null)
+        ),
+        getSearchCpuPlacementLookaheadInWorkerFn: () => (
+            __uiImpl_cpu
+            && typeof __uiImpl_cpu.searchCardQuiescenceInWorker === 'function'
+            && (
+                typeof __uiImpl_cpu.isCpuCardQuiescenceAvailable !== 'function'
+                || __uiImpl_cpu.isCpuCardQuiescenceAvailable() === true
+            )
+                ? __uiImpl_cpu.searchCardQuiescenceInWorker
+                : null
+        ),
+        disableSynchronousPlacementLookaheadFallback: !!(
+            __uiImpl_cpu
+            && __uiImpl_cpu.disableSynchronousCardQuiescenceFallback === true
+        ),
         getScoreCandidatesInWorkerFn: () => (
             __uiImpl_cpu &&
             typeof __uiImpl_cpu.scoreCandidatesInWorker === 'function' &&
@@ -1963,6 +2100,16 @@ async function runCpuTurn(playerKey: PlayerKey, options: any = {}): Promise<void
         }
 
         if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
+            const quiescencePreparation = await prepareCpuCardQuiescenceForRun(
+                analysisForRun,
+                playerKey,
+                performanceScope
+            );
+            if (quiescencePreparation === 'stale') {
+                setCpuProcessing(false);
+                scheduleRunCpuTurn(playerKey, inheritedResumeOptions, 0);
+                return;
+            }
             const cardPhaseResult = await CpuTurnCardPhase.runCpuTurnCardPhase({
                 playerKey,
                 autoMode,

@@ -125,14 +125,23 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
 'use strict';
 
     let _uiGlobals: any = {};
-    let cpuCandidateScoringRuntime: { scoreCandidatesInWorker?: Function } = {};
+    let cpuCandidateScoringRuntime: {
+        scoreCandidatesInWorker?: Function;
+        searchCardQuiescenceInWorker?: Function;
+    } = {};
 
     function configureCpuCandidateScoring(runtime: any): boolean {
         const scorer = runtime && typeof runtime.scoreCandidatesInWorker === 'function'
             ? runtime.scoreCandidatesInWorker
             : null;
-        cpuCandidateScoringRuntime = scorer ? { scoreCandidatesInWorker: scorer } : {};
-        return !!scorer;
+        const quiescenceSearcher = runtime && typeof runtime.searchCardQuiescenceInWorker === 'function'
+            ? runtime.searchCardQuiescenceInWorker
+            : null;
+        cpuCandidateScoringRuntime = {
+            ...(scorer ? { scoreCandidatesInWorker: scorer } : {}),
+            ...(quiescenceSearcher ? { searchCardQuiescenceInWorker: quiescenceSearcher } : {})
+        };
+        return !!scorer || !!quiescenceSearcher;
     }
 
     function configurePixiRuntime(runtime: any, options?: any): boolean {
@@ -1642,8 +1651,20 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             return scorer(...args);
                         }
                         : undefined,
+                    searchCardQuiescenceInWorker: typeof cpuCandidateScoringRuntime.searchCardQuiescenceInWorker === 'function'
+                        ? (...args: any[]) => {
+                            const searcher = cpuCandidateScoringRuntime.searchCardQuiescenceInWorker;
+                            if (typeof searcher !== 'function') {
+                                throw new Error('Dedicated CPU card-quiescence searcher is unavailable');
+                            }
+                            return searcher(...args);
+                        }
+                        : undefined,
                     isCpuCandidateScoringAvailable: () => (
                         typeof cpuCandidateScoringRuntime.scoreCandidatesInWorker === 'function'
+                    ),
+                    isCpuCardQuiescenceAvailable: () => (
+                        typeof cpuCandidateScoringRuntime.searchCardQuiescenceInWorker === 'function'
                     )
                 });
                 const cpuGlobals = result && result.registeredGlobals ? result.registeredGlobals : {};

@@ -31,6 +31,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game-events": () => require("../../dist/browser-vite-bridge-src/startup/modules/game-events.js"),
   "game/ai/commentary-data": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/commentary-data.js"),
   "game/ai/cpu-candidate-scoring": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-candidate-scoring.js"),
+  "game/ai/cpu-card-quiescence": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-card-quiescence.js"),
   "game/ai/cpu-commentary-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-commentary-runtime.js"),
   "game/ai/cpu-lv6-lookahead-profile": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-lv6-lookahead-profile.js"),
   "game/ai/cpu-policy-board-counts": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-board-counts.js"),
@@ -59,6 +60,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/ai/cpu-policy-lookahead-parity": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-lookahead-parity.js"),
   "game/ai/cpu-policy-lookahead-prelude": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-lookahead-prelude.js"),
   "game/ai/cpu-policy-lookahead-root-search": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-lookahead-root-search.js"),
+  "game/ai/cpu-policy-lookahead-worker-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-lookahead-worker-runtime.js"),
   "game/ai/cpu-policy-move-plan-scoring": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-move-plan-scoring.js"),
   "game/ai/cpu-policy-move-selection": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-move-selection.js"),
   "game/ai/cpu-policy-pending-targets": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/ai/cpu-policy-pending-targets.js"),
@@ -712,6 +714,7 @@ installBootModuleMetadata({
     "game-events",
     "game/ai/commentary-data",
     "game/ai/cpu-candidate-scoring",
+    "game/ai/cpu-card-quiescence",
     "game/ai/cpu-commentary-runtime",
     "game/ai/cpu-lv6-lookahead-profile",
     "game/ai/cpu-policy-board-counts",
@@ -740,6 +743,7 @@ installBootModuleMetadata({
     "game/ai/cpu-policy-lookahead-parity",
     "game/ai/cpu-policy-lookahead-prelude",
     "game/ai/cpu-policy-lookahead-root-search",
+    "game/ai/cpu-policy-lookahead-worker-runtime",
     "game/ai/cpu-policy-move-plan-scoring",
     "game/ai/cpu-policy-move-selection",
     "game/ai/cpu-policy-pending-targets",
@@ -1444,4 +1448,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 676;
+export const startupModuleCount = 678;

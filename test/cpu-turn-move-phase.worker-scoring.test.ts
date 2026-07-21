@@ -33,7 +33,9 @@ function createConfig(overrides: Record<string, any> = {}) {
     getFlipBlockersSafe: jest.fn(() => []),
     getGameState: jest.fn(() => ({ currentPlayer: 'white', turnNumber: 12 })),
     getPrepareCpuCandidateScoringRequestFn: jest.fn(() => prepare),
+    getPrepareCpuPlacementLookaheadRequestFn: jest.fn(() => null),
     getScoreCandidatesInWorkerFn: jest.fn(() => score),
+    getSearchCpuPlacementLookaheadInWorkerFn: jest.fn(() => null),
     getSelectMoveFromOnnxFn: jest.fn(() => null),
     getUseCardWithPolicyFn: jest.fn(() => null),
     handleCpuTurnError: jest.fn(),
@@ -91,7 +93,7 @@ describe('CPU turn Worker candidate scoring', () => {
     expect(harness.selectCpuMoveSafe).toHaveBeenCalledWith(CANDIDATES, 'white', {
       expectedRequest: harness.expectedRequest,
       batch: harness.batch
-    });
+    }, null);
     expect(harness.executeMove).toHaveBeenCalledWith(CANDIDATES[0]);
   });
 
@@ -102,7 +104,7 @@ describe('CPU turn Worker candidate scoring', () => {
 
     await expect(run(phase)).resolves.toEqual({ status: 'handled' });
 
-    expect(harness.selectCpuMoveSafe).toHaveBeenCalledWith(CANDIDATES, 'white', null);
+    expect(harness.selectCpuMoveSafe).toHaveBeenCalledWith(CANDIDATES, 'white', null, null);
     expect(harness.executeMove).toHaveBeenCalledWith(CANDIDATES[0]);
     expect(harness.config.debugCpuTrace).toHaveBeenCalledWith(
       expect.stringContaining('exact local scorer'),
@@ -218,6 +220,67 @@ describe('CPU turn Worker candidate scoring', () => {
       'white',
       expect.objectContaining({ autoMode: false, cpuSkipAsyncDecision: true }),
       0
+    );
+  });
+
+  test('passes an awaited Lv6 placement lookahead into the synchronous selector', async () => {
+    const placementRequest = {
+      requestId: 'placement-lookahead:1',
+      decisionEpoch: 1,
+      stateVersion: 5,
+      turnNumber: 12,
+      playerKey: 'white'
+    };
+    const preparePlacement = jest.fn(() => placementRequest);
+    const searchPlacement = jest.fn(async () => ({
+      request: placementRequest,
+      response: { bestMove: CANDIDATES[1] }
+    }));
+    const harness = createConfig({
+      getPrepareCpuPlacementLookaheadRequestFn: jest.fn(() => preparePlacement),
+      getSearchCpuPlacementLookaheadInWorkerFn: jest.fn(() => searchPlacement)
+    });
+    const phase = createCpuTurnMovePhase(harness.config as any);
+
+    await expect(run(phase, { level: 6 })).resolves.toEqual({ status: 'handled' });
+
+    expect(preparePlacement).toHaveBeenCalledWith(
+      CANDIDATES,
+      'white',
+      expect.objectContaining({ decisionEpoch: 1, stateVersion: 5, turnNumber: 12 })
+    );
+    expect(searchPlacement).toHaveBeenCalledWith(placementRequest);
+    expect(harness.selectCpuMoveSafe).toHaveBeenCalledWith(
+      CANDIDATES,
+      'white',
+      expect.any(Object),
+      { prepared: true, bestMove: CANDIDATES[1] }
+    );
+  });
+
+  test('marks Lv6 placement lookahead prepared after Worker failure when sync fallback is disabled', async () => {
+    const harness = createConfig({
+      disableSynchronousPlacementLookaheadFallback: true,
+      getPrepareCpuPlacementLookaheadRequestFn: jest.fn(() => jest.fn(() => ({
+        requestId: 'placement-lookahead:failed',
+        decisionEpoch: 1,
+        stateVersion: 5,
+        turnNumber: 12,
+        playerKey: 'white'
+      }))),
+      getSearchCpuPlacementLookaheadInWorkerFn: jest.fn(() => jest.fn(async () => {
+        throw new Error('placement Worker unavailable');
+      }))
+    });
+    const phase = createCpuTurnMovePhase(harness.config as any);
+
+    await expect(run(phase, { level: 6 })).resolves.toEqual({ status: 'handled' });
+
+    expect(harness.selectCpuMoveSafe).toHaveBeenCalledWith(
+      CANDIDATES,
+      'white',
+      expect.any(Object),
+      { prepared: true, bestMove: null }
     );
   });
 });

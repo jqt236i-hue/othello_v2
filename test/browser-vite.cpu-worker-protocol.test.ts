@@ -12,6 +12,10 @@ import {
   createCpuCandidateScoringRequest,
   scoreCpuCandidateRequest
 } from '../game/ai/cpu-candidate-scoring';
+import {
+  createCpuCardQuiescenceRequest,
+  executeCpuCardQuiescenceRequest
+} from '../game/ai/cpu-card-quiescence';
 
 function createIdentity() {
   return {
@@ -102,6 +106,53 @@ describe('CPU Worker protocol', () => {
       decisionEpoch: scoringRequest.decisionEpoch + 1,
       kind: 'request',
       payload: { request: scoringRequest }
+    })).toThrow(/identity/);
+  });
+
+  test('validates card-quiescence payloads and responses with nested request identity', () => {
+    const quiescenceRequest = createCpuCardQuiescenceRequest({
+      requestId: 'card-quiescence:1:7',
+      decisionEpoch: 7,
+      stateVersion: 12,
+      turnNumber: 4,
+      playerKey: 'white',
+      level: 6,
+      playerValue: -1,
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      legalMoves: [{ row: 0, col: 0, flips: [] }],
+      search: {
+        depth: 4,
+        maxBranch: 4,
+        nodeBudget: 120000,
+        maxTimeMs: 300,
+        endgameSolveEmpties: 12,
+        endgameDepth: 10,
+        endgameNodeBudget: 600000,
+        endgameMaxTimeMs: 700
+      }
+    });
+    const request = parseCpuWorkerRequest({
+      ...createIdentity(),
+      operation: CPU_WORKER_OPERATIONS.CARD_QUIESCENCE,
+      kind: 'request',
+      payload: { request: quiescenceRequest }
+    });
+    const result = executeCpuCardQuiescenceRequest(quiescenceRequest, (moves) => moves[0]);
+    const response = parseCpuWorkerResponse({
+      ...request,
+      kind: 'response',
+      ok: true,
+      result
+    });
+
+    expect((request.payload as any).request.requestId).toBe('card-quiescence:1:7');
+    expect(response.ok && (response.result as any).bestMove).toEqual({ row: 0, col: 0, flips: [] });
+    expect(() => parseCpuWorkerRequest({
+      ...createIdentity(),
+      operation: CPU_WORKER_OPERATIONS.CARD_QUIESCENCE,
+      decisionEpoch: 8,
+      kind: 'request',
+      payload: { request: quiescenceRequest }
     })).toThrow(/identity/);
   });
 

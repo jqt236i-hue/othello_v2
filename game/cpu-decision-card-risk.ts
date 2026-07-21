@@ -16,6 +16,8 @@ type CpuDecisionCardRiskConfig = {
     resolveCardType: (cardId: any, cardDef?: any) => any;
 };
 
+import { createCpuCardQuiescenceRequest } from './ai/cpu-card-quiescence';
+
 const HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE = new Set([
     'TIME_BOMB',
     'METEOR_WILL',
@@ -46,9 +48,15 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
         return cfg.getCardLogic ? cfg.getCardLogic() : null;
     }
 
-    function shouldBuildCardQuiescenceSnapshot(level: any, legalMoves: any, context: any): boolean {
+    function hasQuiescenceRelevantCardType(usableCardTypes: any): boolean {
+        if (!Array.isArray(usableCardTypes) || usableCardTypes.length === 0) return true;
+        return usableCardTypes.some((value: any) => HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE.has(String(value || '').toUpperCase()));
+    }
+
+    function shouldBuildCardQuiescenceSnapshot(level: any, legalMoves: any, context: any, usableCardTypes?: any): boolean {
         if (!Number.isFinite(level) || level < 6) return false;
         if (!Array.isArray(legalMoves) || legalMoves.length <= 0) return false;
+        if (!hasQuiescenceRelevantCardType(usableCardTypes)) return false;
         if (!context || context.forceUseCard === true || context.cornerEmergency === true) return false;
         if (Number(context.discDiff || 0) <= -8) return false;
         if (Number(context.handSize || 0) >= 4) return false;
@@ -57,46 +65,72 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
         return true;
     }
 
-    function buildCardQuiescenceSnapshot(playerKey: any, level: any, legalMoves: any, context: any): any {
+    function buildQuiescenceSearchInputs(playerKey: any, level: any, legalMoves: any, context: any): any {
         if (!Number.isFinite(level) || level < 6) return null;
         if (!Array.isArray(legalMoves) || legalMoves.length <= 0) return null;
-        const cpuPolicyCore = resolveCpuPolicyCore();
-        if (!cpuPolicyCore || typeof cpuPolicyCore.chooseMoveByLookahead !== 'function') return null;
         const board = cfg.getCurrentCpuBoard ? cfg.getCurrentCpuBoard() : null;
         if (!cfg.isPlayableBoard(board)) return null;
-
         const playerValue = Number.isFinite(context && context.playerValue)
             ? (Number(context.playerValue) >= 0 ? 1 : -1)
             : (playerKey === 'black' ? 1 : -1);
         const lv6Lookahead = cfg.buildLv6LookaheadOptions(level, board, legalMoves.length, playerKey);
         const timeCaps = cfg.resolveLv6LookaheadTimeCaps(playerKey);
-        const onSearchMeta = cfg.createLookaheadMetaLogger(playerKey, level, 'card-quiescence');
         const cardState = cfg.getCardState ? cfg.getCardState() : null;
-        const bestMove = cpuPolicyCore.chooseMoveByLookahead(legalMoves, {
+        return {
             board,
             playerValue,
-            level,
-            depth: Math.max(4, Math.min(7, Number(lv6Lookahead.depth) || 5)),
-            maxBranch: Math.max(4, Math.min(8, Number(lv6Lookahead.maxBranch) || 6)),
-            nodeBudget: Math.max(120_000, Math.min(800_000, Number(lv6Lookahead.nodeBudget) || 350_000)),
-            maxTimeMs: Math.max(300, Math.min(timeCaps.quiescenceMoveCapMs, Number(lv6Lookahead.maxTimeMs) || 900)),
-            endgameSolveEmpties: Math.max(12, Math.min(24, Number(lv6Lookahead.endgameSolveEmpties) || 18)),
-            endgameDepth: Math.max(10, Math.min(20, Number(lv6Lookahead.endgameDepth) || 14)),
-            endgameNodeBudget: Math.max(600_000, Math.min(3_000_000, Number(lv6Lookahead.endgameNodeBudget) || 1_500_000)),
-            endgameMaxTimeMs: Math.max(
-                timeCaps.quiescenceEndgameMinMs,
-                Math.min(timeCaps.quiescenceEndgameCapMs, Number(lv6Lookahead.endgameMaxTimeMs) || 1_600)
-            ),
-            onSearchMeta,
+            search: {
+                depth: Math.max(4, Math.min(7, Number(lv6Lookahead.depth) || 5)),
+                maxBranch: Math.max(4, Math.min(8, Number(lv6Lookahead.maxBranch) || 6)),
+                nodeBudget: Math.max(120_000, Math.min(800_000, Number(lv6Lookahead.nodeBudget) || 350_000)),
+                maxTimeMs: Math.max(300, Math.min(timeCaps.quiescenceMoveCapMs, Number(lv6Lookahead.maxTimeMs) || 900)),
+                endgameSolveEmpties: Math.max(12, Math.min(24, Number(lv6Lookahead.endgameSolveEmpties) || 18)),
+                endgameDepth: Math.max(10, Math.min(20, Number(lv6Lookahead.endgameDepth) || 14)),
+                endgameNodeBudget: Math.max(600_000, Math.min(3_000_000, Number(lv6Lookahead.endgameNodeBudget) || 1_500_000)),
+                endgameMaxTimeMs: Math.max(
+                    timeCaps.quiescenceEndgameMinMs,
+                    Math.min(timeCaps.quiescenceEndgameCapMs, Number(lv6Lookahead.endgameMaxTimeMs) || 1_600)
+                )
+            },
             boardBonusByCell: (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
                 ? cardState.boardBonusByCell
                 : null,
             boardBonusConsumedByCell: (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
                 ? cardState.boardBonusConsumedByCell
                 : null
-        });
-        if (!bestMove) return null;
+        };
+    }
 
+    function prepareCardQuiescenceRequest(playerKey: any, level: any, legalMoves: any, context: any, identity: any): any {
+        const inputs = buildQuiescenceSearchInputs(playerKey, level, legalMoves, context);
+        if (!inputs || !identity || typeof identity !== 'object') return null;
+        const turnNumber = Number.isSafeInteger(identity.turnNumber) && Number(identity.turnNumber) >= 0
+            ? Number(identity.turnNumber)
+            : null;
+        const requestId = `card-quiescence:${Number(identity.runId) || 0}:${Number(identity.decisionEpoch) || 0}`;
+        return createCpuCardQuiescenceRequest({
+            requestId,
+            decisionEpoch: identity.decisionEpoch,
+            stateVersion: identity.stateVersion,
+            turnNumber,
+            playerKey,
+            level,
+            playerValue: inputs.playerValue,
+            board: inputs.board,
+            legalMoves,
+            search: inputs.search,
+            boardBonusByCell: inputs.boardBonusByCell,
+            boardBonusConsumedByCell: inputs.boardBonusConsumedByCell
+        });
+    }
+
+    function buildCardQuiescenceSnapshotFromBestMove(playerKey: any, context: any, bestMove: any): any {
+        if (!bestMove) return null;
+        const board = cfg.getCurrentCpuBoard ? cfg.getCurrentCpuBoard() : null;
+        if (!cfg.isPlayableBoard(board)) return null;
+        const playerValue = Number.isFinite(context && context.playerValue)
+            ? (Number(context.playerValue) >= 0 ? 1 : -1)
+            : (playerKey === 'black' ? 1 : -1);
         const bestMoveBonus = (Number.isInteger(bestMove.row) && Number.isInteger(bestMove.col))
             ? cfg.getBoardBonusValueAt(bestMove.row, bestMove.col)
             : 0;
@@ -107,7 +141,6 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
         const oppCornerAfterBest = nextBoard
             ? cfg.hasCornerMoveOnBoardForPlayer(nextBoard, -playerValue)
             : false;
-
         return {
             bestMove,
             bestMoveBonus,
@@ -116,6 +149,24 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
             bestMoveEdge,
             oppCornerAfterBest
         };
+    }
+
+    function buildCardQuiescenceSnapshot(playerKey: any, level: any, legalMoves: any, context: any): any {
+        const cpuPolicyCore = resolveCpuPolicyCore();
+        if (!cpuPolicyCore || typeof cpuPolicyCore.chooseMoveByLookahead !== 'function') return null;
+        const inputs = buildQuiescenceSearchInputs(playerKey, level, legalMoves, context);
+        if (!inputs) return null;
+        const onSearchMeta = cfg.createLookaheadMetaLogger(playerKey, level, 'card-quiescence');
+        const bestMove = cpuPolicyCore.chooseMoveByLookahead(legalMoves, {
+            board: inputs.board,
+            playerValue: inputs.playerValue,
+            level,
+            ...inputs.search,
+            onSearchMeta,
+            boardBonusByCell: inputs.boardBonusByCell,
+            boardBonusConsumedByCell: inputs.boardBonusConsumedByCell
+        });
+        return buildCardQuiescenceSnapshotFromBestMove(playerKey, context, bestMove);
     }
 
     function shouldHoldCardByQuiescence(playerKey: any, level: any, cardId: any, cardDef: any, context: any, snapshot: any): any {
@@ -207,6 +258,8 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
 
     return {
         buildCardQuiescenceSnapshot,
+        buildCardQuiescenceSnapshotFromBestMove,
+        prepareCardQuiescenceRequest,
         shouldBuildCardQuiescenceSnapshot,
         shouldHoldCardByQuiescence,
         isCardChoiceAllowedByRisk,

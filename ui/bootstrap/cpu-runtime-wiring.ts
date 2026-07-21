@@ -7,6 +7,8 @@ export type CpuRuntimeWiringDeps = {
   registerUIGlobals: (globals: Record<string, any>) => any;
   scoreCandidatesInWorker?: (request: any, options?: { signal?: AbortSignal | null }) => Promise<any>;
   isCpuCandidateScoringAvailable?: () => boolean;
+  searchCardQuiescenceInWorker?: (request: any, options?: { signal?: AbortSignal | null }) => Promise<any>;
+  isCpuCardQuiescenceAvailable?: () => boolean;
 };
 
 type RuntimeFunction = (...args: any[]) => any;
@@ -51,7 +53,12 @@ function registerCpuRuntimeGlobals(cpu: any, cpuDecision: any, moveGenerator: an
   registerDirectRuntimeFunction(cpuGlobals, 'processCpuTurn', cpu);
   registerDirectRuntimeFunction(cpuGlobals, 'processAutoBlackTurn', cpu);
   registerDirectRuntimeFunction(cpuGlobals, 'selectMoveFromOnnxPolicyAsync', cpuDecision);
+  registerDirectRuntimeFunction(cpuGlobals, 'prepareCpuTurnCardUsabilityAnalysis', cpuDecision);
   registerDirectRuntimeFunction(cpuGlobals, 'prepareCpuCandidateScoringRequest', cpuDecision);
+  registerDirectRuntimeFunction(cpuGlobals, 'prepareCpuPlacementLookaheadRequest', cpuDecision);
+  registerDirectRuntimeFunction(cpuGlobals, 'prepareCardQuiescenceRequest', cpuDecision);
+  registerDirectRuntimeFunction(cpuGlobals, 'buildCardQuiescenceSnapshotFromBestMove', cpuDecision);
+  registerDirectRuntimeFunction(cpuGlobals, 'shouldBuildCardQuiescenceSnapshot', cpuDecision);
   registerDirectRuntimeFunction(cpuGlobals, 'selectCpuMoveWithPolicy', cpuDecision);
   registerDirectRuntimeFunction(cpuGlobals, 'resolveCpuDecisionLevelForPlayer', cpuDecision);
 
@@ -106,6 +113,14 @@ export function installCpuRuntimeWiring(deps: CpuRuntimeWiringDeps): { registere
             }
           : deps.scoreCandidatesInWorker)
       : undefined;
+    const searchCardQuiescenceInWorker = typeof deps.searchCardQuiescenceInWorker === 'function'
+      ? (perfEnabled && typeof perfBenchmarks.recordCpuTurnRuntimeEvidence === 'function'
+          ? (...args: any[]) => {
+              perfBenchmarks.recordCpuTurnRuntimeEvidence('worker-card-quiescence');
+              return deps.searchCardQuiescenceInWorker!(args[0], args[1]);
+            }
+          : deps.searchCardQuiescenceInWorker)
+      : undefined;
     cpu.setCpuUIImpl({
       ...(typeof recordCpuTurnStage === 'function' ? { recordCpuTurnStage } : {}),
       ...(typeof createCpuTurnPerformanceCorrelationId === 'function' ? { createCpuTurnPerformanceCorrelationId } : {}),
@@ -144,6 +159,11 @@ export function installCpuRuntimeWiring(deps: CpuRuntimeWiringDeps): { registere
       isCpuCandidateScoringAvailable: typeof deps.isCpuCandidateScoringAvailable === 'function'
         ? deps.isCpuCandidateScoringAvailable
         : () => typeof deps.scoreCandidatesInWorker === 'function',
+      searchCardQuiescenceInWorker,
+      isCpuCardQuiescenceAvailable: typeof deps.isCpuCardQuiescenceAvailable === 'function'
+        ? deps.isCpuCardQuiescenceAvailable
+        : () => typeof deps.searchCardQuiescenceInWorker === 'function',
+      disableSynchronousCardQuiescenceFallback: true,
       readProcessing: () => {
         try {
           const playbackState = deps.getPlaybackStateModuleForReset();

@@ -36,8 +36,12 @@ describe('UI bootstrap early CPU registration', () => {
     const setCpuDecisionRuntime = jest.fn();
     const selectMoveFromOnnxPolicyAsync = jest.fn();
     const prepareCpuCandidateScoringRequest = jest.fn();
+    const prepareCardQuiescenceRequest = jest.fn();
+    const buildCardQuiescenceSnapshotFromBestMove = jest.fn();
+    const shouldBuildCardQuiescenceSnapshot = jest.fn();
     const selectCpuMoveWithPolicy = jest.fn();
     const scoreCandidatesInWorker = jest.fn(() => ({ worker: true }));
+    const searchCardQuiescenceInWorker = jest.fn(() => Promise.resolve({ worker: true }));
     const resolveCpuDecisionLevelForPlayer = jest.fn(() => 1);
     const generateMovesForPlayer = jest.fn();
     const setTurnPipelinePhasesRuntime = jest.fn();
@@ -51,6 +55,9 @@ describe('UI bootstrap early CPU registration', () => {
       setCpuDecisionRuntime,
       selectMoveFromOnnxPolicyAsync,
       prepareCpuCandidateScoringRequest,
+      prepareCardQuiescenceRequest,
+      buildCardQuiescenceSnapshotFromBestMove,
+      shouldBuildCardQuiescenceSnapshot,
       selectCpuMoveWithPolicy,
       resolveCpuDecisionLevelForPlayer
     }));
@@ -66,7 +73,7 @@ describe('UI bootstrap early CPU registration', () => {
     }));
 
     const uiBoot = require('../ui/bootstrap.js');
-    expect(uiBoot.configureCpuCandidateScoring({ scoreCandidatesInWorker })).toBe(true);
+    expect(uiBoot.configureCpuCandidateScoring({ scoreCandidatesInWorker, searchCardQuiescenceInWorker })).toBe(true);
     // Call installGameDI (returns impl) to perform the registration logic
     const impl = uiBoot.installGameDI();
 
@@ -75,6 +82,9 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof globals.processAutoBlackTurn).toBe('function');
     expect(globals.selectMoveFromOnnxPolicyAsync).toBe(selectMoveFromOnnxPolicyAsync);
     expect(globals.prepareCpuCandidateScoringRequest).toBe(prepareCpuCandidateScoringRequest);
+    expect(globals.prepareCardQuiescenceRequest).toBe(prepareCardQuiescenceRequest);
+    expect(globals.buildCardQuiescenceSnapshotFromBestMove).toBe(buildCardQuiescenceSnapshotFromBestMove);
+    expect(globals.shouldBuildCardQuiescenceSnapshot).toBe(shouldBuildCardQuiescenceSnapshot);
     expect(globals.selectCpuMoveWithPolicy).toBe(selectCpuMoveWithPolicy);
     expect(typeof globals.generateMovesForPlayer).toBe('function');
     expect(mockCpu.setCpuUIImpl).toHaveBeenCalledTimes(1);
@@ -91,6 +101,9 @@ describe('UI bootstrap early CPU registration', () => {
     expect(mockCpu.setCpuUIImpl.mock.calls[0][0].isCpuCandidateScoringAvailable()).toBe(true);
     expect(mockCpu.setCpuUIImpl.mock.calls[0][0].scoreCandidatesInWorker('request')).toEqual({ worker: true });
     expect(scoreCandidatesInWorker).toHaveBeenCalledWith('request');
+    expect(mockCpu.setCpuUIImpl.mock.calls[0][0].isCpuCardQuiescenceAvailable()).toBe(true);
+    expect(mockCpu.setCpuUIImpl.mock.calls[0][0].disableSynchronousCardQuiescenceFallback).toBe(true);
+    expect(mockCpu.setCpuUIImpl.mock.calls[0][0].searchCardQuiescenceInWorker('request')).toEqual(expect.any(Promise));
     expect(uiBoot.configureCpuCandidateScoring(null)).toBe(false);
     expect(mockCpu.setCpuUIImpl.mock.calls[0][0].isCpuCandidateScoringAvailable()).toBe(false);
     expect(setPassHandlerRuntime).toHaveBeenCalledTimes(1);

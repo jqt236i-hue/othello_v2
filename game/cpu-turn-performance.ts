@@ -2,6 +2,7 @@ export const CPU_TURN_PERFORMANCE_STAGES = Object.freeze([
     'handoff-delay',
     'card-availability',
     'card-context-base',
+    'card-quiescence',
     'move-candidates',
     'commentary-context',
     'canonical-commit',

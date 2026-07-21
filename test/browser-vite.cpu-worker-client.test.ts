@@ -1,4 +1,5 @@
 import {
+  CpuCardQuiescenceWorkerSearcher,
   CpuCandidateWorkerScorer,
   CpuWorkerClient,
   CpuWorkerClientError,
@@ -15,6 +16,10 @@ import {
   createCpuCandidateScoringRequest,
   scoreCpuCandidateRequest
 } from '../game/ai/cpu-candidate-scoring';
+import {
+  createCpuCardQuiescenceRequest,
+  executeCpuCardQuiescenceRequest
+} from '../game/ai/cpu-card-quiescence';
 
 class FakeWorker implements CpuWorkerTransport {
   onmessage: ((event: MessageEvent) => void) | null = null;
@@ -491,5 +496,42 @@ describe('OnnxWorkerInferenceExecutor recovery', () => {
 
     const request = worker.messages[0].message as CpuWorkerRequest;
     expect((request.payload as any).executionProviders).toEqual(['webgpu', 'wasm']);
+  });
+
+  test('validates and returns a card-quiescence batch from the Worker', async () => {
+    const worker = new FakeWorker();
+    const client = new CpuWorkerClient({ workerFactory: () => worker });
+    const searcher = new CpuCardQuiescenceWorkerSearcher({ client, timeoutMs: 1000 });
+    const quiescenceRequest = createCpuCardQuiescenceRequest({
+      requestId: 'client-card-quiescence-1',
+      decisionEpoch: 9,
+      stateVersion: 14,
+      turnNumber: 6,
+      playerKey: 'white',
+      level: 6,
+      playerValue: -1,
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      legalMoves: [{ row: 0, col: 0, flips: [] }],
+      search: {
+        depth: 4,
+        maxBranch: 4,
+        nodeBudget: 120000,
+        maxTimeMs: 300,
+        endgameSolveEmpties: 12,
+        endgameDepth: 10,
+        endgameNodeBudget: 600000,
+        endgameMaxTimeMs: 700
+      }
+    });
+    const pending = searcher.search(quiescenceRequest);
+    const transportRequest = worker.messages[0].message as CpuWorkerRequest;
+    const result = executeCpuCardQuiescenceRequest(quiescenceRequest, (moves) => moves[0]);
+    worker.emit(successFor(transportRequest, result));
+
+    await expect(pending).resolves.toMatchObject({
+      request: { requestId: 'client-card-quiescence-1' },
+      response: { bestMove: { row: 0, col: 0 } }
+    });
+    expect(transportRequest.operation).toBe(CPU_WORKER_OPERATIONS.CARD_QUIESCENCE);
   });
 });

@@ -6,6 +6,7 @@ import {
   type CpuWorkerRequest,
   type CpuWorkerResponse,
   type CpuWorkerSuccessResponse,
+  type CpuCardQuiescencePayload,
   type CpuCandidateScoringPayload,
   type OnnxCreateSessionPayload,
   type OnnxReleaseSessionPayload,
@@ -16,6 +17,8 @@ import {
   parseCpuWorkerRequest
 } from './protocol';
 import { scoreCpuCandidateRequest } from '../../game/ai/cpu-candidate-scoring';
+import { executeCpuCardQuiescenceRequest } from '../../game/ai/cpu-card-quiescence';
+import { chooseMoveByLookaheadInWorker } from '../../game/ai/cpu-policy-lookahead-worker-runtime';
 
 type OrtModule = {
   env?: {
@@ -310,6 +313,12 @@ export function createCpuWorkerRuntime(options: CpuWorkerRuntimeOptions = {}) {
     }
     if (request.operation === CPU_WORKER_OPERATIONS.SCORE_CANDIDATES) {
       return scoreCpuCandidateRequest((request.payload as CpuCandidateScoringPayload).request);
+    }
+    if (request.operation === CPU_WORKER_OPERATIONS.CARD_QUIESCENCE) {
+      return executeCpuCardQuiescenceRequest(
+        (request.payload as CpuCardQuiescencePayload).request,
+        chooseMoveByLookaheadInWorker
+      );
     }
     if (request.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
       return createSession(request.payload as OnnxCreateSessionPayload);

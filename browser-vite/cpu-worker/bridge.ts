@@ -1,6 +1,7 @@
 import CpuWorkerConstructor from './worker-entry?worker';
 import {
   CpuWorkerClientError,
+  createCpuCardQuiescenceWorkerSearcher,
   createCpuCandidateWorkerScorer,
   createCpuWorkerClient,
   type CpuWorkerClient
@@ -15,6 +16,7 @@ const permanentlyDisabledRoots = new WeakSet<object>();
 export interface BrowserCpuWorkerBridge {
   client: CpuWorkerClient;
   scoreCandidatesInWorker: ReturnType<typeof createCpuCandidateWorkerScorer>;
+  searchCardQuiescenceInWorker: ReturnType<typeof createCpuCardQuiescenceWorkerSearcher>;
 }
 
 export function getCpuWorkerBridge(rootRef: RuntimeRoot): BrowserCpuWorkerBridge | null {
@@ -34,7 +36,10 @@ export function installCpuWorkerBridge(
   _documentRef: Document
 ): BrowserCpuWorkerBridge | null {
   const existing = bridges.get(rootRef);
-  if (existing && existing.client && typeof existing.scoreCandidatesInWorker === 'function') return existing;
+  if (existing
+    && existing.client
+    && typeof existing.scoreCandidatesInWorker === 'function'
+    && typeof existing.searchCardQuiescenceInWorker === 'function') return existing;
   if (permanentlyDisabledRoots.has(rootRef)) return null;
   if (typeof rootRef.Worker !== 'function') return null;
 
@@ -43,6 +48,7 @@ export function installCpuWorkerBridge(
     defaultTimeoutMs: 15000
   });
   const rawScoreCandidatesInWorker = createCpuCandidateWorkerScorer({ client, timeoutMs: 48 });
+  const rawSearchCardQuiescenceInWorker = createCpuCardQuiescenceWorkerSearcher({ client, timeoutMs: 2500 });
   const bridge: BrowserCpuWorkerBridge = {
     client,
     scoreCandidatesInWorker: async (request, options) => {
@@ -54,12 +60,23 @@ export function installCpuWorkerBridge(
         }
         throw error;
       }
+    },
+    searchCardQuiescenceInWorker: async (request, options) => {
+      try {
+        return await rawSearchCardQuiescenceInWorker(request, options);
+      } catch (error) {
+        if (error instanceof CpuWorkerClientError && error.recoverable === false) {
+          disableCpuWorkerBridge(rootRef, bridge);
+        }
+        throw error;
+      }
     }
   };
   bridges.set(rootRef, bridge);
   updateCapabilities(rootRef, {
     dedicatedCpuWorkerConfigured: true,
-    cpuCandidateScoringWorker: true
+    cpuCandidateScoringWorker: true,
+    cpuCardQuiescenceWorker: true
   });
   return bridge;
 }
@@ -88,6 +105,7 @@ export function disableCpuWorkerBridge(
   updateCapabilities(rootRef, {
     dedicatedCpuWorkerConfigured: false,
     cpuCandidateScoringWorker: false,
+    cpuCardQuiescenceWorker: false,
     cpuCandidateScoringInjected: false,
     dedicatedCpuWorker: false,
     onnxInferenceWorker: false,

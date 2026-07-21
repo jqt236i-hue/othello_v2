@@ -23,6 +23,13 @@ import {
   type CpuCandidateScoringRequest,
   type CpuCandidateScoringResponse
 } from '../../game/ai/cpu-candidate-scoring';
+import {
+  parseCpuCardQuiescenceRequest,
+  verifyCpuCardQuiescenceResponse,
+  type CpuCardQuiescenceBatch,
+  type CpuCardQuiescenceRequest,
+  type CpuCardQuiescenceResponse
+} from '../../game/ai/cpu-card-quiescence';
 
 export interface CpuWorkerTransport {
   postMessage(message: unknown, transfer?: Transferable[]): void;
@@ -469,6 +476,57 @@ export function createCpuCandidateWorkerScorer(
 ): (request: CpuCandidateScoringRequest, scoreOptions?: CpuCandidateWorkerScoreOptions) => Promise<CpuCandidateScoringBatch> {
   const scorer = new CpuCandidateWorkerScorer(options);
   return scorer.score.bind(scorer);
+}
+
+export interface CpuCardQuiescenceWorkerSearcherOptions {
+  client: CpuWorkerClient;
+  timeoutMs?: number;
+}
+
+export interface CpuCardQuiescenceWorkerSearchOptions {
+  signal?: AbortSignal | null;
+}
+
+export class CpuCardQuiescenceWorkerSearcher {
+  private readonly client: CpuWorkerClient;
+  private readonly timeoutMs: number;
+
+  constructor(options: CpuCardQuiescenceWorkerSearcherOptions) {
+    if (!options || !(options.client instanceof CpuWorkerClient)) {
+      throw new TypeError('CpuCardQuiescenceWorkerSearcher requires a CpuWorkerClient');
+    }
+    this.client = options.client;
+    this.timeoutMs = normalizeTimeoutMs(options.timeoutMs, 2500);
+  }
+
+  async search(
+    requestInput: CpuCardQuiescenceRequest,
+    options: CpuCardQuiescenceWorkerSearchOptions = {}
+  ): Promise<CpuCardQuiescenceBatch> {
+    const request = parseCpuCardQuiescenceRequest(requestInput);
+    const response = await this.client.request(
+      CPU_WORKER_OPERATIONS.CARD_QUIESCENCE,
+      { request },
+      {
+        decisionEpoch: request.decisionEpoch,
+        stateVersion: request.stateVersion,
+        turnNumber: request.turnNumber,
+        timeoutMs: this.timeoutMs,
+        signal: options.signal || null
+      }
+    ) as CpuCardQuiescenceResponse;
+    if (!verifyCpuCardQuiescenceResponse(request, response)) {
+      throw this.client.invalidateProtocol('card-quiescence response does not match the request');
+    }
+    return { request, response };
+  }
+}
+
+export function createCpuCardQuiescenceWorkerSearcher(
+  options: CpuCardQuiescenceWorkerSearcherOptions
+): (request: CpuCardQuiescenceRequest, searchOptions?: CpuCardQuiescenceWorkerSearchOptions) => Promise<CpuCardQuiescenceBatch> {
+  const searcher = new CpuCardQuiescenceWorkerSearcher(options);
+  return searcher.search.bind(searcher);
 }
 
 export interface OnnxInferenceSessionDescriptor {

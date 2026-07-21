@@ -152,4 +152,53 @@ describe('cpu decision card risk module', () => {
       legalMovesCount: 5
     })).toBe(true);
   });
+
+  test('skips quiescence when no usable card type can consume the snapshot', () => {
+    const cardRisk = createCardRisk();
+    const context = {
+      forceUseCard: false,
+      cornerEmergency: false,
+      discDiff: 2,
+      handSize: 2,
+      ownCharge: 12,
+      legalMovesCount: 5
+    };
+
+    expect(cardRisk.shouldBuildCardQuiescenceSnapshot(
+      6,
+      [{ row: 0, col: 0 }],
+      context,
+      ['GOLD_STONE', 'TREASURE_BOX']
+    )).toBe(false);
+    expect(cardRisk.shouldBuildCardQuiescenceSnapshot(
+      6,
+      [{ row: 0, col: 0 }],
+      context,
+      ['TREASURE_BOX', 'METEOR_WILL']
+    )).toBe(true);
+  });
+
+  test('prepares a bounded Worker request and rebuilds the snapshot from its best move', () => {
+    const cardRisk = createCardRisk();
+    const legalMoves = [{ row: 0, col: 0, flips: [{ row: 0, col: 1 }] }];
+    const context = { playerValue: -1 };
+    const request = cardRisk.prepareCardQuiescenceRequest('white', 6, legalMoves, context, {
+      runId: 4,
+      decisionEpoch: 7,
+      stateVersion: 'local-turn:3',
+      turnNumber: 3
+    });
+
+    expect(request).toMatchObject({
+      requestId: 'card-quiescence:4:7',
+      decisionEpoch: 7,
+      stateVersion: 'local-turn:3',
+      playerKey: 'white',
+      level: 6,
+      playerValue: -1,
+      search: { depth: 5, maxBranch: 6 }
+    });
+    expect(cardRisk.buildCardQuiescenceSnapshotFromBestMove('white', context, legalMoves[0]))
+      .toMatchObject({ bestMoveCorner: true, bestMoveBonus: 2, bestMoveFlips: 1 });
+  });
 });

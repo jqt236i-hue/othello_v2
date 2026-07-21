@@ -4,12 +4,19 @@ import {
   type CpuCandidateScoringRequest,
   type CpuCandidateScoringResponse
 } from '../../game/ai/cpu-candidate-scoring';
+import {
+  parseCpuCardQuiescenceRequest,
+  parseCpuCardQuiescenceResponse,
+  type CpuCardQuiescenceRequest,
+  type CpuCardQuiescenceResponse
+} from '../../game/ai/cpu-card-quiescence';
 
 export const CPU_WORKER_PROTOCOL_VERSION = 1 as const;
 
 export const CPU_WORKER_OPERATIONS = Object.freeze({
   PING: 'worker.ping',
   SCORE_CANDIDATES: 'cpu.score-candidates',
+  CARD_QUIESCENCE: 'cpu.card-quiescence',
   ONNX_CREATE_SESSION: 'onnx.create-session',
   ONNX_RUN_SESSION: 'onnx.run-session',
   ONNX_RELEASE_SESSION: 'onnx.release-session'
@@ -43,6 +50,10 @@ export interface CpuCandidateScoringPayload {
   request: CpuCandidateScoringRequest;
 }
 
+export interface CpuCardQuiescencePayload {
+  request: CpuCardQuiescenceRequest;
+}
+
 export interface OnnxRunSessionPayload {
   sessionKey: string;
   input: {
@@ -62,6 +73,7 @@ export type CpuWorkerRequest = CpuWorkerRequestIdentity & {
   payload:
     CpuWorkerPingPayload |
     CpuCandidateScoringPayload |
+    CpuCardQuiescencePayload |
     OnnxCreateSessionPayload |
     OnnxRunSessionPayload |
     OnnxReleaseSessionPayload;
@@ -105,6 +117,7 @@ export interface CpuWorkerPingResult {
 export type CpuWorkerResult =
   CpuWorkerPingResult |
   CpuCandidateScoringResponse |
+  CpuCardQuiescenceResponse |
   OnnxCreateSessionResult |
   OnnxRunSessionResult |
   OnnxReleaseSessionResult;
@@ -295,6 +308,22 @@ function parseCandidateScoringPayload(
   return { request };
 }
 
+function parseCardQuiescencePayload(
+  value: unknown,
+  identity: CpuWorkerRequestIdentity
+): CpuCardQuiescencePayload {
+  if (!isRecord(value)) fail('card-quiescence payload is invalid');
+  const request = parseCpuCardQuiescenceRequest(value.request);
+  if (
+    request.decisionEpoch !== identity.decisionEpoch
+    || request.stateVersion !== identity.stateVersion
+    || request.turnNumber !== identity.turnNumber
+  ) {
+    fail('card-quiescence payload identity does not match its Worker envelope');
+  }
+  return { request };
+}
+
 function parseRunSessionPayload(value: unknown): OnnxRunSessionPayload {
   if (!isRecord(value) || !isRecord(value.input)) fail('run-session payload must contain an input tensor');
   if (value.input.type !== 'float32' || !(value.input.data instanceof Float32Array)) {
@@ -325,6 +354,8 @@ export function parseCpuWorkerRequest(value: unknown): CpuWorkerRequest {
     payload = parsePingPayload(value.payload);
   } else if (identity.operation === CPU_WORKER_OPERATIONS.SCORE_CANDIDATES) {
     payload = parseCandidateScoringPayload(value.payload, identity);
+  } else if (identity.operation === CPU_WORKER_OPERATIONS.CARD_QUIESCENCE) {
+    payload = parseCardQuiescencePayload(value.payload, identity);
   } else if (identity.operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) {
     payload = parseCreateSessionPayload(value.payload);
   } else if (identity.operation === CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION) {
@@ -411,9 +442,14 @@ function parseCandidateScoringResult(value: unknown): CpuCandidateScoringRespons
   return value;
 }
 
+function parseCardQuiescenceResult(value: unknown): CpuCardQuiescenceResponse {
+  return parseCpuCardQuiescenceResponse(value);
+}
+
 function parseResponseResult(operation: CpuWorkerOperation, value: unknown): CpuWorkerResult {
   if (operation === CPU_WORKER_OPERATIONS.PING) return parsePingResult(value);
   if (operation === CPU_WORKER_OPERATIONS.SCORE_CANDIDATES) return parseCandidateScoringResult(value);
+  if (operation === CPU_WORKER_OPERATIONS.CARD_QUIESCENCE) return parseCardQuiescenceResult(value);
   if (operation === CPU_WORKER_OPERATIONS.ONNX_CREATE_SESSION) return parseCreateSessionResult(value);
   if (operation === CPU_WORKER_OPERATIONS.ONNX_RUN_SESSION) return parseRunSessionResult(value);
   return parseReleaseSessionResult(value);
