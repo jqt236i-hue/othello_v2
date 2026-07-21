@@ -129,6 +129,49 @@ describe('BoardVisualController context recovery', () => {
     expect(controller.isReady()).toBe(true);
   });
 
+  test('clears equivalent idle metadata after recovery presents a live-layout frame', async () => {
+    const idleSettlement = deferred();
+    const completeFrame = (frameToken: string) => ({
+      ...frame(frameToken, 8),
+      layout: { revision: 2 },
+      appearance: { revision: 3 },
+      theme: { revision: 4 },
+      renderSessionId: 'board-render-session:recovery-equivalent'
+    }) as any;
+    const first = completeFrame('idle:recovery-equivalent-1');
+    const latest = completeFrame('idle:recovery-equivalent-2');
+    const visualBackend = backend('pixi', {
+      waitForVisualSettlement: jest.fn((value?: any) => (
+        value === first ? idleSettlement.promise : Promise.resolve()
+      ))
+    });
+    const controller = ControllerModule.createBoardVisualController({
+      backend: visualBackend,
+      beginApplyFrame: (sourceFrame: any) => ({
+        frame: {
+          ...sourceFrame,
+          layout: { ...sourceFrame.layout, liveViewport: true }
+        }
+      })
+    });
+    await controller.mount({} as HTMLElement);
+
+    expect(controller.submitFrame(first)).toBe(true);
+    expect(controller.submitFrame(latest)).toBe(true);
+    expect(controller.getSnapshot().pendingFrameToken).toBe(latest.frameToken);
+
+    const recovery = controller.beginContextRecovery(new Error('context lost'));
+    await controller.restoreContextRecovery();
+    await recovery;
+
+    expect(visualBackend.restore.mock.calls.at(-1)?.[0]).toBe(latest);
+    expect(controller.getSnapshot()).toMatchObject({
+      pendingFrameToken: null,
+      lastAppliedFrameToken: latest.frameToken
+    });
+    controller.destroy();
+  });
+
   test('replays completed and active board phases only, then resumes the original phase promise', async () => {
     const activePhase = deferred();
     const calls: Array<{ type: string; recoveryReplay: boolean }> = [];

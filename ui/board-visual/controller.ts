@@ -671,6 +671,17 @@ function createBoardVisualController(options: {
     invalidatePendingPreparation();
   };
 
+  const clearPendingEquivalentIdleFrameIfConsumed = (
+    ...frames: Array<BoardVisualFrame | null | undefined>
+  ) => {
+    if (
+      pendingEquivalentIdleFrame
+      && frames.some((frame) => frame === pendingEquivalentIdleFrame)
+    ) {
+      pendingEquivalentIdleFrame = null;
+    }
+  };
+
   const startPendingPreparation = (
     frame: BoardVisualFrame,
     version: number
@@ -802,7 +813,10 @@ function createBoardVisualController(options: {
   ) => {
     const target = settlement.presentation.presentedFrame;
     lastApplied = target;
-    if (pendingEquivalentIdleFrame === target) pendingEquivalentIdleFrame = null;
+    clearPendingEquivalentIdleFrameIfConsumed(
+      settlement.presentation.sourceFrame,
+      target
+    );
     if (
       settlement.consumedPendingFrame
       && pendingLatest === settlement.consumedPendingFrame
@@ -1518,6 +1532,7 @@ function createBoardVisualController(options: {
             networkCommittedApplied = true;
           }
         }
+        clearPendingEquivalentIdleFrameIfConsumed(target);
         ready = true;
         recoveryError = null;
         recoveryReturnMode = cycle.returnMode;

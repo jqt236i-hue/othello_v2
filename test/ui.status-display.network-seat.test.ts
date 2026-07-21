@@ -142,6 +142,50 @@ describe('status-display network seat labels', () => {
     dom.window.close();
   });
 
+  test('keeps the cpu portrait faded when every image candidate fails', () => {
+    const dom = new JSDOM(
+      '<!doctype html><html><body>' +
+      '<img id="cpu-character-img" />' +
+      '<button id="cpu-level-label" type="button"></button>' +
+      '<div id="hero-label"></div>' +
+      '</body></html>',
+      { runScripts: 'outside-only', url: 'http://localhost/' }
+    );
+    const { window } = dom;
+    window.cpuSmartness = { white: 2 };
+    window.CPU_LEVEL_NAMES = { 2: 'CPU Lv2' };
+    window.getElement = (key) => ({
+      cpuCharacterImg: window.document.getElementById('cpu-character-img'),
+      cpuLevelLabel: window.document.getElementById('cpu-level-label')
+    })[key] || null;
+    window.OwnerHelpers = require('../utils/owner-helpers');
+    window.MatchMode = { isNetworkModeActive: () => false };
+    window.Image = class FailedImage {
+      set src(value) {
+        this._src = value;
+        if (typeof this.onerror === 'function') this.onerror(new Error('missing image'));
+      }
+      get src() {
+        return this._src || '';
+      }
+    };
+    global.window = window;
+    global.document = window.document;
+    global.cpuSmartness = window.cpuSmartness;
+    global.CPU_LEVEL_NAMES = window.CPU_LEVEL_NAMES;
+    global.getElement = window.getElement;
+    global.Image = window.Image;
+    const warning = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    loadStatusDisplayIntoWindow(window);
+    window.updateCpuCharacter();
+
+    expect(window.document.getElementById('cpu-character-img').style.opacity).toBe('0.3');
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining('敵キャラクター画像が見つかりません'));
+    warning.mockRestore();
+    dom.window.close();
+  });
+
   test('network spectator battle status uses observer label and suppresses turn toast', () => {
     const dom = new JSDOM(
       '<!doctype html><html><body>' +

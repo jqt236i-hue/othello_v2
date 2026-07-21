@@ -1222,9 +1222,11 @@ function updateCpuCharacter(): void {
             charImg.src = resolvedSrc;
             try { positionCpuSpeechBubble(); } catch (e) { /* ignore */ }
         }, () => {
-            charImg.style.opacity = '0.3';
             resetCpuCharacterLevelScale(charImg);
             applySpecialCpuPanelState(specialPresentation, charImg, levelLabel);
+            if (!(specialPresentation && specialPresentation.fadeOut === true)) {
+                charImg.style.opacity = '0.3';
+            }
             console.warn(`敵キャラクター画像が見つかりません: ${primaryPath}`);
         });
 
