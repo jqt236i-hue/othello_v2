@@ -2237,6 +2237,7 @@ function playDrawCardHandAnimation(payload: any) {
         const { layerEl, wrapperEl, heldStoneEl } = _resolveHandLayerElements();
 
         if (!deckEl || !handEl || !layerEl || !wrapperEl) {
+            _restoreDisplayedHandSkinAfterAnimation(handContext);
             done();
             return;
         }

@@ -80,6 +80,7 @@ describe('card renderer hand glow layout cache', () => {
     delete (global as any).getCurrentMatchMode;
     delete (global as any).onCardClick;
     delete (global as any).updateCardDetailPanel;
+    delete (global as any).ResizeObserver;
   });
 
   test('identical hand input reuses glow layout until layout environment changes', () => {
@@ -142,6 +143,43 @@ describe('card renderer hand glow layout cache', () => {
         delete (dom.window.HTMLElement.prototype as any).clientWidth;
       }
     }
+  });
+
+  test('invalidates cached glow geometry when the hand container resizes without a window resize', () => {
+    const resizeCallbacks: Array<() => void> = [];
+    class MockResizeObserver {
+      constructor(callback: () => void) {
+        resizeCallbacks.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+    }
+    (global as any).ResizeObserver = MockResizeObserver;
+    const renderer = require('../cards/card-renderer.js');
+    const rectSpy = jest.spyOn(dom.window.HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      const element = this as HTMLElement;
+      const index = Number(element.dataset.handIndex || 0);
+      return {
+        left: index * 10,
+        top: index * 5,
+        width: 80,
+        height: 120,
+        right: index * 10 + 80,
+        bottom: index * 5 + 120,
+        x: index * 10,
+        y: index * 5,
+        toJSON: () => ({})
+      } as DOMRect;
+    });
+
+    renderer.renderCardUI();
+    const afterFirst = rectSpy.mock.calls.length;
+    expect(resizeCallbacks.length).toBeGreaterThan(0);
+
+    resizeCallbacks[0]();
+    renderer.renderCardUI();
+
+    expect(rectSpy.mock.calls.length).toBeGreaterThan(afterFirst);
   });
 
   test('rebuilds glow layout when cached glow nodes are missing', () => {

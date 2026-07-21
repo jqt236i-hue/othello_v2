@@ -1262,9 +1262,9 @@ function _resolveHandAvailabilityGlowTierClass(cardEl: any) {
 const handGlowLayoutCacheByContainer = new WeakMap<any, {
     signature: string;
     scrollKey: string;
-    layoutKey: string;
     dirty: boolean;
 }>();
+const handGlowResizeObserverByContainer = new WeakMap<any, { handTrackEl: any; observer: any }>();
 let handGlowResizeListenerInstalled = false;
 function _markAllHandGlowLayoutsDirty() {
     try {
@@ -1287,6 +1287,31 @@ function _ensureHandGlowResizeInvalidation() {
     window.addEventListener('resize', _markAllHandGlowLayoutsDirty);
     handGlowResizeListenerInstalled = true;
 }
+function _ensureHandGlowElementResizeInvalidation(containerEl: any, handTrackEl: any) {
+    if (!containerEl || !handTrackEl)
+        return;
+    const resizeObserverCtor = typeof ResizeObserver === 'function' ? ResizeObserver : null;
+    if (!resizeObserverCtor)
+        return;
+    const current = handGlowResizeObserverByContainer.get(containerEl);
+    if (current && current.handTrackEl === handTrackEl)
+        return;
+    if (current && current.observer && typeof current.observer.disconnect === 'function') {
+        current.observer.disconnect();
+    }
+    try {
+        const observer = new resizeObserverCtor(() => {
+            const cache = handGlowLayoutCacheByContainer.get(containerEl);
+            if (cache)
+                cache.dirty = true;
+        });
+        observer.observe(containerEl);
+        if (handTrackEl !== containerEl)
+            observer.observe(handTrackEl);
+        handGlowResizeObserverByContainer.set(containerEl, { handTrackEl, observer });
+    }
+    catch (e) { /* ResizeObserver is an optional layout invalidation path. */ }
+}
 function _buildHandGlowLayoutSignature(ownerKey: any, entryStates: any[]) {
     return JSON.stringify({
         ownerKey,
@@ -1298,17 +1323,6 @@ function _buildHandGlowLayoutSignature(ownerKey: any, entryStates: any[]) {
                 availableGlow: !!state.availableGlow,
                 cost: Number(state.cost) || 0
             }))
-    });
-}
-function _buildHandGlowLayoutEnvironmentKey(containerEl: any, handTrackEl: any) {
-    return JSON.stringify({
-        containerClientWidth: Number(containerEl && containerEl.clientWidth) || 0,
-        containerClientHeight: Number(containerEl && containerEl.clientHeight) || 0,
-        trackClientWidth: Number(handTrackEl && handTrackEl.clientWidth) || 0,
-        trackClientHeight: Number(handTrackEl && handTrackEl.clientHeight) || 0,
-        trackScrollLeft: Number(handTrackEl && handTrackEl.scrollLeft) || 0,
-        trackScrollTop: Number(handTrackEl && handTrackEl.scrollTop) || 0,
-        childCount: handTrackEl && handTrackEl.children ? handTrackEl.children.length : 0
     });
 }
 function _buildHandGlowScrollKey(handTrackEl: any) {
@@ -1328,6 +1342,7 @@ function _syncHandAvailabilityGlowLayer(containerEl: any, handTrackEl: any, rend
     if (!glowLayerEl || !handTrackEl || typeof document === 'undefined')
         return;
     _ensureHandGlowResizeInvalidation();
+    _ensureHandGlowElementResizeInvalidation(containerEl, handTrackEl);
     const signature = _buildHandGlowLayoutSignature(ownerKey, renderEntries);
     const scrollKey = _buildHandGlowScrollKey(handTrackEl);
     const expectedGlowCount = _countExpectedHandAvailabilityGlows(renderEntries);
@@ -1342,7 +1357,6 @@ function _syncHandAvailabilityGlowLayer(containerEl: any, handTrackEl: any, rend
     ) {
         return;
     }
-    const layoutKey = _buildHandGlowLayoutEnvironmentKey(containerEl, handTrackEl);
     const containerRect = typeof containerEl.getBoundingClientRect === 'function'
         ? containerEl.getBoundingClientRect()
         : { left: 0, top: 0 };
@@ -1386,7 +1400,7 @@ function _syncHandAvailabilityGlowLayer(containerEl: any, handTrackEl: any, rend
     while (glowLayerEl.children.length > glowIndex) {
         glowLayerEl.removeChild(glowLayerEl.lastElementChild);
     }
-    handGlowLayoutCacheByContainer.set(containerEl, { signature, scrollKey, layoutKey, dirty: false });
+    handGlowLayoutCacheByContainer.set(containerEl, { signature, scrollKey, dirty: false });
 }
 const handSlotElementSignatureByContainer = new WeakMap<any, string>();
 function _buildHandSlotElementSignature(

@@ -646,6 +646,24 @@ describe('animation-utils hand fallback', () => {
     await expect(promise).resolves.toBeUndefined();
   });
 
+  test('playDrawCardHandAnimation restores the hand images when required layout DOM is missing', async () => {
+    window.cpuSmartness = { black: 1, white: 4 };
+    const handSkin = require('../ui/handlers/hand-skin.js');
+    window.resolveHandAnimationContext = handSkin.resolveHandAnimationContext;
+    const selectedImage = document.getElementById('handImage');
+    selectedImage.setAttribute('src', 'assets/images/hand-skin/selected-local.png');
+    selectedImage.setAttribute('data-hand-skin-id', ALT_GACHA_HAND_SKIN_ID);
+    document.getElementById('handLayer').remove();
+    const mod = require('../ui/animation-utils.js');
+
+    await expect(mod.playDrawCardHandAnimation({ player: 'white', count: 1, cpu: true, cpuLevel: 4 })).resolves.toBeUndefined();
+
+    const actorImage = document.querySelector('.hand-animation-actor-image');
+    expect(selectedImage.style.visibility).toBe('');
+    expect(actorImage?.getAttribute('data-hand-animation-active')).toBe('false');
+    expect(actorImage?.style.visibility).toBe('hidden');
+  });
+
   test('playDrawCardHandAnimation resolves CPU hand from CPU LEVEL selects when window cpuSmartness is unavailable', async () => {
     const wrapper = document.getElementById('handWrapper');
     wrapper.animate = undefined;
