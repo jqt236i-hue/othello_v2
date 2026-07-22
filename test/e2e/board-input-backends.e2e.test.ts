@@ -50,6 +50,10 @@ type BoardSession = Readonly<{
 }>;
 
 const SCREENSHOT_PATH = path.join(os.tmpdir(), 'card-reversi-phase5-pixi-input.png');
+const EXPANDED_FRAME_SCREENSHOT_PATHS = Object.freeze({
+  dom: path.join(os.tmpdir(), 'card-reversi-expanded-frame-dom.png'),
+  pixi: path.join(os.tmpdir(), 'card-reversi-expanded-frame-pixi.png')
+});
 const HOLE_FIXTURE_NAME = 'circle-10-hole-pseudo-edge';
 const PIXI_TOPOLOGY_POINTER_CASES = Object.freeze([
   Object.freeze({ fixtureName: 'rectangle-8x8-four-stars', topology: 'base', pointerKind: 'mouse' }),
@@ -361,6 +365,91 @@ describe('board input backend E2E', () => {
       await closeSession(session);
     }
   }, 60000);
+
+  for (const backend of ['dom', 'pixi'] as const) {
+    test(`${backend} keeps the image frame for a complete 8x8 base with sparse expansion bounds`, async () => {
+      let session: BoardSession | null = null;
+      try {
+        session = await openBoard(backend);
+        const fixture = browserFixtureByName('rectangle-8x8-multistage-negative');
+        await applyInputFixture(session.page, fixture);
+        const presentation = await session.page.evaluate(() => {
+          const root = window as any;
+          const board = document.getElementById('board');
+          const frame = document.getElementById('board-frame');
+          if (!board || !frame) throw new Error('Board frame surface is unavailable');
+          const frameStyle = getComputedStyle(frame);
+          const frameArtStyle = getComputedStyle(frame, '::before');
+          return {
+            boardHasRenderVoid: board.classList.contains('board-has-void-cells'),
+            frameHasBaseVoid: frame.classList.contains('board-has-base-void-cells'),
+            frameHasLegacyVoid: frame.classList.contains('board-has-void-cells'),
+            frameBackgroundImage: frameStyle.backgroundImage,
+            frameBoxShadow: frameStyle.boxShadow,
+            artDisplay: frameArtStyle.display,
+            artBackgroundImage: frameArtStyle.backgroundImage,
+            diagnostics: root.__boardVisualDebug.getBackendDiagnostics()
+          };
+        });
+
+        expect(presentation).toEqual(expect.objectContaining({
+          boardHasRenderVoid: true,
+          frameHasBaseVoid: false,
+          frameHasLegacyVoid: false,
+          artDisplay: 'block'
+        }));
+        expect(presentation.artBackgroundImage).toContain('url(');
+        expect(presentation.frameBackgroundImage).not.toBe('none');
+        expect(presentation.frameBoxShadow).not.toBe('none');
+        if (backend === 'pixi') {
+          expect(presentation.diagnostics).toEqual(expect.objectContaining({ domCellCount: 0 }));
+        } else {
+          expect(Number(presentation.diagnostics?.domCellCount)).toBeGreaterThan(0);
+        }
+        await session.page.locator('#board-frame').screenshot({
+          path: EXPANDED_FRAME_SCREENSHOT_PATHS[backend]
+        });
+      } finally {
+        await closeSession(session);
+      }
+    }, 60000);
+  }
+
+  for (const backend of ['dom', 'pixi'] as const) {
+    test(`${backend} still uses the CSS contour when the initial board mask has voids`, async () => {
+      let session: BoardSession | null = null;
+      try {
+        session = await openBoard(backend);
+        await applyInputFixture(session.page, browserFixtureByName('circle-10'));
+        const presentation = await session.page.evaluate(() => {
+          const board = document.getElementById('board');
+          const frame = document.getElementById('board-frame');
+          if (!board || !frame) throw new Error('Board frame surface is unavailable');
+          const frameStyle = getComputedStyle(frame);
+          const frameArtStyle = getComputedStyle(frame, '::before');
+          return {
+            boardHasRenderVoid: board.classList.contains('board-has-void-cells'),
+            frameHasBaseVoid: frame.classList.contains('board-has-base-void-cells'),
+            frameHasLegacyVoid: frame.classList.contains('board-has-void-cells'),
+            frameBackgroundImage: frameStyle.backgroundImage,
+            frameBoxShadow: frameStyle.boxShadow,
+            artDisplay: frameArtStyle.display
+          };
+        });
+
+        expect(presentation).toEqual({
+          boardHasRenderVoid: true,
+          frameHasBaseVoid: true,
+          frameHasLegacyVoid: false,
+          frameBackgroundImage: 'none',
+          frameBoxShadow: 'none',
+          artDisplay: 'none'
+        });
+      } finally {
+        await closeSession(session);
+      }
+    }, 60000);
+  }
 
   for (const backend of ['dom', 'pixi'] as const) {
     test(`${backend} keyboard placement is blocked by the help modal and resumes after close`, async () => {

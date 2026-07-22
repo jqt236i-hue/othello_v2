@@ -2249,6 +2249,7 @@ function _captureBoardVisualApplyDomSnapshotForBoardRenderer(host: any) {
     ]);
     captureAttribute(boardFrame, 'data-board-frame-skin-id');
     captureClass(boardFrame, 'board-has-void-cells');
+    captureClass(boardFrame, 'board-has-base-void-cells');
     captureStyle(boardFrame, [
         ...BOARD_FRAME_LAYOUT_STYLE_PROPERTIES_FOR_TRANSACTION,
         '--board-frame-outer-width',
@@ -2451,11 +2452,11 @@ function _beginBoardVisualApplyTransactionForBoardRenderer(frame: any, context: 
         frame,
         context && context.backendKind
     );
-    if (!context || context.backendKind !== 'pixi') {
+    if (!context) {
         return Object.freeze({ frame, commit: commitWorldState });
     }
     const host = context.host || _resolveBoardElementForVisualRuntime();
-    if (!host) throw new Error('Pixi board presentation host is unavailable');
+    if (!host) throw new Error('Board frame presentation host is unavailable');
     const FramePresenterModule = _require('./board-visual/frame-presenter');
     if (!FramePresenterModule || typeof FramePresenterModule.presentBoardFrame !== 'function') {
         throw new Error('Board frame presenter is unavailable');
@@ -2464,6 +2465,13 @@ function _beginBoardVisualApplyTransactionForBoardRenderer(frame: any, context: 
     try {
         // These writes occur only after the controller authorizes this frame.
         FramePresenterModule.presentBoardFrame(host, frame);
+        if (context.backendKind !== 'pixi') {
+            return Object.freeze({
+                frame,
+                commit: commitWorldState,
+                rollback: snapshot.rollback
+            });
+        }
         const topology = frame.model.topology;
         syncBoardPixelSizing(host, {
             rows: topology.renderRows,

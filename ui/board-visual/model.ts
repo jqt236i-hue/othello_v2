@@ -219,6 +219,7 @@ export function createBoardRenderModel(options: {
 }): BoardRenderModel {
   const topology = deepFreeze({
     ...options.topology,
+    baseKeys: sortedUniqueKeys(options.topology.baseKeys),
     existingKeys: sortedUniqueKeys(options.topology.existingKeys),
     playableKeys: sortedUniqueKeys(options.topology.playableKeys),
     holeKeys: sortedUniqueKeys(options.topology.holeKeys)

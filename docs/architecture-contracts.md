@@ -350,6 +350,8 @@ The contract is implemented by the following ownership chain:
 
 Pixi and DOM compatibility backends must never be mounted or receive input concurrently. The normal `#board` subtree contains the Pixi canvas and semantic accessibility layer; compatibility-only cells and `#board-expansion-layer` are materialized dynamically only after the DOM backend has been selected.
 
+`ui/board-visual/frame-presenter.ts` owns frame skin/layout and frame-shape classes for both backends. `#board.board-has-void-cells` describes sparse coordinates inside the current render bounds and may drive DOM compatibility surface rendering. `#board-frame.board-has-base-void-cells` describes only a non-rectangular initial `baseKeys` mask and is the sole condition that disables the retained image frame. Expansion-created render voids must not be reclassified as initial-board voids, and a backend must not write `#board-frame` classes directly.
+
 #### 7.3.1 Board-cell source trajectory ownership
 
 A visual trajectory whose logical source and target are both board-topology coordinates is board-owned phase work. It is part of the active `BoardVisualBackend.playPhase()` call for the original `destroy` or `flip` event; it is not a synthetic global event, a second visual port, or a separate recovery/settlement unit.

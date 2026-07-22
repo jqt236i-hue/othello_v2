@@ -112,15 +112,15 @@
     z-index: 0;
 }
 
-/* 欠けマスを持つ特殊盤面は画像枠を外し、有効マスのCSS輪郭だけを使う。 */
-#board-frame.board-has-void-cells {
+/* 初期盤面に欠けを持つ特殊盤面は画像枠を外し、有効マスのCSS輪郭だけを使う。 */
+#board-frame.board-has-base-void-cells {
     background: transparent;
     border-radius: 0;
     box-shadow: none;
 }
 
-#board-frame.board-has-void-cells::before,
-#board-frame.board-has-void-cells::after {
+#board-frame.board-has-base-void-cells::before,
+#board-frame.board-has-base-void-cells::after {
     display: none;
 }
 

@@ -251,6 +251,7 @@ function makeTopology(options: {
   minCol?: number;
   maxCol?: number;
   existingKeys?: string[];
+  baseKeys?: string[];
   holeKeys?: string[];
 }) {
   const minRow = options.minRow ?? 0;
@@ -258,6 +259,10 @@ function makeTopology(options: {
   const minCol = options.minCol ?? 0;
   const maxCol = options.maxCol ?? options.baseCols - 1;
   const existingKeys = options.existingKeys || rectangleKeys(minRow, maxRow, minCol, maxCol);
+  const baseKeys = options.baseKeys || existingKeys.filter((key) => {
+    const [row, col] = key.split(',').map(Number);
+    return row >= 0 && row < options.baseRows && col >= 0 && col < options.baseCols;
+  });
   const holes = new Set(options.holeKeys || []);
   return {
     baseRows: options.baseRows,
@@ -270,6 +275,7 @@ function makeTopology(options: {
     renderColOffset: -minCol,
     renderRows: maxRow - minRow + 1,
     renderCols: maxCol - minCol + 1,
+    baseKeys,
     existingKeys,
     playableKeys: existingKeys.filter((key) => !holes.has(key)),
     holeKeys: Array.from(holes)

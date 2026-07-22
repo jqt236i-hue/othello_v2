@@ -23,8 +23,9 @@ describe('adaptive board frame styling', () => {
     expect(layoutCss).toMatch(/#board-frame[\s\S]*--board-frame-art-overhang-bottom:\s*var\(--board-frame-art-overhang\)/);
     expect(layoutCss).toMatch(/#board-frame[\s\S]*background:\s*var\(--board-frame-fill-background\)/);
     expect(layoutCss).toMatch(/#board-frame::before\s*\{[\s\S]*background:\s*var\(--board-frame-image\)\s+center\s*\/\s*100%\s+100%\s+no-repeat/);
-    expect(layoutCss).toMatch(/#board-frame\.board-has-void-cells\s*\{[\s\S]*background:\s*transparent/);
-    expect(layoutCss).toMatch(/#board-frame\.board-has-void-cells::before,[\s\S]*#board-frame\.board-has-void-cells::after\s*\{[\s\S]*display:\s*none/);
+    expect(layoutCss).toMatch(/#board-frame\.board-has-base-void-cells\s*\{[\s\S]*background:\s*transparent/);
+    expect(layoutCss).toMatch(/#board-frame\.board-has-base-void-cells::before,[\s\S]*#board-frame\.board-has-base-void-cells::after\s*\{[\s\S]*display:\s*none/);
+    expect(layoutCss).not.toMatch(/#board-frame\.board-has-void-cells/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-max-size:\s*var\(--board-frame-inner-size,\s*calc\(var\(--layout-anchor-board-size\)\s*\*\s*var\(--layout-stage-scale\)\s*\*\s*var\(--layout-priority-board-scale\)\)\)/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-disc-size:\s*var\(--board-disc-size-px,\s*89\.9%\)/);
     expect(boardCss).toMatch(/#board[\s\S]*--board-disc-inset:\s*var\(--board-disc-inset-px,\s*5\.05%\)/);

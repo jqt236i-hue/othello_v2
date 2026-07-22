@@ -13,6 +13,10 @@ function createTopology(existingKeys: string[], holeKeys: string[] = [], bounds 
     renderColOffset: bounds.minCol < 0 ? -bounds.minCol : 0,
     renderRows: bounds.maxRow - bounds.minRow + 1,
     renderCols: bounds.maxCol - bounds.minCol + 1,
+    baseKeys: existingKeys.filter((key) => {
+      const [row, col] = key.split(',').map(Number);
+      return row >= 0 && row < 10 && col >= 0 && col < 10;
+    }),
     existingKeys,
     playableKeys: existingKeys.filter((key) => !holes.has(key)),
     holeKeys

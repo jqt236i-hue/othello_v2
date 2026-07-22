@@ -76,6 +76,7 @@ function modelFingerprint(model: BoardRenderModel): string {
   return stableDescriptorString({
     topology: {
       ...topology,
+      baseKeys: sortedKeys(topology.baseKeys),
       existingKeys: sortedKeys(topology.existingKeys),
       playableKeys: sortedKeys(topology.playableKeys),
       holeKeys: sortedKeys(topology.holeKeys)
@@ -267,15 +268,27 @@ function topologyNeedsOversizeLayout(topology: BoardRenderTopologyModel): boolea
   return topology.renderRows * baseScale > 8.0001 || topology.renderCols * baseScale > 8.0001;
 }
 
+function topologyHasRenderVoidCells(topology: BoardRenderTopologyModel): boolean {
+  return topology.existingKeys.length < topology.renderRows * topology.renderCols;
+}
+
+function topologyHasBaseVoidCells(topology: BoardRenderTopologyModel): boolean {
+  return topology.baseKeys.length < topology.baseRows * topology.baseCols;
+}
+
 function presentBoardFrame(host: HTMLElement, frame: BoardVisualFrame) {
   if (!host || !frame) return;
   const doc = host.ownerDocument || (typeof document !== 'undefined' ? document : null);
   const rootElement = doc && doc.documentElement as HTMLElement | null;
   const boardFrame = typeof host.closest === 'function' ? host.closest('#board-frame') as HTMLElement | null : null;
   const appearance = frame.appearance;
-  const hasVoidCells = frame.model.cells.length < frame.model.topology.renderRows * frame.model.topology.renderCols;
-  host.classList.toggle('board-has-void-cells', hasVoidCells);
-  if (boardFrame && boardFrame.classList) boardFrame.classList.toggle('board-has-void-cells', hasVoidCells);
+  const hasRenderVoidCells = topologyHasRenderVoidCells(frame.model.topology);
+  const hasBaseVoidCells = topologyHasBaseVoidCells(frame.model.topology);
+  host.classList.toggle('board-has-void-cells', hasRenderVoidCells);
+  if (boardFrame && boardFrame.classList) {
+    boardFrame.classList.remove('board-has-void-cells');
+    boardFrame.classList.toggle('board-has-base-void-cells', hasBaseVoidCells);
+  }
 
   setAttributeIfChanged(host, 'data-board-skin-id', appearance.boardSkinId);
   if (appearance.boardImageUrl) setStylePropertyIfChanged(host, '--board-surface-texture-image', cssUrl(appearance.boardImageUrl));

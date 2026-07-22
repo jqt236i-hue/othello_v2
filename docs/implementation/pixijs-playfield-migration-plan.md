@@ -144,7 +144,7 @@ classic/Vite の双方で同じ `8.18.1` runtime が bootstrap 前に注入さ�
 7. 同一 run/frame token で `PlaybackStateManager.begin/claim → controller.claimWriter → dispatch → final/committed sync → controller.releaseWriter → manager.finalize` の順を contract test に固定する。recovery/error 中は manager lock を早期解除せず、selection settlement lock を持ったまま idle を待たない。
 8. `DomBoardVisualBackend` が既存 `initializeBoardDOM()`、`renderBoardDiff()`、cell lookup を包み、上位 caller は controller だけを呼ぶようにする。
 9. `ui/board-renderer.ts` に混在する time-stop BGM/body class、manifest background/panel の同期を `world-state-presenter.ts` へ分離する。render model builder に DOM/sound side effect を残さない。
-10. `frame-presenter.ts` に frame skin/layout、`board-has-void-cells`、game-container oversize class の同期を置き、cell/stone writer から分離する。playback 中は controller が通常 model の frame 更新を defer する。
+10. `frame-presenter.ts` に frame skin/layout、`#board` の `board-has-void-cells`、初期盤面マスクに基づく `#board-frame` の `board-has-base-void-cells`、game-container oversize class の同期を置き、cell/stone writer から分離する。拡張由来のvoidでは画像フレームを隠さず、playback 中は controller が通常 model の frame 更新をdeferする。
 11. `render-scheduler.ts` は model を一度作り、controller と card/status scheduler へ明示的に渡す。playback 中の defer は controller 一箇所に集約する。
 12. `?debug=1`/test flag 限定の diagnostics contract を作る。この phase の backend kind は `dom` だけでよい。
 13. 既存 DOM backend の HTML、class、pixel、入力を変えず、Phase 0 digest を完全一致させる。

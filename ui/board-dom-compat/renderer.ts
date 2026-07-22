@@ -2100,14 +2100,9 @@ function initializeBoardDOM(boardEl: any, boardRenderModel?: any, viewportLayout
             _cacheCell(r, c, cell);
     }
 
-    // DOM compatibility keeps the historical paint order: topology classes
-    // settle after cells are materialized. Pixi frame presentation remains a
-    // separate backend concern and does not rewrite this compatibility DOM.
+    // DOM compatibility owns only the materialized board surface. The shared
+    // frame presenter owns #board-frame skin/layout and base-shape policy.
     boardEl.classList.toggle('board-has-void-cells', hasVoidCells);
-    const boardFrame = typeof boardEl.closest === 'function' ? boardEl.closest('#board-frame') : null;
-    if (boardFrame && boardFrame.classList) {
-        boardFrame.classList.toggle('board-has-void-cells', hasVoidCells);
-    }
 
     boardDomSignature = _getBoardDomSignatureForDiff(gameState)
         + _getBoardMaterializationSignatureForDiff(boardRenderModel, viewportLayout);

@@ -556,11 +556,36 @@ describe('Card effects E2E', () => {
     const beforeExpansion = await page.evaluate(() => ({
       anchor: window.__boardVisualDebug.getRenderedCell(0, 0),
       anchorRect: window.__boardVisualDebug.getCellClientRect(0, 0),
-      frameDigest: window.__boardVisualDebug.getVisualFrameDigest()
+      frameDigest: window.__boardVisualDebug.getVisualFrameDigest(),
+      framePresentation: (() => {
+        const board = document.getElementById('board');
+        const frame = document.getElementById('board-frame');
+        if (!board || !frame) return null;
+        const frameStyle = getComputedStyle(frame);
+        const frameArtStyle = getComputedStyle(frame, '::before');
+        return {
+          boardHasRenderVoid: board.classList.contains('board-has-void-cells'),
+          frameHasBaseVoid: frame.classList.contains('board-has-base-void-cells'),
+          frameHasLegacyVoid: frame.classList.contains('board-has-void-cells'),
+          frameBackgroundImage: frameStyle.backgroundImage,
+          frameBoxShadow: frameStyle.boxShadow,
+          artDisplay: frameArtStyle.display,
+          artBackgroundImage: frameArtStyle.backgroundImage
+        };
+      })()
     }));
     expect(beforeExpansion.anchor.hint.directionKeys).toEqual(['up', 'left']);
     expect(beforeExpansion.anchorRect.width).toBeGreaterThan(0);
     expect(beforeExpansion.anchorRect.height).toBeGreaterThan(0);
+    expect(beforeExpansion.framePresentation).toEqual(expect.objectContaining({
+      boardHasRenderVoid: false,
+      frameHasBaseVoid: false,
+      frameHasLegacyVoid: false,
+      artDisplay: 'block'
+    }));
+    expect(beforeExpansion.framePresentation.artBackgroundImage).toContain('url(');
+    expect(beforeExpansion.framePresentation.frameBackgroundImage).not.toBe('none');
+    expect(beforeExpansion.framePresentation.frameBoxShadow).not.toBe('none');
     const screenshot = await page.screenshot();
     expect(screenshot.byteLength).toBeGreaterThan(1000);
 
@@ -584,7 +609,23 @@ describe('Card effects E2E', () => {
       expanded: window.__boardVisualDebug.getRenderedCell(-1, 0),
       expandedRect: window.__boardVisualDebug.getCellClientRect(-1, 0),
       frameDigest: window.__boardVisualDebug.getVisualFrameDigest(),
-      backendDiagnostics: window.__boardVisualDebug.getBackendDiagnostics()
+      backendDiagnostics: window.__boardVisualDebug.getBackendDiagnostics(),
+      framePresentation: (() => {
+        const board = document.getElementById('board');
+        const frame = document.getElementById('board-frame');
+        if (!board || !frame) return null;
+        const frameStyle = getComputedStyle(frame);
+        const frameArtStyle = getComputedStyle(frame, '::before');
+        return {
+          boardHasRenderVoid: board.classList.contains('board-has-void-cells'),
+          frameHasBaseVoid: frame.classList.contains('board-has-base-void-cells'),
+          frameHasLegacyVoid: frame.classList.contains('board-has-void-cells'),
+          frameBackgroundImage: frameStyle.backgroundImage,
+          frameBoxShadow: frameStyle.boxShadow,
+          artDisplay: frameArtStyle.display,
+          artBackgroundImage: frameArtStyle.backgroundImage
+        };
+      })()
     }));
     expect(result.pending).toBeNull();
     expect(result.cells).toEqual(expect.arrayContaining([
@@ -597,12 +638,150 @@ describe('Card effects E2E', () => {
     }));
     expect(result.expandedRect.width).toBeGreaterThan(0);
     expect(result.frameDigest).not.toBe(beforeExpansion.frameDigest);
+    expect(result.framePresentation).toEqual(expect.objectContaining({
+      boardHasRenderVoid: true,
+      frameHasBaseVoid: false,
+      frameHasLegacyVoid: false,
+      artDisplay: 'block'
+    }));
+    expect(result.framePresentation.artBackgroundImage).toContain('url(');
+    expect(result.framePresentation.frameBackgroundImage).not.toBe('none');
+    expect(result.framePresentation.frameBoxShadow).not.toBe('none');
     expect(result.backendDiagnostics).toEqual(expect.objectContaining({
       domCellCount: 0,
       playback: expect.objectContaining({ inFlightEffectCount: 0 }),
       timeline: expect.objectContaining({ state: 'idle' })
     }));
 
+    const expandedScreenshot = await page.screenshot();
+    expect(expandedScreenshot.byteLength).toBeGreaterThan(1000);
+
+    await page.close();
+  }, 60000);
+
+  test('盤面拡張神の6マス同時追加後も通常8x8の画像フレームを保持する', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await openPixiDebugLane(page, serverPort, true);
+    await closeSidePanelIfPresent(page);
+    await page.waitForFunction(() => !!(
+      window.gameState
+      && window.cardState
+      && typeof window.renderBoard === 'function'
+      && typeof window.handleCellClick === 'function'
+    ), { timeout: 15000 });
+
+    await page.evaluate(() => {
+      window.DEBUG_UNLIMITED_USAGE = true;
+      window.DEBUG_HUMAN_VS_HUMAN = true;
+      window.MATCH_MODE = 'cpu';
+      window.LOCAL_PLAYER_KEY = 'black';
+      for (const key of ['__uiImpl_turn_manager', '__uiImpl_move_executor', '__uiImpl']) {
+        window[key] = window[key] || {};
+        window[key].DEBUG_UNLIMITED_USAGE = true;
+        window[key].DEBUG_HUMAN_VS_HUMAN = true;
+        window[key].MATCH_MODE = 'cpu';
+      }
+      window.gameState.currentPlayer = 1;
+      window.gameState.boardExpansion = {
+        active: false,
+        side: null,
+        row: null,
+        owner: 0,
+        usedByPlayer: { black: false, white: false },
+        cells: []
+      };
+      window.cardState.pendingEffectByPlayer = {
+        black: {
+          type: 'BOARD_EXPANSION_GOD',
+          stage: 'selectTarget',
+          cardId: 'board_expand_god_01',
+          selectedCount: 0,
+          maxSelections: 2,
+          selectedTargets: []
+        },
+        white: null
+      };
+      window.cardState.hasUsedCardThisTurnByPlayer = { black: true, white: false };
+      window.cardState.lastUsedCardByPlayer = { black: 'board_expand_god_01', white: null };
+      window.isProcessing = false;
+      window.isCardAnimating = false;
+      window.VisualPlaybackActive = false;
+      window.renderBoard();
+    });
+    await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
+
+    const upperLeftButton = page.locator('.board-accessibility-direction-button[data-cell-key="0,0"][data-direction="up-left"]');
+    expect(await upperLeftButton.count()).toBe(1);
+    await upperLeftButton.click();
+    await page.waitForFunction(() => {
+      const pending = window.cardState.pendingEffectByPlayer.black;
+      return pending
+        && Array.isArray(pending.selectedTargets)
+        && pending.selectedTargets.some((target: any) => target.row === 0 && target.col === 0);
+    }, null, { timeout: 10000 });
+    await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
+
+    const lowerRightButton = page.locator('.board-accessibility-direction-button[data-cell-key="7,7"][data-direction="down-right"]');
+    expect(await lowerRightButton.count()).toBe(1);
+    await lowerRightButton.click();
+    await page.waitForFunction(() => {
+      const cells = window.gameState && window.gameState.boardExpansion && window.gameState.boardExpansion.cells;
+      return Array.isArray(cells) && cells.length === 6;
+    }, null, { timeout: 10000 });
+    await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
+
+    const result = await page.evaluate(() => {
+      const board = document.getElementById('board');
+      const frame = document.getElementById('board-frame');
+      if (!board || !frame) return null;
+      const frameStyle = getComputedStyle(frame);
+      const frameArtStyle = getComputedStyle(frame, '::before');
+      return {
+        pending: window.cardState.pendingEffectByPlayer.black,
+        cells: window.gameState.boardExpansion.cells,
+        renderedCells: [
+          window.__boardVisualDebug.getRenderedCell(-1, -1),
+          window.__boardVisualDebug.getRenderedCell(8, 8)
+        ],
+        boardHasRenderVoid: board.classList.contains('board-has-void-cells'),
+        frameHasBaseVoid: frame.classList.contains('board-has-base-void-cells'),
+        frameHasLegacyVoid: frame.classList.contains('board-has-void-cells'),
+        frameBackgroundImage: frameStyle.backgroundImage,
+        frameBoxShadow: frameStyle.boxShadow,
+        artDisplay: frameArtStyle.display,
+        artBackgroundImage: frameArtStyle.backgroundImage,
+        backendDiagnostics: window.__boardVisualDebug.getBackendDiagnostics()
+      };
+    });
+
+    expect(result).not.toBeNull();
+    if (!result) throw new Error('board expansion god frame result was unavailable');
+    expect(result.pending).toBeNull();
+    expect(result.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: -1 }),
+      expect.objectContaining({ row: 8, col: 8 })
+    ]));
+    expect(result.renderedCells).toEqual([
+      expect.objectContaining({ key: '-1,-1', kind: 'playable' }),
+      expect.objectContaining({ key: '8,8', kind: 'playable' })
+    ]);
+    expect(result).toEqual(expect.objectContaining({
+      boardHasRenderVoid: true,
+      frameHasBaseVoid: false,
+      frameHasLegacyVoid: false,
+      artDisplay: 'block'
+    }));
+    expect(result.artBackgroundImage).toContain('url(');
+    expect(result.frameBackgroundImage).not.toBe('none');
+    expect(result.frameBoxShadow).not.toBe('none');
+    expect(result.backendDiagnostics).toEqual(expect.objectContaining({
+      domCellCount: 0,
+      playback: expect.objectContaining({ inFlightEffectCount: 0 }),
+      timeline: expect.objectContaining({ state: 'idle' })
+    }));
+
+    const screenshot = await page.screenshot();
+    expect(screenshot.byteLength).toBeGreaterThan(1000);
     await page.close();
   }, 60000);
 });

@@ -823,6 +823,7 @@ function buildBoardRenderModel(
             renderColOffset: topology.renderColOffset,
             renderRows: topology.renderRows,
             renderCols: topology.renderCols,
+            baseKeys: Array.from(topology.baseKeys),
             existingKeys: Array.from(topology.existingKeys),
             playableKeys: Array.from(topology.playableKeys),
             holeKeys: Array.from(topology.holeKeys)
@@ -947,11 +948,7 @@ function isModelBaseCoordinate(model: any, cell: any): boolean {
 function inferDomCompatibilityBaseShape(model: any): 'rectangle' | 'circle' {
     const rows = model.topology.baseRows;
     const cols = model.topology.baseCols;
-    const baseKeys = new Set(
-        model.cells
-            .filter((cell: any) => isModelBaseCoordinate(model, cell))
-            .map((cell: any) => cell.key)
-    );
+    const baseKeys = new Set(model.topology.baseKeys || []);
     if (baseKeys.size === rows * cols) return 'rectangle';
     const centerRow = (rows - 1) / 2;
     const centerCol = (cols - 1) / 2;

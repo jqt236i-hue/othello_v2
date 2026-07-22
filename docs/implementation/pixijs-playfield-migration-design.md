@@ -403,7 +403,7 @@ interface BoardAppearanceDescriptor {
 
 装飾フレーム画像自体は DOM `#board-frame` が描画を続ける。frame layout descriptor は canvas inset/scroll geometry と DOM frame の双方が共有する。
 
-`ui/board-visual/frame-presenter.ts` は model topology と appearance だけを受け、`#board-frame` の skin/layout、`board-has-void-cells`、`#game-container` の oversize class を同期する。これは盤面セル/石を書かない layout presenter であり、board visual writer とは分離する。
+`ui/board-visual/frame-presenter.ts` は model topology と appearance だけを受け、`#board-frame` の skin/layout、初期盤面マスク由来の `board-has-base-void-cells`、`#board` の描画境界由来の `board-has-void-cells`、`#game-container` の oversize class を同期する。拡張で描画境界内に生じるvoidは画像フレームを無効化しない。これは盤面セル/石を書かない layout presenter であり、board visual writerとは分離する。
 
 frame presenter も `BoardVisualController` の settlement に従う。playback 中の通常 model では frame/oversize class を先に更新せず、expansion/shrink event が指定する phase、または final sync で backend layout と同時に更新する。
 

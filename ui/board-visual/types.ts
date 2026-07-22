@@ -103,6 +103,8 @@ export interface BoardRenderTopologyModel {
   renderColOffset: number;
   renderRows: number;
   renderCols: number;
+  /** Stable initial-board mask. Expansion cells never become base cells. */
+  baseKeys: readonly string[];
   existingKeys: readonly string[];
   playableKeys: readonly string[];
   holeKeys: readonly string[];

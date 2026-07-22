@@ -38,6 +38,7 @@ function createInitialFrame() {
         renderColOffset: 0,
         renderRows: 1,
         renderCols: 1,
+        baseKeys: ['0,0'],
         existingKeys: ['0,0'],
         playableKeys: ['0,0'],
         holeKeys: []
