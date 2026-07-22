@@ -104,9 +104,16 @@ const STONE_MARKER_KINDS = new Set([
   'breeding-sprout'
 ]);
 
+const NON_SPECIAL_STONE_MARKER_KINDS = new Set([
+  'breeding-sprout'
+]);
+
 export function hasPixiStoneVisual(cell: MaterializedBoardCellVisualState): boolean {
   return cell.kind === 'playable' && (
-    !!cell.stone || cell.markers.some((marker) => STONE_MARKER_KINDS.has(marker.kind))
+    !!cell.stone || cell.markers.some((marker) => (
+      STONE_MARKER_KINDS.has(marker.kind)
+      && !NON_SPECIAL_STONE_MARKER_KINDS.has(marker.kind)
+    ))
   );
 }
 
@@ -117,10 +124,10 @@ function markerSpecialType(markers: readonly BoardMarkerVisual[]): string | null
     guard: 'GUARD',
     bomb: 'TIME_BOMB',
     frozen: 'FREEZE',
-    poisoned: 'POISONED',
-    'breeding-sprout': 'BREEDING'
+    poisoned: 'POISONED'
   });
   for (const marker of markers) {
+    if (NON_SPECIAL_STONE_MARKER_KINDS.has(marker.kind)) continue;
     const explicit = String(marker.data && marker.data.type || '').trim().toUpperCase();
     if (explicit) return explicit;
     if (typeByKind[marker.kind]) return typeByKind[marker.kind];
@@ -159,8 +166,7 @@ function collectStoneStatusLabels(
     TIME_BOMB: 'bomb',
     BOMB: 'bomb',
     FREEZE: 'frozen',
-    POISONED: 'poisoned',
-    BREEDING: 'breeding-sprout'
+    POISONED: 'poisoned'
   });
   const dedicatedMarkerKind = timerMarkerKindByType[normalizedSpecialType];
   const timerOwnedByDedicatedMarker = !!dedicatedMarkerKind
@@ -178,13 +184,12 @@ function collectStoneStatusLabels(
   addPositive('flip-evade', finiteStatusLabel(status, ['flipEvadeRemaining']));
   addPositive('destroy-evade', finiteStatusLabel(status, ['destroyEvadeRemaining']));
 
-  const markerOrder = ['bomb', 'guard', 'frozen', 'poisoned', 'breeding-sprout'] as const;
+  const markerOrder = ['bomb', 'guard', 'frozen', 'poisoned'] as const;
   const markerKind = Object.freeze({
     bomb: 'bomb',
     guard: 'guard',
     frozen: 'freeze',
-    poisoned: 'poison',
-    'breeding-sprout': 'breeding'
+    poisoned: 'poison'
   });
   for (const expectedKind of markerOrder) {
     const marker = markers.find((candidate) => candidate.kind === expectedKind);
@@ -204,7 +209,6 @@ function collectStoneStatusLabels(
     || entry.kind === 'guard'
     || entry.kind === 'freeze'
     || entry.kind === 'poison'
-    || entry.kind === 'breeding'
   ))) {
     add('countdown', finiteStatusLabel(status, ['countdown', 'timer', 'count']));
   }
@@ -243,7 +247,6 @@ function statusLabelPosition(kind: string, cellSize: number): Readonly<{ x: numb
     guard: [0.5, 0.1],
     freeze: [0.23, 0.23],
     poison: [0.14, 0.14],
-    breeding: [0.14, 0.5],
     countdown: [0.5, 0.86]
   });
   const ratio = ratios[kind] || [0.5, 0.5];
@@ -458,7 +461,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
     }
 
     const hasBreedingSprout = renderedMarkerKinds.includes('breeding-sprout');
-    if (hasBreedingSprout && !stone) {
+    if (hasBreedingSprout && stone) {
       const stemColor = owner === 'white' ? '#b9f6ca' : '#72d572';
       drawPixiLine(specialRing, center, cellSize * 0.72, center, cellSize * 0.38, {
         color: stemColor,

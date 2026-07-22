@@ -493,7 +493,7 @@ describe('Pixi static retained views', () => {
     expect(hintView.interactionRoot).toMatchObject({ eventMode: 'none', hitArea: null });
   });
 
-  test('shows procedural normal/special/sprout fallback and double-digit timer styles', () => {
+  test('shows procedural normal/special fallbacks and keeps breeding sprouts as normal-stone overlays', () => {
     const fixture = createFakeRuntime();
     const stoneView = StoneView.createPixiStoneView(fixture.runtime);
     const plain = materializedCell(makeCell('0,0', {
@@ -525,22 +525,75 @@ describe('Pixi static retained views', () => {
       position: { x: 24, y: 17 }
     });
 
+    const whiteTexture = { id: 'white-stone-texture' };
+    const breedingTexture = { id: 'breeding-stone-texture' };
+    const sproutTextures = new Map([
+      ['white-stone', { texture: whiteTexture }],
+      ['special-stone:BREEDING:white', { texture: breedingTexture }]
+    ]);
     const sprout = materializedCell(makeCell('0,1', {
-      markers: [{ kind: 'breeding-sprout', owner: 'white', value: true, data: { active: true } }]
+      stone: { owner: 'white', value: -1, specialType: null, status: {} },
+      markers: [{ kind: 'breeding-sprout', owner: null, value: true, data: { active: true, type: 'BREEDING' } }]
     }));
-    stoneView.update(sprout, viewContext({ stoneRevisionSignature: 'static-stone:3' }));
+    stoneView.update(sprout, viewContext({
+      stoneRevisionSignature: 'static-stone:3',
+      textures: sproutTextures
+    }));
+    expect(stoneView.getDiagnostics()).toMatchObject({
+      visible: true,
+      specialType: null,
+      textureBacked: true,
+      texturePurpose: 'white-stone',
+      renderedMarkerKinds: ['breeding-sprout']
+    });
+    expect(stoneView.root.children.find((child: any) => (
+      child.label === 'pixi-stone-texture'
+    ))).toMatchObject({ texture: whiteTexture });
+    const sproutOverlay = stoneView.root.children.find((child: any) => (
+      child.label === 'pixi-stone-special-ring'
+    )) as FakeGraphics;
+    expect(sproutOverlay.commands.filter((command) => command.op === 'lineTo')).toHaveLength(1);
+    expect(sproutOverlay.commands.filter((command) => command.op === 'circle')).toHaveLength(2);
+
+    const breedingAnchor = materializedCell(makeCell('0,2', {
+      stone: { owner: 'white', value: -1, specialType: 'BREEDING', status: { remainingOwnerTurns: 5 } },
+      markers: [{
+        kind: 'special', owner: 'white', value: null,
+        data: { type: 'BREEDING', remainingOwnerTurns: 5 }
+      }]
+    }));
+    stoneView.update(breedingAnchor, viewContext({
+      stoneRevisionSignature: 'static-stone:4',
+      textures: sproutTextures
+    }));
     expect(stoneView.getDiagnostics()).toMatchObject({
       visible: true,
       specialType: 'BREEDING',
+      timerLabel: '5',
+      textureBacked: true,
+      texturePurpose: 'special-stone:BREEDING:white',
+      renderedMarkerKinds: ['special']
+    });
+    expect(stoneView.root.children.find((child: any) => (
+      child.label === 'pixi-stone-texture'
+    ))).toMatchObject({ texture: breedingTexture });
+
+    const orphanSprout = materializedCell(makeCell('0,3', {
+      markers: [{ kind: 'breeding-sprout', owner: 'white', value: true, data: { active: true } }]
+    }));
+    stoneView.update(orphanSprout, viewContext({ stoneRevisionSignature: 'static-stone:5' }));
+    expect(stoneView.getDiagnostics()).toMatchObject({
+      visible: false,
+      specialType: null,
       textureBacked: false,
       renderedMarkerKinds: ['breeding-sprout']
     });
 
     const seedView = CellView.createPixiCellView(fixture.runtime);
-    const seed = materializedCell(makeCell('0,2', {
+    const seed = materializedCell(makeCell('0,4', {
       markers: [{ kind: 'seed', owner: 'white', value: null, data: { remainingOwnerTurns: 2 } }]
     }));
-    seedView.update(seed, viewContext({ stoneRevisionSignature: 'static-stone:4' }));
+    seedView.update(seed, viewContext({ stoneRevisionSignature: 'static-stone:6' }));
     expect(seedView.getDiagnostics()).toMatchObject({
       markerCount: 1,
       markerLabels: ['2'],
@@ -581,8 +634,7 @@ describe('Pixi static retained views', () => {
       { kind: 'destroy-evade', value: '9' },
       { kind: 'bomb', value: '8' },
       { kind: 'guard', value: '7' },
-      { kind: 'poison', value: '6' },
-      { kind: 'breeding', value: '5' }
+      { kind: 'poison', value: '6' }
     ]);
     expect(stoneView.root.children.find((child: any) => (
       child.label === 'pixi-stone-status-labels'
@@ -593,8 +645,7 @@ describe('Pixi static retained views', () => {
       'pixi-stone-status:destroy-evade',
       'pixi-stone-status:bomb',
       'pixi-stone-status:guard',
-      'pixi-stone-status:poison',
-      'pixi-stone-status:breeding'
+      'pixi-stone-status:poison'
     ]);
   });
 
