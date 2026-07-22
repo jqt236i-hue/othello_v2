@@ -93,8 +93,8 @@
 #board[data-board-renderer="pixi"] > .pixi-board-scroll-viewport {
     position: absolute;
     inset: 0;
-    overflow: auto;
-    overscroll-behavior: contain;
+    overflow: hidden;
+    overscroll-behavior: none;
     z-index: var(--board-layer-cell);
 }
 

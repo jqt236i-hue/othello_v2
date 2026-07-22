@@ -447,8 +447,11 @@ export function createPixiBoardCamera(options: PixiBoardCameraOptions = {}): Pix
     viewport.className = 'pixi-board-scroll-viewport';
     viewport.style.position = 'absolute';
     viewport.style.inset = '0';
-    viewport.style.overflow = 'auto';
-    viewport.style.overscrollBehavior = 'contain';
+    // This element carries programmatic logical scroll offsets for topology
+    // reconciliation. It is not player-facing scroll UI: native scrollbar
+    // gutters would shrink the camera viewport and shift board/input geometry.
+    viewport.style.overflow = 'hidden';
+    viewport.style.overscrollBehavior = 'none';
 
     surface = doc.createElement('div');
     surface.id = 'board-scroll-surface';

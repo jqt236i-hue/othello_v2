@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { JSDOM } from 'jsdom';
+import { readCssBlock } from './helpers/css-test-helpers';
 
 type BackendHooks = {
   mount?: (host: HTMLElement) => void | Promise<void>;
@@ -636,10 +637,16 @@ describe('Pixi board CSS and classic delivery wiring', () => {
     const boardCss = fs.readFileSync(path.join(root, 'styles-board.css'), 'utf8');
     const layoutCss = fs.readFileSync(path.join(root, 'styles-layout.css'), 'utf8');
     const responsiveCss = fs.readFileSync(path.join(root, 'styles-responsive.css'), 'utf8');
+    const pixiViewportCss = readCssBlock(
+      boardCss,
+      '#board[data-board-renderer="pixi"] > .pixi-board-scroll-viewport'
+    );
 
     expect(boardCss).toMatch(/#board\s*\{[\s\S]*?display:\s*grid;/);
     expect(boardCss).toContain('#board[data-board-renderer="pixi"]');
     expect(boardCss).toContain('.pixi-board-scroll-viewport');
+    expect(pixiViewportCss).toMatch(/overflow:\s*hidden;/);
+    expect(pixiViewportCss).not.toMatch(/overflow:\s*auto;/);
     expect(boardCss).toContain('.pixi-board-scroll-surface');
     expect(boardCss).toContain('.pixi-board-canvas-layer');
     expect(boardCss).toMatch(/#board\[data-board-renderer="pixi"\]::before,[\s\S]*?content:\s*none;/);

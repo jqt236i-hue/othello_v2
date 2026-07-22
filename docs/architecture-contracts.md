@@ -352,6 +352,8 @@ Pixi and DOM compatibility backends must never be mounted or receive input concu
 
 `ui/board-visual/frame-presenter.ts` owns frame skin/layout and frame-shape classes for both backends. `#board.board-has-void-cells` describes sparse coordinates inside the current render bounds and may drive DOM compatibility surface rendering. `#board-frame.board-has-base-void-cells` describes only a non-rectangular initial `baseKeys` mask and is the sole condition that disables the retained image frame. Expansion-created render voids must not be reclassified as initial-board voids, and a backend must not write `#board-frame` classes directly.
 
+The Pixi `#board-scroll-viewport` is a programmatic camera-coordinate surface, not player-facing scroll UI. Its cell-less logical surface may exceed the physical viewport, and upper/left topology growth may update `scrollLeft` / `scrollTop` to preserve existing cell client coordinates, but the viewport must keep native overflow hidden so scrollbar gutters and user panning cannot change the board center, viewport dimensions, or input geometry.
+
 #### 7.3.1 Board-cell source trajectory ownership
 
 A visual trajectory whose logical source and target are both board-topology coordinates is board-owned phase work. It is part of the active `BoardVisualBackend.playPhase()` call for the original `destroy` or `flip` event; it is not a synthetic global event, a second visual port, or a separate recovery/settlement unit.

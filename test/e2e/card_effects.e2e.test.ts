@@ -710,6 +710,41 @@ describe('Card effects E2E', () => {
     });
     await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
 
+    const beforeLayout = await page.evaluate(() => {
+      const board = document.getElementById('board');
+      const viewport = document.getElementById('board-scroll-viewport');
+      const anchorRect = window.__boardVisualDebug.getCellClientRect(3, 3);
+      if (!board || !viewport || !anchorRect) return null;
+      const boardRect = board.getBoundingClientRect();
+      const viewportRect = viewport.getBoundingClientRect();
+      const viewportStyle = getComputedStyle(viewport);
+      return {
+        boardRect: {
+          left: boardRect.left,
+          top: boardRect.top,
+          width: boardRect.width,
+          height: boardRect.height,
+          centerX: boardRect.left + boardRect.width / 2,
+          centerY: boardRect.top + boardRect.height / 2
+        },
+        viewport: {
+          clientWidth: viewport.clientWidth,
+          clientHeight: viewport.clientHeight,
+          rectWidth: viewportRect.width,
+          rectHeight: viewportRect.height,
+          scrollWidth: viewport.scrollWidth,
+          scrollHeight: viewport.scrollHeight,
+          scrollLeft: viewport.scrollLeft,
+          scrollTop: viewport.scrollTop,
+          overflowX: viewportStyle.overflowX,
+          overflowY: viewportStyle.overflowY
+        },
+        anchorRect
+      };
+    });
+    expect(beforeLayout).not.toBeNull();
+    if (!beforeLayout) throw new Error('initial Pixi board layout was unavailable');
+
     const upperLeftButton = page.locator('.board-accessibility-direction-button[data-cell-key="0,0"][data-direction="up-left"]');
     expect(await upperLeftButton.count()).toBe(1);
     await upperLeftButton.click();
@@ -750,6 +785,37 @@ describe('Card effects E2E', () => {
         frameBoxShadow: frameStyle.boxShadow,
         artDisplay: frameArtStyle.display,
         artBackgroundImage: frameArtStyle.backgroundImage,
+        layout: (() => {
+          const viewport = document.getElementById('board-scroll-viewport');
+          const anchorRect = window.__boardVisualDebug.getCellClientRect(3, 3);
+          if (!viewport || !anchorRect) return null;
+          const boardRect = board.getBoundingClientRect();
+          const viewportRect = viewport.getBoundingClientRect();
+          const viewportStyle = getComputedStyle(viewport);
+          return {
+            boardRect: {
+              left: boardRect.left,
+              top: boardRect.top,
+              width: boardRect.width,
+              height: boardRect.height,
+              centerX: boardRect.left + boardRect.width / 2,
+              centerY: boardRect.top + boardRect.height / 2
+            },
+            viewport: {
+              clientWidth: viewport.clientWidth,
+              clientHeight: viewport.clientHeight,
+              rectWidth: viewportRect.width,
+              rectHeight: viewportRect.height,
+              scrollWidth: viewport.scrollWidth,
+              scrollHeight: viewport.scrollHeight,
+              scrollLeft: viewport.scrollLeft,
+              scrollTop: viewport.scrollTop,
+              overflowX: viewportStyle.overflowX,
+              overflowY: viewportStyle.overflowY
+            },
+            anchorRect
+          };
+        })(),
         backendDiagnostics: window.__boardVisualDebug.getBackendDiagnostics()
       };
     });
@@ -774,6 +840,27 @@ describe('Card effects E2E', () => {
     expect(result.artBackgroundImage).toContain('url(');
     expect(result.frameBackgroundImage).not.toBe('none');
     expect(result.frameBoxShadow).not.toBe('none');
+    expect(result.layout).not.toBeNull();
+    expect(result.layout.viewport).toEqual(expect.objectContaining({
+      clientWidth: beforeLayout.viewport.clientWidth,
+      clientHeight: beforeLayout.viewport.clientHeight,
+      overflowX: 'hidden',
+      overflowY: 'hidden'
+    }));
+    expect(result.layout.viewport.rectWidth).toBeCloseTo(beforeLayout.viewport.rectWidth, 4);
+    expect(result.layout.viewport.rectHeight).toBeCloseTo(beforeLayout.viewport.rectHeight, 4);
+    expect(result.layout.viewport.clientWidth).toBeCloseTo(result.layout.viewport.rectWidth, 0);
+    expect(result.layout.viewport.clientHeight).toBeCloseTo(result.layout.viewport.rectHeight, 0);
+    expect(result.layout.viewport.scrollWidth).toBeGreaterThan(result.layout.viewport.clientWidth);
+    expect(result.layout.viewport.scrollHeight).toBeGreaterThan(result.layout.viewport.clientHeight);
+    expect(result.layout.viewport.scrollLeft).toBeGreaterThan(0);
+    expect(result.layout.viewport.scrollTop).toBeGreaterThan(0);
+    expect(result.layout.boardRect.centerX).toBeCloseTo(beforeLayout.boardRect.centerX, 4);
+    expect(result.layout.boardRect.centerY).toBeCloseTo(beforeLayout.boardRect.centerY, 4);
+    expect(result.layout.anchorRect.left).toBeCloseTo(beforeLayout.anchorRect.left, 4);
+    expect(result.layout.anchorRect.top).toBeCloseTo(beforeLayout.anchorRect.top, 4);
+    expect(result.layout.anchorRect.width).toBeCloseTo(beforeLayout.anchorRect.width, 4);
+    expect(result.layout.anchorRect.height).toBeCloseTo(beforeLayout.anchorRect.height, 4);
     expect(result.backendDiagnostics).toEqual(expect.objectContaining({
       domCellCount: 0,
       playback: expect.objectContaining({ inFlightEffectCount: 0 }),

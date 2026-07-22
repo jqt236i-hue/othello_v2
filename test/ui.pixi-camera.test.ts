@@ -106,6 +106,8 @@ describe('Pixi board camera', () => {
     expect(harness.host.querySelectorAll('.cell')).toHaveLength(0);
     expect(harness.host.querySelectorAll('#board-scroll-viewport')).toHaveLength(1);
     expect(harness.host.querySelectorAll('#board-scroll-surface')).toHaveLength(1);
+    expect(harness.camera.getViewportElement().style.overflow).toBe('hidden');
+    expect(harness.camera.getViewportElement().style.overscrollBehavior).toBe('none');
     expect(harness.camera.getSurfaceElement().style.width).toBe('640px');
     expect(layout.dpr).toBe(2);
     expect(harness.camera.getCanvasViewport()).toEqual({
