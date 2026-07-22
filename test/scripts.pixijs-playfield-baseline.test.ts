@@ -89,6 +89,7 @@ describe('PixiJS playfield DOM baseline capture', () => {
       'rectangle-8x8-expanded-bottom',
       'rectangle-8x8-expanded-left',
       'rectangle-8x8-multistage-negative',
+      'presentation-breeding-expansion',
       'presentation-default-hints',
       'presentation-custom-skins',
       'presentation-special-timer-badge'
@@ -102,6 +103,10 @@ describe('PixiJS playfield DOM baseline capture', () => {
     expect(baseline.declaredSoundKeys).toEqual(expect.arrayContaining([
       'stone_place', 'stone_flip', 'stone_destroy', 'breeding_spawn', 'theory_incarnation_spawn'
     ]));
+    expect(baseline.events.find((event: any) => event.type === 'destroy')?.targets[0]).toMatchObject({
+      sourceRow: 4,
+      sourceCol: 4
+    });
     expect(baseline.inputDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(baseline.semanticDigest).toMatch(/^fnv1a32:[a-f0-9]{8}$/);
     expect(baseline.canonicalFinalDigest).toMatch(/^[a-f0-9]{64}$/);
@@ -201,9 +206,9 @@ describe('PixiJS playfield DOM baseline capture', () => {
     const phaseCompletionOrder = Array.from(eventTypesByPhase.keys());
     const finalBoardDigest = '80fe11faf0d79b2fe7ca08f916f498289746748bde1b597816655ddb642f03d0';
     const modeDefinitions = [
-      { name: 'normal', reducedMotion: 'no-preference', noAnim: false, expected: 'eedbfbfad770db8f276aacbf13f3a4648fa18c018fe3a844770a593656a299e9' },
-      { name: 'reduced-motion', reducedMotion: 'reduce', noAnim: false, expected: 'f5fd5917f4a3eeb90abe51cfa688fb24d371d8ff963e2758a01deeeb159c5214' },
-      { name: 'NOANIM=1', reducedMotion: 'no-preference', noAnim: true, expected: 'd2b103fb2607db63266bd144960f67afc1c22d9e4f97ddc9bbad65d06681c867' }
+      { name: 'normal', reducedMotion: 'no-preference', noAnim: false, expected: '01b779b5c61eadb00dcc6408f7e1b3b4dec7e02f136be92e8ae7e229155275b9' },
+      { name: 'reduced-motion', reducedMotion: 'reduce', noAnim: false, expected: '56846f87c448e0fde0f4a8b26646cfcb45eef405a269d9f4c9d2ce8281da05ba' },
+      { name: 'NOANIM=1', reducedMotion: 'no-preference', noAnim: true, expected: '9234c6df185576105d108fe337f18c2df225024605f17a1f5059164a1707ff69' }
     ];
     const modes = modeDefinitions.map((mode) => {
       const executionDigest = Baseline.buildStablePlaybackExecutionDigest({
@@ -232,7 +237,7 @@ describe('PixiJS playfield DOM baseline capture', () => {
       };
     });
     expect(Baseline.buildStablePlaybackAggregateDigest(contract, modes))
-      .toBe('e575038b75fe60388a160b96057934898d4cdc88e1586ed69d4bf062a69c2e86');
+      .toBe('0d490fdf71377b83a9a097a88f34d4bff6fc1482ccdd85d9373bea6c25183f0c');
   });
 
   test('freezes network visual settlement scenarios through the production timeline and store', async () => {

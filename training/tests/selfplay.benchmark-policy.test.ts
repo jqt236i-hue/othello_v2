@@ -3,6 +3,7 @@ const {
     runBenchmark
 } = require('../scripts/benchmark-selfplay-policy');
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 function createBenchmarkPolicy(overrides) {
@@ -83,28 +84,30 @@ describe('selfplay benchmark policy script', () => {
     });
 
     test('runBenchmark accepts model path options', async () => {
-        const tmpDir = path.resolve(__dirname, '..', 'data', 'models');
-        fs.mkdirSync(tmpDir, { recursive: true });
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-benchmark-model-'));
         const modelPath = path.join(tmpDir, 'policy-table.bench.test.json');
         const model = {
             schemaVersion: 'policy_table.v1',
             states: {}
         };
-        fs.writeFileSync(modelPath, JSON.stringify(model), 'utf8');
+        try {
+            fs.writeFileSync(modelPath, JSON.stringify(model), 'utf8');
 
-        const out = await runBenchmark({
-            games: 1,
-            seed: 1,
-            maxPlies: 40,
-            policyA: createBenchmarkPolicy(),
-            policyB: createBenchmarkPolicy(),
-            modelAPath: modelPath
-        });
+            const out = await runBenchmark({
+                games: 1,
+                seed: 1,
+                maxPlies: 40,
+                policyA: createBenchmarkPolicy(),
+                policyB: createBenchmarkPolicy(),
+                modelAPath: modelPath
+            });
 
-        expect(out.config.policyA.hasModel).toBe(true);
-        expect(out.config.policyB.hasModel).toBe(false);
-        expect(out.result.totalGames).toBe(2);
-        fs.unlinkSync(modelPath);
+            expect(out.config.policyA.hasModel).toBe(true);
+            expect(out.config.policyB.hasModel).toBe(false);
+            expect(out.result.totalGames).toBe(2);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
     });
 
     test('runBenchmark emits progress callbacks', async () => {

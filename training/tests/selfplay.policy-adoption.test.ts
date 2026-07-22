@@ -420,49 +420,51 @@ describe('selfplay policy adoption check', () => {
     });
 
     test('runAdoptionCheck returns decision payload', async () => {
-        const modelPath = path.resolve(__dirname, '..', 'data', 'models', 'policy-table.adoption.test.json');
-        const baselinePath = path.resolve(__dirname, '..', 'data', 'models', 'policy-table.adoption.base.test.json');
-        fs.mkdirSync(path.dirname(modelPath), { recursive: true });
-        fs.writeFileSync(modelPath, JSON.stringify({ schemaVersion: 'policy_table.v1', states: {} }), 'utf8');
-        fs.writeFileSync(baselinePath, JSON.stringify({ schemaVersion: 'policy_table.v1', states: {} }), 'utf8');
-        const out = await runAdoptionCheck({
-            games: 1,
-            seed: 1,
-            seedCount: 2,
-            seedStride: 100,
-            maxPlies: 40,
-            threshold: 0.05,
-            confidenceLevel: 0.95,
-            minLowerBound: -1,
-            aRate: 0.4,
-            bRate: 0.4,
-            tacticalWeight: 0.2,
-            baselineModelPath: baselinePath,
-            opponentModelPath: baselinePath,
-            candidateModelPath: modelPath
-        });
-        expect(out).toHaveProperty('decision');
-        expect(out.decision).toHaveProperty('passed');
-        expect(out.payloadSchemaVersion).toBe(POLICY_GATE_PAYLOAD_SCHEMA_VERSION);
-        expect(out.gateFamily).toBe('adoption');
-        expect(Array.isArray(out.decision.failureReasons)).toBe(true);
-        expect(out.seedSchedule).toEqual({
-            baseSeed: 1,
-            seedCount: 2,
-            seedStride: 100,
-            scheduledSeeds: [1, 101],
-            completedSeeds: [1, 101]
-        });
-        expect(out.config.seedCount).toBe(2);
-        expect(out.perSeed.length).toBe(2);
-        expect(out.config.aRate).toBeCloseTo(0.4, 6);
-        expect(out.config.bRate).toBeCloseTo(0.4, 6);
-        expect(out.config.confidenceLevel).toBeCloseTo(0.95, 6);
-        expect(out.config.minLowerBound).toBeCloseTo(-1, 6);
-        expect(out.config.tacticalWeight).toBeCloseTo(0.2, 6);
-        expect(out.config.baselineModelPath).toBe(baselinePath);
-        expect(out.config.opponentModelPath).toBe(baselinePath);
-        fs.unlinkSync(modelPath);
-        fs.unlinkSync(baselinePath);
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-adoption-model-'));
+        const modelPath = path.join(tempDir, 'policy-table.adoption.test.json');
+        const baselinePath = path.join(tempDir, 'policy-table.adoption.base.test.json');
+        try {
+            fs.writeFileSync(modelPath, JSON.stringify({ schemaVersion: 'policy_table.v1', states: {} }), 'utf8');
+            fs.writeFileSync(baselinePath, JSON.stringify({ schemaVersion: 'policy_table.v1', states: {} }), 'utf8');
+            const out = await runAdoptionCheck({
+                games: 1,
+                seed: 1,
+                seedCount: 2,
+                seedStride: 100,
+                maxPlies: 40,
+                threshold: 0.05,
+                confidenceLevel: 0.95,
+                minLowerBound: -1,
+                aRate: 0.4,
+                bRate: 0.4,
+                tacticalWeight: 0.2,
+                baselineModelPath: baselinePath,
+                opponentModelPath: baselinePath,
+                candidateModelPath: modelPath
+            });
+            expect(out).toHaveProperty('decision');
+            expect(out.decision).toHaveProperty('passed');
+            expect(out.payloadSchemaVersion).toBe(POLICY_GATE_PAYLOAD_SCHEMA_VERSION);
+            expect(out.gateFamily).toBe('adoption');
+            expect(Array.isArray(out.decision.failureReasons)).toBe(true);
+            expect(out.seedSchedule).toEqual({
+                baseSeed: 1,
+                seedCount: 2,
+                seedStride: 100,
+                scheduledSeeds: [1, 101],
+                completedSeeds: [1, 101]
+            });
+            expect(out.config.seedCount).toBe(2);
+            expect(out.perSeed.length).toBe(2);
+            expect(out.config.aRate).toBeCloseTo(0.4, 6);
+            expect(out.config.bRate).toBeCloseTo(0.4, 6);
+            expect(out.config.confidenceLevel).toBeCloseTo(0.95, 6);
+            expect(out.config.minLowerBound).toBeCloseTo(-1, 6);
+            expect(out.config.tacticalWeight).toBeCloseTo(0.2, 6);
+            expect(out.config.baselineModelPath).toBe(baselinePath);
+            expect(out.config.opponentModelPath).toBe(baselinePath);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
     });
 });

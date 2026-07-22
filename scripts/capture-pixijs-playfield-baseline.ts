@@ -65,6 +65,10 @@ interface TopologyFixtureDefinition {
 interface BrowserFixtureDefinition extends TopologyFixtureDefinition {
   captureKind: 'topology' | 'presentation';
   markers?: any[];
+  breedingSproutByOwner?: {
+    black?: Array<{ row: number; col: number }>;
+    white?: Array<{ row: number; col: number }>;
+  };
   decoratePresentation?: boolean;
   skin?: {
     board: string;
@@ -189,6 +193,12 @@ const BROWSER_FIXTURES: readonly BrowserFixtureDefinition[] = Object.freeze([
   {
     name: 'rectangle-8x8-expanded-left', rows: 8, cols: 8, shape: 'rectangle', captureKind: 'topology',
     expansionCells: [{ row: 4, col: -1, side: 'left', owner: -1 }]
+  },
+  {
+    name: 'presentation-breeding-expansion', rows: 8, cols: 8, shape: 'rectangle', captureKind: 'presentation',
+    expansionCells: [{ row: 3, col: 8, side: 'right', owner: 1 }],
+    breedingSproutByOwner: { black: [{ row: 3, col: 8 }], white: [] },
+    skin: DEFAULT_SKIN
   },
   {
     name: 'rectangle-8x8-multistage-negative', rows: 8, cols: 8, shape: 'rectangle', captureKind: 'topology',
@@ -473,7 +483,19 @@ function createPlaybackEventFixture(): any {
     { type: 'sound_effect', phase: 1, targets: [{ soundKey: 'stone_place' }] },
     { type: 'flip', phase: 2, targets: [{ r: 3, col: 3, ownerBefore: 'white', ownerAfter: 'black', after: { color: 1 } }] },
     { type: 'sound_effect', phase: 2, targets: [{ soundKey: 'stone_flip' }] },
-    { type: 'destroy', phase: 3, targets: [{ r: 5, col: 2, ownerBefore: 'black', cause: 'SNIPER_WILL', reason: 'sniper_shot' }] },
+    {
+      type: 'destroy',
+      phase: 3,
+      targets: [{
+        r: 5,
+        col: 2,
+        ownerBefore: 'black',
+        sourceRow: 4,
+        sourceCol: 4,
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot'
+      }]
+    },
     { type: 'sound_effect', phase: 3, targets: [{ soundKey: 'stone_destroy' }] },
     { type: 'spawn', phase: 4, targets: [{ r: 2, col: 2, owner: 'white', special: 'BREEDING', after: { color: -1, special: 'BREEDING' } }] },
     { type: 'sound_effect', phase: 4, targets: [{ soundKey: 'breeding_spawn' }] },
@@ -819,6 +841,11 @@ async function applyBrowserFixture(page: any, fixture: BrowserFixtureDefinition)
     cardState.boardBonusByCell = {};
     cardState.boardBonusConsumedByCell = {};
     cardState.theoryNumberCellByCell = {};
+    const breedingSprouts = definition.breedingSproutByOwner || {};
+    cardState.breedingSproutByOwner = {
+      black: (breedingSprouts.black || []).map((position: any) => ({ ...position })),
+      white: (breedingSprouts.white || []).map((position: any) => ({ ...position }))
+    };
     cardState.presentationEvents = [];
     cardState._presentationEventsPersist = [];
     for (const hole of (definition.holes || [])) {
@@ -1075,7 +1102,22 @@ async function captureProductionPlaybackBaselines(page: any): Promise<any> {
 
       const startedAt = performance.now();
       try {
-        await engine.play(playbackFixture.events);
+        try {
+          await engine.play(playbackFixture.events);
+        } catch (error: any) {
+          const causes: any[] = [];
+          let current = error;
+          for (let depth = 0; current && depth < 6; depth += 1) {
+            causes.push({
+              name: String(current.name || ''),
+              message: String(current.message || current),
+              code: current.code == null ? null : String(current.code),
+              eventType: current.eventType == null ? null : String(current.eventType)
+            });
+            current = current.cause;
+          }
+          throw new Error(`${playbackMode.name} production playback failed: ${JSON.stringify(causes)}`);
+        }
       } finally {
         engine.executePhase = originalExecutePhase;
         engine.handleSoundEffect = originalHandleSoundEffect;

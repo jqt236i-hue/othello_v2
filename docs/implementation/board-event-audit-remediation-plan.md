@@ -24,11 +24,11 @@
 
 ## Step 3: 回帰テストと陳腐化テストを修復
 
-- outcome: 新しい不具合を直接固定し、既存テストが現在の公開契約を元の目的どおり検証する。
-- components: board visual/controller/DOM tests、CPU/card/API/CSS/Vite/isolation inventory tests
+- outcome: 新しい不具合を直接固定し、既存テストが現在の公開契約を元の目的どおり検証し、テスト用モデルが並行実行でも競合しない。
+- components: board visual/controller/DOM tests、CPU/card/API/CSS/Vite/isolation inventory tests、training benchmark/adoption tests
 - dependency: Step 2
 - verification: 変更対象をまとめた focused Jest、`npm run typecheck`
-- done: production validation を弱めず、既知の10失敗がfocused実行で全て成功する。
+- done: production validation を弱めず、既知の10失敗がfocused実行で全て成功し、学習テストの一時ファイルがテスト固有領域へ隔離されている。
 
 ## Step 4: 画像基準と配布物を正規生成
 
@@ -64,14 +64,14 @@
 
 ## 完了チェックリスト
 
-- [ ] 設計書と計画書の自己レビュー完了
-- [ ] 拡張マスの繁殖芽表示を修正
-- [ ] controller invalidation の再適用保証を実装
-- [ ] 直接回帰テストと既知 stale test を修復
-- [ ] focused Jest と typecheck 成功
-- [ ] Pixi画像基準を正規再生成し static check 成功
-- [ ] browser artifacts と Worker mirror を正規再生成
-- [ ] network、playback、fallback、input E2E 成功
-- [ ] 全 Jest、checkall、diff check 成功
-- [ ] task-owned 変更だけをコミット
-
+- [x] 設計書と計画書の自己レビュー完了
+- [x] 拡張マスの繁殖芽表示を修正
+- [x] controller invalidation の再適用保証を実装
+- [x] 直接回帰テストと既知 stale test を修復
+- [x] 学習テストの一時モデルを並行安全に隔離
+- [x] focused Jest と typecheck 成功
+- [x] Pixi画像基準を正規再生成し static check 成功
+- [x] browser artifacts と Worker mirror を正規再生成
+- [x] network、playback、fallback、input E2E 成功
+- [x] 全 Jest、checkall、diff check 成功
+- [x] task-owned 変更だけをコミット

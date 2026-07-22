@@ -78,6 +78,10 @@ interface FixtureDefinition {
   shape: 'rectangle' | 'circle';
   captureKind: 'topology' | 'presentation';
   expansionCells?: Array<{ row: number; col: number; side: string; owner: number }>;
+  breedingSproutByOwner?: {
+    black?: Array<{ row: number; col: number }>;
+    white?: Array<{ row: number; col: number }>;
+  };
   holes?: Array<{ row: number; col: number }>;
   markers?: any[];
   decoratePresentation?: boolean;
@@ -380,6 +384,11 @@ async function applyPhaseZeroFixture(page: any, fixture: FixtureDefinition): Pro
     cardState.boardBonusByCell = {};
     cardState.boardBonusConsumedByCell = {};
     cardState.theoryNumberCellByCell = {};
+    const breedingSprouts = definition.breedingSproutByOwner || {};
+    cardState.breedingSproutByOwner = {
+      black: (breedingSprouts.black || []).map((position) => ({ ...position })),
+      white: (breedingSprouts.white || []).map((position) => ({ ...position }))
+    };
     cardState.presentationEvents = [];
     cardState._presentationEventsPersist = [];
     for (const hole of definition.holes || []) {
@@ -724,7 +733,8 @@ async function captureFixture(
     ? readPhaseZeroFixtureBaseline(rootDir, lane, fixture.name)
     : null;
   const geometrySkinComparison = comparison?.dimensionMatch === false
-    && REQUIRED_EXPANSION_FIXTURES.includes(fixture.name)
+    && Array.isArray(fixture.expansionCells)
+    && fixture.expansionCells.length > 0
     ? comparePhaseZeroGeometryAndSkin(probe, phaseZeroFixture)
     : null;
   const frameComparison = framePng && requestedDpr === 1 && comparePhaseZero && fs.existsSync(frameBaselinePath)
@@ -1104,10 +1114,14 @@ function evaluatePixijsBoardLaneReport(report: any): { ok: boolean; errors: stri
       || fixture.skin?.stone !== expectedSkin.stone) {
       errors.push(`${name}: applied skin descriptor does not match the Phase 0 fixture`);
     }
+    const definition = (BROWSER_FIXTURES as readonly FixtureDefinition[])
+      .find((candidate) => candidate.name === fixture.fixture);
+    const isExpansionFixture = Array.isArray(definition?.expansionCells)
+      && definition.expansionCells.length > 0;
     if (fixture.phaseZeroComparison) {
       if (fixture.phaseZeroComparison.dimensionMatch !== true) {
         const geometry = fixture.phaseZeroGeometrySkinComparison;
-        if (!REQUIRED_EXPANSION_FIXTURES.includes(fixture.fixture) || geometry?.ok !== true) {
+        if (!isExpansionFixture || geometry?.ok !== true) {
           const detail = geometry
             ? ` (${geometry.commonKeyCount}/${geometry.baselineKeyCount} cells, size delta ${geometry.maxCellSizeDeltaPx}px, relative delta ${geometry.maxRelativePositionDeltaPx}px, skin ${geometry.skinMatch ? 'matched' : 'mismatched'})`
             : '';
@@ -1119,13 +1133,13 @@ function evaluatePixijsBoardLaneReport(report: any): { ok: boolean; errors: stri
     }
     if (fixture.phaseZeroFrameComparison) {
       if (fixture.phaseZeroFrameComparison.dimensionMatch !== true) {
-        errors.push(`${name}: Phase 0 frame screenshot dimensions changed`);
+        if (!isExpansionFixture || fixture.phaseZeroGeometrySkinComparison?.ok !== true) {
+          errors.push(`${name}: Phase 0 frame screenshot dimensions changed`);
+        }
       } else if (finite(fixture.phaseZeroFrameComparison.diffPixels, Number.POSITIVE_INFINITY) > PNG_DIFF_PIXEL_BUDGET) {
         errors.push(`${name}: Phase 0 frame screenshot diff was ${fixture.phaseZeroFrameComparison.diffPixels} pixels`);
       }
     }
-    const definition = (BROWSER_FIXTURES as readonly FixtureDefinition[])
-      .find((candidate) => candidate.name === fixture.fixture);
     if (definition?.decoratePresentation) {
       const presentationCandidateKeys = Array.isArray(fixture.presentationCandidateKeys)
         ? fixture.presentationCandidateKeys

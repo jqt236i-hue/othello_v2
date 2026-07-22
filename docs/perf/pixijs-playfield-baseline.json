@@ -1,7 +1,7 @@
 {
   "schemaVersion": "pixijs_playfield_dom_baseline.v2",
-  "capturedAt": "2026-07-14T17:16:40.476Z",
-  "commit": "07852a7bf09deed01ee3cb098b4e1c88913b52f0",
+  "capturedAt": "2026-07-22T10:01:44.297Z",
+  "commit": "7435ad43fb35e349815958c82d11679af82f93b7",
   "environment": {
     "node": "v24.12.0",
     "platform": "win32",
@@ -163,6 +163,35 @@
       ]
     },
     {
+      "name": "presentation-breeding-expansion",
+      "rows": 8,
+      "cols": 8,
+      "shape": "rectangle",
+      "captureKind": "presentation",
+      "expansionCells": [
+        {
+          "row": 3,
+          "col": 8,
+          "side": "right",
+          "owner": 1
+        }
+      ],
+      "breedingSproutByOwner": {
+        "black": [
+          {
+            "row": 3,
+            "col": 8
+          }
+        ],
+        "white": []
+      },
+      "skin": {
+        "board": "bluegreen-felt",
+        "frame": "marsh-forged-iron",
+        "stone": "o-stone"
+      }
+    },
+    {
       "name": "rectangle-8x8-multistage-negative",
       "rows": 8,
       "cols": 8,
@@ -241,10 +270,10 @@
           "col": 1,
           "owner": "black",
           "data": {
-            "type": "HYPERACTIVE",
+            "type": "ULTIMATE_HYPERACTIVE",
             "remainingOwnerTurns": 12,
             "flipEvadeRemaining": 2,
-            "regenRemaining": 3
+            "destroyEvadeRemaining": 3
           }
         },
         {
@@ -259,6 +288,40 @@
           }
         },
         {
+          "id": "baseline-regen",
+          "kind": "specialStone",
+          "row": 1,
+          "col": 3,
+          "owner": "black",
+          "data": {
+            "type": "REGEN",
+            "regenRemaining": 3
+          }
+        },
+        {
+          "id": "baseline-zombie",
+          "kind": "specialStone",
+          "row": 1,
+          "col": 4,
+          "owner": "white",
+          "data": {
+            "type": "ZOMBIE",
+            "turnsUntilInfection": 3,
+            "regenRemaining": 1
+          }
+        },
+        {
+          "id": "baseline-time-stop",
+          "kind": "specialStone",
+          "row": 2,
+          "col": 1,
+          "owner": "white",
+          "data": {
+            "type": "TIME_STOP",
+            "remainingOwnerTurns": 4
+          }
+        },
+        {
           "id": "baseline-bomb",
           "kind": "bomb",
           "row": 2,
@@ -267,6 +330,17 @@
           "data": {
             "type": "BOMB",
             "remainingTurns": 10
+          }
+        },
+        {
+          "id": "baseline-poison",
+          "kind": "specialStone",
+          "row": 2,
+          "col": 3,
+          "owner": "black",
+          "data": {
+            "type": "POISONED",
+            "remainingTurns": 5
           }
         },
         {
@@ -316,11 +390,11 @@
       "lane": "classic",
       "htmlLane": "classic",
       "bootState": "",
-      "readyMs": 1846,
-      "firstBoardObservedMs": 1419.8,
+      "readyMs": 1021,
+      "firstBoardObservedMs": 737.8,
       "browserVersion": "143.0.7499.4",
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/143.0.7499.4 Safari/537.36",
-      "requestedResourceCount": 132,
+      "requestedResourceCount": 126,
       "pageErrors": [],
       "consoleErrors": [],
       "resourceErrors": [],
@@ -380,7 +454,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 42,
-          "documentNodeCount": 1060,
+          "documentNodeCount": 1067,
           "classHistogram": {
             "cell": 16,
             "cell-edge-left": 4,
@@ -582,7 +656,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 90,
-          "documentNodeCount": 1108,
+          "documentNodeCount": 1115,
           "classHistogram": {
             "board-frame-edge-left": 4,
             "board-frame-edge-top": 16,
@@ -788,7 +862,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 90,
-          "documentNodeCount": 1108,
+          "documentNodeCount": 1115,
           "classHistogram": {
             "board-frame-edge-left": 16,
             "board-frame-edge-top": 4,
@@ -994,7 +1068,7 @@
           "voidCellCount": 0,
           "discCount": 8,
           "frameNodeCount": 95,
-          "documentNodeCount": 1113,
+          "documentNodeCount": 1120,
           "classHistogram": {
             "cell": 49,
             "cell-edge-left": 7,
@@ -1316,7 +1390,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 90,
-          "documentNodeCount": 1108,
+          "documentNodeCount": 1115,
           "classHistogram": {
             "cell": 64,
             "cell-edge-left": 8,
@@ -1578,7 +1652,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 282,
-          "documentNodeCount": 1300,
+          "documentNodeCount": 1307,
           "classHistogram": {
             "cell": 256,
             "cell-edge-left": 16,
@@ -1780,7 +1854,7 @@
           "voidCellCount": 4,
           "discCount": 4,
           "frameNodeCount": 62,
-          "documentNodeCount": 1080,
+          "documentNodeCount": 1087,
           "classHistogram": {
             "cell": 36,
             "cell-void": 4,
@@ -1987,7 +2061,7 @@
           "voidCellCount": 20,
           "discCount": 4,
           "frameNodeCount": 126,
-          "documentNodeCount": 1144,
+          "documentNodeCount": 1151,
           "classHistogram": {
             "cell": 100,
             "cell-void": 20,
@@ -2194,7 +2268,7 @@
           "voidCellCount": 48,
           "discCount": 4,
           "frameNodeCount": 282,
-          "documentNodeCount": 1300,
+          "documentNodeCount": 1307,
           "classHistogram": {
             "cell": 256,
             "cell-void": 48,
@@ -2401,7 +2475,7 @@
           "voidCellCount": 20,
           "discCount": 2,
           "frameNodeCount": 118,
-          "documentNodeCount": 1136,
+          "documentNodeCount": 1143,
           "classHistogram": {
             "cell": 100,
             "cell-void": 20,
@@ -2525,7 +2599,7 @@
           "voidCellCount": 7,
           "discCount": 5,
           "frameNodeCount": 103,
-          "documentNodeCount": 1121,
+          "documentNodeCount": 1128,
           "classHistogram": {
             "cell": 72,
             "cell-void": 7,
@@ -2751,7 +2825,7 @@
           "voidCellCount": 7,
           "discCount": 5,
           "frameNodeCount": 103,
-          "documentNodeCount": 1121,
+          "documentNodeCount": 1128,
           "classHistogram": {
             "cell": 72,
             "cell-edge-left": 8,
@@ -2977,7 +3051,7 @@
           "voidCellCount": 7,
           "discCount": 5,
           "frameNodeCount": 103,
-          "documentNodeCount": 1121,
+          "documentNodeCount": 1128,
           "classHistogram": {
             "cell": 72,
             "cell-edge-left": 8,
@@ -3203,7 +3277,7 @@
           "voidCellCount": 7,
           "discCount": 5,
           "frameNodeCount": 103,
-          "documentNodeCount": 1121,
+          "documentNodeCount": 1128,
           "classHistogram": {
             "cell": 72,
             "cell-void": 7,
@@ -3369,6 +3443,232 @@
           "frameCaptureSha256": null
         },
         {
+          "fixture": "presentation-breeding-expansion",
+          "config": {
+            "rows": 8,
+            "cols": 8,
+            "shape": "rectangle"
+          },
+          "captureKind": "presentation",
+          "boardRect": {
+            "x": 507,
+            "y": 217.991,
+            "width": 396,
+            "height": 352
+          },
+          "frameRect": {
+            "x": 470.063,
+            "y": 205.256,
+            "width": 425.875,
+            "height": 381.328
+          },
+          "firstCellRect": {
+            "x": 507,
+            "y": 217.991,
+            "width": 44,
+            "height": 44
+          },
+          "cellScale": {
+            "widthToBoard": 0.111,
+            "heightToBoard": 0.125
+          },
+          "selectedClientRects": {
+            "0,0": {
+              "x": 507,
+              "y": 217.991,
+              "width": 44,
+              "height": 44
+            },
+            "4,4": {
+              "x": 683,
+              "y": 393.991,
+              "width": 44,
+              "height": 44
+            },
+            "7,7": {
+              "x": 815,
+              "y": 525.991,
+              "width": 44,
+              "height": 44
+            },
+            "3,8": {
+              "x": 859,
+              "y": 349.991,
+              "width": 44,
+              "height": 44
+            }
+          },
+          "cellCount": 72,
+          "existingCellCount": 65,
+          "voidCellCount": 7,
+          "discCount": 5,
+          "frameNodeCount": 104,
+          "documentNodeCount": 1129,
+          "classHistogram": {
+            "cell": 72,
+            "cell-edge-left": 8,
+            "cell-edge-top": 8,
+            "cell-edge-right": 8,
+            "cell-void": 7,
+            "legal": 4,
+            "has-disc": 5,
+            "cell-expanded": 1,
+            "cell-expanded-right": 1,
+            "cell-edge-bottom": 8
+          },
+          "starPseudo": [
+            {
+              "key": "2,3",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "3,2",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "3,3",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "3,4",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "3,8",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "4,3",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "4,4",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "4,5",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "5,4",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            }
+          ],
+          "skinSnapshot": {
+            "boardSkinId": "bluegreen-felt",
+            "frameSkinId": "marsh-forged-iron",
+            "stoneSkinId": "o-stone",
+            "boardTexture": "url(\"assets/images/board/board-surface-bluegreen-felt-v1.png\")",
+            "frameImage": "url(\"assets/images/board/board-frame-marsh-forged-iron-v1.png\")",
+            "blackStoneImage": "url(\"assets/images/stone-skin/o-stone/black.png\")",
+            "whiteStoneImage": "url(\"assets/images/stone-skin/o-stone/white.png\")"
+          },
+          "semanticDigest": "a3a2e9e668d5da863ada4380657649796f18daefddf22ec23ce9cde642419d77",
+          "capturePath": "tests/visual-regression/baselines/pixijs-playfield-dom/classic-presentation-breeding-expansion.png",
+          "captureSha256": "f56a3ae2bef1accb0a455ce849cc6ae6bcbf0a20cb1f2bb8be9ad354a83dcec8",
+          "frameCapturePath": "tests/visual-regression/baselines/pixijs-playfield-dom/classic-presentation-breeding-expansion-frame.png",
+          "frameCaptureSha256": "79c8330c2b7582428f15e81536e0e69149d59de23f67da55c35e5b56198af955"
+        },
+        {
           "fixture": "rectangle-8x8-multistage-negative",
           "config": {
             "rows": 8,
@@ -3453,7 +3753,7 @@
           "voidCellCount": 41,
           "discCount": 7,
           "frameNodeCount": 151,
-          "documentNodeCount": 1169,
+          "documentNodeCount": 1176,
           "classHistogram": {
             "cell": 110,
             "cell-void": 41,
@@ -3706,7 +4006,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 90,
-          "documentNodeCount": 1108,
+          "documentNodeCount": 1115,
           "classHistogram": {
             "cell": 64,
             "cell-edge-left": 8,
@@ -4021,7 +4321,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 90,
-          "documentNodeCount": 1108,
+          "documentNodeCount": 1115,
           "classHistogram": {
             "cell": 64,
             "cell-edge-left": 8,
@@ -4334,14 +4634,14 @@
           "cellCount": 64,
           "existingCellCount": 64,
           "voidCellCount": 0,
-          "discCount": 9,
-          "frameNodeCount": 123,
-          "documentNodeCount": 1141,
+          "discCount": 13,
+          "frameNodeCount": 151,
+          "documentNodeCount": 1176,
           "classHistogram": {
             "cell": 64,
             "cell-edge-left": 8,
             "cell-edge-top": 8,
-            "legal": 5,
+            "legal": 8,
             "legal-free": 1,
             "effect-target-highlight": 1,
             "effect-target-highlight-positive": 1,
@@ -4351,7 +4651,8 @@
             "cell-edge-right": 8,
             "selectable-friendly": 1,
             "keyboard-legal-cursor": 1,
-            "has-disc": 9,
+            "has-disc": 13,
+            "has-regen-badge": 1,
             "frozen-cell": 1,
             "cell-edge-bottom": 8
           },
@@ -4373,6 +4674,21 @@
             },
             {
               "key": "0,1",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "0,5",
               "before": {
                 "content": "\"\"",
                 "background": "rgba(0, 0, 0, 0)",
@@ -4432,6 +4748,81 @@
               }
             },
             {
+              "key": "1,3",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "1,4",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "1,5",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "2,0",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "2,1",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
               "key": "2,2",
               "before": {
                 "content": "\"\"",
@@ -4451,8 +4842,8 @@
               "before": {
                 "content": "\"\"",
                 "background": "rgba(0, 0, 0, 0)",
-                "width": "28.5469px",
-                "height": "28.5469px"
+                "width": "38.6562px",
+                "height": "13.0156px"
               },
               "after": {
                 "content": "none",
@@ -4474,6 +4865,21 @@
                 "background": "rgb(7, 17, 15)",
                 "width": "6px",
                 "height": "6px"
+              }
+            },
+            {
+              "key": "3,1",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
               }
             },
             {
@@ -4636,14 +5042,14 @@
             "blackStoneImage": "url(\"assets/images/stone-skin/o-stone/black.png\")",
             "whiteStoneImage": "url(\"assets/images/stone-skin/o-stone/white.png\")"
           },
-          "semanticDigest": "a4d24c4fa685ef89642be2aac7472e9e7f8af6a342a6271d23793ce18258dd11",
+          "semanticDigest": "0752cedb711b4cd5dd29b4ef61eab324bcbc3d2c71cb6b9146959405ec231e22",
           "capturePath": "tests/visual-regression/baselines/pixijs-playfield-dom/classic-presentation-special-timer-badge.png",
-          "captureSha256": "a49510790c390e4c86aedf3e6e5e7cc8005746f439247dbd65e200f3de672100",
+          "captureSha256": "e6236f9a3e7c554e01dd6b54dd41b0fd5c1b1451a17012540672393e4a1066f1",
           "frameCapturePath": "tests/visual-regression/baselines/pixijs-playfield-dom/classic-presentation-special-timer-badge-frame.png",
-          "frameCaptureSha256": "4148c36f9fdad8f3a0a4f648abba64890daac9cd6c0273534a2f1889bce3ff92"
+          "frameCaptureSha256": "8c6474191f3b8b95e70f2391acb4ce2782eecddfee8f20ba43352e256e30b396"
         }
       ],
-      "fixtureDigest": "437f6e0285158f635f9a448b83eb0b370f0339eab11a5f8e5fcc99900e4df768",
+      "fixtureDigest": "d6bbd32e8511b985a7042643fc4e133d77a58b3540eb2eaefccdd394a3f01a6d",
       "expansionRectComparisons": [
         {
           "fixture": "rectangle-8x8-expanded-top",
@@ -5008,7 +5414,7 @@
           "MANIFEST"
         ],
         "eventCount": 19,
-        "inputDigest": "b7b4d73d87c0a8176cc058c1df6c951f4bd4e8befb356e7c2d8793a97fcd90fd",
+        "inputDigest": "c5ac78f03681be28dcff98da291f43aab8dbc5dfd323c610f2cf4a64cfb601e2",
         "semanticDigest": "fnv1a32:862af85b",
         "declaredSoundKeys": [
           "stone_place",
@@ -5028,7 +5434,7 @@
             "prefersReducedMotion": false,
             "noAnim": false,
             "animationsEnabled": true,
-            "inputDigest": "b7b4d73d87c0a8176cc058c1df6c951f4bd4e8befb356e7c2d8793a97fcd90fd",
+            "inputDigest": "c5ac78f03681be28dcff98da291f43aab8dbc5dfd323c610f2cf4a64cfb601e2",
             "semanticDigest": "fnv1a32:862af85b",
             "phaseCompletionOrder": [
               1,
@@ -5046,7 +5452,7 @@
               {
                 "phase": 1,
                 "depth": 0,
-                "durationMs": 2.1,
+                "durationMs": 1.7,
                 "eventTypes": [
                   "place",
                   "sound_effect"
@@ -5055,7 +5461,7 @@
               {
                 "phase": 2,
                 "depth": 0,
-                "durationMs": 494.9,
+                "durationMs": 472.6,
                 "eventTypes": [
                   "flip",
                   "sound_effect"
@@ -5064,7 +5470,7 @@
               {
                 "phase": 3,
                 "depth": 0,
-                "durationMs": 703.6,
+                "durationMs": 845.9,
                 "eventTypes": [
                   "destroy",
                   "sound_effect"
@@ -5073,7 +5479,7 @@
               {
                 "phase": 4,
                 "depth": 0,
-                "durationMs": 5.7,
+                "durationMs": 1.1,
                 "eventTypes": [
                   "spawn",
                   "sound_effect"
@@ -5082,7 +5488,7 @@
               {
                 "phase": 5,
                 "depth": 0,
-                "durationMs": 236.2,
+                "durationMs": 161.3,
                 "eventTypes": [
                   "move",
                   "sound_effect"
@@ -5091,7 +5497,7 @@
               {
                 "phase": 6,
                 "depth": 0,
-                "durationMs": 608.3,
+                "durationMs": 615.3,
                 "eventTypes": [
                   "status_applied",
                   "sound_effect"
@@ -5099,142 +5505,9 @@
               },
               {
                 "phase": 7,
-                "depth": 0,
-                "durationMs": 0.2,
-                "eventTypes": [
-                  "spawn",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 8,
-                "depth": 0,
-                "durationMs": 4639.2,
-                "eventTypes": [
-                  "theory_incarnation_spawn_roulette",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 9,
-                "depth": 0,
-                "durationMs": 1.6,
-                "eventTypes": [
-                  "observer_bubble"
-                ]
-              },
-              {
-                "phase": 10,
-                "depth": 1,
-                "durationMs": 0.2,
-                "eventTypes": [
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 10,
-                "depth": 0,
-                "durationMs": 2008.4,
-                "eventTypes": [
-                  "manifest_ending",
-                  "sound_effect"
-                ]
-              }
-            ],
-            "soundKeys": [
-              "stone_place",
-              "stone_flip",
-              "stone_destroy",
-              "breeding_spawn",
-              "hyperactive_move",
-              "guard_apply",
-              "board_expand",
-              "theory_incarnation_spawn",
-              "manifest_ending"
-            ],
-            "durationMs": 10410.3,
-            "finalBoardDigest": "80fe11faf0d79b2fe7ca08f916f498289746748bde1b597816655ddb642f03d0",
-            "executionDigest": "eedbfbfad770db8f276aacbf13f3a4648fa18c018fe3a844770a593656a299e9"
-          },
-          {
-            "name": "reduced-motion",
-            "prefersReducedMotion": true,
-            "noAnim": false,
-            "animationsEnabled": true,
-            "inputDigest": "b7b4d73d87c0a8176cc058c1df6c951f4bd4e8befb356e7c2d8793a97fcd90fd",
-            "semanticDigest": "fnv1a32:862af85b",
-            "phaseCompletionOrder": [
-              1,
-              2,
-              3,
-              4,
-              5,
-              6,
-              7,
-              8,
-              9,
-              10
-            ],
-            "phaseCompletionTrace": [
-              {
-                "phase": 1,
                 "depth": 0,
                 "durationMs": 0.3,
                 "eventTypes": [
-                  "place",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 2,
-                "depth": 0,
-                "durationMs": 479.6,
-                "eventTypes": [
-                  "flip",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 3,
-                "depth": 0,
-                "durationMs": 711.1,
-                "eventTypes": [
-                  "destroy",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 4,
-                "depth": 0,
-                "durationMs": 0.7,
-                "eventTypes": [
-                  "spawn",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 5,
-                "depth": 0,
-                "durationMs": 227.3,
-                "eventTypes": [
-                  "move",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 6,
-                "depth": 0,
-                "durationMs": 609,
-                "eventTypes": [
-                  "status_applied",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 7,
-                "depth": 0,
-                "durationMs": 0.1,
-                "eventTypes": [
                   "spawn",
                   "sound_effect"
                 ]
@@ -5242,7 +5515,7 @@
               {
                 "phase": 8,
                 "depth": 0,
-                "durationMs": 4638.3,
+                "durationMs": 4639.8,
                 "eventTypes": [
                   "theory_incarnation_spawn_roulette",
                   "sound_effect"
@@ -5251,140 +5524,7 @@
               {
                 "phase": 9,
                 "depth": 0,
-                "durationMs": 0.3,
-                "eventTypes": [
-                  "observer_bubble"
-                ]
-              },
-              {
-                "phase": 10,
-                "depth": 1,
-                "durationMs": 0.1,
-                "eventTypes": [
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 10,
-                "depth": 0,
-                "durationMs": 2013.6,
-                "eventTypes": [
-                  "manifest_ending",
-                  "sound_effect"
-                ]
-              }
-            ],
-            "soundKeys": [
-              "stone_place",
-              "stone_flip",
-              "stone_destroy",
-              "breeding_spawn",
-              "hyperactive_move",
-              "guard_apply",
-              "board_expand",
-              "theory_incarnation_spawn",
-              "manifest_ending"
-            ],
-            "durationMs": 10358.9,
-            "finalBoardDigest": "80fe11faf0d79b2fe7ca08f916f498289746748bde1b597816655ddb642f03d0",
-            "executionDigest": "f5fd5917f4a3eeb90abe51cfa688fb24d371d8ff963e2758a01deeeb159c5214"
-          },
-          {
-            "name": "NOANIM=1",
-            "prefersReducedMotion": false,
-            "noAnim": true,
-            "animationsEnabled": false,
-            "inputDigest": "b7b4d73d87c0a8176cc058c1df6c951f4bd4e8befb356e7c2d8793a97fcd90fd",
-            "semanticDigest": "fnv1a32:862af85b",
-            "phaseCompletionOrder": [
-              1,
-              2,
-              3,
-              4,
-              5,
-              6,
-              7,
-              8,
-              9,
-              10
-            ],
-            "phaseCompletionTrace": [
-              {
-                "phase": 1,
-                "depth": 0,
-                "durationMs": 0.4,
-                "eventTypes": [
-                  "place",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 2,
-                "depth": 0,
-                "durationMs": 0.7,
-                "eventTypes": [
-                  "flip",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 3,
-                "depth": 0,
-                "durationMs": 0.5,
-                "eventTypes": [
-                  "destroy",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 4,
-                "depth": 0,
-                "durationMs": 1.3,
-                "eventTypes": [
-                  "spawn",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 5,
-                "depth": 0,
-                "durationMs": 12.8,
-                "eventTypes": [
-                  "move",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 6,
-                "depth": 0,
-                "durationMs": 0.2,
-                "eventTypes": [
-                  "status_applied",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 7,
-                "depth": 0,
-                "durationMs": 0.1,
-                "eventTypes": [
-                  "spawn",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 8,
-                "depth": 0,
-                "durationMs": 0.2,
-                "eventTypes": [
-                  "theory_incarnation_spawn_roulette",
-                  "sound_effect"
-                ]
-              },
-              {
-                "phase": 9,
-                "depth": 0,
-                "durationMs": 6.8,
+                "durationMs": 1.4,
                 "eventTypes": [
                   "observer_bubble"
                 ]
@@ -5400,7 +5540,7 @@
               {
                 "phase": 10,
                 "depth": 0,
-                "durationMs": 0.1,
+                "durationMs": 2010,
                 "eventTypes": [
                   "manifest_ending",
                   "sound_effect"
@@ -5418,12 +5558,278 @@
               "theory_incarnation_spawn",
               "manifest_ending"
             ],
-            "durationMs": 80.7,
+            "durationMs": 10484.6,
             "finalBoardDigest": "80fe11faf0d79b2fe7ca08f916f498289746748bde1b597816655ddb642f03d0",
-            "executionDigest": "d2b103fb2607db63266bd144960f67afc1c22d9e4f97ddc9bbad65d06681c867"
+            "executionDigest": "01b779b5c61eadb00dcc6408f7e1b3b4dec7e02f136be92e8ae7e229155275b9"
+          },
+          {
+            "name": "reduced-motion",
+            "prefersReducedMotion": true,
+            "noAnim": false,
+            "animationsEnabled": true,
+            "inputDigest": "c5ac78f03681be28dcff98da291f43aab8dbc5dfd323c610f2cf4a64cfb601e2",
+            "semanticDigest": "fnv1a32:862af85b",
+            "phaseCompletionOrder": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10
+            ],
+            "phaseCompletionTrace": [
+              {
+                "phase": 1,
+                "depth": 0,
+                "durationMs": 0.5,
+                "eventTypes": [
+                  "place",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 2,
+                "depth": 0,
+                "durationMs": 469.1,
+                "eventTypes": [
+                  "flip",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 3,
+                "depth": 0,
+                "durationMs": 876.7,
+                "eventTypes": [
+                  "destroy",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 4,
+                "depth": 0,
+                "durationMs": 0.5,
+                "eventTypes": [
+                  "spawn",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 5,
+                "depth": 0,
+                "durationMs": 169,
+                "eventTypes": [
+                  "move",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 6,
+                "depth": 0,
+                "durationMs": 609.8,
+                "eventTypes": [
+                  "status_applied",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 7,
+                "depth": 0,
+                "durationMs": 0.2,
+                "eventTypes": [
+                  "spawn",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 8,
+                "depth": 0,
+                "durationMs": 4642.4,
+                "eventTypes": [
+                  "theory_incarnation_spawn_roulette",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 9,
+                "depth": 0,
+                "durationMs": 0.5,
+                "eventTypes": [
+                  "observer_bubble"
+                ]
+              },
+              {
+                "phase": 10,
+                "depth": 1,
+                "durationMs": 0,
+                "eventTypes": [
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 10,
+                "depth": 0,
+                "durationMs": 2004.7,
+                "eventTypes": [
+                  "manifest_ending",
+                  "sound_effect"
+                ]
+              }
+            ],
+            "soundKeys": [
+              "stone_place",
+              "stone_flip",
+              "stone_destroy",
+              "breeding_spawn",
+              "hyperactive_move",
+              "guard_apply",
+              "board_expand",
+              "theory_incarnation_spawn",
+              "manifest_ending"
+            ],
+            "durationMs": 10435.2,
+            "finalBoardDigest": "80fe11faf0d79b2fe7ca08f916f498289746748bde1b597816655ddb642f03d0",
+            "executionDigest": "56846f87c448e0fde0f4a8b26646cfcb45eef405a269d9f4c9d2ce8281da05ba"
+          },
+          {
+            "name": "NOANIM=1",
+            "prefersReducedMotion": false,
+            "noAnim": true,
+            "animationsEnabled": false,
+            "inputDigest": "c5ac78f03681be28dcff98da291f43aab8dbc5dfd323c610f2cf4a64cfb601e2",
+            "semanticDigest": "fnv1a32:862af85b",
+            "phaseCompletionOrder": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10
+            ],
+            "phaseCompletionTrace": [
+              {
+                "phase": 1,
+                "depth": 0,
+                "durationMs": 0.5,
+                "eventTypes": [
+                  "place",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 2,
+                "depth": 0,
+                "durationMs": 0.3,
+                "eventTypes": [
+                  "flip",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 3,
+                "depth": 0,
+                "durationMs": 0.3,
+                "eventTypes": [
+                  "destroy",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 4,
+                "depth": 0,
+                "durationMs": 0.3,
+                "eventTypes": [
+                  "spawn",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 5,
+                "depth": 0,
+                "durationMs": 2.9,
+                "eventTypes": [
+                  "move",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 6,
+                "depth": 0,
+                "durationMs": 0.3,
+                "eventTypes": [
+                  "status_applied",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 7,
+                "depth": 0,
+                "durationMs": 0.1,
+                "eventTypes": [
+                  "spawn",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 8,
+                "depth": 0,
+                "durationMs": 0.2,
+                "eventTypes": [
+                  "theory_incarnation_spawn_roulette",
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 9,
+                "depth": 0,
+                "durationMs": 1.1,
+                "eventTypes": [
+                  "observer_bubble"
+                ]
+              },
+              {
+                "phase": 10,
+                "depth": 1,
+                "durationMs": 0,
+                "eventTypes": [
+                  "sound_effect"
+                ]
+              },
+              {
+                "phase": 10,
+                "depth": 0,
+                "durationMs": 0.2,
+                "eventTypes": [
+                  "manifest_ending",
+                  "sound_effect"
+                ]
+              }
+            ],
+            "soundKeys": [
+              "stone_place",
+              "stone_flip",
+              "stone_destroy",
+              "breeding_spawn",
+              "hyperactive_move",
+              "guard_apply",
+              "board_expand",
+              "theory_incarnation_spawn",
+              "manifest_ending"
+            ],
+            "durationMs": 61.5,
+            "finalBoardDigest": "80fe11faf0d79b2fe7ca08f916f498289746748bde1b597816655ddb642f03d0",
+            "executionDigest": "9234c6df185576105d108fe337f18c2df225024605f17a1f5059164a1707ff69"
           }
         ],
-        "digest": "e575038b75fe60388a160b96057934898d4cdc88e1586ed69d4bf062a69c2e86"
+        "digest": "0d490fdf71377b83a9a097a88f34d4bff6fc1482ccdd85d9373bea6c25183f0c"
       },
       "performance": {
         "idle": {
@@ -5432,22 +5838,22 @@
           "pixiTickerPresent": false
         },
         "frameSampleCount": 30,
-        "multiFlipFrameP50Ms": 29,
-        "multiFlipFrameP95Ms": 40.9,
-        "sixteenBySixteenApplyMs": 276.8,
+        "multiFlipFrameP50Ms": 21,
+        "multiFlipFrameP95Ms": 23.7,
+        "sixteenBySixteenApplyMs": 235.7,
         "sixteenBySixteenCellCount": 256,
-        "sixteenBySixteenDomNodeCount": 1300
+        "sixteenBySixteenDomNodeCount": 1307
       }
     },
     "vite": {
       "lane": "vite",
       "htmlLane": "vite",
       "bootState": "ready",
-      "readyMs": 1601,
-      "firstBoardObservedMs": 1204.9,
+      "readyMs": 734,
+      "firstBoardObservedMs": 626.4,
       "browserVersion": "143.0.7499.4",
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/143.0.7499.4 Safari/537.36",
-      "requestedResourceCount": 135,
+      "requestedResourceCount": 150,
       "pageErrors": [],
       "consoleErrors": [],
       "resourceErrors": [],
@@ -5507,7 +5913,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 42,
-          "documentNodeCount": 1078,
+          "documentNodeCount": 1110,
           "classHistogram": {
             "cell": 16,
             "cell-edge-left": 4,
@@ -5709,7 +6115,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 90,
-          "documentNodeCount": 1126,
+          "documentNodeCount": 1158,
           "classHistogram": {
             "board-frame-edge-left": 4,
             "board-frame-edge-top": 16,
@@ -5915,7 +6321,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 90,
-          "documentNodeCount": 1126,
+          "documentNodeCount": 1158,
           "classHistogram": {
             "board-frame-edge-left": 16,
             "board-frame-edge-top": 4,
@@ -6121,7 +6527,7 @@
           "voidCellCount": 0,
           "discCount": 8,
           "frameNodeCount": 95,
-          "documentNodeCount": 1131,
+          "documentNodeCount": 1163,
           "classHistogram": {
             "cell": 49,
             "cell-edge-left": 7,
@@ -6443,7 +6849,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 90,
-          "documentNodeCount": 1126,
+          "documentNodeCount": 1158,
           "classHistogram": {
             "cell": 64,
             "cell-edge-left": 8,
@@ -6705,7 +7111,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 282,
-          "documentNodeCount": 1318,
+          "documentNodeCount": 1350,
           "classHistogram": {
             "cell": 256,
             "cell-edge-left": 16,
@@ -6907,7 +7313,7 @@
           "voidCellCount": 4,
           "discCount": 4,
           "frameNodeCount": 62,
-          "documentNodeCount": 1098,
+          "documentNodeCount": 1130,
           "classHistogram": {
             "cell": 36,
             "cell-void": 4,
@@ -7114,7 +7520,7 @@
           "voidCellCount": 20,
           "discCount": 4,
           "frameNodeCount": 126,
-          "documentNodeCount": 1162,
+          "documentNodeCount": 1194,
           "classHistogram": {
             "cell": 100,
             "cell-void": 20,
@@ -7321,7 +7727,7 @@
           "voidCellCount": 48,
           "discCount": 4,
           "frameNodeCount": 282,
-          "documentNodeCount": 1318,
+          "documentNodeCount": 1350,
           "classHistogram": {
             "cell": 256,
             "cell-void": 48,
@@ -7528,7 +7934,7 @@
           "voidCellCount": 20,
           "discCount": 2,
           "frameNodeCount": 118,
-          "documentNodeCount": 1154,
+          "documentNodeCount": 1186,
           "classHistogram": {
             "cell": 100,
             "cell-void": 20,
@@ -7652,7 +8058,7 @@
           "voidCellCount": 7,
           "discCount": 5,
           "frameNodeCount": 103,
-          "documentNodeCount": 1139,
+          "documentNodeCount": 1171,
           "classHistogram": {
             "cell": 72,
             "cell-void": 7,
@@ -7878,7 +8284,7 @@
           "voidCellCount": 7,
           "discCount": 5,
           "frameNodeCount": 103,
-          "documentNodeCount": 1139,
+          "documentNodeCount": 1171,
           "classHistogram": {
             "cell": 72,
             "cell-edge-left": 8,
@@ -8104,7 +8510,7 @@
           "voidCellCount": 7,
           "discCount": 5,
           "frameNodeCount": 103,
-          "documentNodeCount": 1139,
+          "documentNodeCount": 1171,
           "classHistogram": {
             "cell": 72,
             "cell-edge-left": 8,
@@ -8330,7 +8736,7 @@
           "voidCellCount": 7,
           "discCount": 5,
           "frameNodeCount": 103,
-          "documentNodeCount": 1139,
+          "documentNodeCount": 1171,
           "classHistogram": {
             "cell": 72,
             "cell-void": 7,
@@ -8496,6 +8902,232 @@
           "frameCaptureSha256": null
         },
         {
+          "fixture": "presentation-breeding-expansion",
+          "config": {
+            "rows": 8,
+            "cols": 8,
+            "shape": "rectangle"
+          },
+          "captureKind": "presentation",
+          "boardRect": {
+            "x": 507,
+            "y": 217.991,
+            "width": 396,
+            "height": 352
+          },
+          "frameRect": {
+            "x": 470.063,
+            "y": 205.256,
+            "width": 425.875,
+            "height": 381.328
+          },
+          "firstCellRect": {
+            "x": 507,
+            "y": 217.991,
+            "width": 44,
+            "height": 44
+          },
+          "cellScale": {
+            "widthToBoard": 0.111,
+            "heightToBoard": 0.125
+          },
+          "selectedClientRects": {
+            "0,0": {
+              "x": 507,
+              "y": 217.991,
+              "width": 44,
+              "height": 44
+            },
+            "4,4": {
+              "x": 683,
+              "y": 393.991,
+              "width": 44,
+              "height": 44
+            },
+            "7,7": {
+              "x": 815,
+              "y": 525.991,
+              "width": 44,
+              "height": 44
+            },
+            "3,8": {
+              "x": 859,
+              "y": 349.991,
+              "width": 44,
+              "height": 44
+            }
+          },
+          "cellCount": 72,
+          "existingCellCount": 65,
+          "voidCellCount": 7,
+          "discCount": 5,
+          "frameNodeCount": 104,
+          "documentNodeCount": 1172,
+          "classHistogram": {
+            "cell": 72,
+            "cell-edge-left": 8,
+            "cell-edge-top": 8,
+            "cell-edge-right": 8,
+            "cell-void": 7,
+            "legal": 4,
+            "has-disc": 5,
+            "cell-expanded": 1,
+            "cell-expanded-right": 1,
+            "cell-edge-bottom": 8
+          },
+          "starPseudo": [
+            {
+              "key": "2,3",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "3,2",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "3,3",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "3,4",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "3,8",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "4,3",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "4,4",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "4,5",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "5,4",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            }
+          ],
+          "skinSnapshot": {
+            "boardSkinId": "bluegreen-felt",
+            "frameSkinId": "marsh-forged-iron",
+            "stoneSkinId": "o-stone",
+            "boardTexture": "url(\"assets/images/board/board-surface-bluegreen-felt-v1.png\")",
+            "frameImage": "url(\"assets/images/board/board-frame-marsh-forged-iron-v1.png\")",
+            "blackStoneImage": "url(\"assets/images/stone-skin/o-stone/black.png\")",
+            "whiteStoneImage": "url(\"assets/images/stone-skin/o-stone/white.png\")"
+          },
+          "semanticDigest": "a3a2e9e668d5da863ada4380657649796f18daefddf22ec23ce9cde642419d77",
+          "capturePath": "tests/visual-regression/baselines/pixijs-playfield-dom/vite-presentation-breeding-expansion.png",
+          "captureSha256": "f56a3ae2bef1accb0a455ce849cc6ae6bcbf0a20cb1f2bb8be9ad354a83dcec8",
+          "frameCapturePath": "tests/visual-regression/baselines/pixijs-playfield-dom/vite-presentation-breeding-expansion-frame.png",
+          "frameCaptureSha256": "79c8330c2b7582428f15e81536e0e69149d59de23f67da55c35e5b56198af955"
+        },
+        {
           "fixture": "rectangle-8x8-multistage-negative",
           "config": {
             "rows": 8,
@@ -8580,7 +9212,7 @@
           "voidCellCount": 41,
           "discCount": 7,
           "frameNodeCount": 151,
-          "documentNodeCount": 1187,
+          "documentNodeCount": 1219,
           "classHistogram": {
             "cell": 110,
             "cell-void": 41,
@@ -8833,7 +9465,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 90,
-          "documentNodeCount": 1126,
+          "documentNodeCount": 1158,
           "classHistogram": {
             "cell": 64,
             "cell-edge-left": 8,
@@ -9148,7 +9780,7 @@
           "voidCellCount": 0,
           "discCount": 4,
           "frameNodeCount": 90,
-          "documentNodeCount": 1126,
+          "documentNodeCount": 1158,
           "classHistogram": {
             "cell": 64,
             "cell-edge-left": 8,
@@ -9461,14 +10093,14 @@
           "cellCount": 64,
           "existingCellCount": 64,
           "voidCellCount": 0,
-          "discCount": 9,
-          "frameNodeCount": 123,
-          "documentNodeCount": 1159,
+          "discCount": 13,
+          "frameNodeCount": 151,
+          "documentNodeCount": 1219,
           "classHistogram": {
             "cell": 64,
             "cell-edge-left": 8,
             "cell-edge-top": 8,
-            "legal": 5,
+            "legal": 8,
             "legal-free": 1,
             "effect-target-highlight": 1,
             "effect-target-highlight-positive": 1,
@@ -9478,7 +10110,8 @@
             "cell-edge-right": 8,
             "selectable-friendly": 1,
             "keyboard-legal-cursor": 1,
-            "has-disc": 9,
+            "has-disc": 13,
+            "has-regen-badge": 1,
             "frozen-cell": 1,
             "cell-edge-bottom": 8
           },
@@ -9500,6 +10133,21 @@
             },
             {
               "key": "0,1",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "0,5",
               "before": {
                 "content": "\"\"",
                 "background": "rgba(0, 0, 0, 0)",
@@ -9559,6 +10207,81 @@
               }
             },
             {
+              "key": "1,3",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "1,4",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "1,5",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "2,0",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
+              "key": "2,1",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "38.6562px",
+                "height": "13.0156px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
+              }
+            },
+            {
               "key": "2,2",
               "before": {
                 "content": "\"\"",
@@ -9578,8 +10301,8 @@
               "before": {
                 "content": "\"\"",
                 "background": "rgba(0, 0, 0, 0)",
-                "width": "28.5469px",
-                "height": "28.5469px"
+                "width": "38.6562px",
+                "height": "13.0156px"
               },
               "after": {
                 "content": "none",
@@ -9601,6 +10324,21 @@
                 "background": "rgb(7, 17, 15)",
                 "width": "6px",
                 "height": "6px"
+              }
+            },
+            {
+              "key": "3,1",
+              "before": {
+                "content": "\"\"",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "28.5469px",
+                "height": "28.5469px"
+              },
+              "after": {
+                "content": "none",
+                "background": "rgba(0, 0, 0, 0)",
+                "width": "auto",
+                "height": "auto"
               }
             },
             {
@@ -9763,14 +10501,14 @@
             "blackStoneImage": "url(\"assets/images/stone-skin/o-stone/black.png\")",
             "whiteStoneImage": "url(\"assets/images/stone-skin/o-stone/white.png\")"
           },
-          "semanticDigest": "a4d24c4fa685ef89642be2aac7472e9e7f8af6a342a6271d23793ce18258dd11",
+          "semanticDigest": "0752cedb711b4cd5dd29b4ef61eab324bcbc3d2c71cb6b9146959405ec231e22",
           "capturePath": "tests/visual-regression/baselines/pixijs-playfield-dom/vite-presentation-special-timer-badge.png",
-          "captureSha256": "a49510790c390e4c86aedf3e6e5e7cc8005746f439247dbd65e200f3de672100",
+          "captureSha256": "e6236f9a3e7c554e01dd6b54dd41b0fd5c1b1451a17012540672393e4a1066f1",
           "frameCapturePath": "tests/visual-regression/baselines/pixijs-playfield-dom/vite-presentation-special-timer-badge-frame.png",
-          "frameCaptureSha256": "4148c36f9fdad8f3a0a4f648abba64890daac9cd6c0273534a2f1889bce3ff92"
+          "frameCaptureSha256": "8c6474191f3b8b95e70f2391acb4ce2782eecddfee8f20ba43352e256e30b396"
         }
       ],
-      "fixtureDigest": "437f6e0285158f635f9a448b83eb0b370f0339eab11a5f8e5fcc99900e4df768",
+      "fixtureDigest": "d6bbd32e8511b985a7042643fc4e133d77a58b3540eb2eaefccdd394a3f01a6d",
       "expansionRectComparisons": [
         {
           "fixture": "rectangle-8x8-expanded-top",
@@ -10126,11 +10864,11 @@
           "pixiTickerPresent": false
         },
         "frameSampleCount": 30,
-        "multiFlipFrameP50Ms": 28.4,
-        "multiFlipFrameP95Ms": 43.7,
-        "sixteenBySixteenApplyMs": 271.9,
+        "multiFlipFrameP50Ms": 22.6,
+        "multiFlipFrameP95Ms": 30.3,
+        "sixteenBySixteenApplyMs": 252.2,
         "sixteenBySixteenCellCount": 256,
-        "sixteenBySixteenDomNodeCount": 1323
+        "sixteenBySixteenDomNodeCount": 1355
       }
     }
   },
@@ -10235,6 +10973,13 @@
         "viteCaptureSha256": "70f09b27018dc30b18615f6bf5897c4178033b40ce6e76d9d96c4ab40bb73695"
       },
       {
+        "fixture": "presentation-breeding-expansion",
+        "pixelMatch": true,
+        "semanticMatch": true,
+        "classicCaptureSha256": "f56a3ae2bef1accb0a455ce849cc6ae6bcbf0a20cb1f2bb8be9ad354a83dcec8",
+        "viteCaptureSha256": "f56a3ae2bef1accb0a455ce849cc6ae6bcbf0a20cb1f2bb8be9ad354a83dcec8"
+      },
+      {
         "fixture": "rectangle-8x8-multistage-negative",
         "pixelMatch": true,
         "semanticMatch": true,
@@ -10259,13 +11004,13 @@
         "fixture": "presentation-special-timer-badge",
         "pixelMatch": true,
         "semanticMatch": true,
-        "classicCaptureSha256": "a49510790c390e4c86aedf3e6e5e7cc8005746f439247dbd65e200f3de672100",
-        "viteCaptureSha256": "a49510790c390e4c86aedf3e6e5e7cc8005746f439247dbd65e200f3de672100"
+        "classicCaptureSha256": "e6236f9a3e7c554e01dd6b54dd41b0fd5c1b1451a17012540672393e4a1066f1",
+        "viteCaptureSha256": "e6236f9a3e7c554e01dd6b54dd41b0fd5c1b1451a17012540672393e4a1066f1"
       }
     ],
     "allPixelMatch": true,
     "allSemanticMatch": true,
-    "digest": "f246cac96df7df16601cca1dfffda6853e68e0a4eb5c9201874e2be3b03a02d3"
+    "digest": "cb3cb318e31f811a6ca3ae4295a10bf3b984b327e7df9d23a053f1a6b2f4678a"
   },
   "topologyFixtures": [
     {
@@ -14637,7 +15382,7 @@
       "MANIFEST"
     ],
     "eventCount": 19,
-    "inputDigest": "b7b4d73d87c0a8176cc058c1df6c951f4bd4e8befb356e7c2d8793a97fcd90fd",
+    "inputDigest": "c5ac78f03681be28dcff98da291f43aab8dbc5dfd323c610f2cf4a64cfb601e2",
     "semanticDigest": "fnv1a32:862af85b",
     "declaredSoundKeys": [
       "stone_place",
@@ -14657,7 +15402,7 @@
         "prefersReducedMotion": false,
         "noAnim": false,
         "animationsEnabled": true,
-        "inputDigest": "b7b4d73d87c0a8176cc058c1df6c951f4bd4e8befb356e7c2d8793a97fcd90fd",
+        "inputDigest": "c5ac78f03681be28dcff98da291f43aab8dbc5dfd323c610f2cf4a64cfb601e2",
         "semanticDigest": "fnv1a32:862af85b",
         "phaseCompletionOrder": [
           1,
@@ -14675,7 +15420,7 @@
           {
             "phase": 1,
             "depth": 0,
-            "durationMs": 2.1,
+            "durationMs": 1.7,
             "eventTypes": [
               "place",
               "sound_effect"
@@ -14684,7 +15429,7 @@
           {
             "phase": 2,
             "depth": 0,
-            "durationMs": 494.9,
+            "durationMs": 472.6,
             "eventTypes": [
               "flip",
               "sound_effect"
@@ -14693,7 +15438,7 @@
           {
             "phase": 3,
             "depth": 0,
-            "durationMs": 703.6,
+            "durationMs": 845.9,
             "eventTypes": [
               "destroy",
               "sound_effect"
@@ -14702,7 +15447,7 @@
           {
             "phase": 4,
             "depth": 0,
-            "durationMs": 5.7,
+            "durationMs": 1.1,
             "eventTypes": [
               "spawn",
               "sound_effect"
@@ -14711,7 +15456,7 @@
           {
             "phase": 5,
             "depth": 0,
-            "durationMs": 236.2,
+            "durationMs": 161.3,
             "eventTypes": [
               "move",
               "sound_effect"
@@ -14720,7 +15465,7 @@
           {
             "phase": 6,
             "depth": 0,
-            "durationMs": 608.3,
+            "durationMs": 615.3,
             "eventTypes": [
               "status_applied",
               "sound_effect"
@@ -14728,142 +15473,9 @@
           },
           {
             "phase": 7,
-            "depth": 0,
-            "durationMs": 0.2,
-            "eventTypes": [
-              "spawn",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 8,
-            "depth": 0,
-            "durationMs": 4639.2,
-            "eventTypes": [
-              "theory_incarnation_spawn_roulette",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 9,
-            "depth": 0,
-            "durationMs": 1.6,
-            "eventTypes": [
-              "observer_bubble"
-            ]
-          },
-          {
-            "phase": 10,
-            "depth": 1,
-            "durationMs": 0.2,
-            "eventTypes": [
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 10,
-            "depth": 0,
-            "durationMs": 2008.4,
-            "eventTypes": [
-              "manifest_ending",
-              "sound_effect"
-            ]
-          }
-        ],
-        "soundKeys": [
-          "stone_place",
-          "stone_flip",
-          "stone_destroy",
-          "breeding_spawn",
-          "hyperactive_move",
-          "guard_apply",
-          "board_expand",
-          "theory_incarnation_spawn",
-          "manifest_ending"
-        ],
-        "durationMs": 10410.3,
-        "finalBoardDigest": "80fe11faf0d79b2fe7ca08f916f498289746748bde1b597816655ddb642f03d0",
-        "executionDigest": "eedbfbfad770db8f276aacbf13f3a4648fa18c018fe3a844770a593656a299e9"
-      },
-      {
-        "name": "reduced-motion",
-        "prefersReducedMotion": true,
-        "noAnim": false,
-        "animationsEnabled": true,
-        "inputDigest": "b7b4d73d87c0a8176cc058c1df6c951f4bd4e8befb356e7c2d8793a97fcd90fd",
-        "semanticDigest": "fnv1a32:862af85b",
-        "phaseCompletionOrder": [
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7,
-          8,
-          9,
-          10
-        ],
-        "phaseCompletionTrace": [
-          {
-            "phase": 1,
             "depth": 0,
             "durationMs": 0.3,
             "eventTypes": [
-              "place",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 2,
-            "depth": 0,
-            "durationMs": 479.6,
-            "eventTypes": [
-              "flip",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 3,
-            "depth": 0,
-            "durationMs": 711.1,
-            "eventTypes": [
-              "destroy",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 4,
-            "depth": 0,
-            "durationMs": 0.7,
-            "eventTypes": [
-              "spawn",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 5,
-            "depth": 0,
-            "durationMs": 227.3,
-            "eventTypes": [
-              "move",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 6,
-            "depth": 0,
-            "durationMs": 609,
-            "eventTypes": [
-              "status_applied",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 7,
-            "depth": 0,
-            "durationMs": 0.1,
-            "eventTypes": [
               "spawn",
               "sound_effect"
             ]
@@ -14871,7 +15483,7 @@
           {
             "phase": 8,
             "depth": 0,
-            "durationMs": 4638.3,
+            "durationMs": 4639.8,
             "eventTypes": [
               "theory_incarnation_spawn_roulette",
               "sound_effect"
@@ -14880,140 +15492,7 @@
           {
             "phase": 9,
             "depth": 0,
-            "durationMs": 0.3,
-            "eventTypes": [
-              "observer_bubble"
-            ]
-          },
-          {
-            "phase": 10,
-            "depth": 1,
-            "durationMs": 0.1,
-            "eventTypes": [
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 10,
-            "depth": 0,
-            "durationMs": 2013.6,
-            "eventTypes": [
-              "manifest_ending",
-              "sound_effect"
-            ]
-          }
-        ],
-        "soundKeys": [
-          "stone_place",
-          "stone_flip",
-          "stone_destroy",
-          "breeding_spawn",
-          "hyperactive_move",
-          "guard_apply",
-          "board_expand",
-          "theory_incarnation_spawn",
-          "manifest_ending"
-        ],
-        "durationMs": 10358.9,
-        "finalBoardDigest": "80fe11faf0d79b2fe7ca08f916f498289746748bde1b597816655ddb642f03d0",
-        "executionDigest": "f5fd5917f4a3eeb90abe51cfa688fb24d371d8ff963e2758a01deeeb159c5214"
-      },
-      {
-        "name": "NOANIM=1",
-        "prefersReducedMotion": false,
-        "noAnim": true,
-        "animationsEnabled": false,
-        "inputDigest": "b7b4d73d87c0a8176cc058c1df6c951f4bd4e8befb356e7c2d8793a97fcd90fd",
-        "semanticDigest": "fnv1a32:862af85b",
-        "phaseCompletionOrder": [
-          1,
-          2,
-          3,
-          4,
-          5,
-          6,
-          7,
-          8,
-          9,
-          10
-        ],
-        "phaseCompletionTrace": [
-          {
-            "phase": 1,
-            "depth": 0,
-            "durationMs": 0.4,
-            "eventTypes": [
-              "place",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 2,
-            "depth": 0,
-            "durationMs": 0.7,
-            "eventTypes": [
-              "flip",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 3,
-            "depth": 0,
-            "durationMs": 0.5,
-            "eventTypes": [
-              "destroy",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 4,
-            "depth": 0,
-            "durationMs": 1.3,
-            "eventTypes": [
-              "spawn",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 5,
-            "depth": 0,
-            "durationMs": 12.8,
-            "eventTypes": [
-              "move",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 6,
-            "depth": 0,
-            "durationMs": 0.2,
-            "eventTypes": [
-              "status_applied",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 7,
-            "depth": 0,
-            "durationMs": 0.1,
-            "eventTypes": [
-              "spawn",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 8,
-            "depth": 0,
-            "durationMs": 0.2,
-            "eventTypes": [
-              "theory_incarnation_spawn_roulette",
-              "sound_effect"
-            ]
-          },
-          {
-            "phase": 9,
-            "depth": 0,
-            "durationMs": 6.8,
+            "durationMs": 1.4,
             "eventTypes": [
               "observer_bubble"
             ]
@@ -15029,7 +15508,7 @@
           {
             "phase": 10,
             "depth": 0,
-            "durationMs": 0.1,
+            "durationMs": 2010,
             "eventTypes": [
               "manifest_ending",
               "sound_effect"
@@ -15047,12 +15526,278 @@
           "theory_incarnation_spawn",
           "manifest_ending"
         ],
-        "durationMs": 80.7,
+        "durationMs": 10484.6,
         "finalBoardDigest": "80fe11faf0d79b2fe7ca08f916f498289746748bde1b597816655ddb642f03d0",
-        "executionDigest": "d2b103fb2607db63266bd144960f67afc1c22d9e4f97ddc9bbad65d06681c867"
+        "executionDigest": "01b779b5c61eadb00dcc6408f7e1b3b4dec7e02f136be92e8ae7e229155275b9"
+      },
+      {
+        "name": "reduced-motion",
+        "prefersReducedMotion": true,
+        "noAnim": false,
+        "animationsEnabled": true,
+        "inputDigest": "c5ac78f03681be28dcff98da291f43aab8dbc5dfd323c610f2cf4a64cfb601e2",
+        "semanticDigest": "fnv1a32:862af85b",
+        "phaseCompletionOrder": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "phaseCompletionTrace": [
+          {
+            "phase": 1,
+            "depth": 0,
+            "durationMs": 0.5,
+            "eventTypes": [
+              "place",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 2,
+            "depth": 0,
+            "durationMs": 469.1,
+            "eventTypes": [
+              "flip",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 3,
+            "depth": 0,
+            "durationMs": 876.7,
+            "eventTypes": [
+              "destroy",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 4,
+            "depth": 0,
+            "durationMs": 0.5,
+            "eventTypes": [
+              "spawn",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 5,
+            "depth": 0,
+            "durationMs": 169,
+            "eventTypes": [
+              "move",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 6,
+            "depth": 0,
+            "durationMs": 609.8,
+            "eventTypes": [
+              "status_applied",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 7,
+            "depth": 0,
+            "durationMs": 0.2,
+            "eventTypes": [
+              "spawn",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 8,
+            "depth": 0,
+            "durationMs": 4642.4,
+            "eventTypes": [
+              "theory_incarnation_spawn_roulette",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 9,
+            "depth": 0,
+            "durationMs": 0.5,
+            "eventTypes": [
+              "observer_bubble"
+            ]
+          },
+          {
+            "phase": 10,
+            "depth": 1,
+            "durationMs": 0,
+            "eventTypes": [
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 10,
+            "depth": 0,
+            "durationMs": 2004.7,
+            "eventTypes": [
+              "manifest_ending",
+              "sound_effect"
+            ]
+          }
+        ],
+        "soundKeys": [
+          "stone_place",
+          "stone_flip",
+          "stone_destroy",
+          "breeding_spawn",
+          "hyperactive_move",
+          "guard_apply",
+          "board_expand",
+          "theory_incarnation_spawn",
+          "manifest_ending"
+        ],
+        "durationMs": 10435.2,
+        "finalBoardDigest": "80fe11faf0d79b2fe7ca08f916f498289746748bde1b597816655ddb642f03d0",
+        "executionDigest": "56846f87c448e0fde0f4a8b26646cfcb45eef405a269d9f4c9d2ce8281da05ba"
+      },
+      {
+        "name": "NOANIM=1",
+        "prefersReducedMotion": false,
+        "noAnim": true,
+        "animationsEnabled": false,
+        "inputDigest": "c5ac78f03681be28dcff98da291f43aab8dbc5dfd323c610f2cf4a64cfb601e2",
+        "semanticDigest": "fnv1a32:862af85b",
+        "phaseCompletionOrder": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "phaseCompletionTrace": [
+          {
+            "phase": 1,
+            "depth": 0,
+            "durationMs": 0.5,
+            "eventTypes": [
+              "place",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 2,
+            "depth": 0,
+            "durationMs": 0.3,
+            "eventTypes": [
+              "flip",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 3,
+            "depth": 0,
+            "durationMs": 0.3,
+            "eventTypes": [
+              "destroy",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 4,
+            "depth": 0,
+            "durationMs": 0.3,
+            "eventTypes": [
+              "spawn",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 5,
+            "depth": 0,
+            "durationMs": 2.9,
+            "eventTypes": [
+              "move",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 6,
+            "depth": 0,
+            "durationMs": 0.3,
+            "eventTypes": [
+              "status_applied",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 7,
+            "depth": 0,
+            "durationMs": 0.1,
+            "eventTypes": [
+              "spawn",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 8,
+            "depth": 0,
+            "durationMs": 0.2,
+            "eventTypes": [
+              "theory_incarnation_spawn_roulette",
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 9,
+            "depth": 0,
+            "durationMs": 1.1,
+            "eventTypes": [
+              "observer_bubble"
+            ]
+          },
+          {
+            "phase": 10,
+            "depth": 1,
+            "durationMs": 0,
+            "eventTypes": [
+              "sound_effect"
+            ]
+          },
+          {
+            "phase": 10,
+            "depth": 0,
+            "durationMs": 0.2,
+            "eventTypes": [
+              "manifest_ending",
+              "sound_effect"
+            ]
+          }
+        ],
+        "soundKeys": [
+          "stone_place",
+          "stone_flip",
+          "stone_destroy",
+          "breeding_spawn",
+          "hyperactive_move",
+          "guard_apply",
+          "board_expand",
+          "theory_incarnation_spawn",
+          "manifest_ending"
+        ],
+        "durationMs": 61.5,
+        "finalBoardDigest": "80fe11faf0d79b2fe7ca08f916f498289746748bde1b597816655ddb642f03d0",
+        "executionDigest": "9234c6df185576105d108fe337f18c2df225024605f17a1f5059164a1707ff69"
       }
     ],
-    "digest": "e575038b75fe60388a160b96057934898d4cdc88e1586ed69d4bf062a69c2e86"
+    "digest": "0d490fdf71377b83a9a097a88f34d4bff6fc1482ccdd85d9373bea6c25183f0c"
   },
   "networkVisualState": {
     "scenarios": [
@@ -15343,11 +16088,11 @@
     "sources": [
       {
         "path": "ui/animation-engine.ts",
-        "sha256": "0aa602a19401fbef280d3db91cabff8d2a218621c6fe65fbe4d158fe6a3bf406"
+        "sha256": "bf26290b9004629489109cc6a19e1ad655d7b14bf1bd7892c98ba5d32e3159cb"
       },
       {
         "path": "ui/animation-flip-events.ts",
-        "sha256": "94efa04c8be5357ac0c88ac0eb235d254f7a460021d006fa6aa62f49f4df06ed"
+        "sha256": "6e411346a7fe4505112e3eff8e8715a00e2667bd5e36d072e7793aa8ec7677fb"
       },
       {
         "path": "ui/animation-placement-events.ts",
@@ -15355,15 +16100,15 @@
       },
       {
         "path": "ui/animation-destroy-events.ts",
-        "sha256": "8d6072f3d005a91797fa12b17fe3cfe288ea0592f59280170784f711cfca68e9"
+        "sha256": "9b0512477159f06e78a29ca74f9ff497d99580c161e3b186c8b42cbbbe856353"
       },
       {
         "path": "ui/animation-destroy-source-events.ts",
-        "sha256": "f7f77eb98203f32433e6482b0274eadd097784df6647c23b93bc46ef9be9abda"
+        "sha256": "7e5711337450ef4369b95fff09441b693fd9596129fb6c9fe7902567ce9e2073"
       },
       {
         "path": "ui/animation-move-events.ts",
-        "sha256": "464a1e24b9870ad393a422348130dd46d8007bd6ce272ae41b981716f8c5f4d3"
+        "sha256": "f2db7c3695672e5e6d0577391d801f363668b2a76cf164798bf4c1c607abf3e9"
       },
       {
         "path": "ui/animation-status-events.ts",
@@ -15375,22 +16120,22 @@
       },
       {
         "path": "ui/presentation-handler.ts",
-        "sha256": "0c3a0d46ff953c01d75dff1387aa815e407fe845a4a6efe576e038e3480a632e"
+        "sha256": "fb2296c9bb66f259ef54a9970c2a59bf973a74d38e78beabce999d3094bc7bba"
       },
       {
         "path": "ui/playback-engine.ts",
-        "sha256": "dd99612f980bf2cad14eb5e2fc9a96c061a5d890cb570f7f02daf4f16c9bc38c"
+        "sha256": "f13b5848dd0efebfc1c6ae2cb0c87896b24b0c5d5967cba7e43ce83b54b7e959"
       },
       {
         "path": "ui/network/presentation-timeline.ts",
-        "sha256": "fce138353d3591087294a7b2e0f519abee029169b7487a77ce51c1c9265e8955"
+        "sha256": "95ae9d615829abbc816703a9abec8f5007ed2ea3f630877ab018b31775b0eb4f"
       },
       {
         "path": "ui/network/visual-state-store.ts",
-        "sha256": "0311700501db161ab8d4e357e75c37769b6e9f5de3677c4fb76e103a3e442d24"
+        "sha256": "55c646d92153f7dd0712d188a7d7a82fd9a65aa548bbe991619719f21397e754"
       }
     ],
-    "digest": "a491f6a9a61298fe2b397353c1b64ee532f0d2cfece60719bb5f502d674df15f"
+    "digest": "a9f584aacb8bf2fcc94a89b9d0cd3c782072d42b0bce6e803e0e4d0ab1dc2132"
   },
   "selectorInventory": {
     "tokens": [
@@ -15401,24 +16146,30 @@
       "getCellEl"
     ],
     "totals": {
-      ".cell": 320,
-      ".disc": 273,
-      "renderBoardDiff": 160,
-      "forceFullRender": 35,
-      "getCellEl": 73
+      ".cell": 370,
+      ".disc": 291,
+      "renderBoardDiff": 157,
+      "forceFullRender": 22,
+      "getCellEl": 52
     },
     "byCategory": {
-      "scripts": 3,
-      "test": 55,
-      "tests": 3,
+      "scripts": 7,
+      "test": 62,
       "ui": 19
     },
     "entries": [
       {
-        "path": "scripts/browser-ui-control-smoke.ts",
+        "path": "scripts/board-source-trajectory-browser-check.ts",
         "category": "scripts",
         "tokens": {
-          "forceFullRender": 2
+          ".cell": 1
+        }
+      },
+      {
+        "path": "scripts/check-board-test-selectors.ts",
+        "category": "scripts",
+        "tokens": {
+          ".cell": 1
         }
       },
       {
@@ -15430,13 +16181,31 @@
         }
       },
       {
+        "path": "scripts/pixijs-board-browser-check.ts",
+        "category": "scripts",
+        "tokens": {
+          ".cell": 4
+        }
+      },
+      {
+        "path": "scripts/pixijs-board-playback-browser-check.ts",
+        "category": "scripts",
+        "tokens": {
+          ".cell": 1
+        }
+      },
+      {
+        "path": "scripts/pixijs-runtime-fallback-browser-check.ts",
+        "category": "scripts",
+        "tokens": {
+          ".cell": 2
+        }
+      },
+      {
         "path": "scripts/playback-board-writer-browser-check.ts",
         "category": "scripts",
         "tokens": {
-          ".cell": 7,
-          ".disc": 1,
-          "renderBoardDiff": 4,
-          "getCellEl": 1
+          ".cell": 3
         }
       },
       {
@@ -15454,29 +16223,7 @@
         }
       },
       {
-        "path": "test/browser-vite.classic-compat-loader.test.ts",
-        "category": "test",
-        "tokens": {
-          "forceFullRender": 1
-        }
-      },
-      {
-        "path": "test/browser-vite.native-app-loader.test.ts",
-        "category": "test",
-        "tokens": {
-          "forceFullRender": 1
-        }
-      },
-      {
-        "path": "test/e2e/card_effects.e2e.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 4,
-          ".disc": 3
-        }
-      },
-      {
-        "path": "test/e2e/cpu_auto_response.e2e.test.ts",
+        "path": "test/e2e/board-dom-compat.cpu-auto-response.e2e.test.ts",
         "category": "test",
         "tokens": {
           ".cell": 4,
@@ -15484,22 +16231,14 @@
         }
       },
       {
-        "path": "test/e2e/cpu_level_diff.e2e.test.ts",
+        "path": "test/e2e/board-dom-compat.cpu-level-diff.e2e.test.ts",
         "category": "test",
         "tokens": {
           ".cell": 4
         }
       },
       {
-        "path": "test/e2e/destroy-card-will-hunter-king.e2e.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 4,
-          ".disc": 4
-        }
-      },
-      {
-        "path": "test/e2e/destroy_hand_click.e2e.test.ts",
+        "path": "test/e2e/board-dom-compat.destroy-hand-click.e2e.test.ts",
         "category": "test",
         "tokens": {
           ".cell": 4,
@@ -15507,7 +16246,7 @@
         }
       },
       {
-        "path": "test/e2e/multi_turn_progression.e2e.test.ts",
+        "path": "test/e2e/board-dom-compat.multi-turn-progression.e2e.test.ts",
         "category": "test",
         "tokens": {
           ".cell": 4,
@@ -15515,41 +16254,11 @@
         }
       },
       {
-        "path": "test/e2e/network-battle-complete-smoke.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 1
-        }
-      },
-      {
-        "path": "test/e2e/network-special-stone-late-game.e2e.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 1,
-          ".disc": 2
-        }
-      },
-      {
-        "path": "test/e2e/pending-selection-cpu-handoff.e2e.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 1
-        }
-      },
-      {
-        "path": "test/e2e/reset_click.e2e.test.ts",
+        "path": "test/e2e/board-dom-compat.reset-click.e2e.test.ts",
         "category": "test",
         "tokens": {
           ".cell": 5,
           ".disc": 8
-        }
-      },
-      {
-        "path": "test/e2e/special_effects.e2e.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 2,
-          ".disc": 6
         }
       },
       {
@@ -15574,6 +16283,13 @@
         }
       },
       {
+        "path": "test/helpers/animation-engine-dom-backend.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 2
+        }
+      },
+      {
         "path": "test/network.playback-event-assembly.contract.test.ts",
         "category": "test",
         "tokens": {
@@ -15582,48 +16298,73 @@
         }
       },
       {
-        "path": "test/ui.animation-destroy-source-batching.test.ts",
+        "path": "test/scripts.check-board-test-selectors.test.ts",
         "category": "test",
         "tokens": {
+          ".cell": 2,
+          ".disc": 1,
+          "forceFullRender": 2
+        }
+      },
+      {
+        "path": "test/scripts.playback-board-writer-browser-check.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 2
+        }
+      },
+      {
+        "path": "test/ui.animation-cell-geometry-dto.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 3,
+          ".disc": 1,
           "getCellEl": 1
         }
       },
       {
-        "path": "test/ui.animation-destroy-source-events.stone-skin.test.ts",
+        "path": "test/ui.animation-destroy-source-batching.test.ts",
         "category": "test",
         "tokens": {
-          "getCellEl": 1
+          ".cell": 3
         }
       },
       {
         "path": "test/ui.animation-engine.guard-timer.test.ts",
         "category": "test",
         "tokens": {
-          ".disc": 25
+          ".cell": 1,
+          ".disc": 30
         }
       },
       {
         "path": "test/ui.animation-engine.move-variants.test.ts",
         "category": "test",
         "tokens": {
-          ".disc": 27
+          ".disc": 39
+        }
+      },
+      {
+        "path": "test/ui.animation-engine.strict-network.test.ts",
+        "category": "test",
+        "tokens": {
+          ".disc": 1
         }
       },
       {
         "path": "test/ui.animation-engine.test.ts",
         "category": "test",
         "tokens": {
-          ".cell": 4,
-          ".disc": 3,
-          "getCellEl": 2
+          ".cell": 6,
+          ".disc": 7
         }
       },
       {
         "path": "test/ui.animation-flip-events.test.ts",
         "category": "test",
         "tokens": {
-          ".cell": 7,
-          ".disc": 5,
+          ".cell": 10,
+          ".disc": 7,
           "getCellEl": 1
         }
       },
@@ -15631,22 +16372,14 @@
         "path": "test/ui.animation-special-stone-phase-batching.test.ts",
         "category": "test",
         "tokens": {
-          "getCellEl": 2
+          ".cell": 1
         }
       },
       {
         "path": "test/ui.animation-utils.hand-fallback.test.ts",
         "category": "test",
         "tokens": {
-          ".cell": 3
-        }
-      },
-      {
-        "path": "test/ui.animation-utils.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 5,
-          ".disc": 6
+          ".cell": 5
         }
       },
       {
@@ -15664,11 +16397,167 @@
         }
       },
       {
-        "path": "test/ui.board-expansion-cell-render.test.ts",
+        "path": "test/ui.board-dom-compat.backend.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 1,
+          ".disc": 1,
+          "renderBoardDiff": 1
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.destroy-playback-visual-transaction.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 2,
+          ".disc": 2,
+          "renderBoardDiff": 2,
+          "getCellEl": 3
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.expansion-cell-render.test.ts",
         "category": "test",
         "tokens": {
           ".cell": 11,
           "renderBoardDiff": 15
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.fallback-legal-hint.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 34,
+          "renderBoardDiff": 14,
+          "forceFullRender": 10
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.fate-will-legal-hints.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 5,
+          "renderBoardDiff": 5
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.isolation.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 3,
+          ".disc": 2
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.lightning-will-legal-hint.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 3,
+          "renderBoardDiff": 1
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.network-legal-hints.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 3,
+          "renderBoardDiff": 6,
+          "forceFullRender": 3
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.network-snapshot.hyperactive-source-empty.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 5,
+          ".disc": 5,
+          "renderBoardDiff": 3
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.network-snapshot.move-source-empty.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 7,
+          ".disc": 9,
+          "renderBoardDiff": 5
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.playback.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 5,
+          ".disc": 7
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.renderer-timer-patch.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 8,
+          ".disc": 8,
+          "renderBoardDiff": 8
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.renderer.destroy-fade-shadow.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 36,
+          ".disc": 4,
+          "renderBoardDiff": 38
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.renderer.flip.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 11,
+          ".disc": 10,
+          "renderBoardDiff": 17
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.stone-rendering.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 35,
+          ".disc": 42,
+          "renderBoardDiff": 15
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.suppress-double-flip.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 2,
+          ".disc": 2,
+          "renderBoardDiff": 2,
+          "forceFullRender": 2
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.taboo-legal-highlight.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 3,
+          "renderBoardDiff": 1
+        }
+      },
+      {
+        "path": "test/ui.board-dom-compat.viewer-context.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 1,
+          "renderBoardDiff": 1
+        }
+      },
+      {
+        "path": "test/ui.board-dom-source-trajectory.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 5
         }
       },
       {
@@ -15680,19 +16569,33 @@
         }
       },
       {
-        "path": "test/ui.board-renderer.fallback-legal-hint.test.ts",
+        "path": "test/ui.board-render-projection.test.ts",
         "category": "test",
         "tokens": {
-          ".cell": 31,
-          "renderBoardDiff": 15,
-          "forceFullRender": 11
+          ".cell": 8,
+          ".disc": 2,
+          "renderBoardDiff": 3
+        }
+      },
+      {
+        "path": "test/ui.board-renderer.backend-selection.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 3
+        }
+      },
+      {
+        "path": "test/ui.board-renderer.theme-font-ready.test.ts",
+        "category": "test",
+        "tokens": {
+          "renderBoardDiff": 2
         }
       },
       {
         "path": "test/ui.board-renderer.visual-state.test.ts",
         "category": "test",
         "tokens": {
-          ".disc": 2
+          ".disc": 3
         }
       },
       {
@@ -15704,59 +16607,6 @@
         }
       },
       {
-        "path": "test/ui.destroy-playback-visual-transaction.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 2,
-          ".disc": 2,
-          "renderBoardDiff": 2,
-          "getCellEl": 1
-        }
-      },
-      {
-        "path": "test/ui.diff-renderer-timer-patch.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 8,
-          ".disc": 8,
-          "renderBoardDiff": 8
-        }
-      },
-      {
-        "path": "test/ui.diff-renderer.destroy-fade-shadow.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 36,
-          ".disc": 4,
-          "renderBoardDiff": 36
-        }
-      },
-      {
-        "path": "test/ui.diff-renderer.flip.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 11,
-          ".disc": 10,
-          "renderBoardDiff": 17
-        }
-      },
-      {
-        "path": "test/ui.diff-renderer.manifest-background.test.ts",
-        "category": "test",
-        "tokens": {
-          ".disc": 2,
-          "renderBoardDiff": 1
-        }
-      },
-      {
-        "path": "test/ui.diff-renderer.viewer-context.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 1,
-          "renderBoardDiff": 1
-        }
-      },
-      {
         "path": "test/ui.disc-shadow.test.ts",
         "category": "test",
         "tokens": {
@@ -15765,21 +16615,18 @@
         }
       },
       {
-        "path": "test/ui.fate-will-legal-hints.test.ts",
+        "path": "test/ui.game-keyboard-shortcuts.test.ts",
         "category": "test",
         "tokens": {
-          ".cell": 5,
-          "renderBoardDiff": 5
+          ".cell": 1
         }
       },
       {
-        "path": "test/ui.flip.suppress-double.test.ts",
+        "path": "test/ui.global-board-effect-presenter.test.ts",
         "category": "test",
         "tokens": {
-          ".cell": 2,
-          ".disc": 2,
-          "renderBoardDiff": 2,
-          "forceFullRender": 2
+          ".cell": 1,
+          ".disc": 1
         }
       },
       {
@@ -15790,61 +16637,47 @@
         }
       },
       {
-        "path": "test/ui.lightning-will-legal-hint.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 3,
-          "renderBoardDiff": 1
-        }
-      },
-      {
-        "path": "test/ui.manifest-effect-panel.test.ts",
-        "category": "test",
-        "tokens": {
-          "renderBoardDiff": 1
-        }
-      },
-      {
-        "path": "test/ui.network-legal-hints.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 3,
-          "renderBoardDiff": 6,
-          "forceFullRender": 3
-        }
-      },
-      {
-        "path": "test/ui.network-snapshot.hyperactive-source-empty.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 5,
-          ".disc": 5,
-          "renderBoardDiff": 3
-        }
-      },
-      {
-        "path": "test/ui.network-snapshot.move-source-empty.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 7,
-          ".disc": 9,
-          "renderBoardDiff": 5
-        }
-      },
-      {
-        "path": "test/ui.rules-help-panel.test.ts",
+        "path": "test/ui.pixi-board-backend.test.ts",
         "category": "test",
         "tokens": {
           ".cell": 1
         }
       },
       {
-        "path": "test/ui.stone-rendering.test.ts",
+        "path": "test/ui.pixi-board-scene.test.ts",
         "category": "test",
         "tokens": {
-          ".cell": 35,
-          ".disc": 42,
-          "renderBoardDiff": 15
+          ".cell": 11
+        }
+      },
+      {
+        "path": "test/ui.pixi-camera.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 1
+        }
+      },
+      {
+        "path": "test/ui.presentation.manifest-background.test.ts",
+        "category": "test",
+        "tokens": {
+          ".disc": 2,
+          "renderBoardDiff": 1
+        }
+      },
+      {
+        "path": "test/ui.presentation.manifest-effect-panel.test.ts",
+        "category": "test",
+        "tokens": {
+          "renderBoardDiff": 2
+        }
+      },
+      {
+        "path": "test/ui.rules-help-panel.test.ts",
+        "category": "test",
+        "tokens": {
+          ".cell": 1,
+          ".disc": 1
         }
       },
       {
@@ -15852,14 +16685,6 @@
         "category": "test",
         "tokens": {
           ".disc": 3
-        }
-      },
-      {
-        "path": "test/ui.taboo-legal-highlight.test.ts",
-        "category": "test",
-        "tokens": {
-          ".cell": 3,
-          "renderBoardDiff": 1
         }
       },
       {
@@ -15872,27 +16697,6 @@
         }
       },
       {
-        "path": "tests/visual-regression/capture-board-fallback.js",
-        "category": "tests",
-        "tokens": {
-          "forceFullRender": 2
-        }
-      },
-      {
-        "path": "tests/visual-regression/capture-board.js",
-        "category": "tests",
-        "tokens": {
-          "forceFullRender": 2
-        }
-      },
-      {
-        "path": "tests/visual-regression/run-visual-check.js",
-        "category": "tests",
-        "tokens": {
-          "forceFullRender": 2
-        }
-      },
-      {
         "path": "ui/animation-destroy-events.ts",
         "category": "ui",
         "tokens": {
@@ -15901,34 +16705,11 @@
         }
       },
       {
-        "path": "ui/animation-destroy-source-events.ts",
-        "category": "ui",
-        "tokens": {
-          "getCellEl": 13
-        }
-      },
-      {
-        "path": "ui/animation-engine.ts",
-        "category": "ui",
-        "tokens": {
-          ".cell": 1,
-          ".disc": 6,
-          "getCellEl": 24
-        }
-      },
-      {
-        "path": "ui/animation-feedback-events.ts",
-        "category": "ui",
-        "tokens": {
-          "getCellEl": 3
-        }
-      },
-      {
         "path": "ui/animation-flip-events.ts",
         "category": "ui",
         "tokens": {
           ".disc": 1,
-          "getCellEl": 3
+          "getCellEl": 2
         }
       },
       {
@@ -15937,7 +16718,7 @@
         "tokens": {
           ".cell": 2,
           ".disc": 7,
-          "getCellEl": 7
+          "getCellEl": 6
         }
       },
       {
@@ -15965,19 +16746,51 @@
         }
       },
       {
-        "path": "ui/animation-utils.ts",
+        "path": "ui/board-dom-compat/backend.ts",
         "category": "ui",
         "tokens": {
-          ".cell": 8,
-          ".disc": 6
+          ".cell": 3,
+          "renderBoardDiff": 3
         }
       },
       {
-        "path": "ui/board-renderer.ts",
+        "path": "ui/board-dom-compat/dom-patcher.ts",
         "category": "ui",
         "tokens": {
-          "renderBoardDiff": 9,
+          ".disc": 1
+        }
+      },
+      {
+        "path": "ui/board-dom-compat/renderer.ts",
+        "category": "ui",
+        "tokens": {
+          ".cell": 2,
+          ".disc": 2,
+          "renderBoardDiff": 7,
           "forceFullRender": 5
+        }
+      },
+      {
+        "path": "ui/board-dom-compat/runtime.ts",
+        "category": "ui",
+        "tokens": {
+          ".cell": 1,
+          ".disc": 12,
+          "getCellEl": 25
+        }
+      },
+      {
+        "path": "ui/board-visual/model.ts",
+        "category": "ui",
+        "tokens": {
+          ".cell": 2
+        }
+      },
+      {
+        "path": "ui/board-visual/performance-harness.ts",
+        "category": "ui",
+        "tokens": {
+          ".cell": 1
         }
       },
       {
@@ -15986,30 +16799,6 @@
         "tokens": {
           ".cell": 1,
           ".disc": 4
-        }
-      },
-      {
-        "path": "ui/diff-renderer.ts",
-        "category": "ui",
-        "tokens": {
-          ".cell": 2,
-          ".disc": 2,
-          "renderBoardDiff": 9,
-          "forceFullRender": 4
-        }
-      },
-      {
-        "path": "ui/diff-renderer/dom-patcher.ts",
-        "category": "ui",
-        "tokens": {
-          ".disc": 1
-        }
-      },
-      {
-        "path": "ui/game-keyboard-shortcuts.ts",
-        "category": "ui",
-        "tokens": {
-          ".cell": 2
         }
       },
       {
@@ -16028,11 +16817,24 @@
         }
       },
       {
-        "path": "ui/presentation-handler.ts",
+        "path": "ui/pixi/board-backend.ts",
         "category": "ui",
         "tokens": {
-          ".cell": 1,
-          ".disc": 1
+          ".cell": 1
+        }
+      },
+      {
+        "path": "ui/pixi/board-scene.ts",
+        "category": "ui",
+        "tokens": {
+          ".cell": 3
+        }
+      },
+      {
+        "path": "ui/presentation/committed-world-state.ts",
+        "category": "ui",
+        "tokens": {
+          "renderBoardDiff": 1
         }
       },
       {
@@ -16044,7 +16846,7 @@
         }
       }
     ],
-    "digest": "0774aa008b65c23f6ad8348943280e29b28521faa345df49c71f8604d06d819d"
+    "digest": "415b25a90ea9348731f0873a3c6fe5235458c581a3f7e60e641ffcb0fb0548d2"
   },
   "verificationContracts": [
     "npm run match:playback-board-writer-check",

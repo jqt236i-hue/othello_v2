@@ -1,8 +1,8 @@
 # PixiJS playfield migration DOM baseline
 
 - Status: active pre-migration baseline
-- Commit: `07852a7bf09deed01ee3cb098b4e1c88913b52f0`
-- Captured at: 2026-07-14T17:16:40.476Z
+- Commit: `7435ad43fb35e349815958c82d11679af82f93b7`
+- Captured at: 2026-07-22T10:01:44.297Z
 - Node: v24.12.0
 - Platform: win32 x64
 - Scope: classic/Vite DOM pixels and semantic render digests, topology/client rects, playback/event settlement, network visual state, performance, and selector dependencies
@@ -11,8 +11,8 @@
 
 | lane | browser version | first board / app ready ms | captures | multi-flip p50 / p95 ms | 16x16 apply ms | fixture digest |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
-| classic | 143.0.7499.4 | 1419.8 / 1846 | 18 | 29 / 40.9 | 276.8 | `437f6e0285158f635f9a448b83eb0b370f0339eab11a5f8e5fcc99900e4df768` |
-| vite | 143.0.7499.4 | 1204.9 / 1601 | 18 | 28.4 / 43.7 | 271.9 | `437f6e0285158f635f9a448b83eb0b370f0339eab11a5f8e5fcc99900e4df768` |
+| classic | 143.0.7499.4 | 737.8 / 1021 | 19 | 21 / 23.7 | 235.7 | `d6bbd32e8511b985a7042643fc4e133d77a58b3540eb2eaefccdd394a3f01a6d` |
+| vite | 143.0.7499.4 | 626.4 / 734 | 19 | 22.6 / 30.3 | 252.2 | `d6bbd32e8511b985a7042643fc4e133d77a58b3540eb2eaefccdd394a3f01a6d` |
 
 - Classic/Vite pixel parity: PASS
 - Classic/Vite semantic parity: PASS
@@ -55,9 +55,9 @@
 
 ## Migration inventories
 
-- Presentation source digest: `a491f6a9a61298fe2b397353c1b64ee532f0d2cfece60719bb5f502d674df15f`
-- DOM selector dependency digest: `0774aa008b65c23f6ad8348943280e29b28521faa345df49c71f8604d06d819d`
-- Files with selector dependencies: 80
+- Presentation source digest: `a9f584aacb8bf2fcc94a89b9d0cd3c782072d42b0bce6e803e0e4d0ab1dc2132`
+- DOM selector dependency digest: `415b25a90ea9348731f0873a3c6fe5235458c581a3f7e60e641ffcb0fb0548d2`
+- Files with selector dependencies: 88
 
 ## Reproduction
 

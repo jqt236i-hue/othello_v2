@@ -165,8 +165,14 @@ describe('Pixi static board browser check', () => {
       'circle-10-hole-pseudo-edge',
       'rectangle-8x8-multistage-negative',
       'presentation-custom-skins',
-      'presentation-special-timer-badge'
+      'presentation-special-timer-badge',
+      'presentation-breeding-expansion'
     ]));
+    expect(Check.BROWSER_FIXTURES.find((fixture: any) => fixture.name === 'presentation-breeding-expansion'))
+      .toMatchObject({
+        expansionCells: [{ row: 3, col: 8, side: 'right', owner: 1 }],
+        breedingSproutByOwner: { black: [{ row: 3, col: 8 }], white: [] }
+      });
     expect(Check.evaluatePixijsBoardLaneReport(goodReport())).toEqual({ ok: true, errors: [] });
   });
 
@@ -220,6 +226,22 @@ describe('Pixi static board browser check', () => {
       skinMatch: true
     };
     expect(Check.evaluatePixijsBoardLaneReport(expansionReport)).toEqual({ ok: true, errors: [] });
+
+    const presentationExpansionReport = goodReport();
+    const presentationExpansion = presentationExpansionReport.fixtures.find((fixture: any) => (
+      fixture.fixture === 'presentation-breeding-expansion'
+    ));
+    presentationExpansion.phaseZeroComparison = {
+      dimensionMatch: false,
+      diffPixels: Number.POSITIVE_INFINITY
+    };
+    presentationExpansion.phaseZeroGeometrySkinComparison = expansion.phaseZeroGeometrySkinComparison;
+    presentationExpansion.phaseZeroFrameComparison = {
+      dimensionMatch: false,
+      diffPixels: Number.POSITIVE_INFINITY
+    };
+    expect(Check.evaluatePixijsBoardLaneReport(presentationExpansionReport))
+      .toEqual({ ok: true, errors: [] });
 
     const ordinaryReport = goodReport();
     ordinaryReport.fixtures[0].phaseZeroComparison = {
