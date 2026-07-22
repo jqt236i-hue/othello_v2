@@ -49,6 +49,11 @@ function createCardLogicStub() {
   const fixed: Record<string, any> = {
     applyDestroyEffectDetailed: () => ({ destroyed: true, kind: 'destroyed' }),
     applyDestroyEffect: () => true,
+    applySwapEffectDetailed: () => ({
+      swapped: true,
+      flipped: [],
+      postFlipRevives: { regenRes: null, livingWillRes: null }
+    }),
     applySwapEffect: () => true,
     applyTrapWill: () => applied(),
     applyHeavenBlessingChoice: () => applied(),

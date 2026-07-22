@@ -19,7 +19,7 @@ describe('Vite comparison entry generator', () => {
     const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
     expect(packageJson.scripts.dev).toBe('npm run dev:vite --');
     expect(packageJson.scripts['dev:vite']).toBe(
-      'npm run build:vite && node scripts/serve-with-fallback.js --host 127.0.0.1 --port 5174'
+      'npm run build:vite && node scripts/serve-with-fallback.js --host 0.0.0.0 --port 5174'
     );
   });
 

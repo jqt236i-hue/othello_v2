@@ -7,6 +7,7 @@ describe('cpu-decision public api', () => {
     expect(Object.keys(cpuDecision).sort()).toEqual([
       'applyCardChoice',
       'applyHandCardDestroy',
+      'buildCardQuiescenceSnapshotFromBestMove',
       'buildCardUseDecisionContext',
       'buildOnnxContext',
       'computeCpuAction',
@@ -47,7 +48,10 @@ describe('cpu-decision public api', () => {
       'hasPlanPressureProfileForCardType',
       'isCardChoiceAllowedByHighConfidence',
       'isCardChoiceAllowedByRisk',
+      'prepareCardQuiescenceRequest',
       'prepareCpuCandidateScoringRequest',
+      'prepareCpuPlacementLookaheadRequest',
+      'prepareCpuTurnCardUsabilityAnalysis',
       'selectCardToUse',
       'selectCpuMoveWithPolicy',
       'selectHandCardToDestroy',
@@ -55,7 +59,8 @@ describe('cpu-decision public api', () => {
       'setCpuDecisionRuntime',
       'setCpuExecutionMode',
       'setCpuRng',
-      'setCpuTimerService'
+      'setCpuTimerService',
+      'shouldBuildCardQuiescenceSnapshot'
     ].sort());
   });
 });

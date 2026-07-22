@@ -299,11 +299,19 @@ describe('UI stone rendering', () => {
   test('countdown timer css uses a red triangle marker', () => {
     const css = fs.readFileSync(path.resolve(__dirname, '../styles-board-dom-compat.css'), 'utf8')
       .replace(/\[data-board-renderer="dom"\]\s+/g, '');
-    const countdownRule = css.match(/\.bomb-timer,\s*\.countdown-timer\s*\{[\s\S]*?\n\}/);
+    const selectorIndex = css.indexOf('.rules-help-counter-demo .countdown-timer');
+    const blockStart = css.indexOf('{', selectorIndex);
+    const blockEnd = css.indexOf('}', blockStart);
+    const selectorStart = css.lastIndexOf('}', selectorIndex) + 1;
+    const countdownRule = selectorIndex >= 0 && blockStart >= 0 && blockEnd >= 0
+      ? css.slice(selectorStart, blockEnd + 1)
+      : null;
 
     assert.ok(countdownRule, 'expected countdown timer CSS rule');
-    assert.match(countdownRule[0], /clip-path:\s*polygon\(50% 0%, 100% 100%, 0% 100%\)/);
-    assert.match(countdownRule[0], /rgba\(172,\s*28,\s*28,\s*0\.88\)/);
+    assert.match(countdownRule, /\.bomb-timer/);
+    assert.match(countdownRule, /\.countdown-timer/);
+    assert.match(countdownRule, /clip-path:\s*polygon\(50% 0%, 100% 100%, 0% 100%\)/);
+    assert.match(countdownRule, /rgba\(172,\s*28,\s*28,\s*0\.88\)/);
   });
 
   test('diff-renderer keeps living will aura as an overlay on normal and special stones', () => {

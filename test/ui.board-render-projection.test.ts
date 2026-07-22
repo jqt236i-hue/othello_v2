@@ -104,6 +104,43 @@ describe('per-render board projection', () => {
     });
   });
 
+  test('projects breeding sprouts on occupied expansion cells with matching ownership only', () => {
+    (global as any).gameState.boardExpansion = {
+      active: true,
+      side: 'top',
+      row: -1,
+      owner: 1,
+      cells: [
+        { row: -1, col: 3, side: 'top', owner: 1 },
+        { row: -1, col: 4, side: 'top', owner: -1 }
+      ]
+    };
+    (global as any).cardState.breedingSproutByOwner = {
+      black: [{ row: -1, col: 3 }, { row: -1, col: 4 }, { row: -2, col: 3 }],
+      white: []
+    };
+    const diff = require('../ui/board-dom-compat/renderer');
+    const inputs = diff.createBoardRenderInputs();
+    const projection = diff.createBoardRenderProjection(undefined, inputs);
+    const state = diff.buildCurrentCellState(projection, inputs);
+    const model = diff.buildBoardRenderModel(projection, state, {
+      visualRevision: 1,
+      overlay: inputs.presentationOverlayState,
+      inputs
+    });
+
+    expect(state._expansionCells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: 3, value: 1, breedingSprout: true }),
+      expect.objectContaining({ row: -1, col: 4, value: -1, breedingSprout: false })
+    ]));
+    expect(model.cells.find((cell: any) => cell.key === '-1,3').markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'breeding-sprout' })
+    ]));
+    expect(model.cells.find((cell: any) => cell.key === '-1,4').markers).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'breeding-sprout' })
+    ]));
+  });
+
   test('builds one immutable sparse semantic model from explicit render inputs', () => {
     const diff = require('../ui/board-dom-compat/renderer');
     const inputs = diff.createBoardRenderInputs({ hoveredCellKey: '2,3', keyboardCursorKey: '2,3' });

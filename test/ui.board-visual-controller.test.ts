@@ -102,6 +102,36 @@ describe('BoardVisualController', () => {
     expect(controller.getSettledFrame()).toBe(duplicate);
   });
 
+  test('reapplies an equivalent idle frame once after backend invalidation', async () => {
+    const invalidate = jest.fn();
+    const { backend } = createBackend({ invalidate });
+    const controller = ControllerModule.createBoardVisualController({ backend });
+    await controller.mount({} as HTMLElement);
+    const first = {
+      ...diagnosticFrame('idle:invalidated-1', 4),
+      renderSessionId: 'board-render-session:1'
+    } as any;
+    const duplicate = {
+      ...diagnosticFrame('idle:invalidated-2', 4),
+      renderSessionId: 'board-render-session:1'
+    } as any;
+
+    controller.submitFrame(first);
+    await controller.waitForIdle();
+    controller.invalidate();
+    controller.submitFrame(duplicate);
+    await controller.waitForIdle();
+    controller.submitFrame({
+      ...diagnosticFrame('idle:invalidated-3', 4),
+      renderSessionId: 'board-render-session:1'
+    } as any);
+    await controller.waitForIdle();
+
+    expect(invalidate).toHaveBeenCalledTimes(1);
+    expect(backend.applyFrame).toHaveBeenCalledTimes(2);
+    expect(controller.getSettledFrame()?.frameToken).toBe('idle:invalidated-3');
+  });
+
   test('does not skip an idle frame when a visual channel revision or render session changes', async () => {
     const { backend } = createBackend();
     const controller = ControllerModule.createBoardVisualController({ backend });

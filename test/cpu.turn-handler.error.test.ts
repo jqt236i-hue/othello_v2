@@ -12,6 +12,7 @@ describe('cpu-turn-handler error recovery', () => {
     global.gameState = {
       currentPlayer: global.WHITE,
       turnNumber: 4,
+      stateVersion: 1,
       board: Array.from({ length: 8 }, () => Array(8).fill(0))
     };
     global.cardState = {

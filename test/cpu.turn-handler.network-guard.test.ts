@@ -37,7 +37,7 @@ describe('cpu turn handler network guard', () => {
     global.cardState = {
       hasUsedCardThisTurnByPlayer: { white: false, black: false },
       pendingEffectByPlayer: { white: null, black: null },
-      hands: { white: [], black: [] }
+      hands: { white: ['card_a'], black: [] }
     };
     global.gameState = { currentPlayer: 'white', turnNumber: 12 };
     global.BLACK = 1;
@@ -54,6 +54,17 @@ describe('cpu turn handler network guard', () => {
       global.cardState.hasUsedCardThisTurnByPlayer.white = true;
       return true;
     });
+    global.prepareCpuTurnCardUsabilityAnalysis = jest.fn(() => ({
+      trapPrepared: false,
+      trapId: null,
+      cardPolicyLevel: 6,
+      cardUsability: {
+        usableCardIds: ['card_a'],
+        usableCardTypes: ['TEST_CARD'],
+        selectorEvidence: {},
+        usableSlots: [{ cardId: 'card_a', handIndex: 0 }]
+      }
+    }));
   });
 
   afterEach(() => {
@@ -73,6 +84,7 @@ describe('cpu turn handler network guard', () => {
     delete global.playHandAnimation;
     delete global.executeMove;
     delete global.cpuMaybeUseCardWithPolicy;
+    delete global.prepareCpuTurnCardUsabilityAnalysis;
     delete global.window;
   });
 
@@ -107,6 +119,7 @@ describe('cpu turn handler network guard', () => {
       readMatchMode: () => 'cpu',
       readHumanVsHumanMode: () => false
     });
+    global.cpuMaybeUseCardWithPolicy.mockImplementation(() => false);
 
     await cpuHandler.runCpuTurn('white');
 

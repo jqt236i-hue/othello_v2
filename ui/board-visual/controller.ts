@@ -198,6 +198,7 @@ function createBoardVisualController(options: {
   let idleFrameSettlement: IdleFrameSettlement | null = null;
   let pendingEquivalentIdleFrame: BoardVisualFrame | null = null;
   let idleFrameSettlementVersion = 0;
+  let backendInvalidated = false;
   const hostLeaseOwner = Object.freeze({});
   const idleWaiters = new Set<IdleWaiter>();
   const settlingIdleWaiters = new Set<IdleWaiter>();
@@ -517,6 +518,7 @@ function createBoardVisualController(options: {
     try {
       if (presentation.presentedFrame === frame) backend.applyFrame(frame);
       else (backend.applyFrame as any)(frame, presentation.presentedFrame);
+      backendInvalidated = false;
     } catch (error) {
       rollbackPresentation(presentation);
       throw error;
@@ -545,6 +547,7 @@ function createBoardVisualController(options: {
       assertLifecycleCurrent(epoch);
       await waitForBackendVisualSettlement(frame);
       assertLifecycleCurrent(epoch);
+      backendInvalidated = false;
       return presentation;
     } catch (error) {
       rollbackPresentation(presentation);
@@ -1110,9 +1113,9 @@ function createBoardVisualController(options: {
       }
       if (mode === 'idle') {
         try {
-          if (queueEquivalentIdleFrameDuringSettlement(frame)) return true;
+          if (!backendInvalidated && queueEquivalentIdleFrameDuringSettlement(frame)) return true;
           pendingEquivalentIdleFrame = null;
-          if (commitEquivalentIdleFrame(frame)) return true;
+          if (!backendInvalidated && commitEquivalentIdleFrame(frame)) return true;
           const presentation = apply(frame);
           if (!presentation) return false;
           trackIdleFrameSettlement(frame, presentation);
@@ -1674,6 +1677,8 @@ function createBoardVisualController(options: {
     invalidate() {
       const candidate = backend as any;
       if (typeof candidate.invalidate === 'function') candidate.invalidate();
+      backendInvalidated = true;
+      diagnostics.record('backend:invalidated');
     },
     getSnapshot() {
       return Object.freeze({

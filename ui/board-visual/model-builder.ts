@@ -204,6 +204,21 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
     const isTabooReversePending = !!(pending && pending.type === 'TABOO_REVERSE_WILL');
     const isHumanTurn = renderProjection.isHumanTurn;
     const expansions = renderProjection.expansions;
+    const expansionOwnerByKey = new Map<string, any>();
+    for (const expansion of expansions) {
+        if (!expansion || !Number.isInteger(expansion.row) || !Number.isInteger(expansion.col)) continue;
+        expansionOwnerByKey.set(`${expansion.row},${expansion.col}`, expansion.owner);
+    }
+    const getBoardValueAt = (row: number, col: number) => {
+        if (
+            row >= 0 && row < boardShape.rows
+            && col >= 0 && col < boardShape.cols
+            && Array.isArray(gameState.board[row])
+        ) {
+            return gameState.board[row][col];
+        }
+        return expansionOwnerByKey.get(`${row},${col}`);
+    };
     const hintProjection = renderProjection.hintProjection || {};
     const selectableTargetSet = hintProjection.selectableTargetSet instanceof Set ? hintProjection.selectableTargetSet : new Set();
     const isExtendLifeSelection = !!(
@@ -412,8 +427,7 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
             if (!Array.isArray(positions)) return;
             for (const p of positions) {
                 if (!p || !Number.isInteger(p.row) || !Number.isInteger(p.col)) continue;
-                if (p.row < 0 || p.row >= boardShape.rows || p.col < 0 || p.col >= boardShape.cols) continue;
-                if (gameState.board[p.row][p.col] !== ownerVal) continue;
+                if (getBoardValueAt(p.row, p.col) !== ownerVal) continue;
                 sproutMap.set(`${p.row},${p.col}`, true);
             }
         };
@@ -596,7 +610,7 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
             isSuperAttractionPreviewDestination,
             isSelectableFriendly,
             isExtendLifeTarget,
-            breedingSprout: false,
+            breedingSprout: expVal !== EMPTY && sproutMap.has(expKey),
             boardBonus: null,
             theoryNumberCell: false,
             frozen: frozen ? {

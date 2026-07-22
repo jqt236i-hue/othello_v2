@@ -17,7 +17,7 @@ describe('computeCpuAction', () => {
     expect(action.move).toEqual({ row: 2, col: 3, flips: [] });
   });
 
-  test('returns useCard when no moves and AISystem suggests a card', () => {
+  test('returns pass when an AI suggestion is not a currently usable card', () => {
     global.gameState = {};
     global.cardState = { hands: { white: ['test_card'] }, pendingEffectByPlayer: { white: null }, hasUsedCardThisTurnByPlayer: { white: false } };
     global.getLegalMoves = () => [];
@@ -25,12 +25,11 @@ describe('computeCpuAction', () => {
     global.AISystem = {
       selectCardToUse: () => ({ cardId: 'test_card', cardDef: { name: 'Test' } })
     };
+    global.CardLogic = undefined;
     global.cpuSmartness = { white: 1, black: 1 };
 
     const action = cpuDecision.computeCpuAction('white');
-    expect(action).toBeDefined();
-    expect(action.type).toBe('useCard');
-    expect(action.cardId).toBe('test_card');
+    expect(action).toEqual({ type: 'pass' });
   });
 
   test('returns pass when no moves and no card suggested', () => {

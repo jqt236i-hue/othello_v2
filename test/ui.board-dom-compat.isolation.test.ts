@@ -9,7 +9,7 @@ describe('DOM board compatibility isolation', () => {
     const entry = read('entry-browser.js');
     const animationEngine = read('ui/animation-engine.ts');
     const renderer = read('ui/board-renderer.ts');
-    const fallbackStart = renderer.indexOf('function _createDomBoardVisualBackendForBoardRenderer()');
+    const fallbackStart = renderer.indexOf('async function _ensureDomBoardVisualBackendModulesForBoardRenderer()');
     const fallbackEnd = renderer.indexOf('function _playPixiBoardExpansionRevealSoundForBoardRenderer', fallbackStart);
     const fallbackFactory = renderer.slice(fallbackStart, fallbackEnd);
     const defaultGraph = renderer.slice(0, fallbackStart) + renderer.slice(fallbackEnd);
@@ -21,6 +21,8 @@ describe('DOM board compatibility isolation', () => {
     expect(animationEngine).not.toContain('zombie_bite_source_animation');
     expect(fallbackFactory).toContain("_require('./board-dom-compat/renderer')");
     expect(fallbackFactory).toContain("_require('./board-dom-compat/backend')");
+    expect(fallbackFactory).toContain('__CARD_REVERSI_LOAD_VITE_BOARD_PAYLOAD__');
+    expect(fallbackFactory).toContain("loadPayload.call(root, 'compatibility')");
   });
 
   test('static HTML has no compatibility expansion layer and loads the scoped stylesheet', () => {
