@@ -841,6 +841,7 @@ function frameInteractionRevisionSignature(
 
 function resetRetainedViews(views: RetainedCellViews): void {
   for (const target of [
+    views.hint.surfaceRoot,
     views.hint.root,
     views.hint.interactionRoot
   ]) {
@@ -2158,6 +2159,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   function applyTopologyRevealAlpha(key: string, views: RetainedCellViews): void {
     const alpha = topologyRevealAlphaForKey(key);
     for (const target of [
+      views.hint.surfaceRoot,
       views.hint.root,
       views.hint.interactionRoot
     ]) {
@@ -2287,6 +2289,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   }
 
   function attachViews(views: RetainedCellViews): void {
+    addPixiChild(layers.cell, views.hint.surfaceRoot);
     addPixiChild(layers.hint, views.hint.root);
     addPixiChild(layers.interaction, views.hint.interactionRoot);
   }

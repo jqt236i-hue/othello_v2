@@ -483,6 +483,46 @@ describe('Pixi static retained views', () => {
     expect(hintView.interactionRoot.hitArea.contains(32, 16)).toBe(false);
   });
 
+  test('keeps selectable-stone surface tint behind the stone while retaining foreground cues', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 8, baseCols: 8 });
+    const cells = topology.existingKeys.map((key) => makeCell(key));
+    const target = cells.find((cell) => cell.key === '2,2')!;
+    target.stone = { owner: 'black', value: 1, specialType: null, status: {} };
+    target.interaction = {
+      ...target.interaction,
+      selectable: true,
+      hovered: true,
+      selectionKinds: ['friendly']
+    };
+
+    scene.applyFrame(makeFrame({ topology, cells }));
+    const targetPosition = scene.getRenderedCell(2, 2)!.position;
+
+    const surface = scene.layers.cell.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-cell-hint-surface'
+      && child.position.x === targetPosition.x
+      && child.position.y === targetPosition.y
+    )) as FakeGraphics;
+    const foreground = scene.layers.hint.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-hint-view'
+      && child.position.x === targetPosition.x
+      && child.position.y === targetPosition.y
+    )) as FakeGraphics;
+    expect(surface.commands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#0e7e6f' }) })
+    ]));
+    expect(scene.layers.stone.children).toHaveLength(1);
+    expect(scene.root.children.indexOf(scene.layers.cell)).toBeLessThan(
+      scene.root.children.indexOf(scene.layers.stone)
+    );
+    expect(scene.root.children.indexOf(scene.layers.stone)).toBeLessThan(
+      scene.root.children.indexOf(scene.layers.hint)
+    );
+    expect(foreground.commands.some((command) => command.op === 'fill')).toBe(false);
+  });
+
   test('removes Pixi cell hit ownership for holes and reset views', () => {
     const fixture = createFakeRuntime();
     const hintView = HintView.createPixiHintView(fixture.runtime);
@@ -1624,18 +1664,20 @@ describe('Pixi board scene playback projection', () => {
       activePlaybackHighlightLeaseCount: 2,
       renderedPlaybackHighlightCount: 1
     });
-    expect(scene.layers.cell.children).toHaveLength(1);
+    const renderedHighlight = scene.layers.cell.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-playback-cell-highlight'
+    )) as FakeGraphics;
     expect(scene.layers.stone.children).toHaveLength(1);
     expect(scene.root.children.indexOf(scene.layers.cell)).toBeLessThan(
       scene.root.children.indexOf(scene.layers.stone)
     );
     expect(scene.layers.effect.children).toHaveLength(0);
-    expect((scene.layers.cell.children[0] as FakeGraphics).commands).toEqual(expect.arrayContaining([
+    expect(renderedHighlight.commands).toEqual(expect.arrayContaining([
       expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#66a4ff' }) })
     ]));
 
     scene.releasePlaybackCellHighlight(scope, placement);
-    expect((scene.layers.cell.children[0] as FakeGraphics).commands).toEqual(expect.arrayContaining([
+    expect(renderedHighlight.commands).toEqual(expect.arrayContaining([
       expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#b466ff' }) })
     ]));
     expect(scene.getDiagnostics()).toMatchObject({
@@ -1644,7 +1686,9 @@ describe('Pixi board scene playback projection', () => {
     });
 
     scene.releasePlaybackCellHighlight(scope, positive);
-    expect(scene.layers.cell.children).toHaveLength(0);
+    expect(scene.layers.cell.children.some((child: FakeDisplayObject) => (
+      child.label === 'pixi-playback-cell-highlight'
+    ))).toBe(false);
     expect(scene.getDiagnostics()).toMatchObject({
       activePlaybackHighlightLeaseCount: 0,
       renderedPlaybackHighlightCount: 0,
@@ -1653,7 +1697,9 @@ describe('Pixi board scene playback projection', () => {
 
     scene.acquirePlaybackCellHighlight(scope, 2, 2, 'negative');
     scene.applyFrame(frame);
-    expect(scene.layers.cell.children).toHaveLength(0);
+    expect(scene.layers.cell.children.some((child: FakeDisplayObject) => (
+      child.label === 'pixi-playback-cell-highlight'
+    ))).toBe(false);
     expect(scene.getDiagnostics()).toMatchObject({
       playbackScopeKey: null,
       activePlaybackHighlightLeaseCount: 0,
@@ -1677,7 +1723,9 @@ describe('Pixi board scene playback projection', () => {
       renderedPlaybackHighlightCount: 0,
       pooledPlaybackHighlightCount: 0
     });
-    expect(scene.layers.cell.children).toHaveLength(0);
+    expect(scene.layers.cell.children.some((child: FakeDisplayObject) => (
+      child.label === 'pixi-playback-cell-highlight'
+    ))).toBe(false);
 
     scene.applyFrame(makeFrame({
       topology,
@@ -1689,7 +1737,9 @@ describe('Pixi board scene playback projection', () => {
       renderedPlaybackHighlightCount: 1,
       pooledPlaybackHighlightCount: 0
     });
-    expect(scene.layers.cell.children).toHaveLength(1);
+    expect(scene.layers.cell.children.some((child: FakeDisplayObject) => (
+      child.label === 'pixi-playback-cell-highlight'
+    ))).toBe(true);
 
     scene.applyFrame(firstFrame, { preservePlaybackProjection: true });
     expect(scene.getDiagnostics()).toMatchObject({
@@ -1697,7 +1747,9 @@ describe('Pixi board scene playback projection', () => {
       renderedPlaybackHighlightCount: 0,
       pooledPlaybackHighlightCount: 1
     });
-    expect(scene.layers.cell.children).toHaveLength(0);
+    expect(scene.layers.cell.children.some((child: FakeDisplayObject) => (
+      child.label === 'pixi-playback-cell-highlight'
+    ))).toBe(false);
 
     scene.releasePlaybackCellHighlight(scope, handle);
     expect(scene.getDiagnostics()).toMatchObject({
@@ -1814,6 +1866,7 @@ describe('Pixi board scene playback projection', () => {
     expect(staticPatch).toBeTruthy();
     expect(staticPatch.alpha).toBeCloseTo(0.35);
     const expectedRoots = [
+      ['cell', 'pixi-cell-hint-surface'],
       ['hint', 'pixi-hint-view'],
       ['interaction', 'pixi-interaction-hit-area']
     ] as const;
