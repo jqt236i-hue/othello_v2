@@ -659,6 +659,122 @@ describe('Card effects E2E', () => {
     await page.close();
   }, 60000);
 
+  test('盤面拡張神は1角目選択後に使用ボタンから3マス拡張を確定できる', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await openPixiDebugLane(page, serverPort, true);
+    await closeSidePanelIfPresent(page);
+    await page.waitForFunction(() => !!(
+      window.gameState
+      && window.cardState
+      && typeof window.renderBoard === 'function'
+      && typeof window.updateCardDetailPanel === 'function'
+      && typeof window.handleCellClick === 'function'
+    ), { timeout: 15000 });
+
+    await page.evaluate(() => {
+      window.DEBUG_UNLIMITED_USAGE = true;
+      window.DEBUG_HUMAN_VS_HUMAN = true;
+      window.MATCH_MODE = 'cpu';
+      window.LOCAL_PLAYER_KEY = 'black';
+      for (const key of ['__uiImpl_turn_manager', '__uiImpl_move_executor', '__uiImpl']) {
+        window[key] = window[key] || {};
+        window[key].DEBUG_UNLIMITED_USAGE = true;
+        window[key].DEBUG_HUMAN_VS_HUMAN = true;
+        window[key].MATCH_MODE = 'cpu';
+      }
+      window.gameState.currentPlayer = 1;
+      window.gameState.boardExpansion = {
+        active: false,
+        side: null,
+        row: null,
+        owner: 0,
+        usedByPlayer: { black: false, white: false },
+        cells: []
+      };
+      window.cardState.selectedCardId = null;
+      window.cardState.pendingEffectByPlayer = {
+        black: {
+          type: 'BOARD_EXPANSION_GOD',
+          stage: 'selectTarget',
+          cardId: 'board_expand_god_01',
+          selectedCount: 0,
+          maxSelections: 2,
+          selectedTargets: []
+        },
+        white: null
+      };
+      window.cardState.hasUsedCardThisTurnByPlayer = { black: true, white: false };
+      window.cardState.lastUsedCardByPlayer = { black: 'board_expand_god_01', white: null };
+      window.isProcessing = false;
+      window.isCardAnimating = false;
+      window.VisualPlaybackActive = false;
+      window.renderBoard();
+      window.updateCardDetailPanel();
+    });
+    await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
+
+    const upperLeftButton = page.locator('.board-accessibility-direction-button[data-cell-key="0,0"][data-direction="up-left"]');
+    expect(await upperLeftButton.count()).toBe(1);
+    await upperLeftButton.click();
+    await page.waitForFunction(() => {
+      const pending = window.cardState.pendingEffectByPlayer.black;
+      const useButton = document.getElementById('use-card-btn');
+      return pending
+        && Array.isArray(pending.selectedTargets)
+        && pending.selectedTargets.length === 1
+        && useButton
+        && useButton.textContent === '1角で確定'
+        && useButton.disabled === false;
+    }, null, { timeout: 10000 });
+
+    await page.evaluate(() => {
+      const useButton = document.getElementById('use-card-btn');
+      if (!useButton) throw new Error('1角で確定ボタンが見つかりません');
+      useButton.click();
+    });
+    await page.waitForFunction(() => {
+      const cells = window.gameState && window.gameState.boardExpansion && window.gameState.boardExpansion.cells;
+      return window.cardState.pendingEffectByPlayer.black === null
+        && Array.isArray(cells)
+        && cells.length === 3;
+    }, null, { timeout: 10000 });
+    await page.evaluate(async () => window.__boardVisualDebug.waitForIdle());
+
+    const result = await page.evaluate(() => ({
+      pending: window.cardState.pendingEffectByPlayer.black,
+      cells: window.gameState.boardExpansion.cells,
+      renderedCells: [
+        window.__boardVisualDebug.getRenderedCell(-1, -1),
+        window.__boardVisualDebug.getRenderedCell(-1, 0),
+        window.__boardVisualDebug.getRenderedCell(0, -1)
+      ],
+      backendDiagnostics: window.__boardVisualDebug.getBackendDiagnostics()
+    }));
+
+    expect(result.pending).toBeNull();
+    expect(result.cells).toHaveLength(3);
+    expect(result.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: -1 }),
+      expect.objectContaining({ row: -1, col: 0 }),
+      expect.objectContaining({ row: 0, col: -1 })
+    ]));
+    expect(result.renderedCells).toEqual([
+      expect.objectContaining({ key: '-1,-1', kind: 'playable' }),
+      expect.objectContaining({ key: '-1,0', kind: 'playable' }),
+      expect.objectContaining({ key: '0,-1', kind: 'playable' })
+    ]);
+    expect(result.backendDiagnostics).toEqual(expect.objectContaining({
+      domCellCount: 0,
+      playback: expect.objectContaining({ inFlightEffectCount: 0 }),
+      timeline: expect.objectContaining({ state: 'idle' })
+    }));
+
+    const confirmedScreenshot = await page.screenshot();
+    expect(confirmedScreenshot.byteLength).toBeGreaterThan(1000);
+
+    await page.close();
+  }, 60000);
+
   test('盤面拡張神の6マス同時追加後も通常8x8の画像フレームを保持する', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     await openPixiDebugLane(page, serverPort, true);

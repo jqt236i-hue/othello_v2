@@ -89,6 +89,7 @@ describe('card use source element selection', () => {
     delete global.document;
     delete global.renderBoard;
     delete global.requestCardUiSync;
+    delete global.handleBoardExpansionSelection;
   });
 
   test('prefers owner hand element when same card id exists in both hands', () => {
@@ -1105,6 +1106,34 @@ describe('card use source element selection', () => {
 
     expect(document.getElementById('use-card-reason').textContent).toBe(expectedReason);
     expect(document.getElementById('cancel-card-btn').style.display).toBe(expectedCancelDisplay);
+  });
+
+  test('盤面拡張神の1角目選択後は使用ボタンから3マス拡張を確定できる', () => {
+    global.handleBoardExpansionSelection = jest.fn(() => Promise.resolve({ ok: true }));
+    require('../cards/card-interaction.js');
+
+    global.cardState.selectedCardId = null;
+    global.cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_expand_god_01',
+      selectedCount: 1,
+      maxSelections: 2,
+      selectedTargets: [{ row: 0, col: 7, directionKey: 'up-right' }]
+    };
+
+    window.updateCardDetailPanel();
+
+    const useButton = document.getElementById('use-card-btn') as HTMLButtonElement;
+    expect(useButton.disabled).toBe(false);
+    expect(useButton.textContent).toBe('1角で確定');
+    expect(document.getElementById('use-card-reason').textContent)
+      .toBe('盤面拡張神: もう1角を選ぶか、「1角で確定」を押してください');
+
+    window.useSelectedCard();
+
+    expect(global.handleBoardExpansionSelection).toHaveBeenCalledWith(0, 7, 'black', 'up-right');
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
   });
 
   test('updateCardDetailPanel keeps SEED_WILL cancellable when pending-state-manager fallback is used', () => {

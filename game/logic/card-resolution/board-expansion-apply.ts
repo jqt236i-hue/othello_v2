@@ -122,28 +122,40 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
         return { applied: false, reason: 'not_pending' };
     }
 
-    const targets = getBoardExpansionGodTargets(cardState, gameState, playerKey);
-    const selectedTarget = resolveExpansionTarget(targets, row, col, directionKey);
+    const selectedTargets = getBoardExpansionGodPendingSelectionsForCard(pending);
+    const confirmedTarget = selectedTargets.length === 1
+        ? resolveExpansionTarget(selectedTargets, row, col, directionKey)
+        : null;
+    const targets = confirmedTarget
+        ? []
+        : getBoardExpansionGodTargets(cardState, gameState, playerKey);
+    const selectedTarget = confirmedTarget || resolveExpansionTarget(targets, row, col, directionKey);
     if (!selectedTarget) return { applied: false, reason: 'invalid_target' };
 
-    const maxSelections = getBoardExpansionGodRequiredSelectionCount(cardState, gameState, playerKey);
+    const maxSelections = confirmedTarget
+        ? selectedTargets.length
+        : getBoardExpansionGodRequiredSelectionCount(cardState, gameState, playerKey);
     if (maxSelections <= 0) return { applied: false, reason: 'invalid_target' };
-    const selectedTargets = getBoardExpansionGodPendingSelectionsForCard(pending);
-    const nextSelections = selectedTargets.concat(copyExpansionTarget(selectedTarget));
+    const nextSelections = confirmedTarget
+        ? selectedTargets.map(copyExpansionTarget)
+        : selectedTargets.concat(copyExpansionTarget(selectedTarget));
 
     if (nextSelections.length < maxSelections) {
         pending.selectedTargets = nextSelections;
         pending.selectedCount = pending.selectedTargets.length;
         pending.maxSelections = maxSelections;
-        return {
-            applied: true,
-            completed: false,
-            selectedCount: pending.selectedCount,
-            maxSelections,
-            remainingSelections: maxSelections - pending.selectedCount,
-            target: copyExpansionTarget(selectedTarget),
-            selectedTargets: pending.selectedTargets.map(copyExpansionTarget)
-        };
+        const remainingTargets = getBoardExpansionGodTargets(cardState, gameState, playerKey);
+        if (remainingTargets.length > 0) {
+            return {
+                applied: true,
+                completed: false,
+                selectedCount: pending.selectedCount,
+                maxSelections,
+                remainingSelections: maxSelections - pending.selectedCount,
+                target: copyExpansionTarget(selectedTarget),
+                selectedTargets: pending.selectedTargets.map(copyExpansionTarget)
+            };
+        }
     }
 
     const currentSocketTargets = getBoardExpansionGodSocketTargets(cardState, gameState);

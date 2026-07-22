@@ -803,6 +803,40 @@ describe('worker pendingEffectId contract', () => {
     ]));
   });
 
+  test('board expansion god selected corner confirmation adds three authoritative cells', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'board_expand_god_01',
+      pendingType: 'BOARD_EXPANSION_GOD',
+      actionKey: 'expansionTarget',
+      target: { row: 0, col: 7, directionKey: 'up-right' },
+      pendingExtra: {
+        selectedCount: 1,
+        maxSelections: 2,
+        selectedTargets: [{ row: 0, col: 7, directionKey: 'up-right' }]
+      }
+    });
+
+    const expansion = result.internalSnapshot.gameState.boardExpansion;
+    const cells = Array.isArray(expansion && expansion.cells) ? expansion.cells : [];
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(expansion.usedByPlayer).toEqual(expect.objectContaining({ black: true }));
+    expect(cells).toHaveLength(3);
+    expect(cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: 7, owner: 0 }),
+      expect.objectContaining({ row: -1, col: 8, owner: 0 }),
+      expect.objectContaining({ row: 0, col: 8, owner: 0 })
+    ]));
+    expect(result.payload.effectLogs).toEqual(expect.arrayContaining([
+      expect.stringContaining('盤面拡張神')
+    ]));
+  });
+
   test('custom board expansion god final target selection adds six authoritative outer cells', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'board_expand_god_01',

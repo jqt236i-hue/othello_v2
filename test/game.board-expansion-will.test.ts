@@ -344,6 +344,40 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(targetsAfter.some((t) => t.row < 0 || t.row > 7 || t.col < 0 || t.col > 7)).toBe(true);
   });
 
+  test('BOARD_EXPANSION_GODは1角目を再送して3マス拡張を確定できる', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'BOARD_EXPANSION_GOD');
+    expect(def).toBeTruthy();
+
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.charge.black = 40;
+    cardState.hands.black = [def.id];
+
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', def.id)).toBe(true);
+    const first = CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 0, 0, 'up-left');
+    expect(first).toEqual(expect.objectContaining({
+      applied: true,
+      completed: false,
+      selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }]
+    }));
+
+    const confirmed = CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 0, 0, 'up-left');
+
+    expect(confirmed).toEqual(expect.objectContaining({
+      applied: true,
+      completed: true,
+      sources: [{ row: 0, col: 0, directionKey: 'up-left' }]
+    }));
+    expect(confirmed.added).toEqual(expect.arrayContaining([
+      { row: -1, col: 0 },
+      { row: -1, col: -1 },
+      { row: 0, col: -1 }
+    ]));
+    expect(confirmed.added).toHaveLength(3);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(gameState.boardExpansion.cells).toHaveLength(3);
+  });
+
   test('BOARD_EXPANSION_GODは追加予定セルが重複するsocketの組み合わせをauthorityで拒否する', () => {
     const BoardExpansionApply = require('../game/logic/card-resolution/board-expansion-apply.ts');
     const pending = {

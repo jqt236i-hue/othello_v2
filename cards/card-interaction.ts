@@ -2611,6 +2611,25 @@ function _getPendingSelectionPrompt(pending: any) {
     return '';
 }
 
+function _getBoardExpansionGodConfirmationTarget(playerKey: any) {
+    const pendingByPlayer = cardState && cardState.pendingEffectByPlayer
+        ? cardState.pendingEffectByPlayer
+        : {};
+    const pending = pendingByPlayer[playerKey];
+    if (!pending || pending.type !== 'BOARD_EXPANSION_GOD' || pending.stage !== 'selectTarget') return null;
+    const selectedTargets = Array.isArray(pending.selectedTargets) ? pending.selectedTargets : [];
+    if (selectedTargets.length !== 1) return null;
+    const target = selectedTargets[0];
+    if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
+    return {
+        row: target.row,
+        col: target.col,
+        ...(typeof target.directionKey === 'string' && target.directionKey
+            ? { directionKey: target.directionKey }
+            : {})
+    };
+}
+
 function updateCardDetailPanel() {
     const nameEl = document.getElementById('card-detail-name');
     const descEl = document.getElementById('card-detail-desc');
@@ -2661,14 +2680,23 @@ function updateCardDetailPanel() {
         _clearHeavenSelection(playerKey);
     }
 
-    _setCardUiDisabledIfChanged(useBtn, !actionState.canUse);
+    const boardExpansionGodConfirmationTarget = _getBoardExpansionGodConfirmationTarget(playerKey);
+    const canConfirmBoardExpansionGod = !!(
+        boardExpansionGodConfirmationTarget
+        && !actionState.isAutoMode
+        && actionState.canActThisTurn
+        && actionState.canInteract
+    );
+    _setCardUiDisabledIfChanged(useBtn, !(actionState.canUse || canConfirmBoardExpansionGod));
 
     if (destroyBtn) {
         _setCardUiDisabledIfChanged(destroyBtn, !actionState.canDestroy);
         _setCardUiTextIfChanged(destroyBtn, '破壊');
     }
 
-    if (hasSelection && !actionState.canAfford) {
+    if (boardExpansionGodConfirmationTarget) {
+        _setCardUiTextIfChanged(useBtn, '1角で確定');
+    } else if (hasSelection && !actionState.canAfford) {
         _setCardUiTextIfChanged(useBtn, '布石不足');
         // Diagnostic: log situations where UI shows charge but button disabled unexpectedly
         try {
@@ -2869,6 +2897,34 @@ function destroySelectedHandCard() {
 
 function useSelectedCard() {
     if (_guardSpectatorReadOnlyForCardUi()) return;
+    const pendingPlayerKey = _getCardUiActionOwnerKey(_resolveInputPlayerKey());
+    const confirmationTarget = _getBoardExpansionGodConfirmationTarget(pendingPlayerKey);
+    if (confirmationTarget) {
+        const isDebugUnlimited = _isDebugUnlimitedUsage();
+        if (_isAutoModeActive() || !_canInputPlayerActNow()) return;
+        if (!isDebugUnlimited && !_canInteractWithCardUi()) return;
+        const handler = _readCardInteractionRuntimeFunction('handleBoardExpansionSelection');
+        if (typeof handler !== 'function') {
+            if (typeof addLog === 'function') addLog('盤面拡張神の1角確定に失敗しました');
+            return;
+        }
+        try {
+            const confirmation = handler(
+                confirmationTarget.row,
+                confirmationTarget.col,
+                pendingPlayerKey,
+                confirmationTarget.directionKey
+            );
+            if (confirmation && typeof confirmation.catch === 'function') {
+                confirmation.catch(() => {
+                    if (typeof addLog === 'function') addLog('盤面拡張神の1角確定に失敗しました');
+                });
+            }
+        } catch (e) {
+            if (typeof addLog === 'function') addLog('盤面拡張神の1角確定に失敗しました');
+        }
+        return;
+    }
     const isDebugUnlimited = _isDebugUnlimitedUsage();
     const actionContext = _resolveSelectedHandCardActionContext({ isDebugUnlimited });
     if (!actionContext) return;

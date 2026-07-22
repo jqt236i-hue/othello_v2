@@ -113,6 +113,15 @@ function createPendingSelectionPromptResolvers(): Record<string, PendingSelectio
         return `2つ目の石を選んでください（1つ目: ${posToNotation(first.row, first.col)}）`;
     };
 
+    resolvers.BOARD_EXPANSION_GOD = (pending) => {
+        const selectedTargets = pending && Array.isArray(pending.selectedTargets)
+            ? pending.selectedTargets
+            : [];
+        return selectedTargets.length === 1
+            ? '盤面拡張神: もう1角を選ぶか、「1角で確定」を押してください'
+            : '角マスの外向き矢印を選んで盤面を拡張してください';
+    };
+
     resolvers.BOARD_SHRINK_WILL = (pending) => {
         const selectedCount = Number.isFinite(Number(pending && pending.selectedCount))
             ? Number(pending.selectedCount)
@@ -347,6 +356,7 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
 
         return {
             canActThisTurn,
+            isAutoMode,
             isDebugUnlimited,
             canInteract,
             selectedCardDef,
