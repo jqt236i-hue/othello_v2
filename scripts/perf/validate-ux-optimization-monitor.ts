@@ -46,6 +46,29 @@ const FORBIDDEN_KEYS = new Set(
   UX_OPTIMIZATION_FORBIDDEN_REPORT_KEYS.map((key) => key.toLowerCase())
 );
 
+type BootLogicalImageKind = 'hero' | 'default-hand';
+
+function classifyBootLogicalImagePath(value: unknown): BootLogicalImageKind | null {
+  const rawPath = String(value || '').replace(/^\/+/, '');
+  let decodedPath = rawPath;
+  try {
+    decodedPath = decodeURIComponent(rawPath);
+  } catch (_error) { /* malformed evidence remains unclassified */ }
+  if (
+    decodedPath === 'assets/images/hero/hero.png'
+    || /^vite-dist\/assets\/hero-[A-Za-z0-9_-]+\.png$/.test(decodedPath)
+  ) {
+    return 'hero';
+  }
+  if (
+    decodedPath === 'assets/images/hand-skin/勇者の手.png'
+    || /^vite-dist\/assets\/勇者の手-[A-Za-z0-9_-]+\.png$/.test(decodedPath)
+  ) {
+    return 'default-hand';
+  }
+  return null;
+}
+
 export function findForbiddenReportPaths(value: unknown): readonly string[] {
   const violations: string[] = [];
   const seen = new Set<object>();
@@ -233,6 +256,7 @@ export function validateUxOptimizationReport(
     ) {
       const specialResources = resources.filter((resource: any) => (
         String(resource?.path || '').startsWith('assets/images/special-stones/')
+        && String(resource?.initiatorType || '').toLowerCase() !== 'css'
       ));
       const neededIds = Array.isArray(scenario.metrics?.neededSpecialAssetIds)
         ? scenario.metrics.neededSpecialAssetIds.map(String)
@@ -245,6 +269,54 @@ export function validateUxOptimizationReport(
       }
       if (specialResources.length > 0 && neededIds.length === 0) {
         reasons.push('normal Pixi boot requested special-stone resources with no needed logical ids');
+      }
+    }
+    if (
+      scenario.captureStatus === 'complete'
+      && [
+        'boot.pixi.cold',
+        'boot.pixi.warm',
+        'boot.classic-pixi.cold'
+      ].includes(definition.id)
+    ) {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      const bodyCounts: Record<BootLogicalImageKind, number> = {
+        hero: 0,
+        'default-hand': 0
+      };
+      for (const resource of resources) {
+        const kind = classifyBootLogicalImagePath(resource?.path);
+        if (kind) bodyCounts[kind] += 1;
+      }
+      for (const [kind, count] of Object.entries(bodyCounts)) {
+        if (count > 1) reasons.push(`${kind} logical image requested ${count} response bodies`);
+      }
+
+      if (!Array.isArray(metrics.imageConstructorAssignments)) {
+        reasons.push('image constructor assignment evidence is missing');
+      } else {
+        const relevantAssignments = metrics.imageConstructorAssignments
+          .map(classifyBootLogicalImagePath)
+          .filter(Boolean);
+        if (relevantAssignments.length > 0) {
+          reasons.push(
+            `logical boot images used ${relevantAssignments.length} detached Image preload(s)`
+          );
+        }
+      }
+      if (!Array.isArray(metrics.logicalImageSrcMutations)) {
+        reasons.push('logical image src mutation evidence is missing');
+      } else {
+        const relevantMutations = metrics.logicalImageSrcMutations.filter((entry: any) => (
+          classifyBootLogicalImagePath(entry?.logicalPath) !== null
+        ));
+        if (relevantMutations.length > 0) {
+          reasons.push(
+            `logical boot images mutated src ${relevantMutations.length} time(s)`
+          );
+        }
       }
     }
     if (scenario.captureStatus === 'complete' && definition.id === 'board.first-special') {

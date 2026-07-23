@@ -22,12 +22,18 @@ test('hero image references match the deployed asset case', () => {
   const statusDisplaySource = fs.readFileSync(path.join(repoRoot, 'ui', 'status-display.ts'), 'utf8');
 
   expect(classicIndexHtml).toContain(`src="${heroAssetPath}"`);
+  expect(classicIndexHtml).toContain(
+    `data-card-reversi-logical-src="${heroAssetPath}" src="${heroAssetPath}"`
+  );
   expect(workerClassicIndexHtml).toContain(`src="${heroAssetPath}"`);
   expect(statusDisplaySource).toContain(`'${heroAssetPath}'`);
   expectExactFileCase(heroAssetPath);
   expectExactFileCase(`worker-public/${heroAssetPath}`);
 
-  const viteHeroSrc = indexHtml.match(/id="hero-character-img"\s+src="\.\/(vite-dist\/assets\/hero-[^"]+\.png)"/)?.[1];
+  const viteHeroSrc = indexHtml.match(
+    /id="hero-character-img"[^>]*\ssrc="\.\/(vite-dist\/assets\/hero-[^"]+\.png)"/
+  )?.[1];
+  expect(indexHtml).toContain(`data-card-reversi-logical-src="${heroAssetPath}"`);
   expect(viteHeroSrc).toBeTruthy();
   expect(workerIndexHtml).toContain(`src="./${viteHeroSrc}"`);
   expectExactFileCase(viteHeroSrc as string);

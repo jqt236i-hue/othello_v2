@@ -36,6 +36,7 @@ function validReport(): Record<string, any> {
       const fallback = definition.id.startsWith('fallback.');
       const lockToggle = definition.id === 'board.lock-toggle';
       const opponentTurn = definition.id === 'playback.opponent-actions';
+      const boot = definition.id.startsWith('boot.');
       return {
         id: definition.id,
         lane: definition.lane,
@@ -102,7 +103,12 @@ function validReport(): Record<string, any> {
                   rafStall50msCount: 0,
                   tickerIdle: true
                 }
-                : {}
+                : boot
+                  ? {
+                    imageConstructorAssignments: [],
+                    logicalImageSrcMutations: []
+                  }
+                  : {}
       };
     })
   };
@@ -262,5 +268,51 @@ describe('UX optimization monitor validator', () => {
     expect(validation.checks.find(
       (check) => check.id === 'scenario.playback.opponent-actions:vite:pixi'
     )?.verdict).toBe('fail');
+  });
+
+  test('does not classify a CSS-owned profile avatar as a Pixi board preload', () => {
+    const report = validReport();
+    const boot = report.scenarios.find((entry: any) => (
+      entry.id === 'boot.pixi.cold' && entry.lane === 'vite'
+    ));
+    boot.resources = [{
+      path: 'assets/images/special-stones/GHOST_WILL-black.png',
+      initiatorType: 'css'
+    }];
+    boot.metrics.neededSpecialAssetIds = [];
+
+    const result = validateUxOptimizationReport(report);
+    const check = result.checks.find(
+      (entry) => entry.id === 'scenario.boot.pixi.cold:vite:pixi'
+    );
+    expect(check?.verdict).toBe('pass');
+  });
+
+  test('fails duplicate logical boot images, detached preloads, and src mutations', () => {
+    const report = validReport();
+    const boot = report.scenarios.find((entry: any) => entry.id === 'boot.pixi.cold');
+    boot.resources = [
+      { path: 'vite-dist/assets/hero-HASHED.png' },
+      { path: 'assets/images/hero/hero.png' },
+      { path: 'vite-dist/assets/勇者の手-HASHED.png' },
+      { path: 'assets/images/hand-skin/勇者の手.png' }
+    ];
+    boot.metrics.imageConstructorAssignments = ['assets/images/hero/hero.png'];
+    boot.metrics.logicalImageSrcMutations = [{
+      logicalPath: 'assets/images/hand-skin/勇者の手.png',
+      sourcePath: 'assets/images/hand-skin/勇者の手.png'
+    }];
+
+    const result = validateUxOptimizationReport(report);
+    const check = result.checks.find(
+      (entry) => entry.id === 'scenario.boot.pixi.cold:vite:pixi'
+    );
+    expect(check?.verdict).toBe('fail');
+    expect(check?.reasons).toEqual(expect.arrayContaining([
+      'hero logical image requested 2 response bodies',
+      'default-hand logical image requested 2 response bodies',
+      'logical boot images used 1 detached Image preload(s)',
+      'logical boot images mutated src 1 time(s)'
+    ]));
   });
 });

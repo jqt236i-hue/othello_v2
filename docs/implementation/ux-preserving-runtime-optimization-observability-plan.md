@@ -129,6 +129,7 @@
 - monitoring:
   - initial frame/eventから必要special logical ID集合を取得するdebug-only read portをPixi backend diagnosticsへ追加する。盤面座標やownerをreportへ出さず、logical asset IDだけを返す。
   - `first-frame-committed` 前のspecial responseが必要集合外ならfail。
+  - `assets/images/special-stones/` はプロフィールavatar等のDOM/CSS-owned surfaceも共有するため、board preload判定はresource timingの `css` initiatorを除外し、Pixi resource経路（`fetch` / `img` / `other`）だけを必要logical集合と照合する。
   - first specialのresource readyが最初の可視frameより後ならfail。
 - verification:
   - focused Jest
@@ -226,6 +227,10 @@
   - `npm run worker:prepare`
   - `npm run check:worker-mirror`
 - done: logical duplicate 0、画像切替/復帰と表示属性が両laneで正常。
+- implementation review:
+  - quick captureのVite cold/warm、classic coldはいずれもhero/default handのresponse bodyが各1、対象のdetached `Image` preload 0、同一logical `src` mutation 0でfocused passした。
+  - Vite実画面でheroのLv1→Lv6→Lv1復帰後も最初のhash URLを再利用し、classicはroot URLを再利用した。両laneでalt/labelも復帰し、UI control smokeはpage/console/resource error 0だった。
+  - preload未完の画像BからCへ切り替えた時に、旧表示AをBの配信URLとして誤記憶し得る競合をレビューで検出した。DOMからの暗黙captureをelement初回だけへ限定し、B→C→Bの高速切替testで未完Bが新しくloadされることを固定した。
 
 ### Step 2.2: ヘルプ画像を初回表示/idleへ移す
 
@@ -689,7 +694,7 @@ git status --short
 - [x] 通常Pixi特殊石の必要集合外requestを0にする
 - [x] explicit DOM、初期Pixi失敗、context lossの特殊石fallbackを維持（CSS遅延化はStep 2.4）
 - [x] lock-only hint Graphics paintを0にし、入力lock/unlockを維持
-- [ ] Vite/root logical imageのbody重複を0にする
+- [x] Vite/root logical imageのbody重複を0にする
 - [ ] 初期help imageをcritical path外へ移し、即時/idle後openを維持
 - [ ] 通常PixiのDOM compatibility CSS request/evaluationを0にする
 - [ ] WebP共通pipeline、画素/容量/decode admission、PNG fallbackを実装
@@ -741,3 +746,5 @@ git status --short
 - Phase 0実captureで、classicは `data-browser-boot-state` を設定せず `window.__uiInitialized` をactionable-ready正本にしていることを確認し、lane別ready条件へ修正した。
 - Phase 0 validatorがPixi内部の同一origin `blob:` URLをstatic pathとして拒否したため、resource集計をHTTP(S)配信だけへ限定し、転送量を持たない一時URLを除外した。
 - Phase 1.1実captureでbootstrap以外のlegacy preload 5件、初期frameが正当に要求し得る特殊石、monitorの直接frame投入競合、合成context-loss eventの不正確さを確認した。自動legacy呼出しの除去、必要logical集合による判定、writer settlement fixture、`WEBGL_lose_context` fixtureへ修正し、設計・monitor・実装を同じcommit境界へ整合させた。
+- Phase 2.1再captureで、保存済みプロフィールavatarのCSS backgroundが特殊石directoryを共有し、Phase 1.1のPixi preloadとして誤分類されることを確認した。`css` initiatorをboard判定から除外し、プロフィールfeatureのresource監視へ帰属させた。Pixi resourceの `fetch` / `img` / `other` 判定は変更しない。
+- logical image resolverのレビューで、preload未完のlogical pathへ旧画像のDOM sourceを対応付ける競合を確認した。DOM sourceの暗黙captureはelement初回だけとし、それ以後はload完了または直接applyしたsourceだけをDocument cacheへ登録する契約に修正した。

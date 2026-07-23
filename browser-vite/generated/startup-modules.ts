@@ -454,6 +454,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/animation-utils": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/animation-utils.js"),
   "ui/assets/background-image-codec": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/background-image-codec.js"),
   "ui/assets/feature-stylesheet-loader": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/feature-stylesheet-loader.js"),
+  "ui/assets/logical-image-source": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/logical-image-source.js"),
   "ui/assets/optimized-backgrounds.generated": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/optimized-backgrounds.generated.js"),
   "ui/board-accessibility-layer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-accessibility-layer.js"),
   "ui/board-input-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-input-controller.js"),
@@ -1129,6 +1130,7 @@ installBootModuleMetadata({
     "ui/animation-utils",
     "ui/assets/background-image-codec",
     "ui/assets/feature-stylesheet-loader",
+    "ui/assets/logical-image-source",
     "ui/assets/optimized-backgrounds.generated",
     "ui/board-accessibility-layer",
     "ui/board-dom-compat/backend",
@@ -1442,4 +1444,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 670;
+export const startupModuleCount = 671;

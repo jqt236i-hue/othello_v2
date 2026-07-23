@@ -49,7 +49,7 @@
     <meta name="card-reversi-classic-style" content="styles-stone-shadows.css?v=2581636328428">
     <meta name="card-reversi-classic-style" content="styles-board-dom-compat.css?v=249130069494429">
     <meta name="card-reversi-classic-style" content="styles-profile.css?v=218601426601992">
-    <meta name="card-reversi-startup-version" content="31647185188343">
+    <meta name="card-reversi-startup-version" content="94689968025798">
     <script data-card-reversi-classic-style-bootstrap>
         (() => {
             const metas = Array.from(document.querySelectorAll('meta[name="card-reversi-classic-style"]'));
@@ -472,7 +472,7 @@
 
     <!-- Hero Character Display -->
     <div id="hero-character-panel">
-        <img id="hero-character-img" src="assets/images/hero/hero.png" alt="リバーシの勇者">
+        <img id="hero-character-img" data-card-reversi-logical-src="assets/images/hero/hero.png" src="assets/images/hero/hero.png" alt="リバーシの勇者">
         <div id="hero-label">リバーシの勇者</div>
     </div>
 
@@ -1045,6 +1045,7 @@
         <div id="handWrapper" style="display:block;opacity:0;">
                 <img
                     id="handImage"
+                    data-card-reversi-logical-src="assets/images/hand-skin/勇者の手.png"
                     src="assets/images/hand-skin/勇者の手.png"
                     alt=""
                     aria-hidden="true"

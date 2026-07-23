@@ -16,6 +16,12 @@ export interface UxOptimizationBrowserProbeSnapshot {
   }>[];
   readonly longTasks: readonly Readonly<{ startMs: number; durationMs: number }>[];
   readonly rafIntervalsMs: readonly number[];
+  readonly imageConstructorCount: number;
+  readonly imageConstructorAssignments: readonly string[];
+  readonly logicalImageSrcMutations: readonly Readonly<{
+    logicalPath: string;
+    sourcePath: string;
+  }>[];
   readonly cls: number;
   readonly visibility: string;
   readonly focused: boolean;
@@ -46,6 +52,9 @@ export function installUxOptimizationBrowserProbe(): void {
   let rafId = 0;
   let disposed = false;
   const observers: PerformanceObserver[] = [];
+  let imageConstructorCount = 0;
+  const imageConstructorAssignments: string[] = [];
+  const logicalImageSrcMutations: Array<{ logicalPath: string; sourcePath: string }> = [];
 
   const markPhase = (name: unknown): void => {
     const normalized = String(name || '').trim();
@@ -104,6 +113,78 @@ export function installUxOptimizationBrowserProbe(): void {
     }
   };
 
+  const nativeImageConstructor = root.Image;
+  const nativeImageSourceDescriptor = typeof root.HTMLImageElement === 'function'
+    ? Object.getOwnPropertyDescriptor(root.HTMLImageElement.prototype, 'src')
+    : null;
+  const nativeSetAttribute = root.Element?.prototype?.setAttribute;
+  let installedImageConstructor: any = null;
+  let installedImageSourceSetter: ((this: HTMLImageElement, value: string) => void) | null = null;
+  let installedSetAttribute: ((this: Element, qualifiedName: string, value: string) => void) | null = null;
+  const generatedImages = new WeakSet<object>();
+  const recordSourceAssignment = (element: any, source: unknown): void => {
+    const sourcePath = resourcePath(String(source || ''));
+    if (!sourcePath) return;
+    if (generatedImages.has(element)) {
+      if (imageConstructorAssignments.length < 512) {
+        imageConstructorAssignments.push(sourcePath);
+      }
+      return;
+    }
+    const logicalPath = String(
+      element?.getAttribute?.('data-card-reversi-logical-src') || ''
+    ).trim();
+    if (logicalPath && logicalImageSrcMutations.length < 512) {
+      logicalImageSrcMutations.push({ logicalPath, sourcePath });
+    }
+  };
+  if (typeof nativeImageConstructor === 'function') {
+    const ProbeImage = function Image(width?: number, height?: number): HTMLImageElement {
+      const image = width === undefined
+        ? new nativeImageConstructor()
+        : new nativeImageConstructor(width, height);
+      imageConstructorCount += 1;
+      generatedImages.add(image);
+      return image;
+    };
+    ProbeImage.prototype = nativeImageConstructor.prototype;
+    Object.setPrototypeOf(ProbeImage, nativeImageConstructor);
+    installedImageConstructor = ProbeImage;
+    root.Image = ProbeImage;
+  }
+  if (nativeImageSourceDescriptor?.get && nativeImageSourceDescriptor?.set) {
+    installedImageSourceSetter = function setImageSource(
+      this: HTMLImageElement,
+      value: string
+    ): void {
+      recordSourceAssignment(this, value);
+      nativeImageSourceDescriptor.set!.call(this, value);
+    };
+    Object.defineProperty(root.HTMLImageElement.prototype, 'src', {
+      configurable: nativeImageSourceDescriptor.configurable,
+      enumerable: nativeImageSourceDescriptor.enumerable,
+      get: nativeImageSourceDescriptor.get,
+      set: installedImageSourceSetter
+    });
+  }
+  if (typeof nativeSetAttribute === 'function') {
+    installedSetAttribute = function setAttribute(
+      this: Element,
+      qualifiedName: string,
+      value: string
+    ): void {
+      if (
+        String(qualifiedName || '').toLowerCase() === 'src'
+        && typeof root.HTMLImageElement === 'function'
+        && this instanceof root.HTMLImageElement
+      ) {
+        recordSourceAssignment(this, value);
+      }
+      nativeSetAttribute.call(this, qualifiedName, value);
+    };
+    root.Element.prototype.setAttribute = installedSetAttribute;
+  }
+
   const snapshot = (): UxOptimizationBrowserProbeSnapshot => {
     const supportedEntryTypes = typeof PerformanceObserver === 'function'
       ? (PerformanceObserver.supportedEntryTypes || [])
@@ -128,6 +209,11 @@ export function installUxOptimizationBrowserProbe(): void {
       resources: Object.freeze(resources.map((entry) => Object.freeze(entry))),
       longTasks: Object.freeze(longTasks.map((entry) => Object.freeze({ ...entry }))),
       rafIntervalsMs: Object.freeze(rafIntervalsMs.slice()),
+      imageConstructorCount,
+      imageConstructorAssignments: Object.freeze(imageConstructorAssignments.slice()),
+      logicalImageSrcMutations: Object.freeze(logicalImageSrcMutations.map(
+        (entry) => Object.freeze({ ...entry })
+      )),
       cls,
       visibility: String(document.visibilityState || ''),
       focused: typeof document.hasFocus === 'function' ? document.hasFocus() : false,
@@ -143,6 +229,30 @@ export function installUxOptimizationBrowserProbe(): void {
     disposed = true;
     if (rafId) cancelAnimationFrame(rafId);
     observers.forEach((observer) => observer.disconnect());
+    if (installedImageConstructor && root.Image === installedImageConstructor) {
+      root.Image = nativeImageConstructor;
+    }
+    const activeImageSourceDescriptor = typeof root.HTMLImageElement === 'function'
+      ? Object.getOwnPropertyDescriptor(root.HTMLImageElement.prototype, 'src')
+      : null;
+    if (
+      nativeImageSourceDescriptor
+      && installedImageSourceSetter
+      && activeImageSourceDescriptor?.set === installedImageSourceSetter
+    ) {
+      Object.defineProperty(
+        root.HTMLImageElement.prototype,
+        'src',
+        nativeImageSourceDescriptor
+      );
+    }
+    if (
+      typeof nativeSetAttribute === 'function'
+      && installedSetAttribute
+      && root.Element?.prototype?.setAttribute === installedSetAttribute
+    ) {
+      root.Element.prototype.setAttribute = nativeSetAttribute;
+    }
   };
 
   Object.defineProperty(root, key, {
@@ -195,6 +305,16 @@ export function normalizeBrowserProbeSnapshot(
     rafIntervalsMs: Object.freeze((Array.isArray(raw.rafIntervalsMs) ? raw.rafIntervalsMs : [])
       .map(Number)
       .filter(Number.isFinite)),
+    imageConstructorCount: Math.max(0, Number(raw.imageConstructorCount) || 0),
+    imageConstructorAssignments: Object.freeze((
+      Array.isArray(raw.imageConstructorAssignments) ? raw.imageConstructorAssignments : []
+    ).filter((entry: unknown) => entry != null && String(entry)).map(String)),
+    logicalImageSrcMutations: Object.freeze((
+      Array.isArray(raw.logicalImageSrcMutations) ? raw.logicalImageSrcMutations : []
+    ).map((entry: any) => Object.freeze({
+      logicalPath: String(entry?.logicalPath || ''),
+      sourcePath: String(entry?.sourcePath || '')
+    })).filter((entry: any) => entry.logicalPath && entry.sourcePath)),
     cls: Number(raw.cls) || 0,
     visibility: String(raw.visibility || ''),
     focused: raw.focused === true,

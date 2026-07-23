@@ -48,7 +48,8 @@ const BOOT_SCENARIO_IDS = new Set([
 ]);
 const COMPLETED_OPTIMIZATION_IDS = new Set([
   'special-stone-demand-loading',
-  'lock-only-hint-paint'
+  'lock-only-hint-paint',
+  'logical-image-deduplication'
 ]);
 const SPECIAL_STONE_PATH_PREFIX = 'assets/images/special-stones/';
 const CLASSIC_PIXI_RUNTIME_PATHS = Object.freeze([
@@ -379,6 +380,9 @@ async function captureBootScenario(
           cls: snapshot.cls,
           longTasks: snapshot.longTasks,
           rafIntervalsMs: snapshot.rafIntervalsMs,
+          imageConstructorCount: snapshot.imageConstructorCount,
+          imageConstructorAssignments: snapshot.imageConstructorAssignments,
+          logicalImageSrcMutations: snapshot.logicalImageSrcMutations,
           visibility: snapshot.visibility,
           focused: snapshot.focused,
           capabilities: snapshot.capabilities

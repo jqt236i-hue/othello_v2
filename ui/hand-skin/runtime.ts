@@ -1,3 +1,7 @@
+import {
+  setLogicalImageSourceIfChanged
+} from '../assets/logical-image-source';
+
 'use strict';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
@@ -423,6 +427,10 @@ function setAttributeIfChanged(el: any, name: string, value: any): void {
   }
 }
 
+function setHandImageSourceIfChanged(element: HTMLImageElement, logicalPath: string): void {
+  setLogicalImageSourceIfChanged(element, logicalPath, { preload: false });
+}
+
 function applyHandSkin(handImageEl: any, skinId: any, rootRef: any): any {
   if (!handImageEl) return null;
   const catalogModule = resolveCatalogModule(rootRef);
@@ -430,7 +438,7 @@ function applyHandSkin(handImageEl: any, skinId: any, rootRef: any): any {
     ? catalogModule.getHandSkinDefinition(skinId, rootRef)
     : null;
   if (!definition) return null;
-  setAttributeIfChanged(handImageEl, 'src', definition.imagePath);
+  setHandImageSourceIfChanged(handImageEl, definition.imagePath);
   setAttributeIfChanged(handImageEl, 'data-hand-skin-id', definition.id);
   setAttributeIfChanged(handImageEl, 'data-hand-selected-skin-id', definition.id);
   return definition;
@@ -442,7 +450,7 @@ function syncDisplayedHandSkin(rootRef: any, preferredSkinId: any, handImageEl?:
   const imageEl = handImageEl || (docRef ? docRef.getElementById('handImage') : null);
   if (!imageEl) return null;
   const handContext = resolveHandAnimationContext(ctx, preferredSkinId, options);
-  setAttributeIfChanged(imageEl, 'src', handContext.renderedImagePath);
+  setHandImageSourceIfChanged(imageEl, handContext.renderedImagePath);
   setAttributeIfChanged(imageEl, 'data-hand-skin-id', handContext.renderedSkinId);
   setAttributeIfChanged(imageEl, 'data-hand-selected-skin-id', handContext.selectedSkinId);
   return handContext.renderedDefinition;

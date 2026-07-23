@@ -227,7 +227,7 @@ contractはscenario IDとcapture laneを別軸で扱い、必須capture keyを `
 
 ### A. 特殊石の需要駆動ロード
 
-- `first-frame-committed` より前に取得した特殊石は、初期frameの `collectSpecialStones()` が列挙したlogical IDの部分集合でなければならない。
+- `first-frame-committed` より前にPixi board resource経路（`fetch` / `img` / `other` initiator）で取得した特殊石は、初期frameの `collectSpecialStones()` が列挙したlogical IDの部分集合でなければならない。プロフィールavatar等のDOM/CSS-owned surfaceが同じ画像directoryを使うため、`css` initiatorはboard preload判定から除外し、各lazy featureのresource契約で別に監視する。
 - `board.first-special` は、イベントの最初の可視frameより前に対象textureがreadyであること、resource failureがないこと、settlement順が変わらないことを確認する。
 - `special-stone-demand-loading` の完了判定には `fallback.context-loss` のVite/classic両captureも含める。回復不能lossだけ特殊石準備の回帰を見逃す構成は、3 fallback経路を同格に扱うStep 1.1の完了条件と矛盾するためである。
 - 明示DOMとfallbackは、DOM backend mount前に必要な特殊石画像のload/decode結果をawaitする。既存の同期 `preloadStoneVisualEffectKeys()` を完了通知として扱わず、Document単位Promise cache、成功/失敗結果、同時要求の合流、失敗後retryを持つDOM compatibility preparation APIを新設する。
@@ -465,5 +465,7 @@ baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR�
 - Phase 0 validatorがPixi内部の同一origin `blob:` URLを静的resourceとして拒否したため、転送量対象をHTTP(S)配信resourceだけに限定した。
 - Phase 1.1の実captureで `ui/bootstrap.ts` 以外に `ui.ts` のWORK/gold/silver/rainbow用legacy preloadが通常起動時の5画像を取得していることを確認した。通常Pixiの唯一準備経路という契約に合わせて自動呼出しだけを除去し、互換用の明示preload APIは残した。
 - 初期盤面が特殊石を含む場合までbootstrap requestを固定0件にすると正当な需要を誤検知するため、Pixi diagnosticsのcommitted frameから得るlogical ID集合を許可集合にし、必要集合外だけをfailにした。
+- Phase 2.1の再captureで、保存済みプロフィールavatarのCSS backgroundが `assets/images/special-stones/` を共有し、Pixi board preloadとして誤分類されることを確認した。resource timingの `css` initiatorはboard需要駆動判定から除外し、プロフィール遅延化のresource契約へ帰属させた。Pixi resourceの `fetch` / `img` / `other` 判定は維持する。
+- logical image resolverの実装レビューで、画像Bのpreload中にCへ切り替えると、Bを示すlogical属性とまだ表示中の旧source Aを誤って対応付け得ることを確認した。elementからの暗黙captureはresolver初回だけに限定し、以後はload完了または直接applyしたsourceだけをDocument cacheへ登録する。
 - first-special captureで通常のgame更新とmonitorの直接 `submitFrame()` が競合したため、公開writer settlement経路でfixture frameをcommitし、`frame:prepared`、settlement token、network deltaの順序を観測する形へ修正した。
 - 合成 `webglcontextlost` eventはPixi内部の実際のcontext-loss手順を通らず例外だけを発生させたため、既存E2Eと同じ `WEBGL_lose_context` extensionを使う実lossへ修正した。
