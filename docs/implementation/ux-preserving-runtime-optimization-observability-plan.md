@@ -59,7 +59,8 @@
   - `perf:ux-optimization:validate`: `npm run build:ts` 後にvalidatorを実行
   - `perf:ux-optimization:focused`: `worker:prepare`、mirror check、quick capture、`--target <optimization-id>` validateを連続実行
   - `perf:ux-optimization:quick`: 既知pendingを許すdevelopment capture。overallはfailのまま、完了済みcheckの退行がない時だけprocess success
-  - `perf:ux-optimization:standard`: prepare済みclean artifactだけを使い、pending 0のstandard capture/validateを実行
+  - `perf:ux-optimization:standard`: prepare済みclean artifactだけを使う単発standard capture/validate（統合開発確認用）
+  - `perf:ux-optimization:standard-suite`: 保存baseline artifactとcandidateを交互順序で各5 fresh browser process取得し、最終hardware比較を判定
 - required behavior:
   - fresh browser process、cold/warm context、固定viewport、visibility/focus、page/console/resource errorsを管理する。
   - 起動readyはViteで `data-browser-boot-state="ready"` かつ `window.__uiInitialized === true`、classicで `window.__uiInitialized === true` とし、Vite専用属性をclassicへ要求しない。
@@ -694,7 +695,7 @@
   - `pending-optimization` を0以外ならfail。
   - scenarioごとの必須lane/backend matrixが一つでも欠ければfail。
   - baseline/candidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR、capture policy不一致、またはprofile役割が `baseline → standard` でない場合をinvalidにする。artifact digestは各reportと各commitの自己整合を検証し、baseline/candidate間の一致は要求しない。
-  - quickは開発用、standard clean exact commitだけをcandidate eligibleにする。
+  - quickは1 fresh processの開発用、standard clean exact commitだけをcandidate eligibleにする。最終hardware合格はstandard profileの単発結果ではなく、baseline/candidate各5回のstandard suiteだけで判定する。
   - JSONとMarkdownは同じvalidator resultから生成する。
   - raw reportはartifacts、人間向け最終結論だけを `docs/perf/` に書ける `--write-summary` を用意する。
 - verification:
@@ -765,7 +766,7 @@ npm run match:ui-control-smoke:classic
 npm run perf:opponent-action-stall -- --quick
 npm run worker:prepare
 npm run check:worker-mirror
-npm run perf:ux-optimization:standard
+npm run perf:ux-optimization:standard-suite
 git diff --check
 git status --short
 ```
@@ -828,6 +829,7 @@ git status --short
 - 調査でdecodeが悪化した盤面surfaceと背景を採用候補から外し、default board frameだけを正式審査へ進める具体的順序にした。不合格でもpipelineと明示結果を完了扱いにし、容量のためにUXを犠牲にしない。
 - CSSを一括分割するとcascade原因を切り分けられないため、result、profile、rules-help、deck-builder、networkの順に独立commit/visual checkを置いた。
 - performance絶対値を共有CIでblockingにせず、CIは決定的契約、同一hardware standardは時間/RAF gateと役割を分けた。
+- Phase 5.3実装前監査で、contract上のstandard sample数は5なのに既存standardコマンドが1回しかcaptureしない矛盾と、設計本文のquick 3回がcontractのquick 1回と一致しない誤りを確認した。quickは非eligibleな単発開発診断へ統一し、最終比較は保存baseline artifactを現行schemaでboot-only再観測しながらcandidateと交互に各5 fresh process取得する専用suiteへ修正した。
 - `worker-public/`、`index.html`、Vite registryなどを直接編集する手順がないこと、各単位でroot sourceから生成することを確認した。
 - 全設計完了条件を最後のチェックリストとPhase 5 standard gateへ対応付け、実装モデルが会話情報なしで対象、順序、検証、停止条件を判断できることを確認した。
 - help idle prefetchをboard visual readyだけで開始する案は、最新idle frame settlementと競合し得るため、`waitForIdle()` とcallback時のmode再確認を追加した。

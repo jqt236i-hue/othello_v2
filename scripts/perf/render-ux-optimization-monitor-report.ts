@@ -15,6 +15,10 @@ import {
   validateUxOptimizationReport,
   type UxOptimizationValidationResult
 } from './validate-ux-optimization-monitor';
+import {
+  validateUxOptimizationStandardSuite,
+  type UxOptimizationStandardSuiteValidation
+} from './capture-ux-optimization-standard-suite';
 
 export const UX_OPTIMIZATION_SUMMARY_SCHEMA_VERSION =
   'ux_preserving_runtime_optimization_summary.v1';
@@ -22,6 +26,7 @@ export const UX_OPTIMIZATION_SUMMARY_SCHEMA_VERSION =
 interface RenderCliOptions {
   readonly inputPath: string;
   readonly baselinePath: string | null;
+  readonly suitePath: string | null;
   readonly outputJsonPath: string | null;
   readonly outputMarkdownPath: string | null;
   readonly writeSummaryPath: string | null;
@@ -73,6 +78,7 @@ export interface UxOptimizationSummaryDocument {
   readonly identityChecks: readonly UxOptimizationIdentityCheck[];
   readonly compatibilityChecks: readonly UxOptimizationCompatibilityCheck[];
   readonly traceability: readonly UxOptimizationTraceabilityRow[];
+  readonly standardSuiteValidation: UxOptimizationStandardSuiteValidation | null;
   readonly metrics: Readonly<Record<string, unknown>>;
 }
 
@@ -360,6 +366,7 @@ export function createUxOptimizationSummary(
   candidateValue: unknown,
   options: Readonly<{
     baseline?: unknown;
+    standardSuite?: unknown;
     identityChecks?: readonly UxOptimizationIdentityCheck[];
     generatedAt?: string;
   }> = {}
@@ -368,6 +375,9 @@ export function createUxOptimizationSummary(
   const baseline = options.baseline === undefined ? null : asRecord(options.baseline);
   const candidateValidation = validateUxOptimizationReport(candidate);
   const baselineValidation = baseline ? validateUxOptimizationReport(baseline) : null;
+  const standardSuiteValidation = options.standardSuite === undefined
+    ? null
+    : validateUxOptimizationStandardSuite(options.standardSuite);
   const identityChecks = Object.freeze((options.identityChecks || []).slice());
   const compatibilityChecks = baseline
     ? validateUxOptimizationComparisonCompatibility(baseline, candidate)
@@ -389,10 +399,18 @@ export function createUxOptimizationSummary(
     baselineValidation?.baselineValid === true
       && compatibilityChecks.every((check) => check.verdict === 'pass')
       && baselineIdentityValid
+      && (
+        standardSuiteValidation === null
+          || standardSuiteValidation.overallVerdict === 'pass'
+      )
   );
   const verdict: UxOptimizationVerdict = candidateValidation.overallVerdict === 'pass'
     && candidateValidation.candidateEligible
     && candidateIdentityValid
+    && (
+      standardSuiteValidation === null
+        || standardSuiteValidation.overallVerdict === 'pass'
+    )
     && (!comparisonRequested || comparisonValid)
     ? 'pass'
     : 'fail';
@@ -431,7 +449,10 @@ export function createUxOptimizationSummary(
     identityChecks,
     compatibilityChecks,
     traceability: buildUxOptimizationTraceability(candidateValidation),
-    metrics: collectSummaryMetrics(candidate)
+    standardSuiteValidation,
+    metrics: standardSuiteValidation === null
+      ? collectSummaryMetrics(candidate)
+      : standardSuiteValidation.aggregates
   });
 }
 
@@ -449,9 +470,77 @@ export function renderUxOptimizationSummaryMarkdown(
   const metrics = asRecord(summary.metrics);
   const boot = Array.isArray(metrics.boot) ? metrics.boot : [];
   const features = Array.isArray(metrics.features) ? metrics.features : [];
+  const boardReady = asRecord(metrics.boardReady);
+  const bootEncodedBody = asRecord(metrics.bootEncodedBody);
+  const result = Array.isArray(metrics.result) ? metrics.result : [];
+  const opponentActions = asRecord(metrics.opponentActions);
+  const standardSuite = summary.standardSuiteValidation;
   const failedChecks = summary.candidate.validation.checks.filter(
     (check) => check.verdict !== 'pass'
   );
+  const failedSuiteChecks = standardSuite?.checks.filter(
+    (check) => check.verdict !== 'pass'
+  ) || [];
+  const measurementSections = standardSuite
+    ? [
+      '## 標準5サンプル比較',
+      '',
+      `- sample count: \`${formatValue(metrics.sampleCount)}\``,
+      `- suite verdict: \`${standardSuite.overallVerdict}\``,
+      '',
+      '| metric | baseline median | candidate median | delta |',
+      '| --- | ---: | ---: | ---: |',
+      `| board ready ms | ${formatValue(boardReady.baselineMedianMs)}`
+        + ` | ${formatValue(boardReady.candidateMedianMs)}`
+        + ` | ${formatValue(boardReady.deltaMs)} |`,
+      `| boot encoded body bytes | ${formatValue(bootEncodedBody.baselineMedianBytes)}`
+        + ` | ${formatValue(bootEncodedBody.candidateMedianBytes)}`
+        + ` | ${formatValue(bootEncodedBody.deltaRatio)} |`,
+      '',
+      '## 遅延feature p95',
+      '',
+      '| feature | lane | first open p95 ms | stylesheet ready p95 ms | max CLS | Long Task total |',
+      '| --- | --- | ---: | ---: | ---: | ---: |',
+      ...features.map((entry: any) => (
+        `| ${formatValue(entry.feature)} | ${formatValue(entry.lane)}`
+        + ` | ${formatValue(entry.firstOpenP95Ms)}`
+        + ` | ${formatValue(entry.stylesheetReadyP95Ms)}`
+        + ` | ${formatValue(entry.maxClsDelta)}`
+        + ` | ${formatValue(entry.totalFirstOpenLongTasks)} |`
+      )),
+      ...result.map((entry: any) => (
+        `| result | ${formatValue(entry.lane)} | n/a`
+        + ` | ${formatValue(entry.stylesheetReadyP95Ms)} | n/a | n/a |`
+      )),
+      '',
+      '## 対局中フレーム安定性',
+      '',
+      `- Long Task total: \`${formatValue(opponentActions.totalLongTasks)}\``,
+      `- 50ms RAF stall total: \`${formatValue(opponentActions.totalRafStalls50ms)}\``,
+      `- RAF p95 ms: \`${formatValue(opponentActions.rafP95Ms)}\``,
+      `- all ticker idle: \`${formatValue(opponentActions.allTickerIdle)}\``,
+      ''
+    ]
+    : [
+      '## 起動計測',
+      '',
+      '| lane | ready ms | encoded body bytes |',
+      '| --- | ---: | ---: |',
+      ...boot.map((entry: any) => (
+        `| ${formatValue(entry.lane)} | ${formatValue(entry.readyMs)} | ${formatValue(entry.encodedBodyBytes)} |`
+      )),
+      '',
+      '## 遅延feature計測',
+      '',
+      '| feature | lane | first open ms | stylesheet ready ms | CLS | Long Task |',
+      '| --- | --- | ---: | ---: | ---: | ---: |',
+      ...features.map((entry: any) => (
+        `| ${formatValue(entry.feature)} | ${formatValue(entry.lane)}`
+        + ` | ${formatValue(entry.firstOpenMs)} | ${formatValue(entry.stylesheetReadyMs)}`
+        + ` | ${formatValue(entry.clsDelta)} | ${formatValue(entry.firstOpenLongTaskCount)} |`
+      )),
+      ''
+    ];
   const lines = [
     '# UX維持ランタイム最適化 完了レポート',
     '',
@@ -463,24 +552,7 @@ export function renderUxOptimizationSummaryMarkdown(
     `- deviceValidated: \`${summary.candidate.deviceValidated}\``,
     `- generatedAt: \`${summary.generatedAt}\``,
     '',
-    '## 起動計測',
-    '',
-    '| lane | ready ms | encoded body bytes |',
-    '| --- | ---: | ---: |',
-    ...boot.map((entry: any) => (
-      `| ${formatValue(entry.lane)} | ${formatValue(entry.readyMs)} | ${formatValue(entry.encodedBodyBytes)} |`
-    )),
-    '',
-    '## 遅延feature計測',
-    '',
-    '| feature | lane | first open ms | stylesheet ready ms | CLS | Long Task |',
-    '| --- | --- | ---: | ---: | ---: | ---: |',
-    ...features.map((entry: any) => (
-      `| ${formatValue(entry.feature)} | ${formatValue(entry.lane)}`
-      + ` | ${formatValue(entry.firstOpenMs)} | ${formatValue(entry.stylesheetReadyMs)}`
-      + ` | ${formatValue(entry.clsDelta)} | ${formatValue(entry.firstOpenLongTaskCount)} |`
-    )),
-    '',
+    ...measurementSections,
     '## Traceability',
     '',
     '| optimization | kind | required captures | verdict |',
@@ -508,11 +580,16 @@ export function renderUxOptimizationSummaryMarkdown(
     '',
     '## Blocking failures',
     '',
-    ...(failedChecks.length === 0
+    ...(failedChecks.length === 0 && failedSuiteChecks.length === 0
       ? ['- なし']
-      : failedChecks.map((check) => (
-        `- \`${check.id}\`: ${check.reasons.join('; ')}`
-      ))),
+      : [
+        ...failedChecks.map((check) => (
+          `- \`${check.id}\`: ${check.reasons.join('; ')}`
+        )),
+        ...failedSuiteChecks.map((check) => (
+          `- \`${check.id}\`: ${check.reasons.join('; ')}`
+        ))
+      ]),
     ''
   ];
   return `${lines.join('\n')}\n`;
@@ -521,6 +598,7 @@ export function renderUxOptimizationSummaryMarkdown(
 export function parseRenderArgs(argv: readonly string[]): RenderCliOptions {
   let inputPath = 'artifacts/ux-optimization-monitor/candidate.json';
   let baselinePath: string | null = null;
+  let suitePath: string | null = null;
   let outputJsonPath: string | null = null;
   let outputMarkdownPath: string | null = null;
   let writeSummaryPath: string | null = null;
@@ -530,6 +608,7 @@ export function parseRenderArgs(argv: readonly string[]): RenderCliOptions {
     const arg = argv[index];
     if (arg === '--input') inputPath = String(argv[++index] || '');
     else if (arg === '--baseline') baselinePath = String(argv[++index] || '');
+    else if (arg === '--suite') suitePath = String(argv[++index] || '');
     else if (arg === '--output-json') outputJsonPath = String(argv[++index] || '');
     else if (arg === '--output-markdown') outputMarkdownPath = String(argv[++index] || '');
     else if (arg === '--write-summary') writeSummaryPath = String(argv[++index] || '');
@@ -543,6 +622,10 @@ export function parseRenderArgs(argv: readonly string[]): RenderCliOptions {
   }
   if (!inputPath) throw new Error('--input requires a path');
   if (baselinePath === '') throw new Error('--baseline requires a path');
+  if (suitePath === '') throw new Error('--suite requires a path');
+  if (suitePath && baselinePath) {
+    throw new Error('--suite cannot be combined with --baseline');
+  }
   if (outputJsonPath === '') throw new Error('--output-json requires a path');
   if (outputMarkdownPath === '') throw new Error('--output-markdown requires a path');
   if (writeSummaryPath === '') throw new Error('--write-summary requires a path');
@@ -551,6 +634,7 @@ export function parseRenderArgs(argv: readonly string[]): RenderCliOptions {
   return Object.freeze({
     inputPath,
     baselinePath,
+    suitePath,
     outputJsonPath,
     outputMarkdownPath,
     writeSummaryPath,
@@ -570,13 +654,25 @@ export function runRenderCli(
   rootDir: string = process.cwd()
 ): UxOptimizationSummaryDocument {
   const options = parseRenderArgs(argv);
-  const candidate = JSON.parse(fs.readFileSync(
-    path.resolve(rootDir, options.inputPath),
-    'utf8'
-  ));
-  const baseline = options.baselinePath
-    ? JSON.parse(fs.readFileSync(path.resolve(rootDir, options.baselinePath), 'utf8'))
+  const standardSuite = options.suitePath
+    ? JSON.parse(fs.readFileSync(path.resolve(rootDir, options.suitePath), 'utf8'))
     : undefined;
+  const suiteRecord = asRecord(standardSuite);
+  const candidate = standardSuite
+    ? asRecord(Array.isArray(suiteRecord.candidateReports)
+      ? suiteRecord.candidateReports[0]
+      : null)
+    : JSON.parse(fs.readFileSync(
+      path.resolve(rootDir, options.inputPath),
+      'utf8'
+    ));
+  const baseline = standardSuite
+    ? asRecord(Array.isArray(suiteRecord.baselineReports)
+      ? suiteRecord.baselineReports[0]
+      : null)
+    : options.baselinePath
+      ? JSON.parse(fs.readFileSync(path.resolve(rootDir, options.baselinePath), 'utf8'))
+      : undefined;
   const identityChecks: UxOptimizationIdentityCheck[] = [];
   const candidateRoot = path.resolve(rootDir, options.candidateArtifactRoot);
   const candidateIdentity = verifyUxOptimizationArtifactIdentity(
@@ -620,6 +716,7 @@ export function runRenderCli(
   }
   const summary = createUxOptimizationSummary(candidate, {
     baseline,
+    standardSuite,
     identityChecks
   });
   const json = `${JSON.stringify(summary, null, 2)}\n`;

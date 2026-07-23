@@ -334,7 +334,7 @@ featureは `result → profile → rules-help → deck-builder → network` の�
 
 ### Hardware desktop比較
 
-同じcandidateのquick captureは3 fresh process、standardは5 fresh processを交互順序で取得する。起動時間は中央値、RAFはraw intervalからnearest-rank p95/max、resourceはencoded body合計を用いる。
+quick captureは開発中の単発診断（1 fresh process）に限定し、比較・合格証拠には使わない。最終standard比較はbaseline/candidateをfresh browser processごとに交互順序で各5サンプル取得する。起動時間は中央値、RAFはraw intervalからnearest-rank p95/max、resourceはencoded body合計を用いる。
 
 - candidateのboard ready中央値は、同一環境baselineより `100ms` かつ `5%` を両方超えて悪化してはならない。
 - boot encoded bodyは意図した削減対象を除いて増加理由をレポートする。全体がbaselineより1%以上増えた場合はblocking reviewとする。
@@ -483,6 +483,7 @@ baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR�
 - Phase 5.1の比較契約レビューで、baselineのprofileは `baseline`、candidateは `standard` であり、profile文字列一致では正規比較が必ずinvalidになる矛盾を確認した。profileは役割ペアを検証し、fixture/scenario/capture policyと実行環境を同値比較する。baselineの最適化gate失敗は測定対象の差分なのでoverall passには使わず、schema・identity・安全性・scenario集合・明示pendingが妥当なことを `baselineValid` として分離する。
 - Phase 5.1のreport監査で、capture済みの `normalPlayIsolation` とGPU環境がvalidator未接続で、通常プレイへのdiagnostics漏洩やstandardのsoftware rendererを見逃せる状態だった。通常queryでprobe global、board performance harness、monitor query、diagnostics payloadがすべて不在であることと、標準reportのhardware acceleration・GL renderer/vendorをblocking identityへ追加した。
 - Phase 5.2ではscenario check内に構造条件と時間条件が混在していたため、CI profileでcheck全体をadvisoryにするとresource/DOM/input退行まで見逃すことを確認した。指標の存在とLong Task/RAF capability、resultの2秒より早い表示、操作・順序・件数はblockingのまま維持し、上限時間、CLS量、Long Task/RAF stall件数だけをhardware standardへ限定した。CI raw reportには値と閾値を残す。
+- Phase 5.3実装前監査で、profile contractはquick 1回・standard 5回を定義している一方、既存 `perf:ux-optimization:standard` は1回だけcaptureしており、設計文にもquick 3回という矛盾が残っていた。quickは単発の非eligible開発診断へ統一し、最終合格は保存baseline artifactとcandidateをcommit由来の決定的な交互順序で各5 fresh browser process取得する専用standard suiteへ分離した。Phase 0 raw reportは後から追加したscenario/policy digestと一致しないため、保存artifact自体は変更せず、現行schemaのboot-only driverで再観測して比較互換性を成立させる。
 - board frame画像はPixi resourceでなくCSS custom property経路であるため、WebP routingをBoardSkinRuntimeへ限定した。
 - legacy特殊石preloaderは同期returnでload/decode完了を示さないため、DOM compatibility専用のawaitable preparation APIを設計へ追加した。
 - 物理端末を必須release gateにする案は現行の任意診断方針と矛盾するため、device効果を主張する場合だけ必須とした。

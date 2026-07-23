@@ -88,6 +88,7 @@ describe('UX optimization summary renderer', () => {
       generatedAt: '2026-07-23T00:00:00.000Z'
     });
     expect(summary.verdict).toBe('fail');
+    expect(summary.standardSuiteValidation).toBeNull();
     expect(summary.traceability).toHaveLength(UX_OPTIMIZATION_IDS.length);
     expect(summary.traceability.every((row) => row.verdict === 'fail')).toBe(true);
     expect(renderUxOptimizationSummaryMarkdown(summary)).toContain(
@@ -143,6 +144,7 @@ describe('UX optimization summary renderer', () => {
     ])).toEqual({
       inputPath: 'candidate.json',
       baselinePath: 'baseline.json',
+      suitePath: null,
       outputJsonPath: null,
       outputMarkdownPath: null,
       writeSummaryPath: 'docs/perf/completion.md',
@@ -153,5 +155,15 @@ describe('UX optimization summary renderer', () => {
     expect(() => parseRenderArgs(['--write-summary'])).toThrow(
       '--write-summary requires a path'
     );
+    expect(parseRenderArgs(['--suite', 'suite.json'])).toMatchObject({
+      suitePath: 'suite.json',
+      baselinePath: null
+    });
+    expect(() => parseRenderArgs([
+      '--suite',
+      'suite.json',
+      '--baseline',
+      'baseline.json'
+    ])).toThrow('--suite cannot be combined with --baseline');
   });
 });

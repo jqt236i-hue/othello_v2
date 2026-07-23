@@ -47,6 +47,7 @@
     "perf:ux-optimization:focused": "npm run worker:prepare && npm run check:worker-mirror && node dist/scripts/perf/capture-ux-optimization-monitor.js --profile quick --allow-dirty --output artifacts/ux-optimization-monitor/latest.json && node dist/scripts/perf/validate-ux-optimization-monitor.js --input artifacts/ux-optimization-monitor/latest.json --allow-pending",
     "perf:ux-optimization:ci": "npm run worker:prepare && node dist/scripts/perf/capture-ux-optimization-monitor.js --profile ci --output artifacts/ux-optimization-monitor/ci.json && node dist/scripts/perf/validate-ux-optimization-monitor.js --input artifacts/ux-optimization-monitor/ci.json",
     "perf:ux-optimization:standard": "node dist/scripts/perf/capture-ux-optimization-monitor.js --profile standard --output artifacts/ux-optimization-monitor/candidate.json && node dist/scripts/perf/validate-ux-optimization-monitor.js --input artifacts/ux-optimization-monitor/candidate.json",
+    "perf:ux-optimization:standard-suite": "node dist/scripts/perf/capture-ux-optimization-standard-suite.js",
     "match:ui-control-smoke": "npm run build:vite && node dist/scripts/browser-ui-control-smoke.js",
     "match:ui-control-smoke:vite": "npm run build:vite && node dist/scripts/browser-ui-control-smoke.js",
     "match:ui-control-smoke:classic": "npm run build:browser && node dist/scripts/browser-ui-control-smoke.js --classic",

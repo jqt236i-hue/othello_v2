@@ -91,13 +91,16 @@ const CLASSIC_PIXI_RUNTIME_PATHS = Object.freeze([
   '/public/vendor/pixi-unsafe-eval-8.18.1.min.js'
 ]);
 
-interface CaptureOptions {
+export interface CaptureOptions {
   readonly rootDir?: string;
   readonly profile?: UxOptimizationProfile;
   readonly allowDirty?: boolean;
   readonly outputPath?: string | null;
   readonly launch?: typeof chromium.launch;
   readonly log?: boolean;
+  readonly artifactRoot?: string;
+  readonly candidateCommit?: string;
+  readonly bootOnly?: boolean;
 }
 
 interface CaptureCliOptions {
@@ -3899,9 +3902,12 @@ export async function captureUxOptimizationMonitor(
   if (dirtyPaths.length > 0 && options.allowDirty !== true) {
     throw new Error(`UX optimization capture requires a clean checkout:\n${dirtyPaths.join('\n')}`);
   }
-  const candidateCommit = readCandidateCommit(rootDir);
+  const candidateCommit = options.candidateCommit || readCandidateCommit(rootDir);
+  if (!/^[a-f0-9]{40}$/.test(candidateCommit)) {
+    throw new Error('UX optimization capture candidate commit must be a full lowercase git SHA');
+  }
   const artifact = computeBrowserArtifactManifest(
-    path.join(rootDir, DEFAULT_ARTIFACT_ROOT)
+    path.resolve(rootDir, options.artifactRoot || DEFAULT_ARTIFACT_ROOT)
   );
   const server = createBoardPerformanceServer({
     artifactRoot: artifact.root,
@@ -3961,99 +3967,101 @@ export async function captureUxOptimizationMonitor(
     const classic = await captureBootScenario(browser, baseUrl, classicDefinition);
     replaceScenario(classic.capture);
 
-    const specialScenarioIds = new Set([
-      'board.first-special',
-      'fallback.explicit-dom',
-      'fallback.pixi-init-failure',
-      'fallback.context-loss'
-    ]);
-    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
-      if (!specialScenarioIds.has(definition.id)) continue;
-      const capture = await captureSpecialOptimizationScenario(
-        browser,
-        baseUrl,
-        rootDir,
-        definition
-      );
-      replaceScenario(capture);
-    }
+    if (!options.bootOnly) {
+      const specialScenarioIds = new Set([
+        'board.first-special',
+        'fallback.explicit-dom',
+        'fallback.pixi-init-failure',
+        'fallback.context-loss'
+      ]);
+      for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+        if (!specialScenarioIds.has(definition.id)) continue;
+        const capture = await captureSpecialOptimizationScenario(
+          browser,
+          baseUrl,
+          rootDir,
+          definition
+        );
+        replaceScenario(capture);
+      }
 
-    const lockScenarioIds = new Set([
-      'board.lock-toggle',
-      'playback.opponent-actions'
-    ]);
-    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
-      if (!lockScenarioIds.has(definition.id)) continue;
-      replaceScenario(await captureLockOptimizationScenario(browser, baseUrl, definition));
-    }
+      const lockScenarioIds = new Set([
+        'board.lock-toggle',
+        'playback.opponent-actions'
+      ]);
+      for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+        if (!lockScenarioIds.has(definition.id)) continue;
+        replaceScenario(await captureLockOptimizationScenario(browser, baseUrl, definition));
+      }
 
-    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
-      if (!['help.before-idle', 'help.after-idle'].includes(definition.id)) continue;
-      replaceScenario(await captureHelpOptimizationScenario(browser, baseUrl, definition));
-    }
+      for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+        if (!['help.before-idle', 'help.after-idle'].includes(definition.id)) continue;
+        replaceScenario(await captureHelpOptimizationScenario(browser, baseUrl, definition));
+      }
 
-    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
-      if (definition.id !== 'feature.result') continue;
-      replaceScenario(await captureResultOptimizationScenario(
-        browser,
-        baseUrl,
-        definition
-      ));
-    }
+      for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+        if (definition.id !== 'feature.result') continue;
+        replaceScenario(await captureResultOptimizationScenario(
+          browser,
+          baseUrl,
+          definition
+        ));
+      }
 
-    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
-      if (definition.id !== 'feature.profile') continue;
-      replaceScenario(await captureProfileOptimizationScenario(
-        browser,
-        baseUrl,
-        definition
-      ));
-    }
+      for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+        if (definition.id !== 'feature.profile') continue;
+        replaceScenario(await captureProfileOptimizationScenario(
+          browser,
+          baseUrl,
+          definition
+        ));
+      }
 
-    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
-      if (definition.id !== 'feature.rules-help') continue;
-      replaceScenario(await captureRulesHelpOptimizationScenario(
-        browser,
-        baseUrl,
-        definition
-      ));
-    }
+      for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+        if (definition.id !== 'feature.rules-help') continue;
+        replaceScenario(await captureRulesHelpOptimizationScenario(
+          browser,
+          baseUrl,
+          definition
+        ));
+      }
 
-    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
-      if (definition.id !== 'feature.deck-builder') continue;
-      replaceScenario(await captureDeckBuilderOptimizationScenario(
-        browser,
-        baseUrl,
-        definition
-      ));
-    }
+      for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+        if (definition.id !== 'feature.deck-builder') continue;
+        replaceScenario(await captureDeckBuilderOptimizationScenario(
+          browser,
+          baseUrl,
+          definition
+        ));
+      }
 
-    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
-      if (definition.id !== 'feature.network') continue;
-      replaceScenario(await captureNetworkOptimizationScenario(
-        browser,
-        baseUrl,
-        definition
-      ));
-    }
+      for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+        if (definition.id !== 'feature.network') continue;
+        replaceScenario(await captureNetworkOptimizationScenario(
+          browser,
+          baseUrl,
+          definition
+        ));
+      }
 
-    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
-      if (definition.id !== 'feature.network-restore') continue;
-      replaceScenario(await captureNetworkRestoreOptimizationScenario(
-        browser,
-        baseUrl,
-        definition
-      ));
-    }
+      for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+        if (definition.id !== 'feature.network-restore') continue;
+        replaceScenario(await captureNetworkRestoreOptimizationScenario(
+          browser,
+          baseUrl,
+          definition
+        ));
+      }
 
-    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
-      if (definition.id !== 'asset.webp-fallback') continue;
-      replaceScenario(await captureWebpAdmissionScenario(
-        browser,
-        baseUrl,
-        rootDir,
-        definition
-      ));
+      for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+        if (definition.id !== 'asset.webp-fallback') continue;
+        replaceScenario(await captureWebpAdmissionScenario(
+          browser,
+          baseUrl,
+          rootDir,
+          definition
+        ));
+      }
     }
 
     const normalPlayIsolation = await captureNormalPlayIsolation(browser, baseUrl);
@@ -4085,7 +4093,9 @@ export async function captureUxOptimizationMonitor(
         environment
       }),
       pendingOptimizationIds: Object.freeze(
-        UX_OPTIMIZATION_IDS.filter((id) => !COMPLETED_OPTIMIZATION_IDS.has(id))
+        options.bootOnly
+          ? UX_OPTIMIZATION_IDS.slice()
+          : UX_OPTIMIZATION_IDS.filter((id) => !COMPLETED_OPTIMIZATION_IDS.has(id))
       ),
       baselineArtifactArchive,
       normalPlayIsolation,
