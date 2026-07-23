@@ -4,6 +4,8 @@ export type FeatureStylesheetGroup =
   | 'deck-builder-responsive'
   | 'gacha'
   | 'network'
+  | 'network-layout-controls'
+  | 'network-responsive'
   | 'leaderboard'
   | 'result'
   | 'profile'
@@ -24,6 +26,8 @@ const FEATURE_STYLESHEET_PATHS: Readonly<Record<FeatureStylesheetGroup, string>>
   'deck-builder-responsive': 'styles-feature-deck-builder-responsive.css',
   gacha: 'styles-feature-gacha.css',
   network: 'styles-feature-network.css',
+  'network-layout-controls': 'styles-feature-network-layout-controls.css',
+  'network-responsive': 'styles-feature-network-responsive.css',
   leaderboard: 'styles-leaderboard.css',
   result: 'styles-layout-result.css',
   profile: 'styles-profile.css',

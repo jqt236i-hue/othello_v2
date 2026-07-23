@@ -609,7 +609,9 @@
   - `ui/network-client.ts`
   - `ui/bootstrap/init-dom.ts`
   - `ui/bootstrap/init-events.ts`
+  - `styles-feature-network-layout-controls.css`
   - `styles-feature-network.css`
+  - `styles-feature-network-responsive.css`
   - network固有rulesを含む `styles-layout-info.css`, `styles-layout-controls.css`, `styles-responsive.css`
   - network button/popup tests
   - `test/ui.network-client.api-inventory.test.ts`
@@ -626,7 +628,7 @@
   - load失敗時はroom作成/参加を開始せず、再操作でview準備から再試行する。
 - monitoring:
   - network mode選択前inner DOM/style 0
-  - 選択後各1、退出/再open増分0
+  - 選択後は1つのatomic surface内にmodal/chatの4 direct inner root、元cascade位置に3 stylesheet fragmentを生成し、退出/再open増分0
   - 初回hydrate時の保存済みプレイヤー名、match mode、接続状態の一致
   - 保存sessionありでは復帰requestよりsurface readyが先行し、保存sessionなしではinner DOM/style 0。復帰成功/invalid sessionの両statusがready済みviewへ反映される
   - room settings popup、clipboard、leave、chat panelのUI操作
@@ -641,6 +643,14 @@
   - `npm run check:worker-mirror`
   - `npm run perf:ux-optimization:focused -- --target feature-network`
 - done: viewだけがlazyになり、server authority、publish、snapshot、reconnectに差分がない。
+- implementation review:
+  - sourceと変更前computed styleの監査により、計画書初版の単一 `styles-feature-network.css` では元の `styles-layout-controls.css → styles-layout-info.css → styles-responsive.css` の上書き順を再現できないことを確認した。設計書と計画書を3 fragmentの原子的ロードへ修正し、Vite/classic・desktop 1440×900/mobile 390×844の23 selectorで主要computed propertyと矩形の差分0を確認した。
+  - 初期HTMLは `#modeNetworkBtn`、空の `#networkModal` / `#networkChatPanel`、安定したoverlay/timer shellだけに縮小した。専用inner DOMと3 CSS response/linkは選択前0、初回選択後だけmodal/chatの4 direct inner rootと3 linkになり、通常reopenは同じinner node、attempt 1、DOM生成4、listener bind 1を保持する。
+  - network専用ruleを3 fragmentへ移し、起動時に読む3 eager CSSから合計70,964 bytesを除外した。shared/mixed ruleと閉じられる失敗shellのcritical styleはstartup側へ残した。
+  - `NetworkMatchClient.hasRestorableStoredSession(): boolean` は正規化済み保存sessionの有無だけを公開する。保存sessionなしはDOM/style/restore invocation 0、保存sessionありは3 fragmentとsurface ready後にだけrestoreを1回開始し、成功はnetwork modeと復帰status、invalidはCPU modeのready viewへ失敗statusを投影する。判定後消失の `NO_STORED_SESSION` はno-op、surface失敗時はrestore 0で保存sessionを残す。
+  - 部屋設定popup、clipboard、chat open/send、退出、ESC、backdrop、focus返却を安全なlocal stubでVite/classicとも検証した。CSS強制失敗では通常inner DOM/link/network処理を0へcleanupし、閉じる・focus・再試行案内を維持し、次回attempt 2で3 fragmentと通常surfaceへ復旧した。
+  - 遅延hydrate時に初めて顕在化した既存timer表示のnull dereference（`Number(null)` を0として扱った後に `timer.limitSeconds` を読む経路）を、timer存在確認を先行する形へ修正した。player-visibleな正常timer表示は既存testを維持し、network parity 34 suites・528 testsを通過した。
+  - `feature.network` 最終captureはVite 64.0ms、classic 60.8ms、CSS readyは各10.5ms、11.3ms、CLS delta 0、first-open Long Task 0だった。`feature.network-restore` を含む全scenario、focused/overall verdict、pending 0、worker mirror 922 files、Vite/classic UI control smokeがすべてpassした。
 
 ### Step 4.7: lazy feature CSS/DOM統合回帰
 

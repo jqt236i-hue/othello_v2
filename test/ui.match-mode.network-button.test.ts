@@ -786,6 +786,13 @@ describe('match-mode network button behavior', () => {
     expect(document.getElementById('networkTimerStatus').textContent).toBe('手番タイマー: 黒 残り 93 秒');
   });
 
+  test('手番タイマー未受信でも既定制限を使ってネット対戦モードを表示できる', async () => {
+    await window.MatchMode.setMode('network', { silentLog: true });
+
+    expect(document.getElementById('networkTimerStatus').textContent)
+      .toBe('手番タイマー: 待機中（制限 120 秒）');
+  });
+
   test('起動時に保存済み観戦セッションを復帰してネット対戦モードへ戻す', async () => {
     window.NetworkMatchClient.restoreStoredSession.mockResolvedValueOnce({
       ok: true,

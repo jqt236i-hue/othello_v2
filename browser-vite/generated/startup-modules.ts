@@ -540,6 +540,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/handlers/match-mode/network-clipboard": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/match-mode/network-clipboard.js"),
   "ui/handlers/match-mode/network-lobby-inputs": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/match-mode/network-lobby-inputs.js"),
   "ui/handlers/match-mode/network-room-list": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/match-mode/network-room-list.js"),
+  "ui/handlers/match-mode/network-surface-template": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/match-mode/network-surface-template.js"),
   "ui/handlers/match-mode/rated-match": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/match-mode/rated-match.js"),
   "ui/handlers/rules-help": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/rules-help.js"),
   "ui/handlers/rules-help-template": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/rules-help-template.js"),
@@ -1231,6 +1232,7 @@ installBootModuleMetadata({
     "ui/handlers/match-mode/network-clipboard",
     "ui/handlers/match-mode/network-lobby-inputs",
     "ui/handlers/match-mode/network-room-list",
+    "ui/handlers/match-mode/network-surface-template",
     "ui/handlers/match-mode/rated-match",
     "ui/handlers/rules-help",
     "ui/handlers/rules-help-template",
@@ -1454,4 +1456,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 676;
+export const startupModuleCount = 677;

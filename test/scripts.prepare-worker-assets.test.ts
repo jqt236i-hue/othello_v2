@@ -105,7 +105,9 @@ describe('prepare-worker-assets', () => {
             'styles-feature-deck-builder.css',
             'styles-feature-deck-builder-responsive.css',
             'styles-feature-gacha.css',
+            'styles-feature-network-layout-controls.css',
             'styles-feature-network.css',
+            'styles-feature-network-responsive.css',
             'styles-feature-rules-help-layout-info.css',
             'styles-feature-rules-help-cards.css',
             'styles-feature-rules-help-responsive.css'
@@ -121,7 +123,9 @@ describe('prepare-worker-assets', () => {
             'styles-feature-deck-builder.css',
             'styles-feature-deck-builder-responsive.css',
             'styles-feature-gacha.css',
+            'styles-feature-network-layout-controls.css',
             'styles-feature-network.css',
+            'styles-feature-network-responsive.css',
             'styles-feature-rules-help-layout-info.css',
             'styles-feature-rules-help-cards.css',
             'styles-feature-rules-help-responsive.css'

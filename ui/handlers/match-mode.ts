@@ -56,6 +56,20 @@ const FeatureStylesheetLoader = (() => {
         return null;
     }
 })();
+const LazyFeatureSurface = (() => {
+    try {
+        return _require('../assets/lazy-feature-surface');
+    } catch (e) {
+        return null;
+    }
+})();
+const NetworkSurfaceTemplate = (() => {
+    try {
+        return _require('./match-mode/network-surface-template');
+    } catch (e) {
+        return null;
+    }
+})();
 const MatchModeNetworkChatModule = (() => {
     try {
         return _require('./match-mode/network-chat');
@@ -99,6 +113,12 @@ const MODE_OTHELLO = 'othello';
     const CHAT_INPUT_FALLBACK_MAX = 20;
     const PLAYER_NAME_MAX = 7;
     const DEFAULT_PLAYER_NAME = 'ななし';
+    const NETWORK_SURFACE_ID = 'network';
+    const NETWORK_STYLESHEET_GROUPS = Object.freeze([
+        'network-layout-controls',
+        'network',
+        'network-responsive'
+    ]);
 
     let currentMode = MODE_CPU;
     let networkStatusBaseText = '';
@@ -179,6 +199,43 @@ const MODE_OTHELLO = 'othello';
         layoutBound: false,
         layoutSyncRaf: 0
     };
+    const NETWORK_SURFACE_REF_IDS = Object.freeze({
+        networkPanel: 'networkPanel',
+        networkAdvancedSettings: 'networkAdvancedSettings',
+        networkRoomInput: 'networkRoomIdInput',
+        networkServerInput: 'networkServerInput',
+        networkPlayerNameInput: 'networkPlayerNameInput',
+        networkBoardSizeRowsInput: 'networkBoardSizeRowsInput',
+        networkBoardSizeColsInput: 'networkBoardSizeColsInput',
+        networkBoardShapeSelect: 'networkBoardShapeSelect',
+        networkBoardSizeSummary: 'networkBoardSizeSummary',
+        networkBoardSizeNote: 'networkBoardSizeNote',
+        networkEnableDebugCheckbox: 'networkEnableDebugCheckbox',
+        networkEnableAutoCheckbox: 'networkEnableAutoCheckbox',
+        networkAllCardsDeckCheckbox: 'networkAllCardsDeckCheckbox',
+        networkCopyRoomBtn: 'networkCopyRoomBtn',
+        networkRoomSettingsBtn: 'networkRoomSettingsBtn',
+        networkRoomSettingsBackdrop: 'networkRoomSettingsBackdrop',
+        networkRoomSettingsPopup: 'networkRoomSettingsPopup',
+        networkRoomSettingsCloseBtn: 'networkRoomSettingsCloseBtn',
+        networkCreateBtn: 'networkCreateBtn',
+        networkJoinBtn: 'networkJoinBtn',
+        networkLeaveBtn: 'networkLeaveBtn',
+        networkStatus: 'networkStatusText',
+        networkDeckInfo: 'networkDeckInfo',
+        networkCloseBtn: 'networkCloseBtn',
+        networkChatToggle: 'networkChatToggle',
+        networkChatMessages: 'networkChatMessages',
+        networkChatInput: 'networkChatInput',
+        networkChatSendBtn: 'networkChatSendBtn',
+        networkRoomPasswordInput: 'networkRoomPasswordInput',
+        networkRoomListRefreshBtn: 'networkRoomListRefreshBtn',
+        networkRoomList: 'networkRoomList'
+    });
+    let matchModeControlsBound = false;
+    let networkSurfaceHydrated = false;
+    let networkSurfaceUsesLazyDom = true;
+    let networkSurfaceFailureCleanup: (() => void) | null = null;
 
     function normalizeMode(mode: any) {
         if (mode === MODE_REVERSI || mode === MODE_OTHELLO) return MODE_REVERSI;
@@ -761,7 +818,7 @@ const MODE_OTHELLO = 'othello';
 
     function formatNetworkTimerLabel() {
         const timer = (networkTurnTimerInfo && typeof networkTurnTimerInfo === 'object') ? networkTurnTimerInfo : null;
-        const limitSeconds = Number.isFinite(Number(timer && timer.limitSeconds))
+        const limitSeconds = timer && Number.isFinite(Number(timer.limitSeconds))
             ? Math.max(1, Math.trunc(Number(timer.limitSeconds)))
             : 120;
 
@@ -962,6 +1019,228 @@ const MODE_OTHELLO = 'othello';
         }
     }
 
+    function collectNetworkSurfaceRefs(documentRef: Document, supplied?: any) {
+        const explicit = (supplied && typeof supplied === 'object') ? supplied : {};
+        const refs: any = {};
+        Object.entries(NETWORK_SURFACE_REF_IDS).forEach(([refName, elementId]) => {
+            refs[refName] = explicit[refName]
+                || documentRef.getElementById(String(elementId))
+                || null;
+        });
+        refs.networkOverlay = explicit.networkOverlay
+            || documentRef.getElementById('networkOverlay')
+            || uiRefs.networkOverlay
+            || null;
+        refs.networkChatPanel = explicit.networkChatPanel
+            || documentRef.getElementById('networkChatPanel')
+            || uiRefs.networkChatPanel
+            || null;
+        refs.networkTimerStatus = explicit.networkTimerStatus
+            || documentRef.getElementById('networkTimerStatus')
+            || uiRefs.networkTimerStatus
+            || null;
+        return refs;
+    }
+
+    function detachNetworkUiRefs(refs: any) {
+        Object.keys(NETWORK_SURFACE_REF_IDS).forEach((refName) => {
+            if (!refs || uiRefs[refName] === refs[refName]) {
+                uiRefs[refName] = null;
+            }
+        });
+        networkSurfaceHydrated = false;
+    }
+
+    function reprojectNetworkUiState() {
+        const sharedName = normalizePlayerName(getSharedPlayerName());
+        if (
+            uiRefs.networkPlayerNameInput
+            && sharedName
+            && sharedName !== DEFAULT_PLAYER_NAME
+            && !normalizePlayerName(uiRefs.networkPlayerNameInput.value)
+        ) {
+            uiRefs.networkPlayerNameInput.value = sharedName;
+        }
+        const client = root.NetworkMatchClient;
+        if (
+            uiRefs.networkServerInput
+            && client
+            && typeof client.getServerUrl === 'function'
+            && !String(uiRefs.networkServerInput.value || '').trim()
+        ) {
+            try {
+                uiRefs.networkServerInput.value = String(client.getServerUrl() || '');
+            } catch (e) { /* ignore */ }
+        }
+        if (
+            !networkStatusBaseText
+            && client
+            && typeof client.isActive === 'function'
+            && client.isActive()
+        ) {
+            writeNetworkStatus(
+                isNetworkSpectatorActive() ? 'ネット対戦: 観測中' : 'ネット対戦: 接続中',
+                false
+            );
+        } else {
+            renderNetworkStatus();
+        }
+        refreshModeButtons();
+        renderNetworkDeckInfo();
+        refreshNetworkChatVisibility();
+        applyNetworkDebugModeAccess();
+        refreshNetworkAutoModeAccess();
+    }
+
+    function hydrateNetworkUiRefs(surfaceOrRefs: any, context?: any) {
+        const documentRef = (context && context.document)
+            || (typeof document !== 'undefined' ? document : null);
+        if (!documentRef) {
+            throw new Error('Network surface hydration requires a Document');
+        }
+        const supplied = surfaceOrRefs && surfaceOrRefs.refs
+            ? surfaceOrRefs.refs
+            : surfaceOrRefs;
+        const refs = collectNetworkSurfaceRefs(documentRef, supplied);
+        Object.assign(uiRefs, refs);
+
+        ensureNetworkLobbyUi();
+        Object.assign(uiRefs, collectNetworkSurfaceRefs(documentRef, uiRefs));
+
+        if (!networkSurfaceHydrated) {
+            if (uiRefs.networkEnableDebugCheckbox) uiRefs.networkEnableDebugCheckbox.checked = false;
+            if (uiRefs.networkEnableAutoCheckbox) uiRefs.networkEnableAutoCheckbox.checked = false;
+            if (uiRefs.networkAllCardsDeckCheckbox) uiRefs.networkAllCardsDeckCheckbox.checked = false;
+            bindNetworkButtons();
+            bindNetworkOverlayControls();
+            networkSurfaceHydrated = true;
+            if (context && typeof context.recordListenerBinding === 'function') {
+                context.recordListenerBinding(1);
+            }
+        }
+        reprojectNetworkUiState();
+        return refs;
+    }
+
+    function createNetworkSurface(context: any) {
+        const documentRef = context.document as Document;
+        const overlay = documentRef.getElementById('networkOverlay') as HTMLElement | null;
+        const modal = documentRef.getElementById('networkModal') as HTMLElement | null;
+        const chatPanel = documentRef.getElementById('networkChatPanel') as HTMLElement | null;
+        if (
+            !overlay
+            || !modal
+            || !chatPanel
+            || !NetworkSurfaceTemplate
+            || typeof NetworkSurfaceTemplate.NETWORK_MODAL_INNER_HTML !== 'string'
+            || typeof NetworkSurfaceTemplate.NETWORK_CHAT_INNER_HTML !== 'string'
+        ) {
+            throw new Error('Network stable shell or surface template is unavailable');
+        }
+
+        const modalTemplate = documentRef.createElement('template');
+        modalTemplate.innerHTML = NetworkSurfaceTemplate.NETWORK_MODAL_INNER_HTML.trim();
+        const chatTemplate = documentRef.createElement('template');
+        chatTemplate.innerHTML = NetworkSurfaceTemplate.NETWORK_CHAT_INNER_HTML.trim();
+        modal.replaceChildren(modalTemplate.content.cloneNode(true));
+        chatPanel.replaceChildren(chatTemplate.content.cloneNode(true));
+        context.recordDomCreated(modal.childElementCount + chatPanel.childElementCount);
+
+        const refs = collectNetworkSurfaceRefs(documentRef);
+        context.addCleanup(() => {
+            detachNetworkUiRefs(refs);
+            modal.replaceChildren();
+            chatPanel.replaceChildren();
+            chatPanel.classList.remove('is-active', 'is-open');
+            chatPanel.setAttribute('aria-hidden', 'true');
+            overlay.classList.remove('is-open', 'network-surface-failure');
+            overlay.setAttribute('aria-hidden', 'true');
+            modal.classList.remove('network-surface-failure');
+        });
+        return { overlay, modal, chatPanel, refs };
+    }
+
+    function clearNetworkSurfaceFailure(restoreFocus = false) {
+        const documentRef = typeof document !== 'undefined' ? document : null;
+        const overlay = documentRef?.getElementById('networkOverlay') as HTMLElement | null;
+        const modal = documentRef?.getElementById('networkModal') as HTMLElement | null;
+        const hadFailure = !!(
+            overlay?.classList.contains('network-surface-failure')
+            || modal?.classList.contains('network-surface-failure')
+        );
+        networkSurfaceFailureCleanup?.();
+        networkSurfaceFailureCleanup = null;
+        if (!hadFailure) return;
+        overlay?.classList.remove('is-open', 'network-surface-failure');
+        overlay?.setAttribute('aria-hidden', 'true');
+        modal?.classList.remove('network-surface-failure');
+        modal?.replaceChildren();
+        uiRefs.modeNetworkBtn?.setAttribute('aria-expanded', 'false');
+        if (restoreFocus) {
+            try { uiRefs.modeNetworkBtn?.focus(); } catch (e) { /* best-effort */ }
+        }
+    }
+
+    function showNetworkSurfaceFailure() {
+        const documentRef = typeof document !== 'undefined' ? document : null;
+        const overlay = documentRef?.getElementById('networkOverlay') as HTMLElement | null;
+        const modal = documentRef?.getElementById('networkModal') as HTMLElement | null;
+        const chatPanel = documentRef?.getElementById('networkChatPanel') as HTMLElement | null;
+        if (!documentRef || !overlay || !modal) return;
+        clearNetworkSurfaceFailure(false);
+        chatPanel?.replaceChildren();
+        overlay.classList.add('is-open', 'network-surface-failure');
+        overlay.setAttribute('aria-hidden', 'false');
+        modal.classList.add('network-surface-failure');
+        uiRefs.modeNetworkBtn?.setAttribute('aria-expanded', 'true');
+
+        const title = documentRef.createElement('div');
+        title.className = 'network-surface-failure-title';
+        title.textContent = 'ネット対戦画面を読み込めませんでした';
+        const message = documentRef.createElement('p');
+        message.className = 'network-surface-failure-message';
+        message.textContent = '閉じてネット対戦ボタンをもう一度押すと再試行します。';
+        const closeBtn = documentRef.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'btn-small';
+        closeBtn.textContent = '閉じる';
+        modal.replaceChildren(title, message, closeBtn);
+
+        const close = () => clearNetworkSurfaceFailure(true);
+        const onBackdrop = (event: Event) => {
+            if (event.target === overlay) close();
+        };
+        const onKeydown = (event: Event) => {
+            if ((event as KeyboardEvent).key !== 'Escape') return;
+            event.preventDefault();
+            close();
+        };
+        closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', onBackdrop);
+        documentRef.addEventListener('keydown', onKeydown);
+        networkSurfaceFailureCleanup = () => {
+            closeBtn.removeEventListener('click', close);
+            overlay.removeEventListener('click', onBackdrop);
+            documentRef.removeEventListener('keydown', onKeydown);
+        };
+        try { closeBtn.focus(); } catch (e) { /* best-effort */ }
+    }
+
+    function ensureNetworkSurface() {
+        if (networkSurfaceHydrated) return Promise.resolve(uiRefs);
+        const documentRef = typeof document !== 'undefined' ? document : null;
+        if (!documentRef || !LazyFeatureSurface || typeof LazyFeatureSurface.ensureLazyFeatureSurface !== 'function') {
+            return Promise.reject(new Error('Network lazy surface loader is unavailable'));
+        }
+        clearNetworkSurfaceFailure(false);
+        uiRefs.modeNetworkBtn?.setAttribute('aria-busy', 'true');
+        return Promise.resolve(
+            LazyFeatureSurface.ensureLazyFeatureSurface(NETWORK_SURFACE_ID, documentRef)
+        ).then((surface: any) => surface.dom).finally(() => {
+            uiRefs.modeNetworkBtn?.removeAttribute('aria-busy');
+        });
+    }
+
     function isNetworkOverlayOpen() {
         return !!(uiRefs.networkOverlay && uiRefs.networkOverlay.classList.contains('is-open'));
     }
@@ -969,10 +1248,13 @@ const MODE_OTHELLO = 'othello';
     function setNetworkOverlayVisible(visible: any) {
         if (!uiRefs.networkOverlay) return;
         const open = !!visible;
-        if (open) {
+        const wasOpen = isNetworkOverlayOpen();
+        if (open && !networkSurfaceUsesLazyDom) {
             try {
                 if (FeatureStylesheetLoader && typeof FeatureStylesheetLoader.ensureFeatureStylesheet === 'function') {
-                    void FeatureStylesheetLoader.ensureFeatureStylesheet('network', typeof document !== 'undefined' ? document : null);
+                    NETWORK_STYLESHEET_GROUPS.forEach((group) => {
+                        void FeatureStylesheetLoader.ensureFeatureStylesheet(group, typeof document !== 'undefined' ? document : null);
+                    });
                 }
             } catch (e) { /* fallback styling must not block the panel */ }
         }
@@ -997,6 +1279,12 @@ const MODE_OTHELLO = 'othello';
                 focusTarget.focus({ preventScroll: true });
             } catch (e) {
                 try { focusTarget.focus(); } catch (_e) { /* ignore */ }
+            }
+        } else if (!open && wasOpen && uiRefs.modeNetworkBtn && typeof uiRefs.modeNetworkBtn.focus === 'function') {
+            try {
+                uiRefs.modeNetworkBtn.focus({ preventScroll: true });
+            } catch (e) {
+                try { uiRefs.modeNetworkBtn.focus(); } catch (_e) { /* ignore */ }
             }
         }
         if (open && uiRefs.networkRoomList) {
@@ -1454,6 +1742,13 @@ const MODE_OTHELLO = 'othello';
     async function setMode(mode: any, options?: any) {
         const opts = options || {};
         const nextMode = normalizeMode(mode);
+        if (
+            nextMode === MODE_NETWORK
+            && opts.surfaceReady !== true
+            && !networkSurfaceHydrated
+        ) {
+            await ensureNetworkSurface();
+        }
         const prevMode = currentMode;
         if (nextMode === prevMode && !opts.force) {
             refreshModeButtons();
@@ -1521,14 +1816,28 @@ const MODE_OTHELLO = 'othello';
     }
 
     async function restoreStoredNetworkSessionOnBoot() {
+        const client = root.NetworkMatchClient;
         try {
-            if (!root.NetworkMatchClient || typeof root.NetworkMatchClient.restoreStoredSession !== 'function') return;
-            const result = await root.NetworkMatchClient.restoreStoredSession();
-            if (!result || result.ok !== true) return;
+            if (!client || typeof client.restoreStoredSession !== 'function') return;
+            if (typeof client.hasRestorableStoredSession === 'function') {
+                if (client.hasRestorableStoredSession() !== true) return;
+            } else if (networkSurfaceUsesLazyDom) {
+                return;
+            }
+            if (!networkSurfaceHydrated) {
+                await ensureNetworkSurface();
+            }
+            const result = await client.restoreStoredSession();
+            if (!result || result.ok !== true) {
+                if (result && result.reason === 'NO_STORED_SESSION') return;
+                writeNetworkStatus('ネット対戦: 保存セッションの復帰に失敗しました', true);
+                return;
+            }
             await setMode(MODE_NETWORK, {
                 silentLog: true,
                 skipReset: true,
-                suppressStatus: true
+                suppressStatus: true,
+                surfaceReady: true
             });
             const role = String(result.viewerRole || '').trim().toLowerCase();
             writeNetworkStatus(role === 'spectator'
@@ -1537,7 +1846,12 @@ const MODE_OTHELLO = 'othello';
             setNetworkOverlayVisible(false);
             renderNetworkTimerStatus();
             refreshNetworkChatVisibility();
-        } catch (e) { /* ignore restore failure; normal CPU boot remains available */ }
+        } catch (e) {
+            if (networkSurfaceHydrated) {
+                writeNetworkStatus('ネット対戦: 保存セッションの復帰に失敗しました', true);
+            }
+            // Normal CPU boot remains available and the stored session is left for retry.
+        }
     }
 
     function createNetworkButtonBindingContext() {
@@ -1598,6 +1912,22 @@ const MODE_OTHELLO = 'othello';
         if (MatchModeNetworkButtonsModule && typeof MatchModeNetworkButtonsModule.bindNetworkButtons === 'function') {
             MatchModeNetworkButtonsModule.bindNetworkButtons(createNetworkButtonBindingContext());
         }
+    }
+
+    const NetworkSurfaceRegistration = Object.freeze({
+        id: NETWORK_SURFACE_ID,
+        stylesheetGroups: NETWORK_STYLESHEET_GROUPS,
+        ensureDom: createNetworkSurface,
+        onReady: (surface: any, context: any) => {
+            hydrateNetworkUiRefs(surface.dom, context);
+        },
+        onFailure: () => {
+            showNetworkSurfaceFailure();
+        }
+    });
+
+    if (LazyFeatureSurface && typeof LazyFeatureSurface.registerLazyFeatureSurface === 'function') {
+        LazyFeatureSurface.registerLazyFeatureSurface(NetworkSurfaceRegistration);
     }
 
     function setupMatchModeControls(options: any) {
@@ -1664,6 +1994,7 @@ const MODE_OTHELLO = 'othello';
         uiRefs.networkChatInput = opts.networkChatInput || null;
         uiRefs.networkChatSendBtn = opts.networkChatSendBtn || null;
         uiRefs.autoToggleBtn = opts.autoToggleBtn || null;
+        networkSurfaceUsesLazyDom = !opts.networkPanel;
         try {
             const payload = { onTimeAttackFirstMove: markTimeAttackFirstMoveForMatchMode };
             if (SharedUIBootstrapModule && typeof SharedUIBootstrapModule.mergeUIImpl === 'function') {
@@ -1673,56 +2004,56 @@ const MODE_OTHELLO = 'othello';
                 root.onTimeAttackFirstMove = markTimeAttackFirstMoveForMatchMode;
             }
         } catch (e) { /* ignore */ }
-        ensureNetworkLobbyUi();
-        if (uiRefs.networkEnableDebugCheckbox) {
-            uiRefs.networkEnableDebugCheckbox.checked = false;
-        }
-        if (uiRefs.networkEnableAutoCheckbox) {
-            uiRefs.networkEnableAutoCheckbox.checked = false;
-        }
-        if (uiRefs.networkAllCardsDeckCheckbox) {
-            uiRefs.networkAllCardsDeckCheckbox.checked = false;
+        if (!networkSurfaceUsesLazyDom) {
+            hydrateNetworkUiRefs(opts);
         }
 
-        if (uiRefs.modeCpuBtn) {
-            uiRefs.modeCpuBtn.addEventListener('click', () => {
-                setMode(MODE_CPU);
-            });
-        }
-        if (uiRefs.modeReversiBtn) {
-            uiRefs.modeReversiBtn.addEventListener('click', () => {
-                setMode(MODE_REVERSI);
-            });
-        }
-        if (uiRefs.modeNetworkBtn) {
-            uiRefs.modeNetworkBtn.addEventListener('click', async () => {
-                if (currentMode !== MODE_NETWORK) {
-                    await setMode(MODE_NETWORK);
-                    setLeaderboardOverlayVisible(false);
-                    setNetworkOverlayVisible(true);
-                    return;
-                }
+        if (!matchModeControlsBound) {
+            if (uiRefs.modeCpuBtn) {
+                uiRefs.modeCpuBtn.addEventListener('click', () => {
+                    void setMode(MODE_CPU);
+                });
+            }
+            if (uiRefs.modeReversiBtn) {
+                uiRefs.modeReversiBtn.addEventListener('click', () => {
+                    void setMode(MODE_REVERSI);
+                });
+            }
+            if (uiRefs.modeNetworkBtn) {
+                uiRefs.modeNetworkBtn.addEventListener('click', async () => {
+                    try {
+                        if (currentMode !== MODE_NETWORK) {
+                            await setMode(MODE_NETWORK);
+                            setLeaderboardOverlayVisible(false);
+                            setNetworkOverlayVisible(true);
+                            return;
+                        }
 
-                setLeaderboardOverlayVisible(false);
-                setNetworkOverlayVisible(!isNetworkOverlayOpen());
-            });
+                        await ensureNetworkSurface();
+                        setLeaderboardOverlayVisible(false);
+                        setNetworkOverlayVisible(!isNetworkOverlayOpen());
+                    } catch (e) {
+                        // The surface failure shell owns the retry path.
+                    }
+                });
+            }
+            bindRatedMatchControls();
+            bindLeaderboardControls();
+            bindControlPanelLayoutObservers();
+            matchModeControlsBound = true;
         }
-
-        bindNetworkButtons();
-        bindNetworkOverlayControls();
-        bindRatedMatchControls();
-        bindLeaderboardControls();
-        bindControlPanelLayoutObservers();
         measureBaseControlPanelHeight();
         scheduleControlPanelLayoutSync();
-        setMode(MODE_CPU, { force: true, silentLog: true });
+        void setMode(MODE_CPU, { force: true, silentLog: true });
         if (!(options && options.deferStoredSessionRestore === true)) {
             restoreStoredNetworkSessionOnBoot();
         }
     }
-export = {
+    export = {
         setupMatchModeControls,
         restoreStoredNetworkSessionOnBoot,
+        ensureNetworkSurface,
+        hydrateNetworkUiRefs,
         setMode,
         getCurrentMode,
         isLocalOrNetworkMode,

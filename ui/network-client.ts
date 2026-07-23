@@ -2133,6 +2133,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return invokeControllerMethod(getNetworkSessionSeatController, 'readStoredSession', arguments, null);
     }
 
+    function hasRestorableStoredSession() {
+        return !!readStoredSession();
+    }
+
     function clearStoredSession() {
         invokeControllerMethod(getNetworkSessionSeatController, 'clearStoredSession', arguments, undefined);
     }
@@ -4080,6 +4084,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         listRooms,
         leaveRoom,
         syncLatestState,
+        hasRestorableStoredSession,
         restoreStoredSession,
         enterRatedQueue,
         pollRatedQueue,

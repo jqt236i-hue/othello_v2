@@ -307,6 +307,7 @@ featureは `result → profile → rules-help → deck-builder → network` の�
 - resultのfull stylesheetはclassicの元順序 `styles-layout-info.css → styles-layout-result.css → styles-layout-characters.css` を維持する。Vite生成HTMLではfeature slotと後付けのeager link群が離れるため、slot位置だけでなく `data-card-reversi-feature-style-before="styles-layout-characters.css"` の固定anchorを解決し、両laneで同じcascade順へ挿入する。
 - 元ファイル内でfeature/shared ruleが交互にあり単純抽出でcascadeが変わる場合は、抽出境界ごとの複数fragment/slotへ分割するか、その競合ruleをstartup側へ残す。loaderはfeature単位で必要fragmentを一つのPromiseへ合流し、全fragment ready後だけsurface readyにする。代表状態・viewport・focus/disabled/open stateの主要computed property baseline一致をblockingにする。
 - rules-helpは `styles-layout-info.css`、`styles-cards.css`、`styles-responsive.css` ごとにfragment/slotを分ける。`styles-base.css` のHELP selectorはすべて他surfaceと共有するmixed ruleであり、startupから抽出しない。
+- networkも `styles-layout-controls.css`、`styles-layout-info.css`、`styles-responsive.css` の3つの元cascade境界ごとにfragment/slotを分ける。modalとchatのinner DOMは一つのsurface attemptで原子的に生成し、3 fragmentの全ready後だけhydrateとnetwork処理を開始する。単一末尾stylesheetへの集約やmodal/chat別attemptは採用しない。
 - `styles-layout-info.css` のmixed selectorはstartupに残すだけでは、後段のHELP専用ruleをfragmentへ移した時に元の上書き順を再現できない。この場合は共有ruleを削除せず、HELP selectorだけのprojectionをlayout-info fragment内の元の相対境界にも置く。Vite/classic、desktop/mobileの代表computed styleが一致する場合だけ重複を許可する。
 - `.premium-btn` はresult固有に見えるがnetwork再戦申請dialogも使用する共有ruleである。result full CSSへ残さずstartup側の共有critical ruleとして所有し、result未表示のnetwork操作を未装飾にしない。result内では局所custom property、network側では同じfallback値を使う。
 - result以外のinner DOMは一度だけcloneし、close時に破棄しない。

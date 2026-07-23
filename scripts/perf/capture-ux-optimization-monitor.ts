@@ -57,7 +57,8 @@ const COMPLETED_OPTIMIZATION_IDS = new Set([
   'feature-result',
   'feature-profile',
   'feature-rules-help',
-  'feature-deck-builder'
+  'feature-deck-builder',
+  'feature-network'
 ]);
 const SPECIAL_STONE_PATH_PREFIX = 'assets/images/special-stones/';
 const DOM_COMPAT_STYLESHEET_PATH = 'styles-board-dom-compat.css';
@@ -71,6 +72,11 @@ const RULES_HELP_STYLESHEET_PATHS = Object.freeze([
 const DECK_BUILDER_STYLESHEET_PATHS = Object.freeze([
   'styles-feature-deck-builder.css',
   'styles-feature-deck-builder-responsive.css'
+]);
+const NETWORK_STYLESHEET_PATHS = Object.freeze([
+  'styles-feature-network-layout-controls.css',
+  'styles-feature-network.css',
+  'styles-feature-network-responsive.css'
 ]);
 const DEFAULT_FRAME_PNG_PATH =
   'assets/images/board/board-frame-marsh-forged-iron-v1.png';
@@ -388,7 +394,9 @@ async function captureBootScenario(
           profile: countChildren('#profileModal'),
           rulesHelp: countChildren('#rules-help-panel'),
           deckBuilder: countChildren('#deckBuilderModal'),
-          network: countChildren('#networkOverlay')
+          network:
+            countChildren('#networkModal')
+            + countChildren('#networkChatPanel')
         },
         initialHelpImageSrcCount: [
           document.getElementById('rules-help-guide-slide-img'),
@@ -431,6 +439,12 @@ async function captureBootScenario(
         ).length,
         deckBuilderStylesheetSlotCount: document.querySelectorAll(
           '[data-card-reversi-feature-style-slot^="deck-builder"]'
+        ).length,
+        networkStylesheetLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="network"]'
+        ).length,
+        networkStylesheetSlotCount: document.querySelectorAll(
+          '[data-card-reversi-feature-style-slot^="network"]'
         ).length,
         initialHelpImageElementCount: [
           document.getElementById('rules-help-guide-slide-img'),
@@ -2251,6 +2265,678 @@ async function captureDeckBuilderOptimizationScenario(
   }
 }
 
+async function captureFailedNetworkStylesheetPath(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(browser, baseUrl, definition);
+  const failedPath = NETWORK_STYLESHEET_PATHS[0];
+  let failedPathRequestCount = 0;
+  let failedPathRequestFailureCount = 0;
+  let warningCount = 0;
+  runtime.page.on('requestfailed', (request) => {
+    if (relativeResourcePath(request.url(), baseUrl) === failedPath) {
+      failedPathRequestFailureCount += 1;
+    }
+  });
+  runtime.page.on('console', (message) => {
+    if (
+      message.type() === 'warning'
+      && message.text().includes(`[feature-stylesheet] failed to load ${failedPath}`)
+    ) {
+      warningCount += 1;
+    }
+  });
+  await runtime.page.route(`**/${failedPath}*`, async (route) => {
+    failedPathRequestCount += 1;
+    if (failedPathRequestCount === 1) {
+      await route.abort('failed');
+      return;
+    }
+    await route.continue();
+  });
+  try {
+    await closeSidePanelForFeatureCapture(runtime.page);
+    await runtime.page.evaluate(() => {
+      const client = (window as any).NetworkMatchClient;
+      (window as any).__uxNetworkFailureEvidence = {
+        listRoomsCount: 0
+      };
+      if (client) {
+        client.listRooms = async () => {
+          (window as any).__uxNetworkFailureEvidence.listRoomsCount += 1;
+          return { ok: true, rooms: [] };
+        };
+      }
+    });
+    await runtime.page.click('#modeNetworkBtn');
+    await runtime.page.waitForSelector(
+      '#networkModal.network-surface-failure',
+      { state: 'visible', timeout: 30_000 }
+    );
+    await runtime.page.waitForFunction(() => (
+      document.querySelectorAll(
+        'link[data-card-reversi-feature-style^="network"]'
+      ).length === 0
+    ), null, { timeout: 30_000 });
+    const failed = await runtime.page.evaluate(() => {
+      const overlay = document.getElementById('networkOverlay');
+      const modal = document.getElementById('networkModal');
+      const close = modal?.querySelector('button') as HTMLButtonElement | null;
+      return {
+        failureVisible:
+          overlay?.classList.contains('is-open') === true
+          && modal?.classList.contains('network-surface-failure') === true
+          && Number(modal.getBoundingClientRect().width) > 0
+          && Number(modal.getBoundingClientRect().height) > 0,
+        failureFocused: document.activeElement === close,
+        failureDialogStable:
+          modal?.getAttribute('role') === 'dialog'
+          && modal.getAttribute('aria-label') === 'ネット対戦設定',
+        failureNormalInnerDomCount:
+          document.querySelectorAll(
+            '#networkModal > #networkModalHeader, '
+            + '#networkModal > #networkModalBody, '
+            + '#networkChatPanel > #networkChatToggle, '
+            + '#networkChatPanel > #networkChatBody'
+          ).length,
+        failureLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="network"]'
+        ).length,
+        failureRetryGuidance:
+          modal?.textContent?.includes('もう一度押すと再試行') === true,
+        failureModeStayedCpu:
+          String((window as any).getCurrentMatchMode?.() || '') === 'cpu',
+        failureNetworkProcessingCount:
+          Number((window as any).__uxNetworkFailureEvidence?.listRoomsCount || 0)
+      };
+    });
+    await runtime.page.evaluate(() => {
+      const close = document.querySelector(
+        '#networkModal.network-surface-failure button'
+      ) as HTMLButtonElement | null;
+      if (!close) throw new Error('Network failure close button is unavailable');
+      close.click();
+    });
+    await runtime.page.click('#modeNetworkBtn');
+    await runtime.page.waitForFunction(() => {
+      const links = Array.from(document.querySelectorAll<HTMLLinkElement>(
+        'link[data-card-reversi-feature-style^="network"]'
+      ));
+      return document.getElementById('networkOverlay')
+        ?.classList.contains('is-open') === true
+        && links.length === 3
+        && links.every((link) => (
+          link.dataset.cardReversiFeatureStyleLoaded === 'true'
+        ))
+        && !!document.getElementById('networkPanel');
+    }, null, { timeout: 30_000 });
+    const retried = await runtime.page.evaluate(() => {
+      const diagnosticsModule = (window as any).require?.(
+        'ui/assets/lazy-feature-surface'
+      );
+      const diagnostics = diagnosticsModule?.getLazyFeatureSurfaceDiagnostics?.(
+        'network',
+        document
+      ) || null;
+      return {
+        failureRetryReady: !!document.getElementById('networkPanel'),
+        failureRetryLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="network"]'
+        ).length,
+        failureRetryInnerDomCount: document.querySelectorAll(
+          '#networkModal > #networkModalHeader, '
+          + '#networkModal > #networkModalBody, '
+          + '#networkChatPanel > #networkChatToggle, '
+          + '#networkChatPanel > #networkChatBody'
+        ).length,
+        failureRetryAttemptCount: Number(diagnostics?.attemptCount || 0),
+        failureRetryFailureCount: Number(diagnostics?.failureCount || 0),
+        failureRetryCount: Number(diagnostics?.retryCount || 0)
+      };
+    });
+    return Object.freeze({
+      ...failed,
+      ...retried,
+      failureRequestCount: failedPathRequestCount,
+      failureRequestFailureCount: failedPathRequestFailureCount,
+      failureResponseCount: countPath(runtime.responsePaths, failedPath),
+      failureConsoleErrorCount: runtime.errors.filter(
+        (error) => error.kind === 'console'
+      ).length,
+      failureConsoleWarningCount: warningCount
+    });
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
+async function captureNetworkOptimizationScenario(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(browser, baseUrl, definition);
+  try {
+    await closeSidePanelForFeatureCapture(runtime.page);
+    const beforeSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const initial = await runtime.page.evaluate((stylesheetPaths) => {
+      const responsePaths = new Set(
+        performance.getEntriesByType('resource').map((entry) => {
+          try {
+            return new URL(entry.name).pathname.replace(/^\/+/, '');
+          } catch (_error) {
+            return '';
+          }
+        })
+      );
+      return {
+        backend: String(
+          (window as any).__boardVisualDebug?.getBackendKind?.()
+          || document.documentElement.getAttribute('data-board-visual-backend')
+          || 'none'
+        ),
+        uiInitialized: (window as any).__uiInitialized === true,
+        networkStylesheetLinkCountBeforeOpen: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="network"]'
+        ).length,
+        networkStylesheetSlotCount: document.querySelectorAll(
+          '[data-card-reversi-feature-style-slot^="network"]'
+        ).length,
+        networkInnerDomCountBeforeOpen:
+          document.querySelectorAll('#networkModal > *, #networkChatPanel > *').length,
+        networkResourceCountBeforeOpen: stylesheetPaths.filter(
+          (resourcePath) => responsePaths.has(resourcePath)
+        ).length,
+        networkPublicPresenceApiAvailable:
+          typeof (window as any).NetworkMatchClient
+            ?.hasRestorableStoredSession === 'function'
+      };
+    }, NETWORK_STYLESHEET_PATHS);
+    const responsesBeforeOpen = NETWORK_STYLESHEET_PATHS.reduce(
+      (total, resourcePath) => total + countPath(runtime.responsePaths, resourcePath),
+      0
+    );
+
+    await markProbePhase(runtime.page, 'feature-opening:network');
+    await runtime.page.evaluate(() => {
+      const root = window as any;
+      localStorage.setItem('card_reversi_player_profile_v1', JSON.stringify({
+        version: 1,
+        displayName: '監視者',
+        avatarStoneType: 'normal_black',
+        bio: '',
+        updatedAt: 1
+      }));
+      root.__uxNetworkEvidence = {
+        listRoomsCount: 0,
+        listRoomsAfterSurfaceReady: false,
+        clipboardCalled: false,
+        chatSendCount: 0,
+        leaveCount: 0
+      };
+      const client = root.NetworkMatchClient;
+      if (!client) throw new Error('NetworkMatchClient is unavailable');
+      client.isActive = () => true;
+      client.isSpectator = () => false;
+      client.hasTwoPlayers = () => true;
+      client.getRoomName = () => '監視用';
+      client.getSeatKey = () => 'black';
+      client.getChatMaxLength = () => 20;
+      client.listRooms = async () => {
+        root.__uxNetworkEvidence.listRoomsCount += 1;
+        const links = Array.from(document.querySelectorAll<HTMLLinkElement>(
+          'link[data-card-reversi-feature-style^="network"]'
+        ));
+        root.__uxNetworkEvidence.listRoomsAfterSurfaceReady =
+          !!document.getElementById('networkPanel')
+          && links.length === 3
+          && links.every((link) => (
+            link.dataset.cardReversiFeatureStyleLoaded === 'true'
+          ));
+        return { ok: true, rooms: [] };
+      };
+      client.sendChatMessage = async () => {
+        root.__uxNetworkEvidence.chatSendCount += 1;
+        return { ok: true };
+      };
+      client.leaveRoom = async () => {
+        root.__uxNetworkEvidence.leaveCount += 1;
+        return { ok: true };
+      };
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async () => {
+            root.__uxNetworkEvidence.clipboardCalled = true;
+          }
+        }
+      });
+      document.getElementById('modeNetworkBtn')?.addEventListener('click', () => {
+        root.__uxNetworkStartedAtMs = performance.now();
+      }, { capture: true, once: true });
+    });
+    await runtime.page.click('#modeNetworkBtn');
+    await runtime.page.waitForFunction(() => {
+      const links = Array.from(document.querySelectorAll<HTMLLinkElement>(
+        'link[data-card-reversi-feature-style^="network"]'
+      ));
+      return document.getElementById('networkOverlay')
+        ?.classList.contains('is-open') === true
+        && links.length === 3
+        && links.every((link) => (
+          link.dataset.cardReversiFeatureStyleLoaded === 'true'
+        ))
+        && !!document.getElementById('networkPanel');
+    }, null, { timeout: 30_000 });
+    await markProbePhase(runtime.page, 'feature-ready:network');
+    const firstOpen = await runtime.page.evaluate((stylesheetPaths) => {
+      const root = window as any;
+      const modal = document.getElementById('networkModal') as HTMLElement | null;
+      const panel = document.getElementById('networkPanel') as HTMLElement | null;
+      const popup = document.getElementById('networkRoomSettingsPopup') as HTMLElement | null;
+      const links = Array.from(document.head.querySelectorAll<HTMLLinkElement>(
+        'link[rel="stylesheet"]'
+      ));
+      const featureLinks = Array.from(document.querySelectorAll<HTMLLinkElement>(
+        'link[data-card-reversi-feature-style^="network"]'
+      ));
+      const indexOf = (nameValue: string): number => links.findIndex((candidate) => {
+        try {
+          return new URL(candidate.href).pathname.endsWith(`/${nameValue}`);
+        } catch (_error) {
+          return false;
+        }
+      });
+      const modalStyle = modal ? getComputedStyle(modal) : null;
+      const panelStyle = panel ? getComputedStyle(panel) : null;
+      const popupStyle = popup ? getComputedStyle(popup) : null;
+      root.__uxNetworkInnerNode = document.getElementById('networkModalHeader');
+      return {
+        firstOpenLatencyMs:
+          performance.now() - Number(root.__uxNetworkStartedAtMs),
+        firstStyleReadyLatencyMs:
+          Math.max(...featureLinks.map((link) => (
+            Number(link.dataset.cardReversiFeatureStyleReadyAt || NaN)
+          ))) - Number(root.__uxNetworkStartedAtMs),
+        firstLinkCount: featureLinks.length,
+        firstInnerDomCount: document.querySelectorAll(
+          '#networkModal > #networkModalHeader, '
+          + '#networkModal > #networkModalBody, '
+          + '#networkChatPanel > #networkChatToggle, '
+          + '#networkChatPanel > #networkChatBody'
+        ).length,
+        firstPanelVisible:
+          Number(modal?.getBoundingClientRect().width || 0) > 0
+          && Number(modal?.getBoundingClientRect().height || 0) > 0,
+        firstFullStyleReady:
+          featureLinks.length === 3
+          && featureLinks.every((link) => (
+            link.dataset.cardReversiFeatureStyleLoaded === 'true'
+          )),
+        firstCascadeOrderPreserved:
+          indexOf(stylesheetPaths[0]) === indexOf('styles-layout-controls.css') + 1
+          && indexOf(stylesheetPaths[1]) === indexOf('styles-layout-info.css') + 1
+          && indexOf(stylesheetPaths[2]) === indexOf('styles-responsive.css') + 1,
+        firstComputedStylePreserved:
+          modalStyle?.display === 'flex'
+          && modalStyle.overflow === 'hidden'
+          && modalStyle.backgroundImage.includes('network-lobby-frame-v1.png')
+          && panelStyle?.display === 'grid'
+          && popupStyle?.position === 'fixed',
+        savedProfileProjected:
+          (document.getElementById('networkPlayerNameInput') as HTMLInputElement | null)
+            ?.value === '監視者',
+        currentModeProjected:
+          String(root.getCurrentMatchMode?.() || '') === 'network',
+        clientStateProjected:
+          document.getElementById('networkChatPanel')
+            ?.classList.contains('is-active') === true,
+        networkProcessingAfterSurfaceReady:
+          root.__uxNetworkEvidence?.listRoomsAfterSurfaceReady === true,
+        initialFocusCorrect:
+          document.activeElement === document.getElementById('networkRoomIdInput')
+      };
+    }, NETWORK_STYLESHEET_PATHS);
+    const firstOpenSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+
+    const interaction = await runtime.page.evaluate(async () => {
+      const settingsButton = document.getElementById(
+        'networkRoomSettingsBtn'
+      ) as HTMLButtonElement | null;
+      settingsButton?.click();
+      const popupOpened =
+        document.getElementById('networkRoomSettingsPopup')
+          ?.classList.contains('is-open') === true;
+      (document.getElementById(
+        'networkRoomSettingsCloseBtn'
+      ) as HTMLButtonElement | null)?.click();
+      const popupClosed =
+        document.getElementById('networkRoomSettingsPopup')
+          ?.classList.contains('is-open') !== true;
+
+      const roomInput = document.getElementById(
+        'networkRoomIdInput'
+      ) as HTMLInputElement | null;
+      if (roomInput) roomInput.value = '監視用';
+      const copyButton = document.getElementById(
+        'networkCopyRoomBtn'
+      ) as HTMLButtonElement | null;
+      if (copyButton) {
+        copyButton.hidden = false;
+        copyButton.click();
+      }
+      await Promise.resolve();
+
+      const chatToggle = document.getElementById(
+        'networkChatToggle'
+      ) as HTMLButtonElement | null;
+      chatToggle?.click();
+      const chatExpanded =
+        document.getElementById('networkChatPanel')
+          ?.classList.contains('is-open') === true;
+      const chatInput = document.getElementById(
+        'networkChatInput'
+      ) as HTMLInputElement | null;
+      if (chatInput) {
+        chatInput.value = '監視';
+        chatInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      (document.getElementById(
+        'networkChatSendBtn'
+      ) as HTMLButtonElement | null)?.click();
+      await Promise.resolve();
+      return {
+        roomSettingsPopupWorked: popupOpened && popupClosed,
+        clipboardWorked:
+          (window as any).__uxNetworkEvidence?.clipboardCalled === true,
+        chatPanelWorked: chatExpanded,
+        chatSendWorked:
+          Number((window as any).__uxNetworkEvidence?.chatSendCount || 0) === 1
+      };
+    });
+    await runtime.page.keyboard.press('Escape');
+    await runtime.page.waitForFunction(() => (
+      document.activeElement === document.getElementById('modeNetworkBtn')
+    ), null, { timeout: 10_000 });
+    const escapeClose = await runtime.page.evaluate(() => ({
+      escapeClosed:
+        document.getElementById('networkOverlay')?.classList.contains('is-open') !== true,
+      escapeFocusReturned:
+        document.activeElement === document.getElementById('modeNetworkBtn')
+    }));
+    await runtime.page.click('#modeNetworkBtn');
+    await runtime.page.waitForSelector('#networkOverlay.is-open', {
+      state: 'visible',
+      timeout: 30_000
+    });
+    const reopen = await runtime.page.evaluate(() => {
+      const diagnosticsModule = (window as any).require?.(
+        'ui/assets/lazy-feature-surface'
+      );
+      const diagnostics = diagnosticsModule?.getLazyFeatureSurfaceDiagnostics?.(
+        'network',
+        document
+      ) || null;
+      return {
+        reopenSameInnerNode:
+          (window as any).__uxNetworkInnerNode
+            === document.getElementById('networkModalHeader'),
+        reopenLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="network"]'
+        ).length,
+        reopenInnerDomCount: document.querySelectorAll(
+          '#networkModal > #networkModalHeader, '
+          + '#networkModal > #networkModalBody, '
+          + '#networkChatPanel > #networkChatToggle, '
+          + '#networkChatPanel > #networkChatBody'
+        ).length,
+        diagnosticsAttemptCount: Number(diagnostics?.attemptCount || 0),
+        diagnosticsDomCreatedCount: Number(diagnostics?.domCreatedCount || 0),
+        diagnosticsReadyCount: Number(diagnostics?.readyCount || 0),
+        diagnosticsFailureCount: Number(diagnostics?.failureCount || 0),
+        diagnosticsListenerBindingCount: Number(
+          diagnostics?.listenerBindingCount || 0
+        )
+      };
+    });
+    await runtime.page.click('#networkOverlay', {
+      position: { x: 1, y: 1 }
+    });
+    await runtime.page.waitForFunction(() => (
+      document.activeElement === document.getElementById('modeNetworkBtn')
+    ), null, { timeout: 10_000 });
+    const backdropClose = await runtime.page.evaluate(() => ({
+      backdropClosed:
+        document.getElementById('networkOverlay')?.classList.contains('is-open') !== true,
+      backdropFocusReturned:
+        document.activeElement === document.getElementById('modeNetworkBtn')
+    }));
+    await runtime.page.click('#modeNetworkBtn');
+    await runtime.page.waitForSelector('#networkOverlay.is-open', {
+      state: 'visible',
+      timeout: 30_000
+    });
+    const leave = await runtime.page.evaluate(async () => {
+      const leaveButton = document.getElementById(
+        'networkLeaveBtn'
+      ) as HTMLButtonElement | null;
+      if (!leaveButton) throw new Error('Network leave button is unavailable');
+      leaveButton.hidden = false;
+      leaveButton.click();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      return {
+        leaveWorked:
+          Number((window as any).__uxNetworkEvidence?.leaveCount || 0) === 1
+          && String((window as any).getCurrentMatchMode?.() || '') === 'cpu'
+      };
+    });
+    const afterSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const startedAtMs = await runtime.page.evaluate(() => (
+      Number((window as any).__uxNetworkStartedAtMs)
+    ));
+    const failure = await captureFailedNetworkStylesheetPath(
+      browser,
+      baseUrl,
+      definition
+    );
+    return await captureRuntimeSnapshot(runtime, definition, {
+      ...initial,
+      ...firstOpen,
+      ...interaction,
+      ...escapeClose,
+      ...reopen,
+      ...backdropClose,
+      ...leave,
+      ...failure,
+      networkResponseCountBeforeOpen: responsesBeforeOpen,
+      networkResponseCountAfterOpen: NETWORK_STYLESHEET_PATHS.reduce(
+        (total, resourcePath) => total + countPath(runtime.responsePaths, resourcePath),
+        0
+      ),
+      firstOpenLongTaskSupported: firstOpenSnapshot.capabilities.longTask,
+      firstOpenLongTaskCount: firstOpenSnapshot.longTasks.filter(
+        (entry) => entry.startMs >= startedAtMs
+      ).length,
+      clsDelta: Math.max(0, afterSnapshot.cls - beforeSnapshot.cls),
+      sensitiveFieldsAbsent: true
+    });
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
+type NetworkRestoreVariant = 'none' | 'success' | 'invalid';
+
+async function openNetworkRestoreRuntime(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition,
+  variant: NetworkRestoreVariant
+): Promise<BootRuntime> {
+  return await openBootRuntime(browser, baseUrl, definition, undefined, {
+    beforeGoto: async (page) => {
+      await page.addInitScript(({ selectedVariant }) => {
+        const root = window as any;
+        root.__uxNetworkRestoreEvidence = {
+          restoreInvocationCount: 0,
+          surfaceReadyBeforeRestore: false
+        };
+        let clientValue: any = null;
+        Object.defineProperty(root, 'NetworkMatchClient', {
+          configurable: true,
+          get: () => clientValue,
+          set: (nextValue) => {
+            clientValue = nextValue;
+            if (!nextValue || nextValue.__uxNetworkRestoreWrapped === true) return;
+            nextValue.__uxNetworkRestoreWrapped = true;
+            nextValue.hasRestorableStoredSession = () => selectedVariant !== 'none';
+            nextValue.restoreStoredSession = async () => {
+              root.__uxNetworkRestoreEvidence.restoreInvocationCount += 1;
+              const links = Array.from(document.querySelectorAll<HTMLLinkElement>(
+                'link[data-card-reversi-feature-style^="network"]'
+              ));
+              root.__uxNetworkRestoreEvidence.surfaceReadyBeforeRestore =
+                !!document.getElementById('networkPanel')
+                && !!document.getElementById('networkChatToggle')
+                && links.length === 3
+                && links.every((link) => (
+                  link.dataset.cardReversiFeatureStyleLoaded === 'true'
+                ));
+              if (selectedVariant === 'success') {
+                return { ok: true, restored: true, viewerRole: 'seat' };
+              }
+              if (selectedVariant === 'invalid') {
+                return { ok: false, reason: 'SEAT_TOKEN_INVALID' };
+              }
+              return { ok: false, reason: 'NO_STORED_SESSION' };
+            };
+          }
+        });
+        if (selectedVariant === 'success') {
+          localStorage.setItem('card_reversi_player_profile_v1', JSON.stringify({
+            version: 1,
+            displayName: '復帰確認',
+            avatarStoneType: 'normal_black',
+            bio: '',
+            updatedAt: 1
+          }));
+        }
+      }, { selectedVariant: variant });
+    }
+  });
+}
+
+async function captureNetworkRestoreOptimizationScenario(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const noSessionRuntime = await openNetworkRestoreRuntime(
+    browser,
+    baseUrl,
+    definition,
+    'none'
+  );
+  let noSession: Readonly<Record<string, unknown>>;
+  try {
+    noSession = Object.freeze(await noSessionRuntime.page.evaluate(() => ({
+      noSessionRestoreInvocationCount:
+        Number((window as any).__uxNetworkRestoreEvidence?.restoreInvocationCount || 0),
+      noSessionInnerDomCount:
+        document.querySelectorAll('#networkModal > *, #networkChatPanel > *').length,
+      noSessionStylesheetLinkCount: document.querySelectorAll(
+        'link[data-card-reversi-feature-style^="network"]'
+      ).length,
+      noSessionModeStayedCpu:
+        String((window as any).getCurrentMatchMode?.() || '') === 'cpu'
+    })));
+  } finally {
+    await closeBootRuntime(noSessionRuntime, true);
+  }
+
+  const invalidRuntime = await openNetworkRestoreRuntime(
+    browser,
+    baseUrl,
+    definition,
+    'invalid'
+  );
+  let invalid: Readonly<Record<string, unknown>>;
+  try {
+    invalid = Object.freeze(await invalidRuntime.page.evaluate(() => ({
+      invalidRestoreInvocationCount:
+        Number((window as any).__uxNetworkRestoreEvidence?.restoreInvocationCount || 0),
+      invalidSurfaceReadyBeforeRestore:
+        (window as any).__uxNetworkRestoreEvidence?.surfaceReadyBeforeRestore === true,
+      invalidInnerDomCount: document.querySelectorAll(
+        '#networkModal > #networkModalHeader, '
+        + '#networkModal > #networkModalBody, '
+        + '#networkChatPanel > #networkChatToggle, '
+        + '#networkChatPanel > #networkChatBody'
+      ).length,
+      invalidStylesheetLinkCount: document.querySelectorAll(
+        'link[data-card-reversi-feature-style^="network"]'
+      ).length,
+      invalidModeStayedCpu:
+        String((window as any).getCurrentMatchMode?.() || '') === 'cpu',
+      invalidStatusProjected:
+        document.getElementById('networkStatusText')
+          ?.textContent?.includes('復帰に失敗') === true
+    })));
+  } finally {
+    await closeBootRuntime(invalidRuntime, true);
+  }
+
+  const successRuntime = await openNetworkRestoreRuntime(
+    browser,
+    baseUrl,
+    definition,
+    'success'
+  );
+  try {
+    const success = await successRuntime.page.evaluate(() => ({
+      backend: String(
+        (window as any).__boardVisualDebug?.getBackendKind?.()
+        || document.documentElement.getAttribute('data-board-visual-backend')
+        || 'none'
+      ),
+      uiInitialized: (window as any).__uiInitialized === true,
+      successRestoreInvocationCount:
+        Number((window as any).__uxNetworkRestoreEvidence?.restoreInvocationCount || 0),
+      successSurfaceReadyBeforeRestore:
+        (window as any).__uxNetworkRestoreEvidence?.surfaceReadyBeforeRestore === true,
+      successInnerDomCount: document.querySelectorAll(
+        '#networkModal > #networkModalHeader, '
+        + '#networkModal > #networkModalBody, '
+        + '#networkChatPanel > #networkChatToggle, '
+        + '#networkChatPanel > #networkChatBody'
+      ).length,
+      successStylesheetLinkCount: document.querySelectorAll(
+        'link[data-card-reversi-feature-style^="network"]'
+      ).length,
+      successModeProjected:
+        String((window as any).getCurrentMatchMode?.() || '') === 'network',
+      successStatusProjected:
+        document.getElementById('networkStatusText')
+          ?.textContent?.includes('復帰しました') === true,
+      successProfileProjected:
+        (document.getElementById('networkPlayerNameInput') as HTMLInputElement | null)
+          ?.value === '復帰確認',
+      successOverlayClosed:
+        document.getElementById('networkOverlay')?.classList.contains('is-open') !== true,
+      sensitiveFieldsAbsent: true
+    }));
+    return await captureRuntimeSnapshot(successRuntime, definition, {
+      ...noSession,
+      ...invalid,
+      ...success
+    });
+  } finally {
+    await closeBootRuntime(successRuntime, true);
+  }
+}
+
 async function captureDirectResultStylesheetPath(
   browser: Browser,
   baseUrl: string,
@@ -3327,6 +4013,24 @@ export async function captureUxOptimizationMonitor(
     for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
       if (definition.id !== 'feature.deck-builder') continue;
       replaceScenario(await captureDeckBuilderOptimizationScenario(
+        browser,
+        baseUrl,
+        definition
+      ));
+    }
+
+    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+      if (definition.id !== 'feature.network') continue;
+      replaceScenario(await captureNetworkOptimizationScenario(
+        browser,
+        baseUrl,
+        definition
+      ));
+    }
+
+    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+      if (definition.id !== 'feature.network-restore') continue;
+      replaceScenario(await captureNetworkRestoreOptimizationScenario(
         browser,
         baseUrl,
         definition

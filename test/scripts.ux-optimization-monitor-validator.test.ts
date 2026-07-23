@@ -80,6 +80,8 @@ function validReport(): Record<string, any> {
       const profileFeature = definition.id === 'feature.profile';
       const rulesHelpFeature = definition.id === 'feature.rules-help';
       const deckBuilderFeature = definition.id === 'feature.deck-builder';
+      const networkFeature = definition.id === 'feature.network';
+      const networkRestoreFeature = definition.id === 'feature.network-restore';
       return {
         id: definition.id,
         lane: definition.lane,
@@ -109,6 +111,12 @@ function validReport(): Record<string, any> {
             ? [
               { path: 'styles-feature-deck-builder.css' },
               { path: 'styles-feature-deck-builder-responsive.css' }
+            ]
+          : networkFeature || networkRestoreFeature
+            ? [
+              { path: 'styles-feature-network-layout-controls.css' },
+              { path: 'styles-feature-network.css' },
+              { path: 'styles-feature-network-responsive.css' }
             ]
           : [{ path: 'assets/images/ui/example.png' }],
         errors: [],
@@ -423,6 +431,95 @@ function validReport(): Record<string, any> {
                     firstOpenLongTaskCount: 0,
                     clsDelta: 0
                   }
+                : networkFeature
+                  ? {
+                    backend: 'pixi',
+                    uiInitialized: true,
+                    networkStylesheetLinkCountBeforeOpen: 0,
+                    networkStylesheetSlotCount: 3,
+                    networkInnerDomCountBeforeOpen: 0,
+                    networkResourceCountBeforeOpen: 0,
+                    networkResponseCountBeforeOpen: 0,
+                    networkPublicPresenceApiAvailable: true,
+                    firstOpenLatencyMs: 45,
+                    firstStyleReadyLatencyMs: 18,
+                    firstLinkCount: 3,
+                    firstInnerDomCount: 4,
+                    firstPanelVisible: true,
+                    firstFullStyleReady: true,
+                    firstCascadeOrderPreserved: true,
+                    firstComputedStylePreserved: true,
+                    networkResponseCountAfterOpen: 3,
+                    savedProfileProjected: true,
+                    currentModeProjected: true,
+                    clientStateProjected: true,
+                    networkProcessingAfterSurfaceReady: true,
+                    initialFocusCorrect: true,
+                    roomSettingsPopupWorked: true,
+                    clipboardWorked: true,
+                    chatPanelWorked: true,
+                    chatSendWorked: true,
+                    leaveWorked: true,
+                    escapeClosed: true,
+                    escapeFocusReturned: true,
+                    backdropClosed: true,
+                    backdropFocusReturned: true,
+                    reopenSameInnerNode: true,
+                    reopenLinkCount: 3,
+                    reopenInnerDomCount: 4,
+                    diagnosticsAttemptCount: 1,
+                    diagnosticsDomCreatedCount: 4,
+                    diagnosticsReadyCount: 1,
+                    diagnosticsFailureCount: 0,
+                    diagnosticsListenerBindingCount: 1,
+                    failureVisible: true,
+                    failureFocused: true,
+                    failureDialogStable: true,
+                    failureRetryGuidance: true,
+                    failureModeStayedCpu: true,
+                    failureNetworkProcessingCount: 0,
+                    failureNormalInnerDomCount: 0,
+                    failureLinkCount: 0,
+                    failureRequestCount: 2,
+                    failureRequestFailureCount: 1,
+                    failureResponseCount: 1,
+                    failureConsoleErrorCount: 1,
+                    failureConsoleWarningCount: 1,
+                    failureRetryReady: true,
+                    failureRetryLinkCount: 3,
+                    failureRetryInnerDomCount: 4,
+                    failureRetryAttemptCount: 2,
+                    failureRetryFailureCount: 1,
+                    failureRetryCount: 1,
+                    firstOpenLongTaskSupported: true,
+                    firstOpenLongTaskCount: 0,
+                    clsDelta: 0,
+                    sensitiveFieldsAbsent: true
+                  }
+                : networkRestoreFeature
+                  ? {
+                    backend: 'pixi',
+                    uiInitialized: true,
+                    noSessionRestoreInvocationCount: 0,
+                    noSessionInnerDomCount: 0,
+                    noSessionStylesheetLinkCount: 0,
+                    noSessionModeStayedCpu: true,
+                    successRestoreInvocationCount: 1,
+                    successSurfaceReadyBeforeRestore: true,
+                    successInnerDomCount: 4,
+                    successStylesheetLinkCount: 3,
+                    successModeProjected: true,
+                    successStatusProjected: true,
+                    successProfileProjected: true,
+                    successOverlayClosed: true,
+                    invalidRestoreInvocationCount: 1,
+                    invalidSurfaceReadyBeforeRestore: true,
+                    invalidInnerDomCount: 4,
+                    invalidStylesheetLinkCount: 3,
+                    invalidModeStayedCpu: true,
+                    invalidStatusProjected: true,
+                    sensitiveFieldsAbsent: true
+                  }
                 : webpAsset
                   ? {
                     admission: {
@@ -490,11 +587,14 @@ function validReport(): Record<string, any> {
                     rulesHelpStylesheetSlotCount: 3,
                     deckBuilderStylesheetLinkCount: 0,
                     deckBuilderStylesheetSlotCount: 2,
+                    networkStylesheetLinkCount: 0,
+                    networkStylesheetSlotCount: 3,
                     featureInnerDomCounts: {
                       result: 0,
                       profile: 0,
                       rulesHelp: 0,
-                      deckBuilder: 0
+                      deckBuilder: 0,
+                      network: 0
                     }
                   }
                   : help
@@ -858,6 +958,59 @@ describe('UX optimization monitor validator', () => {
       'deck builder preset, editor, scroll, card, save, or network behavior changed',
       'deck builder stylesheet failure was not closable or did not clean partial DOM/style',
       'deck builder stylesheet retry did not recover with one retained surface'
+    ]));
+  });
+
+  test('fails eager network work, readiness regressions, restore ordering, and failed retry cleanup', () => {
+    const report = validReport();
+    const boot = report.scenarios.find((entry: any) => (
+      entry.id === 'boot.pixi.cold' && entry.lane === 'vite'
+    ));
+    boot.resources.push({ path: 'styles-feature-network.css' });
+    boot.metrics.networkStylesheetLinkCount = 1;
+    boot.metrics.featureInnerDomCounts.network = 4;
+    const feature = report.scenarios.find((entry: any) => (
+      entry.id === 'feature.network' && entry.lane === 'vite'
+    ));
+    feature.metrics.networkProcessingAfterSurfaceReady = false;
+    feature.metrics.chatSendWorked = false;
+    feature.metrics.failureNetworkProcessingCount = 1;
+    feature.metrics.failureRetryAttemptCount = 1;
+    const restore = report.scenarios.find((entry: any) => (
+      entry.id === 'feature.network-restore' && entry.lane === 'vite'
+    ));
+    restore.metrics.noSessionInnerDomCount = 4;
+    restore.metrics.successSurfaceReadyBeforeRestore = false;
+    restore.metrics.invalidStatusProjected = false;
+
+    const result = validateUxOptimizationReport(report, {
+      targetOptimizationIds: ['feature-network']
+    });
+    const bootCheck = result.checks.find(
+      (entry) => entry.id === 'scenario.boot.pixi.cold:vite:pixi'
+    );
+    const featureCheck = result.checks.find(
+      (entry) => entry.id === 'scenario.feature.network:vite:pixi'
+    );
+    const restoreCheck = result.checks.find(
+      (entry) => entry.id === 'scenario.feature.network-restore:vite:pixi'
+    );
+    expect(result.focusedVerdict).toBe('fail');
+    expect(bootCheck?.reasons).toEqual(expect.arrayContaining([
+      'boot requested network CSS 1 time(s)',
+      'boot mounted 1 network stylesheet link(s)',
+      'boot network inner DOM count was 4'
+    ]));
+    expect(featureCheck?.reasons).toEqual(expect.arrayContaining([
+      'network profile, mode, client state, readiness order, or focus was not reprojected',
+      'network popup, clipboard, chat, send, or leave behavior changed',
+      'network stylesheet failure did not block mode processing or clean partial DOM/style',
+      'network stylesheet retry did not recover with one retained surface'
+    ]));
+    expect(restoreCheck?.reasons).toEqual(expect.arrayContaining([
+      'network restore without a saved session created a surface or invoked restore',
+      'network successful restore did not prepare and reproject the ready surface',
+      'network invalid-session restore did not report through the ready surface'
     ]));
   });
 

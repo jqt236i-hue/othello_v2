@@ -26,6 +26,7 @@ const PUBLIC_NETWORK_MATCH_CLIENT_METHODS = [
   'getServerUrl',
   'getState',
   'getStateVersion',
+  'hasRestorableStoredSession',
   'hasTwoPlayers',
   'isActive',
   'isSpectator',
@@ -70,5 +71,61 @@ describe('NetworkMatchClient public API inventory', () => {
     require('../ui/network-client.js');
 
     expect(Object.keys((dom.window as any).NetworkMatchClient).sort()).toEqual(PUBLIC_NETWORK_MATCH_CLIENT_METHODS);
+  });
+
+  test('reports only normalized stored-session presence without exposing its payload', () => {
+    jest.resetModules();
+    const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).location = dom.window.location;
+    (global as any).localStorage = dom.window.localStorage;
+
+    require('../ui/network-client.js');
+    const client = (dom.window as any).NetworkMatchClient;
+    expect(client.hasRestorableStoredSession()).toBe(false);
+
+    dom.window.localStorage.setItem('network_match_last_session', '{broken');
+    expect(client.hasRestorableStoredSession()).toBe(false);
+
+    dom.window.localStorage.setItem('network_match_last_session', JSON.stringify({
+      roomId: 'ABC',
+      viewerRole: 'seat',
+      seatKey: 'black',
+      seatToken: 'private-seat-token',
+      playerName: 'プレイヤー'
+    }));
+    const presence = client.hasRestorableStoredSession();
+    expect(presence).toBe(true);
+    expect(typeof presence).toBe('boolean');
+    expect(Object.keys(client)).not.toContain('readStoredSession');
+    dom.window.close();
+  });
+
+  test('treats unavailable storage as no restorable session', () => {
+    jest.resetModules();
+    const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
+    (global as any).window = dom.window;
+    (global as any).document = dom.window.document;
+    (global as any).location = dom.window.location;
+    (global as any).localStorage = dom.window.localStorage;
+    require('../ui/network-client.js');
+    const client = (dom.window as any).NetworkMatchClient;
+
+    Object.defineProperty(dom.window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('storage unavailable');
+      }
+    });
+    Object.defineProperty(global, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('storage unavailable');
+      }
+    });
+
+    expect(client.hasRestorableStoredSession()).toBe(false);
+    dom.window.close();
   });
 });

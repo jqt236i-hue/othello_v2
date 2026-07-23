@@ -462,6 +462,33 @@ export function validateUxOptimizationReport(
           `boot deck builder inner DOM count was ${String(metrics.featureInnerDomCounts?.deckBuilder)}`
         );
       }
+      const networkStylesheetResources = resources.filter(
+        (resource: any) => [
+          'styles-feature-network-layout-controls.css',
+          'styles-feature-network.css',
+          'styles-feature-network-responsive.css'
+        ].includes(String(resource?.path || ''))
+      );
+      if (networkStylesheetResources.length !== 0) {
+        reasons.push(
+          `boot requested network CSS ${networkStylesheetResources.length} time(s)`
+        );
+      }
+      if (Number(metrics.networkStylesheetLinkCount) !== 0) {
+        reasons.push(
+          `boot mounted ${String(metrics.networkStylesheetLinkCount)} network stylesheet link(s)`
+        );
+      }
+      if (Number(metrics.networkStylesheetSlotCount) !== 3) {
+        reasons.push(
+          `network stylesheet slot count was ${String(metrics.networkStylesheetSlotCount)}`
+        );
+      }
+      if (Number(metrics.featureInnerDomCounts?.network) !== 0) {
+        reasons.push(
+          `boot network inner DOM count was ${String(metrics.featureInnerDomCounts?.network)}`
+        );
+      }
     }
     if (scenario.captureStatus === 'complete' && definition.id === 'feature.result') {
       const metrics = scenario.metrics && typeof scenario.metrics === 'object'
@@ -1008,6 +1035,204 @@ export function validateUxOptimizationReport(
         || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
       ) {
         reasons.push(`deck builder first-open CLS was ${String(metrics.clsDelta)}`);
+      }
+    }
+    if (scenario.captureStatus === 'complete' && definition.id === 'feature.network') {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      const networkResources = resources.filter(
+        (resource: any) => [
+          'styles-feature-network-layout-controls.css',
+          'styles-feature-network.css',
+          'styles-feature-network-responsive.css'
+        ].includes(String(resource?.path || ''))
+      );
+      if (metrics.backend !== 'pixi') {
+        reasons.push(`network scenario backend was ${String(metrics.backend || 'missing')}`);
+      }
+      if (metrics.uiInitialized !== true) {
+        reasons.push('network listener initialization did not complete');
+      }
+      if (
+        Number(metrics.networkStylesheetLinkCountBeforeOpen) !== 0
+        || Number(metrics.networkResponseCountBeforeOpen) !== 0
+        || Number(metrics.networkResourceCountBeforeOpen) !== 0
+        || Number(metrics.networkInnerDomCountBeforeOpen) !== 0
+      ) {
+        reasons.push('network CSS, response, or inner DOM existed before first selection');
+      }
+      if (Number(metrics.networkStylesheetSlotCount) !== 3) {
+        reasons.push(
+          `network stylesheet slot count was ${String(metrics.networkStylesheetSlotCount)}`
+        );
+      }
+      if (metrics.networkPublicPresenceApiAvailable !== true) {
+        reasons.push('network stored-session boolean API was unavailable at boot');
+      }
+      if (
+        Number(metrics.firstLinkCount) !== 3
+        || Number(metrics.firstInnerDomCount) !== 4
+        || metrics.firstPanelVisible !== true
+        || metrics.firstFullStyleReady !== true
+        || metrics.firstCascadeOrderPreserved !== true
+        || metrics.firstComputedStylePreserved !== true
+        || Number(metrics.networkResponseCountAfterOpen) !== 3
+        || networkResources.length !== 3
+      ) {
+        reasons.push(
+          'network first selection did not settle to four inner roots and three preserved CSS fragments'
+        );
+      }
+      if (
+        !Number.isFinite(Number(metrics.firstOpenLatencyMs))
+        || Number(metrics.firstOpenLatencyMs)
+          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+        || !Number.isFinite(Number(metrics.firstStyleReadyLatencyMs))
+        || Number(metrics.firstStyleReadyLatencyMs)
+          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+      ) {
+        reasons.push(
+          `network first-open/style latency was ${String(metrics.firstOpenLatencyMs)}/${String(metrics.firstStyleReadyLatencyMs)}ms`
+        );
+      }
+      if (
+        metrics.savedProfileProjected !== true
+        || metrics.currentModeProjected !== true
+        || metrics.clientStateProjected !== true
+        || metrics.networkProcessingAfterSurfaceReady !== true
+        || metrics.initialFocusCorrect !== true
+      ) {
+        reasons.push('network profile, mode, client state, readiness order, or focus was not reprojected');
+      }
+      if (
+        metrics.roomSettingsPopupWorked !== true
+        || metrics.clipboardWorked !== true
+        || metrics.chatPanelWorked !== true
+        || metrics.chatSendWorked !== true
+        || metrics.leaveWorked !== true
+      ) {
+        reasons.push('network popup, clipboard, chat, send, or leave behavior changed');
+      }
+      if (
+        metrics.escapeClosed !== true
+        || metrics.escapeFocusReturned !== true
+        || metrics.backdropClosed !== true
+        || metrics.backdropFocusReturned !== true
+      ) {
+        reasons.push('network Escape, backdrop, or focus return behavior failed');
+      }
+      if (
+        metrics.reopenSameInnerNode !== true
+        || Number(metrics.reopenLinkCount) !== 3
+        || Number(metrics.reopenInnerDomCount) !== 4
+        || Number(metrics.diagnosticsAttemptCount) !== 1
+        || Number(metrics.diagnosticsDomCreatedCount) !== 4
+        || Number(metrics.diagnosticsReadyCount) !== 1
+        || Number(metrics.diagnosticsFailureCount) !== 0
+        || Number(metrics.diagnosticsListenerBindingCount) !== 1
+      ) {
+        reasons.push('network reopen regenerated DOM/style or rebound the prepared surface');
+      }
+      if (
+        metrics.failureVisible !== true
+        || metrics.failureFocused !== true
+        || metrics.failureDialogStable !== true
+        || metrics.failureRetryGuidance !== true
+        || metrics.failureModeStayedCpu !== true
+        || Number(metrics.failureNetworkProcessingCount) !== 0
+        || Number(metrics.failureNormalInnerDomCount) !== 0
+        || Number(metrics.failureLinkCount) !== 0
+      ) {
+        reasons.push('network stylesheet failure did not block mode processing or clean partial DOM/style');
+      }
+      if (
+        Number(metrics.failureRequestCount) !== 2
+        || Number(metrics.failureRequestFailureCount) !== 1
+        || Number(metrics.failureResponseCount) !== 1
+        || Number(metrics.failureConsoleErrorCount) !== 1
+        || Number(metrics.failureConsoleWarningCount) !== 1
+      ) {
+        reasons.push('network stylesheet injected failure evidence was not exact');
+      }
+      if (
+        metrics.failureRetryReady !== true
+        || Number(metrics.failureRetryLinkCount) !== 3
+        || Number(metrics.failureRetryInnerDomCount) !== 4
+        || Number(metrics.failureRetryAttemptCount) !== 2
+        || Number(metrics.failureRetryFailureCount) !== 1
+        || Number(metrics.failureRetryCount) !== 1
+      ) {
+        reasons.push('network stylesheet retry did not recover with one retained surface');
+      }
+      if (
+        metrics.firstOpenLongTaskSupported !== true
+        || Number(metrics.firstOpenLongTaskCount) !== 0
+      ) {
+        reasons.push(
+          `network first-open long tasks were ${String(metrics.firstOpenLongTaskCount)}`
+        );
+      }
+      if (
+        typeof metrics.clsDelta !== 'number'
+        || !Number.isFinite(metrics.clsDelta)
+        || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+      ) {
+        reasons.push(`network first-open CLS was ${String(metrics.clsDelta)}`);
+      }
+      if (metrics.sensitiveFieldsAbsent !== true) {
+        reasons.push('network feature capture did not attest to secret-free evidence');
+      }
+    }
+    if (
+      scenario.captureStatus === 'complete'
+      && definition.id === 'feature.network-restore'
+    ) {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      const networkResources = resources.filter(
+        (resource: any) => [
+          'styles-feature-network-layout-controls.css',
+          'styles-feature-network.css',
+          'styles-feature-network-responsive.css'
+        ].includes(String(resource?.path || ''))
+      );
+      if (metrics.backend !== 'pixi' || metrics.uiInitialized !== true) {
+        reasons.push('network restore runtime did not initialize on the Pixi backend');
+      }
+      if (
+        Number(metrics.noSessionRestoreInvocationCount) !== 0
+        || Number(metrics.noSessionInnerDomCount) !== 0
+        || Number(metrics.noSessionStylesheetLinkCount) !== 0
+        || metrics.noSessionModeStayedCpu !== true
+      ) {
+        reasons.push('network restore without a saved session created a surface or invoked restore');
+      }
+      if (
+        Number(metrics.successRestoreInvocationCount) !== 1
+        || metrics.successSurfaceReadyBeforeRestore !== true
+        || Number(metrics.successInnerDomCount) !== 4
+        || Number(metrics.successStylesheetLinkCount) !== 3
+        || metrics.successModeProjected !== true
+        || metrics.successStatusProjected !== true
+        || metrics.successProfileProjected !== true
+        || metrics.successOverlayClosed !== true
+      ) {
+        reasons.push('network successful restore did not prepare and reproject the ready surface');
+      }
+      if (
+        Number(metrics.invalidRestoreInvocationCount) !== 1
+        || metrics.invalidSurfaceReadyBeforeRestore !== true
+        || Number(metrics.invalidInnerDomCount) !== 4
+        || Number(metrics.invalidStylesheetLinkCount) !== 3
+        || metrics.invalidModeStayedCpu !== true
+        || metrics.invalidStatusProjected !== true
+      ) {
+        reasons.push('network invalid-session restore did not report through the ready surface');
+      }
+      if (networkResources.length !== 3 || metrics.sensitiveFieldsAbsent !== true) {
+        reasons.push('network restore resources or secret-free evidence were incomplete');
       }
     }
     if (

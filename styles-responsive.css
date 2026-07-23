@@ -144,31 +144,12 @@
         bottom: calc(175px * var(--layout-stage-scale)); /* moved up additional 5px */
     }
 
-    #networkChatPanel {
-        left: calc(12px * var(--layout-stage-scale));
-        bottom: calc(12px * var(--layout-stage-scale));
-        width: clamp(calc(170px * var(--layout-stage-scale)), 58vw, calc(230px * var(--layout-stage-scale)));
-    }
-
     #quick-controls-bar {
         left: auto;
         right: calc(12px * var(--layout-stage-scale));
         top: calc(12px * var(--layout-stage-scale));
         max-width: min(calc(420px * var(--layout-stage-scale)), calc(100vw - calc(140px * var(--layout-stage-scale))));
         flex-wrap: wrap;
-    }
-
-    #networkChatBody {
-        max-height: calc(142px * var(--layout-stage-scale));
-    }
-
-    #networkChatMessages {
-        min-height: calc(56px * var(--layout-stage-scale));
-        max-height: calc(84px * var(--layout-stage-scale));
-    }
-
-    .network-room-entry-main {
-        align-items: flex-start;
     }
 
 }
@@ -355,169 +336,7 @@ html.layout-profile-phone-portrait #card-detail-panel > #cancel-card-btn {
     font-size: calc(11px * var(--layout-stage-scale));
 }
 
-html.layout-profile-phone-portrait #networkChatPanel {
-    left: 50%;
-    right: auto;
-    bottom: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
-    width: var(--layout-phone-portrait-aux-panel-width);
-    transform: translate(-50%, calc(100% - var(--layout-size-chat-toggle-height)));
-}
-
-html.layout-profile-phone-portrait #networkChatPanel.is-open {
-    transform: translateX(-50%);
-}
-
-html.layout-profile-phone-portrait #networkModal {
-    width: var(--layout-phone-portrait-aux-panel-width);
-}
-
-html.layout-profile-phone-portrait #networkModalBody {
-    padding: calc(10px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait .network-section,
-html.layout-profile-phone-portrait #networkBoardSizeRow,
-html.layout-profile-phone-portrait #networkRoomListPanel {
-    padding: calc(8px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait .network-create-fields {
-    grid-template-columns: 1fr;
-}
-
-html.layout-profile-phone-portrait #networkRoomList {
-    max-height: calc(128px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #networkRoomListViewport {
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
-}
-
-html.layout-profile-phone-portrait .network-room-entry-main {
-    align-items: flex-start;
-}
-
-@media (max-width: 35em) {
-    .network-create-fields {
-        grid-template-columns: 1fr;
-    }
-}
-
 /* Network lobby responsive overrides for the image-assisted large lobby. */
-html.layout-profile-phone-portrait #networkOverlay {
-    align-items: flex-start;
-    padding: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-top)) calc(8px * var(--layout-stage-scale)) max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
-    overflow-y: auto;
-}
-
-html.layout-profile-phone-portrait #networkModal {
-    width: min(100%, calc(100vw - calc(16px * var(--layout-stage-scale))));
-    height: auto;
-    min-height: calc(780px * var(--layout-stage-scale));
-    max-height: none;
-    aspect-ratio: auto;
-    background-size: cover;
-}
-
-html.layout-profile-phone-portrait #networkModalBody {
-    position: relative;
-    inset: auto;
-    height: auto;
-    min-height: calc(700px * var(--layout-stage-scale));
-    padding: calc(76px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) calc(34px * var(--layout-stage-scale));
-    overflow: visible;
-}
-
-html.layout-profile-phone-portrait #networkPanel {
-    display: flex !important;
-    flex-direction: column;
-    gap: calc(18px * var(--layout-stage-scale));
-    height: auto;
-}
-
-html.layout-profile-phone-portrait #networkModalHeader {
-    left: calc(18px * var(--layout-stage-scale));
-    right: calc(18px * var(--layout-stage-scale));
-    top: calc(18px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #networkCloseBtn {
-    right: calc(14px * var(--layout-stage-scale));
-    top: calc(12px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #networkPanel .network-section,
-html.layout-profile-phone-portrait #networkRoomListPanel {
-    display: flex;
-    flex-direction: column;
-    padding: calc(22px * var(--layout-stage-scale));
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(214, 168, 75, 0.42);
-    background: rgba(0, 7, 10, 0.54);
-}
-
-html.layout-profile-phone-portrait #networkActionRow {
-    align-self: stretch;
-    margin: 0;
-}
-
-html.layout-profile-phone-portrait #networkRoomSettingsBtn {
-    position: static;
-    transform: none;
-}
-
-html.layout-profile-phone-portrait #networkRoomSettingsBtn {
-    margin: 0 0 calc(10px * var(--layout-stage-scale));
-}
-
-html.layout-profile-phone-portrait #networkBoardSizeRow,
-html.layout-profile-phone-portrait #networkDebugOptionRow,
-html.layout-profile-phone-portrait #networkAutoOptionRow,
-html.layout-profile-phone-portrait #networkAllCardsDeckOptionRow,
-html.layout-profile-phone-portrait #networkAdvancedSettings,
-html.layout-profile-phone-portrait #networkStatusText,
-html.layout-profile-phone-portrait #networkDeckInfo {
-    position: static;
-    width: auto;
-    max-width: none;
-    transform: none;
-}
-
-html.layout-profile-phone-portrait #networkRoomList {
-    grid-template-columns: 1fr;
-    max-height: none;
-    overflow: visible;
-}
-
-html.layout-profile-phone-portrait #networkRoomListViewport {
-    height: auto;
-    max-height: none;
-    overflow: visible;
-    padding: 0;
-}
-
-html.layout-profile-phone-portrait .network-room-list-entry {
-    min-height: calc(250px * var(--layout-stage-scale));
-}
-
-@media (max-width: 57.5em) and (orientation: landscape) {
-    #networkModal {
-        width: calc(100vw - calc(16px * var(--layout-stage-scale)));
-        height: calc(100dvh - calc(16px * var(--layout-stage-scale)));
-        min-height: 0;
-    }
-
-    #networkRoomList {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: calc(12px * var(--layout-stage-scale));
-    }
-
-    .network-room-list-entry {
-        min-height: calc(250px * var(--layout-stage-scale));
-        padding: calc(26px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale));
-    }
-}
 
 html.layout-profile-phone-portrait #quick-controls-bar {
     display: none;
@@ -869,12 +688,6 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
         display: none;
     }
 
-    #networkChatPanel {
-        left: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        bottom: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
-        width: clamp(calc(136px * var(--layout-stage-scale)), 34vw, calc(206px * var(--layout-stage-scale)));
-    }
-
     #leftActionButtons {
         left: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-left));
         top: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-top));
@@ -897,22 +710,6 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
     #leftActionButtons .left-action-icon {
         width: calc(18px * var(--layout-stage-scale));
         height: calc(18px * var(--layout-stage-scale));
-    }
-
-    #networkChatBody {
-        max-height: calc(108px * var(--layout-stage-scale));
-        padding: calc(6px * var(--layout-stage-scale));
-    }
-
-    #networkChatMessages {
-        min-height: calc(46px * var(--layout-stage-scale));
-        max-height: calc(62px * var(--layout-stage-scale));
-        padding: calc(5px * var(--layout-stage-scale));
-    }
-
-    #networkChatToggle {
-        padding: calc(6px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
-        font-size: calc(11px * var(--layout-stage-scale));
     }
 
     #hand-white {
@@ -1104,12 +901,6 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
     #hero-label {
         font-size: clamp(calc(14px * var(--layout-stage-scale)), 1.8vw, calc(18px * var(--layout-stage-scale)));
         transform: translateY(clamp(calc(8px * var(--layout-stage-scale)), 1.2vmin, calc(14px * var(--layout-stage-scale))));
-    }
-
-    #networkChatPanel {
-        left: max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        bottom: max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
-        width: clamp(calc(180px * var(--layout-stage-scale)), 21vw, calc(235px * var(--layout-stage-scale)));
     }
 
     #info-panel {
@@ -1721,12 +1512,6 @@ html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack >
         transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
     }
 
-    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #networkChatPanel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-chat-left) * var(--layout-stage-scale)));
-        bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-chat-bottom) * var(--layout-stage-scale)));
-        width: calc(var(--layout-anchor-chat-width) * var(--layout-stage-scale));
-    }
-
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #card-detail-panel {
         right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)) + ((var(--layout-anchor-side-width) + var(--layout-anchor-card-detail-gap)) * var(--layout-stage-scale)));
         bottom: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))));
@@ -2199,16 +1984,6 @@ html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel #network
         height: 20px;
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled #networkRoomSettingsPopup .compact-number-input {
-        min-height: 32px;
-        font-size: 14px;
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled #networkRoomSettingsPopup input[type="checkbox"] {
-        width: 20px;
-        height: 20px;
-    }
-
     html.layout-profile-tablet-4x3.layout-stage-enabled .hand-animation-toggle {
         min-height: 34px;
         display: inline-flex;
@@ -2234,16 +2009,6 @@ html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel #network
     html.layout-profile-tablet-4x3.layout-stage-enabled #appearancePresetNameInput {
         min-height: 34px;
         font-size: 13px;
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled #networkAdvancedSettings > summary {
-        min-height: 32px;
-        display: flex;
-        align-items: center;
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled #networkAdvancedSettings:not([open]) #networkServerInput {
-        display: none;
     }
 
     html.layout-profile-tablet-4x3.layout-stage-enabled :is(#profileIdentitySection, #deckBuilderModal) .btn-small,
