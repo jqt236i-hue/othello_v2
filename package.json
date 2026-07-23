@@ -41,6 +41,7 @@
     "perf:opponent-action-stall": "npm run build:vite && node dist/scripts/perf/measure-opponent-action-frame-stall.js",
     "perf:ux-optimization:capture": "node dist/scripts/perf/capture-ux-optimization-monitor.js",
     "perf:ux-optimization:validate": "npm run build:ts && node dist/scripts/perf/validate-ux-optimization-monitor.js",
+    "perf:ux-optimization:render": "npm run build:ts && node dist/scripts/perf/render-ux-optimization-monitor-report.js",
     "perf:ux-optimization:baseline": "node dist/scripts/perf/capture-ux-optimization-monitor.js --profile baseline --output artifacts/ux-optimization-monitor/baseline/pre-optimization.json && node dist/scripts/perf/validate-ux-optimization-monitor.js --input artifacts/ux-optimization-monitor/baseline/pre-optimization.json --allow-pending",
     "perf:ux-optimization:quick": "npm run worker:prepare && npm run check:worker-mirror && node dist/scripts/perf/capture-ux-optimization-monitor.js --profile quick --allow-dirty --output artifacts/ux-optimization-monitor/latest.json && node dist/scripts/perf/validate-ux-optimization-monitor.js --input artifacts/ux-optimization-monitor/latest.json --allow-pending",
     "perf:ux-optimization:focused": "npm run worker:prepare && npm run check:worker-mirror && node dist/scripts/perf/capture-ux-optimization-monitor.js --profile quick --allow-dirty --output artifacts/ux-optimization-monitor/latest.json && node dist/scripts/perf/validate-ux-optimization-monitor.js --input artifacts/ux-optimization-monitor/latest.json --allow-pending",

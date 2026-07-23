@@ -170,7 +170,7 @@ overall verdictは未完optimizationまたは未capture scenarioが一つでも�
 
 dirty checkoutでのquick開発計測は許可するが `candidateEligible=false` とする。標準合格証拠はclean exact commitと一致するartifact digestを必須とする。
 
-baselineとcandidateの比較では、各レポートのcommitとartifact digestがそれぞれ自身の配信物に一致することを先に検証する。最適化によりartifact自体は変わるため、baselineとcandidateのartifact digest一致は要求しない。比較互換性として一致を要求するのは、fixture/scenario digest、browser/OS/GPU、viewport/DPR、profile、capture policyである。
+baselineとcandidateの比較では、各レポートのcommitとartifact digestがそれぞれ自身の配信物に一致することを先に検証する。最適化によりartifact自体は変わるため、baselineとcandidateのartifact digest一致は要求しない。比較互換性として一致を要求するのは、fixture/scenario digest、browser/OS/GPU、viewport/DPR、capture policyである。profile文字列は同一ではなく、役割が `baseline → standard` の正規ペアであることを要求する。
 
 起動ready契約はlane別の既存正本に従う。Viteは `data-browser-boot-state="ready"` と `window.__uiInitialized === true` の両方、classicは同属性を設定しないため `window.__uiInitialized === true` を必須条件とする。classicへVite専用属性を強制してtimeoutを合格扱いに変えない。
 
@@ -480,6 +480,8 @@ baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR�
 - Phase 4.5の初回monitorは、1366px計測viewportでも別viewportの角丸 `6px` を固定期待し、保持factoryが生成するheader/body 2要素を診断値1と誤認していた。角丸は既存の `8px × --layout-stage-scale` を許容誤差付きで比較し、`domCreatedCount=2` を一度だけ生成した正しい値として再レビューした。再captureでは両laneともfocused verdict `pass`、CLS delta 0、first-open Long Task 0となった。
 - Phase 4.7の統合レビューで、設計上はprofile/rules-help/deck-builder/networkすべてにfirst-open Long Task 0を要求していた一方、profile capture/validatorだけがLong Taskを記録・判定していなかった。profileにもclickからinteractive readyまでの同一観測区間とblocking判定を追加し、欠損やunsupportedをpassへ変換しない契約へ整合させた。
 - `match:optional-feature-smoke` はVite optional chunkの要求数を検査する実装でclassic laneを持たず、`match:optional-feature-smoke:classic` は存在しない。optional chunk境界はVite smoke、classicの遅延CSS/DOM・操作境界は統合monitorの必須classic laneと `match:ui-control-smoke:classic` で検査する責務分担へ修正した。
+- Phase 5.1の比較契約レビューで、baselineのprofileは `baseline`、candidateは `standard` であり、profile文字列一致では正規比較が必ずinvalidになる矛盾を確認した。profileは役割ペアを検証し、fixture/scenario/capture policyと実行環境を同値比較する。baselineの最適化gate失敗は測定対象の差分なのでoverall passには使わず、schema・identity・安全性・scenario集合・明示pendingが妥当なことを `baselineValid` として分離する。
+- Phase 5.1のreport監査で、capture済みの `normalPlayIsolation` とGPU環境がvalidator未接続で、通常プレイへのdiagnostics漏洩やstandardのsoftware rendererを見逃せる状態だった。通常queryでprobe global、board performance harness、monitor query、diagnostics payloadがすべて不在であることと、標準reportのhardware acceleration・GL renderer/vendorをblocking identityへ追加した。
 - board frame画像はPixi resourceでなくCSS custom property経路であるため、WebP routingをBoardSkinRuntimeへ限定した。
 - legacy特殊石preloaderは同期returnでload/decode完了を示さないため、DOM compatibility専用のawaitable preparation APIを設計へ追加した。
 - 物理端末を必須release gateにする案は現行の任意診断方針と矛盾するため、device効果を主張する場合だけ必須とした。

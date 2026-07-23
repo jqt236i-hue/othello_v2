@@ -693,13 +693,20 @@
   - 全scenarioと全blocking gateが存在しなければfail。
   - `pending-optimization` を0以外ならfail。
   - scenarioごとの必須lane/backend matrixが一つでも欠ければfail。
-  - baseline/candidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR、profile、capture policy不一致をinvalidにする。artifact digestは各reportと各commitの自己整合を検証し、baseline/candidate間の一致は要求しない。
+  - baseline/candidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR、capture policy不一致、またはprofile役割が `baseline → standard` でない場合をinvalidにする。artifact digestは各reportと各commitの自己整合を検証し、baseline/candidate間の一致は要求しない。
   - quickは開発用、standard clean exact commitだけをcandidate eligibleにする。
   - JSONとMarkdownは同じvalidator resultから生成する。
   - raw reportはartifacts、人間向け最終結論だけを `docs/perf/` に書ける `--write-summary` を用意する。
 - verification:
   - missing scenario/lane/backend、duplicate capture key、tampered aggregate、environment mismatch、dirty candidateのtests
 - done: validator以外がoverall passを生成できず、全7項目/5 featureのtraceability matrixがレポートにある。
+- review correction:
+  - `baseline` と `standard` のprofile文字列一致では正規比較が必ずinvalidになるため、役割ペアと共通policy/environmentの一致へ修正した。baselineの最適化前fail値はoverall greenに使わず、schema・identity・data safety・normal-play isolation・scenario集合・全項目pendingの妥当性を `baselineValid` として判定する。
+  - 既にcaptureしていた `normalPlayIsolation` とGPU環境がvalidator未接続だったため、通常プレイのdiagnostics漏洩4条件とstandard hardware acceleration・GL renderer/vendorをblocking checkへ追加した。
+- result:
+  - `render-ux-optimization-monitor-report.ts` を追加し、raw report内の自己申告verdictを使わず、共通validator結果からJSONとMarkdownを同時生成する。candidateのcurrent commit・clean checkout・artifact digest/file count、baseline archive manifestのcommit/digest/file countを実ファイルへ照合し、`--write-summary` は `docs/perf/` 配下だけを許可する。
+  - core 6項目とfeature 5項目の全11 optimization IDをscenario/lane/backend/checkへ対応付けたtraceability matrixを生成し、必須capture/checkの欠落またはfailを各行のpassへ変換しない。
+  - missing/duplicate/unknown scenario、環境不一致、artifact改変、通常play diagnostics漏洩、dirty standard、validator以外の偽verdictを含むmonitor/renderer 24 testsとtypecheckを合格した。
 
 ### Step 5.2: CIへ決定的ゲートを追加
 

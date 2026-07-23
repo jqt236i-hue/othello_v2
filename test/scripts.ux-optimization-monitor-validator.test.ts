@@ -64,8 +64,19 @@ function validReport(): Record<string, any> {
         browserVersion: 'Chromium 1',
         os: 'win32',
         viewport: { width: 1366, height: 900 },
-        dpr: 1
+        dpr: 1,
+        graphics: {
+          hardwareAccelerated: true,
+          glRenderer: 'ANGLE GPU',
+          glVendor: 'Google'
+        }
       }
+    },
+    normalPlayIsolation: {
+      probeGlobalPresent: false,
+      boardPerfHarnessPresent: false,
+      monitorQueryPresent: false,
+      requestedDiagnosticsPayload: false
     },
     pendingOptimizationIds: [],
     scenarios: UX_OPTIMIZATION_SCENARIO_CAPTURES.map((definition) => {
@@ -682,6 +693,20 @@ describe('UX optimization monitor validator', () => {
     expect(validateUxOptimizationReport(report).overallVerdict).toBe('fail');
   });
 
+  test('fails diagnostics leakage in a normal-play page', () => {
+    const report = validReport();
+    report.normalPlayIsolation.probeGlobalPresent = true;
+    report.normalPlayIsolation.requestedDiagnosticsPayload = true;
+    const result = validateUxOptimizationReport(report);
+    expect(result.overallVerdict).toBe('fail');
+    expect(result.checks.find(
+      (entry) => entry.id === 'report.normal-play-isolation'
+    )?.reasons).toEqual(expect.arrayContaining([
+      'normal play exposed the UX optimization probe global',
+      'normal play requested a diagnostics payload'
+    ]));
+  });
+
   test('fails invalid identity, phases, paths and unexpected browser errors', () => {
     const report = validReport();
     report.identity.scenarioDigest = '0'.repeat(64);
@@ -740,6 +765,16 @@ describe('UX optimization monitor validator', () => {
     const validation = validateUxOptimizationReport(report);
     expect(validation.overallVerdict).toBe('fail');
     expect(validation.baselineValid).toBe(true);
+    expect(validation.candidateEligible).toBe(false);
+  });
+
+  test('does not make a dirty standard report candidate eligible', () => {
+    const report = validReport();
+    report.profile = 'standard';
+    report.identity.dirty = true;
+    report.identity.dirtyPaths = ['M ui/example.ts'];
+    const validation = validateUxOptimizationReport(report);
+    expect(validation.overallVerdict).toBe('pass');
     expect(validation.candidateEligible).toBe(false);
   });
 

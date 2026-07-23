@@ -166,6 +166,19 @@ export function validateUxOptimizationReport(
       || !Number.isFinite(Number(environment.dpr))) {
     identityReasons.push('browser/OS/viewport/DPR environment is incomplete');
   }
+  const graphics = environment?.graphics;
+  if (
+    !graphics
+    || typeof graphics.hardwareAccelerated !== 'boolean'
+    || typeof graphics.glRenderer !== 'string'
+    || graphics.glRenderer.length === 0
+    || typeof graphics.glVendor !== 'string'
+    || graphics.glVendor.length === 0
+  ) {
+    identityReasons.push('hardware acceleration and GL renderer/vendor are incomplete');
+  } else if (report.profile === 'standard' && graphics.hardwareAccelerated !== true) {
+    identityReasons.push('standard capture requires hardware-accelerated graphics');
+  }
   addCheck('report.identity', identityReasons.length === 0, identityReasons);
 
   const forbiddenPaths = findForbiddenReportPaths(report);
@@ -174,6 +187,29 @@ export function validateUxOptimizationReport(
     forbiddenPaths.length === 0,
     forbiddenPaths.map((entry) => `forbidden key at ${entry}`),
     { forbiddenPaths }
+  );
+
+  const isolation = report.normalPlayIsolation
+    && typeof report.normalPlayIsolation === 'object'
+    ? report.normalPlayIsolation as Record<string, any>
+    : {};
+  const isolationReasons: string[] = [];
+  if (isolation.probeGlobalPresent !== false) {
+    isolationReasons.push('normal play exposed the UX optimization probe global');
+  }
+  if (isolation.boardPerfHarnessPresent !== false) {
+    isolationReasons.push('normal play exposed the board performance harness');
+  }
+  if (isolation.monitorQueryPresent !== false) {
+    isolationReasons.push('normal play used the monitor query');
+  }
+  if (isolation.requestedDiagnosticsPayload !== false) {
+    isolationReasons.push('normal play requested a diagnostics payload');
+  }
+  addCheck(
+    'report.normal-play-isolation',
+    isolationReasons.length === 0,
+    isolationReasons
   );
 
   const scenarios = Array.isArray(report.scenarios) ? report.scenarios : [];
@@ -1711,14 +1747,30 @@ export function validateUxOptimizationReport(
         && check.reasons[0] === 'captureStatus is pending-optimization'
       )
   ));
+  const baselineRequiredCheckIds = new Set([
+    'report.schema',
+    'report.identity',
+    'report.data-safety',
+    'report.normal-play-isolation',
+    'report.scenario-set'
+  ]);
+  const baselineRequiredChecksPass = checks
+    .filter((check) => baselineRequiredCheckIds.has(check.id))
+    .every((check) => check.verdict === 'pass');
+  const baselineCaptureStatusesValid = scenarios.every((scenario: any) => (
+    ['complete', 'pending-optimization'].includes(String(scenario?.captureStatus || ''))
+  ));
   const baselineValid = report.profile === 'baseline'
     && pending.length === UX_OPTIMIZATION_IDS.length
     && unknownPending.length === 0
-    && nonPendingFailures.length === 0;
-  const developmentValid = ['baseline', 'quick'].includes(String(report.profile))
-    && unknownPending.length === 0
-    && unknownTargets.length === 0
-    && nonPendingFailures.length === 0;
+    && baselineRequiredChecksPass
+    && baselineCaptureStatusesValid;
+  const developmentValid = report.profile === 'baseline'
+    ? baselineValid
+    : report.profile === 'quick'
+      && unknownPending.length === 0
+      && unknownTargets.length === 0
+      && nonPendingFailures.length === 0;
   const candidateEligible = identity.dirty === false
     && report.profile === 'standard'
     && checks.every((check) => check.verdict === 'pass');
