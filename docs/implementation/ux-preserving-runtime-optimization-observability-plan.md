@@ -783,6 +783,7 @@ git status --short
   - 最初の全Jestは975 suite中14 suite、6902 test中69 testがfailした。8 suiteはDOM compatibilityのlazy CSS/image preparationを旧JSDOM fixtureが再現しておらず、相対URLを解決できない `about:blank` と完了しないimage decodeで失敗していた。valid HTTPS base、load済みcompat stylesheet、成功するImage decodeを共有fixtureで明示し、本番のprepare失敗・retry契約は変更しない。
   - 6 suiteはPhase 4で移動したCSS正本ではなく旧eager sourceを直接読んでいた。test helperをeager layout、complete layout、network featureの各surfaceに分け、実際の配信順とlazy fragmentを検査するよう修正する。
   - 同時に、左レール全機能で共有するstrong active ruleがdeck-builder lazy fragmentに残る実装退行を検出した。共有ruleをeager controlsへ戻し、deck未表示でもnetwork/gacha等のactive状態が成立することと、deck fragmentに共有selectorが再混入しないことをblocking contractにする。
+  - 最初の `assets:optimized:check` は `cinzel-400` subsetの現行corpus必要文字3件不足でfailした。`Å`、`É`、`•` は現行Pixi runtime／盤面hint sourceで使用されcanonical TTFにも存在するため、既存generatorで全12書体のsubset、manifest、generated CSSを更新する。font full fallback、metadata、vertical metrics、advance width、corpus不足0を再checkし、初回failと修正後結果をcompletion summaryへ記録する。
 
 ## ロールバック境界
 
@@ -837,6 +838,7 @@ git status --short
 - Phase 5.3実装前監査で、contract上のstandard sample数は5なのに既存standardコマンドが1回しかcaptureしない矛盾と、設計本文のquick 3回がcontractのquick 1回と一致しない誤りを確認した。quickは非eligibleな単発開発診断へ統一し、最終比較は保存baseline artifactを現行schemaでboot-only再観測しながらcandidateと交互に各5 fresh process取得する専用suiteへ修正した。
 - Phase 5.3最初の `checkall` はPhase 1.1由来の3-module import cycleを検出してfailした。正本mapへの一方向依存へ修正後、dependency-boundary testとDOM compatibility preparation testを再実行し、cycle 0と既存画像準備契約を確認した。初回failは最終結果から隠さず記録する。
 - Phase 5.3最初の全Jestは遅延CSS/DOM preparationを暗黙に同期成功と仮定した旧fixture、移動前CSS sourceへ固定されたcontract test、deck-builder fragmentへ残った共有左レールruleを検出した。fixtureは本番契約を緩めずready条件を明示し、CSS testは実正本fragmentと配信順を読むよう更新し、共有ruleはstartup CSSへ戻す。初回14 suite・69 test failと修正後の結果をcompletion summaryへ記録する。
+- Phase 5.3最初のoptimized asset gateはfont subsetの現行corpus追従漏れを検出した。利用文字を削るのではなく正規generatorでmanifest/subset/CSSを再生成し、12書体すべてのsubset/full WOFF2整合と17,937,216 bytesの削減を再確認する。
 - `worker-public/`、`index.html`、Vite registryなどを直接編集する手順がないこと、各単位でroot sourceから生成することを確認した。
 - 全設計完了条件を最後のチェックリストとPhase 5 standard gateへ対応付け、実装モデルが会話情報なしで対象、順序、検証、停止条件を判断できることを確認した。
 - help idle prefetchをboard visual readyだけで開始する案は、最新idle frame settlementと競合し得るため、`waitForIdle()` とcallback時のmode再確認を追加した。
