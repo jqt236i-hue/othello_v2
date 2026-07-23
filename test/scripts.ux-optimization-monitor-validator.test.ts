@@ -79,6 +79,7 @@ function validReport(): Record<string, any> {
       const resultFeature = definition.id === 'feature.result';
       const profileFeature = definition.id === 'feature.profile';
       const rulesHelpFeature = definition.id === 'feature.rules-help';
+      const deckBuilderFeature = definition.id === 'feature.deck-builder';
       return {
         id: definition.id,
         lane: definition.lane,
@@ -103,6 +104,11 @@ function validReport(): Record<string, any> {
               { path: 'styles-feature-rules-help-layout-info.css' },
               { path: 'styles-feature-rules-help-cards.css' },
               { path: 'styles-feature-rules-help-responsive.css' }
+            ]
+          : deckBuilderFeature
+            ? [
+              { path: 'styles-feature-deck-builder.css' },
+              { path: 'styles-feature-deck-builder-responsive.css' }
             ]
           : [{ path: 'assets/images/ui/example.png' }],
         errors: [],
@@ -354,6 +360,69 @@ function validReport(): Record<string, any> {
                     firstOpenLongTaskCount: 0,
                     clsDelta: 0
                   }
+                : deckBuilderFeature
+                  ? {
+                    backend: 'pixi',
+                    uiInitialized: true,
+                    deckBuilderStylesheetLinkCountBeforeOpen: 0,
+                    deckBuilderStylesheetSlotCount: 2,
+                    deckBuilderInnerDomCountBeforeOpen: 0,
+                    deckBuilderCardCountBeforeOpen: 0,
+                    deckBuilderResourceCountBeforeOpen: 0,
+                    deckBuilderResponseCountBeforeOpen: 0,
+                    deckBuilderOpenIconReady: true,
+                    deckModelAvailableBeforeOpen: true,
+                    firstOpenLatencyMs: 40,
+                    firstStyleReadyLatencyMs: 15,
+                    firstLinkCount: 2,
+                    firstInnerDomCount: 2,
+                    firstPresetCardCount: 11,
+                    firstPanelVisible: true,
+                    firstFullStyleReady: true,
+                    firstCascadeOrderPreserved: true,
+                    firstComputedStylePreserved: true,
+                    deckBuilderResponseCountAfterOpen: 2,
+                    initialOpenControlFocused: true,
+                    presetViewWorked: true,
+                    editorViewWorked: true,
+                    scrollPreserved: true,
+                    randomDeckWorked: true,
+                    detailWorked: true,
+                    saveWorked: true,
+                    networkDeckUpdateWorked: true,
+                    escapeClosed: true,
+                    escapeFocusReturned: true,
+                    backdropClosed: true,
+                    backdropFocusReturned: true,
+                    reopenSameInnerNode: true,
+                    reopenLinkCount: 2,
+                    reopenInnerDomCount: 2,
+                    diagnosticsAttemptCount: 1,
+                    diagnosticsDomCreatedCount: 2,
+                    diagnosticsReadyCount: 1,
+                    diagnosticsFailureCount: 0,
+                    diagnosticsListenerBindingCount: 8,
+                    failureVisible: true,
+                    failureFocused: true,
+                    failureDialogStable: true,
+                    failureRetryGuidance: true,
+                    failureNormalInnerDomCount: 0,
+                    failureLinkCount: 0,
+                    failureRequestCount: 2,
+                    failureRequestFailureCount: 1,
+                    failureResponseCount: 1,
+                    failureConsoleErrorCount: 1,
+                    failureConsoleWarningCount: 1,
+                    failureRetryReady: true,
+                    failureRetryLinkCount: 2,
+                    failureRetryInnerDomCount: 2,
+                    failureRetryAttemptCount: 2,
+                    failureRetryFailureCount: 1,
+                    failureRetryCount: 1,
+                    firstOpenLongTaskSupported: true,
+                    firstOpenLongTaskCount: 0,
+                    clsDelta: 0
+                  }
                 : webpAsset
                   ? {
                     admission: {
@@ -419,7 +488,14 @@ function validReport(): Record<string, any> {
                     profileStylesheetSlotCount: 1,
                     rulesHelpStylesheetLinkCount: 0,
                     rulesHelpStylesheetSlotCount: 3,
-                    featureInnerDomCounts: { result: 0, profile: 0, rulesHelp: 0 }
+                    deckBuilderStylesheetLinkCount: 0,
+                    deckBuilderStylesheetSlotCount: 2,
+                    featureInnerDomCounts: {
+                      result: 0,
+                      profile: 0,
+                      rulesHelp: 0,
+                      deckBuilder: 0
+                    }
                   }
                   : help
                     ? {
@@ -744,6 +820,44 @@ describe('UX optimization monitor validator', () => {
       'rules help search, filter, tab, or slide interaction changed',
       'rules help stylesheet failure was not closable or did not clean partial DOM/style',
       'rules help stylesheet retry did not recover with one retained surface'
+    ]));
+  });
+
+  test('fails eager deck builder work, interaction regressions, and failed retry cleanup', () => {
+    const report = validReport();
+    const boot = report.scenarios.find((entry: any) => (
+      entry.id === 'boot.pixi.cold' && entry.lane === 'vite'
+    ));
+    boot.resources.push({ path: 'styles-feature-deck-builder.css' });
+    boot.metrics.deckBuilderStylesheetLinkCount = 1;
+    boot.metrics.featureInnerDomCounts.deckBuilder = 2;
+    const feature = report.scenarios.find((entry: any) => (
+      entry.id === 'feature.deck-builder' && entry.lane === 'vite'
+    ));
+    feature.metrics.randomDeckWorked = false;
+    feature.metrics.networkDeckUpdateWorked = false;
+    feature.metrics.failureLinkCount = 1;
+    feature.metrics.failureRetryAttemptCount = 1;
+
+    const result = validateUxOptimizationReport(report, {
+      targetOptimizationIds: ['feature-deck-builder']
+    });
+    const bootCheck = result.checks.find(
+      (entry) => entry.id === 'scenario.boot.pixi.cold:vite:pixi'
+    );
+    const featureCheck = result.checks.find(
+      (entry) => entry.id === 'scenario.feature.deck-builder:vite:pixi'
+    );
+    expect(result.focusedVerdict).toBe('fail');
+    expect(bootCheck?.reasons).toEqual(expect.arrayContaining([
+      'boot requested deck builder CSS 1 time(s)',
+      'boot mounted 1 deck builder stylesheet link(s)',
+      'boot deck builder inner DOM count was 2'
+    ]));
+    expect(featureCheck?.reasons).toEqual(expect.arrayContaining([
+      'deck builder preset, editor, scroll, card, save, or network behavior changed',
+      'deck builder stylesheet failure was not closable or did not clean partial DOM/style',
+      'deck builder stylesheet retry did not recover with one retained surface'
     ]));
   });
 

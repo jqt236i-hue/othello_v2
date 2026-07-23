@@ -524,6 +524,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/handlers/cpu-policy": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/cpu-policy.js"),
   "ui/handlers/debug": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/debug.js"),
   "ui/handlers/deck-builder": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/deck-builder.js"),
+  "ui/handlers/deck-builder-template": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/deck-builder-template.js"),
   "ui/handlers/gacha": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/gacha.js"),
   "ui/handlers/hand-skin": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/hand-skin.js"),
   "ui/handlers/init": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/init.js"),
@@ -1214,6 +1215,7 @@ installBootModuleMetadata({
     "ui/handlers/cpu-policy",
     "ui/handlers/debug",
     "ui/handlers/deck-builder",
+    "ui/handlers/deck-builder-template",
     "ui/handlers/gacha",
     "ui/handlers/hand-skin",
     "ui/handlers/init",
@@ -1452,4 +1454,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 675;
+export const startupModuleCount = 676;

@@ -473,6 +473,10 @@ baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR�
 - stylesheet単位slotでは元ファイル内部のinterleaveを完全保持できないため、selector依存監査、computed-style blocking、一致しないruleの複数fragment化またはstartup残置へ修正した。
 - Phase 4.4の初回抽出で、`styles-layout-info.css` 後端へ単純にHELP fragmentを置くと、元はHELP専用ruleより後ろにあったpremium shared ruleの優先順が逆転し、背景色・title色・角丸が変化した。shared mixed ruleはstartupに残しつつHELP selector projectionをfragment内の元境界へ再配置し、Vite/classicの1440×900と390×844でpanel矩形、padding、border、背景、title、tab、searchの主要computed propertyが変更前と完全一致することを確認した。
 - Phase 4.4の実captureで、初回open時にフォーカスをpanelへ強制移動するというmonitor仮定が従来挙動と一致しないことを確認した。open controlへの保持を既存UXとして監視し、ESC・close・backdropではcontrolへ返す契約を分離した。backdropの後続clickでpointerdown時のfocus返却が失われる実不整合だけは、click完了後の再返却で修正した。
+- Phase 4.5のsource監査で、deck固有CSSの主な正本は計画書初版に記載した `styles-cards.css` ではなく `styles-layout-controls.css` であり、responsive差分は `styles-responsive.css` にあることを確認した。共有mixed ruleと失敗時critical styleをstartupへ残し、deck専用466 ruleを通常fragment、responsive fragmentの2 slotへ分割する設計へ修正した。
+- Phase 4.5の境界レビューで、保存済みdeck、active deck、network publish APIまで初回openへ遅延するとboot直後の対局・保存session契約を変えることを確認した。DOM非依存model/APIはboot登録を維持し、header/body、カード列挙、view model描画、専用CSSだけを初回surfaceへ移した。
+- Phase 4.5の実機検証で、lazy CSS挿入直後に既存のclose button transitionが発火し、一時的な中間色を返すことを確認した。非表示中だけtransitionを抑止し、surface ready前にcomputed styleを確定してから表示することで、Vite/classic・desktop/mobileの見た目を変更前と一致させた。
+- Phase 4.5の初回monitorは、1366px計測viewportでも別viewportの角丸 `6px` を固定期待し、保持factoryが生成するheader/body 2要素を診断値1と誤認していた。角丸は既存の `8px × --layout-stage-scale` を許容誤差付きで比較し、`domCreatedCount=2` を一度だけ生成した正しい値として再レビューした。再captureでは両laneともfocused verdict `pass`、CLS delta 0、first-open Long Task 0となった。
 - board frame画像はPixi resourceでなくCSS custom property経路であるため、WebP routingをBoardSkinRuntimeへ限定した。
 - legacy特殊石preloaderは同期returnでload/decode完了を示さないため、DOM compatibility専用のawaitable preparation APIを設計へ追加した。
 - 物理端末を必須release gateにする案は現行の任意診断方針と矛盾するため、device効果を主張する場合だけ必須とした。

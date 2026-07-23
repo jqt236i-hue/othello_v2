@@ -436,6 +436,32 @@ export function validateUxOptimizationReport(
           `boot rules help inner DOM count was ${String(metrics.featureInnerDomCounts?.rulesHelp)}`
         );
       }
+      const deckBuilderStylesheetResources = resources.filter(
+        (resource: any) => [
+          'styles-feature-deck-builder.css',
+          'styles-feature-deck-builder-responsive.css'
+        ].includes(String(resource?.path || ''))
+      );
+      if (deckBuilderStylesheetResources.length !== 0) {
+        reasons.push(
+          `boot requested deck builder CSS ${deckBuilderStylesheetResources.length} time(s)`
+        );
+      }
+      if (Number(metrics.deckBuilderStylesheetLinkCount) !== 0) {
+        reasons.push(
+          `boot mounted ${String(metrics.deckBuilderStylesheetLinkCount)} deck builder stylesheet link(s)`
+        );
+      }
+      if (Number(metrics.deckBuilderStylesheetSlotCount) !== 2) {
+        reasons.push(
+          `deck builder stylesheet slot count was ${String(metrics.deckBuilderStylesheetSlotCount)}`
+        );
+      }
+      if (Number(metrics.featureInnerDomCounts?.deckBuilder) !== 0) {
+        reasons.push(
+          `boot deck builder inner DOM count was ${String(metrics.featureInnerDomCounts?.deckBuilder)}`
+        );
+      }
     }
     if (scenario.captureStatus === 'complete' && definition.id === 'feature.result') {
       const metrics = scenario.metrics && typeof scenario.metrics === 'object'
@@ -842,6 +868,146 @@ export function validateUxOptimizationReport(
         || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
       ) {
         reasons.push(`rules help first-open CLS was ${String(metrics.clsDelta)}`);
+      }
+    }
+    if (scenario.captureStatus === 'complete' && definition.id === 'feature.deck-builder') {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      const deckBuilderResources = resources.filter(
+        (resource: any) => [
+          'styles-feature-deck-builder.css',
+          'styles-feature-deck-builder-responsive.css'
+        ].includes(String(resource?.path || ''))
+      );
+      if (metrics.backend !== 'pixi') {
+        reasons.push(`deck builder scenario backend was ${String(metrics.backend || 'missing')}`);
+      }
+      if (metrics.uiInitialized !== true) {
+        reasons.push('deck builder listener initialization did not complete');
+      }
+      if (
+        Number(metrics.deckBuilderStylesheetLinkCountBeforeOpen) !== 0
+        || Number(metrics.deckBuilderResponseCountBeforeOpen) !== 0
+        || Number(metrics.deckBuilderResourceCountBeforeOpen) !== 0
+        || Number(metrics.deckBuilderInnerDomCountBeforeOpen) !== 0
+        || Number(metrics.deckBuilderCardCountBeforeOpen) !== 0
+      ) {
+        reasons.push('deck builder CSS, response, inner DOM, or cards existed before first open');
+      }
+      if (Number(metrics.deckBuilderStylesheetSlotCount) !== 2) {
+        reasons.push(
+          `deck builder stylesheet slot count was ${String(metrics.deckBuilderStylesheetSlotCount)}`
+        );
+      }
+      if (metrics.deckBuilderOpenIconReady !== true) {
+        reasons.push('deck builder open control icon was not styled at boot');
+      }
+      if (metrics.deckModelAvailableBeforeOpen !== true) {
+        reasons.push('deck builder model/network API was unavailable before first open');
+      }
+      if (
+        Number(metrics.firstLinkCount) !== 2
+        || Number(metrics.firstInnerDomCount) !== 2
+        || Number(metrics.firstPresetCardCount) <= 0
+        || metrics.firstPanelVisible !== true
+        || metrics.firstFullStyleReady !== true
+        || metrics.firstCascadeOrderPreserved !== true
+        || metrics.firstComputedStylePreserved !== true
+        || Number(metrics.deckBuilderResponseCountAfterOpen) !== 2
+        || deckBuilderResources.length !== 2
+      ) {
+        reasons.push(
+          'deck builder first open did not settle to two visible DOM/style fragments with preserved cascade and computed style'
+        );
+      }
+      if (
+        !Number.isFinite(Number(metrics.firstOpenLatencyMs))
+        || Number(metrics.firstOpenLatencyMs)
+          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+        || !Number.isFinite(Number(metrics.firstStyleReadyLatencyMs))
+        || Number(metrics.firstStyleReadyLatencyMs)
+          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+      ) {
+        reasons.push(
+          `deck builder first-open/style latency was ${String(metrics.firstOpenLatencyMs)}/${String(metrics.firstStyleReadyLatencyMs)}ms`
+        );
+      }
+      if (
+        metrics.initialOpenControlFocused !== true
+        || metrics.presetViewWorked !== true
+        || metrics.editorViewWorked !== true
+        || metrics.scrollPreserved !== true
+        || metrics.randomDeckWorked !== true
+        || metrics.detailWorked !== true
+        || metrics.saveWorked !== true
+        || metrics.networkDeckUpdateWorked !== true
+      ) {
+        reasons.push('deck builder preset, editor, scroll, card, save, or network behavior changed');
+      }
+      if (
+        metrics.escapeClosed !== true
+        || metrics.escapeFocusReturned !== true
+        || metrics.backdropClosed !== true
+        || metrics.backdropFocusReturned !== true
+      ) {
+        reasons.push('deck builder Escape, backdrop, or focus return behavior failed');
+      }
+      if (
+        metrics.reopenSameInnerNode !== true
+        || Number(metrics.reopenLinkCount) !== 2
+        || Number(metrics.reopenInnerDomCount) !== 2
+        || Number(metrics.diagnosticsAttemptCount) !== 1
+        || Number(metrics.diagnosticsDomCreatedCount) !== 2
+        || Number(metrics.diagnosticsReadyCount) !== 1
+        || Number(metrics.diagnosticsFailureCount) !== 0
+        || Number(metrics.diagnosticsListenerBindingCount) <= 0
+      ) {
+        reasons.push('deck builder reopen regenerated DOM/style or rebound the prepared surface');
+      }
+      if (
+        metrics.failureVisible !== true
+        || metrics.failureFocused !== true
+        || metrics.failureDialogStable !== true
+        || metrics.failureRetryGuidance !== true
+        || Number(metrics.failureNormalInnerDomCount) !== 0
+        || Number(metrics.failureLinkCount) !== 0
+      ) {
+        reasons.push('deck builder stylesheet failure was not closable or did not clean partial DOM/style');
+      }
+      if (
+        Number(metrics.failureRequestCount) !== 2
+        || Number(metrics.failureRequestFailureCount) !== 1
+        || Number(metrics.failureResponseCount) !== 1
+        || Number(metrics.failureConsoleErrorCount) !== 1
+        || Number(metrics.failureConsoleWarningCount) !== 1
+      ) {
+        reasons.push('deck builder stylesheet injected failure evidence was not exact');
+      }
+      if (
+        metrics.failureRetryReady !== true
+        || Number(metrics.failureRetryLinkCount) !== 2
+        || Number(metrics.failureRetryInnerDomCount) !== 2
+        || Number(metrics.failureRetryAttemptCount) !== 2
+        || Number(metrics.failureRetryFailureCount) !== 1
+        || Number(metrics.failureRetryCount) !== 1
+      ) {
+        reasons.push('deck builder stylesheet retry did not recover with one retained surface');
+      }
+      if (
+        metrics.firstOpenLongTaskSupported !== true
+        || Number(metrics.firstOpenLongTaskCount) !== 0
+      ) {
+        reasons.push(
+          `deck builder first-open long tasks were ${String(metrics.firstOpenLongTaskCount)}`
+        );
+      }
+      if (
+        typeof metrics.clsDelta !== 'number'
+        || !Number.isFinite(metrics.clsDelta)
+        || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+      ) {
+        reasons.push(`deck builder first-open CLS was ${String(metrics.clsDelta)}`);
       }
     }
     if (

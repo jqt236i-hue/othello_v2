@@ -3,7 +3,7 @@ import * as path from 'path';
 
 describe('deck builder layout CSS', () => {
   test('compact layout keeps the modal body vertically scrollable without horizontal overflow', () => {
-    const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const cssPath = path.join(__dirname, '..', 'styles-feature-deck-builder.css');
     const css = fs.readFileSync(cssPath, 'utf8');
     const compactSection = css.split('Bold Redesign — Compact density')[1] || '';
     const compactBodyBlock = compactSection.match(/#deckBuilderBody\s*\{([\s\S]*?)\}/)?.[1] || '';
@@ -14,7 +14,7 @@ describe('deck builder layout CSS', () => {
   });
 
   test('preset screen keeps the existing sections while tightening spacing and grid density', () => {
-    const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const cssPath = path.join(__dirname, '..', 'styles-feature-deck-builder.css');
     const css = fs.readFileSync(cssPath, 'utf8');
 
     expect(css).toMatch(/#deckBuilderBody\s*\{[\s\S]*gap:\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)/);
@@ -29,7 +29,7 @@ describe('deck builder layout CSS', () => {
   });
 
   test('preset sections use subtle accent colors to separate default, built-in, and saved decks', () => {
-    const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const cssPath = path.join(__dirname, '..', 'styles-feature-deck-builder.css');
     const css = fs.readFileSync(cssPath, 'utf8');
 
     expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-standard-card\s*\{[\s\S]*rgba\(242,\s*201,\s*95,\s*0\.18\)[\s\S]*border-color:\s*rgba\(242,\s*201,\s*95,\s*0\.38\)/);
@@ -42,7 +42,7 @@ describe('deck builder layout CSS', () => {
   });
 
   test('preset action buttons use lighter role-specific styling instead of the generic brown buttons', () => {
-    const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const cssPath = path.join(__dirname, '..', 'styles-feature-deck-builder.css');
     const css = fs.readFileSync(cssPath, 'utf8');
 
     expect(css).toMatch(/#deckBuilderModal\s+\.deck-builder-preset-card\s*>\s*\.deck-builder-actions-row\s+\.btn-small\s*\{[\s\S]*border-radius:\s*calc\(6px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*rgba\(255,\s*255,\s*255,\s*0\.12\)[\s\S]*rgba\(16,\s*24,\s*34,\s*0\.92\)/);
@@ -64,7 +64,7 @@ describe('deck builder layout CSS', () => {
   });
 
   test('random deck button stays touch-friendly and wraps on narrow screens', () => {
-    const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const cssPath = path.join(__dirname, '..', 'styles-feature-deck-builder.css');
     const css = fs.readFileSync(cssPath, 'utf8');
 
     expect(css).toMatch(/\.deck-builder-destination-row\s+\.deck-builder-randomize-btn\s*\{[\s\S]*white-space:\s*nowrap/);
@@ -75,7 +75,7 @@ describe('deck builder layout CSS', () => {
   });
 
   test('tablet landscape fits the selection surface without relying on vertical scrolling', () => {
-    const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const cssPath = path.join(__dirname, '..', 'styles-feature-deck-builder.css');
     const css = fs.readFileSync(cssPath, 'utf8');
     const tabletFitSection = css.split('Tablet deck atelier — one-screen composition')[1] || '';
 
@@ -85,16 +85,17 @@ describe('deck builder layout CSS', () => {
   });
 
   test('night manuscript theme uses the generated texture and keeps a three-by-two desktop workshop', () => {
-    const cssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
+    const startupCssPath = path.join(__dirname, '..', 'styles-layout-controls.css');
     const featureCssPath = path.join(__dirname, '..', 'styles-feature-deck-builder.css');
     const texturePath = path.join(__dirname, '..', 'assets', 'images', 'ui', 'deck-builder-night-manuscript-texture.png');
-    const css = fs.readFileSync(cssPath, 'utf8');
+    const startupCss = fs.readFileSync(startupCssPath, 'utf8');
     const featureCss = fs.readFileSync(featureCssPath, 'utf8');
-    const finalSection = css.split('Deck Workshop — comparison-first workspace')[1] || '';
+    const finalSection = featureCss.split('Deck Workshop — comparison-first workspace')[1] || '';
 
     expect(fs.existsSync(texturePath)).toBe(true);
-    expect(css).not.toMatch(/url\(['"]assets\/images\/ui\/deck-builder-night-manuscript-texture\.png['"]\)/);
-    expect(css).toMatch(/var\(--deck-builder-night-manuscript-image, none\)/);
+    expect(startupCss).not.toMatch(/url\(['"]assets\/images\/ui\/deck-builder-night-manuscript-texture\.png['"]\)/);
+    expect(startupCss).not.toMatch(/var\(--deck-builder-night-manuscript-image, none\)/);
+    expect(featureCss).toMatch(/var\(--deck-builder-night-manuscript-image, none\)/);
     expect(featureCss).toMatch(/url\(['"]assets\/images\/ui\/deck-builder-night-manuscript-texture\.png['"]\)/);
     expect(finalSection).toMatch(/--deck-gold:\s*#d8b463/);
     expect(finalSection).toMatch(/font-family:\s*'Yu Mincho',[\s\S]*'Noto Serif JP'/);

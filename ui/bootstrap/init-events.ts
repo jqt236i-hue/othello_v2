@@ -61,9 +61,6 @@ interface InitDomElements {
   deckBuilderOpenBtn: HTMLElement | null;
   deckBuilderControlSummary: HTMLElement | null;
   deckBuilderOverlay: HTMLElement | null;
-  deckBuilderCloseBtn: HTMLElement | null;
-  deckBuilderHeaderSummary: HTMLElement | null;
-  deckBuilderBody: HTMLElement | null;
   boardSizeOpenBtn: HTMLElement | null;
   boardSizeControlSummary: HTMLElement | null;
   boardSizeEditor: HTMLElement | null;
@@ -424,8 +421,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   if (typeof setupDeckBuilderControls === 'function') {
     setupDeckBuilderControls({
       openBtn: refs.deckBuilderOpenBtn, controlSummary: refs.deckBuilderControlSummary,
-      overlay: refs.deckBuilderOverlay, closeBtn: refs.deckBuilderCloseBtn,
-      headerSummary: refs.deckBuilderHeaderSummary, body: refs.deckBuilderBody,
+      overlay: refs.deckBuilderOverlay,
       boardSizeOpenBtn: refs.boardSizeOpenBtn, boardSizeControlSummary: refs.boardSizeControlSummary,
       boardSizeEditor: refs.boardSizeEditor, boardShapeSelect: refs.boardShapeSelect, boardSizeRowsInput: refs.boardSizeRowsInput,
       boardSizeColsInput: refs.boardSizeColsInput, boardSizeCloseBtn: refs.boardSizeCloseBtn,

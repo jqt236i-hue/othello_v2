@@ -37,8 +37,11 @@
     <link rel="stylesheet" href="styles-base.css?v=239652248002073">
     <link rel="stylesheet" href="styles-layout.css?v=248242689578909">
     <link rel="stylesheet" href="styles-charge-hud.css?v=33539802130051">
-    <link rel="stylesheet" href="styles-layout-controls.css?v=149411083436447">
-    <link rel="stylesheet" href="styles-layout-info.css?v=128748265554339">
+    <link rel="stylesheet" href="styles-layout-controls.css?v=4682475943430">
+    <meta data-card-reversi-feature-style-slot="deck-builder"
+        data-card-reversi-feature-style-href="styles-feature-deck-builder.css?v=248933214561246"
+        data-card-reversi-feature-style-after="styles-layout-controls.css">
+    <link rel="stylesheet" href="styles-layout-info.css?v=164500752671026">
     <meta data-card-reversi-feature-style-slot="rules-help-layout-info"
         data-card-reversi-feature-style-href="styles-feature-rules-help-layout-info.css?v=151688422755756"
         data-card-reversi-feature-style-after="styles-layout-info.css">
@@ -52,7 +55,10 @@
         data-card-reversi-feature-style-href="styles-feature-rules-help-cards.css?v=98671376079036"
         data-card-reversi-feature-style-after="styles-cards.css">
     <link rel="stylesheet" href="styles-animations.css?v=205530675374674">
-    <link rel="stylesheet" href="styles-responsive.css?v=140593820636966">
+    <link rel="stylesheet" href="styles-responsive.css?v=77620800077894">
+    <meta data-card-reversi-feature-style-slot="deck-builder-responsive"
+        data-card-reversi-feature-style-href="styles-feature-deck-builder-responsive.css?v=114271069624898"
+        data-card-reversi-feature-style-after="styles-responsive.css">
     <meta data-card-reversi-feature-style-slot="rules-help-responsive"
         data-card-reversi-feature-style-href="styles-feature-rules-help-responsive.css?v=71396489629988"
         data-card-reversi-feature-style-after="styles-responsive.css">
@@ -612,16 +618,7 @@
     </div>
 
     <div id="deckBuilderOverlay" aria-hidden="true">
-        <div id="deckBuilderModal" role="dialog" aria-modal="true" aria-label="デッキ構築">
-            <div id="deckBuilderModalHeader">
-                <div class="deck-builder-title-wrap">
-                    <div class="deck-builder-title">デッキ構築</div>
-                    <div id="deckBuilderHeaderSummary"></div>
-                </div>
-                <button id="deckBuilderCloseBtn" class="btn-small" type="button" aria-label="デッキ構築を閉じる">×</button>
-            </div>
-            <div id="deckBuilderBody"></div>
-        </div>
+        <div id="deckBuilderModal" role="dialog" aria-modal="true" aria-label="デッキ構築"></div>
     </div>
 
     <!-- Active Effect Slots (Phase 2) -->
@@ -654,7 +651,7 @@
     <script src="public/vendor/pixi-8.18.1.min.js"></script>
     <script src="public/vendor/pixi-unsafe-eval-8.18.1.min.js"></script>
     <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=170054931566984"></script>
+    <script src="public/module-registry.js?v=268612867304898"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="entry-browser.js?v=151391554609377"></script>
 </body>

@@ -57,9 +57,6 @@ interface InitDomElements {
   deckBuilderOpenBtn: HTMLElement | null;
   deckBuilderControlSummary: HTMLElement | null;
   deckBuilderOverlay: HTMLElement | null;
-  deckBuilderCloseBtn: HTMLElement | null;
-  deckBuilderHeaderSummary: HTMLElement | null;
-  deckBuilderBody: HTMLElement | null;
   boardSizeOpenBtn: HTMLElement | null;
   boardSizeControlSummary: HTMLElement | null;
   boardSizeEditor: HTMLElement | null;
@@ -155,8 +152,7 @@ function getInitDomElements(): InitDomElements {
     ratedMatchOpenBtn: $('ratedMatchOpenBtn'),
     controlPanel: $('control-panel'), deckBuilderOpenBtn: $('deckBuilderOpenBtn'),
     deckBuilderControlSummary: $('deckBuilderControlSummary'), deckBuilderOverlay: $('deckBuilderOverlay'),
-    deckBuilderCloseBtn: $('deckBuilderCloseBtn'), deckBuilderHeaderSummary: $('deckBuilderHeaderSummary'),
-    deckBuilderBody: $('deckBuilderBody'), boardSizeOpenBtn: $('boardSizeOpenBtn'),
+    boardSizeOpenBtn: $('boardSizeOpenBtn'),
     boardSizeControlSummary: $('boardSizeControlSummary'), boardSizeEditor: $('boardSizeEditor'),
     boardShapeSelect: $('boardShapeSelect') as HTMLSelectElement | null, boardSizeRowsInput: $('boardSizeRowsInput') as HTMLInputElement | null, boardSizeColsInput: $('boardSizeColsInput') as HTMLInputElement | null,
     boardSizeCloseBtn: $('boardSizeCloseBtn'), boardSizeEditorNote: $('boardSizeEditorNote'),

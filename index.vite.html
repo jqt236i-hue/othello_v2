@@ -33,6 +33,9 @@
         })();
     </script>
     <!-- CSS Split Modules -->
+    <meta data-card-reversi-feature-style-slot="deck-builder"
+        data-card-reversi-feature-style-href="styles-feature-deck-builder.css?v=248933214561246"
+        data-card-reversi-feature-style-after="styles-layout-controls.css">
     <meta data-card-reversi-feature-style-slot="rules-help-layout-info"
         data-card-reversi-feature-style-href="styles-feature-rules-help-layout-info.css?v=151688422755756"
         data-card-reversi-feature-style-after="styles-layout-info.css">
@@ -42,6 +45,9 @@
     <meta data-card-reversi-feature-style-slot="rules-help-cards"
         data-card-reversi-feature-style-href="styles-feature-rules-help-cards.css?v=98671376079036"
         data-card-reversi-feature-style-after="styles-cards.css">
+    <meta data-card-reversi-feature-style-slot="deck-builder-responsive"
+        data-card-reversi-feature-style-href="styles-feature-deck-builder-responsive.css?v=114271069624898"
+        data-card-reversi-feature-style-after="styles-responsive.css">
     <meta data-card-reversi-feature-style-slot="rules-help-responsive"
         data-card-reversi-feature-style-href="styles-feature-rules-help-responsive.css?v=71396489629988"
         data-card-reversi-feature-style-after="styles-responsive.css">
@@ -55,15 +61,15 @@
     <meta name="card-reversi-classic-style" content="styles-base.css?v=239652248002073">
     <meta name="card-reversi-classic-style" content="styles-layout.css?v=248242689578909">
     <meta name="card-reversi-classic-style" content="styles-charge-hud.css?v=33539802130051">
-    <meta name="card-reversi-classic-style" content="styles-layout-controls.css?v=149411083436447">
-    <meta name="card-reversi-classic-style" content="styles-layout-info.css?v=128748265554339">
+    <meta name="card-reversi-classic-style" content="styles-layout-controls.css?v=4682475943430">
+    <meta name="card-reversi-classic-style" content="styles-layout-info.css?v=164500752671026">
     <meta name="card-reversi-classic-style" content="styles-layout-characters.css?v=2666866856487">
     <meta name="card-reversi-classic-style" content="styles-board.css?v=224207329302880">
     <meta name="card-reversi-classic-style" content="styles-cards.css?v=173114256725840">
     <meta name="card-reversi-classic-style" content="styles-animations.css?v=205530675374674">
-    <meta name="card-reversi-classic-style" content="styles-responsive.css?v=140593820636966">
+    <meta name="card-reversi-classic-style" content="styles-responsive.css?v=77620800077894">
     <meta name="card-reversi-classic-style" content="styles-stone-shadows.css?v=2581636328428">
-    <meta name="card-reversi-startup-version" content="170054931566984">
+    <meta name="card-reversi-startup-version" content="268612867304898">
     <script data-card-reversi-classic-style-bootstrap>
         (() => {
             const metas = Array.from(document.querySelectorAll('meta[name="card-reversi-classic-style"]'));
@@ -632,16 +638,7 @@
     </div>
 
     <div id="deckBuilderOverlay" aria-hidden="true">
-        <div id="deckBuilderModal" role="dialog" aria-modal="true" aria-label="デッキ構築">
-            <div id="deckBuilderModalHeader">
-                <div class="deck-builder-title-wrap">
-                    <div class="deck-builder-title">デッキ構築</div>
-                    <div id="deckBuilderHeaderSummary"></div>
-                </div>
-                <button id="deckBuilderCloseBtn" class="btn-small" type="button" aria-label="デッキ構築を閉じる">×</button>
-            </div>
-            <div id="deckBuilderBody"></div>
-        </div>
+        <div id="deckBuilderModal" role="dialog" aria-modal="true" aria-label="デッキ構築"></div>
     </div>
 
     <!-- Active Effect Slots (Phase 2) -->

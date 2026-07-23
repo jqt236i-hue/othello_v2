@@ -5895,6 +5895,40 @@
     line-height: 1.5;
 }
 
+/* Deck builder stable shell: full modal styling is loaded only on first use. */
+#deckBuilderOverlay.deck-builder-surface-failure {
+    position: fixed;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    padding: calc(16px * var(--layout-stage-scale));
+    box-sizing: border-box;
+    background: var(--surface-overlay-strong);
+    z-index: calc(var(--z-modal-leaderboard) + 1);
+}
+
+#deckBuilderModal.deck-builder-surface-failure {
+    display: flex;
+    flex-direction: column;
+    gap: calc(12px * var(--layout-stage-scale));
+    width: min(calc(440px * var(--layout-stage-scale)), calc(100vw - calc(32px * var(--layout-stage-scale))));
+    padding: calc(24px * var(--layout-stage-scale));
+    box-sizing: border-box;
+    color: #f6ead0;
+    text-align: center;
+}
+
+.deck-builder-surface-failure-title {
+    color: #f8e5bd;
+    font-size: calc(20px * var(--layout-stage-scale));
+    font-weight: 900;
+}
+
+.deck-builder-surface-failure-message {
+    margin: 0;
+    line-height: 1.5;
+}
+
 /* HELP stable shell: full panel styling is loaded only on first use. */
 #rules-help-backdrop:not(.is-open),
 #rules-help-panel:not(.is-open) {

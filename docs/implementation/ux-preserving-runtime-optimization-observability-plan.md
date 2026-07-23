@@ -566,7 +566,13 @@
   - `ui/bootstrap/init-dom.ts`
   - `ui/bootstrap/init-events.ts`
   - `styles-feature-deck-builder.css`
-  - deck固有rulesを含む `styles-cards.css`, `styles-layout-info.css`, `styles-responsive.css`
+  - `styles-feature-deck-builder-responsive.css`
+  - deck固有rulesを含む `styles-layout-controls.css`, `styles-layout-info.css`, `styles-responsive.css`
+  - `ui/handlers/deck-builder.ts`
+  - `ui/handlers/deck-builder-template.ts`
+  - `ui/assets/lazy-feature-surface.ts`
+  - `ui/assets/feature-stylesheet-loader.ts`
+  - `scripts/prepare-worker-assets.ts`
   - deck builder tests
 - implementation:
   - open control、overlay/dialog shell、stable IDだけを初期HTMLに残す。
@@ -585,6 +591,14 @@
   - `npm run check:worker-mirror`
   - `npm run perf:ux-optimization:focused -- --target feature-deck-builder`
 - done: deck behavior、保存内容、network publish契約を変えず、初期DOM/style/list生成を除外する。
+- implementation review:
+  - source監査により、計画書初版がdeck固有CSSの主な正本を `styles-cards.css` としていたのは誤りで、実際の大半は `styles-layout-controls.css`、responsive差分は `styles-responsive.css` にあることを確認した。共有mixed ruleと失敗時critical styleは `styles-layout-info.css` / startup側へ残し、canonical componentsと抽出境界を実装へ合わせて修正した。
+  - 初期HTMLはopen control、`#deckBuilderOverlay`、空のstable `#deckBuilderModal` だけとし、header/bodyを `ui/handlers/deck-builder-template.ts` の保持factoryへ移した。DOM非依存の保存済みdeck/model/network APIはboot時に維持し、カード列挙とview model描画だけをsurface ready後へ遅延した。
+  - deck専用466 rule、156,516 bytesを `styles-feature-deck-builder.css`、responsive 1,142 bytesを `styles-feature-deck-builder-responsive.css` へ分割した。Vite/classicとも起動時は2 fragmentのrequest/link 0、inner DOM 0、カード0で、初回open後のみlink/response 2、inner DOM 2、preset card 11となる。
+  - stylesheetは元cascade境界へ固定slotで挿入し、desktop 1440×900とmobile 390×844のVite/classicでmodal、body、close controlの主要computed styleと表示を変更前に一致させた。lazy CSS挿入直後にclose controlの既存transitionが中間色を返すことを実機で確認したため、非表示中だけtransitionを抑止し、ready前にstyleを確定するよう修正した。
+  - preset表示、編集、body scroll、30枚ランダム生成、カード詳細、名前付き保存、network deck update、ESC、backdrop、focus返却を両laneで確認した。通常reopenは同じinner node、2 stylesheet、attempt 1、DOM生成2を保持し、二重生成・二重listener bindを発生させない。
+  - CSS強制失敗では部分link/通常inner DOMを0へcleanupし、stable dialog、閉じる、focus、再試行案内を維持した。次回openはattempt 2で2 fragmentと通常surfaceへ復旧し、2 request中1 failure・1 response・期待したerror/warning各1件を確認した。
+  - `feature.deck-builder` 最終captureはVite 97.3ms、classic 93.3ms、CSS readyは各19.4ms、60.3ms、CLS delta 0、first-open Long Task 0だった。focused verdict `pass`、developmentValid `true`、worker mirror 920 files一致で、overall failは後続networkだけが意図どおりpendingのためである。
 
 ### Step 4.6: ネットワーク専用UI
 

@@ -1,6 +1,7 @@
 export type FeatureStylesheetGroup =
   | 'board-dom-compat'
   | 'deck-builder'
+  | 'deck-builder-responsive'
   | 'gacha'
   | 'network'
   | 'leaderboard'
@@ -20,6 +21,7 @@ export interface FeatureStylesheetLoadResult {
 const FEATURE_STYLESHEET_PATHS: Readonly<Record<FeatureStylesheetGroup, string>> = Object.freeze({
   'board-dom-compat': 'styles-board-dom-compat.css',
   'deck-builder': 'styles-feature-deck-builder.css',
+  'deck-builder-responsive': 'styles-feature-deck-builder-responsive.css',
   gacha: 'styles-feature-gacha.css',
   network: 'styles-feature-network.css',
   leaderboard: 'styles-leaderboard.css',

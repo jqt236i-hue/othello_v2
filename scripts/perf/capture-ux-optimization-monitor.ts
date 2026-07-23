@@ -56,7 +56,8 @@ const COMPLETED_OPTIMIZATION_IDS = new Set([
   'lossless-webp-admission',
   'feature-result',
   'feature-profile',
-  'feature-rules-help'
+  'feature-rules-help',
+  'feature-deck-builder'
 ]);
 const SPECIAL_STONE_PATH_PREFIX = 'assets/images/special-stones/';
 const DOM_COMPAT_STYLESHEET_PATH = 'styles-board-dom-compat.css';
@@ -66,6 +67,10 @@ const RULES_HELP_STYLESHEET_PATHS = Object.freeze([
   'styles-feature-rules-help-layout-info.css',
   'styles-feature-rules-help-cards.css',
   'styles-feature-rules-help-responsive.css'
+]);
+const DECK_BUILDER_STYLESHEET_PATHS = Object.freeze([
+  'styles-feature-deck-builder.css',
+  'styles-feature-deck-builder-responsive.css'
 ]);
 const DEFAULT_FRAME_PNG_PATH =
   'assets/images/board/board-frame-marsh-forged-iron-v1.png';
@@ -382,7 +387,7 @@ async function captureBootScenario(
           result: countChildren('#result-overlay'),
           profile: countChildren('#profileModal'),
           rulesHelp: countChildren('#rules-help-panel'),
-          deckBuilder: countChildren('#deckBuilderOverlay'),
+          deckBuilder: countChildren('#deckBuilderModal'),
           network: countChildren('#networkOverlay')
         },
         initialHelpImageSrcCount: [
@@ -420,6 +425,12 @@ async function captureBootScenario(
         ).length,
         rulesHelpStylesheetSlotCount: document.querySelectorAll(
           '[data-card-reversi-feature-style-slot^="rules-help"]'
+        ).length,
+        deckBuilderStylesheetLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="deck-builder"]'
+        ).length,
+        deckBuilderStylesheetSlotCount: document.querySelectorAll(
+          '[data-card-reversi-feature-style-slot^="deck-builder"]'
         ).length,
         initialHelpImageElementCount: [
           document.getElementById('rules-help-guide-slide-img'),
@@ -1797,6 +1808,449 @@ async function captureRulesHelpOptimizationScenario(
   }
 }
 
+async function captureFailedDeckBuilderStylesheetPath(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(browser, baseUrl, definition);
+  const failedPath = DECK_BUILDER_STYLESHEET_PATHS[0];
+  let failedPathRequestCount = 0;
+  let failedPathRequestFailureCount = 0;
+  let warningCount = 0;
+  runtime.page.on('requestfailed', (request) => {
+    if (relativeResourcePath(request.url(), baseUrl) === failedPath) {
+      failedPathRequestFailureCount += 1;
+    }
+  });
+  runtime.page.on('console', (message) => {
+    if (
+      message.type() === 'warning'
+      && message.text().includes(`[feature-stylesheet] failed to load ${failedPath}`)
+    ) {
+      warningCount += 1;
+    }
+  });
+  await runtime.page.route(`**/${failedPath}*`, async (route) => {
+    failedPathRequestCount += 1;
+    if (failedPathRequestCount === 1) {
+      await route.abort('failed');
+      return;
+    }
+    await route.continue();
+  });
+  try {
+    await closeSidePanelForFeatureCapture(runtime.page);
+    await runtime.page.click('#deckBuilderOpenBtn');
+    await runtime.page.waitForSelector(
+      '#deckBuilderModal.deck-builder-surface-failure',
+      { state: 'visible', timeout: 30_000 }
+    );
+    await runtime.page.waitForFunction(() => (
+      document.querySelectorAll(
+        'link[data-card-reversi-feature-style^="deck-builder"]'
+      ).length === 0
+    ), null, { timeout: 30_000 });
+    const failed = await runtime.page.evaluate(() => {
+      const overlay = document.getElementById('deckBuilderOverlay');
+      const modal = document.getElementById('deckBuilderModal');
+      const close = modal?.querySelector('button') as HTMLButtonElement | null;
+      return {
+        failureVisible:
+          overlay?.classList.contains('is-open') === true
+          && modal?.classList.contains('deck-builder-surface-failure') === true
+          && Number(modal.getBoundingClientRect().width) > 0
+          && Number(modal.getBoundingClientRect().height) > 0,
+        failureFocused: document.activeElement === close,
+        failureDialogStable:
+          modal?.getAttribute('role') === 'dialog'
+          && modal.getAttribute('aria-label') === 'デッキ構築',
+        failureNormalInnerDomCount: modal?.querySelectorAll(
+          '#deckBuilderModalHeader, #deckBuilderBody'
+        ).length || 0,
+        failureLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="deck-builder"]'
+        ).length,
+        failureRetryGuidance:
+          modal?.textContent?.includes('もう一度押すと再試行') === true
+      };
+    });
+    await runtime.page.evaluate(() => {
+      const failureClose = document.querySelector(
+        '#deckBuilderModal.deck-builder-surface-failure button'
+      ) as HTMLButtonElement | null;
+      if (!failureClose) throw new Error('Deck builder failure close button is unavailable');
+      failureClose.click();
+    });
+    await runtime.page.click('#deckBuilderOpenBtn');
+    await runtime.page.waitForFunction(() => {
+      const links = Array.from(document.querySelectorAll<HTMLLinkElement>(
+        'link[data-card-reversi-feature-style^="deck-builder"]'
+      ));
+      return document.getElementById('deckBuilderOverlay')
+        ?.classList.contains('is-open') === true
+        && links.length === 2
+        && links.every((link) => (
+          link.dataset.cardReversiFeatureStyleLoaded === 'true'
+        ));
+    }, null, { timeout: 30_000 });
+    const retried = await runtime.page.evaluate(() => {
+      const diagnosticsModule = (window as any).require?.(
+        'ui/assets/lazy-feature-surface'
+      );
+      const diagnostics = diagnosticsModule?.getLazyFeatureSurfaceDiagnostics?.(
+        'deck-builder',
+        document
+      ) || null;
+      return {
+        failureRetryReady:
+          !!document.getElementById('deckBuilderModalHeader')
+          && document.querySelectorAll('.deck-builder-preset-card').length > 0,
+        failureRetryLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="deck-builder"]'
+        ).length,
+        failureRetryInnerDomCount: document.querySelectorAll(
+          '#deckBuilderModal > #deckBuilderModalHeader, '
+          + '#deckBuilderModal > #deckBuilderBody'
+        ).length,
+        failureRetryAttemptCount: Number(diagnostics?.attemptCount || 0),
+        failureRetryFailureCount: Number(diagnostics?.failureCount || 0),
+        failureRetryCount: Number(diagnostics?.retryCount || 0)
+      };
+    });
+    return Object.freeze({
+      ...failed,
+      ...retried,
+      failureRequestCount: failedPathRequestCount,
+      failureRequestFailureCount: failedPathRequestFailureCount,
+      failureResponseCount: countPath(runtime.responsePaths, failedPath),
+      failureConsoleErrorCount: runtime.errors.filter(
+        (error) => error.kind === 'console'
+      ).length,
+      failureConsoleWarningCount: warningCount
+    });
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
+async function captureDeckBuilderOptimizationScenario(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(browser, baseUrl, definition);
+  try {
+    await closeSidePanelForFeatureCapture(runtime.page);
+    const beforeSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const initial = await runtime.page.evaluate((stylesheetPaths) => {
+      const icon = document.querySelector(
+        '#deckBuilderOpenBtn .left-action-icon-deck'
+      ) as HTMLElement | null;
+      const responsePaths = new Set(
+        performance.getEntriesByType('resource').map((entry) => {
+          try {
+            return new URL(entry.name).pathname.replace(/^\/+/, '');
+          } catch (_error) {
+            return '';
+          }
+        })
+      );
+      return {
+        backend: String(
+          (window as any).__boardVisualDebug?.getBackendKind?.()
+          || document.documentElement.getAttribute('data-board-visual-backend')
+          || 'none'
+        ),
+        uiInitialized: (window as any).__uiInitialized === true,
+        deckBuilderStylesheetLinkCountBeforeOpen: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="deck-builder"]'
+        ).length,
+        deckBuilderStylesheetSlotCount: document.querySelectorAll(
+          '[data-card-reversi-feature-style-slot^="deck-builder"]'
+        ).length,
+        deckBuilderInnerDomCountBeforeOpen: document.querySelectorAll(
+          '#deckBuilderModal > *'
+        ).length,
+        deckBuilderCardCountBeforeOpen: document.querySelectorAll(
+          '.deck-builder-preset-card, .deck-builder-card'
+        ).length,
+        deckBuilderResourceCountBeforeOpen: stylesheetPaths.filter(
+          (resourcePath) => responsePaths.has(resourcePath)
+        ).length,
+        deckBuilderOpenIconReady: !!icon && (
+          getComputedStyle(icon).maskImage !== 'none'
+          || getComputedStyle(icon).webkitMaskImage !== 'none'
+        ),
+        deckModelAvailableBeforeOpen:
+          typeof (window as any).UIBootstrap?.getRegisteredUIGlobals?.()
+            ?.DeckBuilderController?.readActiveDeckSpec === 'function'
+      };
+    }, DECK_BUILDER_STYLESHEET_PATHS);
+    const responsesBeforeOpen = DECK_BUILDER_STYLESHEET_PATHS.reduce(
+      (total, resourcePath) => total + countPath(runtime.responsePaths, resourcePath),
+      0
+    );
+
+    await markProbePhase(runtime.page, 'feature-opening:deck-builder');
+    await runtime.page.evaluate(() => {
+      const button = document.getElementById('deckBuilderOpenBtn');
+      button?.addEventListener('click', () => {
+        (window as any).__uxDeckBuilderStartedAtMs = performance.now();
+      }, { capture: true, once: true });
+    });
+    await runtime.page.click('#deckBuilderOpenBtn');
+    await runtime.page.waitForFunction(() => {
+      const links = Array.from(document.querySelectorAll<HTMLLinkElement>(
+        'link[data-card-reversi-feature-style^="deck-builder"]'
+      ));
+      return document.getElementById('deckBuilderOverlay')
+        ?.classList.contains('is-open') === true
+        && links.length === 2
+        && links.every((link) => (
+          link.dataset.cardReversiFeatureStyleLoaded === 'true'
+        ))
+        && document.querySelectorAll('.deck-builder-preset-card').length > 0;
+    }, null, { timeout: 30_000 });
+    await markProbePhase(runtime.page, 'feature-ready:deck-builder');
+    const firstOpen = await runtime.page.evaluate((stylesheetPaths) => {
+      const root = window as any;
+      const modal = document.getElementById('deckBuilderModal') as HTMLElement | null;
+      const body = document.getElementById('deckBuilderBody') as HTMLElement | null;
+      const close = document.getElementById('deckBuilderCloseBtn') as HTMLElement | null;
+      const links = Array.from(document.head.querySelectorAll<HTMLLinkElement>(
+        'link[rel="stylesheet"]'
+      ));
+      const featureLinks = Array.from(document.querySelectorAll<HTMLLinkElement>(
+        'link[data-card-reversi-feature-style^="deck-builder"]'
+      ));
+      const indexOf = (nameValue: string): number => links.findIndex((candidate) => {
+        try {
+          return new URL(candidate.href).pathname.endsWith(`/${nameValue}`);
+        } catch (_error) {
+          return false;
+        }
+      });
+      const modalStyle = modal ? getComputedStyle(modal) : null;
+      const bodyStyle = body ? getComputedStyle(body) : null;
+      const closeStyle = close ? getComputedStyle(close) : null;
+      const layoutStageScale = Number.parseFloat(
+        getComputedStyle(document.documentElement)
+          .getPropertyValue('--layout-stage-scale')
+      );
+      const expectedModalRadius = 8 * (
+        Number.isFinite(layoutStageScale) ? layoutStageScale : 1
+      );
+      const actualModalRadius = Number.parseFloat(modalStyle?.borderRadius || '');
+      root.__uxDeckBuilderInnerNode = document.getElementById('deckBuilderModalHeader');
+      return {
+        firstOpenLatencyMs:
+          performance.now() - Number(root.__uxDeckBuilderStartedAtMs),
+        firstStyleReadyLatencyMs:
+          Math.max(...featureLinks.map((link) => (
+            Number(link.dataset.cardReversiFeatureStyleReadyAt || NaN)
+          ))) - Number(root.__uxDeckBuilderStartedAtMs),
+        firstLinkCount: featureLinks.length,
+        firstInnerDomCount: document.querySelectorAll(
+          '#deckBuilderModal > #deckBuilderModalHeader, '
+          + '#deckBuilderModal > #deckBuilderBody'
+        ).length,
+        firstPresetCardCount: document.querySelectorAll(
+          '.deck-builder-preset-card'
+        ).length,
+        firstPanelVisible:
+          Number(modal?.getBoundingClientRect().width || 0) > 0
+          && Number(modal?.getBoundingClientRect().height || 0) > 0,
+        firstFullStyleReady:
+          featureLinks.length === 2
+          && featureLinks.every((link) => (
+            link.dataset.cardReversiFeatureStyleLoaded === 'true'
+          )),
+        firstCascadeOrderPreserved:
+          indexOf(stylesheetPaths[0]) === indexOf('styles-layout-controls.css') + 1
+          && indexOf('styles-layout-info.css') === indexOf(stylesheetPaths[0]) + 1
+          && indexOf(stylesheetPaths[1]) === indexOf('styles-responsive.css') + 1
+          && indexOf('styles-stone-shadows.css') === indexOf(stylesheetPaths[1]) + 1,
+        firstComputedStylePreserved:
+          modalStyle?.backgroundColor === 'rgb(3, 16, 28)'
+          && modalStyle.borderTopColor === 'rgba(183, 146, 75, 0.62)'
+          && Number.isFinite(actualModalRadius)
+          && Math.abs(actualModalRadius - expectedModalRadius) <= 0.02
+          && bodyStyle?.display === 'flex'
+          && bodyStyle.gap === '6px'
+          && bodyStyle.overflowY === 'auto'
+          && closeStyle?.backgroundColor === 'rgba(4, 19, 30, 0.82)'
+          && closeStyle.color === 'rgb(231, 198, 121)',
+        initialOpenControlFocused:
+          document.activeElement === document.getElementById('deckBuilderOpenBtn')
+      };
+    }, DECK_BUILDER_STYLESHEET_PATHS);
+    const firstOpenSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+
+    const interaction = await runtime.page.evaluate(async () => {
+      const body = document.getElementById('deckBuilderBody') as HTMLElement;
+      const findButton = (root: Element | null, text: string): HTMLButtonElement | null => (
+        Array.from(root?.querySelectorAll('button') || [])
+          .find((button) => button.textContent?.trim() === text) as HTMLButtonElement | undefined
+      ) || null;
+      const savedColumn = document.querySelector('.deck-builder-saved-deck-column');
+      const editButton = findButton(savedColumn, '編集');
+      if (!editButton) throw new Error('Deck builder edit button is unavailable');
+      editButton.click();
+      const editorViewWorked =
+        !!document.querySelector('.deck-builder-view-editor');
+
+      body.scrollTop = 120;
+      const candidate = document.querySelector(
+        '.deck-builder-candidate-grid .deck-builder-card'
+      ) as HTMLElement | null;
+      candidate?.click();
+      const scrollPreserved = body.scrollTop > 0;
+
+      (document.querySelector(
+        '.deck-builder-randomize-btn'
+      ) as HTMLButtonElement | null)?.click();
+      const randomDeckWorked =
+        document.querySelector('.deck-builder-editor-summary')
+          ?.textContent?.trim() === '30/30枚 ・ 残り0枚';
+
+      (document.querySelector(
+        '.deck-builder-candidate-grid .deck-builder-card-detail-btn'
+      ) as HTMLButtonElement | null)?.click();
+      const detailWorked = !!document.querySelector('.deck-builder-card-detail-popup');
+      (document.querySelector(
+        '.deck-builder-card-detail-popup-close'
+      ) as HTMLButtonElement | null)?.click();
+
+      const nameInput = document.querySelector(
+        '.deck-builder-name-row input'
+      ) as HTMLInputElement | null;
+      if (nameInput) {
+        nameInput.value = '監視デッキ';
+        nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      findButton(document.querySelector('.deck-builder-editor-actions'), '保存')?.click();
+      const stored = JSON.parse(
+        localStorage.getItem('deck_builder_presets_v1') || '{}'
+      );
+      const storedPreset = Array.isArray(stored.presets) ? stored.presets[0] : null;
+      const saveWorked =
+        storedPreset?.name === '監視デッキ'
+        && typeof storedPreset?.deckCode === 'string'
+        && storedPreset.deckCode.length > 0;
+
+      const networkUpdates: string[] = [];
+      (window as any).NetworkMatchClient = {
+        isActive: () => true,
+        isSpectator: () => false,
+        getRoomDeck: () => null,
+        updateDeckSelection: async (deckCode: string) => {
+          networkUpdates.push(String(deckCode || ''));
+          return { ok: true };
+        }
+      };
+      findButton(document.querySelector('.deck-builder-editor-actions'), '使用')?.click();
+      await Promise.resolve();
+      const networkDeckUpdateWorked =
+        networkUpdates.length === 1
+        && networkUpdates[0] === storedPreset?.deckCode;
+      delete (window as any).NetworkMatchClient;
+
+      return {
+        presetViewWorked: !!savedColumn,
+        editorViewWorked,
+        scrollPreserved,
+        randomDeckWorked,
+        detailWorked,
+        saveWorked,
+        networkDeckUpdateWorked
+      };
+    });
+    await runtime.page.keyboard.press('Escape');
+    const escapeClose = await runtime.page.evaluate(() => ({
+      escapeClosed:
+        document.getElementById('deckBuilderOverlay')?.classList.contains('is-open') !== true,
+      escapeFocusReturned:
+        document.activeElement === document.getElementById('deckBuilderOpenBtn')
+    }));
+    await runtime.page.click('#deckBuilderOpenBtn');
+    await runtime.page.waitForSelector('#deckBuilderOverlay.is-open', {
+      state: 'visible',
+      timeout: 30_000
+    });
+    const reopen = await runtime.page.evaluate(() => {
+      const diagnosticsModule = (window as any).require?.(
+        'ui/assets/lazy-feature-surface'
+      );
+      const diagnostics = diagnosticsModule?.getLazyFeatureSurfaceDiagnostics?.(
+        'deck-builder',
+        document
+      ) || null;
+      return {
+        reopenSameInnerNode:
+          (window as any).__uxDeckBuilderInnerNode
+            === document.getElementById('deckBuilderModalHeader'),
+        reopenLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="deck-builder"]'
+        ).length,
+        reopenInnerDomCount: document.querySelectorAll(
+          '#deckBuilderModal > #deckBuilderModalHeader, '
+          + '#deckBuilderModal > #deckBuilderBody'
+        ).length,
+        diagnosticsAttemptCount: Number(diagnostics?.attemptCount || 0),
+        diagnosticsDomCreatedCount: Number(diagnostics?.domCreatedCount || 0),
+        diagnosticsReadyCount: Number(diagnostics?.readyCount || 0),
+        diagnosticsFailureCount: Number(diagnostics?.failureCount || 0),
+        diagnosticsListenerBindingCount: Number(
+          diagnostics?.listenerBindingCount || 0
+        )
+      };
+    });
+    await runtime.page.click('#deckBuilderOverlay', {
+      position: { x: 1, y: 1 }
+    });
+    await runtime.page.waitForFunction(() => (
+      document.activeElement === document.getElementById('deckBuilderOpenBtn')
+    ), null, { timeout: 10_000 });
+    const backdropClose = await runtime.page.evaluate(() => ({
+      backdropClosed:
+        document.getElementById('deckBuilderOverlay')?.classList.contains('is-open') !== true,
+      backdropFocusReturned:
+        document.activeElement === document.getElementById('deckBuilderOpenBtn')
+    }));
+    const afterSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const startedAtMs = await runtime.page.evaluate(() => (
+      Number((window as any).__uxDeckBuilderStartedAtMs)
+    ));
+    const failure = await captureFailedDeckBuilderStylesheetPath(
+      browser,
+      baseUrl,
+      definition
+    );
+    return await captureRuntimeSnapshot(runtime, definition, {
+      ...initial,
+      ...firstOpen,
+      ...interaction,
+      ...escapeClose,
+      ...reopen,
+      ...backdropClose,
+      ...failure,
+      deckBuilderResponseCountBeforeOpen: responsesBeforeOpen,
+      deckBuilderResponseCountAfterOpen: DECK_BUILDER_STYLESHEET_PATHS.reduce(
+        (total, resourcePath) => total + countPath(runtime.responsePaths, resourcePath),
+        0
+      ),
+      firstOpenLongTaskSupported: firstOpenSnapshot.capabilities.longTask,
+      firstOpenLongTaskCount: firstOpenSnapshot.longTasks.filter(
+        (entry) => entry.startMs >= startedAtMs
+      ).length,
+      clsDelta: Math.max(0, afterSnapshot.cls - beforeSnapshot.cls)
+    });
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
 async function captureDirectResultStylesheetPath(
   browser: Browser,
   baseUrl: string,
@@ -2864,6 +3318,15 @@ export async function captureUxOptimizationMonitor(
     for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
       if (definition.id !== 'feature.rules-help') continue;
       replaceScenario(await captureRulesHelpOptimizationScenario(
+        browser,
+        baseUrl,
+        definition
+      ));
+    }
+
+    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+      if (definition.id !== 'feature.deck-builder') continue;
+      replaceScenario(await captureDeckBuilderOptimizationScenario(
         browser,
         baseUrl,
         definition

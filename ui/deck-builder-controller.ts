@@ -35,6 +35,9 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
         const opts = (options && typeof options === 'object') ? options : {};
         const rootRef = opts.root || (typeof window !== 'undefined' ? window : globalThis);
         const featureStylesheetLoader = opts.featureStylesheetLoader || FeatureStylesheetLoader;
+        const ensureSurface = typeof opts.ensureSurface === 'function'
+            ? opts.ensureSurface
+            : null;
         const uiBootstrapShared = SharedUIBootstrap || null;
         const refs = Object.assign({
             openBtn: null,
@@ -75,6 +78,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                 detailCardId: ''
             }
         };
+        let surfaceReadyPromise: Promise<any> | null = null;
 
         function normalizeChoiceLabel(name: any, fallback: any) {
             const normalized = String(name || '').replace(/\s+/g, ' ').trim();
@@ -1232,9 +1236,20 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             };
         }
 
+        function buildShellViewModel() {
+            const effective = getEffectiveChoice();
+            return {
+                overlayOpen: state.overlayOpen,
+                roomOverrideActive: effective.roomOverrideActive,
+                controlSummaryText: formatLocalChoiceSummary(state.activeLocalChoice),
+                headerSummaryText: buildHeaderSummaryText()
+            };
+        }
+
         function render(optionsOverride?: any) {
             const renderOptions = (optionsOverride && typeof optionsOverride === 'object') ? optionsOverride : {};
-            DeckBuilderRendererModule.renderDeckBuilder(refs, buildViewModel(), {
+            const viewModel = refs.body ? buildViewModel() : buildShellViewModel();
+            DeckBuilderRendererModule.renderDeckBuilder(refs, viewModel, {
                 onUseStandard: useStandardDeck,
                 onUseBuiltInPreset: useBuiltInDeckPreset,
                 onUsePreset: usePreset,
@@ -1292,16 +1307,41 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             state.editor.codeInputValue = DeckCodecModule.encodeDeckSpec(deckSpec);
         }
 
-        function open() {
-            try {
-                if (featureStylesheetLoader && typeof featureStylesheetLoader.ensureFeatureStylesheet === 'function') {
-                    void featureStylesheetLoader.ensureFeatureStylesheet('deck-builder', rootRef && rootRef.document);
-                }
-            } catch (e) { /* fallback styling must not block the panel */ }
+        function openReadySurface() {
             clearNotice();
             state.overlayOpen = true;
             state.view = 'presets';
             render();
+        }
+
+        function open() {
+            if (!refs.body && ensureSurface) {
+                if (!surfaceReadyPromise) {
+                    surfaceReadyPromise = Promise.resolve(ensureSurface())
+                        .finally(() => {
+                            surfaceReadyPromise = null;
+                        });
+                }
+                void surfaceReadyPromise
+                    .then(() => {
+                        if (refs.body) openReadySurface();
+                    })
+                    .catch(() => undefined);
+                return;
+            }
+            try {
+                if (
+                    !ensureSurface
+                    && featureStylesheetLoader
+                    && typeof featureStylesheetLoader.ensureFeatureStylesheet === 'function'
+                ) {
+                    void featureStylesheetLoader.ensureFeatureStylesheet(
+                        'deck-builder',
+                        rootRef && rootRef.document
+                    );
+                }
+            } catch (e) { /* fallback styling must not block the panel */ }
+            openReadySurface();
         }
 
         function close() {
@@ -1318,6 +1358,12 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                         ratedOpenBtn.click();
                     }
                 } catch (e) { /* ignore missing rated match UI */ }
+            } else {
+                try {
+                    if (refs.openBtn && typeof refs.openBtn.focus === 'function') {
+                        refs.openBtn.focus();
+                    }
+                } catch (e) { /* focus return is best-effort */ }
             }
         }
 
@@ -1544,15 +1590,17 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
             renderPreservingEditorScroll();
         }
 
-        function bindStaticEvents() {
+        function bindStaticEvents(context?: any) {
             if (refs.openBtn && refs.openBtn.dataset.deckBuilderBound !== '1') {
                 refs.openBtn.addEventListener('click', open);
                 refs.openBtn.dataset.deckBuilderBound = '1';
+                context?.recordListenerBinding?.();
             }
 
             if (refs.closeBtn && refs.closeBtn.dataset.deckBuilderBound !== '1') {
                 refs.closeBtn.addEventListener('click', close);
                 refs.closeBtn.dataset.deckBuilderBound = '1';
+                context?.recordListenerBinding?.();
             }
 
             if (refs.overlay && refs.overlay.dataset.deckBuilderBound !== '1') {
@@ -1562,6 +1610,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                     }
                 });
                 refs.overlay.dataset.deckBuilderBound = '1';
+                context?.recordListenerBinding?.();
             }
 
             if (refs.boardSizeOpenBtn && refs.boardSizeOpenBtn.dataset.boardSizeBound !== '1') {
@@ -1570,6 +1619,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                     renderBoardSizeControls();
                 });
                 refs.boardSizeOpenBtn.dataset.boardSizeBound = '1';
+                context?.recordListenerBinding?.();
             }
 
             if (refs.boardSizeCloseBtn && refs.boardSizeCloseBtn.dataset.boardSizeBound !== '1') {
@@ -1578,6 +1628,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                     renderBoardSizeControls();
                 });
                 refs.boardSizeCloseBtn.dataset.boardSizeBound = '1';
+                context?.recordListenerBinding?.();
             }
 
             const bindBoardSizeInput = (inputRef: any, axis: any) => {
@@ -1610,6 +1661,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                     updateLocalBoardConfigFromInputs();
                 }, { passive: false });
                 inputRef.dataset.boardSizeBound = '1';
+                context?.recordListenerBinding?.(3);
             };
 
             bindBoardSizeInput(refs.boardSizeRowsInput, 'row');
@@ -1623,6 +1675,7 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                     updateLocalBoardConfigFromInputs();
                 });
                 refs.boardShapeSelect.dataset.boardShapeBound = '1';
+                context?.recordListenerBinding?.();
             }
 
             if (rootRef && typeof rootRef.addEventListener === 'function' && !rootRef.__deckBuilderEscBound) {
@@ -1639,13 +1692,52 @@ const FeatureStylesheetLoader = _require('./assets/feature-stylesheet-loader');
                     close();
                 });
                 rootRef.__deckBuilderEscBound = true;
+                context?.recordListenerBinding?.();
             }
+        }
+
+        function attachSurfaceRefs(nextRefs: any, context?: any) {
+            const next = (nextRefs && typeof nextRefs === 'object') ? nextRefs : {};
+            if (!next.closeBtn || !next.headerSummary || !next.body) {
+                throw new Error('Deck builder inner surface refs are incomplete');
+            }
+            refs.closeBtn = next.closeBtn;
+            refs.headerSummary = next.headerSummary;
+            refs.body = next.body;
+            bindStaticEvents(context);
+            render();
+            return Object.freeze({
+                closeBtn: refs.closeBtn,
+                headerSummary: refs.headerSummary,
+                body: refs.body
+            });
+        }
+
+        function detachSurfaceRefs(expectedRefs?: any) {
+            const expected = expectedRefs && typeof expectedRefs === 'object'
+                ? expectedRefs
+                : null;
+            if (expected && (
+                (expected.closeBtn && refs.closeBtn !== expected.closeBtn)
+                || (expected.headerSummary && refs.headerSummary !== expected.headerSummary)
+                || (expected.body && refs.body !== expected.body)
+            )) {
+                return false;
+            }
+            state.overlayOpen = false;
+            refs.closeBtn = null;
+            refs.headerSummary = null;
+            refs.body = null;
+            render();
+            return true;
         }
 
         const api = {
             open,
             close,
             render,
+            attachSurfaceRefs,
+            detachSurfaceRefs,
             buildCardInitOptions,
             readActiveDeckSpec,
             syncActiveNetworkDeckSelection,

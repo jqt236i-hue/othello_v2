@@ -103,6 +103,7 @@ describe('prepare-worker-assets', () => {
         expect(ROOT_FILES).toContain('styles-leaderboard.css');
         expect(ROOT_FILES).toEqual(expect.arrayContaining([
             'styles-feature-deck-builder.css',
+            'styles-feature-deck-builder-responsive.css',
             'styles-feature-gacha.css',
             'styles-feature-network.css',
             'styles-feature-rules-help-layout-info.css',
@@ -118,6 +119,7 @@ describe('prepare-worker-assets', () => {
         expect(VERIFY_ROOT_FILES).toContain('styles-leaderboard.css');
         expect(VERIFY_ROOT_FILES).toEqual(expect.arrayContaining([
             'styles-feature-deck-builder.css',
+            'styles-feature-deck-builder-responsive.css',
             'styles-feature-gacha.css',
             'styles-feature-network.css',
             'styles-feature-rules-help-layout-info.css',

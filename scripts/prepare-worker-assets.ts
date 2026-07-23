@@ -122,6 +122,7 @@ const ROOT_FILES: readonly string[] = Object.freeze([
     'styles-layout-result.css',
     'styles-layout-characters.css',
     'styles-feature-deck-builder.css',
+    'styles-feature-deck-builder-responsive.css',
     'styles-feature-gacha.css',
     'styles-feature-network.css',
     'styles-feature-rules-help-layout-info.css',

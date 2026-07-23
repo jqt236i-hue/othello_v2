@@ -194,9 +194,6 @@ interface InitDomElements {
   deckBuilderOpenBtn: HTMLElement | null;
   deckBuilderControlSummary: HTMLElement | null;
   deckBuilderOverlay: HTMLElement | null;
-  deckBuilderCloseBtn: HTMLElement | null;
-  deckBuilderHeaderSummary: HTMLElement | null;
-  deckBuilderBody: HTMLElement | null;
   boardSizeOpenBtn: HTMLElement | null;
   boardSizeControlSummary: HTMLElement | null;
   boardSizeEditor: HTMLElement | null;

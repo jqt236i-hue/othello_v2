@@ -171,18 +171,6 @@
         align-items: flex-start;
     }
 
-    .deck-builder-default-preset-row {
-        grid-template-columns: 1fr;
-    }
-
-    .deck-builder-built-in-preset-grid {
-        grid-template-columns: repeat(auto-fit, minmax(calc(108px * var(--layout-stage-scale)), 1fr));
-    }
-
-    .deck-builder-view-presets > .deck-builder-preset-grid {
-        grid-template-columns: repeat(auto-fit, minmax(calc(140px * var(--layout-stage-scale)), 1fr));
-    }
-
 }
 
 /* iPhone portrait profile: dedicate vertical flow to hands/board/card detail. */
@@ -2211,14 +2199,6 @@ html.layout-profile-tablet-4x3.layout-stage-enabled body #control-panel #network
         height: 20px;
     }
 
-    html.layout-profile-tablet-4x3.layout-stage-enabled :is(#rules-help-close-btn, #handSkinCloseBtn, #networkRoomSettingsCloseBtn, #leaderboardCloseBtn, #profileCloseBtn, #deckBuilderCloseBtn) {
-        width: 34px;
-        min-width: 34px;
-        height: 34px;
-        min-height: 34px;
-        font-size: 18px;
-    }
-
     html.layout-profile-tablet-4x3.layout-stage-enabled #networkRoomSettingsPopup .compact-number-input {
         min-height: 32px;
         font-size: 14px;
@@ -2272,10 +2252,6 @@ html.layout-profile-tablet-4x3.layout-stage-enabled #leaderboardInfoBtn {
         padding: 6px 10px;
         font-size: 12px;
         line-height: 1.1;
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled #deckBuilderModal .deck-builder-preset-card > .deck-builder-actions-row .btn-small {
-        min-width: 46px;
     }
 }
 
