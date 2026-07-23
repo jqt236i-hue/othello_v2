@@ -4,7 +4,8 @@ export type FeatureStylesheetGroup =
   | 'gacha'
   | 'network'
   | 'leaderboard'
-  | 'result';
+  | 'result'
+  | 'profile';
 
 export interface FeatureStylesheetLoadResult {
   ok: boolean;
@@ -19,7 +20,8 @@ const FEATURE_STYLESHEET_PATHS: Readonly<Record<FeatureStylesheetGroup, string>>
   gacha: 'styles-feature-gacha.css',
   network: 'styles-feature-network.css',
   leaderboard: 'styles-leaderboard.css',
-  result: 'styles-layout-result.css'
+  result: 'styles-layout-result.css',
+  profile: 'styles-profile.css'
 });
 
 interface FeatureStylesheetLoadState {
@@ -91,22 +93,33 @@ function findFeatureStylesheetInsertionAnchor(
     `[data-card-reversi-feature-style-slot="${group}"]`
   );
   const beforePath = slot?.getAttribute('data-card-reversi-feature-style-before') || '';
-  if (!beforePath) return slot;
+  const afterPath = slot?.getAttribute('data-card-reversi-feature-style-after') || '';
+  if (!beforePath && !afterPath) return slot;
   let expectedPathname = '';
   try {
-    expectedPathname = new URL(beforePath, documentRef.baseURI).pathname;
+    expectedPathname = new URL(beforePath || afterPath, documentRef.baseURI).pathname;
   } catch (_error) {
     return slot;
   }
   const links = Array.from(documentRef.querySelectorAll('link[rel="stylesheet"][href]'));
-  const beforeLink = links.find((candidate) => {
+  const anchorLink = links.find((candidate) => {
     try {
       return new URL((candidate as HTMLLinkElement).href, documentRef.baseURI).pathname === expectedPathname;
     } catch (_error) {
       return false;
     }
   });
-  return beforeLink || slot;
+  if (!anchorLink) return slot;
+  if (beforePath) return anchorLink;
+
+  // Classic keeps the feature slot after its eager predecessor. Vite keeps
+  // slots near the head start and creates eager links afterwards. Preserve the
+  // original cascade in both shapes.
+  const slotFollowsAnchor = !!(
+    slot
+    && (anchorLink.compareDocumentPosition(slot) & 4)
+  );
+  return slotFollowsAnchor ? slot : anchorLink.nextElementSibling;
 }
 
 export function ensureFeatureStylesheet(

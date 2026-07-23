@@ -38,21 +38,23 @@
         data-card-reversi-feature-style-before="styles-layout-characters.css">
     <meta data-card-reversi-feature-style-slot="board-dom-compat"
         data-card-reversi-feature-style-href="styles-board-dom-compat.css?v=249130069494429">
+    <meta data-card-reversi-feature-style-slot="profile"
+        data-card-reversi-feature-style-href="styles-profile.css?v=66011374102458"
+        data-card-reversi-feature-style-after="styles-stone-shadows.css">
     <base href="./">
     <meta name="card-reversi-classic-style" content="styles-variables.css?v=237083400848434">
     <meta name="card-reversi-classic-style" content="styles-base.css?v=239652248002073">
     <meta name="card-reversi-classic-style" content="styles-layout.css?v=248242689578909">
     <meta name="card-reversi-classic-style" content="styles-charge-hud.css?v=33539802130051">
-    <meta name="card-reversi-classic-style" content="styles-layout-controls.css?v=134169636140209">
-    <meta name="card-reversi-classic-style" content="styles-layout-info.css?v=138020999382086">
+    <meta name="card-reversi-classic-style" content="styles-layout-controls.css?v=149411083436447">
+    <meta name="card-reversi-classic-style" content="styles-layout-info.css?v=230728382862534">
     <meta name="card-reversi-classic-style" content="styles-layout-characters.css?v=2666866856487">
     <meta name="card-reversi-classic-style" content="styles-board.css?v=224207329302880">
     <meta name="card-reversi-classic-style" content="styles-cards.css?v=249613498101147">
     <meta name="card-reversi-classic-style" content="styles-animations.css?v=205530675374674">
     <meta name="card-reversi-classic-style" content="styles-responsive.css?v=167541522146739">
     <meta name="card-reversi-classic-style" content="styles-stone-shadows.css?v=2581636328428">
-    <meta name="card-reversi-classic-style" content="styles-profile.css?v=218601426601992">
-    <meta name="card-reversi-startup-version" content="269700720020022">
+    <meta name="card-reversi-startup-version" content="232738552158378">
     <script data-card-reversi-classic-style-bootstrap>
         (() => {
             const metas = Array.from(document.querySelectorAll('meta[name="card-reversi-classic-style"]'));
@@ -926,58 +928,7 @@
     </div>
 
     <div id="profileOverlay" aria-hidden="true">
-        <div id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
-            <div id="profileModalHeader">
-                <div id="profileModalTitle" class="profile-title">プロフィール</div>
-                <button id="profileCloseBtn" class="btn-small" type="button" aria-label="プロフィールを閉じる">×</button>
-            </div>
-            <div id="profileModalBody">
-                <div class="profile-tabs" role="tablist" aria-label="プロフィール設定">
-                    <button id="profileTabProfile" class="profile-tab is-active" type="button" role="tab" aria-controls="profileEditSection" aria-selected="true">プロフィール</button>
-                    <button id="profileTabIdentity" class="profile-tab" type="button" role="tab" aria-controls="profileIdentitySection" aria-selected="false">ID・復元</button>
-                </div>
-                <section id="profileEditSection" class="profile-section is-active" role="tabpanel" aria-labelledby="profileTabProfile">
-                    <div class="profile-main-row">
-                        <div id="profileAvatarPreview" class="profile-avatar-preview" role="img" aria-label="プロフィール画像"></div>
-                        <label class="profile-field">
-                            <span>名前</span>
-                            <span class="profile-name-control-row">
-                                <input id="profileNameInput" type="text" maxlength="7" autocomplete="off" spellcheck="false">
-                                <button id="profileSaveBtn" class="btn-small" type="button">保存</button>
-                            </span>
-                        </label>
-                    </div>
-                    <div class="profile-field">
-                        <span>プロフィール画像</span>
-                        <div id="profileAvatarOptions" class="profile-avatar-options" role="radiogroup" aria-label="プロフィール画像"></div>
-                    </div>
-                    <label class="profile-field" for="profileBioInput">
-                        <span>自己紹介</span>
-                        <textarea id="profileBioInput" maxlength="120" rows="4" spellcheck="false"></textarea>
-                    </label>
-                </section>
-                <section id="profileIdentitySection" class="profile-section" role="tabpanel" aria-labelledby="profileTabIdentity" hidden>
-                    <div class="profile-identity-row">
-                        <span>プレイヤーID</span>
-                        <code id="profilePlayerIdText">未作成</code>
-                        <button id="profileEnsureIdentityBtn" class="btn-small" type="button">ID確認</button>
-                    </div>
-                    <div class="profile-identity-row profile-identity-row-code">
-                        <label for="profileRecoveryCodeOutput">復元コード</label>
-                        <input id="profileRecoveryCodeOutput" type="text" readonly value="" aria-label="復元コード">
-                        <button id="profileRevealRecoveryBtn" class="btn-small" type="button">表示</button>
-                        <button id="profileCopyRecoveryBtn" class="btn-small" type="button">コピー</button>
-                        <button id="profileRegenerateRecoveryBtn" class="btn-small" type="button">再発行</button>
-                    </div>
-                    <div class="profile-identity-row profile-identity-row-code">
-                        <label for="profileRecoveryCodeInput">復元コード読み込み</label>
-                        <input id="profileRecoveryCodeInput" type="text" autocomplete="off" spellcheck="false" aria-label="復元コード読み込み">
-                        <button id="profileRecoverIdentityBtn" class="btn-small" type="button">読み込み</button>
-                    </div>
-                    <div id="profileIdentityStatus" aria-live="polite"></div>
-                </section>
-            </div>
-        </div>
+        <div id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle" tabindex="-1"></div>
     </div>
 
     <div id="gachaOverlay" aria-hidden="true">

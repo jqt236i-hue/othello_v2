@@ -384,6 +384,29 @@ export function validateUxOptimizationReport(
           `boot result inner DOM count was ${String(metrics.featureInnerDomCounts?.result)}`
         );
       }
+      const profileStylesheetResources = resources.filter(
+        (resource: any) => String(resource?.path || '') === 'styles-profile.css'
+      );
+      if (profileStylesheetResources.length !== 0) {
+        reasons.push(
+          `boot requested profile CSS ${profileStylesheetResources.length} time(s)`
+        );
+      }
+      if (Number(metrics.profileStylesheetLinkCount) !== 0) {
+        reasons.push(
+          `boot mounted ${String(metrics.profileStylesheetLinkCount)} profile stylesheet link(s)`
+        );
+      }
+      if (Number(metrics.profileStylesheetSlotCount) !== 1) {
+        reasons.push(
+          `profile stylesheet slot count was ${String(metrics.profileStylesheetSlotCount)}`
+        );
+      }
+      if (Number(metrics.featureInnerDomCounts?.profile) !== 0) {
+        reasons.push(
+          `boot profile inner DOM count was ${String(metrics.featureInnerDomCounts?.profile)}`
+        );
+      }
     }
     if (scenario.captureStatus === 'complete' && definition.id === 'feature.result') {
       const metrics = scenario.metrics && typeof scenario.metrics === 'object'
@@ -525,6 +548,126 @@ export function validateUxOptimizationReport(
         || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
       ) {
         reasons.push(`result first-open CLS was ${String(metrics.clsDelta)}`);
+      }
+    }
+    if (scenario.captureStatus === 'complete' && definition.id === 'feature.profile') {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      const profileResources = resources.filter(
+        (resource: any) => String(resource?.path || '') === 'styles-profile.css'
+      );
+      if (metrics.backend !== 'pixi') {
+        reasons.push(`profile scenario backend was ${String(metrics.backend || 'missing')}`);
+      }
+      if (
+        Number(metrics.profileStylesheetLinkCountBeforeOpen) !== 0
+        || Number(metrics.profileResponseCountBeforeOpen) !== 0
+        || Number(metrics.profileInnerDomCountBeforeOpen) !== 0
+      ) {
+        reasons.push('profile CSS, response, or inner DOM existed before first open');
+      }
+      if (Number(metrics.profileStylesheetSlotCount) !== 1) {
+        reasons.push(`profile stylesheet slot count was ${String(metrics.profileStylesheetSlotCount)}`);
+      }
+      if (metrics.profileOpenIconReady !== true) {
+        reasons.push('profile open control icon was not styled at boot');
+      }
+      if (
+        Number(metrics.firstLinkCount) !== 1
+        || Number(metrics.firstInnerDomCount) !== 2
+        || metrics.firstPanelVisible !== true
+        || metrics.firstFullStyleReady !== true
+        || metrics.firstCascadeOrderPreserved !== true
+        || Number(metrics.profileResponseCountAfterOpen) !== 1
+        || profileResources.length !== 1
+      ) {
+        reasons.push('profile first open did not settle to one visible DOM/style surface in canonical cascade order');
+      }
+      if (
+        !Number.isFinite(Number(metrics.firstOpenLatencyMs))
+        || Number(metrics.firstOpenLatencyMs)
+          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+        || !Number.isFinite(Number(metrics.firstStyleReadyLatencyMs))
+        || Number(metrics.firstStyleReadyLatencyMs)
+          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+      ) {
+        reasons.push(
+          `profile first-open/style latency was ${String(metrics.firstOpenLatencyMs)}/${String(metrics.firstStyleReadyLatencyMs)}ms`
+        );
+      }
+      if (
+        metrics.savedNameProjected !== true
+        || metrics.savedBioProjected !== true
+        || metrics.savedAvatarProjected !== true
+        || metrics.savedIdentityProjected !== true
+        || metrics.avatarResourceCoverage !== true
+      ) {
+        reasons.push('profile saved model was not projected after lazy DOM creation');
+      }
+      if (
+        metrics.secretInitiallyHidden !== true
+        || metrics.secretRevealWorked !== true
+      ) {
+        reasons.push('profile recovery secret visibility behavior changed');
+      }
+      if (
+        metrics.initialFocusCorrect !== true
+        || metrics.focusTrapStartReady !== true
+        || metrics.focusTrapWorked !== true
+        || metrics.escapeClosed !== true
+        || metrics.escapeFocusReturned !== true
+        || metrics.backdropClosed !== true
+        || metrics.backdropFocusReturned !== true
+      ) {
+        reasons.push('profile focus trap, Escape, backdrop, or focus return behavior failed');
+      }
+      if (
+        metrics.reopenSameInnerNode !== true
+        || Number(metrics.reopenLinkCount) !== 1
+        || Number(metrics.reopenInnerDomCount) !== 2
+        || Number(metrics.diagnosticsAttemptCount) !== 1
+        || Number(metrics.diagnosticsDomCreatedCount) !== 1
+        || Number(metrics.diagnosticsReadyCount) !== 1
+        || Number(metrics.diagnosticsFailureCount) !== 0
+        || Number(metrics.diagnosticsListenerBindingCount) <= 0
+      ) {
+        reasons.push('profile reopen regenerated DOM/style or rebound the prepared surface');
+      }
+      if (
+        metrics.failureVisible !== true
+        || metrics.failureFocused !== true
+        || metrics.failureRetryGuidance !== true
+        || Number(metrics.failureInnerDomCount) !== 0
+        || Number(metrics.failureLinkCount) !== 0
+      ) {
+        reasons.push('profile stylesheet failure was not closable or did not clean partial DOM/style');
+      }
+      if (
+        Number(metrics.failureRequestCount) !== 2
+        || Number(metrics.failureRequestFailureCount) !== 1
+        || Number(metrics.failureResponseCount) !== 1
+        || Number(metrics.failureConsoleErrorCount) !== 1
+        || Number(metrics.failureConsoleWarningCount) !== 1
+      ) {
+        reasons.push('profile stylesheet injected failure evidence was not exact');
+      }
+      if (
+        metrics.failureRetryReady !== true
+        || Number(metrics.failureRetryLinkCount) !== 1
+        || Number(metrics.failureRetryInnerDomCount) !== 2
+        || Number(metrics.failureRetryAttemptCount) !== 2
+        || Number(metrics.failureRetryFailureCount) !== 1
+        || Number(metrics.failureRetryCount) !== 1
+      ) {
+        reasons.push('profile stylesheet retry did not recover with one retained surface');
+      }
+      if (
+        typeof metrics.clsDelta !== 'number'
+        || !Number.isFinite(metrics.clsDelta)
+        || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+      ) {
+        reasons.push(`profile first-open CLS was ${String(metrics.clsDelta)}`);
       }
     }
     if (

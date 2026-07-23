@@ -5,6 +5,21 @@ describe('player profile panel controller', () => {
   let identityStore: any;
   let dom: JSDOM;
 
+  async function flushAsyncWork(): Promise<void> {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+
+  async function openProfile(): Promise<void> {
+    document.getElementById('profileOpenBtn')!.click();
+    const link = document.querySelector(
+      'link[data-card-reversi-feature-style="profile"]'
+    ) as HTMLLinkElement | null;
+    if (link && link.dataset.cardReversiFeatureStyleLoaded !== 'true') {
+      link.dispatchEvent(new dom.window.Event('load'));
+    }
+    await flushAsyncWork();
+  }
+
   beforeEach(() => {
     jest.resetModules();
     storage = new Map();
@@ -18,36 +33,19 @@ describe('player profile panel controller', () => {
       setItem: jest.fn((key: string, value: string) => void storage.set(key, value)),
       removeItem: jest.fn((key: string) => void storage.delete(key))
     };
-    dom = new JSDOM(`<!doctype html><html><body>
-      <button id="profileOpenBtn" type="button" aria-expanded="false"></button>
+    dom = new JSDOM(`<!doctype html><html><head>
+      <meta data-card-reversi-feature-style-slot="profile"
+        data-card-reversi-feature-style-href="styles-profile.css?v=test">
+    </head><body>
+      <button id="profileOpenBtn" type="button" aria-controls="profileOverlay" aria-expanded="false"></button>
       <input id="leaderboardNameInput">
       <input id="networkPlayerNameInput">
       <div id="profileOverlay" aria-hidden="true">
-        <div id="profileModal">
-          <button id="profileCloseBtn" type="button"></button>
-          <button id="profileTabProfile" type="button"></button>
-          <button id="profileTabIdentity" type="button"></button>
-          <section id="profileEditSection">
-            <div id="profileAvatarPreview"></div>
-            <input id="profileNameInput">
-            <div id="profileAvatarOptions"></div>
-            <textarea id="profileBioInput"></textarea>
-            <button id="profileSaveBtn" type="button"></button>
-          </section>
-          <section id="profileIdentitySection" hidden>
-            <code id="profilePlayerIdText"></code>
-            <button id="profileEnsureIdentityBtn" type="button"></button>
-            <input id="profileRecoveryCodeOutput">
-            <button id="profileRevealRecoveryBtn" type="button"></button>
-            <button id="profileCopyRecoveryBtn" type="button"></button>
-            <button id="profileRegenerateRecoveryBtn" type="button"></button>
-            <input id="profileRecoveryCodeInput">
-            <button id="profileRecoverIdentityBtn" type="button"></button>
-            <div id="profileIdentityStatus"></div>
-          </section>
-        </div>
+        <div id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle" tabindex="-1"></div>
       </div>
-    </body></html>`);
+    </body></html>`, {
+      url: 'https://example.test/?debug=1&uxMonitor=1'
+    });
     (global as any).window = dom.window;
     (global as any).document = dom.window.document;
     (global as any).HTMLElement = dom.window.HTMLElement;
@@ -73,6 +71,7 @@ describe('player profile panel controller', () => {
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     delete (global as any).localStorage;
     dom.window.close();
     delete (global as any).window;
@@ -82,16 +81,58 @@ describe('player profile panel controller', () => {
     delete (global as any).HTMLTextAreaElement;
   });
 
-  test('opens, saves profile fields, and updates identity controls', async () => {
-    const panel = require('../ui/player-profile-panel.js');
+  test('keeps only the stable shell at boot and creates one retained inner surface on first open', async () => {
+    const panel = require('../ui/player-profile-panel.ts');
+    const controller = panel.setupPlayerProfilePanel({ root: window });
+
+    expect(controller.ok).toBe(true);
+    expect(document.getElementById('profileModal')!.childElementCount).toBe(0);
+    expect(document.getElementById('profileNameInput')).toBeNull();
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="profile"]')).toHaveLength(0);
+
+    await openProfile();
+    const firstNameInput = document.getElementById('profileNameInput');
+    const firstModalHeader = document.getElementById('profileModalHeader');
+    expect(firstNameInput).toBeTruthy();
+    expect(document.getElementById('profileOverlay')!.classList.contains('is-open')).toBe(true);
+    expect(document.activeElement).toBe(firstNameInput);
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="profile"]')).toHaveLength(1);
+
+    document.getElementById('profileCloseBtn')!.click();
+    await openProfile();
+    expect(document.getElementById('profileNameInput')).toBe(firstNameInput);
+    expect(document.getElementById('profileModalHeader')).toBe(firstModalHeader);
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="profile"]')).toHaveLength(1);
+
+    const diagnostics = require('../ui/assets/lazy-feature-surface.ts')
+      .getLazyFeatureSurfaceDiagnostics('profile', document);
+    expect(diagnostics).toMatchObject({
+      status: 'ready',
+      attemptCount: 1,
+      domCreatedCount: 1,
+      readyCount: 1,
+      failureCount: 0
+    });
+  });
+
+  test('opens, projects saved fields, saves edits, and updates identity controls', async () => {
+    storage.set('card_reversi_player_profile_v1', JSON.stringify({
+      displayName: '保存名',
+      avatarStoneType: 'SNIPER',
+      bio: '保存済み紹介'
+    }));
+    const panel = require('../ui/player-profile-panel.ts');
     (window as any).LeaderboardClient = {
       setPlayerName: jest.fn(),
       updatePublicProfile: jest.fn(async () => ({ ok: true }))
     };
     panel.setupPlayerProfilePanel({ root: window });
 
-    document.getElementById('profileOpenBtn')!.click();
-    expect(document.getElementById('profileOverlay')!.classList.contains('is-open')).toBe(true);
+    await openProfile();
+    expect((document.getElementById('profileNameInput') as HTMLInputElement).value).toBe('保存名');
+    expect((document.getElementById('profileBioInput') as HTMLTextAreaElement).value).toBe('保存済み紹介');
+    expect(document.querySelector('[data-avatar-stone-type="SNIPER"]')?.getAttribute('aria-checked')).toBe('true');
+    expect(document.getElementById('profilePlayerIdText')!.textContent).toBe('p_ABCDEFGHIJKLMNOPQRSTUV0001');
 
     (document.getElementById('networkPlayerNameInput') as HTMLInputElement).value = '古い名前';
     (document.getElementById('profileNameInput') as HTMLInputElement).value = 'さかな';
@@ -107,29 +148,97 @@ describe('player profile panel controller', () => {
     expect((window as any).LeaderboardClient.updatePublicProfile).toHaveBeenCalled();
 
     document.getElementById('profileEnsureIdentityBtn')!.click();
-    await Promise.resolve();
+    await flushAsyncWork();
     expect(document.getElementById('profilePlayerIdText')!.textContent).toBe('p_ABCDEFGHIJKLMNOPQRSTUV0001');
   });
 
-  test('reveals, copies, regenerates, and imports recovery codes', async () => {
-    const panel = require('../ui/player-profile-panel.js');
+  test('reveals, copies, regenerates, and imports recovery codes only after first open', async () => {
+    const panel = require('../ui/player-profile-panel.ts');
     panel.setupPlayerProfilePanel({ root: window });
+    await openProfile();
 
+    expect((document.getElementById('profileRecoveryCodeOutput') as HTMLInputElement).value).toBe('');
     document.getElementById('profileRevealRecoveryBtn')!.click();
-    await Promise.resolve();
+    await flushAsyncWork();
     expect((document.getElementById('profileRecoveryCodeOutput') as HTMLInputElement).value).toBe('CR-ABCDE-FGHJK-MNPQR-STUVW-XYZ23');
 
     document.getElementById('profileCopyRecoveryBtn')!.click();
-    await Promise.resolve();
+    await flushAsyncWork();
     expect(window.navigator.clipboard.writeText).toHaveBeenCalledWith('CR-ABCDE-FGHJK-MNPQR-STUVW-XYZ23');
 
     document.getElementById('profileRegenerateRecoveryBtn')!.click();
-    await Promise.resolve();
+    await flushAsyncWork();
     expect((document.getElementById('profileRecoveryCodeOutput') as HTMLInputElement).value).toBe('CR-ZYXWV-UTSRQ-PNMKJ-HGFED-CBA32');
 
     (document.getElementById('profileRecoveryCodeInput') as HTMLInputElement).value = 'CR-ABCDE-FGHJK-MNPQR-STUVW-XYZ23';
     document.getElementById('profileRecoverIdentityBtn')!.click();
-    await Promise.resolve();
+    await flushAsyncWork();
     expect((document.getElementById('profileRecoveryCodeOutput') as HTMLInputElement).value).toBe('CR-HHHHH-JJJJJ-KKKKK-MMMMM-NNNNN');
+  });
+
+  test('closes with Escape or backdrop, returns focus, and traps Tab inside the dialog', async () => {
+    const panel = require('../ui/player-profile-panel.ts');
+    panel.setupPlayerProfilePanel({ root: window });
+    await openProfile();
+
+    const closeBtn = document.getElementById('profileCloseBtn') as HTMLButtonElement;
+    const lastControl = document.getElementById('profileBioInput') as HTMLTextAreaElement;
+    lastControl.focus();
+    document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    expect(document.activeElement).toBe(closeBtn);
+    closeBtn.focus();
+    document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }));
+    expect(document.activeElement).toBe(lastControl);
+
+    document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(document.getElementById('profileOverlay')!.classList.contains('is-open')).toBe(false);
+    expect(document.activeElement).toBe(document.getElementById('profileOpenBtn'));
+
+    await openProfile();
+    document.getElementById('profileOverlay')!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    expect(document.getElementById('profileOverlay')!.classList.contains('is-open')).toBe(false);
+    expect(document.activeElement).toBe(document.getElementById('profileOpenBtn'));
+  });
+
+  test('shows a closable failure and retries with a fresh stylesheet and DOM', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const panel = require('../ui/player-profile-panel.ts');
+    panel.setupPlayerProfilePanel({ root: window });
+
+    document.getElementById('profileOpenBtn')!.click();
+    const failedLink = document.querySelector(
+      'link[data-card-reversi-feature-style="profile"]'
+    ) as HTMLLinkElement;
+    failedLink.dispatchEvent(new dom.window.Event('error'));
+    await flushAsyncWork();
+
+    expect(failedLink.isConnected).toBe(false);
+    expect(document.getElementById('profileOverlay')!.classList.contains('profile-surface-failure')).toBe(true);
+    expect(document.getElementById('profileModalTitle')!.textContent).toBe('プロフィールを読み込めませんでした');
+    expect(document.getElementById('profileModal')!.getAttribute('aria-labelledby')).toBe('profileModalTitle');
+    expect(document.getElementById('profileModal')!.textContent).toContain('もう一度押すと再試行');
+    expect(document.getElementById('profileNameInput')).toBeNull();
+    (document.querySelector('#profileModal button') as HTMLButtonElement).click();
+    expect(document.activeElement).toBe(document.getElementById('profileOpenBtn'));
+
+    document.getElementById('profileOpenBtn')!.click();
+    const retryLink = document.querySelector(
+      'link[data-card-reversi-feature-style="profile"]'
+    ) as HTMLLinkElement;
+    expect(retryLink).not.toBe(failedLink);
+    retryLink.dispatchEvent(new dom.window.Event('load'));
+    await flushAsyncWork();
+
+    expect(document.getElementById('profileOverlay')!.classList.contains('is-open')).toBe(true);
+    expect(document.getElementById('profileNameInput')).toBeTruthy();
+    expect(require('../ui/assets/lazy-feature-surface.ts')
+      .getLazyFeatureSurfaceDiagnostics('profile', document)).toMatchObject({
+      status: 'ready',
+      attemptCount: 2,
+      retryCount: 1,
+      readyCount: 1,
+      failureCount: 1
+    });
+    warn.mockRestore();
   });
 });

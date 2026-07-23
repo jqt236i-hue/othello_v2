@@ -257,8 +257,6 @@ interface InitDomElements {
   leaderboardList: HTMLElement | null;
   profileOpenBtn: HTMLElement | null;
   profileOverlay: HTMLElement | null;
-  profileModal: HTMLElement | null;
-  profileCloseBtn: HTMLElement | null;
   networkChatPanel: HTMLElement | null;
   networkChatToggle: HTMLElement | null;
   networkChatMessages: HTMLElement | null;

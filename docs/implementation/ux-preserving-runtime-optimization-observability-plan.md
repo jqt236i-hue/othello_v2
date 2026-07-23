@@ -482,7 +482,7 @@
 - canonical components:
   - `index.classic.html`
   - `styles-profile.css`
-  - profile固有の `styles-responsive.css`
+  - `styles-profile.css` 内のprofile固有responsive rules
   - `ui/player-profile-panel.ts`
   - `ui/bootstrap/init-dom.ts`
   - `ui/bootstrap/init-events.ts`
@@ -506,6 +506,15 @@
   - `npm run check:worker-mirror`
   - `npm run perf:ux-optimization:focused -- --target feature-profile`
 - done: profileのplayer-visible機能と秘密情報の扱いを変えず、初期DOM/CSSを除外する。
+- implementation review:
+  - selector/source監査で、profile modalのresponsive ruleは `styles-responsive.css` ではなく `styles-profile.css` 内の `@media` に集約済みであることを確認した。canonical componentsの誤記を修正し、profile固有CSS全体を一つのfeature stylesheetとして遅延する実装へ整合させた。
+  - 初期HTMLはopen control、`#profileOverlay`、空のstable `#profileModal` だけとし、header/body、avatar option、identity/recovery controlを `player-profile-panel.ts` の一度だけのDOM factoryへ移した。boot bootstrapは未生成inner refを保持せず、surface ready後にcontrollerがshell内を再queryする。
+  - `styles-profile.css` をstartupから外した一方、起動時に見えるプロフィールicon、overlay shell、CSS失敗時の読込案内はstartup critical CSSへ残した。失敗画面にもstable `profileModalTitle` を付け、dialog label、閉じる、focus返却、次回操作retryを維持した。
+  - profile CSSは従来 `styles-stone-shadows.css` の後ろにあったため、汎用after-anchorをstylesheet loaderへ追加した。feature slotがeager CSSより前に置かれるViteと、slotが従来位置にあるclassicの双方で `stone-shadows → profile` のcascade順をunit/browser/monitorで固定した。
+  - 保存済み名前、avatar、bio、player IDをDOM生成後に投影し、recovery codeは従来どおり初期非表示、明示操作でのみ表示する。close/reopenは同じinner node、style、45 listener bindingを保持し、再生成・二重bindしない。
+  - monitor初回実装では、avatarの日本語label/画像名へ英語logical IDを要求する誤判定、合成 `HTMLElement.click()` によるfalse-positive CLS、Playwright actionability待機をplayer latencyへ含める時刻境界の3点を確認した。選択radioとresource timingの照合、trusted click、capture listenerで取得する実際のclick時刻へ修正し、player操作の客観的計測へ整合させた。
+  - Vite/classic実captureはboot CSS/response/inner DOM 0、初回CSS/DOM各1、reopen増分0、CLS delta 0、avatar resource coverage、秘密情報、focus trap、ESC/backdrop、強制CSS失敗後の2 request中1 failure・retry成功を確認した。最終captureの初回表示はVite 43.3ms、classic 45.1ms、CSS readyは各9.2ms、10.5msで、focused verdict `pass`、developmentValid `true` となった。overall failは後続3 featureが意図どおりpendingのためである。
+  - desktop 1440×900とmobile 390×844で変更前後のmodal矩形、overlay padding/background、title font、input height/paddingが完全一致し、Vite/classic間も一致した。in-app browserでも両laneの初回表示を目視確認した。
 
 ### Step 4.4: ルールヘルプ
 

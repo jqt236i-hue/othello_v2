@@ -77,6 +77,7 @@ function validReport(): Record<string, any> {
       const help = definition.id.startsWith('help.');
       const webpAsset = definition.id === 'asset.webp-fallback';
       const resultFeature = definition.id === 'feature.result';
+      const profileFeature = definition.id === 'feature.profile';
       return {
         id: definition.id,
         lane: definition.lane,
@@ -94,6 +95,8 @@ function validReport(): Record<string, any> {
           ]
           : resultFeature
             ? [{ path: 'styles-layout-result.css' }]
+          : profileFeature
+            ? [{ path: 'styles-profile.css' }]
           : [{ path: 'assets/images/ui/example.png' }],
         errors: [],
         metrics: firstSpecial
@@ -223,6 +226,62 @@ function validReport(): Record<string, any> {
                     failureRetryResultLinkCount: 1,
                     clsDelta: 0
                   }
+                : profileFeature
+                  ? {
+                    backend: 'pixi',
+                    profileStylesheetLinkCountBeforeOpen: 0,
+                    profileStylesheetSlotCount: 1,
+                    profileInnerDomCountBeforeOpen: 0,
+                    profileResponseCountBeforeOpen: 0,
+                    profileOpenIconReady: true,
+                    firstOpenLatencyMs: 20,
+                    firstStyleReadyLatencyMs: 10,
+                    firstLinkCount: 1,
+                    firstInnerDomCount: 2,
+                    firstPanelVisible: true,
+                    firstFullStyleReady: true,
+                    firstCascadeOrderPreserved: true,
+                    profileResponseCountAfterOpen: 1,
+                    savedNameProjected: true,
+                    savedBioProjected: true,
+                    savedAvatarProjected: true,
+                    savedIdentityProjected: true,
+                    avatarResourceCoverage: true,
+                    secretInitiallyHidden: true,
+                    secretRevealWorked: true,
+                    initialFocusCorrect: true,
+                    focusTrapStartReady: true,
+                    focusTrapWorked: true,
+                    escapeClosed: true,
+                    escapeFocusReturned: true,
+                    backdropClosed: true,
+                    backdropFocusReturned: true,
+                    reopenSameInnerNode: true,
+                    reopenLinkCount: 1,
+                    reopenInnerDomCount: 2,
+                    diagnosticsAttemptCount: 1,
+                    diagnosticsDomCreatedCount: 1,
+                    diagnosticsReadyCount: 1,
+                    diagnosticsFailureCount: 0,
+                    diagnosticsListenerBindingCount: 45,
+                    failureVisible: true,
+                    failureFocused: true,
+                    failureRetryGuidance: true,
+                    failureInnerDomCount: 0,
+                    failureLinkCount: 0,
+                    failureRequestCount: 2,
+                    failureRequestFailureCount: 1,
+                    failureResponseCount: 1,
+                    failureConsoleErrorCount: 1,
+                    failureConsoleWarningCount: 1,
+                    failureRetryReady: true,
+                    failureRetryLinkCount: 1,
+                    failureRetryInnerDomCount: 2,
+                    failureRetryAttemptCount: 2,
+                    failureRetryFailureCount: 1,
+                    failureRetryCount: 1,
+                    clsDelta: 0
+                  }
                 : webpAsset
                   ? {
                     admission: {
@@ -284,7 +343,9 @@ function validReport(): Record<string, any> {
                     domCompatStylesheetSlotCount: 1,
                     resultStylesheetLinkCount: 0,
                     resultStylesheetSlotCount: 1,
-                    featureInnerDomCounts: { result: 0 }
+                    profileStylesheetLinkCount: 0,
+                    profileStylesheetSlotCount: 1,
+                    featureInnerDomCounts: { result: 0, profile: 0 }
                   }
                   : help
                     ? {

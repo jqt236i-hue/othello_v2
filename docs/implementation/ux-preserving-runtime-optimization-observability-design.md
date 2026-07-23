@@ -488,3 +488,8 @@ baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR�
 - forced WebP failureではChromiumの `ERR_FAILED` console error 1件が必然的に発生するため、このfixtureだけは同時にPNG成功、retry 0、expected error 1件を要求し、0件・追加errorのどちらもfailとする。
 - Phase 4.2の実装監査で、`.premium-btn` がnetwork再戦申請dialogにも使われ、result CSSを単純にstartupから外すとresult未表示のnetwork操作まで未装飾になることを確認した。共有button ruleを `styles-layout-info.css` のstartup criticalへ移し、result局所変数がない場合のfallback色も明示した。
 - Phase 4.2のVite実機確認で、生成entryはfeature slotをhead前方へ保持しつつeager CSS linkを後から末尾へ生成するため、slot直前挿入だけではclassicのcascade順にならないことを確認した。stylesheet loaderに任意のbefore-anchor解決を追加し、両laneで `info → result → characters` をblocking計測する設計へ修正した。
+- Phase 4.3のsource監査で、profile固有responsive ruleは `styles-responsive.css` ではなく `styles-profile.css` 内の `@media` に既に集約されていることを確認した。計画書のcanonical component誤記を修正し、profile CSSを一つのfeature stylesheetとして遅延する境界へ整合させた。
+- Phase 4.3のcascade監査で、profile CSSは従来 `styles-stone-shadows.css` の後ろにあり、生成entryのslot配置差により単純挿入ではVite/classicの順が一致しないことを確認した。stylesheet loaderへ任意のafter-anchor解決を追加し、両laneの `stone-shadows → profile` をblocking計測する設計へ修正した。
+- Phase 4.3の実装レビューで、profile open iconは起動時に見える共有controlであり、overlay shellとCSS失敗案内はfull profile CSSより先に操作可能である必要があることを確認した。これらだけをstartup criticalへ残し、inner DOM、avatar resource、modal full CSSを初回openへ移した。
+- Phase 4.3のmonitor実captureで、合成clickはLayoutShiftの `hadRecentInput` を立てずCLSを誤計上し、Playwright actionability待機前の時刻はplayer-visible latencyを過大計上することを確認した。trusted clickを使い、実際のclickをcapture listenerで時刻記録する境界へ修正した。avatarは英語logical IDを日本語labelや画像名へ要求せず、選択radioとresource timingを個別に照合する。
+- Phase 4.3の失敗経路レビューで、stable dialogの `aria-labelledby` が通常inner DOM破棄後に参照先を失うことを確認した。CSS失敗画面の見出しにも同じstable IDを与え、エラー時のdialog labelを完了条件へ追加した。

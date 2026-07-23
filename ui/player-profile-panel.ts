@@ -9,6 +9,77 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 const PlayerProfile = _require('./player-profile');
 const AvatarOptions = _require('./player-profile-avatar-options');
 const PlayerIdentity = _require('./player-identity');
+const LazyFeatureSurface = _require('./assets/lazy-feature-surface');
+
+const PROFILE_SURFACE_ID = 'profile';
+const PROFILE_INNER_HTML = `
+  <div id="profileModalHeader">
+    <div id="profileModalTitle" class="profile-title">プロフィール</div>
+    <button id="profileCloseBtn" class="btn-small" type="button" aria-label="プロフィールを閉じる">×</button>
+  </div>
+  <div id="profileModalBody">
+    <div class="profile-tabs" role="tablist" aria-label="プロフィール設定">
+      <button id="profileTabProfile" class="profile-tab is-active" type="button" role="tab" aria-controls="profileEditSection" aria-selected="true">プロフィール</button>
+      <button id="profileTabIdentity" class="profile-tab" type="button" role="tab" aria-controls="profileIdentitySection" aria-selected="false">ID・復元</button>
+    </div>
+    <section id="profileEditSection" class="profile-section is-active" role="tabpanel" aria-labelledby="profileTabProfile">
+      <div class="profile-main-row">
+        <div id="profileAvatarPreview" class="profile-avatar-preview" role="img" aria-label="プロフィール画像"></div>
+        <label class="profile-field">
+          <span>名前</span>
+          <span class="profile-name-control-row">
+            <input id="profileNameInput" type="text" maxlength="7" autocomplete="off" spellcheck="false">
+            <button id="profileSaveBtn" class="btn-small" type="button">保存</button>
+          </span>
+        </label>
+      </div>
+      <div class="profile-field">
+        <span>プロフィール画像</span>
+        <div id="profileAvatarOptions" class="profile-avatar-options" role="radiogroup" aria-label="プロフィール画像"></div>
+      </div>
+      <label class="profile-field" for="profileBioInput">
+        <span>自己紹介</span>
+        <textarea id="profileBioInput" maxlength="120" rows="4" spellcheck="false"></textarea>
+      </label>
+    </section>
+    <section id="profileIdentitySection" class="profile-section" role="tabpanel" aria-labelledby="profileTabIdentity" hidden>
+      <div class="profile-identity-row">
+        <span>プレイヤーID</span>
+        <code id="profilePlayerIdText">未作成</code>
+        <button id="profileEnsureIdentityBtn" class="btn-small" type="button">ID確認</button>
+      </div>
+      <div class="profile-identity-row profile-identity-row-code">
+        <label for="profileRecoveryCodeOutput">復元コード</label>
+        <input id="profileRecoveryCodeOutput" type="text" readonly value="" aria-label="復元コード">
+        <button id="profileRevealRecoveryBtn" class="btn-small" type="button">表示</button>
+        <button id="profileCopyRecoveryBtn" class="btn-small" type="button">コピー</button>
+        <button id="profileRegenerateRecoveryBtn" class="btn-small" type="button">再発行</button>
+      </div>
+      <div class="profile-identity-row profile-identity-row-code">
+        <label for="profileRecoveryCodeInput">復元コード読み込み</label>
+        <input id="profileRecoveryCodeInput" type="text" autocomplete="off" spellcheck="false" aria-label="復元コード読み込み">
+        <button id="profileRecoverIdentityBtn" class="btn-small" type="button">読み込み</button>
+      </div>
+      <div id="profileIdentityStatus" aria-live="polite"></div>
+    </section>
+  </div>
+`;
+
+interface PlayerProfileSurface {
+  setOpen(open: boolean, returnFocus?: HTMLElement | null): void;
+  syncFromProfile(): void;
+  setActiveTab(tab: 'profile' | 'identity'): void;
+}
+
+interface PlayerProfilePanelController {
+  ok: true;
+  ensureReady(): Promise<PlayerProfileSurface>;
+  setOpen(open: boolean): void;
+  syncFromProfile(): void;
+  setActiveTab(tab: 'profile' | 'identity'): void;
+}
+
+const documentControllers = new WeakMap<Document, PlayerProfilePanelController>();
 
 function asText(value: unknown): string {
   return String(value || '');
@@ -35,49 +106,63 @@ function getClipboard(root: any): { writeText?: (value: string) => Promise<void>
   }
 }
 
-function setupPlayerProfilePanel(opts?: any): any {
-  const root = opts && opts.root ? opts.root : (typeof window !== 'undefined' ? window : null);
-  const doc = root && root.document ? root.document : (typeof document !== 'undefined' ? document : null);
-  if (!doc) return { ok: false, reason: 'DOCUMENT_UNAVAILABLE' };
+function createProfileSurface(context: any): PlayerProfileSurface {
+  const doc = context.document as Document;
+  const root = doc.defaultView || (typeof window !== 'undefined' ? window : null);
+  const overlay = doc.getElementById('profileOverlay') as HTMLElement | null;
+  const modal = doc.getElementById('profileModal') as HTMLElement | null;
+  if (!overlay || !modal) throw new Error('profile stable shell is unavailable');
+  const overlayElement = overlay;
+  const modalElement = modal;
+
+  const template = doc.createElement('template');
+  template.innerHTML = PROFILE_INNER_HTML.trim();
+  modalElement.replaceChildren(template.content.cloneNode(true));
+  context.recordDomCreated();
+  context.addCleanup(() => {
+    modalElement.replaceChildren();
+    overlayElement.classList.remove('is-open');
+    overlayElement.setAttribute('aria-hidden', 'true');
+  });
 
   const refs = {
     openBtn: doc.getElementById('profileOpenBtn') as HTMLElement | null,
-    overlay: doc.getElementById('profileOverlay') as HTMLElement | null,
-    modal: doc.getElementById('profileModal') as HTMLElement | null,
-    closeBtn: doc.getElementById('profileCloseBtn') as HTMLElement | null,
-    tabProfile: doc.getElementById('profileTabProfile') as HTMLElement | null,
-    tabIdentity: doc.getElementById('profileTabIdentity') as HTMLElement | null,
-    editSection: doc.getElementById('profileEditSection') as HTMLElement | null,
-    identitySection: doc.getElementById('profileIdentitySection') as HTMLElement | null,
-    avatarPreview: doc.getElementById('profileAvatarPreview') as HTMLElement | null,
-    nameInput: doc.getElementById('profileNameInput') as HTMLInputElement | null,
-    avatarOptions: doc.getElementById('profileAvatarOptions') as HTMLElement | null,
-    bioInput: doc.getElementById('profileBioInput') as HTMLTextAreaElement | null,
-    saveBtn: doc.getElementById('profileSaveBtn') as HTMLElement | null,
-    playerIdText: doc.getElementById('profilePlayerIdText') as HTMLElement | null,
-    ensureIdentityBtn: doc.getElementById('profileEnsureIdentityBtn') as HTMLElement | null,
-    recoveryOutput: doc.getElementById('profileRecoveryCodeOutput') as HTMLInputElement | null,
-    revealRecoveryBtn: doc.getElementById('profileRevealRecoveryBtn') as HTMLElement | null,
-    copyRecoveryBtn: doc.getElementById('profileCopyRecoveryBtn') as HTMLElement | null,
-    regenerateRecoveryBtn: doc.getElementById('profileRegenerateRecoveryBtn') as HTMLElement | null,
-    recoveryInput: doc.getElementById('profileRecoveryCodeInput') as HTMLInputElement | null,
-    recoverIdentityBtn: doc.getElementById('profileRecoverIdentityBtn') as HTMLElement | null,
-    status: doc.getElementById('profileIdentityStatus') as HTMLElement | null,
+    closeBtn: modalElement.querySelector('#profileCloseBtn') as HTMLElement | null,
+    tabProfile: modalElement.querySelector('#profileTabProfile') as HTMLElement | null,
+    tabIdentity: modalElement.querySelector('#profileTabIdentity') as HTMLElement | null,
+    editSection: modalElement.querySelector('#profileEditSection') as HTMLElement | null,
+    identitySection: modalElement.querySelector('#profileIdentitySection') as HTMLElement | null,
+    avatarPreview: modalElement.querySelector('#profileAvatarPreview') as HTMLElement | null,
+    nameInput: modalElement.querySelector('#profileNameInput') as HTMLInputElement | null,
+    avatarOptions: modalElement.querySelector('#profileAvatarOptions') as HTMLElement | null,
+    bioInput: modalElement.querySelector('#profileBioInput') as HTMLTextAreaElement | null,
+    saveBtn: modalElement.querySelector('#profileSaveBtn') as HTMLElement | null,
+    playerIdText: modalElement.querySelector('#profilePlayerIdText') as HTMLElement | null,
+    ensureIdentityBtn: modalElement.querySelector('#profileEnsureIdentityBtn') as HTMLElement | null,
+    recoveryOutput: modalElement.querySelector('#profileRecoveryCodeOutput') as HTMLInputElement | null,
+    revealRecoveryBtn: modalElement.querySelector('#profileRevealRecoveryBtn') as HTMLElement | null,
+    copyRecoveryBtn: modalElement.querySelector('#profileCopyRecoveryBtn') as HTMLElement | null,
+    regenerateRecoveryBtn: modalElement.querySelector('#profileRegenerateRecoveryBtn') as HTMLElement | null,
+    recoveryInput: modalElement.querySelector('#profileRecoveryCodeInput') as HTMLInputElement | null,
+    recoverIdentityBtn: modalElement.querySelector('#profileRecoverIdentityBtn') as HTMLElement | null,
+    status: modalElement.querySelector('#profileIdentityStatus') as HTMLElement | null,
     leaderboardNameInput: doc.getElementById('leaderboardNameInput') as HTMLInputElement | null,
     networkPlayerNameInput: doc.getElementById('networkPlayerNameInput') as HTMLInputElement | null
   };
 
   let activeAvatarStoneType = 'REGEN';
+  let isOpen = false;
+  let returnFocus: HTMLElement | null = null;
 
-  function setOpen(open: boolean): void {
-    if (!refs.overlay) return;
-    refs.overlay.classList.toggle('is-open', open);
-    refs.overlay.setAttribute('aria-hidden', open ? 'false' : 'true');
-    if (refs.openBtn) refs.openBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (open) {
-      syncFromProfile();
-      try { if (refs.nameInput) refs.nameInput.focus(); } catch (e) { /* ignore */ }
-    }
+  function bind(
+    target: EventTarget | null,
+    type: string,
+    listener: EventListener
+  ): void {
+    if (!target) return;
+    target.addEventListener(type, listener);
+    context.recordListenerBinding();
+    context.addCleanup(() => target.removeEventListener(type, listener));
   }
 
   function setActiveTab(tab: 'profile' | 'identity'): void {
@@ -146,7 +231,7 @@ function setupPlayerProfilePanel(opts?: any): any {
       label.textContent = option.label;
       button.appendChild(thumb);
       button.appendChild(label);
-      button.addEventListener('click', () => applyAvatarPreview(option.stoneType));
+      bind(button, 'click', () => applyAvatarPreview(option.stoneType));
       refs.avatarOptions!.appendChild(button);
     });
   }
@@ -183,11 +268,9 @@ function setupPlayerProfilePanel(opts?: any): any {
     if (refs.nameInput) refs.nameInput.value = saved.displayName;
     if (refs.bioInput) refs.bioInput.value = saved.bio;
     if (refs.leaderboardNameInput) refs.leaderboardNameInput.value = saved.displayName;
-    if (refs.networkPlayerNameInput) {
-      refs.networkPlayerNameInput.value = saved.displayName;
-    }
+    if (refs.networkPlayerNameInput) refs.networkPlayerNameInput.value = saved.displayName;
     try {
-      const leaderboard = root && root.LeaderboardClient;
+      const leaderboard = root && (root as any).LeaderboardClient;
       if (leaderboard && typeof leaderboard.setPlayerName === 'function') {
         leaderboard.setPlayerName(saved.displayName);
       }
@@ -271,30 +354,213 @@ function setupPlayerProfilePanel(opts?: any): any {
     }
   }
 
-  if (refs.openBtn) refs.openBtn.addEventListener('click', () => setOpen(true));
-  if (refs.closeBtn) refs.closeBtn.addEventListener('click', () => setOpen(false));
-  if (refs.overlay) {
-    refs.overlay.addEventListener('click', (event: any) => {
-      if (event && event.target === refs.overlay) setOpen(false);
-    });
+  function restoreOpenButtonFocus(): void {
+    const target = returnFocus && returnFocus.isConnected ? returnFocus : refs.openBtn;
+    returnFocus = null;
+    try { target?.focus(); } catch (e) { /* ignore */ }
   }
-  if (refs.tabProfile) refs.tabProfile.addEventListener('click', () => setActiveTab('profile'));
-  if (refs.tabIdentity) refs.tabIdentity.addEventListener('click', () => setActiveTab('identity'));
-  if (refs.saveBtn) refs.saveBtn.addEventListener('click', saveProfile);
-  if (refs.ensureIdentityBtn) refs.ensureIdentityBtn.addEventListener('click', () => void ensureIdentity());
-  if (refs.revealRecoveryBtn) refs.revealRecoveryBtn.addEventListener('click', () => void revealRecovery());
-  if (refs.copyRecoveryBtn) refs.copyRecoveryBtn.addEventListener('click', () => void copyRecovery());
-  if (refs.regenerateRecoveryBtn) refs.regenerateRecoveryBtn.addEventListener('click', () => void regenerateRecovery());
-  if (refs.recoverIdentityBtn) refs.recoverIdentityBtn.addEventListener('click', () => void recoverIdentity());
+
+  function setOpen(open: boolean, focusTarget?: HTMLElement | null): void {
+    isOpen = open;
+    overlayElement.classList.toggle('is-open', open);
+    overlayElement.setAttribute('aria-hidden', open ? 'false' : 'true');
+    refs.openBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      returnFocus = focusTarget || refs.openBtn;
+      syncFromProfile();
+      try { refs.nameInput?.focus(); } catch (e) { /* ignore */ }
+    } else {
+      restoreOpenButtonFocus();
+    }
+  }
+
+  function getFocusableElements(): HTMLElement[] {
+    return Array.from(modalElement.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter((element) => !element.closest('[hidden]') && element.getAttribute('aria-hidden') !== 'true');
+  }
+
+  bind(refs.closeBtn, 'click', () => setOpen(false));
+  bind(overlayElement, 'click', (event: Event) => {
+    if (event.target === overlayElement) setOpen(false);
+  });
+  bind(refs.tabProfile, 'click', () => setActiveTab('profile'));
+  bind(refs.tabIdentity, 'click', () => setActiveTab('identity'));
+  bind(refs.saveBtn, 'click', saveProfile);
+  bind(refs.ensureIdentityBtn, 'click', () => void ensureIdentity());
+  bind(refs.revealRecoveryBtn, 'click', () => void revealRecovery());
+  bind(refs.copyRecoveryBtn, 'click', () => void copyRecovery());
+  bind(refs.regenerateRecoveryBtn, 'click', () => void regenerateRecovery());
+  bind(refs.recoverIdentityBtn, 'click', () => void recoverIdentity());
+  bind(doc, 'keydown', (event: Event) => {
+    const keyboardEvent = event as KeyboardEvent;
+    if (!isOpen) return;
+    if (keyboardEvent.key === 'Escape') {
+      keyboardEvent.preventDefault();
+      setOpen(false);
+      return;
+    }
+    if (keyboardEvent.key !== 'Tab') return;
+    const focusable = getFocusableElements();
+    if (focusable.length === 0) {
+      keyboardEvent.preventDefault();
+      modalElement.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = doc.activeElement;
+    if (keyboardEvent.shiftKey && (active === first || !modalElement.contains(active))) {
+      keyboardEvent.preventDefault();
+      last.focus();
+    } else if (!keyboardEvent.shiftKey && (active === last || !modalElement.contains(active))) {
+      keyboardEvent.preventDefault();
+      first.focus();
+    }
+  });
 
   renderAvatarOptions();
   setActiveTab('profile');
   syncFromProfile();
-  setOpen(false);
-  return { ok: true, setOpen, syncFromProfile, setActiveTab };
+  return { setOpen, syncFromProfile, setActiveTab };
 }
 
-const PlayerProfilePanel = { setupPlayerProfilePanel };
+const ProfileSurfaceRegistration = Object.freeze({
+  id: PROFILE_SURFACE_ID,
+  stylesheetGroup: 'profile',
+  ensureDom: createProfileSurface
+});
+
+if (LazyFeatureSurface && typeof LazyFeatureSurface.registerLazyFeatureSurface === 'function') {
+  LazyFeatureSurface.registerLazyFeatureSurface(ProfileSurfaceRegistration);
+}
+
+function setupPlayerProfilePanel(opts?: any): any {
+  const root = opts && opts.root ? opts.root : (typeof window !== 'undefined' ? window : null);
+  const doc = root && root.document ? root.document : (typeof document !== 'undefined' ? document : null);
+  if (!doc) return { ok: false, reason: 'DOCUMENT_UNAVAILABLE' };
+  const existing = documentControllers.get(doc);
+  if (existing) return existing;
+
+  const openBtn = doc.getElementById('profileOpenBtn') as HTMLElement | null;
+  const overlay = doc.getElementById('profileOverlay') as HTMLElement | null;
+  const modal = doc.getElementById('profileModal') as HTMLElement | null;
+  if (!openBtn || !overlay || !modal) {
+    return { ok: false, reason: 'PROFILE_SHELL_UNAVAILABLE' };
+  }
+  const openButton = openBtn;
+  const overlayElement = overlay;
+  const modalElement = modal;
+
+  let readySurface: PlayerProfileSurface | null = null;
+  let pending: Promise<PlayerProfileSurface> | null = null;
+  let failureCleanup: (() => void) | null = null;
+
+  function clearFailure(restoreFocus = false): void {
+    if (failureCleanup) failureCleanup();
+    failureCleanup = null;
+    overlayElement.classList.remove('profile-surface-failure');
+    overlayElement.classList.remove('is-open');
+    overlayElement.setAttribute('aria-hidden', 'true');
+    modalElement.replaceChildren();
+    openButton.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) {
+      try { openButton.focus(); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function showFailure(): void {
+    clearFailure(false);
+    overlayElement.classList.add('profile-surface-failure', 'is-open');
+    overlayElement.setAttribute('aria-hidden', 'false');
+    openButton.setAttribute('aria-expanded', 'true');
+    const title = doc.createElement('div');
+    title.id = 'profileModalTitle';
+    title.className = 'profile-surface-failure-title';
+    title.textContent = 'プロフィールを読み込めませんでした';
+    const message = doc.createElement('p');
+    message.className = 'profile-surface-failure-message';
+    message.textContent = '閉じてプロフィールボタンをもう一度押すと再試行します。';
+    const closeBtn = doc.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-small';
+    closeBtn.textContent = '閉じる';
+    modalElement.replaceChildren(title, message, closeBtn);
+
+    const close = () => clearFailure(true);
+    const onBackdrop = (event: Event) => {
+      if (event.target === overlayElement) close();
+    };
+    const onKeydown = (event: Event) => {
+      if ((event as KeyboardEvent).key !== 'Escape') return;
+      event.preventDefault();
+      close();
+    };
+    closeBtn.addEventListener('click', close);
+    overlayElement.addEventListener('click', onBackdrop);
+    doc.addEventListener('keydown', onKeydown);
+    failureCleanup = () => {
+      closeBtn.removeEventListener('click', close);
+      overlayElement.removeEventListener('click', onBackdrop);
+      doc.removeEventListener('keydown', onKeydown);
+    };
+    try { closeBtn.focus(); } catch (e) { /* ignore */ }
+  }
+
+  function ensureReady(): Promise<PlayerProfileSurface> {
+    if (readySurface) return Promise.resolve(readySurface);
+    if (pending) return pending;
+    clearFailure(false);
+    openButton.setAttribute('aria-busy', 'true');
+    pending = Promise.resolve(
+      LazyFeatureSurface.ensureLazyFeatureSurface(PROFILE_SURFACE_ID, doc)
+    ).then((surface: any) => {
+      readySurface = surface.dom as PlayerProfileSurface;
+      return readySurface;
+    }).catch((error: unknown) => {
+      showFailure();
+      throw error;
+    }).finally(() => {
+      openButton.removeAttribute('aria-busy');
+      pending = null;
+    });
+    return pending;
+  }
+
+  async function open(): Promise<void> {
+    try {
+      const surface = await ensureReady();
+      surface.setOpen(true, openButton);
+    } catch (_error) {
+      // showFailure() keeps the retry path visible and operable.
+    }
+  }
+
+  const controller: PlayerProfilePanelController = {
+    ok: true,
+    ensureReady,
+    setOpen(openValue: boolean) {
+      if (openValue) void open();
+      else if (readySurface) readySurface.setOpen(false);
+      else clearFailure(true);
+    },
+    syncFromProfile() {
+      readySurface?.syncFromProfile();
+    },
+    setActiveTab(tab: 'profile' | 'identity') {
+      readySurface?.setActiveTab(tab);
+    }
+  };
+
+  openButton.addEventListener('click', () => void open());
+  documentControllers.set(doc, controller);
+  return controller;
+}
+
+const PlayerProfilePanel = {
+  setupPlayerProfilePanel,
+  PROFILE_SURFACE_ID
+};
 
 try {
   if (typeof globalThis !== 'undefined') {

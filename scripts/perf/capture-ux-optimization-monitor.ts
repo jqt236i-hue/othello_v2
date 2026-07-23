@@ -54,11 +54,13 @@ const COMPLETED_OPTIMIZATION_IDS = new Set([
   'help-image-lazy-loading',
   'dom-compat-stylesheet-lazy-loading',
   'lossless-webp-admission',
-  'feature-result'
+  'feature-result',
+  'feature-profile'
 ]);
 const SPECIAL_STONE_PATH_PREFIX = 'assets/images/special-stones/';
 const DOM_COMPAT_STYLESHEET_PATH = 'styles-board-dom-compat.css';
 const RESULT_STYLESHEET_PATH = 'styles-layout-result.css';
+const PROFILE_STYLESHEET_PATH = 'styles-profile.css';
 const DEFAULT_FRAME_PNG_PATH =
   'assets/images/board/board-frame-marsh-forged-iron-v1.png';
 const DEFAULT_FRAME_WEBP_PATH =
@@ -225,6 +227,17 @@ async function closeMaintenanceNotice(page: Page): Promise<void> {
   });
 }
 
+async function closeSidePanelForFeatureCapture(page: Page): Promise<void> {
+  const isOpen = await page.evaluate(() => (
+    document.getElementById('side-panel')?.classList.contains('is-open') === true
+  ));
+  if (!isOpen) return;
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => (
+    document.getElementById('side-panel')?.classList.contains('is-open') !== true
+  ), null, { timeout: 10_000 });
+}
+
 async function openBootRuntime(
   browser: Browser,
   baseUrl: string,
@@ -361,7 +374,7 @@ async function captureBootScenario(
         totalDomElements: document.querySelectorAll('*').length,
         featureInnerDomCounts: {
           result: countChildren('#result-overlay'),
-          profile: countChildren('#profileOverlay'),
+          profile: countChildren('#profileModal'),
           rulesHelp: countChildren('#rules-help-panel'),
           deckBuilder: countChildren('#deckBuilderOverlay'),
           network: countChildren('#networkOverlay')
@@ -389,6 +402,12 @@ async function captureBootScenario(
         ).length,
         resultStylesheetSlotCount: document.querySelectorAll(
           '[data-card-reversi-feature-style-slot="result"]'
+        ).length,
+        profileStylesheetLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="profile"]'
+        ).length,
+        profileStylesheetSlotCount: document.querySelectorAll(
+          '[data-card-reversi-feature-style-slot="profile"]'
         ).length,
         uiInitialized: (window as any).__uiInitialized === true,
         bootState: document.documentElement.getAttribute('data-browser-boot-state')
@@ -1704,6 +1723,331 @@ async function captureResultOptimizationScenario(
   }
 }
 
+async function captureFailedProfileStylesheetPath(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(browser, baseUrl, definition);
+  let requestCount = 0;
+  let failedRequestCount = 0;
+  let warningCount = 0;
+  runtime.page.on('requestfailed', (request) => {
+    if (relativeResourcePath(request.url(), baseUrl) === PROFILE_STYLESHEET_PATH) {
+      failedRequestCount += 1;
+    }
+  });
+  runtime.page.on('console', (message) => {
+    if (
+      message.type() === 'warning'
+      && message.text().includes('[feature-stylesheet] failed to load styles-profile.css')
+    ) {
+      warningCount += 1;
+    }
+  });
+  await runtime.page.route(`**/${PROFILE_STYLESHEET_PATH}*`, async (route) => {
+    requestCount += 1;
+    if (requestCount === 1) {
+      await route.abort('failed');
+      return;
+    }
+    await route.continue();
+  });
+  try {
+    await closeSidePanelForFeatureCapture(runtime.page);
+    await runtime.page.click('#profileOpenBtn');
+    await runtime.page.waitForSelector('#profileOverlay.profile-surface-failure', {
+      state: 'visible',
+      timeout: 30_000
+    });
+    const failed = await runtime.page.evaluate(() => {
+      const overlay = document.getElementById('profileOverlay');
+      const modal = document.getElementById('profileModal');
+      const close = modal?.querySelector('button') as HTMLButtonElement | null;
+      return {
+        failureVisible:
+          overlay?.classList.contains('is-open') === true
+          && Number(modal?.getBoundingClientRect().width || 0) > 0
+          && Number(modal?.getBoundingClientRect().height || 0) > 0,
+        failureFocused: document.activeElement === close,
+        failureInnerDomCount: modal?.querySelectorAll('#profileModalHeader, #profileModalBody').length || 0,
+        failureLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="profile"]'
+        ).length,
+        failureRetryGuidance: modal?.textContent?.includes('もう一度押すと再試行') === true
+      };
+    });
+    await runtime.page.evaluate(() => {
+      const failureClose = document.querySelector(
+        '#profileOverlay.profile-surface-failure #profileModal button'
+      ) as HTMLButtonElement | null;
+      if (!failureClose) throw new Error('Profile failure close button is unavailable');
+      failureClose.click();
+    });
+    await runtime.page.click('#profileOpenBtn');
+    await runtime.page.waitForFunction(() => (
+      document.getElementById('profileOverlay')?.classList.contains('is-open') === true
+      && document.querySelector(
+        'link[data-card-reversi-feature-style="profile"]'
+      )?.getAttribute('data-card-reversi-feature-style-loaded') === 'true'
+    ), null, { timeout: 30_000 });
+    const retried = await runtime.page.evaluate(() => {
+      const diagnosticsModule = (window as any).require?.(
+        'ui/assets/lazy-feature-surface'
+      );
+      const diagnostics = diagnosticsModule?.getLazyFeatureSurfaceDiagnostics?.(
+        'profile',
+        document
+      ) || null;
+      return {
+        failureRetryReady: !!document.getElementById('profileNameInput'),
+        failureRetryLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="profile"]'
+        ).length,
+        failureRetryInnerDomCount: document.querySelectorAll(
+          '#profileModal > #profileModalHeader, #profileModal > #profileModalBody'
+        ).length,
+        failureRetryAttemptCount: Number(diagnostics?.attemptCount || 0),
+        failureRetryFailureCount: Number(diagnostics?.failureCount || 0),
+        failureRetryCount: Number(diagnostics?.retryCount || 0)
+      };
+    });
+    return Object.freeze({
+      ...failed,
+      ...retried,
+      failureRequestCount: requestCount,
+      failureRequestFailureCount: failedRequestCount,
+      failureResponseCount: countPath(runtime.responsePaths, PROFILE_STYLESHEET_PATH),
+      failureConsoleErrorCount: runtime.errors.filter(
+        (error) => error.kind === 'console'
+      ).length,
+      failureConsoleWarningCount: warningCount
+    });
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
+async function captureProfileOptimizationScenario(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(browser, baseUrl, definition);
+  try {
+    await closeSidePanelForFeatureCapture(runtime.page);
+    const beforeSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const initial = await runtime.page.evaluate(() => {
+      localStorage.setItem('card_reversi_player_profile_v1', JSON.stringify({
+        displayName: '監視名',
+        avatarStoneType: 'SNIPER',
+        bio: '監視用自己紹介'
+      }));
+      localStorage.setItem('card_reversi_player_identity_v1', JSON.stringify({
+        playerId: `p_${'A'.repeat(26)}`,
+        playerToken: `pt_${'B'.repeat(43)}`,
+        recoveryCode: 'CR-AAAAA-AAAAA-AAAAA-AAAAA-AAAAA'
+      }));
+      const identity = (window as any).PlayerIdentity;
+      if (identity && typeof identity.getPlayerIdentity === 'function') {
+        identity.ensurePlayerIdentity = async () => identity.getPlayerIdentity();
+      }
+      const icon = document.querySelector(
+        '#profileOpenBtn .left-action-icon-profile'
+      ) as HTMLElement | null;
+      return {
+        backend: String(
+          (window as any).__boardVisualDebug?.getBackendKind?.()
+          || document.documentElement.getAttribute('data-board-visual-backend')
+          || 'none'
+        ),
+        profileStylesheetLinkCountBeforeOpen: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="profile"]'
+        ).length,
+        profileStylesheetSlotCount: document.querySelectorAll(
+          '[data-card-reversi-feature-style-slot="profile"]'
+        ).length,
+        profileInnerDomCountBeforeOpen: document.querySelectorAll(
+          '#profileModal > *'
+        ).length,
+        profileOpenIconReady: getComputedStyle(icon!).maskImage !== 'none'
+          || getComputedStyle(icon!).webkitMaskImage !== 'none'
+      };
+    });
+    const responsesBeforeOpen = countPath(
+      runtime.responsePaths,
+      PROFILE_STYLESHEET_PATH
+    );
+    await markProbePhase(runtime.page, 'feature-opening:profile');
+    await runtime.page.evaluate(() => {
+      const button = document.getElementById('profileOpenBtn');
+      button?.addEventListener('click', () => {
+        (window as any).__uxProfileStartedAtMs = performance.now();
+      }, { capture: true, once: true });
+    });
+    await runtime.page.click('#profileOpenBtn');
+    await runtime.page.waitForFunction(() => (
+      document.getElementById('profileOverlay')?.classList.contains('is-open') === true
+      && document.querySelector(
+        'link[data-card-reversi-feature-style="profile"]'
+      )?.getAttribute('data-card-reversi-feature-style-loaded') === 'true'
+    ), null, { timeout: 30_000 });
+    await markProbePhase(runtime.page, 'feature-ready:profile');
+    const firstOpen = await runtime.page.evaluate(() => {
+      const root = window as any;
+      const modal = document.getElementById('profileModal') as HTMLElement | null;
+      const name = document.getElementById('profileNameInput') as HTMLInputElement | null;
+      const bio = document.getElementById('profileBioInput') as HTMLTextAreaElement | null;
+      const avatar = document.getElementById('profileAvatarPreview') as HTMLElement | null;
+      const playerId = document.getElementById('profilePlayerIdText');
+      const recovery = document.getElementById(
+        'profileRecoveryCodeOutput'
+      ) as HTMLInputElement | null;
+      const link = document.querySelector(
+        'link[data-card-reversi-feature-style="profile"]'
+      ) as HTMLLinkElement | null;
+      const links = Array.from(
+        document.head.querySelectorAll('link[rel="stylesheet"]')
+      ) as HTMLLinkElement[];
+      const indexOf = (nameValue: string): number => links.findIndex((candidate) => {
+        try {
+          return new URL(candidate.href).pathname.endsWith(`/${nameValue}`);
+        } catch (_error) {
+          return false;
+        }
+      });
+      root.__uxProfileInnerNode = document.getElementById('profileModalHeader');
+      return {
+        firstOpenLatencyMs: performance.now() - Number(root.__uxProfileStartedAtMs),
+        firstStyleReadyLatencyMs:
+          Number(link?.dataset.cardReversiFeatureStyleReadyAt || NaN)
+          - Number(root.__uxProfileStartedAtMs),
+        firstLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="profile"]'
+        ).length,
+        firstInnerDomCount: modal?.querySelectorAll(':scope > *').length || 0,
+        firstPanelVisible:
+          Number(modal?.getBoundingClientRect().width || 0) > 0
+          && Number(modal?.getBoundingClientRect().height || 0) > 0,
+        firstFullStyleReady:
+          link?.dataset.cardReversiFeatureStyleLoaded === 'true'
+          && getComputedStyle(modal!).display === 'flex',
+        firstCascadeOrderPreserved:
+          indexOf('styles-profile.css') > indexOf('styles-stone-shadows.css'),
+        savedNameProjected: name?.value === '監視名',
+        savedBioProjected: bio?.value === '監視用自己紹介',
+        savedAvatarProjected:
+          document.querySelector(
+            '[data-avatar-stone-type="SNIPER"][aria-checked="true"]'
+          ) !== null
+          && !!avatar?.style.backgroundImage,
+        avatarResourceCoverage: Array.from(
+          document.querySelectorAll<HTMLElement>('.profile-avatar-option-thumb')
+        ).every((thumb) => {
+          const matched = /url\(["']?([^"')]+)["']?\)/.exec(
+            thumb.style.backgroundImage
+          );
+          if (!matched) return false;
+          const expectedPath = new URL(matched[1], document.baseURI).pathname;
+          return performance.getEntriesByType('resource').some((entry) => (
+            new URL(entry.name).pathname === expectedPath
+          ));
+        }),
+        savedIdentityProjected: playerId?.textContent === `p_${'A'.repeat(26)}`,
+        secretInitiallyHidden: recovery?.value === '',
+        initialFocusCorrect: document.activeElement === name
+      };
+    });
+    await runtime.page.evaluate(() => {
+      (document.getElementById('profileTabIdentity') as HTMLButtonElement | null)?.click();
+      (document.getElementById('profileRevealRecoveryBtn') as HTMLButtonElement | null)?.click();
+    });
+    await runtime.page.waitForFunction(() => (
+      (document.getElementById('profileRecoveryCodeOutput') as HTMLInputElement | null)
+        ?.value.length === 32
+    ), null, { timeout: 30_000 });
+    const interaction = await runtime.page.evaluate(() => {
+      const close = document.getElementById('profileCloseBtn') as HTMLButtonElement | null;
+      const last = document.getElementById('profileRecoverIdentityBtn') as HTMLButtonElement | null;
+      last?.focus();
+      return {
+        secretRevealWorked:
+          (document.getElementById('profileRecoveryCodeOutput') as HTMLInputElement | null)
+            ?.value.length === 32,
+        focusTrapStartReady: document.activeElement === last,
+        closeExists: !!close
+      };
+    });
+    await runtime.page.keyboard.press('Tab');
+    const focusTrapWorked = await runtime.page.evaluate(() => (
+      document.activeElement === document.getElementById('profileCloseBtn')
+    ));
+    await runtime.page.keyboard.press('Escape');
+    const escapeClose = await runtime.page.evaluate(() => ({
+      escapeClosed:
+        document.getElementById('profileOverlay')?.classList.contains('is-open') !== true,
+      escapeFocusReturned:
+        document.activeElement === document.getElementById('profileOpenBtn')
+    }));
+    await runtime.page.click('#profileOpenBtn');
+    await runtime.page.waitForSelector('#profileOverlay.is-open', {
+      state: 'visible',
+      timeout: 30_000
+    });
+    const reopen = await runtime.page.evaluate(() => {
+      const diagnosticsModule = (window as any).require?.(
+        'ui/assets/lazy-feature-surface'
+      );
+      const diagnostics = diagnosticsModule?.getLazyFeatureSurfaceDiagnostics?.(
+        'profile',
+        document
+      ) || null;
+      const sameInnerNode =
+        (window as any).__uxProfileInnerNode === document.getElementById('profileModalHeader');
+      const overlay = document.getElementById('profileOverlay') as HTMLElement | null;
+      overlay?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      return {
+        reopenSameInnerNode: sameInnerNode,
+        reopenLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="profile"]'
+        ).length,
+        reopenInnerDomCount: document.querySelectorAll('#profileModal > *').length,
+        backdropClosed: overlay?.classList.contains('is-open') !== true,
+        backdropFocusReturned:
+          document.activeElement === document.getElementById('profileOpenBtn'),
+        diagnosticsAttemptCount: Number(diagnostics?.attemptCount || 0),
+        diagnosticsDomCreatedCount: Number(diagnostics?.domCreatedCount || 0),
+        diagnosticsReadyCount: Number(diagnostics?.readyCount || 0),
+        diagnosticsFailureCount: Number(diagnostics?.failureCount || 0),
+        diagnosticsListenerBindingCount: Number(diagnostics?.listenerBindingCount || 0)
+      };
+    });
+    const afterSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const failure = await captureFailedProfileStylesheetPath(
+      browser,
+      baseUrl,
+      definition
+    );
+    return await captureRuntimeSnapshot(runtime, definition, {
+      ...initial,
+      ...firstOpen,
+      ...interaction,
+      ...escapeClose,
+      ...reopen,
+      ...failure,
+      focusTrapWorked,
+      profileResponseCountBeforeOpen: responsesBeforeOpen,
+      profileResponseCountAfterOpen: countPath(
+        runtime.responsePaths,
+        PROFILE_STYLESHEET_PATH
+      ),
+      clsDelta: Math.max(0, afterSnapshot.cls - beforeSnapshot.cls)
+    });
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
 type FrameAssetVariant = 'normal-webp' | 'forced-png' | 'forced-webp-failure';
 
 function countPath(paths: readonly string[], expectedPath: string): number {
@@ -2018,6 +2362,15 @@ export async function captureUxOptimizationMonitor(
     for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
       if (definition.id !== 'feature.result') continue;
       replaceScenario(await captureResultOptimizationScenario(
+        browser,
+        baseUrl,
+        definition
+      ));
+    }
+
+    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+      if (definition.id !== 'feature.profile') continue;
+      replaceScenario(await captureProfileOptimizationScenario(
         browser,
         baseUrl,
         definition

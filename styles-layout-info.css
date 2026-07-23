@@ -6965,3 +6965,41 @@
     background:
         linear-gradient(90deg, rgba(107, 82, 34, 0.34), rgba(0, 0, 0, 0.30));
 }
+#profileOverlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: calc(16px * var(--layout-stage-scale));
+    box-sizing: border-box;
+    background: var(--surface-overlay-strong);
+    z-index: calc(var(--z-modal-leaderboard) + 2);
+}
+
+#profileOverlay.is-open {
+    display: flex;
+}
+
+#profileOverlay.profile-surface-failure #profileModal {
+    width: min(calc(440px * var(--layout-stage-scale)), calc(100vw - calc(32px * var(--layout-stage-scale))));
+    padding: calc(24px * var(--layout-stage-scale));
+    box-sizing: border-box;
+    border: var(--layout-size-border-thin) solid rgba(233, 199, 117, 0.42);
+    border-radius: calc(10px * var(--layout-stage-scale));
+    background: rgba(4, 16, 19, 0.98);
+    box-shadow: var(--shadow-modal-strong);
+    color: #f6ead0;
+    text-align: center;
+}
+
+.profile-surface-failure-title {
+    color: #f8e5bd;
+    font-size: calc(20px * var(--layout-stage-scale));
+    font-weight: 900;
+}
+
+.profile-surface-failure-message {
+    margin: calc(14px * var(--layout-stage-scale)) 0;
+    line-height: 1.5;
+}

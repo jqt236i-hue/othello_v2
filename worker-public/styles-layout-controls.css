@@ -4690,6 +4690,10 @@ body.time-stop-active {
     --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 6l3 3 4-5 4 5 3-3v2c0 4.2-2.3 7.6-6 8.8V20h3v2H8v-2h3v-3.2C7.3 15.6 5 12.2 5 8Z' fill='black'/%3E%3C/svg%3E");
 }
 
+#leftActionButtons .left-action-icon-profile {
+    --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='8' r='4' fill='black'/%3E%3Cpath d='M4.5 20a7.5 7.5 0 0 1 15 0Z' fill='black'/%3E%3C/svg%3E");
+}
+
 #leftActionButtons .left-action-icon-skin {
     --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 4l3 2 3-2 4 2.5-1.5 3.5-2.5-1.2V20H9V8.8L6.5 10 5 6.5Z' fill='black'/%3E%3C/svg%3E");
 }

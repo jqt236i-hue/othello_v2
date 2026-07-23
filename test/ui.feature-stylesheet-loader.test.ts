@@ -159,4 +159,47 @@ describe('feature stylesheet loader', () => {
     }));
     dom.window.close();
   });
+
+  test('keeps profile CSS after stone shadows in classic and Vite head shapes', async () => {
+    for (const viteShape of [false, true]) {
+      const head = viteShape
+        ? `<meta data-card-reversi-feature-style-slot="profile"
+            data-card-reversi-feature-style-href="styles-profile.css?v=2468"
+            data-card-reversi-feature-style-after="styles-stone-shadows.css">
+          <link rel="stylesheet" href="styles-responsive.css?v=1">
+          <link rel="stylesheet" href="styles-stone-shadows.css?v=2">`
+        : `<link rel="stylesheet" href="styles-stone-shadows.css?v=2">
+          <meta data-card-reversi-feature-style-slot="board-dom-compat">
+          <meta data-card-reversi-feature-style-slot="profile"
+            data-card-reversi-feature-style-href="styles-profile.css?v=2468"
+            data-card-reversi-feature-style-after="styles-stone-shadows.css">`;
+      const dom = new JSDOM(
+        `<!doctype html><html><head>${head}</head><body></body></html>`,
+        { url: 'https://example.test/game/' }
+      );
+      const { document } = dom.window;
+
+      const pending = ensureFeatureStylesheet('profile', document);
+      const link = document.querySelector(
+        'link[data-card-reversi-feature-style="profile"]'
+      ) as HTMLLinkElement;
+      const stoneLink = document.querySelector(
+        'link[href*="styles-stone-shadows.css"]'
+      ) as HTMLLinkElement;
+      expect(link).toBeTruthy();
+      expect(stoneLink.compareDocumentPosition(link) & 4).toBeTruthy();
+      if (!viteShape) {
+        const profileSlot = document.querySelector(
+          '[data-card-reversi-feature-style-slot="profile"]'
+        );
+        expect(link.nextElementSibling).toBe(profileSlot);
+      }
+      link.dispatchEvent(new dom.window.Event('load'));
+      await expect(pending).resolves.toEqual(expect.objectContaining({
+        ok: true,
+        group: 'profile'
+      }));
+      dom.window.close();
+    }
+  });
 });
