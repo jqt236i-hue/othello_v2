@@ -34,7 +34,7 @@
 - `ui/pixi/board-input.ts` は親interaction layerで入力イベントと座標hit testを所有し、ゲーム入力可否とは独立した `isInputLocked` を確認する。
 - `scripts/build-vite-entry.ts` は `index.classic.html` の全stylesheetをVite起動用metaへ変換するため、`styles-board-dom-compat.css` も通常Pixiで読み込まれる。
 - `ui/assets/feature-stylesheet-loader.ts` はfeature stylesheetの一度だけの非同期ロード、失敗時の削除、再試行を既に所有する。
-- `ui/handlers/rules-help.ts` は大きなヘルプ内容を初回表示時に生成するが、`index.classic.html` の最初のガイド画像と早見表画像には初期 `src` がある。
+- 実装前の `ui/handlers/rules-help.ts` は大きなヘルプ内容を初回表示時に生成していた一方、`index.classic.html` にはHELP inner DOMと最初のガイド画像・早見表画像が残っていた。Step 2.2で画像取得をDOM非依存cacheへ分離し、Step 4.4でinner DOMと画像要素自体もsurface初回準備へ移す。
 - `ui/status-display.ts` と `ui/hand-skin/runtime.ts` はroot論理パスをランタイムで再設定し、ViteがHTMLへ書いたハッシュ付きURLとの同一性を判定できない。
 - `ui/board-visual/performance-harness.ts`、`scripts/perf/measure-opponent-action-frame-stall.ts`、`scripts/browser-boot-performance-check.ts`、`scripts/capture-pixijs-playfield-performance.ts` は、RAF、Long Task、resource、Pixi診断、GPU環境、artifact digestを既に収集する。
 - `docs/architecture-contracts.md` §4 は、debug性能記録を通常プレイから分離し、盤面内容、手札、seat token、operationId、canonical authorityを性能レポートへ含めることを禁止する。
@@ -306,6 +306,8 @@ featureは `result → profile → rules-help → deck-builder → network` の�
 - stylesheetはselector依存と同一property競合を先に監査する。元CSS単位のfragment/slotでcomputed styleが一致する場合だけその境界を採用し、複数sourceから抜いたruleを一つの末尾stylesheetへ集約しない。
 - resultのfull stylesheetはclassicの元順序 `styles-layout-info.css → styles-layout-result.css → styles-layout-characters.css` を維持する。Vite生成HTMLではfeature slotと後付けのeager link群が離れるため、slot位置だけでなく `data-card-reversi-feature-style-before="styles-layout-characters.css"` の固定anchorを解決し、両laneで同じcascade順へ挿入する。
 - 元ファイル内でfeature/shared ruleが交互にあり単純抽出でcascadeが変わる場合は、抽出境界ごとの複数fragment/slotへ分割するか、その競合ruleをstartup側へ残す。loaderはfeature単位で必要fragmentを一つのPromiseへ合流し、全fragment ready後だけsurface readyにする。代表状態・viewport・focus/disabled/open stateの主要computed property baseline一致をblockingにする。
+- rules-helpは `styles-layout-info.css`、`styles-cards.css`、`styles-responsive.css` ごとにfragment/slotを分ける。`styles-base.css` のHELP selectorはすべて他surfaceと共有するmixed ruleであり、startupから抽出しない。
+- `styles-layout-info.css` のmixed selectorはstartupに残すだけでは、後段のHELP専用ruleをfragmentへ移した時に元の上書き順を再現できない。この場合は共有ruleを削除せず、HELP selectorだけのprojectionをlayout-info fragment内の元の相対境界にも置く。Vite/classic、desktop/mobileの代表computed styleが一致する場合だけ重複を許可する。
 - `.premium-btn` はresult固有に見えるがnetwork再戦申請dialogも使用する共有ruleである。result full CSSへ残さずstartup側の共有critical ruleとして所有し、result未表示のnetwork操作を未装飾にしない。result内では局所custom property、network側では同じfallback値を使う。
 - result以外のinner DOMは一度だけcloneし、close時に破棄しない。
 - bootstrapの初期DOM取得はopen controlとshellだけを保持する。feature controllerはsurface ready後に自身のrootからinner refsを一度取得してlistenerを配線し、boot時のnull参照を永続的なUI refsとして保持しない。
@@ -469,6 +471,8 @@ baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR�
 - `readStoredSession()` はpublic APIでなくtoken等を含み得るため、内容を公開しないboolean `hasRestorableStoredSession()` を新設する境界へ修正した。
 - Viteだけのlazy UI確認ではclassic regressionsを見逃すため、scenario IDとは別の必須lane matrixを追加した。
 - stylesheet単位slotでは元ファイル内部のinterleaveを完全保持できないため、selector依存監査、computed-style blocking、一致しないruleの複数fragment化またはstartup残置へ修正した。
+- Phase 4.4の初回抽出で、`styles-layout-info.css` 後端へ単純にHELP fragmentを置くと、元はHELP専用ruleより後ろにあったpremium shared ruleの優先順が逆転し、背景色・title色・角丸が変化した。shared mixed ruleはstartupに残しつつHELP selector projectionをfragment内の元境界へ再配置し、Vite/classicの1440×900と390×844でpanel矩形、padding、border、背景、title、tab、searchの主要computed propertyが変更前と完全一致することを確認した。
+- Phase 4.4の実captureで、初回open時にフォーカスをpanelへ強制移動するというmonitor仮定が従来挙動と一致しないことを確認した。open controlへの保持を既存UXとして監視し、ESC・close・backdropではcontrolへ返す契約を分離した。backdropの後続clickでpointerdown時のfocus返却が失われる実不整合だけは、click完了後の再返却で修正した。
 - board frame画像はPixi resourceでなくCSS custom property経路であるため、WebP routingをBoardSkinRuntimeへ限定した。
 - legacy特殊石preloaderは同期returnでload/decode完了を示さないため、DOM compatibility専用のawaitable preparation APIを設計へ追加した。
 - 物理端末を必須release gateにする案は現行の任意診断方針と矛盾するため、device効果を主張する場合だけ必須とした。

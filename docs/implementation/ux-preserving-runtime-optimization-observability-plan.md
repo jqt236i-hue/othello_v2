@@ -548,6 +548,14 @@
   - `npm run check:worker-mirror`
   - `npm run perf:ux-optimization:focused -- --target feature-rules-help`
 - done: HELP全機能が維持され、初期active DOMとCSSから除外される。
+- implementation review:
+  - 初期HTMLは `#rules-help-backdrop` と空のstable dialog `#rules-help-panel` だけとし、208個のHELP内要素を `ui/handlers/rules-help-template.ts` の一度だけのfactoryへ移した。3つのstylesheet slot追加後も初期document全体は625要素から420要素へ減少し、HELP内画像要素も0となった。
+  - CSSは元source境界を維持してlayout-info 40,642 bytes、cards 3,294 bytes、responsive 5,152 bytesの3 fragmentへ分割した。`styles-base.css` のHELP selectorはすべてshared mixed ruleだったためstartupに残し、無理な抽出を行っていない。bootでは3 fragmentともrequest/link 0、初回openで各1回だけ取得する。
+  - 初回の単純抽出ではlayout-info後段のpremium shared ruleとHELP専用ruleの相対順が逆転し、背景色・title色・角丸に変更が出た。shared ruleをstartupに残したままHELP selector projectionをfragmentの元境界へ追加し、Vite/classicのdesktop 1440×900とmobile 390×844でpanel矩形、padding、border、背景、title、tab、searchの主要computed propertyを変更前と完全一致させた。
+  - Step 2.2のDOM非依存image preparationを同じsurface `onReady` に接続し、CSS3枚、inner DOM、初期2画像の全ready後だけ既存controllerをopenする。catalog 95枚、検索0件/clear、tag filter、effects、guide 2/8、protection 2/2、counter tabを両laneで操作確認した。
+  - lazy surfaceは3 stylesheetを一つのattemptとして並行準備し、1枚の強制失敗時に全link、途中DOM、389 listener bindingをcleanupする。閉じられるfailure dialogから次回openでattempt 2へ進み、3 link・同一機能へ復旧することをVite/classicで確認した。通常reopenはattempt/DOM/style増分0である。
+  - 実captureで初回openは従来どおりopen controlにfocusを保持し、ESCとcloseで同controlへ戻ることを確認した。backdropではpointerdown時に戻したfocusが後続clickで外れる既存不整合が客観的に見つかったため、click完了後のfocus返却を追加してbrowser/unit monitorを一致させた。
+  - `feature.rules-help` 最終captureはVite 62.7ms、classic 50.0ms、CSS readyは各11.1ms、9.8ms、CLS delta 0、first-open Long Task 0だった。focused verdict `pass`、developmentValid `true`、worker mirror 919 files一致で、overall failは後続deck-builder/networkだけが意図どおりpendingのためである。
 
 ### Step 4.5: デッキ編成
 

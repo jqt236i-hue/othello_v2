@@ -23,11 +23,13 @@ export interface ReadySurface<T = unknown> {
   readonly attempt: number;
   readonly dom: T;
   readonly stylesheet: FeatureStylesheetLoadResult | null;
+  readonly stylesheets: readonly FeatureStylesheetLoadResult[];
 }
 
 export interface LazyFeatureSurfaceRegistration<T = unknown> {
   readonly id: string;
   readonly stylesheetGroup?: FeatureStylesheetGroup | null;
+  readonly stylesheetGroups?: readonly FeatureStylesheetGroup[];
   readonly ensureDom: (
     context: LazyFeatureSurfaceContext
   ) => T | Promise<T>;
@@ -245,22 +247,22 @@ export function ensureLazyFeatureSurface<T = unknown>(
     }
   };
 
-  const stylesheetPromise = registration.stylesheetGroup
-    ? (() => {
-      if (diagnostics) diagnostics.stylesheetEnsureCount += 1;
-      return ensureFeatureStylesheet(
-        registration.stylesheetGroup!,
-        documentRef
-      ).then((stylesheet) => {
-        if (stylesheet.ok !== true) {
-          throw new Error(
-            stylesheet.warning || `lazy feature surface ${id} stylesheet failed`
-          );
-        }
-        return stylesheet;
-      });
-    })()
-    : Promise.resolve(null);
+  const stylesheetGroups = Array.from(new Set(
+    registration.stylesheetGroups?.length
+      ? registration.stylesheetGroups
+      : (registration.stylesheetGroup ? [registration.stylesheetGroup] : [])
+  ));
+  const stylesheetPromise = Promise.all(stylesheetGroups.map((group) => {
+    if (diagnostics) diagnostics.stylesheetEnsureCount += 1;
+    return ensureFeatureStylesheet(group, documentRef).then((stylesheet) => {
+      if (stylesheet.ok !== true) {
+        throw new Error(
+          stylesheet.warning || `lazy feature surface ${id} stylesheet failed`
+        );
+      }
+      return stylesheet;
+    });
+  }));
   if (diagnostics) diagnostics.domEnsureCount += 1;
   let domPromise: Promise<T>;
   try {
@@ -270,13 +272,14 @@ export function ensureLazyFeatureSurface<T = unknown>(
   }
 
   const pending = Promise.all([stylesheetPromise, domPromise])
-    .then(async ([stylesheet, dom]) => {
+    .then(async ([stylesheets, dom]) => {
       const ready = Object.freeze({
         id,
         document: documentRef,
         attempt: state.attempt,
         dom,
-        stylesheet
+        stylesheet: stylesheets[0] || null,
+        stylesheets: Object.freeze(stylesheets.slice())
       }) as ReadySurface<T>;
       if (registration.onReady) await registration.onReady(ready, context);
       state.status = 'ready';
@@ -291,8 +294,8 @@ export function ensureLazyFeatureSurface<T = unknown>(
       const error = toError(failure, `lazy feature surface ${id} failed`);
       controller.abort();
       runCleanups(cleanups, diagnostics);
-      if (registration.stylesheetGroup) {
-        discardFeatureStylesheet(registration.stylesheetGroup, documentRef);
+      for (const group of stylesheetGroups) {
+        discardFeatureStylesheet(group, documentRef);
       }
       state.status = 'failed';
       state.ready = null;

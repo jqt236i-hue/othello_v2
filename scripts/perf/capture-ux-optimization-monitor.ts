@@ -55,12 +55,18 @@ const COMPLETED_OPTIMIZATION_IDS = new Set([
   'dom-compat-stylesheet-lazy-loading',
   'lossless-webp-admission',
   'feature-result',
-  'feature-profile'
+  'feature-profile',
+  'feature-rules-help'
 ]);
 const SPECIAL_STONE_PATH_PREFIX = 'assets/images/special-stones/';
 const DOM_COMPAT_STYLESHEET_PATH = 'styles-board-dom-compat.css';
 const RESULT_STYLESHEET_PATH = 'styles-layout-result.css';
 const PROFILE_STYLESHEET_PATH = 'styles-profile.css';
+const RULES_HELP_STYLESHEET_PATHS = Object.freeze([
+  'styles-feature-rules-help-layout-info.css',
+  'styles-feature-rules-help-cards.css',
+  'styles-feature-rules-help-responsive.css'
+]);
 const DEFAULT_FRAME_PNG_PATH =
   'assets/images/board/board-frame-marsh-forged-iron-v1.png';
 const DEFAULT_FRAME_WEBP_PATH =
@@ -409,6 +415,16 @@ async function captureBootScenario(
         profileStylesheetSlotCount: document.querySelectorAll(
           '[data-card-reversi-feature-style-slot="profile"]'
         ).length,
+        rulesHelpStylesheetLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="rules-help"]'
+        ).length,
+        rulesHelpStylesheetSlotCount: document.querySelectorAll(
+          '[data-card-reversi-feature-style-slot^="rules-help"]'
+        ).length,
+        initialHelpImageElementCount: [
+          document.getElementById('rules-help-guide-slide-img'),
+          document.getElementById('rules-help-protection-map-img')
+        ].filter(Boolean).length,
         uiInitialized: (window as any).__uiInitialized === true,
         bootState: document.documentElement.getAttribute('data-browser-boot-state')
       };
@@ -1174,12 +1190,17 @@ async function captureHelpOptimizationScenario(
         document.getElementById('rules-help-protection-map-img')
       ];
       return {
+        initialInnerDomCount: document.querySelectorAll(
+          '#rules-help-panel > *'
+        ).length,
+        initialImageElementCount: images.filter(Boolean).length,
+        initialStylesheetLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="rules-help"]'
+        ).length,
+        stylesheetSlotCount: document.querySelectorAll(
+          '[data-card-reversi-feature-style-slot^="rules-help"]'
+        ).length,
         initialSrcCount: images.filter((image) => image?.hasAttribute('src')).length,
-        dimensionsReserved: images.every((image) => (
-          image instanceof HTMLImageElement
-            && Number(image.getAttribute('width')) > 0
-            && Number(image.getAttribute('height')) > 0
-        )),
         uiInitialized: (window as any).__uiInitialized === true,
         pendingIdleCallbackCount: Number(
           (window as any).__uxHelpIdleControl?.pendingCount?.() || 0
@@ -1194,6 +1215,14 @@ async function captureHelpOptimizationScenario(
       if (!openButton) throw new Error('Rules help open button is unavailable');
       openButton.focus();
       openButton.click();
+    });
+    await runtime.page.waitForFunction(() => (
+      document.getElementById('rules-help-panel')?.classList.contains('is-open') === true
+      && document.querySelectorAll(
+        'link[data-card-reversi-feature-style^="rules-help"]'
+      ).length === 3
+    ), null, { timeout: 30_000 });
+    await runtime.page.evaluate(() => {
       const guideTab = document.querySelector(
         '[data-help-tab="guide"]'
       ) as HTMLButtonElement | null;
@@ -1254,6 +1283,11 @@ async function captureHelpOptimizationScenario(
           width: Number(protection?.getAttribute('width') || 0),
           height: Number(protection?.getAttribute('height') || 0)
         },
+        dimensionsReserved:
+          Number(guide?.getAttribute('width') || 0) > 0
+          && Number(guide?.getAttribute('height') || 0) > 0
+          && Number(protection?.getAttribute('width') || 0) > 0
+          && Number(protection?.getAttribute('height') || 0) > 0,
         focusWithinPanel: !!activeElement && !!panel?.contains(activeElement),
         focusedElementId: activeElement?.id || '',
         firstOpenLatencyMs: performance.now() - Number(startedAtMs)
@@ -1307,6 +1341,456 @@ async function captureHelpOptimizationScenario(
       ),
       additionalHelpResourceEntriesAfterOpen: additionalHelpResources.length,
       clsDelta: Math.max(0, afterOpenSnapshot.cls - beforeOpenSnapshot.cls)
+    });
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
+async function captureFailedRulesHelpStylesheetPath(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(browser, baseUrl, definition);
+  const failedPath = RULES_HELP_STYLESHEET_PATHS[0];
+  let failedPathRequestCount = 0;
+  let failedPathRequestFailureCount = 0;
+  let warningCount = 0;
+  runtime.page.on('requestfailed', (request) => {
+    if (relativeResourcePath(request.url(), baseUrl) === failedPath) {
+      failedPathRequestFailureCount += 1;
+    }
+  });
+  runtime.page.on('console', (message) => {
+    if (
+      message.type() === 'warning'
+      && message.text().includes(`[feature-stylesheet] failed to load ${failedPath}`)
+    ) {
+      warningCount += 1;
+    }
+  });
+  await runtime.page.route(`**/${failedPath}*`, async (route) => {
+    failedPathRequestCount += 1;
+    if (failedPathRequestCount === 1) {
+      await route.abort('failed');
+      return;
+    }
+    await route.continue();
+  });
+  try {
+    await closeSidePanelForFeatureCapture(runtime.page);
+    await runtime.page.click('#rulesHelpBtn');
+    await runtime.page.waitForSelector(
+      '#rules-help-panel.rules-help-surface-failure.is-open',
+      { state: 'visible', timeout: 30_000 }
+    );
+    await runtime.page.waitForFunction(() => (
+      document.querySelectorAll(
+        'link[data-card-reversi-feature-style^="rules-help"]'
+      ).length === 0
+    ), null, { timeout: 30_000 });
+    const failed = await runtime.page.evaluate(() => {
+      const panel = document.getElementById('rules-help-panel');
+      const close = panel?.querySelector('button') as HTMLButtonElement | null;
+      return {
+        failureVisible:
+          panel?.classList.contains('is-open') === true
+          && Number(panel.getBoundingClientRect().width) > 0
+          && Number(panel.getBoundingClientRect().height) > 0,
+        failureFocused: document.activeElement === close,
+        failureDialogStable:
+          panel?.getAttribute('role') === 'dialog'
+          && panel.getAttribute('aria-label') === 'help',
+        failureNormalInnerDomCount: panel?.querySelectorAll(
+          '#rules-help-title-row, #rules-help-tabs, #rules-help-pages'
+        ).length || 0,
+        failureLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="rules-help"]'
+        ).length,
+        failureRetryGuidance:
+          panel?.textContent?.includes('もう一度押すと再試行') === true
+      };
+    });
+    await runtime.page.evaluate(() => {
+      const failureClose = document.querySelector(
+        '#rules-help-panel.rules-help-surface-failure button'
+      ) as HTMLButtonElement | null;
+      if (!failureClose) throw new Error('Rules help failure close button is unavailable');
+      failureClose.click();
+    });
+    await runtime.page.click('#rulesHelpBtn');
+    await runtime.page.waitForFunction(() => {
+      const links = Array.from(document.querySelectorAll<HTMLLinkElement>(
+        'link[data-card-reversi-feature-style^="rules-help"]'
+      ));
+      return document.getElementById('rules-help-panel')?.classList.contains('is-open') === true
+        && links.length === 3
+        && links.every((link) => (
+          link.dataset.cardReversiFeatureStyleLoaded === 'true'
+        ));
+    }, null, { timeout: 30_000 });
+    const retried = await runtime.page.evaluate(() => {
+      const diagnosticsModule = (window as any).require?.(
+        'ui/assets/lazy-feature-surface'
+      );
+      const diagnostics = diagnosticsModule?.getLazyFeatureSurfaceDiagnostics?.(
+        'rules-help',
+        document
+      ) || null;
+      return {
+        failureRetryReady: !!document.getElementById('rules-help-title-row'),
+        failureRetryLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="rules-help"]'
+        ).length,
+        failureRetryInnerDomCount: document.querySelectorAll(
+          '#rules-help-panel > #rules-help-title-row, '
+          + '#rules-help-panel > #rules-help-tabs, '
+          + '#rules-help-panel > #rules-help-pages'
+        ).length,
+        failureRetryAttemptCount: Number(diagnostics?.attemptCount || 0),
+        failureRetryFailureCount: Number(diagnostics?.failureCount || 0),
+        failureRetryCount: Number(diagnostics?.retryCount || 0)
+      };
+    });
+    return Object.freeze({
+      ...failed,
+      ...retried,
+      failureRequestCount: failedPathRequestCount,
+      failureRequestFailureCount: failedPathRequestFailureCount,
+      failureResponseCount: countPath(runtime.responsePaths, failedPath),
+      failureConsoleErrorCount: runtime.errors.filter(
+        (error) => error.kind === 'console'
+      ).length,
+      failureConsoleWarningCount: warningCount
+    });
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
+async function captureRulesHelpOptimizationScenario(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(browser, baseUrl, definition);
+  try {
+    await closeSidePanelForFeatureCapture(runtime.page);
+    const beforeSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const initial = await runtime.page.evaluate((stylesheetPaths) => {
+      const icon = document.querySelector(
+        '#rulesHelpBtn .left-action-icon-help'
+      ) as HTMLElement | null;
+      const responsePaths = new Set(
+        performance.getEntriesByType('resource').map((entry) => {
+          try {
+            return new URL(entry.name).pathname.replace(/^\/+/, '');
+          } catch (_error) {
+            return '';
+          }
+        })
+      );
+      return {
+        backend: String(
+          (window as any).__boardVisualDebug?.getBackendKind?.()
+          || document.documentElement.getAttribute('data-board-visual-backend')
+          || 'none'
+        ),
+        uiInitialized: (window as any).__uiInitialized === true,
+        rulesHelpStylesheetLinkCountBeforeOpen: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="rules-help"]'
+        ).length,
+        rulesHelpStylesheetSlotCount: document.querySelectorAll(
+          '[data-card-reversi-feature-style-slot^="rules-help"]'
+        ).length,
+        rulesHelpInnerDomCountBeforeOpen: document.querySelectorAll(
+          '#rules-help-panel > *'
+        ).length,
+        rulesHelpImageElementCountBeforeOpen: document.querySelectorAll(
+          '#rules-help-panel img'
+        ).length,
+        rulesHelpResourceCountBeforeOpen: stylesheetPaths.filter(
+          (resourcePath) => responsePaths.has(resourcePath)
+        ).length,
+        rulesHelpOpenIconReady: !!icon && (
+          getComputedStyle(icon).maskImage !== 'none'
+          || getComputedStyle(icon).webkitMaskImage !== 'none'
+        )
+      };
+    }, RULES_HELP_STYLESHEET_PATHS);
+    const responsesBeforeOpen = RULES_HELP_STYLESHEET_PATHS.reduce(
+      (total, resourcePath) => total + countPath(runtime.responsePaths, resourcePath),
+      0
+    );
+    await markProbePhase(runtime.page, 'feature-opening:rules-help');
+    await runtime.page.evaluate(() => {
+      const button = document.getElementById('rulesHelpBtn');
+      button?.addEventListener('click', () => {
+        (window as any).__uxRulesHelpStartedAtMs = performance.now();
+      }, { capture: true, once: true });
+    });
+    await runtime.page.click('#rulesHelpBtn');
+    await runtime.page.waitForFunction(() => {
+      const links = Array.from(document.querySelectorAll<HTMLLinkElement>(
+        'link[data-card-reversi-feature-style^="rules-help"]'
+      ));
+      const guide = document.getElementById(
+        'rules-help-guide-slide-img'
+      ) as HTMLImageElement | null;
+      const protection = document.getElementById(
+        'rules-help-protection-map-img'
+      ) as HTMLImageElement | null;
+      return document.getElementById('rules-help-panel')?.classList.contains('is-open') === true
+        && links.length === 3
+        && links.every((link) => link.dataset.cardReversiFeatureStyleLoaded === 'true')
+        && !!guide?.complete
+        && Number(guide.naturalWidth) > 0
+        && !!protection?.complete
+        && Number(protection.naturalWidth) > 0;
+    }, null, { timeout: 30_000 });
+    await markProbePhase(runtime.page, 'feature-ready:rules-help');
+    const firstOpen = await runtime.page.evaluate((stylesheetPaths) => {
+      const root = window as any;
+      const panel = document.getElementById('rules-help-panel') as HTMLElement | null;
+      const links = Array.from(document.head.querySelectorAll<HTMLLinkElement>(
+        'link[rel="stylesheet"]'
+      ));
+      const featureLinks = Array.from(document.querySelectorAll<HTMLLinkElement>(
+        'link[data-card-reversi-feature-style^="rules-help"]'
+      ));
+      const indexOf = (nameValue: string): number => links.findIndex((candidate) => {
+        try {
+          return new URL(candidate.href).pathname.endsWith(`/${nameValue}`);
+        } catch (_error) {
+          return false;
+        }
+      });
+      const cascadePairs = [
+        ['styles-layout-info.css', stylesheetPaths[0]],
+        ['styles-cards.css', stylesheetPaths[1]],
+        ['styles-responsive.css', stylesheetPaths[2]]
+      ];
+      root.__uxRulesHelpInnerNode = document.getElementById('rules-help-title-row');
+      return {
+        firstOpenLatencyMs:
+          performance.now() - Number(root.__uxRulesHelpStartedAtMs),
+        firstStyleReadyLatencyMs:
+          Math.max(...featureLinks.map((link) => (
+            Number(link.dataset.cardReversiFeatureStyleReadyAt || NaN)
+          ))) - Number(root.__uxRulesHelpStartedAtMs),
+        firstLinkCount: featureLinks.length,
+        firstInnerDomCount: document.querySelectorAll(
+          '#rules-help-panel > #rules-help-title-row, '
+          + '#rules-help-panel > #rules-help-tabs, '
+          + '#rules-help-panel > #rules-help-pages'
+        ).length,
+        firstPanelVisible:
+          Number(panel?.getBoundingClientRect().width || 0) > 0
+          && Number(panel?.getBoundingClientRect().height || 0) > 0,
+        firstFullStyleReady:
+          featureLinks.length === 3
+          && featureLinks.every((link) => (
+            link.dataset.cardReversiFeatureStyleLoaded === 'true'
+          )),
+        firstCascadeOrderPreserved: cascadePairs.every(([source, feature]) => (
+          indexOf(feature) === indexOf(source) + 1
+        )),
+        firstCardCount: document.querySelectorAll(
+          '#rules-help-card-list .rules-help-card-item'
+        ).length,
+        firstGuideComplete:
+          (document.getElementById(
+            'rules-help-guide-slide-img'
+          ) as HTMLImageElement | null)?.complete === true,
+        firstProtectionComplete:
+          (document.getElementById(
+            'rules-help-protection-map-img'
+          ) as HTMLImageElement | null)?.complete === true,
+        initialOpenControlFocused:
+          document.activeElement === document.getElementById('rulesHelpBtn')
+      };
+    }, RULES_HELP_STYLESHEET_PATHS);
+    await runtime.page.waitForTimeout(0);
+    const firstOpenSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+
+    const totalCardCount = Number(firstOpen.firstCardCount || 0);
+    await runtime.page.fill('#rules-help-card-search', '__monitor_no_match__');
+    const search = await runtime.page.evaluate(() => ({
+      searchNoMatchWorked: document.querySelectorAll(
+        '#rules-help-card-list .rules-help-card-item'
+      ).length === 0,
+      searchStatusUpdated:
+        document.getElementById('rules-help-card-filter-status')
+          ?.textContent?.trim().startsWith('0 /') === true
+    }));
+    await runtime.page.click('#rules-help-card-filter-clear');
+    const clear = await runtime.page.evaluate((expectedCount) => ({
+      searchClearWorked:
+        (document.getElementById('rules-help-card-search') as HTMLInputElement | null)
+          ?.value === ''
+        && document.querySelectorAll(
+          '#rules-help-card-list .rules-help-card-item'
+        ).length === expectedCount
+    }), totalCardCount);
+    await runtime.page.click('#rules-help-card-tag-filters .rules-help-card-tag-filter');
+    const tag = await runtime.page.evaluate((expectedCount) => {
+      const button = document.querySelector(
+        '#rules-help-card-tag-filters .rules-help-card-tag-filter'
+      );
+      const filteredCount = document.querySelectorAll(
+        '#rules-help-card-list .rules-help-card-item'
+      ).length;
+      return {
+        tagFilterWorked:
+          button?.getAttribute('aria-pressed') === 'true'
+          && filteredCount > 0
+          && filteredCount <= expectedCount
+      };
+    }, totalCardCount);
+    await runtime.page.click('[data-help-tab="effects"]');
+    const effects = await runtime.page.evaluate(() => ({
+      effectsTabWorked:
+        document.getElementById('rules-help-page-effects')
+          ?.getAttribute('aria-hidden') === 'false'
+        && document.querySelectorAll('#rules-help-effects-list > *').length > 0
+    }));
+    await runtime.page.click('[data-help-tab="guide"]');
+    await runtime.page.click('#rules-help-guide-next');
+    await runtime.page.waitForFunction(() => {
+      const image = document.getElementById(
+        'rules-help-guide-slide-img'
+      ) as HTMLImageElement | null;
+      return document.getElementById('rules-help-guide-page-status')
+        ?.textContent?.trim() === '2 / 8'
+        && !!image?.complete
+        && Number(image.naturalWidth) > 0;
+    }, null, { timeout: 30_000 });
+    const guide = await runtime.page.evaluate(() => ({
+      guideNextWorked:
+        document.getElementById('rules-help-guide-page-status')
+          ?.textContent?.trim() === '2 / 8'
+    }));
+    await runtime.page.click('[data-help-tab="protection-map"]');
+    await runtime.page.click('#rules-help-protection-map-next');
+    await runtime.page.waitForFunction(() => {
+      const image = document.getElementById(
+        'rules-help-protection-map-img'
+      ) as HTMLImageElement | null;
+      return document.getElementById('rules-help-protection-map-page-status')
+        ?.textContent?.trim() === '2 / 2'
+        && !!image?.complete
+        && Number(image.naturalWidth) > 0;
+    }, null, { timeout: 30_000 });
+    const protection = await runtime.page.evaluate(() => ({
+      protectionNextWorked:
+        document.getElementById('rules-help-protection-map-page-status')
+          ?.textContent?.trim() === '2 / 2'
+        && document.getElementById('rules-help-protection-map-img')
+          ?.getAttribute('data-card-reversi-logical-src')
+          ?.endsWith('/protection-penetration-explainer.png') === true
+    }));
+    await runtime.page.click('[data-help-tab="counters"]');
+    const counters = await runtime.page.evaluate(() => {
+      const panel = document.getElementById('rules-help-panel');
+      const tab = document.querySelector(
+        '[data-help-tab="counters"]'
+      ) as HTMLButtonElement | null;
+      tab?.focus();
+      return {
+        countersTabWorked:
+          document.getElementById('rules-help-page-counters')
+            ?.getAttribute('aria-hidden') === 'false',
+        focusWithinPanel:
+          !!document.activeElement && !!panel?.contains(document.activeElement)
+      };
+    });
+    await runtime.page.keyboard.press('Escape');
+    const escapeClose = await runtime.page.evaluate(() => ({
+      escapeClosed:
+        document.getElementById('rules-help-panel')?.classList.contains('is-open') !== true,
+      escapeFocusReturned:
+        document.activeElement === document.getElementById('rulesHelpBtn')
+    }));
+    await runtime.page.click('#rulesHelpBtn');
+    await runtime.page.waitForSelector('#rules-help-panel.is-open', {
+      state: 'visible',
+      timeout: 30_000
+    });
+    const reopen = await runtime.page.evaluate(() => {
+      const diagnosticsModule = (window as any).require?.(
+        'ui/assets/lazy-feature-surface'
+      );
+      const diagnostics = diagnosticsModule?.getLazyFeatureSurfaceDiagnostics?.(
+        'rules-help',
+        document
+      ) || null;
+      return {
+        reopenSameInnerNode:
+          (window as any).__uxRulesHelpInnerNode
+            === document.getElementById('rules-help-title-row'),
+        reopenLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style^="rules-help"]'
+        ).length,
+        reopenInnerDomCount: document.querySelectorAll(
+          '#rules-help-panel > #rules-help-title-row, '
+          + '#rules-help-panel > #rules-help-tabs, '
+          + '#rules-help-panel > #rules-help-pages'
+        ).length,
+        diagnosticsAttemptCount: Number(diagnostics?.attemptCount || 0),
+        diagnosticsDomCreatedCount: Number(diagnostics?.domCreatedCount || 0),
+        diagnosticsReadyCount: Number(diagnostics?.readyCount || 0),
+        diagnosticsFailureCount: Number(diagnostics?.failureCount || 0),
+        diagnosticsListenerBindingCount: Number(
+          diagnostics?.listenerBindingCount || 0
+        )
+      };
+    });
+    await runtime.page.click('#rules-help-backdrop', {
+      position: { x: 1, y: 1 }
+    });
+    await runtime.page.waitForFunction(() => (
+      document.activeElement === document.getElementById('rulesHelpBtn')
+    ), null, { timeout: 10_000 });
+    const backdropClose = await runtime.page.evaluate(() => ({
+      backdropClosed:
+        document.getElementById('rules-help-panel')?.classList.contains('is-open') !== true,
+      backdropFocusReturned:
+        document.activeElement === document.getElementById('rulesHelpBtn')
+    }));
+    const afterSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const startedAtMs = await runtime.page.evaluate(() => (
+      Number((window as any).__uxRulesHelpStartedAtMs)
+    ));
+    const failure = await captureFailedRulesHelpStylesheetPath(
+      browser,
+      baseUrl,
+      definition
+    );
+    return await captureRuntimeSnapshot(runtime, definition, {
+      ...initial,
+      ...firstOpen,
+      ...search,
+      ...clear,
+      ...tag,
+      ...effects,
+      ...guide,
+      ...protection,
+      ...counters,
+      ...escapeClose,
+      ...reopen,
+      ...backdropClose,
+      ...failure,
+      rulesHelpResponseCountBeforeOpen: responsesBeforeOpen,
+      rulesHelpResponseCountAfterOpen: RULES_HELP_STYLESHEET_PATHS.reduce(
+        (total, resourcePath) => total + countPath(runtime.responsePaths, resourcePath),
+        0
+      ),
+      firstOpenLongTaskSupported: firstOpenSnapshot.capabilities.longTask,
+      firstOpenLongTaskCount: firstOpenSnapshot.longTasks.filter(
+        (entry) => entry.startMs >= startedAtMs
+      ).length,
+      clsDelta: Math.max(0, afterSnapshot.cls - beforeSnapshot.cls)
     });
   } finally {
     await closeBootRuntime(runtime, true);
@@ -2371,6 +2855,15 @@ export async function captureUxOptimizationMonitor(
     for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
       if (definition.id !== 'feature.profile') continue;
       replaceScenario(await captureProfileOptimizationScenario(
+        browser,
+        baseUrl,
+        definition
+      ));
+    }
+
+    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+      if (definition.id !== 'feature.rules-help') continue;
+      replaceScenario(await captureRulesHelpOptimizationScenario(
         browser,
         baseUrl,
         definition

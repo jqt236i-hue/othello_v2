@@ -104,7 +104,10 @@ describe('prepare-worker-assets', () => {
         expect(ROOT_FILES).toEqual(expect.arrayContaining([
             'styles-feature-deck-builder.css',
             'styles-feature-gacha.css',
-            'styles-feature-network.css'
+            'styles-feature-network.css',
+            'styles-feature-rules-help-layout-info.css',
+            'styles-feature-rules-help-cards.css',
+            'styles-feature-rules-help-responsive.css'
         ]));
         expect(ROOT_FILES).toContain('styles-board-dom-compat.css');
         expect(VERIFY_ROOT_FILES).toContain('entry-browser.js');
@@ -116,7 +119,10 @@ describe('prepare-worker-assets', () => {
         expect(VERIFY_ROOT_FILES).toEqual(expect.arrayContaining([
             'styles-feature-deck-builder.css',
             'styles-feature-gacha.css',
-            'styles-feature-network.css'
+            'styles-feature-network.css',
+            'styles-feature-rules-help-layout-info.css',
+            'styles-feature-rules-help-cards.css',
+            'styles-feature-rules-help-responsive.css'
         ]));
         expect(VERIFY_ROOT_FILES).toContain('styles-board-dom-compat.css');
     });

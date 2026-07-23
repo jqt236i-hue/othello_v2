@@ -183,6 +183,58 @@ describe('lazy feature surface', () => {
     dom.window.close();
   });
 
+  test('loads every stylesheet group and discards every group when one fails', async () => {
+    const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {
+      url: 'https://example.test/?debug=1&uxMonitor=1'
+    });
+    const ensureFeatureStylesheet = jest.fn(async (group: string) => ({
+      ok: group !== 'rules-help-cards',
+      group,
+      href: `${group}.css`,
+      ...(group === 'rules-help-cards' ? { warning: 'cards stylesheet failed' } : {})
+    }));
+    const discardFeatureStylesheet = jest.fn();
+    jest.doMock('../ui/assets/feature-stylesheet-loader', () => ({
+      ensureFeatureStylesheet,
+      discardFeatureStylesheet
+    }));
+    const surface = require('../ui/assets/lazy-feature-surface.ts');
+    const groups = [
+      'rules-help-layout-info',
+      'rules-help-cards',
+      'rules-help-responsive'
+    ];
+    const node = dom.window.document.createElement('section');
+    surface.registerLazyFeatureSurface({
+      id: 'rules-help',
+      stylesheetGroups: groups,
+      ensureDom(context: any) {
+        dom.window.document.body.appendChild(node);
+        context.recordDomCreated();
+        context.addCleanup(() => node.remove());
+        return node;
+      }
+    });
+
+    await expect(surface.ensureLazyFeatureSurface(
+      'rules-help',
+      dom.window.document
+    )).rejects.toThrow('cards stylesheet failed');
+    expect(ensureFeatureStylesheet.mock.calls.map((call) => call[0])).toEqual(groups);
+    expect(discardFeatureStylesheet.mock.calls.map((call) => call[0])).toEqual(groups);
+    expect(node.isConnected).toBe(false);
+    expect(surface.getLazyFeatureSurfaceDiagnostics(
+      'rules-help',
+      dom.window.document
+    )).toMatchObject({
+      status: 'failed',
+      stylesheetEnsureCount: 3,
+      domCreatedCount: 1,
+      failureCount: 1
+    });
+    dom.window.close();
+  });
+
   test('does not allocate or expose diagnostics in normal play', async () => {
     const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {
       url: 'https://example.test/'

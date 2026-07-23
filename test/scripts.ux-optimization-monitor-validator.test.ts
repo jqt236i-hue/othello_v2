@@ -78,6 +78,7 @@ function validReport(): Record<string, any> {
       const webpAsset = definition.id === 'asset.webp-fallback';
       const resultFeature = definition.id === 'feature.result';
       const profileFeature = definition.id === 'feature.profile';
+      const rulesHelpFeature = definition.id === 'feature.rules-help';
       return {
         id: definition.id,
         lane: definition.lane,
@@ -97,6 +98,12 @@ function validReport(): Record<string, any> {
             ? [{ path: 'styles-layout-result.css' }]
           : profileFeature
             ? [{ path: 'styles-profile.css' }]
+          : rulesHelpFeature
+            ? [
+              { path: 'styles-feature-rules-help-layout-info.css' },
+              { path: 'styles-feature-rules-help-cards.css' },
+              { path: 'styles-feature-rules-help-responsive.css' }
+            ]
           : [{ path: 'assets/images/ui/example.png' }],
         errors: [],
         metrics: firstSpecial
@@ -282,6 +289,71 @@ function validReport(): Record<string, any> {
                     failureRetryCount: 1,
                     clsDelta: 0
                   }
+                : rulesHelpFeature
+                  ? {
+                    backend: 'pixi',
+                    uiInitialized: true,
+                    rulesHelpStylesheetLinkCountBeforeOpen: 0,
+                    rulesHelpStylesheetSlotCount: 3,
+                    rulesHelpInnerDomCountBeforeOpen: 0,
+                    rulesHelpImageElementCountBeforeOpen: 0,
+                    rulesHelpResourceCountBeforeOpen: 0,
+                    rulesHelpResponseCountBeforeOpen: 0,
+                    rulesHelpOpenIconReady: true,
+                    firstOpenLatencyMs: 30,
+                    firstStyleReadyLatencyMs: 12,
+                    firstLinkCount: 3,
+                    firstInnerDomCount: 3,
+                    firstPanelVisible: true,
+                    firstFullStyleReady: true,
+                    firstCascadeOrderPreserved: true,
+                    rulesHelpResponseCountAfterOpen: 3,
+                    firstCardCount: 95,
+                    firstGuideComplete: true,
+                    firstProtectionComplete: true,
+                    initialOpenControlFocused: true,
+                    searchNoMatchWorked: true,
+                    searchStatusUpdated: true,
+                    searchClearWorked: true,
+                    tagFilterWorked: true,
+                    effectsTabWorked: true,
+                    guideNextWorked: true,
+                    protectionNextWorked: true,
+                    countersTabWorked: true,
+                    focusWithinPanel: true,
+                    escapeClosed: true,
+                    escapeFocusReturned: true,
+                    backdropClosed: true,
+                    backdropFocusReturned: true,
+                    reopenSameInnerNode: true,
+                    reopenLinkCount: 3,
+                    reopenInnerDomCount: 3,
+                    diagnosticsAttemptCount: 1,
+                    diagnosticsDomCreatedCount: 1,
+                    diagnosticsReadyCount: 1,
+                    diagnosticsFailureCount: 0,
+                    diagnosticsListenerBindingCount: 120,
+                    failureVisible: true,
+                    failureFocused: true,
+                    failureDialogStable: true,
+                    failureRetryGuidance: true,
+                    failureNormalInnerDomCount: 0,
+                    failureLinkCount: 0,
+                    failureRequestCount: 2,
+                    failureRequestFailureCount: 1,
+                    failureResponseCount: 1,
+                    failureConsoleErrorCount: 1,
+                    failureConsoleWarningCount: 1,
+                    failureRetryReady: true,
+                    failureRetryLinkCount: 3,
+                    failureRetryInnerDomCount: 3,
+                    failureRetryAttemptCount: 2,
+                    failureRetryFailureCount: 1,
+                    failureRetryCount: 1,
+                    firstOpenLongTaskSupported: true,
+                    firstOpenLongTaskCount: 0,
+                    clsDelta: 0
+                  }
                 : webpAsset
                   ? {
                     admission: {
@@ -338,19 +410,25 @@ function validReport(): Record<string, any> {
                     imageConstructorAssignments: [],
                     logicalImageSrcMutations: [],
                     initialHelpImageSrcCount: 0,
-                    initialHelpImageDimensionsReserved: true,
+                    initialHelpImageElementCount: 0,
                     domCompatStylesheetLinkCount: 0,
                     domCompatStylesheetSlotCount: 1,
                     resultStylesheetLinkCount: 0,
                     resultStylesheetSlotCount: 1,
                     profileStylesheetLinkCount: 0,
                     profileStylesheetSlotCount: 1,
-                    featureInnerDomCounts: { result: 0, profile: 0 }
+                    rulesHelpStylesheetLinkCount: 0,
+                    rulesHelpStylesheetSlotCount: 3,
+                    featureInnerDomCounts: { result: 0, profile: 0, rulesHelp: 0 }
                   }
                   : help
                     ? {
                       backend: 'pixi',
                       uiInitialized: true,
+                      initialInnerDomCount: 0,
+                      initialImageElementCount: 0,
+                      initialStylesheetLinkCount: 0,
+                      stylesheetSlotCount: 3,
                       initialSrcCount: 0,
                       dimensionsReserved: true,
                       panelOpen: true,
@@ -628,6 +706,44 @@ describe('UX optimization monitor validator', () => {
       'help requests before first frame: 1',
       'help first-open CLS was 0.02',
       'idle-after open transferred 325700 extra bytes'
+    ]));
+  });
+
+  test('fails eager rules help work, interaction regressions, and failed retry cleanup', () => {
+    const report = validReport();
+    const boot = report.scenarios.find((entry: any) => (
+      entry.id === 'boot.pixi.cold' && entry.lane === 'vite'
+    ));
+    boot.resources.push({ path: 'styles-feature-rules-help-layout-info.css' });
+    boot.metrics.rulesHelpStylesheetLinkCount = 1;
+    boot.metrics.featureInnerDomCounts.rulesHelp = 3;
+    const feature = report.scenarios.find((entry: any) => (
+      entry.id === 'feature.rules-help' && entry.lane === 'vite'
+    ));
+    feature.metrics.searchNoMatchWorked = false;
+    feature.metrics.guideNextWorked = false;
+    feature.metrics.failureLinkCount = 2;
+    feature.metrics.failureRetryAttemptCount = 1;
+
+    const result = validateUxOptimizationReport(report, {
+      targetOptimizationIds: ['feature-rules-help']
+    });
+    const bootCheck = result.checks.find(
+      (entry) => entry.id === 'scenario.boot.pixi.cold:vite:pixi'
+    );
+    const featureCheck = result.checks.find(
+      (entry) => entry.id === 'scenario.feature.rules-help:vite:pixi'
+    );
+    expect(result.focusedVerdict).toBe('fail');
+    expect(bootCheck?.reasons).toEqual(expect.arrayContaining([
+      'boot requested rules help CSS 1 time(s)',
+      'boot mounted 1 rules help stylesheet link(s)',
+      'boot rules help inner DOM count was 3'
+    ]));
+    expect(featureCheck?.reasons).toEqual(expect.arrayContaining([
+      'rules help search, filter, tab, or slide interaction changed',
+      'rules help stylesheet failure was not closable or did not clean partial DOM/style',
+      'rules help stylesheet retry did not recover with one retained surface'
     ]));
   });
 

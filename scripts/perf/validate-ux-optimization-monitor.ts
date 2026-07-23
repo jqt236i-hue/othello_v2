@@ -340,8 +340,10 @@ export function validateUxOptimizationReport(
           `initial help image src count was ${String(metrics.initialHelpImageSrcCount)}`
         );
       }
-      if (metrics.initialHelpImageDimensionsReserved !== true) {
-        reasons.push('initial help image dimensions were not reserved');
+      if (Number(metrics.initialHelpImageElementCount) !== 0) {
+        reasons.push(
+          `initial help image element count was ${String(metrics.initialHelpImageElementCount)}`
+        );
       }
       const compatStylesheetResources = resources.filter(
         (resource: any) => String(resource?.path || '') === 'styles-board-dom-compat.css'
@@ -405,6 +407,33 @@ export function validateUxOptimizationReport(
       if (Number(metrics.featureInnerDomCounts?.profile) !== 0) {
         reasons.push(
           `boot profile inner DOM count was ${String(metrics.featureInnerDomCounts?.profile)}`
+        );
+      }
+      const rulesHelpStylesheetResources = resources.filter(
+        (resource: any) => [
+          'styles-feature-rules-help-layout-info.css',
+          'styles-feature-rules-help-cards.css',
+          'styles-feature-rules-help-responsive.css'
+        ].includes(String(resource?.path || ''))
+      );
+      if (rulesHelpStylesheetResources.length !== 0) {
+        reasons.push(
+          `boot requested rules help CSS ${rulesHelpStylesheetResources.length} time(s)`
+        );
+      }
+      if (Number(metrics.rulesHelpStylesheetLinkCount) !== 0) {
+        reasons.push(
+          `boot mounted ${String(metrics.rulesHelpStylesheetLinkCount)} rules help stylesheet link(s)`
+        );
+      }
+      if (Number(metrics.rulesHelpStylesheetSlotCount) !== 3) {
+        reasons.push(
+          `rules help stylesheet slot count was ${String(metrics.rulesHelpStylesheetSlotCount)}`
+        );
+      }
+      if (Number(metrics.featureInnerDomCounts?.rulesHelp) !== 0) {
+        reasons.push(
+          `boot rules help inner DOM count was ${String(metrics.featureInnerDomCounts?.rulesHelp)}`
         );
       }
     }
@@ -670,6 +699,151 @@ export function validateUxOptimizationReport(
         reasons.push(`profile first-open CLS was ${String(metrics.clsDelta)}`);
       }
     }
+    if (scenario.captureStatus === 'complete' && definition.id === 'feature.rules-help') {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      const rulesHelpResources = resources.filter(
+        (resource: any) => [
+          'styles-feature-rules-help-layout-info.css',
+          'styles-feature-rules-help-cards.css',
+          'styles-feature-rules-help-responsive.css'
+        ].includes(String(resource?.path || ''))
+      );
+      if (metrics.backend !== 'pixi') {
+        reasons.push(`rules help scenario backend was ${String(metrics.backend || 'missing')}`);
+      }
+      if (metrics.uiInitialized !== true) {
+        reasons.push('rules help listener initialization did not complete');
+      }
+      if (
+        Number(metrics.rulesHelpStylesheetLinkCountBeforeOpen) !== 0
+        || Number(metrics.rulesHelpResponseCountBeforeOpen) !== 0
+        || Number(metrics.rulesHelpResourceCountBeforeOpen) !== 0
+        || Number(metrics.rulesHelpInnerDomCountBeforeOpen) !== 0
+        || Number(metrics.rulesHelpImageElementCountBeforeOpen) !== 0
+      ) {
+        reasons.push('rules help CSS, response, inner DOM, or images existed before first open');
+      }
+      if (Number(metrics.rulesHelpStylesheetSlotCount) !== 3) {
+        reasons.push(
+          `rules help stylesheet slot count was ${String(metrics.rulesHelpStylesheetSlotCount)}`
+        );
+      }
+      if (metrics.rulesHelpOpenIconReady !== true) {
+        reasons.push('rules help open control icon was not styled at boot');
+      }
+      if (
+        Number(metrics.firstLinkCount) !== 3
+        || Number(metrics.firstInnerDomCount) !== 3
+        || metrics.firstPanelVisible !== true
+        || metrics.firstFullStyleReady !== true
+        || metrics.firstCascadeOrderPreserved !== true
+        || Number(metrics.rulesHelpResponseCountAfterOpen) !== 3
+        || rulesHelpResources.length !== 3
+      ) {
+        reasons.push(
+          'rules help first open did not settle to three visible DOM/style fragments in canonical cascade order'
+        );
+      }
+      if (
+        !Number.isFinite(Number(metrics.firstOpenLatencyMs))
+        || Number(metrics.firstOpenLatencyMs)
+          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+        || !Number.isFinite(Number(metrics.firstStyleReadyLatencyMs))
+        || Number(metrics.firstStyleReadyLatencyMs)
+          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+      ) {
+        reasons.push(
+          `rules help first-open/style latency was ${String(metrics.firstOpenLatencyMs)}/${String(metrics.firstStyleReadyLatencyMs)}ms`
+        );
+      }
+      if (
+        Number(metrics.firstCardCount) <= 0
+        || metrics.firstGuideComplete !== true
+        || metrics.firstProtectionComplete !== true
+        || metrics.initialOpenControlFocused !== true
+      ) {
+        reasons.push('rules help initial catalog, images, or focus was incomplete');
+      }
+      if (
+        metrics.searchNoMatchWorked !== true
+        || metrics.searchStatusUpdated !== true
+        || metrics.searchClearWorked !== true
+        || metrics.tagFilterWorked !== true
+        || metrics.effectsTabWorked !== true
+        || metrics.guideNextWorked !== true
+        || metrics.protectionNextWorked !== true
+        || metrics.countersTabWorked !== true
+      ) {
+        reasons.push('rules help search, filter, tab, or slide interaction changed');
+      }
+      if (
+        metrics.focusWithinPanel !== true
+        || metrics.escapeClosed !== true
+        || metrics.escapeFocusReturned !== true
+        || metrics.backdropClosed !== true
+        || metrics.backdropFocusReturned !== true
+      ) {
+        reasons.push('rules help focus, Escape, backdrop, or focus return behavior failed');
+      }
+      if (
+        metrics.reopenSameInnerNode !== true
+        || Number(metrics.reopenLinkCount) !== 3
+        || Number(metrics.reopenInnerDomCount) !== 3
+        || Number(metrics.diagnosticsAttemptCount) !== 1
+        || Number(metrics.diagnosticsDomCreatedCount) !== 1
+        || Number(metrics.diagnosticsReadyCount) !== 1
+        || Number(metrics.diagnosticsFailureCount) !== 0
+        || Number(metrics.diagnosticsListenerBindingCount) <= 0
+      ) {
+        reasons.push('rules help reopen regenerated DOM/style or rebound the prepared surface');
+      }
+      if (
+        metrics.failureVisible !== true
+        || metrics.failureFocused !== true
+        || metrics.failureDialogStable !== true
+        || metrics.failureRetryGuidance !== true
+        || Number(metrics.failureNormalInnerDomCount) !== 0
+        || Number(metrics.failureLinkCount) !== 0
+      ) {
+        reasons.push('rules help stylesheet failure was not closable or did not clean partial DOM/style');
+      }
+      if (
+        Number(metrics.failureRequestCount) !== 2
+        || Number(metrics.failureRequestFailureCount) !== 1
+        || Number(metrics.failureResponseCount) !== 1
+        || Number(metrics.failureConsoleErrorCount) !== 1
+        || Number(metrics.failureConsoleWarningCount) !== 1
+      ) {
+        reasons.push('rules help stylesheet injected failure evidence was not exact');
+      }
+      if (
+        metrics.failureRetryReady !== true
+        || Number(metrics.failureRetryLinkCount) !== 3
+        || Number(metrics.failureRetryInnerDomCount) !== 3
+        || Number(metrics.failureRetryAttemptCount) !== 2
+        || Number(metrics.failureRetryFailureCount) !== 1
+        || Number(metrics.failureRetryCount) !== 1
+      ) {
+        reasons.push('rules help stylesheet retry did not recover with one retained surface');
+      }
+      if (
+        metrics.firstOpenLongTaskSupported !== true
+        || Number(metrics.firstOpenLongTaskCount) !== 0
+      ) {
+        reasons.push(
+          `rules help first-open long tasks were ${String(metrics.firstOpenLongTaskCount)}`
+        );
+      }
+      if (
+        typeof metrics.clsDelta !== 'number'
+        || !Number.isFinite(metrics.clsDelta)
+        || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+      ) {
+        reasons.push(`rules help first-open CLS was ${String(metrics.clsDelta)}`);
+      }
+    }
     if (
       scenario.captureStatus === 'complete'
       && ['help.before-idle', 'help.after-idle'].includes(definition.id)
@@ -681,6 +855,18 @@ export function validateUxOptimizationReport(
         reasons.push(`help scenario backend was ${String(metrics.backend || 'missing')}`);
       }
       if (metrics.uiInitialized !== true) reasons.push('help listener initialization did not complete');
+      if (
+        Number(metrics.initialInnerDomCount) !== 0
+        || Number(metrics.initialImageElementCount) !== 0
+        || Number(metrics.initialStylesheetLinkCount) !== 0
+      ) {
+        reasons.push('rules help DOM, images, or stylesheet existed before open');
+      }
+      if (Number(metrics.stylesheetSlotCount) !== 3) {
+        reasons.push(
+          `rules help stylesheet slot count was ${String(metrics.stylesheetSlotCount)}`
+        );
+      }
       if (Number(metrics.initialSrcCount) !== 0) {
         reasons.push(`help images had ${String(metrics.initialSrcCount)} initial src attribute(s)`);
       }

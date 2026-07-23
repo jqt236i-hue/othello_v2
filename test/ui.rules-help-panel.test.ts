@@ -2,6 +2,18 @@ import { JSDOM } from 'jsdom';
 const fs = require('fs');
 const path = require('path');
 const { readDomCompatBoardCssSurface } = require('./helpers/css-test-helpers');
+
+function readRulesHelpTemplateSource(): string {
+  return fs.readFileSync(path.resolve(__dirname, '../ui/handlers/rules-help-template.ts'), 'utf8');
+}
+
+function readRulesHelpLayoutCssSurface(): string {
+  return [
+    fs.readFileSync(path.resolve(__dirname, '../styles-layout-info.css'), 'utf8'),
+    fs.readFileSync(path.resolve(__dirname, '../styles-feature-rules-help-layout-info.css'), 'utf8')
+  ].join('\n');
+}
+
 describe('rules help panel', () => {
   function setDom(html) {
     const dom = new JSDOM(html);
@@ -88,7 +100,141 @@ describe('rules help panel', () => {
     expect(document.getElementById('rules-help-effects-list').children.length).toBeGreaterThan(0);
   });
 
-  test('backdrop click closes without reaching board handler', () => {
+  test('lazy shell creates styles and inner DOM once across close and reopen', async () => {
+    setDom(`<!doctype html><html><head>
+      <base href="https://example.test/">
+      <meta data-card-reversi-feature-style-slot="rules-help-layout-info"
+        data-card-reversi-feature-style-href="styles-feature-rules-help-layout-info.css">
+      <meta data-card-reversi-feature-style-slot="rules-help-cards"
+        data-card-reversi-feature-style-href="styles-feature-rules-help-cards.css">
+      <meta data-card-reversi-feature-style-slot="rules-help-responsive"
+        data-card-reversi-feature-style-href="styles-feature-rules-help-responsive.css">
+    </head><body>
+      <button id="rulesHelpBtn" aria-expanded="false"></button>
+      <div id="rules-help-backdrop" aria-hidden="true"></div>
+      <div id="rules-help-panel" aria-hidden="true"></div>
+    </body></html>`);
+    (window as any).DEBUG_MODE_ALLOWED = true;
+    class LoadedImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      decode = () => Promise.resolve();
+      set src(_value: string) {
+        Promise.resolve().then(() => this.onload?.());
+      }
+    }
+    (global as any).Image = LoadedImage;
+    const mod = require('../ui/handlers/rules-help.js');
+    const lazySurface = require('../ui/assets/lazy-feature-surface.ts');
+    const btn = document.getElementById('rulesHelpBtn') as HTMLButtonElement;
+    const panel = document.getElementById('rules-help-panel') as HTMLElement;
+    const controller = mod.setupRulesHelp(btn, panel);
+    const styleLinks = () => Array.from(document.querySelectorAll(
+      'link[data-card-reversi-feature-style^="rules-help"]'
+    )) as HTMLLinkElement[];
+
+    expect(panel.childElementCount).toBe(0);
+    expect(styleLinks()).toHaveLength(0);
+
+    const readyPromise = controller.ensureReady();
+    expect(panel.querySelector('#rules-help-title-row')).not.toBeNull();
+    expect(styleLinks()).toHaveLength(3);
+    styleLinks().forEach((link) => link.dispatchEvent(new window.Event('load')));
+    await readyPromise;
+    controller.setOpen(true);
+    await Promise.resolve();
+
+    expect(panel.classList.contains('is-open')).toBe(true);
+    expect(btn.getAttribute('aria-expanded')).toBe('true');
+    const titleRow = panel.querySelector('#rules-help-title-row');
+    const diagnosticsAfterOpen = lazySurface.getLazyFeatureSurfaceDiagnostics(
+      mod.RULES_HELP_SURFACE_ID,
+      document
+    );
+    expect(diagnosticsAfterOpen).toMatchObject({
+      status: 'ready',
+      attemptCount: 1,
+      stylesheetEnsureCount: 3,
+      domEnsureCount: 1,
+      domCreatedCount: 1,
+      readyCount: 1,
+      failureCount: 0
+    });
+
+    (panel.querySelector('#rules-help-close-btn') as HTMLButtonElement).click();
+    expect(panel.classList.contains('is-open')).toBe(false);
+    btn.click();
+    await Promise.resolve();
+
+    expect(panel.classList.contains('is-open')).toBe(true);
+    expect(panel.querySelector('#rules-help-title-row')).toBe(titleRow);
+    expect(styleLinks()).toHaveLength(3);
+    expect(lazySurface.getLazyFeatureSurfaceDiagnostics(
+      mod.RULES_HELP_SURFACE_ID,
+      document
+    )).toEqual(diagnosticsAfterOpen);
+  });
+
+  test('lazy shell removes partial work after stylesheet failure and retries', async () => {
+    setDom(`<!doctype html><html><head>
+      <base href="https://example.test/">
+      <meta data-card-reversi-feature-style-slot="rules-help-layout-info"
+        data-card-reversi-feature-style-href="styles-feature-rules-help-layout-info.css">
+      <meta data-card-reversi-feature-style-slot="rules-help-cards"
+        data-card-reversi-feature-style-href="styles-feature-rules-help-cards.css">
+      <meta data-card-reversi-feature-style-slot="rules-help-responsive"
+        data-card-reversi-feature-style-href="styles-feature-rules-help-responsive.css">
+    </head><body>
+      <button id="rulesHelpBtn" aria-expanded="false"></button>
+      <div id="rules-help-backdrop" aria-hidden="true"></div>
+      <div id="rules-help-panel" aria-hidden="true"></div>
+    </body></html>`);
+    class LoadedImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      decode = () => Promise.resolve();
+      set src(_value: string) {
+        Promise.resolve().then(() => this.onload?.());
+      }
+    }
+    (global as any).Image = LoadedImage;
+    const mod = require('../ui/handlers/rules-help.js');
+    const btn = document.getElementById('rulesHelpBtn') as HTMLButtonElement;
+    const panel = document.getElementById('rules-help-panel') as HTMLElement;
+    const controller = mod.setupRulesHelp(btn, panel);
+    const styleLinks = () => Array.from(document.querySelectorAll(
+      'link[data-card-reversi-feature-style^="rules-help"]'
+    )) as HTMLLinkElement[];
+
+    const failedPromise = controller.ensureReady();
+    const firstAttemptLinks = styleLinks();
+    expect(firstAttemptLinks).toHaveLength(3);
+    firstAttemptLinks[0].dispatchEvent(new window.Event('error'));
+    firstAttemptLinks.slice(1).forEach((link) => link.dispatchEvent(new window.Event('load')));
+    await expect(failedPromise).rejects.toThrow();
+    await Promise.resolve();
+
+    expect(styleLinks()).toHaveLength(0);
+    expect(panel.querySelector('#rules-help-title-row')).toBeNull();
+    expect(panel.classList.contains('rules-help-surface-failure')).toBe(true);
+    expect(panel.textContent).toContain('もう一度押すと再試行');
+
+    (panel.querySelector('button') as HTMLButtonElement).click();
+    expect(panel.childElementCount).toBe(0);
+    const retryPromise = controller.ensureReady();
+    const retryLinks = styleLinks();
+    expect(retryLinks).toHaveLength(3);
+    retryLinks.forEach((link) => link.dispatchEvent(new window.Event('load')));
+    await retryPromise;
+    controller.setOpen(true);
+    await Promise.resolve();
+
+    expect(panel.classList.contains('is-open')).toBe(true);
+    expect(panel.querySelector('#rules-help-title-row')).not.toBeNull();
+    expect(styleLinks()).toHaveLength(3);
+  });
+
+  test('backdrop click closes, returns focus, and does not reach board handler', async () => {
     const mod = require('../ui/handlers/rules-help.js');
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
@@ -105,6 +251,8 @@ describe('rules help panel', () => {
     dispatchPointer(backdrop);
     expect(hit).toBe(0);
     expect(panel.classList.contains('is-open')).toBe(false);
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    expect(document.activeElement).toBe(btn);
   });
 
   test('closes by top-right close button', () => {
@@ -524,17 +672,17 @@ describe('rules help panel', () => {
   });
 
   test('effect glossary list includes 反転回避 and 破壊回避 entries', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    expect(html).toMatch(/<dt>\s*反転回避\s*<\/dt>/);
-    expect(html).toMatch(/<dt>\s*破壊回避\s*<\/dt>/);
-    expect(html).toMatch(/<dt>\s*破壊／爆発\s*<\/dt>\s*<dd>石を破壊して盤面から消す効果。反転保護では防げないが、完全保護・不可侵には効かない。<\/dd>/);
+    const template = readRulesHelpTemplateSource();
+    expect(template).toMatch(/<dt>\s*反転回避\s*<\/dt>/);
+    expect(template).toMatch(/<dt>\s*破壊回避\s*<\/dt>/);
+    expect(template).toMatch(/<dt>\s*破壊／爆発\s*<\/dt>\s*<dd>石を破壊して盤面から消す効果。反転保護では防げないが、完全保護・不可侵には効かない。<\/dd>/);
   });
 
   test('effect glossary list includes 封鎖 and 凍結 and 時間停止 entries', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    expect(html).toMatch(/<dt>\s*封鎖\s*<\/dt>/);
-    expect(html).toMatch(/<dt>\s*凍結\s*<\/dt>/);
-    expect(html).toMatch(/<dt>\s*時間停止\s*<\/dt>/);
+    const template = readRulesHelpTemplateSource();
+    expect(template).toMatch(/<dt>\s*封鎖\s*<\/dt>/);
+    expect(template).toMatch(/<dt>\s*凍結\s*<\/dt>/);
+    expect(template).toMatch(/<dt>\s*時間停止\s*<\/dt>/);
   });
 
   test('effect glossary shares card tag descriptions and includes inviolable', () => {
@@ -618,8 +766,8 @@ describe('rules help panel', () => {
   });
 
   test('effect glossary explains taboo reverse behavior', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    expect(html).toMatch(/<dt>\s*禁忌反転\s*<\/dt>\s*<dd>挟めなくても反転可能。実際に反転する枚数が最大の列1方向のみ選ぶ。<\/dd>/);
+    const template = readRulesHelpTemplateSource();
+    expect(template).toMatch(/<dt>\s*禁忌反転\s*<\/dt>\s*<dd>挟めなくても反転可能。実際に反転する枚数が最大の列1方向のみ選ぶ。<\/dd>/);
   });
 
   test('rules-help.js EFFECT_GLOSSARY_TERMS includes glossary highlight additions', () => {
@@ -634,45 +782,47 @@ describe('rules help panel', () => {
   });
 
   test('index html omits update info help tab', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    expect(html).not.toMatch(/data-help-tab="updates"/);
-    expect(html).not.toMatch(/アップデート情報/);
-    expect(html).not.toMatch(/id="rules-help-updates-list"/);
+    const template = readRulesHelpTemplateSource();
+    expect(template).not.toMatch(/data-help-tab="updates"/);
+    expect(template).not.toMatch(/アップデート情報/);
+    expect(template).not.toMatch(/id="rules-help-updates-list"/);
   });
 
-  test('index html includes card encyclopedia search and tag filter controls', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    expect(html).toMatch(/id="rules-help-card-search"/);
-    expect(html).toMatch(/id="rules-help-card-tag-filters"/);
-    expect(html).toMatch(/id="rules-help-card-filter-status"/);
-    expect(html).toMatch(/id="rules-help-card-filter-clear"/);
+  test('lazy template includes card encyclopedia search and tag filter controls', () => {
+    const template = readRulesHelpTemplateSource();
+    expect(template).toMatch(/id="rules-help-card-search"/);
+    expect(template).toMatch(/id="rules-help-card-tag-filters"/);
+    expect(template).toMatch(/id="rules-help-card-filter-status"/);
+    expect(template).toMatch(/id="rules-help-card-filter-clear"/);
   });
 
-  test('index html includes slide-based rules guide controls', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+  test('lazy template includes slide-based rules guide controls', () => {
+    const template = readRulesHelpTemplateSource();
     const classicHtml = fs.readFileSync(path.resolve(__dirname, '../index.classic.html'), 'utf8');
-    expect(html).toMatch(/id="rules-help-guide-slide-img"/);
-    expect(classicHtml).not.toMatch(/id="rules-help-guide-slide-img"[^>]+\ssrc=/s);
-    expect(classicHtml).toMatch(/data-card-reversi-logical-src="assets\/images\/help\/player-guide\/card-reversi-player-guide-slide-01\.png"/);
-    expect(classicHtml).toMatch(/id="rules-help-guide-slide-img"[^>]+width="1920"[^>]+height="1080"/s);
-    expect(html).toMatch(/id="rules-help-guide-prev"/);
-    expect(html).toMatch(/id="rules-help-guide-next"/);
-    expect(html).toMatch(/id="rules-help-guide-page-status"/);
+    expect(template).toMatch(/id="rules-help-guide-slide-img"/);
+    expect(template).not.toMatch(/id="rules-help-guide-slide-img"[^>]+\ssrc=/s);
+    expect(template).toMatch(/data-card-reversi-logical-src="assets\/images\/help\/player-guide\/card-reversi-player-guide-slide-01\.png"/);
+    expect(template).toMatch(/id="rules-help-guide-slide-img"[^>]+width="1920"[^>]+height="1080"/s);
+    expect(template).toMatch(/id="rules-help-guide-prev"/);
+    expect(template).toMatch(/id="rules-help-guide-next"/);
+    expect(template).toMatch(/id="rules-help-guide-page-status"/);
+    expect(classicHtml).not.toMatch(/id="rules-help-guide-slide-img"/);
   });
 
-  test('index html includes protection penetration map help tab and image', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+  test('lazy template includes protection penetration map help tab and image', () => {
+    const template = readRulesHelpTemplateSource();
     const classicHtml = fs.readFileSync(path.resolve(__dirname, '../index.classic.html'), 'utf8');
-    expect(html).toMatch(/data-help-tab="protection-map">耐性貫通表<\/button>/);
-    expect(html).toMatch(/id="rules-help-page-protection-map"/);
-    expect(html).toMatch(/id="rules-help-protection-map-img"/);
-    expect(classicHtml).not.toMatch(/id="rules-help-protection-map-img"[^>]+\ssrc=/s);
-    expect(classicHtml).toMatch(/data-card-reversi-logical-src="assets\/images\/help\/protection-penetration\/protection-penetration-quick-reference\.png"/);
-    expect(classicHtml).toMatch(/id="rules-help-protection-map-img"[^>]+width="1600"[^>]+height="1080"/s);
-    expect(html).toMatch(/alt="耐性貫通の〇×早見表 1 \/ 2"/);
-    expect(html).toMatch(/id="rules-help-protection-map-prev"/);
-    expect(html).toMatch(/id="rules-help-protection-map-next"/);
-    expect(html).toMatch(/id="rules-help-protection-map-page-status"/);
+    expect(template).toMatch(/data-help-tab="protection-map">耐性貫通表<\/button>/);
+    expect(template).toMatch(/id="rules-help-page-protection-map"/);
+    expect(template).toMatch(/id="rules-help-protection-map-img"/);
+    expect(template).not.toMatch(/id="rules-help-protection-map-img"[^>]+\ssrc=/s);
+    expect(template).toMatch(/data-card-reversi-logical-src="assets\/images\/help\/protection-penetration\/protection-penetration-quick-reference\.png"/);
+    expect(template).toMatch(/id="rules-help-protection-map-img"[^>]+width="1600"[^>]+height="1080"/s);
+    expect(template).toMatch(/alt="耐性貫通の〇×早見表 1 \/ 2"/);
+    expect(template).toMatch(/id="rules-help-protection-map-prev"/);
+    expect(template).toMatch(/id="rules-help-protection-map-next"/);
+    expect(template).toMatch(/id="rules-help-protection-map-page-status"/);
+    expect(classicHtml).not.toMatch(/id="rules-help-protection-map-img"/);
   });
 
   test('protection map next and previous buttons page through explainer and quick reference images', async () => {
@@ -1152,38 +1302,40 @@ describe('rules help panel', () => {
     expect(document.getElementById('rules-help-protection-map-frame').getAttribute('aria-busy')).toBe('false');
   });
 
-  test('index html and css include rules help backdrop layer', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    const css = fs.readFileSync(path.resolve(__dirname, '../styles-layout-info.css'), 'utf8');
+  test('index shell and lazy css include rules help backdrop layer', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.classic.html'), 'utf8');
+    const css = readRulesHelpLayoutCssSurface();
 
     expect(html).toMatch(/id="rules-help-backdrop"/);
+    expect(html).toMatch(/id="rules-help-panel"[^>]*><\/div>/);
+    expect(html).not.toMatch(/id="rules-help-title-row"/);
     expect(css).toMatch(/#rules-help-backdrop\s*\{/);
     expect(css).toMatch(/#rules-help-backdrop\.is-open\s*\{/);
     expect(css).toMatch(/#rules-help-panel\.is-open\s*\{/);
   });
 
-  test('index html includes stone marker help tab and key legend texts', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+  test('lazy template includes stone marker help tab and key legend texts', () => {
+    const template = readRulesHelpTemplateSource();
     const boardCss = readDomCompatBoardCssSurface();
     const rawBoardCss = fs.readFileSync(path.resolve(__dirname, '../styles-board-dom-compat.css'), 'utf8');
-    const layoutCss = fs.readFileSync(path.resolve(__dirname, '../styles-layout-info.css'), 'utf8');
-    expect(html).toMatch(/data-help-tab="guide">ルールと操作<\/button>/);
-    expect(html).toMatch(/data-help-tab="protection-map">耐性貫通表<\/button>/);
-    expect(html).toMatch(/data-help-tab="counters">石マーカー<\/button>/);
-    expect(html).not.toMatch(/data-help-tab="counters">数字UI<\/button>/);
-    expect(html).toMatch(/id="rules-help-guide-slide-img"/);
-    expect(html).toMatch(/完全保護の残りターン/);
-    expect(html).toMatch(/特殊石本体の持続ターン/);
-    expect(html).toMatch(/中央左のピンクハートバッジ/);
-    expect(html).toMatch(/復活可能回数/);
-    expect(html).toMatch(/下中央の赤い三角形数字/);
-    expect(html).toMatch(/カウントダウン専用の残り回数/);
-    expect(html).toMatch(/中央右の灰色バッジ/);
-    expect(html).toMatch(/反転保護の目印/);
-    expect(html).toMatch(/stone-flip-protection-badge/);
-    expect(html).toMatch(/stone-regen-badge/);
-    expect(html).toMatch(/右上の数字/);
-    expect(html).not.toMatch(/右側の縦寄り数字/);
+    const layoutCss = readRulesHelpLayoutCssSurface();
+    expect(template).toMatch(/data-help-tab="guide">ルールと操作<\/button>/);
+    expect(template).toMatch(/data-help-tab="protection-map">耐性貫通表<\/button>/);
+    expect(template).toMatch(/data-help-tab="counters">石マーカー<\/button>/);
+    expect(template).not.toMatch(/data-help-tab="counters">数字UI<\/button>/);
+    expect(template).toMatch(/id="rules-help-guide-slide-img"/);
+    expect(template).toMatch(/完全保護の残りターン/);
+    expect(template).toMatch(/特殊石本体の持続ターン/);
+    expect(template).toMatch(/中央左のピンクハートバッジ/);
+    expect(template).toMatch(/復活可能回数/);
+    expect(template).toMatch(/下中央の赤い三角形数字/);
+    expect(template).toMatch(/カウントダウン専用の残り回数/);
+    expect(template).toMatch(/中央右の灰色バッジ/);
+    expect(template).toMatch(/反転保護の目印/);
+    expect(template).toMatch(/stone-flip-protection-badge/);
+    expect(template).toMatch(/stone-regen-badge/);
+    expect(template).toMatch(/右上の数字/);
+    expect(template).not.toMatch(/右側の縦寄り数字/);
     expect(boardCss).toMatch(/\.guard-timer,[\s\S]*?\.rules-help-counter-demo \.guard-timer\s*\{[\s\S]*?top:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
     expect(boardCss).toMatch(/\.bomb-timer,\s*\.countdown-timer,[\s\S]*?\.rules-help-counter-demo \.countdown-timer\s*\{[\s\S]*?bottom:\s*calc\(-5px \* var\(--layout-stage-scale\)\);/);
     expect(boardCss).toMatch(/\.cell\.has-disc\.has-regen-badge\s*\{[\s\S]*?z-index:\s*calc\(var\(--board-layer-expanded-cell\) \+ 12\);/);
@@ -1209,8 +1361,8 @@ describe('rules help panel', () => {
     expect(layoutCss).toMatch(/\.rules-help-counter-demo \.disc__face\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?border-radius:\s*50%;/);
     expect(layoutCss).toMatch(/\.rules-help-counter-demo \.disc__base-image\s*\{[\s\S]*?background-image:\s*var\(--disc-base-image, var\(--stone-image, none\)\);/);
     expect(layoutCss).toMatch(/\.rules-help-counter-demo \.disc__hud\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?z-index:\s*40;/);
-    expect(html).not.toMatch(/下中央のひし形数字/);
-    expect(html).toMatch(/破壊回避の残り回数/);
+    expect(template).not.toMatch(/下中央のひし形数字/);
+    expect(template).toMatch(/破壊回避の残り回数/);
   });
 
   test('special stone duration timer classes share the green duration palette', () => {
@@ -1248,17 +1400,17 @@ describe('rules help panel', () => {
     }
   });
 
-  test('index html guide uses slide deck instead of static rule copy', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
-    expect(html).toMatch(/id="rules-help-guide-slide-frame"/);
-    expect(html).toMatch(/aria-label="カードリバーシ説明スライド"/);
-    expect(html).toMatch(/alt="カードリバーシ説明スライド 1 \/ 8"/);
-    expect(html).toMatch(/前へ/);
-    expect(html).toMatch(/次へ/);
-    expect(html).not.toMatch(/id="rules-help-rules-list"/);
-    expect(html).not.toMatch(/id="rules-help-controls-list"/);
-    expect(html).not.toMatch(/右下パネルで「CPU \/ ネット対戦」、音量、BGMを調整できます。/);
-    expect(html).not.toMatch(/長押しすると/);
+  test('lazy guide uses slide deck instead of static rule copy', () => {
+    const template = readRulesHelpTemplateSource();
+    expect(template).toMatch(/id="rules-help-guide-slide-frame"/);
+    expect(template).toMatch(/aria-label="カードリバーシ説明スライド"/);
+    expect(template).toMatch(/alt="カードリバーシ説明スライド 1 \/ 8"/);
+    expect(template).toMatch(/前へ/);
+    expect(template).toMatch(/次へ/);
+    expect(template).not.toMatch(/id="rules-help-rules-list"/);
+    expect(template).not.toMatch(/id="rules-help-controls-list"/);
+    expect(template).not.toMatch(/右下パネルで「CPU \/ ネット対戦」、音量、BGMを調整できます。/);
+    expect(template).not.toMatch(/長押しすると/);
   });
 
 });

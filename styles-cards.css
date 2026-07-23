@@ -1802,8 +1802,7 @@
     white-space: nowrap;
 }
 
-.card-detail-effect-tag.is-flip-evasion,
-.rules-help-card-tag.is-flip-evasion {
+.card-detail-effect-tag.is-flip-evasion {
     --card-detail-tag-accent: rgba(126, 215, 255, 0.72);
     color: #7ed7ff;
     border-color: rgba(126, 215, 255, 0.56);
@@ -1812,8 +1811,7 @@
         linear-gradient(135deg, rgba(20, 50, 68, 0.92), rgba(8, 13, 16, 0.88));
 }
 
-.card-detail-effect-tag.is-special-stone,
-.rules-help-card-tag.is-special-stone {
+.card-detail-effect-tag.is-special-stone {
     --card-detail-tag-accent: rgba(126, 230, 170, 0.76);
     color: #a8f0c7;
     border-color: rgba(126, 230, 170, 0.58);
@@ -1822,8 +1820,7 @@
         linear-gradient(135deg, rgba(24, 67, 45, 0.94), rgba(8, 14, 11, 0.90));
 }
 
-.card-detail-effect-tag.is-usage-condition,
-.rules-help-card-tag.is-usage-condition {
+.card-detail-effect-tag.is-usage-condition {
     --card-detail-tag-accent: rgba(255, 214, 112, 0.82);
     color: #ffe2a0;
     border-color: rgba(255, 214, 112, 0.62);
@@ -1832,8 +1829,7 @@
         linear-gradient(135deg, rgba(83, 55, 21, 0.94), rgba(17, 12, 8, 0.90));
 }
 
-.card-detail-effect-tag.is-hole-cell,
-.rules-help-card-tag.is-hole-cell {
+.card-detail-effect-tag.is-hole-cell {
     --card-detail-tag-accent: rgba(178, 161, 225, 0.76);
     color: #d0c2ff;
     border-color: rgba(178, 161, 225, 0.58);
@@ -1843,9 +1839,7 @@
 }
 
 .card-detail-effect-tag.is-erasure,
-.rules-help-card-tag.is-erasure,
-.card-detail-effect-tag.is-absolute-execution,
-.rules-help-card-tag.is-absolute-execution {
+.card-detail-effect-tag.is-absolute-execution {
     --card-detail-tag-accent: rgba(255, 92, 92, 0.84);
     color: #ffb0a8;
     border-color: rgba(255, 92, 92, 0.66);
@@ -1854,8 +1848,7 @@
         linear-gradient(135deg, rgba(82, 24, 24, 0.96), rgba(16, 7, 7, 0.92));
 }
 
-.card-detail-effect-tag.is-inviolable,
-.rules-help-card-tag.is-inviolable {
+.card-detail-effect-tag.is-inviolable {
     --card-detail-tag-accent: rgba(244, 126, 194, 0.76);
     color: #ffb6df;
     border-color: rgba(244, 126, 194, 0.60);
@@ -1864,8 +1857,7 @@
         linear-gradient(135deg, rgba(72, 28, 55, 0.94), rgba(15, 8, 13, 0.90));
 }
 
-.card-detail-effect-tag.is-flip-protection,
-.rules-help-card-tag.is-flip-protection {
+.card-detail-effect-tag.is-flip-protection {
     --card-detail-tag-accent: rgba(159, 232, 255, 0.78);
     color: #9fe8ff;
     border-color: rgba(159, 232, 255, 0.62);
@@ -1874,8 +1866,7 @@
         linear-gradient(135deg, rgba(18, 68, 88, 0.94), rgba(8, 14, 16, 0.90));
 }
 
-.card-detail-effect-tag.is-full-protection,
-.rules-help-card-tag.is-full-protection {
+.card-detail-effect-tag.is-full-protection {
     --card-detail-tag-accent: rgba(255, 225, 170, 0.82);
     color: #ffe1aa;
     border-color: rgba(255, 225, 170, 0.64);
@@ -1884,8 +1875,7 @@
         linear-gradient(135deg, rgba(82, 58, 20, 0.94), rgba(14, 13, 9, 0.90));
 }
 
-.card-detail-effect-tag.is-destroy-evasion,
-.rules-help-card-tag.is-destroy-evasion {
+.card-detail-effect-tag.is-destroy-evasion {
     --card-detail-tag-accent: rgba(255, 177, 138, 0.76);
     color: #ffb18a;
     border-color: rgba(255, 177, 138, 0.58);

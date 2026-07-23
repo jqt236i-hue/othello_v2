@@ -15,6 +15,13 @@ function readPngSize(relativePath: string): { width: number; height: number } {
   };
 }
 
+function readRulesHelpLayoutCss(): string {
+  return [
+    readRepoTextFile('styles-layout-info.css'),
+    readRepoTextFile('styles-feature-rules-help-layout-info.css')
+  ].join('\n');
+}
+
 describe('card surface layout contract', () => {
   test('deck and card base surfaces use layout variables', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
@@ -88,7 +95,8 @@ describe('card surface layout contract', () => {
 
   test('effect tag chips keep distinct colors across detail and help surfaces', () => {
     const cardsCss = readRepoTextFile('styles-cards.css');
-    const layoutInfoCss = readRepoTextFile('styles-layout-info.css');
+    const rulesHelpCardsCss = readRepoTextFile('styles-feature-rules-help-cards.css');
+    const layoutInfoCss = readRulesHelpLayoutCss();
     const tagClasses = [
       'is-special-stone',
       'is-usage-condition',
@@ -103,7 +111,8 @@ describe('card surface layout contract', () => {
     ];
 
     for (const className of tagClasses) {
-      expect(cardsCss).toMatch(new RegExp(`\\.card-detail-effect-tag\\.${className},[\\s\\S]*\\.rules-help-card-tag\\.${className}[\\s\\S]*--card-detail-tag-accent:[\\s\\S]*color:[\\s\\S]*border-color:[\\s\\S]*background:`));
+      expect(cardsCss).toMatch(new RegExp(`\\.card-detail-effect-tag\\.${className}[\\s\\S]*--card-detail-tag-accent:[\\s\\S]*color:[\\s\\S]*border-color:[\\s\\S]*background:`));
+      expect(rulesHelpCardsCss).toMatch(new RegExp(`\\.rules-help-card-tag\\.${className}[\\s\\S]*--card-detail-tag-accent:[\\s\\S]*color:[\\s\\S]*border-color:[\\s\\S]*background:`));
       expect(layoutInfoCss).toMatch(new RegExp(`\\.rules-help-card-tag-filter\\.${className}[\\s\\S]*--rules-help-tag-filter-border:[\\s\\S]*--rules-help-tag-filter-color:[\\s\\S]*--rules-help-tag-filter-bg:`));
     }
   });
@@ -142,7 +151,7 @@ describe('card surface layout contract', () => {
   });
 
   test('rules help tag filter layout stays stable while filters are active', () => {
-    const layoutInfoCss = readRepoTextFile('styles-layout-info.css');
+    const layoutInfoCss = readRulesHelpLayoutCss();
 
     expect(layoutInfoCss).toMatch(/#rules-help-catalog-controls\s*\{[\s\S]*grid-template-columns:\s*auto\s+minmax\(180px,\s*260px\)\s+minmax\(0,\s*1fr\)\s+minmax\(calc\(70px\s*\*\s*var\(--layout-stage-scale\)\),\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(layoutInfoCss).toMatch(/#rules-help-card-tag-filters\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(calc\(76px\s*\*\s*var\(--layout-stage-scale\)\),\s*calc\(76px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);

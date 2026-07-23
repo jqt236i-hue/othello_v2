@@ -4,6 +4,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+const LazyFeatureSurface = _require('../assets/lazy-feature-surface');
+const { RULES_HELP_INNER_HTML } = _require('./rules-help-template');
+
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 declare var CardInteractionEffects: any;
@@ -57,6 +60,27 @@ const RULES_HELP_INITIAL_IMAGE_PATHS = [
   RULES_HELP_INITIAL_GUIDE_SRC,
   RULES_HELP_PROTECTION_MAP_SLIDES[0].src
 ];
+const RULES_HELP_SURFACE_ID = 'rules-help';
+const RULES_HELP_STYLESHEET_GROUPS = Object.freeze([
+  'rules-help-layout-info',
+  'rules-help-cards',
+  'rules-help-responsive'
+]);
+
+interface PreparedRulesHelpController {
+  openPanel(): void;
+  closePanel(): void;
+  isOpen(): boolean;
+}
+
+interface RulesHelpPanelController {
+  ok: true;
+  ensureReady(): Promise<PreparedRulesHelpController>;
+  setOpen(open: boolean): void;
+}
+
+const _rulesHelpControllersByDocument =
+  new WeakMap<Document, RulesHelpPanelController>();
 
 type HelpImagePreparationStatus = 'loaded' | 'failed';
 
@@ -585,9 +609,31 @@ function _readCatalogCards(): any[] {
   return _sortCatalogCards(cards);
 }
 
-function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement): void {
-  if (!rulesHelpBtn || !rulesHelpPanel) return;
+function setupPreparedRulesHelp(
+  rulesHelpBtn: HTMLElement,
+  rulesHelpPanel: HTMLElement,
+  options: {
+    bindOpenControl?: boolean;
+    context?: any;
+  } = {}
+): PreparedRulesHelpController {
+  if (!rulesHelpBtn || !rulesHelpPanel) {
+    throw new Error('rules help controls are unavailable');
+  }
   const docRef = rulesHelpPanel.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  if (!docRef) throw new Error('rules help document is unavailable');
+  const context = options.context || null;
+  const bind = (
+    target: EventTarget | null,
+    type: string,
+    listener: EventListener,
+    eventOptions?: boolean | AddEventListenerOptions
+  ): void => {
+    if (!target) return;
+    target.addEventListener(type, listener, eventOptions);
+    context?.recordListenerBinding?.();
+    context?.addCleanup?.(() => target.removeEventListener(type, listener, eventOptions));
+  };
   const rulesHelpBackdrop = docRef ? docRef.getElementById('rules-help-backdrop') : null;
   const closeBtn = rulesHelpPanel.querySelector('#rules-help-close-btn');
   const tabButtons = Array.from(rulesHelpPanel.querySelectorAll('[data-help-tab]'));
@@ -654,8 +700,8 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
       image.removeEventListener('error', settle);
       setHelpImageBusy(image, false);
     };
-    image.addEventListener('load', settle);
-    image.addEventListener('error', settle);
+    bind(image, 'load', settle);
+    bind(image, 'error', settle);
   }
 
   function applyGuideSlide(index: number, displaySrc?: string): void {
@@ -978,7 +1024,7 @@ if (!cardSearchInput) return [];
     closeEl.className = 'rules-help-tag-popover-close';
     closeEl.setAttribute('aria-label', '効果タグ説明を閉じる');
     closeEl.textContent = '×';
-    closeEl.addEventListener('click', (event: Event) => {
+    bind(closeEl, 'click', (event: Event) => {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       closeTagPopover();
     });
@@ -1139,7 +1185,7 @@ const bodyEl = document.createElement('div');
       chip.setAttribute('data-card-tag-kind', tag.kind || '');
       chip.setAttribute('data-card-tag-label', tag.label);
 chip.setAttribute('aria-label', `${tag.label}の説明を表示`);
-      chip.addEventListener('click', (event: Event) => {
+      bind(chip, 'click', (event: Event) => {
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
         if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
         openTagPopover(_getCardTagFilterLabel(tag));
@@ -1164,7 +1210,7 @@ chip.setAttribute('aria-label', `${tag.label}の説明を表示`);
     img.src = path;
     img.alt = '特殊石の見た目';
     img.loading = 'lazy';
-    img.addEventListener('error', () => {
+    bind(img, 'error', () => {
       try { wrap.remove(); } catch (e) { /* ignore */ }
     });
     wrap.appendChild(img);
@@ -1234,7 +1280,7 @@ chip.setAttribute('aria-label', `${tag.label}の説明を表示`);
       itemBtn.setAttribute('aria-selected', 'false');
       itemBtn.setAttribute('aria-label', getCardLabel(card));
       itemBtn.appendChild(createCardListContent(card));
-      itemBtn.addEventListener('click', () => {
+      bind(itemBtn, 'click', () => {
         updateSelectedCard(card.id);
       });
       cardListEl.appendChild(itemBtn);
@@ -1286,7 +1332,7 @@ if (!tagFiltersEl) return;
       filterBtn.setAttribute('data-card-tag-label', tag.label);
       filterBtn.setAttribute('aria-pressed', 'false');
       filterBtn.setAttribute('aria-label', `${tag.label}で絞り込み（${tag.count}枚）`);
-      filterBtn.addEventListener('click', (event: Event) => {
+      bind(filterBtn, 'click', (event: Event) => {
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
         if (activeTagLabels.has(tag.label)) {
           activeTagLabels.delete(tag.label);
@@ -1313,7 +1359,7 @@ if (!tagFiltersEl) return;
       termButton.className = 'rules-help-effect-term-button';
       termButton.textContent = entry.label;
       termButton.setAttribute('aria-label', `${entry.label}の説明を表示`);
-      termButton.addEventListener('click', (event: Event) => {
+      bind(termButton, 'click', (event: Event) => {
         if (event && typeof event.preventDefault === 'function') event.preventDefault();
         openTagPopover(entry.label);
       });
@@ -1386,26 +1432,29 @@ if (!tagFiltersEl) return;
     rulesHelpPanel.classList.remove('is-open');
     rulesHelpPanel.setAttribute('aria-hidden', 'true');
     rulesHelpBtn.setAttribute('aria-expanded', 'false');
+    try { rulesHelpBtn.focus(); } catch (_error) { /* focus return is best-effort */ }
   }
 
-  rulesHelpBtn.addEventListener('click', (event: Event) => {
-    if (event && typeof event.preventDefault === 'function') event.preventDefault();
-    if (isOpen) {
-      closePanel();
-    } else {
-      openPanel();
-    }
-  });
+  if (options.bindOpenControl !== false) {
+    bind(rulesHelpBtn, 'click', (event: Event) => {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      if (isOpen) {
+        closePanel();
+      } else {
+        openPanel();
+      }
+    });
+  }
 
   if (closeBtn) {
-    closeBtn.addEventListener('click', (event: Event) => {
+    bind(closeBtn, 'click', (event: Event) => {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       closePanel();
     });
   }
 
   for (const tabBtn of tabButtons) {
-    tabBtn.addEventListener('click', (event: Event) => {
+    bind(tabBtn, 'click', (event: Event) => {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       ensureHelpContentReady();
       activateTab(tabBtn.getAttribute('data-help-tab') as string);
@@ -1413,57 +1462,66 @@ if (!tagFiltersEl) return;
   }
 
   if (guideSlidePrevBtn) {
-    guideSlidePrevBtn.addEventListener('click', (event: Event) => {
+    bind(guideSlidePrevBtn, 'click', (event: Event) => {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       setGuideSlide(guideSlideIndex - 1);
     });
   }
 
   if (guideSlideNextBtn) {
-    guideSlideNextBtn.addEventListener('click', (event: Event) => {
+    bind(guideSlideNextBtn, 'click', (event: Event) => {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       setGuideSlide(guideSlideIndex + 1);
     });
   }
 
   if (protectionMapPrevBtn) {
-    protectionMapPrevBtn.addEventListener('click', (event: Event) => {
+    bind(protectionMapPrevBtn, 'click', (event: Event) => {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       setProtectionMapSlide(protectionMapIndex - 1);
     });
   }
 
   if (protectionMapNextBtn) {
-    protectionMapNextBtn.addEventListener('click', (event: Event) => {
+    bind(protectionMapNextBtn, 'click', (event: Event) => {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       setProtectionMapSlide(protectionMapIndex + 1);
     });
   }
 
-  document.addEventListener('pointerdown', (event: PointerEvent) => {
+  bind(docRef, 'pointerdown', (event: Event) => {
+    const pointerEvent = event as PointerEvent;
     if (!isOpen) return;
-    const target = event ? event.target as Node : null;
+    const target = pointerEvent ? pointerEvent.target as Node : null;
     if (!target) return;
     if (rulesHelpPanel.contains(target) || rulesHelpBtn.contains(target)) return;
     closePanel();
+    const defaultView = docRef?.defaultView;
+    if (defaultView && typeof defaultView.setTimeout === 'function') {
+      defaultView.setTimeout(() => {
+        if (isOpen) return;
+        try { rulesHelpBtn.focus(); } catch (_error) { /* focus return is best-effort */ }
+      }, 0);
+    }
   }, true);
 
-  document.addEventListener('keydown', (event: KeyboardEvent) => {
+  bind(docRef, 'keydown', (event: Event) => {
+    const keyboardEvent = event as KeyboardEvent;
     if (!isOpen) return;
-    if (!event) return;
-    if (isGuideTabActive() && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
-      event.preventDefault();
-      setGuideSlide(guideSlideIndex + (event.key === 'ArrowRight' ? 1 : -1));
+    if (!keyboardEvent) return;
+    if (isGuideTabActive() && (keyboardEvent.key === 'ArrowLeft' || keyboardEvent.key === 'ArrowRight')) {
+      keyboardEvent.preventDefault();
+      setGuideSlide(guideSlideIndex + (keyboardEvent.key === 'ArrowRight' ? 1 : -1));
       return;
     }
-    if (isProtectionMapTabActive() && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
-      event.preventDefault();
-      setProtectionMapSlide(protectionMapIndex + (event.key === 'ArrowRight' ? 1 : -1));
+    if (isProtectionMapTabActive() && (keyboardEvent.key === 'ArrowLeft' || keyboardEvent.key === 'ArrowRight')) {
+      keyboardEvent.preventDefault();
+      setProtectionMapSlide(protectionMapIndex + (keyboardEvent.key === 'ArrowRight' ? 1 : -1));
       return;
     }
-    if (event.key !== 'Escape') return;
+    if (keyboardEvent.key !== 'Escape') return;
     if (tagPopoverEl && tagPopoverEl.getAttribute('aria-hidden') === 'false') {
-      event.preventDefault();
+      keyboardEvent.preventDefault();
       closeTagPopover();
       return;
     }
@@ -1471,14 +1529,14 @@ if (!tagFiltersEl) return;
   });
 
   if (cardSearchInput) {
-    cardSearchInput.addEventListener('input', () => {
+    bind(cardSearchInput, 'input', () => {
       ensureHelpContentReady();
       renderCatalogCards();
     });
   }
 
   if (filterClearBtn) {
-    filterClearBtn.addEventListener('click', (event: Event) => {
+    bind(filterClearBtn, 'click', (event: Event) => {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       ensureHelpContentReady();
       if (cardSearchInput) cardSearchInput.value = '';
@@ -1494,10 +1552,192 @@ if (!tagFiltersEl) return;
     const activeTab = tabButtons.find((button: any) => button.classList.contains('is-active'));
     activateTab(activeTab ? activeTab.getAttribute('data-help-tab') as string : tabButtons[0].getAttribute('data-help-tab') as string);
   }
+  return {
+    openPanel,
+    closePanel,
+    isOpen: () => isOpen
+  };
+}
+
+function createRulesHelpSurface(context: any): PreparedRulesHelpController {
+  const docRef = context.document as Document;
+  const rulesHelpBtn = docRef.getElementById('rulesHelpBtn') as HTMLElement | null;
+  const rulesHelpPanel = docRef.getElementById('rules-help-panel') as HTMLElement | null;
+  const rulesHelpBackdrop = docRef.getElementById('rules-help-backdrop') as HTMLElement | null;
+  if (!rulesHelpBtn || !rulesHelpPanel || !rulesHelpBackdrop) {
+    throw new Error('rules help stable shell is unavailable');
+  }
+  const template = docRef.createElement('template');
+  template.innerHTML = String(RULES_HELP_INNER_HTML || '').trim();
+  rulesHelpPanel.replaceChildren(template.content.cloneNode(true));
+  context.recordDomCreated();
+  context.addCleanup(() => {
+    rulesHelpPanel.replaceChildren();
+    rulesHelpPanel.classList.remove('is-open', 'rules-help-surface-failure');
+    rulesHelpPanel.setAttribute('aria-hidden', 'true');
+    rulesHelpBackdrop.classList.remove('is-open', 'rules-help-surface-failure');
+    rulesHelpBackdrop.setAttribute('aria-hidden', 'true');
+    rulesHelpBtn.setAttribute('aria-expanded', 'false');
+  });
+  return setupPreparedRulesHelp(rulesHelpBtn, rulesHelpPanel, {
+    bindOpenControl: false,
+    context
+  });
+}
+
+const RulesHelpSurfaceRegistration = Object.freeze({
+  id: RULES_HELP_SURFACE_ID,
+  stylesheetGroups: RULES_HELP_STYLESHEET_GROUPS,
+  ensureDom: createRulesHelpSurface,
+  onReady: async (_surface: any, context: any) => {
+    await prepareInitialHelpImages(context.document);
+  }
+});
+
+if (LazyFeatureSurface && typeof LazyFeatureSurface.registerLazyFeatureSurface === 'function') {
+  LazyFeatureSurface.registerLazyFeatureSurface(RulesHelpSurfaceRegistration);
+}
+
+function setupRulesHelp(
+  rulesHelpBtn: HTMLElement,
+  rulesHelpPanel: HTMLElement
+): PreparedRulesHelpController | RulesHelpPanelController | { ok: false; reason: string } {
+  if (!rulesHelpBtn || !rulesHelpPanel) {
+    return { ok: false, reason: 'RULES_HELP_SHELL_UNAVAILABLE' };
+  }
+  if (rulesHelpPanel.childElementCount > 0) {
+    return setupPreparedRulesHelp(rulesHelpBtn, rulesHelpPanel);
+  }
+  const docRef = rulesHelpPanel.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  if (!docRef) return { ok: false, reason: 'DOCUMENT_UNAVAILABLE' };
+  const existing = _rulesHelpControllersByDocument.get(docRef);
+  if (existing) return existing;
+  const rulesHelpBackdrop = docRef.getElementById('rules-help-backdrop') as HTMLElement | null;
+  if (!rulesHelpBackdrop) {
+    return { ok: false, reason: 'RULES_HELP_BACKDROP_UNAVAILABLE' };
+  }
+  const backdropElement = rulesHelpBackdrop;
+
+  let readySurface: PreparedRulesHelpController | null = null;
+  let pending: Promise<PreparedRulesHelpController> | null = null;
+  let failureCleanup: (() => void) | null = null;
+
+  function clearFailure(restoreFocus = false): void {
+    failureCleanup?.();
+    failureCleanup = null;
+    rulesHelpPanel.classList.remove('is-open', 'rules-help-surface-failure');
+    rulesHelpPanel.setAttribute('aria-hidden', 'true');
+    backdropElement.classList.remove('is-open', 'rules-help-surface-failure');
+    backdropElement.setAttribute('aria-hidden', 'true');
+    rulesHelpPanel.replaceChildren();
+    rulesHelpBtn.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) {
+      try { rulesHelpBtn.focus(); } catch (_error) { /* focus return is best-effort */ }
+    }
+  }
+
+  function showFailure(): void {
+    clearFailure(false);
+    backdropElement.classList.add('is-open', 'rules-help-surface-failure');
+    backdropElement.setAttribute('aria-hidden', 'false');
+    rulesHelpPanel.classList.add('is-open', 'rules-help-surface-failure');
+    rulesHelpPanel.setAttribute('aria-hidden', 'false');
+    rulesHelpBtn.setAttribute('aria-expanded', 'true');
+
+    const title = docRef.createElement('div');
+    title.className = 'rules-help-surface-failure-title';
+    title.textContent = 'helpを読み込めませんでした';
+    const message = docRef.createElement('p');
+    message.className = 'rules-help-surface-failure-message';
+    message.textContent = '閉じてヘルプボタンをもう一度押すと再試行します。';
+    const closeBtn = docRef.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-small';
+    closeBtn.textContent = '閉じる';
+    rulesHelpPanel.replaceChildren(title, message, closeBtn);
+
+    const close = () => clearFailure(true);
+    const onBackdrop = (event: Event) => {
+      if (event.target === backdropElement) close();
+    };
+    const onKeydown = (event: Event) => {
+      if ((event as KeyboardEvent).key !== 'Escape') return;
+      event.preventDefault();
+      close();
+    };
+    closeBtn.addEventListener('click', close);
+    backdropElement.addEventListener('click', onBackdrop);
+    docRef.addEventListener('keydown', onKeydown);
+    failureCleanup = () => {
+      closeBtn.removeEventListener('click', close);
+      backdropElement.removeEventListener('click', onBackdrop);
+      docRef.removeEventListener('keydown', onKeydown);
+    };
+    try { closeBtn.focus(); } catch (_error) { /* focus is best-effort */ }
+  }
+
+  function ensureReady(): Promise<PreparedRulesHelpController> {
+    if (readySurface) return Promise.resolve(readySurface);
+    if (pending) return pending;
+    clearFailure(false);
+    rulesHelpBtn.setAttribute('aria-busy', 'true');
+    pending = Promise.resolve(
+      LazyFeatureSurface.ensureLazyFeatureSurface(RULES_HELP_SURFACE_ID, docRef)
+    ).then((surface: any) => {
+      readySurface = surface.dom as PreparedRulesHelpController;
+      return readySurface;
+    }).catch((error: unknown) => {
+      showFailure();
+      throw error;
+    }).finally(() => {
+      rulesHelpBtn.removeAttribute('aria-busy');
+      pending = null;
+    });
+    return pending;
+  }
+
+  async function toggleOpen(): Promise<void> {
+    if (readySurface?.isOpen()) {
+      readySurface.closePanel();
+      return;
+    }
+    try {
+      const surface = await ensureReady();
+      surface.openPanel();
+    } catch (_error) {
+      // showFailure() leaves a closable retry path.
+    }
+  }
+
+  const controller: RulesHelpPanelController = {
+    ok: true,
+    ensureReady,
+    setOpen(open) {
+      if (!open) {
+        if (readySurface) readySurface.closePanel();
+        else clearFailure(true);
+        return;
+      }
+      if (readySurface) {
+        if (!readySurface.isOpen()) readySurface.openPanel();
+        return;
+      }
+      void ensureReady()
+        .then((surface) => surface.openPanel())
+        .catch(() => undefined);
+    }
+  };
+  rulesHelpBtn.addEventListener('click', (event: Event) => {
+    event.preventDefault();
+    void toggleOpen();
+  });
+  _rulesHelpControllersByDocument.set(docRef, controller);
+  return controller;
 }
 
 const RulesHelpModule = {
   setupRulesHelp,
+  RULES_HELP_SURFACE_ID,
   prepareHelpImage,
   prepareInitialHelpImages,
   scheduleInitialHelpImageIdlePrefetch,

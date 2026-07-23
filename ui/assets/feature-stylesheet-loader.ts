@@ -5,7 +5,10 @@ export type FeatureStylesheetGroup =
   | 'network'
   | 'leaderboard'
   | 'result'
-  | 'profile';
+  | 'profile'
+  | 'rules-help-layout-info'
+  | 'rules-help-cards'
+  | 'rules-help-responsive';
 
 export interface FeatureStylesheetLoadResult {
   ok: boolean;
@@ -21,7 +24,10 @@ const FEATURE_STYLESHEET_PATHS: Readonly<Record<FeatureStylesheetGroup, string>>
   network: 'styles-feature-network.css',
   leaderboard: 'styles-leaderboard.css',
   result: 'styles-layout-result.css',
-  profile: 'styles-profile.css'
+  profile: 'styles-profile.css',
+  'rules-help-layout-info': 'styles-feature-rules-help-layout-info.css',
+  'rules-help-cards': 'styles-feature-rules-help-cards.css',
+  'rules-help-responsive': 'styles-feature-rules-help-responsive.css'
 });
 
 interface FeatureStylesheetLoadState {

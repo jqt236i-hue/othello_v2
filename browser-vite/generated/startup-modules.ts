@@ -541,6 +541,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/handlers/match-mode/network-room-list": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/match-mode/network-room-list.js"),
   "ui/handlers/match-mode/rated-match": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/match-mode/rated-match.js"),
   "ui/handlers/rules-help": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/rules-help.js"),
+  "ui/handlers/rules-help-template": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/rules-help-template.js"),
   "ui/handlers/smart": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/smart.js"),
   "ui/handlers/sound": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/handlers/sound.js"),
   "ui/layout-read-batch": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/layout-read-batch.js"),
@@ -1230,6 +1231,7 @@ installBootModuleMetadata({
     "ui/handlers/match-mode/network-room-list",
     "ui/handlers/match-mode/rated-match",
     "ui/handlers/rules-help",
+    "ui/handlers/rules-help-template",
     "ui/handlers/smart",
     "ui/handlers/sound",
     "ui/layout-read-batch",
@@ -1450,4 +1452,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 674;
+export const startupModuleCount = 675;
