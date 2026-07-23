@@ -784,6 +784,12 @@ git status --short
   - 6 suiteはPhase 4で移動したCSS正本ではなく旧eager sourceを直接読んでいた。test helperをeager layout、complete layout、network featureの各surfaceに分け、実際の配信順とlazy fragmentを検査するよう修正する。
   - 同時に、左レール全機能で共有するstrong active ruleがdeck-builder lazy fragmentに残る実装退行を検出した。共有ruleをeager controlsへ戻し、deck未表示でもnetwork/gacha等のactive状態が成立することと、deck fragmentに共有selectorが再混入しないことをblocking contractにする。
   - 最初の `assets:optimized:check` は `cinzel-400` subsetの現行corpus必要文字3件不足でfailした。`Å`、`É`、`•` は現行Pixi runtime／盤面hint sourceで使用されcanonical TTFにも存在するため、既存generatorで全12書体のsubset、manifest、generated CSSを更新する。font full fallback、metadata、vertical metrics、advance width、corpus不足0を再checkし、初回failと修正後結果をcompletion summaryへ記録する。
+- result:
+  - clean exact candidate `1dd8448dabb1a9bff832a3156ce5b9ed0cbe7973` とPhase 0保存baselineを、candidate/baseline/baseline/candidate/candidate/baseline/baseline/candidate/candidate/baselineの決定的順序で各5 fresh Chromium process計測した。candidate artifactは924 files・SHA-256 `7e443cf3696e860ddc5f171d3a7cc34972ce05bd39b6e41eb59c27bda7f9e00b`、baselineは918 files・SHA-256 `44e1028f8aa9a8468c3d2436446e86313a7178e964ce7b278ee7f27a56d86a88` で、全identity/environment比較がpassした。
+  - 盤面ready中央値は2075.0msから1889.7msへ185.3ms（8.93%）短縮し、boot encoded body中央値は25,568,317 bytesから22,313,193 bytesへ3,255,124 bytes（12.73%）削減した。profile/rules-help/deck-builder/networkのfirst-open p95は最大101.0ms、result stylesheet ready p95は最大7.6ms、全laneのCLS delta 0・Long Task 0、opponent-actionのLong Task 0・50ms RAF stall 0・RAF p95 16.8ms・ticker idleを確認した。
+  - 全Jestは修正後975 suites・6902 tests、network parityは34 suites・529 tests、Pixi playbackは12 reports・208 scenarios、cross-platformは3 engine × desktop/mobile × Pixi/DOMの12 probes、Worker mirrorは922 filesを合格した。font-only生成物更新後は3 focused suites・9 tests、optimized asset、asset delivery、mirror、checkallを再確認した。
+  - `match:optional-feature-smoke:vite` の初回は直前のbrowser buildがmemory-mapした `optional-compatibility.mjs` をWindowsが置換できずOS error 1224で失敗した。clean statusと製品変更なしを確認した同一commitの再試行は、全6 optional payloadの初回request各1、再表示増分0、failure retryを含めてpassしたため、一時的なfile lockとして初回failと再試行を両方記録する。
+  - completion rendererがboot encoded bodyのdeltaを単位なしの `-0.1` と表示する人間向け表記不整合を検出した。raw値と合否は正しかったため、byte差と百分率を併記するrenderer/testへ修正し、exact candidateから生成済みのcompletion summary表記も同じ値へ整合させた。
 
 ## ロールバック境界
 
@@ -817,12 +823,12 @@ git status --short
 - [x] 全featureのfocus/ESC/backdrop/reopen/failure retryを検証
 - [x] overall reportの全scenario、blocking pass、pending 0を確認
 - [x] CIの決定的guard jobを有効化
-- [ ] hardware desktop standard captureをclean exact commitで合格
-- [ ] 物理端末未実施時は`deviceValidated=false`を明示
-- [ ] browser build、asset checks、mirror、network parityを合格
-- [ ] raw artifactsをcommitせず、人間向けcompletion summaryだけを保存
-- [ ] final `git diff --check`、status、task-owned staged diffを確認
-- [ ] 各実装単位と最終summaryをproject policyどおりcommit
+- [x] hardware desktop standard captureをclean exact commitで合格
+- [x] 物理端末未実施時は`deviceValidated=false`を明示
+- [x] browser build、asset checks、mirror、network parityを合格
+- [x] raw artifactsをcommitせず、人間向けcompletion summaryだけを保存
+- [x] final `git diff --check`、status、task-owned staged diffを確認
+- [x] 各実装単位と最終summaryをproject policyどおりcommit
 
 ## Self-review
 

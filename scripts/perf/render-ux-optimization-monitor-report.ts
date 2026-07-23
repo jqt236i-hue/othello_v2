@@ -464,6 +464,26 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
+function formatByteDelta(
+  baselineValue: unknown,
+  candidateValue: unknown,
+  deltaRatioValue: unknown
+): string {
+  if (
+    typeof baselineValue !== 'number'
+    || !Number.isFinite(baselineValue)
+    || typeof candidateValue !== 'number'
+    || !Number.isFinite(candidateValue)
+    || typeof deltaRatioValue !== 'number'
+    || !Number.isFinite(deltaRatioValue)
+  ) {
+    return 'n/a';
+  }
+  const deltaBytes = Math.round(candidateValue - baselineValue);
+  const deltaPercent = Math.round(deltaRatioValue * 10_000) / 100;
+  return `${deltaBytes} bytes (${deltaPercent}%)`;
+}
+
 export function renderUxOptimizationSummaryMarkdown(
   summary: UxOptimizationSummaryDocument
 ): string {
@@ -495,7 +515,11 @@ export function renderUxOptimizationSummaryMarkdown(
         + ` | ${formatValue(boardReady.deltaMs)} |`,
       `| boot encoded body bytes | ${formatValue(bootEncodedBody.baselineMedianBytes)}`
         + ` | ${formatValue(bootEncodedBody.candidateMedianBytes)}`
-        + ` | ${formatValue(bootEncodedBody.deltaRatio)} |`,
+        + ` | ${formatByteDelta(
+          bootEncodedBody.baselineMedianBytes,
+          bootEncodedBody.candidateMedianBytes,
+          bootEncodedBody.deltaRatio
+        )} |`,
       '',
       '## 遅延feature p95',
       '',

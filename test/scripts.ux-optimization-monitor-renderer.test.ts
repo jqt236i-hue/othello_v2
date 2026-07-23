@@ -96,6 +96,36 @@ describe('UX optimization summary renderer', () => {
     );
   });
 
+  test('renders encoded-body change with byte and percentage units', () => {
+    const baseSummary = createUxOptimizationSummary(report('standard'), {
+      generatedAt: '2026-07-23T00:00:00.000Z'
+    });
+    const summary = {
+      ...baseSummary,
+      standardSuiteValidation: {
+        overallVerdict: 'pass',
+        checks: []
+      },
+      metrics: {
+        sampleCount: 5,
+        boardReady: {},
+        bootEncodedBody: {
+          baselineMedianBytes: 25_568_317,
+          candidateMedianBytes: 22_313_193,
+          deltaRatio: -0.12731084333787002
+        },
+        features: [],
+        result: [],
+        opponentActions: {}
+      }
+    } as any;
+
+    expect(renderUxOptimizationSummaryMarkdown(summary)).toContain(
+      '| boot encoded body bytes | 25568317 | 22313193'
+        + ' | -3255124 bytes (-12.73%) |'
+    );
+  });
+
   test('verifies report digest and archive manifest against delivered files', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ux-summary-artifact-'));
     const artifactRoot = path.join(root, 'worker-public');
