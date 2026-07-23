@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "minimumSavingsRatio": 0.1,
+  "images": [
+    {
+      "source": "assets/images/board/board-frame-marsh-forged-iron-v1.png",
+      "criticalPath": true,
+      "admission": {
+        "status": "pending-hardware",
+        "reason": "default board frame candidate; hardware decode admission is required before runtime mapping"
+      },
+      "measurement": {
+        "investigation": "capacity and visible-pixel checks passed during design research",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/board/board-surface-bluegreen-felt-v1.png",
+      "criticalPath": true,
+      "admission": {
+        "status": "rejected",
+        "reason": "design research found a hardware decode regression; keep the PNG runtime path"
+      },
+      "measurement": {
+        "investigation": "rejected before formal admission because decode regressed",
+        "hardwareDecode": null
+      }
+    },
+    {
+      "source": "assets/images/background/デフォルト25.png",
+      "criticalPath": false,
+      "admission": {
+        "status": "rejected",
+        "reason": "design research found a hardware decode regression; keep the PNG runtime path"
+      },
+      "measurement": {
+        "investigation": "rejected before formal admission because decode regressed",
+        "hardwareDecode": null
+      }
+    }
+  ]
+}

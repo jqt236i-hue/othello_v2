@@ -344,6 +344,12 @@
   - `npm run worker:prepare`
   - `npm run check:worker-mirror`
 - done: 背景とUI用pipelineに変換ロジックの重複がなく、PNG fallbackが決定的に成立する。
+- implementation review:
+  - 背景builderのencode、SHA-256、寸法、可視画素検証を共通pipelineへ移し、新しいUI policy/generatorも同じ処理を使用した。透明画素のRGB差だけを許容し、alpha差またはalpha > 0のRGB差を拒否するunit testを追加した。
+  - 3候補はすべて可視画素一致と10%以上の削減を満たした。default board frameは1,126,115 bytesから553,268 bytes（50.87%削減）でhardware審査待ち、board surfaceは32.47%、`デフォルト25` は26.67%削減だが、既存調査どおりdecode理由でrejectedのままとし、後2件のWebP file/runtime mappingは生成しなかった。
+  - 共通runtime codecはWebP非対応、HTTP失敗、response/blob MIME不一致、decode失敗をPNGへ一度だけfallbackし、同一Documentのbody取得を合流する。既存背景は従来どおり直接URL decodeを使い、strict MIME用Blobを多数保持するメモリ増を避けた。
+  - focused 3 suite/15 test、背景13件の再生成check、UI 3候補check、worker mirror 916 filesが合格した。`assets:optimized:check` 全体は今回のWebP工程より前に、既存 `cinzel-400` font subsetのcoverage不足3文字で停止したため、背景/UI checkを個別実行してWebP工程を分離確認した。
+  - 1回目の最終 `worker:prepare` はVite closeBundle時のWindows `index.html` open `UNKNOWN/-4094` で失敗したが、同一コマンドの再試行は変更なしで合格したため、一時的なfile lockと判定した。
 
 ### Step 3.2: decode admissionと配信検証
 

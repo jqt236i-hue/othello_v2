@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "codec": "webp-lossless",
+  "minimumSavingsRatio": 0.1,
+  "policy": "scripts/assets/optimized-ui-images.policy.json",
+  "images": [
+    {
+      "source": "assets/images/board/board-frame-marsh-forged-iron-v1.png",
+      "candidateOutput": "assets/images/board/board-frame-marsh-forged-iron-v1.webp",
+      "output": "assets/images/board/board-frame-marsh-forged-iron-v1.webp",
+      "criticalPath": true,
+      "admission": {
+        "status": "pending-hardware",
+        "reason": "default board frame candidate; hardware decode admission is required before runtime mapping"
+      },
+      "measurement": {
+        "investigation": "capacity and visible-pixel checks passed during design research",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 1126115,
+      "outputBytes": 553268,
+      "savedBytes": 572847,
+      "savingsRatio": 0.5086931618884395,
+      "sourceSha256": "548ec96673c9dba082a6224d964eb79442bad36e7ce02e020ec759f92fc19665",
+      "outputSha256": "7337494f071843a3d0d6bd8e2366535b5d4424607b2a726d39164850f9da0ecc",
+      "visiblePixelsEqual": true
+    },
+    {
+      "source": "assets/images/board/board-surface-bluegreen-felt-v1.png",
+      "candidateOutput": "assets/images/board/board-surface-bluegreen-felt-v1.webp",
+      "output": null,
+      "criticalPath": true,
+      "admission": {
+        "status": "rejected",
+        "reason": "design research found a hardware decode regression; keep the PNG runtime path"
+      },
+      "measurement": {
+        "investigation": "rejected before formal admission because decode regressed",
+        "hardwareDecode": null
+      },
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": true,
+      "sourceBytes": 3250918,
+      "outputBytes": 2195210,
+      "savedBytes": 1055708,
+      "savingsRatio": 0.3247415037844695,
+      "sourceSha256": "95347a8f71b86e6a51084cad2f8c9633772aa11c0c349649d093b8e874e25151",
+      "outputSha256": "df65e846b7d6201f372d0d77c53cbe052f5dc3e08af1cbd80331afcf860d00cd",
+      "visiblePixelsEqual": true
+    },
+    {
+      "source": "assets/images/background/デフォルト25.png",
+      "candidateOutput": "assets/images/background/デフォルト25.webp",
+      "output": null,
+      "criticalPath": false,
+      "admission": {
+        "status": "rejected",
+        "reason": "design research found a hardware decode regression; keep the PNG runtime path"
+      },
+      "measurement": {
+        "investigation": "rejected before formal admission because decode regressed",
+        "hardwareDecode": null
+      },
+      "width": 1920,
+      "height": 1080,
+      "hasAlpha": true,
+      "sourceBytes": 3035061,
+      "outputBytes": 2225684,
+      "savedBytes": 809377,
+      "savingsRatio": 0.26667569449180756,
+      "sourceSha256": "1bd8be6d6cf7b0f29c37a6c2e0ab3d35279b5f261270ccf577f07464b647da43",
+      "outputSha256": "9fbf8bc13d9ff8c95c7f02a6d6463c8c1d29e50a9fb951ab101931bb79ddc475",
+      "visiblePixelsEqual": true
+    }
+  ],
+  "admittedMapping": {}
+}

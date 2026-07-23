@@ -1,7 +1,10 @@
-import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import sharp from 'sharp';
+import {
+  analyzeLosslessWebp,
+  materializeLosslessWebp
+} from './lossless-webp-pipeline';
 
 const ROOT = path.resolve(__dirname, '..', '..', '..');
 const BACKGROUND_DIR = path.join(ROOT, 'assets', 'images', 'background');
@@ -22,10 +25,6 @@ type ManifestEntry = {
   sourceSha256: string;
   outputSha256: string;
 };
-
-function sha256(filePath: string): string {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
-}
 
 function walkPngFiles(directory: string): string[] {
   return fs.readdirSync(directory, { withFileTypes: true })
@@ -52,59 +51,27 @@ async function getCandidates(): Promise<string[]> {
   return candidates;
 }
 
-async function encodeOutput(sourcePath: string): Promise<Buffer> {
-  return sharp(sourcePath, { failOn: 'error' })
-    .webp({ lossless: true, effort: 6, smartSubsample: false })
-    .toBuffer();
-}
-
 async function verifyEncodedOutput(
   sourcePath: string,
   outputPath: string,
-  encoded: Buffer,
   checkOnly: boolean
 ): Promise<ManifestEntry | null> {
-  const sourceBytes = fs.statSync(sourcePath).size;
-  const outputBytes = encoded.length;
-  const savedBytes = sourceBytes - outputBytes;
-  const savingsRatio = savedBytes / sourceBytes;
-  if (savedBytes < MIN_SAVED_BYTES || savingsRatio < MIN_SAVINGS_RATIO) return null;
-  if (checkOnly) {
-    if (!fs.existsSync(outputPath)) {
-      throw new Error(`missing optimized background: ${browserPath(outputPath)}`);
-    }
-    const committed = fs.readFileSync(outputPath);
-    if (!committed.equals(encoded)) {
-      throw new Error(`optimized background is stale: ${browserPath(outputPath)}`);
-    }
-  } else {
-    fs.writeFileSync(outputPath, encoded);
-  }
-  const [sourceMetadata, outputMetadata, sourceRaw, outputRaw] = await Promise.all([
-    sharp(sourcePath).metadata(),
-    sharp(encoded).metadata(),
-    sharp(sourcePath).ensureAlpha().raw().toBuffer(),
-    sharp(encoded).ensureAlpha().raw().toBuffer()
-  ]);
+  const analysis = await analyzeLosslessWebp(sourcePath);
   if (
-    sourceMetadata.width !== outputMetadata.width
-    || sourceMetadata.height !== outputMetadata.height
-  ) {
-    throw new Error(`dimension mismatch: ${browserPath(sourcePath)}`);
-  }
-  if (!sourceRaw.equals(outputRaw)) {
-    throw new Error(`decoded RGBA mismatch: ${browserPath(sourcePath)}`);
-  }
+    analysis.savedBytes < MIN_SAVED_BYTES
+    || analysis.savingsRatio < MIN_SAVINGS_RATIO
+  ) return null;
+  materializeLosslessWebp(outputPath, analysis.encoded, checkOnly);
   return {
     source: browserPath(sourcePath),
     output: browserPath(outputPath),
-    width: sourceMetadata.width || 0,
-    height: sourceMetadata.height || 0,
-    sourceBytes,
-    outputBytes,
-    savedBytes,
-    sourceSha256: sha256(sourcePath),
-    outputSha256: crypto.createHash('sha256').update(encoded).digest('hex')
+    width: analysis.width,
+    height: analysis.height,
+    sourceBytes: analysis.sourceBytes,
+    outputBytes: analysis.outputBytes,
+    savedBytes: analysis.savedBytes,
+    sourceSha256: analysis.sourceSha256,
+    outputSha256: analysis.outputSha256
   };
 }
 
@@ -143,8 +110,7 @@ async function run(): Promise<void> {
   const entries: ManifestEntry[] = [];
   for (const sourcePath of candidates) {
     const outputPath = sourcePath.replace(/\.png$/i, '.webp');
-    const encoded = await encodeOutput(sourcePath);
-    const entry = await verifyEncodedOutput(sourcePath, outputPath, encoded, checkOnly);
+    const entry = await verifyEncodedOutput(sourcePath, outputPath, checkOnly);
     if (entry) entries.push(entry);
   }
   reconcileGeneratedOutputs(entries, checkOnly);

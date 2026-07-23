@@ -456,6 +456,8 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/assets/feature-stylesheet-loader": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/feature-stylesheet-loader.js"),
   "ui/assets/logical-image-source": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/logical-image-source.js"),
   "ui/assets/optimized-backgrounds.generated": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/optimized-backgrounds.generated.js"),
+  "ui/assets/optimized-image-codec": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/optimized-image-codec.js"),
+  "ui/assets/optimized-ui-images.generated": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/optimized-ui-images.generated.js"),
   "ui/board-accessibility-layer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-accessibility-layer.js"),
   "ui/board-input-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-input-controller.js"),
   "ui/board-renderer": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/board-renderer.js"),
@@ -1132,6 +1134,8 @@ installBootModuleMetadata({
     "ui/assets/feature-stylesheet-loader",
     "ui/assets/logical-image-source",
     "ui/assets/optimized-backgrounds.generated",
+    "ui/assets/optimized-image-codec",
+    "ui/assets/optimized-ui-images.generated",
     "ui/board-accessibility-layer",
     "ui/board-dom-compat/backend",
     "ui/board-dom-compat/dom-patcher",
@@ -1444,4 +1448,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 671;
+export const startupModuleCount = 673;
