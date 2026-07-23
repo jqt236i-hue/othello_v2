@@ -778,6 +778,41 @@ describe('UX optimization monitor validator', () => {
     expect(validation.candidateEligible).toBe(false);
   });
 
+  test('keeps CI timing advisory while structural regressions remain blocking', () => {
+    const report = validReport();
+    report.profile = 'ci';
+    const deck = report.scenarios.find((entry: any) => (
+      entry.id === 'feature.deck-builder' && entry.lane === 'vite'
+    ));
+    deck.metrics.firstOpenLatencyMs = 5_000;
+    deck.metrics.firstStyleReadyLatencyMs = 4_000;
+    deck.metrics.firstOpenLongTaskCount = 3;
+    deck.metrics.clsDelta = 0.5;
+    const opponent = report.scenarios.find((entry: any) => (
+      entry.id === 'playback.opponent-actions'
+    ));
+    opponent.metrics.longTaskCount = 2;
+    opponent.metrics.rafStall50msCount = 2;
+
+    let validation = validateUxOptimizationReport(report);
+    expect(validation.overallVerdict).toBe('pass');
+    expect(validation.checks.find(
+      (entry) => entry.id === 'report.ci-timing-advisory'
+    )).toMatchObject({
+      verdict: 'pass',
+      blocking: false
+    });
+
+    deck.metrics.randomDeckWorked = false;
+    validation = validateUxOptimizationReport(report);
+    expect(validation.overallVerdict).toBe('fail');
+    expect(validation.checks.find(
+      (entry) => entry.id === 'scenario.feature.deck-builder:vite:pixi'
+    )?.reasons).toContain(
+      'deck builder preset, editor, scroll, card, save, or network behavior changed'
+    );
+  });
+
   test('passes a completed focused target while unrelated work remains pending', () => {
     const report = validReport();
     report.pendingOptimizationIds = UX_OPTIMIZATION_IDS.filter(

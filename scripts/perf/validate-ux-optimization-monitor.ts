@@ -104,16 +104,18 @@ export function validateUxOptimizationReport(
     ? value as Record<string, any>
     : {};
   const checks: UxOptimizationValidationCheck[] = [];
+  const enforceHardwareTiming = report.profile !== 'ci';
   const addCheck = (
     id: string,
     pass: boolean,
     reasons: readonly string[],
-    evidence?: Readonly<Record<string, unknown>>
+    evidence?: Readonly<Record<string, unknown>>,
+    blocking: boolean = true
   ): void => {
     checks.push(Object.freeze({
       id,
       verdict: pass ? 'pass' : 'fail',
-      blocking: true,
+      blocking,
       reasons: Object.freeze(pass ? [] : reasons.slice()),
       ...(evidence ? { evidence: Object.freeze({ ...evidence }) } : {})
     }));
@@ -553,14 +555,20 @@ export function validateUxOptimizationReport(
       }
       if (
         Number(metrics.normalDisplayDelayMs) < 1_900
-        || Number(metrics.normalDisplayDelayMs) > 2_300
+        || (
+          enforceHardwareTiming
+          && Number(metrics.normalDisplayDelayMs) > 2_300
+        )
       ) {
         reasons.push(`normal result display delay was ${String(metrics.normalDisplayDelayMs)}ms`);
       }
       if (
         !Number.isFinite(Number(metrics.normalStylesheetReadyLatencyMs))
-        || Number(metrics.normalStylesheetReadyLatencyMs)
-          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.resultStylesheetP95Ms
+        || (
+          enforceHardwareTiming
+          && Number(metrics.normalStylesheetReadyLatencyMs)
+            > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.resultStylesheetP95Ms
+        )
       ) {
         reasons.push(
           `normal result stylesheet readiness was ${String(metrics.normalStylesheetReadyLatencyMs)}ms`
@@ -606,7 +614,10 @@ export function validateUxOptimizationReport(
       if (
         metrics.directReturnType !== 'undefined'
         || metrics.directDomImmediate !== true
-        || Number(metrics.directCallLatencyMs) > 50
+        || (
+          enforceHardwareTiming
+          && Number(metrics.directCallLatencyMs) > 50
+        )
       ) {
         reasons.push('direct showResultOverlay synchronous contract changed');
       }
@@ -634,7 +645,10 @@ export function validateUxOptimizationReport(
       if (
         metrics.failureDirectReturnType !== 'undefined'
         || metrics.failureDomImmediate !== true
-        || Number(metrics.failureDirectCallLatencyMs) > 50
+        || (
+          enforceHardwareTiming
+          && Number(metrics.failureDirectCallLatencyMs) > 50
+        )
         || metrics.failureInitialButtonsVisible !== true
         || metrics.failureWarningVisible !== true
         || metrics.failureFallbackClass !== true
@@ -663,7 +677,10 @@ export function validateUxOptimizationReport(
       if (
         typeof metrics.clsDelta !== 'number'
         || !Number.isFinite(metrics.clsDelta)
-        || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+        || (
+          enforceHardwareTiming
+          && metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+        )
       ) {
         reasons.push(`result first-open CLS was ${String(metrics.clsDelta)}`);
       }
@@ -704,11 +721,16 @@ export function validateUxOptimizationReport(
       }
       if (
         !Number.isFinite(Number(metrics.firstOpenLatencyMs))
-        || Number(metrics.firstOpenLatencyMs)
-          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
         || !Number.isFinite(Number(metrics.firstStyleReadyLatencyMs))
-        || Number(metrics.firstStyleReadyLatencyMs)
-          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+        || (
+          enforceHardwareTiming
+          && (
+            Number(metrics.firstOpenLatencyMs)
+              > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+            || Number(metrics.firstStyleReadyLatencyMs)
+              > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+          )
+        )
       ) {
         reasons.push(
           `profile first-open/style latency was ${String(metrics.firstOpenLatencyMs)}/${String(metrics.firstStyleReadyLatencyMs)}ms`
@@ -783,13 +805,19 @@ export function validateUxOptimizationReport(
       if (
         typeof metrics.clsDelta !== 'number'
         || !Number.isFinite(metrics.clsDelta)
-        || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+        || (
+          enforceHardwareTiming
+          && metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+        )
       ) {
         reasons.push(`profile first-open CLS was ${String(metrics.clsDelta)}`);
       }
       if (
         metrics.firstOpenLongTaskSupported !== true
-        || Number(metrics.firstOpenLongTaskCount) !== 0
+        || (
+          enforceHardwareTiming
+          && Number(metrics.firstOpenLongTaskCount) !== 0
+        )
       ) {
         reasons.push(
           `profile first-open long tasks were ${String(metrics.firstOpenLongTaskCount)}`
@@ -845,11 +873,16 @@ export function validateUxOptimizationReport(
       }
       if (
         !Number.isFinite(Number(metrics.firstOpenLatencyMs))
-        || Number(metrics.firstOpenLatencyMs)
-          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
         || !Number.isFinite(Number(metrics.firstStyleReadyLatencyMs))
-        || Number(metrics.firstStyleReadyLatencyMs)
-          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+        || (
+          enforceHardwareTiming
+          && (
+            Number(metrics.firstOpenLatencyMs)
+              > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+            || Number(metrics.firstStyleReadyLatencyMs)
+              > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+          )
+        )
       ) {
         reasons.push(
           `rules help first-open/style latency was ${String(metrics.firstOpenLatencyMs)}/${String(metrics.firstStyleReadyLatencyMs)}ms`
@@ -927,7 +960,10 @@ export function validateUxOptimizationReport(
       }
       if (
         metrics.firstOpenLongTaskSupported !== true
-        || Number(metrics.firstOpenLongTaskCount) !== 0
+        || (
+          enforceHardwareTiming
+          && Number(metrics.firstOpenLongTaskCount) !== 0
+        )
       ) {
         reasons.push(
           `rules help first-open long tasks were ${String(metrics.firstOpenLongTaskCount)}`
@@ -936,7 +972,10 @@ export function validateUxOptimizationReport(
       if (
         typeof metrics.clsDelta !== 'number'
         || !Number.isFinite(metrics.clsDelta)
-        || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+        || (
+          enforceHardwareTiming
+          && metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+        )
       ) {
         reasons.push(`rules help first-open CLS was ${String(metrics.clsDelta)}`);
       }
@@ -994,11 +1033,16 @@ export function validateUxOptimizationReport(
       }
       if (
         !Number.isFinite(Number(metrics.firstOpenLatencyMs))
-        || Number(metrics.firstOpenLatencyMs)
-          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
         || !Number.isFinite(Number(metrics.firstStyleReadyLatencyMs))
-        || Number(metrics.firstStyleReadyLatencyMs)
-          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+        || (
+          enforceHardwareTiming
+          && (
+            Number(metrics.firstOpenLatencyMs)
+              > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+            || Number(metrics.firstStyleReadyLatencyMs)
+              > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+          )
+        )
       ) {
         reasons.push(
           `deck builder first-open/style latency was ${String(metrics.firstOpenLatencyMs)}/${String(metrics.firstStyleReadyLatencyMs)}ms`
@@ -1067,7 +1111,10 @@ export function validateUxOptimizationReport(
       }
       if (
         metrics.firstOpenLongTaskSupported !== true
-        || Number(metrics.firstOpenLongTaskCount) !== 0
+        || (
+          enforceHardwareTiming
+          && Number(metrics.firstOpenLongTaskCount) !== 0
+        )
       ) {
         reasons.push(
           `deck builder first-open long tasks were ${String(metrics.firstOpenLongTaskCount)}`
@@ -1076,7 +1123,10 @@ export function validateUxOptimizationReport(
       if (
         typeof metrics.clsDelta !== 'number'
         || !Number.isFinite(metrics.clsDelta)
-        || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+        || (
+          enforceHardwareTiming
+          && metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+        )
       ) {
         reasons.push(`deck builder first-open CLS was ${String(metrics.clsDelta)}`);
       }
@@ -1130,11 +1180,16 @@ export function validateUxOptimizationReport(
       }
       if (
         !Number.isFinite(Number(metrics.firstOpenLatencyMs))
-        || Number(metrics.firstOpenLatencyMs)
-          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
         || !Number.isFinite(Number(metrics.firstStyleReadyLatencyMs))
-        || Number(metrics.firstStyleReadyLatencyMs)
-          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+        || (
+          enforceHardwareTiming
+          && (
+            Number(metrics.firstOpenLatencyMs)
+              > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+            || Number(metrics.firstStyleReadyLatencyMs)
+              > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+          )
+        )
       ) {
         reasons.push(
           `network first-open/style latency was ${String(metrics.firstOpenLatencyMs)}/${String(metrics.firstStyleReadyLatencyMs)}ms`
@@ -1211,7 +1266,10 @@ export function validateUxOptimizationReport(
       }
       if (
         metrics.firstOpenLongTaskSupported !== true
-        || Number(metrics.firstOpenLongTaskCount) !== 0
+        || (
+          enforceHardwareTiming
+          && Number(metrics.firstOpenLongTaskCount) !== 0
+        )
       ) {
         reasons.push(
           `network first-open long tasks were ${String(metrics.firstOpenLongTaskCount)}`
@@ -1220,7 +1278,10 @@ export function validateUxOptimizationReport(
       if (
         typeof metrics.clsDelta !== 'number'
         || !Number.isFinite(metrics.clsDelta)
-        || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+        || (
+          enforceHardwareTiming
+          && metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+        )
       ) {
         reasons.push(`network first-open CLS was ${String(metrics.clsDelta)}`);
       }
@@ -1336,15 +1397,21 @@ export function validateUxOptimizationReport(
       if (
         typeof metrics.clsDelta !== 'number'
         || !Number.isFinite(metrics.clsDelta)
-        || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+        || (
+          enforceHardwareTiming
+          && metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+        )
       ) {
         reasons.push(`help first-open CLS was ${String(metrics.clsDelta)}`);
       }
       if (
         typeof metrics.firstOpenLatencyMs !== 'number'
         || !Number.isFinite(metrics.firstOpenLatencyMs)
-        || metrics.firstOpenLatencyMs
-          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+        || (
+          enforceHardwareTiming
+          && metrics.firstOpenLatencyMs
+            > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+        )
       ) {
         reasons.push(`help first-open latency was ${String(metrics.firstOpenLatencyMs)}ms`);
       }
@@ -1649,11 +1716,11 @@ export function validateUxOptimizationReport(
       if (metrics.backend !== 'pixi') reasons.push(`opponent-turn backend was ${String(metrics.backend || 'missing')}`);
       if (metrics.settledOpponentTurn !== true) reasons.push('opponent turn did not settle');
       if (metrics.longTaskSupported !== true) reasons.push('Long Task observation was unavailable');
-      if (Number(metrics.longTaskCount) !== 0) {
+      if (enforceHardwareTiming && Number(metrics.longTaskCount) !== 0) {
         reasons.push(`opponent-turn Long Task count was ${String(metrics.longTaskCount)}`);
       }
       if (Number(metrics.rafSampleCount) <= 0) reasons.push('opponent-turn RAF samples are missing');
-      if (Number(metrics.rafStall50msCount) !== 0) {
+      if (enforceHardwareTiming && Number(metrics.rafStall50msCount) !== 0) {
         reasons.push(`opponent-turn 50ms RAF stall count was ${String(metrics.rafStall50msCount)}`);
       }
       if (metrics.tickerIdle !== true) reasons.push('Pixi ticker did not return to idle');
@@ -1680,6 +1747,20 @@ export function validateUxOptimizationReport(
       }
     }
     addCheck(`scenario.${definition.key}`, reasons.length === 0, reasons);
+  }
+
+  if (report.profile === 'ci') {
+    addCheck(
+      'report.ci-timing-advisory',
+      true,
+      [],
+      {
+        mode: 'advisory',
+        rawMetricsRecorded: true,
+        thresholds: UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds
+      },
+      false
+    );
   }
 
   const pending = Array.isArray(report.pendingOptimizationIds)
@@ -1773,8 +1854,12 @@ export function validateUxOptimizationReport(
       && nonPendingFailures.length === 0;
   const candidateEligible = identity.dirty === false
     && report.profile === 'standard'
-    && checks.every((check) => check.verdict === 'pass');
-  const overallPass = checks.every((check) => check.verdict === 'pass');
+    && checks
+      .filter((check) => check.blocking)
+      .every((check) => check.verdict === 'pass');
+  const overallPass = checks
+    .filter((check) => check.blocking)
+    .every((check) => check.verdict === 'pass');
   return Object.freeze({
     schemaVersion: UX_OPTIMIZATION_VALIDATION_SCHEMA_VERSION,
     reportSchemaVersion: typeof report.schemaVersion === 'string' ? report.schemaVersion : null,

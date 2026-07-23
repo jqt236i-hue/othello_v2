@@ -31,3 +31,26 @@ jobs:
         run: npm ci
       - name: Run tests
         run: npm test --silent || npm run test:jest
+
+  ux-optimization-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run deterministic UX optimization guard
+        run: npm run perf:ux-optimization:ci
+      - name: Upload failed UX optimization report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ux-optimization-guard-report
+          path: artifacts/ux-optimization-monitor/ci.json
+          if-no-files-found: ignore
+          retention-days: 7

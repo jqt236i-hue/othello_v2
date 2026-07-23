@@ -726,6 +726,8 @@
   - workflow syntax inspection
   - intentional fixture violationがjobをfailさせるvalidator unit test
 - done: CIが全決定的契約を毎回検査し、performance timing noiseだけでfailしない。
+- review correction:
+  - scenario check全体をnon-blockingにせず、同じcheck内のresource/DOM/style/input/fallback/errorと指標欠損はblockingを維持する。CIでadvisoryにするのはfirst-open/style上限、CLS量、Long Task/RAF stall件数、result/direct pathの遅延側だけで、resultが2秒より早く出る退行は引き続きblockingとする。
 
 ### Step 5.3: clean candidate standard captureと最終検証
 
