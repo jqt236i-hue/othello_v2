@@ -671,6 +671,13 @@
   - `npm run check:worker-mirror`
   - `npm run perf:ux-optimization:standard`
 - done: profile/rules-help/deck-builder/networkのfirst-open p95 250ms以内、result stylesheet preparation p95 250ms以内、CLS 0.01以下、アプリ起因Long Task 0、全featureの再表示増分0。resultの意図された2秒表示待機は別計測し、変更しない。時間値はhardware標準reportで判定し、CIでは構造・操作をblockingとする。
+- result:
+  - `match:optional-feature-smoke:vite` はgacha/cosmetic/leaderboard/commentary/cpu/onnxの初回request各1、再表示増分0、failure retryを合格した。checkerはVite optional chunk専用であるため、存在しないclassic版コマンドは正本から除外し、classicは統合monitor必須laneとVite/classic UI-control smokeで検証した。
+  - `match:cross-platform-smoke:vite` はChromium/Firefox/WebKit × desktop/mobile × Pixi/DOMの12 probeを合格し、Pixiはcanvas/WebGL context各1、DOM fallbackはcanvas/context 0かつ64 cells、page/console error 0だった。
+  - Phase 4.6 exact sourceでVite/classic UI-control smoke、worker mirror 922 files、network parity 34 suites・528 testsを合格済みであり、Phase 4.7では生成物の再prepare/mirror、全feature monitor、focused validatorを再確認した。
+  - 最初のclean standardでは `feature.deck-builder:vite` に52msのLong Taskが1件だけ発生してfailした。閾値50msを2msだけ超え、同一commitの再試行では同scenarioを含む全checkがLong Task 0でpassしたため、環境scheduler由来の境界揺らぎと判定した。ただし失敗は隠さず、最終exact captureとは分離して記録する。
+  - profile Long Task監視補完後、monitorの最新sourceを `build:ts` する前に開始したstandardは全check passだったが、監視コードのexactnessを満たさないため採用しなかった。`c847a2318fc54987247cd0317d9647da3a382aaa` を再buildしたdirty=falseの正式standardだけを完了証拠とし、overall `pass`、candidateEligible `true`、pending 0を確認した。
+  - 正式standardのfirst-open/style readyはprofileがVite 35.8/7.9ms・classic 38.9/8.4ms、rules-helpが63.6/10.2ms・55.3/10.4ms、deck-builderが107.1/28.0ms・83.1/22.6ms、networkが58.2/11.0ms・61.7/12.3msだった。result stylesheet preparationはVite 7.9ms・classic 8.0msで、全featureのCLS delta 0、profile/rules-help/deck-builder/network first-open Long Task 0、再表示DOM/style増分0を確認した。
 
 ## Phase 5: 全体ゲートと継続監視
 
