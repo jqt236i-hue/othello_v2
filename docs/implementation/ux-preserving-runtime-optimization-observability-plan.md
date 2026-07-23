@@ -151,6 +151,7 @@
   - 通常起動の判定は固定0件ではなく、committed frameが要求するlogical IDのowner variantだけを許可する。初期盤面に特殊石がなければ結果として0件になる。
   - first-special fixtureは通常game更新と競合しない公開writer settlement経路を使い、`frame:prepared` がsettlementより前、対象画像のdelta responseが1件であることを確認する。
   - context-loss fixtureは合成eventではなく `WEBGL_lose_context` extensionを使い、実runtime recoveryからDOM準備完了までを観測する。
+  - Phase 5.3の `checkall` で、DOM compatibility preparation → UI visual map → board rendererの新規import cycleを検出した。preparationの画像集合取得をheadless正本 `game/visual-effects-map.ts` の公開map/collectorへ直接接続し、UI描画helperへの逆依存を除去した。特殊石URL、Document単位cache、load/decode完了、失敗entry再試行はfocused testで不変を確認した。
 
 ### Step 1.2: lock-only hint Graphics再描画を止める
 
@@ -830,6 +831,7 @@ git status --short
 - CSSを一括分割するとcascade原因を切り分けられないため、result、profile、rules-help、deck-builder、networkの順に独立commit/visual checkを置いた。
 - performance絶対値を共有CIでblockingにせず、CIは決定的契約、同一hardware standardは時間/RAF gateと役割を分けた。
 - Phase 5.3実装前監査で、contract上のstandard sample数は5なのに既存standardコマンドが1回しかcaptureしない矛盾と、設計本文のquick 3回がcontractのquick 1回と一致しない誤りを確認した。quickは非eligibleな単発開発診断へ統一し、最終比較は保存baseline artifactを現行schemaでboot-only再観測しながらcandidateと交互に各5 fresh process取得する専用suiteへ修正した。
+- Phase 5.3最初の `checkall` はPhase 1.1由来の3-module import cycleを検出してfailした。正本mapへの一方向依存へ修正後、dependency-boundary testとDOM compatibility preparation testを再実行し、cycle 0と既存画像準備契約を確認した。初回failは最終結果から隠さず記録する。
 - `worker-public/`、`index.html`、Vite registryなどを直接編集する手順がないこと、各単位でroot sourceから生成することを確認した。
 - 全設計完了条件を最後のチェックリストとPhase 5 standard gateへ対応付け、実装モデルが会話情報なしで対象、順序、検証、停止条件を判断できることを確認した。
 - help idle prefetchをboard visual readyだけで開始する案は、最新idle frame settlementと競合し得るため、`waitForIdle()` とcallback時のmode再確認を追加した。

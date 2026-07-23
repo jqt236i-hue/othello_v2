@@ -1,6 +1,6 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require;
-const VisualEffectsMap = _require('../visual-effects-map');
+const SharedVisualEffectsMap = _require('../../game/visual-effects-map');
 
 interface DomCompatibilityStoneVisualFailure {
   readonly src: string;
@@ -32,16 +32,17 @@ function resolveRequestedPaths(
   effectKeys?: readonly string[]
 ): readonly string[] {
   const keys = effectKeys || (
-    typeof VisualEffectsMap.getSupportedEffectKeys === 'function'
-      ? VisualEffectsMap.getSupportedEffectKeys()
+    typeof SharedVisualEffectsMap.getSupportedEffectKeys === 'function'
+      ? SharedVisualEffectsMap.getSupportedEffectKeys()
       : []
   );
   const paths = new Set<string>();
   for (const rawKey of keys) {
     const key = String(rawKey || '').trim();
     if (!key || key === 'normal') continue;
-    const effectPaths = typeof VisualEffectsMap.getStoneVisualPathsForEffectKey === 'function'
-      ? VisualEffectsMap.getStoneVisualPathsForEffectKey(key)
+    const effect = SharedVisualEffectsMap.STONE_VISUAL_EFFECTS?.[key];
+    const effectPaths = typeof SharedVisualEffectsMap.collectEffectImagePaths === 'function'
+      ? SharedVisualEffectsMap.collectEffectImagePaths(effect)
       : [];
     for (const rawPath of effectPaths) {
       const path = String(rawPath || '').trim();
