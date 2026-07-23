@@ -165,6 +165,8 @@ captureは判定を決めず、生値とcapabilityを記録する。`scripts/per
 
 dirty checkoutでのquick開発計測は許可するが `candidateEligible=false` とする。標準合格証拠はclean exact commitと一致するartifact digestを必須とする。
 
+baselineとcandidateの比較では、各レポートのcommitとartifact digestがそれぞれ自身の配信物に一致することを先に検証する。最適化によりartifact自体は変わるため、baselineとcandidateのartifact digest一致は要求しない。比較互換性として一致を要求するのは、fixture/scenario digest、browser/OS/GPU、viewport/DPR、profile、capture policyである。
+
 ### 4. 共通phase
 
 全resourceとDOM操作を次のphaseへ帰属させる。
@@ -208,6 +210,7 @@ logical asset IDは、HTMLの `data-card-reversi-logical-src`、optimized asset 
 | `feature.rules-help` | ヘルプ | 同上、検索・タブ・画像 |
 | `feature.deck-builder` | デッキ編成 | 同上、スクロール・カード一覧 |
 | `feature.network` | mode選択 | 選択前未評価、選択後ready、退出・再表示 |
+| `feature.network-restore` | 保存session自動復帰 | 保存session検出後・復帰試行前のsurface ready、状態再投影、snapshot/reconnect |
 | `asset.webp-fallback` | WebP失敗注入 | PNG fallback、logical重複なし、可視一致 |
 | `playback.opponent-actions` | 既存5シナリオ | RAF、Long Task、Pixi更新数、ticker idle |
 
@@ -240,6 +243,8 @@ logical asset IDは、HTMLの `data-card-reversi-logical-src`、optimized asset 
 
 - `first-frame-committed` 前にhelp image requestを開始しない。
 - `idle-prefetch` は `board-idle` 後だけ開始できる。
+- idle待機はinit chainからawaitしないbackground taskとし、イベントlistener登録、保存session復帰、`uiInitialized` を遅らせない。taskの拒否は内部で診断化し、unhandled rejectionにしない。
+- help imageのpreload cacheはDOM要素から独立したlogical URL単位とし、後からlazy生成された画像要素も同じin-flight/ready結果を利用する。
 - 即時openでは画像枠の寸法が先に確定し、CLSを発生させず、load完了まで既存のローディング表現を示す。
 - idle後openでは追加body転送なしで画像が表示される。
 - slide切替の「現画像を保持して次画像をpreloadする」契約を維持する。
@@ -268,18 +273,21 @@ decode時間は環境依存なのでCIのblocking対象にしない。画素一�
 
 ### G. 非表示UIの遅延生成
 
-featureは `result → profile → rules-help → deck-builder → network` の順に分割する。result overlay DOMは `ui/result-overlay.ts` が既に表示時生成するため、その契約を維持してCSSだけを遅延する。残る4 featureは、初期HTMLにopen control、外枠、stable ID、ARIA参照、読み込み中表示に必要な最小shellだけを残す。
+featureは `result → profile → rules-help → deck-builder → network` の順に分割する。result overlay DOMは `ui/result-overlay.ts` が既に表示時生成するため、その契約を維持してCSSだけを遅延する。結果の勝敗・操作を必ず読める最小critical CSSはstartup側へ残し、full CSS失敗時も未装飾または非表示の結果にしない。残る4 featureは、初期HTMLにopen control、外枠、stable ID、ARIA参照、読み込み中表示に必要な最小shellだけを残す。
 
 各featureの共通契約。ただしresultのinner DOM count/保持は既存の表示時生成・close時破棄を正とし、CSSと操作だけを同じmonitorへ参加させる。
 
 - 初期状態でinner DOM count 0、専用stylesheet request 0。
-- 初回openは `ensureFeatureStylesheet()` と `ensureFeatureDom()` を同じcontrollerから開始し、両方のready後にinteractive stateへ移る。
+- result以外の初回openは `ensureFeatureStylesheet()` と `ensureFeatureDom()` を同じcontrollerから開始し、両方のready後にinteractive stateへ移る。resultは `showResult()` の既存2秒待機開始時にfull CSSを先行準備し、同期API `showResultOverlay()` のDOM生成をCSS Promiseで遅らせない。
 - stylesheetは固定slotへ挿入し、現行のcascade順を保つ。
-- inner DOMは一度だけcloneし、close時に破棄しない。
+- result以外のinner DOMは一度だけcloneし、close時に破棄しない。
+- bootstrapの初期DOM取得はopen controlとshellだけを保持する。feature controllerはsurface ready後に自身のrootからinner refsを一度取得してlistenerを配線し、boot時のnull参照を永続的なUI refsとして保持しない。
+- profile、deck-builder、networkはinner refsの配線後、DOM外で保持していた保存済みUI model、選択状態、network clientの接続状態を再投影してからinteractive stateへ移る。
+- network surfaceは明示的なmode選択だけでなく、`restoreStoredNetworkSessionOnBoot()` が保存sessionを検出した時も復帰試行より先に準備する。保存sessionなしではsurfaceを生成せず、surface準備失敗時は復帰を開始せず保存sessionを再試行用に残す。復帰試行後の成功/失敗statusはready済みviewへ投影する。
 - 同時open要求は同じPromiseへ合流し、二重listener、二重DOM、二重stylesheetを作らない。
-- load失敗は閉じられるエラーshellを表示し、再openで再試行できる。空または未装飾の成功画面を作らない。
+- result以外のload失敗は閉じられるエラーshellを表示し、再openで再試行できる。resultは最小critical CSSで終局内容と主要操作を必ず表示する。空、未装飾、操作不能の成功画面を作らない。
 - open→close→openでフォーカス返却、ESC、backdrop、tab order、scroll位置、保存済みUI stateを維持する。
-- first-open中に50ms以上のアプリ起因Long Taskを作らず、desktop local配信のinteractive ready p95を250ms以内とする。CIでは時間をadvisory、構造と操作をblockingにする。
+- first-open中に50ms以上のアプリ起因Long Taskを作らず、result以外はdesktop local配信のinteractive ready p95を250ms以内とする。resultは意図された2秒表示待機を変えず、stylesheet preparation自体のp95を250ms以内とする。CIでは時間をadvisory、構造と操作をblockingにする。
 
 ## 判定ポリシー
 
@@ -287,7 +295,7 @@ featureは `result → profile → rules-help → deck-builder → network` の�
 
 - schema、identity、digest、visibility/focusの妥当性
 - resource/DOM/update countの決定的契約
-- page/console/resource error 0
+- 通常scenarioのpage/console/resource error 0。明示的な失敗注入scenarioだけは、scenario contractと一致する1件のexpected faultを許可し、それ以外のerrorを0とする
 - 単一writer/backend、入力、演出順、fallback
 - asset可視一致、manifest、PNG fallback
 - root/生成物/mirror driftなし
@@ -301,9 +309,9 @@ featureは `result → profile → rules-help → deck-builder → network` の�
 - boot encoded bodyは意図した削減対象を除いて増加理由をレポートする。全体がbaselineより1%以上増えた場合はblocking reviewとする。
 - RAF p95は観測nominal intervalの1.15倍以内、50ms stall 0。
 - API対応時のアプリ起因Long Task 0。非対応時はraw RAFを必須にする。
-- first-open p95は250ms以内、CLS 0.01以下。
+- profile/rules-help/deck-builder/networkのfirst-open p95とresult stylesheet preparation p95は250ms以内、CLS 0.01以下。
 
-baselineとcandidateのbrowser/OS/GPU/viewport/DPR/profileが一致しない比較は `invalid` とする。共有CI runnerの時間はこの比較ゲートに使わない。
+baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR、profile、capture policyが一致しない比較は `invalid` とする。共有CI runnerの時間はこの比較ゲートに使わない。
 
 ## 通常プレイからの分離とデータ安全
 
@@ -390,6 +398,7 @@ baselineとcandidateのbrowser/OS/GPU/viewport/DPR/profileが一致しない比�
 - **CI時間の揺らぎでfalse fail**: CIは決定的契約をblocking、厳しい時間比較は同一hardware desktopに限定する。
 - **CSS分割でcascadeが変わる**: 固定slotを使い、順序とcomputed style/visualを監視する。
 - **lazy UIでアクセシビリティが壊れる**: shellのstable IDを維持し、focus/ESC/backdrop/ARIAを各feature scenarioで操作する。
+- **boot時のnull要素参照がlazy生成後も残る**: bootstrapはstable shell/controlだけを配線し、inner refsは各feature controllerがsurface ready後に再取得する。
 - **WebP容量削減がdecode悪化を隠す**: 容量とdecodeを別gateにし、critical assetは両方の合格を必須にする。
 - **fallbackを通常Pixiだけの監視が見逃す**: 明示DOM、初期失敗、context lossを独立scenarioにする。
 - **レポートに機密やcanonical stateが混入する**: allowlist static resourceと再帰denylistをvalidatorでfail closedにする。
@@ -419,6 +428,12 @@ baselineとcandidateのbrowser/OS/GPU/viewport/DPR/profileが一致しない比�
 - 初回準備を完全に不可視な内部事情として扱う案は、低速端末で待機状態がプレイヤーに見える可能性を隠すため撤回した。既存のガチャ/SKIN初回準備契約と同じ方向で `01-rulebook.md` を先に更新する。
 - performance harnessを通常bundleへ戻す案は既存のoptional diagnostics契約を壊すため、capture専用payloadと外部Playwright観測を採用した。
 - lock-only変更の全cell入力同期まで直ちにゼロへする案は、pointerleaveや長押しclearを壊す可能性があるため撤回した。重いhint paintと軽い入力属性同期を別計数し、親入力ゲートは再計測で必要性が確認された場合だけ進める。
+- 初期DOM参照をそのまま各featureへ渡す案では、lazy生成後もnull参照が残って操作不能になるため、stable shell/controlだけをbootで取得し、inner refsをsurface ready後にfeature controllerが取得する所有境界を追加した。
+- help画像preloadを既存img要素に結び付ける案では、後のrules-help DOM遅延化と矛盾するため、logical URL単位のDOM非依存cacheへ修正した。
+- result full CSS失敗時にoverlayを抑止する案は終局操作を失わせるため、最小critical CSSをstartupへ残し、結果表示を必ず成立させる例外を追加した。
+- baselineとcandidateでartifact digest自体を一致させる読み方を排除し、各digestと各commitの自己整合を検証したうえで、fixtureと実行環境を比較互換性キーにすることを明記した。
+- helpの `waitForIdle()` をinit chainでawaitすると操作listenerと保存session復帰を止めるため、明示controllerを使う非blocking background taskへ限定した。
+- network UIにはmode button以外に保存session自動復帰というboot経路があるため、保存session検出、surface ready、復帰試行、状態投影の順序を独立scenarioへ追加した。
 - 物理端末を必須release gateにする案は現行の任意診断方針と矛盾するため、device効果を主張する場合だけ必須とした。
 - reportへ盤面状態や操作内容を入れる必要はなく、resource logical ID、phase、公開diagnosticsだけで全checkを判定できることを確認した。
 - 最適化とmonitorを別タスクにすると未監視期間が生まれるため、実装単位ごとにbaseline、check、最適化、candidate、blocking化を完結させる順序へ改訂した。

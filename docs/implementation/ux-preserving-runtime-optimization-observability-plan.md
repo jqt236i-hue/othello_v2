@@ -38,6 +38,7 @@
   - reportを再帰走査し、`board`, `hand`, `hands`, `cardState`, `gameState`, `seatToken`, `operationId`, `snapshot`, `action` を拒否する。
   - static resource pathはquery/hashを除く同一origin allowlistだけを受理する。
   - candidate commit、dirty state、artifact digest、fixture/scenario digest、environment、visibility/focusを必須にする。
+  - baseline/candidateの各artifact digestが各自のcommit配信物に一致することを個別に検証する。両artifact digestの相互一致は要求せず、fixture/scenario digestと実行環境/profile/capture policyの一致を比較互換性条件にする。
 - verification:
   - schema欠落、未知verdict、自己申告pass改ざん、forbidden key、異なるenvironment比較がfailになるunit test
   - percentile、phase ordering、optional physical not-applicableのunit test
@@ -61,6 +62,7 @@
 - required behavior:
   - fresh browser process、cold/warm context、固定viewport、visibility/focus、page/console/resource errorsを管理する。
   - resource timingとPlaywright response evidenceを統合し、logical ID、phase、encoded body、cache evidenceを記録する。
+  - forced WebP/CSS failureなどの注入scenarioはexpected faultの種類と対象resourceをfixture digestへ含め、完全一致する1件だけを許可する。通常scenarioと追加errorは常にfailにする。
   - `performance.timeOrigin` を唯一のbrowser phase clockにする。
   - Pixi diagnosticsは既存optional diagnostics payloadを明示capture queryでだけロードする。
   - 通常queryではdiagnostics payload、debug global、追加observer、追加RAFがないことをcaptureする。
@@ -214,13 +216,16 @@
   - monitor scenario `help.before-idle`, `help.after-idle`
 - implementation:
   - 最初のguide/早見表画像から初期 `src` を外し、logical pathとwidth/heightまたはaspect-ratioを保持する。
-  - `rules-help.ts` にDocument単位で一度だけの `prepareInitialHelpImages()` と `scheduleInitialHelpImageIdlePrefetch()` を追加する。
-  - `waitForInitialBoardVisualReady()` 完了後にidle prefetchを予約する。`requestIdleCallback` 非対応時は短いtimerを使うが、board ready前には開始しない。
+  - `rules-help.ts` にDocument単位、logical URL単位で一度だけの `prepareInitialHelpImages()` と `scheduleInitialHelpImageIdlePrefetch()` を追加する。cacheはimg要素を所有せず、後から生成されたimgも同じin-flight/ready結果を使う。
+  - `waitForInitialBoardVisualReady()` がready確認済みcontrollerを返すか、その直後に `uiBootstrap.getBoardVisualController()` で同じinstanceを取得し、schedulerへ明示dependencyとして渡す。global探索は追加しない。
+  - schedulerはinit chainからawaitしないbackground taskとして開始し、渡されたcontrollerの既存 `waitForIdle()` で最新idle frame settlementまで待ってからidle prefetchを予約する。listener登録、保存session復帰、`uiInitialized` を待たせず、内部errorは診断化してunhandled rejectionを出さない。
+  - `requestIdleCallback` または代替timerのcallback時にもcontrollerの `getMode()==='idle'` と `isIdleSettlementPending()===false` を再確認し、playback/recovery/新しいsettlement中なら次のidleまで再予約する。
   - user openが先ならidle taskをcancelし、同じin-flight Promiseをopen処理がawaitする。
   - slide切替の現画像保持・次画像preload契約を維持する。
 - monitoring:
   - first frame前のhelp request 0
   - idle prefetch startがboard idle以後
+  - boardがidleへ到達する前でもinit listener登録と保存session復帰が進行する
   - 即時open/idle後openの画像complete、CLS、focus、first-open latency
 - verification:
   - focused Jest
@@ -343,9 +348,11 @@
   - `getLazyFeatureSurfaceDiagnostics(id)`
 - behavior:
   - Document単位でpending/ready/failedを管理し、同時要求を同じPromiseへ合流する。
+  - `ensureFeatureStylesheet()` はrejectではなく `{ ok: false }` を返す経路があるため、surface loaderは `ok !== true` を失敗として扱い、DOM readyへ進めない。
   - failed時は作りかけDOM/listener/styleを破棄し、次回再試行できる。
   - ready surfaceはclose時に保持し、再生成しない。
   - HTMLにはopen control、stable shell ID、ARIA参照だけを残す。
+  - `init-dom.ts` はopen controlとshellだけをboot時に取得する。inner refsは各feature controllerがsurface ready後に自身のshellから取得し、boot時のnullを再利用しない。
   - CSSはfeature固有selectorだけを元ファイルから移し、共有token/layout ruleはstartup CSSへ残す。feature内の元source順を保ち、固定slotへ挿入する。
 - monitoring:
   - 初期DOM/style count、ensure count、ready/failure/retry、listener countをdebug-only diagnosticsで取得する。
@@ -366,12 +373,17 @@
   - `ui/result-overlay.ts`
   - result tests
 - implementation:
-  - result固有rulesを既存 `styles-layout-result.css` へsource順で集約し、このファイルを `result` feature stylesheetとしてstartup link/metaから外す。
-  - `showResult()` が既存2秒待機の開始時にCSS Promiseも開始する。`showResultOverlay()` はCSS ready後にDOMを表示し、結果計算やBGM stateをCSS readyの権威にしない。
+  - 勝敗、スコア、主要ボタン、focus outlineを読める最小critical result CSSだけをstartup側へ残す。残るresult固有rulesを既存 `styles-layout-result.css` へsource順で集約し、このファイルを `result` feature stylesheetとしてstartup link/metaから外す。
+  - `showResult()` が既存2秒待機の開始時にfull CSS Promiseも開始する。
+  - 公開 `showResultOverlay()` は同期DOM生成と戻り値の互換を維持する。直接呼出し時もfull CSS準備は開始するが、そのPromiseで既存DOM生成を遅らせず、critical CSSで直ちに操作可能にする。通常の `showResult()` 経路は2秒の先行準備時間を利用する。
+  - 既存 `_pendingResultToken` による2秒timerのstale callback防止を維持し、stylesheet Promiseをoverlay表示やresetの権威にしない。
+  - full CSSが失敗した場合は最小critical CSSで結果と主要操作を表示し、既存警告面から再読込を案内する。結果を非表示、未装飾、操作不能にしない。
+  - BGMは従来どおり実際のresult overlay表示と同時に開始し、結果計算やcanonical terminal stateをCSS readyの権威にしない。
   - overlay DOMは既存どおり表示時に生成し、close時に破棄する現在契約を維持する。このfeatureに共通inner DOM factoryを無理に追加しない。
 - monitoring:
   - boot時result CSS 0、終局通知前0、終局時1
-  - result表示時style ready、表示順/BGM/focus/再戦維持
+  - 通常 `showResult()` 経路は表示時full style ready、直接同期呼出しと失敗時はcritical style ready。表示順/BGM/focus/再戦を維持
+  - forced full CSS failureでもcritical表示、閉じる、再戦、再表示が操作可能
 - verification:
   - focused result Jest
   - CPU終局とnetwork result browser scenario
@@ -392,11 +404,14 @@
 - implementation:
   - open control、`#profileOverlay` shell、stable dialog IDだけを初期HTMLに残す。
   - inner DOM factoryを `player-profile-panel.ts` が所有し、storage/state modelをDOM生成前にも保持できるよう分離する。
-  - `init-dom.ts` は未生成inner refsを必須にせず、ready callback後に取得する。
+  - `init-dom.ts` は未生成inner refsを必須にしない。boot時の `setupPlayerProfilePanel()` は安定して存在するopen controlとshellだけを登録する。
+  - 初回openでsurface readyを待ち、生成後のinner refsを再queryしてlistenerを一度だけbindし、保存済みprofile modelを投影してから表示する。
+  - close / reopenでは同じinner DOMとlistenerを再利用し、再生成や二重bindをしない。
 - monitoring:
   - boot inner DOM/style 0、first open各1、second open増分0
   - focus trap、ESC、backdrop、open buttonへのfocus返却
   - 保存済み名前/avatar/bio/player ID/recovery codeの動作
+  - close / reopen後のinner DOM identity維持、listener重複0
 - verification:
   - focused profile Jest
   - desktop/mobile first/reopen browser operation
@@ -408,13 +423,19 @@
 - canonical components:
   - `index.classic.html`
   - `ui/handlers/rules-help.ts`
+  - `ui/bootstrap/init-dom.ts`
+  - `ui/bootstrap/init-events.ts`
   - help固有rulesを含む `styles-base.css`, `styles-layout-info.css`, `styles-cards.css`, `styles-responsive.css`
+  - `scripts/prepare-worker-assets.ts`
+  - `test/scripts.prepare-worker-assets.test.ts`
   - `test/ui.rules-help-panel.test.ts`
 - implementation:
   - open control、backdrop、dialog shell、stable IDだけを初期HTMLに残す。
+  - boot時の `setupRulesHelp()` はopen controlとshellへ軽量listenerだけを配線し、初回openでsurfaceをensureした後にinner refsをshellから取得して既存handlerを一度だけ配線する。
   - catalog/search/effect/glossary/guide/protection UIを `rules-help.ts` のfactoryで一度だけ生成する。
   - Step 2.2のimage preparation Promiseをsurface readyへ接続する。
   - feature固有CSSを `styles-feature-rules-help.css` へ集約し、共有card/token rulesはstartup側へ残す。
+  - 新しいroot CSSを `ROOT_FILES` / `VERIFY_ROOT_FILES` の正規生成面へ追加し、mirror testで存在と余分な手編集拒否を固定する。
 - monitoring:
   - boot inner DOM/style/help image 0
   - before-idle/after-idle open
@@ -432,12 +453,14 @@
 - canonical components:
   - `index.classic.html`
   - `ui/deck-builder-controller.ts`
+  - `ui/bootstrap/init-dom.ts`
+  - `ui/bootstrap/init-events.ts`
   - `styles-feature-deck-builder.css`
   - deck固有rulesを含む `styles-cards.css`, `styles-layout-info.css`, `styles-responsive.css`
   - deck builder tests
 - implementation:
   - open control、overlay/dialog shell、stable IDだけを初期HTMLに残す。
-  - body/header inner factoryとcontroller setupを同じsurface Promiseへ置く。
+  - boot時はopen controlとshellだけへlistenerを配線し、body/header inner factoryとcontroller setupを同じsurface Promiseへ置く。controllerはready後にinner refsをshellから取得する。
   - saved deck/stateはDOM非依存modelで先に読めるが、カード一覧DOMはopen前に作らない。
   - current feature stylesheet loaderの `deck-builder` groupを固定slot対応へ移行する。
 - monitoring:
@@ -452,21 +475,29 @@
 
 ### Step 4.6: ネットワーク専用UI
 
-- outcome: network mode選択前に専用inner DOM/CSSを生成しない。
+- outcome: network mode選択または保存session検出まで専用inner DOM/CSSを生成せず、どちらの経路でもnetwork処理・最初のUI書き込み前に準備する。
 - canonical components:
   - `index.classic.html`
   - `ui/handlers/match-mode.ts` と `ui/handlers/match-mode/*`
+  - `ui/bootstrap/init-dom.ts`
+  - `ui/bootstrap/init-events.ts`
   - `styles-feature-network.css`
   - network固有rulesを含む `styles-layout-info.css`, `styles-layout-controls.css`, `styles-responsive.css`
   - network button/popup tests
+  - stored-session restore tests
 - implementation:
   - mode button、overlay shell、stable IDだけを初期HTMLに残す。
-  - mode選択はsurface readyをawaitしてから既存network UI setupを一度だけ実行する。
+  - mode選択はsurface readyをawaitし、`hydrateNetworkUiRefs(shell)` でinner refsを既存mutable UI ref holderへ一度だけ反映してからnetwork UI setupを実行する。boot時のnull refsを操作経路へ残さない。
+  - hydrate後、DOM非依存の保存済みprofile / match-mode stateとnetwork client stateからプレイヤー名、選択状態、接続表示を再投影してからshellを表示する。
+  - `restoreStoredNetworkSessionOnBoot()` は既存 `NetworkMatchClient.readStoredSession()` で保存sessionの有無を先に確認する。なしならsurfaceを生成せず終了し、ありなら同じsurface/hydrate Promiseをawaitしてから `restoreStoredSession()` を開始する。
+  - surface準備失敗時はnetwork復帰を開始せず保存sessionを再試行用に残す。復帰試行後の成功/失敗status、`setMode(MODE_NETWORK)`、snapshot反映はready済みrefsだけへ書く。
   - canonical network client、snapshot、room stateはsurface loaderへ移さない。loaderはview生成だけを所有する。
   - load失敗時はroom作成/参加を開始せず、再操作でview準備から再試行する。
 - monitoring:
   - network mode選択前inner DOM/style 0
   - 選択後各1、退出/再open増分0
+  - 初回hydrate時の保存済みプレイヤー名、match mode、接続状態の一致
+  - 保存sessionありでは復帰requestよりsurface readyが先行し、保存sessionなしではinner DOM/style 0。復帰成功/invalid sessionの両statusがready済みviewへ反映される
   - room settings popup、clipboard、leave、chat panelのUI操作
   - reportへroom/seat/token/chat内容を含めない
 - verification:
@@ -483,7 +514,7 @@
 - monitoring:
   - feature別initial/first/reopen DOM/style/listener counts
   - computed style snapshot、desktop/mobile screenshot
-  - first-open p95、CLS、Long Task
+  - profile/rules-help/deck-builder/network first-open p95、result stylesheet preparation p95、CLS、Long Task
   - stylesheet orderとfailure/retry
 - verification:
   - focused feature suites
@@ -491,7 +522,7 @@
   - `npm run match:ui-control-smoke:vite`
   - `npm run match:cross-platform-smoke:vite`
   - `npm run perf:ux-optimization:standard`
-- done: first-open p95 250ms以内、CLS 0.01以下、アプリ起因Long Task 0、全featureの再表示増分0。時間値はhardware標準reportで判定し、CIでは構造・操作をblockingとする。
+- done: profile/rules-help/deck-builder/networkのfirst-open p95 250ms以内、result stylesheet preparation p95 250ms以内、CLS 0.01以下、アプリ起因Long Task 0、全featureの再表示増分0。resultの意図された2秒表示待機は別計測し、変更しない。時間値はhardware標準reportで判定し、CIでは構造・操作をblockingとする。
 
 ## Phase 5: 全体ゲートと継続監視
 
@@ -506,7 +537,7 @@
 - required behavior:
   - 全scenarioと全blocking gateが存在しなければfail。
   - `pending-optimization` を0以外ならfail。
-  - baseline/candidateのbrowser/OS/GPU/viewport/DPR/profile不一致をinvalidにする。
+  - baseline/candidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR、profile、capture policy不一致をinvalidにする。artifact digestは各reportと各commitの自己整合を検証し、baseline/candidate間の一致は要求しない。
   - quickは開発用、standard clean exact commitだけをcandidate eligibleにする。
   - JSONとMarkdownは同じvalidator resultから生成する。
   - raw reportはartifacts、人間向け最終結論だけを `docs/perf/` に書ける `--write-summary` を用意する。
@@ -568,11 +599,11 @@ git status --short
 ```
 
 - done:
-  - report identity valid、blocking pass、pending 0、page/console/resource error 0
+  - report identity valid、blocking pass、pending 0、通常scenarioのpage/console/resource error 0、失敗注入scenarioは契約済みexpected fault以外0
   - normal play diagnostics leakage 0
   - opponent-action Long Task 0、50ms RAF stall 0、ticker idle
   - board readyがbaselineより `100ms` かつ `5%` を両方超えて悪化しない
-  - feature first-open p95 250ms以内、CLS 0.01以下
+  - profile/rules-help/deck-builder/network first-open p95とresult stylesheet preparation p95が250ms以内、CLS 0.01以下
   - task-owned final diffと生成物/mirrorを確認し、completion summaryをcommitする
 
 ## ロールバック境界
@@ -627,3 +658,12 @@ git status --short
 - performance絶対値を共有CIでblockingにせず、CIは決定的契約、同一hardware standardは時間/RAF gateと役割を分けた。
 - `worker-public/`、`index.html`、Vite registryなどを直接編集する手順がないこと、各単位でroot sourceから生成することを確認した。
 - 全設計完了条件を最後のチェックリストとPhase 5 standard gateへ対応付け、実装モデルが会話情報なしで対象、順序、検証、停止条件を判断できることを確認した。
+- help idle prefetchをboard visual readyだけで開始する案は、最新idle frame settlementと競合し得るため、`waitForIdle()` とcallback時のmode再確認を追加した。
+- lazy inner DOMを削除してもboot時ref取得を維持する案はnull参照を固定するため、各feature controllerがsurface ready後にrefsを取得する手順へ修正した。
+- result full CSS失敗でoverlayを抑止する案は終局操作を失わせ、同期 `showResultOverlay()` をPromise化すると既存呼び出し契約も壊すため、最小critical CSS、2秒待機中の先行準備、同期DOM生成、失敗時の操作可能表示へ修正した。
+- 新しいrules-help root CSSがworker mirrorから欠落するため、`prepare-worker-assets.ts` とmirror testをStep 4.4のcanonical componentsへ追加した。
+- artifact digestをbaseline/candidate比較キーにすると正当な最適化差分をすべてinvalidにするため、各reportの自己整合と環境/fixtureの比較互換性を分離した。
+- resultの既存2秒待機を共通first-open 250ms閾値へ含める矛盾を修正し、resultはstylesheet preparation、他featureはinteractive readyを測るよう分離した。
+- failure injectionが通常のresource error 0契約と矛盾しないよう、fixture digestに固定したexpected fault 1件だけを許可し、追加errorをfailにする規則を追加した。
+- help idle待機をinit chainでawaitするとイベント登録と保存session復帰を止めるため、明示controllerを使う非blocking background taskと進行監視を追加した。
+- network mode buttonだけを遅延化の入口にすると保存session自動復帰が未生成refsへ書くため、保存session検出後・復帰試行前のsurface準備と専用scenarioを追加した。
