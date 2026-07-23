@@ -52,6 +52,43 @@ interface GeneratedOptionalAsset {
     content: Buffer;
 }
 
+interface CopyFileRetryOptions {
+    maxAttempts?: number;
+    copyFile?: (sourcePath: string, destinationPath: string) => void;
+    wait?: (delayMs: number) => void;
+}
+
+const TRANSIENT_COPY_ERROR_CODES = new Set(['UNKNOWN', 'EBUSY', 'EPERM']);
+const DEFAULT_COPY_MAX_ATTEMPTS = 8;
+const COPY_RETRY_WAIT_SIGNAL = new Int32Array(new SharedArrayBuffer(4));
+
+function waitForCopyRetry(delayMs: number) {
+    Atomics.wait(COPY_RETRY_WAIT_SIGNAL, 0, 0, delayMs);
+}
+
+function copyFileWithTransientRetry(
+    sourcePath: string,
+    destinationPath: string,
+    options: CopyFileRetryOptions = {}
+) {
+    const maxAttempts = Math.max(1, Math.floor(options.maxAttempts || DEFAULT_COPY_MAX_ATTEMPTS));
+    const copyFile = options.copyFile || fs.copyFileSync;
+    const wait = options.wait || waitForCopyRetry;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+            copyFile(sourcePath, destinationPath);
+            return;
+        } catch (error) {
+            const code = (error as NodeJS.ErrnoException | undefined)?.code || '';
+            if (!TRANSIENT_COPY_ERROR_CODES.has(code) || attempt >= maxAttempts) {
+                throw error;
+            }
+            wait(Math.min(500, 25 * (2 ** (attempt - 1))));
+        }
+    }
+}
+
 function findRepoRoot(startDir: string): string {
     let dir = startDir;
     while (dir !== path.dirname(dir)) {
@@ -260,7 +297,7 @@ function copyFileByRelative(relativePath: any, config: any) {
     if (!fs.existsSync(src)) return;
     const dst = path.join(settings.outDir, relativePath);
     ensureDir(path.dirname(dst));
-    fs.copyFileSync(src, dst);
+    copyFileWithTransientRetry(src, dst);
 }
 
 function resolveCopyableOptionalFiles(config: any) {
@@ -414,7 +451,7 @@ function copyDirectoryRecursive(srcDir: any, dstDir: any, relativePrefix: string
         } else if (entry.isFile()) {
             if (!shouldMirrorRelativePath(nextRelative)) continue;
             ensureDir(path.dirname(dstPath));
-            fs.copyFileSync(srcPath, dstPath);
+            copyFileWithTransientRetry(srcPath, dstPath);
         }
     }
 }
@@ -632,5 +669,6 @@ export = {
     listAllFilesRecursive,
     resolveCopyableOptionalFiles,
     resolveGeneratedOptionalAssets,
-    shouldMirrorRelativePath
+    shouldMirrorRelativePath,
+    copyFileWithTransientRetry
 };

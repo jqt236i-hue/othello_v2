@@ -9,6 +9,7 @@ const {
     VERIFY_DIRS,
     VERIFY_ROOT_FILES,
     createPrepareConfig,
+    copyFileWithTransientRetry,
     prepareWorkerAssets,
     verifyMirrors,
     shouldMirrorRelativePath
@@ -37,6 +38,42 @@ describe('prepare-worker-assets', () => {
     test('verifies assets as part of mirrored directories', () => {
         expect(VERIFY_DIRS).toContain('assets');
         expect(VERIFY_DIRS).toContain('vite-dist');
+    });
+
+    test('retries only bounded transient copy failures before succeeding', () => {
+        const waits = [];
+        let attempts = 0;
+
+        copyFileWithTransientRetry('source', 'destination', {
+            maxAttempts: 4,
+            copyFile: () => {
+                attempts += 1;
+                if (attempts < 3) {
+                    const error = Object.assign(new Error('temporarily locked'), { code: 'UNKNOWN' });
+                    throw error;
+                }
+            },
+            wait: (delayMs) => waits.push(delayMs)
+        });
+
+        expect(attempts).toBe(3);
+        expect(waits).toEqual([25, 50]);
+    });
+
+    test('does not retry a non-transient copy failure', () => {
+        let attempts = 0;
+        const missingSource = Object.assign(new Error('source missing'), { code: 'ENOENT' });
+
+        expect(() => copyFileWithTransientRetry('source', 'destination', {
+            copyFile: () => {
+                attempts += 1;
+                throw missingSource;
+            },
+            wait: () => {
+                throw new Error('wait must not run');
+            }
+        })).toThrow(missingSource);
+        expect(attempts).toBe(1);
     });
 
     test('mirrors only the deployable WASM runtime used by the CPU Worker', () => {
