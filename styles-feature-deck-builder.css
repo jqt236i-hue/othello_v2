@@ -1871,18 +1871,6 @@
     --left-action-icon-bottom: #9fdce5;
 }
 
-#leftActionButtons :is(#modeNetworkBtn, #ratedMatchOpenBtn, #gachaOpenBtn, #deckBuilderOpenBtn, #leaderboardOpenBtn)[aria-expanded="true"] {
-    background:
-        radial-gradient(110% 80% at 15% 0%, var(--left-action-tone-soft), transparent 46%),
-        linear-gradient(90deg, var(--left-action-tone-strong) 0, rgba(255, 255, 255, 0) calc(5px * var(--layout-stage-scale))),
-        linear-gradient(180deg, rgba(2, 14, 17, 0.94), rgba(1, 8, 10, 0.96));
-    box-shadow:
-        0 calc(8px * var(--layout-stage-scale)) calc(18px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.38),
-        0 0 calc(14px * var(--layout-stage-scale)) var(--left-action-tone-soft),
-        inset calc(3px * var(--layout-stage-scale)) 0 0 var(--left-action-tone-strong),
-        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(203, 255, 249, 0.08);
-}
-
 /* ============================================================
    Bold Redesign — Compact density (viewport-fitted, no scroll)
    「スクロールしなくても全体が見える」を絶対ルール化するための

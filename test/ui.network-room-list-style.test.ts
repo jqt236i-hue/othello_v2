@@ -1,15 +1,29 @@
-import { readRepoTextFile } from './helpers/css-test-helpers';
+import {
+  readNetworkFeatureCssSurface,
+  readNetworkResponsiveCssSurface,
+  readRepoTextFile,
+} from './helpers/css-test-helpers';
 
 function readCssRuleBlock(css: string, selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = css.match(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\n\\}`, 'm'));
-  return match ? match[1] : '';
+  const matches = Array.from(
+    css.matchAll(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\n\\}`, 'gm'))
+  );
+  return matches.at(-1)?.[1] ?? '';
+}
+
+function readCssRuleBlocks(css: string, selector: string): string[] {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return Array.from(
+    css.matchAll(new RegExp(`${escaped}\\s*\\{([\\s\\S]*?)\\n\\}`, 'gm'))
+  ).map((match) => match[1]);
 }
 
 describe('network room list style', () => {
   test('PCネット対戦モーダルは参照画像に近い大型16:9フレームで表示する', () => {
-    const css = readRepoTextFile('styles-layout-info.css');
-    const modalBlock = readCssRuleBlock(css, '#networkModal');
+    const css = readNetworkFeatureCssSurface();
+    const modalBlock = readCssRuleBlocks(css, '#networkModal')
+      .find((block) => /width:\s*min\(94vw/.test(block)) ?? '';
 
     expect(modalBlock).toMatch(/width:\s*min\(94vw,\s*calc\(94dvh \* 1\.7777778\),\s*1100px\)/);
     expect(modalBlock).toMatch(/max-height:\s*94dvh/);
@@ -17,7 +31,7 @@ describe('network room list style', () => {
   });
 
   test('ルームカードの参加済みと退出ボタンは初期表示で見える実レイアウト行に置く', () => {
-    const css = readRepoTextFile('styles-layout-info.css');
+    const css = readNetworkFeatureCssSurface();
     const panelBlock = readCssRuleBlock(css, '#networkRoomListPanel');
     const listBlock = readCssRuleBlock(css, '#networkRoomList');
     const entryBlock = readCssRuleBlock(css, '.network-room-list-entry');
@@ -58,7 +72,7 @@ describe('network room list style', () => {
   });
 
   test('ルームカード下部は参照画像の色分けと選択中リボンを持つ', () => {
-    const css = readRepoTextFile('styles-layout-info.css');
+    const css = readNetworkFeatureCssSurface();
     const ribbonBlock = readCssRuleBlock(css, '.network-room-list-entry.is-current-room .network-room-entry-body::before');
     const spectatorLabelBlock = readCssRuleBlock(css, '.network-room-entry-count.is-spectator-count .network-room-entry-count-label');
     const disabledJoinBlock = readCssRuleBlock(css, '#networkRoomList .network-room-entry-join:disabled');
@@ -77,7 +91,7 @@ describe('network room list style', () => {
   });
 
   test('ネット対戦ロビーの文字設計は元の白金ニュアンスを保って少しだけ装飾する', () => {
-    const css = readRepoTextFile('styles-layout-info.css');
+    const css = readNetworkFeatureCssSurface();
     const titleBlock = readCssRuleBlock(css, '#networkModalHeader .network-title');
     const fieldLabelBlock = readCssRuleBlock(css, '.network-field-label');
     const roomNameBlock = readCssRuleBlock(css, '.network-room-entry-name');
@@ -127,8 +141,8 @@ describe('network room list style', () => {
   });
 
   test('PCではルーム一覧を専用viewport内で縦スクロールし、phone portraitでは全展開する', () => {
-    const layoutCss = readRepoTextFile('styles-layout-info.css');
-    const responsiveCss = readRepoTextFile('styles-responsive.css');
+    const layoutCss = readNetworkFeatureCssSurface();
+    const responsiveCss = readNetworkResponsiveCssSurface();
     const viewportBlock = readCssRuleBlock(layoutCss, '#networkRoomListViewport');
     const mobileViewportBlock = readCssRuleBlock(responsiveCss, 'html.layout-profile-phone-portrait #networkRoomListViewport');
 
@@ -140,7 +154,7 @@ describe('network room list style', () => {
   });
 
   test('ルーム一覧見出しは背景枠に合わせて少し下げる', () => {
-    const css = readRepoTextFile('styles-layout-info.css');
+    const css = readNetworkFeatureCssSurface();
     const roomListTitleBlocks = Array.from(css.matchAll(/\n\.network-room-list-title\s*\{([\s\S]*?)\n\}/gm));
     const roomListTitleBlock = roomListTitleBlocks.at(-1)?.[1] ?? '';
     const sharedSectionTitleBlock = readCssRuleBlock(css, '#networkPanel .network-section-title,\n.network-room-list-title');
@@ -151,13 +165,16 @@ describe('network room list style', () => {
   });
 
   test('部屋作成設定の歯車は部屋作成ボタン左に配置し、ポップアップだけ開ける', () => {
-    const html = readRepoTextFile('index.html');
-    const css = readRepoTextFile('styles-layout-info.css');
-    const responsiveCss = readRepoTextFile('styles-responsive.css');
+    const html = readRepoTextFile('ui/handlers/match-mode/network-surface-template.ts');
+    const css = readNetworkFeatureCssSurface();
+    const responsiveCss = readNetworkResponsiveCssSurface();
     const settingsBtnBlock = readCssRuleBlock(css, '#networkRoomSettingsBtn');
     const settingsPopupBlock = readCssRuleBlock(css, '#networkRoomSettingsPopup');
     const settingsPopupOpenBlock = readCssRuleBlock(css, '#networkRoomSettingsPopup.is-open');
-    const mobileSettingsBtnBlock = readCssRuleBlock(responsiveCss, 'html.layout-profile-phone-portrait #networkRoomSettingsBtn');
+    const mobileSettingsBtnBlock = readCssRuleBlocks(
+      responsiveCss,
+      'html.layout-profile-phone-portrait #networkRoomSettingsBtn'
+    ).find((block) => /position:\s*static/.test(block)) ?? '';
 
     expect(html).toMatch(/id="networkRoomSettingsBtn"[\s\S]*aria-controls="networkRoomSettingsPopup"[\s\S]*⚙/);
     expect(html).toMatch(/id="networkRoomSettingsPopup"[\s\S]*aria-hidden="true"/);
@@ -169,7 +186,7 @@ describe('network room list style', () => {
   });
 
   test('部屋作成と更新ボタンは光彩を持ち、更新文字は背景枠からずれない', () => {
-    const css = readRepoTextFile('styles-layout-info.css');
+    const css = readNetworkFeatureCssSurface();
     const createBlock = readCssRuleBlock(css, '#networkActionRow #networkCreateBtn');
     const createHoverBlock = readCssRuleBlock(css, '#networkActionRow #networkCreateBtn:hover,\n#networkActionRow #networkCreateBtn:focus-visible');
     const createActiveBlock = readCssRuleBlock(css, '#networkActionRow #networkCreateBtn:active');
@@ -200,7 +217,7 @@ describe('network room list style', () => {
   });
 
   test('観戦ボタンは参照画像の暗色ボタンとして表示する', () => {
-    const css = readRepoTextFile('styles-layout-info.css');
+    const css = readNetworkFeatureCssSurface();
     const spectateBlocks = Array.from(css.matchAll(/\n\.network-room-entry-spectate\s*\{([\s\S]*?)\n\}/gm));
     const spectateBlock = spectateBlocks.at(-1)?.[1] ?? '';
 

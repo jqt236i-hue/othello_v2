@@ -6,6 +6,8 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
+    require('./helpers/feature-stylesheet-test-helpers')
+      .installPreparedDomBoardDependencies(global.document);
     global.boardEl = document.getElementById('board');
 
     // Minimal globals used by diff-renderer.js

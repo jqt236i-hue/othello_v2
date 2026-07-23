@@ -1,4 +1,5 @@
 import { JSDOM } from 'jsdom';
+import { installPreparedDomBoardDependencies } from './helpers/feature-stylesheet-test-helpers';
 
 function createBoard() {
   return Array.from({ length: 8 }, () => Array(8).fill(0));
@@ -8,6 +9,7 @@ function setupDom() {
   const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
   global.window = dom.window;
   global.document = dom.window.document;
+  installPreparedDomBoardDependencies(global.document);
   global.boardEl = document.getElementById('board');
   return dom;
 }

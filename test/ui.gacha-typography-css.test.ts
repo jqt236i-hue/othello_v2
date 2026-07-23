@@ -26,7 +26,7 @@ describe('observation gacha typography CSS', () => {
   });
 
   test('uses skin-controlled typography for the network modal', () => {
-    const css = readCss();
+    const css = readFeatureCss('styles-feature-network.css');
 
     expect(css).toMatch(/Network lobby font skin fidelity pass/);
     expect(css).toMatch(/#networkModal\s*{[\s\S]*--network-lobby-display-font:\s*var\(--selected-app-font-family\)/);
@@ -48,7 +48,7 @@ describe('observation gacha typography CSS', () => {
     expect(controlsCss).not.toMatch(/var\(--rated-asset-[a-z-]+\)/);
     expect(controlsCss).toContain('var(--rated-asset-panel, none)');
     expect(css).toContain('var(--gacha-observation-background-image, none)');
-    expect(css).toContain('var(--network-lobby-frame-image, none)');
+    expect(networkCss).toContain('var(--network-lobby-frame-image, none)');
     expect(gachaCss).toContain('gacha-observation-bg-v1.png');
     expect(gachaCss).toContain('gacha-reference-banner.png');
     expect(gachaCss).toContain('gacha-crystal-cluster-v1.png');

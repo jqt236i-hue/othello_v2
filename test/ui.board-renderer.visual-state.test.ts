@@ -1,4 +1,5 @@
 import { JSDOM } from 'jsdom';
+import { installPreparedDomBoardDependencies } from './helpers/feature-stylesheet-test-helpers';
 
 describe('board renderer network visual state', () => {
   let dom: JSDOM;
@@ -14,6 +15,7 @@ describe('board renderer network visual state', () => {
     dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     (global as any).window = dom.window;
     (global as any).document = dom.window.document;
+    installPreparedDomBoardDependencies((global as any).document);
     (global as any).boardEl = document.getElementById('board');
     (global as any).BLACK = 1;
     (global as any).WHITE = -1;

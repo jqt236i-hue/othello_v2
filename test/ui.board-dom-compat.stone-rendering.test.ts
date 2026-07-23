@@ -3,6 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 import { JSDOM } from 'jsdom';
+import { installPreparedDomBoardDependencies } from './helpers/feature-stylesheet-test-helpers';
 
 // Ensure DOM is available
 require('../tests/jest.setup'); // in case project has setup, otherwise DOM is global via jest
@@ -19,6 +20,7 @@ describe('UI stone rendering', () => {
     } else {
       document.body.innerHTML = '<div id="board"></div>';
     }
+    installPreparedDomBoardDependencies(document);
     document.documentElement.className = '';
     global.boardEl = document.getElementById('board');
 

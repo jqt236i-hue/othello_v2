@@ -1,4 +1,5 @@
 import { JSDOM } from 'jsdom';
+import { installPreparedDomBoardDependencies } from './helpers/feature-stylesheet-test-helpers';
 
 const ORIGINAL_NOANIM = process.env.NOANIM;
 const ORIGINAL_DISABLE_ANIMATIONS = process.env.DISABLE_ANIMATIONS;
@@ -21,6 +22,7 @@ describe('animation-engine observer bubble', () => {
     dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>', { pretendToBeVisual: true });
     global.window = dom.window;
     global.document = dom.window.document;
+    installPreparedDomBoardDependencies(global.document);
     global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
     global.window.requestAnimationFrame = global.requestAnimationFrame;
     global.window.__telemetry__ = { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };

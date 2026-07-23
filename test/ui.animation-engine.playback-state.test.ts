@@ -1,4 +1,8 @@
 import { JSDOM } from 'jsdom';
+import {
+  configureNoopDomBoardBackend,
+  installPreparedDomBoardDependencies,
+} from './helpers/feature-stylesheet-test-helpers';
 
 async function waitUntil(predicate: () => boolean, label: string, attempts = 100) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -199,6 +203,7 @@ describe('animation-engine playback-state integration', () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
+    installPreparedDomBoardDependencies(global.document);
     global.window.__telemetry__ = { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };
     global.emitBoardUpdate = jest.fn();
     jest.unmock('../ui/playback-state-manager');
@@ -259,6 +264,7 @@ describe('animation-engine playback-state integration', () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
+    installPreparedDomBoardDependencies(global.document);
     global.window.__telemetry__ = { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };
     const renderer = require('../ui/board-renderer.js');
     await renderer.getBoardVisualControllerReady();
@@ -309,6 +315,7 @@ describe('animation-engine playback-state integration', () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
+    installPreparedDomBoardDependencies(global.document);
     global.window.__telemetry__ = { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };
     jest.unmock('../ui/playback-state-manager');
     const manager = require('../ui/playback-state-manager.js');
@@ -378,6 +385,7 @@ describe('animation-engine playback-state integration', () => {
     jest.unmock('../ui/playback-state-manager');
     const manager = require('../ui/playback-state-manager.js');
     const renderer = require('../ui/board-renderer.js');
+    configureNoopDomBoardBackend(renderer);
     await renderer.getBoardVisualControllerReady();
     const settleSpy = jest.spyOn(renderer, 'settleBoardVisualWriter').mockImplementation((token: any) => {
       renderer.releaseBoardVisualWriter(token);
@@ -433,6 +441,7 @@ describe('animation-engine playback-state integration', () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
+    installPreparedDomBoardDependencies(global.document);
     global.window.__telemetry__ = { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };
     global.window.DISABLE_ANIMATIONS = true;
     global.emitBoardUpdate = jest.fn();

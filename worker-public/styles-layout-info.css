@@ -3781,8 +3781,6 @@
         inset 0 0 calc(42px * var(--gacha-reference-scale)) rgba(255, 224, 138, 0.16);
 }
 
-/* Network lobby font skin fidelity pass. */
-
 /* Observation gacha typography fidelity pass. */
 #gachaModal {
     --gacha-display-font: var(--selected-app-font-family);

@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   LAYOUT_STYLE_FILES,
+  readNetworkFeatureCssSurface,
   readRepoTextFile,
   readLayoutCssSurface,
   requireExistingStyleFiles,
@@ -103,7 +104,10 @@ describe('responsive layout rules for narrow aspect ratio', () => {
   });
 
   test('worker-public layout mirrors stay in sync with root sources', () => {
-    const mirroredStyleFiles = LAYOUT_STYLE_FILES.concat('styles-responsive.css');
+    const mirroredStyleFiles = LAYOUT_STYLE_FILES.concat(
+      'styles-layout-result.css',
+      'styles-responsive.css'
+    );
     const rootStagePath = path.join(__dirname, '..', 'ui', 'layout-stage.js');
     const workerStagePath = path.join(__dirname, '..', 'worker-public', 'ui', 'layout-stage.js');
 
@@ -182,6 +186,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     const varsPath = path.join(__dirname, '..', 'styles-variables.css');
     const varsCss = fs.readFileSync(varsPath, 'utf8');
     const layoutCss = readLayoutCssSurface();
+    const networkFeatureCss = readNetworkFeatureCssSurface();
     const html = readRepoTextFile('index.html');
 
     expect(stageJs).toMatch(/layout-stage-enabled/);
@@ -290,7 +295,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/\.gacha-reveal-hero-rarity[\s\S]*font-size:\s*calc\(22px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/\.gacha-reveal-slot-rarity[\s\S]*border-radius:\s*calc\(999px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(layoutCss).toMatch(/\.gacha-reveal-slot-rarity[\s\S]*font-size:\s*calc\(12px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(layoutCss).toMatch(/#networkChatPanel[\s\S]*--layout-anchor-chat-left/);
+    expect(networkFeatureCss).toMatch(/#networkChatPanel[\s\S]*--layout-anchor-chat-left/);
     expect(layoutCss).toMatch(/#hero-character-img[\s\S]*--layout-anchor-character-offset-y/);
     expect(layoutCss).toMatch(/#cpu-character-img[\s\S]*--layout-cpu-image-scale/);
     expect(layoutCss).toMatch(/@keyframes\s+round-bonus-toast-enter/);

@@ -1,4 +1,5 @@
 import { JSDOM } from 'jsdom';
+import { installPreparedDomBoardDependencies } from './helpers/feature-stylesheet-test-helpers';
 
 describe('board-renderer fallback legal hints', () => {
   let dom;
@@ -9,6 +10,7 @@ describe('board-renderer fallback legal hints', () => {
     dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
+    installPreparedDomBoardDependencies(global.document);
     global.boardEl = document.getElementById('board');
 
     global.BLACK = 1;

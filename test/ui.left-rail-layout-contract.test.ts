@@ -33,9 +33,11 @@ describe('left action rail layout contract', () => {
 
   test('primary left action buttons darken their opened state', () => {
     const layoutCss = readLayoutCssSurface();
+    const deckBuilderCss = readRepoTextFile('styles-feature-deck-builder.css');
 
     expect(layoutCss).toMatch(/#leftActionButtons\s+:is\(#modeNetworkBtn,\s*#ratedMatchOpenBtn,\s*#gachaOpenBtn,\s*#deckBuilderOpenBtn,\s*#leaderboardOpenBtn\)\[aria-expanded="true"\][\s\S]*linear-gradient\(180deg,\s*rgba\(2,\s*14,\s*17,\s*0\.94\),\s*rgba\(1,\s*8,\s*10,\s*0\.96\)\)/);
     expect(layoutCss).toMatch(/#leftActionButtons\s+:is\(#modeNetworkBtn,\s*#ratedMatchOpenBtn,\s*#gachaOpenBtn,\s*#deckBuilderOpenBtn,\s*#leaderboardOpenBtn\)\[aria-expanded="true"\][\s\S]*inset calc\(3px \* var\(--layout-stage-scale\)\) 0 0 var\(--left-action-tone-strong\)/);
+    expect(deckBuilderCss).not.toMatch(/#leftActionButtons\s+:is\(#modeNetworkBtn/);
   });
 
   test('left action popups use the premium game panel skin', () => {

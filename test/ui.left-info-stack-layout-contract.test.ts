@@ -1,5 +1,6 @@
 import {
   readLayoutCssSurface,
+  readNetworkFeatureCssSurface,
   readRepoTextFile,
 } from './helpers/css-test-helpers';
 
@@ -113,7 +114,7 @@ describe('left info stack layout contract', () => {
   });
 
   test('network presence toast uses lower-center compact HUD styling', () => {
-    const layoutCss = readLayoutCssSurface();
+    const layoutCss = readNetworkFeatureCssSurface();
     const varsCss = readRepoTextFile('styles-variables.css');
 
     expect(layoutCss).toMatch(/\.network-presence-toast\s*\{[\s\S]*position:\s*fixed/);

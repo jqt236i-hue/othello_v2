@@ -1,4 +1,5 @@
 import { JSDOM } from 'jsdom';
+import { installPreparedDomBoardDependencies } from './helpers/feature-stylesheet-test-helpers';
 
 describe('AnimationEngine strict network playback', () => {
   let dom: JSDOM;
@@ -9,6 +10,7 @@ describe('AnimationEngine strict network playback', () => {
     dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     (global as any).window = dom.window;
     (global as any).document = dom.window.document;
+    installPreparedDomBoardDependencies((global as any).document);
     (global as any).window.PLAYBACK_WATCHDOG_MS = 10;
   });
 

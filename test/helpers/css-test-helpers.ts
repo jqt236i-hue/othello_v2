@@ -6,13 +6,26 @@ export const LAYOUT_STYLE_FILES = [
   'styles-charge-hud.css',
   'styles-layout-controls.css',
   'styles-layout-info.css',
+  'styles-layout-characters.css',
+];
+
+export const COMPLETE_LAYOUT_STYLE_FILES = [
+  'styles-layout.css',
+  'styles-charge-hud.css',
+  'styles-layout-controls.css',
+  'styles-layout-info.css',
   'styles-layout-result.css',
   'styles-layout-characters.css',
 ];
 
+export const NETWORK_FEATURE_STYLE_FILES = [
+  'styles-feature-network-layout-controls.css',
+  'styles-feature-network.css',
+];
+
 export const CORE_UI_STYLE_FILES = [
   'styles-base.css',
-  ...LAYOUT_STYLE_FILES,
+  ...COMPLETE_LAYOUT_STYLE_FILES,
   'styles-board.css',
   'styles-cards.css',
   'styles-responsive.css',
@@ -38,7 +51,15 @@ export function readStyleSurface(fileNames: string[]): string {
 }
 
 export function readLayoutCssSurface(): string {
-  return readStyleSurface(LAYOUT_STYLE_FILES);
+  return readStyleSurface(COMPLETE_LAYOUT_STYLE_FILES);
+}
+
+export function readNetworkFeatureCssSurface(): string {
+  return readStyleSurface(NETWORK_FEATURE_STYLE_FILES);
+}
+
+export function readNetworkResponsiveCssSurface(): string {
+  return readStyleSurface(['styles-feature-network-responsive.css']);
 }
 
 export function readDomCompatBoardCssSurface(): string {
