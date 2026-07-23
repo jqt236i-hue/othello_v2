@@ -128,7 +128,9 @@ Jestとビルド後のbrowser smokeで毎回判定する。環境速度に依存
 
 #### 層B: hardware desktop性能ゲート
 
-既存の `browser-performance-environment.ts` でhardware WebGLを確認したChromiumから、fresh process、cold cache、固定viewport、固定capture orderで取得する。起動ready、resource bytes、RAF、Long Task、first-open latencyを測る。最適化実装前後の比較は同一環境・同一profileで行う。
+既存の `browser-performance-environment.ts` でhardware WebGLを確認したChromiumから、fresh process、cold cache、固定viewport、固定capture orderで取得する。起動ready、resource bytes、RAF、Long Task、first-open latencyを測る。production証拠は `worker-public/` を唯一のimmutable artifact rootとし、`worker:prepare` とmirror check後のmanifest全体をartifact digestへ含める。
+
+Phase 0ではbaseline reportだけでなく、そのdigestと一致するbrowser artifact archiveを破棄可能な `artifacts/` に保存する。最終standardは現在candidateだけを連続測定せず、保存baseline artifactとcandidate artifactを同一セッション・同一hardware条件でfresh browser processごとに交互順序で測る。これにより長期実装中の温度、電源、OS/browser更新driftを比較へ混入させない。
 
 #### 層C: 物理端末診断
 
@@ -140,6 +142,7 @@ Jestとビルド後のbrowser smokeで毎回判定する。環境速度に依存
 
 - schema version: `ux_preserving_runtime_optimization_report.v1`
 - scenario ID、対象lane/backend、blocking種別
+- scenarioごとの必須lane/backend matrix。help、fallback、lazy feature、network restore、asset fallbackはVite/classic両laneを要求する
 - static resourceの論理分類規則
 - phase名と順序
 - forbidden report key
@@ -148,6 +151,8 @@ Jestとビルド後のbrowser smokeで毎回判定する。環境速度に依存
 - quick / standard profileのsample数
 
 captureは判定を決めず、生値とcapabilityを記録する。`scripts/perf/validate-ux-optimization-monitor.ts` が生値から集計を再計算し、policyと照合する。capture出力に書かれた自己申告の `pass` は信頼しない。
+
+overall verdictは未完optimizationまたは未capture scenarioが一つでもあれば常にfailとする。一方、各実装単位は `--target <optimization-id>` を使い、target自身がpendingでないこと、targetに必要なscenario/checkがpassすること、残りの既知pendingだけが未完であることをfocused verdictとして判定できるようにする。focused passをoverall passへ読み替えない。
 
 ### 3. レポートidentity
 
@@ -166,6 +171,8 @@ captureは判定を決めず、生値とcapabilityを記録する。`scripts/per
 dirty checkoutでのquick開発計測は許可するが `candidateEligible=false` とする。標準合格証拠はclean exact commitと一致するartifact digestを必須とする。
 
 baselineとcandidateの比較では、各レポートのcommitとartifact digestがそれぞれ自身の配信物に一致することを先に検証する。最適化によりartifact自体は変わるため、baselineとcandidateのartifact digest一致は要求しない。比較互換性として一致を要求するのは、fixture/scenario digest、browser/OS/GPU、viewport/DPR、profile、capture policyである。
+
+起動ready契約はlane別の既存正本に従う。Viteは `data-browser-boot-state="ready"` と `window.__uiInitialized === true` の両方、classicは同属性を設定しないため `window.__uiInitialized === true` を必須条件とする。classicへVite専用属性を強制してtimeoutを合格扱いに変えない。
 
 ### 4. 共通phase
 
@@ -205,14 +212,16 @@ logical asset IDは、HTMLの `data-card-reversi-logical-src`、optimized asset 
 | `fallback.context-loss` | 回復不能loss | 入力clear、CSS、単一writer、最終盤面 |
 | `help.before-idle` | 即時ヘルプ | first-open画像、予約寸法、focus、CLS |
 | `help.after-idle` | idle後ヘルプ | idle prefetch、追加転送なし、即時表示 |
-| `feature.result` | 終局表示 | CSS/DOM一度だけ、表示・focus、再表示 |
-| `feature.profile` | プロフィール | 同上 |
-| `feature.rules-help` | ヘルプ | 同上、検索・タブ・画像 |
-| `feature.deck-builder` | デッキ編成 | 同上、スクロール・カード一覧 |
-| `feature.network` | mode選択 | 選択前未評価、選択後ready、退出・再表示 |
+| `feature.result` / `.classic` | 終局表示 | 両laneのCSS/DOM一度だけ、表示・focus、再表示 |
+| `feature.profile` / `.classic` | プロフィール | 両laneで同上 |
+| `feature.rules-help` / `.classic` | ヘルプ | 両laneで同上、検索・タブ・画像 |
+| `feature.deck-builder` / `.classic` | デッキ編成 | 両laneで同上、スクロール・カード一覧 |
+| `feature.network` / `.classic` | mode選択 | 両laneで選択前未評価、選択後ready、退出・再表示 |
 | `feature.network-restore` | 保存session自動復帰 | 保存session検出後・復帰試行前のsurface ready、状態再投影、snapshot/reconnect |
 | `asset.webp-fallback` | WebP失敗注入 | PNG fallback、logical重複なし、可視一致 |
 | `playback.opponent-actions` | 既存5シナリオ | RAF、Long Task、Pixi更新数、ticker idle |
+
+contractはscenario IDとcapture laneを別軸で扱い、必須capture keyを `scenarioId + lane + backend` で一意にする。`help.before-idle`、`help.after-idle`、3つのfallback、5つのlazy feature、`feature.network-restore`、`asset.webp-fallback` はVite/classic両laneが必須である。片laneの成功を両laneの成功へ代用しない。
 
 ## 対象別の監視契約
 
@@ -220,7 +229,7 @@ logical asset IDは、HTMLの `data-card-reversi-logical-src`、optimized asset 
 
 - `first-frame-committed` より前に取得した特殊石は、初期frameの `collectSpecialStones()` が列挙したlogical IDの部分集合でなければならない。
 - `board.first-special` は、イベントの最初の可視frameより前に対象textureがreadyであること、resource failureがないこと、settlement順が変わらないことを確認する。
-- 明示DOMとfallbackは、DOM backend mount前に必要なlegacy preloaderが完了する。
+- 明示DOMとfallbackは、DOM backend mount前に必要な特殊石画像のload/decode結果をawaitする。既存の同期 `preloadStoneVisualEffectKeys()` を完了通知として扱わず、Document単位Promise cache、成功/失敗結果、同時要求の合流、失敗後retryを持つDOM compatibility preparation APIを新設する。
 - normal Pixiで69件一括取得する状態は件数閾値ではなく「必要集合外resourceあり」としてfailにする。初期盤面のランダム性で誤判定しない。
 
 ### B. lock-only盤面更新
@@ -271,6 +280,8 @@ optimized asset manifestは各候補について、PNG source hash、WebP hash�
 
 decode時間は環境依存なのでCIのblocking対象にしない。画素一致、容量、manifest、fallbackはblockingにする。採用判定の最終根拠にはhardware desktop計測を必須とする。
 
+default board frame候補は `ui/board-skin/runtime.ts` がCSS custom propertyへ適用するDOM/CSS資産であり、Pixiのappearance resource配列にはframe画像自体を含めない。したがってframeのWebP選択・fallbackはBoardSkinRuntime/display lease経路に限定し、`ui/pixi/appearance-resolver.ts` に存在しないframe texture roleを追加しない。Pixiは従来どおりframe layout descriptorだけを共有する。
+
 ### G. 非表示UIの遅延生成
 
 featureは `result → profile → rules-help → deck-builder → network` の順に分割する。result overlay DOMは `ui/result-overlay.ts` が既に表示時生成するため、その契約を維持してCSSだけを遅延する。結果の勝敗・操作を必ず読める最小critical CSSはstartup側へ残し、full CSS失敗時も未装飾または非表示の結果にしない。残る4 featureは、初期HTMLにopen control、外枠、stable ID、ARIA参照、読み込み中表示に必要な最小shellだけを残す。
@@ -279,11 +290,12 @@ featureは `result → profile → rules-help → deck-builder → network` の�
 
 - 初期状態でinner DOM count 0、専用stylesheet request 0。
 - result以外の初回openは `ensureFeatureStylesheet()` と `ensureFeatureDom()` を同じcontrollerから開始し、両方のready後にinteractive stateへ移る。resultは `showResult()` の既存2秒待機開始時にfull CSSを先行準備し、同期API `showResultOverlay()` のDOM生成をCSS Promiseで遅らせない。
-- stylesheetは固定slotへ挿入し、現行のcascade順を保つ。
+- stylesheetはselector依存と同一property競合を先に監査する。元CSS単位のfragment/slotでcomputed styleが一致する場合だけその境界を採用し、複数sourceから抜いたruleを一つの末尾stylesheetへ集約しない。
+- 元ファイル内でfeature/shared ruleが交互にあり単純抽出でcascadeが変わる場合は、抽出境界ごとの複数fragment/slotへ分割するか、その競合ruleをstartup側へ残す。loaderはfeature単位で必要fragmentを一つのPromiseへ合流し、全fragment ready後だけsurface readyにする。代表状態・viewport・focus/disabled/open stateの主要computed property baseline一致をblockingにする。
 - result以外のinner DOMは一度だけcloneし、close時に破棄しない。
 - bootstrapの初期DOM取得はopen controlとshellだけを保持する。feature controllerはsurface ready後に自身のrootからinner refsを一度取得してlistenerを配線し、boot時のnull参照を永続的なUI refsとして保持しない。
 - profile、deck-builder、networkはinner refsの配線後、DOM外で保持していた保存済みUI model、選択状態、network clientの接続状態を再投影してからinteractive stateへ移る。
-- network surfaceは明示的なmode選択だけでなく、`restoreStoredNetworkSessionOnBoot()` が保存sessionを検出した時も復帰試行より先に準備する。保存sessionなしではsurfaceを生成せず、surface準備失敗時は復帰を開始せず保存sessionを再試行用に残す。復帰試行後の成功/失敗statusはready済みviewへ投影する。
+- network surfaceは明示的なmode選択だけでなく、`restoreStoredNetworkSessionOnBoot()` が保存sessionを検出した時も復帰試行より先に準備する。既存public APIにはsession有無を秘密情報なしで読む方法がないため、`NetworkMatchClient.hasRestorableStoredSession(): boolean` を追加し、内部 `readStoredSession()` の内容をUIへ公開しない。判定後に別tab等でsessionが消えた場合の `NO_STORED_SESSION` は正常なno-opとする。保存sessionなしではsurfaceを生成せず、surface準備失敗時は復帰を開始せず保存sessionを再試行用に残す。復帰試行後の成功/失敗statusはready済みviewへ投影する。
 - 同時open要求は同じPromiseへ合流し、二重listener、二重DOM、二重stylesheetを作らない。
 - result以外のload失敗は閉じられるエラーshellを表示し、再openで再試行できる。resultは最小critical CSSで終局内容と主要操作を必ず表示する。空、未装飾、操作不能の成功画面を作らない。
 - open→close→openでフォーカス返却、ESC、backdrop、tab order、scroll位置、保存済みUI stateを維持する。
@@ -337,7 +349,7 @@ baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR�
 - 遅延UIの初回準備はplayer-visible timingなので、実装より先に `01-rulebook.md` のUI仕様を更新する。新しいゲームルール、カード仕様、盤面演出仕様は追加しない。
 - root TypeScript、`index.classic.html`、root CSS、asset source/manifest generatorを先に変更する。
 - browser-visible root変更後は `npm run build:browser`、Vite chunk/entry変更を含む単位は `npm run build:vite` を実行する。
-- worker-served static surfaceを変更する単位は `npm run worker:prepare` と `npm run check:worker-mirror` を実行する。
+- browser-visible root source、HTML、CSS、asset、Vite/classic registry入力を変更するすべての単位は `npm run worker:prepare` と `npm run check:worker-mirror` を実行する。static assetだけに限定しない。
 - monitor reportへgame/headless/Workerのcanonical stateを追加しない。今回の最適化はpresentation/deliveryに閉じ、headless rulesやnetwork authorityを変更しない。
 
 ## 実装・移行方針
@@ -434,7 +446,16 @@ baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR�
 - baselineとcandidateでartifact digest自体を一致させる読み方を排除し、各digestと各commitの自己整合を検証したうえで、fixtureと実行環境を比較互換性キーにすることを明記した。
 - helpの `waitForIdle()` をinit chainでawaitすると操作listenerと保存session復帰を止めるため、明示controllerを使う非blocking background taskへ限定した。
 - network UIにはmode button以外に保存session自動復帰というboot経路があるため、保存session検出、surface ready、復帰試行、状態投影の順序を独立scenarioへ追加した。
+- overall pendingと各単位のquick passが両立しなかったため、overall failを維持したまま指定targetだけを完了判定するfocused verdictを追加した。
+- production captureの既存正本が `worker-public/` 全manifestであることを確認し、全browser-visible単位のprepare/mirror、baseline artifact archive、最終の同一セッション交互比較へ修正した。
+- `readStoredSession()` はpublic APIでなくtoken等を含み得るため、内容を公開しないboolean `hasRestorableStoredSession()` を新設する境界へ修正した。
+- Viteだけのlazy UI確認ではclassic regressionsを見逃すため、scenario IDとは別の必須lane matrixを追加した。
+- stylesheet単位slotでは元ファイル内部のinterleaveを完全保持できないため、selector依存監査、computed-style blocking、一致しないruleの複数fragment化またはstartup残置へ修正した。
+- board frame画像はPixi resourceでなくCSS custom property経路であるため、WebP routingをBoardSkinRuntimeへ限定した。
+- legacy特殊石preloaderは同期returnでload/decode完了を示さないため、DOM compatibility専用のawaitable preparation APIを設計へ追加した。
 - 物理端末を必須release gateにする案は現行の任意診断方針と矛盾するため、device効果を主張する場合だけ必須とした。
 - reportへ盤面状態や操作内容を入れる必要はなく、resource logical ID、phase、公開diagnosticsだけで全checkを判定できることを確認した。
 - 最適化とmonitorを別タスクにすると未監視期間が生まれるため、実装単位ごとにbaseline、check、最適化、candidate、blocking化を完結させる順序へ改訂した。
-- 本設計はUI delivery/presentationだけを扱い、ゲームルール、`events[]`、network authorityへ新しい選択肢を残していないため、独立subagent reviewは不要と判断した。
+- 実装前の独立read-only reviewを実施し、focused/overall verdict、production artifact、classic lane、CSS cascade、network保存session API、WebP routing、DOM preload完了契約の客観的な矛盾を修正した。ゲームルール、`events[]`、network authorityへ新しい仕様分岐は追加していない。
+- Phase 0実captureでclassicはVite専用boot-state属性を設定しないことを確認し、lane別ready契約へ修正した。
+- Phase 0 validatorがPixi内部の同一origin `blob:` URLを静的resourceとして拒否したため、転送量対象をHTTP(S)配信resourceだけに限定した。

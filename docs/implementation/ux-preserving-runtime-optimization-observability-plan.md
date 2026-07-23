@@ -17,7 +17,7 @@
 4. 実測値を通すために演出、イベント、テスト、判定閾値を弱めない。
 5. raw report、trace、screenshotは `artifacts/ux-optimization-monitor/` に出し、コミットしない。
 6. browser-visible root変更後は `npm run build:browser`、Vite配信変更を含む場合は包含する `npm run build:vite` を実行する。
-7. static asset/CSSを変更した単位は `npm run worker:prepare` とmirror checkを実行する。
+7. browser-visible root source、HTML、CSS、asset、Vite/classic registry入力を変更したすべての単位は、focused test後に `npm run worker:prepare` と `npm run check:worker-mirror` を実行する。static asset/CSSだけに限定しない。
 8. 各単位のdone条件を満たしたらtask-ownedファイルだけをstageし、小さなcommitを作る。
 
 ## Phase 0: 監視基盤と最適化前baseline
@@ -46,7 +46,7 @@
 
 ### Step 0.2: capture orchestratorと共通browser probeを実装
 
-- outcome: 既存harnessを再利用し、全scenarioを同じidentityとphase clockで取得できる。
+- outcome: 既存harnessを再利用し、全scenarioを同じidentity/phase clockへ登録する。Phase 0でboot/normal-isolationを実captureし、各最適化固有scenarioは `pending-optimization` として明示し、対応Stepでcheckを先に追加してからcompleteへ移す。
 - canonical components:
   - 新規 `scripts/perf/capture-ux-optimization-monitor.ts`
   - 新規 `scripts/perf/ux-optimization-browser-probe.ts`
@@ -55,23 +55,27 @@
   - `package.json`
   - 新規 `test/scripts.ux-optimization-monitor-capture.test.ts`
 - package scripts:
-  - `perf:ux-optimization:capture`: `npm run build:vite` 後にcaptureを実行
+  - `perf:ux-optimization:capture`: buildを行わず、clean確認済み `worker-public/` のmanifestをhash/serveしてcaptureを実行
   - `perf:ux-optimization:validate`: `npm run build:ts` 後にvalidatorを実行
-  - `perf:ux-optimization:quick`: quick captureとvalidateを連続実行
-  - `perf:ux-optimization:standard`: standard captureとvalidateを連続実行
+  - `perf:ux-optimization:focused`: `worker:prepare`、mirror check、quick capture、`--target <optimization-id>` validateを連続実行
+  - `perf:ux-optimization:quick`: 既知pendingを許すdevelopment capture。overallはfailのまま、完了済みcheckの退行がない時だけprocess success
+  - `perf:ux-optimization:standard`: prepare済みclean artifactだけを使い、pending 0のstandard capture/validateを実行
 - required behavior:
   - fresh browser process、cold/warm context、固定viewport、visibility/focus、page/console/resource errorsを管理する。
+  - 起動readyはViteで `data-browser-boot-state="ready"` かつ `window.__uiInitialized === true`、classicで `window.__uiInitialized === true` とし、Vite専用属性をclassicへ要求しない。
   - resource timingとPlaywright response evidenceを統合し、logical ID、phase、encoded body、cache evidenceを記録する。
   - forced WebP/CSS failureなどの注入scenarioはexpected faultの種類と対象resourceをfixture digestへ含め、完全一致する1件だけを許可する。通常scenarioと追加errorは常にfailにする。
+  - contractはscenario IDごとに必須lane/backend matrixを持つ。help before/after idle、3 fallback、5 lazy feature、network restore、WebP fallbackはVite/classic両laneを必須とし、片lane欠落をfailにする。
   - `performance.timeOrigin` を唯一のbrowser phase clockにする。
   - Pixi diagnosticsは既存optional diagnostics payloadを明示capture queryでだけロードする。
   - 通常queryではdiagnostics payload、debug global、追加observer、追加RAFがないことをcaptureする。
+  - overall verdictはpendingがあれば常にfailとする。`--target` verdictは指定targetがpendingでないことと必要scenario/checkのpassを要求し、他targetの既知pendingをoverall passへ変換しない。
   - Windows hardware標準計測はANGLE D3D11を固定し、software WebGLならcandidate evidenceを拒否する。
   - server/browser/context/pageを成功・失敗の両方で必ずcloseする。
 - verification:
   - fake Playwright adapterでlifecycle、cleanup、phase、resource分類をunit test
   - `npm run check:artifact-retention`
-- done: product最適化をまだ変更せず、quick reportを `artifacts/ux-optimization-monitor/pre-optimization.json` へ生成してvalidatorが現在の未最適項目をfailとして列挙できる。
+- done: product最適化をまだ変更せず、boot/normal-isolationを実captureし、残るscenarioを明示pendingとしたreportを `artifacts/ux-optimization-monitor/pre-optimization.json` へ生成する。validatorはoverall fail、development/baseline validity passを別々に示す。
 
 ### Step 0.3: baselineとmonitor-only commitを確定
 
@@ -79,13 +83,16 @@
 - dependencies: Step 0.1、0.2
 - order:
   1. focused checksとnormal boot非干渉を確認する。
-  2. monitor-onlyのtask-owned diffをcommitする。
-  3. cleanなそのexact commitからbaseline captureを取得する。
-  4. reportのcandidate commitとbrowser artifact digestが実物に一致することをvalidatorで確認する。
+  2. `npm run worker:prepare` と `npm run check:worker-mirror` を実行し、monitor、生成物、mirrorのtask-owned diffをcommitする。
+  3. clean statusを確認する。ここからbaseline capture開始までartifact buildを再実行しない。
+  4. cleanなそのexact commitの `worker-public/` 全manifestをhash/serveしてbaseline captureを取得する。
+  5. reportのcandidate commitとbrowser artifact digestが実物に一致することをvalidatorで確認する。
+  6. 同じdigestのimmutable baseline browser artifact archiveをraw reportとともに `artifacts/ux-optimization-monitor/baseline/` へ保存し、commitしない。
 - verification:
   - focused monitor Jest
   - `npm run typecheck`
-  - `npm run build:vite`
+  - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
   - `npm run match:boot-performance-check`
   - `npm run perf:opponent-action-stall -- --quick`
   - normal bootでdiagnostics payload/global/observerなし
@@ -93,7 +100,7 @@
 - artifact policy:
   - raw baselineは `artifacts/` に保持しcommitしない。
   - commit message例: `Add UX optimization monitoring baseline`
-- done: monitor-only変更後も既存normal bootとopponent-action指標が基準範囲にあり、cleanなmonitor-only commit SHAとbrowser artifact digestをbaseline reportへ記録する。
+- done: monitor-only変更後も既存normal bootとopponent-action指標が基準範囲にあり、cleanなmonitor-only commit SHA、`worker-public/` 全manifest digest、同digestのbaseline artifact archiveを記録する。
 
 ## Phase 1: 最大効果の最適化
 
@@ -114,8 +121,10 @@
 - implementation:
   - `installCoreDI()` の無条件 `preloadSpecialStoneVisuals()` を削除する。
   - Pixiは既存 `collectSpecialStones()`、`collectPlaybackSpecialStones()`、`prepareResources()`、`preparePlaybackTextures()` を唯一の画像準備経路とする。
-  - legacy一括preloaderはDOM compatibility packageの準備関数へ移し、明示DOM、初期Pixi失敗、回復不能context lossでbackend mount前にawaitする。
-  - preload失敗を成功扱いせず、既存fallback/reload-requiredへ伝播する。
+  - 既存 `preloadStoneVisualEffectKeys()` はImage requestを開始して同期returnするだけなので、完了通知としてawaitしない。
+  - DOM compatibility packageにDocument単位Promise cacheを持つ `prepareDomCompatibilityStoneVisuals()` を追加する。全対象のload/decode成功・失敗結果を返し、同時要求を合流し、失敗entryだけ次回retry可能にする。
+  - 明示DOM、初期Pixi失敗、回復不能context lossはこの新APIをbackend mount前にawaitする。
+  - preparation失敗を成功扱いせず、既存fallback/reload-requiredへ伝播する。
   - current-frame special、restored/network frame special、first playback specialのfixtureを追加する。
 - monitoring:
   - initial frame/eventから必要special logical ID集合を取得するdebug-only read portをPixi backend diagnosticsへ追加する。盤面座標やownerをreportへ出さず、logical asset IDだけを返す。
@@ -126,8 +135,9 @@
   - `npm run build:vite`
   - `npm run match:pixijs-board-playback-check`
   - `npm run match:pixi-runtime-fallback-check`
-  - `npm run perf:ux-optimization:quick`
+  - `npm run perf:ux-optimization:focused -- --target special-stone-demand-loading`
   - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
 - done:
   - normal Pixiで必要集合外special request 0
   - first specialの欠落・順序変更0
@@ -166,7 +176,9 @@
   - focused Jest/E2E
   - `npm run match:pixijs-board-playback-check`
   - `npm run perf:opponent-action-stall -- --quick`
-  - `npm run perf:ux-optimization:quick`
+  - `npm run perf:ux-optimization:focused -- --target lock-only-hint-paint`
+  - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
 - done: lock-only Graphics再描画0、入力漏れ0、stale hover/press 0、unlock後の入力重複0、opponent-action Long Task/RAF非退行。
 - commit boundary: paint/input分離と監視を一commitにし、stage Bが必要なら別commitにする。
 
@@ -202,7 +214,9 @@
   - focused Jest
   - `npm run build:vite`
   - classic/Vite browser check
-  - `npm run perf:ux-optimization:quick`
+  - `npm run perf:ux-optimization:focused -- --target logical-image-deduplication`
+  - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
 - done: logical duplicate 0、画像切替/復帰と表示属性が両laneで正常。
 
 ### Step 2.2: ヘルプ画像を初回表示/idleへ移す
@@ -231,7 +245,9 @@
   - focused Jest
   - `npm run build:vite`
   - desktop/mobile viewport browser operation
-  - `npm run perf:ux-optimization:quick`
+  - `npm run perf:ux-optimization:focused -- --target help-image-lazy-loading`
+  - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
 - done: 初期help約325KBがcritical path外、即時openで枠ずれ/操作不能なし、idle後openで追加body転送なし。
 
 ### Step 2.3: DOM互換CSSをbackend選択時だけ読む
@@ -267,6 +283,8 @@
   - `npm run match:cross-platform-smoke:vite`
   - `npm run check:board-test-selectors`
   - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
+  - `npm run perf:ux-optimization:focused -- --target dom-compat-stylesheet-lazy-loading`
 - done: Vite/classic通常Pixiの約73.8KBを除外し、explicit/failure/context-loss fallbackの見た目と入力が維持される。
 
 ## Phase 3: 選別式lossless WebP
@@ -299,6 +317,8 @@
 - verification:
   - stale/missing output、pixel mismatch、10%未満削減をcheckでfail
   - WebP support false、HTTP failure、decode failure、MIME mismatch、stale callbackのunit test
+  - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
 - done: 背景とUI用pipelineに変換ロジックの重複がなく、PNG fallbackが決定的に成立する。
 
 ### Step 3.2: decode admissionと配信検証
@@ -307,11 +327,11 @@
 - canonical components:
   - monitor scenario `asset.webp-fallback`
   - `ui/board-skin/runtime.ts`
-  - `ui/pixi/appearance-resolver.ts`
   - asset delivery tests
 - implementation:
   - hardware desktopでPNG/WebPを交互順序、各5回以上decodeし、中央値をレポートする。
-  - default frame候補が設計閾値を満たした場合だけpolicyを`admitted`にし、CSS/Pixiの両画像解決が共通codecを使う。
+  - default frame候補が設計閾値を満たした場合だけpolicyを`admitted`にし、`ui/board-skin/runtime.ts` のCSS custom property/display lease画像解決だけが共通codecを使う。
+  - Pixi appearance resource配列にはframe texture roleを追加しない。Pixiは従来どおりBoardSkinRuntimeからframe layout descriptorだけを共有する。
   - 閾値を満たさない場合は`rejected`のままPNGを維持する。最適化項目の完了は「審査pipelineと明示結果」であり、不合格画像を無理に採用しない。
 - monitoring:
   - manifest hash/bytes/pixel equality
@@ -324,7 +344,8 @@
   - `npm run match:asset-delivery-smoke:vite`
   - `npm run match:pixijs-board-static-check`
   - `npm run worker:prepare`
-  - `npm run perf:ux-optimization:standard`
+  - `npm run check:worker-mirror`
+  - `npm run perf:ux-optimization:focused -- --target lossless-webp-admission`
 - done: admitted画像は全条件pass、rejected画像はruntime mappingに存在せず、両形式のfallbackとmirror配信が成功。
 
 ## Phase 4: 非表示UIの縦割り遅延化
@@ -353,13 +374,17 @@
   - ready surfaceはclose時に保持し、再生成しない。
   - HTMLにはopen control、stable shell ID、ARIA参照だけを残す。
   - `init-dom.ts` はopen controlとshellだけをboot時に取得する。inner refsは各feature controllerがsurface ready後に自身のshellから取得し、boot時のnullを再利用しない。
-  - CSSはfeature固有selectorだけを元ファイルから移し、共有token/layout ruleはstartup CSSへ残す。feature内の元source順を保ち、固定slotへ挿入する。
+  - CSSはfeature固有selectorだけを元ファイルから移し、共有token/layout ruleはstartup CSSへ残す。抽出前にselector依存と同一property競合を監査し、元ファイル単位のfragment/slotで一致する場合だけ単一fragmentへ移す。
+  - 元ファイル内でfeature/shared ruleが交互になりcomputed styleが変わる場合は、抽出境界ごとの複数fragment/slotへ分割するか、その競合ruleをstartup側へ残す。「一つの末尾stylesheetへ集約したのでsource順保持」とは判定しない。
+  - 代表状態、desktop/mobile viewport、focus/disabled/open stateの主要computed property baseline一致をblockingにする。
 - monitoring:
   - 初期DOM/style count、ensure count、ready/failure/retry、listener countをdebug-only diagnosticsで取得する。
   - 通常プレイではdiagnostics stateを生成しない。
 - verification:
   - focused Jest
   - `npm run build:vite`
+  - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
   - `git diff --check`
 - done: 共通loaderのunit contractが成立し、feature個別コードが独自Promise/cache/error処理を複製しない。
 
@@ -388,6 +413,11 @@
   - focused result Jest
   - CPU終局とnetwork result browser scenario
   - desktop/mobile visual check
+  - `npm run match:ui-control-smoke:vite`
+  - `npm run match:ui-control-smoke:classic`
+  - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
+  - `npm run perf:ux-optimization:focused -- --target feature-result`
 - done: 起動からresult CSSを除外し、リザルト内容・2秒表示・BGM・再戦に差分なし。
 
 ### Step 4.3: プロフィール
@@ -415,6 +445,10 @@
 - verification:
   - focused profile Jest
   - desktop/mobile first/reopen browser operation
+  - Vite/classic first/reopen scenario
+  - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
+  - `npm run perf:ux-optimization:focused -- --target feature-profile`
 - done: profileのplayer-visible機能と秘密情報の扱いを変えず、初期DOM/CSSを除外する。
 
 ### Step 4.4: ルールヘルプ
@@ -434,8 +468,8 @@
   - boot時の `setupRulesHelp()` はopen controlとshellへ軽量listenerだけを配線し、初回openでsurfaceをensureした後にinner refsをshellから取得して既存handlerを一度だけ配線する。
   - catalog/search/effect/glossary/guide/protection UIを `rules-help.ts` のfactoryで一度だけ生成する。
   - Step 2.2のimage preparation Promiseをsurface readyへ接続する。
-  - feature固有CSSを `styles-feature-rules-help.css` へ集約し、共有card/token rulesはstartup側へ残す。
-  - 新しいroot CSSを `ROOT_FILES` / `VERIFY_ROOT_FILES` の正規生成面へ追加し、mirror testで存在と余分な手編集拒否を固定する。
+  - help selector依存監査を行い、`styles-base.css`, `styles-layout-info.css`, `styles-cards.css`, `styles-responsive.css` の各抽出位置に対応するfragment/slotを使う。computed styleが変わる競合ruleはさらに分割するかstartup側へ残す。
+  - 新しいroot CSS fragment群を `ROOT_FILES` / `VERIFY_ROOT_FILES` の正規生成面へ追加し、mirror testで存在と余分な手編集拒否を固定する。
 - monitoring:
   - boot inner DOM/style/help image 0
   - before-idle/after-idle open
@@ -443,8 +477,11 @@
   - reopenでDOM/style/listener増分0
 - verification:
   - focused rules-help Jest
-  - optional feature smoke
+  - Vite/classic optional feature smoke
   - desktop/mobile visual and keyboard operation
+  - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
+  - `npm run perf:ux-optimization:focused -- --target feature-rules-help`
 - done: HELP全機能が維持され、初期active DOMとCSSから除外される。
 
 ### Step 4.5: デッキ編成
@@ -469,8 +506,11 @@
   - preset、編集、保存、ランダム生成、詳細、scroll、network deck update
 - verification:
   - focused deck Jest
-  - desktop/mobile browser operation
+  - Vite/classic desktop/mobile browser operation
   - network deck parityに影響する既存tests
+  - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
+  - `npm run perf:ux-optimization:focused -- --target feature-deck-builder`
 - done: deck behavior、保存内容、network publish契約を変えず、初期DOM/style/list生成を除外する。
 
 ### Step 4.6: ネットワーク専用UI
@@ -479,17 +519,21 @@
 - canonical components:
   - `index.classic.html`
   - `ui/handlers/match-mode.ts` と `ui/handlers/match-mode/*`
+  - `ui/network-client.ts`
   - `ui/bootstrap/init-dom.ts`
   - `ui/bootstrap/init-events.ts`
   - `styles-feature-network.css`
   - network固有rulesを含む `styles-layout-info.css`, `styles-layout-controls.css`, `styles-responsive.css`
   - network button/popup tests
+  - `test/ui.network-client.api-inventory.test.ts`
   - stored-session restore tests
 - implementation:
   - mode button、overlay shell、stable IDだけを初期HTMLに残す。
   - mode選択はsurface readyをawaitし、`hydrateNetworkUiRefs(shell)` でinner refsを既存mutable UI ref holderへ一度だけ反映してからnetwork UI setupを実行する。boot時のnull refsを操作経路へ残さない。
   - hydrate後、DOM非依存の保存済みprofile / match-mode stateとnetwork client stateからプレイヤー名、選択状態、接続表示を再投影してからshellを表示する。
-  - `restoreStoredNetworkSessionOnBoot()` は既存 `NetworkMatchClient.readStoredSession()` で保存sessionの有無を先に確認する。なしならsurfaceを生成せず終了し、ありなら同じsurface/hydrate Promiseをawaitしてから `restoreStoredSession()` を開始する。
+  - `NetworkMatchClient.hasRestorableStoredSession(): boolean` を追加し、内部の正規化済みsessionの有無だけを返す。token、room、session payloadはpublic/UIへ公開しない。
+  - `restoreStoredNetworkSessionOnBoot()` はこのboolean APIで保存sessionの有無を先に確認する。なしならsurfaceを生成せず終了し、ありなら同じsurface/hydrate Promiseをawaitしてから既存 `restoreStoredSession()` を開始する。
+  - presence、破損session、storage unavailable、判定後にsessionが消えるTOCTOUをtestし、後者の `NO_STORED_SESSION` は正常no-opとする。
   - surface準備失敗時はnetwork復帰を開始せず保存sessionを再試行用に残す。復帰試行後の成功/失敗status、`setMode(MODE_NETWORK)`、snapshot反映はready済みrefsだけへ書く。
   - canonical network client、snapshot、room stateはsurface loaderへ移さない。loaderはview生成だけを所有する。
   - load失敗時はroom作成/参加を開始せず、再操作でview準備から再試行する。
@@ -504,7 +548,11 @@
   - focused network UI Jest
   - `npm run test:network:parity`
   - `npm run match:ui-control-smoke:vite`
-  - network optional feature browser scenario
+  - `npm run match:ui-control-smoke:classic`
+  - Vite/classic network optional feature browser scenario
+  - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
+  - `npm run perf:ux-optimization:focused -- --target feature-network`
 - done: viewだけがlazyになり、server authority、publish、snapshot、reconnectに差分がない。
 
 ### Step 4.7: lazy feature CSS/DOM統合回帰
@@ -519,8 +567,12 @@
 - verification:
   - focused feature suites
   - `npm run match:optional-feature-smoke:vite`
+  - `npm run match:optional-feature-smoke:classic`
   - `npm run match:ui-control-smoke:vite`
+  - `npm run match:ui-control-smoke:classic`
   - `npm run match:cross-platform-smoke:vite`
+  - `npm run worker:prepare`
+  - `npm run check:worker-mirror`
   - `npm run perf:ux-optimization:standard`
 - done: profile/rules-help/deck-builder/networkのfirst-open p95 250ms以内、result stylesheet preparation p95 250ms以内、CLS 0.01以下、アプリ起因Long Task 0、全featureの再表示増分0。resultの意図された2秒表示待機は別計測し、変更しない。時間値はhardware標準reportで判定し、CIでは構造・操作をblockingとする。
 
@@ -537,12 +589,13 @@
 - required behavior:
   - 全scenarioと全blocking gateが存在しなければfail。
   - `pending-optimization` を0以外ならfail。
+  - scenarioごとの必須lane/backend matrixが一つでも欠ければfail。
   - baseline/candidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR、profile、capture policy不一致をinvalidにする。artifact digestは各reportと各commitの自己整合を検証し、baseline/candidate間の一致は要求しない。
   - quickは開発用、standard clean exact commitだけをcandidate eligibleにする。
   - JSONとMarkdownは同じvalidator resultから生成する。
   - raw reportはartifacts、人間向け最終結論だけを `docs/perf/` に書ける `--write-summary` を用意する。
 - verification:
-  - missing scenario、duplicate scenario、tampered aggregate、environment mismatch、dirty candidateのtests
+  - missing scenario/lane/backend、duplicate capture key、tampered aggregate、environment mismatch、dirty candidateのtests
 - done: validator以外がoverall passを生成できず、全7項目/5 featureのtraceability matrixがレポートにある。
 
 ### Step 5.2: CIへ決定的ゲートを追加
@@ -569,11 +622,13 @@
 - outcome: 正確なcommit/artifact identityで、UXと性能を最終判定する。
 - procedure:
   1. 全実装・生成物・testsをcommitし、clean statusを確認する。
-  2. 同じhardware desktopでstandard captureを5 fresh process取得する。
-  3. baselineとcandidateのidentity適合をvalidatorで確認する。
-  4. opponent-action既存25サンプルと新monitor standardを両方通す。
-  5. 必要なら任意Android/iPhone診断を既存手順で取得する。未実施なら`deviceValidated=false`とする。
-  6. `docs/perf/` に人間向けcompletion summaryだけを生成し、raw reportはcommitしない。
+  2. `npm run worker:prepare` と `npm run check:worker-mirror` 後にclean statusを再確認し、ここからcapture完了までcandidate artifactを再buildしない。
+  3. Phase 0のdigest付きbaseline artifact archiveを一時展開し、baseline/candidate各manifestが各report identityと一致することを確認する。
+  4. 同じhardware desktopでbaseline/candidateをfresh browser processごとに交互順序で各5サンプル取得する。順序はcandidate commitから決定的に反転し、一方だけを先に連続測定しない。
+  5. fixture/scenario/capture policyと実行環境の比較互換性、各artifact/commitの自己整合をvalidatorで確認する。
+  6. opponent-action既存25サンプルと新monitor standardを両方通す。
+  7. 必要なら任意Android/iPhone診断を既存手順で取得する。未実施なら`deviceValidated=false`とする。
+  8. `docs/perf/` に人間向けcompletion summaryだけを生成し、raw reportとbaseline archiveはcommitしない。
 - full verification bundle:
 
 ```powershell
@@ -588,12 +643,14 @@ npm run match:pixijs-board-playback-check
 npm run match:pixi-runtime-fallback-check
 npm run match:cross-platform-smoke:vite
 npm run match:optional-feature-smoke:vite
+npm run match:optional-feature-smoke:classic
 npm run match:asset-delivery-smoke:vite
 npm run match:ui-control-smoke:vite
+npm run match:ui-control-smoke:classic
 npm run perf:opponent-action-stall -- --quick
-npm run perf:ux-optimization:standard
 npm run worker:prepare
 npm run check:worker-mirror
+npm run perf:ux-optimization:standard
 git diff --check
 git status --short
 ```
@@ -667,3 +724,11 @@ git status --short
 - failure injectionが通常のresource error 0契約と矛盾しないよう、fixture digestに固定したexpected fault 1件だけを許可し、追加errorをfailにする規則を追加した。
 - help idle待機をinit chainでawaitするとイベント登録と保存session復帰を止めるため、明示controllerを使う非blocking background taskと進行監視を追加した。
 - network mode buttonだけを遅延化の入口にすると保存session自動復帰が未生成refsへ書くため、保存session検出後・復帰試行前のsurface準備と専用scenarioを追加した。
+- 独立レビューで、後続pendingがある間は各Stepのquickが必ずoverall failすることを確認したため、overallを昇格させないtarget-focused verdictへ修正した。
+- production artifact rootが `worker-public/` である既存計測契約と909件のtracked mirror対象を確認し、全browser-visible unitのprepare/mirror、baseline archive、最終交互比較へ工程を修正した。
+- `NetworkMatchClient.readStoredSession()` が非publicでsession内容を返すことを確認し、boolean `hasRestorableStoredSession()` とAPI inventory/TOCTOU testsへ修正した。
+- classicのHELP/fallback/lazy/network restore/WebP経路が未検証だったため、scenario必須lane matrixとclassic smokeを追加した。
+- CSS stylesheet slotだけでは元ファイル内部のcascade interleaveを保存できないため、selector依存監査、computed-style blocking、必要時だけ複数fragment化する手順へ修正した。
+- default frameがCSS経路でPixi texture roleを持たないこと、legacy特殊石preloaderがawait不能であることをsourceで確認し、それぞれBoardSkinRuntime限定routingと新しいDOM preparation APIへ修正した。
+- Phase 0実captureで、classicは `data-browser-boot-state` を設定せず `window.__uiInitialized` をactionable-ready正本にしていることを確認し、lane別ready条件へ修正した。
+- Phase 0 validatorがPixi内部の同一origin `blob:` URLをstatic pathとして拒否したため、resource集計をHTTP(S)配信だけへ限定し、転送量を持たない一時URLを除外した。
