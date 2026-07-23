@@ -20,6 +20,8 @@ import {
 
 export interface PixiHintViewDiagnostics {
   readonly updateCount: number;
+  readonly hintPaintCount: number;
+  readonly hintInputSyncCount: number;
   readonly resetCount: number;
   readonly destroyed: boolean;
   readonly key: string | null;
@@ -35,11 +37,21 @@ export interface PixiHintViewDiagnostics {
   readonly position: Readonly<{ x: number; y: number }>;
 }
 
+export interface PixiHintViewUpdateResult {
+  readonly changed: boolean;
+  readonly painted: boolean;
+  readonly inputSynced: boolean;
+}
+
 export interface PixiHintView {
   readonly surfaceRoot: any;
   readonly root: any;
   readonly interactionRoot: any;
   update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean;
+  updateDetailed(
+    cell: MaterializedBoardCellVisualState,
+    context: PixiStaticViewContext
+  ): PixiHintViewUpdateResult;
   invalidate(): void;
   reset(): void;
   destroy(): void;
@@ -115,9 +127,12 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
   const interactionRoot = createPixiGraphics(runtime, 'pixi-interaction-hit-area');
   const directionRoot = createPixiContainer(runtime, 'pixi-direction-hints');
   addPixiChild(root, directionRoot);
-  let signature: string | null = null;
+  let paintSignature: string | null = null;
+  let inputSignature: string | null = null;
   let key: string | null = null;
   let updateCount = 0;
+  let hintPaintCount = 0;
+  let hintInputSyncCount = 0;
   let resetCount = 0;
   let destroyed = false;
   let position = { x: 0, y: 0 };
@@ -137,36 +152,56 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     if (destroyed) throw new Error('PixiHintView is destroyed');
   }
 
-  function update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean {
+  function updateDetailed(
+    cell: MaterializedBoardCellVisualState,
+    context: PixiStaticViewContext
+  ): PixiHintViewUpdateResult {
     assertAlive();
-    const nextSignature = JSON.stringify([
+    const nextPaintSignature = JSON.stringify([
       context.interactionRevisionSignature,
+      context.sceneX,
+      context.sceneY,
+      cell.hintPaintSignature
+    ]);
+    const nextInputSignature = JSON.stringify([
+      context.layout.cellSize,
       context.sceneX,
       context.sceneY,
       context.sceneOffsetX,
       context.sceneOffsetY,
-      cell.interactionSignature
+      cell.hintInputSignature
     ]);
-    if (signature === nextSignature) return false;
-    signature = nextSignature;
+    const painted = paintSignature !== nextPaintSignature;
+    const inputSynced = inputSignature !== nextInputSignature;
+    if (!painted && !inputSynced) {
+      return Object.freeze({ changed: false, painted: false, inputSynced: false });
+    }
+    paintSignature = nextPaintSignature;
+    inputSignature = nextInputSignature;
     key = cell.key;
     updateCount += 1;
     position = { x: context.sceneX, y: context.sceneY };
-    setPixiPosition(surfaceRoot, position.x, position.y);
-    setPixiPosition(root, position.x, position.y);
-    // The renderer canvas includes an effect gutter around the fixed
-    // viewport. Federated Events target the native scroll viewport instead,
-    // so interaction objects live in viewport coordinates without that
-    // visual-only gutter.
-    setPixiPosition(
-      interactionRoot,
-      position.x - context.sceneOffsetX,
-      position.y - context.sceneOffsetY
-    );
-    clearPixiGraphics(surfaceRoot);
-    clearPixiGraphics(root);
-    clearPixiGraphics(interactionRoot);
-    removeAndDestroyPixiChildren(directionRoot);
+    if (painted) {
+      hintPaintCount += 1;
+      setPixiPosition(surfaceRoot, position.x, position.y);
+      setPixiPosition(root, position.x, position.y);
+      clearPixiGraphics(surfaceRoot);
+      clearPixiGraphics(root);
+      removeAndDestroyPixiChildren(directionRoot);
+    }
+    if (inputSynced) {
+      hintInputSyncCount += 1;
+      // The renderer canvas includes an effect gutter around the fixed
+      // viewport. Federated Events target the native scroll viewport instead,
+      // so interaction objects live in viewport coordinates without that
+      // visual-only gutter.
+      setPixiPosition(
+        interactionRoot,
+        position.x - context.sceneOffsetX,
+        position.y - context.sceneOffsetY
+      );
+      clearPixiGraphics(interactionRoot);
+    }
     const interaction = cell.interaction;
     diagnosticsState = {
       legal: interaction.legal,
@@ -180,23 +215,29 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
       directionKeys: interaction.directionHints.map((hint) => hint.directionKey)
     };
     const visible = cell.kind === 'playable';
-    surfaceRoot.visible = visible;
-    root.visible = visible;
-    interactionRoot.visible = visible;
-    // The transparent interaction layer mirrors model state only. Actual
-    // commands still flow through BoardInputController and handleCellClick;
-    // Pixi never computes legality or becomes gameplay authority.
-    interactionRoot.eventMode = visible ? 'static' : 'none';
-    interactionRoot.cursor = !interaction.interactionLocked && (
-      interaction.legal
-      || interaction.legalFree
-      || interaction.selectable
-      || interaction.directionHints.length > 0
-    ) ? 'pointer' : 'default';
-    interactionRoot.hitArea = visible
-      ? rectangularHitArea(context.layout.cellSize, context.layout.cellSize)
-      : null;
-    if (!visible) return true;
+    if (painted) {
+      surfaceRoot.visible = visible;
+      root.visible = visible;
+    }
+    if (inputSynced) {
+      interactionRoot.visible = visible;
+      // The transparent interaction layer mirrors model state only. Actual
+      // commands still flow through BoardInputController and handleCellClick;
+      // Pixi never computes legality or becomes gameplay authority.
+      interactionRoot.eventMode = visible ? 'static' : 'none';
+      interactionRoot.cursor = !interaction.interactionLocked && (
+        interaction.legal
+        || interaction.legalFree
+        || interaction.selectable
+        || interaction.directionHints.length > 0
+      ) ? 'pointer' : 'default';
+      interactionRoot.hitArea = visible
+        ? rectangularHitArea(context.layout.cellSize, context.layout.cellSize)
+        : null;
+    }
+    if (!painted || !visible) {
+      return Object.freeze({ changed: true, painted, inputSynced });
+    }
 
     const cellSize = context.layout.cellSize;
     const center = cellSize / 2;
@@ -323,16 +364,23 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
       drawInsetOutline(0.075, '#ffeb96', 0.12, 0.018, 0.055);
     }
     renderDirectionHints(runtime, directionRoot, interaction.directionHints, context);
-    return true;
+    return Object.freeze({ changed: true, painted, inputSynced });
+  }
+
+  function update(cell: MaterializedBoardCellVisualState, context: PixiStaticViewContext): boolean {
+    return updateDetailed(cell, context).changed;
   }
 
   function invalidate(): void {
-    if (!destroyed) signature = null;
+    if (destroyed) return;
+    paintSignature = null;
+    inputSignature = null;
   }
 
   function reset(): void {
     if (destroyed) return;
-    signature = null;
+    paintSignature = null;
+    inputSignature = null;
     key = null;
     position = { x: 0, y: 0 };
     diagnosticsState = {
@@ -373,6 +421,8 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
   function getDiagnostics(): PixiHintViewDiagnostics {
     return Object.freeze({
       updateCount,
+      hintPaintCount,
+      hintInputSyncCount,
       resetCount,
       destroyed,
       key,
@@ -394,6 +444,7 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
     root,
     interactionRoot,
     update,
+    updateDetailed,
     invalidate,
     reset,
     destroy,

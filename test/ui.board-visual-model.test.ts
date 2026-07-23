@@ -126,8 +126,17 @@ describe('BoardRenderModel sparse projection', () => {
     interactionCell.interaction.legal = true;
     const interactionChanged = project(interactionCell);
     expect(interactionChanged.interactionSignature).not.toBe(base.interactionSignature);
+    expect(interactionChanged.hintPaintSignature).not.toBe(base.hintPaintSignature);
+    expect(interactionChanged.hintInputSignature).not.toBe(base.hintInputSignature);
     expect(interactionChanged.surfaceSignature).toBe(base.surfaceSignature);
     expect(interactionChanged.stoneSignature).toBe(base.stoneSignature);
+
+    const lockChanged = project(createCell('0,0'), { interactionLocked: true });
+    expect(lockChanged.interactionSignature).not.toBe(base.interactionSignature);
+    expect(lockChanged.hintPaintSignature).toBe(base.hintPaintSignature);
+    expect(lockChanged.hintInputSignature).not.toBe(base.hintInputSignature);
+    expect(lockChanged.surfaceSignature).toBe(base.surfaceSignature);
+    expect(lockChanged.stoneSignature).toBe(base.stoneSignature);
 
     const localPendingChanged = project(createCell('0,0'), {
       localPendingHints: [{ id: 'pending:a', cellKey: '0,0', kind: 'selection' }]

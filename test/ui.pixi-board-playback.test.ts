@@ -71,6 +71,8 @@ function makeFrame(
     visualSignature: `${row},${col}:${value.owner}`,
     surfaceSignature: `surface:${row},${col}`,
     stoneSignature: `stone:${row},${col}:${value.owner}:${value.specialType || 'normal'}`,
+    hintPaintSignature: `hint-paint:${row},${col}:idle`,
+    hintInputSignature: `hint-input:${row},${col}:idle`,
     interactionSignature: `interaction:${row},${col}:idle`
   }));
   return Object.freeze({

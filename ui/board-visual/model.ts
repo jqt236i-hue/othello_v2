@@ -12,6 +12,8 @@ type BoardCellSignatureField =
   | 'visualSignature'
   | 'surfaceSignature'
   | 'stoneSignature'
+  | 'hintPaintSignature'
+  | 'hintInputSignature'
   | 'interactionSignature';
 
 type UnsignedBoardCellVisualState = Omit<BoardCellVisualState, BoardCellSignatureField>;
@@ -207,6 +209,35 @@ function signatureForInteraction(cell: UnsignedBoardCellVisualState): string {
   ]);
 }
 
+function signatureForHintPaint(cell: UnsignedBoardCellVisualState): string {
+  const interaction = cell.interaction;
+  return JSON.stringify([
+    cell.kind,
+    interaction.legal,
+    interaction.legalFree,
+    interaction.tabooLegal,
+    interaction.selectable,
+    interaction.hovered,
+    interaction.keyboardCursor,
+    interaction.previewKinds,
+    interaction.selected,
+    interaction.selectionKinds,
+    interaction.directionHints
+  ]);
+}
+
+function signatureForHintInput(cell: UnsignedBoardCellVisualState): string {
+  const interaction = cell.interaction;
+  return JSON.stringify([
+    cell.kind,
+    interaction.legal,
+    interaction.legalFree,
+    interaction.selectable,
+    interaction.interactionLocked,
+    interaction.directionHints
+  ]);
+}
+
 export function createBoardRenderModel(options: {
   visualRevision?: number;
   topology: BoardRenderTopologyModel;
@@ -248,6 +279,8 @@ export function createBoardRenderModel(options: {
       visualSignature: signatureForCell(overlaid),
       surfaceSignature: signatureForSurface(overlaid),
       stoneSignature: signatureForStone(overlaid),
+      hintPaintSignature: signatureForHintPaint(overlaid),
+      hintInputSignature: signatureForHintInput(overlaid),
       interactionSignature: signatureForInteraction(overlaid)
     });
   });
@@ -324,6 +357,8 @@ export function materializeBoardViewport(options: {
         visualSignature: `void:${key}`,
         surfaceSignature: 'surface:void',
         stoneSignature: 'stone:void',
+        hintPaintSignature: 'hint-paint:void',
+        hintInputSignature: 'hint-input:void:locked',
         interactionSignature: 'interaction:void',
         ephemeral: true
       }));

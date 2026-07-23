@@ -170,7 +170,7 @@
   - cursor/eventMode/hitAreaの軽量同期を別関数・別signatureへ分離する。
   - diagnosticsを `hintPaintCount` と `hintInputSyncCount` に分け、既存集計の意味を移行testで固定する。
 - implementation stage B gate:
-  - stage A後のstandard captureでlock transitionに有意な同期負荷が残る場合だけ、`ui/pixi/board-input.ts` の親interaction layerへ一括gateを追加する。
+  - stage A後のhardware captureで、lockまたはunlock apply durationが観測RAF中央値の25%以上、またはlock transitionに帰属するLong Task/50ms RAF stallが1件以上なら、`ui/pixi/board-input.ts` の親interaction layerへ一括gateを追加する。
   - 親gate導入時は無効化前に `syncInputState()` を呼び、press、hover、long-pressをclearする。ゲーム側 `isInputLocked` 判定は残す。
   - stage Aだけで合格した場合は親gateを追加しない。planの未完扱いにはしない。
 - monitoring:
@@ -186,6 +186,9 @@
   - `npm run check:worker-mirror`
 - done: lock-only Graphics再描画0、入力漏れ0、stale hover/press 0、unlock後の入力重複0、opponent-action Long Task/RAF非退行。
 - commit boundary: paint/input分離と監視を一commitにし、stage Bが必要なら別commitにする。
+- implementation review:
+  - stage Aはlock/unlockとも `updatedCellViews=0`、`updatedStoneViews=0`、`hintPaintCount=0`、軽量な `hintInputSyncCount=64` となった。applyは約2.1–2.2msで観測RAF中央値16.7msの約13%に留まり、定量gateの25%未満だったためstage Bは追加しない。
+  - 専用 `perf:opponent-action-stall -- --quick` は5シナリオ×5サンプルでLong Task/50ms stall 0、RAF p95 16.7–16.8msだった。統合monitorだけがfirst-use CPU初期化を含めて50msを1件記録したため、既存専用harnessと同じ1回のウォームアップ後にfresh fixtureを再生成して計測するよう修正した。
 
 ## Phase 2: 低リスクの起動resource削減
 
@@ -685,7 +688,7 @@ git status --short
 - [x] monitor-only baselineをclean commit/artifact identityで取得
 - [x] 通常Pixi特殊石の必要集合外requestを0にする
 - [x] explicit DOM、初期Pixi失敗、context lossの特殊石fallbackを維持（CSS遅延化はStep 2.4）
-- [ ] lock-only hint Graphics paintを0にし、入力lock/unlockを維持
+- [x] lock-only hint Graphics paintを0にし、入力lock/unlockを維持
 - [ ] Vite/root logical imageのbody重複を0にする
 - [ ] 初期help imageをcritical path外へ移し、即時/idle後openを維持
 - [ ] 通常PixiのDOM compatibility CSS request/evaluationを0にする

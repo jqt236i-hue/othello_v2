@@ -268,6 +268,55 @@ export function validateUxOptimizationReport(
         reasons.push(`first-special response count was ${String(metrics.specialResponseCount)}`);
       }
     }
+    if (scenario.captureStatus === 'complete' && definition.id === 'board.lock-toggle') {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      if (metrics.backend !== 'pixi') reasons.push(`lock-toggle backend was ${String(metrics.backend || 'missing')}`);
+      if (metrics.lockAccepted !== true || metrics.unlockAccepted !== true) {
+        reasons.push('lock-toggle frames did not both settle');
+      }
+      for (const phase of ['lockDelta', 'unlockDelta']) {
+        const delta = metrics[phase] && typeof metrics[phase] === 'object' ? metrics[phase] : {};
+        if (Number(delta.updatedCellViews) !== 0) {
+          reasons.push(`${phase} updated cell views: ${String(delta.updatedCellViews)}`);
+        }
+        if (Number(delta.updatedStoneViews) !== 0) {
+          reasons.push(`${phase} updated stone views: ${String(delta.updatedStoneViews)}`);
+        }
+        if (Number(delta.hintPaintCount) !== 0) {
+          reasons.push(`${phase} painted hint Graphics: ${String(delta.hintPaintCount)}`);
+        }
+        if (Number(delta.hintInputSyncCount) <= 0) {
+          reasons.push(`${phase} did not record the lightweight input sync`);
+        }
+      }
+      if (Number(metrics.lockedCommandCount) !== 0) {
+        reasons.push(`locked command count was ${String(metrics.lockedCommandCount)}`);
+      }
+      if (Number(metrics.unlockCommandCount) !== 1) {
+        reasons.push(`unlock command count was ${String(metrics.unlockCommandCount)}`);
+      }
+      if (Number(metrics.staleInputStateCount) !== 0) {
+        reasons.push(`stale input state count was ${String(metrics.staleInputStateCount)}`);
+      }
+    }
+    if (scenario.captureStatus === 'complete' && definition.id === 'playback.opponent-actions') {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      if (metrics.backend !== 'pixi') reasons.push(`opponent-turn backend was ${String(metrics.backend || 'missing')}`);
+      if (metrics.settledOpponentTurn !== true) reasons.push('opponent turn did not settle');
+      if (metrics.longTaskSupported !== true) reasons.push('Long Task observation was unavailable');
+      if (Number(metrics.longTaskCount) !== 0) {
+        reasons.push(`opponent-turn Long Task count was ${String(metrics.longTaskCount)}`);
+      }
+      if (Number(metrics.rafSampleCount) <= 0) reasons.push('opponent-turn RAF samples are missing');
+      if (Number(metrics.rafStall50msCount) !== 0) {
+        reasons.push(`opponent-turn 50ms RAF stall count was ${String(metrics.rafStall50msCount)}`);
+      }
+      if (metrics.tickerIdle !== true) reasons.push('Pixi ticker did not return to idle');
+    }
     if (
       scenario.captureStatus === 'complete'
       && [

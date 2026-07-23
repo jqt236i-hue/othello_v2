@@ -112,6 +112,8 @@ function createCell(visualSignature: string, marker: Record<string, any>): any {
     visualSignature,
     surfaceSignature: visualSignature,
     stoneSignature: `stone:${visualSignature}`,
+    hintPaintSignature: `hint-paint:${visualSignature}`,
+    hintInputSignature: `hint-input:${visualSignature}`,
     interactionSignature: `interaction:${visualSignature}`,
     ephemeral: false
   };

@@ -237,9 +237,10 @@ contractはscenario IDとcapture laneを別軸で扱い、必須capture keyを `
 
 - lock前後でmodel/layout/appearance/theme、legal/selectable/preview/directionは同一のfixtureを使う。
 - hint viewの診断を `hintPaintCount` と `hintInputSyncCount` に分離し、lock-only applyの `hintPaintCount`、`updatedCellViews`、`updatedStoneViews` は0をblocking条件とする。cursor等の軽い同期が必要な段階では `hintInputSyncCount` を別記録し、Graphics再描画と混同しない。
-- 親入力ゲートは第1段階の再計測でlock transitionの同期負荷が残った場合だけ導入する。導入した場合、transition countは1、press/hover/long-pressは0へ収束する。
+- 親入力ゲートは第1段階の再計測でlock transitionの同期負荷が残った場合だけ導入する。「残る」は、hardware captureでlockまたはunlock apply durationが観測RAF中央値の25%以上、またはlock transitionに帰属するLong Task/50ms RAF stallが1件以上、と定義する。これ未満なら64セルの軽量入力属性同期を残し、親gateは追加しない。導入した場合、transition countは1、press/hover/long-pressは0へ収束する。
 - pointer、touch long-press、keyboard、semantic layerの入力がロック中にゲームcommandへ到達しない。
 - unlock後の最初の有効入力が一度だけ届く。
+- opponent-action計測はfirst-use CPU/playback初期化を1回ウォームアップした後、fresh canonical fixtureから次の同一ターンを測る。navigation・asset decode・CPU初期化を対局中ターンへ誤帰属させず、既存の専用opponent-action harnessと測定境界を一致させる。
 
 ### C. logical画像と二重取得
 
@@ -441,6 +442,8 @@ baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR�
 - 初回準備を完全に不可視な内部事情として扱う案は、低速端末で待機状態がプレイヤーに見える可能性を隠すため撤回した。既存のガチャ/SKIN初回準備契約と同じ方向で `01-rulebook.md` を先に更新する。
 - performance harnessを通常bundleへ戻す案は既存のoptional diagnostics契約を壊すため、capture専用payloadと外部Playwright観測を採用した。
 - lock-only変更の全cell入力同期まで直ちにゼロへする案は、pointerleaveや長押しclearを壊す可能性があるため撤回した。重いhint paintと軽い入力属性同期を別計数し、親入力ゲートは再計測で必要性が確認された場合だけ進める。
+- lock stage Bの「有意な同期負荷」が定量化されていなかったため、観測RAF中央値の25%または帰属可能なLong Task/50ms stallを導入条件として固定した。stage A計測は約2.1–2.2ms、観測中央値16.7msの約13%で、Graphics paint 0かつ既存opponent-action 25サンプルもLong Task/stall 0だったため、親gateを追加しない。
+- 統合monitorのopponent-actionが未ウォームの初回CPU処理を測り、専用harnessの5シナリオ×5サンプルすべてLong Task/stall 0という結果と矛盾したため、専用harnessと同じく1回のfirst-use warmup後にfresh fixtureを再生成して測る境界へ修正した。
 - 初期DOM参照をそのまま各featureへ渡す案では、lazy生成後もnull参照が残って操作不能になるため、stable shell/controlだけをbootで取得し、inner refsをsurface ready後にfeature controllerが取得する所有境界を追加した。
 - help画像preloadを既存img要素に結び付ける案では、後のrules-help DOM遅延化と矛盾するため、logical URL単位のDOM非依存cacheへ修正した。
 - result full CSS失敗時にoverlayを抑止する案は終局操作を失わせるため、最小critical CSSをstartupへ残し、結果表示を必ず成立させる例外を追加した。

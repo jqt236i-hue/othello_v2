@@ -348,6 +348,8 @@ export interface PixiBoardSceneApplyResult {
   readonly updatedCellViews: number;
   readonly updatedStoneViews: number;
   readonly updatedHintViews: number;
+  readonly hintPaintCount: number;
+  readonly hintInputSyncCount: number;
   readonly skippedViews: number;
   readonly releasedViews: number;
   readonly materializationWindow: BoardWorldWindow | null;
@@ -383,6 +385,8 @@ export interface PixiBoardSceneDiagnostics {
   readonly cumulativeUpdatedCellViewCount: number;
   readonly cumulativeUpdatedStoneViewCount: number;
   readonly cumulativeUpdatedHintViewCount: number;
+  readonly cumulativeHintPaintCount: number;
+  readonly cumulativeHintInputSyncCount: number;
   readonly cumulativeSkippedViewCount: number;
   readonly cumulativeReleasedViewCount: number;
   readonly boardSurfaceUpdateCount: number;
@@ -1136,6 +1140,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
   let cumulativeUpdatedCellViewCount = 0;
   let cumulativeUpdatedStoneViewCount = 0;
   let cumulativeUpdatedHintViewCount = 0;
+  let cumulativeHintPaintCount = 0;
+  let cumulativeHintInputSyncCount = 0;
   let cumulativeSkippedViewCount = 0;
   let cumulativeReleasedViewCount = 0;
   let materializationWindow: BoardWorldWindow | null = null;
@@ -1350,6 +1356,10 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       visualSignature: `playback-ghost:${handle.scopeId}:${handle.id}`,
       surfaceSignature: `playback-ghost-surface:${handle.scopeId}:${handle.id}`,
       stoneSignature: `playback-ghost-stone:${handle.scopeId}:${handle.id}`,
+      hintPaintSignature: existing?.hintPaintSignature
+        || `playback-ghost-hint-paint:${handle.scopeId}:${handle.id}`,
+      hintInputSignature: existing?.hintInputSignature
+        || `playback-ghost-hint-input:${handle.scopeId}:${handle.id}`,
       interactionSignature: `playback-ghost-interaction:${handle.scopeId}:${handle.id}`
     });
   }
@@ -2746,6 +2756,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     let updatedCellViews = 0;
     let updatedStoneViews = 0;
     let updatedHintViews = 0;
+    let hintPaintCount = 0;
+    let hintInputSyncCount = 0;
     let skippedViews = 0;
     const currentSurfaceTextureIdentity = textureIdentity(context, 'surface');
     const currentStoneTextureIdentity = textureIdentity(context, 'stone');
@@ -2815,10 +2827,13 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
         }
         retainedStoneBaseVisibility.delete(cell.key);
       }
-      const hintChanged = views.hint.update(cell, viewContext);
+      const hintUpdate = views.hint.updateDetailed(cell, viewContext);
+      const hintChanged = hintUpdate.changed;
       if (cellChanged) updatedCellViews += 1;
       if (stoneChanged) updatedStoneViews += 1;
       if (hintChanged) updatedHintViews += 1;
+      if (hintUpdate.painted) hintPaintCount += 1;
+      if (hintUpdate.inputSynced) hintInputSyncCount += 1;
       applyTopologyRevealAlpha(cell.key, views);
       if (cellChanged || stoneChanged || hintChanged) updatedViews += 1;
       else skippedViews += 1;
@@ -2849,6 +2864,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     cumulativeUpdatedCellViewCount += updatedCellViews;
     cumulativeUpdatedStoneViewCount += updatedStoneViews;
     cumulativeUpdatedHintViewCount += updatedHintViews;
+    cumulativeHintPaintCount += hintPaintCount;
+    cumulativeHintInputSyncCount += hintInputSyncCount;
     cumulativeSkippedViewCount += skippedViews;
     return Object.freeze({
       materializedCount: materialized.length,
@@ -2858,6 +2875,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       updatedCellViews,
       updatedStoneViews,
       updatedHintViews,
+      hintPaintCount,
+      hintInputSyncCount,
       skippedViews,
       releasedViews,
       materializationWindow
@@ -2982,6 +3001,8 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
       cumulativeUpdatedCellViewCount,
       cumulativeUpdatedStoneViewCount,
       cumulativeUpdatedHintViewCount,
+      cumulativeHintPaintCount,
+      cumulativeHintInputSyncCount,
       cumulativeSkippedViewCount,
       cumulativeReleasedViewCount,
       boardSurfaceUpdateCount,

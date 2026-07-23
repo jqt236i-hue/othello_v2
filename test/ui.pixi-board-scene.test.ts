@@ -293,6 +293,7 @@ function makeFrame(options: {
   appearance?: Record<string, unknown>;
   theme?: any;
   modelRevision?: number;
+  overlay?: Record<string, unknown>;
 }): any {
   const topology = options.topology;
   const holes = new Set(topology.holeKeys);
@@ -304,7 +305,8 @@ function makeFrame(options: {
   const model = BoardVisualModel.createBoardRenderModel({
     visualRevision: options.modelRevision || 1,
     topology,
-    cells: rawCells
+    cells: rawCells,
+    overlay: options.overlay
   });
   const cellSize = options.cellSize || 32;
   const visibleWindow = options.visibleWindow || {
@@ -357,6 +359,27 @@ function materializedCell(raw: any): any {
     visualSignature: JSON.stringify(raw),
     surfaceSignature: JSON.stringify([raw.kind, raw.expansionSide, raw.boundaryEdges, raw.markers, !!raw.stone]),
     stoneSignature: JSON.stringify([raw.kind, raw.stone, raw.markers]),
+    hintPaintSignature: JSON.stringify([
+      raw.kind,
+      raw.interaction.legal,
+      raw.interaction.legalFree,
+      raw.interaction.tabooLegal,
+      raw.interaction.selectable,
+      raw.interaction.hovered,
+      raw.interaction.keyboardCursor,
+      raw.interaction.previewKinds,
+      raw.interaction.selected,
+      raw.interaction.selectionKinds,
+      raw.interaction.directionHints
+    ]),
+    hintInputSignature: JSON.stringify([
+      raw.kind,
+      raw.interaction.legal,
+      raw.interaction.legalFree,
+      raw.interaction.selectable,
+      raw.interaction.interactionLocked,
+      raw.interaction.directionHints
+    ]),
     interactionSignature: JSON.stringify([raw.kind, raw.interaction]),
     ephemeral: false
   });
@@ -464,6 +487,9 @@ describe('Pixi static retained views', () => {
     expect(hintView.update(cell, context)).toBe(true);
     expect(hintView.update(cell, context)).toBe(false);
     expect(hintView.getDiagnostics()).toMatchObject({
+      updateCount: 1,
+      hintPaintCount: 1,
+      hintInputSyncCount: 1,
       legal: true,
       selectable: true,
       selected: true,
@@ -481,6 +507,44 @@ describe('Pixi static retained views', () => {
     expect(hintView.interactionRoot.hitArea.contains(0, 0)).toBe(true);
     expect(hintView.interactionRoot.hitArea.contains(31.99, 31.99)).toBe(true);
     expect(hintView.interactionRoot.hitArea.contains(32, 16)).toBe(false);
+  });
+
+  test('syncs lock-only input state without repainting hint Graphics', () => {
+    const fixture = createFakeRuntime();
+    const hintView = HintView.createPixiHintView(fixture.runtime);
+    const unlocked = materializedCell(makeCell('2,3', {
+      interaction: { legal: true, hovered: true }
+    }));
+    const locked = materializedCell(makeCell('2,3', {
+      interaction: { legal: true, hovered: true, interactionLocked: true }
+    }));
+    const context = viewContext();
+
+    expect(hintView.updateDetailed(unlocked, context)).toEqual({
+      changed: true,
+      painted: true,
+      inputSynced: true
+    });
+    const paintedCommands = (hintView.root as FakeGraphics).commands.slice();
+    const surfaceCommands = (hintView.surfaceRoot as FakeGraphics).commands.slice();
+
+    expect(hintView.updateDetailed(locked, context)).toEqual({
+      changed: true,
+      painted: false,
+      inputSynced: true
+    });
+    expect((hintView.root as FakeGraphics).commands).toEqual(paintedCommands);
+    expect((hintView.surfaceRoot as FakeGraphics).commands).toEqual(surfaceCommands);
+    expect(hintView.interactionRoot).toMatchObject({
+      eventMode: 'static',
+      cursor: 'default'
+    });
+    expect(hintView.getDiagnostics()).toMatchObject({
+      updateCount: 2,
+      hintPaintCount: 1,
+      hintInputSyncCount: 2,
+      interactionLocked: true
+    });
   });
 
   test('keeps selectable-stone surface tint behind the stone while retaining foreground cues', () => {
@@ -1094,6 +1158,59 @@ describe('Pixi static board scene', () => {
       skippedViews: 64
     });
     expect(scene.getDiagnostics()).toMatchObject({ boardSurfaceSkippedCount: expect.any(Number) });
+  });
+
+  test('keeps lock-only frame changes out of cell, stone, and hint paint work', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 8, baseCols: 8 });
+    const cells = topology.existingKeys.map((key) => makeCell(key, {
+      interaction: { legal: key === '2,3' || key === '3,2' }
+    }));
+
+    const initial = scene.applyFrame(makeFrame({ topology, cells, modelRevision: 1 }));
+    expect(initial).toMatchObject({
+      updatedCellViews: 64,
+      updatedStoneViews: 0,
+      hintPaintCount: 64,
+      hintInputSyncCount: 64
+    });
+
+    const locked = scene.applyFrame(makeFrame({
+      topology,
+      cells,
+      modelRevision: 2,
+      overlay: { interactionLocked: true }
+    }));
+    expect(locked).toMatchObject({
+      updatedCellViews: 0,
+      updatedStoneViews: 0,
+      updatedHintViews: 64,
+      hintPaintCount: 0,
+      hintInputSyncCount: 64,
+      skippedViews: 0
+    });
+
+    const unlocked = scene.applyFrame(makeFrame({
+      topology,
+      cells,
+      modelRevision: 3,
+      overlay: { interactionLocked: false }
+    }));
+    expect(unlocked).toMatchObject({
+      updatedCellViews: 0,
+      updatedStoneViews: 0,
+      updatedHintViews: 64,
+      hintPaintCount: 0,
+      hintInputSyncCount: 64
+    });
+    expect(scene.getDiagnostics()).toMatchObject({
+      cumulativeUpdatedCellViewCount: 64,
+      cumulativeUpdatedStoneViewCount: 0,
+      cumulativeUpdatedHintViewCount: 192,
+      cumulativeHintPaintCount: 64,
+      cumulativeHintInputSyncCount: 192
+    });
   });
 
   test('partitions surface, stone, hint, and font theme dependencies', () => {

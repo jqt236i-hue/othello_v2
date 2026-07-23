@@ -34,6 +34,8 @@ function validReport(): Record<string, any> {
     scenarios: UX_OPTIMIZATION_SCENARIO_CAPTURES.map((definition) => {
       const firstSpecial = definition.id === 'board.first-special';
       const fallback = definition.id.startsWith('fallback.');
+      const lockToggle = definition.id === 'board.lock-toggle';
+      const opponentTurn = definition.id === 'playback.opponent-actions';
       return {
         id: definition.id,
         lane: definition.lane,
@@ -66,7 +68,41 @@ function validReport(): Record<string, any> {
               specialResponseCount: 1,
               ...(definition.id === 'fallback.context-loss' ? { lossPrevented: true } : {})
             }
-            : {}
+            : lockToggle
+              ? {
+                backend: 'pixi',
+                lockAccepted: true,
+                unlockAccepted: true,
+                lockDelta: {
+                  updatedCellViews: 0,
+                  updatedStoneViews: 0,
+                  updatedHintViews: 64,
+                  hintPaintCount: 0,
+                  hintInputSyncCount: 64
+                },
+                unlockDelta: {
+                  updatedCellViews: 0,
+                  updatedStoneViews: 0,
+                  updatedHintViews: 64,
+                  hintPaintCount: 0,
+                  hintInputSyncCount: 64
+                },
+                lockedCommandCount: 0,
+                unlockCommandCount: 1,
+                staleInputStateCount: 0
+              }
+              : opponentTurn
+                ? {
+                  backend: 'pixi',
+                  settledOpponentTurn: true,
+                  longTaskSupported: true,
+                  longTaskCount: 0,
+                  rafSampleCount: 60,
+                  rafP95Ms: 16.7,
+                  rafStall50msCount: 0,
+                  tickerIdle: true
+                }
+                : {}
       };
     })
   };
@@ -197,5 +233,34 @@ describe('UX optimization monitor validator', () => {
     expect(validation.overallVerdict).toBe('fail');
     expect(validation.focusedVerdict).toBe('pass');
     expect(validation.developmentValid).toBe(true);
+  });
+
+  test('fails lock paint, input leakage, stale input, and opponent-turn stalls', () => {
+    const report = validReport();
+    const lock = report.scenarios.find((scenario: any) => scenario.id === 'board.lock-toggle');
+    const opponent = report.scenarios.find(
+      (scenario: any) => scenario.id === 'playback.opponent-actions'
+    );
+    lock.metrics.lockDelta.hintPaintCount = 64;
+    lock.metrics.lockedCommandCount = 1;
+    lock.metrics.staleInputStateCount = 1;
+    opponent.metrics.longTaskCount = 1;
+    opponent.metrics.rafStall50msCount = 1;
+    opponent.metrics.tickerIdle = false;
+
+    const validation = validateUxOptimizationReport(report, {
+      targetOptimizationIds: ['lock-only-hint-paint']
+    });
+    expect(validation.focusedVerdict).toBe('fail');
+    expect(validation.checks.find(
+      (check) => check.id === 'scenario.board.lock-toggle:vite:pixi'
+    )?.reasons).toEqual(expect.arrayContaining([
+      'lockDelta painted hint Graphics: 64',
+      'locked command count was 1',
+      'stale input state count was 1'
+    ]));
+    expect(validation.checks.find(
+      (check) => check.id === 'scenario.playback.opponent-actions:vite:pixi'
+    )?.verdict).toBe('fail');
   });
 });

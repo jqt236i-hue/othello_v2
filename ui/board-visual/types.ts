@@ -83,7 +83,11 @@ export interface BoardCellVisualState {
   surfaceSignature: string;
   /** Pixi stone/status semantic dependencies only. */
   stoneSignature: string;
-  /** Pixi hint/input semantic dependencies only. */
+  /** Pixi hint Graphics semantic dependencies; excludes lock-only input state. */
+  hintPaintSignature: string;
+  /** Pixi hit-area/cursor/event-mode semantic dependencies only. */
+  hintInputSignature: string;
+  /** Aggregate Pixi hint/input compatibility signature. */
   interactionSignature: string;
 }
 

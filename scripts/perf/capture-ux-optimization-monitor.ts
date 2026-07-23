@@ -47,7 +47,8 @@ const BOOT_SCENARIO_IDS = new Set([
   'boot.classic-pixi.cold'
 ]);
 const COMPLETED_OPTIMIZATION_IDS = new Set([
-  'special-stone-demand-loading'
+  'special-stone-demand-loading',
+  'lock-only-hint-paint'
 ]);
 const SPECIAL_STONE_PATH_PREFIX = 'assets/images/special-stones/';
 const CLASSIC_PIXI_RUNTIME_PATHS = Object.freeze([
@@ -590,6 +591,300 @@ async function triggerContextLossFallback(page: Page): Promise<Readonly<Record<s
   }), Date.now() - startedAt));
 }
 
+async function exerciseLockToggle(page: Page): Promise<Readonly<Record<string, unknown>>> {
+  return Object.freeze(await page.evaluate(async () => {
+    const root = window as any;
+    const bootstrap = root.UIBootstrap;
+    const controller = bootstrap && typeof bootstrap.getBoardVisualController === 'function'
+      ? bootstrap.getBoardVisualController()
+      : null;
+    const renderer = typeof root.__require === 'function'
+      ? root.__require('ui/board-renderer')
+      : null;
+    const input = renderer && typeof renderer.getBoardInputController === 'function'
+      ? renderer.getBoardInputController()
+      : null;
+    if (!controller || !input || typeof controller.getSettledFrame !== 'function') {
+      throw new Error('Board lock-toggle fixture runtime is unavailable');
+    }
+    await controller.waitForIdle();
+    const checkpoint = controller.getSettledFrame();
+    if (!checkpoint?.model?.cells) throw new Error('Board lock-toggle fixture has no settled frame');
+
+    const counters = () => {
+      const scene = controller.getBackendDiagnostics?.()?.scene || {};
+      return {
+        cell: Number(scene.cumulativeUpdatedCellViewCount) || 0,
+        stone: Number(scene.cumulativeUpdatedStoneViewCount) || 0,
+        hint: Number(scene.cumulativeUpdatedHintViewCount) || 0,
+        paint: Number(scene.cumulativeHintPaintCount) || 0,
+        input: Number(scene.cumulativeHintInputSyncCount) || 0
+      };
+    };
+    const delta = (before: ReturnType<typeof counters>, after: ReturnType<typeof counters>) => ({
+      updatedCellViews: after.cell - before.cell,
+      updatedStoneViews: after.stone - before.stone,
+      updatedHintViews: after.hint - before.hint,
+      hintPaintCount: after.paint - before.paint,
+      hintInputSyncCount: after.input - before.input
+    });
+    const buildFrame = (base: any, locked: boolean, suffix: string) => {
+      const cells = base.model.cells.map((cell: any) => Object.freeze({
+        ...cell,
+        interaction: Object.freeze({
+          ...cell.interaction,
+          interactionLocked: locked
+        }),
+        visualSignature: `${String(cell.visualSignature || '')}:ux-lock=${locked}`,
+        hintPaintSignature: String(cell.hintPaintSignature || ''),
+        hintInputSignature: `${String(cell.hintInputSignature || '')}:ux-lock=${locked}`,
+        interactionSignature: `${String(cell.interactionSignature || '')}:ux-lock=${locked}`
+      }));
+      return Object.freeze({
+        ...base,
+        frameToken: `ux-monitor:lock-toggle:${suffix}:${Date.now()}`,
+        model: Object.freeze({
+          ...base.model,
+          visualRevision: Number(base.model.visualRevision || 0) + 1,
+          cells: Object.freeze(cells)
+        })
+      });
+    };
+    const settle = async (frame: any) => {
+      const startedAt = performance.now();
+      const token = controller.claimWriter(frame.frameToken, 'local');
+      const accepted = await controller.settleLocalWriter(token, frame);
+      await controller.waitForIdle();
+      return { accepted, durationMs: performance.now() - startedAt };
+    };
+
+    // Normalize the fixture to an explicitly unlocked frame before the
+    // measured lock transition. Its hint paint signature remains identical.
+    const normalized = buildFrame(checkpoint, false, 'normalized');
+    await settle(normalized);
+    const beforeLock = counters();
+    const lockedFrame = buildFrame(normalized, true, 'locked');
+    const lockSettlement = await settle(lockedFrame);
+    const afterLock = counters();
+    const legalCells = typeof input.getLegalCells === 'function' ? input.getLegalCells() : [];
+    const target = Array.isArray(legalCells) ? legalCells[0] : null;
+    if (!target) throw new Error('Board lock-toggle fixture has no legal input cell');
+
+    const pointerAccepted = input.handlePointer?.({
+      type: 'pointerdown',
+      row: target.row,
+      col: target.col,
+      pointerId: 101,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 0,
+      clientY: 0
+    }) === true || input.handlePointer?.({
+      type: 'pointerup',
+      row: target.row,
+      col: target.col,
+      pointerId: 101,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 0,
+      clientY: 0
+    }) === true;
+    const touchAccepted = input.handlePointer?.({
+      type: 'pointerdown',
+      row: target.row,
+      col: target.col,
+      pointerId: 102,
+      pointerType: 'touch',
+      button: 0,
+      clientX: 0,
+      clientY: 0
+    }) === true || input.handlePointer?.({
+      type: 'pointerup',
+      row: target.row,
+      col: target.col,
+      pointerId: 102,
+      pointerType: 'touch',
+      button: 0,
+      clientX: 0,
+      clientY: 0
+    }) === true;
+    const keyboardAccepted = input.handleKeyboard?.({ code: 'Space', key: ' ' }) === true;
+    const directAccepted = input.activateCell?.(target.row, target.col) === true;
+    const lockedInputState = input.getState?.() || {};
+
+    const beforeUnlock = counters();
+    const unlockedFrame = buildFrame(lockedFrame, false, 'unlocked');
+    const unlockSettlement = await settle(unlockedFrame);
+    const afterUnlock = counters();
+    const unlockAcceptedCount = input.activateCell?.(target.row, target.col) === true ? 1 : 0;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    return {
+      backend: String(controller.getBackendKind?.() || ''),
+      lockAccepted: lockSettlement.accepted === true,
+      unlockAccepted: unlockSettlement.accepted === true,
+      lockApplyDurationMs: lockSettlement.durationMs,
+      unlockApplyDurationMs: unlockSettlement.durationMs,
+      lockDelta: delta(beforeLock, afterLock),
+      unlockDelta: delta(beforeUnlock, afterUnlock),
+      lockedCommandCount: [
+        pointerAccepted,
+        touchAccepted,
+        keyboardAccepted,
+        directAccepted
+      ].filter(Boolean).length,
+      unlockCommandCount: unlockAcceptedCount,
+      staleInputStateCount: [
+        lockedInputState.activePointerId != null,
+        lockedInputState.hoveredCellKey != null,
+        lockedInputState.longPressed === true
+      ].filter(Boolean).length
+    };
+  }));
+}
+
+async function exerciseOpponentTurn(page: Page): Promise<Readonly<Record<string, unknown>>> {
+  return Object.freeze(await page.evaluate(async () => {
+    const root = window as any;
+    const debug = root.__boardVisualDebug;
+    const core = root.__require?.('game/logic/core');
+    const cards = root.__require?.('game/logic/cards');
+    if (!debug || !core?.createGameState || !cards?.createCardState) {
+      throw new Error('Opponent-turn fixture runtime is unavailable');
+    }
+    const levelSelect = document.querySelector<HTMLSelectElement>('#smartWhite');
+    if (levelSelect) {
+      levelSelect.value = '1';
+      levelSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    root.MATCH_MODE = 'cpu';
+    root.DEBUG_HUMAN_VS_HUMAN = false;
+    root.DEBUG_UNLIMITED_USAGE = true;
+    for (const key of ['__uiImpl_turn_manager', '__uiImpl_move_executor', '__uiImpl']) {
+      root[key] = root[key] || {};
+      root[key].MATCH_MODE = 'cpu';
+      root[key].DEBUG_HUMAN_VS_HUMAN = false;
+      root[key].DEBUG_UNLIMITED_USAGE = true;
+    }
+    const installFixture = async (turnNumber: number) => {
+      const nextGame = core.createGameState();
+      const nextCards = cards.createCardState(null, {
+        boardConfig: nextGame.boardConfig,
+        initialDeckCardIdsByPlayer: { black: [], white: [] },
+        initialChargeByPlayer: { black: 99, white: 99 }
+      });
+      nextGame.currentPlayer = 1;
+      nextGame.turnNumber = turnNumber;
+      nextGame.consecutivePasses = 0;
+      nextCards.turnIndex = turnNumber;
+      root.gameState = nextGame;
+      root.cardState = nextCards;
+      root.isProcessing = false;
+      root.isCardAnimating = false;
+      root.VisualPlaybackActive = false;
+      try {
+        const playback = root.__require?.('ui/playback-state-manager');
+        playback?.clearVisualPlaybackClaims?.();
+        playback?.clearSelectionSettlementLocks?.();
+        playback?.setBusyState?.({ processing: false, cardAnimating: false });
+        playback?.clearPlaybackLock?.();
+      } catch (_error) { /* fixture state remains isolated in this page */ }
+      root.renderCardUI?.();
+      root.renderBoard?.();
+      await debug.waitForIdle();
+      const protection = root.getActiveProtectionForPlayer?.(1) || [];
+      const blockers = root.getFlipBlockers?.() || [];
+      const legal = root.getLegalMoves?.(root.gameState, protection, blockers) || [];
+      if (!Array.isArray(legal) || legal.length === 0) {
+        throw new Error('Opponent-turn fixture has no legal move');
+      }
+      return legal[0];
+    };
+    const runOpponentCycle = async (move: unknown) => {
+      const startTurn = Number(root.gameState.turnNumber);
+      const started = root.executeMove?.(move);
+      await Promise.resolve(started);
+      const deadline = performance.now() + 30_000;
+      while (!(
+        Number(root.gameState?.turnNumber) >= startTurn + 2
+        && root.gameState?.currentPlayer === 1
+        && root.isProcessing !== true
+        && root.isCardAnimating !== true
+        && !root.cardState?.pendingEffectByPlayer?.white
+      )) {
+        if (performance.now() >= deadline) throw new Error('Opponent-turn fixture timed out');
+        await new Promise<void>((resolve) => setTimeout(resolve, 10));
+      }
+      if (typeof root.waitForPlaybackIdle === 'function') await root.waitForPlaybackIdle();
+      await debug.waitForIdle();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    };
+
+    // Match the established opponent-action performance harness: initialize
+    // first-use CPU/playback paths outside the measured interval, then measure
+    // the same deterministic fixture from a fresh canonical state.
+    const warmupMove = await installFixture(1900);
+    await runOpponentCycle(warmupMove);
+    const measuredMove = await installFixture(2000);
+
+    const intervals: number[] = [];
+    let previousRaf: number | null = null;
+    let rafId = 0;
+    let recording = true;
+    const tick = (atMs: number) => {
+      if (!recording) return;
+      if (previousRaf !== null) intervals.push(Math.max(0, atMs - previousRaf));
+      previousRaf = atMs;
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    const longTasks: number[] = [];
+    let observer: PerformanceObserver | null = null;
+    try {
+      observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) longTasks.push(Number(entry.duration) || 0);
+      });
+      observer.observe({ type: 'longtask' } as PerformanceObserverInit);
+    } catch (_error) { /* capability is reported separately */ }
+    await runOpponentCycle(measuredMove);
+    recording = false;
+    cancelAnimationFrame(rafId);
+    observer?.disconnect();
+    const sorted = intervals.slice().sort((left, right) => left - right);
+    const p95Index = Math.max(0, Math.ceil(sorted.length * 0.95) - 1);
+    const diagnostics = debug.getBackendDiagnostics?.() || {};
+    const supported = typeof PerformanceObserver === 'function'
+      && (PerformanceObserver.supportedEntryTypes || []).includes('longtask');
+    return {
+      backend: String(debug.getBackendKind?.() || ''),
+      settledOpponentTurn: true,
+      longTaskSupported: supported,
+      longTaskCount: longTasks.filter((duration) => duration >= 50).length,
+      rafSampleCount: intervals.length,
+      rafP95Ms: sorted.length ? sorted[p95Index] : null,
+      rafStall50msCount: intervals.filter((duration) => duration >= 50).length,
+      tickerIdle: diagnostics.tickerRunning !== true
+    };
+  }));
+}
+
+async function captureLockOptimizationScenario(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(browser, baseUrl, definition);
+  try {
+    await markProbePhase(runtime.page, `playback:${definition.id}`);
+    const metrics = definition.id === 'board.lock-toggle'
+      ? await exerciseLockToggle(runtime.page)
+      : await exerciseOpponentTurn(runtime.page);
+    await markProbePhase(runtime.page, `board-idle:${definition.id}`);
+    return await captureRuntimeSnapshot(runtime, definition, metrics);
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
 async function captureSpecialOptimizationScenario(
   browser: Browser,
   baseUrl: string,
@@ -775,6 +1070,15 @@ export async function captureUxOptimizationMonitor(
         definition
       );
       replaceScenario(capture);
+    }
+
+    const lockScenarioIds = new Set([
+      'board.lock-toggle',
+      'playback.opponent-actions'
+    ]);
+    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+      if (!lockScenarioIds.has(definition.id)) continue;
+      replaceScenario(await captureLockOptimizationScenario(browser, baseUrl, definition));
     }
 
     const normalPlayIsolation = await captureNormalPlayIsolation(browser, baseUrl);
