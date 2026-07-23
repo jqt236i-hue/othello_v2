@@ -1139,6 +1139,7 @@ installBootModuleMetadata({
     "ui/board-dom-compat/runtime",
     "ui/board-dom-compat/source-trajectory",
     "ui/board-dom-compat/special-marker-renderer",
+    "ui/board-dom-compat/stone-visual-preparation",
     "ui/board-input-controller",
     "ui/board-renderer",
     "ui/board-renderer/stone-helpers",

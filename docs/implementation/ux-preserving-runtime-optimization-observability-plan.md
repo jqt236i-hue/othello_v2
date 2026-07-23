@@ -117,7 +117,7 @@
   - `test/ui.pixi-board-backend.test.ts`
   - `test/ui.pixi-board-playback.test.ts`
   - `test/ui.board-renderer.backend-selection.test.ts`
-  - monitor capture scenario `boot.pixi.cold`, `board.first-special`, 3 fallback scenarios
+  - monitor capture scenario `boot.pixi.cold`, `boot.classic-pixi.cold`, `board.first-special`, `fallback.explicit-dom`, `fallback.pixi-init-failure`, `fallback.context-loss`
 - implementation:
   - `installCoreDI()` の無条件 `preloadSpecialStoneVisuals()` を削除する。
   - Pixiは既存 `collectSpecialStones()`、`collectPlaybackSpecialStones()`、`prepareResources()`、`preparePlaybackTextures()` を唯一の画像準備経路とする。
@@ -144,6 +144,11 @@
   - explicit DOM/initial failure/context lossがstyledかつ単一writer
   - pre-optimization比で特殊石encoded bodyが減少
 - commit boundary: 特殊石routing、tests、monitor check、必要生成物だけをcommitする。
+- implementation review:
+  - `ui/bootstrap.ts` だけでなく、`ui.ts` のWORK/gold/silver/rainbow用legacy preloadが通常起動時に5画像を取得していたため、自動初期化から除外した。互換用の明示APIは維持する。
+  - 通常起動の判定は固定0件ではなく、committed frameが要求するlogical IDのowner variantだけを許可する。初期盤面に特殊石がなければ結果として0件になる。
+  - first-special fixtureは通常game更新と競合しない公開writer settlement経路を使い、`frame:prepared` がsettlementより前、対象画像のdelta responseが1件であることを確認する。
+  - context-loss fixtureは合成eventではなく `WEBGL_lose_context` extensionを使い、実runtime recoveryからDOM準備完了までを観測する。
 
 ### Step 1.2: lock-only hint Graphics再描画を止める
 
@@ -676,10 +681,10 @@ git status --short
 
 ## 完了チェックリスト
 
-- [ ] monitor schema、capture、validator、denylist、phase、identityを実装
-- [ ] monitor-only baselineをclean commit/artifact identityで取得
-- [ ] 通常Pixi特殊石の必要集合外requestを0にする
-- [ ] explicit DOM、初期Pixi失敗、context lossの特殊石/CSS fallbackを維持
+- [x] monitor schema、capture、validator、denylist、phase、identityを実装
+- [x] monitor-only baselineをclean commit/artifact identityで取得
+- [x] 通常Pixi特殊石の必要集合外requestを0にする
+- [x] explicit DOM、初期Pixi失敗、context lossの特殊石fallbackを維持（CSS遅延化はStep 2.4）
 - [ ] lock-only hint Graphics paintを0にし、入力lock/unlockを維持
 - [ ] Vite/root logical imageのbody重複を0にする
 - [ ] 初期help imageをcritical path外へ移し、即時/idle後openを維持
@@ -732,3 +737,4 @@ git status --short
 - default frameがCSS経路でPixi texture roleを持たないこと、legacy特殊石preloaderがawait不能であることをsourceで確認し、それぞれBoardSkinRuntime限定routingと新しいDOM preparation APIへ修正した。
 - Phase 0実captureで、classicは `data-browser-boot-state` を設定せず `window.__uiInitialized` をactionable-ready正本にしていることを確認し、lane別ready条件へ修正した。
 - Phase 0 validatorがPixi内部の同一origin `blob:` URLをstatic pathとして拒否したため、resource集計をHTTP(S)配信だけへ限定し、転送量を持たない一時URLを除外した。
+- Phase 1.1実captureでbootstrap以外のlegacy preload 5件、初期frameが正当に要求し得る特殊石、monitorの直接frame投入競合、合成context-loss eventの不正確さを確認した。自動legacy呼出しの除去、必要logical集合による判定、writer settlement fixture、`WEBGL_lose_context` fixtureへ修正し、設計・monitor・実装を同じcommit境界へ整合させた。

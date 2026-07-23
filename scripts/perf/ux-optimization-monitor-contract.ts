@@ -94,6 +94,7 @@ export const UX_OPTIMIZATION_SCENARIOS: readonly UxOptimizationScenarioDefinitio
       'dom-compat-stylesheet-lazy-loading'
     ]),
     scenario('fallback.context-loss', variants(['vite', 'classic'], 'dom', 'not-applicable'), [
+      'special-stone-demand-loading',
       'dom-compat-stylesheet-lazy-loading'
     ]),
     scenario('help.before-idle', variants(['vite', 'classic'], 'pixi', 'cold'), [

@@ -215,11 +215,79 @@ export function validateUxOptimizationReport(
         ))
       : [];
     if (unexpectedErrors.length > 0) reasons.push(`${unexpectedErrors.length} unexpected browser error(s)`);
-    if (expectedFault && expectedMatches.length !== 1) {
-      reasons.push(`expected fault count must be 1, got ${expectedMatches.length}`);
+    const expectedFaultCount = expectedFault
+      ? Math.max(1, Math.trunc(Number(expectedFault.count) || 1))
+      : 0;
+    if (expectedFault && expectedMatches.length !== expectedFaultCount) {
+      reasons.push(`expected fault count must be ${expectedFaultCount}, got ${expectedMatches.length}`);
     }
     if (scenario.captureStatus !== 'complete') {
       reasons.push(`captureStatus is ${String(scenario.captureStatus || 'missing')}`);
+    }
+    if (
+      scenario.captureStatus === 'complete'
+      && (
+        definition.id === 'boot.pixi.cold'
+        || definition.id === 'boot.classic-pixi.cold'
+      )
+    ) {
+      const specialResources = resources.filter((resource: any) => (
+        String(resource?.path || '').startsWith('assets/images/special-stones/')
+      ));
+      const neededIds = Array.isArray(scenario.metrics?.neededSpecialAssetIds)
+        ? scenario.metrics.neededSpecialAssetIds.map(String)
+        : [];
+      if (specialResources.length > neededIds.length * 2) {
+        reasons.push(
+          `normal Pixi boot requested ${specialResources.length} special-stone resource(s) `
+          + `for ${neededIds.length} needed logical id(s)`
+        );
+      }
+      if (specialResources.length > 0 && neededIds.length === 0) {
+        reasons.push('normal Pixi boot requested special-stone resources with no needed logical ids');
+      }
+    }
+    if (scenario.captureStatus === 'complete' && definition.id === 'board.first-special') {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      if (metrics.backend !== 'pixi') reasons.push(`first-special backend was ${String(metrics.backend || 'missing')}`);
+      if (metrics.singleWriter !== true) reasons.push('first-special did not preserve one Pixi writer');
+      if (metrics.accepted !== true) reasons.push('first-special frame was not accepted');
+      if (metrics.framePreparedBeforeSettlement !== true) {
+        reasons.push('first-special texture/frame preparation was not observed before settlement');
+      }
+      if (metrics.settledSpecialFrame !== true) reasons.push('first-special frame did not settle');
+      const neededIds = Array.isArray(metrics.neededSpecialAssetIds)
+        ? metrics.neededSpecialAssetIds.map(String)
+        : [];
+      if (JSON.stringify(neededIds) !== JSON.stringify(['TIME_BOMB'])) {
+        reasons.push(`first-special logical asset ids were ${JSON.stringify(neededIds)}`);
+      }
+      if (Number(metrics.specialResponseCount) !== 1) {
+        reasons.push(`first-special response count was ${String(metrics.specialResponseCount)}`);
+      }
+    }
+    if (
+      scenario.captureStatus === 'complete'
+      && [
+        'fallback.explicit-dom',
+        'fallback.pixi-init-failure',
+        'fallback.context-loss'
+      ].includes(definition.id)
+    ) {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      if (metrics.backend !== 'dom') reasons.push(`fallback backend was ${String(metrics.backend || 'missing')}`);
+      if (metrics.singleWriter !== true) reasons.push('fallback did not preserve one DOM writer');
+      if (metrics.fallbackStyled !== true) reasons.push('fallback computed styles were not ready');
+      if (Number(metrics.specialResponseCount) <= 0) {
+        reasons.push('fallback did not complete DOM special-stone preparation');
+      }
+      if (definition.id === 'fallback.context-loss' && metrics.lossPrevented !== true) {
+        reasons.push('context-loss fallback did not prevent the WebGL loss event');
+      }
     }
     addCheck(`scenario.${definition.key}`, reasons.length === 0, reasons);
   }

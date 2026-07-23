@@ -575,6 +575,7 @@ describe('Pixi board backend integration', () => {
       state: 'ready', mounted: true, canvasCount: 1, contextCount: 1,
       domCellCount: 0, maxTextureSize: 2048, tickerRunning: false,
       committedApplyCount: 1, settledFrameToken: 'initial',
+      neededSpecialAssetIds: ['TIME_BOMB'],
       playback: { destroyed: false },
       timeline: { state: 'idle', activeRunCount: 0 },
       pool: {
@@ -582,6 +583,24 @@ describe('Pixi board backend integration', () => {
         pooledPlaybackGhostCount: 2,
         pooledPlaybackHighlightCount: 1
       }
+    });
+  });
+
+  test('restores a special-stone frame only after its required texture is ready', async () => {
+    const harness = createHarness();
+    const restoredFrame = makeFrame('network-restored-special', 2, { special: true });
+    await harness.backend.mount(harness.host, {});
+
+    await expect(harness.backend.restore(restoredFrame)).resolves.toBeUndefined();
+
+    expect(harness.textures.loadTexture).toHaveBeenCalledWith(
+      'https://example.test/special/TIME_BOMB/black.png',
+      'special-stone:TIME_BOMB:black'
+    );
+    expect(harness.backend.getDiagnostics()).toMatchObject({
+      restoreCount: 1,
+      settledFrameToken: 'network-restored-special',
+      neededSpecialAssetIds: ['TIME_BOMB']
     });
   });
 
@@ -1231,6 +1250,7 @@ describe('Pixi board backend integration', () => {
       token: { id: 7, frameToken: frame.frameToken, mode: 'local' },
       strictNetworkPlayback: false
     });
+    expect(harness.backend.getDiagnostics().neededSpecialAssetIds).toEqual(['HYPERACTIVE']);
 
     fixture.playback.playPhase.mockImplementationOnce(async () => {
       const textureSource = harness.scene.applyCalls.at(-1)?.context?.textures;
@@ -1255,6 +1275,7 @@ describe('Pixi board backend integration', () => {
       token: { id: 7, frameToken: frame.frameToken, mode: 'local' },
       strictNetworkPlayback: false
     });
+    expect(harness.backend.getDiagnostics().neededSpecialAssetIds).toEqual(['HYPERACTIVE', 'SNIPER']);
 
     expect(harness.textures.loadTexture).toHaveBeenCalledWith(
       'https://example.test/special/HYPERACTIVE/black.png',

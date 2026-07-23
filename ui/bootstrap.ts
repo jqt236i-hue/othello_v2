@@ -1402,7 +1402,6 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             classListAddSafe('stone-shadow-enabled');
         } catch (e: any) { /* ignore */ }
         try { ensureStoneBaseImagesReady({ timeoutMs: 5000 }); } catch (e: any) { /* ignore */ }
-        try { preloadSpecialStoneVisuals(); } catch (e: any) { /* ignore */ }
 
         const timersImpl = _makeTimersImpl();
 

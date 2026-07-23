@@ -16,6 +16,11 @@ const DomSourceTrajectory = _require('./source-trajectory');
 function createDomBoardVisualBackend(options?: {
   playPhase?: (events: readonly unknown[], context: BoardPlaybackContext) => Promise<void>;
   beforeApplyFrame?: (host: HTMLElement, frame: BoardVisualFrame) => void;
+  prepareStoneVisuals?: (documentRef: Document) => Promise<{
+    success: boolean;
+    loaded: readonly string[];
+    failed: readonly { src: string; reason: string }[];
+  }>;
   compatibilityRenderer?: {
     renderBoardDiff: (...args: any[]) => unknown;
     resetRenderStats: () => unknown;
@@ -134,11 +139,33 @@ function createDomBoardVisualBackend(options?: {
 
   return {
     kind: 'dom' as const,
-    mount(nextHost: HTMLElement, deps: BoardVisualBackendDeps) {
+    async mount(nextHost: HTMLElement, deps: BoardVisualBackendDeps) {
       if (host && host !== nextHost) throw new Error('DOM board backend cannot mount twice');
+      if (options && typeof options.prepareStoneVisuals === 'function') {
+        const result = await options.prepareStoneVisuals(nextHost.ownerDocument);
+        if (!result || result.success !== true) {
+          const failedCount = Array.isArray(result?.failed) ? result.failed.length : 0;
+          const error: any = new Error(
+            `DOM compatibility stone visuals failed to prepare (${failedCount} failed assets)`
+          );
+          error.code = 'dom_compatibility_stone_visual_prepare_failed';
+          error.stage = 'compatibility-assets';
+          error.failedAssets = Object.freeze(
+            Array.isArray(result?.failed)
+              ? result.failed.map((failure) => Object.freeze({
+                src: String(failure?.src || ''),
+                reason: String(failure?.reason || '')
+              }))
+              : []
+          );
+          throw error;
+        }
+      }
       host = nextHost;
       diagnostics = deps && deps.diagnostics;
-      diagnostics?.record('dom:mounted');
+      diagnostics?.record('dom:mounted', {
+        stoneVisualsPrepared: typeof options?.prepareStoneVisuals === 'function'
+      });
     },
     applyFrame,
     validatePhase(events, context) {

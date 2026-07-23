@@ -46,6 +46,14 @@ const BOOT_SCENARIO_IDS = new Set([
   'boot.pixi.warm',
   'boot.classic-pixi.cold'
 ]);
+const COMPLETED_OPTIMIZATION_IDS = new Set([
+  'special-stone-demand-loading'
+]);
+const SPECIAL_STONE_PATH_PREFIX = 'assets/images/special-stones/';
+const CLASSIC_PIXI_RUNTIME_PATHS = Object.freeze([
+  '/public/vendor/pixi-8.18.1.min.js',
+  '/public/vendor/pixi-unsafe-eval-8.18.1.min.js'
+]);
 
 interface CaptureOptions {
   readonly rootDir?: string;
@@ -73,6 +81,11 @@ interface BootRuntime {
   readonly page: Page;
   readonly errors: BrowserErrorEvidence[];
   readonly responsePaths: string[];
+}
+
+interface OpenRuntimeOptions {
+  readonly boardRenderer?: 'pixi' | 'dom';
+  readonly beforeGoto?: (page: Page) => Promise<void>;
 }
 
 interface BaselineArtifactArchive {
@@ -160,13 +173,14 @@ export function createInitialScenarioCaptures(): readonly Readonly<Record<string
 
 export function buildBootCaptureUrl(
   baseUrl: string,
-  definition: UxOptimizationScenarioCaptureDefinition
+  definition: UxOptimizationScenarioCaptureDefinition,
+  boardRenderer: 'pixi' | 'dom' = 'pixi'
 ): string {
   const pathname = definition.lane === 'classic' ? '/index.classic.html' : '/';
   const params = new URLSearchParams({
     debug: '1',
     uxMonitor: '1',
-    boardRenderer: 'pixi',
+    boardRenderer,
     noanim: '1'
   });
   return `${baseUrl}${pathname}?${params.toString()}`;
@@ -197,7 +211,8 @@ async function openBootRuntime(
   browser: Browser,
   baseUrl: string,
   definition: UxOptimizationScenarioCaptureDefinition,
-  reuseContext?: BrowserContext
+  reuseContext?: BrowserContext,
+  options: OpenRuntimeOptions = {}
 ): Promise<BootRuntime> {
   const context = reuseContext || await browser.newContext({
     viewport: UX_OPTIMIZATION_CAPTURE_POLICY.viewport,
@@ -225,7 +240,12 @@ async function openBootRuntime(
     }
   });
   await page.addInitScript(installUxOptimizationBrowserProbe);
-  await page.goto(buildBootCaptureUrl(baseUrl, definition), {
+  await options.beforeGoto?.(page);
+  await page.goto(buildBootCaptureUrl(
+    baseUrl,
+    definition,
+    options.boardRenderer || 'pixi'
+  ), {
     waitUntil: 'domcontentloaded',
     timeout: 60_000
   });
@@ -309,8 +329,12 @@ async function captureBootScenario(
       const backend = (window as any).__boardVisualDebug?.getBackendKind?.()
         || document.documentElement.getAttribute('data-board-visual-backend')
         || 'none';
+      const backendDiagnostics = (window as any).__boardVisualDebug?.getBackendDiagnostics?.() || null;
       return {
         backend: String(backend),
+        neededSpecialAssetIds: Array.isArray(backendDiagnostics?.neededSpecialAssetIds)
+          ? backendDiagnostics.neededSpecialAssetIds.map(String).sort()
+          : [],
         totalDomElements: document.querySelectorAll('*').length,
         featureInnerDomCounts: {
           result: countChildren('#result-overlay'),
@@ -362,6 +386,269 @@ async function captureBootScenario(
     };
   } finally {
     await closeBootRuntime(runtime, reuseContext === undefined);
+  }
+}
+
+function readVitePixiRuntimePaths(rootDir: string): readonly string[] {
+  const manifestPath = path.join(
+    rootDir,
+    DEFAULT_ARTIFACT_ROOT,
+    'vite-dist',
+    '.vite',
+    'manifest.json'
+  );
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as
+    Record<string, { file?: string }>;
+  const keys = [
+    'node_modules/pixi.js/lib/index.mjs',
+    'node_modules/pixi.js/lib/unsafe-eval/init.mjs'
+  ];
+  return Object.freeze(keys.map((key) => {
+    const file = String(manifest[key]?.file || '').trim();
+    if (!file) throw new Error(`Vite manifest is missing ${key}`);
+    return `/vite-dist/${file.replace(/^\/+/, '')}`;
+  }));
+}
+
+async function abortPixiRuntimeForScenario(
+  page: Page,
+  lane: 'vite' | 'classic',
+  vitePaths: readonly string[]
+): Promise<void> {
+  const paths = lane === 'classic' ? CLASSIC_PIXI_RUNTIME_PATHS : vitePaths;
+  for (const runtimePath of paths) {
+    await page.route(`**${runtimePath}`, (route) => route.abort());
+  }
+}
+
+async function captureRuntimeSnapshot(
+  runtime: BootRuntime,
+  definition: UxOptimizationScenarioCaptureDefinition,
+  extraMetrics: Readonly<Record<string, unknown>>,
+  expectedFault?: Readonly<{
+    kind: BrowserErrorEvidence['kind'];
+    path: string;
+    count: number;
+  }>
+): Promise<Readonly<Record<string, unknown>>> {
+  const rawSnapshot = await runtime.page.evaluate((key) => {
+    const probe = (window as any)[key];
+    if (!probe || typeof probe.snapshot !== 'function') {
+      throw new Error('UX optimization probe snapshot is unavailable');
+    }
+    return probe.snapshot();
+  }, UX_OPTIMIZATION_BROWSER_PROBE_GLOBAL);
+  const snapshot = normalizeBrowserProbeSnapshot(rawSnapshot);
+  const observedResponsePaths = Array.from(new Set(runtime.responsePaths)).sort();
+  const timedPaths = new Set(snapshot.resources.map((resource) => resource.path));
+  const untimedResponseResources = observedResponsePaths
+    .filter((resourcePath) => !timedPaths.has(resourcePath))
+    .map((resourcePath) => Object.freeze({
+      path: resourcePath,
+      initiatorType: 'response',
+      startMs: 0,
+      endMs: 0,
+      transferSize: 0,
+      encodedBodySize: 0,
+      decodedBodySize: 0
+    }));
+  return Object.freeze({
+    id: definition.id,
+    lane: definition.lane,
+    backend: definition.backend,
+    cacheProfile: definition.cacheProfile,
+    captureStatus: 'complete',
+    ...(expectedFault ? { expectedFault } : {}),
+    phases: snapshot.phases,
+    resources: Object.freeze([...snapshot.resources, ...untimedResponseResources]),
+    errors: Object.freeze(runtime.errors.slice()),
+    metrics: Object.freeze({
+      ...extraMetrics,
+      capturedAtMs: snapshot.capturedAtMs,
+      timeOrigin: snapshot.timeOrigin,
+      cls: snapshot.cls,
+      longTasks: snapshot.longTasks,
+      rafIntervalsMs: snapshot.rafIntervalsMs,
+      visibility: snapshot.visibility,
+      focused: snapshot.focused,
+      capabilities: snapshot.capabilities
+    })
+  });
+}
+
+async function readSpecialScenarioSurfaceMetrics(page: Page): Promise<Readonly<Record<string, unknown>>> {
+  return Object.freeze(await page.evaluate(() => {
+    const debug = (window as any).__boardVisualDebug;
+    const backend = String(
+      debug?.getBackendKind?.()
+      || document.getElementById('board')?.getAttribute('data-board-renderer')
+      || 'none'
+    );
+    const backendDiagnostics = debug?.getBackendDiagnostics?.() || null;
+    const host = document.getElementById('board');
+    const firstCell = host?.querySelector<HTMLElement>('.cell[data-row][data-col]') || null;
+    const firstDisc = host?.querySelector<HTMLElement>('.disc') || null;
+    const cellStyle = firstCell ? getComputedStyle(firstCell) : null;
+    const discStyle = firstDisc ? getComputedStyle(firstDisc) : null;
+    const cellCount = host?.querySelectorAll('.cell[data-row][data-col]').length || 0;
+    const canvasCount = host?.querySelectorAll('canvas').length || 0;
+    return {
+      backend,
+      cellCount,
+      canvasCount,
+      singleWriter: backend === 'dom' ? canvasCount === 0 && cellCount > 0 : canvasCount === 1,
+      fallbackStyled: backend !== 'dom' || !!(
+        cellStyle
+        && Number.parseFloat(cellStyle.width) > 0
+        && Number.parseFloat(cellStyle.height) > 0
+        && cellStyle.display !== 'none'
+        && (!firstDisc || !!discStyle && discStyle.display !== 'none')
+      ),
+      neededSpecialAssetIds: Array.isArray(backendDiagnostics?.neededSpecialAssetIds)
+        ? backendDiagnostics.neededSpecialAssetIds.map(String).sort()
+        : []
+    };
+  }));
+}
+
+async function injectFirstSpecialFrame(page: Page): Promise<Readonly<Record<string, unknown>>> {
+  return Object.freeze(await page.evaluate(async () => {
+    const root = window as any;
+    const bootstrap = root.UIBootstrap;
+    const controller = bootstrap && typeof bootstrap.getBoardVisualController === 'function'
+      ? bootstrap.getBoardVisualController()
+      : null;
+    const debug = root.__boardVisualDebug;
+    if (!controller || typeof controller.getSettledFrame !== 'function') {
+      throw new Error('Board visual controller is unavailable for the first-special fixture');
+    }
+    await controller.waitForIdle();
+    const checkpoint = controller.getSettledFrame();
+    if (!checkpoint?.model?.cells) throw new Error('Settled visual frame is unavailable');
+    const targetIndex = checkpoint.model.cells.findIndex((cell: any) => !!cell?.stone);
+    if (targetIndex < 0) throw new Error('First-special fixture requires an occupied cell');
+    const frameToken = `ux-monitor:first-special:${Date.now()}`;
+    const cells = checkpoint.model.cells.map((cell: any, index: number) => {
+      if (index !== targetIndex) return cell;
+      return Object.freeze({
+        ...cell,
+        stone: Object.freeze({
+          ...cell.stone,
+          specialType: 'TIME_BOMB'
+        }),
+        visualSignature: `${String(cell.visualSignature || '')}:ux-first-special`,
+        stoneSignature: `${String(cell.stoneSignature || '')}:ux-first-special`
+      });
+    });
+    const model = Object.freeze({
+      ...checkpoint.model,
+      visualRevision: Number(checkpoint.model.visualRevision || 0) + 1,
+      cells: Object.freeze(cells)
+    });
+    const frame = Object.freeze({
+      ...checkpoint,
+      frameToken,
+      model
+    });
+    const token = controller.claimWriter(frameToken, 'local');
+    const accepted = await controller.settleLocalWriter(token, frame);
+    await controller.waitForIdle();
+    const entries = debug?.getDiagnosticEntries?.() || [];
+    const preparedIndex = entries.findIndex((entry: any) => (
+      entry?.event === 'frame:prepared' && entry?.detail?.frameToken === frameToken
+    ));
+    const settledToken = debug?.getBackendDiagnostics?.()?.settledFrameToken || null;
+    return {
+      accepted,
+      framePreparedBeforeSettlement: preparedIndex >= 0 && settledToken === frameToken,
+      settledSpecialFrame: settledToken === frameToken
+    };
+  }));
+}
+
+async function triggerContextLossFallback(page: Page): Promise<Readonly<Record<string, unknown>>> {
+  const startedAt = Date.now();
+  await page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>('#board canvas');
+    if (!canvas) throw new Error('Pixi canvas is unavailable for context-loss fixture');
+    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+    const extension = gl?.getExtension('WEBGL_lose_context');
+    if (!extension) throw new Error('WEBGL_lose_context is unavailable');
+    canvas.addEventListener('webglcontextlost', (event) => {
+      (window as any).__uxOptimizationContextLossPrevented = event.defaultPrevented;
+    }, { once: true });
+    extension.loseContext();
+  });
+  await page.waitForFunction(() => {
+    const debug = (window as any).__boardVisualDebug;
+    return debug?.getBackendKind?.() === 'dom'
+      && debug?.getWriterMode?.() === 'idle';
+  }, null, { timeout: 15_000 });
+  return Object.freeze(await page.evaluate((elapsedMs) => ({
+    lossPrevented: (window as any).__uxOptimizationContextLossPrevented === true,
+    fallbackElapsedMs: elapsedMs
+  }), Date.now() - startedAt));
+}
+
+async function captureSpecialOptimizationScenario(
+  browser: Browser,
+  baseUrl: string,
+  rootDir: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const viteRuntimePaths = readVitePixiRuntimePaths(rootDir);
+  const isExplicitDom = definition.id === 'fallback.explicit-dom';
+  const isInitFailure = definition.id === 'fallback.pixi-init-failure';
+  const runtime = await openBootRuntime(
+    browser,
+    baseUrl,
+    definition,
+    undefined,
+    {
+      boardRenderer: isExplicitDom ? 'dom' : 'pixi',
+      beforeGoto: isInitFailure
+        ? (page) => abortPixiRuntimeForScenario(page, definition.lane, viteRuntimePaths)
+        : undefined
+    }
+  );
+  try {
+    let actionMetrics: Readonly<Record<string, unknown>> = Object.freeze({});
+    let specialResponsesAtActionStart = new Set<string>();
+    if (definition.id === 'board.first-special') {
+      await runtime.page.waitForLoadState('networkidle', { timeout: 10_000 });
+      specialResponsesAtActionStart = new Set(
+        runtime.responsePaths.filter((resourcePath) => resourcePath.startsWith(SPECIAL_STONE_PATH_PREFIX))
+      );
+      await markProbePhase(runtime.page, 'playback:first-special-start');
+      actionMetrics = await injectFirstSpecialFrame(runtime.page);
+      await markProbePhase(runtime.page, 'board-idle:first-special-ready');
+    } else if (definition.id === 'fallback.context-loss') {
+      await markProbePhase(runtime.page, 'fallback-transition:context-loss');
+      actionMetrics = await triggerContextLossFallback(runtime.page);
+      await markProbePhase(runtime.page, 'board-idle:context-fallback-ready');
+    }
+    const surfaceMetrics = await readSpecialScenarioSurfaceMetrics(runtime.page);
+    const specialResponsePaths = Object.freeze(Array.from(new Set(
+      runtime.responsePaths.filter((resourcePath) => (
+        resourcePath.startsWith(SPECIAL_STONE_PATH_PREFIX)
+        && !specialResponsesAtActionStart.has(resourcePath)
+      ))
+    )).sort());
+    const expectedFault = isInitFailure
+      ? Object.freeze({
+        kind: 'console' as const,
+        path: 'document',
+        count: definition.lane === 'classic' ? 2 : 1
+      })
+      : undefined;
+    return await captureRuntimeSnapshot(runtime, definition, {
+      ...surfaceMetrics,
+      ...actionMetrics,
+      specialResponseCount: specialResponsePaths.length,
+      specialResponsePaths
+    }, expectedFault);
+  } finally {
+    await closeBootRuntime(runtime, true);
   }
 }
 
@@ -473,6 +760,23 @@ export async function captureUxOptimizationMonitor(
     const classic = await captureBootScenario(browser, baseUrl, classicDefinition);
     replaceScenario(classic.capture);
 
+    const specialScenarioIds = new Set([
+      'board.first-special',
+      'fallback.explicit-dom',
+      'fallback.pixi-init-failure',
+      'fallback.context-loss'
+    ]);
+    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+      if (!specialScenarioIds.has(definition.id)) continue;
+      const capture = await captureSpecialOptimizationScenario(
+        browser,
+        baseUrl,
+        rootDir,
+        definition
+      );
+      replaceScenario(capture);
+    }
+
     const normalPlayIsolation = await captureNormalPlayIsolation(browser, baseUrl);
     const baselineArtifactArchive = profile === 'baseline' && dirtyPaths.length === 0
       ? archiveBaselineBrowserArtifact(rootDir, artifact, candidateCommit)
@@ -501,7 +805,9 @@ export async function captureUxOptimizationMonitor(
         capturePolicyDigest: UX_OPTIMIZATION_CAPTURE_POLICY_DIGEST,
         environment
       }),
-      pendingOptimizationIds: Object.freeze(UX_OPTIMIZATION_IDS.slice()),
+      pendingOptimizationIds: Object.freeze(
+        UX_OPTIMIZATION_IDS.filter((id) => !COMPLETED_OPTIMIZATION_IDS.has(id))
+      ),
       baselineArtifactArchive,
       normalPlayIsolation,
       scenarios: Object.freeze(scenarioCaptures),

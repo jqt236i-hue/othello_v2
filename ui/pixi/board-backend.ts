@@ -130,6 +130,8 @@ export interface PixiBoardBackendDiagnostics {
   readonly maxTextureSize: number;
   readonly tickerRunning: boolean;
   readonly lastErrorCode: string | null;
+  /** Debug-only semantic asset ids; never includes board coordinates or owners. */
+  readonly neededSpecialAssetIds: readonly string[];
   readonly application: ReturnType<PixiBoardApplication['getDiagnostics']> | null;
   readonly camera: ReturnType<PixiBoardCamera['getDiagnostics']> | null;
   readonly scene: ReturnType<PixiBoardScene['getDiagnostics']> | null;
@@ -1275,6 +1277,7 @@ export function createPixiBoardVisualBackend(
     application = null;
     currentFrame = null;
     latestWork = null;
+    playbackSpecialStones.clear();
     pendingCameraRenderError = null;
   }
 
@@ -1726,6 +1729,10 @@ export function createPixiBoardVisualBackend(
     const textureDiagnostics = textureManager?.getDiagnostics() || null;
     const playbackDiagnostics = playback?.getDiagnostics() || null;
     const canvas = application?.getCanvas();
+    const neededSpecialAssetIds = Object.freeze(Array.from(new Set([
+      ...(currentFrame ? collectSpecialStones(currentFrame).map((special) => special.type) : []),
+      ...Array.from(playbackSpecialStones.values()).map((special) => special.type)
+    ])).sort());
     return Object.freeze({
       state,
       mounted: state === 'ready',
@@ -1749,6 +1756,7 @@ export function createPixiBoardVisualBackend(
       maxTextureSize: textureDiagnostics?.maxTextureSize || 0,
       tickerRunning: appDiagnostics?.tickerRunning === true,
       lastErrorCode,
+      neededSpecialAssetIds,
       application: appDiagnostics,
       camera: cameraDiagnostics,
       scene: sceneDiagnostics,

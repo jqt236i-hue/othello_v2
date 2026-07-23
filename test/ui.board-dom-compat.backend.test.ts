@@ -135,4 +135,51 @@ describe('DomBoardVisualBackend diagnostics', () => {
       delete (global as any).document;
     }
   });
+
+  test('waits for stone visual preparation before claiming the DOM host', async () => {
+    const dom = new JSDOM('<!doctype html><div id="board"></div>');
+    const host = dom.window.document.getElementById('board') as HTMLElement;
+    let resolvePreparation: ((value: any) => void) | null = null;
+    const prepareStoneVisuals = jest.fn(() => new Promise((resolve) => {
+      resolvePreparation = resolve;
+    }));
+    const { createDomBoardVisualBackend } = require('../ui/board-dom-compat/backend');
+    const compatibilityRenderer = {
+      renderBoardDiff: jest.fn(),
+      resetRenderStats: jest.fn()
+    };
+    const backend = createDomBoardVisualBackend({ compatibilityRenderer, prepareStoneVisuals });
+    const mount = backend.mount(host, {});
+
+    expect(prepareStoneVisuals).toHaveBeenCalledWith(dom.window.document);
+    expect(backend.getDiagnostics()).toMatchObject({ domCellCount: 0 });
+    resolvePreparation!({ success: true, loaded: [], failed: [] });
+    await expect(mount).resolves.toBeUndefined();
+    dom.window.close();
+  });
+
+  test('rejects DOM mount when required stone visuals cannot be prepared', async () => {
+    const dom = new JSDOM('<!doctype html><div id="board"></div>');
+    const host = dom.window.document.getElementById('board') as HTMLElement;
+    const { createDomBoardVisualBackend } = require('../ui/board-dom-compat/backend');
+    const backend = createDomBoardVisualBackend({
+      compatibilityRenderer: {
+        renderBoardDiff: jest.fn(),
+        resetRenderStats: jest.fn()
+      },
+      prepareStoneVisuals: jest.fn(async () => ({
+        success: false,
+        loaded: [],
+        failed: [{ src: '/special.png', reason: 'load failed' }]
+      }))
+    });
+
+    await expect(backend.mount(host, {})).rejects.toMatchObject({
+      code: 'dom_compatibility_stone_visual_prepare_failed',
+      stage: 'compatibility-assets',
+      failedAssets: [{ src: '/special.png', reason: 'load failed' }]
+    });
+    expect(backend.getDiagnostics()).toMatchObject({ domCellCount: 0 });
+    dom.window.close();
+  });
 });

@@ -1,4 +1,6 @@
 import { JSDOM } from 'jsdom';
+import * as fs from 'fs';
+import * as path from 'path';
 
 describe('ui/bootstrap special stone preload', () => {
   let consoleErrorSpy;
@@ -47,7 +49,7 @@ describe('ui/bootstrap special stone preload', () => {
     });
   });
 
-  test('installGameDI triggers special stone preloading during boot', () => {
+  test('installGameDI leaves special stone loading to the selected board backend', () => {
     installDom();
     document.documentElement.classList.add('stone-base-images-ready');
     global.getSupportedEffectKeys = jest.fn(() => ['ultimateDragon', 'ultimateDestroyGod']);
@@ -56,7 +58,17 @@ describe('ui/bootstrap special stone preload', () => {
     const uiBootstrap = require('../ui/bootstrap.js');
     uiBootstrap.installGameDI();
 
-    expect(global.preloadStoneVisualEffectKeys).toHaveBeenCalledTimes(1);
-    expect(global.preloadStoneVisualEffectKeys).toHaveBeenCalledWith(['ultimateDragon', 'ultimateDestroyGod']);
+    expect(global.preloadStoneVisualEffectKeys).not.toHaveBeenCalled();
+  });
+
+  test('legacy work visual initialization does not start normal-path special image requests', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '..', 'ui.ts'), 'utf8');
+    const start = source.indexOf('export function initWorkVisualsHelpers()');
+    const end = source.indexOf('// ===== Work visual diagnostics', start);
+    const body = source.slice(start, end);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(body).not.toContain('preloadWorkStoneImages()');
+    expect(body).not.toContain('preloadImmediateSpecialStoneImages()');
   });
 });

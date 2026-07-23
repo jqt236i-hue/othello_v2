@@ -615,8 +615,6 @@ export function setupWorkVisualsObserver() {
 // Initialize helpers once (call from UI entrypoint)
 export function initWorkVisualsHelpers() {
     try {
-        preloadWorkStoneImages();
-        preloadImmediateSpecialStoneImages();
         setupWorkVisualsObserver();
         // ensure visuals once at init time
         setTimeout(() => ensureWorkVisualsApplied(), 60);

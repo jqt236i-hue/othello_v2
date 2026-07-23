@@ -1336,6 +1336,16 @@ function _createDomBoardVisualBackendForBoardRenderer() {
     const compatibilityRenderer = _require('./board-dom-compat/renderer');
     const options = {
         compatibilityRenderer,
+        prepareStoneVisuals(documentRef: Document) {
+            const preparation = _require('./board-dom-compat/stone-visual-preparation');
+            if (
+                !preparation
+                || typeof preparation.prepareDomCompatibilityStoneVisuals !== 'function'
+            ) {
+                throw new Error('DOM compatibility stone visual preparation is unavailable');
+            }
+            return preparation.prepareDomCompatibilityStoneVisuals(documentRef);
+        },
         beforeApplyFrame(activeHost: any, frame: any) {
             const topology = frame && frame.model && frame.model.topology || {};
             syncBoardPixelSizing(activeHost, {

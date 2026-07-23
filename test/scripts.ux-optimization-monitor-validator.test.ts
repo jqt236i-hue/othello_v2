@@ -31,19 +31,44 @@ function validReport(): Record<string, any> {
       }
     },
     pendingOptimizationIds: [],
-    scenarios: UX_OPTIMIZATION_SCENARIO_CAPTURES.map((definition) => ({
-      id: definition.id,
-      lane: definition.lane,
-      backend: definition.backend,
-      cacheProfile: definition.cacheProfile,
-      captureStatus: 'complete',
-      phases: [
-        { name: 'navigation', atMs: 0 },
-        { name: 'feature-ready:fixture', atMs: 2 }
-      ],
-      resources: [{ path: 'assets/images/ui/example.png' }],
-      errors: []
-    }))
+    scenarios: UX_OPTIMIZATION_SCENARIO_CAPTURES.map((definition) => {
+      const firstSpecial = definition.id === 'board.first-special';
+      const fallback = definition.id.startsWith('fallback.');
+      return {
+        id: definition.id,
+        lane: definition.lane,
+        backend: definition.backend,
+        cacheProfile: definition.cacheProfile,
+        captureStatus: 'complete',
+        phases: [
+          { name: 'navigation', atMs: 0 },
+          { name: 'feature-ready:fixture', atMs: 2 }
+        ],
+        resources: firstSpecial || fallback
+          ? [{ path: 'assets/images/special-stones/Time_bomb.png' }]
+          : [{ path: 'assets/images/ui/example.png' }],
+        errors: [],
+        metrics: firstSpecial
+          ? {
+            backend: 'pixi',
+            singleWriter: true,
+            accepted: true,
+            framePreparedBeforeSettlement: true,
+            settledSpecialFrame: true,
+            neededSpecialAssetIds: ['TIME_BOMB'],
+            specialResponseCount: 1
+          }
+          : fallback
+            ? {
+              backend: 'dom',
+              singleWriter: true,
+              fallbackStyled: true,
+              specialResponseCount: 1,
+              ...(definition.id === 'fallback.context-loss' ? { lossPrevented: true } : {})
+            }
+            : {}
+      };
+    })
   };
 }
 
@@ -119,6 +144,22 @@ describe('UX optimization monitor validator', () => {
       kind: 'console',
       path: 'unrelated'
     });
+    expect(validateUxOptimizationReport(report).overallVerdict).toBe('fail');
+  });
+
+  test('allows the exact declared count for a multi-request injected fault', () => {
+    const report = validReport();
+    report.scenarios[0].expectedFault = {
+      kind: 'console',
+      path: 'document',
+      count: 2
+    };
+    report.scenarios[0].errors = [
+      { kind: 'console', path: 'document' },
+      { kind: 'console', path: 'document' }
+    ];
+    expect(validateUxOptimizationReport(report).overallVerdict).toBe('pass');
+    report.scenarios[0].errors.pop();
     expect(validateUxOptimizationReport(report).overallVerdict).toBe('fail');
   });
 
