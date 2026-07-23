@@ -338,6 +338,24 @@ export function validateUxOptimizationReport(
       if (metrics.initialHelpImageDimensionsReserved !== true) {
         reasons.push('initial help image dimensions were not reserved');
       }
+      const compatStylesheetResources = resources.filter(
+        (resource: any) => String(resource?.path || '') === 'styles-board-dom-compat.css'
+      );
+      if (compatStylesheetResources.length !== 0) {
+        reasons.push(
+          `normal Pixi requested DOM compatibility CSS ${compatStylesheetResources.length} time(s)`
+        );
+      }
+      if (Number(metrics.domCompatStylesheetLinkCount) !== 0) {
+        reasons.push(
+          `normal Pixi mounted ${String(metrics.domCompatStylesheetLinkCount)} DOM compatibility stylesheet link(s)`
+        );
+      }
+      if (Number(metrics.domCompatStylesheetSlotCount) !== 1) {
+        reasons.push(
+          `DOM compatibility stylesheet slot count was ${String(metrics.domCompatStylesheetSlotCount)}`
+        );
+      }
     }
     if (
       scenario.captureStatus === 'complete'
@@ -455,6 +473,65 @@ export function validateUxOptimizationReport(
       }
       if (Number(metrics.specialResponseCount) !== 1) {
         reasons.push(`first-special response count was ${String(metrics.specialResponseCount)}`);
+      }
+    }
+    if (
+      scenario.captureStatus === 'complete'
+      && [
+        'fallback.explicit-dom',
+        'fallback.pixi-init-failure',
+        'fallback.context-loss'
+      ].includes(definition.id)
+    ) {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      if (metrics.backend !== 'dom') {
+        reasons.push(`DOM fallback backend was ${String(metrics.backend || 'missing')}`);
+      }
+      if (metrics.singleWriter !== true) {
+        reasons.push('DOM fallback did not preserve one visual writer');
+      }
+      if (metrics.fallbackStyled !== true) {
+        reasons.push('DOM fallback computed style was not ready');
+      }
+      if (Number(metrics.domCompatStylesheetResponseCount) !== 1) {
+        reasons.push(
+          `DOM compatibility CSS response count was ${String(metrics.domCompatStylesheetResponseCount)}`
+        );
+      }
+      if (Number(metrics.domCompatStylesheetLinkCount) !== 1) {
+        reasons.push(
+          `DOM compatibility stylesheet link count was ${String(metrics.domCompatStylesheetLinkCount)}`
+        );
+      }
+      if (metrics.domCompatStylesheetLoaded !== true) {
+        reasons.push('DOM compatibility stylesheet did not report load success');
+      }
+      if (metrics.domCompatStylesheetAtSlot !== true) {
+        reasons.push('DOM compatibility stylesheet was not inserted at its fixed cascade slot');
+      }
+      const stylesheetReadyAt = Number(metrics.domCompatStylesheetReadyAt);
+      const backendMountedAt = Number(metrics.domBackendMountedAt);
+      if (
+        !Number.isFinite(stylesheetReadyAt)
+        || !Number.isFinite(backendMountedAt)
+        || stylesheetReadyAt > backendMountedAt
+      ) {
+        reasons.push(
+          `DOM compatibility stylesheet/backend order was ${String(stylesheetReadyAt)} > ${String(backendMountedAt)}`
+        );
+      }
+      if (definition.id === 'fallback.explicit-dom') {
+        if (metrics.stylesheetFailurePreventedMount !== true) {
+          reasons.push('failed DOM compatibility CSS still allowed backend mount');
+        }
+        if (metrics.stylesheetFailureSurfaced !== true) {
+          reasons.push('DOM compatibility CSS failure was not surfaced');
+        }
+        if (metrics.stylesheetFailureUiInitialized === true) {
+          reasons.push('DOM compatibility CSS failure produced a success-shaped UI initialization');
+        }
       }
     }
     if (scenario.captureStatus === 'complete' && definition.id === 'board.lock-toggle') {

@@ -61,7 +61,8 @@ describe('DomBoardVisualBackend diagnostics', () => {
     expect(backend.getDiagnostics()).toEqual({
       canvasCount: 0,
       contextCount: 0,
-      domCellCount: 3
+      domCellCount: 3,
+      computedStyleReady: false
     });
     expect(backend.getDisplayObjectCounts()).toEqual({ total: 3, active: 3, pooled: 0 });
     expect(backend.getTextureLeaseCounts()).toEqual({ total: 0, active: 0, pooled: 0 });
@@ -155,6 +156,67 @@ describe('DomBoardVisualBackend diagnostics', () => {
     expect(backend.getDiagnostics()).toMatchObject({ domCellCount: 0 });
     resolvePreparation!({ success: true, loaded: [], failed: [] });
     await expect(mount).resolves.toBeUndefined();
+    dom.window.close();
+  });
+
+  test('waits for compatibility stylesheet before assets and DOM host ownership', async () => {
+    const dom = new JSDOM('<!doctype html><div id="board"></div>');
+    const host = dom.window.document.getElementById('board') as HTMLElement;
+    let resolveStylesheet!: () => void;
+    const order: string[] = [];
+    const prepareStylesheet = jest.fn(() => new Promise<void>((resolve) => {
+      resolveStylesheet = () => {
+        order.push('stylesheet-ready');
+        resolve();
+      };
+    }));
+    const prepareStoneVisuals = jest.fn(async () => {
+      order.push('stone-visuals-ready');
+      return { success: true, loaded: [], failed: [] };
+    });
+    const { createDomBoardVisualBackend } = require('../ui/board-dom-compat/backend');
+    const backend = createDomBoardVisualBackend({
+      compatibilityRenderer: {
+        renderBoardDiff: jest.fn(),
+        resetRenderStats: jest.fn()
+      },
+      prepareStylesheet,
+      prepareStoneVisuals
+    });
+
+    const mount = backend.mount(host, {});
+    expect(prepareStylesheet).toHaveBeenCalledWith(dom.window.document);
+    expect(prepareStoneVisuals).not.toHaveBeenCalled();
+    expect(host.dataset.cardReversiDomBackendMountedAt).toBeUndefined();
+
+    resolveStylesheet();
+    await expect(mount).resolves.toBeUndefined();
+    expect(order).toEqual(['stylesheet-ready', 'stone-visuals-ready']);
+    expect(Number(host.dataset.cardReversiDomBackendMountedAt)).toBeGreaterThanOrEqual(0);
+    dom.window.close();
+  });
+
+  test('does not claim the DOM host when compatibility stylesheet loading fails', async () => {
+    const dom = new JSDOM('<!doctype html><div id="board"></div>');
+    const host = dom.window.document.getElementById('board') as HTMLElement;
+    const stylesheetError = new Error('compatibility CSS unavailable');
+    const prepareStoneVisuals = jest.fn();
+    const { createDomBoardVisualBackend } = require('../ui/board-dom-compat/backend');
+    const backend = createDomBoardVisualBackend({
+      compatibilityRenderer: {
+        renderBoardDiff: jest.fn(),
+        resetRenderStats: jest.fn()
+      },
+      prepareStylesheet: jest.fn(async () => {
+        throw stylesheetError;
+      }),
+      prepareStoneVisuals
+    });
+
+    await expect(backend.mount(host, {})).rejects.toBe(stylesheetError);
+    expect(prepareStoneVisuals).not.toHaveBeenCalled();
+    expect(host.dataset.cardReversiDomBackendMountedAt).toBeUndefined();
+    expect(backend.getDiagnostics()).toMatchObject({ domCellCount: 0 });
     dom.window.close();
   });
 

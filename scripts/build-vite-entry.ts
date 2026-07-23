@@ -21,6 +21,7 @@ interface GenerateViteEntryResult {
   content: string;
   scriptSources: string[];
   styleSources: string[];
+  lazyStyleSources: string[];
   wroteFile: boolean;
   wroteClassicFile: boolean;
 }
@@ -53,7 +54,12 @@ function renderStyleBootstrap(): string {
     </script>`;
 }
 
-function renderViteEntry(classicHtml: string): { content: string; scriptSources: string[]; styleSources: string[] } {
+function renderViteEntry(classicHtml: string): {
+  content: string;
+  scriptSources: string[];
+  styleSources: string[];
+  lazyStyleSources: string[];
+} {
   const normalized = normalizeNewlines(classicHtml);
   const markerIndex = normalized.lastIndexOf('<!-- Scripts -->');
   const bodyCloseIndex = normalized.lastIndexOf('</body>');
@@ -74,6 +80,9 @@ function renderViteEntry(classicHtml: string): { content: string; scriptSources:
   if (!styleSources.length) {
     throw new Error('index.html does not declare any classic stylesheets');
   }
+  const lazyStyleSources = Array.from(normalized.matchAll(
+    /data-card-reversi-feature-style-href="([^"]+)"/g
+  )).map((match) => match[1]);
 
   const styleMetaTags = styleSources.map((source) => (
     `    <meta name="card-reversi-classic-style" content="${source}">`
@@ -93,7 +102,7 @@ function renderViteEntry(classicHtml: string): { content: string; scriptSources:
   const refreshedMarkerIndex = content.lastIndexOf('<!-- Scripts -->');
   const refreshedBodyCloseIndex = content.lastIndexOf('</body>');
   content = `${content.slice(0, refreshedMarkerIndex)}<!-- Vite default entry; generated from index.classic.html -->\n    <script type="module" src="/browser-vite/main.ts"></script>\n${content.slice(refreshedBodyCloseIndex)}`;
-  return { content, scriptSources, styleSources };
+  return { content, scriptSources, styleSources, lazyStyleSources };
 }
 
 function generateViteEntry(options: GenerateViteEntryOptions = {}): GenerateViteEntryResult {
@@ -123,6 +132,7 @@ function generateViteEntry(options: GenerateViteEntryOptions = {}): GenerateVite
     content: rendered.content,
     scriptSources: rendered.scriptSources,
     styleSources: rendered.styleSources,
+    lazyStyleSources: rendered.lazyStyleSources,
     wroteFile,
     wroteClassicFile
   };

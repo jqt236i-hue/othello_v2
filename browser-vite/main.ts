@@ -18,6 +18,31 @@ function requestsDomCompatibility(root: Window & Record<string, any>): boolean {
   }
 }
 
+async function loadBoardPayload(
+  root: Window & Record<string, any>,
+  documentRef: Document,
+  group: 'compatibility' | 'diagnostics'
+): Promise<boolean> {
+  const loaded = await optionalPayloadLoader.load(group);
+  if (group !== 'compatibility') return loaded;
+  const stylesheetLoader = typeof root.require === 'function'
+    ? root.require('ui/assets/feature-stylesheet-loader')
+    : null;
+  if (!stylesheetLoader || typeof stylesheetLoader.ensureFeatureStylesheet !== 'function') {
+    throw new Error('DOM compatibility board stylesheet loader is unavailable');
+  }
+  const result = await stylesheetLoader.ensureFeatureStylesheet(
+    'board-dom-compat',
+    documentRef
+  );
+  if (!result || result.ok !== true) {
+    throw new Error(
+      String(result?.warning || 'DOM compatibility board stylesheet failed to load')
+    );
+  }
+  return loaded;
+}
+
 const startBrowserApp = createStartViteBrowserApp({
   loadPixiRuntime: (root) => loadPixiRuntime({
     root,
@@ -31,10 +56,10 @@ const startBrowserApp = createStartViteBrowserApp({
   }),
   beforeInitialize: async (root, documentRef, pixiRuntime) => {
     root.__CARD_REVERSI_LOAD_VITE_BOARD_PAYLOAD__ = (group: 'compatibility' | 'diagnostics') => (
-      optionalPayloadLoader.load(group)
+      loadBoardPayload(root, documentRef, group)
     );
     if (requestsDomCompatibility(root)) {
-      await optionalPayloadLoader.load('compatibility');
+      await root.__CARD_REVERSI_LOAD_VITE_BOARD_PAYLOAD__('compatibility');
     }
     const pixiRuntimeInjected = applyPixiRuntimeOutcome(root, pixiRuntime);
     const cpuWorkerBridge = installCpuWorkerBridge(root, documentRef);

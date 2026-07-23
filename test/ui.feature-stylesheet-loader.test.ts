@@ -65,4 +65,39 @@ describe('feature stylesheet loader', () => {
     );
     dom.window.close();
   });
+
+  test('loads board compatibility CSS at its fixed cascade slot and records readiness', async () => {
+    const dom = new JSDOM(`<!doctype html><html><head>
+      <link rel="stylesheet" href="styles-stone-shadows.css?v=1">
+      <meta data-card-reversi-feature-style-slot="board-dom-compat"
+        data-card-reversi-feature-style-href="styles-board-dom-compat.css?v=2468">
+      <link rel="stylesheet" href="styles-profile.css?v=2">
+    </head><body></body></html>`, { url: 'https://example.test/game/' });
+    const { document } = dom.window;
+
+    expect(getFeatureStylesheetHref('board-dom-compat', document)).toBe(
+      'https://example.test/game/styles-board-dom-compat.css?v=2468'
+    );
+    const pending = ensureFeatureStylesheet('board-dom-compat', document);
+    const slot = document.querySelector(
+      '[data-card-reversi-feature-style-slot="board-dom-compat"]'
+    )!;
+    const link = document.querySelector(
+      'link[data-card-reversi-feature-style="board-dom-compat"]'
+    ) as HTMLLinkElement;
+    expect(link).toBeTruthy();
+    expect(link.nextElementSibling).toBe(slot);
+    expect(link.previousElementSibling?.getAttribute('href')).toContain(
+      'styles-stone-shadows.css'
+    );
+    link.dispatchEvent(new dom.window.Event('load'));
+
+    await expect(pending).resolves.toEqual(expect.objectContaining({
+      ok: true,
+      group: 'board-dom-compat'
+    }));
+    expect(link.dataset.cardReversiFeatureStyleLoaded).toBe('true');
+    expect(Number(link.dataset.cardReversiFeatureStyleReadyAt)).toBeGreaterThanOrEqual(0);
+    dom.window.close();
+  });
 });

@@ -1,4 +1,9 @@
-export type FeatureStylesheetGroup = 'deck-builder' | 'gacha' | 'network' | 'leaderboard';
+export type FeatureStylesheetGroup =
+  | 'board-dom-compat'
+  | 'deck-builder'
+  | 'gacha'
+  | 'network'
+  | 'leaderboard';
 
 export interface FeatureStylesheetLoadResult {
   ok: boolean;
@@ -8,6 +13,7 @@ export interface FeatureStylesheetLoadResult {
 }
 
 const FEATURE_STYLESHEET_PATHS: Readonly<Record<FeatureStylesheetGroup, string>> = Object.freeze({
+  'board-dom-compat': 'styles-board-dom-compat.css',
   'deck-builder': 'styles-feature-deck-builder.css',
   gacha: 'styles-feature-gacha.css',
   network: 'styles-feature-network.css',
@@ -43,6 +49,11 @@ export function getFeatureStylesheetHref(group: FeatureStylesheetGroup, docRef?:
   const relativePath = FEATURE_STYLESHEET_PATHS[group];
   const documentRef = resolveDocument(docRef);
   if (!relativePath || !documentRef) return relativePath || '';
+  const slot = documentRef.querySelector(
+    `[data-card-reversi-feature-style-slot="${group}"]`
+  ) as HTMLElement | null;
+  const slotHref = slot?.getAttribute('data-card-reversi-feature-style-href') || '';
+  if (slotHref) return new URL(slotHref, documentRef.baseURI).href;
   const url = new URL(relativePath, documentRef.baseURI);
   const version = readStartupVersion(documentRef);
   if (version) url.searchParams.set('v', version);
@@ -102,6 +113,12 @@ export function ensureFeatureStylesheet(
     };
     link.onload = () => {
       link.dataset.cardReversiFeatureStyleLoaded = 'true';
+      const now = documentRef.defaultView?.performance?.now;
+      if (typeof now === 'function') {
+        link.dataset.cardReversiFeatureStyleReadyAt = String(
+          now.call(documentRef.defaultView?.performance)
+        );
+      }
       cleanup();
       resolve({ ok: true, group, href });
     };
@@ -113,7 +130,14 @@ export function ensureFeatureStylesheet(
     };
     if (!existing) {
       link.href = href;
-      documentRef.head.appendChild(link);
+      const slot = documentRef.querySelector(
+        `[data-card-reversi-feature-style-slot="${group}"]`
+      );
+      if (slot?.parentNode) {
+        slot.parentNode.insertBefore(link, slot);
+      } else {
+        documentRef.head.appendChild(link);
+      }
     }
   });
   loads.set(group, pending);

@@ -22,10 +22,12 @@ function writeSourceStub(rootDir: string, distRelativePath: string) {
 function writeBrowserIndexFixture(rootDir: string) {
     writeFile(path.join(rootDir, 'public', 'runtime.js'), 'window.__cjsRegister = function() {};\nwindow.__cjsAlias = function() {};\n');
     writeFile(path.join(rootDir, 'styles-base.css'), 'body { color: #fff; }\n');
+    writeFile(path.join(rootDir, 'styles-board-dom-compat.css'), '[data-board-renderer="dom"] { display: grid; }\n');
     writeFile(path.join(rootDir, 'index.html'), [
         '<!doctype html>',
         '<html><body>',
         '<link rel="stylesheet" href="styles-base.css?v=1">',
+        '<meta data-card-reversi-feature-style-slot="board-dom-compat" data-card-reversi-feature-style-href="styles-board-dom-compat.css?v=1">',
         '<script src="public/runtime.js"></script>',
         '<script src="public/module-registry.js?v=1"></script>',
         '<script src="entry-browser.js?v=1"></script>',
@@ -62,11 +64,17 @@ describe('browser build sync', () => {
         const registryVersion = computeScriptVersionToken(registryPath);
         const entryVersion = computeScriptVersionToken(path.join(rootDir, 'entry-browser.js'));
         const styleVersion = computeScriptVersionToken(path.join(rootDir, 'styles-base.css'));
+        const compatStyleVersion = computeScriptVersionToken(
+            path.join(rootDir, 'styles-board-dom-compat.css')
+        );
 
         expect(html).toContain(`public/runtime.js?v=${runtimeVersion}`);
         expect(html).toContain(`public/module-registry.js?v=${registryVersion}`);
         expect(html).toContain(`entry-browser.js?v=${entryVersion}`);
         expect(html).toContain(`styles-base.css?v=${styleVersion}`);
+        expect(html).toContain(
+            `data-card-reversi-feature-style-href="styles-board-dom-compat.css?v=${compatStyleVersion}"`
+        );
         expect(checkBrowserBuildUpToDate(rootDir)).toEqual({
             ok: true,
             code: 0,

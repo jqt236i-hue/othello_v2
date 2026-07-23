@@ -17,6 +17,13 @@ describe('Pixi runtime fallback browser check', () => {
       cellCount: 64,
       canvasCount: 0,
       trajectoryOverlayCount: 0,
+      compatibilityStylesheet: {
+        linkCount: 1,
+        loaded: true,
+        readyAt: 4,
+        backendMountedAt: 5,
+        atFixedSlot: true
+      },
       trajectorySmoke: {
         attempted: true,
         originalEventTypes: ['destroy', 'flip'],
@@ -45,6 +52,13 @@ describe('Pixi runtime fallback browser check', () => {
       cellCount: 64,
       canvasCount: 0,
       trajectoryOverlayCount: 0,
+      compatibilityStylesheet: {
+        linkCount: 1,
+        loaded: true,
+        readyAt: 4,
+        backendMountedAt: 5,
+        atFixedSlot: true
+      },
       trajectorySmoke: {
         attempted: true,
         originalEventTypes: ['destroy', 'flip'],
@@ -75,6 +89,13 @@ describe('Pixi runtime fallback browser check', () => {
       cellCount: 64,
       canvasCount: 1,
       trajectoryOverlayCount: 1,
+      compatibilityStylesheet: {
+        linkCount: 2,
+        loaded: false,
+        readyAt: 9,
+        backendMountedAt: 8,
+        atFixedSlot: false
+      },
       trajectorySmoke: {
         attempted: true,
         originalEventTypes: ['destroy_source_animation'],
@@ -96,6 +117,10 @@ describe('Pixi runtime fallback browser check', () => {
       expect.stringMatching(/unavailable reason/),
       expect.stringMatching(/fallback renderer/),
       expect.stringMatching(/mounted together/),
+      expect.stringMatching(/stylesheet link count/),
+      expect.stringMatching(/did not finish loading/),
+      expect.stringMatching(/fixed cascade slot/),
+      expect.stringMatching(/not ready before backend mount/),
       expect.stringMatching(/overlay survived/),
       expect.stringMatching(/original destroy\/flip/),
       expect.stringMatching(/not observed/),
@@ -123,6 +148,13 @@ describe('Pixi runtime fallback browser check', () => {
       cellCount: 64,
       canvasCount: 0,
       trajectoryOverlayCount: 0,
+      compatibilityStylesheet: {
+        linkCount: 1,
+        loaded: true,
+        readyAt: 4,
+        backendMountedAt: 5,
+        atFixedSlot: true
+      },
       trajectorySmoke: {
         attempted: true,
         originalEventTypes: ['destroy', 'flip'],

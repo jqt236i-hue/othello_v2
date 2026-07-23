@@ -1319,23 +1319,50 @@ function _createFailedBoardVisualBackendForBoardRenderer(kind: 'dom' | 'pixi', e
 }
 
 async function _ensureDomBoardVisualBackendModulesForBoardRenderer(): Promise<void> {
+    let modulesReady = false;
     try {
         const renderer = _require('./board-dom-compat/renderer');
         const backend = _require('./board-dom-compat/backend');
-        if (renderer && backend) return;
+        modulesReady = !!(renderer && backend);
     } catch (_error) { /* Vite compatibility payload may not be registered yet */ }
-    const root: any = typeof window !== 'undefined' ? window : globalThis;
-    const loadPayload = root && root.__CARD_REVERSI_LOAD_VITE_BOARD_PAYLOAD__;
-    if (typeof loadPayload !== 'function') {
-        throw new Error('DOM compatibility board payload loader is unavailable');
+    if (!modulesReady) {
+        const root: any = typeof window !== 'undefined' ? window : globalThis;
+        const loadPayload = root && root.__CARD_REVERSI_LOAD_VITE_BOARD_PAYLOAD__;
+        if (typeof loadPayload !== 'function') {
+            throw new Error('DOM compatibility board payload loader is unavailable');
+        }
+        await loadPayload.call(root, 'compatibility');
     }
-    await loadPayload.call(root, 'compatibility');
+    await _ensureDomBoardCompatibilityStylesheetForBoardRenderer(
+        typeof document !== 'undefined' ? document : null
+    );
+}
+
+async function _ensureDomBoardCompatibilityStylesheetForBoardRenderer(
+    documentRef: Document | null
+): Promise<void> {
+    const loader = _require('./assets/feature-stylesheet-loader');
+    if (!loader || typeof loader.ensureFeatureStylesheet !== 'function') {
+        throw new Error('DOM compatibility board stylesheet loader is unavailable');
+    }
+    const result = await loader.ensureFeatureStylesheet('board-dom-compat', documentRef);
+    if (!result || result.ok !== true) {
+        const error: any = new Error(
+            String(result?.warning || 'DOM compatibility board stylesheet failed to load')
+        );
+        error.code = 'dom_compatibility_stylesheet_unavailable';
+        error.stage = 'compatibility-stylesheet';
+        throw error;
+    }
 }
 
 function _createDomBoardVisualBackendForBoardRenderer() {
     const compatibilityRenderer = _require('./board-dom-compat/renderer');
     const options = {
         compatibilityRenderer,
+        prepareStylesheet(documentRef: Document) {
+            return _ensureDomBoardCompatibilityStylesheetForBoardRenderer(documentRef);
+        },
         prepareStoneVisuals(documentRef: Document) {
             const preparation = _require('./board-dom-compat/stone-visual-preparation');
             if (

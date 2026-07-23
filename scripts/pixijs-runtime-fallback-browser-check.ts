@@ -22,6 +22,13 @@ interface PixiFallbackProbe {
   cellCount: number;
   canvasCount: number;
   trajectoryOverlayCount: number;
+  compatibilityStylesheet: {
+    linkCount: number;
+    loaded: boolean;
+    readyAt: number | null;
+    backendMountedAt: number | null;
+    atFixedSlot: boolean;
+  };
   trajectorySmoke: {
     attempted: boolean;
     originalEventTypes: string[];
@@ -63,6 +70,30 @@ function evaluatePixiRuntimeFallbackProbe(
   }
   if (!probe || probe.cellCount <= 0) errors.push(`${expectedLane}: DOM cells were not materialized`);
   if (probe?.canvasCount !== 0) errors.push(`${expectedLane}: canvas and DOM fallback were mounted together`);
+  if (probe?.compatibilityStylesheet?.linkCount !== 1) {
+    errors.push(
+      `${expectedLane}: DOM compatibility stylesheet link count was ${String(probe?.compatibilityStylesheet?.linkCount)}`
+    );
+  }
+  if (probe?.compatibilityStylesheet?.loaded !== true) {
+    errors.push(`${expectedLane}: DOM compatibility stylesheet did not finish loading`);
+  }
+  if (probe?.compatibilityStylesheet?.atFixedSlot !== true) {
+    errors.push(`${expectedLane}: DOM compatibility stylesheet missed its fixed cascade slot`);
+  }
+  const styleReadyAt = probe?.compatibilityStylesheet?.readyAt;
+  const backendMountedAt = probe?.compatibilityStylesheet?.backendMountedAt;
+  if (
+    typeof styleReadyAt !== 'number'
+    || !Number.isFinite(styleReadyAt)
+    || typeof backendMountedAt !== 'number'
+    || !Number.isFinite(backendMountedAt)
+    || styleReadyAt > backendMountedAt
+  ) {
+    errors.push(
+      `${expectedLane}: DOM compatibility stylesheet was not ready before backend mount`
+    );
+  }
   if (probe?.trajectoryOverlayCount !== 0) {
     errors.push(`${expectedLane}: a DOM trajectory overlay survived settlement`);
   }
@@ -151,6 +182,12 @@ async function captureFallbackProbe(page: any): Promise<PixiFallbackProbe> {
     };
     const renderer = resolveModule('BoardRenderer', 'ui/board-renderer');
     const debug = root.__boardVisualDebug;
+    const compatibilityStylesheet = document.querySelector(
+      'link[data-card-reversi-feature-style="board-dom-compat"]'
+    ) as HTMLLinkElement | null;
+    const compatibilityStylesheetSlot = document.querySelector(
+      '[data-card-reversi-feature-style-slot="board-dom-compat"]'
+    );
     const trajectorySelector = [
       '.dom-board-source-trajectory-layer',
       '.dom-board-source-trajectory__zombie-shadow',
@@ -281,6 +318,27 @@ async function captureFallbackProbe(page: any): Promise<PixiFallbackProbe> {
       cellCount: document.querySelectorAll('#board .cell, #board-expansion-layer .cell').length,
       canvasCount: document.querySelectorAll('#board canvas').length,
       trajectoryOverlayCount: document.querySelectorAll(trajectorySelector).length,
+      compatibilityStylesheet: {
+        linkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="board-dom-compat"]'
+        ).length,
+        loaded: compatibilityStylesheet?.dataset.cardReversiFeatureStyleLoaded === 'true',
+        readyAt: Number.isFinite(Number(
+          compatibilityStylesheet?.dataset.cardReversiFeatureStyleReadyAt
+        ))
+          ? Number(compatibilityStylesheet?.dataset.cardReversiFeatureStyleReadyAt)
+          : null,
+        backendMountedAt: Number.isFinite(Number(
+          document.getElementById('board')?.dataset.cardReversiDomBackendMountedAt
+        ))
+          ? Number(document.getElementById('board')?.dataset.cardReversiDomBackendMountedAt)
+          : null,
+        atFixedSlot: !!(
+          compatibilityStylesheet
+          && compatibilityStylesheetSlot
+          && compatibilityStylesheet.nextElementSibling === compatibilityStylesheetSlot
+        )
+      },
       trajectorySmoke,
       bootError: document.getElementById('browserViteBootError')?.textContent || ''
     };

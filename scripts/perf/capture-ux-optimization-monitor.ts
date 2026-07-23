@@ -50,9 +50,11 @@ const COMPLETED_OPTIMIZATION_IDS = new Set([
   'special-stone-demand-loading',
   'lock-only-hint-paint',
   'logical-image-deduplication',
-  'help-image-lazy-loading'
+  'help-image-lazy-loading',
+  'dom-compat-stylesheet-lazy-loading'
 ]);
 const SPECIAL_STONE_PATH_PREFIX = 'assets/images/special-stones/';
+const DOM_COMPAT_STYLESHEET_PATH = 'styles-board-dom-compat.css';
 const INITIAL_HELP_IMAGE_PATHS = Object.freeze([
   'assets/images/help/player-guide/card-reversi-player-guide-slide-01.png',
   'assets/images/help/protection-penetration/protection-penetration-quick-reference.png'
@@ -362,6 +364,12 @@ async function captureBootScenario(
             && Number(image.getAttribute('width')) > 0
             && Number(image.getAttribute('height')) > 0
         )),
+        domCompatStylesheetLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="board-dom-compat"]'
+        ).length,
+        domCompatStylesheetSlotCount: document.querySelectorAll(
+          '[data-card-reversi-feature-style-slot="board-dom-compat"]'
+        ).length,
         uiInitialized: (window as any).__uiInitialized === true,
         bootState: document.documentElement.getAttribute('data-browser-boot-state')
       };
@@ -443,6 +451,50 @@ async function abortPixiRuntimeForScenario(
   }
 }
 
+async function verifyDomCompatibilityStylesheetFailure(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const context = await browser.newContext({
+    viewport: UX_OPTIMIZATION_CAPTURE_POLICY.viewport,
+    deviceScaleFactor: UX_OPTIMIZATION_CAPTURE_POLICY.dpr
+  });
+  const page = await context.newPage();
+  const surfacedErrors: string[] = [];
+  page.on('pageerror', (error) => surfacedErrors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') surfacedErrors.push(message.text());
+  });
+  page.on('requestfailed', (request) => {
+    if (relativeResourcePath(request.url(), baseUrl) === DOM_COMPAT_STYLESHEET_PATH) {
+      surfacedErrors.push('dom-compat-stylesheet-request-failed');
+    }
+  });
+  await page.route(`**/${DOM_COMPAT_STYLESHEET_PATH}*`, (route) => route.abort());
+  try {
+    await page.goto(buildBootCaptureUrl(baseUrl, definition, 'dom'), {
+      waitUntil: 'domcontentloaded',
+      timeout: 60_000
+    });
+    await page.waitForTimeout(1_000);
+    return Object.freeze(await page.evaluate((errorCount) => {
+      const board = document.getElementById('board');
+      const bootError = document.getElementById('browserViteBootError')?.textContent || '';
+      return {
+        stylesheetFailurePreventedMount:
+          !board?.dataset.cardReversiDomBackendMountedAt
+          && board?.getAttribute('data-board-renderer') !== 'dom',
+        stylesheetFailureSurfaced: errorCount > 0 || bootError.length > 0,
+        stylesheetFailureUiInitialized: (window as any).__uiInitialized === true
+      };
+    }, surfacedErrors.length));
+  } finally {
+    await page.close().catch(() => undefined);
+    await context.close().catch(() => undefined);
+  }
+}
+
 async function captureRuntimeSnapshot(
   runtime: BootRuntime,
   definition: UxOptimizationScenarioCaptureDefinition,
@@ -508,23 +560,35 @@ async function readSpecialScenarioSurfaceMetrics(page: Page): Promise<Readonly<R
     );
     const backendDiagnostics = debug?.getBackendDiagnostics?.() || null;
     const host = document.getElementById('board');
-    const firstCell = host?.querySelector<HTMLElement>('.cell[data-row][data-col]') || null;
-    const firstDisc = host?.querySelector<HTMLElement>('.disc') || null;
-    const cellStyle = firstCell ? getComputedStyle(firstCell) : null;
-    const discStyle = firstDisc ? getComputedStyle(firstDisc) : null;
-    const cellCount = host?.querySelectorAll('.cell[data-row][data-col]').length || 0;
-    const canvasCount = host?.querySelectorAll('canvas').length || 0;
+    const cellCount = Number(backendDiagnostics?.domCellCount || 0);
+    const canvasCount = Number(backendDiagnostics?.canvasCount || 0);
+    const compatStylesheet = document.querySelector(
+      'link[data-card-reversi-feature-style="board-dom-compat"]'
+    ) as HTMLLinkElement | null;
+    const compatStylesheetSlot = document.querySelector(
+      '[data-card-reversi-feature-style-slot="board-dom-compat"]'
+    );
     return {
       backend,
       cellCount,
       canvasCount,
       singleWriter: backend === 'dom' ? canvasCount === 0 && cellCount > 0 : canvasCount === 1,
-      fallbackStyled: backend !== 'dom' || !!(
-        cellStyle
-        && Number.parseFloat(cellStyle.width) > 0
-        && Number.parseFloat(cellStyle.height) > 0
-        && cellStyle.display !== 'none'
-        && (!firstDisc || !!discStyle && discStyle.display !== 'none')
+      fallbackStyled: backend !== 'dom' || backendDiagnostics?.computedStyleReady === true,
+      domCompatStylesheetLinkCount: document.querySelectorAll(
+        'link[data-card-reversi-feature-style="board-dom-compat"]'
+      ).length,
+      domCompatStylesheetLoaded:
+        compatStylesheet?.dataset.cardReversiFeatureStyleLoaded === 'true',
+      domCompatStylesheetReadyAt: Number(
+        compatStylesheet?.dataset.cardReversiFeatureStyleReadyAt || NaN
+      ),
+      domBackendMountedAt: Number(
+        host?.dataset.cardReversiDomBackendMountedAt || NaN
+      ),
+      domCompatStylesheetAtSlot: !!(
+        compatStylesheet
+        && compatStylesheetSlot
+        && compatStylesheet.nextElementSibling === compatStylesheetSlot
       ),
       neededSpecialAssetIds: Array.isArray(backendDiagnostics?.neededSpecialAssetIds)
         ? backendDiagnostics.neededSpecialAssetIds.map(String).sort()
@@ -950,6 +1014,12 @@ async function captureSpecialOptimizationScenario(
         && !specialResponsesAtActionStart.has(resourcePath)
       ))
     )).sort());
+    const domCompatStylesheetResponseCount = runtime.responsePaths.filter(
+      (resourcePath) => resourcePath === DOM_COMPAT_STYLESHEET_PATH
+    ).length;
+    const stylesheetFailureMetrics = isExplicitDom
+      ? await verifyDomCompatibilityStylesheetFailure(browser, baseUrl, definition)
+      : Object.freeze({});
     const expectedFault = isInitFailure
       ? Object.freeze({
         kind: 'console' as const,
@@ -961,7 +1031,9 @@ async function captureSpecialOptimizationScenario(
       ...surfaceMetrics,
       ...actionMetrics,
       specialResponseCount: specialResponsePaths.length,
-      specialResponsePaths
+      specialResponsePaths,
+      domCompatStylesheetResponseCount,
+      ...stylesheetFailureMetrics
     }, expectedFault);
   } finally {
     await closeBootRuntime(runtime, true);

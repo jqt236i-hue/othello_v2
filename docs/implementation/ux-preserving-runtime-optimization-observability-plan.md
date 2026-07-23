@@ -305,6 +305,11 @@
   - `npm run check:worker-mirror`
   - `npm run perf:ux-optimization:focused -- --target dom-compat-stylesheet-lazy-loading`
 - done: Vite/classic通常Pixiの約73.8KBを除外し、explicit/failure/context-loss fallbackの見た目と入力が維持される。
+- implementation review:
+  - 通常PixiのVite cold/warmとclassic coldはcompat stylesheetのlink/requestが0、固定slotが1だった。explicit DOM、初期Pixi失敗、context lossは両laneともresponse/linkが各1で、style readyからbackend mountまでの順序を維持した。最終計測のexplicit DOMはVite `456.4ms < 616.4ms`、classic `493.9ms < 557.4ms`、初期失敗はVite `537.4ms < 599.7ms`、classic `505.2ms < 569.1ms`、context lossはVite `6007.7ms < 6062.0ms`、classic `5873.6ms < 5938.8ms` だった。
+  - CSS失敗注入ではVite/classicの両方でerrorを観測し、DOM backend未mount、`uiInitialized !== true` を確認した。通常/失敗時ともPixi canvasとcompat cellsの同時writerはなかった。
+  - 初回実装レビューの `check:board-test-selectors` がmonitor内のcompat-only selector 3件を検出した。通常Pixiのtest/monitor graphがcompat DOMへ依存しないよう、主要computed style観測をDOM backend diagnosticsへ移し、default/pixi violation 0へ修正した。
+  - Vite/classicの実画面でも、通常Pixiはcanvas 1/cell 0/link 0、explicit DOMはcanvas 0/cell 64/link 1、固定slot直前、style ready < mountを確認し、盤面のframe・cell・番号・初期石が装飾済みであることを目視確認した。
 
 ## Phase 3: 選別式lossless WebP
 
@@ -698,11 +703,11 @@ git status --short
 - [x] monitor schema、capture、validator、denylist、phase、identityを実装
 - [x] monitor-only baselineをclean commit/artifact identityで取得
 - [x] 通常Pixi特殊石の必要集合外requestを0にする
-- [x] explicit DOM、初期Pixi失敗、context lossの特殊石fallbackを維持（CSS遅延化はStep 2.4）
+- [x] explicit DOM、初期Pixi失敗、context lossの特殊石fallbackを維持（CSS遅延化はStep 2.3）
 - [x] lock-only hint Graphics paintを0にし、入力lock/unlockを維持
 - [x] Vite/root logical imageのbody重複を0にする
 - [x] 初期help imageをcritical path外へ移し、即時/idle後openを維持
-- [ ] 通常PixiのDOM compatibility CSS request/evaluationを0にする
+- [x] 通常PixiのDOM compatibility CSS request/evaluationを0にする
 - [ ] WebP共通pipeline、画素/容量/decode admission、PNG fallbackを実装
 - [ ] default board frame候補を正式審査し、合否をmanifestへ確定
 - [ ] `01-rulebook.md` に共通初回準備契約を先行追記

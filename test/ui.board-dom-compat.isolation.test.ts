@@ -25,10 +25,16 @@ describe('DOM board compatibility isolation', () => {
     expect(fallbackFactory).toContain("loadPayload.call(root, 'compatibility')");
   });
 
-  test('static HTML has no compatibility expansion layer and loads the scoped stylesheet', () => {
+  test('static HTML has no compatibility expansion layer and reserves a lazy stylesheet slot', () => {
     const html = read('index.classic.html');
     expect(html).not.toMatch(/<[^>]+id=["']board-expansion-layer["']/);
-    expect(html).toContain('styles-board-dom-compat.css');
+    expect(html).not.toMatch(
+      /<link[^>]+href=["'][^"']*styles-board-dom-compat\.css/
+    );
+    expect(html).toContain('data-card-reversi-feature-style-slot="board-dom-compat"');
+    expect(html).toContain(
+      'data-card-reversi-feature-style-href="styles-board-dom-compat.css'
+    );
   });
 
   test('default styles contain only explicit Pixi suppression selectors for DOM cells', () => {

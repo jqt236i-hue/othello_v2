@@ -106,7 +106,13 @@ describe('board renderer backend selection and initial compatibility fallback', 
 
   function loadRenderer(url = 'https://example.test/game') {
     dom = new JSDOM(
-      '<!doctype html><html><body><div id="board-stack"><div id="board-frame"><div id="board"></div></div><div id="board-expansion-layer"></div></div></body></html>',
+      `<!doctype html><html><head>
+        <link rel="stylesheet" data-card-reversi-feature-style="board-dom-compat"
+          data-card-reversi-feature-style-loaded="true"
+          href="styles-board-dom-compat.css?v=test">
+        <meta data-card-reversi-feature-style-slot="board-dom-compat"
+          data-card-reversi-feature-style-href="styles-board-dom-compat.css?v=test">
+      </head><body><div id="board-stack"><div id="board-frame"><div id="board"></div></div><div id="board-expansion-layer"></div></div></body></html>`,
       { url }
     );
     (global as any).window = dom.window;

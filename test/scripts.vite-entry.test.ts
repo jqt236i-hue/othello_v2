@@ -24,17 +24,22 @@ describe('Vite comparison entry generator', () => {
   });
 
   test('preserves the classic document shell while replacing only the final scripts', () => {
-    const rendered = renderViteEntry(`<!doctype html><html lang="ja"><head><link rel="stylesheet" href="styles.css"></head><body><main id="board"></main>${classicTail}</body></html>`);
+    const rendered = renderViteEntry(`<!doctype html><html lang="ja"><head><link rel="stylesheet" href="styles.css"><meta data-card-reversi-feature-style-slot="board-dom-compat" data-card-reversi-feature-style-href="styles-board-dom-compat.css?v=4"></head><body><main id="board"></main>${classicTail}</body></html>`);
     expect(rendered.scriptSources.map((value: string) => value.split('?')[0])).toEqual(CLASSIC_SCRIPT_ORDER);
     expect(rendered.content).toContain('<main id="board"></main>');
     expect(rendered.content).toContain('data-browser-lane="vite"');
     expect(rendered.content).toContain('<base href="./">');
     expect(rendered.content).toContain('<script type="module" src="/browser-vite/main.ts"></script>');
     expect(rendered.content).toContain('name="card-reversi-classic-style" content="styles.css"');
+    expect(rendered.content).toContain('data-card-reversi-feature-style-slot="board-dom-compat"');
+    expect(rendered.content).not.toContain(
+      'name="card-reversi-classic-style" content="styles-board-dom-compat.css?v=4"'
+    );
     expect(rendered.content).toContain('name="card-reversi-startup-version" content="2"');
     expect(rendered.content).toContain('data-card-reversi-classic-style-bootstrap');
     expect(rendered.content).not.toContain('<link rel="stylesheet" href="styles.css">');
     expect(rendered.styleSources).toEqual(['styles.css']);
+    expect(rendered.lazyStyleSources).toEqual(['styles-board-dom-compat.css?v=4']);
     expect(rendered.content).not.toContain('<script src="public/runtime.js');
     expect(rendered.content).not.toContain('public/vendor/pixi-8.18.1.min.js');
     expect(rendered.content).not.toContain('public/vendor/pixi-unsafe-eval-8.18.1.min.js');

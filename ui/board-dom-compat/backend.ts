@@ -16,6 +16,7 @@ const DomSourceTrajectory = _require('./source-trajectory');
 function createDomBoardVisualBackend(options?: {
   playPhase?: (events: readonly unknown[], context: BoardPlaybackContext) => Promise<void>;
   beforeApplyFrame?: (host: HTMLElement, frame: BoardVisualFrame) => void;
+  prepareStylesheet?: (documentRef: Document) => Promise<void>;
   prepareStoneVisuals?: (documentRef: Document) => Promise<{
     success: boolean;
     loaded: readonly string[];
@@ -118,6 +119,21 @@ function createDomBoardVisualBackend(options?: {
     ? host.querySelectorAll('.cell[data-row][data-col]').length
     : 0;
 
+  const isComputedStyleReady = (): boolean => {
+    if (!host) return false;
+    const firstCell = host.querySelector<HTMLElement>('.cell[data-row][data-col]');
+    if (!firstCell) return false;
+    const firstDisc = host.querySelector<HTMLElement>('.disc');
+    const root = host.ownerDocument.defaultView;
+    if (!root || typeof root.getComputedStyle !== 'function') return false;
+    const cellStyle = root.getComputedStyle(firstCell);
+    const discStyle = firstDisc ? root.getComputedStyle(firstDisc) : null;
+    return Number.parseFloat(cellStyle.width) > 0
+      && Number.parseFloat(cellStyle.height) > 0
+      && cellStyle.display !== 'none'
+      && (!firstDisc || !!discStyle && discStyle.display !== 'none');
+  };
+
   const applyFrame = (frame: BoardVisualFrame) => {
     if (!host) throw new Error('DOM board backend is not mounted');
     if (options && typeof options.beforeApplyFrame === 'function') {
@@ -141,6 +157,9 @@ function createDomBoardVisualBackend(options?: {
     kind: 'dom' as const,
     async mount(nextHost: HTMLElement, deps: BoardVisualBackendDeps) {
       if (host && host !== nextHost) throw new Error('DOM board backend cannot mount twice');
+      if (options && typeof options.prepareStylesheet === 'function') {
+        await options.prepareStylesheet(nextHost.ownerDocument);
+      }
       if (options && typeof options.prepareStoneVisuals === 'function') {
         const result = await options.prepareStoneVisuals(nextHost.ownerDocument);
         if (!result || result.success !== true) {
@@ -162,6 +181,12 @@ function createDomBoardVisualBackend(options?: {
         }
       }
       host = nextHost;
+      const now = nextHost.ownerDocument.defaultView?.performance?.now;
+      if (typeof now === 'function') {
+        nextHost.dataset.cardReversiDomBackendMountedAt = String(
+          now.call(nextHost.ownerDocument.defaultView?.performance)
+        );
+      }
       diagnostics = deps && deps.diagnostics;
       diagnostics?.record('dom:mounted', {
         stoneVisualsPrepared: typeof options?.prepareStoneVisuals === 'function'
@@ -205,7 +230,8 @@ function createDomBoardVisualBackend(options?: {
       return Object.freeze({
         canvasCount: 0,
         contextCount: 0,
-        domCellCount: getDomCellCount()
+        domCellCount: getDomCellCount(),
+        computedStyleReady: isComputedStyleReady()
       });
     },
     getDisplayObjectCounts() {

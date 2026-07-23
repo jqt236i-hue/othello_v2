@@ -49,7 +49,10 @@ function validReport(): Record<string, any> {
           { name: 'feature-ready:fixture', atMs: 2 }
         ],
         resources: firstSpecial || fallback
-          ? [{ path: 'assets/images/special-stones/Time_bomb.png' }]
+          ? [
+            { path: 'assets/images/special-stones/Time_bomb.png' },
+            ...(fallback ? [{ path: 'styles-board-dom-compat.css' }] : [])
+          ]
           : [{ path: 'assets/images/ui/example.png' }],
         errors: [],
         metrics: firstSpecial
@@ -68,6 +71,19 @@ function validReport(): Record<string, any> {
               singleWriter: true,
               fallbackStyled: true,
               specialResponseCount: 1,
+              domCompatStylesheetResponseCount: 1,
+              domCompatStylesheetLinkCount: 1,
+              domCompatStylesheetLoaded: true,
+              domCompatStylesheetReadyAt: 4,
+              domBackendMountedAt: 5,
+              domCompatStylesheetAtSlot: true,
+              ...(definition.id === 'fallback.explicit-dom'
+                ? {
+                  stylesheetFailurePreventedMount: true,
+                  stylesheetFailureSurfaced: true,
+                  stylesheetFailureUiInitialized: false
+                }
+                : {}),
               ...(definition.id === 'fallback.context-loss' ? { lossPrevented: true } : {})
             }
             : lockToggle
@@ -109,7 +125,9 @@ function validReport(): Record<string, any> {
                     imageConstructorAssignments: [],
                     logicalImageSrcMutations: [],
                     initialHelpImageSrcCount: 0,
-                    initialHelpImageDimensionsReserved: true
+                    initialHelpImageDimensionsReserved: true,
+                    domCompatStylesheetLinkCount: 0,
+                    domCompatStylesheetSlotCount: 1
                   }
                   : help
                     ? {
@@ -369,6 +387,56 @@ describe('UX optimization monitor validator', () => {
       'help requests before first frame: 1',
       'help first-open CLS was 0.02',
       'idle-after open transferred 325700 extra bytes'
+    ]));
+  });
+
+  test('fails eager DOM compatibility CSS and fallback mount-before-style regressions', () => {
+    const report = validReport();
+    const boot = report.scenarios.find((entry: any) => (
+      entry.id === 'boot.pixi.cold' && entry.lane === 'vite'
+    ));
+    boot.resources.push({ path: 'styles-board-dom-compat.css' });
+    boot.metrics.domCompatStylesheetLinkCount = 1;
+    const fallback = report.scenarios.find((entry: any) => (
+      entry.id === 'fallback.context-loss' && entry.lane === 'classic'
+    ));
+    fallback.metrics.domCompatStylesheetResponseCount = 2;
+    fallback.metrics.domCompatStylesheetReadyAt = 8;
+    fallback.metrics.domBackendMountedAt = 7;
+    fallback.metrics.domCompatStylesheetAtSlot = false;
+    const explicitDom = report.scenarios.find((entry: any) => (
+      entry.id === 'fallback.explicit-dom' && entry.lane === 'vite'
+    ));
+    explicitDom.metrics.stylesheetFailurePreventedMount = false;
+    explicitDom.metrics.stylesheetFailureSurfaced = false;
+    explicitDom.metrics.stylesheetFailureUiInitialized = true;
+
+    const result = validateUxOptimizationReport(report, {
+      targetOptimizationIds: ['dom-compat-stylesheet-lazy-loading']
+    });
+    const bootCheck = result.checks.find(
+      (entry) => entry.id === 'scenario.boot.pixi.cold:vite:pixi'
+    );
+    const fallbackCheck = result.checks.find(
+      (entry) => entry.id === 'scenario.fallback.context-loss:classic:dom'
+    );
+    expect(result.focusedVerdict).toBe('fail');
+    expect(bootCheck?.reasons).toEqual(expect.arrayContaining([
+      'normal Pixi requested DOM compatibility CSS 1 time(s)',
+      'normal Pixi mounted 1 DOM compatibility stylesheet link(s)'
+    ]));
+    expect(fallbackCheck?.reasons).toEqual(expect.arrayContaining([
+      'DOM compatibility CSS response count was 2',
+      'DOM compatibility stylesheet was not inserted at its fixed cascade slot',
+      'DOM compatibility stylesheet/backend order was 8 > 7'
+    ]));
+    const explicitDomCheck = result.checks.find(
+      (entry) => entry.id === 'scenario.fallback.explicit-dom:vite:dom'
+    );
+    expect(explicitDomCheck?.reasons).toEqual(expect.arrayContaining([
+      'failed DOM compatibility CSS still allowed backend mount',
+      'DOM compatibility CSS failure was not surfaced',
+      'DOM compatibility CSS failure produced a success-shaped UI initialization'
     ]));
   });
 });
