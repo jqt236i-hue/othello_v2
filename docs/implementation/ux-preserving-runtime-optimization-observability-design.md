@@ -478,6 +478,8 @@ baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR�
 - Phase 4.5の境界レビューで、保存済みdeck、active deck、network publish APIまで初回openへ遅延するとboot直後の対局・保存session契約を変えることを確認した。DOM非依存model/APIはboot登録を維持し、header/body、カード列挙、view model描画、専用CSSだけを初回surfaceへ移した。
 - Phase 4.5の実機検証で、lazy CSS挿入直後に既存のclose button transitionが発火し、一時的な中間色を返すことを確認した。非表示中だけtransitionを抑止し、surface ready前にcomputed styleを確定してから表示することで、Vite/classic・desktop/mobileの見た目を変更前と一致させた。
 - Phase 4.5の初回monitorは、1366px計測viewportでも別viewportの角丸 `6px` を固定期待し、保持factoryが生成するheader/body 2要素を診断値1と誤認していた。角丸は既存の `8px × --layout-stage-scale` を許容誤差付きで比較し、`domCreatedCount=2` を一度だけ生成した正しい値として再レビューした。再captureでは両laneともfocused verdict `pass`、CLS delta 0、first-open Long Task 0となった。
+- Phase 4.7の統合レビューで、設計上はprofile/rules-help/deck-builder/networkすべてにfirst-open Long Task 0を要求していた一方、profile capture/validatorだけがLong Taskを記録・判定していなかった。profileにもclickからinteractive readyまでの同一観測区間とblocking判定を追加し、欠損やunsupportedをpassへ変換しない契約へ整合させた。
+- `match:optional-feature-smoke` はVite optional chunkの要求数を検査する実装でclassic laneを持たず、`match:optional-feature-smoke:classic` は存在しない。optional chunk境界はVite smoke、classicの遅延CSS/DOM・操作境界は統合monitorの必須classic laneと `match:ui-control-smoke:classic` で検査する責務分担へ修正した。
 - board frame画像はPixi resourceでなくCSS custom property経路であるため、WebP routingをBoardSkinRuntimeへ限定した。
 - legacy特殊石preloaderは同期returnでload/decode完了を示さないため、DOM compatibility専用のawaitable preparation APIを設計へ追加した。
 - 物理端末を必須release gateにする案は現行の任意診断方針と矛盾するため、device効果を主張する場合だけ必須とした。

@@ -301,6 +301,8 @@ function validReport(): Record<string, any> {
                     failureRetryAttemptCount: 2,
                     failureRetryFailureCount: 1,
                     failureRetryCount: 1,
+                    firstOpenLongTaskSupported: true,
+                    firstOpenLongTaskCount: 0,
                     clsDelta: 0
                   }
                 : rulesHelpFeature
@@ -921,6 +923,38 @@ describe('UX optimization monitor validator', () => {
       'rules help stylesheet failure was not closable or did not clean partial DOM/style',
       'rules help stylesheet retry did not recover with one retained surface'
     ]));
+  });
+
+  test('fails a profile first-open long task or unsupported observation', () => {
+    const report = validReport();
+    const feature = report.scenarios.find((entry: any) => (
+      entry.id === 'feature.profile' && entry.lane === 'vite'
+    ));
+    feature.metrics.firstOpenLongTaskSupported = false;
+    feature.metrics.firstOpenLongTaskCount = 0;
+
+    const unsupportedResult = validateUxOptimizationReport(report, {
+      targetOptimizationIds: ['feature-profile']
+    });
+    expect(unsupportedResult.focusedVerdict).toBe('fail');
+    expect(unsupportedResult.checks.find(
+      (entry) => entry.id === 'scenario.feature.profile:vite:pixi'
+    )?.reasons).toContain(
+      'profile first-open long tasks were 0'
+    );
+
+    feature.metrics.firstOpenLongTaskSupported = true;
+    feature.metrics.firstOpenLongTaskCount = 1;
+    const stalledResult = validateUxOptimizationReport(report, {
+      targetOptimizationIds: ['feature-profile']
+    });
+    const featureCheck = stalledResult.checks.find(
+      (entry) => entry.id === 'scenario.feature.profile:vite:pixi'
+    );
+    expect(stalledResult.focusedVerdict).toBe('fail');
+    expect(featureCheck?.reasons).toContain(
+      'profile first-open long tasks were 1'
+    );
   });
 
   test('fails eager deck builder work, interaction regressions, and failed retry cleanup', () => {

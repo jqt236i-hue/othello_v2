@@ -751,6 +751,14 @@ export function validateUxOptimizationReport(
       ) {
         reasons.push(`profile first-open CLS was ${String(metrics.clsDelta)}`);
       }
+      if (
+        metrics.firstOpenLongTaskSupported !== true
+        || Number(metrics.firstOpenLongTaskCount) !== 0
+      ) {
+        reasons.push(
+          `profile first-open long tasks were ${String(metrics.firstOpenLongTaskCount)}`
+        );
+      }
     }
     if (scenario.captureStatus === 'complete' && definition.id === 'feature.rules-help') {
       const metrics = scenario.metrics && typeof scenario.metrics === 'object'

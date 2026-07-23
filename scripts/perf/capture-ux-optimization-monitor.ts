@@ -3582,6 +3582,8 @@ async function captureProfileOptimizationScenario(
         initialFocusCorrect: document.activeElement === name
       };
     });
+    await runtime.page.waitForTimeout(0);
+    const firstOpenSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
     await runtime.page.evaluate(() => {
       (document.getElementById('profileTabIdentity') as HTMLButtonElement | null)?.click();
       (document.getElementById('profileRevealRecoveryBtn') as HTMLButtonElement | null)?.click();
@@ -3647,6 +3649,9 @@ async function captureProfileOptimizationScenario(
       };
     });
     const afterSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const startedAtMs = await runtime.page.evaluate(() => (
+      Number((window as any).__uxProfileStartedAtMs)
+    ));
     const failure = await captureFailedProfileStylesheetPath(
       browser,
       baseUrl,
@@ -3665,6 +3670,10 @@ async function captureProfileOptimizationScenario(
         runtime.responsePaths,
         PROFILE_STYLESHEET_PATH
       ),
+      firstOpenLongTaskSupported: firstOpenSnapshot.capabilities.longTask,
+      firstOpenLongTaskCount: firstOpenSnapshot.longTasks.filter(
+        (entry) => entry.startMs >= startedAtMs
+      ).length,
       clsDelta: Math.max(0, afterSnapshot.cls - beforeSnapshot.cls)
     });
   } finally {

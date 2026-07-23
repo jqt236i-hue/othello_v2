@@ -664,7 +664,6 @@
 - verification:
   - focused feature suites
   - `npm run match:optional-feature-smoke:vite`
-  - `npm run match:optional-feature-smoke:classic`
   - `npm run match:ui-control-smoke:vite`
   - `npm run match:ui-control-smoke:classic`
   - `npm run match:cross-platform-smoke:vite`
@@ -740,7 +739,6 @@ npm run match:pixijs-board-playback-check
 npm run match:pixi-runtime-fallback-check
 npm run match:cross-platform-smoke:vite
 npm run match:optional-feature-smoke:vite
-npm run match:optional-feature-smoke:classic
 npm run match:asset-delivery-smoke:vite
 npm run match:ui-control-smoke:vite
 npm run match:ui-control-smoke:classic
@@ -785,12 +783,12 @@ git status --short
 - [x] default board frame候補を正式審査し、合否をmanifestへ確定
 - [x] `01-rulebook.md` に共通初回準備契約を先行追記
 - [x] result CSSを遅延準備
-- [ ] profile inner DOM/CSSを遅延生成
-- [ ] rules-help inner DOM/CSS/imagesを遅延生成
-- [ ] deck-builder inner DOM/CSS/listを遅延生成
-- [ ] network inner DOM/CSSをmode選択後に遅延生成
-- [ ] 全featureのfocus/ESC/backdrop/reopen/failure retryを検証
-- [ ] overall reportの全scenario、blocking pass、pending 0を確認
+- [x] profile inner DOM/CSSを遅延生成
+- [x] rules-help inner DOM/CSS/imagesを遅延生成
+- [x] deck-builder inner DOM/CSS/listを遅延生成
+- [x] network inner DOM/CSSをmode選択後に遅延生成
+- [x] 全featureのfocus/ESC/backdrop/reopen/failure retryを検証
+- [x] overall reportの全scenario、blocking pass、pending 0を確認
 - [ ] CIの決定的guard jobを有効化
 - [ ] hardware desktop standard captureをclean exact commitで合格
 - [ ] 物理端末未実施時は`deviceValidated=false`を明示
@@ -835,5 +833,7 @@ git status --short
 - Phase 3.2実装前のCSS/network確認で、startup CSSがdefault PNGを先に取得するためBoardSkinRuntimeだけをWebP化すると成功時にも2 bodyになることを確認した。startup CSSを画像なしにし、game初期化と並行する初期frame preparationをapp-ready gateへ追加した。
 - CSS `image-set()` の先頭WebPをnetwork failureさせてもChromiumがPNG候補を要求しなかったため、決定的fallbackには使用せずcommon codecのWebP fetch/decode後にCSS custom propertyを一度だけ確定する設計へ修正した。
 - forced WebP failureの実captureでは想定どおりPNGへ復帰した一方、Chromiumが失敗request由来の `ERR_FAILED` を1件consoleへ出した。failure injectionのexpected faultを0件としていたvalidatorを修正し、この1件だけを必須、追加errorをfailにした。
+- Phase 4.7の統合レビューで、profileだけfirst-open Long Taskのcapture/validatorがなく、設計の4 feature共通完了条件を実際には強制できていなかった。profileにも他3 featureと同じclick-to-ready区間のLong Task capture、blocking validator、改変testを追加した。
+- `match:optional-feature-smoke` はVite optional chunkのrequest/reopenを検査するVite専用checkerで、classic scriptはpackageにも実装にも存在しなかった。存在しない `match:optional-feature-smoke:classic` を検証束から除き、classicは統合monitor必須laneと `match:ui-control-smoke:classic` で検証する。
 - Phase 4.2のsource監査で、`.premium-btn` がresultだけでなくnetwork再戦申請dialogにも共有されることを確認した。result full CSSへ残すとresult未表示時のnetwork操作が未装飾になるため、startup criticalの共有ruleへ移し、network側のcustom property fallbackも固定した。
 - Phase 4.2のVite実機確認で、生成entryのfeature slotと後付けeager CSS linkの位置関係により単純なslot挿入ではclassicとcascade順が逆転することを確認した。任意のbefore-anchorをstylesheet loaderへ追加し、両laneの `info → result → characters` 順をunit/browser/monitorで固定した。
