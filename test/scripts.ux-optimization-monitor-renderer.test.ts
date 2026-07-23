@@ -6,9 +6,15 @@ import {
   createUxOptimizationSummary,
   parseRenderArgs,
   renderUxOptimizationSummaryMarkdown,
+  type UxOptimizationSummaryDocument,
   validateUxOptimizationComparisonCompatibility,
   verifyUxOptimizationArtifactIdentity
 } from '../scripts/perf/render-ux-optimization-monitor-report';
+import {
+  UX_OPTIMIZATION_STANDARD_SUITE_SCHEMA_VERSION,
+  UX_OPTIMIZATION_STANDARD_SUITE_VALIDATION_SCHEMA_VERSION,
+  type UxOptimizationStandardSuiteValidation
+} from '../scripts/perf/capture-ux-optimization-standard-suite';
 import {
   computeBrowserArtifactManifest
 } from '../scripts/capture-pixijs-playfield-performance';
@@ -100,25 +106,30 @@ describe('UX optimization summary renderer', () => {
     const baseSummary = createUxOptimizationSummary(report('standard'), {
       generatedAt: '2026-07-23T00:00:00.000Z'
     });
-    const summary = {
-      ...baseSummary,
-      standardSuiteValidation: {
-        overallVerdict: 'pass',
-        checks: []
+    const metrics = {
+      sampleCount: 5,
+      boardReady: {},
+      bootEncodedBody: {
+        baselineMedianBytes: 25_568_317,
+        candidateMedianBytes: 22_313_193,
+        deltaRatio: -0.12731084333787002
       },
-      metrics: {
-        sampleCount: 5,
-        boardReady: {},
-        bootEncodedBody: {
-          baselineMedianBytes: 25_568_317,
-          candidateMedianBytes: 22_313_193,
-          deltaRatio: -0.12731084333787002
-        },
-        features: [],
-        result: [],
-        opponentActions: {}
-      }
-    } as any;
+      features: [],
+      result: [],
+      opponentActions: {}
+    };
+    const standardSuiteValidation: UxOptimizationStandardSuiteValidation = {
+      schemaVersion: UX_OPTIMIZATION_STANDARD_SUITE_VALIDATION_SCHEMA_VERSION,
+      reportSchemaVersion: UX_OPTIMIZATION_STANDARD_SUITE_SCHEMA_VERSION,
+      overallVerdict: 'pass',
+      checks: [],
+      aggregates: metrics
+    };
+    const summary: UxOptimizationSummaryDocument = {
+      ...baseSummary,
+      standardSuiteValidation,
+      metrics
+    };
 
     expect(renderUxOptimizationSummaryMarkdown(summary)).toContain(
       '| boot encoded body bytes | 25568317 | 22313193'
