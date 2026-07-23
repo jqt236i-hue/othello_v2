@@ -53,10 +53,12 @@ const COMPLETED_OPTIMIZATION_IDS = new Set([
   'logical-image-deduplication',
   'help-image-lazy-loading',
   'dom-compat-stylesheet-lazy-loading',
-  'lossless-webp-admission'
+  'lossless-webp-admission',
+  'feature-result'
 ]);
 const SPECIAL_STONE_PATH_PREFIX = 'assets/images/special-stones/';
 const DOM_COMPAT_STYLESHEET_PATH = 'styles-board-dom-compat.css';
+const RESULT_STYLESHEET_PATH = 'styles-layout-result.css';
 const DEFAULT_FRAME_PNG_PATH =
   'assets/images/board/board-frame-marsh-forged-iron-v1.png';
 const DEFAULT_FRAME_WEBP_PATH =
@@ -381,6 +383,12 @@ async function captureBootScenario(
         ).length,
         domCompatStylesheetSlotCount: document.querySelectorAll(
           '[data-card-reversi-feature-style-slot="board-dom-compat"]'
+        ).length,
+        resultStylesheetLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="result"]'
+        ).length,
+        resultStylesheetSlotCount: document.querySelectorAll(
+          '[data-card-reversi-feature-style-slot="result"]'
         ).length,
         uiInitialized: (window as any).__uiInitialized === true,
         bootState: document.documentElement.getAttribute('data-browser-boot-state')
@@ -1286,6 +1294,416 @@ async function captureHelpOptimizationScenario(
   }
 }
 
+async function captureDirectResultStylesheetPath(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(browser, baseUrl, definition);
+  try {
+    await runtime.page.route(`**/${RESULT_STYLESHEET_PATH}*`, async (route) => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 350));
+      await route.continue();
+    });
+    const immediate = await runtime.page.evaluate(() => {
+      const startedAt = performance.now();
+      const returned = (window as any).showResultOverlay();
+      const overlay = document.getElementById('result-overlay');
+      const panel = overlay?.querySelector('.result-panel') as HTMLElement | null;
+      const overlayStyle = overlay ? getComputedStyle(overlay) : null;
+      const panelStyle = panel ? getComputedStyle(panel) : null;
+      const buttons = Array.from(
+        overlay?.querySelectorAll('.result-btn-row button') || []
+      ) as HTMLButtonElement[];
+      return {
+        directCallStartedAt: startedAt,
+        directCallLatencyMs: performance.now() - startedAt,
+        directReturnType: typeof returned,
+        directDomImmediate: !!overlay?.isConnected,
+        directFullStylePending: document.querySelector(
+          'link[data-card-reversi-feature-style="result"]'
+        )?.getAttribute('data-card-reversi-feature-style-loaded') !== 'true',
+        directCriticalPosition: overlayStyle?.position || '',
+        directCriticalDisplay: overlayStyle?.display || '',
+        directCriticalZIndex: overlayStyle?.zIndex || '',
+        directCriticalBackgroundImage: overlayStyle?.backgroundImage || '',
+        directCriticalPanelOverflow: panelStyle?.overflow || '',
+        directCriticalPanelVisible:
+          Number(panel?.getBoundingClientRect().width || 0) > 0
+          && Number(panel?.getBoundingClientRect().height || 0) > 0,
+        directCriticalButtonsVisible:
+          buttons.length === 2
+          && buttons.every((button) => (
+            button.getBoundingClientRect().width > 0
+            && button.getBoundingClientRect().height > 0
+          ))
+      };
+    });
+    await runtime.page.waitForFunction(() => (
+      document.querySelector(
+        'link[data-card-reversi-feature-style="result"]'
+      )?.getAttribute('data-card-reversi-feature-style-loaded') === 'true'
+    ), null, { timeout: 30_000 });
+    const settled = await runtime.page.evaluate(() => {
+      const links = Array.from(
+        document.head.querySelectorAll('link[rel="stylesheet"]')
+      ) as HTMLLinkElement[];
+      const indexOf = (name: string): number => links.findIndex((link) => {
+        try {
+          return new URL(link.href).pathname.endsWith(`/${name}`);
+        } catch (_error) {
+          return false;
+        }
+      });
+      const resultLink = document.querySelector(
+        'link[data-card-reversi-feature-style="result"]'
+      ) as HTMLLinkElement | null;
+      return {
+        directFullStyleReady:
+          resultLink?.dataset.cardReversiFeatureStyleLoaded === 'true',
+        directResultLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="result"]'
+        ).length,
+        directCascadeOrderPreserved:
+          indexOf('styles-layout-info.css') >= 0
+          && indexOf('styles-layout-result.css') === indexOf('styles-layout-info.css') + 1
+          && indexOf('styles-layout-characters.css') === indexOf('styles-layout-result.css') + 1
+      };
+    });
+    return Object.freeze({
+      ...immediate,
+      ...settled,
+      directResultResponseCount: countPath(runtime.responsePaths, RESULT_STYLESHEET_PATH),
+      directUnexpectedErrorCount: runtime.errors.length
+    });
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
+async function captureFailedResultStylesheetPath(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(browser, baseUrl, definition);
+  let resultRequestCount = 0;
+  let resultRequestFailureCount = 0;
+  let resultWarningCount = 0;
+  runtime.page.on('requestfailed', (request) => {
+    if (relativeResourcePath(request.url(), baseUrl) === RESULT_STYLESHEET_PATH) {
+      resultRequestFailureCount += 1;
+    }
+  });
+  runtime.page.on('console', (message) => {
+    if (
+      message.type() === 'warning'
+      && message.text().includes('[feature-stylesheet] failed to load styles-layout-result.css')
+    ) {
+      resultWarningCount += 1;
+    }
+  });
+  await runtime.page.route(`**/${RESULT_STYLESHEET_PATH}*`, async (route) => {
+    resultRequestCount += 1;
+    if (resultRequestCount === 1) {
+      await route.abort('failed');
+      return;
+    }
+    await route.continue();
+  });
+  try {
+    const immediate = await runtime.page.evaluate(() => {
+      const startedAt = performance.now();
+      const returned = (window as any).showResultOverlay();
+      const overlay = document.getElementById('result-overlay');
+      const buttons = Array.from(
+        overlay?.querySelectorAll('.result-btn-row button') || []
+      ) as HTMLButtonElement[];
+      return {
+        failureDirectCallLatencyMs: performance.now() - startedAt,
+        failureDirectReturnType: typeof returned,
+        failureDomImmediate: !!overlay?.isConnected,
+        failureInitialButtonsVisible:
+          buttons.length === 2
+          && buttons.every((button) => (
+            button.getBoundingClientRect().width > 0
+            && button.getBoundingClientRect().height > 0
+          ))
+      };
+    });
+    await runtime.page.waitForSelector('.result-style-load-warning', {
+      state: 'visible',
+      timeout: 30_000
+    });
+    const failed = await runtime.page.evaluate(() => {
+      const overlay = document.getElementById('result-overlay');
+      const warning = overlay?.querySelector('.result-style-load-warning');
+      const buttons = Array.from(
+        overlay?.querySelectorAll('.result-btn-row button') || []
+      ) as HTMLButtonElement[];
+      return {
+        failureWarningVisible:
+          !!warning
+          && Number(warning.getBoundingClientRect().width) > 0
+          && Number(warning.getBoundingClientRect().height) > 0,
+        failureFallbackClass: overlay?.classList.contains('result-style-fallback') === true,
+        failureButtonsVisible:
+          buttons.length === 2
+          && buttons.every((button) => (
+            button.getBoundingClientRect().width > 0
+            && button.getBoundingClientRect().height > 0
+          )),
+        failureResultLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="result"]'
+        ).length
+      };
+    });
+    await runtime.page.evaluate(() => {
+      const close = document.querySelector(
+        '#result-overlay .result-btn-row .premium-btn.secondary'
+      ) as HTMLButtonElement | null;
+      if (!close) throw new Error('Result fallback close button is unavailable');
+      close.click();
+      (window as any).showResultOverlay();
+    });
+    await runtime.page.waitForFunction(() => (
+      document.querySelector(
+        'link[data-card-reversi-feature-style="result"]'
+      )?.getAttribute('data-card-reversi-feature-style-loaded') === 'true'
+    ), null, { timeout: 30_000 });
+    const retried = await runtime.page.evaluate(() => ({
+      failureRetryReady: document.querySelector(
+        'link[data-card-reversi-feature-style="result"]'
+      )?.getAttribute('data-card-reversi-feature-style-loaded') === 'true',
+      failureRetryWarningCount: document.querySelectorAll(
+        '.result-style-load-warning'
+      ).length,
+      failureRetryFallbackClass:
+        document.getElementById('result-overlay')?.classList.contains(
+          'result-style-fallback'
+        ) === true,
+      failureRetryResultLinkCount: document.querySelectorAll(
+        'link[data-card-reversi-feature-style="result"]'
+      ).length
+    }));
+    return Object.freeze({
+      ...immediate,
+      ...failed,
+      ...retried,
+      failureResultRequestCount: resultRequestCount,
+      failureResultRequestFailureCount: resultRequestFailureCount,
+      failureResultResponseCount: countPath(runtime.responsePaths, RESULT_STYLESHEET_PATH),
+      failureConsoleErrorCount: runtime.errors.filter(
+        (error) => error.kind === 'console'
+      ).length,
+      failureConsoleWarningCount: resultWarningCount
+    });
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
+async function captureResultOptimizationScenario(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(browser, baseUrl, definition);
+  try {
+    const beforeSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const initial = await runtime.page.evaluate(() => ({
+      backend: String(
+        (window as any).__boardVisualDebug?.getBackendKind?.()
+        || document.documentElement.getAttribute('data-board-visual-backend')
+        || 'none'
+      ),
+      resultStylesheetLinkCountBeforeOpen: document.querySelectorAll(
+        'link[data-card-reversi-feature-style="result"]'
+      ).length,
+      resultStylesheetSlotCount: document.querySelectorAll(
+        '[data-card-reversi-feature-style-slot="result"]'
+      ).length,
+      resultDomCountBeforeOpen: document.querySelectorAll('#result-overlay').length
+    }));
+    const resultResponsesBeforeOpen = countPath(
+      runtime.responsePaths,
+      RESULT_STYLESHEET_PATH
+    );
+    await markProbePhase(runtime.page, 'feature-opening:result');
+    const started = await runtime.page.evaluate(() => {
+      const root = window as any;
+      root.gameState.board = Array.from(
+        { length: 8 },
+        () => Array(8).fill(1)
+      );
+      root.gameState.__resultShown = false;
+      root.__uxResultEvents = [];
+      const originalAppend = document.body.appendChild.bind(document.body);
+      document.body.appendChild = function appendWithResultTiming<T extends Node>(node: T): T {
+        if (node instanceof HTMLElement && node.id === 'result-overlay') {
+          root.__uxResultEvents.push({ kind: 'append', atMs: performance.now() });
+        }
+        return originalAppend(node) as T;
+      };
+      const sound = root.SoundEngine;
+      if (!sound || typeof sound.playResultBgm !== 'function') {
+        throw new Error('Result BGM instrumentation is unavailable');
+      }
+      const originalPlayResultBgm = sound.playResultBgm.bind(sound);
+      sound.playResultBgm = (outcome: string) => {
+        root.__uxResultEvents.push({
+          kind: 'bgm',
+          outcome: String(outcome || ''),
+          atMs: performance.now()
+        });
+        return originalPlayResultBgm(outcome);
+      };
+      const startedAtMs = performance.now();
+      root.__uxResultStartedAtMs = startedAtMs;
+      root.showResult();
+      return {
+        normalStartedAtMs: startedAtMs,
+        normalLinkCountImmediately: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="result"]'
+        ).length,
+        normalOverlayImmediate: !!document.getElementById('result-overlay')
+      };
+    });
+    await runtime.page.waitForSelector('#result-overlay', {
+      state: 'attached',
+      timeout: 30_000
+    });
+    await runtime.page.waitForFunction(() => (
+      document.querySelector(
+        'link[data-card-reversi-feature-style="result"]'
+      )?.getAttribute('data-card-reversi-feature-style-loaded') === 'true'
+    ), null, { timeout: 30_000 });
+    await runtime.page.waitForFunction(() => (
+      document.getElementById('result-overlay')?.classList.contains('active') === true
+    ), null, { timeout: 30_000 });
+    await markProbePhase(runtime.page, 'feature-ready:result');
+    const normal = await runtime.page.evaluate(() => {
+      const root = window as any;
+      const overlay = document.getElementById('result-overlay');
+      const panel = overlay?.querySelector('.result-panel') as HTMLElement | null;
+      const resultLink = document.querySelector(
+        'link[data-card-reversi-feature-style="result"]'
+      ) as HTMLLinkElement | null;
+      const links = Array.from(
+        document.head.querySelectorAll('link[rel="stylesheet"]')
+      ) as HTMLLinkElement[];
+      const indexOf = (name: string): number => links.findIndex((link) => {
+        try {
+          return new URL(link.href).pathname.endsWith(`/${name}`);
+        } catch (_error) {
+          return false;
+        }
+      });
+      const appendEvent = root.__uxResultEvents.find(
+        (event: any) => event.kind === 'append'
+      );
+      const bgmEvents = root.__uxResultEvents.filter(
+        (event: any) => event.kind === 'bgm'
+      );
+      const bgmEvent = bgmEvents[0] || null;
+      const buttons = Array.from(
+        overlay?.querySelectorAll('.result-btn-row button') || []
+      ) as HTMLButtonElement[];
+      const overlayStyle = overlay ? getComputedStyle(overlay) : null;
+      return {
+        normalDisplayDelayMs:
+          Number(appendEvent?.atMs) - Number(root.__uxResultStartedAtMs),
+        normalStylesheetReadyAtMs: Number(
+          resultLink?.dataset.cardReversiFeatureStyleReadyAt || NaN
+        ),
+        normalStyleLeadMs:
+          Number(appendEvent?.atMs)
+          - Number(resultLink?.dataset.cardReversiFeatureStyleReadyAt || NaN),
+        normalFullStyleReady:
+          resultLink?.dataset.cardReversiFeatureStyleLoaded === 'true'
+          && overlayStyle?.backgroundImage !== 'none',
+        normalResultLinkCount: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="result"]'
+        ).length,
+        normalWarningCount: document.querySelectorAll(
+          '.result-style-load-warning'
+        ).length,
+        normalCascadeOrderPreserved:
+          indexOf('styles-layout-info.css') >= 0
+          && indexOf('styles-layout-result.css') === indexOf('styles-layout-info.css') + 1
+          && indexOf('styles-layout-characters.css') === indexOf('styles-layout-result.css') + 1,
+        normalPanelVisible:
+          Number(panel?.getBoundingClientRect().width || 0) > 0
+          && Number(panel?.getBoundingClientRect().height || 0) > 0,
+        normalButtonsVisible:
+          buttons.length === 2
+          && buttons.every((button) => (
+            button.getBoundingClientRect().width > 0
+            && button.getBoundingClientRect().height > 0
+          )),
+        normalFocusPreserved: document.activeElement === document.body,
+        normalBgmCallCount: bgmEvents.length,
+        normalBgmOutcome: String(bgmEvent?.outcome || ''),
+        normalAppendBeforeBgm:
+          Number.isFinite(Number(appendEvent?.atMs))
+          && Number.isFinite(Number(bgmEvent?.atMs))
+          && Number(appendEvent.atMs) <= Number(bgmEvent.atMs)
+      };
+    });
+    const resultResponsesAfterOpen = countPath(
+      runtime.responsePaths,
+      RESULT_STYLESHEET_PATH
+    );
+    const closeAndReopen = await runtime.page.evaluate(() => {
+      const close = document.querySelector(
+        '#result-overlay .result-btn-row .premium-btn.secondary'
+      ) as HTMLButtonElement | null;
+      if (!close) throw new Error('Result close button is unavailable');
+      close.click();
+      const closed = !document.getElementById('result-overlay');
+      const reopen = document.getElementById(
+        'result-reopen-button'
+      ) as HTMLButtonElement | null;
+      reopen?.click();
+      return {
+        normalCloseWorked: closed,
+        normalReopenAvailable: !!reopen,
+        normalReopenWorked: !!document.getElementById('result-overlay'),
+        normalLinkCountAfterReopen: document.querySelectorAll(
+          'link[data-card-reversi-feature-style="result"]'
+        ).length
+      };
+    });
+    const afterSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const direct = await captureDirectResultStylesheetPath(
+      browser,
+      baseUrl,
+      definition
+    );
+    const failure = await captureFailedResultStylesheetPath(
+      browser,
+      baseUrl,
+      definition
+    );
+    return await captureRuntimeSnapshot(runtime, definition, {
+      ...initial,
+      ...started,
+      ...normal,
+      ...closeAndReopen,
+      ...direct,
+      ...failure,
+      resultResponseCountBeforeOpen: resultResponsesBeforeOpen,
+      resultResponseCountAfterNormalOpen: resultResponsesAfterOpen,
+      normalStylesheetReadyLatencyMs:
+        Number(normal.normalStylesheetReadyAtMs)
+        - Number(started.normalStartedAtMs),
+      clsDelta: Math.max(0, afterSnapshot.cls - beforeSnapshot.cls)
+    });
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
 type FrameAssetVariant = 'normal-webp' | 'forced-png' | 'forced-webp-failure';
 
 function countPath(paths: readonly string[], expectedPath: string): number {
@@ -1595,6 +2013,15 @@ export async function captureUxOptimizationMonitor(
     for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
       if (!['help.before-idle', 'help.after-idle'].includes(definition.id)) continue;
       replaceScenario(await captureHelpOptimizationScenario(browser, baseUrl, definition));
+    }
+
+    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+      if (definition.id !== 'feature.result') continue;
+      replaceScenario(await captureResultOptimizationScenario(
+        browser,
+        baseUrl,
+        definition
+      ));
     }
 
     for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {

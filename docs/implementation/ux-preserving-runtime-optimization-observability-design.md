@@ -304,7 +304,9 @@ featureは `result → profile → rules-help → deck-builder → network` の�
 - 初期状態でinner DOM count 0、専用stylesheet request 0。
 - result以外の初回openは `ensureFeatureStylesheet()` と `ensureFeatureDom()` を同じcontrollerから開始し、両方のready後にinteractive stateへ移る。resultは `showResult()` の既存2秒待機開始時にfull CSSを先行準備し、同期API `showResultOverlay()` のDOM生成をCSS Promiseで遅らせない。
 - stylesheetはselector依存と同一property競合を先に監査する。元CSS単位のfragment/slotでcomputed styleが一致する場合だけその境界を採用し、複数sourceから抜いたruleを一つの末尾stylesheetへ集約しない。
+- resultのfull stylesheetはclassicの元順序 `styles-layout-info.css → styles-layout-result.css → styles-layout-characters.css` を維持する。Vite生成HTMLではfeature slotと後付けのeager link群が離れるため、slot位置だけでなく `data-card-reversi-feature-style-before="styles-layout-characters.css"` の固定anchorを解決し、両laneで同じcascade順へ挿入する。
 - 元ファイル内でfeature/shared ruleが交互にあり単純抽出でcascadeが変わる場合は、抽出境界ごとの複数fragment/slotへ分割するか、その競合ruleをstartup側へ残す。loaderはfeature単位で必要fragmentを一つのPromiseへ合流し、全fragment ready後だけsurface readyにする。代表状態・viewport・focus/disabled/open stateの主要computed property baseline一致をblockingにする。
+- `.premium-btn` はresult固有に見えるがnetwork再戦申請dialogも使用する共有ruleである。result full CSSへ残さずstartup側の共有critical ruleとして所有し、result未表示のnetwork操作を未装飾にしない。result内では局所custom property、network側では同じfallback値を使う。
 - result以外のinner DOMは一度だけcloneし、close時に破棄しない。
 - bootstrapの初期DOM取得はopen controlとshellだけを保持する。feature controllerはsurface ready後に自身のrootからinner refsを一度取得してlistenerを配線し、boot時のnull参照を永続的なUI refsとして保持しない。
 - profile、deck-builder、networkはinner refsの配線後、DOM外で保持していた保存済みUI model、選択状態、network clientの接続状態を再投影してからinteractive stateへ移る。
@@ -484,3 +486,5 @@ baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR�
 - Phase 3.2のsource監査でstartup CSSがdefault PNGを即時要求することを確認し、BoardSkinRuntimeだけをWebP化する当初案では成功時にもPNG/WebPの2 bodyになるため、startup CSSの画像参照除去とapp-ready前の初期frame preparationを設計へ追加した。
 - CSS `image-set()` は先頭WebPのnetwork failure時にChromiumがPNG候補へfallbackしないことを実機確認したため、common codecによるWebP検証後の単一CSS custom property適用へ限定した。
 - forced WebP failureではChromiumの `ERR_FAILED` console error 1件が必然的に発生するため、このfixtureだけは同時にPNG成功、retry 0、expected error 1件を要求し、0件・追加errorのどちらもfailとする。
+- Phase 4.2の実装監査で、`.premium-btn` がnetwork再戦申請dialogにも使われ、result CSSを単純にstartupから外すとresult未表示のnetwork操作まで未装飾になることを確認した。共有button ruleを `styles-layout-info.css` のstartup criticalへ移し、result局所変数がない場合のfallback色も明示した。
+- Phase 4.2のVite実機確認で、生成entryはfeature slotをhead前方へ保持しつつeager CSS linkを後から末尾へ生成するため、slot直前挿入だけではclassicのcascade順にならないことを確認した。stylesheet loaderに任意のbefore-anchor解決を追加し、両laneで `info → result → characters` をblocking計測する設計へ修正した。

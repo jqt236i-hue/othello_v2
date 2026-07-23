@@ -76,6 +76,7 @@ function validReport(): Record<string, any> {
       const boot = definition.id.startsWith('boot.');
       const help = definition.id.startsWith('help.');
       const webpAsset = definition.id === 'asset.webp-fallback';
+      const resultFeature = definition.id === 'feature.result';
       return {
         id: definition.id,
         lane: definition.lane,
@@ -91,6 +92,8 @@ function validReport(): Record<string, any> {
             { path: 'assets/images/special-stones/Time_bomb.png' },
             ...(fallback ? [{ path: 'styles-board-dom-compat.css' }] : [])
           ]
+          : resultFeature
+            ? [{ path: 'styles-layout-result.css' }]
           : [{ path: 'assets/images/ui/example.png' }],
         errors: [],
         metrics: firstSpecial
@@ -158,6 +161,68 @@ function validReport(): Record<string, any> {
                   rafStall50msCount: 0,
                   tickerIdle: true
                 }
+                : resultFeature
+                  ? {
+                    backend: 'pixi',
+                    resultStylesheetLinkCountBeforeOpen: 0,
+                    resultStylesheetSlotCount: 1,
+                    resultDomCountBeforeOpen: 0,
+                    resultResponseCountBeforeOpen: 0,
+                    normalLinkCountImmediately: 1,
+                    normalOverlayImmediate: false,
+                    normalDisplayDelayMs: 2008,
+                    normalStylesheetReadyLatencyMs: 20,
+                    normalFullStyleReady: true,
+                    normalStyleLeadMs: 1988,
+                    normalCascadeOrderPreserved: true,
+                    resultResponseCountAfterNormalOpen: 1,
+                    normalResultLinkCount: 1,
+                    normalPanelVisible: true,
+                    normalButtonsVisible: true,
+                    normalWarningCount: 0,
+                    normalFocusPreserved: true,
+                    normalBgmCallCount: 1,
+                    normalBgmOutcome: 'win',
+                    normalAppendBeforeBgm: true,
+                    normalCloseWorked: true,
+                    normalReopenAvailable: true,
+                    normalReopenWorked: true,
+                    normalLinkCountAfterReopen: 1,
+                    directReturnType: 'undefined',
+                    directDomImmediate: true,
+                    directCallLatencyMs: 3,
+                    directFullStylePending: true,
+                    directCriticalPosition: 'fixed',
+                    directCriticalDisplay: 'flex',
+                    directCriticalZIndex: '20000',
+                    directCriticalBackgroundImage: 'none',
+                    directCriticalPanelOverflow: 'auto',
+                    directCriticalPanelVisible: true,
+                    directCriticalButtonsVisible: true,
+                    directFullStyleReady: true,
+                    directResultLinkCount: 1,
+                    directResultResponseCount: 1,
+                    directCascadeOrderPreserved: true,
+                    directUnexpectedErrorCount: 0,
+                    failureDirectReturnType: 'undefined',
+                    failureDomImmediate: true,
+                    failureDirectCallLatencyMs: 3,
+                    failureInitialButtonsVisible: true,
+                    failureWarningVisible: true,
+                    failureFallbackClass: true,
+                    failureButtonsVisible: true,
+                    failureResultLinkCount: 0,
+                    failureResultRequestCount: 2,
+                    failureResultRequestFailureCount: 1,
+                    failureResultResponseCount: 1,
+                    failureConsoleErrorCount: 1,
+                    failureConsoleWarningCount: 1,
+                    failureRetryReady: true,
+                    failureRetryWarningCount: 0,
+                    failureRetryFallbackClass: false,
+                    failureRetryResultLinkCount: 1,
+                    clsDelta: 0
+                  }
                 : webpAsset
                   ? {
                     admission: {
@@ -216,7 +281,10 @@ function validReport(): Record<string, any> {
                     initialHelpImageSrcCount: 0,
                     initialHelpImageDimensionsReserved: true,
                     domCompatStylesheetLinkCount: 0,
-                    domCompatStylesheetSlotCount: 1
+                    domCompatStylesheetSlotCount: 1,
+                    resultStylesheetLinkCount: 0,
+                    resultStylesheetSlotCount: 1,
+                    featureInnerDomCounts: { result: 0 }
                   }
                   : help
                     ? {
@@ -315,11 +383,11 @@ describe('UX optimization monitor validator', () => {
     const report = validReport();
     report.scenarios[0].expectedFault = {
       kind: 'resource',
-      path: 'styles-feature-result.css'
+      path: 'styles-layout-result.css'
     };
     report.scenarios[0].errors = [{
       kind: 'resource',
-      path: 'styles-feature-result.css'
+      path: 'styles-layout-result.css'
     }];
     expect(validateUxOptimizationReport(report).overallVerdict).toBe('pass');
     report.scenarios[0].errors.push({

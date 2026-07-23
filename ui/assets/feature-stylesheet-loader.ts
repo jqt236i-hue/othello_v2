@@ -3,7 +3,8 @@ export type FeatureStylesheetGroup =
   | 'deck-builder'
   | 'gacha'
   | 'network'
-  | 'leaderboard';
+  | 'leaderboard'
+  | 'result';
 
 export interface FeatureStylesheetLoadResult {
   ok: boolean;
@@ -17,7 +18,8 @@ const FEATURE_STYLESHEET_PATHS: Readonly<Record<FeatureStylesheetGroup, string>>
   'deck-builder': 'styles-feature-deck-builder.css',
   gacha: 'styles-feature-gacha.css',
   network: 'styles-feature-network.css',
-  leaderboard: 'styles-leaderboard.css'
+  leaderboard: 'styles-leaderboard.css',
+  result: 'styles-layout-result.css'
 });
 
 interface FeatureStylesheetLoadState {
@@ -79,6 +81,32 @@ function warnAndResolve(
     }
   } catch (e) { /* warnings must not block panel fallback */ }
   return { ok: false, group, href, warning };
+}
+
+function findFeatureStylesheetInsertionAnchor(
+  group: FeatureStylesheetGroup,
+  documentRef: Document
+): Element | null {
+  const slot = documentRef.querySelector(
+    `[data-card-reversi-feature-style-slot="${group}"]`
+  );
+  const beforePath = slot?.getAttribute('data-card-reversi-feature-style-before') || '';
+  if (!beforePath) return slot;
+  let expectedPathname = '';
+  try {
+    expectedPathname = new URL(beforePath, documentRef.baseURI).pathname;
+  } catch (_error) {
+    return slot;
+  }
+  const links = Array.from(documentRef.querySelectorAll('link[rel="stylesheet"][href]'));
+  const beforeLink = links.find((candidate) => {
+    try {
+      return new URL((candidate as HTMLLinkElement).href, documentRef.baseURI).pathname === expectedPathname;
+    } catch (_error) {
+      return false;
+    }
+  });
+  return beforeLink || slot;
 }
 
 export function ensureFeatureStylesheet(
@@ -156,11 +184,9 @@ export function ensureFeatureStylesheet(
     };
     if (!existing) {
       link.href = href;
-      const slot = documentRef.querySelector(
-        `[data-card-reversi-feature-style-slot="${group}"]`
-      );
-      if (slot?.parentNode) {
-        slot.parentNode.insertBefore(link, slot);
+      const anchor = findFeatureStylesheetInsertionAnchor(group, documentRef);
+      if (anchor?.parentNode) {
+        anchor.parentNode.insertBefore(link, anchor);
       } else {
         documentRef.head.appendChild(link);
       }

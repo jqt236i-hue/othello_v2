@@ -128,4 +128,35 @@ describe('feature stylesheet loader', () => {
     expect(Number(link.dataset.cardReversiFeatureStyleReadyAt)).toBeGreaterThanOrEqual(0);
     dom.window.close();
   });
+
+  test('keeps result CSS before characters CSS when Vite creates eager links after the slot', async () => {
+    const dom = new JSDOM(`<!doctype html><html><head>
+      <meta data-card-reversi-feature-style-slot="result"
+        data-card-reversi-feature-style-href="styles-layout-result.css?v=2468"
+        data-card-reversi-feature-style-before="styles-layout-characters.css">
+      <link rel="stylesheet" href="styles-layout-info.css?v=1">
+      <link rel="stylesheet" href="styles-layout-characters.css?v=2">
+    </head><body></body></html>`, { url: 'https://example.test/game/' });
+    const { document } = dom.window;
+
+    const pending = ensureFeatureStylesheet('result', document);
+    const resultLink = document.querySelector(
+      'link[data-card-reversi-feature-style="result"]'
+    ) as HTMLLinkElement;
+    const charactersLink = document.querySelector(
+      'link[href*="styles-layout-characters.css"]'
+    ) as HTMLLinkElement;
+
+    expect(resultLink).toBeTruthy();
+    expect(resultLink.nextElementSibling).toBe(charactersLink);
+    expect(resultLink.previousElementSibling?.getAttribute('href')).toContain(
+      'styles-layout-info.css'
+    );
+    resultLink.dispatchEvent(new dom.window.Event('load'));
+    await expect(pending).resolves.toEqual(expect.objectContaining({
+      ok: true,
+      group: 'result'
+    }));
+    dom.window.close();
+  });
 });

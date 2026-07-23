@@ -361,6 +361,171 @@ export function validateUxOptimizationReport(
           `DOM compatibility stylesheet slot count was ${String(metrics.domCompatStylesheetSlotCount)}`
         );
       }
+      const resultStylesheetResources = resources.filter(
+        (resource: any) => String(resource?.path || '') === 'styles-layout-result.css'
+      );
+      if (resultStylesheetResources.length !== 0) {
+        reasons.push(
+          `boot requested result CSS ${resultStylesheetResources.length} time(s)`
+        );
+      }
+      if (Number(metrics.resultStylesheetLinkCount) !== 0) {
+        reasons.push(
+          `boot mounted ${String(metrics.resultStylesheetLinkCount)} result stylesheet link(s)`
+        );
+      }
+      if (Number(metrics.resultStylesheetSlotCount) !== 1) {
+        reasons.push(
+          `result stylesheet slot count was ${String(metrics.resultStylesheetSlotCount)}`
+        );
+      }
+      if (Number(metrics.featureInnerDomCounts?.result) !== 0) {
+        reasons.push(
+          `boot result inner DOM count was ${String(metrics.featureInnerDomCounts?.result)}`
+        );
+      }
+    }
+    if (scenario.captureStatus === 'complete' && definition.id === 'feature.result') {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      const resultResources = resources.filter(
+        (resource: any) => String(resource?.path || '') === 'styles-layout-result.css'
+      );
+      if (metrics.backend !== 'pixi') {
+        reasons.push(`result scenario backend was ${String(metrics.backend || 'missing')}`);
+      }
+      if (Number(metrics.resultStylesheetLinkCountBeforeOpen) !== 0) {
+        reasons.push('result stylesheet was mounted before first result preparation');
+      }
+      if (Number(metrics.resultStylesheetSlotCount) !== 1) {
+        reasons.push(`result stylesheet slot count was ${String(metrics.resultStylesheetSlotCount)}`);
+      }
+      if (Number(metrics.resultDomCountBeforeOpen) !== 0) {
+        reasons.push('result DOM existed before first result preparation');
+      }
+      if (Number(metrics.resultResponseCountBeforeOpen) !== 0) {
+        reasons.push('result stylesheet response occurred before first result preparation');
+      }
+      if (Number(metrics.normalLinkCountImmediately) !== 1 || metrics.normalOverlayImmediate !== false) {
+        reasons.push('normal result path did not start one stylesheet during the existing delay');
+      }
+      if (
+        Number(metrics.normalDisplayDelayMs) < 1_900
+        || Number(metrics.normalDisplayDelayMs) > 2_300
+      ) {
+        reasons.push(`normal result display delay was ${String(metrics.normalDisplayDelayMs)}ms`);
+      }
+      if (
+        !Number.isFinite(Number(metrics.normalStylesheetReadyLatencyMs))
+        || Number(metrics.normalStylesheetReadyLatencyMs)
+          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.resultStylesheetP95Ms
+      ) {
+        reasons.push(
+          `normal result stylesheet readiness was ${String(metrics.normalStylesheetReadyLatencyMs)}ms`
+        );
+      }
+      if (
+        metrics.normalFullStyleReady !== true
+        || Number(metrics.normalStyleLeadMs) < 0
+        || metrics.normalCascadeOrderPreserved !== true
+      ) {
+        reasons.push('normal result full style was not ready before display in canonical cascade order');
+      }
+      if (
+        Number(metrics.resultResponseCountAfterNormalOpen) !== 1
+        || Number(metrics.normalResultLinkCount) !== 1
+        || resultResources.length !== 1
+      ) {
+        reasons.push('normal result path did not retain exactly one stylesheet request/link');
+      }
+      if (
+        metrics.normalPanelVisible !== true
+        || metrics.normalButtonsVisible !== true
+        || Number(metrics.normalWarningCount) !== 0
+      ) {
+        reasons.push('normal result presentation was not fully visible and warning-free');
+      }
+      if (
+        metrics.normalFocusPreserved !== true
+        || Number(metrics.normalBgmCallCount) !== 1
+        || metrics.normalBgmOutcome !== 'win'
+        || metrics.normalAppendBeforeBgm !== true
+      ) {
+        reasons.push('normal result focus/BGM ordering changed');
+      }
+      if (
+        metrics.normalCloseWorked !== true
+        || metrics.normalReopenAvailable !== true
+        || metrics.normalReopenWorked !== true
+        || Number(metrics.normalLinkCountAfterReopen) !== 1
+      ) {
+        reasons.push('normal result close/reopen behavior or stylesheet deduplication changed');
+      }
+      if (
+        metrics.directReturnType !== 'undefined'
+        || metrics.directDomImmediate !== true
+        || Number(metrics.directCallLatencyMs) > 50
+      ) {
+        reasons.push('direct showResultOverlay synchronous contract changed');
+      }
+      if (
+        metrics.directFullStylePending !== true
+        || metrics.directCriticalPosition !== 'fixed'
+        || metrics.directCriticalDisplay !== 'flex'
+        || metrics.directCriticalZIndex !== '20000'
+        || metrics.directCriticalBackgroundImage !== 'none'
+        || metrics.directCriticalPanelOverflow !== 'auto'
+        || metrics.directCriticalPanelVisible !== true
+        || metrics.directCriticalButtonsVisible !== true
+      ) {
+        reasons.push('direct result critical style was not immediately readable and operable');
+      }
+      if (
+        metrics.directFullStyleReady !== true
+        || Number(metrics.directResultLinkCount) !== 1
+        || Number(metrics.directResultResponseCount) !== 1
+        || metrics.directCascadeOrderPreserved !== true
+        || Number(metrics.directUnexpectedErrorCount) !== 0
+      ) {
+        reasons.push('direct result path did not settle to one full stylesheet without errors');
+      }
+      if (
+        metrics.failureDirectReturnType !== 'undefined'
+        || metrics.failureDomImmediate !== true
+        || Number(metrics.failureDirectCallLatencyMs) > 50
+        || metrics.failureInitialButtonsVisible !== true
+        || metrics.failureWarningVisible !== true
+        || metrics.failureFallbackClass !== true
+        || metrics.failureButtonsVisible !== true
+        || Number(metrics.failureResultLinkCount) !== 0
+      ) {
+        reasons.push('failed result stylesheet did not retain the synchronous critical fallback');
+      }
+      if (
+        Number(metrics.failureResultRequestCount) !== 2
+        || Number(metrics.failureResultRequestFailureCount) !== 1
+        || Number(metrics.failureResultResponseCount) !== 1
+        || Number(metrics.failureConsoleErrorCount) !== 1
+        || Number(metrics.failureConsoleWarningCount) !== 1
+      ) {
+        reasons.push('result stylesheet injected failure evidence was not exact');
+      }
+      if (
+        metrics.failureRetryReady !== true
+        || Number(metrics.failureRetryWarningCount) !== 0
+        || metrics.failureRetryFallbackClass !== false
+        || Number(metrics.failureRetryResultLinkCount) !== 1
+      ) {
+        reasons.push('result stylesheet retry did not recover to one full-style link');
+      }
+      if (
+        typeof metrics.clsDelta !== 'number'
+        || !Number.isFinite(metrics.clsDelta)
+        || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+      ) {
+        reasons.push(`result first-open CLS was ${String(metrics.clsDelta)}`);
+      }
     }
     if (
       scenario.captureStatus === 'complete'

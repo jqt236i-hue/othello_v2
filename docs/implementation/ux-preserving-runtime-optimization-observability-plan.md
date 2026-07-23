@@ -468,6 +468,13 @@
   - `npm run check:worker-mirror`
   - `npm run perf:ux-optimization:focused -- --target feature-result`
 - done: 起動からresult CSSを除外し、リザルト内容・2秒表示・BGM・再戦に差分なし。
+- implementation review:
+  - `styles-layout-result.css` をstartupから外し、`showResult()` の既存2秒timer開始時と同期 `showResultOverlay()` の先頭で共通surface準備を開始した。Promiseは表示、reset、`_pendingResultToken`、BGMの権威にせず、通常経路では表示前ready、直接経路ではcritical表示後readyとなる。
+  - `styles-layout-info.css` に勝敗、スコア、主要操作、scroll、警告のcritical ruleを残した。full CSS失敗時は結果DOMを同期生成し、閉じる/再戦を維持したまま再読込案内を表示し、次回表示は失敗link/cacheを捨てて新しいlinkを一度だけ要求する。
+  - source監査で `.premium-btn` がnetwork再戦申請dialogにも共有されることを確認したため、button base/primary/secondary/focus ruleはresult full CSSへ遅延せずstartup共有ruleへ移した。result局所custom propertyがないnetwork側もfallback色で従来操作を維持する。
+  - Vite生成entryではfeature slotがeager CSS link群より前に残るため、slot直前だけではfull result CSSがcritical CSSより先に入りcascadeが逆転する矛盾を確認した。`data-card-reversi-feature-style-before="styles-layout-characters.css"` とloaderのpath anchor解決を追加し、classic/Viteとも `info → result → characters` の連続順をmonitorでblockingにした。
+  - focused 3 suite/64 result/loader/surface testとmonitor 3 suite/21 test、typecheck、browser/Vite build、Worker mirror 916 files、Vite/classic UI control smokeが合格した。実ブラウザでは両laneともboot request/link/DOM 0、normal/direct/retry link 1、同期表示2.7–4.0ms、通常CSS ready 3.4–3.7ms、表示待機2005.7–2009.5ms、CSS先行2002.3–2005.8ms、first-open CLS delta 0、BGMはDOM append以後、強制失敗はrequest失敗1・console error 1・warning 1・retry成功1を確認した。
+  - `npm run perf:ux-optimization:focused -- --target feature-result` はVite/classicの `feature.result` と関連bootをすべてpassし、focused verdict `pass`、developmentValid `true` となった。overall failは後続4 featureが意図どおりpendingのためである。
 
 ### Step 4.3: プロフィール
 
@@ -736,7 +743,7 @@ git status --short
 - [x] WebP共通pipeline、画素/容量/decode admission、PNG fallbackを実装
 - [x] default board frame候補を正式審査し、合否をmanifestへ確定
 - [x] `01-rulebook.md` に共通初回準備契約を先行追記
-- [ ] result CSSを遅延準備
+- [x] result CSSを遅延準備
 - [ ] profile inner DOM/CSSを遅延生成
 - [ ] rules-help inner DOM/CSS/imagesを遅延生成
 - [ ] deck-builder inner DOM/CSS/listを遅延生成
@@ -787,3 +794,5 @@ git status --short
 - Phase 3.2実装前のCSS/network確認で、startup CSSがdefault PNGを先に取得するためBoardSkinRuntimeだけをWebP化すると成功時にも2 bodyになることを確認した。startup CSSを画像なしにし、game初期化と並行する初期frame preparationをapp-ready gateへ追加した。
 - CSS `image-set()` の先頭WebPをnetwork failureさせてもChromiumがPNG候補を要求しなかったため、決定的fallbackには使用せずcommon codecのWebP fetch/decode後にCSS custom propertyを一度だけ確定する設計へ修正した。
 - forced WebP failureの実captureでは想定どおりPNGへ復帰した一方、Chromiumが失敗request由来の `ERR_FAILED` を1件consoleへ出した。failure injectionのexpected faultを0件としていたvalidatorを修正し、この1件だけを必須、追加errorをfailにした。
+- Phase 4.2のsource監査で、`.premium-btn` がresultだけでなくnetwork再戦申請dialogにも共有されることを確認した。result full CSSへ残すとresult未表示時のnetwork操作が未装飾になるため、startup criticalの共有ruleへ移し、network側のcustom property fallbackも固定した。
+- Phase 4.2のVite実機確認で、生成entryのfeature slotと後付けeager CSS linkの位置関係により単純なslot挿入ではclassicとcascade順が逆転することを確認した。任意のbefore-anchorをstylesheet loaderへ追加し、両laneの `info → result → characters` 順をunit/browser/monitorで固定した。

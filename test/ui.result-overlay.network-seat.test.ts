@@ -32,6 +32,7 @@ describe('result overlay seat perspective', () => {
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     try {
       if (dom && dom.window && typeof dom.window.close === 'function') {
         dom.window.close();
@@ -72,6 +73,60 @@ describe('result overlay seat perspective', () => {
     expect(overlay).toBeTruthy();
     expect(overlay.className).toContain('win');
     expect(title && title.textContent).toBe('勝利！');
+  });
+
+  test('直接表示はfull CSSを待たず同期的に操作可能なDOMを生成する', () => {
+    document.head.innerHTML = `
+      <meta data-card-reversi-feature-style-slot="result"
+        data-card-reversi-feature-style-href="styles-layout-result.css?v=test">
+    `;
+    const mod = require('../ui/result-overlay.js');
+
+    const returned = mod.showResultOverlay();
+
+    expect(returned).toBeUndefined();
+    expect(document.getElementById('result-overlay')).toBeTruthy();
+    expect(document.querySelector('.result-btn-row .premium-btn.primary')).toBeTruthy();
+    expect(document.querySelector('.result-btn-row .premium-btn.secondary')).toBeTruthy();
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="result"]')).toHaveLength(1);
+  });
+
+  test('full CSS失敗時も操作を維持し、次回表示で一度だけ再試行する', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    document.head.innerHTML = `
+      <meta data-card-reversi-feature-style-slot="result"
+        data-card-reversi-feature-style-href="styles-layout-result.css?v=test">
+    `;
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+    const failedLink = document.querySelector(
+      'link[data-card-reversi-feature-style="result"]'
+    ) as HTMLLinkElement | null;
+    expect(failedLink).toBeTruthy();
+
+    failedLink?.dispatchEvent(new dom.window.Event('error'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="result"]')).toHaveLength(0);
+    expect(document.querySelector('.result-style-load-warning')?.textContent).toContain('再読み込み');
+    expect(document.querySelector('.result-btn-row .premium-btn.secondary')).toBeTruthy();
+
+    mod.dismissResultOverlayIfPresent();
+    mod.showResultOverlay();
+    const retryLink = document.querySelector(
+      'link[data-card-reversi-feature-style="result"]'
+    ) as HTMLLinkElement | null;
+    expect(retryLink).toBeTruthy();
+    expect(retryLink).not.toBe(failedLink);
+    expect(document.querySelectorAll('link[data-card-reversi-feature-style="result"]')).toHaveLength(1);
+
+    retryLink?.dispatchEvent(new dom.window.Event('load'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(document.querySelector('.result-style-load-warning')).toBeNull();
+    expect(document.getElementById('result-overlay')?.classList.contains('result-style-fallback')).toBe(false);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    warnSpy.mockRestore();
   });
 
   test('network白席で黒優勢なら敗北表示になる', () => {

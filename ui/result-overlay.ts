@@ -20,6 +20,8 @@ const _observationStoneRewardByToken = new Map();
 const RESULT_REOPEN_BUTTON_ID = 'result-reopen-button';
 const RESULT_REOPEN_BUTTON_CLASS = 'result-reopen-button';
 const RESULT_REOPEN_CONTAINER_CLASS = 'has-result-reopen-button';
+const RESULT_STYLE_WARNING_CLASS = 'result-style-load-warning';
+const RESULT_STYLE_FALLBACK_CLASS = 'result-style-fallback';
 
 // Module-level token: survives gameState replacement by network snapshots.
 // Updated each time showResult() is called so stale delayed callbacks can detect
@@ -71,6 +73,57 @@ const ResultOverlayGachaProgressModule = resolveResultOverlayModuleOrNull('./sto
 const ResultOverlayBoardUtilsModule = resolveResultOverlayModuleOrNull('../shared/shared-board-utils', 'SharedBoardUtils');
 const ResultOverlayBoardUtilsNewModule = resolveResultOverlayModuleOrNull('../shared/board-utils', 'BoardUtils');
 const ResultOverlaySoundEngineAccessModule = resolveResultOverlayModuleOrNull('./sound-engine-access', 'SoundEngineAccessModule');
+const ResultOverlayLazyFeatureSurfaceModule = resolveResultOverlayModuleOrNull('./assets/lazy-feature-surface', 'LazyFeatureSurface');
+
+function clearResultStyleFallback(documentRef: Document): void {
+    const overlay = documentRef.getElementById('result-overlay');
+    if (overlay) overlay.classList.remove(RESULT_STYLE_FALLBACK_CLASS);
+    const warning = documentRef.querySelector(`.${RESULT_STYLE_WARNING_CLASS}`);
+    if (warning && warning.parentNode) warning.parentNode.removeChild(warning);
+}
+
+function showResultStyleFallback(documentRef: Document): void {
+    const overlay = documentRef.getElementById('result-overlay');
+    const panel = overlay?.querySelector('.result-panel');
+    if (!overlay || !panel) return;
+    overlay.classList.add(RESULT_STYLE_FALLBACK_CLASS);
+    if (panel.querySelector(`.${RESULT_STYLE_WARNING_CLASS}`)) return;
+    const warning = documentRef.createElement('div');
+    warning.className = RESULT_STYLE_WARNING_CLASS;
+    warning.setAttribute('role', 'status');
+    warning.textContent = '追加装飾を読み込めませんでした。必要な場合はページを再読み込みしてください。';
+    const buttonRow = panel.querySelector('.result-btn-row');
+    panel.insertBefore(warning, buttonRow || null);
+}
+
+const ResultStyleSurfaceRegistration = Object.freeze({
+    id: 'result',
+    stylesheetGroup: 'result',
+    ensureDom: () => null,
+    onReady(surface: any) {
+        clearResultStyleFallback(surface.document);
+    },
+    onFailure(_error: Error, context: any) {
+        showResultStyleFallback(context.document);
+    }
+});
+
+if (ResultOverlayLazyFeatureSurfaceModule
+    && typeof ResultOverlayLazyFeatureSurfaceModule.registerLazyFeatureSurface === 'function') {
+    ResultOverlayLazyFeatureSurfaceModule.registerLazyFeatureSurface(ResultStyleSurfaceRegistration);
+}
+
+function prepareResultFullStylesheet(): void {
+    if (!ResultOverlayLazyFeatureSurfaceModule
+        || typeof ResultOverlayLazyFeatureSurfaceModule.ensureLazyFeatureSurface !== 'function'
+        || typeof document === 'undefined') {
+        return;
+    }
+    void ResultOverlayLazyFeatureSurfaceModule.ensureLazyFeatureSurface('result', document)
+        .catch(() => {
+            // The registered failure presentation keeps the critical result controls usable.
+        });
+}
 
 function resolveResultLeaderboardClient(allowRequire = true): any {
     try {
@@ -1280,6 +1333,7 @@ function showResult() {
     const resultToken = Date.now();
     _pendingResultToken = resultToken;
     if (gameState) gameState.__resultToken = resultToken;
+    prepareResultFullStylesheet();
 
     const counts = countDiscs(gameState);
     const resultContext = resolveResultWinnerContext(gameState, counts);
@@ -1312,6 +1366,7 @@ function showResult() {
  */
 function showResultOverlay(options?: any) {
     const opts = (options && typeof options === 'object') ? options : {};
+    prepareResultFullStylesheet();
     const counts = countDiscs(gameState);
     const chargeTotals = getChargeTotals();
     const cardUseTotals = getCardUseTotals();
