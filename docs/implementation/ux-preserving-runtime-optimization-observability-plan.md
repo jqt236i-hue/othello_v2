@@ -728,6 +728,10 @@
 - done: CIが全決定的契約を毎回検査し、performance timing noiseだけでfailしない。
 - review correction:
   - scenario check全体をnon-blockingにせず、同じcheck内のresource/DOM/style/input/fallback/errorと指標欠損はblockingを維持する。CIでadvisoryにするのはfirst-open/style上限、CLS量、Long Task/RAF stall件数、result/direct pathの遅延側だけで、resultが2秒より早く出る退行は引き続きblockingとする。
+- result:
+  - `.github/workflows/node-test.yml` に独立 `ux-optimization-guard` jobを追加し、Node 20、`npm ci`、Chromium依存導入、CI profile実行、失敗時だけ7日間のraw report uploadを設定した。
+  - `3a2eaa92c` のclean checkoutでローカルCI profileを実行し、worker mirror 922 files、全scenario、data safety、normal-play isolation、pending 0がpassした。`report.ci-timing-advisory` はraw値と閾値を保持した `blocking=false` で、overall verdictは `pass` だった。
+  - CI timingを意図的にfirst-open 5,000ms、style 4,000ms、CLS 0.5、Long Task/RAF stall各複数へ改変してもoverall pass、同reportのdeck操作条件を破るとoverall failになるunit testを追加し、構造契約と速度noiseの分離を確認した。
 
 ### Step 5.3: clean candidate standard captureと最終検証
 
@@ -805,7 +809,7 @@ git status --short
 - [x] network inner DOM/CSSをmode選択後に遅延生成
 - [x] 全featureのfocus/ESC/backdrop/reopen/failure retryを検証
 - [x] overall reportの全scenario、blocking pass、pending 0を確認
-- [ ] CIの決定的guard jobを有効化
+- [x] CIの決定的guard jobを有効化
 - [ ] hardware desktop standard captureをclean exact commitで合格
 - [ ] 物理端末未実施時は`deviceValidated=false`を明示
 - [ ] browser build、asset checks、mirror、network parityを合格
