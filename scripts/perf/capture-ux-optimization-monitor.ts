@@ -49,9 +49,14 @@ const BOOT_SCENARIO_IDS = new Set([
 const COMPLETED_OPTIMIZATION_IDS = new Set([
   'special-stone-demand-loading',
   'lock-only-hint-paint',
-  'logical-image-deduplication'
+  'logical-image-deduplication',
+  'help-image-lazy-loading'
 ]);
 const SPECIAL_STONE_PATH_PREFIX = 'assets/images/special-stones/';
+const INITIAL_HELP_IMAGE_PATHS = Object.freeze([
+  'assets/images/help/player-guide/card-reversi-player-guide-slide-01.png',
+  'assets/images/help/protection-penetration/protection-penetration-quick-reference.png'
+]);
 const CLASSIC_PIXI_RUNTIME_PATHS = Object.freeze([
   '/public/vendor/pixi-8.18.1.min.js',
   '/public/vendor/pixi-unsafe-eval-8.18.1.min.js'
@@ -345,6 +350,18 @@ async function captureBootScenario(
           deckBuilder: countChildren('#deckBuilderOverlay'),
           network: countChildren('#networkOverlay')
         },
+        initialHelpImageSrcCount: [
+          document.getElementById('rules-help-guide-slide-img'),
+          document.getElementById('rules-help-protection-map-img')
+        ].filter((image) => image?.hasAttribute('src')).length,
+        initialHelpImageDimensionsReserved: [
+          document.getElementById('rules-help-guide-slide-img'),
+          document.getElementById('rules-help-protection-map-img')
+        ].every((image) => (
+          image instanceof HTMLImageElement
+            && Number(image.getAttribute('width')) > 0
+            && Number(image.getAttribute('height')) > 0
+        )),
         uiInitialized: (window as any).__uiInitialized === true,
         bootState: document.documentElement.getAttribute('data-browser-boot-state')
       };
@@ -951,6 +968,240 @@ async function captureSpecialOptimizationScenario(
   }
 }
 
+async function installHeldHelpIdleCallbacks(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const callbacks = new Map<number, () => void>();
+    let nextId = 1;
+    const control = {
+      releaseAll() {
+        const pending = Array.from(callbacks.values());
+        callbacks.clear();
+        pending.forEach((callback) => callback());
+      },
+      pendingCount() {
+        return callbacks.size;
+      }
+    };
+    Object.defineProperty(window, '__uxHelpIdleControl', {
+      configurable: true,
+      enumerable: false,
+      value: control
+    });
+    (window as any).requestIdleCallback = (callback: () => void) => {
+      const id = nextId++;
+      callbacks.set(id, callback);
+      return id;
+    };
+    (window as any).cancelIdleCallback = (id: number) => {
+      callbacks.delete(id);
+    };
+  });
+}
+
+function readHelpResources(snapshot: ReturnType<typeof normalizeBrowserProbeSnapshot>): readonly any[] {
+  return snapshot.resources.filter((resource) => (
+    INITIAL_HELP_IMAGE_PATHS.includes(resource.path)
+  ));
+}
+
+async function readNormalizedBrowserProbeSnapshot(
+  page: Page
+): Promise<ReturnType<typeof normalizeBrowserProbeSnapshot>> {
+  const rawSnapshot = await page.evaluate((key) => {
+    const probe = (window as any)[key];
+    if (!probe || typeof probe.snapshot !== 'function') {
+      throw new Error('UX optimization probe snapshot is unavailable');
+    }
+    return probe.snapshot();
+  }, UX_OPTIMIZATION_BROWSER_PROBE_GLOBAL);
+  return normalizeBrowserProbeSnapshot(rawSnapshot);
+}
+
+async function captureHelpOptimizationScenario(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const runtime = await openBootRuntime(
+    browser,
+    baseUrl,
+    definition,
+    undefined,
+    {
+      beforeGoto: installHeldHelpIdleCallbacks
+    }
+  );
+  try {
+    const afterIdle = definition.id === 'help.after-idle';
+    if (afterIdle) {
+      await markProbePhase(runtime.page, 'idle-prefetch:help-images');
+      await runtime.page.evaluate(() => {
+        const control = (window as any).__uxHelpIdleControl;
+        if (!control || typeof control.releaseAll !== 'function') {
+          throw new Error('Held help idle callback control is unavailable');
+        }
+        control.releaseAll();
+      });
+      await runtime.page.waitForFunction((paths) => {
+        const observed = new Set(
+          performance.getEntriesByType('resource')
+            .map((entry) => new URL(entry.name).pathname.replace(/^\/+/, ''))
+        );
+        return paths.every((resourcePath) => observed.has(resourcePath));
+      }, INITIAL_HELP_IMAGE_PATHS, { timeout: 30_000 });
+      await runtime.page.waitForLoadState('networkidle', { timeout: 30_000 });
+    }
+
+    const beforeOpenSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const beforeOpenHelpResources = readHelpResources(beforeOpenSnapshot);
+    const helpResponsePathsBeforeOpen = Array.from(new Set(
+      runtime.responsePaths.filter((resourcePath) => INITIAL_HELP_IMAGE_PATHS.includes(resourcePath))
+    )).sort();
+    const initialDomState = await runtime.page.evaluate(() => {
+      const images = [
+        document.getElementById('rules-help-guide-slide-img'),
+        document.getElementById('rules-help-protection-map-img')
+      ];
+      return {
+        initialSrcCount: images.filter((image) => image?.hasAttribute('src')).length,
+        dimensionsReserved: images.every((image) => (
+          image instanceof HTMLImageElement
+            && Number(image.getAttribute('width')) > 0
+            && Number(image.getAttribute('height')) > 0
+        )),
+        uiInitialized: (window as any).__uiInitialized === true,
+        pendingIdleCallbackCount: Number(
+          (window as any).__uxHelpIdleControl?.pendingCount?.() || 0
+        )
+      };
+    });
+
+    await markProbePhase(runtime.page, 'feature-opening:rules-help');
+    const openStartMs = await runtime.page.evaluate(() => performance.now());
+    await runtime.page.evaluate(() => {
+      const openButton = document.getElementById('rulesHelpBtn') as HTMLButtonElement | null;
+      if (!openButton) throw new Error('Rules help open button is unavailable');
+      openButton.focus();
+      openButton.click();
+      const guideTab = document.querySelector(
+        '[data-help-tab="guide"]'
+      ) as HTMLButtonElement | null;
+      if (!guideTab) throw new Error('Rules help guide tab is unavailable');
+      guideTab.focus();
+      guideTab.click();
+    });
+    await runtime.page.waitForFunction(() => {
+      const guide = document.getElementById(
+        'rules-help-guide-slide-img'
+      ) as HTMLImageElement | null;
+      const protection = document.getElementById(
+        'rules-help-protection-map-img'
+      ) as HTMLImageElement | null;
+      return !!guide?.complete
+        && Number(guide.naturalWidth) > 0
+        && !!protection?.complete
+        && Number(protection.naturalWidth) > 0;
+    }, null, { timeout: 30_000 });
+    await markProbePhase(runtime.page, 'feature-ready:rules-help');
+
+    const surfaceMetrics = await runtime.page.evaluate((startedAtMs) => {
+      const panel = document.getElementById('rules-help-panel');
+      const guide = document.getElementById(
+        'rules-help-guide-slide-img'
+      ) as HTMLImageElement | null;
+      const protection = document.getElementById(
+        'rules-help-protection-map-img'
+      ) as HTMLImageElement | null;
+      const guideFrame = document.getElementById('rules-help-guide-slide-frame');
+      const protectionFrame = document.getElementById('rules-help-protection-map-frame');
+      const guideRect = guideFrame?.getBoundingClientRect();
+      const protectionTab = document.querySelector(
+        '[data-help-tab="protection-map"]'
+      ) as HTMLButtonElement | null;
+      protectionTab?.focus();
+      protectionTab?.click();
+      const protectionRect = protectionFrame?.getBoundingClientRect();
+      const activeElement = document.activeElement;
+      return {
+        backend: String(
+          (window as any).__boardVisualDebug?.getBackendKind?.()
+          || document.documentElement.getAttribute('data-board-visual-backend')
+          || 'none'
+        ),
+        panelOpen: panel?.getAttribute('aria-hidden') === 'false'
+          && panel.classList.contains('is-open'),
+        guideComplete: !!guide?.complete && Number(guide.naturalWidth) > 0,
+        protectionComplete: !!protection?.complete && Number(protection.naturalWidth) > 0,
+        guideFrameVisible: Number(guideRect?.width || 0) > 0 && Number(guideRect?.height || 0) > 0,
+        protectionFrameVisible: Number(protectionRect?.width || 0) > 0
+          && Number(protectionRect?.height || 0) > 0,
+        guideDimensions: {
+          width: Number(guide?.getAttribute('width') || 0),
+          height: Number(guide?.getAttribute('height') || 0)
+        },
+        protectionDimensions: {
+          width: Number(protection?.getAttribute('width') || 0),
+          height: Number(protection?.getAttribute('height') || 0)
+        },
+        focusWithinPanel: !!activeElement && !!panel?.contains(activeElement),
+        focusedElementId: activeElement?.id || '',
+        firstOpenLatencyMs: performance.now() - Number(startedAtMs)
+      };
+    }, openStartMs);
+
+    const afterOpenSnapshot = await readNormalizedBrowserProbeSnapshot(runtime.page);
+    const afterOpenHelpResources = readHelpResources(afterOpenSnapshot);
+    const firstFrameAtMs = afterOpenSnapshot.phases.find(
+      (phase) => phase.name === 'first-frame-committed'
+    )?.atMs ?? null;
+    const boardIdleAtMs = afterOpenSnapshot.phases.find(
+      (phase) => phase.name === 'board-idle'
+    )?.atMs ?? null;
+    const idlePrefetchAtMs = afterOpenSnapshot.phases.find(
+      (phase) => phase.name === 'idle-prefetch:help-images'
+    )?.atMs ?? null;
+    const additionalHelpResources = afterOpenHelpResources.filter(
+      (resource) => resource.startMs >= openStartMs
+    );
+    const helpResponsePathsAfterOpen = Array.from(new Set(
+      runtime.responsePaths.filter((resourcePath) => INITIAL_HELP_IMAGE_PATHS.includes(resourcePath))
+    )).sort();
+    const earliestHelpResourceStartMs = afterOpenHelpResources.length
+      ? Math.min(...afterOpenHelpResources.map((resource) => resource.startMs))
+      : null;
+
+    return await captureRuntimeSnapshot(runtime, definition, {
+      ...surfaceMetrics,
+      ...initialDomState,
+      helpResourceEntriesBeforeOpen: beforeOpenHelpResources.length,
+      helpResponsePathsBeforeOpen,
+      helpResponsePathsAfterOpen,
+      helpResourcePathCount: new Set(
+        afterOpenHelpResources.map((resource) => resource.path)
+      ).size,
+      helpEncodedBodyBytes: afterOpenHelpResources.reduce(
+        (total, resource) => total + Math.max(0, Number(resource.encodedBodySize) || 0),
+        0
+      ),
+      helpRequestsBeforeFirstFrame: Number.isFinite(firstFrameAtMs)
+        ? afterOpenHelpResources.filter((resource) => resource.startMs < Number(firstFrameAtMs)).length
+        : -1,
+      earliestHelpResourceStartMs,
+      firstFrameAtMs,
+      boardIdleAtMs,
+      idlePrefetchAtMs,
+      additionalHelpTransferSizeAfterOpen: additionalHelpResources.reduce(
+        (total, resource) => total + Math.max(0, Number(resource.transferSize) || 0),
+        0
+      ),
+      additionalHelpResourceEntriesAfterOpen: additionalHelpResources.length,
+      clsDelta: Math.max(0, afterOpenSnapshot.cls - beforeOpenSnapshot.cls)
+    });
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
 async function captureNormalPlayIsolation(
   browser: Browser,
   baseUrl: string
@@ -1083,6 +1334,11 @@ export async function captureUxOptimizationMonitor(
     for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
       if (!lockScenarioIds.has(definition.id)) continue;
       replaceScenario(await captureLockOptimizationScenario(browser, baseUrl, definition));
+    }
+
+    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+      if (!['help.before-idle', 'help.after-idle'].includes(definition.id)) continue;
+      replaceScenario(await captureHelpOptimizationScenario(browser, baseUrl, definition));
     }
 
     const normalPlayIsolation = await captureNormalPlayIsolation(browser, baseUrl);

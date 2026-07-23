@@ -115,6 +115,37 @@ describe('initializeUI async policy loading', () => {
     expect(calls.indexOf('reset')).toBeLessThan(calls.indexOf('restore'));
   });
 
+  test('starts help image idle prefetch without delaying saved-session restore or app-ready', async () => {
+    const idlePrefetch = deferred();
+    const scheduleInitialHelpImageIdlePrefetch = jest.fn(() => ({
+      cancel: jest.fn(),
+      promise: idlePrefetch.promise
+    }));
+    const rulesHelpModule = require('../ui/handlers/rules-help.js');
+    jest.spyOn(rulesHelpModule, 'scheduleInitialHelpImageIdlePrefetch')
+      .mockImplementation(scheduleInitialHelpImageIdlePrefetch);
+
+    const controller = {
+      ...readyBoardVisualController(),
+      waitForIdle: jest.fn(() => idlePrefetch.promise)
+    };
+    global.restoreStoredNetworkSessionOnBoot = jest.fn(async () => undefined);
+    const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
+    jest.doMock(bootstrapPath, () => ({
+      installGameDI: jest.fn(),
+      getBoardVisualController: jest.fn(() => controller)
+    }), { virtual: false });
+
+    const initModule = require('../ui/handlers/init.js');
+    await initModule.initializeUI();
+
+    expect(scheduleInitialHelpImageIdlePrefetch).toHaveBeenCalledWith(controller, {
+      documentRef: document
+    });
+    expect(global.restoreStoredNetworkSessionOnBoot).toHaveBeenCalledTimes(1);
+    expect(global.__uiInitialized).toBe(true);
+  });
+
   test('isolated board performance startup skips stored network restore and installs its harness', async () => {
     dom.reconfigure({ url: 'http://localhost/?debug=1&boardPerf=1&boardRenderer=pixi' });
     (global as any).location = dom.window.location;

@@ -256,7 +256,8 @@ contractはscenario IDとcapture laneを別軸で扱い、必須capture keyを `
 - `idle-prefetch` は `board-idle` 後だけ開始できる。
 - idle待機はinit chainからawaitしないbackground taskとし、イベントlistener登録、保存session復帰、`uiInitialized` を遅らせない。taskの拒否は内部で診断化し、unhandled rejectionにしない。
 - help imageのpreload cacheはDOM要素から独立したlogical URL単位とし、後からlazy生成された画像要素も同じin-flight/ready結果を利用する。
-- 即時openでは画像枠の寸法が先に確定し、CLSを発生させず、load完了まで既存のローディング表現を示す。
+- 配信側のHTTP cache設定に依存して同じlogical URLをdetached `Image`と表示`img`へ順に指定するとbodyが再転送され得るため、同一origin画像は1回の`fetch`で得たBlob URLをDocument単位cacheへ保持し、そのBlob URLでdecodeと表示を共有する。cacheはDOM要素を所有せず、失敗時だけ元logical URLへfallbackする。
+- 即時openでは画像枠のwidth/heightとaspect-ratioを先に確定してCLSを発生させず、初期画像に`src`がない間だけ画像枠へ`aria-busy`と非テキストのスピナーを付与する。既存実装には専用のローディング表現がないため、この最小表示を追加する。
 - idle後openでは追加body転送なしで画像が表示される。
 - slide切替の「現画像を保持して次画像をpreloadする」契約を維持する。
 

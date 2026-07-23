@@ -42,6 +42,7 @@ const GAME_TERM_GLOSSARY_BY_LABEL = new Map<string, any>(
 );
 const RULES_HELP_GUIDE_SLIDE_COUNT = 8;
 const RULES_HELP_GUIDE_SLIDE_BASE_PATH = 'assets/images/help/player-guide';
+const RULES_HELP_INITIAL_GUIDE_SRC = `${RULES_HELP_GUIDE_SLIDE_BASE_PATH}/card-reversi-player-guide-slide-01.png`;
 const RULES_HELP_PROTECTION_MAP_SLIDES = [
   {
     src: 'assets/images/help/protection-penetration/protection-penetration-quick-reference.png',
@@ -52,6 +53,283 @@ const RULES_HELP_PROTECTION_MAP_SLIDES = [
     alt: '耐性と貫通の関係図'
   }
 ];
+const RULES_HELP_INITIAL_IMAGE_PATHS = [
+  RULES_HELP_INITIAL_GUIDE_SRC,
+  RULES_HELP_PROTECTION_MAP_SLIDES[0].src
+];
+
+type HelpImagePreparationStatus = 'loaded' | 'failed';
+
+interface HelpImagePreparationResult {
+  src: string;
+  status: HelpImagePreparationStatus;
+  displaySrc?: string;
+}
+
+interface HelpImagePreparationRecord {
+  promise: Promise<HelpImagePreparationResult>;
+}
+
+interface HelpImagePreparationOptions {
+  ImageCtor?: any;
+  fetchFn?: any;
+  createObjectURLFn?: ((blob: Blob) => string) | null;
+  revokeObjectURLFn?: ((url: string) => void) | null;
+}
+
+interface HelpImageIdlePrefetchOptions extends HelpImagePreparationOptions {
+  documentRef: Document;
+  requestIdleCallback?: ((callback: () => void) => number) | null;
+  cancelIdleCallback?: ((handle: number) => void) | null;
+  setTimeoutFn?: ((callback: () => void, delay: number) => any) | null;
+  clearTimeoutFn?: ((handle: any) => void) | null;
+}
+
+interface HelpImageIdlePrefetchHandle {
+  cancel: () => void;
+  promise: Promise<void>;
+}
+
+const _helpImagePreparationByDocument = new WeakMap<Document, Map<string, HelpImagePreparationRecord>>();
+const _helpImageIdlePrefetchByDocument = new WeakMap<Document, HelpImageIdlePrefetchHandle>();
+
+function _getHelpImagePreparationCache(documentRef: Document): Map<string, HelpImagePreparationRecord> {
+  let cache = _helpImagePreparationByDocument.get(documentRef);
+  if (!cache) {
+    cache = new Map<string, HelpImagePreparationRecord>();
+    _helpImagePreparationByDocument.set(documentRef, cache);
+  }
+  return cache;
+}
+
+function prepareHelpImage(
+  documentRef: Document,
+  src: string,
+  options: HelpImagePreparationOptions = {}
+): Promise<HelpImagePreparationResult> {
+  const normalizedSrc = _safeText(src, '');
+  if (!normalizedSrc) return Promise.resolve({ src: '', status: 'failed' });
+
+  const cache = _getHelpImagePreparationCache(documentRef);
+  const existing = cache.get(normalizedSrc);
+  if (existing) return existing.promise;
+
+  const promise = new Promise<HelpImagePreparationResult>((resolve) => {
+    const ImageCtor = options.ImageCtor
+      || (typeof Image === 'function' ? Image : null);
+    const root = documentRef.defaultView;
+    const fetchFn = Object.prototype.hasOwnProperty.call(options, 'fetchFn')
+      ? options.fetchFn
+      : (root && typeof root.fetch === 'function' ? root.fetch.bind(root) : null);
+    const createObjectURLFn = Object.prototype.hasOwnProperty.call(options, 'createObjectURLFn')
+      ? options.createObjectURLFn
+      : (root && typeof root.URL?.createObjectURL === 'function'
+        ? root.URL.createObjectURL.bind(root.URL)
+        : null);
+    const revokeObjectURLFn = Object.prototype.hasOwnProperty.call(options, 'revokeObjectURLFn')
+      ? options.revokeObjectURLFn
+      : (root && typeof root.URL?.revokeObjectURL === 'function'
+        ? root.URL.revokeObjectURL.bind(root.URL)
+        : null);
+    let preloadImg: any = null;
+    let displaySrc = normalizedSrc;
+    let objectUrl: string | null = null;
+    let settled = false;
+    const settle = (status: HelpImagePreparationStatus) => {
+      if (settled) return;
+      settled = true;
+      if (preloadImg) {
+        preloadImg.onload = null;
+        preloadImg.onerror = null;
+      }
+      if (status === 'failed' && objectUrl && revokeObjectURLFn) {
+        try {
+          revokeObjectURLFn(objectUrl);
+        } catch (_error) { /* best-effort Blob URL cleanup */ }
+        objectUrl = null;
+        displaySrc = normalizedSrc;
+      }
+      resolve({
+        src: normalizedSrc,
+        status,
+        ...(status === 'loaded' && displaySrc !== normalizedSrc ? { displaySrc } : {})
+      });
+    };
+
+    const startDecode = () => {
+      if (!ImageCtor) {
+        settle('loaded');
+        return;
+      }
+      try {
+        preloadImg = new ImageCtor();
+      } catch (_error) {
+        settle('failed');
+        return;
+      }
+      preloadImg.onload = () => {
+        let decodeResult: any = null;
+        try {
+          decodeResult = typeof preloadImg.decode === 'function'
+            ? preloadImg.decode()
+            : null;
+        } catch (_error) {
+          settle('loaded');
+          return;
+        }
+        if (decodeResult && typeof decodeResult.then === 'function') {
+          Promise.resolve(decodeResult).then(
+            () => settle('loaded'),
+            () => settle('loaded')
+          );
+          return;
+        }
+        settle('loaded');
+      };
+      preloadImg.onerror = () => settle('failed');
+      try {
+        preloadImg.src = displaySrc;
+      } catch (_error) {
+        settle('failed');
+      }
+    };
+
+    if (!fetchFn || !createObjectURLFn) {
+      startDecode();
+      return;
+    }
+    let fetchResult: any;
+    try {
+      fetchResult = fetchFn(normalizedSrc, {
+        credentials: 'same-origin'
+      });
+    } catch (_error) {
+      settle('failed');
+      return;
+    }
+    void Promise.resolve(fetchResult).then(async (response: any) => {
+      if (!response || response.ok !== true || typeof response.blob !== 'function') {
+        throw new Error('rules_help_image_fetch_failed');
+      }
+      const blob = await response.blob();
+      objectUrl = createObjectURLFn(blob);
+      displaySrc = objectUrl;
+      startDecode();
+    }).catch(() => settle('failed'));
+  });
+
+  const record = { promise };
+  cache.set(normalizedSrc, record);
+  void promise.then((result) => {
+    if (result.status === 'failed' && cache.get(normalizedSrc) === record) {
+      cache.delete(normalizedSrc);
+    }
+  });
+  return promise;
+}
+
+function prepareInitialHelpImages(
+  documentRef: Document,
+  options: HelpImagePreparationOptions = {}
+): Promise<HelpImagePreparationResult[]> {
+  return Promise.all(
+    RULES_HELP_INITIAL_IMAGE_PATHS.map((src) => prepareHelpImage(documentRef, src, options))
+  );
+}
+
+function cancelScheduledInitialHelpImageIdlePrefetch(documentRef: Document): void {
+  const active = _helpImageIdlePrefetchByDocument.get(documentRef);
+  if (active) active.cancel();
+}
+
+function scheduleInitialHelpImageIdlePrefetch(
+  controller: any,
+  options: HelpImageIdlePrefetchOptions
+): HelpImageIdlePrefetchHandle {
+  const documentRef = options.documentRef;
+  cancelScheduledInitialHelpImageIdlePrefetch(documentRef);
+
+  let cancelled = false;
+  let idleHandle: any = null;
+  let releaseIdleWait: (() => void) | null = null;
+  const root = documentRef.defaultView;
+  const requestIdle = options.requestIdleCallback
+    || (root && typeof (root as any).requestIdleCallback === 'function'
+      ? (root as any).requestIdleCallback.bind(root)
+      : null);
+  const cancelIdle = options.cancelIdleCallback
+    || (root && typeof (root as any).cancelIdleCallback === 'function'
+      ? (root as any).cancelIdleCallback.bind(root)
+      : null);
+  const scheduleTimer = options.setTimeoutFn
+    || (root && typeof root.setTimeout === 'function' ? root.setTimeout.bind(root) : setTimeout);
+  const cancelTimer = options.clearTimeoutFn
+    || (root && typeof root.clearTimeout === 'function' ? root.clearTimeout.bind(root) : clearTimeout);
+
+  const waitForBrowserIdle = () => new Promise<void>((resolve) => {
+    let resolved = false;
+    const finish = () => {
+      if (resolved) return;
+      resolved = true;
+      idleHandle = null;
+      releaseIdleWait = null;
+      resolve();
+    };
+    releaseIdleWait = finish;
+    idleHandle = requestIdle
+      ? requestIdle(finish)
+      : scheduleTimer(finish, 1);
+  });
+
+  const run = async () => {
+    if (!controller || typeof controller.waitForIdle !== 'function') {
+      throw new Error('rules_help_idle_prefetch_controller_unavailable');
+    }
+    while (!cancelled) {
+      await controller.waitForIdle();
+      if (cancelled) return;
+      await waitForBrowserIdle();
+      if (cancelled) return;
+      const isIdle = typeof controller.getMode === 'function' && controller.getMode() === 'idle';
+      const settlementPending = typeof controller.isIdleSettlementPending === 'function'
+        ? controller.isIdleSettlementPending() === true
+        : true;
+      if (!isIdle || settlementPending) continue;
+      await prepareInitialHelpImages(documentRef, options);
+      return;
+    }
+  };
+
+  const promise = run().catch((error) => {
+    if (!cancelled && typeof console !== 'undefined' && typeof console.warn === 'function') {
+      console.warn('[rules-help] idle image prefetch failed', error);
+    }
+  });
+  const handle: HelpImageIdlePrefetchHandle = {
+    cancel: () => {
+      if (cancelled) return;
+      cancelled = true;
+      if (idleHandle !== null) {
+        if (requestIdle && cancelIdle) cancelIdle(idleHandle);
+        if (!requestIdle) cancelTimer(idleHandle);
+      }
+      idleHandle = null;
+      if (releaseIdleWait) releaseIdleWait();
+      releaseIdleWait = null;
+      if (_helpImageIdlePrefetchByDocument.get(documentRef) === handle) {
+        _helpImageIdlePrefetchByDocument.delete(documentRef);
+      }
+    },
+    promise
+  };
+  _helpImageIdlePrefetchByDocument.set(documentRef, handle);
+  void promise.then(() => {
+    if (_helpImageIdlePrefetchByDocument.get(documentRef) === handle) {
+      _helpImageIdlePrefetchByDocument.delete(documentRef);
+    }
+  });
+  return handle;
+}
 
 function formatRulesHelpGuideSlideSrc(index: number): string {
   const slideNumber = Math.max(1, Math.min(RULES_HELP_GUIDE_SLIDE_COUNT, Math.floor(index) + 1));
@@ -340,54 +618,64 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   let tagPopoverEl: HTMLElement | null = null;
   let guideSlideIndex = 0;
   let guideSlideRequestId = 0;
-  const guideSlideLoadState = new Map<string, string>();
-  const guideSlideLoadCallbacks = new Map<string, Array<() => void>>();
   let protectionMapIndex = 0;
+  let protectionMapRequestId = 0;
   let helpContentReady = false;
 
-  function preloadGuideSlideImage(src: string, onReady: () => void): void {
-    const normalizedSrc = _safeText(src, '');
-    if (!normalizedSrc) {
-      onReady();
-      return;
+  function setHelpImageBusy(image: HTMLImageElement | null, busy: boolean): void {
+    if (!image) return;
+    const frame = image.parentElement;
+    if (!frame) return;
+    frame.setAttribute('aria-busy', busy ? 'true' : 'false');
+    if (busy && !image.getAttribute('src')) {
+      frame.setAttribute('data-help-image-placeholder', 'true');
+    } else {
+      frame.removeAttribute('data-help-image-placeholder');
     }
-    const loadState = guideSlideLoadState.get(normalizedSrc);
-    if (loadState === 'loaded' || loadState === 'failed') {
-      onReady();
-      return;
-    }
-    const callbacks = guideSlideLoadCallbacks.get(normalizedSrc) || [];
-    callbacks.push(onReady);
-    guideSlideLoadCallbacks.set(normalizedSrc, callbacks);
-    if (loadState === 'loading') return;
-    const ImageCtor = typeof Image === 'function' ? Image : null;
-    if (!ImageCtor) {
-      guideSlideLoadState.set(normalizedSrc, 'loaded');
-      const pending = guideSlideLoadCallbacks.get(normalizedSrc) || [];
-      guideSlideLoadCallbacks.delete(normalizedSrc);
-      pending.forEach((callback) => callback());
-      return;
-    }
-    guideSlideLoadState.set(normalizedSrc, 'loading');
-    const preloadImg = new ImageCtor();
-    const flushCallbacks = (state: string) => {
-      guideSlideLoadState.set(normalizedSrc, state);
-      const pending = guideSlideLoadCallbacks.get(normalizedSrc) || [];
-      guideSlideLoadCallbacks.delete(normalizedSrc);
-      pending.forEach((callback) => callback());
-    };
-    preloadImg.onload = () => flushCallbacks('loaded');
-    preloadImg.onerror = () => flushCallbacks('failed');
-    preloadImg.src = normalizedSrc;
   }
 
-  function applyGuideSlide(index: number): void {
+  function commitHelpImage(
+    image: HTMLImageElement,
+    logicalSrc: string,
+    displaySrc: string,
+    alt: string
+  ): void {
+    image.setAttribute('data-card-reversi-logical-src', logicalSrc);
+    image.setAttribute('src', displaySrc);
+    image.setAttribute('alt', alt);
+    const frame = image.parentElement;
+    if (frame) frame.removeAttribute('data-help-image-placeholder');
+    if (image.complete && image.naturalWidth > 0) {
+      setHelpImageBusy(image, false);
+      return;
+    }
+    const settle = () => {
+      image.removeEventListener('load', settle);
+      image.removeEventListener('error', settle);
+      setHelpImageBusy(image, false);
+    };
+    image.addEventListener('load', settle);
+    image.addEventListener('error', settle);
+  }
+
+  function applyGuideSlide(index: number, displaySrc?: string): void {
     const totalSlides = RULES_HELP_GUIDE_SLIDE_COUNT;
     guideSlideIndex = Math.max(0, Math.min(totalSlides - 1, index));
     const currentSlide = guideSlideIndex + 1;
     if (guideSlideImg) {
-      guideSlideImg.setAttribute('src', formatRulesHelpGuideSlideSrc(guideSlideIndex));
-      guideSlideImg.setAttribute('alt', `カードリバーシ説明スライド ${currentSlide} / ${totalSlides}`);
+      const logicalSrc = formatRulesHelpGuideSlideSrc(guideSlideIndex);
+      if (displaySrc || !guideSlideImg.hasAttribute('src')) {
+        commitHelpImage(
+          guideSlideImg,
+          logicalSrc,
+          displaySrc || logicalSrc,
+          `カードリバーシ説明スライド ${currentSlide} / ${totalSlides}`
+        );
+      } else {
+        guideSlideImg.setAttribute('data-card-reversi-logical-src', logicalSrc);
+        guideSlideImg.setAttribute('alt', `カードリバーシ説明スライド ${currentSlide} / ${totalSlides}`);
+        setHelpImageBusy(guideSlideImg, false);
+      }
     }
     if (guideSlideStatusEl) {
       guideSlideStatusEl.textContent = `${currentSlide} / ${totalSlides}`;
@@ -403,32 +691,48 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   }
 
   function updateGuideSlide(): void {
-    applyGuideSlide(guideSlideIndex);
+    setGuideSlide(guideSlideIndex);
   }
 
   function setGuideSlide(index: number): void {
     const totalSlides = RULES_HELP_GUIDE_SLIDE_COUNT;
     const targetIndex = Math.max(0, Math.min(totalSlides - 1, Math.floor(index)));
     const targetSrc = formatRulesHelpGuideSlideSrc(targetIndex);
-    if (!guideSlideImg || guideSlideImg.getAttribute('src') === targetSrc) {
+    const requestId = ++guideSlideRequestId;
+    const displayedLogicalSrc = guideSlideImg?.getAttribute('data-card-reversi-logical-src')
+      || guideSlideImg?.getAttribute('src');
+    if (!guideSlideImg || (
+      guideSlideImg.hasAttribute('src')
+      && displayedLogicalSrc === targetSrc
+    )) {
       applyGuideSlide(targetIndex);
       return;
     }
-    const requestId = ++guideSlideRequestId;
-    preloadGuideSlideImage(targetSrc, () => {
+    setHelpImageBusy(guideSlideImg, true);
+    void prepareHelpImage(docRef as Document, targetSrc).then((result) => {
       if (requestId !== guideSlideRequestId) return;
-      applyGuideSlide(targetIndex);
+      applyGuideSlide(targetIndex, result.displaySrc || targetSrc);
     });
   }
 
-  function updateProtectionMapSlide(): void {
+  function updateProtectionMapSlide(displaySrc?: string): void {
     const totalSlides = RULES_HELP_PROTECTION_MAP_SLIDES.length;
     protectionMapIndex = Math.max(0, Math.min(totalSlides - 1, protectionMapIndex));
     const currentSlide = protectionMapIndex + 1;
     const slide = RULES_HELP_PROTECTION_MAP_SLIDES[protectionMapIndex];
     if (protectionMapImg) {
-      protectionMapImg.setAttribute('src', slide.src);
-      protectionMapImg.setAttribute('alt', `${slide.alt} ${currentSlide} / ${totalSlides}`);
+      if (displaySrc || !protectionMapImg.hasAttribute('src')) {
+        commitHelpImage(
+          protectionMapImg,
+          slide.src,
+          displaySrc || slide.src,
+          `${slide.alt} ${currentSlide} / ${totalSlides}`
+        );
+      } else {
+        protectionMapImg.setAttribute('data-card-reversi-logical-src', slide.src);
+        protectionMapImg.setAttribute('alt', `${slide.alt} ${currentSlide} / ${totalSlides}`);
+        setHelpImageBusy(protectionMapImg, false);
+      }
     }
     if (protectionMapStatusEl) {
       protectionMapStatusEl.textContent = `${currentSlide} / ${totalSlides}`;
@@ -444,8 +748,26 @@ function setupRulesHelp(rulesHelpBtn: HTMLElement, rulesHelpPanel: HTMLElement):
   }
 
   function setProtectionMapSlide(index: number): void {
-    protectionMapIndex = index;
-    updateProtectionMapSlide();
+    const totalSlides = RULES_HELP_PROTECTION_MAP_SLIDES.length;
+    const targetIndex = Math.max(0, Math.min(totalSlides - 1, Math.floor(index)));
+    const targetSlide = RULES_HELP_PROTECTION_MAP_SLIDES[targetIndex];
+    const requestId = ++protectionMapRequestId;
+    const displayedLogicalSrc = protectionMapImg?.getAttribute('data-card-reversi-logical-src')
+      || protectionMapImg?.getAttribute('src');
+    if (!protectionMapImg || (
+      protectionMapImg.hasAttribute('src')
+      && displayedLogicalSrc === targetSlide.src
+    )) {
+      protectionMapIndex = targetIndex;
+      updateProtectionMapSlide();
+      return;
+    }
+    setHelpImageBusy(protectionMapImg, true);
+    void prepareHelpImage(docRef as Document, targetSlide.src).then((result) => {
+      if (requestId !== protectionMapRequestId) return;
+      protectionMapIndex = targetIndex;
+      updateProtectionMapSlide(result.displaySrc || targetSlide.src);
+    });
   }
 
   function isGuideTabActive(): boolean {
@@ -1022,6 +1344,10 @@ if (!tagFiltersEl) return;
   }
 
   function openPanel(): void {
+    if (docRef) {
+      cancelScheduledInitialHelpImageIdlePrefetch(docRef);
+      void prepareInitialHelpImages(docRef);
+    }
     // Build the large catalog/glossary while the panel is still hidden so the
     // first visible frame remains complete and the initial DOM stays small.
     ensureHelpContentReady();
@@ -1046,7 +1372,7 @@ if (!tagFiltersEl) return;
     renderEffectsList();
     renderCatalogCards();
     updateGuideSlide();
-    updateProtectionMapSlide();
+    setProtectionMapSlide(protectionMapIndex);
     helpContentReady = true;
   }
 
@@ -1171,7 +1497,11 @@ if (!tagFiltersEl) return;
 }
 
 const RulesHelpModule = {
-  setupRulesHelp
+  setupRulesHelp,
+  prepareHelpImage,
+  prepareInitialHelpImages,
+  scheduleInitialHelpImageIdlePrefetch,
+  cancelScheduledInitialHelpImageIdlePrefetch
 };
 
 export = RulesHelpModule;

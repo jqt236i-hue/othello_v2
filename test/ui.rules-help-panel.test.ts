@@ -30,6 +30,7 @@ describe('rules help panel', () => {
     try { delete global.window; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.document; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.Event; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete (global as any).Image; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('opens by button and closes by outside click', () => {
@@ -651,7 +652,9 @@ describe('rules help panel', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     const classicHtml = fs.readFileSync(path.resolve(__dirname, '../index.classic.html'), 'utf8');
     expect(html).toMatch(/id="rules-help-guide-slide-img"/);
-    expect(classicHtml).toMatch(/src="assets\/images\/help\/player-guide\/card-reversi-player-guide-slide-01\.png"/);
+    expect(classicHtml).not.toMatch(/id="rules-help-guide-slide-img"[^>]+\ssrc=/s);
+    expect(classicHtml).toMatch(/data-card-reversi-logical-src="assets\/images\/help\/player-guide\/card-reversi-player-guide-slide-01\.png"/);
+    expect(classicHtml).toMatch(/id="rules-help-guide-slide-img"[^>]+width="1920"[^>]+height="1080"/s);
     expect(html).toMatch(/id="rules-help-guide-prev"/);
     expect(html).toMatch(/id="rules-help-guide-next"/);
     expect(html).toMatch(/id="rules-help-guide-page-status"/);
@@ -663,14 +666,16 @@ describe('rules help panel', () => {
     expect(html).toMatch(/data-help-tab="protection-map">耐性貫通表<\/button>/);
     expect(html).toMatch(/id="rules-help-page-protection-map"/);
     expect(html).toMatch(/id="rules-help-protection-map-img"/);
-    expect(classicHtml).toMatch(/src="assets\/images\/help\/protection-penetration\/protection-penetration-quick-reference\.png"/);
+    expect(classicHtml).not.toMatch(/id="rules-help-protection-map-img"[^>]+\ssrc=/s);
+    expect(classicHtml).toMatch(/data-card-reversi-logical-src="assets\/images\/help\/protection-penetration\/protection-penetration-quick-reference\.png"/);
+    expect(classicHtml).toMatch(/id="rules-help-protection-map-img"[^>]+width="1600"[^>]+height="1080"/s);
     expect(html).toMatch(/alt="耐性貫通の〇×早見表 1 \/ 2"/);
     expect(html).toMatch(/id="rules-help-protection-map-prev"/);
     expect(html).toMatch(/id="rules-help-protection-map-next"/);
     expect(html).toMatch(/id="rules-help-protection-map-page-status"/);
   });
 
-  test('protection map next and previous buttons page through explainer and quick reference images', () => {
+  test('protection map next and previous buttons page through explainer and quick reference images', async () => {
     setDom(`<!doctype html><html><body>
       <button id="rulesHelpBtn" aria-expanded="false"></button>
       <div id="rules-help-panel" aria-hidden="true">
@@ -709,6 +714,7 @@ describe('rules help panel', () => {
     expect(next.disabled).toBe(false);
 
     next.click();
+    await Promise.resolve();
     expect(img.getAttribute('src')).toBe('assets/images/help/protection-penetration/protection-penetration-explainer.png');
     expect(img.getAttribute('alt')).toBe('耐性と貫通の関係図 2 / 2');
     expect(status.textContent).toBe('2 / 2');
@@ -716,12 +722,13 @@ describe('rules help panel', () => {
     expect(next.disabled).toBe(true);
 
     prev.click();
+    await Promise.resolve();
     expect(img.getAttribute('src')).toBe('assets/images/help/protection-penetration/protection-penetration-quick-reference.png');
     expect(status.textContent).toBe('1 / 2');
     expect(prev.disabled).toBe(true);
   });
 
-  test('rules guide next and previous buttons page through slide images', () => {
+  test('rules guide next and previous buttons page through slide images', async () => {
     setDom(`<!doctype html><html><body>
       <button id="rulesHelpBtn" aria-expanded="false"></button>
       <div id="rules-help-panel" aria-hidden="true">
@@ -760,18 +767,20 @@ describe('rules help panel', () => {
     expect(next.disabled).toBe(false);
 
     next.click();
+    await Promise.resolve();
     expect(img.getAttribute('src')).toBe('assets/images/help/player-guide/card-reversi-player-guide-slide-02.png');
     expect(img.getAttribute('alt')).toBe('カードリバーシ説明スライド 2 / 8');
     expect(status.textContent).toBe('2 / 8');
     expect(prev.disabled).toBe(false);
 
     prev.click();
+    await Promise.resolve();
     expect(img.getAttribute('src')).toBe('assets/images/help/player-guide/card-reversi-player-guide-slide-01.png');
     expect(status.textContent).toBe('1 / 8');
     expect(prev.disabled).toBe(true);
   });
 
-  test('rules guide keeps the current slide visible until the next image is loaded', () => {
+  test('rules guide keeps the current slide visible until the next image is loaded', async () => {
     const createdImages: Array<any> = [];
     const originalImage = (global as any).Image;
     class DeferredImage {
@@ -822,6 +831,7 @@ describe('rules help panel', () => {
       const pendingSlide = createdImages.find((one) => one.src.endsWith('card-reversi-player-guide-slide-02.png'));
       expect(pendingSlide).toBeTruthy();
       pendingSlide.onload();
+      await Promise.resolve();
 
       expect(img.getAttribute('src')).toBe('assets/images/help/player-guide/card-reversi-player-guide-slide-02.png');
       expect(status.textContent).toBe('2 / 8');
@@ -832,6 +842,314 @@ describe('rules help panel', () => {
         try { delete (global as any).Image; } catch (e) { /* Intentionally empty: test cleanup guard */ }
       }
     }
+  });
+
+  test('rules guide ignores a stale preload after returning to the current slide', async () => {
+    const createdImages: Array<any> = [];
+    class DeferredImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      src = '';
+
+      constructor() {
+        createdImages.push(this);
+      }
+    }
+    (global as any).Image = DeferredImage;
+    setDom(`<!doctype html><html><body>
+      <button id="rulesHelpBtn" aria-expanded="false"></button>
+      <div id="rules-help-panel" aria-hidden="true">
+        <button data-help-tab="guide" class="rules-help-tab is-active" type="button"></button>
+        <section data-help-page="guide" class="rules-help-page is-active">
+          <button id="rules-help-guide-prev" type="button">前へ</button>
+          <span id="rules-help-guide-page-status">1 / 8</span>
+          <button id="rules-help-guide-next" type="button">次へ</button>
+          <img id="rules-help-guide-slide-img"
+            src="assets/images/help/player-guide/card-reversi-player-guide-slide-01.png"
+            alt="カードリバーシ説明スライド 1 / 8">
+        </section>
+      </div>
+    </body></html>`);
+
+    const mod = require('../ui/handlers/rules-help.js');
+    const btn = document.getElementById('rulesHelpBtn');
+    const panel = document.getElementById('rules-help-panel');
+    mod.setupRulesHelp(btn, panel);
+    btn.click();
+
+    const img = document.getElementById('rules-help-guide-slide-img') as HTMLImageElement;
+    (document.getElementById('rules-help-guide-next') as HTMLButtonElement).click();
+    const pendingSlide = createdImages.find((one) => (
+      one.src.endsWith('card-reversi-player-guide-slide-02.png')
+    ));
+    expect(pendingSlide).toBeTruthy();
+
+    document.dispatchEvent(new window.KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      bubbles: true
+    }));
+    pendingSlide.onload();
+    await Promise.resolve();
+
+    expect(img.getAttribute('src')).toBe(
+      'assets/images/help/player-guide/card-reversi-player-guide-slide-01.png'
+    );
+    expect(document.getElementById('rules-help-guide-page-status').textContent).toBe('1 / 8');
+  });
+
+  test('shares logical image preparation per document and retries a failed URL', async () => {
+    const createdImages: Array<any> = [];
+    class DeferredImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      src = '';
+
+      constructor() {
+        createdImages.push(this);
+      }
+    }
+
+    const mod = require('../ui/handlers/rules-help.js');
+    const first = mod.prepareHelpImage(document, 'assets/images/help/test.png', {
+      ImageCtor: DeferredImage
+    });
+    const joined = mod.prepareHelpImage(document, 'assets/images/help/test.png', {
+      ImageCtor: DeferredImage
+    });
+    expect(joined).toBe(first);
+    expect(createdImages).toHaveLength(1);
+
+    createdImages[0].onload();
+    await expect(first).resolves.toEqual({
+      src: 'assets/images/help/test.png',
+      status: 'loaded'
+    });
+    expect(mod.prepareHelpImage(document, 'assets/images/help/test.png', {
+      ImageCtor: DeferredImage
+    })).toBe(first);
+    expect(createdImages).toHaveLength(1);
+
+    const failed = mod.prepareHelpImage(document, 'assets/images/help/retry.png', {
+      ImageCtor: DeferredImage
+    });
+    expect(createdImages).toHaveLength(2);
+    createdImages[1].onerror();
+    await expect(failed).resolves.toEqual({
+      src: 'assets/images/help/retry.png',
+      status: 'failed'
+    });
+    await Promise.resolve();
+
+    const retry = mod.prepareHelpImage(document, 'assets/images/help/retry.png', {
+      ImageCtor: DeferredImage
+    });
+    expect(retry).not.toBe(failed);
+    expect(createdImages).toHaveLength(3);
+    createdImages[2].onload();
+    await expect(retry).resolves.toEqual({
+      src: 'assets/images/help/retry.png',
+      status: 'loaded'
+    });
+
+    class ThrowingImage {
+      constructor() {
+        throw new Error('constructor failed');
+      }
+    }
+    await expect(mod.prepareHelpImage(document, 'assets/images/help/throws.png', {
+      ImageCtor: ThrowingImage
+    })).resolves.toEqual({
+      src: 'assets/images/help/throws.png',
+      status: 'failed'
+    });
+    await expect(mod.prepareHelpImage(document, 'assets/images/help/fetch-throws.png', {
+      ImageCtor: DeferredImage,
+      fetchFn: () => {
+        throw new Error('fetch failed');
+      },
+      createObjectURLFn: () => 'blob:unused'
+    })).resolves.toEqual({
+      src: 'assets/images/help/fetch-throws.png',
+      status: 'failed'
+    });
+  });
+
+  test('shares one fetched Blob URL between decode preparation and later display', async () => {
+    const createdImages: Array<any> = [];
+    class DeferredImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      src = '';
+
+      constructor() {
+        createdImages.push(this);
+      }
+    }
+    const fetchFn = jest.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(['help-image'], { type: 'image/png' })
+    }));
+    const createObjectURLFn = jest.fn(() => 'blob:rules-help-image');
+    const mod = require('../ui/handlers/rules-help.js');
+
+    const first = mod.prepareHelpImage(document, 'assets/images/help/blob.png', {
+      ImageCtor: DeferredImage,
+      fetchFn,
+      createObjectURLFn
+    });
+    const joined = mod.prepareHelpImage(document, 'assets/images/help/blob.png', {
+      ImageCtor: DeferredImage,
+      fetchFn,
+      createObjectURLFn
+    });
+    expect(joined).toBe(first);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(createObjectURLFn).toHaveBeenCalledTimes(1);
+    expect(createdImages).toHaveLength(1);
+    expect(createdImages[0].src).toBe('blob:rules-help-image');
+    createdImages[0].onload();
+    await expect(first).resolves.toEqual({
+      src: 'assets/images/help/blob.png',
+      status: 'loaded',
+      displaySrc: 'blob:rules-help-image'
+    });
+  });
+
+  test('idle prefetch rechecks board settlement before preparing initial images', async () => {
+    const createdImages: Array<any> = [];
+    const idleCallbacks: Array<() => void> = [];
+    let mode = 'playback';
+    let settlementPending = true;
+    class DeferredImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      src = '';
+
+      constructor() {
+        createdImages.push(this);
+      }
+    }
+    const controller = {
+      waitForIdle: jest.fn(async () => undefined),
+      getMode: jest.fn(() => mode),
+      isIdleSettlementPending: jest.fn(() => settlementPending)
+    };
+    const mod = require('../ui/handlers/rules-help.js');
+    const handle = mod.scheduleInitialHelpImageIdlePrefetch(controller, {
+      documentRef: document,
+      ImageCtor: DeferredImage,
+      requestIdleCallback: (callback) => {
+        idleCallbacks.push(callback);
+        return idleCallbacks.length;
+      },
+      cancelIdleCallback: jest.fn()
+    });
+
+    await Promise.resolve();
+    expect(controller.waitForIdle).toHaveBeenCalledTimes(1);
+    expect(idleCallbacks).toHaveLength(1);
+    expect(createdImages).toHaveLength(0);
+
+    (idleCallbacks.shift() as () => void)();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(controller.waitForIdle).toHaveBeenCalledTimes(2);
+    expect(idleCallbacks).toHaveLength(1);
+    expect(createdImages).toHaveLength(0);
+
+    mode = 'idle';
+    settlementPending = false;
+    (idleCallbacks.shift() as () => void)();
+    await Promise.resolve();
+    expect(createdImages).toHaveLength(2);
+    createdImages.forEach((image) => image.onload());
+    await handle.promise;
+  });
+
+  test('opening help joins an in-flight idle preparation and binds reserved image frames', async () => {
+    setDom(`<!doctype html><html><body>
+      <button id="rulesHelpBtn" aria-expanded="false"></button>
+      <div id="rules-help-panel" aria-hidden="true">
+        <button id="rules-help-close-btn" type="button"></button>
+        <button data-help-tab="guide" class="rules-help-tab is-active" type="button"></button>
+        <section data-help-page="guide" class="rules-help-page is-active">
+          <div id="rules-help-guide-slide-frame">
+            <img id="rules-help-guide-slide-img"
+              data-card-reversi-logical-src="assets/images/help/player-guide/card-reversi-player-guide-slide-01.png"
+              width="1920" height="1080" alt="カードリバーシ説明スライド 1 / 8">
+          </div>
+          <span id="rules-help-guide-page-status">1 / 8</span>
+        </section>
+        <section data-help-page="protection-map" class="rules-help-page">
+          <div id="rules-help-protection-map-frame">
+            <img id="rules-help-protection-map-img"
+              data-card-reversi-logical-src="assets/images/help/protection-penetration/protection-penetration-quick-reference.png"
+              width="1600" height="1080" alt="耐性貫通の〇×早見表 1 / 2">
+          </div>
+          <span id="rules-help-protection-map-page-status">1 / 2</span>
+        </section>
+      </div>
+    </body></html>`);
+
+    const createdImages: Array<any> = [];
+    const idleCallbacks: Array<() => void> = [];
+    class DeferredImage {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      src = '';
+
+      constructor() {
+        createdImages.push(this);
+      }
+    }
+    (global as any).Image = DeferredImage;
+    const controller = {
+      waitForIdle: jest.fn(async () => undefined),
+      getMode: jest.fn(() => 'idle'),
+      isIdleSettlementPending: jest.fn(() => false)
+    };
+    const mod = require('../ui/handlers/rules-help.js');
+    const handle = mod.scheduleInitialHelpImageIdlePrefetch(controller, {
+      documentRef: document,
+      requestIdleCallback: (callback) => {
+        idleCallbacks.push(callback);
+        return idleCallbacks.length;
+      },
+      cancelIdleCallback: jest.fn()
+    });
+    await Promise.resolve();
+    (idleCallbacks.shift() as () => void)();
+    await Promise.resolve();
+    expect(createdImages).toHaveLength(2);
+
+    const btn = document.getElementById('rulesHelpBtn');
+    const panel = document.getElementById('rules-help-panel');
+    mod.setupRulesHelp(btn, panel);
+    btn.click();
+
+    expect(createdImages).toHaveLength(2);
+    expect(panel.classList.contains('is-open')).toBe(true);
+    expect(document.getElementById('rules-help-guide-slide-frame').getAttribute('aria-busy')).toBe('true');
+    expect(document.getElementById('rules-help-protection-map-frame').getAttribute('aria-busy')).toBe('true');
+
+    createdImages.forEach((image) => image.onload());
+    await handle.promise;
+    await Promise.resolve();
+
+    const guideImage = document.getElementById('rules-help-guide-slide-img') as HTMLImageElement;
+    const protectionImage = document.getElementById('rules-help-protection-map-img') as HTMLImageElement;
+    expect(guideImage.getAttribute('src')).toBe('assets/images/help/player-guide/card-reversi-player-guide-slide-01.png');
+    expect(protectionImage.getAttribute('src')).toBe('assets/images/help/protection-penetration/protection-penetration-quick-reference.png');
+    expect(document.getElementById('rules-help-guide-slide-frame').hasAttribute('data-help-image-placeholder')).toBe(false);
+    expect(document.getElementById('rules-help-protection-map-frame').hasAttribute('data-help-image-placeholder')).toBe(false);
+
+    guideImage.dispatchEvent(new Event('load'));
+    protectionImage.dispatchEvent(new Event('load'));
+    expect(document.getElementById('rules-help-guide-slide-frame').getAttribute('aria-busy')).toBe('false');
+    expect(document.getElementById('rules-help-protection-map-frame').getAttribute('aria-busy')).toBe('false');
   });
 
   test('index html and css include rules help backdrop layer', () => {

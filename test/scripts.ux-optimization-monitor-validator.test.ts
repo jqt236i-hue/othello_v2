@@ -37,6 +37,7 @@ function validReport(): Record<string, any> {
       const lockToggle = definition.id === 'board.lock-toggle';
       const opponentTurn = definition.id === 'playback.opponent-actions';
       const boot = definition.id.startsWith('boot.');
+      const help = definition.id.startsWith('help.');
       return {
         id: definition.id,
         lane: definition.lane,
@@ -106,9 +107,41 @@ function validReport(): Record<string, any> {
                 : boot
                   ? {
                     imageConstructorAssignments: [],
-                    logicalImageSrcMutations: []
+                    logicalImageSrcMutations: [],
+                    initialHelpImageSrcCount: 0,
+                    initialHelpImageDimensionsReserved: true
                   }
-                  : {}
+                  : help
+                    ? {
+                      backend: 'pixi',
+                      uiInitialized: true,
+                      initialSrcCount: 0,
+                      dimensionsReserved: true,
+                      panelOpen: true,
+                      guideComplete: true,
+                      protectionComplete: true,
+                      guideFrameVisible: true,
+                      protectionFrameVisible: true,
+                      guideDimensions: { width: 1920, height: 1080 },
+                      protectionDimensions: { width: 1600, height: 1080 },
+                      focusWithinPanel: true,
+                      helpRequestsBeforeFirstFrame: 0,
+                      helpResourcePathCount: 2,
+                      helpEncodedBodyBytes: 325_100,
+                      clsDelta: 0,
+                      firstOpenLatencyMs: 20,
+                      helpResponsePathsAfterOpen: ['guide.png', 'protection.png'],
+                      helpResourceEntriesBeforeOpen: definition.id === 'help.after-idle' ? 2 : 0,
+                      helpResponsePathsBeforeOpen: definition.id === 'help.after-idle'
+                        ? ['guide.png', 'protection.png']
+                        : [],
+                      pendingIdleCallbackCount: definition.id === 'help.before-idle' ? 1 : 0,
+                      boardIdleAtMs: 10,
+                      idlePrefetchAtMs: 11,
+                      earliestHelpResourceStartMs: 12,
+                      additionalHelpTransferSizeAfterOpen: 0
+                    }
+                    : {}
       };
     })
   };
@@ -313,6 +346,29 @@ describe('UX optimization monitor validator', () => {
       'default-hand logical image requested 2 response bodies',
       'logical boot images used 1 detached Image preload(s)',
       'logical boot images mutated src 1 time(s)'
+    ]));
+  });
+
+  test('fails help requests before first frame, layout shift, and idle-after body transfer', () => {
+    const report = validReport();
+    const afterIdle = report.scenarios.find((entry: any) => (
+      entry.id === 'help.after-idle' && entry.lane === 'vite'
+    ));
+    afterIdle.metrics.helpRequestsBeforeFirstFrame = 1;
+    afterIdle.metrics.clsDelta = 0.02;
+    afterIdle.metrics.additionalHelpTransferSizeAfterOpen = 325_700;
+
+    const result = validateUxOptimizationReport(report, {
+      targetOptimizationIds: ['help-image-lazy-loading']
+    });
+    const check = result.checks.find(
+      (entry) => entry.id === 'scenario.help.after-idle:vite:pixi'
+    );
+    expect(result.focusedVerdict).toBe('fail');
+    expect(check?.reasons).toEqual(expect.arrayContaining([
+      'help requests before first frame: 1',
+      'help first-open CLS was 0.02',
+      'idle-after open transferred 325700 extra bytes'
     ]));
   });
 });

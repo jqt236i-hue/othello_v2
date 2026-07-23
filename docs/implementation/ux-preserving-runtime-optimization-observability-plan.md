@@ -243,7 +243,9 @@
   - monitor scenario `help.before-idle`, `help.after-idle`
 - implementation:
   - 最初のguide/早見表画像から初期 `src` を外し、logical pathとwidth/heightまたはaspect-ratioを保持する。
+  - 既存実装には専用のローディング表現がないため、初期画像に`src`がない間だけ予約済み画像枠へ`aria-busy`と非テキストのスピナーを付与する。表示文言と操作順は変更しない。
   - `rules-help.ts` にDocument単位、logical URL単位で一度だけの `prepareInitialHelpImages()` と `scheduleInitialHelpImageIdlePrefetch()` を追加する。cacheはimg要素を所有せず、後から生成されたimgも同じin-flight/ready結果を使う。
+  - detached `Image`と表示`img`へ同じHTTP URLを順に指定すると配信設定によってbodyが再転送されたため、同一origin画像は1回の`fetch`で得たBlob URLをDocument単位cacheへ保持し、decodeと表示要素を同じBlob URLへ接続する。fetch/Blob準備失敗時だけ元logical URLへfallbackする。
   - `waitForInitialBoardVisualReady()` がready確認済みcontrollerを返すか、その直後に `uiBootstrap.getBoardVisualController()` で同じinstanceを取得し、schedulerへ明示dependencyとして渡す。global探索は追加しない。
   - schedulerはinit chainからawaitしないbackground taskとして開始し、渡されたcontrollerの既存 `waitForIdle()` で最新idle frame settlementまで待ってからidle prefetchを予約する。listener登録、保存session復帰、`uiInitialized` を待たせず、内部errorは診断化してunhandled rejectionを出さない。
   - `requestIdleCallback` または代替timerのcallback時にもcontrollerの `getMode()==='idle'` と `isIdleSettlementPending()===false` を再確認し、playback/recovery/新しいsettlement中なら次のidleまで再予約する。
@@ -262,6 +264,10 @@
   - `npm run worker:prepare`
   - `npm run check:worker-mirror`
 - done: 初期help約325KBがcritical path外、即時openで枠ずれ/操作不能なし、idle後openで追加body転送なし。
+- implementation review:
+  - 初回captureではdetached `Image`と表示`img`が同じHTTP URLを使った時に両laneで325,700 bytesを再転送し、HTTP cache再利用の前提が成立しないことを検出した。Document単位のlogical cacheを1回の`fetch`で得たBlob URLへ変更し、decodeと表示を共有するよう正本と実装を修正した。
+  - 修正後のfocused captureではVite/classicともfirst-frame前request 0、取得logical path 2、encoded body合計325,100 bytes、CLS 0だった。即時open latencyはVite 103.9ms / classic 70.4ms、idle後openはVite 42.3ms / classic 43.6msで、idle後openの追加resource entryと追加transferはいずれも0だった。
+  - Vite/classic実画面でguide 1→2、耐性貫通表、alt、busy解除、タブ内focusを操作し、画像枠と表示崩れがないことを確認した。画像B準備中に現画像Aへ戻した場合のstale completion競合もレビューで検出し、要求世代を毎操作で更新する回帰testを追加した。
 
 ### Step 2.3: DOM互換CSSをbackend選択時だけ読む
 
@@ -695,7 +701,7 @@ git status --short
 - [x] explicit DOM、初期Pixi失敗、context lossの特殊石fallbackを維持（CSS遅延化はStep 2.4）
 - [x] lock-only hint Graphics paintを0にし、入力lock/unlockを維持
 - [x] Vite/root logical imageのbody重複を0にする
-- [ ] 初期help imageをcritical path外へ移し、即時/idle後openを維持
+- [x] 初期help imageをcritical path外へ移し、即時/idle後openを維持
 - [ ] 通常PixiのDOM compatibility CSS request/evaluationを0にする
 - [ ] WebP共通pipeline、画素/容量/decode admission、PNG fallbackを実装
 - [ ] default board frame候補を正式審査し、合否をmanifestへ確定

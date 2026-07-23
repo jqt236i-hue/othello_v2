@@ -119,7 +119,7 @@ async function installBoardPerformanceHarnessIfRequested(): Promise<void> {
   }
 }
 
-async function waitForInitialBoardVisualReady(uiBootstrap: typeof UIBootstrap | null): Promise<void> {
+async function waitForInitialBoardVisualReady(uiBootstrap: typeof UIBootstrap | null): Promise<any> {
   if (!uiBootstrap || typeof uiBootstrap.getBoardVisualController !== 'function') {
     throw new Error('board_visual_controller_api_unavailable');
   }
@@ -144,6 +144,7 @@ async function waitForInitialBoardVisualReady(uiBootstrap: typeof UIBootstrap | 
   if (!controller.getVisualFrameDigest()) {
     throw new Error('board_visual_initial_frame_unavailable');
   }
+  return controller;
 }
 
 interface InitDomElements {
@@ -313,10 +314,23 @@ async function initializeUI(): Promise<void> {
     await initGameSystems();
   }
 
-  await waitForInitialBoardVisualReady(uiBootstrap);
+  const boardVisualController = await waitForInitialBoardVisualReady(uiBootstrap);
 
   if (typeof attachInitEventListeners === 'function') {
     attachInitEventListeners(refs, debugAllowed);
+  }
+
+  const rulesHelpModule = requireInitHandlerModuleOrNull('./rules-help');
+  if (
+    rulesHelpModule
+    && typeof rulesHelpModule.scheduleInitialHelpImageIdlePrefetch === 'function'
+    && boardVisualController
+    && typeof boardVisualController.waitForIdle === 'function'
+    && typeof document !== 'undefined'
+  ) {
+    rulesHelpModule.scheduleInitialHelpImageIdlePrefetch(boardVisualController, {
+      documentRef: document
+    });
   }
 
   if (!isBoardPerformanceStartup() && typeof restoreStoredNetworkSessionOnBoot === 'function') {

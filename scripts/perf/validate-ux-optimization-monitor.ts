@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import {
+  UX_OPTIMIZATION_CAPTURE_POLICY,
   UX_OPTIMIZATION_CAPTURE_POLICY_DIGEST,
   UX_OPTIMIZATION_FORBIDDEN_REPORT_KEYS,
   UX_OPTIMIZATION_IDS,
@@ -315,6 +316,122 @@ export function validateUxOptimizationReport(
         if (relevantMutations.length > 0) {
           reasons.push(
             `logical boot images mutated src ${relevantMutations.length} time(s)`
+          );
+        }
+      }
+    }
+    if (
+      scenario.captureStatus === 'complete'
+      && [
+        'boot.pixi.cold',
+        'boot.classic-pixi.cold'
+      ].includes(definition.id)
+    ) {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      if (Number(metrics.initialHelpImageSrcCount) !== 0) {
+        reasons.push(
+          `initial help image src count was ${String(metrics.initialHelpImageSrcCount)}`
+        );
+      }
+      if (metrics.initialHelpImageDimensionsReserved !== true) {
+        reasons.push('initial help image dimensions were not reserved');
+      }
+    }
+    if (
+      scenario.captureStatus === 'complete'
+      && ['help.before-idle', 'help.after-idle'].includes(definition.id)
+    ) {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      if (metrics.backend !== 'pixi') {
+        reasons.push(`help scenario backend was ${String(metrics.backend || 'missing')}`);
+      }
+      if (metrics.uiInitialized !== true) reasons.push('help listener initialization did not complete');
+      if (Number(metrics.initialSrcCount) !== 0) {
+        reasons.push(`help images had ${String(metrics.initialSrcCount)} initial src attribute(s)`);
+      }
+      if (metrics.dimensionsReserved !== true) reasons.push('help image dimensions were not reserved');
+      if (metrics.panelOpen !== true) reasons.push('rules help panel did not open');
+      if (metrics.guideComplete !== true || metrics.protectionComplete !== true) {
+        reasons.push('initial help images were not complete after open');
+      }
+      if (metrics.guideFrameVisible !== true || metrics.protectionFrameVisible !== true) {
+        reasons.push('help image frame was not visibly reserved');
+      }
+      if (Number(metrics.guideDimensions?.width) !== 1920
+          || Number(metrics.guideDimensions?.height) !== 1080) {
+        reasons.push('guide image dimensions did not match the reserved 1920x1080 box');
+      }
+      if (Number(metrics.protectionDimensions?.width) !== 1600
+          || Number(metrics.protectionDimensions?.height) !== 1080) {
+        reasons.push('protection image dimensions did not match the reserved 1600x1080 box');
+      }
+      if (metrics.focusWithinPanel !== true) reasons.push('help focus did not remain within the panel');
+      if (Number(metrics.helpRequestsBeforeFirstFrame) !== 0) {
+        reasons.push(
+          `help requests before first frame: ${String(metrics.helpRequestsBeforeFirstFrame)}`
+        );
+      }
+      if (Number(metrics.helpResourcePathCount) !== 2) {
+        reasons.push(`initial help resource path count was ${String(metrics.helpResourcePathCount)}`);
+      }
+      if (Number(metrics.helpEncodedBodyBytes) < 300_000) {
+        reasons.push(`initial help encoded bytes were ${String(metrics.helpEncodedBodyBytes)}`);
+      }
+      if (
+        typeof metrics.clsDelta !== 'number'
+        || !Number.isFinite(metrics.clsDelta)
+        || metrics.clsDelta > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.cls
+      ) {
+        reasons.push(`help first-open CLS was ${String(metrics.clsDelta)}`);
+      }
+      if (
+        typeof metrics.firstOpenLatencyMs !== 'number'
+        || !Number.isFinite(metrics.firstOpenLatencyMs)
+        || metrics.firstOpenLatencyMs
+          > UX_OPTIMIZATION_CAPTURE_POLICY.timingThresholds.featureReadyP95Ms
+      ) {
+        reasons.push(`help first-open latency was ${String(metrics.firstOpenLatencyMs)}ms`);
+      }
+
+      const beforeOpenPaths = Array.isArray(metrics.helpResponsePathsBeforeOpen)
+        ? metrics.helpResponsePathsBeforeOpen
+        : [];
+      const afterOpenPaths = Array.isArray(metrics.helpResponsePathsAfterOpen)
+        ? metrics.helpResponsePathsAfterOpen
+        : [];
+      if (afterOpenPaths.length !== 2) {
+        reasons.push(`help response paths after open were ${afterOpenPaths.length}`);
+      }
+      if (definition.id === 'help.before-idle') {
+        if (beforeOpenPaths.length !== 0 || Number(metrics.helpResourceEntriesBeforeOpen) !== 0) {
+          reasons.push('immediate help open was preceded by help image loading');
+        }
+        if (Number(metrics.pendingIdleCallbackCount) <= 0) {
+          reasons.push('immediate help open did not exercise a pending idle prefetch');
+        }
+      } else {
+        if (beforeOpenPaths.length !== 2 || Number(metrics.helpResourceEntriesBeforeOpen) < 2) {
+          reasons.push('idle help prefetch did not finish before open');
+        }
+        if (
+          typeof metrics.boardIdleAtMs !== 'number'
+          || !Number.isFinite(metrics.boardIdleAtMs)
+          || typeof metrics.idlePrefetchAtMs !== 'number'
+          || !Number.isFinite(metrics.idlePrefetchAtMs)
+          || typeof metrics.earliestHelpResourceStartMs !== 'number'
+          || !Number.isFinite(metrics.earliestHelpResourceStartMs)
+          || metrics.idlePrefetchAtMs < metrics.boardIdleAtMs
+          || metrics.earliestHelpResourceStartMs < metrics.idlePrefetchAtMs
+        ) {
+          reasons.push('help idle prefetch started before the board-idle boundary');
+        }
+        if (Number(metrics.additionalHelpTransferSizeAfterOpen) !== 0) {
+          reasons.push(
+            `idle-after open transferred ${String(metrics.additionalHelpTransferSizeAfterOpen)} extra bytes`
           );
         }
       }
