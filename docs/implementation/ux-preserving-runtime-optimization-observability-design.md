@@ -310,6 +310,7 @@ featureは `result → profile → rules-help → deck-builder → network` の�
 - profile、deck-builder、networkはinner refsの配線後、DOM外で保持していた保存済みUI model、選択状態、network clientの接続状態を再投影してからinteractive stateへ移る。
 - network surfaceは明示的なmode選択だけでなく、`restoreStoredNetworkSessionOnBoot()` が保存sessionを検出した時も復帰試行より先に準備する。既存public APIにはsession有無を秘密情報なしで読む方法がないため、`NetworkMatchClient.hasRestorableStoredSession(): boolean` を追加し、内部 `readStoredSession()` の内容をUIへ公開しない。判定後に別tab等でsessionが消えた場合の `NO_STORED_SESSION` は正常なno-opとする。保存sessionなしではsurfaceを生成せず、surface準備失敗時は復帰を開始せず保存sessionを再試行用に残す。復帰試行後の成功/失敗statusはready済みviewへ投影する。
 - 同時open要求は同じPromiseへ合流し、二重listener、二重DOM、二重stylesheetを作らない。
+- CSSとDOMは同じsurface attemptとして準備し、attempt contextは `AbortSignal` とLIFO cleanup登録を提供する。stylesheetが `{ ok: false }`、DOM factory、またはready hookのいずれで失敗してもsignalをabortし、途中DOM/listenerをcleanupしたうえで当該feature stylesheet linkとDocument cacheを破棄する。次回操作は新しいattemptと新しいlinkで再試行し、失敗したPromiseや成功形の途中DOMを再利用しない。
 - result以外のload失敗は閉じられるエラーshellを表示し、再openで再試行できる。resultは最小critical CSSで終局内容と主要操作を必ず表示する。空、未装飾、操作不能の成功画面を作らない。
 - open→close→openでフォーカス返却、ESC、backdrop、tab order、scroll位置、保存済みUI stateを維持する。
 - first-open中に50ms以上のアプリ起因Long Taskを作らず、result以外はdesktop local配信のinteractive ready p95を250ms以内とする。resultは意図された2秒表示待機を変えず、stylesheet preparation自体のp95を250ms以内とする。CIでは時間をadvisory、構造と操作をblockingにする。

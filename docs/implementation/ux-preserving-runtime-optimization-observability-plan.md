@@ -431,6 +431,11 @@
   - `npm run check:worker-mirror`
   - `git diff --check`
 - done: 共通loaderのunit contractが成立し、feature個別コードが独自Promise/cache/error処理を複製しない。
+- implementation review:
+  - `01-rulebook.md` へ5 featureの初回準備、既存操作継続、再操作retryと、resultのcritical表示・従来timing/BGM維持を先行追記した。ゲームルール、カード、盤面演出の `正本/` は変更していない。
+  - `lazy-feature-surface.ts` はDocument単位のpending/ready/failed、同時Promise合流、ready DOM保持、retry attemptを共通化した。attempt contextの `AbortSignal`、LIFO cleanup、debug-only DOM/listener/count診断により、通常プレイでは診断stateを作らない。
+  - 既存stylesheet loaderに処理中・成功済みlinkをcacheごと破棄する `discardFeatureStylesheet()` を追加した。CSS `{ ok: false }`、DOM factory、ready hookの失敗時は途中DOM/listener/styleを破棄し、次回操作が新しいlinkから再試行できる。
+  - typecheck、focused 2 suite/9 test、Vite build、Worker mirror 916 filesが合格した。Chromium/Firefox/WebKitのdesktop/mobile、Pixi/DOM計12 browser scenarioでも操作smoke、writer exclusivity、page/console/resource error 0を確認した。
 
 ### Step 4.2: リザルト
 
@@ -730,7 +735,7 @@ git status --short
 - [x] 通常PixiのDOM compatibility CSS request/evaluationを0にする
 - [x] WebP共通pipeline、画素/容量/decode admission、PNG fallbackを実装
 - [x] default board frame候補を正式審査し、合否をmanifestへ確定
-- [ ] `01-rulebook.md` に共通初回準備契約を先行追記
+- [x] `01-rulebook.md` に共通初回準備契約を先行追記
 - [ ] result CSSを遅延準備
 - [ ] profile inner DOM/CSSを遅延生成
 - [ ] rules-help inner DOM/CSS/imagesを遅延生成

@@ -1,5 +1,6 @@
 import { JSDOM } from 'jsdom';
 import {
+  discardFeatureStylesheet,
   ensureFeatureStylesheet,
   getFeatureStylesheetHref
 } from '../ui/assets/feature-stylesheet-loader';
@@ -63,6 +64,33 @@ describe('feature stylesheet loader', () => {
     expect(getFeatureStylesheetHref('network', dom.window.document)).toBe(
       'https://example.test/styles-feature-network.css?v=98765'
     );
+    dom.window.close();
+  });
+
+  test('discards an in-flight link and lets the next request start fresh', async () => {
+    const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {
+      url: 'https://example.test/'
+    });
+    const { document } = dom.window;
+
+    const first = ensureFeatureStylesheet('network', document);
+    const firstLink = document.querySelector(
+      'link[data-card-reversi-feature-style="network"]'
+    ) as HTMLLinkElement;
+    expect(discardFeatureStylesheet('network', document)).toBe(true);
+    await expect(first).resolves.toEqual(expect.objectContaining({
+      ok: false,
+      warning: 'discarded stylesheet for network'
+    }));
+    expect(firstLink.isConnected).toBe(false);
+
+    const retry = ensureFeatureStylesheet('network', document);
+    const retryLink = document.querySelector(
+      'link[data-card-reversi-feature-style="network"]'
+    ) as HTMLLinkElement;
+    expect(retryLink).not.toBe(firstLink);
+    retryLink.dispatchEvent(new dom.window.Event('load'));
+    await expect(retry).resolves.toEqual(expect.objectContaining({ ok: true }));
     dom.window.close();
   });
 

@@ -454,6 +454,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/animation-utils": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/animation-utils.js"),
   "ui/assets/background-image-codec": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/background-image-codec.js"),
   "ui/assets/feature-stylesheet-loader": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/feature-stylesheet-loader.js"),
+  "ui/assets/lazy-feature-surface": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/lazy-feature-surface.js"),
   "ui/assets/logical-image-source": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/logical-image-source.js"),
   "ui/assets/optimized-backgrounds.generated": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/optimized-backgrounds.generated.js"),
   "ui/assets/optimized-image-codec": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/assets/optimized-image-codec.js"),
@@ -1132,6 +1133,7 @@ installBootModuleMetadata({
     "ui/animation-utils",
     "ui/assets/background-image-codec",
     "ui/assets/feature-stylesheet-loader",
+    "ui/assets/lazy-feature-surface",
     "ui/assets/logical-image-source",
     "ui/assets/optimized-backgrounds.generated",
     "ui/assets/optimized-image-codec",
@@ -1448,4 +1450,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 673;
+export const startupModuleCount = 674;
