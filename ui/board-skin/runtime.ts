@@ -35,6 +35,22 @@ interface BoardSkinCatalogModule {
   getBoardFrameSkinDefinition?: (skinId: string, rootRef: Window) => BoardSkinDefinition | null;
 }
 
+interface OptimizedImageCodecModule {
+  getOptimizedImagePath?: (
+    sourcePath: string,
+    mapping: Readonly<Record<string, string>>
+  ) => string | null;
+  resolveOptimizedImagePath?: (
+    rootRef: Window | null,
+    sourcePath: string,
+    mapping: Readonly<Record<string, string>>
+  ) => Promise<string>;
+}
+
+interface OptimizedUiImagesModule {
+  OPTIMIZED_UI_IMAGES?: Readonly<Record<string, string>>;
+}
+
 interface CustomSkinImageSourceDescriptor {
   role: string;
   url: string;
@@ -92,6 +108,8 @@ interface BoardDisplayLeaseState {
 const FALLBACK_BOARD_SKIN_ID = 'bluegreen-felt';
 const FALLBACK_BOARD_FRAME_SKIN_ID = 'marsh-forged-iron';
 const displayLeaseStates = new WeakMap<object, BoardDisplayLeaseState>();
+const frameImageGenerations = new WeakMap<object, symbol>();
+const pendingFrameApplications = new WeakMap<object, Promise<BoardSkinDefinition | null>>();
 
 function resolveRootRef(rootRef: Window | null | undefined): Window | null {
   if (rootRef && typeof rootRef === 'object') return rootRef;
@@ -146,6 +164,31 @@ function resolveCustomSkinStorageModule(rootRef: Window | null | undefined): Cus
   } catch (e) {
     return null;
   }
+}
+
+function resolveOptimizedImageRuntime(): {
+  codec: OptimizedImageCodecModule;
+  mapping: Readonly<Record<string, string>>;
+} | null {
+  try {
+    const codec = _require('../assets/optimized-image-codec') as OptimizedImageCodecModule;
+    const generated = _require('../assets/optimized-ui-images.generated') as OptimizedUiImagesModule;
+    if (
+      codec
+      && typeof codec.getOptimizedImagePath === 'function'
+      && typeof codec.resolveOptimizedImagePath === 'function'
+      && generated
+      && generated.OPTIMIZED_UI_IMAGES
+    ) {
+      return {
+        codec,
+        mapping: generated.OPTIMIZED_UI_IMAGES
+      };
+    }
+  } catch (e) {
+    /* PNG remains the safe runtime path when the optional mapping is unavailable. */
+  }
+  return null;
 }
 
 function fnv1a32Text(value: string): string {
@@ -304,10 +347,11 @@ function releaseAppliedBoardSkinLeases(rootRef: Window | null | undefined): void
   const root = resolveRootRef(rootRef);
   if (!root || typeof root !== 'object') return;
   const state = displayLeaseStates.get(root);
-  if (!state) return;
-  if (state.board && state.board.lease) state.board.lease.release();
-  if (state.frame && state.frame.lease) state.frame.lease.release();
+  if (state?.board?.lease) state.board.lease.release();
+  if (state?.frame?.lease) state.frame.lease.release();
   displayLeaseStates.delete(root);
+  frameImageGenerations.set(root, Symbol('board-frame:released'));
+  pendingFrameApplications.delete(root);
 }
 
 function cssUrl(path: string): string {
@@ -360,26 +404,89 @@ function applyBoardSkin(rootRef: Window | null | undefined, skinId: string): Boa
 }
 
 function applyBoardFrameSkin(rootRef: Window | null | undefined, skinId: string): BoardSkinDefinition | null {
+  return beginBoardFrameSkinApplication(rootRef, skinId).definition;
+}
+
+function beginBoardFrameSkinApplication(
+  rootRef: Window | null | undefined,
+  skinId: string
+): {
+  definition: BoardSkinDefinition | null;
+  ready: Promise<BoardSkinDefinition | null>;
+} {
   const ctx = resolveRootRef(rootRef);
   const docRef = resolveDocument(ctx);
   const catalogModule = resolveCatalogModule(ctx);
   const definition = catalogModule && typeof catalogModule.getBoardFrameSkinDefinition === 'function'
     ? catalogModule.getBoardFrameSkinDefinition(skinId, ctx as Window)
     : null;
-  if (!docRef || !definition || !docRef.documentElement) return null;
+  if (!docRef || !definition || !docRef.documentElement) {
+    return {
+      definition: null,
+      ready: Promise.resolve(null)
+    };
+  }
   const rootEl = docRef.documentElement;
   const frameEl = docRef.getElementById('board-frame') as HTMLElement | null;
-  swapDisplayLease(ctx, 'frame', `${definition.id}|${definition.imagePath}`, definition.id, [definition.imagePath], () => {
-    rootEl.setAttribute('data-board-frame-skin-id', definition.id);
-    rootEl.style.setProperty('--board-frame-image', cssUrl(definition.imagePath));
-    applyBoardFrameLayoutVars(rootEl as HTMLElement, definition.layout);
-    if (frameEl) {
-      frameEl.setAttribute('data-board-frame-skin-id', definition.id);
-      frameEl.style.setProperty('--board-frame-image', cssUrl(definition.imagePath));
-      applyBoardFrameLayoutVars(frameEl, definition.layout);
-    }
-  });
-  return definition;
+  const rootKey = ctx && typeof ctx === 'object' ? ctx as unknown as object : null;
+  const requestToken = Symbol(`board-frame:${definition.id}`);
+  if (rootKey) frameImageGenerations.set(rootKey, requestToken);
+  const applyResolvedImage = (resolvedPath: string): BoardSkinDefinition | null => {
+    if (rootKey && frameImageGenerations.get(rootKey) !== requestToken) return null;
+    swapDisplayLease(
+      ctx,
+      'frame',
+      `${definition.id}|${definition.imagePath}|${resolvedPath}`,
+      definition.id,
+      [definition.imagePath],
+      () => {
+        rootEl.setAttribute('data-board-frame-skin-id', definition.id);
+        rootEl.style.setProperty('--board-frame-image', cssUrl(resolvedPath));
+        applyBoardFrameLayoutVars(rootEl as HTMLElement, definition.layout);
+        if (frameEl) {
+          frameEl.setAttribute('data-board-frame-skin-id', definition.id);
+          frameEl.style.setProperty('--board-frame-image', cssUrl(resolvedPath));
+          applyBoardFrameLayoutVars(frameEl, definition.layout);
+        }
+      }
+    );
+    return definition;
+  };
+
+  const optimizedRuntime = resolveOptimizedImageRuntime();
+  const optimizedPath = optimizedRuntime?.codec.getOptimizedImagePath?.(
+    definition.imagePath,
+    optimizedRuntime.mapping
+  ) || null;
+  let ready: Promise<BoardSkinDefinition | null>;
+  if (!optimizedRuntime || !optimizedPath) {
+    ready = Promise.resolve(applyResolvedImage(definition.imagePath));
+  } else {
+    ready = Promise.resolve(
+      optimizedRuntime.codec.resolveOptimizedImagePath!(
+        ctx,
+        definition.imagePath,
+        optimizedRuntime.mapping
+      )
+    ).catch(() => definition.imagePath).then(applyResolvedImage);
+  }
+  if (rootKey) pendingFrameApplications.set(rootKey, ready);
+  return { definition, ready };
+}
+
+function prepareBoardFrameSkin(
+  rootRef: Window | null | undefined,
+  skinId: string
+): Promise<BoardSkinDefinition | null> {
+  return beginBoardFrameSkinApplication(rootRef, skinId).ready;
+}
+
+function waitForPendingBoardFrameSkin(
+  rootRef: Window | null | undefined
+): Promise<BoardSkinDefinition | null> {
+  const root = resolveRootRef(rootRef);
+  if (!root || typeof root !== 'object') return Promise.resolve(null);
+  return pendingFrameApplications.get(root as unknown as object) || Promise.resolve(null);
 }
 
 function syncDisplayedBoardSkin(rootRef: Window | null | undefined, preferredSkinId: string | null | undefined): BoardSkinDefinition | null {
@@ -405,6 +512,8 @@ export = {
   resolveDocument,
   applyBoardSkin,
   applyBoardFrameSkin,
+  prepareBoardFrameSkin,
+  waitForPendingBoardFrameSkin,
   resolveBoardSkinResourceDescriptor,
   resolveBoardFrameSkinResourceDescriptor,
   releaseAppliedBoardSkinLeases,

@@ -50,7 +50,7 @@
     --board-contour-highlight: rgba(212, 184, 112, 0.86);
     --board-contour-metal: rgba(55, 49, 38, 0.98);
     --board-contour-shadow: rgba(3, 7, 6, 0.96);
-    --board-frame-image: url("assets/images/board/board-frame-marsh-forged-iron-v1.png");
+    --board-frame-image: none;
     --board-frame-art-overhang: calc(34px * var(--layout-stage-scale));
     --board-frame-art-overhang-top: var(--board-frame-art-overhang);
     --board-frame-art-overhang-bottom: var(--board-frame-art-overhang);

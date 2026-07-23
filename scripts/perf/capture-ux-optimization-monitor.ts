@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import {
   chromium,
   type Browser,
@@ -51,10 +52,15 @@ const COMPLETED_OPTIMIZATION_IDS = new Set([
   'lock-only-hint-paint',
   'logical-image-deduplication',
   'help-image-lazy-loading',
-  'dom-compat-stylesheet-lazy-loading'
+  'dom-compat-stylesheet-lazy-loading',
+  'lossless-webp-admission'
 ]);
 const SPECIAL_STONE_PATH_PREFIX = 'assets/images/special-stones/';
 const DOM_COMPAT_STYLESHEET_PATH = 'styles-board-dom-compat.css';
+const DEFAULT_FRAME_PNG_PATH =
+  'assets/images/board/board-frame-marsh-forged-iron-v1.png';
+const DEFAULT_FRAME_WEBP_PATH =
+  'assets/images/board/board-frame-marsh-forged-iron-v1.webp';
 const INITIAL_HELP_IMAGE_PATHS = Object.freeze([
   'assets/images/help/player-guide/card-reversi-player-guide-slide-01.png',
   'assets/images/help/protection-penetration/protection-penetration-quick-reference.png'
@@ -89,6 +95,7 @@ interface BootRuntime {
   readonly context: BrowserContext;
   readonly page: Page;
   readonly errors: BrowserErrorEvidence[];
+  readonly requestPaths: string[];
   readonly responsePaths: string[];
 }
 
@@ -229,6 +236,7 @@ async function openBootRuntime(
   });
   const page = await context.newPage();
   const errors: BrowserErrorEvidence[] = [];
+  const requestPaths: string[] = [];
   const responsePaths: string[] = [];
   page.on('pageerror', (error) => {
     errors.push({ kind: 'page', path: 'document', message: error.message });
@@ -236,6 +244,10 @@ async function openBootRuntime(
   page.on('console', (message) => {
     if (message.type() !== 'error') return;
     errors.push({ kind: 'console', path: 'document', message: message.text() });
+  });
+  page.on('request', (request) => {
+    const resourcePath = relativeResourcePath(request.url(), baseUrl);
+    if (resourcePath) requestPaths.push(resourcePath);
   });
   page.on('response', (response) => {
     const resourcePath = relativeResourcePath(response.url(), baseUrl);
@@ -295,7 +307,7 @@ async function openBootRuntime(
     }
   });
   await markProbePhase(page, 'board-idle');
-  return { context, page, errors, responsePaths };
+  return { context, page, errors, requestPaths, responsePaths };
 }
 
 async function closeBootRuntime(runtime: BootRuntime, closeContext: boolean): Promise<void> {
@@ -1274,6 +1286,178 @@ async function captureHelpOptimizationScenario(
   }
 }
 
+type FrameAssetVariant = 'normal-webp' | 'forced-png' | 'forced-webp-failure';
+
+function countPath(paths: readonly string[], expectedPath: string): number {
+  return paths.filter((entry) => entry === expectedPath).length;
+}
+
+async function readFrameAssetRuntimeEvidence(
+  runtime: BootRuntime,
+  variant: FrameAssetVariant,
+  failedRequestPaths: readonly string[] = []
+): Promise<Readonly<Record<string, unknown>>> {
+  await runtime.page.waitForFunction(() => {
+    const frame = document.getElementById('board-frame');
+    return !!frame && getComputedStyle(frame, '::before').backgroundImage !== 'none';
+  }, null, { timeout: 60_000 });
+  const visual = await runtime.page.evaluate(() => {
+    const frame = document.getElementById('board-frame') as HTMLElement | null;
+    const root = document.documentElement;
+    const debug = (window as any).__boardVisualDebug;
+    const backend = String(
+      debug?.getBackendKind?.()
+      || root.getAttribute('data-board-visual-backend')
+      || 'none'
+    );
+    const diagnostics = debug?.getBackendDiagnostics?.() || null;
+    const rect = frame?.getBoundingClientRect();
+    return {
+      backend,
+      singleWriter: backend === 'pixi' && Number(diagnostics?.canvasCount || 0) === 1,
+      uiInitialized: (window as any).__uiInitialized === true,
+      rootSkinId: root.getAttribute('data-board-frame-skin-id') || '',
+      elementSkinId: frame?.getAttribute('data-board-frame-skin-id') || '',
+      rootCssValue: root.style.getPropertyValue('--board-frame-image'),
+      elementCssValue: frame?.style.getPropertyValue('--board-frame-image') || '',
+      computedBackgroundImage: frame
+        ? getComputedStyle(frame, '::before').backgroundImage
+        : 'none',
+      visiblySized: Number(rect?.width || 0) > 0 && Number(rect?.height || 0) > 0
+    };
+  });
+  const screenshot = await runtime.page.locator('#board-frame').screenshot({
+    type: 'png',
+    animations: 'disabled'
+  });
+  return Object.freeze({
+    variant,
+    ...visual,
+    frameWebpRequestCount: countPath(runtime.requestPaths, DEFAULT_FRAME_WEBP_PATH),
+    framePngRequestCount: countPath(runtime.requestPaths, DEFAULT_FRAME_PNG_PATH),
+    frameWebpResponseCount: countPath(runtime.responsePaths, DEFAULT_FRAME_WEBP_PATH),
+    framePngResponseCount: countPath(runtime.responsePaths, DEFAULT_FRAME_PNG_PATH),
+    failedWebpRequestCount: countPath(failedRequestPaths, DEFAULT_FRAME_WEBP_PATH),
+    browserErrorCount: runtime.errors.length,
+    visualScreenshotSha256: crypto.createHash('sha256').update(screenshot).digest('hex')
+  });
+}
+
+async function captureFrameAssetVariant(
+  browser: Browser,
+  baseUrl: string,
+  definition: UxOptimizationScenarioCaptureDefinition,
+  variant: FrameAssetVariant
+): Promise<Readonly<Record<string, unknown>>> {
+  const failedRequestPaths: string[] = [];
+  const runtime = await openBootRuntime(browser, baseUrl, definition, undefined, {
+    beforeGoto: async (page) => {
+      page.on('requestfailed', (request) => {
+        const resourcePath = relativeResourcePath(request.url(), baseUrl);
+        if (resourcePath) failedRequestPaths.push(resourcePath);
+      });
+      if (variant === 'forced-png') {
+        await page.addInitScript(() => {
+          const nativeDecode = HTMLImageElement.prototype.decode;
+          HTMLImageElement.prototype.decode = function decodeWithForcedWebpUnsupported() {
+            const source = String(this.currentSrc || this.src || '');
+            if (source.startsWith('data:image/webp')) {
+              return Promise.reject(new Error('ux-monitor-forced-webp-unsupported'));
+            }
+            return typeof nativeDecode === 'function'
+              ? nativeDecode.call(this)
+              : Promise.resolve();
+          };
+        });
+      }
+      if (variant === 'forced-webp-failure') {
+        await page.route(`**/${DEFAULT_FRAME_WEBP_PATH}`, (route) => route.abort('failed'));
+      }
+    }
+  });
+  try {
+    return await readFrameAssetRuntimeEvidence(runtime, variant, failedRequestPaths);
+  } finally {
+    await closeBootRuntime(runtime, true);
+  }
+}
+
+function readOptimizedFrameAdmissionEvidence(
+  rootDir: string
+): Readonly<Record<string, unknown>> {
+  const manifestPath = path.join(
+    rootDir,
+    'assets',
+    'images',
+    'optimized-ui-images.json'
+  );
+  const manifestBody = fs.readFileSync(manifestPath);
+  const manifest = JSON.parse(manifestBody.toString('utf8')) as {
+    schemaVersion?: number;
+    codec?: string;
+    minimumSavingsRatio?: number;
+    admittedMapping?: Record<string, string>;
+    images?: Array<Record<string, any>>;
+  };
+  const frame = (manifest.images || []).find(
+    (entry) => entry.source === DEFAULT_FRAME_PNG_PATH
+  );
+  if (!frame) throw new Error('Optimized UI image manifest is missing the default frame');
+  const sourceBody = fs.readFileSync(path.join(rootDir, DEFAULT_FRAME_PNG_PATH));
+  const outputBody = fs.readFileSync(path.join(rootDir, DEFAULT_FRAME_WEBP_PATH));
+  return Object.freeze({
+    manifestSha256: crypto.createHash('sha256').update(manifestBody).digest('hex'),
+    schemaVersion: manifest.schemaVersion ?? null,
+    codec: manifest.codec || '',
+    minimumSavingsRatio: Number(manifest.minimumSavingsRatio),
+    admittedMappingOutput: manifest.admittedMapping?.[DEFAULT_FRAME_PNG_PATH] || '',
+    sourceBytes: Number(frame.sourceBytes),
+    outputBytes: Number(frame.outputBytes),
+    savingsRatio: Number(frame.savingsRatio),
+    visiblePixelsEqual: frame.visiblePixelsEqual === true,
+    width: Number(frame.width),
+    height: Number(frame.height),
+    sourceSha256: String(frame.sourceSha256 || ''),
+    outputSha256: String(frame.outputSha256 || ''),
+    actualSourceSha256: crypto.createHash('sha256').update(sourceBody).digest('hex'),
+    actualOutputSha256: crypto.createHash('sha256').update(outputBody).digest('hex'),
+    admissionStatus: String(frame.admission?.status || ''),
+    hardwareDecode: frame.measurement?.hardwareDecode || null
+  });
+}
+
+async function captureWebpAdmissionScenario(
+  browser: Browser,
+  baseUrl: string,
+  rootDir: string,
+  definition: UxOptimizationScenarioCaptureDefinition
+): Promise<Readonly<Record<string, unknown>>> {
+  const normalRuntime = await openBootRuntime(browser, baseUrl, definition);
+  try {
+    const normal = await readFrameAssetRuntimeEvidence(normalRuntime, 'normal-webp');
+    const forcedPng = await captureFrameAssetVariant(
+      browser,
+      baseUrl,
+      definition,
+      'forced-png'
+    );
+    const forcedWebpFailure = await captureFrameAssetVariant(
+      browser,
+      baseUrl,
+      definition,
+      'forced-webp-failure'
+    );
+    return await captureRuntimeSnapshot(normalRuntime, definition, {
+      admission: readOptimizedFrameAdmissionEvidence(rootDir),
+      normal,
+      forcedPng,
+      forcedWebpFailure
+    });
+  } finally {
+    await closeBootRuntime(normalRuntime, true);
+  }
+}
+
 async function captureNormalPlayIsolation(
   browser: Browser,
   baseUrl: string
@@ -1411,6 +1595,16 @@ export async function captureUxOptimizationMonitor(
     for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
       if (!['help.before-idle', 'help.after-idle'].includes(definition.id)) continue;
       replaceScenario(await captureHelpOptimizationScenario(browser, baseUrl, definition));
+    }
+
+    for (const definition of UX_OPTIMIZATION_SCENARIO_CAPTURES) {
+      if (definition.id !== 'asset.webp-fallback') continue;
+      replaceScenario(await captureWebpAdmissionScenario(
+        browser,
+        baseUrl,
+        rootDir,
+        definition
+      ));
     }
 
     const normalPlayIsolation = await captureNormalPlayIsolation(browser, baseUrl);

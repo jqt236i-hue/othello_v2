@@ -180,7 +180,6 @@ describe('board skin controller', () => {
     const expected: Array<[string, string]> = [
       ['compact-iron-clean-corners', 'assets/images/board/board-frame-compact-iron-clean-corners-v3.png'],
       ['compact-gold-clean-corners', 'assets/images/board/board-frame-compact-gold-clean-corners-v3.png'],
-      ['marsh-forged-iron', 'assets/images/board/board-frame-marsh-forged-iron-v1.png'],
       ['submerged-wood', 'assets/images/board/board-frame-submerged-wood-v1.png'],
       ['swamp-ruin-stone', 'assets/images/board/board-frame-swamp-ruin-stone-v1.png'],
       ['shadow-vine-lacquer', 'assets/images/board/board-frame-shadow-vine-lacquer-v1.png']

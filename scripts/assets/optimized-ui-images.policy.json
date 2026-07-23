@@ -6,12 +6,26 @@
       "source": "assets/images/board/board-frame-marsh-forged-iron-v1.png",
       "criticalPath": true,
       "admission": {
-        "status": "pending-hardware",
-        "reason": "default board frame candidate; hardware decode admission is required before runtime mapping"
+        "status": "admitted",
+        "reason": "headful hardware desktop Chromium median decode improved by 1.25ms and passed the +2ms/+10% threshold"
       },
       "measurement": {
         "investigation": "capacity and visible-pixel checks passed during design research",
-        "hardwareDecode": null
+        "hardwareDecode": {
+          "capturedAt": "2026-07-23T10:34:41.715Z",
+          "browser": "Chrome 143.0.0.0",
+          "platform": "Windows 10 x64",
+          "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2070 (0x00001F02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+          "devicePixelRatio": 1,
+          "hardwareConcurrency": 16,
+          "sampleCountPerFormat": 12,
+          "order": "alternating",
+          "pngMedianMs": 12,
+          "webpMedianMs": 10.75,
+          "deltaMs": -1.25,
+          "allowedDeltaMs": 2,
+          "verdict": "admitted"
+        }
       }
     },
     {

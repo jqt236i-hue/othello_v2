@@ -14,6 +14,7 @@ import type { GameState as GameStateType } from '../../src/types';
 declare const UIBootstrap: {
   installGameDI: () => void;
   getBoardVisualController?: () => any;
+  prepareInitialBoardFrameSkin?: (rootRef?: Window) => Promise<unknown>;
 } | undefined;
 
 declare const SharedUIBootstrap: {
@@ -310,9 +311,17 @@ async function initializeUI(): Promise<void> {
     }
   } catch (e) { /* ignore */ }
 
-  if (typeof initGameSystems === 'function') {
-    await initGameSystems();
-  }
+  const gameSystemsReady = typeof initGameSystems === 'function'
+    ? Promise.resolve(initGameSystems())
+    : Promise.resolve();
+  const initialBoardFrameReady = (
+    uiBootstrap
+    && typeof uiBootstrap.prepareInitialBoardFrameSkin === 'function'
+    && typeof window !== 'undefined'
+  )
+    ? Promise.resolve(uiBootstrap.prepareInitialBoardFrameSkin(window))
+    : Promise.resolve();
+  await Promise.all([gameSystemsReady, initialBoardFrameReady]);
 
   const boardVisualController = await waitForInitialBoardVisualReady(uiBootstrap);
 

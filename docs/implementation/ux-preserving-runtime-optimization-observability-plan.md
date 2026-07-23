@@ -356,11 +356,19 @@
 - outcome: 容量だけでなくdecodeを含めて、合格画像だけをshipping mappingへ入れる。
 - canonical components:
   - monitor scenario `asset.webp-fallback`
+  - `styles-layout.css`
+  - `ui/bootstrap.ts`
+  - `ui/handlers/init.ts`
   - `ui/board-skin/runtime.ts`
+  - `test/ui.board-skin-runtime-optimized-image.test.ts`
+  - `test/ui.init.async-policy-load.test.ts`
   - asset delivery tests
 - implementation:
   - hardware desktopでPNG/WebPを交互順序、各5回以上decodeし、中央値をレポートする。
   - default frame候補が設計閾値を満たした場合だけpolicyを`admitted`にし、`ui/board-skin/runtime.ts` のCSS custom property/display lease画像解決だけが共通codecを使う。
+  - startup CSSのdefault PNG参照を画像なしへ変更し、成功時にPNGとWebPを二重取得しない。`UIBootstrap.prepareInitialBoardFrameSkin()` は保存済みframeを読み、game system初期化と並行してBoardSkinRuntimeの準備Promiseを開始する。入力listener、session復帰、`__uiInitialized` はその完了後だけ進める。
+  - WebP非対応時はPNGだけ、WebP HTTP/MIME/decode失敗時は失敗WebP一回とPNG一回だけを許可する。非同期中のframe変更はgeneration tokenで古い完了を破棄する。mappingなし、rejected、custom frameは従来の同期適用を維持する。
+  - CSS `image-set()` は先頭WebPのnetwork失敗時にChromiumがPNG候補へfallbackしない実測結果のため使用しない。
   - Pixi appearance resource配列にはframe texture roleを追加しない。Pixiは従来どおりBoardSkinRuntimeからframe layout descriptorだけを共有する。
   - 閾値を満たさない場合は`rejected`のままPNGを維持する。最適化項目の完了は「審査pipelineと明示結果」であり、不合格画像を無理に採用しない。
 - monitoring:
@@ -377,6 +385,12 @@
   - `npm run check:worker-mirror`
   - `npm run perf:ux-optimization:focused -- --target lossless-webp-admission`
 - done: admitted画像は全条件pass、rejected画像はruntime mappingに存在せず、両形式のfallbackとmirror配信が成功。
+- implementation review:
+  - Windows headful Chrome 143 / NVIDIA GeForce RTX 2070 / D3D11でPNGとlossless WebPを交互順序12回ずつdecodeした。中央値はPNG 12.00ms、WebP 10.75ms、差 -1.25msで許容差 +2ms以内だったためdefault board frameを`admitted`へ確定した。容量は1,126,115 bytesから553,268 bytesへ572,847 bytes、50.87%削減し、alpha全画素とalpha > 0のRGB一致を維持した。
+  - startup CSSのPNG直参照を除去し、`UIBootstrap.prepareInitialBoardFrameSkin()` が保存済み選択を読み、game初期化と並行してBoardSkinRuntimeのgeneration/display lease経路を完了してからinput/session/app-readyへ進むようにした。WebP成功時はfetch済みBlob URLだけ、非対応時はPNGだけ、失敗時はWebP失敗1件とPNG成功1件だけを適用する。mappingなし/rejected/custom frameは従来の同期経路を維持した。
+  - `asset.webp-fallback` をVite/classic両laneで実captureし、normalはWebP request/response 1/1・PNG 0/0、forced PNGはWebP 0/0・PNG 1/1、forced WebP failureはWebP request/failure 1/1・PNG request/response 1/1となった。全経路でPixi writer 1、既定frame ID、表示寸法、computed image、visual screenshot SHA-256を確認した。
+  - 初回focused monitorは、注入したWebP通信失敗が必ず出すChromium `ERR_FAILED` 1件をvalidatorがunexpected扱いして失敗した。失敗注入時はこの1件を必須とし、0件または複数件も拒否する契約へ修正した。同じraw captureの再validationはfocused verdict `pass`、developmentValid `true` となり、後続Phase 4の5 optimizationだけがpendingとして残った。
+  - focused unitは最大7 suite/39 test、`assets:ui-images:check`、browser build、asset delivery smoke、worker mirror 916 files、Pixi静止画19 fixture × classic/Vite × DPR 1/2が合格した。静止画digestはlane間で一致し、in-app browserでも既定frameを目視確認した。`assets:optimized:check` 全体は既知のtask外 `cinzel-400` subset coverage不足3文字でPhase 3.1と同じ位置に停止した。
 
 ## Phase 4: 非表示UIの縦割り遅延化
 
@@ -714,8 +728,8 @@ git status --short
 - [x] Vite/root logical imageのbody重複を0にする
 - [x] 初期help imageをcritical path外へ移し、即時/idle後openを維持
 - [x] 通常PixiのDOM compatibility CSS request/evaluationを0にする
-- [ ] WebP共通pipeline、画素/容量/decode admission、PNG fallbackを実装
-- [ ] default board frame候補を正式審査し、合否をmanifestへ確定
+- [x] WebP共通pipeline、画素/容量/decode admission、PNG fallbackを実装
+- [x] default board frame候補を正式審査し、合否をmanifestへ確定
 - [ ] `01-rulebook.md` に共通初回準備契約を先行追記
 - [ ] result CSSを遅延準備
 - [ ] profile inner DOM/CSSを遅延生成
@@ -765,3 +779,6 @@ git status --short
 - Phase 1.1実captureでbootstrap以外のlegacy preload 5件、初期frameが正当に要求し得る特殊石、monitorの直接frame投入競合、合成context-loss eventの不正確さを確認した。自動legacy呼出しの除去、必要logical集合による判定、writer settlement fixture、`WEBGL_lose_context` fixtureへ修正し、設計・monitor・実装を同じcommit境界へ整合させた。
 - Phase 2.1再captureで、保存済みプロフィールavatarのCSS backgroundが特殊石directoryを共有し、Phase 1.1のPixi preloadとして誤分類されることを確認した。`css` initiatorをboard判定から除外し、プロフィールfeatureのresource監視へ帰属させた。Pixi resourceの `fetch` / `img` / `other` 判定は変更しない。
 - logical image resolverのレビューで、preload未完のlogical pathへ旧画像のDOM sourceを対応付ける競合を確認した。DOM sourceの暗黙captureはelement初回だけとし、それ以後はload完了または直接applyしたsourceだけをDocument cacheへ登録する契約に修正した。
+- Phase 3.2実装前のCSS/network確認で、startup CSSがdefault PNGを先に取得するためBoardSkinRuntimeだけをWebP化すると成功時にも2 bodyになることを確認した。startup CSSを画像なしにし、game初期化と並行する初期frame preparationをapp-ready gateへ追加した。
+- CSS `image-set()` の先頭WebPをnetwork failureさせてもChromiumがPNG候補を要求しなかったため、決定的fallbackには使用せずcommon codecのWebP fetch/decode後にCSS custom propertyを一度だけ確定する設計へ修正した。
+- forced WebP failureの実captureでは想定どおりPNGへ復帰した一方、Chromiumが失敗request由来の `ERR_FAILED` を1件consoleへ出した。failure injectionのexpected faultを0件としていたvalidatorを修正し、この1件だけを必須、追加errorをfailにした。

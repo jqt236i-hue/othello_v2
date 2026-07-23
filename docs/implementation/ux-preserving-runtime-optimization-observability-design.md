@@ -285,6 +285,16 @@ decode時間は環境依存なのでCIのblocking対象にしない。画素一�
 
 default board frame候補は `ui/board-skin/runtime.ts` がCSS custom propertyへ適用するDOM/CSS資産であり、Pixiのappearance resource配列にはframe画像自体を含めない。したがってframeのWebP選択・fallbackはBoardSkinRuntime/display lease経路に限定し、`ui/pixi/appearance-resolver.ts` に存在しないframe texture roleを追加しない。Pixiは従来どおりframe layout descriptorだけを共有する。
 
+admittedされた初期frameでは、startup CSSからsource PNGを直接参照しない。CSSがPNGを先行取得した後にBoardSkinRuntimeがWebPへ切り替えると、成功時にも同一logical assetを2 body取得するためである。`styles-layout.css` の初期値は画像なしとし、`UIBootstrap.prepareInitialBoardFrameSkin()` が保存済みframe選択を読み、`ui/board-skin/runtime.ts` のgeneration管理とdisplay leaseを通して次の一経路だけを適用する。
+
+- admitted mappingあり: common codecがWebP support、HTTP、MIME、decodeを確認し、成功時は一度取得したWebP Blob URLだけをCSS custom propertyへ適用する。
+- WebP非対応: WebP bodyを要求せずsource PNGを一度だけ適用する。
+- WebP request/decode/MIME失敗: 失敗したWebP一回とsource PNG一回だけを許可し、同じDocument内の再試行を合流する。
+- mappingなし、rejected、custom frame: 従来のsource path/object URLを同期適用し、WebP経路へ入れない。
+- 非同期解決中に別frameが選ばれた場合: generation tokenが古い完了を破棄し、現在のframeとdisplay leaseを上書きしない。
+
+初期frame準備はgame system初期化と並行開始し、入力listener、保存session復帰、`__uiInitialized` より前に完了を待つ。これにより盤面準備時間を直列追加せず、app-ready時点ではframe画像とlayoutが確定する。CSS `image-set()` は先頭候補のnetwork失敗時にChromiumが次候補を取得しないことを実機確認したため、決定的なPNG fallbackには使用しない。
+
 ### G. 非表示UIの遅延生成
 
 featureは `result → profile → rules-help → deck-builder → network` の順に分割する。result overlay DOMは `ui/result-overlay.ts` が既に表示時生成するため、その契約を維持してCSSだけを遅延する。結果の勝敗・操作を必ず読める最小critical CSSはstartup側へ残し、full CSS失敗時も未装飾または非表示の結果にしない。残る4 featureは、初期HTMLにopen control、外枠、stable ID、ARIA参照、読み込み中表示に必要な最小shellだけを残す。
@@ -470,3 +480,6 @@ baselineとcandidateのfixture/scenario digest、browser/OS/GPU、viewport/DPR�
 - logical image resolverの実装レビューで、画像Bのpreload中にCへ切り替えると、Bを示すlogical属性とまだ表示中の旧source Aを誤って対応付け得ることを確認した。elementからの暗黙captureはresolver初回だけに限定し、以後はload完了または直接applyしたsourceだけをDocument cacheへ登録する。
 - first-special captureで通常のgame更新とmonitorの直接 `submitFrame()` が競合したため、公開writer settlement経路でfixture frameをcommitし、`frame:prepared`、settlement token、network deltaの順序を観測する形へ修正した。
 - 合成 `webglcontextlost` eventはPixi内部の実際のcontext-loss手順を通らず例外だけを発生させたため、既存E2Eと同じ `WEBGL_lose_context` extensionを使う実lossへ修正した。
+- Phase 3.2のsource監査でstartup CSSがdefault PNGを即時要求することを確認し、BoardSkinRuntimeだけをWebP化する当初案では成功時にもPNG/WebPの2 bodyになるため、startup CSSの画像参照除去とapp-ready前の初期frame preparationを設計へ追加した。
+- CSS `image-set()` は先頭WebPのnetwork failure時にChromiumがPNG候補へfallbackしないことを実機確認したため、common codecによるWebP検証後の単一CSS custom property適用へ限定した。
+- forced WebP failureではChromiumの `ERR_FAILED` console error 1件が必然的に発生するため、このfixtureだけは同時にPNG成功、retry 0、expected error 1件を要求し、0件・追加errorのどちらもfailとする。

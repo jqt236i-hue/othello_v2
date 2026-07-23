@@ -34,7 +34,7 @@ describe('optimized UI image policy and lossless pipeline', () => {
     )).toBe(false);
   });
 
-  test('records every candidate while materializing only hardware-pending or admitted output', () => {
+  test('records every candidate while mapping only the hardware-admitted output', () => {
     const manifest = JSON.parse(fs.readFileSync(
       path.join(root, 'assets', 'images', 'optimized-ui-images.json'),
       'utf8'
@@ -58,7 +58,18 @@ describe('optimized UI image policy and lossless pipeline', () => {
     expect(frame).toMatchObject({
       criticalPath: true,
       output: 'assets/images/board/board-frame-marsh-forged-iron-v1.webp',
-      admission: { status: 'pending-hardware' }
+      admission: { status: 'admitted' },
+      measurement: {
+        hardwareDecode: {
+          sampleCountPerFormat: 12,
+          order: 'alternating',
+          pngMedianMs: 12,
+          webpMedianMs: 10.75,
+          deltaMs: -1.25,
+          allowedDeltaMs: 2,
+          verdict: 'admitted'
+        }
+      }
     });
     expect(fs.existsSync(path.join(root, frame.output))).toBe(true);
 
@@ -70,7 +81,10 @@ describe('optimized UI image policy and lossless pipeline', () => {
       expect(image.output).toBeNull();
       expect(fs.existsSync(path.join(root, image.candidateOutput))).toBe(false);
     });
-    expect(manifest.admittedMapping).toEqual({});
-    expect(OPTIMIZED_UI_IMAGES).toEqual({});
+    expect(manifest.admittedMapping).toEqual({
+      'assets/images/board/board-frame-marsh-forged-iron-v1.png':
+        'assets/images/board/board-frame-marsh-forged-iron-v1.webp'
+    });
+    expect(OPTIMIZED_UI_IMAGES).toEqual(manifest.admittedMapping);
   });
 });

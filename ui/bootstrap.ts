@@ -2369,6 +2369,29 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         }
     }
 
+    function prepareInitialBoardFrameSkin(preferredRoot?: any) {
+        const root = preferredRoot
+            || (typeof window !== 'undefined' ? window : null)
+            || (typeof globalThis !== 'undefined' ? globalThis : null);
+        if (!root) return Promise.resolve(null);
+        try {
+            const selection = _require('./board-skin/selection');
+            const runtime = _require('./board-skin/runtime');
+            if (
+                !selection
+                || typeof selection.readStoredBoardFrameSkinId !== 'function'
+                || !runtime
+                || typeof runtime.prepareBoardFrameSkin !== 'function'
+            ) {
+                throw new Error('board_frame_skin_runtime_unavailable');
+            }
+            const selectedFrameSkinId = selection.readStoredBoardFrameSkinId(root);
+            return Promise.resolve(runtime.prepareBoardFrameSkin(root, selectedFrameSkinId));
+        } catch (error: any) {
+            return Promise.reject(error);
+        }
+    }
+
     function ensureOwnerHelpersGlobal() {
         if (!OwnerHelpersModule) return null;
         try {
@@ -2460,6 +2483,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         registerUIGlobals,
         getRegisteredUIGlobals,
         getBoardVisualController,
+        prepareInitialBoardFrameSkin,
         configureCpuCandidateScoring,
         configurePixiRuntime,
         markPixiRuntimeUnavailable,

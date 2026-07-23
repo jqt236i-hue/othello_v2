@@ -217,6 +217,38 @@ describe('initializeUI async policy loading', () => {
     expect(global.__uiInitialized).toBe(true);
   });
 
+  test('initial board frame preparation gates listeners, session restore, and app-ready', async () => {
+    const frameReady = deferred();
+    global.setupMatchModeControls = jest.fn();
+    global.restoreStoredNetworkSessionOnBoot = jest.fn(async () => undefined);
+    const controller = readyBoardVisualController();
+    const prepareInitialBoardFrameSkin = jest.fn(() => frameReady.promise);
+    const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
+    jest.doMock(bootstrapPath, () => ({
+      installGameDI: jest.fn(),
+      prepareInitialBoardFrameSkin,
+      getBoardVisualController: jest.fn(() => controller)
+    }), { virtual: false });
+
+    const initModule = require('../ui/handlers/init.js');
+    const initializePromise = initModule.initializeUI();
+    await flushMicrotasks();
+
+    expect(global.resetGame).toHaveBeenCalledTimes(1);
+    expect(prepareInitialBoardFrameSkin).toHaveBeenCalledWith(window);
+    expect(controller.waitUntilReady).not.toHaveBeenCalled();
+    expect(global.setupMatchModeControls).not.toHaveBeenCalled();
+    expect(global.restoreStoredNetworkSessionOnBoot).not.toHaveBeenCalled();
+    expect(global.__uiInitialized).toBe(false);
+
+    frameReady.resolve();
+    await initializePromise;
+    expect(controller.waitUntilReady).toHaveBeenCalledTimes(1);
+    expect(global.setupMatchModeControls).toHaveBeenCalled();
+    expect(global.restoreStoredNetworkSessionOnBoot).toHaveBeenCalledTimes(1);
+    expect(global.__uiInitialized).toBe(true);
+  });
+
   test('does not activate input or network when the initial board frame is unavailable', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     global.resetGame = jest.fn(() => { throw new Error('reset failed'); });

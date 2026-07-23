@@ -49,6 +49,11 @@ const FORBIDDEN_KEYS = new Set(
 
 type BootLogicalImageKind = 'hero' | 'default-hand';
 
+const DEFAULT_FRAME_PNG_PATH =
+  'assets/images/board/board-frame-marsh-forged-iron-v1.png';
+const DEFAULT_FRAME_WEBP_PATH =
+  'assets/images/board/board-frame-marsh-forged-iron-v1.webp';
+
 function classifyBootLogicalImagePath(value: unknown): BootLogicalImageKind | null {
   const rawPath = String(value || '').replace(/^\/+/, '');
   let decodedPath = rawPath;
@@ -453,6 +458,147 @@ export function validateUxOptimizationReport(
           );
         }
       }
+    }
+    if (scenario.captureStatus === 'complete' && definition.id === 'asset.webp-fallback') {
+      const metrics = scenario.metrics && typeof scenario.metrics === 'object'
+        ? scenario.metrics
+        : {};
+      const admission = metrics.admission && typeof metrics.admission === 'object'
+        ? metrics.admission
+        : {};
+      if (!/^[a-f0-9]{64}$/.test(String(admission.manifestSha256 || ''))) {
+        reasons.push('optimized image manifest SHA-256 is missing');
+      }
+      if (Number(admission.schemaVersion) !== 1 || admission.codec !== 'webp-lossless') {
+        reasons.push('optimized image manifest schema/codec is invalid');
+      }
+      if (admission.admissionStatus !== 'admitted') {
+        reasons.push(`default frame admission was ${String(admission.admissionStatus || 'missing')}`);
+      }
+      if (admission.admittedMappingOutput !== DEFAULT_FRAME_WEBP_PATH) {
+        reasons.push('default frame admitted mapping does not point to the WebP output');
+      }
+      if (admission.visiblePixelsEqual !== true) {
+        reasons.push('default frame visible pixels are not equal');
+      }
+      if (
+        Number(admission.minimumSavingsRatio) < 0.1
+        || Number(admission.savingsRatio) < Number(admission.minimumSavingsRatio)
+        || Number(admission.outputBytes) >= Number(admission.sourceBytes)
+      ) {
+        reasons.push('default frame encoded size does not meet the admission threshold');
+      }
+      if (
+        !Number.isFinite(Number(admission.width))
+        || Number(admission.width) <= 0
+        || Number(admission.width) !== Number(admission.height)
+      ) {
+        reasons.push('default frame dimensions are invalid');
+      }
+      if (
+        admission.sourceSha256 !== admission.actualSourceSha256
+        || admission.outputSha256 !== admission.actualOutputSha256
+        || !/^[a-f0-9]{64}$/.test(String(admission.sourceSha256 || ''))
+        || !/^[a-f0-9]{64}$/.test(String(admission.outputSha256 || ''))
+      ) {
+        reasons.push('default frame manifest hashes do not match the delivered files');
+      }
+      const decode = admission.hardwareDecode && typeof admission.hardwareDecode === 'object'
+        ? admission.hardwareDecode
+        : {};
+      const pngMedianMs = Number(decode.pngMedianMs);
+      const webpMedianMs = Number(decode.webpMedianMs);
+      const allowedDeltaMs = Math.max(2, pngMedianMs * 0.1);
+      if (
+        decode.verdict !== 'admitted'
+        || decode.order !== 'alternating'
+        || Number(decode.sampleCountPerFormat) < 5
+        || !Number.isFinite(pngMedianMs)
+        || !Number.isFinite(webpMedianMs)
+        || webpMedianMs - pngMedianMs > allowedDeltaMs
+        || Number(decode.allowedDeltaMs) !== allowedDeltaMs
+      ) {
+        reasons.push('default frame hardware decode evidence does not meet the admission threshold');
+      }
+
+      const validateVariant = (
+        name: 'normal' | 'forcedPng' | 'forcedWebpFailure',
+        expected: {
+          webpRequests: number;
+          pngRequests: number;
+          webpResponses: number;
+          pngResponses: number;
+          failedWebpRequests: number;
+          browserErrors: number;
+          cssPath: string;
+        }
+      ): void => {
+        const variant = metrics[name] && typeof metrics[name] === 'object'
+          ? metrics[name]
+          : {};
+        if (variant.backend !== 'pixi' || variant.singleWriter !== true) {
+          reasons.push(`${name} did not preserve one Pixi writer`);
+        }
+        if (
+          variant.uiInitialized !== true
+          || variant.visiblySized !== true
+          || variant.rootSkinId !== 'marsh-forged-iron'
+          || variant.elementSkinId !== 'marsh-forged-iron'
+        ) {
+          reasons.push(`${name} did not finish with the visible default frame`);
+        }
+        if (
+          !String(variant.rootCssValue || '').includes(expected.cssPath)
+          || !String(variant.elementCssValue || '').includes(expected.cssPath)
+          || !String(variant.computedBackgroundImage || '').includes(expected.cssPath)
+        ) {
+          reasons.push(`${name} computed frame image did not use ${expected.cssPath}`);
+        }
+        if (!/^[a-f0-9]{64}$/.test(String(variant.visualScreenshotSha256 || ''))) {
+          reasons.push(`${name} visual screenshot evidence is missing`);
+        }
+        if (
+          Number(variant.frameWebpRequestCount) !== expected.webpRequests
+          || Number(variant.framePngRequestCount) !== expected.pngRequests
+          || Number(variant.frameWebpResponseCount) !== expected.webpResponses
+          || Number(variant.framePngResponseCount) !== expected.pngResponses
+          || Number(variant.failedWebpRequestCount) !== expected.failedWebpRequests
+        ) {
+          reasons.push(`${name} logical frame request/fallback counts are invalid`);
+        }
+        if (Number(variant.browserErrorCount) !== expected.browserErrors) {
+          reasons.push(
+            `${name} browser error count was ${String(variant.browserErrorCount)}`
+          );
+        }
+      };
+      validateVariant('normal', {
+        webpRequests: 1,
+        pngRequests: 0,
+        webpResponses: 1,
+        pngResponses: 0,
+        failedWebpRequests: 0,
+        browserErrors: 0,
+        cssPath: 'blob:'
+      });
+      validateVariant('forcedPng', {
+        webpRequests: 0,
+        pngRequests: 1,
+        webpResponses: 0,
+        pngResponses: 1,
+        failedWebpRequests: 0,
+        browserErrors: 0,
+        cssPath: DEFAULT_FRAME_PNG_PATH
+      });
+      validateVariant('forcedWebpFailure', {
+        webpRequests: 1,
+        pngRequests: 1,
+        webpResponses: 0,
+        pngResponses: 1,
+        failedWebpRequests: 1,
+        browserErrors: 1,
+        cssPath: DEFAULT_FRAME_PNG_PATH
+      });
     }
     if (scenario.captureStatus === 'complete' && definition.id === 'board.first-special') {
       const metrics = scenario.metrics && typeof scenario.metrics === 'object'

@@ -11,6 +11,43 @@ import {
   validateUxOptimizationReport
 } from '../scripts/perf/validate-ux-optimization-monitor';
 
+const DEFAULT_FRAME_PNG_PATH =
+  'assets/images/board/board-frame-marsh-forged-iron-v1.png';
+const DEFAULT_FRAME_WEBP_PATH =
+  'assets/images/board/board-frame-marsh-forged-iron-v1.webp';
+
+function validFrameVariant(
+  cssPath: string,
+  counts: {
+    webpRequests: number;
+    pngRequests: number;
+    webpResponses: number;
+    pngResponses: number;
+    failedWebpRequests: number;
+    browserErrors?: number;
+  }
+): Record<string, unknown> {
+  const cssValue = `url("${cssPath}")`;
+  return {
+    backend: 'pixi',
+    singleWriter: true,
+    uiInitialized: true,
+    visiblySized: true,
+    rootSkinId: 'marsh-forged-iron',
+    elementSkinId: 'marsh-forged-iron',
+    rootCssValue: cssValue,
+    elementCssValue: cssValue,
+    computedBackgroundImage: cssValue,
+    frameWebpRequestCount: counts.webpRequests,
+    framePngRequestCount: counts.pngRequests,
+    frameWebpResponseCount: counts.webpResponses,
+    framePngResponseCount: counts.pngResponses,
+    failedWebpRequestCount: counts.failedWebpRequests,
+    browserErrorCount: counts.browserErrors || 0,
+    visualScreenshotSha256: '9'.repeat(64)
+  };
+}
+
 function validReport(): Record<string, any> {
   return {
     schemaVersion: UX_OPTIMIZATION_REPORT_SCHEMA_VERSION,
@@ -38,6 +75,7 @@ function validReport(): Record<string, any> {
       const opponentTurn = definition.id === 'playback.opponent-actions';
       const boot = definition.id.startsWith('boot.');
       const help = definition.id.startsWith('help.');
+      const webpAsset = definition.id === 'asset.webp-fallback';
       return {
         id: definition.id,
         lane: definition.lane,
@@ -120,6 +158,57 @@ function validReport(): Record<string, any> {
                   rafStall50msCount: 0,
                   tickerIdle: true
                 }
+                : webpAsset
+                  ? {
+                    admission: {
+                      manifestSha256: '8'.repeat(64),
+                      schemaVersion: 1,
+                      codec: 'webp-lossless',
+                      minimumSavingsRatio: 0.1,
+                      admittedMappingOutput: DEFAULT_FRAME_WEBP_PATH,
+                      sourceBytes: 1_126_115,
+                      outputBytes: 553_268,
+                      savingsRatio: 0.508,
+                      visiblePixelsEqual: true,
+                      width: 1254,
+                      height: 1254,
+                      sourceSha256: '6'.repeat(64),
+                      outputSha256: '7'.repeat(64),
+                      actualSourceSha256: '6'.repeat(64),
+                      actualOutputSha256: '7'.repeat(64),
+                      admissionStatus: 'admitted',
+                      hardwareDecode: {
+                        sampleCountPerFormat: 12,
+                        order: 'alternating',
+                        pngMedianMs: 12,
+                        webpMedianMs: 10.75,
+                        allowedDeltaMs: 2,
+                        verdict: 'admitted'
+                      }
+                    },
+                    normal: validFrameVariant('blob:admitted-frame', {
+                      webpRequests: 1,
+                      pngRequests: 0,
+                      webpResponses: 1,
+                      pngResponses: 0,
+                      failedWebpRequests: 0
+                    }),
+                    forcedPng: validFrameVariant(DEFAULT_FRAME_PNG_PATH, {
+                      webpRequests: 0,
+                      pngRequests: 1,
+                      webpResponses: 0,
+                      pngResponses: 1,
+                      failedWebpRequests: 0
+                    }),
+                    forcedWebpFailure: validFrameVariant(DEFAULT_FRAME_PNG_PATH, {
+                      webpRequests: 1,
+                      pngRequests: 1,
+                      webpResponses: 0,
+                      pngResponses: 1,
+                      failedWebpRequests: 1,
+                      browserErrors: 1
+                    })
+                  }
                 : boot
                   ? {
                     imageConstructorAssignments: [],
@@ -319,6 +408,29 @@ describe('UX optimization monitor validator', () => {
     expect(validation.checks.find(
       (check) => check.id === 'scenario.playback.opponent-actions:vite:pixi'
     )?.verdict).toBe('fail');
+  });
+
+  test('fails duplicate default-frame bodies and a missing PNG fallback', () => {
+    const report = validReport();
+    const asset = report.scenarios.find(
+      (scenario: any) => scenario.id === 'asset.webp-fallback'
+    );
+    asset.metrics.normal.framePngRequestCount = 1;
+    asset.metrics.normal.framePngResponseCount = 1;
+    asset.metrics.forcedWebpFailure.framePngRequestCount = 0;
+    asset.metrics.forcedWebpFailure.framePngResponseCount = 0;
+
+    const validation = validateUxOptimizationReport(report, {
+      targetOptimizationIds: ['lossless-webp-admission']
+    });
+    const check = validation.checks.find(
+      (entry) => entry.id === `scenario.asset.webp-fallback:${asset.lane}:pixi`
+    );
+    expect(validation.focusedVerdict).toBe('fail');
+    expect(check?.reasons).toEqual(expect.arrayContaining([
+      'normal logical frame request/fallback counts are invalid',
+      'forcedWebpFailure logical frame request/fallback counts are invalid'
+    ]));
   });
 
   test('does not classify a CSS-owned profile avatar as a Pixi board preload', () => {
