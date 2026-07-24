@@ -430,7 +430,7 @@
         WORK_WILL: Object.freeze({ cardId: 'work_01', cardNameJa: '出稼ぎの意志', cardType: 'WORK_WILL', markerType: 'WORK' }),
         STONE_SALVATION_GOD: Object.freeze({ cardId: 'stone_salvation_god_01', cardNameJa: '救済神', cardType: 'STONE_SALVATION_GOD', markerType: 'STONE_SALVATION_GOD' }),
         DESTROY_DRAGON_WILL: Object.freeze({ cardId: 'destroy_dragon_01', cardNameJa: '破壊龍', cardType: 'DESTROY_DRAGON_WILL', markerType: 'DESTROY_DRAGON' }),
-        LIGHTNING_WILL: Object.freeze({ cardId: 'lightning_01', cardNameJa: '落雷', cardType: 'LIGHTNING_WILL', markerType: 'LIGHTNING' }),
+        LIGHTNING_WILL: Object.freeze({ cardId: 'lightning_01', cardNameJa: '雷の意志', cardType: 'LIGHTNING_WILL', markerType: 'LIGHTNING' }),
         ULTIMATE_DESTROY_GOD: Object.freeze({ cardId: 'udg_01', cardNameJa: '究極破壊神', cardType: 'ULTIMATE_DESTROY_GOD', markerType: 'ULTIMATE_DESTROY_GOD' }),
         ULTIMATE_HYPERACTIVE_GOD: Object.freeze({ cardId: 'ultimate_hyperactive_01', cardNameJa: '究極多動神', cardType: 'ULTIMATE_HYPERACTIVE_GOD', markerType: 'ULTIMATE_HYPERACTIVE' }),
         METEOR_GOD: Object.freeze({ cardId: 'meteor_god_01', cardNameJa: '因果抹消神', cardType: 'METEOR_GOD', markerType: 'METEOR_GOD' })

@@ -33,7 +33,7 @@
 | 出稼ぎの意志 | `work_01` | `WORK_WILL` | `WORK` |
 | 救済神 | `stone_salvation_god_01` | `STONE_SALVATION_GOD` | `STONE_SALVATION_GOD` |
 | 破壊龍 | `destroy_dragon_01` | `DESTROY_DRAGON_WILL` | `DESTROY_DRAGON` |
-| 落雷 | `lightning_01` | `LIGHTNING_WILL` | `LIGHTNING` |
+| 雷の意志 | `lightning_01` | `LIGHTNING_WILL` | `LIGHTNING` |
 | 究極破壊神 | `udg_01` | `ULTIMATE_DESTROY_GOD` | `ULTIMATE_DESTROY_GOD` |
 | 究極多動神 | `ultimate_hyperactive_01` | `ULTIMATE_HYPERACTIVE_GOD` | `ULTIMATE_HYPERACTIVE` |
 | 因果抹消神 | `meteor_god_01` | `METEOR_GOD` | `METEOR_GOD` |

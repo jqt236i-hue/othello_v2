@@ -161,7 +161,7 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     expect(out).toEqual([
       '黒: 落雷石: 1個を破壊',
       '黒: 落雷石: 親石1個が通常石に戻る',
-      '黒: 落雷の意志: 落雷石を設置'
+      '黒: 雷の意志: 落雷石を設置'
     ]);
   });
 });

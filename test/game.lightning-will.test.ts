@@ -23,7 +23,7 @@ function createStates(randomValue = 0.5) {
   return { cardState, gameState };
 }
 
-describe('LIGHTNING_WILL（落雷）', () => {
+describe('LIGHTNING_WILL（雷の意志）', () => {
   test('カード定義と持続定数が正しい', () => {
     const def = (Shared.CARD_DEFS || []).find((card) => card && card.type === 'LIGHTNING_WILL');
     expect(def).toBeTruthy();

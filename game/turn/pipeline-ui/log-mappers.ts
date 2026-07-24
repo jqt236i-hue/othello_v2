@@ -409,7 +409,7 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                     if (e.doublePlaceActivated) push(deps.formatMultiPlaceActivationLog(e));
                     if (e.freePlacementUsed && !e.sniperPlaced) push('自由の意志:自由な空きマスに配置');
                     if (e.sniperPlaced) push('狙撃の意志: 狙撃石を設置');
-                    if (e.lightningPlaced) push('落雷の意志: 落雷石を設置');
+                    if (e.lightningPlaced) push('雷の意志: 落雷石を設置');
                     if (e.meteorGodPlaced) push('因果抹消神石を設置');
                     if (e.willHunterKingPlaced) push('意志狩りの王を設置');
                     if (e.silverStoneUsed) push('銀石: 獲得布石3倍');

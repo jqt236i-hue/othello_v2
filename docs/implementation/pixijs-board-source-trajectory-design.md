@@ -44,7 +44,7 @@ DOM compatibility backend は、WebGL/Pixi 初期化失敗、復旧不能な con
 - ロボット掃除機: 対象石の吸い込み
 - 破壊龍: 炎ブレス
 - 因果抹消神: 黒いビーム
-- 落雷 / 究極破壊神: 雷
+- 雷の意志 / 究極破壊神: 雷
 - 屍石: 黒紫の影と牙
 
 この構成では、一つの効果が DOM と Pixi の二つの animation clock、二つの座標系、二つの cleanup 経路に分かれる。今後、粒子、残光、歪み、複数レイヤーの光、品質 tier を追加するほど、layout read、DOM/SVG node、WAAPI、Pixi target effect の同期が複雑になる。
