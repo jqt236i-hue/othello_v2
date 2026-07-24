@@ -913,6 +913,17 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 // Watchdog to prevent permanent freezes
                 const WATCHDOG_TIMEOUT_MS = this._resolvePlaybackWatchdogMs();
                 const armWatchdog = () => {
+                    // __playbackActiveSince is also consumed by the debug runtime's
+                    // stale-playback guard. Treat it as a progress heartbeat so a
+                    // healthy multi-phase frame is not aborted merely because its
+                    // total ordered presentation exceeds that guard's timeout.
+                    if (
+                        PlaybackState
+                        && typeof PlaybackState.setPlaybackStartedAt === 'function'
+                        && PlaybackState.getPlaybackActive?.() === true
+                    ) {
+                        PlaybackState.setPlaybackStartedAt(Date.now());
+                    }
                     const previousWatchdogId = runState.watchdogId;
                     if (previousWatchdogId) {
                         try { _Timer().clearTimeout(previousWatchdogId); } catch (e: any) { /* ignore */ }

@@ -97,6 +97,78 @@ describe('animation-engine playback-state integration', () => {
     }
   });
 
+  test('debug stale guard does not abort a progressing multi-phase strict playback', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(1000);
+    jest.unmock('../ui/playback-state-manager');
+    global.window.PLAYBACK_WATCHDOG_MS = 60000;
+
+    const manager = require('../ui/playback-state-manager.js');
+    const engine = require('../ui/animation-engine.js');
+    const abortPlayback = jest.fn(() => engine.abortAndSync());
+    const phaseResolvers: Array<() => void> = [];
+    const executePhaseSpy = jest.spyOn(engine, 'executePhase').mockImplementation(() => (
+      new Promise<void>((resolve) => { phaseResolvers.push(resolve); })
+    ));
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const flushPlaybackContinuation = async () => {
+      for (let index = 0; index < 6; index += 1) {
+        await Promise.resolve();
+      }
+    };
+
+    manager.ensureDebugRuntime({
+      readCardAnimating: () => manager.getCardAnimating(),
+      readProcessing: () => manager.getProcessing(),
+      abortPlayback,
+      getBoardElement: () => document.getElementById('board')
+    });
+
+    try {
+      const playPromise = engine.play([
+        { type: 'place', phase: 1, targets: [] },
+        { type: 'flip', phase: 2, targets: [] },
+        { type: 'hand_add', phase: 3, targets: [{ player: 'white' }] }
+      ], {
+        strictNetworkPlayback: true,
+        deferFinalSettlement: true
+      });
+      await flushPlaybackContinuation();
+      expect(phaseResolvers).toHaveLength(1);
+
+      jest.advanceTimersByTime(7000);
+      phaseResolvers.shift()!();
+      await flushPlaybackContinuation();
+      expect(phaseResolvers).toHaveLength(1);
+
+      jest.advanceTimersByTime(7000);
+      phaseResolvers.shift()!();
+      await flushPlaybackContinuation();
+      expect(phaseResolvers).toHaveLength(1);
+
+      // More than 15 seconds have elapsed since the frame began, but each phase
+      // completion refreshed the progress heartbeat.
+      jest.advanceTimersByTime(7000);
+      expect(abortPlayback).not.toHaveBeenCalled();
+
+      phaseResolvers.shift()!();
+      const settlement = await playPromise;
+
+      expect(settlement).toEqual(expect.objectContaining({
+        kind: 'deferred-finalization',
+        mode: 'finalize'
+      }));
+      expect(settlement.finalize()).toBe(true);
+      expect(abortPlayback).not.toHaveBeenCalled();
+    } finally {
+      sleepSpy.mockRestore();
+      executePhaseSpy.mockRestore();
+      manager.clearDebugRuntime();
+      manager.clearPlaybackLock();
+      jest.useRealTimers();
+    }
+  });
+
   test('deferred success returns a run-scoped finalizer that settles the manager exactly once', async () => {
     const finalizePlayback = jest.fn(() => true);
     const playbackStateMock = {
