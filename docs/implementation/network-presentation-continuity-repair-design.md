@@ -1,6 +1,6 @@
 # ネット対戦の表示連続性 修正設計
 
-- Status: reviewed
+- Status: implemented and deployed
 - Date: 2026-07-24
 - Scope: Worker／ローカルサーバーのタイムアウト確定、クライアントの表示ジャーナル連続性、再接続復旧、実機ネット対戦
 - Source of truth: `01-rulebook.md`、`正本/ターン進行正本.md`、`docs/architecture-contracts.md`、root `AGENTS.md`
