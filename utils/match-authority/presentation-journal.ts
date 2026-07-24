@@ -228,8 +228,10 @@ export function createMatchAuthorityPresentationJournalApi(deps: MatchAuthorityP
             return baseSnapshots[payloadKey] || baseSnapshots.spectator || null;
         }
         if (afterVisualSeq <= 0) {
-            const initial = room.initialSnapshotByViewer && room.initialSnapshotByViewer[payloadKey];
-            return initial || room.snapshot || null;
+            const initialSnapshots = room.initialSnapshotByViewer && typeof room.initialSnapshotByViewer === 'object'
+                ? asRecord(room.initialSnapshotByViewer)
+                : {};
+            return initialSnapshots[payloadKey] || initialSnapshots.spectator || null;
         }
         const journal = Array.isArray(room.presentationJournal) ? room.presentationJournal : [];
         const entry = journal.find((item) => Number(item && item.visualSeq) === afterVisualSeq);
@@ -255,14 +257,14 @@ export function createMatchAuthorityPresentationJournalApi(deps: MatchAuthorityP
         if (afterVisualSeq < minimumRetainedBaseSeq) {
             return {
                 ok: false, roomId, reason: 'VISUAL_CURSOR_EXPIRED', baseVisualSeq: afterVisualSeq,
-                baseSnapshot: null, presentationCursor, presentationFrames: [], snapshot: room.snapshot || null, serverTime
+                baseSnapshot: null, presentationCursor, presentationFrames: [], snapshot: null, serverTime
             };
         }
         const baseSnapshot = findBaseSnapshotForVisualSeq(room, afterVisualSeq, opts.viewer);
         if (!baseSnapshot) {
             return {
                 ok: false, roomId, reason: 'VISUAL_CURSOR_EXPIRED', baseVisualSeq: afterVisualSeq,
-                baseSnapshot: null, presentationCursor, presentationFrames: [], snapshot: room.snapshot || null, serverTime
+                baseSnapshot: null, presentationCursor, presentationFrames: [], snapshot: null, serverTime
             };
         }
         return {

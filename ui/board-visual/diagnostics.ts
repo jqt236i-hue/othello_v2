@@ -29,7 +29,20 @@ function cloneForDiagnostics(value: unknown, seen = new WeakMap<object, unknown>
   }
   const out: Record<string, unknown> = {};
   seen.set(value as object, out);
+  const isError = value instanceof Error
+    || Object.prototype.toString.call(value) === '[object Error]';
+  if (isError) {
+    for (const key of ['name', 'message', 'stack', 'code', 'eventType', 'stage', 'reason', 'cause']) {
+      try {
+        const item = (value as Record<string, unknown>)[key];
+        if (item !== undefined && typeof item !== 'function' && typeof item !== 'symbol') {
+          out[key] = cloneForDiagnostics(item, seen);
+        }
+      } catch (_error) { /* inaccessible diagnostic properties are omitted */ }
+    }
+  }
   for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+    if (Object.prototype.hasOwnProperty.call(out, key)) continue;
     const item = (value as Record<string, unknown>)[key];
     if (typeof item !== 'function' && typeof item !== 'symbol') out[key] = cloneForDiagnostics(item, seen);
   }

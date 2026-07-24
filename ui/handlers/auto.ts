@@ -75,28 +75,6 @@ function _isNetworkModeActiveForAuto(): boolean {
   }
 }
 
-function _isLocalNetworkTurnForAuto(state: any): boolean {
-  if (!_isNetworkModeActiveForAuto()) return true;
-  try {
-    const root = (typeof window !== 'undefined') ? (window as any) : (globalThis as any);
-    const client = root && root.NetworkMatchClient;
-    if (!state || !client || typeof client.getSeatKey !== 'function') return false;
-    const seatKey = String(client.getSeatKey() || '').trim().toLowerCase();
-    if (seatKey !== 'black' && seatKey !== 'white') return false;
-    let turnKey = '';
-    if (typeof root.getPlayerKey === 'function') {
-      turnKey = String(root.getPlayerKey(state.currentPlayer) || '').trim().toLowerCase();
-    }
-    if (turnKey !== 'black' && turnKey !== 'white') {
-      const whiteValue = typeof root.WHITE !== 'undefined' ? root.WHITE : -1;
-      turnKey = Number(state.currentPlayer) === Number(whiteValue) ? 'white' : 'black';
-    }
-    return seatKey === turnKey;
-  } catch (e) {
-    return false;
-  }
-}
-
 function _tickNetworkAutoIfNeeded(): boolean {
   if (!_isNetworkModeActiveForAuto()) return false;
   try {
@@ -145,8 +123,13 @@ function _uiAutoTick(): void {
     const now = Date.now();
     const since = now - _lastAutoTickAt;
     _lastAutoTickAt = now;
+    const networkMode = _isNetworkModeActiveForAuto();
 
-    if (_autoTickCount >= _MAX_AUTO_TICKS || _stallTickCount >= _MAX_STALL_TICKS) {
+    // Network matches already have server-authoritative turn deadlines and
+    // serialized publish state. A client-side same-turn/total-tick limit can
+    // therefore stop a valid long Pixi playback or a long card match while
+    // the authoritative game is still progressing.
+    if (!networkMode && (_autoTickCount >= _MAX_AUTO_TICKS || _stallTickCount >= _MAX_STALL_TICKS)) {
       _uiAutoDisable();
       if (typeof (window as any).addLog === 'function') (window as any).addLog('Auto mode stopped (safety limit reached)');
       return;
@@ -165,14 +148,14 @@ function _uiAutoTick(): void {
       (window as any).isProcessing === true
     );
     const hasPendingPresentation = _hasPendingPresentationEvents();
-    const shouldCountStall = _isLocalNetworkTurnForAuto(state);
-    if (winBusy || hasPendingPresentation) {
+    if (networkMode) {
+      _autoTickCount = 0;
+      _stallTickCount = 0;
+      _lastTurnNumber = turnNum;
+    } else if (winBusy || hasPendingPresentation) {
       if (turnNum !== null && _lastTurnNumber === null) {
         _lastTurnNumber = turnNum;
       }
-    } else if (!shouldCountStall) {
-      _stallTickCount = 0;
-      _lastTurnNumber = turnNum;
     } else if (_lastTurnNumber !== null && turnNum === _lastTurnNumber) {
       _stallTickCount++;
     } else if (turnNum !== null) {
@@ -180,9 +163,8 @@ function _uiAutoTick(): void {
       _lastTurnNumber = turnNum;
     }
 
-    if (_tickNetworkAutoIfNeeded()) {
+    if (networkMode && _tickNetworkAutoIfNeeded()) {
       const delay = Math.max(_uiAutoIntervalMs, _MIN_AUTO_INTERVAL_MS);
-      _autoTickCount++;
       _uiAutoTimer = setTimeout(_uiAutoTick, delay);
       return;
     }

@@ -644,6 +644,80 @@ describe('NetworkMatchClient apply coordinator', () => {
     expect(client.getNetworkTelemetry().counts.network_visual_rebase_completed).toBe(1);
   });
 
+  test('unsafe strict dispatch failure cancels replay and automatically rebases from authority', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const dispatchFailure: any = new Error('board_renderer_failed:spawn');
+    dispatchFailure.code = 'board_renderer_failed';
+    global.PresentationHandler.handlePresentationEvent = jest.fn(async () => {
+      throw dispatchFailure;
+    });
+
+    const snapshot11 = createSnapshot(11);
+    snapshot11.gameState.turnNumber = 11;
+    stateResponsePayload = {
+      ok: true,
+      roomId: 'ABC',
+      stateVersion: 11,
+      presentationCursor: { visualSeq: 1, stateVersion: 11 },
+      presentationFrames: [],
+      playbackEvents: [],
+      snapshot: snapshot11
+    };
+
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId: 'op_renderer_failed',
+        stateVersion: 11,
+        presentationCursor: { visualSeq: 1, stateVersion: 11 },
+        snapshot: snapshot11,
+        presentationFrames: [{
+          roomId: 'ABC',
+          visualSeq: 1,
+          stateVersionFrom: 10,
+          stateVersionTo: 11,
+          operationId: 'op_renderer_failed',
+          actionType: 'place',
+          playbackEvents: [{ type: 'spawn' }],
+          snapshotAfter: snapshot11
+        }]
+      })
+    });
+
+    for (let index = 0; index < 40; index += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+      if ((client.getNetworkTelemetry().counts.network_visual_authoritative_recovery_completed || 0) > 0) break;
+    }
+
+    expect(global.PresentationHandler.handlePresentationEvent).toHaveBeenCalledTimes(1);
+    expect(requestedPaths).toContain('/api/match/state');
+    expect(client.getNetworkTelemetry().counts).toMatchObject({
+      network_presentation_timeline_paused: 1,
+      network_presentation_authoritative_recovery_scheduled: 1,
+      network_visual_authoritative_recovery_completed: 1
+    });
+    expect(client.getNetworkTelemetry().counts.network_presentation_reload_required || 0).toBe(0);
+    expect(global.NetworkPresentationTimeline.getDiagnostics()).toMatchObject({
+      visualSeq: 1,
+      visualVersion: 11,
+      pendingFrameCount: 0,
+      paused: false
+    });
+    expect(global.NetworkVisualStateStore.getDiagnostics()).toMatchObject({
+      visualSeq: 1,
+      visualVersion: 11
+    });
+    expect(global.NetworkVisualSettlementTracker.getDiagnostics()).toMatchObject({
+      completedVisualSeq: 1
+    });
+    expect(global.gameState.turnNumber).toBe(11);
+  });
+
   test('successful but empty journal recovery escalates to authoritative visual rebase', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;

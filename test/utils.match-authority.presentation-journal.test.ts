@@ -205,9 +205,51 @@ describe('match authority presentation journal', () => {
     expect(expired.ok).toBe(false);
     expect(expired.reason).toBe('VISUAL_CURSOR_EXPIRED');
     expect(expired.presentationFrames).toEqual([]);
-    expect(expired.snapshot).toBe(room.snapshot);
+    expect(expired.snapshot).toBeNull();
     expect(retained.ok).toBe(true);
     expect(retained.presentationFrames.map((frame: any) => frame.visualSeq)).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
+  });
+
+  test('expired or unavailable cursors never fall back to the canonical private snapshot', () => {
+    const room = createRoom();
+    room.snapshot = {
+      stateVersion: 9,
+      cardState: {
+        hands: {
+          black: ['black-private-card'],
+          white: ['white-private-card']
+        }
+      }
+    };
+    room.initialSnapshotByViewer = {};
+    room.visualSeq = 9;
+    room.presentationJournalBaseVisualSeq = 8;
+
+    const expired = MatchAuthority.buildPresentationJournalResponse(room, {
+      afterVisualSeq: 0,
+      viewer: { role: 'seat', seatKey: 'black' }
+    });
+    const unavailable = MatchAuthority.buildPresentationJournalResponse({
+      ...room,
+      presentationJournalBaseVisualSeq: 0
+    }, {
+      afterVisualSeq: 0,
+      viewer: { role: 'seat', seatKey: 'black' }
+    });
+
+    expect(expired).toMatchObject({
+      ok: false,
+      reason: 'VISUAL_CURSOR_EXPIRED',
+      baseSnapshot: null,
+      snapshot: null
+    });
+    expect(unavailable).toMatchObject({
+      ok: false,
+      reason: 'VISUAL_CURSOR_EXPIRED',
+      baseSnapshot: null,
+      snapshot: null
+    });
+    expect(JSON.stringify([expired, unavailable])).not.toContain('private-card');
   });
 
   test('appendBufferedSseEvent caps default snapshot replay buffer', () => {

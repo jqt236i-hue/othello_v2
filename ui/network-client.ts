@@ -1154,7 +1154,29 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (!timeline || networkPresentationRetryTimer !== null) return false;
         const stage = String(paused && paused.stage || 'unknown');
         const canRetry = stage !== 'dispatch' || (paused && paused.safeDispatchRetry === true);
-        if (!canRetry || networkPresentationRetryAttempt >= 5) {
+        if (!canRetry) {
+            recordNetworkTelemetry('network_presentation_timeline_paused', {
+                visualSeq: paused && paused.visualSeq,
+                stage,
+                message: paused && paused.message,
+                automaticRetry: false
+            });
+            recordNetworkTelemetry('network_presentation_authoritative_recovery_scheduled', {
+                visualSeq: paused && paused.visualSeq,
+                stage,
+                message: paused && paused.message
+            });
+            // Dispatch may already have produced presentation side effects, so
+            // replaying the same frame is unsafe. Cancel/dispose that strict
+            // settlement and atomically rebase every visual cursor from the
+            // authoritative projected state instead.
+            void recoverPresentationFromAuthoritativeState(
+                'presentation_dispatch_failed',
+                'network_timeline'
+            );
+            return true;
+        }
+        if (networkPresentationRetryAttempt >= 5) {
             recordNetworkTelemetry('network_presentation_timeline_paused', {
                 visualSeq: paused && paused.visualSeq,
                 stage,

@@ -730,12 +730,34 @@ describe('BoardVisualController', () => {
       pool: { activePlaybackGhostCount: 0 },
       tickerRunning: false
     });
-    diagnostics.record('test:immutable-entry', { nested: { value: 3 } });
+    const diagnosticCause = new Error('non-enumerable Pixi cause');
+    const diagnosticError: any = new Error('board_renderer_failed:spawn');
+    diagnosticError.code = 'board_renderer_failed';
+    Object.defineProperty(diagnosticError, 'cause', {
+      value: diagnosticCause,
+      configurable: true,
+      enumerable: false
+    });
+    diagnostics.record('test:immutable-entry', {
+      nested: { value: 3 },
+      error: diagnosticError
+    });
     const diagnosticEntries = debug.getDiagnosticEntries();
     expect(diagnosticEntries).toEqual(expect.arrayContaining([
       expect.objectContaining({
         event: 'test:immutable-entry',
-        detail: { nested: { value: 3 } }
+        detail: expect.objectContaining({
+          nested: { value: 3 },
+          error: expect.objectContaining({
+            name: 'Error',
+            message: 'board_renderer_failed:spawn',
+            code: 'board_renderer_failed',
+            cause: expect.objectContaining({
+              name: 'Error',
+              message: 'non-enumerable Pixi cause'
+            })
+          })
+        })
       })
     ]));
     expect(Object.isFrozen(diagnosticEntries)).toBe(true);

@@ -123,6 +123,32 @@ describe('setupAutoToggle playback-state gating', () => {
     expect(global.addLog).not.toHaveBeenCalledWith('Auto mode stopped (safety limit reached)');
   });
 
+  test('does not apply local safety tick limits to a long-running network match', () => {
+    playbackStateMock.getPlaybackActive.mockReturnValue(false);
+    playbackStateMock.getCardAnimating.mockReturnValue(false);
+    global.gameState = { currentPlayer: 1, turnNumber: 12 };
+    global.window.gameState = global.gameState;
+    global.window.BLACK = 1;
+    global.window.WHITE = -1;
+    global.window.MatchMode = {
+      isNetworkModeActive: jest.fn(() => true)
+    };
+    const networkTick = jest.fn().mockResolvedValue({ handled: true, reason: 'BUSY' });
+    global.window.NetworkAutoPlay = { tick: networkTick };
+
+    const autoModule = require('../ui/handlers/auto.js');
+    const button = document.getElementById('autoToggleBtn');
+    autoModule.setupAutoToggle(button);
+
+    button.click();
+    jest.advanceTimersByTime(800 * 2100);
+
+    expect(networkTick.mock.calls.length).toBeGreaterThan(2000);
+    expect(global.window.AUTO_MODE_ACTIVE).toBe(true);
+    expect(button.textContent).toBe('AUTO: ON');
+    expect(global.addLog).not.toHaveBeenCalledWith('Auto mode stopped (safety limit reached)');
+  });
+
   test('updates the button when the local stall safety limit stops auto mode', () => {
     playbackStateMock.getPlaybackActive.mockReturnValue(false);
     playbackStateMock.getCardAnimating.mockReturnValue(false);
