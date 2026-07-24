@@ -2099,6 +2099,11 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 toDebugPlaybackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics,
                 computeAuthoritativeStateHash: MatchAuthority.computeAuthoritativeStateHash,
                 appendAuthorityLog: MatchAuthority.appendAuthorityLog,
+                ensureInitialPresentationSnapshots,
+                buildPublishViewerArtifacts: (room: MatchWorkerRoomState, options?: Record<string, unknown>) => (
+                    MatchAuthority.buildPublishViewerArtifacts(room, options)
+                ),
+                appendPresentationFrameForAcceptedPublish,
                 broadcastSnapshot: (meta) => this.broadcastSnapshot(meta)
             });
         }

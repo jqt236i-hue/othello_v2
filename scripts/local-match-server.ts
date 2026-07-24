@@ -1550,6 +1550,13 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
         refreshTurnTimer(room, { nowMs, forceRestart: true });
         return { applied: false };
     }
+    const previousStateVersion = Number.isFinite(Number(room.stateVersion))
+        ? Math.max(0, Math.trunc(Number(room.stateVersion)))
+        : 0;
+    const previousUpdatedAt = room.updatedAt;
+    const previousAuthoritativeStateHash = room.authoritativeStateHash;
+    const expectedTurnDeadlineAt = deadline;
+    ensureInitialPresentationSnapshots(room);
 
     const timeoutPassResult = applyTimeoutPassToSnapshot(room, timedOutSeatKey);
     const usedTimeoutPassCommand = !!(timeoutPassResult && timeoutPassResult.ok === true && timeoutPassResult.snapshot);
@@ -1592,14 +1599,51 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
         ? (timeoutPassResult.playbackDiagnostics || null)
         : MatchAuthority.toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, toPublicNetworkDebugEnabled(room));
 
-    room.stateVersion = Number.isFinite(Number(room.stateVersion))
-        ? Math.max(0, Math.trunc(Number(room.stateVersion))) + 1
-        : 1;
+    const latestTimer = room.turnTimer && typeof room.turnTimer === 'object' ? room.turnTimer : null;
+    const latestDeadline = Number(latestTimer && latestTimer.turnDeadlineAt);
+    const latestTimedOutSeatKey = parseSeatKeyOptional(latestTimer && latestTimer.turnSeatKey)
+        || resolveTurnSeatKey(room);
+    if (
+        Number(room.stateVersion) !== previousStateVersion
+        || resolveTurnSeatKey(room) !== currentTurnSeatKey
+        || !latestTimer
+        || latestTimer.active !== true
+        || latestTimedOutSeatKey !== timedOutSeatKey
+        || !Number.isFinite(latestDeadline)
+        || latestDeadline !== expectedTurnDeadlineAt
+    ) {
+        return { applied: false };
+    }
+
+    room.stateVersion = previousStateVersion + 1;
     nextSnapshot.stateVersion = room.stateVersion;
     nextSnapshot.updatedAt = nowMs;
     room.snapshot = nextSnapshot;
     room.updatedAt = nowMs;
-    room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
+    const publishViewerArtifacts = MatchAuthority.buildPublishViewerArtifacts(room, {});
+    room.authoritativeStateHash = publishViewerArtifacts && publishViewerArtifacts.canonicalHash
+        ? publishViewerArtifacts.canonicalHash
+        : MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
+    const operationId = `timeout_${room.stateVersion}_${nowMs}`;
+    const presentationFrameEntry = appendPresentationFrameForAcceptedPublish(room, {
+        previousStateVersion,
+        nextStateVersion: room.stateVersion,
+        operationId,
+        actorSeatKey: timedOutSeatKey,
+        actionType: 'timeout_pass',
+        playbackEvents: serverPlaybackEvents,
+        effectLogs: serverEffectLogs,
+        playbackDiagnostics: serverPlaybackDiagnostics,
+        publishViewerArtifacts,
+        createdAt: nowMs
+    });
+    if (!presentationFrameEntry) {
+        room.stateVersion = previousStateVersion;
+        room.snapshot = snapshot;
+        room.updatedAt = previousUpdatedAt;
+        room.authoritativeStateHash = previousAuthoritativeStateHash;
+        throw new Error('timeout_presentation_frame_required');
+    }
     MatchAuthority.appendAuthorityLog(room, {
         kind: 'timeout_applied',
         actionType: 'timeout_pass',
@@ -1614,7 +1658,9 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
         playbackEvents: serverPlaybackEvents,
         effectLogs: serverEffectLogs,
         playbackDiagnostics: serverPlaybackDiagnostics,
-        operationId: `timeout_${room.stateVersion}_${nowMs}`
+        operationId,
+        presentationFrameEntry,
+        __publishViewerArtifacts: publishViewerArtifacts
     });
     return { applied: true, stateVersion: room.stateVersion };
 }

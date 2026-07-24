@@ -1,6 +1,10 @@
 import * as http from 'http';
 import * as Core from '../game/logic/core.js';
-import { createLocalMatchServer, resetRoomsForTests } from '../scripts/local-match-server.js';
+import {
+  createLocalMatchServer,
+  patchRoomSnapshotForTests,
+  resetRoomsForTests
+} from '../scripts/local-match-server.js';
 
 function requestJson(port: number, method: string, path: string, payload?: unknown): Promise<{ status: number; data: any }> {
   return new Promise((resolve, reject) => {
@@ -37,8 +41,8 @@ function closeServer(server: ReturnType<typeof createLocalMatchServer>): Promise
   return new Promise((resolve) => server.close(() => resolve()));
 }
 
-function pickFirstLegalMove(snapshot: any): { row: number; col: number } {
-  const legalMoves = Core.getLegalMoves(snapshot.gameState, 1);
+function pickFirstLegalMove(snapshot: any, player = 1): { row: number; col: number } {
+  const legalMoves = Core.getLegalMoves(snapshot.gameState, player);
   if (!Array.isArray(legalMoves) || legalMoves.length === 0) throw new Error('No legal move');
   return legalMoves[0];
 }
@@ -124,6 +128,120 @@ describe('local match server presentation journal', () => {
       expect(recovery.data.presentationFrames.map((frame: any) => frame.visualSeq)).toEqual([1]);
       expect(recovery.data.presentationFrames[0].snapshotAfter.stateVersion).toBe(publish.data.stateVersion);
       expect(recovery.data.presentationFrames[0].playbackEvents).toEqual(publish.data.playbackEvents);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('timeout pass and the following publish remain consecutive presentation frames', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'black' });
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId: created.data.roomId,
+        playerName: 'white'
+      });
+      expect(created.status).toBe(200);
+      expect(joined.status).toBe(200);
+      const roomId = created.data.roomId;
+      const beforeTimeoutVersion = joined.data.stateVersion;
+
+      expect(patchRoomSnapshotForTests(roomId, (room: any) => {
+        room.turnTimer = {
+          ...(room.turnTimer || {}),
+          active: true,
+          turnSeatKey: 'black',
+          turnStartedAt: Date.now() - 300000,
+          turnDeadlineAt: Date.now() - 1
+        };
+      })).toBe(true);
+
+      const afterTimeout = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${encodeURIComponent(roomId)}&seatKey=black&seatToken=${encodeURIComponent(created.data.seatToken)}`
+      );
+
+      expect(afterTimeout.status).toBe(200);
+      expect(afterTimeout.data.stateVersion).toBe(beforeTimeoutVersion + 1);
+      expect(afterTimeout.data.presentationCursor).toEqual({
+        visualSeq: 1,
+        stateVersion: beforeTimeoutVersion + 1
+      });
+      expect(afterTimeout.data.presentationFrames).toEqual([
+        expect.objectContaining({
+          visualSeq: 1,
+          stateVersionFrom: beforeTimeoutVersion,
+          stateVersionTo: beforeTimeoutVersion + 1,
+          actorSeatKey: 'black',
+          actionType: 'timeout_pass',
+          operationId: expect.stringMatching(/^timeout_/),
+          snapshotAfter: expect.objectContaining({
+            stateVersion: beforeTimeoutVersion + 1
+          })
+        })
+      ]);
+
+      const whiteMove = pickFirstLegalMove(afterTimeout.data.snapshot, -1);
+      const whiteTurnIndex = afterTimeout.data.snapshot.cardState.turnIndex;
+      const publish = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'white',
+        playerKey: 'white',
+        seatToken: joined.data.seatToken,
+        baseVersion: afterTimeout.data.stateVersion,
+        operationId: 'op_after_timeout_white_place',
+        actionType: 'place',
+        actor: 'white',
+        params: { row: whiteMove.row, col: whiteMove.col },
+        turnIndex: whiteTurnIndex,
+        action: {
+          type: 'place',
+          playerKey: 'white',
+          row: whiteMove.row,
+          col: whiteMove.col,
+          turnIndex: whiteTurnIndex
+        }
+      });
+
+      expect(publish.status).toBe(200);
+      expect(publish.data.presentationCursor).toEqual({
+        visualSeq: 2,
+        stateVersion: beforeTimeoutVersion + 2
+      });
+      expect(publish.data.presentationFrames).toEqual([
+        expect.objectContaining({
+          visualSeq: 2,
+          stateVersionFrom: beforeTimeoutVersion + 1,
+          stateVersionTo: beforeTimeoutVersion + 2,
+          operationId: 'op_after_timeout_white_place'
+        })
+      ]);
+
+      const recovery = await requestJson(
+        port,
+        'GET',
+        `/api/match/presentation-journal?roomId=${encodeURIComponent(roomId)}&seatKey=black&seatToken=${encodeURIComponent(created.data.seatToken)}&afterVisualSeq=0`
+      );
+
+      expect(recovery.status).toBe(200);
+      expect(recovery.data.baseSnapshot.stateVersion).toBe(beforeTimeoutVersion);
+      expect(recovery.data.presentationFrames).toEqual([
+        expect.objectContaining({
+          visualSeq: 1,
+          stateVersionFrom: beforeTimeoutVersion,
+          stateVersionTo: beforeTimeoutVersion + 1,
+          actionType: 'timeout_pass'
+        }),
+        expect.objectContaining({
+          visualSeq: 2,
+          stateVersionFrom: beforeTimeoutVersion + 1,
+          stateVersionTo: beforeTimeoutVersion + 2,
+          operationId: 'op_after_timeout_white_place'
+        })
+      ]);
     } finally {
       await closeServer(server);
     }

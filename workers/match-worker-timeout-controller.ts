@@ -35,6 +35,20 @@ type MatchWorkerTimeoutControllerConfig = {
     toDebugPlaybackDiagnostics: (diagnostics: unknown, networkDebugEnabled: unknown) => unknown | null;
     computeAuthoritativeStateHash: (snapshotValue: unknown) => string | null;
     appendAuthorityLog: (roomValue: unknown, entryValue: unknown, limitValue: unknown) => unknown[];
+    ensureInitialPresentationSnapshots: (room: MatchWorkerRoomState) => void;
+    buildPublishViewerArtifacts: (
+        room: MatchWorkerRoomState,
+        options?: Record<string, unknown>
+    ) => {
+        canonicalHash?: string | null;
+        projectedSnapshots?: Record<string, unknown>;
+        snapshotPayloads?: Record<string, unknown>;
+        [key: string]: unknown;
+    };
+    appendPresentationFrameForAcceptedPublish: (
+        room: MatchWorkerRoomState,
+        options: Record<string, unknown>
+    ) => unknown;
     broadcastSnapshot: (meta: Record<string, unknown>) => Promise<void>;
     now?: () => number;
 };
@@ -76,6 +90,14 @@ export function createMatchWorkerTimeoutController(config: MatchWorkerTimeoutCon
             }
             return { applied: false };
         }
+
+        const previousStateVersion = Number.isFinite(Number(room.stateVersion))
+            ? Math.max(0, Math.trunc(Number(room.stateVersion)))
+            : 0;
+        const previousUpdatedAt = room.updatedAt;
+        const previousAuthoritativeStateHash = room.authoritativeStateHash;
+        const expectedTurnDeadlineAt = deadline;
+        cfg.ensureInitialPresentationSnapshots(room);
 
         let nextSnapshot: MatchWorkerPublicSnapshot;
         let serverPlaybackEvents: unknown[] = [];
@@ -132,15 +154,52 @@ export function createMatchWorkerTimeoutController(config: MatchWorkerTimeoutCon
             serverPlaybackDiagnostics = cfg.toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, cfg.toPublicNetworkDebugEnabled(room));
         }
 
-        room.stateVersion = Number.isFinite(Number(room.stateVersion))
-            ? Math.max(0, Math.trunc(Number(room.stateVersion))) + 1
-            : 1;
+        const latestTimer = (room.turnTimer && typeof room.turnTimer === 'object') ? room.turnTimer : null;
+        const latestDeadline = Number(latestTimer && (latestTimer as any).turnDeadlineAt);
+        const latestTimedOutSeatKey = cfg.parseSeatKeyOptional(latestTimer && (latestTimer as any).turnSeatKey)
+            || cfg.resolveTurnSeatKey(room);
+        if (
+            Number(room.stateVersion) !== previousStateVersion
+            || cfg.resolveTurnSeatKey(room) !== currentTurnSeatKey
+            || !latestTimer
+            || (latestTimer as any).active !== true
+            || latestTimedOutSeatKey !== timedOutSeatKey
+            || !Number.isFinite(latestDeadline)
+            || latestDeadline !== expectedTurnDeadlineAt
+        ) {
+            return { applied: false };
+        }
+
+        room.stateVersion = previousStateVersion + 1;
 
         nextSnapshot.stateVersion = room.stateVersion;
         nextSnapshot.updatedAt = nowMs;
         room.snapshot = nextSnapshot;
         room.updatedAt = nowMs;
-        room.authoritativeStateHash = cfg.computeAuthoritativeStateHash(nextSnapshot);
+        const publishViewerArtifacts = cfg.buildPublishViewerArtifacts(room, {});
+        room.authoritativeStateHash = publishViewerArtifacts && publishViewerArtifacts.canonicalHash
+            ? publishViewerArtifacts.canonicalHash
+            : cfg.computeAuthoritativeStateHash(nextSnapshot);
+        const operationId = `timeout_${room.stateVersion}_${nowMs}`;
+        const presentationFrameEntry = cfg.appendPresentationFrameForAcceptedPublish(room, {
+            previousStateVersion,
+            nextStateVersion: room.stateVersion,
+            operationId,
+            actorSeatKey: timedOutSeatKey,
+            actionType: 'timeout_pass',
+            playbackEvents: serverPlaybackEvents,
+            effectLogs: serverEffectLogs,
+            playbackDiagnostics: serverPlaybackDiagnostics,
+            publishViewerArtifacts,
+            createdAt: nowMs
+        });
+        if (!presentationFrameEntry) {
+            room.stateVersion = previousStateVersion;
+            room.snapshot = snapshot;
+            room.updatedAt = previousUpdatedAt;
+            room.authoritativeStateHash = previousAuthoritativeStateHash;
+            throw new Error('timeout_presentation_frame_required');
+        }
         cfg.appendAuthorityLog(room, {
             kind: 'timeout_applied',
             actionType: 'timeout_pass',
@@ -158,7 +217,9 @@ export function createMatchWorkerTimeoutController(config: MatchWorkerTimeoutCon
             playbackEvents: serverPlaybackEvents,
             effectLogs: serverEffectLogs,
             playbackDiagnostics: serverPlaybackDiagnostics,
-            operationId: `timeout_${room.stateVersion}_${nowMs}`
+            operationId,
+            presentationFrameEntry,
+            __publishViewerArtifacts: publishViewerArtifacts
         });
 
         return {

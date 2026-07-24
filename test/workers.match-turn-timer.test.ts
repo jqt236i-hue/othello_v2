@@ -272,7 +272,12 @@ function runAlarmTimeoutScenario() {
     "  const durableObject = new MatchRoomDurableObject(state);",
     "  await durableObject.alarm();",
     "  await durableObject.loadRoom();",
-    "  process.stdout.write(JSON.stringify({ snapshot: durableObject.room.snapshot, stateVersion: durableObject.room.stateVersion }));",
+    "  process.stdout.write(JSON.stringify({",
+    "    snapshot: durableObject.room.snapshot,",
+    "    stateVersion: durableObject.room.stateVersion,",
+    "    visualSeq: durableObject.room.visualSeq,",
+    "    presentationJournal: durableObject.room.presentationJournal",
+    "  }));",
     "})().catch((error) => {",
     "  console.error(error && error.stack ? error.stack : String(error));",
     "  process.exit(1);",
@@ -301,6 +306,21 @@ describe('match worker turn timer', () => {
     expect(result.status).toBe(200);
     expect(result.statePayload && result.statePayload.ok).toBe(true);
     expect(result.statePayload.stateVersion).toBe(5);
+    expect(result.statePayload.presentationCursor).toEqual({
+      visualSeq: 1,
+      stateVersion: 5
+    });
+    expect(result.statePayload.presentationFrames).toEqual([
+      expect.objectContaining({
+        visualSeq: 1,
+        stateVersionFrom: 4,
+        stateVersionTo: 5,
+        actorSeatKey: 'black',
+        actionType: 'timeout_pass',
+        operationId: expect.stringMatching(/^timeout_5_/),
+        snapshotAfter: expect.objectContaining({ stateVersion: 5 })
+      })
+    ]);
     expect(internalSnapshot.gameState.currentPlayer).toBe(-1);
     expect(internalSnapshot.gameState.consecutivePasses).toBe(1);
     expect(internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
@@ -336,5 +356,16 @@ describe('match worker turn timer', () => {
     expect(result.snapshot.gameState.__resultShown).toBeUndefined();
     expect(result.snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
     expect(result.snapshot.cardState.selectedCardId).toBeNull();
+    expect(result.visualSeq).toBe(1);
+    expect(result.presentationJournal).toEqual([
+      expect.objectContaining({
+        visualSeq: 1,
+        stateVersionFrom: 4,
+        stateVersionTo: 5,
+        actorSeatKey: 'black',
+        actionType: 'timeout_pass',
+        operationId: expect.stringMatching(/^timeout_5_/)
+      })
+    ]);
   });
 });
