@@ -227,6 +227,12 @@ function createPlannerInput(root: NetworkAutoRoot, state: any, playerKey: string
   };
 }
 
+function isRetryablePublishFailure(result: any): boolean {
+  if (!result || typeof result !== 'object') return true;
+  const reason = String(result.reason || '').trim().toUpperCase();
+  return reason === 'PUBLISH_ERROR' || reason === 'PUBLISH_REJECTED';
+}
+
 function createNetworkAutoPlayController(rootRef?: NetworkAutoRoot): NetworkAutoController {
   const root = rootRef || (typeof window !== 'undefined' ? (window as any) : (globalThis as any));
   let publishing = false;
@@ -279,7 +285,7 @@ function createNetworkAutoPlayController(rootRef?: NetworkAutoRoot): NetworkAuto
         },
         playbackEvents: []
       });
-      if (!result || result.ok !== true) {
+      if (!result || (result.ok !== true && isRetryablePublishFailure(result))) {
         lastSignature = '';
       }
       return { handled: true, published: !!(result && result.ok === true), reason: result && result.reason };

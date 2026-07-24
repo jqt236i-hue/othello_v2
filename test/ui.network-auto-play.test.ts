@@ -236,6 +236,51 @@ describe('NetworkAutoPlay', () => {
     expect(root.NetworkMatchClient.publishCommand).toHaveBeenCalledTimes(2);
   });
 
+  test('does not flood the same rejected command until the network state version advances', async () => {
+    let stateVersion = 7;
+    const root = createRoot();
+    root.NetworkMatchClient.getStateVersion = jest.fn(() => stateVersion);
+    root.NetworkMatchClient.publishCommand.mockResolvedValue({
+      ok: false,
+      reason: 'CARD_USE_FAILED'
+    });
+    const controller = NetworkAutoPlay.createNetworkAutoPlayController(root);
+
+    const first = await controller.tick();
+    const duplicate = await controller.tick();
+    stateVersion = 8;
+    const afterAdvance = await controller.tick();
+
+    expect(first).toEqual(expect.objectContaining({
+      handled: true,
+      published: false,
+      reason: 'CARD_USE_FAILED'
+    }));
+    expect(duplicate.reason).toBe('DUPLICATE_TICK');
+    expect(afterAdvance.reason).not.toBe('DUPLICATE_TICK');
+    expect(root.NetworkMatchClient.publishCommand).toHaveBeenCalledTimes(2);
+  });
+
+  test('retries a transport-level publish failure at the same network state version', async () => {
+    const root = createRoot();
+    root.NetworkMatchClient.getStateVersion = jest.fn().mockReturnValue(7);
+    root.NetworkMatchClient.publishCommand
+      .mockResolvedValueOnce({ ok: false, reason: 'PUBLISH_ERROR' })
+      .mockResolvedValueOnce({ ok: true });
+    const controller = NetworkAutoPlay.createNetworkAutoPlayController(root);
+
+    const first = await controller.tick();
+    const retry = await controller.tick();
+
+    expect(first).toEqual(expect.objectContaining({
+      handled: true,
+      published: false,
+      reason: 'PUBLISH_ERROR'
+    }));
+    expect(retry.published).toBe(true);
+    expect(root.NetworkMatchClient.publishCommand).toHaveBeenCalledTimes(2);
+  });
+
   test('publishes a CPU-selected card when cards are still usable', async () => {
     const root = createRoot({
       getLegalMoves: jest.fn().mockReturnValue([]),

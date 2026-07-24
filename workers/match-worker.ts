@@ -1029,9 +1029,11 @@ async function applyCommandPublishToSnapshot(
         TurnPipelineUIAdapter
     );
 
-    const turnStartPlaybackAssembly = skipCommandTurnStart
-        ? null
-        : await reconcileTurnStartAndCollectPlayback(room, nextSnapshot, TurnPipelineUIAdapter);
+    const postActionPlayerKey = getCurrentPlayerKey(nextSnapshot.gameState);
+    const shouldReconcilePostActionTurnStart = !skipCommandTurnStart || postActionPlayerKey !== playerKey;
+    const turnStartPlaybackAssembly = shouldReconcilePostActionTurnStart
+        ? await reconcileTurnStartAndCollectPlayback(room, nextSnapshot, TurnPipelineUIAdapter)
+        : null;
     MatchAuthority.reportPlaybackAssemblyDiagnostics('worker-turn-start', turnStartPlaybackAssembly && turnStartPlaybackAssembly.diagnostics, {
         networkDebugEnabled: toPublicNetworkDebugEnabled(room)
     });

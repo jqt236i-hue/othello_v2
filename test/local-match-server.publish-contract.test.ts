@@ -117,6 +117,22 @@ function createEmptyBoard(rows = 8, cols = 8) {
   return Array.from({ length: rows }, () => Array(cols).fill(0));
 }
 
+function createFinalDoublePlaceBoard() {
+  const board = createEmptyBoard();
+  for (let row = 1; row <= 2; row += 1) {
+    board[row][0] = 1;
+    for (let col = 1; col <= 5; col += 1) {
+      board[row][col] = -1;
+    }
+  }
+  board[1][6] = 1;
+  board[3][3] = -1;
+  board[3][4] = 1;
+  board[4][3] = 1;
+  board[4][4] = -1;
+  return board;
+}
+
 describe('local match server publish contract', () => {
   afterEach(() => {
     resetRoomsForTests();
@@ -1779,6 +1795,77 @@ describe('local match server publish contract', () => {
       expect(outOfTurnPublish.status).toBe(409);
       expect(outOfTurnPublish.data.ok).toBe(false);
       expect(outOfTurnPublish.data.rejectedReason).toBe('OUT_OF_TURN');
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('final DOUBLE_PLACE sub-placement starts the next player turn exactly once', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const blackSeatToken = created.data.seatToken;
+      const board = createFinalDoublePlaceBoard();
+      const turnIndex = 11;
+
+      expect(Core.getLegalMoves({ board }, 1)).toEqual(expect.arrayContaining([
+        expect.objectContaining({ row: 2, col: 6 })
+      ]));
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        const snapshot = room.snapshot;
+        snapshot.gameState.board = board;
+        snapshot.gameState.currentPlayer = 1;
+        snapshot.gameState.turnNumber = 9;
+        snapshot.gameState.consecutivePasses = 0;
+        snapshot.gameState.resultShown = false;
+        snapshot.cardState.turnIndex = turnIndex;
+        snapshot.cardState.lastTurnStartedFor = 'black';
+        snapshot.cardState._activeTurnPlayer = 'black';
+        snapshot.cardState.pendingEffectByPlayer.black = null;
+        snapshot.cardState.extraPlaceRemainingByPlayer.black = 1;
+        snapshot.cardState.multiPlaceSourceTypeByPlayer.black = 'DOUBLE_PLACE';
+        snapshot.cardState.hasUsedCardThisTurnByPlayer.black = true;
+      })).toBe(true);
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken: blackSeatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_final_double_place_1',
+        actionType: 'place',
+        actor: 'black',
+        params: { row: 2, col: 6 },
+        turnIndex,
+        action: {
+          type: 'place',
+          playerKey: 'black',
+          row: 2,
+          col: 6,
+          turnIndex
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data).toEqual(expect.objectContaining({
+        ok: true,
+        publishMeta: expect.objectContaining({
+          kind: 'accepted',
+          operationId: 'op_final_double_place_1'
+        })
+      }));
+      expect(response.data.snapshot.gameState.currentPlayer).toBe(-1);
+      expect(response.data.snapshot.gameState.turnNumber).toBe(10);
+      expect(Core.isGameOver(response.data.snapshot.gameState)).toBe(false);
+      expect(response.data.snapshot.cardState.extraPlaceRemainingByPlayer.black).toBe(0);
+      expect(response.data.snapshot.cardState.multiPlaceSourceTypeByPlayer.black).toBeNull();
+      expect(response.data.snapshot.cardState.lastTurnStartedFor).toBe('white');
+      expect(response.data.snapshot.cardState._activeTurnPlayer).toBe('white');
+      expect(response.data.snapshot.cardState.turnIndex).toBe(turnIndex + 1);
     } finally {
       await closeServer(server);
     }

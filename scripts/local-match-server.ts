@@ -866,9 +866,11 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
         actionPresentationEvents
     );
 
-    const turnStartPlaybackAssembly = skipCommandTurnStart
-        ? null
-        : reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
+    const postActionPlayerKey = getCurrentPlayerKey(nextSnapshot.gameState);
+    const shouldReconcilePostActionTurnStart = !skipCommandTurnStart || postActionPlayerKey !== playerKey;
+    const turnStartPlaybackAssembly = shouldReconcilePostActionTurnStart
+        ? reconcileTurnStartAndCollectPlayback(room, nextSnapshot)
+        : null;
     if (
         actionChargeDeltaEvents.length > 0
         && nextSnapshot
