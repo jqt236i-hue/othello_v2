@@ -4,11 +4,13 @@ describe('NetworkStreamSessionController', () => {
   let eventSources: any[];
   let EventSourceMock: any;
   let callbacks: any;
+  let sessionEpoch: number;
 
   beforeEach(() => {
     jest.resetModules();
 
     eventSources = [];
+    sessionEpoch = 1;
     callbacks = {
       closeExistingStream: jest.fn(),
       emitStatus: jest.fn(),
@@ -63,6 +65,7 @@ describe('NetworkStreamSessionController', () => {
     const { createNetworkStreamSessionController } = require('../ui/network/stream-session.js');
     controller = createNetworkStreamSessionController({
       getState: () => stateObj,
+      getSessionEpoch: () => sessionEpoch,
       withTrailingSlashRemoved: (url: any) => String(url || '').replace(/\/+$/, ''),
       eventSourceClass: EventSourceMock,
       ...callbacks
@@ -116,5 +119,32 @@ describe('NetworkStreamSessionController', () => {
 
     expect(callbacks.emitStatus).toHaveBeenCalledWith('ネット対戦: 接続が不安定です（再接続待機）', true);
     expect(callbacks.scheduleStreamReconnect).toHaveBeenCalled();
+  });
+
+  test('ignores events and lifecycle callbacks from an older session stream', () => {
+    controller.openStream();
+    const staleStream = eventSources[0];
+
+    sessionEpoch += 1;
+    stateObj.roomId = 'XYZ';
+    controller.openStream();
+    const currentStream = eventSources[1];
+
+    staleStream.listeners.snapshot({ roomId: 'ABC' });
+    staleStream.listeners.presence({ roomId: 'ABC' });
+    staleStream.listeners.chat({ roomId: 'ABC' });
+    staleStream.listeners.heartbeat({ roomId: 'ABC' });
+    staleStream.onopen();
+    staleStream.readyState = 2;
+    staleStream.onerror();
+
+    expect(callbacks.handleStreamSnapshotPayload).not.toHaveBeenCalled();
+    expect(callbacks.handlePresencePayload).not.toHaveBeenCalled();
+    expect(callbacks.handleChatPayload).not.toHaveBeenCalled();
+    expect(callbacks.applyPayloadSessionState).not.toHaveBeenCalled();
+    expect(callbacks.scheduleStreamReconnect).not.toHaveBeenCalled();
+
+    currentStream.listeners.snapshot({ roomId: 'XYZ' });
+    expect(callbacks.handleStreamSnapshotPayload).toHaveBeenCalledWith({ roomId: 'XYZ' });
   });
 });

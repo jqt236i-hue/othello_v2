@@ -1,5 +1,9 @@
 import { JSDOM } from 'jsdom';
 
+jest.mock('../ui/board-renderer.ts', () => ({
+  getBoardVisualControllerReady: jest.fn(async () => undefined)
+}));
+
 function jsonResponse(status, data) {
   return {
     ok: status >= 200 && status < 300,
@@ -56,6 +60,25 @@ function createUseCardAction(playerKey = 'black', useCardId = 'sample_card', tur
   };
 }
 
+function createPresentationFrame(playbackEvents, operationId) {
+  return {
+    roomId: 'ABC',
+    visualSeq: 1,
+    stateVersionFrom: 10,
+    stateVersionTo: 11,
+    operationId,
+    actionType: 'place',
+    playbackEvents,
+    snapshotAfter: createSnapshot(11)
+  };
+}
+
+async function flushPresentation() {
+  for (let index = 0; index < 4; index += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+}
+
 describe('NetworkMatchClient queued publish', () => {
   let dom;
   let eventSources;
@@ -81,6 +104,16 @@ describe('NetworkMatchClient queued publish', () => {
     global.emitGameStateChange = jest.fn();
     global.emitBoardUpdate = jest.fn();
     global.renderCardUI = jest.fn();
+    global.PresentationHandler = {
+      handlePresentationEvent: jest.fn(async (event) => Object.freeze({
+        kind: 'strict-network-settlement',
+        visualSeq: event.meta.visualSeq,
+        applyCommittedFrame: jest.fn(async () => true),
+        settle: jest.fn(async () => true),
+        cancel: jest.fn(async () => true)
+      })),
+      onBoardUpdated: jest.fn(async () => undefined)
+    };
 
     eventSources = [];
     global.EventSource = class MockEventSource {
@@ -158,6 +191,7 @@ describe('NetworkMatchClient queued publish', () => {
     delete global.emitGameStateChange;
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
+    delete global.PresentationHandler;
     delete global.BoardOps;
     delete global.EventSource;
     delete global.fetch;
@@ -442,7 +476,7 @@ describe('NetworkMatchClient queued publish', () => {
     expect(secondResult.ok).toBe(true);
   });
 
-  test('publish成功応答のサーバー playbackEvents が通常再生として emit される', async () => {
+  test('publish成功応答のサーバー playbackEvents がtimelineでstrict再生される', async () => {
     global.BoardOps = {
       emitPresentationEvent: jest.fn((state, ev) => {
         if (!state || !ev) return;
@@ -471,18 +505,22 @@ describe('NetworkMatchClient queued publish', () => {
 
       if (path === '/api/match/publish') {
         const body = JSON.parse(init.body || '{}');
+        const playbackEvents = [{
+          type: 'move',
+          phase: 1,
+          targets: [{ from: { r: 3, col: 3 }, to: { r: 3, col: 4 } }]
+        }];
         publishPayloads.push(body);
         publishCount += 1;
         return jsonResponse(200, {
           ok: true,
           roomId: 'ABC',
+          operationId: body.operationId,
           stateVersion: 11,
           snapshot: createSnapshot(11),
-          playbackEvents: [{
-            type: 'move',
-            phase: 1,
-            targets: [{ from: { r: 3, col: 3 }, to: { r: 3, col: 4 } }]
-          }]
+          presentationCursor: { visualSeq: 1, stateVersion: 11 },
+          presentationFrames: [createPresentationFrame(playbackEvents, body.operationId)],
+          playbackEvents
         });
       }
 
@@ -504,9 +542,8 @@ describe('NetworkMatchClient queued publish', () => {
     });
 
     expect(result.ok).toBe(true);
-    // Single Writer: サーバー応答の playbackEvents が通常再生として emit
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledWith(
-      global.cardState,
+    await flushPresentation();
+    expect(global.PresentationHandler.handlePresentationEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'PLAYBACK_EVENTS',
         events: [{
@@ -515,10 +552,13 @@ describe('NetworkMatchClient queued publish', () => {
           targets: [{ from: { r: 3, col: 3 }, to: { r: 3, col: 4 } }]
         }],
         meta: expect.objectContaining({
-          source: 'network_snapshot'
+          source: 'network_timeline',
+          strictNetworkPlayback: true,
+          visualSeq: 1
         })
       })
     );
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
   });
 
   test('publish応答先着後のself SSEで同一 version は重複適用されない', async () => {
@@ -550,25 +590,29 @@ describe('NetworkMatchClient queued publish', () => {
 
       if (path === '/api/match/publish') {
         const body = JSON.parse(init.body || '{}');
+        const playbackEvents = [
+          {
+            type: 'move',
+            phase: 1,
+            targets: [{ from: { r: 3, col: 3 }, to: { r: 3, col: 4 } }]
+          },
+          {
+            type: 'flip',
+            phase: 2,
+            targets: [{ r: 3, col: 4, ownerBefore: -1, ownerAfter: 1 }]
+          }
+        ];
         publishPayloads.push(body);
         publishCount += 1;
         return jsonResponse(200, {
           ok: true,
           roomId: 'ABC',
+          operationId: body.operationId,
           stateVersion: 11,
           snapshot: createSnapshot(11),
-          playbackEvents: [
-            {
-              type: 'move',
-              phase: 1,
-              targets: [{ from: { r: 3, col: 3 }, to: { r: 3, col: 4 } }]
-            },
-            {
-              type: 'flip',
-              phase: 2,
-              targets: [{ r: 3, col: 4, ownerBefore: -1, ownerAfter: 1 }]
-            }
-          ]
+          presentationCursor: { visualSeq: 1, stateVersion: 11 },
+          presentationFrames: [createPresentationFrame(playbackEvents, body.operationId)],
+          playbackEvents
         });
       }
 
@@ -593,14 +637,21 @@ describe('NetworkMatchClient queued publish', () => {
     expect(publishResult.ok).toBe(true);
     expect(publishPayloads).toHaveLength(1);
     const operationId = publishPayloads[0].operationId;
+    await flushPresentation();
 
-    // Single Writer: POST 応答で全 playbackEvents が通常再生として emit 済み
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledWith(
-      global.cardState,
-      expect.objectContaining({
-        type: 'PLAYBACK_EVENTS',
-        events: [
+    expect(global.PresentationHandler.handlePresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
+
+    // 同一 version の SSE が届いても、stale として reject される
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId,
+        playerKey: 'black',
+        actionType: 'place',
+        presentationCursor: { visualSeq: 1, stateVersion: 11 },
+        presentationFrames: [createPresentationFrame([
           {
             type: 'move',
             phase: 1,
@@ -611,21 +662,7 @@ describe('NetworkMatchClient queued publish', () => {
             phase: 2,
             targets: [{ r: 3, col: 4, ownerBefore: -1, ownerAfter: 1 }]
           }
-        ],
-        meta: expect.objectContaining({
-          source: 'network_snapshot'
-        })
-      })
-    );
-
-    // 同一 version の SSE が届いても、stale として reject される
-    eventSources[0].onmessage({
-      data: JSON.stringify({
-        ok: true,
-        roomId: 'ABC',
-        operationId,
-        playerKey: 'black',
-        actionType: 'place',
+        ], operationId)],
         playbackEvents: [
           {
             type: 'move',
@@ -642,8 +679,9 @@ describe('NetworkMatchClient queued publish', () => {
       })
     });
 
-    // SSE は重複適用されない (emit 回数が増えない)
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    await flushPresentation();
+    expect(global.PresentationHandler.handlePresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
   });
 
   test('self SSE先着後のpublish応答で同一 version は重複適用されない', async () => {
@@ -694,6 +732,8 @@ describe('NetworkMatchClient queued publish', () => {
           resolvePublishResponse = () => resolve(jsonResponse(200, {
             ok: true,
             roomId: 'ABC',
+            presentationCursor: { visualSeq: 1, stateVersion: 11 },
+            presentationFrames: [createPresentationFrame(echoedPlaybackEvents, body.operationId)],
             stateVersion: 11,
             snapshot: createSnapshot(11),
             playbackEvents: echoedPlaybackEvents,
@@ -731,6 +771,8 @@ describe('NetworkMatchClient queued publish', () => {
         operationId,
         playerKey: 'black',
         actionType: 'place',
+        presentationCursor: { visualSeq: 1, stateVersion: 11 },
+        presentationFrames: [createPresentationFrame(echoedPlaybackEvents, operationId)],
         playbackEvents: echoedPlaybackEvents,
         snapshot: createSnapshot(11)
       })
@@ -739,14 +781,18 @@ describe('NetworkMatchClient queued publish', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    await flushPresentation();
+    expect(global.PresentationHandler.handlePresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
 
     expect(typeof resolvePublishResponse).toBe('function');
     resolvePublishResponse();
 
     const publishResult = await publishPromise;
     expect(publishResult.ok).toBe(true);
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    await flushPresentation();
+    expect(global.PresentationHandler.handlePresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
   });
 
   test('先行publish成功応答で後続ローカル状態を巻き戻さない', async () => {

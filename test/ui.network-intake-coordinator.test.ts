@@ -4,6 +4,7 @@ import type { NetworkSnapshotEnvelope } from '../ui/network/intake-envelope';
 function envelope(overrides: Partial<NetworkSnapshotEnvelope>): NetworkSnapshotEnvelope {
   return {
     source: 'stream',
+    roomId: 'ABC',
     operationId: null,
     stateVersion: null,
     visualSeq: null,
@@ -28,6 +29,8 @@ describe('network intake coordinator', () => {
       presentationFrames: [{ visualSeq: 4 }],
       applyOptions: {
         playbackEvents: [{ type: 'old' }],
+        shadowPlaybackEvents: [{ type: 'old_shadow' }],
+        shadowPlaybackSource: 'legacy_shadow',
         presentationFrames: [{ visualSeq: 3 }],
         custom: 'kept'
       }
@@ -36,6 +39,8 @@ describe('network intake coordinator', () => {
       force: true,
       skipResultOverlay: true,
       playbackEvents: [],
+      shadowPlaybackEvents: [],
+      networkCanonicalIntake: true,
       presentationFrameSource: 'stream',
       source: 'stream'
     });
@@ -47,6 +52,7 @@ describe('network intake coordinator', () => {
     const boardRequests: any[] = [];
     const traces: Array<{ type: string; details: any }> = [];
     const coordinator = createNetworkIntakeCoordinator({
+      getRoomId: () => 'ABC',
       getAppliedStateVersion: () => null,
       getPlaybackActive: () => false,
       applyCanonicalSnapshot: (_snapshot, meta) => {
@@ -64,7 +70,13 @@ describe('network intake coordinator', () => {
       recordTrace: (type, details) => traces.push({ type, details })
     });
 
-    const frame = { visualSeq: 3, stateVersionFrom: 2, stateVersionTo: 3, operationId: 'op_1' };
+    const frame = {
+      visualSeq: 3,
+      stateVersionFrom: 2,
+      stateVersionTo: 3,
+      operationId: 'op_1',
+      snapshotAfter: { stateVersion: 3 }
+    };
     const first = coordinator.submit(envelope({
       source: 'publish_response',
       operationId: 'op_1',
@@ -122,7 +134,9 @@ describe('network intake coordinator', () => {
     const boardRequests: any[] = [];
     const recordTrace = jest.fn();
     const coordinator = createNetworkIntakeCoordinator({
+      getRoomId: () => 'ABC',
       getAppliedStateVersion: () => 4,
+      getVisualCursor: () => ({ visualSeq: 9, visualVersion: 5 }),
       getPlaybackActive: () => true,
       applyCanonicalSnapshot: () => true,
       enqueuePresentationFrames: jest.fn(),
@@ -166,6 +180,7 @@ describe('network intake coordinator', () => {
     const applyCanonicalSnapshot = jest.fn(() => true);
     const recordTrace = jest.fn();
     const coordinator = createNetworkIntakeCoordinator({
+      getRoomId: () => 'ABC',
       getAppliedStateVersion: () => 8,
       applyCanonicalSnapshot,
       enqueuePresentationFrames: jest.fn(),
@@ -192,5 +207,151 @@ describe('network intake coordinator', () => {
       accepted: false,
       skippedReason: 'stale_state_version'
     }));
+  });
+
+  test('resets visual and operation dedupe at a session boundary', () => {
+    let roomId = 'AAA';
+    const enqueued: number[] = [];
+    const coordinator = createNetworkIntakeCoordinator({
+      getRoomId: () => roomId,
+      getAppliedStateVersion: () => null,
+      applyCanonicalSnapshot: () => true,
+      enqueuePresentationFrames: (frames) => {
+        enqueued.push(...frames.map((frame: any) => frame.visualSeq));
+        return frames.length;
+      }
+    });
+    const firstFrame = {
+      visualSeq: 1,
+      stateVersionFrom: 1,
+      stateVersionTo: 2,
+      snapshotAfter: { stateVersion: 2 }
+    };
+
+    coordinator.submit(envelope({
+      roomId: 'AAA',
+      operationId: 'op_1',
+      stateVersion: 2,
+      snapshot: { stateVersion: 2 },
+      presentationFrames: [firstFrame]
+    }));
+    coordinator.reset();
+    roomId = 'BBB';
+    const second = coordinator.submit(envelope({
+      roomId: 'BBB',
+      operationId: 'op_1',
+      stateVersion: 2,
+      snapshot: { stateVersion: 2 },
+      presentationFrames: [firstFrame]
+    }));
+
+    expect(second).toMatchObject({
+      appliedSnapshot: true,
+      enqueuedFrameCount: 1,
+      duplicateOperation: false
+    });
+    expect(enqueued).toEqual([1, 1]);
+  });
+
+  test('rejects a delayed payload from another room before canonical apply', () => {
+    const applyCanonicalSnapshot = jest.fn(() => true);
+    const coordinator = createNetworkIntakeCoordinator({
+      getRoomId: () => 'NEW',
+      getAppliedStateVersion: () => 1,
+      applyCanonicalSnapshot,
+      enqueuePresentationFrames: jest.fn()
+    });
+
+    const result = coordinator.submit(envelope({
+      roomId: 'OLD',
+      stateVersion: 2,
+      snapshot: { stateVersion: 2 }
+    }));
+
+    expect(result).toMatchObject({
+      appliedSnapshot: false,
+      skippedReason: 'room_mismatch'
+    });
+    expect(applyCanonicalSnapshot).not.toHaveBeenCalled();
+  });
+
+  test('rebases instead of dispatching malformed presentation frames', () => {
+    const enqueuePresentationFrames = jest.fn();
+    const recoverPresentationContinuity = jest.fn(() => true);
+    const requestBoardRefresh = jest.fn(() => true);
+    const coordinator = createNetworkIntakeCoordinator({
+      getRoomId: () => 'ABC',
+      getAppliedStateVersion: () => 2,
+      getVisualCursor: () => ({ visualSeq: 1, visualVersion: 2 }),
+      applyCanonicalSnapshot: () => true,
+      enqueuePresentationFrames,
+      recoverPresentationContinuity,
+      requestBoardRefresh
+    });
+
+    const result = coordinator.submit(envelope({
+      stateVersion: 3,
+      visualSeq: 2,
+      snapshot: { stateVersion: 3 },
+      presentationCursor: { visualSeq: 2, stateVersion: 3 },
+      playbackEvents: [{ type: 'legacy_direct_playback_must_not_run' }],
+      presentationFrames: [{
+        visualSeq: 2,
+        stateVersionFrom: 2,
+        stateVersionTo: 3
+      }]
+    }));
+
+    expect(enqueuePresentationFrames).not.toHaveBeenCalled();
+    expect(recoverPresentationContinuity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stateVersion: 3,
+        visualSeq: 2
+      }),
+      expect.objectContaining({
+        reason: 'presentation_frame_snapshot_required'
+      })
+    );
+    expect(requestBoardRefresh).toHaveBeenCalled();
+    expect(result).toMatchObject({
+      appliedSnapshot: true,
+      enqueuedFrameCount: 0,
+      recoveredVisualContinuity: true,
+      requestedBoardRefresh: true
+    });
+  });
+
+  test('treats a zero-frame enqueue result as a continuity gap', () => {
+    const recoverPresentationContinuity = jest.fn(() => true);
+    const coordinator = createNetworkIntakeCoordinator({
+      getRoomId: () => 'ABC',
+      getAppliedStateVersion: () => 2,
+      getVisualCursor: () => ({ visualSeq: 1, visualVersion: 2 }),
+      applyCanonicalSnapshot: () => true,
+      enqueuePresentationFrames: () => 0,
+      recoverPresentationContinuity,
+      requestBoardRefresh: () => true
+    });
+    const result = coordinator.submit(envelope({
+      stateVersion: 3,
+      visualSeq: 2,
+      snapshot: { stateVersion: 3 },
+      presentationCursor: { visualSeq: 2, stateVersion: 3 },
+      presentationFrames: [{
+        visualSeq: 2,
+        stateVersionFrom: 2,
+        stateVersionTo: 3,
+        snapshotAfter: { stateVersion: 3 }
+      }]
+    }));
+
+    expect(recoverPresentationContinuity).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ reason: 'presentation_frame_enqueue_partial' })
+    );
+    expect(result).toMatchObject({
+      recoveredVisualContinuity: true,
+      requestedBoardRefresh: true
+    });
   });
 });

@@ -316,6 +316,32 @@ function createNetworkSessionLifecycleController(config: any): any {
       await cfg.drainPresentationTimeline();
     }
     if (!isSessionGuardCurrent(sessionGuard)) return sessionChangedResult('journal_after_drain');
+    const converged = typeof cfg.verifyPresentationCursorConvergence === 'function'
+      ? cfg.verifyPresentationCursorConvergence(res.data.presentationCursor) === true
+      : enqueued > 0;
+    if (!converged) {
+      if (typeof cfg.recordNetworkTelemetry === 'function') {
+        cfg.recordNetworkTelemetry('presentation_journal_unresolved', {
+          afterVisualSeq,
+          canonicalVersion,
+          lastVisualVersion,
+          enqueued,
+          presentationCursor: res.data.presentationCursor || null
+        });
+      }
+      const recovered = typeof cfg.recoverPresentationContinuity === 'function'
+        ? await cfg.recoverPresentationContinuity(
+          'state_sync_presentation_journal_did_not_converge',
+          normalizedSource
+        )
+        : false;
+      if (!isSessionGuardCurrent(sessionGuard)) return sessionChangedResult('journal_after_recovery');
+      return {
+        recovered: recovered === true,
+        enqueued,
+        reason: recovered === true ? null : 'PRESENTATION_JOURNAL_NOT_CONVERGED'
+      };
+    }
     if (typeof cfg.recordNetworkTelemetry === 'function') {
       cfg.recordNetworkTelemetry(normalizedSource === 'state_sync' ? 'state_sync_presentation_journal_recovered' : 'presentation_journal_recovered', {
         afterVisualSeq,
@@ -628,6 +654,17 @@ function createNetworkSessionLifecycleController(config: any): any {
     if (!res.ok || !res.data || res.data.ok !== true) {
       return { ok: false, reason: (res.data && res.data.reason) || 'STATE_FETCH_FAILED' };
     }
+    const responseRoomId = res.data.roomId ? String(res.data.roomId).trim().toUpperCase() : '';
+    const currentRoomId = state.roomId ? String(state.roomId).trim().toUpperCase() : '';
+    if (responseRoomId && currentRoomId && responseRoomId !== currentRoomId) {
+      if (typeof cfg.recordNetworkTelemetry === 'function') {
+        cfg.recordNetworkTelemetry('state_sync_stale_room_ignored', {
+          responseRoomId,
+          currentRoomId
+        });
+      }
+      return { ok: false, reason: 'ROOM_MISMATCH' };
+    }
 
     const visualSeqBeforeStateSync = getStoredVisualSeq(null, state);
     const visualVersionBeforeStateSync = getStoredVisualVersion(null, state);
@@ -644,20 +681,24 @@ function createNetworkSessionLifecycleController(config: any): any {
 
     let appliedSnapshot = false;
     let stateSyncPresentationFrameCount = 0;
+    let stateSyncRecoveredVisualContinuity = false;
     if (res.data.snapshot) {
-      const skipSnapshot = typeof cfg.shouldSkipForceSyncSnapshot === 'function'
+      const exactVisualRebase = opts.syncVisualCursorForSnapshotNoPlayback === true;
+      const skipSnapshot = !exactVisualRebase && typeof cfg.shouldSkipForceSyncSnapshot === 'function'
         ? cfg.shouldSkipForceSyncSnapshot(res.data.snapshot, {
           localProjectedSnapshotHash: localProjectedSnapshotHashBefore
         })
         : false;
       if (!skipSnapshot) {
-        const hasPresentationFrames = Array.isArray(res.data.presentationFrames) && res.data.presentationFrames.length > 0;
+        const hasPresentationFrames = !exactVisualRebase
+          && Array.isArray(res.data.presentationFrames)
+          && res.data.presentationFrames.length > 0;
         stateSyncPresentationFrameCount = hasPresentationFrames ? res.data.presentationFrames.length : 0;
-        const playbackEvents = hasPresentationFrames
+        const playbackEvents = exactVisualRebase || hasPresentationFrames
           ? []
           : (typeof cfg.resolveStateSyncRecoveredPlaybackEvents === 'function'
-          ? cfg.resolveStateSyncRecoveredPlaybackEvents(res.data)
-          : (Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : []));
+            ? cfg.resolveStateSyncRecoveredPlaybackEvents(res.data)
+            : (Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : []));
         if (
           typeof cfg.normalizeNetworkSnapshotEnvelope === 'function'
           && typeof cfg.submitNetworkSnapshotEnvelope === 'function'
@@ -670,11 +711,16 @@ function createNetworkSessionLifecycleController(config: any): any {
               force: true,
               playbackEvents: playbackEvents,
               presentationFrames: hasPresentationFrames ? res.data.presentationFrames : [],
-              presentationFrameSource: intakeSource
+              presentationFrameSource: intakeSource,
+              suppressContinuityRecovery: exactVisualRebase
             }
           });
           const intakeResult = cfg.submitNetworkSnapshotEnvelope(envelope);
           appliedSnapshot = !!(intakeResult && intakeResult.appliedSnapshot === true);
+          stateSyncRecoveredVisualContinuity = !!(
+            intakeResult
+            && intakeResult.recoveredVisualContinuity === true
+          );
         } else {
           appliedSnapshot = typeof cfg.applySnapshotThroughCoordinator === 'function'
             ? cfg.applySnapshotThroughCoordinator(res.data.snapshot, {
@@ -683,7 +729,8 @@ function createNetworkSessionLifecycleController(config: any): any {
                 force: true,
                 playbackEvents: playbackEvents,
                 presentationFrames: hasPresentationFrames ? res.data.presentationFrames : [],
-                presentationFrameSource: intakeSource
+                presentationFrameSource: intakeSource,
+                suppressContinuityRecovery: exactVisualRebase
               }
             })
             : false;
@@ -710,12 +757,19 @@ function createNetworkSessionLifecycleController(config: any): any {
           opts.syncVisualCursorForSnapshotNoPlayback === true &&
           typeof cfg.syncVisualCursorForSnapshotNoPlayback === 'function'
         ) {
-          cfg.syncVisualCursorForSnapshotNoPlayback(
+          const visualRebased = cfg.syncVisualCursorForSnapshotNoPlayback(
             res.data,
             typeof cfg.getSnapshotStateVersion === 'function'
               ? cfg.getSnapshotStateVersion(res.data.snapshot)
-              : responseStateVersion
+              : responseStateVersion,
+            {
+              requirePresentationCursor: opts.requirePresentationCursor === true,
+              source: intakeSource
+            }
           );
+          if (visualRebased !== true) {
+            return { ok: false, reason: 'VISUAL_REBASE_FAILED' };
+          }
         }
       } else if (typeof cfg.recordNetworkTelemetry === 'function') {
         cfg.recordNetworkTelemetry('state_sync_snapshot_skipped', {
@@ -735,6 +789,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     if (
       appliedSnapshot &&
       opts.suppressPresentationJournalCatchup !== true &&
+      stateSyncRecoveredVisualContinuity !== true &&
       cursorVisualSeq !== null &&
       cursorVisualSeq > visualSeqBeforeStateSync + stateSyncPresentationFrameCount &&
       typeof cfg.enqueuePresentationFramesFromPayload === 'function'
@@ -749,10 +804,26 @@ function createNetworkSessionLifecycleController(config: any): any {
       if (journalResult && journalResult.reason === 'SESSION_CHANGED') {
         return { ok: false, stale: true, reason: 'SESSION_CHANGED' };
       }
+      if (!journalResult || journalResult.recovered !== true) {
+        return {
+          ok: false,
+          reason: journalResult && journalResult.reason
+            ? journalResult.reason
+            : 'PRESENTATION_JOURNAL_NOT_CONVERGED'
+        };
+      }
     }
 
     if (!isSessionGuardCurrent(sessionGuard)) return sessionChangedResult('state_sync_before_return');
-    return { ok: true, appliedSnapshot: appliedSnapshot };
+    const result: any = {
+      ok: true,
+      appliedSnapshot: appliedSnapshot
+    };
+    if (opts.syncVisualCursorForSnapshotNoPlayback === true) {
+      result.visualRebased = true;
+      result.presentationCursor = cursor;
+    }
+    return result;
   }
 
   async function restoreStoredSession(options?: any): Promise<any> {
@@ -785,7 +856,8 @@ function createNetworkSessionLifecycleController(config: any): any {
 
     const syncResult = await syncLatestState({
       suppressPresentationJournalCatchup: true,
-      syncVisualCursorForSnapshotNoPlayback: true
+      syncVisualCursorForSnapshotNoPlayback: true,
+      requirePresentationCursor: true
     });
     if (!syncResult || syncResult.ok !== true) {
       const reason = syncResult && syncResult.reason ? syncResult.reason : 'STATE_FETCH_FAILED';

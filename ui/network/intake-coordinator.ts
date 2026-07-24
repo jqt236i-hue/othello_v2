@@ -1,7 +1,10 @@
 import type { NetworkSnapshotEnvelope } from './intake-envelope';
 
+const FrameContract = require('../../shared/network-presentation-frame');
+
 export interface NetworkIntakeApplyMeta {
   source: string;
+  roomId: string | null;
   operationId: string | null;
   stateVersion: number | null;
   visualSeq: number | null;
@@ -18,10 +21,16 @@ export interface NetworkIntakeBoardRefreshMeta extends NetworkIntakeApplyMeta {
 }
 
 export interface NetworkIntakeCoordinatorConfig {
+  getRoomId?: () => string | null;
   getAppliedStateVersion?: () => number | null;
   getPlaybackActive?: () => boolean | null;
+  getVisualCursor?: () => { visualSeq?: number | null; visualVersion?: number | null } | null;
   applyCanonicalSnapshot?: (snapshot: unknown, meta: NetworkIntakeApplyMeta) => boolean;
   enqueuePresentationFrames?: (frames: unknown[], meta: NetworkIntakeApplyMeta) => number;
+  recoverPresentationContinuity?: (
+    envelope: NetworkSnapshotEnvelope,
+    meta: NetworkIntakeApplyMeta & { reason: string }
+  ) => boolean;
   requestBoardRefresh?: (meta: NetworkIntakeBoardRefreshMeta) => boolean;
   recordTrace?: (type: string, details: Record<string, unknown>) => void;
 }
@@ -32,6 +41,7 @@ export interface NetworkIntakeSubmitResult {
   requestedBoardRefresh: boolean;
   duplicateOperation: boolean;
   skippedReason: string | null;
+  recoveredVisualContinuity?: boolean;
 }
 
 function toIntegerOrNull(value: unknown): number | null {
@@ -53,6 +63,7 @@ function frameVisualSeq(frame: unknown): number | null {
 function createApplyMeta(envelope: NetworkSnapshotEnvelope): NetworkIntakeApplyMeta {
   return {
     source: envelope.source,
+    roomId: envelope.roomId,
     operationId: envelope.operationId,
     stateVersion: envelope.stateVersion,
     visualSeq: envelope.visualSeq,
@@ -73,13 +84,16 @@ export function buildNetworkIntakeApplyOptions(meta: NetworkIntakeApplyMeta | nu
   applyOptions.force = sourceMeta ? sourceMeta.force === true : false;
   applyOptions.skipResultOverlay = sourceMeta ? sourceMeta.skipResultOverlay === true : false;
   const frames = sourceMeta && Array.isArray(sourceMeta.presentationFrames) ? sourceMeta.presentationFrames : [];
+  delete applyOptions.presentationFrames;
   if (frames.length > 0) {
-    delete applyOptions.presentationFrames;
-    applyOptions.playbackEvents = [];
     applyOptions.presentationFrameSource = sourceMeta && sourceMeta.source ? String(sourceMeta.source) : 'network_intake';
-  } else if (!Array.isArray(applyOptions.playbackEvents) && sourceMeta && Array.isArray(sourceMeta.playbackEvents)) {
-    applyOptions.playbackEvents = sourceMeta.playbackEvents;
   }
+  // Canonical server intake never dispatches playback directly. Ordered
+  // presentation is owned exclusively by NetworkPresentationTimeline.
+  applyOptions.playbackEvents = [];
+  applyOptions.shadowPlaybackEvents = [];
+  delete applyOptions.shadowPlaybackSource;
+  applyOptions.networkCanonicalIntake = true;
   applyOptions.source = sourceMeta && sourceMeta.source ? String(sourceMeta.source) : 'network_intake';
   return applyOptions;
 }
@@ -101,10 +115,12 @@ function getTraceBoardWriter(enqueuedFrameCount: number, requestedBoardRefresh: 
 }
 
 function getTraceDecision(result: NetworkIntakeSubmitResult): string {
+  if (result.recoveredVisualContinuity) return 'visual_rebased';
   if (result.requestedBoardRefresh) return 'refresh_requested';
   if (result.appliedSnapshot || result.enqueuedFrameCount > 0) return 'accepted';
   if (result.duplicateOperation) return 'deduped';
   if (result.skippedReason === 'stale_state_version') return 'stale';
+  if (result.skippedReason === 'room_mismatch') return 'stale_session';
   if (result.skippedReason === 'apply_rejected') return 'rejected';
   return 'deferred';
 }
@@ -125,6 +141,13 @@ export function createNetworkIntakeCoordinator(config?: NetworkIntakeCoordinator
 
   function shouldApplySnapshot(envelope: NetworkSnapshotEnvelope, key: string | null): { ok: boolean; reason: string | null } {
     if (!envelope.snapshot) return { ok: false, reason: 'no_snapshot' };
+    const currentRoomId = typeof cfg.getRoomId === 'function'
+      ? String(cfg.getRoomId() || '').trim().toUpperCase()
+      : '';
+    const envelopeRoomId = String(envelope.roomId || '').trim().toUpperCase();
+    if (currentRoomId && envelopeRoomId && currentRoomId !== envelopeRoomId) {
+      return { ok: false, reason: 'room_mismatch' };
+    }
     if (key && seenByOperationAndVersion.has(key)) return { ok: false, reason: 'duplicate_operation_state' };
     const appliedVersion = typeof cfg.getAppliedStateVersion === 'function'
       ? toIntegerOrNull(cfg.getAppliedStateVersion())
@@ -140,30 +163,94 @@ export function createNetworkIntakeCoordinator(config?: NetworkIntakeCoordinator
     return { ok: true, reason: null };
   }
 
-  function enqueueFrames(envelope: NetworkSnapshotEnvelope, meta: NetworkIntakeApplyMeta): number {
-    if (!Array.isArray(envelope.presentationFrames) || envelope.presentationFrames.length <= 0) return 0;
+  function readSnapshotVersion(snapshot: unknown): number | null {
+    const record = snapshot && typeof snapshot === 'object' ? snapshot as any : null;
+    return toIntegerOrNull(record && record._meta && record._meta.version)
+      ?? toIntegerOrNull(record && record.stateVersion);
+  }
+
+  function normalizeUnseenFrames(envelope: NetworkSnapshotEnvelope): {
+    frames: unknown[];
+    invalidReason: string | null;
+  } {
+    if (!Array.isArray(envelope.presentationFrames) || envelope.presentationFrames.length <= 0) {
+      return { frames: [], invalidReason: null };
+    }
     const unseenFrames: unknown[] = [];
     for (const frame of envelope.presentationFrames) {
-      const visualSeq = frameVisualSeq(frame);
+      let normalized: any = null;
+      try {
+        normalized = FrameContract.normalizePresentationFrame(frame);
+      } catch (error: any) {
+        return {
+          frames: [],
+          invalidReason: error && error.message ? String(error.message) : 'presentation_frame_invalid'
+        };
+      }
+      if (!normalized.snapshotAfter || typeof normalized.snapshotAfter !== 'object') {
+        return { frames: [], invalidReason: 'presentation_frame_snapshot_required' };
+      }
+      if (
+        readSnapshotVersion(normalized.snapshotAfter) !== normalized.stateVersionTo
+      ) {
+        return { frames: [], invalidReason: 'presentation_frame_snapshot_version_mismatch' };
+      }
+      const envelopeRoomId = String(envelope.roomId || '').trim().toUpperCase();
+      const frameRoomId = String(normalized.roomId || '').trim().toUpperCase();
+      if (envelopeRoomId && frameRoomId && envelopeRoomId !== frameRoomId) {
+        return { frames: [], invalidReason: 'presentation_frame_room_mismatch' };
+      }
+      const visualSeq = frameVisualSeq(normalized);
       if (visualSeq !== null && seenByVisualSeq.has(visualSeq)) continue;
-      unseenFrames.push(frame);
+      unseenFrames.push(normalized);
     }
-    if (unseenFrames.length <= 0) return 0;
+    return { frames: unseenFrames, invalidReason: null };
+  }
+
+  function enqueueFrames(
+    envelope: NetworkSnapshotEnvelope,
+    meta: NetworkIntakeApplyMeta
+  ): { accepted: number; invalidReason: string | null; partial: boolean } {
+    const normalized = normalizeUnseenFrames(envelope);
+    if (normalized.invalidReason) {
+      return { accepted: 0, invalidReason: normalized.invalidReason, partial: false };
+    }
+    const unseenFrames = normalized.frames;
+    if (unseenFrames.length <= 0) {
+      return { accepted: 0, invalidReason: null, partial: false };
+    }
     const accepted = typeof cfg.enqueuePresentationFrames === 'function'
       ? toIntegerOrNull(cfg.enqueuePresentationFrames(unseenFrames, meta)) ?? 0
       : unseenFrames.length;
-    if (accepted > 0) {
+    const partial = accepted !== unseenFrames.length;
+    if (accepted > 0 && !partial) {
       for (const frame of unseenFrames) {
         const visualSeq = frameVisualSeq(frame);
         if (visualSeq !== null) seenByVisualSeq.add(visualSeq);
       }
     }
-    return accepted;
+    return { accepted, invalidReason: null, partial };
+  }
+
+  function readVisualCursor(): { visualSeq: number | null; visualVersion: number | null } {
+    if (typeof cfg.getVisualCursor !== 'function') {
+      return { visualSeq: null, visualVersion: null };
+    }
+    try {
+      const cursor = cfg.getVisualCursor() || {};
+      return {
+        visualSeq: toIntegerOrNull(cursor.visualSeq),
+        visualVersion: toIntegerOrNull(cursor.visualVersion)
+      };
+    } catch (e) {
+      return { visualSeq: null, visualVersion: null };
+    }
   }
 
   function submit(envelope: NetworkSnapshotEnvelope): NetworkIntakeSubmitResult {
     const key = operationVersionKey(envelope);
     const meta = createApplyMeta(envelope);
+    const visualCursorBefore = readVisualCursor();
     const applyDecision = shouldApplySnapshot(envelope, key);
     let appliedSnapshot = false;
     let skippedReason = applyDecision.reason;
@@ -178,12 +265,36 @@ export function createNetworkIntakeCoordinator(config?: NetworkIntakeCoordinator
       }
     }
 
-    const enqueuedFrameCount = enqueueFrames(envelope, meta);
+    const frameResult = enqueueFrames(envelope, meta);
+    const enqueuedFrameCount = frameResult.accepted;
+    const cursorAdvances = (
+      envelope.visualSeq !== null
+      && (visualCursorBefore.visualSeq === null || envelope.visualSeq > visualCursorBefore.visualSeq)
+    );
+    const versionAdvances = (
+      envelope.stateVersion !== null
+      && (visualCursorBefore.visualVersion === null || envelope.stateVersion > visualCursorBefore.visualVersion)
+    );
+    const continuityGap = appliedSnapshot
+      && enqueuedFrameCount <= 0
+      && (cursorAdvances || versionAdvances || !!frameResult.invalidReason || frameResult.partial);
+    let recoveredVisualContinuity = false;
+    if (
+      continuityGap
+      && !(meta.applyOptions && meta.applyOptions.suppressContinuityRecovery === true)
+      && typeof cfg.recoverPresentationContinuity === 'function'
+    ) {
+      recoveredVisualContinuity = cfg.recoverPresentationContinuity(envelope, {
+        ...meta,
+        reason: frameResult.invalidReason
+          || (frameResult.partial ? 'presentation_frame_enqueue_partial' : 'presentation_cursor_advanced_without_frame')
+      }) === true;
+    }
     let requestedBoardRefresh = false;
     if (
       appliedSnapshot
       && enqueuedFrameCount <= 0
-      && (!Array.isArray(envelope.playbackEvents) || envelope.playbackEvents.length <= 0)
+      && (!continuityGap || recoveredVisualContinuity)
     ) {
       requestedBoardRefresh = typeof cfg.requestBoardRefresh === 'function'
         ? cfg.requestBoardRefresh({
@@ -198,28 +309,40 @@ export function createNetworkIntakeCoordinator(config?: NetworkIntakeCoordinator
       enqueuedFrameCount,
       requestedBoardRefresh,
       duplicateOperation: key !== null && seenByOperationAndVersion.has(key) && !appliedSnapshot,
-      skippedReason
+      skippedReason,
+      recoveredVisualContinuity
     };
     const decision = getTraceDecision(result);
     trace('network_intake_submit', {
       source: envelope.source,
+      roomId: envelope.roomId,
       operationId: envelope.operationId,
       stateVersion: envelope.stateVersion,
       visualSeq: envelope.visualSeq,
       boardWriter: getTraceBoardWriter(enqueuedFrameCount, requestedBoardRefresh),
       playbackActive: readPlaybackActive(cfg),
       decision,
-      accepted: decision === 'accepted' || decision === 'refresh_requested',
+      accepted: decision === 'accepted' || decision === 'refresh_requested' || decision === 'visual_rebased',
       appliedSnapshot,
       enqueuedFrameCount,
       requestedBoardRefresh,
+      recoveredVisualContinuity,
+      continuityGap,
+      invalidFrameReason: frameResult.invalidReason,
+      partialFrameEnqueue: frameResult.partial,
       reason: skippedReason,
       skippedReason
     });
     return result;
   }
 
+  function reset(): void {
+    seenByVisualSeq.clear();
+    seenByOperationAndVersion.clear();
+  }
+
   return {
-    submit
+    submit,
+    reset
   };
 }

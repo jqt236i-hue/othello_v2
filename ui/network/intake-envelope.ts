@@ -12,6 +12,7 @@ export interface NetworkPresentationCursor {
 
 export interface NetworkSnapshotEnvelope {
   source: NetworkIntakeSource;
+  roomId: string | null;
   operationId: string | null;
   stateVersion: number | null;
   visualSeq: number | null;
@@ -29,6 +30,7 @@ export interface NetworkSnapshotEnvelope {
 export interface NormalizeNetworkSnapshotEnvelopeInput {
   source: NetworkIntakeSource | string;
   payload?: any;
+  roomId?: unknown;
   operationId?: unknown;
   stateVersion?: unknown;
   visualSeq?: unknown;
@@ -67,6 +69,11 @@ function normalizeOperationId(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function normalizeRoomId(value: unknown): string | null {
+  const text = String(value || '').trim().toUpperCase();
+  return text ? text : null;
 }
 
 function normalizeArray(value: unknown): unknown[] {
@@ -133,6 +140,7 @@ export function normalizeNetworkSnapshotEnvelope(input: NormalizeNetworkSnapshot
 
   return {
     source: normalizeSource(sourceInput.source),
+    roomId: normalizeRoomId(sourceInput.roomId) ?? normalizeRoomId(payload.roomId),
     operationId: normalizeOperationId(sourceInput.operationId) ?? normalizeOperationId(payload.operationId),
     stateVersion,
     visualSeq,

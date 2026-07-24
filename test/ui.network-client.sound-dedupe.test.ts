@@ -1,5 +1,9 @@
 import { JSDOM } from 'jsdom';
 
+jest.mock('../ui/board-renderer.ts', () => ({
+  getBoardVisualControllerReady: jest.fn(async () => undefined)
+}));
+
 function jsonResponse(status, data) {
   return {
     ok: status >= 200 && status < 300,
@@ -81,6 +85,21 @@ describe('NetworkMatchClient sound dedupe', () => {
 
     const animationEngine = require('../ui/animation-engine.js');
     playbackPromises = [];
+    global.PresentationHandler = {
+      handlePresentationEvent: jest.fn(async (event) => {
+        const playback = animationEngine.executePhase(event.events);
+        playbackPromises.push(playback);
+        await playback;
+        return Object.freeze({
+          kind: 'strict-network-settlement',
+          visualSeq: event.meta.visualSeq,
+          applyCommittedFrame: jest.fn(async () => true),
+          settle: jest.fn(async () => true),
+          cancel: jest.fn(async () => true)
+        });
+      }),
+      onBoardUpdated: jest.fn(async () => undefined)
+    };
     global.BoardOps = {
       emitPresentationEvent: jest.fn((state, ev) => {
         if (!state || !ev) return;
@@ -117,17 +136,30 @@ describe('NetworkMatchClient sound dedupe', () => {
 
       if (path === '/api/match/publish') {
         const body = JSON.parse(init.body || '{}');
+        const playbackEvents = [{
+          type: 'sound_effect',
+          phase: 1,
+          targets: [{ soundKey: 'card_use_button' }]
+        }];
         publishPayloads.push(body);
         return jsonResponse(200, {
           ok: true,
           roomId: 'ABC',
+          operationId: body.operationId,
           stateVersion: 11,
           snapshot: createSnapshot(11),
-          playbackEvents: [{
-            type: 'sound_effect',
-            phase: 1,
-            targets: [{ soundKey: 'card_use_button' }]
-          }]
+          presentationCursor: { visualSeq: 1, stateVersion: 11 },
+          presentationFrames: [{
+            roomId: 'ABC',
+            visualSeq: 1,
+            stateVersionFrom: 10,
+            stateVersionTo: 11,
+            operationId: body.operationId,
+            actionType: 'place',
+            playbackEvents,
+            snapshotAfter: createSnapshot(11)
+          }],
+          playbackEvents
         });
       }
 
@@ -161,6 +193,7 @@ describe('NetworkMatchClient sound dedupe', () => {
     delete global.EventSource;
     delete global.fetch;
     delete global.SoundEngine;
+    delete global.PresentationHandler;
   });
 
   test('publish response 適用後に同版 self SSE が来ても sound_effect は一度しか再生しない', async () => {
@@ -188,6 +221,21 @@ describe('NetworkMatchClient sound dedupe', () => {
         operationId: publishPayloads[0].operationId,
         playerKey: 'black',
         actionType: 'place',
+        presentationCursor: { visualSeq: 1, stateVersion: 11 },
+        presentationFrames: [{
+          roomId: 'ABC',
+          visualSeq: 1,
+          stateVersionFrom: 10,
+          stateVersionTo: 11,
+          operationId: publishPayloads[0].operationId,
+          actionType: 'place',
+          playbackEvents: [{
+            type: 'sound_effect',
+            phase: 1,
+            targets: [{ soundKey: 'card_use_button' }]
+          }],
+          snapshotAfter: createSnapshot(11)
+        }],
         playbackEvents: [{
           type: 'sound_effect',
           phase: 1,
@@ -200,7 +248,8 @@ describe('NetworkMatchClient sound dedupe', () => {
     await Promise.all(playbackPromises);
     await Promise.resolve();
 
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.PresentationHandler.handlePresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
     expect(playEffectByKey).toHaveBeenCalledTimes(1);
     expect(playEffectByKey).toHaveBeenCalledWith('card_use_button');
   });

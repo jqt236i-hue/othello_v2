@@ -958,7 +958,11 @@ describe('NetworkSessionLifecycleController', () => {
           snapshot: expect.objectContaining({ stateVersion: 4 }),
           presentationCursor: { visualSeq: 3, stateVersion: 4 }
         }),
-        4
+        4,
+        {
+          requirePresentationCursor: true,
+          source: 'state_sync'
+        }
       );
       expect(mockConfig.openStream).toHaveBeenCalled();
     });

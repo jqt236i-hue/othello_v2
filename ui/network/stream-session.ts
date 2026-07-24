@@ -78,6 +78,33 @@ function createNetworkStreamSessionController(config?: any): any {
 
     const es = new EventSourceClass(buildStreamUrl(opts));
     state.eventSource = es;
+    const streamSessionEpoch = typeof cfg.getSessionEpoch === 'function'
+      ? cfg.getSessionEpoch()
+      : null;
+    const streamRoomId = String(state.roomId || '');
+    function isCurrentStreamSession(): boolean {
+      const currentState = getState();
+      if (!currentState || currentState.eventSource !== es) return false;
+      if (typeof cfg.getSessionEpoch === 'function' && cfg.getSessionEpoch() !== streamSessionEpoch) {
+        return false;
+      }
+      return currentState.active === true
+        && String(currentState.roomId || '') === streamRoomId;
+    }
+    function guardStreamPayloadHandler(handler: any): any {
+      return function (payload: any) {
+        if (!isCurrentStreamSession()) {
+          if (typeof cfg.recordNetworkTelemetry === 'function') {
+            cfg.recordNetworkTelemetry('stream_event_stale_session_ignored', {
+              streamRoomId,
+              streamSessionEpoch
+            });
+          }
+          return;
+        }
+        if (typeof handler === 'function') handler(payload);
+      };
+    }
     if (typeof cfg.markStreamActivity === 'function') {
       cfg.markStreamActivity();
     }
@@ -88,17 +115,17 @@ function createNetworkStreamSessionController(config?: any): any {
     const makeHandler = typeof cfg.createStreamPayloadHandler === 'function'
       ? cfg.createStreamPayloadHandler
       : function (_name: any) { return function () { }; };
-    const handleStreamEvent = makeHandler(function (payload: any) {
+    const handleStreamEvent = makeHandler(guardStreamPayloadHandler(function (payload: any) {
       if (typeof cfg.completeReconnectRecoveryFromStream === 'function') {
         cfg.completeReconnectRecoveryFromStream();
       }
       if (typeof cfg.handleStreamSnapshotPayload === 'function') {
         cfg.handleStreamSnapshotPayload(payload);
       }
-    });
-    const handlePresenceEvent = makeHandler(cfg.handlePresencePayload);
-    const handleChatEvent = makeHandler(cfg.handleChatPayload);
-    const handleHeartbeatEvent = makeHandler(function (payload: any) {
+    }));
+    const handlePresenceEvent = makeHandler(guardStreamPayloadHandler(cfg.handlePresencePayload));
+    const handleChatEvent = makeHandler(guardStreamPayloadHandler(cfg.handleChatPayload));
+    const handleHeartbeatEvent = makeHandler(guardStreamPayloadHandler(function (payload: any) {
       if (typeof cfg.completeReconnectRecoveryFromStream === 'function') {
         cfg.completeReconnectRecoveryFromStream();
       }
@@ -108,7 +135,7 @@ function createNetworkStreamSessionController(config?: any): any {
       if (typeof cfg.maybeSyncFromHeartbeat === 'function') {
         cfg.maybeSyncFromHeartbeat(payload);
       }
-    });
+    }));
 
     es.addEventListener('snapshot', handleStreamEvent);
     es.addEventListener('presence', handlePresenceEvent);
@@ -117,6 +144,7 @@ function createNetworkStreamSessionController(config?: any): any {
     es.onmessage = handleStreamEvent;
 
     es.onopen = function () {
+      if (!isCurrentStreamSession()) return;
       if (typeof cfg.markStreamActivity === 'function') {
         cfg.markStreamActivity();
       }
@@ -139,6 +167,7 @@ function createNetworkStreamSessionController(config?: any): any {
     };
 
     es.onerror = function () {
+      if (!isCurrentStreamSession()) return;
       if (typeof cfg.emitStatus === 'function') {
         cfg.emitStatus('ネット対戦: 接続が不安定です（再接続待機）', true);
       }

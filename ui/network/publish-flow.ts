@@ -66,6 +66,45 @@ function createNetworkPublishFlowController(config?: any): any {
     if (!state.seatToken) return Promise.resolve({ ok: false, reason: 'SEAT_TOKEN_REQUIRED' });
 
     const info = meta || {};
+    const requestSessionEpoch = typeof cfg.getSessionEpoch === 'function'
+      ? cfg.getSessionEpoch()
+      : null;
+    const requestRoomId = String(state.roomId || '');
+    const requestSeatKey = String(state.seatKey || '');
+    const requestSeatToken = String(state.seatToken || '');
+    function isCurrentRequestSession(): boolean {
+      const currentState = getState();
+      if (!currentState || typeof currentState !== 'object') return false;
+      if (typeof cfg.getSessionEpoch === 'function' && cfg.getSessionEpoch() !== requestSessionEpoch) {
+        return false;
+      }
+      return isActive()
+        && String(currentState.roomId || '') === requestRoomId
+        && String(currentState.seatKey || '') === requestSeatKey
+        && String(currentState.seatToken || '') === requestSeatToken;
+    }
+    function isResponseForRequestRoom(data: any): boolean {
+      const responseRoomId = data && data.roomId
+        ? String(data.roomId).trim().toUpperCase()
+        : '';
+      return !responseRoomId || responseRoomId === requestRoomId.trim().toUpperCase();
+    }
+    function discardStaleSessionResponse(stage: string): any {
+      if (typeof cfg.settleTrackedPublish === 'function') cfg.settleTrackedPublish(trackedPublish);
+      if (typeof cfg.recordNetworkTelemetry === 'function') {
+        cfg.recordNetworkTelemetry('publish_response_stale_session_ignored', {
+          operationId,
+          stage,
+          requestRoomId,
+          requestSessionEpoch,
+          currentRoomId: String((getState() && getState().roomId) || ''),
+          currentSessionEpoch: typeof cfg.getSessionEpoch === 'function'
+            ? cfg.getSessionEpoch()
+            : null
+        });
+      }
+      return { ok: false, reason: 'SESSION_CHANGED', stale: true };
+    }
     const playerKey = normalizePlayerKey(info.playerKey || state.seatKey);
     if (playerKey !== state.seatKey) {
       // FATE_WILL controller publishes an action for the turn owner (playerKey = owner).
@@ -91,9 +130,9 @@ function createNetworkPublishFlowController(config?: any): any {
       ? publishRequestModule.buildPublishRequest(info, {
         playerKey,
         operationId,
-        roomId: state.roomId,
-        seatKey: state.seatKey,
-        seatToken: state.seatToken,
+        roomId: requestRoomId,
+        seatKey: requestSeatKey,
+        seatToken: requestSeatToken,
         baseVersion: state.stateVersion,
         turnIndex: (typeof cfg.getCurrentPublishTurnIndex === 'function') ? cfg.getCurrentPublishTurnIndex() : null,
         buildPublishCommandPayload: cfg.buildPublishCommandPayload
@@ -125,6 +164,9 @@ function createNetworkPublishFlowController(config?: any): any {
 
     state.publishChain = state.publishChain
       .then(async () => {
+        if (!isCurrentRequestSession()) {
+          return discardStaleSessionResponse('before_request');
+        }
         if (!isActive()) {
           if (typeof cfg.settleTrackedPublish === 'function') cfg.settleTrackedPublish(trackedPublish);
           return { ok: false, reason: 'INACTIVE' };
@@ -135,9 +177,9 @@ function createNetworkPublishFlowController(config?: any): any {
         }
 
         const payload = Object.assign({}, publishRequest.requestPayload, {
-          roomId: state.roomId,
-          seatKey: state.seatKey,
-          seatToken: state.seatToken,
+          roomId: requestRoomId,
+          seatKey: requestSeatKey,
+          seatToken: requestSeatToken,
           playerKey,
           actionType: queuedActionType,
           operationId,
@@ -148,6 +190,12 @@ function createNetworkPublishFlowController(config?: any): any {
         let res = (typeof cfg.publishRequestWithRetry === 'function')
           ? await cfg.publishRequestWithRetry(payload)
           : { ok: false, data: null };
+        if (!isCurrentRequestSession()) {
+          return discardStaleSessionResponse('initial_response');
+        }
+        if (!isResponseForRequestRoom(res && res.data)) {
+          return discardStaleSessionResponse('initial_response_room_mismatch');
+        }
         if (!res.ok || !res.data || res.data.ok !== true) {
           const reason = (res.data && res.data.rejectedReason) || 'PUBLISH_REJECTED';
           const localProjectedSnapshotHashBefore = (typeof cfg.getKnownProjectedSnapshotHash === 'function')
@@ -190,16 +238,37 @@ function createNetworkPublishFlowController(config?: any): any {
           }
           if (rejectionHandling.shouldApplySnapshot) {
             const rejectionPlaybackEvents = Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : [];
-            const applied = (typeof cfg.applySnapshotThroughCoordinator === 'function')
-              ? cfg.applySnapshotThroughCoordinator(res.data.snapshot, {
+            let applied = false;
+            if (
+              typeof cfg.normalizeNetworkSnapshotEnvelope === 'function'
+              && typeof cfg.submitNetworkSnapshotEnvelope === 'function'
+            ) {
+              const envelope = cfg.normalizeNetworkSnapshotEnvelope({
+                source: 'publish_response',
+                payload: res.data,
+                force: true,
+                trackedPublish,
+                applyOptions: {
+                  force: true,
+                  playbackEvents: rejectionPlaybackEvents,
+                  presentationFrames: Array.isArray(res.data.presentationFrames)
+                    ? res.data.presentationFrames
+                    : [],
+                  presentationFrameSource: 'publish_rejection'
+                }
+              });
+              const intakeResult = cfg.submitNetworkSnapshotEnvelope(envelope);
+              applied = !!(intakeResult && intakeResult.appliedSnapshot === true);
+            } else if (typeof cfg.applySnapshotThroughCoordinator === 'function') {
+              applied = cfg.applySnapshotThroughCoordinator(res.data.snapshot, {
                 source: 'publish_rejection',
                 trackedPublish,
                 applyOptions: {
                   force: true,
                   playbackEvents: rejectionPlaybackEvents
                 }
-              })
-              : false;
+              });
+            }
             if (applied && typeof cfg.rememberPendingForceSyncPlaybackRecovery === 'function') {
               cfg.rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
                 source: 'publish_rejection',
@@ -232,6 +301,9 @@ function createNetworkPublishFlowController(config?: any): any {
               if (typeof cfg.syncLatestStateWithRetry === 'function') {
                 await cfg.syncLatestStateWithRetry({ maxAttempts: 2, baseDelayMs: 150 });
               }
+              if (!isCurrentRequestSession()) {
+                return discardStaleSessionResponse('version_conflict_resync');
+              }
               const retryPayload = (typeof cfg.buildVersionConflictRetryPayload === 'function')
                 ? cfg.buildVersionConflictRetryPayload(payload)
                 : payload;
@@ -247,6 +319,12 @@ function createNetworkPublishFlowController(config?: any): any {
               const retryRes = (typeof cfg.publishRequestWithRetry === 'function')
                 ? await cfg.publishRequestWithRetry(retryPayload)
                 : null;
+              if (!isCurrentRequestSession()) {
+                return discardStaleSessionResponse('version_conflict_retry_response');
+              }
+              if (!isResponseForRequestRoom(retryRes && retryRes.data)) {
+                return discardStaleSessionResponse('version_conflict_retry_room_mismatch');
+              }
               if (retryRes && retryRes.ok && retryRes.data && retryRes.data.ok === true) {
                 res = retryRes;
                 retryAcceptedAfterResync = true;
@@ -414,6 +492,9 @@ function createNetworkPublishFlowController(config?: any): any {
         return acceptedPublishResult;
       })
       .catch((error: any) => {
+        if (!isCurrentRequestSession()) {
+          return discardStaleSessionResponse('request_error');
+        }
         const message = error && error.message ? error.message : 'PUBLISH_ERROR';
         if (typeof cfg.settleTrackedPublish === 'function') cfg.settleTrackedPublish(trackedPublish);
         emitStatus(`ネット対戦: 通信失敗 (${message})`, true);

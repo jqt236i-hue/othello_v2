@@ -268,4 +268,87 @@ describe('NetworkPublishFlowController contract', () => {
       visualSeq: 7
     });
   });
+
+  test('ignores a publish response that arrives after the network session changed', async () => {
+    const publishFlowModule = require('../ui/network/publish-flow');
+    const state = {
+      active: true,
+      roomId: 'ABC',
+      seatKey: 'black',
+      seatToken: 'seat-token-a',
+      stateVersion: 1,
+      publishChain: Promise.resolve()
+    };
+    let sessionEpoch = 1;
+    let resolveRequest: any;
+    const applyPayloadSessionState = jest.fn();
+    const applySnapshotThroughCoordinator = jest.fn();
+    const settleTrackedPublish = jest.fn();
+    const recordNetworkTelemetry = jest.fn();
+    const emitStatus = jest.fn();
+    const controller = publishFlowModule.createNetworkPublishFlowController({
+      getState: () => state,
+      getSessionEpoch: () => sessionEpoch,
+      isActive: () => state.active,
+      normalizePlayerKey: (value: any) => (value === 'white' ? 'white' : 'black'),
+      emitStatus,
+      createOperationId: () => 'op_old_session',
+      resolveNetworkPublishRequestModule: () => ({
+        buildPublishRequest: () => ({
+          commandPayload: { actor: 'black', params: {} },
+          requestPayload: { actionType: 'place' },
+          queuedActionType: 'place'
+        })
+      }),
+      createTrackedPublish: () => ({ sequence: 1 }),
+      settleTrackedPublish,
+      publishRequestWithRetry: jest.fn(() => new Promise((resolve) => {
+        resolveRequest = resolve;
+      })),
+      applyPayloadSessionState,
+      applySnapshotThroughCoordinator,
+      recordNetworkTelemetry,
+      pruneTrackedPublishes: jest.fn()
+    });
+
+    const resultPromise = controller.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place'
+    });
+    await Promise.resolve();
+
+    sessionEpoch += 1;
+    state.roomId = 'XYZ';
+    state.seatToken = 'seat-token-b';
+    state.stateVersion = 20;
+    resolveRequest({
+      ok: true,
+      data: {
+        ok: true,
+        roomId: 'ABC',
+        stateVersion: 2,
+        snapshot: { stateVersion: 2 }
+      }
+    });
+
+    await expect(resultPromise).resolves.toEqual({
+      ok: false,
+      reason: 'SESSION_CHANGED',
+      stale: true
+    });
+    expect(state.stateVersion).toBe(20);
+    expect(applyPayloadSessionState).not.toHaveBeenCalled();
+    expect(applySnapshotThroughCoordinator).not.toHaveBeenCalled();
+    expect(settleTrackedPublish).toHaveBeenCalled();
+    expect(emitStatus).not.toHaveBeenCalled();
+    expect(recordNetworkTelemetry).toHaveBeenCalledWith(
+      'publish_response_stale_session_ignored',
+      expect.objectContaining({
+        operationId: 'op_old_session',
+        stage: 'initial_response',
+        requestRoomId: 'ABC',
+        currentRoomId: 'XYZ'
+      })
+    );
+  });
 });

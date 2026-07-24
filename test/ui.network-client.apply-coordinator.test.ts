@@ -1,5 +1,9 @@
 import { JSDOM } from 'jsdom';
 
+jest.mock('../ui/board-renderer.ts', () => ({
+  getBoardVisualControllerReady: jest.fn(async () => undefined)
+}));
+
 function jsonResponse(status, data) {
   return {
     ok: status >= 200 && status < 300,
@@ -60,6 +64,9 @@ describe('NetworkMatchClient apply coordinator', () => {
   let publishPayloads;
   let resolvePublishResponse;
   let responsePayload;
+  let stateResponsePayload;
+  let journalResponsePayload;
+  let requestedPaths;
 
   beforeEach(() => {
     jest.resetModules();
@@ -97,6 +104,9 @@ describe('NetworkMatchClient apply coordinator', () => {
     eventSources = [];
     publishPayloads = [];
     responsePayload = null;
+    stateResponsePayload = null;
+    journalResponsePayload = null;
+    requestedPaths = [];
     resolvePublishResponse = null;
 
     global.EventSource = class MockEventSource {
@@ -110,6 +120,7 @@ describe('NetworkMatchClient apply coordinator', () => {
     global.fetch = jest.fn(async (url, init = {}) => {
       const parsedUrl = new URL(String(url));
       const path = parsedUrl.pathname;
+      requestedPaths.push(path);
 
       if (path === '/api/match/create') {
         return jsonResponse(200, {
@@ -128,6 +139,14 @@ describe('NetworkMatchClient apply coordinator', () => {
         return new Promise((resolve) => {
           resolvePublishResponse = () => resolve(jsonResponse(200, responsePayload));
         });
+      }
+
+      if (path === '/api/match/presentation-journal' && journalResponsePayload) {
+        return jsonResponse(journalResponsePayload.ok === true ? 200 : 409, journalResponsePayload);
+      }
+
+      if (path === '/api/match/state' && stateResponsePayload) {
+        return jsonResponse(stateResponsePayload.ok === true ? 200 : 409, stateResponsePayload);
       }
 
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
@@ -209,6 +228,7 @@ describe('NetworkMatchClient apply coordinator', () => {
         operationId,
         playerKey: 'black',
         actionType: 'place',
+        presentationCursor: { visualSeq: 1, stateVersion: 11 },
         playbackEvents: [{
           type: 'move',
           phase: 1,
@@ -223,7 +243,7 @@ describe('NetworkMatchClient apply coordinator', () => {
 
     expect(global.gameState.turnNumber).toBe(2);
     expect(global.cardState.markers).toEqual([{ row: 4, col: 4, type: 'STREAM_MARKER' }]);
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(0);
 
     resolvePublishResponse();
     const result = await publishPromise;
@@ -232,7 +252,7 @@ describe('NetworkMatchClient apply coordinator', () => {
     expect(client.getStateVersion()).toBe(11);
     expect(global.gameState.turnNumber).toBe(2);
     expect(global.cardState.markers).toEqual([{ row: 4, col: 4, type: 'STREAM_MARKER' }]);
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(0);
     expect(client.getNetworkTelemetry().counts.publish_response_snapshot_skipped).toBe(1);
   });
 
@@ -464,7 +484,7 @@ describe('NetworkMatchClient apply coordinator', () => {
     });
   });
 
-  test('shadow 済み publish response の同版 stream は playback recovery を二重発火しない', async () => {
+  test('frame-less publish response and duplicate stream never bypass the presentation timeline', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
@@ -498,7 +518,7 @@ describe('NetworkMatchClient apply coordinator', () => {
     resolvePublishResponse();
     const result = await publishPromise;
     expect(result.ok).toBe(true);
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
 
     eventSources[0].onmessage({
       data: JSON.stringify({
@@ -516,7 +536,7 @@ describe('NetworkMatchClient apply coordinator', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
     expect(client.getNetworkTelemetry().counts.stream_playback_recovered_after_force_sync || 0).toBe(0);
     const intakeEntries = window.__networkDebugTrace.entries()
       .filter((entry) => entry.type === 'network_intake_submit' && entry.operationId === operationId);
@@ -525,7 +545,7 @@ describe('NetworkMatchClient apply coordinator', () => {
         source: 'publish_response',
         stateVersion: 11,
         visualSeq: 7,
-        decision: 'accepted',
+        decision: 'visual_rebased',
         accepted: true
       }),
       expect.objectContaining({
@@ -537,5 +557,162 @@ describe('NetworkMatchClient apply coordinator', () => {
         reason: 'duplicate_operation_state'
       })
     ]);
+  });
+
+  test('frame-less canonical advance rebases before the following visual frame', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const snapshot11 = createSnapshot(11);
+    snapshot11.gameState.turnNumber = 11;
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        stateVersion: 11,
+        presentationCursor: { visualSeq: 1, stateVersion: 11 },
+        snapshot: snapshot11,
+        playbackEvents: [{ type: 'legacy_direct_playback_must_not_run' }]
+      })
+    });
+
+    await Promise.resolve();
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
+    expect(global.NetworkPresentationTimeline.getDiagnostics()).toMatchObject({
+      visualSeq: 1,
+      visualVersion: 11,
+      pendingFrameCount: 0
+    });
+    expect(global.NetworkVisualStateStore.getDiagnostics()).toMatchObject({
+      visualSeq: 1,
+      visualVersion: 11
+    });
+    expect(global.NetworkVisualSettlementTracker.getDiagnostics()).toMatchObject({
+      completedVisualSeq: 1
+    });
+
+    global.PresentationHandler.handlePresentationEvent = jest.fn(async (event) => Object.freeze({
+      kind: 'strict-network-settlement',
+      visualSeq: event.meta.visualSeq,
+      applyCommittedFrame: jest.fn(async () => true),
+      settle: jest.fn(async () => true),
+      cancel: jest.fn(async () => true)
+    }));
+    const snapshot12 = createSnapshot(12);
+    snapshot12.gameState.turnNumber = 12;
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId: 'op_after_frameless',
+        stateVersion: 12,
+        presentationCursor: { visualSeq: 2, stateVersion: 12 },
+        snapshot: snapshot12,
+        presentationFrames: [{
+          roomId: 'ABC',
+          visualSeq: 2,
+          stateVersionFrom: 11,
+          stateVersionTo: 12,
+          operationId: 'op_after_frameless',
+          actionType: 'place',
+          playbackEvents: [{ type: 'flip' }],
+          snapshotAfter: snapshot12
+        }]
+      })
+    });
+
+    for (let index = 0; index < 8; index += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+
+    expect(global.NetworkPresentationTimeline.getDiagnostics()).toMatchObject({
+      visualSeq: 2,
+      visualVersion: 12,
+      pendingFrameCount: 0,
+      paused: false
+    });
+    expect(global.NetworkVisualStateStore.getDiagnostics()).toMatchObject({
+      visualSeq: 2,
+      visualVersion: 12
+    });
+    expect(global.NetworkVisualSettlementTracker.getDiagnostics()).toMatchObject({
+      completedVisualSeq: 2
+    });
+    expect(global.gameState.turnNumber).toBe(12);
+    expect(client.getNetworkTelemetry().counts.network_visual_rebase_completed).toBe(1);
+  });
+
+  test('successful but empty journal recovery escalates to authoritative visual rebase', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const snapshot12 = createSnapshot(12);
+    snapshot12.gameState.turnNumber = 12;
+    journalResponsePayload = {
+      ok: true,
+      roomId: 'ABC',
+      baseVisualSeq: 0,
+      baseSnapshot: createSnapshot(10),
+      presentationCursor: { visualSeq: 2, stateVersion: 12 },
+      presentationFrames: []
+    };
+    stateResponsePayload = {
+      ok: true,
+      roomId: 'ABC',
+      stateVersion: 12,
+      presentationCursor: { visualSeq: 2, stateVersion: 12 },
+      presentationFrames: [],
+      playbackEvents: [],
+      snapshot: snapshot12
+    };
+
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId: 'op_gap_2',
+        stateVersion: 12,
+        presentationCursor: { visualSeq: 2, stateVersion: 12 },
+        snapshot: snapshot12,
+        presentationFrames: [{
+          roomId: 'ABC',
+          visualSeq: 2,
+          stateVersionFrom: 11,
+          stateVersionTo: 12,
+          operationId: 'op_gap_2',
+          actionType: 'place',
+          playbackEvents: [{ type: 'flip' }],
+          snapshotAfter: snapshot12
+        }]
+      })
+    });
+
+    for (let index = 0; index < 30; index += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+      if ((client.getNetworkTelemetry().counts.network_visual_authoritative_recovery_completed || 0) > 0) break;
+    }
+
+    expect(requestedPaths).toContain('/api/match/presentation-journal');
+    expect(requestedPaths).toContain('/api/match/state');
+    expect(client.getNetworkTelemetry().counts.network_presentation_timeline_gap_unresolved).toBe(1);
+    expect(client.getNetworkTelemetry().counts.network_visual_authoritative_recovery_completed).toBe(1);
+    expect(global.NetworkPresentationTimeline.getDiagnostics()).toMatchObject({
+      visualSeq: 2,
+      visualVersion: 12,
+      pendingFrameCount: 0,
+      paused: false
+    });
+    expect(global.NetworkVisualStateStore.getDiagnostics()).toMatchObject({
+      visualSeq: 2,
+      visualVersion: 12
+    });
+    expect(global.NetworkVisualSettlementTracker.getDiagnostics()).toMatchObject({
+      completedVisualSeq: 2
+    });
+    expect(global.gameState.turnNumber).toBe(12);
   });
 });

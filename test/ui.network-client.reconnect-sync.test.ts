@@ -1,5 +1,9 @@
 import { JSDOM } from 'jsdom';
 
+jest.mock('../ui/board-renderer.ts', () => ({
+  getBoardVisualControllerReady: jest.fn(async () => undefined)
+}));
+
 function jsonResponse(status, data) {
   return {
     ok: status >= 200 && status < 300,
@@ -53,6 +57,23 @@ function createPlaceAction(playerKey = 'black', turnIndex = 1) {
   };
 }
 
+function createPresentationFrame(playbackEvents, operationId = 'op_state_2') {
+  return {
+    roomId: 'ABC',
+    visualSeq: 1,
+    stateVersionFrom: 1,
+    stateVersionTo: 2,
+    operationId,
+    actionType: 'place',
+    playbackEvents,
+    snapshotAfter: createSnapshot(2)
+  };
+}
+
+async function flushNetworkPresentation() {
+  for (let index = 0; index < 12; index += 1) await Promise.resolve();
+}
+
 describe('NetworkMatchClient reconnect and resync', () => {
   let dom;
   let eventSources;
@@ -83,6 +104,16 @@ describe('NetworkMatchClient reconnect and resync', () => {
     global.emitGameStateChange = jest.fn();
     global.emitBoardUpdate = jest.fn();
     global.renderCardUI = jest.fn();
+    global.PresentationHandler = {
+      handlePresentationEvent: jest.fn(async (event) => Object.freeze({
+        kind: 'strict-network-settlement',
+        visualSeq: event.meta.visualSeq,
+        applyCommittedFrame: jest.fn(async () => true),
+        settle: jest.fn(async () => true),
+        cancel: jest.fn(async () => true)
+      })),
+      onBoardUpdated: jest.fn(async () => undefined)
+    };
 
     eventSources = [];
     publishBodies = [];
@@ -132,6 +163,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
           roomId: 'ABC',
           seats: { black: true, white: true },
           stateVersion: 2,
+          presentationCursor: { visualSeq: 1, stateVersion: 2 },
           snapshot: createSnapshot(2)
         });
       }
@@ -144,6 +176,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
           roomId: 'ABC',
           seats: { black: true, white: true },
           stateVersion: 3,
+          presentationCursor: { visualSeq: 2, stateVersion: 3 },
           snapshot: createSnapshot(3)
         });
       }
@@ -175,6 +208,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
     delete global.emitGameStateChange;
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
+    delete global.PresentationHandler;
     delete global.BoardOps;
     delete global.EventSource;
     delete global.fetch;
@@ -592,7 +626,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(stateFetchCount).toBe(1);
   });
 
-  test('force再同期で局面だけ先に合った後でも同版streamのplaybackを1回だけ回復する', async () => {
+  test('force再同期でvisual cursorまで合った後は同版streamを再生し直さない', async () => {
     global.BoardOps = {
       emitPresentationEvent: jest.fn((state, ev) => {
         if (!state || !ev) return;
@@ -625,6 +659,8 @@ describe('NetworkMatchClient reconnect and resync', () => {
         seats: { black: true, white: true },
         stateVersion: 2,
         operationId: 'op-force-sync-2',
+        presentationCursor: { visualSeq: 1, stateVersion: 2 },
+        presentationFrames: [createPresentationFrame(recoveredPlayback, 'op-force-sync-2')],
         snapshot: recoveredSnapshot,
         playbackEvents: recoveredPlayback
       })
@@ -634,20 +670,21 @@ describe('NetworkMatchClient reconnect and resync', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
-    expect(global.cardState.presentationEvents).toEqual([
-      expect.objectContaining({
-        type: 'PLAYBACK_EVENTS',
-        events: recoveredPlayback
-      })
-    ]);
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
+    expect(global.PresentationHandler.handlePresentationEvent).not.toHaveBeenCalled();
+    expect(global.NetworkPresentationTimeline.getDiagnostics()).toMatchObject({
+      visualSeq: 1,
+      visualVersion: 2,
+      pendingFrameCount: 0
+    });
 
     snapshotHandler(snapshotEvent);
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
-    expect(client.getNetworkTelemetry().counts.stream_playback_recovered_after_force_sync).toBe(1);
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
+    expect(global.PresentationHandler.handlePresentationEvent).not.toHaveBeenCalled();
+    expect(client.getNetworkTelemetry().counts.stream_playback_recovered_after_force_sync || 0).toBe(0);
   });
 
   test('state sync applies recovered playback events from state payload', async () => {
@@ -680,6 +717,9 @@ describe('NetworkMatchClient reconnect and resync', () => {
           seats: { black: true, white: true },
           stateVersion: 2,
           snapshot: createSnapshot(2),
+          operationId: 'op_state_2',
+          presentationCursor: { visualSeq: 1, stateVersion: 2 },
+          presentationFrames: [createPresentationFrame(recoveredPlayback, 'op_state_2')],
           playbackEvents: recoveredPlayback
         });
       }
@@ -693,28 +733,35 @@ describe('NetworkMatchClient reconnect and resync', () => {
 
     const syncResult = await client.syncLatestState();
     expect(syncResult).toEqual({ ok: true, appliedSnapshot: true });
+    await flushNetworkPresentation();
 
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledWith(
-      global.cardState,
+    expect(global.PresentationHandler.handlePresentationEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'PLAYBACK_EVENTS',
         events: recoveredPlayback,
-        meta: expect.objectContaining({ source: 'network_snapshot' })
+        meta: expect.objectContaining({
+          source: 'network_timeline',
+          strictNetworkPlayback: true,
+          visualSeq: 1
+        })
       })
     );
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
     const stateSyncTelemetry = client.getNetworkTelemetry().recentEvents
       .find((event) => event && event.type === 'state_sync_snapshot_applied');
     expect(stateSyncTelemetry && stateSyncTelemetry.details).toEqual(
       expect.objectContaining({
-        playbackEventCount: 1,
-        usedRecoveredPlayback: true
+        playbackEventCount: 0,
+        presentationFrameCount: 1,
+        usedRecoveredPlayback: false
       })
     );
 
     const secondSyncResult = await client.syncLatestState();
-    expect(secondSyncResult).toEqual({ ok: true, appliedSnapshot: true });
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
-    expect(client.getNetworkTelemetry().counts.state_sync_recovered_playback_deduped).toBe(1);
+    expect(secondSyncResult).toEqual({ ok: true, appliedSnapshot: false });
+    await flushNetworkPresentation();
+    expect(global.PresentationHandler.handlePresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
   });
 
   test('大量replayのstream snapshotは局面だけ追いつきplaybackを捨てる', async () => {
@@ -763,7 +810,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(client.getNetworkTelemetry().counts.stream_replay_playback_suppressed).toBe(1);
   });
 
-  test('publish拒否でforce適用した同版snapshotでも後続stream playbackを回復する', async () => {
+  test('publish拒否でforce rebaseした同版snapshotを後続streamで再生し直さない', async () => {
     global.BoardOps = {
       emitPresentationEvent: jest.fn((state, ev) => {
         if (!state || !ev) return;
@@ -808,6 +855,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
           seats: { black: true, white: true },
           rejectedReason: 'VERSION_AHEAD',
           stateVersion: 2,
+          presentationCursor: { visualSeq: 1, stateVersion: 2 },
           snapshot: createSnapshot(2, { currentPlayer: 1, turnNumber: 2 })
         });
       }
@@ -844,6 +892,8 @@ describe('NetworkMatchClient reconnect and resync', () => {
         seats: { black: true, white: true },
         stateVersion: 2,
         operationId: 'op-rejected-2',
+        presentationCursor: { visualSeq: 1, stateVersion: 2 },
+        presentationFrames: [createPresentationFrame(recoveredPlayback, 'op-rejected-2')],
         snapshot: createSnapshot(2, { currentPlayer: 1, turnNumber: 2 }),
         playbackEvents: recoveredPlayback
       })
@@ -851,14 +901,14 @@ describe('NetworkMatchClient reconnect and resync', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
-    expect(global.cardState.presentationEvents).toEqual([
-      expect.objectContaining({
-        type: 'PLAYBACK_EVENTS',
-        events: recoveredPlayback
-      })
-    ]);
-    expect(client.getNetworkTelemetry().counts.stream_playback_recovered_after_force_sync).toBe(1);
+    expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
+    expect(global.PresentationHandler.handlePresentationEvent).not.toHaveBeenCalled();
+    expect(client.getNetworkTelemetry().counts.stream_playback_recovered_after_force_sync || 0).toBe(0);
+    expect(global.NetworkPresentationTimeline.getDiagnostics()).toMatchObject({
+      visualSeq: 1,
+      visualVersion: 2,
+      pendingFrameCount: 0
+    });
   });
 
   test('snapshot未適用の拒否でstateVersionだけ進んでもheartbeatが再同期を要求する', async () => {
@@ -1329,6 +1379,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
           seatToken: 'token_white',
           seats: { black: true, white: true },
           stateVersion: 1,
+          presentationCursor: { visualSeq: 0, stateVersion: 1 },
           snapshot: createSnapshot(1)
         });
       }
@@ -1536,6 +1587,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
           roomId: 'ABC',
           seats: { black: true, white: true },
           stateVersion: 2,
+          presentationCursor: { visualSeq: 1, stateVersion: 2 },
           snapshot: createSnapshot(2, { currentPlayer: 1, turnNumber: 0, consecutivePasses: 0 })
         });
       }
@@ -1562,6 +1614,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
             roomId: 'ABC',
             seats: { black: true, white: true },
             stateVersion: 2,
+            presentationCursor: { visualSeq: 1, stateVersion: 2 },
             snapshot: createSnapshot(2, { currentPlayer: 1, turnNumber: 0, consecutivePasses: 0 })
           });
         }

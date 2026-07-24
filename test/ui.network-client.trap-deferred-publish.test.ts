@@ -146,6 +146,7 @@ describe('NetworkMatchClient trap deferred publish', () => {
           seatKey: 'black',
           seatToken: 'seat-token',
           stateVersion: 20,
+          presentationCursor: { visualSeq: 0, stateVersion: 20 },
           roomBoardConfig: cloneJson(CUSTOM_BOARD_CONFIG),
           snapshot: createSnapshot(20)
         });
@@ -158,6 +159,7 @@ describe('NetworkMatchClient trap deferred publish', () => {
           ok: true,
           roomId: 'TRP',
           stateVersion: 21,
+          presentationCursor: { visualSeq: 1, stateVersion: 21 },
           snapshot: body.snapshot
             ? {
               ...body.snapshot,

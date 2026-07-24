@@ -241,6 +241,9 @@ function createNetworkSnapshotPlaybackController(deps: any): any {
         const boardOps = resolveGlobalObject('BoardOps') || {};
         const cardStateRef = resolveGlobalObject('cardState');
         const source = opts.source || 'network_snapshot';
+        const strictNetworkPlayback = opts.strictNetworkPlayback === true
+            && Number.isInteger(Number(opts.visualSeq))
+            && Number(opts.visualSeq) >= 0;
         const networkPlaybackBatchId = source + '_' + String(++networkPlaybackBatchSeq);
         const ev = {
             type: 'PLAYBACK_EVENTS',
@@ -248,7 +251,8 @@ function createNetworkSnapshotPlaybackController(deps: any): any {
             meta: {
                 source,
                 suppressPlayback: opts.suppressPlayback === true,
-                strictNetworkPlayback: source === 'network_snapshot' && opts.suppressPlayback !== true,
+                strictNetworkPlayback,
+                visualSeq: strictNetworkPlayback ? Math.trunc(Number(opts.visualSeq)) : null,
                 networkPlaybackBatchId
             }
         };

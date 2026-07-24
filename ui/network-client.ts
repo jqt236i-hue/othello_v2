@@ -492,6 +492,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkDebugTrace: any = null;
     let networkIntakeCoordinator: any = null;
     let networkPresentationGapRecoveryPromise: Promise<any> | null = null;
+    let networkPresentationRebasePromise: Promise<any> | null = null;
     let networkPresentationRetryTimer: any = null;
     let networkPresentationRetryAttempt = 0;
     let networkSessionEpoch = 0;
@@ -834,8 +835,27 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         const mod = networkIntakeCoordinatorModule;
         if (!mod || typeof mod.createNetworkIntakeCoordinator !== 'function') return null;
         networkIntakeCoordinator = mod.createNetworkIntakeCoordinator({
+            getRoomId: () => state.roomId ? String(state.roomId) : null,
             getAppliedStateVersion,
             getPlaybackActive,
+            getVisualCursor: () => {
+                // Cursor inspection is part of intake validation and must not
+                // initialize presentation/runtime modules before playback is needed.
+                const timeline = networkPresentationTimeline;
+                if (timeline && typeof timeline.getDiagnostics === 'function') {
+                    try {
+                        const diagnostics = timeline.getDiagnostics();
+                        return {
+                            visualSeq: diagnostics.visualSeq,
+                            visualVersion: diagnostics.visualVersion
+                        };
+                    } catch (e: any) { /* fall through to persisted cursor */ }
+                }
+                return {
+                    visualSeq: state.lastVisualSeq,
+                    visualVersion: state.lastVisualVersion
+                };
+            },
             applyCanonicalSnapshot: (snapshot: any, meta: any) => applySnapshotThroughCoordinator(snapshot, {
                 source: meta && meta.source ? String(meta.source) : 'network_intake',
                 trackedPublish: meta && meta.trackedPublish ? meta.trackedPublish : null,
@@ -844,6 +864,23 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             enqueuePresentationFrames: (frames: any, meta: any) => enqueuePresentationFrames(frames, {
                 source: meta && meta.source ? String(meta.source) : 'network_intake'
             }),
+            recoverPresentationContinuity: (envelope: any, meta: any) => {
+                const rebased = syncVisualCursorForSnapshotNoPlayback({
+                    roomId: envelope && envelope.roomId,
+                    snapshot: envelope && envelope.snapshot,
+                    presentationCursor: envelope && envelope.presentationCursor
+                }, envelope && envelope.stateVersion, {
+                    requirePresentationCursor: true,
+                    source: meta && meta.source ? String(meta.source) : 'network_intake'
+                });
+                if (!rebased) {
+                    recoverPresentationFromAuthoritativeState(
+                        meta && meta.reason ? meta.reason : 'network_intake_continuity_gap',
+                        meta && meta.source ? meta.source : 'network_intake'
+                    );
+                }
+                return rebased;
+            },
             requestBoardRefresh: (meta: any) => requestNetworkTimelineBoardRefresh(null, {
                 reason: meta && meta.reason ? String(meta.reason) : 'snapshot_no_playback_visual_sync',
                 visualSeq: Number.isFinite(Number(meta && meta.visualSeq)) ? Math.trunc(Number(meta.visualSeq)) : null,
@@ -1029,7 +1066,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         try { return mod.clearReloadRequiredSurface(root); } catch (e: any) { return false; }
     }
 
-    function showNetworkPresentationRecoverySurface(timeline: any, paused: any) {
+    function showNetworkPresentationRecoverySurface(timeline: any, paused: any, retryAction?: any) {
         const message = 'ネット対戦の盤面表示を復旧できませんでした。再試行するか、ページを再読み込みしてください';
         emitStatus(message, true);
         const mod = networkPresentationRecoverySurfaceModule;
@@ -1038,7 +1075,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 mod.showReloadRequiredSurface({
                     root,
                     message,
-                    onRetry: () => retryNetworkPresentationTimeline(timeline)
+                    onRetry: () => typeof retryAction === 'function'
+                        ? retryAction()
+                        : retryNetworkPresentationTimeline(timeline)
                 });
             } catch (e: any) { /* status text remains the fallback surface */ }
         }
@@ -1058,6 +1097,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         // In-flight gap recovery cannot be cancelled at the transport layer,
         // so detach it here; its epoch/timeline guard will discard the reply.
         networkPresentationGapRecoveryPromise = null;
+        networkPresentationRebasePromise = null;
+        if (networkIntakeCoordinator && typeof networkIntakeCoordinator.reset === 'function') {
+            try {
+                networkIntakeCoordinator.reset();
+            } catch (e: any) { /* session reset must continue */ }
+        }
+        state.publishChain = Promise.resolve();
         clearNetworkPresentationRecoverySurface();
         recordNetworkTrace('network_session_epoch_advanced', {
             epoch: networkSessionEpoch,
@@ -1165,7 +1211,6 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         networkPresentationTimeline = mod.createNetworkPresentationTimeline({
             initialVisualSeq: state.lastVisualSeq || 0,
             initialVisualVersion,
-            playbackDispatcher: getNetworkPlaybackDispatcher(),
             visualStateStore: getNetworkVisualStateStore(),
             visualSettlementTracker: getNetworkVisualSettlementTracker(),
             onFrameCommitted: (frame: any, meta: any) => observeNetworkTimelineFrameCommitted(frame, meta),
@@ -1306,6 +1351,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             enqueuePresentationFramesFromPayload,
             drainPresentationTimeline,
             syncVisualCursorForSnapshotNoPlayback,
+            verifyPresentationCursorConvergence: (cursor: any) => isVisualConvergedAtPresentationCursor(cursor),
+            recoverPresentationContinuity: (reason: any, source: any) => {
+                return recoverPresentationFromAuthoritativeState(reason, source);
+            },
             clearPlaybackStateForLeave,
             clearPendingForceSyncPlaybackRecovery,
             markSessionReloadRequired: () => {
@@ -1471,6 +1520,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (!mod || typeof mod.createNetworkStreamSessionController !== 'function') return null;
         networkStreamSessionController = mod.createNetworkStreamSessionController({
             getState: () => state,
+            getSessionEpoch: () => getNetworkSessionEpoch(),
             withTrailingSlashRemoved,
             closeExistingStream: () => closeStream(),
             emitStatus,
@@ -1486,7 +1536,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             handleStreamSnapshotPayload,
             applyPayloadSessionState,
             maybeSyncFromHeartbeat,
-            isActive
+            isActive,
+            recordNetworkTelemetry: recordNetworkTrace
         });
         return networkStreamSessionController;
     }
@@ -1531,6 +1582,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (!mod || typeof mod.createNetworkPublishFlowController !== 'function') return null;
         networkPublishFlowController = mod.createNetworkPublishFlowController({
             getState: () => state,
+            getSessionEpoch: () => getNetworkSessionEpoch(),
             getCardState: () => (root && root.cardState) || null,
             isActive,
             normalizePlayerKey,
@@ -2557,12 +2609,68 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         } catch (e: any) { /* ignore */ }
     }
 
-    function syncVisualCursorForSnapshotNoPlayback(payload: any, snapshotVersion: any) {
+    function isVisualConvergedAtPresentationCursor(cursor: any, timelineCandidate?: any) {
+        const targetVisualSeq = cursor && Number.isFinite(Number(cursor.visualSeq))
+            ? Math.max(0, Math.trunc(Number(cursor.visualSeq)))
+            : null;
+        const targetVisualVersion = cursor && Number.isFinite(Number(cursor.stateVersion))
+            ? Math.max(0, Math.trunc(Number(cursor.stateVersion)))
+            : null;
+        if (targetVisualSeq === null || targetVisualVersion === null) return false;
+        const timeline = timelineCandidate || networkPresentationTimeline;
+        const store = networkVisualStateStore;
+        const tracker = networkVisualSettlementTracker;
+        if (
+            !timeline || typeof timeline.getDiagnostics !== 'function'
+            || !store || typeof store.getDiagnostics !== 'function'
+            || !tracker || typeof tracker.getDiagnostics !== 'function'
+        ) return false;
+        try {
+            const timelineDiagnostics = timeline.getDiagnostics();
+            const storeDiagnostics = store.getDiagnostics();
+            const trackerDiagnostics = tracker.getDiagnostics();
+            return Number(timelineDiagnostics.visualSeq) >= targetVisualSeq
+                && Number(timelineDiagnostics.visualVersion) >= targetVisualVersion
+                && Number(storeDiagnostics.visualSeq) >= targetVisualSeq
+                && Number(storeDiagnostics.visualVersion) >= targetVisualVersion
+                && Number(trackerDiagnostics.completedVisualSeq) >= targetVisualSeq
+                && Number(state.lastVisualSeq) >= targetVisualSeq
+                && Number(state.lastVisualVersion) >= targetVisualVersion;
+        } catch (e: any) {
+            return false;
+        }
+    }
+
+    function syncVisualCursorForSnapshotNoPlayback(payload: any, snapshotVersion: any, options?: any) {
+        const opts = options && typeof options === 'object' ? options : {};
         const version = Number.isFinite(Number(snapshotVersion))
             ? Math.max(0, Math.trunc(Number(snapshotVersion)))
             : null;
         if (version === null) return false;
 
+        const payloadRoomId = payload && payload.roomId ? String(payload.roomId).trim().toUpperCase() : '';
+        const currentRoomId = state.roomId ? String(state.roomId).trim().toUpperCase() : '';
+        if (payloadRoomId && currentRoomId && payloadRoomId !== currentRoomId) {
+            recordNetworkTelemetry('network_visual_rebase_rejected', {
+                reason: 'room_mismatch',
+                payloadRoomId,
+                currentRoomId,
+                version
+            });
+            return false;
+        }
+        const snapshot = payload && payload.snapshot && typeof payload.snapshot === 'object'
+            ? payload.snapshot
+            : null;
+        const actualSnapshotVersion = getSnapshotStateVersion(snapshot);
+        if (!snapshot || actualSnapshotVersion === null || Math.trunc(Number(actualSnapshotVersion)) !== version) {
+            recordNetworkTelemetry('network_visual_rebase_rejected', {
+                reason: snapshot ? 'snapshot_version_mismatch' : 'snapshot_required',
+                version,
+                actualSnapshotVersion
+            });
+            return false;
+        }
         const cursor = payload && payload.presentationCursor && typeof payload.presentationCursor === 'object'
             ? payload.presentationCursor
             : null;
@@ -2572,47 +2680,267 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         const cursorVersion = cursor && Number.isFinite(Number(cursor.stateVersion))
             ? Math.max(0, Math.trunc(Number(cursor.stateVersion)))
             : version;
-
-        state.lastVisualVersion = cursorVersion;
-        if (cursorSeq !== null) {
-            state.lastVisualSeq = cursorSeq;
+        if (opts.requirePresentationCursor === true && cursorSeq === null) {
+            recordNetworkTelemetry('network_visual_rebase_rejected', {
+                reason: 'presentation_cursor_required',
+                version
+            });
+            return false;
         }
-
-        if (networkPresentationTimeline && typeof networkPresentationTimeline.setBaseCursor === 'function') {
-            try {
-                networkPresentationTimeline.setBaseCursor({
-                    visualSeq: Number.isFinite(Number(state.lastVisualSeq)) ? Math.max(0, Math.trunc(Number(state.lastVisualSeq))) : 0,
-                    visualVersion: cursorVersion
-                });
-            } catch (e: any) { /* ignore */ }
+        if (cursorVersion !== version) {
+            recordNetworkTelemetry('network_visual_rebase_rejected', {
+                reason: 'cursor_version_mismatch',
+                version,
+                cursorVersion
+            });
+            return false;
         }
+        const targetVisualSeq = cursorSeq !== null
+            ? cursorSeq
+            : (Number.isFinite(Number(state.lastVisualSeq)) ? Math.max(0, Math.trunc(Number(state.lastVisualSeq))) : 0);
+        const timeline = getNetworkPresentationTimeline();
         const store = getNetworkVisualStateStore();
-        const snapshot = payload && payload.snapshot && typeof payload.snapshot === 'object'
-            ? payload.snapshot
-            : null;
-        if (store && snapshot) {
+        const tracker = getNetworkVisualSettlementTracker();
+        if (
+            !timeline || typeof timeline.getDiagnostics !== 'function' || typeof timeline.setBaseCursor !== 'function'
+            || !store || typeof store.getDiagnostics !== 'function' || typeof store.setBaseVisualSnapshot !== 'function'
+            || !tracker || typeof tracker.getDiagnostics !== 'function' || typeof tracker.reset !== 'function'
+        ) {
+            recordNetworkTelemetry('network_visual_rebase_rejected', {
+                reason: 'visual_runtime_unavailable',
+                version,
+                targetVisualSeq
+            });
+            return false;
+        }
+        let timelineBefore: any = null;
+        let storeBefore: any = null;
+        let trackerBefore: any = null;
+        let visualSnapshotBefore: any = null;
+        try {
+            timelineBefore = timeline.getDiagnostics();
+            storeBefore = store.getDiagnostics();
+            trackerBefore = tracker.getDiagnostics();
+            visualSnapshotBefore = typeof store.getVisualSnapshot === 'function'
+                ? store.getVisualSnapshot()
+                : null;
+        } catch (e: any) {
+            recordNetworkTelemetry('network_visual_rebase_rejected', {
+                reason: 'visual_diagnostics_failed',
+                error: e && e.message ? String(e.message) : String(e || '')
+            });
+            return false;
+        }
+        if (
+            timelineBefore.playing === true
+            || timelineBefore.paused === true
+            || timelineBefore.activeSettlementStage
+            || Number(timelineBefore.pendingFrameCount || 0) > 0
+        ) {
+            recordNetworkTelemetry('network_visual_rebase_rejected', {
+                reason: 'visual_timeline_not_idle',
+                targetVisualSeq,
+                targetVisualVersion: cursorVersion,
+                pendingFrameCount: Number(timelineBefore.pendingFrameCount || 0),
+                activeSettlementStage: timelineBefore.activeSettlementStage || null
+            });
+            return false;
+        }
+        const currentSeqValues = [
+            state.lastVisualSeq,
+            timelineBefore.visualSeq,
+            storeBefore.visualSeq,
+            trackerBefore.completedVisualSeq
+        ].filter((value: any) => Number.isFinite(Number(value))).map((value: any) => Math.trunc(Number(value)));
+        const currentVersionValues = [
+            state.lastVisualVersion,
+            timelineBefore.visualVersion,
+            storeBefore.visualVersion
+        ].filter((value: any) => Number.isFinite(Number(value))).map((value: any) => Math.trunc(Number(value)));
+        if (
+            opts.allowRegression !== true
+            && (
+                currentSeqValues.some((value: number) => targetVisualSeq < value)
+                || currentVersionValues.some((value: number) => cursorVersion < value)
+            )
+        ) {
+            recordNetworkTelemetry('network_visual_rebase_rejected', {
+                reason: 'visual_cursor_regression',
+                targetVisualSeq,
+                targetVisualVersion: cursorVersion,
+                currentSeqValues,
+                currentVersionValues
+            });
+            return false;
+        }
+
+        const previousStateCursor = {
+            visualSeq: state.lastVisualSeq,
+            visualVersion: state.lastVisualVersion
+        };
+        const visualSnapshot = cloneDataForCommandPayload(snapshot);
+        visualSnapshot.stateVersion = version;
+        try {
+            store.setBaseVisualSnapshot(visualSnapshot, {
+                visualSeq: targetVisualSeq,
+                visualVersion: cursorVersion,
+                source: String(opts.source || 'snapshot_no_playback')
+            });
+            timeline.setBaseCursor({
+                visualSeq: targetVisualSeq,
+                visualVersion: cursorVersion
+            });
+            tracker.reset({ completedVisualSeq: targetVisualSeq });
+            state.lastVisualSeq = targetVisualSeq;
+            state.lastVisualVersion = cursorVersion;
+
+            const timelineAfter = timeline.getDiagnostics();
+            const storeAfter = store.getDiagnostics();
+            const trackerAfter = tracker.getDiagnostics();
+            const converged = Number(timelineAfter.visualSeq) === targetVisualSeq
+                && Number(timelineAfter.visualVersion) === cursorVersion
+                && Number(timelineAfter.pendingFrameCount || 0) === 0
+                && Number(storeAfter.visualSeq) === targetVisualSeq
+                && Number(storeAfter.visualVersion) === cursorVersion
+                && Number(trackerAfter.completedVisualSeq) === targetVisualSeq
+                && Number(state.lastVisualSeq) === targetVisualSeq
+                && Number(state.lastVisualVersion) === cursorVersion;
+            if (!converged) throw new Error('network_visual_rebase_verification_failed');
+            recordNetworkTelemetry('network_visual_rebase_completed', {
+                source: String(opts.source || 'snapshot_no_playback'),
+                visualSeq: targetVisualSeq,
+                visualVersion: cursorVersion
+            });
+            return true;
+        } catch (error: any) {
             try {
-                if (typeof store.setBaseVisualSnapshot === 'function') {
-                    const visualSnapshot = cloneDataForCommandPayload(snapshot);
-                    if (visualSnapshot && typeof visualSnapshot === 'object' && !Number.isFinite(Number(visualSnapshot.stateVersion))) {
-                        visualSnapshot.stateVersion = version;
-                    }
-                    store.setBaseVisualSnapshot(visualSnapshot, {
-                        visualSeq: Number.isFinite(Number(state.lastVisualSeq)) ? Math.max(0, Math.trunc(Number(state.lastVisualSeq))) : 0,
-                        visualVersion: cursorVersion,
-                        source: 'snapshot_no_playback'
+                if (visualSnapshotBefore && typeof store.setBaseVisualSnapshot === 'function') {
+                    store.setBaseVisualSnapshot(visualSnapshotBefore, {
+                        visualSeq: storeBefore.visualSeq,
+                        visualVersion: storeBefore.visualVersion,
+                        source: 'visual_rebase_rollback'
                     });
                 } else if (typeof store.clearVisualSnapshot === 'function') {
                     store.clearVisualSnapshot();
                 }
-            } catch (e: any) { /* ignore */ }
-        } else if (store && typeof store.clearVisualSnapshot === 'function') {
-            try {
-                store.clearVisualSnapshot();
-            } catch (e: any) { /* ignore */ }
+                timeline.setBaseCursor({
+                    visualSeq: timelineBefore.visualSeq,
+                    visualVersion: timelineBefore.visualVersion
+                });
+                tracker.reset({ completedVisualSeq: trackerBefore.completedVisualSeq });
+                state.lastVisualSeq = previousStateCursor.visualSeq;
+                state.lastVisualVersion = previousStateCursor.visualVersion;
+            } catch (rollbackError: any) {
+                recordNetworkTelemetry('network_visual_rebase_rollback_failed', {
+                    error: rollbackError && rollbackError.message
+                        ? String(rollbackError.message)
+                        : String(rollbackError || '')
+                });
+            }
+            recordNetworkTelemetry('network_visual_rebase_failed', {
+                source: String(opts.source || 'snapshot_no_playback'),
+                visualSeq: targetVisualSeq,
+                visualVersion: cursorVersion,
+                error: error && error.message ? String(error.message) : String(error || '')
+            });
+            return false;
         }
-        syncVisualCursorFromTimeline();
-        return true;
+    }
+
+    function recoverPresentationFromAuthoritativeState(reason: any, source: any) {
+        if (networkPresentationRebasePromise) return networkPresentationRebasePromise;
+        if (!isActive() || !state.roomId) return Promise.resolve(false);
+        const recoveryEpoch = getNetworkSessionEpoch();
+        const recoveryRoomId = String(state.roomId || '');
+        recordNetworkTelemetry('network_visual_authoritative_recovery_started', {
+            reason: String(reason || ''),
+            source: String(source || ''),
+            recoveryEpoch,
+            roomId: recoveryRoomId
+        });
+        const recoveryPromise = Promise.resolve()
+            .then(() => disposeNetworkPresentationTimeline('network_visual_authoritative_recovery'))
+            .then(() => {
+                if (
+                    recoveryEpoch !== getNetworkSessionEpoch()
+                    || recoveryRoomId !== String(state.roomId || '')
+                    || !isActive()
+                ) {
+                    return { ok: false, stale: true, reason: 'SESSION_CHANGED' };
+                }
+                return syncLatestStateWithRetry({
+                    maxAttempts: 2,
+                    baseDelayMs: 150,
+                    source: 'heartbeat_recovery',
+                    suppressPresentationJournalCatchup: true,
+                    syncVisualCursorForSnapshotNoPlayback: true,
+                    requirePresentationCursor: true
+                });
+            })
+            .then((result: any) => {
+                if (
+                    recoveryEpoch !== getNetworkSessionEpoch()
+                    || recoveryRoomId !== String(state.roomId || '')
+                    || !isActive()
+                ) {
+                    recordNetworkTelemetry('network_visual_authoritative_recovery_stale', {
+                        recoveryEpoch,
+                        currentEpoch: getNetworkSessionEpoch(),
+                        roomId: recoveryRoomId,
+                        currentRoomId: String(state.roomId || '')
+                    });
+                    return false;
+                }
+                if (!result || result.ok !== true || result.visualRebased !== true) {
+                    throw new Error(result && result.reason
+                        ? String(result.reason)
+                        : 'NETWORK_VISUAL_REBASE_FAILED');
+                }
+                const cursor = result.presentationCursor;
+                if (!isVisualConvergedAtPresentationCursor(cursor, networkPresentationTimeline)) {
+                    throw new Error('NETWORK_VISUAL_REBASE_NOT_CONVERGED');
+                }
+                requestNetworkTimelineBoardRefresh(null, {
+                    reason: 'authoritative_visual_rebase',
+                    visualSeq: cursor && cursor.visualSeq,
+                    visualVersion: cursor && cursor.stateVersion,
+                    source: 'network_timeline'
+                });
+                clearNetworkPresentationRecoverySurface();
+                recordNetworkTelemetry('network_visual_authoritative_recovery_completed', {
+                    reason: String(reason || ''),
+                    source: String(source || ''),
+                    visualSeq: cursor && cursor.visualSeq,
+                    visualVersion: cursor && cursor.stateVersion
+                });
+                return true;
+            })
+            .catch((error: any) => {
+                if (
+                    recoveryEpoch !== getNetworkSessionEpoch()
+                    || recoveryRoomId !== String(state.roomId || '')
+                    || !isActive()
+                ) return false;
+                const message = error && error.message ? String(error.message) : String(error || '');
+                recordNetworkTelemetry('network_visual_authoritative_recovery_failed', {
+                    reason: String(reason || ''),
+                    source: String(source || ''),
+                    error: message
+                });
+                showNetworkPresentationRecoverySurface(networkPresentationTimeline, {
+                    visualSeq: state.lastVisualSeq,
+                    stage: 'authoritative_rebase',
+                    message
+                }, () => recoverPresentationFromAuthoritativeState('manual_retry', source));
+                return false;
+            })
+            .finally(() => {
+                if (networkPresentationRebasePromise === recoveryPromise) {
+                    networkPresentationRebasePromise = null;
+                }
+            });
+        networkPresentationRebasePromise = recoveryPromise;
+        return recoveryPromise;
     }
 
     function buildPresentationJournalPath(afterVisualSeq: any) {
@@ -2721,7 +3049,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                         reason: res && res.data && res.data.reason ? String(res.data.reason) : 'PRESENTATION_JOURNAL_FETCH_FAILED',
                         status: res && Number.isFinite(Number(res.status)) ? Number(res.status) : null
                     });
-                    return false;
+                    return recoverPresentationFromAuthoritativeState(
+                        res && res.data && res.data.reason
+                            ? res.data.reason
+                            : 'presentation_journal_fetch_failed',
+                        'presentation_journal'
+                    );
                 }
                 applyJournalBaseVisualSnapshot(res.data);
                 const enqueued = enqueuePresentationFramesFromPayload(res.data, {
@@ -2732,19 +3065,38 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     if (recoveryEpoch !== getNetworkSessionEpoch() || timeline !== networkPresentationTimeline) {
                         return false;
                     }
-                    recordNetworkTelemetry('network_presentation_timeline_gap_recovered', {
+                    const converged = isVisualConvergedAtPresentationCursor(
+                        res.data.presentationCursor,
+                        timeline
+                    );
+                    if (converged) {
+                        recordNetworkTelemetry('network_presentation_timeline_gap_recovered', {
+                            afterVisualSeq,
+                            enqueued,
+                            drained
+                        });
+                        return true;
+                    }
+                    recordNetworkTelemetry('network_presentation_timeline_gap_unresolved', {
                         afterVisualSeq,
                         enqueued,
-                        drained
+                        drained,
+                        presentationCursor: res.data.presentationCursor || null
                     });
-                    return true;
+                    return recoverPresentationFromAuthoritativeState(
+                        'presentation_journal_did_not_converge',
+                        'presentation_journal'
+                    );
                 });
             })
             .catch((error: any) => {
                 recordNetworkTelemetry('network_presentation_timeline_gap_recovery_failed', {
                     reason: error && error.message ? String(error.message) : String(error || '')
                 });
-                return false;
+                return recoverPresentationFromAuthoritativeState(
+                    'presentation_journal_recovery_error',
+                    'presentation_journal'
+                );
             })
             .finally(() => {
                 if (networkPresentationGapRecoveryPromise === recoveryPromise) {
@@ -2794,7 +3146,22 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             const source = String(enqueueOptions.source || 'network_payload');
             enqueueOptions.allowBaseCursorAdvance = source === 'network_snapshot' || source === 'journal_recovery';
         }
-        const accepted = timeline.enqueueFrames(frames, enqueueOptions);
+        let accepted = 0;
+        try {
+            accepted = timeline.enqueueFrames(frames, enqueueOptions);
+        } catch (error: any) {
+            recordNetworkTelemetry('network_presentation_frame_enqueue_failed', {
+                source: String(enqueueOptions.source || ''),
+                error: error && error.message ? String(error.message) : String(error || '')
+            });
+            if (String(enqueueOptions.source || '') !== 'authoritative_visual_rebase') {
+                recoverPresentationFromAuthoritativeState(
+                    'presentation_frame_enqueue_failed',
+                    enqueueOptions.source
+                );
+            }
+            return 0;
+        }
         if (accepted > 0 && enqueueOptions.skipAutoDrain !== true) {
             drainPresentationTimeline().then((drained: any) => {
                 if (Number(drained || 0) <= 0 && shouldRecoverPresentationTimelineGap(enqueueOptions.source)) {
@@ -3049,15 +3416,28 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         const baseDelayMs = Number.isFinite(Number(opts.baseDelayMs))
             ? Math.max(100, Math.trunc(Number(opts.baseDelayMs)))
             : 350;
+        const retrySessionEpoch = getNetworkSessionEpoch();
+        const retryRoomId = String(state.roomId || '');
+        const isRetrySessionIdentityCurrent = () => {
+            return retrySessionEpoch === getNetworkSessionEpoch()
+                && retryRoomId === String(state.roomId || '');
+        };
 
         let lastError: any = null;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-            if (!isActive()) {
-                return { ok: false, reason: 'INACTIVE' };
+            if (!isRetrySessionIdentityCurrent()) {
+                return { ok: false, stale: true, reason: 'SESSION_CHANGED' };
             }
+            if (!isActive()) return { ok: false, reason: 'INACTIVE' };
 
             try {
-                const result = await syncLatestState({ source: opts.source });
+                const syncOptions = Object.assign({}, opts);
+                delete syncOptions.maxAttempts;
+                delete syncOptions.baseDelayMs;
+                const result = await syncLatestState(syncOptions);
+                if (!isRetrySessionIdentityCurrent() || (result && result.reason === 'SESSION_CHANGED')) {
+                    return { ok: false, stale: true, reason: 'SESSION_CHANGED' };
+                }
                 if (result && result.ok === true) {
                     return result;
                 }
@@ -3070,6 +3450,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
             const delayMs = computeRetryDelayMs(baseDelayMs, RECONNECT_MAX_DELAY_MS, attempt);
             await waitForMs(delayMs);
+            if (!isRetrySessionIdentityCurrent()) {
+                return { ok: false, stale: true, reason: 'SESSION_CHANGED' };
+            }
+            if (!isActive()) return { ok: false, reason: 'INACTIVE' };
         }
 
         throw (lastError || new Error('STATE_SYNC_RETRY_EXHAUSTED'));

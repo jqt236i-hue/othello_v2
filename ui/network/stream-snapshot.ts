@@ -33,6 +33,17 @@ function createNetworkStreamSnapshotController(config?: any): any {
   function handleStreamSnapshotPayload(payload: any): void {
     if (!payload || payload.ok !== true) return;
     const state = readState();
+    const payloadRoomId = payload.roomId ? String(payload.roomId).trim().toUpperCase() : '';
+    const currentRoomId = state.roomId ? String(state.roomId).trim().toUpperCase() : '';
+    if (payloadRoomId && currentRoomId && payloadRoomId !== currentRoomId) {
+      if (typeof cfg.recordNetworkTelemetry === 'function') {
+        cfg.recordNetworkTelemetry('stream_snapshot_stale_room_ignored', {
+          payloadRoomId,
+          currentRoomId
+        });
+      }
+      return;
+    }
     if (typeof cfg.applyPayloadSessionState === 'function') {
       cfg.applyPayloadSessionState(payload);
     }
@@ -130,11 +141,15 @@ function createNetworkStreamSnapshotController(config?: any): any {
         })
       });
     }
-    const recoveredForcedPlayback = !applied
+    const hasCanonicalIntakeCoordinator = typeof cfg.normalizeNetworkSnapshotEnvelope === 'function'
+      && typeof cfg.submitNetworkSnapshotEnvelope === 'function';
+    const recoveredForcedPlayback = !hasCanonicalIntakeCoordinator
+      && !applied
       && typeof cfg.shouldRecoverForceSyncedStreamPlayback === 'function'
       && cfg.shouldRecoverForceSyncedStreamPlayback(snapshot, playbackEvents)
       && typeof cfg.applySnapshot === 'function'
       ? cfg.applySnapshot(snapshot, Object.assign({}, streamPlaybackApplyOptions, presentationFrameApplyOptions, {
+        source: 'stream_force_recovery',
         force: true,
         skipResultOverlay: shouldSkipResultOverlay
       }))

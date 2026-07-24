@@ -161,7 +161,8 @@ describe('applySnapshot single-writer baseline', () => {
     expect(pbEvent.events).toBe(events);
     expect(pbEvent.meta.source).toBe('network_snapshot');
     expect(pbEvent.meta.suppressPlayback).not.toBe(true);
-    expect(pbEvent.meta.strictNetworkPlayback).toBe(true);
+    expect(pbEvent.meta.strictNetworkPlayback).toBe(false);
+    expect(pbEvent.meta.visualSeq).toBeNull();
   });
 
   test('playbackEvents なしで shadow なしの場合 busy は false になる', () => {
