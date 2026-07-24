@@ -83,4 +83,41 @@ describe('network rematch request dialog', () => {
 
     dom.window.close();
   });
+
+  test('accepted crossed response closes the other stale request dialog', () => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>');
+    const client = {
+      hasPendingRematchRequest: jest.fn(() => false),
+      acceptRematchRequest: jest.fn(async () => ({ ok: true })),
+      declineRematchRequest: jest.fn(async () => ({ ok: true }))
+    };
+    const options = {
+      root: dom.window,
+      getNetworkMatchClient: () => client
+    };
+    const { showNetworkRematchRequestDialog } = require(
+      '../ui/handlers/match-mode/network-client-listeners.ts'
+    );
+
+    showNetworkRematchRequestDialog({
+      type: 'request',
+      requestId: 'rematch_host_request'
+    }, options);
+    expect(dom.window.document.getElementById('network-rematch-request-dialog')).toBeTruthy();
+
+    showNetworkRematchRequestDialog({
+      type: 'response',
+      requestId: 'rematch_guest_request',
+      accepted: true
+    }, options);
+    expect(dom.window.document.getElementById('network-rematch-request-dialog')).toBeNull();
+
+    showNetworkRematchRequestDialog({
+      type: 'request',
+      requestId: 'rematch_host_request'
+    }, options);
+    expect(dom.window.document.getElementById('network-rematch-request-dialog')).toBeNull();
+
+    dom.window.close();
+  });
 });

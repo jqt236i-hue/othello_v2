@@ -31,9 +31,18 @@ function showNetworkRematchRequestDialog(payload: any, options: any): void {
 
     if (payload.type === 'response') {
         rememberHandledRematchRequest(doc, requestId);
+        const existingRequestId = existing
+            ? String(existing.getAttribute('data-rematch-request-id') || '')
+            : '';
+        const accepted = payload.accepted === true;
+        if (accepted && existingRequestId) {
+            // One accepted crossed request restarts the match, so every other
+            // prompt from the completed rematch negotiation is now stale.
+            rememberHandledRematchRequest(doc, existingRequestId);
+        }
         if (
             existing
-            && (!requestId || String(existing.getAttribute('data-rematch-request-id') || '') === requestId)
+            && (accepted || !requestId || existingRequestId === requestId)
             && existing.parentNode
         ) {
             existing.parentNode.removeChild(existing);
