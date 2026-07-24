@@ -5,6 +5,10 @@ import type {
 } from '../utils/match-authority-types';
 import type { MatchWorkerRoomState, MatchWorkerSseStreamInfo } from './match-worker-types';
 
+// Keep stale SSE writers well below the browser request timeout (10 seconds).
+// A timed-out writer is removed, while the already-buffered event remains replayable.
+export const MATCH_WORKER_SSE_WRITE_TIMEOUT_MS = 2000;
+
 type MatchWorkerCryptoLike = {
     getRandomValues(array: Uint8Array): Uint8Array;
 };

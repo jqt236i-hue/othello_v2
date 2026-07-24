@@ -64,7 +64,10 @@ import { buildMatchWorkerLeaderboardProof } from './match-worker-leaderboard-pro
 import { createMatchWorkerLeaderboardRoomController } from './match-worker-leaderboard-room';
 import { createMatchWorkerPlayerIdentityController } from './match-worker-player-identity';
 import { createMatchWorkerRatingHelpers } from './match-worker-rating';
-import { createMatchWorkerStreamController } from './match-worker-stream-controller';
+import {
+    createMatchWorkerStreamController,
+    MATCH_WORKER_SSE_WRITE_TIMEOUT_MS
+} from './match-worker-stream-controller';
 import { createMatchWorkerStreamRouteController } from './match-worker-stream-route-controller';
 import { createMatchWorkerStreamSessionController } from './match-worker-stream-session-controller';
 import { createMatchWorkerTimeoutController } from './match-worker-timeout-controller';
@@ -115,7 +118,6 @@ const LEADERBOARD_PLAYER_ID_RE = /^[A-Za-z0-9_-]{8,80}$/;
 const NETWORK_TURN_LIMIT_SECONDS = Number(MatchAuthority.NETWORK_TURN_LIMIT_SECONDS);
 const NETWORK_TURN_LIMIT_MS = Number(MatchAuthority.NETWORK_TURN_LIMIT_MS);
 const SSE_HEARTBEAT_INTERVAL_MS = Number(MatchAuthority.SSE_HEARTBEAT_INTERVAL_MS);
-const SSE_WRITE_TIMEOUT_MS = 10000;
 const NETWORK_DEBUG_FILL_HAND_ACTION = MatchAuthority.NETWORK_DEBUG_FILL_HAND_ACTION || 'debug_fill_hand';
 let coreLogicModulePromise: Promise<MatchWorkerCoreModule> | null = null;
 let deckModulesPromise: Promise<MatchWorkerDeckGlobals> | null = null;
@@ -2011,7 +2013,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 onStreamClosed: async (stream) => { await this.markRatedStreamDisconnected(stream); },
                 sseChunk,
                 heartbeatIntervalMs: SSE_HEARTBEAT_INTERVAL_MS,
-                writeTimeoutMs: SSE_WRITE_TIMEOUT_MS
+                writeTimeoutMs: MATCH_WORKER_SSE_WRITE_TIMEOUT_MS
             });
         }
         return this.streamController;

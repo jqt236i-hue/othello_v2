@@ -1,6 +1,14 @@
-import { createMatchWorkerStreamController } from '../workers/match-worker-stream-controller';
+import {
+  createMatchWorkerStreamController,
+  MATCH_WORKER_SSE_WRITE_TIMEOUT_MS
+} from '../workers/match-worker-stream-controller';
 
-function createController(options?: { room?: any; writeReject?: boolean }) {
+function createController(options?: {
+  room?: any;
+  writeReject?: boolean;
+  writePending?: boolean;
+  writeTimeoutMs?: number;
+}) {
   const room = options && Object.prototype.hasOwnProperty.call(options, 'room')
     ? (options as any).room
     : {
@@ -16,11 +24,17 @@ function createController(options?: { room?: any; writeReject?: boolean }) {
   let clearedHandle: any = null;
   const written: string[] = [];
   const closed: string[] = [];
+  const scheduledTimeouts = new Map<any, { callback: (...args: any[]) => void; ms: number }>();
+  let nextTimeoutHandle = 777;
 
   const writer = {
     async write(chunk: Uint8Array) {
       if (options && options.writeReject) {
         throw new Error('WRITE_FAIL');
+      }
+      if (options && options.writePending) {
+        await new Promise<void>(() => {});
+        return;
       }
       written.push(Buffer.from(chunk).toString('utf8'));
     },
@@ -56,14 +70,19 @@ function createController(options?: { room?: any; writeReject?: boolean }) {
       return `${idLine}${eventLine}data: ${data}\n\n`;
     },
     heartbeatIntervalMs: 100,
-    writeTimeoutMs: 0,
+    writeTimeoutMs: options && Number.isFinite(options.writeTimeoutMs)
+      ? Number(options.writeTimeoutMs)
+      : 0,
     now: () => 12345,
-    setTimeoutFn: ((callback: (...args: any[]) => void, _ms?: number) => {
-      heartbeatTimerId = 777;
-      return 777 as any;
+    setTimeoutFn: ((callback: (...args: any[]) => void, ms?: number) => {
+      const handle = nextTimeoutHandle++;
+      scheduledTimeouts.set(handle, { callback, ms: Number(ms) || 0 });
+      heartbeatTimerId = handle;
+      return handle as any;
     }) as any,
     clearTimeoutFn: ((handle: any) => {
       clearedHandle = handle;
+      scheduledTimeouts.delete(handle);
       heartbeatTimerId = null;
     }) as any
   });
@@ -77,7 +96,12 @@ function createController(options?: { room?: any; writeReject?: boolean }) {
     getWritten: () => written,
     getClearedHandle: () => clearedHandle,
     getClosed: () => closed,
-    getHeartbeatTimerId: () => heartbeatTimerId
+    getHeartbeatTimerId: () => heartbeatTimerId,
+    getScheduledTimeouts: () => Array.from(scheduledTimeouts.entries()),
+    fireTimeout: (handle: any) => {
+      const scheduled = scheduledTimeouts.get(handle);
+      if (scheduled) scheduled.callback();
+    }
   };
 }
 
@@ -115,6 +139,26 @@ describe('match worker stream controller', () => {
     const ctx = createController({ writeReject: true });
 
     await ctx.controller.sendSse('stream1', 'heartbeat', { ok: true });
+
+    expect(ctx.streams.size).toBe(0);
+    expect(ctx.getClosed()).toEqual(['closed']);
+  });
+
+  test('production write timeout stays below the browser request deadline', () => {
+    expect(MATCH_WORKER_SSE_WRITE_TIMEOUT_MS).toBeGreaterThan(0);
+    expect(MATCH_WORKER_SSE_WRITE_TIMEOUT_MS).toBeLessThan(10000);
+  });
+
+  test('sendSse times out and removes a backpressured stream', async () => {
+    const ctx = createController({ writePending: true, writeTimeoutMs: 25 });
+
+    const sendPromise = ctx.controller.sendSse('stream1', 'presence', { type: 'rematch_request' });
+    const scheduled = ctx.getScheduledTimeouts();
+
+    expect(scheduled).toHaveLength(1);
+    expect(scheduled[0][1].ms).toBe(25);
+    ctx.fireTimeout(scheduled[0][0]);
+    await sendPromise;
 
     expect(ctx.streams.size).toBe(0);
     expect(ctx.getClosed()).toEqual(['closed']);
