@@ -113,6 +113,10 @@ export interface MatchAuthorityAcceptedOperationEntry {
     operationId: string;
     stateVersion: number | null;
     updatedAt: number | null;
+    autoPassNotice?: {
+        playerKey: MatchAuthoritySeatKey;
+        reason: string;
+    };
 }
 
 export interface MatchAuthorityAcceptedOperationsBySeat {

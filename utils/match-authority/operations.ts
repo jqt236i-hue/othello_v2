@@ -40,11 +40,20 @@ export function createMatchAuthorityOperationsApi(deps: MatchAuthorityOperations
         const source = asRecord(value);
         const operationId = deps.normalizeOperationId(source.operationId);
         if (!operationId) return null;
-        return {
+        const autoPassNoticeSource = asRecord(source.autoPassNotice);
+        const autoPassReason = String(autoPassNoticeSource.reason || '').trim();
+        const normalized: MatchAuthorityAcceptedOperationEntry = {
             operationId,
             stateVersion: deps.normalizeStateVersion(source.stateVersion),
             updatedAt: Number.isFinite(Number(source.updatedAt)) ? Number(source.updatedAt) : null
         };
+        if (autoPassReason) {
+            normalized.autoPassNotice = {
+                playerKey: deps.normalizePlayerKey(autoPassNoticeSource.playerKey),
+                reason: autoPassReason
+            };
+        }
+        return normalized;
     }
 
     function ensureAcceptedOperationHistoryBySeat(room: MatchAuthorityRoomState | null | undefined): MatchAuthorityAcceptedOperationHistoryBySeat {

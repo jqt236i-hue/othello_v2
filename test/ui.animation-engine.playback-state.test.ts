@@ -49,6 +49,12 @@ describe('animation-engine playback-state integration', () => {
     expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
   });
 
+  test('uses a bounded production watchdog budget that covers the longest Pixi phases', () => {
+    const engine = require('../ui/animation-engine.js');
+
+    expect(engine._resolvePlaybackWatchdogMs()).toBe(30000);
+  });
+
   test('local watchdog preserves deferred presentation claims and returns one abort acknowledgement', async () => {
     jest.useFakeTimers();
     jest.unmock('../ui/playback-state-manager');

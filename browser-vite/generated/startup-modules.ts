@@ -669,6 +669,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "utils/match-authority/room-lifecycle": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/room-lifecycle.js"),
   "utils/match-authority/snapshot-state": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/snapshot-state.js"),
   "utils/match-authority/trap-visibility": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/trap-visibility.js"),
+  "utils/match-auto-command": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-auto-command.js"),
   "utils/match-command-runtime": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-command-runtime.js"),
   "utils/match-join-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-join-controller.js"),
   "utils/match-leave-controller": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-leave-controller.js"),
@@ -1361,6 +1362,7 @@ installBootModuleMetadata({
     "utils/match-authority/room-lifecycle",
     "utils/match-authority/snapshot-state",
     "utils/match-authority/trap-visibility",
+    "utils/match-auto-command",
     "utils/match-command-runtime",
     "utils/match-join-controller",
     "utils/match-leave-controller",
@@ -1456,4 +1458,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 677;
+export const startupModuleCount = 678;

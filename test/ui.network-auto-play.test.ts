@@ -33,6 +33,24 @@ function createRoot(overrides: any = {}) {
   return Object.assign(root, overrides);
 }
 
+function expectAutoTurnPublished(
+  root: any,
+  preferredActionType: string,
+  preferredAction: any,
+  playerKey = 'black'
+) {
+  expect(root.NetworkMatchClient.publishCommand).toHaveBeenCalledWith({
+    playerKey,
+    actionType: 'auto_turn',
+    action: {
+      type: 'auto_turn',
+      preferredActionType,
+      preferredAction
+    },
+    playbackEvents: []
+  });
+}
+
 describe('NetworkAutoPlay', () => {
   test('publishes a Lv1-style selected move for the local network seat', async () => {
     const root = createRoot();
@@ -43,12 +61,7 @@ describe('NetworkAutoPlay', () => {
     expect(result.handled).toBe(true);
     expect(result.published).toBe(true);
     expect(root.selectCpuMoveWithPolicy).toHaveBeenCalledWith(expect.any(Array), 'black');
-    expect(root.NetworkMatchClient.publishCommand).toHaveBeenCalledWith({
-      playerKey: 'black',
-      actionType: 'place',
-      action: { type: 'place', row: 4, col: 5 },
-      playbackEvents: []
-    });
+    expectAutoTurnPublished(root, 'place', { type: 'place', row: 4, col: 5 });
   });
 
   test('publishes the action returned by the injected CPU network planner', async () => {
@@ -77,12 +90,7 @@ describe('NetworkAutoPlay', () => {
       gameState: root.gameState,
       cardState: root.cardState
     }));
-    expect(root.NetworkMatchClient.publishCommand).toHaveBeenCalledWith({
-      playerKey: 'black',
-      actionType: 'use_card',
-      action: plannedAction,
-      playbackEvents: []
-    });
+    expectAutoTurnPublished(root, 'use_card', plannedAction);
   });
 
   test('does not publish when the room does not allow network auto', async () => {
@@ -125,6 +133,69 @@ describe('NetworkAutoPlay', () => {
     expect(root.NetworkMatchClient.publishCommand).not.toHaveBeenCalled();
   });
 
+  test('FATE_WILL controller publishes AUTO for the controlled turn owner', async () => {
+    const plannedAction = { type: 'place', row: 2, col: 3 };
+    const root = createRoot({
+      gameState: {
+        currentPlayer: 2,
+        turnNumber: 8
+      },
+      cardState: {
+        fateWillControllerByTurnOwner: { black: null, white: 'black' }
+      },
+      CpuNetworkCommandPlanner: {
+        planCpuNetworkCommand: jest.fn().mockReturnValue({
+          actionType: 'place',
+          action: plannedAction
+        })
+      }
+    });
+    const controller = NetworkAutoPlay.createNetworkAutoPlayController(root);
+
+    const result = await controller.tick();
+
+    expect(result.published).toBe(true);
+    expect(root.CpuNetworkCommandPlanner.planCpuNetworkCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ playerKey: 'white' })
+    );
+    expectAutoTurnPublished(root, 'place', plannedAction, 'white');
+  });
+
+  test('FATE_WILL controlled seat cannot publish AUTO for its own controlled turn', async () => {
+    const root = createRoot({
+      gameState: {
+        currentPlayer: 2,
+        turnNumber: 8
+      },
+      cardState: {
+        fateWillControllerByTurnOwner: { black: null, white: 'black' }
+      }
+    });
+    root.NetworkMatchClient.getSeatKey.mockReturnValue('white');
+    const controller = NetworkAutoPlay.createNetworkAutoPlayController(root);
+
+    const result = await controller.tick();
+
+    expect(result.reason).toBe('NOT_OWN_TURN');
+    expect(root.NetworkMatchClient.publishCommand).not.toHaveBeenCalled();
+  });
+
+  test('does not publish after the canonical game is over', async () => {
+    const root = createRoot({
+      gameState: {
+        currentPlayer: 1,
+        turnNumber: 80,
+        consecutivePasses: 2
+      }
+    });
+    const controller = NetworkAutoPlay.createNetworkAutoPlayController(root);
+
+    const result = await controller.tick();
+
+    expect(result.reason).toBe('GAME_ALREADY_OVER');
+    expect(root.NetworkMatchClient.publishCommand).not.toHaveBeenCalled();
+  });
+
   test('publishes only autoNoActionPass when no move and no usable card exist', async () => {
     const root = createRoot({
       getLegalMoves: jest.fn().mockReturnValue([]),
@@ -138,15 +209,10 @@ describe('NetworkAutoPlay', () => {
 
     expect(result.handled).toBe(true);
     expect(result.published).toBe(true);
-    expect(root.NetworkMatchClient.publishCommand).toHaveBeenCalledWith({
+    expectAutoTurnPublished(root, 'pass', {
+      type: 'pass',
       playerKey: 'black',
-      actionType: 'pass',
-      action: {
-        type: 'pass',
-        playerKey: 'black',
-        autoNoActionPass: true
-      },
-      playbackEvents: []
+      autoNoActionPass: true
     });
   });
 
@@ -189,16 +255,11 @@ describe('NetworkAutoPlay', () => {
     expect(result.handled).toBe(true);
     expect(result.published).toBe(true);
     expect(root.computeCpuAction).toHaveBeenCalledWith('black');
-    expect(root.NetworkMatchClient.publishCommand).toHaveBeenCalledWith({
+    expectAutoTurnPublished(root, 'use_card', {
+      type: 'use_card',
       playerKey: 'black',
-      actionType: 'use_card',
-      action: {
-        type: 'use_card',
-        playerKey: 'black',
-        useCardId: 'work_01',
-        useCardOwnerKey: 'black'
-      },
-      playbackEvents: []
+      useCardId: 'work_01',
+      useCardOwnerKey: 'black'
     });
   });
 
@@ -224,16 +285,11 @@ describe('NetworkAutoPlay', () => {
     expect(result.published).toBe(true);
     expect(root.selectCardToUse).toHaveBeenCalledWith('black');
     expect(root.selectCpuMoveWithPolicy).not.toHaveBeenCalled();
-    expect(root.NetworkMatchClient.publishCommand).toHaveBeenCalledWith({
+    expectAutoTurnPublished(root, 'use_card', {
+      type: 'use_card',
       playerKey: 'black',
-      actionType: 'use_card',
-      action: {
-        type: 'use_card',
-        playerKey: 'black',
-        useCardId: 'work_01',
-        useCardOwnerKey: 'black'
-      },
-      playbackEvents: []
+      useCardId: 'work_01',
+      useCardOwnerKey: 'black'
     });
   });
 
@@ -267,24 +323,19 @@ describe('NetworkAutoPlay', () => {
 
     expect(result.handled).toBe(true);
     expect(result.published).toBe(true);
-    expect(root.NetworkMatchClient.publishCommand).toHaveBeenCalledWith({
-      playerKey: 'black',
-      actionType: 'place',
-      action: {
-        type: 'place',
-        player: 'black',
-        row: 3,
-        col: 4,
-        bombTarget: { row: 3, col: 4 },
-        pendingSelectionState: {
-          type: 'TIME_BOMB',
-          stage: 'selectTarget',
-          cardId: 'time_bomb_01',
-          pendingEffectId: 'pending_9_1'
-        },
-        turnIndex: 9
+    expectAutoTurnPublished(root, 'place', {
+      type: 'place',
+      player: 'black',
+      row: 3,
+      col: 4,
+      bombTarget: { row: 3, col: 4 },
+      pendingSelectionState: {
+        type: 'TIME_BOMB',
+        stage: 'selectTarget',
+        cardId: 'time_bomb_01',
+        pendingEffectId: 'pending_9_1'
       },
-      playbackEvents: []
+      turnIndex: 9
     });
   });
 });

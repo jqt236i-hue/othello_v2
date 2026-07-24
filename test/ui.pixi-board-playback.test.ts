@@ -1469,6 +1469,91 @@ describe('Pixi board playback contract', () => {
     });
   });
 
+  test('abortAndWait blocks a late second move run before checkpoint restore', async () => {
+    const harness = createHarness({
+      frame: makeFrame([
+        [2, 2, stone('black', 'EXTREME_HYPERACTIVE')],
+        [2, 3, stone('white')],
+        [3, 3, stone('white')]
+      ]),
+      timings: {
+        moveMs: 40,
+        fadeOutMs: 50,
+        destroySettlementMs: 70,
+        positiveHighlightMinimumMs: 10
+      }
+    });
+    const move = {
+      type: 'move',
+      meta: { sequence: 'extreme_hyperactive_forced_swap' },
+      targets: [
+        {
+          from: { r: 2, col: 2 },
+          to: { r: 2, col: 3 },
+          ownerBefore: 'black',
+          ownerAfter: 'black',
+          cause: 'EXTREME_HYPERACTIVE',
+          reason: 'extreme_hyperactive_forced_swap',
+          extremeForcedSwapRole: 'lead',
+          before: { owner: 'black', color: 1, special: 'EXTREME_HYPERACTIVE' },
+          after: { owner: 'black', color: 1, special: 'EXTREME_HYPERACTIVE' }
+        },
+        {
+          from: { r: 2, col: 3 },
+          to: { r: 2, col: 2 },
+          ownerBefore: 'white',
+          ownerAfter: 'white',
+          cause: 'EXTREME_HYPERACTIVE',
+          reason: 'extreme_hyperactive_forced_swap',
+          extremeForcedSwapRole: 'follow',
+          before: { owner: 'white', color: -1 },
+          after: { owner: 'white', color: -1 }
+        }
+      ]
+    };
+    const destroy = sourceEmptyDestroyEvent();
+    const sharedContext = context(false, [move, destroy]);
+    const movePhase = harness.playback.playPhase([move], sharedContext);
+    const destroyPhase = harness.playback.playPhase([destroy], sharedContext);
+    await flushMicrotasks();
+
+    harness.application.tick(40);
+    const abortReason = new Error('network_playback_watchdog');
+    const aborting = harness.playback.abortAndWait(abortReason);
+
+    await expect(movePhase).rejects.toEqual(expect.objectContaining({
+      name: 'PresentationPlaybackError',
+      code: 'board_renderer_failed',
+      cause: abortReason
+    }));
+    await expect(destroyPhase).rejects.toEqual(expect.objectContaining({
+      name: 'PresentationPlaybackError',
+      code: 'board_renderer_failed',
+      cause: abortReason
+    }));
+    await expect(aborting).resolves.toBeGreaterThanOrEqual(1);
+
+    harness.scene.applyFrame(harness.frame);
+    harness.playback.onFrameApplied();
+    harness.application.tick(100);
+    await flushMicrotasks();
+    expect(harness.application.listenerCount).toBe(0);
+    expect(harness.scene.getDiagnostics()).toMatchObject({
+      playbackScopeKey: null,
+      activePlaybackGhostCount: 0,
+      activePlaybackHighlightLeaseCount: 0
+    });
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      activeScopeKey: null,
+      inFlightEffectCount: 0,
+      timeline: expect.objectContaining({
+        state: 'idle',
+        activeRunCount: 0,
+        tickerRunning: false
+      })
+    });
+  });
+
   test('reduced-motion zombie FLIP skips the bite but retains the highlight minimum', async () => {
     const harness = createHarness({
       frame: makeFrame([[2, 2, stone('black')]]),

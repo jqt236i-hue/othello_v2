@@ -545,6 +545,9 @@ export function createPixiBoardVisualBackend(
   let playbackTextureWriterId: number | null = null;
   let playbackTexturePrepareSequence = 0;
   let playbackTexturePreparation: Promise<void> | null = null;
+  let playbackLaunchGeneration = 0;
+  let playbackInterruptReason: unknown = new Error('Pixi playback was interrupted before frame restore');
+  const activeRawPlaybackPhases = new Set<Promise<void>>();
   const playbackSpecialStones = new Map<string, PlaybackSpecialStone>();
   let settledFrameToken: string | null = null;
   let lastErrorCode: string | null = null;
@@ -1630,10 +1633,20 @@ export function createPixiBoardVisualBackend(
     assertMounted();
     assertContextHealthy();
     playPhaseCount += 1;
+    const launchGeneration = playbackLaunchGeneration;
     try {
       assertCameraRenderHealthy();
       await preparePlaybackTextures(events, context);
-      await playback!.playPhase(events, context);
+      if (launchGeneration !== playbackLaunchGeneration) {
+        throw playbackInterruptReason;
+      }
+      const rawPlayback = playback!.playPhase(events, context);
+      activeRawPlaybackPhases.add(rawPlayback);
+      try {
+        await rawPlayback;
+      } finally {
+        activeRawPlaybackPhases.delete(rawPlayback);
+      }
       // Multiple board event branches in one presentation phase share this
       // backend timeline. A shorter sibling must not stop the private ticker
       // while another run still needs clock ticks to settle.
@@ -1648,6 +1661,27 @@ export function createPixiBoardVisualBackend(
       });
       throw error;
     }
+  }
+
+  async function interruptPlaybackBeforeRestore(frame: BoardVisualFrame): Promise<void> {
+    playbackLaunchGeneration += 1;
+    playbackInterruptReason = backendError({
+      code: 'pixi_playback_interrupted_for_restore',
+      stage: 'play-phase',
+      message: `Pixi playback was interrupted before restoring ${frame.frameToken}`
+    });
+    playbackTextureWriterId = null;
+    playbackSpecialStones.clear();
+    const activeAtInterrupt = Array.from(activeRawPlaybackPhases);
+    if (playback && typeof playback.abortAndWait === 'function') {
+      await playback.abortAndWait(playbackInterruptReason);
+    } else {
+      playback?.abort(playbackInterruptReason);
+    }
+    if (activeAtInterrupt.length > 0) {
+      await Promise.allSettled(activeAtInterrupt);
+    }
+    application?.settleIdle();
   }
 
   function resize(layout: BoardViewportLayout): void {
@@ -1671,6 +1705,9 @@ export function createPixiBoardVisualBackend(
   }
 
   async function restore(frame: BoardVisualFrame, presentedFrame?: BoardVisualFrame): Promise<void> {
+    assertMounted();
+    assertContextHealthy();
+    await interruptPlaybackBeforeRestore(frame);
     assertMounted();
     assertContextHealthy();
     const presentationOverride = resolvePresentedFrame(frame, presentedFrame);

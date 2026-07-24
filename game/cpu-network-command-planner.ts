@@ -14,6 +14,14 @@ function normalizePlayerKey(value: any): 'black' | 'white' {
   return String(value || '').trim().toLowerCase() === 'white' ? 'white' : 'black';
 }
 
+function normalizeHandIndex(value: any): number | undefined {
+  if (value === null || typeof value === 'undefined' || value === '') return undefined;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric >= 0
+    ? Math.trunc(numeric)
+    : undefined;
+}
+
 function createPassAction(playerKey: string, options?: { autoNoActionPass?: boolean }): any {
   const action: any = { type: 'pass', playerKey };
   if (!options || options.autoNoActionPass !== false) {
@@ -22,6 +30,19 @@ function createPassAction(playerKey: string, options?: { autoNoActionPass?: bool
   return {
     actionType: 'pass',
     action
+  };
+}
+
+function createCancelCardAction(): any {
+  return {
+    actionType: 'cancel_card',
+    action: {
+      type: 'cancel_card',
+      cancelOptions: {
+        refundCost: false,
+        resetUsage: true
+      }
+    }
   };
 }
 
@@ -82,7 +103,14 @@ function normalizePendingType(value: any): string {
 
 function cloneTarget(value: any): any | null {
   if (!value || !Number.isFinite(Number(value.row)) || !Number.isFinite(Number(value.col))) return null;
-  return { row: Math.trunc(Number(value.row)), col: Math.trunc(Number(value.col)) };
+  const target: any = {
+    row: Math.trunc(Number(value.row)),
+    col: Math.trunc(Number(value.col))
+  };
+  if (typeof value.directionKey === 'string' && value.directionKey.trim()) {
+    target.directionKey = value.directionKey.trim();
+  }
+  return target;
 }
 
 function buildPendingSelectionState(pending: any, pendingType: string): any {
@@ -182,12 +210,61 @@ function getUsableCardIds(input: PlannerInput, playerKey: string): string[] {
   }
 }
 
+function getUsableCardSelections(input: PlannerInput, playerKey: string): Array<{ cardId: string; handIndex?: number }> {
+  const logic = input && input.CardLogic;
+  try {
+    if (logic && typeof logic.analyzeCardUsability === 'function') {
+      const analysis = logic.analyzeCardUsability(
+        input.cardState,
+        input.gameState,
+        playerKey
+      );
+      const slots = analysis && Array.isArray(analysis.usableSlots)
+        ? analysis.usableSlots
+        : [];
+      if (slots.length > 0) {
+        return slots
+          .map((slot: any) => {
+            const cardId = String(slot && slot.cardId || '').trim();
+            const handIndex = Number(slot && slot.handIndex);
+            if (!cardId) return null;
+            return Number.isInteger(handIndex) && handIndex >= 0
+              ? { cardId, handIndex: Math.trunc(handIndex) }
+              : { cardId };
+          })
+          .filter(Boolean) as Array<{ cardId: string; handIndex?: number }>;
+      }
+    }
+  } catch (e) { /* fall through */ }
+  return getUsableCardIds(input, playerKey).map((cardId) => ({ cardId }));
+}
+
+function hasUsableCardSelectionEvidence(input: PlannerInput): boolean {
+  const logic = input && input.CardLogic;
+  return !!(
+    logic
+    && (
+      typeof logic.analyzeCardUsability === 'function'
+      || typeof logic.getUsableCardIds === 'function'
+    )
+  );
+}
+
 function resolveCardDecision(input: PlannerInput, playerKey: string): any {
   try {
     if (typeof input.selectCardToUse === 'function') {
       const selected = input.selectCardToUse(playerKey);
       if (selected && selected.cardId) {
-        return { type: 'useCard', cardId: selected.cardId, cardDef: selected.cardDef };
+        return {
+          type: 'useCard',
+          cardId: selected.cardId,
+          cardDef: selected.cardDef,
+          handIndex: normalizeHandIndex(
+            typeof selected.handIndex !== 'undefined'
+              ? selected.handIndex
+              : selected.useCardHandIndex
+          )
+        };
       }
     }
   } catch (e) { /* fall through */ }
@@ -201,20 +278,50 @@ function planCardUse(input: PlannerInput, playerKey: string, options?: { allowFa
   if (!hasUsableCard(input, playerKey)) return null;
   const decision = resolveCardDecision(input, playerKey);
   const type = String(decision && (decision.type || decision.actionType) || '').trim();
-  let cardId = String(decision && (decision.cardId || decision.useCardId) || '').trim();
+  const requestedCardId = String(decision && (decision.cardId || decision.useCardId) || '').trim();
+  const requestedHandIndex = normalizeHandIndex(
+    decision && (decision.handIndex ?? decision.useCardHandIndex)
+  );
   const allowFallback = !options || options.allowFallback !== false;
-  if ((type !== 'useCard' && type !== 'use_card') || !cardId) {
-    cardId = allowFallback ? (getUsableCardIds(input, playerKey)[0] || '') : '';
+  const usableSelections = getUsableCardSelections(input, playerKey);
+  let selected = (
+    (type === 'useCard' || type === 'use_card')
+    && requestedCardId
+  )
+    ? usableSelections.find((item) => (
+      item.cardId === requestedCardId
+      && (
+        typeof requestedHandIndex === 'undefined'
+        || item.handIndex === requestedHandIndex
+      )
+    )) || null
+    : null;
+  if (
+    !selected
+    && (type === 'useCard' || type === 'use_card')
+    && requestedCardId
+    && !hasUsableCardSelectionEvidence(input)
+  ) {
+    selected = typeof requestedHandIndex === 'undefined'
+      ? { cardId: requestedCardId }
+      : { cardId: requestedCardId, handIndex: requestedHandIndex };
   }
-  if (!cardId) return null;
+  if (!selected && allowFallback) {
+    selected = usableSelections[0] || null;
+  }
+  if (!selected) return null;
+  const action: any = {
+    type: 'use_card',
+    playerKey,
+    useCardId: selected.cardId,
+    useCardOwnerKey: playerKey
+  };
+  if (Number.isInteger(selected.handIndex)) {
+    action.useCardHandIndex = selected.handIndex;
+  }
   return {
     actionType: 'use_card',
-    action: {
-      type: 'use_card',
-      playerKey,
-      useCardId: cardId,
-      useCardOwnerKey: playerKey
-    }
+    action
   };
 }
 
@@ -319,6 +426,20 @@ function planPendingSelection(input: PlannerInput, playerKey: string): any {
   return { actionType: 'place', action };
 }
 
+function planPendingSelectionFallback(input: PlannerInput, pending: any, pendingType: string): any {
+  if (!pending || pending.stage !== 'selectTarget') return null;
+  const registry = input.PendingSelectionRegistry;
+  if (!registry || typeof registry.getPendingSelectionEntry !== 'function') return null;
+  try {
+    const entry = registry.getPendingSelectionEntry(pendingType);
+    return entry && entry.needsTargetSelection === true && entry.cancellable === true
+      ? createCancelCardAction()
+      : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 function planCpuNetworkCommand(inputValue: PlannerInput): any {
   const input = inputValue && typeof inputValue === 'object' ? inputValue : {};
   const playerKey = normalizePlayerKey(input.playerKey);
@@ -326,6 +447,9 @@ function planCpuNetworkCommand(inputValue: PlannerInput): any {
   const unresolvedPendingType = normalizePendingType(unresolvedPending && unresolvedPending.type);
   const pending = planPendingSelection(input, playerKey);
   if (pending) return pending;
+  if (unresolvedPending && unresolvedPending.stage === 'selectTarget') {
+    return planPendingSelectionFallback(input, unresolvedPending, unresolvedPendingType);
+  }
   const selectedCard = planCardUse(input, playerKey, { allowFallback: false });
   if (selectedCard) return selectedCard;
   const moves = getLegalMoves(input, playerKey, unresolvedPendingType);
@@ -337,6 +461,88 @@ function planCpuNetworkCommand(inputValue: PlannerInput): any {
   return createPassAction(playerKey);
 }
 
+function normalizeActionType(value: any): string {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'usecard') return 'use_card';
+  return normalized;
+}
+
+function sameMove(left: any, right: any): boolean {
+  return !!(
+    left
+    && right
+    && Number.isFinite(Number(left.row))
+    && Number.isFinite(Number(left.col))
+    && Math.trunc(Number(left.row)) === Math.trunc(Number(right.row))
+    && Math.trunc(Number(left.col)) === Math.trunc(Number(right.col))
+  );
+}
+
+function planCanonicalCpuNetworkCommand(inputValue: PlannerInput): any {
+  const input = inputValue && typeof inputValue === 'object' ? inputValue : {};
+  const snapshot = input.snapshot && typeof input.snapshot === 'object' ? input.snapshot : {};
+  const playerKey = normalizePlayerKey(input.playerKey);
+  const gameState = input.gameState || snapshot.gameState || null;
+  const cardState = input.cardState || snapshot.cardState || null;
+  const preferredAction = input.preferredAction && typeof input.preferredAction === 'object'
+    ? input.preferredAction
+    : null;
+  const preferredActionType = normalizeActionType(
+    input.preferredActionType || preferredAction?.type || preferredAction?.actionType
+  );
+  const CardLogic = input.CardLogic || null;
+
+  return planCpuNetworkCommand({
+    playerKey,
+    gameState,
+    cardState,
+    protectedStones: input.protectedStones || [],
+    permaProtectedStones: input.permaProtectedStones || [],
+    CoreLogic: input.CoreLogic || input.Core || null,
+    CardLogic,
+    PendingCoordinator: input.PendingCoordinator || null,
+    PendingSelectionRegistry: input.PendingSelectionRegistry || null,
+    selectCpuMoveWithPolicy(moves: any[]) {
+      if (preferredActionType === 'place') {
+        const preferredMove = moves.find((move) => sameMove(move, preferredAction));
+        if (preferredMove) return preferredMove;
+      }
+      return moves[0] || null;
+    },
+    selectCardToUse() {
+      if (preferredActionType !== 'use_card' || !preferredAction || !CardLogic) return null;
+      const preferredCardId = String(
+        preferredAction.useCardId || preferredAction.cardId || ''
+      ).trim();
+      if (!preferredCardId) return null;
+      const preferredHandIndex = normalizeHandIndex(
+        preferredAction.useCardHandIndex ?? preferredAction.handIndex
+      );
+      let usableSelections: Array<{ cardId: string; handIndex?: number }> = [];
+      try {
+        usableSelections = getUsableCardSelections({
+          cardState,
+          gameState,
+          CardLogic
+        }, playerKey);
+      } catch (e) {
+        return null;
+      }
+      const selected = usableSelections.find((item) => (
+        item.cardId === preferredCardId
+        && (
+          typeof preferredHandIndex === 'undefined'
+          || item.handIndex === preferredHandIndex
+        )
+      ));
+      return selected
+        ? { cardId: selected.cardId, handIndex: selected.handIndex }
+        : null;
+    }
+  });
+}
+
 export = {
-  planCpuNetworkCommand
+  planCpuNetworkCommand,
+  planCanonicalCpuNetworkCommand
 };

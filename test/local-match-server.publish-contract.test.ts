@@ -2,6 +2,7 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as Core from '../game/logic/core.js';
+import * as CardLogic from '../game/logic/cards.js';
 import { createLocalMatchServer, resetRoomsForTests, patchRoomSnapshotForTests } from '../scripts/local-match-server.js';
 
 function requestJson(port, method, path, payload) {
@@ -1582,6 +1583,100 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('FATE_WILL controlled seat cannot publish during its controlled turn', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const joined = await requestJson(port, 'POST', '/api/match/join', { roomId, playerName: 'しろ' });
+      const whiteSeatToken = joined.data.seatToken;
+
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        room.snapshot.gameState.currentPlayer = -1;
+        room.snapshot.cardState.fateWillControllerByTurnOwner = { black: null, white: 'black' };
+      })).toBe(true);
+
+      const state = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${encodeURIComponent(roomId)}&seatKey=white&seatToken=${encodeURIComponent(whiteSeatToken)}`
+      );
+      const move = pickFirstLegalMove(state.data.snapshot, 'white');
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'white',
+        playerKey: 'white',
+        seatToken: whiteSeatToken,
+        baseVersion: state.data.stateVersion,
+        operationId: 'op_fate_will_controlled_owner_1',
+        actionType: 'place',
+        actor: 'white',
+        params: { row: move.row, col: move.col },
+        action: { type: 'place', playerKey: 'white', row: move.row, col: move.col }
+      });
+
+      expect(response.status).toBe(409);
+      expect(response.data.rejectedReason).toBe('TURN_CONTROLLED_BY_FATE_WILL');
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('legacy FATE_WILL controller auto_turn is planned for the canonical turn owner', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const blackSeatToken = created.data.seatToken;
+      const joined = await requestJson(port, 'POST', '/api/match/join', { roomId, playerName: 'しろ' });
+      const whiteOnlyMoveBoard = Array.from({ length: 8 }, () => Array(8).fill(-1));
+      whiteOnlyMoveBoard[0][0] = 0;
+      whiteOnlyMoveBoard[0][1] = 1;
+
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        room.networkAutoEnabled = true;
+        room.snapshot.gameState.board = whiteOnlyMoveBoard;
+        room.snapshot.gameState.currentPlayer = -1;
+        room.snapshot.gameState.consecutivePasses = 0;
+        room.snapshot.cardState.hands.black = [];
+        room.snapshot.cardState.hands.white = [];
+        room.snapshot.cardState._handCopyIdsByPlayer.black = [];
+        room.snapshot.cardState._handCopyIdsByPlayer.white = [];
+        room.snapshot.cardState.fateWillControllerByTurnOwner = { black: null, white: 'black' };
+      })).toBe(true);
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken: blackSeatToken,
+        baseVersion: joined.data.stateVersion,
+        operationId: 'op_fate_will_auto_owner_1',
+        actionType: 'auto_turn',
+        actor: 'black',
+        action: {
+          type: 'auto_turn',
+          preferredActionType: 'pass',
+          preferredAction: {
+            type: 'pass',
+            playerKey: 'black',
+            autoNoActionPass: true
+          }
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data.snapshot.gameState.board[0][0]).toBe(-1);
+      expect(response.data.snapshot.gameState.consecutivePasses).toBe(0);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('rematch presence buffer preserves requestId and accepted metadata', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);
@@ -1684,6 +1779,270 @@ describe('local match server publish contract', () => {
       expect(outOfTurnPublish.status).toBe(409);
       expect(outOfTurnPublish.data.ok).toBe(false);
       expect(outOfTurnPublish.data.rejectedReason).toBe('OUT_OF_TURN');
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('auto_turn uses canonical private card cost state instead of accepting a projected illegal pass', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const blackSeatToken = created.data.seatToken;
+      const noBlackMoveBoard = Array.from({ length: 8 }, () => Array(8).fill(-1));
+      noBlackMoveBoard[0][0] = 0;
+      noBlackMoveBoard[0][1] = 1;
+
+      const patched = patchRoomSnapshotForTests(roomId, (room) => {
+        room.networkAutoEnabled = true;
+        const snapshot = room.snapshot;
+        snapshot.gameState.board = noBlackMoveBoard;
+        snapshot.gameState.currentPlayer = 1;
+        snapshot.gameState.consecutivePasses = 0;
+        snapshot.gameState.resultShown = false;
+        snapshot.cardState.turnIndex = 12;
+        snapshot.cardState.lastTurnStartedFor = 'black';
+        snapshot.cardState.hasUsedCardThisTurnByPlayer = { black: false, white: false };
+        snapshot.cardState.pendingEffectByPlayer = { black: null, white: null };
+        snapshot.cardState.hands.black = [];
+        snapshot.cardState._handCopyIdsByPlayer.black = [];
+        snapshot.cardState.cardCostOverridesByCopyId = {};
+        snapshot.cardState.cardCostModifiersByCopyId = {};
+        snapshot.cardState.charge.black = 0;
+        CardLogic.addCardToHand(snapshot.cardState, 'black', 'hard_01');
+        const added = CardLogic.addCardToHand(snapshot.cardState, 'black', 'hard_01');
+        CardLogic.setCardCostOverrideForCopyId(
+          snapshot.cardState,
+          added.cardCopyId,
+          0,
+          'OBSERVER_WILL'
+        );
+      });
+      expect(patched).toBe(true);
+      expect(Core.getLegalMoves({ board: noBlackMoveBoard }, 1)).toEqual([]);
+      expect(Core.getLegalMoves({ board: noBlackMoveBoard }, -1)).toHaveLength(1);
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken: blackSeatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_auto_canonical_cost_1',
+        actionType: 'auto_turn',
+        actor: 'black',
+        action: {
+          type: 'auto_turn',
+          preferredActionType: 'pass',
+          preferredAction: {
+            type: 'pass',
+            playerKey: 'black',
+            autoNoActionPass: true
+          }
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data).toEqual(expect.objectContaining({
+        ok: true,
+        publishMeta: expect.objectContaining({
+          kind: 'accepted',
+          operationId: 'op_auto_canonical_cost_1',
+          actionType: 'auto_turn'
+        })
+      }));
+      expect(response.data.autoPassNotice).toBeUndefined();
+      expect(response.data.playbackEvents).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'card_use_animation',
+          targets: expect.arrayContaining([
+            expect.objectContaining({ cardId: 'hard_01', cost: 0 })
+          ])
+        })
+      ]));
+      expect(response.data.snapshot.cardState.discard).toContain('hard_01');
+      expect(response.data.snapshot.cardState.lastUsedCardByPlayer.black).toBe('hard_01');
+      expect(response.data.snapshot.cardState.hands.black).toEqual(['hard_01']);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('auto_turn canonically cancels a target selection when no target remains', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const blackSeatToken = created.data.seatToken;
+
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        room.networkAutoEnabled = true;
+        const snapshot = room.snapshot;
+        snapshot.gameState.board = createEmptyBoard();
+        snapshot.gameState.currentPlayer = 1;
+        snapshot.gameState.consecutivePasses = 0;
+        snapshot.gameState.resultShown = false;
+        snapshot.cardState.turnIndex = 23;
+        snapshot.cardState.lastTurnStartedFor = 'black';
+        snapshot.cardState.hands.black = [];
+        snapshot.cardState.discard = ['destroy_01'];
+        snapshot.cardState.hasUsedCardThisTurnByPlayer.black = true;
+        snapshot.cardState.cardUseCountByPlayer.black = 1;
+        snapshot.cardState.pendingEffectByPlayer.black = {
+          type: 'DESTROY_ONE_STONE',
+          stage: 'selectTarget',
+          cardId: 'destroy_01',
+          pendingEffectId: 'pending_auto_cancel_23_1'
+        };
+      })).toBe(true);
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken: blackSeatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_auto_cancel_empty_target_1',
+        actionType: 'auto_turn',
+        actor: 'black',
+        action: {
+          type: 'auto_turn',
+          preferredActionType: 'pass',
+          preferredAction: {
+            type: 'pass',
+            playerKey: 'black',
+            autoNoActionPass: true
+          }
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data).toEqual(expect.objectContaining({
+        ok: true,
+        publishMeta: expect.objectContaining({
+          kind: 'accepted',
+          operationId: 'op_auto_cancel_empty_target_1',
+          actionType: 'auto_turn'
+        })
+      }));
+      expect(response.data.snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+      expect(response.data.snapshot.cardState.cardUseCountByPlayer.black).toBe(0);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('auto_turn is rejected when room AUTO is disabled and after the game is over', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+      const buildAutoBody = (operationId: string) => ({
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion: created.data.stateVersion,
+        operationId,
+        actionType: 'auto_turn',
+        actor: 'black',
+        action: {
+          type: 'auto_turn',
+          preferredActionType: 'place',
+          preferredAction: { type: 'place', row: 2, col: 3 }
+        }
+      });
+
+      const disabled = await requestJson(
+        port,
+        'POST',
+        '/api/match/publish',
+        buildAutoBody('op_auto_disabled_1')
+      );
+      expect(disabled.status).toBe(409);
+      expect(disabled.data.rejectedReason).toBe('AUTO_COMMAND_DISABLED');
+
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        room.networkAutoEnabled = true;
+        room.snapshot.gameState.consecutivePasses = 2;
+      })).toBe(true);
+      const terminal = await requestJson(
+        port,
+        'POST',
+        '/api/match/publish',
+        buildAutoBody('op_auto_terminal_1')
+      );
+      expect(terminal.status).toBe(409);
+      expect(terminal.data.rejectedReason).toBe('GAME_ALREADY_OVER');
+      expect(terminal.data.stateVersion).toBe(created.data.stateVersion);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('auto_turn canonical pass keeps auto-pass notice on idempotent replay', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        room.networkAutoEnabled = true;
+        room.snapshot.gameState.board = Array.from({ length: 8 }, () => Array(8).fill(1));
+        room.snapshot.gameState.currentPlayer = 1;
+        room.snapshot.gameState.consecutivePasses = 0;
+        room.snapshot.cardState.hands.black = [];
+        room.snapshot.cardState._handCopyIdsByPlayer.black = [];
+        room.snapshot.cardState.pendingEffectByPlayer.black = null;
+      })).toBe(true);
+
+      const publishBody = {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_auto_pass_replay_2',
+        actionType: 'auto_turn',
+        actor: 'black',
+        action: {
+          type: 'auto_turn',
+          preferredActionType: 'pass',
+          preferredAction: {
+            type: 'pass',
+            playerKey: 'black',
+            autoNoActionPass: true
+          }
+        }
+      };
+
+      const first = await requestJson(port, 'POST', '/api/match/publish', publishBody);
+      const replay = await requestJson(port, 'POST', '/api/match/publish', publishBody);
+
+      expect(first.status).toBe(200);
+      expect(first.data.autoPassNotice).toEqual({
+        playerKey: 'black',
+        reason: 'no_legal_moves_or_usable_cards'
+      });
+      expect(replay.status).toBe(200);
+      expect(replay.data).toEqual(expect.objectContaining({
+        ok: true,
+        idempotentReplay: true,
+        autoPassNotice: {
+          playerKey: 'black',
+          reason: 'no_legal_moves_or_usable_cards'
+        }
+      }));
     } finally {
       await closeServer(server);
     }

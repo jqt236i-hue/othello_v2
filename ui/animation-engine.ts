@@ -572,7 +572,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 : NaN;
             return Number.isFinite(configured) && configured >= 0
                 ? configured
-                : 10000;
+                : Number(Constants.NETWORK_PLAYBACK_WATCHDOG_MS) || 30000;
         }
 
         _resolvePlaybackOverlapWaitMs() {

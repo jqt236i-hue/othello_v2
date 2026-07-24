@@ -5,6 +5,7 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+const AnimationConstants = _require('./animation-constants');
 
 function getRoot(root?: any): any {
   const base = root || (typeof globalThis !== 'undefined' ? globalThis : {});
@@ -99,7 +100,7 @@ function ensureDebugRuntime(playbackState?: any, options?: any): any {
     : 500;
   const watchdogTimeoutMs = Number.isFinite(Number(config.watchdogTimeoutMs))
     ? Math.max(1000, Math.trunc(Number(config.watchdogTimeoutMs)))
-    : 15000;
+    : Number(AnimationConstants.PLAYBACK_STALE_GUARD_MS) || 45000;
   const setIntervalImpl = (typeof setInterval === 'function')
     ? setInterval
     : ((typeof target.setInterval === 'function') ? target.setInterval.bind(target) : null);

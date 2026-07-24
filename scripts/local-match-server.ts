@@ -15,6 +15,10 @@ const SeededPRNG = require('../game/schema/prng');
 const deepClone = require('../utils/deepClone');
 const MatchAuthority = require('../utils/match-authority');
 const MatchCommandRuntime = require('../utils/match-command-runtime');
+const MatchAutoCommand = require('../utils/match-auto-command');
+const CpuNetworkCommandPlanner = require('../game/cpu-network-command-planner');
+const PendingCoordinator = require('../game/turn/pending-coordinator');
+const PendingSelectionRegistry = require('../game/logic/cards-internal/pending-selection-registry');
 const { createMatchJoinController } = require('../utils/match-join-controller');
 const { createMatchLeaveController } = require('../utils/match-leave-controller');
 const { createMatchPublishController } = require('../utils/match-publish-controller');
@@ -702,6 +706,13 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     }
     MatchAuthority.stripTransientChargeDeltaState(currentSnapshot);
 
+    if (
+        MatchAutoCommand.isMatchAutoTurnPublishBody(body)
+        && room.networkAutoEnabled !== true
+    ) {
+        return { ok: false, rejectedReason: 'AUTO_COMMAND_DISABLED' };
+    }
+
     if (isNetworkDebugFillHandPayload(body)) {
         if (!toPublicNetworkDebugEnabled(room)) {
             return { ok: false, rejectedReason: 'NETWORK_DEBUG_DISABLED' };
@@ -729,9 +740,39 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
         };
     }
 
+    let autoCommand: any = null;
+    try {
+        autoCommand = MatchAutoCommand.resolveMatchAutoTurnPublishBody({
+            body,
+            snapshot: currentSnapshot,
+            playerKey,
+            planningPlayerKey: getCurrentPlayerKey(currentSnapshot.gameState),
+            CpuNetworkCommandPlanner,
+            CoreLogic: Core,
+            CardLogic,
+            PendingCoordinator,
+            PendingSelectionRegistry
+        });
+    } catch (error: any) {
+        return {
+            ok: false,
+            rejectedReason: 'AUTO_COMMAND_PLANNER_UNAVAILABLE',
+            errorMessage: error instanceof Error ? error.message : String(error || '')
+        };
+    }
+    if (!autoCommand || autoCommand.ok !== true) {
+        return {
+            ok: false,
+            rejectedReason: autoCommand && autoCommand.rejectedReason
+                ? autoCommand.rejectedReason
+                : 'AUTO_COMMAND_REQUIRED'
+        };
+    }
+    const commandBody = autoCommand.body || body;
+
     const preparedCommand = MatchCommandRuntime.prepareMatchCommandAction({
         snapshot: currentSnapshot,
-        body,
+        body: commandBody,
         playerKey,
         buildAction: (input: any, fallbackActor: any, fallbackTurnIndex: any) => NetworkActionSchema.buildAction(input, fallbackActor, fallbackTurnIndex),
         normalizePlayerKey,
@@ -2446,7 +2487,7 @@ async function handlePublish(req: any, res: any) {
         normalizeOperationId,
         resolveSeatKey: (incomingBody: any) => normalizePlayerKey(incomingBody && incomingBody.seatKey),
         resolvePlayerKey: (incomingBody: any) => normalizePlayerKey(incomingBody && (incomingBody.playerKey || incomingBody.actor)),
-        allowFateWillOwnerAction: false,
+        allowFateWillOwnerAction: true,
         isNetworkDebugFillHandPayload,
         resolveAuthenticatedSeatKey,
         ensureAcceptedOperationsBySeat,
@@ -2455,6 +2496,13 @@ async function handlePublish(req: any, res: any) {
         buildPublishPayload,
         getCurrentPlayerKey,
         toPublicNetworkDebugEnabled,
+        isSnapshotGameOver: (snapshot: any) => !!(
+            snapshot
+            && snapshot.gameState
+            && Core
+            && typeof Core.isGameOver === 'function'
+            && Core.isGameOver(snapshot.gameState) === true
+        ),
         deepClone,
         includePreviousSnapshotForChargeDelta: false,
         catchRematchResetErrors: false,

@@ -3,7 +3,11 @@ export function createMatchPublishController(config?: any): any {
 
   function resolveAutoPassNoticeForCommand(actionType: unknown, actionValue: unknown, playerKey: unknown) {
     const action = cfg.asRecord(actionValue);
-    const normalizedActionType = String(actionType || action.type || '').trim().toLowerCase();
+    const requestedActionType = String(actionType || '').trim().toLowerCase();
+    const resolvedActionType = String(action.type || action.actionType || '').trim().toLowerCase();
+    const normalizedActionType = requestedActionType === 'auto_turn'
+      ? resolvedActionType
+      : (requestedActionType || resolvedActionType);
     if (normalizedActionType !== 'pass' || action.autoNoActionPass !== true) return null;
     return {
       playerKey: cfg.normalizePlayerKey(action.playerKey || playerKey),
@@ -42,7 +46,12 @@ export function createMatchPublishController(config?: any): any {
       : cfg.normalizePlayerKey(body.playerKey);
     const seatToken = String(body.seatToken || '').trim();
     const baseVersion = Number.isFinite(Number(body.baseVersion)) ? Number(body.baseVersion) : null;
-    const actionType = String(body.actionType || '').trim().toLowerCase();
+    const actionType = String(
+      body.actionType
+      || cfg.asRecord(body.action).type
+      || cfg.asRecord(body.action).actionType
+      || ''
+    ).trim().toLowerCase();
     const operationId = cfg.normalizeOperationId(body.operationId);
     const isRematchResetAction = actionType === 'reset_game' || actionType === 'rematch' || actionType === 'restart';
     const isNetworkDebugAction = cfg.isNetworkDebugFillHandPayload(body);
@@ -123,7 +132,10 @@ export function createMatchPublishController(config?: any): any {
         stateHashBefore: room.authoritativeStateHash,
         dedupeOutcome: 'replay'
       }, undefined);
-      const autoPassNotice = resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
+      const storedAutoPassNotice = cfg.asRecord(lastAcceptedOperation.autoPassNotice);
+      const autoPassNotice = Object.keys(storedAutoPassNotice).length > 0
+        ? storedAutoPassNotice
+        : resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
       const replayPresentationFrameEntry = typeof cfg.MatchAuthority.findPresentationFrameEntryForAcceptedOperation === 'function'
         ? cfg.MatchAuthority.findPresentationFrameEntryForAcceptedOperation(room, lastAcceptedOperation)
         : null;
@@ -179,6 +191,43 @@ export function createMatchPublishController(config?: any): any {
     }
 
     const expectedPlayerKey = cfg.getCurrentPlayerKey(cfg.asRecord(room.snapshot).gameState);
+    if (
+      actionType === 'auto_turn'
+      && typeof cfg.isSnapshotGameOver === 'function'
+      && await cfg.isSnapshotGameOver(room.snapshot)
+    ) {
+      return cfg.jsonResponse(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+        ok: false,
+        rejectedReason: 'GAME_ALREADY_OVER',
+        publishKind: 'rejected',
+        operationId,
+        actionType,
+        receivedBaseVersion: baseVersion,
+        authoritativeStateVersion: room.stateVersion
+      })));
+    }
+    const fateWillControllerKey = (
+      cfg.MatchAuthority
+      && typeof cfg.MatchAuthority.getFateWillControllerKey === 'function'
+    )
+      ? cfg.MatchAuthority.getFateWillControllerKey(room.snapshot, expectedPlayerKey)
+      : null;
+    if (
+      fateWillControllerKey
+      && seatKey !== fateWillControllerKey
+      && !isRematchResetAction
+      && !isNetworkDebugAction
+    ) {
+      return cfg.jsonResponse(409, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+        ok: false,
+        rejectedReason: 'TURN_CONTROLLED_BY_FATE_WILL',
+        publishKind: 'rejected',
+        operationId,
+        actionType,
+        receivedBaseVersion: baseVersion,
+        authoritativeStateVersion: room.stateVersion
+      })));
+    }
     if (playerKey !== expectedPlayerKey) {
       const allowOutOfTurnRematch = isRematchResetAction;
       const allowOutOfTurnNetworkDebug = isNetworkDebugAction && cfg.toPublicNetworkDebugEnabled(room);
@@ -295,12 +344,17 @@ export function createMatchPublishController(config?: any): any {
       perfCounters: cfg.publishPerfCounters
     });
     room.authoritativeStateHash = publishViewerArtifacts.canonicalHash;
+    const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey)
+      || resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
     if (operationId) {
       const acceptedEntry: any = {
         operationId,
         stateVersion: room.stateVersion,
         updatedAt: Number.isFinite(Number(room.updatedAt)) ? Number(room.updatedAt) : null
       };
+      if (autoPassNotice) {
+        acceptedEntry.autoPassNotice = { ...autoPassNotice };
+      }
       cfg.MatchAuthority.rememberAcceptedOperationBySeat(room, seatKey, acceptedEntry);
     }
     await cfg.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
@@ -309,8 +363,6 @@ export function createMatchPublishController(config?: any): any {
       await cfg.finalizeRatedMatchAfterAcceptedPublish(room);
     }
 
-    const autoPassNotice = resolveAutoPassNoticeForCommand(actionType, commandAction, playerKey)
-      || resolveAutoPassNoticeForPublishBody(actionType, body, playerKey);
     const presentationFrameEntry = typeof cfg.appendPresentationFrameForAcceptedPublish === 'function'
       ? cfg.appendPresentationFrameForAcceptedPublish(room, {
         previousStateVersion,

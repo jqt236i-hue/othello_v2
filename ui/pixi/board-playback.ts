@@ -38,7 +38,8 @@ import {
   type PixiApplicationTickerPort,
   type PixiTimeline,
   type PixiTimelineBooleanPolicy,
-  type PixiTimelineOptions
+  type PixiTimelineOptions,
+  type PixiTimelineRunOptions
 } from './timeline';
 import {
   createPlaybackStoneVisual,
@@ -112,6 +113,8 @@ export interface PixiBoardPlayback {
   /** Debug-only exact logical-frame extraction through the existing timeline clock. */
   captureDebugFrameAtElapsed(elapsedMs: number): Promise<Readonly<{ dataUrl: string; elapsedMs: number }>>;
   abort(reason?: unknown): number;
+  /** Abort every active effect and resolve only after stale callbacks can no longer touch the scene. */
+  abortAndWait(reason?: unknown): Promise<number>;
   getDiagnostics(): PixiBoardPlaybackDiagnostics;
   destroy(): void;
 }
@@ -365,6 +368,8 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
   let phaseCount = 0;
   let completedPhaseCount = 0;
   let failedPhaseCount = 0;
+  let interruptionGeneration = 0;
+  let interruptionReason: unknown = new Error('Pixi board playback was interrupted');
 
   function clearBookkeeping(): void {
     activeScope = null;
@@ -377,6 +382,28 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
   function synchronizeSceneScope(): void {
     if (!activeScope) return;
     if (scene.getDiagnostics().playbackScopeKey !== activeScope.key) clearBookkeeping();
+  }
+
+  function normalizeInterruptionReason(reason?: unknown): unknown {
+    if (typeof reason !== 'undefined' && reason !== null) return reason;
+    return new Error('Pixi board playback was interrupted');
+  }
+
+  function createPhaseTimeline(generation: number): PixiTimeline {
+    return Object.freeze({
+      run(runOptions: PixiTimelineRunOptions) {
+        if (generation !== interruptionGeneration) {
+          return Promise.reject(interruptionReason);
+        }
+        return timeline.run(runOptions);
+      },
+      captureDebugFrameAtElapsed<T>(elapsedMs: number, capture: () => T) {
+        return timeline.captureDebugFrameAtElapsed(elapsedMs, capture);
+      },
+      abort: (reason?: unknown) => timeline.abort(reason),
+      destroy: () => timeline.destroy(),
+      getDiagnostics: () => timeline.getDiagnostics()
+    });
   }
 
   function readProjectedStone(
@@ -648,13 +675,14 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
   }
 
   function createSourceTrajectoryProjection(
-    context: BoardPlaybackContext
+    context: BoardPlaybackContext,
+    phaseTimeline: PixiTimeline
   ): PixiSourceTrajectoryProjection {
     const scope = getScope(context);
     return Object.freeze({
       scene,
       scope,
-      timeline,
+      timeline: phaseTimeline,
       noAnimation: resolveBoolean(options.noAnimation),
       reducedMotion: resolveBoolean(options.reducedMotion),
       acquireStoneTextureLease(owner: 'black' | 'white'): PixiSourceTrajectoryTextureLease {
@@ -725,7 +753,8 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
   function createProjection(
     context: BoardPlaybackContext,
     phaseSourceSnapshot: ReadonlyMap<string, PixiPlaybackStoneVisual | null>,
-    phaseTrajectories: PixiPhaseTrajectoryState
+    phaseTrajectories: PixiPhaseTrajectoryState,
+    phaseTimeline: PixiTimeline
   ): PixiBoardEffectProjection {
     const scope = getScope(context);
     const frame = options.getFrame();
@@ -739,7 +768,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       )) as readonly PresentationPlaybackEvent[],
       scene,
       scope,
-      timeline,
+      timeline: phaseTimeline,
       timings,
       noAnimation: resolveBoolean(options.noAnimation),
       reducedMotion: resolveBoolean(options.reducedMotion),
@@ -881,15 +910,23 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     return tracked;
   }
 
-  async function resetAfterFailure(reason: unknown): Promise<void> {
-    timeline.abort(reason);
-    const pending = Array.from(inFlightEffects);
-    if (pending.length) await Promise.allSettled(pending);
+  async function interruptAndWait(reason?: unknown): Promise<number> {
+    interruptionGeneration += 1;
+    interruptionReason = normalizeInterruptionReason(reason);
+    const aborted = timeline.abort(interruptionReason);
+    while (inFlightEffects.size > 0) {
+      await Promise.allSettled(Array.from(inFlightEffects));
+    }
     synchronizeSceneScope();
     if (activeScope && scene.getDiagnostics().playbackScopeKey === activeScope.key) {
       scene.resetPlaybackProjection(activeScope);
     }
     clearBookkeeping();
+    return aborted;
+  }
+
+  async function resetAfterFailure(reason: unknown): Promise<void> {
+    await interruptAndWait(reason);
   }
 
   function discardPhaseState(context: BoardPlaybackValidationContext): void {
@@ -932,6 +969,8 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     // Validate every handler before starting the first visual mutation. This
     // keeps unsupported Phase 7 events from leaving a partially-started phase.
     const nonFlipPlayers = nonFlipEvents.map((event) => requirePlayer(event, context));
+    const phaseGeneration = interruptionGeneration;
+    const phaseTimeline = createPhaseTimeline(phaseGeneration);
     const phaseId = ++phaseCount;
     record('pixi-playback:phase-start', {
       phaseId,
@@ -939,7 +978,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     });
     let projection: PixiBoardEffectProjection | null = null;
     const launchBoardEffects = (trajectoryState: PixiPhaseTrajectoryState): Promise<void> => {
-      projection = createProjection(context, validated.sourceSnapshot, trajectoryState);
+      projection = createProjection(context, validated.sourceSnapshot, trajectoryState, phaseTimeline);
       const launches: Promise<void>[] = [];
       // Match DOM playback: one consolidated FLIP launch starts first, then
       // every non-FLIP event starts in its received order. Do not type-sort.
@@ -957,7 +996,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       return Promise.all(launches).then(() => undefined);
     };
     try {
-      const sourceProjection = createSourceTrajectoryProjection(context);
+      const sourceProjection = createSourceTrajectoryProjection(context, phaseTimeline);
       let initializedTrajectoryState: PixiPhaseTrajectoryState | null = null;
       const batchRun = sourceTrajectoryRenderer.startBatch(
         validated.trajectoryBatch.requests,
@@ -1062,7 +1101,9 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
 
   function abort(reason?: unknown): number {
     if (destroyed) return 0;
-    const aborted = timeline.abort(reason);
+    interruptionGeneration += 1;
+    interruptionReason = normalizeInterruptionReason(reason);
+    const aborted = timeline.abort(interruptionReason);
     // Active effect `finally` blocks still own transient handles until their
     // rejected timeline promises resume. Let playPhase's async failure path
     // await those cleanups before resetting the strict scene scope.
@@ -1074,6 +1115,11 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       clearBookkeeping();
     }
     return aborted;
+  }
+
+  function abortAndWait(reason?: unknown): Promise<number> {
+    if (destroyed) return Promise.resolve(0);
+    return interruptAndWait(reason);
   }
 
   function getDiagnostics(): PixiBoardPlaybackDiagnostics {
@@ -1124,6 +1170,7 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
     onFrameApplied,
     captureDebugFrameAtElapsed,
     abort,
+    abortAndWait,
     getDiagnostics,
     destroy
   });

@@ -340,6 +340,7 @@ function createPlaybackFixture() {
     revealTopologyCells: jest.fn(async (_keys: readonly string[]) => undefined),
     onFrameApplied: jest.fn(),
     abort: jest.fn(() => 0),
+    abortAndWait: jest.fn(async () => 0),
     getDiagnostics: jest.fn(() => Object.freeze({
       destroyed: false,
       activeScopeKey: null,
@@ -602,6 +603,46 @@ describe('Pixi board backend integration', () => {
       settledFrameToken: 'network-restored-special',
       neededSpecialAssetIds: ['TIME_BOMB']
     });
+  });
+
+  test('restore waits for every interrupted raw playback phase before applying its frame', async () => {
+    const fixture = createPlaybackFixture();
+    const first = deferred<void>();
+    const second = deferred<void>();
+    const abortDrain = deferred<number>();
+    fixture.playback.playPhase
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementationOnce(() => second.promise);
+    fixture.playback.abortAndWait.mockImplementationOnce(() => abortDrain.promise);
+    const harness = createHarness({ playbackFactory: () => fixture.playback });
+    await harness.backend.mount(harness.host, {});
+    const initial = makeFrame('restore-barrier-initial', 1);
+    await harness.backend.prepareFrame(initial);
+    harness.backend.applyFrame(initial);
+    await harness.backend.waitForVisualSettlement(initial);
+    const applyCountBeforeRestore = harness.scene.applyCalls.length;
+    const context = {
+      token: { id: 1, frameToken: 'network:1', mode: 'network' as const },
+      strictNetworkPlayback: true
+    };
+    const firstPhase = harness.backend.playPhase([{ type: 'move' }], context);
+    const secondPhase = harness.backend.playPhase([{ type: 'destroy' }], context);
+    await flushMicrotasks();
+
+    const restored = makeFrame('restore-barrier-final', 2);
+    const restoring = harness.backend.restore(restored);
+    await flushMicrotasks();
+    expect(fixture.playback.abortAndWait).toHaveBeenCalledTimes(1);
+    expect(harness.scene.applyCalls).toHaveLength(applyCountBeforeRestore);
+
+    abortDrain.resolve(2);
+    first.resolve();
+    await flushMicrotasks();
+    expect(harness.scene.applyCalls).toHaveLength(applyCountBeforeRestore);
+
+    second.resolve();
+    await Promise.all([firstPhase, secondPhase, restoring]);
+    expect(harness.scene.applyCalls.at(-1)!.frame.frameToken).toBe('restore-barrier-final');
   });
 
   test('injects animation policies and settles playback projection only after a successful canonical render', async () => {

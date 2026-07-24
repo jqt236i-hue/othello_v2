@@ -484,6 +484,53 @@ describe('NetworkMatchClient apply coordinator', () => {
     });
   });
 
+  test('authoritative auto_turn pass response shows its auto-pass notice', async () => {
+    const showAutoPassNotice = jest.fn();
+    jest.doMock('../ui/animation-feedback-events', () => ({
+      showAutoPassNotice
+    }));
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    responsePayload = {
+      ok: true,
+      roomId: 'ABC',
+      stateVersion: 11,
+      actionType: 'auto_turn',
+      snapshot: createSnapshot(11),
+      playbackEvents: [],
+      autoPassNotice: {
+        playerKey: 'black',
+        reason: 'no_legal_moves_or_usable_cards'
+      }
+    };
+
+    const publishPromise = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'auto_turn',
+      action: {
+        type: 'auto_turn',
+        preferredActionType: 'pass',
+        preferredAction: {
+          type: 'pass',
+          playerKey: 'black',
+          autoNoActionPass: true
+        }
+      }
+    });
+
+    await Promise.resolve();
+    resolvePublishResponse();
+    await expect(publishPromise).resolves.toEqual({ ok: true });
+    expect(showAutoPassNotice).toHaveBeenCalledWith({
+      playerKey: 'black',
+      reason: 'no_legal_moves_or_usable_cards'
+    });
+  });
+
   test('frame-less publish response and duplicate stream never bypass the presentation timeline', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;

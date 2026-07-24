@@ -21,12 +21,107 @@ function createInput(overrides: any = {}) {
       resolvePendingSelectionActionField: jest.fn()
     },
     PendingSelectionRegistry: {
-      getPendingSelectionTargetMethod: jest.fn()
+      getPendingSelectionTargetMethod: jest.fn(),
+      getPendingSelectionEntry: jest.fn()
     }
   }, overrides);
 }
 
 describe('CpuNetworkCommandPlanner', () => {
+  test('replans an invalid projected pass from the canonical card cost ledger', () => {
+    const CardLogic = {
+      hasUsableCard: jest.fn().mockReturnValue(true),
+      getUsableCardIds: jest.fn().mockReturnValue(['hard_01'])
+    };
+
+    expect(Planner.planCanonicalCpuNetworkCommand({
+      playerKey: 'black',
+      snapshot: {
+        gameState: { currentPlayer: 1, turnNumber: 74 },
+        cardState: {
+          turnIndex: 74,
+          hands: { black: ['hard_01'], white: [] },
+          pendingEffectByPlayer: { black: null, white: null }
+        }
+      },
+      preferredActionType: 'pass',
+      preferredAction: { type: 'pass', playerKey: 'black', autoNoActionPass: true },
+      CardLogic,
+      CoreLogic: { getLegalMoves: jest.fn().mockReturnValue([]) }
+    })).toEqual({
+      actionType: 'use_card',
+      action: {
+        type: 'use_card',
+        playerKey: 'black',
+        useCardId: 'hard_01',
+        useCardOwnerKey: 'black'
+      }
+    });
+  });
+
+  test('targets the usable copy when duplicate card ids have different private costs', () => {
+    const CardLogic = {
+      hasUsableCard: jest.fn().mockReturnValue(true),
+      analyzeCardUsability: jest.fn().mockReturnValue({
+        usableCardIds: ['hard_01'],
+        usableSlots: [
+          { cardId: 'hard_01', handIndex: 1, cardCopyId: 102 }
+        ]
+      })
+    };
+
+    expect(Planner.planCanonicalCpuNetworkCommand({
+      playerKey: 'black',
+      snapshot: {
+        gameState: { currentPlayer: 1, turnNumber: 74 },
+        cardState: {
+          turnIndex: 74,
+          hands: { black: ['hard_01', 'hard_01'], white: [] },
+          pendingEffectByPlayer: { black: null, white: null }
+        }
+      },
+      preferredActionType: 'pass',
+      preferredAction: { type: 'pass', playerKey: 'black', autoNoActionPass: true },
+      CardLogic,
+      CoreLogic: { getLegalMoves: jest.fn().mockReturnValue([]) }
+    })).toEqual({
+      actionType: 'use_card',
+      action: {
+        type: 'use_card',
+        playerKey: 'black',
+        useCardId: 'hard_01',
+        useCardOwnerKey: 'black',
+        useCardHandIndex: 1
+      }
+    });
+  });
+
+  test('keeps a preferred legal move when canonical planning agrees it is playable', () => {
+    const moves = [{ row: 2, col: 3 }, { row: 4, col: 5 }];
+
+    expect(Planner.planCanonicalCpuNetworkCommand({
+      playerKey: 'black',
+      snapshot: {
+        gameState: { currentPlayer: 1, turnNumber: 12 },
+        cardState: {
+          turnIndex: 12,
+          hands: { black: [], white: [] },
+          pendingEffectByPlayer: { black: null, white: null }
+        }
+      },
+      preferredActionType: 'place',
+      preferredAction: { type: 'place', row: 4, col: 5 },
+      CardLogic: {
+        hasUsableCard: jest.fn().mockReturnValue(false),
+        getCardContext: jest.fn().mockReturnValue({})
+      },
+      CoreLogic: { getLegalMoves: jest.fn().mockReturnValue(moves) }
+    })).toEqual({
+      actionType: 'place',
+      action: { type: 'place', row: 4, col: 5 }
+    });
+  });
+
   test('plans a place command from legal moves', () => {
     const input = createInput({
       getLegalMoves: jest.fn().mockReturnValue([{ row: 2, col: 3 }, { row: 4, col: 5 }]),
@@ -182,6 +277,53 @@ describe('CpuNetworkCommandPlanner', () => {
           stage: 'selectTarget',
           cardId: 'time_bomb_01',
           pendingEffectId: 'pending_12_1'
+        },
+        turnIndex: 12
+      }
+    });
+  });
+
+  test('preserves board-expansion directionKey in pending AUTO selection', () => {
+    const input = createInput({
+      cardState: {
+        turnIndex: 12,
+        pendingEffectByPlayer: {
+          black: {
+            type: 'BOARD_EXPANSION_WILL',
+            stage: 'selectTarget',
+            cardId: 'board_expand_01',
+            pendingEffectId: 'pending_expand_12_1'
+          },
+          white: null
+        }
+      },
+      CardLogic: {
+        getBoardExpansionTargets: jest.fn().mockReturnValue([
+          { row: 0, col: 0, directionKey: 'up' },
+          { row: 0, col: 0, directionKey: 'left' }
+        ])
+      },
+      PendingCoordinator: {
+        resolvePendingSelectionActionField: jest.fn().mockReturnValue('expansionTarget')
+      },
+      PendingSelectionRegistry: {
+        getPendingSelectionTargetMethod: jest.fn().mockReturnValue('getBoardExpansionTargets')
+      }
+    });
+
+    expect(Planner.planCpuNetworkCommand(input)).toEqual({
+      actionType: 'place',
+      action: {
+        type: 'place',
+        player: 'black',
+        row: 0,
+        col: 0,
+        expansionTarget: { row: 0, col: 0, directionKey: 'up' },
+        pendingSelectionState: {
+          type: 'BOARD_EXPANSION_WILL',
+          stage: 'selectTarget',
+          cardId: 'board_expand_01',
+          pendingEffectId: 'pending_expand_12_1'
         },
         turnIndex: 12
       }
@@ -347,6 +489,83 @@ describe('CpuNetworkCommandPlanner', () => {
       action: { type: 'place', row: 0, col: 0 }
     });
     expect(input.CoreLogic.getFreePlacementMoves).toHaveBeenCalled();
+  });
+
+  test('cancels a cancellable target selection when no canonical target remains', () => {
+    const input = createInput({
+      cardState: {
+        turnIndex: 21,
+        pendingEffectByPlayer: {
+          black: {
+            type: 'DESTROY_ONE_STONE',
+            stage: 'selectTarget',
+            cardId: 'destroy_01',
+            pendingEffectId: 'pending_21_1'
+          },
+          white: null
+        }
+      },
+      CardLogic: {
+        hasUsableCard: jest.fn().mockReturnValue(false),
+        getDestroyTargets: jest.fn().mockReturnValue([])
+      },
+      PendingCoordinator: {
+        resolvePendingSelectionActionField: jest.fn().mockReturnValue('destroyTarget')
+      },
+      PendingSelectionRegistry: {
+        getPendingSelectionTargetMethod: jest.fn().mockReturnValue('getDestroyTargets'),
+        getPendingSelectionEntry: jest.fn().mockReturnValue({
+          needsTargetSelection: true,
+          cancellable: true
+        })
+      }
+    });
+
+    expect(Planner.planCpuNetworkCommand(input)).toEqual({
+      actionType: 'cancel_card',
+      action: {
+        type: 'cancel_card',
+        cancelOptions: {
+          refundCost: false,
+          resetUsage: true
+        }
+      }
+    });
+    expect(input.getLegalMoves).not.toHaveBeenCalled();
+  });
+
+  test('fails closed when an unresolved target selection cannot be cancelled', () => {
+    const input = createInput({
+      cardState: {
+        turnIndex: 22,
+        pendingEffectByPlayer: {
+          black: {
+            type: 'REVERSE_WILL',
+            stage: 'selectTarget',
+            cardId: 'reverse_01',
+            pendingEffectId: 'pending_22_1'
+          },
+          white: null
+        }
+      },
+      CardLogic: {
+        hasUsableCard: jest.fn().mockReturnValue(false),
+        getReverseWillTargets: jest.fn().mockReturnValue([])
+      },
+      PendingCoordinator: {
+        resolvePendingSelectionActionField: jest.fn().mockReturnValue('reverseWillTarget')
+      },
+      PendingSelectionRegistry: {
+        getPendingSelectionTargetMethod: jest.fn().mockReturnValue('getReverseWillTargets'),
+        getPendingSelectionEntry: jest.fn().mockReturnValue({
+          needsTargetSelection: true,
+          cancellable: false
+        })
+      }
+    });
+
+    expect(Planner.planCpuNetworkCommand(input)).toBeNull();
+    expect(input.getLegalMoves).not.toHaveBeenCalled();
   });
 
   test('does not publish autoNoActionPass while an unresolved pending effect remains', () => {

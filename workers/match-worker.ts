@@ -84,6 +84,10 @@ import {
     prepareMatchCommandAction,
     shouldSkipMatchCommandTurnStart
 } from '../utils/match-command-runtime';
+import {
+    isMatchAutoTurnPublishBody,
+    resolveMatchAutoTurnPublishBody
+} from '../utils/match-auto-command';
 import deepClone from '../utils/deepClone.js';
 import matchAuthority from '../utils/match-authority.js';
 
@@ -860,9 +864,61 @@ async function applyCommandPublishToSnapshot(
         };
     }
 
+    if (
+        isMatchAutoTurnPublishBody(body)
+        && room?.networkAutoEnabled !== true
+    ) {
+        return { ok: false, rejectedReason: 'AUTO_COMMAND_DISABLED' };
+    }
+
+    let commandBody: Record<string, unknown> = body;
+    if (isMatchAutoTurnPublishBody(body)) {
+        try {
+            const [
+                CoreLogic,
+                pipelineModules,
+                CpuNetworkCommandPlanner,
+                PendingCoordinator,
+                PendingSelectionRegistry
+            ] = await Promise.all([
+                loadCoreLogicModule(),
+                loadTurnPipelineModules(),
+                ensureWorkerRuntimeGlobals().then(() => import('../game/cpu-network-command-planner.js').then(resolveModuleDefault)),
+                ensureWorkerRuntimeGlobals().then(() => import('../game/turn/pending-coordinator.js').then(resolveModuleDefault)),
+                ensureWorkerRuntimeGlobals().then(() => import('../game/logic/cards-internal/pending-selection-registry.js').then(resolveModuleDefault))
+            ]);
+            const autoCommand = resolveMatchAutoTurnPublishBody({
+                body,
+                snapshot: currentSnapshot,
+                playerKey,
+                planningPlayerKey: getCurrentPlayerKey(currentSnapshot.gameState),
+                CpuNetworkCommandPlanner,
+                CoreLogic,
+                CardLogic: pipelineModules.CardLogic,
+                PendingCoordinator,
+                PendingSelectionRegistry
+            });
+            if (!autoCommand || autoCommand.ok !== true) {
+                return {
+                    ok: false,
+                    rejectedReason: autoCommand && autoCommand.rejectedReason
+                        ? autoCommand.rejectedReason
+                        : 'AUTO_COMMAND_REQUIRED'
+                };
+            }
+            commandBody = autoCommand.body || body;
+        } catch (error) {
+            return {
+                ok: false,
+                rejectedReason: 'AUTO_COMMAND_PLANNER_UNAVAILABLE',
+                errorMessage: error instanceof Error ? error.message : String(error || '')
+            };
+        }
+    }
+
     const preparedCommand = prepareMatchCommandAction({
         snapshot: asRecord(currentSnapshot),
-        body,
+        body: commandBody,
         playerKey,
         buildAction: (input, fallbackActor, fallbackTurnIndex) => (
             NetworkActionSchema.buildAction as (
