@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const Store = require('../ui/network/visual-state-store');
+const CardLogic = require('../game/logic/cards');
 
 function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
@@ -201,5 +202,42 @@ describe('NetworkVisualStateStore clone inventory and readonly rendering', () =>
     expect(store.isCurrentCommitReceipt(forgedReceipt)).toBe(false);
     expect(store.getSnapshotForReceipt(forgedReceipt)).toBeNull();
     expect(otherStore.getSnapshotForReceipt(receipt)).toBeNull();
+  });
+
+  test.each([
+    'BOARD_EXPANSION_WILL',
+    'BOARD_EXPANSION_GOD',
+    'BOARD_SHRINK_WILL',
+    'BOARD_SHRINK_GOD'
+  ])('projects %s targets from a frozen committed snapshot without mutating it', (pendingType) => {
+    const store = Store.createNetworkVisualStateStore();
+    const committed = snapshot(4, pendingType);
+    committed.cardState.pendingEffectByPlayer.black = {
+      type: pendingType,
+      stage: 'selectTarget',
+      selectedTargets: []
+    };
+    const receipt = store.commitFrame({
+      visualSeq: 1,
+      stateVersionFrom: 3,
+      stateVersionTo: 4,
+      snapshotAfter: committed
+    });
+    const frozenSnapshot = store.getSnapshotForReceipt(receipt);
+    const board = frozenSnapshot.gameState.board;
+    const before = JSON.stringify(frozenSnapshot);
+
+    const targets = CardLogic.getSelectableTargets(
+      frozenSnapshot.cardState,
+      frozenSnapshot.gameState,
+      'black'
+    );
+
+    expect(Array.isArray(targets)).toBe(true);
+    expect(targets.length).toBeGreaterThan(0);
+    expect(Object.isFrozen(board)).toBe(true);
+    expect(Object.isExtensible(board)).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(board, '__sharedBoardShapeMeta')).toBe(false);
+    expect(JSON.stringify(frozenSnapshot)).toBe(before);
   });
 });

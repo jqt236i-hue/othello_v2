@@ -306,10 +306,17 @@ function toTargetKey(row: number, col: number): string {
 }
 
 function getShapeAwareBoard(cardState: CardState, gameState: GameState): any {
-    if (!SharedBoardUtils || typeof SharedBoardUtils.attachBoardShape !== 'function') return null;
+    if (
+        !SharedBoardUtils
+        || typeof SharedBoardUtils.cloneBoard !== 'function'
+        || typeof SharedBoardUtils.attachBoardShape !== 'function'
+    ) return null;
     const gs = gameState as any;
     if (!gs || !Array.isArray(gs.board)) return null;
-    return SharedBoardUtils.attachBoardShape(gs.board, {
+    // Target selectors are read-only, and network visual snapshots are deeply
+    // frozen. Attach mutable shape metadata only to a detached board copy.
+    const board = SharedBoardUtils.cloneBoard(gs.board);
+    return SharedBoardUtils.attachBoardShape(board, {
         boardExpansion: gs.boardExpansion,
         cardState,
         boardConfig: gs.boardConfig
