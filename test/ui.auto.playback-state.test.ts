@@ -14,12 +14,14 @@ describe('setupAutoToggle playback-state gating', () => {
     global.document = dom.window.document;
 
     global.BLACK = 1;
+    global.WHITE = -1;
     global.gameState = { currentPlayer: 1, turnNumber: 3 };
     global.cardState = { presentationEvents: [], _presentationEventsPersist: [] };
     global.isProcessing = false;
     global.isCardAnimating = false;
     global.processAutoBlackTurn = jest.fn();
     global.addLog = jest.fn();
+    global.window.addLog = global.addLog;
 
     global.window.isProcessing = false;
     global.window.isCardAnimating = false;
@@ -50,6 +52,7 @@ describe('setupAutoToggle playback-state gating', () => {
     delete global.window;
     delete global.document;
     delete global.BLACK;
+    delete global.WHITE;
     delete global.gameState;
     delete global.cardState;
     delete global.isProcessing;
@@ -89,5 +92,50 @@ describe('setupAutoToggle playback-state gating', () => {
     expect(global.window.AUTO_MODE_ACTIVE).toBe(true);
     expect(global.addLog).not.toHaveBeenCalledWith('Auto mode stopped (safety limit reached)');
     expect(global.processAutoBlackTurn).not.toHaveBeenCalled();
+  });
+
+  test('does not count an opponent network turn as a local auto stall', () => {
+    playbackStateMock.getPlaybackActive.mockReturnValue(false);
+    playbackStateMock.getCardAnimating.mockReturnValue(false);
+    global.gameState = { currentPlayer: -1, turnNumber: 12 };
+    global.window.gameState = global.gameState;
+    global.window.BLACK = 1;
+    global.window.WHITE = -1;
+    global.window.MatchMode = {
+      isNetworkModeActive: jest.fn(() => true)
+    };
+    global.window.NetworkMatchClient = {
+      getSeatKey: jest.fn(() => 'black')
+    };
+    global.window.NetworkAutoPlay = {
+      tick: jest.fn().mockResolvedValue({ handled: true, reason: 'NOT_OWN_TURN' })
+    };
+
+    const autoModule = require('../ui/handlers/auto.js');
+    const button = document.getElementById('autoToggleBtn');
+    autoModule.setupAutoToggle(button);
+
+    button.click();
+    jest.advanceTimersByTime(800 * 60);
+
+    expect(global.window.AUTO_MODE_ACTIVE).toBe(true);
+    expect(button.textContent).toBe('AUTO: ON');
+    expect(global.addLog).not.toHaveBeenCalledWith('Auto mode stopped (safety limit reached)');
+  });
+
+  test('updates the button when the local stall safety limit stops auto mode', () => {
+    playbackStateMock.getPlaybackActive.mockReturnValue(false);
+    playbackStateMock.getCardAnimating.mockReturnValue(false);
+
+    const autoModule = require('../ui/handlers/auto.js');
+    const button = document.getElementById('autoToggleBtn');
+    autoModule.setupAutoToggle(button);
+
+    button.click();
+    jest.advanceTimersByTime(800 * 60);
+
+    expect(global.window.AUTO_MODE_ACTIVE).toBe(false);
+    expect(button.textContent).toBe('AUTO: OFF');
+    expect(global.addLog).toHaveBeenCalledWith('Auto mode stopped (safety limit reached)');
   });
 });

@@ -9,6 +9,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 const Auto = (typeof _require === 'function') ? _require('../../game/auto') : ((window as any).autoSimple || null);
 let _uiAutoEnabled = false;
 let _uiAutoTimer: any = null;
+let _uiAutoToggleButton: HTMLElement | null = null;
 let _uiAutoIntervalMs = 800;
 let _lastAutoTickAt = 0;
 const _MIN_AUTO_INTERVAL_MS = 16;
@@ -74,6 +75,28 @@ function _isNetworkModeActiveForAuto(): boolean {
   }
 }
 
+function _isLocalNetworkTurnForAuto(state: any): boolean {
+  if (!_isNetworkModeActiveForAuto()) return true;
+  try {
+    const root = (typeof window !== 'undefined') ? (window as any) : (globalThis as any);
+    const client = root && root.NetworkMatchClient;
+    if (!state || !client || typeof client.getSeatKey !== 'function') return false;
+    const seatKey = String(client.getSeatKey() || '').trim().toLowerCase();
+    if (seatKey !== 'black' && seatKey !== 'white') return false;
+    let turnKey = '';
+    if (typeof root.getPlayerKey === 'function') {
+      turnKey = String(root.getPlayerKey(state.currentPlayer) || '').trim().toLowerCase();
+    }
+    if (turnKey !== 'black' && turnKey !== 'white') {
+      const whiteValue = typeof root.WHITE !== 'undefined' ? root.WHITE : -1;
+      turnKey = Number(state.currentPlayer) === Number(whiteValue) ? 'white' : 'black';
+    }
+    return seatKey === turnKey;
+  } catch (e) {
+    return false;
+  }
+}
+
 function _tickNetworkAutoIfNeeded(): boolean {
   if (!_isNetworkModeActiveForAuto()) return false;
   try {
@@ -98,6 +121,12 @@ function _setUiAutoActive(enabled: boolean): void {
   } catch (e) { /* ignore */ }
 }
 
+function _updateAutoToggleButton(): void {
+  if (_uiAutoToggleButton) {
+    _uiAutoToggleButton.textContent = _uiAutoEnabled ? 'AUTO: ON' : 'AUTO: OFF';
+  }
+}
+
 function _uiAutoDisable(): void {
   _uiAutoEnabled = false;
   _setUiAutoActive(false);
@@ -107,6 +136,7 @@ function _uiAutoDisable(): void {
   }
   _autoTickCount = 0;
   _stallTickCount = 0;
+  _updateAutoToggleButton();
 }
 
 function _uiAutoTick(): void {
@@ -135,10 +165,14 @@ function _uiAutoTick(): void {
       (window as any).isProcessing === true
     );
     const hasPendingPresentation = _hasPendingPresentationEvents();
+    const shouldCountStall = _isLocalNetworkTurnForAuto(state);
     if (winBusy || hasPendingPresentation) {
       if (turnNum !== null && _lastTurnNumber === null) {
         _lastTurnNumber = turnNum;
       }
+    } else if (!shouldCountStall) {
+      _stallTickCount = 0;
+      _lastTurnNumber = turnNum;
     } else if (_lastTurnNumber !== null && turnNum === _lastTurnNumber) {
       _stallTickCount++;
     } else if (turnNum !== null) {
@@ -178,17 +212,18 @@ function _uiAutoEnable(): void {
     ? (window as any).gameState
     : ((typeof globalThis !== 'undefined' && (globalThis as any).gameState) ? (globalThis as any).gameState : null);
   _lastTurnNumber = state ? state.turnNumber : null;
+  _updateAutoToggleButton();
   _uiAutoTick();
 }
 
 function setupAutoToggle(autoToggleBtn: HTMLElement, autoSmartBlack?: any, autoSmartWhite?: any): void {
   if (!autoToggleBtn) return;
-  autoToggleBtn.textContent = 'AUTO: OFF';
+  _uiAutoToggleButton = autoToggleBtn;
+  _updateAutoToggleButton();
   autoToggleBtn.addEventListener('click', () => {
     if (typeof window !== 'undefined' && (window as any).DEBUG_UNLIMITED_USAGE === true) {
       if (typeof (window as any).addLog === 'function') (window as any).addLog('Auto mode is disabled while DEBUG is ON');
       _uiAutoDisable();
-      autoToggleBtn.textContent = 'AUTO: OFF';
       return;
     }
     if (_uiAutoEnabled) {
@@ -196,13 +231,12 @@ function setupAutoToggle(autoToggleBtn: HTMLElement, autoSmartBlack?: any, autoS
     } else {
       _uiAutoEnable();
     }
-    autoToggleBtn.textContent = _uiAutoEnabled ? 'AUTO: ON' : 'AUTO: OFF';
+    _updateAutoToggleButton();
     if (typeof (window as any).addLog === 'function') (window as any).addLog(`Auto mode ${_uiAutoEnabled ? 'ON' : 'OFF'}`);
   });
   if (Auto && Auto.isEnabled && Auto.isEnabled()) {
     try { if (typeof Auto.disable === 'function') Auto.disable(); } catch (e) { /* ignore */ }
     _uiAutoEnable();
-    autoToggleBtn.textContent = 'AUTO: ON';
   }
 }
 
