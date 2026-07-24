@@ -496,6 +496,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkPresentationRetryTimer: any = null;
     let networkPresentationRetryAttempt = 0;
     let networkSessionEpoch = 0;
+    let rematchRequestEpoch = 0;
+    let rematchRequestPending = false;
+    let pendingRematchRequestId = '';
     let ownerHelpers: any = null;
     networkCommentaryModule = resolveNetworkClientModule('./network/commentary', null);
     networkActionSchemaModule = resolveNetworkClientModule('../shared/network-action-schema', null);
@@ -1255,6 +1258,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             playerNameMax: PLAYER_NAME_MAX,
             prepareSessionActivation: (payload: any) => {
                 assertNetworkPresentationTimelineDisposedForSessionBoundary();
+                clearPendingRematchRequest();
                 state.lastStreamEventId = '';
                 const activationSnapshotVersion = getSnapshotStateVersion(payload && payload.snapshot);
                 state.appliedStateVersion = activationSnapshotVersion;
@@ -1280,6 +1284,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             },
             onResetSessionState: () => {
                 assertNetworkPresentationTimelineDisposedForSessionBoundary();
+                clearPendingRematchRequest();
                 state.appliedStateVersion = null;
                 state.lastVisualSeq = 0;
                 state.lastVisualVersion = null;
@@ -3536,6 +3541,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         controller.handlePresencePayload(payload);
         const type = payload && payload.type ? String(payload.type) : '';
         if (type === 'rematch_response') {
+            clearPendingRematchRequest(payload && payload.requestId);
             syncQuickResetButtonForNetworkState();
         }
     }
@@ -4119,36 +4125,96 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
     }
 
+    function hasPendingRematchRequest() {
+        return rematchRequestPending === true;
+    }
+
+    function clearPendingRematchRequest(requestId?: any, expectedEpoch?: number) {
+        if (Number.isFinite(Number(expectedEpoch)) && Number(expectedEpoch) !== rematchRequestEpoch) {
+            return false;
+        }
+        const normalizedRequestId = String(requestId || '').trim();
+        if (
+            normalizedRequestId
+            && pendingRematchRequestId
+            && normalizedRequestId !== pendingRematchRequestId
+        ) {
+            return false;
+        }
+        const hadPendingRequest = rematchRequestPending || !!pendingRematchRequestId;
+        rematchRequestPending = false;
+        pendingRematchRequestId = '';
+        rematchRequestEpoch += 1;
+        return hadPendingRequest;
+    }
+
+    function beginPendingRematchRequest() {
+        rematchRequestEpoch += 1;
+        rematchRequestPending = true;
+        pendingRematchRequestId = '';
+        return rematchRequestEpoch;
+    }
+
     async function requestRematch() {
         if (!isActive()) return { ok: false, reason: 'INACTIVE' };
         if (isSpectator()) {
             emitStatus('観測中は操作できません', true);
             return { ok: false, reason: 'SPECTATOR_READ_ONLY' };
         }
-        const deckSyncResult = await syncActiveDeckSelectionBeforeRematch();
+        if (hasPendingRematchRequest()) {
+            return {
+                ok: true,
+                pending: true,
+                requestId: pendingRematchRequestId
+            };
+        }
+        const requestEpoch = beginPendingRematchRequest();
+        let deckSyncResult: any = null;
+        try {
+            deckSyncResult = await syncActiveDeckSelectionBeforeRematch();
+        } catch (e: any) {
+            clearPendingRematchRequest('', requestEpoch);
+            return { ok: false, reason: 'DECK_SYNC_FAILED' };
+        }
         if (!deckSyncResult || deckSyncResult.ok === false) {
+            clearPendingRematchRequest('', requestEpoch);
             return {
                 ok: false,
                 reason: deckSyncResult && deckSyncResult.reason ? deckSyncResult.reason : 'DECK_SYNC_FAILED'
             };
+        }
+        if (!rematchRequestPending || rematchRequestEpoch !== requestEpoch) {
+            return { ok: true, reason: 'MUTUAL_REMATCH_ACCEPTED', requestId: '' };
         }
         const payload = {
             roomId: state.roomId,
             seatKey: state.seatKey,
             seatToken: state.seatToken
         };
-        const res = await requestJson('POST', '/api/match/rematch-request', payload);
+        let res: any = null;
+        try {
+            res = await requestJson('POST', '/api/match/rematch-request', payload);
+        } catch (e: any) {
+            clearPendingRematchRequest('', requestEpoch);
+            emitStatus('ネット対戦: 再戦申請の送信に失敗しました', true);
+            return { ok: false, reason: 'REMATCH_REQUEST_FAILED' };
+        }
         if (!res.ok || !res.data || res.data.ok !== true) {
+            clearPendingRematchRequest('', requestEpoch);
             const reason = (res.data && (res.data.reason || res.data.rejectedReason)) || 'REMATCH_REQUEST_FAILED';
             applyPayloadSessionState(res.data);
             emitStatus('ネット対戦: 再戦申請の送信に失敗しました', true);
             return { ok: false, reason };
         }
+        const requestId = String(res.data.requestId || '').trim();
+        if (rematchRequestPending && rematchRequestEpoch === requestEpoch) {
+            pendingRematchRequestId = requestId;
+        }
         applyPayloadSessionState(res.data);
         emitStatus('ネット対戦: 再戦申請を送信しました', false);
         return {
             ok: true,
-            requestId: res.data.requestId || ''
+            requestId
         };
     }
 
@@ -4166,6 +4232,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     reason: deckSyncResult && deckSyncResult.reason ? deckSyncResult.reason : 'DECK_SYNC_FAILED'
                 };
             }
+            clearPendingRematchRequest();
         }
         const payload = {
             roomId: state.roomId,
@@ -4480,6 +4547,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         publishCommand,
         publishSnapshot,
         requestRematch,
+        hasPendingRematchRequest,
         acceptRematchRequest,
         declineRematchRequest,
         applySnapshot,

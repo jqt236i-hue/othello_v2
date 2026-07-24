@@ -1,17 +1,77 @@
+const handledRematchRequestIdsByDocument = new WeakMap<Document, Set<string>>();
+
+function handledRematchRequestIds(doc: Document): Set<string> {
+    let requestIds = handledRematchRequestIdsByDocument.get(doc);
+    if (!requestIds) {
+        requestIds = new Set<string>();
+        handledRematchRequestIdsByDocument.set(doc, requestIds);
+    }
+    return requestIds;
+}
+
+function rememberHandledRematchRequest(doc: Document, requestId: string): void {
+    if (!requestId) return;
+    const requestIds = handledRematchRequestIds(doc);
+    requestIds.add(requestId);
+    while (requestIds.size > 64) {
+        const oldest = requestIds.values().next().value;
+        if (!oldest) break;
+        requestIds.delete(oldest);
+    }
+}
+
 function showNetworkRematchRequestDialog(payload: any, options: any): void {
-    if (!payload || payload.type !== 'request') return;
+    if (!payload) return;
     const config = options || {};
     const root = config.root || null;
     const doc = (root && root.document) || (typeof document !== 'undefined' ? document : null);
     if (!doc) return;
+    const requestId = String(payload.requestId || '').trim();
     const existing = doc.getElementById('network-rematch-request-dialog');
+
+    if (payload.type === 'response') {
+        rememberHandledRematchRequest(doc, requestId);
+        if (
+            existing
+            && (!requestId || String(existing.getAttribute('data-rematch-request-id') || '') === requestId)
+            && existing.parentNode
+        ) {
+            existing.parentNode.removeChild(existing);
+        }
+        return;
+    }
+    if (payload.type !== 'request' || !requestId) return;
+    if (handledRematchRequestIds(doc).has(requestId)) return;
+    if (
+        existing
+        && String(existing.getAttribute('data-rematch-request-id') || '') === requestId
+    ) {
+        return;
+    }
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+    const client = config.getNetworkMatchClient();
+    if (
+        client
+        && typeof client.hasPendingRematchRequest === 'function'
+        && client.hasPendingRematchRequest() === true
+        && typeof client.acceptRematchRequest === 'function'
+    ) {
+        rememberHandledRematchRequest(doc, requestId);
+        Promise.resolve(client.acceptRematchRequest(requestId)).then((result: any) => {
+            if (!result || result.ok !== true) handledRematchRequestIds(doc).delete(requestId);
+        }).catch(() => {
+            handledRematchRequestIds(doc).delete(requestId);
+        });
+        return;
+    }
 
     const overlay = doc.createElement('div');
     overlay.id = 'network-rematch-request-dialog';
     overlay.className = 'network-rematch-request-dialog';
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('data-rematch-request-id', requestId);
 
     const panel = doc.createElement('div');
     panel.className = 'network-rematch-request-dialog__panel';
@@ -40,14 +100,24 @@ function showNetworkRematchRequestDialog(payload: any, options: any): void {
     acceptBtn.addEventListener('click', () => {
         acceptBtn.disabled = true;
         declineBtn.disabled = true;
-        const client = config.getNetworkMatchClient();
-        Promise.resolve(client.acceptRematchRequest(payload.requestId)).finally(close);
+        rememberHandledRematchRequest(doc, requestId);
+        const activeClient = config.getNetworkMatchClient();
+        Promise.resolve(activeClient.acceptRematchRequest(requestId)).then((result: any) => {
+            if (!result || result.ok !== true) handledRematchRequestIds(doc).delete(requestId);
+        }).catch(() => {
+            handledRematchRequestIds(doc).delete(requestId);
+        }).finally(close);
     });
     declineBtn.addEventListener('click', () => {
         acceptBtn.disabled = true;
         declineBtn.disabled = true;
-        const client = config.getNetworkMatchClient();
-        Promise.resolve(client.declineRematchRequest(payload.requestId)).finally(close);
+        rememberHandledRematchRequest(doc, requestId);
+        const activeClient = config.getNetworkMatchClient();
+        Promise.resolve(activeClient.declineRematchRequest(requestId)).then((result: any) => {
+            if (!result || result.ok !== true) handledRematchRequestIds(doc).delete(requestId);
+        }).catch(() => {
+            handledRematchRequestIds(doc).delete(requestId);
+        }).finally(close);
     });
 
     actions.appendChild(acceptBtn);

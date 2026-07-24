@@ -338,6 +338,20 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
     finishPointer(lastPointerEvent, false, true);
   };
 
+  const onNativePointerDown = (raw: Event) => {
+    lastPointerEvent = pointerSnapshot(raw);
+    beginPointer(lastPointerEvent, true);
+  };
+
+  const onNativePointerUp = (raw: Event) => {
+    lastPointerEvent = pointerSnapshot(raw);
+    finishPointer(lastPointerEvent, false, false);
+  };
+
+  const onNativePointerLeave = (raw: Event) => {
+    onPointerLeave(raw);
+  };
+
   const onNativePointerCancel = (raw: Event) => {
     lastPointerEvent = pointerSnapshot(raw);
     finishPointer(lastPointerEvent, true);
@@ -435,8 +449,17 @@ export function createPixiBoardInput(options: PixiBoardInputOptions): PixiBoardI
     addFederatedListener('pointerup', onPointerUp);
     addFederatedListener('pointerupoutside', onPointerUpOutside);
     addFederatedListener('pointerleave', onPointerLeave);
+    // Capture the native press/release before Pixi's target listener. Some
+    // browsers do not produce a Federated hit for this transparent viewport,
+    // while the shared controller can still resolve the canonical cell from
+    // client coordinates. The retained active pointer makes the subsequent
+    // Federated event a no-op, so this remains one input path rather than a
+    // duplicate dispatch.
+    addNativeListener(viewport, 'pointerdown', onNativePointerDown as EventListener, true);
+    addNativeListener(viewport, 'pointerup', onNativePointerUp as EventListener, true);
+    addNativeListener(viewport, 'pointerleave', onNativePointerLeave as EventListener, true);
     // Pixi 8.18's PointerEvent path does not subscribe to pointercancel. The
-    // native supplement is required when a touch becomes viewport scrolling.
+    // native supplement is also required when a touch becomes viewport scrolling.
     addNativeListener(viewport, 'pointercancel', onNativePointerCancel as EventListener, true);
   }
 

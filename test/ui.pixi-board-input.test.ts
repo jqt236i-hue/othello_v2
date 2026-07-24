@@ -131,7 +131,12 @@ describe('Pixi board input adapter', () => {
     expect(harness.viewport.style.touchAction).toBe('pan-x pan-y pinch-zoom');
     expect(harness.viewport.width).toBe(200);
     expect(harness.viewport.height).toBe(160);
-    expect(Array.from(harness.nativeListeners.keys())).toEqual(['pointercancel']);
+    expect(Array.from(harness.nativeListeners.keys())).toEqual([
+      'pointerdown',
+      'pointerup',
+      'pointerleave',
+      'pointercancel'
+    ]);
     expect(Array.from(harness.federatedListeners.keys())).toEqual([
       'pointerdown',
       'globalpointermove',
@@ -162,7 +167,31 @@ describe('Pixi board input adapter', () => {
     expect(harness.events.at(-1)).toMatchObject({ type: 'pointerupoutside', row: 2, col: 4 });
   });
 
-  test('supplements Pixi with native pointercancel and removes every owned listener', () => {
+  test('uses native capture when the transparent viewport misses a Federated press without dispatching twice', () => {
+    const harness = createHarness();
+    const nativeEvent = {
+      pointerId: 7,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 20,
+      clientY: 30,
+      preventDefault: jest.fn()
+    };
+
+    harness.nativeListeners.get('pointerdown')?.listener(nativeEvent);
+    harness.interactionLayer.emit('pointerdown', { nativeEvent, preventDefault: jest.fn() });
+    harness.nativeListeners.get('pointerup')?.listener(nativeEvent);
+    harness.interactionLayer.emit('pointerup', { nativeEvent, preventDefault: jest.fn() });
+
+    expect(harness.events.map((event) => event.type)).toEqual([
+      'pointerenter',
+      'pointerdown',
+      'pointerup'
+    ]);
+    expect(harness.controller.handlePointer).toHaveBeenCalledTimes(3);
+  });
+
+  test('supplements Pixi with native pointer lifecycle and removes every owned listener', () => {
     const harness = createHarness();
     harness.pointer('pointerdown');
     harness.pointer('pointercancel');
@@ -170,9 +199,9 @@ describe('Pixi board input adapter', () => {
     expect(harness.events.at(-1)).toMatchObject({ type: 'pointercancel', row: 2, col: 3 });
     expect(harness.adapter.getDiagnostics()).toMatchObject({
       mounted: true,
-      listenerCount: 6,
+      listenerCount: 9,
       federatedListenerCount: 5,
-      nativeListenerCount: 1,
+      nativeListenerCount: 4,
       activePointerId: null
     });
 
@@ -184,8 +213,13 @@ describe('Pixi board input adapter', () => {
       'pointerupoutside',
       'pointerleave'
     ]);
-    expect(harness.removedNative).toHaveLength(1);
-    expect(harness.removedNative[0]).toMatchObject({ type: 'pointercancel', capture: true });
+    expect(harness.removedNative.map((binding) => binding.type)).toEqual([
+      'pointerdown',
+      'pointerup',
+      'pointerleave',
+      'pointercancel'
+    ]);
+    expect(harness.removedNative.every((binding) => binding.capture === true)).toBe(true);
     expect(harness.eventSystem.setTargetElement).toHaveBeenLastCalledWith(null);
     expect(harness.adapter.getDiagnostics()).toMatchObject({
       mounted: false,

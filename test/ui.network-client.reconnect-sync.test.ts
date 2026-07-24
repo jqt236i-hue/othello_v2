@@ -1471,18 +1471,40 @@ describe('NetworkMatchClient reconnect and resync', () => {
 
     expect(syncActiveNetworkDeckSelection).toHaveBeenCalledTimes(1);
     expect(publishBodies).toHaveLength(0);
+    expect(client.hasPendingRematchRequest()).toBe(true);
+
+    const duplicateResult = await client.requestRematch();
+    expect(duplicateResult).toEqual({
+      ok: true,
+      pending: true,
+      requestId: ''
+    });
+    expect(syncActiveNetworkDeckSelection).toHaveBeenCalledTimes(1);
 
     expect(typeof resolveDeckSync).toBe('function');
     resolveDeckSync();
     const result = await resultPromise;
 
     expect(result && result.ok).toBe(true);
+    expect(client.hasPendingRematchRequest()).toBe(true);
     expect(publishBodies).toHaveLength(1);
     expect(publishBodies[0]).toEqual(expect.objectContaining({
       roomId: 'ABC',
       seatKey: 'white',
       seatToken: 'token_white'
     }));
+
+    expect(typeof eventSources[0]?.listeners?.presence).toBe('function');
+    eventSources[0].listeners.presence({
+      data: JSON.stringify({
+        ok: true,
+        type: 'rematch_response',
+        requestId: 'rematch_req_1',
+        seatKey: 'black',
+        accepted: true
+      })
+    });
+    expect(client.hasPendingRematchRequest()).toBe(false);
   });
 
   test('acceptRematchRequest は最新デッキ同期の完了後に応答と reset_game を送る', async () => {
