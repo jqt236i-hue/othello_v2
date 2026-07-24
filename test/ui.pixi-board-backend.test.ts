@@ -645,6 +645,155 @@ describe('Pixi board backend integration', () => {
     expect(harness.scene.applyCalls.at(-1)!.frame.frameToken).toBe('restore-barrier-final');
   });
 
+  test('rejects a canonical frame that would overtake active playback', async () => {
+    const fixture = createPlaybackFixture();
+    const activePhase = deferred<void>();
+    fixture.playback.playPhase.mockImplementationOnce(() => activePhase.promise);
+    const harness = createHarness({ playbackFactory: () => fixture.playback });
+    await harness.backend.mount(harness.host, {});
+    const initial = makeFrame('active-playback-initial', 1);
+    await harness.backend.prepareFrame(initial);
+    harness.backend.applyFrame(initial);
+    await harness.backend.waitForVisualSettlement(initial);
+    const applyCountBeforePhase = harness.scene.applyCalls.length;
+    const context = {
+      token: { id: 1, frameToken: 'network:active', mode: 'network' as const },
+      strictNetworkPlayback: true
+    };
+    const playing = harness.backend.playPhase([{ type: 'legacy_sacrifice_absorb_pulse' }], context);
+    await flushMicrotasks();
+
+    const committed = makeFrame('active-playback-committed', 2);
+    expect(() => harness.backend.applyFrame(committed)).toThrow(
+      expect.objectContaining({ code: 'pixi_frame_apply_during_playback' })
+    );
+    expect(harness.scene.applyCalls).toHaveLength(applyCountBeforePhase);
+
+    activePhase.resolve();
+    await playing;
+    await harness.backend.prepareFrame(committed);
+    harness.backend.applyFrame(committed);
+    await harness.backend.waitForVisualSettlement(committed);
+    expect(harness.scene.applyCalls.at(-1)!.frame.frameToken).toBe('active-playback-committed');
+  });
+
+  test('rejects a canonical frame while playback textures are still preparing', async () => {
+    const fixture = createPlaybackFixture();
+    const rawPhase = deferred<void>();
+    fixture.playback.playPhase.mockImplementationOnce(() => rawPhase.promise);
+    const harness = createHarness({ playbackFactory: () => fixture.playback });
+    await harness.backend.mount(harness.host, {});
+    const initial = makeFrame('playback-texture-guard-initial', 1);
+    await harness.backend.prepareFrame(initial);
+    harness.backend.applyFrame(initial);
+    await harness.backend.waitForVisualSettlement(initial);
+    const applyCountBeforePhase = harness.scene.applyCalls.length;
+    const specialTexture = harness.textures.deferUrl(
+      'https://example.test/special/TIME_BOMB/black.png'
+    );
+    const context = {
+      token: { id: 1, frameToken: 'network:texture-guard', mode: 'network' as const },
+      strictNetworkPlayback: true
+    };
+    const playing = harness.backend.playPhase([{
+      type: 'spawn',
+      targets: [{ after: { owner: 'black', special: 'TIME_BOMB' } }]
+    }], context);
+    await nextTurn();
+    await flushMicrotasks();
+    expect(harness.textures.loadTexture).toHaveBeenCalledWith(
+      'https://example.test/special/TIME_BOMB/black.png',
+      'special-stone:TIME_BOMB:black'
+    );
+
+    const committed = makeFrame('playback-texture-guard-committed', 2);
+    expect(() => harness.backend.applyFrame(committed)).toThrow(
+      expect.objectContaining({ code: 'pixi_frame_apply_during_playback' })
+    );
+    expect(harness.scene.applyCalls).toHaveLength(applyCountBeforePhase);
+
+    specialTexture.resolve();
+    await flushMicrotasks();
+    rawPhase.resolve();
+    await playing;
+  });
+
+  test('restore drains a playback launch that is still preparing textures', async () => {
+    const fixture = createPlaybackFixture();
+    const harness = createHarness({ playbackFactory: () => fixture.playback });
+    await harness.backend.mount(harness.host, {});
+    const initial = makeFrame('restore-texture-barrier-initial', 1);
+    await harness.backend.prepareFrame(initial);
+    harness.backend.applyFrame(initial);
+    await harness.backend.waitForVisualSettlement(initial);
+    const specialTexture = harness.textures.deferUrl(
+      'https://example.test/special/TIME_BOMB/black.png'
+    );
+    const context = {
+      token: { id: 3, frameToken: 'network:restore-texture', mode: 'network' as const },
+      strictNetworkPlayback: true
+    };
+    const playing = harness.backend.playPhase([{
+      type: 'spawn',
+      targets: [{ after: { owner: 'black', special: 'TIME_BOMB' } }]
+    }], context);
+    const interrupted = expect(playing).rejects.toMatchObject({
+      code: 'pixi_playback_texture_prepare_superseded'
+    });
+    await nextTurn();
+    await flushMicrotasks();
+
+    const restored = makeFrame('restore-texture-barrier-final', 2);
+    const restoring = harness.backend.restore(restored);
+    await flushMicrotasks();
+    expect(fixture.playback.abortAndWait).toHaveBeenCalledTimes(1);
+    expect(harness.scene.applyCalls.some(({ frame }) => (
+      frame.frameToken === restored.frameToken
+    ))).toBe(false);
+
+    specialTexture.resolve();
+    await Promise.all([interrupted, restoring]);
+    expect(fixture.playback.playPhase).not.toHaveBeenCalled();
+    expect(harness.scene.applyCalls.at(-1)!.frame.frameToken).toBe(
+      'restore-texture-barrier-final'
+    );
+  });
+
+  test('rejects a deferred frame commit when playback starts after apply was requested', async () => {
+    const fixture = createPlaybackFixture();
+    const activePhase = deferred<void>();
+    fixture.playback.playPhase.mockImplementationOnce(() => activePhase.promise);
+    const harness = createHarness({ playbackFactory: () => fixture.playback });
+    await harness.backend.mount(harness.host, {});
+    const initial = makeFrame('deferred-commit-guard-initial', 1);
+    await harness.backend.prepareFrame(initial);
+    harness.backend.applyFrame(initial);
+    await harness.backend.waitForVisualSettlement(initial);
+    const applyCountBeforeFrame = harness.scene.applyCalls.length;
+
+    const committed = makeFrame('deferred-commit-guard-committed', 2);
+    const frameTexture = harness.textures.deferUrl(committed.appearance.boardImageUrl);
+    const preparing = harness.backend.prepareFrame(committed);
+    harness.backend.applyFrame(committed);
+    const settling = harness.backend.waitForVisualSettlement(committed);
+    const context = {
+      token: { id: 2, frameToken: 'network:deferred-commit', mode: 'network' as const },
+      strictNetworkPlayback: true
+    };
+    const playing = harness.backend.playPhase([{ type: 'move' }], context);
+    await flushMicrotasks();
+
+    frameTexture.resolve();
+    await preparing;
+    await expect(settling).rejects.toMatchObject({
+      code: 'pixi_frame_apply_during_playback'
+    });
+    expect(harness.scene.applyCalls).toHaveLength(applyCountBeforeFrame);
+
+    activePhase.resolve();
+    await playing;
+  });
+
   test('injects animation policies and settles playback projection only after a successful canonical render', async () => {
     const fixture = createPlaybackFixture();
     const playbackFactory = jest.fn(() => fixture.playback);

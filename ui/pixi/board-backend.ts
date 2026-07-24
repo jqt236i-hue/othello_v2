@@ -547,7 +547,10 @@ export function createPixiBoardVisualBackend(
   let playbackTexturePreparation: Promise<void> | null = null;
   let playbackLaunchGeneration = 0;
   let playbackInterruptReason: unknown = new Error('Pixi playback was interrupted before frame restore');
-  const activeRawPlaybackPhases = new Set<Promise<void>>();
+  // Covers the complete mutation lease: playback texture preparation, the
+  // raw timeline, and final idle settlement. A canonical frame may be
+  // prepared concurrently, but it must never commit while any lease is live.
+  const activePlaybackPhases = new Set<Promise<void>>();
   const playbackSpecialStones = new Map<string, PlaybackSpecialStone>();
   let settledFrameToken: string | null = null;
   let lastErrorCode: string | null = null;
@@ -1082,6 +1085,13 @@ export function createPixiBoardVisualBackend(
     assertMounted();
     work.committing = true;
     try {
+      if (activePlaybackPhases.size > 0) {
+        throw rememberError(backendError({
+          code: 'pixi_frame_apply_during_playback',
+          stage: 'scene-apply',
+          message: 'Pixi canonical frame commit cannot overtake active board playback'
+        }));
+      }
       // A failed camera refresh poisons the current visual transaction. A
       // normal frame commit must not make that failure look successful; only
       // the explicit restore path is allowed to prove recovery and clear it.
@@ -1591,6 +1601,13 @@ export function createPixiBoardVisualBackend(
     assertMounted();
     assertContextHealthy();
     assertCameraRenderHealthy();
+    if (activePlaybackPhases.size > 0) {
+      throw rememberError(backendError({
+        code: 'pixi_frame_apply_during_playback',
+        stage: 'scene-apply',
+        message: 'Pixi canonical frame apply cannot overtake active board playback'
+      }));
+    }
     const presentationOverride = resolvePresentedFrame(frame, presentedFrame);
     const work = startWork(frame);
     applyRequestCount += 1;
@@ -1634,6 +1651,11 @@ export function createPixiBoardVisualBackend(
     assertContextHealthy();
     playPhaseCount += 1;
     const launchGeneration = playbackLaunchGeneration;
+    let resolvePhaseLease!: () => void;
+    const phaseLease = new Promise<void>((resolve) => {
+      resolvePhaseLease = resolve;
+    });
+    activePlaybackPhases.add(phaseLease);
     try {
       assertCameraRenderHealthy();
       await preparePlaybackTextures(events, context);
@@ -1641,12 +1663,7 @@ export function createPixiBoardVisualBackend(
         throw playbackInterruptReason;
       }
       const rawPlayback = playback!.playPhase(events, context);
-      activeRawPlaybackPhases.add(rawPlayback);
-      try {
-        await rawPlayback;
-      } finally {
-        activeRawPlaybackPhases.delete(rawPlayback);
-      }
+      await rawPlayback;
       // Multiple board event branches in one presentation phase share this
       // backend timeline. A shorter sibling must not stop the private ticker
       // while another run still needs clock ticks to settle.
@@ -1660,6 +1677,9 @@ export function createPixiBoardVisualBackend(
         message: errorMessage(error)
       });
       throw error;
+    } finally {
+      activePlaybackPhases.delete(phaseLease);
+      resolvePhaseLease();
     }
   }
 
@@ -1672,7 +1692,7 @@ export function createPixiBoardVisualBackend(
     });
     playbackTextureWriterId = null;
     playbackSpecialStones.clear();
-    const activeAtInterrupt = Array.from(activeRawPlaybackPhases);
+    const activeAtInterrupt = Array.from(activePlaybackPhases);
     if (playback && typeof playback.abortAndWait === 'function') {
       await playback.abortAndWait(playbackInterruptReason);
     } else {

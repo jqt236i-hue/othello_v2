@@ -1661,7 +1661,12 @@ describe('animation-utils hand fallback', () => {
     }));
 
     const mod = require('../ui/animation-utils.js');
-    const playBoardEffect = jest.fn(() => Promise.resolve());
+    let resolveBoardEffect!: () => void;
+    const boardEffectSettlement = new Promise<void>((resolve) => {
+      resolveBoardEffect = resolve;
+    });
+    const playBoardEffect = jest.fn(() => boardEffectSettlement);
+    const onDisappear = jest.fn(() => Promise.resolve());
     const promise = mod.playCardUseHandAnimation({
       player: 'white',
       owner: 'white',
@@ -1671,8 +1676,14 @@ describe('animation-utils hand fallback', () => {
       nullifiedBySacrificeWill: true,
       cardUseVanishEffect: 'sacrifice_seal_burn',
       sacrificeWill: { row: 0, col: 0, owner: 'black', special: 'SACRIFICE' },
-      playBoardEffect
+      playBoardEffect,
+      onDisappear
     });
+    let outerSettled = false;
+    void promise.then(
+      () => { outerSettled = true; },
+      () => { outerSettled = true; }
+    );
 
     await Promise.resolve();
     for (let index = 0; index < 8; index += 1) {
@@ -1698,9 +1709,118 @@ describe('animation-utils hand fallback', () => {
       durationMs: 2600
     });
 
-    jest.advanceTimersByTime(4000);
-    await Promise.resolve();
+    // The old 3200/3600ms fallbacks used to resolve the hand animation while
+    // this board-owned pulse was still active, allowing the committed Pixi
+    // frame to invalidate its projection scope.
+    jest.advanceTimersByTime(5000);
+    for (let index = 0; index < 8; index += 1) {
+      await Promise.resolve();
+    }
+    expect(outerSettled).toBe(false);
+    expect(onDisappear).not.toHaveBeenCalled();
+
+    resolveBoardEffect();
+    for (let index = 0; index < 8; index += 1) {
+      await Promise.resolve();
+    }
     await expect(promise).resolves.toBeUndefined();
+    expect(onDisappear).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([
+    ['typed error', () => new Error('sacrifice Pixi pulse failed')],
+    ['undefined reason', () => undefined]
+  ])('playCardUseHandAnimation propagates a rejected sacrifice board pulse (%s)', async (_label, createReason) => {
+    jest.useFakeTimers();
+
+    const animateMock = jest.fn(() => ({
+      addEventListener: () => {},
+      finished: Promise.resolve()
+    }));
+    window.Element.prototype.animate = animateMock;
+
+    const handEl = document.getElementById('hand-white');
+    const chargeEl = document.getElementById('charge-white');
+    handEl.getBoundingClientRect = () => ({
+      left: 720,
+      top: 120,
+      width: 260,
+      height: 140,
+      right: 980,
+      bottom: 260
+    });
+    chargeEl.getBoundingClientRect = () => ({
+      left: 980,
+      top: 150,
+      width: 100,
+      height: 40,
+      right: 1080,
+      bottom: 190
+    });
+    getBoardCellClientRectMock.mockImplementation(() => ({
+      left: 260,
+      top: 300,
+      width: 64,
+      height: 64,
+      right: 324,
+      bottom: 364
+    }));
+
+    let rejectBoardEffect!: (reason?: any) => void;
+    const boardEffectSettlement = new Promise<void>((_resolve, reject) => {
+      rejectBoardEffect = reject;
+    });
+    const boardError = createReason();
+    const onDisappear = jest.fn(() => Promise.resolve());
+    const handImage = document.getElementById('handImage') as HTMLElement;
+    const heldStone = document.getElementById('heldStone') as HTMLElement;
+    handImage.style.visibility = 'visible';
+    heldStone.style.display = 'block';
+    const mod = require('../ui/animation-utils.js');
+    const promise = mod.playCardUseHandAnimation({
+      player: 'white',
+      owner: 'white',
+      cardId: 'destroy_01',
+      cost: 8,
+      name: '破壊の意志',
+      nullifiedBySacrificeWill: true,
+      cardUseVanishEffect: 'sacrifice_seal_burn',
+      sacrificeWill: { row: 0, col: 0, owner: 'black', special: 'SACRIFICE' },
+      playBoardEffect: jest.fn(() => boardEffectSettlement),
+      onDisappear
+    });
+    const rejected = expect(promise).rejects.toBe(boardError);
+
+    await Promise.resolve();
+    for (let index = 0; index < 8; index += 1) {
+      await Promise.resolve();
+    }
+    jest.advanceTimersByTime(900);
+    for (let index = 0; index < 8; index += 1) {
+      await Promise.resolve();
+    }
+    expect(handImage.style.visibility).toBe('hidden');
+    expect(heldStone.style.display).toBe('none');
+    expect(document.querySelectorAll('.card-use-ghost')).toHaveLength(1);
+    jest.advanceTimersByTime(6000);
+    for (let index = 0; index < 8; index += 1) {
+      await Promise.resolve();
+    }
+    expect(onDisappear).not.toHaveBeenCalled();
+    expect(handImage.style.visibility).toBe('hidden');
+    expect(heldStone.style.display).toBe('none');
+    rejectBoardEffect(boardError);
+    for (let index = 0; index < 8; index += 1) {
+      await Promise.resolve();
+    }
+
+    await rejected;
+    expect(onDisappear).not.toHaveBeenCalled();
+    expect(handImage.style.visibility).toBe('visible');
+    expect(heldStone.style.display).toBe('block');
+    expect(document.querySelectorAll('.card-use-ghost')).toHaveLength(0);
+    expect(window.isCardAnimating).toBe(false);
+    expect(jest.getTimerCount()).toBe(0);
   });
 
   test('playCardUseHandAnimation passes ownerKey into createCardFaceElement for moving cards', async () => {

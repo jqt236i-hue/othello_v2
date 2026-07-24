@@ -2432,7 +2432,13 @@ function _resolveSacrificeAbsorbTargetRect(data: any) {
     return rect;
 }
 
-async function _playSacrificeAbsorbVanish(movingCard: any, playbackScope: any, data: any, geometry: any) {
+async function _playSacrificeAbsorbVanish(
+    movingCard: any,
+    playbackScope: any,
+    data: any,
+    geometry: any,
+    registerBoardEffectSettlement?: (settlement: Promise<any>) => void
+) {
     if (!movingCard) return;
     const SACRIFICE_ABSORB_MS = 2600;
     const targetRect = _resolveSacrificeAbsorbTargetRect(data);
@@ -2472,6 +2478,9 @@ async function _playSacrificeAbsorbVanish(movingCard: any, playbackScope: any, d
         cellPulse = Promise.resolve(playBoardEffect(pulseEvent));
     } catch (error: any) {
         cellPulse = Promise.reject(error);
+    }
+    if (typeof registerBoardEffectSettlement === 'function') {
+        registerBoardEffectSettlement(cellPulse);
     }
 
     const cardAbsorb = _animateCompat(movingCard, [
@@ -2537,6 +2546,10 @@ function playCardUseHandAnimation(payload: any) {
         let disappearSoundPlayed = false;
         let disappearHookStarted = false;
         let cleanupStarted = false;
+        let cleanupPromise: Promise<void> | null = null;
+        let hasCleanupPrimaryError = false;
+        let cleanupPrimaryError: any = undefined;
+        let terminalBoardEffectSettlement: Promise<any> = Promise.resolve();
         let settled = false;
         const done = () => {
             if (settled) return;
@@ -2566,6 +2579,9 @@ function playCardUseHandAnimation(payload: any) {
         const setCardAnimating = (locked: any) => {
             _setCardAnimatingState(locked);
         };
+        const registerTerminalBoardEffectSettlement = (settlement: Promise<any>) => {
+            terminalBoardEffectSettlement = Promise.resolve(settlement);
+        };
 
         if (_isNoAnim()) {
             Promise.resolve(runDisappearEffectsOnce()).then(done, fail);
@@ -2588,9 +2604,10 @@ function playCardUseHandAnimation(payload: any) {
         setCardAnimating(true);
         const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
         let movingCard: any = null;
+        const sacrificeAbsorb = _isSacrificeSealBurnCardUse(data);
         let timeoutId = _Timer().setTimeout(() => {
             void cleanup();
-        }, 3200, sc);
+        }, sacrificeAbsorb ? 5200 : 3200, sc);
 
         const explicitSourceCardEl = (data.sourceCardEl && typeof data.sourceCardEl.cloneNode === 'function') ? data.sourceCardEl : null;
         // IMPORTANT:
@@ -2641,32 +2658,59 @@ function playCardUseHandAnimation(payload: any) {
         const dy = targetY - startY;
         const liftY = fromBottom ? -14 : 14;
         const waitHold = () => new Promise<void>((r) => _Timer().setTimeout(r, HOLD_MS, sc));
-        const cleanup = async () => {
-            if (cleanupStarted) return;
+        const cleanup = (...primaryErrors: any[]): Promise<void> => {
+            if (primaryErrors.length > 0 && !hasCleanupPrimaryError) {
+                hasCleanupPrimaryError = true;
+                cleanupPrimaryError = primaryErrors[0];
+            }
+            if (cleanupPromise) return cleanupPromise;
             cleanupStarted = true;
-            try {
-                if (movingCard && movingCard.parentElement) movingCard.parentElement.removeChild(movingCard);
-            } catch (e: any) { /* ignore */ }
-            if (handImageEl) handImageEl.style.visibility = prevHandImageVisibility;
-            if (heldStoneEl) heldStoneEl.style.display = prevHeldStoneDisplay;
-            if (timeoutId) {
-                _Timer().clearTimeout(timeoutId);
-                timeoutId = null;
-            }
-            try {
-                await runDisappearEffectsOnce();
-                setCardAnimating(false);
-                done();
-            } catch (error: any) {
-                setCardAnimating(false);
-                fail(error);
-            }
+            cleanupPromise = (async () => {
+                let hasTerminalBoardEffectError = false;
+                let terminalBoardEffectError: any = undefined;
+                try {
+                    // Board-owned playback must settle before the strict-network
+                    // writer can commit its canonical frame. The sacrifice card
+                    // animation starts a nested Pixi pulse, so a DOM fallback
+                    // timeout may clean the overlay but must never detach that
+                    // board phase or start the subsequent destroy early.
+                    await terminalBoardEffectSettlement;
+                } catch (error: any) {
+                    hasTerminalBoardEffectError = true;
+                    terminalBoardEffectError = error;
+                }
+                try {
+                    try {
+                        if (movingCard && movingCard.parentElement) movingCard.parentElement.removeChild(movingCard);
+                    } catch (e: any) { /* ignore */ }
+                    if (handImageEl) handImageEl.style.visibility = prevHandImageVisibility;
+                    if (heldStoneEl) heldStoneEl.style.display = prevHeldStoneDisplay;
+                    if (timeoutId) {
+                        _Timer().clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
+                    const cleanupError = hasCleanupPrimaryError
+                        ? cleanupPrimaryError
+                        : terminalBoardEffectError;
+                    if (hasCleanupPrimaryError || hasTerminalBoardEffectError) {
+                        fail(cleanupError);
+                        return;
+                    }
+                    await runDisappearEffectsOnce();
+                    done();
+                } catch (error: any) {
+                    fail(error);
+                } finally {
+                    setCardAnimating(false);
+                }
+            })();
+            return cleanupPromise;
         };
         clearResolveFallback = _installAnimationResolveFallback(() => {
             void cleanup();
-        }, 3600);
+        }, sacrificeAbsorb ? 5600 : 3600);
 
-        (async () => {
+        const animationSequence = (async () => {
             await _animateCompat(movingCard, [
                 { transform: 'translate(0px, 0px)' },
                 { transform: `translate(0px, ${liftY}px)` }
@@ -2675,6 +2719,7 @@ function playCardUseHandAnimation(payload: any) {
                 easing: 'ease-out',
                 fill: 'forwards'
             }, sc);
+            if (cleanupStarted && sacrificeAbsorb) return;
 
             await _animateCompat(movingCard, [
                 { transform: `translate(0px, ${liftY}px)` },
@@ -2684,6 +2729,7 @@ function playCardUseHandAnimation(payload: any) {
                 easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)',
                 fill: 'forwards'
             }, sc);
+            if (cleanupStarted && sacrificeAbsorb) return;
 
             const bob = fromBottom ? -8 : 8;
             await _animateCompat(movingCard, [
@@ -2695,10 +2741,12 @@ function playCardUseHandAnimation(payload: any) {
                 easing: 'ease-in-out',
                 fill: 'forwards'
             }, sc);
+            if (cleanupStarted && sacrificeAbsorb) return;
 
             await waitHold();
+            if (cleanupStarted && sacrificeAbsorb) return;
 
-            if (_isSacrificeSealBurnCardUse(data)) {
+            if (sacrificeAbsorb) {
                 await _playSacrificeAbsorbVanish(movingCard, sc, data, {
                     startX,
                     startY,
@@ -2706,7 +2754,7 @@ function playCardUseHandAnimation(payload: any) {
                     cardHeight,
                     currentDx: dx,
                     currentDy: dy
-                });
+                }, registerTerminalBoardEffectSettlement);
             } else {
                 await _animateCompat(movingCard, [
                     { opacity: 1 },
@@ -2717,11 +2765,11 @@ function playCardUseHandAnimation(payload: any) {
                     fill: 'forwards'
                 }, sc);
             }
-        })().catch(() => {
-            // no-op
-        }).finally(() => {
-            void cleanup();
-        });
+        })();
+        void animationSequence.then(
+            () => cleanup(),
+            (error: any) => cleanup(error)
+        );
         });
         if (!_shouldWaitForCardFaceArtPreload(cardFaceArtPreload)) {
             return runCardUseAnimation();
