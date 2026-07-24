@@ -9,6 +9,7 @@ const _require: NodeRequire | null = (typeof __non_webpack_require__ !== 'undefi
   : (typeof require === 'function' ? require : null);
 
 let coreLogicModule: any = null;
+let subPlacementContinuationModule: any = null;
 
 function normalizePlayerKey(value: any): 'black' | 'white' {
   return String(value || '').trim().toLowerCase() === 'white' ? 'white' : 'black';
@@ -75,6 +76,28 @@ function resolveCoreLogic(input: PlannerInput): any | null {
     }
   }
   return coreLogicModule;
+}
+
+function resolveSubPlacementContinuation(input: PlannerInput): any | null {
+  if (input && input.SubPlacementContinuation) return input.SubPlacementContinuation;
+  if (!subPlacementContinuationModule && _require) {
+    try {
+      subPlacementContinuationModule = _require('./turn/sub-placement-continuation');
+    } catch (e) {
+      subPlacementContinuationModule = null;
+    }
+  }
+  return subPlacementContinuationModule;
+}
+
+function isSubPlacementTurnActive(input: PlannerInput, playerKey: string): boolean {
+  const continuation = resolveSubPlacementContinuation(input);
+  if (!continuation || typeof continuation.isSubPlacementTurnActive !== 'function') return false;
+  try {
+    return continuation.isSubPlacementTurnActive(input.cardState, playerKey) === true;
+  } catch (e) {
+    return false;
+  }
 }
 
 function resolveCardContext(input: PlannerInput): any {
@@ -450,6 +473,11 @@ function planCpuNetworkCommand(inputValue: PlannerInput): any {
   if (unresolvedPending && unresolvedPending.stage === 'selectTarget') {
     return planPendingSelectionFallback(input, unresolvedPending, unresolvedPendingType);
   }
+  if (isSubPlacementTurnActive(input, playerKey)) {
+    const continuationMoves = getLegalMoves(input, playerKey, unresolvedPendingType);
+    if (continuationMoves.length === 0) return null;
+    return createPlaceAction(selectMove(input, continuationMoves, playerKey));
+  }
   const selectedCard = planCardUse(input, playerKey, { allowFallback: false });
   if (selectedCard) return selectedCard;
   const moves = getLegalMoves(input, playerKey, unresolvedPendingType);
@@ -502,6 +530,7 @@ function planCanonicalCpuNetworkCommand(inputValue: PlannerInput): any {
     CardLogic,
     PendingCoordinator: input.PendingCoordinator || null,
     PendingSelectionRegistry: input.PendingSelectionRegistry || null,
+    SubPlacementContinuation: input.SubPlacementContinuation || null,
     selectCpuMoveWithPolicy(moves: any[]) {
       if (preferredActionType === 'place') {
         const preferredMove = moves.find((move) => sameMove(move, preferredAction));

@@ -751,7 +751,8 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
             CoreLogic: Core,
             CardLogic,
             PendingCoordinator,
-            PendingSelectionRegistry
+            PendingSelectionRegistry,
+            SubPlacementContinuation
         });
     } catch (error: any) {
         return {
@@ -774,6 +775,7 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
         snapshot: currentSnapshot,
         body: commandBody,
         playerKey,
+        networkDebugEnabled: !!(room && room.networkDebugEnabled === true),
         buildAction: (input: any, fallbackActor: any, fallbackTurnIndex: any) => NetworkActionSchema.buildAction(input, fallbackActor, fallbackTurnIndex),
         normalizePlayerKey,
         validatePendingSelectionPublish: MatchAuthority.validatePendingSelectionPublish,

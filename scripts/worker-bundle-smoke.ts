@@ -1,13 +1,17 @@
 import { spawn, spawnSync, type ChildProcessByStdio } from 'child_process';
 import * as fs from 'fs';
 import { createServer } from 'net';
+import * as os from 'os';
 import * as path from 'path';
 import type { Readable } from 'stream';
+import { pathToFileURL } from 'url';
 
 const ROOT = fs.existsSync(path.join(process.cwd(), 'wrangler.toml'))
     ? process.cwd()
     : path.resolve(__dirname, '..', '..');
 const STARTUP_TIMEOUT_MS = 60000;
+const BUNDLE_TIMEOUT_MS = 60000;
+const BUNDLED_SCENARIO_TIMEOUT_MS = 30000;
 
 type SmokeProcess = ChildProcessByStdio<null, Readable, Readable>;
 
@@ -23,6 +27,262 @@ function wait(milliseconds: number): Promise<void> {
 
 function assertTrue(value: unknown, message: string): asserts value {
     if (!value) throw new Error(message);
+}
+
+function runNpx(args: string[]): ReturnType<typeof spawnSync> {
+    const isWindows = process.platform === 'win32';
+    return spawnSync(
+        isWindows ? (process.env.ComSpec || 'cmd.exe') : 'npx',
+        isWindows ? ['/d', '/s', '/c', 'npx', ...args] : args,
+        {
+            cwd: ROOT,
+            env: process.env,
+            encoding: 'utf8',
+            timeout: BUNDLE_TIMEOUT_MS
+        }
+    );
+}
+
+function describeSpawnFailure(result: ReturnType<typeof spawnSync>): string {
+    if (result.error) return `${result.error.name}: ${result.error.message}`;
+    if (result.signal) return `terminated by ${result.signal}`;
+    return String(result.stderr || result.stdout || '').trim() || `exit status ${String(result.status)}`;
+}
+
+function findBundledWorkerFile(directory: string): string {
+    const candidates: string[] = [];
+    const visit = (current: string) => {
+        for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+            const absolutePath = path.join(current, entry.name);
+            if (entry.isDirectory()) {
+                visit(absolutePath);
+            } else if (entry.isFile() && entry.name.endsWith('.js') && !entry.name.endsWith('.map.js')) {
+                candidates.push(absolutePath);
+            }
+        }
+    };
+    visit(directory);
+    const expected = candidates.find((candidate) => path.basename(candidate) === 'match-worker.js');
+    assertTrue(expected || candidates.length === 1, `Wrangler bundle を特定できませんでした: ${candidates.join(', ')}`);
+    return expected || candidates[0];
+}
+
+function runBundledAuthorityScenarios(bundleModuleUrl: string): any {
+    const runner = [
+        "import { createRequire } from 'module';",
+        "import path from 'path';",
+        "globalThis.self = globalThis;",
+        "delete globalThis.require;",
+        "if (typeof globalThis.require !== 'undefined') throw new Error('bundle runner unexpectedly exposes global require');",
+        "const bundleUrl = process.argv[1];",
+        "const root = process.argv[2];",
+        "const bundled = await import(bundleUrl);",
+        "const rootRequire = createRequire(import.meta.url);",
+        "const MatchRoomDurableObject = bundled.MatchRoomDurableObjectV3 || bundled.MatchRoomDurableObject;",
+        "if (typeof MatchRoomDurableObject !== 'function') throw new Error('bundled Durable Object export is unavailable');",
+        "const Core = rootRequire(path.resolve(root, 'game/logic/core.js'));",
+        "const CardLogic = rootRequire(path.resolve(root, 'game/logic/cards.js'));",
+        "const TurnPipelinePhases = rootRequire(path.resolve(root, 'game/turn/turn_pipeline_phases.js'));",
+        "const SeededPRNG = rootRequire(path.resolve(root, 'game/schema/prng.js'));",
+        "const storage = new Map();",
+        "const durableObject = new MatchRoomDurableObject({ storage: {",
+        "  get: async (key) => storage.get(key),",
+        "  put: async (key, value) => storage.set(key, value),",
+        "  delete: async (key) => storage.delete(key),",
+        "  setAlarm: async () => {},",
+        "  deleteAlarm: async () => {}",
+        "} });",
+        "durableObject.broadcastSnapshot = async () => {};",
+        "const prng = SeededPRNG.createPRNG(31);",
+        "const gameState = Core.createGameState();",
+        "const cardState = CardLogic.createCardState(prng);",
+        "TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', [], prng);",
+        "cardState.hands.black = [];",
+        "cardState._handCopyIdsByPlayer.black = [];",
+        "cardState.cardCostOverridesByCopyId = {};",
+        "cardState.cardCostModifiersByCopyId = {};",
+        "cardState.charge.black = 9;",
+        "cardState.pendingEffectByPlayer.black = null;",
+        "cardState.hasUsedCardThisTurnByPlayer.black = false;",
+        "CardLogic.addCardToHand(cardState, 'black', 'poison_will_01');",
+        "const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
+        "  roomId: 'BNDL', playerName: 'bundle黒', seed: 31, networkAutoEnabled: true,",
+        "  snapshot: { gameState, cardState }",
+        "});",
+        "const created = await createResponse.json();",
+        "if (!createResponse.ok || created.ok !== true) throw new Error(`bundled create failed status=${createResponse.status}`);",
+        "const turnIndex = created.snapshot.cardState.turnIndex;",
+        "const publishResponse = await durableObject.handlePublish({",
+        "  roomId: created.roomId,",
+        "  seatKey: 'black', playerKey: 'black', seatToken: created.seatToken,",
+        "  baseVersion: created.stateVersion, operationId: 'op_bundle_poison_auto_1',",
+        "  actionType: 'auto_turn', actor: 'black', turnIndex,",
+        "  action: {",
+        "    type: 'auto_turn',",
+        "    preferredActionType: 'use_card',",
+        "    preferredAction: { type: 'use_card', playerKey: 'black', useCardId: 'poison_will_01', turnIndex }",
+        "  }",
+        "});",
+        "const published = await publishResponse.json();",
+        "const continuationStorage = new Map();",
+        "const continuationDurableObject = new MatchRoomDurableObject({ storage: {",
+        "  get: async (key) => continuationStorage.get(key),",
+        "  put: async (key, value) => continuationStorage.set(key, value),",
+        "  delete: async (key) => continuationStorage.delete(key),",
+        "  setAlarm: async () => {},",
+        "  deleteAlarm: async () => {}",
+        "} });",
+        "continuationDurableObject.broadcastSnapshot = async () => {};",
+        "const continuationPrng = SeededPRNG.createPRNG(32);",
+        "const continuationGameState = Core.createGameState();",
+        "const continuationCardState = CardLogic.createCardState(continuationPrng);",
+        "TurnPipelinePhases.applyTurnStartPhase(",
+        "  CardLogic, Core, continuationCardState, continuationGameState, 'black', [], continuationPrng",
+        ");",
+        "continuationGameState.currentPlayer = 1;",
+        "continuationGameState.consecutivePasses = 0;",
+        "continuationGameState.resultShown = false;",
+        "continuationCardState.lastTurnStartedFor = 'black';",
+        "continuationCardState._activeTurnPlayer = 'black';",
+        "continuationCardState.pendingEffectByPlayer.black = null;",
+        "continuationCardState.extraPlaceRemainingByPlayer.black = 1;",
+        "continuationCardState.infinitePlaceActiveByPlayer.black = false;",
+        "continuationCardState.multiPlaceSourceTypeByPlayer.black = 'DOUBLE_PLACE';",
+        "continuationCardState.hands.black = [];",
+        "continuationCardState._handCopyIdsByPlayer.black = [];",
+        "continuationCardState.discard = [];",
+        "CardLogic.addCardToHand(continuationCardState, 'black', 'work_01');",
+        "continuationCardState.charge.black = 99;",
+        "continuationCardState.hasUsedCardThisTurnByPlayer.black = true;",
+        "continuationCardState.lastUsedCardByPlayer.black = 'double_01';",
+        "const continuationCreateResponse = await continuationDurableObject.handleInternalCreate(",
+        "  new URL('https://room/internal/create'),",
+        "  {",
+        "    roomId: 'BND2', playerName: 'bundle継続黒', seed: 32, networkAutoEnabled: true,",
+        "    snapshot: { gameState: continuationGameState, cardState: continuationCardState }",
+        "  }",
+        ");",
+        "const continuationCreated = await continuationCreateResponse.json();",
+        "if (!continuationCreateResponse.ok || continuationCreated.ok !== true) {",
+        "  throw new Error(`bundled continuation create failed status=${continuationCreateResponse.status}`);",
+        "}",
+        "const continuationTurnIndex = continuationCreated.snapshot.cardState.turnIndex;",
+        "const continuationPublishResponse = await continuationDurableObject.handlePublish({",
+        "  roomId: continuationCreated.roomId,",
+        "  seatKey: 'black', playerKey: 'black', seatToken: continuationCreated.seatToken,",
+        "  baseVersion: continuationCreated.stateVersion, operationId: 'op_bundle_double_continuation_1',",
+        "  actionType: 'auto_turn', actor: 'black', turnIndex: continuationTurnIndex,",
+        "  action: {",
+        "    type: 'auto_turn',",
+        "    preferredActionType: 'use_card',",
+        "    preferredAction: {",
+        "      type: 'use_card', playerKey: 'black', useCardId: 'work_01',",
+        "      useCardOwnerKey: 'black', useCardHandIndex: 0, turnIndex: continuationTurnIndex",
+        "    }",
+        "  }",
+        "});",
+        "const continuationPublished = await continuationPublishResponse.json();",
+        "process.stdout.write(JSON.stringify({",
+        "  poison: { status: publishResponse.status, payload: published },",
+        "  doublePlace: { status: continuationPublishResponse.status, payload: continuationPublished }",
+        "}));"
+    ].join('\n');
+    const result = spawnSync(
+        process.execPath,
+        ['--input-type=module', '-e', runner, bundleModuleUrl, ROOT],
+        {
+            cwd: ROOT,
+            env: process.env,
+            encoding: 'utf8',
+            timeout: BUNDLED_SCENARIO_TIMEOUT_MS
+        }
+    );
+    assertTrue(
+        result.status === 0,
+        `bundled authority scenario runner failed\n${describeSpawnFailure(result)}`
+    );
+    return JSON.parse(String(result.stdout || '{}'));
+}
+
+function verifyBundledAuthorityScenarios(): void {
+    const bundleDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'card-reversi-worker-bundle-smoke-'));
+    try {
+        const bundled = runNpx(['wrangler', 'deploy', '--dry-run', '--outdir', bundleDirectory]);
+        assertTrue(
+            bundled.status === 0,
+            `Wrangler dry-run bundle failed\n${describeSpawnFailure(bundled)}`
+        );
+        const bundleFile = findBundledWorkerFile(bundleDirectory);
+        const moduleFile = path.join(bundleDirectory, 'match-worker.bundle-smoke.mjs');
+        fs.copyFileSync(bundleFile, moduleFile);
+        const result = runBundledAuthorityScenarios(pathToFileURL(moduleFile).href);
+        const poison = result && result.poison;
+        const pending = poison
+            && poison.payload
+            && poison.payload.snapshot
+            && poison.payload.snapshot.cardState
+            && poison.payload.snapshot.cardState.pendingEffectByPlayer
+            && poison.payload.snapshot.cardState.pendingEffectByPlayer.black;
+        assertTrue(
+            poison && poison.status === 200 && poison.payload && poison.payload.ok === true,
+            `bundled poison AUTO failed status=${poison && poison.status} body=${JSON.stringify(poison && poison.payload)}`
+        );
+        assertTrue(
+            pending && pending.type === 'POISON_WILL' && pending.stage === 'selectTarget',
+            `bundled poison AUTO did not enter POISON_WILL selection: ${JSON.stringify(pending)}`
+        );
+        console.log('[worker-bundle-smoke] bundled poison AUTO passed');
+
+        const doublePlace = result && result.doublePlace;
+        const doublePlaceSnapshot = doublePlace && doublePlace.payload && doublePlace.payload.snapshot;
+        const doublePlaceGameState = doublePlaceSnapshot && doublePlaceSnapshot.gameState;
+        const doublePlaceCardState = doublePlaceSnapshot && doublePlaceSnapshot.cardState;
+        assertTrue(
+            doublePlace && doublePlace.status === 200 && doublePlace.payload && doublePlace.payload.ok === true,
+            `bundled DOUBLE_PLACE continuation failed status=${doublePlace && doublePlace.status} body=${JSON.stringify(doublePlace && doublePlace.payload)}`
+        );
+        assertTrue(
+            doublePlaceGameState
+            && Array.isArray(doublePlaceGameState.board)
+            && doublePlaceGameState.board[2]
+            && doublePlaceGameState.board[2][3] === 1,
+            'bundled DOUBLE_PLACE continuation did not place the expected stone'
+        );
+        assertTrue(
+            doublePlaceCardState
+            && Array.isArray(doublePlaceCardState.hands && doublePlaceCardState.hands.black)
+            && doublePlaceCardState.hands.black.length === 1
+            && doublePlaceCardState.hands.black[0] === 'work_01'
+            && Array.isArray(doublePlaceCardState.discard)
+            && doublePlaceCardState.discard.length === 0,
+            `bundled DOUBLE_PLACE continuation consumed the preferred card: ${JSON.stringify({
+                hand: doublePlaceCardState && doublePlaceCardState.hands && doublePlaceCardState.hands.black,
+                discard: doublePlaceCardState && doublePlaceCardState.discard
+            })}`
+        );
+        assertTrue(
+            doublePlaceCardState
+            && doublePlaceCardState.extraPlaceRemainingByPlayer
+            && doublePlaceCardState.extraPlaceRemainingByPlayer.black === 0
+            && doublePlaceCardState.multiPlaceSourceTypeByPlayer
+            && doublePlaceCardState.multiPlaceSourceTypeByPlayer.black === null,
+            `bundled DOUBLE_PLACE continuation did not settle: ${JSON.stringify({
+                remaining: doublePlaceCardState
+                    && doublePlaceCardState.extraPlaceRemainingByPlayer
+                    && doublePlaceCardState.extraPlaceRemainingByPlayer.black,
+                sourceType: doublePlaceCardState
+                    && doublePlaceCardState.multiPlaceSourceTypeByPlayer
+                    && doublePlaceCardState.multiPlaceSourceTypeByPlayer.black
+            })}`
+        );
+        assertTrue(
+            doublePlaceGameState && doublePlaceGameState.currentPlayer === -1,
+            `bundled DOUBLE_PLACE continuation did not hand off to white: ${String(doublePlaceGameState && doublePlaceGameState.currentPlayer)}`
+        );
+        console.log('[worker-bundle-smoke] bundled DOUBLE_PLACE continuation passed');
+    } finally {
+        fs.rmSync(bundleDirectory, { recursive: true, force: true });
+    }
 }
 
 async function findFreePort(): Promise<number> {
@@ -108,6 +368,8 @@ async function leaveRoom(baseUrl: string, roomId: string, seatKey: string, seatT
 }
 
 async function main(): Promise<void> {
+    verifyBundledAuthorityScenarios();
+
     const port = await findFreePort();
     const baseUrl = `http://127.0.0.1:${port}`;
     const runtime = startWorker(port);

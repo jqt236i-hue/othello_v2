@@ -896,7 +896,8 @@ async function applyCommandPublishToSnapshot(
                 CoreLogic,
                 CardLogic: pipelineModules.CardLogic,
                 PendingCoordinator,
-                PendingSelectionRegistry
+                PendingSelectionRegistry,
+                SubPlacementContinuation: getSubPlacementContinuationModule()
             });
             if (!autoCommand || autoCommand.ok !== true) {
                 return {
@@ -920,6 +921,7 @@ async function applyCommandPublishToSnapshot(
         snapshot: asRecord(currentSnapshot),
         body: commandBody,
         playerKey,
+        networkDebugEnabled: !!(room && room.networkDebugEnabled === true),
         buildAction: (input, fallbackActor, fallbackTurnIndex) => (
             NetworkActionSchema.buildAction as (
                 input: Record<string, unknown>,

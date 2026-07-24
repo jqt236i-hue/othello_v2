@@ -19,6 +19,9 @@ describe('match auto command authority', () => {
   });
 
   test('rewrites an auto_turn request with the canonical planned command', () => {
+    const SubPlacementContinuation = {
+      isSubPlacementTurnActive: jest.fn().mockReturnValue(false)
+    };
     const planner = {
       planCanonicalCpuNetworkCommand: jest.fn().mockReturnValue({
         actionType: 'use_card',
@@ -53,7 +56,8 @@ describe('match auto command authority', () => {
       body,
       snapshot,
       playerKey: 'black',
-      CpuNetworkCommandPlanner: planner
+      CpuNetworkCommandPlanner: planner,
+      SubPlacementContinuation
     })).toEqual(expect.objectContaining({
       ok: true,
       requested: true,
@@ -74,7 +78,8 @@ describe('match auto command authority', () => {
         snapshot,
         playerKey: 'black',
         preferredActionType: 'pass',
-        preferredAction: expect.objectContaining({ type: 'pass' })
+        preferredAction: expect.objectContaining({ type: 'pass' }),
+        SubPlacementContinuation
       })
     );
   });

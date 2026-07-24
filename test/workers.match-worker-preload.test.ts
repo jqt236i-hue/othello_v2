@@ -11,6 +11,11 @@ function toWorkerImportPath(cardLogicImportPath: string): string {
   return `../game/logic/${cardLogicImportPath.slice('./'.length)}.js`;
 }
 
+function toRuntimePreloadImportPathFromEffectResolver(requirePath: string): string {
+  const sourcePath = path.posix.normalize(path.posix.join('game/cards', requirePath));
+  return `../${sourcePath}.js`;
+}
+
 function toRuntimePreloadImportPathFromTurnPhase(requirePath: string): string {
   if (requirePath.startsWith('./')) return `../game/turn/${requirePath.slice('./'.length)}.js`;
   if (requirePath.startsWith('../logic/')) return `../game/logic/${requirePath.slice('../logic/'.length)}.js`;
@@ -53,6 +58,12 @@ function extractStringLiteralMap(source: string, startToken: string, endToken: s
   )).map((match) => [match[1], match[2]]));
 }
 
+function extractRuntimePreloadRegistrations(source: string): Map<string, string> {
+  return new Map(Array.from(source.matchAll(
+    /installRuntimeModule\('([^']+)',\s*\(\)\s*=>\s*require\('([^']+)'\)\)/g
+  )).map((match) => [match[1], match[2]]));
+}
+
 describe('match worker card preload', () => {
   test('preloads every cards-internal dependency required by game/logic/cards', () => {
     const cardLogicSource = readRepoFile('game/logic/cards.ts');
@@ -85,6 +96,23 @@ describe('match worker card preload', () => {
     expect(dependencies.length).toBeGreaterThan(0);
     for (const dependency of dependencies) {
       expectRuntimePreloadRegistration(runtimePreloadSource, dependency.globalKey, dependency.importPath);
+    }
+  });
+
+  test('runtime preload exposes every module dynamically resolved by the card effect resolver', () => {
+    const effectResolverSource = readRepoFile('game/cards/effect-resolver.ts');
+    const runtimePreloadSource = readRepoFile('workers/match-worker-runtime-preload.ts');
+    const registrations = extractRuntimePreloadRegistrations(runtimePreloadSource);
+    const dependencies = Array.from(effectResolverSource.matchAll(
+      /loadRuntimeModule\(\s*'([^']+)'\s*,\s*'([^']+)'/g
+    )).map((match) => ({
+      importPath: toRuntimePreloadImportPathFromEffectResolver(match[1]),
+      globalKey: match[2]
+    }));
+
+    expect(dependencies.length).toBeGreaterThan(0);
+    for (const dependency of dependencies) {
+      expect(registrations.get(dependency.globalKey)).toBe(dependency.importPath);
     }
   });
 

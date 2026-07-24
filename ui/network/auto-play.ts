@@ -17,6 +17,7 @@ let pendingCoordinatorModule: any = null;
 let pendingSelectionRegistryModule: any = null;
 let cardLogicModule: any = null;
 let coreLogicModule: any = null;
+let subPlacementContinuationModule: any = null;
 
 function normalizePlayerKey(value: any): string {
   const raw = String(value || '').trim().toLowerCase();
@@ -107,6 +108,29 @@ function resolveCoreLogic(root: NetworkAutoRoot): any | null {
       || safeRequire('../game/logic/core');
   }
   return coreLogicModule;
+}
+
+function resolveSubPlacementContinuation(root: NetworkAutoRoot): any | null {
+  if (root && root.SubPlacementContinuation) return root.SubPlacementContinuation;
+  if (root && root.TurnSubPlacementContinuation) return root.TurnSubPlacementContinuation;
+  if (typeof globalThis !== 'undefined') {
+    if ((globalThis as any).SubPlacementContinuation) {
+      return (globalThis as any).SubPlacementContinuation;
+    }
+    if ((globalThis as any).TurnSubPlacementContinuation) {
+      return (globalThis as any).TurnSubPlacementContinuation;
+    }
+  }
+  if (!subPlacementContinuationModule && root && typeof root.require === 'function') {
+    try {
+      subPlacementContinuationModule = root.require('game/turn/sub-placement-continuation');
+    } catch (e) { /* fall through */ }
+  }
+  if (!subPlacementContinuationModule) {
+    subPlacementContinuationModule = safeRequire('../../game/turn/sub-placement-continuation')
+      || safeRequire('../game/turn/sub-placement-continuation');
+  }
+  return subPlacementContinuationModule;
 }
 
 function isGameAlreadyOver(root: NetworkAutoRoot, state: any): boolean {
@@ -223,7 +247,8 @@ function createPlannerInput(root: NetworkAutoRoot, state: any, playerKey: string
     CoreLogic: root && (root.CoreLogic || root.Core),
     CardLogic: resolveCardLogic(root),
     PendingCoordinator: resolvePendingCoordinator(root),
-    PendingSelectionRegistry: resolvePendingSelectionRegistry(root)
+    PendingSelectionRegistry: resolvePendingSelectionRegistry(root),
+    SubPlacementContinuation: resolveSubPlacementContinuation(root)
   };
 }
 

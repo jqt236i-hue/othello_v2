@@ -56,7 +56,8 @@ export function resolveMatchAutoTurnPublishBody(optionsValue: any): any {
     CoreLogic: options.CoreLogic,
     CardLogic: options.CardLogic,
     PendingCoordinator: options.PendingCoordinator,
-    PendingSelectionRegistry: options.PendingSelectionRegistry
+    PendingSelectionRegistry: options.PendingSelectionRegistry,
+    SubPlacementContinuation: options.SubPlacementContinuation
   });
   const plannedAction = asRecord(planned && planned.action);
   const plannedActionType = normalizeActionType(

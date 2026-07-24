@@ -365,6 +365,116 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('card-use debug options are authority-gated and allowlisted by the room', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const baseVersion = Number(created.data.stateVersion);
+      const turnIndex = 17;
+
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        const snapshot = room.snapshot;
+        room.networkDebugEnabled = false;
+        snapshot.gameState.currentPlayer = Core.BLACK;
+        snapshot.gameState.consecutivePasses = 0;
+        snapshot.gameState.resultShown = false;
+        snapshot.cardState.turnIndex = turnIndex;
+        snapshot.cardState.lastTurnStartedFor = 'black';
+        snapshot.cardState._activeTurnPlayer = 'black';
+        snapshot.cardState.pendingEffectByPlayer.black = null;
+        snapshot.cardState.hands.black = [];
+        snapshot.cardState._handCopyIdsByPlayer.black = [];
+        snapshot.cardState.discard = [];
+        CardLogic.addCardToHand(snapshot.cardState, 'black', 'hard_01');
+        snapshot.cardState.charge.black = 99;
+        snapshot.cardState.hasUsedCardThisTurnByPlayer.black = true;
+        snapshot.cardState.lastUsedCardByPlayer.black = 'work_01';
+      })).toBe(true);
+
+      const publishWithDebugOptions = (operationId, debugOptions) => requestJson(
+        port,
+        'POST',
+        '/api/match/publish',
+        {
+          roomId,
+          seatKey: 'black',
+          playerKey: 'black',
+          seatToken: created.data.seatToken,
+          baseVersion,
+          operationId,
+          actionType: 'use_card',
+          actor: 'black',
+          params: {
+            useCardId: 'hard_01',
+            useCardOwnerKey: 'black',
+            useCardHandIndex: 0,
+            debugOptions
+          },
+          turnIndex,
+          action: {
+            type: 'use_card',
+            playerKey: 'black',
+            useCardId: 'hard_01',
+            useCardOwnerKey: 'black',
+            useCardHandIndex: 0,
+            debugOptions,
+            turnIndex
+          }
+        }
+      );
+
+      const unspecified = await publishWithDebugOptions(
+        'op_debug_options_null_unspecified',
+        null
+      );
+      expect(unspecified.status).toBe(409);
+      expect(unspecified.data.rejectedReason).toBe('CARD_USE_FAILED');
+      expect(unspecified.data.stateVersion).toBe(baseVersion);
+
+      for (const [operationId, debugOptions] of [
+        ['op_debug_options_no_consume_disabled', { ignoreCost: true, noConsume: true }],
+        ['op_debug_options_turn_limit_disabled', { skipCostAndTurnLimit: true }]
+      ]) {
+        const rejected = await publishWithDebugOptions(operationId, debugOptions);
+        expect(rejected.status).toBe(409);
+        expect(rejected.data.rejectedReason).toBe('NETWORK_DEBUG_DISABLED');
+        expect(rejected.data.stateVersion).toBe(baseVersion);
+        expect(rejected.data.snapshot.cardState.hands.black).toEqual(['hard_01']);
+        expect(rejected.data.snapshot.cardState.charge.black).toBe(99);
+        expect(rejected.data.snapshot.cardState.lastUsedCardByPlayer.black).toBe('work_01');
+      }
+
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        room.networkDebugEnabled = true;
+      })).toBe(true);
+
+      const invalid = await publishWithDebugOptions(
+        'op_debug_options_unknown_enabled',
+        { ignoreCost: true, noConsume: true, skipCostAndTurnLimit: true }
+      );
+      expect(invalid.status).toBe(409);
+      expect(invalid.data.rejectedReason).toBe('NETWORK_DEBUG_OPTIONS_INVALID');
+      expect(invalid.data.stateVersion).toBe(baseVersion);
+
+      const allowed = await publishWithDebugOptions(
+        'op_debug_options_allowlisted_enabled',
+        { noConsume: true, ignoreCost: true }
+      );
+      expect(allowed.status).toBe(200);
+      expect(allowed.data.ok).toBe(true);
+      expect(allowed.data.stateVersion).toBe(baseVersion + 1);
+      expect(allowed.data.snapshot.cardState.hands.black).toEqual(['hard_01']);
+      expect(allowed.data.snapshot.cardState.charge.black).toBe(99);
+      expect(allowed.data.snapshot.cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
+      expect(allowed.data.snapshot.cardState.lastUsedCardByPlayer.black).toBe('hard_01');
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('oversized request body closes the local connection while rejecting parse', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);
@@ -1866,6 +1976,162 @@ describe('local match server publish contract', () => {
       expect(response.data.snapshot.cardState.lastTurnStartedFor).toBe('white');
       expect(response.data.snapshot.cardState._activeTurnPlayer).toBe('white');
       expect(response.data.snapshot.cardState.turnIndex).toBe(turnIndex + 1);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('direct second use_card is rejected without changing authoritative card state', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const blackSeatToken = created.data.seatToken;
+      const turnIndex = 21;
+
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        const snapshot = room.snapshot;
+        snapshot.gameState.currentPlayer = 1;
+        snapshot.gameState.turnNumber = 8;
+        snapshot.gameState.consecutivePasses = 0;
+        snapshot.gameState.resultShown = false;
+        snapshot.cardState.turnIndex = turnIndex;
+        snapshot.cardState.lastTurnStartedFor = 'black';
+        snapshot.cardState._activeTurnPlayer = 'black';
+        snapshot.cardState.pendingEffectByPlayer.black = null;
+        snapshot.cardState.extraPlaceRemainingByPlayer.black = 0;
+        snapshot.cardState.infinitePlaceActiveByPlayer.black = false;
+        snapshot.cardState.hands.black = [];
+        snapshot.cardState._handCopyIdsByPlayer.black = [];
+        snapshot.cardState.discard = [];
+        CardLogic.addCardToHand(snapshot.cardState, 'black', 'work_01');
+        snapshot.cardState.charge.black = 99;
+        snapshot.cardState.hasUsedCardThisTurnByPlayer.black = true;
+        snapshot.cardState.lastUsedCardByPlayer.black = 'hard_01';
+      })).toBe(true);
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken: blackSeatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_second_card_rejected_1',
+        actionType: 'use_card',
+        actor: 'black',
+        params: {
+          useCardId: 'work_01',
+          useCardOwnerKey: 'black',
+          useCardHandIndex: 0
+        },
+        turnIndex,
+        action: {
+          type: 'use_card',
+          playerKey: 'black',
+          useCardId: 'work_01',
+          useCardOwnerKey: 'black',
+          useCardHandIndex: 0,
+          turnIndex
+        }
+      });
+
+      expect(response.status).toBe(409);
+      expect(response.data).toEqual(expect.objectContaining({
+        ok: false,
+        stateVersion: created.data.stateVersion,
+        rejectedReason: 'CARD_USE_FAILED',
+        publishMeta: expect.objectContaining({
+          kind: 'rejected',
+          operationId: 'op_second_card_rejected_1',
+          rejectedReason: 'CARD_USE_FAILED'
+        })
+      }));
+      expect(response.data.snapshot.cardState.hands.black).toEqual(['work_01']);
+      expect(response.data.snapshot.cardState.charge.black).toBe(99);
+      expect(response.data.snapshot.cardState.discard).toEqual([]);
+      expect(response.data.snapshot.cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
+      expect(response.data.snapshot.cardState.lastUsedCardByPlayer.black).toBe('hard_01');
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('auto_turn places the continuation stone instead of selecting a card during DOUBLE_PLACE', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ',
+        networkAutoEnabled: true
+      });
+      const roomId = created.data.roomId;
+      const blackSeatToken = created.data.seatToken;
+      const turnIndex = 22;
+
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        room.networkAutoEnabled = true;
+        const snapshot = room.snapshot;
+        snapshot.gameState.currentPlayer = 1;
+        snapshot.gameState.turnNumber = 8;
+        snapshot.gameState.consecutivePasses = 0;
+        snapshot.gameState.resultShown = false;
+        snapshot.cardState.turnIndex = turnIndex;
+        snapshot.cardState.lastTurnStartedFor = 'black';
+        snapshot.cardState._activeTurnPlayer = 'black';
+        snapshot.cardState.pendingEffectByPlayer.black = null;
+        snapshot.cardState.extraPlaceRemainingByPlayer.black = 1;
+        snapshot.cardState.infinitePlaceActiveByPlayer.black = false;
+        snapshot.cardState.multiPlaceSourceTypeByPlayer.black = 'DOUBLE_PLACE';
+        snapshot.cardState.hands.black = [];
+        snapshot.cardState._handCopyIdsByPlayer.black = [];
+        snapshot.cardState.discard = [];
+        CardLogic.addCardToHand(snapshot.cardState, 'black', 'work_01');
+        snapshot.cardState.charge.black = 99;
+        snapshot.cardState.hasUsedCardThisTurnByPlayer.black = true;
+        snapshot.cardState.lastUsedCardByPlayer.black = 'double_01';
+      })).toBe(true);
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken: blackSeatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_auto_double_continuation_1',
+        actionType: 'auto_turn',
+        actor: 'black',
+        turnIndex,
+        action: {
+          type: 'auto_turn',
+          preferredActionType: 'use_card',
+          preferredAction: {
+            type: 'use_card',
+            playerKey: 'black',
+            useCardId: 'work_01',
+            useCardOwnerKey: 'black',
+            useCardHandIndex: 0
+          }
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data).toEqual(expect.objectContaining({
+        ok: true,
+        publishMeta: expect.objectContaining({
+          kind: 'accepted',
+          operationId: 'op_auto_double_continuation_1',
+          actionType: 'auto_turn'
+        })
+      }));
+      expect(response.data.snapshot.gameState.board[2][3]).toBe(1);
+      expect(response.data.snapshot.cardState.hands.black).toEqual(['work_01']);
+      expect(response.data.snapshot.cardState.discard).toEqual([]);
+      expect(response.data.snapshot.cardState.extraPlaceRemainingByPlayer.black).toBe(0);
+      expect(response.data.snapshot.cardState.multiPlaceSourceTypeByPlayer.black).toBeNull();
+      expect(response.data.snapshot.gameState.currentPlayer).toBe(-1);
     } finally {
       await closeServer(server);
     }

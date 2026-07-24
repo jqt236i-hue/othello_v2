@@ -200,6 +200,78 @@ function runWorkerPublish(initialSnapshot, stateVersion, body, seed = 71) {
   return JSON.parse(output.slice(markerIndex + WORKER_RESULT_MARKER.length));
 }
 
+test('worker authority gates and allowlists card-use debug options', () => {
+  const runScenario = (networkDebugEnabled, debugOptions, operationId) => {
+    const runtime = createCardUseRuntime('hard_01', 79);
+    const snapshot = runtime.getSnapshot();
+    snapshot.cardState.debugHandFilled = networkDebugEnabled === true;
+    snapshot.cardState.lastTurnStartedFor = 'black';
+    snapshot.cardState._activeTurnPlayer = 'black';
+    snapshot.cardState.hasUsedCardThisTurnByPlayer.black = true;
+    snapshot.cardState.lastUsedCardByPlayer.black = 'work_01';
+    runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(snapshot);
+    const body = buildUseCardBody(runtime, 'hard_01', operationId);
+    body.params.debugOptions = debugOptions;
+    body.action.debugOptions = debugOptions;
+    return runWorkerPublish(
+      clone(snapshot),
+      runtime.getRoom().stateVersion,
+      body,
+      79
+    );
+  };
+
+  const noConsumeDisabled = runScenario(
+    false,
+    { ignoreCost: true, noConsume: true },
+    'op_worker_debug_options_no_consume_disabled'
+  );
+  expect(noConsumeDisabled.status).toBe(409);
+  expect(noConsumeDisabled.payload.rejectedReason).toBe('NETWORK_DEBUG_DISABLED');
+  expect(noConsumeDisabled.payload.stateVersion).toBe(0);
+  expect(noConsumeDisabled.payload.snapshot.cardState.hands.black).toEqual(['hard_01']);
+  expect(noConsumeDisabled.payload.snapshot.cardState.lastUsedCardByPlayer.black).toBe('work_01');
+
+  const unspecified = runScenario(
+    false,
+    null,
+    'op_worker_debug_options_null_unspecified'
+  );
+  expect(unspecified.status).toBe(409);
+  expect(unspecified.payload.rejectedReason).toBe('CARD_USE_FAILED');
+  expect(unspecified.payload.stateVersion).toBe(0);
+
+  const turnLimitDisabled = runScenario(
+    false,
+    { skipCostAndTurnLimit: true },
+    'op_worker_debug_options_turn_limit_disabled'
+  );
+  expect(turnLimitDisabled.status).toBe(409);
+  expect(turnLimitDisabled.payload.rejectedReason).toBe('NETWORK_DEBUG_DISABLED');
+
+  const unknownEnabled = runScenario(
+    true,
+    { ignoreCost: true, noConsume: true, skipCostAndTurnLimit: true },
+    'op_worker_debug_options_unknown_enabled'
+  );
+  expect(unknownEnabled.status).toBe(409);
+  expect(unknownEnabled.payload.rejectedReason).toBe('NETWORK_DEBUG_OPTIONS_INVALID');
+  expect(unknownEnabled.payload.stateVersion).toBe(0);
+
+  const allowlistedEnabled = runScenario(
+    true,
+    { noConsume: true, ignoreCost: true },
+    'op_worker_debug_options_allowlisted_enabled'
+  );
+  expect(allowlistedEnabled.status).toBe(200);
+  expect(allowlistedEnabled.payload.ok).toBe(true);
+  expect(allowlistedEnabled.payload.stateVersion).toBe(1);
+  expect(allowlistedEnabled.payload.snapshot.cardState.hands.black).toEqual(['hard_01']);
+  expect(allowlistedEnabled.payload.snapshot.cardState.charge.black).toBe(99);
+  expect(allowlistedEnabled.payload.snapshot.cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
+  expect(allowlistedEnabled.payload.snapshot.cardState.lastUsedCardByPlayer.black).toBe('hard_01');
+});
+
 function runWorkerPendingSelectionPlaceParityScenario(config) {
   const cardId = config.cardId;
   const seed = Number.isFinite(Number(config.seed)) ? Number(config.seed) : 71;

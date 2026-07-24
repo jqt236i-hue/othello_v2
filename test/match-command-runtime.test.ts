@@ -110,4 +110,98 @@ describe('match command runtime port', () => {
       validatePendingSelectionPublish: () => ({ ok: false, rejectedReason: 'STALE_PENDING_SELECTION' })
     })).toEqual({ ok: false, rejectedReason: 'STALE_PENDING_SELECTION' });
   });
+
+  test.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['empty object', {}]
+  ])('treats %s network debug options as unspecified and strips them', (_label, debugOptions) => {
+    const sanitizePendingSelectionActionForAuthority = jest.fn((_snapshot, _playerKey, action) => action);
+    const prepared = prepareMatchCommandAction({
+      snapshot: { cardState: { turnIndex: 3 } },
+      body: { actionType: 'use_card' },
+      playerKey: 'black',
+      networkDebugEnabled: false,
+      buildAction: () => ({
+        actor: 'black',
+        action: { type: 'use_card', debugOptions }
+      }),
+      normalizePlayerKey: (value) => value,
+      validatePendingSelectionPublish: () => ({ ok: true }),
+      sanitizePendingSelectionActionForAuthority
+    });
+
+    expect(prepared).toEqual(expect.objectContaining({ ok: true }));
+    expect(sanitizePendingSelectionActionForAuthority).toHaveBeenCalledWith(
+      expect.any(Object),
+      'black',
+      { type: 'use_card' }
+    );
+  });
+
+  test.each([
+    ['no-consume', { ignoreCost: true, noConsume: true }],
+    ['turn-limit bypass', { skipCostAndTurnLimit: true }]
+  ])('rejects non-empty %s options when network debug is disabled', (_label, debugOptions) => {
+    expect(prepareMatchCommandAction({
+      snapshot: { cardState: { turnIndex: 3 } },
+      body: { actionType: 'use_card' },
+      playerKey: 'black',
+      networkDebugEnabled: false,
+      buildAction: () => ({
+        actor: 'black',
+        action: { type: 'use_card', debugOptions }
+      }),
+      normalizePlayerKey: (value) => value,
+      validatePendingSelectionPublish: () => ({ ok: true }),
+      sanitizePendingSelectionActionForAuthority: (_snapshot, _playerKey, action) => action
+    })).toEqual({ ok: false, rejectedReason: 'NETWORK_DEBUG_DISABLED' });
+  });
+
+  test('allows and canonicalizes the exact server-enabled no-consume debug pair', () => {
+    const prepared = prepareMatchCommandAction({
+      snapshot: { cardState: { turnIndex: 3 } },
+      body: { actionType: 'use_card' },
+      playerKey: 'black',
+      networkDebugEnabled: true,
+      buildAction: () => ({
+        actor: 'black',
+        action: {
+          type: 'use_card',
+          debugOptions: { noConsume: true, ignoreCost: true }
+        }
+      }),
+      normalizePlayerKey: (value) => value,
+      validatePendingSelectionPublish: () => ({ ok: true }),
+      sanitizePendingSelectionActionForAuthority: (_snapshot, _playerKey, action) => action
+    });
+
+    expect(prepared).toEqual(expect.objectContaining({
+      ok: true,
+      resolvedAction: {
+        type: 'use_card',
+        debugOptions: { ignoreCost: true, noConsume: true }
+      }
+    }));
+  });
+
+  test.each([
+    ['turn-limit bypass', { skipCostAndTurnLimit: true }],
+    ['unknown option', { ignoreCost: true, noConsume: true, surprise: true }],
+    ['partial allowlist', { noConsume: true }]
+  ])('rejects %s even when network debug is enabled', (_label, debugOptions) => {
+    expect(prepareMatchCommandAction({
+      snapshot: { cardState: { turnIndex: 3 } },
+      body: { actionType: 'use_card' },
+      playerKey: 'black',
+      networkDebugEnabled: true,
+      buildAction: () => ({
+        actor: 'black',
+        action: { type: 'use_card', debugOptions }
+      }),
+      normalizePlayerKey: (value) => value,
+      validatePendingSelectionPublish: () => ({ ok: true }),
+      sanitizePendingSelectionActionForAuthority: (_snapshot, _playerKey, action) => action
+    })).toEqual({ ok: false, rejectedReason: 'NETWORK_DEBUG_OPTIONS_INVALID' });
+  });
 });

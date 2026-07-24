@@ -21,6 +21,27 @@ function readCardTypeUnion(): string[] {
   return Array.from(match[1].matchAll(/'([^']+)'/g)).map((entry) => entry[1]);
 }
 
+function sliceBalancedObject(source: string, startToken: string): string {
+  const tokenIndex = source.indexOf(startToken);
+  if (tokenIndex < 0) return '';
+  const openIndex = source.indexOf('{', tokenIndex);
+  if (openIndex < 0) return '';
+  let depth = 0;
+  for (let index = openIndex; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1;
+    if (source[index] !== '}') continue;
+    depth -= 1;
+    if (depth === 0) return source.slice(openIndex + 1, index);
+  }
+  return '';
+}
+
+function extractShorthandIdentifiers(source: string): Set<string> {
+  return new Set(Array.from(source.matchAll(
+    /^\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*,\s*$/gm
+  )).map((match) => match[1]));
+}
+
 describe('pending selection card contracts', () => {
   test('catalog card types are represented by src/types/card.ts CardType', () => {
     const catalog = readJson('cards/catalog.json');
@@ -118,6 +139,33 @@ describe('pending selection card contracts', () => {
       context[entry.target.method] = () => insufficientTargets;
       expect(CardUsagePrechecks.validateCardUsagePreconditions(context).ok).toBe(false);
     }
+  });
+
+  test('card usage validation explicitly forwards every registry target resolver', () => {
+    const validationSource = fs.readFileSync(
+      path.join(repoRoot, 'game/cards/card-usage-validation-stage.ts'),
+      'utf8'
+    );
+    const dependencyBlock = validationSource.slice(
+      validationSource.indexOf('const {'),
+      validationSource.indexOf('} = options.deps || {};')
+    );
+    const precheckBlock = sliceBalancedObject(
+      validationSource,
+      'validateCardUsagePreconditions({'
+    );
+    const destructuredDependencies = extractShorthandIdentifiers(dependencyBlock);
+    const forwardedDependencies = extractShorthandIdentifiers(precheckBlock);
+    const registryTargetMethods = Array.from(new Set(
+      Object.values(PendingSelectionRegistry.PENDING_SELECTION_REGISTRY as any)
+        .map((entry: any) => entry && entry.target && entry.target.method)
+        .filter(Boolean)
+    )).sort();
+
+    expect(registryTargetMethods).toHaveLength(31);
+    expect(precheckBlock).not.toBe('');
+    expect(registryTargetMethods.filter((method) => !destructuredDependencies.has(method))).toEqual([]);
+    expect(registryTargetMethods.filter((method) => !forwardedDependencies.has(method))).toEqual([]);
   });
 
   test('registry action fields drive pending target action construction', () => {

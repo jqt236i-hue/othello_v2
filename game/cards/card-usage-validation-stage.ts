@@ -62,6 +62,7 @@ function prepareCardUsageValidation(options: CardUsageValidationStageOptions): a
     getBoardShrinkTargets,
     getBoardShrinkGodTargets,
     getBlockadeTargets,
+    getPoisonTargets,
     getMeteorTargets,
     getCausalReplayTargets,
     getFreezeTargets,
@@ -84,6 +85,17 @@ function prepareCardUsageValidation(options: CardUsageValidationStageOptions): a
   const chargeOwnerKey = options.playerKey;
   const handKey = (typeof handOwnerKey === 'string' && handOwnerKey) ? handOwnerKey : options.playerKey;
   if (!options.cardState || !options.cardState.hands || !Array.isArray(options.cardState.hands[handKey])) return { ok: false };
+  const bypassTurnUseGuard = validationOptions.noConsume === true;
+  if (
+    !bypassTurnUseGuard
+    && (
+      !options.CardHandManagerModule
+      || typeof options.CardHandManagerModule.canConsumeCardUseForTurn !== 'function'
+      || options.CardHandManagerModule.canConsumeCardUseForTurn(options.cardState, chargeOwnerKey) !== true
+    )
+  ) {
+    return { ok: false };
+  }
 
   const cardPlayLocked = typeof isCardPlayLockedForPlayer === 'function'
     ? isCardPlayLockedForPlayer(options.cardState, chargeOwnerKey) === true
@@ -168,6 +180,7 @@ function prepareCardUsageValidation(options: CardUsageValidationStageOptions): a
       getBoardShrinkTargets,
       getBoardShrinkGodTargets,
       getBlockadeTargets,
+      getPoisonTargets,
       getMeteorTargets,
       getCausalReplayTargets,
       getFreezeTargets,

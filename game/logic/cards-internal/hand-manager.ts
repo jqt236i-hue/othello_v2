@@ -940,6 +940,15 @@ function resolveHandIndexForCard(cardState: any, playerKey: string, cardId: stri
     return hand.indexOf(cardId);
 }
 
+function canConsumeCardUseForTurn(cardState: any, playerKey: string): boolean {
+    const usageByPlayer = cardState && (cardState as any).hasUsedCardThisTurnByPlayer;
+    return !(
+        usageByPlayer
+        && typeof usageByPlayer === 'object'
+        && usageByPlayer[playerKey] === true
+    );
+}
+
 function canUseCard(cardState: any, playerKey: string, cardId: string, context: Context, opts?: any): boolean {
     const { RIBO_WILL_UNLOCK_TURN_INDEX } = getConstants(context);
     const hands = cardState && cardState.hands;
@@ -949,8 +958,7 @@ function canUseCard(cardState: any, playerKey: string, cardId: string, context: 
     const hasLiveTurnUsageFlag = !skipCostAndTurnLimit
         && cardState
         && (cardState as any).lastTurnStartedFor === playerKey
-        && (cardState as any).hasUsedCardThisTurnByPlayer
-        && (cardState as any).hasUsedCardThisTurnByPlayer[playerKey];
+        && !canConsumeCardUseForTurn(cardState, playerKey);
     if (hasLiveTurnUsageFlag) return false;
     const handIndex = resolveHandIndexForCard(cardState, playerKey, cardId, opts);
     if (handIndex < 0) return false;
@@ -1243,6 +1251,7 @@ export = {
     getCardCodeName,
     getCardCost,
     resolveHandIndexForCard,
+    canConsumeCardUseForTurn,
     canUseCard,
     ensureHandDestroyFlags,
     ensureCardCopyState,

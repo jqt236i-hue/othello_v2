@@ -16,6 +16,9 @@ function createRoot(overrides: any = {}) {
     cardState: {},
     protectedStones: [],
     permaProtectedStones: [],
+    TurnSubPlacementContinuation: {
+      isSubPlacementTurnActive: jest.fn().mockReturnValue(false)
+    },
     getLegalMoves: jest.fn().mockReturnValue([
       { row: 2, col: 3 },
       { row: 4, col: 5 }
@@ -88,7 +91,8 @@ describe('NetworkAutoPlay', () => {
     expect(root.CpuNetworkCommandPlanner.planCpuNetworkCommand).toHaveBeenCalledWith(expect.objectContaining({
       playerKey: 'black',
       gameState: root.gameState,
-      cardState: root.cardState
+      cardState: root.cardState,
+      SubPlacementContinuation: root.TurnSubPlacementContinuation
     }));
     expectAutoTurnPublished(root, 'use_card', plannedAction);
   });
@@ -103,6 +107,36 @@ describe('NetworkAutoPlay', () => {
     expect(result.handled).toBe(true);
     expect(result.reason).toBe('ROOM_AUTO_DISABLED');
     expect(root.NetworkMatchClient.publishCommand).not.toHaveBeenCalled();
+  });
+
+  test('injects sub-placement continuation through the browser root require boundary', async () => {
+    const SubPlacementContinuation = {
+      isSubPlacementTurnActive: jest.fn().mockReturnValue(false)
+    };
+    const planner = {
+      planCpuNetworkCommand: jest.fn().mockReturnValue({
+        actionType: 'place',
+        action: { type: 'place', row: 2, col: 3 }
+      })
+    };
+    const root = createRoot({
+      TurnSubPlacementContinuation: undefined,
+      CpuNetworkCommandPlanner: planner,
+      require: jest.fn((id: string) => (
+        id === 'game/turn/sub-placement-continuation'
+          ? SubPlacementContinuation
+          : null
+      ))
+    });
+    const controller = NetworkAutoPlay.createNetworkAutoPlayController(root);
+
+    const result = await controller.tick();
+
+    expect(result.published).toBe(true);
+    expect(root.require).toHaveBeenCalledWith('game/turn/sub-placement-continuation');
+    expect(planner.planCpuNetworkCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ SubPlacementContinuation })
+    );
   });
 
   test('does not publish for spectators', async () => {

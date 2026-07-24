@@ -172,6 +172,126 @@ describe('CpuNetworkCommandPlanner', () => {
     expect(input.selectCpuMoveWithPolicy).not.toHaveBeenCalled();
   });
 
+  test('uses a legal continuation placement instead of a card during sub-placement', () => {
+    const isSubPlacementTurnActive = jest.fn().mockReturnValue(true);
+    const input = createInput({
+      cardState: {
+        turnIndex: 10,
+        hands: { black: ['work_01'], white: [] },
+        pendingEffectByPlayer: { black: null, white: null },
+        hasUsedCardThisTurnByPlayer: { black: true, white: false },
+        extraPlaceRemainingByPlayer: { black: 1, white: 0 },
+        infinitePlaceActiveByPlayer: { black: false, white: false }
+      },
+      getLegalMoves: jest.fn().mockReturnValue([{ row: 2, col: 3 }]),
+      selectCpuMoveWithPolicy: jest.fn().mockReturnValue({ row: 2, col: 3 }),
+      selectCardToUse: jest.fn().mockReturnValue({ cardId: 'work_01' }),
+      computeCpuAction: jest.fn().mockReturnValue({ type: 'useCard', cardId: 'work_01' }),
+      CardLogic: {
+        hasUsableCard: jest.fn().mockReturnValue(true),
+        getUsableCardIds: jest.fn().mockReturnValue(['work_01'])
+      },
+      SubPlacementContinuation: {
+        isSubPlacementTurnActive
+      }
+    });
+
+    expect(Planner.planCpuNetworkCommand(input)).toEqual({
+      actionType: 'place',
+      action: { type: 'place', row: 2, col: 3 }
+    });
+    expect(input.selectCpuMoveWithPolicy).toHaveBeenCalled();
+    expect(input.selectCardToUse).not.toHaveBeenCalled();
+    expect(input.computeCpuAction).not.toHaveBeenCalled();
+    expect(input.CardLogic.hasUsableCard).not.toHaveBeenCalled();
+    expect(isSubPlacementTurnActive).toHaveBeenCalledWith(input.cardState, 'black');
+  });
+
+  test('canonical planning ignores a preferred card during pending throw-chain placement', () => {
+    const isSubPlacementTurnActive = jest.fn().mockReturnValue(true);
+    const CardLogic = {
+      hasUsableCard: jest.fn().mockReturnValue(true),
+      analyzeCardUsability: jest.fn().mockReturnValue({
+        usableCardIds: ['work_01'],
+        usableSlots: [{ cardId: 'work_01', handIndex: 0 }]
+      }),
+      getCardContext: jest.fn().mockReturnValue({})
+    };
+    const CoreLogic = {
+      getLegalMoves: jest.fn().mockReturnValue([{ row: 2, col: 3 }])
+    };
+
+    expect(Planner.planCanonicalCpuNetworkCommand({
+      playerKey: 'black',
+      snapshot: {
+        gameState: { currentPlayer: 1, turnNumber: 10 },
+        cardState: {
+          turnIndex: 10,
+          hands: { black: ['work_01'], white: [] },
+          pendingEffectByPlayer: {
+            black: { type: 'DOUBLE_PLACE', stage: 'awaitPlace' },
+            white: null
+          },
+          hasUsedCardThisTurnByPlayer: { black: true, white: false }
+        }
+      },
+      preferredActionType: 'use_card',
+      preferredAction: {
+        type: 'use_card',
+        playerKey: 'black',
+        useCardId: 'work_01',
+        useCardOwnerKey: 'black',
+        useCardHandIndex: 0
+      },
+      CardLogic,
+      CoreLogic,
+      SubPlacementContinuation: {
+        isSubPlacementTurnActive
+      }
+    })).toEqual({
+      actionType: 'place',
+      action: { type: 'place', row: 2, col: 3 }
+    });
+    expect(CoreLogic.getLegalMoves).toHaveBeenCalled();
+    expect(CardLogic.hasUsableCard).not.toHaveBeenCalled();
+    expect(CardLogic.analyzeCardUsability).not.toHaveBeenCalled();
+    expect(isSubPlacementTurnActive).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pendingEffectByPlayer: expect.objectContaining({
+          black: expect.objectContaining({ type: 'DOUBLE_PLACE' })
+        })
+      }),
+      'black'
+    );
+  });
+
+  test('fails closed instead of falling back to a card when continuation state has no legal move', () => {
+    const isSubPlacementTurnActive = jest.fn().mockReturnValue(true);
+    const input = createInput({
+      cardState: {
+        turnIndex: 10,
+        hands: { black: ['work_01'], white: [] },
+        pendingEffectByPlayer: { black: null, white: null },
+        hasUsedCardThisTurnByPlayer: { black: true, white: false },
+        infinitePlaceActiveByPlayer: { black: true, white: false }
+      },
+      getLegalMoves: jest.fn().mockReturnValue([]),
+      selectCardToUse: jest.fn().mockReturnValue({ cardId: 'work_01' }),
+      CardLogic: {
+        hasUsableCard: jest.fn().mockReturnValue(true),
+        getUsableCardIds: jest.fn().mockReturnValue(['work_01'])
+      },
+      SubPlacementContinuation: {
+        isSubPlacementTurnActive
+      }
+    });
+
+    expect(Planner.planCpuNetworkCommand(input)).toBeNull();
+    expect(input.selectCardToUse).not.toHaveBeenCalled();
+    expect(input.CardLogic.hasUsableCard).not.toHaveBeenCalled();
+    expect(isSubPlacementTurnActive).toHaveBeenCalled();
+  });
+
   test('does not fallback to the first card while a legal move exists', () => {
     const input = createInput({
       getLegalMoves: jest.fn().mockReturnValue([{ row: 2, col: 3 }]),

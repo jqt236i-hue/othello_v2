@@ -21,6 +21,9 @@ describe('match worker sub-placement turn-start guard', () => {
     );
     expect(workerSource).toContain('const isSubPlacementTurnActive = (');
     expect(workerSource).toContain('SubPlacementContinuation.isSubPlacementTurnActive as (');
+    expect(workerSource).toContain(
+      'SubPlacementContinuation: getSubPlacementContinuationModule()'
+    );
     expect(workerSource).toContain('const skipCommandTurnStart = shouldSkipMatchCommandTurnStart({');
     expect(workerSource).toContain('cardState: preparedCommand.currentCardState');
     expect(workerSource).toContain('isSubPlacementTurnActive');
@@ -33,6 +36,9 @@ describe('match worker sub-placement turn-start guard', () => {
 
     expect(localServerSource).toContain(
       'const postActionPlayerKey = getCurrentPlayerKey(nextSnapshot.gameState);'
+    );
+    expect(localServerSource).toMatch(
+      /PendingSelectionRegistry,\s+SubPlacementContinuation\s+}\);/
     );
     expect(localServerSource).toContain(
       'const shouldReconcilePostActionTurnStart = !skipCommandTurnStart || postActionPlayerKey !== playerKey;'

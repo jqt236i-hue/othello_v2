@@ -43,6 +43,7 @@ export interface PrepareMatchCommandActionOptions {
     snapshot: MatchCommandRecord;
     body: MatchCommandRecord;
     playerKey: string;
+    networkDebugEnabled?: boolean;
     buildAction: (
         input: MatchCommandRecord,
         fallbackActor: unknown,
@@ -88,6 +89,69 @@ function asRecord(value: unknown): MatchCommandRecord {
     return value && typeof value === 'object' ? value as MatchCommandRecord : {};
 }
 
+type NetworkDebugActionValidation =
+    | {
+        ok: false;
+        rejectedReason: string;
+    }
+    | {
+        ok: true;
+        action: MatchCommandRecord;
+    };
+
+function validateNetworkDebugOptions(
+    actionValue: unknown,
+    networkDebugEnabled: boolean
+): NetworkDebugActionValidation {
+    const action = asRecord(actionValue);
+    if (!Object.prototype.hasOwnProperty.call(action, 'debugOptions')) {
+        return { ok: true, action };
+    }
+
+    const debugOptions = action.debugOptions;
+    const hasNoDebugOptions = (
+        debugOptions === null
+        || typeof debugOptions === 'undefined'
+        || (
+            typeof debugOptions === 'object'
+            && !Array.isArray(debugOptions)
+            && Object.keys(debugOptions as MatchCommandRecord).length === 0
+        )
+    );
+    if (hasNoDebugOptions) {
+        const normalizedAction = Object.assign({}, action);
+        delete normalizedAction.debugOptions;
+        return { ok: true, action: normalizedAction };
+    }
+    if (!networkDebugEnabled) {
+        return { ok: false, rejectedReason: 'NETWORK_DEBUG_DISABLED' };
+    }
+    if (!debugOptions || typeof debugOptions !== 'object' || Array.isArray(debugOptions)) {
+        return { ok: false, rejectedReason: 'NETWORK_DEBUG_OPTIONS_INVALID' };
+    }
+    const debugRecord = debugOptions as MatchCommandRecord;
+    const optionKeys = Object.keys(debugRecord).sort();
+    if (
+        optionKeys.length !== 2
+        || optionKeys[0] !== 'ignoreCost'
+        || optionKeys[1] !== 'noConsume'
+        || debugRecord.ignoreCost !== true
+        || debugRecord.noConsume !== true
+    ) {
+        return { ok: false, rejectedReason: 'NETWORK_DEBUG_OPTIONS_INVALID' };
+    }
+
+    return {
+        ok: true,
+        action: Object.assign({}, action, {
+            debugOptions: {
+                ignoreCost: true,
+                noConsume: true
+            }
+        })
+    };
+}
+
 export function prepareMatchCommandAction(
     options: PrepareMatchCommandActionOptions
 ): PreparedMatchCommandAction {
@@ -111,10 +175,19 @@ export function prepareMatchCommandAction(
         return { ok: false, rejectedReason: 'SEAT_MISMATCH' };
     }
 
+    const debugValidation = validateNetworkDebugOptions(
+        builtAction.action,
+        options.networkDebugEnabled === true
+    );
+    if (debugValidation.ok !== true) {
+        return debugValidation;
+    }
+    const authorityAction = debugValidation.action;
+
     const pendingValidation = options.validatePendingSelectionPublish(
         options.snapshot,
         options.playerKey,
-        builtAction.action
+        authorityAction
     );
     if (!pendingValidation || pendingValidation.ok !== true) {
         return {
@@ -132,7 +205,7 @@ export function prepareMatchCommandAction(
         resolvedAction: options.sanitizePendingSelectionActionForAuthority(
             options.snapshot,
             options.playerKey,
-            builtAction.action
+            authorityAction
         ),
         pendingValidation
     };
