@@ -24,7 +24,7 @@ updated: 2026-07-26
 - Phase 10 Tasks 10.1 and 10.2: completed. The user authorized visual verification, and the passing evidence is recorded in [browser-visual-verification-2026-07-11.md](../../refactor-baselines/browser-visual-verification-2026-07-11.md).
 - Phase H Task H.1: completed in an isolated mirror. Evidence and recovery instructions are recorded in [history-rewrite-preflight.md](../../refactor-baselines/history-rewrite-preflight.md).
 - Phase H Task H.2: pending the required second explicit confirmation after review of the H.1 evidence. The authoritative remote has not been modified.
-- Phase 11: independently reviewed; source implementation remains prohibited until Task 11.0 records the reviewed-artifact commit. This is the 2026-07-26 post-convergence safe-cleanup addendum and does not reopen the closed twenty-finding matrix.
+- Phase 11: Task 11.0 complete; Task 11.1 ready. This is the 2026-07-26 post-convergence safe-cleanup addendum and does not reopen the closed twenty-finding matrix.
 
 ## Global Constraints
 
@@ -611,7 +611,7 @@ If a task creates browser-visible root changes, run `npm run build:browser` afte
 
 **Design:** Section 16 of [2026-07-11-behavior-preserving-full-refactor-design.md](../specs/2026-07-11-behavior-preserving-full-refactor-design.md).
 
-**Status:** independently reviewed; Task 11.0 artifact commit pending; implementation prohibited.
+**Status:** independently reviewed; Task 11.0 complete; Task 11.1 ready.
 
 ### Task 11.0: Commit the independently reviewed artifacts
 
@@ -627,11 +627,11 @@ If a task creates browser-visible root changes, run `npm run build:browser` afte
 - [x] Obtain the independent re-review result and resolve every implementation-blocking finding.
 - [x] Run `git diff --check` and verify every local Markdown reference and named source/test path.
 - [x] Inspect the two-file task diff and commit it as `docs: plan post-convergence safe cleanup`.
-- [ ] Record that commit's full hash in the `Reviewed-artifact gate` line below.
-- [ ] Mark Task 11.0 complete and commit only this plan metadata as `docs: record Phase 11 design gate`.
-- [ ] Confirm `git status --short` is clean before Task 11.1 starts.
+- [x] Record that commit's full hash in the `Reviewed-artifact gate` line below.
+- [x] Mark Task 11.0 complete and commit only this plan metadata as `docs: record Phase 11 design gate`.
+- [x] Confirm `git status --short` is clean before Task 11.1 starts.
 
-**Reviewed-artifact gate:** No commit is recorded yet; Tasks 11.1–11.3 must not start.
+**Reviewed-artifact gate:** `77884a9c08f55e39a613e5984774c289d87e3d9e` (`docs: plan post-convergence safe cleanup`).
 
 **Done condition:** The exact reviewed-artifact commit hash is present above, both documentation commits exist, and the worktree is clean.
 
