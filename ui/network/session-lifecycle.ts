@@ -387,7 +387,6 @@ function createNetworkSessionLifecycleController(config: any): any {
         error: error && error.message ? String(error.message) : String(error || '')
       });
     }
-    if (typeof cfg.closeStream === 'function') cfg.closeStream();
     if (typeof cfg.teardownActionBridge === 'function') cfg.teardownActionBridge();
     if (!spectatorSession && typeof cfg.clearSeatClaim === 'function') {
       cfg.clearSeatClaim(state && state.roomId);
@@ -935,6 +934,19 @@ function createNetworkSessionLifecycleController(config: any): any {
     const spectatorSession = isSpectatorState(state);
     let leaveResponse: any = null;
 
+    // Close the live stream before the authority invalidates the session token.
+    // Otherwise EventSource can race the leave response and briefly reconnect
+    // with the now-invalid token, producing a spurious 403 in the browser.
+    if (typeof cfg.closeStream === 'function') {
+      cfg.closeStream();
+    }
+
+    function restoreStreamAfterLeaveFailure(): void {
+      if (typeof cfg.openStream === 'function') {
+        cfg.openStream({ reconnect: true });
+      }
+    }
+
     try {
       leaveResponse = spectatorSession
         ? await cfg.requestJson('POST', '/api/match/spectator-leave', {
@@ -948,6 +960,7 @@ function createNetworkSessionLifecycleController(config: any): any {
           seatToken: seatToken
         });
     } catch (e) {
+      restoreStreamAfterLeaveFailure();
       if (typeof cfg.emitStatus === 'function') {
         cfg.emitStatus('ネット対戦: 部屋の退出に失敗しました');
       }
@@ -956,6 +969,7 @@ function createNetworkSessionLifecycleController(config: any): any {
 
     const leaveReason = String(leaveResponse && leaveResponse.data && leaveResponse.data.reason ? leaveResponse.data.reason : '').trim();
     if (!(leaveResponse && leaveResponse.ok) && leaveReason !== 'ROOM_NOT_FOUND') {
+      restoreStreamAfterLeaveFailure();
       if (typeof cfg.emitStatus === 'function') {
         cfg.emitStatus('ネット対戦: 部屋の退出に失敗しました (' + (leaveReason || 'LEAVE_FAILED') + ')');
       }
@@ -983,9 +997,6 @@ function createNetworkSessionLifecycleController(config: any): any {
     }
     if (typeof cfg.resetTurnTimerState === 'function') {
       cfg.resetTurnTimerState();
-    }
-    if (typeof cfg.closeStream === 'function') {
-      cfg.closeStream();
     }
     if (typeof cfg.teardownActionBridge === 'function') {
       cfg.teardownActionBridge();

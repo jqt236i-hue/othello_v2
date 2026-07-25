@@ -979,6 +979,7 @@ describe('NetworkSessionLifecycleController', () => {
         order.push('dispose');
         return true;
       });
+      mockConfig.closeStream.mockImplementation(() => order.push('close-stream'));
       mockConfig.clearPlaybackStateForLeave.mockImplementation(() => order.push('clear-playback'));
       mockConfig.resetSessionState.mockImplementation(() => {
         order.push('reset-session');
@@ -992,7 +993,7 @@ describe('NetworkSessionLifecycleController', () => {
       expect(result.ok).toBe(true);
       expect(mockConfig.resetSessionState).toHaveBeenCalled();
       expect(mockConfig.closeStream).toHaveBeenCalled();
-      expect(order).toEqual(['dispose', 'clear-playback', 'reset-session']);
+      expect(order).toEqual(['close-stream', 'dispose', 'clear-playback', 'reset-session']);
       expect(mockConfig.clearSeatClaim).toHaveBeenCalledWith('ABC');
     });
 
@@ -1068,6 +1069,8 @@ describe('NetworkSessionLifecycleController', () => {
 
       expect(result.ok).toBe(false);
       expect(result.reason).toBe('LEAVE_REQUEST_FAILED');
+      expect(mockConfig.closeStream).toHaveBeenCalledTimes(1);
+      expect(mockConfig.openStream).toHaveBeenCalledWith({ reconnect: true });
       expect(mockConfig.disposePresentationTimeline).not.toHaveBeenCalled();
       expect(mockConfig.clearPlaybackStateForLeave).not.toHaveBeenCalled();
     });
