@@ -1,80 +1,141 @@
 ---
 name: card-reversi-card-change
-description: Route, implement, and verify Card Reversi card changes across the player-visible specification, catalog, headless rules, pending selection, CPU behavior, presentation, network authority, generated browser artifacts, and Worker mirror. Use when adding, changing, renaming, enabling, disabling, debugging, or removing a card or card effect in the card-reversi repository, including changes to card text, cost, targets, animations, sounds, or network-visible behavior.
+description: Diagnose, review, plan, implement, and verify Card Reversi card lifecycle and behavior changes across the player-visible specification, catalog and CardType, card-use stages, canonical headless rules, pending selection, turn flow, CPU and training consumers, presentation, assets, network authority, generated browser artifacts, and Worker mirror. Use for adding, changing, renaming, enabling, disabling, removing, auditing, or debugging a card; changing card text, identity, cost, availability, target, randomness, timing, animation, sound, or network-visible behavior; or checking a card regression in the card-reversi repository.
 ---
 
 # Card Reversi Card Change
 
-Change a card through the repository's canonical layers without creating a second rule, presentation writer, or runtime-specific outcome.
+Carry one card request through every affected authority without creating a second rule, presentation writer, or runtime-specific outcome.
 
-## Establish the working boundary
+## Set the operating mode first
 
-1. Run `git status --short` before editing. Classify existing changes and preserve unrelated work.
-2. Read the repository-root `AGENTS.md`, then every nested `AGENTS.md` governing files that may change.
-3. Read `01-rulebook.md` before changing player-visible rules, behavior, timing, prompts, labels, or descriptions.
-4. Read the relevant `正本/*.md` for card behavior, turn order, animation, sound, highlight, or network-visible gameplay. Update it only when the intended player-visible specification changes or would become stale.
-5. Treat root TypeScript and JSON files as canonical. Do not source-edit `dist/`, `worker-public/`, `public/module-registry.js`, or generated catalogs.
-6. Stop and ask the user when same-topic authorities conflict and the intended player-visible behavior is unclear.
+1. Classify the request as `diagnose`, `review`, `plan`, `implement`, or `deploy`.
+2. Keep diagnose, review, and plan work read-only. Do not edit, generate, commit, or deploy unless the user authorized implementation or deployment.
+3. Treat deployment as separate authority. Deploy only when explicitly requested.
+4. Run `git status --short`. Classify every existing change as related, unrelated, generated/mirror, or unknown. Preserve unrelated work and stop on overlapping unknown edits.
+5. Read the root `AGENTS.md` and every closest nested `AGENTS.md` for files that may change.
+6. Confirm the real source owner from the closest guidance, facade imports, runtime imports, and `docs/typescript-migration-js-allowlist.md`. Prefer `.ts` when it owns behavior, but do not assume every root TypeScript or JSON file is canonical.
+7. Stop when same-topic authorities conflict or when a requested behavior is not decided. Do not rewrite the specification to make a bug disappear.
 
-## Inventory the card
+## Inventory the card before editing
 
-Run the bundled read-only inventory from the repository root:
+Resolve `<this-skill-directory>` from the loaded `SKILL.md` path. Invoke the bundled script from that installed directory; do not assume the repository contains a `skills/` directory.
 
 ```powershell
-node skills/card-reversi-card-change/scripts/inventory-card-change.mjs --repo . --card <card-id-or-type-or-name>
+node "<this-skill-directory>/scripts/inventory-card-change.mjs" --repo . --mode change --card "<id|type|Japanese name>" --term "<alias>"
 ```
 
-Use repeatable `--term <alias>` arguments for an old ID, renamed type, effect name, pending type, event type, or sound key. Use `--json` when structured output is useful. A missing catalog match is valid for a new card. Search again manually with `rg` when the requested concept uses aliases not present in the catalog.
+Choose one mode:
 
-If the current session advertises `card-reversi-browser-new-card`, `card-reversi-browser-card-change`, `card-reversi-browser-card-text-change`, or `card-reversi-browser-cost-change`, hand the classified implementation to the matching specialist skill. Keep this skill responsible for the initial inventory and final cross-layer verification. Do not assume an indexed specialist is callable when it is absent from the session's available-skill metadata.
+- `add`: require no exact catalog identity.
+- `change`, `enable`, `disable`, or `remove`: require one exact current identity.
+- `rename`: require one exact current identity and at least one `--new-term`.
+- `audit`: allow no match or one unique partial match and make no lifecycle assumption.
 
-## Classify the change
+For rename or removal, inventory both sides and run an absence gate after implementation:
 
-Route every applicable class; do not force the change into only one class.
+```powershell
+node "<this-skill-directory>/scripts/inventory-card-change.mjs" --repo . --mode rename --card "<old identity>" --old-term "<old alias>" --new-term "<new alias>"
+node "<this-skill-directory>/scripts/inventory-card-change.mjs" --repo . --mode audit --card "<new identity or removed identity>" --expect-absent "<old alias>" --json
+```
 
-| Change class | Canonical starting points | Required follow-through |
+Use `--allow-path <explained-prefix>` only for an intentional compatibility or historical remainder. Record why it remains and which test protects it.
+
+Inspect:
+
+- content and asset-path matches, including Japanese artwork filenames;
+- matched aliases, source role, generated/mirror classification, and governing `AGENTS.md`;
+- the coverage summary for catalog, specification, `CardType`, rules, pending, CPU, presentation, network, tests, assets, and generated surfaces;
+- unreadable canonical candidates, catalog integrity issues, unclassified hits, and dirty-tree entries.
+
+Search manually with `rg` when an effect uses a semantic alias, marker, event, pending type, sound key, progression link, or saved compatibility token not discoverable from catalog identity.
+
+## Read only the relevant authorities
+
+- For changed player-visible behavior, wording, timing, prompts, labels, effects, sounds, or animations, search `01-rulebook.md` by ID, type, Japanese name, and common rule term. Read the relevant common rule and surrounding card section.
+- Route `正本/` through `正本/AGENTS.md`: use the card, common-rule, turn, presentation, sound, or audit document that owns the topic. Update it only when the intended visible specification changes or would become stale.
+- If implementation contradicts an already-clear specification, fix implementation and tests; do not change the specification unless the user is changing the intended behavior.
+- Read `docs/architecture-contracts.md` selectively: §6.3 for pending, §6.5 for effect blocks, §6.6 for immediate effects, §7.1 for card-use flow, §7.3 for board presentation, and §8 for network authority.
+- Treat `cards/catalog.json` as catalog source, root implementation as runtime source, and `dist/`, `worker-public/`, generated catalogs, card-art maps, registries, and bundles as derived output.
+- Never edit `docs/HUMAN-DEV-GUIDE.md`; use it only as human decision context.
+
+## Route every affected surface
+
+| Surface | Current entry points | Required follow-through |
 | --- | --- | --- |
-| Catalog or display | `cards/catalog.json` | Check card renderer, effect tags, rules help, deck spec, art map, browser build, and generated catalog path. |
-| Cost, usability, target, or immediate effect | `game/logic/cards/*`, `game/logic/card-resolution/*` | Reuse shared cost, target, owner, player, board-shape, and random-source helpers. Keep the result deterministic and headless. |
-| Pending or multi-step selection | `game/card-effects/*`, `game/logic/cards-internal/pending-selection-registry.ts`, `game/turn/pending-coordinator.ts` | Keep per-card adapters thin. Publish only through the selection-flow UI/network signal bridge. Check CPU handoff and cancellation/end-turn semantics. |
-| Animation, sound, or visual timing | ordered `events[]`, `shared/presentation-effect-profiles.ts`, existing `ui/` playback surfaces | Let game code emit canonical events or presentation metadata and let UI consume them. Preserve event order and the Single Visual Writer contract. |
-| CPU-visible decision | `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, `game/ai/*` | Use the same public rule and target-selection contracts as human play. Do not add a CPU-only rule result. |
-| Network-visible state or action | shared authority helpers, `workers/`, `scripts/local-match-server.ts`, `ui/network/*` | Use `$card-reversi-network-contract`. Keep Worker, local server, browser, and headless outcomes equivalent. |
-| Add, rename, enable, disable, or remove | all applicable rows above | Search by ID, type, Japanese display name, effect name, pending type, event type, and sound key. Check decks, help, tests, docs, art, manifests, and compatibility facades. |
+| Identity, availability, cost, or display | `cards/catalog.json`, `src/types/card.ts`, `shared/deck-spec.ts`, `ui/handlers/rules-help.ts`, `cards/card-interaction-effects.ts`, `cards/card-last-used-panel-copy.ts` | Keep Japanese copy, `CardType`, enabled/deck behavior, detail tags, saved deck compatibility, art, and generated catalog projections aligned. |
+| Card-use orchestration | `game/cards/effect-resolver.ts`, `card-usage-validation-stage.ts`, `card-usage-consumption-stage.ts`, `card-usage-immediate-stage.ts`, `card-usage-pending-stage.ts`, `card-usage-presentation-stage.ts` | Preserve validation → consumption → immediate/pending → presentation ordering. Do not hide canonical mutation in a compatibility facade. |
+| Canonical rule, target, or state | `game/logic/cards.ts`, `game/logic/cards/*`, `game/logic/card-resolution/*`, `game/logic/cards-internal/card-usage-prechecks.ts`, `game/cards/target-resolver.ts` | Reuse shared cost, selector, target, owner/player, topology, marker, and random-source contracts. |
+| Immediate, placement, or turn-timed effect | `game/turn/card-usage/immediate-effects.ts`, `game/turn/immediate-effect-dispatcher.ts`, `game/turn/action-phase/placement-immediate-effects.ts`, turn timing modules | Use the shared dispatcher, injected phase PRNG, correct decrement policy, and effect-block metadata. Preserve fixed turn order. |
+| Pending or multi-stage selection | `game/logic/cards-internal/pending-selection-registry.ts`, pending state manager, pre-placement selection stages, `game/card-effects/selection-flow*.ts`, `game/turn/pending-coordinator.ts`, `ui/network/selection-signal-bridge.ts` | Keep per-card adapters thin; bind `pendingEffectId`, validate stage/target/cancel/end-turn semantics, release settlement locks correctly, and publish only through the installed bridge. |
+| CPU, AUTO, selfplay, or training | `game/cpu-decision-card-*`, `game/cpu-decision-pending-*`, `game/ai/cpu-policy-card-*`, `game/cpu-turn-*-phase.ts`, `game/cpu-network-command-planner.ts`, selfplay consumers | Use public rule/selector contracts. Preserve all-card taxonomy/profile gates and authority-side AUTO replanning. Never create a CPU-only outcome. |
+| Presentation, animation, or sound | ordered `events[]`, `game/turn/pipeline-ui/*`, `shared/presentation-effect-profiles.ts`, `ui/animation-feedback-events.ts`, `ui/presentation/dispatcher.ts` | Keep gameplay headless, preserve event order, and add presentation handling without changing the canonical result. |
+| Board-local visuals | `docs/architecture-contracts.md` §7.3, `ui/board-visual/effect-branch-inventory.ts`, active `BoardVisualBackend`, Pixi timeline/effects | Keep one writer/application/clock. Use Pixi normally; use the DOM backend only as an exclusive compatibility fallback. |
+| Special card/stone or progression contract | `shared/special-card-registry.ts`, `shared/special-stone-registry.ts`, `shared/manifest-stone-registry.ts`, `game/logic/cards-internal/progression.ts` | Update registries and upgrade/progression links without duplicating effect logic. |
+| Network-visible result, pending state, projection, or randomness | shared action/authority helpers, Worker/local adapters, client intake/reconciliation | Invoke `$card-reversi-network-contract` when available and follow it through Worker, local server, browser, headless, projection, journal, and mirror parity. |
+
+Treat listed paths as discovery anchors, not permission to recreate a removed module. If an anchor moved, use `rg`, the facade wiring, the closest `AGENTS.md`, and current tests to find the owner.
+
+## Preserve the card invariants
+
+- Keep one canonical rule implementation. Let `game/cards/effects/*` and adjacent `.js` files remain facades or compatibility projections unless current imports prove otherwise.
+- Keep `game/`, CPU policy, and shared helpers headless and deterministic. Do not add DOM, `window`, sound, timers, network clients, or hidden global fallbacks.
+- Use the current board topology; do not reconstruct rectangular bounds or treat void, hole, and expansion cells as interchangeable.
+- Use the injected random source. Browser preview may mirror an outcome but never define canonical randomness.
+- Keep delayed and pending outcomes explicit in canonical state. UI hints, locks, previews, and busy flags are not accepted gameplay state.
+- Use effect blocks for multi-mutation board effects and preserve rescue/spawn anchors and ordered `events[]`.
+- For destroy, flip, or ownership effects, verify interactions with protection, ghost/evasion, rescue/revival, frozen state, and multiple eligible markers. Do not infer the higher-level card result from one low-level boolean when canonical rescue or replacement can change the final board.
+- Route every board frame and board-owned trajectory through the Single Visual Writer controller and active backend.
+- Apply the same legality, target, cost, and resolution contract to human, CPU, Worker, local server, and headless paths.
+- Preserve hidden-hand projection. Use authority selectors such as `handIndex`; never treat placeholder identity as a card ID.
+- Keep debug behavior behind explicit flags and out of normal control flow.
+
+## Handle lifecycle changes deliberately
+
+- Japanese-name rename: check player text, artwork filename, art-map generation, rules/help, last-used copy, and saved display references.
+- Card-ID rename: decide saved deck code, persisted hand/deck, snapshot, last-used, and network compatibility before implementation.
+- Type rename: update `src/types/card.ts`, switches, maps, registries, CPU taxonomy, pending registry, events, tests, and compatibility policy.
+- Disable: normally retain type, rules, assets, and compatibility while proving exclusion from deck/draw/training paths.
+- Remove: stop until saved deck/snapshot/network migration and old-identity policy are explicit.
+- Do not bump `cards/catalog.json.version` automatically; identity or availability changes require an explicit compatibility decision because the repository has no universal bump rule.
 
 ## Implement in canonical order
 
-1. Update the player-visible specification first when behavior changes.
-2. Update `cards/catalog.json` when catalog data changes.
-3. Regenerate catalog projections immediately with `npm run generate:catalog` when catalog data changes. Run `npm run generate:card-art-map` when card-art mapping inputs change and `npm run generate:asset-manifest` when asset inventory changes. Inspect generated diffs before testing. If a generator source changed, build its TypeScript source first.
-4. Implement canonical headless behavior in `game/logic/` and canonical turn flow.
-5. Add pending-selection coordination only through existing bridges.
-6. Emit ordered events or presentation metadata; add UI handling without mutating canonical results.
-7. Update CPU and network consumers only when the card crosses those boundaries.
-8. Update focused tests where existing coverage does not prove the changed contract.
-9. Build browser artifacts or Worker mirrors only from their source scripts after focused checks pass.
+1. Update `01-rulebook.md` and the owning `正本` first only when intended visible behavior changes.
+2. Update catalog identity/display and `CardType` when applicable.
+3. Run `npm run generate:catalog` immediately after catalog changes. Run `npm run generate:card-art-map` after card-name/art inputs change. Run `npm run generate:asset-manifest` only when its owning asset inventory changes; ordinary card artwork is governed by the card-art map. Do not treat `worker:prepare` as a substitute for the catalog or card-art generators.
+4. Update card-use stages and canonical headless logic.
+5. Update pending/turn coordination and CPU consumers.
+6. Emit canonical events/metadata, then update DOM/Pixi/sound consumers at their presentation boundary.
+7. Update network authority, projection, intake, and replay only when the change crosses that boundary.
+8. Add or update the narrowest durable test only when existing focused coverage is missing or a regression must remain fixed.
+9. Generate browser and Worker outputs only after focused source checks pass.
 
-Prefer the smallest coherent change. Expand scope when a local patch would duplicate rule logic, normalization, target checks, event assembly, or network authority.
+Do not run implementation steps in diagnose, review, or plan mode.
 
 ## Verify by blast radius
 
-Always inspect the final task-owned diff and run the smallest focused checks that prove the behavior.
+Verify current script definitions in `package.json`; do not trust a stale command copied from this file.
 
-| Impact | Minimum verification |
+| Impact | Required evidence |
 | --- | --- |
-| Docs or text-only | `git diff --check` plus source/render inspection. Do not add tests. |
-| Catalog or browser-visible surface | Run `npm run generate:catalog` first when catalog outputs change, inspect its diff, run the relevant focused test, then run `npm run build:browser`. |
-| Headless card rule, target, cost, turn flow, or CPU behavior | Run card/effect-specific Jest coverage plus `npm run typecheck` or the smallest existing build that exercises the changed source. Add/update a test when focused coverage is missing or a regression needs durable protection. |
-| Pending selection or presentation bridge | Include focused pending, animation, or playback tests and `npm run check:window`. Use the smallest relevant browser/E2E scenario when it materially improves confidence. |
-| Network authority, snapshot, reconnect, or cross-runtime behavior | Follow `$card-reversi-network-contract`; include `npm run test:network:parity` and standalone `npm run worker:prepare` when mirror generation/verification is required. |
+| Docs or copy only | `git diff --check`, targeted source/render inspection, relevant catalog/detail-copy tests; do not add tests by default. |
+| Add, type rename, or remove | Include `test/cards.catalog.test.ts`, `test/cards.generate.test.ts`, `test/cards.card-art-map.generate.test.ts`, `test/cards.detail-copy-audit.test.ts`, `test/cards.pending-selection-contract.test.ts`, and removal/retired-reference coverage as applicable. The pending contract checks catalog ↔ `CardType` and registry coverage. |
+| Cost, legality, target, immediate effect, turn flow | Run card/effect-specific Jest plus the affected card-use stage and selector/precheck tests. For destructive/ownership effects, include relevant protection, evasion, rescue/revival, frozen, and multiple-instance combinations. Run `npm run typecheck` or the smallest existing build that exercises the source. |
+| Pending or multi-stage selection | Include registry, pending state/stage, selection flow, pending coordinator, CPU pending, and turn-outcome tests; add `npm run check:window`; include network parity when publish/reconnect is involved. |
+| CPU or all-card taxonomy | Include the card-specific CPU tests and relevant all-card gates such as `test/game.cpu-policy-card-profiles.test.ts`, `test/game.cpu-policy-core.test.ts`, and `test/cpu.decision.refactor.test.ts`. |
+| Animation, sound, or board playback | Run focused feedback/pipeline/board/Pixi tests first. Add `npm run match:pixijs-board-playback-check`, fallback/cross-platform smoke, or visual/E2E checks in proportion to risk. |
+| Browser-visible root source | After focused tests pass, run `npm run build:browser` and inspect registry/cachebuster/generated diffs. |
+| Network authority or projection | Follow `$card-reversi-network-contract`; run focused authority/client tests and the required match/network parity bundles. |
+| Worker-served mirror | Run `npm run worker:prepare`, then `npm run check:worker-mirror`; do not run prepare immediately before `worker:dev` or `worker:deploy`. |
 
-Do not run `worker:prepare` immediately before `worker:dev` or `worker:deploy`; those commands already invoke it. Do not weaken a failing test to obtain a pass. Report an initial failure even if a retry passes.
-
-When a card ID, type, name, event, pending type, or sound key changes or is removed, run the inventory again with the old values passed through `--term`. Classify every remaining hit as required compatibility, historical documentation, generated output awaiting regeneration, or stale code; remove stale code before completion. Build the browser as required by the root instructions.
+Report an initial failure even if a retry passes. Do not delete, skip, weaken, or rewrite a test merely to obtain green output.
 
 ## Finish
 
-1. Run `git status --short` and inspect only the relevant diff.
-2. Confirm that generated and mirror changes came from their scripts.
-3. Commit only task-owned files at a coherent verified stopping point, following repository commit policy.
-4. Report changed behavior using the Japanese display name first, commands and results, generated artifacts, and residual risk.
+1. Rerun the inventory with every old ID, type, Japanese name, event, pending type, sound key, and asset name through `--expect-absent`.
+2. Require zero unexplained active old-term hits and zero unreadable canonical candidates. List each intentional compatibility/history remainder with file, reason, and protecting test.
+3. Run `git status --short` and inspect only the task-owned diff. Confirm every generated or mirrored file came from its owning script.
+4. Stop without landing when specification intent, saved/network compatibility, deterministic authority, Worker/local parity, or required verification remains unresolved.
+5. For an authorized implementation, commit only the isolated verified task-owned files according to repository policy. Never commit for a read-only request.
+6. Report the Japanese display name first, player-visible behavior, source owners changed, generated outputs, commands/results, compatibility decisions, and residual risk.

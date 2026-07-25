@@ -1,4 +1,4 @@
 interface:
-  display_name: "Card Reversi Card Change"
-  short_description: "Route and verify Card Reversi card changes safely"
-  default_prompt: "Use $card-reversi-card-change to implement and verify this Card Reversi card change."
+  display_name: "カードリバーシ：カード変更"
+  short_description: "カード仕様・実装・CPU・演出・ネット整合を一貫管理"
+  default_prompt: "Use $card-reversi-card-change to diagnose, review, implement, or verify this Card Reversi card request within the user's authorized scope."
