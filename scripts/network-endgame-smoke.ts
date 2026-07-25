@@ -196,6 +196,7 @@ async function runGame(baseUrl: string, gameIndex: number, maxSteps: number): Pr
         playerName: `しろ${gameIndex}`
     });
     assertOk(joined, `join game ${gameIndex}`);
+    const networkDebugEnabled = created.data.networkDebugEnabled === true;
 
     const ctx = {
         roomId: created.data.roomId,
@@ -233,7 +234,7 @@ async function runGame(baseUrl: string, gameIndex: number, maxSteps: number): Pr
             continue;
         }
 
-        if (cardCursor < cardPlan.length) {
+        if (networkDebugEnabled && cardCursor < cardPlan.length) {
             const cardId = cardPlan[cardCursor];
             await publishDebugFill(baseUrl, ctx, seatKey, cardId, gameIndex, step);
             await publishUseCard(baseUrl, ctx, seatKey, cardId, gameIndex, step);
@@ -282,5 +283,5 @@ async function main(): Promise<void> {
 
 main().catch((error) => {
     console.error(`[network-endgame] failed: ${error && error.message ? error.message : String(error)}`);
-    process.exit(1);
+    process.exitCode = 1;
 });
