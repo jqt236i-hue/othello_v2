@@ -43,7 +43,7 @@ describe('network room list style', () => {
     const spectateBlocks = Array.from(css.matchAll(/\n\.network-room-entry-spectate\s*\{([\s\S]*?)\n\}/gm));
     const spectateLayoutBlock = spectateBlocks.at(-1)?.[1] ?? '';
 
-    expect(panelBlock).toMatch(/grid-template-rows:\s*clamp\(36px,\s*3vw,\s*50px\)\s+minmax\(0,\s*1fr\)/);
+    expect(panelBlock).toMatch(/grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)/);
     expect(listBlock).toMatch(/align-content:\s*start/);
     expect(listBlock).toMatch(/align-items:\s*start/);
     expect(listBlock).toMatch(/min-height:\s*100%/);
@@ -205,10 +205,12 @@ describe('network room list style', () => {
     expect(refreshHeaderBlock).toMatch(/--network-room-refresh-font-size:\s*1\.56cqw/);
     expect(refreshHeaderBlock).toMatch(/--network-room-refresh-offset-y:\s*2\.49cqw/);
     expect(refreshHeaderBlock).toMatch(/container-type:\s*inline-size/);
+    expect(refreshHeaderBlock).toMatch(/min-height:\s*clamp\(36px,\s*3vw,\s*50px\)/);
     expect(refreshBlock).toMatch(/width:\s*var\(--network-room-refresh-width\)/);
     expect(refreshBlock).toMatch(/height:\s*var\(--network-room-refresh-height\)/);
     expect(refreshBlock).toMatch(/font-size:\s*var\(--network-room-refresh-font-size\)/);
-    expect(refreshBlock).toMatch(/transform:\s*translateY\(var\(--network-room-refresh-offset-y\)\)/);
+    expect(refreshBlock).toMatch(/margin-top:\s*var\(--network-room-refresh-offset-y\)/);
+    expect(refreshBlock).toMatch(/transform:\s*none/);
     expect(refreshBlock).toMatch(/transition:\s*color 160ms ease,\s*filter 160ms ease,\s*text-shadow 160ms ease/);
     expect(refreshBlock).not.toMatch(/transition:[^;]*transform/);
     expect(refreshHoverBlock).toMatch(/color:\s*#fff7ec/);
