@@ -288,6 +288,8 @@ const applyDrawHandSpeedFactor = (baseMs: number): number => Math.max(1, Math.ro
 const HAND_PLACE_APPROACH_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(400), PLACE_HAND_SPEED_BOOST)));
 const HAND_PLACE_BOB_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(150), PLACE_HAND_SPEED_BOOST)));
 const HAND_PLACE_RETREAT_MS = applyPlaceHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(scaleHandMotionDuration(300), PLACE_HAND_SPEED_BOOST)));
+const HAND_PLACE_FADE_OUT_PROGRESS = 0.45;
+const HAND_PLACE_FADE_OUT_MS = Math.max(1, Math.round(HAND_PLACE_RETREAT_MS * HAND_PLACE_FADE_OUT_PROGRESS));
 const HAND_DRAW_PICKUP_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(140, DRAW_HAND_SPEED_BOOST)));
 const HAND_DRAW_MOVE_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(360, DRAW_HAND_SPEED_BOOST)));
 const HAND_DRAW_RETREAT_MS = applyDrawHandSpeedFactor(applyHandActionSpeedBoost(boostHandDuration(220, DRAW_HAND_SPEED_BOOST)));
@@ -1622,6 +1624,10 @@ function _animateCompat(el: any, keyframes: any, options: any, scope: any) {
         const first = frames.length ? frames[0] : {};
         const last = frames.length ? frames[frames.length - 1] : first;
         const easing = (options && options.easing) ? options.easing : 'linear';
+        const requestedOpacityDuration = Number(options && options.opacityDuration);
+        const opacityDuration = Number.isFinite(requestedOpacityDuration)
+            ? Math.max(0, requestedOpacityDuration)
+            : duration;
         const supportsStyle = !!(el && el.style);
         const prevTransition = supportsStyle ? (el.style.transition || '') : '';
 
@@ -1635,7 +1641,7 @@ function _animateCompat(el: any, keyframes: any, options: any, scope: any) {
                 transitionParts.push(`transform ${duration}ms ${easing}`);
             }
             if ((first && Object.prototype.hasOwnProperty.call(first, 'opacity')) || (last && Object.prototype.hasOwnProperty.call(last, 'opacity'))) {
-                transitionParts.push(`opacity ${duration}ms ${easing}`);
+                transitionParts.push(`opacity ${opacityDuration}ms ${easing}`);
             }
             if (transitionParts.length) {
                 el.style.transition = transitionParts.join(', ');
@@ -1886,10 +1892,17 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
             if (!_isHandWrapperPresentationActive(wrapperEl)) return;
 
             // 3. Retreat
+            const fadeOutX = dropX + ((startX - dropX) * HAND_PLACE_FADE_OUT_PROGRESS);
+            const fadeOutY = dropY + ((startY - dropY) * HAND_PLACE_FADE_OUT_PROGRESS);
             await _animateCompat(wrapperEl, [
                 {
                     transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})`,
                     opacity: 1
+                },
+                {
+                    transform: `translate(${fadeOutX}px, ${fadeOutY}px) rotate(${rotation}deg) scale(${scale})`,
+                    opacity: 0,
+                    offset: HAND_PLACE_FADE_OUT_PROGRESS
                 },
                 {
                     transform: `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`,
@@ -1897,6 +1910,7 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
                 }
             ], {
                 duration: HAND_PLACE_RETREAT_MS,
+                opacityDuration: HAND_PLACE_FADE_OUT_MS,
                 easing: HAND_TRAVEL_EASING,
                 fill: 'forwards'
             }, sc);

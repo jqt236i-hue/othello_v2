@@ -18,7 +18,7 @@
 1. 手は配置者に対応する手札カード群の付近から盤面へ移動する。
 2. 手札カードが0枚またはカード矩形を取得できない場合も、対応する手札コンテナ付近から移動する。
 3. 手札コンテナも取得できない異常時だけ、現在の盤面端起点へ安全にフォールバックする。
-4. 接近中に透明度0から1へフェードインし、退避中に1から0へフェードアウトする。
+4. 接近中に透明度0から1へフェードインし、退避開始から約70msで1から0へのフェードアウトを完了する。
 5. 石を置く接触タイミング、効果音、`spawn` / `flip` への引き渡し、busy解除、既存の約0.44秒テンポは変えない。
 
 ## 3. 現在の構造と根拠
@@ -64,7 +64,8 @@
 - 演出準備中は従来どおりwrapperのinline opacityを0に保つ。
 - 接近phaseのWeb Animations keyframeへ `opacity: 0` と `opacity: 1` を加える。
 - bob phaseはopacity 1の見た目を維持する。
-- 退避phaseのkeyframeへ `opacity: 1` と `opacity: 0` を加える。
+- 退避phaseの開始と45%地点へ `opacity: 1` と `opacity: 0` を置き、156msの戻りモーションのうち最初の約70msでフェードアウトを完了する。残りの退避中はopacity 0を維持する。
+- Web Animationsがないtransition fallbackでは、transformを156ms、opacityを70msに分けて同じ見え方にする。
 - 完了・例外・reset時の既存cleanupでもwrapperをopacity 0へ戻し、残留Animationをcancelする。
 
 inline opacityを演出中のliveness guardとして使う既存構造は維持する。keyframeが描画上のフェードを担当し、接触後の配置確定と後続phase開始時刻は変えない。
@@ -88,7 +89,7 @@ inline opacityを演出中のliveness guardとして使う既存構造は維持�
 ## 7. 検証戦略
 
 1. focused Jestで、下側と上側の配置手について最初のkeyframeが実カード群中心から算出され、盤面端起点ではないことを確認する。
-2. 同テストで接近が `opacity: 0→1`、退避が `1→0` であることを確認する。
+2. 同テストで接近が `opacity: 0→1`、退避が45%地点（約70ms）までに `1→0` となり、終了まで0を維持することを確認する。
 3. 既存のphase時間208ms / 78ms / 156ms、接触callback、終了時opacity 0、Animation cancel、disabled/no-animation経路のテストを通す。
 4. TypeScript typecheckと、表示変更に必須の `npm run build:browser` を通す。
 5. 最終diffで正本、実装、テスト、生成browser出力の整合と、既存 `worker-public/` 差分の非混入を確認する。
@@ -104,7 +105,7 @@ inline opacityを演出中のliveness guardとして使う既存構造は維持�
 
 1. 下側・上側のどちらも、実カード群または対応手札枠の中心付近から手が出る。
 2. 正常な手札geometryがある場合、盤面の上下端を開始位置に使わない。
-3. 出現は透明度0→1、退場は1→0で描画され、完了後はopacity 0へ戻る。
+3. 出現は透明度0→1、退場は退避開始から約70msで1→0となり、完了後もopacity 0を維持する。
 4. 配置接触時の石確定、効果音、後続 `spawn` / `flip`、総phase時間は変更されない。
 5. NOANIM、演出OFF、geometry欠落時の進行とcleanupが既存どおり成立する。
 6. `01-rulebook.md` と `正本/演出正本.md` が最終挙動を記述する。
@@ -123,7 +124,7 @@ inline opacityを演出中のliveness guardとして使う既存構造は維持�
 
 - 配置者の手札内に表示されている `.card-item` のunion中心を起点にし、横スクロールで手札枠外にある部分は枠矩形でclipした。表示カードがない場合は手札コンテナ中心、geometryがない場合だけ従来の盤面端へフォールバックする。
 - wrapperの実レイアウト寸法、上下slotの回転、既存scaleを使って見た目中心を手札付近へ合わせた。対象セル側の位置、回転、scale、208ms / 78ms / 156msのphase時間は変更していない。
-- 接近keyframeへopacity 0→1、退避keyframeへ1→0を追加し、Web Animationsがないtransition fallbackでも同じkeyframeを使う。完了後はinline/computed opacity 0、保持石非表示、active actor 0へ戻る。
+- 接近keyframeへopacity 0→1、退避keyframeの45%地点へopacity 0を追加した。追調整では、156msの退避時間を変えずにフェードアウトだけを約70msで完了させ、Web Animationsがないtransition fallbackもopacity 70ms / transform 156msへ揃えた。完了後はinline/computed opacity 0、保持石非表示、active actor 0へ戻る。
 - focused Jestは `test/ui.animation-utils.hand-fallback.test.ts` の52件、NOANIM playbackは `test/ui.animation-engine.test.ts` の18件が通過した。
 - `npm run typecheck` と `npm run build:browser` が成功し、`index.classic.html` のcachebusterと `public/module-registry.js` を既存generatorで更新した。
 - 実ブラウザのPixi通常対局で、下段手札付近の透明な開始位置、盤面への配置、CPU応答、手札側への退避後cleanupを確認した。最終状態はwrapper opacity 0、保持石非表示、active actor 0で、ブラウザerror logは0件だった。
