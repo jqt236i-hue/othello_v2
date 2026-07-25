@@ -56,6 +56,10 @@ import {
   type PixiBoardPlayback,
   type PixiBoardPlaybackOptions
 } from './board-playback';
+import {
+  PIXI_PLAYBACK_RESTORE_INTERRUPTION_CODE,
+  isPixiPlaybackControlledInterruption
+} from '../board-visual/playback-interruption';
 import type { PixiStaticTextureSource } from './cell-view';
 import {
   classifyWebGlRenderer,
@@ -1670,6 +1674,13 @@ export function createPixiBoardVisualBackend(
       const activeRunCount = Number(playback?.getDiagnostics()?.timeline?.activeRunCount || 0);
       if (activeRunCount === 0) application?.settleIdle();
     } catch (error) {
+      if (isPixiPlaybackControlledInterruption(error)) {
+        record('pixi-backend:playback-interrupted', {
+          code: String((error as any)?.code || ''),
+          stage: String((error as any)?.stage || 'play-phase')
+        });
+        throw error;
+      }
       lastErrorCode = String((error as any)?.code || 'pixi_playback_failed');
       record('pixi-backend:error', {
         code: lastErrorCode,
@@ -1686,7 +1697,7 @@ export function createPixiBoardVisualBackend(
   async function interruptPlaybackBeforeRestore(frame: BoardVisualFrame): Promise<void> {
     playbackLaunchGeneration += 1;
     playbackInterruptReason = backendError({
-      code: 'pixi_playback_interrupted_for_restore',
+      code: PIXI_PLAYBACK_RESTORE_INTERRUPTION_CODE,
       stage: 'play-phase',
       message: `Pixi playback was interrupted before restoring ${frame.frameToken}`
     });

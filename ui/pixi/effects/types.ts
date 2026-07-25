@@ -96,6 +96,7 @@ export interface PixiSourceTrajectoryRuntimeCounter {
   readonly active: number;
   readonly completed: number;
   readonly failed: number;
+  readonly aborted: number;
   readonly noObject: number;
   readonly offscreenNoObject: number;
 }
@@ -106,6 +107,7 @@ export interface PixiSourceTrajectoryRendererDiagnostics {
   readonly startedRunCount: number;
   readonly completedRunCount: number;
   readonly failedRunCount: number;
+  readonly abortedRunCount: number;
   readonly noObjectRunCount: number;
   readonly offscreenNoObjectRunCount: number;
   readonly byProfile: Readonly<Record<BoardSourceTrajectoryProfileKey, PixiSourceTrajectoryRuntimeCounter>>;

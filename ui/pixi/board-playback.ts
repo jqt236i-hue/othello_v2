@@ -41,6 +41,7 @@ import {
   type PixiTimelineOptions,
   type PixiTimelineRunOptions
 } from './timeline';
+import { isPixiPlaybackControlledInterruption } from '../board-visual/playback-interruption';
 import {
   createPlaybackStoneVisual,
   normalizePlaybackCoordinate,
@@ -900,7 +901,12 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
         record('pixi-playback:event-complete', { eventType, detail });
       },
       (error) => {
-        record('pixi-playback:event-error', { eventType, detail, error });
+        record(
+          isPixiPlaybackControlledInterruption(error)
+            ? 'pixi-playback:event-interrupted'
+            : 'pixi-playback:event-error',
+          { eventType, detail, error }
+        );
         throw error;
       }
     ).finally(() => {
@@ -1034,9 +1040,13 @@ export function createPixiBoardPlayback(options: PixiBoardPlaybackOptions): Pixi
       completedPhaseCount += 1;
       record('pixi-playback:phase-complete', { phaseId });
     } catch (error) {
-      failedPhaseCount += 1;
       discardPhaseState(context);
       await resetAfterFailure(error);
+      if (isPixiPlaybackControlledInterruption(error)) {
+        record('pixi-playback:phase-interrupted', { phaseId, error });
+        throw error;
+      }
+      failedPhaseCount += 1;
       const normalized = error instanceof PresentationPlaybackError
         ? error
         : new PresentationPlaybackError('board_renderer_failed', typedEvents[0], {

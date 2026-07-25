@@ -13,6 +13,7 @@ import {
   resolvePixiSourceTrajectoryTiming
 } from '../ui/pixi/effects/source-trajectory';
 import type { PixiTimelineRunOptions } from '../ui/pixi/timeline';
+import { PIXI_PLAYBACK_RESTORE_INTERRUPTION_CODE } from '../ui/board-visual/playback-interruption';
 import {
   BOARD_SOURCE_TRAJECTORY_BASELINE_FIXTURES,
   resolveBaselineDurationMs
@@ -687,7 +688,44 @@ describe('Pixi board source trajectory renderer', () => {
     await expect(settlement).rejects.toThrow('context lost');
     expect(harness.leases[0].release).toHaveBeenCalledTimes(1);
     expect(harness.records.size).toBe(0);
-    expect(renderer.getDiagnostics()).toMatchObject({ activeRunCount: 0, failedRunCount: 1 });
+    expect(renderer.getDiagnostics()).toMatchObject({
+      activeRunCount: 0,
+      failedRunCount: 1,
+      abortedRunCount: 0
+    });
+  });
+
+  test('classifies authoritative restore interruption as aborted instead of failed', async () => {
+    const harness = createProjection();
+    const record = jest.fn();
+    const renderer = createPixiSourceTrajectoryRenderer({ record });
+    const settlement = renderer.start(requestFor('sniperShot'), harness.projection);
+    const interruption = Object.assign(new Error('authoritative restore'), {
+      code: PIXI_PLAYBACK_RESTORE_INTERRUPTION_CODE
+    });
+
+    harness.timeline.abort(interruption);
+    await expect(settlement).rejects.toBe(interruption);
+    expect(harness.leases[0].release).toHaveBeenCalledTimes(1);
+    expect(renderer.getDiagnostics()).toMatchObject({
+      activeRunCount: 0,
+      failedRunCount: 0,
+      abortedRunCount: 1,
+      byProfile: {
+        sniperShot: expect.objectContaining({ failed: 0, aborted: 1 })
+      },
+      byPrimitive: {
+        projectile: expect.objectContaining({ failed: 0, aborted: 1 })
+      }
+    });
+    expect(record).toHaveBeenCalledWith(
+      'pixi-source-trajectory:settle',
+      expect.objectContaining({
+        profileKey: 'sniperShot',
+        status: 'aborted',
+        error: interruption
+      })
+    );
   });
 
   test('actual scene clips the logical segment to the board viewport without materializing path cells', () => {

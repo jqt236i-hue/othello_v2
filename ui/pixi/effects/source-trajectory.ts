@@ -22,6 +22,7 @@ import type {
   PixiSourceTrajectoryRuntimeCounter
 } from './types';
 import * as PresentationVisualSeed from '../../presentation/visual-seed';
+import { isPixiPlaybackControlledInterruption } from '../../board-visual/playback-interruption';
 
 export interface PixiSourceTrajectoryTiming {
   readonly animationDurationMs: number;
@@ -51,6 +52,7 @@ interface MutableRuntimeCounter {
   active: number;
   completed: number;
   failed: number;
+  aborted: number;
   noObject: number;
   offscreenNoObject: number;
 }
@@ -671,7 +673,15 @@ export function resolvePixiSourceTrajectoryTiming(
 }
 
 function mutableCounter(): MutableRuntimeCounter {
-  return { started: 0, active: 0, completed: 0, failed: 0, noObject: 0, offscreenNoObject: 0 };
+  return {
+    started: 0,
+    active: 0,
+    completed: 0,
+    failed: 0,
+    aborted: 0,
+    noObject: 0,
+    offscreenNoObject: 0
+  };
 }
 
 function counterMap<K extends string>(keys: readonly K[]): Record<K, MutableRuntimeCounter> {
@@ -701,6 +711,7 @@ export function createPixiSourceTrajectoryRenderer(
   let startedRunCount = 0;
   let completedRunCount = 0;
   let failedRunCount = 0;
+  let abortedRunCount = 0;
   let noObjectRunCount = 0;
   let offscreenNoObjectRunCount = 0;
   let lastProjection: PixiSourceTrajectoryProjection | null = null;
@@ -856,6 +867,18 @@ export function createPixiSourceTrajectoryRenderer(
         });
       },
       (error) => {
+        if (isPixiPlaybackControlledInterruption(error)) {
+          abortedRunCount += 1;
+          profileCounter.aborted += 1;
+          primitiveCounter.aborted += 1;
+          record('pixi-source-trajectory:settle', {
+            trajectoryId: request.trajectoryId,
+            profileKey: request.profileKey,
+            status: 'aborted',
+            error
+          });
+          throw error;
+        }
         failedRunCount += 1;
         profileCounter.failed += 1;
         primitiveCounter.failed += 1;
@@ -912,6 +935,7 @@ export function createPixiSourceTrajectoryRenderer(
       startedRunCount,
       completedRunCount,
       failedRunCount,
+      abortedRunCount,
       noObjectRunCount,
       offscreenNoObjectRunCount,
       byProfile: frozenCounterMap(byProfile),

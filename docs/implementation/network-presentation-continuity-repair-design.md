@@ -277,3 +277,70 @@ server snapshot由来のcanonical playbackはpresentation timelineだけがstric
 - rebase成功条件を4つのcursor所有者とrender snapshotの収束に置き、HTTP成功やqueue投入だけで成功扱いしない。
 - player-visible仕様、カードルール、表示文言は変更しないため、`01-rulebook.md` と `正本/*.md` は更新しない。
 - productionで追加の不具合を確認した場合も、canonical authority、visual ordering、Single Visual Writerの境界を崩さず修正する。
+
+## 15. 追補 — AUTO終局検証で判明した権威・Pixi回復不具合（2026-07-25）
+
+### 15.1 追加の再現結果
+
+本設計のproduction検証を標準8×8初期盤面から自然終局まで延長したところ、次を確認した。
+
+- 2ブラウザのcanonical stateは `stateVersion 121`、79手、連続2パス、白50対黒0で一致し、timeoutではなく通常の終局条件でresultへ到達した。
+- WorkerのAUTO実行、カード使用、pending selection、追加配置は終局まで進んだ。
+- 背景側ブラウザで長いPixi演出が30秒進捗しない場合、strict playback watchdogが意図どおり権威snapshotへのrebaseを開始した。
+- rebase自体は成功したが、`restore()` が進行中のPixi timelineを中断した理由
+  `pixi_playback_interrupted_for_restore` を、playback／backend／source trajectoryが描画失敗として再分類していた。
+- `failedPhaseCount`、`lastErrorCode = board_renderer_failed`、timeline `lastError` が残るため、正常な回復後もPixi障害に見えた。
+- network smokeは成功経路で黒席だけ退出し、白席とroomをTTLまで残していた。
+
+### 15.2 追加の権威修正
+
+AUTOとカード操作は引き続きWorker／ローカルサーバーをauthorityとする。クライアントのdebug、preview、animation stateから結果を決めない。
+
+追加修正では次を固定した。
+
+- AUTO許可とdebug許可を別contractとして扱い、通常roomのAUTOは有効、debug optionは明示許可時だけ有効にする。
+- poison target、追加配置、pending selection、カード1回制限をserver DI経路へ通し、Worker bundleでもroot authorityと同じ結果にする。
+- network turn-start handoffとカード消費後の追加操作を、同じcanonical turn／pending stateから継続する。
+- bundle smokeでpoison selectionと二重配置継続を直接実行し、root sourceだけ通る成功を排除する。
+
+### 15.3 Pixi回復中断の分類
+
+authority recoveryの制御フローは変えない。watchdogはstrict playbackをrejectし、presentation timelineはpause／dispose後に権威snapshotへrebaseする。部分再生済みeventを成功扱いしたり再実行したりしない。
+
+変更するのは診断分類だけである。
+
+- `pixi_playback_interrupted_for_restore`
+- `pixi_playback_texture_prepare_superseded`
+
+上記2codeを共有のcontrolled interruption contractへ集約する。
+
+- board playbackはraw errorを維持してrejectし、`phase-interrupted`／`event-interrupted`として記録する。`failedPhaseCount`は増やさない。
+- Pixi backendは`playback-interrupted`として記録し、`lastErrorCode`を汚さない。
+- Pixi timelineのabortは`abortedRunCount`へ残し、`lastError`は実障害だけに限定する。
+- source trajectoryは`abortedRunCount`とprofile／primitiveの`aborted`へ分類し、`failedRunCount`を増やさない。
+- AnimationEngineはwatchdog／controlled interruptionのrejectを維持し、同じ事象を重複した`console.error`として出さない。
+- context loss、render callback失敗、unsupported eventなどは従来どおりfailureへ残す。
+
+これにより、回復を成功に偽装せず、回復原因と描画障害を診断上区別できる。
+
+### 15.4 smoke cleanup
+
+network smokeはcreate直後からroom IDと両seat tokenを保持する。成功経路は白→黒の順で退出をstrictに検証し、room listから当該roomが消えたことまで成功条件にする。途中失敗では同じ順序でbest-effort cleanupを行い、cleanup失敗で本来の検査失敗を上書きしない。tokenはログへ出さない。
+
+### 15.5 追補の完了条件
+
+- controlled interruption後にcanonical／visual／render stateが収束する。
+- `failedPhaseCount`、Pixi backend `lastErrorCode`、timeline `failedRunCount`／`lastError`へ制御中断が残らない。
+- 真のPixi障害は引き続きfailure診断へ残る。
+- Worker／local／browser／headless network parityが通る。
+- smoke後に両seatとroomが残らない。
+- 最新productionを2ブラウザの標準初期盤面から、timeoutではない自然終局まで進め、両クライアントのcanonical board、result、Pixi writer数、error診断が一致する。
+
+### 15.6 追補の自己レビュー
+
+- server authority、strict presentation ordering、Single Visual Writerを変更せず、回復時の診断誤分類だけを分離している。
+- watchdog timeoutを延長して停止を隠さず、背景タブでも権威rebaseへ到達する既存の安全性を維持している。
+- controlled codeは共有helperへ集約し、backend／playback／trajectoryで判定を重複していない。
+- source trajectoryにもaborted counterを追加したため、phaseだけ正常に見せて下位診断にfailureを残す不整合がない。
+- smoke成功条件へroom消滅を含め、将来の片席cleanup退行を実環境で検出できる。
+- player-visibleルール、カード文言、演出時間は変更しないため、`01-rulebook.md` と `正本/*.md` の更新は不要である。

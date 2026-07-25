@@ -15,6 +15,7 @@ declare const playHandAnimation: any;
 const Constants = _require('./animation-constants');
 const PlaybackStateManager = _require('./playback-state-manager');
 const PlaybackSettlement = _require('./playback-settlement');
+const BoardPlaybackInterruption = _require('./board-visual/playback-interruption');
 
 const {
         EVENT_TYPES,
@@ -980,7 +981,13 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
             } catch (err: any) {
                 abortedDuringPlay = true;
                 playbackError = err;
-                console.error('[AnimationEngine] Playback error:', err);
+                if (
+                    err?.name !== 'NetworkPlaybackWatchdogError'
+                    && err?.message !== 'network_playback_watchdog'
+                    && BoardPlaybackInterruption.isPixiPlaybackControlledInterruption(err) !== true
+                ) {
+                    console.error('[AnimationEngine] Playback error:', err);
+                }
             } finally {
                 this._clearPlaybackAbortHandle(abortHandle);
                 // cleanup watchdog & scope

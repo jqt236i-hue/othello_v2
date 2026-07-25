@@ -6,6 +6,7 @@ import type {
 import {
   createPixiBoardPlayback
 } from '../ui/pixi/board-playback';
+import { PIXI_PLAYBACK_RESTORE_INTERRUPTION_CODE } from '../ui/board-visual/playback-interruption';
 
 type TickListener = (deltaMs: number) => void;
 
@@ -1552,6 +1553,56 @@ describe('Pixi board playback contract', () => {
         tickerRunning: false
       })
     });
+  });
+
+  test('treats an authoritative restore interruption as cancellation rather than renderer failure', async () => {
+    const event = placeEvent(2, 2);
+    const harness = createHarness({ timings: { placeMs: 200 } });
+    const phase = harness.playback.playPhase([event], context(true, [event]));
+    await flushMicrotasks();
+    harness.application.tick(40);
+
+    const interruption = Object.assign(
+      new Error('Pixi playback was interrupted before authoritative restore'),
+      {
+        name: 'PixiBoardBackendError',
+        code: PIXI_PLAYBACK_RESTORE_INTERRUPTION_CODE,
+        stage: 'play-phase'
+      }
+    );
+    const aborting = harness.playback.abortAndWait(interruption);
+
+    await expect(phase).rejects.toBe(interruption);
+    await expect(aborting).resolves.toBeGreaterThanOrEqual(1);
+    expect(harness.playback.getDiagnostics()).toMatchObject({
+      activeScopeKey: null,
+      completedPhaseCount: 0,
+      failedPhaseCount: 0,
+      inFlightEffectCount: 0,
+      timeline: {
+        state: 'idle',
+        activeRunCount: 0,
+        failedRunCount: 0,
+        lastError: null
+      }
+    });
+    expect(harness.playback.getDiagnostics().timeline.abortedRunCount).toBeGreaterThanOrEqual(1);
+    expect(harness.record).toHaveBeenCalledWith(
+      'pixi-playback:event-interrupted',
+      expect.objectContaining({ error: interruption })
+    );
+    expect(harness.record).toHaveBeenCalledWith(
+      'pixi-playback:phase-interrupted',
+      expect.objectContaining({ error: interruption })
+    );
+    expect(harness.record).not.toHaveBeenCalledWith(
+      'pixi-playback:event-error',
+      expect.objectContaining({ error: interruption })
+    );
+    expect(harness.record).not.toHaveBeenCalledWith(
+      'pixi-playback:phase-error',
+      expect.objectContaining({ error: interruption })
+    );
   });
 
   test('reduced-motion zombie FLIP skips the bite but retains the highlight minimum', async () => {

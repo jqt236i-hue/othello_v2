@@ -1,6 +1,6 @@
 # ネット対戦の表示連続性 修正 実装計画
 
-- Status: complete
+- Status: in progress — Phase 9 production verification
 - Date: 2026-07-24
 - Design: `docs/implementation/network-presentation-continuity-repair-design.md`
 
@@ -112,6 +112,34 @@ Done when: 公開環境の2クライアントで対局継続、timeout後続、�
 - [x] commit後のworking treeと公開deploymentを確認する。
 
 Done when: 修正・テスト・生成物・文書が1つの検証済みcommitになり、公開環境と一致する。
+
+## Phase 9 — 標準初期盤面の自然終局とPixi回復追補（2026-07-25）
+
+- [x] productionの標準8×8初期盤面から2ブラウザAUTO対局を開始する。
+- [x] 79手・連続2パスで自然終局し、両clientのcanonical boardと白50対黒0のresultが一致することを確認する。
+- [x] 背景側のstrict playback watchdogからauthoritative rebaseへ至るtraceを採取する。
+- [x] controlled restore interruptionがPixi failure診断へ残る根本原因をbackend／playback／timeline／source trajectoryで特定する。
+- [x] controlled interruption helper、aborted diagnostics、console分類を実装する。
+- [x] 特殊石texture準備中のsuperseded経路も同じcontrolled interruptionへ含める。
+- [x] network smokeを両seat退出＋room list消滅まで検証する。
+- [x] focused Pixi 5 suites／132 tests、typecheck、`check:window`を通す。
+- [x] network parity 35 suites／547 testsを通す。
+- [x] local／production `match:check`で両seat cleanupとroom消滅を確認する。
+- [x] `build:browser`／Vite build、targeted Pixi再生、runtime fallback、12構成cross-platform smokeを通す。
+- [ ] 修正をproductionへdeployし、公開API smokeを再実行する。
+- [ ] 新versionで標準初期盤面から2ブラウザの自然終局を再実行し、Pixi failure／network errorが0であることを確認する。
+- [ ] 両clientを退出させ、room listが空であることを確認する。
+- [ ] Worker mirrorと完了証跡をcommitし、本計画をcompleteへ戻す。
+
+Done when: 最新productionの自然終局で両clientが同じcanonical board／resultへ収束し、Pixiはcanvas 1・context 1・DOM cell 0、真のfailed phase/runとnetwork abnormal eventが0、公開room残存が0になる。
+
+### Phase 9 自己レビュー
+
+- 旧productionで自然終局できた事実だけでは修正後の診断を証明できないため、deploy後に初期盤面から再実行する。
+- controlled abortのunit testだけでなく、軌道演出、texture prepare、fallback、cross-platform、実ブラウザを順に確認する。
+- server gameplay stateや演出順を変更せず、authority recoveryがraw rejectを保つことをdone conditionへ含める。
+- 初回の全演出browser checkはshell timeout後にreport `ok: true`を生成したが、終了codeを得られなかったため、関連するnormal軌道32ケースを再実行してexit 0を確認した。
+- 初回のruntime fallback buildはWindows file lockで失敗し、同じ生成処理の再実行後にfallback checkが成功した。既知失敗を隠さず最終報告へ残す。
 
 ## 完了証跡
 

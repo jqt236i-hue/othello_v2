@@ -303,7 +303,9 @@ export function createPixiTimeline(options: PixiTimelineOptions): PixiTimeline {
   ): void {
     if (run.done) return;
     run.done = true;
-    lastError = error;
+    // Aborts are controlled cancellation. Their count and rejection reason
+    // remain observable without misreporting them as renderer failures.
+    if (status !== 'aborted') lastError = error;
     const settlement = makeSettlement(run, status, stage, error);
     try {
       run.options.onError?.(error, settlement);

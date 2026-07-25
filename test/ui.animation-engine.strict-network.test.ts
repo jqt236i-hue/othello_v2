@@ -38,6 +38,7 @@ describe('AnimationEngine strict network playback', () => {
       jest.advanceTimersByTime(20);
 
       await expect(playPromise).rejects.toThrow(/network_playback_watchdog/);
+      expect(errorSpy).not.toHaveBeenCalled();
     } finally {
       AnimationEngine.executePhase = originalExecutePhase;
       warnSpy.mockRestore();

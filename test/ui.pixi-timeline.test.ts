@@ -431,7 +431,7 @@ describe('Pixi board timeline', () => {
     expect(log.indexOf('clock:stop')).toBeGreaterThan(log.indexOf('settled:second:aborted'));
     expect(timeline.getDiagnostics()).toMatchObject({
       state: 'idle', activeRunCount: 0, tickerRunning: false,
-      tickerSubscribed: false, abortedRunCount: 2
+      tickerSubscribed: false, abortedRunCount: 2, lastError: null
     });
   });
 

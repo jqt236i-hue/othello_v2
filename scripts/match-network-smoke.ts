@@ -310,11 +310,14 @@ function choosePublishAction(snapshot: any): { playerKey: SeatKey; row: number; 
 }
 
 async function main() {
+    const requestedRoomBoardConfig = resolveRequestedRoomBoardConfig();
     const managedServerState = await startManagedLocalServerIfNeeded();
     const baseUrl = managedServerState.baseUrl;
     const managedServer = managedServerState.server;
-    const requestedRoomBoardConfig = resolveRequestedRoomBoardConfig();
-    let blackStream = null;
+    let blackStream: SseStream | null = null;
+    let roomId = '';
+    let blackSeatToken = '';
+    let whiteSeatToken = '';
 
     if (managedServer) {
         console.log(`[match-check] auto-start local server ${baseUrl}`);
@@ -325,9 +328,10 @@ async function main() {
         if (requestedRoomBoardConfig) createBody.roomBoardConfig = requestedRoomBoardConfig;
         const created = await requestJson(baseUrl, 'POST', '/api/match/create', createBody);
         assertTrue(created.ok && created.data && created.data.ok === true, '部屋作成に失敗しました');
-        const roomId = String(created.data.roomId || '').trim().toUpperCase();
+        roomId = String(created.data.roomId || '').trim().toUpperCase();
         const seatKey = String(created.data.seatKey || '').trim();
         const seatToken = String(created.data.seatToken || '').trim();
+        blackSeatToken = seatToken;
         assertTrue(!!roomId, '部屋番号が空です');
         assertTrue(/^[A-Z0-9]{3}$/.test(roomId), '部屋番号は英数字3文字ではありません');
         assertTrue(seatKey === 'black', '作成側の席が黒ではありません');
@@ -342,6 +346,7 @@ async function main() {
         assertSeatProjection(joined.data.snapshot, 'white');
         assertPayloadBoardState(joined.data, requestedRoomBoardConfig, 'join');
         const joinedSeatToken = String(joined.data.seatToken || '').trim();
+        whiteSeatToken = joinedSeatToken;
         assertTrue(!!joinedSeatToken, '参加側の合言葉がありません');
         console.log('[match-check] join ok seat=white');
 
@@ -417,13 +422,60 @@ async function main() {
         const deniedState = await requestJson(baseUrl, 'GET', `/api/match/state?roomId=${encodeURIComponent(roomId)}`);
         assertTrue(!deniedState.ok && deniedState.status === 403, 'seatTokenなしstateが拒否されませんでした');
 
-        const left = await requestJson(baseUrl, 'POST', '/api/match/leave', { roomId, seatKey, seatToken });
-        assertTrue(left.ok && left.data && left.data.ok === true, '退出に失敗しました');
-        console.log('[match-check] leave ok');
+        const whiteLeft = await requestJson(baseUrl, 'POST', '/api/match/leave', {
+            roomId,
+            seatKey: 'white',
+            seatToken: whiteSeatToken
+        });
+        assertTrue(whiteLeft.ok && whiteLeft.data && whiteLeft.data.ok === true, '退出(white)に失敗しました');
+        whiteSeatToken = '';
+
+        const blackLeft = await requestJson(baseUrl, 'POST', '/api/match/leave', {
+            roomId,
+            seatKey: 'black',
+            seatToken: blackSeatToken
+        });
+        assertTrue(blackLeft.ok && blackLeft.data && blackLeft.data.ok === true, '退出(black)に失敗しました');
+        blackSeatToken = '';
+        console.log('[match-check] leave ok seats=white,black');
+
+        const listedAfterLeave = await requestJson(baseUrl, 'GET', '/api/match/list');
+        assertTrue(
+            listedAfterLeave.ok && listedAfterLeave.data && listedAfterLeave.data.ok === true,
+            '退出後の部屋一覧取得に失敗しました'
+        );
+        const remainingRooms = Array.isArray(listedAfterLeave.data.rooms)
+            ? listedAfterLeave.data.rooms
+            : [];
+        assertTrue(
+            !remainingRooms.some((room: any) => String(room?.roomId || '').trim().toUpperCase() === roomId),
+            '退出後も部屋一覧にテスト部屋が残っています'
+        );
+        console.log('[match-check] room cleanup verified');
 
         console.log('[match-check] success');
     } finally {
         await closeSseStream(blackStream);
+        if (roomId && whiteSeatToken) {
+            const cleanup = await requestJson(baseUrl, 'POST', '/api/match/leave', {
+                roomId,
+                seatKey: 'white',
+                seatToken: whiteSeatToken
+            }).catch(() => null);
+            if (!cleanup?.ok || cleanup.data?.ok !== true) {
+                console.warn(`[match-check] cleanup leave failed seat=white room=${roomId}`);
+            }
+        }
+        if (roomId && blackSeatToken) {
+            const cleanup = await requestJson(baseUrl, 'POST', '/api/match/leave', {
+                roomId,
+                seatKey: 'black',
+                seatToken: blackSeatToken
+            }).catch(() => null);
+            if (!cleanup?.ok || cleanup.data?.ok !== true) {
+                console.warn(`[match-check] cleanup leave failed seat=black room=${roomId}`);
+            }
+        }
         await closeManagedLocalServer(managedServer);
     }
 }

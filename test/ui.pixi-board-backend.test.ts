@@ -4,6 +4,7 @@ import { PresentationPlaybackError } from '../ui/board-visual/playback-types';
 import type { BoardVisualFrame } from '../ui/board-visual/types';
 import Backend = require('../ui/pixi/board-backend');
 import Camera = require('../ui/pixi/camera');
+import { PIXI_PLAYBACK_RESTORE_INTERRUPTION_CODE } from '../ui/board-visual/playback-interruption';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -645,6 +646,57 @@ describe('Pixi board backend integration', () => {
     expect(harness.scene.applyCalls.at(-1)!.frame.frameToken).toBe('restore-barrier-final');
   });
 
+  test('does not report an authoritative restore interruption as a Pixi playback failure', async () => {
+    const fixture = createPlaybackFixture();
+    let rejectPlayback!: (error: unknown) => void;
+    fixture.playback.playPhase.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
+      rejectPlayback = reject;
+    }));
+    fixture.playback.abortAndWait.mockImplementationOnce(async (reason: unknown) => {
+      rejectPlayback(reason);
+      return 1;
+    });
+    const harness = createHarness({ playbackFactory: () => fixture.playback });
+    const record = jest.fn();
+    await harness.backend.mount(harness.host, { diagnostics: { record } });
+    const initial = makeFrame('restore-interruption-initial', 1);
+    await harness.backend.prepareFrame(initial);
+    harness.backend.applyFrame(initial);
+    await harness.backend.waitForVisualSettlement(initial);
+
+    const playing = harness.backend.playPhase([{ type: 'move' }], {
+      token: { id: 1, frameToken: 'network:restore-interruption', mode: 'network' },
+      strictNetworkPlayback: true
+    });
+    await flushMicrotasks();
+
+    const restored = makeFrame('restore-interruption-final', 2);
+    const restoring = harness.backend.restore(restored);
+    await expect(playing).rejects.toMatchObject({
+      name: 'PixiBoardBackendError',
+      code: PIXI_PLAYBACK_RESTORE_INTERRUPTION_CODE,
+      stage: 'play-phase'
+    });
+    await expect(restoring).resolves.toBeUndefined();
+
+    expect(harness.backend.getDiagnostics()).toMatchObject({
+      restoreCount: 1,
+      settledFrameToken: 'restore-interruption-final',
+      lastErrorCode: null
+    });
+    expect(record).toHaveBeenCalledWith(
+      'pixi-backend:playback-interrupted',
+      {
+        code: PIXI_PLAYBACK_RESTORE_INTERRUPTION_CODE,
+        stage: 'play-phase'
+      }
+    );
+    expect(record).not.toHaveBeenCalledWith(
+      'pixi-backend:error',
+      expect.objectContaining({ code: PIXI_PLAYBACK_RESTORE_INTERRUPTION_CODE })
+    );
+  });
+
   test('rejects a canonical frame that would overtake active playback', async () => {
     const fixture = createPlaybackFixture();
     const activePhase = deferred<void>();
@@ -721,7 +773,8 @@ describe('Pixi board backend integration', () => {
   test('restore drains a playback launch that is still preparing textures', async () => {
     const fixture = createPlaybackFixture();
     const harness = createHarness({ playbackFactory: () => fixture.playback });
-    await harness.backend.mount(harness.host, {});
+    const record = jest.fn();
+    await harness.backend.mount(harness.host, { diagnostics: { record } });
     const initial = makeFrame('restore-texture-barrier-initial', 1);
     await harness.backend.prepareFrame(initial);
     harness.backend.applyFrame(initial);
@@ -756,6 +809,18 @@ describe('Pixi board backend integration', () => {
     expect(fixture.playback.playPhase).not.toHaveBeenCalled();
     expect(harness.scene.applyCalls.at(-1)!.frame.frameToken).toBe(
       'restore-texture-barrier-final'
+    );
+    expect(harness.backend.getDiagnostics().lastErrorCode).toBeNull();
+    expect(record).toHaveBeenCalledWith(
+      'pixi-backend:playback-interrupted',
+      {
+        code: 'pixi_playback_texture_prepare_superseded',
+        stage: 'texture-prepare'
+      }
+    );
+    expect(record).not.toHaveBeenCalledWith(
+      'pixi-backend:error',
+      expect.objectContaining({ code: 'pixi_playback_texture_prepare_superseded' })
     );
   });
 
