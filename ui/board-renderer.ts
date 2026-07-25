@@ -2008,6 +2008,18 @@ async function getBoardVisualControllerReady() {
     if (!controller) return Promise.reject(new Error('Board visual controller is unavailable'));
     if (typeof controller.waitUntilReady === 'function') await controller.waitUntilReady();
     else await (controller.ready || Promise.resolve());
+    // A forced canonical snapshot can leave a synthetic local writer settling
+    // while its presentation frame is already queued for strict network
+    // playback. Do not let the strict writer reclaim that token until the
+    // asynchronous local settlement has released it; otherwise the stale
+    // settlement can release the newly reclaimed network writer.
+    if (
+        AutoBoardWriterSettlementForBoardRenderer
+        || AutoBoardWriterTokenForBoardRenderer
+        || AutoBoardWriterClaimForBoardRenderer
+    ) {
+        await settleAutoBoardVisualWriter();
+    }
     if (
         typeof controller.waitForIdle === 'function'
         && (typeof controller.getMode !== 'function' || controller.getMode() === 'idle')

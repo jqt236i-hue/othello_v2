@@ -59,6 +59,7 @@ describe('board renderer recovery boundary', () => {
     (global as any).cardState = {};
     (global as any).countDiscs = jest.fn(() => ({ black: 2, white: 2 }));
     const settlement = deferred();
+    const autoWriterSettlement = deferred();
     const buildModel = jest.fn(() => ({
       visualRevision: 0,
       topology: {
@@ -158,6 +159,7 @@ describe('board renderer recovery boundary', () => {
       settleLocalWriter: jest.fn(async (token: any, frame: any) => {
         expect(token).toBe(activeToken);
         expect(frame.frameToken).toBe(activeToken.frameToken);
+        await autoWriterSettlement.promise;
         mode = 'idle';
         activeToken = null;
         return true;
@@ -189,10 +191,18 @@ describe('board renderer recovery boundary', () => {
       expect(controller.submitFrame).not.toHaveBeenCalled();
       expect(buildModel).not.toHaveBeenCalled();
 
-      await renderer.settleAutoBoardVisualWriter();
+      let readyResolved = false;
+      const readyPromise = renderer.getBoardVisualControllerReady().then(() => {
+        readyResolved = true;
+      });
+      await Promise.resolve();
+      await Promise.resolve();
 
       expect(controller.settleLocalWriter).toHaveBeenCalledTimes(1);
+      expect(readyResolved).toBe(false);
       expect(buildModel).toHaveBeenCalledTimes(1);
+      autoWriterSettlement.resolve();
+      await readyPromise;
       expect(renderer.getBoardVisualInvalidationDiagnostics()).toMatchObject({
         requestCount: 3,
         mergeCount: 2,
