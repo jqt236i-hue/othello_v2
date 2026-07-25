@@ -153,7 +153,6 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
             getBoardShape: _getBoardShapeForDiff,
             buildEmptyCellState: _buildEmptyCellStateForDiffRender,
             cardLogic: CardLogic,
-            getPlayerKey,
             resolveViewerContext: _resolveViewerContextForDiff,
             canLocalPlayerControlCurrentTurn: _canLocalPlayerControlCurrentTurnForDiff,
             constants: { BLACK, WHITE, EMPTY } = {}
@@ -178,8 +177,6 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
         } = markerCapabilities || {};
         const {
             isDebugWorkVisuals,
-            isDebugHumanVsHuman,
-            warn,
             log: debugLog
         } = debugCapabilities || {};
     const renderProjection = preparedRenderProjection || createBoardRenderProjection(capabilities);

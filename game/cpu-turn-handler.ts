@@ -206,12 +206,6 @@ function createRunPerformanceScope(
     });
 }
 
-function createCpuResumeOptions(autoMode: boolean, scope: CpuTurnPerformanceScope | null): any {
-    const base = { autoMode };
-    return scope
-        ? withCpuTurnPerformanceOptions(base, scope.correlationId, scope.level)
-        : base;
-}
 const CpuTurnRuntimeBoundary = (CpuRuntimeBoundaryModule && typeof CpuRuntimeBoundaryModule.createCpuTurnRuntimeBoundary === 'function')
     ? CpuRuntimeBoundaryModule.createCpuTurnRuntimeBoundary({
         getUiImpl: () => __uiImpl_cpu,
@@ -385,11 +379,6 @@ function resolveCpuDecisionFunction(name: string): Function | null {
         }
     } catch (e) { /* ignore */ }
     return null;
-}
-
-function resolveCpuOpponentProfileForTurn(playerKey: PlayerKey): any {
-    const selection = resolveCpuRuntimeSelectionForTurn(playerKey);
-    return selection && selection.profile ? selection.profile : null;
 }
 
 function resolveCpuRuntimeSelectionForTurn(playerKey: PlayerKey): any {
@@ -724,13 +713,6 @@ function resolveCpuLv6RuntimeCapabilityModule() {
         }
     } catch (e) { /* ignore */ }
     return null;
-}
-
-function resolveCpuLv6BrowserRuntimeCapability() {
-    const shared = readExplicitCpuLv6SharedProfile();
-    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
-    if (!shared || !capabilityModule || typeof capabilityModule.resolveCpuLv6BrowserRuntimeCapability !== 'function') return null;
-    return capabilityModule.resolveCpuLv6BrowserRuntimeCapability(shared);
 }
 
 function shouldUseOnnxMoveDecision(level: any) {

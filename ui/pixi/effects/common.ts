@@ -167,7 +167,6 @@ export function isZombieInfectionTarget(target: unknown): boolean {
 }
 
 export function isTeleportMoveTarget(target: unknown): boolean {
-  const source = asRecord(target);
   const intent = String(playbackTargetMeta(target).moveIntent || '').trim().toLowerCase();
   const cause = playbackTargetCause(target);
   return intent === 'teleport_move'

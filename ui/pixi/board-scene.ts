@@ -2979,7 +2979,7 @@ export function createPixiBoardScene(options: PixiBoardSceneOptions): PixiBoardS
     let ephemeralVoidCount = 0;
     let holeCount = 0;
     let cellBoardTextureCount = 0;
-    for (const [key, views] of active) {
+    for (const key of active.keys()) {
       const materialized = materializedByKey.get(key);
       if (materialized?.kind === 'void') ephemeralVoidCount += 1;
       if (materialized?.kind === 'hole') holeCount += 1;

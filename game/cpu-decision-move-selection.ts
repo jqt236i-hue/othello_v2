@@ -259,7 +259,6 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
         const rng = cfg.getCpuRng();
         const prepared = prepareCandidateMovesForPolicy(candidateMoves, playerKey, true);
         const {
-            board,
             cardLevel,
             forceLv6Placement,
             pendingType,

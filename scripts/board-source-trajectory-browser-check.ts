@@ -234,11 +234,6 @@ const REQUIRED_GEOMETRY_FIXTURES = Object.freeze([
   'shrunk'
 ]);
 
-function finite(value: unknown): number {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : 0;
-}
-
 function sameCoordinate(
   first: Readonly<{ row: number; col: number }>,
   second: Readonly<{ row: number; col: number }>
@@ -866,7 +861,7 @@ async function captureViewport(
         serial += 1;
         let phasePromise: Promise<unknown> | null = null;
         let sampleError: any = null;
-        const controller = renderer.getBoardVisualController();
+        renderer.getBoardVisualController();
         const scrollViewportElement = document.getElementById('board-scroll-viewport') as HTMLElement | null;
         const viewportElement = scrollViewportElement
           || document.getElementById('board') as HTMLElement | null;
@@ -916,8 +911,6 @@ async function captureViewport(
           width: boardViewport.width + cellSize * 4,
           height: boardViewport.height + cellSize * 4
         };
-        const startCoordinate = definition.direction === 'source-to-target' ? scenario.source : scenario.target;
-        const endCoordinate = definition.direction === 'source-to-target' ? scenario.target : scenario.source;
         const startRect = definition.direction === 'source-to-target' ? sourceRect : targetRect;
         const endRect = definition.direction === 'source-to-target' ? targetRect : sourceRect;
         const movementStartPoint = center(startRect);

@@ -16,8 +16,6 @@ const WorldStatePresenterModule = _require('./world-state-presenter');
 
 const DiffRendererWorldStatePresenter = WorldStatePresenterModule.createWorldStatePresenter();
 
-let SharedConstantsModuleForDiff: any = null;
-
 let LastUsedPanelCopyModuleForDiff: any = null;
 
 let CardCatalogModuleForDiff: any = null;
@@ -931,7 +929,7 @@ function presentCommittedWorldState(cardStateValue: any) {
 var AnimationShared = (typeof require === 'function') ? require('../animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null);
 
 if (typeof _require === 'function') {
-    try { SharedConstantsModuleForDiff = _require('../../shared-constants'); } catch (e: any) { /* ignore */ }
+    try { _require('../../shared-constants'); } catch (e: any) { /* ignore */ }
 }
 
 export = { createCommittedManifestPresentationState, presentCommittedWorldState };

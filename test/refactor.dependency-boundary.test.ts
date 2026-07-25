@@ -28,8 +28,20 @@ const RUNTIME_NEUTRAL_UNUSED_DECLARATION_KINDS = new Set([
   ts.SyntaxKind.InterfaceDeclaration,
   ts.SyntaxKind.TypeAliasDeclaration
 ]);
+const CLEAN_RUNTIME_UNUSED_DIAGNOSTIC_FILES = new Set([
+  'game/cpu-decision-move-selection.ts',
+  'game/cpu-turn-handler.ts',
+  'scripts/board-source-trajectory-browser-check.ts',
+  'scripts/build-module-registry.ts',
+  'ui/board-visual/model-builder.ts',
+  'ui/handlers/match-mode/network-buttons.ts',
+  'ui/pixi/board-scene.ts',
+  'ui/pixi/effects/common.ts',
+  'ui/presentation/committed-world-state.ts'
+]);
 
 const EXPECTED_CYCLIC_COMPONENTS: string[][] = [];
+let unusedDeclarationDiagnosticsCache: readonly ts.Diagnostic[] | null = null;
 
 function toPosixPath(filePath: string): string {
   return filePath.replace(/\\/g, '/');
@@ -251,14 +263,20 @@ function createTsOnlyProgramWithUnusedChecks(): ts.Program {
   return ts.createProgram(parsedConfig.fileNames, parsedConfig.options);
 }
 
+function collectUnusedDeclarationDiagnostics(): readonly ts.Diagnostic[] {
+  if (unusedDeclarationDiagnosticsCache === null) {
+    unusedDeclarationDiagnosticsCache = ts.getPreEmitDiagnostics(createTsOnlyProgramWithUnusedChecks())
+      .filter((diagnostic) => (
+        UNUSED_DECLARATION_DIAGNOSTIC_CODES.has(diagnostic.code)
+        && diagnostic.file !== undefined
+        && diagnostic.start !== undefined
+      ));
+  }
+  return unusedDeclarationDiagnosticsCache;
+}
+
 function collectRuntimeNeutralUnusedDiagnostics(): string[] {
-  const program = createTsOnlyProgramWithUnusedChecks();
-  return ts.getPreEmitDiagnostics(program)
-    .filter((diagnostic) => (
-      UNUSED_DECLARATION_DIAGNOSTIC_CODES.has(diagnostic.code)
-      && diagnostic.file !== undefined
-      && diagnostic.start !== undefined
-    ))
+  return collectUnusedDeclarationDiagnostics()
     .filter((diagnostic) => {
       let current: ts.Node | undefined = ts.getTokenAtPosition(
         diagnostic.file as ts.SourceFile,
@@ -276,6 +294,49 @@ function collectRuntimeNeutralUnusedDiagnostics(): string[] {
     .sort();
 }
 
+function collectUnusedDiagnosticsForCleanRuntimeFiles(): string[] {
+  return collectUnusedDeclarationDiagnostics()
+    .filter((diagnostic) => (
+      diagnostic.file !== undefined
+      && CLEAN_RUNTIME_UNUSED_DIAGNOSTIC_FILES.has(toRepoRelative(diagnostic.file.fileName))
+    ))
+    .map(formatCompilerDiagnostic)
+    .sort();
+}
+
+function parseTypeScriptSource(relativePath: string): ts.SourceFile {
+  return ts.createSourceFile(
+    relativePath,
+    fs.readFileSync(path.join(REPO_ROOT, relativePath), 'utf8'),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
+}
+
+function countMatchingNodes(sourceFile: ts.SourceFile, predicate: (node: ts.Node) => boolean): number {
+  let count = 0;
+  function visit(node: ts.Node): void {
+    if (predicate(node)) {
+      count += 1;
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return count;
+}
+
+function isWithinTryBlock(node: ts.Node): boolean {
+  let current: ts.Node | undefined = node.parent;
+  while (current) {
+    if (ts.isTryStatement(current)) {
+      return node.pos >= current.tryBlock.pos && node.end <= current.tryBlock.end;
+    }
+    current = current.parent;
+  }
+  return false;
+}
+
 describe('refactor dependency boundaries', () => {
   test('runtime source import cycles stay explicit and shrinkable', () => {
     expect(findCyclicComponents(buildRuntimeDependencyGraph())).toEqual(EXPECTED_CYCLIC_COMPONENTS);
@@ -284,4 +345,36 @@ describe('refactor dependency boundaries', () => {
   test('runtime-neutral unused imports and type declarations stay absent', () => {
     expect(collectRuntimeNeutralUnusedDiagnostics()).toEqual([]);
   }, 30000);
+
+  test('cleaned runtime files stay free of unused declarations', () => {
+    expect(collectUnusedDiagnosticsForCleanRuntimeFiles()).toEqual([]);
+  }, 30000);
+
+  test('cleanup retains required controller and compatibility-module evaluations', () => {
+    const trajectorySource = parseTypeScriptSource('scripts/board-source-trajectory-browser-check.ts');
+    const controllerGetterCalls = countMatchingNodes(trajectorySource, (node) => (
+      ts.isExpressionStatement(node)
+      && ts.isCallExpression(node.expression)
+      && ts.isPropertyAccessExpression(node.expression.expression)
+      && ts.isIdentifier(node.expression.expression.expression)
+      && node.expression.expression.expression.text === 'renderer'
+      && node.expression.expression.name.text === 'getBoardVisualController'
+      && node.expression.arguments.length === 0
+    ));
+
+    const committedWorldStateSource = parseTypeScriptSource('ui/presentation/committed-world-state.ts');
+    const sharedConstantsLoads = countMatchingNodes(committedWorldStateSource, (node) => (
+      ts.isCallExpression(node)
+      && ts.isIdentifier(node.expression)
+      && node.expression.text === '_require'
+      && node.arguments.length === 1
+      && ts.isStringLiteral(node.arguments[0])
+      && node.arguments[0].text === '../../shared-constants'
+      && ts.isExpressionStatement(node.parent)
+      && isWithinTryBlock(node)
+    ));
+
+    expect(controllerGetterCalls).toBe(1);
+    expect(sharedConstantsLoads).toBe(1);
+  });
 });

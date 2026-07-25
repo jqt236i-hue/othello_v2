@@ -8,15 +8,7 @@ import * as path from 'path';
 import _sync_browser_script_versions from './sync-browser-script-versions';
 const { syncBrowserScriptVersions } = _sync_browser_script_versions;
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-    ? __non_webpack_require__
-    : require;
-
 const ROOT = process.cwd();
-const DIST = path.join(ROOT, 'dist');
-const OUT = path.join(ROOT, 'public', 'module-registry.js');
 const WRITE_RETRY_COUNT = 5;
 const WRITE_RETRY_DELAY_MS = 100;
 
@@ -416,10 +408,6 @@ function collectRootRuntimeModules(rootDir: string): string[] {
         walkDir(sourceDir, rootDir, rootJsFiles);
     }
     return rootJsFiles.filter(isRootRuntimeModule).sort();
-}
-
-function collectRecordKeys(record: RegistryModuleRecord): string[] {
-    return [record.moduleKey].concat(record.aliases || []);
 }
 
 function extractLiteralModuleDependencies(content: string): string[] {

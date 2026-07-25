@@ -64,7 +64,6 @@ function bindNetworkButtons(context: any) {
         readPrimaryWheelDelta,
         getPendingRoomBoardConfig,
         stepBoardDimensionValue,
-        syncNetworkCircleBoardSizeInputs,
         updatePendingRoomBoardConfigFromInputs,
         readNetworkRoomName,
         readNetworkRoomPassword,
