@@ -24,7 +24,7 @@ updated: 2026-07-26
 - Phase 10 Tasks 10.1 and 10.2: completed. The user authorized visual verification, and the passing evidence is recorded in [browser-visual-verification-2026-07-11.md](../../refactor-baselines/browser-visual-verification-2026-07-11.md).
 - Phase H Task H.1: completed in an isolated mirror. Evidence and recovery instructions are recorded in [history-rewrite-preflight.md](../../refactor-baselines/history-rewrite-preflight.md).
 - Phase H Task H.2: pending the required second explicit confirmation after review of the H.1 evidence. The authoritative remote has not been modified.
-- Phase 11: Task 11.0 complete; Task 11.1 ready. This is the 2026-07-26 post-convergence safe-cleanup addendum and does not reopen the closed twenty-finding matrix.
+- Phase 11: completed. The 2026-07-26 post-convergence safe-cleanup removed every declaration identified by the bounded positive-proof classes, added recurrence guards, and left compatibility-sensitive diagnostics outside the approved scope.
 
 ## Global Constraints
 
@@ -611,7 +611,7 @@ If a task creates browser-visible root changes, run `npm run build:browser` afte
 
 **Design:** Section 16 of [2026-07-11-behavior-preserving-full-refactor-design.md](../specs/2026-07-11-behavior-preserving-full-refactor-design.md).
 
-**Status:** independently reviewed; Task 11.0 complete; Task 11.1 ready.
+**Status:** completed on 2026-07-26.
 
 ### Task 11.0: Commit the independently reviewed artifacts
 
@@ -721,13 +721,13 @@ Unused local interfaces (15 diagnostics):
 
 **Dependencies:** Task 11.0 complete; the full reviewed-artifact commit hash is recorded above; clean worktree; passing `npm run checkall`.
 
-- [ ] Record the affected emitted `.js` files and copy/hash them outside the workspace after a clean `npm run build:ts`.
-- [ ] Remove the 37 whole compiler-erased import declarations, the 25 unused bindings from retained imports, and the 15 unused local interfaces only.
-- [ ] Keep partial value-import module evaluation unchanged.
-- [ ] Add a TypeScript-compiler structural test that rejects unused import/type declarations repository-wide while ignoring unrelated compatibility-local diagnostics.
-- [ ] Run `npm run typecheck`, `npm run build:ts`, and compare affected emitted JavaScript byte-for-byte with the pre-change copy.
-- [ ] Run `npx jest --runInBand --runTestsByPath test\refactor.dependency-boundary.test.ts`, `npm run checkall`, and `git diff --check`.
-- [ ] Inspect the task-only diff and commit: `refactor: remove unused TypeScript bindings`.
+- [x] Record the affected emitted `.js` files and copy/hash them outside the workspace after a clean `npm run build:ts`.
+- [x] Remove the 37 whole compiler-erased import declarations, the 25 unused bindings from retained imports, and the 15 unused local interfaces only.
+- [x] Keep partial value-import module evaluation unchanged.
+- [x] Add a TypeScript-compiler structural test that rejects unused import/type declarations repository-wide while ignoring unrelated compatibility-local diagnostics.
+- [x] Run `npm run typecheck`, `npm run build:ts`, and compare affected emitted JavaScript byte-for-byte with the pre-change copy.
+- [x] Run `npx jest --runInBand --runTestsByPath test\refactor.dependency-boundary.test.ts`, `npm run checkall`, and `git diff --check`.
+- [x] Inspect the task-only diff and commit: `refactor: remove unused TypeScript bindings`.
 
 **Done condition:** The 77 diagnostics are absent, emitted JavaScript is identical, the structural guard and normal checks pass, and the isolated unit is committed.
 
@@ -759,14 +759,14 @@ Unused local interfaces (15 diagnostics):
 npx jest --runInBand --runTestsByPath test\refactor.dependency-boundary.test.ts test\game.cpu-decision-move-selection-worker.test.ts test\cpu.turn-handler.retry.test.ts test\scripts.board-source-trajectory-browser-check.test.ts test\scripts.build-module-registry.boot-contract.test.ts test\scripts.capture-pixijs-playfield-performance.test.ts test\ui.board-dom-compat.renderer.flip.test.ts test\ui.board-visual.model-builder-capabilities.test.ts test\ui.match-mode.network-button.test.ts test\ui.pixi-board-scene.test.ts test\ui.board-renderer.committed-manifest-state.test.ts
 ```
 
-- [ ] Remove unused destructuring entries, dead local helpers/interfaces, unused loop values, and unused pure intermediate values.
-- [ ] Preserve `renderer.getBoardVisualController()` evaluation where its unused result is removed.
-- [ ] Preserve the shared-constants compatibility load as a side-effect-only require.
-- [ ] Add structural assertions that the controller getter remains a standalone expression statement and the shared-constants `_require` remains evaluated inside its compatibility `try` path.
-- [ ] Extend the structural test so the named cleaned files have no `TS6133`, `TS6192`, or `TS6196` diagnostics.
-- [ ] Rerun the exact focused command above; confirm all original 120 tests and every new guard pass, and record the final suite/test count.
-- [ ] Run `npm run typecheck`, `npm run build:ts`, `npm run build:browser`, and `npm run worker:prepare`, then run `npm run checkall` against the prepared mirror.
-- [ ] Inspect generated/mirror changes, run `git diff --check`, inspect final task diff/status, and commit: `refactor: remove locally proven dead bindings`.
+- [x] Remove unused destructuring entries, dead local helpers/interfaces, unused loop values, and unused pure intermediate values.
+- [x] Preserve `renderer.getBoardVisualController()` evaluation where its unused result is removed.
+- [x] Preserve the shared-constants compatibility load as a side-effect-only require.
+- [x] Add structural assertions that the controller getter remains a standalone expression statement and the shared-constants `_require` remains evaluated inside its compatibility `try` path.
+- [x] Extend the structural test so the named cleaned files have no `TS6133`, `TS6192`, or `TS6196` diagnostics.
+- [x] Rerun the exact focused command above; confirm all original 120 tests and every new guard pass, and record the final suite/test count.
+- [x] Run `npm run typecheck`, `npm run build:ts`, `npm run build:browser`, and `npm run worker:prepare`, then run `npm run checkall` against the prepared mirror.
+- [x] Inspect generated/mirror changes, run `git diff --check`, inspect final task diff/status, and commit: `refactor: remove locally proven dead bindings`.
 
 **Done condition:** The 19 diagnostics are absent and the nine-file slice has zero unused diagnostics after Task 11.1; the exact focused command passes every original and new test; the two retained evaluations have direct structural assertions; all required checks, builds, and mirror preparation pass; and the isolated unit is committed.
 
@@ -778,26 +778,37 @@ npx jest --runInBand --runTestsByPath test\refactor.dependency-boundary.test.ts 
 
 **Dependencies:** Tasks 11.1 and 11.2 committed.
 
-- [ ] Record diagnostic counts, emitted-JavaScript comparison, focused-test results, build/check results, mirror result, and commit IDs.
-- [ ] Mark the Phase 11 status and checklist complete only after final `git status --short` and task-scoped diff inspection.
-- [ ] Run documentation reference/file checks and `git diff --check`.
-- [ ] Commit: `docs: record safe cleanup convergence`.
+- [x] Record diagnostic counts, emitted-JavaScript comparison, focused-test results, build/check results, mirror result, and commit IDs.
+- [x] Mark the Phase 11 status and checklist complete only after final `git status --short` and task-scoped diff inspection.
+- [x] Run documentation reference/file checks and `git diff --check`.
+- [x] Commit: `docs: record safe cleanup convergence`.
 
 **Done condition:** The active artifacts reflect the final implementation, every Phase 11 condition has evidence, and the working tree is clean.
 
+### Phase 11 recorded evidence
+
+- Reviewed-artifact gate: `77884a9c08f55e39a613e5984774c289d87e3d9e`; gate-metadata commit: `c62f3352af71e75d4ce3ee5566df4b9cb060443a`.
+- Task 11.1 commit: `12f27f87f1c98a89bad49d045e989940a2c78b60` (`refactor: remove unused TypeScript bindings`).
+- Task 11.2 commit: `9bc9802c910eed99f03efb7d634486991d65cd61` (`refactor: remove locally proven dead bindings`).
+- `noUnusedLocals` diagnostics moved from 444 at discovery to 367 after Task 11.1 and 348 after Task 11.2. The repository-wide runtime-neutral import/interface/type class is zero, and the exact nine-file runtime slice is zero. The remaining 348 diagnostics are intentionally outside this phase because the positive behavior-preservation proof does not cover their dynamic or compatibility-sensitive roles.
+- All 57 affected Task 11.1 emitted JavaScript files were compared by SHA-256 before and after the source edits; 57/57 were byte-identical with zero mismatches.
+- The Task 11.1 dependency-boundary suite passed 2/2 tests. The final exact eleven-path focused command passed 11/11 suites and 123/123 tests: all original 120 tests plus three new guards.
+- The final structural suite verifies both retained evaluations directly: `renderer.getBoardVisualController()` remains a standalone expression statement, and the shared-constants `_require` remains inside its compatibility `try` path. The suite also prevents recurrence of the cleaned declaration classes.
+- `npm run typecheck`, `npm run build:ts`, `npm run build:browser`, `npm run worker:prepare`, the final prepared-mirror `npm run checkall`, and `git diff --check` all passed. Worker preparation verified 925 mirrored files, and generated browser/mirror diffs were inspected as task-owned output.
+
 ### Phase 11 completion checklist
 
-- [ ] Design and plan self-review are complete.
-- [ ] Independent review findings are resolved.
-- [ ] Reviewed-artifact commit hash is recorded before source implementation.
-- [ ] Runtime-neutral import/type diagnostics are zero.
-- [ ] The nine-file runtime slice has zero unused diagnostics.
-- [ ] Emitted JavaScript equivalence for Task 11.1 is proven.
-- [ ] The same 11 focused paths pass the original 120 tests plus every new guard, with the final count recorded.
-- [ ] Structural assertions protect both retained side-effect evaluations.
-- [ ] Typecheck, builds, checkall, browser generation, and Worker preparation pass.
-- [ ] Final diffs contain only intentional task files.
-- [ ] Task commits and convergence-document commit are present.
+- [x] Design and plan self-review are complete.
+- [x] Independent review findings are resolved.
+- [x] Reviewed-artifact commit hash is recorded before source implementation.
+- [x] Runtime-neutral import/type diagnostics are zero.
+- [x] The nine-file runtime slice has zero unused diagnostics.
+- [x] Emitted JavaScript equivalence for Task 11.1 is proven.
+- [x] The same 11 focused paths pass the original 120 tests plus every new guard, with the final count recorded.
+- [x] Structural assertions protect both retained side-effect evaluations.
+- [x] Typecheck, builds, checkall, browser generation, and Worker preparation pass.
+- [x] Final diffs contain only intentional task files.
+- [x] Task commits and convergence-document commit are present.
 
 ### Phase 11 plan self-review
 
