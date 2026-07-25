@@ -1,6 +1,6 @@
 # ネット対戦の表示連続性 修正 実装計画
 
-- Status: in progress — Phase 9 production verification
+- Status: complete
 - Date: 2026-07-24
 - Design: `docs/implementation/network-presentation-continuity-repair-design.md`
 
@@ -126,10 +126,10 @@ Done when: 修正・テスト・生成物・文書が1つの検証済みcommit�
 - [x] network parity 35 suites／547 testsを通す。
 - [x] local／production `match:check`で両seat cleanupとroom消滅を確認する。
 - [x] `build:browser`／Vite build、targeted Pixi再生、runtime fallback、12構成cross-platform smokeを通す。
-- [ ] 修正をproductionへdeployし、公開API smokeを再実行する。
-- [ ] 新versionで標準初期盤面から2ブラウザの自然終局を再実行し、Pixi failure／network errorが0であることを確認する。
-- [ ] 両clientを退出させ、room listが空であることを確認する。
-- [ ] Worker mirrorと完了証跡をcommitし、本計画をcompleteへ戻す。
+- [x] 修正をproductionへdeployし、公開API smokeを再実行する。
+- [x] 新versionで標準初期盤面から2ブラウザの自然終局を再実行し、Pixi failure／network errorが0であることを確認する。
+- [x] 両clientを退出させ、room listが空であることを確認する。
+- [x] Worker mirrorと完了証跡をcommitし、本計画をcompleteへ戻す。
 
 Done when: 最新productionの自然終局で両clientが同じcanonical board／resultへ収束し、Pixiはcanvas 1・context 1・DOM cell 0、真のfailed phase/runとnetwork abnormal eventが0、公開room残存が0になる。
 
@@ -143,11 +143,17 @@ Done when: 最新productionの自然終局で両clientが同じcanonical board�
 
 ## 完了証跡
 
-- Production: `https://card.reversi-0.workers.dev`、Worker version `ca4ea7cc-630e-423b-9b8a-053d69faabf4`
-- Network parity: 34 suites／531 tests passed
+- Production: `https://card.reversi-0.workers.dev`、Worker version `15f27194-e4d3-4b6a-9784-7463dbdd3da9`、Vite asset `index.vite-B_W3x4bh.js`
+- Network parity: 35 suites／547 tests passed
+- Pixi focused regression: 5 suites／132 tests passed
 - Focused browser checks: Pixi実マウス入力 2 cases passed、2クライアント対局・再接続 1 case passed
-- Production API smoke: create／join／rejoin／SSE bootstrap／SSE publish／leave passed
+- Production API smoke: create／join／rejoin／SSE bootstrap／SSE publish／白黒両席leave／room消滅 passed（room `TBT`）
 - Production 2-browser check: timeout後の表示収束、再接続、同時再戦、ROUND 1初期局面への双方同期、古い再戦promptの消去を確認
+- Production natural-terminal check: room `776`、標準8×8初期盤面、デフォルト30枚、debug OFF、両席AUTOで95手・連続2パスまで進行し、双方 `stateVersion = 141`、黒35対白32、result表示が一致
+- Final topology/render check: 基本64セル＋拡張6セルの70セル（穴3セル、着手可能67セル）について、双方のPixi実描画cell kind／ownerとsettled modelが全件一致（mismatch 0）
+- Final Pixi diagnostics: 双方ともPixi backend、canvas 1、WebGL context 1、DOM cell 0、failed phase/run 0、last errorなし、recovery failure 0、active run/effect/texture lease 0、ticker停止
+- Final network diagnostics: 双方ともcanonical／visual version 141、pending frame 0、lagging false、publish残件0、reconnect 0、abnormal event 0、console error 0。PixiJSの既存v8 deprecation warningのみ各1件
+- Cleanup: 白側退出後に完了roomが消滅し、黒側の `ROOM_NOT_FOUND` 収束leaveも成功。公開room listは0件
 - Browser artifacts: `build:browser`、Vite build、Worker mirror生成・bundle smokeを通してdeploy
 
 ## 自己レビュー
