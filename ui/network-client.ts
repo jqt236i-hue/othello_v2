@@ -3061,7 +3061,16 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         });
 
         const recoveryPromise = Promise.resolve()
-            .then(() => requestJson('GET', path, undefined))
+            .then(() => {
+                if (
+                    recoveryEpoch !== getNetworkSessionEpoch()
+                    || timeline !== networkPresentationTimeline
+                    || !isActive()
+                ) {
+                    return null;
+                }
+                return requestJson('GET', path, undefined);
+            })
             .then((res: any) => {
                 if (recoveryEpoch !== getNetworkSessionEpoch() || timeline !== networkPresentationTimeline) {
                     recordNetworkTelemetry('network_presentation_timeline_gap_recovery_stale', {
@@ -3117,6 +3126,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 });
             })
             .catch((error: any) => {
+                if (recoveryEpoch !== getNetworkSessionEpoch() || timeline !== networkPresentationTimeline) {
+                    return false;
+                }
                 recordNetworkTelemetry('network_presentation_timeline_gap_recovery_failed', {
                     reason: error && error.message ? String(error.message) : String(error || '')
                 });

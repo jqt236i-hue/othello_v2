@@ -48,6 +48,7 @@ describe('NetworkSessionLifecycleController', () => {
         stateObj.spectatorId = data.spectatorId;
         stateObj.spectatorToken = data.spectatorToken;
       }),
+      advanceSessionEpoch: jest.fn(),
       disposePresentationTimeline: jest.fn(async () => true),
       resetNetworkTelemetry: jest.fn(),
       openStream: jest.fn(),
@@ -994,6 +995,8 @@ describe('NetworkSessionLifecycleController', () => {
       expect(mockConfig.resetSessionState).toHaveBeenCalled();
       expect(mockConfig.closeStream).toHaveBeenCalled();
       expect(order).toEqual(['close-stream', 'dispose', 'clear-playback', 'reset-session']);
+      expect(mockConfig.advanceSessionEpoch).toHaveBeenNthCalledWith(1, 'session_leave_requested');
+      expect(mockConfig.advanceSessionEpoch).toHaveBeenNthCalledWith(2, 'session_leave_confirmed');
       expect(mockConfig.clearSeatClaim).toHaveBeenCalledWith('ABC');
     });
 
@@ -1069,6 +1072,8 @@ describe('NetworkSessionLifecycleController', () => {
 
       expect(result.ok).toBe(false);
       expect(result.reason).toBe('LEAVE_REQUEST_FAILED');
+      expect(mockConfig.advanceSessionEpoch).toHaveBeenCalledTimes(1);
+      expect(mockConfig.advanceSessionEpoch).toHaveBeenCalledWith('session_leave_requested');
       expect(mockConfig.closeStream).toHaveBeenCalledTimes(1);
       expect(mockConfig.openStream).toHaveBeenCalledWith({ reconnect: true });
       expect(mockConfig.disposePresentationTimeline).not.toHaveBeenCalled();

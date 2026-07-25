@@ -934,6 +934,10 @@ function createNetworkSessionLifecycleController(config: any): any {
     const spectatorSession = isSpectatorState(state);
     let leaveResponse: any = null;
 
+    // Detach queued snapshot/presentation work before the authority revokes the
+    // current credentials. Failed leaves reopen the stream on this new epoch.
+    advanceSessionEpoch('session_leave_requested');
+
     // Close the live stream before the authority invalidates the session token.
     // Otherwise EventSource can race the leave response and briefly reconnect
     // with the now-invalid token, producing a spurious 403 in the browser.

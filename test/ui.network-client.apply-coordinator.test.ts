@@ -141,6 +141,10 @@ describe('NetworkMatchClient apply coordinator', () => {
         });
       }
 
+      if (path === '/api/match/leave') {
+        return jsonResponse(200, { ok: true });
+      }
+
       if (path === '/api/match/presentation-journal' && journalResponsePayload) {
         return jsonResponse(journalResponsePayload.ok === true ? 200 : 409, journalResponsePayload);
       }
@@ -835,5 +839,52 @@ describe('NetworkMatchClient apply coordinator', () => {
       completedVisualSeq: 2
     });
     expect(global.gameState.turnNumber).toBe(12);
+  });
+
+  test('leave detaches queued presentation gap recovery before token revocation', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const snapshot12 = createSnapshot(12);
+    journalResponsePayload = {
+      ok: true,
+      roomId: 'ABC',
+      baseVisualSeq: 0,
+      baseSnapshot: createSnapshot(10),
+      presentationCursor: { visualSeq: 2, stateVersion: 12 },
+      presentationFrames: []
+    };
+
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId: 'op_leave_gap',
+        stateVersion: 12,
+        presentationCursor: { visualSeq: 2, stateVersion: 12 },
+        snapshot: snapshot12,
+        presentationFrames: [{
+          roomId: 'ABC',
+          visualSeq: 2,
+          stateVersionFrom: 11,
+          stateVersionTo: 12,
+          operationId: 'op_leave_gap',
+          actionType: 'place',
+          playbackEvents: [{ type: 'flip' }],
+          snapshotAfter: snapshot12
+        }]
+      })
+    });
+
+    const left = await client.leaveRoom();
+    for (let index = 0; index < 10; index += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+
+    expect(left).toEqual(expect.objectContaining({ ok: true }));
+    expect(requestedPaths).toContain('/api/match/leave');
+    expect(requestedPaths).not.toContain('/api/match/presentation-journal');
   });
 });
