@@ -2145,9 +2145,9 @@ function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any
     _renderCardUiSafely();
 
     Promise.resolve(publishPromise)
-        .then((publishResult) => {
-            _setPendingSelectionBusy(false);
+        .then(async (publishResult) => {
             if (!publishResult || publishResult.ok !== true) {
+                _setPendingSelectionBusy(false);
                 _clearServerAuthoredCardUseClickBuffer();
                 const reason = publishResult && publishResult.reason
                     ? String(publishResult.reason)
@@ -2160,6 +2160,13 @@ function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any
                 return;
             }
 
+            try {
+                await _waitForAuthoritativeVisualPlaybackDrain(publishResult);
+            } catch (e) {
+                // The authoritative snapshot remains canonical even if visual settlement
+                // reports a failure. Resume from that settled/fallback state.
+            }
+            _setPendingSelectionBusy(false);
             const bufferedClick = _consumeServerAuthoredCardUseClickBuffer(playerKey, ownerKey, cardId);
             if (cardState && cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(playerKey) === ownerKey) {
                 _clearSelectedCardSelection();
@@ -2428,6 +2435,22 @@ function _getVisualPlaybackDrainFn() {
         return _cardInteractionPendingNetworkModule.getVisualPlaybackDrainFn(_getCardInteractionPendingNetworkDeps());
     }
     return _getWaitForPlaybackIdleFn();
+}
+
+function _waitForAuthoritativeVisualPlaybackDrain(publishResult: any) {
+    if (
+        _cardInteractionPendingNetworkModule
+        && typeof _cardInteractionPendingNetworkModule.waitForAuthoritativeVisualPlaybackDrain === 'function'
+    ) {
+        return _cardInteractionPendingNetworkModule.waitForAuthoritativeVisualPlaybackDrain(
+            _getCardInteractionPendingNetworkDeps(),
+            publishResult
+        );
+    }
+    const waitForPlayback = _getVisualPlaybackDrainFn();
+    return typeof waitForPlayback === 'function'
+        ? Promise.resolve(waitForPlayback())
+        : Promise.resolve();
 }
 
 function _waitForCardUseAnimationIdle() {

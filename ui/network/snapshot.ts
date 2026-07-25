@@ -456,6 +456,60 @@ function createNetworkSnapshotController(config: any): any {
         });
     }
 
+    function isCurrentSnapshotTerminal(): boolean {
+        const gameStateRef = resolveGlobalObject('gameState');
+        const isGameOver = resolveGlobalFunction('isGameOver', cfg.isGameOver);
+        if (!gameStateRef || typeof isGameOver !== 'function') return false;
+        try {
+            return isGameOver(gameStateRef) === true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function isSnapshotVersionCurrent(nextVersion: any): boolean {
+        const normalizedNextVersion = Number.isFinite(Number(nextVersion))
+            ? Math.trunc(Number(nextVersion))
+            : null;
+        if (normalizedNextVersion === null) return true;
+        const state = resolveState();
+        const currentVersion = Number.isFinite(Number(state && state.appliedStateVersion))
+            ? Math.trunc(Number(state.appliedStateVersion))
+            : (Number.isFinite(Number(state && state.stateVersion))
+                ? Math.trunc(Number(state.stateVersion))
+                : null);
+        return currentVersion === null || currentVersion === normalizedNextVersion;
+    }
+
+    function requestDeferredResultPresentationAfterPlayback(request: any, nextVersion: any, options: any): boolean {
+        if (!playbackRequestStarted(request) || !isCurrentSnapshotTerminal()) return false;
+        let settlement: any = request && request.result;
+        if (!settlement || typeof settlement.then !== 'function') {
+            const waitForPlaybackIdle = runtime && typeof runtime.resolveWaitForPlaybackIdle === 'function'
+                ? runtime.resolveWaitForPlaybackIdle()
+                : null;
+            if (typeof waitForPlaybackIdle !== 'function') return false;
+            try {
+                settlement = waitForPlaybackIdle();
+            } catch (e) {
+                settlement = null;
+            }
+        }
+        if (!settlement || typeof settlement.then !== 'function') return false;
+
+        const showSettledResult = () => {
+            if (!isSnapshotVersionCurrent(nextVersion)) return;
+            maybeShowResultFromSnapshot(nextVersion, options);
+        };
+        Promise.resolve(settlement).then(showSettledResult, showSettledResult);
+        emitTelemetry('snapshot_terminal_result_deferred', {
+            stateVersion: nextVersion,
+            networkPlaybackBatchId: request.networkPlaybackBatchId || '',
+            playbackEventCount: request.playbackEventCount || 0
+        });
+        return true;
+    }
+
     function enqueuePresentationFramesFromOptions(options: any): number {
         const opts = (options && typeof options === 'object') ? options : {};
         const frames = Array.isArray(opts.presentationFrames) ? opts.presentationFrames : [];
@@ -584,9 +638,13 @@ function createNetworkSnapshotController(config: any): any {
             setBusyState(false);
         }
 
-        maybeShowResultFromSnapshot(nextVersion, opts);
         const deferImmediateBoardRefreshForPlayback =
             playbackEvents.length > 0 && playbackRequestStarted(networkPlaybackRequest);
+        const deferredResultPresentation = playbackEvents.length > 0
+            && requestDeferredResultPresentationAfterPlayback(networkPlaybackRequest, nextVersion, opts);
+        if (!deferredResultPresentation) {
+            maybeShowResultFromSnapshot(nextVersion, opts);
+        }
         if (playbackEvents.length > 0 || shouldEmitShadowPlayback) {
             armSuppressFallbackFlipDuringSnapshotPlayback(
                 shouldEmitShadowPlayback ? (opts.shadowPlaybackSource || 'self_snapshot_sync') : 'network_snapshot',

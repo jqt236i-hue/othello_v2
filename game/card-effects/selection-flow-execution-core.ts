@@ -32,6 +32,18 @@ interface SelectionPendingExecutionDeps {
     resolveRootFunction: (name: any) => any;
     finalizePendingSelectionFlow: (options: any) => Promise<any>;
     clearPendingSelectionFailureState: (cardStateValue: any, playerKey: any, options: any) => any;
+    waitForSelectionPlaybackIdle?: (playbackEvents: any, options?: any) => Promise<any>;
+}
+
+async function waitForAuthoritativeNetworkSelectionPlayback(contract: any, deps: SelectionPendingExecutionDeps) {
+    if (
+        !contract
+        || contract.waitForPlaybackIdle !== true
+        || typeof deps.waitForSelectionPlaybackIdle !== 'function'
+    ) {
+        return;
+    }
+    await deps.waitForSelectionPlaybackIdle([], { force: true });
 }
 
 function buildPendingTypeAllowList(options: any, fallbackPendingType: any, deps: SelectionPendingExecutionDeps) {
@@ -260,6 +272,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                     result: publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' }
                 };
             }
+            await waitForAuthoritativeNetworkSelectionPlayback(contract, deps);
             return {
                 ok: true,
                 pendingType: resolvedPendingType,
@@ -323,6 +336,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                         result: publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' }
                     };
                 }
+                await waitForAuthoritativeNetworkSelectionPlayback(contract, deps);
 
                 const authoritativeState = deps.resolveAuthoritativeSelectionState();
                 if (!deps.shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {
@@ -464,6 +478,7 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                     result: publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' }
                 };
             }
+            await waitForAuthoritativeNetworkSelectionPlayback(contract, deps);
 
             const authoritativeState = deps.resolveAuthoritativeSelectionState();
             if (!deps.shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {

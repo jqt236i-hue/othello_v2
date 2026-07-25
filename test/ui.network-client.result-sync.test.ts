@@ -73,6 +73,7 @@ describe('NetworkMatchClient result sync', () => {
     delete global.ensureLegacyMarkers;
     delete global.isGameOver;
     delete global.showResult;
+    delete global.handlePresentationEvent;
   });
 
   test('終局スナップショット受信で結果表示を一度だけ行う', () => {
@@ -90,6 +91,41 @@ describe('NetworkMatchClient result sync', () => {
 
     expect(first).toBe(true);
     expect(second).toBe(true);
+    expect(global.showResult).toHaveBeenCalledTimes(1);
+  });
+
+  test('終局スナップショットの結果は最終演出完了後に一度だけ表示する', async () => {
+    let resolvePlayback;
+    const playbackPromise = new Promise((resolve) => {
+      resolvePlayback = resolve;
+    });
+    global.cardState = { markers: [], presentationEvents: [] };
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn((state, event) => {
+        if (!Array.isArray(state.presentationEvents)) state.presentationEvents = [];
+        state.presentationEvents.push(event);
+      })
+    };
+    global.handlePresentationEvent = jest.fn(() => playbackPromise);
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const terminalSnapshot = withServerMeta({
+      stateVersion: 71,
+      gameState: { currentPlayer: -1, turnNumber: 40, __resultShown: true },
+      cardState: { markers: [], presentationEvents: [] }
+    });
+
+    expect(client.applySnapshot(terminalSnapshot, {
+      force: true,
+      playbackEvents: [{ type: 'flip', phase: 1, targets: [{ row: 2, col: 3 }] }]
+    })).toBe(true);
+    expect(global.showResult).not.toHaveBeenCalled();
+
+    resolvePlayback();
+    await Promise.resolve();
+    await Promise.resolve();
+
     expect(global.showResult).toHaveBeenCalledTimes(1);
   });
 

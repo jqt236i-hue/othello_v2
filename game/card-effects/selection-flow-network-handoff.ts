@@ -19,8 +19,9 @@ interface SelectionFlowNetworkHandoffDeps {
     scheduleWhiteCpuTurn: (options: any) => boolean;
 }
 
-async function waitForSelectionPlaybackIdle(playbackEvents: any, deps: SelectionFlowNetworkHandoffDeps) {
-    if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return;
+async function waitForSelectionPlaybackIdle(playbackEvents: any, deps: SelectionFlowNetworkHandoffDeps, options?: any) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    if ((!Array.isArray(playbackEvents) || playbackEvents.length === 0) && opts.force !== true) return;
 
     if (deps && typeof deps.waitForPlaybackViaBridge === 'function') {
         try {
@@ -173,6 +174,15 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
                     }
                 }
                 return false;
+            }
+            if (contract.waitForPlaybackIdle === true) {
+                if (shouldReleaseSelectionBusyBeforePlaybackWait(contract)) {
+                    releaseSelectionBusyForPlaybackWait(deps, clearCardAnimatingOnFinish);
+                }
+                const authoritativePlaybackEvents = Array.isArray(handoffResult.playbackEvents)
+                    ? handoffResult.playbackEvents
+                    : playbackEvents;
+                await waitForSelectionPlaybackIdle(authoritativePlaybackEvents, deps);
             }
         }
         if (!deps.shouldRetainPendingSelectionAction(cardStateValue, playerKey, pendingType)) {

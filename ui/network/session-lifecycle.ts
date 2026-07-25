@@ -787,6 +787,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     const cursorStateVersion = toIntegerOrNull(cursor && cursor.stateVersion);
     if (
       appliedSnapshot &&
+      opts.syncVisualCursorForSnapshotNoPlayback !== true &&
       opts.suppressPresentationJournalCatchup !== true &&
       stateSyncRecoveredVisualContinuity !== true &&
       cursorVisualSeq !== null &&

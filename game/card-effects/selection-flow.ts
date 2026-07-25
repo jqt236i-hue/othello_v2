@@ -742,7 +742,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return true;
     }
 
-    async function waitForSelectionPlaybackIdle(playbackEvents: any) {
+    async function waitForSelectionPlaybackIdle(playbackEvents: any, options?: any) {
         const networkHandoffModule = getSelectionFlowNetworkHandoffModule();
         if (!networkHandoffModule || typeof networkHandoffModule.waitForSelectionPlaybackIdle !== 'function') {
             return;
@@ -754,7 +754,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 if (typeof waitForPlaybackViaBridge !== 'function') return;
                 await waitForPlaybackViaBridge(events);
             }
-        });
+        }, options);
     }
 
     function resolveActionManager() {
@@ -1127,7 +1127,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             emitSelectionMessage,
             resolveRootFunction,
             finalizePendingSelectionFlow,
-            clearPendingSelectionFailureState
+            clearPendingSelectionFailureState,
+            waitForSelectionPlaybackIdle
         };
     }
 

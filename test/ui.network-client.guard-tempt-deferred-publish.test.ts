@@ -874,9 +874,15 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
   });
 
   test('selection publishes only the deferred command once', async () => {
+    const selectionFlowModule = require('../game/card-effects/selection-flow.ts');
+    const setSignalBridgeSpy = jest.spyOn(selectionFlowModule, 'setSignalBridge');
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     expect(client).toBeTruthy();
+    expect(setSignalBridgeSpy).toHaveBeenCalled();
+    expect(setSignalBridgeSpy.mock.calls.at(-1)[0]).toEqual(expect.objectContaining({
+      waitForPlaybackIdle: expect.any(Function)
+    }));
     global.NetworkMatchClient = client;
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });

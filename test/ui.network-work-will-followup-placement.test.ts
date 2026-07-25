@@ -161,7 +161,7 @@ describe('network WORK_WILL follow-up placement', () => {
     jest.clearAllMocks();
   });
 
-  test('replays early board click after server-authored WORK_WILL publish succeeds', async () => {
+  test('replays an expanded-board early click only after server-authored WORK_WILL visual settlement', async () => {
     require('../cards/card-interaction.js');
     const turnManager = require('../game/turn-manager.js');
     const selectionFlow = require('../game/card-effects/selection-flow');
@@ -185,24 +185,32 @@ describe('network WORK_WILL follow-up placement', () => {
     };
     window.handleCellClick = global.handleCellClick;
     window.useSelectedCard();
-    global.PlaybackStateManager.setBusyState({ processing: true, cardAnimating: true });
+    global.PlaybackStateManager.setBusyState({
+      processing: true,
+      cardAnimating: true,
+      playbackActive: true
+    });
 
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
     expect(global.executeMove).not.toHaveBeenCalled();
 
-    turnManager.handleCellClick(2, 3);
+    turnManager.handleCellClick(5, -1);
 
     expect(global.findMoveForCell).not.toHaveBeenCalled();
     expect((global.__serverAuthoredCardUseClickBuffer || window.__serverAuthoredCardUseClickBuffer).click)
-      .toEqual({ row: 2, col: 3, playerKey: 'black' });
+      .toEqual({ row: 5, col: -1, playerKey: 'black' });
 
     global.__publishDeferred.resolve({ ok: true });
     await Promise.resolve();
     await Promise.resolve();
-    jest.runOnlyPendingTimers();
+    expect(global.findMoveForCell).not.toHaveBeenCalled();
+
+    global.PlaybackStateManager.setPlaybackActive(false);
+    jest.advanceTimersByTime(16);
+    await Promise.resolve();
     await Promise.resolve();
 
-    expect(global.findMoveForCell).toHaveBeenCalledWith(1, 2, 3, null, [], []);
+    expect(global.findMoveForCell).toHaveBeenCalledWith(1, 5, -1, null, [], []);
     expect(global.executeMove).toHaveBeenCalledTimes(1);
   });
 

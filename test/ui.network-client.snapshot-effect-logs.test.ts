@@ -302,7 +302,12 @@ describe('NetworkMatchClient snapshot effect logs', () => {
 
       const result = await client.syncLatestState({ syncVisualCursorForSnapshotNoPlayback: true });
 
-      expect(result).toEqual({ ok: true, appliedSnapshot: true });
+      expect(result).toEqual({
+        ok: true,
+        appliedSnapshot: true,
+        visualRebased: true,
+        presentationCursor: { visualSeq: 6, stateVersion: 4 }
+      });
       expect(consoleLogSpy).toHaveBeenCalledWith(
         '[network-debug] state_sync_snapshot_applied',
         expect.objectContaining({ snapshotVersion: 4, force: true })

@@ -37,6 +37,13 @@ function createNetworkSelectionSignalBridge(options: any): any {
         getActionManager: () => readRuntimeValue(root, 'ActionManager'),
         getTurnPipelineUIAdapter: () => readRuntimeValue(root, 'TurnPipelineUIAdapter'),
         getTurnPipeline: () => readRuntimeValue(root, 'TurnPipeline'),
+        waitForPlaybackIdle: (playbackEvents: any) => {
+            const waitForPlayback = typeof config.waitForPlaybackIdle === 'function'
+                ? config.waitForPlaybackIdle
+                : readRuntimeValue(root, 'waitForPlaybackIdle');
+            if (typeof waitForPlayback !== 'function') return undefined;
+            return waitForPlayback(playbackEvents);
+        },
         publishSnapshot: (meta: any) => {
             if (typeof client.publishSnapshot !== 'function') return undefined;
             if (typeof client.isActive === 'function' && client.isActive() !== true) return undefined;
