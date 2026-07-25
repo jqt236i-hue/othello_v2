@@ -4,7 +4,7 @@
  * Pure functions/state manipulation only. No UI dependencies.
  */
 
-import type { CardState, GameState, PlayerKey } from '../../src/types';
+import type { PlayerKey } from '../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 

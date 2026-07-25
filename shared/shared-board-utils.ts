@@ -18,22 +18,6 @@
 }(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardShapeMetadataModule: typeof import('./board/shape-metadata') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardEdgeRunsModule: typeof import('./board/edge-runs') | null, BoardRiskCellsModule: typeof import('./board/risk-cells') | null, BoardShapeIterationModule: typeof import('./board/shape-iteration') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null, BoardTopologyModule: typeof import('./board/topology') | null, BoardExpansionSocketsModule: typeof import('./board/expansion-sockets') | null) {
     'use strict';
 
-    interface BoardConfig {
-        rows: number;
-        cols: number;
-        shape: 'rectangle' | 'circle';
-        standard8x8: boolean;
-        baseBounds: Bounds;
-        outerBounds: Bounds;
-    }
-
-    interface Bounds {
-        minRow: number;
-        maxRow: number;
-        minCol: number;
-        maxCol: number;
-    }
-
     interface CellCoord {
         row: number;
         col: number;
@@ -42,44 +26,6 @@
     interface DiscCounts {
         black: number;
         white: number;
-    }
-
-    interface BoardShapeMeta {
-        minRow: number;
-        maxRow: number;
-        minCol: number;
-        maxCol: number;
-        playableKeys: Set<string>;
-        meteorHoleKeys: Set<string>;
-        expansionCells: Array<{ side: string; row: number; col: number; owner: number }>;
-        expansionOwnerByKey: Record<string, number>;
-        standard8x8: boolean;
-        coordinateCache: CellCoord[] | null;
-        cornerKeyCache: Set<string> | null;
-        xKeyCache: Set<string> | null;
-        cKeyCache: Set<string> | null;
-    }
-
-    interface CornerEdgeLineDescriptor {
-        key: string;
-        canonicalKey: string;
-        corner: CellCoord;
-        direction: CellCoord;
-        directionTarget: CellCoord;
-        cells: CellCoord[];
-    }
-
-    interface EdgeRunSummary {
-        totalLines: number;
-        maxLineLength: number;
-        totalLineCells: number;
-        totalOwnedCells: number;
-        chainStrength: number;
-        longestRun: number;
-        longestRunShare: number;
-        completeLineCount: number;
-        segmentCount: number;
-        loneDiscCount: number;
     }
 
     interface CanonicalResult {

@@ -25,10 +25,6 @@
         imagePath: string;
     }
 
-    interface AssetManifest {
-        files?: unknown[];
-    }
-
     interface BuildCatalogOptions {
         generatedAt?: string;
     }

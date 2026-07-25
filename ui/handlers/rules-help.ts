@@ -7,7 +7,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 const LazyFeatureSurface = _require('../assets/lazy-feature-surface');
 const { RULES_HELP_INNER_HTML } = _require('./rules-help-template');
 
-import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 declare var CardInteractionEffects: any;
 declare var CARD_DEFS: any;

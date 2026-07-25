@@ -228,13 +228,6 @@ function getNeighborCellsSnapshot(gameState: GameState, row: number, col: number
     return cells;
 }
 
-interface ProcessAnchorResult {
-    moved: Array<{ from: { row: number; col: number }; to: { row: number; col: number } }>;
-    destroyed: Array<{ row: number; col: number }>;
-    anchors: Array<{ row: number; col: number; remainingNow: number }>;
-    expired: Array<{ row: number; col: number; owner: PlayerKey; reason: string }>;
-}
-
 function collectDestroyedNeighbors(cardState: CardState, gameState: GameState, playerKey: PlayerKey, opponent: number, sourceRow: number, sourceCol: number, deps: UDGDeps = {}): Array<{ row: number; col: number }> {
     const destroyed: Array<{ row: number; col: number }> = [];
     const destroyAt = deps.destroyAt || ((cs: any, gs: GameState, r: number, c: number) => {
@@ -425,11 +418,6 @@ function processUltimateDestroyGodEffects(cardState: CardState, gameState: GameS
     }
 
     return { moved, destroyed, anchors, expired };
-}
-
-interface AnchorResult {
-    destroyed: Array<{ row: number; col: number }>;
-    expired?: Array<{ row: number; col: number; owner: PlayerKey; reason: string }>;
 }
 
 function processUltimateDestroyGodEffectsAtAnchor(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: UDGDeps = {}): { destroyed: Array<{ row: number; col: number }>; expired?: Array<{ row: number; col: number; owner: PlayerKey; reason: string }> } {

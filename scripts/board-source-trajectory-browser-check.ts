@@ -161,14 +161,6 @@ interface ProfileDefinition {
   readonly fixedDeadline: boolean;
 }
 
-interface BrowserScenario {
-  readonly fixture: string;
-  readonly source: Readonly<{ row: number; col: number }>;
-  readonly target: Readonly<{ row: number; col: number }>;
-  readonly expectedPathIntersectsViewport: boolean;
-  readonly scrollByCells?: Readonly<{ left: number; top: number }>;
-}
-
 export const BOARD_SOURCE_TRAJECTORY_BROWSER_PROFILE_KEYS = Object.freeze([
   'sniperShot',
   'robotVacuumSuck',

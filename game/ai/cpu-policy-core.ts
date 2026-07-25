@@ -1,18 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
     CpuPolicyBoard,
-    CpuPolicyBoardBonusResolver,
     CpuPolicyCardContext,
     CpuPolicyCardCostResolver,
     CpuPolicyCardDefinitionResolver,
     CpuPolicyCardId,
     CpuPolicyCardScore,
     CpuPolicyCoreApi,
-    CpuPolicyLegalMoveMetrics,
     CpuPolicyMove,
-    CpuPolicyMoveOptions,
-    CpuPolicyRandomSource,
-    CpuPolicyAiMoveSelector,
     CpuPolicyPosition
 } from './cpu-policy-core-types';
 import { createCpuPolicyCoreApi } from './cpu-policy-core-api';
@@ -30,33 +25,6 @@ type CpuPolicyBoardShape = CpuPolicyBoard | number | null | undefined;
 interface CpuPolicyBoardGeometry {
     maxR: number;
     maxC: number;
-}
-
-interface CpuPolicyEdgeRunSummary extends Record<string, unknown> {
-    chainStrength?: number;
-    longestRun?: number;
-    completeLineCount?: number;
-    loneDiscCount?: number;
-}
-
-interface CpuPolicyParityFeature {
-    regionCount: number;
-    oddRegionCount: number;
-    evenRegionCount: number;
-    oddEmptyCount: number;
-    evenEmptyCount: number;
-    signal: number;
-    score: number;
-}
-
-type CpuPolicyBonusConsumedMap = Record<string, boolean | number>;
-
-interface CpuPolicySearchMoveParams extends Omit<CpuPolicyMoveOptions, 'boardBonusConsumedByCell'> {
-    board: CpuPolicyBoard;
-    playerValue: number;
-    branchLimit?: number | null;
-    rootPriorScoreFn?: ((move: CpuPolicyMove) => number) | null;
-    boardBonusConsumedByCell?: CpuPolicyBonusConsumedMap | null;
 }
 
 interface CpuPolicyDecisionContext {

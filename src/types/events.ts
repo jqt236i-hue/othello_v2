@@ -3,7 +3,6 @@
  */
 
 import { PlayerKey } from './player';
-import { CellPosition } from './board';
 
 export type PresentationEventType = 
   | 'PLACE'

@@ -3,7 +3,7 @@
  */
 
 import { PlayerKey } from './player';
-import { Board, BoardConfig } from './board';
+import { Board } from './board';
 import { CardState } from './card';
 
 export interface GameState {

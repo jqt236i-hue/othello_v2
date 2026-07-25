@@ -3,7 +3,6 @@
  * @description Board Expansion helpers wrapper (delegates to game/logic/cards/expansion.js)
  */
 
-import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import ExpansionModule = require('../../logic/cards/expansion');
 
 

@@ -1,5 +1,4 @@
 
-import type { CardState, GameState, PlayerKey } from '../src/types';
 
 declare const executeMove: any;
 declare const initCardState: any;

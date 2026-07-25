@@ -1,4 +1,3 @@
-import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 declare var cardState: any;
 declare var gameState: any;

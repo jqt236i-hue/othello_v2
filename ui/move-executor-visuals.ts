@@ -1,4 +1,3 @@
-import type { CardState, GameState, PlayerKey } from '../src/types';
 
 'use strict';
 

@@ -3,7 +3,7 @@
  * @description Board Expansion helpers (Shared between Browser and Headless)
  */
 
-import type { CardState, GameState, PlayerKey } from '../../../src/types';
+import type { GameState } from '../../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 

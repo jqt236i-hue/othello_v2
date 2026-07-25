@@ -4,7 +4,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-import type { CardState, GameState, PlayerKey } from '../src/types';
+import type { PlayerKey } from '../src/types';
 import * as NetworkContract from '../shared/network-contract';
 import type {
     MatchAuthorityAcceptedOperationEntry,
@@ -13,14 +13,12 @@ import type {
     MatchAuthorityAutoPassNotice,
     MatchAuthorityBufferedSseEventRecord,
     MatchAuthorityBufferedSseEventRecordInput,
-    MatchAuthorityBufferedSsePayloadByViewer,
     MatchAuthorityBufferedSseReplayEvent,
     MatchAuthorityHeartbeatPayloadFromRoomOptions,
     MatchAuthorityPresencePayloadFromRoomOptions,
     MatchAuthorityPresentationFramePublic,
     MatchAuthorityPresentationJournalEntry,
     MatchAuthorityProjectionMetadata,
-    MatchAuthorityPublicApi,
     MatchAuthorityPublicSnapshot,
     MatchAuthorityPublishMeta,
     MatchAuthorityPublishPayloadFromRoomOptions,

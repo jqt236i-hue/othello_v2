@@ -31,7 +31,7 @@ import { createControlCounts } from '../../shared/board/control-counts';
 import { createEdgeRuns } from '../../shared/board/edge-runs';
 import { createOthelloPrimitives } from '../../shared/board/othello-primitives';
 import { createRiskCells } from '../../shared/board/risk-cells';
-import type { CpuPolicyBoard, CpuPolicyMove, CpuPolicyPosition } from './cpu-policy-core-types';
+import type { CpuPolicyBoard, CpuPolicyPosition } from './cpu-policy-core-types';
 
 type CpuPolicyBoardShape = CpuPolicyBoard | number | null | undefined;
 

@@ -4,7 +4,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 /**
  * @file policy-onnx-runtime-v2.js

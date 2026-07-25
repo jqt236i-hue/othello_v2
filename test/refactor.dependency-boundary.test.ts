@@ -22,6 +22,12 @@ const EXCLUDED_DIR_NAMES = new Set([
   'worker-public'
 ]);
 const MODULE_LOADER_CALLEES = new Set(['require', '_require']);
+const UNUSED_DECLARATION_DIAGNOSTIC_CODES = new Set([6133, 6192, 6196]);
+const RUNTIME_NEUTRAL_UNUSED_DECLARATION_KINDS = new Set([
+  ts.SyntaxKind.ImportDeclaration,
+  ts.SyntaxKind.InterfaceDeclaration,
+  ts.SyntaxKind.TypeAliasDeclaration
+]);
 
 const EXPECTED_CYCLIC_COMPONENTS: string[][] = [];
 
@@ -211,8 +217,71 @@ function findCyclicComponents(graph: DependencyGraph): string[][] {
   return components.sort((left, right) => left.join('\n').localeCompare(right.join('\n')));
 }
 
+function formatCompilerDiagnostic(diagnostic: ts.Diagnostic): string {
+  const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ');
+  if (!diagnostic.file || diagnostic.start === undefined) {
+    return `TS${diagnostic.code}: ${message}`;
+  }
+
+  const position = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
+  return `${toRepoRelative(diagnostic.file.fileName)}:${position.line + 1}:${position.character + 1} TS${diagnostic.code}: ${message}`;
+}
+
+function createTsOnlyProgramWithUnusedChecks(): ts.Program {
+  const configPath = path.join(REPO_ROOT, 'tsconfig.ts-only.json');
+  const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
+  if (configFile.error) {
+    throw new Error(formatCompilerDiagnostic(configFile.error));
+  }
+
+  const parsedConfig = ts.parseJsonConfigFileContent(
+    configFile.config,
+    ts.sys,
+    REPO_ROOT,
+    {
+      noEmit: true,
+      noUnusedLocals: true
+    },
+    configPath
+  );
+  if (parsedConfig.errors.length > 0) {
+    throw new Error(parsedConfig.errors.map(formatCompilerDiagnostic).join('\n'));
+  }
+
+  return ts.createProgram(parsedConfig.fileNames, parsedConfig.options);
+}
+
+function collectRuntimeNeutralUnusedDiagnostics(): string[] {
+  const program = createTsOnlyProgramWithUnusedChecks();
+  return ts.getPreEmitDiagnostics(program)
+    .filter((diagnostic) => (
+      UNUSED_DECLARATION_DIAGNOSTIC_CODES.has(diagnostic.code)
+      && diagnostic.file !== undefined
+      && diagnostic.start !== undefined
+    ))
+    .filter((diagnostic) => {
+      let current: ts.Node | undefined = ts.getTokenAtPosition(
+        diagnostic.file as ts.SourceFile,
+        diagnostic.start as number
+      );
+      while (current) {
+        if (RUNTIME_NEUTRAL_UNUSED_DECLARATION_KINDS.has(current.kind)) {
+          return true;
+        }
+        current = current.parent;
+      }
+      return false;
+    })
+    .map(formatCompilerDiagnostic)
+    .sort();
+}
+
 describe('refactor dependency boundaries', () => {
   test('runtime source import cycles stay explicit and shrinkable', () => {
     expect(findCyclicComponents(buildRuntimeDependencyGraph())).toEqual(EXPECTED_CYCLIC_COMPONENTS);
   });
+
+  test('runtime-neutral unused imports and type declarations stay absent', () => {
+    expect(collectRuntimeNeutralUnusedDiagnostics()).toEqual([]);
+  }, 30000);
 });

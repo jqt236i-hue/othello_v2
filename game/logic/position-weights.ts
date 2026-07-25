@@ -3,7 +3,6 @@
  * @description 盤面位置評価マトリックス（ブラウザ/Headless共通）
  */
 
-import { GameState } from '../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 

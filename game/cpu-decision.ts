@@ -20,7 +20,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-import type { CardState, GameState, PlayerKey } from '../src/types';
 import type { CpuTurnPerformanceScope } from './cpu-turn-performance';
 
 /**

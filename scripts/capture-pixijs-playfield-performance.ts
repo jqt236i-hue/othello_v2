@@ -9,9 +9,7 @@ import { chromium, type Browser, type Page } from 'playwright';
 import {
   assertHardwareAcceleratedGraphics,
   createDesktopChromiumLaunchOptions,
-  normalizeChromiumGraphicsInfo,
-  readDesktopGraphicsEnvironment,
-  type DesktopGraphicsEnvironment
+  readDesktopGraphicsEnvironment
 } from './browser-performance-environment';
 
 export {
@@ -27,8 +25,7 @@ import {
   BOARD_PERFORMANCE_PHYSICAL_COOLDOWN_MS,
   BOARD_PERFORMANCE_REPORT_SCHEMA_VERSION,
   expectedCaptureOrder,
-  stablePerformanceJson,
-  summarizeRafIntervals
+  stablePerformanceJson
 } from '../ui/board-visual/performance-harness';
 
 const PhaseZeroBaselineCapture: any = require('./capture-pixijs-playfield-baseline');

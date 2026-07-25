@@ -1,4 +1,4 @@
-import type { CardState, GameState, PlayerKey } from '../src/types';
+import type { PlayerKey } from '../src/types';
 import {
     setLogicalImageSourceIfChanged
 } from './assets/logical-image-source';

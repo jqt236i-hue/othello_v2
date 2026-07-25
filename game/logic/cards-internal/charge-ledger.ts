@@ -1,10 +1,5 @@
 'use strict';
 
-interface ChargeState {
-    black: number;
-    white: number;
-}
-
 interface ChargeDeltaResult {
     changed: boolean;
     before: number;

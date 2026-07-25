@@ -44,7 +44,6 @@ const RatedMatchmaking = require('../shared/rated-matchmaking');
 const TurnPipelineFactory = require('../game/turn/turn_pipeline_factory');
 import type {
     MatchAuthorityAcceptedOperationsBySeat,
-    MatchAuthorityAcceptedOperationEntry,
     MatchAuthorityBufferedSseEventRecord,
     MatchAuthorityBufferedSseEventRecordInput,
     MatchAuthorityRoomState,

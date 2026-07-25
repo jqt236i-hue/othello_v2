@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { CpuPolicyBoard, CpuPolicyMove, CpuPolicyPosition } from './cpu-policy-core-types';
+import type { CpuPolicyBoard, CpuPolicyMove } from './cpu-policy-core-types';
 
 type CpuPolicyBoardFeaturesConfig = {
     SharedBoardUtils?: any;

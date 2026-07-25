@@ -73,11 +73,6 @@ function getPlayerValue(playerKey: string): number {
     return playerKey === 'black' ? BLACK : WHITE;
 }
 
-interface SpawnDeps {
-    spawnAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, cause: string, reason: string, meta: any): any;
-    setCellValueForCard?(gameState: GameState, row: number, col: number, value: number): boolean;
-}
-
 function applySpawnWithValidation(spawnAt: any, setCellValueForCard: any, cardState: CardState, gameState: GameState, target: {row: number; col: number}, playerKey: string, playerValue: number, cause: string, reason: string, meta: any) {
     if (typeof spawnAt === 'function') {
         const spawnResult = spawnAt(cardState, gameState, target.row, target.col, playerKey, cause, reason, meta);

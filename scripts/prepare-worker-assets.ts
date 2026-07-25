@@ -47,11 +47,6 @@ interface GeneratedOptionalAssetTask {
     splitThresholdBytes?: number;
 }
 
-interface GeneratedOptionalAsset {
-    relativePath: string;
-    content: Buffer;
-}
-
 interface CopyFileRetryOptions {
     maxAttempts?: number;
     copyFile?: (sourcePath: string, destinationPath: string) => void;

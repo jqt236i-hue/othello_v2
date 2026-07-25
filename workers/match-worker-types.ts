@@ -1,5 +1,4 @@
 import type {
-    MatchAuthorityBufferedSseEventRecord,
     MatchAuthorityBufferedSseEventRecordInput,
     MatchAuthorityPublishMeta,
     MatchAuthorityPublicSeats,

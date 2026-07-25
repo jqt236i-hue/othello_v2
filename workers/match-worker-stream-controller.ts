@@ -1,7 +1,6 @@
 import type {
     MatchAuthorityBufferedSseEventRecord,
-    MatchAuthorityBufferedSseEventRecordInput,
-    MatchAuthoritySeatKey
+    MatchAuthorityBufferedSseEventRecordInput
 } from '../utils/match-authority-types';
 import type { MatchWorkerRoomState, MatchWorkerSseStreamInfo } from './match-worker-types';
 

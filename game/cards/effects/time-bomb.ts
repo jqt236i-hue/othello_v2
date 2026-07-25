@@ -3,7 +3,6 @@
  * @description Time Bomb effects wrapper (delegates to game/logic/cards/time_bomb.js)
  */
 
-import type { CardState, GameState, PlayerKey } from '../../../src/types';
 const TimeBombModule: any = require('../../logic/cards/time_bomb');
 
 const _exports: Record<string, any> = {
