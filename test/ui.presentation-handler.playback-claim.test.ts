@@ -28,6 +28,7 @@ describe('PresentationHandler playback claim', () => {
     delete (global as any).GameEvents;
     delete (global as any).GamePresentationRuntime;
     delete (global as any).PlaybackStateManager;
+    delete (global as any).emitBoardUpdate;
   });
 
   test('claims visual playback before dispatching AnimationEngine playback', async () => {
@@ -397,6 +398,10 @@ describe('PresentationHandler playback claim', () => {
     let boardClaimHeld = false;
     let managerClaimHeld = false;
     let inputLocked = false;
+    (global as any).emitBoardUpdate = jest.fn(() => {
+      order.push('board-sync');
+      return true;
+    });
     let applyAttempt = 0;
     jest.doMock('../ui/board-renderer', () => ({
       claimBoardVisualWriter: jest.fn((frameToken, mode) => {
@@ -517,7 +522,8 @@ describe('PresentationHandler playback claim', () => {
       'board-apply-committed:2',
       'board-release',
       'manager-finalize',
-      'manager-release'
+      'manager-release',
+      'board-sync'
     ]);
     expect(boardClaimHeld).toBe(false);
     expect(managerClaimHeld).toBe(false);
@@ -525,6 +531,7 @@ describe('PresentationHandler playback claim', () => {
     expect((global as any).AnimationEngine.play).toHaveBeenCalledTimes(1);
     expect(soundCalls).toEqual(['sound:destroy', 'sound:flip']);
     expect(effectLogs).toEqual(['log:destroy', 'log:flip']);
+    expect((global as any).emitBoardUpdate).toHaveBeenCalledTimes(1);
   });
 
   test('releases strict network ownership in the handler when playback fails before handoff', async () => {

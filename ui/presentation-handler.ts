@@ -736,6 +736,9 @@ function createStrictNetworkSettlementHandle(options: {
         );
       }
       managerReleased = true;
+      if (!hasActivePlaybackClaimForPresentation()) {
+        requestBoardSyncAfterPlaybackClaimRelease('strict_network_abort_before_handoff');
+      }
       return true;
     } catch (recoveryError) {
       if (primaryError instanceof Error) {
@@ -803,6 +806,9 @@ function createStrictNetworkSettlementHandle(options: {
             throw new Error('Strict network playback manager claim was not released');
           }
           managerReleased = true;
+          if (!hasActivePlaybackClaimForPresentation()) {
+            requestBoardSyncAfterPlaybackClaimRelease('strict_network_settlement_released');
+          }
           return true;
         })();
       }
@@ -856,6 +862,9 @@ function createStrictNetworkSettlementHandle(options: {
           throw new Error('Strict network cancellation claim was not released');
         }
         managerReleased = true;
+        if (!hasActivePlaybackClaimForPresentation()) {
+          requestBoardSyncAfterPlaybackClaimRelease('strict_network_cancellation_released');
+        }
         return true;
       })();
       try {
