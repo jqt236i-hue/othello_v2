@@ -534,6 +534,66 @@ function _resolveHandSelectorByOwner(playerKey: any) {
     return ownerKey === 'white' ? '#hand-white' : '#hand-black';
 }
 
+function _readUsableClientRect(el: any) {
+    if (!el || typeof el.getBoundingClientRect !== 'function') return null;
+    try {
+        const rect = el.getBoundingClientRect();
+        const left = Number(rect && rect.left);
+        const top = Number(rect && rect.top);
+        const width = Number(rect && rect.width);
+        const height = Number(rect && rect.height);
+        if (![left, top, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return null;
+        return {
+            left,
+            top,
+            right: left + width,
+            bottom: top + height,
+            width,
+            height
+        };
+    } catch (e: any) {
+        return null;
+    }
+}
+
+function _resolvePlacementHandOriginCenter(playerKey: any) {
+    const handEl = _resolveHandElementByOwner(playerKey);
+    if (!handEl) return null;
+    const handRect = _readUsableClientRect(handEl);
+
+    let cardRects: any[] = [];
+    if (typeof handEl.querySelectorAll === 'function') {
+        try {
+            cardRects = Array.from(handEl.querySelectorAll('.card-item:not(.card-use-ghost)'))
+                .map((cardEl: any) => _readUsableClientRect(cardEl))
+                .map((rect: any) => {
+                    if (!rect || !handRect) return rect;
+                    const left = Math.max(rect.left, handRect.left);
+                    const top = Math.max(rect.top, handRect.top);
+                    const right = Math.min(rect.right, handRect.right);
+                    const bottom = Math.min(rect.bottom, handRect.bottom);
+                    return right > left && bottom > top ? { left, top, right, bottom } : null;
+                })
+                .filter(Boolean);
+        } catch (e: any) { /* use the hand container fallback */ }
+    }
+
+    const originRect = cardRects.length > 0
+        ? cardRects.reduce((unionRect: any, rect: any) => ({
+            left: Math.min(unionRect.left, rect.left),
+            top: Math.min(unionRect.top, rect.top),
+            right: Math.max(unionRect.right, rect.right),
+            bottom: Math.max(unionRect.bottom, rect.bottom)
+        }))
+        : handRect;
+    if (!originRect) return null;
+
+    return {
+        x: originRect.left + ((originRect.right - originRect.left) / 2),
+        y: originRect.top + ((originRect.bottom - originRect.top) / 2)
+    };
+}
+
 function _playEffectByKeySafe(soundKey: any) {
     const key = String(soundKey || '').trim();
     if (!key) return;
@@ -1709,11 +1769,20 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         }, 3000, sc);
 
         const boardRect = boardRoot.getBoundingClientRect();
+        const requestedOwnerKey = (visualOptions && typeof visualOptions === 'object' && visualOptions.ownerKey != null)
+            ? visualOptions.ownerKey
+            : player;
+        const playerKey = _normalizeHandOwnerKey(requestedOwnerKey);
+        const fromBottom = _isOwnerOnBottomSlot(playerKey);
+        const handOriginCenter = _resolvePlacementHandOriginCenter(playerKey);
+        const wrapperLayoutWidth = Number(wrapperEl.offsetWidth) > 0
+            ? Number(wrapperEl.offsetWidth)
+            : HAND_WRAPPER_WIDTH;
+        const wrapperLayoutHeight = Number(wrapperEl.offsetHeight) > 0
+            ? Number(wrapperEl.offsetHeight)
+            : HAND_WRAPPER_WIDTH;
 
         const handContext = _syncDisplayedHandSkinForAnimation(player, visualOptions);
-        const playerKey = handContext && handContext.ownerKey
-            ? handContext.ownerKey
-            : _normalizeHandOwnerKey(player);
         // Prepare the next frame while hidden without tearing down the composited wrapper.
         _cancelElementAnimations(wrapperEl);
         _ensureHandAnimationLayerMounted(layerEl);
@@ -1726,7 +1795,6 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         const cellCenterY = cellRect.top + (cellRect.height / 2);
         const wrapW = HAND_WRAPPER_WIDTH;
 
-        const fromBottom = _isOwnerOnBottomSlot(playerKey);
         let startY;
         let dropY;
         let rotation;
@@ -1747,9 +1815,18 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         }
 
         const dropX = cellCenterX - (wrapW / 2);
+        const startX = handOriginCenter
+            ? handOriginCenter.x - (wrapperLayoutWidth / 2)
+            : dropX;
+        if (handOriginCenter) {
+            const visualCenterOffsetY = fromBottom
+                ? wrapperLayoutHeight - ((wrapperLayoutHeight * scale) / 2)
+                : wrapperLayoutHeight + ((wrapperLayoutHeight * scale) / 2);
+            startY = handOriginCenter.y - visualCenterOffsetY;
+        }
 
         // Set initial state
-        wrapperEl.style.transform = `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`;
+        wrapperEl.style.transform = `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`;
         _setHandWrapperPresentationActive(wrapperEl, true);
         let completed = false;
         const completeMove = () => {
@@ -1775,8 +1852,14 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
         (async () => {
             // 1. Approach
             await _animateCompat(wrapperEl, [
-                { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` },
-                { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
+                {
+                    transform: `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`,
+                    opacity: 0
+                },
+                {
+                    transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})`,
+                    opacity: 1
+                }
             ], {
                 duration: HAND_PLACE_APPROACH_MS,
                 easing: HAND_TRAVEL_EASING,
@@ -1804,8 +1887,14 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
 
             // 3. Retreat
             await _animateCompat(wrapperEl, [
-                { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` },
-                { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` }
+                {
+                    transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})`,
+                    opacity: 1
+                },
+                {
+                    transform: `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})`,
+                    opacity: 0
+                }
             ], {
                 duration: HAND_PLACE_RETREAT_MS,
                 easing: HAND_TRAVEL_EASING,

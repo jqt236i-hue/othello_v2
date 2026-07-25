@@ -795,6 +795,127 @@ describe('animation-utils hand fallback', () => {
     expect(cancelMock).toHaveBeenCalledTimes(2);
   });
 
+  test.each([
+    {
+      label: 'bottom owner',
+      player: 1,
+      handId: 'hand-black',
+      cardRect: { left: 300, top: 520, width: 100, height: 120, right: 400, bottom: 640 },
+      expectedApproach: [
+        { transform: 'translate(260px, 472px) rotate(0deg) scale(0.8)', opacity: 0 },
+        { transform: 'translate(120px, 155px) rotate(0deg) scale(0.8)', opacity: 1 }
+      ],
+      expectedRetreat: [
+        { transform: 'translate(120px, 155px) rotate(0deg) scale(0.8)', opacity: 1 },
+        { transform: 'translate(260px, 472px) rotate(0deg) scale(0.8)', opacity: 0 }
+      ]
+    },
+    {
+      label: 'top owner',
+      player: -1,
+      handId: 'hand-white',
+      cardRect: { left: 60, top: 80, width: 80, height: 100, right: 140, bottom: 180 },
+      expectedApproach: [
+        { transform: 'translate(10px, -113px) rotate(180deg) scale(0.7)', opacity: 0 },
+        { transform: 'translate(120px, -80px) rotate(180deg) scale(0.7)', opacity: 1 }
+      ],
+      expectedRetreat: [
+        { transform: 'translate(120px, -80px) rotate(180deg) scale(0.7)', opacity: 1 },
+        { transform: 'translate(10px, -113px) rotate(180deg) scale(0.7)', opacity: 0 }
+      ]
+    }
+  ])('playHandAnimation starts near $label cards and fades in and out', async ({
+    player,
+    handId,
+    cardRect,
+    expectedApproach,
+    expectedRetreat
+  }) => {
+    const board = document.getElementById('board');
+    const cell = board.querySelector('.cell[data-row="0"][data-col="0"]');
+    const wrapper = document.getElementById('handWrapper');
+    const hand = document.getElementById(handId);
+    const card = document.createElement('div');
+    card.className = 'card-item';
+    card.getBoundingClientRect = () => cardRect;
+    hand.appendChild(card);
+    board.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 480,
+      height: 480,
+      right: 480,
+      bottom: 480
+    });
+    cell.getBoundingClientRect = () => ({
+      left: 180,
+      top: 180,
+      width: 60,
+      height: 60,
+      right: 240,
+      bottom: 240
+    });
+    const animateMock = jest.fn(() => ({
+      addEventListener: jest.fn(),
+      finished: Promise.resolve()
+    }));
+    wrapper.animate = animateMock;
+
+    const mod = require('../ui/animation-utils.js');
+    await expect(mod.playHandAnimation(player, 0, 0, jest.fn())).resolves.toBeUndefined();
+
+    const approachCall = animateMock.mock.calls.find((call) => call[1].duration === 208);
+    const retreatCall = animateMock.mock.calls.find((call) => call[1].duration === 156);
+    expect(approachCall?.[0]).toEqual(expectedApproach);
+    expect(retreatCall?.[0]).toEqual(expectedRetreat);
+    expect(wrapper.style.opacity).toBe('0');
+  });
+
+  test('playHandAnimation falls back to the hand container center when no cards are visible', async () => {
+    const board = document.getElementById('board');
+    const cell = board.querySelector('.cell[data-row="0"][data-col="0"]');
+    const wrapper = document.getElementById('handWrapper');
+    const hand = document.getElementById('hand-black');
+    hand.getBoundingClientRect = () => ({
+      left: 200,
+      top: 500,
+      width: 300,
+      height: 130,
+      right: 500,
+      bottom: 630
+    });
+    board.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 480,
+      height: 480,
+      right: 480,
+      bottom: 480
+    });
+    cell.getBoundingClientRect = () => ({
+      left: 180,
+      top: 180,
+      width: 60,
+      height: 60,
+      right: 240,
+      bottom: 240
+    });
+    const animateMock = jest.fn(() => ({
+      addEventListener: jest.fn(),
+      finished: Promise.resolve()
+    }));
+    wrapper.animate = animateMock;
+
+    const mod = require('../ui/animation-utils.js');
+    await expect(mod.playHandAnimation(global.BLACK, 0, 0, jest.fn())).resolves.toBeUndefined();
+
+    const approachCall = animateMock.mock.calls.find((call) => call[1].duration === 208);
+    expect(approachCall?.[0]?.[0]).toEqual({
+      transform: 'translate(260px, 457px) rotate(0deg) scale(0.8)',
+      opacity: 0
+    });
+  });
+
   test('playDrawCardHandAnimation uses 10%-slower draw motion durations than the current baseline', async () => {
     jest.useFakeTimers();
 
