@@ -1,6 +1,6 @@
 # ネット対戦の入力再開・終局表示順 根本修正計画
 
-- Status: implementation complete / deployment pending
+- Status: complete / deployed
 - Date: 2026-07-25
 - Design: `docs/implementation/network-input-result-order-repair-design.md`
 
@@ -54,7 +54,15 @@
 - [x] design/planを最終実装へ同期し、Statusとverification recordを更新する。
 - [x] task-owned diffと既存`worker-public/`差分を分離して確認する。
 - [x] task-owned filesだけをstageし、検証済みcommitを作成する。
-- [ ] ユーザーの明示承認に基づき、品質ゲート通過後にdeployして本番疎通を確認する。
+- [x] ユーザーの明示承認に基づき、品質ゲート通過後にdeployして本番疎通を確認する。
+
+## Deployment record
+
+- URL: `https://card.reversi-0.workers.dev`
+- Version ID: `2f76061d-b2a1-4be5-9ea5-a1197a8d0333`
+- production API: create/join/rejoin/SSE/publish/leave/room cleanup 成功
+- production Chrome/Edge: UI着手で stateVersion 1→2→3、次の黒手番、両クライアント playback/selection idle、console/page error 0件
+- production endgame: version 64、60手＋3パス、最終 `visualSeq=63`
 
 ## Self-review
 

@@ -1,6 +1,6 @@
 # ネット対戦の入力再開・終局表示順 修正設計
 
-- Status: implementation complete / deployment pending
+- Status: complete / deployed
 - Date: 2026-07-25
 - Scope: ネット対戦のカード対象選択、先行盤面クリック、演出後の入力再開、終局結果表示、強制状態同期
 - Source of truth: `01-rulebook.md`、`正本/カード仕様正本.md`、`正本/演出正本.md`、`docs/architecture-contracts.md`、root `AGENTS.md`
@@ -147,6 +147,10 @@ network publish を伴う着手・カード対象確定では、ローカル tur
 - ローカル修正版の Chrome→Edge 着手はリロードなしで成功し、stateVersion 3→4、console error と page error は両ブラウザとも0件だった。破壊の意志、雷撃、狙撃、ロボット掃除機の server-authoritative reason も両ブラウザで一致した。
 - network endgame smoke は5試合すべて version 64、60手＋3パスで終局した。
 - Pixi/DOM、classic/Vite、通常/低モーション/noanim の12構成・208シナリオで playback settlement を完了した。
+- production `https://card.reversi-0.workers.dev` へ Version ID `2f76061d-b2a1-4be5-9ea5-a1197a8d0333` をdeployした。
+- production API の create/join/rejoin/SSE/publish/leave/room cleanup を完了した。
+- production の実 Chrome/Edge で同一 room を作成・参加し、UIから黒 `(2,3)`、白 `(2,2)` をリロードなしで着手した。両クライアントは stateVersion 3、次の黒手番、playback/selection idle に一致し、console/page error は0件だった。
+- production Worker の別 room を API 操作で終局まで進め、version 64、60手＋3パス、最終 `visualSeq=63` を確認した。
 
 ## 8. Self-review
 
