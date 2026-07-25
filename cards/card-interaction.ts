@@ -711,6 +711,11 @@ const _cardInteractionDetailActions = (_cardInteractionDetailActionsModule && ty
         getEffectiveCardCost: (cardId: any, ownerKey: any, handIndex?: any) => _getEffectiveCardCostForHandCard(cardId, ownerKey, handIndex),
         getCardStateValue: () => cardState,
         getGameStateValue: () => gameState,
+        isGameOver: (state: any) => (
+            typeof isGameOver === 'function'
+            && !!state
+            && isGameOver(state) === true
+        ),
         isSelectedCardUsableNow: _isSelectedCardUsableNow,
         getLegalMovesForCurrentPlayer: _getLegalMovesForCurrentPlayer,
         isPlacementLockedForPlayer: _isPlacementLockedForPlayer,
@@ -3043,6 +3048,13 @@ function passCurrentTurn() {
     const isAutoMode = _isAutoModeActive();
     if (isAutoMode) return;
     if (_guardSpectatorReadOnlyForCardUi()) return;
+    if (
+        gameState
+        && (
+            gameState.__resultShown === true
+            || (typeof isGameOver === 'function' && isGameOver(gameState))
+        )
+    ) return;
     if (!_canInputPlayerActNow()) return;
     if (_isSelectionSettlementLocked()) return;
 

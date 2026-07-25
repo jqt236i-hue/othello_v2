@@ -36,6 +36,7 @@ function createController(overrides?: Record<string, any>) {
     getCardDef: jest.fn((cardId: any) => (cardId ? { id: cardId, cost: 3 } : null)),
     getCardStateValue: () => cardState,
     getGameStateValue: () => gameState,
+    isGameOver: jest.fn(() => false),
     isSelectedCardUsableNow: jest.fn(() => true),
     getLegalMovesForCurrentPlayer: jest.fn(() => []),
     isPlacementLockedForPlayer: jest.fn(() => false),
@@ -163,6 +164,26 @@ describe('card interaction detail actions module', () => {
 
     expect(actionState.canShowPass).toBe(true);
     expect(actionState.canPass).toBe(true);
+  });
+
+  test('resolve action state locks pass and card actions after the game is over', () => {
+    const ctx = createController({
+      deps: {
+        isGameOver: jest.fn(() => true)
+      }
+    });
+
+    const actionState = ctx.controller.resolveCardDetailActionState({
+      playerKey: 'black',
+      hasSelection: true,
+      selectedId: 'card_01'
+    });
+
+    expect(actionState.canActThisTurn).toBe(false);
+    expect(actionState.canShowPass).toBe(false);
+    expect(actionState.canPass).toBe(false);
+    expect(actionState.canUse).toBe(false);
+    expect(actionState.canDestroy).toBe(false);
   });
 
   test('resolve action state marks heaven selection and debug unlimited bypasses normal limits', () => {

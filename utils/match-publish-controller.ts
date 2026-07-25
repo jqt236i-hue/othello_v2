@@ -192,7 +192,7 @@ export function createMatchPublishController(config?: any): any {
 
     const expectedPlayerKey = cfg.getCurrentPlayerKey(cfg.asRecord(room.snapshot).gameState);
     if (
-      actionType === 'auto_turn'
+      !isRematchResetAction
       && typeof cfg.isSnapshotGameOver === 'function'
       && await cfg.isSnapshotGameOver(room.snapshot)
     ) {

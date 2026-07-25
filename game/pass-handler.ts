@@ -857,6 +857,12 @@ function syncPassPipelineState(result: any) {
 
 function ensureCurrentPlayerCanActOrPass(options?: any) {
     if (!gameState || !cardState) return false;
+    if (
+        gameState.__resultShown === true
+        || (typeof isGameOver === 'function' && isGameOver(gameState))
+    ) {
+        return false;
+    }
     const opts = options || {};
     const currentPlayer = gameState.currentPlayer;
     const playerKey = normalizePlayerKey(currentPlayer, 'black');

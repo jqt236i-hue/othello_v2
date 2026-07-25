@@ -61,6 +61,7 @@ describe('pass-handler flows', () => {
         (global as any).processCpuTurn = jest.fn();
         (global as any).onTurnStart = jest.fn();
         (global as any).showResult = jest.fn();
+        (global as any).isGameOver = jest.fn(() => false);
         (global as any).cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
         (global as any).gameState = { currentPlayer: 1 };
         (global as any).MATCH_MODE = 'cpu';
@@ -687,6 +688,32 @@ describe('pass-handler flows', () => {
             action: { type: 'pass', playerKey: 'black', turnIndex: 5, autoNoActionPass: true },
             playbackEvents: []
         }));
+    });
+
+    test('network mode は終局後に自動 pass command を送らない', () => {
+        delete require.cache[modPath];
+        (global as any).MATCH_MODE = 'network';
+        (global as any).LOCAL_PLAYER_KEY = 'black';
+        (global as any).gameState = {
+            currentPlayer: (global as any).BLACK,
+            consecutivePasses: 2
+        };
+        (global as any).cardState = {
+            turnIndex: 64,
+            turnCountByPlayer: { black: 30, white: 30 },
+            hands: { black: [], white: [] }
+        };
+        (global as any).isGameOver = jest.fn(() => true);
+        (global as any).TurnPipeline = makeTurnPipeline();
+        (global as any).Core = { getLegalMoves: jest.fn(() => []) };
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
+
+        const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
+
+        expect(handled).toBe(false);
+        expect((global as any).NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
+        expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
     });
 
     test('network mode では非手番側クライアントが自動 pass command を送らない', () => {

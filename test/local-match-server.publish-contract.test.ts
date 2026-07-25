@@ -2341,6 +2341,49 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('regular commands are rejected after the game is over', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+      expect(patchRoomSnapshotForTests(roomId, (room) => {
+        room.snapshot.gameState.board = Array.from({ length: 8 }, () => Array(8).fill(1));
+        room.snapshot.gameState.currentPlayer = 1;
+        room.snapshot.gameState.consecutivePasses = 2;
+        room.snapshot.cardState.turnIndex = 62;
+        room.snapshot.cardState.hands.black = [];
+        room.snapshot.cardState._handCopyIdsByPlayer.black = [];
+        room.snapshot.cardState.pendingEffectByPlayer.black = null;
+      })).toBe(true);
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_terminal_pass_rejected_1',
+        actionType: 'pass',
+        actor: 'black',
+        action: {
+          type: 'pass',
+          playerKey: 'black',
+          turnIndex: 62,
+          autoNoActionPass: true
+        }
+      });
+
+      expect(response.status).toBe(409);
+      expect(response.data.rejectedReason).toBe('GAME_ALREADY_OVER');
+      expect(response.data.stateVersion).toBe(created.data.stateVersion);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('auto_turn canonical pass keeps auto-pass notice on idempotent replay', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);

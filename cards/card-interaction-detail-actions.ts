@@ -13,6 +13,7 @@ type CardInteractionDetailActionsDeps = {
     getCardDef: (cardId: any) => any;
     getEffectiveCardCost?: (cardId: any, ownerKey: any, handIndex?: any) => number;
     getCardStateValue: () => any;
+    isGameOver?: (gameState: any) => boolean;
     isSelectedCardUsableNow: (playerKey: any, cardId: any, options?: any) => boolean;
     getLegalMovesForCurrentPlayer: () => any[];
     isPlacementLockedForPlayer?: (playerKey: any) => boolean;
@@ -267,7 +268,11 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
         const gameStateValue = typeof cfg.getGameStateValue === 'function' ? (cfg.getGameStateValue() || {}) : {};
         const playerKey = context.playerKey;
         const isAutoMode = cfg.isAutoModeActive();
-        const canActThisTurn = cfg.canInputPlayerActNow();
+        const gameOver = gameStateValue.__resultShown === true || !!(
+            typeof cfg.isGameOver === 'function'
+            && cfg.isGameOver(gameStateValue)
+        );
+        const canActThisTurn = !gameOver && cfg.canInputPlayerActNow();
         const isDebugUnlimited = cfg.isDebugUnlimitedUsage();
         cfg.ensureHandDestroyFlags();
         const hasNotUsedThisTurn = isDebugUnlimited ? true : !cfg.hasPlayerUsedCardThisActiveTurn(playerKey);
@@ -316,11 +321,11 @@ export function createCardInteractionDetailActions(deps: CardInteractionDetailAc
             && canAfford
             && canUseSelectedCardByRules;
         if (isDebugUnlimited) {
-            canUse = !!context.hasSelection;
+            canUse = !gameOver && !!context.hasSelection;
         }
         let canDestroy = !isAutoMode && canActThisTurn && context.hasSelection && canInteract;
         if (isDebugUnlimited) {
-            canDestroy = !!context.hasSelection;
+            canDestroy = !gameOver && !!context.hasSelection;
         }
         let reason = '';
 
