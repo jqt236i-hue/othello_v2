@@ -227,6 +227,12 @@ function mapWorkIncome(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlayb
     }], 'WORK_BUBBLE');
 }
 
+function mapUltimateWorkGodIncome(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlaybackDeps) {
+    deps.preparePassivePlaybackPhaseState(ctx.phaseState, { clearWillHunter: false });
+    ctx.pEvent.type = 'log';
+    ctx.pEvent.targets = [];
+}
+
 function mapWorkRemoved(ctx: PassiveEventPlaybackContext, deps: PassiveEventPlaybackDeps) {
     const isDurationExpired = deps.isWorkDurationExpiredPresentationEvent(ctx.ev);
     deps.preparePassivePlaybackPhaseState(ctx.phaseState, {
@@ -381,6 +387,9 @@ function mapPassivePresentationEvent(ctx: PassiveEventPlaybackContext, deps: Pas
             return true;
         case 'WORK_INCOME':
             mapWorkIncome(ctx, deps);
+            return true;
+        case 'ULTIMATE_WORK_GOD_INCOME':
+            mapUltimateWorkGodIncome(ctx, deps);
             return true;
         case 'WORK_REMOVED':
             mapWorkRemoved(ctx, deps);

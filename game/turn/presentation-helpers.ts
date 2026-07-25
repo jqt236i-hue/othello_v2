@@ -37,6 +37,7 @@ const SPECIAL_STONE_PLACEMENT_EFFECT_SPECS = Object.freeze([
     Object.freeze({ flag: 'robotVacuumPlaced', special: 'ROBOT_VACUUM' }),
     Object.freeze({ flag: 'gluttonousPlaced', special: 'GLUTTONOUS' }),
     Object.freeze({ flag: 'workPlaced', special: 'WORK' }),
+    Object.freeze({ flag: 'ultimateWorkGodPlaced', special: 'ULTIMATE_WORK_GOD' }),
     Object.freeze({ flag: 'instantHyperactivePlaced', special: 'HYPERACTIVE' }),
     Object.freeze({ flag: 'ultimateHyperactivePlaced', special: 'ULTIMATE_HYPERACTIVE' }),
     Object.freeze({ flag: 'hyperactivePlaced', special: 'HYPERACTIVE' })
@@ -694,6 +695,22 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
             continue;
         }
 
+        if (ev.type === 'ULTIMATE_WORK_GOD_INCOME') {
+            emitBubble({
+                special: 'ULTIMATE_WORK_GOD',
+                scenario: 'income',
+                player,
+                row,
+                col,
+                reason: 'ultimate_work_god_income',
+                cause,
+                meta: Object.assign({}, (ev.meta && typeof ev.meta === 'object') ? ev.meta : {}, {
+                    gained: Number(ev.gained) || 0
+                })
+            });
+            continue;
+        }
+
         if (ev.type === 'CHANGE' && String(reason || '').toLowerCase() === 'zombie_infection') {
             const sourceRow = Number(ev.meta && ev.meta.sourceRow);
             const sourceCol = Number(ev.meta && ev.meta.sourceCol);
@@ -772,7 +789,21 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
             if (findMatchingLivingWillRestorePresentationEvent(presentationEventIndex, special, row, col)) {
                 continue;
             }
-            const scenario = isProliferationTriggeredSpecialStoneBubbleEvent(ev, reason, cause) && deps.getSpecialStoneBubbleSpeechLines(special, 'proliferation_triggered')
+            if (
+                special === 'ULTIMATE_WORK_GOD' &&
+                ev.meta &&
+                (
+                    ev.meta.blockedByGhost === true ||
+                    ev.meta.regenerated === true ||
+                    ev.meta.proliferated === true ||
+                    ev.meta.livingWillTriggered === true
+                )
+            ) {
+                continue;
+            }
+            const scenario = special === 'ULTIMATE_WORK_GOD' && ev.meta && ev.meta.selfDestruct === true
+                ? 'self_destruct'
+                : isProliferationTriggeredSpecialStoneBubbleEvent(ev, reason, cause) && deps.getSpecialStoneBubbleSpeechLines(special, 'proliferation_triggered')
                 ? 'proliferation_triggered'
                 : (isEscapeExplosionSpecialStoneBubbleReason(reason, cause) && deps.getSpecialStoneBubbleSpeechLines(special, 'escape_exploded'))
                 ? 'escape_exploded'
@@ -827,6 +858,17 @@ function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, option
     for (const item of removed) {
         if (!item || !item.type) continue;
         if (findMatchingSpecialStoneStatusRemovedEvent(presentationEventIndex, item)) continue;
+        if (
+            item.type === 'ULTIMATE_WORK_GOD' &&
+            presentationEventIndex.findFirst({
+                type: 'DESTROY',
+                row: item.row,
+                col: item.col,
+                predicate: (ev: any) => String(ev && ev.meta && ev.meta.special || '').toUpperCase() === 'ULTIMATE_WORK_GOD'
+            })
+        ) {
+            continue;
+        }
         if (hasMatchingSpecialStoneMovedFromPhaseEvent(phaseEvents, item)) continue;
         if (item.type === 'REGEN' && hasRegenTriggeredPresentationEventAt(presentationEventIndex, item.row, item.col)) continue;
         if (findMatchingLivingWillRestorePresentationEvent(presentationEventIndex, item, undefined, undefined)) continue;

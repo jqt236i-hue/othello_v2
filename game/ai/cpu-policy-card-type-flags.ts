@@ -34,7 +34,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isRecoveryCard = isCornerRecoveryCardType(cardType);
         const isHoldCard = isCornerHoldCardType(cardType);
         const isChargeRampCard = isChargeRampCardType(cardType);
-        const isWorkWill = cardType === 'WORK_WILL';
+        const isWorkWill = cardType === 'WORK_WILL' || cardType === 'ULTIMATE_WORK_GOD';
         const isTimeBomb = cardType === 'TIME_BOMB';
         const isTimeStopGod = cardType === 'TIME_STOP_GOD';
         const isTimeStopDeity = cardType === 'TIME_STOP_DEITY';

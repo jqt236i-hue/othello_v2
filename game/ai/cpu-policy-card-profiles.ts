@@ -112,6 +112,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         ULTIMATE_REVERSE_DRAGON: 1,
         WILL_HUNTER_KING: 4,
         WORK_WILL: 4,
+        ULTIMATE_WORK_GOD: 5,
         X_BOMB: -2,
         ZOMBIE_WILL: 0
     });
@@ -211,6 +212,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         'ULTIMATE_REVERSE_DRAGON',
         'WILL_HUNTER_KING',
         'WORK_WILL',
+        'ULTIMATE_WORK_GOD',
         'X_BOMB',
         'ZOMBIE_WILL'
     ]);
@@ -306,6 +308,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         ULTIMATE_REVERSE_DRAGON: { trailingBias: 6, cornerEmergencyBias: 4, leadBias: -6 },
         WILL_HUNTER_KING: { trailingBias: 2, cornerNowBias: 6, edgeEmergencyBias: 2, endgameBias: -6 },
         WORK_WILL: { openingBias: 6, midLateBias: 4, cornerNowBias: 4, endgameBias: -6 },
+        ULTIMATE_WORK_GOD: { openingBias: 6, midLateBias: 6, cornerNowBias: 5, endgameBias: -6 },
         X_BOMB: { cornerEmergencyBias: 4, leadBias: -4, endgameBias: -6 }
     });
 
@@ -408,6 +411,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
             'SILVER_STONE',
             'TREASURE_BOX',
             'WORK_WILL',
+            'ULTIMATE_WORK_GOD',
         ], {
             leadBias: -4,
             trailingBias: 6,
@@ -720,6 +724,7 @@ export function createCpuPolicyCardProfiles(deps?: CpuPolicyCardProfilesDeps) {
         ULTIMATE_REVERSE_DRAGON: { archetype: 'anchorEngine', placementWeight: 3, innerBias: 1, oppAdjBias: 3, flipBias: 3 },
         WILL_HUNTER_KING: { archetype: 'anchorEngine', placementWeight: 3, cornerBias: 4, stabilityBias: 4, oppAdjBias: -1 },
         WORK_WILL: { archetype: 'anchorEngine', placementWeight: 3, flipBias: 0, emptyAdjBias: -1, stabilityBias: 5 },
+        ULTIMATE_WORK_GOD: { archetype: 'anchorEngine', placementWeight: 3, flipBias: 0, emptyAdjBias: -1, stabilityBias: 5 },
         X_BOMB: { archetype: 'explosiveComeback', placementWeight: 3, innerBias: 2, emptyAdjBias: 3, xPenalty: 0 },
         ZOMBIE_WILL: { archetype: 'economyCycle', placementWeight: 0 }
     });

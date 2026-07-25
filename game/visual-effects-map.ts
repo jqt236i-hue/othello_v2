@@ -322,6 +322,16 @@ const GAME_STONE_VISUAL_EFFECTS: Record<string, any> = {
         backgroundSize: '100% 100%',
         dataAttributes: {}
     },
+    ultimateWorkGodStone: {
+        cssClass: 'ultimate-work-god-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/special-stones/ULTIMATE_WORK_GOD-black.png',
+            '-1': 'assets/images/special-stones/ULTIMATE_WORK_GOD-white.png'
+        },
+        backgroundSize: '100% 100%',
+        dataAttributes: {}
+    },
     timeBombStone: {
         cssClass: 'time-bomb-stone',
         cssMethod: 'pseudoElement',
@@ -402,8 +412,8 @@ const PENDING_TYPE_TO_EFFECT_KEY: Record<string, string> = {
     'RAINBOW_STONE': 'rainbowStone',
     'SILVER_STONE': 'silverStone',
     // Ensure WORK pending visuals are applied at placement-time as well
-    'WORK_WILL': 'workStone'
-    ,
+    'WORK_WILL': 'workStone',
+    'ULTIMATE_WORK_GOD': 'ultimateWorkGodStone',
     'TIME_BOMB': 'timeBombStone',
     'TIME_STOP_GOD': 'timeStopStone',
     'TIME_STOP_DEITY': 'timeStopDeityStone',
@@ -556,6 +566,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY: Record<string, string> = {
     'RAINBOW': 'rainbowStone',
     'SILVER': 'silverStone',
     'WORK': 'workStone',
+    'ULTIMATE_WORK_GOD': 'ultimateWorkGodStone',
     'TIME_BOMB': 'timeBombStone',
     'TIME_STOP': 'timeStopStone',
     'TIME_STOP_DEITY': 'timeStopDeityStone',

@@ -306,6 +306,10 @@
             desc: 'ターン開始時に布石を得る。',
             timerClass: 'work-timer'
         }),
+        ULTIMATE_WORK_GOD: Object.freeze({
+            name: '究極労働神',
+            desc: '所有者ターン開始時、布石を5得るか上昇する確率で自壊する。'
+        }),
         TIME_BOMB: Object.freeze({
             name: '時限爆弾',
             desc: '3ターン後に周囲9マスを爆破。反転されると解除。'
@@ -428,6 +432,7 @@
         GLUTTONOUS_WILL: Object.freeze({ cardId: 'gluttonous_will_01', cardNameJa: '悪食の意志', cardType: 'GLUTTONOUS_WILL', markerType: 'GLUTTONOUS' }),
         WILL_HUNTER_KING: Object.freeze({ cardId: 'will_hunter_king_01', cardNameJa: '意志狩りの王', cardType: 'WILL_HUNTER_KING', markerType: 'WILL_HUNTER_KING' }),
         WORK_WILL: Object.freeze({ cardId: 'work_01', cardNameJa: '出稼ぎの意志', cardType: 'WORK_WILL', markerType: 'WORK' }),
+        ULTIMATE_WORK_GOD: Object.freeze({ cardId: 'ultimate_work_god_01', cardNameJa: '究極労働神', cardType: 'ULTIMATE_WORK_GOD', markerType: 'ULTIMATE_WORK_GOD' }),
         STONE_SALVATION_GOD: Object.freeze({ cardId: 'stone_salvation_god_01', cardNameJa: '救済神', cardType: 'STONE_SALVATION_GOD', markerType: 'STONE_SALVATION_GOD' }),
         DESTROY_DRAGON_WILL: Object.freeze({ cardId: 'destroy_dragon_01', cardNameJa: '破壊龍', cardType: 'DESTROY_DRAGON_WILL', markerType: 'DESTROY_DRAGON' }),
         LIGHTNING_WILL: Object.freeze({ cardId: 'lightning_01', cardNameJa: '雷の意志', cardType: 'LIGHTNING_WILL', markerType: 'LIGHTNING' }),
@@ -502,6 +507,10 @@
                 out[definition.markerType] = makeStoneEffectRule(definition.markerType, {});
             }
         }
+
+        out.ULTIMATE_WORK_GOD = makeStoneEffectRule('ULTIMATE_WORK_GOD', {
+            durationAffectable: false
+        });
 
         out.REGEN = makeStoneEffectRule('REGEN', {
             ownershipChangePolicy: 'resolve_after_change'

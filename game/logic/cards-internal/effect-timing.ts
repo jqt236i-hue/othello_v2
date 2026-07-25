@@ -1045,6 +1045,15 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         }
     }
 
+    if (pending && pending.type === 'ULTIMATE_WORK_GOD' && typeof helpers.addMarker === 'function') {
+        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+            type: 'ULTIMATE_WORK_GOD',
+            ownerColor: playerKey,
+            selfDestructChancePercent: 0
+        });
+        effects.ultimateWorkGodPlaced = true;
+    }
+
     if (pending && pending.type === 'BREEDING_WILL' && typeof helpers.addMarker === 'function') {
         helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
             type: 'BREEDING',

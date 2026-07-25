@@ -278,6 +278,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/logic/cards/teleport": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/teleport.js"),
   "game/logic/cards/time_bomb": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/time_bomb.js"),
   "game/logic/cards/udg": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/udg.js"),
+  "game/logic/cards/ultimate_work_god": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/ultimate_work_god.js"),
   "game/logic/cards/utils": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/utils.js"),
   "game/logic/cards/will_hunter_king": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/will_hunter_king.js"),
   "game/logic/cards/work_will": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/work_will.js"),
@@ -962,6 +963,7 @@ installBootModuleMetadata({
     "game/logic/cards/teleport",
     "game/logic/cards/time_bomb",
     "game/logic/cards/udg",
+    "game/logic/cards/ultimate_work_god",
     "game/logic/cards/utils",
     "game/logic/cards/will_hunter_king",
     "game/logic/cards/work_will",
@@ -1460,4 +1462,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 679;
+export const startupModuleCount = 680;

@@ -69,6 +69,7 @@ describe('CardInteractionEffects effect tags', () => {
     expect(getEffectTagLabels('ULTIMATE_DESTROY_GOD')).toEqual(['特殊石', '6ターン持続', '反転保護']);
     expect(getEffectTagLabels('DESTROY_DRAGON_WILL')).toEqual(['特殊石', '3ターン持続', '反転保護']);
     expect(getEffectTagLabels('LIGHTNING_WILL')).toEqual(['特殊石', '6ターン持続', '反転保護']);
+    expect(getEffectTagLabels('ULTIMATE_WORK_GOD')).toEqual(['特殊石']);
     expect(getEffectTagLabels('METEOR_GOD')).toEqual(['特殊石', '6ターン持続', '反転保護', '穴マス', '抹消']);
   });
 

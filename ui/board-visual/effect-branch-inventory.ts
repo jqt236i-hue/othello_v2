@@ -252,6 +252,8 @@ const SPECIAL_STONE_SCENARIOS = Object.freeze([
   'escape_exploded',
   'special_destroy_triggered',
   'work_income',
+  'income',
+  'self_destruct',
   'living_will_restored'
 ]);
 
@@ -281,7 +283,8 @@ const SPECIAL_STONE_SPEECH_TYPES = Object.freeze([
   'LIGHTNING',
   'ULTIMATE_DESTROY_GOD',
   'ULTIMATE_HYPERACTIVE',
-  'METEOR_GOD'
+  'METEOR_GOD',
+  'ULTIMATE_WORK_GOD'
 ]);
 
 export const PHASE7_EFFECT_BRANCH_INVENTORY = Object.freeze([

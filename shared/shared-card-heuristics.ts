@@ -44,7 +44,8 @@
         'RAINBOW_STONE',
         'SILVER_STONE',
         'CRYSTAL_STONE',
-        'WORK_WILL'
+        'WORK_WILL',
+        'ULTIMATE_WORK_GOD'
     ]);
 
     function normalizeType(cardType: unknown): string {

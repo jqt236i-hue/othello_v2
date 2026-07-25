@@ -498,6 +498,16 @@ const CardCatalog = {
       "desc": "次の配置石をアンカー化。自ターン開始時に1→2→4→8→16の順でチャージ獲得（最大99）。失うと終了。"
     },
     {
+      "id": "ultimate_work_god_01",
+      "name_ja": "究極労働神",
+      "type": "ULTIMATE_WORK_GOD",
+      "cost": 25,
+      "desc_ja": "次に置く石を究極労働神化、自ターン開始時、布石を5獲得するか低確率で自壊する。",
+      "display_type_ja": "採掘",
+      "name": "究極労働神",
+      "desc": "次に置く石を究極労働神化、自ターン開始時、布石を5獲得するか低確率で自壊する。"
+    },
+    {
       "id": "ribo_01",
       "name_ja": "リボ払いの意志",
       "type": "RIBO_WILL",

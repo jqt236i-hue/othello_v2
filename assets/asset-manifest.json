@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-13",
-  "generatedAt": "2026-07-13T23:14:16.374Z",
+  "version": "2026-07-25",
+  "generatedAt": "2026-07-25T17:42:49.654Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -237,6 +237,14 @@
     {
       "path": "assets/images/special-stones/ultimate_reverse_dragon-white.png",
       "sha256": "7006c09fcb38fdd5c40521ed8917545eef1bbddb69ace193fee2659700d3e18a"
+    },
+    {
+      "path": "assets/images/special-stones/ULTIMATE_WORK_GOD-black.png",
+      "sha256": "72985ccfd5bd0fcb57babf82267a98bffe2d8827d31d01ee6eccb03c028caca9"
+    },
+    {
+      "path": "assets/images/special-stones/ULTIMATE_WORK_GOD-white.png",
+      "sha256": "aac6bc88045478ed3e802f0fcf229ea439face6f463d8a192afeb8a12a5aad23"
     },
     {
       "path": "assets/images/special-stones/WILL_HUNTER_KING-black.png",

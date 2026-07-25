@@ -113,6 +113,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     ULTIMATE_REVERSE_DRAGON: makePlanPressureProfile(3, 4, 3, 3),
     WILL_HUNTER_KING: makePlanPressureProfile(3, 4, 3, 4),
     WORK_WILL: makePlanPressureProfile(1, 0, 1, 2),
+    ULTIMATE_WORK_GOD: makePlanPressureProfile(1, 0, 1, 3),
     X_BOMB: makePlanPressureProfile(3, 4, 3, 3),
     ZOMBIE_WILL: makePlanPressureProfile(0, 0, 0, 0)
 });

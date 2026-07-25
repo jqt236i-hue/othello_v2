@@ -64,6 +64,7 @@ export type CardType =
   | 'INSTANT_HYPERACTIVE_WILL'
   | 'REBUILD_WILL'
   | 'WORK_WILL'
+  | 'ULTIMATE_WORK_GOD'
   | 'RIBO_WILL'
   | 'LOSS_WILL'
   | 'MASS_FREEZE_WILL'

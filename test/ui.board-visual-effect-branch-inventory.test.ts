@@ -813,13 +813,14 @@ describe('Phase 7 board visual branch inventory', () => {
       'TIME_STOP', 'TIME_STOP_DEITY', 'REGEN', 'ZOMBIE', 'DRAGON', 'BREEDING',
       'PROLIFERATION', 'HYPERACTIVE', 'EXTREME_HYPERACTIVE', 'ESCAPE_HYPERACTIVE',
       'ROBOT_VACUUM', 'GLUTTONOUS', 'WILL_HUNTER_KING', 'WORK', 'STONE_SALVATION_GOD',
-      'DESTROY_DRAGON', 'LIGHTNING', 'ULTIMATE_DESTROY_GOD', 'ULTIMATE_HYPERACTIVE', 'METEOR_GOD'
+      'DESTROY_DRAGON', 'LIGHTNING', 'ULTIMATE_DESTROY_GOD', 'ULTIMATE_HYPERACTIVE', 'METEOR_GOD',
+      'ULTIMATE_WORK_GOD'
     ]);
     expect(speech?.metaVariants).toEqual([
       'place', 'destroy', 'duration_end', 'normal_revert', 'proliferation_triggered',
       'time_stop_triggered', 'time_stop_deity_triggered', 'regen_triggered', 'zombie_infection',
       'zombie_revived', 'card_nullified', 'ghost_protected', 'escape_exploded',
-      'special_destroy_triggered', 'work_income', 'living_will_restored'
+      'special_destroy_triggered', 'work_income', 'income', 'self_destruct', 'living_will_restored'
     ]);
   });
 });

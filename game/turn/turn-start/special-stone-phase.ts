@@ -234,6 +234,33 @@ function processTurnStartSpecialStone(options: ProcessTurnStartSpecialStoneOptio
 
     if (typeKey !== 'FREEZE' && opts.isFrozenCell(opts.cardState, row, col)) return processingState;
 
+    if (
+        typeKey === 'ULTIMATE_WORK_GOD' &&
+        owner === opts.playerKey &&
+        typeof opts.CardLogic.processUltimateWorkGodAtTurnStartAnchor === 'function'
+    ) {
+        const res = opts.CardLogic.processUltimateWorkGodAtTurnStartAnchor(
+            opts.cardState,
+            opts.gameState,
+            opts.playerKey,
+            row,
+            col,
+            p
+        );
+        opts.events.push({
+            type: 'ultimate_work_god_resolved_start',
+            player: opts.playerKey,
+            row,
+            col,
+            chancePercent: Number(res && res.chancePercent) || 0,
+            gained: Number(res && res.gained) || 0,
+            selfDestructTriggered: !!(res && res.selfDestructTriggered === true),
+            selfDestructed: !!(res && res.selfDestructed === true),
+            destroyOutcome: res && res.destroyResult ? (res.destroyResult.kind || null) : null
+        });
+        return processingState;
+    }
+
     if (typeKey === 'ULTIMATE_DESTROY_GOD' && owner === opts.playerKey) {
         const res = opts.CardLogic.processUltimateDestroyGodEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, { randomSource: p });
         pushTurnStartResultDetails(opts.events, res, [

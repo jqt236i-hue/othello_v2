@@ -277,6 +277,20 @@ function planCardAndEconomySoundCues(ctx: any, deps: CardEconomySoundCueDeps) {
         deps.pushSoundCue(ctx, 'charge_gain_common', workIncomePhase, 'work_income');
     }
 
+    const ultimateWorkGodIncomePhase = deps.findPhase(
+        ctx.base,
+        (ev: any) => ev && ev.rawType === 'ULTIMATE_WORK_GOD_INCOME',
+        ctx.fallbackPhase
+    );
+    const hasUltimateWorkGodIncome = ctx.pres.some((ev: any) => (
+        ev &&
+        ev.type === 'ULTIMATE_WORK_GOD_INCOME' &&
+        Number(ev.gained) > 0
+    ));
+    if (hasUltimateWorkGodIncome && !hasTreasureGain) {
+        deps.pushSoundCue(ctx, 'charge_gain_common', ultimateWorkGodIncomePhase, 'ultimate_work_god_income');
+    }
+
     const workRemovedEvents = ctx.pres.filter((ev: any) => deps.isWorkFlipOrDestroyRemovedPresentationEvent(ev));
     if (workRemovedEvents.length > 0) {
         const workRemovedPlaybackEvents = ctx.base.filter((ev: any) => ev && ev.rawType === 'WORK_REMOVED');

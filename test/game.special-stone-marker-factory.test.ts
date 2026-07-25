@@ -27,7 +27,8 @@ describe('special stone marker factory', () => {
       'ROBOT_VACUUM_WILL',
       'GLUTTONOUS_WILL',
       'ULTIMATE_HYPERACTIVE_GOD',
-      'WORK_WILL'
+      'WORK_WILL',
+      'ULTIMATE_WORK_GOD'
     ];
 
     for (const cardType of expectedTypes) {
@@ -70,6 +71,17 @@ describe('special stone marker factory', () => {
       ownerColor: 'white',
       workStage: 0
     }));
+  });
+
+  test('builds owner-sensitive ULTIMATE_WORK_GOD marker data at 0%', () => {
+    expect(SpecialStoneMarkerFactory.buildMarkerDataForCardType('ULTIMATE_WORK_GOD', {
+      ownerKey: 'white',
+      SpecialStoneRegistry
+    })).toEqual({
+      type: 'ULTIMATE_WORK_GOD',
+      ownerColor: 'white',
+      selfDestructChancePercent: 0
+    });
   });
 
   test('does not build markers for non-spawnable instant or trap effects', () => {

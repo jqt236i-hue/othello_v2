@@ -138,6 +138,7 @@ describe('special stone registry rule classification', () => {
       ['gluttonous_will_01', 'GLUTTONOUS_WILL', 'GLUTTONOUS'],
       ['will_hunter_king_01', 'WILL_HUNTER_KING', 'WILL_HUNTER_KING'],
       ['work_01', 'WORK_WILL', 'WORK'],
+      ['ultimate_work_god_01', 'ULTIMATE_WORK_GOD', 'ULTIMATE_WORK_GOD'],
       ['stone_salvation_god_01', 'STONE_SALVATION_GOD', 'STONE_SALVATION_GOD'],
       ['destroy_dragon_01', 'DESTROY_DRAGON_WILL', 'DESTROY_DRAGON'],
       ['lightning_01', 'LIGHTNING_WILL', 'LIGHTNING'],

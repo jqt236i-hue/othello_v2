@@ -3,7 +3,7 @@ const SPECIAL_STONE_BUBBLE_SCENARIO_KEYS = Object.freeze([
     'proliferation_triggered', 'time_stop_triggered', 'time_stop_deity_triggered',
     'regen_triggered', 'zombie_infection', 'zombie_revived', 'card_nullified',
     'ghost_protected', 'escape_exploded', 'special_destroy_triggered', 'work_income',
-    'living_will_restored'
+    'income', 'self_destruct', 'living_will_restored'
 ]);
 
 type SpeechEntry = Record<string, readonly string[] | Record<number, string>>;
@@ -156,6 +156,36 @@ const SPECIAL_STONE_BUBBLE_SPEECH: Record<string, SpeechEntry> = Object.freeze({
             incomeLinesByStep: Object.freeze({ 1: '布石＋1、初給料や！', 2: '布石＋2、残業代やで！', 3: '布石＋4、家計が助かるわ！', 4: '布石＋8、今月は黒字や！', 5: '布石＋16、家族にご馳走や！' })
         }
     ),
+    ULTIMATE_WORK_GOD: Object.freeze({
+        income: Object.freeze([
+            'もっと稼がないと……。',
+            'まだ足りない……もっと働かないと。',
+            '休んでいる暇なんてない……。',
+            'あと少し……もう少し稼げば。',
+            'あの人を救うには、まだ足りない……。'
+        ]),
+        self_destruct: Object.freeze([
+            'もう……何のために働いていたんだろう。',
+            '何も救えないなら……もういい。',
+            '心が……もう動かない。',
+            '稼いでも、失うだけだった……。',
+            'もう……立ち上がれない。'
+        ]),
+        destroy: Object.freeze([
+            'まただ……あの時も、お金が足りなくて救えなかった。',
+            'あと少し稼げていたら、あの人は……。',
+            'この手はまた、大切な人を救えなかった……。',
+            'あの時も、お金がなくて間に合わなかった……。',
+            'あの日の未練まで、砕かれるのか……。'
+        ]),
+        living_will_restored: Object.freeze([
+            'まだ働ける……今度こそ間に合わせる。',
+            'もう一度だけ……あの人のために。',
+            '戻れたなら、まだ稼げる……。',
+            '今度は救う……絶対に。',
+            '未練がある限り、まだ倒れられない……。'
+        ])
+    }),
     STONE_SALVATION_GOD: voice(
         five('私の祈りで', '石を救いましょう。', '迷いを包みます。', '盤を照らします。', '帰る道を示します。', '傷を抱き留めます。'),
         five('私の祈りが', '途切れます。', '届きませんでした。', '光を失います。', 'ここで沈みます。', '救いを残せません。'),

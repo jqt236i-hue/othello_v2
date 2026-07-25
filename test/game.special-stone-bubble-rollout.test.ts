@@ -32,6 +32,18 @@ function getSpecialStoneBubbles(presentationEvents) {
   return (presentationEvents || []).filter((event) => event && event.type === 'SPECIAL_STONE_BUBBLE');
 }
 
+function createBubbleDeps() {
+  return {
+    CardUtilsModule: null,
+    OwnerHelpersModule: { normalizePlayerKeyOptional: (value) => value },
+    MarkersAdapter: { getMarkers: (state) => state.markers },
+    MARKER_KINDS: { SPECIAL_STONE: 'specialStone' },
+    getSpecialStoneBubbleSpeechLines: SpeechCatalog.getSpecialStoneBubbleSpeechLines,
+    pickSpecialStoneBubbleSpeechLine: SpeechCatalog.pickSpecialStoneBubbleSpeechLine,
+    resolveWorkIncomeLine: SpeechCatalog.resolveWorkIncomeLine
+  };
+}
+
 describe('special stone speech rollout', () => {
   test('ghost placement emits a generic place speech bubble', () => {
     const prng = createPrng(0);
@@ -297,6 +309,116 @@ describe('special stone speech rollout', () => {
     expect(bubbles).toEqual([expect.objectContaining({ scenario: 'zombie_revived' })]);
   });
 
+  test('究極労働神は収入、自壊、外部破壊で固有シナリオを1回だけ話す', () => {
+    const cases = [
+      {
+        source: {
+          type: 'ULTIMATE_WORK_GOD_INCOME',
+          player: 'black',
+          row: 3,
+          col: 3,
+          gained: 5,
+          meta: { special: 'ULTIMATE_WORK_GOD', owner: 'black' }
+        },
+        scenario: 'income'
+      },
+      {
+        source: {
+          type: 'DESTROY',
+          row: 3,
+          col: 3,
+          ownerBefore: 'black',
+          cause: 'ULTIMATE_WORK_GOD',
+          reason: 'ultimate_work_god_self_destruct',
+          meta: { special: 'ULTIMATE_WORK_GOD', owner: 'black', selfDestruct: true, destroyed: true }
+        },
+        scenario: 'self_destruct'
+      },
+      {
+        source: {
+          type: 'DESTROY',
+          row: 3,
+          col: 3,
+          ownerBefore: 'black',
+          cause: 'DESTROY_ONE_STONE',
+          reason: 'destroy_one_stone',
+          meta: { special: 'ULTIMATE_WORK_GOD', owner: 'black', destroyed: true }
+        },
+        scenario: 'destroy'
+      }
+    ];
+
+    for (const testCase of cases) {
+      const marker = {
+        id: 9301,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'ULTIMATE_WORK_GOD', ownerColor: 'black', selfDestructChancePercent: 4 }
+      };
+      const cardState: any = {
+        markers: testCase.scenario === 'income' ? [marker] : [],
+        presentationEvents: [testCase.source]
+      };
+      const emitter = { emitPresentationEvent: (_state, event) => cardState.presentationEvents.push(event) };
+
+      TurnPresentationHelpers.emitSpecialStoneBubblesFromPhase(emitter, cardState, {
+        presentationEvents: [testCase.source],
+        events: [],
+        beforeSnapshot: [marker],
+        prng: createPrng(0),
+        fallbackPlayer: 'black'
+      }, createBubbleDeps());
+
+      expect(getSpecialStoneBubbles(cardState.presentationEvents)).toEqual([
+        expect.objectContaining({
+          special: 'ULTIMATE_WORK_GOD',
+          scenario: testCase.scenario,
+          row: 3,
+          col: 3
+        })
+      ]);
+    }
+  });
+
+  test('究極労働神の自壊が既存防御で不成立なら自壊成功の台詞を出さない', () => {
+    const source = {
+      type: 'DESTROY',
+      row: 3,
+      col: 3,
+      ownerBefore: 'black',
+      cause: 'ULTIMATE_WORK_GOD',
+      reason: 'ultimate_work_god_self_destruct',
+      meta: {
+        special: 'ULTIMATE_WORK_GOD',
+        owner: 'black',
+        selfDestruct: true,
+        regenerated: true
+      }
+    };
+    const marker = {
+      id: 9302,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'ULTIMATE_WORK_GOD', ownerColor: 'black', selfDestructChancePercent: 4 }
+    };
+    const cardState: any = { markers: [marker], presentationEvents: [source] };
+    const emitter = { emitPresentationEvent: (_state, event) => cardState.presentationEvents.push(event) };
+
+    TurnPresentationHelpers.emitSpecialStoneBubblesFromPhase(emitter, cardState, {
+      presentationEvents: [source],
+      events: [],
+      beforeSnapshot: [marker],
+      prng: createPrng(0),
+      fallbackPlayer: 'black'
+    }, createBubbleDeps());
+
+    expect(getSpecialStoneBubbles(cardState.presentationEvents)).toEqual([]);
+  });
+
   test('no-candidate robot reversion is classified as normal_revert', () => {
     const removal = {
       type: 'STATUS_REMOVED', row: 3, col: 3, player: 'black', special: 'ROBOT_VACUUM',
@@ -304,19 +426,9 @@ describe('special stone speech rollout', () => {
     };
     const cardState: any = { markers: [], presentationEvents: [removal] };
     const emitter = { emitPresentationEvent: (_state, event) => cardState.presentationEvents.push(event) };
-    const deps = {
-      CardUtilsModule: null,
-      OwnerHelpersModule: { normalizePlayerKeyOptional: (value) => value },
-      MarkersAdapter: { getMarkers: (state) => state.markers },
-      MARKER_KINDS: { SPECIAL_STONE: 'specialStone' },
-      getSpecialStoneBubbleSpeechLines: SpeechCatalog.getSpecialStoneBubbleSpeechLines,
-      pickSpecialStoneBubbleSpeechLine: SpeechCatalog.pickSpecialStoneBubbleSpeechLine,
-      resolveWorkIncomeLine: SpeechCatalog.resolveWorkIncomeLine
-    };
-
     TurnPresentationHelpers.emitSpecialStoneBubblesFromPhase(emitter, cardState, {
       presentationEvents: [removal], events: [], beforeSnapshot: [], prng: createPrng(0), fallbackPlayer: 'black'
-    }, deps);
+    }, createBubbleDeps());
 
     expect(getSpecialStoneBubbles(cardState.presentationEvents)).toEqual([
       expect.objectContaining({ special: 'ROBOT_VACUUM', scenario: 'normal_revert', row: 3, col: 3 })

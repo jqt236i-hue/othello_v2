@@ -187,6 +187,12 @@ function buildMarkerDataForCardType(cardType: any, deps: any = {}): any | null {
                 workStage: 0,
                 remainingOwnerTurns: readPositiveInt(constants.WORK_WILL_TURNS, FALLBACK_TURNS.WORK_WILL)
             };
+        case 'ULTIMATE_WORK_GOD':
+            return {
+                type: readRegistryMarkerType(type, deps) || 'ULTIMATE_WORK_GOD',
+                ownerColor: deps && deps.ownerKey ? deps.ownerKey : null,
+                selfDestructChancePercent: 0
+            };
         default:
             return null;
     }

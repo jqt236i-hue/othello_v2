@@ -455,6 +455,16 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
             push(`労働石: 布石 +${gained}`);
             continue;
         }
+        if (ev.type === 'ULTIMATE_WORK_GOD_INCOME') {
+            const gained = Number.isFinite(ev.gained)
+                ? ev.gained
+                : ((ev.meta && Number.isFinite(ev.meta.gained)) ? ev.meta.gained : 0);
+            const chance = Number.isFinite(ev.selfDestructChancePercent)
+                ? ev.selfDestructChancePercent
+                : ((ev.meta && Number.isFinite(ev.meta.selfDestructChancePercent)) ? ev.meta.selfDestructChancePercent : 0);
+            push(`究極労働神: 布石 +${gained}（自壊率 ${chance}%）`);
+            continue;
+        }
         if (ev.type === 'WORK_REMOVED') {
             if (deps.isWorkDurationExpiredPresentationEvent(ev)) push('労働石: 通常石に戻る');
             else push('労働石: 効果終了');

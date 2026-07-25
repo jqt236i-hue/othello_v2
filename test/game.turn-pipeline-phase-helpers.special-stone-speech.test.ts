@@ -5,7 +5,8 @@ const SPECIAL_TYPES = [
   'TIME_STOP', 'TIME_STOP_DEITY', 'REGEN', 'ZOMBIE', 'DRAGON', 'BREEDING',
   'PROLIFERATION', 'HYPERACTIVE', 'EXTREME_HYPERACTIVE', 'ESCAPE_HYPERACTIVE',
   'ROBOT_VACUUM', 'GLUTTONOUS', 'WILL_HUNTER_KING', 'WORK', 'STONE_SALVATION_GOD',
-  'DESTROY_DRAGON', 'LIGHTNING', 'ULTIMATE_DESTROY_GOD', 'ULTIMATE_HYPERACTIVE', 'METEOR_GOD'
+  'DESTROY_DRAGON', 'LIGHTNING', 'ULTIMATE_DESTROY_GOD', 'ULTIMATE_HYPERACTIVE', 'METEOR_GOD',
+  'ULTIMATE_WORK_GOD'
 ];
 
 const DURATION_TYPES = [
@@ -30,6 +31,8 @@ const SPECIAL_SCENARIOS: Record<string, string[]> = {
   GHOST: ['ghost_protected'],
   ESCAPE_HYPERACTIVE: ['escape_exploded'],
   WILL_HUNTER_KING: ['special_destroy_triggered']
+  ,
+  ULTIMATE_WORK_GOD: ['income', 'self_destruct']
 };
 
 describe('特殊石キャラクターボイス契約', () => {
@@ -42,8 +45,11 @@ describe('特殊石キャラクターボイス契約', () => {
 
   test('全石の共通シナリオと対象別シナリオが各5候補', () => {
     for (const type of SPECIAL_TYPES) {
-      for (const scenario of ['place', 'destroy', 'living_will_restored']) {
+      for (const scenario of ['destroy', 'living_will_restored']) {
         expect(speech.getSpecialStoneBubbleSpeechLines(type, scenario)).toHaveLength(5);
+      }
+      if (type !== 'ULTIMATE_WORK_GOD') {
+        expect(speech.getSpecialStoneBubbleSpeechLines(type, 'place')).toHaveLength(5);
       }
     }
     for (const type of DURATION_TYPES) {
@@ -81,6 +87,13 @@ describe('特殊石キャラクターボイス契約', () => {
     expect(speech.resolveWorkIncomeLine(8, undefined)).toBe('布石＋8、今月は黒字や！');
     expect((speech.SPECIAL_STONE_BUBBLE_SPEECH.WORK as any).placeLines).toBeUndefined();
     expect((speech.SPECIAL_STONE_BUBBLE_SPEECH.WORK as any).lostLine).toBeUndefined();
+  });
+
+  test('究極労働神は配置時に話さず、収入・自壊・外部破壊で人格を切り替える', () => {
+    expect(speech.getSpecialStoneBubbleSpeechLines('ULTIMATE_WORK_GOD', 'place')).toBeNull();
+    expect(speech.getSpecialStoneBubbleSpeechLines('ULTIMATE_WORK_GOD', 'income')).toHaveLength(5);
+    expect(speech.getSpecialStoneBubbleSpeechLines('ULTIMATE_WORK_GOD', 'self_destruct')).toHaveLength(5);
+    expect(speech.getSpecialStoneBubbleSpeechLines('ULTIMATE_WORK_GOD', 'destroy')).toHaveLength(5);
   });
 
   test('代表的な口調と唯一の再採用文を保持する', () => {

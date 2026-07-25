@@ -192,6 +192,7 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   MASS_FREEZE_WILL: '盤面上のすべての特殊石を5ターン凍結する',
   REBUILD_WILL: '特殊カード以外の手札を破壊し、新たに3枚ドローする',
   WORK_WILL: '次石をアンカー化し毎ターン布石を獲得',
+  ULTIMATE_WORK_GOD: '次に置く石を究極労働神化、自ターン開始時、布石を5獲得するか低確率で自壊する。',
   LOSS_WILL: '盤面上の特殊石を全て通常石に戻す。自分の手札を全て破壊して使用。',
   DOUBLE_PLACE: '使用ターンだけ石を2連続で置ける。使用後、三連投石が手札に加わる。',
   TRIPLE_PLACE: '使用ターンだけ石を3連続で置ける。使用後、四連投石が手札に加わる。',
@@ -298,6 +299,7 @@ const detailCardEffectByType: Record<string, string | ((resolveChargeMaxText?: (
       : '99';
     return `ターン開始ごとの獲得量は1→2→4→8→16で増加。\n布石上限は${chargeMaxText}。`;
   },
+  ULTIMATE_WORK_GOD: '自壊確率は最初は0％で、自ターン開始のたびに1％ずつ確率上昇する。\n最初の自ターン開始時は1％で抽選し、外れた場合だけ布石を5獲得する。\n自壊は通常の破壊として扱う。',
   DOUBLE_PLACE: '1手目の後にターン切替は発生しない。',
   TRIPLE_PLACE: '1手目と2手目の後にターン切替は発生しない。',
   QUAD_PLACE: '1手目から3手目までの途中でターン切替は発生しない。',
@@ -363,6 +365,7 @@ const cardEffectTagsByType = Object.freeze({
   WILL_HUNTER_KING: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(2), destroyEvasionTag(2), durationTurnsTag(8)]),
   EXTREME_HYPERACTIVE_WILL: freezeCardEffectTags([specialStoneTag(), flipEvasionTag(5), destroyEvasionTag(5)]),
   WORK_WILL: freezeCardEffectTags([specialStoneTag(), durationTurnsTag(5)]),
+  ULTIMATE_WORK_GOD: freezeCardEffectTags([specialStoneTag()]),
   GUARD_WILL: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(3)]),
   GUARDIAN_GOD: freezeCardEffectTags([fullProtectionTag(), durationTurnsTag(10)]),
   THEORY_INCARNATION: freezeCardEffectTags([usageConditionTag('数字マス42獲得で使用可能'), inviolableTag(), durationTurnsTag(3)]),

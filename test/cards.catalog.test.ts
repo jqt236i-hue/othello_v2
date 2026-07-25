@@ -262,6 +262,18 @@ describe('cards catalog consistency', () => {
     expect(Number(byId.get('udg_01').cost)).toBe(30);
   });
 
+  test('究極労働神はコスト25の採掘カードとして公開される', () => {
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
+    expect(byId.get('ultimate_work_god_01')).toEqual(expect.objectContaining({
+      name_ja: '究極労働神',
+      type: 'ULTIMATE_WORK_GOD',
+      cost: 25,
+      display_type_ja: '採掘',
+      desc_ja: '次に置く石を究極労働神化、自ターン開始時、布石を5獲得するか低確率で自壊する。'
+    }));
+  });
+
   test('perma_01 (強い意志) describes non-promoting strong stone behavior', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));

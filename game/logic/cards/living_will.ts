@@ -497,6 +497,10 @@ function normalizeRestoreMarkerData(marker: any, ownerKey: PlayerKey, deps: Livi
         markerData.ownerColor = ownerKey;
         markerData.workStage = 0;
         break;
+    case 'ULTIMATE_WORK_GOD':
+        markerData.ownerColor = ownerKey;
+        markerData.selfDestructChancePercent = 0;
+        break;
     default:
         break;
     }

@@ -579,7 +579,7 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
             if (discDiff >= 10) score -= 90;
             return score;
         case 'WORK_WILL':
-
+        case 'ULTIMATE_WORK_GOD':
             if (!own) return -2800;
             if (corner) score += 2600;
             else if (edge) score += 1680;

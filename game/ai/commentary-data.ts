@@ -74,6 +74,7 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   INSTANT_HYPERACTIVE_WILL: '配置直後に石を動かす',
   REBUILD_WILL: '手札を再構築する',
   WORK_WILL: '石から布石収入を得る',
+  ULTIMATE_WORK_GOD: '働き続ける神から布石収入を得る',
   RIBO_WILL: '布石を先に得る',
   LOSS_WILL: '特殊石を通常石へ戻す',
   MASS_FREEZE_WILL: '盤上の特殊石をすべて凍結する',

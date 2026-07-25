@@ -906,6 +906,7 @@ const {
     const CardUsagePrechecksModule = resolveRequiredCardModule('./cards-internal/card-usage-prechecks', 'CardUsagePrechecks');
     const CardHandManagerModule = resolveRequiredCardModule('./cards-internal/hand-manager', 'CardHandManager');
     const CardWorkModule = resolveRequiredCardModule('./cards/work_will', 'CardWork');
+    const CardUltimateWorkGodModule = resolveRequiredCardModule('./cards/ultimate_work_god', 'CardUltimateWorkGod');
     let CardEffectTimingModules: any = null;
 
     function createCardEffectTimingModules() {
@@ -3640,6 +3641,28 @@ const {
         return added;
     }
 
+    function processUltimateWorkGodAtTurnStartAnchor(
+        cardState: any,
+        gameState: any,
+        playerKey: any,
+        row: any,
+        col: any,
+        randomSource: any
+    ) {
+        return CardUltimateWorkGodModule.processUltimateWorkGodAtTurnStartAnchor(
+            cardState,
+            gameState,
+            playerKey,
+            row,
+            col,
+            {
+                BoardOps: BoardOpsModule,
+                addChargeWithTotal,
+                randomSource
+            }
+        );
+    }
+
     function applyPlacementEffects(cardState: any, gameState: any, playerKey: any, row: any, col: any, flipCount: any) {
         if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.applyPlacementEffects !== 'function') {
             throw new Error('[cards.js] CardTimingProcessor.applyPlacementEffects not available');
@@ -4861,6 +4884,7 @@ const cardsApi: any = {
         applyPostFlipRevives,
         createZombieMarkerData,
         processZombieEffectsAtTurnStartAnchor,
+        processUltimateWorkGodAtTurnStartAnchor,
         applyChainWillAfterMove,
         processTimeStopEffectsAtTurnStartAnchor,
         processBreedingEffectsAtTurnStartAnchor,
