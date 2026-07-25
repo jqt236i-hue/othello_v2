@@ -52,6 +52,7 @@ describe('NetworkSessionLifecycleController', () => {
       disposePresentationTimeline: jest.fn(async () => true),
       resetNetworkTelemetry: jest.fn(),
       openStream: jest.fn(),
+      cancelSessionReadRequests: jest.fn(),
       closeStream: jest.fn(),
       teardownActionBridge: jest.fn(),
       resetSessionState: jest.fn(() => {
@@ -997,6 +998,7 @@ describe('NetworkSessionLifecycleController', () => {
       expect(order).toEqual(['close-stream', 'dispose', 'clear-playback', 'reset-session']);
       expect(mockConfig.advanceSessionEpoch).toHaveBeenNthCalledWith(1, 'session_leave_requested');
       expect(mockConfig.advanceSessionEpoch).toHaveBeenNthCalledWith(2, 'session_leave_confirmed');
+      expect(mockConfig.cancelSessionReadRequests).toHaveBeenCalledTimes(1);
       expect(mockConfig.clearSeatClaim).toHaveBeenCalledWith('ABC');
     });
 
@@ -1074,6 +1076,7 @@ describe('NetworkSessionLifecycleController', () => {
       expect(result.reason).toBe('LEAVE_REQUEST_FAILED');
       expect(mockConfig.advanceSessionEpoch).toHaveBeenCalledTimes(1);
       expect(mockConfig.advanceSessionEpoch).toHaveBeenCalledWith('session_leave_requested');
+      expect(mockConfig.cancelSessionReadRequests).toHaveBeenCalledTimes(1);
       expect(mockConfig.closeStream).toHaveBeenCalledTimes(1);
       expect(mockConfig.openStream).toHaveBeenCalledWith({ reconnect: true });
       expect(mockConfig.disposePresentationTimeline).not.toHaveBeenCalled();

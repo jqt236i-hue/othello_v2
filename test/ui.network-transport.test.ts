@@ -2,6 +2,7 @@ describe('NetworkTransportController', () => {
   let controller: any;
   let stateObj: any;
   let fetchImpl: any;
+  let abortControllers: any[];
 
   beforeEach(() => {
     jest.resetModules();
@@ -11,6 +12,7 @@ describe('NetworkTransportController', () => {
       serverUrl: 'http://localhost:8787/'
     };
     fetchImpl = jest.fn();
+    abortControllers = [];
 
     const { createNetworkTransportController } = require('../ui/network/transport.js');
     controller = createNetworkTransportController({
@@ -30,6 +32,7 @@ describe('NetworkTransportController', () => {
         constructor() {
           this.signal = { aborted: false };
           this.aborted = false;
+          abortControllers.push(this);
         }
         abort() {
           this.aborted = true;
@@ -89,6 +92,35 @@ describe('NetworkTransportController', () => {
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(res).toEqual({
+      ok: true,
+      status: 200,
+      data: { ok: true }
+    });
+  });
+
+  test('cancelSessionReadRequests aborts an in-flight match GET', async () => {
+    let resolveRead: any;
+    fetchImpl.mockReturnValue(new Promise((resolve) => {
+      resolveRead = resolve;
+    }));
+
+    const pending = controller.requestJson(
+      'GET',
+      '/api/match/presentation-journal?roomId=ABC',
+      undefined
+    );
+    await Promise.resolve();
+
+    expect(controller.cancelSessionReadRequests()).toBe(1);
+    expect(abortControllers).toHaveLength(1);
+    expect(abortControllers[0].aborted).toBe(true);
+
+    resolveRead({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true })
+    });
+    await expect(pending).resolves.toEqual({
       ok: true,
       status: 200,
       data: { ok: true }

@@ -24,6 +24,7 @@ function createNetworkTransportController(config?: any): any {
   const publishRetryMaxDelayMs = Number.isFinite(Number(cfg.publishRetryMaxDelayMs))
     ? Math.max(publishRetryBaseDelayMs, Math.trunc(Number(cfg.publishRetryMaxDelayMs)))
     : 4000;
+  const activeSessionReadControllers = new Set<any>();
 
   function readState(): any {
     const state = getState();
@@ -60,6 +61,8 @@ function createNetworkTransportController(config?: any): any {
   async function requestJson(method: any, path: any, payload: any): Promise<any> {
     const state = readState();
     const url = withTrailingSlashRemoved(state.serverUrl) + String(path || '');
+    const sessionReadRequest = String(method || '').trim().toUpperCase() === 'GET'
+      && String(path || '').startsWith('/api/match/');
     const init: any = {
       method,
       headers: { 'Content-Type': 'application/json' }
@@ -75,6 +78,9 @@ function createNetworkTransportController(config?: any): any {
       if (typeof AbortControllerClass === 'function') {
         controller = new AbortControllerClass();
         init.signal = controller.signal;
+        if (sessionReadRequest) {
+          activeSessionReadControllers.add(controller);
+        }
         timeoutId = scheduleTimeout(function () {
           try { controller.abort(); } catch (e) { /* ignore */ }
         }, requestTimeoutMs);
@@ -86,10 +92,23 @@ function createNetworkTransportController(config?: any): any {
       const data = await response.json().catch(function () { return {}; });
       return { ok: response.ok, status: response.status, data };
     } finally {
+      if (controller && sessionReadRequest) {
+        activeSessionReadControllers.delete(controller);
+      }
       if (timeoutId) {
         clearScheduledTimeout(timeoutId);
       }
     }
+  }
+
+  function cancelSessionReadRequests(): number {
+    let cancelled = 0;
+    activeSessionReadControllers.forEach(function (controller: any) {
+      cancelled += 1;
+      try { controller.abort(); } catch (e) { /* ignore */ }
+    });
+    activeSessionReadControllers.clear();
+    return cancelled;
   }
 
   function isMatchApiMissing(res: any): boolean {
@@ -150,6 +169,7 @@ function createNetworkTransportController(config?: any): any {
 
   return {
     requestJson,
+    cancelSessionReadRequests,
     isMatchApiMissing,
     publishRequestWithRetry,
     parseStreamEventPayload,

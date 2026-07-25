@@ -937,6 +937,9 @@ function createNetworkSessionLifecycleController(config: any): any {
     // Detach queued snapshot/presentation work before the authority revokes the
     // current credentials. Failed leaves reopen the stream on this new epoch.
     advanceSessionEpoch('session_leave_requested');
+    if (typeof cfg.cancelSessionReadRequests === 'function') {
+      cfg.cancelSessionReadRequests();
+    }
 
     // Close the live stream before the authority invalidates the session token.
     // Otherwise EventSource can race the leave response and briefly reconnect

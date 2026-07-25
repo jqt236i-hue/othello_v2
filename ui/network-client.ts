@@ -1391,6 +1391,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             },
             resetSessionState,
             resetTurnTimerState,
+            cancelSessionReadRequests,
             closeStream,
             teardownActionBridge,
             normalizeNetworkSnapshotEnvelope,
@@ -3694,6 +3695,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             throw new Error('NetworkTransportModule unavailable');
         }
         return controller.requestJson(method, path, payload);
+    }
+
+    function cancelSessionReadRequests() {
+        const controller = getNetworkTransportController();
+        if (!controller || typeof controller.cancelSessionReadRequests !== 'function') return 0;
+        return controller.cancelSessionReadRequests();
     }
 
     function sanitizePlaybackValueForPublish(value: any): any {
