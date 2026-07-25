@@ -3,6 +3,7 @@ status: active
 owner: repository-maintainers
 scope: behavior-preserving-full-refactor
 created: 2026-07-11
+updated: 2026-07-26
 ---
 
 # Behavior-Preserving Full Refactor Program Design
@@ -549,3 +550,106 @@ The detailed operational plan is now [2026-07-11-behavior-preserving-full-refact
 4. an explicit final convergence and visual-verification gate.
 
 The operational plan must contain no placeholders. Each task identifies exact files, consumed and produced interfaces, characterization coverage, implementation steps, focused verification, stop conditions, diff inspection, and a coherent commit step.
+
+## 16. Post-convergence safe-cleanup addendum (2026-07-26)
+
+### 16.1 Problem and desired outcome
+
+The normal twenty-finding program converged on 2026-07-11, but subsequent feature, network, performance, and Pixi work added new TypeScript declarations. The normal architecture gates still pass, yet a diagnostic audit using `tsconfig.ts-only.json` with `noUnusedLocals` reports two narrower classes that can be removed without changing any public or player-visible contract:
+
+1. 77 unused import/type diagnostics whose removal cannot alter emitted runtime behavior. The 62 import diagnostics comprise 37 whole declarations and 25 bindings removed from retained declarations. Of the whole declarations, 35 use explicit `import type`; the other two use value syntax only for types and are already erased by the current compiler. Partial value imports retain the same module evaluation while dropping only unused bindings; local interfaces have no runtime representation. Byte-equivalence of the affected emitted JavaScript is the final proof for the full class.
+2. 19 unused runtime bindings in nine modern, focused-test-covered files. Fourteen were introduced after the convergence commit and isolated by `git blame`; five older findings are co-located in the same files and have direct local proof: two unreferenced, unexported function declarations in `game/cpu-turn-handler.ts` and three unread build-only constants in `scripts/build-module-registry.ts`. The full class consists of local destructuring entries, dead helper declarations, unused loop values, or unused pure intermediate values. The one binding whose initializer intentionally loads a compatibility module retains the load as a side-effect-only call.
+
+The desired outcome is to remove every finding in those two objectively safe classes, add a recurrence guard, and leave compatibility/global/facade findings outside those proof classes unchanged.
+
+### 16.2 Scope, constraints, and non-goals
+
+In scope:
+
+- canonical TypeScript sources only;
+- all unused type-only declarations and unused import bindings reported by diagnostic codes `TS6133`, `TS6192`, and `TS6196`;
+- the 19 locally proven runtime bindings in the nine files named by the Phase 11 plan;
+- a structural Jest guard run through the existing `check:dependency-boundaries` path;
+- regenerated browser and Worker surfaces only through existing commands when required.
+
+Non-goals:
+
+- no gameplay, CPU choice, random-consumption, network, animation, sound, layout, visible-copy, or timing change;
+- no public API, export-key, payload, snapshot, or module-load-order change;
+- no blanket activation of `noUnusedLocals` for compatibility facades whose dynamic/classic consumers are not proven by the compiler;
+- no deletion of legacy globals, runtime `_require` adapters, facade functions, or local fallback bodies merely because the compiler cannot see a consumer; the unread build-only adapter in `scripts/build-module-registry.ts` is included only because its execution surface and caller inventory are explicit;
+- no hand edits to generated or mirrored surfaces; any required derived diff is produced only by the existing generators;
+- no Phase H history push or other irreversible repository operation.
+
+The remaining 348 runtime declaration diagnostics are explicitly not classified as safe by this addendum. They sit in compatibility-heavy modules with classic/global projections, facade loaders, or long-lived fallback paths. Removing them would require caller/export inventories and focused characterization beyond the positive proof used here.
+
+### 16.3 Repository evidence and chosen design
+
+- `git status --short` was clean at entry.
+- The post-convergence review window from `feff74841` to `HEAD` contains 304 commits and 2,213 changed paths.
+- `npm run checkall` passed, including dependency-cycle, window/global, refactor-safety, TypeScript migration, artifact-retention, Worker-mirror, browser-freshness, and JS-authority checks.
+- The diagnostic audit reported 444 unused-declaration diagnostics in total. Comparing against `feff74841` and blaming current lines identified 20 post-convergence findings; six belong to the runtime-neutral import/type class, leaving 14 runtime bindings. The same nine-file diagnostic slice contains five older local findings with direct source proof, so the runtime unit contains 19 findings.
+- The original focused pre-change baseline passed 11 suites / 120 tests covering CPU move selection and turn resumption, source-trajectory browser checks, module-registry generation, Pixi performance capture, DOM compatibility rendering, board-model construction, network buttons, Pixi scene diagnostics, and committed manifest presentation. New structural tests added by this phase increase the final test count; the same 11 paths must pass all original tests plus every new guard, and the final count is recorded rather than assumed.
+
+The fresh discovery matrix below limits the completion claim to findings that are mechanically discoverable and positively proven safe. It does not claim that no future behavior-changing redesign or newly characterized legacy cleanup can exist.
+
+| Discovery surface | Reproducible evidence | Result and scope decision |
+| --- | --- | --- |
+| Dependency cycles and forbidden boundary edges | `npm run checkall` | Existing dependency and architecture guards pass; no safe boundary repair surfaced. |
+| Headless browser/network leakage | `npm run check:window` plus `rg -n "window\\.|document\\.|globalThis\\.|self\\.|NetworkMatchClient" game shared --glob "*.ts"` | The guard passes. The focused search returns only the existing portable `globalThis.structuredClone` capability check in `shared/match-entry-payload.ts`; it finds no UI or network-client authority leak. |
+| Canonical TS versus compatibility JS authority | `npm run checkall` JS inventory, refactor-safety, and TypeScript-migration checks | `unknown=0`, `legacy=0`, and authorized `@ts-nocheck` debt is zero; no duplicate source-of-truth repair surfaced. |
+| Browser, generated artifact, and Worker mirror drift | `npm run checkall` browser-freshness, artifact-retention, generated-manifest, and Worker-mirror checks | All derived surfaces match their canonical generators before implementation. Generated and mirror files remain outputs, not edit targets. |
+| Newly added explicit debt markers | Added-line scan of `git diff feff74841..HEAD` for `TODO`, `FIXME`, `HACK`, and `XXX` in TypeScript/JavaScript sources | Zero added markers; no marker-backed safe cleanup surfaced. |
+| Compiler-confirmed unreachable code | `npx tsc -p tsconfig.ts-only.json --allowUnreachableCode false --pretty false`, filtered to post-convergence lines | Zero post-convergence unreachable-code findings. |
+| Unused declarations | `npx tsc -p tsconfig.ts-only.json --noUnusedLocals true --pretty false` plus AST classification, exact-file slicing, repository-wide identifier search, and `git blame` | 444 total: 62 import diagnostics, 15 interface diagnostics, 193 variable diagnostics, and 174 function diagnostics. All 77 erased-or-binding-only findings are in scope. Of 20 post-convergence findings, six overlap that class and the remaining 14 have direct local evidence and focused coverage. The nine-file slice adds five older locally proven findings; the other 348 runtime declarations are not assumed safe. |
+| Broad legacy splitting, deduplication, or renaming | Source ownership review against `docs/architecture-contracts.md` and the completed twenty-finding matrix | No mechanically provable unit was identified. Load order, compatibility globals, reflection, and fallback behavior make speculative bulk changes unsafe without a separate design. |
+
+The exact pre-change characterization command is:
+
+```powershell
+npx jest --runInBand --runTestsByPath test\refactor.dependency-boundary.test.ts test\game.cpu-decision-move-selection-worker.test.ts test\cpu.turn-handler.retry.test.ts test\scripts.board-source-trajectory-browser-check.test.ts test\scripts.build-module-registry.boot-contract.test.ts test\scripts.capture-pixijs-playfield-performance.test.ts test\ui.board-dom-compat.renderer.flip.test.ts test\ui.board-visual.model-builder-capabilities.test.ts test\ui.match-mode.network-button.test.ts test\ui.pixi-board-scene.test.ts test\ui.board-renderer.committed-manifest-state.test.ts
+```
+
+The chosen design has two independently verified units:
+
+1. Remove runtime-neutral unused imports/types repository-wide and prove affected emitted JavaScript is byte-equivalent before and after the change. Add a structural guard that rejects future unused import/type bindings without requiring compatibility facades to satisfy blanket `noUnusedLocals`.
+2. Remove the 19 locally proven runtime bindings: the 14 post-convergence findings plus the five older findings in the same exact file slice. Preserve expression evaluation whenever it may be observable, especially `renderer.getBoardVisualController()` in `scripts/board-source-trajectory-browser-check.ts` and the compatibility-module load in `ui/presentation/committed-world-state.ts`. Add source-structure characterization assertions for those two calls, add a file-scoped unused-diagnostic guard for the cleaned modern surfaces, and rerun the exact focused behavioral command above.
+
+This is preferable to blanket auto-fixing because the repository deliberately supports classic browser projections, CommonJS facades, and injected globals that TypeScript cannot always identify as consumers. The design removes only findings with a direct runtime-neutral proof or focused local evidence.
+
+### 16.4 Compatibility, failure behavior, and verification
+
+- Type/import cleanup must not change emitted `.js` bytes for its affected sources. A mismatch stops that unit for inspection.
+- Runtime-binding cleanup retains function-call and module-load evaluation when the removed binding previously triggered it.
+- Structural characterization must prove that `renderer.getBoardVisualController();` remains an expression statement and that `_require('../../shared-constants');` remains inside its compatibility `try` path after their unused result variables are removed.
+- No error path or fallback behavior is replaced.
+- Focused tests run before and after the runtime-binding cleanup.
+- Final verification order is the exact focused Jest command above, `npm run typecheck`, `npm run build:ts`, `npm run build:browser`, `npm run worker:prepare`, `npm run checkall` against the prepared derived surfaces, `git diff --check`, task-scoped diff inspection, and final status inspection.
+- Browser/visual operation is unnecessary because no rendering value, DOM structure, style, resource, timing, or event changes; existing focused renderer/model tests cover the touched control paths.
+
+### 16.5 Risks and mitigations
+
+- **False unused result from dynamic compatibility consumption:** excluded unless the finding is type/import-only or one of the exact local bindings with direct source and caller evidence.
+- **Accidental module side-effect removal:** no runtime-emitting whole import is deleted under the type-only unit; partial value imports retain the original import declaration. The two value-syntax whole imports are already compiler-erased and must pass byte-equivalence. The committed-world-state compatibility require remains executed.
+- **Over-broad guard:** the repository-wide guard is limited to unused imports/types; the full-unused guard is limited to the named modern files cleaned in this phase.
+- **Generated drift:** canonical sources are changed first, then browser and Worker outputs are regenerated by their existing scripts.
+
+### 16.6 Completion conditions
+
+- All 77 import/type diagnostics are absent.
+- All 19 locally proven runtime diagnostics are absent, and the nine-file slice has no unused-declaration diagnostics after the type/import unit.
+- The new structural guard passes through `npm run checkall`.
+- Type-only cleanup has byte-equivalent emitted JavaScript.
+- The same 11 focused test paths pass all original 120 tests plus every new structural guard; the final test count is recorded.
+- Structural assertions prove that the board-controller getter and shared-constants compatibility load are still evaluated.
+- Typecheck, builds, mirror preparation, diff checks, and final status inspection pass.
+- The independently reviewed design and plan are committed before source implementation begins, and that gate commit is recorded in the Phase 11 plan.
+- Each coherent unit is committed without unrelated files.
+
+### 16.7 Self-review
+
+The first proposal considered enabling `noUnusedLocals` repository-wide. That was rejected because compiler visibility is incomplete across classic projections, dynamic CommonJS facades, and compatibility globals; it would turn unproven deletions into a nominal cleanup target. The design was revised to use two positive proof classes and a scoped recurrence guard. It also initially treated the unused shared-constants binding as removable with its initializer, but source inspection showed that retaining module evaluation is the safer behavior-preserving choice, so the final design keeps a side-effect-only load.
+
+Independent review then identified six reproducibility gaps: verification ran in an order that could observe stale generated files, the focused test set was described only by counts, the post-convergence search did not state a completeness boundary, the 77-diagnostic inventory was not fixed, the two retained calls were not directly characterized, and the reviewed artifacts lacked a pre-implementation commit gate. The addendum now orders generation before final `checkall`, records the exact Jest command and discovery matrix, delegates the fixed inventory to the Phase 11 plan, requires structural assertions for both retained calls, and starts Phase 11 with the artifact gate.
+
+The same reviewer re-ran the fixed command (11 suites / original 120 tests) and `git diff --check` after the corrections, and reported no remaining implementation blocker. The final inventory additionally corrects the whole-versus-partial import split and expands the exact nine-file runtime unit from 14 post-convergence findings to all 19 locally proven findings.

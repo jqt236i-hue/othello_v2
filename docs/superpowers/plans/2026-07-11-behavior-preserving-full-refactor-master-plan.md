@@ -3,7 +3,7 @@ status: active
 owner: repository-maintainers
 scope: behavior-preserving-full-refactor
 created: 2026-07-11
-updated: 2026-07-11
+updated: 2026-07-26
 ---
 
 # Behavior-Preserving Full Refactor Implementation Plan
@@ -24,6 +24,7 @@ updated: 2026-07-11
 - Phase 10 Tasks 10.1 and 10.2: completed. The user authorized visual verification, and the passing evidence is recorded in [browser-visual-verification-2026-07-11.md](../../refactor-baselines/browser-visual-verification-2026-07-11.md).
 - Phase H Task H.1: completed in an isolated mirror. Evidence and recovery instructions are recorded in [history-rewrite-preflight.md](../../refactor-baselines/history-rewrite-preflight.md).
 - Phase H Task H.2: pending the required second explicit confirmation after review of the H.1 evidence. The authoritative remote has not been modified.
+- Phase 11: independently reviewed; source implementation remains prohibited until Task 11.0 records the reviewed-artifact commit. This is the 2026-07-26 post-convergence safe-cleanup addendum and does not reopen the closed twenty-finding matrix.
 
 ## Global Constraints
 
@@ -605,6 +606,206 @@ If a task creates browser-visible root changes, run `npm run build:browser` afte
 - [ ] If not authorized, do not launch it. Mark the program as automated-source completion with an open full-visual-equivalence gate; do not claim complete removal of visual-risk debt.
 
 **Phase 10 completion:** Every normal-scope audit item has concrete evidence. The report distinguishes automated completion from any user-gated visual completion.
+
+## Phase 11 — Remove provably safe declaration debt and post-convergence drift
+
+**Design:** Section 16 of [2026-07-11-behavior-preserving-full-refactor-design.md](../specs/2026-07-11-behavior-preserving-full-refactor-design.md).
+
+**Status:** independently reviewed; Task 11.0 artifact commit pending; implementation prohibited.
+
+### Task 11.0: Commit the independently reviewed artifacts
+
+**Outcome:** Source implementation starts only from a clean worktree whose active design and plan include the resolved independent-review findings.
+
+**Files:**
+
+- `docs/superpowers/specs/2026-07-11-behavior-preserving-full-refactor-design.md`
+- `docs/superpowers/plans/2026-07-11-behavior-preserving-full-refactor-master-plan.md`
+
+**Dependencies:** Design self-review complete; plan self-review complete; the same independent reviewer confirms that findings 1–6 are resolved.
+
+- [x] Obtain the independent re-review result and resolve every implementation-blocking finding.
+- [x] Run `git diff --check` and verify every local Markdown reference and named source/test path.
+- [x] Inspect the two-file task diff and commit it as `docs: plan post-convergence safe cleanup`.
+- [ ] Record that commit's full hash in the `Reviewed-artifact gate` line below.
+- [ ] Mark Task 11.0 complete and commit only this plan metadata as `docs: record Phase 11 design gate`.
+- [ ] Confirm `git status --short` is clean before Task 11.1 starts.
+
+**Reviewed-artifact gate:** No commit is recorded yet; Tasks 11.1–11.3 must not start.
+
+**Done condition:** The exact reviewed-artifact commit hash is present above, both documentation commits exist, and the worktree is clean.
+
+### Task 11.1: Remove runtime-neutral unused imports and types
+
+**Outcome:** All 77 unused import/type diagnostics are removed without changing emitted JavaScript.
+
+**Fixed diagnostic inventory:** The command `npx tsc -p tsconfig.ts-only.json --noUnusedLocals true --pretty false` reports the following 77 runtime-neutral findings in 57 canonical TypeScript files.
+
+Whole unused declarations (37 diagnostics: 35 explicit `import type`, two value-syntax imports already erased by the current compiler):
+
+| File | Declaration |
+| --- | --- |
+| `cards/card-renderer.ts` | whole type import |
+| `game/ai/cpu-lv6-lookahead-profile.ts` | whole type import |
+| `game/ai/fixed-commentary-engine.ts` | whole type import |
+| `game/ai/mcts-policy.ts` | whole type import |
+| `game/ai/policy-onnx-runtime-v2.ts` | whole type import |
+| `game/ai/policy-onnx-runtime.ts` | whole type import |
+| `game/card-effects/selection-flow.ts` | whole type import |
+| `game/cards/effects/dragon.ts` | whole type import |
+| `game/cards/effects/expansion.ts` | whole type import |
+| `game/cards/effects/flips.ts` | whole type import |
+| `game/cards/effects/hyperactive.ts` | whole type import |
+| `game/cards/effects/living-will.ts` | whole type import |
+| `game/cards/effects/regen.ts` | whole type import |
+| `game/cards/effects/swap-with-enemy.ts` | whole type import |
+| `game/cards/effects/time-bomb.ts` | whole type import |
+| `game/cards/effects/udg.ts` | whole type import |
+| `game/cards/effects/work-will.ts` | whole type import |
+| `game/cards/target-resolver.ts` | whole type import |
+| `game/cpu-decision.ts` | whole unused type-import declaration; retain the separate used `CpuTurnPerformanceScope` type import |
+| `game/logic/cards/utils.ts` | whole type import |
+| `game/logic/position-weights.ts` | whole value-syntax import used only as a type; prove current emitted output is unchanged |
+| `game/schema/action_manager.ts` | whole type import |
+| `game/turn-manager.ts` | whole type import |
+| `src/types/events.ts` | whole value-syntax import used only as a type; prove current emitted output is unchanged |
+| `ui/animation-utils.ts` | whole type import |
+| `ui/board-dom-compat/renderer.ts` | whole type import |
+| `ui/board-renderer.ts` | whole type import |
+| `ui/bootstrap.ts` | whole type import |
+| `ui/deck-builder-controller.ts` | whole type import |
+| `ui/handlers/debug.ts` | whole type import |
+| `ui/handlers/match-mode.ts` | whole type import |
+| `ui/handlers/rules-help.ts` | whole type import |
+| `ui/move-executor-visuals.ts` | whole type import |
+| `ui/network-client.ts` | whole type import |
+| `ui/network/snapshot.ts` | whole type import |
+| `ui/presentation-handler.ts` | whole type import |
+| `ui/result-overlay.ts` | whole type import |
+
+Unused bindings in otherwise retained imports (25 diagnostics):
+
+| File | Bindings |
+| --- | --- |
+| `game/ai/cpu-policy-board-features.ts` | `CpuPolicyPosition` |
+| `game/ai/cpu-policy-core.ts` | `CpuPolicyBoardBonusResolver`, `CpuPolicyLegalMoveMetrics`, `CpuPolicyRandomSource`, `CpuPolicyAiMoveSelector` |
+| `game/ai/cpu-policy-lookahead-worker-runtime.ts` | `CpuPolicyMove` |
+| `game/logic/board_ops.ts` | `CardState`, `GameState` |
+| `game/logic/cards.ts` | `CardState`, `GameState` |
+| `game/logic/cards/expansion.ts` | `CardState`, `PlayerKey` |
+| `scripts/capture-pixijs-playfield-performance.ts` | `normalizeChromiumGraphicsInfo`, `DesktopGraphicsEnvironment`, `summarizeRafIntervals` |
+| `src/types/game.ts` | `BoardConfig` |
+| `ui/status-display.ts` | `CardState`, `GameState` |
+| `utils/match-authority.ts` | `CardState`, `GameState`, `MatchAuthorityBufferedSsePayloadByViewer`, `MatchAuthorityPublicApi` |
+| `workers/match-worker-stream-controller.ts` | `MatchAuthoritySeatKey` |
+| `workers/match-worker-types.ts` | `MatchAuthorityBufferedSseEventRecord` |
+| `workers/match-worker.ts` | `MatchAuthorityAcceptedOperationEntry` |
+
+Unused local interfaces (15 diagnostics):
+
+| File | Interfaces |
+| --- | --- |
+| `game/ai/cpu-policy-core.ts` | `CpuPolicyEdgeRunSummary`, `CpuPolicyParityFeature`, `CpuPolicySearchMoveParams` |
+| `game/cards/effects/swap-with-enemy.ts` | `SwapWithEnemyExports` |
+| `game/logic/cards-internal/charge-ledger.ts` | `ChargeState` |
+| `game/logic/cards/clone.ts` | `SpawnDeps` |
+| `game/logic/cards/udg.ts` | `ProcessAnchorResult`, `AnchorResult` |
+| `scripts/board-source-trajectory-browser-check.ts` | `BrowserScenario` |
+| `scripts/prepare-worker-assets.ts` | `GeneratedOptionalAsset` |
+| `shared/gacha-hand-catalog-shared.ts` | `AssetManifest` |
+| `shared/shared-board-utils.ts` | `BoardConfig`, `BoardShapeMeta`, `CornerEdgeLineDescriptor`, `EdgeRunSummary` |
+
+**Additional file:**
+
+- Modify: `test/refactor.dependency-boundary.test.ts`.
+
+**Dependencies:** Task 11.0 complete; the full reviewed-artifact commit hash is recorded above; clean worktree; passing `npm run checkall`.
+
+- [ ] Record the affected emitted `.js` files and copy/hash them outside the workspace after a clean `npm run build:ts`.
+- [ ] Remove the 37 whole compiler-erased import declarations, the 25 unused bindings from retained imports, and the 15 unused local interfaces only.
+- [ ] Keep partial value-import module evaluation unchanged.
+- [ ] Add a TypeScript-compiler structural test that rejects unused import/type declarations repository-wide while ignoring unrelated compatibility-local diagnostics.
+- [ ] Run `npm run typecheck`, `npm run build:ts`, and compare affected emitted JavaScript byte-for-byte with the pre-change copy.
+- [ ] Run `npx jest --runInBand --runTestsByPath test\refactor.dependency-boundary.test.ts`, `npm run checkall`, and `git diff --check`.
+- [ ] Inspect the task-only diff and commit: `refactor: remove unused TypeScript bindings`.
+
+**Done condition:** The 77 diagnostics are absent, emitted JavaScript is identical, the structural guard and normal checks pass, and the isolated unit is committed.
+
+### Task 11.2: Remove locally proven runtime bindings
+
+**Outcome:** All 19 locally proven unused-runtime diagnostics in the nine-file slice are removed with control flow and side effects preserved. This consists of the 14 post-convergence findings plus five older co-located findings.
+
+**Files:**
+
+- `game/cpu-decision-move-selection.ts`
+- `game/cpu-turn-handler.ts`
+- `scripts/board-source-trajectory-browser-check.ts`
+- `scripts/build-module-registry.ts`
+- `ui/board-visual/model-builder.ts`
+- `ui/handlers/match-mode/network-buttons.ts`
+- `ui/pixi/board-scene.ts`
+- `ui/pixi/effects/common.ts`
+- `ui/presentation/committed-world-state.ts`
+- `test/refactor.dependency-boundary.test.ts`
+
+**Additional five findings with direct local proof:**
+
+- `game/cpu-turn-handler.ts`: delete the unreferenced, unexported function declarations `resolveCpuOpponentProfileForTurn` and `resolveCpuLv6BrowserRuntimeCapability`; declaring either function performs no runtime work, and repository-wide identifier search finds no consumer.
+- `scripts/build-module-registry.ts`: delete unread build-only constants `_require`, `DIST`, and `OUT`, plus the now-unneeded ambient `__non_webpack_require__` declaration. The constants are not exported, their initializers have no required side effect, and repository-wide identifier search finds no read.
+
+**Dependencies:** Task 11.1 complete; before Task 11.1, the exact command below passed the original 11 suites / 120 tests. After new guards are added, the same 11 paths must pass the original 120 tests plus every new structural test, and the final count must be recorded.
+
+```powershell
+npx jest --runInBand --runTestsByPath test\refactor.dependency-boundary.test.ts test\game.cpu-decision-move-selection-worker.test.ts test\cpu.turn-handler.retry.test.ts test\scripts.board-source-trajectory-browser-check.test.ts test\scripts.build-module-registry.boot-contract.test.ts test\scripts.capture-pixijs-playfield-performance.test.ts test\ui.board-dom-compat.renderer.flip.test.ts test\ui.board-visual.model-builder-capabilities.test.ts test\ui.match-mode.network-button.test.ts test\ui.pixi-board-scene.test.ts test\ui.board-renderer.committed-manifest-state.test.ts
+```
+
+- [ ] Remove unused destructuring entries, dead local helpers/interfaces, unused loop values, and unused pure intermediate values.
+- [ ] Preserve `renderer.getBoardVisualController()` evaluation where its unused result is removed.
+- [ ] Preserve the shared-constants compatibility load as a side-effect-only require.
+- [ ] Add structural assertions that the controller getter remains a standalone expression statement and the shared-constants `_require` remains evaluated inside its compatibility `try` path.
+- [ ] Extend the structural test so the named cleaned files have no `TS6133`, `TS6192`, or `TS6196` diagnostics.
+- [ ] Rerun the exact focused command above; confirm all original 120 tests and every new guard pass, and record the final suite/test count.
+- [ ] Run `npm run typecheck`, `npm run build:ts`, `npm run build:browser`, and `npm run worker:prepare`, then run `npm run checkall` against the prepared mirror.
+- [ ] Inspect generated/mirror changes, run `git diff --check`, inspect final task diff/status, and commit: `refactor: remove locally proven dead bindings`.
+
+**Done condition:** The 19 diagnostics are absent and the nine-file slice has zero unused diagnostics after Task 11.1; the exact focused command passes every original and new test; the two retained evaluations have direct structural assertions; all required checks, builds, and mirror preparation pass; and the isolated unit is committed.
+
+### Task 11.3: Record convergence evidence
+
+**Outcome:** The active design and plan match the final implementation and verification evidence.
+
+**Files:** This plan and, only if implementation evidence changes a material design detail, the master design.
+
+**Dependencies:** Tasks 11.1 and 11.2 committed.
+
+- [ ] Record diagnostic counts, emitted-JavaScript comparison, focused-test results, build/check results, mirror result, and commit IDs.
+- [ ] Mark the Phase 11 status and checklist complete only after final `git status --short` and task-scoped diff inspection.
+- [ ] Run documentation reference/file checks and `git diff --check`.
+- [ ] Commit: `docs: record safe cleanup convergence`.
+
+**Done condition:** The active artifacts reflect the final implementation, every Phase 11 condition has evidence, and the working tree is clean.
+
+### Phase 11 completion checklist
+
+- [ ] Design and plan self-review are complete.
+- [ ] Independent review findings are resolved.
+- [ ] Reviewed-artifact commit hash is recorded before source implementation.
+- [ ] Runtime-neutral import/type diagnostics are zero.
+- [ ] The nine-file runtime slice has zero unused diagnostics.
+- [ ] Emitted JavaScript equivalence for Task 11.1 is proven.
+- [ ] The same 11 focused paths pass the original 120 tests plus every new guard, with the final count recorded.
+- [ ] Structural assertions protect both retained side-effect evaluations.
+- [ ] Typecheck, builds, checkall, browser generation, and Worker preparation pass.
+- [ ] Final diffs contain only intentional task files.
+- [ ] Task commits and convergence-document commit are present.
+
+### Phase 11 plan self-review
+
+The first draft combined all cleanup into one commit, which would have weakened the strongest proof available for the type-only portion. The plan was split so Task 11.1 can require byte-identical emitted JavaScript, while Task 11.2 uses focused behavior tests for intentional dead-runtime-code removal. The plan also initially proposed a blanket unused-local gate; it was narrowed to repository-wide import/type findings plus an exact modern-file set, matching the design's confidence boundary and avoiding pressure to delete dynamic compatibility surfaces without evidence.
+
+Independent review found that the draft did not fix the diagnostic file inventory, reproduce the focused test command, characterize two retained evaluations, prepare generated surfaces before final `checkall`, or commit the reviewed artifacts before implementation. Tasks 11.0–11.2 now make each condition explicit. The completion claim is bounded by the fresh discovery matrix in Design Section 16.3: this phase exhausts the objectively discovered positive-proof classes, not every imaginable future redesign.
+
+The same reviewer re-ran the fixed focused command (11 suites / original 120 tests) and `git diff --check`, then confirmed that all six blocking findings were resolved. Two additional self-review corrections are also incorporated: the import inventory distinguishes 37 whole declarations from 25 retained-import bindings, and the exact nine-file runtime slice covers 19 diagnostics rather than leaving five older findings behind its zero-diagnostic guard.
 
 ## Phase H — Isolated Git-History Repair
 
