@@ -938,7 +938,10 @@ function createNetworkSessionLifecycleController(config: any): any {
     // current credentials. Failed leaves reopen the stream on this new epoch.
     advanceSessionEpoch('session_leave_requested');
     if (typeof cfg.cancelSessionReadRequests === 'function') {
-      cfg.cancelSessionReadRequests();
+      // Wait until aborted reads have settled before revoking the seat token.
+      // Otherwise the leave POST can reach the authority first and turn the
+      // older journal response into a visible 403.
+      await cfg.cancelSessionReadRequests();
     }
 
     // Close the live stream before the authority invalidates the session token.

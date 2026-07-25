@@ -52,7 +52,7 @@ describe('NetworkSessionLifecycleController', () => {
       disposePresentationTimeline: jest.fn(async () => true),
       resetNetworkTelemetry: jest.fn(),
       openStream: jest.fn(),
-      cancelSessionReadRequests: jest.fn(),
+      cancelSessionReadRequests: jest.fn(async () => 0),
       closeStream: jest.fn(),
       teardownActionBridge: jest.fn(),
       resetSessionState: jest.fn(() => {
@@ -1023,6 +1023,36 @@ describe('NetworkSessionLifecycleController', () => {
         }
       );
       expect(mockConfig.clearSeatClaim).not.toHaveBeenCalled();
+    });
+
+    test('進行中の読み取り通信が終了するまで退出権限を破棄しない', async () => {
+      stateObj.roomId = 'ABC';
+      stateObj.seatKey = 'black';
+      stateObj.seatToken = 'token123';
+      let finishReadCancellation;
+      mockConfig.cancelSessionReadRequests.mockImplementation(() => new Promise((resolve) => {
+        finishReadCancellation = resolve;
+      }));
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, { ok: true }));
+
+      const leavePromise = controller.leaveRoom();
+      await Promise.resolve();
+
+      expect(mockConfig.requestJson).not.toHaveBeenCalled();
+      expect(mockConfig.closeStream).not.toHaveBeenCalled();
+
+      finishReadCancellation(1);
+      await expect(leavePromise).resolves.toEqual(expect.objectContaining({ ok: true }));
+      expect(mockConfig.closeStream).toHaveBeenCalledTimes(1);
+      expect(mockConfig.requestJson).toHaveBeenCalledWith(
+        'POST',
+        '/api/match/leave',
+        {
+          roomId: 'ABC',
+          seatKey: 'black',
+          seatToken: 'token123'
+        }
+      );
     });
 
     test('部屋に参加していない場合は即座に成功', async () => {

@@ -29,14 +29,24 @@ describe('NetworkTransportController', () => {
       abortControllerClass: class MockAbortController {
         signal: any;
         aborted: boolean;
+        abortListeners: any[];
         constructor() {
-          this.signal = { aborted: false };
+          this.abortListeners = [];
+          this.signal = {
+            aborted: false,
+            addEventListener: (type: any, listener: any) => {
+              if (type === 'abort' && typeof listener === 'function') {
+                this.abortListeners.push(listener);
+              }
+            }
+          };
           this.aborted = false;
           abortControllers.push(this);
         }
         abort() {
           this.aborted = true;
           this.signal.aborted = true;
+          this.abortListeners.forEach((listener) => listener());
         }
       }
     });
@@ -99,9 +109,12 @@ describe('NetworkTransportController', () => {
   });
 
   test('cancelSessionReadRequests aborts an in-flight match GET', async () => {
-    let resolveRead: any;
-    fetchImpl.mockReturnValue(new Promise((resolve) => {
-      resolveRead = resolve;
+    fetchImpl.mockImplementation((_url: any, init: any) => new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => {
+        const error: any = new Error('aborted');
+        error.name = 'AbortError';
+        reject(error);
+      });
     }));
 
     const pending = controller.requestJson(
@@ -109,22 +122,13 @@ describe('NetworkTransportController', () => {
       '/api/match/presentation-journal?roomId=ABC',
       undefined
     );
+    const pendingResult = pending.catch((error: any) => error);
     await Promise.resolve();
 
-    expect(controller.cancelSessionReadRequests()).toBe(1);
+    await expect(controller.cancelSessionReadRequests()).resolves.toBe(1);
     expect(abortControllers).toHaveLength(1);
     expect(abortControllers[0].aborted).toBe(true);
-
-    resolveRead({
-      ok: true,
-      status: 200,
-      json: async () => ({ ok: true })
-    });
-    await expect(pending).resolves.toEqual({
-      ok: true,
-      status: 200,
-      data: { ok: true }
-    });
+    await expect(pendingResult).resolves.toMatchObject({ name: 'AbortError' });
   });
 
   test('isMatchApiMissing returns true only for 404', () => {

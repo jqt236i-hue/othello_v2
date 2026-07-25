@@ -24,7 +24,7 @@ function createNetworkTransportController(config?: any): any {
   const publishRetryMaxDelayMs = Number.isFinite(Number(cfg.publishRetryMaxDelayMs))
     ? Math.max(publishRetryBaseDelayMs, Math.trunc(Number(cfg.publishRetryMaxDelayMs)))
     : 4000;
-  const activeSessionReadControllers = new Set<any>();
+  const activeSessionReadRequests = new Map<any, any>();
 
   function readState(): any {
     const state = getState();
@@ -79,7 +79,14 @@ function createNetworkTransportController(config?: any): any {
         controller = new AbortControllerClass();
         init.signal = controller.signal;
         if (sessionReadRequest) {
-          activeSessionReadControllers.add(controller);
+          let resolveSettled: any = null;
+          const settled = new Promise<void>(function (resolve) {
+            resolveSettled = resolve;
+          });
+          activeSessionReadRequests.set(controller, {
+            settled,
+            resolveSettled
+          });
         }
         timeoutId = scheduleTimeout(function () {
           try { controller.abort(); } catch (e) { /* ignore */ }
@@ -93,7 +100,11 @@ function createNetworkTransportController(config?: any): any {
       return { ok: response.ok, status: response.status, data };
     } finally {
       if (controller && sessionReadRequest) {
-        activeSessionReadControllers.delete(controller);
+        const activeRequest = activeSessionReadRequests.get(controller);
+        activeSessionReadRequests.delete(controller);
+        if (activeRequest && typeof activeRequest.resolveSettled === 'function') {
+          activeRequest.resolveSettled();
+        }
       }
       if (timeoutId) {
         clearScheduledTimeout(timeoutId);
@@ -101,14 +112,16 @@ function createNetworkTransportController(config?: any): any {
     }
   }
 
-  function cancelSessionReadRequests(): number {
-    let cancelled = 0;
-    activeSessionReadControllers.forEach(function (controller: any) {
-      cancelled += 1;
+  async function cancelSessionReadRequests(): Promise<number> {
+    const activeRequests = Array.from(activeSessionReadRequests.entries());
+    activeRequests.forEach(function (entry: any) {
+      const controller = entry[0];
       try { controller.abort(); } catch (e) { /* ignore */ }
     });
-    activeSessionReadControllers.clear();
-    return cancelled;
+    await Promise.allSettled(activeRequests.map(function (entry: any) {
+      return entry[1].settled;
+    }));
+    return activeRequests.length;
   }
 
   function isMatchApiMissing(res: any): boolean {
