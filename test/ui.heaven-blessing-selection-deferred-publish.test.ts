@@ -207,6 +207,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
           ok: true,
           roomId: 'HVN',
           stateVersion: 61,
+          presentationCursor: { visualSeq: 1, stateVersion: 61 },
           playbackEvents: isHeavenSelectionPublish
             ? [{ type: 'hand_add', phase: 1 }]
             : [],
@@ -303,7 +304,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
         cardId: 'heaven_01'
       }
     });
-    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalled();
     expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
     expect(global.cardState.hands.black).toEqual(['dummy_01', 'offer_2']);
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
@@ -317,9 +318,10 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
 
   test('対象確定直後に次入力が通らない', async () => {
     let releasePlayback;
-    global.waitForPlaybackIdle = jest.fn(() => new Promise((resolve) => {
+    const playbackIdlePromise = new Promise((resolve) => {
       releasePlayback = resolve;
-    }));
+    });
+    global.waitForPlaybackIdle = jest.fn(() => playbackIdlePromise);
     globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
 
     require('../ui/network-client.js');
@@ -330,6 +332,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     expect(created.ok).toBe(true);
 
     require('../cards/card-interaction.js');
+    const selectionFlow = require('../dist/game/card-effects/selection-flow.js');
 
     window.updateCardDetailPanel();
     const offerCards = document.querySelectorAll('.heaven-offer-card');
@@ -346,8 +349,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(typeof releasePlayback).toBe('function');
-    expect(global.isProcessing).toBe(true);
-    expect(global.isCardAnimating).toBe(true);
+    expect(selectionFlow.isSelectionSettlementLocked()).toBe(true);
 
     window.onCardClick('offer_2', 'black');
     window.passCurrentTurn();
@@ -363,6 +365,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
 
     expect(global.isProcessing).toBe(false);
     expect(global.isCardAnimating).toBe(false);
+    expect(selectionFlow.isSelectionSettlementLocked()).toBe(false);
 
     window.onCardClick('offer_2', 'black');
     expect(global.cardState.selectedCardId).toBe('offer_2');
@@ -373,9 +376,10 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
 
   test('heaven selection does not publish twice before deferred selection settles', async () => {
     let releasePlayback;
-    global.waitForPlaybackIdle = jest.fn(() => new Promise((resolve) => {
+    const playbackIdlePromise = new Promise((resolve) => {
       releasePlayback = resolve;
-    }));
+    });
+    global.waitForPlaybackIdle = jest.fn(() => playbackIdlePromise);
     globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
 
     require('../ui/network-client.js');
@@ -386,6 +390,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     expect(created.ok).toBe(true);
 
     require('../cards/card-interaction.js');
+    const selectionFlow = require('../dist/game/card-effects/selection-flow.js');
 
     window.updateCardDetailPanel();
     const offerCards = document.querySelectorAll('.heaven-offer-card');
@@ -402,7 +407,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(publishBodies).toHaveLength(1);
-    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalled();
 
     selectBtn.click();
 
@@ -412,8 +417,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(publishBodies).toHaveLength(1);
-    expect(global.isProcessing).toBe(true);
-    expect(global.isCardAnimating).toBe(true);
+    expect(selectionFlow.isSelectionSettlementLocked()).toBe(true);
 
     releasePlayback();
     await Promise.resolve();
@@ -423,5 +427,6 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
 
     expect(global.isProcessing).toBe(false);
     expect(global.isCardAnimating).toBe(false);
+    expect(selectionFlow.isSelectionSettlementLocked()).toBe(false);
   });
 });

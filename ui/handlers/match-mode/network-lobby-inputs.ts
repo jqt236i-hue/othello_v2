@@ -72,7 +72,14 @@ function bindNetworkLobbyInputs(options: any): void {
         uiRefs.networkServerInput.addEventListener('change', () => {
             const nextUrl = uiRefs.networkServerInput.value.trim();
             const client = config.getNetworkMatchClient();
-            if (client && typeof client.setServerUrl === 'function') client.setServerUrl(nextUrl);
+            if (!client || typeof client.setServerUrl !== 'function') return;
+            const changed = client.setServerUrl(nextUrl);
+            if (changed === false && typeof client.getServerUrl === 'function') {
+                uiRefs.networkServerInput.value = String(client.getServerUrl() || '');
+                if (typeof config.writeNetworkStatus === 'function') {
+                    config.writeNetworkStatus('接続先を変更するには、先に現在の部屋から退出してください', true);
+                }
+            }
         });
     }
 

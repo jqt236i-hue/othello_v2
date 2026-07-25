@@ -179,7 +179,7 @@ describe('move-executor presentation emission', () => {
         expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
     });
 
-    test('終局時は showResult 後にネットへ最終スナップショットを送る', async () => {
+    test('ネット対戦では publish 応答を待ち、終局表示を authoritative snapshot へ委譲する', async () => {
         global.BoardOps = { emitPresentationEvent: jest.fn() };
         global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
@@ -195,8 +195,7 @@ describe('move-executor presentation emission', () => {
             publishSnapshot: (meta: any) => global.NetworkMatchClient.publishSnapshot(meta),
             isNetworkPublishActive: () => true
         });
-        installImmediateNetworkHandoff(moveExecutor, async (opts: any) => {
-            global.showResult();
+        const finalizeNetworkTurnHandoff = installImmediateNetworkHandoff(moveExecutor, async (opts: any) => {
             opts.publishSnapshot({
                 playerKey: opts.playerKey,
                 actionType: opts.actionType,
@@ -220,7 +219,11 @@ describe('move-executor presentation emission', () => {
 
         await moveExecutor.executeMoveViaPipeline(move, false, 'black', adapter, {});
 
-        expect(global.showResult).toHaveBeenCalledTimes(1);
+        expect(global.showResult).not.toHaveBeenCalled();
+        expect(finalizeNetworkTurnHandoff).toHaveBeenCalledWith(expect.objectContaining({
+            awaitPublishResult: true,
+            deferResultToAuthoritativeSnapshot: true
+        }));
         expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledTimes(1);
         expect(global.NetworkMatchClient.publishSnapshot.mock.calls[0][0]).toMatchObject({
             playerKey: 'black',

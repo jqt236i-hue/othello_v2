@@ -42,6 +42,9 @@ describe('network intake coordinator', () => {
       shadowPlaybackEvents: [],
       networkCanonicalIntake: true,
       presentationFrameSource: 'stream',
+      deferResultUntilVisualSeq: 4,
+      networkRoomId: null,
+      networkOperationId: null,
       source: 'stream'
     });
   });

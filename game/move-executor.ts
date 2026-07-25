@@ -455,10 +455,21 @@ function isHumanVsHumanModeEnabled() {
     return !!debugHvH || matchMode === 'network';
 }
 
+function isMoveExecutorNetworkPublishActive() {
+    try {
+        return !!(
+            __uiImpl_move_executor
+            && typeof __uiImpl_move_executor.isNetworkPublishActive === 'function'
+            && __uiImpl_move_executor.isNetworkPublishActive() === true
+        );
+    } catch (e) {
+        return false;
+    }
+}
+
 function publishNetworkSnapshot(meta: any) {
     if (__uiImpl_move_executor && typeof __uiImpl_move_executor.publishSnapshot === 'function') {
-        if (typeof __uiImpl_move_executor.isNetworkPublishActive === 'function'
-            && __uiImpl_move_executor.isNetworkPublishActive() !== true) {
+        if (!isMoveExecutorNetworkPublishActive()) {
             return undefined;
         }
         return __uiImpl_move_executor.publishSnapshot(meta || {});
@@ -729,6 +740,7 @@ async function executeMoveViaPipeline(
         : null;
 
     if (typeof finalizeTurn === 'function') {
+        const networkPublishActive = isMoveExecutorNetworkPublishActive();
         await finalizeTurn({
             playerKey,
             actionType: (action && (action as any).type) ? (action as any).type : 'place',
@@ -736,7 +748,8 @@ async function executeMoveViaPipeline(
             playbackEvents: Array.isArray(res.playbackEvents) ? res.playbackEvents : [],
             humanMode,
             cpuDelayMs: safeCpuDelay,
-            resultOrder: 'beforePublish',
+            awaitPublishResult: networkPublishActive,
+            deferResultToAuthoritativeSnapshot: networkPublishActive,
             performanceScope,
             setProcessing: (nextValue: boolean) => { setMoveExecutorProcessing(nextValue); },
             afterTurnStart: () => {

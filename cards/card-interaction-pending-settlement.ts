@@ -10,7 +10,7 @@ type PendingSettlementDeps = {
     playbackStateManager?: any;
 };
 
-function getWaitForPlaybackIdleFn(deps: PendingSettlementDeps) {
+function getDirectWaitForPlaybackIdleFn(deps: PendingSettlementDeps) {
     const direct = (typeof deps.readDirectWaitForPlaybackIdle === 'function')
         ? deps.readDirectWaitForPlaybackIdle()
         : null;
@@ -18,15 +18,26 @@ function getWaitForPlaybackIdleFn(deps: PendingSettlementDeps) {
         ? direct
         : ((typeof window !== 'undefined' && typeof (window as any).waitForPlaybackIdle === 'function') ? (window as any).waitForPlaybackIdle : null);
     if (typeof waitForPlaybackFn === 'function') return waitForPlaybackFn;
+    return null;
+}
 
+function getWaitForPlaybackIdleFn(deps: PendingSettlementDeps) {
+    const directWaitForPlaybackIdle = getDirectWaitForPlaybackIdleFn(deps);
+    if (directWaitForPlaybackIdle) return directWaitForPlaybackIdle;
     const playbackState = deps && deps.playbackStateManager;
     if (playbackState && typeof playbackState.waitForVisualPlaybackDrain === 'function') {
         return () => playbackState.waitForVisualPlaybackDrain({
             root: typeof deps.getUiRootRef === 'function' ? deps.getUiRootRef() : null,
-            getCardState: typeof deps.getCardStateValue === 'function' ? deps.getCardStateValue : null
+            getCardState: typeof deps.getCardStateValue === 'function' ? deps.getCardStateValue : null,
+            disableTimeout: true
         });
     }
     return null;
+}
+
+function waitForDirectPlaybackIdle(deps: PendingSettlementDeps): Promise<any> | null {
+    const waitForPlaybackIdle = getDirectWaitForPlaybackIdleFn(deps);
+    return waitForPlaybackIdle ? Promise.resolve(waitForPlaybackIdle()) : null;
 }
 
 function getVisualPlaybackDrainFn(deps: PendingSettlementDeps) {
@@ -34,7 +45,8 @@ function getVisualPlaybackDrainFn(deps: PendingSettlementDeps) {
     if (playbackState && typeof playbackState.waitForVisualPlaybackDrain === 'function') {
         return () => playbackState.waitForVisualPlaybackDrain({
             root: typeof deps.getUiRootRef === 'function' ? deps.getUiRootRef() : null,
-            getCardState: typeof deps.getCardStateValue === 'function' ? deps.getCardStateValue : null
+            getCardState: typeof deps.getCardStateValue === 'function' ? deps.getCardStateValue : null,
+            disableTimeout: true
         });
     }
     return getWaitForPlaybackIdleFn(deps);
@@ -109,7 +121,7 @@ function clearOrphanNetworkPlaybackQueues(deps: PendingSettlementDeps) {
     return removed > 0;
 }
 
-function getPendingSelectionPublishSettleTimeoutMs(deps: PendingSettlementDeps) {
+function getPendingSelectionPublishSettleTimeoutMs(deps: PendingSettlementDeps): number | null {
     const rootRef = deps.getUiRootRef();
     const readValue = (source: any) => {
         const raw = source && typeof source === 'object'
@@ -117,7 +129,7 @@ function getPendingSelectionPublishSettleTimeoutMs(deps: PendingSettlementDeps) 
             : NaN;
         return Number.isFinite(raw) && raw >= 0 ? Math.trunc(raw) : null;
     };
-    return readValue(rootRef) ?? readValue(typeof globalThis !== 'undefined' ? globalThis : null) ?? 1500;
+    return readValue(rootRef) ?? readValue(typeof globalThis !== 'undefined' ? globalThis : null);
 }
 
 function readPositiveInteger(value: any): number | null {
@@ -147,7 +159,7 @@ function getPublishResultOperationId(publishResult: any): string | null {
     return normalized || null;
 }
 
-function waitForAuthoritativeVisualPlaybackDrain(deps: PendingSettlementDeps, publishResult?: any) {
+async function waitForAuthoritativeVisualPlaybackDrain(deps: PendingSettlementDeps, publishResult?: any) {
     const playbackStateManager = deps.playbackStateManager;
     const visualSeq = getPublishResultVisualSeq(publishResult);
     if (
@@ -155,41 +167,36 @@ function waitForAuthoritativeVisualPlaybackDrain(deps: PendingSettlementDeps, pu
         && playbackStateManager
         && typeof playbackStateManager.waitForNetworkVisualSeq === 'function'
     ) {
-        return Promise.resolve(playbackStateManager.waitForNetworkVisualSeq(visualSeq, {
-            timeoutMs: getPendingSelectionPublishSettleTimeoutMs(deps),
+        const timeoutMs = getPendingSelectionPublishSettleTimeoutMs(deps);
+        const waitOptions: any = {
             operationId: getPublishResultOperationId(publishResult)
-        }));
+        };
+        if (timeoutMs !== null) waitOptions.timeoutMs = timeoutMs;
+        const result = await playbackStateManager.waitForNetworkVisualSeq(visualSeq, waitOptions);
+        if (!result || result.ok !== true) {
+            const reason = result && result.reason ? String(result.reason) : 'visual_settlement_failed';
+            throw new Error(`network_visual_settlement_failed:${reason}`);
+        }
+        const directWait = waitForDirectPlaybackIdle(deps);
+        if (directWait) await directWait;
+        return { ok: true, visualSeq };
     }
     if (!playbackStateManager || typeof playbackStateManager.waitForVisualPlaybackDrain !== 'function') {
-        return Promise.resolve();
+        throw new Error('network_visual_settlement_wait_unavailable');
     }
-    return Promise.resolve(playbackStateManager.waitForVisualPlaybackDrain({
+    await playbackStateManager.waitForVisualPlaybackDrain({
         getCardState: typeof deps.getCardStateValue === 'function' ? deps.getCardStateValue : undefined,
-        timeoutMs: getPendingSelectionPublishSettleTimeoutMs(deps)
-    }));
-}
-
-function clearAuthoritativeVisualPlaybackFlag(deps: PendingSettlementDeps) {
-    const playbackStateManager = deps.playbackStateManager;
-    if (!playbackStateManager || typeof playbackStateManager !== 'object') return false;
-    try {
-        if (typeof playbackStateManager.setPlaybackActive === 'function') {
-            playbackStateManager.setPlaybackActive(false);
-        }
-        if (typeof playbackStateManager.setPlaybackStartedAt === 'function') {
-            playbackStateManager.setPlaybackStartedAt(null);
-        }
-        return true;
-    } catch (e) {
-        return false;
-    }
+        disableTimeout: true
+    });
+    const directWait = waitForDirectPlaybackIdle(deps);
+    if (directWait) await directWait;
+    return { ok: true, visualSeq: 0, reason: 'visual_playback_drain_fallback' };
 }
 
 module.exports = {
     getWaitForPlaybackIdleFn,
     getVisualPlaybackDrainFn,
     waitForAuthoritativeVisualPlaybackDrain,
-    clearAuthoritativeVisualPlaybackFlag,
     waitForCardUseAnimationIdle,
     clearOrphanNetworkPlaybackQueues
 };

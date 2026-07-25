@@ -60,6 +60,16 @@ function frameVisualSeq(frame: unknown): number | null {
   return toIntegerOrNull(record && record.visualSeq);
 }
 
+function lastPresentationVisualSeq(frames: unknown[]): number | null {
+  let lastVisualSeq: number | null = null;
+  for (const frame of frames) {
+    const visualSeq = frameVisualSeq(frame);
+    if (visualSeq === null || visualSeq <= 0) continue;
+    lastVisualSeq = lastVisualSeq === null ? visualSeq : Math.max(lastVisualSeq, visualSeq);
+  }
+  return lastVisualSeq;
+}
+
 function createApplyMeta(envelope: NetworkSnapshotEnvelope): NetworkIntakeApplyMeta {
   return {
     source: envelope.source,
@@ -87,7 +97,15 @@ export function buildNetworkIntakeApplyOptions(meta: NetworkIntakeApplyMeta | nu
   delete applyOptions.presentationFrames;
   if (frames.length > 0) {
     applyOptions.presentationFrameSource = sourceMeta && sourceMeta.source ? String(sourceMeta.source) : 'network_intake';
+    const resultVisualSeq = lastPresentationVisualSeq(frames);
+    if (resultVisualSeq !== null) {
+      applyOptions.deferResultUntilVisualSeq = resultVisualSeq;
+    }
+  } else {
+    delete applyOptions.deferResultUntilVisualSeq;
   }
+  applyOptions.networkRoomId = sourceMeta && sourceMeta.roomId ? String(sourceMeta.roomId) : null;
+  applyOptions.networkOperationId = sourceMeta && sourceMeta.operationId ? String(sourceMeta.operationId) : null;
   // Canonical server intake never dispatches playback directly. Ordered
   // presentation is owned exclusively by NetworkPresentationTimeline.
   applyOptions.playbackEvents = [];

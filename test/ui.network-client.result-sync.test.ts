@@ -74,6 +74,7 @@ describe('NetworkMatchClient result sync', () => {
     delete global.isGameOver;
     delete global.showResult;
     delete global.handlePresentationEvent;
+    delete global.NetworkVisualSettlementTracker;
   });
 
   test('終局スナップショット受信で結果表示を一度だけ行う', () => {
@@ -127,6 +128,92 @@ describe('NetworkMatchClient result sync', () => {
     await Promise.resolve();
 
     expect(global.showResult).toHaveBeenCalledTimes(1);
+  });
+
+  test('最終演出の待機失敗を終局表示の成功へ変換しない', async () => {
+    global.cardState = { markers: [], presentationEvents: [] };
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn((state, event) => {
+        if (!Array.isArray(state.presentationEvents)) state.presentationEvents = [];
+        state.presentationEvents.push(event);
+      })
+    };
+    global.handlePresentationEvent = jest.fn(() => Promise.reject(new Error('playback failed')));
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const terminalSnapshot = withServerMeta({
+      stateVersion: 711,
+      gameState: { currentPlayer: -1, turnNumber: 40, __resultShown: true },
+      cardState: { markers: [], presentationEvents: [] }
+    });
+
+    expect(client.applySnapshot(terminalSnapshot, {
+      force: true,
+      playbackEvents: [{ type: 'flip', phase: 1, targets: [{ row: 2, col: 3 }] }]
+    })).toBe(true);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.showResult).not.toHaveBeenCalled();
+    expect(client.getNetworkTelemetry().counts.snapshot_terminal_result_playback_wait_failed).toBe(1);
+  });
+
+  test('終局スナップショットの結果は指定visualSeqの完了前に表示しない', async () => {
+    const { createVisualSettlementTracker } = require('../ui/network/visual-settlement');
+    const tracker = createVisualSettlementTracker();
+    global.NetworkVisualSettlementTracker = tracker;
+    window.NetworkVisualSettlementTracker = tracker;
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const terminalSnapshot = withServerMeta({
+      stateVersion: 72,
+      gameState: { currentPlayer: -1, turnNumber: 40, __resultShown: true },
+      cardState: { markers: [] }
+    });
+
+    expect(client.applySnapshot(terminalSnapshot, {
+      force: true,
+      deferResultUntilVisualSeq: 9
+    })).toBe(true);
+    expect(global.showResult).not.toHaveBeenCalled();
+
+    tracker.markVisualSeqCompleted(8);
+    await Promise.resolve();
+    expect(global.showResult).not.toHaveBeenCalled();
+
+    tracker.markVisualSeqCompleted(9);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.showResult).toHaveBeenCalledTimes(1);
+  });
+
+  test('visualSeq待機がリセットされた終局結果を早出ししない', async () => {
+    const { createVisualSettlementTracker } = require('../ui/network/visual-settlement');
+    const tracker = createVisualSettlementTracker();
+    global.NetworkVisualSettlementTracker = tracker;
+    window.NetworkVisualSettlementTracker = tracker;
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const terminalSnapshot = withServerMeta({
+      stateVersion: 73,
+      gameState: { currentPlayer: -1, turnNumber: 40, __resultShown: true },
+      cardState: { markers: [] }
+    });
+
+    expect(client.applySnapshot(terminalSnapshot, {
+      force: true,
+      deferResultUntilVisualSeq: 10
+    })).toBe(true);
+    tracker.reset();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.showResult).not.toHaveBeenCalled();
+    expect(client.getNetworkTelemetry().counts.snapshot_terminal_result_visual_wait_failed).toBe(1);
   });
 
   test('skipResultOverlay 指定時は結果表示を行わない', () => {

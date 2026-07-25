@@ -810,6 +810,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
           ok: true,
           roomId: 'GTD',
           stateVersion: 21,
+          presentationCursor: { visualSeq: 1, stateVersion: 21 },
           snapshot: body.snapshot
             ? {
               ...body.snapshot,
@@ -881,7 +882,8 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', (caseConfig) 
     expect(client).toBeTruthy();
     expect(setSignalBridgeSpy).toHaveBeenCalled();
     expect(setSignalBridgeSpy.mock.calls.at(-1)[0]).toEqual(expect.objectContaining({
-      waitForPlaybackIdle: expect.any(Function)
+      waitForPlaybackIdle: expect.any(Function),
+      waitForAuthoritativeVisualSettlement: expect.any(Function)
     }));
     global.NetworkMatchClient = client;
 

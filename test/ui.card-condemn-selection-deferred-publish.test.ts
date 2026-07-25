@@ -229,6 +229,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
           ok: true,
           roomId: 'CDM',
           stateVersion: 51,
+          presentationCursor: { visualSeq: 1, stateVersion: 51 },
           playbackEvents: isCondemnSelectionPublish
             ? [{ type: 'hand_remove', phase: 1 }, { type: 'sound_effect', phase: 1, targets: [{ soundKey: 'stone_destroy' }] }]
             : [],
@@ -334,7 +335,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     expect(publishBodies[0].playbackEvents).toBeUndefined();
     expect(global.cardState.hands.white).toEqual([]);
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalled();
     expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
     expect(document.getElementById('heaven-blessing-overlay').classList.contains('active')).toBe(false);
     expect(global.SoundEngine.playEffectByKey).not.toHaveBeenCalled();
@@ -372,7 +373,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(publishBodies).toHaveLength(1);
-    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalled();
 
     selectBtn.click();
 
@@ -427,7 +428,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
 
     expect(runTurnMock).not.toHaveBeenCalled();
     expect(publishBodies).toHaveLength(1);
-    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalled();
     expect(global.PlaybackStateManager.getPlaybackActive()).toBe(false);
     expect(global.isProcessing).toBe(false);
     expect(global.isCardAnimating).toBe(false);
@@ -435,7 +436,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     expect((global.cardState._presentationEventsPersist || []).some((event) => event && event.type === 'PLAYBACK_EVENTS')).toBe(false);
   });
 
-  test('overlay destroy publish settles even when playback idle wait never resolves', async () => {
+  test('generic playback timeout does not unlock overlay selection before visual settlement', async () => {
     window.__pendingSelectionPublishSettleTimeoutMs = 10;
     globalThis.__pendingSelectionPublishSettleTimeoutMs = 10;
     global.waitForPlaybackIdle = jest.fn(() => new Promise(() => {}));
@@ -449,6 +450,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     expect(created.ok).toBe(true);
 
     require('../cards/card-interaction.js');
+    const selectionFlow = require('../dist/game/card-effects/selection-flow.js');
 
     window.updateCardDetailPanel();
     const selectBtn = document.getElementById('heaven-blessing-select-btn');
@@ -460,15 +462,13 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(publishBodies).toHaveLength(1);
-    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
-    expect(global.isProcessing).toBe(true);
-    expect(global.isCardAnimating).toBe(true);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalled();
+    expect(selectionFlow.isSelectionSettlementLocked()).toBe(true);
 
     await new Promise((resolve) => setTimeout(resolve, 25));
     await Promise.resolve();
 
-    expect(global.isProcessing).toBe(false);
-    expect(global.isCardAnimating).toBe(false);
+    expect(selectionFlow.isSelectionSettlementLocked()).toBe(true);
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
     expect((global.cardState.presentationEvents || []).some((event) => event && event.type === 'PLAYBACK_EVENTS')).toBe(false);
     expect((global.cardState._presentationEventsPersist || []).some((event) => event && event.type === 'PLAYBACK_EVENTS')).toBe(false);

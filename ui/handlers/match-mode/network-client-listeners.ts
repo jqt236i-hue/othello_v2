@@ -153,14 +153,16 @@ function bindNetworkClientListeners(options: any): void {
     if (typeof client.setRoomStateListener === 'function') {
         client.setRoomStateListener((roomState: any) => {
             const spectatorActive = config.isNetworkSpectatorActive(roomState);
+            const roomActive = typeof client.isActive === 'function' && client.isActive() === true;
             config.updateNetworkDebugEnabledFromRoomState(roomState);
             config.updateNetworkAutoEnabledFromRoomState(roomState);
             config.applyNetworkDebugModeAccess();
             config.refreshNetworkAutoModeAccess();
             config.refreshNetworkChatVisibility();
             config.renderNetworkDeckInfo(roomState);
-            if (uiRefs.networkCreateBtn) uiRefs.networkCreateBtn.disabled = spectatorActive;
-            if (uiRefs.networkJoinBtn) uiRefs.networkJoinBtn.disabled = spectatorActive;
+            if (uiRefs.networkServerInput) uiRefs.networkServerInput.disabled = roomActive;
+            if (uiRefs.networkCreateBtn) uiRefs.networkCreateBtn.disabled = roomActive;
+            if (uiRefs.networkJoinBtn) uiRefs.networkJoinBtn.disabled = roomActive;
             if (spectatorActive) config.writeNetworkStatus('観測中', false);
             try {
                 if (typeof config.root.updateCpuCharacter === 'function') config.root.updateCpuCharacter();

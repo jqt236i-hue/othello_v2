@@ -44,6 +44,15 @@ function createNetworkSelectionSignalBridge(options: any): any {
             if (typeof waitForPlayback !== 'function') return undefined;
             return waitForPlayback(playbackEvents);
         },
+        waitForAuthoritativeVisualSettlement: (publishResult: any) => {
+            if (typeof config.waitForAuthoritativeVisualSettlement === 'function') {
+                return config.waitForAuthoritativeVisualSettlement(publishResult);
+            }
+            if (typeof client.waitForAuthoritativeVisualSettlement === 'function') {
+                return client.waitForAuthoritativeVisualSettlement(publishResult);
+            }
+            return undefined;
+        },
         publishSnapshot: (meta: any) => {
             if (typeof client.publishSnapshot !== 'function') return undefined;
             if (typeof client.isActive === 'function' && client.isActive() !== true) return undefined;

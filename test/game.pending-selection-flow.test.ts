@@ -114,6 +114,17 @@ function attachPlaybackStateManager() {
       }
       return undefined;
     },
+    waitForAuthoritativeVisualSettlement: (publishResult) => {
+      if (typeof global.waitForAuthoritativeVisualSettlement === 'function') {
+        return global.waitForAuthoritativeVisualSettlement(publishResult);
+      }
+      const visualSeq = Number(publishResult?.presentationCursor?.visualSeq);
+      return Promise.resolve({
+        ok: true,
+        visualSeq: Number.isSafeInteger(visualSeq) && visualSeq > 0 ? visualSeq : 1,
+        reason: 'test_authoritative_visual_settlement'
+      });
+    },
     scheduleCpuTurn: (delay, callback) => setTimeout(callback, delay),
     processCpuTurn: () => {
       if (typeof global.processCpuTurn === 'function') {
@@ -202,6 +213,7 @@ describe('pending selection flow contracts', () => {
     delete global.emitBoardUpdate;
     delete global.emitGameStateChange;
     delete global.waitForPlaybackIdle;
+    delete global.waitForAuthoritativeVisualSettlement;
     delete global.ensureCurrentPlayerCanActOrPass;
     delete global.isProcessing;
     delete global.isCardAnimating;
@@ -1080,6 +1092,7 @@ describe('pending selection flow contracts', () => {
     expect(result).toBe(true);
     try {
       expect(finalizeNetworkTurnHandoff).toHaveBeenCalledWith(expect.objectContaining({
+        deferResultToAuthoritativeSnapshot: false,
         playerKey: 'black',
         actionType: 'place',
         action: null
@@ -1241,6 +1254,76 @@ describe('pending selection flow contracts', () => {
       publishedByNetwork: true,
       playbackEvents: []
     }));
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+  });
+
+  test('network deferred selection keeps busy until its exact authoritative visualSeq settles', async () => {
+    let resolveVisualSettlement = null;
+    attachPlaybackStateManager();
+
+    global.MATCH_MODE = 'network';
+    global.cardState = {
+      turnIndex: 4,
+      pendingEffectByPlayer: {
+        black: { type: 'SUPER_GRAVITY_WILL', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.gameState = {
+      currentPlayer: 1,
+      turnNumber: 8,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const publishResult = {
+      ok: true,
+      operationId: 'op_super_gravity_9',
+      presentationCursor: { visualSeq: 9, stateVersion: 15 }
+    };
+    global.NetworkMatchClient = {
+      isActive: jest.fn(() => true),
+      publishSnapshot: jest.fn(async () => publishResult)
+    };
+    global.waitForPlaybackIdle = jest.fn(async () => undefined);
+    global.waitForAuthoritativeVisualSettlement = jest.fn(() => new Promise((resolve) => {
+      resolveVisualSettlement = resolve;
+    }));
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => {
+        throw new Error('network publish-only selection must not run a local preview');
+      })
+    };
+    global.isProcessing = false;
+    global.isCardAnimating = false;
+
+    const pendingPromise = flow.executePendingSelection({
+      row: 2,
+      col: 4,
+      playerKey: 'black',
+      pendingType: 'SUPER_GRAVITY_WILL',
+      actionPayload: {
+        superGravityTarget: { row: 2, col: 4 }
+      }
+    });
+
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
+    expect(global.waitForAuthoritativeVisualSettlement).toHaveBeenCalledWith(publishResult);
+    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(global.isProcessing).toBe(true);
+    expect(global.isCardAnimating).toBe(true);
+
+    resolveVisualSettlement({ ok: true, visualSeq: 9 });
+    await expect(pendingPromise).resolves.toMatchObject({
+      ok: true,
+      pendingType: 'SUPER_GRAVITY_WILL',
+      publishedByNetwork: true
+    });
     expect(global.isProcessing).toBe(false);
     expect(global.isCardAnimating).toBe(false);
   });

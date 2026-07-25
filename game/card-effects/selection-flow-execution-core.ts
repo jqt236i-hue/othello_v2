@@ -33,17 +33,29 @@ interface SelectionPendingExecutionDeps {
     finalizePendingSelectionFlow: (options: any) => Promise<any>;
     clearPendingSelectionFailureState: (cardStateValue: any, playerKey: any, options: any) => any;
     waitForSelectionPlaybackIdle?: (playbackEvents: any, options?: any) => Promise<any>;
+    waitForAuthoritativeVisualSettlement?: (publishResult: any) => Promise<any>;
 }
 
-async function waitForAuthoritativeNetworkSelectionPlayback(contract: any, deps: SelectionPendingExecutionDeps) {
+async function waitForAuthoritativeNetworkSelectionPlayback(
+    contract: any,
+    publishResult: any,
+    deps: SelectionPendingExecutionDeps
+) {
     if (
         !contract
         || contract.waitForPlaybackIdle !== true
-        || typeof deps.waitForSelectionPlaybackIdle !== 'function'
     ) {
-        return;
+        return { ok: true, reason: 'playback_wait_not_required' };
+    }
+    if (typeof deps.waitForAuthoritativeVisualSettlement === 'function') {
+        const exactResult = await deps.waitForAuthoritativeVisualSettlement(publishResult);
+        if (exactResult && typeof exactResult === 'object') return exactResult;
+    }
+    if (typeof deps.waitForSelectionPlaybackIdle !== 'function') {
+        return { ok: false, reason: 'visual_settlement_wait_unavailable' };
     }
     await deps.waitForSelectionPlaybackIdle([], { force: true });
+    return { ok: true, reason: 'legacy_playback_wait' };
 }
 
 function buildPendingTypeAllowList(options: any, fallbackPendingType: any, deps: SelectionPendingExecutionDeps) {
@@ -272,7 +284,14 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                     result: publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' }
                 };
             }
-            await waitForAuthoritativeNetworkSelectionPlayback(contract, deps);
+            const settlementResult = await waitForAuthoritativeNetworkSelectionPlayback(contract, publishResult, deps);
+            if (!settlementResult || settlementResult.ok !== true) {
+                return {
+                    ok: false,
+                    reason: 'visual_settlement_failed',
+                    result: publishResult
+                };
+            }
             return {
                 ok: true,
                 pendingType: resolvedPendingType,
@@ -336,7 +355,14 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                         result: publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' }
                     };
                 }
-                await waitForAuthoritativeNetworkSelectionPlayback(contract, deps);
+                const settlementResult = await waitForAuthoritativeNetworkSelectionPlayback(contract, publishResult, deps);
+                if (!settlementResult || settlementResult.ok !== true) {
+                    return {
+                        ok: false,
+                        reason: 'visual_settlement_failed',
+                        result: publishResult
+                    };
+                }
 
                 const authoritativeState = deps.resolveAuthoritativeSelectionState();
                 if (!deps.shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {
@@ -478,7 +504,14 @@ async function executePendingSelectionCore(options: any, deps: SelectionPendingE
                     result: publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' }
                 };
             }
-            await waitForAuthoritativeNetworkSelectionPlayback(contract, deps);
+            const settlementResult = await waitForAuthoritativeNetworkSelectionPlayback(contract, publishResult, deps);
+            if (!settlementResult || settlementResult.ok !== true) {
+                return {
+                    ok: false,
+                    reason: 'visual_settlement_failed',
+                    result: publishResult
+                };
+            }
 
             const authoritativeState = deps.resolveAuthoritativeSelectionState();
             if (!deps.shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {

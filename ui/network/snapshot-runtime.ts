@@ -127,6 +127,12 @@ function createNetworkSnapshotRuntime(config?: any): any {
     return typeof waitForPlaybackIdle === 'function' ? waitForPlaybackIdle : null;
   }
 
+  function resolveWaitForNetworkVisualSeq(): any {
+    const playbackState = resolvePlaybackStateModule();
+    if (!playbackState || typeof playbackState.waitForNetworkVisualSeq !== 'function') return null;
+    return playbackState.waitForNetworkVisualSeq.bind(playbackState);
+  }
+
   function armBoardUpdateContext(context: any): any {
     const playbackState = resolvePlaybackStateModule();
     if (!playbackState || typeof playbackState.armBoardUpdateContext !== 'function') return null;
@@ -227,6 +233,7 @@ function createNetworkSnapshotRuntime(config?: any): any {
     resolveSharedBoardUtils,
     resolveResultPresentationSync,
     resolveWaitForPlaybackIdle,
+    resolveWaitForNetworkVisualSeq,
     armBoardUpdateContext,
     setBusyState,
     clearBusyStateAndPlaybackLock,

@@ -190,7 +190,7 @@ describe('card interaction pending network settlement', () => {
     expect(onFailure).not.toHaveBeenCalled();
     expect(deps.playbackStateManager.waitForVisualPlaybackDrain).toHaveBeenCalledWith({
       getCardState: deps.getCardStateValue,
-      timeoutMs: 1500
+      disableTimeout: true
     });
     expect(deps.setPendingSelectionBusy).not.toHaveBeenCalledWith(false);
     expect(publishLocks.black).toBe(true);
@@ -235,7 +235,6 @@ describe('card interaction pending network settlement', () => {
     await flushPromises();
 
     expect(deps.playbackStateManager.waitForNetworkVisualSeq).toHaveBeenCalledWith(7, {
-      timeoutMs: 1500,
       operationId: null
     });
     expect(deps.playbackStateManager.waitForVisualPlaybackDrain).not.toHaveBeenCalled();
@@ -272,7 +271,6 @@ describe('card interaction pending network settlement', () => {
     await flushPromises();
 
     expect(deps.playbackStateManager.waitForNetworkVisualSeq).toHaveBeenCalledWith(12, {
-      timeoutMs: 1500,
       operationId: 'op_pending_12'
     });
     expect(publishLocks.black).toBe(true);
@@ -291,6 +289,43 @@ describe('card interaction pending network settlement', () => {
     expect(publishLocks.black).toBe(false);
     expect(deps.setPendingSelectionBusy).toHaveBeenCalledWith(false);
     expect(deps.playbackStateManager.waitForVisualPlaybackDrain).not.toHaveBeenCalled();
+    expect((global as any).cardState.presentationEvents).toEqual([{ type: 'PLAYBACK_EVENTS' }]);
+  });
+
+  test('does not unlock or render when exact authoritative settlement fails', async () => {
+    deps.playbackStateManager = {
+      waitForNetworkVisualSeq: jest.fn(async () => ({
+        ok: false,
+        visualSeq: 14,
+        reason: 'reset'
+      })),
+      waitForVisualPlaybackDrain: jest.fn(),
+      setPlaybackActive: jest.fn(),
+      setPlaybackStartedAt: jest.fn()
+    };
+
+    pendingNetwork.startNetworkOnlyPendingSelectionPublish({
+      playerKey: 'black',
+      action: { type: 'place', player: 'black', condemnTargetIndex: 0 }
+    }, deps);
+
+    await flushPromises();
+    resolvePublish && resolvePublish({
+      ok: true,
+      operationId: 'op_pending_reset',
+      presentationCursor: { visualSeq: 14, stateVersion: 22 }
+    });
+    await flushPromises();
+    await flushPromises();
+
+    expect(deps.playbackStateManager.waitForNetworkVisualSeq).toHaveBeenCalledWith(14, {
+      operationId: 'op_pending_reset'
+    });
+    expect(publishLocks.black).toBe(false);
+    expect(deps.setPendingSelectionBusy).not.toHaveBeenCalledWith(false);
+    expect(deps.renderCardUiSafely).not.toHaveBeenCalled();
+    expect(deps.playbackStateManager.setPlaybackActive).not.toHaveBeenCalled();
+    expect(deps.playbackStateManager.setPlaybackStartedAt).not.toHaveBeenCalled();
     expect((global as any).cardState.presentationEvents).toEqual([{ type: 'PLAYBACK_EVENTS' }]);
   });
 
@@ -327,7 +362,7 @@ describe('card interaction pending network settlement', () => {
     await flushPromises();
     await flushPromises();
 
-    expect(order).toEqual(['success', 'drain', 'clear-active', 'clear-started', 'busy:false', 'render']);
+    expect(order).toEqual(['success', 'drain', 'busy:false', 'render']);
   });
 
   test('visual drain helper prefers playback manager over direct idle wait', async () => {
@@ -341,7 +376,8 @@ describe('card interaction pending network settlement', () => {
 
     expect(deps.playbackStateManager.waitForVisualPlaybackDrain).toHaveBeenCalledWith({
       root: global,
-      getCardState: deps.getCardStateValue
+      getCardState: deps.getCardStateValue,
+      disableTimeout: true
     });
     expect(directWait).not.toHaveBeenCalled();
 

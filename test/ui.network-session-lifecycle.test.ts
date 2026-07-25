@@ -245,6 +245,30 @@ describe('NetworkSessionLifecycleController', () => {
       }));
       await expect(firstCreate).resolves.toMatchObject({ ok: true, roomId: 'ABC' });
     });
+
+    test('入室処理中は別種の作成・参加要求も開始しない', async () => {
+      let resolveJoin;
+      mockConfig.requestJson.mockImplementation(() => new Promise((resolve) => {
+        resolveJoin = resolve;
+      }));
+
+      const joinPromise = controller.joinRoom('ABC', { playerName: 'テスト' });
+      await Promise.resolve();
+      await Promise.resolve();
+      const createResult = await controller.createRoom({ playerName: 'テスト' });
+
+      expect(createResult).toEqual({ ok: false, reason: 'ROOM_ENTRY_IN_PROGRESS' });
+      expect(mockConfig.requestJson).toHaveBeenCalledTimes(1);
+      expect(mockConfig.emitStatus).toHaveBeenCalledWith('部屋への接続処理中です', false);
+
+      resolveJoin(jsonResponse(200, {
+        ok: true,
+        roomId: 'ABC',
+        seatKey: 'white',
+        seatToken: 'token456'
+      }));
+      await expect(joinPromise).resolves.toMatchObject({ ok: true, roomId: 'ABC' });
+    });
   });
 
   describe('createRoom - エラーハンドリング', () => {
@@ -379,6 +403,38 @@ describe('NetworkSessionLifecycleController', () => {
         false
       );
     });
+
+    test('timeline破棄中にsession epochが変わった場合は古い入室応答を有効化しない', async () => {
+      let sessionEpoch = 0;
+      let resolveDispose;
+      mockConfig.getSessionEpoch = jest.fn(() => sessionEpoch);
+      mockConfig.advanceSessionEpoch = jest.fn(() => {
+        sessionEpoch += 1;
+        return sessionEpoch;
+      });
+      mockConfig.disposePresentationTimeline.mockImplementation(() => new Promise((resolve) => {
+        resolveDispose = resolve;
+      }));
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        roomId: 'ABC',
+        seatKey: 'white',
+        seatToken: 'token456'
+      }));
+
+      const joinPromise = controller.joinRoom('ABC', { playerName: 'テスト' });
+      while (!resolveDispose) await Promise.resolve();
+      sessionEpoch += 1;
+      resolveDispose(true);
+
+      await expect(joinPromise).resolves.toMatchObject({
+        ok: false,
+        stale: true,
+        reason: 'SESSION_CHANGED'
+      });
+      expect(mockConfig.activateSessionFromResponse).not.toHaveBeenCalled();
+      expect(mockConfig.openStream).not.toHaveBeenCalled();
+    });
   });
 
   describe('joinRoom - エラーハンドリング', () => {
@@ -454,6 +510,23 @@ describe('NetworkSessionLifecycleController', () => {
         ]
       });
       expect(mockConfig.setServerUrl).toHaveBeenCalledWith('http://localhost:8787');
+      expect(mockConfig.requestJson).toHaveBeenCalledWith('GET', '/api/match/list');
+    });
+
+    test('参加中の部屋一覧更新では接続先URLを変更しない', async () => {
+      stateObj.roomId = 'ABC';
+      stateObj.seatKey = 'black';
+      stateObj.seatToken = 'token123';
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        rooms: []
+      }));
+
+      await expect(controller.listRooms({
+        serverUrl: 'http://stale.example.invalid'
+      })).resolves.toEqual({ ok: true, rooms: [] });
+
+      expect(mockConfig.setServerUrl).not.toHaveBeenCalled();
       expect(mockConfig.requestJson).toHaveBeenCalledWith('GET', '/api/match/list');
     });
 
@@ -882,6 +955,65 @@ describe('NetworkSessionLifecycleController', () => {
   });
 
   describe('restoreStoredSession', () => {
+    test('保存session復帰中は別の部屋入室を開始しない', async () => {
+      let resolveDispose;
+      mockConfig.readStoredSession.mockReturnValue({
+        roomId: 'ABC',
+        viewerRole: 'seat',
+        seatKey: 'black',
+        seatToken: 'token_black'
+      });
+      mockConfig.disposePresentationTimeline.mockImplementation(() => new Promise((resolve) => {
+        resolveDispose = resolve;
+      }));
+
+      const restorePromise = controller.restoreStoredSession();
+      await Promise.resolve();
+      const joinResult = await controller.joinRoom('XYZ', { playerName: 'テスト' });
+
+      expect(joinResult).toEqual({ ok: false, reason: 'ROOM_ENTRY_IN_PROGRESS' });
+      expect(mockConfig.requestJson).not.toHaveBeenCalled();
+
+      resolveDispose(true);
+      mockConfig.requestJson.mockResolvedValue(jsonResponse(200, {
+        ok: true,
+        snapshot: { stateVersion: 4 }
+      }));
+      await expect(restorePromise).resolves.toMatchObject({ ok: true, restored: true });
+    });
+
+    test('保存session復帰のtimeline破棄中にsessionが変わった場合はactivateしない', async () => {
+      let resolveDispose;
+      let sessionEpoch = 0;
+      mockConfig.getSessionEpoch = jest.fn(() => sessionEpoch);
+      mockConfig.advanceSessionEpoch.mockImplementation(() => {
+        sessionEpoch += 1;
+        return sessionEpoch;
+      });
+      mockConfig.readStoredSession.mockReturnValue({
+        roomId: 'ABC',
+        viewerRole: 'seat',
+        seatKey: 'black',
+        seatToken: 'token_black'
+      });
+      mockConfig.disposePresentationTimeline.mockImplementation(() => new Promise((resolve) => {
+        resolveDispose = resolve;
+      }));
+
+      const restorePromise = controller.restoreStoredSession();
+      await Promise.resolve();
+      sessionEpoch += 1;
+      resolveDispose(true);
+
+      await expect(restorePromise).resolves.toMatchObject({
+        ok: false,
+        stale: true,
+        reason: 'SESSION_CHANGED'
+      });
+      expect(mockConfig.activateStoredSession).not.toHaveBeenCalled();
+      expect(mockConfig.requestJson).not.toHaveBeenCalled();
+    });
+
     test('保存済み観戦者セッションを復帰して状態同期後にstreamを開く', async () => {
       mockConfig.readStoredSession.mockReturnValue({
         roomId: 'SPC',

@@ -51,6 +51,21 @@ function createPendingSelectionAction(playerKey: any, pendingType: any, actionPa
     return action;
 }
 
+function hasCurrentPendingSelection(playerKey: any, pendingType: any, deps: OverlaySelectionDeps): boolean {
+    const state = deps.getCardStateValue();
+    const normalizedPlayerKey = String(playerKey || '').trim().toLowerCase() === 'white' ? 'white' : 'black';
+    const pending = state
+        && state.pendingEffectByPlayer
+        && typeof state.pendingEffectByPlayer === 'object'
+        ? state.pendingEffectByPlayer[normalizedPlayerKey]
+        : null;
+    if (!pending || typeof pending !== 'object') return false;
+    const currentType = String(pending.type || '').trim().toUpperCase();
+    const expectedType = String(pendingType || '').trim().toUpperCase();
+    if (!currentType || currentType !== expectedType) return false;
+    return !pending.stage || String(pending.stage) === 'selectTarget';
+}
+
 function finalizePendingSelectionAfterRun(playerKey: any, pendingType: any, runResult: any, deps: OverlaySelectionDeps) {
     const playbackEvents = deps.getRunResultPlaybackEvents(runResult);
     if (!deps.pendingSelectionFlowModule || typeof deps.pendingSelectionFlowModule.finalizePendingSelectionFlow !== 'function') {
@@ -78,6 +93,10 @@ function finalizePendingSelectionAfterRun(playerKey: any, pendingType: any, runR
 function executeHeavenSelection(playerKey: any, selectedCardId: any, deps: OverlaySelectionDeps) {
     if (!selectedCardId) return { ok: false, reason: 'no_selection' };
     if (!deps.canInteractWithCardUi()) return { ok: false, reason: 'busy' };
+    if (!hasCurrentPendingSelection(playerKey, 'HEAVEN_BLESSING', deps)) {
+        requestCardUiRefresh(deps, 'card-interaction:stale-heaven-selection');
+        return { ok: false, reason: 'pending_unavailable' };
+    }
     deps.setPendingSelectionBusy(true);
     deps.playUiEffectSound('treasure_gain');
     let completed = false;
@@ -118,6 +137,10 @@ function executeHeavenSelection(playerKey: any, selectedCardId: any, deps: Overl
 function executeCondemnSelection(playerKey: any, targetIndex: any, targetCardId: any, deps: OverlaySelectionDeps) {
     if (!Number.isInteger(targetIndex)) return { ok: false, reason: 'no_selection' };
     if (!deps.canInteractWithCardUi()) return { ok: false, reason: 'busy' };
+    if (!hasCurrentPendingSelection(playerKey, 'CONDEMN_WILL', deps)) {
+        requestCardUiRefresh(deps, 'card-interaction:stale-condemn-selection');
+        return { ok: false, reason: 'pending_unavailable' };
+    }
     deps.setPendingSelectionBusy(true);
     let completed = false;
     try {
@@ -158,6 +181,10 @@ function executeCondemnSelection(playerKey: any, targetIndex: any, targetCardId:
 function executeObserverWillSelection(playerKey: any, targetIndex: any, targetCardId: any, deps: OverlaySelectionDeps) {
     if (!Number.isInteger(targetIndex)) return { ok: false, reason: 'no_selection' };
     if (!deps.canInteractWithCardUi()) return { ok: false, reason: 'busy' };
+    if (!hasCurrentPendingSelection(playerKey, 'OBSERVER_WILL', deps)) {
+        requestCardUiRefresh(deps, 'card-interaction:stale-observer-selection');
+        return { ok: false, reason: 'pending_unavailable' };
+    }
     deps.setPendingSelectionBusy(true);
     let completed = false;
     try {

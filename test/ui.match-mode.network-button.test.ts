@@ -1074,6 +1074,53 @@ describe('match-mode network button behavior', () => {
     expect(list.textContent).toContain('2/2');
   });
 
+  test('ルーム一覧の古い応答が新しい更新結果を上書きしない', async () => {
+    const resolvers = [];
+    listRooms.mockImplementation(() => new Promise((resolve) => {
+      resolvers.push(resolve);
+    }));
+
+    document.getElementById('modeNetworkBtn').click();
+    await waitForCondition(() => listRooms.mock.calls.length === 1);
+
+    document.getElementById('networkRoomListRefreshBtn').click();
+    await waitForCondition(() => listRooms.mock.calls.length === 2);
+
+    resolvers[1]({
+      ok: true,
+      rooms: [{
+        roomId: 'NEW',
+        roomName: '新しい一覧',
+        hostName: 'しん',
+        boardLabel: '8x8',
+        seatCount: 1,
+        maxSeats: 2,
+        canJoin: true,
+        canSpectate: true
+      }]
+    });
+    await waitForCondition(() => document.getElementById('networkRoomList').textContent.includes('新しい一覧'));
+
+    resolvers[0]({
+      ok: true,
+      rooms: [{
+        roomId: 'OLD',
+        roomName: '古い一覧',
+        hostName: 'ふる',
+        boardLabel: '8x8',
+        seatCount: 1,
+        maxSeats: 2,
+        canJoin: true,
+        canSpectate: true
+      }]
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(document.getElementById('networkRoomList').textContent).toContain('新しい一覧');
+    expect(document.getElementById('networkRoomList').textContent).not.toContain('古い一覧');
+  });
+
   test('ネット対戦ロビーはルーム一覧を専用viewportでラップする', async () => {
     const networkBtn = document.getElementById('modeNetworkBtn');
     listRooms.mockResolvedValue({ ok: true, rooms: [] });
@@ -1294,6 +1341,20 @@ describe('match-mode network button behavior', () => {
     expect(document.getElementById('networkBoardSizeColsInput').disabled).toBe(true);
     expect(document.getElementById('networkBoardSizeSummary').textContent).toBe('7x8 / 部屋固定');
     expect(document.getElementById('networkBoardSizeNote').textContent).toBe('ネット対戦中は部屋で決めた盤面形状とサイズを使います');
+  });
+
+  test('部屋参加中は接続先・作成・参加の操作をロックする', () => {
+    window.NetworkMatchClient.isActive = jest.fn(() => true);
+    const roomStateListener = window.NetworkMatchClient.setRoomStateListener.mock.calls[0][0];
+
+    roomStateListener({
+      roomId: 'ABC',
+      roomBoardConfig: { rows: 8, cols: 8 }
+    });
+
+    expect(document.getElementById('networkServerInput').disabled).toBe(true);
+    expect(document.getElementById('networkCreateBtn').disabled).toBe(true);
+    expect(document.getElementById('networkJoinBtn').disabled).toBe(true);
   });
 
   test('CPUボタン押下ではネット対戦からCPUへ戻る', async () => {

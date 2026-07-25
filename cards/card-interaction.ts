@@ -1872,7 +1872,17 @@ function _runPipelineAction(playerKey: any, action: any) {
 
     const gameOverNow = (typeof isGameOver === 'function' && gameState && isGameOver(gameState));
     if (gameOverNow) {
-        try { if (typeof showResult === 'function') showResult(); } catch (e) { /* ignore */ }
+        const showSettledResult = () => {
+            try { if (typeof showResult === 'function') showResult(); } catch (e) { /* ignore */ }
+        };
+        if (res.playbackEvents && res.playbackEvents.length) {
+            const waitForPlayback = _getVisualPlaybackDrainFn();
+            if (typeof waitForPlayback === 'function') {
+                Promise.resolve(waitForPlayback()).then(showSettledResult, () => undefined);
+            }
+        } else {
+            showSettledResult();
+        }
     }
 
     return { ok: true, result: res, gameOver: gameOverNow };
@@ -2162,9 +2172,13 @@ function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any
 
             try {
                 await _waitForAuthoritativeVisualPlaybackDrain(publishResult);
-            } catch (e) {
-                // The authoritative snapshot remains canonical even if visual settlement
-                // reports a failure. Resume from that settled/fallback state.
+            } catch (error: any) {
+                _clearServerAuthoredCardUseClickBuffer();
+                const reason = error && error.message
+                    ? String(error.message)
+                    : 'VISUAL_SETTLEMENT_FAILED';
+                addLog(`盤面演出の同期を待機しています (${reason})`);
+                return;
             }
             _setPendingSelectionBusy(false);
             const bufferedClick = _consumeServerAuthoredCardUseClickBuffer(playerKey, ownerKey, cardId);

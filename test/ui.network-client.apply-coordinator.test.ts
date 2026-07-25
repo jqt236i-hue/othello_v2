@@ -187,6 +187,26 @@ describe('NetworkMatchClient apply coordinator', () => {
     delete global.fetch;
   });
 
+  test('active room pins the server URL until leave', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const statusWriter = jest.fn();
+    client.setStatusWriter(statusWriter);
+
+    const created = await client.createRoom({
+      serverUrl: 'http://localhost:8787',
+      playerName: 'くろ'
+    });
+    expect(created.ok).toBe(true);
+
+    expect(client.setServerUrl('https://other.example.invalid')).toBe(false);
+    expect(client.getServerUrl()).toBe('http://localhost:8787');
+    expect(statusWriter).toHaveBeenCalledWith(
+      '接続先を変更するには、先に現在の部屋から退出してください',
+      true
+    );
+  });
+
   test('self stream snapshot を適用済みなら同版 publish response snapshot を再適用しない', async () => {    require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 
@@ -693,6 +713,67 @@ describe('NetworkMatchClient apply coordinator', () => {
     });
     expect(global.gameState.turnNumber).toBe(12);
     expect(client.getNetworkTelemetry().counts.network_visual_rebase_completed).toBe(1);
+  });
+
+  test('terminal strict frame shows the result only after its committed visual frame is applied', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    let resolveCommittedFrame;
+    const committedFramePromise = new Promise((resolve) => {
+      resolveCommittedFrame = resolve;
+    });
+    global.PresentationHandler.handlePresentationEvent = jest.fn(async (event) => Object.freeze({
+      kind: 'strict-network-settlement',
+      visualSeq: event.meta.visualSeq,
+      applyCommittedFrame: jest.fn(async () => committedFramePromise),
+      settle: jest.fn(async () => true),
+      cancel: jest.fn(async () => true)
+    }));
+
+    const terminalSnapshot = createSnapshot(11);
+    terminalSnapshot.gameState.currentPlayer = -1;
+    terminalSnapshot.gameState.turnNumber = 40;
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId: 'op_terminal_strict',
+        stateVersion: 11,
+        presentationCursor: { visualSeq: 1, stateVersion: 11 },
+        snapshot: terminalSnapshot,
+        presentationFrames: [{
+          roomId: 'ABC',
+          visualSeq: 1,
+          stateVersionFrom: 10,
+          stateVersionTo: 11,
+          operationId: 'op_terminal_strict',
+          actionType: 'place',
+          playbackEvents: [{ type: 'flip' }],
+          snapshotAfter: terminalSnapshot
+        }]
+      })
+    });
+
+    for (let index = 0; index < 8; index += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+      if (global.PresentationHandler.handlePresentationEvent.mock.calls.length > 0) break;
+    }
+    expect(global.PresentationHandler.handlePresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.showResult).not.toHaveBeenCalled();
+
+    resolveCommittedFrame(true);
+    for (let index = 0; index < 8; index += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+      if (global.showResult.mock.calls.length > 0) break;
+    }
+
+    expect(global.NetworkVisualSettlementTracker.getDiagnostics()).toMatchObject({
+      completedVisualSeq: 1
+    });
+    expect(global.showResult).toHaveBeenCalledTimes(1);
   });
 
   test('unsafe strict dispatch failure cancels replay and automatically rebases from authority', async () => {

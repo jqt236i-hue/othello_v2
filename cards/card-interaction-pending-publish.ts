@@ -10,7 +10,6 @@ type PendingPublishDeps = {
 type PendingPublishPorts = {
     getActiveNetworkMatchClient: () => any;
     waitForAuthoritativeVisualPlaybackDrain: (deps: any, publishResult?: any) => Promise<any>;
-    clearAuthoritativeVisualPlaybackFlag: (deps: any) => any;
     clearOrphanNetworkPlaybackQueues: (deps: any) => any;
 };
 
@@ -35,7 +34,6 @@ function startPendingSelectionPublish(options: any, deps: PendingPublishDeps, po
         if (terminalSettled) return;
         terminalSettled = true;
         clearPublishLock();
-        ports.clearAuthoritativeVisualPlaybackFlag(deps);
         deps.setPendingSelectionBusy(false);
         deps.renderCardUiSafely();
     };
@@ -50,9 +48,15 @@ function startPendingSelectionPublish(options: any, deps: PendingPublishDeps, po
         try {
             ports.waitForAuthoritativeVisualPlaybackDrain(deps, publishResult)
                 .then(finishSuccessSettlement)
-                .catch(finishSuccessSettlement);
+                .catch(() => {
+                    if (terminalSettled) return;
+                    terminalSettled = true;
+                    clearPublishLock();
+                });
         } catch (e) {
-            finishSuccessSettlement();
+            if (terminalSettled) return;
+            terminalSettled = true;
+            clearPublishLock();
         }
     };
 

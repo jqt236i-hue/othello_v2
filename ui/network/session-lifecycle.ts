@@ -7,7 +7,7 @@ function createNetworkSessionLifecycleController(config: any): any {
   const roomIdPattern = cfg.roomIdPattern instanceof RegExp ? cfg.roomIdPattern : /^[A-Z0-9]{3}$/;
   const roomIdLength = Number.isFinite(Number(cfg.roomIdLength)) ? Math.trunc(Number(cfg.roomIdLength)) : 3;
   const playerNameMax = Number.isFinite(Number(cfg.playerNameMax)) ? Math.trunc(Number(cfg.playerNameMax)) : 7;
-  let createRoomInProgress = false;
+  let roomEntryInProgress: string | null = null;
   let localSessionEpoch = 0;
 
   function readState(): any {
@@ -70,6 +70,32 @@ function createNetworkSessionLifecycleController(config: any): any {
       cfg.recordNetworkTelemetry('stale_network_session_response_ignored', { stage: String(stage || 'unknown') });
     }
     return { ok: false, recovered: false, stale: true, reason: 'SESSION_CHANGED' };
+  }
+
+  async function runRoomEntrySingleFlight(kind: string, operation: () => Promise<any>): Promise<any> {
+    const normalizedKind = String(kind || 'entry');
+    if (roomEntryInProgress !== null) {
+      if (typeof cfg.emitStatus === 'function') {
+        cfg.emitStatus(
+          roomEntryInProgress === 'create' && normalizedKind === 'create'
+            ? '部屋作成中です'
+            : '部屋への接続処理中です',
+          false
+        );
+      }
+      return {
+        ok: false,
+        reason: roomEntryInProgress === 'create' && normalizedKind === 'create'
+          ? 'CREATE_IN_PROGRESS'
+          : 'ROOM_ENTRY_IN_PROGRESS'
+      };
+    }
+    roomEntryInProgress = normalizedKind;
+    try {
+      return await operation();
+    } finally {
+      if (roomEntryInProgress === normalizedKind) roomEntryInProgress = null;
+    }
   }
 
   function emitPlayerNameRequired(): void {
@@ -409,7 +435,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     };
   }
 
-  async function createRoom(options?: any): Promise<any> {
+  async function createRoomAttempt(options?: any): Promise<any> {
     const opts = (options && typeof options === 'object') ? options : {};
     const currentState = readState();
     if (currentState.roomId) {
@@ -419,31 +445,20 @@ function createNetworkSessionLifecycleController(config: any): any {
       return { ok: false, reason: 'ALREADY_IN_ROOM', roomId: currentState.roomId };
     }
     const entryEpoch = readSessionEpoch();
-    if (createRoomInProgress) {
-      if (typeof cfg.emitStatus === 'function') {
-        cfg.emitStatus('部屋作成中です', false);
-      }
-      return { ok: false, reason: 'CREATE_IN_PROGRESS' };
-    }
-
     if (opts.serverUrl && typeof cfg.setServerUrl === 'function') {
       cfg.setServerUrl(opts.serverUrl);
     }
 
-    createRoomInProgress = true;
-    let res: any;
-    let entryPayload: any;
-    try {
-      const playerIdentity = await ensureEntryPlayerIdentity(opts);
-      entryPayload = MatchEntryPayload.buildCreateRoomPayload(opts, createEntryPayloadHelpers(playerIdentity));
-      if (!entryPayload.ok) {
-        return emitEntryPayloadFailure(entryPayload.reason);
-      }
-      emitDeckCodeFallbackIfNeeded(entryPayload);
-      res = await cfg.requestJson('POST', '/api/match/create', entryPayload.payload);
-    } finally {
-      createRoomInProgress = false;
+    const playerIdentity = await ensureEntryPlayerIdentity(opts);
+    if (readSessionEpoch() !== entryEpoch || readState().roomId) {
+      return sessionChangedResult('create_after_identity');
     }
+    const entryPayload = MatchEntryPayload.buildCreateRoomPayload(opts, createEntryPayloadHelpers(playerIdentity));
+    if (!entryPayload.ok) {
+      return emitEntryPayloadFailure(entryPayload.reason);
+    }
+    emitDeckCodeFallbackIfNeeded(entryPayload);
+    const res = await cfg.requestJson('POST', '/api/match/create', entryPayload.payload);
     if (!res.ok || !res.data || res.data.ok !== true) {
       return handleRoomEntryFailure(res, {
         fallbackReason: 'CREATE_FAILED',
@@ -454,8 +469,11 @@ function createNetworkSessionLifecycleController(config: any): any {
     if (readSessionEpoch() !== entryEpoch || readState().roomId) {
       return sessionChangedResult('create_before_activation');
     }
-    advanceSessionEpoch('session_create_activation');
+    const activationEpoch = advanceSessionEpoch('session_create_activation');
     await disposePresentationTimeline('session_create_activation');
+    if (readSessionEpoch() !== activationEpoch || readState().roomId) {
+      return sessionChangedResult('create_after_timeline_dispose');
+    }
     if (typeof cfg.activateSessionFromResponse === 'function') {
       cfg.activateSessionFromResponse(Object.assign({}, res.data, { playerName: entryPayload.playerName }), '');
     }
@@ -484,7 +502,7 @@ function createNetworkSessionLifecycleController(config: any): any {
 
   async function listRooms(options?: any): Promise<any> {
     const opts = (options && typeof options === 'object') ? options : {};
-    if (opts.serverUrl && typeof cfg.setServerUrl === 'function') {
+    if (!readState().roomId && opts.serverUrl && typeof cfg.setServerUrl === 'function') {
       cfg.setServerUrl(opts.serverUrl);
     }
 
@@ -510,17 +528,16 @@ function createNetworkSessionLifecycleController(config: any): any {
     };
   }
 
-  async function joinRoom(roomId: any, options?: any): Promise<any> {
+  async function joinRoomAttempt(roomId: any, options?: any): Promise<any> {
     const opts = (options && typeof options === 'object') ? options : {};
-    if (opts.serverUrl && typeof cfg.setServerUrl === 'function') {
-      cfg.setServerUrl(opts.serverUrl);
-    }
-
     const entryState = readState();
     if (entryState.roomId) {
       return { ok: false, reason: 'ALREADY_IN_ROOM', roomId: entryState.roomId };
     }
     const entryEpoch = readSessionEpoch();
+    if (opts.serverUrl && typeof cfg.setServerUrl === 'function') {
+      cfg.setServerUrl(opts.serverUrl);
+    }
 
     const validationPayload = MatchEntryPayload.buildJoinRoomPayload(roomId, opts, createEntryPayloadHelpers(null));
     if (!validationPayload.ok) {
@@ -528,6 +545,9 @@ function createNetworkSessionLifecycleController(config: any): any {
     }
 
     const playerIdentity = await ensureEntryPlayerIdentity(opts);
+    if (readSessionEpoch() !== entryEpoch || readState().roomId) {
+      return sessionChangedResult('join_after_identity');
+    }
     const entryPayload = MatchEntryPayload.buildJoinRoomPayload(roomId, opts, createEntryPayloadHelpers(playerIdentity));
     if (!entryPayload.ok) {
       return emitEntryPayloadFailure(entryPayload.reason);
@@ -535,6 +555,9 @@ function createNetworkSessionLifecycleController(config: any): any {
     emitDeckCodeFallbackIfNeeded(entryPayload);
 
     let res = await cfg.requestJson('POST', '/api/match/join', entryPayload.payload);
+    if (readSessionEpoch() !== entryEpoch || readState().roomId) {
+      return sessionChangedResult('join_after_request');
+    }
     if ((!res.ok || !res.data || res.data.ok !== true)
       && entryPayload.usedStoredClaim === true
       && typeof cfg.shouldRetryJoinWithoutStoredClaim === 'function'
@@ -544,6 +567,9 @@ function createNetworkSessionLifecycleController(config: any): any {
       }
       const retryPayload = MatchEntryPayload.buildJoinRetryPayload(entryPayload);
       res = await cfg.requestJson('POST', '/api/match/join', retryPayload);
+      if (readSessionEpoch() !== entryEpoch || readState().roomId) {
+        return sessionChangedResult('join_after_retry');
+      }
     }
 
     if (!res.ok || !res.data || res.data.ok !== true) {
@@ -556,8 +582,11 @@ function createNetworkSessionLifecycleController(config: any): any {
     if (readSessionEpoch() !== entryEpoch || readState().roomId) {
       return sessionChangedResult('join_before_activation');
     }
-    advanceSessionEpoch('session_join_activation');
+    const activationEpoch = advanceSessionEpoch('session_join_activation');
     await disposePresentationTimeline('session_join_activation');
+    if (readSessionEpoch() !== activationEpoch || readState().roomId) {
+      return sessionChangedResult('join_after_timeline_dispose');
+    }
     if (typeof cfg.activateSessionFromResponse === 'function') {
       cfg.activateSessionFromResponse(Object.assign({}, res.data, { playerName: entryPayload.playerName }), entryPayload.roomId);
     }
@@ -584,17 +613,16 @@ function createNetworkSessionLifecycleController(config: any): any {
     };
   }
 
-  async function spectateRoom(roomId: any, options?: any): Promise<any> {
+  async function spectateRoomAttempt(roomId: any, options?: any): Promise<any> {
     const opts = (options && typeof options === 'object') ? options : {};
-    if (opts.serverUrl && typeof cfg.setServerUrl === 'function') {
-      cfg.setServerUrl(opts.serverUrl);
-    }
-
     const entryState = readState();
     if (entryState.roomId) {
       return { ok: false, reason: 'ALREADY_IN_ROOM', roomId: entryState.roomId };
     }
     const entryEpoch = readSessionEpoch();
+    if (opts.serverUrl && typeof cfg.setServerUrl === 'function') {
+      cfg.setServerUrl(opts.serverUrl);
+    }
 
     const entryPayload = MatchEntryPayload.buildSpectateRoomPayload(roomId, opts, createEntryPayloadHelpers());
     if (!entryPayload.ok) {
@@ -602,6 +630,9 @@ function createNetworkSessionLifecycleController(config: any): any {
     }
 
     const res = await cfg.requestJson('POST', '/api/match/spectate', entryPayload.payload);
+    if (readSessionEpoch() !== entryEpoch || readState().roomId) {
+      return sessionChangedResult('spectate_after_request');
+    }
     if (!res.ok || !res.data || res.data.ok !== true) {
       return handleRoomEntryFailure(res, {
         fallbackReason: 'SPECTATE_FAILED',
@@ -612,8 +643,11 @@ function createNetworkSessionLifecycleController(config: any): any {
     if (readSessionEpoch() !== entryEpoch || readState().roomId) {
       return sessionChangedResult('spectate_before_activation');
     }
-    advanceSessionEpoch('session_spectator_activation');
+    const activationEpoch = advanceSessionEpoch('session_spectator_activation');
     await disposePresentationTimeline('session_spectator_activation');
+    if (readSessionEpoch() !== activationEpoch || readState().roomId) {
+      return sessionChangedResult('spectate_after_timeline_dispose');
+    }
     if (typeof cfg.activateSpectatorSessionFromResponse === 'function') {
       cfg.activateSpectatorSessionFromResponse(Object.assign({}, res.data, { playerName: entryPayload.playerName }), entryPayload.roomId);
     }
@@ -826,7 +860,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     return result;
   }
 
-  async function restoreStoredSession(options?: any): Promise<any> {
+  async function restoreStoredSessionAttempt(options?: any): Promise<any> {
     const opts = (options && typeof options === 'object') ? options : {};
     const state = readState();
     if (state.roomId) {
@@ -843,8 +877,11 @@ function createNetworkSessionLifecycleController(config: any): any {
     if (stored.serverUrl && typeof cfg.setServerUrl === 'function') {
       cfg.setServerUrl(stored.serverUrl);
     }
-    advanceSessionEpoch('stored_session_activation');
+    const activationEpoch = advanceSessionEpoch('stored_session_activation');
     await disposePresentationTimeline('stored_session_activation');
+    if (readSessionEpoch() !== activationEpoch || readState().roomId) {
+      return sessionChangedResult('restore_after_timeline_dispose');
+    }
     if (typeof cfg.activateStoredSession !== 'function' || cfg.activateStoredSession(stored) !== true) {
       if (typeof cfg.clearStoredSession === 'function') cfg.clearStoredSession();
       return { ok: false, reason: 'STORED_SESSION_INVALID' };
@@ -1020,6 +1057,22 @@ function createNetworkSessionLifecycleController(config: any): any {
     }
 
     return { ok: true };
+  }
+
+  function createRoom(options?: any): Promise<any> {
+    return runRoomEntrySingleFlight('create', () => createRoomAttempt(options));
+  }
+
+  function joinRoom(roomId: any, options?: any): Promise<any> {
+    return runRoomEntrySingleFlight('join', () => joinRoomAttempt(roomId, options));
+  }
+
+  function spectateRoom(roomId: any, options?: any): Promise<any> {
+    return runRoomEntrySingleFlight('spectate', () => spectateRoomAttempt(roomId, options));
+  }
+
+  function restoreStoredSession(options?: any): Promise<any> {
+    return runRoomEntrySingleFlight('restore', () => restoreStoredSessionAttempt(options));
   }
 
   return {

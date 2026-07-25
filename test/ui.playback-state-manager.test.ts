@@ -159,7 +159,8 @@ describe('PlaybackStateManager runtime helpers', () => {
       readCardAnimating: () => false,
       readProcessing: () => false,
       abortPlayback,
-      getBoardElement: () => board
+      getBoardElement: () => board,
+      watchdogTimeoutMs: 15000
     });
     manager.setPlaybackActive(true);
 
@@ -517,6 +518,18 @@ describe('PlaybackStateManager runtime helpers', () => {
 
     await expect(waiter).resolves.toEqual({ ok: true, visualSeq: 12 });
     expect(settled).toBe(true);
+  });
+
+  test('waitForNetworkVisualSeq fails closed when the strict settlement tracker is unavailable', async () => {
+    const manager = require('../ui/playback-state-manager.js');
+    delete global.window.NetworkVisualSettlementTracker;
+    delete global.NetworkVisualSettlementTracker;
+
+    await expect(manager.waitForNetworkVisualSeq(13)).resolves.toEqual({
+      ok: false,
+      visualSeq: 13,
+      reason: 'visual_settlement_tracker_unavailable'
+    });
   });
 
   test('clearPlaybackLock clears stale visual playback claims', () => {

@@ -127,6 +127,7 @@ const MODE_OTHELLO = 'othello';
     let networkRoomDebugEnabled = false;
     let networkRoomAutoEnabled = false;
     let selectedNetworkRoomId = '';
+    let networkRoomListRequestGeneration = 0;
 
     const uiRefs: any = {
         modeCpuBtn: null,
@@ -938,12 +939,18 @@ const MODE_OTHELLO = 'othello';
             if (!silentStatus) writeNetworkStatus('ルーム一覧を取得できません', true);
             return;
         }
-        const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
+        const client = root.NetworkMatchClient;
+        const requestGeneration = ++networkRoomListRequestGeneration;
+        const activeRoom = typeof client.isActive === 'function' && client.isActive() === true;
+        const serverUrl = activeRoom && typeof client.getServerUrl === 'function'
+            ? String(client.getServerUrl() || '')
+            : (uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '');
         try {
-            if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
-                root.NetworkMatchClient.setServerUrl(serverUrl);
+            if (!activeRoom && typeof client.setServerUrl === 'function') {
+                client.setServerUrl(serverUrl);
             }
-            const result = await root.NetworkMatchClient.listRooms({ serverUrl });
+            const result = await client.listRooms({ serverUrl });
+            if (requestGeneration !== networkRoomListRequestGeneration) return;
             if (!result || result.ok !== true) {
                 renderNetworkRoomList([]);
                 return;
@@ -951,6 +958,7 @@ const MODE_OTHELLO = 'othello';
             renderNetworkRoomList(result.rooms || []);
             if (!silentStatus) writeNetworkStatus(`ルーム一覧を更新しました（${(result.rooms || []).length}件）`, false);
         } catch (e) {
+            if (requestGeneration !== networkRoomListRequestGeneration) return;
             renderNetworkRoomList([]);
             if (!silentStatus) writeNetworkStatus('ルーム一覧の取得に失敗しました', true);
         }

@@ -38,10 +38,6 @@ function waitForAuthoritativeVisualPlaybackDrain(deps: PendingNetworkDeps, publi
     return PendingSettlement.waitForAuthoritativeVisualPlaybackDrain(deps, publishResult);
 }
 
-function clearAuthoritativeVisualPlaybackFlag(deps: PendingNetworkDeps) {
-    return PendingSettlement.clearAuthoritativeVisualPlaybackFlag(deps);
-}
-
 function getNetworkMatchClientRoot() {
     return NetworkClientAdapter && typeof NetworkClientAdapter.getNetworkMatchClientRoot === 'function'
         ? NetworkClientAdapter.getNetworkMatchClientRoot()
@@ -69,7 +65,6 @@ function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetw
     return PendingPublish.startPendingSelectionPublish(options, deps, {
         getActiveNetworkMatchClient,
         waitForAuthoritativeVisualPlaybackDrain,
-        clearAuthoritativeVisualPlaybackFlag,
         clearOrphanNetworkPlaybackQueues
     });
 }
@@ -78,7 +73,6 @@ module.exports = {
     getWaitForPlaybackIdleFn,
     getVisualPlaybackDrainFn,
     waitForAuthoritativeVisualPlaybackDrain,
-    clearAuthoritativeVisualPlaybackFlag,
     waitForCardUseAnimationIdle,
     clearOrphanNetworkPlaybackQueues,
     getNetworkMatchClientRoot,

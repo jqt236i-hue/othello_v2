@@ -31,6 +31,19 @@ type Scenario = {
 
 const SCENARIOS: Scenario[] = [
   {
+    id: 'ordinary_turn_handoff',
+    expectedReasons: ['standard_place', 'standard_flip'],
+    publishAction: { type: 'place', playerKey: 'black', row: 2, col: 3 },
+    buildSnapshot() {
+      const gameState = Core.createGameState();
+      const prng = SeededPRNG.createPRNG(23);
+      const cardState = CardLogic.createCardState(prng);
+      gameState.currentPlayer = Core.BLACK;
+      gameState.turnNumber = 1;
+      return { gameState, cardState };
+    }
+  },
+  {
     id: 'destroy_dragon',
     expectedReasons: ['destroy_dragon_breath'],
     publishAction: { type: 'place', playerKey: 'black', row: 2, col: 3 },
@@ -218,7 +231,9 @@ async function launchSeat(channel: string, label: string, appUrl: string): Promi
   const seat: Seat = { label, browser, page, consoleErrors: [], pageErrors: [] };
   page.on('console', (message) => {
     if (typeof message.type === 'function' && message.type() === 'error') {
-      seat.consoleErrors.push(message.text());
+      const location = typeof message.location === 'function' ? message.location() : null;
+      const sourceUrl = location && location.url ? String(location.url) : '';
+      seat.consoleErrors.push(sourceUrl ? `${message.text()} (${sourceUrl})` : message.text());
     }
   });
   page.on('pageerror', (error) => {
@@ -254,9 +269,10 @@ async function installPageHelpers(seat: Seat): Promise<void> {
     };
     const attachBoardOpsWrapper = () => {
       const boardOps = (window as any).BoardOps;
-      if (!boardOps || typeof boardOps.emitPresentationEvent !== 'function' || boardOps.__turnStartBrowserCheckWrapped) {
+      if (!boardOps || typeof boardOps.emitPresentationEvent !== 'function') {
         return false;
       }
+      if (boardOps.__turnStartBrowserCheckWrapped) return true;
       const original = boardOps.emitPresentationEvent.bind(boardOps);
       boardOps.emitPresentationEvent = function wrappedEmitPresentationEvent(state: any, ev: any) {
         try {
@@ -271,15 +287,14 @@ async function installPageHelpers(seat: Seat): Promise<void> {
       boardOps.__turnStartBrowserCheckWrapped = true;
       return true;
     };
-    const attachDispatcherWrapper = () => {
-      const dispatcher = (window as any).NetworkPlaybackDispatcher;
+    const wrapDispatcher = (dispatcher: any) => {
       if (
         !dispatcher
         || typeof dispatcher.dispatchNetworkPlaybackEvents !== 'function'
-        || dispatcher.__turnStartBrowserCheckWrapped
       ) {
         return false;
       }
+      if (dispatcher.__turnStartBrowserCheckWrapped) return true;
       const original = dispatcher.dispatchNetworkPlaybackEvents.bind(dispatcher);
       dispatcher.dispatchNetworkPlaybackEvents = async function wrappedDispatchNetworkPlaybackEvents(playbackEvents: any, options?: any) {
         capturePlaybackEvents(playbackEvents);
@@ -288,6 +303,20 @@ async function installPageHelpers(seat: Seat): Promise<void> {
       dispatcher.__turnStartBrowserCheckWrapped = true;
       return true;
     };
+    let dispatcherValue = (window as any).NetworkPlaybackDispatcher;
+    const dispatcherDescriptor = Object.getOwnPropertyDescriptor(window, 'NetworkPlaybackDispatcher');
+    if (!dispatcherDescriptor || dispatcherDescriptor.configurable === true) {
+      Object.defineProperty(window, 'NetworkPlaybackDispatcher', {
+        configurable: true,
+        enumerable: true,
+        get: () => dispatcherValue,
+        set: (nextValue) => {
+          dispatcherValue = nextValue;
+          wrapDispatcher(dispatcherValue);
+        }
+      });
+    }
+    const attachDispatcherWrapper = () => wrapDispatcher((window as any).NetworkPlaybackDispatcher);
     const attachWrappers = () => {
       const boardOpsAttached = attachBoardOpsWrapper();
       const dispatcherAttached = attachDispatcherWrapper();
@@ -325,6 +354,18 @@ async function installPageHelpers(seat: Seat): Promise<void> {
 
 async function createRoom(chromeSeat: Seat, matchUrl: string): Promise<any> {
   return chromeSeat.page.evaluate(async (serverUrl) => {
+    const requireFn = (window as any).require;
+    const matchMode = typeof requireFn === 'function'
+      ? requireFn('ui/handlers/match-mode')
+      : null;
+    if (!matchMode || typeof matchMode.setMode !== 'function') {
+      throw new Error('match mode controller unavailable');
+    }
+    await matchMode.setMode('network', {
+      skipReset: true,
+      silentLog: true,
+      suppressStatus: true
+    });
     const client = (window as any).NetworkMatchClient;
     client.setServerUrl(serverUrl);
     return client.createRoom({
@@ -337,6 +378,18 @@ async function createRoom(chromeSeat: Seat, matchUrl: string): Promise<any> {
 
 async function joinRoom(edgeSeat: Seat, matchUrl: string, roomId: string): Promise<any> {
   return edgeSeat.page.evaluate(async ({ serverUrl, roomId: id }) => {
+    const requireFn = (window as any).require;
+    const matchMode = typeof requireFn === 'function'
+      ? requireFn('ui/handlers/match-mode')
+      : null;
+    if (!matchMode || typeof matchMode.setMode !== 'function') {
+      throw new Error('match mode controller unavailable');
+    }
+    await matchMode.setMode('network', {
+      skipReset: true,
+      silentLog: true,
+      suppressStatus: true
+    });
     const client = (window as any).NetworkMatchClient;
     client.setServerUrl(serverUrl);
     return client.joinRoom(id, {
@@ -375,6 +428,13 @@ async function leaveSeat(seat: Seat): Promise<void> {
 
 async function cleanupScenarioSessions(chromeSeat: Seat, edgeSeat: Seat): Promise<void> {
   await Promise.all([leaveSeat(chromeSeat), leaveSeat(edgeSeat)]);
+  await Promise.all([chromeSeat, edgeSeat].map((seat) => seat.page.evaluate(() => {
+    try {
+      localStorage.removeItem('card_reversi_player_identity_v1');
+    } catch (_e) {
+      // The local harness resets its authority identity store between scenarios.
+    }
+  })));
   resetRoomsForTests();
 }
 
@@ -429,6 +489,179 @@ async function resetPlaybackEvidence(seat: Seat): Promise<void> {
   });
 }
 
+async function waitForVisualSettlement(seat: Seat): Promise<void> {
+  await seat.page.evaluate(async () => {
+    const requireFn = (window as any).require;
+    const playbackState = typeof requireFn === 'function'
+      ? requireFn('ui/playback-state-manager')
+      : (window as any).PlaybackStateManager;
+    if (playbackState && typeof playbackState.waitForVisualPlaybackDrain === 'function') {
+      await playbackState.waitForVisualPlaybackDrain({
+        cardState: (window as any).cardState,
+        root: window,
+        disableTimeout: true
+      });
+    }
+  });
+  await seat.page.waitForFunction(() => {
+    const requireFn = (window as any).require;
+    const playbackState = typeof requireFn === 'function'
+      ? requireFn('ui/playback-state-manager')
+      : (window as any).PlaybackStateManager;
+    const selectionFlow = typeof requireFn === 'function'
+      ? requireFn('game/card-effects/selection-flow')
+      : (window as any).PendingSelectionFlow;
+    const playbackIdle = !playbackState || (
+      (typeof playbackState.getPlaybackActive !== 'function' || playbackState.getPlaybackActive() !== true)
+      && (typeof playbackState.hasPendingVisualPlayback !== 'function'
+        || playbackState.hasPendingVisualPlayback((window as any).cardState) !== true)
+    );
+    const selectionIdle = !selectionFlow
+      || typeof selectionFlow.isSelectionSettlementLocked !== 'function'
+      || selectionFlow.isSelectionSettlementLocked() !== true;
+    return playbackIdle && selectionIdle;
+  }, null, { timeout: 30000 });
+}
+
+async function playFirstLegalMoveThroughUi(seat: Seat, expectedPlayerKey: string): Promise<any> {
+  await waitForVisualSettlement(seat);
+  const attempt = await seat.page.evaluate(async ({ expectedPlayer }) => {
+    const client = (window as any).NetworkMatchClient;
+    const gameState = (window as any).gameState;
+    const cardState = (window as any).cardState;
+    const playerValue = Number(gameState && gameState.currentPlayer);
+    const actualPlayer = playerValue === -1 ? 'white' : 'black';
+    if (actualPlayer !== expectedPlayer) {
+      throw new Error(`follow-up turn mismatch expected=${expectedPlayer} actual=${actualPlayer}`);
+    }
+    const requireFn = (window as any).require;
+    const moveGenerator = typeof requireFn === 'function'
+      ? requireFn('game/move-generator')
+      : null;
+    if (!moveGenerator || typeof moveGenerator.generateMovesForPlayerInState !== 'function') {
+      throw new Error('follow-up state-aware legal move resolver unavailable');
+    }
+    const playerKey = playerValue === -1 ? 'white' : 'black';
+    const pending = cardState
+      && cardState.pendingEffectByPlayer
+      && cardState.pendingEffectByPlayer[playerKey]
+      ? cardState.pendingEffectByPlayer[playerKey]
+      : null;
+    const legalMoves = moveGenerator.generateMovesForPlayerInState(
+      gameState,
+      cardState,
+      playerValue,
+      pending,
+      [],
+      []
+    );
+    const move = Array.isArray(legalMoves) ? legalMoves[0] : null;
+    if (!move || !Number.isInteger(Number(move.row)) || !Number.isInteger(Number(move.col))) {
+      const core = (window as any).Core || (window as any).CoreLogic;
+      const coreMoves = core && typeof core.getLegalMoves === 'function'
+        ? core.getLegalMoves(gameState, playerValue)
+        : [];
+      throw new Error(`follow-up legal move unavailable: ${JSON.stringify({
+        playerKey,
+        pending,
+        stateAwareCount: Array.isArray(legalMoves) ? legalMoves.length : null,
+        coreCount: Array.isArray(coreMoves) ? coreMoves.length : null,
+        coreFirst: Array.isArray(coreMoves) ? coreMoves[0] : null,
+        boardExpansion: gameState && gameState.boardExpansion
+      })}`);
+    }
+    const handler = (window as any).handleCellClick;
+    if (typeof handler !== 'function') {
+      throw new Error('follow-up board input handler unavailable');
+    }
+    const stateBefore = client.getState();
+    const handlerResult = await Promise.resolve(handler(Number(move.row), Number(move.col)));
+    const turnManager = typeof requireFn === 'function'
+      ? requireFn('game/turn-manager')
+      : null;
+    const turnManagerImpl = turnManager && typeof turnManager.getUIImpl === 'function'
+      ? turnManager.getUIImpl()
+      : null;
+    return {
+      move: { row: Number(move.row), col: Number(move.col) },
+      stateVersionBefore: Number(stateBefore && stateBefore.stateVersion),
+      handlerResult: typeof handlerResult === 'undefined' ? null : handlerResult,
+      matchMode: turnManagerImpl && typeof turnManagerImpl.readMatchMode === 'function'
+        ? turnManagerImpl.readMatchMode()
+        : null,
+      seatKey: turnManagerImpl && typeof turnManagerImpl.readNetworkSeatKey === 'function'
+        ? turnManagerImpl.readNetworkSeatKey()
+        : null,
+      effectiveMoveCount: legalMoves.length
+    };
+  }, { expectedPlayer: expectedPlayerKey });
+  try {
+    await seat.page.waitForFunction((versionBefore) => {
+      const client = (window as any).NetworkMatchClient;
+      const state = client && typeof client.getState === 'function' ? client.getState() : null;
+      return Number(state && state.stateVersion) > Number(versionBefore);
+    }, attempt.stateVersionBefore, { timeout: 30000 });
+  } catch (error: any) {
+    const diagnostics = await seat.page.evaluate(() => {
+      const playbackState = (window as any).PlaybackStateManager;
+      const selectionFlow = (window as any).PendingSelectionFlow;
+      const client = (window as any).NetworkMatchClient;
+      const requireFn = (window as any).require;
+      const turnManager = typeof requireFn === 'function'
+        ? requireFn('game/turn-manager')
+        : null;
+      const turnManagerImpl = turnManager && typeof turnManager.getUIImpl === 'function'
+        ? turnManager.getUIImpl()
+        : null;
+      return {
+        currentPlayer: (window as any).gameState && (window as any).gameState.currentPlayer,
+        globalMatchMode: (window as any).MATCH_MODE,
+        currentMatchMode: typeof (window as any).getCurrentMatchMode === 'function'
+          ? (window as any).getCurrentMatchMode()
+          : null,
+        turnManagerMatchMode: turnManagerImpl && typeof turnManagerImpl.readMatchMode === 'function'
+          ? turnManagerImpl.readMatchMode()
+          : null,
+        turnManagerSeatKey: turnManagerImpl && typeof turnManagerImpl.readNetworkSeatKey === 'function'
+          ? turnManagerImpl.readNetworkSeatKey()
+          : null,
+        handleCellClickAvailable: typeof (window as any).handleCellClick === 'function',
+        executeMoveAvailable: typeof (window as any).executeMove === 'function',
+        isProcessing: (window as any).isProcessing,
+        isCardAnimating: (window as any).isCardAnimating,
+        visualPlaybackActive: (window as any).VisualPlaybackActive,
+        managedProcessing: playbackState && typeof playbackState.getProcessing === 'function'
+          ? playbackState.getProcessing()
+          : null,
+        managedCardAnimating: playbackState && typeof playbackState.getCardAnimating === 'function'
+          ? playbackState.getCardAnimating()
+          : null,
+        managedPlaybackActive: playbackState && typeof playbackState.getPlaybackActive === 'function'
+          ? playbackState.getPlaybackActive()
+          : null,
+        pendingVisualPlayback: playbackState && typeof playbackState.hasPendingVisualPlayback === 'function'
+          ? playbackState.hasPendingVisualPlayback((window as any).cardState)
+          : null,
+        selectionSettlementLocked: selectionFlow && typeof selectionFlow.isSelectionSettlementLocked === 'function'
+          ? selectionFlow.isSelectionSettlementLocked()
+          : null,
+        clientState: client && typeof client.getState === 'function' ? client.getState() : null
+      };
+    });
+    throw new Error(
+      `follow-up UI placement did not publish: attempt=${JSON.stringify(attempt)} diagnostics=${JSON.stringify(diagnostics)}`
+    );
+  }
+  return seat.page.evaluate((input) => {
+    const state = (window as any).NetworkMatchClient.getState();
+    return {
+      move: input.move,
+      stateVersionBefore: Number(input.stateVersionBefore),
+      stateVersionAfter: Number(state && state.stateVersion)
+    };
+  }, attempt);
+}
+
 async function runScenario(scenario: Scenario, chromeSeat: Seat, edgeSeat: Seat, matchUrl: string) {
   await cleanupScenarioSessions(chromeSeat, edgeSeat);
   await Promise.all([resetPlaybackEvidence(chromeSeat), resetPlaybackEvidence(edgeSeat)]);
@@ -447,7 +680,10 @@ async function runScenario(scenario: Scenario, chromeSeat: Seat, edgeSeat: Seat,
     await syncBoth(chromeSeat, edgeSeat);
     await publishAction(chromeSeat, 'black', scenario.publishAction);
     await syncBoth(chromeSeat, edgeSeat);
-    await delay(250);
+    await Promise.all([
+      waitForVisualSettlement(chromeSeat),
+      waitForVisualSettlement(edgeSeat)
+    ]);
 
     const chromeEvidence = await collectPlaybackEvidence(chromeSeat);
     const edgeEvidence = await collectPlaybackEvidence(edgeSeat);
@@ -462,13 +698,24 @@ async function runScenario(scenario: Scenario, chromeSeat: Seat, edgeSeat: Seat,
         `${scenario.id} missing reasons ${missingReasons.join(', ')}; reasons=${JSON.stringify(combinedReasons)}`
       );
     }
+    const followupPlacement = scenario.id === 'ordinary_turn_handoff'
+      ? await playFirstLegalMoveThroughUi(edgeSeat, 'white')
+      : null;
+    if (followupPlacement) {
+      await syncBoth(chromeSeat, edgeSeat);
+      await Promise.all([
+        waitForVisualSettlement(chromeSeat),
+        waitForVisualSettlement(edgeSeat)
+      ]);
+    }
 
     return {
       id: scenario.id,
       roomId,
       expectedReasons: scenario.expectedReasons,
       chromeReasons: chromeEvidence.reasons,
-      edgeReasons: edgeEvidence.reasons
+      edgeReasons: edgeEvidence.reasons,
+      followupPlacement
     };
   } finally {
     await cleanupScenarioSessions(chromeSeat, edgeSeat);
@@ -494,7 +741,17 @@ async function main(): Promise<void> {
     edgeSeat = await launchSeat('msedge', 'Edge', appUrl);
     await Promise.all([installPageHelpers(chromeSeat), installPageHelpers(edgeSeat)]);
 
-    for (const scenario of SCENARIOS) {
+    const scenarioArgIndex = process.argv.indexOf('--scenario');
+    const requestedScenario = scenarioArgIndex >= 0 && scenarioArgIndex + 1 < process.argv.length
+      ? String(process.argv[scenarioArgIndex + 1] || '').trim()
+      : '';
+    const scenarios = requestedScenario
+      ? SCENARIOS.filter((scenario) => scenario.id === requestedScenario)
+      : SCENARIOS;
+    if (requestedScenario && scenarios.length === 0) {
+      throw new Error(`unknown scenario: ${requestedScenario}`);
+    }
+    for (const scenario of scenarios) {
       const result = await runScenario(scenario, chromeSeat, edgeSeat, matchUrl);
       results.push(result);
       console.log(`[network-turn-start-check] ok ${scenario.id} reasons=${scenario.expectedReasons.join(',')}`);

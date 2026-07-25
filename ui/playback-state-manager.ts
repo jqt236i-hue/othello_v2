@@ -694,8 +694,9 @@ function resolveVisualPlaybackDrainCardState(options?: any): any {
   return undefined;
 }
 
-function getVisualPlaybackDrainTimeoutMs(options?: any): number {
+function getVisualPlaybackDrainTimeoutMs(options?: any): number | null {
   const opts = (options && typeof options === 'object') ? options : {};
+  if (opts.disableTimeout === true) return null;
   const explicit = Number(opts.timeoutMs);
   if (Number.isFinite(explicit) && explicit >= 0) return Math.trunc(explicit);
   const target = (opts.root && typeof opts.root === 'object') ? opts.root : getRoot();
@@ -782,7 +783,10 @@ function waitForVisualPlaybackDrain(options?: any): Promise<void> {
       schedulePoll(poll);
     };
 
-    timeoutHandle = setTimeout(finish, getVisualPlaybackDrainTimeoutMs(opts));
+    const timeoutMs = getVisualPlaybackDrainTimeoutMs(opts);
+    if (timeoutMs !== null) {
+      timeoutHandle = setTimeout(finish, timeoutMs);
+    }
     poll();
   });
 }
@@ -803,11 +807,11 @@ function waitForNetworkVisualSeq(visualSeq: any, options?: any): Promise<any> {
   if (tracker && typeof tracker.waitForVisualSeq === 'function') {
     return Promise.resolve(tracker.waitForVisualSeq(visualSeq, opts));
   }
-  return waitForVisualPlaybackDrain(opts).then(() => ({
-    ok: true,
+  return Promise.resolve({
+    ok: false,
     visualSeq: Number.isFinite(Number(visualSeq)) ? Math.trunc(Number(visualSeq)) : 0,
-    reason: 'visual_playback_drain_fallback'
-  }));
+    reason: 'visual_settlement_tracker_unavailable'
+  });
 }
 
 function cloneBoardUpdateContext(context: any): any {

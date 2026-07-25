@@ -751,6 +751,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         networkSnapshotController = mod.createNetworkSnapshotController({
             root,
             getState: () => state,
+            getSessionEpoch: () => getNetworkSessionEpoch(),
             onTelemetry: (type: any, details: any) => recordNetworkTrace(type, details),
             syncPendingSelectionActionCache,
             enqueuePresentationFrames,
@@ -813,6 +814,75 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return networkVisualSettlementTracker;
     }
 
+    function getAcceptedPublishVisualSeq(publishResult: any): number | null {
+        const result = publishResult && typeof publishResult === 'object' ? publishResult : {};
+        const direct = Number(result.visualSeq);
+        const cursor = result.presentationCursor && typeof result.presentationCursor === 'object'
+            ? Number(result.presentationCursor.visualSeq)
+            : NaN;
+        const dataCursor = result.data && result.data.presentationCursor && typeof result.data.presentationCursor === 'object'
+            ? Number(result.data.presentationCursor.visualSeq)
+            : NaN;
+        for (const candidate of [direct, cursor, dataCursor]) {
+            if (Number.isSafeInteger(candidate) && candidate > 0) return candidate;
+        }
+        return null;
+    }
+
+    async function waitForAuthoritativeVisualSettlement(publishResult: any): Promise<any> {
+        const visualSeq = getAcceptedPublishVisualSeq(publishResult);
+        if (visualSeq === null) {
+            return { ok: false, visualSeq: 0, reason: 'visual_seq_required' };
+        }
+        if (!PlaybackStateModule || typeof PlaybackStateModule.waitForNetworkVisualSeq !== 'function') {
+            return { ok: false, visualSeq, reason: 'visual_settlement_wait_unavailable' };
+        }
+        const capturedRoomId = String(state.roomId || '').trim().toUpperCase();
+        const capturedEpoch = getNetworkSessionEpoch();
+        const operationId = publishResult && publishResult.operationId
+            ? String(publishResult.operationId)
+            : null;
+        const result = await PlaybackStateModule.waitForNetworkVisualSeq(visualSeq, { operationId });
+        if (
+            capturedEpoch !== getNetworkSessionEpoch()
+            || capturedRoomId !== String(state.roomId || '').trim().toUpperCase()
+        ) {
+            return { ok: false, visualSeq, reason: 'session_changed' };
+        }
+        if (!result || result.ok !== true) {
+            return {
+                ok: false,
+                visualSeq,
+                reason: result && result.reason ? String(result.reason) : 'visual_settlement_failed'
+            };
+        }
+        if (!PlaybackStateModule || typeof PlaybackStateModule.waitForVisualPlaybackDrain !== 'function') {
+            return { ok: false, visualSeq, reason: 'visual_playback_drain_wait_unavailable' };
+        }
+        try {
+            await PlaybackStateModule.waitForVisualPlaybackDrain({
+                root,
+                getCardState: () => {
+                    try {
+                        return root && root.cardState ? root.cardState : null;
+                    } catch (e: any) {
+                        return null;
+                    }
+                },
+                disableTimeout: true
+            });
+        } catch (e: any) {
+            return { ok: false, visualSeq, reason: 'visual_playback_drain_failed' };
+        }
+        if (
+            capturedEpoch !== getNetworkSessionEpoch()
+            || capturedRoomId !== String(state.roomId || '').trim().toUpperCase()
+        ) {
+            return { ok: false, visualSeq, reason: 'session_changed' };
+        }
+        return { ok: true, visualSeq };
+    }
+
     function normalizeNetworkSnapshotEnvelope(input: any) {
         const mod = networkIntakeEnvelopeModule;
         if (mod && typeof mod.normalizeNetworkSnapshotEnvelope === 'function') {
@@ -859,11 +929,26 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     visualVersion: state.lastVisualVersion
                 };
             },
-            applyCanonicalSnapshot: (snapshot: any, meta: any) => applySnapshotThroughCoordinator(snapshot, {
-                source: meta && meta.source ? String(meta.source) : 'network_intake',
-                trackedPublish: meta && meta.trackedPublish ? meta.trackedPublish : null,
-                applyOptions: buildIntakeApplyOptions(meta)
-            }),
+            applyCanonicalSnapshot: (snapshot: any, meta: any) => {
+                const applyOptions = Object.assign(buildIntakeApplyOptions(meta), {
+                    networkRoomId: state.roomId ? String(state.roomId) : null,
+                    networkSessionEpoch: getNetworkSessionEpoch()
+                });
+                if (
+                    Number.isSafeInteger(Number(applyOptions.deferResultUntilVisualSeq))
+                    && Number(applyOptions.deferResultUntilVisualSeq) > 0
+                ) {
+                    // The snapshot is applied before its strict frames are enqueued.
+                    // Create the shared tracker first so result deferral cannot
+                    // accidentally fall back to an already-idle playback drain.
+                    getNetworkVisualSettlementTracker();
+                }
+                return applySnapshotThroughCoordinator(snapshot, {
+                    source: meta && meta.source ? String(meta.source) : 'network_intake',
+                    trackedPublish: meta && meta.trackedPublish ? meta.trackedPublish : null,
+                    applyOptions
+                });
+            },
             enqueuePresentationFrames: (frames: any, meta: any) => enqueuePresentationFrames(frames, {
                 source: meta && meta.source ? String(meta.source) : 'network_intake'
             }),
@@ -3876,14 +3961,20 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
     function setServerUrl(url: any) {
         const normalized = normalizeServerUrl(url);
-        state.serverUrl = normalized
+        const nextServerUrl = normalized
             ? withTrailingSlashRemoved(normalized)
             : deriveSameOriginServerUrl();
+        if (isActive() && nextServerUrl !== state.serverUrl) {
+            emitStatus('接続先を変更するには、先に現在の部屋から退出してください', true);
+            return false;
+        }
+        state.serverUrl = nextServerUrl;
         try {
             if (typeof localStorage !== 'undefined') {
                 localStorage.setItem(SERVER_URL_STORAGE_KEY, state.serverUrl);
             }
         } catch (e: any) { /* ignore */ }
+        return true;
     }
 
     function getServerUrl() {
@@ -4641,6 +4732,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     selectionFlow,
                     root: target,
                     client: api,
+                    waitForAuthoritativeVisualSettlement,
                     armBoardUpdateDuringPlayback
                 });
             }

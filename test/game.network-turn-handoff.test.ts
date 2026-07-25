@@ -314,15 +314,28 @@ describe('network-turn-handoff', () => {
     expect(result).toMatchObject({ scheduledCpu: true, gameOver: false, nextPlayerKey: 'black' });
   });
 
-  test('game over なら turn start や CPU scheduling を行わず結果表示と publish だけ行う', async () => {
+  test('game over なら最終publishとplayback完了後に結果を表示する', async () => {
     global.isGameOver = jest.fn(() => true);
     const handoff = require('../game/network-turn-handoff.js');
-    const publishSnapshot = jest.fn();
+    const order = [];
+    let resolvePlayback;
+    global.waitForPlaybackIdle = jest.fn(() => {
+      order.push('playback-wait');
+      return new Promise((resolve) => {
+        resolvePlayback = resolve;
+      });
+    });
+    global.showResult = jest.fn(() => {
+      order.push('result');
+    });
+    const publishSnapshot = jest.fn(() => {
+      order.push('publish');
+    });
     const onTurnStart = jest.fn();
     const scheduleCpuTurn = jest.fn();
     const setProcessing = jest.fn();
 
-    const result = await handoff.finalizeNetworkTurnHandoff({
+    const handoffPromise = handoff.finalizeNetworkTurnHandoff({
       playerKey: 'black',
       actionType: 'place',
       action: { type: 'place', row: 2, col: 3, turnIndex: 4 },
@@ -330,12 +343,20 @@ describe('network-turn-handoff', () => {
       publishSnapshot,
       onTurnStart,
       scheduleCpuTurn,
-      setProcessing,
-      resultOrder: 'beforePublish'
+      setProcessing
     });
 
+    await Promise.resolve();
+    await Promise.resolve();
     expect(onTurnStart).not.toHaveBeenCalled();
     expect(scheduleCpuTurn).not.toHaveBeenCalled();
+    expect(order).toEqual(['publish', 'playback-wait']);
+    expect(global.showResult).not.toHaveBeenCalled();
+
+    resolvePlayback();
+    const result = await handoffPromise;
+
+    expect(order).toEqual(['publish', 'playback-wait', 'result']);
     expect(global.showResult).toHaveBeenCalledTimes(1);
     expect(publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
       playerKey: 'black',
@@ -345,6 +366,82 @@ describe('network-turn-handoff', () => {
     expect(publishSnapshot.mock.calls[0][0].snapshot).toBeUndefined();
     expect(setProcessing).toHaveBeenCalledWith(false);
     expect(result).toMatchObject({ gameOver: true, scheduledCpu: false, nextPlayerKey: 'black' });
+  });
+
+  test('turn start 後に終局した場合も全演出の完了後に結果を表示する', async () => {
+    global.isGameOver = jest.fn()
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+    const handoff = require('../game/network-turn-handoff.js');
+    const order = [];
+    let resolvePlayback;
+    global.waitForPlaybackIdle = jest.fn(() => {
+      order.push('playback-wait');
+      return new Promise((resolve) => {
+        resolvePlayback = resolve;
+      });
+    });
+    global.showResult = jest.fn(() => {
+      order.push('result');
+    });
+    const publishSnapshot = jest.fn(() => {
+      order.push('publish');
+    });
+    const onTurnStart = jest.fn(async () => ({
+      playbackEvents: [{ type: 'turn_start_terminal_effect', phase: 1 }]
+    }));
+
+    const handoffPromise = handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      action: { type: 'place', row: 2, col: 3, turnIndex: 4 },
+      playbackEvents: [{ type: 'flip', phase: 1 }],
+      publishSnapshot,
+      onTurnStart,
+      skipLocalPlaybackWait: true
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(order).toEqual(['publish', 'playback-wait']);
+    expect(global.showResult).not.toHaveBeenCalled();
+
+    resolvePlayback();
+    const result = await handoffPromise;
+
+    expect(order).toEqual(['publish', 'playback-wait', 'result']);
+    expect(publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      playbackEvents: [
+        { type: 'flip', phase: 1 },
+        { type: 'turn_start_terminal_effect', phase: 2 }
+      ]
+    }));
+    expect(result).toMatchObject({ gameOver: true, scheduledCpu: false });
+  });
+
+  test('network 終局結果は authoritative snapshot の visualSeq 表示へ委譲する', async () => {
+    global.isGameOver = jest.fn(() => true);
+    const handoff = require('../game/network-turn-handoff.js');
+    const publishSnapshot = jest.fn(() => Promise.resolve({
+      ok: true,
+      visualSeq: 19,
+      operationId: 'op_terminal'
+    }));
+
+    const result = await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      action: { type: 'place', row: 2, col: 3, turnIndex: 4 },
+      playbackEvents: [{ type: 'flip', phase: 1 }],
+      publishSnapshot,
+      awaitPublishResult: true,
+      deferResultToAuthoritativeSnapshot: true
+    });
+
+    expect(publishSnapshot).toHaveBeenCalledTimes(1);
+    expect(global.waitForPlaybackIdle).not.toHaveBeenCalled();
+    expect(global.showResult).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ gameOver: true, scheduledCpu: false });
   });
 
   test('full board with pending escape explosion defers result until turn start', async () => {

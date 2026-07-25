@@ -202,7 +202,12 @@ function createNetworkStreamSnapshotController(config?: any): any {
       if (typeof cfg.consumePendingForceSyncPlaybackRecovery === 'function') {
         cfg.consumePendingForceSyncPlaybackRecovery(snapshotVersion);
       }
-      if (isSelfOperation && isTerminalResultSnapshot && typeof cfg.markTrackedPublishResultPresented === 'function') {
+      if (
+        isSelfOperation
+        && isTerminalResultSnapshot
+        && !hasPresentationFrames
+        && typeof cfg.markTrackedPublishResultPresented === 'function'
+      ) {
         cfg.markTrackedPublishResultPresented(trackedPublish, snapshot);
       }
       if (shouldShadowStreamPlayback && typeof cfg.recordNetworkTelemetry === 'function') {

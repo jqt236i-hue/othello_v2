@@ -481,6 +481,84 @@ function createNetworkSnapshotController(config: any): any {
         return currentVersion === null || currentVersion === normalizedNextVersion;
     }
 
+    function isDeferredResultContextCurrent(nextVersion: any, options: any): boolean {
+        if (!isSnapshotVersionCurrent(nextVersion)) return false;
+        const opts = options && typeof options === 'object' ? options : {};
+        const state = resolveState();
+        const expectedRoomId = String(opts.networkRoomId || '').trim().toUpperCase();
+        const currentRoomId = String(state && state.roomId || '').trim().toUpperCase();
+        if (expectedRoomId && expectedRoomId !== currentRoomId) return false;
+        const expectedEpoch = Number(opts.networkSessionEpoch);
+        if (Number.isFinite(expectedEpoch) && typeof cfg.getSessionEpoch === 'function') {
+            const currentEpoch = Number(cfg.getSessionEpoch());
+            if (!Number.isFinite(currentEpoch) || Math.trunc(currentEpoch) !== Math.trunc(expectedEpoch)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function requestDeferredResultPresentationAfterVisualSeq(nextVersion: any, options: any): boolean {
+        const opts = options && typeof options === 'object' ? options : {};
+        const visualSeq = Number(opts.deferResultUntilVisualSeq);
+        if (!Number.isSafeInteger(visualSeq) || visualSeq <= 0 || !isCurrentSnapshotTerminal()) return false;
+        const waitForNetworkVisualSeq = runtime && typeof runtime.resolveWaitForNetworkVisualSeq === 'function'
+            ? runtime.resolveWaitForNetworkVisualSeq()
+            : null;
+        if (typeof waitForNetworkVisualSeq !== 'function') {
+            emitTelemetry('snapshot_terminal_result_visual_wait_failed', {
+                stateVersion: nextVersion,
+                visualSeq,
+                reason: 'visual_settlement_wait_unavailable'
+            });
+            return true;
+        }
+
+        let settlement: any = null;
+        try {
+            settlement = waitForNetworkVisualSeq(visualSeq, {
+                operationId: opts.networkOperationId || null
+            });
+        } catch (error: any) {
+            emitTelemetry('snapshot_terminal_result_visual_wait_failed', {
+                stateVersion: nextVersion,
+                visualSeq,
+                reason: error && error.message ? String(error.message) : 'visual_settlement_wait_threw'
+            });
+            return true;
+        }
+
+        Promise.resolve(settlement).then((result: any) => {
+            if (!result || result.ok !== true) {
+                emitTelemetry('snapshot_terminal_result_visual_wait_failed', {
+                    stateVersion: nextVersion,
+                    visualSeq,
+                    reason: result && result.reason ? String(result.reason) : 'visual_settlement_failed'
+                });
+                return;
+            }
+            if (!isDeferredResultContextCurrent(nextVersion, opts)) {
+                emitTelemetry('snapshot_terminal_result_visual_wait_stale', {
+                    stateVersion: nextVersion,
+                    visualSeq
+                });
+                return;
+            }
+            maybeShowResultFromSnapshot(nextVersion, opts);
+        }, (error: any) => {
+            emitTelemetry('snapshot_terminal_result_visual_wait_failed', {
+                stateVersion: nextVersion,
+                visualSeq,
+                reason: error && error.message ? String(error.message) : 'visual_settlement_rejected'
+            });
+        });
+        emitTelemetry('snapshot_terminal_result_visual_deferred', {
+            stateVersion: nextVersion,
+            visualSeq
+        });
+        return true;
+    }
+
     function requestDeferredResultPresentationAfterPlayback(request: any, nextVersion: any, options: any): boolean {
         if (!playbackRequestStarted(request) || !isCurrentSnapshotTerminal()) return false;
         let settlement: any = request && request.result;
@@ -498,10 +576,15 @@ function createNetworkSnapshotController(config: any): any {
         if (!settlement || typeof settlement.then !== 'function') return false;
 
         const showSettledResult = () => {
-            if (!isSnapshotVersionCurrent(nextVersion)) return;
+            if (!isDeferredResultContextCurrent(nextVersion, options)) return;
             maybeShowResultFromSnapshot(nextVersion, options);
         };
-        Promise.resolve(settlement).then(showSettledResult, showSettledResult);
+        Promise.resolve(settlement).then(showSettledResult, (error: any) => {
+            emitTelemetry('snapshot_terminal_result_playback_wait_failed', {
+                stateVersion: nextVersion,
+                reason: error && error.message ? String(error.message) : 'playback_settlement_rejected'
+            });
+        });
         emitTelemetry('snapshot_terminal_result_deferred', {
             stateVersion: nextVersion,
             networkPlaybackBatchId: request.networkPlaybackBatchId || '',
@@ -640,8 +723,11 @@ function createNetworkSnapshotController(config: any): any {
 
         const deferImmediateBoardRefreshForPlayback =
             playbackEvents.length > 0 && playbackRequestStarted(networkPlaybackRequest);
-        const deferredResultPresentation = playbackEvents.length > 0
-            && requestDeferredResultPresentationAfterPlayback(networkPlaybackRequest, nextVersion, opts);
+        const deferredByVisualSeq = requestDeferredResultPresentationAfterVisualSeq(nextVersion, opts);
+        const deferredResultPresentation = deferredByVisualSeq || (
+            playbackEvents.length > 0
+            && requestDeferredResultPresentationAfterPlayback(networkPlaybackRequest, nextVersion, opts)
+        );
         if (!deferredResultPresentation) {
             maybeShowResultFromSnapshot(nextVersion, opts);
         }

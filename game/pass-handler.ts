@@ -1117,7 +1117,6 @@ async function finalizePassTurnHandoff(
         playbackEvents: [],
         humanMode,
         cpuDelayMs: safeCpuDelay,
-        resultOrder: 'beforePublish',
         performanceScope: internalOptions && internalOptions.performanceScope
             ? internalOptions.performanceScope
             : null,

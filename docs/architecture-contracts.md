@@ -319,6 +319,10 @@ Stable browser-side ownership for that flow is:
 - `game/turn-manager.ts` may request a network reset publish only through injected UI/network adapters; it must not discover a root `NetworkMatchClient` global.
 - `game/network-turn-handoff.runtime.js` may assemble handoff playback and command metadata, but actual network publish must be supplied by the caller as an injected function.
 
+Room entry is one session transition across create, join, spectate, and stored-session restoration. These operations share one single-flight guard that remains held through identity resolution, HTTP response handling, presentation-timeline disposal, and session activation. Every async boundary must revalidate the captured session epoch; an old response must not activate after leave, replacement, or another session transition.
+
+An active room pins its normalized server URL for the lifetime of that session. Room-list refresh and advanced URL input must not mutate the HTTP publish destination while an EventSource remains connected to the original server.
+
 #### 7.2.1 Pending selection network bridge
 
 Pending selection resolution is gameplay-adjacent, but network publishing remains a UI/network boundary.
@@ -389,6 +393,9 @@ Network playback must keep these ownership boundaries explicit:
 - local busy flags (`isProcessing`, card-animation locks, playback locks, and related guards) are UI settlement state, not authority state
 - compatibility paths such as suppressed playback or shadow playback may exist for self-originated preview/recovery flows, but they remain noncanonical and must not block canonical convergence once the same authoritative state has landed
 - if both clients have converged on the same authoritative snapshot and no further presentation work is pending, local busy state must be releasable on both clients
+- a terminal canonical snapshot with presentation frames defers result presentation until the frame's authoritative `visualSeq` reports successful visual settlement; a timeout, reset, missing tracker, or failed settlement is not permission to show the result or release input early
+- a network move or pending-selection handoff must not present a local terminal result; the authoritative snapshot is the single result owner and presents only after its exact settlement. Local/headless play may present from the same handoff after local playback drains
+- client-side pending selection settlement must consume the accepted publish result's exact `visualSeq`; a fixed playback-start observation window is not an authoritative settlement signal
 
 #### 7.3.3 Deferred playback finalization
 

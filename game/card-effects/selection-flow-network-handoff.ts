@@ -133,6 +133,7 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
             && contract.deferNetworkPublish === true;
         const handoffResult = await networkTurnHandoff.finalizeNetworkTurnHandoff({
             awaitPublishResult: shouldAwaitPublish,
+            deferResultToAuthoritativeSnapshot: shouldAwaitPublish,
             playerKey,
             actionType,
             action: pendingAction,

@@ -757,6 +757,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }, options);
     }
 
+    function waitForAuthoritativeVisualSettlement(publishResult: any) {
+        const waitViaBridge = readSignalBridgeMethod('waitForAuthoritativeVisualSettlement');
+        if (typeof waitViaBridge !== 'function') return Promise.resolve(undefined);
+        return Promise.resolve(waitViaBridge(publishResult));
+    }
+
     function resolveActionManager() {
         const bridge = getSignalBridge();
         if (bridge && bridge.actionManager && typeof bridge.actionManager === 'object') {
@@ -1128,7 +1134,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             resolveRootFunction,
             finalizePendingSelectionFlow,
             clearPendingSelectionFailureState,
-            waitForSelectionPlaybackIdle
+            waitForSelectionPlaybackIdle,
+            waitForAuthoritativeVisualSettlement
         };
     }
 

@@ -484,7 +484,6 @@ try {
         const action = (opts.action && typeof opts.action === 'object') ? opts.action : null;
         const playerKey = opts.playerKey || 'black';
         const snapshotOverride = opts.snapshot || null;
-        const resultOrder = opts.resultOrder === 'beforePublish' ? 'beforePublish' : 'afterPublish';
         const turnStartFn = (typeof opts.onTurnStart === 'function')
             ? opts.onTurnStart
             : ((root && typeof root.onTurnStart === 'function') ? root.onTurnStart : null);
@@ -497,13 +496,13 @@ try {
         const onHumanTurnReady = (typeof opts.onHumanTurnReady === 'function') ? opts.onHumanTurnReady : null;
         const onPublishFailed = (typeof opts.onPublishFailed === 'function') ? opts.onPublishFailed : null;
         const awaitPublishResult = opts.awaitPublishResult === true;
+        const deferResultToAuthoritativeSnapshot = opts.deferResultToAuthoritativeSnapshot === true;
         const scheduleCpuTurn = (typeof opts.scheduleCpuTurn === 'function') ? opts.scheduleCpuTurn : null;
         const cpuDelayMs = Number.isFinite(Number(opts.cpuDelayMs))
             ? Math.max(0, Math.trunc(Number(opts.cpuDelayMs)))
             : 200;
 
         if (isGameOverNow(opts.isGameOver, snapshotOverride)) {
-            if (resultOrder === 'beforePublish') showResultIfAvailable(opts.showResult);
             const publishGameOver = () => publishTurnHandoffSnapshot(publishSnapshotFn, {
                     playerKey,
                     actionType,
@@ -535,7 +534,10 @@ try {
                     turnStartPlaybackEvents: []
                 };
             }
-            if (resultOrder !== 'beforePublish') showResultIfAvailable(opts.showResult);
+            if (!deferResultToAuthoritativeSnapshot) {
+                await waitForPlaybackIdleIfNeeded(basePlaybackEvents);
+                showResultIfAvailable(opts.showResult);
+            }
             if (setProcessing) setProcessing(false);
             return {
                 ok: true,
@@ -649,7 +651,10 @@ try {
         }
 
         if (opts.checkGameOverAfterTurnStart !== false && isGameOverNow(opts.isGameOver, snapshotOverride)) {
-            showResultIfAvailable(opts.showResult);
+            if (!deferResultToAuthoritativeSnapshot) {
+                await waitForPlaybackIdleIfNeeded(combinedPlaybackEvents);
+                showResultIfAvailable(opts.showResult);
+            }
             if (setProcessing) setProcessing(false);
             return {
                 ok: true,
