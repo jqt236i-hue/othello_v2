@@ -21,6 +21,13 @@ type DestroySoundCueDeps = {
     isWillHunterKingSlashDestroyTarget: (target: any) => boolean;
 };
 
+function isUltimateWorkGodSelfDestroyTarget(target: any): boolean {
+    if (!target || typeof target !== 'object') return false;
+    const cause = String(target.cause || '').toUpperCase();
+    const reason = String(target.reason || '').toLowerCase();
+    return cause === 'ULTIMATE_WORK_GOD' && reason === 'ultimate_work_god_self_destruct';
+}
+
 function isGenericDestroyPlaybackEvent(ev: any, deps: DestroySoundCueDeps) {
     if (!ev || ev.type !== 'destroy' || !Array.isArray(ev.targets)) return false;
     if (deps.isSpecialDurationExpiredPlaybackEvent(ev)) return false;
@@ -39,6 +46,7 @@ function isGenericDestroyPlaybackEvent(ev: any, deps: DestroySoundCueDeps) {
         if (deps.isGluttonousEatDestroyTarget(target)) return false;
         if (deps.isWillHunterKingSlashDestroyTarget(target)) return false;
         if (deps.isGoldSilverSelfDestroyTarget(target)) return false;
+        if (isUltimateWorkGodSelfDestroyTarget(target)) return false;
         if (deps.isSpecialDurationExpiredDestroyTarget(target)) return false;
         if (cause === 'TRAP_WILL' && (reason.indexOf('trap_expired') >= 0 || reason.indexOf('trap_disarmed') >= 0)) return false;
         return true;
@@ -159,6 +167,20 @@ function planDestroySoundCues(ctx: any, deps: DestroySoundCueDeps) {
             ev.targets.some((target: any) => deps.isBoardShrinkDestroyTarget(target) && deps.isDestroyRemovalOutcome(target))
     );
     deps.pushCueForPhases(ctx, boardShrinkDestroyPhases, 'board_shrink_selected', 'board_shrink_selected');
+
+    const ultimateWorkGodSelfDestroyEvents = ctx.base.filter((ev: any) => (
+        ev &&
+        ev.type === 'destroy' &&
+        Array.isArray(ev.targets) &&
+        ev.targets.some((target: any) => isUltimateWorkGodSelfDestroyTarget(target))
+    ));
+    deps.pushRepeatedCueForMatchingTargets(
+        ctx,
+        ultimateWorkGodSelfDestroyEvents,
+        (target: any) => isUltimateWorkGodSelfDestroyTarget(target) && deps.isDestroyRemovalOutcome(target),
+        'stone_destroy',
+        'ultimate_work_god_self_destruct'
+    );
 
     if (ctx.base.some((ev: any) => isGenericDestroyPlaybackEvent(ev, deps))) {
         const genericDestroyPhase = deps.findPhase(

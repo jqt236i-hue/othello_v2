@@ -2553,6 +2553,49 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(incomeLog.phase);
   });
 
+  test('複数の究極労働神が収入した場合は各個体の phase で charge_gain_common を再生する', () => {
+    const pres = [
+      {
+        type: 'ULTIMATE_WORK_GOD_INCOME',
+        player: 'black',
+        row: 2,
+        col: 2,
+        gained: 5,
+        selfDestructChancePercent: 2,
+        meta: { special: 'ULTIMATE_WORK_GOD', scenario: 'income' }
+      },
+      {
+        type: 'ULTIMATE_WORK_GOD_INCOME',
+        player: 'black',
+        row: 4,
+        col: 4,
+        gained: 5,
+        selfDestructChancePercent: 5,
+        meta: { special: 'ULTIMATE_WORK_GOD', scenario: 'income' }
+      }
+    ];
+    const base = adapter.mapToPlaybackEvents(
+      pres,
+      { markers: [] },
+      { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+    );
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const incomePhases = out
+      .filter((ev) => ev && ev.type === 'log' && ev.rawType === 'ULTIMATE_WORK_GOD_INCOME')
+      .map((ev) => ev.phase);
+    const cuePhases = out
+      .filter((ev) => (
+        ev &&
+        ev.type === 'sound_effect' &&
+        ev.meta?.sourceType === 'ultimate_work_god_income' &&
+        ev.targets?.[0]?.soundKey === 'charge_gain_common'
+      ))
+      .map((ev) => ev.phase);
+
+    expect(cuePhases).toEqual(incomePhases);
+  });
+
   test('究極労働神の自壊成立時は通常破壊と同じ stone_destroy を再生する', () => {
     const base = [{
       type: 'destroy',
@@ -2576,6 +2619,38 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     expect(cue).toBeTruthy();
     expect(cue.phase).toBe(7);
+  });
+
+  test('複数の究極労働神が自壊した場合は各個体の phase で stone_destroy を再生する', () => {
+    const base = [7, 9].map((phase, index) => ({
+      type: 'destroy',
+      phase,
+      targets: [{
+        r: 2 + index,
+        col: 2 + index,
+        cause: 'ULTIMATE_WORK_GOD',
+        reason: 'ultimate_work_god_self_destruct',
+        meta: {
+          destroyed: true,
+          special: 'ULTIMATE_WORK_GOD',
+          selfDestruct: true,
+          selfDestructChancePercent: 3 + index
+        }
+      }]
+    }));
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cuePhases = out
+      .filter((ev) => (
+        ev &&
+        ev.type === 'sound_effect' &&
+        ev.meta?.sourceType === 'ultimate_work_god_self_destruct' &&
+        ev.targets?.[0]?.soundKey === 'stone_destroy'
+      ))
+      .map((ev) => ev.phase);
+
+    expect(cuePhases).toEqual([7, 9]);
+    expect(out.some((ev) => ev && ev.type === 'sound_effect' && ev.meta?.sourceType === 'destroy')).toBe(false);
   });
 
   test('WORK_INCOME が16獲得なら work_income_16 を同じ phase で再生する', () => {

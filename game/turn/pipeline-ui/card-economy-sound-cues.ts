@@ -277,18 +277,18 @@ function planCardAndEconomySoundCues(ctx: any, deps: CardEconomySoundCueDeps) {
         deps.pushSoundCue(ctx, 'charge_gain_common', workIncomePhase, 'work_income');
     }
 
-    const ultimateWorkGodIncomePhase = deps.findPhase(
-        ctx.base,
-        (ev: any) => ev && ev.rawType === 'ULTIMATE_WORK_GOD_INCOME',
-        ctx.fallbackPhase
-    );
-    const hasUltimateWorkGodIncome = ctx.pres.some((ev: any) => (
+    const ultimateWorkGodIncomeEvents = ctx.pres.filter((ev: any) => (
         ev &&
         ev.type === 'ULTIMATE_WORK_GOD_INCOME' &&
         Number(ev.gained) > 0
     ));
-    if (hasUltimateWorkGodIncome && !hasTreasureGain) {
-        deps.pushSoundCue(ctx, 'charge_gain_common', ultimateWorkGodIncomePhase, 'ultimate_work_god_income');
+    if (ultimateWorkGodIncomeEvents.length > 0 && !hasTreasureGain) {
+        const playbackEvents = ctx.base.filter((ev: any) => ev && ev.rawType === 'ULTIMATE_WORK_GOD_INCOME');
+        for (let i = 0; i < ultimateWorkGodIncomeEvents.length; i++) {
+            const playbackEvent = playbackEvents[i];
+            const phase = playbackEvent ? deps.phaseNum(playbackEvent.phase) : ctx.fallbackPhase + i;
+            deps.pushSoundCue(ctx, 'charge_gain_common', phase, 'ultimate_work_god_income', { allowRepeat: true });
+        }
     }
 
     const workRemovedEvents = ctx.pres.filter((ev: any) => deps.isWorkFlipOrDestroyRemovedPresentationEvent(ev));
