@@ -39,128 +39,49 @@ if (DIRECTIONS === undefined || EMPTY === undefined) {
     throw new Error('SharedConstants missing DIRECTIONS/EMPTY');
 }
 
-interface Bounds {
-    minRow: number;
-    maxRow: number;
-    minCol: number;
-    maxCol: number;
-}
-
-interface ExpansionCell {
-    side: string | null;
-    row: number;
-    col: number;
-    owner: number;
-}
-
-function resolveBoardBounds(gameState: GameState): Bounds | null {
-    if (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardBounds === 'function') {
-        return SharedBoardUtils.resolveBoardBounds(gameState && gameState.board);
+function requireBoardUtils(): any {
+    if (
+        !SharedBoardUtils ||
+        typeof SharedBoardUtils.createBoardContext !== 'function' ||
+        typeof SharedBoardUtils.createBoardView !== 'function'
+    ) {
+        throw new Error('SharedBoardUtils.createBoardContext/createBoardView are required by CardFlips');
     }
-    const board = gameState && gameState.board;
-    if (!Array.isArray(board) || board.length <= 0) return null;
-    let maxCol = -1;
-    for (const row of board) {
-        if (Array.isArray(row) && row.length > 0) {
-            maxCol = Math.max(maxCol, row.length - 1);
-        }
+    return SharedBoardUtils;
+}
+
+function resolveExplicitCardState(gameState: GameState, context: any): any {
+    if (context && Object.prototype.hasOwnProperty.call(context, 'cardState')) {
+        return context.cardState;
     }
-    if (maxCol < 0) return null;
-    return { minRow: 0, maxRow: board.length - 1, minCol: 0, maxCol };
-}
-
-function isMainBoardCell(gameState: GameState, row: number, col: number): boolean {
-    const bounds = resolveBoardBounds(gameState);
-    return !!(
-        bounds &&
-        Number.isInteger(row) &&
-        Number.isInteger(col) &&
-        row >= bounds.minRow &&
-        row <= bounds.maxRow &&
-        col >= bounds.minCol &&
-        col <= bounds.maxCol
-    );
-}
-
-function resolveExpansionSide(side: string | null, row: number, col: number, gameState: GameState): string | null {
-    const bounds = resolveBoardBounds(gameState);
-    if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-    if (!bounds) return null;
-    if (col === -1) return 'left';
-    if (col === (bounds.maxCol + 1)) return 'right';
-    if (row === -1) return 'top';
-    if (row === (bounds.maxRow + 1)) return 'bottom';
-    return null;
-}
-
-function getExpansionCells(gameState: GameState): ExpansionCell[] {
-    const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-        ? gameState.boardExpansion as any
-        : null;
-    if (!expansion) return [];
-
-    const cells: ExpansionCell[] = [];
-    const pushCell = (source: any, legacyRow?: number, legacyOwner?: number) => {
-        let side: string | null = null;
-        let row: any = null;
-        let col: any = null;
-        let owner = legacyOwner;
-
-        if (source && typeof source === 'object') {
-            side = source.side;
-            row = source.row;
-            col = source.col;
-            owner = source.owner;
-        if (!Number.isInteger(col) && side === 'left') col = -1;
-        if (!Number.isInteger(col) && side === 'right') col = ((resolveBoardBounds(gameState) || { maxCol: 7 }).maxCol + 1);
-        } else {
-            side = source;
-            row = legacyRow as number;
-            if (side === 'left') col = -1;
-            if (side === 'right') col = ((resolveBoardBounds(gameState) || { maxCol: 7 }).maxCol + 1);
-        }
-
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-        const bounds = resolveBoardBounds(gameState);
-        if (!bounds) return;
-        if (row < -1 || row > (bounds.maxRow + 1) || col < -1 || col > (bounds.maxCol + 1)) return;
-        if (isMainBoardCell(gameState, row, col)) return;
-        if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
-        cells.push({
-            side: resolveExpansionSide(side, row, col, gameState),
-            row,
-            col,
-            owner: (owner === BLACK || owner === WHITE) ? owner : EMPTY
-        });
+    if (gameState && Object.prototype.hasOwnProperty.call(gameState as any, 'cardState')) {
+        return (gameState as any).cardState;
+    }
+    const blockedCells = context && Array.isArray(context.blockedCells)
+        ? context.blockedCells
+        : [];
+    return {
+        markers: blockedCells
+            .filter((cell: any) => String(cell && cell.type || '').toUpperCase() === 'METEOR_HOLE')
+            .map((cell: any) => ({
+                kind: 'specialStone',
+                row: cell.row,
+                col: cell.col,
+                data: { type: 'METEOR_HOLE' }
+            }))
     };
-
-    if (Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            pushCell(cell);
-        }
-    }
-
-    if (cells.length === 0 && expansion.active === true) {
-        pushCell(expansion);
-    }
-
-    return cells;
 }
 
-function getCellValue(gameState: GameState, row: number, col: number): number | null {
-    if (isMainBoardCell(gameState, row, col)) {
-        return (gameState && Array.isArray(gameState.board) && Array.isArray(gameState.board[row]))
-            ? gameState.board[row][col]
-            : null;
-    }
-    for (const cell of getExpansionCells(gameState)) {
-        if (!cell) continue;
-        if (cell.row === row && cell.col === col) {
-            return Number(cell.owner);
-        }
-    }
-    return null;
+function createFlipBoardView(gameState: GameState, context: any): any {
+    const boardUtils = requireBoardUtils();
+    const boardContext = boardUtils.createBoardContext(
+        gameState,
+        resolveExplicitCardState(gameState, context)
+    );
+    return boardUtils.createBoardView(boardContext.gameState, {
+        cardState: boardContext.cardState,
+        strict: false
+    });
 }
 
 function getDirectionalChainFlips(gameState: GameState, row: number, col: number, ownerVal: number, dir: number[], context: any): Array<{row: number; col: number}> {
@@ -179,10 +100,11 @@ function getDirectionalChainFlips(gameState: GameState, row: number, col: number
         : null;
 
     const [dr, dc] = dir;
+    const view = createFlipBoardView(gameState, context);
     const flips: Array<{row: number; col: number}> = [];
     let r = row + dr;
     let c = col + dc;
-    while (getCellValue(gameState, r, c) === -ownerVal) {
+    while (view.get(r, c) === -ownerVal) {
         const key = `${r},${c}`;
         if (blockedSet && blockedSet.has(key)) {
             return [];
@@ -199,31 +121,25 @@ function getDirectionalChainFlips(gameState: GameState, row: number, col: number
 
     if (flips.length === 0) return [];
     if (blockedSet && blockedSet.has(`${r},${c}`)) return [];
-    if (getCellValue(gameState, r, c) !== ownerVal) return [];
+    if (view.get(r, c) !== ownerVal) return [];
     return flips;
 }
 
 function getFlipsWithContext(state: GameState, row: number, col: number, player: number, context: any = {}): number[][] {
-    if (getCellValue(state, row, col) !== EMPTY) return [];
     const blockedCells = context.blockedCells || [];
-    const blockedSet = blockedCells.length
-        ? new Set(blockedCells.map((p: any) => `${p.row},${p.col}`))
-        : null;
-    if (blockedSet && blockedSet.has(`${row},${col}`)) return [];
-
-    const allFlips: number[][] = [];
-    for (const dir of (DIRECTIONS || [])) {
-        const flips = getDirectionalChainFlips(state, row, col, player, dir, context);
-        if (flips && flips.length) {
-            // convert {row,col} objects to [r,c] tuples to match legacy callers
-            for (const f of flips) allFlips.push([f.row, f.col]);
-        }
-    }
-    return allFlips;
+    const protectedStones = context.protectedStones || [];
+    const permaProtectedStones = context.permaProtectedStones || [];
+    const view = createFlipBoardView(state, context);
+    return view.getFlips(row, col, player, {
+        blockedKeys: blockedCells.map((p: any) => `${p.row},${p.col}`),
+        protectedKeys: protectedStones.map((p: any) => `${p.row},${p.col}`),
+        permanentProtectedKeys: permaProtectedStones.map((p: any) => `${p.row},${p.col}`)
+    }).map((cell: any) => [cell.row, cell.col]);
 }
 
 function getOccupiedOriginFlipsWithContext(state: GameState, row: number, col: number, player: number, context: any = {}): number[][] {
-    if (getCellValue(state, row, col) !== player) return [];
+    const view = createFlipBoardView(state, context);
+    if (view.get(row, col) !== player) return [];
     const allFlips: number[][] = [];
     for (const dir of (DIRECTIONS || [])) {
         const flips = getDirectionalChainFlips(state, row, col, player, dir, context);

@@ -306,7 +306,7 @@ export function createCpuPolicyPlacementFeatures(deps?: CpuPolicyPlacementFeatur
 
     function evaluatePlacementCandidate(move: CpuPolicyMove, context?: CpuPolicyMoveOptions): CpuPolicyPlacementFeatures {
         const ctx = context && typeof context === 'object' ? context : {};
-        const board = Array.isArray(ctx.board) ? ctx.board : null;
+        const board = ctx.board && typeof ctx.board === 'object' ? ctx.board : null;
         const playerValue = normalizePlayerValue(ctx.playerValue);
         const row = isFiniteNumber(move && move.row) ? Number(move.row) : -1;
         const col = isFiniteNumber(move && move.col) ? Number(move.col) : -1;

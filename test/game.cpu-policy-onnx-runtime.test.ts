@@ -4,7 +4,9 @@ const SharedBoardUtils = require(path.resolve(__dirname, '..', 'shared', 'shared
 
 function createRightExpansionBoard(cells) {
   const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
-  SharedBoardUtils.attachBoardShape(board, {
+  const gameState = {
+    board,
+    boardConfig: { rows: 8, cols: 8, shape: 'rectangle' },
     boardExpansion: {
       active: true,
       side: 'right',
@@ -17,10 +19,9 @@ function createRightExpansionBoard(cells) {
         col: 8,
         owner: cell.owner
       }))
-    },
-    cardState: null
-  });
-  return board;
+    }
+  };
+  return SharedBoardUtils.createBoardContext(gameState, null);
 }
 
 describe('policy-onnx-runtime', () => {
@@ -263,7 +264,7 @@ describe('policy-onnx-runtime', () => {
     });
 
     const board = createRightExpansionBoard([{ row: 0, owner: 0 }]);
-    board[0][0] = -1;
+    board.gameState.board[0][0] = -1;
     const candidates = [
       { row: 0, col: 0, flips: [] },
       { row: 0, col: 8, flips: [] }
@@ -280,6 +281,41 @@ describe('policy-onnx-runtime', () => {
     expect(obs.length).toBe(116);
     expect(obs[0]).toBe(0);
     expect(obs[SharedBoardUtils.toPaddedBoardIndex(0, 0)]).toBe(1);
+  });
+
+  test('chooseMove skips padded ONNX when an existing expansion cell is outside its feature envelope', async () => {
+    const scores = new Float32Array(100);
+    scores[SharedBoardUtils.toPaddedBoardIndex(0, 0)] = 4.4;
+    const session = {
+      run: jest.fn(async () => ({
+        logits: { data: scores }
+      }))
+    };
+    runtime.__setLoadedForTest(session, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      outputName: 'logits',
+      inputDim: 116,
+      baseInputDim: 116,
+      outputDim: 100,
+      paddedBoardMinCoord: -1,
+      paddedBoardMaxCoord: 8,
+      paddedBoardSize: 10,
+      actionSpace: 'place_padded10+card_choice'
+    });
+
+    const board = createRightExpansionBoard([{ row: -2, owner: 0 }]);
+    expect(SharedBoardUtils.buildBoardTopology(board).existingKeys.has('-2,8')).toBe(true);
+    const candidate = { row: 0, col: 0, flips: [] };
+    const selected = await runtime.chooseMove([candidate], {
+      playerKey: 'white',
+      level: 6,
+      board,
+      legalMovesCount: 1
+    });
+
+    expect(selected).toBeNull();
+    expect(session.run).not.toHaveBeenCalled();
   });
 
   test('chooseMove encodes scalar, card, and pending features in a stable vector layout', async () => {
@@ -502,7 +538,7 @@ describe('policy-onnx-runtime', () => {
     });
 
     const board = createRightExpansionBoard([{ row: 0, owner: 0 }]);
-    board[0][0] = -1;
+    board.gameState.board[0][0] = -1;
     const value = await runtime.evaluatePosition({
       playerKey: 'white',
       level: 6,

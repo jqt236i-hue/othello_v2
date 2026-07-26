@@ -6,7 +6,7 @@ type SelfplayPolicyModelConfig = {
     CpuLv6LookaheadProfile?: any;
     selfplaySchemaVersion?: string;
     legacySelfplaySchemaVersion?: string;
-    getSelfplayBoard?: (gameState: any, cardState?: any) => any;
+    getSelfplayBoard?: (gameState: any, cardState: any) => any;
     encodeBoard?: (board: any) => string;
     canonicalizeBoard?: (board: any) => any;
     transformCoord?: (row: any, col: any, size: any, transformId: any) => any;
@@ -22,7 +22,7 @@ function fallbackBoardKey() {
 
 function fallbackCanonicalizeBoard(board: any) {
     return {
-        boardKey: Array.isArray(board) ? '' : String(board || ''),
+        boardKey: typeof board === 'string' ? board : '',
         transformId: 0
     };
 }
@@ -53,6 +53,17 @@ export function createSelfplayPolicyModel(config?: SelfplayPolicyModelConfig) {
         : ((playerKey: any) => playerKey === 'black' ? 1 : -1);
     const countCorners = typeof cfg.countCorners === 'function' ? cfg.countCorners : (() => 0);
 
+    function unwrapDenseBoardForPolicy(board: any) {
+        if (
+            sharedBoardUtils &&
+            typeof sharedBoardUtils.isBoardContext === 'function' &&
+            sharedBoardUtils.isBoardContext(board)
+        ) {
+            return board.gameState.board;
+        }
+        return board;
+    }
+
     function isSupportedSchema(schemaVersion: any) {
         return (
             schemaVersion === selfplaySchemaVersion ||
@@ -78,7 +89,7 @@ export function createSelfplayPolicyModel(config?: SelfplayPolicyModelConfig) {
 
     function cellType(row: any, col: any, boardOrSize: any) {
         if (sharedBoardUtils && typeof sharedBoardUtils.getCellType === 'function') {
-            if (Array.isArray(boardOrSize)) return sharedBoardUtils.getCellType(row, col, boardOrSize);
+            if (boardOrSize && typeof boardOrSize === 'object') return sharedBoardUtils.getCellType(row, col, boardOrSize);
             const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
             return sharedBoardUtils.getCellType(row, col, n, n);
         }
@@ -145,17 +156,18 @@ export function createSelfplayPolicyModel(config?: SelfplayPolicyModelConfig) {
         const pending = pendingType || '-';
         const legal = Number.isFinite(legalMovesCount) ? legalMovesCount : 0;
         const boardKey = typeof board === 'string' ? board : '';
-        const empties = Array.isArray(board) ? countEmpties(board) : countEmptiesInBoardKey(boardKey);
+        const hasBoardSource = board && typeof board === 'object';
+        const empties = hasBoardSource ? countEmpties(board) : countEmptiesInBoardKey(boardKey);
         const phase = empties >= 44 ? 'opening' : (empties >= 16 ? 'mid' : 'end');
         const mobility = toBucket(legal, [0, 2, 4, 6, 10, 20]);
         const disc = toBucket(
-            Array.isArray(board)
+            hasBoardSource
                 ? countDiscDiffOnBoard(board, toPlayerValue(playerKey))
                 : discDiffFromPlayer(boardKey, playerKey),
             [-20, -10, -4, 0, 4, 10, 20]
         );
         const corner = toBucket(
-            Array.isArray(board)
+            hasBoardSource
                 ? countCorners(board, toPlayerValue(playerKey))
                 : cornerDiffFromPlayer(boardKey, playerKey),
             [-4, -2, -1, 0, 1, 2, 4]
@@ -178,17 +190,20 @@ export function createSelfplayPolicyModel(config?: SelfplayPolicyModelConfig) {
             const score = cpuPolicyTableRuntime.getActionScoreFromModel(model, move, {
                 playerKey: context.playerKey,
                 level: 6,
-                board: runtimeBoard,
+                board: unwrapDenseBoardForPolicy(runtimeBoard),
                 pendingType: context.pendingType || null,
                 legalMovesCount: context.legalMovesCount
             });
             if (Number.isFinite(score)) return Number(score);
         }
 
+        // Policy-table keys are a dense encoding contract. Topology-aware
+        // evaluation stays on runtimeBoard; only this model boundary unwraps.
+        const densePolicyBoard = unwrapDenseBoardForPolicy(runtimeBoard);
         const schema = model.schemaVersion || 'policy_table.v1';
         const canonical = schema === 'policy_table.v2'
-            ? canonicalizeBoard(runtimeBoard)
-            : { boardKey: encodeBoard(runtimeBoard), transformId: 0 };
+            ? canonicalizeBoard(densePolicyBoard)
+            : { boardKey: encodeBoard(densePolicyBoard), transformId: 0 };
         const key = makePolicyStateKey(
             context.playerKey,
             canonical.boardKey,
@@ -213,10 +228,10 @@ export function createSelfplayPolicyModel(config?: SelfplayPolicyModelConfig) {
             if (isAbstract) return makePolicyAbstractActionKey(move, runtimeBoard);
             if (schema !== 'policy_table.v2') return makePolicyActionKey(move);
             if (sharedBoardUtils && typeof sharedBoardUtils.makeCanonicalActionKey === 'function') {
-                return sharedBoardUtils.makeCanonicalActionKey(move, runtimeBoard, canonical.transformId);
+                return sharedBoardUtils.makeCanonicalActionKey(move, densePolicyBoard, canonical.transformId);
             }
-            const boardSize = context && context.gameState && Array.isArray(context.gameState.board)
-                ? context.gameState.board.length
+            const boardSize = Number.isFinite(canonical && canonical.size)
+                ? Number(canonical.size)
                 : 8;
             const mapped = transformCoord(move.row, move.col, boardSize, canonical.transformId);
             return `place:${mapped.row}:${mapped.col}`;
@@ -239,9 +254,11 @@ export function createSelfplayPolicyModel(config?: SelfplayPolicyModelConfig) {
 
         const schema = model.schemaVersion || 'policy_table.v1';
         const runtimeBoard = getSelfplayBoard(context && context.gameState, context && context.cardState);
+        // See getPolicyScore: policy-table keys intentionally stay dense.
+        const densePolicyBoard = unwrapDenseBoardForPolicy(runtimeBoard);
         const canonical = schema === 'policy_table.v2'
-            ? canonicalizeBoard(runtimeBoard)
-            : { boardKey: encodeBoard(runtimeBoard), transformId: 0 };
+            ? canonicalizeBoard(densePolicyBoard)
+            : { boardKey: encodeBoard(densePolicyBoard), transformId: 0 };
         const key = makePolicyStateKey(
             context.playerKey,
             canonical.boardKey,
@@ -272,7 +289,9 @@ export function createSelfplayPolicyModel(config?: SelfplayPolicyModelConfig) {
         return {
             playerKey: context && context.playerKey === 'black' ? 'black' : 'white',
             level: 6,
-            board: getSelfplayBoard(context && context.gameState, context && context.cardState),
+            board: unwrapDenseBoardForPolicy(
+                getSelfplayBoard(context && context.gameState, context && context.cardState)
+            ),
             pendingType: context && context.pendingType ? context.pendingType : null,
             legalMovesCount: Number.isFinite(legalMovesCountOverride)
                 ? Number(legalMovesCountOverride)

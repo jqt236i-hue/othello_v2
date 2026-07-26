@@ -46,6 +46,79 @@ describe('MCTS policy pass handling', () => {
     expect(result.state.turnNumber).toBe(13);
   });
 
+  test('applies a generated placement action with its canonical flips', () => {
+    const state = Core.createGameState({ rows: 4, cols: 4 });
+    const actions = _gameInterface.listActions(state, {}, 'black');
+    const action = actions.find((candidate: any) => candidate.row === 0 && candidate.col === 1);
+
+    expect(action).toEqual({
+      type: 'place',
+      row: 0,
+      col: 1,
+      flips: [[1, 1]]
+    });
+
+    const result = _gameInterface.applyAction(state, {}, action, 'black');
+
+    expect(result.nextPlayer).toBe('white');
+    expect(result.state.currentPlayer).toBe(Core.WHITE);
+    expect(result.state.turnNumber).toBe(1);
+    expect(result.state.board[0][1]).toBe(Core.BLACK);
+    expect(result.state.board[1][1]).toBe(Core.BLACK);
+    expect(state.board[0][1]).toBe(Core.EMPTY);
+    expect(state.board[1][1]).toBe(Core.WHITE);
+  });
+
+  test('applies an expansion placement without exposing or mutating a METEOR_HOLE cell', () => {
+    const state = Core.createGameState({ rows: 4, cols: 4 });
+    state.board = Array.from({ length: 4 }, () => Array(4).fill(Core.EMPTY));
+    state.board[1][2] = Core.BLACK;
+    state.board[1][3] = Core.WHITE;
+    state.boardExpansion = {
+      active: true,
+      side: 'right',
+      row: 2,
+      col: 4,
+      owner: Core.BLACK,
+      usedByPlayer: { black: true, white: true },
+      cells: [
+        { side: 'right', row: 1, col: 4, owner: Core.EMPTY },
+        { side: 'right', row: 2, col: 4, owner: Core.BLACK }
+      ]
+    };
+    const cardState = {
+      markers: [
+        {
+          kind: 'specialStone',
+          row: 2,
+          col: 4,
+          data: { type: 'METEOR_HOLE' }
+        }
+      ]
+    };
+    const actions = _gameInterface.listActions(state, cardState, 'black');
+    const action = actions.find((candidate: any) => candidate.row === 1 && candidate.col === 4);
+
+    expect(action).toEqual({
+      type: 'place',
+      row: 1,
+      col: 4,
+      flips: [[1, 3]]
+    });
+    expect(actions).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'place', row: 2, col: 4 })
+    ]));
+
+    const result = _gameInterface.applyAction(state, cardState, action, 'black');
+
+    expect(Core.getCellValue(result.state, 1, 4, result.cardState)).toBe(Core.BLACK);
+    expect(result.state.board[1][3]).toBe(Core.BLACK);
+    expect(Core.getCellValue(result.state, 2, 4, result.cardState)).toBeNull();
+    expect(result.state.boardExpansion.cells[1].owner).toBe(Core.BLACK);
+    expect(Core.getCellValue(state, 1, 4, cardState)).toBe(Core.EMPTY);
+    expect(state.board[1][3]).toBe(Core.WHITE);
+  });
+
   test('treats two consecutive passes as terminal', () => {
     const terminal = _gameInterface.isTerminal(makeFullState({ consecutivePasses: 2 }), {});
 
@@ -70,6 +143,33 @@ describe('MCTS policy pass handling', () => {
     expect(result.value).toBe(0);
     expect(result.policy.size).toBe(4);
     expect(Array.from(result.policy.values())).toEqual([0.25, 0.25, 0.25, 0.25]);
+  });
+
+  test('does not send an expanded 8x8 state to the standard-board ONNX lane', async () => {
+    const state = Core.createGameState({ rows: 8, cols: 8 });
+    state.boardExpansion.cells = [
+      { side: 'right', row: 2, col: 8, owner: Core.EMPTY }
+    ];
+
+    const result = await _network.evaluate(state, {}, 'black');
+
+    expect(result.value).toBe(0);
+    expect(result.policy.size).toBe(4);
+    expect(Array.from(result.policy.values())).toEqual([0.25, 0.25, 0.25, 0.25]);
+  });
+
+  test('includes expansion ownership in MCTS state hashes', () => {
+    const left = Core.createGameState({ rows: 4, cols: 4 });
+    const right = Core.copyGameState(left);
+    left.boardExpansion.cells = [
+      { side: 'right', row: 1, col: 4, owner: Core.BLACK }
+    ];
+    right.boardExpansion.cells = [
+      { side: 'right', row: 1, col: 4, owner: Core.WHITE }
+    ];
+
+    expect(_gameInterface.hashState(left, {}, 'black'))
+      .not.toBe(_gameInterface.hashState(right, {}, 'black'));
   });
 
   test('re-resolves the ONNX runtime after its optional group becomes available', async () => {

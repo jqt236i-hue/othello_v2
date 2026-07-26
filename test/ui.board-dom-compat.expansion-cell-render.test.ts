@@ -330,6 +330,71 @@ describe('DiffRenderer board expansion cell rendering', () => {
     expect(document.getElementById('board-expansion-layer').querySelector('.cell')).toBeNull();
   });
 
+  test('rebuilds same-bounds circle topology when a void becomes a hole and back', () => {
+    const diff = require('../ui/board-dom-compat/renderer');
+    diff.resetRenderStats();
+    global.gameState.board = Array.from({ length: 10 }, () => Array(10).fill(global.EMPTY));
+    global.gameState.boardConfig = { rows: 10, cols: 10, shape: 'circle' };
+    global.gameState.boardExpansion = null;
+
+    diff.renderBoardDiff(boardEl);
+    expect(boardEl.querySelector('.cell-void[data-row="0"][data-col="0"]')).toBeTruthy();
+
+    global.cardState.markers = [{
+      id: 'same-bounds-hole',
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: null,
+      data: { type: 'METEOR_HOLE' }
+    }];
+    diff.renderBoardDiff(boardEl);
+
+    const holeCell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
+    expect(holeCell).toBeTruthy();
+    expect(holeCell.classList.contains('cell-void')).toBe(false);
+    expect(holeCell.classList.contains('meteor-hole-cell')).toBe(true);
+
+    global.cardState.markers = [];
+    diff.renderBoardDiff(boardEl);
+    expect(boardEl.querySelector('.cell-void[data-row="0"][data-col="0"]')).toBeTruthy();
+    expect(boardEl.querySelector('.meteor-hole-cell[data-row="0"][data-col="0"]')).toBeNull();
+  });
+
+  test('rebuilds board expansion side classes when a corner keeps its coordinate', () => {
+    const diff = require('../ui/board-dom-compat/renderer');
+    diff.resetRenderStats();
+    global.gameState.boardExpansion = {
+      active: true,
+      side: 'left',
+      row: -1,
+      col: -1,
+      owner: global.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ side: 'left', row: -1, col: -1, owner: global.EMPTY }]
+    };
+
+    diff.renderBoardDiff(boardEl);
+    expect(boardEl.classList.contains('board-expanded-left')).toBe(true);
+    expect(boardEl.classList.contains('board-expanded-top')).toBe(false);
+
+    global.gameState = {
+      ...global.gameState,
+      boardExpansion: {
+        ...global.gameState.boardExpansion,
+        side: 'top',
+        cells: [{ side: 'top', row: -1, col: -1, owner: global.EMPTY }]
+      }
+    };
+    diff.renderBoardDiff(boardEl);
+
+    const cornerCell = boardEl.querySelector('.cell[data-row="-1"][data-col="-1"]');
+    expect(cornerCell.classList.contains('cell-expanded-top')).toBe(true);
+    expect(cornerCell.classList.contains('cell-expanded-left')).toBe(false);
+    expect(boardEl.classList.contains('board-expanded-top')).toBe(true);
+    expect(boardEl.classList.contains('board-expanded-left')).toBe(false);
+  });
+
   test('board CSS keeps occupied cells above neighboring grid lines', () => {
     const defaultCss = readRepoTextFile('styles-board.css');
     const boardCss = readRepoTextFile('styles-board-dom-compat.css')

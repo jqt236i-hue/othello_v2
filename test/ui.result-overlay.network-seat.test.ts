@@ -255,6 +255,84 @@ describe('result overlay seat perspective', () => {
     expect(countsLine && countsLine.nextElementSibling).toBe(totalScore);
   });
 
+  test('global counter が無い場合も拡張マスを含む盤面カーネル集計を表示する', () => {
+    delete global.countDiscs;
+    global.gameState = {
+      currentPlayer: 1,
+      turnNumber: 1,
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      board: [
+        [1, -1, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ],
+      boardExpansion: {
+        active: true,
+        side: 'left',
+        row: 1,
+        col: -1,
+        owner: 1,
+        cells: [{ side: 'left', row: 1, col: -1, owner: 1 }]
+      }
+    };
+    global.cardState.markers = [];
+    expect(global.countDiscs).toBeUndefined();
+    expect(
+      require('../shared/shared-board-utils').countStateDiscs(
+        global.gameState,
+        global.cardState
+      )
+    ).toMatchObject({ black: 2, white: 1 });
+
+    const mod = require('../ui/result-overlay.js');
+    expect(global.countDiscs).toBeUndefined();
+    mod.showResultOverlay();
+
+    const countsLine = document.querySelector('.result-counts');
+    expect(countsLine && countsLine.textContent).toContain('黒 2枚');
+    expect(countsLine && countsLine.textContent).toContain('白 1枚');
+  });
+
+  test('global counter に cardState を渡して隕石穴の下層石を除外する', () => {
+    global.gameState = {
+      currentPlayer: 1,
+      turnNumber: 1,
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      board: [
+        [1, -1, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ],
+      boardExpansion: {
+        active: true,
+        side: 'left',
+        row: 1,
+        col: -1,
+        owner: 1,
+        cells: [{ side: 'left', row: 1, col: -1, owner: 1 }]
+      }
+    };
+    global.cardState.markers = [{
+      kind: 'specialStone',
+      row: 1,
+      col: -1,
+      data: { type: 'METEOR_HOLE' }
+    }];
+    global.countDiscs.mockImplementation((state, stateForCards) => (
+      require('../shared/shared-board-utils').countStateDiscs(state, stateForCards)
+    ));
+
+    const mod = require('../ui/result-overlay.js');
+    mod.showResultOverlay();
+
+    expect(global.countDiscs).toHaveBeenCalledWith(global.gameState, global.cardState);
+    const countsLine = document.querySelector('.result-counts');
+    expect(countsLine && countsLine.textContent).toContain('黒 1枚');
+    expect(countsLine && countsLine.textContent).toContain('白 1枚');
+  });
+
   test('勝利リザルト表示時は勝利リザルトBGMを開始する', () => {
     global.countDiscs.mockReturnValue({ black: 48, white: 16 });
 

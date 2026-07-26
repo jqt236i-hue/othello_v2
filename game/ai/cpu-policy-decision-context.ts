@@ -3,6 +3,7 @@ import type { CpuPolicyCardContext } from './cpu-policy-core-types';
 type CpuPolicyDecisionContextDeps = {
     asRecord?: (value: unknown) => Record<string, unknown>;
     isFiniteNumber?: (value: unknown) => boolean;
+    isBoardContext?: (value: unknown) => boolean;
     countBoardDiscsForPlayer?: (board: unknown, playerValue: number) => { own: number; opp: number; empties: number };
     countBoardEdgeDiscsForPlayer?: (board: unknown, playerValue: number) => { ownEdges: number; oppEdges: number };
     countPlayableCells?: (board: unknown) => number;
@@ -28,6 +29,9 @@ const MOVEMENT_CORNER_SWING_CARD_TYPES = [
 export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDeps) {
     const asRecord = typeof deps?.asRecord === 'function' ? deps.asRecord : fallbackAsRecord;
     const isFiniteNumber = typeof deps?.isFiniteNumber === 'function' ? deps.isFiniteNumber : fallbackIsFiniteNumber;
+    const isBoardContext = typeof deps?.isBoardContext === 'function'
+        ? deps.isBoardContext
+        : (() => false);
     const countBoardDiscsForPlayer = typeof deps?.countBoardDiscsForPlayer === 'function'
         ? deps.countBoardDiscsForPlayer
         : (() => ({ own: 0, opp: 0, empties: 0 }));
@@ -90,11 +94,13 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
         let ownEdges: number | null = isFiniteNumber(ctx.ownEdges) ? Math.max(0, Math.floor(Number(ctx.ownEdges))) : null;
         let oppEdges: number | null = isFiniteNumber(ctx.oppEdges) ? Math.max(0, Math.floor(Number(ctx.oppEdges))) : null;
         let totalCells = isFiniteNumber(ctx.totalCells) ? Math.max(1, Math.floor(Number(ctx.totalCells))) : 64;
-        if (Array.isArray(ctx.board)) {
+        if (Array.isArray(ctx.board) || isBoardContext(ctx.board)) {
             let cells = 0;
-            for (let r = 0; r < ctx.board.length; r++) {
-                const row = Array.isArray(ctx.board[r]) ? ctx.board[r] : [];
-                cells += row.length;
+            if (Array.isArray(ctx.board)) {
+                for (let r = 0; r < ctx.board.length; r++) {
+                    const row = Array.isArray(ctx.board[r]) ? ctx.board[r] : [];
+                    cells += row.length;
+                }
             }
             if (countPlayableCells) {
                 const topologyCells = Number(countPlayableCells(ctx.board));

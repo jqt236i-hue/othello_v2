@@ -169,7 +169,7 @@ export function createCpuPolicyLookaheadController(deps?: CpuPolicyLookaheadCont
     function chooseMoveByLookahead(candidateMoves: CpuPolicyMove[], options?: CpuPolicyMoveOptions | null): CpuPolicyMove | null {
         if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
         const opts = options || {};
-        const board = Array.isArray(opts.board) ? opts.board : null;
+        const board = opts.board && typeof opts.board === 'object' ? opts.board : null;
         if (!board) return null;
         const playerValue = isFiniteNumber(opts.playerValue) ? (Number(opts.playerValue) >= 0 ? 1 : -1) : 1;
         const level = isFiniteNumber(opts.level) ? Math.max(1, Math.floor(Number(opts.level))) : 6;

@@ -110,16 +110,17 @@ export function createCpuPolicyBoardFeatures(config?: CpuPolicyBoardFeaturesConf
     }
 
     function countXsAndCsFor(board: CpuPolicyBoard | null | undefined, playerValue: number): { x: number; c: number } {
-        if (!Array.isArray(board) || board.length <= 0) {
+        if ((!board || typeof board !== 'object')
+            || (!Array.isArray(board) && (!sharedBoardUtils || typeof sharedBoardUtils.collectBoardCoordinates !== 'function'))) {
             return { x: 0, c: 0 };
         }
         let x = 0;
         let c = 0;
         const coordinates = sharedBoardUtils && typeof sharedBoardUtils.collectBoardCoordinates === 'function'
             ? sharedBoardUtils.collectBoardCoordinates(board)
-            : board.flatMap((row, rowIndex) => (
+            : (Array.isArray(board) ? board.flatMap((row, rowIndex) => (
                 Array.isArray(row) ? row.map((_value, col) => ({ row: rowIndex, col })) : []
-            ));
+            )) : []);
         for (const cell of coordinates) {
             const row = Number(cell && cell.row);
             const col = Number(cell && cell.col);

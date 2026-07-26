@@ -16,7 +16,6 @@ interface CpuPolicyBoardGeometry {
 
 type CpuPolicyBoardPrimitivesConfig = {
     SharedBoardUtils?: any;
-    OthelloCore?: any;
     isFiniteNumber?: (value: unknown) => boolean;
 };
 
@@ -27,10 +26,14 @@ function fallbackIsFiniteNumber(value: unknown): boolean {
 export function createCpuPolicyBoardPrimitives(config?: CpuPolicyBoardPrimitivesConfig) {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuPolicyBoardPrimitivesConfig;
     const sharedBoardUtils = cfg.SharedBoardUtils || null;
-    const othelloCore = cfg.OthelloCore || null;
     const isFiniteNumber = typeof cfg.isFiniteNumber === 'function' ? cfg.isFiniteNumber : fallbackIsFiniteNumber;
 
     function resolveBoardGeometry(boardOrRows: CpuPolicyBoardShape, colsMaybe?: number | null): CpuPolicyBoardGeometry {
+        if (boardOrRows && typeof boardOrRows === 'object' && !Array.isArray(boardOrRows)
+            && sharedBoardUtils && typeof sharedBoardUtils.resolveBoardBounds === 'function') {
+            const bounds = sharedBoardUtils.resolveBoardBounds(boardOrRows);
+            if (bounds) return { maxR: bounds.maxRow, maxC: bounds.maxCol };
+        }
         if (Array.isArray(boardOrRows)) {
             if (boardOrRows.length <= 0) return { maxR: 7, maxC: 7 };
             let maxC = -1;
@@ -154,18 +157,12 @@ export function createCpuPolicyBoardPrimitives(config?: CpuPolicyBoardPrimitives
         if (sharedBoardUtils && typeof sharedBoardUtils.getFlipsBasic === 'function') {
             return sharedBoardUtils.getFlipsBasic(board, row, col, playerValue);
         }
-        if (othelloCore && typeof othelloCore.getFlipsBasic === 'function') {
-            return othelloCore.getFlipsBasic(board, row, col, playerValue);
-        }
         throw new Error('SharedBoardUtils.getFlipsBasic is required by CPU board primitives');
     }
 
     function getLegalMovesBasic(board: CpuPolicyBoard | null | undefined, playerValue: number): CpuPolicyMove[] {
         if (sharedBoardUtils && typeof sharedBoardUtils.getLegalMovesBasic === 'function') {
             return sharedBoardUtils.getLegalMovesBasic(board, playerValue);
-        }
-        if (othelloCore && typeof othelloCore.getLegalMovesBasic === 'function') {
-            return othelloCore.getLegalMovesBasic(board, playerValue);
         }
         throw new Error('SharedBoardUtils.getLegalMovesBasic is required by CPU board primitives');
     }

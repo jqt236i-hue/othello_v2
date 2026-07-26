@@ -1,4 +1,14 @@
 const { createSelfplayBasicTargetChoosers } = require('../src/engine/selfplay-basic-target-choosers.js');
+const SharedBoardUtils = require('../shared/shared-board-utils.js');
+
+function createTestBoardContext(gameState = {}, cardState = {}) {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    return SharedBoardUtils.createBoardContext({
+        ...gameState,
+        board,
+        boardConfig: { rows: 4, cols: 4, shape: 'rectangle' }
+    }, cardState);
+}
 
 describe('selfplay basic target choosers module', () => {
     function createChoice(targets, ownerByCell, evalByCell) {
@@ -20,7 +30,8 @@ describe('selfplay basic target choosers module', () => {
             },
             evaluatePositionValue: (row, col) => Number(evalByCell[`${row},${col}`] || 0),
             toPlayerValue: (playerKey) => playerKey === 'black' ? 1 : -1,
-            getCellOwnerValueForSelfplay: (_gameState, row, col) => ownerByCell[`${row},${col}`] ?? 0
+            getCellOwnerValueForSelfplay: (_gameState, _cardState, row, col) => ownerByCell[`${row},${col}`] ?? 0,
+            getSelfplayBoard: createTestBoardContext
         });
     }
 

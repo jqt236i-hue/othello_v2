@@ -577,7 +577,6 @@ async function captureViewport(
       const renderer = resolveModule('BoardRenderer', 'ui/board-renderer');
       const engine = resolveModule('AnimationEngine', 'ui/animation-engine');
       const core = resolveModule('CoreLogic', 'game/logic/core') || resolveModule('Core', 'game/logic/core');
-      const boardUtils = resolveModule('SharedBoardUtils', 'shared/shared-board-utils');
       const debug = root.__boardVisualDebug;
       if (!renderer || !engine || typeof engine.play !== 'function'
         || !core || typeof core.createGameState !== 'function' || !debug
@@ -783,13 +782,6 @@ async function captureViewport(
         cardState.theoryNumberCellByCell = {};
         cardState.presentationEvents = [];
         cardState._presentationEventsPersist = [];
-        if (boardUtils && typeof boardUtils.attachBoardShape === 'function') {
-          boardUtils.attachBoardShape(gameState.board, {
-            boardConfig: gameState.boardConfig,
-            boardExpansion: gameState.boardExpansion,
-            cardState
-          });
-        }
         root.gameState = gameState;
         root.cardState = cardState;
         if (typeof root.renderBoard !== 'function') throw new Error('public renderBoard path is unavailable');

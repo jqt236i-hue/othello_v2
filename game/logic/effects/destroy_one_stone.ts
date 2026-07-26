@@ -38,7 +38,7 @@ function resolveDestroyOneStoneModuleOrGlobal(id: string, globalKey: string): an
 
 const BoardOpsModule = resolveDestroyOneStoneModuleOrGlobal('../board_ops', 'BoardOps');
 const DestroyOutcomeContract = resolveDestroyOneStoneModuleOrGlobal('../../../shared/destroy-outcome-contract', 'DestroyOutcomeContract');
-const ExpansionFallbackModule = resolveDestroyOneStoneModuleOrGlobal('../cards-internal/expansion-fallback', 'CardExpansionFallback');
+const SharedBoardUtils = resolveDestroyOneStoneModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
 
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)
     || Object.freeze({
@@ -49,12 +49,26 @@ const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.
         EVADED_MOVE: 'evaded_move'
     });
 
-if (!ExpansionFallbackModule) {
-    throw new Error('CardExpansionFallback missing required helpers');
+if (
+    !SharedBoardUtils ||
+    typeof SharedBoardUtils.createBoardContext !== 'function' ||
+    typeof SharedBoardUtils.getCellValue !== 'function' ||
+    typeof SharedBoardUtils.setCellValue !== 'function'
+) {
+    throw new Error('SharedBoardUtils BoardContext APIs are required by DestroyOneStone');
 }
 
-const getCellValue = ExpansionFallbackModule.getCellValue as (gameState: GameState, row: number, col: number) => number | null;
-const setCellValue = ExpansionFallbackModule.setCellValue as (gameState: GameState, row: number, col: number, value: number) => boolean;
+function createDestroyOneBoardContext(cardState: CardState, gameState: GameState): any {
+    return SharedBoardUtils.createBoardContext(gameState, cardState);
+}
+
+function getCellValue(cardState: CardState, gameState: GameState, row: number, col: number): number | null {
+    return SharedBoardUtils.getCellValue(createDestroyOneBoardContext(cardState, gameState), row, col);
+}
+
+function setCellValue(cardState: CardState, gameState: GameState, row: number, col: number, value: number): boolean {
+    return SharedBoardUtils.setCellValue(createDestroyOneBoardContext(cardState, gameState), row, col, value);
+}
 
 function createDestroyOutcome(kindOrResult?: string | any, details?: any): any {
     if (DestroyOutcomeContract && typeof DestroyOutcomeContract.createDestroyOutcome === 'function') {
@@ -125,7 +139,8 @@ function applyDestroyOneStone(cardState: CardState, gameState: GameState, player
 
     // If destroyAt function provided
     if (typeof destroyAtFn === 'function') {
-        if (getCellValue(gameState, row, col) === 0) return result;
+        const current = getCellValue(cardState, gameState, row, col);
+        if (current === null || current === 0) return result;
         const destroyed = destroyAtFn(cardState, gameState, row, col);
         if (destroyed) {
             const cs = cardState as any;
@@ -136,11 +151,12 @@ function applyDestroyOneStone(cardState: CardState, gameState: GameState, player
     }
 
     // Fallback: original inline behavior
-    if (getCellValue(gameState, row, col) === 0) return result;
+    const current = getCellValue(cardState, gameState, row, col);
+    if (current === null || current === 0) return result;
+    if (!setCellValue(cardState, gameState, row, col, 0)) return result;
     if (cardState && cardState.markers) {
         cardState.markers = cardState.markers.filter((m: any) => !(m.row === row && m.col === col));
     }
-    setCellValue(gameState, row, col, 0);
     const cs = cardState as any;
     cs.pendingEffectByPlayer = cs.pendingEffectByPlayer || { black: null, white: null };
     cs.pendingEffectByPlayer[playerKey] = null;

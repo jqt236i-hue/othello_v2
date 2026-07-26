@@ -54,8 +54,10 @@ type ApplyChainDeps = {
     whiteValue: any;
     getCardContext: (cardState: any) => any;
     defaultPrng: any;
-    resolveChainWillMaxLinks: (gameState: any, chainConfig: any) => any;
+    resolveChainWillMaxLinks: (cardState: any, gameState: any, chainConfig: any) => any;
     findChainChoice?: (gameState: any, primaryFlips: any[], ownerVal: number, context: any, prng?: { random(): number }) => ChainResult;
+    createBoardViewForCard: (cardState: any, gameState: any) => any;
+    setBoardCellForCard: (cardState: any, gameState: any, row: any, col: any, value: any) => boolean;
     BoardOpsModule?: any;
     eventCause: any;
     clearBombAt: (cardState: any, row: any, col: any) => any;
@@ -77,6 +79,10 @@ function findChainChoice(
     context: any = {},
     prng?: { random(): number }
 ): ChainResult {
+    const boardView = context && context.boardView;
+    if (!boardView || typeof boardView.get !== 'function') {
+        throw new Error('[chain] an explicit BoardView is required');
+    }
     const candidatePoints: Point[] = [];
     const seen = new Set<string>();
     for (const f of (primaryFlips || [])) {
@@ -84,7 +90,7 @@ function findChainChoice(
         const key = `${pt.row},${pt.col}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        if (gameState.board[pt.row][pt.col] === ownerVal) {
+        if (boardView.get(pt.row, pt.col) === ownerVal) {
             candidatePoints.push({ row: pt.row, col: pt.col });
         }
     }
@@ -125,17 +131,29 @@ function applyChainWillAfterMove(cardState: any, gameState: any, playerKey: any,
     if (!pending || !chainConfig) {
         return { applied: false, flips: [], chosen: null };
     }
+    if (typeof deps.createBoardViewForCard !== 'function') {
+        throw new Error('[chain] createBoardViewForCard is required');
+    }
+    if (
+        (!deps.BoardOpsModule || typeof deps.BoardOpsModule.changeAt !== 'function') &&
+        typeof deps.setBoardCellForCard !== 'function'
+    ) {
+        throw new Error('[chain] setBoardCellForCard is required without BoardOps.changeAt');
+    }
 
     const playerValue = playerKey === 'black' ? (deps.blackValue || 1) : (deps.whiteValue || -1);
-    const context = deps.getCardContext(cardState);
+    const baseContext = Object.assign({}, deps.getCardContext(cardState) || {}, { cardState });
     const p = prng || deps.defaultPrng;
     const choose = deps.findChainChoice || findChainChoice;
 
     const appliedFlips = [];
     const chosenSteps = [];
     let sourceFlips = Array.isArray(primaryFlips) ? primaryFlips.slice() : [];
-    const maxLinks = deps.resolveChainWillMaxLinks(gameState, chainConfig);
+    const maxLinks = deps.resolveChainWillMaxLinks(cardState, gameState, chainConfig);
     for (let i = 0; i < maxLinks; i++) {
+        const context = Object.assign({}, baseContext, {
+            boardView: deps.createBoardViewForCard(cardState, gameState)
+        });
         const res = choose(gameState, sourceFlips, playerValue, context, p);
         if (!res || !res.applied || !Array.isArray(res.flips) || res.flips.length === 0) break;
         const chainLink = i + 1;
@@ -146,7 +164,7 @@ function applyChainWillAfterMove(cardState: any, gameState: any, playerKey: any,
                 const changeRes = deps.BoardOpsModule.changeAt(cardState, gameState, pos.row, pos.col, playerKey, deps.eventCause, 'chain_flip', { chainLink });
                 changed = !!(changeRes && changeRes.changed);
             } else {
-                gameState.board[pos.row][pos.col] = playerValue;
+                changed = deps.setBoardCellForCard(cardState, gameState, pos.row, pos.col, playerValue);
             }
             if (!changed) continue;
             deps.clearBombAt(cardState, pos.row, pos.col);

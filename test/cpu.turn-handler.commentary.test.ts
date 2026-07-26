@@ -1,4 +1,5 @@
 const global: Record<string, any> = globalThis;
+const SharedBoardUtils = require('../shared/shared-board-utils');
 
 function resolveGlobalRuntimeFunction(name: string) {
   const candidate = global[name];
@@ -92,7 +93,7 @@ describe('cpu turn handler commentary', () => {
     }));
   });
 
-  test('corner gain after CPU move triggers an immediate second commentary request', async () => {
+  test('effective expansion-corner gain after CPU move triggers an immediate second commentary request', async () => {
     jest.resetModules();
 
     const requestCommentaryMock = jest.fn()
@@ -109,7 +110,11 @@ describe('cpu turn handler commentary', () => {
     global.gameState = {
       currentPlayer: 'white',
       turnNumber: 9,
-      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      boardConfig: { rows: 8, cols: 8, shape: 'rectangle' },
+      boardExpansion: {
+        cells: [{ side: 'right', row: 0, col: 8, owner: 0 }]
+      }
     };
     global.cardState = {
       hands: { white: [], black: [] },
@@ -127,10 +132,10 @@ describe('cpu turn handler commentary', () => {
       if (typeof cb === 'function') cb();
     });
     global.executeMove = jest.fn(() => {
-      global.gameState.board[0][0] = -1;
+      global.gameState.boardExpansion.cells[0].owner = -1;
       global.gameState.currentPlayer = 'black';
     });
-    global.generateMovesForPlayer = jest.fn(() => [{ row: 0, col: 0, flips: [] }]);
+    global.generateMovesForPlayer = jest.fn(() => [{ row: 0, col: 8, flips: [] }]);
 
     const handler = require('../game/cpu-turn-handler.js');
     handler.setCpuUIImpl({
@@ -148,9 +153,10 @@ describe('cpu turn handler commentary', () => {
       eventType: 'turn_start',
       playerKey: 'white',
       level: 1,
-      board: expect.any(Array)
+      board: expect.objectContaining({ kind: 'board-context-v1' }),
+      corners: { own: 1, opp: 0 }
     }));
-    expect(requestCommentaryMock.mock.calls[1][0].board[0][0]).toBe(-1);
+    expect(SharedBoardUtils.getCellValue(requestCommentaryMock.mock.calls[1][0].board, 0, 8)).toBe(-1);
     expect(global.emitLogAdded).toHaveBeenNthCalledWith(2, expect.objectContaining({
       kind: 'commentary',
       speakerRole: 'cpu',

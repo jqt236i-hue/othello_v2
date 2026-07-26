@@ -399,13 +399,6 @@ async function applyPhaseZeroFixture(page: any, fixture: FixtureDefinition): Pro
       if (!gameState.board[marker.row] || !Number.isInteger(marker.col)) continue;
       gameState.board[marker.row][marker.col] = String(marker.owner || '').toLowerCase() === 'white' ? -1 : 1;
     }
-    if (boardUtils && typeof boardUtils.attachBoardShape === 'function') {
-      boardUtils.attachBoardShape(gameState.board, {
-        boardConfig: gameState.boardConfig,
-        boardExpansion: gameState.boardExpansion,
-        cardState
-      });
-    }
     root.gameState = gameState;
     root.cardState = cardState;
 

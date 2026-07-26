@@ -12,7 +12,7 @@ type PendingTargetDeps = {
 
 export function getCornerProximity(row: any, col: any, boardOverride: any, deps?: PendingTargetDeps): any {
     const activeDeps = deps || {};
-    const board = Array.isArray(boardOverride)
+    const board = boardOverride && typeof boardOverride === 'object'
         ? boardOverride
         : (typeof activeDeps.getCurrentCpuBoard === 'function' ? activeDeps.getCurrentCpuBoard() : null);
     const boardUtils = typeof activeDeps.resolveSharedBoardUtilsModule === 'function'
@@ -62,7 +62,7 @@ export function getCornerProximity(row: any, col: any, boardOverride: any, deps?
 
 export function getForcedCornerLaneBonus(pendingType: any, row: any, col: any, board: any, playerValue: any, deps?: PendingTargetDeps): any {
     const activeDeps = deps || {};
-    if (!Array.isArray(board) || board.length <= 0) return 0;
+    if (!board || typeof board !== 'object') return 0;
     if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
     const getCell = activeDeps.getBoardCellValueSafe;
     if (typeof getCell !== 'function' || getCell(board, row, col) !== playerValue) return 0;
@@ -88,7 +88,7 @@ export function getForcedCornerLaneBonus(pendingType: any, row: any, col: any, b
 
 export function getForcedCornerLaneAntiPatternPenalty(pendingType: any, row: any, col: any, board: any, playerValue: any, deps?: PendingTargetDeps): any {
     const activeDeps = deps || {};
-    if (!Array.isArray(board) || board.length <= 0) return 0;
+    if (!board || typeof board !== 'object') return 0;
     if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
     const getCell = activeDeps.getBoardCellValueSafe;
     if (typeof getCell !== 'function') return 0;
@@ -124,7 +124,7 @@ export function getForcedCornerLaneAntiPatternPenalty(pendingType: any, row: any
 
 export function simulatePendingPlacementBoard(board: any, playerValue: any, target: any, deps?: PendingTargetDeps): any {
     const activeDeps = deps || {};
-    if (!Array.isArray(board)) return null;
+    if (!board || typeof board !== 'object') return null;
     if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
     const cloneBoard = typeof activeDeps.cloneBoardForCpu === 'function'
         ? activeDeps.cloneBoardForCpu
@@ -206,4 +206,3 @@ export function choosePendingTargetWithPolicyAsync(playerKey: any, pendingType: 
         ? activeDeps.cpuDecisionPendingOnnx.choosePendingTargetWithPolicyAsync(playerKey, pendingType, targets, pending)
         : Promise.resolve(Array.isArray(targets) && targets.length ? targets[0] : null);
 }
-

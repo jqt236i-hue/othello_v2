@@ -8,34 +8,15 @@ export interface BoardBounds {
   minCol: number;
   maxCol: number;
 }
-export interface BoardShapeMeta {
-  minRow: number;
-  maxRow: number;
-  minCol: number;
-  maxCol: number;
-  standard8x8: boolean;
-  playableKeys: Set<string>;
-  coordinateCache: CellCoord[] | null;
-  expansionOwnerByKey: Record<string, number>;
-  expansionCells: Array<{ row: number; col: number; owner: number }>;
-}
 export interface CellAccessDependencies {
   defaultRows: number;
   defaultCols: number;
   empty: number;
-  toBoardCellKey: (row: number, col: number) => string;
   normalizeOwner: (value: unknown) => number;
   resolveBoardConfig: (
     value: unknown,
     maybeCols?: unknown,
   ) => { rows: number; cols: number };
-  getBoardShapeMeta: (board: unknown) => BoardShapeMeta | null;
-  setAttachedExpansionOwner?: (
-    board: unknown,
-    row: number,
-    col: number,
-    value: unknown,
-  ) => boolean;
 }
 
 export function createCellAccess(deps: CellAccessDependencies) {
@@ -60,14 +41,6 @@ export function createCellAccess(deps: CellAccessDependencies) {
     maybeCols?: unknown,
   ): BoardBounds | null {
     if (Array.isArray(boardOrRows)) {
-      const meta = deps.getBoardShapeMeta(boardOrRows);
-      if (meta)
-        return {
-          minRow: meta.minRow,
-          maxRow: meta.maxRow,
-          minCol: meta.minCol,
-          maxCol: meta.maxCol,
-        };
       if (boardOrRows.length <= 0) return null;
       let maxCol = -1;
       for (const row of boardOrRows as unknown[][])
@@ -86,8 +59,6 @@ export function createCellAccess(deps: CellAccessDependencies) {
     };
   }
   function isStandardBoard8x8(board: unknown): boolean {
-    const meta = deps.getBoardShapeMeta(board);
-    if (meta) return meta.standard8x8 === true;
     return (
       Array.isArray(board) &&
       board.length === deps.defaultRows &&
@@ -103,42 +74,17 @@ export function createCellAccess(deps: CellAccessDependencies) {
       !Number.isInteger(col)
     )
       return false;
-    const meta = deps.getBoardShapeMeta(board);
-    return meta
-      ? meta.playableKeys.has(deps.toBoardCellKey(row, col))
-      : isRawCellInBounds(board, row, col);
+    return isRawCellInBounds(board, row, col);
   }
   function collectBoardCoordinates(board: unknown): CellCoord[] {
     if (!Array.isArray(board)) return [];
-    const meta = deps.getBoardShapeMeta(board);
-    if (!meta) {
-      const coords: CellCoord[] = [];
-      for (let row = 0; row < (board as unknown[][]).length; row++) {
-        const line = Array.isArray((board as unknown[][])[row])
-          ? (board as unknown[][])[row]
-          : [];
-        for (let col = 0; col < line.length; col++) coords.push({ row, col });
-      }
-      return coords;
+    const coords: CellCoord[] = [];
+    for (let row = 0; row < (board as unknown[][]).length; row++) {
+      const line = Array.isArray((board as unknown[][])[row])
+        ? (board as unknown[][])[row]
+        : [];
+      for (let col = 0; col < line.length; col++) coords.push({ row, col });
     }
-    if (Array.isArray(meta.coordinateCache))
-      return meta.coordinateCache.map((cell) => ({
-        row: cell.row,
-        col: cell.col,
-      }));
-    const coords = Array.from(meta.playableKeys)
-      .map((key) => {
-        const parts = key.split(",");
-        return { row: Number(parts[0]), col: Number(parts[1]) };
-      })
-      .filter(
-        (cell) => Number.isInteger(cell.row) && Number.isInteger(cell.col),
-      )
-      .sort((a, b) => a.row - b.row || a.col - b.col);
-    meta.coordinateCache = coords.map((cell) => ({
-      row: cell.row,
-      col: cell.col,
-    }));
     return coords;
   }
   function getCellValue(
@@ -152,16 +98,9 @@ export function createCellAccess(deps: CellAccessDependencies) {
       !Number.isInteger(col)
     )
       return null;
-    const meta = deps.getBoardShapeMeta(board);
-    if (meta && !meta.playableKeys.has(deps.toBoardCellKey(row, col)))
-      return null;
     if (isRawCellInBounds(board, row, col))
       return (board as unknown[][])[row][col] as number;
-    if (!meta) return null;
-    const key = deps.toBoardCellKey(row, col);
-    return Object.prototype.hasOwnProperty.call(meta.expansionOwnerByKey, key)
-      ? deps.normalizeOwner(meta.expansionOwnerByKey[key])
-      : null;
+    return null;
   }
   function setCellValue(
     board: unknown,
@@ -176,30 +115,10 @@ export function createCellAccess(deps: CellAccessDependencies) {
     )
       return false;
     if (isRawCellInBounds(board, row, col)) {
-      const meta = deps.getBoardShapeMeta(board);
-      if (meta && !meta.playableKeys.has(deps.toBoardCellKey(row, col)))
-        return false;
       (board as unknown[][])[row][col] = deps.normalizeOwner(value);
       return true;
     }
-    const meta = deps.getBoardShapeMeta(board);
-    if (!meta || !meta.playableKeys.has(deps.toBoardCellKey(row, col)))
-      return false;
-    const owner = deps.normalizeOwner(value);
-    const key = deps.toBoardCellKey(row, col);
-    if (
-      typeof deps.setAttachedExpansionOwner === "function" &&
-      deps.setAttachedExpansionOwner(board, row, col, owner)
-    ) {
-      return true;
-    }
-    meta.expansionOwnerByKey[key] = owner;
-    for (const cell of meta.expansionCells)
-      if (cell.row === row && cell.col === col) {
-        cell.owner = owner;
-        break;
-      }
-    return true;
+    return false;
   }
   function countBoardEmpties(board: unknown): number {
     if (!Array.isArray(board)) return 0;

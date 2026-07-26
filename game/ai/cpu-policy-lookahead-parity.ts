@@ -42,7 +42,7 @@ export function createCpuPolicyLookaheadParity(deps?: CpuPolicyLookaheadParityDe
             signal: 0,
             score: 0
         };
-        if (!Array.isArray(board) || board.length <= 0) return out;
+        if (!board || typeof board !== 'object') return out;
 
         const visited = new Set<string>();
         const dirs = [
@@ -61,7 +61,9 @@ export function createCpuPolicyLookaheadParity(deps?: CpuPolicyLookaheadParityDe
 
         const iter = Array.isArray(cells)
             ? cells
-            : board.flatMap((row, r) => (Array.isArray(row) ? row.map((_, c) => ({ row: r, col: c })) : []));
+            : (Array.isArray(board)
+                ? board.flatMap((row, r) => (Array.isArray(row) ? row.map((_, c) => ({ row: r, col: c })) : []))
+                : []);
 
         for (const cell of iter) {
             const r = Number(cell && cell.row);

@@ -3,6 +3,7 @@ import { createCpuDecisionCardChoice } from '../game/cpu-decision-card-choice';
 const cpuDecision = require(path.resolve(__dirname, '..', 'game', 'cpu-decision.js'));
 const cpuPolicyCore = require(path.resolve(__dirname, '..', 'game', 'ai', 'cpu-policy-core.js'));
 const catalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+const SharedBoardUtils = require(path.resolve(__dirname, '..', 'shared', 'shared-board-utils.js'));
 
 describe('cpu decision refactor helpers', () => {
   beforeEach(() => {
@@ -3637,9 +3638,9 @@ describe('cpu decision refactor helpers', () => {
     global.CpuPolicyOnnxRuntime = {
       choosePendingTarget: jest.fn(async (targets) => targets[1]),
       evaluatePosition: jest.fn(async (context) => {
-        const board = context && Array.isArray(context.board) ? context.board : [];
-        if (Array.isArray(board[3]) && board[3][2] === 0) return 0.9;
-        if (Array.isArray(board[3]) && board[3][5] === 0) return -0.9;
+        const board = context && context.board;
+        if (SharedBoardUtils.getCellValue(board, 3, 2) === 0) return 0.9;
+        if (SharedBoardUtils.getCellValue(board, 3, 5) === 0) return -0.9;
         return 0;
       })
     };

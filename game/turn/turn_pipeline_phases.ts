@@ -9,6 +9,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         '../logic/cards/utils': 'CardUtils',
         '../logic/context': 'CardContext',
         '../../shared-constants': 'SharedConstants',
+        '../../shared/shared-board-utils': 'SharedBoardUtils',
         '../../utils/owner-helpers': 'OwnerHelpers',
         '../../shared/destroy-outcome-contract': 'DestroyOutcomeContract',
         './turn_pipeline_phase_helpers': 'TurnPipelinePhaseHelpers',
@@ -36,6 +37,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         '../logic/cards/utils': () => require('../logic/cards/utils'),
         '../logic/context': () => require('../logic/context'),
         '../../shared-constants': () => require('../../shared-constants'),
+        '../../shared/shared-board-utils': () => require('../../shared/shared-board-utils'),
         '../../utils/owner-helpers': () => require('../../utils/owner-helpers'),
         '../../shared/destroy-outcome-contract': () => require('../../shared/destroy-outcome-contract'),
         './turn_pipeline_phase_helpers': () => require('./turn_pipeline_phase_helpers'),
@@ -121,6 +123,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
     const CardUtilsModule = requireOptionalModule('../logic/cards/utils');
     const SharedConstantsModule = requireOptionalModule('../../shared-constants');
+    const SharedBoardUtils = requireOptionalModule('../../shared/shared-board-utils');
     const OwnerHelpersModule = requireOptionalModule('../../utils/owner-helpers');
     const DestroyOutcomeContract = requireOptionalModule('../../shared/destroy-outcome-contract');
     const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
@@ -1373,33 +1376,20 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return ctx;
     }
 
-    function getActionCellOwner(gameState: any, row: any, col: any) {
-        if (!gameState) return null;
-
-        const boardRow = Array.isArray(gameState.board) ? gameState.board[row] : null;
-        if (Array.isArray(boardRow) && Number.isInteger(col) && col >= 0 && col < boardRow.length) {
-            return boardRow[col];
+    function getActionCellOwner(gameState: any, cardState: any, row: any, col: any) {
+        if (!gameState || !Array.isArray(gameState.board)) return null;
+        if (
+            !SharedBoardUtils
+            || typeof SharedBoardUtils.createBoardContext !== 'function'
+            || typeof SharedBoardUtils.getCellValue !== 'function'
+        ) {
+            throw new Error('SharedBoardUtils BoardContext APIs are required by TurnPipelinePhases');
         }
-
-        const expansion = gameState.boardExpansion;
-        const cells = Array.isArray(expansion && expansion.cells)
-            ? expansion.cells
-            : ((expansion && expansion.active) ? [expansion] : []);
-
-        for (const cell of cells) {
-            if (!cell) continue;
-            const cellRow = Number(cell.row);
-            let cellCol = Number.isInteger(cell.col) ? cell.col : null;
-            if (!Number.isInteger(cellCol)) {
-                if (cell.side === 'left') cellCol = -1;
-                else if (cell.side === 'right') cellCol = 8;
-            }
-            if (cellRow !== row || cellCol !== col) continue;
-            const owner = Number(cell.owner);
-            return Number.isFinite(owner) ? owner : null;
-        }
-
-        return null;
+        return SharedBoardUtils.getCellValue(
+            SharedBoardUtils.createBoardContext(gameState, cardState ?? null),
+            row,
+            col
+        );
     }
 
     function applyTrapEffectsAfterSelection(CardLogic: any, cardState: any, gameState: any, playerKey: any, events: any) {
@@ -1562,7 +1552,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 prng: p,
                 pendingType,
                 resolveSafeCardContext,
-                getActionCellOwner,
+                getActionCellOwner: (state: any, row: any, col: any) => (
+                    getActionCellOwner(state, cardState, row, col)
+                ),
                 getPendingEffectTypeForActionPhase,
                 applyTrapEffectsAfterSelection: () => applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events),
                 handOffTurnAfterSelection: () => {

@@ -123,6 +123,7 @@ describe('OBSERVER_WILL repayments', () => {
     gameState.board = [
       [1, 1, 1, 1, 1, 1],
       [0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0],
       [0, 0, 0, 0, 0, 0]
     ];
     cardState.charge.black = 0;
@@ -150,6 +151,48 @@ describe('OBSERVER_WILL repayments', () => {
     expect(gameState.board[0][3]).toBe(0);
     expect(gameState.board[0][4]).toBe(0);
     expect(gameState.board[0][5]).toBe(0);
+  });
+
+  test('shortage destruction includes expansion own stones and excludes stale owners under expansion holes', () => {
+    const cardState = createCardState();
+    const gameState: any = createGameState();
+    gameState.board = Array.from({ length: 4 }, () => Array(4).fill(-1));
+    gameState.board[0][0] = 1;
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: 0,
+      usedByPlayer: { black: true, white: false },
+      cells: [
+        { side: 'right', row: 0, col: 4, owner: 1 },
+        { side: 'right', row: 1, col: 4, owner: 1 }
+      ]
+    };
+    cardState.charge.black = 0;
+    CardLogic.addMarker(cardState, 'specialStone', 1, 4, 'black', { type: 'METEOR_HOLE' });
+    cardState.observerWillRepaymentsByPlayer.black.push({
+      sourceType: 'OBSERVER_WILL',
+      status: 'active',
+      stolenCardId: 'meteor_01',
+      repaymentAmount: 3,
+      remainingOwnerTurns: 9,
+      shortageDestroyCount: 2
+    });
+
+    const summary = CardLogic.processObserverWillRepaymentsAtTurnStart(cardState, gameState, 'black', createPrng());
+
+    expect(summary.entries[0]).toEqual(expect.objectContaining({
+      shortage: true,
+      destroyedCount: 2,
+      destroyed: expect.arrayContaining([
+        { row: 0, col: 0 },
+        { row: 0, col: 4 }
+      ])
+    }));
+    expect(gameState.board[0][0]).toBe(0);
+    expect(gameState.boardExpansion.cells.find((cell: any) => cell.row === 0 && cell.col === 4).owner).toBe(0);
+    expect(gameState.boardExpansion.cells.find((cell: any) => cell.row === 1 && cell.col === 4).owner).toBe(1);
   });
 
   test('marker expiry turn immediately applies the first repayment in turn pipeline', () => {

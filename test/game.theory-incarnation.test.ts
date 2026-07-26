@@ -118,6 +118,50 @@ describe('理論の化身', () => {
     expect(gameState.board[0][0]).toBe(Shared.EMPTY);
   });
 
+  test('拡張空マスを理論数字化して顕現先に使い、拡張上の穴は両段階で除外する', () => {
+    const prng = createPrng([0]);
+    const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });
+    const gameState = createGameState();
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Shared.BLACK));
+    gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Shared.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: [
+        { side: 'right', row: 0, col: 8, owner: Shared.EMPTY },
+        { side: 'right', row: 1, col: 8, owner: Shared.EMPTY }
+      ]
+    };
+    cardState.hands.black = ['theory_incarnation_01'];
+    cardState.charge.black = 0;
+    cardState.numberCellCollectedTotalByPlayer.black = 42;
+    CardLogic.addMarker(cardState, 'specialStone', 1, 8, 'black', { type: 'METEOR_HOLE' });
+
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', 'theory_incarnation_01', null, { prng })).toBe(true);
+    const sessionId = cardState.theoryIncarnationStateByPlayer.black.sessionId;
+    const sessionCells = cardState.theoryNumberCellsBySession[sessionId].cells;
+    expect(Object.keys(sessionCells)).toEqual(['0,8']);
+
+    CardLogic.addMarker(cardState, 'manifestStone', 3, 3, 'black', {
+      type: 'THEORY_INCARNATION',
+      remainingOwnerTurns: 3,
+      inviolable: true,
+      sourceType: 'THEORY_INCARNATION',
+      sessionId
+    });
+
+    const result = CardLogic.processTheoryIncarnationMarkerAfterOwnerPlacement(cardState, gameState, 'black', prng);
+
+    expect(result.spawned).toEqual(expect.objectContaining({ row: 0, col: 8 }));
+    expect(result.spawned.roulette.candidateCells).toEqual([
+      expect.objectContaining({ row: 0, col: 8 })
+    ]);
+    expect(gameState.boardExpansion.cells.find((cell: any) => cell.row === 0 && cell.col === 8).owner).toBe(Shared.BLACK);
+    expect(gameState.boardExpansion.cells.find((cell: any) => cell.row === 1 && cell.col === 8).owner).toBe(Shared.EMPTY);
+  });
+
   test('理論召喚は確定マスで挟める列があっても反転せず、布石も獲得しない', () => {
     const prng = createPrng([0]);
     const cardState: any = CardLogic.createCardState(prng, { plainReversi: true });

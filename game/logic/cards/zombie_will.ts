@@ -56,7 +56,10 @@ const CardZombieWill = (function (root: any, factory: any) {
         return null;
     }
 
-    function getCardMarkersModule() {
+    function getCardMarkersModule(deps?: any) {
+        if (deps && Object.prototype.hasOwnProperty.call(deps, 'CardMarkers')) {
+            return deps.CardMarkers;
+        }
         if (CardMarkersModule) return CardMarkersModule;
         return getRuntimeGlobalValue('CardMarkers');
     }
@@ -83,16 +86,38 @@ const CardZombieWill = (function (root: any, factory: any) {
         };
     }
 
-    function getCell(gameState: any, row: number, col: number) {
-        const board = gameState && gameState.board;
-        if (!Array.isArray(board) || !Array.isArray(board[row])) return undefined;
-        return board[row][col];
+    function requireBoardKernel() {
+        if (
+            !SharedBoardUtils ||
+            typeof SharedBoardUtils.createBoardContext !== 'function' ||
+            typeof SharedBoardUtils.createBoardView !== 'function' ||
+            typeof SharedBoardUtils.setCellValue !== 'function'
+        ) {
+            throw new Error('[zombie-will] SharedBoardUtils BoardContext APIs are required');
+        }
+        return SharedBoardUtils;
     }
 
-    function setCell(gameState: any, row: number, col: number, value: number) {
-        const board = gameState && gameState.board;
-        if (!Array.isArray(board) || !Array.isArray(board[row])) return;
-        board[row][col] = value;
+    function createBoardContext(cardState: any, gameState: any) {
+        return requireBoardKernel().createBoardContext(gameState, cardState);
+    }
+
+    function getCell(cardState: any, gameState: any, row: number, col: number) {
+        const boardKernel = requireBoardKernel();
+        const context = createBoardContext(cardState, gameState);
+        return boardKernel.createBoardView(context.gameState, {
+            cardState: context.cardState,
+            strict: false
+        }).get(row, col);
+    }
+
+    function setCell(cardState: any, gameState: any, row: number, col: number, value: number): boolean {
+        return requireBoardKernel().setCellValue(
+            createBoardContext(cardState, gameState),
+            row,
+            col,
+            value
+        );
     }
 
     function getMarkers(cardState: any) {
@@ -125,7 +150,7 @@ const CardZombieWill = (function (root: any, factory: any) {
     }
 
     function isEnemyNormalStone(cardState: any, gameState: any, row: number, col: number, ownerKey: string) {
-        const cell = getCell(gameState, row, col);
+        const cell = getCell(cardState, gameState, row, col);
         if (cell !== ownerValue(ownerKey === 'black' ? 'white' : 'black')) return false;
         const existing = markerAtPosition(cardState, row, col);
         if (!existing) return true;
@@ -172,27 +197,34 @@ const CardZombieWill = (function (root: any, factory: any) {
         cardState.markers = newMarkers;
     }
 
-    function addZombieMarker(cardState: any, row: number, col: number, ownerKey: string) {
-        if (!cardState) return null;
-        const markers = getCardMarkersModule();
-        if (markers && typeof markers.addMarker === 'function') {
-            return markers.addMarker(cardState, 'specialStone', row, col, ownerKey, createZombieMarkerData(ownerKey));
+    function requireCardMarkers(deps?: any) {
+        const markers = getCardMarkersModule(deps);
+        if (!markers || typeof markers.addMarker !== 'function') {
+            throw new Error('[zombie-will] CardMarkers.addMarker is required');
         }
-        if (!Array.isArray(cardState.markers)) cardState.markers = [];
-        const seqBase = Number.isFinite(Number(cardState._nextCreatedSeq)) ? Number(cardState._nextCreatedSeq) : cardState.markers.length + 1;
-        const idBase = Number.isFinite(Number(cardState._nextMarkerId)) ? Number(cardState._nextMarkerId) : cardState.markers.length + 1;
-        const marker = {
-            id: 'zombie_' + idBase,
-            kind: 'specialStone',
+        return markers;
+    }
+
+    function requireBoardOps(deps?: any) {
+        const boardOps = deps && deps.BoardOps;
+        if (!boardOps || typeof boardOps.changeAt !== 'function') {
+            throw new Error('[zombie-will] BoardOps.changeAt is required');
+        }
+        return boardOps;
+    }
+
+    function addZombieMarker(cardState: any, row: number, col: number, ownerKey: string, deps?: any) {
+        const marker = requireCardMarkers(deps).addMarker(
+            cardState,
+            'specialStone',
             row,
             col,
-            owner: ownerKey,
-            createdSeq: seqBase,
-            data: createZombieMarkerData(ownerKey)
-        };
-        cardState._nextMarkerId = idBase + 1;
-        cardState._nextCreatedSeq = seqBase + 1;
-        cardState.markers.push(marker);
+            ownerKey,
+            createZombieMarkerData(ownerKey)
+        );
+        if (!marker) {
+            throw new Error('[zombie-will] CardMarkers.addMarker failed');
+        }
         return marker;
     }
 
@@ -218,6 +250,9 @@ const CardZombieWill = (function (root: any, factory: any) {
     ) {
         const zombie = findZombieMarkerAt(cardState, row, col, playerKey);
         if (!zombie) return { infected: [], anchors: [] };
+        if (getCell(cardState, gameState, row, col) !== ownerValue(playerKey)) {
+            return { infected: [], anchors: [] };
+        }
 
         const data = zombie.data || {};
         const before = Number.isFinite(Number(data.turnsUntilInfection))
@@ -229,30 +264,40 @@ const CardZombieWill = (function (root: any, factory: any) {
             return { infected: [], anchors: [{ row, col, turnsUntilInfection: after }] };
         }
 
-        data.turnsUntilInfection = ZOMBIE_INFECTION_INTERVAL;
         const candidates = findAdjacentInfectionCandidates(cardState, gameState, row, col, playerKey);
         if (candidates.length === 0) {
+            data.turnsUntilInfection = ZOMBIE_INFECTION_INTERVAL;
             return { infected: [], anchors: [{ row, col, turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL }] };
         }
 
+        const boardOps = requireBoardOps(deps);
+        requireCardMarkers(deps);
         const targetIdx = getRandomIndex(candidates.length, prng);
         const target = candidates[targetIdx];
-        removeStoneStatusMarkersAt(cardState, target.row, target.col);
-        if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
-            deps.BoardOps.changeAt(
-                cardState,
-                gameState,
-                target.row,
-                target.col,
-                playerKey,
-                'ZOMBIE',
-                'zombie_infection',
-                { sourceRow: row, sourceCol: col }
-            );
-        } else {
-            setCell(gameState, target.row, target.col, ownerValue(playerKey));
+        const previousOwner = getCell(cardState, gameState, target.row, target.col);
+        const changeResult = boardOps.changeAt(
+            cardState,
+            gameState,
+            target.row,
+            target.col,
+            playerKey,
+            'ZOMBIE',
+            'zombie_infection',
+            { sourceRow: row, sourceCol: col }
+        );
+        data.turnsUntilInfection = ZOMBIE_INFECTION_INTERVAL;
+        if (!changeResult || changeResult.changed !== true) {
+            return { infected: [], anchors: [{ row, col, turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL }] };
         }
-        addZombieMarker(cardState, target.row, target.col, playerKey);
+        removeStoneStatusMarkersAt(cardState, target.row, target.col);
+        try {
+            addZombieMarker(cardState, target.row, target.col, playerKey, deps);
+        } catch (error) {
+            if (previousOwner !== null) {
+                setCell(cardState, gameState, target.row, target.col, previousOwner);
+            }
+            throw error;
+        }
         return { infected: [target], anchors: [{ row, col, turnsUntilInfection: ZOMBIE_INFECTION_INTERVAL }] };
     }
 

@@ -10,6 +10,7 @@ type RepaymentRef = {
     index: number;
 };
 
+const CardResolutionBoardView = require('./board-view-access');
 const OBSERVER_WILL_OBSERVED_COST_DELTA = 5;
 
 function ownerKeyOf(playerKey: any): PlayerKey {
@@ -216,16 +217,13 @@ function observeActiveObserverWillHandForOwner(cardState: CardState, ownerKey: P
 function collectObserverWillDestroyableOwnStones(cardState: CardState, gameState: GameState, playerKey: PlayerKey, deps: any): Array<{ row: number; col: number }> {
     const out: Array<{ row: number; col: number }> = [];
     const ownerValue = playerKey === 'white' ? deps.WHITE : deps.BLACK;
-    const board = gameState && Array.isArray((gameState as any).board) ? (gameState as any).board : [];
-    for (let row = 0; row < board.length; row += 1) {
-        const line = Array.isArray(board[row]) ? board[row] : [];
-        for (let col = 0; col < line.length; col += 1) {
-            if (deps.getCellValueForCard(gameState, row, col) !== ownerValue) continue;
-            if (deps.isInviolableCell(cardState, row, col)) continue;
-            if (typeof deps.isGuardProtectedCell === 'function' && deps.isGuardProtectedCell(cardState, row, col)) continue;
-            if (typeof deps.isFrozenCellForCard === 'function' && deps.isFrozenCellForCard(cardState, row, col)) continue;
-            out.push({ row, col });
-        }
+    const view = CardResolutionBoardView.createCardResolutionBoardView(cardState, gameState);
+    for (const cell of view.coordinates) {
+        if (view.get(cell.row, cell.col) !== ownerValue) continue;
+        if (deps.isInviolableCell(cardState, cell.row, cell.col)) continue;
+        if (typeof deps.isGuardProtectedCell === 'function' && deps.isGuardProtectedCell(cardState, cell.row, cell.col)) continue;
+        if (typeof deps.isFrozenCellForCard === 'function' && deps.isFrozenCellForCard(cardState, cell.row, cell.col)) continue;
+        out.push({ row: cell.row, col: cell.col });
     }
     return out;
 }

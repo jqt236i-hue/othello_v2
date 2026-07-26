@@ -3,7 +3,7 @@
  * @description Board Expansion helpers (Shared between Browser and Headless)
  */
 
-import type { GameState } from '../../../src/types';
+import type { CardState, GameState } from '../../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -93,18 +93,10 @@ function isExpansionCoordinateForCard(row: number, col: number, boardOrConfig: a
 }
 
 function getOpeningCellsForCard(boardOrConfig: any): Array<{ row: number; col: number }> {
-    if (BoardUtils && typeof BoardUtils.getOpeningCells === 'function') {
-        return BoardUtils.getOpeningCells(boardOrConfig);
+    if (!BoardUtils || typeof BoardUtils.getOpeningCells !== 'function') {
+        throw new Error('SharedBoardUtils.getOpeningCells is required by CardExpansion');
     }
-    const config = resolveCardBoardConfig(boardOrConfig);
-    const anchorRow = Math.floor((config.rows - 2) / 2);
-    const anchorCol = Math.floor((config.cols - 2) / 2);
-    return [
-        { row: anchorRow, col: anchorCol },
-        { row: anchorRow, col: anchorCol + 1 },
-        { row: anchorRow + 1, col: anchorCol },
-        { row: anchorRow + 1, col: anchorCol + 1 }
-    ];
+    return BoardUtils.getOpeningCells(boardOrConfig);
 }
 
 function collectInitialBoardBonusCandidates(boardOrConfig: any): Array<{ row: number; col: number }> {
@@ -166,8 +158,12 @@ function getOpeningHighBonusRestrictedCellKeys(boardOrConfig: any): Set<string> 
         return out;
     }
 
-    for (let row = minRow - 1; row <= maxRow + 1; row++) {
-        for (let col = minCol - 1; col <= maxCol + 1; col++) {
+    const restrictedMinRow = minRow - 1;
+    const restrictedMaxRow = maxRow + 1;
+    const restrictedMinCol = minCol - 1;
+    const restrictedMaxCol = maxCol + 1;
+    for (let row = restrictedMinRow; row <= restrictedMaxRow; row++) {
+        for (let col = restrictedMinCol; col <= restrictedMaxCol; col++) {
             if (!isMainBoardCellForCard(row, col, config)) continue;
             out.add(`${row},${col}`);
         }
@@ -327,12 +323,12 @@ function scaleInitialBonusDistribution(distribution: any[], targetCount: any): S
     return scaled.filter((entry) => entry.count > 0);
 }
 
-function getExpansionDescriptorsForCard(gameState: GameState): any[] {
+function getExpansionDescriptorsForCard(cardState: CardState | null, gameState: GameState): any[] {
     if (!BoardUtils || typeof BoardUtils.createBoardView !== 'function') {
         throw new Error('SharedBoardUtils.createBoardView is required by CardExpansion');
     }
     return BoardUtils.createBoardView(gameState, {
-        cardState: null,
+        cardState,
         strict: false
     }).expansionCells.map((cell: any) => ({ ...cell }));
 }
@@ -344,15 +340,17 @@ function syncLegacyExpansionFieldsForCard(expansion: any, boardOrConfig: any): v
     expansion.active = !!latest;
     expansion.side = latest ? resolveExpansionSideForCard(latest.side, latest.row, latest.col, boardOrConfig) : null;
     expansion.row = latest ? latest.row : null;
+    expansion.col = latest ? latest.col : null;
     expansion.owner = latest ? normalizeExpansionOwnerForCard(latest.owner) : EMPTY;
 }
 
-function ensureMutableBoardExpansionForCard(gameState: GameState): any {
+function ensureMutableBoardExpansionForCard(cardState: CardState | null, gameState: GameState): any {
     if (!(gameState as any).boardExpansion || typeof (gameState as any).boardExpansion !== 'object') {
         (gameState as any).boardExpansion = {
             active: false,
             side: null,
             row: null,
+            col: null,
             owner: EMPTY,
             usedByPlayer: { black: false, white: false },
             cells: []
@@ -371,15 +369,15 @@ function ensureMutableBoardExpansionForCard(gameState: GameState): any {
     if (!BoardUtils || typeof BoardUtils.canonicalizeStateBoard !== 'function') {
         throw new Error('SharedBoardUtils.canonicalizeStateBoard is required by CardExpansion');
     }
-    const inspection = BoardUtils.canonicalizeStateBoard(gameState, null, { strict: false });
+    const inspection = BoardUtils.canonicalizeStateBoard(gameState, cardState, { strict: false });
     if (!inspection || inspection.ok !== true) {
         throw new Error('Invalid board expansion state');
     }
     return expansion;
 }
 
-function writeExpansionDescriptorsForCard(gameState: GameState, cells: any[]): any {
-    const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
+function writeExpansionDescriptorsForCard(cardState: CardState | null, gameState: GameState, cells: any[]): any {
+    const boardExpansion = ensureMutableBoardExpansionForCard(cardState, gameState);
     boardExpansion.cells = (Array.isArray(cells) ? cells : []).map((cell: any) => ({
         side: resolveExpansionSideForCard(cell && cell.side, cell && cell.row, cell && cell.col, gameState),
         row: cell && cell.row,
@@ -389,25 +387,25 @@ function writeExpansionDescriptorsForCard(gameState: GameState, cells: any[]): a
     if (!BoardUtils || typeof BoardUtils.canonicalizeStateBoard !== 'function') {
         throw new Error('SharedBoardUtils.canonicalizeStateBoard is required by CardExpansion');
     }
-    const inspection = BoardUtils.canonicalizeStateBoard(gameState, null, { strict: false });
+    const inspection = BoardUtils.canonicalizeStateBoard(gameState, cardState, { strict: false });
     if (!inspection || inspection.ok !== true) {
         throw new Error('Invalid board expansion descriptors');
     }
     return boardExpansion;
 }
 
-function getCellValueForCard(gameState: GameState, row: number, col: number): any {
+function getCellValueForCard(cardState: CardState | null, gameState: GameState, row: number, col: number): any {
     if (!BoardUtils || typeof BoardUtils.getStateCellValue !== 'function') {
         throw new Error('SharedBoardUtils.getStateCellValue is required by CardExpansion');
     }
-    return BoardUtils.getStateCellValue(gameState, row, col, null);
+    return BoardUtils.getStateCellValue(gameState, row, col, cardState);
 }
 
-function setCellValueForCard(gameState: GameState, row: number, col: number, value: any): boolean {
+function setCellValueForCard(cardState: CardState | null, gameState: GameState, row: number, col: number, value: any): boolean {
     if (!BoardUtils || typeof BoardUtils.setStateCellValue !== 'function') {
         throw new Error('SharedBoardUtils.setStateCellValue is required by CardExpansion');
     }
-    return BoardUtils.setStateCellValue(gameState, row, col, value, null);
+    return BoardUtils.setStateCellValue(gameState, row, col, value, cardState);
 }
 
 function copyBoardExpansionSelectionForCard(target: any): any {
@@ -446,24 +444,34 @@ function getBoardExpansionGodPendingSelectionsForCard(pending: any): any[] {
     return unique;
 }
 
-function ensureExpansionCellForCard(gameState: GameState, row: number, col: number, owner: any): boolean {
+function ensureExpansionCellForCard(
+    cardState: CardState | null,
+    gameState: GameState,
+    row: number,
+    col: number,
+    owner: any
+): boolean {
     const boardConfig = resolveCardBoardConfig(gameState);
-    if (isMainBoardCellForCard(row, col, boardConfig)) return true;
+    if (isMainBoardCellForCard(row, col, boardConfig)) {
+        return getCellValueForCard(cardState, gameState, row, col) !== null;
+    }
     if (!isExpansionCoordinateForCard(row, col, boardConfig)) return false;
 
-    const currentValue = getCellValueForCard(gameState, row, col);
+    const currentValue = getCellValueForCard(cardState, gameState, row, col);
     if (currentValue !== null) {
-        return setCellValueForCard(gameState, row, col, owner == null ? currentValue : owner);
+        return setCellValueForCard(cardState, gameState, row, col, owner == null ? currentValue : owner);
     }
-
-    const cells = getExpansionDescriptorsForCard(gameState);
-    cells.push({
+    if (!BoardUtils || typeof BoardUtils.addStateExpansionCells !== 'function') {
+        throw new Error('SharedBoardUtils.addStateExpansionCells is required by CardExpansion');
+    }
+    const result = BoardUtils.addStateExpansionCells(gameState, [{
         side: resolveExpansionSideForCard(null, row, col, boardConfig),
         row,
         col,
         owner: normalizeExpansionOwnerForCard(owner)
-    });
-    writeExpansionDescriptorsForCard(gameState, cells);
+    }], cardState);
+    if (!result || result.added !== true) return false;
+    ensureMutableBoardExpansionForCard(cardState, gameState);
     return true;
 }
 

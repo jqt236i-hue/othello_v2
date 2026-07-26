@@ -2,18 +2,46 @@
     if (typeof module !== 'undefined' && module.exports) {
         let OwnerHelpers = null;
         let PlaybackEventContract = null;
+        let SharedBoardUtils = null;
         try {
             OwnerHelpers = require('../utils/owner-helpers');
         } catch (e) { /* ignore */ }
         try {
             PlaybackEventContract = require('./playback-event-contract');
         } catch (e) { /* ignore */ }
-        module.exports = factory(OwnerHelpers, PlaybackEventContract);
+        try {
+            SharedBoardUtils = require('./shared-board-utils');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(OwnerHelpers, PlaybackEventContract, SharedBoardUtils);
     } else {
-        root.PlaybackEventHelpers = factory(root.OwnerHelpers || null, root.PlaybackEventContract || null);
+        root.PlaybackEventHelpers = factory(
+            root.OwnerHelpers || null,
+            root.PlaybackEventContract || null,
+            root.SharedBoardUtils || null
+        );
     }
-}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (OwnerHelpers: unknown, PlaybackEventContract: unknown) {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (
+    OwnerHelpers: unknown,
+    PlaybackEventContract: unknown,
+    SharedBoardUtils: unknown
+) {
     'use strict';
+
+    const BoardKernel = SharedBoardUtils as {
+        createBoardContext?: (gameState: unknown, cardState?: unknown) => unknown;
+        getCellValue?: (context: unknown, row: number, col: number) => unknown;
+    } | null;
+    if (
+        !BoardKernel ||
+        typeof BoardKernel.createBoardContext !== 'function' ||
+        typeof BoardKernel.getCellValue !== 'function'
+    ) {
+        throw new Error('SharedBoardUtils BoardContext APIs are required by PlaybackEventHelpers');
+    }
+    const RequiredBoardKernel = BoardKernel as {
+        createBoardContext: (gameState: unknown, cardState?: unknown) => unknown;
+        getCellValue: (context: unknown, row: number, col: number) => unknown;
+    };
 
     interface PlaceEvent {
         type: string;
@@ -288,9 +316,12 @@
     function readBoardColor(snapshot: unknown, row: number, col: number): number {
         const snap = snapshot && typeof snapshot === 'object' ? snapshot as Record<string, unknown> : {};
         const gameState = snap.gameState && typeof snap.gameState === 'object' ? snap.gameState as Record<string, unknown> : {};
-        const board = Array.isArray(gameState.board) ? gameState.board as unknown[] : [];
-        const rowValue = Array.isArray(board[row]) ? board[row] as unknown[] : null;
-        const cellValue = rowValue ? Number(rowValue[col]) : 0;
+        if (!Array.isArray(gameState.board) || gameState.board.length <= 0) return 0;
+        const cardState = snap.cardState && typeof snap.cardState === 'object'
+            ? snap.cardState
+            : null;
+        const context = RequiredBoardKernel.createBoardContext(gameState, cardState);
+        const cellValue = Number(RequiredBoardKernel.getCellValue(context, row, col));
         if (cellValue === 1 || cellValue === -1) return cellValue;
         return 0;
     }

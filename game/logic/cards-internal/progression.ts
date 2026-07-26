@@ -71,8 +71,7 @@ const CHAIN_WILL_CARD_TYPE_SET: Set<string> = new Set(CHAIN_WILL_CARD_TYPES);
 type ProgressionDeps = {
     addCardToHand?: (cardState: any, playerKey: any, cardId: any) => any;
     emitPresentationEvent?: (cardState: any, event: any) => any;
-    resolveCardBoardConfig?: (gameState: any) => any;
-    collectMainBoardCoordinates?: (boardOrConfig: any) => Array<{ row: number; col: number }>;
+    createBoardViewForCard?: (cardState: any, gameState: any) => any;
 };
 
 function getThrowChainConfig(cardType: any) {
@@ -126,26 +125,20 @@ function addGeneratedChainWillCard(cardState: any, playerKey: any, sourceCardId:
     return addGeneratedProgressionCard(cardState, playerKey, sourceCardId, sourceCardType, CHAIN_WILL_CONFIG_BY_TYPE, deps);
 }
 
-function resolveChainWillMaxLinks(gameState: any, config: any, deps: ProgressionDeps = {}) {
+function resolveChainWillMaxLinks(cardState: any, gameState: any, config: any, deps: ProgressionDeps = {}) {
     if (!config) return 0;
     if (!config.infinite) {
         const extraLinks = Number(config.extraLinks);
         return Number.isFinite(extraLinks) && extraLinks > 0 ? Math.floor(extraLinks) : 0;
     }
-    const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
-    const boardConfig = (typeof deps.resolveCardBoardConfig === 'function')
-        ? deps.resolveCardBoardConfig(gameState)
-        : null;
-    if (typeof deps.collectMainBoardCoordinates === 'function') {
-        const playable = deps.collectMainBoardCoordinates(boardConfig || gameState);
-        if (Array.isArray(playable) && playable.length > 0) return playable.length;
+    if (typeof deps.createBoardViewForCard !== 'function') {
+        throw new Error('[progression] createBoardViewForCard is required for infinite chain');
     }
-    if (!board || !board.length) {
-        const fallbackConfig = boardConfig || { rows: 8, cols: 8 };
-        return Math.max(1, fallbackConfig.rows * fallbackConfig.cols);
+    const boardView = deps.createBoardViewForCard(cardState, gameState);
+    if (!boardView || !Array.isArray(boardView.coordinates)) {
+        throw new Error('[progression] createBoardViewForCard returned an invalid BoardView');
     }
-    const totalCells = board.reduce((sum: any, row: any) => sum + (Array.isArray(row) ? row.length : 0), 0);
-    return Math.max(1, totalCells);
+    return Math.max(1, boardView.coordinates.length);
 }
 
 module.exports = {

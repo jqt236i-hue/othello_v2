@@ -1,5 +1,19 @@
 import { createCardLossEffect } from '../game/logic/cards-internal/loss-effect.js';
 
+const SharedBoardUtils = require('../shared/shared-board-utils');
+
+function createBoard(fill = 0) {
+  return Array.from({ length: 4 }, () => Array(4).fill(fill));
+}
+
+function createBoardViewForCard(cardState: any, gameState: any) {
+  const context = SharedBoardUtils.createBoardContext(gameState, cardState);
+  return SharedBoardUtils.createBoardView(context.gameState, {
+    cardState: context.cardState,
+    strict: false
+  });
+}
+
 describe('card loss effect module', () => {
   test('returns not_pending when the pending effect is absent or different', () => {
     const effect = createCardLossEffect({
@@ -14,20 +28,28 @@ describe('card loss effect module', () => {
     });
   });
 
-  test('uses collected removals to prune markers, emit events, restore living will, and clear pending', () => {
+  test('uses canonical base/expansion cells and ignores meteor holes for restore and presentation', () => {
+    const removeSpecial = { id: 'remove-special' };
+    const removeBomb = { id: 'remove-bomb' };
+    const meteorHole = {
+      id: 'hole',
+      kind: 'specialStone',
+      row: 1,
+      col: 1,
+      data: { type: 'METEOR_HOLE' }
+    };
     const cardState = {
-      markers: [
-        { id: 'keep' },
-        { id: 'remove-special' },
-        { id: 'remove-bomb' }
-      ]
+      markers: [{ id: 'keep' }, removeSpecial, removeBomb, meteorHole]
     };
     const gameState = {
-      board: [
-        [1, 0],
-        [0, -1]
-      ]
+      board: createBoard(),
+      boardExpansion: {
+        cells: [{ side: 'top', row: -1, col: 0, owner: -1 }]
+      }
     };
+    gameState.board[0][0] = 1;
+    gameState.board[1][1] = -1;
+
     const clearPending = jest.fn();
     const emitPresentationEvent = jest.fn();
     const restoreFromLivingWillSnapshot = jest.fn();
@@ -37,14 +59,15 @@ describe('card loss effect module', () => {
       clearCardPendingEffect: clearPending,
       collectLossWillRemovals: () => ({
         guardedCells: new Set(),
-        removableSpecials: [cardState.markers[1]],
-        removableBombs: [cardState.markers[2]],
+        removableSpecials: [removeSpecial],
+        removableBombs: [removeBomb],
         removed: [
           { row: 0, col: 0, owner: 'black', type: 'WORK' },
-          { row: 1, col: 1, owner: 'white', type: 'TIME_BOMB' }
+          { row: -1, col: 0, owner: 'white', type: 'TIME_BOMB' },
+          { row: 1, col: 1, owner: 'white', type: 'WORK' }
         ]
       }),
-      getCellValueForCard: (gs, row, col) => gs.board[row][col],
+      createBoardViewForCard,
       emitPresentationEvent,
       findLivingWillMarkerAt: (_cs, row, col) => ({ row, col, token: `${row},${col}` }),
       restoreFromLivingWillSnapshot,
@@ -53,25 +76,37 @@ describe('card loss effect module', () => {
 
     const result = effect.applyLossWill(cardState, gameState, 'black');
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       applied: true,
-      removedCount: 2,
-      removed: [
-        { row: 0, col: 0, owner: 'black', type: 'WORK' },
-        { row: 1, col: 1, owner: 'white', type: 'TIME_BOMB' }
-      ]
+      removedCount: 3
     });
-    expect(cardState.markers).toEqual([{ id: 'keep' }]);
+    expect(cardState.markers).toEqual([{ id: 'keep' }, meteorHole]);
     expect(emitPresentationEvent).toHaveBeenCalledTimes(2);
+    expect(emitPresentationEvent).toHaveBeenCalledWith(
+      cardState,
+      expect.objectContaining({ row: -1, col: 0, type: 'STATUS_REMOVED' })
+    );
+    expect(emitPresentationEvent).not.toHaveBeenCalledWith(
+      cardState,
+      expect.objectContaining({ row: 1, col: 1 })
+    );
     expect(restoreFromLivingWillSnapshot).toHaveBeenCalledTimes(2);
-    expect(restoreFromLivingWillSnapshot).toHaveBeenNthCalledWith(
-      1,
+    expect(restoreFromLivingWillSnapshot).toHaveBeenCalledWith(
       cardState,
       gameState,
-      { row: 0, col: 0, token: '0,0' },
+      { row: -1, col: 0, token: '-1,0' },
       expect.objectContaining({ triggerKind: 'loss_will', cause: 'LOSS_WILL', reason: 'loss_will_reset' }),
       { ctx: true }
     );
     expect(clearPending).toHaveBeenCalledWith(cardState, 'black');
+  });
+
+  test('fails fast for an active effect when BoardView is unavailable', () => {
+    const effect = createCardLossEffect({
+      readCardPendingEffect: () => ({ type: 'LOSS_WILL' })
+    });
+
+    expect(() => effect.applyLossWill({ markers: [] }, { board: createBoard() }, 'black'))
+      .toThrow('createBoardViewForCard is required');
   });
 });

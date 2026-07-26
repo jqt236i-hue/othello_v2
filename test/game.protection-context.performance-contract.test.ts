@@ -9,6 +9,7 @@ function legacyProtectionContext(cardState) {
   const manifests = Markers.getManifestMarkers(cardState);
   const ownerValue = (owner) => owner === 'black' ? Shared.BLACK : (owner === 'white' ? Shared.WHITE : owner);
   return {
+    cardState,
     protectedStones: specials
       .filter((entry) => String(entry && entry.data && entry.data.type || '').toUpperCase() === 'PROTECTED')
       .map((entry) => ({ row: entry.row, col: entry.col, owner: entry.owner })),

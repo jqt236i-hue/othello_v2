@@ -41,9 +41,9 @@ function resolveUdgModuleOrGlobal(id: string, globalKey: string): any {
 }
 
 const SharedConstants = resolveUdgModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+const BoardUtils = resolveUdgModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
 const BoardOpsModule = resolveUdgModuleOrGlobal('../board_ops', 'BoardOps');
 const RandomSourceModule = resolveUdgModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
-const ExpansionFallbackModule = resolveUdgModuleOrGlobal('../cards-internal/expansion-fallback', 'CardExpansionFallback');
 const CardMarkersModule = resolveUdgModuleOrGlobal('./markers', 'CardMarkers');
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
@@ -52,37 +52,33 @@ const P_WHITE = (WHITE === undefined || WHITE === null) ? -1 : WHITE;
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
 const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
-if (!ExpansionFallbackModule) {
-    throw new Error('CardExpansionFallback missing required helpers');
+if (!BoardUtils ||
+    typeof BoardUtils.createBoardContext !== 'function' ||
+    typeof BoardUtils.collectBoardCoordinates !== 'function' ||
+    typeof BoardUtils.getCellValue !== 'function' ||
+    typeof BoardUtils.setCellValue !== 'function') {
+    throw new Error('SharedBoardUtils BoardContext access is required by CardUdG');
 }
 
-interface BoardDims {
-    rows: number;
-    cols: number;
+function createBoardContext(gameState: GameState, cardState: CardState): any {
+    return BoardUtils.createBoardContext(gameState, cardState);
 }
 
-const normalizeExpansionOwner = ExpansionFallbackModule.normalizeExpansionOwner as (owner: any) => number;
-const resolveBoardDims = ExpansionFallbackModule.resolveBoardDims as (gameState: GameState) => BoardDims;
-
-function getExpansionCells(gameState: GameState): any[] {
-    if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
-        return BoardOpsModule.getExpansionDescriptors(gameState);
-    }
-    return ExpansionFallbackModule.getExpansionCells(gameState);
+function collectBoardCells(gameState: GameState, cardState: CardState): Array<{ row: number; col: number; owner: any }> {
+    const context = createBoardContext(gameState, cardState);
+    return BoardUtils.collectBoardCoordinates(context).map((cell: { row: number; col: number }) => ({
+        row: cell.row,
+        col: cell.col,
+        owner: BoardUtils.getCellValue(context, cell.row, cell.col)
+    }));
 }
 
-function getCellValue(gameState: GameState, row: number, col: number): any {
-    if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
-        return BoardOpsModule.getCellValue(gameState, row, col);
-    }
-    return ExpansionFallbackModule.getCellValue(gameState, row, col);
+function getCellValue(gameState: GameState, row: number, col: number, cardState: CardState): any {
+    return BoardUtils.getCellValue(createBoardContext(gameState, cardState), row, col);
 }
 
-function setCellValue(gameState: GameState, row: number, col: number, value: any): boolean {
-    if (BoardOpsModule && typeof BoardOpsModule.setCellValue === 'function') {
-        return BoardOpsModule.setCellValue(gameState, row, col, value);
-    }
-    return ExpansionFallbackModule.setCellValue(gameState, row, col, value);
+function setCellValue(gameState: GameState, row: number, col: number, value: any, cardState: CardState): boolean {
+    return BoardUtils.setCellValue(createBoardContext(gameState, cardState), row, col, value);
 }
 
 function createUdgMarkersAtLookup(cardState: CardState) {
@@ -153,20 +149,10 @@ function getRandomTurnStartMoveDestination(cardState: CardState, gameState: Game
         return deps.selectRandomEmptyBoardShapeDestination(cardState, gameState, fromRow, fromCol, deps.randomSource);
     }
     const candidates: Array<{ row: number; col: number }> = [];
-    const dims = resolveBoardDims(gameState);
     const markersAt = createUdgMarkersAtLookup(cardState);
-    for (let row = 0; row < dims.rows; row++) {
-        for (let col = 0; col < dims.cols; col++) {
-            if (row === fromRow && col === fromCol) continue;
-            if (getCellValue(gameState, row, col) !== EMPTY) continue;
-            if (isBlockedDestinationCell(cardState, row, col, markersAt)) continue;
-            candidates.push({ row, col });
-        }
-    }
-    for (const cell of getExpansionCells(gameState)) {
-        if (!cell || !Number.isInteger(cell.row) || !Number.isInteger(cell.col)) continue;
+    for (const cell of collectBoardCells(gameState, cardState)) {
         if (cell.row === fromRow && cell.col === fromCol) continue;
-        if (getCellValue(gameState, cell.row, cell.col) !== EMPTY) continue;
+        if (cell.owner !== EMPTY) continue;
         if (isBlockedDestinationCell(cardState, cell.row, cell.col, markersAt)) continue;
         candidates.push({ row: cell.row, col: cell.col });
     }
@@ -201,13 +187,13 @@ function moveCoexistingMarkers(cardState: CardState, anchorEntry: any, fromRow: 
     }
 }
 
-function forEachNeighborCell(gameState: GameState, row: number, col: number, handler: (r: number, c: number, value: any) => void): void {
+function forEachNeighborCell(cardState: CardState, gameState: GameState, row: number, col: number, handler: (r: number, c: number, value: any) => void): void {
     for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
             if (dr === 0 && dc === 0) continue;
             const r = row + dr;
             const c = col + dc;
-            const value = getCellValue(gameState, r, c);
+            const value = getCellValue(gameState, r, c, cardState);
             if (value === null) continue;
             handler(r, c, value);
         }
@@ -220,9 +206,9 @@ interface CellSnapshot {
     value: any;
 }
 
-function getNeighborCellsSnapshot(gameState: GameState, row: number, col: number): CellSnapshot[] {
+function getNeighborCellsSnapshot(cardState: CardState, gameState: GameState, row: number, col: number): CellSnapshot[] {
     const cells: CellSnapshot[] = [];
-    forEachNeighborCell(gameState, row, col, (r, c, value) => {
+    forEachNeighborCell(cardState, gameState, row, col, (r, c, value) => {
         cells.push({ row: r, col: c, value });
     });
     return cells;
@@ -231,14 +217,13 @@ function getNeighborCellsSnapshot(gameState: GameState, row: number, col: number
 function collectDestroyedNeighbors(cardState: CardState, gameState: GameState, playerKey: PlayerKey, opponent: number, sourceRow: number, sourceCol: number, deps: UDGDeps = {}): Array<{ row: number; col: number }> {
     const destroyed: Array<{ row: number; col: number }> = [];
     const destroyAt = deps.destroyAt || ((cs: any, gs: GameState, r: number, c: number) => {
-        const current = getCellValue(gs, r, c);
+        const current = getCellValue(gs, r, c, cs);
         if (current === null || current === EMPTY) return false;
         if (cs.markers) cs.markers = cs.markers.filter((m: any) => !(m.row === r && m.col === c));
-        setCellValue(gs, r, c, EMPTY);
-        return true;
+        return setCellValue(gs, r, c, EMPTY, cs);
     });
 
-    const neighborCells = getNeighborCellsSnapshot(gameState, sourceRow, sourceCol);
+    const neighborCells = getNeighborCellsSnapshot(cardState, gameState, sourceRow, sourceCol);
     const markersAt = createUdgMarkersAtLookup(cardState);
     const targetDeps = { ...deps, markersAt };
     const targets = neighborCells.filter((cell) => cell && cell.value === opponent && !isManifestTarget(cardState, cell.row, cell.col, targetDeps));
@@ -279,15 +264,14 @@ function processUltimateDestroyGodTurnStartAnchorCore(cardState: CardState, game
     const anchors: Array<{ row: number; col: number; remainingNow: number }> = [];
     const expired: Array<{ row: number; col: number; owner: PlayerKey; reason: string }> = [];
     const destroyAt = deps.destroyAt || ((cs: any, gs: GameState, r: number, c: number) => {
-        const current = getCellValue(gs, r, c);
+        const current = getCellValue(gs, r, c, cs);
         if (current === null || current === EMPTY) return false;
         if (cs.markers) cs.markers = cs.markers.filter((m: any) => !(m.row === r && m.col === c));
-        setCellValue(gs, r, c, EMPTY);
-        return true;
+        return setCellValue(gs, r, c, EMPTY, cs);
     });
 
     if (!udg) return { moved, destroyed, anchors, expired };
-    if (getCellValue(gameState, udg.row, udg.col) !== player) {
+    if (getCellValue(gameState, udg.row, udg.col, cardState) !== player) {
         if (udg.data) udg.data.remainingOwnerTurns = -1;
         return { moved, destroyed, anchors, expired };
     }
@@ -314,7 +298,8 @@ function processUltimateDestroyGodTurnStartAnchorCore(cardState: CardState, game
             movedRes = !!(res && res.moved);
             usedBoardOpsMove = !!(res && res.markerHandled === true);
         } else {
-            movedRes = setCellValue(gameState, fromRow, fromCol, EMPTY) && setCellValue(gameState, moveTarget.row, moveTarget.col, player);
+            movedRes = setCellValue(gameState, fromRow, fromCol, EMPTY, cardState) &&
+                setCellValue(gameState, moveTarget.row, moveTarget.col, player, cardState);
         }
         if (movedRes) {
             if (!usedBoardOpsMove) {
@@ -390,11 +375,10 @@ function processUltimateDestroyGodEffects(cardState: CardState, gameState: GameS
     const opponent = -player;
 
     const destroyAt = deps.destroyAt || ((cs: any, gs: GameState, r: number, c: number) => {
-        const current = getCellValue(gs, r, c);
+        const current = getCellValue(gs, r, c, cs);
         if (current === null || current === EMPTY) return false;
         if (cs.markers) cs.markers = cs.markers.filter((m: any) => !(m.row === r && m.col === c));
-        setCellValue(gs, r, c, EMPTY);
-        return true;
+        return setCellValue(gs, r, c, EMPTY, cs);
     });
 
     const udgs = ((cardState as any).markers || []).filter((s: any) => s.kind === 'specialStone' && s.data && s.data.type === 'ULTIMATE_DESTROY_GOD' && s.owner === playerKey);
@@ -428,20 +412,19 @@ function processUltimateDestroyGodEffectsAtAnchor(cardState: CardState, gameStat
     const opponent = -player;
 
     const destroyAt = deps.destroyAt || ((cs: any, gs: GameState, r: number, c: number) => {
-        const current = getCellValue(gs, r, c);
+        const current = getCellValue(gs, r, c, cs);
         if (current === null || current === EMPTY) return false;
         if (cs.markers) cs.markers = cs.markers.filter((m: any) => !(m.row === r && m.col === c));
-        setCellValue(gs, r, c, EMPTY);
-        return true;
+        return setCellValue(gs, r, c, EMPTY, cs);
     });
 
     const udg = ((cardState as any).markers || []).find((s: any) =>
         s.kind === 'specialStone' && s.data && s.data.type === 'ULTIMATE_DESTROY_GOD' && s.owner === playerKey && s.row === row && s.col === col
     );
     if (!udg) return { destroyed };
-    if (getCellValue(gameState, row, col) !== player) return { destroyed };
+    if (getCellValue(gameState, row, col, cardState) !== player) return { destroyed };
 
-    const neighborCells = getNeighborCellsSnapshot(gameState, row, col);
+    const neighborCells = getNeighborCellsSnapshot(cardState, gameState, row, col);
     const markersAt = createUdgMarkersAtLookup(cardState);
     const targetDeps = { ...deps, markersAt };
     const targets = neighborCells.filter((cell) => cell && cell.value === opponent && !isManifestTarget(cardState, cell.row, cell.col, targetDeps));

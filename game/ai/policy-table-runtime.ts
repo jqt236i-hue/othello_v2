@@ -35,6 +35,20 @@ function normalizePlayerKey(playerKey: any): 'black' | 'white' {
     return playerKey === 'black' ? 'black' : 'white';
 }
 
+function isBoardContext(board: any): boolean {
+    return !!(
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.isBoardContext === 'function' &&
+        SharedBoardUtils.isBoardContext(board)
+    );
+}
+
+function getDenseBoardMatrix(board: any): any {
+    if (Array.isArray(board)) return board;
+    if (isBoardContext(board)) return board.gameState.board;
+    return null;
+}
+
 function encodeBoardFallback(board: any): string {
     if (!Array.isArray(board)) return '';
     const rows: string[] = [];
@@ -70,7 +84,9 @@ function transformCoord(row: number, col: number, size: number, transformId: num
 
 function cellType(row: number, col: number, boardOrSize: any): string {
     if (SharedBoardUtils && typeof SharedBoardUtils.getCellType === 'function') {
-        if (Array.isArray(boardOrSize)) return SharedBoardUtils.getCellType(row, col, boardOrSize);
+        if (Array.isArray(boardOrSize) || isBoardContext(boardOrSize)) {
+            return SharedBoardUtils.getCellType(row, col, boardOrSize);
+        }
         const n = Number.isFinite(Number(boardOrSize)) && Number(boardOrSize) > 0 ? Number(boardOrSize) : 8;
         return SharedBoardUtils.getCellType(row, col, n, n);
     }
@@ -82,6 +98,13 @@ function cellType(row: number, col: number, boardOrSize: any): string {
 
 function resolveBoardSize(board: any): number {
     if (Array.isArray(board) && board.length > 0) return board.length;
+    if (isBoardContext(board) && SharedBoardUtils && typeof SharedBoardUtils.resolveBoardBounds === 'function') {
+        const bounds = SharedBoardUtils.resolveBoardBounds(board);
+        if (bounds) return Math.max(
+            Number(bounds.maxRow) - Number(bounds.minRow) + 1,
+            Number(bounds.maxCol) - Number(bounds.minCol) + 1
+        );
+    }
     return 8;
 }
 
@@ -122,6 +145,10 @@ function makePolicyAbstractActionKey(move: any, board: any): string {
 }
 
 function getBoardCellValue(board: any, row: number, col: number): number {
+    if (SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function') {
+        const value = SharedBoardUtils.getCellValue(board, row, col);
+        return Number(value) || 0;
+    }
     if (!Array.isArray(board)) return 0;
     if (row < 0 || col < 0 || row >= board.length) return 0;
     const rowArr = Array.isArray(board[row]) ? board[row] : [];
@@ -130,6 +157,9 @@ function getBoardCellValue(board: any, row: number, col: number): number {
 }
 
 function countEmpties(board: any): number {
+    if (SharedBoardUtils && typeof SharedBoardUtils.countBoardEmpties === 'function') {
+        return Number(SharedBoardUtils.countBoardEmpties(board)) || 0;
+    }
     if (!Array.isArray(board)) return 0;
     let empties = 0;
     for (let r = 0; r < board.length; r += 1) {
@@ -146,6 +176,18 @@ function countDiscDiffOnBoard(board: any, playerKey: 'black' | 'white'): number 
     const opp = -own;
     let ownCount = 0;
     let oppCount = 0;
+    if (
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.collectBoardCoordinates === 'function' &&
+        typeof SharedBoardUtils.getCellValue === 'function'
+    ) {
+        for (const cell of SharedBoardUtils.collectBoardCoordinates(board)) {
+            const value = SharedBoardUtils.getCellValue(board, cell.row, cell.col);
+            if (value === own) ownCount += 1;
+            else if (value === opp) oppCount += 1;
+        }
+        return ownCount - oppCount;
+    }
     if (!Array.isArray(board)) return 0;
     for (let r = 0; r < board.length; r += 1) {
         const row = Array.isArray(board[r]) ? board[r] : [];
@@ -159,6 +201,10 @@ function countDiscDiffOnBoard(board: any, playerKey: 'black' | 'white'): number 
 }
 
 function countCorners(board: any, playerKey: 'black' | 'white'): number {
+    if (SharedBoardUtils && typeof SharedBoardUtils.countCornerControl === 'function') {
+        const counts = SharedBoardUtils.countCornerControl(board, playerKey === 'black' ? 1 : -1);
+        return (Number(counts && counts.ownCorners) || 0) - (Number(counts && counts.oppCorners) || 0);
+    }
     if (!Array.isArray(board) || board.length <= 0) return 0;
     const own = playerKey === 'black' ? 1 : -1;
     const opp = -own;
@@ -197,11 +243,12 @@ function makePolicyAbstractStateKey(playerKey: 'black' | 'white', board: any, pe
 }
 
 function createRawBoard8x8(board: any): any {
-    if (!Array.isArray(board) || board.length < 8) return null;
+    const denseBoard = getDenseBoardMatrix(board);
+    if (!Array.isArray(denseBoard) || denseBoard.length < 8) return null;
     const raw: number[][] = Array.from({ length: 8 }, () => Array(8).fill(0));
     for (let r = 0; r < 8; r += 1) {
         for (let c = 0; c < 8; c += 1) {
-            raw[r][c] = getBoardCellValue(board, r, c);
+            raw[r][c] = Number(denseBoard[r]?.[c]) || 0;
         }
     }
     return raw;

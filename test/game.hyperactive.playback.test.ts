@@ -106,4 +106,135 @@ describe('hyperactive playback detection', () => {
     delete (global as any).emitGameStateChange;
     delete (global as any).emitCardStateChange;
   });
+
+  test('uses expansion owners for CHANGE and CROSSFADE_STONE presentation colors', async () => {
+    jest.resetModules();
+    const emitPresentationEvent = jest.fn();
+    const setDiscColorAt = jest.fn();
+    const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    (global as any).cardState = { markers: [] };
+    (global as any).gameState = {
+      board,
+      boardExpansion: {
+        active: false,
+        side: null,
+        row: null,
+        col: null,
+        owner: 0,
+        usedByPlayer: { black: true, white: true },
+        cells: [
+          { side: 'top', row: -1, col: 0, owner: 1 },
+          { side: 'bottom', row: 8, col: 7, owner: -1 }
+        ]
+      }
+    };
+
+    const hyper = require('../game/special-effects/hyperactive');
+    hyper.setUIImpl({
+      hasPlaybackEngine: () => false,
+      emitPresentationEvent,
+      setDiscColorAt,
+      waitMs: () => Promise.resolve(),
+      getAnimationTiming: () => 1,
+      emitBoardUpdate: jest.fn(),
+      emitGameStateChange: jest.fn(),
+      emitCardStateChange: jest.fn(),
+      emitLogAdded: jest.fn()
+    });
+
+    try {
+      await hyper.processHyperactiveMovesAtTurnStart(1, {
+        moved: [],
+        destroyed: [],
+        flipped: [
+          { row: -1, col: 0 },
+          { row: 8, col: 7 }
+        ],
+        regenTriggered: [{ row: 8, col: 7 }],
+        regenCaptureFlips: []
+      });
+
+      expect(emitPresentationEvent).toHaveBeenCalledWith({
+        type: 'CHANGE',
+        row: -1,
+        col: 0,
+        ownerBefore: 'white',
+        ownerAfter: 'black'
+      });
+      expect(emitPresentationEvent).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'CROSSFADE_STONE',
+        row: 8,
+        col: 7,
+        owner: -1,
+        newColor: -1
+      }));
+      expect(setDiscColorAt).toHaveBeenCalledWith(-1, 0, -1);
+      expect(setDiscColorAt).toHaveBeenCalledWith(-1, 0, 1);
+    } finally {
+      hyper.setUIImpl({});
+      delete (global as any).cardState;
+      delete (global as any).gameState;
+    }
+  });
+
+  test('does not derive presentation owners or colors from stale stones under METEOR_HOLE', async () => {
+    jest.resetModules();
+    const emitPresentationEvent = jest.fn();
+    const setDiscColorAt = jest.fn();
+    const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    (global as any).cardState = {
+      markers: [
+        { kind: 'specialStone', row: -1, col: 0, owner: 'black', data: { type: 'METEOR_HOLE' } },
+        { kind: 'specialStone', row: 8, col: 7, owner: 'black', data: { type: 'METEOR_HOLE' } }
+      ]
+    };
+    (global as any).gameState = {
+      board,
+      boardExpansion: {
+        active: false,
+        side: null,
+        row: null,
+        col: null,
+        owner: 0,
+        usedByPlayer: { black: true, white: true },
+        cells: [
+          { side: 'top', row: -1, col: 0, owner: 1 },
+          { side: 'bottom', row: 8, col: 7, owner: -1 }
+        ]
+      }
+    };
+
+    const hyper = require('../game/special-effects/hyperactive');
+    hyper.setUIImpl({
+      hasPlaybackEngine: () => false,
+      emitPresentationEvent,
+      setDiscColorAt,
+      waitMs: () => Promise.resolve(),
+      getAnimationTiming: () => 1,
+      emitBoardUpdate: jest.fn(),
+      emitGameStateChange: jest.fn(),
+      emitCardStateChange: jest.fn(),
+      emitLogAdded: jest.fn()
+    });
+
+    try {
+      await hyper.processHyperactiveMovesAtTurnStart(1, {
+        moved: [],
+        destroyed: [],
+        flipped: [
+          { row: -1, col: 0 },
+          { row: 8, col: 7 }
+        ],
+        regenTriggered: [{ row: 8, col: 7 }],
+        regenCaptureFlips: []
+      });
+
+      expect(emitPresentationEvent).not.toHaveBeenCalled();
+      expect(setDiscColorAt).not.toHaveBeenCalled();
+    } finally {
+      hyper.setUIImpl({});
+      delete (global as any).cardState;
+      delete (global as any).gameState;
+    }
+  });
 });

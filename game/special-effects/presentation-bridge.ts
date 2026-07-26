@@ -5,6 +5,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 const ControllerEvents = _require('../controller-events');
+const SharedBoardUtils = _require('../../shared/shared-board-utils');
+const SharedConstants = _require('../../shared-constants');
+
+if (!SharedBoardUtils ||
+    typeof SharedBoardUtils.createBoardContext !== 'function' ||
+    typeof SharedBoardUtils.getCellValue !== 'function') {
+    throw new Error('SharedBoardUtils BoardContext reader is required by SpecialEffectsPresentationBridge');
+}
+if (!SharedConstants ||
+    SharedConstants.BLACK === undefined ||
+    SharedConstants.WHITE === undefined) {
+    throw new Error('SharedConstants owner values are required by SpecialEffectsPresentationBridge');
+}
 
 let timers: any = null;
 try { timers = _require('../timers'); } catch (e) { timers = null; }
@@ -26,6 +39,14 @@ function setUIImpl(moduleName: string, nextImpl: any): Record<string, any> {
 function readFunction(moduleName: string, name: string): Function | null {
     const candidate = getModuleImpl(moduleName)[name];
     return typeof candidate === 'function' ? candidate : null;
+}
+
+function readBoardOwner(gameStateRef: any, cardStateRef: any, row: number, col: number): number | null {
+    const context = SharedBoardUtils.createBoardContext(gameStateRef, cardStateRef);
+    const owner = SharedBoardUtils.getCellValue(context, row, col);
+    return owner === SharedConstants.BLACK || owner === SharedConstants.WHITE
+        ? owner
+        : null;
 }
 
 function emitLogAdded(moduleName: string, message: any, kind?: any): boolean {
@@ -201,6 +222,7 @@ function emitPresentationEvent(moduleName: string, cardStateRef: any, event: any
 module.exports = {
     setUIImpl,
     readFunction,
+    readBoardOwner,
     emitLogAdded,
     emitBoardUpdate,
     emitGameStateChange,

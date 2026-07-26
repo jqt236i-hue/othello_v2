@@ -1,4 +1,5 @@
 import { createCpuDecisionPendingActions } from '../game/cpu-decision-pending-actions';
+const SharedBoardUtils = require('../shared/shared-board-utils');
 
 function createController(overrides?: Record<string, any>) {
   const cardState = {
@@ -8,13 +9,15 @@ function createController(overrides?: Record<string, any>) {
     }
   } as any;
   const gameState = {
-    board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+    boardConfig: { rows: 8, cols: 8, shape: 'rectangle' }
   } as any;
   const cardLogic = {
     getSelectableTargets: jest.fn(() => [{ row: 2, col: 3 }]),
     applyStrongWindWill: jest.fn(() => ({ applied: true }))
   } as any;
   const runCpuPendingSelectionViaPipeline = jest.fn(() => null);
+  const choosePendingTargetWithPolicyAsync = jest.fn(async (_playerKey, _pendingType, targets) => targets[0]);
   const emitCpuSelectionStateChange = jest.fn();
   const clearCpuPendingEffect = jest.fn((playerKey: any) => {
     cardState.pendingEffectByPlayer[playerKey] = null;
@@ -27,17 +30,31 @@ function createController(overrides?: Record<string, any>) {
   }
 
   const controller = createCpuDecisionPendingActions({
-    choosePendingTargetWithPolicyAsync: jest.fn(async (_playerKey, _pendingType, targets) => targets[0]),
+    buildCardUseDecisionContext: jest.fn(() => ({})),
+    choosePendingTargetWithPolicyAsync,
     clearCpuPendingEffect,
     cpuDebugLog: jest.fn(),
+    emitCpuEffectLog: jest.fn(),
     emitCpuSelectionStateChange,
+    filterCloneTargetsForLv6: jest.fn((_playerKey, targets) => targets),
+    getActiveProtectionForPlayer: jest.fn(() => []),
+    getBoardCellValueSafe: SharedBoardUtils.getCellValue,
     getCardLogic: () => cardLogic,
     getCardState: () => cardState,
+    getCpuPolicyCore: jest.fn(() => null),
     getCpuRng: () => ({ random: () => 0 }),
+    getCurrentCpuBoard: () => SharedBoardUtils.createBoardContext(gameState, cardState),
+    getFlipBlockers: jest.fn(() => []),
     getGameState: () => gameState,
+    getLegalMoves: jest.fn(() => []),
     handOffSelectionTurnInGameState: jest.fn(),
+    isCornerCell: SharedBoardUtils.isCornerCell,
     maybeContinueCpuSelectionTurnHandoff: jest.fn(),
     readCpuPendingEffect: (playerKey: any) => cardState.pendingEffectByPlayer[playerKey],
+    resolveCpuDecisionLevelForPlayer: jest.fn(() => 6),
+    resolveCpuCardPolicyLevelForPlayer: jest.fn(() => 6),
+    resolvePlayerValue: (playerKey: any) => playerKey === 'black' ? 1 : -1,
+    resolveSharedBoardUtilsModule: () => SharedBoardUtils,
     runCpuPendingSelectionViaPipeline
   });
 
@@ -46,6 +63,7 @@ function createController(overrides?: Record<string, any>) {
     cardState,
     gameState,
     cardLogic,
+    choosePendingTargetWithPolicyAsync,
     runCpuPendingSelectionViaPipeline,
     emitCpuSelectionStateChange,
     clearCpuPendingEffect
@@ -103,5 +121,86 @@ describe('cpu decision pending actions controller', () => {
 
     expect(ctx.cardLogic.applyStrongWindWill).toHaveBeenCalledTimes(1);
     expect(ctx.emitCpuSelectionStateChange).toHaveBeenCalledTimes(1);
+  });
+
+  test('destroy fallback includes occupied expansion cells and excludes METEOR_HOLE cells', async () => {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    board[0][0] = 1;
+    const ctx = createController({
+      gameState: {
+        board,
+        boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+        boardExpansion: {
+          cells: [{ side: 'right', row: 0, col: 4, owner: -1 }]
+        }
+      },
+      cardState: {
+        pendingEffectByPlayer: {
+          white: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' },
+          black: null
+        },
+        markers: [{
+          kind: 'specialStone',
+          row: 0,
+          col: 0,
+          data: { type: 'METEOR_HOLE' }
+        }]
+      },
+      cardLogic: {
+        getSelectableTargets: jest.fn(() => [])
+      }
+    });
+
+    await ctx.controller.cpuSelectDestroyWithPolicy('white');
+
+    expect(ctx.choosePendingTargetWithPolicyAsync).toHaveBeenCalledWith(
+      'white',
+      'DESTROY_ONE_STONE',
+      [{ row: 0, col: 4 }],
+      null
+    );
+    expect(ctx.runCpuPendingSelectionViaPipeline).toHaveBeenCalledWith(
+      'white',
+      { destroyTarget: { row: 0, col: 4 } },
+      'DESTROY_ONE_STONE'
+    );
+  });
+
+  test('board expansion targeting recognizes an opponent stone on an effective expansion corner', async () => {
+    const ctx = createController({
+      gameState: {
+        board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+        boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+        boardExpansion: {
+          cells: Array.from({ length: 4 }, (_unused, row) => ({
+            side: 'right',
+            row,
+            col: 4,
+            owner: row === 0 ? 1 : 0
+          }))
+        }
+      },
+      cardState: {
+        pendingEffectByPlayer: {
+          white: { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' },
+          black: null
+        }
+      },
+      cardLogic: {
+        getSelectableTargets: jest.fn(() => [
+          { row: 1, col: 1, directionKey: 'right' },
+          { row: 0, col: 4, directionKey: 'right' }
+        ])
+      }
+    });
+
+    await ctx.controller.cpuSelectBoardExpansionWillWithPolicy('white');
+
+    expect(ctx.choosePendingTargetWithPolicyAsync).toHaveBeenCalledWith(
+      'white',
+      'BOARD_EXPANSION_WILL',
+      [{ row: 0, col: 4, directionKey: 'right' }],
+      expect.objectContaining({ type: 'BOARD_EXPANSION_WILL' })
+    );
   });
 });

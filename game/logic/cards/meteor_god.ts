@@ -15,11 +15,6 @@ interface MeteorGodSharedConstants {
   EMPTY: MeteorGodOwnerValue;
 }
 
-interface MeteorGodBoardDims {
-  rows: number;
-  cols: number;
-}
-
 interface MeteorGodExpansionCell {
   side: MeteorGodExpansionSide | null;
   row: number;
@@ -64,9 +59,9 @@ interface MeteorGodCardState {
 }
 
 interface MeteorGodBoardOpsModule {
-  getExpansionDescriptors?: (gameState: MeteorGodGameState) => MeteorGodExpansionCell[];
-  getCellValue?: (gameState: MeteorGodGameState, row: number, col: number) => MeteorGodOwnerValue | null;
-  setCellValue?: (gameState: MeteorGodGameState, row: number, col: number, value: MeteorGodOwnerValue) => boolean;
+  getExpansionDescriptors?: (gameState: MeteorGodGameState, cardState?: MeteorGodCardState | null) => MeteorGodExpansionCell[];
+  getCellValue?: (gameState: MeteorGodGameState, row: number, col: number, cardState?: MeteorGodCardState | null) => MeteorGodOwnerValue | null;
+  setCellValue?: (gameState: MeteorGodGameState, row: number, col: number, value: MeteorGodOwnerValue, cardState?: MeteorGodCardState | null) => boolean;
   revertSpecialStoneAt?: (
     cardState: MeteorGodCardState,
     gameState: MeteorGodGameState,
@@ -171,66 +166,58 @@ function safeRequire(id: string): any {
   }
 }
 
-const SharedConstants: MeteorGodSharedConstants = safeRequire('../../../shared-constants') || {
-  BLACK: 1,
-  WHITE: -1,
-  EMPTY: 0
-};
-const BoardOpsModule: MeteorGodBoardOpsModule | null = safeRequire('../board_ops');
-const ExpansionFallbackModule = safeRequire('./expansion');
+const SharedConstants = (safeRequire('../../../shared-constants')
+  || (typeof self !== 'undefined' ? (self as any).SharedConstants : null)) as MeteorGodSharedConstants | null;
+const BoardUtils = safeRequire('../../../shared/shared-board-utils')
+  || (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null);
+const BoardOpsModule: MeteorGodBoardOpsModule | null = safeRequire('../board_ops')
+  || (typeof self !== 'undefined' ? (self as any).BoardOps : null);
 const RandomSourceModule = safeRequire('./random-source');
 const CardMarkersModule: MeteorGodCardMarkersModule | null = safeRequire('./markers');
 const CardCellRemoval = ((typeof module === 'object' && module.exports)
   ? safeRequire('./cell-removal')
-  : null) || (typeof self !== 'undefined' ? (self as any).CardCellRemoval : null) || {
-  applyHoleStyleCellRemoval: (_cardState: MeteorGodCardState, _gameState: MeteorGodGameState, targetRow: number, targetCol: number, _playerKey: string, cause: string) => ({
-    applied: false,
-    reason: 'cell_removal_dependency_missing',
-    row: targetRow,
-    col: targetCol,
-    cause
-  }),
-  runHoleStyleCellRemovalBlock: (_cardState: MeteorGodCardState, _gameState: MeteorGodGameState, _deps: any, fn: () => any) => fn()
-};
+  : null) || (typeof self !== 'undefined' ? (self as any).CardCellRemoval : null);
 
-const BLACK = SharedConstants.BLACK || 1;
-const WHITE = SharedConstants.WHITE || -1;
-const EMPTY = SharedConstants.EMPTY || 0;
+if (!SharedConstants ||
+    SharedConstants.BLACK === undefined ||
+    SharedConstants.WHITE === undefined ||
+    SharedConstants.EMPTY === undefined) {
+  throw new Error('SharedConstants missing required values');
+}
+
+const BLACK = SharedConstants.BLACK;
+const WHITE = SharedConstants.WHITE;
+const EMPTY = SharedConstants.EMPTY;
 const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
-function resolveBoardDims(gameState: MeteorGodGameState): MeteorGodBoardDims {
-  const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
-  const rows = board && board.length ? board.length : 8;
-  const cols = board && Array.isArray(board[0]) && board[0].length ? board[0].length : rows;
-  return { rows, cols };
+if (!BoardUtils ||
+    typeof BoardUtils.createBoardContext !== 'function' ||
+    typeof BoardUtils.collectBoardCoordinates !== 'function' ||
+    typeof BoardUtils.getCellValue !== 'function') {
+  throw new Error('SharedBoardUtils BoardContext access is required by CardMeteorGod');
 }
 
-function getExpansionCells(gameState: MeteorGodGameState): MeteorGodExpansionCell[] {
-  if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
-    return BoardOpsModule.getExpansionDescriptors(gameState);
-  }
-  if (ExpansionFallbackModule && typeof ExpansionFallbackModule.getExpansionCells === 'function') {
-    return ExpansionFallbackModule.getExpansionCells(gameState);
-  }
-  const expansion = gameState && gameState.boardExpansion;
-  if (!expansion || !Array.isArray(expansion.cells)) return [];
-  return expansion.cells.filter(Boolean) as MeteorGodExpansionCell[];
+if (!CardCellRemoval ||
+    typeof CardCellRemoval.applyHoleStyleCellRemoval !== 'function' ||
+    typeof CardCellRemoval.runHoleStyleCellRemovalBlock !== 'function') {
+  throw new Error('CardCellRemoval missing required helpers');
 }
 
-function getCellValue(gameState: MeteorGodGameState, row: number, col: number): MeteorGodOwnerValue | null {
-  if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
-    return BoardOpsModule.getCellValue(gameState, row, col);
-  }
-  if (ExpansionFallbackModule && typeof ExpansionFallbackModule.getCellValue === 'function') {
-    return ExpansionFallbackModule.getCellValue(gameState, row, col);
-  }
-  if (gameState && Array.isArray(gameState.board) && Array.isArray(gameState.board[row]) && col >= 0 && col < gameState.board[row].length) {
-    return gameState.board[row][col];
-  }
-  for (const cell of getExpansionCells(gameState)) {
-    if (cell && cell.row === row && cell.col === col) return cell.owner;
-  }
-  return null;
+function createBoardContext(gameState: MeteorGodGameState, cardState: MeteorGodCardState): any {
+  return BoardUtils.createBoardContext(gameState, cardState);
+}
+
+function collectBoardCells(gameState: MeteorGodGameState, cardState: MeteorGodCardState): Array<{ row: number; col: number; owner: MeteorGodOwnerValue | null }> {
+  const context = createBoardContext(gameState, cardState);
+  return BoardUtils.collectBoardCoordinates(context).map((cell: { row: number; col: number }) => ({
+    row: cell.row,
+    col: cell.col,
+    owner: BoardUtils.getCellValue(context, cell.row, cell.col)
+  }));
+}
+
+function getCellValue(gameState: MeteorGodGameState, row: number, col: number, cardState: MeteorGodCardState): MeteorGodOwnerValue | null {
+  return BoardUtils.getCellValue(createBoardContext(gameState, cardState), row, col);
 }
 
 function cleanupExpiredMeteorGod(cardState: MeteorGodCardState): void {
@@ -283,14 +270,10 @@ function isManifestTarget(cardState: MeteorGodCardState, row: number, col: numbe
 
 function collectEnemyTargets(cardState: MeteorGodCardState, gameState: MeteorGodGameState, enemyValue: MeteorGodOwnerValue): MeteorGodEffectPosition[] {
   const targets: MeteorGodEffectPosition[] = [];
-  const dims = resolveBoardDims(gameState);
-  for (let row = 0; row < dims.rows; row += 1) {
-    for (let col = 0; col < dims.cols; col += 1) {
-      if (gameState.board && gameState.board[row][col] === enemyValue && !isManifestTarget(cardState, row, col)) targets.push({ row, col });
-    }
-  }
-  for (const cell of getExpansionCells(gameState)) {
-    if (cell && cell.owner === enemyValue && !isManifestTarget(cardState, cell.row, cell.col)) targets.push({ row: cell.row, col: cell.col });
+  for (const cell of collectBoardCells(gameState, cardState)) {
+    if (cell.owner !== enemyValue) continue;
+    if (isManifestTarget(cardState, cell.row, cell.col)) continue;
+    targets.push({ row: cell.row, col: cell.col });
   }
   return targets;
 }
@@ -305,9 +288,10 @@ function expireAnchor(
   options: MeteorGodProcessDeps,
   expired: MeteorGodExpiredPosition[]
 ): void {
+  const boardOps = options.BoardOps || BoardOpsModule;
   let reverted = false;
-  if (options.BoardOps && typeof options.BoardOps.revertSpecialStoneAt === 'function') {
-    const res = options.BoardOps.revertSpecialStoneAt(cardState, gameState, row, col, 'METEOR_GOD', playerKey, 'METEOR_GOD', 'anchor_expired');
+  if (boardOps && typeof boardOps.revertSpecialStoneAt === 'function') {
+    const res = boardOps.revertSpecialStoneAt(cardState, gameState, row, col, 'METEOR_GOD', playerKey, 'METEOR_GOD', 'anchor_expired');
     reverted = !!(res && res.reverted);
   } else if (Array.isArray(cardState.markers)) {
     const markers = cardState.markers;
@@ -346,7 +330,7 @@ function processAnchor(cardState: MeteorGodCardState, gameState: MeteorGodGameSt
   ));
 
   if (!marker) return { destroyed, anchors, expired };
-  if (getCellValue(gameState, row, col) !== playerValue) {
+  if (getCellValue(gameState, row, col, cardState) !== playerValue) {
     if (marker.data) marker.data.remainingOwnerTurns = -1;
     cleanupExpiredMeteorGod(cardState);
     return { destroyed, anchors, expired };
@@ -356,10 +340,14 @@ function processAnchor(cardState: MeteorGodCardState, gameState: MeteorGodGameSt
     const targets = collectEnemyTargets(cardState, gameState, enemyValue);
     if (targets.length > 0) {
       const target = targets[resolveRandomIndex(targets.length, randomFn)];
+      const boardOps = options.BoardOps || BoardOpsModule;
       const cellRemovalDeps = {
-        applyCellRemovalAt: options.applyCellRemovalAt || (options.BoardOps && options.BoardOps.applyCellRemovalAt),
-        runCellRemovalBlock: options.runCellRemovalBlock || (options.BoardOps && options.BoardOps.runCellRemovalBlock)
+        applyCellRemovalAt: options.applyCellRemovalAt || (boardOps && boardOps.applyCellRemovalAt),
+        runCellRemovalBlock: options.runCellRemovalBlock || (boardOps && boardOps.runCellRemovalBlock)
       };
+      if (typeof cellRemovalDeps.applyCellRemovalAt !== 'function') {
+        throw new Error('BoardOps.applyCellRemovalAt is required by CardMeteorGod');
+      }
       const result = CardCellRemoval.applyHoleStyleCellRemoval(
         cardState,
         gameState,
@@ -403,9 +391,13 @@ function processAnchor(cardState: MeteorGodCardState, gameState: MeteorGodGameSt
     return { destroyed, anchors, expired };
   };
 
+  const boardOps = options.BoardOps || BoardOpsModule;
   const blockDeps = {
-    runCellRemovalBlock: options.runCellRemovalBlock || (options.BoardOps && options.BoardOps.runCellRemovalBlock)
+    runCellRemovalBlock: options.runCellRemovalBlock || (boardOps && boardOps.runCellRemovalBlock)
   };
+  if (typeof blockDeps.runCellRemovalBlock !== 'function') {
+    throw new Error('BoardOps.runCellRemovalBlock is required by CardMeteorGod');
+  }
   return CardCellRemoval.runHoleStyleCellRemovalBlock(
     cardState,
     gameState,

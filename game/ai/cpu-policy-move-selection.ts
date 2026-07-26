@@ -136,7 +136,7 @@ export function createCpuPolicyMoveSelection(deps?: CpuPolicyMoveSelectionDeps) 
         const opts = options || {};
         const useHeuristic = !!opts.enableHeuristic;
         const scoreMove = typeof opts.scoreMove === 'function' ? opts.scoreMove : null;
-        const board = Array.isArray(opts.board) ? opts.board : null;
+        const board = opts.board && typeof opts.board === 'object' ? opts.board : null;
         if (!useHeuristic && !scoreMove) return candidateMoves.slice();
 
         if (!createCandidateScoringBoardShape) {

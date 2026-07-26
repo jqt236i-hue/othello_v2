@@ -8,11 +8,6 @@ interface SniperSharedConstants {
     EMPTY: SniperOwnerValue;
 }
 
-interface SniperBoardDims {
-    rows: number;
-    cols: number;
-}
-
 interface SniperExpansionCell {
     side: SniperExpansionSide | null;
     row: number;
@@ -64,9 +59,9 @@ interface SniperDestroyMeta {
 }
 
 interface SniperBoardOpsModule {
-    getExpansionDescriptors?: (gameState: SniperGameState) => SniperExpansionCell[];
-    getCellValue?: (gameState: SniperGameState, row: number, col: number) => SniperOwnerValue | null;
-    setCellValue?: (gameState: SniperGameState, row: number, col: number, value: SniperOwnerValue) => boolean;
+    getExpansionDescriptors?: (gameState: SniperGameState, cardState?: SniperCardState | null) => SniperExpansionCell[];
+    getCellValue?: (gameState: SniperGameState, row: number, col: number, cardState?: SniperCardState | null) => SniperOwnerValue | null;
+    setCellValue?: (gameState: SniperGameState, row: number, col: number, value: SniperOwnerValue, cardState?: SniperCardState | null) => boolean;
     destroyAt?: (
         cardState: SniperCardState,
         gameState: SniperGameState,
@@ -141,6 +136,7 @@ interface SniperModuleApi {
 
 interface SniperRoot {
     SharedConstants?: SniperSharedConstants;
+    SharedBoardUtils?: any;
     BoardOps?: SniperBoardOpsModule | null;
     CardRandomSource?: SniperRandomSourceModule | null;
     CardSniper?: SniperModuleApi;
@@ -151,31 +147,20 @@ const CardSniper = /**
  * @description Sniper Will effect helpers
  */
 
-(function (root: SniperRoot, factory: (constants: SniperSharedConstants, boardOps: SniperBoardOpsModule | null, randomSource: SniperRandomSourceModule | null) => SniperModuleApi) {
+(function (root: SniperRoot, factory: (constants: SniperSharedConstants, boardOps: SniperBoardOpsModule | null, randomSource: SniperRandomSourceModule | null, boardUtils: any) => SniperModuleApi) {
     if (root && root.SharedConstants) {
-        return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null);
+        return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null, root.SharedBoardUtils || null);
     }
     if (typeof module === 'object' && module.exports) {
-        return module.exports = factory(require('../../../shared-constants'), require('../board_ops'), require('../cards-internal/random-source'));
+        return module.exports = factory(require('../../../shared-constants'), require('../board_ops'), require('../cards-internal/random-source'), require('../../../shared/shared-board-utils'));
     } else {
         if (!root.SharedConstants) throw new Error('SharedConstants missing required values');
-        return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null);
+        return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null, root.SharedBoardUtils || null);
     }
-}(typeof self !== 'undefined' ? self as unknown as SniperRoot : globalThis as unknown as SniperRoot, function (SharedConstants: SniperSharedConstants, BoardOpsModule: SniperBoardOpsModule | null, RandomSourceModule: SniperRandomSourceModule | null) {
+}(typeof self !== 'undefined' ? self as unknown as SniperRoot : globalThis as unknown as SniperRoot, function (SharedConstants: SniperSharedConstants, BoardOpsModule: SniperBoardOpsModule | null, RandomSourceModule: SniperRandomSourceModule | null, BoardUtils: any) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
-    const ExpansionFallbackModule = (() => {
-        try {
-            if (typeof require === 'function') {
-                return require('../cards-internal/expansion-fallback');
-            }
-        } catch (_error) { /* ignore */ }
-        if (typeof self !== 'undefined' && (self as any).CardExpansionFallback) {
-            return (self as any).CardExpansionFallback;
-        }
-        return null;
-    })();
     const CardMarkersModule = (() => {
         try {
             if (typeof require === 'function') {
@@ -190,31 +175,33 @@ const CardSniper = /**
     }
     const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
-    if (!ExpansionFallbackModule) {
-        throw new Error('CardExpansionFallback missing required helpers');
+    if (!BoardUtils ||
+        typeof BoardUtils.createBoardContext !== 'function' ||
+        typeof BoardUtils.collectBoardCoordinates !== 'function' ||
+        typeof BoardUtils.getCellValue !== 'function' ||
+        typeof BoardUtils.setCellValue !== 'function') {
+        throw new Error('SharedBoardUtils BoardContext access is required by CardSniper');
     }
 
-    const resolveBoardDims = ExpansionFallbackModule.resolveBoardDims as (gameState: SniperGameState) => SniperBoardDims;
-
-    function getExpansionCells(gameState: SniperGameState): SniperExpansionCell[] {
-        if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
-            return BoardOpsModule.getExpansionDescriptors(gameState);
-        }
-        return ExpansionFallbackModule.getExpansionCells(gameState);
+    function createBoardContext(gameState: SniperGameState, cardState: SniperCardState): any {
+        return BoardUtils.createBoardContext(gameState, cardState);
     }
 
-    function getCellValue(gameState: SniperGameState, row: number, col: number): SniperOwnerValue | null {
-        if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
-            return BoardOpsModule.getCellValue(gameState, row, col);
-        }
-        return ExpansionFallbackModule.getCellValue(gameState, row, col);
+    function collectBoardCells(gameState: SniperGameState, cardState: SniperCardState): Array<{ row: number; col: number; owner: SniperOwnerValue | null }> {
+        const context = createBoardContext(gameState, cardState);
+        return BoardUtils.collectBoardCoordinates(context).map((cell: { row: number; col: number }) => ({
+            row: cell.row,
+            col: cell.col,
+            owner: BoardUtils.getCellValue(context, cell.row, cell.col)
+        }));
     }
 
-    function setCellValue(gameState: SniperGameState, row: number, col: number, value: SniperOwnerValue): boolean {
-        if (BoardOpsModule && typeof BoardOpsModule.setCellValue === 'function') {
-            return BoardOpsModule.setCellValue(gameState, row, col, value);
-        }
-        return ExpansionFallbackModule.setCellValue(gameState, row, col, value);
+    function getCellValue(gameState: SniperGameState, row: number, col: number, cardState: SniperCardState): SniperOwnerValue | null {
+        return BoardUtils.getCellValue(createBoardContext(gameState, cardState), row, col);
+    }
+
+    function setCellValue(gameState: SniperGameState, row: number, col: number, value: SniperOwnerValue, cardState: SniperCardState): boolean {
+        return BoardUtils.setCellValue(createBoardContext(gameState, cardState), row, col, value);
     }
 
     function cleanupExpiredSnipers(cardState: SniperCardState): void {
@@ -258,27 +245,13 @@ const CardSniper = /**
 
     function pickNearestEnemyTarget(cardState: SniperCardState, gameState: SniperGameState, sourceRow: number, sourceCol: number, enemyValue: SniperOwnerValue, randomFn: () => number): SniperEffectTarget | null {
         const candidates: SniperEffectTarget[] = [];
-        const dims = resolveBoardDims(gameState);
-        for (let r = 0; r < dims.rows; r++) {
-            for (let c = 0; c < dims.cols; c++) {
-                if (!gameState.board) continue;
-                if (gameState.board[r][c] !== enemyValue) continue;
-                if (isManifestTarget(cardState, r, c)) continue;
-                const dr = r - sourceRow;
-                const dc = c - sourceCol;
-                const distSq = (dr * dr) + (dc * dc);
-                candidates.push({ row: r, col: c, distSq });
-            }
-        }
-
-        const expansionCells = getExpansionCells(gameState);
-        for (const expansion of expansionCells) {
-            if (!expansion || expansion.owner !== enemyValue) continue;
-            if (isManifestTarget(cardState, expansion.row, expansion.col)) continue;
-            const dr = expansion.row - sourceRow;
-            const dc = expansion.col - sourceCol;
+        for (const cell of collectBoardCells(gameState, cardState)) {
+            if (cell.owner !== enemyValue) continue;
+            if (isManifestTarget(cardState, cell.row, cell.col)) continue;
+            const dr = cell.row - sourceRow;
+            const dc = cell.col - sourceCol;
             const distSq = (dr * dr) + (dc * dc);
-            candidates.push({ row: expansion.row, col: expansion.col, distSq });
+            candidates.push({ row: cell.row, col: cell.col, distSq });
         }
 
         if (!candidates.length) return null;
@@ -310,11 +283,10 @@ const CardSniper = /**
         const enemyOwnerKey = getOpponentKey(playerKey);
 
         const destroyAt: SniperDestroyAt = options.destroyAt || ((cs: SniperCardState, gs: SniperGameState, r: number, c: number): boolean => {
-            const current = getCellValue(gs, r, c);
+            const current = getCellValue(gs, r, c, cs);
             if (current === null || current === EMPTY) return false;
             if (cs.markers) cs.markers = cs.markers.filter((m) => !(m.row === r && m.col === c));
-            setCellValue(gs, r, c, EMPTY);
-            return true;
+            return setCellValue(gs, r, c, EMPTY, cs);
         });
 
         const snipers = (cardState.markers || []).filter((m) => (
@@ -327,7 +299,7 @@ const CardSniper = /**
         if (!snipers.length) return { destroyed, anchors, expired };
 
         for (const sniper of snipers) {
-            if (getCellValue(gameState, sniper.row, sniper.col) !== playerValue) {
+            if (getCellValue(gameState, sniper.row, sniper.col, cardState) !== playerValue) {
                 if (sniper.data) sniper.data.remainingOwnerTurns = -1;
                 continue;
             }
@@ -408,11 +380,10 @@ const CardSniper = /**
         const enemyOwnerKey = getOpponentKey(playerKey);
 
         const destroyAt: SniperDestroyAt = options.destroyAt || ((cs: SniperCardState, gs: SniperGameState, r: number, c: number): boolean => {
-            const current = getCellValue(gs, r, c);
+            const current = getCellValue(gs, r, c, cs);
             if (current === null || current === EMPTY) return false;
             if (cs.markers) cs.markers = cs.markers.filter((m) => !(m.row === r && m.col === c));
-            setCellValue(gs, r, c, EMPTY);
-            return true;
+            return setCellValue(gs, r, c, EMPTY, cs);
         });
 
         const sniper = (cardState.markers || []).find((m) => (
@@ -425,7 +396,7 @@ const CardSniper = /**
         ));
 
         if (!sniper) return { destroyed, expired };
-        if (getCellValue(gameState, row, col) !== playerValue) {
+        if (getCellValue(gameState, row, col, cardState) !== playerValue) {
             if (sniper.data) sniper.data.remainingOwnerTurns = -1;
             cleanupExpiredSnipers(cardState);
             return { destroyed, expired };

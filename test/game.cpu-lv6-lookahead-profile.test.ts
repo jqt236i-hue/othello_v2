@@ -2,6 +2,7 @@ import * as path from 'path';
 
 const CpuLv6LookaheadProfile = require(path.resolve(__dirname, '..', 'game', 'ai', 'cpu-lv6-lookahead-profile.js'));
 const cpuLv6SharedProfile = require(path.resolve(__dirname, '..', 'constants', 'cpu-lv6-shared-profile.js'));
+const SharedBoardUtils = require(path.resolve(__dirname, '..', 'shared', 'shared-board-utils.js'));
 
 function makeBoard(fillValue = 0) {
   return Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => fillValue));
@@ -84,6 +85,49 @@ describe('cpu lv6 lookahead profile', () => {
     expect(options.maxBranch).toBe(4);
     expect(options.maxTimeMs).toBeLessThanOrEqual(80);
     expect(options.endgameMaxTimeMs).toBeLessThanOrEqual(160);
+  });
+
+  test('BoardContext budgets use custom playable topology including expansion and excluding holes', () => {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    const occupiedBaseCells = [
+      [0, 1], [0, 2], [0, 3], [1, 0],
+      [1, 1], [1, 2], [1, 3], [2, 0]
+    ];
+    for (const [row, col] of occupiedBaseCells) board[row][col] = (row + col) % 2 === 0 ? 1 : -1;
+    board[0][0] = 1;
+    const gameState = {
+      board,
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      boardExpansion: {
+        cells: Array.from({ length: 4 }, (_unused, row) => ({
+          side: 'right',
+          row,
+          col: 4,
+          owner: row === 0 ? -1 : 0
+        }))
+      }
+    };
+    const cardState = {
+      markers: [{
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        data: { type: 'METEOR_HOLE' }
+      }]
+    };
+    const boardContext = SharedBoardUtils.createBoardContext(gameState, cardState);
+
+    expect(SharedBoardUtils.collectBoardCoordinates(boardContext)).toHaveLength(19);
+    expect(SharedBoardUtils.countBoardEmpties(boardContext)).toBe(10);
+
+    const options = CpuLv6LookaheadProfile.buildLv6LookaheadOptions(6, boardContext, 8, 'white', 'ui');
+
+    expect(options.depth).toBe(6);
+    expect(options.maxBranch).toBe(7);
+    expect(options.nodeBudget).toBe(1_425_000);
+    expect(options.maxTimeMs).toBe(900);
+    expect(options.endgameNodeBudget).toBe(3_600_000);
+    expect(options.endgameMaxTimeMs).toBe(1_350);
   });
 
   test('shared lookahead weights resolve from the shared browser profile', () => {

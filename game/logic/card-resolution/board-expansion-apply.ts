@@ -67,7 +67,7 @@ function applyBoardExpansionWill(cardState: CardState, gameState: GameState, pla
     const target = resolveExpansionTarget(targets, row, col, directionKey);
     if (!target || !Array.isArray(target.additions) || target.additions.length !== 1) return { applied: false, reason: 'invalid_target' };
 
-    const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
+    const boardExpansion = ensureMutableBoardExpansionForCard(cardState, gameState);
     const addition = target.additions[0];
     const side = resolveExpansionSideForCard(target.side, addition.row, addition.col, gameState);
     const additionResult = addStateExpansionCells(gameState, [{
@@ -171,8 +171,8 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
         resolvedSelections.push(resolved);
     }
 
-    const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
-    const cells = getExpansionDescriptorsForCard(gameState);
+    const boardExpansion = ensureMutableBoardExpansionForCard(cardState, gameState);
+    const cells = getExpansionDescriptorsForCard(cardState, gameState);
     const occupied = new Set(cells.map((cell: any) => `${cell.row},${cell.col}`));
     const additions = [];
     const additionKeys = new Set();

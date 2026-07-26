@@ -79,6 +79,17 @@ describe('Dedicated CPU Worker runtime', () => {
       level: 6,
       playerValue: -1,
       board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      boardShape: {
+        minRow: 0,
+        maxRow: 3,
+        minCol: 0,
+        maxCol: 3,
+        playableKeys: Array.from({ length: 16 }, (_value, index) => `${Math.floor(index / 4)},${index % 4}`),
+        meteorHoleKeys: [],
+        expansionCells: [],
+        expansionOwnerByKey: {},
+        standard8x8: false
+      },
       legalMoves: [{ row: 0, col: 0, flips: [] }],
       search: {
         depth: 4,

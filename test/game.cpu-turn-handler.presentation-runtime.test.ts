@@ -6,6 +6,8 @@ function createDeferred() {
   return { promise, resolve };
 }
 
+const SharedBoardUtils = require('../shared/shared-board-utils');
+
 describe('game cpu turn handler presentation runtime', () => {
   afterEach(() => {
     jest.useRealTimers();
@@ -55,7 +57,19 @@ describe('game cpu turn handler presentation runtime', () => {
 
     global.gameState = {
       turnNumber: 7,
-      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      boardConfig: { rows: 8, cols: 8, shape: 'rectangle' },
+      boardExpansion: {
+        cells: [{ side: 'right', row: 0, col: 8, owner: -1 }]
+      }
+    };
+    global.cardState = {
+      markers: [{
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        data: { type: 'METEOR_HOLE' }
+      }]
     };
     global.cpuSmartness = { white: 6 };
     global.gameState.board[3][3] = 1;
@@ -74,6 +88,11 @@ describe('game cpu turn handler presentation runtime', () => {
       cardId: 'swap_01',
       level: 6
     }));
+    const commentaryContext = requestCommentaryMock.mock.calls[0][0];
+    expect(SharedBoardUtils.isBoardContext(commentaryContext.board)).toBe(true);
+    expect(commentaryContext.counts).toEqual({ black: 0, white: 2 });
+    expect(SharedBoardUtils.getCellValue(commentaryContext.board, 0, 8)).toBe(-1);
+    expect(SharedBoardUtils.getCellValue(commentaryContext.board, 3, 3)).toBeNull();
     expect(entry).toMatchObject({
       prefix: '白CPU',
       line: 'うるさいぞ！',

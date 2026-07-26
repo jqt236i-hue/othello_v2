@@ -5,6 +5,7 @@ type CpuDecisionCardRiskConfig = {
     buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any) => any;
     getBoardShapeForCpuBoard?: (board: any) => any;
     getCurrentCpuBoard: () => any;
+    getDenseBoardMatrix?: (board: any) => any;
     isPlayableBoard: (board: any) => any;
     buildLv6LookaheadOptions: (level: any, board: any, legalMovesCount: any, playerKey: any) => any;
     resolveLv6LookaheadTimeCaps: (playerKey: any) => any;
@@ -40,6 +41,11 @@ const HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE = new Set([
 
 export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): any {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuDecisionCardRiskConfig;
+    const getDenseBoardMatrix = (board: any): any => {
+        if (typeof cfg.getDenseBoardMatrix === 'function') return cfg.getDenseBoardMatrix(board);
+        if (Array.isArray(board)) return board;
+        throw new Error('CPU card quiescence requires an explicit dense-board adapter');
+    };
 
     function resolveCpuPolicyCore(): any {
         return cfg.getCpuPolicyCore ? cfg.getCpuPolicyCore() : null;
@@ -117,7 +123,7 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
             playerKey,
             level,
             playerValue: inputs.playerValue,
-            board: inputs.board,
+            board: getDenseBoardMatrix(inputs.board),
             boardShape: typeof cfg.getBoardShapeForCpuBoard === 'function'
                 ? cfg.getBoardShapeForCpuBoard(inputs.board)
                 : null,

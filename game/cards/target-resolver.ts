@@ -80,112 +80,68 @@ const Flips = CardFlips || {};
 
     // ---- Helpers ----
 
-    function resolveBoardConfig(gameState: any) {
-        if (BoardUtils && typeof BoardUtils.resolveBoardConfig === 'function') {
-            return BoardUtils.resolveBoardConfig(gameState);
+    function requireBoardUtils() {
+        if (
+            !BoardUtils ||
+            typeof BoardUtils.createBoardContext !== 'function' ||
+            typeof BoardUtils.createBoardView !== 'function' ||
+            typeof BoardUtils.resolveExpansionSide !== 'function' ||
+            typeof BoardUtils.getBoardExpansionEdgeSockets !== 'function' ||
+            typeof BoardUtils.getBoardExpansionCornerSockets !== 'function'
+        ) {
+            throw new Error('[target-resolver] SharedBoardUtils board kernel is required');
         }
-        const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
-        const rows = Array.isArray(board) && board.length > 0 ? board.length : 8;
-        const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
-        return {
-            rows,
-            cols,
-            baseBounds: { minRow: 0, maxRow: rows - 1, minCol: 0, maxCol: cols - 1 },
-            outerBounds: { minRow: -1, maxRow: rows, minCol: -1, maxCol: cols }
-        };
+        return BoardUtils;
     }
 
-    function isMainBoardCell(row: any, col: any, gameState: any) {
-        if (BoardUtils && typeof BoardUtils.isMainBoardCell === 'function') {
-            return BoardUtils.isMainBoardCell(row, col, gameState);
-        }
-        const config = resolveBoardConfig(gameState);
-        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < config.rows && col >= 0 && col < config.cols;
+    function createBoardContext(cardState: any, gameState: any) {
+        return requireBoardUtils().createBoardContext(gameState, cardState == null ? null : cardState);
     }
 
-    function getCellValue(gameState: any, row: any, col: any) {
-        if (BoardUtils && typeof BoardUtils.getCellValue === 'function') {
-            return BoardUtils.getCellValue(gameState && gameState.board, row, col);
-        }
-        if (isMainBoardCell(row, col, gameState)) {
-            return (gameState && Array.isArray(gameState.board) && Array.isArray(gameState.board[row]))
-                ? gameState.board[row][col]
-                : null;
-        }
-        for (const cell of getExpansionCells(gameState)) {
-            if (!cell) continue;
-            if (cell.row === row && cell.col === col) {
-                return Number(cell.owner);
-            }
-        }
-        return null;
+    function createBoardView(cardState: any, gameState: any) {
+        const boardUtils = requireBoardUtils();
+        const context = createBoardContext(cardState, gameState);
+        return boardUtils.createBoardView(context.gameState, {
+            cardState: context.cardState,
+            strict: false
+        });
     }
 
-    function getExpansionCells(gameState: any) {
-        if (BoardUtils && typeof BoardUtils.collectExpansionDescriptors === 'function') {
-            return BoardUtils.collectExpansionDescriptors(gameState && gameState.boardExpansion, gameState);
-        }
-        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-            ? gameState.boardExpansion
-            : null;
-        if (!expansion) return [];
-        const config = resolveBoardConfig(gameState);
-        const cells: any[] = [];
-        const pushCell = (source: any) => {
-            let side = null;
-            let row = null;
-            let col = null;
-            let owner = null;
-            if (source && typeof source === 'object') {
-                side = source.side;
-                row = source.row;
-                col = source.col;
-                owner = source.owner;
-                if (!Number.isInteger(col) && side === 'left') col = config.outerBounds.minCol;
-                if (!Number.isInteger(col) && side === 'right') col = config.outerBounds.maxCol;
-            }
-            if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-            if (row < config.outerBounds.minRow || row > config.outerBounds.maxRow) return;
-            if (col < config.outerBounds.minCol || col > config.outerBounds.maxCol) return;
-            if (isMainBoardCell(row, col, gameState)) return;
-            if (cells.some((c) => c && c.row === row && c.col === col)) return;
-            const normalizedOwner = (owner === BLACK || owner === WHITE) ? owner : EMPTY;
-            cells.push({ side, row, col, owner: normalizedOwner });
-        };
-        if (Array.isArray(expansion.cells)) {
-            for (const cell of expansion.cells) {
-                if (!cell || typeof cell !== 'object') continue;
-                pushCell(cell);
-            }
-        }
-        if (cells.length === 0 && expansion.active === true) {
-            pushCell(expansion);
-        }
-        return cells;
+    function getCellValue(cardState: any, gameState: any, row: any, col: any) {
+        return createBoardView(cardState, gameState).get(row, col);
     }
 
-    function forEachBoardShapeCell(gameState: any, visitor: any) {
+    function getExpansionCells(cardState: any, gameState: any) {
+        const view = createBoardView(cardState, gameState);
+        return view.expansionCells
+            .filter((cell: any) => view.isPlayable(cell.row, cell.col))
+            .map((cell: any) => ({
+                side: cell.side || null,
+                row: cell.row,
+                col: cell.col,
+                owner: cell.owner
+            }));
+    }
+
+    function forEachBoardShapeCell(cardState: any, gameState: any, visitor: any) {
         if (typeof visitor !== 'function') return;
-        if (BoardUtils && typeof BoardUtils.forEachBoardShapeCell === 'function') {
-            BoardUtils.forEachBoardShapeCell(gameState, visitor);
-            return;
-        }
-        if (!gameState || !Array.isArray(gameState.board)) return;
-        const config = resolveBoardConfig(gameState);
-        for (let row = 0; row < config.rows; row++) {
-            const boardRow = Array.isArray(gameState.board[row]) ? gameState.board[row] : [];
-            for (let col = 0; col < config.cols; col++) {
-                visitor(row, col, boardRow[col]);
+        const view = createBoardView(cardState, gameState);
+        for (const cell of view.coordinates) {
+            const owner = view.get(cell.row, cell.col);
+            if (owner === null) {
+                throw new Error(`[target-resolver] BoardView owner missing at ${cell.row},${cell.col}`);
             }
-        }
-        for (const cell of getExpansionCells(gameState)) {
-            if (!cell) continue;
-            visitor(cell.row, cell.col, Number(cell.owner));
+            visitor(cell.row, cell.col, owner);
         }
     }
 
-    function hasBoardShapeCell(gameState: any, row: any, col: any) {
-        return getCellValue(gameState, row, col) !== null;
+    function hasBoardShapeCell(cardState: any, gameState: any, row: any, col: any) {
+        return createBoardView(cardState, gameState).isPlayable(row, col);
+    }
+
+    function getMeteorHoleCells(cardState: any, gameState: any) {
+        return createBoardView(cardState, gameState).topology.holeCoordinates
+            .map((cell: any) => ({ row: cell.row, col: cell.col }));
     }
 
     function isBlockedCell(cardState: any, row: number, col: number) {
@@ -382,31 +338,18 @@ const Flips = CardFlips || {};
     }
 
     function getCurrentBoardShapeCells(cardState: any, gameState: any) {
-        const cells: any[] = [];
-        const config = resolveBoardConfig(gameState);
-        for (let row = 0; row < config.rows; row++) {
-            for (let col = 0; col < config.cols; col++) {
-                if (!isMainBoardCell(row, col, gameState)) continue;
-                if (isMeteorHoleCell(cardState, row, col)) continue;
-                cells.push({ row, col });
-            }
-        }
-        for (const desc of getExpansionCells(gameState)) {
-            if (!desc || !Number.isInteger(desc.row) || !Number.isInteger(desc.col)) continue;
-            if (isMeteorHoleCell(cardState, desc.row, desc.col)) continue;
-            cells.push({ row: desc.row, col: desc.col });
-        }
-        return cells;
+        return createBoardView(cardState, gameState).coordinates
+            .map((cell: any) => ({ row: cell.row, col: cell.col }));
     }
 
     function getOccupiedBoardShapeCells(cardState: any, gameState: any) {
         return getCurrentBoardShapeCells(cardState, gameState)
-            .filter((cell: any) => getCellValue(gameState, cell.row, cell.col) !== EMPTY);
+            .filter((cell: any) => getCellValue(cardState, gameState, cell.row, cell.col) !== EMPTY);
     }
 
     function getEmptyBoardShapeCells(cardState: any, gameState: any) {
         return getCurrentBoardShapeCells(cardState, gameState)
-            .filter((cell: any) => getCellValue(gameState, cell.row, cell.col) === EMPTY);
+            .filter((cell: any) => getCellValue(cardState, gameState, cell.row, cell.col) === EMPTY);
     }
 
     function isPositionSwapProtectedCell(cardState: any, row: number, col: number) {
@@ -425,8 +368,8 @@ const Flips = CardFlips || {};
                 if (dr === 0 && dc === 0) continue;
                 const targetRow = row + dr;
                 const targetCol = col + dc;
-                if (!hasBoardShapeCell(gameState, targetRow, targetCol)) continue;
-                if (getCellValue(gameState, targetRow, targetCol) !== EMPTY) continue;
+                if (!hasBoardShapeCell(cardState, gameState, targetRow, targetCol)) continue;
+                if (getCellValue(cardState, gameState, targetRow, targetCol) !== EMPTY) continue;
                 if (isBlockedCell(cardState, targetRow, targetCol)) continue;
                 const key = `${targetRow},${targetCol}`;
                 if (seen.has(key)) continue;
@@ -460,7 +403,7 @@ const Flips = CardFlips || {};
         });
     }
 
-    function getTabooReverseDirectionalFlips(gameState: any, row: any, col: any, ownerVal: any, direction: any, context: any) {
+    function getTabooReverseDirectionalFlips(cardState: any, gameState: any, row: any, col: any, ownerVal: any, direction: any, context: any) {
         const blockedCells = context && context.blockedCells ? context.blockedCells : [];
         const inviolableStones = context && context.inviolableStones ? context.inviolableStones : [];
 
@@ -476,7 +419,7 @@ const Flips = CardFlips || {};
         let r = row + dr;
         let c = col + dc;
 
-        while (getCellValue(gameState, r, c) === -ownerVal) {
+        while (getCellValue(cardState, gameState, r, c) === -ownerVal) {
             const key = `${r},${c}`;
             if (blockedSet && blockedSet.has(key)) {
                 return [];
@@ -488,7 +431,7 @@ const Flips = CardFlips || {};
             c += dc;
         }
 
-        const tail = getCellValue(gameState, r, c);
+        const tail = getCellValue(cardState, gameState, r, c);
         if (blockedSet && blockedSet.has(`${r},${c}`)) {
             return [];
         }
@@ -499,125 +442,49 @@ const Flips = CardFlips || {};
         return flips;
     }
 
-    function countDiscsByPlayer(gameState: any, playerKey: any) {
-        const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        let own = 0;
-        let opp = 0;
-        forEachBoardShapeCell(gameState, (r: any, c: any, value: any) => {
-            if (value === playerVal) own += 1;
-            else if (value === -playerVal) opp += 1;
-        });
-        return { own, opp };
-    }
-
-    function getDiscDisadvantageForPlayer(gameState: any, playerKey: any) {
-        const counts = countDiscsByPlayer(gameState, playerKey);
-        return Math.max(0, counts.opp - counts.own);
-    }
-
-    function hasStandardLegalMoveForPlayer(cardState: any, gameState: any, playerKey: any) {
-        // Fallback: check if there is any empty cell with at least one opponent neighbor
-        // and a self stone beyond it in any direction.
-        const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const opponentVal = -playerVal;
-        const directions = DIRECTIONS || [
-            [-1, -1], [-1, 0], [-1, 1],
-            [0, -1], [0, 1],
-            [1, -1], [1, 0], [1, 1]
-        ];
-
-        for (const cell of getCurrentBoardShapeCells(cardState, gameState)) {
-            const row = cell.row;
-            const col = cell.col;
-            if (getCellValue(gameState, row, col) !== EMPTY) continue;
-            if (isBlockedCell(cardState, row, col)) continue;
-            for (const [dr, dc] of directions) {
-                let r = row + dr;
-                let c = col + dc;
-                let hasOpponent = false;
-                while (getCellValue(gameState, r, c) === opponentVal) {
-                    hasOpponent = true;
-                    r += dr;
-                    c += dc;
-                }
-                if (hasOpponent && getCellValue(gameState, r, c) === playerVal) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    function getBoardExpansionGodCornerDescriptors(gameState: any) {
-        const config = resolveBoardConfig(gameState);
-        const lastRow = config.baseBounds.maxRow;
-        const lastCol = config.baseBounds.maxCol;
-        const outerMinRow = config.outerBounds.minRow;
-        const outerMaxRow = config.outerBounds.maxRow;
-        const outerMinCol = config.outerBounds.minCol;
-        const outerMaxCol = config.outerBounds.maxCol;
-        return [
-            {
-                row: 0,
-                col: 0,
-                cells: [
-                    { row: outerMinRow, col: 0 },
-                    { row: outerMinRow, col: outerMinCol },
-                    { row: 0, col: outerMinCol }
-                ]
-            },
-            {
-                row: 0,
-                col: lastCol,
-                cells: [
-                    { row: outerMinRow, col: lastCol },
-                    { row: outerMinRow, col: outerMaxCol },
-                    { row: 0, col: outerMaxCol }
-                ]
-            },
-            {
-                row: lastRow,
-                col: 0,
-                cells: [
-                    { row: outerMaxRow, col: 0 },
-                    { row: outerMaxRow, col: outerMinCol },
-                    { row: lastRow, col: outerMinCol }
-                ]
-            },
-            {
-                row: lastRow,
-                col: lastCol,
-                cells: [
-                    { row: lastRow, col: outerMaxCol },
-                    { row: outerMaxRow, col: outerMaxCol },
-                    { row: outerMaxRow, col: lastCol }
-                ]
-            }
-        ];
-    }
-
-    function getBoardExpansionWillCellDescriptors(gameState: any) {
-        const config = resolveBoardConfig(gameState);
-        const cells: any[] = [];
-        for (let row = 0; row < config.rows; row++) {
-            cells.push({ row, col: config.outerBounds.minCol, side: 'left' });
-            cells.push({ row, col: config.outerBounds.maxCol, side: 'right' });
-        }
-        return cells;
-    }
-
-    function resolveExpansionSide(side: any, row: any, col: any, gameState: any) {
-        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-        const config = resolveBoardConfig(gameState);
-        if (col === config.outerBounds.minCol) return 'left';
-        if (col === config.outerBounds.maxCol) return 'right';
-        if (row === config.outerBounds.minRow) return 'top';
-        if (row === config.outerBounds.maxRow) return 'bottom';
+    function resolveExpansionTargetSide(directionKey: any) {
+        const key = String(directionKey || '').toLowerCase();
+        if (key === 'left') return 'left';
+        if (key === 'right') return 'right';
+        if (key === 'up') return 'top';
+        if (key === 'down') return 'bottom';
         return null;
     }
 
-    function normalizeExpansionOwner(owner: any) {
-        return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
+    function mapExpansionSocketTarget(socket: any) {
+        if (!socket || !socket.anchor || !Number.isInteger(socket.anchor.row) || !Number.isInteger(socket.anchor.col)) return null;
+        const additions = Array.isArray(socket.additions)
+            ? socket.additions
+                .filter((cell: any) => cell && Number.isInteger(cell.row) && Number.isInteger(cell.col))
+                .map((cell: any) => ({ row: cell.row, col: cell.col }))
+            : [];
+        if (!additions.length || typeof socket.directionKey !== 'string' || !socket.directionKey) return null;
+        return {
+            row: socket.anchor.row,
+            col: socket.anchor.col,
+            side: resolveExpansionTargetSide(socket.directionKey),
+            direction: socket.direction && Number.isInteger(socket.direction.row) && Number.isInteger(socket.direction.col)
+                ? { row: socket.direction.row, col: socket.direction.col }
+                : null,
+            directionKey: socket.directionKey,
+            additions
+        };
+    }
+
+    function getExpansionSocketTargets(cardState: any, gameState: any, kind: 'edge' | 'corner') {
+        const boardUtils = requireBoardUtils();
+        const context = createBoardContext(cardState, gameState);
+        const sockets = kind === 'corner'
+            ? boardUtils.getBoardExpansionCornerSockets(context)
+            : boardUtils.getBoardExpansionEdgeSockets(context);
+        return sockets
+            .map(mapExpansionSocketTarget)
+            .filter((target: any) => !!target);
+    }
+
+    function resolveExpansionSide(cardState: any, gameState: any, side: any, row: any, col: any) {
+        const context = createBoardContext(cardState, gameState);
+        return requireBoardUtils().resolveExpansionSide(side, row, col, context.gameState);
     }
 
     function isAdjacentToAnyStoneForReinforcement(cardState: any, gameState: any, row: any, col: any) {
@@ -626,8 +493,8 @@ const Flips = CardFlips || {};
                 if (dr === 0 && dc === 0) continue;
                 const nextRow = row + dr;
                 const nextCol = col + dc;
-                if (!hasBoardShapeCell(gameState, nextRow, nextCol)) continue;
-                if (getCellValue(gameState, nextRow, nextCol) !== EMPTY) return true;
+                if (!hasBoardShapeCell(cardState, gameState, nextRow, nextCol)) continue;
+                if (getCellValue(cardState, gameState, nextRow, nextCol) !== EMPTY) return true;
             }
         }
         return false;
@@ -645,7 +512,7 @@ const Flips = CardFlips || {};
         for (const cell of getOccupiedBoardShapeCells(cardState, gameState)) {
             const row = cell.row;
             const col = cell.col;
-            if (getCellValue(gameState, row, col) !== playerVal) continue;
+            if (getCellValue(cardState, gameState, row, col) !== playerVal) continue;
             const hasBomb = markersAt(row, col).some((m: any) => isBombCategoryMarker(m));
             if (hasBomb) continue;
             if (isInviolableCell(cardState, row, col)) continue;
@@ -679,28 +546,7 @@ const Flips = CardFlips || {};
             return Selectors.getBoardExpansionTargets(cardState, gameState, playerKey);
         }
         if (!gameState || !gameState.board) return [];
-        const config = resolveBoardConfig(gameState);
-        const blockedEdgeTargets = new Set();
-        const expansionCells = getExpansionCells(gameState);
-        for (const cell of expansionCells) {
-            if (!cell) continue;
-            if (cell.col === config.outerBounds.minCol && Number.isInteger(cell.row) && cell.row >= 0 && cell.row < config.rows) {
-                blockedEdgeTargets.add(`${cell.row},0`);
-            }
-            if (cell.col === config.outerBounds.maxCol && Number.isInteger(cell.row) && cell.row >= 0 && cell.row < config.rows) {
-                blockedEdgeTargets.add(`${cell.row},${config.baseBounds.maxCol}`);
-            }
-        }
-        const res: any[] = [];
-        for (let r = 0; r < config.rows; r++) {
-            if (!blockedEdgeTargets.has(`${r},0`)) {
-                res.push({ row: r, col: 0, side: 'left' });
-            }
-            if (!blockedEdgeTargets.has(`${r},${config.baseBounds.maxCol}`)) {
-                res.push({ row: r, col: config.baseBounds.maxCol, side: 'right' });
-            }
-        }
-        return res;
+        return getExpansionSocketTargets(cardState, gameState, 'edge');
     }
 
     function getBoardShrinkTargets(cardState: any, gameState: any, playerKey: any) {
@@ -714,7 +560,7 @@ const Flips = CardFlips || {};
         if (!gameState || !Array.isArray(gameState.board)) return [];
         if (!Number.isInteger(row) || !Number.isInteger(col)) return [];
 
-        const targetValue = getCellValue(gameState, row, col);
+        const targetValue = getCellValue(cardState, gameState, row, col);
         if (targetValue !== EMPTY) return [];
 
         const context = getCardContext(cardState);
@@ -729,7 +575,7 @@ const Flips = CardFlips || {};
         const candidates = [];
         for (const direction of (DIRECTIONS || [])) {
             if (!Array.isArray(direction) || direction.length !== 2) continue;
-            const flips = getTabooReverseDirectionalFlips(gameState, row, col, ownerVal, direction, context);
+            const flips = getTabooReverseDirectionalFlips(cardState, gameState, row, col, ownerVal, direction, context);
             if (!Array.isArray(flips) || flips.length === 0) continue;
             candidates.push({
                 direction: [direction[0], direction[1]],
@@ -743,9 +589,9 @@ const Flips = CardFlips || {};
     function getReverseWillTargets(cardState: any, gameState: any) {
         if (!gameState || !Array.isArray(gameState.board)) return [];
         if (!Flips || typeof Flips.getOccupiedOriginFlipsWithContext !== 'function') return [];
-        const context = getCardContext(cardState);
+        const context = { ...getCardContext(cardState), cardState };
         const res: any[] = [];
-        forEachBoardShapeCell(gameState, (row: any, col: any, owner: any) => {
+        forEachBoardShapeCell(cardState, gameState, (row: any, col: any, owner: any) => {
             if (owner !== BLACK && owner !== WHITE) return;
             const flips = Flips.getOccupiedOriginFlipsWithContext(gameState, row, col, owner, context);
             if (!Array.isArray(flips) || flips.length === 0) return;
@@ -862,9 +708,13 @@ const Flips = CardFlips || {};
             selectorsModule: Selectors,
             constants: { BLACK, WHITE, EMPTY },
             helpers: {
+                createBoardViewForCard: (stateCard: any, stateGame: any) =>
+                    createBoardView(stateCard, stateGame),
                 getCurrentBoardShapeCellsForCard: getCurrentBoardShapeCells,
-                getCellValueForCard: getCellValue,
-                getExpansionDescriptorsForCard: getExpansionCells,
+                getCellValueForCard: (state: any, row: any, col: any) =>
+                    getCellValue(cardState, state, row, col),
+                getExpansionDescriptorsForCard: (state: any) =>
+                    getExpansionCells(cardState, state),
                 isPositionSwapProtectedCell
             },
             localSelectors: buildLocalPendingTargetSelectors()
@@ -902,7 +752,7 @@ const Flips = CardFlips || {};
         }
         const res: any[] = [];
         const markersAt = createMarkersAtLookup(cardState);
-        forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
+        forEachBoardShapeCell(cardState, gameState, (r: any, c: any, owner: any) => {
             if (owner === EMPTY) return;
             const guarded = markersAt(r, c).some((m: any) =>
                 m &&
@@ -933,7 +783,7 @@ const Flips = CardFlips || {};
             m.owner !== playerKey
         );
 
-        forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
+        forEachBoardShapeCell(cardState, gameState, (r: any, c: any, owner: any) => {
             if (owner !== opVal) return;
             const hasSpecialOrBomb = markersAt(r, c).some((m: any) => {
                 if (!m) return false;
@@ -964,7 +814,7 @@ const Flips = CardFlips || {};
         for (const cell of getOccupiedBoardShapeCells(cardState, gameState)) {
             const row = cell.row;
             const col = cell.col;
-            if (getCellValue(gameState, row, col) !== playerVal) continue;
+            if (getCellValue(cardState, gameState, row, col) !== playerVal) continue;
             const hasBomb = markersAt(row, col).some((m: any) => isBombCategoryMarker(m));
             if (hasBomb) continue;
             if (isInviolableCell(cardState, row, col)) continue;
@@ -998,11 +848,11 @@ const Flips = CardFlips || {};
             m.data &&
             m.data.type === 'GUARD'
         );
-        forEachBoardShapeCell(gameState, (r: any, c: any) => {
+        forEachBoardShapeCell(cardState, gameState, (r: any, c: any) => {
             if (isGuarded(r, c)) return;
             if (!isSpecialStoneAt(cardState, r, c)) return;
             if (getSpecialOwnerAt(cardState, r, c) !== opponentKey) return;
-            if (getCellValue(gameState, r, c) === EMPTY) return;
+            if (getCellValue(cardState, gameState, r, c) === EMPTY) return;
             res.push({ row: r, col: c });
         });
         return res;
@@ -1014,7 +864,7 @@ const Flips = CardFlips || {};
         }
         const res: any[] = [];
         const first = pending && pending.firstTarget ? pending.firstTarget : null;
-        forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
+        forEachBoardShapeCell(cardState, gameState, (r: any, c: any, owner: any) => {
             if (owner === EMPTY) return;
             if (first && first.row === r && first.col === c) return;
             if (isPositionSwapProtectedCell(cardState, r, c)) return;
@@ -1029,7 +879,7 @@ const Flips = CardFlips || {};
         }
         if (!gameState || !gameState.board) return [];
         const res: any[] = [];
-        forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
+        forEachBoardShapeCell(cardState, gameState, (r: any, c: any, owner: any) => {
             if (owner !== EMPTY) return;
             if (isBlockedCell(cardState, r, c)) return;
             if (hasSeedMarkerAt(cardState, r, c)) return;
@@ -1045,7 +895,7 @@ const Flips = CardFlips || {};
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const res: any[] = [];
         for (const cell of getOccupiedBoardShapeCells(cardState, gameState)) {
-            if (getCellValue(gameState, cell.row, cell.col) !== playerVal) continue;
+            if (getCellValue(cardState, gameState, cell.row, cell.col) !== playerVal) continue;
             if (collectEmptyNeighborCells(cardState, gameState, cell.row, cell.col).length === 0) continue;
             res.push({ row: cell.row, col: cell.col });
         }
@@ -1063,7 +913,7 @@ const Flips = CardFlips || {};
         }
         if (!gameState || !gameState.board) return [];
         const res: any[] = [];
-        forEachBoardShapeCell(gameState, (r: any, c: any) => {
+        forEachBoardShapeCell(cardState, gameState, (r: any, c: any) => {
             if (isMeteorHoleCell(cardState, r, c)) return;
             if (isInviolableCell(cardState, r, c)) return;
             res.push({ row: r, col: c });
@@ -1076,12 +926,7 @@ const Flips = CardFlips || {};
             return Selectors.getCausalReplayTargets(cardState, gameState);
         }
         if (!gameState || !gameState.board) return [];
-        const res: any[] = [];
-        forEachBoardShapeCell(gameState, (r: any, c: any) => {
-            if (!isMeteorHoleCell(cardState, r, c)) return;
-            res.push({ row: r, col: c });
-        });
-        return res;
+        return getMeteorHoleCells(cardState, gameState);
     }
 
     function getFreezeTargets(cardState: any, gameState: any, playerKey: any) {
@@ -1090,7 +935,7 @@ const Flips = CardFlips || {};
         }
         if (!gameState || !gameState.board) return [];
         const res: any[] = [];
-        forEachBoardShapeCell(gameState, (r: any, c: any) => {
+        forEachBoardShapeCell(cardState, gameState, (r: any, c: any) => {
             if (isBlockedCell(cardState, r, c)) return;
             if (hasSeedMarkerAt(cardState, r, c)) return;
             res.push({ row: r, col: c });
@@ -1104,7 +949,7 @@ const Flips = CardFlips || {};
         }
         if (!gameState || !gameState.board) return [];
         const res: any[] = [];
-        forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
+        forEachBoardShapeCell(cardState, gameState, (r: any, c: any, owner: any) => {
             if (owner !== EMPTY) return;
             if (isBlockedCell(cardState, r, c)) return;
             if (hasSeedMarkerAt(cardState, r, c)) return;
@@ -1119,7 +964,7 @@ const Flips = CardFlips || {};
         }
         if (!gameState || !gameState.board) return [];
 
-        const activeExpansionCells = getExpansionCells(gameState);
+        const activeExpansionCells = getExpansionCells(cardState, gameState);
         const activeByKey = new Map();
         for (const cell of activeExpansionCells) {
             if (!cell) continue;
@@ -1133,28 +978,38 @@ const Flips = CardFlips || {};
             if (seen.has(key)) return;
             seen.add(key);
             const activeCell = activeByKey.get(key) || null;
-            const owner = activeCell ? normalizeExpansionOwner(activeCell.owner) : EMPTY;
+            const owner = activeCell ? Number(activeCell.owner) : EMPTY;
             if (owner !== EMPTY) return;
             if (isBlockedCell(cardState, row, col)) return;
-            destinations.push({ row, col, side: resolveExpansionSide(side, row, col, gameState), active: !!activeCell });
+            destinations.push({
+                row,
+                col,
+                side: resolveExpansionSide(cardState, gameState, side, row, col),
+                active: !!activeCell
+            });
         };
 
-        for (const cell of getBoardExpansionWillCellDescriptors(gameState)) {
+        for (const cell of activeExpansionCells) {
             if (!cell) continue;
             pushCandidate(cell.row, cell.col, cell.side);
         }
-        for (const corner of getBoardExpansionGodCornerDescriptors(gameState)) {
-            if (!corner || !Array.isArray(corner.cells)) continue;
-            for (const cell of corner.cells) {
+        const socketTargets = getExpansionSocketTargets(cardState, gameState, 'edge')
+            .concat(getExpansionSocketTargets(cardState, gameState, 'corner'));
+        for (const target of socketTargets) {
+            for (const cell of Array.isArray(target.additions) ? target.additions : []) {
                 if (!cell) continue;
-                pushCandidate(cell.row, cell.col, resolveExpansionSide(null, cell.row, cell.col, gameState));
+                pushCandidate(
+                    cell.row,
+                    cell.col,
+                    resolveExpansionSide(cardState, gameState, null, cell.row, cell.col)
+                );
             }
         }
 
         if (!destinations.length) return [];
 
         const res: any[] = [];
-        forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
+        forEachBoardShapeCell(cardState, gameState, (r: any, c: any, owner: any) => {
             if (owner === EMPTY) return;
             if (isFrozenCell(cardState, r, c)) return;
             if (isInviolableCell(cardState, r, c)) return;
@@ -1233,7 +1088,7 @@ const Flips = CardFlips || {};
         for (const cell of getOccupiedBoardShapeCells(cardState, gameState)) {
             const row = cell.row;
             const col = cell.col;
-            if (getCellValue(gameState, row, col) !== playerVal) continue;
+            if (getCellValue(cardState, gameState, row, col) !== playerVal) continue;
             const hasBomb = markersAt(row, col).some((m: any) => isBombCategoryMarker(m));
             if (hasBomb) continue;
             if (isInviolableCell(cardState, row, col)) continue;
@@ -1293,13 +1148,14 @@ const Flips = CardFlips || {};
         }
         if (!gameState || !gameState.board) return [];
 
-        const expansionCells = getExpansionCells(gameState);
-        const occupied = new Set(expansionCells.map((cell: any) => `${cell.row},${cell.col}`));
+        const socketTargets = getExpansionSocketTargets(cardState, gameState, 'corner');
         const pending = cardState && cardState.pendingEffectByPlayer
             ? cardState.pendingEffectByPlayer[playerKey]
             : null;
-        const selectedKeys = new Set();
-        const selectedTargets = [];
+        const selectedKeys = new Set<string>();
+        const selectedAnchorKeys = new Set<string>();
+        const selectedAdditionKeys = new Set<string>();
+        const selectedTargets: any[] = [];
         if (pending && pending.type === 'BOARD_EXPANSION_GOD') {
             if (pending.firstTarget && Number.isInteger(pending.firstTarget.row) && Number.isInteger(pending.firstTarget.col)) {
                 selectedTargets.push(pending.firstTarget);
@@ -1310,18 +1166,30 @@ const Flips = CardFlips || {};
         }
         for (const target of selectedTargets) {
             if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) continue;
-            selectedKeys.add(`${target.row},${target.col}`);
+            const directionKey = typeof target.directionKey === 'string' ? target.directionKey : '';
+            if (directionKey) selectedKeys.add(`${target.row},${target.col},${directionKey}`);
+            else selectedAnchorKeys.add(`${target.row},${target.col}`);
+            const matchingSocket = socketTargets.find((candidate: any) => (
+                candidate.row === target.row &&
+                candidate.col === target.col &&
+                (!directionKey || candidate.directionKey === directionKey)
+            ));
+            if (matchingSocket && Array.isArray(matchingSocket.additions)) {
+                for (const cell of matchingSocket.additions) {
+                    if (cell && Number.isInteger(cell.row) && Number.isInteger(cell.col)) {
+                        selectedAdditionKeys.add(`${cell.row},${cell.col}`);
+                    }
+                }
+            }
         }
 
-        const res: any[] = [];
-        for (const corner of getBoardExpansionGodCornerDescriptors(gameState)) {
-            if (!corner || !Array.isArray(corner.cells)) continue;
-            if (selectedKeys.has(`${corner.row},${corner.col}`)) continue;
-            const hasOccupied = corner.cells.some((cell: any) => occupied.has(`${cell.row},${cell.col}`));
-            if (hasOccupied) continue;
-            res.push({ row: corner.row, col: corner.col });
-        }
-        return res;
+        return socketTargets.filter((target: any) => {
+            if (selectedKeys.has(`${target.row},${target.col},${target.directionKey || ''}`)) return false;
+            if (selectedAnchorKeys.has(`${target.row},${target.col}`)) return false;
+            return !(Array.isArray(target.additions) && target.additions.some(
+                (cell: any) => selectedAdditionKeys.has(`${cell.row},${cell.col}`)
+            ));
+        });
     }
 
     function getBoardShrinkGodTargets(cardState: any, gameState: any, playerKey: any) {

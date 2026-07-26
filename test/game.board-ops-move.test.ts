@@ -39,7 +39,6 @@ describe('BoardOps moveAt marker ownership', () => {
       marker('GUARD'),
       marker('HYPERACTIVE'),
       marker('BLOCKADE'),
-      marker('METEOR_HOLE'),
       marker('SEED')
     );
 
@@ -52,7 +51,7 @@ describe('BoardOps moveAt marker ownership', () => {
     for (const type of ['TRAP', 'GUARD', 'HYPERACTIVE']) {
       expect(byType.get(type)).toMatchObject({ row: 2, col: 5 });
     }
-    for (const type of ['BLOCKADE', 'METEOR_HOLE', 'SEED']) {
+    for (const type of ['BLOCKADE', 'SEED']) {
       expect(byType.get(type)).toMatchObject({ row: 2, col: 2 });
     }
     const moveEvent = cardState.presentationEvents.find((event) => event && event.type === 'MOVE');
@@ -96,6 +95,20 @@ describe('BoardOps moveAt marker ownership', () => {
     expect((cardState.presentationEvents || []).filter((event) => event && event.type === 'MOVE')).toHaveLength(0);
   });
 
+  test('treats a METEOR_HOLE source as non-playable even if stale board data contains a stone', () => {
+    const { cardState, gameState } = createEmptyState();
+    gameState.board[2][2] = Core.BLACK;
+    cardState.markers.push(marker('METEOR_HOLE'));
+
+    const result = BoardOps.moveAt(cardState, gameState, 2, 2, 2, 5, 'STRONG_WIND_WILL', 'strong_wind_move');
+
+    expect(result).toMatchObject({ moved: false, reason: 'from_out_of_board' });
+    expect(gameState.board[2][2]).toBe(Core.BLACK);
+    expect(gameState.board[2][5]).toBe(Core.EMPTY);
+    expect(cardState.markers[0]).toMatchObject({ row: 2, col: 2 });
+    expect((cardState.presentationEvents || []).filter((event) => event && event.type === 'MOVE')).toHaveLength(0);
+  });
+
   test('classifies WILL_HUNTER_KING slash movement as anchor movement', () => {
     const { cardState, gameState } = createEmptyState();
     gameState.board[2][2] = Core.BLACK;
@@ -122,7 +135,7 @@ describe('BoardOps moveAt marker ownership', () => {
     cardState.markers.push(
       marker('HYPERACTIVE', 1, 1),
       marker('TRAP', 2, 2),
-      marker('METEOR_HOLE', 1, 1),
+      marker('BLOCKADE', 1, 1),
       marker('SEED', 2, 2)
     );
 
@@ -140,7 +153,7 @@ describe('BoardOps moveAt marker ownership', () => {
     const byType = new Map(cardState.markers.map((m) => [m.data.type, m]));
     expect(byType.get('HYPERACTIVE')).toMatchObject({ row: 2, col: 2 });
     expect(byType.get('TRAP')).toMatchObject({ row: 1, col: 1 });
-    expect(byType.get('METEOR_HOLE')).toMatchObject({ row: 1, col: 1 });
+    expect(byType.get('BLOCKADE')).toMatchObject({ row: 1, col: 1 });
     expect(byType.get('SEED')).toMatchObject({ row: 2, col: 2 });
     const moveEvents = cardState.presentationEvents.filter((event) => event && event.type === 'MOVE');
     expect(moveEvents).toHaveLength(2);

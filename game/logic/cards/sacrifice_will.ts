@@ -12,7 +12,6 @@ type SacrificeWillDeps = {
     SpecialCardRegistry?: any;
     MARKER_KINDS?: any;
     gameState?: any;
-    getCellValueForCard?: (gameState: any, row: number, col: number) => any;
     getSpecialMarkers?: (cardState: any) => any[];
     EMPTY?: any;
 };
@@ -56,6 +55,8 @@ function safeRequire(id: string): any {
 }
 
 const OwnerHelpersModule = safeRequire('../../../utils/owner-helpers');
+const SharedBoardUtils = safeRequire('../../../shared/shared-board-utils') ||
+    (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null);
 
 function normalizePlayerKey(value: any): PlayerKey | null {
     if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
@@ -107,17 +108,23 @@ function getMarkers(cardState: any, deps?: SacrificeWillDeps): any[] {
     return cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
 }
 
-function readCellValue(gameState: any, row: number, col: number, deps?: SacrificeWillDeps): any {
-    if (deps && typeof deps.getCellValueForCard === 'function') {
-        return deps.getCellValueForCard(gameState, row, col);
+function createSacrificeBoardView(cardState: any, gameState: any): any {
+    if (
+        !SharedBoardUtils ||
+        typeof SharedBoardUtils.createBoardContext !== 'function' ||
+        typeof SharedBoardUtils.createBoardView !== 'function'
+    ) {
+        throw new Error('[sacrifice-will] SharedBoardUtils BoardContext APIs are required');
     }
-    const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
-    if (!board || !Array.isArray(board[row])) return null;
-    return board[row][col];
+    const boardContext = SharedBoardUtils.createBoardContext(gameState, cardState);
+    return SharedBoardUtils.createBoardView(boardContext.gameState, {
+        cardState: boardContext.cardState,
+        strict: false
+    });
 }
 
-function isOccupiedCell(gameState: any, row: number, col: number, deps?: SacrificeWillDeps): boolean {
-    const value = readCellValue(gameState, row, col, deps);
+function isOccupiedCell(boardView: any, row: number, col: number, deps?: SacrificeWillDeps): boolean {
+    const value = boardView.get(row, col);
     const empty = deps && Object.prototype.hasOwnProperty.call(deps, 'EMPTY') ? deps.EMPTY : 0;
     return value !== null && typeof value !== 'undefined' && value !== empty;
 }
@@ -163,13 +170,17 @@ function findTriggeringSacrificeMarker(cardState: any, cardUserKey: any, deps?: 
         const row = Number(marker.row);
         const col = Number(marker.col);
         if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-        if (gameState && !isOccupiedCell(gameState, row, col, deps)) continue;
         candidates.push({ marker, row, col, owner });
     }
 
     if (candidates.length <= 0) return null;
-    candidates.sort(compareCandidates);
-    return candidates[0];
+    const boardView = createSacrificeBoardView(cardState, gameState);
+    const occupiedCandidates = candidates.filter((candidate) =>
+        isOccupiedCell(boardView, candidate.row, candidate.col, deps)
+    );
+    if (occupiedCandidates.length <= 0) return null;
+    occupiedCandidates.sort(compareCandidates);
+    return occupiedCandidates[0];
 }
 
 function isDestroyedResult(result: any): boolean {

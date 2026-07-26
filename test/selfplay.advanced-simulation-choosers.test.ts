@@ -1,4 +1,33 @@
 const { createSelfplayAdvancedSimulationChoosers } = require('../src/engine/selfplay-advanced-simulation-choosers.js');
+const SharedBoardUtils = require('../shared/shared-board-utils.js');
+
+function createTestBoardContext(gameState = {}, cardState = {}) {
+    const source = Array.isArray(gameState.board) ? gameState.board : [];
+    const rows = Math.max(4, source.length);
+    const cols = Math.max(4, ...source.map((row) => Array.isArray(row) ? row.length : 0));
+    const board = Array.from({ length: rows }, (_unused, row) =>
+        Array.from({ length: cols }, (_unusedCell, col) =>
+            Array.isArray(source[row]) ? (source[row][col] ?? 0) : 0
+        )
+    );
+    return SharedBoardUtils.createBoardContext({
+        ...gameState,
+        board,
+        boardConfig: { rows, cols, shape: 'rectangle' }
+    }, cardState);
+}
+
+function getTestCellOwner(gameState, cardState, row, col) {
+    return SharedBoardUtils.getCellValue(createTestBoardContext(gameState, cardState), row, col);
+}
+
+function isTestCorner(row, col, board) {
+    return SharedBoardUtils.isCorner(row, col, board);
+}
+
+function isTestEdge(row, col, board) {
+    return SharedBoardUtils.isEdge(row, col, board);
+}
 
 describe('selfplay advanced simulation choosers module', () => {
     test('strong wind fallback and adjustment preserve corner and destination weighting', () => {
@@ -7,15 +36,17 @@ describe('selfplay advanced simulation choosers module', () => {
             CardLogic: {
                 applyStrongWindWill: jest.fn()
             },
+            SharedBoardUtils,
             chooseTargetBySimulation: (...args) => {
                 calls.push(args);
                 return null;
             },
             evaluatePositionValue: (row, col) => row * 100 + col,
             toPlayerValue: (playerKey) => playerKey === 'black' ? 1 : -1,
-            getCellOwnerValueForSelfplay: (gameState, row, col) => gameState.board[row][col],
-            isCorner: (row, col) => (row === 0 || row === 7) && (col === 0 || col === 7),
-            isEdge: (row, col) => row === 0 || col === 0 || row === 7 || col === 7,
+            getCellOwnerValueForSelfplay: getTestCellOwner,
+            getSelfplayBoard: createTestBoardContext,
+            isCorner: isTestCorner,
+            isEdge: isTestEdge,
             getBoardBonusAtCell: (_cardState, row, col) => (row === 0 && col === 3) ? 2 : 0
         });
 
@@ -34,7 +65,7 @@ describe('selfplay advanced simulation choosers module', () => {
             adjust(
                 { row: 0, col: 0 },
                 { to: { row: 0, col: 3 } },
-                {},
+                { board: Array.from({ length: 8 }, () => Array(8).fill(0)) },
                 {},
                 { board: [[-1, 0, 0, 0], [0, 1, 0, 0]] },
                 {},
@@ -50,15 +81,17 @@ describe('selfplay advanced simulation choosers module', () => {
                 applySuperBuoyancyWill: jest.fn(),
                 applySuperGravityWill: jest.fn()
             },
+            SharedBoardUtils,
             chooseTargetBySimulation: (...args) => {
                 calls.push(args);
                 return null;
             },
             evaluatePositionValue: (row, col) => row * 10 + col,
             toPlayerValue: (playerKey) => playerKey === 'black' ? 1 : -1,
-            getCellOwnerValueForSelfplay: (gameState, row, col) => gameState.board[row][col],
-            isCorner: (row, col) => row === 0 && col === 0,
-            isEdge: (row, col) => row === 0 || col === 0 || row === 7 || col === 7,
+            getCellOwnerValueForSelfplay: getTestCellOwner,
+            getSelfplayBoard: createTestBoardContext,
+            isCorner: isTestCorner,
+            isEdge: isTestEdge,
             getBoardBonusAtCell: (_cardState, row, col) => (row === 0 && col === 0) ? 1 : 0
         });
 
@@ -84,11 +117,13 @@ describe('selfplay advanced simulation choosers module', () => {
                 applyTrapWill: jest.fn(),
                 applyCloneWill: jest.fn()
             },
+            SharedBoardUtils,
             chooseTargetBySimulation: (...args) => {
                 calls.push(args);
                 return null;
             },
-            evaluatePositionValue: (row, col) => row * 10 + col
+            evaluatePositionValue: (row, col) => row * 10 + col,
+            getSelfplayBoard: createTestBoardContext
         });
 
         choosers.chooseMeteorTarget({}, {}, 'black', {});
@@ -108,15 +143,17 @@ describe('selfplay advanced simulation choosers module', () => {
                 applyTeleportWill: jest.fn(),
                 applyCellTeleportWill: jest.fn()
             },
+            SharedBoardUtils,
             chooseTargetBySimulation: (...args) => {
                 calls.push(args);
                 return null;
             },
             evaluatePositionValue: (row, col) => row * 10 + col,
             toPlayerValue: (playerKey) => playerKey === 'black' ? 1 : -1,
-            getCellOwnerValueForSelfplay: (gameState, row, col) => gameState.board[row][col],
-            isCorner: (row, col) => row === 0 && col === 0,
-            isEdge: (row, col) => row === 0 || col === 0 || row === 7 || col === 7,
+            getCellOwnerValueForSelfplay: getTestCellOwner,
+            getSelfplayBoard: createTestBoardContext,
+            isCorner: isTestCorner,
+            isEdge: isTestEdge,
             isXSquare: (row, col) => row === 1 && col === 1,
             getBoardBonusAtCell: (_cardState, row, col) => (row === 8 && col === 8) ? 2 : 0
         });
@@ -127,7 +164,18 @@ describe('selfplay advanced simulation choosers module', () => {
 
         expect(calls[0][6]({ row: 1, col: 1 }, {}, { board: [[0, 0], [0, 1]] }, {}, {}, {}, 'black')).toBe(-350);
         expect(calls[1][5]({ row: 0, col: 1 }, { board: [[0, -1]] }, {}, 'black')).toBeCloseTo((1 * 1.4) + 900, 5);
-        expect(calls[2][6]({}, { to: { row: 8, col: 8 } }, {}, {}, {}, {})).toBe(1800 + 1600 + 1800);
+        const expandedGameState = {
+            board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+            boardExpansion: { cells: [{ row: 8, col: 8, owner: 0 }] }
+        };
+        expect(calls[2][6](
+            {},
+            { to: { row: 8, col: 8 } },
+            expandedGameState,
+            {},
+            {},
+            {}
+        )).toBe(1800 + 1600 + 1800);
     });
 
     test('extend life uses marker priority and owner-position bonuses', () => {
@@ -136,15 +184,17 @@ describe('selfplay advanced simulation choosers module', () => {
             CardLogic: {
                 applyExtendLifeWill: jest.fn()
             },
+            SharedBoardUtils,
             chooseTargetBySimulation: (...args) => {
                 calls.push(args);
                 return null;
             },
             evaluatePositionValue: (row, col) => row * 10 + col,
             toPlayerValue: (playerKey) => playerKey === 'black' ? 1 : -1,
-            getCellOwnerValueForSelfplay: (gameState, row, col) => gameState.board[row][col],
-            isCorner: (row, col) => row === 0 && col === 0,
-            isEdge: (row, col) => row === 0 || col === 0 || row === 7 || col === 7
+            getCellOwnerValueForSelfplay: getTestCellOwner,
+            getSelfplayBoard: createTestBoardContext,
+            isCorner: isTestCorner,
+            isEdge: isTestEdge
         });
 
         const cardState = {

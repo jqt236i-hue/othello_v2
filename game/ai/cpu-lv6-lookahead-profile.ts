@@ -22,15 +22,20 @@ function requireCpuLv6LookaheadProfileModuleOrNull(id: string): any {
 
 const BoardUtils: any = requireCpuLv6LookaheadProfileModuleOrNull('../cpu-decision-board-utils');
 
+const SharedBoardUtils: any = requireCpuLv6LookaheadProfileModuleOrNull('../../shared/shared-board-utils');
+
 const sharedProfile: any = requireCpuLv6LookaheadProfileModuleOrNull('../../constants/cpu-lv6-shared-profile.js');
 
 const CpuPolicyCore: any = requireCpuLv6LookaheadProfileModuleOrNull('./cpu-policy-core');
 
 const CpuLv6RuntimeCapabilityModule: any = requireCpuLv6LookaheadProfileModuleOrNull('../../shared/cpu-lv6-runtime-capability');
 
-const countBoardEmpties = (BoardUtils && typeof BoardUtils.countBoardEmpties === 'function')
-    ? BoardUtils.countBoardEmpties
+const countBoardEmpties = (SharedBoardUtils && typeof SharedBoardUtils.countBoardEmpties === 'function')
+    ? SharedBoardUtils.countBoardEmpties
+    : ((BoardUtils && typeof BoardUtils.countBoardEmpties === 'function')
+        ? BoardUtils.countBoardEmpties
     : function countBoardEmptiesFallback(board: any) {
+        // Explicit dense-only compatibility path.
         if (!Array.isArray(board)) return 0;
         let empties = 0;
         for (let r = 0; r < board.length; r++) {
@@ -40,25 +45,41 @@ const countBoardEmpties = (BoardUtils && typeof BoardUtils.countBoardEmpties ===
             }
         }
         return empties;
+    });
+
+const countPlayableCells = (SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function')
+    ? function countTopologyPlayableCells(board: any) {
+        return SharedBoardUtils.collectBoardCoordinates(board).length;
+    }
+    : function countDensePlayableCells(board: any) {
+        // Explicit dense-only compatibility path.
+        if (!Array.isArray(board)) return 0;
+        return board.reduce((sum: number, row: any) => sum + (Array.isArray(row) ? row.length : 0), 0);
     };
 
-const isCornerCell = (BoardUtils && typeof BoardUtils.isCornerCell === 'function')
-    ? BoardUtils.isCornerCell
+const isCornerCell = (SharedBoardUtils && typeof SharedBoardUtils.isCornerCell === 'function')
+    ? SharedBoardUtils.isCornerCell
+    : ((BoardUtils && typeof BoardUtils.isCornerCell === 'function')
+        ? BoardUtils.isCornerCell
     : function isCornerCellFallback(row: any, col: any, board: any) {
+        // Explicit dense-only compatibility path.
         if (!Array.isArray(board) || board.length <= 0) return false;
         const maxRow = board.length - 1;
         const maxCol = Array.isArray(board[0]) ? board[0].length - 1 : maxRow;
         return (row === 0 || row === maxRow) && (col === 0 || col === maxCol);
-    };
+    });
 
-const isEdgeCell = (BoardUtils && typeof BoardUtils.isEdgeCell === 'function')
-    ? BoardUtils.isEdgeCell
+const isEdgeCell = (SharedBoardUtils && typeof SharedBoardUtils.isEdgeCell === 'function')
+    ? SharedBoardUtils.isEdgeCell
+    : ((BoardUtils && typeof BoardUtils.isEdgeCell === 'function')
+        ? BoardUtils.isEdgeCell
     : function isEdgeCellFallback(row: any, col: any, board: any) {
+        // Explicit dense-only compatibility path.
         if (!Array.isArray(board) || board.length <= 0) return false;
         const maxRow = board.length - 1;
         const maxCol = Array.isArray(board[0]) ? board[0].length - 1 : maxRow;
         return row === 0 || row === maxRow || col === 0 || col === maxCol;
-    };
+    });
 
 function resolveCpuLv6SharedProfile() {
     return sharedProfile && typeof sharedProfile === 'object' ? sharedProfile : null;
@@ -176,9 +197,7 @@ function buildLv6LookaheadOptions(level: any, board: any, legalMovesCount: any, 
         : null;
     const empties = countBoardEmpties(board);
     const moves = Math.max(1, Number(legalMovesCount) || 1);
-    const totalCells = Array.isArray(board)
-        ? board.reduce((sum, row) => sum + (Array.isArray(row) ? row.length : 0), 0)
-        : 0;
+    const totalCells = countPlayableCells(board);
     const safeTotalCells = totalCells > 0 ? totalCells : 64;
     const occupiedRatio = Math.max(0, Math.min(1, 1 - (empties / safeTotalCells)));
     const sizeScale = Math.max(0.75, Math.min(1.8, Math.sqrt(safeTotalCells / 64)));

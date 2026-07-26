@@ -7,6 +7,7 @@ type SelfplayPendingTargetSelectionConfig = {
     deepClone?: (value: any) => any;
     evaluateBoardForPlayer?: (gameState: any, cardState: any, playerKey: any) => number;
     evaluatePositionValue?: (row: any, col: any, boardOrSize?: any) => number;
+    getSelfplayBoard?: (gameState: any, cardState: any) => any;
     clonePrng?: (rng: any) => any;
 };
 
@@ -26,6 +27,9 @@ export function createSelfplayPendingTargetSelection(config?: SelfplayPendingTar
     const evaluatePositionValue = typeof cfg.evaluatePositionValue === 'function'
         ? cfg.evaluatePositionValue
         : (() => 0);
+    const getSelfplayBoard = typeof cfg.getSelfplayBoard === 'function'
+        ? cfg.getSelfplayBoard
+        : (() => null);
     const clonePrng = typeof cfg.clonePrng === 'function' ? cfg.clonePrng : fallbackClone;
 
     function choosePendingTargetByScore(targets: any, scoreTarget: any) {
@@ -113,7 +117,11 @@ export function createSelfplayPendingTargetSelection(config?: SelfplayPendingTar
             if (!Number.isFinite(score)) {
                 score = typeof fallbackScoreFn === 'function'
                     ? Number(fallbackScoreFn(target, gameState, cardState, playerKey) || 0)
-                    : evaluatePositionValue(target.row, target.col);
+                    : evaluatePositionValue(
+                        target.row,
+                        target.col,
+                        getSelfplayBoard(gameState, cardState)
+                    );
             }
             return score;
         });

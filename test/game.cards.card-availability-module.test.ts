@@ -1,67 +1,102 @@
 import { createCardAvailability } from '../game/logic/cards-internal/card-availability.js';
 
+const SharedBoardUtils = require('../shared/shared-board-utils');
+
+function createBoard(rows = 4, cols = 4, fill = 0) {
+  return Array.from({ length: rows }, () => Array(cols).fill(fill));
+}
+
+function createBoardViewForCard(cardState: any, gameState: any) {
+  const context = SharedBoardUtils.createBoardContext(gameState, cardState);
+  return SharedBoardUtils.createBoardView(context.gameState, {
+    cardState: context.cardState,
+    strict: false
+  });
+}
+
+function createAvailability(overrides: any = {}) {
+  return createCardAvailability({
+    constants: { BLACK: 1, WHITE: -1 },
+    createBoardViewForCard,
+    ...overrides
+  });
+}
+
 describe('card availability module', () => {
-  test('uses core countDiscs when available and otherwise counts board plus expansions', () => {
-    const withCore = createCardAvailability({
-      constants: { BLACK: 1, WHITE: 2 },
-      resolveCoreLogicForCards: () => ({
-        countDiscs: () => ({ black: '12', white: 7 })
-      }),
-      getExpansionDescriptorsForCard: () => [{ owner: 1 }, { owner: 2 }]
-    });
-
-    expect(withCore.countDiscsForCardComparison({ board: [[1, 2]] })).toEqual({ black: 12, white: 7 });
-
-    const withoutCore = createCardAvailability({
-      constants: { BLACK: 1, WHITE: 2 },
-      getExpansionDescriptorsForCard: () => [{ owner: 1 }, { owner: 2 }, { owner: 1 }]
-    });
-
-    expect(withoutCore.countDiscsForCardComparison({
-      board: [
-        [1, 2, 0],
-        [2, 0, 1]
+  test('counts base and expansion discs while excluding meteor holes', () => {
+    const availability = createAvailability();
+    const gameState = {
+      board: createBoard(),
+      boardExpansion: {
+        cells: [
+          { side: 'top', row: -1, col: 0, owner: 1 },
+          { side: 'right', row: 0, col: 4, owner: -1 },
+          { side: 'right', row: 1, col: 4, owner: 1 }
+        ]
+      }
+    };
+    gameState.board[0][0] = 1;
+    gameState.board[0][1] = -1;
+    gameState.board[0][2] = 1;
+    const cardState = {
+      markers: [
+        { kind: 'specialStone', row: 0, col: 2, data: { type: 'METEOR_HOLE' } },
+        { kind: 'specialStone', row: 1, col: 4, data: { type: 'METEOR_HOLE' } }
       ]
-    })).toEqual({ black: 4, white: 3 });
+    };
+
+    expect(availability.countDiscsForCardComparison(cardState, gameState)).toEqual({
+      black: 2,
+      white: 2
+    });
   });
 
-  test('applies last resort threshold and equality charge condition with injected helpers', () => {
-    const availability = createCardAvailability({
-      constants: { BLACK: 1, WHITE: 2 },
+  test('applies last resort threshold and equality charge condition with canonical counts', () => {
+    const availability = createAvailability({
       hasStandardLegalMoveForPlayer: jest.fn((_cardState, _gameState, playerKey) => playerKey === 'white')
     });
-    const gameState = {
-      board: [
-        [1, 0],
-        [2, 2]
-      ]
-    };
+    const gameState = { board: createBoard() };
+    gameState.board[0][0] = 1;
+    gameState.board[1][0] = -1;
+    gameState.board[1][1] = -1;
+    const cardState = { charge: { black: 1, white: 25 }, markers: [] };
 
-    expect(availability.canUseLastResortForPlayer({}, gameState, 'black')).toBe(true);
-    expect(availability.canUseLastResortForPlayer({}, gameState, 'white')).toBe(false);
-    expect(availability.canUseEqualityWillForPlayer({ charge: { black: 1, white: 25 } }, gameState, 'black')).toBe(false);
-    expect(availability.canUseEqualityWillForPlayer({ charge: { black: 0, white: 25 } }, gameState, 'black')).toBe(true);
-    expect(availability.getEqualityWillChargeState({ charge: { black: 0, white: 25 } }, 'black')).toEqual({ own: 0, opponent: 25 });
+    expect(availability.canUseLastResortForPlayer(cardState, gameState, 'black')).toBe(true);
+    expect(availability.canUseLastResortForPlayer(cardState, gameState, 'white')).toBe(false);
+    expect(availability.canUseEqualityWillForPlayer(cardState, gameState, 'black')).toBe(false);
+    expect(availability.canUseEqualityWillForPlayer(
+      { charge: { black: 0, white: 25 }, markers: [] },
+      gameState,
+      'black'
+    )).toBe(true);
+    expect(availability.getEqualityWillChargeState(cardState, 'black')).toEqual({ own: 1, opponent: 25 });
   });
 
-  test('forwards reinforcement-like target counts and disc disadvantage helpers', () => {
+  test('forwards reinforcement target counts and disc disadvantage helpers', () => {
     const getTargets = jest.fn(() => [{}, {}, {}]);
-    const availability = createCardAvailability({
-      constants: { BLACK: 1, WHITE: 2 },
+    const availability = createAvailability({
       getReinforcementWillTargets: getTargets
     });
-    const gameState = {
-      board: [
-        [1, 1],
-        [2, 0]
-      ]
-    };
+    const gameState = { board: createBoard() };
+    gameState.board[0][0] = 1;
+    gameState.board[0][1] = 1;
+    gameState.board[1][0] = -1;
+    const cardState = { markers: [] };
 
-    expect(availability.getDiscDisadvantageForPlayer(gameState, 'white')).toBe(1);
-    expect(availability.getEqualityWillBoardCounts(gameState)).toEqual({ black: 2, white: 1 });
-    expect(availability.hasFewerDiscsThanOpponentForPlayer(gameState, 'white')).toBe(true);
-    expect(availability.getReinforcementWillTargetCount({ state: true }, gameState, 'black')).toBe(3);
-    expect(availability.getSupportTroopsWillTargetCount({ state: true }, gameState, 'black')).toBe(3);
-    expect(getTargets).toHaveBeenCalledWith({ state: true }, gameState, 'black');
+    expect(availability.getDiscDisadvantageForPlayer(cardState, gameState, 'white')).toBe(1);
+    expect(availability.getEqualityWillBoardCounts(cardState, gameState)).toEqual({ black: 2, white: 1 });
+    expect(availability.hasFewerDiscsThanOpponentForPlayer(cardState, gameState, 'white')).toBe(true);
+    expect(availability.getReinforcementWillTargetCount(cardState, gameState, 'black')).toBe(3);
+    expect(availability.getSupportTroopsWillTargetCount(cardState, gameState, 'black')).toBe(3);
+    expect(getTargets).toHaveBeenCalledWith(cardState, gameState, 'black');
+  });
+
+  test('fails fast instead of falling back to a dense board count', () => {
+    const availability = createCardAvailability({
+      constants: { BLACK: 1, WHITE: -1 }
+    });
+
+    expect(() => availability.countDiscsForCardComparison({}, { board: createBoard() }))
+      .toThrow('createBoardViewForCard is required');
   });
 });

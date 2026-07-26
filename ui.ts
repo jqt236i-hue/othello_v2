@@ -484,20 +484,22 @@ export function renderBoard() {
  * Update occupancy percentage display
  */
 export function updateOccupancyUI() {
-    const counts = (window as any).countDiscs((window as any).gameState);
-    const total = counts.black + counts.white;
+    try {
+        if (
+            typeof window !== 'undefined' &&
+            typeof (window as any).updateOccupancyUI === 'function' &&
+            (window as any).updateOccupancyUI !== updateOccupancyUI
+        ) {
+            return (window as any).updateOccupancyUI();
+        }
+    } catch (e) { /* ignore */ }
 
-    let blackPct = 50, whitePct = 50;
-    if (total > 0) {
-        blackPct = Math.round((counts.black / total) * 100);
-        whitePct = 100 - blackPct;
-    }
-
-    const blackEl = document.getElementById('occ-black');
-    const whiteEl = document.getElementById('occ-white');
-
-    if (blackEl) blackEl.innerHTML = `<div class="occ-dot"></div>黒 ${blackPct}%`;
-    if (whiteEl) whiteEl.innerHTML = `<div class="occ-dot"></div>白 ${whitePct}%`;
+    try {
+        const mod = require('./ui/board-renderer');
+        if (mod && typeof mod.updateOccupancyUI === 'function') {
+            return mod.updateOccupancyUI();
+        }
+    } catch (e) { /* ignore require failures in browser */ }
 }
 
 /**

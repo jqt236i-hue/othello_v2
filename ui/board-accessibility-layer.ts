@@ -96,6 +96,7 @@ export interface BoardAccessibilityLayer {
 interface DirectionButtonRecord {
   readonly button: HTMLButtonElement;
   hint: BoardAccessibilityDirectionHint;
+  pointerDownHint: BoardAccessibilityDirectionHint | null;
   focused: boolean;
 }
 
@@ -299,6 +300,7 @@ export function createBoardAccessibilityLayer(
 
   function removeRecord(id: string, record: DirectionButtonRecord): void {
     if (record.button.ownerDocument.activeElement === record.button) record.button.blur();
+    record.pointerDownHint = null;
     notifyBlur(record);
     record.button.remove();
     records.delete(id);
@@ -307,19 +309,38 @@ export function createBoardAccessibilityLayer(
   function createButton(hint: BoardAccessibilityDirectionHint): DirectionButtonRecord {
     const doc = options.document || host!.ownerDocument;
     const button = doc.createElement('button');
-    const record: DirectionButtonRecord = { button, hint, focused: false };
+    const record: DirectionButtonRecord = { button, hint, pointerDownHint: null, focused: false };
     button.type = 'button';
     button.className = DIRECTION_BUTTON_CLASS;
     button.setAttribute('role', 'button');
     button.tabIndex = 0;
+    button.addEventListener('pointerdown', (event) => {
+      if (
+        destroyed
+        || records.get(record.hint.id) !== record
+        || (Number.isFinite(Number(event.button)) && Number(event.button) !== 0)
+      ) return;
+      // Focus-driven presentation sync may update the keyed record before the
+      // browser emits click. Preserve the canonical identity seen on press.
+      record.pointerDownHint = record.hint;
+    });
+    button.addEventListener('pointercancel', () => {
+      record.pointerDownHint = null;
+    });
+    button.addEventListener('keydown', () => {
+      // Native keyboard activation does not belong to an earlier pointer press.
+      record.pointerDownHint = null;
+    });
     button.addEventListener('click', (event) => {
       event.stopPropagation();
       if (destroyed || records.get(record.hint.id) !== record) return;
+      const activationHint = record.pointerDownHint || record.hint;
+      record.pointerDownHint = null;
       options.onActivate(
-        record.hint.row,
-        record.hint.col,
-        record.hint.directionKey,
-        record.hint
+        activationHint.row,
+        activationHint.col,
+        activationHint.directionKey,
+        activationHint
       );
     });
     // Native <button> activation owns Enter/Space and emits one click. A
@@ -329,7 +350,10 @@ export function createBoardAccessibilityLayer(
       record.focused = true;
       options.onFocus?.(record.hint.cellKey, record.hint);
     });
-    button.addEventListener('blur', () => notifyBlur(record));
+    button.addEventListener('blur', () => {
+      record.pointerDownHint = null;
+      notifyBlur(record);
+    });
     return record;
   }
 

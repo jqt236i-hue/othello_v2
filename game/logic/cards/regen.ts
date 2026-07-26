@@ -80,114 +80,28 @@ const CardRegen = (function (root: any, factory: any) {
         throw new Error('SharedConstants (BLACK/WHITE/DIRECTIONS) required');
     }
 
-    function resolveBoardBounds(gameState: any) {
-        if (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardBounds === 'function') {
-            return SharedBoardUtils.resolveBoardBounds(gameState && gameState.board);
+    function requireBoardUtils() {
+        if (
+            !SharedBoardUtils ||
+            typeof SharedBoardUtils.createBoardContext !== 'function' ||
+            typeof SharedBoardUtils.getCellValue !== 'function' ||
+            typeof SharedBoardUtils.setCellValue !== 'function'
+        ) {
+            throw new Error('SharedBoardUtils BoardContext APIs are required by CardRegen');
         }
-        const board = gameState && gameState.board;
-        if (!Array.isArray(board) || board.length <= 0) return null;
-        let maxCol = -1;
-        for (const row of board) {
-            if (Array.isArray(row) && row.length > 0) {
-                maxCol = Math.max(maxCol, row.length - 1);
-            }
-        }
-        if (maxCol < 0) return null;
-        return { minRow: 0, maxRow: board.length - 1, minCol: 0, maxCol };
+        return SharedBoardUtils;
     }
 
-    function isMainBoardCell(gameState: any, row: any, col: any) {
-        const bounds = resolveBoardBounds(gameState);
-        return !!(
-            bounds &&
-            Number.isInteger(row) &&
-            Number.isInteger(col) &&
-            row >= bounds.minRow &&
-            row <= bounds.maxRow &&
-            col >= bounds.minCol &&
-            col <= bounds.maxCol
-        );
+    function createBoardContext(cardState: any, gameState: any) {
+        return requireBoardUtils().createBoardContext(gameState, cardState);
     }
 
-    function resolveExpansionSide(side: any, row: any, col: any, gameState: any) {
-        const bounds = resolveBoardBounds(gameState);
-        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-        if (!bounds) return null;
-        if (col === -1) return 'left';
-        if (col === (bounds.maxCol + 1)) return 'right';
-        if (row === -1) return 'top';
-        if (row === (bounds.maxRow + 1)) return 'bottom';
-        return null;
+    function getCellValue(cardState: any, gameState: any, row: any, col: any) {
+        return requireBoardUtils().getCellValue(createBoardContext(cardState, gameState), row, col);
     }
 
-    function getExpansionCellRef(gameState: any, row: any, col: any) {
-        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-            ? gameState.boardExpansion
-            : null;
-        if (!expansion) return null;
-
-        if (Array.isArray(expansion.cells)) {
-            for (let index = 0; index < expansion.cells.length; index++) {
-                const cell = expansion.cells[index];
-                if (!cell || typeof cell !== 'object') continue;
-                const cellCol = Number.isInteger(cell.col)
-                    ? cell.col
-                    : (cell.side === 'left' ? -1 : (cell.side === 'right' ? ((resolveBoardBounds(gameState) || {}).maxCol + 1) : null));
-                if (!Number.isInteger(cellCol)) continue;
-                if (cell.row === row && cellCol === col) {
-                    return { expansion, index, cell, legacy: false };
-                }
-            }
-        }
-
-        if (expansion.active === true) {
-            const legacyCol = Number.isInteger(expansion.col)
-                ? expansion.col
-                : (expansion.side === 'left' ? -1 : (expansion.side === 'right' ? ((resolveBoardBounds(gameState) || {}).maxCol + 1) : null));
-            if (expansion.row === row && legacyCol === col) {
-                return { expansion, index: -1, cell: expansion, legacy: true };
-            }
-        }
-
-        return null;
-    }
-
-    function getCellValue(gameState: any, row: any, col: any) {
-        if (isMainBoardCell(gameState, row, col)) {
-            return (gameState && Array.isArray(gameState.board) && Array.isArray(gameState.board[row]))
-                ? gameState.board[row][col]
-                : null;
-        }
-        const ref = getExpansionCellRef(gameState, row, col);
-        return ref ? Number(ref.cell.owner) : null;
-    }
-
-    function setCellValue(gameState: any, row: any, col: any, value: any) {
-        if (isMainBoardCell(gameState, row, col)) {
-            if (!gameState || !Array.isArray(gameState.board) || !Array.isArray(gameState.board[row])) return false;
-            gameState.board[row][col] = value;
-            return true;
-        }
-
-        const ref = getExpansionCellRef(gameState, row, col);
-        if (!ref) return false;
-        const normalizedOwner = (value === BLACK || value === WHITE) ? value : EMPTY;
-
-        if (!ref.legacy) {
-            ref.expansion.cells[ref.index] = {
-                side: resolveExpansionSide(ref.cell.side, row, col, gameState),
-                row,
-                col,
-                owner: normalizedOwner
-            };
-            return true;
-        }
-
-        ref.expansion.side = resolveExpansionSide(ref.cell.side, row, col, gameState);
-        ref.expansion.row = row;
-        ref.expansion.col = col;
-        ref.expansion.owner = normalizedOwner;
-        return true;
+    function setCellValue(cardState: any, gameState: any, row: any, col: any, value: any) {
+        return requireBoardUtils().setCellValue(createBoardContext(cardState, gameState), row, col, value);
     }
 
     function applyRegenWill(cardState: any, playerKey: any, row: any, col: any, deps: any = {}) {
@@ -345,7 +259,7 @@ const CardRegen = (function (root: any, factory: any) {
             const line = [];
             let r = row + dr;
             let c = col + dc;
-            while (getCellValue(gameState, r, c) === -ownerColor) {
+            while (getCellValue(cardState, gameState, r, c) === -ownerColor) {
                 if (ctx.isBlocked(r, c)) {
                     line.length = 0;
                     break;
@@ -354,14 +268,14 @@ const CardRegen = (function (root: any, factory: any) {
                 r += dr;
                 c += dc;
             }
-            if (line.length <= 0 || ctx.isBlocked(r, c) || getCellValue(gameState, r, c) !== ownerColor) continue;
+            if (line.length <= 0 || ctx.isBlocked(r, c) || getCellValue(cardState, gameState, r, c) !== ownerColor) continue;
             for (const point of line) {
                 let changed = true;
                 if (deps.BoardOps && typeof deps.BoardOps.changeAt === 'function') {
                     const changeRes = deps.BoardOps.changeAt(cardState, gameState, point.row, point.col, regenOwner, 'REGEN', 'regen_capture_flip');
                     changed = !!(changeRes && changeRes.changed);
                 } else {
-                    setCellValue(gameState, point.row, point.col, ownerColor);
+                    changed = setCellValue(cardState, gameState, point.row, point.col, ownerColor);
                 }
                 if (!changed) continue;
                 ctx.clearBombAt(cardState, point.row, point.col);
@@ -372,7 +286,7 @@ const CardRegen = (function (root: any, factory: any) {
     }
 
     function _emitForcedRegenChange(cardState: any, gameState: any, row: any, col: any, ownerKey: any, ownerColor: any, nextRemaining: any, deps: any = {}) {
-        setCellValue(gameState, row, col, ownerColor);
+        setCellValue(cardState, gameState, row, col, ownerColor);
         const boardOps = deps.BoardOps || null;
         if (boardOps && typeof boardOps.emitPresentationEvent === 'function') {
             boardOps.emitPresentationEvent(cardState, {
@@ -398,7 +312,7 @@ const CardRegen = (function (root: any, factory: any) {
         if (!regen) return { triggered: false, regened: [], captureFlips: [] };
         const markerType = String(regen.data && regen.data.type || 'REGEN').toUpperCase();
         const ownerColor = regen.owner === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const currentValue = getCellValue(gameState, row, col);
+        const currentValue = getCellValue(cardState, gameState, row, col);
         if (triggerKind !== 'destroy' && currentValue === ownerColor) {
             return { triggered: false, regened: [], captureFlips: [] };
         }
@@ -457,7 +371,7 @@ const CardRegen = (function (root: any, factory: any) {
     function _removeDepletedZombieAt(cardState: any, gameState: any, row: any, col: any, ownerKey: any, deps: any = {}) {
         if (!cardState || !Array.isArray(cardState.markers)) return;
         const ownerColor = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        if (getCellValue(gameState, row, col) !== ownerColor) return;
+        if (getCellValue(cardState, gameState, row, col) !== ownerColor) return;
         const marker = cardState.markers.find((candidate: any) =>
             candidate &&
             candidate.kind === 'specialStone' &&

@@ -31,20 +31,38 @@ export interface ExpansionDescriptorDependencies {
   maxAbsCoordinate?: number;
 }
 
+export const DEFAULT_BOARD_MAX_ABS_COORDINATE = 256;
+
+export function resolveBoardMaxAbsCoordinate(value: unknown): number {
+  return Number.isFinite(Number(value))
+    ? Math.max(16, Math.trunc(Number(value)))
+    : DEFAULT_BOARD_MAX_ABS_COORDINATE;
+}
+
+export function isBoardCoordinateWithinLimit(
+  row: number,
+  col: number,
+  maxAbsCoordinate: unknown = DEFAULT_BOARD_MAX_ABS_COORDINATE,
+): boolean {
+  if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+  const limit = resolveBoardMaxAbsCoordinate(maxAbsCoordinate);
+  return Math.abs(row) <= limit && Math.abs(col) <= limit;
+}
+
 export function createExpansionDescriptors(
   deps: ExpansionDescriptorDependencies,
 ) {
+  const maxAbsCoordinate = resolveBoardMaxAbsCoordinate(
+    deps.maxAbsCoordinate,
+  );
+
   function isExpansionCoordinate(
     row: number,
     col: number,
     boardOrConfig: unknown,
     maybeCols?: unknown,
   ): boolean {
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    const maxAbsCoordinate = Number.isFinite(Number(deps.maxAbsCoordinate))
-      ? Math.max(16, Math.trunc(Number(deps.maxAbsCoordinate)))
-      : 256;
-    if (Math.abs(row) > maxAbsCoordinate || Math.abs(col) > maxAbsCoordinate) return false;
+    if (!isBoardCoordinateWithinLimit(row, col, maxAbsCoordinate)) return false;
     return !deps.isMainBoardCell(row, col, boardOrConfig, maybeCols);
   }
 

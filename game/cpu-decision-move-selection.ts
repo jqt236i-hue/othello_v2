@@ -22,6 +22,7 @@ type CpuDecisionMoveSelectionConfig = {
     getCpuPolicyCore: () => any;
     getCpuRng: () => any;
     getCurrentCpuBoard: () => any;
+    getDenseBoardMatrix?: (board: any) => any;
     getGameState: () => any;
     isAISystemAvailable: () => any;
     isPlayableBoard: (board: any) => any;
@@ -40,6 +41,11 @@ type CpuDecisionMoveSelectionConfig = {
 
 export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionConfig): any {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuDecisionMoveSelectionConfig;
+    const getDenseBoardMatrix = (board: any): any => {
+        if (typeof cfg.getDenseBoardMatrix === 'function') return cfg.getDenseBoardMatrix(board);
+        if (Array.isArray(board)) return board;
+        throw new Error('CPU move selection requires an explicit dense-board adapter');
+    };
 
     const flipProfitThresholdByPendingType: Record<string, number> = {
         SILVER_STONE: 2,
@@ -197,8 +203,7 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
             || prepared.placementLevel < 6
             || prepared.prioritizedCandidateMoves.length <= 0
         ) return null;
-        const gameState = cfg.getGameState();
-        const board = gameState && gameState.board;
+        const board = prepared.board;
         if (!cfg.isPlayableBoard(board)) return null;
         const scoring = buildPlacementLookaheadScoring(prepared, playerKey);
         if (scoring.learnedMove && !scoring.movePlanScoreFn) return null;
@@ -227,7 +232,7 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
             playerKey,
             level: prepared.placementLevel,
             playerValue: cfg.resolvePlayerValue(playerKey),
-            board,
+            board: getDenseBoardMatrix(board),
             boardShape: typeof cfg.getBoardShapeForCpuBoard === 'function'
                 ? cfg.getBoardShapeForCpuBoard(board)
                 : null,
@@ -310,8 +315,8 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
             return learnedMove;
         }
 
-        const gameState = cfg.getGameState();
         const cardState = cfg.getCardState();
+        const board = prepared.board;
         const placementLookaheadWasPrepared = !!(
             placementLookaheadPrecomputeInput
             && placementLookaheadPrecomputeInput.prepared === true
@@ -320,10 +325,10 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
             placementLevel >= 6 &&
             cpuPolicyCore &&
             (placementLookaheadWasPrepared || typeof cpuPolicyCore.chooseMoveByLookahead === 'function') &&
-            cfg.isPlayableBoard(gameState && gameState.board)
+            cfg.isPlayableBoard(board)
         ) {
             const playerValue = cfg.resolvePlayerValue(playerKey);
-            const lv6Lookahead = cfg.buildLv6LookaheadOptions(placementLevel, gameState.board, prioritizedCandidateMoves.length, playerKey);
+            const lv6Lookahead = cfg.buildLv6LookaheadOptions(placementLevel, board, prioritizedCandidateMoves.length, playerKey);
             const onSearchMeta = cfg.createLookaheadMetaLogger(playerKey, placementLevel, 'policy-lookahead');
             const weightConfig = cfg.resolveCpuLv6LookaheadWeights();
             const precomputedBestMove = placementLookaheadWasPrepared
@@ -337,7 +342,7 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
                     && Number(move.col) === Number(precomputedBestMove.col)
                 )) || null
                 : cpuPolicyCore.chooseMoveByLookahead(prioritizedCandidateMoves, {
-                    board: gameState.board,
+                    board,
                     playerValue,
                     level: placementLevel,
                     depth: lv6Lookahead.depth,

@@ -10,6 +10,8 @@ function _require(id: string): any {
   throw new Error('Unable to require ' + id);
 }
 
+const SharedBoardUtils = _require('../../shared/shared-board-utils');
+
 /**
  * @file endgame-solver.js
  * @description Endgame solver using Minimax + Alpha-Beta pruning.
@@ -86,7 +88,7 @@ class EndgameSolver {
         let bestAction: any = null;
 
         // Move ordering: try captures and corners first
-        const orderedActions = this._orderMoves(actions, state, playerKey, gameInterface);
+        const orderedActions = this._orderMoves(actions, state, cardState, playerKey, gameInterface);
 
         for (const action of orderedActions) {
             const result = gameInterface.applyAction(state, cardState, action, playerKey);
@@ -111,18 +113,25 @@ class EndgameSolver {
         return result;
     }
 
-    _orderMoves(actions: any, state: any, playerKey: any, gameInterface: any) {
+    _orderMoves(actions: any, state: any, cardState: any, playerKey: any, gameInterface: any) {
         // Simple move ordering: corners first, then edges, then others
+        const boardContext = this._createBoardContext(state, cardState);
         const scored = actions.map((action: any) => {
             let score = 0;
             if (action.type === 'place') {
                 const { row, col } = action;
                 // Corner bonus
-                if ((row === 0 || row === 7) && (col === 0 || col === 7)) {
+                if (
+                    boardContext &&
+                    SharedBoardUtils.isCornerCell(row, col, boardContext)
+                ) {
                     score += 100;
                 }
                 // Edge bonus
-                else if (row === 0 || row === 7 || col === 0 || col === 7) {
+                else if (
+                    boardContext &&
+                    SharedBoardUtils.isEdgeCell(row, col, boardContext)
+                ) {
                     score += 50;
                 }
                 // Mobility bonus
@@ -141,13 +150,25 @@ class EndgameSolver {
             const counts = gameInterface.getDiscCounts(state);
             const own = playerKey === 'black' ? counts.black : counts.white;
             const opp = playerKey === 'black' ? counts.white : counts.black;
-            return (own - opp) / 64;
+            const boardContext = this._createBoardContext(state, cardState);
+            const playableCellCount = boardContext
+                ? SharedBoardUtils.collectBoardCoordinates(boardContext).length
+                : 0;
+            return (own - opp) / Math.max(1, playableCellCount || (own + opp));
         }
         return 0;
     }
 
+    _createBoardContext(state: any, cardState: any) {
+        if (!state || !Array.isArray(state.board)) return null;
+        return SharedBoardUtils.createBoardContext(state, cardState || null);
+    }
+
     _hashState(state: any, cardState: any, playerKey: any) {
-        const boardStr = JSON.stringify(state && state.board);
+        const boardContext = this._createBoardContext(state, cardState);
+        const boardStr = boardContext
+            ? SharedBoardUtils.encodeBoard(boardContext)
+            : JSON.stringify(state || null);
         const chargeStr = cardState ? JSON.stringify(cardState.charge) : '';
         return `${boardStr}|${chargeStr}|${playerKey}`;
     }
@@ -181,7 +202,7 @@ class HybridSolver {
      * @returns {Promise<object>} Best action
      */
     async search(state: any, cardState: any, playerKey: any) {
-        const empties = this._countEmptyCells(state);
+        const empties = this._countEmptyCells(state, cardState);
         const cardsRemaining = this._countCardsRemaining(cardState);
 
         // Use exact solver when no cards and few empty cells
@@ -194,15 +215,10 @@ class HybridSolver {
         return this.mcts.search(state, cardState, playerKey);
     }
 
-    _countEmptyCells(state: any) {
-        if (!state || !state.board) return 0;
-        let count = 0;
-        for (const row of state.board) {
-            for (const cell of row) {
-                if (cell === 0 || cell === '' || cell === null) count++;
-            }
-        }
-        return count;
+    _countEmptyCells(state: any, cardState: any) {
+        if (!state || !Array.isArray(state.board)) return 0;
+        const boardContext = SharedBoardUtils.createBoardContext(state, cardState || null);
+        return SharedBoardUtils.countBoardEmpties(boardContext);
     }
 
     _countCardsRemaining(cardState: any) {

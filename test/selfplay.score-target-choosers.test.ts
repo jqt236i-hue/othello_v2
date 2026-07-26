@@ -1,4 +1,25 @@
 const { createSelfplayScoreTargetChoosers } = require('../src/engine/selfplay-score-target-choosers.js');
+const SharedBoardUtils = require('../shared/shared-board-utils.js');
+
+function createTestBoardContext(gameState = {}, cardState = {}) {
+    const source = Array.isArray(gameState.board) ? gameState.board : [];
+    const rows = Math.max(4, source.length);
+    const cols = Math.max(4, ...source.map((row) => Array.isArray(row) ? row.length : 0));
+    const board = Array.from({ length: rows }, (_unused, row) =>
+        Array.from({ length: cols }, (_unusedCell, col) =>
+            Array.isArray(source[row]) ? (source[row][col] ?? 0) : 0
+        )
+    );
+    return SharedBoardUtils.createBoardContext({
+        ...gameState,
+        board,
+        boardConfig: { rows, cols, shape: 'rectangle' }
+    }, cardState);
+}
+
+function getTestCellOwner(gameState, cardState, row, col) {
+    return SharedBoardUtils.getCellValue(createTestBoardContext(gameState, cardState), row, col);
+}
 
 describe('selfplay score target choosers module', () => {
     test('corrosion dedupes targets and favors enemy markers on strong cells', () => {
@@ -12,6 +33,7 @@ describe('selfplay score target choosers module', () => {
                     { row: 1, col: 1 }
                 ])
             },
+            SharedBoardUtils,
             choosePendingTargetByScore: (targets, scoreFn) => {
                 capturedTargets = targets;
                 capturedScoreFn = scoreFn;
@@ -19,9 +41,11 @@ describe('selfplay score target choosers module', () => {
             },
             evaluatePositionValue: (row, col) => row * 10 + col,
             toPlayerValue: (playerKey) => playerKey === 'black' ? 1 : -1,
-            getCellOwnerValueForSelfplay: (gameState, row, col) => gameState.board[row][col],
-            isCorner: (row, col) => row === 0 && col === 0,
-            isEdge: (row, col) => row === 0 || col === 0 || row === 7 || col === 7
+            getCellOwnerValueForSelfplay: getTestCellOwner,
+            getSelfplayBoard: createTestBoardContext,
+            getBoardCellValue: SharedBoardUtils.getCellValue,
+            isCorner: SharedBoardUtils.isCorner,
+            isEdge: SharedBoardUtils.isEdge
         });
 
         const cardState = {
@@ -45,11 +69,14 @@ describe('selfplay score target choosers module', () => {
             CardLogic: {
                 getSelectableTargets: () => ([{ row: 2, col: 3 }])
             },
+            SharedBoardUtils,
             choosePendingTargetByScore: (targets, scoreFn) => {
                 calls.push({ targets, scoreFn });
                 return targets[0];
             },
-            evaluatePositionValue: (row, col) => row * 10 + col
+            evaluatePositionValue: (row, col) => row * 10 + col,
+            getSelfplayBoard: createTestBoardContext,
+            getBoardCellValue: SharedBoardUtils.getCellValue
         });
 
         const rng = { random: () => 0.5 };
@@ -66,10 +93,13 @@ describe('selfplay score target choosers module', () => {
             CardLogic: {
                 getTimeBombTargets: () => ([{ row: 1, col: 1 }])
             },
+            SharedBoardUtils,
             choosePendingTargetByScore: (targets, scoreFn) => scoreFn(targets[0]),
             toPlayerValue: (playerKey) => playerKey === 'black' ? 1 : -1,
-            isCorner: (row, col) => (row === 0 || row === 7) && (col === 0 || col === 7),
-            isEdge: (row, col) => row === 0 || col === 0 || row === 7 || col === 7,
+            getSelfplayBoard: createTestBoardContext,
+            getBoardCellValue: SharedBoardUtils.getCellValue,
+            isCorner: SharedBoardUtils.isCorner,
+            isEdge: SharedBoardUtils.isEdge,
             countDiscsByValue: () => -9
         });
 

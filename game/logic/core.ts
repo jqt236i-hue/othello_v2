@@ -50,6 +50,9 @@ const BoardUtils = SharedBoardUtils || null;
 if (BLACK === undefined) {
     throw new Error('SharedConstants not loaded');
 }
+if (!BoardUtils) {
+    throw new Error('SharedBoardUtils not loaded');
+}
 
 interface BoardConfig {
     rows: number;
@@ -94,176 +97,72 @@ interface DiscCount {
     white: number;
 }
 
-function normalizeExpansionOwner(owner: number): number {
-    return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
+interface CoreBoardSource {
+    gameState: any;
+    cardState: unknown;
+}
+
+function resolveCoreBoardSource(stateOrContext: any, explicitCardState?: unknown): CoreBoardSource {
+    if (
+        typeof BoardUtils.isBoardContext === 'function' &&
+        BoardUtils.isBoardContext(stateOrContext)
+    ) {
+        return {
+            gameState: stateOrContext.gameState,
+            cardState: stateOrContext.cardState
+        };
+    }
+    const embeddedCardState = (
+        stateOrContext &&
+        typeof stateOrContext === 'object' &&
+        Object.prototype.hasOwnProperty.call(stateOrContext, 'cardState')
+    )
+        ? stateOrContext.cardState
+        : null;
+    return {
+        gameState: stateOrContext,
+        cardState: explicitCardState === undefined ? embeddedCardState : explicitCardState
+    };
 }
 
 function resolveGameBoardConfig(boardOrConfig: any): BoardConfig {
-    if (BoardUtils && typeof BoardUtils.resolveBoardConfig === 'function') {
-        return BoardUtils.resolveBoardConfig(boardOrConfig);
+    if (typeof BoardUtils.resolveBoardConfig !== 'function') {
+        throw new Error('SharedBoardUtils.resolveBoardConfig is required by GameCore');
     }
-    const board = Array.isArray(boardOrConfig)
-        ? boardOrConfig
-        : (boardOrConfig && Array.isArray(boardOrConfig.board) ? boardOrConfig.board : null);
-    const rows = Array.isArray(board) && board.length > 0 ? board.length : 8;
-    const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
-    const requestedShape = boardOrConfig && typeof boardOrConfig === 'object'
-        ? String((boardOrConfig.boardConfig && boardOrConfig.boardConfig.shape) || boardOrConfig.shape || '').toLowerCase()
-        : '';
-    const shape = requestedShape === 'circle' ? 'circle' : 'rectangle';
-    return {
-        rows,
-        cols,
-        shape,
-        standard8x8: shape === 'rectangle' && rows === 8 && cols === 8,
-        baseBounds: { minRow: 0, maxRow: rows - 1, minCol: 0, maxCol: cols - 1 },
-        outerBounds: { minRow: -1, maxRow: rows, minCol: -1, maxCol: cols }
-    };
-}
-
-function isMainBoardCell(row: number, col: number, boardOrConfig: any): boolean {
-    if (BoardUtils && typeof BoardUtils.isMainBoardCell === 'function') {
-        return BoardUtils.isMainBoardCell(row, col, boardOrConfig);
-    }
-    const config = resolveGameBoardConfig(boardOrConfig);
-    return (
-        Number.isInteger(row) &&
-        Number.isInteger(col) &&
-        row >= 0 &&
-        row < config.rows &&
-        col >= 0 &&
-        col < config.cols
-    );
-}
-
-function isExpansionCoordinate(row: number, col: number, boardOrConfig: any): boolean {
-    if (BoardUtils && typeof BoardUtils.isExpansionCoordinate === 'function') {
-        return BoardUtils.isExpansionCoordinate(row, col, boardOrConfig);
-    }
-    const config = resolveGameBoardConfig(boardOrConfig);
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    if (row < config.outerBounds.minRow || row > config.outerBounds.maxRow) return false;
-    if (col < config.outerBounds.minCol || col > config.outerBounds.maxCol) return false;
-    return !isMainBoardCell(row, col, config);
-}
-
-function resolveExpansionSide(side: string | null, row: number, col: number, boardOrConfig: any): string | null {
-    if (BoardUtils && typeof BoardUtils.resolveExpansionSide === 'function') {
-        return BoardUtils.resolveExpansionSide(side, row, col, boardOrConfig);
-    }
-    if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-    const config = resolveGameBoardConfig(boardOrConfig);
-    if (col === config.outerBounds.minCol) return 'left';
-    if (col === config.outerBounds.maxCol) return 'right';
-    if (row === config.outerBounds.minRow) return 'top';
-    if (row === config.outerBounds.maxRow) return 'bottom';
-    return null;
+    return BoardUtils.resolveBoardConfig(boardOrConfig);
 }
 
 function createBoardMatrix(boardOrConfig: any): number[][] {
-    if (BoardUtils && typeof BoardUtils.createEmptyBoard === 'function') {
-        return BoardUtils.createEmptyBoard(resolveGameBoardConfig(boardOrConfig), EMPTY);
+    if (typeof BoardUtils.createEmptyBoard !== 'function') {
+        throw new Error('SharedBoardUtils.createEmptyBoard is required by GameCore');
     }
-    const config = resolveGameBoardConfig(boardOrConfig);
-    return Array.from({ length: config.rows }, () => Array.from({ length: config.cols }, () => EMPTY));
-}
-
-function getOpeningAnchor(boardOrConfig: any): { row: number; col: number } {
-    if (BoardUtils && typeof BoardUtils.getOpeningAnchor === 'function') {
-        return BoardUtils.getOpeningAnchor(boardOrConfig);
-    }
-    const config = resolveGameBoardConfig(boardOrConfig);
-    return {
-        row: Math.floor((config.rows - 2) / 2),
-        col: Math.floor((config.cols - 2) / 2)
-    };
+    return BoardUtils.createEmptyBoard(resolveGameBoardConfig(boardOrConfig), EMPTY);
 }
 
 function getOpeningPlacements(boardOrConfig: any): StonePlacement[] {
-    if (BoardUtils && typeof BoardUtils.getOpeningPlacements === 'function') {
-        return BoardUtils.getOpeningPlacements(boardOrConfig);
+    if (typeof BoardUtils.getOpeningPlacements !== 'function') {
+        throw new Error('SharedBoardUtils.getOpeningPlacements is required by GameCore');
     }
-    const config = resolveGameBoardConfig(boardOrConfig);
-    const anchor = getOpeningAnchor(config);
-    if (config.rows === 7 && config.cols === 7) {
-        const placements: StonePlacement[] = [];
-        for (let rowOffset = 0; rowOffset < 3; rowOffset += 1) {
-            for (let colOffset = 0; colOffset < 3; colOffset += 1) {
-                if (rowOffset === 1 && colOffset === 1) continue;
-                placements.push({
-                    row: anchor.row + rowOffset,
-                    col: anchor.col + colOffset,
-                    owner: ((rowOffset + colOffset) % 2 === 0) ? WHITE : BLACK
-                });
-            }
-        }
-        return placements;
-    }
-    return [
-        { row: anchor.row, col: anchor.col, owner: WHITE },
-        { row: anchor.row, col: anchor.col + 1, owner: BLACK },
-        { row: anchor.row + 1, col: anchor.col, owner: BLACK },
-        { row: anchor.row + 1, col: anchor.col + 1, owner: WHITE }
-    ];
-}
-
-function appendExpansionCell(cells: ExpansionCell[], source: any, legacyRow: number | null, legacyOwner: number | null, boardOrConfig: any): void {
-    if (!Array.isArray(cells)) return;
-
-    let side: string | null = null;
-    let row: number | null = null;
-    let col: number | null = null;
-    let owner = legacyOwner;
-    const boardConfig = resolveGameBoardConfig(boardOrConfig);
-
-    if (source && typeof source === 'object') {
-        side = source.side;
-        row = source.row;
-        col = source.col;
-        owner = source.owner;
-        if (!Number.isInteger(col) && side === 'left') col = boardConfig.outerBounds.minCol;
-        if (!Number.isInteger(col) && side === 'right') col = boardConfig.outerBounds.maxCol;
-    } else {
-        side = source;
-        row = legacyRow;
-        if (side === 'left') col = boardConfig.outerBounds.minCol;
-        if (side === 'right') col = boardConfig.outerBounds.maxCol;
-    }
-
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-    if (!isExpansionCoordinate(row as number, col as number, boardConfig)) return;
-    if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
-
-    cells.push({
-        side: resolveExpansionSide(side, row as number, col as number, boardConfig),
-        row: row as number,
-        col: col as number,
-        owner: normalizeExpansionOwner(owner as number)
-    });
+    return BoardUtils.getOpeningPlacements(boardOrConfig);
 }
 
 function normalizeExpansionCells(expansion: any, boardOrConfig: any): ExpansionCell[] {
-    const cells: ExpansionCell[] = [];
-    if (expansion && Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            appendExpansionCell(cells, cell, null, null, boardOrConfig);
-        }
+    if (typeof BoardUtils.collectExpansionDescriptors !== 'function') {
+        throw new Error('SharedBoardUtils.collectExpansionDescriptors is required by GameCore');
     }
-    if (cells.length === 0 && expansion && expansion.active === true) {
-        appendExpansionCell(cells, expansion, null, null, boardOrConfig);
-    }
-    return cells;
+    return BoardUtils.collectExpansionDescriptors(expansion, boardOrConfig)
+        .map((cell: ExpansionCell) => ({ ...cell }));
 }
 
-function syncLegacyExpansionFields(expansion: any, boardOrConfig: any): void {
+function syncLegacyExpansionFields(expansion: any): void {
     if (!expansion || typeof expansion !== 'object') return;
     if (!Array.isArray(expansion.cells)) expansion.cells = [];
     const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
     expansion.active = !!latest;
-    expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col, boardOrConfig) : null;
+    expansion.side = latest ? latest.side : null;
     expansion.row = latest ? latest.row : null;
-    expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
+    expansion.col = latest ? latest.col : null;
+    expansion.owner = latest ? latest.owner : EMPTY;
 }
 
 function createBoardExpansionState(sourceExpansion: any, boardOrConfig: any): any {
@@ -280,7 +179,7 @@ function createBoardExpansionState(sourceExpansion: any, boardOrConfig: any): an
         usedByPlayer,
         cells
     };
-    syncLegacyExpansionFields(out, boardOrConfig);
+    syncLegacyExpansionFields(out);
     return out;
 }
 
@@ -297,7 +196,7 @@ function ensureBoardExpansionState(state: any): any {
         expansion.usedByPlayer.white = !!expansion.usedByPlayer.white;
     }
     expansion.cells = normalizeExpansionCells(expansion, state);
-    syncLegacyExpansionFields(expansion, state);
+    syncLegacyExpansionFields(expansion);
     return expansion;
 }
 
@@ -404,9 +303,6 @@ function createGameState(boardConfigInput?: any): any {
     for (const stone of openingPlacements) {
         board[stone.row][stone.col] = stone.owner;
     }
-    if (BoardUtils && typeof BoardUtils.attachBoardShape === 'function') {
-        BoardUtils.attachBoardShape(board, { boardConfig });
-    }
     return {
         board: board,
         boardConfig,
@@ -421,9 +317,7 @@ function createGameState(boardConfigInput?: any): any {
 }
 
 function copyGameState(state: any): any {
-    const newBoard = (BoardUtils && typeof BoardUtils.cloneBoard === 'function')
-        ? BoardUtils.cloneBoard(state.board)
-        : state.board.map((row: number[]) => row.slice());
+    const newBoard = state.board.map((row: number[]) => row.slice());
     const boardConfig = resolveGameBoardConfig(state);
     const sourceExpansion = (state && state.boardExpansion && typeof state.boardExpansion === 'object')
         ? state.boardExpansion
@@ -439,12 +333,6 @@ function copyGameState(state: any): any {
         pendingRoundBonus: clonePendingRoundBonus(state && state.pendingRoundBonus),
         boardExpansion: createBoardExpansionState(sourceExpansion, boardConfig)
     };
-    if (BoardUtils && typeof BoardUtils.attachBoardShape === 'function') {
-        BoardUtils.attachBoardShape(newBoard, {
-            boardConfig,
-            boardExpansion: nextState.boardExpansion
-        });
-    }
     return nextState;
 }
 
@@ -453,18 +341,20 @@ function getExpansionCell(state: any): ExpansionCell | null {
     return cells.length > 0 ? cells[0] : null;
 }
 
-function getCellValue(state: any, row: number, col: number): number | null {
+function getCellValue(stateOrContext: any, row: number, col: number, cardState?: unknown): number | null {
     if (!BoardUtils || typeof BoardUtils.getStateCellValue !== 'function') {
         throw new Error('SharedBoardUtils.getStateCellValue is required by GameCore');
     }
-    return BoardUtils.getStateCellValue(state, row, col, null);
+    const source = resolveCoreBoardSource(stateOrContext, cardState);
+    return BoardUtils.getStateCellValue(source.gameState, row, col, source.cardState);
 }
 
-function setCellValue(state: any, row: number, col: number, value: number): boolean {
+function setCellValue(stateOrContext: any, row: number, col: number, value: number, cardState?: unknown): boolean {
     if (!BoardUtils || typeof BoardUtils.setStateCellValue !== 'function') {
         throw new Error('SharedBoardUtils.setStateCellValue is required by GameCore');
     }
-    return BoardUtils.setStateCellValue(state, row, col, value, null);
+    const source = resolveCoreBoardSource(stateOrContext, cardState);
+    return BoardUtils.setStateCellValue(source.gameState, row, col, value, source.cardState);
 }
 
 interface FlipContext {
@@ -534,11 +424,13 @@ function getFlipsWithContext(state: any, row: number, col: number, player: numbe
     }).map((cell: any) => [cell.row, cell.col] as [number, number]);
 }
 
-function applyMove(state: any, move: Move): any {
+function applyMove(stateOrContext: any, move: Move, cardState?: unknown): any {
+    const source = resolveCoreBoardSource(stateOrContext, cardState);
+    const state = source.gameState;
     const newState = copyGameState(state);
-    setCellValue(newState, move.row, move.col, state.currentPlayer);
+    setCellValue(newState, move.row, move.col, state.currentPlayer, source.cardState);
     for (const [r, c] of move.flips) {
-        setCellValue(newState, r, c, state.currentPlayer);
+        setCellValue(newState, r, c, state.currentPlayer, source.cardState);
     }
     newState.currentPlayer = -state.currentPlayer;
     newState.consecutivePasses = 0;
@@ -562,11 +454,12 @@ function isGameOver(state: any): boolean {
     return state.consecutivePasses >= 2;
 }
 
-function countDiscs(state: any): DiscCount {
+function countDiscs(stateOrContext: any, cardState?: unknown): DiscCount {
     if (!BoardUtils || typeof BoardUtils.countStateDiscs !== 'function') {
         throw new Error('SharedBoardUtils.countStateDiscs is required by GameCore');
     }
-    return BoardUtils.countStateDiscs(state, state && state.cardState ? state.cardState : null);
+    const source = resolveCoreBoardSource(stateOrContext, cardState);
+    return BoardUtils.countStateDiscs(source.gameState, source.cardState);
 }
 
 function getLegalMoves(state: any, player: number, context: FlipContext | CompiledFlipContext = {}): Move[] {
@@ -628,6 +521,8 @@ export = {
     advanceRoundAfterCompletedTurn,
     consumePendingRoundBonus,
     getExpansionCells,
+    getCellValue,
+    setCellValue,
     compileFlipContext,
     getFlipsWithContext,
     applyMove,

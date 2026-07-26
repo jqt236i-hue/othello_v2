@@ -118,4 +118,41 @@ describe('WORK_WILL on expansion cells', () => {
     expect(cardState.markers.find((m) => m && m.row === 8 && m.col === 3 && m.data && m.data.type === 'WORK')).toBeUndefined();
     expect(gameState.boardExpansion.cells[0].owner).toBe(SharedConstants.EMPTY);
   });
+
+  test('processWorkEffects treats an expansion meteor hole as a lost anchor', () => {
+    const { cardState, gameState } = createStates();
+    cardState.workAnchorPosByPlayer.black = { row: 7, col: 8 };
+    cardState.markers.push(
+      {
+        id: 5005,
+        kind: 'specialStone',
+        row: 7,
+        col: 8,
+        owner: 'black',
+        data: { type: 'WORK', ownerColor: 'black', workStage: 0, remainingOwnerTurns: 2 }
+      },
+      {
+        id: 5006,
+        kind: 'specialStone',
+        row: 7,
+        col: 8,
+        owner: 'black',
+        data: { type: 'METEOR_HOLE' }
+      }
+    );
+
+    const res = CardWork.processWorkEffects(cardState, gameState, 'black');
+
+    expect(res).toMatchObject({
+      gained: 0,
+      removed: true,
+      row: 7,
+      col: 8,
+      removedReason: 'anchor_lost'
+    });
+    expect(cardState.charge.black).toBe(0);
+    expect(cardState.markers).toEqual([
+      expect.objectContaining({ data: expect.objectContaining({ type: 'METEOR_HOLE' }) })
+    ]);
+  });
 });

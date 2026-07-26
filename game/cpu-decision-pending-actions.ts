@@ -11,7 +11,7 @@ type PendingActionsConfig = {
     emitCpuSelectionStateChange: () => any;
     filterCloneTargetsForLv6: (playerKey: any, targets: any[]) => any[];
     getActiveProtectionForPlayer: (playerValue: any) => any;
-    getBoardCellValueSafe: (board: any, row: any, col: any) => any;
+    getBoardCellValueSafe?: (board: any, row: any, col: any) => any;
     getCardLogic: () => any;
     getCardState: () => any;
     getCpuPolicyCore: () => any;
@@ -115,44 +115,56 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         return cfg.buildCardUseDecisionContext(playerKey, level, legalMoves.length, legalMoves, usableCards);
     }
 
+    function requireBoardUtils(): any {
+        const boardUtils = typeof cfg.resolveSharedBoardUtilsModule === 'function'
+            ? cfg.resolveSharedBoardUtilsModule()
+            : null;
+        if (
+            !boardUtils ||
+            typeof boardUtils.createBoardContext !== 'function' ||
+            typeof boardUtils.collectBoardCoordinates !== 'function' ||
+            typeof boardUtils.getCellValue !== 'function'
+        ) {
+            throw new Error('SharedBoardUtils BoardContext APIs are required by CPU pending actions');
+        }
+        return boardUtils;
+    }
+
+    function isOccupiedStoneValue(value: any): boolean {
+        return value === 1 || value === -1;
+    }
+
     function filterOccupiedDestroyTargets(board: any, targets: any[]): any[] {
+        const boardUtils = requireBoardUtils();
         return Array.isArray(targets)
             ? targets.filter((target) => {
                 if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return false;
-                const value = cfg.getBoardCellValueSafe(board, target.row, target.col);
-                return value !== null && value !== 0;
+                return isOccupiedStoneValue(boardUtils.getCellValue(board, target.row, target.col));
             })
             : [];
     }
 
     function collectOccupiedDestroyTargetsFromBoard(board: any): any[] {
-        if (!Array.isArray(board)) return [];
-        const boardUtils = typeof cfg.resolveSharedBoardUtilsModule === 'function'
-            ? cfg.resolveSharedBoardUtilsModule()
-            : null;
-        if (boardUtils && typeof boardUtils.collectBoardCoordinates === 'function') {
-            return boardUtils.collectBoardCoordinates(board)
-                .filter((cell: any) => cfg.getBoardCellValueSafe(board, cell.row, cell.col) !== 0);
-        }
-
-        const targets: any[] = [];
-        for (let row = 0; row < board.length; row++) {
-            const line = Array.isArray(board[row]) ? board[row] : [];
-            for (let col = 0; col < line.length; col++) {
-                if (line[col] === 0) continue;
-                targets.push({ row, col });
-            }
-        }
-        return targets;
+        const boardUtils = requireBoardUtils();
+        return boardUtils.collectBoardCoordinates(board)
+            .filter((cell: any) => isOccupiedStoneValue(boardUtils.getCellValue(board, cell.row, cell.col)));
     }
 
-    function getBoardExpansionTargetBoard(): any {
+    function getCurrentCpuBoardContext(): any {
+        const boardUtils = requireBoardUtils();
         if (typeof cfg.getCurrentCpuBoard === 'function') {
             const board = cfg.getCurrentCpuBoard();
-            if (Array.isArray(board)) return board;
+            if (
+                board &&
+                typeof boardUtils.isBoardContext === 'function' &&
+                boardUtils.isBoardContext(board)
+            ) {
+                return board;
+            }
         }
         const gameState = typeof cfg.getGameState === 'function' ? cfg.getGameState() : null;
-        return gameState && Array.isArray(gameState.board) ? gameState.board : null;
+        if (!gameState || typeof gameState !== 'object') return null;
+        return boardUtils.createBoardContext(gameState, cfg.getCardState());
     }
 
     function isOpponentOccupiedCornerTarget(playerKey: any, target: any): boolean {
@@ -160,12 +172,12 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
         const row = Number(target.row);
         const col = Number(target.col);
         if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-        const board = getBoardExpansionTargetBoard();
-        if (!Array.isArray(board)) return false;
+        const board = getCurrentCpuBoardContext();
+        if (!board || typeof board !== 'object') return false;
         if (typeof cfg.isCornerCell !== 'function' || !cfg.isCornerCell(row, col, board)) return false;
         const playerValue = Number(cfg.resolvePlayerValue(playerKey));
         if (!Number.isFinite(playerValue) || playerValue === 0) return false;
-        return cfg.getBoardCellValueSafe(board, row, col) === -playerValue;
+        return requireBoardUtils().getCellValue(board, row, col) === -playerValue;
     }
 
     function getBoardExpansionGodSelectedCount(pending: any): number {
@@ -199,10 +211,8 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
             gameState: cfg.getGameState(),
             playerKey,
             pending,
-            board: getBoardExpansionTargetBoard(),
-            playerValue: cfg.resolvePlayerValue(playerKey),
-            getBoardCellValueSafe: cfg.getBoardCellValueSafe,
-            isCornerCell: cfg.isCornerCell
+            boardContext: getCurrentCpuBoardContext(),
+            playerValue: cfg.resolvePlayerValue(playerKey)
         });
     }
 
@@ -653,7 +663,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
 
     async function cpuSelectDestroyWithPolicy(playerKey: any): Promise<any> {
         const level = cfg.resolveCpuDecisionLevelForPlayer(playerKey);
-        const board = cfg.getCurrentCpuBoard();
+        const board = getCurrentCpuBoardContext();
         const cardLogic = getCardLogic();
         const selectorTargets = (cardLogic && typeof cardLogic.getSelectableTargets === 'function')
             ? cardLogic.getSelectableTargets(cfg.getCardState(), cfg.getGameState(), playerKey)
@@ -666,7 +676,7 @@ export function createCpuDecisionPendingActions(config: PendingActionsConfig): a
             resolvedDestroyTargets = true;
             targets = filterOccupiedDestroyTargets(board, destroyTargets);
         }
-        if (targets.length <= 0 && !resolvedDestroyTargets && Array.isArray(board)) {
+        if (targets.length <= 0 && !resolvedDestroyTargets && board && typeof board === 'object') {
             targets = collectOccupiedDestroyTargetsFromBoard(board);
         }
 

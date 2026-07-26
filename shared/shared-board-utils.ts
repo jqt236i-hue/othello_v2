@@ -2,19 +2,19 @@
  * Shared board utilities – geometry, bounds, cell queries, and canonicalisation.
  *
  * @fileoverview Pure helpers used by game logic, UI rendering, AI evaluation,
- *   and network serialisation. Shape attachment is a temporary compatibility
- *   facade backed by module-private caches; board arrays are never decorated.
+ *   and network serialisation. Raw board-array APIs are dense-only; topology
+ *   aware callers must pass an explicit BoardContext.
  */
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/shape-metadata'), require('./board/cell-access'), require('./board/corners'), require('./board/edge-runs'), require('./board/risk-cells'), require('./board/shape-iteration'), require('./board/legal-moves'), require('./board/control-counts'), require('./board/topology'), require('./board/expansion-sockets'), require('./board/state-kernel'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/cell-access'), require('./board/corners'), require('./board/edge-runs'), require('./board/risk-cells'), require('./board/shape-iteration'), require('./board/legal-moves'), require('./board/control-counts'), require('./board/topology'), require('./board/expansion-sockets'), require('./board/state-kernel'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null, root.BoardTopology || null, root.BoardExpansionSockets || null, root.BoardStateKernel || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null, root.BoardTopology || null, root.BoardExpansionSockets || null, root.BoardStateKernel || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null, root.BoardTopology || null, root.BoardExpansionSockets || null, root.BoardStateKernel || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null, root.BoardTopology || null, root.BoardExpansionSockets || null, root.BoardStateKernel || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardShapeMetadataModule: typeof import('./board/shape-metadata') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardEdgeRunsModule: typeof import('./board/edge-runs') | null, BoardRiskCellsModule: typeof import('./board/risk-cells') | null, BoardShapeIterationModule: typeof import('./board/shape-iteration') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null, BoardTopologyModule: typeof import('./board/topology') | null, BoardExpansionSocketsModule: typeof import('./board/expansion-sockets') | null, BoardStateKernelModule: typeof import('./board/state-kernel') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardEdgeRunsModule: typeof import('./board/edge-runs') | null, BoardRiskCellsModule: typeof import('./board/risk-cells') | null, BoardShapeIterationModule: typeof import('./board/shape-iteration') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null, BoardTopologyModule: typeof import('./board/topology') | null, BoardExpansionSocketsModule: typeof import('./board/expansion-sockets') | null, BoardStateKernelModule: typeof import('./board/state-kernel') | null) {
     'use strict';
 
     interface CellCoord {
@@ -25,6 +25,12 @@
     interface DiscCounts {
         black: number;
         white: number;
+    }
+
+    interface BoardContext {
+        kind: typeof BOARD_CONTEXT_KIND;
+        gameState: Record<string, unknown>;
+        cardState: unknown;
     }
 
     interface CanonicalResult {
@@ -38,7 +44,7 @@
     const BoardUtils = BoardUtilsModule || null;
     if (!PaddedBoardCoordinatesModule) throw new Error('PaddedBoardCoordinates is required by SharedBoardUtils');
     const PaddedBoardCoordinates = PaddedBoardCoordinatesModule;
-    const BOARD_SHAPE_META_KEY = '__sharedBoardShapeMeta';
+    const BOARD_CONTEXT_KIND = 'board-context-v1';
     const EMPTY: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { EMPTY?: unknown }).EMPTY))
         ? Number((SharedConstants as { EMPTY?: unknown }).EMPTY)
         : 0;
@@ -99,6 +105,57 @@
     function normalizeOwner(value: unknown): number {
         if (value === 1 || value === -1) return value as number;
         return EMPTY;
+    }
+
+    function isRecord(value: unknown): value is Record<string, unknown> {
+        return !!value && typeof value === 'object' && !Array.isArray(value);
+    }
+
+    function isBoardContext(value: unknown): value is BoardContext {
+        if (!isRecord(value) || value.kind !== BOARD_CONTEXT_KIND) return false;
+        return isRecord(value.gameState) && Array.isArray(value.gameState.board)
+            && Object.prototype.hasOwnProperty.call(value, 'cardState');
+    }
+
+    function createBoardContext(gameState: unknown, cardState: unknown = null): BoardContext {
+        if (!isRecord(gameState) || !Array.isArray(gameState.board)) {
+            throw new Error('SharedBoardUtils.createBoardContext requires gameState.board');
+        }
+        return Object.freeze({
+            kind: BOARD_CONTEXT_KIND,
+            gameState,
+            cardState: cardState === undefined ? null : cardState
+        });
+    }
+
+    function clonePlainValue(value: unknown, seen = new Map<object, unknown>()): unknown {
+        if (!value || typeof value !== 'object') return value;
+        const source = value as object;
+        if (seen.has(source)) return seen.get(source);
+        if (Array.isArray(value)) {
+            const out: unknown[] = [];
+            seen.set(source, out);
+            for (const item of value) out.push(clonePlainValue(item, seen));
+            return out;
+        }
+        const prototype = Object.getPrototypeOf(value);
+        if (prototype !== Object.prototype && prototype !== null) return value;
+        const out: Record<string, unknown> = {};
+        seen.set(source, out);
+        for (const key of Object.keys(value as Record<string, unknown>)) {
+            out[key] = clonePlainValue((value as Record<string, unknown>)[key], seen);
+        }
+        return out;
+    }
+
+    function cloneBoardContext(context: unknown): BoardContext {
+        if (!isBoardContext(context)) {
+            throw new Error('SharedBoardUtils.cloneBoardContext requires a BoardContext');
+        }
+        return createBoardContext(
+            clonePlainValue(context.gameState),
+            clonePlainValue(context.cardState)
+        );
     }
 
     if (!BoardDimensionsModule) throw new Error('BoardDimensions is required by SharedBoardUtils');
@@ -182,34 +239,35 @@
     }
 
     if (!BoardExpansionDescriptorsModule) throw new Error('BoardExpansionDescriptors is required by SharedBoardUtils');
+    const MAX_ABS_BOARD_COORDINATE =
+        BoardExpansionDescriptorsModule.DEFAULT_BOARD_MAX_ABS_COORDINATE;
     const BoardExpansionDescriptors = BoardExpansionDescriptorsModule.createExpansionDescriptors({
         resolveOuterBounds,
         resolveBaseBounds: resolveBaseBoardBounds,
         isMainBoardCell,
         normalizeOwner,
-        maxAbsCoordinate: 256
+        maxAbsCoordinate: MAX_ABS_BOARD_COORDINATE
     });
     const isExpansionCoordinate = BoardExpansionDescriptors.isExpansionCoordinate;
     const resolveExpansionSide = BoardExpansionDescriptors.resolveExpansionSide;
     const collectExpansionDescriptors = BoardExpansionDescriptors.collectExpansionDescriptors;
 
-    if (!BoardShapeMetadataModule) throw new Error('BoardShapeMetadata is required by SharedBoardUtils');
-    const BoardShapeMetadata = BoardShapeMetadataModule.createBoardShapeMetadata({
-        metaKey: BOARD_SHAPE_META_KEY,
-        defaultRows: DEFAULT_BOARD_ROWS,
-        defaultCols: DEFAULT_BOARD_COLS,
-        toBoardCellKey,
-        normalizeOwner,
-        resolveBoardConfig,
-        isMainBoardCell,
-        collectExpansionDescriptors
-    });
-    const getBoardShapeMeta = BoardShapeMetadata.getBoardShapeMeta;
-    const collectMeteorHoleKeys = BoardShapeMetadata.collectMeteorHoleKeys;
-    const attachBoardShape = BoardShapeMetadata.attachBoardShape;
-    const copyBoardShape = BoardShapeMetadata.copyBoardShape;
-    const cloneBoard = BoardShapeMetadata.cloneBoard;
-    const setAttachedExpansionOwner = BoardShapeMetadata.setAttachedExpansionOwner;
+    function collectMeteorHoleKeys(cardState: unknown): Set<string> {
+        const out = new Set<string>();
+        const markers = isRecord(cardState) && Array.isArray(cardState.markers)
+            ? cardState.markers
+            : [];
+        for (const marker of markers) {
+            if (!isRecord(marker) || marker.kind !== 'specialStone' || !isRecord(marker.data)) continue;
+            if (String(marker.data.type || '').toUpperCase() !== 'METEOR_HOLE') continue;
+            const row = Number(marker.row);
+            const col = Number(marker.col);
+            if (Number.isInteger(row) && Number.isInteger(col)) {
+                out.add(toBoardCellKey(row, col));
+            }
+        }
+        return out;
+    }
 
     if (!BoardShapeIterationModule) throw new Error('BoardShapeIteration is required by SharedBoardUtils');
     const BoardShapeIteration = BoardShapeIterationModule.createShapeIteration({
@@ -217,44 +275,40 @@
         white: WHITE,
         resolveBoardConfig,
         collectExpansionDescriptors,
-        getBoardShapeMeta,
         countDiscsViaBoardUtils: BoardUtils && typeof (BoardUtils as { countDiscs?: unknown }).countDiscs === 'function'
             ? (BoardUtils as { countDiscs: (board: unknown) => DiscCounts }).countDiscs
             : null
     });
-    const forEachBoardShapeCell = BoardShapeIteration.forEachBoardShapeCell;
-    const countDiscsByPlayer = BoardShapeIteration.countDiscsByPlayer;
-    const countDiscs = BoardShapeIteration.countDiscs;
+    const denseForEachBoardShapeCell = BoardShapeIteration.forEachBoardShapeCell;
+    const denseCountDiscsByPlayer = BoardShapeIteration.countDiscsByPlayer;
+    const denseCountDiscs = BoardShapeIteration.countDiscs;
 
     if (!BoardCellAccessModule) throw new Error('BoardCellAccess is required by SharedBoardUtils');
     const BoardCellAccess = BoardCellAccessModule.createCellAccess({
         defaultRows: DEFAULT_BOARD_ROWS,
         defaultCols: DEFAULT_BOARD_COLS,
         empty: EMPTY,
-        toBoardCellKey,
         normalizeOwner,
-        resolveBoardConfig,
-        getBoardShapeMeta,
-        setAttachedExpansionOwner
+        resolveBoardConfig
     });
-    const resolveBoardBounds = BoardCellAccess.resolveBoardBounds;
-    const isStandardBoard8x8 = BoardCellAccess.isStandardBoard8x8;
-    const hasPlayableCell = BoardCellAccess.hasPlayableCell;
-    const collectBoardCoordinates = BoardCellAccess.collectBoardCoordinates;
-    const getCellValue = BoardCellAccess.getCellValue;
-    const setCellValue = BoardCellAccess.setCellValue;
-    const countBoardEmpties = BoardCellAccess.countBoardEmpties;
+    const denseResolveBoardBounds = BoardCellAccess.resolveBoardBounds;
+    const denseIsStandardBoard8x8 = BoardCellAccess.isStandardBoard8x8;
+    const denseHasPlayableCell = BoardCellAccess.hasPlayableCell;
+    const denseCollectBoardCoordinates = BoardCellAccess.collectBoardCoordinates;
+    const denseGetCellValue = BoardCellAccess.getCellValue;
+    const denseSetCellValue = BoardCellAccess.setCellValue;
+    const denseCountBoardEmpties = BoardCellAccess.countBoardEmpties;
 
     if (!BoardTopologyModule) throw new Error('BoardTopology is required by SharedBoardUtils');
     const BoardTopology = BoardTopologyModule.createBoardTopology({
+        maxAbsCoordinate: MAX_ABS_BOARD_COORDINATE,
         toBoardCellKey,
         resolveBoardConfig,
         isMainBoardCell,
         collectExpansionDescriptors,
-        getBoardShapeMeta,
         collectMeteorHoleKeys
     });
-    const buildBoardTopology = BoardTopology.buildBoardTopology;
+    const buildBoardTopologyFromSource = BoardTopology.buildBoardTopology;
 
     if (!BoardStateKernelModule) throw new Error('BoardStateKernel is required by SharedBoardUtils');
     const BoardStateKernel = BoardStateKernelModule.createStateKernel({
@@ -262,7 +316,7 @@
         black: BLACK,
         white: WHITE,
         directions: DIRECTIONS,
-        maxAbsCoordinate: 256,
+        maxAbsCoordinate: MAX_ABS_BOARD_COORDINATE,
         toBoardCellKey,
         normalizeOwner,
         resolveBoardConfig,
@@ -270,7 +324,7 @@
         resolveExpansionSide,
         collectExpansionDescriptors,
         collectMeteorHoleKeys,
-        buildBoardTopology
+        buildBoardTopology: buildBoardTopologyFromSource
     });
     const inspectBoardState = BoardStateKernel.inspectBoardState;
     const createBoardView = BoardStateKernel.createBoardView;
@@ -282,6 +336,102 @@
     const countStateDiscs = BoardStateKernel.countStateDiscs;
     const createBoardMutationCheckpoint = BoardStateKernel.createBoardMutationCheckpoint;
     const restoreBoardMutationCheckpoint = BoardStateKernel.restoreBoardMutationCheckpoint;
+
+    function getContextView(value: unknown): import('./board/state-kernel').BoardView | null {
+        if (!isBoardContext(value)) return null;
+        return createBoardView(value.gameState, {
+            cardState: value.cardState,
+            strict: false
+        });
+    }
+
+    function resolveBoardBounds(boardOrRows: unknown, maybeCols?: unknown) {
+        const view = getContextView(boardOrRows);
+        return view ? { ...view.topology.contentBounds } : denseResolveBoardBounds(boardOrRows, maybeCols);
+    }
+
+    function isStandardBoard8x8(board: unknown): boolean {
+        const view = getContextView(board);
+        if (!view) return denseIsStandardBoard8x8(board);
+        return view.topology.baseRows === DEFAULT_BOARD_ROWS
+            && view.topology.baseCols === DEFAULT_BOARD_COLS
+            && view.topology.baseKeys.size === DEFAULT_BOARD_ROWS * DEFAULT_BOARD_COLS
+            && view.topology.expansionKeys.size === 0
+            && view.topology.holeKeys.size === 0;
+    }
+
+    function hasPlayableCell(board: unknown, row: number, col: number): boolean {
+        const view = getContextView(board);
+        return view ? view.isPlayable(row, col) : denseHasPlayableCell(board, row, col);
+    }
+
+    function collectBoardCoordinates(board: unknown): CellCoord[] {
+        const view = getContextView(board);
+        return view
+            ? view.coordinates.map((cell) => ({ row: cell.row, col: cell.col }))
+            : denseCollectBoardCoordinates(board);
+    }
+
+    function getCellValue(board: unknown, row: number, col: number): number | null {
+        const view = getContextView(board);
+        return view ? view.get(row, col) : denseGetCellValue(board, row, col);
+    }
+
+    function setCellValue(board: unknown, row: number, col: number, value: number): boolean {
+        if (isBoardContext(board)) {
+            return setStateCellValue(board.gameState, row, col, value, board.cardState);
+        }
+        return denseSetCellValue(board, row, col, value);
+    }
+
+    function cloneBoard(board: unknown): unknown {
+        if (isBoardContext(board)) return cloneBoardContext(board);
+        if (!Array.isArray(board)) return [];
+        return board.map((row) => Array.isArray(row) ? row.slice() : []);
+    }
+
+    function countBoardEmpties(board: unknown): number {
+        const view = getContextView(board);
+        return view ? view.count().empty : denseCountBoardEmpties(board);
+    }
+
+    function forEachBoardShapeCell(
+        boardOrConfig: unknown,
+        visitor: (row: number, col: number, value: unknown, side: string | null) => void
+    ): void {
+        const view = getContextView(boardOrConfig);
+        if (!view) {
+            denseForEachBoardShapeCell(boardOrConfig, visitor);
+            return;
+        }
+        for (const cell of view.coordinates) {
+            visitor(
+                cell.row,
+                cell.col,
+                view.get(cell.row, cell.col),
+                view.topology.expansionSideByKey.get(toBoardCellKey(cell.row, cell.col)) || null
+            );
+        }
+    }
+
+    function countDiscsByPlayer(boardOrConfig: unknown): DiscCounts {
+        const view = getContextView(boardOrConfig);
+        if (!view) return denseCountDiscsByPlayer(boardOrConfig);
+        const counts = view.count();
+        return { black: counts.black, white: counts.white };
+    }
+
+    function countDiscs(boardOrConfig: unknown): DiscCounts {
+        const view = getContextView(boardOrConfig);
+        return view
+            ? { black: view.count().black, white: view.count().white }
+            : denseCountDiscs(boardOrConfig);
+    }
+
+    function buildBoardTopology(boardOrState: unknown, options?: unknown) {
+        if (isBoardContext(boardOrState)) return getContextView(boardOrState)!.topology;
+        return buildBoardTopologyFromSource(boardOrState, options);
+    }
 
     if (!BoardExpansionSocketsModule) throw new Error('BoardExpansionSockets is required by SharedBoardUtils');
     const BoardExpansionSockets = BoardExpansionSocketsModule.createExpansionSockets({
@@ -298,7 +448,6 @@
     if (!BoardCornersModule) throw new Error('BoardCorners is required by SharedBoardUtils');
     const BoardCorners = BoardCornersModule.createBoardCorners({
         toBoardCellKey,
-        getBoardShapeMeta,
         collectBoardCoordinates,
         hasPlayableCell,
         resolveBoardBounds
@@ -330,7 +479,6 @@
     if (!BoardRiskCellsModule) throw new Error('BoardRiskCells is required by SharedBoardUtils');
     const BoardRiskCells = BoardRiskCellsModule.createRiskCells({
         toBoardCellKey,
-        getBoardShapeMeta,
         collectBoardCoordinates,
         hasPlayableCell,
         resolveBoardBounds,
@@ -400,7 +548,7 @@
     }
 
     return {
-        BOARD_SHAPE_META_KEY,
+        BOARD_CONTEXT_KIND,
         BOARD_CONTRACT_VERSION: BoardStateKernelModule.BOARD_CONTRACT_VERSION,
         BOARD_DIGEST_VERSION: BoardStateKernelModule.BOARD_DIGEST_VERSION,
         DEFAULT_BOARD_ROWS,
@@ -435,10 +583,10 @@
         resolveOuterBounds,
         getBoardRows,
         getBoardCols,
-        attachBoardShape,
-        copyBoardShape,
+        createBoardContext,
+        cloneBoardContext,
+        isBoardContext,
         cloneBoard,
-        getBoardShapeMeta,
         resolveBoardBounds,
         isStandardBoard8x8,
         isPaddedBoardCoordinate,

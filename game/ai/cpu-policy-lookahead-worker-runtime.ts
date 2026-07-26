@@ -50,19 +50,28 @@ const DIRECTIONS = [
 ];
 
 function createWorkerBoardUtils() {
-    const shapeByBoard = new WeakMap<object, any>();
-    const readShape = (board: any): any => Array.isArray(board)
-        ? (shapeByBoard.get(board) || null)
-        : null;
+    const CONTEXT_KIND = 'cpu-worker-board-context-v1';
+    const isContext = (value: any): boolean => !!value
+        && typeof value === 'object'
+        && !Array.isArray(value)
+        && value.kind === CONTEXT_KIND
+        && Array.isArray(value.board)
+        && value.shape
+        && typeof value.shape === 'object';
+    const readShape = (board: any): any => isContext(board) ? board.shape : null;
+    const readMatrix = (board: any): any[] => isContext(board)
+        ? board.board
+        : (Array.isArray(board) ? board : []);
     const keyOf = (row: number, col: number) => `${row},${col}`;
     const normalizeOwner = (value: unknown): number => value === 1 || value === -1 ? value : 0;
-    const registerBoardShape = (board: any, shape: any): any => {
-        if (!Array.isArray(board)) return board;
-        if (!shape || typeof shape !== 'object') {
-            shapeByBoard.delete(board);
-            return board;
+    const createBoardContext = (board: any, shape: any): any => {
+        if (!Array.isArray(board) || !shape || typeof shape !== 'object') {
+            throw new Error('CPU worker requires explicit board and boardShape');
         }
-        shapeByBoard.set(board, {
+        return {
+            kind: CONTEXT_KIND,
+            board,
+            shape: {
             ...shape,
             playableKeys: new Set(Array.isArray(shape.playableKeys) ? shape.playableKeys : []),
             meteorHoleKeys: new Set(Array.isArray(shape.meteorHoleKeys) ? shape.meteorHoleKeys : []),
@@ -70,8 +79,8 @@ function createWorkerBoardUtils() {
                 ? shape.expansionCells.map((cell: any) => ({ ...cell }))
                 : [],
             expansionOwnerByKey: { ...(shape.expansionOwnerByKey || {}) }
-        });
-        return board;
+            }
+        };
     };
     const readCoordinates = (board: any): Array<{ row: number; col: number }> => {
         const shape = readShape(board);
@@ -83,15 +92,15 @@ function createWorkerBoardUtils() {
                 .sort((a, b) => a.row - b.row || a.col - b.col);
         }
         const coordinates: Array<{ row: number; col: number }> = [];
-        if (!Array.isArray(board)) return coordinates;
-        board.forEach((row: any, rowIndex: number) => {
+        const matrix = readMatrix(board);
+        matrix.forEach((row: any, rowIndex: number) => {
             if (!Array.isArray(row)) return;
             row.forEach((_cell: any, colIndex: number) => coordinates.push({ row: rowIndex, col: colIndex }));
         });
         return coordinates;
     };
     const resolveBounds = (boardOrRows: any, maybeCols?: any) => {
-        if (!Array.isArray(boardOrRows)) {
+        if (!Array.isArray(boardOrRows) && !isContext(boardOrRows)) {
             const rows = Number(boardOrRows);
             const cols = Number(maybeCols);
             if (!Number.isInteger(rows) || rows <= 0 || !Number.isInteger(cols) || cols <= 0) return null;
@@ -116,23 +125,26 @@ function createWorkerBoardUtils() {
         });
     };
     const hasPlayableCell = (board: any, row: number, col: number): boolean => {
-        if (!Number.isInteger(row) || !Number.isInteger(col) || !Array.isArray(board)) return false;
+        if (!Number.isInteger(row) || !Number.isInteger(col) || (!Array.isArray(board) && !isContext(board))) return false;
         const shape = readShape(board);
         if (shape && shape.playableKeys instanceof Set) return shape.playableKeys.has(keyOf(row, col));
-        return row >= 0 && row < board.length && Array.isArray(board[row]) && col >= 0 && col < board[row].length;
+        const matrix = readMatrix(board);
+        return row >= 0 && row < matrix.length && Array.isArray(matrix[row]) && col >= 0 && col < matrix[row].length;
     };
     const getCellValue = (board: any, row: number, col: number): number | null => {
         if (!hasPlayableCell(board, row, col)) return null;
-        if (row >= 0 && row < board.length && Array.isArray(board[row]) && col >= 0 && col < board[row].length) {
-            return Number(board[row][col] || 0);
+        const matrix = readMatrix(board);
+        if (row >= 0 && row < matrix.length && Array.isArray(matrix[row]) && col >= 0 && col < matrix[row].length) {
+            return Number(matrix[row][col] || 0);
         }
         const shape = readShape(board);
         return Number(shape?.expansionOwnerByKey?.[keyOf(row, col)] || 0);
     };
     const setCellValue = (board: any, row: number, col: number, owner: number): boolean => {
         if (!hasPlayableCell(board, row, col)) return false;
-        if (row >= 0 && row < board.length && Array.isArray(board[row]) && col >= 0 && col < board[row].length) {
-            board[row][col] = owner;
+        const matrix = readMatrix(board);
+        if (row >= 0 && row < matrix.length && Array.isArray(matrix[row]) && col >= 0 && col < matrix[row].length) {
+            matrix[row][col] = owner;
             return true;
         }
         const shape = readShape(board);
@@ -145,10 +157,11 @@ function createWorkerBoardUtils() {
         return true;
     };
     const cloneBoard = (board: any): any => {
-        if (!Array.isArray(board)) return [];
-        const clone = board.map((row: any) => Array.isArray(row) ? row.slice() : []);
+        const matrix = readMatrix(board);
+        if (!matrix.length) return [];
+        const clone = matrix.map((row: any) => Array.isArray(row) ? row.slice() : []);
         const shape = readShape(board);
-        if (shape) registerBoardShape(clone, {
+        if (shape) return createBoardContext(clone, {
             ...shape,
             playableKeys: Array.from(shape.playableKeys instanceof Set ? shape.playableKeys : []),
             meteorHoleKeys: Array.from(shape.meteorHoleKeys instanceof Set ? shape.meteorHoleKeys : [])
@@ -157,14 +170,12 @@ function createWorkerBoardUtils() {
     };
     const cornerUtils = createBoardCorners({
         toBoardCellKey: keyOf,
-        getBoardShapeMeta: readShape,
         collectBoardCoordinates: readCoordinates,
         hasPlayableCell,
         resolveBoardBounds: resolveBounds
     });
     const riskUtils = createRiskCells({
         toBoardCellKey: keyOf,
-        getBoardShapeMeta: readShape,
         collectBoardCoordinates: readCoordinates,
         hasPlayableCell,
         resolveBoardBounds: resolveBounds,
@@ -201,7 +212,7 @@ function createWorkerBoardUtils() {
         collectBoardCoordinates: readCoordinates
     });
     return {
-        registerBoardShape,
+        createBoardContext,
         cloneBoard,
         collectBoardCoordinates: readCoordinates,
         encodeBoard: canonicalEncoding.encodeBoard,
@@ -225,13 +236,8 @@ function createWorkerBoardUtils() {
 
 function createLookaheadRuntime() {
     const SharedBoardUtils: any = createWorkerBoardUtils();
-    const OthelloCore: any = {
-        getFlipsBasic: SharedBoardUtils.getFlipsBasic,
-        getLegalMovesBasic: SharedBoardUtils.getLegalMovesBasic
-    };
     const primitives = CpuPolicyBoardPrimitivesModule.createCpuPolicyBoardPrimitives({
         SharedBoardUtils,
-        OthelloCore,
         isFiniteNumber
     });
     const {
@@ -295,7 +301,7 @@ function createLookaheadRuntime() {
     }
 
     function isPseudoCornerXSquare(board: CpuPolicyBoard | null | undefined, row: number, col: number, playerValue: number): boolean {
-        if (!Array.isArray(board) || !isXSquare(row, col, board)) return false;
+        if (!board || typeof board !== 'object' || !isXSquare(row, col, board)) return false;
         const adjacentCorner = adjacentCornerFor(row, col, board);
         if (!adjacentCorner || !inBoard(board, adjacentCorner.row, adjacentCorner.col)) return false;
         return getBoardCellValueSafe(board, adjacentCorner.row, adjacentCorner.col) === playerValue
@@ -480,13 +486,16 @@ function createLookaheadRuntime() {
     return {
         chooseMoveByLookahead(candidateMoves: any[], options?: Record<string, any> | null): any {
             const normalizedOptions = options && typeof options === 'object' ? options : {};
-            if (Array.isArray(normalizedOptions.board)) {
-                SharedBoardUtils.registerBoardShape(
-                    normalizedOptions.board,
-                    normalizedOptions.boardShape || null
-                );
+            if (!Array.isArray(normalizedOptions.board) || !normalizedOptions.boardShape) {
+                throw new Error('CPU worker lookahead requires explicit boardShape');
             }
-            return controller.chooseMoveByLookahead(candidateMoves, normalizedOptions);
+            return controller.chooseMoveByLookahead(candidateMoves, {
+                ...normalizedOptions,
+                board: SharedBoardUtils.createBoardContext(
+                    normalizedOptions.board,
+                    normalizedOptions.boardShape
+                )
+            });
         }
     };
 }

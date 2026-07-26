@@ -4,10 +4,6 @@ export interface ExpansionDescriptor {
   col: number;
   owner: number;
 }
-export interface BoardShapeMeta {
-  playableKeys: Set<string>;
-  expansionCells: ExpansionDescriptor[];
-}
 export interface DiscCounts {
   black: number;
   white: number;
@@ -20,7 +16,6 @@ export interface ShapeIterationDependencies {
     boardExpansion: unknown,
     boardOrConfig: unknown,
   ) => ExpansionDescriptor[];
-  getBoardShapeMeta: (board: unknown) => BoardShapeMeta | null;
   countDiscsViaBoardUtils: ((board: unknown) => DiscCounts) | null;
 }
 export function createShapeIteration(deps: ShapeIterationDependencies) {
@@ -40,19 +35,6 @@ export function createShapeIteration(deps: ShapeIterationDependencies) {
         : null;
     return { board, boardExpansion };
   }
-  function getAttachedExpansionDescriptors(
-    board: unknown,
-  ): ExpansionDescriptor[] {
-    const meta = deps.getBoardShapeMeta(board);
-    return meta && Array.isArray(meta.expansionCells)
-      ? meta.expansionCells.map((cell) => ({
-          side: cell.side,
-          row: cell.row,
-          col: cell.col,
-          owner: cell.owner,
-        }))
-      : [];
-  }
   function forEachBoardShapeCell(
     boardOrConfig: unknown,
     visitor: (
@@ -66,21 +48,16 @@ export function createShapeIteration(deps: ShapeIterationDependencies) {
     const source = resolveBoardShapeSource(boardOrConfig);
     const board = source.board,
       config = deps.resolveBoardConfig(boardOrConfig);
-    const meta = deps.getBoardShapeMeta(board);
-    const playableKeys = meta && meta.playableKeys instanceof Set
-      ? meta.playableKeys
-      : null;
     for (let row = 0; row < config.rows; row += 1) {
       const boardRow =
         Array.isArray(board) && Array.isArray(board[row]) ? board[row] : [];
       for (let col = 0; col < config.cols; col += 1) {
-        if (playableKeys && !playableKeys.has(`${row},${col}`)) continue;
         visitor(row, col, boardRow[col], null);
       }
     }
     const expansionDescriptors = source.boardExpansion
       ? deps.collectExpansionDescriptors(source.boardExpansion, boardOrConfig)
-      : getAttachedExpansionDescriptors(board);
+      : [];
     for (const cell of expansionDescriptors)
       if (cell)
         visitor(cell.row, cell.col, Number(cell.owner), cell.side || null);

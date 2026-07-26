@@ -1,6 +1,7 @@
 import type { GameState, PlayerKey } from '../../../src/types';
 
 const TheoryIncarnationSpawn = require('./theory-incarnation-spawn');
+const CardResolutionBoardView = require('./board-view-access');
 
 const CHAOS_SUMMON_TYPE = 'CHAOS_SUMMON';
 const CHAOS_SUMMON_SPAWN_REASON = 'chaos_summon_spawn';
@@ -18,11 +19,10 @@ function isEmptyCellValue(value: any, deps: any): boolean {
     return value === 0 || value === (deps ? deps.EMPTY : undefined);
 }
 
-function isChaosSummonAvailableCell(cardState: any, gameState: GameState, row: number, col: number, deps: any): boolean {
+function isChaosSummonAvailableCellInView(cardState: any, gameState: GameState, row: number, col: number, deps: any, view: any): boolean {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    const value = deps && typeof deps.getCellValueForCard === 'function'
-        ? deps.getCellValueForCard(gameState, row, col)
-        : ((gameState as any).board && (gameState as any).board[row] ? (gameState as any).board[row][col] : null);
+    if (!view.isPlayable(row, col)) return false;
+    const value = view.get(row, col);
     if (!isEmptyCellValue(value, deps)) return false;
     if (deps && typeof deps.isBlockedCell === 'function' && deps.isBlockedCell(cardState, row, col, gameState) === true) {
         return false;
@@ -30,18 +30,20 @@ function isChaosSummonAvailableCell(cardState: any, gameState: GameState, row: n
     return true;
 }
 
+function isChaosSummonAvailableCell(cardState: any, gameState: GameState, row: number, col: number, deps: any): boolean {
+    const view = CardResolutionBoardView.createCardResolutionBoardView(cardState, gameState);
+    return isChaosSummonAvailableCellInView(cardState, gameState, row, col, deps, view);
+}
+
 function getChaosSummonAvailableCells(cardState: any, gameState: GameState, deps: any): Array<{ key: string; cell: any }> {
-    const board = (gameState as any) && Array.isArray((gameState as any).board) ? (gameState as any).board : [];
+    const view = CardResolutionBoardView.createCardResolutionBoardView(cardState, gameState);
     const out: Array<{ key: string; cell: any }> = [];
-    for (let row = 0; row < board.length; row += 1) {
-        const line = Array.isArray(board[row]) ? board[row] : [];
-        for (let col = 0; col < line.length; col += 1) {
-            if (!isChaosSummonAvailableCell(cardState, gameState, row, col, deps)) continue;
-            out.push({
-                key: cellKeyOf(row, col),
-                cell: { row, col }
-            });
-        }
+    for (const cell of view.coordinates) {
+        if (!isChaosSummonAvailableCellInView(cardState, gameState, cell.row, cell.col, deps, view)) continue;
+        out.push({
+            key: cellKeyOf(cell.row, cell.col),
+            cell: { row: cell.row, col: cell.col }
+        });
     }
     return out;
 }

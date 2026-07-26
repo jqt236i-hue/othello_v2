@@ -1,5 +1,6 @@
 export type CpuDecisionOnnxMoveDeps = {
   getCurrentCpuBoard: () => any;
+  getDenseBoardMatrix?: (board: any) => any;
   resolvePendingType: (playerKey: any) => any;
   shouldUseOthelloOnnxRuntime: () => boolean;
   shouldForceCardModeLv6Placement: (playerKey: any, pendingType: any, boardRef: any) => any;
@@ -39,6 +40,11 @@ function resolveOnnxMoveBudgetMs(level: any, configuredBudgetMs: any): number {
 export function createCpuDecisionOnnxMove(deps: CpuDecisionOnnxMoveDeps) {
   async function selectMoveFromOnnxPolicyAsync(candidateMoves: any, playerKey: any, level: any): Promise<any> {
     const board = deps.getCurrentCpuBoard();
+    const denseBoard = (value: any) => {
+      if (typeof deps.getDenseBoardMatrix === 'function') return deps.getDenseBoardMatrix(value);
+      if (Array.isArray(value)) return value;
+      throw new Error('CPU ONNX move requires an explicit dense-board adapter');
+    };
     const pendingType = deps.resolvePendingType(playerKey);
     const forceCardModeOthelloPlacement = Number.isFinite(level) &&
       level >= 6 &&
@@ -67,7 +73,13 @@ export function createCpuDecisionOnnxMove(deps: CpuDecisionOnnxMoveDeps) {
         (abortSignal: AbortSignal | null) => runtime.chooseMove(
           prioritizedCandidateMoves,
           useOthelloOnnx
-            ? { playerKey, level, board, legalMovesCount: prioritizedCandidateMoves.length, abortSignal }
+            ? {
+              playerKey,
+              level,
+              board: denseBoard(board),
+              legalMovesCount: prioritizedCandidateMoves.length,
+              abortSignal
+            }
             : Object.assign(
               {},
               deps.buildOnnxContext(playerKey, level, prioritizedCandidateMoves.length, handCardIds, null),

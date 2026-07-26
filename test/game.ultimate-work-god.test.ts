@@ -214,6 +214,35 @@ describe('ULTIMATE_WORK_GOD（究極労働神）', () => {
     ]);
   });
 
+  test('アンカー座標が隕石穴なら下層の石を参照せず処理しない', () => {
+    const { cardState, gameState } = makeState(12);
+    cardState.markers.push({
+      id: 200,
+      createdSeq: 200,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'METEOR_HOLE' }
+    });
+    const random = jest.fn(() => 0);
+
+    const result = CardLogic.processUltimateWorkGodAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      2,
+      2,
+      { random }
+    );
+
+    expect(result).toMatchObject({ processed: false, reason: 'anchor_lost', row: 2, col: 2 });
+    expect(random).not.toHaveBeenCalled();
+    expect(cardState.charge.black).toBe(0);
+    expect(cardState.markers[0].data.selfDestructChancePercent).toBe(12);
+    expect(gameState.board[2][2]).toBe(1);
+  });
+
   test('凍結中はターン開始アンカー処理も乱数消費も行わない', () => {
     const { cardState, gameState } = makeState(12);
     const processUltimateWorkGodAtTurnStartAnchor = jest.fn();

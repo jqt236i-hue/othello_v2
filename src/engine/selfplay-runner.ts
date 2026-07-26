@@ -23,7 +23,6 @@ const CpuPolicyCore = require('../../game/ai/cpu-policy-core.js');
 const CpuPolicyTableRuntime = require('../../game/ai/policy-table-runtime.js');
 const CpuLv6LookaheadProfile = require('../../game/ai/cpu-lv6-lookahead-profile.js');
 const SharedBoardUtils = require(path.resolve(__dirname, '..', '..', 'shared', 'shared-board-utils.js'));
-const OthelloCore = require(path.resolve(__dirname, '..', '..', 'shared', 'othello-core.js'));
 const SharedCardHeuristics = require(path.resolve(__dirname, '..', '..', 'shared', 'shared-card-heuristics.js'));
 const PendingTargetSelector = require('../../game/turn-handlers/pending-target-selector.js');
 const PendingCoordinator = require('../../game/turn/pending-coordinator.js');
@@ -108,7 +107,6 @@ const {
     toPlayerKey,
     toPlayerValue,
     getSafeCardContext,
-    getShapeAwareBoard,
     getSelfplayBoard,
     readSelfplayPendingEffect,
     getBoardCellValue,
@@ -130,25 +128,15 @@ const {
     Core,
     CardLogic,
     SharedBoardUtils,
-    OthelloCore,
     PendingCoordinator,
     ContextHelper
 });
 
 function getCornerProximity(row: any, col: any, boardOverride: any = null) {
-    const board = Array.isArray(boardOverride) ? boardOverride : null;
     if (SharedBoardUtils && typeof SharedBoardUtils.getCornerProximity === 'function') {
-        return SharedBoardUtils.getCornerProximity(row, col, board || 8);
+        return SharedBoardUtils.getCornerProximity(row, col, boardOverride);
     }
-    const n = Array.isArray(board) && board.length > 0 ? board.length : 8;
-    if ((row === 1 || row === n - 2) && (col === 1 || col === n - 2)) {
-        return { kind: 'X', corner: [row === 1 ? 0 : n - 1, col === 1 ? 0 : n - 1] };
-    }
-    if (row === 0 && (col === 1 || col === n - 2)) return { kind: 'C', corner: [0, col === 1 ? 0 : n - 1] };
-    if (row === n - 1 && (col === 1 || col === n - 2)) return { kind: 'C', corner: [n - 1, col === 1 ? 0 : n - 1] };
-    if (col === 0 && (row === 1 || row === n - 2)) return { kind: 'C', corner: [row === 1 ? 0 : n - 1, 0] };
-    if (col === n - 1 && (row === 1 || row === n - 2)) return { kind: 'C', corner: [row === 1 ? 0 : n - 1, n - 1] };
-    return null;
+    throw new Error('SharedBoardUtils.getCornerProximity is required by selfplay');
 }
 
 function scoreMove(move: any, rng: any, context: any) {
@@ -158,7 +146,11 @@ function scoreMove(move: any, rng: any, context: any) {
     const scoreContext = context || {};
     const planState = scoreContext.planState || null;
     const movePlanContext = scoreContext.movePlanContext || null;
-    const board = Array.isArray(scoreContext.board)
+    const board = (
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.isBoardContext === 'function' &&
+        SharedBoardUtils.isBoardContext(scoreContext.board)
+    )
         ? scoreContext.board
         : getSelfplayBoard(scoreContext.gameState, scoreContext.cardState);
     const shouldUseCornerPlan = (
@@ -209,17 +201,17 @@ function scoreMove(move: any, rng: any, context: any) {
 }
 
 function evaluatePositionalDiff(board: any, playerValue: any) {
-    const boardRef = getShapeAwareBoard(board);
     let own = 0;
     let opp = 0;
-    const cells = (SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function')
-        ? SharedBoardUtils.collectBoardCoordinates(boardRef)
-        : boardRef.flatMap((row: any, rowIndex: any) => (Array.isArray(row) ? row.map((_: any, colIndex: any) => ({ row: rowIndex, col: colIndex })) : []));
+    if (!SharedBoardUtils || typeof SharedBoardUtils.collectBoardCoordinates !== 'function') {
+        throw new Error('SharedBoardUtils.collectBoardCoordinates is required by selfplay');
+    }
+    const cells = SharedBoardUtils.collectBoardCoordinates(board);
     for (const pos of cells) {
         if (!pos) continue;
         const row = pos.row;
         const col = pos.col;
-        const cell = getBoardCellValue(boardRef, row, col);
+        const cell = getBoardCellValue(board, row, col);
         if (cell === null) continue;
             const w = POSITION_WEIGHTS[row] && Number.isFinite(POSITION_WEIGHTS[row][col]) ? POSITION_WEIGHTS[row][col] : 0;
             if (cell === playerValue) own += w;
@@ -233,59 +225,21 @@ function countCorners(board: any, playerValue: any) {
         const control = SharedBoardUtils.countCornerControl(board, playerValue);
         return Number(control.ownCorners || 0) - Number(control.oppCorners || 0);
     }
-    if (!Array.isArray(board) || board.length === 0) return 0;
-    const n = board.length - 1;
-    const points = [[0, 0], [0, n], [n, 0], [n, n]];
-    let own = 0;
-    let opp = 0;
-    for (const p of points) {
-        const row = board[p[0]];
-        if (!Array.isArray(row)) continue;
-        const v = row[p[1]];
-        if (v === playerValue) own += 1;
-        else if (v === -playerValue) opp += 1;
-    }
-    return own - opp;
+    throw new Error('SharedBoardUtils.countCornerControl is required by selfplay');
 }
 
 function countCornerControl(board: any, playerValue: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.countCornerControl === 'function') {
         return SharedBoardUtils.countCornerControl(board, playerValue);
     }
-    if (!Array.isArray(board) || board.length === 0) return { ownCorners: 0, oppCorners: 0 };
-    const n = board.length - 1;
-    const points = [[0, 0], [0, n], [n, 0], [n, n]];
-    let ownCorners = 0;
-    let oppCorners = 0;
-    for (const p of points) {
-        const row = board[p[0]];
-        if (!Array.isArray(row)) continue;
-        const v = row[p[1]];
-        if (v === playerValue) ownCorners += 1;
-        else if (v === -playerValue) oppCorners += 1;
-    }
-    return { ownCorners, oppCorners };
+    throw new Error('SharedBoardUtils.countCornerControl is required by selfplay');
 }
 
 function countEdgeControl(board: any, playerValue: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.countEdgeControl === 'function') {
         return SharedBoardUtils.countEdgeControl(board, playerValue);
     }
-    if (!Array.isArray(board) || board.length === 0) return { ownEdges: 0, oppEdges: 0 };
-    let ownEdges = 0;
-    let oppEdges = 0;
-    const size = board.length;
-    for (let row = 0; row < size; row++) {
-        const oneRow = board[row];
-        if (!Array.isArray(oneRow)) continue;
-        for (let col = 0; col < oneRow.length; col++) {
-            if (!isEdge(row, col, board) || isCorner(row, col, board)) continue;
-            const v = oneRow[col];
-            if (v === playerValue) ownEdges += 1;
-            else if (v === -playerValue) oppEdges += 1;
-        }
-    }
-    return { ownEdges, oppEdges };
+    throw new Error('SharedBoardUtils.countEdgeControl is required by selfplay');
 }
 
 function countEmptiesInBoardKey(boardKey: any) {
@@ -359,15 +313,11 @@ const {
     countEdgeControl,
     readSelfplayPendingEffect
 });
-function countDiscsByValue(gameState: any, playerValue: any) {
-    const board = getSelfplayBoard(gameState);
-    if (isStandardBoard(board)) {
-        const counts = Core.countDiscs(gameState);
-        return playerValue === Core.BLACK
-            ? (counts.black - counts.white)
-            : (counts.white - counts.black);
-    }
-    return countDiscDiffOnBoard(board, playerValue);
+function countDiscsByValue(gameState: any, playerValue: any, cardState: any) {
+    const counts = SharedBoardUtils.countDiscsByPlayer(getSelfplayBoard(gameState, cardState));
+    return playerValue === Core.BLACK
+        ? (counts.black - counts.white)
+        : (counts.white - counts.black);
 }
 
 function evaluateBoardForPlayer(gameState: any, cardState: any, playerKey: any) {
@@ -379,7 +329,7 @@ function evaluateBoardForPlayer(gameState: any, cardState: any, playerKey: any) 
     const mobilityDiff = ownMobility - oppMobility;
     const cornerDiff = countCorners(board, playerValue);
     const positionalDiff = evaluatePositionalDiff(board, playerValue);
-    const discDiff = countDiscsByValue(gameState, playerValue);
+    const discDiff = countDiscsByValue(gameState, playerValue, cardState);
     const empties = countEmpties(board);
     const discWeight = empties <= 12 ? 22 : (empties <= 24 ? 10 : 2);
 
@@ -427,10 +377,11 @@ const {
     deepClone,
     evaluateBoardForPlayer,
     evaluatePositionValue,
+    getSelfplayBoard,
     clonePrng
 });
 
-function applyMoveForEvaluation(gameState: any, move: any, playerValue: any) {
+function applyMoveForEvaluation(gameState: any, move: any, playerValue: any, cardState: any) {
     const nextState = Core.copyGameState(gameState);
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return nextState;
     const flips = [];
@@ -445,14 +396,11 @@ function applyMoveForEvaluation(gameState: any, move: any, playerValue: any) {
     }
     // Use Core.applyMove so expansion cells are handled consistently with production rules.
     nextState.currentPlayer = playerValue;
-    return Core.applyMove(nextState, { row: move.row, col: move.col, flips });
+    return Core.applyMove(nextState, { row: move.row, col: move.col, flips }, cardState);
 }
 const {
     countEmpties,
-    isStandardBoard,
     countDiscDiffOnBoard,
-    applyMoveToBoard,
-    evaluateBoardForSearch,
     resolveTacticalSearchDepth,
     resolveTacticalBeamWidth,
     resolveTacticalMetricsCandidateLimit,
@@ -491,18 +439,19 @@ function scoreTacticalMove(move: any, context: any, options: any) {
     if (!context || !context.gameState || !context.cardState) return 0;
     const playerKey = context.playerKey === 'black' ? 'black' : 'white';
     const playerValue = toPlayerValue(playerKey);
-    const nextState = applyMoveForEvaluation(context.gameState, move, playerValue);
-    const empties = countEmpties(nextState.board);
+    const nextState = applyMoveForEvaluation(context.gameState, move, playerValue, context.cardState);
+    const nextBoard = getSelfplayBoard(nextState, context.cardState);
+    const empties = countEmpties(nextBoard);
     const discWeight = empties <= 12 ? 18 : (empties <= 24 ? 8 : 2);
-    const discDiff = countDiscsByValue(nextState, playerValue);
-    const cornerDiff = countCorners(nextState.board, playerValue);
-    const opponentMoves = getLegalMovesBasic(nextState.board, -playerValue);
+    const discDiff = countDiscsByValue(nextState, playerValue, context.cardState);
+    const cornerDiff = countCorners(nextBoard, playerValue);
+    const opponentMoves = getLegalMovesBasic(nextBoard, -playerValue);
     let opponentThreat = 0;
     let givesCorner = false;
     for (const oppMove of opponentMoves) {
-        const pressure = ((oppMove.flips ? oppMove.flips.length : 0) * 80) + (evaluatePositionValue(oppMove.row, oppMove.col, nextState.board) * 8);
+        const pressure = ((oppMove.flips ? oppMove.flips.length : 0) * 80) + (evaluatePositionValue(oppMove.row, oppMove.col, nextBoard) * 8);
         if (pressure > opponentThreat) opponentThreat = pressure;
-        if (isCorner(oppMove.row, oppMove.col, nextState.board)) givesCorner = true;
+        if (isCorner(oppMove.row, oppMove.col, nextBoard)) givesCorner = true;
     }
     const row = Number.isFinite(move && move.row) ? move.row : 0;
     const col = Number.isFinite(move && move.col) ? move.col : 0;
@@ -511,14 +460,14 @@ function scoreTacticalMove(move: any, context: any, options: any) {
     const tie = (7 - row) * 0.001 + (7 - col) * 0.0001;
     const baseScore = (
         ((Array.isArray(move.flips) ? move.flips.length : 0) * 60) +
-        (evaluatePositionValue(row, col, nextState.board) * 8) +
+        (evaluatePositionValue(row, col, nextBoard) * 8) +
         (discDiff * discWeight) +
         (cornerDiff * 300) +
         (moveBonus * (planState && planState.cornerHoldMode ? 500 : 220)) +
         (opponentMoves.length * -45) +
         (opponentThreat * -6) +
         (givesCorner ? (planState && planState.cornerSeekMode ? -2600 : -1800) : 0) +
-        ((planState && planState.cornerHoldMode && !isCorner(row, col, nextState.board) && !isEdge(row, col, nextState.board)) ? -380 : 0) +
+        ((planState && planState.cornerHoldMode && !isCorner(row, col, nextBoard) && !isEdge(row, col, nextBoard)) ? -380 : 0) +
         tie
     );
 
@@ -527,7 +476,7 @@ function scoreTacticalMove(move: any, context: any, options: any) {
 
     const beamWidth = resolveTacticalBeamWidth(options, empties);
     const searchValue = minimaxBoardSearch(
-        nextState.board,
+        nextBoard,
         -playerValue,
         playerValue,
         searchDepth - 1,
@@ -599,9 +548,9 @@ function choosePlacementMoveByBrowserParity(candidateMoves: any, context: any, o
         CpuPolicyCore &&
         typeof CpuPolicyCore.chooseMoveByLookahead === 'function' &&
         context &&
-        context.gameState &&
-        Array.isArray(context.gameState.board)
+        context.gameState
     ) {
+        const runtimeBoard = getSelfplayBoard(context.gameState, context.cardState);
         const teacherLookaheadOverride = {
             tacticalDepthOpening: options && options.tacticalDepthOpening,
             tacticalDepthMid: options && options.tacticalDepthMid,
@@ -610,7 +559,7 @@ function choosePlacementMoveByBrowserParity(candidateMoves: any, context: any, o
         };
         const lookaheadOptions = CpuLv6LookaheadProfile.buildLv6LookaheadOptions(
             6,
-            context.gameState.board,
+            runtimeBoard,
             candidateMoves.length,
             context.playerKey,
             'teacher',
@@ -631,7 +580,7 @@ function choosePlacementMoveByBrowserParity(candidateMoves: any, context: any, o
                 normalizeLookaheadTimeBudget(lookaheadOptions.endgameMaxTimeMs, 12000)
             );
         const looked = CpuPolicyCore.chooseMoveByLookahead(candidateMoves, {
-            board: context.gameState.board,
+            board: runtimeBoard,
             playerValue: toPlayerValue(context.playerKey),
             level: 6,
             depth: lookaheadOptions.depth,
@@ -661,7 +610,7 @@ function choosePlacementMoveByBrowserParity(candidateMoves: any, context: any, o
                 candidateMoves,
                 context.pendingType || null,
                 movePlanScoreFn,
-                context.gameState.board,
+                runtimeBoard,
                 context.cardState && context.cardState.boardBonusByCell,
                 context.cardState && context.cardState.boardBonusConsumedByCell
             );
@@ -1101,7 +1050,7 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
             seat: classifySelectionSeat(
                 Number.isFinite(one && one.move && one.move.row) ? Number(one.move.row) : null,
                 Number.isFinite(one && one.move && one.move.col) ? Number(one.move.col) : null,
-                context && context.gameState ? context.gameState.board : null
+                getSelfplayBoard(context && context.gameState, context && context.cardState)
             ),
             heuristicScore: Number(one && one.heuristicScore) || 0,
             policyScore: Number(one && one.policyScore) || 0,
@@ -1158,7 +1107,7 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
     };
 }
 
-function evaluatePositionValue(row: any, col: any, boardOrSize: any = 8) {
+function evaluatePositionValue(row: any, col: any, boardOrSize: any) {
     let score = 0;
     if (isCorner(row, col, boardOrSize)) score += 10000;
     else if (isEdge(row, col, boardOrSize)) score += 250;
@@ -1167,9 +1116,9 @@ function evaluatePositionValue(row: any, col: any, boardOrSize: any = 8) {
     return score;
 }
 
-function getCellOwnerValueForSelfplay(gameState: any, row: any, col: any) {
+function getCellOwnerValueForSelfplay(gameState: any, cardState: any, row: any, col: any) {
     if (!gameState) return 0;
-    const board = getSelfplayBoard(gameState);
+    const board = getSelfplayBoard(gameState, cardState);
     const value = getBoardCellValue(board, row, col);
     return Number(value) || 0;
 }
@@ -1188,7 +1137,8 @@ const {
     buildCornerPlanState,
     getBoardBonusAtCell,
     countDiscsByValue,
-    countEmpties
+    countEmpties,
+    getSelfplayBoard
 });
 
 const {
@@ -1214,7 +1164,8 @@ const {
     choosePendingTargetByScore,
     evaluatePositionValue,
     toPlayerValue,
-    getCellOwnerValueForSelfplay
+    getCellOwnerValueForSelfplay,
+    getSelfplayBoard
 });
 
 const {
@@ -1250,10 +1201,12 @@ const {
     chooseExtendLifeTarget
 } = SelfplayAdvancedSimulationChoosers.createSelfplayAdvancedSimulationChoosers({
     CardLogic,
+    SharedBoardUtils,
     chooseTargetBySimulation,
     evaluatePositionValue,
     toPlayerValue,
     getCellOwnerValueForSelfplay,
+    getSelfplayBoard,
     isCorner,
     isEdge,
     isXSquare,
@@ -1267,10 +1220,13 @@ const {
     chooseTimeBombTarget
 } = SelfplayScoreTargetChoosers.createSelfplayScoreTargetChoosers({
     CardLogic,
+    SharedBoardUtils,
     choosePendingTargetByScore,
     evaluatePositionValue,
     toPlayerValue,
     getCellOwnerValueForSelfplay,
+    getSelfplayBoard,
+    getBoardCellValue,
     isCorner,
     isEdge,
     countDiscsByValue
@@ -1393,8 +1349,8 @@ function decideAction(gameState: any, cardState: any, playerKey: any, rng: any, 
     });
 }
 
-function resolveWinner(gameState: any) {
-    const counts = Core.countDiscs(gameState);
+function resolveWinner(gameState: any, cardState: any) {
+    const counts = Core.countDiscs(gameState, cardState);
     if (counts.black > counts.white) return { winner: 'black', counts };
     if (counts.white > counts.black) return { winner: 'white', counts };
     return { winner: 'draw', counts };
@@ -1662,9 +1618,9 @@ function runSingleGame(gameIndex: any, seed: any, options: any) {
             ? execution.decisionContext.gameState
             : state.gameState;
         const pendingType = CardLogic.getPendingEffectType(decisionCardState, playerKey);
-        const countsBefore = Core.countDiscs(decisionGameState);
-        const boardBefore = encodeMainBoard(decisionGameState.board);
+        const countsBefore = Core.countDiscs(decisionGameState, decisionCardState);
         const runtimeBoardBefore = getSelfplayBoard(decisionGameState, decisionCardState);
+        const boardBefore = encodeMainBoard(runtimeBoardBefore);
         const boardEnvelope = encodeBoard(runtimeBoardBefore);
         const boardBounds = (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardBounds === 'function')
             ? SharedBoardUtils.resolveBoardBounds(runtimeBoardBefore)
@@ -1682,7 +1638,7 @@ function runSingleGame(gameIndex: any, seed: any, options: any) {
         const decision = execution.decision;
         const action = execution.action;
         const result = execution.result;
-        const pendingSelection = buildPendingSelectionRecord(action, pendingType);
+        const pendingSelection = buildPendingSelectionRecord(action, pendingType, runtimeBoardBefore);
         const planStateBefore = buildCornerPlanState(
             decisionGameState,
             decisionCardState,
@@ -1726,6 +1682,7 @@ function runSingleGame(gameIndex: any, seed: any, options: any) {
                 : null,
             row: Number.isFinite(action.row) ? action.row : null,
             col: Number.isFinite(action.col) ? action.col : null,
+            selectedSeat: classifySelectionSeat(action.row, action.col, runtimeBoardBefore),
             useCardId: action.useCardId || null,
             destroyCardId: action.destroyCardId || null,
             legalMoves: decision.legalMoves.length,
@@ -1863,7 +1820,7 @@ function runSingleGame(gameIndex: any, seed: any, options: any) {
         state.gameState = result.gameState;
         state.stateVersion = result.nextStateVersion;
 
-        const countsAfter = Core.countDiscs(state.gameState);
+        const countsAfter = Core.countDiscs(state.gameState, state.cardState);
         const planStateAfter = buildCornerPlanState(
             state.gameState,
             state.cardState,
@@ -1890,10 +1847,10 @@ function runSingleGame(gameIndex: any, seed: any, options: any) {
     annotateHorizonDecisionMetrics(gameRecords, 3);
     annotateSelfplayV2Metadata(gameRecords, normalizedOptions);
 
-    const resolved = resolveWinner(state.gameState);
-    const finalCornerControl = countCornerControl(state.gameState.board, Core.BLACK);
-    const finalEdgeControl = countEdgeControl(state.gameState.board, Core.BLACK);
+    const resolved = resolveWinner(state.gameState, state.cardState);
     const finalRuntimeBoard = getSelfplayBoard(state.gameState, state.cardState);
+    const finalCornerControl = countCornerControl(finalRuntimeBoard, Core.BLACK);
+    const finalEdgeControl = countEdgeControl(finalRuntimeBoard, Core.BLACK);
     const finalBlackEdgeRun = (
         SharedBoardUtils &&
         typeof SharedBoardUtils.summarizeEdgeRuns === 'function'

@@ -37,7 +37,7 @@ export function getBoardCellValueSafe(sharedBoardUtils: any, board: any, row: an
 }
 
 export function countAdjacentCellsByValue(sharedBoardUtils: any, board: any, row: any, col: any, value: any): any {
-    if (!Array.isArray(board)) return 0;
+    if (!board || typeof board !== 'object') return 0;
     let count = 0;
     for (let dr = -1; dr <= 1; dr += 1) {
         for (let dc = -1; dc <= 1; dc += 1) {

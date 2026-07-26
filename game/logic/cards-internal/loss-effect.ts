@@ -2,7 +2,7 @@ type LossEffectDeps = {
     readCardPendingEffect?: (cardState: any, playerKey: any) => any;
     clearCardPendingEffect?: (cardState: any, playerKey: any) => any;
     collectLossWillRemovals?: (cardState: any) => any;
-    getCellValueForCard?: (gameState: any, row: any, col: any) => any;
+    createBoardViewForCard?: (cardState: any, gameState: any) => any;
     emitPresentationEvent?: (cardState: any, event: any) => any;
     findLivingWillMarkerAt?: (cardState: any, row: any, col: any) => any;
     restoreFromLivingWillSnapshot?: (cardState: any, gameState: any, marker: any, trigger: any, deps: any) => any;
@@ -20,9 +20,9 @@ export function createCardLossEffect(deps?: LossEffectDeps) {
     const collectLossWillRemovals = typeof deps?.collectLossWillRemovals === 'function'
         ? deps.collectLossWillRemovals
         : (() => ({ guardedCells: new Set(), removableSpecials: [], removableBombs: [], removed: [] }));
-    const getCellValueForCard = typeof deps?.getCellValueForCard === 'function'
-        ? deps.getCellValueForCard
-        : (() => null);
+    const createBoardViewForCard = typeof deps?.createBoardViewForCard === 'function'
+        ? deps.createBoardViewForCard
+        : null;
     const emitPresentationEvent = typeof deps?.emitPresentationEvent === 'function'
         ? deps.emitPresentationEvent
         : (() => null);
@@ -50,12 +50,17 @@ export function createCardLossEffect(deps?: LossEffectDeps) {
             ...(Array.isArray(lossWillRemovals?.removableBombs) ? lossWillRemovals.removableBombs : [])
         ];
         const removalSet = new Set<any>(removalItems);
+        if (!createBoardViewForCard) {
+            throw new Error('[loss-effect] createBoardViewForCard is required');
+        }
+        const boardView = createBoardViewForCard(cardState, gameState);
         const livingWillRestores = new Map();
         for (const entry of removed) {
             if (!Number.isInteger(entry.row) || !Number.isInteger(entry.col)) continue;
             const key = `${entry.row},${entry.col}`;
             if (livingWillRestores.has(key)) continue;
-            if (getCellValueForCard(gameState, entry.row, entry.col) === emptyValue) continue;
+            const owner = boardView.get(entry.row, entry.col);
+            if (owner === null || owner === emptyValue) continue;
             const livingWillMarker = findLivingWillMarkerAt(cardState, entry.row, entry.col);
             if (livingWillMarker) livingWillRestores.set(key, livingWillMarker);
         }
@@ -66,9 +71,8 @@ export function createCardLossEffect(deps?: LossEffectDeps) {
 
         for (const entry of removed) {
             if (!Number.isInteger(entry.row) || !Number.isInteger(entry.col)) continue;
-            if (!gameState || !Array.isArray(gameState.board)) continue;
-            if (!Array.isArray(gameState.board[entry.row])) continue;
-            if (gameState.board[entry.row][entry.col] === emptyValue) continue;
+            const owner = boardView.get(entry.row, entry.col);
+            if (owner === null || owner === emptyValue) continue;
 
             emitPresentationEvent(cardState, {
                 type: 'STATUS_REMOVED',

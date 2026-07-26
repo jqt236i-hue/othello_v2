@@ -34,7 +34,7 @@ export function createCpuPolicyPlacementProfiles(deps?: CpuPolicyPlacementProfil
         : (() => 0);
 
     function countAdjacentCellsByValue(board: CpuPolicyBoard | null | undefined, row: number, col: number, value: number): number {
-        if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return 0;
+        if (!board || typeof board !== 'object' || !Number.isInteger(row) || !Number.isInteger(col)) return 0;
         let count = 0;
         for (let dr = -1; dr <= 1; dr++) {
             for (let dc = -1; dc <= 1; dc++) {
@@ -48,7 +48,7 @@ export function createCpuPolicyPlacementProfiles(deps?: CpuPolicyPlacementProfil
     }
 
     function computePlacementStabilityProxy(board: CpuPolicyBoard | null | undefined, row: number, col: number, playerValue: number): number {
-        if (!Array.isArray(board) || !inBoard(board, row, col)) return 0;
+        if (!board || typeof board !== 'object' || !inBoard(board, row, col)) return 0;
         let score = 0;
         if (isCorner(row, col, board)) score += 4.2;
         else if (isEdge(row, col, board)) score += 2.1;
@@ -80,7 +80,7 @@ export function createCpuPolicyPlacementProfiles(deps?: CpuPolicyPlacementProfil
         playerValue: number,
         ownAnchoredEdgesBefore?: number | null
     ): { stabilityProxy: number; anchoredEdgeDelta: number } {
-        if (!Array.isArray(board) || !move) {
+        if (!board || typeof board !== 'object' || !move) {
             return {
                 stabilityProxy: Number.NEGATIVE_INFINITY,
                 anchoredEdgeDelta: Number.NEGATIVE_INFINITY
@@ -106,7 +106,7 @@ export function createCpuPolicyPlacementProfiles(deps?: CpuPolicyPlacementProfil
 
     function countAdjacentOpponentStrikeProfile(board: CpuPolicyBoard | null | undefined, row: number, col: number, playerValue: number) {
         const out = fallbackStrikeProfile();
-        if (!Array.isArray(board) || !inBoard(board, row, col)) return out;
+        if (!board || typeof board !== 'object' || !inBoard(board, row, col)) return out;
         const opponentValue = -playerValue;
         for (let dr = -1; dr <= 1; dr++) {
             for (let dc = -1; dc <= 1; dc++) {
@@ -137,7 +137,7 @@ export function createCpuPolicyPlacementProfiles(deps?: CpuPolicyPlacementProfil
             cornerPressureCount: 0,
             edgeLandingCount: 0
         };
-        if (!Array.isArray(board) || !inBoard(board, row, col)) return out;
+        if (!board || typeof board !== 'object' || !inBoard(board, row, col)) return out;
         const opponentValue = -playerValue;
         const normalizedMaxDistance = Number(maxDistance);
         const maxRange = Number.isInteger(normalizedMaxDistance) && normalizedMaxDistance > 0 ? normalizedMaxDistance : 5;

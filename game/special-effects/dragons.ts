@@ -87,6 +87,36 @@ function emitPresentationEventViaBoardOps(ev: any) {
     return SpecialEffectsPresentationBridge.emitPresentationEvent('dragons', cardState, ev);
 }
 
+function readDragonBoardOwner(row: number, col: number): number | null {
+    return SpecialEffectsPresentationBridge.readBoardOwner(gameState, cardState, row, col);
+}
+
+function emitDragonChangeForCurrentOwner(row: number, col: number): boolean {
+    const owner = readDragonBoardOwner(row, col);
+    if (owner !== BLACK && owner !== WHITE) return false;
+    const ownerAfter = owner === BLACK ? 'black' : 'white';
+    const ownerBefore = ownerAfter === 'black' ? 'white' : 'black';
+    emitPresentationEventViaBoardOps({ type: 'CHANGE', row, col, ownerBefore, ownerAfter });
+    return true;
+}
+
+function emitDragonRegenCrossfade(row: number, col: number): boolean {
+    const owner = readDragonBoardOwner(row, col);
+    if (owner !== BLACK && owner !== WHITE) return false;
+    emitPresentationEventViaBoardOps({
+        type: 'CROSSFADE_STONE',
+        row,
+        col,
+        effectKey: 'regenStone',
+        owner,
+        newColor: owner,
+        durationMs: 600,
+        autoFadeOut: true,
+        fadeWholeStone: true
+    });
+    return true;
+}
+
 /**
  * Process ultimate reverse dragons: convert surrounding enemy stones
  * @param player - Current player (BLACK=1 or WHITE=-1)
@@ -157,18 +187,7 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
         // Keep regen cross-fade requests, but avoid legacy DOM animation path during active playback.
         if (regenRes.regened && regenRes.regened.length) {
             for (const pos of regenRes.regened) {
-                const ownerColor = gameState.board[pos.row][pos.col];
-                emitPresentationEventViaBoardOps({
-                    type: 'CROSSFADE_STONE',
-                    row: pos.row,
-                    col: pos.col,
-                    effectKey: 'regenStone',
-                    owner: ownerColor,
-                    newColor: ownerColor,
-                    durationMs: 600,
-                    autoFadeOut: true,
-                    fadeWholeStone: true
-                });
+                emitDragonRegenCrossfade(pos.row, pos.col);
             }
         }
         try { emitDragonBoardUpdate(); } catch (e) { /* ignore */ }
@@ -227,9 +246,8 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
         if (regenRes.regened && regenRes.regened.length) {
             // Use universal cross-fade system
             for (const pos of regenRes.regened) {
-                const ownerColor = gameState.board[pos.row][pos.col];
                 // Ask UI to perform cross-fade via presentation event (UI decides whether to run it)
-                emitPresentationEventViaBoardOps({ type: 'CROSSFADE_STONE', row: pos.row, col: pos.col, effectKey: 'regenStone', owner: ownerColor, newColor: ownerColor, durationMs: 600, autoFadeOut: true, fadeWholeStone: true });
+                emitDragonRegenCrossfade(pos.row, pos.col);
             }
         }
 
@@ -308,9 +326,7 @@ async function processUltimateReverseDragonImmediateAtPlacement(player: number, 
             .map((p: any) => [p.row, p.col]);
         if (flipCoords.length > 0) {
             for (const [r, c] of flipCoords) {
-                const ownerAfter = (gameState.board[r][c] === BLACK) ? 'black' : 'white';
-                const ownerBefore = ownerAfter === 'black' ? 'white' : 'black';
-                emitPresentationEventViaBoardOps({ type: 'CHANGE', row: r, col: c, ownerBefore, ownerAfter });
+                emitDragonChangeForCurrentOwner(r, c);
             }
             // Wait for animation duration before finalizing colors
             await SpecialEffectsPresentationBridge.waitMs('dragons', delay);
@@ -322,9 +338,8 @@ async function processUltimateReverseDragonImmediateAtPlacement(player: number, 
         if (regenRes.regened && regenRes.regened.length) {
             // Use universal cross-fade system
             for (const pos of regenRes.regened) {
-                const actualOwnerColor = gameState.board[pos.row][pos.col];
                 // Ask UI to perform cross-fade via presentation event
-                emitPresentationEventViaBoardOps({ type: 'CROSSFADE_STONE', row: pos.row, col: pos.col, effectKey: 'regenStone', owner: actualOwnerColor, newColor: actualOwnerColor, durationMs: 600, autoFadeOut: true, fadeWholeStone: true });
+                emitDragonRegenCrossfade(pos.row, pos.col);
             }
         }
 
@@ -335,9 +350,7 @@ async function processUltimateReverseDragonImmediateAtPlacement(player: number, 
             }
             if (capCoords.length > 0) {
                 for (const [r, c] of capCoords) {
-                    const ownerAfter = (gameState.board[r][c] === BLACK) ? 'black' : 'white';
-                    const ownerBefore = ownerAfter === 'black' ? 'white' : 'black';
-                    emitPresentationEventViaBoardOps({ type: 'CHANGE', row: r, col: c, ownerBefore, ownerAfter });
+                    emitDragonChangeForCurrentOwner(r, c);
                 }
             }
             await SpecialEffectsPresentationBridge.waitMs('dragons', delay);

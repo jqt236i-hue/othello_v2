@@ -2,6 +2,7 @@ import * as path from 'path';
 const runner = require(path.resolve(__dirname, '..', 'src', 'engine', 'selfplay-runner.js'));
 const runtime = require(path.resolve(__dirname, '..', 'game', 'ai', 'policy-table-runtime.js'));
 const SharedBoardUtils = require(path.resolve(__dirname, '..', 'shared', 'shared-board-utils.js'));
+const { createSelfplaySearchPrimitives } = require(path.resolve(__dirname, '..', '..', 'src', 'engine', 'selfplay-search-primitives.js'));
 
 function transformCoord(row: number, col: number, size: number, t: number) {
   if (t === 0) return { row, col };
@@ -23,13 +24,14 @@ describe('selfplay/runtime v2 parity', () => {
 
   test('headless and browser runtime choose same move for same v2 model', () => {
     const board = [
-      [1, 0, 0],
-      [0, -1, 0],
-      [0, 0, 0]
+      [1, 0, 0, 0],
+      [0, -1, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0]
     ];
     const candidates = [
       { row: 0, col: 1, flips: [{ row: 0, col: 0 }] },
-      { row: 2, col: 2, flips: [{ row: 1, col: 1 }] }
+      { row: 3, col: 3, flips: [{ row: 1, col: 1 }] }
     ];
     const canonical = runtime.canonicalizeBoard(board);
     const selectedRaw = candidates[1];
@@ -61,7 +63,10 @@ describe('selfplay/runtime v2 parity', () => {
       candidates,
       { random: () => 0 },
       {
-        gameState: { board },
+        gameState: {
+          board,
+          boardConfig: { rows: 4, cols: 4, shape: 'rectangle' }
+        },
         cardState: {},
         playerKey: 'white',
         pendingType: null,
@@ -107,7 +112,10 @@ describe('selfplay/runtime v2 parity', () => {
       candidates,
       { random: () => 0 },
       {
-        gameState: { board },
+        gameState: {
+          board,
+          boardConfig: { rows: 8, cols: 8, shape: 'rectangle' }
+        },
         cardState: {},
         playerKey: 'white',
         pendingType: null,
@@ -126,11 +134,17 @@ describe('selfplay/runtime v2 parity', () => {
   test('headless parity keeps raw 8x8 policy keys on shaped boards', () => {
     const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
     const rawCanonical = runtime.canonicalizeBoard(board);
-    SharedBoardUtils.attachBoardShape(board, {
+    const gameState = {
+      board,
+      boardConfig: { rows: 8, cols: 8, shape: 'rectangle' },
       boardExpansion: {
         cells: [{ row: 8, col: 0, owner: 'black' }]
       }
-    });
+    };
+    const cardState = {};
+    const boardContext = SharedBoardUtils.createBoardContext(gameState, cardState);
+    const densePolicyBoard = boardContext.gameState.board;
+    expect(SharedBoardUtils.isBoardContext(boardContext)).toBe(true);
     const candidates = [
       { row: 0, col: 0, flips: [] },
       { row: 3, col: 3, flips: [] }
@@ -151,7 +165,7 @@ describe('selfplay/runtime v2 parity', () => {
     const runtimeSelected = runtime.chooseMoveFromModel(model, candidates, {
       playerKey: 'white',
       level: 6,
-      board,
+      board: densePolicyBoard,
       pendingType: null,
       legalMovesCount: candidates.length,
       preferRaw8x8Keys: true
@@ -160,8 +174,8 @@ describe('selfplay/runtime v2 parity', () => {
       candidates,
       { random: () => 0 },
       {
-        gameState: { board },
-        cardState: {},
+        gameState: boardContext.gameState,
+        cardState: boardContext.cardState,
         playerKey: 'white',
         pendingType: null,
         legalMovesCount: candidates.length
@@ -174,5 +188,38 @@ describe('selfplay/runtime v2 parity', () => {
 
     expect(runtimeSelected).toBe(candidates[0]);
     expect(headlessSelected).toBe(candidates[0]);
+  });
+
+  test('tactical board clones preserve expansion topology without mutating the source context', () => {
+    const gameState = {
+      board: Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => 0)),
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      boardExpansion: {
+        cells: [
+          { side: 'right', row: 1, col: 4, owner: -1 },
+          { side: 'right', row: 1, col: 5, owner: 0 }
+        ]
+      }
+    };
+    gameState.board[1][3] = 1;
+    const board = SharedBoardUtils.createBoardContext(gameState, { markers: [] });
+    const move = SharedBoardUtils.getLegalMovesBasic(board, 1)
+      .find((one: any) => one.row === 1 && one.col === 5);
+    const search = createSelfplaySearchPrimitives({
+      SharedBoardUtils,
+      getLegalMovesBasic: SharedBoardUtils.getLegalMovesBasic,
+      setBoardCellValue: SharedBoardUtils.setCellValue,
+      evaluatePositionValue: () => 0,
+      countCorners: () => 0
+    });
+
+    expect(move).toBeTruthy();
+    const next = search.applyMoveToBoard(board, move, 1);
+
+    expect(SharedBoardUtils.isBoardContext(next)).toBe(true);
+    expect(SharedBoardUtils.getCellValue(next, 1, 4)).toBe(1);
+    expect(SharedBoardUtils.getCellValue(next, 1, 5)).toBe(1);
+    expect(SharedBoardUtils.getCellValue(board, 1, 4)).toBe(-1);
+    expect(SharedBoardUtils.getCellValue(board, 1, 5)).toBe(0);
   });
 });

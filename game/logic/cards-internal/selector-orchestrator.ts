@@ -30,23 +30,26 @@ function getConstants(context: SelectorContext): { emptyValue: number; blackValu
     };
 }
 
-function getExpansionDescriptors(context: SelectorContext): any[] {
+function requireBoardView(context: SelectorContext): any {
     const helpers = (context && context.helpers) || {};
-    if (typeof helpers.getExpansionDescriptorsForCard !== 'function') return [];
-    const descriptors = helpers.getExpansionDescriptorsForCard(context.gameState);
-    return Array.isArray(descriptors) ? descriptors : [];
+    if (typeof helpers.createBoardViewForCard !== 'function') {
+        throw new Error('[selector-orchestrator] createBoardViewForCard is required');
+    }
+    const boardView = helpers.createBoardViewForCard(context.cardState, context.gameState);
+    if (!boardView || !Array.isArray(boardView.coordinates) || typeof boardView.get !== 'function') {
+        throw new Error('[selector-orchestrator] createBoardViewForCard returned an invalid BoardView');
+    }
+    return boardView;
 }
 
-function forEachMainBoardCell(context: SelectorContext, iteratee: (row: number, col: number, value: number) => void): void {
-    const gameState = context && context.gameState;
-    const board = gameState && gameState.board;
-    if (!Array.isArray(board)) return;
-    for (let row = 0; row < board.length; row++) {
-        const boardRow = board[row];
-        if (!Array.isArray(boardRow)) continue;
-        for (let col = 0; col < boardRow.length; col++) {
-            iteratee(row, col, boardRow[col]);
+function forEachBoardShapeCell(context: SelectorContext, iteratee: (row: number, col: number, value: number) => void): void {
+    const boardView = requireBoardView(context);
+    for (const cell of boardView.coordinates) {
+        const value = boardView.get(cell.row, cell.col);
+        if (value === null) {
+            throw new Error(`[selector-orchestrator] BoardView returned null for playable cell ${cell.row},${cell.col}`);
         }
+        iteratee(cell.row, cell.col, value);
     }
 }
 
@@ -57,11 +60,7 @@ function invokeModuleSelector(context: SelectorContext, type: string): any {
     if (!registryTarget || !selectorsModule) return null;
     const selector = selectorsModule[registryTarget.method];
     if (typeof selector !== 'function') return null;
-    try {
-        return selector(...getSelectorArgs(context, registryTarget.argsKey));
-    } catch (e) {
-        return null;
-    }
+    return selector(...getSelectorArgs(context, registryTarget.argsKey));
 }
 
 function getSelectorArgs(context: SelectorContext, argsKey: string): any[] {
@@ -86,20 +85,13 @@ function invokeLocal(context: SelectorContext, name: string, args: any[]): any {
 
 function getDestroyTargetsFallback(context: SelectorContext): { row: number; col: number }[] {
     const { emptyValue } = getConstants(context);
-    const gameState = context && context.gameState;
     const res: { row: number; col: number }[] = [];
-    if (!gameState || !Array.isArray(gameState.board)) return res;
 
-    forEachMainBoardCell(context, (row, col, ownerValue) => {
+    forEachBoardShapeCell(context, (row, col, ownerValue) => {
         if (ownerValue !== emptyValue) {
             res.push({ row, col });
         }
     });
-
-    for (const expansion of getExpansionDescriptors(context)) {
-        if (!expansion || Number(expansion.owner) === emptyValue) continue;
-        res.push({ row: expansion.row, col: expansion.col });
-    }
     return res;
 }
 
@@ -108,11 +100,8 @@ function getSwapTargetsFallback(context: SelectorContext): { row: number; col: n
     const playerVal = context.playerKey === 'black' ? blackValue : whiteValue;
     const opponentVal = -playerVal;
     const cardState = context && context.cardState;
-    const gameState = context && context.gameState;
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const res: { row: number; col: number }[] = [];
-
-    if (!gameState || !Array.isArray(gameState.board)) return res;
 
     const isHiddenTrapForPlayer = (marker: any) => (
         marker &&
@@ -142,14 +131,9 @@ function getSwapTargetsFallback(context: SelectorContext): { row: number; col: n
         res.push({ row: targetRow, col: targetCol });
     };
 
-    forEachMainBoardCell(context, (row, col, ownerValue) => {
+    forEachBoardShapeCell(context, (row, col, ownerValue) => {
         pushSwapTarget(row, col, ownerValue);
     });
-
-    for (const expansion of getExpansionDescriptors(context)) {
-        if (!expansion) continue;
-        pushSwapTarget(expansion.row, expansion.col, Number(expansion.owner));
-    }
     return res;
 }
 
@@ -157,14 +141,11 @@ function getPositionSwapTargetsFallback(context: SelectorContext): { row: number
     const { emptyValue } = getConstants(context);
     const helpers = (context && context.helpers) || {};
     const isPositionSwapProtectedCell = helpers.isPositionSwapProtectedCell;
-    const gameState = context && context.gameState;
     const pending = context && context.pending;
     const first = pending && pending.firstTarget
         ? { row: pending.firstTarget.row, col: pending.firstTarget.col }
         : null;
     const res: { row: number; col: number }[] = [];
-
-    if (!gameState || !Array.isArray(gameState.board)) return res;
 
     const pushPositionSwapTarget = (targetRow: number, targetCol: number, ownerValue: number) => {
         if (ownerValue === emptyValue) return;
@@ -175,14 +156,9 @@ function getPositionSwapTargetsFallback(context: SelectorContext): { row: number
         res.push({ row: targetRow, col: targetCol });
     };
 
-    forEachMainBoardCell(context, (row, col, ownerValue) => {
+    forEachBoardShapeCell(context, (row, col, ownerValue) => {
         pushPositionSwapTarget(row, col, ownerValue);
     });
-
-    for (const expansion of getExpansionDescriptors(context)) {
-        if (!expansion) continue;
-        pushPositionSwapTarget(expansion.row, expansion.col, Number(expansion.owner));
-    }
     return res;
 }
 

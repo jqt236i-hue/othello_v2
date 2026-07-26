@@ -1,5 +1,37 @@
 'use strict';
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+function requireBoardHintDependency(id: string): any {
+  if (typeof __non_webpack_require__ !== 'undefined') {
+    return __non_webpack_require__(id);
+  }
+  if (typeof require === 'function') {
+    return require(id);
+  }
+  return null;
+}
+
+function resolveSharedBoardUtils(): any {
+  try {
+    const required = requireBoardHintDependency('./shared-board-utils');
+    if (required) return required;
+  } catch (e) { /* use the installed browser runtime below */ }
+  if (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils) {
+    return (globalThis as any).SharedBoardUtils;
+  }
+  return null;
+}
+
+const SharedBoardUtils = resolveSharedBoardUtils();
+if (
+  !SharedBoardUtils ||
+  typeof SharedBoardUtils.createBoardContext !== 'function' ||
+  typeof SharedBoardUtils.createBoardView !== 'function'
+) {
+  throw new Error('SharedBoardUtils BoardContext APIs are required by BoardHintProjection');
+}
+
 interface BoardHintProjectionInput {
   gameState?: any;
   cardState?: any;
@@ -274,23 +306,18 @@ function buildTabooLegalSet(input: BoardHintProjectionInput, pending: any, showL
   const cardLogic = input.cardLogic;
   if (!showLegalHints || !pending || pending.type !== 'TABOO_REVERSE_WILL') return out;
   if (!cardLogic || typeof cardLogic.getTabooReverseCandidates !== 'function') return out;
-  const rows = input.boardShape && Number.isInteger(input.boardShape.rows) ? input.boardShape.rows as number : 8;
-  const cols = input.boardShape && Number.isInteger(input.boardShape.cols) ? input.boardShape.cols as number : 8;
+  const context = SharedBoardUtils.createBoardContext(input.gameState, input.cardState);
+  const view = SharedBoardUtils.createBoardView(context.gameState, {
+    cardState: context.cardState,
+    strict: false
+  });
   const visit = (row: number, col: number) => {
     const candidates = cardLogic.getTabooReverseCandidates(input.cardState, input.gameState, input.playerKey, row, col);
     if (Array.isArray(candidates) && candidates.length > 0) out.add(`${row},${col}`);
   };
-  for (let row = 0; row < rows; row += 1) {
-    for (let col = 0; col < cols; col += 1) {
-      if (input.gameState && input.gameState.board && input.gameState.board[row] && input.gameState.board[row][col] === 0) {
-        visit(row, col);
-      }
-    }
+  for (const cell of view.coordinates) {
+    if (view.get(cell.row, cell.col) === 0) visit(cell.row, cell.col);
   }
-  const expansions = Array.isArray(input.expansions) ? input.expansions : [];
-  expansions.forEach((expansion) => {
-    if (expansion && Number(expansion.owner) === 0) visit(Number(expansion.row), Number(expansion.col));
-  });
   return out;
 }
 

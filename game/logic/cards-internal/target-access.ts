@@ -129,8 +129,8 @@ function getBoardExpansionGodPendingSelectionsForCard(pending: any, deps: Target
     return deps.CardExpansionModule.getBoardExpansionGodPendingSelectionsForCard(pending);
 }
 
-function ensureExpansionCellForCard(gameState: any, row: any, col: any, owner: any, deps: TargetAccessDeps) {
-    return deps.CardExpansionModule.ensureExpansionCellForCard(gameState, row, col, owner);
+function ensureExpansionCellForCard(cardState: any, gameState: any, row: any, col: any, owner: any, deps: TargetAccessDeps) {
+    return deps.CardExpansionModule.ensureExpansionCellForCard(cardState, gameState, row, col, owner);
 }
 
 function getBoardExpansionGodTargets(cardState: any, gameState: any, playerKey: any, deps: TargetAccessDeps) {

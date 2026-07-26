@@ -19,47 +19,6 @@ declare const EMPTY: number;
 
 let activePreparedVisualStateForDiff: { gameState: any; cardState: any } | null = null;
 
-function _getBoardValueConstantsForDiff() {
-    const shared = SharedConstantsModuleForDiff;
-    return {
-        BLACK: shared && Number.isFinite(Number(shared.BLACK))
-            ? Number(shared.BLACK)
-            : ((typeof BLACK !== 'undefined') ? BLACK : 1),
-        WHITE: shared && Number.isFinite(Number(shared.WHITE))
-            ? Number(shared.WHITE)
-            : ((typeof WHITE !== 'undefined') ? WHITE : -1),
-        EMPTY: shared && Number.isFinite(Number(shared.EMPTY))
-            ? Number(shared.EMPTY)
-            : ((typeof EMPTY !== 'undefined') ? EMPTY : 0)
-    };
-}
-
-function _getBoardShapeForDiff(gameState: any) {
-    const board = (gameState && Array.isArray(gameState.board)) ? gameState.board : null;
-    let rows = Array.isArray(board) ? board.length : 8;
-    let cols = 0;
-    if (Array.isArray(board)) {
-        for (const row of board) {
-            if (Array.isArray(row)) cols = Math.max(cols, row.length);
-        }
-    }
-    if (!Number.isInteger(rows) || rows <= 0) rows = 8;
-    if (!Number.isInteger(cols) || cols <= 0) cols = 8;
-    return { rows, cols };
-}
-
-function _normalizeBoardShapeInputForDiff(shapeOrGameState: any) {
-    const rows = Number(shapeOrGameState && shapeOrGameState.rows);
-    const cols = Number(shapeOrGameState && shapeOrGameState.cols);
-    if (Number.isFinite(rows) && Number.isFinite(cols)) {
-        return {
-            rows: Math.max(1, Math.trunc(rows)),
-            cols: Math.max(1, Math.trunc(cols))
-        };
-    }
-    return _getBoardShapeForDiff(shapeOrGameState);
-}
-
 var SpecialStoneRegistryModule: any = null;
 
 if (typeof require === 'function') {
@@ -102,98 +61,6 @@ function _getSharedBoardUtilsForDiff() {
     return globalScope.SharedBoardUtils || null;
 }
 
-function _isMainBoardCellForDiff(row: any, col: any, shapeOrGameState?: any) {
-    const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
-    return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < shape.rows && col >= 0 && col < shape.cols;
-}
-
-function _resolveExpansionSideForDiff(side: any, row: any, col: any, shapeOrGameState: any) {
-    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
-    if (sharedBoardUtils && typeof sharedBoardUtils.resolveExpansionSide === 'function') {
-        const resolved = sharedBoardUtils.resolveExpansionSide(side, row, col, shapeOrGameState);
-        if (resolved) return resolved;
-    }
-    const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
-    if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-    if (col === -1) return 'left';
-    if (col === shape.cols) return 'right';
-    if (row === -1) return 'top';
-    if (row === shape.rows) return 'bottom';
-    return null;
-}
-
-function _isExpansionCoordinateForDiff(row: any, col: any, shapeOrGameState: any) {
-    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
-    if (sharedBoardUtils && typeof sharedBoardUtils.isExpansionCoordinate === 'function') {
-        return !!sharedBoardUtils.isExpansionCoordinate(row, col, shapeOrGameState);
-    }
-    const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    if (row < -1 || row > shape.rows || col < -1 || col > shape.cols) return false;
-    if (_isMainBoardCellForDiff(row, col, shape)) return false;
-    return true;
-}
-
-function _getExpansionDescriptorsForDiff(gameState: any): any[] {
-    const boardShape = _getBoardShapeForDiff(gameState);
-    const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-        ? gameState.boardExpansion
-        : null;
-    if (!expansion) return [];
-    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
-    if (sharedBoardUtils && typeof sharedBoardUtils.collectExpansionDescriptors === 'function') {
-        return sharedBoardUtils.collectExpansionDescriptors(expansion, gameState);
-    }
-
-    const out: any[] = [];
-    const pushDescriptor = (source: any, legacyRow?: any, legacyOwner?: any) => {
-        let side: any = null;
-        let row: any = null;
-        let col: any = null;
-        let owner = legacyOwner;
-
-        if (source && typeof source === 'object') {
-            side = source.side;
-            row = source.row;
-            col = source.col;
-            owner = source.owner;
-            if (!Number.isInteger(col) && side === 'left') col = -1;
-            if (!Number.isInteger(col) && side === 'right') col = boardShape.cols;
-            if (!Number.isInteger(row) && side === 'top') row = -1;
-            if (!Number.isInteger(row) && side === 'bottom') row = boardShape.rows;
-        } else {
-            side = source;
-            row = legacyRow;
-            if (side === 'left') col = -1;
-            if (side === 'right') col = boardShape.cols;
-            if (side === 'top') row = -1;
-            if (side === 'bottom') row = boardShape.rows;
-        }
-
-        if (!_isExpansionCoordinateForDiff(row, col, boardShape)) return;
-        if (out.some((desc) => desc && desc.row === row && desc.col === col)) return;
-        const constants = _getBoardValueConstantsForDiff();
-        out.push({
-            row,
-            col,
-            side: _resolveExpansionSideForDiff(side, row, col, boardShape),
-            owner: (owner === constants.BLACK || owner === constants.WHITE) ? owner : constants.EMPTY
-        });
-    };
-
-    if (Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            pushDescriptor(cell);
-        }
-    }
-
-    if (out.length === 0 && expansion.active === true) {
-        pushDescriptor(expansion);
-    }
-
-    return out;
-}
 
 var SharedConstantsModuleForDiff: any = null;
 
@@ -258,6 +125,24 @@ function _resolveGameStateForDiffRender() {
     } catch (e: any) { /* ignore */ }
     try {
         if (typeof globalThis !== 'undefined' && (globalThis as any).gameState && typeof (globalThis as any).gameState === 'object') return (globalThis as any).gameState;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
+function _resolveCardStateForDiffRender() {
+    if (activePreparedVisualStateForDiff) return activePreparedVisualStateForDiff.cardState;
+    const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
+    if (visualSnapshot && visualSnapshot.cardState) return visualSnapshot.cardState;
+    try {
+        if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') return window.cardState;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object') {
+            return (globalThis as any).cardState;
+        }
     } catch (e: any) { /* ignore */ }
     return null;
 }
@@ -582,7 +467,8 @@ function _getMarkerKinds() {
 }
 
 function _getMarkerEntriesAt(row: any, col: any) {
-    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    const cardStateValue = _resolveCardStateForDiffRender();
+    const markers = cardStateValue && Array.isArray(cardStateValue.markers) ? cardStateValue.markers : [];
     const kinds = _getMarkerKinds();
     const entries = [];
 
@@ -609,7 +495,8 @@ function _getMarkerEntriesAt(row: any, col: any) {
 }
 
 function _hasGuardMarkerAt(row: any, col: any) {
-    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    const cardStateValue = _resolveCardStateForDiffRender();
+    const markers = cardStateValue && Array.isArray(cardStateValue.markers) ? cardStateValue.markers : [];
     return markers.some((m: any) => (
         m &&
         m.kind === _getMarkerKinds().SPECIAL_STONE &&
@@ -692,20 +579,17 @@ function _getStoneOwnerAt(row: any, col: any) {
     const black = (typeof BLACK !== 'undefined') ? BLACK : 1;
     const white = (typeof WHITE !== 'undefined') ? WHITE : -1;
     const state = _resolveGameStateForDiffRender();
-
-    if (_isMainBoardCellForDiff(row, col)) {
-        const board = (state && Array.isArray(state.board)) ? state.board : null;
-        const rowValues = board && Array.isArray(board[row]) ? board[row] : null;
-        const value = Number(rowValues ? rowValues[col] : NaN);
-        if (value === black || value === white) return value;
-        return null;
+    if (!state) return null;
+    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
+    if (
+        !sharedBoardUtils
+        || typeof sharedBoardUtils.createBoardContext !== 'function'
+        || typeof sharedBoardUtils.getCellValue !== 'function'
+    ) {
+        throw new Error('SharedBoardUtils BoardContext APIs are required by stone-info-controller');
     }
-
-    const expansion = _getExpansionDescriptorsForDiff(state).find((cell) => (
-        cell && _isSameBoardCoord(cell.row, cell.col, row, col)
-    ));
-    if (!expansion) return null;
-    const owner = Number(expansion.owner);
+    const context = sharedBoardUtils.createBoardContext(state, _resolveCardStateForDiffRender());
+    const owner = Number(sharedBoardUtils.getCellValue(context, Number(row), Number(col)));
     return owner === black || owner === white ? owner : null;
 }
 
@@ -719,9 +603,7 @@ function _getNormalStoneInfo(row: any, col: any) {
 }
 
 function _getBreedingSproutOwnerKeyAt(row: any, col: any) {
-    const cardStateValue = (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object')
-        ? cardState
-        : null;
+    const cardStateValue = _resolveCardStateForDiffRender();
     if (!cardStateValue || typeof cardStateValue.breedingSproutByOwner !== 'object' || !cardStateValue.breedingSproutByOwner) {
         return null;
     }

@@ -74,9 +74,10 @@ describe('card target resolver taboo reverse picker', () => {
     const resolver = require('../game/cards/target-resolver');
     const gameState = {
       board: [
-        [1, 1, 1],
-        [0, 0, 0],
-        [0, 0, 0]
+        [1, 1, 1, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
       ]
     };
     const cardState = {

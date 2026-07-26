@@ -41,9 +41,9 @@ function resolveTimeBombModuleOrGlobal(id: string, globalKey: string): any {
 }
 
 const SharedConstants = resolveTimeBombModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+const SharedBoardUtils = resolveTimeBombModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
 const BoardOpsModule = resolveTimeBombModuleOrGlobal('../board_ops', 'BoardOps');
 const CardMarkersModule = resolveTimeBombModuleOrGlobal('./markers', 'CardMarkers');
-const ExpansionFallbackModule = resolveTimeBombModuleOrGlobal('../cards-internal/expansion-fallback', 'CardExpansionFallback');
 
 const { TIME_BOMB_TURNS } = SharedConstants || {};
 const BOMB_CATEGORY = 'bomb';
@@ -85,53 +85,46 @@ function isBombCategoryMarker(marker: any): boolean {
     );
 }
 
-if (!ExpansionFallbackModule) {
-    throw new Error('CardExpansionFallback missing required helpers');
+if (!SharedBoardUtils ||
+    typeof SharedBoardUtils.createBoardContext !== 'function' ||
+    typeof SharedBoardUtils.getCellValue !== 'function' ||
+    typeof SharedBoardUtils.setCellValue !== 'function') {
+    throw new Error('SharedBoardUtils BoardContext APIs are required by CardTimeBomb');
 }
 
-interface BoardDims {
-    rows: number;
-    cols: number;
+function createTimeBombBoardContext(cardState: CardState, gameState: GameState): any {
+    return SharedBoardUtils.createBoardContext(gameState, cardState);
 }
 
-const resolveBoardDims = ExpansionFallbackModule.resolveBoardDims as (gameState: GameState) => BoardDims;
-
-function getExpansionCells(gameState: GameState): any[] {
-    if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
-        return BoardOpsModule.getExpansionDescriptors(gameState);
-    }
-    return ExpansionFallbackModule.getExpansionCells(gameState);
-}
-
-function getCellValue(gameState: GameState, row: number, col: number): any {
+function getCellValue(gameState: GameState, row: number, col: number, cardState: CardState): any {
     if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
-        return BoardOpsModule.getCellValue(gameState, row, col);
+        return BoardOpsModule.getCellValue(gameState, row, col, cardState);
     }
-    return ExpansionFallbackModule.getCellValue(gameState, row, col);
+    return SharedBoardUtils.getCellValue(createTimeBombBoardContext(cardState, gameState), row, col);
 }
 
-function setCellValue(gameState: GameState, row: number, col: number, value: any): boolean {
+function setCellValue(gameState: GameState, row: number, col: number, value: any, cardState: CardState): boolean {
     if (BoardOpsModule && typeof BoardOpsModule.setCellValue === 'function') {
-        return BoardOpsModule.setCellValue(gameState, row, col, value);
+        return BoardOpsModule.setCellValue(gameState, row, col, value, cardState);
     }
-    return ExpansionFallbackModule.setCellValue(gameState, row, col, value);
+    return SharedBoardUtils.setCellValue(createTimeBombBoardContext(cardState, gameState), row, col, value);
 }
 
-function forEachNeighborCell(gameState: GameState, row: number, col: number, handler: (r: number, c: number, value: any) => void): void {
+function forEachNeighborCell(cardState: CardState, gameState: GameState, row: number, col: number, handler: (r: number, c: number, value: any) => void): void {
     for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
             const r = row + dr;
             const c = col + dc;
-            const value = getCellValue(gameState, r, c);
+            const value = getCellValue(gameState, r, c, cardState);
             if (value === null) continue;
             handler(r, c, value);
         }
     }
 }
 
-function getExplosionTargetsSnapshot(gameState: GameState, row: number, col: number): Array<{ row: number; col: number }> {
+function getExplosionTargetsSnapshot(cardState: CardState, gameState: GameState, row: number, col: number): Array<{ row: number; col: number }> {
     const targets: Array<{ row: number; col: number }> = [];
-    forEachNeighborCell(gameState, row, col, (r, c, value) => {
+    forEachNeighborCell(cardState, gameState, row, col, (r, c, value) => {
         if (value === null || value === 0) return;
         targets.push({ row: r, col: c });
     });
@@ -253,11 +246,10 @@ function tickBombs(cardState: CardState, gameState: GameState, playerKey: Player
         if (cs.markers) cs.markers = cs.markers.filter((m: any) => !(m.row === r && m.col === c));
     });
     const destroyAt = deps.destroyAt || ((cs: any, gs: GameState, r: number, c: number) => {
-        const current = getCellValue(gs, r, c);
+        const current = getCellValue(gs, r, c, cs);
         if (current === null || current === 0) return false;
         removeMarkersAt(cs, r, c);
-        setCellValue(gs, r, c, 0);
-        return true;
+        return setCellValue(gs, r, c, 0, cs);
     });
 
     const exploded: Array<{ row: number; col: number }> = [];
@@ -277,9 +269,9 @@ function tickBombs(cardState: CardState, gameState: GameState, playerKey: Player
         bomb.data.remainingTurns = (typeof bomb.data.remainingTurns === 'number') ? bomb.data.remainingTurns - 1 : -1;
         if (bomb.data.remainingTurns <= 0) {
             exploded.push({ row: bomb.row, col: bomb.col });
-            const targets = getExplosionTargetsSnapshot(gameState, bomb.row, bomb.col);
+            const targets = getExplosionTargetsSnapshot(cardState, gameState, bomb.row, bomb.col);
             const forbiddenEvadeCells: Array<{ row: number; col: number }> = [];
-            forEachNeighborCell(gameState, bomb.row, bomb.col, (r, c, value) => {
+            forEachNeighborCell(cardState, gameState, bomb.row, bomb.col, (r, c, value) => {
                 if (value === null) return;
                 forbiddenEvadeCells.push({ row: r, col: c });
             });
@@ -347,11 +339,10 @@ function tickBombAt(cardState: CardState, gameState: GameState, bomb: any, activ
         if (cs.markers) cs.markers = cs.markers.filter((m: any) => !(m.row === r && m.col === c));
     });
     const destroyAt = deps.destroyAt || ((cs: any, gs: GameState, r: number, c: number) => {
-        const current = getCellValue(gs, r, c);
+        const current = getCellValue(gs, r, c, cs);
         if (current === null || current === 0) return false;
         removeMarkersAt(cs, r, c);
-        setCellValue(gs, r, c, 0);
-        return true;
+        return setCellValue(gs, r, c, 0, cs);
     });
 
     const bombs = getBombMarkers(cardState);
@@ -371,9 +362,9 @@ function tickBombAt(cardState: CardState, gameState: GameState, bomb: any, activ
 
     const exploded = [{ row: b.row, col: b.col }];
     const destroyed: Array<{ row: number; col: number }> = [];
-    const targets = getExplosionTargetsSnapshot(gameState, b.row, b.col);
+    const targets = getExplosionTargetsSnapshot(cardState, gameState, b.row, b.col);
     const forbiddenEvadeCells: Array<{ row: number; col: number }> = [];
-    forEachNeighborCell(gameState, b.row, b.col, (r, c, value) => {
+    forEachNeighborCell(cardState, gameState, b.row, b.col, (r, c, value) => {
         if (value === null) return;
         forbiddenEvadeCells.push({ row: r, col: c });
     });

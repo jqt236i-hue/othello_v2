@@ -1,4 +1,5 @@
 import { createCpuPolicyDecisionContext } from '../game/ai/cpu-policy-decision-context';
+const SharedBoardUtils = require('../shared/shared-board-utils');
 
 describe('cpu-policy decision context module', () => {
   test('derives board stats and estimated disc counts when explicit values are missing', () => {
@@ -67,5 +68,61 @@ describe('cpu-policy decision context module', () => {
     expect(pressured.forceUseCard).toBe(false);
     expect(pressured.minUseScore).toBeLessThanOrEqual(6);
     expect(pressured.reserveChargeFloor).toBe(2);
+  });
+
+  test('derives stats from a BoardContext with expansion cells and a meteor hole', () => {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    board[0][0] = 1;
+    board[1][1] = 1;
+    board[2][2] = -1;
+    const gameState = {
+      board,
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      boardExpansion: {
+        cells: Array.from({ length: 4 }, (_unused, row) => ({
+          side: 'right',
+          row,
+          col: 4,
+          owner: row === 1 ? 1 : 0
+        }))
+      }
+    };
+    const cardState = {
+      markers: [{
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        data: { type: 'METEOR_HOLE' }
+      }]
+    };
+    const boardContext = SharedBoardUtils.createBoardContext(gameState, cardState);
+    const helpers = createCpuPolicyDecisionContext({
+      isBoardContext: SharedBoardUtils.isBoardContext,
+      countPlayableCells: (source) => SharedBoardUtils.collectBoardCoordinates(source).length,
+      countBoardDiscsForPlayer: (source, playerValue) => {
+        const counts = SharedBoardUtils.countDiscsByPlayer(source);
+        return {
+          own: playerValue === 1 ? counts.black : counts.white,
+          opp: playerValue === 1 ? counts.white : counts.black,
+          empties: SharedBoardUtils.countBoardEmpties(source)
+        };
+      },
+      countBoardEdgeDiscsForPlayer: (source, playerValue) => SharedBoardUtils.countEdgeControl(source, playerValue)
+    });
+
+    const out = helpers.buildCardDecisionContext({
+      board: boardContext,
+      playerValue: 1,
+      level: 6,
+      legalMovesCount: 3
+    } as any);
+
+    expect(out.totalCells).toBe(19);
+    expect(out.discDiff).toBe(1);
+    expect(out.ownDiscs).toBe(2);
+    expect(out.oppDiscs).toBe(1);
+    expect(out.empties).toBe(16);
+    expect(out.ownEdges).toBe(1);
+    expect(out.oppEdges).toBe(0);
   });
 });

@@ -4,22 +4,10 @@ const LEGACY_BOARD_SIZE = 8;
 const LEGACY_BOARD_FEATURE_DIM = 64;
 const MAX_HAND_SIZE = 5;
 
-let SharedBoardUtils: any = null;
-try {
-    SharedBoardUtils = require('../../shared/shared-board-utils');
-} catch (e) {
-    // Optional fallback for bundled/runtime environments.
-}
-
-const PADDED_BOARD_MIN = SharedBoardUtils && Number.isFinite(Number(SharedBoardUtils.PADDED_BOARD_MIN))
-    ? Number(SharedBoardUtils.PADDED_BOARD_MIN)
-    : -1;
-const PADDED_BOARD_MAX = SharedBoardUtils && Number.isFinite(Number(SharedBoardUtils.PADDED_BOARD_MAX))
-    ? Number(SharedBoardUtils.PADDED_BOARD_MAX)
-    : 8;
-const PADDED_BOARD_SIZE = SharedBoardUtils && Number.isFinite(Number(SharedBoardUtils.PADDED_BOARD_SIZE))
-    ? Number(SharedBoardUtils.PADDED_BOARD_SIZE)
-    : 10;
+const SharedBoardUtils = require('../../shared/shared-board-utils');
+const PADDED_BOARD_MIN = Number(SharedBoardUtils.PADDED_BOARD_MIN);
+const PADDED_BOARD_MAX = Number(SharedBoardUtils.PADDED_BOARD_MAX);
+const PADDED_BOARD_SIZE = Number(SharedBoardUtils.PADDED_BOARD_SIZE);
 const PADDED_BOARD_FEATURE_DIM = PADDED_BOARD_SIZE * PADDED_BOARD_SIZE;
 let CHARGE_MAX_NORMALIZER = 99;
 try {
@@ -80,43 +68,41 @@ function toBinaryFlag(raw: any) {
     return n > 0 ? 1 : 0;
 }
 
+function isBoardSource(board: any) {
+    return Array.isArray(board) || !!(
+        typeof SharedBoardUtils.isBoardContext === 'function' &&
+        SharedBoardUtils.isBoardContext(board)
+    );
+}
+
 function getBoardCoordinates(board: any) {
-    if (!Array.isArray(board)) return [];
-    if (SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function') {
-        return SharedBoardUtils.collectBoardCoordinates(board);
+    if (typeof SharedBoardUtils.collectBoardCoordinates !== 'function') {
+        throw new Error('SharedBoardUtils.collectBoardCoordinates is required by policy feature vector');
     }
-    const out = [];
-    for (let row = 0; row < Math.min(LEGACY_BOARD_SIZE, board.length); row++) {
-        const cells = Array.isArray(board[row]) ? board[row] : [];
-        for (let col = 0; col < Math.min(LEGACY_BOARD_SIZE, cells.length); col++) {
-            out.push({ row, col });
-        }
-    }
-    return out;
+    return SharedBoardUtils.collectBoardCoordinates(board);
 }
 
 function getBoardCellValue(board: any, row: any, col: any) {
-    if (SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function') {
-        return SharedBoardUtils.getCellValue(board, row, col);
+    if (typeof SharedBoardUtils.getCellValue !== 'function') {
+        throw new Error('SharedBoardUtils.getCellValue is required by policy feature vector');
     }
-    if (!Array.isArray(board) || !Array.isArray(board[row])) return null;
-    return board[row][col];
+    return SharedBoardUtils.getCellValue(board, row, col);
 }
 
 function isCornerMoveForBoard(move: any, board: any) {
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return false;
-    if (SharedBoardUtils && typeof SharedBoardUtils.isCornerCell === 'function') {
-        return SharedBoardUtils.isCornerCell(Number(move.row), Number(move.col), board);
+    if (typeof SharedBoardUtils.isCornerCell !== 'function') {
+        throw new Error('SharedBoardUtils.isCornerCell is required by policy feature vector');
     }
-    return (move.row === 0 || move.row === 7) && (move.col === 0 || move.col === 7);
+    return SharedBoardUtils.isCornerCell(Number(move.row), Number(move.col), board);
 }
 
 function isEdgeMoveForBoard(move: any, board: any) {
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return false;
-    if (SharedBoardUtils && typeof SharedBoardUtils.isEdgeCell === 'function') {
-        return SharedBoardUtils.isEdgeCell(Number(move.row), Number(move.col), board);
+    if (typeof SharedBoardUtils.isEdgeCell !== 'function') {
+        throw new Error('SharedBoardUtils.isEdgeCell is required by policy feature vector');
     }
-    return move.row === 0 || move.row === 7 || move.col === 0 || move.col === 7;
+    return SharedBoardUtils.isEdgeCell(Number(move.row), Number(move.col), board);
 }
 
 function isPaddedActionSpace(modelMeta: any, outputDimHint: any) {
@@ -152,14 +138,14 @@ function resolveBoardFeatureDim(modelMeta: any, baseInputDim: any) {
 
 function countCornerEdgeControl(board: any, playerKey: any) {
     const out = { ownCorners: 0, oppCorners: 0, ownEdges: 0, oppEdges: 0 };
-    if (!Array.isArray(board)) return out;
+    if (!isBoardSource(board)) return out;
     const own = playerKey === 'black' ? 1 : -1;
-    if (SharedBoardUtils && typeof SharedBoardUtils.countCornerControl === 'function') {
+    if (typeof SharedBoardUtils.countCornerControl === 'function') {
         const cornerControl = SharedBoardUtils.countCornerControl(board, own);
         out.ownCorners = Number(cornerControl && cornerControl.ownCorners) || 0;
         out.oppCorners = Number(cornerControl && cornerControl.oppCorners) || 0;
     }
-    if (SharedBoardUtils && typeof SharedBoardUtils.countEdgeControl === 'function') {
+    if (typeof SharedBoardUtils.countEdgeControl === 'function') {
         const edgeControl = SharedBoardUtils.countEdgeControl(board, own);
         out.ownEdges = Number(edgeControl && edgeControl.ownEdges) || 0;
         out.oppEdges = Number(edgeControl && edgeControl.oppEdges) || 0;
@@ -260,7 +246,7 @@ function resolveDeckCountScalar(ctx: any, modelMeta: any) {
 
 function buildPolicyFeatureVector(context: any, metaOverride?: any, actionIdsOverride?: any) {
     const ctx = context || {};
-    const board = Array.isArray(ctx.board) ? ctx.board : [];
+    const board = isBoardSource(ctx.board) ? ctx.board : [];
     const playerKey = ctx.playerKey === 'black' ? 'black' : 'white';
     const modelMeta = metaOverride || {};
     const actionIds = Array.isArray(actionIdsOverride)
@@ -274,7 +260,7 @@ function buildPolicyFeatureVector(context: any, metaOverride?: any, actionIdsOve
     const boardFeatureDim = resolveBoardFeatureDim(modelMeta, baseInputDim);
     const out = new Float32Array(inputDim);
 
-    if (board.length > 0) {
+    if (getBoardCoordinates(board).length > 0) {
         if (boardFeatureDim > LEGACY_BOARD_FEATURE_DIM) {
             let idx = 0;
             for (let row = PADDED_BOARD_MIN; row <= PADDED_BOARD_MAX; row++) {
@@ -295,7 +281,7 @@ function buildPolicyFeatureVector(context: any, metaOverride?: any, actionIdsOve
     const legalMoves = Number.isFinite(ctx.legalMovesCount) ? ctx.legalMovesCount : 0;
     let blackCount = Number.isFinite(ctx.blackCountBefore) ? ctx.blackCountBefore : 0;
     let whiteCount = Number.isFinite(ctx.whiteCountBefore) ? ctx.whiteCountBefore : 0;
-    if ((!Number.isFinite(ctx.blackCountBefore) || !Number.isFinite(ctx.whiteCountBefore)) && Array.isArray(board)) {
+    if ((!Number.isFinite(ctx.blackCountBefore) || !Number.isFinite(ctx.whiteCountBefore)) && isBoardSource(board)) {
         blackCount = 0;
         whiteCount = 0;
         for (const cell of getBoardCoordinates(board)) {

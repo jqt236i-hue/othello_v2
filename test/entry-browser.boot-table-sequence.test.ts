@@ -90,7 +90,6 @@ describe('entry-browser boot load table sequence', () => {
       './dist/shared/board/configuration',
       './dist/shared/board/initial-layout',
       './dist/shared/board/expansion-descriptors',
-      './dist/shared/board/shape-metadata',
       './dist/shared/board/cell-access',
       './dist/shared/board/corners',
       './dist/shared/board/edge-runs',
@@ -101,6 +100,7 @@ describe('entry-browser boot load table sequence', () => {
       './dist/shared/board/canonical-encoding',
       './dist/shared/board/notation',
       './dist/shared/board/padded-coordinates',
+      './dist/shared/board/state-kernel',
       './dist/shared/shared-board-utils',
       './dist/shared/deck-spec',
       './dist/shared/deck-codec',
@@ -119,7 +119,6 @@ describe('entry-browser boot load table sequence', () => {
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/configuration'))).toContain('BoardConfiguration');
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/initial-layout'))).toContain('InitialBoardLayout');
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/expansion-descriptors'))).toContain('BoardExpansionDescriptors');
-    expect(getAllGlobalNames(byModule.get('./dist/shared/board/shape-metadata'))).toContain('BoardShapeMetadata');
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/cell-access'))).toContain('BoardCellAccess');
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/corners'))).toContain('BoardCorners');
     expect(getAllGlobalNames(byModule.get('./dist/shared/board/risk-cells'))).toContain('BoardRiskCells');

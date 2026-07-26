@@ -1,18 +1,9 @@
 type BreedingOwnerValue = number;
 type BreedingSeatKey = 'black' | 'white';
-type BreedingExpansionSide = 'left' | 'right' | 'top' | 'bottom';
-
 interface BreedingSharedConstants {
     BLACK: BreedingOwnerValue;
     WHITE: BreedingOwnerValue;
     EMPTY: BreedingOwnerValue;
-}
-
-interface BreedingBoardBounds {
-    minRow: number;
-    maxRow: number;
-    minCol: number;
-    maxCol: number;
 }
 
 interface BreedingPosition {
@@ -20,23 +11,8 @@ interface BreedingPosition {
     col: number;
 }
 
-interface BreedingExpansionCell extends BreedingPosition {
-    side?: BreedingExpansionSide | null;
-    owner?: BreedingOwnerValue;
-}
-
-interface BreedingExpansionState {
-    active?: boolean;
-    side?: BreedingExpansionSide | null;
-    row?: number | null;
-    col?: number | null;
-    owner?: BreedingOwnerValue;
-    cells?: BreedingExpansionCell[];
-}
-
 interface BreedingGameState {
     board?: BreedingOwnerValue[][];
-    boardExpansion?: BreedingExpansionState | null;
     [key: string]: unknown;
 }
 
@@ -71,7 +47,10 @@ interface BreedingRuntimeCardState extends BreedingCardState {
 }
 
 interface BreedingSharedBoardUtilsModule {
-    resolveBoardBounds?: (board: BreedingOwnerValue[][] | undefined) => BreedingBoardBounds | null;
+    createBoardContext?: (gameState: BreedingGameState, cardState: BreedingCardState) => any;
+    getCellValue?: (boardContext: any, row: number, col: number) => BreedingOwnerValue | null;
+    setCellValue?: (boardContext: any, row: number, col: number, value: BreedingOwnerValue) => boolean;
+    collectBoardCoordinates?: (boardContext: any) => BreedingPosition[];
 }
 
 interface BreedingRandomLike {
@@ -85,6 +64,7 @@ interface BreedingRandomSourceModule {
 interface BreedingCardContext {
     protectedStones?: unknown[];
     permaProtectedStones?: unknown[];
+    cardState?: BreedingCardState;
     [key: string]: unknown;
 }
 
@@ -210,120 +190,36 @@ const CardBreeding = /**
         throw new Error('SharedConstants missing required values');
     }
 
-    function _resolveBoardBounds(gameState: BreedingGameState): BreedingBoardBounds | null {
-        if (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardBounds === 'function') {
-            return SharedBoardUtils.resolveBoardBounds(gameState && gameState.board);
+    function _requireBoardUtils(): Required<BreedingSharedBoardUtilsModule> {
+        if (
+            !SharedBoardUtils ||
+            typeof SharedBoardUtils.createBoardContext !== 'function' ||
+            typeof SharedBoardUtils.getCellValue !== 'function' ||
+            typeof SharedBoardUtils.setCellValue !== 'function' ||
+            typeof SharedBoardUtils.collectBoardCoordinates !== 'function'
+        ) {
+            throw new Error('SharedBoardUtils BoardContext APIs are required by CardBreeding');
         }
-        const board = gameState && gameState.board;
-        if (!Array.isArray(board) || board.length <= 0) return null;
-        let maxCol = -1;
-        for (const row of board) {
-            if (Array.isArray(row) && row.length > 0) {
-                maxCol = Math.max(maxCol, row.length - 1);
-            }
-        }
-        if (maxCol < 0) return null;
-        return { minRow: 0, maxRow: board.length - 1, minCol: 0, maxCol };
+        return SharedBoardUtils as Required<BreedingSharedBoardUtilsModule>;
     }
 
-    function _isMainBoardCell(gameState: BreedingGameState, row: number, col: number): boolean {
-        const bounds = _resolveBoardBounds(gameState);
-        return !!(
-            bounds &&
-            Number.isInteger(row) &&
-            Number.isInteger(col) &&
-            row >= bounds.minRow &&
-            row <= bounds.maxRow &&
-            col >= bounds.minCol &&
-            col <= bounds.maxCol
-        );
+    function _createBoardContext(cardState: BreedingCardState, gameState: BreedingGameState): any {
+        return _requireBoardUtils().createBoardContext(gameState, cardState);
     }
 
-    function _resolveExpansionSide(side: unknown, row: number, col: number, gameState: BreedingGameState): BreedingExpansionSide | null {
-        const bounds = _resolveBoardBounds(gameState);
-        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-        if (!bounds) return null;
-        if (col === -1) return 'left';
-        if (col === (bounds.maxCol + 1)) return 'right';
-        if (row === -1) return 'top';
-        if (row === (bounds.maxRow + 1)) return 'bottom';
-        return null;
+    function _getBoardCell(cardState: BreedingCardState, gameState: BreedingGameState, row: number, col: number): BreedingOwnerValue | null {
+        const boardUtils = _requireBoardUtils();
+        return boardUtils.getCellValue(_createBoardContext(cardState, gameState), row, col);
     }
 
-    function _getExpansionCellRef(gameState: BreedingGameState, row: number, col: number): { expansion: BreedingExpansionState; index: number; cell: BreedingExpansionCell | BreedingExpansionState; legacy: boolean } | null {
-        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-            ? gameState.boardExpansion
-            : null;
-        if (!expansion) return null;
-
-        if (Array.isArray(expansion.cells)) {
-            for (let index = 0; index < expansion.cells.length; index++) {
-                const cell = expansion.cells[index];
-                if (!cell || typeof cell !== 'object') continue;
-                const bounds = _resolveBoardBounds(gameState);
-                const cellCol = Number.isInteger(cell.col)
-                    ? cell.col
-                    : (cell.side === 'left' ? -1 : (cell.side === 'right' && bounds ? bounds.maxCol + 1 : null));
-                if (!Number.isInteger(cellCol)) continue;
-                if (cell.row === row && cellCol === col) {
-                    return { expansion, index, cell, legacy: false };
-                }
-            }
-        }
-
-        if (expansion.active === true) {
-            const bounds = _resolveBoardBounds(gameState);
-            const legacyCol = Number.isInteger(expansion.col)
-                ? expansion.col
-                : (expansion.side === 'left' ? -1 : (expansion.side === 'right' && bounds ? bounds.maxCol + 1 : null));
-            if (expansion.row === row && legacyCol === col) {
-                return { expansion, index: -1, cell: expansion, legacy: true };
-            }
-        }
-
-        return null;
+    function _setBoardCell(cardState: BreedingCardState, gameState: BreedingGameState, row: number, col: number, value: BreedingOwnerValue): boolean {
+        const boardUtils = _requireBoardUtils();
+        return boardUtils.setCellValue(_createBoardContext(cardState, gameState), row, col, value);
     }
 
-    function _getBoardCell(gameState: BreedingGameState, row: number, col: number): BreedingOwnerValue | null {
-        if (_isMainBoardCell(gameState, row, col)) {
-            if (!gameState || !Array.isArray(gameState.board)) return null;
-            const boardRow = gameState.board[row];
-            if (!Array.isArray(boardRow)) return null;
-            return boardRow[col];
-        }
-        const ref = _getExpansionCellRef(gameState, row, col);
-        return ref ? Number(ref.cell.owner) : null;
-    }
-
-    function _setBoardCell(gameState: BreedingGameState, row: number, col: number, value: BreedingOwnerValue): boolean {
-        if (_isMainBoardCell(gameState, row, col)) {
-            if (!gameState || !Array.isArray(gameState.board)) return false;
-            const boardRow = gameState.board[row];
-            if (!Array.isArray(boardRow)) return false;
-            boardRow[col] = value;
-            return true;
-        }
-
-        const ref = _getExpansionCellRef(gameState, row, col);
-        if (!ref) return false;
-        const normalizedOwner = (value === BLACK || value === WHITE) ? value : EMPTY;
-
-        if (!ref.legacy) {
-            if (!Array.isArray(ref.expansion.cells)) return false;
-            ref.expansion.cells[ref.index] = {
-                side: _resolveExpansionSide(ref.cell.side, row, col, gameState),
-                row,
-                col,
-                owner: normalizedOwner
-            };
-            return true;
-        }
-
-        ref.expansion.side = _resolveExpansionSide(ref.cell.side, row, col, gameState);
-        ref.expansion.row = row;
-        ref.expansion.col = col;
-        ref.expansion.owner = normalizedOwner;
-        return true;
+    function _collectBoardCoordinates(cardState: BreedingCardState, gameState: BreedingGameState): BreedingPosition[] {
+        const boardUtils = _requireBoardUtils();
+        return boardUtils.collectBoardCoordinates(_createBoardContext(cardState, gameState));
     }
 
     function _posKey(row: number, col: number): string {
@@ -425,7 +321,7 @@ const CardBreeding = /**
                     if (dr === 0 && dc === 0) continue;
                     const r = origin.row + dr;
                     const c = origin.col + dc;
-                    if (_getBoardCell(gameState, r, c) !== EMPTY) continue;
+                    if (_getBoardCell(cardState, gameState, r, c) !== EMPTY) continue;
                     if (_isBlockedByBlockade(cardState, r, c, gameState, deps)) continue;
                     const key = _posKey(r, c);
                     if (seen.has(key)) continue;
@@ -442,7 +338,7 @@ const CardBreeding = /**
         const seen = new Set<string>();
         const addTarget = (row: number, col: number): void => {
             if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-            if (_getBoardCell(gameState, row, col) !== EMPTY) return;
+            if (_getBoardCell(cardState, gameState, row, col) !== EMPTY) return;
             if (_isBlockedByBlockade(cardState, row, col, gameState, deps)) return;
             const key = _posKey(row, col);
             if (seen.has(key)) return;
@@ -450,38 +346,8 @@ const CardBreeding = /**
             targets.push({ row, col });
         };
 
-        const board = gameState && Array.isArray(gameState.board) ? gameState.board : [];
-        for (let row = 0; row < board.length; row++) {
-            const boardRow = board[row];
-            if (!Array.isArray(boardRow)) continue;
-            for (let col = 0; col < boardRow.length; col++) {
-                addTarget(row, col);
-            }
-        }
-
-        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-            ? gameState.boardExpansion
-            : null;
-        if (expansion && Array.isArray(expansion.cells)) {
-            for (const cell of expansion.cells) {
-                if (!cell || typeof cell !== 'object') continue;
-                const bounds = _resolveBoardBounds(gameState);
-                const col = Number.isInteger(cell.col)
-                    ? cell.col
-                    : (cell.side === 'left' ? -1 : (cell.side === 'right' && bounds ? bounds.maxCol + 1 : null));
-                const rowNum = Number(cell.row);
-                const colNum = Number(col);
-                if (!Number.isInteger(rowNum) || !Number.isInteger(colNum)) continue;
-                addTarget(rowNum, colNum);
-            }
-        } else if (expansion && expansion.active === true && Number.isInteger(expansion.row)) {
-            const bounds = _resolveBoardBounds(gameState);
-            const col = Number.isInteger(expansion.col)
-                ? expansion.col
-                : (expansion.side === 'left' ? -1 : (expansion.side === 'right' && bounds ? bounds.maxCol + 1 : null));
-            const rowNum = Number(expansion.row);
-            const colNum = Number(col);
-            if (Number.isInteger(rowNum) && Number.isInteger(colNum)) addTarget(rowNum, colNum);
+        for (const cell of _collectBoardCoordinates(cardState, gameState)) {
+            addTarget(cell.row, cell.col);
         }
 
         return targets;
@@ -542,18 +408,20 @@ const CardBreeding = /**
         const changeReason = deps.changeReason || 'breeding_flip';
 
         const applyBatch = (): void => { for (const target of targets) {
-            const context = getCardContext(cardState);
+            const context = { ...(getCardContext(cardState) || {}), cardState };
             const flips = getFlipsWithContext(gameState, target.row, target.col, player, context);
 
             let spawnRes = null;
             let usedBoardOpsSpawn = false;
+            let spawnedSuccessfully = false;
             if (deps.BoardOps && typeof deps.BoardOps.spawnAt === 'function') {
                 usedBoardOpsSpawn = true;
                 spawnRes = deps.BoardOps.spawnAt(cardState, gameState, target.row, target.col, playerKey, cause, reason);
+                spawnedSuccessfully = !!(spawnRes && spawnRes.spawned === true);
             } else {
-                _setBoardCell(gameState, target.row, target.col, player);
+                spawnedSuccessfully = _setBoardCell(cardState, gameState, target.row, target.col, player);
             }
-            if (usedBoardOpsSpawn && (!spawnRes || spawnRes.spawned !== true)) {
+            if (!spawnedSuccessfully || (usedBoardOpsSpawn && (!spawnRes || spawnRes.spawned !== true))) {
                 continue;
             }
             spawned.push({
@@ -570,7 +438,7 @@ const CardBreeding = /**
                     const changeRes = deps.BoardOps.changeAt(cardState, gameState, fr, fc, playerKey, changeCause, changeReason);
                     changed = !!(changeRes && changeRes.changed);
                 } else {
-                    _setBoardCell(gameState, fr, fc, player);
+                    changed = _setBoardCell(cardState, gameState, fr, fc, player);
                 }
                 if (!changed) continue;
                 clearBombAt(cardState, fr, fc);
@@ -618,7 +486,7 @@ const CardBreeding = /**
             s.kind === 'specialStone' && s.data && s.data.type === 'BREEDING' && s.owner === playerKey && s.row === row && s.col === col
         );
         if (!anchor) return { spawned, destroyed, flipped, anchors };
-        if (_getBoardCell(gameState, row, col) !== player) {
+        if (_getBoardCell(cardState, gameState, row, col) !== player) {
             if (anchor.data) anchor.data.remainingOwnerTurns = -1;
             _clearFrontier(cardState, anchor.id);
             return { spawned, destroyed, flipped, anchors };
@@ -633,7 +501,7 @@ const CardBreeding = /**
         anchors.push({ row, col, remainingNow: afterDec });
 
         const previousFrontier = _getFrontier(cardState, anchor.id);
-        const brokenFrontier = previousFrontier.some(p => _getBoardCell(gameState, p.row, p.col) !== player);
+        const brokenFrontier = previousFrontier.some(p => _getBoardCell(cardState, gameState, p.row, p.col) !== player);
         const origins = previousFrontier.length === 0 || brokenFrontier
             ? [{ row, col }]
             : previousFrontier;
@@ -698,7 +566,7 @@ const CardBreeding = /**
             s.kind === 'specialStone' && s.data && s.data.type === 'BREEDING' && s.owner === playerKey && s.row === row && s.col === col
         );
         if (!anchor) return { spawned, destroyed, flipped };
-        if (_getBoardCell(gameState, row, col) !== player) return { spawned, destroyed, flipped };
+        if (_getBoardCell(cardState, gameState, row, col) !== player) return { spawned, destroyed, flipped };
 
         const targets = _collectBreedingTargets(cardState, gameState, [{ row, col }], deps);
         const picked = _pickRandomTarget(targets, prng);

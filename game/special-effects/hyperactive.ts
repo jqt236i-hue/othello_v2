@@ -101,6 +101,44 @@ function emitPresentationEventViaBoardOps(ev: any) {
     return SpecialEffectsPresentationBridge.emitPresentationEvent('hyperactive', cardState, ev);
 }
 
+function readHyperactiveBoardOwner(row: number, col: number): number | null {
+    return SpecialEffectsPresentationBridge.readBoardOwner(gameState, cardState, row, col);
+}
+
+function setHyperactiveDiscColorFromOwner(row: number, col: number, invert = false): boolean {
+    const owner = readHyperactiveBoardOwner(row, col);
+    if (owner !== BLACK && owner !== WHITE) return false;
+    const color = owner as number;
+    setHyperactiveDiscColorAt(row, col, invert ? -color : color);
+    return true;
+}
+
+function emitHyperactiveChangeForCurrentOwner(row: number, col: number): boolean {
+    const owner = readHyperactiveBoardOwner(row, col);
+    if (owner !== BLACK && owner !== WHITE) return false;
+    const ownerAfter = owner === BLACK ? 'black' : 'white';
+    const ownerBefore = ownerAfter === 'black' ? 'white' : 'black';
+    emitPresentationEventViaBoardOps({ type: 'CHANGE', row, col, ownerBefore, ownerAfter });
+    return true;
+}
+
+function emitHyperactiveRegenCrossfade(row: number, col: number): boolean {
+    const owner = readHyperactiveBoardOwner(row, col);
+    if (owner !== BLACK && owner !== WHITE) return false;
+    emitPresentationEventViaBoardOps({
+        type: 'CROSSFADE_STONE',
+        row,
+        col,
+        effectKey: 'regenStone',
+        owner,
+        newColor: owner,
+        durationMs: 600,
+        autoFadeOut: true,
+        fadeWholeStone: true
+    });
+    return true;
+}
+
 function resolveHyperactiveTurnStartDeps() {
     const phases = HyperactiveTurnPipelinePhasesModule
         && typeof HyperactiveTurnPipelinePhasesModule.applyTurnStartPhase === 'function'
@@ -269,10 +307,7 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
         for (const pos of allFlipped) {
             if (regenedSet.has(`${pos.row},${pos.col}`)) continue; // Skip staging for Regen stones
 
-            const toColor = gameState.board[pos.row][pos.col];
-            if (toColor !== BLACK && toColor !== WHITE) continue;
-            const fromColor = -toColor;
-            setHyperactiveDiscColorAt(pos.row, pos.col, fromColor);
+            setHyperactiveDiscColorFromOwner(pos.row, pos.col, true);
         }
 
         const flipCoords = allFlipped
@@ -281,9 +316,7 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
         if (flipCoords.length > 0) {
             // Emit CHANGE presentation events for each flip so UI handles flip visuals via Playback
             for (const [r, c] of flipCoords) {
-                const ownerAfter = (gameState.board[r][c] === BLACK) ? 'black' : 'white';
-                const ownerBefore = ownerAfter === 'black' ? 'white' : 'black';
-                emitPresentationEventViaBoardOps({ type: 'CHANGE', row: r, col: c, ownerBefore, ownerAfter });
+                emitHyperactiveChangeForCurrentOwner(r, c);
             }
             await waitHyperactiveMs(delay);
         }
@@ -292,38 +325,31 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
         for (const pos of allFlipped) {
             if (regenedSet.has(`${pos.row},${pos.col}`)) continue; // Skip color sync for Regen stones
 
-            const toColor = gameState.board[pos.row][pos.col];
-            if (toColor !== BLACK && toColor !== WHITE) continue;
-            setHyperactiveDiscColorAt(pos.row, pos.col, toColor);
+            setHyperactiveDiscColorFromOwner(pos.row, pos.col);
         }
 
         // Regen back (Use universal cross-fade instead of flips)
         if (regenTriggered.length > 0) {
             // Ask UI to perform cross-fade via presentation events
             for (const pos of regenTriggered) {
-                const ownerColor = gameState.board[pos.row][pos.col];
-                emitPresentationEventViaBoardOps({ type: 'CROSSFADE_STONE', row: pos.row, col: pos.col, effectKey: 'regenStone', owner: ownerColor, newColor: ownerColor, durationMs: 600, autoFadeOut: true, fadeWholeStone: true });
+                emitHyperactiveRegenCrossfade(pos.row, pos.col);
             }
         }
 
         // Regen capture flips
         if (regenCaptureFlips.length > 0) {
             for (const pos of regenCaptureFlips) {
-                const toColor = gameState.board[pos.row][pos.col];
-                setHyperactiveDiscColorAt(pos.row, pos.col, -toColor);
+                setHyperactiveDiscColorFromOwner(pos.row, pos.col, true);
             }
             const capCoords = regenCaptureFlips.map((p: any) => [p.row, p.col]);
             if (capCoords.length > 0) {
                 for (const [r, c] of capCoords) {
-                    const ownerAfter = (gameState.board[r][c] === BLACK) ? 'black' : 'white';
-                    const ownerBefore = ownerAfter === 'black' ? 'white' : 'black';
-                    emitPresentationEventViaBoardOps({ type: 'CHANGE', row: r, col: c, ownerBefore, ownerAfter });
+                    emitHyperactiveChangeForCurrentOwner(r, c);
                 }
                 await waitHyperactiveMs(delay);
             }
             for (const pos of regenCaptureFlips) {
-                const toColor = gameState.board[pos.row][pos.col];
-                setHyperactiveDiscColorAt(pos.row, pos.col, toColor);
+                setHyperactiveDiscColorFromOwner(pos.row, pos.col);
             }
         }
 
@@ -396,9 +422,7 @@ async function processHyperactiveImmediateAtPlacement(player: number, row: numbe
             .map((p: any) => [p.row, p.col]);
         if (flipCoords.length > 0) {
             for (const [r, c] of flipCoords) {
-                const ownerAfter = (gameState.board[r][c] === BLACK) ? 'black' : 'white';
-                const ownerBefore = ownerAfter === 'black' ? 'white' : 'black';
-                emitPresentationEventViaBoardOps({ type: 'CHANGE', row: r, col: c, ownerBefore, ownerAfter });
+                emitHyperactiveChangeForCurrentOwner(r, c);
             }
             await waitHyperactiveMs(delay);
         }
@@ -411,28 +435,23 @@ async function processHyperactiveImmediateAtPlacement(player: number, row: numbe
         if (regenTriggered.length > 0) {
             // Ask UI to perform cross-fade via presentation events
             for (const pos of regenTriggered) {
-                const ownerColor = gameState.board[pos.row][pos.col];
-                emitPresentationEventViaBoardOps({ type: 'CROSSFADE_STONE', row: pos.row, col: pos.col, effectKey: 'regenStone', owner: ownerColor, newColor: ownerColor, durationMs: 600, autoFadeOut: true, fadeWholeStone: true });
+                emitHyperactiveRegenCrossfade(pos.row, pos.col);
             }
         }
 
         if (regenCaptureFlips.length > 0) {
             for (const pos of regenCaptureFlips) {
-                const to = gameState.board[pos.row][pos.col];
-                setHyperactiveDiscColorAt(pos.row, pos.col, -to);
+                setHyperactiveDiscColorFromOwner(pos.row, pos.col, true);
             }
             const capCoords = regenCaptureFlips.map((p: any) => [p.row, p.col]);
             if (capCoords.length > 0) {
                 for (const [r, c] of capCoords) {
-                    const ownerAfter = (gameState.board[r][c] === BLACK) ? 'black' : 'white';
-                    const ownerBefore = ownerAfter === 'black' ? 'white' : 'black';
-                    emitPresentationEventViaBoardOps({ type: 'CHANGE', row: r, col: c, ownerBefore, ownerAfter });
+                    emitHyperactiveChangeForCurrentOwner(r, c);
                 }
                 await waitHyperactiveMs(delay);
             }
             for (const pos of regenCaptureFlips) {
-                const to = gameState.board[pos.row][pos.col];
-                setHyperactiveDiscColorAt(pos.row, pos.col, to);
+                setHyperactiveDiscColorFromOwner(pos.row, pos.col);
             }
         }
 

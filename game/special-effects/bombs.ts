@@ -5,6 +5,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 const SharedConstants = _require('../../shared-constants');
+const SharedBoardUtils = _require('../../shared/shared-board-utils');
 const MarkersAdapter = _require('../logic/markers_adapter');
 const TurnPipelinePhases = _require('../turn/turn_pipeline_phases');
 const CardLogic = _require('../logic/cards');
@@ -87,25 +88,15 @@ async function processBombs(precomputedEvents: any = null): Promise<void> {
 async function explodeBombUI(row: number, col: number): Promise<void> {
     SpecialEffectsPresentationBridge.emitLogAdded('bombs', LOG_MESSAGES.bombExploded(GameControllerSlim.posToNotation(row, col)));
 
+    if (!SharedBoardUtils || typeof SharedBoardUtils.createBoardView !== 'function') {
+        throw new Error('SharedBoardUtils.createBoardView is required by SpecialEffectsBombs');
+    }
+    const boardView = SharedBoardUtils.createBoardView(gameState, {
+        cardState,
+        strict: false
+    });
     const hasCellAt = (targetRow: number, targetCol: number): boolean => {
-        if (targetRow >= 0 && targetRow < 8 && targetCol >= 0 && targetCol < 8) return true;
-
-        const expansion = (typeof gameState !== 'undefined' && gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-            ? gameState.boardExpansion
-            : null;
-        if (!expansion) return false;
-
-        const cells = Array.isArray(expansion.cells)
-            ? expansion.cells
-            : (expansion.active ? [expansion] : []);
-        return cells.some((cell: any) => {
-            if (!cell || typeof cell !== 'object') return false;
-            const cellRow = Number(cell.row);
-            const cellCol = Number.isInteger(cell.col)
-                ? cell.col
-                : (cell.side === 'left' ? -1 : (cell.side === 'right' ? 8 : null));
-            return cellRow === targetRow && cellCol === targetCol;
-        });
+        return boardView.has(targetRow, targetCol);
     };
 
     const targets: any[] = [];

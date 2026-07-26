@@ -10,14 +10,20 @@ type SelfplaySearchPrimitivesConfig = {
 
 export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitivesConfig) {
     const cfg = (config && typeof config === 'object') ? config : {} as SelfplaySearchPrimitivesConfig;
-    const sharedBoardUtils = cfg.SharedBoardUtils || null;
+    let sharedBoardUtils = cfg.SharedBoardUtils || null;
+    if (!sharedBoardUtils) {
+        try {
+            sharedBoardUtils = require('../../shared/shared-board-utils.js');
+        } catch (error) {
+            sharedBoardUtils = null;
+        }
+    }
     const getLegalMovesBasic = typeof cfg.getLegalMovesBasic === 'function' ? cfg.getLegalMovesBasic : (() => []);
     const setBoardCellValue = typeof cfg.setBoardCellValue === 'function'
         ? cfg.setBoardCellValue
         : ((board: any, row: any, col: any, value: any) => {
-            if (!Array.isArray(board) || !Array.isArray(board[row])) return false;
-            board[row][col] = value;
-            return true;
+            if (!sharedBoardUtils || typeof sharedBoardUtils.setCellValue !== 'function') return false;
+            return sharedBoardUtils.setCellValue(board, row, col, value);
         });
     const evaluatePositionValue = typeof cfg.evaluatePositionValue === 'function'
         ? cfg.evaluatePositionValue
@@ -30,60 +36,31 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
         if (sharedBoardUtils && typeof sharedBoardUtils.countBoardEmpties === 'function') {
             return sharedBoardUtils.countBoardEmpties(board);
         }
-        let empties = 0;
-        for (let row = 0; row < board.length; row++) {
-            for (let col = 0; col < board[row].length; col++) {
-                if (board[row][col] === 0) empties += 1;
-            }
-        }
-        return empties;
+        throw new Error('SharedBoardUtils.countBoardEmpties is required by selfplay search');
     }
 
     function isStandardBoard(board: any) {
         if (sharedBoardUtils && typeof sharedBoardUtils.isStandardBoard8x8 === 'function') {
             return sharedBoardUtils.isStandardBoard8x8(board);
         }
-        if (!Array.isArray(board) || board.length !== 8) return false;
-        for (const row of board) {
-            if (!Array.isArray(row) || row.length !== 8) return false;
-        }
-        return true;
+        throw new Error('SharedBoardUtils.isStandardBoard8x8 is required by selfplay search');
     }
 
     function countDiscDiffOnBoard(board: any, playerValue: any) {
-        if (!Array.isArray(board)) return 0;
-        let own = 0;
-        let opp = 0;
-        if (
-            sharedBoardUtils
-            && typeof sharedBoardUtils.collectBoardCoordinates === 'function'
-            && typeof sharedBoardUtils.getCellValue === 'function'
-        ) {
-            for (const cell of sharedBoardUtils.collectBoardCoordinates(board)) {
-                const row = cell && cell.row;
-                const col = cell && cell.col;
-                const v = sharedBoardUtils.getCellValue(board, row, col);
-                if (v === playerValue) own += 1;
-                else if (v === -playerValue) opp += 1;
-            }
-        } else {
-            for (let row = 0; row < board.length; row++) {
-                const cells = Array.isArray(board[row]) ? board[row] : [];
-                for (let col = 0; col < cells.length; col++) {
-                    const v = cells[col];
-                    if (v === playerValue) own += 1;
-                    else if (v === -playerValue) opp += 1;
-                }
-            }
+        if (!sharedBoardUtils || typeof sharedBoardUtils.countDiscsByPlayer !== 'function') {
+            throw new Error('SharedBoardUtils.countDiscsByPlayer is required by selfplay search');
         }
-        return own - opp;
+        const counts = sharedBoardUtils.countDiscsByPlayer(board);
+        return playerValue === 1
+            ? Number(counts.black || 0) - Number(counts.white || 0)
+            : Number(counts.white || 0) - Number(counts.black || 0);
     }
 
     function applyMoveToBoard(board: any, move: any, playerValue: any) {
-        if (!Array.isArray(board)) return [];
-        const next = (sharedBoardUtils && typeof sharedBoardUtils.cloneBoard === 'function')
-            ? sharedBoardUtils.cloneBoard(board)
-            : board.map((row: any) => (Array.isArray(row) ? row.slice() : []));
+        if (!sharedBoardUtils || typeof sharedBoardUtils.cloneBoard !== 'function') {
+            throw new Error('SharedBoardUtils.cloneBoard is required by selfplay search');
+        }
+        const next = sharedBoardUtils.cloneBoard(board);
         if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return next;
         if (!setBoardCellValue(next, move.row, move.col, playerValue)) return next;
         const flips = Array.isArray(move.flips) ? move.flips : [];
@@ -115,29 +92,20 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
     }
 
     function evaluatePositionValueSummary(board: any, playerValue: any) {
-        if (!Array.isArray(board)) return 0;
-        let score = 0;
         if (
-            sharedBoardUtils
-            && typeof sharedBoardUtils.collectBoardCoordinates === 'function'
-            && typeof sharedBoardUtils.getCellValue === 'function'
+            !sharedBoardUtils ||
+            typeof sharedBoardUtils.collectBoardCoordinates !== 'function' ||
+            typeof sharedBoardUtils.getCellValue !== 'function'
         ) {
-            for (const cell of sharedBoardUtils.collectBoardCoordinates(board)) {
-                const row = cell && cell.row;
-                const col = cell && cell.col;
-                const value = sharedBoardUtils.getCellValue(board, row, col);
-                if (value === playerValue) score += evaluatePositionValue(row, col, board);
-                else if (value === -playerValue) score -= evaluatePositionValue(row, col, board);
-            }
-            return score;
+            throw new Error('SharedBoardUtils board iteration is required by selfplay search');
         }
-        for (let row = 0; row < board.length; row++) {
-            const oneRow = Array.isArray(board[row]) ? board[row] : [];
-            for (let col = 0; col < oneRow.length; col++) {
-                const v = oneRow[col];
-                if (v === playerValue) score += evaluatePositionValue(row, col, board);
-                else if (v === -playerValue) score -= evaluatePositionValue(row, col, board);
-            }
+        let score = 0;
+        for (const cell of sharedBoardUtils.collectBoardCoordinates(board)) {
+            const row = cell && cell.row;
+            const col = cell && cell.col;
+            const value = sharedBoardUtils.getCellValue(board, row, col);
+            if (value === playerValue) score += evaluatePositionValue(row, col, board);
+            else if (value === -playerValue) score -= evaluatePositionValue(row, col, board);
         }
         return score;
     }
@@ -217,7 +185,7 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
     }
 
     function minimaxBoardSearch(board: any, currentPlayer: any, rootPlayer: any, depth: any, alpha: any, beta: any, passCount: any, beamWidth: any) {
-        if (!Array.isArray(board) || depth <= 0 || passCount >= 2) {
+        if (!board || typeof board !== 'object' || depth <= 0 || passCount >= 2) {
             return evaluateBoardForSearch(board, rootPlayer);
         }
 

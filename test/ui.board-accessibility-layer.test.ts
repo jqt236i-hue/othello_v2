@@ -146,6 +146,54 @@ describe('board accessibility layer', () => {
     );
   });
 
+  test('keeps the pointerdown model identity when a keyed hint is synced before click', () => {
+    const harness = createHarness();
+    harness.layer.mount(harness.host, harness.canvas);
+    const hint = { id: 'expand:right', kind: 'board-expansion-will', directionKey: 'right' };
+    harness.layer.sync({
+      model: {
+        boardDigest: 'board.v1.before-pointer-sync',
+        modelCommitId: 41,
+        cells: [makeCell([hint])]
+      },
+      getCellClientRect: () => makeRect()
+    });
+    const button = harness.host.querySelector('button') as HTMLButtonElement;
+
+    button.dispatchEvent(new harness.dom.window.Event('pointerdown', { bubbles: true }));
+    harness.layer.sync({
+      model: {
+        boardDigest: 'board.v1.after-pointer-sync',
+        modelCommitId: 42,
+        cells: [makeCell([hint])]
+      },
+      getCellClientRect: () => makeRect(188, 332)
+    });
+    expect(harness.host.querySelector('button')).toBe(button);
+
+    button.dispatchEvent(new harness.dom.window.MouseEvent('click', { bubbles: true }));
+    expect(harness.onActivate).toHaveBeenLastCalledWith(
+      2,
+      3,
+      'right',
+      expect.objectContaining({
+        boardDigest: 'board.v1.before-pointer-sync',
+        modelCommitId: 41
+      })
+    );
+
+    button.click();
+    expect(harness.onActivate).toHaveBeenLastCalledWith(
+      2,
+      3,
+      'right',
+      expect.objectContaining({
+        boardDigest: 'board.v1.after-pointer-sync',
+        modelCommitId: 42
+      })
+    );
+  });
+
   test('keeps keyed focus across layout sync and clears stale focus exactly once', () => {
     const harness = createHarness();
     harness.layer.mount(harness.host, harness.canvas);

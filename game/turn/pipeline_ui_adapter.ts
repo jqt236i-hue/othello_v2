@@ -577,42 +577,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return toCounterOrNull(meta && meta.destroyEvadeRemaining);
     }
 
-    function isMainBoardCell(r: any, c: any) {
-        return Number.isInteger(r) && Number.isInteger(c) && r >= 0 && r < 8 && c >= 0 && c < 8;
-    }
-
-    function getExpansionColorAt(gameState: any, r: any, c: any) {
-        const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-            ? gameState.boardExpansion
-            : null;
-        if (!expansion) return 0;
-
-        const cells = (Array.isArray(expansion.cells) && expansion.cells.length > 0)
-            ? expansion.cells
-            : (expansion.active === true ? [expansion] : []);
-
-        for (const cell of cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            const row = Number.isInteger(cell.row) ? cell.row : null;
-            let col = Number.isInteger(cell.col) ? cell.col : null;
-            if (col === null && cell.side === 'left') col = -1;
-            if (col === null && cell.side === 'right') col = 8;
-            if (row !== r || col !== c) continue;
-            return (cell.owner === 1 || cell.owner === -1) ? cell.owner : 0;
-        }
-
-        return 0;
-    }
-
-    function getCellColorAt(gameState: any, r: any, c: any) {
+    function getCellColorAt(gameState: any, cardState: any, r: any, c: any) {
         if (!gameState || !Array.isArray(gameState.board)) return 0;
-        if (isMainBoardCell(r, c)) {
-            const boardRow = gameState.board[r];
-            if (!Array.isArray(boardRow)) return 0;
-            const value = boardRow[c];
-            return (value === 1 || value === -1) ? value : 0;
+        if (
+            !SharedBoardUtils
+            || typeof SharedBoardUtils.createBoardContext !== 'function'
+            || typeof SharedBoardUtils.getCellValue !== 'function'
+        ) {
+            throw new Error('SharedBoardUtils BoardContext APIs are required by PipelineUIAdapter');
         }
-        return getExpansionColorAt(gameState, r, c);
+        const boardContext = SharedBoardUtils.createBoardContext(gameState, cardState ?? null);
+        const value = SharedBoardUtils.getCellValue(boardContext, r, c);
+        return (value === 1 || value === -1) ? value : 0;
     }
 
     /**
@@ -628,7 +604,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             destroyEvadeRemaining: null,
             livingWillAura: false
         };
-        const color = getCellColorAt(gameState, r, c);
+        const color = getCellColorAt(gameState, cardState, r, c);
         const markerKinds = MarkersAdapter && MarkersAdapter.MARKER_KINDS
             ? MarkersAdapter.MARKER_KINDS
             : { SPECIAL_STONE: 'specialStone', MANIFEST_STONE: 'manifestStone', BOMB: 'bomb' };

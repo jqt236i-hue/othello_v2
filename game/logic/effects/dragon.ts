@@ -40,8 +40,8 @@ function resolveDragonModuleOrGlobal(id: string, globalKey: string): any {
 }
 
 const SharedConstants = resolveDragonModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+const SharedBoardUtils = resolveDragonModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
 const RandomSourceModule = resolveDragonModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
-const ExpansionFallbackModule = resolveDragonModuleOrGlobal('../cards-internal/expansion-fallback', 'CardExpansionFallback');
 const DefaultBoardOps = resolveDragonModuleOrGlobal('../board_ops', 'BoardOps');
 
 const { BLACK, WHITE } = SharedConstants || {};
@@ -49,20 +49,15 @@ const P_BLACK = BLACK || 1;
 const P_WHITE = WHITE || -1;
 const P_EMPTY = 0;
 
-if (!ExpansionFallbackModule) {
-    throw new Error('CardExpansionFallback missing required helpers');
-}
-
-interface BoardDims {
-    rows: number;
-    cols: number;
-}
-
-interface ExpansionCell {
-    side: string | null;
-    row: number;
-    col: number;
-    owner: number;
+if (
+    !SharedBoardUtils
+    || typeof SharedBoardUtils.createBoardContext !== 'function'
+    || typeof SharedBoardUtils.createBoardView !== 'function'
+    || typeof SharedBoardUtils.getCellValue !== 'function'
+    || typeof SharedBoardUtils.setCellValue !== 'function'
+    || typeof SharedBoardUtils.toBoardCellKey !== 'function'
+) {
+    throw new Error('SharedBoardUtils BoardContext APIs are required by DragonEffects');
 }
 
 interface DragonDeps {
@@ -87,11 +82,26 @@ interface DragonEffectAtAnchorResult {
     anchors: { row: number; col: number; remainingNow: number }[];
 }
 
-const resolveBoardDims = ExpansionFallbackModule.resolveBoardDims as (gameState: any) => BoardDims;
-const isExpansionCoordinate = ExpansionFallbackModule.isExpansionCoordinate as (row: number, col: number, gameState: any) => boolean;
-const getExpansionCells = ExpansionFallbackModule.getExpansionCells as (gameState: any) => ExpansionCell[];
-const getCellValue = ExpansionFallbackModule.getCellValue as (gameState: any, row: number, col: number) => number | null;
-const setCellValue = ExpansionFallbackModule.setCellValue as (gameState: any, row: number, col: number, value: number) => boolean;
+function createDragonBoardContext(cardState: any, gameState: any): any {
+    return SharedBoardUtils.createBoardContext(gameState, cardState);
+}
+
+function createDragonBoardView(cardState: any, gameState: any): any {
+    return SharedBoardUtils.createBoardView(gameState, { cardState, strict: false });
+}
+
+function getCellValue(cardState: any, gameState: any, row: number, col: number): number | null {
+    return SharedBoardUtils.getCellValue(createDragonBoardContext(cardState, gameState), row, col);
+}
+
+function setCellValue(cardState: any, gameState: any, row: number, col: number, value: number): boolean {
+    return SharedBoardUtils.setCellValue(createDragonBoardContext(cardState, gameState), row, col, value);
+}
+
+function isExpansionCoordinate(cardState: any, gameState: any, row: number, col: number): boolean {
+    const view = createDragonBoardView(cardState, gameState);
+    return view.topology.expansionKeys.has(SharedBoardUtils.toBoardCellKey(row, col));
+}
 
 function isBlockedDestinationCell(cardState: any, row: number, col: number): boolean {
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
@@ -108,20 +118,10 @@ function getRandomTurnStartMoveDestination(cardState: any, gameState: any, fromR
         return deps.selectRandomEmptyBoardShapeDestination(cardState, gameState, fromRow, fromCol, deps.randomSource);
     }
     const candidates: { row: number; col: number }[] = [];
-    const dims = resolveBoardDims(gameState);
-    for (let row = 0; row < dims.rows; row++) {
-        for (let col = 0; col < dims.cols; col++) {
-            if (row === fromRow && col === fromCol) continue;
-            if (getCellValue(gameState, row, col) !== P_EMPTY) continue;
-            if (isBlockedDestinationCell(cardState, row, col)) continue;
-            candidates.push({ row, col });
-        }
-    }
-    const expansionCells = getExpansionCells(gameState);
-    for (const cell of expansionCells) {
-        if (!cell || !Number.isInteger(cell.row) || !Number.isInteger(cell.col)) continue;
+    const view = createDragonBoardView(cardState, gameState);
+    for (const cell of view.coordinates) {
         if (cell.row === fromRow && cell.col === fromCol) continue;
-        if (getCellValue(gameState, cell.row, cell.col) !== P_EMPTY) continue;
+        if (view.get(cell.row, cell.col) !== P_EMPTY) continue;
         if (isBlockedDestinationCell(cardState, cell.row, cell.col)) continue;
         candidates.push({ row: cell.row, col: cell.col });
     }
@@ -164,13 +164,13 @@ function moveCoexistingMarkers(cardState: any, anchorEntry: any, fromRow: number
     }
 }
 
-function forEachNeighborCell(gameState: any, row: number, col: number, handler: (r: number, c: number, value: number) => void): void {
+function forEachNeighborCell(cardState: any, gameState: any, row: number, col: number, handler: (r: number, c: number, value: number) => void): void {
     for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
             if (dr === 0 && dc === 0) continue;
             const r = row + dr;
             const c = col + dc;
-            const value = getCellValue(gameState, r, c);
+            const value = getCellValue(cardState, gameState, r, c);
             if (value === null) continue;
             handler(r, c, value);
         }
@@ -259,9 +259,9 @@ function resolveDragonFlipEvasion(cardState: any, gameState: any, targets: Array
         .filter((cell: { row: number; col: number } | null): cell is { row: number; col: number } => !!cell);
 }
 
-function collectDragonConversionTargets(gameState: any, row: number, col: number, opponent: number, protectedSet: Set<string>): Array<{ row: number; col: number }> {
+function collectDragonConversionTargets(cardState: any, gameState: any, row: number, col: number, opponent: number, protectedSet: Set<string>): Array<{ row: number; col: number }> {
     const targets: Array<{ row: number; col: number }> = [];
-    forEachNeighborCell(gameState, row, col, (r, c, value) => {
+    forEachNeighborCell(cardState, gameState, row, col, (r, c, value) => {
         if (value !== opponent) return;
         const key = `${r},${c}`;
         if (protectedSet.has(key)) return;
@@ -275,12 +275,12 @@ function applyDragonConversions(cardState: any, gameState: any, playerKey: strin
     if (!BoardOps || typeof BoardOps.changeAt !== 'function') {
         throw new Error('DragonEffects requires BoardOps.changeAt for ownership changes');
     }
-    const targets = collectDragonConversionTargets(gameState, row, col, opponent, protectedSet);
+    const targets = collectDragonConversionTargets(cardState, gameState, row, col, opponent, protectedSet);
     const remainingTargets = resolveDragonFlipEvasion(cardState, gameState, targets, playerKey, deps);
     const converted: Array<{ row: number; col: number }> = [];
 
     for (const target of remainingTargets) {
-        if (getCellValue(gameState, target.row, target.col) !== opponent) continue;
+        if (getCellValue(cardState, gameState, target.row, target.col) !== opponent) continue;
         const changeResult = BoardOps.changeAt(cardState, gameState, target.row, target.col, playerKey, 'DRAGON', reason);
         const changed = !!(changeResult && changeResult.changed);
         if (!changed) continue;
@@ -320,7 +320,7 @@ function processDragonEffects(cardState: any, gameState: any, playerKey: string,
     for (const dragon of dragons) {
         if (dragon.owner !== playerKey) continue;
 
-        if (getCellValue(gameState, dragon.row, dragon.col) !== player) {
+        if (getCellValue(cardState, gameState, dragon.row, dragon.col) !== player) {
             if (dragon.data) dragon.data.remainingOwnerTurns = -1;
             continue;
         }
@@ -371,8 +371,8 @@ function processDragonEffects(cardState: any, gameState: any, playerKey: string,
                     entry.data.type === 'DRAGON'
                 ));
             }
-            if (isExpansionCoordinate(dragon.row, dragon.col, gameState)) {
-                setCellValue(gameState, dragon.row, dragon.col, P_EMPTY);
+            if (isExpansionCoordinate(cardState, gameState, dragon.row, dragon.col)) {
+                setCellValue(cardState, gameState, dragon.row, dragon.col, P_EMPTY);
             }
             if (dragon.data) dragon.data.remainingOwnerTurns = -1;
         }
@@ -401,7 +401,7 @@ function processDragonEffectsAtAnchor(cardState: any, gameState: any, playerKey:
         s.kind === 'specialStone' && s.data && s.data.type === 'DRAGON' && s.owner === playerKey && s.row === row && s.col === col
     );
     if (!dragon) return { converted, destroyed };
-    if (getCellValue(gameState, row, col) !== player) return { converted, destroyed };
+    if (getCellValue(cardState, gameState, row, col) !== player) return { converted, destroyed };
 
     const protectedSet = buildDragonFlipProtectedSet(cardState, deps);
     const clearBombAt = (r: number, c: number) => {
@@ -443,7 +443,7 @@ function processDragonEffectsAtTurnStartAnchor(cardState: any, gameState: any, p
     );
     if (!dragon) return { moved, converted, destroyed, anchors };
 
-    if (getCellValue(gameState, row, col) !== player) {
+    if (getCellValue(cardState, gameState, row, col) !== player) {
         if (dragon.data) dragon.data.remainingOwnerTurns = -1;
         return { moved, converted, destroyed, anchors };
     }
@@ -468,7 +468,8 @@ function processDragonEffectsAtTurnStartAnchor(cardState: any, gameState: any, p
             movedRes = !!(res && res.moved);
             usedBoardOpsMove = !!(res && res.markerHandled === true);
         } else {
-            movedRes = setCellValue(gameState, row, col, P_EMPTY) && setCellValue(gameState, moveTarget.row, moveTarget.col, player);
+            movedRes = setCellValue(cardState, gameState, row, col, P_EMPTY)
+                && setCellValue(cardState, gameState, moveTarget.row, moveTarget.col, player);
         }
         if (movedRes) {
             if (!usedBoardOpsMove) {
@@ -539,8 +540,8 @@ function processDragonEffectsAtTurnStartAnchor(cardState: any, gameState: any, p
                 entry.data.type === 'DRAGON'
             ));
         }
-        if (isExpansionCoordinate(anchorRow, anchorCol, gameState)) {
-            setCellValue(gameState, anchorRow, anchorCol, P_EMPTY);
+        if (isExpansionCoordinate(cardState, gameState, anchorRow, anchorCol)) {
+            setCellValue(cardState, gameState, anchorRow, anchorCol, P_EMPTY);
         }
         if (dragon.data) dragon.data.remainingOwnerTurns = -1;
     }

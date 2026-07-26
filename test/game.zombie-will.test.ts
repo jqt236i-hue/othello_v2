@@ -214,7 +214,15 @@ describe('ZOMBIE infection logic', () => {
       _nextCreatedSeq: 2
     });
 
-    const result = ZombieWill.processZombieEffectsAtTurnStartAnchor(cardState, gameState, 'black', 1, 1, prng);
+    const result = ZombieWill.processZombieEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      1,
+      1,
+      prng,
+      { BoardOps }
+    );
 
     expect(result.infected).toEqual([{ row: 1, col: 2 }]);
     expect(gameState.board[1][2]).toBe(Shared.BLACK);
@@ -238,7 +246,7 @@ describe('ZOMBIE infection logic', () => {
         data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
       }]
     });
-    const changeAt = jest.fn();
+    const changeAt = jest.fn(BoardOps.changeAt);
 
     ZombieWill.processZombieEffectsAtTurnStartAnchor(
       cardState,
@@ -339,6 +347,169 @@ describe('ZOMBIE infection logic', () => {
 
     expect(result.infected).toEqual([]);
     expect(gameState.board[1][2]).toBe(Shared.WHITE);
+  });
+
+  test('infection crosses from a base anchor into an adjacent expansion cell', () => {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    board[1][3] = Shared.BLACK;
+    const { cardState, gameState, prng } = createState(0, board, {
+      markers: [{
+        id: 'zombie-base',
+        kind: 'specialStone',
+        row: 1,
+        col: 3,
+        owner: 'black',
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
+      }]
+    });
+    gameState.boardExpansion = {
+      cells: [{ side: 'right', row: 1, col: 4, owner: Shared.WHITE }]
+    };
+
+    const result = ZombieWill.processZombieEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      1,
+      3,
+      prng,
+      { BoardOps }
+    );
+
+    expect(result.infected).toEqual([{ row: 1, col: 4 }]);
+    expect(gameState.boardExpansion.cells[0].owner).toBe(Shared.BLACK);
+    expect(cardState.markers).toContainEqual(expect.objectContaining({
+      row: 1,
+      col: 4,
+      owner: 'black',
+      data: expect.objectContaining({ type: 'ZOMBIE' })
+    }));
+  });
+
+  test('infection crosses from an expansion anchor back into the base board', () => {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    board[1][3] = Shared.WHITE;
+    const { cardState, gameState, prng } = createState(0, board, {
+      markers: [{
+        id: 'zombie-expansion',
+        kind: 'specialStone',
+        row: 1,
+        col: 4,
+        owner: 'black',
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
+      }]
+    });
+    gameState.boardExpansion = {
+      cells: [{ side: 'right', row: 1, col: 4, owner: Shared.BLACK }]
+    };
+
+    const result = ZombieWill.processZombieEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      1,
+      4,
+      prng,
+      { BoardOps }
+    );
+
+    expect(result.infected).toEqual([{ row: 1, col: 3 }]);
+    expect(gameState.board[1][3]).toBe(Shared.BLACK);
+  });
+
+  test('meteor holes are neither infection sources nor targets', () => {
+    const { cardState, gameState, prng } = createState(0, null, {
+      markers: [
+        {
+          id: 'zombie-hole-check',
+          kind: 'specialStone',
+          row: 1,
+          col: 1,
+          owner: 'black',
+          data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
+        },
+        {
+          id: 'target-hole',
+          kind: 'specialStone',
+          row: 1,
+          col: 2,
+          data: { type: 'METEOR_HOLE' }
+        }
+      ]
+    });
+
+    const result = ZombieWill.processZombieEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      1,
+      1,
+      prng,
+      { BoardOps }
+    );
+    expect(result.infected).toEqual([]);
+    expect(gameState.board[1][2]).toBe(Shared.WHITE);
+
+    cardState.markers.push({
+      id: 'source-hole',
+      kind: 'specialStone',
+      row: 1,
+      col: 1,
+      data: { type: 'METEOR_HOLE' }
+    });
+    expect(ZombieWill.processZombieEffectsAtTurnStartAnchor(
+      cardState,
+      gameState,
+      'black',
+      1,
+      1,
+      prng,
+      { BoardOps }
+    )).toEqual({ infected: [], anchors: [] });
+  });
+
+  test('triggering infection fails fast when BoardOps or CardMarkers is unavailable', () => {
+    const first = createState(0, null, {
+      markers: [{
+        id: 'missing-board-ops',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
+      }]
+    });
+    expect(() => ZombieWill.processZombieEffectsAtTurnStartAnchor(
+      first.cardState,
+      first.gameState,
+      'black',
+      1,
+      1,
+      first.prng
+    )).toThrow('BoardOps.changeAt is required');
+    expect(first.gameState.board[1][2]).toBe(Shared.WHITE);
+    expect(first.cardState.markers[0].data.turnsUntilInfection).toBe(1);
+
+    const second = createState(0, null, {
+      markers: [{
+        id: 'missing-card-markers',
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'black',
+        data: { type: 'ZOMBIE', ownerColor: Shared.BLACK, turnsUntilInfection: 1, regenRemaining: 1 }
+      }]
+    });
+    expect(() => ZombieWill.processZombieEffectsAtTurnStartAnchor(
+      second.cardState,
+      second.gameState,
+      'black',
+      1,
+      1,
+      second.prng,
+      { BoardOps, CardMarkers: null }
+    )).toThrow('CardMarkers.addMarker is required');
+    expect(second.gameState.board[1][2]).toBe(Shared.WHITE);
   });
 
   test('createZombieMarkerData produces marker data with one revival', () => {

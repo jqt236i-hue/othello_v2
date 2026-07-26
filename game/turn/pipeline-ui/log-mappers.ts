@@ -13,13 +13,11 @@ function _playerLabel(playerKey: any) {
 
 function _toPosText(pos: any, deps: PipelineUILogMapperDeps) {
     if (!pos || !Number.isInteger(pos.row) || !Number.isInteger(pos.col)) return '';
-    if (deps && deps.SharedBoardUtils && typeof deps.SharedBoardUtils.formatPosTextJa === 'function') {
-        return deps.SharedBoardUtils.formatPosTextJa(pos);
+    if (!(deps && deps.SharedBoardUtils && typeof deps.SharedBoardUtils.formatPosTextJa === 'function')) {
+        throw new Error('SharedBoardUtils.formatPosTextJa is required by pipeline log mappers');
     }
-    if (pos.col === -1) return `左外${pos.row + 1}`;
-    if (pos.col === 8) return `右外${pos.row + 1}`;
-    const file = String.fromCharCode('A'.charCodeAt(0) + pos.col);
-    return `${file}${pos.row + 1}`;
+    const boardContext = pos.boardContext || pos.boardConfig || pos.gameState || undefined;
+    return deps.SharedBoardUtils.formatPosTextJa(pos, boardContext);
 }
 
 // Time-stop log labels for triggered/fizzled variants. Adding a new TIME_STOP_* card

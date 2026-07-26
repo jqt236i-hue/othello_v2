@@ -65,13 +65,6 @@ const P_BLACK = BLACK || 1;
 const P_WHITE = WHITE || -1;
 const P_EMPTY = (typeof EMPTY === 'number') ? EMPTY : 0;
 
-interface BoardBounds {
-    minRow: number;
-    maxRow: number;
-    minCol: number;
-    maxCol: number;
-}
-
 interface SwapResult {
     swapped: boolean;
     flipped?: { row: number; col: number }[];
@@ -86,35 +79,6 @@ interface SwapDeps {
     emitPresentationEvent?: (cardState: any, event: any) => void;
 }
 
-function resolveBoardBounds(gameState: any): BoardBounds | null {
-    const board = gameState && gameState.board;
-    if (!Array.isArray(board) || board.length <= 0) return null;
-    let maxCol = -1;
-    for (const row of board) {
-        if (Array.isArray(row) && row.length > 0) {
-            maxCol = Math.max(maxCol, row.length - 1);
-        }
-    }
-    if (maxCol < 0) return null;
-    return { minRow: 0, maxRow: board.length - 1, minCol: 0, maxCol };
-}
-
-function isMainBoardCell(gameState: any, row: number, col: number): boolean {
-    if (SharedBoardUtils && typeof SharedBoardUtils.isMainBoardCell === 'function') {
-        return SharedBoardUtils.isMainBoardCell(row, col, gameState);
-    }
-    const bounds = resolveBoardBounds(gameState);
-    return !!(
-        bounds &&
-        Number.isInteger(row) &&
-        Number.isInteger(col) &&
-        row >= bounds.minRow &&
-        row <= bounds.maxRow &&
-        col >= bounds.minCol &&
-        col <= bounds.maxCol
-    );
-}
-
 function normalizeFlips(flips: number[][]): [number, number][] {
     if (!Array.isArray(flips) || flips.length === 0) return [];
     return flips
@@ -122,100 +86,31 @@ function normalizeFlips(flips: number[][]): [number, number][] {
         .map(f => [f[0], f[1]] as [number, number]);
 }
 
-interface ExpansionCell {
-    row: number;
-    col: number;
-    owner: number;
+function getCellValue(gameState: any, cardState: any, row: number, col: number): number | null {
+    if (!SharedBoardUtils || typeof SharedBoardUtils.getStateCellValue !== 'function') {
+        throw new Error('SharedBoardUtils.getStateCellValue is required by SwapWithEnemy');
+    }
+    return SharedBoardUtils.getStateCellValue(gameState, row, col, cardState || null);
 }
 
-function getExpansionCells(gameState: any): ExpansionCell[] {
-    const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-        ? gameState.boardExpansion
-        : null;
-    if (!expansion) return [];
-
-    const cells = Array.isArray((expansion as any).cells)
-        ? expansion.cells
-        : (expansion.active ? [expansion] : []);
-
-    return cells
-        .map((cell: any) => {
-            if (!cell || typeof cell !== 'object') return null;
-            const row = Number(cell.row);
-            const col = Number.isInteger(cell.col)
-                ? cell.col
-                : (
-                    cell.side === 'left' ? -1
-                        : (cell.side === 'right' ? ((resolveBoardBounds(gameState) || { maxCol: -1 }).maxCol + 1)
-                            : (cell.side === 'top' || cell.side === 'bottom' ? Number(cell.col) : null))
-                );
-            if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
-            return { row, col, owner: Number(cell.owner || 0) };
-        })
-        .filter(Boolean) as ExpansionCell[];
+function setCellValue(gameState: any, cardState: any, row: number, col: number, value: number): boolean {
+    if (!SharedBoardUtils || typeof SharedBoardUtils.setStateCellValue !== 'function') {
+        throw new Error('SharedBoardUtils.setStateCellValue is required by SwapWithEnemy');
+    }
+    return SharedBoardUtils.setStateCellValue(gameState, row, col, value, cardState || null);
 }
 
-function getCellValue(gameState: any, row: number, col: number): number | null {
-    if (!gameState || !Array.isArray(gameState.board)) return null;
-    if (isMainBoardCell(gameState, row, col)) {
-        return gameState.board[row][col];
-    }
-    const expansionCells = getExpansionCells(gameState);
-    for (const cell of expansionCells) {
-        if (cell.row === row && cell.col === col) return cell.owner;
-    }
-    return null;
-}
-
-function setCellValue(gameState: any, row: number, col: number, value: number): boolean {
-    if (!gameState || !Array.isArray(gameState.board)) return false;
-    if (isMainBoardCell(gameState, row, col)) {
-        gameState.board[row][col] = value;
-        return true;
-    }
-    const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-        ? gameState.boardExpansion
-        : null;
-    if (!expansion) return false;
-
-    const cells = Array.isArray(expansion.cells)
-        ? expansion.cells.slice()
-        : (expansion.active ? [Object.assign({}, expansion)] : []);
-    let changed = false;
-    for (let i = 0; i < cells.length; i++) {
-        const cell = cells[i];
-        if (!cell || typeof cell !== 'object') continue;
-        const cellRow = Number(cell.row);
-        const cellCol = Number.isInteger(cell.col)
-            ? cell.col
-            : (cell.side === 'left' ? -1 : (cell.side === 'right' ? ((resolveBoardBounds(gameState) || { maxCol: -1 }).maxCol + 1) : Number(cell.col)));
-        if (!Number.isInteger(cellRow) || !Number.isInteger(cellCol)) continue;
-        if (cellRow !== row || cellCol !== col) continue;
-        cells[i] = Object.assign({}, cell, { owner: Number(value) });
-        changed = true;
-        break;
-    }
-    if (!changed) return false;
-
-    if (Array.isArray(expansion.cells)) {
-        expansion.cells = cells;
-    } else if (expansion.active) {
-        const matched = cells.find((cell: any) => cell && Number(cell.row) === row && Number(cell.col) === col);
-        if (matched) expansion.owner = Number(value);
-    }
-    return true;
-}
-
-function resolveSwapFlips(gameState: any, row: number, col: number, player: number, context: any, core: any): [number, number][] {
+function resolveSwapFlips(gameState: any, cardState: any, row: number, col: number, player: number, context: any, core: any): [number, number][] {
     if (!core || typeof core.getFlipsWithContext !== 'function') return [];
     if (!gameState) return [];
-    const prev = getCellValue(gameState, row, col);
+    const prev = getCellValue(gameState, cardState, row, col);
     if (prev === null) return [];
-    if (!setCellValue(gameState, row, col, P_EMPTY)) return [];
+    if (!setCellValue(gameState, cardState, row, col, P_EMPTY)) return [];
     try {
-        return normalizeFlips(core.getFlipsWithContext(gameState, row, col, player, context || {}));
+        const flipContext = Object.assign({}, context || {}, { cardState: cardState || null });
+        return normalizeFlips(core.getFlipsWithContext(gameState, row, col, player, flipContext));
     } finally {
-        setCellValue(gameState, row, col, prev);
+        setCellValue(gameState, cardState, row, col, prev);
     }
 }
 
@@ -241,7 +136,7 @@ function applySwapWithEnemy(cardState: any, gameState: any, playerKey: string, r
     const player = playerKey === 'black' ? P_BLACK : P_WHITE;
     const opponent = -player;
 
-    if (!gameState || getCellValue(gameState, row, col) !== opponent) return result;
+    if (!gameState || getCellValue(gameState, cardState, row, col) !== opponent) return result;
 
     const hasSpecialOrBomb = (cardState.markers || []).some((m: any) => {
         if (!m || m.row !== row || m.col !== col) return false;
@@ -276,7 +171,7 @@ function applySwapWithEnemy(cardState: any, gameState: any, playerKey: string, r
         );
     }
 
-    const swapFlips = resolveSwapFlips(gameState, row, col, player, cardContext, core);
+    const swapFlips = resolveSwapFlips(gameState, cardState, row, col, player, cardContext, core);
     const appliedSwapFlips: { row: number; col: number }[] = [];
     if (swapFlips.length > 0) {
         for (const [fr, fc] of swapFlips) {

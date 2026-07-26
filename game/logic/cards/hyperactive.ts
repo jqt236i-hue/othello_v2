@@ -366,28 +366,35 @@ function resolveExpansionSide(side: string | null, row: number, col: number, gam
     return invokeBoardShapeMethod('resolveExpansionSide', [side, row, col, gameState]);
 }
 
-function getExpansionCellRef(gameState: GameState, row: number, col: number): ExpansionCellRef | null {
-    return invokeBoardShapeMethod('getExpansionCellRef', [gameState, row, col]);
+function getExpansionCellRef(cardState: CardState, gameState: GameState, row: number, col: number): ExpansionCellRef | null {
+    return invokeBoardShapeMethod('getExpansionCellRef', [gameState, row, col, cardState]);
 }
 
-function hasBoardShapeCell(gameState: GameState, row: number, col: number): boolean {
-    return invokeBoardShapeMethod('hasBoardShapeCell', [gameState, row, col]);
+function hasBoardShapeCell(cardState: CardState, gameState: GameState, row: number, col: number): boolean {
+    return invokeBoardShapeMethod('hasBoardShapeCell', [gameState, row, col, cardState]);
 }
 
-function getExpansionCells(gameState: GameState): any[] {
-    return invokeBoardShapeMethod('getExpansionCells', [gameState]);
+function getExpansionCells(cardState: CardState, gameState: GameState): any[] {
+    return invokeBoardShapeMethod('getExpansionCells', [gameState, cardState]);
 }
 
-function forEachBoardShapeCell(gameState: GameState, visitor: (row: number, col: number, value: any, side?: string) => void): void {
-    invokeBoardShapeMethod('forEachBoardShapeCell', [gameState, visitor]);
+function forEachBoardShapeCell(cardState: CardState, gameState: GameState, visitor: (row: number, col: number, value: any, side?: string) => void): void {
+    invokeBoardShapeMethod('forEachBoardShapeCell', [gameState, visitor, cardState]);
 }
 
-function getBoardCell(gameState: GameState, row: number, col: number): number | null {
-    return invokeBoardShapeMethod('getBoardCell', [gameState, row, col]);
+function getBoardCell(cardState: CardState, gameState: GameState, row: number, col: number): number | null {
+    return invokeBoardShapeMethod('getBoardCell', [gameState, row, col, cardState]);
 }
 
-function setBoardCell(gameState: GameState, row: number, col: number, value: number): boolean {
-    return invokeBoardShapeMethod('setBoardCell', [gameState, row, col, value]);
+function setBoardCell(cardState: CardState, gameState: GameState, row: number, col: number, value: number): boolean {
+    return invokeBoardShapeMethod('setBoardCell', [gameState, row, col, value, cardState]);
+}
+
+function getExplicitCardContext(cardState: CardState, deps: HyperactiveDeps): any {
+    const context = deps && typeof deps.getCardContext === 'function'
+        ? deps.getCardContext(cardState)
+        : {};
+    return { ...(context || {}), cardState };
 }
 
 function clearUltimateHyperactiveAtPositions(cardState: CardState, positions: Position[]): void {
@@ -419,9 +426,9 @@ function getNeighborEmptyCandidates(
             if (dr === 0 && dc === 0) continue;
             const r = row + dr;
             const c = col + dc;
-            if (!hasBoardShapeCell(gameState, r, c)) continue;
+            if (!hasBoardShapeCell(cardState, gameState, r, c)) continue;
             if (isBlockedCell(cardState, r, c, gameState)) continue;
-            const occupied = getBoardCell(gameState, r, c) !== EMPTY;
+            const occupied = getBoardCell(cardState, gameState, r, c) !== EMPTY;
             if (!occupied) {
                 emptyOut.push({ row: r, col: c, occupied: false });
             } else if (includeOccupied) {
@@ -442,7 +449,7 @@ function getBoardShapeEmptyCandidates(
     const isBlockedCell = deps && typeof deps.isBlockedCell === 'function'
         ? deps.isBlockedCell
         : (() => false);
-    forEachBoardShapeCell(gameState, (row, col, value) => {
+    forEachBoardShapeCell(cardState, gameState, (row, col, value) => {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return;
         const key = `${row},${col}`;
         if (seen.has(key)) return;
@@ -478,13 +485,13 @@ function getStraightLineEmptyCandidates(
             for (let distance = 1; distance <= (maxDistance as number); distance++) {
                 const targetRow = row + (dr * distance);
                 const targetCol = col + (dc * distance);
-                if (!hasBoardShapeCell(gameState, targetRow, targetCol)) break;
+                if (!hasBoardShapeCell(cardState, gameState, targetRow, targetCol)) break;
 
                 let blockedOnPath = false;
                 for (let step = 1; step <= distance; step++) {
                     const stepRow = row + (dr * step);
                     const stepCol = col + (dc * step);
-                    if (!hasBoardShapeCell(gameState, stepRow, stepCol)) {
+                    if (!hasBoardShapeCell(cardState, gameState, stepRow, stepCol)) {
                         blockedOnPath = true;
                         break;
                     }
@@ -495,7 +502,7 @@ function getStraightLineEmptyCandidates(
                 }
                 if (blockedOnPath) break;
 
-                const occupied = getBoardCell(gameState, targetRow, targetCol) !== EMPTY;
+                const occupied = getBoardCell(cardState, gameState, targetRow, targetCol) !== EMPTY;
                 if (occupied) {
                     if (!allowJumpOverStones) break;
                     continue;
@@ -514,14 +521,14 @@ function getChebyshevDistance(from: Position | null, to: Position | null): numbe
     return Math.max(Math.abs(from.row - to.row), Math.abs(from.col - to.col));
 }
 
-function collectEscapeThreats(gameState: GameState, ownerVal: number, originRow: number, originCol: number): Position[] {
+function collectEscapeThreats(cardState: CardState, gameState: GameState, ownerVal: number, originRow: number, originCol: number): Position[] {
     const BLACK_VAL = BLACK || 1;
     const WHITE_VAL = WHITE || -1;
     const enemyVal = ownerVal === BLACK_VAL ? WHITE_VAL : BLACK_VAL;
     const enemies: Position[] = [];
     const allStones: Position[] = [];
 
-    forEachBoardShapeCell(gameState, (r, c, value) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, value) => {
         if (value === EMPTY) return;
         if (r === originRow && c === originCol) return;
         const point: Position = { row: r, col: c };
@@ -564,13 +571,13 @@ function pickEscapeTarget(candidates: Candidate[], threats: Position[]): Candida
     return scored[0] ? scored[0].candidate : null;
 }
 
-function collectRobotVacuumEnemies(gameState: GameState, ownerVal: number, originRow: number, originCol: number): Position[] {
+function collectRobotVacuumEnemies(cardState: CardState, gameState: GameState, ownerVal: number, originRow: number, originCol: number): Position[] {
     const BLACK_VAL = BLACK || 1;
     const WHITE_VAL = WHITE || -1;
     const enemyVal = ownerVal === BLACK_VAL ? WHITE_VAL : BLACK_VAL;
     const enemies: Position[] = [];
 
-    forEachBoardShapeCell(gameState, (r, c, value) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, value) => {
         if (r === originRow && c === originCol) return;
         if (value !== enemyVal) return;
         enemies.push({ row: r, col: c });
@@ -674,9 +681,9 @@ function selectExtremeRepelTarget(
 
             const toRow = fromRow + moveDr;
             const toCol = fromCol + moveDc;
-            if (!hasBoardShapeCell(gameState, toRow, toCol)) continue;
+            if (!hasBoardShapeCell(cardState, gameState, toRow, toCol)) continue;
             if (isBlockedCell(cardState, toRow, toCol, gameState)) continue;
-            if (getBoardCell(gameState, toRow, toCol) !== EMPTY) continue;
+            if (getBoardCell(cardState, gameState, toRow, toCol) !== EMPTY) continue;
 
             const nextDistance = getChebyshevDistance({ row: toRow, col: toCol }, origin);
             if (nextDistance <= currentDistance) continue;
@@ -738,9 +745,9 @@ function applyExtremeHyperactiveRepel(cardState: CardState, gameState: GameState
 
             const fromRow = entry.row + dr;
             const fromCol = entry.col + dc;
-            if (!hasBoardShapeCell(gameState, fromRow, fromCol)) continue;
+            if (!hasBoardShapeCell(cardState, gameState, fromRow, fromCol)) continue;
 
-            const sourceVal = getBoardCell(gameState, fromRow, fromCol);
+            const sourceVal = getBoardCell(cardState, gameState, fromRow, fromCol);
             if (sourceVal === null || sourceVal === EMPTY) continue;
 
             const target = selectExtremeRepelTarget(cardState, gameState, entry, fromRow, fromCol, dr, dc, isBlockedCell);
@@ -767,8 +774,8 @@ function applyExtremeHyperactiveRepel(cardState: CardState, gameState: GameState
                 movedRes = !!(res && res.moved);
                 usedBoardOpsMove = !!(res && res.markerHandled === true);
             } else {
-                setBoardCell(gameState, fromRow, fromCol, EMPTY);
-                setBoardCell(gameState, target.row, target.col, sourceVal);
+                setBoardCell(cardState, gameState, fromRow, fromCol, EMPTY);
+                setBoardCell(cardState, gameState, target.row, target.col, sourceVal);
                 movedRes = true;
             }
 
@@ -922,21 +929,21 @@ function resolveEvasionMoveFlips(
     if (typeof deps.getFlipsWithContext !== 'function') {
         return { ownerKey: null, flipped: [], moved: [], destroyed: [] };
     }
-    const owner = resolveOwnerFromBoardValue(getBoardCell(gameState, origin.row, origin.col));
+    const owner = resolveOwnerFromBoardValue(getBoardCell(cardState, gameState, origin.row, origin.col));
     if (!owner) return { ownerKey: null, flipped: [], moved: [], destroyed: [] };
 
     let flipCells: any[] = [];
-    setBoardCell(gameState, origin.row, origin.col, EMPTY);
+    setBoardCell(cardState, gameState, origin.row, origin.col, EMPTY);
     try {
         flipCells = deps.getFlipsWithContext(
             gameState,
             origin.row,
             origin.col,
             owner.ownerVal,
-            deps.getCardContext ? deps.getCardContext(cardState) : {}
+            getExplicitCardContext(cardState, deps)
         );
     } finally {
-        setBoardCell(gameState, origin.row, origin.col, owner.ownerVal);
+        setBoardCell(cardState, gameState, origin.row, origin.col, owner.ownerVal);
     }
 
     if (!Array.isArray(flipCells) || flipCells.length === 0) {
@@ -999,7 +1006,7 @@ function resolveHyperactiveFlipEvasion(
         if (processed.has(key)) continue;
         processed.add(key);
 
-        if (getBoardCell(gameState, flip.row, flip.col) !== ownerBeforeVal) continue;
+        if (getBoardCell(cardState, gameState, flip.row, flip.col) !== ownerBeforeVal) continue;
 
         const evadeMarkers = findFlipEvadeMarkersAt(cardState, flip.row, flip.col);
         if (!evadeMarkers.length) continue;
@@ -1015,7 +1022,7 @@ function resolveHyperactiveFlipEvasion(
         }
         if (!entry || !markerTypeUpper) continue;
 
-        const sourceOwner = resolveOwnerFromBoardValue(getBoardCell(gameState, entry.row, entry.col));
+        const sourceOwner = resolveOwnerFromBoardValue(getBoardCell(cardState, gameState, entry.row, entry.col));
         if (!sourceOwner || sourceOwner.ownerVal !== ownerBeforeVal) continue;
         const ownerVal = sourceOwner.ownerVal;
 
@@ -1060,8 +1067,8 @@ function resolveHyperactiveFlipEvasion(
                 movedRes = !!(res && res.moved);
                 usedBoardOpsMove = !!(res && res.markerHandled === true);
             } else {
-                setBoardCell(gameState, fromRow, fromCol, EMPTY);
-                setBoardCell(gameState, target.row, target.col, ownerVal);
+                setBoardCell(cardState, gameState, fromRow, fromCol, EMPTY);
+                setBoardCell(cardState, gameState, target.row, target.col, ownerVal);
                 movedRes = true;
             }
 
@@ -1107,7 +1114,7 @@ function resolveHyperactiveFlipEvasion(
     for (const flip of parsedFlips) {
         const key = `${flip.row},${flip.col}`;
         if (evadedSet.has(key)) continue;
-        if (getBoardCell(gameState, flip.row, flip.col) !== ownerBeforeVal) continue;
+        if (getBoardCell(cardState, gameState, flip.row, flip.col) !== ownerBeforeVal) continue;
         remainingFlips.push([flip.row, flip.col]);
     }
 
@@ -1169,7 +1176,7 @@ function applyFlipCellsWithEvasion(
             const changeRes = deps.BoardOps.changeAt(cardState, gameState, cell.row, cell.col, ownerKey, options.flipCause, options.flipReason);
             changed = !!(changeRes && changeRes.changed);
         } else {
-            setBoardCell(gameState, cell.row, cell.col, ownerVal);
+            changed = setBoardCell(cardState, gameState, cell.row, cell.col, ownerVal);
         }
         if (!changed) continue;
 
@@ -1308,10 +1315,10 @@ function moveHyperactiveOnce(
 ): HyperactiveMoveResult {
     const p = resolveDeterministicPrng(prng, deps, 'CardHyperactive.moveHyperactiveOnce');
     const destroyAt = deps.destroyAt || ((cs: CardState, gs: GameState, r: number, c: number) => {
-        const cell = getBoardCell(gs, r, c);
+        const cell = getBoardCell(cs, gs, r, c);
         if (cell === null || cell === undefined || cell === EMPTY) return false;
         if ((cs as any).markers) (cs as any).markers = (cs as any).markers.filter((m: any) => !(m.row === r && m.col === c));
-        setBoardCell(gs, r, c, EMPTY);
+        setBoardCell(cs, gs, r, c, EMPTY);
         return true;
     });
     const getFlipsWithContext = deps.getFlipsWithContext || (() => []);
@@ -1353,7 +1360,7 @@ function moveHyperactiveOnce(
         : (isExtremeHyperactive ? 'extreme_no_candidates' : 'no_candidates');
 
     // Anchor must still be owner's stone
-    if (getBoardCell(gameState, entry.row, entry.col) !== ownerVal) {
+    if (getBoardCell(cardState, gameState, entry.row, entry.col) !== ownerVal) {
         // remove the anchor
         clearHyperactiveAtPositions(cardState, [{ row: entry.row, col: entry.col }]);
         return { moved, destroyed, flipped, repelled, ownerKey };
@@ -1372,7 +1379,7 @@ function moveHyperactiveOnce(
                     if (dr === 0 && dc === 0) continue;
                     const row = entry.row + dr;
                     const col = entry.col + dc;
-                    if (!hasBoardShapeCell(gameState, row, col)) continue;
+                    if (!hasBoardShapeCell(cardState, gameState, row, col)) continue;
                     blastTargets.push({ row, col });
                 }
             }
@@ -1399,7 +1406,7 @@ function moveHyperactiveOnce(
 
     let target: Candidate | null = null;
     if (isEscapeHyperactive) {
-        const threats = collectEscapeThreats(gameState, ownerVal, entry.row, entry.col);
+        const threats = collectEscapeThreats(cardState, gameState, ownerVal, entry.row, entry.col);
         target = pickEscapeTarget(candidates, threats);
     }
 
@@ -1413,7 +1420,7 @@ function moveHyperactiveOnce(
             const picked = candidatePool[normalizedIndex] || candidatePool[0] || null;
             if (!picked) break;
 
-            const targetVal = getBoardCell(gameState, picked.row, picked.col);
+            const targetVal = getBoardCell(cardState, gameState, picked.row, picked.col);
             if (targetVal === EMPTY) {
                 target = picked;
                 break;
@@ -1480,8 +1487,8 @@ function moveHyperactiveOnce(
                 vacated = !!(res && res.moved);
                 usedBoardOpsVacate = !!(res && res.markerHandled === true);
             } else {
-                setBoardCell(gameState, picked.row, picked.col, EMPTY);
-                setBoardCell(gameState, vacateTarget.row, vacateTarget.col, targetVal as number);
+                setBoardCell(cardState, gameState, picked.row, picked.col, EMPTY);
+                setBoardCell(cardState, gameState, vacateTarget.row, vacateTarget.col, targetVal as number);
                 vacated = true;
             }
 
@@ -1515,7 +1522,7 @@ function moveHyperactiveOnce(
 
     let flipCells: any[] = [];
     if (!isExtremeHyperactive) {
-        flipCells = getFlipsWithContext(gameState, target.row, target.col, ownerVal, deps.getCardContext ? deps.getCardContext(cardState) : {});
+        flipCells = getFlipsWithContext(gameState, target.row, target.col, ownerVal, getExplicitCardContext(cardState, deps));
     }
 
     const sourceRow = usedExtremeSwapFallback && swapSource ? swapSource.row : entry.row;
@@ -1539,8 +1546,8 @@ function moveHyperactiveOnce(
             moveSucceeded = !!(moveResult && moveResult.moved);
             usedBoardOpsMove = !!(moveResult && moveResult.markerHandled === true);
         } else {
-            setBoardCell(gameState, sourceRow, sourceCol, EMPTY);
-            setBoardCell(gameState, target.row, target.col, ownerVal);
+            setBoardCell(cardState, gameState, sourceRow, sourceCol, EMPTY);
+            setBoardCell(cardState, gameState, target.row, target.col, ownerVal);
             moveSucceeded = true;
         }
         if (!moveSucceeded) {
@@ -1558,13 +1565,13 @@ function moveHyperactiveOnce(
         const repelResults = applyExtremeHyperactiveRepel(cardState, gameState, entry, deps);
         if (repelResults && repelResults.length) repelled.push(...repelResults);
 
-        const targetCell = getBoardCell(gameState, target.row, target.col);
+        const targetCell = getBoardCell(cardState, gameState, target.row, target.col);
         if (targetCell === ownerVal) {
-            setBoardCell(gameState, target.row, target.col, EMPTY);
+            setBoardCell(cardState, gameState, target.row, target.col, EMPTY);
             try {
-                flipCells = getFlipsWithContext(gameState, target.row, target.col, ownerVal, deps.getCardContext ? deps.getCardContext(cardState) : {});
+                flipCells = getFlipsWithContext(gameState, target.row, target.col, ownerVal, getExplicitCardContext(cardState, deps));
             } finally {
-                setBoardCell(gameState, target.row, target.col, ownerVal);
+                setBoardCell(cardState, gameState, target.row, target.col, ownerVal);
             }
         }
     }
@@ -1765,10 +1772,10 @@ function processUltimateHyperactiveMoveAtAnchor(
         : (() => {});
     const getFlipsWithContext = deps.getFlipsWithContext || (() => []);
     const destroyAt = deps.destroyAt || ((cs: CardState, gs: GameState, r: number, c: number) => {
-        const cell = getBoardCell(gs, r, c);
+        const cell = getBoardCell(cs, gs, r, c);
         if (cell === null || cell === undefined || cell === EMPTY) return false;
         if ((cs as any).markers) (cs as any).markers = (cs as any).markers.filter((m: any) => !(m.row === r && m.col === c));
-        setBoardCell(gs, r, c, EMPTY);
+        setBoardCell(cs, gs, r, c, EMPTY);
         return true;
     });
 
@@ -1777,7 +1784,7 @@ function processUltimateHyperactiveMoveAtAnchor(
     const flipped: any[] = [];
 
     // Anchor is removed if the board owner no longer matches marker owner.
-    if (getBoardCell(gameState, entry.row, entry.col) !== ownerVal) {
+    if (getBoardCell(cardState, gameState, entry.row, entry.col) !== ownerVal) {
         clearUltimateAtPositions(cardState, [{ row: entry.row, col: entry.col }]);
         return { moved, destroyed, flipped, ownerKey };
     }
@@ -1801,7 +1808,7 @@ function processUltimateHyperactiveMoveAtAnchor(
             target.row,
             target.col,
             ownerVal,
-            deps.getCardContext ? deps.getCardContext(cardState) : {}
+            getExplicitCardContext(cardState, deps)
         );
         let movedRes = false;
         let usedBoardOpsMove = false;
@@ -1820,8 +1827,8 @@ function processUltimateHyperactiveMoveAtAnchor(
             movedRes = !!(res && res.moved);
             usedBoardOpsMove = !!(res && res.markerHandled === true);
         } else {
-            setBoardCell(gameState, sourceRow, sourceCol, EMPTY);
-            setBoardCell(gameState, target.row, target.col, ownerVal);
+            setBoardCell(cardState, gameState, sourceRow, sourceCol, EMPTY);
+            setBoardCell(cardState, gameState, target.row, target.col, ownerVal);
             movedRes = true;
         }
 
@@ -1879,8 +1886,8 @@ function collectRobotVacuumTargets(cardState: CardState, gameState: GameState, o
             if (dr === 0 && dc === 0) continue;
             const row = originRow + dr;
             const col = originCol + dc;
-            if (!hasBoardShapeCell(gameState, row, col)) continue;
-            if (getBoardCell(gameState, row, col) !== enemyVal) continue;
+            if (!hasBoardShapeCell(cardState, gameState, row, col)) continue;
+            if (getBoardCell(cardState, gameState, row, col) !== enemyVal) continue;
             if (isManifestTarget(cardState, row, col, deps)) continue;
             targets.push({ row, col });
         }
@@ -1916,7 +1923,7 @@ function moveRobotVacuumOnce(
     const ownerKey = entry.owner as PlayerKey;
     const ownerVal = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
 
-    if (getBoardCell(gameState, entry.row, entry.col) !== ownerVal) {
+    if (getBoardCell(cardState, gameState, entry.row, entry.col) !== ownerVal) {
         clearHyperactiveAtPositions(cardState, [{ row: entry.row, col: entry.col }]);
         return { moved, destroyed, flipped, ownerKey };
     }
@@ -1927,7 +1934,7 @@ function moveRobotVacuumOnce(
         return { moved, destroyed, flipped, ownerKey };
     }
 
-    const enemies = collectRobotVacuumEnemies(gameState, ownerVal, entry.row, entry.col);
+    const enemies = collectRobotVacuumEnemies(cardState, gameState, ownerVal, entry.row, entry.col);
     const target = pickRobotVacuumApproachTarget(candidates, enemies, p);
     if (!target) return { moved, destroyed, flipped, ownerKey };
     const from: Position = { row: entry.row, col: entry.col };
@@ -1949,8 +1956,8 @@ function moveRobotVacuumOnce(
         movedRes = !!(res && res.moved);
         usedBoardOpsMove = !!(res && res.markerHandled === true);
     } else {
-        setBoardCell(gameState, entry.row, entry.col, EMPTY);
-        setBoardCell(gameState, target.row, target.col, ownerVal);
+        setBoardCell(cardState, gameState, entry.row, entry.col, EMPTY);
+        setBoardCell(cardState, gameState, target.row, target.col, ownerVal);
         movedRes = true;
     }
 
@@ -2069,7 +2076,7 @@ function processGluttonousMoveAtAnchor(
     const rawMissStreak = Number(entry && entry.data ? entry.data.gluttonousMissStreak : 0);
     const missStreak = Number.isFinite(rawMissStreak) ? Math.max(0, Math.trunc(rawMissStreak)) : 0;
 
-    if (getBoardCell(gameState, entry.row, entry.col) !== ownerVal) {
+    if (getBoardCell(cardState, gameState, entry.row, entry.col) !== ownerVal) {
         clearHyperactiveAtPositions(cardState, [{ row: entry.row, col: entry.col }]);
         return { moved, destroyed, flipped, ownerKey, ate };
     }
@@ -2133,8 +2140,8 @@ function processGluttonousMoveAtAnchor(
                 movedRes = !!(res && res.moved);
                 usedBoardOpsMove = !!(res && res.markerHandled === true);
             } else {
-                setBoardCell(gameState, from.row, from.col, EMPTY);
-                setBoardCell(gameState, target.row, target.col, ownerVal);
+                setBoardCell(cardState, gameState, from.row, from.col, EMPTY);
+                setBoardCell(cardState, gameState, target.row, target.col, ownerVal);
                 movedRes = true;
             }
 
@@ -2191,7 +2198,7 @@ function processGluttonousMoveAtAnchor(
     let movedTo: Position | null = null;
     const moveCandidates = getNeighborEmptyCandidates(cardState, gameState, entry.row, entry.col, { isBlockedCell });
     if (moveCandidates.length > 0) {
-        const enemies = collectRobotVacuumEnemies(gameState, ownerVal, entry.row, entry.col);
+        const enemies = collectRobotVacuumEnemies(cardState, gameState, ownerVal, entry.row, entry.col);
         const target = pickRobotVacuumApproachTarget(moveCandidates, enemies, p);
         if (target) {
             let movedRes = false;
@@ -2211,8 +2218,8 @@ function processGluttonousMoveAtAnchor(
                 movedRes = !!(res && res.moved);
                 usedBoardOpsMove = !!(res && res.markerHandled === true);
             } else {
-                setBoardCell(gameState, entry.row, entry.col, EMPTY);
-                setBoardCell(gameState, target.row, target.col, ownerVal);
+                setBoardCell(cardState, gameState, entry.row, entry.col, EMPTY);
+                setBoardCell(cardState, gameState, target.row, target.col, ownerVal);
                 movedRes = true;
             }
 
@@ -2318,7 +2325,7 @@ function processRobotVacuumMoveAtAnchor(
     const expired: any[] = moveDestroyed.filter((detail: any) => detail && detail.reverted === true);
 
     const markerStillExists = Array.isArray((cardState as any).markers) && (cardState as any).markers.includes(entry);
-    const anchorStillOwned = markerStillExists && getBoardCell(gameState, entry.row, entry.col) === ownerVal;
+    const anchorStillOwned = markerStillExists && getBoardCell(cardState, gameState, entry.row, entry.col) === ownerVal;
 
     if (anchorStillOwned) {
         const targets = collectRobotVacuumTargets(cardState, gameState, ownerVal, entry.row, entry.col, deps).slice();

@@ -2,13 +2,16 @@
 
 type SelfplayScoreTargetChoosersConfig = {
     CardLogic?: any;
+    SharedBoardUtils?: any;
     choosePendingTargetByScore?: (targets: any[], scoreFn: (target: any) => number) => any;
     evaluatePositionValue?: (row: any, col: any, boardOrSize?: any) => number;
     toPlayerValue?: (playerKey: any) => any;
-    getCellOwnerValueForSelfplay?: (gameState: any, row: any, col: any) => any;
+    getCellOwnerValueForSelfplay?: (gameState: any, cardState: any, row: any, col: any) => any;
+    getSelfplayBoard?: (gameState: any, cardState: any) => any;
+    getBoardCellValue?: (board: any, row: any, col: any) => any;
     isCorner?: (row: any, col: any, board?: any) => boolean;
     isEdge?: (row: any, col: any, board?: any) => boolean;
-    countDiscsByValue?: (gameState: any, playerValue: any) => number;
+    countDiscsByValue?: (gameState: any, playerValue: any, cardState: any) => number;
 };
 
 function getCorrosionMarkerTypeWeight(type: any) {
@@ -25,6 +28,7 @@ function getCorrosionMarkerTypeWeight(type: any) {
 export function createSelfplayScoreTargetChoosers(config?: SelfplayScoreTargetChoosersConfig) {
     const cfg = (config && typeof config === 'object') ? config : {} as SelfplayScoreTargetChoosersConfig;
     const cardLogic = cfg.CardLogic || null;
+    const sharedBoardUtils = cfg.SharedBoardUtils || null;
     const choosePendingTargetByScore = typeof cfg.choosePendingTargetByScore === 'function'
         ? cfg.choosePendingTargetByScore
         : (() => null);
@@ -37,6 +41,12 @@ export function createSelfplayScoreTargetChoosers(config?: SelfplayScoreTargetCh
     const getCellOwnerValueForSelfplay = typeof cfg.getCellOwnerValueForSelfplay === 'function'
         ? cfg.getCellOwnerValueForSelfplay
         : (() => 0);
+    const getSelfplayBoard = typeof cfg.getSelfplayBoard === 'function'
+        ? cfg.getSelfplayBoard
+        : (() => null);
+    const getBoardCellValue = typeof cfg.getBoardCellValue === 'function'
+        ? cfg.getBoardCellValue
+        : (() => null);
     const isCorner = typeof cfg.isCorner === 'function'
         ? cfg.isCorner
         : (() => false);
@@ -66,8 +76,9 @@ export function createSelfplayScoreTargetChoosers(config?: SelfplayScoreTargetCh
 
         const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
         const selfVal = toPlayerValue(playerKey);
+        const board = getSelfplayBoard(gameState, cardState);
         return choosePendingTargetByScore(targets, (target: any) => {
-            let score = evaluatePositionValue(target.row, target.col) * 0.15;
+            let score = evaluatePositionValue(target.row, target.col, board) * 0.15;
 
             for (const marker of markers) {
                 if (!marker || marker.kind !== 'specialStone') continue;
@@ -83,12 +94,12 @@ export function createSelfplayScoreTargetChoosers(config?: SelfplayScoreTargetCh
                 else score += magnitude;
             }
 
-            const occupant = getCellOwnerValueForSelfplay(gameState, target.row, target.col);
+            const occupant = getCellOwnerValueForSelfplay(gameState, cardState, target.row, target.col);
             if (occupant === -selfVal) score += 180;
             else if (occupant === selfVal) score -= 160;
 
-            if (isCorner(target.row, target.col)) score += (occupant === -selfVal) ? 700 : -700;
-            else if (isEdge(target.row, target.col)) score += (occupant === -selfVal) ? 220 : -220;
+            if (isCorner(target.row, target.col, board)) score += (occupant === -selfVal) ? 700 : -700;
+            else if (isEdge(target.row, target.col, board)) score += (occupant === -selfVal) ? 220 : -220;
 
             score += (rng && typeof rng.random === 'function') ? (rng.random() * 0.01) : 0;
             return score;
@@ -98,9 +109,10 @@ export function createSelfplayScoreTargetChoosers(config?: SelfplayScoreTargetCh
     function chooseTemptTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
         const targets = cardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
         if (!targets.length) return null;
+        const board = getSelfplayBoard(gameState, cardState);
         return choosePendingTargetByScore(
             targets,
-            (target: any) => evaluatePositionValue(target.row, target.col) + rng.random() * 0.01
+            (target: any) => evaluatePositionValue(target.row, target.col, board) + rng.random() * 0.01
         );
     }
 
@@ -108,15 +120,20 @@ export function createSelfplayScoreTargetChoosers(config?: SelfplayScoreTargetCh
         return chooseTemptTarget(gameState, cardState, playerKey, rng);
     }
 
-    function scoreTimeBombTarget(gameState: any, playerKey: any, target: any, rng: any) {
-        if (!gameState || !Array.isArray(gameState.board) || !target) return -Infinity;
-        const board = gameState.board;
-        const size = board.length;
+    function scoreTimeBombTarget(gameState: any, cardState: any, playerKey: any, target: any, rng: any) {
+        if (!gameState || typeof gameState !== 'object' || !target) return -Infinity;
+        const board = getSelfplayBoard(gameState, cardState);
         if (!Number.isInteger(target.row) || !Number.isInteger(target.col)) return -Infinity;
-        if (target.row < 0 || target.col < 0 || target.row >= size || target.col >= size) return -Infinity;
+        if (
+            !sharedBoardUtils ||
+            typeof sharedBoardUtils.hasPlayableCell !== 'function' ||
+            !sharedBoardUtils.hasPlayableCell(board, target.row, target.col)
+        ) {
+            return -Infinity;
+        }
 
         const playerValue = toPlayerValue(playerKey);
-        const discDiff = countDiscsByValue(gameState, playerValue);
+        const discDiff = countDiscsByValue(gameState, playerValue, cardState);
         let score = 0;
         let oppCornerHits = 0;
         let ownCornerHits = 0;
@@ -125,11 +142,11 @@ export function createSelfplayScoreTargetChoosers(config?: SelfplayScoreTargetCh
             for (let dc = -1; dc <= 1; dc++) {
                 const row = target.row + dr;
                 const col = target.col + dc;
-                if (row < 0 || col < 0 || row >= board.length || col >= board[row].length) continue;
-                const cell = board[row][col];
+                if (!sharedBoardUtils.hasPlayableCell(board, row, col)) continue;
+                const cell = getBoardCellValue(board, row, col);
                 if (cell === 0) continue;
-                const corner = isCorner(row, col);
-                const edge = isEdge(row, col);
+                const corner = isCorner(row, col, board);
+                const edge = isEdge(row, col, board);
                 const weight = corner ? 12 : (edge ? 4 : 2);
                 const isOwn = cell === playerValue;
                 if (isOwn) {
@@ -161,7 +178,7 @@ export function createSelfplayScoreTargetChoosers(config?: SelfplayScoreTargetCh
         if (!targets.length) return null;
         return choosePendingTargetByScore(
             targets,
-            (target: any) => scoreTimeBombTarget(gameState, playerKey, target, rng)
+            (target: any) => scoreTimeBombTarget(gameState, cardState, playerKey, target, rng)
         );
     }
 

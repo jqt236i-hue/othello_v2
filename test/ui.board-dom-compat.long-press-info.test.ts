@@ -252,6 +252,25 @@ describe('board cell long press info', () => {
     expect(global.handleCellClick).toHaveBeenCalledTimes(0);
   });
 
+  test('stone info reads custom-board and expansion owners from the canonical BoardView', () => {
+    global.gameState = {
+      board: Array.from({ length: 10 }, () => Array(10).fill(global.EMPTY)),
+      boardConfig: { rows: 10, cols: 10, shape: 'rectangle' },
+      boardExpansion: {
+        cells: [{ side: 'right', row: 2, col: 10, owner: global.WHITE }]
+      }
+    };
+    global.gameState.board[9][9] = global.BLACK;
+
+    const mod = require('../ui/board-dom-compat/renderer');
+
+    expect(mod.showSpecialStoneInfoAt(9, 9)).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
+
+    expect(mod.showSpecialStoneInfoAt(2, 10)).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('白石');
+  });
+
   test('showSpecialStoneInfoAt keeps normal stone info for living-will aura and adds its badge', () => {
     global.gameState.board[2][2] = global.BLACK;
     global.cardState.markers = [{

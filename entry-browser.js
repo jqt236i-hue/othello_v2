@@ -189,7 +189,6 @@ var BOOT_LOAD_ENTRIES = [
   { moduleKey: "./dist/shared/board/configuration", globalNames: ["BoardConfiguration"] },
   { moduleKey: "./dist/shared/board/initial-layout", globalNames: ["InitialBoardLayout"] },
   { moduleKey: "./dist/shared/board/expansion-descriptors", globalNames: ["BoardExpansionDescriptors"] },
-  { moduleKey: "./dist/shared/board/shape-metadata", globalNames: ["BoardShapeMetadata"] },
   { moduleKey: "./dist/shared/board/cell-access", globalNames: ["BoardCellAccess"] },
   { moduleKey: "./dist/shared/board/corners", globalNames: ["BoardCorners"] },
   { moduleKey: "./dist/shared/board/edge-runs", globalNames: ["BoardEdgeRuns"] },

@@ -1,3 +1,7 @@
+import {
+  isBoardCoordinateWithinLimit,
+  resolveBoardMaxAbsCoordinate,
+} from "./expansion-descriptors";
 import type { BoardTopology } from "./topology";
 
 export const BOARD_CONTRACT_VERSION = 2;
@@ -163,9 +167,31 @@ function restoreRecord(
 
 export function createStateKernel(deps: StateKernelDependencies) {
   const viewCache = new WeakMap<object, ViewCacheEntry>();
-  const maxAbsCoordinate = Number.isFinite(Number(deps.maxAbsCoordinate))
-    ? Math.max(16, Math.trunc(Number(deps.maxAbsCoordinate)))
-    : 256;
+  const maxAbsCoordinate = resolveBoardMaxAbsCoordinate(
+    deps.maxAbsCoordinate,
+  );
+
+  function collectBoundedMeteorHoleKeys(
+    cardState: unknown,
+    strict: boolean,
+    errors: string[],
+    warnings: string[],
+  ): Set<string> {
+    const out = new Set<string>();
+    for (const key of deps.collectMeteorHoleKeys(cardState)) {
+      const parts = key.split(",");
+      const row = parts.length === 2 ? Number(parts[0]) : NaN;
+      const col = parts.length === 2 ? Number(parts[1]) : NaN;
+      if (!isBoardCoordinateWithinLimit(row, col, maxAbsCoordinate)) {
+        const message = `METEOR_HOLE coordinate ${key} exceeds coordinate limit`;
+        if (strict) errors.push(message);
+        else warnings.push(`${message} and was ignored`);
+        continue;
+      }
+      out.add(deps.toBoardCellKey(row, col));
+    }
+    return out;
+  }
 
   function parseExpansionCells(
     gameState: Record<string, unknown>,
@@ -298,6 +324,12 @@ export function createStateKernel(deps: StateKernelDependencies) {
         errors.push(`gameState.board[${row}] must be an array`);
       }
     }
+    collectBoundedMeteorHoleKeys(
+      cardState,
+      strict,
+      errors,
+      warnings,
+    );
 
     const expansionCells = parseExpansionCells(
       gameState,
@@ -362,7 +394,9 @@ export function createStateKernel(deps: StateKernelDependencies) {
       Array.isArray(row) ? row.map((value) => deps.normalizeOwner(value)) : null,
     );
     const expansion = parseExpansionCells(gameState, false, [], []);
-    const holes = Array.from(deps.collectMeteorHoleKeys(cardState)).sort();
+    const holes = Array.from(
+      collectBoundedMeteorHoleKeys(cardState, false, [], []),
+    ).sort();
     return JSON.stringify({
       config: {
         rows: config.rows,
@@ -370,7 +404,12 @@ export function createStateKernel(deps: StateKernelDependencies) {
         shape: typeof config.shape === "string" ? config.shape : null,
       },
       board: boardValues,
-      expansion: expansion.map((cell) => [cell.row, cell.col, cell.owner]),
+      expansion: expansion.map((cell) => [
+        cell.row,
+        cell.col,
+        cell.side,
+        cell.owner,
+      ]),
       holes,
     });
   }

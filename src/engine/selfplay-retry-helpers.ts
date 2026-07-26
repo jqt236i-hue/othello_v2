@@ -42,7 +42,9 @@ export function createSelfplayRetryHelpers(config?: SelfplayRetryHelpersConfig) 
         : ((moves: any[]) => ({ moves }));
     const getSelfplayBoard = typeof cfg.getSelfplayBoard === 'function'
         ? cfg.getSelfplayBoard
-        : ((gameState: any) => gameState && gameState.board);
+        : (() => {
+            throw new Error('getSelfplayBoard is required by selfplay retry helpers');
+        });
     const cardLogic = cfg.CardLogic || null;
     const core = cfg.Core || null;
     const toPlayerValue = typeof cfg.toPlayerValue === 'function'

@@ -11,6 +11,7 @@ function createNetworkCommentaryController(config?: any): any {
   const rootRef = cfg.root || (typeof globalThis !== 'undefined' ? globalThis : null);
   let commentaryContextHelpers: any = null;
   let commentaryBroker: any = null;
+  let boardUtils: any = null;
 
   function resolveFromGlobal(name: string): any {
     try {
@@ -89,12 +90,22 @@ function createNetworkCommentaryController(config?: any): any {
     return null;
   }
 
-  function countDiscsFromBoard(board: any): any {
-    const helpers = resolveCommentaryContextHelpers();
-    if (helpers && typeof helpers.countDiscsFromBoard === 'function') {
-      return helpers.countDiscsFromBoard(board);
+  function resolveBoardUtils(): any {
+    if (boardUtils) return boardUtils;
+    boardUtils = resolveFromGlobal('SharedBoardUtils');
+    if (boardUtils) return boardUtils;
+    try {
+      boardUtils = _require('../../shared/shared-board-utils');
+    } catch (_error) { /* handled by the required contract below */ }
+    return boardUtils;
+  }
+
+  function countDiscsFromState(gameStateValue: any, cardStateValue: any): any {
+    const activeBoardUtils = resolveBoardUtils();
+    if (!activeBoardUtils || typeof activeBoardUtils.countStateDiscs !== 'function') {
+      throw new Error('SharedBoardUtils.countStateDiscs is required by NetworkCommentary');
     }
-    return { black: 0, white: 0 };
+    return activeBoardUtils.countStateDiscs(gameStateValue, cardStateValue ?? null);
   }
 
   function resolvePhaseByTurn(turnNumber: number, occupiedCells: number): string {
@@ -169,7 +180,7 @@ function createNetworkCommentaryController(config?: any): any {
     const gameStateSnapshot = snapshot && snapshot.gameState ? snapshot.gameState : null;
     if (!gameStateSnapshot || !Array.isArray(gameStateSnapshot.board)) return;
 
-    const counts = countDiscsFromBoard(gameStateSnapshot.board);
+    const counts = countDiscsFromState(gameStateSnapshot, snapshot && snapshot.cardState);
     const turnNumber = Number.isFinite(gameStateSnapshot.turnNumber) ? gameStateSnapshot.turnNumber : null;
     let runtimeHelpers = resolveFromGlobal('CommentaryRuntimeHelpers');
     if (!runtimeHelpers) {

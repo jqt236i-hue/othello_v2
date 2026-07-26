@@ -8,7 +8,7 @@ const MAX_SELF_DESTRUCT_CHANCE_PERCENT = 100;
 
 type UltimateWorkGodDeps = {
     BoardOps?: {
-        getCellValue?: (gameState: GameState, row: number, col: number) => any;
+        getCellValue?: (gameState: GameState, row: number, col: number, cardState: CardState | null) => any;
         destroyAt?: (
             cardState: CardState,
             gameState: GameState,
@@ -44,13 +44,20 @@ function getMarkerAt(cardState: CardState, playerKey: PlayerKey, row: number, co
     )) || null;
 }
 
-function isOwnerStone(gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: UltimateWorkGodDeps): boolean {
+function isOwnerStone(
+    cardState: CardState,
+    gameState: GameState,
+    playerKey: PlayerKey,
+    row: number,
+    col: number,
+    deps: UltimateWorkGodDeps
+): boolean {
     const getCellValue = deps.BoardOps && typeof deps.BoardOps.getCellValue === 'function'
         ? deps.BoardOps.getCellValue
         : null;
     if (!getCellValue) return false;
     const expected = playerKey === 'black' ? BLACK : WHITE;
-    return getCellValue(gameState, row, col) === expected;
+    return getCellValue(gameState, row, col, cardState) === expected;
 }
 
 function emitIncomePresentation(
@@ -94,7 +101,7 @@ function processUltimateWorkGodAtTurnStartAnchor(
 ): any {
     const marker = getMarkerAt(cardState, playerKey, row, col);
     if (!marker) return { processed: false, reason: 'marker_not_found', row, col };
-    if (!isOwnerStone(gameState, playerKey, row, col, deps)) {
+    if (!isOwnerStone(cardState, gameState, playerKey, row, col, deps)) {
         return { processed: false, reason: 'anchor_lost', row, col };
     }
 

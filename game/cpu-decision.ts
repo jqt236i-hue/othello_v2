@@ -495,6 +495,10 @@ const isCornerCell = CpuDecisionBoardUtils.isCornerCell;
 const isEdgeCell = CpuDecisionBoardUtils.isEdgeCell;
 
 function isPlayableBoard(board: any): any {
+    const boardUtils = resolveSharedBoardUtilsModule();
+    if (boardUtils && typeof boardUtils.isBoardContext === 'function' && boardUtils.isBoardContext(board)) {
+        return boardUtils.collectBoardCoordinates(board).length > 0;
+    }
     if (!Array.isArray(board) || board.length <= 0) return false;
     for (const row of board) {
         if (!Array.isArray(row) || row.length <= 0) return false;
@@ -504,17 +508,14 @@ function isPlayableBoard(board: any): any {
 
 function getShapeAwareBoard(board: any, gameStateOverride: any, cardStateOverride: any): any {
     const boardUtils = resolveSharedBoardUtilsModule();
-    if (!Array.isArray(board) || !boardUtils || typeof boardUtils.attachBoardShape !== 'function') {
-        return board;
+    if (!Array.isArray(board)) return board;
+    if (!boardUtils || typeof boardUtils.createBoardContext !== 'function') {
+        throw new Error('[cpu-decision] SharedBoardUtils.createBoardContext is required');
     }
-    try {
-        boardUtils.attachBoardShape(board, {
-            boardConfig: gameStateOverride && gameStateOverride.boardConfig,
-            boardExpansion: gameStateOverride && gameStateOverride.boardExpansion,
-            cardState: cardStateOverride || null
-        });
-    } catch (e) { /* ignore */ }
-    return board;
+    if (!gameStateOverride || gameStateOverride.board !== board) {
+        throw new Error('[cpu-decision] explicit gameState is required for shape-aware CPU board access');
+    }
+    return boardUtils.createBoardContext(gameStateOverride, cardStateOverride || null);
 }
 
 function getCurrentCpuBoard(): any {
@@ -525,30 +526,46 @@ function getCurrentCpuBoard(): any {
         : null;
 }
 
+function getDenseBoardMatrix(boardRef: any): any {
+    const boardUtils = resolveSharedBoardUtilsModule();
+    if (boardUtils && typeof boardUtils.isBoardContext === 'function' && boardUtils.isBoardContext(boardRef)) {
+        return boardRef.gameState.board;
+    }
+    return boardRef;
+}
+
 function getBoardShapeForCpuBoard(boardRef: any): any {
     const boardUtils = resolveSharedBoardUtilsModule();
-    if (!Array.isArray(boardRef) || !boardUtils || typeof boardUtils.getBoardShapeMeta !== 'function') {
+    if (!boardUtils || typeof boardUtils.createBoardView !== 'function') {
         return null;
     }
-    const meta = boardUtils.getBoardShapeMeta(boardRef);
-    if (!meta) return null;
+    const gs = (typeof gameState !== 'undefined') ? gameState : null;
+    const cs = (typeof cardState !== 'undefined') ? cardState : null;
+    const context = boardUtils.isBoardContext && boardUtils.isBoardContext(boardRef)
+        ? boardRef
+        : (gs && Array.isArray(gs.board) && (!boardRef || boardRef === gs.board)
+            ? boardUtils.createBoardContext(gs, cs)
+            : null);
+    if (!context) return null;
+    const view = boardUtils.createBoardView(context.gameState, {
+        cardState: context.cardState,
+        strict: false
+    });
+    const topology = view.topology;
+    const expansionOwnerByKey: Record<string, number> = {};
+    for (const cell of view.expansionCells) {
+        expansionOwnerByKey[`${cell.row},${cell.col}`] = cell.owner;
+    }
     return {
-        minRow: meta.minRow,
-        maxRow: meta.maxRow,
-        minCol: meta.minCol,
-        maxCol: meta.maxCol,
-        playableKeys: Array.from(meta.playableKeys instanceof Set ? meta.playableKeys : []),
-        meteorHoleKeys: Array.from(meta.meteorHoleKeys instanceof Set ? meta.meteorHoleKeys : []),
-        expansionCells: Array.isArray(meta.expansionCells)
-            ? meta.expansionCells.map((cell: any) => ({
-                side: cell.side,
-                row: cell.row,
-                col: cell.col,
-                owner: cell.owner
-            }))
-            : [],
-        expansionOwnerByKey: Object.assign({}, meta.expansionOwnerByKey || null),
-        standard8x8: meta.standard8x8 === true
+        minRow: topology.contentBounds.minRow,
+        maxRow: topology.contentBounds.maxRow,
+        minCol: topology.contentBounds.minCol,
+        maxCol: topology.contentBounds.maxCol,
+        playableKeys: Array.from(topology.playableKeys),
+        meteorHoleKeys: Array.from(topology.holeKeys),
+        expansionCells: view.expansionCells.map((cell: any) => ({ ...cell })),
+        expansionOwnerByKey,
+        standard8x8: boardUtils.isStandardBoard8x8(context)
     };
 }
 
@@ -575,11 +592,11 @@ function canUseStandardBoardCpuPolicy(boardRef: any, featureKey: any, playerKey:
 }
 
 function countPlayableCells(board: any): any {
-    if (!Array.isArray(board)) return 0;
     const boardUtils = resolveSharedBoardUtilsModule();
     if (boardUtils && typeof boardUtils.collectBoardCoordinates === 'function') {
         return boardUtils.collectBoardCoordinates(board).length;
     }
+    if (!Array.isArray(board)) return 0;
     let total = 0;
     for (const row of board) total += Array.isArray(row) ? row.length : 0;
     return total;
@@ -838,7 +855,14 @@ function getDeckMetricsForPlayer(playerKey: any): any {
 
 function buildOnnxContext(playerKey: any, level: any, legalMovesCount: any, handCardIds: any, usableCardIds: any, candidateMoves?: any): any {
     if (CpuDecisionCardContext && typeof CpuDecisionCardContext.buildOnnxContext === 'function') {
-        return CpuDecisionCardContext.buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, usableCardIds, candidateMoves);
+        return CpuDecisionCardContext.buildOnnxContext(
+            playerKey,
+            level,
+            legalMovesCount,
+            handCardIds,
+            usableCardIds,
+            candidateMoves
+        );
     }
     return {
         playerKey,
@@ -878,7 +902,7 @@ function selectMoveFromLearnedPolicy(candidateMoves: any, playerKey: any, level:
         return runtime.chooseMove(candidateMoves, {
             playerKey,
             level,
-            board: boardRef,
+            board: getDenseBoardMatrix(boardRef),
             pendingType: resolvePendingType(playerKey),
             legalMovesCount: candidateMoves.length
         });
@@ -901,7 +925,7 @@ function selectMoveFromOthelloPolicy(candidateMoves: any, playerKey: any, level:
                     const selected = onnxRuntime.chooseMove(candidateMoves, {
                         playerKey,
                         level,
-                        board: boardRef,
+                        board: getDenseBoardMatrix(boardRef),
                         legalMovesCount: candidateMoves.length
                     });
                     if (selected && typeof selected.then !== 'function') return selected;
@@ -924,7 +948,7 @@ function selectMoveFromOthelloPolicy(candidateMoves: any, playerKey: any, level:
         return runtime.chooseMove(candidateMoves, {
             playerKey,
             level,
-            board: boardRef
+            board: getDenseBoardMatrix(boardRef)
         });
     } catch (e) {
         console.warn('[CPU] othello runtime failed, fallback to default policy', e);
@@ -942,7 +966,7 @@ function createLearnedScoreFn(playerKey: any, level: any, legalMovesCount: any):
             const s = runtime.getActionScore(move, {
                 playerKey,
                 level,
-                board: boardRef,
+                board: getDenseBoardMatrix(boardRef),
                 pendingType: resolvePendingType(playerKey),
                 legalMovesCount
             });
@@ -1465,9 +1489,7 @@ function buildLv6LookaheadOptions(level: any, board: any, legalMovesCount: any, 
     if (!Number.isFinite(level) || level < 6) return {};
     const empties = countBoardEmpties(board);
     const moves = Math.max(1, Number(legalMovesCount) || 1);
-    const totalCells = Array.isArray(board)
-        ? board.reduce((sum, row) => sum + (Array.isArray(row) ? row.length : 0), 0)
-        : 0;
+    const totalCells = countPlayableCells(board);
     const safeTotalCells = totalCells > 0 ? totalCells : 64;
     const occupiedRatio = Math.max(0, Math.min(1, 1 - (empties / safeTotalCells)));
     const sizeScale = Math.max(0.75, Math.min(1.8, Math.sqrt(safeTotalCells / 64)));
@@ -1584,6 +1606,7 @@ function selectMoveByLookahead(candidateMoves: any, playerKey: any, level: any, 
 const CpuDecisionOnnxMove = (CpuDecisionOnnxMoveModule && typeof CpuDecisionOnnxMoveModule.createCpuDecisionOnnxMove === 'function')
     ? CpuDecisionOnnxMoveModule.createCpuDecisionOnnxMove({
         getCurrentCpuBoard,
+        getDenseBoardMatrix,
         resolvePendingType,
         shouldUseOthelloOnnxRuntime,
         shouldForceCardModeLv6Placement,
@@ -1683,7 +1706,7 @@ function refineOnnxMoveByTacticalPlan(candidateMoves: any, selectedMove: any, pl
     if (isSameMoveByCoord(bestMove, selected)) return selected;
 
     const gap = bestScore - selectedScore;
-    const boardRef = context && Array.isArray(context.board) ? context.board : null;
+    const boardRef = context && context.board ? context.board : null;
     const selectedCorner = isCornerCell(selected.row, selected.col, boardRef);
     const bestCorner = isCornerCell(bestMove.row, bestMove.col, boardRef);
     const selectedEdge = !selectedCorner && isEdgeCell(selected.row, selected.col, boardRef);
@@ -2128,6 +2151,7 @@ const CpuDecisionCardRisk = (CpuDecisionCardRiskModule && typeof CpuDecisionCard
         buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any) => buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds),
         getBoardShapeForCpuBoard,
         getCurrentCpuBoard: () => getCurrentCpuBoard(),
+        getDenseBoardMatrix,
         isPlayableBoard,
         buildLv6LookaheadOptions,
         resolveLv6LookaheadTimeCaps,
@@ -2275,7 +2299,7 @@ function maybeOverrideWithStrictPendingPlacement(selectedMove: any, candidateMov
 
 function countBoardStatsForPlayer(playerValue: any): any {
     const board = getCurrentCpuBoard();
-    if (!Array.isArray(board)) {
+    if (!board || typeof board !== 'object') {
         return { discDiff: 0, empties: 0 };
     }
     let own = 0;
@@ -2284,7 +2308,9 @@ function countBoardStatsForPlayer(playerValue: any): any {
     const boardUtils = resolveSharedBoardUtilsModule();
     const cells = (boardUtils && typeof boardUtils.collectBoardCoordinates === 'function')
         ? boardUtils.collectBoardCoordinates(board)
-        : board.flatMap((row: any, r: any) => (Array.isArray(row) ? row.map((_: any, c: any) => ({ row: r, col: c })) : []));
+        : (Array.isArray(board)
+            ? board.flatMap((row: any, r: any) => (Array.isArray(row) ? row.map((_: any, c: any) => ({ row: r, col: c })) : []))
+            : []);
     for (const cell of cells) {
         const v = getBoardCellValue(board, cell.row, cell.col);
         if (v === playerValue) own += 1;
@@ -2380,7 +2406,7 @@ function cloneBoardForCpu(board: any): any {
 }
 
 function applyMoveByFlipsForCpu(board: any, move: any, playerValue: any): any {
-    if (!Array.isArray(board) || !move) return null;
+    if (!board || typeof board !== 'object' || !move) return null;
     const row = Number(move.row);
     const col = Number(move.col);
     if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
@@ -2397,7 +2423,6 @@ function applyMoveByFlipsForCpu(board: any, move: any, playerValue: any): any {
 }
 
 function hasCornerMoveOnBoardForPlayer(board: any, playerValue: any): any {
-    if (!Array.isArray(board)) return false;
     const boardUtils = resolveSharedBoardUtilsModule();
     if (boardUtils && typeof boardUtils.getLegalMovesBasic === 'function') {
         try {
@@ -2407,6 +2432,7 @@ function hasCornerMoveOnBoardForPlayer(board: any, playerValue: any): any {
             return false;
         }
     }
+    if (!Array.isArray(board)) return false;
     if (typeof getLegalMoves !== 'function') return false;
     try {
         const protection = (typeof getActiveProtectionForPlayer === 'function')
@@ -2678,6 +2704,7 @@ const CpuDecisionMoveSelection = (CpuDecisionMoveSelectionModule && typeof CpuDe
         getCpuRng: () => cpuRng,
         getBoardShapeForCpuBoard,
         getCurrentCpuBoard,
+        getDenseBoardMatrix,
         getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
         isAISystemAvailable,
         isPlayableBoard,

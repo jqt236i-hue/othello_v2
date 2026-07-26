@@ -357,7 +357,6 @@ function createTopologyFixture(definition: TopologyFixtureDefinition): any {
       data: { type: 'METEOR_HOLE' }
     }))
   };
-  SharedBoardUtils.attachBoardShape(board, { boardConfig, boardExpansion, cardState });
   const state = { board, boardConfig, boardExpansion, cardState };
   const topology = SharedBoardUtils.buildBoardTopology(state, { cardState });
   const snapshot = {
@@ -856,13 +855,6 @@ async function applyBrowserFixture(page: any, fixture: BrowserFixtureDefinition)
       if (!gameState.board[marker.row] || !Number.isInteger(marker.col)) continue;
       gameState.board[marker.row][marker.col] = String(marker.owner || '').toLowerCase() === 'white' ? -1 : 1;
     }
-    if (boardUtils && typeof boardUtils.attachBoardShape === 'function') {
-      boardUtils.attachBoardShape(gameState.board, {
-        boardConfig: gameState.boardConfig,
-        boardExpansion: gameState.boardExpansion,
-        cardState
-      });
-    }
     root.gameState = gameState;
     root.cardState = cardState;
 
@@ -1028,10 +1020,6 @@ async function captureProductionPlaybackBaselines(page: any): Promise<any> {
           usedByPlayer: { black: false, white: false },
           cells: expansionCells.map((cell: any) => ({ ...cell }))
         };
-        boardUtils.attachBoardShape(state.board, {
-          boardConfig: state.boardConfig,
-          boardExpansion: state.boardExpansion
-        });
         return state;
       };
       const cardState = root.cardState && typeof root.cardState === 'object' ? root.cardState : {};
@@ -1048,11 +1036,6 @@ async function captureProductionPlaybackBaselines(page: any): Promise<any> {
 
       cardState.markers = playbackFixture.finalMarkers.map((marker: any) => JSON.parse(JSON.stringify(marker)));
       root.gameState = createState(playbackFixture.finalBoard, playbackFixture.finalExpansionCells);
-      boardUtils.attachBoardShape(root.gameState.board, {
-        boardConfig: root.gameState.boardConfig,
-        boardExpansion: root.gameState.boardExpansion,
-        cardState
-      });
       root.DISABLE_ANIMATIONS = playbackMode.noAnim === true;
       engine.boardEl = board;
 

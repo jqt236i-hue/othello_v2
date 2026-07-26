@@ -365,19 +365,22 @@ function normalizeMarkerOwnerKey(owner: any): string {
     return owner === 'white' || owner === -1 ? 'white' : 'black';
 }
 
-function canSeedOccupyCell(cardState: any, gameState: any, helpers: any, row: number, col: number): boolean {
-    if (typeof helpers.hasBoardShapeCellForCard === 'function') {
-        return !!helpers.hasBoardShapeCellForCard(cardState, gameState, row, col);
+function getBoardCellForCard(cardState: any, gameState: any, helpers: any, row: number, col: number): number | null {
+    if (typeof helpers.getBoardCellForCard !== 'function') {
+        throw new Error('[effect-timing] getBoardCellForCard is required');
     }
-    return true;
+    const value = helpers.getBoardCellForCard(cardState, gameState, row, col);
+    if (typeof value === 'undefined') {
+        throw new Error(`[effect-timing] BoardView returned undefined at ${row},${col}`);
+    }
+    return value;
 }
 
-function getSeedCellValue(helpers: any, gameState: any, row: number, col: number): number | null {
-    if (typeof helpers.getCellValueForCard === 'function') {
-        return helpers.getCellValueForCard(gameState, row, col);
+function setBoardCellForCard(cardState: any, gameState: any, helpers: any, row: number, col: number, value: number): boolean {
+    if (typeof helpers.setBoardCellForCard !== 'function') {
+        throw new Error('[effect-timing] setBoardCellForCard is required');
     }
-    if (!gameState || !Array.isArray(gameState.board) || !Array.isArray(gameState.board[row])) return null;
-    return gameState.board[row][col];
+    return helpers.setBoardCellForCard(cardState, gameState, row, col, value) === true;
 }
 
 function clearSeedMarker(cardState: any, helpers: any, specialStoneKind: string, marker: any): void {
@@ -394,14 +397,15 @@ function resolveSeedExpiration(cardState: any, gameState: any, marker: any, help
     const row = marker.row;
     const col = marker.col;
     const ownerKey = normalizeMarkerOwnerKey(marker.owner);
+    const currentCellValue = getBoardCellForCard(cardState, gameState, helpers, row, col);
 
     emitDurationEndStatusRemoved(cardState, helpers, marker, marker.data || { type: 'SEED' });
     clearSeedMarker(cardState, helpers, specialStoneKind, marker);
 
-    if (!canSeedOccupyCell(cardState, gameState, helpers, row, col)) {
+    if (currentCellValue === null) {
         return { sprouted: false, reason: 'cell_unavailable' };
     }
-    if (getSeedCellValue(helpers, gameState, row, col) !== constants.EMPTY) {
+    if (currentCellValue !== constants.EMPTY) {
         return { sprouted: false, reason: 'occupied' };
     }
 
@@ -467,12 +471,18 @@ function resolveSeedExpiration(cardState: any, gameState: any, marker: any, help
     if (typeof helpers.clearStoneIdAtForCard === 'function') {
         helpers.clearStoneIdAtForCard(cardState, gameState, row, col);
     }
-    if (typeof helpers.setCellValueForCard === 'function') {
-        helpers.setCellValueForCard(gameState, row, col, ownerKey === 'black' ? constants.BLACK : constants.WHITE);
+    if (setBoardCellForCard(
+        cardState,
+        gameState,
+        helpers,
+        row,
+        col,
+        ownerKey === 'black' ? constants.BLACK : constants.WHITE
+    )) {
         return { sprouted: true };
     }
 
-    return { sprouted: false, reason: 'spawn_unavailable' };
+    return { sprouted: false, reason: 'cell_unavailable' };
 }
 
 function emitDurationEndStatusRemoved(cardState: any, helpers: any, marker: any, data: any): void {
@@ -780,7 +790,7 @@ function onTurnStartBeforeAnchors(cardState: any, playerKey: string, gameState: 
                 if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
                     BoardOpsModule.destroyAt(cardState, gameState, marker.row, marker.col, 'SYSTEM', 'gold_silver_expired');
                 } else {
-                    if (gameState && gameState.board) (gameState as any).board[marker.row][marker.col] = constants.EMPTY;
+                    setBoardCellForCard(cardState, gameState, helpers, marker.row, marker.col, constants.EMPTY);
                     if (typeof helpers.removeMarkersAt === 'function') {
                         helpers.removeMarkersAt(cardState, marker.row, marker.col, { kind: specialStoneKind, type: data.type, owner: marker.owner });
                     }
@@ -981,8 +991,8 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         effects[flipMultiplierConfig.effectFlag] = true;
         if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
             BoardOpsModule.destroyAt(cardState, gameState, row, col, 'SYSTEM', flipMultiplierConfig.destroyReason);
-        } else {
-            (gameState as any).board[row][col] = constants.EMPTY;
+        } else if (!setBoardCellForCard(cardState, gameState, helpers, row, col, constants.EMPTY)) {
+            throw new Error(`[effect-timing] failed to clear multiplier stone at ${row},${col}`);
         }
     } else if (numberCellMultiplierConfig) {
         // Number-cell multipliers only modify the board-bonus gain.
@@ -1268,7 +1278,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
             const targetRow = Number(pos && pos.row);
             const targetCol = Number(pos && pos.col);
             if (!Number.isInteger(targetRow) || !Number.isInteger(targetCol)) continue;
-            if (typeof helpers.hasBoardShapeCellForCard === 'function' && !helpers.hasBoardShapeCellForCard(cardState, gameState, targetRow, targetCol)) continue;
+            if (getBoardCellForCard(cardState, gameState, helpers, targetRow, targetCol) === null) continue;
             const key = `${targetRow},${targetCol}`;
             if (!targetMap.has(key)) {
                 targetMap.set(key, { row: targetRow, col: targetCol });
@@ -1279,9 +1289,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         let destroyedCount = 0;
         const destroyTargets = () => {
             for (const pos of validTargets) {
-                const prev = (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function')
-                    ? BoardOpsModule.getCellValue(gameState, pos.row, pos.col)
-                    : (typeof helpers.getCellValueForCard === 'function' ? helpers.getCellValueForCard(gameState, pos.row, pos.col) : null);
+                const prev = getBoardCellForCard(cardState, gameState, helpers, pos.row, pos.col);
                 if (prev === constants.EMPTY || prev === null) continue;
                 if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
                     const res = BoardOpsModule.destroyAt(cardState, gameState, pos.row, pos.col, cause, reason, {
@@ -1292,7 +1300,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
                     if (typeof helpers.removeMarkersAt === 'function') {
                         helpers.removeMarkersAt(cardState, pos.row, pos.col);
                     }
-                    if (typeof helpers.setCellValueForCard !== 'function' || !helpers.setCellValueForCard(gameState, pos.row, pos.col, constants.EMPTY)) continue;
+                    if (!setBoardCellForCard(cardState, gameState, helpers, pos.row, pos.col, constants.EMPTY)) continue;
                     if (typeof helpers.clearStoneIdAtForCard === 'function') {
                         helpers.clearStoneIdAtForCard(cardState, gameState, pos.row, pos.col);
                     }

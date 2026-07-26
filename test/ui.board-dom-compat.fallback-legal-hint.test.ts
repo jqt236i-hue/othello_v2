@@ -401,8 +401,12 @@ describe('board-renderer fallback legal hints', () => {
     const rightCell = global.boardEl.querySelector('.cell[data-row="5"][data-col="7"]');
     expect(leftCell.getAttribute('data-board-expansion-direction-hint')).toBe('left');
     expect(leftCell.querySelector('.board-expansion-direction-hint')?.textContent).toBe('←');
+    expect(leftCell.querySelector('.board-expansion-direction-hint')?.getAttribute('data-hint-id'))
+      .toBe('board-expansion-will:2,0:left');
     expect(rightCell.getAttribute('data-board-expansion-direction-hint')).toBe('right');
     expect(rightCell.querySelector('.board-expansion-direction-hint')?.textContent).toBe('→');
+    expect(rightCell.querySelector('.board-expansion-direction-hint')?.getAttribute('data-hint-id'))
+      .toBe('board-expansion-will:5,7:right');
   });
 
   test('renderBoardFull shows diagonal outward direction hints while selecting board expansion god corners', () => {

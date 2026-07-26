@@ -10,7 +10,7 @@ type PlacementFilterDeps = {
 };
 
 function isOpenCornerAdjacentCell(row: any, col: any, board: any, deps: PlacementFilterDeps): boolean {
-    if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return false;
+    if (!board || typeof board !== 'object' || !Number.isInteger(row) || !Number.isInteger(col)) return false;
     if (typeof deps.isCornerCell === 'function' && deps.isCornerCell(row, col, board)) return false;
     if (typeof deps.getCornerProximity !== 'function') return false;
     const cornerHint = deps.getCornerProximity(row, col, board);
@@ -27,7 +27,7 @@ export function filterLv6OpenCornerAdjacentMoves(candidateMoves: any, board: any
     ) {
         return activeDeps.placementPriority.filterLv6OpenCornerAdjacentMoves(candidateMoves, board);
     }
-    if (!Array.isArray(candidateMoves) || candidateMoves.length <= 1 || !Array.isArray(board)) return candidateMoves;
+    if (!Array.isArray(candidateMoves) || candidateMoves.length <= 1 || !board || typeof board !== 'object') return candidateMoves;
     const safeMoves = candidateMoves.filter((move: any) => {
         if (!move) return false;
         const row = Number(move.row);

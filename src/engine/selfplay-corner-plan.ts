@@ -7,7 +7,7 @@ type SelfplayCornerPlanConfig = {
     SharedBoardUtils?: any;
     fallbackCornerRecoveryCardTypes?: Set<string>;
     fallbackCornerHoldCardTypes?: Set<string>;
-    getSelfplayBoard?: (gameState: any, cardState?: any) => any;
+    getSelfplayBoard?: (gameState: any, cardState: any) => any;
     toPlayerValue?: (playerKey: any) => any;
     isCorner?: (row: any, col: any, board?: any) => boolean;
     isEdge?: (row: any, col: any, board?: any) => boolean;
@@ -104,7 +104,7 @@ export function createSelfplayCornerPlan(config?: SelfplayCornerPlanConfig) {
     }
 
     function buildCornerPlanState(gameState: any, cardState: any, playerKey: any, legalMoves: any, usableCardIds: any = []) {
-        if (!gameState || !Array.isArray(gameState.board)) {
+        if (!gameState || typeof gameState !== 'object') {
             return {
                 ownCorners: 0,
                 oppCorners: 0,
@@ -216,7 +216,7 @@ export function createSelfplayCornerPlan(config?: SelfplayCornerPlanConfig) {
     }
 
     function buildMovePlanContext(gameState: any, cardState: any, playerKey: any, legalMoves: any, usableCardIds: any = []) {
-        if (!gameState || !Array.isArray(gameState.board)) return null;
+        if (!gameState || typeof gameState !== 'object') return null;
         const board = getSelfplayBoard(gameState, cardState);
         const ownKey = playerKey === 'black' ? 'black' : 'white';
         const planState = buildCornerPlanState(gameState, cardState, ownKey, legalMoves, usableCardIds);

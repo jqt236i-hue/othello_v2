@@ -6,12 +6,25 @@ function createBoard(rows = 4, cols = 4): number[][] {
   return Array.from({ length: rows }, () => Array(cols).fill(0));
 }
 
-function attachShape(
-  board: number[][],
+function createContext(
   options: Record<string, unknown> = {},
-): number[][] {
-  SharedBoardUtils.attachBoardShape(board, options);
-  return board;
+): any {
+  const board = createBoard();
+  const gameState = {
+    board,
+    boardConfig: options.boardConfig || {
+      rows: board.length,
+      cols: board[0].length,
+      shape: "rectangle",
+    },
+    boardExpansion: options.boardExpansion || { cells: [] },
+  };
+  return SharedBoardUtils.createBoardContext(
+    gameState,
+    Object.prototype.hasOwnProperty.call(options, "cardState")
+      ? options.cardState
+      : { markers: [] },
+  );
 }
 
 describe("shared board expansion sockets", () => {
@@ -21,8 +34,8 @@ describe("shared board expansion sockets", () => {
   });
 
   test("enumerates stable edge sockets on every side and keeps corner directions distinct", () => {
-    const board = attachShape(createBoard());
-    const sockets = leaf.getBoardExpansionEdgeSockets(board);
+    const context = createContext();
+    const sockets = leaf.getBoardExpansionEdgeSockets(context);
 
     expect(sockets).toHaveLength(16);
     expect(
@@ -66,8 +79,8 @@ describe("shared board expansion sockets", () => {
   });
 
   test("enumerates the four canonical corner sockets with three additions each", () => {
-    const board = attachShape(createBoard());
-    const sockets = leaf.getBoardExpansionCornerSockets(board);
+    const context = createContext();
+    const sockets = leaf.getBoardExpansionCornerSockets(context);
 
     expect(sockets).toEqual([
       {
@@ -118,7 +131,7 @@ describe("shared board expansion sockets", () => {
   });
 
   test("classifies only outside-connected holes as exterior and never overwrites a hole", () => {
-    const board = attachShape(createBoard(), {
+    const context = createContext({
       cardState: {
         markers: [
           {
@@ -137,19 +150,19 @@ describe("shared board expansion sockets", () => {
       },
     });
 
-    const exterior = leaf.getExteriorVoidKeys(board);
+    const exterior = leaf.getExteriorVoidKeys(context);
     expect(exterior.has("0,0")).toBe(true);
     expect(exterior.has("2,2")).toBe(false);
     expect(
       leaf
-        .getBoardExpansionEdgeSockets(board)
+        .getBoardExpansionEdgeSockets(context)
         .some((socket) =>
           socket.additions.some((cell) => cell.row === 0 && cell.col === 0),
         ),
     ).toBe(false);
     expect(
       leaf
-        .getBoardExpansionCornerSockets(board)
+        .getBoardExpansionCornerSockets(context)
         .some((socket) =>
           socket.additions.some((cell) => cell.row === 0 && cell.col === 0),
         ),
@@ -157,16 +170,14 @@ describe("shared board expansion sockets", () => {
   });
 
   test("recomputes sockets from active expansion cells inside the current candidate bounds", () => {
-    const board = attachShape(createBoard(), {
+    const context = createContext({
       boardExpansion: {
         cells: [{ side: "top", row: -1, col: 1, owner: 0 }],
       },
     });
-    const edgeSockets = leaf.getBoardExpansionEdgeSockets(board);
-    const cornerSockets = leaf.getBoardExpansionCornerSockets(board);
-    const topology = SharedBoardUtils.buildBoardTopology(board, {
-      boardConfig: board,
-    });
+    const edgeSockets = leaf.getBoardExpansionEdgeSockets(context);
+    const cornerSockets = leaf.getBoardExpansionCornerSockets(context);
+    const topology = SharedBoardUtils.buildBoardTopology(context);
 
     expect(
       edgeSockets.some(
@@ -199,12 +210,12 @@ describe("shared board expansion sockets", () => {
   });
 
   test("shared facade delegates to the canonical socket helper", () => {
-    const board = attachShape(createBoard());
-    expect(SharedBoardUtils.getBoardExpansionEdgeSockets(board)).toEqual(
-      leaf.getBoardExpansionEdgeSockets(board),
+    const context = createContext();
+    expect(SharedBoardUtils.getBoardExpansionEdgeSockets(context)).toEqual(
+      leaf.getBoardExpansionEdgeSockets(context),
     );
-    expect(SharedBoardUtils.getBoardExpansionCornerSockets(board)).toEqual(
-      leaf.getBoardExpansionCornerSockets(board),
+    expect(SharedBoardUtils.getBoardExpansionCornerSockets(context)).toEqual(
+      leaf.getBoardExpansionCornerSockets(context),
     );
   });
 });

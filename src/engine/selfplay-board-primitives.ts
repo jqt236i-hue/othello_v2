@@ -4,7 +4,6 @@ type SelfplayBoardPrimitivesConfig = {
     Core?: any;
     CardLogic?: any;
     SharedBoardUtils?: any;
-    OthelloCore?: any;
     PendingCoordinator?: any;
     ContextHelper?: any;
 };
@@ -14,7 +13,6 @@ export function createSelfplayBoardPrimitives(config?: SelfplayBoardPrimitivesCo
     const core = cfg.Core || null;
     const cardLogic = cfg.CardLogic || null;
     const sharedBoardUtils = cfg.SharedBoardUtils || null;
-    const othelloCore = cfg.OthelloCore || null;
     const pendingCoordinator = cfg.PendingCoordinator || null;
     const contextHelper = cfg.ContextHelper || null;
 
@@ -45,21 +43,25 @@ export function createSelfplayBoardPrimitives(config?: SelfplayBoardPrimitivesCo
         }
     }
 
-    function getShapeAwareBoard(board: any, options: any = null) {
-        if (!Array.isArray(board)) return [];
-        if (sharedBoardUtils && typeof sharedBoardUtils.attachBoardShape === 'function') {
-            return sharedBoardUtils.attachBoardShape(board, options || null);
+    function getSelfplayBoard(gameState: any, cardState: any) {
+        if (!sharedBoardUtils || typeof sharedBoardUtils.createBoardContext !== 'function') {
+            throw new Error('SharedBoardUtils.createBoardContext is required by selfplay');
         }
-        return board;
+        if (arguments.length < 2) {
+            throw new Error('getSelfplayBoard requires an explicit cardState');
+        }
+        return sharedBoardUtils.createBoardContext(gameState, cardState);
     }
 
-    function getSelfplayBoard(gameState: any, cardState: any = null) {
-        if (!gameState || !Array.isArray(gameState.board)) return [];
-        return getShapeAwareBoard(gameState.board, {
-            boardConfig: gameState.boardConfig,
-            boardExpansion: gameState.boardExpansion,
-            cardState
-        });
+    function unwrapDenseBoardForEncoding(board: any) {
+        if (
+            sharedBoardUtils &&
+            typeof sharedBoardUtils.isBoardContext === 'function' &&
+            sharedBoardUtils.isBoardContext(board)
+        ) {
+            return board.gameState.board;
+        }
+        return board;
     }
 
     function readSelfplayPendingEffect(cardState: any, playerKey: any) {
@@ -75,31 +77,31 @@ export function createSelfplayBoardPrimitives(config?: SelfplayBoardPrimitivesCo
         if (sharedBoardUtils && typeof sharedBoardUtils.getCellValue === 'function') {
             return sharedBoardUtils.getCellValue(board, row, col);
         }
-        return Array.isArray(board) && Array.isArray(board[row]) ? board[row][col] : null;
+        throw new Error('SharedBoardUtils.getCellValue is required by selfplay');
     }
 
     function setBoardCellValue(board: any, row: any, col: any, value: any) {
         if (sharedBoardUtils && typeof sharedBoardUtils.setCellValue === 'function') {
             return sharedBoardUtils.setCellValue(board, row, col, value);
         }
-        if (!Array.isArray(board) || !Array.isArray(board[row])) return false;
-        board[row][col] = value;
-        return true;
+        throw new Error('SharedBoardUtils.setCellValue is required by selfplay');
     }
 
     function encodeBoard(board: any) {
         if (sharedBoardUtils && typeof sharedBoardUtils.encodeBoard === 'function') {
             return sharedBoardUtils.encodeBoard(board);
         }
-        if (!Array.isArray(board)) return '';
-        return board
+        const denseBoard = unwrapDenseBoardForEncoding(board);
+        if (!Array.isArray(denseBoard)) return '';
+        return denseBoard
             .map((row: any) => row.map((v: any) => (v === core.BLACK ? 'B' : (v === core.WHITE ? 'W' : '.'))).join(''))
             .join('/');
     }
 
     function encodeMainBoard(board: any) {
-        if (!Array.isArray(board)) return '';
-        return board
+        const denseBoard = unwrapDenseBoardForEncoding(board);
+        if (!Array.isArray(denseBoard)) return '';
+        return denseBoard
             .map((row: any) => (Array.isArray(row) ? row : []).map((v: any) => (v === core.BLACK ? 'B' : (v === core.WHITE ? 'W' : '.'))).join(''))
             .join('/');
     }
@@ -124,14 +126,15 @@ export function createSelfplayBoardPrimitives(config?: SelfplayBoardPrimitivesCo
         return { row, col };
     }
 
-    function transformBoard(board: any, t: any) {
-        if (!Array.isArray(board) || !board.length) return [];
-        const size = board.length;
+    // Dense-only transform used by the policy-key encoding fallback.
+    function transformBoard(denseBoard: any, t: any) {
+        if (!Array.isArray(denseBoard) || !denseBoard.length) return [];
+        const size = denseBoard.length;
         const out = Array.from({ length: size }, () => Array.from({ length: size }, () => '.'));
         for (let r = 0; r < size; r++) {
             for (let c = 0; c < size; c++) {
                 const next = transformCoord(r, c, size, t);
-                out[next.row][next.col] = board[r][c];
+                out[next.row][next.col] = denseBoard[r][c];
             }
         }
         return out;
@@ -158,7 +161,7 @@ export function createSelfplayBoardPrimitives(config?: SelfplayBoardPrimitivesCo
 
     function isCorner(row: any, col: any, boardOrSize: any = 8) {
         if (sharedBoardUtils && typeof sharedBoardUtils.isCorner === 'function') {
-            if (Array.isArray(boardOrSize)) return sharedBoardUtils.isCorner(row, col, boardOrSize);
+            if (boardOrSize && typeof boardOrSize === 'object') return sharedBoardUtils.isCorner(row, col, boardOrSize);
             const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
             return sharedBoardUtils.isCorner(row, col, n, n);
         }
@@ -168,7 +171,7 @@ export function createSelfplayBoardPrimitives(config?: SelfplayBoardPrimitivesCo
 
     function isEdge(row: any, col: any, boardOrSize: any = 8) {
         if (sharedBoardUtils && typeof sharedBoardUtils.isEdge === 'function') {
-            if (Array.isArray(boardOrSize)) return sharedBoardUtils.isEdge(row, col, boardOrSize);
+            if (boardOrSize && typeof boardOrSize === 'object') return sharedBoardUtils.isEdge(row, col, boardOrSize);
             const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
             return sharedBoardUtils.isEdge(row, col, n, n);
         }
@@ -222,7 +225,7 @@ export function createSelfplayBoardPrimitives(config?: SelfplayBoardPrimitivesCo
 
     function isXSquare(row: any, col: any, boardOrSize: any = 8) {
         if (sharedBoardUtils && typeof sharedBoardUtils.isXSquare === 'function') {
-            if (Array.isArray(boardOrSize)) return sharedBoardUtils.isXSquare(row, col, boardOrSize);
+            if (boardOrSize && typeof boardOrSize === 'object') return sharedBoardUtils.isXSquare(row, col, boardOrSize);
             const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
             return sharedBoardUtils.isXSquare(row, col, n, n);
         }
@@ -232,7 +235,7 @@ export function createSelfplayBoardPrimitives(config?: SelfplayBoardPrimitivesCo
 
     function isCSquare(row: any, col: any, boardOrSize: any = 8) {
         if (sharedBoardUtils && typeof sharedBoardUtils.isCSquare === 'function') {
-            if (Array.isArray(boardOrSize)) return sharedBoardUtils.isCSquare(row, col, boardOrSize);
+            if (boardOrSize && typeof boardOrSize === 'object') return sharedBoardUtils.isCSquare(row, col, boardOrSize);
             const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
             return sharedBoardUtils.isCSquare(row, col, n, n);
         }
@@ -246,18 +249,12 @@ export function createSelfplayBoardPrimitives(config?: SelfplayBoardPrimitivesCo
         if (sharedBoardUtils && typeof sharedBoardUtils.getFlipsBasic === 'function') {
             return sharedBoardUtils.getFlipsBasic(board, row, col, playerValue);
         }
-        if (othelloCore && typeof othelloCore.getFlipsBasic === 'function') {
-            return othelloCore.getFlipsBasic(board, row, col, playerValue);
-        }
         throw new Error('SharedBoardUtils.getFlipsBasic is required by selfplay board primitives');
     }
 
     function getLegalMovesBasic(board: any, playerValue: any) {
         if (sharedBoardUtils && typeof sharedBoardUtils.getLegalMovesBasic === 'function') {
             return sharedBoardUtils.getLegalMovesBasic(board, playerValue);
-        }
-        if (othelloCore && typeof othelloCore.getLegalMovesBasic === 'function') {
-            return othelloCore.getLegalMovesBasic(board, playerValue);
         }
         throw new Error('SharedBoardUtils.getLegalMovesBasic is required by selfplay board primitives');
     }
@@ -266,7 +263,6 @@ export function createSelfplayBoardPrimitives(config?: SelfplayBoardPrimitivesCo
         toPlayerKey,
         toPlayerValue,
         getSafeCardContext,
-        getShapeAwareBoard,
         getSelfplayBoard,
         readSelfplayPendingEffect,
         getBoardCellValue,

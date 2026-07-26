@@ -36,7 +36,6 @@ declare const getEffectKeyForSpecialType: (...args: any[]) => any;
 declare const SPECIAL_TYPE_TO_EFFECT_KEY: any;
 declare const attachBoardCellInteraction: (...args: any[]) => any;
 declare const handleCellClick: (...args: any[]) => any;
-declare const countDiscs: (...args: any[]) => any;
 
 /**
  * @file board-renderer.js
@@ -78,6 +77,18 @@ if (typeof require === 'function') {
 var BoardRendererHintProjectionModule: any = null;
 if (typeof require === 'function') {
     try { BoardRendererHintProjectionModule = require('../shared/board-hint-projection'); } catch (e: any) { /* ignore */ }
+}
+
+var BoardRendererBoardUtilsModule: any = null;
+if (typeof require === 'function') {
+    try { BoardRendererBoardUtilsModule = require('../shared/shared-board-utils'); } catch (e: any) { /* ignore */ }
+}
+if (!BoardRendererBoardUtilsModule) {
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils) {
+            BoardRendererBoardUtilsModule = (globalThis as any).SharedBoardUtils;
+        }
+    } catch (e: any) { /* ignore */ }
 }
 
 var BoardRendererStoneHelpersRegistryModule: any = null;
@@ -216,17 +227,12 @@ function _resolveBoardRenderStateForBoardRenderer() {
 
 function _getBoardShapeForBoardRenderer() {
     const state = _resolveBoardRenderStateForBoardRenderer().gameState;
-    const board = state && Array.isArray(state.board) ? state.board : null;
-    let rows = Array.isArray(board) ? board.length : 8;
-    let cols = 0;
-    if (Array.isArray(board)) {
-        for (const row of board) {
-            if (Array.isArray(row)) cols = Math.max(cols, row.length);
-        }
+    if (!state) return { rows: 8, cols: 8 };
+    if (!BoardRendererBoardUtilsModule || typeof BoardRendererBoardUtilsModule.resolveBoardConfig !== 'function') {
+        throw new Error('SharedBoardUtils.resolveBoardConfig is required by board-renderer');
     }
-    if (!Number.isInteger(rows) || rows <= 0) rows = 8;
-    if (!Number.isInteger(cols) || cols <= 0) cols = 8;
-    return { rows, cols };
+    const config = BoardRendererBoardUtilsModule.resolveBoardConfig(state);
+    return { rows: config.rows, cols: config.cols };
 }
 
 // PR2 N3 syncBoardPixelSizing dirty gate.
@@ -2756,7 +2762,16 @@ function renderBoardFull() {
 
 function updateOccupancyUI() {
     const renderState = _resolveBoardRenderStateForBoardRenderer();
-    const counts = countDiscs(renderState.gameState);
+    if (
+        !BoardRendererBoardUtilsModule ||
+        typeof BoardRendererBoardUtilsModule.countStateDiscs !== 'function'
+    ) {
+        throw new Error('SharedBoardUtils.countStateDiscs is required by board-renderer occupancy');
+    }
+    const counts = BoardRendererBoardUtilsModule.countStateDiscs(
+        renderState.gameState,
+        renderState.cardState
+    );
     const total = counts.black + counts.white;
 
     let blackPct = 50, whitePct = 50;
@@ -2987,7 +3002,7 @@ if (typeof window !== 'undefined') {
     window.renderBoard = renderBoard;
     (window as any).prepareBoardVisualUpdate = prepareBoardVisualUpdate;
     (window as any).getBoardVisualInvalidationDiagnostics = getBoardVisualInvalidationDiagnostics;
-    window.updateOccupancyUI = window.updateOccupancyUI || updateOccupancyUI;
+    window.updateOccupancyUI = updateOccupancyUI;
     window.collectPendingSelectedTargetHighlightKeys = window.collectPendingSelectedTargetHighlightKeys || collectPendingSelectedTargetHighlightKeys;
     window.collectRandomSpawnPreviewHighlightKeys = window.collectRandomSpawnPreviewHighlightKeys || collectRandomSpawnPreviewHighlightKeys;
     window.ensureDiscSkeleton = window.ensureDiscSkeleton || ensureDiscSkeleton;

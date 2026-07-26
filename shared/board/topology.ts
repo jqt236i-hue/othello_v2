@@ -1,3 +1,8 @@
+import {
+  isBoardCoordinateWithinLimit,
+  resolveBoardMaxAbsCoordinate,
+} from "./expansion-descriptors";
+
 export interface CellCoord {
   row: number;
   col: number;
@@ -49,6 +54,7 @@ export interface BoardTopology {
 }
 
 export interface BoardTopologyDependencies {
+  maxAbsCoordinate?: number;
   toBoardCellKey: (row: number, col: number) => string;
   resolveBoardConfig: (value: unknown) => {
     rows: number;
@@ -60,10 +66,6 @@ export interface BoardTopologyDependencies {
     boardExpansion: unknown,
     boardOrConfig: unknown,
   ) => ExpansionDescriptor[];
-  getBoardShapeMeta: (board: unknown) => {
-    meteorHoleKeys?: Set<string>;
-    expansionCells?: ExpansionDescriptor[];
-  } | null;
   collectMeteorHoleKeys?: (cardState: unknown) => Set<string>;
 }
 
@@ -144,6 +146,10 @@ function buildBoundaryEdgesByKey(
 }
 
 export function createBoardTopology(deps: BoardTopologyDependencies) {
+  const maxAbsCoordinate = resolveBoardMaxAbsCoordinate(
+    deps.maxAbsCoordinate,
+  );
+
   function buildBoardTopology(boardOrState: unknown, options?: unknown): BoardTopology {
     const state = boardOrState && typeof boardOrState === "object" && !Array.isArray(boardOrState)
       ? boardOrState as Record<string, unknown>
@@ -156,17 +162,8 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
       : (Array.isArray(boardOrState) ? boardOrState : []);
     const configSource = state || opts.boardConfig || board;
     const config = deps.resolveBoardConfig(configSource);
-    const hasExplicitExpansionSource = state
-      ? Object.prototype.hasOwnProperty.call(state, "boardExpansion")
-      : Object.prototype.hasOwnProperty.call(opts, "boardExpansion");
     const expansionSource = state ? state.boardExpansion : opts.boardExpansion;
-    const meta = deps.getBoardShapeMeta(board);
     const expansions = deps.collectExpansionDescriptors(expansionSource, configSource);
-    if (!hasExplicitExpansionSource && !expansions.length && meta && Array.isArray(meta.expansionCells)) {
-      for (const cell of meta.expansionCells) {
-        if (cell && Number.isInteger(cell.row) && Number.isInteger(cell.col)) expansions.push(cell);
-      }
-    }
 
     const baseKeys = new Set<string>();
     for (let row = config.baseBounds.minRow; row <= config.baseBounds.maxRow; row++) {
@@ -191,14 +188,18 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
         ? state.cardState
         : undefined);
     const hasExplicitCardState = explicitCardState !== undefined;
-    const holeKeys = new Set<string>(
-      !hasExplicitCardState && meta && meta.meteorHoleKeys instanceof Set
-        ? Array.from(meta.meteorHoleKeys)
-        : [],
-    );
+    const holeKeys = new Set<string>();
     if (typeof deps.collectMeteorHoleKeys === "function") {
       if (hasExplicitCardState) {
-        for (const key of deps.collectMeteorHoleKeys(explicitCardState)) holeKeys.add(key);
+        for (const key of deps.collectMeteorHoleKeys(explicitCardState)) {
+          const [rowText, colText] = key.split(",");
+          const row = Number(rowText);
+          const col = Number(colText);
+          if (!isBoardCoordinateWithinLimit(row, col, maxAbsCoordinate)) {
+            continue;
+          }
+          holeKeys.add(deps.toBoardCellKey(row, col));
+        }
       }
     }
 

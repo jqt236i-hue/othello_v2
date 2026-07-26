@@ -1,3 +1,5 @@
+const SharedBoardUtils = require('../shared/shared-board-utils');
+
 const MOVEMENT_CORNER_SWING_CARD_TYPES = [
     'BUOYANCY_WILL',
     'GRAVITY_WILL',
@@ -19,11 +21,9 @@ type MovementCornerSwingConfig = {
     cardState?: any;
     gameState?: any;
     playerKey?: any;
-    board?: any;
+    boardContext?: any;
     playerValue?: any;
     pending?: any;
-    getBoardCellValueSafe?: (board: any, row: any, col: any) => any;
-    isCornerCell?: (row: any, col: any, board?: any) => any;
     cardTypes?: readonly string[];
 };
 
@@ -41,20 +41,19 @@ function normalizeTarget(target: any): any {
 
 function readCell(config: MovementCornerSwingConfig, row: number, col: number): any {
     const cfg = normalizeConfig(config);
-    if (typeof cfg.getBoardCellValueSafe === 'function') {
-        const value = cfg.getBoardCellValueSafe(cfg.board, row, col);
-        return typeof value === 'undefined' ? null : value;
+    if (!SharedBoardUtils || typeof SharedBoardUtils.getCellValue !== 'function') {
+        throw new Error('SharedBoardUtils.getCellValue is required by movement corner swing');
     }
-    const board = cfg.board;
-    if (!Array.isArray(board) || !Array.isArray(board[row])) return null;
-    return typeof board[row][col] === 'undefined' ? null : board[row][col];
+    const value = SharedBoardUtils.getCellValue(cfg.boardContext, row, col);
+    return typeof value === 'undefined' ? null : value;
 }
 
 function isCorner(config: MovementCornerSwingConfig, row: number, col: number): boolean {
     const cfg = normalizeConfig(config);
-    return typeof cfg.isCornerCell === 'function'
-        ? cfg.isCornerCell(row, col, cfg.board) === true
-        : ((row === 0 || row === 7) && (col === 0 || col === 7));
+    if (!SharedBoardUtils || typeof SharedBoardUtils.isCornerCell !== 'function') {
+        throw new Error('SharedBoardUtils.isCornerCell is required by movement corner swing');
+    }
+    return SharedBoardUtils.isCornerCell(row, col, cfg.boardContext) === true;
 }
 
 function isEnemyCorner(config: MovementCornerSwingConfig, target: any): boolean {

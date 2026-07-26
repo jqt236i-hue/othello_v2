@@ -52,7 +52,7 @@ export function createCpuPolicyLookaheadGuards(deps?: CpuPolicyLookaheadGuardsDe
         const bestMove = input && input.bestMove ? input.bestMove : null;
         if (!bestMove) return bestMove;
         if (!Number.isFinite(input.level) || input.level < 6) return bestMove;
-        const board = Array.isArray(input.board) ? input.board : [];
+        const board = input.board && typeof input.board === 'object' ? input.board : [];
         const playerValue = Number(input.playerValue) >= 0 ? 1 : -1;
         const rankedAllMoves = buildSearchMoveOrder(input.candidateMoves, {
             level: input.level,

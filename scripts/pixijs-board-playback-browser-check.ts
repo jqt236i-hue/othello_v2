@@ -1233,11 +1233,6 @@ async function startScenario(
         usedByPlayer: { black: false, white: false },
         cells
       };
-      boardUtils.attachBoardShape(state.board, {
-        boardConfig: state.boardConfig,
-        boardExpansion: state.boardExpansion,
-        cardState: { markers }
-      });
       return state;
     };
     const configureCardState = (markers: readonly unknown[]) => {

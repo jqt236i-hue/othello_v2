@@ -54,8 +54,10 @@ describe('混沌召喚', () => {
     const cardState: any = {};
     const gameState: any = {
       board: [
-        [0, 0],
-        [0, 0]
+        [0, 0, 1, 1],
+        [0, 0, 1, 1],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1]
       ]
     };
 
@@ -119,8 +121,10 @@ describe('混沌召喚', () => {
     };
     const gameState: any = {
       board: [
-        [0, 0],
-        [0, 0]
+        [0, 0, 1, 1],
+        [0, 0, 1, 1],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1]
       ]
     };
 
@@ -134,6 +138,53 @@ describe('混沌召喚', () => {
       { row: 1, col: 1 }
     ]);
     expect(spawnArg.spawnMeta.theorySpawnRoulette.candidateCells.some((cell: any) => 'value' in cell)).toBe(false);
+  });
+
+  test('正規盤面列挙で拡張空マスへ召喚し、拡張上の穴は候補にしない', () => {
+    const deps = createDeps({ getCellValueForCard: undefined });
+    const cardState: any = {
+      markers: [{
+        id: 501,
+        kind: 'specialStone',
+        row: 1,
+        col: 4,
+        owner: 'black',
+        data: { type: 'METEOR_HOLE' }
+      }]
+    };
+    const gameState: any = {
+      board: Array.from({ length: 4 }, () => Array(4).fill(1)),
+      boardExpansion: {
+        active: false,
+        side: null,
+        row: null,
+        owner: 0,
+        usedByPlayer: { black: true, white: false },
+        cells: [
+          { side: 'right', row: 0, col: 4, owner: 0 },
+          { side: 'right', row: 1, col: 4, owner: 0 }
+        ]
+      }
+    };
+
+    const result = ChaosSummon.applyChaosSummonUsage(
+      cardState,
+      gameState,
+      'black',
+      { random: () => 0 },
+      deps
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      applied: true,
+      row: 0,
+      col: 4
+    }));
+    expect(result.roulette.candidateCells).toEqual([{ row: 0, col: 4 }]);
+    expect(deps.spawnAndFlipPlacement).toHaveBeenCalledWith(expect.objectContaining({
+      row: 0,
+      col: 4
+    }));
   });
 
   test('カード使用 resolver から混沌召喚解決処理を呼ぶ', () => {

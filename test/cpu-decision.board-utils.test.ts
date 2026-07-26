@@ -6,7 +6,13 @@ function createSharedBoardUtils() {
     return {
         isStandardBoard8x8: jest.fn(() => true),
         isCornerCell: jest.fn(() => false),
-        isEdgeCell: jest.fn(() => true)
+        isEdgeCell: jest.fn(() => true),
+        collectBoardCoordinates: jest.fn((board: number[][]) => board.flatMap(
+            (row, rowIndex) => row.map((_cell, colIndex) => ({ row: rowIndex, col: colIndex }))
+        )),
+        getCellValue: jest.fn((board: number[][], row: number, col: number) => board[row]?.[col] ?? null),
+        countCornerControl: jest.fn(() => ({ ownCorners: 2, oppCorners: 2 })),
+        countEdgeControl: jest.fn(() => ({ ownEdges: 3, oppEdges: 2 }))
     };
 }
 

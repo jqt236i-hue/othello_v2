@@ -6,7 +6,6 @@ describe("shared board risk cells", () => {
   test("keeps X/C classification and proximity on a rectangular board fixture", () => {
     const leaf = createRiskCells({
       toBoardCellKey: SharedBoardUtils.toBoardCellKey,
-      getBoardShapeMeta: SharedBoardUtils.getBoardShapeMeta,
       collectBoardCoordinates: SharedBoardUtils.collectBoardCoordinates,
       hasPlayableCell: SharedBoardUtils.hasPlayableCell,
       resolveBoardBounds: SharedBoardUtils.resolveBoardBounds,

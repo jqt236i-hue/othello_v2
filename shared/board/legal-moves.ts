@@ -35,7 +35,7 @@ export function createLegalMoves(deps: LegalMoveDependencies) {
   }
 
   function getLegalMovesBasic(board: unknown, playerValue: number): LegalMove[] {
-    if (!Array.isArray(board)) return [];
+    if (!board || typeof board !== "object") return [];
     const moves: LegalMove[] = [];
     for (const cell of deps.collectBoardCoordinates(board)) {
       const flips = getFlipsBasic(board, cell.row, cell.col, playerValue);

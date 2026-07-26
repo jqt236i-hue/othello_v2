@@ -20,20 +20,25 @@ describe('shared board effective anchors', () => {
 
   test('effective corners and edges treat meteor holes as playable-boundary breaks', () => {
     const board = makeBoard();
-    SharedBoardUtils.attachBoardShape(board, {
-      cardState: {
+    const context = SharedBoardUtils.createBoardContext(
+      {
+        board,
+        boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+        boardExpansion: { cells: [] }
+      },
+      {
         markers: [
           { kind: 'specialStone', row: 0, col: 0, data: { type: 'METEOR_HOLE' } }
         ]
       }
-    });
+    );
 
-    expect(SharedBoardUtils.hasPlayableCell(board, 0, 0)).toBe(false);
-    expect(SharedBoardUtils.isEffectiveCornerCell(0, 1, board)).toBe(true);
-    expect(SharedBoardUtils.isEffectiveCornerCell(1, 0, board)).toBe(true);
-    expect(SharedBoardUtils.isEffectiveEdgeCell(0, 1, board)).toBe(true);
-    expect(SharedBoardUtils.isEffectiveEdgeCell(1, 1, board)).toBe(false);
-    expect(SharedBoardUtils.getEffectiveCornerCells(board)).toEqual(expect.arrayContaining([
+    expect(SharedBoardUtils.hasPlayableCell(context, 0, 0)).toBe(false);
+    expect(SharedBoardUtils.isEffectiveCornerCell(0, 1, context)).toBe(true);
+    expect(SharedBoardUtils.isEffectiveCornerCell(1, 0, context)).toBe(true);
+    expect(SharedBoardUtils.isEffectiveEdgeCell(0, 1, context)).toBe(true);
+    expect(SharedBoardUtils.isEffectiveEdgeCell(1, 1, context)).toBe(false);
+    expect(SharedBoardUtils.getEffectiveCornerCells(context)).toEqual(expect.arrayContaining([
       { row: 0, col: 1 },
       { row: 1, col: 0 }
     ]));

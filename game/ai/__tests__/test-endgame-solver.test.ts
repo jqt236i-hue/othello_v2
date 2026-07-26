@@ -86,4 +86,35 @@ describe('EndgameSolver', () => {
     );
     expect(solver.nodeCount).toBeGreaterThan(0);
   });
+
+  test('orders effective corners from the canonical board topology', () => {
+    const solver = new EndgameSolver();
+    const state = {
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      boardExpansion: { cells: [] }
+    };
+    const cardState = {
+      markers: [{
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        data: { type: 'METEOR_HOLE' }
+      }]
+    };
+    const actions = [
+      { type: 'place', row: 0, col: 2 },
+      { type: 'place', row: 0, col: 1 }
+    ];
+
+    const ordered = (solver as any)._orderMoves(
+      actions,
+      state,
+      cardState,
+      'black',
+      { countFlips: () => 0 }
+    );
+
+    expect(ordered[0]).toEqual({ type: 'place', row: 0, col: 1 });
+  });
 });

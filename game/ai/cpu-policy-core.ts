@@ -565,6 +565,11 @@ function getCpuPolicyDecisionContext() {
     CpuPolicyDecisionContextCache = CpuPolicyDecisionContextModule.createCpuPolicyDecisionContext({
         asRecord,
         isFiniteNumber,
+        isBoardContext: (board: any) => (
+            SharedBoardUtils && typeof SharedBoardUtils.isBoardContext === 'function'
+                ? SharedBoardUtils.isBoardContext(board)
+                : false
+        ),
         countBoardDiscsForPlayer,
         countBoardEdgeDiscsForPlayer,
         countPlayableCells: (board: any) => (
@@ -1463,7 +1468,7 @@ function hasOwnedAdjacentCorner(board: CpuPolicyBoard | null | undefined, row: n
 }
 
 function isPseudoCornerXSquare(board: CpuPolicyBoard | null | undefined, row: number, col: number, playerValue: number): boolean {
-    if (!Array.isArray(board) || !isXSquare(row, col, board)) return false;
+    if (!board || typeof board !== 'object' || !isXSquare(row, col, board)) return false;
     const adjacentCorner = adjacentCornerFor(row, col, board);
     if (!adjacentCorner || !inBoard(board, adjacentCorner.row, adjacentCorner.col)) return false;
     if (getBoardCellValueSafe(board, adjacentCorner.row, adjacentCorner.col) !== playerValue) return false;

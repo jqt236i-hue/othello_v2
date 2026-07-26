@@ -37,25 +37,30 @@ const BoardUtils =
 
 if (
   !BoardUtils ||
+  typeof BoardUtils.resolveBoardConfig !== "function" ||
+  typeof BoardUtils.isMainBoardCell !== "function" ||
+  typeof BoardUtils.resolveExpansionSide !== "function" ||
+  typeof BoardUtils.isExpansionCoordinate !== "function" ||
   typeof BoardUtils.createBoardView !== "function" ||
+  typeof BoardUtils.canonicalizeStateBoard !== "function" ||
   typeof BoardUtils.getStateCellValue !== "function" ||
   typeof BoardUtils.setStateCellValue !== "function"
 ) {
   throw new Error("SharedBoardUtils board kernel is required by CardExpansionFallback");
 }
 
-const P_BLACK =
-  SharedConstants && SharedConstants.BLACK !== undefined
-    ? SharedConstants.BLACK
-    : 1;
-const P_WHITE =
-  SharedConstants && SharedConstants.WHITE !== undefined
-    ? SharedConstants.WHITE
-    : -1;
-const P_EMPTY =
-  SharedConstants && SharedConstants.EMPTY !== undefined
-    ? SharedConstants.EMPTY
-    : 0;
+if (
+  !SharedConstants ||
+  SharedConstants.BLACK === undefined ||
+  SharedConstants.WHITE === undefined ||
+  SharedConstants.EMPTY === undefined
+) {
+  throw new Error("SharedConstants missing required values");
+}
+
+const P_BLACK = SharedConstants.BLACK;
+const P_WHITE = SharedConstants.WHITE;
+const P_EMPTY = SharedConstants.EMPTY;
 
 function normalizeExpansionOwner(owner: any): number {
   return owner === P_BLACK || owner === P_WHITE ? owner : P_EMPTY;
@@ -93,9 +98,10 @@ function isExpansionCoordinate(
 
 function getExpansionCells(
   gameState: GameState,
+  cardState: unknown = null,
 ): Array<{ side: string | null; row: number; col: number; owner: number }> {
   return BoardUtils.createBoardView(gameState, {
-    cardState: null,
+    cardState,
     strict: false,
   }).expansionCells.map((cell: any) => ({
     side: cell.side || null,
@@ -108,12 +114,13 @@ function getExpansionCells(
 function syncLegacyExpansionFields(
   expansion: any,
   gameState: GameState,
+  cardState: unknown = null,
 ): void {
   if (!gameState || typeof gameState !== "object") return;
   if (expansion && (gameState as any).boardExpansion !== expansion) {
     (gameState as any).boardExpansion = expansion;
   }
-  const inspection = BoardUtils.canonicalizeStateBoard(gameState, null, {
+  const inspection = BoardUtils.canonicalizeStateBoard(gameState, cardState, {
     strict: false,
   });
   if (!inspection || inspection.ok !== true) {
@@ -121,7 +128,10 @@ function syncLegacyExpansionFields(
   }
 }
 
-function ensureExpansionStateMutable(gameState: GameState): any {
+function ensureExpansionStateMutable(
+  gameState: GameState,
+  cardState: unknown = null,
+): any {
   if (
     !(gameState as any).boardExpansion ||
     typeof (gameState as any).boardExpansion !== "object"
@@ -140,7 +150,7 @@ function ensureExpansionStateMutable(gameState: GameState): any {
   if (!expansion.usedByPlayer || typeof expansion.usedByPlayer !== "object") {
     expansion.usedByPlayer = { black: false, white: false };
   }
-  syncLegacyExpansionFields(expansion, gameState);
+  syncLegacyExpansionFields(expansion, gameState, cardState);
   return expansion;
 }
 
@@ -148,8 +158,9 @@ function getCellValue(
   gameState: GameState,
   row: number,
   col: number,
+  cardState: unknown = null,
 ): any {
-  return BoardUtils.getStateCellValue(gameState, row, col, null);
+  return BoardUtils.getStateCellValue(gameState, row, col, cardState);
 }
 
 function setCellValue(
@@ -157,8 +168,9 @@ function setCellValue(
   row: number,
   col: number,
   value: any,
+  cardState: unknown = null,
 ): boolean {
-  return BoardUtils.setStateCellValue(gameState, row, col, value, null);
+  return BoardUtils.setStateCellValue(gameState, row, col, value, cardState);
 }
 
 const CardExpansionFallback = {

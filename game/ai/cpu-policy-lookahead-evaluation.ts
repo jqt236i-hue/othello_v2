@@ -49,7 +49,7 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
         : (() => ({ score: 0 }));
 
     function countFrontierDiscsFor(board: CpuPolicyBoard | null | undefined, playerValue: number): number {
-        if (!Array.isArray(board) || board.length <= 0) return 0;
+        if (!board || typeof board !== 'object') return 0;
         const dirs = [
             [-1, -1], [-1, 0], [-1, 1],
             [0, -1],           [0, 1],
@@ -86,6 +86,7 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
             }
             return count;
         }
+        if (!Array.isArray(board)) return 0;
         for (let r = 0; r < board.length; r++) {
             const row = Array.isArray(board[r]) ? board[r] : [];
             for (let c = 0; c < row.length; c++) {
@@ -107,19 +108,19 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
     }
 
     function countAnchoredEdgeDiscsFromCorners(board: CpuPolicyBoard | null | undefined, playerValue: number): number {
-        if (!Array.isArray(board) || board.length <= 0) return 0;
+        if (!board || typeof board !== 'object') return 0;
         const anchored = new Set<string>();
         const corners = (
             SharedBoardUtils &&
             typeof SharedBoardUtils.getCornerCells === 'function'
         )
             ? SharedBoardUtils.getCornerCells(board)
-            : [
+            : (Array.isArray(board) ? [
                 { row: 0, col: 0 },
                 { row: 0, col: Array.isArray(board[0]) ? (board[0].length - 1) : 0 },
                 { row: board.length - 1, col: 0 },
                 { row: board.length - 1, col: Array.isArray(board[0]) ? (board[0].length - 1) : 0 }
-            ];
+            ] : []);
         const directions = [
             [-1, 0],
             [1, 0],

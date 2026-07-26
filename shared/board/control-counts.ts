@@ -13,7 +13,7 @@ export interface ControlCountDependencies {
 
 export function createControlCounts(deps: ControlCountDependencies) {
   function countCornerControl(board: unknown, playerValue: number): { ownCorners: number; oppCorners: number } {
-    if (!Array.isArray(board)) return { ownCorners: 0, oppCorners: 0 };
+    if (!board || typeof board !== "object") return { ownCorners: 0, oppCorners: 0 };
     let ownCorners = 0;
     let oppCorners = 0;
     for (const cell of deps.getCornerCells(board)) {
@@ -25,7 +25,7 @@ export function createControlCounts(deps: ControlCountDependencies) {
   }
 
   function countEdgeControl(board: unknown, playerValue: number): { ownEdges: number; oppEdges: number } {
-    if (!Array.isArray(board)) return { ownEdges: 0, oppEdges: 0 };
+    if (!board || typeof board !== "object") return { ownEdges: 0, oppEdges: 0 };
     let ownEdges = 0;
     let oppEdges = 0;
     for (const cell of deps.collectBoardCoordinates(board)) {

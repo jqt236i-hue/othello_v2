@@ -9,6 +9,7 @@ const THEORY_MARKER_TYPE = 'THEORY_INCARNATION';
 const THEORY_DURATION_OWNER_TURNS = 3;
 const TheoryIncarnationState = require('./theory-incarnation-state');
 const TheoryIncarnationSpawn = require('./theory-incarnation-spawn');
+const CardResolutionBoardView = require('./board-view-access');
 
 const {
     ownerKeyOf,
@@ -32,18 +33,13 @@ function isBlockedForTheory(cardState: any, gameState: GameState, row: number, c
 }
 
 function getBoardCells(cardState: CardState, gameState: GameState, deps: any): Array<{ row: number; col: number }> {
-    const board = gameState && Array.isArray((gameState as any).board) ? (gameState as any).board : [];
+    const view = CardResolutionBoardView.createCardResolutionBoardView(cardState, gameState);
     const cells: Array<{ row: number; col: number }> = [];
-    for (let row = 0; row < board.length; row += 1) {
-        const line = Array.isArray(board[row]) ? board[row] : [];
-        for (let col = 0; col < line.length; col += 1) {
-            const value = typeof deps.getCellValueForCard === 'function'
-                ? deps.getCellValueForCard(gameState, row, col)
-                : line[col];
-            if (!(value === deps.EMPTY || value === 0)) continue;
-            if (isBlockedForTheory(cardState, gameState, row, col, deps)) continue;
-            cells.push({ row, col });
-        }
+    for (const cell of view.coordinates) {
+        const value = view.get(cell.row, cell.col);
+        if (!(value === deps.EMPTY || value === 0)) continue;
+        if (isBlockedForTheory(cardState, gameState, cell.row, cell.col, deps)) continue;
+        cells.push({ row: cell.row, col: cell.col });
     }
     return cells;
 }

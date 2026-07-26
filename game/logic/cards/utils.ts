@@ -26,6 +26,7 @@ const SharedConstants = safeRequire('../../../shared-constants') || getRuntimeGl
 const SpecialStoneRegistry = safeRequire('../../../shared/special-stone-registry') || getRuntimeGlobalValue('SpecialStoneRegistry');
 const ManifestStoneRegistry = safeRequire('../../../shared/manifest-stone-registry') || getRuntimeGlobalValue('ManifestStoneRegistry');
 const PlayerSeatContract = safeRequire('../../../shared/player-seat-contract') || getRuntimeGlobalValue('PlayerSeatContract');
+const SharedBoardUtils = safeRequire('../../../shared/shared-board-utils') || getRuntimeGlobalValue('SharedBoardUtils');
 
 let OwnerHelpersModule: any = null;
 OwnerHelpersModule = safeRequire('../../../utils/owner-helpers') || getRuntimeGlobalValue('OwnerHelpers');
@@ -168,10 +169,16 @@ function addCharge(cardState: any, playerKey: any, amount: any, reason: any, met
     return addChargeWithDelta(cardState, playerKey, amount, reason, meta);
 }
 
-function getBoardCell(gameState: any, row: any, col: any): any {
-    if (!gameState || !Array.isArray(gameState.board)) return undefined;
-    const boardRow = gameState.board[row];
-    return Array.isArray(boardRow) ? boardRow[col] : undefined;
+function getBoardCell(cardState: any, gameState: any, row: any, col: any): any {
+    if (
+        !SharedBoardUtils
+        || typeof SharedBoardUtils.createBoardContext !== 'function'
+        || typeof SharedBoardUtils.getCellValue !== 'function'
+    ) {
+        throw new Error('SharedBoardUtils BoardContext APIs are required by CardUtils');
+    }
+    const context = SharedBoardUtils.createBoardContext(gameState, cardState);
+    return SharedBoardUtils.getCellValue(context, row, col);
 }
 
 function getMarkers(cardState: any): any[] {
@@ -373,7 +380,7 @@ function isNormalStoneForPlayer(cardState: any, gameState: any, playerKey: any, 
     if (!normalized) return false;
 
     const playerValue = normalized === 'black' ? 1 : -1;
-    if (getBoardCell(gameState, row, col) !== playerValue) return false;
+    if (getBoardCell(cardState, gameState, row, col) !== playerValue) return false;
     return !isNonNormalStoneVisualAt(cardState, row, col);
 }
 

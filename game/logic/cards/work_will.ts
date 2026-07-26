@@ -1,5 +1,6 @@
 import { BLACK, WHITE, EMPTY, CHARGE_MAX } from '../../../shared-constants';
-import * as ExpansionFallback from '../cards-internal/expansion-fallback';
+
+const SharedBoardUtils: any = require('../../../shared/shared-board-utils');
 
 type PlayerKey = 'black' | 'white';
 type BoardValue = number | string | null;
@@ -66,22 +67,35 @@ function ensureAnchors(cardState: CardState): Record<PlayerKey, { row: number; c
   return cardState.workAnchorPosByPlayer;
 }
 
-const normalizeExpansionOwner = (owner: BoardValue): BoardValue => ExpansionFallback.normalizeExpansionOwner(owner as any) as BoardValue;
-const isMainBoardCell = ExpansionFallback.isMainBoardCell as unknown as (row: number, col: number, gameState: GameState) => boolean;
-const isExpansionCoordinate = ExpansionFallback.isExpansionCoordinate as unknown as (row: number, col: number, gameState: GameState) => boolean;
-const getExpansionCells = ExpansionFallback.getExpansionCells as unknown as (gameState: GameState) => Array<{ side: string | null; row: number; col: number; owner: BoardValue }>;
-const getFallbackCellValue = ExpansionFallback.getCellValue as unknown as (gameState: GameState, row: number, col: number) => BoardValue;
-const setFallbackCellValue = ExpansionFallback.setCellValue as unknown as (gameState: GameState, row: number, col: number, value: BoardValue) => boolean;
-
-function clearExpansionCellOwner(gameState: GameState, row: number, col: number): boolean {
-  if (!isExpansionCoordinate(row, col, gameState)) return false;
-  const before = getFallbackCellValue(gameState, row, col);
-  if (before === null || before === EMPTY) return false;
-  return setFallbackCellValue(gameState, row, col, EMPTY);
+if (
+  !SharedBoardUtils
+  || typeof SharedBoardUtils.createBoardContext !== 'function'
+  || typeof SharedBoardUtils.createBoardView !== 'function'
+  || typeof SharedBoardUtils.getCellValue !== 'function'
+  || typeof SharedBoardUtils.setCellValue !== 'function'
+  || typeof SharedBoardUtils.toBoardCellKey !== 'function'
+) {
+  throw new Error('SharedBoardUtils BoardContext APIs are required by CardWork');
 }
 
-function getCellValue(gameState: GameState, row: number, col: number): BoardValue {
-  return getFallbackCellValue(gameState, row, col);
+function createWorkBoardContext(cardState: CardState, gameState: GameState): any {
+  return SharedBoardUtils.createBoardContext(gameState, cardState);
+}
+
+function clearExpansionCellOwner(cardState: CardState, gameState: GameState, row: number, col: number): boolean {
+  const context = createWorkBoardContext(cardState, gameState);
+  const view = SharedBoardUtils.createBoardView(context.gameState, {
+    cardState: context.cardState,
+    strict: false
+  });
+  if (!view.topology.expansionKeys.has(SharedBoardUtils.toBoardCellKey(row, col))) return false;
+  const before = SharedBoardUtils.getCellValue(context, row, col);
+  if (before === null || before === EMPTY) return false;
+  return SharedBoardUtils.setCellValue(context, row, col, EMPTY);
+}
+
+function getCellValue(cardState: CardState, gameState: GameState, row: number, col: number): BoardValue {
+  return SharedBoardUtils.getCellValue(createWorkBoardContext(cardState, gameState), row, col);
 }
 
 function addChargeWithTotal(cardState: CardState, playerKey: PlayerKey, amount: number): number {
@@ -131,7 +145,7 @@ function revertAnchorStone(cardState: CardState, gameState: GameState, row: numb
     && marker.owner === ownerKey
     && marker.data?.type === 'WORK'));
   const removed = (cardState.markers || []).length !== beforeCount;
-  if (removed && (reason || 'duration_end') === 'duration_end') clearExpansionCellOwner(gameState, row, col);
+  if (removed && (reason || 'duration_end') === 'duration_end') clearExpansionCellOwner(cardState, gameState, row, col);
   return removed;
 }
 
@@ -192,7 +206,7 @@ function processWorkEffects(cardState: CardState, gameState: GameState, playerKe
 
     const ownerColor = marker.data?.ownerColor || marker.owner || playerKey;
     const expectedValue = ownerColor === 'black' ? BLACK : ownerColor === 'white' ? WHITE : ownerValue;
-    const cellValue = getCellValue(gameState, row, col);
+    const cellValue = getCellValue(cardState, gameState, row, col);
     if (cellValue === null || cellValue === EMPTY || cellValue !== expectedValue) {
       revertAnchorStone(cardState, gameState, row, col, playerKey, 'anchor_lost');
       entries.push({ gained: 0, removed: true, row, col, removedReason: 'anchor_lost', incomeStep: null });

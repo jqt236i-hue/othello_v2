@@ -1,6 +1,7 @@
 import type { GameState, PlayerKey } from '../../../src/types';
 
 const TheoryIncarnationState = require('./theory-incarnation-state');
+const CardResolutionBoardView = require('./board-view-access');
 
 const THEORY_MARKER_TYPE = 'THEORY_INCARNATION';
 const THEORY_SPAWN_ROULETTE_MS = 2500;
@@ -18,19 +19,23 @@ function isBlockedForTheorySpawn(cardState: any, gameState: GameState, row: numb
     return false;
 }
 
-function isCellAvailableForTheorySpawn(cardState: any, gameState: GameState, cell: any, deps: any): boolean {
+function isCellAvailableForTheorySpawnInView(cardState: any, gameState: GameState, cell: any, deps: any, view: any): boolean {
     if (!cell) return false;
     const row = Number(cell.row);
     const col = Number(cell.col);
     if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    const value = typeof deps.getCellValueForCard === 'function'
-        ? deps.getCellValueForCard(gameState, row, col)
-        : ((gameState as any).board && (gameState as any).board[row] ? (gameState as any).board[row][col] : null);
+    if (!view.isPlayable(row, col)) return false;
+    const value = view.get(row, col);
     if (!(value === deps.EMPTY || value === 0)) return false;
     if (isBlockedForTheorySpawn(cardState, gameState, row, col, deps)) return false;
     const key = cellKeyOf(row, col);
     if (cardState.boardBonusConsumedByCell && cardState.boardBonusConsumedByCell[key] === true) return false;
     return true;
+}
+
+function isCellAvailableForTheorySpawn(cardState: any, gameState: GameState, cell: any, deps: any): boolean {
+    const view = CardResolutionBoardView.createCardResolutionBoardView(cardState, gameState);
+    return isCellAvailableForTheorySpawnInView(cardState, gameState, cell, deps, view);
 }
 
 function markTheoryCellConsumed(cardState: any, sessionId: string, key: string): void {
@@ -114,7 +119,8 @@ function spawnTheorySpecialStone(cardState: any, gameState: GameState, state: an
     const sessionId = state && state.sessionId;
     const session = sessionId && cardState.theoryNumberCellsBySession ? cardState.theoryNumberCellsBySession[sessionId] : null;
     const cells = session && session.cells ? Object.entries(session.cells).map(([key, cell]: [string, any]) => ({ key, cell })) : [];
-    const available = cells.filter(({ cell }) => isCellAvailableForTheorySpawn(cardState, gameState, cell, deps));
+    const view = CardResolutionBoardView.createCardResolutionBoardView(cardState, gameState);
+    const available = cells.filter(({ cell }) => isCellAvailableForTheorySpawnInView(cardState, gameState, cell, deps, view));
     if (available.length <= 0) return null;
     const pickedList = typeof deps.sampleRandomPositions === 'function'
         ? deps.sampleRandomPositions(available, 1, prng)

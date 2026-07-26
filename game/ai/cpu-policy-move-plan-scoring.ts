@@ -129,7 +129,7 @@ export function createCpuPolicyMovePlanScoring(deps?: CpuPolicyMovePlanScoringDe
         move: CpuPolicyMove | null | undefined,
         playerValue: number
     ): { oppCornerMoves: number; donatesCornerNow: boolean } {
-        if (!Array.isArray(board) || !move) {
+        if (!board || typeof board !== 'object' || !move) {
             return {
                 oppCornerMoves: 0,
                 donatesCornerNow: false
@@ -158,7 +158,7 @@ export function createCpuPolicyMovePlanScoring(deps?: CpuPolicyMovePlanScoringDe
         const row = isFiniteNumber(move && move.row) ? Number(move.row) : -1;
         const col = isFiniteNumber(move && move.col) ? Number(move.col) : -1;
         if (row < 0 || col < 0) return -999999;
-        const board = Array.isArray(ctx.board) ? ctx.board as CpuPolicyBoard : null;
+        const board = ctx.board && typeof ctx.board === 'object' ? ctx.board as CpuPolicyBoard : null;
 
         let score = scoreMoveHeuristic(move, level, board);
         if (isCorner(row, col, board)) score += 32000;

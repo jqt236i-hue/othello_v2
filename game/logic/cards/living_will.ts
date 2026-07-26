@@ -46,6 +46,8 @@ const CardWorkModule = resolveLivingWillModuleOrGlobal('./work_will', 'CardWork'
 const RandomSourceModule = resolveLivingWillModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
 const EvasionStatusModule = resolveLivingWillModuleOrGlobal('../../../shared/evasion-status', 'EvasionStatus');
 const ManifestStoneRegistry = resolveLivingWillModuleOrGlobal('../../../shared/manifest-stone-registry', 'ManifestStoneRegistry');
+const BoardOpsModule = resolveLivingWillModuleOrGlobal('../board_ops', 'BoardOps');
+const BoardUtils = resolveLivingWillModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
 
 const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
     ? Number(SharedConstants.BLACK)
@@ -76,6 +78,13 @@ const HYPERACTIVE_TYPES = new Set([
     'ROBOT_VACUUM',
     'GLUTTONOUS'
 ]);
+
+if (!BoardUtils ||
+    typeof BoardUtils.createBoardContext !== 'function' ||
+    typeof BoardUtils.collectBoardCoordinates !== 'function' ||
+    typeof BoardUtils.getCellValue !== 'function') {
+    throw new Error('SharedBoardUtils BoardContext access is required by CardLivingWill');
+}
 
 function getCardMarkersModule(): any {
     if (CardMarkersModule) return CardMarkersModule;
@@ -287,27 +296,24 @@ interface LivingWillDeps {
 }
 
 function getBoardOps(deps: LivingWillDeps): any {
-    return deps && deps.BoardOps ? deps.BoardOps : null;
+    return (deps && deps.BoardOps) || BoardOpsModule || null;
 }
 
-function getCellValue(gameState: GameState, row: number, col: number, deps: LivingWillDeps): any {
-    const boardOps = getBoardOps(deps);
-    if (boardOps && typeof boardOps.getCellValue === 'function') {
-        return boardOps.getCellValue(gameState, row, col);
-    }
-    const gs = gameState as any;
-    if (gs && Array.isArray(gs.board) && Array.isArray(gs.board[row])) {
-        return gs.board[row][col];
-    }
-    return null;
+function createBoardContext(gameState: GameState, cardState: CardState): any {
+    return BoardUtils.createBoardContext(gameState, cardState);
 }
 
-function getExpansionDescriptors(gameState: GameState, deps: LivingWillDeps): any[] {
-    const boardOps = getBoardOps(deps);
-    if (boardOps && typeof boardOps.getExpansionDescriptors === 'function') {
-        return boardOps.getExpansionDescriptors(gameState) || [];
-    }
-    return [];
+function collectBoardCells(gameState: GameState, cardState: CardState): Array<{ row: number; col: number; owner: any }> {
+    const context = createBoardContext(gameState, cardState);
+    return BoardUtils.collectBoardCoordinates(context).map((cell: { row: number; col: number }) => ({
+        row: cell.row,
+        col: cell.col,
+        owner: BoardUtils.getCellValue(context, cell.row, cell.col)
+    }));
+}
+
+function getCellValue(gameState: GameState, row: number, col: number, cardState: CardState, _deps: LivingWillDeps): any {
+    return BoardUtils.getCellValue(createBoardContext(gameState, cardState), row, col);
 }
 
 function emitPresentationEvent(cardState: CardState, event: any, deps: LivingWillDeps): void {
@@ -519,7 +525,7 @@ interface LivingWillBaseline {
 }
 
 function buildLivingWillBaseline(cardState: CardState, gameState: GameState, row: number, col: number, deps: LivingWillDeps): LivingWillBaseline | null {
-    const ownerKey = normalizeOwnerKeyFromValue(getCellValue(gameState, row, col, deps));
+    const ownerKey = normalizeOwnerKeyFromValue(getCellValue(gameState, row, col, cardState, deps));
     if (!ownerKey) return null;
     const restoreMarkers = getSpecialMarkersAt(cardState, row, col)
         .filter((marker: any) => {
@@ -637,23 +643,11 @@ function collectEmptyReviveCells(cardState: CardState, gameState: GameState, sou
     const blockingSet = new Set(
         getBlockingMarkers(cardState).map((marker: any) => `${normalizeBoardIndex(marker.row)},${normalizeBoardIndex(marker.col)}`)
     );
-    const gs = gameState as any;
-    const board = gs && Array.isArray(gs.board) ? gs.board : [];
-    for (let row = 0; row < board.length; row++) {
-        if (!Array.isArray(board[row])) continue;
-        for (let col = 0; col < board[row].length; col++) {
-            if (row === sourceRow && col === sourceCol) continue;
-            if (getCellValue(gameState, row, col, deps) !== EMPTY) continue;
-            if (blockingSet.has(`${row},${col}`)) continue;
-            candidates.push({ row, col });
-        }
-    }
-    for (const descriptor of getExpansionDescriptors(gameState, deps)) {
-        if (!descriptor || !Number.isInteger(descriptor.row) || !Number.isInteger(descriptor.col)) continue;
-        if (descriptor.row === sourceRow && descriptor.col === sourceCol) continue;
-        if (getCellValue(gameState, descriptor.row, descriptor.col, deps) !== EMPTY) continue;
-        if (blockingSet.has(`${descriptor.row},${descriptor.col}`)) continue;
-        candidates.push({ row: descriptor.row, col: descriptor.col });
+    for (const cell of collectBoardCells(gameState, cardState)) {
+        if (cell.row === sourceRow && cell.col === sourceCol) continue;
+        if (cell.owner !== EMPTY) continue;
+        if (blockingSet.has(`${cell.row},${cell.col}`)) continue;
+        candidates.push({ row: cell.row, col: cell.col });
     }
     return candidates;
 }
@@ -743,29 +737,24 @@ function applyRestoredStoneFlips(cardState: CardState, gameState: GameState, row
         if (seen.has(key)) continue;
         seen.add(key);
 
-        let changed = true;
-        if (boardOps && typeof boardOps.changeAt === 'function') {
-            const changeRes = boardOps.changeAt(
-                cardState,
-                gameState,
-                pos.row,
-                pos.col,
-                ownerKey,
-                'LIVING_WILL',
-                'living_will_restore_flip',
-                {
-                    sourceSpecial: 'LIVING_WILL',
-                    restoredFromRow: row,
-                    restoredFromCol: col
-                }
-            );
-            changed = !!(changeRes && changeRes.changed);
-        } else {
-            const gs = gameState as any;
-            if (gs && Array.isArray(gs.board) && Array.isArray(gs.board[pos.row])) {
-                gs.board[pos.row][pos.col] = ownerValue;
-            }
+        if (!boardOps || typeof boardOps.changeAt !== 'function') {
+            throw new Error('BoardOps.changeAt is required by CardLivingWill');
         }
+        const changeRes = boardOps.changeAt(
+            cardState,
+            gameState,
+            pos.row,
+            pos.col,
+            ownerKey,
+            'LIVING_WILL',
+            'living_will_restore_flip',
+            {
+                sourceSpecial: 'LIVING_WILL',
+                restoredFromRow: row,
+                restoredFromCol: col
+            }
+        );
+        const changed = !!(changeRes && changeRes.changed);
         if (!changed) continue;
         if (typeof deps.clearBombAt === 'function') {
             deps.clearBombAt(cardState, pos.row, pos.col);
@@ -854,7 +843,7 @@ function restoreFromLivingWillSnapshot(cardState: CardState, gameState: GameStat
 
     removeNonBlockingMarkersAt(cardState, destRow, destCol);
 
-    const destinationValue = getCellValue(gameState, destRow, destCol, deps);
+    const destinationValue = getCellValue(gameState, destRow, destCol, cardState, deps);
     const visualMeta = buildRestoreVisualMeta(baseline, Object.assign({}, trigger, { relocated: relocate }));
     let boardResult = null;
     if (destinationValue === EMPTY) {
@@ -989,7 +978,7 @@ function applyLivingWillAfterFlips(cardState: CardState, gameState: GameState, f
         const livingWillMarker = findLivingWillMarkerAt(cardState, row as number, col as number);
         if (!livingWillMarker) continue;
         const baseline = livingWillMarker.data && livingWillMarker.data.baseline;
-        const currentOwner = normalizeOwnerKeyFromValue(getCellValue(gameState, row as number, col as number, deps));
+        const currentOwner = normalizeOwnerKeyFromValue(getCellValue(gameState, row as number, col as number, cardState, deps));
         if (!baseline || !baseline.owner || currentOwner === baseline.owner) continue;
         const result = restoreFromLivingWillSnapshot(cardState, gameState, livingWillMarker, {
             triggerKind: 'flip',

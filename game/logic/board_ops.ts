@@ -185,17 +185,6 @@ function allocateStoneId(cardState: any): string {
     return 's' + String(cardState._nextStoneId++);
 }
 
-function resolveBoardDims(gameState: any, cardState: any): { rows: number; cols: number } {
-    const boardSource = (gameState && Array.isArray(gameState.board))
-        ? gameState
-        : (cardState && Array.isArray(cardState.stoneIdMap) ? cardState : (gameState || cardState));
-    if (!BoardUtils || typeof BoardUtils.resolveBoardConfig !== 'function') {
-        throw new Error('SharedBoardUtils.resolveBoardConfig is required by BoardOps');
-    }
-    const config = BoardUtils.resolveBoardConfig(boardSource);
-    return { rows: config.rows, cols: config.cols };
-}
-
 function isMainBoardCell(row: number, col: number, boardOrState: any): boolean {
     if (!BoardUtils || typeof BoardUtils.isMainBoardCell !== 'function') {
         throw new Error('SharedBoardUtils.isMainBoardCell is required by BoardOps');
@@ -219,21 +208,17 @@ function isExpansionCoordinate(row: number, col: number, boardOrState: any): boo
 
 function isMainBoardCorner(row: number, col: number, boardOrState: any, cardState?: any): boolean {
     if (
-        BoardUtils &&
-        typeof BoardUtils.attachBoardShape === 'function' &&
-        typeof BoardUtils.isCornerCell === 'function' &&
-        boardOrState &&
-        Array.isArray(boardOrState.board)
+        !BoardUtils ||
+        typeof BoardUtils.createBoardContext !== 'function' ||
+        typeof BoardUtils.isCornerCell !== 'function'
     ) {
-        const shapedBoard = BoardUtils.attachBoardShape(boardOrState.board, {
-            boardConfig: boardOrState.boardConfig,
-            boardExpansion: boardOrState.boardExpansion,
-            cardState
-        });
-        return BoardUtils.isCornerCell(row, col, shapedBoard);
+        throw new Error('SharedBoardUtils corner topology is required by BoardOps');
     }
-    const dims = resolveBoardDims(boardOrState, boardOrState);
-    return isMainBoardCell(row, col, boardOrState) && (row === 0 || row === dims.rows - 1) && (col === 0 || col === dims.cols - 1);
+    return BoardUtils.isCornerCell(
+        row,
+        col,
+        BoardUtils.createBoardContext(boardOrState, cardState || null)
+    );
 }
 
 function ensureResultTotals(cardState: any): void {
@@ -250,10 +235,6 @@ function ensureResultTotals(cardState: any): void {
     if (!Number.isFinite(Number(cardState.cornerCaptureCountByPlayer.white))) cardState.cornerCaptureCountByPlayer.white = 0;
 }
 
-function getExpansionKey(row: number, col: number): string {
-    return `${row},${col}`;
-}
-
 function normalizeExpansionOwner(owner: number): number {
     const cardExpansion = getCardExpansionModule();
     if (cardExpansion && typeof cardExpansion.normalizeExpansionOwnerForCard === 'function') {
@@ -268,12 +249,12 @@ function normalizeExpansionOwner(owner: number): number {
     return (owner === SharedConstants.BLACK || owner === SharedConstants.WHITE) ? owner : EMPTY;
 }
 
-function getExpansionDescriptors(gameState: any): Array<{ side: string | null; row: number; col: number; owner: number }> {
+function getExpansionDescriptors(gameState: any, cardState: any = null): Array<{ side: string | null; row: number; col: number; owner: number }> {
     if (!BoardUtils || typeof BoardUtils.createBoardView !== 'function') {
         throw new Error('SharedBoardUtils.createBoardView is required by BoardOps');
     }
     return BoardUtils.createBoardView(gameState, {
-        cardState: null,
+        cardState,
         strict: false
     }).expansionCells.map((cell: any) => ({
         side: cell.side || null,
@@ -295,19 +276,21 @@ function syncLegacyExpansionFields(expansion: any, gameState: any): void {
     expansion.active = !!latest;
     expansion.side = latest ? resolveExpansionSide(latest.side, latest.row, latest.col, gameState) : null;
     expansion.row = latest ? latest.row : null;
+    expansion.col = latest ? latest.col : null;
     expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
 }
 
-function ensureExpansionStateMutable(gameState: any): any {
+function ensureExpansionStateMutable(gameState: any, cardState: any = null): any {
     const cardExpansion = getCardExpansionModule();
     if (cardExpansion && typeof cardExpansion.ensureMutableBoardExpansionForCard === 'function') {
-        return cardExpansion.ensureMutableBoardExpansionForCard(gameState);
+        return cardExpansion.ensureMutableBoardExpansionForCard(cardState, gameState);
     }
     if (!gameState.boardExpansion || typeof gameState.boardExpansion !== 'object') {
         gameState.boardExpansion = {
             active: false,
             side: null,
             row: null,
+            col: null,
             owner: EMPTY,
             usedByPlayer: { black: false, white: false },
             cells: []
@@ -321,7 +304,7 @@ function ensureExpansionStateMutable(gameState: any): any {
         expansion.usedByPlayer.black = !!expansion.usedByPlayer.black;
         expansion.usedByPlayer.white = !!expansion.usedByPlayer.white;
     }
-    const descriptors = getExpansionDescriptors(gameState);
+    const descriptors = getExpansionDescriptors(gameState, cardState);
     expansion.cells = descriptors.map((desc) => ({
         side: desc.side,
         row: desc.row,
@@ -332,76 +315,53 @@ function ensureExpansionStateMutable(gameState: any): any {
     return expansion;
 }
 
-function getExpansionDescriptor(gameState: any): any {
-    const descriptors = getExpansionDescriptors(gameState);
+function getExpansionDescriptor(gameState: any, cardState: any = null): any {
+    const descriptors = getExpansionDescriptors(gameState, cardState);
     return descriptors.length > 0 ? descriptors[0] : null;
 }
 
-function isExpansionCell(gameState: any, row: number, col: number): boolean {
+function isExpansionCell(gameState: any, row: number, col: number, cardState: any = null): boolean {
     if (!BoardUtils || typeof BoardUtils.createBoardView !== 'function') {
         throw new Error('SharedBoardUtils.createBoardView is required by BoardOps');
     }
-    const view = BoardUtils.createBoardView(gameState, { cardState: null, strict: false });
+    const view = BoardUtils.createBoardView(gameState, { cardState, strict: false });
     return view.topology.expansionKeys.has(`${row},${col}`);
 }
 
-function getCellValue(gameState: any, row: number, col: number): number | null {
+function getCellValue(gameState: any, row: number, col: number, cardState: any = null): number | null {
     if (!BoardUtils || typeof BoardUtils.getStateCellValue !== 'function') {
         throw new Error('SharedBoardUtils.getStateCellValue is required by BoardOps');
     }
-    return BoardUtils.getStateCellValue(gameState, row, col, null);
+    return BoardUtils.getStateCellValue(gameState, row, col, cardState);
 }
 
-function setCellValue(gameState: any, row: number, col: number, value: number): boolean {
+function setCellValue(gameState: any, row: number, col: number, value: number, cardState: any = null): boolean {
     if (!BoardUtils || typeof BoardUtils.setStateCellValue !== 'function') {
         throw new Error('SharedBoardUtils.setStateCellValue is required by BoardOps');
     }
-    return BoardUtils.setStateCellValue(gameState, row, col, value, null);
+    return BoardUtils.setStateCellValue(gameState, row, col, value, cardState);
 }
 
-function getStoneIdAt(cardState: any, gameState: any, row: number, col: number): string | null {
+function requireCardMarkersStoneIdAccess(): any {
     const cardMarkers = getCardMarkersModule();
-    if (cardMarkers && typeof cardMarkers.getStoneIdAtForCard === 'function') {
-        return cardMarkers.getStoneIdAtForCard(cardState, gameState, row, col);
+    if (
+        !cardMarkers ||
+        typeof cardMarkers.getStoneIdAtForCard !== 'function' ||
+        typeof cardMarkers.setStoneIdAtForCard !== 'function'
+    ) {
+        throw new Error('CardMarkers stone-id access is required by BoardOps');
     }
-    if (isMainBoardCell(row, col, gameState)) {
-        return cardState.stoneIdMap ? cardState.stoneIdMap[row][col] : null;
-    }
-    if (isExpansionCell(gameState, row, col)) {
-        return cardState.expansionStoneIdByCell ? cardState.expansionStoneIdByCell[getExpansionKey(row, col)] : null;
-    }
-    return null;
+    return cardMarkers;
+}
+
+const CardMarkersStoneIdAccess = requireCardMarkersStoneIdAccess();
+
+function getStoneIdAt(cardState: any, gameState: any, row: number, col: number): string | null {
+    return CardMarkersStoneIdAccess.getStoneIdAtForCard(cardState, gameState, row, col);
 }
 
 function setStoneIdAt(cardState: any, gameState: any, row: number, col: number, stoneId: string | null): boolean {
-    const cardMarkers = getCardMarkersModule();
-    if (cardMarkers && typeof cardMarkers.setStoneIdAtForCard === 'function') {
-        return cardMarkers.setStoneIdAtForCard(cardState, gameState, row, col, stoneId);
-    }
-    if (isMainBoardCell(row, col, gameState || cardState)) {
-        const dims = resolveBoardDims(gameState, cardState);
-        if (!cardState.stoneIdMap) {
-            cardState.stoneIdMap = Array.from({ length: dims.rows }, () => Array.from({ length: dims.cols }, () => null));
-        }
-        if (!Array.isArray(cardState.stoneIdMap[row])) {
-            cardState.stoneIdMap[row] = Array.from({ length: dims.cols }, () => null);
-        }
-        cardState.stoneIdMap[row][col] = stoneId;
-        return true;
-    }
-    if (isExpansionCell(gameState, row, col)) {
-        if (!cardState.expansionStoneIdByCell || typeof cardState.expansionStoneIdByCell !== 'object') {
-            cardState.expansionStoneIdByCell = {};
-        }
-        const key = getExpansionKey(row, col);
-        if (stoneId === null || stoneId === undefined) {
-            delete cardState.expansionStoneIdByCell[key];
-        } else {
-            cardState.expansionStoneIdByCell[key] = stoneId;
-        }
-        return true;
-    }
-    return false;
+    return CardMarkersStoneIdAccess.setStoneIdAtForCard(cardState, gameState, row, col, stoneId);
 }
 
 function _normalizeCounterValue(value: any): number | null {
@@ -851,23 +811,18 @@ function _findProliferationDestination(cardState: any, gameState: any, row: numb
 }
 
 function _collectBoardShapeEmptyCells(cardState: any, gameState: any): Array<{ row: number; col: number }> {
-    const out: Array<{ row: number; col: number }> = [];
-    const pushCell = (row: number, col: number): void => {
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-        if (out.some((entry) => entry.row === row && entry.col === col)) return;
-        if (getCellValue(gameState, row, col) !== EMPTY) return;
-        if (_isBlockedDestinationCell(cardState, row, col)) return;
-        out.push({ row, col });
-    };
-    const dims = resolveBoardDims(gameState, cardState);
-    for (let row = 0; row < dims.rows; row += 1) {
-        for (let col = 0; col < dims.cols; col += 1) {
-            pushCell(row, col);
-        }
+    if (!BoardUtils || typeof BoardUtils.createBoardView !== 'function') {
+        throw new Error('SharedBoardUtils.createBoardView is required by BoardOps');
     }
-    for (const descriptor of getExpansionDescriptors(gameState)) {
-        if (!descriptor) continue;
-        pushCell(descriptor.row, descriptor.col);
+    const view = BoardUtils.createBoardView(gameState, {
+        cardState,
+        strict: false
+    });
+    const out: Array<{ row: number; col: number }> = [];
+    for (const cell of view.coordinates) {
+        if (view.get(cell.row, cell.col) !== EMPTY) continue;
+        if (_isBlockedDestinationCell(cardState, cell.row, cell.col)) continue;
+        out.push({ row: cell.row, col: cell.col });
     }
     return out;
 }
@@ -1184,7 +1139,7 @@ function runCellRemovalBlock(cardState: any, gameState: any, fn: any, meta: any 
 
 function applyHoleAt(cardState: any, gameState: any, row: number, col: number, ownerKey: string, meta: any = {}): any {
     _ensureCardState(cardState);
-    const prev = getCellValue(gameState, row, col);
+    const prev = getCellValue(gameState, row, col, cardState);
     if (prev === null) return { applied: false, reason: 'out_of_board', row, col };
     if (!BoardUtils ||
         typeof BoardUtils.createBoardMutationCheckpoint !== 'function' ||
@@ -1194,7 +1149,7 @@ function applyHoleAt(cardState: any, gameState: any, row: number, col: number, o
     const checkpoint = BoardUtils.createBoardMutationCheckpoint(gameState, cardState);
     try {
         setStoneIdAt(cardState, gameState, row, col, null);
-        setCellValue(gameState, row, col, EMPTY);
+        setCellValue(gameState, row, col, EMPTY, cardState);
 
         const removeOptions = meta && meta.removeOptions ? meta.removeOptions : undefined;
         const cardMarkers = getCardMarkersModule();
@@ -1315,7 +1270,7 @@ function _removeOccupiedCellForCellRemoval(
     if (removalCause) destroyMeta.removalCause = removalCause;
 
     setStoneIdAt(cardState, gameState, row, col, null);
-    setCellValue(gameState, row, col, EMPTY);
+    setCellValue(gameState, row, col, EMPTY, cardState);
     const cardMarkers = getCardMarkersModule();
     if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
         cardMarkers.removeMarkersAt(cardState, row, col);
@@ -1394,7 +1349,7 @@ function applyCellRemovalAt(
     row = pos.row;
     col = pos.col;
 
-    const prev = getCellValue(gameState, row, col);
+    const prev = getCellValue(gameState, row, col, cardState);
     if (prev === null) return { applied: false, reason: 'out_of_board', row, col };
     if (!BoardUtils ||
         typeof BoardUtils.createBoardMutationCheckpoint !== 'function' ||
@@ -1771,7 +1726,7 @@ function spawnAt(cardState: any, gameState: any, row: number, col: number, owner
     if (_isBlockedDestinationCell(cardState, row, col)) return { spawned: false, reason: 'blocked_destination' };
     _invalidateSeedMarkerAt(cardState, row, col, cause, reason);
     const ownerVal = ownerKey === 'black' ? (SharedConstants.BLACK || 1) : (SharedConstants.WHITE || -1);
-    if (!setCellValue(gameState, row, col, ownerVal)) return { spawned: false };
+    if (!setCellValue(gameState, row, col, ownerVal, cardState)) return { spawned: false };
     const stoneId = allocateStoneId(cardState);
 
     setStoneIdAt(cardState, gameState, row, col, stoneId);
@@ -2020,7 +1975,7 @@ function _prepareDestroyCoreContext(cardState: any, gameState: any, row: number,
     if (!pos) return { result: { destroyed: false, reason: 'out_of_board' } };
     const normalizedRow = pos.row;
     const normalizedCol = pos.col;
-    const prev = getCellValue(gameState, normalizedRow, normalizedCol);
+    const prev = getCellValue(gameState, normalizedRow, normalizedCol, cardState);
     if (prev === EMPTY) return { result: { destroyed: false } };
     if (prev === null) return { result: { destroyed: false, reason: 'out_of_board' } };
     return {
@@ -2076,7 +2031,7 @@ function _emitDestroyPresentationEvent(ctx: DestroyCoreContext, stoneId: string 
 
 function _removeDestroyedCellFromBoard(ctx: DestroyCoreContext): void {
     setStoneIdAt(ctx.cardState, ctx.gameState, ctx.row, ctx.col, null);
-    setCellValue(ctx.gameState, ctx.row, ctx.col, EMPTY);
+    setCellValue(ctx.gameState, ctx.row, ctx.col, EMPTY, ctx.cardState);
     if (ctx.cardMarkers && typeof ctx.cardMarkers.removeMarkersAt === 'function') {
         ctx.cardMarkers.removeMarkersAt(ctx.cardState, ctx.row, ctx.col, { preserveTypes: ['POISON_CELL'] });
     } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
@@ -2427,7 +2382,7 @@ function changeAt(cardState: any, gameState: any, row: number, col: number, owne
     if (!pos) return { changed: false, reason: 'out_of_board' };
     row = pos.row;
     col = pos.col;
-    const prev = getCellValue(gameState, row, col);
+    const prev = getCellValue(gameState, row, col, cardState);
     if (prev === null) return { changed: false, reason: 'out_of_board' };
     const ownerAfterVal = ownerAfterKey === 'black' ? (SharedConstants.BLACK || 1) : (SharedConstants.WHITE || -1);
     const forcePresentation = !!(meta && meta.forcePresentation === true);
@@ -2491,7 +2446,7 @@ function changeAt(cardState: any, gameState: any, row: number, col: number, owne
     // is derived, while preserved/transfer markers remain visible as before.
     const metaOut = _populateSpecialVisualMeta(cardState, row, col, metaOutInput);
 
-    setCellValue(gameState, row, col, ownerAfterVal);
+    setCellValue(gameState, row, col, ownerAfterVal, cardState);
     if (ownerBeforeKey !== null && countAsFlip) {
         ensureResultTotals(cardState);
         cardState.totalFlipCountByPlayer[ownerAfterKey] = (cardState.totalFlipCountByPlayer[ownerAfterKey] || 0) + 1;
@@ -2520,7 +2475,7 @@ function revertSpecialStoneAt(cardState: any, gameState: any, row: number, col: 
     row = pos.row;
     col = pos.col;
 
-    const prev = getCellValue(gameState, row, col);
+    const prev = getCellValue(gameState, row, col, cardState);
     if (prev === null) return { reverted: false, reason: 'out_of_board' };
     if (prev === EMPTY) return { reverted: false, reason: 'empty_cell' };
 
@@ -2638,12 +2593,12 @@ function moveAt(cardState: any, gameState: any, fromRow: number, fromCol: number
     fromCol = fromPos.col;
     toRow = toPos.row;
     toCol = toPos.col;
-    const prev = getCellValue(gameState, fromRow, fromCol);
+    const prev = getCellValue(gameState, fromRow, fromCol, cardState);
     if (prev === EMPTY) return { moved: false };
     if (prev === null) return { moved: false, reason: 'from_out_of_board' };
     if (_isFrozenCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'frozen_source' };
     if (_isInviolableCell(cardState, fromRow, fromCol)) return { moved: false, reason: 'inviolable_source' };
-    const destVal = getCellValue(gameState, toRow, toCol);
+    const destVal = getCellValue(gameState, toRow, toCol, cardState);
     if (destVal === null) return { moved: false, reason: 'to_out_of_board' };
     if (destVal !== EMPTY) return { moved: false, reason: 'dest_not_empty' };
     if (_isBlockedDestinationCell(cardState, toRow, toCol)) return { moved: false, reason: 'blocked_destination' };
@@ -2653,8 +2608,8 @@ function moveAt(cardState: any, gameState: any, fromRow: number, fromCol: number
     setStoneIdAt(cardState, gameState, fromRow, fromCol, null);
     setStoneIdAt(cardState, gameState, toRow, toCol, stoneId);
 
-    setCellValue(gameState, fromRow, fromCol, EMPTY);
-    setCellValue(gameState, toRow, toCol, prev);
+    setCellValue(gameState, fromRow, fromCol, EMPTY, cardState);
+    setCellValue(gameState, toRow, toCol, prev, cardState);
     _moveStoneAttachedMarkers(cardState, fromRow, fromCol, toRow, toCol);
     const metaOut = _clonePresentationMeta(meta);
     if (metaOut.moveIntent === undefined || metaOut.moveIntent === null) {
@@ -2697,8 +2652,8 @@ function swapOccupiedCells(cardState: any, gameState: any, posA: any, posB: any,
     const bCol = bPos.col;
     if (aRow === bRow && aCol === bCol) return { swapped: false, reason: 'same_cell' };
 
-    const valueA = getCellValue(gameState, aRow, aCol);
-    const valueB = getCellValue(gameState, bRow, bCol);
+    const valueA = getCellValue(gameState, aRow, aCol, cardState);
+    const valueB = getCellValue(gameState, bRow, bCol, cardState);
     if (valueA === null || valueB === null) return { swapped: false, reason: 'out_of_board' };
     if (valueA === EMPTY || valueB === EMPTY) return { swapped: false, reason: 'empty' };
     if (_isFrozenCell(cardState, aRow, aCol) || _isFrozenCell(cardState, bRow, bCol)) return { swapped: false, reason: 'frozen_source' };
@@ -2709,8 +2664,8 @@ function swapOccupiedCells(cardState: any, gameState: any, posA: any, posB: any,
     const ownerA = valueA === (SharedConstants.BLACK || 1) ? 'black' : 'white';
     const ownerB = valueB === (SharedConstants.BLACK || 1) ? 'black' : 'white';
 
-    setCellValue(gameState, aRow, aCol, valueB);
-    setCellValue(gameState, bRow, bCol, valueA);
+    setCellValue(gameState, aRow, aCol, valueB, cardState);
+    setCellValue(gameState, bRow, bCol, valueA, cardState);
     setStoneIdAt(cardState, gameState, aRow, aCol, stoneIdB);
     setStoneIdAt(cardState, gameState, bRow, bCol, stoneIdA);
     _swapStoneAttachedMarkers(cardState, aRow, aCol, bRow, bCol);

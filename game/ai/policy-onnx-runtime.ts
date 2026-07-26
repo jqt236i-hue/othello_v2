@@ -598,6 +598,53 @@ function isStandardOnnxBoard(board: any) {
     return false;
 }
 
+function isOnnxBoardSource(board: any) {
+    return Array.isArray(board) || !!(
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.isBoardContext === 'function' &&
+        SharedBoardUtils.isBoardContext(board)
+    );
+}
+
+function collectExistingOnnxBoardCoordinates(board: any) {
+    const isBoardContext = !!(
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.isBoardContext === 'function' &&
+        SharedBoardUtils.isBoardContext(board)
+    );
+    if (isBoardContext) {
+        if (typeof SharedBoardUtils.buildBoardTopology !== 'function') return null;
+        try {
+            const topology = SharedBoardUtils.buildBoardTopology(board);
+            return topology && Array.isArray(topology.existingCoordinates)
+                ? topology.existingCoordinates
+                : null;
+        } catch (e) {
+            return null;
+        }
+    }
+    if (!SharedBoardUtils || typeof SharedBoardUtils.collectBoardCoordinates !== 'function') {
+        return null;
+    }
+    try {
+        return SharedBoardUtils.collectBoardCoordinates(board);
+    } catch (e) {
+        return null;
+    }
+}
+
+function isWithinPaddedFeatureEnvelope(board: any) {
+    if (!SharedBoardUtils || typeof SharedBoardUtils.isPaddedBoardCoordinate !== 'function') {
+        return false;
+    }
+    const coordinates = collectExistingOnnxBoardCoordinates(board);
+    if (!Array.isArray(coordinates) || coordinates.length <= 0) return false;
+    return coordinates.every((cell: any) => (
+        !!cell &&
+        SharedBoardUtils.isPaddedBoardCoordinate(Number(cell.row), Number(cell.col))
+    ));
+}
+
 function hasOnlySupportedMoveIndexes(moves: any, modelMeta: any, outputDimHint: any) {
     if (!Array.isArray(moves)) return true;
     for (const move of moves) {
@@ -607,9 +654,9 @@ function hasOnlySupportedMoveIndexes(moves: any, modelMeta: any, outputDimHint: 
 }
 
 function isSupportedOnnxContext(context: any, candidateMoves: any, modelMeta: any, outputDimHint: any) {
-    const board = Array.isArray(context && context.board) ? context.board : null;
+    const board = isOnnxBoardSource(context && context.board) ? context.board : null;
     if (supportsPaddedBoardFeatures(modelMeta)) {
-        if (!Array.isArray(board) || board.length <= 0) return false;
+        if (!isWithinPaddedFeatureEnvelope(board)) return false;
     } else if (!isStandardOnnxBoard(board)) {
         return false;
     }

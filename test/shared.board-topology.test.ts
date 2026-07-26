@@ -13,13 +13,14 @@ describe('shared BoardTopology', () => {
       usedByPlayer: { black: false, white: false }
     };
     const cardState = { markers };
-    SharedBoardUtils.attachBoardShape(board, { boardConfig, boardExpansion, cardState });
-    return { board, boardConfig, boardExpansion, cardState };
+    const gameState = { board, boardConfig, boardExpansion };
+    const context = SharedBoardUtils.createBoardContext(gameState, cardState);
+    return { gameState, cardState, context };
   }
 
   test('initial shape name only determines base keys', () => {
     const state = createCircleState();
-    const topology = SharedBoardUtils.buildBoardTopology(state, { cardState: state.cardState });
+    const topology = SharedBoardUtils.buildBoardTopology(state.context);
 
     expect(topology.baseKeys.size).toBe(80);
     expect(topology.expansionKeys.size).toBe(0);
@@ -33,8 +34,8 @@ describe('shared BoardTopology', () => {
       { row: -1, col: 3, side: 'top', owner: 0 },
       { row: -2, col: 3, side: 'top', owner: 0 }
     ]);
-    const topology = SharedBoardUtils.buildBoardTopology(state, { cardState: state.cardState });
-    const sockets = SharedBoardUtils.getBoardExpansionEdgeSockets(state.board, state);
+    const topology = SharedBoardUtils.buildBoardTopology(state.context);
+    const sockets = SharedBoardUtils.getBoardExpansionEdgeSockets(state.context);
 
     expect(topology.expansionKeys.has('-2,3')).toBe(true);
     expect(topology.renderBounds.minRow).toBe(-2);
@@ -59,8 +60,8 @@ describe('shared BoardTopology', () => {
       data: { type: 'METEOR_HOLE' }
     }];
     const state = createCircleState([], markers);
-    const topology = SharedBoardUtils.buildBoardTopology(state, { cardState: state.cardState });
-    const sockets = SharedBoardUtils.getBoardExpansionEdgeSockets(state.board, state);
+    const topology = SharedBoardUtils.buildBoardTopology(state.context);
+    const sockets = SharedBoardUtils.getBoardExpansionEdgeSockets(state.context);
 
     expect(topology.existingKeys.has('0,3')).toBe(true);
     expect(topology.holeKeys.has('0,3')).toBe(true);
@@ -72,7 +73,7 @@ describe('shared BoardTopology', () => {
 
   test('derives outer contours without materializing a global void key set', () => {
     const state = createCircleState();
-    const topology = SharedBoardUtils.buildBoardTopology(state, { cardState: state.cardState });
+    const topology = SharedBoardUtils.buildBoardTopology(state.context);
 
     expect(topology.boundaryEdgesByKey.get('0,3')).toMatchObject({
       top: 'outer',
@@ -83,16 +84,13 @@ describe('shared BoardTopology', () => {
   });
 
   test('keeps explicit holes as sparse topology tombstones', () => {
-    const state = createCircleState();
-    state.cardState = {
-      markers: [{
+    const state = createCircleState([], [{
         kind: 'specialStone',
         row: -3,
         col: 12,
         data: { type: 'METEOR_HOLE' }
-      }]
-    };
-    const topology = SharedBoardUtils.buildBoardTopology(state, { cardState: state.cardState });
+      }]);
+    const topology = SharedBoardUtils.buildBoardTopology(state.context);
 
     expect(topology.existingKeys.has('-3,12')).toBe(true);
     expect(topology.holeKeys.has('-3,12')).toBe(true);
@@ -108,9 +106,68 @@ describe('shared BoardTopology', () => {
     });
   });
 
+  test('rejects absurd hole coordinates without clipping valid multi-ring holes', () => {
+    const state = createCircleState([], [
+      {
+        kind: 'specialStone',
+        row: -3,
+        col: 12,
+        data: { type: 'METEOR_HOLE' }
+      },
+      {
+        kind: 'specialStone',
+        row: 1_000_000_000,
+        col: 1_000_000_000,
+        data: { type: 'METEOR_HOLE' }
+      }
+    ]);
+
+    const strictInspection = SharedBoardUtils.inspectBoardState(
+      state.gameState,
+      state.cardState,
+      { strict: true }
+    );
+    expect(strictInspection.ok).toBe(false);
+    expect(strictInspection.errors).toContain(
+      'METEOR_HOLE coordinate 1000000000,1000000000 exceeds coordinate limit'
+    );
+
+    const nonStrictInspection = SharedBoardUtils.inspectBoardState(
+      state.gameState,
+      state.cardState,
+      { strict: false }
+    );
+    expect(nonStrictInspection.ok).toBe(true);
+    expect(nonStrictInspection.warnings).toContain(
+      'METEOR_HOLE coordinate 1000000000,1000000000 exceeds coordinate limit and was ignored'
+    );
+    expect(nonStrictInspection.topology?.holeKeys.has('-3,12')).toBe(true);
+    expect(
+      nonStrictInspection.topology?.holeKeys.has('1000000000,1000000000')
+    ).toBe(false);
+    expect(nonStrictInspection.topology?.renderBounds).toMatchObject({
+      minRow: -3,
+      maxRow: 9,
+      minCol: 0,
+      maxCol: 12
+    });
+    expect(nonStrictInspection.topology?.candidateBounds).toEqual({
+      minRow: -4,
+      maxRow: 10,
+      minCol: -1,
+      maxCol: 13
+    });
+
+    const topology = SharedBoardUtils.buildBoardTopology(state.context);
+    expect(topology.holeKeys.has('-3,12')).toBe(true);
+    expect(topology.holeKeys.has('1000000000,1000000000')).toBe(false);
+    expect(topology.renderRows).toBe(13);
+    expect(topology.renderCols).toBe(13);
+  });
+
   test('god sockets always add a connected 2x2 corner around their anchor', () => {
     const state = createCircleState();
-    const sockets = SharedBoardUtils.getBoardExpansionCornerSockets(state.board, state);
+    const sockets = SharedBoardUtils.getBoardExpansionCornerSockets(state.context);
 
     expect(sockets.length).toBeGreaterThan(0);
     for (const socket of sockets) {

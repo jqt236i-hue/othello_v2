@@ -14,13 +14,13 @@ function fallbackCountEmptiesInBoardKey(boardKey: any) {
     return c;
 }
 
-function fallbackIsCorner(row: any, col: any, board: any = null) {
-    const size = Array.isArray(board) && board.length > 0 ? board.length : 8;
+function fallbackIsCorner(row: any, col: any) {
+    const size = 8;
     return (row === 0 || row === size - 1) && (col === 0 || col === size - 1);
 }
 
-function fallbackIsEdge(row: any, col: any, board: any = null) {
-    const size = Array.isArray(board) && board.length > 0 ? board.length : 8;
+function fallbackIsEdge(row: any, col: any) {
+    const size = 8;
     return row === 0 || row === size - 1 || col === 0 || col === size - 1;
 }
 
@@ -134,19 +134,21 @@ export function createSelfplayRecordMetadata(config?: SelfplayRecordMetadataConf
         return { row: target.row, col: target.col };
     }
 
-    function buildPendingSelectionRecord(action: any, pendingType: any) {
+    function buildPendingSelectionRecord(action: any, pendingType: any, board: any = null) {
         if (!action || typeof action !== 'object' || action.type !== 'place') return null;
 
         for (const key of boardTargetKeys) {
             const cell = cloneTargetCell(action[key]);
             if (!cell) continue;
-            return {
+            const selection: any = {
                 kind: 'board_cell',
                 pendingType: pendingType || null,
                 sourceKey: key,
                 row: cell.row,
                 col: cell.col
             };
+            if (board) selection.seat = classifySelectionSeat(cell.row, cell.col, board);
+            return selection;
         }
 
         if (Number.isInteger(action.condemnTargetIndex)) {
@@ -182,7 +184,9 @@ export function createSelfplayRecordMetadata(config?: SelfplayRecordMetadataConf
                 sourceKey: selection.sourceKey || null,
                 row: Number.isFinite(selection.row) ? Number(selection.row) : null,
                 col: Number.isFinite(selection.col) ? Number(selection.col) : null,
-                seat: classifySelectionSeat(selection.row, selection.col)
+                seat: typeof selection.seat === 'string'
+                    ? selection.seat
+                    : classifySelectionSeat(selection.row, selection.col)
             };
         }
         if (selection.kind === 'hand_index') {
@@ -306,7 +310,9 @@ export function createSelfplayRecordMetadata(config?: SelfplayRecordMetadataConf
                 selected: {
                     row: Number.isFinite(record.row) ? Number(record.row) : null,
                     col: Number.isFinite(record.col) ? Number(record.col) : null,
-                    seat: classifySelectionSeat(record.row, record.col),
+                    seat: typeof record.selectedSeat === 'string'
+                        ? record.selectedSeat
+                        : classifySelectionSeat(record.row, record.col),
                     selectedCompositeScore: Number.isFinite(record.selectedCompositeScore) ? Number(record.selectedCompositeScore) : null,
                     selectedTacticalScore: Number.isFinite(record.selectedTacticalScore) ? Number(record.selectedTacticalScore) : null,
                     selectedCommitteeScore: Number.isFinite(record.selectedCommitteeScore) ? Number(record.selectedCommitteeScore) : null,

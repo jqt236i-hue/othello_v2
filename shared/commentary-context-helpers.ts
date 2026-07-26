@@ -36,8 +36,9 @@
     }
 
     interface CommentaryOptions {
-        gameState?: { board?: unknown[][]; turnNumber?: number };
-        board?: unknown[][];
+        gameState?: { board?: unknown; turnNumber?: number };
+        cardState?: unknown;
+        board?: unknown;
         counts?: { black?: number; white?: number };
         countOptions?: CountOptions;
         occupiedCells?: number;
@@ -126,6 +127,18 @@
     }
 
     function countDiscsFromBoard(board: unknown, options: unknown): DiscCounts {
+        if (
+            board &&
+            typeof board === 'object' &&
+            !Array.isArray(board) &&
+            SharedBoardUtilsModule &&
+            typeof (SharedBoardUtilsModule as { countDiscsByPlayer?: (b: unknown) => DiscCounts }).countDiscsByPlayer === 'function'
+        ) {
+            return (SharedBoardUtilsModule as { countDiscsByPlayer: (b: unknown) => DiscCounts }).countDiscsByPlayer(board);
+        }
+
+        // Explicit dense `options.board` inputs remain a compatibility boundary
+        // for presentation clients that do not own a game/card state pair.
         const rows = Array.isArray(board) ? board as unknown[][] : [];
         const opts = options && typeof options === 'object' ? options as CountOptions : {};
         const blackValues = (opts.blackValues && Array.isArray(opts.blackValues)) ? opts.blackValues : [1, '1', 'black'];
@@ -148,12 +161,26 @@
         return { black, white };
     }
 
+    function resolveCommentaryBoard(opts: CommentaryOptions, state: CommentaryOptions['gameState'] | null): unknown {
+        if (opts.board && typeof opts.board === 'object') return opts.board;
+        if (
+            state &&
+            Array.isArray(state.board) &&
+            SharedBoardUtilsModule &&
+            typeof (SharedBoardUtilsModule as { createBoardContext?: (g: unknown, c: unknown) => unknown }).createBoardContext === 'function'
+        ) {
+            return (SharedBoardUtilsModule as { createBoardContext: (g: unknown, c: unknown) => unknown }).createBoardContext(
+                state,
+                typeof opts.cardState === 'undefined' ? null : opts.cardState
+            );
+        }
+        return null;
+    }
+
     function hasCommentaryGameplayStarted(options: unknown): boolean {
         const opts = (options && typeof options === 'object') ? options as CommentaryOptions : {};
         const state = (opts.gameState && typeof opts.gameState === 'object') ? opts.gameState : null;
-        const board = Array.isArray(opts.board)
-            ? opts.board
-            : (state && Array.isArray(state.board) ? state.board : null);
+        const board = resolveCommentaryBoard(opts, state);
         const counts = (opts.counts && Number.isFinite(Number(opts.counts.black)) && Number.isFinite(Number(opts.counts.white)))
             ? {
                 black: Number(opts.counts.black),
@@ -355,7 +382,7 @@
         const phase = (typeof opts.phase === 'string' && opts.phase)
             ? String(opts.phase).toLowerCase()
             : resolvePhaseByTurn(opts.turnNumber, occupiedCells);
-        const board = Array.isArray(opts.board) ? opts.board as unknown[][] : null;
+        const board = opts.board && typeof opts.board === 'object' ? opts.board : null;
         const fallbackThreshold = resolveFallbackThreshold(opts);
 
         if (!board || !SharedBoardUtilsModule) {
@@ -426,9 +453,7 @@
     function buildCpuCommentaryMetrics(options: unknown): Readonly<Record<string, unknown>> {
         const opts = (options && typeof options === 'object') ? options as CommentaryOptions : {};
         const state = (opts.gameState && typeof opts.gameState === 'object') ? opts.gameState : null;
-        const board = Array.isArray(opts.board)
-            ? opts.board
-            : (state && Array.isArray(state.board) ? state.board : null);
+        const board = resolveCommentaryBoard(opts, state);
         const counts = (opts.counts && Number.isFinite(Number(opts.counts.black)) && Number.isFinite(Number(opts.counts.white)))
             ? { black: Number(opts.counts.black), white: Number(opts.counts.white) }
             : countDiscsFromBoard(board, opts.countOptions);
@@ -478,9 +503,7 @@
             ? opts.preparedMetrics as Record<string, any>
             : null;
         const state = (opts.gameState && typeof opts.gameState === 'object') ? opts.gameState : null;
-        const board = Array.isArray(opts.board)
-            ? opts.board
-            : (state && Array.isArray(state.board) ? state.board : null);
+        const board = resolveCommentaryBoard(opts, state);
         const counts = preparedMetrics && preparedMetrics.counts
             && Number.isFinite(Number(preparedMetrics.counts.black))
             && Number.isFinite(Number(preparedMetrics.counts.white))

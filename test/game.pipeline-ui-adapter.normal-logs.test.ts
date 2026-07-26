@@ -21,6 +21,20 @@ describe('pipeline_ui_adapter normal logs', () => {
     expect(out).toEqual(['黒: 破壊の意志で左上外を破壊']);
   });
 
+  test('formats non-8x8 outer coordinates through shared board notation', () => {
+    const events = [{
+      type: 'destroy_selected',
+      destroyed: true,
+      target: {
+        row: 4,
+        col: 10,
+        boardConfig: { rows: 10, cols: 10, shape: 'rectangle' }
+      }
+    }];
+    const out = Adapter.mapEffectLogsFromPipeline(events, [], 'black');
+    expect(out).toEqual(['黒: 破壊の意志で右外5を破壊']);
+  });
+
   test('formats regenerated destroy_selected as revival log', () => {
     const events = [{ type: 'destroy_selected', regenerated: true, target: { row: 4, col: 4 } }];
     const out = Adapter.mapEffectLogsFromPipeline(events, [], 'black');

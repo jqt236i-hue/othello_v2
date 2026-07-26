@@ -22,18 +22,26 @@ function normalizeMoves(moves: any[]) {
   }));
 }
 
-function serializeShape(board: any) {
-  const meta = SharedBoardUtils.getBoardShapeMeta(board);
+function serializeShape(context: any) {
+  const view = SharedBoardUtils.createBoardView(context.gameState, {
+    cardState: context.cardState,
+    strict: false
+  });
+  const topology = view.topology;
+  const expansionOwnerByKey: Record<string, number> = {};
+  for (const cell of view.expansionCells) {
+    expansionOwnerByKey[`${cell.row},${cell.col}`] = cell.owner;
+  }
   return {
-    minRow: meta.minRow,
-    maxRow: meta.maxRow,
-    minCol: meta.minCol,
-    maxCol: meta.maxCol,
-    playableKeys: Array.from(meta.playableKeys),
-    meteorHoleKeys: Array.from(meta.meteorHoleKeys),
-    expansionCells: meta.expansionCells.map((cell: any) => ({ ...cell })),
-    expansionOwnerByKey: { ...meta.expansionOwnerByKey },
-    standard8x8: meta.standard8x8
+    minRow: topology.contentBounds.minRow,
+    maxRow: topology.contentBounds.maxRow,
+    minCol: topology.contentBounds.minCol,
+    maxCol: topology.contentBounds.maxCol,
+    playableKeys: Array.from(topology.playableKeys),
+    meteorHoleKeys: Array.from(topology.holeKeys),
+    expansionCells: view.expansionCells.map((cell: any) => ({ ...cell })),
+    expansionOwnerByKey,
+    standard8x8: SharedBoardUtils.isStandardBoard8x8(context)
   };
 }
 
@@ -65,11 +73,7 @@ describe('board runtime parity', () => {
       Core.BLACK,
       { cardState }
     ));
-    const board = SharedBoardUtils.attachBoardShape(gameState.board, {
-      boardConfig: gameState.boardConfig,
-      boardExpansion: gameState.boardExpansion,
-      cardState
-    });
+    const boardContext = SharedBoardUtils.createBoardContext(gameState, cardState);
     const denseFallback = {
       getFlipsBasic: () => {
         throw new Error('dense CPU fallback must not run');
@@ -88,7 +92,7 @@ describe('board runtime parity', () => {
       SharedBoardUtils,
       OthelloCore: denseFallback
     });
-    const cpuMoves = normalizeMoves(cpu.getLegalMovesBasic(board, Core.BLACK));
+    const cpuMoves = normalizeMoves(cpu.getLegalMovesBasic(boardContext, Core.BLACK));
     const selfplayBoard = selfplay.getSelfplayBoard(gameState, cardState);
     const selfplayMoves = normalizeMoves(selfplay.getLegalMovesBasic(selfplayBoard, Core.BLACK));
 
@@ -108,8 +112,8 @@ describe('board runtime parity', () => {
       playerKey: 'black',
       level: 6,
       playerValue: Core.BLACK,
-      board,
-      boardShape: serializeShape(board),
+      board: gameState.board,
+      boardShape: serializeShape(boardContext),
       legalMoves: rootMoves,
       search: {
         depth: 2,

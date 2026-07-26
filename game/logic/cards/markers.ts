@@ -36,10 +36,9 @@ function resolveCardMarkersModuleOrGlobal(id: string, globalKey: string): any {
     return getRuntimeGlobalValue(globalKey);
 }
 
-const SharedConstants = resolveCardMarkersModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+const SharedBoardUtils = resolveCardMarkersModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
 const MarkersAdapterModule = resolveCardMarkersModuleOrGlobal('../markers_adapter', 'MarkersAdapter');
 const CardUtilsModule = resolveCardMarkersModuleOrGlobal('./utils', 'CardUtils');
-const CardExpansionModule = resolveCardMarkersModuleOrGlobal('./expansion', 'CardExpansion');
 const PresentationModule = resolveCardMarkersModuleOrGlobal('../presentation', 'PresentationHelper');
 const SpecialStoneRegistry = resolveCardMarkersModuleOrGlobal('../../../shared/special-stone-registry', 'SpecialStoneRegistry');
 const ManifestStoneRegistry = resolveCardMarkersModuleOrGlobal('../../../shared/manifest-stone-registry', 'ManifestStoneRegistry');
@@ -52,7 +51,6 @@ function isManifestStoneType(rawType: any): boolean {
     return type === 'THEORY_INCARNATION' || type === 'BOARD_EXECUTOR' || type === 'OBSERVER_WILL';
 }
 
-const { BOARD_SIZE } = SharedConstants || {};
 const MarkersAdapter = MarkersAdapterModule || null;
 const MARKER_KINDS = (MarkersAdapter && MarkersAdapter.MARKER_KINDS)
     ? MarkersAdapter.MARKER_KINDS
@@ -64,31 +62,16 @@ const MARKER_CATEGORIES = (MarkersAdapter && MarkersAdapter.MARKER_CATEGORIES)
     ? MarkersAdapter.MARKER_CATEGORIES
     : { BOMB: 'bomb' };
 
-function getBoardSize(): number {
-    return Number.isInteger(BOARD_SIZE) ? BOARD_SIZE : 8;
-}
-
-interface MarkerBoardConfig {
-    rows: number;
-    cols: number;
-}
-
-function resolveMarkerBoardConfig(boardOrConfig: any): MarkerBoardConfig {
-    if (boardOrConfig && Number.isInteger(boardOrConfig.rows) && Number.isInteger(boardOrConfig.cols)) {
-        return { rows: boardOrConfig.rows, cols: boardOrConfig.cols };
+function getMarkerBoardKernel(): any {
+    if (
+        !SharedBoardUtils ||
+        typeof SharedBoardUtils.createBoardContext !== 'function' ||
+        typeof SharedBoardUtils.createBoardView !== 'function' ||
+        typeof SharedBoardUtils.toBoardCellKey !== 'function'
+    ) {
+        throw new Error('SharedBoardUtils BoardContext APIs are required by CardMarkers');
     }
-    const board = Array.isArray(boardOrConfig)
-        ? boardOrConfig
-        : (boardOrConfig && Array.isArray(boardOrConfig.board)
-            ? boardOrConfig.board
-            : (boardOrConfig && Array.isArray(boardOrConfig.stoneIdMap) ? boardOrConfig.stoneIdMap : null));
-    const rows = Array.isArray(board) && board.length > 0
-        ? board.length
-        : getBoardSize();
-    const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0
-        ? board[0].length
-        : rows;
-    return { rows, cols };
+    return SharedBoardUtils;
 }
 
 function getPresentationHelper(): any {
@@ -134,24 +117,13 @@ function emitDurationChangeStatusTick(cardState: CardState, marker: any, options
     });
 }
 
-function isMainBoardCellForCard(row: number, col: number, boardOrConfig: any): boolean {
-    if (CardExpansionModule && typeof CardExpansionModule.isMainBoardCellForCard === 'function') {
-        return CardExpansionModule.isMainBoardCellForCard(row, col, boardOrConfig);
-    }
-    const config = resolveMarkerBoardConfig(boardOrConfig);
-    return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < config.rows && col >= 0 && col < config.cols;
-}
-
-function getExpansionDescriptorsForCard(gameState: GameState): any[] {
-    if (CardExpansionModule && typeof CardExpansionModule.getExpansionDescriptorsForCard === 'function') {
-        return CardExpansionModule.getExpansionDescriptorsForCard(gameState);
-    }
-    return [];
-}
-
-function hasExpansionCellForCard(gameState: GameState, row: number, col: number): boolean {
-    return getExpansionDescriptorsForCard(gameState)
-        .some((desc: any) => desc && desc.row === row && desc.col === col);
+function getMarkerBoardView(cardState: CardState, gameState: GameState): any {
+    const boardKernel = getMarkerBoardKernel();
+    const context = boardKernel.createBoardContext(gameState, cardState);
+    return boardKernel.createBoardView(context.gameState, {
+        cardState: context.cardState,
+        strict: false
+    });
 }
 
 function ensureMarkers(cardState: CardState): void {
@@ -707,48 +679,60 @@ function isNormalVisualSpecialMarker(marker: any): boolean {
 
 function clearStoneIdAtForCard(cardState: CardState, gameState: GameState, row: number, col: number): void {
     if (!cardState) return;
-    if (isMainBoardCellForCard(row, col, gameState || cardState)) {
+    const boardKernel = getMarkerBoardKernel();
+    const view = getMarkerBoardView(cardState, gameState);
+    const key = boardKernel.toBoardCellKey(row, col);
+    if (view.topology.baseKeys.has(key)) {
         if ((cardState as any).stoneIdMap && (cardState as any).stoneIdMap[row]) {
             (cardState as any).stoneIdMap[row][col] = null;
         }
         return;
     }
-    if (!hasExpansionCellForCard(gameState, row, col)) return;
+    if (!view.topology.expansionKeys.has(key)) return;
     if ((cardState as any).expansionStoneIdByCell && typeof (cardState as any).expansionStoneIdByCell === 'object') {
-        delete (cardState as any).expansionStoneIdByCell[`${row},${col}`];
+        delete (cardState as any).expansionStoneIdByCell[key];
     }
 }
 
 function getStoneIdAtForCard(cardState: CardState, gameState: GameState, row: number, col: number): string | null {
     if (!cardState) return null;
-    if (isMainBoardCellForCard(row, col, gameState || cardState)) {
+    const boardKernel = getMarkerBoardKernel();
+    const view = getMarkerBoardView(cardState, gameState);
+    if (!view.isPlayable(row, col)) return null;
+    const key = boardKernel.toBoardCellKey(row, col);
+    if (view.topology.baseKeys.has(key)) {
         return ((cardState as any).stoneIdMap && (cardState as any).stoneIdMap[row])
             ? ((cardState as any).stoneIdMap[row][col] || null)
             : null;
     }
-    if (!hasExpansionCellForCard(gameState, row, col)) return null;
+    if (!view.topology.expansionKeys.has(key)) return null;
     if (!(cardState as any).expansionStoneIdByCell || typeof (cardState as any).expansionStoneIdByCell !== 'object') return null;
-    return (cardState as any).expansionStoneIdByCell[`${row},${col}`] || null;
+    return (cardState as any).expansionStoneIdByCell[key] || null;
 }
 
 function setStoneIdAtForCard(cardState: CardState, gameState: GameState, row: number, col: number, stoneId: string | null): boolean {
     if (!cardState) return false;
-    const boardConfig = resolveMarkerBoardConfig((gameState && (gameState as any).boardConfig) || gameState || cardState);
-    if (isMainBoardCellForCard(row, col, gameState || cardState)) {
+    const boardKernel = getMarkerBoardKernel();
+    const view = getMarkerBoardView(cardState, gameState);
+    if (!view.isPlayable(row, col)) return false;
+    const key = boardKernel.toBoardCellKey(row, col);
+    if (view.topology.baseKeys.has(key)) {
         if (!Array.isArray((cardState as any).stoneIdMap)) {
-            (cardState as any).stoneIdMap = Array.from({ length: boardConfig.rows }, () => Array(boardConfig.cols).fill(null));
+            (cardState as any).stoneIdMap = Array.from(
+                { length: view.topology.baseRows },
+                () => Array(view.topology.baseCols).fill(null)
+            );
         }
         if (!Array.isArray((cardState as any).stoneIdMap[row])) {
-            (cardState as any).stoneIdMap[row] = Array(boardConfig.cols).fill(null);
+            (cardState as any).stoneIdMap[row] = Array(view.topology.baseCols).fill(null);
         }
         (cardState as any).stoneIdMap[row][col] = stoneId || null;
         return true;
     }
-    if (!hasExpansionCellForCard(gameState, row, col)) return false;
+    if (!view.topology.expansionKeys.has(key)) return false;
     if (!(cardState as any).expansionStoneIdByCell || typeof (cardState as any).expansionStoneIdByCell !== 'object') {
         (cardState as any).expansionStoneIdByCell = {};
     }
-    const key = `${row},${col}`;
     if (stoneId == null) {
         delete (cardState as any).expansionStoneIdByCell[key];
     } else {

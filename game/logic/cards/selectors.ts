@@ -199,32 +199,6 @@ function isInviolableCell(cardState: CardState, row: number, col: number): boole
     ));
 }
 
-interface BoardConfig {
-    rows: number;
-    cols: number;
-    baseBounds: { minRow: number; maxRow: number; minCol: number; maxCol: number };
-    outerBounds: { minRow: number; maxRow: number; minCol: number; maxCol: number };
-}
-
-function resolveBoardConfig(gameState: GameState): BoardConfig {
-    if (SelectorsBoardShape && typeof SelectorsBoardShape.resolveBoardConfig === 'function') {
-        return SelectorsBoardShape.resolveBoardConfig(gameState, getSelectorsBoardShapeDeps());
-    }
-    if (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardConfig === 'function') {
-        return SharedBoardUtils.resolveBoardConfig(gameState);
-    }
-    const gs = gameState as any;
-    const board = gs && Array.isArray(gs.board) ? gs.board : null;
-    const rows = Array.isArray(board) && board.length > 0 ? board.length : 8;
-    const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
-    return {
-        rows,
-        cols,
-        baseBounds: { minRow: 0, maxRow: rows - 1, minCol: 0, maxCol: cols - 1 },
-        outerBounds: { minRow: -1, maxRow: rows, minCol: -1, maxCol: cols }
-    };
-}
-
 function isPositionSwapProtectedCell(cardState: CardState, row: number, col: number): boolean {
     if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isPositionSwapProtectedCell === 'function') {
         return SelectorsCoreUtils.isPositionSwapProtectedCell(cardState, row, col);
@@ -244,46 +218,46 @@ function isPositionSwapProtectedCell(cardState: CardState, row: number, col: num
     return !!marker;
 }
 
-function getCellValue(gameState: GameState, row: number, col: number): any {
-    if (SelectorsBoardShape && typeof SelectorsBoardShape.getCellValue === 'function') {
-        return SelectorsBoardShape.getCellValue(gameState, row, col, getSelectorsBoardShapeDeps());
+function getCellValue(cardState: CardState, gameState: GameState, row: number, col: number): any {
+    if (!SelectorsBoardShape || typeof SelectorsBoardShape.getCellValue !== 'function') {
+        throw new Error('CardSelectorsBoardShape.getCellValue is required');
     }
-    if (isMainBoardCell(row, col, gameState)) {
-        const gs = gameState as any;
-        return (gs && Array.isArray(gs.board) && Array.isArray(gs.board[row]))
-            ? gs.board[row][col]
-            : null;
-    }
-    for (const expansion of getExpansionCells(gameState)) {
-        if (!expansion) continue;
-        if (expansion.row === row && expansion.col === col) {
-            return Number(expansion.owner);
-        }
-    }
-    return null;
+    return SelectorsBoardShape.getCellValue(
+        cardState,
+        gameState,
+        row,
+        col,
+        getSelectorsBoardShapeDeps()
+    );
 }
 
-function hasBoardShapeCell(gameState: GameState, row: number, col: number): boolean {
-    if (SelectorsBoardShape && typeof SelectorsBoardShape.hasBoardShapeCell === 'function') {
-        return SelectorsBoardShape.hasBoardShapeCell(gameState, row, col, getSelectorsBoardShapeDeps());
+function hasBoardShapeCell(cardState: CardState, gameState: GameState, row: number, col: number): boolean {
+    if (!SelectorsBoardShape || typeof SelectorsBoardShape.hasBoardShapeCell !== 'function') {
+        throw new Error('CardSelectorsBoardShape.hasBoardShapeCell is required');
     }
-    return getCellValue(gameState, row, col) !== null;
+    return SelectorsBoardShape.hasBoardShapeCell(
+        cardState,
+        gameState,
+        row,
+        col,
+        getSelectorsBoardShapeDeps()
+    );
 }
 
 function forEachBoardShapeCell(
+    cardState: CardState,
     gameState: GameState,
-    visitor: (r: number, c: number, owner: number) => void,
-    cardState: CardState | null = null
+    visitor: (r: number, c: number, owner: number) => void
 ): void {
-    if (SelectorsBoardShape && typeof SelectorsBoardShape.forEachBoardShapeCell === 'function') {
-        return SelectorsBoardShape.forEachBoardShapeCell(
-            gameState,
-            visitor,
-            getSelectorsBoardShapeDeps(),
-            cardState
-        );
+    if (!SelectorsBoardShape || typeof SelectorsBoardShape.forEachBoardShapeCell !== 'function') {
+        throw new Error('CardSelectorsBoardShape.forEachBoardShapeCell is required');
     }
-    throw new Error('CardSelectorsBoardShape.forEachBoardShapeCell is required');
+    return SelectorsBoardShape.forEachBoardShapeCell(
+        cardState,
+        gameState,
+        visitor,
+        getSelectorsBoardShapeDeps()
+    );
 }
 
 function getPendingEffect(cardState: CardState, playerKey: PlayerKey): any {
@@ -299,19 +273,13 @@ function toTargetKey(row: number, col: number): string {
 function getShapeAwareBoard(cardState: CardState, gameState: GameState): any {
     if (
         !SharedBoardUtils
-        || typeof SharedBoardUtils.cloneBoard !== 'function'
-        || typeof SharedBoardUtils.attachBoardShape !== 'function'
-    ) return null;
+        || typeof SharedBoardUtils.createBoardContext !== 'function'
+    ) {
+        throw new Error('SharedBoardUtils.createBoardContext is required by CardSelectors');
+    }
     const gs = gameState as any;
     if (!gs || !Array.isArray(gs.board)) return null;
-    // Target selectors are read-only, and network visual snapshots are deeply
-    // frozen. Attach mutable shape metadata only to a detached board copy.
-    const board = SharedBoardUtils.cloneBoard(gs.board);
-    return SharedBoardUtils.attachBoardShape(board, {
-        boardExpansion: gs.boardExpansion,
-        cardState,
-        boardConfig: gs.boardConfig
-    });
+    return SharedBoardUtils.createBoardContext(gs, cardState || null);
 }
 
 function getBoardShrinkSelectedKeys(cardState: CardState, playerKey: PlayerKey): Set<string> {
@@ -389,7 +357,7 @@ function getDestroyTargets(cardState: CardState, gameState: GameState): TargetCe
     const res: TargetCell[] = [];
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isInviolableCell(cardState, r, c)) return;
         const guarded = markers.some((m: any) =>
@@ -443,7 +411,7 @@ function getSwapTargets(cardState: CardState, gameState: GameState, playerKey: P
         res.push({ row, col });
     };
 
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         canSwapCell(r, c, owner);
     });
     return res;
@@ -461,7 +429,7 @@ function getPositionSwapTargets(cardState: CardState, gameState: GameState, play
         res.push({ row, col });
     };
 
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         pushIfOccupied(r, c, owner);
     });
     return res;
@@ -475,8 +443,8 @@ interface DestinationCell extends TargetCell {
 function _getStrongWindDirectionDestination(cardState: CardState, gameState: GameState, row: number, col: number, dr: number, dc: number): DestinationCell | null {
     const nr = row + dr;
     const nc = col + dc;
-    if (!hasBoardShapeCell(gameState, nr, nc)) return null;
-    if (getCellValue(gameState, nr, nc) !== P_EMPTY) return null;
+    if (!hasBoardShapeCell(cardState, gameState, nr, nc)) return null;
+    if (getCellValue(cardState, gameState, nr, nc) !== P_EMPTY) return null;
     if (isBlockedCell(cardState, nr, nc)) return null;
 
     let tr = nr;
@@ -484,8 +452,8 @@ function _getStrongWindDirectionDestination(cardState: CardState, gameState: Gam
     while (true) {
         const rr = tr + dr;
         const cc = tc + dc;
-        if (!hasBoardShapeCell(gameState, rr, cc)) break;
-        if (getCellValue(gameState, rr, cc) !== P_EMPTY) break;
+        if (!hasBoardShapeCell(cardState, gameState, rr, cc)) break;
+        if (getCellValue(cardState, gameState, rr, cc) !== P_EMPTY) break;
         if (isBlockedCell(cardState, rr, cc)) break;
         tr = rr;
         tc = cc;
@@ -496,7 +464,7 @@ function _getStrongWindDirectionDestination(cardState: CardState, gameState: Gam
 // Return strong-wind targets: any non-empty stone that has at least one movable horizontal direction.
 function getStrongWindTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const res: TargetCell[] = [];
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isInviolableCell(cardState, r, c)) return;
         let movable = false;
@@ -516,12 +484,12 @@ function _collectVerticalCrushDestination(cardState: CardState, gameState: GameS
     if (dr !== -1 && dr !== 1) return null;
 
     const firstRow = row + dr;
-    if (!hasBoardShapeCell(gameState, firstRow, col)) return null;
+    if (!hasBoardShapeCell(cardState, gameState, firstRow, col)) return null;
 
     let destination: DestinationCell | null = null;
-    for (let r = firstRow; hasBoardShapeCell(gameState, r, col); r += dr) {
+    for (let r = firstRow; hasBoardShapeCell(cardState, gameState, r, col); r += dr) {
         if (isBlockedCell(cardState, r, col)) break;
-        if (getCellValue(gameState, r, col) !== P_EMPTY && isGuardProtectedCell(cardState, r, col)) break;
+        if (getCellValue(cardState, gameState, r, col) !== P_EMPTY && isGuardProtectedCell(cardState, r, col)) break;
         destination = { row: r, col };
     }
     return destination;
@@ -556,10 +524,10 @@ function isSuperAttractionPathCandidateLegal(cardState: CardState, gameState: Ga
 
     for (let index = 0; index < pathCells.length; index += 1) {
         const point = pathCells[index];
-        if (!point || !hasBoardShapeCell(gameState, point.row, point.col)) return false;
+        if (!point || !hasBoardShapeCell(cardState, gameState, point.row, point.col)) return false;
         if (isBlockedCell(cardState, point.row, point.col)) return false;
 
-        const owner = getCellValue(gameState, point.row, point.col);
+        const owner = getCellValue(cardState, gameState, point.row, point.col);
         if (owner !== P_EMPTY && isGuardProtectedCell(cardState, point.row, point.col)) return false;
         if (index === pathCells.length - 1 && owner !== P_EMPTY && isGhostCell(cardState, point.row, point.col)) return false;
     }
@@ -568,14 +536,14 @@ function isSuperAttractionPathCandidateLegal(cardState: CardState, gameState: Ga
 }
 
 function canSuperAttractionTravelTo(cardState: CardState, gameState: GameState, fromRow: number, fromCol: number, toRow: number, toCol: number): boolean {
-    if (!hasBoardShapeCell(gameState, toRow, toCol)) return false;
+    if (!hasBoardShapeCell(cardState, gameState, toRow, toCol)) return false;
     const candidates = getSuperAttractionPathCandidates(fromRow, fromCol, toRow, toCol);
     return candidates.some((candidate: any) => isSuperAttractionPathCandidateLegal(cardState, gameState, candidate));
 }
 
 function hasSuperAttractionDestination(cardState: CardState, gameState: GameState, row: number, col: number): boolean {
     let found = false;
-    forEachBoardShapeCell(gameState, (targetRow, targetCol) => {
+    forEachBoardShapeCell(cardState, gameState, (targetRow, targetCol) => {
         if (found) return;
         if (targetRow === row && targetCol === col) return;
         if (canSuperAttractionTravelTo(cardState, gameState, row, col, targetRow, targetCol)) {
@@ -591,10 +559,10 @@ function getSuperAttractionTargets(cardState: CardState, gameState: GameState, p
         : null;
     const res: TargetCell[] = [];
     if (first && Number.isInteger(first.row) && Number.isInteger(first.col)) {
-        const firstOwner = getCellValue(gameState, first.row, first.col);
+        const firstOwner = getCellValue(cardState, gameState, first.row, first.col);
         if (firstOwner === null || firstOwner === P_EMPTY) return res;
         if (isInviolableCell(cardState, first.row, first.col)) return res;
-        forEachBoardShapeCell(gameState, (r, c) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c) => {
             if (r === first.row && c === first.col) return;
             if (canSuperAttractionTravelTo(cardState, gameState, first.row, first.col, r, c)) {
                 res.push({ row: r, col: c });
@@ -603,7 +571,7 @@ function getSuperAttractionTargets(cardState: CardState, gameState: GameState, p
         return res;
     }
 
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isInviolableCell(cardState, r, c)) return;
         if (hasSuperAttractionDestination(cardState, gameState, r, c)) {
@@ -649,9 +617,9 @@ function getSuperAttractionPathPreview(cardState: CardState, gameState: GameStat
         return [];
     }
     if (fromRow === toRow && fromCol === toCol) return [];
-    const firstOwner = getCellValue(gameState, fromRow, fromCol);
+    const firstOwner = getCellValue(cardState, gameState, fromRow, fromCol);
     if (firstOwner === null || firstOwner === P_EMPTY) return [];
-    if (!hasBoardShapeCell(gameState, toRow, toCol)) return [];
+    if (!hasBoardShapeCell(cardState, gameState, toRow, toCol)) return [];
 
     return getSuperAttractionPathCandidates(fromRow, fromCol, toRow, toCol)
         .filter((candidate: any) => isSuperAttractionPathCandidateLegal(cardState, gameState, candidate))
@@ -663,14 +631,14 @@ function _collectVerticalSlideDestination(cardState: CardState, gameState: GameS
     if (dr !== -1 && dr !== 1) return null;
 
     const firstRow = row + dr;
-    if (!hasBoardShapeCell(gameState, firstRow, col)) return null;
+    if (!hasBoardShapeCell(cardState, gameState, firstRow, col)) return null;
     if (isBlockedCell(cardState, firstRow, col)) return null;
-    if (getCellValue(gameState, firstRow, col) !== P_EMPTY) return null;
+    if (getCellValue(cardState, gameState, firstRow, col) !== P_EMPTY) return null;
 
     let destination: DestinationCell = { row: firstRow, col };
-    for (let r = firstRow + dr; hasBoardShapeCell(gameState, r, col); r += dr) {
+    for (let r = firstRow + dr; hasBoardShapeCell(cardState, gameState, r, col); r += dr) {
         if (isBlockedCell(cardState, r, col)) break;
-        if (getCellValue(gameState, r, col) !== P_EMPTY) break;
+        if (getCellValue(cardState, gameState, r, col) !== P_EMPTY) break;
         destination = { row: r, col };
     }
     return destination;
@@ -678,7 +646,7 @@ function _collectVerticalSlideDestination(cardState: CardState, gameState: GameS
 
 function _getVerticalCrushTargets(cardState: CardState, gameState: GameState, dr: number): TargetCell[] {
     const res: TargetCell[] = [];
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isInviolableCell(cardState, r, c)) return;
         const destination = _collectVerticalCrushDestination(cardState, gameState, r, c, dr);
@@ -691,7 +659,7 @@ function _getVerticalCrushTargets(cardState: CardState, gameState: GameState, dr
 
 function _getVerticalSlideTargets(cardState: CardState, gameState: GameState, dr: number): TargetCell[] {
     const res: TargetCell[] = [];
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isInviolableCell(cardState, r, c)) return;
         const destination = _collectVerticalSlideDestination(cardState, gameState, r, c, dr);
@@ -724,7 +692,7 @@ function getTrapTargets(cardState: CardState, gameState: GameState, playerKey: P
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
 
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner !== playerVal) return;
         const hasBomb = markers.some((m: any) => m && m.row === r && m.col === c && isBombCategoryMarker(m));
         if (hasBomb) return;
@@ -750,7 +718,7 @@ function getGuardTargets(cardState: CardState, gameState: GameState, playerKey: 
     const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner !== playerVal) return;
         const hasBomb = markers.some((m: any) => m && m.row === r && m.col === c && isBombCategoryMarker(m));
         if (hasBomb) return;
@@ -765,7 +733,7 @@ function getLivingWillTargets(cardState: CardState, gameState: GameState, player
     const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner !== playerVal) return;
         const hasBomb = markers.some((m: any) => m && m.row === r && m.col === c && isBombCategoryMarker(m));
         if (hasBomb) return;
@@ -851,7 +819,7 @@ function getTeleportTargets(cardState: CardState, gameState: GameState): TargetC
     if (!gs || !Array.isArray(gs.board)) return [];
 
     let hasDestination = false;
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (hasDestination) return;
         if (owner !== P_EMPTY) return;
         if (isBlockedCell(cardState, r, c)) return;
@@ -860,7 +828,7 @@ function getTeleportTargets(cardState: CardState, gameState: GameState): TargetC
     if (!hasDestination) return [];
 
     const res: TargetCell[] = [];
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isFrozenCell(cardState, r, c)) return;
         if (isInviolableCell(cardState, r, c)) return;
@@ -869,25 +837,9 @@ function getTeleportTargets(cardState: CardState, gameState: GameState): TargetC
     return res;
 }
 
-interface ExpansionWillCellDescriptor {
-    row: number;
-    col: number;
-    side: string;
-}
-
-function getBoardExpansionWillCellDescriptors(gameState: GameState): ExpansionWillCellDescriptor[] {
-    const config = resolveBoardConfig(gameState);
-    const cells: ExpansionWillCellDescriptor[] = [];
-    for (let row = 0; row < config.rows; row++) {
-        cells.push({ row, col: config.outerBounds.minCol, side: 'left' });
-        cells.push({ row, col: config.outerBounds.maxCol, side: 'right' });
-    }
-    return cells;
-}
-
 function hasAnyCloneSpawnSpace(cardState: CardState, gameState: GameState): boolean {
     let found = false;
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (found) return;
         if (owner !== P_EMPTY) return;
         if (isBlockedCell(cardState, r, c)) return;
@@ -900,7 +852,7 @@ function getCloneTargets(cardState: CardState, gameState: GameState, playerKey: 
     if (!hasAnyCloneSpawnSpace(cardState, gameState)) return [];
     const res: TargetCell[] = [];
     const playerVal = playerKey === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner !== playerVal) return;
         if (isInviolableCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
@@ -908,31 +860,11 @@ function getCloneTargets(cardState: CardState, gameState: GameState, playerKey: 
     return res;
 }
 
-function isMainBoardCell(row: number, col: number, gameState: GameState): boolean {
-    if (SelectorsBoardShape && typeof SelectorsBoardShape.isMainBoardCell === 'function') {
-        return SelectorsBoardShape.isMainBoardCell(row, col, gameState, getSelectorsBoardShapeDeps());
-    }
-    if (SharedBoardUtils && typeof SharedBoardUtils.isMainBoardCell === 'function') {
-        return SharedBoardUtils.isMainBoardCell(row, col, gameState);
-    }
-    const config = resolveBoardConfig(gameState);
-    return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < config.rows && col >= 0 && col < config.cols;
-}
-
 function resolveExpansionSide(side: string | null, row: number, col: number, gameState: GameState): string | null {
-    if (SelectorsBoardShape && typeof SelectorsBoardShape.resolveExpansionSide === 'function') {
-        return SelectorsBoardShape.resolveExpansionSide(side, row, col, gameState, getSelectorsBoardShapeDeps());
+    if (!SelectorsBoardShape || typeof SelectorsBoardShape.resolveExpansionSide !== 'function') {
+        throw new Error('CardSelectorsBoardShape.resolveExpansionSide is required');
     }
-    if (SharedBoardUtils && typeof SharedBoardUtils.resolveExpansionSide === 'function') {
-        return SharedBoardUtils.resolveExpansionSide(side, row, col, gameState);
-    }
-    if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-    const config = resolveBoardConfig(gameState);
-    if (col === config.outerBounds.minCol) return 'left';
-    if (col === config.outerBounds.maxCol) return 'right';
-    if (row === config.outerBounds.minRow) return 'top';
-    if (row === config.outerBounds.maxRow) return 'bottom';
-    return null;
+    return SelectorsBoardShape.resolveExpansionSide(side, row, col, gameState, getSelectorsBoardShapeDeps());
 }
 
 interface ExpansionCell {
@@ -942,67 +874,15 @@ interface ExpansionCell {
     owner: number;
 }
 
-function getExpansionCells(gameState: GameState): ExpansionCell[] {
-    if (SelectorsBoardShape && typeof SelectorsBoardShape.getExpansionCells === 'function') {
-        return SelectorsBoardShape.getExpansionCells(gameState, getSelectorsBoardShapeDeps());
+function getExpansionCells(cardState: CardState, gameState: GameState): ExpansionCell[] {
+    if (!SelectorsBoardShape || typeof SelectorsBoardShape.getExpansionCells !== 'function') {
+        throw new Error('CardSelectorsBoardShape.getExpansionCells is required');
     }
-    const gs = gameState as any;
-    const expansion = (gs && gs.boardExpansion && typeof gs.boardExpansion === 'object')
-        ? gs.boardExpansion
-        : null;
-    if (!expansion) return [];
-    const config = resolveBoardConfig(gameState);
-
-    const cells: ExpansionCell[] = [];
-    const pushCell = (source: any, legacyRow?: number, legacyOwner?: any) => {
-        let side: string | null = null;
-        let row: number | null = null;
-        let col: number | null = null;
-        let owner = legacyOwner;
-
-        if (source && typeof source === 'object') {
-            side = source.side;
-            row = source.row;
-            col = source.col;
-            owner = source.owner;
-            if (!Number.isInteger(col) && side === 'left') col = config.outerBounds.minCol;
-            if (!Number.isInteger(col) && side === 'right') col = config.outerBounds.maxCol;
-        } else {
-            side = source;
-            row = legacyRow !== undefined ? legacyRow : null;
-            if (side === 'left') col = config.outerBounds.minCol;
-            if (side === 'right') col = config.outerBounds.maxCol;
-        }
-
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-        const r = row as number;
-        const c = col as number;
-        if (r < config.outerBounds.minRow || r > config.outerBounds.maxRow) return;
-        if (c < config.outerBounds.minCol || c > config.outerBounds.maxCol) return;
-        if (isMainBoardCell(r, c, gameState)) return;
-        if (cells.some((cell) => cell && cell.row === r && cell.col === c)) return;
-        const normalizedOwner = (owner === SharedConstants.BLACK || owner === SharedConstants.WHITE)
-            ? owner
-            : P_EMPTY;
-        cells.push({
-            side: resolveExpansionSide(side, r, c, gameState),
-            row: r,
-            col: c,
-            owner: normalizedOwner
-        });
-    };
-
-    if (Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            pushCell(cell);
-        }
-    }
-
-    if (cells.length === 0 && expansion.active === true) {
-        pushCell(expansion);
-    }
-    return cells;
+    return SelectorsBoardShape.getExpansionCells(
+        cardState,
+        gameState,
+        getSelectorsBoardShapeDeps()
+    );
 }
 
 function resolveExpansionTargetSide(directionKey: any): string | null {
@@ -1037,7 +917,7 @@ function mapExpansionSocketTarget(socket: any): TargetCell | null {
 function getBoardExpansionSocketTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const board = getShapeAwareBoard(cardState, gameState);
     if (!board || !SharedBoardUtils || typeof SharedBoardUtils.getBoardExpansionEdgeSockets !== 'function') return [];
-    return SharedBoardUtils.getBoardExpansionEdgeSockets(board, gameState)
+    return SharedBoardUtils.getBoardExpansionEdgeSockets(board)
         .map(mapExpansionSocketTarget)
         .filter((target: TargetCell | null): target is TargetCell => !!target);
 }
@@ -1045,7 +925,7 @@ function getBoardExpansionSocketTargets(cardState: CardState, gameState: GameSta
 function getBoardExpansionGodSocketTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const board = getShapeAwareBoard(cardState, gameState);
     if (!board || !SharedBoardUtils || typeof SharedBoardUtils.getBoardExpansionCornerSockets !== 'function') return [];
-    return SharedBoardUtils.getBoardExpansionCornerSockets(board, gameState)
+    return SharedBoardUtils.getBoardExpansionCornerSockets(board)
         .map(mapExpansionSocketTarget)
         .filter((target: TargetCell | null): target is TargetCell => !!target);
 }
@@ -1112,7 +992,7 @@ function getCellTeleportDestinations(cardState: CardState, gameState: GameState)
     const gs = gameState as any;
     if (!gs || !gs.board) return [];
 
-    const activeExpansionCells = getExpansionCells(gameState);
+    const activeExpansionCells = getExpansionCells(cardState, gameState);
     const activeByKey = new Map<string, ExpansionCell>();
     for (const cell of activeExpansionCells) {
         if (!cell) continue;
@@ -1159,7 +1039,7 @@ function getCellTeleportTargets(cardState: CardState, gameState: GameState): Tar
     if (!destinations.length) return [];
 
     const res: TargetCell[] = [];
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         if (isFrozenCell(cardState, r, c)) return;
         if (isInviolableCell(cardState, r, c)) return;
@@ -1282,12 +1162,12 @@ function getBlockadeTargets(cardState: CardState, gameState: GameState): TargetC
     const gs = gameState as any;
     if (!gs || !gs.board) return [];
     const res: TargetCell[] = [];
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner !== P_EMPTY) return;
         if (isBlockedCell(cardState, r, c)) return;
         if (hasSeedMarkerAt(cardState, r, c)) return;
         res.push({ row: r, col: c });
-    }, cardState);
+    });
 
     return res;
 }
@@ -1297,11 +1177,11 @@ function getMeteorTargets(cardState: CardState, gameState: GameState): TargetCel
     const gs = gameState as any;
     if (!gs || !gs.board) return [];
     const res: TargetCell[] = [];
-    forEachBoardShapeCell(gameState, (r, c) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c) => {
         if (isMeteorHoleCell(cardState, r, c)) return;
         if (isInviolableCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
-    }, cardState);
+    });
     return res;
 }
 
@@ -1310,7 +1190,7 @@ function getPoisonTargets(cardState: CardState, gameState: GameState): TargetCel
     const gs = gameState as any;
     if (!gs || !gs.board) return [];
     const res: TargetCell[] = [];
-    forEachBoardShapeCell(gameState, (r, c) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c) => {
         if (isMeteorHoleCell(cardState, r, c)) return;
         const alreadyPoisoned = Array.isArray((cardState as any).markers) && (cardState as any).markers.some((marker: any) => (
             marker && marker.row === r && marker.col === c && marker.data && marker.data.type === 'POISON_CELL'
@@ -1325,12 +1205,14 @@ function getPoisonTargets(cardState: CardState, gameState: GameState): TargetCel
 function getCausalReplayTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const gs = gameState as any;
     if (!gs || !gs.board) return [];
-    const res: TargetCell[] = [];
-    forEachBoardShapeCell(gameState, (r, c) => {
-        if (!isMeteorHoleCell(cardState, r, c)) return;
-        res.push({ row: r, col: c });
-    });
-    return res;
+    if (!SelectorsBoardShape || typeof SelectorsBoardShape.getMeteorHoleCells !== 'function') {
+        throw new Error('CardSelectorsBoardShape.getMeteorHoleCells is required');
+    }
+    return SelectorsBoardShape.getMeteorHoleCells(
+        cardState,
+        gameState,
+        getSelectorsBoardShapeDeps()
+    );
 }
 
 function getBoardShrinkTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): TargetCell[] {
@@ -1409,7 +1291,7 @@ function getFreezeTargets(cardState: CardState, gameState: GameState): TargetCel
     const gs = gameState as any;
     if (!gs || !gs.board) return [];
     const res: TargetCell[] = [];
-    forEachBoardShapeCell(gameState, (r, c) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c) => {
         if (isBlockedCell(cardState, r, c)) return;
         if (hasSeedMarkerAt(cardState, r, c)) return;
         res.push({ row: r, col: c });
@@ -1421,7 +1303,7 @@ function getSeedTargets(cardState: CardState, gameState: GameState): TargetCell[
     const gs = gameState as any;
     if (!gs || !gs.board) return [];
     const res: TargetCell[] = [];
-    forEachBoardShapeCell(gameState, (r, c, owner) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c, owner) => {
         if (owner !== P_EMPTY) return;
         if (isBlockedCell(cardState, r, c)) return;
         if (hasSeedMarkerAt(cardState, r, c)) return;

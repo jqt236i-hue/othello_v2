@@ -16,7 +16,6 @@ export function createCpuPolicyBoardCounts(config?: CpuPolicyBoardCountsConfig) 
     const isFiniteNumber = typeof cfg.isFiniteNumber === 'function' ? cfg.isFiniteNumber : fallbackIsFiniteNumber;
 
     function countBoardDiscsForPlayer(board: CpuPolicyBoard | null | undefined, playerValue: number): { own: number; opp: number; empties: number } {
-        if (!Array.isArray(board)) return { own: 0, opp: 0, empties: 0 };
         if (
             sharedBoardUtils &&
             typeof sharedBoardUtils.collectBoardCoordinates === 'function' &&
@@ -33,6 +32,7 @@ export function createCpuPolicyBoardCounts(config?: CpuPolicyBoardCountsConfig) 
             }
             return { own, opp, empties };
         }
+        if (!Array.isArray(board)) return { own: 0, opp: 0, empties: 0 };
         let own = 0;
         let opp = 0;
         let empties = 0;
@@ -49,10 +49,10 @@ export function createCpuPolicyBoardCounts(config?: CpuPolicyBoardCountsConfig) 
     }
 
     function countBoardEdgeDiscsForPlayer(board: CpuPolicyBoard | null | undefined, playerValue: number): { ownEdges: number; oppEdges: number } {
-        if (!Array.isArray(board) || board.length <= 0) return { ownEdges: 0, oppEdges: 0 };
         if (sharedBoardUtils && typeof sharedBoardUtils.countEdgeControl === 'function') {
             return sharedBoardUtils.countEdgeControl(board, playerValue);
         }
+        if (!Array.isArray(board) || board.length <= 0) return { ownEdges: 0, oppEdges: 0 };
         const maxRow = board.length - 1;
         let ownEdges = 0;
         let oppEdges = 0;

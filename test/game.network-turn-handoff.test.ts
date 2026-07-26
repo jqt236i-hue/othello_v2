@@ -493,6 +493,55 @@ describe('network-turn-handoff', () => {
     expect(result).toMatchObject({ gameOver: false, scheduledCpu: false, nextPlayerKey: 'white' });
   });
 
+  test('empty expansion cell prevents the full-board turn-start deferral', async () => {
+    const rowA = [1, -1, 1, -1, 1, -1, 1, -1];
+    const rowB = rowA.slice().reverse();
+    global.gameState = {
+      currentPlayer: 'white',
+      turnNumber: 20,
+      consecutivePasses: 0,
+      board: [rowA.slice(), rowB.slice(), rowA.slice(), rowB.slice(), rowA.slice(), rowB.slice(), rowA.slice(), rowB.slice()],
+      boardConfig: { rows: 8, cols: 8, shape: 'rectangle' },
+      boardExpansion: {
+        active: true,
+        side: 'left',
+        row: 3,
+        col: -1,
+        owner: 0,
+        cells: [{ side: 'left', row: 3, col: -1, owner: 0 }]
+      }
+    };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      markers: [
+        {
+          kind: 'specialStone',
+          row: 3,
+          col: 3,
+          owner: 'black',
+          data: { type: 'ESCAPE_HYPERACTIVE', remainingOwnerTurns: 5 }
+        }
+      ]
+    };
+    global.isGameOver = jest.fn(() => true);
+
+    const handoff = require('../game/network-turn-handoff.js');
+    const onTurnStart = jest.fn();
+    const result = await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      action: { type: 'place', row: 7, col: 7, turnIndex: 20 },
+      playbackEvents: [{ type: 'flip', phase: 1 }],
+      publishSnapshot: jest.fn(),
+      onTurnStart,
+      humanMode: true
+    });
+
+    expect(onTurnStart).not.toHaveBeenCalled();
+    expect(global.showResult).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ gameOver: true, scheduledCpu: false });
+  });
+
   test('awaitPublishResult 有効時は publish failure を返して CPU scheduling を進めない', async () => {
     global.gameState = { currentPlayer: 'white', turnNumber: 12 };
     global.cardState = {

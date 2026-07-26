@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { JSDOM } from 'jsdom';
 
-function setupBattleStatusDom(gameStateOverride: any = {}) {
+function setupBattleStatusDom(gameStateOverride: any = {}, cardStateOverride: any = {}) {
   const dom = new JSDOM(
     '<!doctype html><html><body>' +
     '<div id="board-frame"></div>' +
@@ -60,6 +60,7 @@ function setupBattleStatusDom(gameStateOverride: any = {}) {
       [0, 0, 0, -1]
     ]
   }, gameStateOverride);
+  window.cardState = Object.assign({ markers: [] }, cardStateOverride);
   window.getElement = (key: string) => {
     const map: Record<string, Element | null> = {
       cpuCharacterImg: window.document.getElementById('cpu-character-img'),
@@ -88,6 +89,7 @@ function setupBattleStatusDom(gameStateOverride: any = {}) {
   global.getElement = window.getElement;
   global.Image = window.Image;
   global.gameState = window.gameState;
+  global.cardState = window.cardState;
 
   jest.resetModules();
   const statusDisplay = require(path.join(__dirname, '..', 'ui', 'status-display.js'));
@@ -108,6 +110,7 @@ function teardownBattleStatusDom(dom: JSDOM) {
   delete global.getElement;
   delete global.Image;
   delete global.gameState;
+  delete global.cardState;
   dom.window.close();
 }
 
@@ -130,6 +133,32 @@ describe('battle status panel', () => {
     expect(effectPanel.querySelector('.battle-status-latest')?.textContent).toBe('直近 -');
     expect(effectPanel.querySelector('.battle-status-latest-label')?.textContent).toBe('直近');
     expect(effectPanel.querySelector('.battle-status-latest-value')?.textContent).toBe('-');
+
+    teardownBattleStatusDom(dom);
+  });
+
+  test('score includes expansion stones and excludes METEOR_HOLE cells', () => {
+    const { dom, window, effectPanel } = setupBattleStatusDom({
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      boardExpansion: {
+        cells: [
+          { side: 'right', row: 0, col: 4, owner: 1 },
+          { side: 'right', row: 1, col: 4, owner: -1 }
+        ]
+      }
+    }, {
+      markers: [{
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        data: { type: 'METEOR_HOLE' }
+      }]
+    });
+
+    window.updateStatus();
+
+    expect(effectPanel.querySelector('.battle-status-count--black')?.textContent).toBe('4');
+    expect(effectPanel.querySelector('.battle-status-count--white')?.textContent).toBe('5');
 
     teardownBattleStatusDom(dom);
   });

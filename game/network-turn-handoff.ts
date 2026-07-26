@@ -13,10 +13,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     : require;
 
 const root: any = (typeof globalThis !== 'undefined') ? globalThis : {};
-let BoardUtils: any = null;
-try {
-    BoardUtils = _require('../shared/board-utils');
-} catch (e: any) { /* optional board counter fallback */ }
+const BoardUtils: any = _require('../shared/shared-board-utils');
+if (
+    !BoardUtils
+    || typeof BoardUtils.createBoardView !== 'function'
+    || typeof BoardUtils.countStateDiscs !== 'function'
+) {
+    throw new Error('SharedBoardUtils board kernel is required by NetworkTurnHandoff');
+}
 
     let networkActionSchema: any = null;
     let playbackEventHelpers: any = null;
@@ -357,94 +361,56 @@ try {
         return value === 0 || value === '0' || value === null || typeof value === 'undefined';
     }
 
-    function getBoardOwnerAt(gameStateRef: any, row: any, col: any): any {
-        if (!gameStateRef || !Number.isInteger(row) || !Number.isInteger(col)) return null;
-        if (Array.isArray(gameStateRef.board) && row >= 0 && row < gameStateRef.board.length) {
-            const rowData = gameStateRef.board[row];
-            if (Array.isArray(rowData) && col >= 0 && col < rowData.length) {
-                return rowData[col];
-            }
-        }
-        const expansionCells = gameStateRef.boardExpansion && Array.isArray(gameStateRef.boardExpansion.cells)
-            ? gameStateRef.boardExpansion.cells
-            : [];
-        const expansion = expansionCells.find((cell: any) => cell && cell.row === row && cell.col === col);
-        return expansion ? expansion.owner : null;
-    }
-
-    function countBoardEmpties(gameStateRef: any): number {
-        if (!gameStateRef || !Array.isArray(gameStateRef.board)) return 0;
-        let emptyCount = 0;
-        for (const row of gameStateRef.board) {
-            if (!Array.isArray(row)) continue;
-            for (const cell of row) {
-                if (isEmptyOwner(cell)) emptyCount += 1;
-            }
-        }
-        const expansionCells = gameStateRef.boardExpansion && Array.isArray(gameStateRef.boardExpansion.cells)
-            ? gameStateRef.boardExpansion.cells
-            : [];
-        for (const cell of expansionCells) {
-            if (cell && isEmptyOwner(cell.owner)) emptyCount += 1;
-        }
-        return emptyCount;
-    }
-
-    function countDiscs(gameStateRef: any): { black: number; white: number } {
+    function createCurrentBoardView(gameStateRef: any, cardStateRef: any): any {
         if (!gameStateRef || !Array.isArray(gameStateRef.board)) {
-            return { black: 0, white: 0 };
+            throw new Error('NetworkTurnHandoff requires gameState.board');
         }
-        let black = 0;
-        let white = 0;
-        if (BoardUtils && typeof BoardUtils.countDiscs === 'function') {
-            const counts = BoardUtils.countDiscs(gameStateRef.board);
-            black = counts.black;
-            white = counts.white;
-        } else {
-            for (const row of gameStateRef.board) {
-                if (!Array.isArray(row)) continue;
-                for (const cell of row) {
-                    if (cell === 1 || cell === '1') black += 1;
-                    else if (cell === -1 || cell === '-1') white += 1;
-                }
-            }
-        }
-        const expansionCells = gameStateRef.boardExpansion && Array.isArray(gameStateRef.boardExpansion.cells)
-            ? gameStateRef.boardExpansion.cells
-            : [];
-        for (const cell of expansionCells) {
-            if (!cell) continue;
-            if (cell.owner === 1 || cell.owner === '1') black += 1;
-            else if (cell.owner === -1 || cell.owner === '-1') white += 1;
-        }
-        return { black, white };
+        return BoardUtils.createBoardView(gameStateRef, {
+            cardState: cardStateRef ?? null,
+            strict: false
+        });
     }
 
-    function markerMayResolveBoardChangeAtTurnStart(marker: any, gameStateRef: any): boolean {
+    function getBoardOwnerAt(gameStateRef: any, cardStateRef: any, row: any, col: any): any {
+        if (!gameStateRef || !Number.isInteger(row) || !Number.isInteger(col)) return null;
+        return createCurrentBoardView(gameStateRef, cardStateRef).get(row, col);
+    }
+
+    function countBoardEmpties(gameStateRef: any, cardStateRef: any): number {
+        return createCurrentBoardView(gameStateRef, cardStateRef).count().empty;
+    }
+
+    function countDiscs(gameStateRef: any, cardStateRef: any): { black: number; white: number } {
+        const counts = BoardUtils.countStateDiscs(gameStateRef, cardStateRef ?? null);
+        return { black: Number(counts.black) || 0, white: Number(counts.white) || 0 };
+    }
+
+    function markerMayResolveBoardChangeAtTurnStart(marker: any, gameStateRef: any, cardStateRef: any): boolean {
         if (!marker || typeof marker !== 'object') return false;
         const data = marker.data && typeof marker.data === 'object' ? marker.data : null;
         if (!data) return false;
 
         if (data.category === 'bomb') {
             const remainingTurns = Number(data.remainingTurns);
-            const ownerAtCell = getBoardOwnerAt(gameStateRef, marker.row, marker.col);
+            const ownerAtCell = getBoardOwnerAt(gameStateRef, cardStateRef, marker.row, marker.col);
             return Number.isFinite(remainingTurns) && remainingTurns <= 1 && !isEmptyOwner(ownerAtCell);
         }
 
         const type = String(data.type || '').trim().toUpperCase();
         if (!BOARD_CHANGING_TURN_START_MARKER_TYPES.has(type)) return false;
-        const ownerAtCell = getBoardOwnerAt(gameStateRef, marker.row, marker.col);
+        const ownerAtCell = getBoardOwnerAt(gameStateRef, cardStateRef, marker.row, marker.col);
         return !isEmptyOwner(ownerAtCell);
     }
 
     function shouldDeferGameOverUntilTurnStart(gameStateRef: any, cardStateRef: any): boolean {
         if (!gameStateRef || !cardStateRef) return false;
+        if (!Array.isArray(gameStateRef.board)) return false;
         if (Number(gameStateRef.consecutivePasses) >= 2) return false;
-        const discs = countDiscs(gameStateRef);
+        const discs = countDiscs(gameStateRef, cardStateRef);
         if ((discs.black + discs.white) > 0 && (discs.black === 0 || discs.white === 0)) return false;
-        if (countBoardEmpties(gameStateRef) !== 0) return false;
+        if (countBoardEmpties(gameStateRef, cardStateRef) !== 0) return false;
         const markers = Array.isArray(cardStateRef.markers) ? cardStateRef.markers : [];
-        return markers.some((marker: any) => markerMayResolveBoardChangeAtTurnStart(marker, gameStateRef));
+        return markers.some((marker: any) => markerMayResolveBoardChangeAtTurnStart(marker, gameStateRef, cardStateRef));
     }
 
     function isGameOverNow(customIsGameOver: any, snapshotOverride: any): boolean {

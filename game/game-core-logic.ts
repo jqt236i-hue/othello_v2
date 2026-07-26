@@ -112,8 +112,8 @@ function getFlips(state: any, row: any, col: any, player: any, protectedStones: 
     return GameCoreLogicCore.getFlipsWithContext(state, row, col, player, context);
 }
 
-function applyMove(state: any, move: any) {
-    return GameCoreLogicCore.applyMove(state, move);
+function applyMove(state: any, move: any, cardState?: any) {
+    return GameCoreLogicCore.applyMove(state, move, cardState);
 }
 
 function applyPass(state: any) {
@@ -133,8 +133,8 @@ function isGameOver(state: any) {
     return GameCoreLogicCore.isGameOver(state);
 }
 
-function countDiscs(state: any) {
-    return GameCoreLogicCore.countDiscs(state);
+function countDiscs(state: any, cardState?: any) {
+    return GameCoreLogicCore.countDiscs(state, cardState);
 }
 
 export = {

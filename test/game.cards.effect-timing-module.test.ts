@@ -1,3 +1,22 @@
+const SharedBoardUtils = require('../shared/shared-board-utils');
+
+function getBoardCellForCard(cardState, gameState, row, col) {
+  const context = SharedBoardUtils.createBoardContext(gameState, cardState);
+  return SharedBoardUtils.createBoardView(context.gameState, {
+    cardState: context.cardState,
+    strict: false
+  }).get(row, col);
+}
+
+function setBoardCellForCard(cardState, gameState, row, col, value) {
+  return SharedBoardUtils.setCellValue(
+    SharedBoardUtils.createBoardContext(gameState, cardState),
+    row,
+    col,
+    value
+  );
+}
+
 describe('CardEffectTiming module', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -160,6 +179,83 @@ describe('CardEffectTiming module', () => {
       type: 'FREEZE',
       owner: 'black'
     });
+  });
+
+  test('seed expiration sprouts on expansion cells and cannot write through meteor holes', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
+    const expansionSeed = {
+      kind: 'specialStone',
+      row: 0,
+      col: 4,
+      owner: 'black',
+      data: { type: 'SEED', remainingOwnerTurns: 1 }
+    };
+    const holeSeed = {
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'white',
+      data: { type: 'SEED', remainingOwnerTurns: 1 }
+    };
+    const meteorHole = {
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      data: { type: 'METEOR_HOLE' }
+    };
+    const cardState = {
+      markers: [expansionSeed, holeSeed, meteorHole]
+    };
+    const gameState = {
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      boardExpansion: {
+        cells: [{ side: 'right', row: 0, col: 4, owner: 0 }]
+      }
+    };
+    const removeMarkersAt = jest.fn((state, row, col, options) => {
+      state.markers = state.markers.filter((marker) => !(
+        marker.kind === options.kind &&
+        marker.row === row &&
+        marker.col === col &&
+        marker.owner === options.owner &&
+        marker.data &&
+        marker.data.type === options.type
+      ));
+    });
+    const context = {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone' }
+      },
+      helpers: {
+        getBoardCellForCard,
+        setBoardCellForCard,
+        removeMarkersAt,
+        clearStoneIdAtForCard: jest.fn()
+      },
+      modules: {}
+    };
+
+    expect(CardEffectTiming.processTurnStartStatusMarkerAnchor(
+      cardState,
+      gameState,
+      'black',
+      expansionSeed,
+      context
+    )).toMatchObject({ processed: true });
+    expect(gameState.boardExpansion.cells[0].owner).toBe(1);
+
+    expect(CardEffectTiming.processTurnStartStatusMarkerAnchor(
+      cardState,
+      gameState,
+      'white',
+      holeSeed,
+      context
+    )).toMatchObject({ processed: true });
+    expect(gameState.board[0][0]).toBe(0);
+    expect(cardState.markers).toContain(meteorHole);
   });
 
   test('onTurnStart decrements and expires SACRIFICE markers in direct path without clearing board stone', () => {

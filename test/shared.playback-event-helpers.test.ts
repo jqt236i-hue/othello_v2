@@ -261,4 +261,50 @@ describe('PlaybackEventHelpers', () => {
       })
     ]);
   });
+
+  test('recovers expansion destination ownership from the canonical snapshot board view', () => {
+    const out = helpers.collectActionPlaybackEvents({
+      result: {
+        events: [{
+          type: 'teleport_selected',
+          player: 'black',
+          ownerAfter: 'black',
+          cardType: 'TELEPORT_WILL',
+          applied: true,
+          from: { row: 1, col: 3 },
+          to: { row: 1, col: 4 }
+        }],
+        presentationEvents: [],
+        cardState: { presentationEvents: [] }
+      },
+      snapshot: {
+        cardState: { turnIndex: 1, markers: [] },
+        gameState: {
+          board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+          boardConfig: { rows: 4, cols: 4 },
+          boardExpansion: {
+            active: true,
+            cells: [{ row: 1, col: 4, side: 'right', owner: -1 }]
+          }
+        }
+      },
+      playerKey: 'black',
+      fallbackPlayerKey: 'black',
+      adapter: {
+        mapToPlaybackEvents: jest.fn(() => []),
+        appendSoundEffectPlaybackEvents: jest.fn((events) => events)
+      }
+    });
+
+    expect(out.playbackEvents).toEqual([
+      expect.objectContaining({
+        type: 'move',
+        targets: [expect.objectContaining({
+          to: { r: 1, col: 4 },
+          ownerAfter: 'white',
+          after: expect.objectContaining({ color: -1, owner: 'white' })
+        })]
+      })
+    ]);
+  });
 });

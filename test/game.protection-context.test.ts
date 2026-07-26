@@ -88,6 +88,7 @@ describe('card protection context', () => {
       isFrozenCellForCard: (_state: any, row: number, col: number) => row === 3 && col === 4
     });
 
+    expect(context.cardState).toBe(cardState);
     expect(context.permaProtectedStones).toEqual(expect.arrayContaining([
       { row: 3, col: 4, owner: Shared.WHITE }
     ]));

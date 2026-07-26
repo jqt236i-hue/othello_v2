@@ -285,6 +285,64 @@ describe('PROLIFERATION_WILL（増殖の意志）', () => {
     }));
   });
 
+  test('盤面形状の単一列挙で拡張空きマスを選び、拡張上の穴は候補にしない', () => {
+    const { cardState, gameState, prng } = createState([0]);
+
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        gameState.board[row][col] = Shared.WHITE;
+      }
+    }
+    gameState.board[3][7] = Shared.BLACK;
+    (gameState as any).boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      owner: Shared.EMPTY,
+      usedByPlayer: { black: true, white: false },
+      cells: [
+        { side: 'right', row: 3, col: 8, owner: Shared.EMPTY },
+        { side: 'right', row: 4, col: 8, owner: Shared.EMPTY }
+      ]
+    };
+    cardState.markers.push(
+      {
+        id: 1161,
+        kind: 'specialStone',
+        row: 3,
+        col: 7,
+        owner: 'black',
+        data: { type: 'PROLIFERATION' }
+      },
+      {
+        id: 1162,
+        kind: 'specialStone',
+        row: 4,
+        col: 8,
+        owner: 'black',
+        data: { type: 'METEOR_HOLE' }
+      }
+    );
+
+    const out = BoardOps.destroyAt(
+      cardState,
+      gameState,
+      3,
+      7,
+      'SYSTEM',
+      'expansion_candidate_destroy',
+      { randomSource: prng }
+    );
+
+    expect(out).toMatchObject({
+      kind: 'proliferated',
+      proliferated: true,
+      to: { row: 3, col: 8 }
+    });
+    expect((gameState as any).boardExpansion.cells.find((cell) => cell.row === 3 && cell.col === 8).owner).toBe(Shared.BLACK);
+    expect((gameState as any).boardExpansion.cells.find((cell) => cell.row === 4 && cell.col === 8).owner).toBe(Shared.EMPTY);
+  });
+
   test('最短距離の空きが複数ある時はランダムで1マス選ぶ', () => {
     const first = createState([0]);
 

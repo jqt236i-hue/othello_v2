@@ -150,6 +150,53 @@ describe('CommentaryContextHelpers.buildCommentaryContext', () => {
     }
   });
 
+  test('uses BoardContext topology for expansion discs, effective corners, and meteor holes', () => {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    board[0][0] = 1;
+    board[3][0] = 1;
+    const gameState = {
+      turnNumber: 6,
+      board,
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      boardExpansion: {
+        cells: Array.from({ length: 4 }, (_unused, row) => ({
+          side: 'right',
+          row,
+          col: 4,
+          owner: row === 0 ? -1 : 0
+        }))
+      }
+    };
+    const cardState = {
+      markers: [{
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        data: { type: 'METEOR_HOLE' }
+      }]
+    };
+
+    const metrics = helpers.buildCpuCommentaryMetrics({
+      gameState,
+      cardState,
+      playerKey: 'white'
+    });
+    const context = helpers.buildCommentaryContext({
+      eventType: 'turn_start',
+      gameState,
+      cardState,
+      playerKey: 'white',
+      preparedMetrics: metrics
+    });
+
+    expect(sharedBoardUtils.isBoardContext(context.board)).toBe(true);
+    expect(context.counts).toEqual({ black: 1, white: 1 });
+    expect(context.occupiedCells).toBe(2);
+    expect(context.corners).toEqual({ own: 1, opp: 1 });
+    expect(sharedBoardUtils.getCellValue(context.board, 0, 4)).toBe(-1);
+    expect(sharedBoardUtils.getCellValue(context.board, 0, 0)).toBeNull();
+  });
+
   test('does not treat the untouched initial board as commentary start', () => {
     const board = createBoard();
     board[3][3] = -1;

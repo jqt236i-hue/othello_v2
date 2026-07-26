@@ -38,6 +38,10 @@ const BoardOpsModule = ((typeof module === 'object' && module.exports)
     ? safeRequire('../board_ops')
     : null) || (typeof self !== 'undefined' ? (self as any).BoardOps : null);
 
+const BoardUtils = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../../../shared/shared-board-utils')
+    : null) || (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null);
+
 const RandomSourceModule = ((typeof module === 'object' && module.exports)
     ? safeRequire('../cards-internal/random-source')
     : null) || (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
@@ -49,73 +53,28 @@ if (BLACK === undefined || WHITE === undefined || EMPTY === undefined) {
     throw new Error('SharedConstants missing required values');
 }
 
-interface BoardDims { rows: number; cols: number }
-
-function normalizeExpansionOwner(owner: number): number {
-    return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
+if (!BoardUtils ||
+    typeof BoardUtils.createBoardContext !== 'function' ||
+    typeof BoardUtils.collectBoardCoordinates !== 'function' ||
+    typeof BoardUtils.getCellValue !== 'function') {
+    throw new Error('SharedBoardUtils BoardContext access is required by CardWillHunterKing');
 }
 
-function resolveBoardDims(gameState: GameState): BoardDims {
-    const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
-    const rows = board && board.length > 0 ? board.length : 8;
-    const cols = board && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
-    return { rows, cols };
+function createBoardContext(gameState: GameState, cardState: any): any {
+    return BoardUtils.createBoardContext(gameState, cardState);
 }
 
-function getExpansionCells(gameState: GameState): Array<{row: number; col: number; owner: number}> {
-    if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
-        return BoardOpsModule.getExpansionDescriptors(gameState);
-    }
-    const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-        ? gameState.boardExpansion as any
-        : null;
-    if (!expansion)
-        return [];
-    const cells: Array<{row: number; col: number; owner: number}> = [];
-    const pushCell = (cell: any) => {
-        if (!cell || typeof cell !== 'object')
-            return;
-        const row = Number.isInteger(cell.row) ? cell.row : null;
-        let col: any = Number.isInteger(cell.col) ? cell.col : null;
-        if (col === null && cell.side === 'left')
-            col = -1;
-        if (col === null && cell.side === 'right')
-            col = resolveBoardDims(gameState).cols;
-        if (!Number.isInteger(row) || !Number.isInteger(col))
-            return;
-        if (cells.some((one) => one.row === row && one.col === col))
-            return;
-        cells.push({
-            row,
-            col,
-            owner: normalizeExpansionOwner(cell.owner)
-        });
-    };
-    if (Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells)
-            pushCell(cell);
-    }
-    else if (expansion.active === true) {
-        pushCell(expansion);
-    }
-    return cells;
+function collectBoardCells(gameState: GameState, cardState: any): Array<{ row: number; col: number; owner: number | null }> {
+    const context = createBoardContext(gameState, cardState);
+    return BoardUtils.collectBoardCoordinates(context).map((cell: { row: number; col: number }) => ({
+        row: cell.row,
+        col: cell.col,
+        owner: BoardUtils.getCellValue(context, cell.row, cell.col)
+    }));
 }
 
-function getCellValue(gameState: GameState, row: number, col: number): number | null {
-    if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
-        return BoardOpsModule.getCellValue(gameState, row, col);
-    }
-    const dims = resolveBoardDims(gameState);
-    if (row >= 0 && row < dims.rows && col >= 0 && col < dims.cols)
-        return gameState.board[row][col];
-    const expansionCells = getExpansionCells(gameState);
-    for (const cell of expansionCells) {
-        if (!cell)
-            continue;
-        if (cell.row === row && cell.col === col)
-            return cell.owner;
-    }
-    return null;
+function getCellValue(gameState: GameState, row: number, col: number, cardState: any): number | null {
+    return BoardUtils.getCellValue(createBoardContext(gameState, cardState), row, col);
 }
 
 function resolveRandomSource(randomLike: any) {
@@ -194,28 +153,8 @@ function isGuardProtectedTarget(cardState: any, row: number, col: number): boole
 function collectEnemyTargets(cardState: any, gameState: GameState, enemyValue: number) {
     const specialTargets: Array<{row: number; col: number; isSpecial: boolean}> = [];
     const normalTargets: Array<{row: number; col: number; isSpecial: boolean}> = [];
-    const dims = resolveBoardDims(gameState);
-    for (let row = 0; row < dims.rows; row++) {
-        for (let col = 0; col < dims.cols; col++) {
-            if (gameState.board[row][col] !== enemyValue)
-                continue;
-            if (isManifestTarget(cardState, row, col))
-                continue;
-            if (isInviolableTarget(cardState, row, col))
-                continue;
-            if (isGuardProtectedTarget(cardState, row, col))
-                continue;
-            const isSpecial = hasVisibleNonNormalStoneAt(cardState, row, col);
-            const target = { row, col, isSpecial };
-            if (isSpecial)
-                specialTargets.push(target);
-            else
-                normalTargets.push(target);
-        }
-    }
-    const expansionCells = getExpansionCells(gameState);
-    for (const cell of expansionCells) {
-        if (!cell || cell.owner !== enemyValue)
+    for (const cell of collectBoardCells(gameState, cardState)) {
+        if (cell.owner !== enemyValue)
             continue;
         if (isManifestTarget(cardState, cell.row, cell.col))
             continue;
@@ -289,7 +228,7 @@ interface WillHunterKingResult {
 function processWillHunterKingEffectsAtTurnStartAnchor(cardState: any, gameState: GameState, playerKey: string, row: number, col: number, deps: any): WillHunterKingResult {
     const options = deps || {};
     const randomSource = resolveRandomSource(options.random);
-    const boardOps = options.BoardOps || null;
+    const boardOps = options.BoardOps || BoardOpsModule || null;
     const result: WillHunterKingResult = {
         moved: [],
         destroyed: [],
@@ -301,7 +240,7 @@ function processWillHunterKingEffectsAtTurnStartAnchor(cardState: any, gameState
         return result;
     const ownerValue = playerKey === 'black' ? BLACK : WHITE;
     const enemyValue = -ownerValue;
-    if (getCellValue(gameState, row, col) !== ownerValue) {
+    if (getCellValue(gameState, row, col, cardState) !== ownerValue) {
         removeAnchorMarker(cardState, playerKey, row, col);
         result.expired.push({ row, col, owner: playerKey, reason: 'anchor_lost' });
         return result;
@@ -349,7 +288,7 @@ function processWillHunterKingEffectsAtTurnStartAnchor(cardState: any, gameState
                 sourceCol: col
             });
         }
-        if (getCellValue(gameState, target.row, target.col) === EMPTY && boardOps && typeof boardOps.moveAt === 'function') {
+        if (getCellValue(gameState, target.row, target.col, cardState) === EMPTY && boardOps && typeof boardOps.moveAt === 'function') {
             const moveMeta = {
                 special: 'WILL_HUNTER_KING',
                 timer: afterTurns,

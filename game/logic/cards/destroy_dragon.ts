@@ -15,11 +15,6 @@ interface DestroyDragonSharedConstants {
   EMPTY: DestroyDragonOwnerValue;
 }
 
-interface DestroyDragonBoardDims {
-  rows: number;
-  cols: number;
-}
-
 interface DestroyDragonExpansionCell {
   side: DestroyDragonExpansionSide | null;
   row: number;
@@ -71,9 +66,9 @@ interface DestroyDragonDestroyMeta {
 }
 
 interface DestroyDragonBoardOpsModule {
-  getExpansionDescriptors?: (gameState: DestroyDragonGameState) => DestroyDragonExpansionCell[];
-  getCellValue?: (gameState: DestroyDragonGameState, row: number, col: number) => DestroyDragonOwnerValue | null;
-  setCellValue?: (gameState: DestroyDragonGameState, row: number, col: number, value: DestroyDragonOwnerValue) => boolean;
+  getExpansionDescriptors?: (gameState: DestroyDragonGameState, cardState?: DestroyDragonCardState | null) => DestroyDragonExpansionCell[];
+  getCellValue?: (gameState: DestroyDragonGameState, row: number, col: number, cardState?: DestroyDragonCardState | null) => DestroyDragonOwnerValue | null;
+  setCellValue?: (gameState: DestroyDragonGameState, row: number, col: number, value: DestroyDragonOwnerValue, cardState?: DestroyDragonCardState | null) => boolean;
   destroyAt?: (
     cardState: DestroyDragonCardState,
     gameState: DestroyDragonGameState,
@@ -103,6 +98,12 @@ interface DestroyDragonRandomSourceModule {
 
 interface DestroyDragonCardMarkersModule {
   isManifestStoneAt?: (cardState: DestroyDragonCardState, row: number, col: number) => boolean;
+}
+
+interface DestroyDragonBoardKernelModule {
+  createBoardContext?: (gameState: DestroyDragonGameState, cardState?: DestroyDragonCardState | null) => unknown;
+  getCellValue?: (context: unknown, row: number, col: number) => DestroyDragonOwnerValue | null;
+  setCellValue?: (context: unknown, row: number, col: number, value: DestroyDragonOwnerValue) => boolean;
 }
 
 type DestroyDragonRandomLike = (() => number) | { random: () => number };
@@ -144,6 +145,7 @@ interface DestroyDragonModuleApi {
 
 interface DestroyDragonRoot {
   SharedConstants?: DestroyDragonSharedConstants;
+  SharedBoardUtils?: DestroyDragonBoardKernelModule | null;
   BoardOps?: DestroyDragonBoardOpsModule | null;
   CardRandomSource?: DestroyDragonRandomSourceModule | null;
 }
@@ -162,9 +164,9 @@ function safeRequire<T>(id: string): T | null {
 
 const root = typeof self !== 'undefined' ? self as unknown as DestroyDragonRoot : undefined;
 const SharedConstants = safeRequire<DestroyDragonSharedConstants>('../../../shared-constants') || root?.SharedConstants;
+const BoardKernelModule = safeRequire<DestroyDragonBoardKernelModule>('../../../shared/shared-board-utils') || root?.SharedBoardUtils || null;
 const BoardOpsModule = safeRequire<DestroyDragonBoardOpsModule>('../board_ops') || root?.BoardOps || null;
 const RandomSourceModule = safeRequire<DestroyDragonRandomSourceModule>('../cards-internal/random-source') || root?.CardRandomSource || null;
-const ExpansionFallbackModule = safeRequire<any>('../cards-internal/expansion-fallback') || (root as any)?.CardExpansionFallback || null;
 const CardMarkersModule = safeRequire<DestroyDragonCardMarkersModule>('./markers') || null;
 
 const { BLACK: RAW_BLACK, WHITE: RAW_WHITE, EMPTY: RAW_EMPTY } = SharedConstants || {};
@@ -178,31 +180,36 @@ const WHITE: DestroyDragonOwnerValue = RAW_WHITE;
 const EMPTY: DestroyDragonOwnerValue = RAW_EMPTY;
 const MANIFEST_STONE_TYPES = new Set(['THEORY_INCARNATION', 'BOARD_EXECUTOR', 'OBSERVER_WILL']);
 
-if (!ExpansionFallbackModule) {
-  throw new Error('CardExpansionFallback missing required helpers');
+if (!BoardKernelModule ||
+    typeof BoardKernelModule.createBoardContext !== 'function' ||
+    typeof BoardKernelModule.getCellValue !== 'function' ||
+    typeof BoardKernelModule.setCellValue !== 'function') {
+  throw new Error('SharedBoardUtils BoardContext APIs are required by CardDestroyDragon');
+}
+const RequiredBoardKernelModule = BoardKernelModule as Required<Pick<
+  DestroyDragonBoardKernelModule,
+  'createBoardContext' | 'getCellValue' | 'setCellValue'
+>>;
+
+function createDestroyDragonBoardContext(
+  cardState: DestroyDragonCardState,
+  gameState: DestroyDragonGameState
+): unknown {
+  return RequiredBoardKernelModule.createBoardContext(gameState, cardState);
 }
 
-const resolveBoardDims = ExpansionFallbackModule.resolveBoardDims as (gameState: DestroyDragonGameState) => DestroyDragonBoardDims;
-
-function getExpansionCells(gameState: DestroyDragonGameState): DestroyDragonExpansionCell[] {
-  if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
-    return BoardOpsModule.getExpansionDescriptors(gameState);
-  }
-  return ExpansionFallbackModule.getExpansionCells(gameState);
-}
-
-function getCellValue(gameState: DestroyDragonGameState, row: number, col: number): DestroyDragonOwnerValue | null {
+function getCellValue(gameState: DestroyDragonGameState, row: number, col: number, cardState: DestroyDragonCardState): DestroyDragonOwnerValue | null {
   if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
-    return BoardOpsModule.getCellValue(gameState, row, col);
+    return BoardOpsModule.getCellValue(gameState, row, col, cardState);
   }
-  return ExpansionFallbackModule.getCellValue(gameState, row, col);
+  return RequiredBoardKernelModule.getCellValue(createDestroyDragonBoardContext(cardState, gameState), row, col);
 }
 
-function setCellValue(gameState: DestroyDragonGameState, row: number, col: number, value: DestroyDragonOwnerValue): boolean {
+function setCellValue(gameState: DestroyDragonGameState, row: number, col: number, value: DestroyDragonOwnerValue, cardState: DestroyDragonCardState): boolean {
   if (BoardOpsModule && typeof BoardOpsModule.setCellValue === 'function') {
-    return BoardOpsModule.setCellValue(gameState, row, col, value);
+    return BoardOpsModule.setCellValue(gameState, row, col, value, cardState);
   }
-  return ExpansionFallbackModule.setCellValue(gameState, row, col, value);
+  return RequiredBoardKernelModule.setCellValue(createDestroyDragonBoardContext(cardState, gameState), row, col, value);
 }
 
 function cleanupExpiredDestroyDragons(cardState: DestroyDragonCardState): void {
@@ -260,7 +267,7 @@ function collectAdjacentEnemyTargets(cardState: DestroyDragonCardState, gameStat
       if (dr === 0 && dc === 0) continue;
       const row = sourceRow + dr;
       const col = sourceCol + dc;
-      if (getCellValue(gameState, row, col) === enemyValue && !isManifestTarget(cardState, row, col)) targets.push({ row, col });
+      if (getCellValue(gameState, row, col, cardState) === enemyValue && !isManifestTarget(cardState, row, col)) targets.push({ row, col });
     }
   }
   return targets;
@@ -273,10 +280,10 @@ function removeMarkerAt(cardState: DestroyDragonCardState, row: number, col: num
 }
 
 function fallbackDestroyAt(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, row: number, col: number): boolean {
-  const current = getCellValue(gameState, row, col);
+  const current = getCellValue(gameState, row, col, cardState);
   if (current === null || current === EMPTY) return false;
   removeMarkerAt(cardState, row, col);
-  setCellValue(gameState, row, col, EMPTY);
+  setCellValue(gameState, row, col, EMPTY, cardState);
   return true;
 }
 
@@ -332,7 +339,7 @@ function processAnchor(cardState: DestroyDragonCardState, gameState: DestroyDrag
   ));
 
   if (!marker) return { destroyed, anchors, expired };
-  if (getCellValue(gameState, row, col) !== playerValue) {
+  if (getCellValue(gameState, row, col, cardState) !== playerValue) {
     if (marker.data) marker.data.remainingOwnerTurns = -1;
     cleanupExpiredDestroyDragons(cardState);
     return { destroyed, anchors, expired };

@@ -755,11 +755,6 @@ function createGameState(runtime: RuntimeModules, fixture: ScenarioFixture, fina
     usedByPlayer: { black: false, white: false },
     cells: expansionCells
   };
-  runtime.boardUtils.attachBoardShape(state.board, {
-    boardConfig: state.boardConfig,
-    boardExpansion: state.boardExpansion,
-    cardState: { markers }
-  });
   return state;
 }
 

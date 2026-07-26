@@ -1,5 +1,7 @@
 import * as Shared from '../shared-constants.js';
 import * as DragonEffects from '../game/logic/effects/dragon.js';
+import * as BoardOps from '../game/logic/board_ops.js';
+import * as ExpansionFallback from '../game/logic/cards-internal/expansion-fallback.js';
 
 function createBoard(rows = 8, cols = rows) {
   return Array.from({ length: rows }, () => Array(cols).fill(Shared.EMPTY));
@@ -43,6 +45,31 @@ afterEach(() => {
 });
 
 describe('expansion fallback helpers', () => {
+  test('expansion METEOR_HOLE is unreadable and unwritable through both public access paths', () => {
+    const cardState = {
+      markers: [{
+        id: 9001,
+        kind: 'specialStone',
+        row: -1,
+        col: 0,
+        owner: 'black',
+        data: { type: 'METEOR_HOLE' }
+      }]
+    };
+    const gameState = {
+      board: createBoard(),
+      boardExpansion: createExpansionState([
+        { side: 'top', row: -1, col: 0, owner: Shared.WHITE }
+      ])
+    };
+
+    expect(ExpansionFallback.getCellValue(gameState, -1, 0, cardState)).toBeNull();
+    expect(ExpansionFallback.setCellValue(gameState, -1, 0, Shared.BLACK, cardState)).toBe(false);
+    expect(BoardOps.getCellValue(gameState, -1, 0, cardState)).toBeNull();
+    expect(BoardOps.setCellValue(gameState, -1, 0, Shared.BLACK, cardState)).toBe(false);
+    expect(gameState.boardExpansion.cells[0].owner).toBe(Shared.WHITE);
+  });
+
   test('DragonEffects converts top-edge and corner expansion cells around an expansion anchor', () => {
     const cardState = {
       markers: [{
@@ -71,6 +98,41 @@ describe('expansion fallback helpers', () => {
     ]));
     expect(gameState.board[0][0]).toBe(Shared.BLACK);
     expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === -1).owner).toBe(Shared.BLACK);
+  });
+
+  test('DragonEffects does not convert an expansion cell hidden by METEOR_HOLE', () => {
+    const cardState = {
+      markers: [
+        {
+          id: 3,
+          kind: 'specialStone',
+          row: -1,
+          col: 0,
+          owner: 'black',
+          data: { type: 'DRAGON', remainingOwnerTurns: 5 }
+        },
+        {
+          id: 4,
+          kind: 'specialStone',
+          row: -1,
+          col: -1,
+          owner: 'white',
+          data: { type: 'METEOR_HOLE' }
+        }
+      ]
+    };
+    const gameState = {
+      board: createBoard(),
+      boardExpansion: createExpansionState([
+        { side: 'top', row: -1, col: 0, owner: Shared.BLACK },
+        { side: 'left', row: -1, col: -1, owner: Shared.WHITE }
+      ])
+    };
+
+    const out = DragonEffects.processDragonEffectsAtAnchor(cardState, gameState, 'black', -1, 0);
+
+    expect(out.converted).not.toContainEqual({ row: -1, col: -1 });
+    expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === -1 && cell.col === -1).owner).toBe(Shared.WHITE);
   });
 
   test('DragonEffects clears a bottom expansion anchor on expiry', () => {
@@ -190,6 +252,44 @@ describe('expansion fallback helpers', () => {
 
     expect(destroyAt).toHaveBeenCalledWith(cardState, gameState, 8, 7);
     expect(out.destroyed).toEqual([expect.objectContaining({ row: 8, col: 7, sourceRow: 7, sourceCol: 7 })]);
+  });
+
+  test('lightning fallback never targets an expansion METEOR_HOLE with stale owner data', () => {
+    const CardLightning = loadWithoutBoardOps('../game/logic/cards/lightning');
+    const cardState = {
+      markers: [
+        {
+          id: 1101,
+          kind: 'specialStone',
+          row: 7,
+          col: 7,
+          owner: 'black',
+          data: { type: 'LIGHTNING', remainingOwnerTurns: 2 }
+        },
+        {
+          id: 1102,
+          kind: 'specialStone',
+          row: 8,
+          col: 7,
+          owner: 'black',
+          data: { type: 'METEOR_HOLE' }
+        }
+      ]
+    };
+    const gameState = {
+      board: createBoard(),
+      boardExpansion: createExpansionState([
+        { side: 'bottom', row: 8, col: 7, owner: Shared.WHITE }
+      ])
+    };
+    gameState.board[7][7] = Shared.BLACK;
+
+    const destroyAt = jest.fn(() => true);
+    const out = CardLightning.processLightningWillEffects(cardState, gameState, 'black', { destroyAt, random: () => 0 });
+
+    expect(destroyAt).not.toHaveBeenCalled();
+    expect(out.destroyed).toEqual([]);
+    expect(gameState.boardExpansion.cells[0].owner).toBe(Shared.WHITE);
   });
 
   test('time bomb fallback includes top expansion cells in blast range without BoardOps', () => {
@@ -369,6 +469,37 @@ describe('expansion fallback helpers', () => {
     expect(out.destroyed).toBe(true);
     expect(gameState.boardExpansion.cells.find((cell) => cell && cell.row === 0 && cell.col === 10).owner).toBe(Shared.EMPTY);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('DESTROY_ONE_STONE does not clear or settle an expansion METEOR_HOLE without BoardOps', () => {
+    const DestroyOneStone = loadWithoutBoardOps('../game/logic/effects/destroy_one_stone');
+    const cardState = {
+      markers: [{
+        id: 106,
+        kind: 'specialStone',
+        row: -1,
+        col: 0,
+        owner: 'white',
+        data: { type: 'METEOR_HOLE' }
+      }],
+      pendingEffectByPlayer: { black: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' }, white: null }
+    };
+    const gameState = {
+      board: createBoard(),
+      boardExpansion: createExpansionState([
+        { side: 'top', row: -1, col: 0, owner: Shared.WHITE }
+      ])
+    };
+
+    const out = DestroyOneStone.applyDestroyOneStone(cardState, gameState, 'black', -1, 0);
+
+    expect(out.destroyed).toBe(false);
+    expect(gameState.boardExpansion.cells[0].owner).toBe(Shared.WHITE);
+    expect(cardState.markers).toHaveLength(1);
+    expect(cardState.pendingEffectByPlayer.black).toEqual({
+      type: 'DESTROY_ONE_STONE',
+      stage: 'selectTarget'
+    });
   });
 
   test('WORK fallback clears a top expansion anchor on expiry without BoardOps', () => {

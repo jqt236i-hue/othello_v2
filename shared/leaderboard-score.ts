@@ -1,5 +1,29 @@
 'use strict';
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+function requireLeaderboardDependency(id: string): any {
+  if (typeof __non_webpack_require__ !== 'undefined') return __non_webpack_require__(id);
+  if (typeof require === 'function') return require(id);
+  return null;
+}
+
+function resolveLeaderboardBoardKernel(): any {
+  try {
+    const required = requireLeaderboardDependency('./shared-board-utils');
+    if (required) return required;
+  } catch (e) { /* use the installed browser runtime below */ }
+  if (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils) {
+    return (globalThis as any).SharedBoardUtils;
+  }
+  return null;
+}
+
+const SharedBoardUtils = resolveLeaderboardBoardKernel();
+if (!SharedBoardUtils || typeof SharedBoardUtils.countStateDiscs !== 'function') {
+  throw new Error('SharedBoardUtils.countStateDiscs is required by LeaderboardScore');
+}
+
 type LeaderboardPlayerKey = 'black' | 'white';
 type LeaderboardOutcome = 'win' | 'lose' | 'draw';
 
@@ -233,7 +257,7 @@ function buildLeaderboardScoreSummaryFromState(gameStateValue: unknown, cardStat
   const gameState = asRecord(gameStateValue);
   const cardState = asRecord(cardStateValue);
   return computeLeaderboardScoreSummary({
-    counts: countLeaderboardDiscs(gameState.board),
+    counts: SharedBoardUtils.countStateDiscs(gameState, cardState),
     playerKey: playerKeyValue,
     turnCount: resolveLeaderboardTurnCount(gameState, cardState),
     flipTotals: cardState.totalFlipCountByPlayer

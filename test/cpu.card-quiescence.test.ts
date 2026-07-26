@@ -10,19 +10,27 @@ import { chooseMoveByLookaheadInWorker } from '../game/ai/cpu-policy-lookahead-w
 const CpuPolicyCore: any = require('../game/ai/cpu-policy-core');
 const SharedBoardUtils: any = require('../shared/shared-board-utils');
 
-function serializeShape(board: any) {
-  const meta = SharedBoardUtils.getBoardShapeMeta(board);
-  return meta ? {
-    minRow: meta.minRow,
-    maxRow: meta.maxRow,
-    minCol: meta.minCol,
-    maxCol: meta.maxCol,
-    playableKeys: Array.from(meta.playableKeys),
-    meteorHoleKeys: Array.from(meta.meteorHoleKeys),
-    expansionCells: meta.expansionCells.map((cell: any) => ({ ...cell })),
-    expansionOwnerByKey: { ...meta.expansionOwnerByKey },
-    standard8x8: meta.standard8x8
-  } : null;
+function serializeShape(context: any) {
+  const view = SharedBoardUtils.createBoardView(context.gameState, {
+    cardState: context.cardState,
+    strict: false
+  });
+  const topology = view.topology;
+  const expansionOwnerByKey: Record<string, number> = {};
+  for (const cell of view.expansionCells) {
+    expansionOwnerByKey[`${cell.row},${cell.col}`] = cell.owner;
+  }
+  return {
+    minRow: topology.contentBounds.minRow,
+    maxRow: topology.contentBounds.maxRow,
+    minCol: topology.contentBounds.minCol,
+    maxCol: topology.contentBounds.maxCol,
+    playableKeys: Array.from(topology.playableKeys),
+    meteorHoleKeys: Array.from(topology.holeKeys),
+    expansionCells: view.expansionCells.map((cell: any) => ({ ...cell })),
+    expansionOwnerByKey,
+    standard8x8: SharedBoardUtils.isStandardBoard8x8(context)
+  };
 }
 
 function createRequest() {
@@ -65,11 +73,11 @@ function createRequest() {
 }
 
 describe('CPU card-quiescence portable contract', () => {
-  test('projects shape metadata and executes the pure lookahead on a detached board', () => {
+  test('projects an explicit shape DTO and executes the pure lookahead on a detached board', () => {
     const request = createRequest();
     const chooseMove = jest.fn((moves, options) => {
       expect(options.board).not.toBe(request.board);
-      expect(Object.prototype.hasOwnProperty.call(options.board, '__sharedBoardShapeMeta')).toBe(false);
+      expect(Array.isArray(options.board)).toBe(true);
       const shape = options.boardShape;
       expect(shape.playableKeys).toEqual(['0,-1', '0,0', '0,1']);
       expect(shape.expansionCells).toEqual([{ side: 'left', row: 0, col: -1, owner: 0 }]);
@@ -172,6 +180,11 @@ describe('CPU card-quiescence portable contract', () => {
       level: 6,
       playerValue: 1,
       board,
+      boardShape: serializeShape(SharedBoardUtils.createBoardContext({
+        board,
+        boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+        boardExpansion: { cells: [] }
+      }, { markers: [] })),
       legalMoves,
       search,
       priorScoreByCell: {
@@ -247,6 +260,11 @@ describe('CPU card-quiescence portable contract', () => {
       level: 6,
       playerValue: 1,
       board,
+      boardShape: serializeShape(SharedBoardUtils.createBoardContext({
+        board,
+        boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+        boardExpansion: { cells: [] }
+      }, { markers: [] })),
       legalMoves,
       search
     });
@@ -264,12 +282,20 @@ describe('CPU card-quiescence portable contract', () => {
       [0, -1, 0, 1, 0],
       [0, 1, 0, 1, -1]
     ];
-    SharedBoardUtils.attachBoardShape(board, {
-      boardConfig: { rows: 5, cols: 5, shape: 'circle' },
-      boardExpansion: { cells: [] },
-      cardState: { markers: [] }
+    const gameState = {
+      board,
+      boardConfig: { rows: 5, cols: 5, shape: 'rectangle' },
+      boardExpansion: { cells: [] }
+    };
+    const context = SharedBoardUtils.createBoardContext(gameState, {
+      markers: [{
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        data: { type: 'METEOR_HOLE' }
+      }]
     });
-    const boardShape = serializeShape(board);
+    const boardShape = serializeShape(context);
     const legalMoves = [
       { row: 3, col: 2, flips: [{ row: 2, col: 2 }] },
       { row: 4, col: 2, flips: [{ row: 3, col: 1 }] }
@@ -285,7 +311,7 @@ describe('CPU card-quiescence portable contract', () => {
       endgameMaxTimeMs: 10_000
     };
     const expected = CpuPolicyCore.chooseMoveByLookahead(legalMoves, {
-      board,
+      board: context,
       playerValue: 1,
       level: 6,
       ...search
@@ -325,12 +351,13 @@ describe('CPU card-quiescence portable contract', () => {
         data: { type: 'METEOR_HOLE' }
       }]
     };
-    SharedBoardUtils.attachBoardShape(board, {
+    const gameState = {
+      board,
       boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
-      boardExpansion,
-      cardState
-    });
-    const legalMoves = SharedBoardUtils.getLegalMovesBasic(board, 1);
+      boardExpansion
+    };
+    const context = SharedBoardUtils.createBoardContext(gameState, cardState);
+    const legalMoves = SharedBoardUtils.getLegalMovesBasic(context, 1);
     const search = {
       depth: 2,
       maxBranch: 4,
@@ -350,7 +377,7 @@ describe('CPU card-quiescence portable contract', () => {
       level: 6,
       playerValue: 1,
       board,
-      boardShape: serializeShape(board),
+      boardShape: serializeShape(context),
       legalMoves,
       search
     });
@@ -364,7 +391,7 @@ describe('CPU card-quiescence portable contract', () => {
       col: 5,
       flips: [{ row: 1, col: 4 }]
     });
-    expect(Object.prototype.hasOwnProperty.call(clonedRequest.board, '__sharedBoardShapeMeta')).toBe(false);
+    expect(clonedRequest.boardShape).toEqual(request.boardShape);
     expect(executeCpuCardQuiescenceRequest(clonedRequest, chooseMoveByLookaheadInWorker).bestMove)
       .toMatchObject({ row: 1, col: 5 });
   });

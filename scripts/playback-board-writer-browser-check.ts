@@ -174,11 +174,6 @@ async function captureWriterLane(browser: Browser, appUrl: string, backend: Back
           usedByPlayer: { black: false, white: false },
           cells: []
         };
-        boardUtils.attachBoardShape(state.board, {
-          boardConfig: state.boardConfig,
-          boardExpansion: state.boardExpansion,
-          cardState: root.cardState
-        });
         return state;
       };
       root.cardState = root.cardState && typeof root.cardState === 'object' ? root.cardState : {};

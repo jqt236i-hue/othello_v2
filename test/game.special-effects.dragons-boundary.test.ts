@@ -119,4 +119,98 @@ describe('special-effects dragons UI boundary', () => {
     });
     expect(global.emitBoardUpdate).toHaveBeenCalled();
   });
+
+  test('reads expansion owners for CROSSFADE_STONE and does not treat METEOR_HOLE as an owner', async () => {
+    const emitPresentationEvent = jest.fn();
+    global.gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      col: null,
+      owner: 0,
+      usedByPlayer: { black: true, white: true },
+      cells: [
+        { side: 'top', row: -1, col: 0, owner: global.WHITE },
+        { side: 'bottom', row: 8, col: 7, owner: global.BLACK }
+      ]
+    };
+    global.cardState.markers.push({
+      kind: 'specialStone',
+      row: 8,
+      col: 7,
+      owner: 'black',
+      data: { type: 'METEOR_HOLE' }
+    });
+
+    const dragons = require('../game/special-effects/dragons.js');
+    dragons.setUIImpl({
+      playPresentationEvents: jest.fn(),
+      emitPresentationEvent,
+      emitBoardUpdate: global.emitBoardUpdate,
+      emitGameStateChange: global.emitGameStateChange,
+      emitCardStateChange: global.emitCardStateChange,
+      emitLogAdded: global.emitLogAdded,
+      getPlayerName: global.getPlayerName
+    });
+
+    await dragons.processUltimateReverseDragonsAtTurnStart(global.BLACK, [
+      {
+        type: 'regen_triggered_start',
+        details: [
+          { row: -1, col: 0 },
+          { row: 8, col: 7 }
+        ]
+      }
+    ]);
+
+    expect(emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(emitPresentationEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'CROSSFADE_STONE',
+      row: -1,
+      col: 0,
+      owner: global.WHITE,
+      newColor: global.WHITE
+    }));
+  });
+
+  test('emits expansion CHANGE colors from the canonical BoardContext owner', async () => {
+    const emitPresentationEvent = jest.fn();
+    global.gameState.boardExpansion = {
+      active: false,
+      side: null,
+      row: null,
+      col: null,
+      owner: 0,
+      usedByPlayer: { black: true, white: false },
+      cells: [{ side: 'top', row: -1, col: 0, owner: global.BLACK }]
+    };
+
+    const dragons = require('../game/special-effects/dragons.js');
+    dragons.setUIImpl({
+      emitPresentationEvent,
+      setDiscColorAt: jest.fn(),
+      removeBombOverlayAt: jest.fn(),
+      waitMs: jest.fn(() => Promise.resolve()),
+      getAnimationTiming: () => 1,
+      emitBoardUpdate: global.emitBoardUpdate,
+      emitGameStateChange: global.emitGameStateChange,
+      emitCardStateChange: global.emitCardStateChange,
+      emitLogAdded: global.emitLogAdded,
+      getPlayerName: global.getPlayerName
+    });
+
+    await dragons.processUltimateReverseDragonImmediateAtPlacement(global.BLACK, 3, 3, {
+      converted: [{ row: -1, col: 0 }],
+      destroyed: [],
+      regen: { regened: [], captureFlips: [] }
+    });
+
+    expect(emitPresentationEvent).toHaveBeenCalledWith({
+      type: 'CHANGE',
+      row: -1,
+      col: 0,
+      ownerBefore: 'white',
+      ownerAfter: 'black'
+    });
+  });
 });

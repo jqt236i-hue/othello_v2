@@ -8,6 +8,8 @@ import { CardState, GameState } from '../../../src/types';
 interface CausalReplayDeps {
     getCausalReplayTargets?(cardState: CardState, gameState: GameState, playerKey: string): Array<{row: number; col: number}>;
     setCellValueForCard?(gameState: GameState, row: number, col: number, value: any): boolean;
+    createBoardMutationCheckpoint?(gameState: GameState, cardState: CardState): any;
+    restoreBoardMutationCheckpoint?(gameState: GameState, cardState: CardState, checkpoint: any): boolean;
     clearStoneIdAtForCard?(cardState: CardState, gameState: GameState, row: number, col: number): any;
     removeMarkersAt?(cardState: CardState, row: number, col: number, options?: any): any;
     emitPresentationEvent?(cardState: CardState, event: any): any;
@@ -75,48 +77,61 @@ function applyCausalReplayWill(
     if (!allowed || !hasMeteorHoleMarker(cardState, row, col, deps)) {
         return { applied: false, reason: 'invalid_target', row, col };
     }
-    if (typeof deps.setCellValueForCard !== 'function' || typeof deps.removeMarkersAt !== 'function') {
+    if (
+        typeof deps.setCellValueForCard !== 'function' ||
+        typeof deps.removeMarkersAt !== 'function' ||
+        typeof deps.createBoardMutationCheckpoint !== 'function' ||
+        typeof deps.restoreBoardMutationCheckpoint !== 'function'
+    ) {
         return { applied: false, reason: 'deps_missing', row, col };
     }
 
     const holeMarker = findMeteorHoleMarker(cardState, row, col, deps);
     const emptyValue = Object.prototype.hasOwnProperty.call(deps, 'EMPTY') ? deps.EMPTY : 0;
-    if (typeof deps.clearStoneIdAtForCard === 'function') {
-        deps.clearStoneIdAtForCard(cardState, gameState, row, col);
-    }
-    const restoredCell = deps.setCellValueForCard(gameState, row, col, emptyValue);
-    if (restoredCell === false) {
-        return { applied: false, reason: 'restore_failed', row, col };
-    }
-
-    deps.removeMarkersAt(cardState, row, col, {
-        kind: getSpecialStoneKind(deps),
-        type: 'METEOR_HOLE'
-    });
-    if (hasMeteorHoleMarker(cardState, row, col, deps)) {
-        return { applied: false, reason: 'marker_not_removed', row, col };
-    }
-
-    if (typeof deps.emitPresentationEvent === 'function') {
-        deps.emitPresentationEvent(cardState, {
-            type: 'STATUS_REMOVED',
-            row,
-            col,
-            cause: 'CAUSAL_REPLAY_WILL',
-            reason: 'causal_replay_selected',
-            meta: {
-                special: 'METEOR_HOLE',
-                owner: (holeMarker && holeMarker.owner) || playerKey,
-                timer: null,
-                cellRestorationCause: 'CAUSAL_REPLAY_WILL',
-                restoredAs: 'normal_empty_cell',
-                highlightTone: 'positive'
-            }
+    const checkpoint = deps.createBoardMutationCheckpoint(gameState, cardState);
+    try {
+        deps.removeMarkersAt(cardState, row, col, {
+            kind: getSpecialStoneKind(deps),
+            type: 'METEOR_HOLE'
         });
-    }
+        if (hasMeteorHoleMarker(cardState, row, col, deps)) {
+            deps.restoreBoardMutationCheckpoint(gameState, cardState, checkpoint);
+            return { applied: false, reason: 'marker_not_removed', row, col };
+        }
 
-    clearPending(cardState, playerKey, deps);
-    return { applied: true, row, col, restored: true };
+        const restoredCell = deps.setCellValueForCard(gameState, row, col, emptyValue);
+        if (restoredCell === false) {
+            deps.restoreBoardMutationCheckpoint(gameState, cardState, checkpoint);
+            return { applied: false, reason: 'restore_failed', row, col };
+        }
+        if (typeof deps.clearStoneIdAtForCard === 'function') {
+            deps.clearStoneIdAtForCard(cardState, gameState, row, col);
+        }
+
+        if (typeof deps.emitPresentationEvent === 'function') {
+            deps.emitPresentationEvent(cardState, {
+                type: 'STATUS_REMOVED',
+                row,
+                col,
+                cause: 'CAUSAL_REPLAY_WILL',
+                reason: 'causal_replay_selected',
+                meta: {
+                    special: 'METEOR_HOLE',
+                    owner: (holeMarker && holeMarker.owner) || playerKey,
+                    timer: null,
+                    cellRestorationCause: 'CAUSAL_REPLAY_WILL',
+                    restoredAs: 'normal_empty_cell',
+                    highlightTone: 'positive'
+                }
+            });
+        }
+
+        clearPending(cardState, playerKey, deps);
+        return { applied: true, row, col, restored: true };
+    } catch (error) {
+        deps.restoreBoardMutationCheckpoint(gameState, cardState, checkpoint);
+        throw error;
+    }
 }
 
 export = {

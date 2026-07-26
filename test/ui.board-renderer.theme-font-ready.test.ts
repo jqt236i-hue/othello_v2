@@ -103,4 +103,49 @@ describe('board-renderer font-ready theme refresh', () => {
     expect(after.theme.revision).toBe(before.theme.revision + 1);
     expect(after.theme.fontReadyEpoch).toBe(before.theme.fontReadyEpoch + 1);
   });
+
+  test('occupancy excludes an expansion stone hidden by METEOR_HOLE', () => {
+    const legacyOccupancy = jest.fn();
+    (dom.window as any).updateOccupancyUI = legacyOccupancy;
+    dom.window.document.body.insertAdjacentHTML(
+      'beforeend',
+      '<div id="occ-black"></div><div id="occ-white"></div>'
+    );
+    (global as any).gameState = {
+      currentPlayer: 1,
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      board: [
+        [1, 1, -1, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ],
+      boardExpansion: {
+        active: true,
+        side: 'left',
+        row: 1,
+        col: -1,
+        owner: 1,
+        cells: [{ side: 'left', row: 1, col: -1, owner: 1 }]
+      }
+    };
+    (global as any).cardState = {
+      markers: [{
+        kind: 'specialStone',
+        row: 1,
+        col: -1,
+        data: { type: 'METEOR_HOLE' }
+      }],
+      pendingEffectByPlayer: { black: null, white: null }
+    };
+
+    const renderer = require('../ui/board-renderer.js');
+    expect((dom.window as any).updateOccupancyUI).toBe(renderer.updateOccupancyUI);
+    (dom.window as any).updateOccupancyUI();
+
+    expect(dom.window.document.getElementById('occ-black')?.textContent).toContain('黒 67%');
+    expect(dom.window.document.getElementById('occ-white')?.textContent).toContain('白 33%');
+    expect((global as any).countDiscs).not.toHaveBeenCalled();
+    expect(legacyOccupancy).not.toHaveBeenCalled();
+  });
 });

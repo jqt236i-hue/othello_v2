@@ -183,6 +183,51 @@ describe('selfplay runner', () => {
         }
     });
 
+    test('final winner excludes METEOR_HOLE expansion ownership through explicit card state', () => {
+        const gameState = Core.createGameState({ rows: 4, cols: 4 });
+        gameState.board = Array.from({ length: 4 }, () => Array(4).fill(Core.EMPTY));
+        gameState.board[0][0] = Core.BLACK;
+        gameState.board[0][1] = Core.WHITE;
+        gameState.board[0][2] = Core.WHITE;
+        gameState.boardExpansion = {
+            active: true,
+            side: 'right',
+            row: 2,
+            col: 4,
+            owner: Core.BLACK,
+            usedByPlayer: { black: true, white: true },
+            cells: [
+                { side: 'right', row: 1, col: 4, owner: Core.BLACK },
+                { side: 'right', row: 2, col: 4, owner: Core.BLACK }
+            ]
+        };
+        gameState.consecutivePasses = 2;
+        const cardState = {
+            markers: [
+                {
+                    kind: 'specialStone',
+                    row: 2,
+                    col: 4,
+                    data: { type: 'METEOR_HOLE' }
+                }
+            ]
+        };
+        jest.spyOn(Core, 'createGameState').mockReturnValue(gameState);
+        jest.spyOn(CardLogic, 'initGame').mockReturnValue({ cardState });
+
+        const result = runSingleGame(0, 321, {
+            maxPlies: 1,
+            allowCardUsage: false
+        });
+
+        expect(result.records).toEqual([]);
+        expect(result.summary).toEqual(expect.objectContaining({
+            winner: 'draw',
+            blackCount: 2,
+            whiteCount: 2
+        }));
+    });
+
     test('records grouped split metadata on every selfplay record', () => {
         const result = runSelfPlayGames({
             games: 2,
@@ -291,7 +336,10 @@ describe('selfplay runner', () => {
 
         expect(buildSpy).toHaveBeenCalledWith(
             6,
-            board,
+            expect.objectContaining({
+                kind: 'board-context-v1',
+                gameState: expect.objectContaining({ board })
+            }),
             candidateMoves.length,
             'black',
             'teacher',

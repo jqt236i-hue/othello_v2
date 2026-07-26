@@ -69,9 +69,12 @@ describe('board hint projection', () => {
     const projection = BoardHintProjection.buildBoardHintProjection({
       gameState: {
         board: [
-          [0, 1],
-          [0, 0]
+          [0, 1, 0, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0]
         ],
+        boardConfig: { rows: 4, cols: 4 },
         currentPlayer: 1
       },
       cardState: {
@@ -80,7 +83,7 @@ describe('board hint projection', () => {
         }
       },
       playerKey: 'black',
-      boardShape: { rows: 2, cols: 2 },
+      boardShape: { rows: 4, cols: 4 },
       canControlCurrentTurn: true,
       isHumanTurn: true,
       expansions: [{ row: 2, col: 0, owner: 0 }],
@@ -98,6 +101,65 @@ describe('board hint projection', () => {
     expect(toArray(projection.normalLegalSet)).toEqual(['0,0']);
     expect(toArray(projection.tabooLegalSet)).toEqual(['1,0']);
     expect(toArray(projection.legalSet)).toEqual(['0,0', '1,0']);
+  });
+
+  test('taboo hints include expansion empties and exclude meteor holes through BoardView', () => {
+    const getTabooReverseCandidates = jest.fn((_cardState, _gameState, _playerKey, row, col) => (
+      row === 1 && (col === 4 || col === 5)
+        ? [{ row: 0, col: 1 }]
+        : []
+    ));
+    const projection = BoardHintProjection.buildBoardHintProjection({
+      gameState: {
+        board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+        boardConfig: { rows: 4, cols: 4 },
+        boardExpansion: {
+          active: true,
+          cells: [
+            { row: 1, col: 4, side: 'right', owner: 0 },
+            { row: 1, col: 5, side: 'right', owner: 0 }
+          ]
+        },
+        currentPlayer: 1
+      },
+      cardState: {
+        pendingEffectByPlayer: {
+          black: { type: 'TABOO_REVERSE_WILL' }
+        },
+        markers: [{
+          kind: 'specialStone',
+          row: 1,
+          col: 5,
+          data: { type: 'METEOR_HOLE' }
+        }]
+      },
+      playerKey: 'black',
+      boardShape: { rows: 4, cols: 4 },
+      canControlCurrentTurn: true,
+      isHumanTurn: true,
+      cardLogic: {
+        getSelectableTargets: jest.fn(() => []),
+        getCardContext: jest.fn(() => ({ protectedStones: [], permaProtectedStones: [] })),
+        getTabooReverseCandidates
+      },
+      getLegalMoves: jest.fn(() => [])
+    });
+
+    expect(toArray(projection.tabooLegalSet)).toEqual(['1,4']);
+    expect(getTabooReverseCandidates).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'black',
+      1,
+      4
+    );
+    expect(getTabooReverseCandidates).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'black',
+      1,
+      5
+    );
   });
 
   test('builds board shrink direction and preview hints', () => {

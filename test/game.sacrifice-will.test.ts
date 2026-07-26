@@ -155,6 +155,52 @@ describe('犠牲の意志 card nullification', () => {
     });
   });
 
+  test('finds occupied expansion sacrifice stones and rejects meteor-hole markers', () => {
+    const cardState = createCardState();
+    const gameState = createEmptyGameState();
+    gameState.boardExpansion = {
+      cells: [{ side: 'right', row: 0, col: 8, owner: SharedConstants.BLACK }]
+    };
+    gameState.board[0][0] = SharedConstants.BLACK;
+    cardState.markers.push(
+      {
+        id: 1,
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        owner: 'black',
+        createdSeq: 1,
+        data: { type: 'SACRIFICE', remainingOwnerTurns: 5 }
+      },
+      {
+        id: 2,
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        data: { type: 'METEOR_HOLE' }
+      },
+      {
+        id: 3,
+        kind: 'specialStone',
+        row: 0,
+        col: 8,
+        owner: 'black',
+        createdSeq: 2,
+        data: { type: 'SACRIFICE', remainingOwnerTurns: 5 }
+      }
+    );
+
+    expect(SacrificeWill.findTriggeringSacrificeMarker(cardState, 'white', {
+      gameState,
+      MARKER_KINDS: { SPECIAL_STONE: 'specialStone' }
+    })).toMatchObject({
+      row: 0,
+      col: 8,
+      owner: 'black',
+      marker: expect.objectContaining({ id: 3 })
+    });
+  });
+
   test('playback maps nullified card use to seal-burn effect before sacrifice destroy', () => {
     const pres = [
       {

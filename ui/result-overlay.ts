@@ -70,7 +70,6 @@ const ResultOverlayOwnerHelpersModule = resolveResultOverlayModuleOrNull('../uti
 const ResultOverlayGachaHelpersModule = resolveResultOverlayModuleOrNull('../shared/gacha-helpers', 'GachaHelpersModule');
 const ResultOverlayGachaProgressModule = resolveResultOverlayModuleOrNull('./storage/gacha-progress', 'GachaProgressStorageModule');
 const ResultOverlayBoardUtilsModule = resolveResultOverlayModuleOrNull('../shared/shared-board-utils', 'SharedBoardUtils');
-const ResultOverlayBoardUtilsNewModule = resolveResultOverlayModuleOrNull('../shared/board-utils', 'BoardUtils');
 const ResultOverlaySoundEngineAccessModule = resolveResultOverlayModuleOrNull('./sound-engine-access', 'SoundEngineAccessModule');
 const ResultOverlayLazyFeatureSurfaceModule = resolveResultOverlayModuleOrNull('./assets/lazy-feature-surface', 'LazyFeatureSurface');
 
@@ -304,25 +303,28 @@ function normalizeDiscCounts(counts: any) {
     };
 }
 
-function countDiscsFromBoardState(gameStateRef: any) {
-    const stateRef = (gameStateRef && typeof gameStateRef === 'object') ? gameStateRef : null;
-    const board = stateRef && Array.isArray(stateRef.board) ? stateRef.board : [];
-    if (ResultOverlayBoardUtilsNewModule && typeof ResultOverlayBoardUtilsNewModule.countDiscs === 'function') {
-        return normalizeDiscCounts(ResultOverlayBoardUtilsNewModule.countDiscs(board));
+function resolveResultCardState() {
+    try {
+        return (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object')
+            ? cardState
+            : null;
+    } catch (_error) {
+        return null;
     }
-    const counts = { black: 0, white: 0 };
-    for (let row = 0; row < board.length; row += 1) {
-        const boardRow = Array.isArray(board[row]) ? board[row] : [];
-        for (let col = 0; col < boardRow.length; col += 1) {
-            const value = Number(boardRow[col]);
-            if (value === 1) counts.black += 1;
-            else if (value === -1) counts.white += 1;
-        }
-    }
-    return counts;
 }
 
-function countDiscs(gameStateRef: any) {
+function countDiscsFromBoardState(gameStateRef: any, cardStateRef: any = resolveResultCardState()) {
+    const stateRef = (gameStateRef && typeof gameStateRef === 'object') ? gameStateRef : null;
+    if (!stateRef || !Array.isArray(stateRef.board)) return { black: 0, white: 0 };
+    if (!ResultOverlayBoardUtilsModule || typeof ResultOverlayBoardUtilsModule.countStateDiscs !== 'function') {
+        throw new Error('SharedBoardUtils.countStateDiscs is required by ResultOverlay');
+    }
+    return normalizeDiscCounts(
+        ResultOverlayBoardUtilsModule.countStateDiscs(stateRef, cardStateRef)
+    );
+}
+
+function countDiscs(gameStateRef: any, cardStateRef: any = resolveResultCardState()) {
     const stateRef = (gameStateRef && typeof gameStateRef === 'object')
         ? gameStateRef
         : (typeof gameState !== 'undefined' ? gameState : null);
@@ -332,10 +334,10 @@ function countDiscs(gameStateRef: any) {
             typeof (globalThis as any).countDiscs === 'function' &&
             (globalThis as any).countDiscs !== countDiscs
         ) {
-            return normalizeDiscCounts((globalThis as any).countDiscs(stateRef));
+            return normalizeDiscCounts((globalThis as any).countDiscs(stateRef, cardStateRef));
         }
     } catch (e: any) { /* ignore */ }
-    return countDiscsFromBoardState(stateRef);
+    return countDiscsFromBoardState(stateRef, cardStateRef);
 }
 
 function parseResultPlayerKey(value: any) {

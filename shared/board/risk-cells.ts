@@ -8,13 +8,8 @@ export interface BoardBounds {
   minCol: number;
   maxCol: number;
 }
-export interface BoardShapeMeta {
-  xKeyCache: Set<string> | null;
-  cKeyCache: Set<string> | null;
-}
 export interface RiskCellDependencies {
   toBoardCellKey: (row: number, col: number) => string;
-  getBoardShapeMeta: (board: unknown) => BoardShapeMeta | null;
   collectBoardCoordinates: (board: unknown) => CellCoord[];
   hasPlayableCell: (board: unknown, row: number, col: number) => boolean;
   resolveBoardBounds: (
@@ -41,9 +36,6 @@ export function createRiskCells(deps: RiskCellDependencies) {
     xKeys: Set<string>;
     cKeys: Set<string>;
   } {
-    const meta = deps.getBoardShapeMeta(board);
-    if (meta && meta.xKeyCache instanceof Set && meta.cKeyCache instanceof Set)
-      return { xKeys: meta.xKeyCache, cKeys: meta.cKeyCache };
     const coords = deps.collectBoardCoordinates(board);
     const coordKeys = new Set(
       coords.map((cell) => deps.toBoardCellKey(cell.row, cell.col)),
@@ -77,10 +69,6 @@ export function createRiskCells(deps: RiskCellDependencies) {
         if (coordKeys.has(c2Key)) cKeys.add(c2Key);
       }
     }
-    if (meta) {
-      meta.xKeyCache = xKeys;
-      meta.cKeyCache = cKeys;
-    }
     return { xKeys, cKeys };
   }
   function isCorner(
@@ -106,7 +94,7 @@ export function createRiskCells(deps: RiskCellDependencies) {
     maybeCols?: unknown,
   ): boolean {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    if (Array.isArray(boardOrRows))
+    if (boardOrRows && typeof boardOrRows === "object")
       return (
         deps.hasPlayableCell(boardOrRows, row, col) &&
         buildRiskCellSets(boardOrRows).xKeys.has(deps.toBoardCellKey(row, col))
@@ -125,7 +113,7 @@ export function createRiskCells(deps: RiskCellDependencies) {
     maybeCols?: unknown,
   ): boolean {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    if (Array.isArray(boardOrRows))
+    if (boardOrRows && typeof boardOrRows === "object")
       return (
         deps.hasPlayableCell(boardOrRows, row, col) &&
         buildRiskCellSets(boardOrRows).cKeys.has(deps.toBoardCellKey(row, col))
@@ -147,7 +135,7 @@ export function createRiskCells(deps: RiskCellDependencies) {
     maybeCols?: unknown,
   ): { kind: string; corner: [number, number] } | null {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
-    if (Array.isArray(boardOrRows)) {
+    if (boardOrRows && typeof boardOrRows === "object") {
       if (!deps.hasPlayableCell(boardOrRows, row, col)) return null;
       const isX = isXSquare(row, col, boardOrRows),
         isC = !isX && isCSquare(row, col, boardOrRows);

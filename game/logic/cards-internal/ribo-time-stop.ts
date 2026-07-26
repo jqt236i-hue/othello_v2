@@ -1,5 +1,7 @@
 export {};
 
+const SharedBoardUtils: any = require('../../../shared/shared-board-utils');
+
 type RiboTimeStopConstants = {
     RIBO_WILL_OWNER_TURNS: number;
     RIBO_WILL_INITIAL_GAIN: number;
@@ -50,34 +52,14 @@ function ensureRiboRepaymentsByPlayer(cardState: any) {
     return cardState.riboRepaymentsByPlayer;
 }
 
-function getRiboExpansionDescriptors(gameState: any, deps: RiboTimeStopDeps) {
-    if (deps.BoardOpsModule && typeof deps.BoardOpsModule.getExpansionDescriptors === 'function') {
-        return deps.BoardOpsModule.getExpansionDescriptors(gameState);
+function createRiboBoardView(cardState: any, gameState: any): any {
+    if (!SharedBoardUtils || typeof SharedBoardUtils.createBoardView !== 'function') {
+        throw new Error('SharedBoardUtils.createBoardView is required by CardRiboTimeStop');
     }
-    const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-        ? gameState.boardExpansion
-        : null;
-    if (!expansion) return [];
-    const sourceCells = Array.isArray(expansion.cells)
-        ? expansion.cells
-        : (expansion.active ? [expansion] : []);
-    const boardConfig = deps.resolveCardBoardConfig(gameState);
-    const out = [];
-    for (const cell of sourceCells) {
-        if (!cell || typeof cell !== 'object') continue;
-        const row = Number(cell.row);
-        let col = null;
-        if (Number.isInteger(cell.col)) {
-            col = cell.col;
-        } else if (cell.side === 'left') {
-            col = boardConfig.outerBounds.minCol;
-        } else if (cell.side === 'right') {
-            col = boardConfig.outerBounds.maxCol;
-        }
-        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-        out.push({ row, col, owner: cell.owner });
-    }
-    return out;
+    return SharedBoardUtils.createBoardView(gameState, {
+        cardState,
+        strict: false
+    });
 }
 
 function isSelfStoneDestroyableForCost(cardState: any, row: number, col: number, deps: RiboTimeStopDeps, options: any = {}) {
@@ -103,21 +85,9 @@ function isSelfStoneDestroyableForCost(cardState: any, row: number, col: number,
 function collectRiboDestroyableOwnStonePositions(cardState: any, gameState: any, playerKey: any, deps: RiboTimeStopDeps) {
     const out = [];
     const playerValue = playerKey === 'black' ? deps.BLACK : deps.WHITE;
-    const boardConfig = deps.resolveCardBoardConfig(gameState);
-    const board = gameState && Array.isArray(gameState.board) ? gameState.board : [];
-
-    for (let row = 0; row < boardConfig.rows; row++) {
-        const boardRow = Array.isArray(board[row]) ? board[row] : [];
-        for (let col = 0; col < boardConfig.cols; col++) {
-            if (boardRow[col] !== playerValue) continue;
-            if (!isSelfStoneDestroyableForCost(cardState, row, col, deps, { excludeFrozen: true })) continue;
-            out.push({ row, col });
-        }
-    }
-
-    const expansionCells = getRiboExpansionDescriptors(gameState, deps);
-    for (const cell of expansionCells) {
-        if (!cell || cell.owner !== playerValue) continue;
+    const boardView = createRiboBoardView(cardState, gameState);
+    for (const cell of boardView.coordinates) {
+        if (!cell || boardView.get(cell.row, cell.col) !== playerValue) continue;
         if (!isSelfStoneDestroyableForCost(cardState, cell.row, cell.col, deps, { excludeFrozen: true })) continue;
         out.push({ row: cell.row, col: cell.col });
     }
@@ -478,4 +448,3 @@ module.exports = {
     processTimeStopEffectsAtTurnStartAnchor,
     processRiboWillTurnStartEffects
 };
-

@@ -36,7 +36,7 @@ export function createEdgeRuns(deps: EdgeRunDependencies) {
   function getCornerEdgeLineDescriptors(
     board: unknown,
   ): CornerEdgeLineDescriptor[] {
-    if (!Array.isArray(board)) return [];
+    if (!board || typeof board !== "object") return [];
     const lines: CornerEdgeLineDescriptor[] = [];
     const directions = [
       { row: -1, col: 0 },
@@ -94,7 +94,7 @@ export function createEdgeRuns(deps: EdgeRunDependencies) {
   function collectUniqueCornerEdgeLines(
     board: unknown,
   ): CornerEdgeLineDescriptor[] {
-    if (!Array.isArray(board)) return [];
+    if (!board || typeof board !== "object") return [];
     const seen = new Set<string>();
     const lines: CornerEdgeLineDescriptor[] = [];
     for (const descriptor of getCornerEdgeLineDescriptors(board)) {
@@ -135,7 +135,7 @@ export function createEdgeRuns(deps: EdgeRunDependencies) {
       segmentCount: 0,
       loneDiscCount: 0,
     };
-    if (!Array.isArray(board)) return out;
+    if (!board || typeof board !== "object") return out;
     const owner = deps.normalizeOwner(playerValue);
     if (!owner) return out;
     const lines = collectUniqueCornerEdgeLines(board);
@@ -192,7 +192,8 @@ export function createEdgeRuns(deps: EdgeRunDependencies) {
     playerValue: number,
   ): number {
     if (
-      !Array.isArray(board) ||
+      !board ||
+      typeof board !== "object" ||
       !Number.isInteger(row) ||
       !Number.isInteger(col) ||
       !deps.isEdgeCell(row, col, board) ||

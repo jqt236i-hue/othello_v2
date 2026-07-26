@@ -4,6 +4,17 @@ import { installPreparedDomBoardDependencies } from './helpers/feature-styleshee
 describe('board renderer network visual state', () => {
   let dom: JSDOM;
 
+  function createTestGameState(currentPlayer: number, firstCell: number, extra: Record<string, any> = {}) {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    board[0][0] = firstCell;
+    return {
+      currentPlayer,
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      board,
+      ...extra
+    };
+  }
+
   function loadDomBoardRenderer() {
     const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.configureBoardVisualBackendForTest({ selection: 'dom' });
@@ -39,10 +50,7 @@ describe('board renderer network visual state', () => {
       }),
       getSelectableTargets: () => []
     };
-    (global as any).gameState = {
-      currentPlayer: 1,
-      board: [[-1]]
-    };
+    (global as any).gameState = createTestGameState(1, -1);
     (global as any).cardState = {
       markers: [],
       pendingEffectByPlayer: { black: null, white: null }
@@ -55,10 +63,7 @@ describe('board renderer network visual state', () => {
       })),
       getRenderSnapshot: jest.fn(() => ({
         stateVersion: 1,
-        gameState: {
-          currentPlayer: 1,
-          board: [[1]]
-        },
+        gameState: createTestGameState(1, 1),
         cardState: {
           markers: [],
           pendingEffectByPlayer: { black: null, white: null }
@@ -118,15 +123,54 @@ describe('board renderer network visual state', () => {
     expect((global as any).NetworkVisualStateStore.getRenderSnapshot).toHaveBeenCalled();
   });
 
+  test('occupancy counts the game/card pair from one network visual snapshot', () => {
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<div id="occ-black"></div><div id="occ-white"></div>'
+    );
+    const visualGameState: any = createTestGameState(1, 1);
+    visualGameState.board[0][1] = -1;
+    visualGameState.boardExpansion = {
+      active: true,
+      side: 'left',
+      row: 1,
+      col: -1,
+      owner: 1,
+      cells: [{ side: 'left', row: 1, col: -1, owner: 1 }]
+    };
+    const visualCardState = {
+      markers: [{
+        kind: 'specialStone',
+        row: 1,
+        col: -1,
+        data: { type: 'METEOR_HOLE' }
+      }],
+      pendingEffectByPlayer: { black: null, white: null }
+    };
+    (global as any).NetworkVisualStateStore.getRenderSnapshot.mockReturnValue({
+      stateVersion: 3,
+      gameState: visualGameState,
+      cardState: visualCardState
+    });
+    const boardRenderer = require('../ui/board-renderer.js');
+
+    boardRenderer.updateOccupancyUI();
+
+    expect(document.getElementById('occ-black')?.textContent).toContain('黒 50%');
+    expect(document.getElementById('occ-white')?.textContent).toContain('白 50%');
+    expect((global as any).NetworkVisualStateStore.getRenderSnapshot).toHaveBeenCalledTimes(1);
+    expect((global as any).countDiscs).not.toHaveBeenCalled();
+  });
+
   test('createBoardRenderInputs fixes game/card to one visual-store snapshot read', () => {
     const firstSnapshot = {
       stateVersion: 10,
-      gameState: { currentPlayer: 1, board: [[1]], pairId: 'first' },
+      gameState: createTestGameState(1, 1, { pairId: 'first' }),
       cardState: { markers: [], pendingEffectByPlayer: { black: null, white: null }, pairId: 'first' }
     };
     const secondSnapshot = {
       stateVersion: 11,
-      gameState: { currentPlayer: -1, board: [[-1]], pairId: 'second' },
+      gameState: createTestGameState(-1, -1, { pairId: 'second' }),
       cardState: { markers: [], pendingEffectByPlayer: { black: null, white: null }, pairId: 'second' }
     };
     (global as any).NetworkVisualStateStore.getRenderSnapshot
@@ -147,7 +191,7 @@ describe('board renderer network visual state', () => {
     delete (global as any).NetworkVisualStateStore;
     delete (global as any).gameState;
     delete (global as any).cardState;
-    const localGameState = { currentPlayer: 1, board: [[1]], pairId: 'local' };
+    const localGameState = createTestGameState(1, 1, { pairId: 'local' });
     const localCardState = { markers: [], pendingEffectByPlayer: { black: null, white: null }, pairId: 'local' };
     let gameReads = 0;
     let cardReads = 0;
@@ -177,7 +221,7 @@ describe('board renderer network visual state', () => {
   test('prepared visual-store pair also owns permission and viewer projection', () => {
     (global as any).NetworkVisualStateStore.getRenderSnapshot.mockReturnValue({
       stateVersion: 12,
-      gameState: { currentPlayer: -1, board: [[0]] },
+      gameState: createTestGameState(-1, 0),
       cardState: {
         markers: [],
         pendingEffectByPlayer: { black: null, white: null },
@@ -239,7 +283,7 @@ describe('board renderer network visual state', () => {
     const store = Store.createNetworkVisualStateStore();
     store.setBaseVisualSnapshot({
       stateVersion: 1,
-      gameState: { currentPlayer: 1, board: [[1]] },
+      gameState: createTestGameState(1, 1),
       cardState: { markers: [], pendingEffectByPlayer: { black: null, white: null } }
     }, { visualSeq: 0, visualVersion: 1 });
     (global as any).NetworkVisualStateStore = store;
@@ -255,7 +299,7 @@ describe('board renderer network visual state', () => {
       stateVersionTo: 2,
       snapshotAfter: {
         stateVersion: 2,
-        gameState: { currentPlayer: -1, board: [[-1]] },
+        gameState: createTestGameState(-1, -1),
         cardState: { markers: [], pendingEffectByPlayer: { black: null, white: null } }
       }
     }, { source: 'test' });

@@ -1,4 +1,5 @@
 const { createCpuDecisionPendingOnnx } = require('../game/cpu-decision-pending-onnx');
+const SharedBoardUtils = require('../shared/shared-board-utils');
 
 function createPendingOnnx(overrides = {}) {
   const board = overrides.board || Array.from({ length: 8 }, () => Array(8).fill(0));
@@ -17,11 +18,11 @@ function createPendingOnnx(overrides = {}) {
     isPlayableBoard: () => true,
     resolvePlayerValue: (playerKey) => (playerKey === 'black' ? 1 : -1),
     simulatePendingPlacementBoard: () => [['placed']],
-    cloneBoardForCpu: (source) => source.map((row) => row.slice()),
-    setBoardCellValue: (source, row, col, value) => {
+    cloneBoardForCpu: overrides.cloneBoardForCpu || ((source) => source.map((row) => row.slice())),
+    setBoardCellValue: overrides.setBoardCellValue || ((source, row, col, value) => {
       source[row][col] = value;
       return true;
-    },
+    }),
     awaitCpuPromiseWithinBudget: overrides.awaitCpuPromiseWithinBudget || (async (factory, _budgetMs, _timeoutValue) => factory()),
     getPendingSelectionOnnxTimeout: () => pendingTimeout,
     getPendingSelectionValueWeight: () => 220,
@@ -89,6 +90,62 @@ describe('cpu decision pending onnx module', () => {
 
     expect(result.changed).toBe(true);
     expect(result.target).toBe(fallback);
+  });
+
+  test('rerank value evaluation preserves expansion cells in BoardContext simulations', async () => {
+    const gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      boardConfig: { rows: 8, cols: 8, shape: 'rectangle' },
+      boardExpansion: {
+        active: true,
+        side: 'right',
+        row: 0,
+        owner: 0,
+        usedByPlayer: { black: false, white: false },
+        cells: [{ side: 'right', row: 0, col: 8, owner: 1 }]
+      }
+    };
+    gameState.board[3][2] = 1;
+    const boardContext = SharedBoardUtils.createBoardContext(gameState, null);
+    const selected = { row: 3, col: 2, score: 0 };
+    const fallback = { row: 0, col: 8, score: 0 };
+    const evaluatedValues = [];
+    const runtime = {
+      evaluatePosition: jest.fn(async (context) => {
+        expect(SharedBoardUtils.isBoardContext(context.board)).toBe(true);
+        let value = 0;
+        if (SharedBoardUtils.getCellValue(context.board, 0, 8) === 0) value = 0.9;
+        else if (SharedBoardUtils.getCellValue(context.board, 3, 2) === 0) value = -0.9;
+        evaluatedValues.push(value);
+        return value;
+      })
+    };
+    const pendingOnnx = createPendingOnnx({
+      board: boardContext,
+      cloneBoardForCpu: SharedBoardUtils.cloneBoard,
+      setBoardCellValue: SharedBoardUtils.setCellValue,
+      choosePendingTargetWithPolicy: () => fallback
+    });
+
+    const result = await pendingOnnx.rerankOnnxPendingTargetChoice(
+      runtime,
+      selected,
+      'white',
+      6,
+      'DESTROY_ONE_STONE',
+      [fallback, selected],
+      null,
+      { board: boardContext },
+      40
+    );
+
+    expect(evaluatedValues).toEqual([-0.9, 0.9]);
+    expect(result).toMatchObject({
+      changed: true,
+      target: fallback,
+      selectedValue: -0.9,
+      fallbackValue: 0.9
+    });
   });
 
   test('choosePendingTargetWithPolicyAsync falls back when ONNX gate degrades', async () => {

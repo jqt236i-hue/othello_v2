@@ -71,6 +71,7 @@ function unrefStatusDisplayTimer(timer: any): void {
 
 const CpuOpponentProfiles = _require('../shared/cpu-opponent-profiles');
 const CpuProfileSelection = _require('./cpu-profile-selection');
+const StatusDisplayBoardUtils = _require('../shared/shared-board-utils');
 let StatusDisplayOwnerHelpersModule: any = null;
 if (typeof _require === 'function') {
     try { StatusDisplayOwnerHelpersModule = _require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
@@ -414,6 +415,16 @@ function getGameStateForStatusDisplay(): any {
     return null;
 }
 
+function getCardStateForStatusDisplay(): any {
+    try {
+        if (typeof window !== 'undefined' && window && (window as any).cardState) return (window as any).cardState;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof (cardState as any) !== 'undefined' && (cardState as any)) return (cardState as any);
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
 function getRoundDisplayElement(): any {
     if (typeof document === 'undefined') return null;
     return document.getElementById('round-display-panel');
@@ -638,26 +649,11 @@ function syncTurnArrivalToast(): void {
 
 function countBoardStonesForBattleStatus(): { black: number; white: number } {
     const state = getGameStateForStatusDisplay();
-    const board = state && Array.isArray(state.board) ? state.board : [];
-    const counts = { black: 0, white: 0 };
-    for (const row of board) {
-        if (!Array.isArray(row)) continue;
-        for (const cell of row) {
-            if (cell === 0 || cell === null || cell === undefined || cell === '') continue;
-            if (cell === -1 || cell === 'white' || cell === 'WHITE') {
-                counts.white += 1;
-                continue;
-            }
-            if (cell === 1 || cell === 'black' || cell === 'BLACK') {
-                counts.black += 1;
-                continue;
-            }
-            const key = normalizePlayerKeyForStatusDisplay(cell);
-            if (key === 'white') counts.white += 1;
-            if (key === 'black') counts.black += 1;
-        }
+    if (!state || !Array.isArray(state.board)) return { black: 0, white: 0 };
+    if (!StatusDisplayBoardUtils || typeof StatusDisplayBoardUtils.countStateDiscs !== 'function') {
+        throw new Error('SharedBoardUtils.countStateDiscs is required by status-display');
     }
-    return counts;
+    return StatusDisplayBoardUtils.countStateDiscs(state, getCardStateForStatusDisplay());
 }
 
 function resolveBattleStatusLatestText(): string {

@@ -205,6 +205,7 @@ function buildCardProtectionContext(cardState: unknown, deps: ProtectionContextD
     }));
 
     return {
+        cardState,
         protectedStones,
         inviolableStones,
         permaProtectedStones,

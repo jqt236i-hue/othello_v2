@@ -91,6 +91,45 @@ function modelFingerprint(model: BoardRenderModel): string {
   });
 }
 
+function modelInteractionFingerprint(model: BoardRenderModel): string {
+  const topology = model.topology;
+  const sortedKeys = (values: readonly string[]) => Array.from(values || []).sort();
+  const cells = Array.from(model.cells || [])
+    .map((cell) => ({
+      key: String(cell && cell.key || ''),
+      expansionSide: cell?.expansionSide || null,
+      hintInputSignature: typeof cell?.hintInputSignature === 'string'
+        ? cell.hintInputSignature
+        : ''
+    }))
+    .sort((left, right) => left.key.localeCompare(right.key));
+  return stableDescriptorString({
+    boardDigest: model.boardDigest,
+    topology: {
+      baseShape: topology.baseShape,
+      baseRows: topology.baseRows,
+      baseCols: topology.baseCols,
+      minRow: topology.minRow,
+      maxRow: topology.maxRow,
+      minCol: topology.minCol,
+      maxCol: topology.maxCol,
+      renderRowOffset: topology.renderRowOffset,
+      renderColOffset: topology.renderColOffset,
+      renderRows: topology.renderRows,
+      renderCols: topology.renderCols,
+      baseKeys: sortedKeys(topology.baseKeys),
+      existingKeys: sortedKeys(topology.existingKeys),
+      playableKeys: sortedKeys(topology.playableKeys),
+      holeKeys: sortedKeys(topology.holeKeys)
+    },
+    cells,
+    viewerContext: model.viewerContext,
+    currentPlayer: model.currentPlayer,
+    canControlCurrentTurn: model.canControlCurrentTurn,
+    isHumanTurn: model.isHumanTurn
+  });
+}
+
 function resolveChannelRevision(channel: RevisionChannel, fingerprint: string): number {
   if (channel.fingerprint !== fingerprint) {
     channel.fingerprint = fingerprint;
@@ -102,11 +141,13 @@ function resolveChannelRevision(channel: RevisionChannel, fingerprint: string): 
 /**
  * Keeps model, geometry, skin resources, and theme invalidation independent.
  * `frameToken` is intentionally excluded: it is a writer/settlement identity,
- * not a visual-content revision.
+ * not a visual-content revision. `modelCommitId` advances only when the
+ * canonical board-input contract changes, so presentation-only sync cannot
+ * invalidate an in-flight pointer gesture.
  */
 function createBoardVisualFrameRevisionComposer() {
-  let modelCommitSequence = 0;
   const model = { revision: 0, fingerprint: null } as RevisionChannel;
+  const interaction = { revision: 0, fingerprint: null } as RevisionChannel;
   const layout = { revision: 0, fingerprint: null } as RevisionChannel;
   const appearance = { revision: 0, fingerprint: null } as RevisionChannel;
   const theme = { revision: 0, fingerprint: null } as RevisionChannel;
@@ -120,6 +161,10 @@ function createBoardVisualFrameRevisionComposer() {
         model,
         modelFingerprint(frame.model)
       );
+      const modelCommitId = resolveChannelRevision(
+        interaction,
+        modelInteractionFingerprint(frame.model)
+      );
       const layoutRevision = resolveChannelRevision(
         layout,
         descriptorFingerprint(frame.layout as unknown as Record<string, unknown>, 'revision')
@@ -132,12 +177,9 @@ function createBoardVisualFrameRevisionComposer() {
         theme,
         descriptorFingerprint(frame.theme as unknown as Record<string, unknown>, 'revision')
       );
-      modelCommitSequence = modelCommitSequence >= Number.MAX_SAFE_INTEGER
-        ? 1
-        : modelCommitSequence + 1;
       const nextModel: BoardRenderModel = Object.freeze({
         ...frame.model,
-        modelCommitId: modelCommitSequence,
+        modelCommitId,
         visualRevision: modelRevision
       });
       const nextLayout: BoardViewportLayout = Object.freeze({ ...frame.layout, revision: layoutRevision });

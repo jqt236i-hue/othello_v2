@@ -235,7 +235,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
 
     function getMovementCornerSwingTargetCounts(
         playerKey: any,
-        board: any,
+        boardContext: any,
         playerValue: any,
         analysis: CardUsabilityAnalysisLike,
         movementTypes: readonly string[]
@@ -277,11 +277,9 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             cardState: cs,
             gameState: gs,
             playerKey,
-            board,
+            boardContext,
             playerValue,
-            cardTypes: movementTypes,
-            getBoardCellValueSafe: cfg.getBoardCellValueSafe,
-            isCornerCell: cfg.isCornerCell
+            cardTypes: movementTypes
         });
     }
 
@@ -298,7 +296,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         const usability = normalizeUsabilityAnalysis(usabilityInput);
         const usableCardIds = usability.usableCardIds.slice();
         const usableTypes = new Set((usability.usableCardTypes || []).map((value) => String(value || '')));
-        const board = cfg.getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
+        const boardContext = cfg.getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
         const playerValue = cfg.resolvePlayerValue(playerKey);
         let boardExpansionTargetCounts = {
             boardExpansionWillEnemyCornerTargetCount: 0,
@@ -308,7 +306,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         if (usableTypes.has('BOARD_EXPANSION_WILL') || usableTypes.has('BOARD_EXPANSION_GOD')) {
             const buildBoardExpansionCounts = () => getBoardExpansionEnemyCornerTargetCounts(
                 playerKey,
-                board,
+                boardContext,
                 playerValue,
                 usability,
                 usableTypes
@@ -325,7 +323,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         if (usableTypes.has('SWAP_WITH_ENEMY')) {
             const buildSwapCount = () => getSwapEnemyNormalCornerTargetCount(
                 playerKey,
-                board,
+                boardContext,
                 playerValue,
                 usability
             );
@@ -360,7 +358,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
         if (movementCardTypes.length > 0) {
             const buildMovementCounts = () => getMovementCornerSwingTargetCounts(
                 playerKey,
-                board,
+                boardContext,
                 playerValue,
                 usability,
                 movementCardTypes
@@ -380,7 +378,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             ? MovementCornerSwing.getMaxMovementCornerSwingTargetCount(movementCornerSwingTargetCounts)
             : 0;
         const stats = cfg.countBoardStatsForPlayer(playerValue);
-        const edgeControl = cfg.countEdgeControl(board, playerValue);
+        const edgeControl = cfg.countEdgeControl(boardContext, playerValue);
         const ownCharge = cs && cs.charge && Number.isFinite(cs.charge[playerKey])
             ? cs.charge[playerKey]
             : 0;
@@ -427,7 +425,7 @@ export function createCpuDecisionCardContext(config: CpuDecisionCardContextConfi
             const row = Number(marker.row);
             const col = Number(marker.col);
             if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-            if (shouldScanCloneSources && cfg.getBoardCellValueSafe(board, row, col) === playerValue) {
+            if (shouldScanCloneSources && cfg.getBoardCellValueSafe(boardContext, row, col) === playerValue) {
                 const sourceKey = `${row},${col}`;
                 if (!cloneSplitEligibleSourceKeys.has(sourceKey)) {
                     cloneSplitEligibleSourceKeys.add(sourceKey);

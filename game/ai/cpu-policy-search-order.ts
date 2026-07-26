@@ -55,7 +55,7 @@ export function createCpuPolicySearchOrder(deps?: CpuPolicySearchOrderDeps) {
     function buildSearchMoveOrder(moves: CpuPolicyMove[], params: CpuPolicySearchMoveParams): CpuPolicyMove[] {
         const p = params || {};
         const level = isFiniteNumber(p.level) ? Number(p.level) : 6;
-        const board = Array.isArray(p.board) ? p.board : [];
+        const board = p.board && typeof p.board === 'object' ? p.board : [];
         const playerValue = isFiniteNumber(p.playerValue) ? (Number(p.playerValue) >= 0 ? 1 : -1) : 1;
         const boardBonusByCell: Record<string, number> | null = p.boardBonusByCell && typeof p.boardBonusByCell === 'object'
             ? p.boardBonusByCell as Record<string, number>

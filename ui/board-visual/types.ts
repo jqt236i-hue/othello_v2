@@ -118,7 +118,7 @@ export interface BoardRenderTopologyModel {
 export interface BoardRenderModel {
   /** Canonical board-content identity produced by SharedBoardUtils.createBoardView. */
   boardDigest: string;
-  /** Monotonic identity assigned whenever a complete visual frame is composed. */
+  /** Monotonic identity of the current canonical board-input contract. */
   modelCommitId: number;
   visualRevision: number;
   topology: BoardRenderTopologyModel;

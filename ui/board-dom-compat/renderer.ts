@@ -1387,7 +1387,9 @@ function _ensureBoardShrinkWillDirectionHintForDiff(cell: any, direction: any, h
 function _ensureBoardExpansionDirectionHintForDiff(
     cell: any,
     rawDirections: any,
-    hintKind: 'board-expansion-god' | 'board-expansion-will'
+    hintKind: 'board-expansion-god' | 'board-expansion-will',
+    cellKey?: string,
+    exactHintIdMap?: Map<string, string>
 ) {
     if (!cell || !cell.classList) return;
     const directions = (Array.isArray(rawDirections) ? rawDirections : [rawDirections])
@@ -1420,7 +1422,9 @@ function _ensureBoardExpansionDirectionHintForDiff(
         hint.textContent = _getBoardDirectionHintArrowTextForDiff(direction);
         if (hint.dataset) {
             hint.dataset.direction = direction;
-            hint.dataset.hintId = `${hintKind}:${String(cell.dataset && cell.dataset.row)},${String(cell.dataset && cell.dataset.col)}:${direction}`;
+            const fallbackCellKey = `${String(cell.dataset && cell.dataset.row)},${String(cell.dataset && cell.dataset.col)}`;
+            hint.dataset.hintId = exactHintIdMap?.get(`${String(cellKey || fallbackCellKey)}:${direction}`)
+                || `${hintKind}:${fallbackCellKey}:${direction}`;
         }
         const position = positions[direction] || positions.right;
         hint.style.position = 'absolute';
@@ -1478,6 +1482,9 @@ function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any, preparedRenderPr
     const expansionHintMap = projection.boardExpansionDirectionHintMap instanceof Map
         ? projection.boardExpansionDirectionHintMap
         : new Map();
+    const expansionHintIdMap = projection.boardExpansionDirectionHintIdMap instanceof Map
+        ? projection.boardExpansionDirectionHintIdMap
+        : new Map();
     const expansionHintKind = String(
         preparedRenderProjection && preparedRenderProjection.pending && preparedRenderProjection.pending.type || ''
     ).toUpperCase() === 'BOARD_EXPANSION_WILL'
@@ -1514,7 +1521,9 @@ function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any, preparedRenderPr
             _ensureBoardExpansionDirectionHintForDiff(
                 cell,
                 expansionHintMap.get(key),
-                expansionHintKind
+                expansionHintKind,
+                key,
+                expansionHintIdMap
             );
         }
     });
@@ -1896,7 +1905,33 @@ function getBoardInputPresentationCapabilities() {
  * @param {HTMLElement} boardEl - 盤面要素
  */
 function _getBoardMaterializationSignatureForDiff(boardRenderModel?: any, viewportLayout?: any): string {
-    if (!boardRenderModel || !viewportLayout || !viewportLayout.visibleWorldWindow) return '';
+    if (!boardRenderModel || !boardRenderModel.topology || !Array.isArray(boardRenderModel.cells)) {
+        return ':topology:missing';
+    }
+    const topology = boardRenderModel.topology;
+    const sortedKeyToken = (values: any): string => (
+        Array.isArray(values)
+            ? values.map((value: any) => String(value || '')).sort().join('|')
+            : ''
+    );
+    const expansionSideToken = boardRenderModel.cells
+        .filter((cell: any) => cell && cell.expansionSide)
+        .map((cell: any) => `${String(cell.key || `${cell.row},${cell.col}`)}=${String(cell.expansionSide)}`)
+        .sort()
+        .join('|');
+    const topologySignature = [
+        ':topology',
+        String(topology.baseShape || ''),
+        `${Number(topology.baseRows)},${Number(topology.baseCols)}`,
+        `${Number(topology.minRow)},${Number(topology.maxRow)},${Number(topology.minCol)},${Number(topology.maxCol)}`,
+        `${Number(topology.renderRowOffset)},${Number(topology.renderColOffset)},${Number(topology.renderRows)},${Number(topology.renderCols)}`,
+        `base=${sortedKeyToken(topology.baseKeys)}`,
+        `existing=${sortedKeyToken(topology.existingKeys)}`,
+        `playable=${sortedKeyToken(topology.playableKeys)}`,
+        `holes=${sortedKeyToken(topology.holeKeys)}`,
+        `expansionSides=${expansionSideToken}`
+    ].join(':');
+    if (!viewportLayout || !viewportLayout.visibleWorldWindow) return topologySignature;
     try {
         const BoardVisualModel = _require('../board-visual/model');
         const materializedWindow = BoardVisualModel.getBoardViewportMaterializationWindow({
@@ -1905,10 +1940,10 @@ function _getBoardMaterializationSignatureForDiff(boardRenderModel?: any, viewpo
             overscanCells: 1,
             effectGutterCells: 2
         });
-        if (!materializedWindow) return ':viewport:empty';
-        return `:viewport:${materializedWindow.minRow},${materializedWindow.maxRow},${materializedWindow.minCol},${materializedWindow.maxCol}`;
+        if (!materializedWindow) return `${topologySignature}:viewport:empty`;
+        return `${topologySignature}:viewport:${materializedWindow.minRow},${materializedWindow.maxRow},${materializedWindow.minCol},${materializedWindow.maxCol}`;
     } catch (e: any) {
-        return ':viewport:invalid';
+        return `${topologySignature}:viewport:invalid`;
     }
 }
 

@@ -18,10 +18,10 @@ interface BoardConfig {
 }
 
 interface ExpansionCellRef {
-    expansion: any;
+    expansion: null;
     index: number;
     cell: any;
-    legacy: boolean;
+    legacy: false;
 }
 
 interface BoardShapeDeps {
@@ -31,221 +31,121 @@ interface BoardShapeDeps {
     EMPTY?: number;
 }
 
-function resolveBoardConfig(gameState: GameState, deps?: BoardShapeDeps): BoardConfig {
+function requireBoardUtils(deps?: BoardShapeDeps): any {
     const boardUtils = deps && deps.BoardUtils;
-    if (boardUtils && typeof boardUtils.resolveBoardConfig === 'function') {
-        return boardUtils.resolveBoardConfig(gameState);
+    if (
+        !boardUtils ||
+        typeof boardUtils.createBoardContext !== 'function' ||
+        typeof boardUtils.createBoardView !== 'function' ||
+        typeof boardUtils.setCellValue !== 'function' ||
+        typeof boardUtils.resolveBoardConfig !== 'function' ||
+        typeof boardUtils.isMainBoardCell !== 'function' ||
+        typeof boardUtils.resolveExpansionSide !== 'function'
+    ) {
+        throw new Error('SharedBoardUtils BoardContext APIs are required by CardHyperactiveBoardShape');
     }
-    const board = gameState && Array.isArray((gameState as any).board) ? (gameState as any).board : null;
-    const rows = Array.isArray(board) && board.length > 0 ? board.length : 8;
-    const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
-    return {
-        rows,
-        cols,
-        baseBounds: {
-            minRow: 0,
-            maxRow: rows - 1,
-            minCol: 0,
-            maxCol: cols - 1
-        },
-        outerBounds: {
-            minRow: -1,
-            maxRow: rows,
-            minCol: -1,
-            maxCol: cols
-        }
-    };
+    return boardUtils;
+}
+
+function createBoardContext(gameState: GameState, cardState: unknown, deps?: BoardShapeDeps): any {
+    return requireBoardUtils(deps).createBoardContext(gameState, cardState);
+}
+
+function createBoardView(gameState: GameState, cardState: unknown, deps?: BoardShapeDeps): any {
+    const boardUtils = requireBoardUtils(deps);
+    const context = createBoardContext(gameState, cardState, deps);
+    return boardUtils.createBoardView(context.gameState, {
+        cardState: context.cardState,
+        strict: false
+    });
+}
+
+function resolveBoardConfig(gameState: GameState, deps?: BoardShapeDeps): BoardConfig {
+    return requireBoardUtils(deps).resolveBoardConfig(gameState);
 }
 
 function isMainBoardCell(row: number, col: number, gameState: GameState, deps?: BoardShapeDeps): boolean {
-    const boardUtils = deps && deps.BoardUtils;
-    if (boardUtils && typeof boardUtils.isMainBoardCell === 'function') {
-        return boardUtils.isMainBoardCell(row, col, gameState);
-    }
-    const config = resolveBoardConfig(gameState, deps);
-    return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < config.rows && col >= 0 && col < config.cols;
+    return requireBoardUtils(deps).isMainBoardCell(row, col, gameState);
 }
 
 function resolveExpansionSide(side: string | null, row: number, col: number, gameState: GameState, deps?: BoardShapeDeps): string | null {
-    const boardUtils = deps && deps.BoardUtils;
-    if (boardUtils && typeof boardUtils.resolveExpansionSide === 'function') {
-        return boardUtils.resolveExpansionSide(side, row, col, gameState);
-    }
-    if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-    const config = resolveBoardConfig(gameState, deps);
-    if (col === config.outerBounds.minCol) return 'left';
-    if (col === config.outerBounds.maxCol) return 'right';
-    if (row === config.outerBounds.minRow) return 'top';
-    if (row === config.outerBounds.maxRow) return 'bottom';
-    return null;
+    return requireBoardUtils(deps).resolveExpansionSide(side, row, col, gameState);
 }
 
-function getExpansionCellRef(gameState: GameState, row: number, col: number, deps?: BoardShapeDeps): ExpansionCellRef | null {
-    const expansion = ((gameState as any).boardExpansion && typeof (gameState as any).boardExpansion === 'object')
-        ? (gameState as any).boardExpansion
+function getExpansionCells(gameState: GameState, cardState: unknown = null, deps?: BoardShapeDeps): any[] {
+    const view = createBoardView(gameState, cardState, deps);
+    return view.expansionCells
+        .filter((cell: any) => view.isPlayable(cell.row, cell.col))
+        .map((cell: any) => ({
+            side: cell.side || null,
+            row: cell.row,
+            col: cell.col,
+            owner: cell.owner
+        }));
+}
+
+function getExpansionCellRef(
+    gameState: GameState,
+    row: number,
+    col: number,
+    cardState: unknown = null,
+    deps?: BoardShapeDeps
+): ExpansionCellRef | null {
+    const cells = getExpansionCells(gameState, cardState, deps);
+    const index = cells.findIndex((cell: any) => cell.row === row && cell.col === col);
+    return index >= 0
+        ? { expansion: null, index, cell: cells[index], legacy: false }
         : null;
-    if (!expansion) return null;
-    const config = resolveBoardConfig(gameState, deps);
-
-    if (Array.isArray(expansion.cells)) {
-        for (let index = 0; index < expansion.cells.length; index++) {
-            const cell = expansion.cells[index];
-            if (!cell || typeof cell !== 'object') continue;
-            const cellCol = Number.isInteger(cell.col)
-                ? cell.col
-                : (cell.side === 'left' ? config.outerBounds.minCol : (cell.side === 'right' ? config.outerBounds.maxCol : null));
-            if (!Number.isInteger(cellCol)) continue;
-            if (cell.row === row && cellCol === col) {
-                return { expansion, index, cell, legacy: false };
-            }
-        }
-    }
-
-    if (expansion.active === true) {
-        const legacyCol = Number.isInteger(expansion.col)
-            ? expansion.col
-            : (expansion.side === 'left' ? config.outerBounds.minCol : (expansion.side === 'right' ? config.outerBounds.maxCol : null));
-        if (expansion.row === row && legacyCol === col) {
-            return { expansion, index: -1, cell: expansion, legacy: true };
-        }
-    }
-
-    return null;
 }
 
-function getExpansionCells(gameState: GameState, deps?: BoardShapeDeps): any[] {
-    const boardUtils = deps && deps.BoardUtils;
-    const black = (deps && deps.BLACK) ?? 1;
-    const white = (deps && deps.WHITE) ?? -1;
-    const empty = (deps && deps.EMPTY) ?? 0;
-    if (boardUtils && typeof boardUtils.collectExpansionDescriptors === 'function') {
-        return boardUtils.collectExpansionDescriptors((gameState as any).boardExpansion, gameState);
-    }
-    const expansion = ((gameState as any).boardExpansion && typeof (gameState as any).boardExpansion === 'object')
-        ? (gameState as any).boardExpansion
-        : null;
-    if (!expansion) return [];
-    const config = resolveBoardConfig(gameState, deps);
-
-    const seen = new Set<string>();
-    const cells: any[] = [];
-    const pushCell = (source: any, legacyRow?: number, legacyOwner?: number) => {
-        let side = null;
-        let normalizedRow: number | null = null;
-        let normalizedCol: number | null = null;
-        let owner = legacyOwner;
-
-        if (source && typeof source === 'object') {
-            side = source.side;
-            normalizedRow = source.row;
-            normalizedCol = source.col;
-            owner = source.owner;
-            if (!Number.isInteger(normalizedCol) && side === 'left') normalizedCol = config.outerBounds.minCol;
-            if (!Number.isInteger(normalizedCol) && side === 'right') normalizedCol = config.outerBounds.maxCol;
-        } else {
-            side = source;
-            normalizedRow = legacyRow ?? null;
-            if (side === 'left') normalizedCol = config.outerBounds.minCol;
-            if (side === 'right') normalizedCol = config.outerBounds.maxCol;
-        }
-
-        if (!Number.isInteger(normalizedRow) || !Number.isInteger(normalizedCol)) return;
-        if (
-            (normalizedRow as number) < config.outerBounds.minRow ||
-            (normalizedRow as number) > config.outerBounds.maxRow ||
-            (normalizedCol as number) < config.outerBounds.minCol ||
-            (normalizedCol as number) > config.outerBounds.maxCol
-        ) return;
-        if (isMainBoardCell(normalizedRow as number, normalizedCol as number, gameState, deps)) return;
-        const key = `${normalizedRow},${normalizedCol}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-        cells.push({
-            side: resolveExpansionSide(side, normalizedRow as number, normalizedCol as number, gameState, deps),
-            row: normalizedRow,
-            col: normalizedCol,
-            owner: (owner === black || owner === white) ? owner : empty
-        });
-    };
-
-    if (Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            pushCell(cell);
-        }
-    }
-
-    if (seen.size === 0 && expansion.active === true) {
-        pushCell(expansion);
-    }
-
-    return cells;
-}
-
-function forEachBoardShapeCell(gameState: GameState, visitor: (row: number, col: number, value: any, side?: string) => void, deps?: BoardShapeDeps): void {
+function forEachBoardShapeCell(
+    gameState: GameState,
+    visitor: (row: number, col: number, value: any, side?: string) => void,
+    cardState: unknown = null,
+    deps?: BoardShapeDeps
+): void {
     if (typeof visitor !== 'function') return;
-    if (!gameState || !Array.isArray((gameState as any).board)) return;
-    const config = resolveBoardConfig(gameState, deps);
-
-    for (let row = 0; row < config.rows; row++) {
-        const boardRow = Array.isArray((gameState as any).board[row]) ? (gameState as any).board[row] : [];
-        for (let col = 0; col < config.cols; col++) {
-            visitor(row, col, boardRow[col]);
+    const view = createBoardView(gameState, cardState, deps);
+    for (const cell of view.coordinates) {
+        const value = view.get(cell.row, cell.col);
+        if (value === null) {
+            throw new Error(`BoardView owner missing at ${cell.row},${cell.col}`);
         }
-    }
-
-    for (const cell of getExpansionCells(gameState, deps)) {
-        if (!cell) continue;
-        visitor(cell.row, cell.col, Number(cell.owner), cell.side);
+        const side = view.topology.expansionSideByKey.get(`${cell.row},${cell.col}`) || undefined;
+        visitor(cell.row, cell.col, value, side);
     }
 }
 
-function getBoardCell(gameState: GameState, row: number, col: number, deps?: BoardShapeDeps): number | null {
-    if (isMainBoardCell(row, col, gameState, deps)) {
-        if (!gameState || !Array.isArray((gameState as any).board)) return null;
-        const boardRow = (gameState as any).board[row];
-        if (!Array.isArray(boardRow)) return null;
-        return boardRow[col];
-    }
-    const ref = getExpansionCellRef(gameState, row, col, deps);
-    return ref ? Number(ref.cell.owner) : null;
+function getBoardCell(
+    gameState: GameState,
+    row: number,
+    col: number,
+    cardState: unknown = null,
+    deps?: BoardShapeDeps
+): number | null {
+    return createBoardView(gameState, cardState, deps).get(row, col);
 }
 
-function setBoardCell(gameState: GameState, row: number, col: number, value: number, deps?: BoardShapeDeps): boolean {
-    const black = (deps && deps.BLACK) ?? 1;
-    const white = (deps && deps.WHITE) ?? -1;
-    const empty = (deps && deps.EMPTY) ?? 0;
-    if (isMainBoardCell(row, col, gameState, deps)) {
-        if (!gameState || !Array.isArray((gameState as any).board)) return false;
-        const boardRow = (gameState as any).board[row];
-        if (!Array.isArray(boardRow)) return false;
-        boardRow[col] = value;
-        return true;
-    }
-
-    const ref = getExpansionCellRef(gameState, row, col, deps);
-    if (!ref) return false;
-    const normalizedOwner = (value === black || value === white) ? value : empty;
-
-    if (!ref.legacy) {
-        ref.expansion.cells[ref.index] = {
-            side: resolveExpansionSide(ref.cell.side, row, col, gameState, deps),
-            row,
-            col,
-            owner: normalizedOwner
-        };
-        return true;
-    }
-
-    ref.expansion.side = resolveExpansionSide(ref.cell.side, row, col, gameState, deps);
-    ref.expansion.row = row;
-    ref.expansion.col = col;
-    ref.expansion.owner = normalizedOwner;
-    return true;
+function setBoardCell(
+    gameState: GameState,
+    row: number,
+    col: number,
+    value: number,
+    cardState: unknown = null,
+    deps?: BoardShapeDeps
+): boolean {
+    const boardUtils = requireBoardUtils(deps);
+    return boardUtils.setCellValue(createBoardContext(gameState, cardState, deps), row, col, value);
 }
 
-function hasBoardShapeCell(gameState: GameState, row: number, col: number, deps?: BoardShapeDeps): boolean {
-    return getBoardCell(gameState, row, col, deps) !== null;
+function hasBoardShapeCell(
+    gameState: GameState,
+    row: number,
+    col: number,
+    cardState: unknown = null,
+    deps?: BoardShapeDeps
+): boolean {
+    return createBoardView(gameState, cardState, deps).isPlayable(row, col);
 }
 
 const CardHyperactiveBoardShape = {

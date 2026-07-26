@@ -22,6 +22,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 const { MCTSTree } = require('./mcts-core');
 const { GumbelMCTS } = require('./gumbel-mcts');
+const SharedBoardUtils = _require('../../shared/shared-board-utils');
 
 let CoreLogic: any = null;
 try {
@@ -103,13 +104,15 @@ function applyPassAction(state: any): any {
     return nextState;
 }
 
-function boardToString(board: any): string {
-    if (!Array.isArray(board)) return '';
-    try {
-        return JSON.stringify(board);
-    } catch (e: any) {
-        return '';
-    }
+function createBoardContext(state: any, cardState: any): any {
+    if (!state || !Array.isArray(state.board)) return null;
+    return SharedBoardUtils.createBoardContext(state, cardState || null);
+}
+
+function boardToString(state: any, cardState: any): string {
+    const boardContext = createBoardContext(state, cardState);
+    if (!boardContext) return '';
+    return SharedBoardUtils.encodeBoard(boardContext);
 }
 
 // ---------------------------------------------------------------------------
@@ -122,7 +125,7 @@ const _gameInterface = {
     copyCardState: copyCardState,
 
     hashState(state: any, cardState: any, playerKey: string): string {
-        const boardStr = boardToString(state && state.board);
+        const boardStr = boardToString(state, cardState);
         const chargeStr = (cardState && cardState.charge)
             ? JSON.stringify(cardState.charge)
             : '';
@@ -139,10 +142,21 @@ const _gameInterface = {
             return actions;
         }
         const playerValue = getPlayerValue(playerKey);
-        const legalMoves = CoreLogic.getLegalMoves(state, playerValue);
+        const legalMoves = CoreLogic.getLegalMoves(state, playerValue, { cardState });
         for (const move of legalMoves) {
             if (move && Number.isFinite(move.row) && Number.isFinite(move.col)) {
-                actions.push({ type: 'place', row: move.row, col: move.col });
+                actions.push({
+                    type: 'place',
+                    row: move.row,
+                    col: move.col,
+                    flips: Array.isArray(move.flips)
+                        ? move.flips.map((flip: any) => (
+                            Array.isArray(flip)
+                                ? [flip[0], flip[1]]
+                                : [flip.row, flip.col]
+                        ))
+                        : []
+                });
             }
         }
         if (actions.length === 0 && !isCoreGameOver(state)) {
@@ -152,7 +166,7 @@ const _gameInterface = {
     },
 
     applyAction(state: any, cardState: any, action: any, playerKey: string): any {
-        const nextState = copyGameState(state);
+        let nextState = copyGameState(state);
         const nextCardState = copyCardState(cardState);
         const nextPlayer = playerKey === 'black' ? 'white' : 'black';
 
@@ -162,11 +176,26 @@ const _gameInterface = {
 
         if (action.type === 'place') {
             if (CoreLogic && typeof CoreLogic.applyMove === 'function') {
-                try {
-                    CoreLogic.applyMove(nextState, { row: action.row, col: action.col });
-                } catch (e) {
-                    // If applyMove fails, return original state (should not happen for legal moves)
-                }
+                const playerValue = getPlayerValue(playerKey);
+                const flips = Array.isArray(action.flips)
+                    ? action.flips
+                    : (
+                        typeof CoreLogic.getFlipsWithContext === 'function'
+                            ? CoreLogic.getFlipsWithContext(
+                                nextState,
+                                action.row,
+                                action.col,
+                                playerValue,
+                                { cardState: nextCardState }
+                            )
+                            : []
+                    );
+                nextState.currentPlayer = playerValue;
+                nextState = CoreLogic.applyMove(
+                    nextState,
+                    { row: action.row, col: action.col, flips },
+                    nextCardState
+                );
             }
             if (CoreLogic && CoreLogic.BLACK !== undefined) {
                 nextState.currentPlayer = getPlayerValue(nextPlayer);
@@ -184,23 +213,15 @@ const _gameInterface = {
             return { isTerminal: false, value: 0 };
         }
         // Cardless rollout result after canonical pass termination.
-        const blackVal = CoreLogic.BLACK !== undefined ? CoreLogic.BLACK : 1;
-        const whiteVal = CoreLogic.WHITE !== undefined ? CoreLogic.WHITE : -1;
         let blackCount = 0;
         let whiteCount = 0;
-        if (typeof CoreLogic.countDiscs === 'function') {
-            const counts = CoreLogic.countDiscs(state);
+        const boardContext = createBoardContext(state, cardState);
+        if (boardContext) {
+            const counts = SharedBoardUtils.countDiscs(boardContext);
             blackCount = counts.black || 0;
             whiteCount = counts.white || 0;
-        } else if (Array.isArray(state.board)) {
-            for (const row of state.board) {
-                if (!Array.isArray(row)) continue;
-                for (const cell of row) {
-                    if (cell === blackVal) blackCount++;
-                    else if (cell === whiteVal) whiteCount++;
-                }
-            }
         }
+        const blackVal = CoreLogic.BLACK !== undefined ? CoreLogic.BLACK : 1;
         const currentPlayer = (state.currentPlayer === blackVal) ? 'black' : 'white';
         let value = 0;
         if (blackCount > whiteCount) value = currentPlayer === 'black' ? 1 : -1;
@@ -226,7 +247,7 @@ const _gameInterface = {
 
 function _buildOnnxContext(state: any, cardState: any, playerKey: string, legalMoves: any[]): any {
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
-    const board = Array.isArray(state && state.board) ? state.board : [];
+    const board = createBoardContext(state, cardState);
     const charge = (cardState && cardState.charge) || {};
     const deckMetrics = _resolveDeckMetrics(cardState, playerKey);
 
@@ -235,11 +256,10 @@ function _buildOnnxContext(state: any, cardState: any, playerKey: string, legalM
     let maxLegalBonus = 0;
     for (const move of legalMoves) {
         if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) continue;
-        if (!hasCornerMove && (move.row === 0 || move.row === 7) && (move.col === 0 || move.col === 7)) {
+        if (!hasCornerMove && board && SharedBoardUtils.isCornerCell(move.row, move.col, board)) {
             hasCornerMove = true;
         }
-        if (!hasEdgeMove && !hasCornerMove &&
-            (move.row === 0 || move.row === 7 || move.col === 0 || move.col === 7)) {
+        if (!hasEdgeMove && board && SharedBoardUtils.isEdgeCell(move.row, move.col, board)) {
             hasEdgeMove = true;
         }
     }
@@ -301,11 +321,11 @@ const _network = {
             return { policy: new Map(), value: 0 };
         }
         const legalMoves = _gameInterface.listActions(state, cardState, playerKey);
-        const board = Array.isArray(state && state.board) ? state.board : [];
-        const boardShape = String(state && state.boardConfig && state.boardConfig.shape || 'rectangle').toLowerCase();
-        const onnxBoardSupported = boardShape === 'rectangle'
-            && board.length === 8
-            && board.every((row: any) => Array.isArray(row) && row.length === 8);
+        const board = createBoardContext(state, cardState);
+        const onnxBoardSupported = !!(
+            board &&
+            SharedBoardUtils.isStandardBoard8x8(board)
+        );
         if (!onnxBoardSupported) {
             const policy = new Map();
             const probability = legalMoves.length > 0 ? 1 / legalMoves.length : 0;
@@ -330,7 +350,7 @@ const _network = {
             const scores = placeOut.data;
             let maxScore = -Infinity;
             for (const move of legalMoves) {
-                const idx = ((move.row + 1) * 10) + (move.col + 1); // padded 10x10
+                const idx = SharedBoardUtils.toPaddedBoardIndex(move.row, move.col);
                 if (idx >= 0 && idx < scores.length) {
                     const s = Number(scores[idx]);
                     if (Number.isFinite(s) && s > maxScore) maxScore = s;
@@ -340,7 +360,7 @@ const _network = {
             let sumExp = 0;
             const entries = [];
             for (const move of legalMoves) {
-                const idx = ((move.row + 1) * 10) + (move.col + 1);
+                const idx = SharedBoardUtils.toPaddedBoardIndex(move.row, move.col);
                 let prob = 0;
                 if (idx >= 0 && idx < scores.length) {
                     const s = Number(scores[idx]);

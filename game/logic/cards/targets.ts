@@ -46,161 +46,39 @@ const BoardUtils = resolveTargetsModuleOrGlobal('../../../shared/shared-board-ut
 const { EMPTY } = SharedConstants || {};
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
 
-interface BoardConfig {
-    rows: number;
-    cols: number;
-    baseBounds: { minRow: number; maxRow: number; minCol: number; maxCol: number };
-    outerBounds: { minRow: number; maxRow: number; minCol: number; maxCol: number };
+function requireBoardUtils(): any {
+    if (
+        !BoardUtils ||
+        typeof BoardUtils.createBoardContext !== 'function' ||
+        typeof BoardUtils.createBoardView !== 'function'
+    ) {
+        throw new Error('SharedBoardUtils BoardContext APIs are required by CardTargets');
+    }
+    return BoardUtils;
 }
 
-interface ExpansionCell {
-    side: string | null;
-    row: number;
-    col: number;
-    owner: number;
+function createBoardView(cardState: any, gameState: GameState): any {
+    const boardUtils = requireBoardUtils();
+    const context = boardUtils.createBoardContext(gameState, cardState);
+    return boardUtils.createBoardView(context.gameState, {
+        cardState: context.cardState,
+        strict: false
+    });
 }
 
-function resolveBoardConfig(gameState: GameState): BoardConfig {
-    if (BoardUtils && typeof BoardUtils.resolveBoardConfig === 'function') {
-        return BoardUtils.resolveBoardConfig(gameState);
-    }
-    const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
-    const rows = Array.isArray(board) && board.length > 0 ? board.length : 8;
-    const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
-    return {
-        rows,
-        cols,
-        baseBounds: {
-            minRow: 0,
-            maxRow: rows - 1,
-            minCol: 0,
-            maxCol: cols - 1
-        },
-        outerBounds: {
-            minRow: -1,
-            maxRow: rows,
-            minCol: -1,
-            maxCol: cols
-        }
-    };
+function getCellValue(cardState: any, gameState: GameState, row: number, col: number): number | null {
+    return createBoardView(cardState, gameState).get(row, col);
 }
 
-function isMainBoardCell(row: number, col: number, gameState: GameState): boolean {
-    if (BoardUtils && typeof BoardUtils.isMainBoardCell === 'function') {
-        return BoardUtils.isMainBoardCell(row, col, gameState);
-    }
-    const config = resolveBoardConfig(gameState);
-    return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < config.rows && col >= 0 && col < config.cols;
-}
-
-function resolveExpansionSide(side: string | null, row: number, col: number, gameState: GameState): string | null {
-    if (BoardUtils && typeof BoardUtils.resolveExpansionSide === 'function') {
-        return BoardUtils.resolveExpansionSide(side, row, col, gameState);
-    }
-    if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-    const config = resolveBoardConfig(gameState);
-    if (col === config.outerBounds.minCol) return 'left';
-    if (col === config.outerBounds.maxCol) return 'right';
-    if (row === config.outerBounds.minRow) return 'top';
-    if (row === config.outerBounds.maxRow) return 'bottom';
-    return null;
-}
-
-function getExpansionCells(gameState: GameState): ExpansionCell[] {
-    if (BoardUtils && typeof BoardUtils.collectExpansionDescriptors === 'function') {
-        return BoardUtils.collectExpansionDescriptors(gameState && gameState.boardExpansion, gameState);
-    }
-    const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-        ? gameState.boardExpansion as any
-        : null;
-    if (!expansion) return [];
-    const config = resolveBoardConfig(gameState);
-
-    const cells: ExpansionCell[] = [];
-    const pushCell = (source: any, legacyRow?: number, legacyOwner?: number) => {
-        let side: string | null = null;
-        let row: any = null;
-        let col: any = null;
-        let owner = legacyOwner;
-
-        if (source && typeof source === 'object') {
-            side = source.side;
-            row = source.row;
-            col = source.col;
-            owner = source.owner;
-            if (!Number.isInteger(col) && side === 'left') col = config.outerBounds.minCol;
-            if (!Number.isInteger(col) && side === 'right') col = config.outerBounds.maxCol;
-        } else {
-            side = source;
-            row = legacyRow;
-            if (side === 'left') col = config.outerBounds.minCol;
-            if (side === 'right') col = config.outerBounds.maxCol;
-        }
-
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-        if (
-            row < config.outerBounds.minRow ||
-            row > config.outerBounds.maxRow ||
-            col < config.outerBounds.minCol ||
-            col > config.outerBounds.maxCol
-        ) return;
-        if (isMainBoardCell(row, col, gameState)) return;
-        if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
-        const normalizedOwner = (owner === (SharedConstants as any).BLACK || owner === (SharedConstants as any).WHITE)
-            ? owner
-            : P_EMPTY;
-        cells.push({
-            side: resolveExpansionSide(side, row, col, gameState),
-            row,
-            col,
-            owner: normalizedOwner
-        });
-    };
-
-    if (Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            pushCell(cell);
-        }
-    }
-
-    if (cells.length === 0 && expansion.active === true) {
-        pushCell(expansion);
-    }
-
-    return cells;
-}
-
-function getCellValue(gameState: GameState, row: number, col: number): number | null {
-    if (isMainBoardCell(row, col, gameState)) {
-        return (gameState && Array.isArray(gameState.board) && Array.isArray(gameState.board[row]))
-            ? gameState.board[row][col]
-            : null;
-    }
-    for (const cell of getExpansionCells(gameState)) {
-        if (!cell) continue;
-        if (cell.row === row && cell.col === col) {
-            return Number(cell.owner);
-        }
-    }
-    return null;
-}
-
-function forEachBoardShapeCell(gameState: GameState, visitor: (row: number, col: number, value: number) => void) {
+function forEachBoardShapeCell(cardState: any, gameState: GameState, visitor: (row: number, col: number, value: number) => void) {
     if (typeof visitor !== 'function') return;
-    if (!gameState || !Array.isArray(gameState.board)) return;
-    const config = resolveBoardConfig(gameState);
-
-    for (let row = 0; row < config.rows; row++) {
-        const boardRow = Array.isArray(gameState.board[row]) ? gameState.board[row] : [];
-        for (let col = 0; col < config.cols; col++) {
-            visitor(row, col, boardRow[col]);
+    const view = createBoardView(cardState, gameState);
+    for (const cell of view.coordinates) {
+        const value = view.get(cell.row, cell.col);
+        if (value === null) {
+            throw new Error(`BoardView owner missing at ${cell.row},${cell.col}`);
         }
-    }
-
-    for (const cell of getExpansionCells(gameState)) {
-        if (!cell) continue;
-        visitor(cell.row, cell.col, Number(cell.owner));
+        visitor(cell.row, cell.col, value);
     }
 }
 
@@ -306,7 +184,7 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
     const res: Array<{row: number; col: number}> = [];
     const CardUtils = getCardUtils();
-    forEachBoardShapeCell(gameState, (r, c) => {
+    forEachBoardShapeCell(cardState, gameState, (r, c) => {
         if (blocksTemptAt(CardUtils, cardState, r, c)) return;
         const markersAtCell = getMarkersAtCell(cardState, r, c);
         const targetMarker = markersAtCell.find((marker: any) => (
@@ -315,7 +193,7 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
             isTemptTargetableMarkerForCard(CardUtils, marker)
         )) || null;
         if (!targetMarker) return;
-        if (getCellValue(gameState, r, c) === P_EMPTY) return;
+        if (getCellValue(cardState, gameState, r, c) === P_EMPTY) return;
         res.push({ row: r, col: c });
     });
     return res;

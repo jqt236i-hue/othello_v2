@@ -8,12 +8,8 @@ export interface BoardBounds {
   minCol: number;
   maxCol: number;
 }
-export interface BoardShapeMeta {
-  cornerKeyCache: Set<string> | null;
-}
 export interface CornerDependencies {
   toBoardCellKey: (row: number, col: number) => string;
-  getBoardShapeMeta: (board: unknown) => BoardShapeMeta | null;
   collectBoardCoordinates: (board: unknown) => CellCoord[];
   hasPlayableCell: (board: unknown, row: number, col: number) => boolean;
   resolveBoardBounds: (
@@ -24,8 +20,6 @@ export interface CornerDependencies {
 
 export function createBoardCorners(deps: CornerDependencies) {
   function buildCornerKeySet(board: unknown): Set<string> {
-    const meta = deps.getBoardShapeMeta(board);
-    if (meta && meta.cornerKeyCache instanceof Set) return meta.cornerKeyCache;
     const coords = deps.collectBoardCoordinates(board);
     const coordKeys = new Set(
       coords.map((cell) => deps.toBoardCellKey(cell.row, cell.col)),
@@ -51,7 +45,6 @@ export function createBoardCorners(deps: CornerDependencies) {
           corners.add(deps.toBoardCellKey(cell.row, cell.col));
       }
     }
-    if (meta) meta.cornerKeyCache = corners;
     return corners;
   }
   function isCornerCell(
@@ -61,10 +54,9 @@ export function createBoardCorners(deps: CornerDependencies) {
     maybeCols?: unknown,
   ): boolean {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    if (Array.isArray(boardOrRows)) {
+    if (boardOrRows && typeof boardOrRows === "object") {
       if (!deps.hasPlayableCell(boardOrRows, row, col)) return false;
-      const meta = deps.getBoardShapeMeta(boardOrRows);
-      if (!meta) {
+      if (Array.isArray(boardOrRows)) {
         const bounds = deps.resolveBoardBounds(boardOrRows);
         if (!bounds) return false;
         return (
@@ -72,7 +64,9 @@ export function createBoardCorners(deps: CornerDependencies) {
           (col === bounds.minCol || col === bounds.maxCol)
         );
       }
-      return buildCornerKeySet(boardOrRows).has(deps.toBoardCellKey(row, col));
+      return buildCornerKeySet(boardOrRows).has(
+        deps.toBoardCellKey(row, col),
+      );
     }
     const bounds = deps.resolveBoardBounds(boardOrRows, maybeCols);
     return (
@@ -88,10 +82,9 @@ export function createBoardCorners(deps: CornerDependencies) {
     maybeCols?: unknown,
   ): boolean {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    if (Array.isArray(boardOrRows)) {
+    if (boardOrRows && typeof boardOrRows === "object") {
       if (!deps.hasPlayableCell(boardOrRows, row, col)) return false;
-      const meta = deps.getBoardShapeMeta(boardOrRows);
-      if (!meta) {
+      if (Array.isArray(boardOrRows)) {
         const bounds = deps.resolveBoardBounds(boardOrRows);
         if (!bounds) return false;
         return (

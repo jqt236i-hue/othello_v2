@@ -120,11 +120,13 @@ describe('policy-table-runtime', () => {
   test('preferRaw8x8Keys can resolve raw v2 state keys on shaped 8x8 boards', () => {
     const board = Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0));
     const rawCanonical = runtime.canonicalizeBoard(board);
-    SharedBoardUtils.attachBoardShape(board, {
+    const boardContext = SharedBoardUtils.createBoardContext({
+      board,
+      boardConfig: { rows: 8, cols: 8, shape: 'rectangle' },
       boardExpansion: {
         cells: [{ row: 8, col: 0, owner: 'black' }]
       }
-    });
+    }, { markers: [] });
     const stateKey = runtime.makeStateKey('white', rawCanonical.boardKey, null, 2);
     const model = {
       schemaVersion: 'policy_table.v2',
@@ -145,14 +147,14 @@ describe('policy-table-runtime', () => {
     const scoreWithoutRaw = runtime.getActionScoreFromModel(model, candidates[0], {
       playerKey: 'white',
       level: 6,
-      board,
+      board: boardContext,
       pendingType: null,
       legalMovesCount: 2
     });
     const scoreWithRaw = runtime.getActionScoreFromModel(model, candidates[0], {
       playerKey: 'white',
       level: 6,
-      board,
+      board: boardContext,
       pendingType: null,
       legalMovesCount: 2,
       preferRaw8x8Keys: true
@@ -160,7 +162,7 @@ describe('policy-table-runtime', () => {
     const selected = runtime.chooseMoveFromModel(model, candidates, {
       playerKey: 'white',
       level: 6,
-      board,
+      board: boardContext,
       pendingType: null,
       legalMovesCount: 2,
       preferRaw8x8Keys: true
@@ -388,14 +390,16 @@ describe('policy-table-runtime', () => {
     board[3][4] = -1;
     board[4][3] = -1;
     board[4][4] = 1;
-    SharedBoardUtils.attachBoardShape(board, {
+    const boardContext = SharedBoardUtils.createBoardContext({
+      board,
+      boardConfig: { rows: 8, cols: 8, shape: 'rectangle' },
       boardExpansion: {
         cells: [
           { row: 0, col: 8, owner: 0 },
           { row: 7, col: 8, owner: 0 }
         ]
       }
-    });
+    }, { markers: [] });
 
     expect(runtime.setModel({
       schemaVersion: 'policy_table.v2',
@@ -415,7 +419,7 @@ describe('policy-table-runtime', () => {
     const selected = runtime.chooseMove([expansionMove, { row: 1, col: 1, flips: [] }], {
       playerKey: 'white',
       level: 5,
-      board,
+      board: boardContext,
       pendingType: null,
       legalMovesCount: 2
     });

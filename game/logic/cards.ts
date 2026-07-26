@@ -296,16 +296,13 @@ const {
         });
     }
 
-    function resolveChainWillMaxLinks(gameState: any, config: any) {
-        return CardProgressionModule.resolveChainWillMaxLinks(gameState, config, {
-            resolveCardBoardConfig,
-            collectMainBoardCoordinates: SharedBoardUtils && typeof SharedBoardUtils.collectMainBoardCoordinates === 'function'
-                ? SharedBoardUtils.collectMainBoardCoordinates
-                : null
+    function resolveChainWillMaxLinks(cardState: any, gameState: any, config: any) {
+        return CardProgressionModule.resolveChainWillMaxLinks(cardState, gameState, config, {
+            createBoardViewForCard
         });
     }
 
-    function getCardRandomBoardSpawnDeps() {
+    function getCardRandomBoardSpawnDeps(cardState: any) {
         return {
             getEmptyBoardShapeCellsForCard,
             isBlockedCell,
@@ -321,7 +318,7 @@ const {
             clearHyperactiveAtPositions,
             BLACK,
             WHITE,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             allocateStoneId,
             setStoneIdAtForCard,
             emitPresentationEvent,
@@ -333,7 +330,7 @@ const {
         };
     }
 
-    function getCardRiboTimeStopDeps() {
+    function getCardRiboTimeStopDeps(cardState: any) {
         return {
             BLACK,
             WHITE,
@@ -341,7 +338,7 @@ const {
             resolveCardBoardConfig,
             isGuardProtectedCell,
             isInviolableCell,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             isFrozenCellForCard,
             findSpecialMarkerAt,
             getMarkers,
@@ -453,11 +450,11 @@ const {
             return !!res.destroyed;
         }
 
-        if (getCellValueForCard(gameState, row, col) === EMPTY) return false;
+        if (getCellValueForCard(cardState, gameState, row, col) === EMPTY) return false;
 
         removeMarkersAt(cardState, row, col);
 
-        return setCellValueForCard(gameState, row, col, EMPTY);
+        return setCellValueForCard(cardState, gameState, row, col, EMPTY);
     }
 
     function isDestroyResolved(result: any) {
@@ -671,14 +668,14 @@ const {
             );
         }
 
-        const prev = getCellValueForCard(gameState, row, col);
+        const prev = getCellValueForCard(cardState, gameState, row, col);
         if (prev === EMPTY) return { destroyed: false };
         if (prev === null) return { destroyed: false, reason: 'out_of_board' };
 
         const stoneId = getStoneIdAtForCard(cardState, gameState, row, col);
         clearStoneIdAtForCard(cardState, gameState, row, col);
         removeMarkersAt(cardState, row, col);
-        setCellValueForCard(gameState, row, col, EMPTY);
+        setCellValueForCard(cardState, gameState, row, col, EMPTY);
         emitPresentationEvent(cardState, {
             type: 'DESTROY',
             stoneId,
@@ -707,7 +704,7 @@ const {
             );
         }
 
-        const prev = getCellValueForCard(gameState, row, col);
+        const prev = getCellValueForCard(cardState, gameState, row, col);
         if (prev === EMPTY) return { reverted: false, reason: 'empty_cell' };
         if (prev === null) return { reverted: false, reason: 'out_of_board' };
 
@@ -733,27 +730,27 @@ const {
     }
 
     function getTimeStopGodDestroyableCount(cardState: any, gameState: any, playerKey: any) {
-        return CardRiboTimeStopModule.getTimeStopGodDestroyableCount(cardState, gameState, playerKey, getCardRiboTimeStopDeps());
+        return CardRiboTimeStopModule.getTimeStopGodDestroyableCount(cardState, gameState, playerKey, getCardRiboTimeStopDeps(cardState));
     }
 
     function getTimeStopDeityDestroyableCount(cardState: any, gameState: any, playerKey: any) {
-        return CardRiboTimeStopModule.getTimeStopDeityDestroyableCount(cardState, gameState, playerKey, getCardRiboTimeStopDeps());
+        return CardRiboTimeStopModule.getTimeStopDeityDestroyableCount(cardState, gameState, playerKey, getCardRiboTimeStopDeps(cardState));
     }
 
     function canUseTimeStopDeityForPlayer(cardState: any, gameState: any, playerKey: any) {
-        return CardRiboTimeStopModule.canUseTimeStopDeityForPlayer(cardState, gameState, playerKey, getCardRiboTimeStopDeps());
+        return CardRiboTimeStopModule.canUseTimeStopDeityForPlayer(cardState, gameState, playerKey, getCardRiboTimeStopDeps(cardState));
     }
 
     function resolveTimeStopDeityUsage(cardState: any, gameState: any, playerKey: any, prng: any) {
-        return CardRiboTimeStopModule.resolveTimeStopDeityUsage(cardState, gameState, playerKey, prng, getCardRiboTimeStopDeps());
+        return CardRiboTimeStopModule.resolveTimeStopDeityUsage(cardState, gameState, playerKey, prng, getCardRiboTimeStopDeps(cardState));
     }
 
     function canUseTimeStopGodForPlayer(cardState: any, gameState: any, playerKey: any) {
-        return CardRiboTimeStopModule.canUseTimeStopGodForPlayer(cardState, gameState, playerKey, getCardRiboTimeStopDeps());
+        return CardRiboTimeStopModule.canUseTimeStopGodForPlayer(cardState, gameState, playerKey, getCardRiboTimeStopDeps(cardState));
     }
 
     function resolveTimeStopGodUsage(cardState: any, gameState: any, playerKey: any, prng: any) {
-        return CardRiboTimeStopModule.resolveTimeStopGodUsage(cardState, gameState, playerKey, prng, getCardRiboTimeStopDeps());
+        return CardRiboTimeStopModule.resolveTimeStopGodUsage(cardState, gameState, playerKey, prng, getCardRiboTimeStopDeps(cardState));
     }
 
     function consumeTimeStopConsecutiveTurn(cardState: any, playerKey: any) {
@@ -761,15 +758,15 @@ const {
     }
 
     function processTimeStopEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, markerType: any) {
-        return CardRiboTimeStopModule.processTimeStopEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, markerType, getCardRiboTimeStopDeps());
+        return CardRiboTimeStopModule.processTimeStopEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, markerType, getCardRiboTimeStopDeps(cardState));
     }
 
     function armRiboWillEffect(cardState: any, playerKey: any) {
-        return CardRiboTimeStopModule.armRiboWillEffect(cardState, playerKey, getCardRiboTimeStopDeps());
+        return CardRiboTimeStopModule.armRiboWillEffect(cardState, playerKey, getCardRiboTimeStopDeps(cardState));
     }
 
     function collectRandomBoardSpawnablePositions(cardState: any, gameState: any, predicate: any) {
-        return CardRandomBoardSpawnModule.collectRandomBoardSpawnablePositions(cardState, gameState, predicate, getCardRandomBoardSpawnDeps());
+        return CardRandomBoardSpawnModule.collectRandomBoardSpawnablePositions(cardState, gameState, predicate, getCardRandomBoardSpawnDeps(cardState));
     }
 
     function resolveRandomBoardSpawnEffectUsage(cardState: any, gameState: any, playerKey: any, requestedCount: any, prng: any, cause: any, reason: any, options: any = {}) {
@@ -782,7 +779,7 @@ const {
             cause,
             reason,
             options,
-            getCardRandomBoardSpawnDeps()
+            getCardRandomBoardSpawnDeps(cardState)
         );
     }
 
@@ -867,7 +864,7 @@ const {
                 const nextRow = row + dr;
                 const nextCol = col + dc;
                 if (!hasBoardShapeCellForCard(cardState, gameState, nextRow, nextCol)) continue;
-                if (getCellValueForCard(gameState, nextRow, nextCol) !== EMPTY) return true;
+                if (getCellValueForCard(cardState, gameState, nextRow, nextCol) !== EMPTY) return true;
             }
         }
         return false;
@@ -882,23 +879,23 @@ const {
     }
 
     function canUseReinforcementWillForPlayer(cardState: any, gameState: any, playerKey: any) {
-        return CardRandomBoardSpawnModule.canUseReinforcementWillForPlayer(cardState, gameState, playerKey, getCardRandomBoardSpawnDeps());
+        return CardRandomBoardSpawnModule.canUseReinforcementWillForPlayer(cardState, gameState, playerKey, getCardRandomBoardSpawnDeps(cardState));
     }
 
     function canUseSupportTroopsWillForPlayer(cardState: any, gameState: any, playerKey: any) {
-        return CardRandomBoardSpawnModule.canUseSupportTroopsWillForPlayer(cardState, gameState, playerKey, getCardRandomBoardSpawnDeps());
+        return CardRandomBoardSpawnModule.canUseSupportTroopsWillForPlayer(cardState, gameState, playerKey, getCardRandomBoardSpawnDeps(cardState));
     }
 
     function resolveReinforcementWillUsage(cardState: any, gameState: any, playerKey: any, prng: any) {
-        return CardRandomBoardSpawnModule.resolveReinforcementWillUsage(cardState, gameState, playerKey, prng, getCardRandomBoardSpawnDeps());
+        return CardRandomBoardSpawnModule.resolveReinforcementWillUsage(cardState, gameState, playerKey, prng, getCardRandomBoardSpawnDeps(cardState));
     }
 
     function resolveSupportTroopsWillUsage(cardState: any, gameState: any, playerKey: any, prng: any) {
-        return CardRandomBoardSpawnModule.resolveSupportTroopsWillUsage(cardState, gameState, playerKey, prng, getCardRandomBoardSpawnDeps());
+        return CardRandomBoardSpawnModule.resolveSupportTroopsWillUsage(cardState, gameState, playerKey, prng, getCardRandomBoardSpawnDeps(cardState));
     }
 
     function processRiboWillTurnStartEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
-        return CardRiboTimeStopModule.processRiboWillTurnStartEffects(cardState, gameState, playerKey, prng, getCardRiboTimeStopDeps());
+        return CardRiboTimeStopModule.processRiboWillTurnStartEffects(cardState, gameState, playerKey, prng, getCardRiboTimeStopDeps(cardState));
     }
 
     /** @type {any} */
@@ -1158,8 +1155,7 @@ const {
         }
         CardAvailabilityCache = CardAvailabilityModule.createCardAvailability({
             constants: { BLACK, WHITE },
-            resolveCoreLogicForCards,
-            getExpansionDescriptorsForCard,
+            createBoardViewForCard,
             hasStandardLegalMoveForPlayer,
             getReinforcementWillTargets
         });
@@ -1254,7 +1250,7 @@ const {
             readCardPendingEffect,
             clearCardPendingEffect,
             collectLossWillRemovals: (cardState: any) => requireCardEffectTargetCounts().collectLossWillRemovals(cardState),
-            getCellValueForCard,
+            createBoardViewForCard,
             emitPresentationEvent,
             findLivingWillMarkerAt: CardLivingWillModule && typeof CardLivingWillModule.findLivingWillMarkerAt === 'function'
                 ? CardLivingWillModule.findLivingWillMarkerAt
@@ -1432,28 +1428,92 @@ const {
         return CardExpansionModule.isExpansionCoordinateForCard(row, col, boardOrConfig);
     }
 
-    function getExpansionDescriptorsForCard(gameState: any) {
-        return CardExpansionModule.getExpansionDescriptorsForCard(gameState);
+    function getExpansionDescriptorsForCard(cardState: any, gameState: any) {
+        return CardExpansionModule.getExpansionDescriptorsForCard(cardState, gameState);
+    }
+
+    function requireCardBoardKernel() {
+        if (
+            !BoardUtils ||
+            typeof BoardUtils.createBoardContext !== 'function' ||
+            typeof BoardUtils.createBoardView !== 'function' ||
+            typeof BoardUtils.setCellValue !== 'function' ||
+            typeof BoardUtils.getEffectiveCornerCells !== 'function' ||
+            typeof BoardUtils.toBoardCellKey !== 'function'
+        ) {
+            throw new Error('[cards.js] SharedBoardUtils BoardContext APIs not available');
+        }
+        return BoardUtils;
+    }
+
+    function createBoardContextForCard(cardState: any, gameState: any) {
+        return requireCardBoardKernel().createBoardContext(gameState, cardState == null ? null : cardState);
+    }
+
+    function createBoardViewForCard(cardState: any, gameState: any) {
+        const boardUtils = requireCardBoardKernel();
+        const boardContext = createBoardContextForCard(cardState, gameState);
+        return boardUtils.createBoardView(boardContext.gameState, {
+            cardState: boardContext.cardState,
+            strict: false
+        });
+    }
+
+    function getBoardCellForCard(cardState: any, gameState: any, row: any, col: any) {
+        return createBoardViewForCard(cardState, gameState).get(row, col);
+    }
+
+    function setBoardCellForCard(cardState: any, gameState: any, row: any, col: any, value: any) {
+        return requireCardBoardKernel().setCellValue(
+            createBoardContextForCard(cardState, gameState),
+            row,
+            col,
+            value
+        );
+    }
+
+    function getEffectiveCornerCellsForCard(cardState: any, gameState: any) {
+        return requireCardBoardKernel().getEffectiveCornerCells(
+            createBoardContextForCard(cardState, gameState)
+        );
+    }
+
+    function toCanonicalBoardCellKey(row: any, col: any) {
+        return requireCardBoardKernel().toBoardCellKey(row, col);
     }
 
     function syncLegacyExpansionFieldsForCard(expansion: any, boardOrConfig?: any) {
         return CardExpansionModule.syncLegacyExpansionFieldsForCard(expansion, boardOrConfig || null);
     }
 
-    function ensureMutableBoardExpansionForCard(gameState: any) {
-        return CardExpansionModule.ensureMutableBoardExpansionForCard(gameState);
+    function ensureMutableBoardExpansionForCard(cardState: any, gameState: any) {
+        return CardExpansionModule.ensureMutableBoardExpansionForCard(cardState, gameState);
     }
 
-    function writeExpansionDescriptorsForCard(gameState: any, cells: any) {
-        return CardExpansionModule.writeExpansionDescriptorsForCard(gameState, cells);
+    function writeExpansionDescriptorsForCard(cardState: any, gameState: any, cells: any) {
+        return CardExpansionModule.writeExpansionDescriptorsForCard(cardState, gameState, cells);
     }
 
-    function getCellValueForCard(gameState: any, row: any, col: any) {
-        return CardExpansionModule.getCellValueForCard(gameState, row, col);
+    function getCellValueForCard(cardState: any, gameState: any, row: any, col: any) {
+        return CardExpansionModule.getCellValueForCard(cardState, gameState, row, col);
     }
 
-    function setCellValueForCard(gameState: any, row: any, col: any, value: any) {
-        return CardExpansionModule.setCellValueForCard(gameState, row, col, value);
+    function setCellValueForCard(cardState: any, gameState: any, row: any, col: any, value: any) {
+        return CardExpansionModule.setCellValueForCard(cardState, gameState, row, col, value);
+    }
+
+    function bindGetCellValueForCard(cardState: any) {
+        return (gameState: any, row: any, col: any) => getCellValueForCard(cardState, gameState, row, col);
+    }
+
+    function bindSetCellValueForCard(cardState: any) {
+        return (gameState: any, row: any, col: any, value: any) => setCellValueForCard(cardState, gameState, row, col, value);
+    }
+
+    function bindEnsureExpansionCellForCard(cardState: any) {
+        return (gameState: any, row: any, col: any, owner: any) => (
+            ensureExpansionCellForCard(cardState, gameState, row, col, owner)
+        );
     }
 
     function clearStoneIdAtForCard(cardState: any, gameState: any, row: any, col: any) {
@@ -1473,12 +1533,11 @@ const {
             emptyValue: EMPTY,
             blackValue: BLACK,
             whiteValue: WHITE,
-            resolveCardBoardConfig,
-            getExpansionDescriptorsForCard,
-            isMainBoardCellForCard,
-            getCellValueForCard,
+            createBoardContextForCard,
+            createBoardViewForCard,
+            getEffectiveCornerCellsForCard,
+            toBoardCellKey: toCanonicalBoardCellKey,
             getBlockingMarkers,
-            findSpecialMarkerAt,
             resolveDeterministicRandomIndex
         })
         : null;
@@ -1499,8 +1558,8 @@ const {
         return requireCardBoardShapeAccessMethod('toBoardCellKey')(row, col);
     }
 
-    function hasMeteorHoleAtForCard(cardState: any, row: any, col: any) {
-        return requireCardBoardShapeAccessMethod('hasMeteorHoleAtForCard')(cardState, row, col);
+    function hasMeteorHoleAtForCard(cardState: any, gameState: any, row: any, col: any) {
+        return requireCardBoardShapeAccessMethod('hasMeteorHoleAtForCard')(cardState, gameState, row, col);
     }
 
     function hasBoardShapeCellForCard(cardState: any, gameState: any, row: any, col: any) {
@@ -1615,8 +1674,15 @@ const {
         return fn;
     }
 
-    function getCardPresentationHelperContext() {
-        return requireCardContextBuilders().getCardPresentationHelperContext();
+    function getCardPresentationHelperContext(cardState: any) {
+        return Object.assign(
+            {},
+            requireCardContextBuilders().getCardPresentationHelperContext(),
+            {
+                getCellValueForCard: bindGetCellValueForCard(cardState),
+                setCellValueForCard: bindSetCellValueForCard(cardState)
+            }
+        );
     }
 
     function compactPresentationMeta(meta: any) {
@@ -1628,7 +1694,7 @@ const {
             cardState,
             row,
             col,
-            getCardPresentationHelperContext()
+            getCardPresentationHelperContext(cardState)
         );
     }
 
@@ -1639,7 +1705,7 @@ const {
             posA,
             posB,
             options,
-            getCardPresentationHelperContext()
+            getCardPresentationHelperContext(cardState)
         );
     }
 
@@ -1748,7 +1814,7 @@ const {
         return CardStateManager.removeMarker(cardState, markerId);
     }
 
-    function getObserverWillResolutionDeps() {
+    function getObserverWillResolutionDeps(cardState: any) {
         return {
             MARKER_KINDS,
             BLACK,
@@ -1759,7 +1825,7 @@ const {
             getActiveManifestMarkers,
             isManifestStoneMarker,
             removeMarkerById,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             isInviolableCell,
             isGuardProtectedCell,
             isFrozenCellForCard,
@@ -1781,7 +1847,7 @@ const {
             playerKey,
             row,
             col,
-            getObserverWillResolutionDeps()
+            getObserverWillResolutionDeps(cardState)
         );
     }
 
@@ -1790,7 +1856,7 @@ const {
             cardState,
             viewerKey,
             ownerKey,
-            getObserverWillResolutionDeps()
+            getObserverWillResolutionDeps(cardState)
         );
     }
 
@@ -1802,7 +1868,7 @@ const {
             row,
             col,
             prng,
-            getObserverWillResolutionDeps()
+            getObserverWillResolutionDeps(cardState)
         );
     }
 
@@ -1812,7 +1878,7 @@ const {
             gameState,
             playerKey,
             prng,
-            getObserverWillResolutionDeps()
+            getObserverWillResolutionDeps(cardState)
         );
     }
 
@@ -1820,7 +1886,7 @@ const {
         return CardObserverWillResolutionModule.observeActiveObserverWillHandForOwner(
             cardState,
             ownerKey,
-            getObserverWillResolutionDeps()
+            getObserverWillResolutionDeps(cardState)
         );
     }
 
@@ -1829,7 +1895,7 @@ const {
             cardState,
             ownerKey,
             observedCopyIds,
-            getObserverWillResolutionDeps(),
+            getObserverWillResolutionDeps(cardState),
             exemptCopyId
         );
     }
@@ -1838,7 +1904,7 @@ const {
         return CardObserverWillResolutionModule.clearObserverWillObservationCost(cardState, cardCopyId);
     }
 
-    function getTheoryIncarnationResolutionDeps() {
+    function getTheoryIncarnationResolutionDeps(cardState: any) {
         if (!CardTheoryIncarnationBindings || typeof CardTheoryIncarnationBindings.buildTheoryIncarnationResolutionDeps !== 'function') {
             throw new Error('CardTheoryIncarnationBindings not loaded');
         }
@@ -1878,8 +1944,8 @@ const {
             addMarker,
             getMarkers,
             removeMarkerById,
-            getCellValueForCard,
-            setCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             isBlockedCell,
             sampleRandomPositions,
             revertSpecialStoneWithPresentation,
@@ -1890,7 +1956,7 @@ const {
         });
     }
 
-    function getBoardExecutorResolutionDeps() {
+    function getBoardExecutorResolutionDeps(cardState: any) {
         return {
             MARKER_KINDS,
             BLACK,
@@ -1900,7 +1966,7 @@ const {
             addMarker,
             getMarkers,
             removeMarkerById,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             isMainBoardCellForCard,
             revertSpecialStoneWithPresentation,
             applyCellRemovalAt: BoardOpsModule && typeof BoardOpsModule.applyCellRemovalAt === 'function'
@@ -1918,7 +1984,7 @@ const {
     }
 
     function canUseBoardExecutor(cardState: any, playerKey: any) {
-        return CardBoardExecutorResolutionModule.canUseBoardExecutor(cardState, playerKey, getBoardExecutorResolutionDeps());
+        return CardBoardExecutorResolutionModule.canUseBoardExecutor(cardState, playerKey, getBoardExecutorResolutionDeps(cardState));
     }
 
     function applyBoardExecutorUsage(cardState: any, gameState: any, playerKey: any, prng: any) {
@@ -1927,7 +1993,7 @@ const {
             gameState,
             playerKey,
             prng,
-            getBoardExecutorResolutionDeps()
+            getBoardExecutorResolutionDeps(cardState)
         );
     }
 
@@ -1937,7 +2003,7 @@ const {
             playerKey,
             row,
             col,
-            getBoardExecutorResolutionDeps()
+            getBoardExecutorResolutionDeps(cardState)
         );
     }
 
@@ -1945,7 +2011,7 @@ const {
         return CardBoardExecutorResolutionModule.processBoardExecutorHandTaxAtTurnStart(
             cardState,
             playerKey,
-            getBoardExecutorResolutionDeps()
+            getBoardExecutorResolutionDeps(cardState)
         );
     }
 
@@ -1957,7 +2023,7 @@ const {
             row,
             col,
             prng,
-            getBoardExecutorResolutionDeps()
+            getBoardExecutorResolutionDeps(cardState)
         );
     }
 
@@ -1970,7 +2036,7 @@ const {
             cardState,
             gameState,
             playerKey,
-            getTheoryIncarnationResolutionDeps()
+            getTheoryIncarnationResolutionDeps(cardState)
         );
     }
 
@@ -1980,7 +2046,7 @@ const {
             gameState,
             playerKey,
             prng,
-            getTheoryIncarnationResolutionDeps()
+            getTheoryIncarnationResolutionDeps(cardState)
         );
     }
 
@@ -1990,7 +2056,7 @@ const {
             gameState,
             playerKey,
             prng,
-            getTheoryIncarnationResolutionDeps()
+            getTheoryIncarnationResolutionDeps(cardState)
         );
     }
 
@@ -2000,7 +2066,7 @@ const {
             playerKey,
             row,
             col,
-            getTheoryIncarnationResolutionDeps()
+            getTheoryIncarnationResolutionDeps(cardState)
         );
     }
 
@@ -2010,7 +2076,7 @@ const {
             gameState,
             playerKey,
             prng,
-            getTheoryIncarnationResolutionDeps()
+            getTheoryIncarnationResolutionDeps(cardState)
         );
     }
 
@@ -2022,7 +2088,7 @@ const {
             row,
             col,
             prng,
-            getTheoryIncarnationResolutionDeps()
+            getTheoryIncarnationResolutionDeps(cardState)
         );
     }
 
@@ -2032,7 +2098,7 @@ const {
             gameState,
             playerKey,
             prng,
-            getTheoryIncarnationResolutionDeps()
+            getTheoryIncarnationResolutionDeps(cardState)
         );
     }
 
@@ -2042,7 +2108,7 @@ const {
             gameState,
             playerKey,
             prng,
-            getTheoryIncarnationResolutionDeps()
+            getTheoryIncarnationResolutionDeps(cardState)
         );
     }
 
@@ -2236,7 +2302,7 @@ const {
             try {
                 for (const cell of getCurrentBoardShapeCellsForCard(cardState, gameState)) {
                     if (!cell) continue;
-                    if (getCellValueForCard(gameState, cell.row, cell.col) !== EMPTY) continue;
+                    if (getBoardCellForCard(cardState, gameState, cell.row, cell.col) !== EMPTY) continue;
                     if (isBlockedCell(cardState, cell.row, cell.col, gameState)) continue;
                     const flips = core.getFlipsWithContext(gameState, cell.row, cell.col, playerVal, context);
                     if (Array.isArray(flips) && flips.length > 0) return true;
@@ -2249,24 +2315,24 @@ const {
         return false;
     }
 
-    function countDiscsForCardComparison(gameState: any) {
-        return requireCardAvailability().countDiscsForCardComparison(gameState);
+    function countDiscsForCardComparison(cardState: any, gameState: any) {
+        return requireCardAvailability().countDiscsForCardComparison(cardState, gameState);
     }
 
-    function getDiscDisadvantageForPlayer(gameState: any, playerKey: any) {
-        return requireCardAvailability().getDiscDisadvantageForPlayer(gameState, playerKey);
+    function getDiscDisadvantageForPlayer(cardState: any, gameState: any, playerKey: any) {
+        return requireCardAvailability().getDiscDisadvantageForPlayer(cardState, gameState, playerKey);
     }
 
-    function getEqualityWillBoardCounts(gameState: any) {
-        return requireCardAvailability().getEqualityWillBoardCounts(gameState);
+    function getEqualityWillBoardCounts(cardState: any, gameState: any) {
+        return requireCardAvailability().getEqualityWillBoardCounts(cardState, gameState);
     }
 
     function getEqualityWillChargeState(cardState: any, playerKey: any) {
         return requireCardAvailability().getEqualityWillChargeState(cardState, playerKey);
     }
 
-    function hasFewerDiscsThanOpponentForPlayer(gameState: any, playerKey: any) {
-        return requireCardAvailability().hasFewerDiscsThanOpponentForPlayer(gameState, playerKey);
+    function hasFewerDiscsThanOpponentForPlayer(cardState: any, gameState: any, playerKey: any) {
+        return requireCardAvailability().hasFewerDiscsThanOpponentForPlayer(cardState, gameState, playerKey);
     }
 
     function canUseLastResortForPlayer(cardState: any, gameState: any, playerKey: any) {
@@ -2461,7 +2527,7 @@ const {
             isCardPlayLockedForPlayer,
             BoardOpsModule,
             MARKER_KINDS,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             getSpecialMarkers,
             SpecialCardRegistryModule: SpecialCardRegistry,
             CardPendingStateManagerModule,
@@ -2643,8 +2709,8 @@ const {
         return CardTargetAccessModule.getBoardExpansionGodPendingSelectionsForCard(pending, getCardTargetAccessDeps());
     }
 
-    function ensureExpansionCellForCard(gameState: any, row: any, col: any, owner: any) {
-        return CardTargetAccessModule.ensureExpansionCellForCard(gameState, row, col, owner, getCardTargetAccessDeps());
+    function ensureExpansionCellForCard(cardState: any, gameState: any, row: any, col: any, owner: any) {
+        return CardTargetAccessModule.ensureExpansionCellForCard(cardState, gameState, row, col, owner, getCardTargetAccessDeps());
     }
 
     function getBoardExpansionGodTargets(cardState: any, gameState: any, playerKey: any) {
@@ -2718,8 +2784,8 @@ const {
     function processTrapEffects(cardState: any, gameState: any, activePlayerKey: any, options: any) {
         return CardTrapModule.processTrapEffects(cardState, gameState, activePlayerKey, options, {
             getSpecialMarkers,
-            getCellValueForCard,
-            setCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             removeMarkersAt,
             setChargeValue,
             addChargeWithTotal,
@@ -2741,11 +2807,11 @@ const {
             readCardPendingEffect,
             isTemptTargetableMarker,
             blocksTemptAt,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             getSpecialMarkers,
             isInviolableCell,
             BoardOpsModule,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             removeMarkersAt,
             emitPresentationEvent,
             clearCardPendingEffect,
@@ -2765,7 +2831,7 @@ const {
             isTrueSpecialStoneAt,
             getTrueSpecialStoneOwnerAt,
             isCaptureTargetableMarker,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             getSpecialMarkers,
             isInviolableCell,
             getTrueSpecialStoneMarkerAt,
@@ -2775,7 +2841,7 @@ const {
             addCardToHand,
             getStoneIdAtForCard,
             clearStoneIdAtForCard,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             removeMarkersAt,
             emitPresentationEvent,
             clearCardPendingEffect,
@@ -2850,7 +2916,7 @@ const {
     function applyCloneWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
         return CardCloneModule.applyCloneWill(cardState, gameState, playerKey, row, col, prng, {
             getCloneTargets,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             getSpecialMarkers,
             getBombMarkers,
             collectEmptyNeighborCellsForCard,
@@ -2869,7 +2935,7 @@ const {
             runSpawnBlock: BoardOpsModule && typeof BoardOpsModule.runSpawnBlock === 'function'
                 ? BoardOpsModule.runSpawnBlock
                 : null,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             addMarker
         });
     }
@@ -2908,7 +2974,7 @@ const {
     function applyBoardShrinkWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return CardShrinkModule.applyBoardShrinkWill(cardState, gameState, playerKey, row, col, {
             getBoardShrinkTargets,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
                 ? BoardOpsModule.destroyAt
                 : null,
@@ -2923,7 +2989,7 @@ const {
                 : null,
             isDestroyResolved,
             clearStoneIdAtForCard,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             removeMarkersAt,
             addMarker,
             random: (cardState && cardState._defaultRandomSource) || defaultPrng,
@@ -2934,7 +3000,7 @@ const {
     function applyBoardShrinkGod(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return CardShrinkModule.applyBoardShrinkGod(cardState, gameState, playerKey, row, col, {
             getBoardShrinkGodTargets,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
                 ? BoardOpsModule.destroyAt
                 : null,
@@ -2949,7 +3015,7 @@ const {
                 : null,
             isDestroyResolved,
             clearStoneIdAtForCard,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             removeMarkersAt,
             addMarker,
             random: (cardState && cardState._defaultRandomSource) || defaultPrng,
@@ -2970,7 +3036,7 @@ const {
         });
     }
 
-    function getPoisonDeps() {
+    function getPoisonDeps(cardState: any) {
         return {
             readCardPendingEffect,
             getPoisonTargets,
@@ -2979,7 +3045,7 @@ const {
             removeMarkerById,
             emitPresentationEvent,
             clearCardPendingEffect,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             isInviolableCell,
             destroyAt: (cs: any, gs: any, r: any, c: any, cause: any, reason: any, meta: any) => (
                 BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
@@ -2995,21 +3061,21 @@ const {
     }
 
     function applyPoisonWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        return CardStatusCellsModule.applyPoisonWill(cardState, gameState, playerKey, row, col, getPoisonDeps());
+        return CardStatusCellsModule.applyPoisonWill(cardState, gameState, playerKey, row, col, getPoisonDeps(cardState));
     }
 
     function syncPoisonContacts(cardState: any, gameState: any, appliedTurnNumber?: any) {
-        return CardStatusCellsModule.syncPoisonContacts(cardState, gameState, Number(appliedTurnNumber ?? gameState?.turnNumber ?? 0), getPoisonDeps());
+        return CardStatusCellsModule.syncPoisonContacts(cardState, gameState, Number(appliedTurnNumber ?? gameState?.turnNumber ?? 0), getPoisonDeps(cardState));
     }
 
     function processPoisonTurnEnd(cardState: any, gameState: any, completedTurnNumber?: any) {
-        return CardStatusCellsModule.processPoisonTurnEnd(cardState, gameState, Number(completedTurnNumber ?? gameState?.turnNumber ?? 0), getPoisonDeps());
+        return CardStatusCellsModule.processPoisonTurnEnd(cardState, gameState, Number(completedTurnNumber ?? gameState?.turnNumber ?? 0), getPoisonDeps(cardState));
     }
 
     function applyMeteorWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
         return CardMeteorModule.applyMeteorWill(cardState, gameState, playerKey, row, col, {
             getMeteorTargets,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
                 ? BoardOpsModule.destroyAt
                 : null,
@@ -3024,7 +3090,7 @@ const {
                 : null,
             isDestroyResolved,
             clearStoneIdAtForCard,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             removeMarkersAt,
             addMarker,
             random: prng || defaultPrng
@@ -3034,7 +3100,9 @@ const {
     function applyCausalReplayWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return CardCausalReplayModule.applyCausalReplayWill(cardState, gameState, playerKey, row, col, {
             getCausalReplayTargets,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
+            createBoardMutationCheckpoint: SharedBoardUtils && SharedBoardUtils.createBoardMutationCheckpoint,
+            restoreBoardMutationCheckpoint: SharedBoardUtils && SharedBoardUtils.restoreBoardMutationCheckpoint,
             clearStoneIdAtForCard,
             removeMarkersAt,
             emitPresentationEvent,
@@ -3167,8 +3235,8 @@ const {
         return CardTeleportModule.applyTeleportWill(cardState, gameState, playerKey, row, col, prng, {
             getTeleportTargets,
             getTeleportDestinations: _getTeleportDestinations,
-            getCellValueForCard,
-            setCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
                 ? BoardOpsModule.moveAt
                 : null,
@@ -3180,12 +3248,12 @@ const {
         return CardTeleportModule.applyCellTeleportWill(cardState, gameState, playerKey, row, col, prng, {
             getCellTeleportTargets,
             getCellTeleportDestinations,
-            getCellValueForCard,
-            ensureExpansionCellForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
+            ensureExpansionCellForCard: bindEnsureExpansionCellForCard(cardState),
             moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
                 ? BoardOpsModule.moveAt
                 : null,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             getStoneIdAtForCard,
             clearStoneIdAtForCard,
             setStoneIdAtForCard,
@@ -3203,10 +3271,10 @@ const {
 
     function applyStrongWindWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
         return CardMovementModule.applyStrongWindWill(cardState, gameState, playerKey, row, col, prng, {
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             hasBoardShapeCellForCard,
             isBlockedCell,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
                 ? BoardOpsModule.moveAt
                 : null,
@@ -3217,7 +3285,7 @@ const {
     function applySuperBuoyancyWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return CardMovementModule.applySuperBuoyancyWill(cardState, gameState, playerKey, row, col, {
             getSuperBuoyancyTargets,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             hasBoardShapeCellForCard,
             isBlockedCell,
             findSpecialMarkerAt,
@@ -3232,7 +3300,7 @@ const {
             moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
                 ? BoardOpsModule.moveAt
                 : null,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             getMarkers
         });
     }
@@ -3240,13 +3308,13 @@ const {
     function applyBuoyancyWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return CardMovementModule.applyBuoyancyWill(cardState, gameState, playerKey, row, col, {
             getBuoyancyTargets,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             hasBoardShapeCellForCard,
             isBlockedCell,
             moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
                 ? BoardOpsModule.moveAt
                 : null,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             getMarkers
         });
     }
@@ -3254,7 +3322,7 @@ const {
     function applySuperGravityWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return CardMovementModule.applySuperGravityWill(cardState, gameState, playerKey, row, col, {
             getSuperGravityTargets,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             hasBoardShapeCellForCard,
             isBlockedCell,
             findSpecialMarkerAt,
@@ -3269,7 +3337,7 @@ const {
             moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
                 ? BoardOpsModule.moveAt
                 : null,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             getMarkers
         });
     }
@@ -3277,13 +3345,13 @@ const {
     function applyGravityWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return CardMovementModule.applyGravityWill(cardState, gameState, playerKey, row, col, {
             getGravityTargets,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             hasBoardShapeCellForCard,
             isBlockedCell,
             moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
                 ? BoardOpsModule.moveAt
                 : null,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             getMarkers
         });
     }
@@ -3291,7 +3359,7 @@ const {
     function applySuperAttractionWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
         return CardMovementModule.applySuperAttractionWill(cardState, gameState, playerKey, row, col, prng, {
             getSuperAttractionTargets,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             hasBoardShapeCellForCard,
             isBlockedCell,
             findSpecialMarkerAt,
@@ -3306,7 +3374,7 @@ const {
             moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
                 ? BoardOpsModule.moveAt
                 : null,
-            setCellValueForCard,
+            setCellValueForCard: bindSetCellValueForCard(cardState),
             getMarkers
         });
     }
@@ -3337,7 +3405,7 @@ const {
     }
 
     function getReverseWillFlips(cardState: any, gameState: any, row: any, col: any) {
-        const ownerValue = getCellValueForCard(gameState, row, col);
+        const ownerValue = getCellValueForCard(cardState, gameState, row, col);
         const ownerKey = ownerKeyFromValue(ownerValue);
         if (!ownerKey) return { ownerKey: null, ownerValue, flips: [] };
         const getOccupiedOriginFlips = CardFlipsModule && typeof CardFlipsModule.getOccupiedOriginFlipsWithContext === 'function'
@@ -3471,7 +3539,7 @@ const {
                     });
                 }
             } else {
-                changed = setCellValueForCard(gameState, pos.row, pos.col, reverse.ownerValue);
+                changed = setCellValueForCard(cardState, gameState, pos.row, pos.col, reverse.ownerValue);
                 if (!changed) blockedFlips.push({ row: pos.row, col: pos.col, reason: 'unchanged' });
             }
             if (!changed) continue;
@@ -3517,8 +3585,16 @@ const {
         return requireCardContextBuilders().getCardStateFactoryContext();
     }
 
-    function getCardEffectTimingContext() {
-        return requireCardContextBuilders().getCardEffectTimingContext();
+    function getCardEffectTimingContext(cardState: any) {
+        const context = requireCardContextBuilders().getCardEffectTimingContext();
+        return Object.assign({}, context, {
+            getCellValueForCard: bindGetCellValueForCard(cardState),
+            setCellValueForCard: bindSetCellValueForCard(cardState),
+            helpers: Object.assign({}, context && context.helpers, {
+                getBoardCellForCard,
+                setBoardCellForCard
+            })
+        });
     }
 
     /**
@@ -3533,7 +3609,7 @@ const {
         }
         ensureGeneratedSpawnFlipResolver(cardState);
         const opts = (options && typeof options === 'object') ? options : {};
-        const timingContext = Object.assign({}, getCardEffectTimingContext(), opts);
+        const timingContext = Object.assign({}, getCardEffectTimingContext(cardState), opts);
         return CardTimingProcessorModule.onTurnStart(
             cardState,
             playerKey,
@@ -3549,7 +3625,7 @@ const {
         }
         ensureGeneratedSpawnFlipResolver(cardState);
         const opts = (options && typeof options === 'object') ? options : {};
-        const timingContext = Object.assign({}, getCardEffectTimingContext(), opts);
+        const timingContext = Object.assign({}, getCardEffectTimingContext(cardState), opts);
         return CardTimingProcessorModule.onTurnStartBeforeAnchors(
             cardState,
             playerKey,
@@ -3564,7 +3640,7 @@ const {
             throw new Error('[cards.js] CardTimingProcessor.drawForTurnStart not available');
         }
         const opts = (options && typeof options === 'object') ? options : {};
-        const timingContext = Object.assign({}, getCardEffectTimingContext(), opts);
+        const timingContext = Object.assign({}, getCardEffectTimingContext(cardState), opts);
         return CardTimingProcessorModule.drawForTurnStart(
             cardState,
             playerKey,
@@ -3581,7 +3657,7 @@ const {
         return CardTimingProcessorModule.flushDeferredTurnStartStatusExpirations(
             cardState,
             gameState,
-            Object.assign({}, getCardEffectTimingContext(), opts)
+            Object.assign({}, getCardEffectTimingContext(cardState), opts)
         );
     }
 
@@ -3595,7 +3671,7 @@ const {
             gameState,
             playerKey,
             marker,
-            Object.assign({}, getCardEffectTimingContext(), opts)
+            Object.assign({}, getCardEffectTimingContext(cardState), opts)
         );
     }
 
@@ -3677,27 +3753,15 @@ const {
             row,
             col,
             flipCount,
-            getCardEffectTimingContext()
+            getCardEffectTimingContext(cardState)
         );
     }
 
     function isNormalStoneForPlayer(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardUtilsModule && typeof CardUtilsModule.isNormalStoneForPlayer === 'function') {
-            return CardUtilsModule.isNormalStoneForPlayer(cardState, gameState, playerKey, row, col);
+        if (!CardUtilsModule || typeof CardUtilsModule.isNormalStoneForPlayer !== 'function') {
+            throw new Error('[cards.js] CardUtils.isNormalStoneForPlayer not available');
         }
-        const P_BLACK = BLACK || 1;
-        const P_WHITE = WHITE || -1;
-        const playerVal = playerKey === 'black' ? P_BLACK : P_WHITE;
-
-        if (gameState.board[row][col] !== playerVal) return false;
-
-        const specials = getSpecialMarkers(cardState);
-        if (specials.some((s: any) => s.row === row && s.col === col)) return false;
-
-        const bombs = getBombMarkers(cardState);
-        if (bombs.some((b: any) => b.row === row && b.col === col)) return false;
-
-        return true;
+        return CardUtilsModule.isNormalStoneForPlayer(cardState, gameState, playerKey, row, col);
     }
 
     function applyStrongWill(cardState: any, playerKey: any, row: any, col: any) {
@@ -3732,7 +3796,7 @@ const {
             row,
             col,
             prng,
-            Object.assign({ BoardOps: BoardOpsModule }, deps)
+            Object.assign({ BoardOps: BoardOpsModule, CardMarkers: CardMarkersModule }, deps)
         );
     }
 
@@ -3776,10 +3840,10 @@ const {
         return out;
     }
 
-    function queuePostFlipPositionsByCurrentOwner(queue: any[], gameState: any, rawPositions: any, source: string): void {
+    function queuePostFlipPositionsByCurrentOwner(cardState: any, queue: any[], gameState: any, rawPositions: any, source: string): void {
         const buckets: Record<string, Array<{ row: number; col: number }>> = { black: [], white: [] };
         for (const position of normalizePostFlipPositions(rawPositions)) {
-            const value = getCellValueForCard(gameState, position.row, position.col);
+            const value = getCellValueForCard(cardState, gameState, position.row, position.col);
             const ownerKey = value === (WHITE || -1) ? 'white' : (value === (BLACK || 1) ? 'black' : null);
             if (!ownerKey) continue;
             buckets[ownerKey].push(position);
@@ -3818,7 +3882,7 @@ const {
             if (regenRes && Array.isArray(regenRes.regened)) regened.push(...regenRes.regened);
             if (batchCaptureFlips.length) {
                 captureFlips.push(...batchCaptureFlips);
-                queuePostFlipPositionsByCurrentOwner(queue, gameState, batchCaptureFlips, 'regen_capture');
+                queuePostFlipPositionsByCurrentOwner(cardState, queue, gameState, batchCaptureFlips, 'regen_capture');
             }
 
             const livingWillRes = applyLivingWillAfterFlips(cardState, gameState, batchFlips, ownerKey);
@@ -3826,7 +3890,7 @@ const {
             if (livingWillRes && Array.isArray(livingWillRes.restored)) restored.push(...livingWillRes.restored);
             if (batchLivingWillFlips.length) {
                 livingWillFlips.push(...batchLivingWillFlips);
-                queuePostFlipPositionsByCurrentOwner(queue, gameState, batchLivingWillFlips, 'living_will_restore');
+                queuePostFlipPositionsByCurrentOwner(cardState, queue, gameState, batchLivingWillFlips, 'living_will_restore');
             }
         }
 
@@ -3954,6 +4018,8 @@ const {
             defaultPrng,
             resolveChainWillMaxLinks,
             findChainChoice: CardChainModule.findChainChoice,
+            createBoardViewForCard,
+            setBoardCellForCard,
             BoardOpsModule,
             eventCause: CHAIN_WILL_EVENT_CAUSE,
             clearBombAt,
@@ -4603,7 +4669,7 @@ const {
     function applyPositionSwapWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return CardPositionSwapModule.applyPositionSwapWill(cardState, gameState, playerKey, row, col, {
             readCardPendingEffect,
-            getCellValueForCard,
+            getCellValueForCard: bindGetCellValueForCard(cardState),
             isPositionSwapProtectedCell,
             swapOccupiedCellsWithPresentation,
             clearCardPendingEffect
@@ -4659,15 +4725,15 @@ const {
 
     // Presentation event helpers (PoC)
     function allocateStoneId(cardState: any) {
-        return requireCardPresentationHelper('allocateStoneId')(cardState, getCardPresentationHelperContext());
+        return requireCardPresentationHelper('allocateStoneId')(cardState, getCardPresentationHelperContext(cardState));
     }
 
     function emitPresentationEvent(cardState: any, ev: any) {
-        return requireCardPresentationHelper('emitPresentationEvent')(cardState, ev, getCardPresentationHelperContext());
+        return requireCardPresentationHelper('emitPresentationEvent')(cardState, ev, getCardPresentationHelperContext(cardState));
     }
 
     function flushPresentationEvents(cardState: any) {
-        return requireCardPresentationHelper('flushPresentationEvents')(cardState, getCardPresentationHelperContext());
+        return requireCardPresentationHelper('flushPresentationEvents')(cardState, getCardPresentationHelperContext(cardState));
     }
 
     /**

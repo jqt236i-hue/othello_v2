@@ -9,8 +9,9 @@ type SelfplayDecisionContextConfig = {
     readSelfplayPendingEffect?: (cardState: any, playerKey: any) => any;
     buildCornerPlanState?: (gameState: any, cardState: any, ownKey: any, legalMoves: any[], usableCardIds: any[]) => any;
     getBoardBonusAtCell?: (cardState: any, row: any, col: any) => number;
-    countDiscsByValue?: (gameState: any, playerValue: any) => number;
+    countDiscsByValue?: (gameState: any, playerValue: any, cardState?: any) => number;
     countEmpties?: (board: any) => number;
+    getSelfplayBoard?: (gameState: any, cardState: any) => any;
 };
 
 export function createSelfplayDecisionContext(config?: SelfplayDecisionContextConfig) {
@@ -50,6 +51,9 @@ export function createSelfplayDecisionContext(config?: SelfplayDecisionContextCo
     const countEmpties = typeof cfg.countEmpties === 'function'
         ? cfg.countEmpties
         : (() => 0);
+    const getSelfplayBoard = typeof cfg.getSelfplayBoard === 'function'
+        ? cfg.getSelfplayBoard
+        : (() => null);
 
     function getLegalMovesForAction(gameState: any, cardState: any, playerKey: any) {
         const player = toPlayerValue(playerKey);
@@ -136,8 +140,8 @@ export function createSelfplayDecisionContext(config?: SelfplayDecisionContextCo
             level: 6,
             playerValue: toPlayerValue(playerKey),
             legalMovesCount: Number.isFinite(legalMovesCount) ? legalMovesCount : 0,
-            discDiff: countDiscsByValue(gameState, toPlayerValue(playerKey)),
-            empties: countEmpties(gameState.board),
+            discDiff: countDiscsByValue(gameState, toPlayerValue(playerKey), cardState),
+            empties: countEmpties(getSelfplayBoard(gameState, cardState)),
             ownCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[ownKey]) ? cardState.charge[ownKey] : 0,
             oppCharge: cardState && cardState.charge && Number.isFinite(cardState.charge[oppKey]) ? cardState.charge[oppKey] : 0,
             oppHandSize: cardState && cardState.hands && Array.isArray(cardState.hands[oppKey]) ? cardState.hands[oppKey].length : 0,

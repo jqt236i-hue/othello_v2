@@ -31,7 +31,7 @@ export function createCpuDecisionPlacementPriority(deps: CpuDecisionPlacementPri
   }
 
   function countAdjacentEnemyCells(board: any, row: number, col: number, playerValue: number): number {
-    if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return 0;
+    if (!board || typeof board !== 'object' || !Number.isInteger(row) || !Number.isInteger(col)) return 0;
     const opponentValue = -playerValue;
     let count = 0;
     for (let dr = -1; dr <= 1; dr++) {
@@ -45,7 +45,7 @@ export function createCpuDecisionPlacementPriority(deps: CpuDecisionPlacementPri
 
   function filterUltimateImmediateAnchorEffectMoves(playerKey: any, pendingType: any, candidateMoves: any, board: any): any {
     if (!isUltimateImmediateAnchorPendingType(pendingType)) return candidateMoves;
-    if (!Array.isArray(candidateMoves) || candidateMoves.length <= 1 || !Array.isArray(board)) return candidateMoves;
+    if (!Array.isArray(candidateMoves) || candidateMoves.length <= 1 || !board || typeof board !== 'object') return candidateMoves;
 
     let bestAdjacentEnemyCount = 0;
     const profiledMoves = candidateMoves.map((move: any) => {
@@ -106,7 +106,7 @@ export function createCpuDecisionPlacementPriority(deps: CpuDecisionPlacementPri
   }
 
   function isLv6OpenCornerAdjacentCell(row: any, col: any, board: any): any {
-    if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return false;
+    if (!board || typeof board !== 'object' || !Number.isInteger(row) || !Number.isInteger(col)) return false;
     if (deps.isCornerCell(row, col, board)) return false;
     const cornerHint = deps.getCornerProximity(row, col, board);
     if (!cornerHint) return false;
@@ -119,7 +119,7 @@ export function createCpuDecisionPlacementPriority(deps: CpuDecisionPlacementPri
   }
 
   function filterLv6OpenCornerAdjacentMoves(candidateMoves: any, board: any): any {
-    if (!Array.isArray(candidateMoves) || candidateMoves.length <= 1 || !Array.isArray(board)) return candidateMoves;
+    if (!Array.isArray(candidateMoves) || candidateMoves.length <= 1 || !board || typeof board !== 'object') return candidateMoves;
     const safeMoves = candidateMoves.filter((move: any) => {
       if (!move) return false;
       const row = Number(move.row);

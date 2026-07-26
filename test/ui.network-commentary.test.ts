@@ -140,6 +140,37 @@ describe('NetworkCommentaryController', () => {
       );
     });
 
+    test('拡張マスを含む盤面カーネル集計をコメンタリーへ渡す', () => {
+      const payload = {
+        ok: true,
+        playerKey: 'white',
+        actionType: 'pass'
+      };
+      const snapshot = createSnapshot(1, [
+        [1, -1, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ]);
+      snapshot.gameState.boardConfig = { rows: 4, cols: 4, shape: 'rectangle' };
+      snapshot.gameState.boardExpansion = {
+        active: true,
+        side: 'left',
+        row: 1,
+        col: -1,
+        owner: 1,
+        cells: [{ side: 'left', row: 1, col: -1, owner: 1 }]
+      };
+
+      controller.emitSnapshotCommentary(payload, snapshot, false, []);
+
+      expect(mockBroker.requestCommentaryAndShow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          counts: expect.objectContaining({ black: 2, white: 1 })
+        })
+      );
+    });
+
     test('カード使用時に勇者の反応コメンタリーは発行しない', () => {
       const payload = {
         ok: true,

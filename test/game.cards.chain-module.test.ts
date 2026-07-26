@@ -1,4 +1,22 @@
 const CardChain = require('../game/logic/cards/chain');
+const SharedBoardUtils = require('../shared/shared-board-utils');
+
+function createBoardViewForCard(cardState, gameState) {
+  const context = SharedBoardUtils.createBoardContext(gameState, cardState);
+  return SharedBoardUtils.createBoardView(context.gameState, {
+    cardState: context.cardState,
+    strict: false
+  });
+}
+
+function setBoardCellForCard(cardState, gameState, row, col, value) {
+  return SharedBoardUtils.setCellValue(
+    SharedBoardUtils.createBoardContext(gameState, cardState),
+    row,
+    col,
+    value
+  );
+}
 
 function createDeps(overrides = {}) {
   return {
@@ -9,6 +27,8 @@ function createDeps(overrides = {}) {
     getCardContext: () => ({}),
     defaultPrng: { random: () => 0 },
     resolveChainWillMaxLinks: () => 2,
+    createBoardViewForCard,
+    setBoardCellForCard,
     findChainChoice: jest.fn()
       .mockReturnValueOnce({
         applied: true,
@@ -88,5 +108,44 @@ describe('card chain module', () => {
       flips: [],
       chosen: null
     });
+  });
+
+  test('findChainChoice reads expansion sources and treats meteor holes as unavailable', () => {
+    const gameState = {
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      boardExpansion: {
+        cells: [{ side: 'right', row: 0, col: 4, owner: 1 }]
+      }
+    };
+    gameState.board[0][2] = 1;
+    gameState.board[0][3] = -1;
+    const cardState = { markers: [] };
+
+    const choice = CardChain.findChainChoice(
+      gameState,
+      [{ row: 0, col: 4 }],
+      1,
+      { cardState, boardView: createBoardViewForCard(cardState, gameState) },
+      { random: () => 0 }
+    );
+
+    expect(choice).toMatchObject({
+      applied: true,
+      flips: [{ row: 0, col: 3 }]
+    });
+
+    cardState.markers.push({
+      kind: 'specialStone',
+      row: 0,
+      col: 4,
+      data: { type: 'METEOR_HOLE' }
+    });
+    expect(CardChain.findChainChoice(
+      gameState,
+      [{ row: 0, col: 4 }],
+      1,
+      { cardState, boardView: createBoardViewForCard(cardState, gameState) },
+      { random: () => 0 }
+    )).toEqual({ applied: false, flips: [], chosen: null });
   });
 });

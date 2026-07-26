@@ -198,7 +198,6 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
             log: debugLog
         } = debugCapabilities || {};
     const renderProjection = preparedRenderProjection || createBoardRenderProjection(capabilities);
-    const gameState = renderProjection.gameState;
     const cardState = renderProjection.cardState;
     const boardShape = renderProjection.boardShape;
     if (renderProjection.valid !== true) {
@@ -1099,12 +1098,13 @@ function buildDomCompatibilityRenderState(model: any): Readonly<{
     const boardShrinkGodDirectionHintMap = new Map<string, string>();
     const boardShrinkWillDirectionHintMap = new Map<string, string>();
     const boardExpansionDirectionHintMap = new Map<string, string[]>();
+    const boardExpansionDirectionHintIdMap = new Map<string, string>();
     for (const cell of model.cells) {
         const hints = cell && cell.interaction && Array.isArray(cell.interaction.directionHints)
             ? cell.interaction.directionHints
             : [];
         for (const hint of hints) {
-            const directionKey = String(hint && hint.directionKey || '').trim();
+            const directionKey = String(hint && hint.directionKey || '').trim().toLowerCase();
             if (!directionKey) continue;
             if (hint.kind === 'board-shrink-god') {
                 boardShrinkGodDirectionHintMap.set(cell.key, directionKey);
@@ -1114,6 +1114,9 @@ function buildDomCompatibilityRenderState(model: any): Readonly<{
                 const directions = boardExpansionDirectionHintMap.get(cell.key) || [];
                 if (!directions.includes(directionKey)) directions.push(directionKey);
                 boardExpansionDirectionHintMap.set(cell.key, directions);
+                const exactHintId = String(hint && hint.id || '').trim()
+                    || `${hint.kind}:${cell.key}:${directionKey}`;
+                boardExpansionDirectionHintIdMap.set(`${cell.key}:${directionKey}`, exactHintId);
             }
         }
     }
@@ -1131,13 +1134,14 @@ function buildDomCompatibilityRenderState(model: any): Readonly<{
         viewerContext: model.viewerContext,
         canControlCurrentTurn: model.canControlCurrentTurn === true,
         isHumanTurn: model.isHumanTurn === true,
-        expansions: boardExpansion.cells,
+        expansions: expansionDescriptors,
         cardContext: { protectedStones: [], permaProtectedStones: [], bombs: [] },
         hintProjection: {
             isSelectingTarget: model.cells.some((cell: any) => cell.interaction && cell.interaction.selectable === true),
             boardShrinkGodDirectionHintMap,
             boardShrinkWillDirectionHintMap,
-            boardExpansionDirectionHintMap
+            boardExpansionDirectionHintMap,
+            boardExpansionDirectionHintIdMap
         }
     });
     return Object.freeze({ renderProjection, cellState });

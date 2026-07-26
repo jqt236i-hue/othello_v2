@@ -14,7 +14,7 @@ type SelfplaySimpleSimulationChoosersConfig = {
     ) => any;
     evaluatePositionValue?: (row: any, col: any, boardOrSize?: any) => number;
     readSelfplayPendingEffect?: (cardState: any, playerKey: any) => any;
-    getSelfplayBoard?: (gameState: any, cardState?: any) => any;
+    getSelfplayBoard?: (gameState: any, cardState: any) => any;
     getCornerProximity?: (row: any, col: any, boardOverride?: any) => any;
     getBoardCellValue?: (board: any, row: any, col: any) => any;
     isCorner?: (row: any, col: any, board?: any) => boolean;
@@ -57,7 +57,13 @@ export function createSelfplaySimpleSimulationChoosers(config?: SelfplaySimpleSi
             rng,
             (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
                 cardLogic.applyGuardWill(simCardState, simGameState, onePlayerKey, row, col),
-            (target: any) => (evaluatePositionValue(target.row, target.col) * 1.4)
+            (target: any, sourceGameState: any, sourceCardState: any) => (
+                evaluatePositionValue(
+                    target.row,
+                    target.col,
+                    getSelfplayBoard(sourceGameState, sourceCardState)
+                ) * 1.4
+            )
         );
     }
 
@@ -69,7 +75,13 @@ export function createSelfplaySimpleSimulationChoosers(config?: SelfplaySimpleSi
             rng,
             (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
                 cardLogic.applyLivingWill(simCardState, simGameState, onePlayerKey, row, col),
-            (target: any) => (evaluatePositionValue(target.row, target.col) * 1.2),
+            (target: any, sourceGameState: any, sourceCardState: any) => (
+                evaluatePositionValue(
+                    target.row,
+                    target.col,
+                    getSelfplayBoard(sourceGameState, sourceCardState)
+                ) * 1.2
+            ),
             null,
             'getLivingWillTargets'
         );
@@ -93,8 +105,8 @@ export function createSelfplaySimpleSimulationChoosers(config?: SelfplaySimpleSi
                 }
                 return cardLogic.applyBoardExpansionWill(simCardState, simGameState, onePlayerKey, row, col, target && target.directionKey);
             },
-            (target: any, sourceGameState: any) => {
-                const board = getSelfplayBoard(sourceGameState, cardState);
+            (target: any, sourceGameState: any, sourceCardState: any) => {
+                const board = getSelfplayBoard(sourceGameState, sourceCardState);
                 if (isCorner(target.row, target.col, board)) return 9000;
                 if (isEdge(target.row, target.col, board)) return 2200;
                 return 600;
@@ -137,7 +149,13 @@ export function createSelfplaySimpleSimulationChoosers(config?: SelfplaySimpleSi
             rng,
             (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
                 cardLogic.applyBlockadeWill(simCardState, simGameState, onePlayerKey, row, col),
-            (target: any) => (evaluatePositionValue(target.row, target.col) * 1.3)
+            (target: any, sourceGameState: any, sourceCardState: any) => (
+                evaluatePositionValue(
+                    target.row,
+                    target.col,
+                    getSelfplayBoard(sourceGameState, sourceCardState)
+                ) * 1.3
+            )
         );
     }
 
@@ -149,7 +167,13 @@ export function createSelfplaySimpleSimulationChoosers(config?: SelfplaySimpleSi
             rng,
             (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
                 cardLogic.applyFreezeWill(simCardState, simGameState, onePlayerKey, row, col),
-            (target: any) => (evaluatePositionValue(target.row, target.col) * 1.1),
+            (target: any, sourceGameState: any, sourceCardState: any) => (
+                evaluatePositionValue(
+                    target.row,
+                    target.col,
+                    getSelfplayBoard(sourceGameState, sourceCardState)
+                ) * 1.1
+            ),
             null,
             'getFreezeTargets'
         );
@@ -163,9 +187,9 @@ export function createSelfplaySimpleSimulationChoosers(config?: SelfplaySimpleSi
             rng,
             (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
                 cardLogic.applySeedWill(simCardState, simGameState, onePlayerKey, row, col),
-            (target: any, sourceGameState: any) => {
-                const base = evaluatePositionValue(target.row, target.col) * 1.15;
-                const board = getSelfplayBoard(sourceGameState, cardState);
+            (target: any, sourceGameState: any, sourceCardState: any) => {
+                const board = getSelfplayBoard(sourceGameState, sourceCardState);
+                const base = evaluatePositionValue(target.row, target.col, board) * 1.15;
                 const nearCorner = getCornerProximity(target.row, target.col, board);
                 if (nearCorner && Array.isArray(nearCorner.corner)) {
                     const cornerCell = getBoardCellValue(board, nearCorner.corner[0], nearCorner.corner[1]);

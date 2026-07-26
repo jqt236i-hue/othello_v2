@@ -283,10 +283,10 @@ describe('custom board config foundations', () => {
   test('custom right-edge expansion cell can materialize on 8x9 board', () => {
     const gameState = Core.createGameState({ rows: 8, cols: 9 });
 
-    const applied = CardExpansion.ensureExpansionCellForCard(gameState, 5, 9, Core.EMPTY);
+    const applied = CardExpansion.ensureExpansionCellForCard(null, gameState, 5, 9, Core.EMPTY);
 
     expect(applied).toBe(true);
-    expect(CardExpansion.getExpansionDescriptorsForCard(gameState)).toEqual(expect.arrayContaining([
+    expect(CardExpansion.getExpansionDescriptorsForCard(null, gameState)).toEqual(expect.arrayContaining([
       expect.objectContaining({
         row: 5,
         col: 9,
@@ -298,6 +298,7 @@ describe('custom board config foundations', () => {
       active: true,
       side: 'right',
       row: 5,
+      col: 9,
       owner: Core.EMPTY
     });
   });
@@ -314,7 +315,7 @@ describe('custom board config foundations', () => {
       cells: []
     };
 
-    expect(CardExpansion.getExpansionDescriptorsForCard(gameState)).toEqual([]);
+    expect(CardExpansion.getExpansionDescriptorsForCard(null, gameState)).toEqual([]);
     expect(BoardOps.getExpansionDescriptors(gameState)).toEqual([]);
     expect(SharedBoardUtils.collectExpansionDescriptors(gameState.boardExpansion, gameState)).toEqual([]);
   });
@@ -362,7 +363,7 @@ describe('custom board config foundations', () => {
     ];
 
     expect(SharedBoardUtils.collectExpansionDescriptors(gameState.boardExpansion, gameState)).toEqual(expected);
-    expect(CardExpansion.getExpansionDescriptorsForCard(gameState)).toEqual(expected);
+    expect(CardExpansion.getExpansionDescriptorsForCard(null, gameState)).toEqual(expected);
     expect(BoardOps.getExpansionDescriptors(gameState)).toEqual(expected);
   });
 
@@ -456,7 +457,13 @@ describe('custom board config foundations', () => {
       playerKey: 'black',
       constants: { EMPTY: Core.EMPTY, BLACK: Core.BLACK, WHITE: Core.WHITE },
       helpers: {
-        getExpansionDescriptorsForCard: (state) => SharedBoardUtils.collectExpansionDescriptors(state.boardExpansion, state)
+        createBoardViewForCard: (stateCard, state) => {
+          const boardContext = SharedBoardUtils.createBoardContext(state, stateCard);
+          return SharedBoardUtils.createBoardView(boardContext.gameState, {
+            cardState: boardContext.cardState,
+            strict: false
+          });
+        }
       }
     });
 

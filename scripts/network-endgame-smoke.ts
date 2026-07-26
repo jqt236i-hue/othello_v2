@@ -215,7 +215,7 @@ async function runGame(baseUrl: string, gameIndex: number, maxSteps: number): Pr
 
     for (let step = 1; step <= maxSteps; step += 1) {
         if (Core.isGameOver(ctx.snapshot.gameState)) {
-            const counts = Core.countDiscs(ctx.snapshot.gameState);
+            const counts = Core.countDiscs(ctx.snapshot.gameState, ctx.snapshot.cardState);
             return {
                 gameIndex,
                 roomId: ctx.roomId,

@@ -1,56 +1,59 @@
-import { createBoardShapeMetadata } from "../shared/board/shape-metadata";
-
 const SharedBoardUtils = require("../shared/shared-board-utils");
 
-describe("shared board shape metadata", () => {
-  test("keeps shape data outside the board object and clones it independently", () => {
-    const leaf = createBoardShapeMetadata({
-      metaKey: SharedBoardUtils.BOARD_SHAPE_META_KEY,
-      defaultRows: 8,
-      defaultCols: 8,
-      toBoardCellKey: SharedBoardUtils.toBoardCellKey,
-      normalizeOwner: (value) => (value === 1 || value === -1 ? value : 0),
-      resolveBoardConfig: SharedBoardUtils.resolveBoardConfig,
-      isMainBoardCell: SharedBoardUtils.isMainBoardCell,
-      collectExpansionDescriptors: SharedBoardUtils.collectExpansionDescriptors,
-    });
-    const board = Array.from({ length: 4 }, () =>
-      Array.from({ length: 4 }, () => 0),
-    );
-    const options = {
-      boardExpansion: { cells: [{ side: "right", row: 1, col: 4, owner: -1 }] },
-      cardState: {
-        markers: [
-          {
-            kind: "specialStone",
-            row: 0,
-            col: 0,
-            data: { type: "METEOR_HOLE" },
-          },
-        ],
-      },
-    };
-    leaf.attachBoardShape(board, options);
-    const meta = leaf.getBoardShapeMeta(board)!;
-    const clone = leaf.cloneBoard(board);
-    const clonedMeta = leaf.getBoardShapeMeta(clone)!;
+function createGameState(
+  rows = 4,
+  cols = 4,
+  options: Record<string, unknown> = {},
+) {
+  return {
+    board: Array.from({ length: rows }, () => Array(cols).fill(0)),
+    boardConfig: options.boardConfig || {
+      rows,
+      cols,
+      shape: "rectangle",
+    },
+    boardExpansion: options.boardExpansion || { cells: [] },
+  };
+}
 
-    expect(Object.keys(board)).not.toContain(
-      SharedBoardUtils.BOARD_SHAPE_META_KEY,
+describe("shared board explicit context", () => {
+  test("keeps shape sources explicit and clones contexts independently", () => {
+    const gameState = createGameState(4, 4, {
+      boardExpansion: {
+        cells: [{ side: "right", row: 1, col: 4, owner: -1 }],
+      },
+    });
+    const cardState = {
+      markers: [
+        {
+          kind: "specialStone",
+          row: 0,
+          col: 0,
+          data: { type: "METEOR_HOLE" },
+        },
+      ],
+    };
+    const context = SharedBoardUtils.createBoardContext(gameState, cardState);
+    const view = SharedBoardUtils.createBoardView(context.gameState, {
+      cardState: context.cardState,
+    });
+    const clone = SharedBoardUtils.cloneBoardContext(context);
+    const clonedView = SharedBoardUtils.createBoardView(clone.gameState, {
+      cardState: clone.cardState,
+    });
+
+    expect(Object.isFrozen(context)).toBe(true);
+    expect(view.isPlayable(0, 0)).toBe(false);
+    expect(view.get(1, 4)).toBe(-1);
+    expect(clonedView).not.toBe(view);
+    expect(clonedView.topology.playableKeys).not.toBe(
+      view.topology.playableKeys,
     );
-    expect(
-      Object.prototype.hasOwnProperty.call(
-        board,
-        SharedBoardUtils.BOARD_SHAPE_META_KEY,
-      ),
-    ).toBe(false);
-    expect(meta.playableKeys.has("0,0")).toBe(false);
-    expect(meta.expansionOwnerByKey["1,4"]).toBe(-1);
-    expect(clonedMeta).not.toBe(meta);
-    expect(clonedMeta.playableKeys).not.toBe(meta.playableKeys);
-    clonedMeta.expansionOwnerByKey["1,4"] = 1;
-    expect(meta.expansionOwnerByKey["1,4"]).toBe(-1);
-    expect(leaf.getBoardShapeMeta(board)).toMatchObject({
+
+    expect(SharedBoardUtils.setCellValue(clone, 1, 4, 1)).toBe(true);
+    expect(SharedBoardUtils.getCellValue(clone, 1, 4)).toBe(1);
+    expect(SharedBoardUtils.getCellValue(context, 1, 4)).toBe(-1);
+    expect(view.topology.contentBounds).toEqual({
       minRow: 0,
       maxRow: 3,
       minCol: 0,
@@ -58,22 +61,20 @@ describe("shared board shape metadata", () => {
     });
   });
 
-  test("rebuilds cached shape after expansion and hole sources mutate", () => {
-    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
-    const boardExpansion = {
-      cells: [{ side: "right", row: 1, col: 4, owner: 0 }],
-    };
+  test("rebuilds a view after explicit expansion and hole sources mutate", () => {
+    const gameState = createGameState(4, 4, {
+      boardExpansion: {
+        cells: [{ side: "right", row: 1, col: 4, owner: 0 }],
+      },
+    });
     const cardState: any = { markers: [] };
-    SharedBoardUtils.attachBoardShape(board, {
-      boardConfig: { rows: 4, cols: 4, shape: "rectangle" },
-      boardExpansion,
-      cardState,
+    const context = SharedBoardUtils.createBoardContext(gameState, cardState);
+    const initial = SharedBoardUtils.createBoardView(context.gameState, {
+      cardState: context.cardState,
     });
 
-    expect(SharedBoardUtils.getBoardShapeMeta(board).playableKeys.has("1,4")).toBe(
-      true,
-    );
-    boardExpansion.cells.push({
+    expect(initial.isPlayable(1, 4)).toBe(true);
+    gameState.boardExpansion.cells.push({
       side: "right",
       row: 1,
       col: 5,
@@ -86,23 +87,93 @@ describe("shared board shape metadata", () => {
       data: { type: "METEOR_HOLE" },
     });
 
-    const refreshed = SharedBoardUtils.getBoardShapeMeta(board);
-    expect(refreshed.playableKeys.has("1,4")).toBe(false);
-    expect(refreshed.playableKeys.has("1,5")).toBe(true);
-    expect(refreshed.expansionOwnerByKey["1,5"]).toBe(-1);
+    const refreshed = SharedBoardUtils.createBoardView(context.gameState, {
+      cardState: context.cardState,
+    });
+    expect(refreshed).not.toBe(initial);
+    expect(refreshed.isPlayable(1, 4)).toBe(false);
+    expect(refreshed.isPlayable(1, 5)).toBe(true);
+    expect(refreshed.get(1, 5)).toBe(-1);
   });
 
-  test("excludes base-shape void without treating it as a meteor hole", () => {
-    const board = Array.from({ length: 10 }, () => Array(10).fill(0));
-    SharedBoardUtils.attachBoardShape(board, {
-      boardConfig: { rows: 10, cols: 10, shape: "circle" },
+  test("rebuilds a cached view after only an expansion side changes", () => {
+    const gameState = createGameState(4, 4, {
+      boardExpansion: {
+        cells: [{ side: "right", row: 1, col: 4, owner: 0 }],
+      },
+    });
+    const cardState = { markers: [] };
+    const initial = SharedBoardUtils.createBoardView(gameState, {
+      cardState,
     });
 
-    const meta = SharedBoardUtils.getBoardShapeMeta(board)!;
-    expect(meta.playableKeys.size).toBe(80);
-    expect(meta.playableKeys.has("0,0")).toBe(false);
-    expect(meta.meteorHoleKeys.has("0,0")).toBe(false);
-    expect(meta.playableKeys.has("4,4")).toBe(true);
-    expect(meta.standard8x8).toBe(false);
+    expect(initial.topology.expansionSideByKey.get("1,4")).toBe("right");
+    gameState.boardExpansion.cells[0].side = "left";
+
+    const refreshed = SharedBoardUtils.createBoardView(gameState, {
+      cardState,
+    });
+    expect(refreshed).not.toBe(initial);
+    expect(refreshed.topology.expansionSideByKey.get("1,4")).toBe("left");
+  });
+
+  test("excludes a base-shape void without treating it as a meteor hole", () => {
+    const gameState = createGameState(10, 10, {
+      boardConfig: { rows: 10, cols: 10, shape: "circle" },
+    });
+    const context = SharedBoardUtils.createBoardContext(gameState, {
+      markers: [],
+    });
+    const view = SharedBoardUtils.createBoardView(context.gameState, {
+      cardState: context.cardState,
+    });
+
+    expect(view.topology.playableKeys.size).toBe(80);
+    expect(view.topology.playableKeys.has("0,0")).toBe(false);
+    expect(view.topology.holeKeys.has("0,0")).toBe(false);
+    expect(view.topology.playableKeys.has("4,4")).toBe(true);
+    expect(SharedBoardUtils.isStandardBoard8x8(context)).toBe(false);
+  });
+
+  test("does not overwrite one 4x4 context when another context changes METEOR_HOLE interpretation", () => {
+    const gameState = createGameState();
+    const withHole = SharedBoardUtils.createBoardContext(gameState, {
+      markers: [
+        {
+          kind: "specialStone",
+          row: 0,
+          col: 0,
+          data: { type: "METEOR_HOLE" },
+        },
+      ],
+    });
+    const withoutHole = SharedBoardUtils.createBoardContext(gameState, {
+      markers: [],
+    });
+
+    const holeViewBefore = SharedBoardUtils.createBoardView(
+      withHole.gameState,
+      { cardState: withHole.cardState },
+    );
+    const plainView = SharedBoardUtils.createBoardView(
+      withoutHole.gameState,
+      { cardState: withoutHole.cardState },
+    );
+    const holeViewAfter = SharedBoardUtils.createBoardView(
+      withHole.gameState,
+      { cardState: withHole.cardState },
+    );
+
+    expect(holeViewBefore.get(0, 0)).toBeNull();
+    expect(holeViewBefore.count().empty).toBe(15);
+    expect(plainView.get(0, 0)).toBe(0);
+    expect(plainView.count().empty).toBe(16);
+    expect(holeViewBefore.get(0, 0)).toBeNull();
+    expect(holeViewAfter.get(0, 0)).toBeNull();
+    expect(holeViewAfter.count().empty).toBe(15);
+
+    expect(SharedBoardUtils.countBoardEmpties(withHole)).toBe(15);
+    expect(SharedBoardUtils.countBoardEmpties(withoutHole)).toBe(16);
+    expect(SharedBoardUtils.countBoardEmpties(withHole)).toBe(15);
   });
 });

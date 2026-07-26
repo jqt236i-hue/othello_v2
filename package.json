@@ -77,6 +77,7 @@
     "test:jest": "jest --runInBand",
     "typecheck:training": "tsc -p tsconfig.training.json --pretty false",
     "check:window": "node scripts/check-window-usage.js",
+    "check:board-kernel-boundary": "npm run build:ts && node dist/scripts/check-board-kernel-boundary.js",
     "check:board-test-selectors": "npm run build:ts && node dist/scripts/check-board-test-selectors.js",
     "check:dependency-boundaries": "jest --runInBand --runTestsByPath test\\refactor.dependency-boundary.test.ts",
     "check:asset-case": "node scripts/check-asset-file-case.js",

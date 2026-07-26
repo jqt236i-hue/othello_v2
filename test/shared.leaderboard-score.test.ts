@@ -40,4 +40,41 @@ describe('shared leaderboard score authority', () => {
     expect(LeaderboardScore.isStandardLeaderboardBoard({ board, boardConfig: { rows: 8, cols: 8 } })).toBe(true);
     expect(LeaderboardScore.isStandardLeaderboardBoard({ board, boardConfig: { rows: 8, cols: 8, shape: 'circle' } })).toBe(false);
   });
+
+  test('state score counts playable expansion stones and excludes meteor holes', () => {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    board[0][0] = 1;
+    board[0][1] = -1;
+    const gameState = {
+      board,
+      boardConfig: { rows: 4, cols: 4 },
+      boardExpansion: {
+        active: true,
+        cells: [
+          { row: 1, col: 4, side: 'right', owner: -1 },
+          { row: 2, col: 4, side: 'right', owner: 1 }
+        ]
+      }
+    };
+    const cardState = {
+      markers: [{
+        kind: 'specialStone',
+        row: 2,
+        col: 4,
+        data: { type: 'METEOR_HOLE' }
+      }],
+      turnCountByPlayer: { black: 1, white: 1 },
+      totalFlipCountByPlayer: { black: 0, white: 0 }
+    };
+
+    const summary = LeaderboardScore.buildLeaderboardScoreSummaryFromState(
+      gameState,
+      cardState,
+      'white'
+    );
+
+    expect(summary.localDiscCount).toBe(2);
+    expect(summary.opponentDiscCount).toBe(1);
+    expect(summary.localOutcomeKey).toBe('win');
+  });
 });

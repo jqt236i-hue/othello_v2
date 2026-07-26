@@ -118,7 +118,7 @@ describe('CardMarkers module', () => {
 
   test('swapCellCoordinates swaps main and expansion stone ids and marker-linked positions', () => {
     const gameState = Core.createGameState();
-    CardExpansion.ensureExpansionCellForCard(gameState, -1, 0, Core.EMPTY);
+    CardExpansion.ensureExpansionCellForCard(null, gameState, -1, 0, Core.EMPTY);
 
     const cardState = {
       stoneIdMap: Array.from({ length: 8 }, () => Array(8).fill(null)),
@@ -151,5 +151,37 @@ describe('CardMarkers module', () => {
       { row: -1, col: 0 },
       { row: 0, col: 0 }
     ]);
+  });
+
+  test('stone ids use the canonical custom-board topology and reject meteor holes', () => {
+    const gameState = Core.createGameState({ rows: 10, cols: 10 });
+    CardExpansion.ensureExpansionCellForCard(null, gameState, 2, 10, Core.EMPTY);
+    const cardState: any = {
+      stoneIdMap: null,
+      expansionStoneIdByCell: {},
+      markers: []
+    };
+
+    expect(CardMarkers.setStoneIdAtForCard(cardState, gameState, 9, 9, 'base-10x10')).toBe(true);
+    expect(cardState.stoneIdMap).toHaveLength(10);
+    expect(cardState.stoneIdMap[9]).toHaveLength(10);
+    expect(CardMarkers.setStoneIdAtForCard(cardState, gameState, 2, 10, 'expanded')).toBe(true);
+    expect(CardMarkers.getStoneIdAtForCard(cardState, gameState, 9, 9)).toBe('base-10x10');
+    expect(CardMarkers.getStoneIdAtForCard(cardState, gameState, 2, 10)).toBe('expanded');
+
+    cardState.markers.push({
+      id: 1,
+      row: 2,
+      col: 10,
+      kind: CardMarkers.MARKER_KINDS.SPECIAL_STONE,
+      owner: 'black',
+      createdSeq: 1,
+      data: { type: 'METEOR_HOLE' }
+    });
+
+    expect(CardMarkers.getStoneIdAtForCard(cardState, gameState, 2, 10)).toBeNull();
+    expect(CardMarkers.setStoneIdAtForCard(cardState, gameState, 2, 10, 'hidden')).toBe(false);
+    CardMarkers.clearStoneIdAtForCard(cardState, gameState, 2, 10);
+    expect(cardState.expansionStoneIdByCell['2,10']).toBeUndefined();
   });
 });

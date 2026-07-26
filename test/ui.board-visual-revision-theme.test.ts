@@ -98,7 +98,7 @@ describe('board visual independent revision contract', () => {
     expect(revisions(first)).toEqual({ model: 1, layout: 1, appearance: 1, theme: 1 });
     expect(revisions(second)).toEqual(revisions(first));
     expect(first.model.modelCommitId).toBe(1);
-    expect(second.model.modelCommitId).toBe(2);
+    expect(second.model.modelCommitId).toBe(1);
     expect(second.frameToken).toBe('idle:2');
     expect(first.renderSessionId).toBe('match:default');
     expect(second.renderSessionId).toBe('match:next');
@@ -144,6 +144,36 @@ describe('board visual independent revision contract', () => {
     const second = composer.compose(makeRawFrame({ ...override, frameToken: 'idle:2' }));
     const expected = { ...revisions(first), [changed]: 2 };
     expect(revisions(second)).toEqual(expected);
+    expect(second.model.modelCommitId).toBe(
+      changed === 'model' && override.model?.boardDigest ? 2 : 1
+    );
+  });
+
+  test('assigns a fresh interaction identity when an A-B-A input contract returns to prior content', () => {
+    const composer = FramePresenter.createBoardVisualFrameRevisionComposer();
+    const cell = (hintInputSignature: string) => ({
+      key: '0,0',
+      visualSignature: `visual:${hintInputSignature}`,
+      hintInputSignature
+    });
+
+    const firstA = composer.compose(makeRawFrame({
+      model: { cells: [cell('input:A')] }
+    }));
+    const stateB = composer.compose(makeRawFrame({
+      frameToken: 'idle:2',
+      model: { cells: [cell('input:B')] }
+    }));
+    const secondA = composer.compose(makeRawFrame({
+      frameToken: 'idle:3',
+      model: { cells: [cell('input:A')] }
+    }));
+
+    expect([
+      firstA.model.modelCommitId,
+      stateB.model.modelCommitId,
+      secondA.model.modelCommitId
+    ]).toEqual([1, 2, 3]);
   });
 });
 

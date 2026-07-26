@@ -11,6 +11,22 @@ const CoreLogic = require('../game/logic/core');
 const catalog = require('../cards/catalog.json');
 const TestSharedBoardUtils = require('../shared/shared-board-utils');
 
+function createTestBoardContext(
+    board: number[][],
+    boardExpansion: Record<string, unknown> = { cells: [] },
+    cardState: Record<string, unknown> = { markers: [] }
+) {
+    return TestSharedBoardUtils.createBoardContext({
+        board,
+        boardConfig: {
+            rows: board.length,
+            cols: Array.isArray(board[0]) ? board[0].length : 0,
+            shape: 'rectangle'
+        },
+        boardExpansion
+    }, cardState);
+}
+
 describe('cpu-policy-core', () => {
     test('every catalog card type has explicit CPU usage style coverage', () => {
         const catalogTypes = [...new Set((catalog.cards || []).map((card: { type?: unknown }) => String(card.type || '').trim()).filter(Boolean))];
@@ -709,20 +725,18 @@ describe('cpu-policy-core', () => {
         board[3][4] = 1;
         board[4][3] = 1;
         board[4][4] = -1;
-        TestSharedBoardUtils.attachBoardShape(board, {
-            boardExpansion: {
-                cells: [
-                    { row: 0, col: 8, owner: 0 },
-                    { row: 7, col: 8, owner: 0 }
-                ]
-            }
+        const boardContext = createTestBoardContext(board, {
+            cells: [
+                { row: 0, col: 8, owner: 0 },
+                { row: 7, col: 8, owner: 0 }
+            ]
         });
 
         const expansionCornerMove = { row: 0, col: 8, flips: [{ row: 0, col: 7 }] };
         const innerMove = { row: 2, col: 4, flips: [{ row: 3, col: 4 }] };
 
         const selected = core.chooseMoveByLookahead([innerMove, expansionCornerMove], {
-            board,
+            board: boardContext,
             playerValue: -1,
             level: 6
         });
@@ -989,20 +1003,18 @@ describe('cpu-policy-core', () => {
         board[0][6] = 1;
         board[4][3] = 1;
 
-        TestSharedBoardUtils.attachBoardShape(board, {
-            boardExpansion: {
-                cells: [
-                    { row: -1, col: 7, owner: 0 },
-                    { row: 0, col: 8, owner: 0 }
-                ]
-            }
+        const boardContext = createTestBoardContext(board, {
+            cells: [
+                { row: -1, col: 7, owner: 0 },
+                { row: 0, col: 8, owner: 0 }
+            ]
         });
 
         const innerMove = { row: 4, col: 4, flips: [{ row: 4, col: 3 }] };
         const expansionEdgeMove = { row: 0, col: 7, flips: [{ row: 0, col: 6 }] };
 
         expect(() => core.chooseMoveByLookahead([innerMove, expansionEdgeMove], {
-            board,
+            board: boardContext,
             playerValue: -1,
             level: 6,
             depth: 1,
@@ -3794,12 +3806,10 @@ describe('cpu-policy-core', () => {
         board[3][4] = -1;
         board[4][3] = -1;
         board[4][4] = 1;
-        const shapedBoard = TestSharedBoardUtils.attachBoardShape(board, {
-            cardState: {
-                markers: [
-                    { kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'METEOR_HOLE' } }
-                ]
-            }
+        const shapedBoard = createTestBoardContext(board, { cells: [] }, {
+            markers: [
+                { kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'METEOR_HOLE' } }
+            ]
         });
 
         const riskyMove = { row: 0, col: 2, flips: [{ row: 1, col: 2 }] };

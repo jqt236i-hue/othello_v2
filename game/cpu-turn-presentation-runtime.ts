@@ -15,8 +15,11 @@ export function createPresentationRuntime(dependencies: any): any {
     const getTurnNumber = typeof deps.getTurnNumberFromState === 'function'
         ? deps.getTurnNumberFromState
         : (() => null);
-    const countDiscs = typeof deps.countDiscs === 'function'
-        ? deps.countDiscs
+    const createBoardContext = typeof deps.createBoardContext === 'function'
+        ? deps.createBoardContext
+        : (() => null);
+    const countBoardDiscs = typeof deps.countBoardDiscs === 'function'
+        ? deps.countBoardDiscs
         : (() => ({ black: 0, white: 0 }));
     const resolveContextHelpers = typeof deps.resolveCommentaryContextHelpers === 'function'
         ? deps.resolveCommentaryContextHelpers
@@ -74,20 +77,35 @@ export function createPresentationRuntime(dependencies: any): any {
 
     function buildEnemyCardCommentaryContext(ev: any, options: any) {
         const state = resolveGameState(options);
-        if (!state || !Array.isArray(state.board)) return null;
+        if (!state || typeof state !== 'object') return null;
 
         const ownerKey = normalizePlayerKey((ev && ev.player) || (ev && ev.meta && ev.meta.owner), 'black');
         if (ownerKey !== 'black') return null;
 
         const speakerKey = 'white';
-        const counts = countDiscs(state);
+        const cardState = resolveCardState(
+            options && typeof options === 'object' ? options.cardState : null
+        );
+        const boardContext = createBoardContext(state, cardState);
+        if (!boardContext) return null;
+        const counts = countBoardDiscs(boardContext);
         const turnNumber = getTurnNumber(state);
         const helpers = resolveContextHelpers();
-        const preparedMetrics = options && typeof options === 'object'
+        let preparedMetrics = options && typeof options === 'object'
             && options.preparedCommentaryMetrics
             && typeof options.preparedCommentaryMetrics === 'object'
             ? options.preparedCommentaryMetrics
             : null;
+        if (!preparedMetrics && helpers && typeof helpers.buildCpuCommentaryMetrics === 'function') {
+            preparedMetrics = helpers.buildCpuCommentaryMetrics({
+                gameState: state,
+                cardState,
+                board: boardContext,
+                turnNumber,
+                playerKey: speakerKey,
+                counts
+            });
+        }
         const commentaryLevel = resolveCpuLevel(
             speakerKey,
             options && typeof options === 'object' ? options.level : null
@@ -98,7 +116,9 @@ export function createPresentationRuntime(dependencies: any): any {
                 playerKey: speakerKey,
                 turnNumber,
                 counts,
-                board: state.board,
+                gameState: state,
+                cardState,
+                board: boardContext,
                 preparedMetrics,
                 cardId: (ev && ev.cardId) ? String(ev.cardId) : null,
                 extra: {
@@ -114,9 +134,14 @@ export function createPresentationRuntime(dependencies: any): any {
             playerKey: speakerKey,
             turnNumber,
             counts,
-            board: state.board,
+            board: boardContext,
             phase: resolvePhase(turnNumber, (counts.black || 0) + (counts.white || 0)),
-            advantage: resolveAdvantage(speakerKey, counts),
+            advantage: resolveAdvantage(speakerKey, counts, {
+                board: boardContext,
+                turnNumber
+            }),
+            corners: preparedMetrics && preparedMetrics.corners ? preparedMetrics.corners : undefined,
+            mobility: preparedMetrics && preparedMetrics.mobility ? preparedMetrics.mobility : undefined,
             cardId: (ev && ev.cardId) ? String(ev.cardId) : null,
             level: commentaryLevel,
             cpuLevel: commentaryLevel,

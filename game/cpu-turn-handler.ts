@@ -17,7 +17,6 @@ import {
 } from './cpu-turn-performance';
 
 // Global declarations for functions not in ui/globals.d.ts
-declare const countDiscs: any;
 declare const applyCardChoice: any;
 declare const buildCardUseDecisionContext: any;
 declare const isCardChoiceAllowedByPlan: any;
@@ -132,6 +131,10 @@ let cpuCommentaryRuntime: any = null;
 let commentaryContextHelpers: any = null;
 if (typeof require === 'function') {
     try { commentaryContextHelpers = _require('../shared/commentary-context-helpers'); } catch (e) { /* ignore */ }
+}
+let sharedBoardUtilsForCpuTurn: any = null;
+if (typeof require === 'function') {
+    try { sharedBoardUtilsForCpuTurn = _require('../shared/shared-board-utils'); } catch (e) { /* ignore */ }
 }
 let commentaryRuntimeHelpers: any = null;
 if (typeof require === 'function') {
@@ -844,42 +847,86 @@ function resolveCommentaryRuntimeHelpers() {
     return null;
 }
 
-function countDiscsSafe(state: any) {
+function resolveSharedBoardUtilsForCpuTurn() {
+    if (sharedBoardUtilsForCpuTurn) return sharedBoardUtilsForCpuTurn;
     try {
-        if (typeof countDiscs === 'function') {
-            const counted = countDiscs(state);
-            if (counted && Number.isFinite(counted.black) && Number.isFinite(counted.white)) {
-                return { black: counted.black, white: counted.white };
-            }
+        if (typeof require === 'function') {
+            sharedBoardUtilsForCpuTurn = _require('../shared/shared-board-utils');
+            if (sharedBoardUtilsForCpuTurn) return sharedBoardUtilsForCpuTurn;
         }
     } catch (e) { /* ignore */ }
+    return null;
+}
 
-    const board = state && Array.isArray(state.board) ? state.board : [];
-    const helpers = resolveCommentaryContextHelpers();
-    if (helpers && typeof helpers.countDiscsFromBoard === 'function') {
-        return helpers.countDiscsFromBoard(board, {
-            blackValues: [CONST_BLACK, 1, '1', 'black'],
-            whiteValues: [CONST_WHITE, -1, '-1', 'white']
-        });
+function resolveCurrentCpuGameStateForBoard() {
+    const runtimeGameState = resolveRuntimeValue('gameState');
+    if (runtimeGameState && typeof runtimeGameState === 'object') return runtimeGameState;
+    try {
+        return (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object')
+            ? gameState
+            : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function resolveCurrentCpuCardStateForBoard() {
+    const runtimeCardState = resolveRuntimeValue('cardState');
+    if (runtimeCardState && typeof runtimeCardState === 'object') return runtimeCardState;
+    try {
+        return (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object')
+            ? cardState
+            : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function createCpuTurnBoardContext(state: any, cardStateRef: any) {
+    const boardUtils = resolveSharedBoardUtilsForCpuTurn();
+    if (
+        !state ||
+        typeof state !== 'object' ||
+        !boardUtils ||
+        typeof boardUtils.createBoardContext !== 'function'
+    ) {
+        return null;
+    }
+    try {
+        return boardUtils.createBoardContext(state, cardStateRef);
+    } catch (e) {
+        return null;
+    }
+}
+
+function countDiscsFromCpuBoardContext(boardContext: any) {
+    const boardUtils = resolveSharedBoardUtilsForCpuTurn();
+    if (
+        boardContext &&
+        boardUtils &&
+        typeof boardUtils.countDiscsByPlayer === 'function'
+    ) {
+        const counts = boardUtils.countDiscsByPlayer(boardContext);
+        if (counts && Number.isFinite(counts.black) && Number.isFinite(counts.white)) {
+            return { black: Number(counts.black), white: Number(counts.white) };
+        }
     }
     return { black: 0, white: 0 };
 }
 
-function countOwnedBasicCornersSafe(stateOrBoard: any, playerKey: any) {
-    const board = Array.isArray(stateOrBoard)
-        ? stateOrBoard
-        : (stateOrBoard && Array.isArray(stateOrBoard.board) ? stateOrBoard.board : null);
-    if (!Array.isArray(board) || board.length < 8) return 0;
-
-    const ownValue = playerKey === 'black' ? CONST_BLACK : CONST_WHITE;
-    const cornerPoints = [[0, 0], [0, 7], [7, 0], [7, 7]];
-    let owned = 0;
-    for (const point of cornerPoints) {
-        const row = board[point[0]];
-        if (!Array.isArray(row)) continue;
-        if (row[point[1]] === ownValue) owned += 1;
+function countOwnedEffectiveCornersSafe(state: any, playerKey: any) {
+    const boardUtils = resolveSharedBoardUtilsForCpuTurn();
+    const boardContext = createCpuTurnBoardContext(state, resolveCurrentCpuCardStateForBoard());
+    if (
+        !boardContext ||
+        !boardUtils ||
+        typeof boardUtils.countCornerControl !== 'function'
+    ) {
+        return 0;
     }
-    return owned;
+    const ownValue = playerKey === 'black' ? CONST_BLACK : CONST_WHITE;
+    const control = boardUtils.countCornerControl(boardContext, ownValue);
+    return Number(control && control.ownCorners) || 0;
 }
 
 function resolvePhaseByTurn(turnNumber: any, occupiedCells: any) {
@@ -890,10 +937,10 @@ function resolvePhaseByTurn(turnNumber: any, occupiedCells: any) {
     return 'middle';
 }
 
-function resolveAdvantageLabel(playerKey: any, counts: any) {
+function resolveAdvantageLabel(playerKey: any, counts: any, options?: any) {
     const helpers = resolveCommentaryContextHelpers();
     if (helpers && typeof helpers.resolveAdvantageLabel === 'function') {
-        return helpers.resolveAdvantageLabel(playerKey, counts);
+        return helpers.resolveAdvantageLabel(playerKey, counts, options);
     }
     return 'even';
 }
@@ -939,18 +986,35 @@ function emitCpuCommentary(eventType: any, playerKey: any, extra: any, analysisO
             preparedMetrics = analysis && analysis.metrics ? analysis.metrics : null;
         }
     } catch (e) { /* fall back to the existing commentary context path */ }
+    const gameStateRef = resolveCurrentCpuGameStateForBoard();
+    const cardStateRef = resolveCurrentCpuCardStateForBoard();
+    const boardContext = createCpuTurnBoardContext(gameStateRef, cardStateRef);
+    if (
+        !preparedMetrics &&
+        helpers &&
+        typeof helpers.buildCpuCommentaryMetrics === 'function'
+    ) {
+        preparedMetrics = helpers.buildCpuCommentaryMetrics({
+            gameState: gameStateRef,
+            cardState: cardStateRef,
+            board: boardContext,
+            turnNumber: gameStateRef && gameStateRef.turnNumber,
+            playerKey
+        });
+    }
     const counts = preparedMetrics && preparedMetrics.counts
         ? preparedMetrics.counts
-        : countDiscsSafe(gameState);
+        : countDiscsFromCpuBoardContext(boardContext);
     const turnNumber = preparedMetrics && preparedMetrics.turnNumber !== null
         && Number.isFinite(Number(preparedMetrics.turnNumber))
         ? Number(preparedMetrics.turnNumber)
-        : (gameState && Number.isFinite(gameState.turnNumber) ? gameState.turnNumber : null);
+        : (gameStateRef && Number.isFinite(gameStateRef.turnNumber) ? gameStateRef.turnNumber : null);
     const commentaryLevel = resolveCommentaryCpuLevel(playerKey, extra && extra.level);
     const fallbackContext = Object.assign({
         eventType: String(eventType || 'turn_start'),
         playerKey: playerKey === 'black' ? 'black' : 'white',
         turnNumber,
+        board: boardContext,
         phase: preparedMetrics && preparedMetrics.phase
             ? preparedMetrics.phase
             : resolvePhaseByTurn(turnNumber, (counts.black || 0) + (counts.white || 0)),
@@ -972,7 +1036,9 @@ function emitCpuCommentary(eventType: any, playerKey: any, extra: any, analysisO
             playerKey,
             turnNumber,
             counts,
-            board: gameState && gameState.board,
+            gameState: gameStateRef,
+            cardState: cardStateRef,
+            board: boardContext,
             preparedMetrics,
             cardId: extra && extra.cardId,
             extra: Object.assign({
@@ -1068,7 +1134,8 @@ const presentationRuntime = CpuTurnPresentationRuntimeModule.createPresentationR
     resolveCardState: resolvePresentationCardState,
     getCurrentPlayerKeyFromState,
     getTurnNumberFromState,
-    countDiscs: countDiscsSafe,
+    createBoardContext: createCpuTurnBoardContext,
+    countBoardDiscs: countDiscsFromCpuBoardContext,
     resolveCommentaryContextHelpers,
     resolveCommentaryCpuLevel,
     resolvePhaseByTurn,
@@ -1334,9 +1401,11 @@ function createCpuTurnAnalysisForRun(args: any): any {
     const buildCommentaryMetrics = () => {
         const helpers = resolveCommentaryContextHelpers();
         if (helpers && typeof helpers.buildCpuCommentaryMetrics === 'function') {
+            const boardContext = createCpuTurnBoardContext(gameStateRef, cardStateRef);
             return helpers.buildCpuCommentaryMetrics({
                 gameState: gameStateRef,
-                board: gameStateRef && gameStateRef.board,
+                cardState: cardStateRef,
+                board: boardContext,
                 turnNumber: gameStateRef && gameStateRef.turnNumber,
                 playerKey
             });
@@ -1788,7 +1857,7 @@ const CpuTurnPendingPhase = (CpuTurnPendingPhaseModule && typeof CpuTurnPendingP
 const CpuTurnMovePhase = (CpuTurnMovePhaseModule && typeof CpuTurnMovePhaseModule.createCpuTurnMovePhase === 'function')
     ? CpuTurnMovePhaseModule.createCpuTurnMovePhase({
         blackValue: CONST_BLACK,
-        countOwnedBasicCornersSafe,
+        countOwnedBasicCornersSafe: countOwnedEffectiveCornersSafe,
         debugCpuTrace,
         emitCpuCommentary,
         emitCpuDebugLog,

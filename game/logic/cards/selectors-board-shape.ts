@@ -10,6 +10,7 @@ function requireBoardUtils(deps?: SelectorsBoardShapeDeps): any {
   const boardUtils = deps && deps.SharedBoardUtils;
   if (
     !boardUtils ||
+    typeof boardUtils.createBoardContext !== "function" ||
     typeof boardUtils.createBoardView !== "function" ||
     typeof boardUtils.resolveBoardConfig !== "function"
   ) {
@@ -25,12 +26,14 @@ function resolveBoardConfig(gameState: GameState, deps?: SelectorsBoardShapeDeps
 }
 
 function createView(
+  cardState: unknown,
   gameState: GameState,
   deps?: SelectorsBoardShapeDeps,
-  cardState: unknown = null,
 ): any {
-  return requireBoardUtils(deps).createBoardView(gameState, {
-    cardState,
+  const boardUtils = requireBoardUtils(deps);
+  const context = boardUtils.createBoardContext(gameState, cardState);
+  return boardUtils.createBoardView(context.gameState, {
+    cardState: context.cardState,
     strict: false,
   });
 }
@@ -60,45 +63,49 @@ function resolveExpansionSide(
 }
 
 function getExpansionCells(
+  cardState: unknown,
   gameState: GameState,
   deps?: SelectorsBoardShapeDeps,
 ): Array<{ side: string | null; row: number; col: number; owner: number }> {
-  return createView(gameState, deps).expansionCells.map((cell: any) => ({
-    side: cell.side || null,
-    row: cell.row,
-    col: cell.col,
-    owner: cell.owner,
-  }));
+  const view = createView(cardState, gameState, deps);
+  return view.expansionCells
+    .filter((cell: any) => view.isPlayable(cell.row, cell.col))
+    .map((cell: any) => ({
+      side: cell.side || null,
+      row: cell.row,
+      col: cell.col,
+      owner: cell.owner,
+    }));
 }
 
 function getCellValue(
+  cardState: unknown,
   gameState: GameState,
   row: number,
   col: number,
   deps?: SelectorsBoardShapeDeps,
-  cardState: unknown = null,
 ): any {
-  return createView(gameState, deps, cardState).get(row, col);
+  return createView(cardState, gameState, deps).get(row, col);
 }
 
 function hasBoardShapeCell(
+  cardState: unknown,
   gameState: GameState,
   row: number,
   col: number,
   deps?: SelectorsBoardShapeDeps,
-  cardState: unknown = null,
 ): boolean {
-  return createView(gameState, deps, cardState).has(row, col);
+  return createView(cardState, gameState, deps).isPlayable(row, col);
 }
 
 function forEachBoardShapeCell(
+  cardState: unknown,
   gameState: GameState,
   visitor: (row: number, col: number, owner: number) => void,
   deps?: SelectorsBoardShapeDeps,
-  cardState: unknown = null,
 ): void {
   if (typeof visitor !== "function") return;
-  const view = createView(gameState, deps, cardState);
+  const view = createView(cardState, gameState, deps);
   for (const cell of view.coordinates) {
     const owner = view.get(cell.row, cell.col);
     if (owner === null) {
@@ -106,6 +113,19 @@ function forEachBoardShapeCell(
     }
     visitor(cell.row, cell.col, owner);
   }
+}
+
+function getMeteorHoleCells(
+  cardState: unknown,
+  gameState: GameState,
+  deps?: SelectorsBoardShapeDeps,
+): Array<{ row: number; col: number }> {
+  const view = createView(cardState, gameState, deps);
+  return view.topology.existingCoordinates
+    .filter((cell: any) =>
+      view.topology.holeKeys.has(`${cell.row},${cell.col}`),
+    )
+    .map((cell: any) => ({ row: cell.row, col: cell.col }));
 }
 
 const CardSelectorsBoardShape = {
@@ -116,6 +136,7 @@ const CardSelectorsBoardShape = {
   getCellValue,
   hasBoardShapeCell,
   forEachBoardShapeCell,
+  getMeteorHoleCells,
 };
 
 const selectorsBoardShapeRoot =
