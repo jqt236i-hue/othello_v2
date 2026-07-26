@@ -328,6 +328,7 @@ describe('local match server publish contract', () => {
       });
       expect(created.status).toBe(200);
       expect(created.data.networkDebugEnabled).toBe(false);
+      const initialBlackHand = created.data.snapshot.cardState.hands.black.slice();
 
       const response = await requestJson(port, 'POST', '/api/match/publish', {
         roomId: created.data.roomId,
@@ -353,7 +354,7 @@ describe('local match server publish contract', () => {
       expect(response.status).toBe(409);
       expect(response.data.ok).toBe(false);
       expect(response.data.rejectedReason).toBe('NETWORK_DEBUG_DISABLED');
-      expect(response.data.snapshot.cardState.hands.black).not.toEqual(['heaven_01']);
+      expect(response.data.snapshot.cardState.hands.black).toEqual(initialBlackHand);
       expect(response.data.publishMeta).toEqual(expect.objectContaining({
         kind: 'rejected',
         actionType: 'debug_fill_hand',
