@@ -280,6 +280,8 @@
     const setStateCellValue = BoardStateKernel.setStateCellValue;
     const addStateExpansionCells = BoardStateKernel.addStateExpansionCells;
     const countStateDiscs = BoardStateKernel.countStateDiscs;
+    const createBoardMutationCheckpoint = BoardStateKernel.createBoardMutationCheckpoint;
+    const restoreBoardMutationCheckpoint = BoardStateKernel.restoreBoardMutationCheckpoint;
 
     if (!BoardExpansionSocketsModule) throw new Error('BoardExpansionSockets is required by SharedBoardUtils');
     const BoardExpansionSockets = BoardExpansionSocketsModule.createExpansionSockets({
@@ -455,6 +457,8 @@
         setStateCellValue,
         addStateExpansionCells,
         countStateDiscs,
+        createBoardMutationCheckpoint,
+        restoreBoardMutationCheckpoint,
         getExteriorVoidKeys,
         getBoardExpansionEdgeSockets,
         getBoardExpansionCornerSockets,

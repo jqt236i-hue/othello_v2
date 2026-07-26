@@ -189,51 +189,32 @@ function resolveBoardDims(gameState: any, cardState: any): { rows: number; cols:
     const boardSource = (gameState && Array.isArray(gameState.board))
         ? gameState
         : (cardState && Array.isArray(cardState.stoneIdMap) ? cardState : (gameState || cardState));
-    if (BoardUtils && typeof BoardUtils.resolveBoardConfig === 'function') {
-        const config = BoardUtils.resolveBoardConfig(boardSource);
-        return { rows: config.rows, cols: config.cols };
+    if (!BoardUtils || typeof BoardUtils.resolveBoardConfig !== 'function') {
+        throw new Error('SharedBoardUtils.resolveBoardConfig is required by BoardOps');
     }
-    const board = (gameState && Array.isArray(gameState.board))
-        ? gameState.board
-        : (cardState && Array.isArray(cardState.stoneIdMap) ? cardState.stoneIdMap : null);
-    const rows = Array.isArray(board) && board.length > 0 ? board.length : 8;
-    const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
-    return { rows, cols };
+    const config = BoardUtils.resolveBoardConfig(boardSource);
+    return { rows: config.rows, cols: config.cols };
 }
 
 function isMainBoardCell(row: number, col: number, boardOrState: any): boolean {
-    const cardExpansion = getCardExpansionModule();
-    if (cardExpansion && typeof cardExpansion.isMainBoardCellForCard === 'function') {
-        return cardExpansion.isMainBoardCellForCard(row, col, boardOrState);
+    if (!BoardUtils || typeof BoardUtils.isMainBoardCell !== 'function') {
+        throw new Error('SharedBoardUtils.isMainBoardCell is required by BoardOps');
     }
-    const dims = resolveBoardDims(boardOrState, boardOrState);
-    return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < dims.rows && col >= 0 && col < dims.cols;
+    return BoardUtils.isMainBoardCell(row, col, boardOrState);
 }
 
 function resolveExpansionSide(side: string | null, row: number, col: number, boardOrState: any): string | null {
-    const cardExpansion = getCardExpansionModule();
-    if (cardExpansion && typeof cardExpansion.resolveExpansionSideForCard === 'function') {
-        return cardExpansion.resolveExpansionSideForCard(side, row, col, boardOrState);
+    if (!BoardUtils || typeof BoardUtils.resolveExpansionSide !== 'function') {
+        throw new Error('SharedBoardUtils.resolveExpansionSide is required by BoardOps');
     }
-    if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-    const dims = resolveBoardDims(boardOrState, boardOrState);
-    if (col === -1) return 'left';
-    if (col === dims.cols) return 'right';
-    if (row === -1) return 'top';
-    if (row === dims.rows) return 'bottom';
-    return null;
+    return BoardUtils.resolveExpansionSide(side, row, col, boardOrState);
 }
 
 function isExpansionCoordinate(row: number, col: number, boardOrState: any): boolean {
-    const cardExpansion = getCardExpansionModule();
-    if (cardExpansion && typeof cardExpansion.isExpansionCoordinateForCard === 'function') {
-        return cardExpansion.isExpansionCoordinateForCard(row, col, boardOrState);
+    if (!BoardUtils || typeof BoardUtils.isExpansionCoordinate !== 'function') {
+        throw new Error('SharedBoardUtils.isExpansionCoordinate is required by BoardOps');
     }
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    const dims = resolveBoardDims(boardOrState, boardOrState);
-    if (row < -1 || row > dims.rows || col < -1 || col > dims.cols) return false;
-    if (isMainBoardCell(row, col, boardOrState)) return false;
-    return true;
+    return BoardUtils.isExpansionCoordinate(row, col, boardOrState);
 }
 
 function isMainBoardCorner(row: number, col: number, boardOrState: any, cardState?: any): boolean {
@@ -288,58 +269,18 @@ function normalizeExpansionOwner(owner: number): number {
 }
 
 function getExpansionDescriptors(gameState: any): Array<{ side: string | null; row: number; col: number; owner: number }> {
-    const cardExpansion = getCardExpansionModule();
-    if (cardExpansion && typeof cardExpansion.getExpansionDescriptorsForCard === 'function') {
-        return cardExpansion.getExpansionDescriptorsForCard(gameState);
+    if (!BoardUtils || typeof BoardUtils.createBoardView !== 'function') {
+        throw new Error('SharedBoardUtils.createBoardView is required by BoardOps');
     }
-    const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-        ? gameState.boardExpansion
-        : null;
-    if (!expansion) return [];
-
-    const out: Array<{ side: string | null; row: number; col: number; owner: number }> = [];
-    const pushDescriptor = (source: any, legacyRow?: number, legacyOwner?: number): void => {
-        let side: string | null = null;
-        let row: number | null = null;
-        let col: number | null = null;
-        let owner = legacyOwner;
-
-        if (source && typeof source === 'object') {
-            side = source.side;
-            row = source.row;
-            col = source.col;
-            owner = source.owner;
-            if (!Number.isInteger(col) && side === 'left') col = -1;
-            if (!Number.isInteger(col) && side === 'right') col = resolveBoardDims(gameState, null).cols;
-        } else {
-            side = source;
-            row = legacyRow !== undefined ? legacyRow : null;
-            if (side === 'left') col = -1;
-            if (side === 'right') col = resolveBoardDims(gameState, null).cols;
-        }
-
-        if (!isExpansionCoordinate(row as number, col as number, gameState)) return;
-        if (out.some((desc) => desc && desc.row === row && desc.col === col)) return;
-        out.push({
-            side: resolveExpansionSide(side, row as number, col as number, gameState),
-            row: row as number,
-            col: col as number,
-            owner: normalizeExpansionOwner(owner as number)
-        });
-    };
-
-    if (Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            pushDescriptor(cell);
-        }
-    }
-
-    if (out.length === 0 && expansion.active === true) {
-        pushDescriptor(expansion);
-    }
-
-    return out;
+    return BoardUtils.createBoardView(gameState, {
+        cardState: null,
+        strict: false
+    }).expansionCells.map((cell: any) => ({
+        side: cell.side || null,
+        row: cell.row,
+        col: cell.col,
+        owner: cell.owner
+    }));
 }
 
 function syncLegacyExpansionFields(expansion: any, gameState: any): void {
@@ -397,57 +338,25 @@ function getExpansionDescriptor(gameState: any): any {
 }
 
 function isExpansionCell(gameState: any, row: number, col: number): boolean {
-    const descriptors = getExpansionDescriptors(gameState);
-    return descriptors.some((desc) => desc && desc.row === row && desc.col === col);
+    if (!BoardUtils || typeof BoardUtils.createBoardView !== 'function') {
+        throw new Error('SharedBoardUtils.createBoardView is required by BoardOps');
+    }
+    const view = BoardUtils.createBoardView(gameState, { cardState: null, strict: false });
+    return view.topology.expansionKeys.has(`${row},${col}`);
 }
 
 function getCellValue(gameState: any, row: number, col: number): number | null {
-    const cardExpansion = getCardExpansionModule();
-    if (cardExpansion && typeof cardExpansion.getCellValueForCard === 'function') {
-        return cardExpansion.getCellValueForCard(gameState, row, col);
+    if (!BoardUtils || typeof BoardUtils.getStateCellValue !== 'function') {
+        throw new Error('SharedBoardUtils.getStateCellValue is required by BoardOps');
     }
-    if (isMainBoardCell(row, col, gameState)) return gameState.board[row][col];
-    const descriptors = getExpansionDescriptors(gameState);
-    for (const descriptor of descriptors) {
-        if (!descriptor) continue;
-        if (descriptor.row === row && descriptor.col === col) {
-            return normalizeExpansionOwner(descriptor.owner);
-        }
-    }
-    return null;
+    return BoardUtils.getStateCellValue(gameState, row, col, null);
 }
 
 function setCellValue(gameState: any, row: number, col: number, value: number): boolean {
-    const cardExpansion = getCardExpansionModule();
-    if (cardExpansion && typeof cardExpansion.setCellValueForCard === 'function') {
-        return cardExpansion.setCellValueForCard(gameState, row, col, value);
+    if (!BoardUtils || typeof BoardUtils.setStateCellValue !== 'function') {
+        throw new Error('SharedBoardUtils.setStateCellValue is required by BoardOps');
     }
-    if (isMainBoardCell(row, col, gameState)) {
-        gameState.board[row][col] = value;
-        return true;
-    }
-    const expansion = ensureExpansionStateMutable(gameState);
-    if (!Array.isArray(expansion.cells)) return false;
-    const normalizedOwner = normalizeExpansionOwner(value);
-    for (let i = 0; i < expansion.cells.length; i++) {
-        const cell = expansion.cells[i];
-        if (!cell) continue;
-        const cellCol = Number.isInteger(cell.col)
-            ? cell.col
-            : (cell.side === 'left' ? -1 : (cell.side === 'right' ? resolveBoardDims(gameState, null).cols : null));
-        if (!Number.isInteger(cellCol)) continue;
-        if (cell.row === row && cellCol === col) {
-            expansion.cells[i] = {
-                side: resolveExpansionSide(cell.side, cell.row, cellCol, gameState),
-                row: cell.row,
-                col: cellCol,
-                owner: normalizedOwner
-            };
-            syncLegacyExpansionFields(expansion, gameState);
-            return true;
-        }
-    }
-    return false;
+    return BoardUtils.setStateCellValue(gameState, row, col, value, null);
 }
 
 function getStoneIdAt(cardState: any, gameState: any, row: number, col: number): string | null {
@@ -1277,71 +1186,94 @@ function applyHoleAt(cardState: any, gameState: any, row: number, col: number, o
     _ensureCardState(cardState);
     const prev = getCellValue(gameState, row, col);
     if (prev === null) return { applied: false, reason: 'out_of_board', row, col };
-
-    setStoneIdAt(cardState, gameState, row, col, null);
-    setCellValue(gameState, row, col, EMPTY);
-
-    const removeOptions = meta && meta.removeOptions ? meta.removeOptions : undefined;
-    const cardMarkers = getCardMarkersModule();
-    if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
-        cardMarkers.removeMarkersAt(cardState, row, col, removeOptions);
-    } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
-        MarkersAdapter.removeMarkersAt(cardState, row, col, removeOptions);
-    } else if (Array.isArray(cardState.markers)) {
-        cardState.markers = cardState.markers.filter((m: any) => !(m && m.row === row && m.col === col));
+    if (!BoardUtils ||
+        typeof BoardUtils.createBoardMutationCheckpoint !== 'function' ||
+        typeof BoardUtils.restoreBoardMutationCheckpoint !== 'function') {
+        throw new Error('SharedBoardUtils board mutation transaction is required by BoardOps');
     }
+    const checkpoint = BoardUtils.createBoardMutationCheckpoint(gameState, cardState);
+    try {
+        setStoneIdAt(cardState, gameState, row, col, null);
+        setCellValue(gameState, row, col, EMPTY);
 
-    const data: any = { type: 'METEOR_HOLE' };
-    if (meta && meta.visualVariant) data.visualVariant = meta.visualVariant;
-    const statusMetaExtras: any = {};
-    if (meta && meta.cellRemovalCause) statusMetaExtras.cellRemovalCause = meta.cellRemovalCause;
-    if (meta && meta.cellRemovalReason) statusMetaExtras.cellRemovalReason = meta.cellRemovalReason;
-    if (meta && meta.removalCause) statusMetaExtras.cellRemovalCause = meta.removalCause;
-    if (meta && meta.removalReason) statusMetaExtras.cellRemovalReason = meta.removalReason;
-    if (meta && meta.removalKind) statusMetaExtras.removalKind = meta.removalKind;
-    if (meta && meta.removalPolicy) statusMetaExtras.removalPolicy = meta.removalPolicy;
-    const patchEmittedHoleStatusMeta = (events: any[]) => {
-        if (!Array.isArray(events)) return false;
-        for (let index = events.length - 1; index >= 0; index -= 1) {
-            const ev = events[index];
-            if (!ev || ev.type !== 'STATUS_APPLIED' || ev.row !== row || ev.col !== col) continue;
-            if (!ev.meta || ev.meta.special !== 'METEOR_HOLE') continue;
-            ev.meta = Object.assign({}, ev.meta, statusMetaExtras);
-            return true;
+        const removeOptions = meta && meta.removeOptions ? meta.removeOptions : undefined;
+        const cardMarkers = getCardMarkersModule();
+        if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+            cardMarkers.removeMarkersAt(cardState, row, col, removeOptions);
+        } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
+            MarkersAdapter.removeMarkersAt(cardState, row, col, removeOptions);
+        } else if (Array.isArray(cardState.markers)) {
+            cardState.markers = cardState.markers.filter((m: any) => !(m && m.row === row && m.col === col));
         }
-        return false;
-    };
-    const liveBefore = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
-    const persistBefore = Array.isArray(cardState._presentationEventsPersist) ? cardState._presentationEventsPersist.length : 0;
-    const marker = _addSpecialStoneMarker(cardState, row, col, ownerKey, data);
-    const liveAfter = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
-    if (marker && liveAfter > liveBefore) {
-        patchEmittedHoleStatusMeta(cardState.presentationEvents);
-        patchEmittedHoleStatusMeta(cardState._presentationEventsPersist);
-    } else if (marker) {
-        if (Array.isArray(cardState._presentationEventsPersist) && cardState._presentationEventsPersist.length > persistBefore) {
-            for (let index = cardState._presentationEventsPersist.length - 1; index >= persistBefore; index--) {
-                const ev = cardState._presentationEventsPersist[index];
-                if (ev && ev.type === 'STATUS_APPLIED' && ev.row === row && ev.col === col && ev.meta && ev.meta.special === 'METEOR_HOLE') {
-                    cardState._presentationEventsPersist.splice(index, 1);
-                    break;
+
+        const data: any = { type: 'METEOR_HOLE' };
+        if (meta && meta.visualVariant) data.visualVariant = meta.visualVariant;
+        const statusMetaExtras: any = {};
+        if (meta && meta.cellRemovalCause) statusMetaExtras.cellRemovalCause = meta.cellRemovalCause;
+        if (meta && meta.cellRemovalReason) statusMetaExtras.cellRemovalReason = meta.cellRemovalReason;
+        if (meta && meta.removalCause) statusMetaExtras.cellRemovalCause = meta.removalCause;
+        if (meta && meta.removalReason) statusMetaExtras.cellRemovalReason = meta.removalReason;
+        if (meta && meta.removalKind) statusMetaExtras.removalKind = meta.removalKind;
+        if (meta && meta.removalPolicy) statusMetaExtras.removalPolicy = meta.removalPolicy;
+        const patchEmittedHoleStatusMeta = (events: any[]) => {
+            if (!Array.isArray(events)) return false;
+            for (let index = events.length - 1; index >= 0; index -= 1) {
+                const ev = events[index];
+                if (!ev || ev.type !== 'STATUS_APPLIED' || ev.row !== row || ev.col !== col) continue;
+                if (!ev.meta || ev.meta.special !== 'METEOR_HOLE') continue;
+                ev.meta = Object.assign({}, ev.meta, statusMetaExtras);
+                return true;
+            }
+            return false;
+        };
+        const liveBefore = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
+        const persistBefore = Array.isArray(cardState._presentationEventsPersist) ? cardState._presentationEventsPersist.length : 0;
+        const marker = _addSpecialStoneMarker(cardState, row, col, ownerKey, data);
+        if (!marker) {
+            BoardUtils.restoreBoardMutationCheckpoint(gameState, cardState, checkpoint);
+            return {
+                applied: false,
+                row,
+                col,
+                owner: ownerKey,
+                previousValue: prev,
+                marker: null,
+                reason: 'marker_failed'
+            };
+        }
+
+        const liveAfter = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
+        if (liveAfter > liveBefore) {
+            patchEmittedHoleStatusMeta(cardState.presentationEvents);
+            patchEmittedHoleStatusMeta(cardState._presentationEventsPersist);
+        } else {
+            if (Array.isArray(cardState._presentationEventsPersist) && cardState._presentationEventsPersist.length > persistBefore) {
+                for (let index = cardState._presentationEventsPersist.length - 1; index >= persistBefore; index--) {
+                    const ev = cardState._presentationEventsPersist[index];
+                    if (ev && ev.type === 'STATUS_APPLIED' && ev.row === row && ev.col === col && ev.meta && ev.meta.special === 'METEOR_HOLE') {
+                        cardState._presentationEventsPersist.splice(index, 1);
+                        break;
+                    }
                 }
             }
+            const statusMeta: any = { special: 'METEOR_HOLE', timer: null, owner: ownerKey };
+            if (meta && meta.visualVariant) statusMeta.visualVariant = meta.visualVariant;
+            Object.assign(statusMeta, statusMetaExtras);
+            emitPresentationEvent(cardState, { type: 'STATUS_APPLIED', row, col, meta: statusMeta });
         }
-        const statusMeta: any = { special: 'METEOR_HOLE', timer: null, owner: ownerKey };
-        if (meta && meta.visualVariant) statusMeta.visualVariant = meta.visualVariant;
-        Object.assign(statusMeta, statusMetaExtras);
-        emitPresentationEvent(cardState, { type: 'STATUS_APPLIED', row, col, meta: statusMeta });
+        return {
+            applied: true,
+            row,
+            col,
+            owner: ownerKey,
+            previousValue: prev,
+            marker,
+            reason: null
+        };
+    } catch (error) {
+        BoardUtils.restoreBoardMutationCheckpoint(gameState, cardState, checkpoint);
+        throw error;
     }
-    return {
-        applied: !!marker,
-        row,
-        col,
-        owner: ownerKey,
-        previousValue: prev,
-        marker,
-        reason: marker ? null : 'marker_failed'
-    };
 }
 
 function _removeOccupiedCellForCellRemoval(
@@ -1464,37 +1396,49 @@ function applyCellRemovalAt(
 
     const prev = getCellValue(gameState, row, col);
     if (prev === null) return { applied: false, reason: 'out_of_board', row, col };
-    if (!(options && options.ignoreInviolable === true) && _isInviolableCell(cardState, row, col)) {
-        return { applied: false, reason: 'inviolable', row, col, destroyed: false };
+    if (!BoardUtils ||
+        typeof BoardUtils.createBoardMutationCheckpoint !== 'function' ||
+        typeof BoardUtils.restoreBoardMutationCheckpoint !== 'function') {
+        throw new Error('SharedBoardUtils board mutation transaction is required by BoardOps');
     }
+    const checkpoint = BoardUtils.createBoardMutationCheckpoint(gameState, cardState);
+    try {
+        if (!(options && options.ignoreInviolable === true) && _isInviolableCell(cardState, row, col)) {
+            BoardUtils.restoreBoardMutationCheckpoint(gameState, cardState, checkpoint);
+            return { applied: false, reason: 'inviolable', row, col, destroyed: false };
+        }
+        let destroyed = false;
+        let destroyResult: any = null;
+        if (prev !== EMPTY) {
+            destroyResult = _removeOccupiedCellForCellRemoval(cardState, gameState, row, col, prev, cause, reason, options);
+            destroyed = true;
+        }
 
-    let destroyed = false;
-    let destroyResult: any = null;
-    if (prev !== EMPTY) {
-        destroyResult = _removeOccupiedCellForCellRemoval(cardState, gameState, row, col, prev, cause, reason, options);
-        destroyed = true;
+        const holeMeta = Object.assign({}, (options && options.holeMeta && typeof options.holeMeta === 'object') ? options.holeMeta : {});
+        if (cause && holeMeta.cellRemovalCause === undefined) holeMeta.cellRemovalCause = cause;
+        if (reason && holeMeta.cellRemovalReason === undefined) holeMeta.cellRemovalReason = reason;
+        if (options && options.removalCause && holeMeta.removalCause === undefined) holeMeta.removalCause = options.removalCause;
+        if (options && options.removalKind && holeMeta.removalKind === undefined) holeMeta.removalKind = options.removalKind;
+        if (options && (options.removalPolicy || options.policy) && holeMeta.removalPolicy === undefined) {
+            holeMeta.removalPolicy = options.removalPolicy || options.policy;
+        }
+        const holeResult = applyHoleAt(cardState, gameState, row, col, ownerKey, holeMeta);
+        if (!holeResult || !holeResult.applied) {
+            BoardUtils.restoreBoardMutationCheckpoint(gameState, cardState, checkpoint);
+            return {
+                applied: false,
+                reason: (holeResult && holeResult.reason) || 'hole_failed',
+                row,
+                col,
+                destroyed: false,
+                destroyResult: null
+            };
+        }
+        return { applied: true, row, col, destroyed, destroyResult, holeResult };
+    } catch (error) {
+        BoardUtils.restoreBoardMutationCheckpoint(gameState, cardState, checkpoint);
+        throw error;
     }
-
-    const holeMeta = Object.assign({}, (options && options.holeMeta && typeof options.holeMeta === 'object') ? options.holeMeta : {});
-    if (cause && holeMeta.cellRemovalCause === undefined) holeMeta.cellRemovalCause = cause;
-    if (reason && holeMeta.cellRemovalReason === undefined) holeMeta.cellRemovalReason = reason;
-    if (options && options.removalCause && holeMeta.removalCause === undefined) holeMeta.removalCause = options.removalCause;
-    if (options && options.removalKind && holeMeta.removalKind === undefined) holeMeta.removalKind = options.removalKind;
-    if (options && (options.removalPolicy || options.policy) && holeMeta.removalPolicy === undefined) {
-        holeMeta.removalPolicy = options.removalPolicy || options.policy;
-    }
-    const holeResult = applyHoleAt(cardState, gameState, row, col, ownerKey, holeMeta);
-    if (!holeResult || !holeResult.applied) {
-        return {
-            applied: false,
-            reason: (holeResult && holeResult.reason) || 'hole_failed',
-            row,
-            col,
-            destroyed,
-            destroyResult
-        };
-    }
-    return { applied: true, row, col, destroyed, destroyResult, holeResult };
 }
 
 function _addSpecialStoneMarker(cardState: any, row: number, col: number, owner: string, data: any): any {

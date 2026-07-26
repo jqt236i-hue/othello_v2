@@ -24,9 +24,9 @@ describe("shared board expansion descriptors", () => {
       ],
     };
     const expected = [
+      { side: "top", row: -1, col: 3, owner: 0 },
       { side: "left", row: 1, col: -1, owner: 1 },
       { side: "right", row: 2, col: 5, owner: -1 },
-      { side: "top", row: -1, col: 3, owner: 0 },
     ];
 
     expect(leaf.collectExpansionDescriptors(expansion, state)).toEqual(

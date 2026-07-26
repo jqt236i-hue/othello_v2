@@ -2883,6 +2883,7 @@ const {
             resolveExpansionSideForCard,
             normalizeExpansionOwnerForCard,
             syncLegacyExpansionFieldsForCard,
+            addStateExpansionCells: SharedBoardUtils && SharedBoardUtils.addStateExpansionCells,
             clearCardPendingEffect
         });
     }
@@ -2899,6 +2900,7 @@ const {
             resolveExpansionSideForCard,
             normalizeExpansionOwnerForCard,
             syncLegacyExpansionFieldsForCard,
+            addStateExpansionCells: SharedBoardUtils && SharedBoardUtils.addStateExpansionCells,
             clearCardPendingEffect
         });
     }

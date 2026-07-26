@@ -417,6 +417,9 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
         resolveExpansionSideForCard: () => 'mixed',
         normalizeExpansionOwnerForCard: (owner) => owner,
         syncLegacyExpansionFieldsForCard: jest.fn(),
+        addStateExpansionCells: jest.fn(() => {
+          throw new Error('duplicate additions must be rejected before mutation');
+        }),
         clearCardPendingEffect: jest.fn()
       }
     );

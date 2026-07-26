@@ -42,6 +42,7 @@ function applyBoardExpansionWill(cardState: CardState, gameState: GameState, pla
     const resolveExpansionSideForCard = deps && deps.resolveExpansionSideForCard;
     const normalizeExpansionOwnerForCard = deps && deps.normalizeExpansionOwnerForCard;
     const syncLegacyExpansionFieldsForCard = deps && deps.syncLegacyExpansionFieldsForCard;
+    const addStateExpansionCells = deps && deps.addStateExpansionCells;
     const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
 
     if (
@@ -52,6 +53,7 @@ function applyBoardExpansionWill(cardState: CardState, gameState: GameState, pla
         typeof resolveExpansionSideForCard !== 'function' ||
         typeof normalizeExpansionOwnerForCard !== 'function' ||
         typeof syncLegacyExpansionFieldsForCard !== 'function' ||
+        typeof addStateExpansionCells !== 'function' ||
         typeof clearCardPendingEffect !== 'function'
     ) {
         return { applied: false, reason: 'deps_missing' };
@@ -66,21 +68,22 @@ function applyBoardExpansionWill(cardState: CardState, gameState: GameState, pla
     if (!target || !Array.isArray(target.additions) || target.additions.length !== 1) return { applied: false, reason: 'invalid_target' };
 
     const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
-    const cells = getExpansionDescriptorsForCard(gameState);
     const addition = target.additions[0];
     const side = resolveExpansionSideForCard(target.side, addition.row, addition.col, gameState);
-    const alreadyExists = cells.some((cell: any) => cell && cell.row === addition.row && cell.col === addition.col);
-    if (alreadyExists) return { applied: false, reason: 'already_expanded' };
-
-    cells.push({ side, row: addition.row, col: addition.col, owner: EMPTY });
-
-    boardExpansion.cells = cells.map((cell: any) => ({
-        side: resolveExpansionSideForCard(cell.side, cell.row, cell.col, gameState),
-        row: cell.row,
-        col: cell.col,
-        owner: normalizeExpansionOwnerForCard(cell.owner)
-    }));
-    syncLegacyExpansionFieldsForCard(boardExpansion, gameState);
+    const additionResult = addStateExpansionCells(gameState, [{
+        side,
+        row: addition.row,
+        col: addition.col,
+        owner: EMPTY
+    }], cardState);
+    if (!additionResult || additionResult.added !== true) {
+        return {
+            applied: false,
+            reason: additionResult && additionResult.reason === 'coordinate_conflict'
+                ? 'already_expanded'
+                : 'invalid_target'
+        };
+    }
 
     boardExpansion.usedByPlayer[playerKey] = true;
 
@@ -99,6 +102,7 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
     const resolveExpansionSideForCard = deps && deps.resolveExpansionSideForCard;
     const normalizeExpansionOwnerForCard = deps && deps.normalizeExpansionOwnerForCard;
     const syncLegacyExpansionFieldsForCard = deps && deps.syncLegacyExpansionFieldsForCard;
+    const addStateExpansionCells = deps && deps.addStateExpansionCells;
     const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
 
     if (
@@ -112,6 +116,7 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
         typeof resolveExpansionSideForCard !== 'function' ||
         typeof normalizeExpansionOwnerForCard !== 'function' ||
         typeof syncLegacyExpansionFieldsForCard !== 'function' ||
+        typeof addStateExpansionCells !== 'function' ||
         typeof clearCardPendingEffect !== 'function'
     ) {
         return { applied: false, reason: 'deps_missing' };
@@ -185,22 +190,20 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
         }
     }
 
-    for (const cell of additions) {
-        cells.push({
+    const additionResult = addStateExpansionCells(gameState, additions.map((cell: any) => ({
             side: resolveExpansionSideForCard(null, cell.row, cell.col, gameState),
             row: cell.row,
             col: cell.col,
             owner: EMPTY
-        });
+        })), cardState);
+    if (!additionResult || additionResult.added !== true) {
+        return {
+            applied: false,
+            reason: additionResult && additionResult.reason === 'coordinate_conflict'
+                ? 'already_expanded'
+                : 'invalid_target'
+        };
     }
-
-    boardExpansion.cells = cells.map((cell: any) => ({
-        side: resolveExpansionSideForCard(cell.side, cell.row, cell.col, gameState),
-        row: cell.row,
-        col: cell.col,
-        owner: normalizeExpansionOwnerForCard(cell.owner)
-    }));
-    syncLegacyExpansionFieldsForCard(boardExpansion, gameState);
 
     boardExpansion.usedByPlayer[playerKey] = true;
 

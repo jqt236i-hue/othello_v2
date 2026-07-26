@@ -235,7 +235,15 @@ describe("shared board state kernel", () => {
       view.getFlips(1, 3, 1, { protectedKeys: new Set(["1,2"]) }),
     ).toEqual([]);
     expect(
+      view.getFlips(1, 3, 1, {
+        permanentProtectedKeys: new Set(["1,2"]),
+      }),
+    ).toEqual([]);
+    expect(
       view.getFlips(1, 3, 1, { blockedKeys: new Set(["1,3"]) }),
+    ).toEqual([]);
+    expect(
+      view.getFlips(1, 3, 1, { blockedKeys: new Set(["1,1"]) }),
     ).toEqual([]);
   });
 

@@ -270,29 +270,20 @@ function hasBoardShapeCell(gameState: GameState, row: number, col: number): bool
     return getCellValue(gameState, row, col) !== null;
 }
 
-function forEachBoardShapeCell(gameState: GameState, visitor: (r: number, c: number, owner: number) => void): void {
+function forEachBoardShapeCell(
+    gameState: GameState,
+    visitor: (r: number, c: number, owner: number) => void,
+    cardState: CardState | null = null
+): void {
     if (SelectorsBoardShape && typeof SelectorsBoardShape.forEachBoardShapeCell === 'function') {
-        return SelectorsBoardShape.forEachBoardShapeCell(gameState, visitor, getSelectorsBoardShapeDeps());
+        return SelectorsBoardShape.forEachBoardShapeCell(
+            gameState,
+            visitor,
+            getSelectorsBoardShapeDeps(),
+            cardState
+        );
     }
-    if (typeof visitor !== 'function') return;
-    if (SharedBoardUtils && typeof SharedBoardUtils.forEachBoardShapeCell === 'function') {
-        SharedBoardUtils.forEachBoardShapeCell(gameState, visitor);
-        return;
-    }
-    const gs = gameState as any;
-    if (!gs || !Array.isArray(gs.board)) return;
-    const config = resolveBoardConfig(gameState);
-
-    for (let row = 0; row < config.rows; row++) {
-        for (let col = 0; col < config.cols; col++) {
-            visitor(row, col, gs.board[row][col]);
-        }
-    }
-
-    for (const expansion of getExpansionCells(gameState)) {
-        if (!expansion) continue;
-        visitor(expansion.row, expansion.col, Number(expansion.owner));
-    }
+    throw new Error('CardSelectorsBoardShape.forEachBoardShapeCell is required');
 }
 
 function getPendingEffect(cardState: CardState, playerKey: PlayerKey): any {
@@ -1296,7 +1287,7 @@ function getBlockadeTargets(cardState: CardState, gameState: GameState): TargetC
         if (isBlockedCell(cardState, r, c)) return;
         if (hasSeedMarkerAt(cardState, r, c)) return;
         res.push({ row: r, col: c });
-    });
+    }, cardState);
 
     return res;
 }
@@ -1310,7 +1301,7 @@ function getMeteorTargets(cardState: CardState, gameState: GameState): TargetCel
         if (isMeteorHoleCell(cardState, r, c)) return;
         if (isInviolableCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
-    });
+    }, cardState);
     return res;
 }
 

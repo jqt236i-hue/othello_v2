@@ -53,7 +53,10 @@ describe('custom board config foundations', () => {
       standard8x8: false,
     });
     expect(SharedBoardUtils.collectMainBoardCoordinates(gameState.boardConfig)).toHaveLength(80);
-    expect(SharedBoardUtils.getBoardShapeMeta(gameState.board).playableKeys.size).toBe(80);
+    expect(SharedBoardUtils.createBoardView(gameState, {
+      cardState,
+      strict: false,
+    }).topology.playableKeys.size).toBe(80);
     expect(gameState.board[4][4]).toBe(Core.WHITE);
     expect(gameState.board[4][5]).toBe(Core.BLACK);
     expect(gameState.board[5][4]).toBe(Core.BLACK);
@@ -92,7 +95,10 @@ describe('custom board config foundations', () => {
     expect(Core.countDiscs(gameState)).toEqual({ black: 2, white: 2 });
     const copied = Core.copyGameState(gameState);
     expect(copied.boardConfig).toMatchObject({ shape: 'circle' });
-    expect(SharedBoardUtils.getBoardShapeMeta(copied.board).playableKeys.size).toBe(80);
+    expect(SharedBoardUtils.createBoardView(copied, {
+      cardState: CardLogic.createCardState(createPrng(), { boardConfig: config }),
+      strict: false,
+    }).topology.playableKeys.size).toBe(80);
   });
 
   test('7x7 game state uses a centered opening ring with an empty middle and matching card ids', () => {
@@ -296,7 +302,7 @@ describe('custom board config foundations', () => {
     });
   });
 
-  test('shared expansion descriptors preserve legacy active expansion when cells are empty', () => {
+  test('explicit empty expansion cells override stale legacy active fields', () => {
     const BoardOps = require('../game/logic/board_ops.js');
     const gameState = Core.createGameState({ rows: 8, cols: 9 });
     gameState.boardExpansion = {
@@ -308,13 +314,24 @@ describe('custom board config foundations', () => {
       cells: []
     };
 
-    const expected = [
-      { side: 'right', row: 2, col: 9, owner: Core.WHITE }
-    ];
+    expect(CardExpansion.getExpansionDescriptorsForCard(gameState)).toEqual([]);
+    expect(BoardOps.getExpansionDescriptors(gameState)).toEqual([]);
+    expect(SharedBoardUtils.collectExpansionDescriptors(gameState.boardExpansion, gameState)).toEqual([]);
+  });
 
-    expect(CardExpansion.getExpansionDescriptorsForCard(gameState)).toEqual(expected);
-    expect(BoardOps.getExpansionDescriptors(gameState)).toEqual(expected);
-    expect(SharedBoardUtils.collectExpansionDescriptors(gameState.boardExpansion, gameState)).toEqual(expected);
+  test('unversioned expansion without a cells property still reads legacy fields', () => {
+    const gameState = Core.createGameState({ rows: 8, cols: 9 });
+    gameState.boardExpansion = {
+      active: true,
+      side: 'right',
+      row: 2,
+      owner: Core.WHITE,
+      usedByPlayer: { black: true, white: true }
+    };
+
+    expect(SharedBoardUtils.collectExpansionDescriptors(gameState.boardExpansion, gameState)).toEqual([
+      { side: 'right', row: 2, col: 9, owner: Core.WHITE }
+    ]);
   });
 
   test('expansion descriptor helpers agree on legacy and cells normalization', () => {
@@ -339,9 +356,9 @@ describe('custom board config foundations', () => {
 
     const expected = [
       { side: 'top', row: -1, col: 0, owner: Core.WHITE },
+      { side: 'left', row: 1, col: -1, owner: Core.BLACK },
       { side: 'right', row: 4, col: 9, owner: Core.BLACK },
-      { side: 'bottom', row: 8, col: 8, owner: Core.EMPTY },
-      { side: 'left', row: 1, col: -1, owner: Core.BLACK }
+      { side: 'bottom', row: 8, col: 8, owner: Core.EMPTY }
     ];
 
     expect(SharedBoardUtils.collectExpansionDescriptors(gameState.boardExpansion, gameState)).toEqual(expected);

@@ -72,13 +72,13 @@ Components:
 
 Tasks:
 
-- [ ] coreのget/set/flips/legal/countをstate-aware kernelへ移行する。
-- [ ] 現行flip contextをpure constraintへ変換し、保護/永久保護/封鎖を維持する。
-- [ ] board_opsのgeometry/owner処理をkernelへ委譲する。
-- [ ] expansion/selector/move-generatorの固定外周fallbackを削除する。
-- [ ] compatibility fallbackをstrict delegationだけのwrapperにする。
-- [ ] expansion追加をatomic helperへ移行し、canonical順とlegacy projectionを同期する。
-- [ ] 穴化・復元を事前検証付きtransactionへ移行する。
+- [x] coreのget/set/flips/legal/countをstate-aware kernelへ移行する。
+- [x] 現行flip contextをpure constraintへ変換し、保護/永久保護/封鎖を維持する。
+- [x] board_opsのgeometry/owner処理をkernelへ委譲する。
+- [x] expansion/selector/move-generatorの固定外周fallbackを削除する。
+- [x] compatibility fallbackをstrict delegationだけのwrapperにする。
+- [x] expansion追加をatomic helperへ移行し、canonical順とlegacy projectionを同期する。
+- [x] 穴化・復元を事前検証付きtransactionへ移行する。
 
 Verification:
 

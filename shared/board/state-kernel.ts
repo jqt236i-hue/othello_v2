@@ -93,6 +93,11 @@ interface ViewCacheEntry {
   view: BoardView;
 }
 
+export interface BoardMutationCheckpoint {
+  gameStateSnapshot: Record<string, unknown>;
+  cardStateSnapshot: Record<string, unknown>;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
@@ -119,6 +124,41 @@ function fnv1a32(value: string): string {
 
 function sortCells<T extends CellCoord>(cells: T[]): T[] {
   return cells.sort((left, right) => left.row - right.row || left.col - right.col);
+}
+
+function cloneMutationValue(value: unknown, seen = new Map<object, unknown>()): unknown {
+  if (!value || typeof value !== "object") return value;
+  const source = value as object;
+  if (seen.has(source)) return seen.get(source);
+  if (Array.isArray(value)) {
+    const out: unknown[] = [];
+    seen.set(source, out);
+    for (const item of value) out.push(cloneMutationValue(item, seen));
+    return out;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return value;
+  const out: Record<string, unknown> = {};
+  seen.set(source, out);
+  for (const key of Object.keys(value as Record<string, unknown>)) {
+    out[key] = cloneMutationValue(
+      (value as Record<string, unknown>)[key],
+      seen,
+    );
+  }
+  return out;
+}
+
+function restoreRecord(
+  target: Record<string, unknown>,
+  snapshot: Record<string, unknown>,
+): void {
+  for (const key of Object.keys(target)) {
+    if (!Object.prototype.hasOwnProperty.call(snapshot, key)) delete target[key];
+  }
+  for (const key of Object.keys(snapshot)) {
+    target[key] = cloneMutationValue(snapshot[key]);
+  }
 }
 
 export function createStateKernel(deps: StateKernelDependencies) {
@@ -171,11 +211,21 @@ export function createStateKernel(deps: StateKernelDependencies) {
         errors.push(`boardExpansion.cells[${index}] must be an object`);
         continue;
       }
-      const row = Number(raw.row);
-      const col = Number(raw.col);
+      let row = Number(raw.row);
+      let col = Number(raw.col);
       if (!Number.isInteger(row) || !Number.isInteger(col)) {
-        errors.push(`boardExpansion.cells[${index}] needs integer row/col`);
-        continue;
+        const legacyCell = !strict
+          ? deps.collectExpansionDescriptors({ cells: [raw] }, gameState)[0]
+          : null;
+        if (!legacyCell) {
+          errors.push(`boardExpansion.cells[${index}] needs integer row/col`);
+          continue;
+        }
+        row = legacyCell.row;
+        col = legacyCell.col;
+        warnings.push(
+          `boardExpansion.cells[${index}] legacy coordinate was normalized`,
+        );
       }
       if (Math.abs(row) > maxAbsCoordinate || Math.abs(col) > maxAbsCoordinate) {
         errors.push(`boardExpansion.cells[${index}] exceeds coordinate limit`);
@@ -183,12 +233,19 @@ export function createStateKernel(deps: StateKernelDependencies) {
       }
       const key = deps.toBoardCellKey(row, col);
       if (seen.has(key)) {
-        errors.push(`duplicate expansion coordinate ${key}`);
+        if (strict) errors.push(`duplicate expansion coordinate ${key}`);
+        else warnings.push(`duplicate expansion coordinate ${key} was ignored`);
         continue;
       }
       seen.add(key);
       if (deps.isMainBoardCell(row, col, gameState)) {
-        errors.push(`expansion coordinate ${key} overlaps a base playable cell`);
+        if (strict) {
+          errors.push(`expansion coordinate ${key} overlaps a base playable cell`);
+        } else {
+          warnings.push(
+            `expansion coordinate ${key} overlapping a base playable cell was ignored`,
+          );
+        }
         continue;
       }
       if (!isOwner(raw.owner, deps.empty, deps.black, deps.white)) {
@@ -709,6 +766,39 @@ export function createStateKernel(deps: StateKernelDependencies) {
     return { black: counts.black, white: counts.white };
   }
 
+  function createBoardMutationCheckpoint(
+    gameState: unknown,
+    cardState: unknown,
+  ): BoardMutationCheckpoint {
+    if (!isRecord(gameState) || !isRecord(cardState)) {
+      throw new Error("Board mutation checkpoint requires gameState and cardState");
+    }
+    return {
+      gameStateSnapshot: cloneMutationValue(gameState) as Record<string, unknown>,
+      cardStateSnapshot: cloneMutationValue(cardState) as Record<string, unknown>,
+    };
+  }
+
+  function restoreBoardMutationCheckpoint(
+    gameState: unknown,
+    cardState: unknown,
+    checkpoint: BoardMutationCheckpoint,
+  ): boolean {
+    if (
+      !isRecord(gameState) ||
+      !isRecord(cardState) ||
+      !checkpoint ||
+      !isRecord(checkpoint.gameStateSnapshot) ||
+      !isRecord(checkpoint.cardStateSnapshot)
+    ) {
+      return false;
+    }
+    restoreRecord(gameState, checkpoint.gameStateSnapshot);
+    restoreRecord(cardState, checkpoint.cardStateSnapshot);
+    viewCache.delete(gameState);
+    return true;
+  }
+
   return {
     BOARD_CONTRACT_VERSION,
     BOARD_DIGEST_VERSION,
@@ -720,5 +810,7 @@ export function createStateKernel(deps: StateKernelDependencies) {
     setStateCellValue,
     addStateExpansionCells,
     countStateDiscs,
+    createBoardMutationCheckpoint,
+    restoreBoardMutationCheckpoint,
   };
 }

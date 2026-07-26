@@ -111,6 +111,8 @@ export function createExpansionDescriptors(
   ): ExpansionDescriptor[] {
     if (!boardExpansion || typeof boardExpansion !== "object") return [];
     const out: ExpansionDescriptor[] = [];
+    const canonicalize = (): ExpansionDescriptor[] =>
+      out.sort((left, right) => left.row - right.row || left.col - right.col);
     const obj = boardExpansion as Record<string, unknown>;
     const push = (raw: unknown): void => {
       const normalized = normalizeExpansionCell(raw, boardOrConfig);
@@ -127,10 +129,10 @@ export function createExpansionDescriptors(
       if (Array.isArray(obj.cells)) {
         for (const cell of obj.cells) push(cell);
       }
-      return out;
+      return canonicalize();
     }
     if (obj.active === true) push(boardExpansion);
-    return out;
+    return canonicalize();
   }
 
   return {

@@ -44,13 +44,8 @@ function resolveCoreModuleOrGlobal(id: string, globalKey: string, fallbackValue:
 const SharedConstants = resolveCoreModuleOrGlobal('../../shared-constants', 'SharedConstants', undefined);
 const SharedBoardUtils = resolveCoreModuleOrGlobal('../../shared/shared-board-utils', 'SharedBoardUtils', null);
 
-const BoardUtilsModule = (typeof module === 'object' && module.exports)
-    ? (safeRequire('../../shared/board-utils') || null)
-    : null;
-
 const { BLACK, WHITE, EMPTY, DIRECTIONS } = SharedConstants || {};
 const BoardUtils = SharedBoardUtils || null;
-const NewBoardUtils = BoardUtilsModule || null;
 
 if (BLACK === undefined) {
     throw new Error('SharedConstants not loaded');
@@ -210,17 +205,6 @@ function getOpeningPlacements(boardOrConfig: any): StonePlacement[] {
         { row: anchor.row + 1, col: anchor.col, owner: BLACK },
         { row: anchor.row + 1, col: anchor.col + 1, owner: WHITE }
     ];
-}
-
-function forEachMainBoardCell(state: any, visitor: (row: number, col: number, value: number) => void): void {
-    if (!state || !Array.isArray(state.board) || typeof visitor !== 'function') return;
-    for (let row = 0; row < state.board.length; row++) {
-        const line = Array.isArray(state.board[row]) ? state.board[row] : [];
-        for (let col = 0; col < line.length; col++) {
-            if (!isMainBoardCell(row, col, state)) continue;
-            visitor(row, col, line[col]);
-        }
-    }
 }
 
 function appendExpansionCell(cells: ExpansionCell[], source: any, legacyRow: number | null, legacyOwner: number | null, boardOrConfig: any): void {
@@ -470,44 +454,17 @@ function getExpansionCell(state: any): ExpansionCell | null {
 }
 
 function getCellValue(state: any, row: number, col: number): number | null {
-    if (isMainBoardCell(row, col, state)) {
-        return (Array.isArray(state.board[row]) && Number.isInteger(col) && col >= 0 && col < state.board[row].length)
-            ? state.board[row][col]
-            : null;
+    if (!BoardUtils || typeof BoardUtils.getStateCellValue !== 'function') {
+        throw new Error('SharedBoardUtils.getStateCellValue is required by GameCore');
     }
-    const expansionCells = getExpansionCells(state);
-    for (const expansion of expansionCells) {
-        if (expansion && expansion.row === row && expansion.col === col) {
-            return expansion.owner;
-        }
-    }
-    return null;
+    return BoardUtils.getStateCellValue(state, row, col, null);
 }
 
 function setCellValue(state: any, row: number, col: number, value: number): boolean {
-    if (isMainBoardCell(row, col, state)) {
-        if (!Array.isArray(state.board[row]) || col < 0 || col >= state.board[row].length) return false;
-        state.board[row][col] = value;
-        return true;
+    if (!BoardUtils || typeof BoardUtils.setStateCellValue !== 'function') {
+        throw new Error('SharedBoardUtils.setStateCellValue is required by GameCore');
     }
-    const expansion = ensureBoardExpansionState(state);
-    if (!Array.isArray(expansion.cells)) return false;
-    const owner = normalizeExpansionOwner(value);
-    for (let i = 0; i < expansion.cells.length; i++) {
-        const cell = expansion.cells[i];
-        if (!cell) continue;
-        if (cell.row === row && cell.col === col) {
-            expansion.cells[i] = {
-                side: resolveExpansionSide(cell.side, cell.row, cell.col, state),
-                row: cell.row,
-                col: cell.col,
-                owner
-            };
-            syncLegacyExpansionFields(expansion, state);
-            return true;
-        }
-    }
-    return false;
+    return BoardUtils.setStateCellValue(state, row, col, value, null);
 }
 
 interface FlipContext {
@@ -515,6 +472,7 @@ interface FlipContext {
     permaProtectedStones?: { row: number; col: number }[];
     blockedCells?: { row: number; col: number }[];
     perfCounters?: { flipContextCompiles?: number };
+    cardState?: unknown;
 }
 
 const COMPILED_FLIP_CONTEXT: unique symbol = Symbol('compiledFlipContext');
@@ -558,37 +516,22 @@ function compileFlipContext(context: FlipContext | CompiledFlipContext = {}): Co
 }
 
 function getFlipsWithContext(state: any, row: number, col: number, player: number, context: FlipContext | CompiledFlipContext = {}): [number, number][] {
-    if (getCellValue(state, row, col) !== EMPTY) return [];
-
     const compiled = compileFlipContext(context);
-    const { protectedSet, permaSet, blockedSet } = compiled;
-    if (blockedSet && blockedSet.has(flipContextCellKey(row, col))) return [];
-
-    const allFlips: [number, number][] = [];
-    for (const [dr, dc] of DIRECTIONS) {
-        const flips: [number, number][] = [];
-        let r = row + dr;
-        let c = col + dc;
-        while (getCellValue(state, r, c) === -player) {
-            if (blockedSet && blockedSet.has(flipContextCellKey(r, c))) {
-                flips.length = 0;
-                break;
-            }
-            if ((protectedSet && protectedSet.has(flipContextCellKey(r, c))) ||
-                (permaSet && permaSet.has(flipContextCellKey(r, c)))) {
-                flips.length = 0;
-                break;
-            }
-            flips.push([r, c]);
-            r += dr;
-            c += dc;
-        }
-        if (blockedSet && blockedSet.has(flipContextCellKey(r, c))) continue;
-        if (flips.length > 0 && getCellValue(state, r, c) === player) {
-            allFlips.push(...flips);
-        }
+    if (!BoardUtils || typeof BoardUtils.createBoardView !== 'function') {
+        throw new Error('SharedBoardUtils.createBoardView is required by GameCore');
     }
-    return allFlips;
+    const sourceContext = (compiled.source && typeof compiled.source === 'object')
+        ? compiled.source
+        : {};
+    const cardState = Object.prototype.hasOwnProperty.call(sourceContext, 'cardState')
+        ? sourceContext.cardState
+        : (state && Object.prototype.hasOwnProperty.call(state, 'cardState') ? state.cardState : null);
+    const view = BoardUtils.createBoardView(state, { cardState, strict: false });
+    return view.getFlips(row, col, player, {
+        protectedKeys: compiled.protectedSet || undefined,
+        permanentProtectedKeys: compiled.permaSet || undefined,
+        blockedKeys: compiled.blockedSet || undefined
+    }).map((cell: any) => [cell.row, cell.col] as [number, number]);
 }
 
 function applyMove(state: any, move: Move): any {
@@ -620,88 +563,57 @@ function isGameOver(state: any): boolean {
 }
 
 function countDiscs(state: any): DiscCount {
-    let black = 0, white = 0;
-    if (state && state.boardConfig && state.boardConfig.shape === 'rectangle' && NewBoardUtils && typeof NewBoardUtils.countDiscs === 'function') {
-        const counts = NewBoardUtils.countDiscs(state.board);
-        black = counts.black;
-        white = counts.white;
-    } else {
-        forEachMainBoardCell(state, (row, col, value) => {
-            if (value === BLACK) black += 1;
-            else if (value === WHITE) white += 1;
-        });
+    if (!BoardUtils || typeof BoardUtils.countStateDiscs !== 'function') {
+        throw new Error('SharedBoardUtils.countStateDiscs is required by GameCore');
     }
-    const expansionCells = getExpansionCells(state);
-    for (const expansion of expansionCells) {
-        if (!expansion) continue;
-        if (expansion.owner === BLACK) black++;
-        else if (expansion.owner === WHITE) white++;
-    }
-    return { black, white };
+    return BoardUtils.countStateDiscs(state, state && state.cardState ? state.cardState : null);
 }
 
 function getLegalMoves(state: any, player: number, context: FlipContext | CompiledFlipContext = {}): Move[] {
     const compiled = compileFlipContext(context);
-    const blockedSet = compiled.blockedSet;
-    const moves: Move[] = [];
-    forEachMainBoardCell(state, (row, col, value) => {
-        if (value !== EMPTY) return;
-        if (blockedSet && blockedSet.has(`${row},${col}`)) return;
-        const flips = getFlipsWithContext(state, row, col, player, compiled);
-        if (flips.length > 0) {
-            moves.push({ row, col, flips });
-        }
-    });
-    const expansionCells = getExpansionCells(state);
-    for (const expansion of expansionCells) {
-        if (!expansion || expansion.owner !== EMPTY) continue;
-        if (blockedSet && blockedSet.has(`${expansion.row},${expansion.col}`)) continue;
-        const flips = getFlipsWithContext(state, expansion.row, expansion.col, player, compiled);
-        if (flips.length > 0) {
-            moves.push({ row: expansion.row, col: expansion.col, flips });
-        }
+    if (!BoardUtils || typeof BoardUtils.createBoardView !== 'function') {
+        throw new Error('SharedBoardUtils.createBoardView is required by GameCore');
     }
-    return moves;
+    const cardState = Object.prototype.hasOwnProperty.call(compiled.source, 'cardState')
+        ? compiled.source.cardState
+        : (state && Object.prototype.hasOwnProperty.call(state, 'cardState') ? state.cardState : null);
+    const view = BoardUtils.createBoardView(state, { cardState, strict: false });
+    return view.getLegalMoves(player, {
+        protectedKeys: compiled.protectedSet || undefined,
+        permanentProtectedKeys: compiled.permaSet || undefined,
+        blockedKeys: compiled.blockedSet || undefined
+    }).map((move: any) => ({
+        row: move.row,
+        col: move.col,
+        flips: move.flips.map((cell: any) => [cell.row, cell.col] as [number, number])
+    }));
 }
 
 function getFreePlacementMoves(state: any, player: number, context: FlipContext | CompiledFlipContext = {}): Move[] {
     const compiled = compileFlipContext(context);
     const blockedSet = compiled.blockedSet;
+    if (!BoardUtils || typeof BoardUtils.createBoardView !== 'function') {
+        throw new Error('SharedBoardUtils.createBoardView is required by GameCore');
+    }
+    const cardState = Object.prototype.hasOwnProperty.call(compiled.source, 'cardState')
+        ? compiled.source.cardState
+        : (state && Object.prototype.hasOwnProperty.call(state, 'cardState') ? state.cardState : null);
+    const view = BoardUtils.createBoardView(state, { cardState, strict: false });
     const moves: Move[] = [];
-    forEachMainBoardCell(state, (row, col, value) => {
-        if (value !== EMPTY) return;
-        if (blockedSet && blockedSet.has(`${row},${col}`)) return;
+    for (const cell of view.coordinates) {
+        const row = cell.row;
+        const col = cell.col;
+        const value = view.get(row, col);
+        if (value !== EMPTY) continue;
+        if (blockedSet && blockedSet.has(`${row},${col}`)) continue;
         const flips = getFlipsWithContext(state, row, col, player, compiled);
         moves.push({ row, col, flips });
-    });
-    const expansionCells = getExpansionCells(state);
-    for (const expansion of expansionCells) {
-        if (!expansion || expansion.owner !== EMPTY) continue;
-        if (blockedSet && blockedSet.has(`${expansion.row},${expansion.col}`)) continue;
-        const flips = getFlipsWithContext(state, expansion.row, expansion.col, player, compiled);
-        moves.push({ row: expansion.row, col: expansion.col, flips });
     }
     return moves;
 }
 
 function hasLegalMove(state: any, player: number, context: FlipContext | CompiledFlipContext = {}): boolean {
-    const compiled = compileFlipContext(context);
-    let found = false;
-    forEachMainBoardCell(state, (row, col, value) => {
-        if (found || value !== EMPTY) return;
-        const flips = getFlipsWithContext(state, row, col, player, compiled);
-        if (flips.length > 0) {
-            found = true;
-        }
-    });
-    if (found) return true;
-    const expansionCells = getExpansionCells(state);
-    for (const expansion of expansionCells) {
-        if (!expansion || expansion.owner !== EMPTY) continue;
-        const flips = getFlipsWithContext(state, expansion.row, expansion.col, player, compiled);
-        if (flips.length > 0) return true;
-    }
-    return false;
+    return getLegalMoves(state, player, context).length > 0;
 }
 
 export = {

@@ -34,22 +34,28 @@ if (!MoveGeneratorCoreLogic) {
     console.error('CoreLogic is not loaded.');
 }
 
-const MoveGeneratorLegacyCore = requireMoveGeneratorModuleOrNull('./game-core-logic');
-
-const MoveGeneratorBoardOps = requireMoveGeneratorModuleOrNull('./logic/board_ops');
 const MoveGeneratorSharedBoardUtils = requireMoveGeneratorModuleOrNull('../shared/shared-board-utils');
 
 const MoveGeneratorMarkersAdapter = requireMoveGeneratorModuleOrNull('./logic/markers_adapter');
 const MoveGeneratorCardMarkers = requireMoveGeneratorModuleOrNull('./logic/cards/markers');
 
-function getFlipsForMoveGeneration(state: any, row: number, col: number, player: any, protection: any, perma: any) {
-    const legacyGetFlips = (MoveGeneratorLegacyCore && typeof MoveGeneratorLegacyCore.getFlips === 'function')
-        ? MoveGeneratorLegacyCore.getFlips
-        : null;
-    if (legacyGetFlips) {
-        return legacyGetFlips(state, row, col, player, protection, perma);
+function getFlipsForMoveGeneration(
+    state: any,
+    row: number,
+    col: number,
+    player: any,
+    protection: any,
+    perma: any,
+    cardStateValue: any = null
+) {
+    if (MoveGeneratorCoreLogic && typeof MoveGeneratorCoreLogic.getFlipsWithContext === 'function') {
+        return MoveGeneratorCoreLogic.getFlipsWithContext(state, row, col, player, {
+            protectedStones: protection || [],
+            permaProtectedStones: perma || [],
+            cardState: cardStateValue
+        });
     }
-    throw new Error('MoveGenerator.getFlips dependency unavailable');
+    throw new Error('GameCore.getFlipsWithContext is required by MoveGenerator');
 }
 
 function isSpecialOrBombMarkerForMoveGeneration(marker: any) {
@@ -119,6 +125,7 @@ function getLegalMoves(state: any, protectedStones: any, permaProtectedStones: a
         };
     }
 
+    context.cardState = currentCardState || null;
     return MoveGeneratorCoreLogic.getLegalMoves(state, state.currentPlayer, context);
 }
 
@@ -138,92 +145,37 @@ function createProtectedCellSet(protection: any, perma: any) {
     return set;
 }
 
-function getExpansionCellsForMoveGeneration(state: any) {
-    if (MoveGeneratorBoardOps && typeof MoveGeneratorBoardOps.getExpansionDescriptors === 'function') {
-        return MoveGeneratorBoardOps.getExpansionDescriptors(state);
+function createMoveGenerationView(state: any, cardStateValue: any = null) {
+    if (!MoveGeneratorSharedBoardUtils || typeof MoveGeneratorSharedBoardUtils.createBoardView !== 'function') {
+        throw new Error('SharedBoardUtils.createBoardView is required by MoveGenerator');
     }
-
-    const expansion = (state && state.boardExpansion && typeof state.boardExpansion === 'object')
-        ? state.boardExpansion
-        : null;
-    if (!expansion) return [];
-
-    const cells: any[] = [];
-    const boardBounds = (MoveGeneratorSharedBoardUtils && typeof MoveGeneratorSharedBoardUtils.resolveBoardBounds === 'function')
-        ? MoveGeneratorSharedBoardUtils.resolveBoardBounds(state && state.board)
-        : null;
-    const pushCell = (cellLike: any) => {
-        if (!cellLike || typeof cellLike !== 'object') return;
-        const side = cellLike.side;
-        const row = Number(cellLike.row);
-        let col = Number.isInteger(cellLike.col) ? cellLike.col : null;
-        if (!Number.isInteger(col)) {
-            if (side === 'left') col = -1;
-            else if (side === 'right' && boardBounds) col = boardBounds.maxCol + 1;
-        }
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
-        if (boardBounds) {
-            if (row < -1 || row > (boardBounds.maxRow + 1) || col < -1 || col > (boardBounds.maxCol + 1)) return;
-            if (row >= boardBounds.minRow && row <= boardBounds.maxRow && col >= boardBounds.minCol && col <= boardBounds.maxCol) return;
-        }
-        if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
-        cells.push({ row, col, side, owner: Number(cellLike.owner) });
-    };
-
-    if (Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            pushCell(cell);
-        }
-    }
-    if (cells.length === 0 && expansion.active === true) {
-        pushCell(expansion);
-    }
-    return cells;
+    return MoveGeneratorSharedBoardUtils.createBoardView(state, {
+        cardState: cardStateValue,
+        strict: false
+    });
 }
 
-function setCellValueForMoveGeneration(state: any, row: number, col: number, value: any) {
-    if (!state || !Array.isArray(state.board)) return false;
-    const boardBounds = (MoveGeneratorSharedBoardUtils && typeof MoveGeneratorSharedBoardUtils.resolveBoardBounds === 'function')
-        ? MoveGeneratorSharedBoardUtils.resolveBoardBounds(state.board)
-        : null;
-    if (
-        boardBounds &&
-        Number.isInteger(row) &&
-        Number.isInteger(col) &&
-        row >= boardBounds.minRow &&
-        row <= boardBounds.maxRow &&
-        col >= boardBounds.minCol &&
-        col <= boardBounds.maxCol
-    ) {
-        state.board[row][col] = value;
-        return true;
-    }
-    if (MoveGeneratorBoardOps && typeof MoveGeneratorBoardOps.setCellValue === 'function') {
-        return !!MoveGeneratorBoardOps.setCellValue(state, row, col, value);
-    }
+function getExpansionCellsForMoveGeneration(state: any, cardStateValue: any = null) {
+    return createMoveGenerationView(state, cardStateValue).expansionCells.map((cell: any) => ({ ...cell }));
+}
 
-    const expansion = (state.boardExpansion && typeof state.boardExpansion === 'object')
-        ? state.boardExpansion
-        : null;
-    if (!expansion) return false;
-
-    const cells = Array.isArray(expansion.cells)
-        ? expansion.cells
-        : [];
-    for (let i = 0; i < cells.length; i++) {
-        const cell = cells[i];
-        if (!cell || typeof cell !== 'object') continue;
-        const cellRow = Number(cell.row);
-        const cellCol = Number.isInteger(cell.col)
-            ? cell.col
-            : (cell.side === 'left' ? -1 : (cell.side === 'right' && boardBounds ? boardBounds.maxCol + 1 : null));
-        if (!Number.isInteger(cellRow) || !Number.isInteger(cellCol)) continue;
-        if (cellRow !== row || cellCol !== col) continue;
-        cells[i] = { ...cell, owner: Number(value) };
-        return true;
+function setCellValueForMoveGeneration(
+    state: any,
+    row: number,
+    col: number,
+    value: any,
+    cardStateValue: any = null
+) {
+    if (!MoveGeneratorSharedBoardUtils || typeof MoveGeneratorSharedBoardUtils.setStateCellValue !== 'function') {
+        throw new Error('SharedBoardUtils.setStateCellValue is required by MoveGenerator');
     }
-    return false;
+    return MoveGeneratorSharedBoardUtils.setStateCellValue(
+        state,
+        row,
+        col,
+        value,
+        cardStateValue
+    );
 }
 
 function isFreePlacementPendingTypeForMoveGeneration(pendingType: any) {
@@ -361,19 +313,10 @@ function generateTabooReverseMoves(player: any, legal: any, stateValue?: any, ca
         moveMap.set(key, { row, col, flips, effectUsed, player, playerValue: player });
     };
 
-    for (let r = 0; r < currentGameState.board.length; r++) {
-        const boardRow = currentGameState.board[r];
-        if (!Array.isArray(boardRow)) continue;
-        for (let c = 0; c < boardRow.length; c++) {
-            if (boardRow[c] !== EMPTY) continue;
-            upsertMoveIfTabooValid(r, c);
-        }
-    }
-
-    const expansionCells = getExpansionCellsForMoveGeneration(currentGameState);
-    for (const expansion of expansionCells) {
-        if (!expansion || Number(expansion.owner) !== EMPTY) continue;
-        upsertMoveIfTabooValid(expansion.row, expansion.col);
+    const tabooView = createMoveGenerationView(currentGameState, currentCardState);
+    for (const cell of tabooView.coordinates) {
+        if (tabooView.get(cell.row, cell.col) !== EMPTY) continue;
+        upsertMoveIfTabooValid(cell.row, cell.col);
     }
 
     return Array.from(moveMap.values());
@@ -388,28 +331,24 @@ function generateFreePlacementMoves(player: any, protection: any, perma: any, ef
     if (!currentGameState || !Array.isArray(currentGameState.board)) return [];
     const effectUsed = effectType || 'FREE_PLACEMENT';
     const moves = [];
-    for (let r = 0; r < currentGameState.board.length; r++) {
-        const boardRow = currentGameState.board[r];
-        if (!Array.isArray(boardRow)) continue;
-        for (let c = 0; c < boardRow.length; c++) {
-            if (boardRow[c] !== EMPTY) continue;
-            if (typeof CardLogic !== 'undefined' && typeof CardLogic.isBlockedCell === 'function' && currentCardState) {
-                if (CardLogic.isBlockedCell(currentCardState, r, c, currentGameState)) continue;
-            }
-            const flips = getFlipsForMoveGeneration(currentGameState, r, c, player, protection, perma);
-            moves.push({ row: r, col: c, flips, effectUsed, player, playerValue: player });
-        }
-    }
-    const expansionCells = getExpansionCellsForMoveGeneration(currentGameState);
-    for (const expansion of expansionCells) {
-        if (!expansion || Number(expansion.owner) !== EMPTY) continue;
+    const freePlacementView = createMoveGenerationView(currentGameState, currentCardState);
+    for (const cell of freePlacementView.coordinates) {
+        if (freePlacementView.get(cell.row, cell.col) !== EMPTY) continue;
         if (typeof CardLogic !== 'undefined' && typeof CardLogic.isBlockedCell === 'function' && currentCardState) {
-            if (CardLogic.isBlockedCell(currentCardState, expansion.row, expansion.col, currentGameState)) {
+            if (CardLogic.isBlockedCell(currentCardState, cell.row, cell.col, currentGameState)) {
                 continue;
             }
         }
-        const flips = getFlipsForMoveGeneration(currentGameState, expansion.row, expansion.col, player, protection, perma);
-        moves.push({ row: expansion.row, col: expansion.col, flips, effectUsed, player, playerValue: player });
+        const flips = getFlipsForMoveGeneration(
+            currentGameState,
+            cell.row,
+            cell.col,
+            player,
+            protection,
+            perma,
+            currentCardState
+        );
+        moves.push({ row: cell.row, col: cell.col, flips, effectUsed, player, playerValue: player });
     }
     return moves;
 }
@@ -434,37 +373,24 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any,
 
     const deepCloneState = (s: any) => (typeof structuredClone === 'function') ? structuredClone(s) : JSON.parse(JSON.stringify(s));
 
-    for (let r = 0; r < currentGameState.board.length; r++) {
-        const boardRow = currentGameState.board[r];
-        if (!Array.isArray(boardRow)) continue;
-        for (let c = 0; c < boardRow.length; c++) {
-            const cellVal = boardRow[c];
-            const key = r + ',' + c;
-
-            if (cellVal === -player && !protectedCells.has(key)) {
-                const hasSpecialOrBomb = hasSpecialOrBombAt(r, c);
-                if (hasSpecialOrBomb) continue;
-                const clonedState = deepCloneState(currentGameState);
-                setCellValueForMoveGeneration(clonedState, r, c, EMPTY);
-                const swapFlips = getFlipsForMoveGeneration(clonedState, r, c, player, protection, perma);
-                moves.push({ row: r, col: c, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player, playerValue: player });
-            }
-        }
-    }
-
-    const expansionCells = getExpansionCellsForMoveGeneration(currentGameState);
-    for (const expansion of expansionCells) {
-        if (!expansion) continue;
-        const key = expansion.row + ',' + expansion.col;
-        if (Number(expansion.owner) !== -player || protectedCells.has(key)) continue;
-
-        const hasSpecialOrBomb = hasSpecialOrBombAt(expansion.row, expansion.col);
+    const swapView = createMoveGenerationView(currentGameState, currentCardState);
+    for (const cell of swapView.coordinates) {
+        const key = cell.row + ',' + cell.col;
+        if (swapView.get(cell.row, cell.col) !== -player || protectedCells.has(key)) continue;
+        const hasSpecialOrBomb = hasSpecialOrBombAt(cell.row, cell.col);
         if (hasSpecialOrBomb) continue;
-
         const clonedState = deepCloneState(currentGameState);
-        if (!setCellValueForMoveGeneration(clonedState, expansion.row, expansion.col, EMPTY)) continue;
-        const swapFlips = getFlipsForMoveGeneration(clonedState, expansion.row, expansion.col, player, protection, perma);
-        moves.push({ row: expansion.row, col: expansion.col, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player, playerValue: player });
+        if (!setCellValueForMoveGeneration(clonedState, cell.row, cell.col, EMPTY, currentCardState)) continue;
+        const swapFlips = getFlipsForMoveGeneration(
+            clonedState,
+            cell.row,
+            cell.col,
+            player,
+            protection,
+            perma,
+            currentCardState
+        );
+        moves.push({ row: cell.row, col: cell.col, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player, playerValue: player });
     }
 
     return moves;
@@ -500,22 +426,24 @@ function posToNotation(row: number, col: number) {
  * 角かどうか判定
  */
 function isCorner(row: number, col: number, boardOrRows: any) {
-    if (MoveGeneratorSharedBoardUtils && typeof MoveGeneratorSharedBoardUtils.isCorner === 'function') {
-        if (Array.isArray(boardOrRows)) return MoveGeneratorSharedBoardUtils.isCorner(row, col, boardOrRows);
-        return MoveGeneratorSharedBoardUtils.isCorner(row, col, 8, 8);
+    if (!MoveGeneratorSharedBoardUtils || typeof MoveGeneratorSharedBoardUtils.isCorner !== 'function') {
+        throw new Error('SharedBoardUtils.isCorner is required by MoveGenerator');
     }
-    return (row === 0 || row === 7) && (col === 0 || col === 7);
+    if (Array.isArray(boardOrRows)) return MoveGeneratorSharedBoardUtils.isCorner(row, col, boardOrRows);
+    const size = Number.isInteger(Number(boardOrRows)) ? Number(boardOrRows) : 8;
+    return MoveGeneratorSharedBoardUtils.isCorner(row, col, size, size);
 }
 
 /**
  * 辺かどうか判定
  */
 function isEdge(row: number, col: number, boardOrRows: any) {
-    if (MoveGeneratorSharedBoardUtils && typeof MoveGeneratorSharedBoardUtils.isEdge === 'function') {
-        if (Array.isArray(boardOrRows)) return MoveGeneratorSharedBoardUtils.isEdge(row, col, boardOrRows);
-        return MoveGeneratorSharedBoardUtils.isEdge(row, col, 8, 8);
+    if (!MoveGeneratorSharedBoardUtils || typeof MoveGeneratorSharedBoardUtils.isEdge !== 'function') {
+        throw new Error('SharedBoardUtils.isEdge is required by MoveGenerator');
     }
-    return row === 0 || row === 7 || col === 0 || col === 7;
+    if (Array.isArray(boardOrRows)) return MoveGeneratorSharedBoardUtils.isEdge(row, col, boardOrRows);
+    const size = Number.isInteger(Number(boardOrRows)) ? Number(boardOrRows) : 8;
+    return MoveGeneratorSharedBoardUtils.isEdge(row, col, size, size);
 }
 
 // ===== Exports =====
