@@ -1,11 +1,13 @@
 const BoardVisualModel = require('../ui/board-visual/model');
 const BoardVisualModelBuilder = require('../ui/board-visual/model-builder');
+const SharedBoardUtils = require('../shared/shared-board-utils');
 
 function createTopology(existingKeys: string[], holeKeys: string[] = [], bounds = {
   minRow: 0, maxRow: 9, minCol: 0, maxCol: 9
 }) {
   const holes = new Set(holeKeys);
   return {
+    baseShape: 'rectangle',
     baseRows: 10,
     baseCols: 10,
     ...bounds,
@@ -63,6 +65,7 @@ describe('BoardRenderModel sparse projection', () => {
       for (let col = start; col < start + count; col += 1) keys.push(`${row},${col}`);
     });
     const model = BoardVisualModel.createBoardRenderModel({
+      boardDigest: 'board.v1.circle-fixture',
       topology: createTopology(keys),
       cells: keys.map((key) => createCell(key))
     });
@@ -81,6 +84,7 @@ describe('BoardRenderModel sparse projection', () => {
   test('explicit hole remains a semantic tombstone and never becomes void', () => {
     const keys = ['0,0', '0,1'];
     const model = BoardVisualModel.createBoardRenderModel({
+      boardDigest: 'board.v1.hole-fixture',
       topology: createTopology(keys, ['0,1'], { minRow: 0, maxRow: 0, minCol: 0, maxCol: 1 }),
       cells: [createCell('0,0'), createCell('0,1', true)]
     });
@@ -94,6 +98,7 @@ describe('BoardRenderModel sparse projection', () => {
   test('overlay can change presentation-only interaction and rejects canonical fields', () => {
     const raw = createCell('0,0');
     const model = BoardVisualModel.createBoardRenderModel({
+      boardDigest: 'board.v1.overlay-fixture',
       topology: createTopology(['0,0'], [], { minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 }),
       cells: [raw],
       overlay: {
@@ -116,6 +121,7 @@ describe('BoardRenderModel sparse projection', () => {
   test('derives independent surface, stone, and interaction signatures while preserving the aggregate signature', () => {
     const topology = createTopology(['0,0'], [], { minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 });
     const project = (cell: any, overlay?: any) => BoardVisualModel.createBoardRenderModel({
+      boardDigest: 'board.v1.signature-fixture',
       topology,
       cells: [cell],
       overlay
@@ -169,6 +175,7 @@ describe('BoardRenderModel sparse projection', () => {
   test('far expansion does not create a dense void model or unbounded narrow materialization', () => {
     const keys = ['0,0', '256,256'];
     const model = BoardVisualModel.createBoardRenderModel({
+      boardDigest: 'board.v1.far-expansion-fixture',
       topology: createTopology(keys, [], { minRow: 0, maxRow: 256, minCol: 0, maxCol: 256 }),
       cells: keys.map((key) => {
         const cell = createCell(key);
@@ -222,9 +229,31 @@ describe('BoardRenderModel sparse projection', () => {
     cell.interaction.keyboardCursor = true;
     cell.interaction.selectionKinds = ['friendly', 'extend-life'];
     cell.interaction.previewKinds = ['random-spawn', 'super-attraction-path'];
+    const keys = Array.from({ length: 4 }, (_row, row) =>
+      Array.from({ length: 4 }, (_col, col) => `${row},${col}`)
+    ).flat();
+    const topology = {
+      ...createTopology(keys, [], { minRow: 0, maxRow: 3, minCol: 0, maxCol: 3 }),
+      baseRows: 4,
+      baseCols: 4
+    };
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    board[0][0] = -1;
+    const boardDigest = SharedBoardUtils.createBoardView({
+      board,
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      boardExpansion: { cells: [] }
+    }, {
+      cardState: { markers: [] },
+      strict: true
+    }).boardDigest;
     const model = BoardVisualModel.createBoardRenderModel({
-      topology: createTopology(['0,0'], [], { minRow: 0, maxRow: 0, minCol: 0, maxCol: 0 }),
-      cells: [cell],
+      boardDigest,
+      topology,
+      cells: [
+        cell,
+        ...keys.filter((key) => key !== '0,0').map((key) => createCell(key))
+      ],
       viewerContext: 'white',
       overlay: { keyboardCursorKey: '0,0' }
     });
@@ -248,7 +277,7 @@ describe('BoardRenderModel sparse projection', () => {
       destroyEvadeRemaining: 2
     });
     expect(compatibility.renderProjection.gameState.currentPlayer).toBe(-1);
-    expect(compatibility.renderProjection.gameState.board).toHaveLength(10);
+    expect(compatibility.renderProjection.gameState.board).toHaveLength(4);
     expect(compatibility.renderProjection.gameState.board[0][0]).toBe(-1);
     expect(compatibility.renderProjection.cardState.breedingSproutByOwner.white).toEqual([{ row: 0, col: 0 }]);
     expect(compatibility.renderProjection.cardState.boardBonusByCell['0,0']).toBe(6);

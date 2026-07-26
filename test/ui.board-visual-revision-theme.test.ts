@@ -5,6 +5,7 @@ const Theme = require('../ui/board-visual/theme');
 
 function makeRawFrame(overrides: Record<string, any> = {}) {
   const topology = {
+    baseShape: 'rectangle',
     baseRows: 8,
     baseCols: 8,
     minRow: 0,
@@ -15,11 +16,14 @@ function makeRawFrame(overrides: Record<string, any> = {}) {
     renderColOffset: 0,
     renderRows: 8,
     renderCols: 8,
+    baseKeys: [],
     existingKeys: [],
     playableKeys: [],
     holeKeys: []
   };
   const model = {
+    boardDigest: 'board.v1.revision-fixture',
+    modelCommitId: 0,
     visualRevision: 0,
     topology,
     cells: [],
@@ -93,6 +97,8 @@ describe('board visual independent revision contract', () => {
 
     expect(revisions(first)).toEqual({ model: 1, layout: 1, appearance: 1, theme: 1 });
     expect(revisions(second)).toEqual(revisions(first));
+    expect(first.model.modelCommitId).toBe(1);
+    expect(second.model.modelCommitId).toBe(2);
     expect(second.frameToken).toBe('idle:2');
     expect(first.renderSessionId).toBe('match:default');
     expect(second.renderSessionId).toBe('match:next');
@@ -102,6 +108,11 @@ describe('board visual independent revision contract', () => {
     {
       name: 'model state',
       override: { model: { keyboardCursorKey: '3,4' } },
+      changed: 'model'
+    },
+    {
+      name: 'canonical board digest',
+      override: { model: { boardDigest: 'board.v1.changed' } },
       changed: 'model'
     },
     {

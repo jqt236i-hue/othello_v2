@@ -508,6 +508,8 @@ async function decorateCurrentPresentationFixture(page: any): Promise<{
         return next;
       });
       const decoratedModel = modelModule.createBoardRenderModel({
+        boardDigest: baseFrame.model.boardDigest,
+        modelCommitId: Number(baseFrame.model.modelCommitId || 0),
         visualRevision: Number(baseFrame.model.visualRevision || 0) + 1,
         topology: baseFrame.model.topology,
         cells,

@@ -176,14 +176,14 @@ Components:
 
 Tasks:
 
-- [ ] model builderを一つのBoardView projectionへ変更する。
-- [ ] existing cellのowner不足を空で補完せずinvariant errorにする。
-- [ ] `boardDigest` と単調 `modelCommitId` をmodel/settlementへ追加する。
-- [ ] inputをsettled identityとcurrent direction hintで検証する。
-- [ ] controllerのpublic geometryをexisting cell限定にする。
-- [ ] state adapterとDOM rendererの1周fallbackを削除する。
-- [ ] DOM compatibilityは完成modelを唯一の入力とし、逆変換を残す場合もkernelでroundtrip検証して局所geometryを持たせない。
-- [ ] Pixi/DOMのSingle Visual Writer、event順、settlementを維持する。
+- [x] model builderを一つのBoardView projectionへ変更する。
+- [x] existing cellのowner不足を空で補完せずinvariant errorにする。
+- [x] `boardDigest` と単調 `modelCommitId` をmodel/settlementへ追加する。
+- [x] inputをsettled identityとcurrent direction hintで検証する。
+- [x] controllerのpublic geometryをexisting cell限定にする。
+- [x] state adapterとDOM rendererの1周fallbackを削除する。
+- [x] DOM compatibilityは完成modelを唯一の入力とし、逆変換を残す場合もkernelでroundtrip検証して局所geometryを持たせない。
+- [x] Pixi/DOMのSingle Visual Writer、event順、settlementを維持する。
 - [ ] 全consumer parity後の単一cutoverでboard-only shape登録/互換adapterを削除し、board-only APIをdense専用へ固定する。
 
 Verification:

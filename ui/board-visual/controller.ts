@@ -100,6 +100,7 @@ function computeVisualFrameDigest(frame: BoardVisualFrame | null): string | null
     : [];
   return StateHash.computeStableHash({
     model: {
+      boardDigest: frame.model.boardDigest || null,
       topology: frame.model.topology || null,
       keyboardCursorKey: frame.model.keyboardCursorKey || null,
       viewerContext: frame.model.viewerContext || null,
@@ -1668,6 +1669,9 @@ function createBoardVisualController(options: {
       }
     },
     getCellClientRect(row: number, col: number) {
+      if (!Number.isInteger(row) || !Number.isInteger(col) || !lastSettled) return null;
+      const key = `${row},${col}`;
+      if (!lastSettled.model.topology.existingKeys.includes(key)) return null;
       return backend.getCellClientRect(row, col);
     },
     resize(layout: any) {

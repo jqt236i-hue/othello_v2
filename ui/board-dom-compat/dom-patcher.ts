@@ -40,7 +40,6 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
         isExpansionCoordinate: _isExpansionCoordinateForDiff,
         isExpansionCell: _isExpansionCellForDiff,
         resolveExpansionSide: _resolveExpansionSideForDiff,
-        applyExpansionCellPosition: _applyExpansionCellPositionForDiff,
         applyBoardGridPosition: _applyBoardGridPositionForDiff,
         applyBoardEdgeClasses: _applyBoardEdgeClassesForDiff,
         applyBoardContourEdgeClasses: _applyBoardContourEdgeClassesForDiff,
@@ -175,11 +174,10 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
         if (expansionSide) {
             cell.classList.add(`cell-expanded-${expansionSide}`);
         }
-        if (typeof _applyBoardGridPositionForDiff === 'function') {
-            _applyBoardGridPositionForDiff(cell, row, col, gameState);
-        } else {
-            _applyExpansionCellPositionForDiff(cell, row, col, boardShape);
+        if (typeof _applyBoardGridPositionForDiff !== 'function') {
+            throw new Error('[BoardDomCompat] canonical board grid positioning unavailable');
         }
+        _applyBoardGridPositionForDiff(cell, row, col, gameState);
     } else {
         _applyBoardEdgeClassesForDiff(cell, row, col, boardShape);
         if (typeof _applyBoardGridPositionForDiff === 'function') {

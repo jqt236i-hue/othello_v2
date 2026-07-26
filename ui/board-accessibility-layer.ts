@@ -47,10 +47,12 @@ export interface BoardAccessibilityDirectionHint {
   readonly directionKey: string;
   readonly kind: 'board-expansion-god' | 'board-expansion-will';
   readonly ariaLabel: string;
+  readonly modelCommitId: number;
+  readonly boardDigest: string;
 }
 
 export interface BoardAccessibilityLayerSyncOptions {
-  readonly model: Pick<BoardRenderModel, 'cells'>;
+  readonly model: Pick<BoardRenderModel, 'cells' | 'modelCommitId' | 'boardDigest'>;
   readonly getCellClientRect: (row: number, col: number) => BoardClientRect | null;
 }
 
@@ -131,7 +133,9 @@ function directAccessibilityLayers(host: HTMLElement): HTMLElement[] {
   ));
 }
 
-function semanticHints(model: Pick<BoardRenderModel, 'cells'>): BoardAccessibilityDirectionHint[] {
+function semanticHints(
+  model: Pick<BoardRenderModel, 'cells' | 'modelCommitId' | 'boardDigest'>
+): BoardAccessibilityDirectionHint[] {
   const result: BoardAccessibilityDirectionHint[] = [];
   const seen = new Set<string>();
   for (const cell of model.cells || []) {
@@ -153,7 +157,9 @@ function semanticHints(model: Pick<BoardRenderModel, 'cells'>): BoardAccessibili
         col: cell.col,
         directionKey,
         kind: rawHint.kind,
-        ariaLabel: getBoardExpansionDirectionAriaLabel(directionKey)
+        ariaLabel: getBoardExpansionDirectionAriaLabel(directionKey),
+        modelCommitId: Number(model.modelCommitId),
+        boardDigest: String(model.boardDigest || '')
       }));
     }
   }

@@ -239,6 +239,8 @@ function signatureForHintInput(cell: UnsignedBoardCellVisualState): string {
 }
 
 export function createBoardRenderModel(options: {
+  boardDigest: string;
+  modelCommitId?: number;
   visualRevision?: number;
   topology: BoardRenderTopologyModel;
   cells: readonly UnsignedBoardCellVisualState[];
@@ -248,8 +250,15 @@ export function createBoardRenderModel(options: {
   isHumanTurn?: boolean;
   overlay?: unknown;
 }): BoardRenderModel {
+  const boardDigest = String(options.boardDigest || '').trim();
+  if (!boardDigest) {
+    throw new Error('BoardRenderModel requires a canonical boardDigest');
+  }
   const topology = deepFreeze({
     ...options.topology,
+    baseShape: options.topology.baseShape === 'circle'
+      ? ('circle' as const)
+      : ('rectangle' as const),
     baseKeys: sortedUniqueKeys(options.topology.baseKeys),
     existingKeys: sortedUniqueKeys(options.topology.existingKeys),
     playableKeys: sortedUniqueKeys(options.topology.playableKeys),
@@ -289,6 +298,8 @@ export function createBoardRenderModel(options: {
     throw new Error(`Board model omitted existing cells: ${missing.slice(0, 8).join(',')}`);
   }
   return deepFreeze({
+    boardDigest,
+    modelCommitId: Math.max(0, Math.trunc(Number(options.modelCommitId) || 0)),
     visualRevision: Math.max(0, Math.trunc(Number(options.visualRevision) || 0)),
     topology,
     cells,

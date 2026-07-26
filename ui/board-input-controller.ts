@@ -1,7 +1,7 @@
 import type { BoardClientRect, BoardRenderModel } from './board-visual/types';
 
 type BoardInputDirection = 'up' | 'down' | 'left' | 'right';
-type BoardInputBlockReason = 'locked' | 'spectator';
+type BoardInputBlockReason = 'locked' | 'spectator' | 'stale-model' | 'invalid-direction';
 type BoardInputSource = 'pointer' | 'keyboard' | 'direction';
 type BoardInputPointerEventType =
   | 'pointerdown'
@@ -28,6 +28,7 @@ interface BoardInputPointerEvent {
   clientX?: number;
   clientY?: number;
   directionKey?: string | null;
+  hintId?: string | null;
   preventDefault?: () => void;
 }
 
@@ -44,6 +45,9 @@ interface BoardInputKeyboardEvent {
   row?: number;
   col?: number;
   directionKey?: string | null;
+  hintId?: string | null;
+  modelCommitId?: number;
+  boardDigest?: string;
   preventDefault?: () => void;
 }
 
@@ -79,6 +83,9 @@ type ActivePress = {
   startX: number;
   startY: number;
   directionKey?: string;
+  hintId?: string;
+  modelCommitId?: number;
+  boardDigest?: string;
   timer: unknown;
   longPressed: boolean;
 };
@@ -91,6 +98,11 @@ function toCellKey(row: number, col: number): string {
 }
 
 function normalizeDirectionKey(value: unknown): string | undefined {
+  const normalized = String(value == null ? '' : value).trim();
+  return normalized || undefined;
+}
+
+function normalizeHintId(value: unknown): string | undefined {
   const normalized = String(value == null ? '' : value).trim();
   return normalized || undefined;
 }
@@ -207,6 +219,44 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     } catch (_error) { /* UI-only notification */ }
   };
 
+  const currentModelIdentity = (): Readonly<{
+    modelCommitId?: number;
+    boardDigest?: string;
+  }> => Object.freeze(currentModel ? {
+    modelCommitId: Number(currentModel.modelCommitId),
+    boardDigest: String(currentModel.boardDigest || '')
+  } : {});
+
+  const matchesCurrentModel = (expected?: Readonly<{
+    modelCommitId?: number;
+    boardDigest?: string;
+  }>): boolean => {
+    if (!expected || !currentModel) return true;
+    if (
+      Number.isFinite(Number(expected.modelCommitId))
+      && Number(expected.modelCommitId) !== Number(currentModel.modelCommitId)
+    ) {
+      return false;
+    }
+    const expectedDigest = String(expected.boardDigest || '');
+    return !expectedDigest || expectedDigest === String(currentModel.boardDigest || '');
+  };
+
+  const matchesCurrentDirectionHint = (
+    row: number,
+    col: number,
+    directionKey: string,
+    hintId?: string
+  ): boolean => {
+    if (!currentModel) return true;
+    const cell = currentCellByKey.get(toCellKey(row, col));
+    if (!cell || !Array.isArray(cell.interaction.directionHints)) return false;
+    return cell.interaction.directionHints.some((hint) => (
+      normalizeDirectionKey(hint && hint.directionKey) === directionKey
+      && (!hintId || String(hint && hint.id || '') === hintId)
+    ));
+  };
+
   const clearPress = (): void => {
     const press = activePress;
     activePress = null;
@@ -252,14 +302,24 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     row: number,
     col: number,
     directionKey: string | undefined,
-    source: BoardInputSource
+    source: BoardInputSource,
+    expectedModel?: Readonly<{ modelCommitId?: number; boardDigest?: string }>,
+    hintId?: string
   ): boolean => {
     const blocked = blockAction(source);
     if (blocked) {
       notifyBlocked(blocked, source);
       return false;
     }
+    if (!matchesCurrentModel(expectedModel)) {
+      notifyBlocked('stale-model', source);
+      return false;
+    }
     if (!isInteractive(row, col)) return false;
+    if (directionKey && !matchesCurrentDirectionHint(row, col, directionKey, hintId)) {
+      notifyBlocked('invalid-direction', source);
+      return false;
+    }
     options.handleCellClick(row, col, directionKey);
     return true;
   };
@@ -299,10 +359,23 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     return dispatchCellAction(current.row, current.col, undefined, 'keyboard');
   };
 
-  const activateDirection = (row: number, col: number, directionKey: string): boolean => {
+  const activateDirection = (
+    row: number,
+    col: number,
+    directionKey: string,
+    hintId?: string,
+    expectedModel?: Readonly<{ modelCommitId?: number; boardDigest?: string }>
+  ): boolean => {
     const normalized = normalizeDirectionKey(directionKey);
     if (!normalized) return false;
-    return dispatchCellAction(row, col, normalized, 'direction');
+    return dispatchCellAction(
+      row,
+      col,
+      normalized,
+      'direction',
+      expectedModel || currentModelIdentity(),
+      normalizeHintId(hintId)
+    );
   };
 
   const syncModel = (model: BoardRenderModel): void => {
@@ -360,27 +433,73 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     const x = Number(clientX);
     const y = Number(clientY);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-    const topology = currentModel.topology;
-    const minRect = options.getCellClientRect(topology.minRow, topology.minCol);
-    const maxRect = options.getCellClientRect(topology.maxRow, topology.maxCol);
-    if (!minRect || !maxRect || minRect.layoutRevision !== maxRect.layoutRevision) return null;
-    const rowOrigin = minRect.top <= maxRect.top ? topology.minRow : topology.maxRow;
-    const rowStep = minRect.top <= maxRect.top ? 1 : -1;
-    const colOrigin = minRect.left <= maxRect.left ? topology.minCol : topology.maxCol;
-    const colStep = minRect.left <= maxRect.left ? 1 : -1;
-    const originRect = options.getCellClientRect(rowOrigin, colOrigin);
-    if (!originRect || originRect.layoutRevision !== minRect.layoutRevision) return null;
-    const rowIndex = Math.floor((y - originRect.top) / originRect.height);
-    const colIndex = Math.floor((x - originRect.left) / originRect.width);
-    const row = rowOrigin + rowIndex * rowStep;
-    const col = colOrigin + colIndex * colStep;
-    const key = toCellKey(row, col);
-    const cell = currentCellByKey.get(key);
-    if (!cell || !isInteractive(row, col)) return null;
-    const rect = options.getCellClientRect(row, col);
-    if (!rect || rect.layoutRevision !== originRect.layoutRevision) return null;
-    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) return null;
-    return Object.freeze({ row, col, key });
+    const candidates = currentModel.cells.filter((cell) => (
+      cell.kind === 'playable' && isInteractive(cell.row, cell.col)
+    ));
+    const contains = (rect: BoardClientRect) => (
+      x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom
+    );
+    const anchor = candidates[0];
+    if (!anchor) return null;
+    const anchorRect = options.getCellClientRect(anchor.row, anchor.col);
+    if (!anchorRect) return null;
+    if (contains(anchorRect)) {
+      const verification = options.getCellClientRect(anchor.row, anchor.col);
+      if (!verification || verification.layoutRevision !== anchorRect.layoutRevision) return null;
+      return Object.freeze({ row: anchor.row, col: anchor.col, key: anchor.key });
+    }
+    const rowReference = candidates.find((cell) => (
+      cell.col === anchor.col && cell.row !== anchor.row
+    ));
+    const colReference = candidates.find((cell) => (
+      cell.row === anchor.row && cell.col !== anchor.col
+    ));
+    if (rowReference && colReference) {
+      const rowRect = options.getCellClientRect(rowReference.row, rowReference.col);
+      const colRect = options.getCellClientRect(colReference.row, colReference.col);
+      if (
+        !rowRect
+        || !colRect
+        || rowRect.layoutRevision !== anchorRect.layoutRevision
+        || colRect.layoutRevision !== anchorRect.layoutRevision
+      ) {
+        return null;
+      }
+      const rowPixels = (
+        (rowRect.top + rowRect.height / 2) - (anchorRect.top + anchorRect.height / 2)
+      ) / (rowReference.row - anchor.row);
+      const colPixels = (
+        (colRect.left + colRect.width / 2) - (anchorRect.left + anchorRect.width / 2)
+      ) / (colReference.col - anchor.col);
+      if (Number.isFinite(rowPixels) && rowPixels !== 0 && Number.isFinite(colPixels) && colPixels !== 0) {
+        const row = anchor.row + Math.round(
+          (y - (anchorRect.top + anchorRect.height / 2)) / rowPixels
+        );
+        const col = anchor.col + Math.round(
+          (x - (anchorRect.left + anchorRect.width / 2)) / colPixels
+        );
+        const key = toCellKey(row, col);
+        if (currentCellByKey.has(key) && isInteractive(row, col)) {
+          const rect = options.getCellClientRect(row, col);
+          if (
+            rect
+            && rect.layoutRevision === anchorRect.layoutRevision
+            && contains(rect)
+          ) {
+            return Object.freeze({ row, col, key });
+          }
+        }
+        return null;
+      }
+    }
+    for (const cell of candidates.slice(1)) {
+      const rect = options.getCellClientRect(cell.row, cell.col);
+      if (!rect || rect.layoutRevision !== anchorRect.layoutRevision) return null;
+      if (contains(rect)) return Object.freeze({ row: cell.row, col: cell.col, key: cell.key });
+    }
+    const verification = options.getCellClientRect(anchor.row, anchor.col);
+    if (!verification || verification.layoutRevision !== anchorRect.layoutRevision) return null;
+    return null;
   };
 
   const handlePointer = (event: BoardInputPointerEvent): boolean => {
@@ -404,6 +523,8 @@ function createBoardInputController(options: BoardInputControllerOptions) {
         startX: normalizeCoordinate(event.clientX),
         startY: normalizeCoordinate(event.clientY),
         directionKey: normalizeDirectionKey(event.directionKey),
+        hintId: normalizeHintId(event.hintId),
+        ...currentModelIdentity(),
         timer: null,
         longPressed: false
       };
@@ -452,6 +573,7 @@ function createBoardInputController(options: BoardInputControllerOptions) {
       if (!press || press.pointerId !== pointerId) return false;
       const wasLongPressed = press.longPressed;
       const directionKey = normalizeDirectionKey(event.directionKey) || press.directionKey;
+      const hintId = normalizeHintId(event.hintId) || press.hintId;
       clearPress();
       if (wasLongPressed) {
         event.preventDefault?.();
@@ -459,7 +581,14 @@ function createBoardInputController(options: BoardInputControllerOptions) {
       }
       if (isLocked()) return false;
       if (press.pointerType === 'touch') options.showSpecialStoneInfoAt?.(press.row, press.col);
-      return dispatchCellAction(press.row, press.col, directionKey, 'pointer');
+      return dispatchCellAction(
+        press.row,
+        press.col,
+        directionKey,
+        'pointer',
+        press,
+        hintId
+      );
     }
 
     if (event.type === 'pointerupoutside' || event.type === 'pointercancel') {
@@ -488,7 +617,16 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     const directionKey = normalizeDirectionKey(event.directionKey);
     if ((event.key === 'Enter' || isSpaceKey(event)) && directionKey) {
       if (event.repeat || !Number.isInteger(event.row) || !Number.isInteger(event.col)) return false;
-      const handled = activateDirection(Number(event.row), Number(event.col), directionKey);
+      const handled = activateDirection(
+        Number(event.row),
+        Number(event.col),
+        directionKey,
+        normalizeHintId(event.hintId),
+        {
+          modelCommitId: event.modelCommitId,
+          boardDigest: event.boardDigest
+        }
+      );
       if (handled || isLocked() || isSpectator()) event.preventDefault?.();
       return handled;
     }

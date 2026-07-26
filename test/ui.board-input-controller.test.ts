@@ -36,8 +36,11 @@ describe('board input controller', () => {
 
   function model(cells: any[], keyboardCursorKey: string | null = null): any {
     return {
+      boardDigest: 'board.v1.input-fixture',
+      modelCommitId: 1,
       visualRevision: 1,
       topology: {
+        baseShape: 'rectangle',
         baseRows: 8,
         baseCols: 8,
         minRow: 0,
@@ -48,6 +51,7 @@ describe('board input controller', () => {
         renderColOffset: 0,
         renderRows: 8,
         renderCols: 8,
+        baseKeys: cells.map((cell) => cell.key),
         existingKeys: cells.map((cell) => cell.key),
         playableKeys: cells.filter((cell) => cell.kind === 'playable').map((cell) => cell.key),
         holeKeys: cells.filter((cell) => cell.kind === 'hole').map((cell) => cell.key)
@@ -466,5 +470,89 @@ describe('board input controller', () => {
 
     controller.reset();
     expect(cursors).toEqual(['0,0', '0,7', '0,0', null]);
+  });
+
+  test('rejects A→B→A pointer completion by monotonic model identity', () => {
+    const target = cell(2, 3);
+    const first = model([target]);
+    const middle = { ...model([target]), modelCommitId: 2, boardDigest: 'board.v1.middle' };
+    const returned = { ...model([target]), modelCommitId: 3 };
+    const { controller, actions, blocked } = createController();
+    controller.syncModel(first);
+
+    expect(controller.handlePointer({
+      type: 'pointerdown',
+      row: 2,
+      col: 3,
+      pointerId: 17,
+      pointerType: 'mouse',
+      button: 0
+    })).toBe(true);
+    controller.syncModel(middle);
+    controller.syncModel(returned);
+
+    expect(controller.handlePointer({
+      type: 'pointerup',
+      row: 2,
+      col: 3,
+      pointerId: 17,
+      pointerType: 'mouse'
+    })).toBe(false);
+    expect(actions).toEqual([]);
+    expect(blocked).toContain('stale-model:pointer');
+  });
+
+  test('accepts only the current direction hint id, direction, and model identity', () => {
+    const direction = cell(0, 7, {
+      interaction: {
+        legal: false,
+        legalFree: false,
+        interactionLocked: false,
+        directionHints: [{
+          id: 'board-expansion-will:0,7:right',
+          kind: 'board-expansion-will',
+          directionKey: 'right'
+        }]
+      }
+    });
+    const current = model([direction]);
+    const { controller, actions, blocked } = createController();
+    controller.syncModel(current);
+
+    expect(controller.activateDirection(
+      0,
+      7,
+      'up',
+      'board-expansion-will:0,7:right',
+      { modelCommitId: 1, boardDigest: current.boardDigest }
+    )).toBe(false);
+    expect(controller.activateDirection(
+      0,
+      7,
+      'right',
+      'stale-hint-id',
+      { modelCommitId: 1, boardDigest: current.boardDigest }
+    )).toBe(false);
+    expect(controller.activateDirection(
+      0,
+      7,
+      'right',
+      'board-expansion-will:0,7:right',
+      { modelCommitId: 0, boardDigest: current.boardDigest }
+    )).toBe(false);
+    expect(controller.activateDirection(
+      0,
+      7,
+      'right',
+      'board-expansion-will:0,7:right',
+      { modelCommitId: 1, boardDigest: current.boardDigest }
+    )).toBe(true);
+
+    expect(actions).toEqual([{ row: 0, col: 7, directionKey: 'right' }]);
+    expect(blocked).toEqual([
+      'invalid-direction:direction',
+      'invalid-direction:direction',
+      'stale-model:direction'
+    ]);
   });
 });

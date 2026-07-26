@@ -23,6 +23,7 @@ function getOwnerValueForDiff(owner: any, BLACK: any, WHITE: any): any {
 }
 
 const BoardVisualModel = _require('./model');
+const SharedBoardUtils = _require('../../shared/shared-board-utils');
 
 function cloneSemanticValue(value: any): any {
     if (value == null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
@@ -61,7 +62,8 @@ function createBoardRenderProjection(capabilities: any, operationCounters?: any)
     const {
         resolveGameState,
         resolveCardState,
-        getBoardShape,
+        resolveBoardConfig,
+        createBoardView,
         cardLogic: CardLogic,
         getPlayerKey,
         resolveViewerContext,
@@ -69,19 +71,32 @@ function createBoardRenderProjection(capabilities: any, operationCounters?: any)
         canLocalPlayerControlCurrentTurn,
         constants: { BLACK, WHITE } = {}
     } = stateCapabilities || {};
-    const {
-        getExpansionDescriptors,
-        buildBoardHintProjection
-    } = hintCapabilities || {};
+    const { buildBoardHintProjection } = hintCapabilities || {};
     const {
         isDebugHumanVsHuman,
         warn
     } = debugCapabilities || {};
     const gameState = resolveGameState();
     const cardState = resolveCardState();
-    const boardShape = getBoardShape(gameState);
     const valid = !!(gameState && Array.isArray(gameState.board) && gameState.board.length > 0 && Array.isArray(gameState.board[0]));
-    if (!valid) return Object.freeze({ valid: false, gameState, cardState, boardShape, hintProjection: {} });
+    if (!valid) {
+        return Object.freeze({
+            valid: false,
+            gameState,
+            cardState,
+            boardShape: { rows: 0, cols: 0 },
+            hintProjection: {}
+        });
+    }
+    if (typeof createBoardView !== 'function' || typeof resolveBoardConfig !== 'function') {
+        throw new Error('Board render projection requires SharedBoardUtils.createBoardView and resolveBoardConfig');
+    }
+    const boardView = createBoardView(gameState, { cardState, strict: true });
+    const boardConfig = resolveBoardConfig(gameState);
+    const boardShape = Object.freeze({
+        rows: boardView.topology.baseRows,
+        cols: boardView.topology.baseCols
+    });
 
     let cardContext: any;
     if (cardState && Array.isArray(cardState.markers)) {
@@ -106,7 +121,7 @@ function createBoardRenderProjection(capabilities: any, operationCounters?: any)
         : ((gameState.currentPlayer === BLACK) ||
             (isDebugHumanVsHuman() && gameState.currentPlayer === WHITE) ||
             isFateWillControlledTurn);
-    const expansions = getExpansionDescriptors(gameState);
+    const expansions = boardView.expansionCells;
     const hintProjection = buildBoardHintProjection(
         gameState,
         cardState,
@@ -122,6 +137,9 @@ function createBoardRenderProjection(capabilities: any, operationCounters?: any)
         valid: true,
         gameState,
         cardState,
+        boardView,
+        boardDigest: boardView.boardDigest,
+        baseShape: boardConfig.shape === 'circle' ? 'circle' : 'rectangle',
         boardShape,
         player,
         playerKey,
@@ -201,21 +219,11 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
     const isTabooReversePending = !!(pending && pending.type === 'TABOO_REVERSE_WILL');
     const isHumanTurn = renderProjection.isHumanTurn;
     const expansions = renderProjection.expansions;
-    const expansionOwnerByKey = new Map<string, any>();
-    for (const expansion of expansions) {
-        if (!expansion || !Number.isInteger(expansion.row) || !Number.isInteger(expansion.col)) continue;
-        expansionOwnerByKey.set(`${expansion.row},${expansion.col}`, expansion.owner);
+    const boardView = renderProjection.boardView;
+    if (!boardView || typeof boardView.get !== 'function') {
+        throw new Error('Current cell state requires the prepared BoardView');
     }
-    const getBoardValueAt = (row: number, col: number) => {
-        if (
-            row >= 0 && row < boardShape.rows
-            && col >= 0 && col < boardShape.cols
-            && Array.isArray(gameState.board[row])
-        ) {
-            return gameState.board[row][col];
-        }
-        return expansionOwnerByKey.get(`${row},${col}`);
-    };
+    const getBoardValueAt = (row: number, col: number) => boardView.get(row, col);
     const hintProjection = renderProjection.hintProjection || {};
     const selectableTargetSet = hintProjection.selectableTargetSet instanceof Set ? hintProjection.selectableTargetSet : new Set();
     const isExtendLifeSelection = !!(
@@ -432,28 +440,7 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
         addSprout('white', sproutByOwner.white);
     } catch (e: any) { /* ignore */ }
 
-    const existingCellKeySet = new Set();
-    for (let r = 0; r < boardShape.rows; r++) {
-        for (let c = 0; c < boardShape.cols; c++) {
-            existingCellKeySet.add(`${r},${c}`);
-        }
-    }
-    for (const expansion of expansions) {
-        if (!expansion || !Number.isInteger(expansion.row) || !Number.isInteger(expansion.col)) continue;
-        existingCellKeySet.add(`${expansion.row},${expansion.col}`);
-    }
-
-    const holeKeySet = new Set();
-    blockadeMap.forEach((blocked, key) => {
-        if (String(blocked && blocked.type ? blocked.type : '').toUpperCase() === 'METEOR_HOLE') {
-            holeKeySet.add(key);
-        }
-    });
-
-    const playableKeySet = new Set(existingCellKeySet);
-    for (const holeKey of holeKeySet) {
-        playableKeySet.delete(holeKey);
-    }
+    const playableKeySet = boardView.topology.playableKeys;
 
     const getBoardShrinkInnerBoundaryMask = (row: any, col: any, visualVariant: any) => {
         if (String(visualVariant || '').toUpperCase() !== 'BOARD_FRAME') return null;
@@ -477,7 +464,11 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
         state[r] = [];
         for (let c = 0; c < boardShape.cols; c++) {
             const key = r + ',' + c;
-            const val = gameState.board[r][c];
+            const boardValue = getBoardValueAt(r, c);
+            if (boardValue == null && boardView.topology.playableKeys.has(key)) {
+                throw new Error(`BoardView omitted playable owner at ${key}`);
+            }
+            const val = boardValue == null ? EMPTY : boardValue;
             const markerVisual = markerVisualMap.get(key) || null;
             const blockade = markerVisual ? markerVisual.blockade || null : null;
             const frozen = markerVisual ? markerVisual.frozen || null : null;
@@ -568,7 +559,12 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
     for (const expansion of expansions) {
         if (!expansion) continue;
         const expKey = `${expansion.row},${expansion.col}`;
-        const expVal = expansion.owner;
+        const boardValue = getBoardValueAt(expansion.row, expansion.col);
+        const isHole = boardView.topology.holeKeys.has(expKey);
+        if (boardValue == null && !isHole) {
+            throw new Error(`BoardView omitted expansion owner at ${expKey}`);
+        }
+        const expVal = boardValue == null ? EMPTY : boardValue;
         const isLegal = showLegalHints && expVal === EMPTY && legalSet.has(expKey);
         const isTabooLegal = showLegalHints && expVal === EMPTY && tabooLegalSet.has(expKey);
         const isLegalFree = showLegalHints && expVal === EMPTY && freePlacementActive;
@@ -648,6 +644,43 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
         });
     }
         state._expansionCell = state._expansionCells.length > 0 ? state._expansionCells[0] : null;
+        const cellStateByKey = new Map<string, any>();
+        for (const coord of boardView.topology.existingCoordinates) {
+            const key = `${coord.row},${coord.col}`;
+            const expansionState = state._expansionCells.find(
+                (cell: any) => cell && cell.row === coord.row && cell.col === coord.col
+            );
+            const denseState = Array.isArray(state[coord.row]) ? state[coord.row][coord.col] : null;
+            const cellVisualState = boardView.topology.expansionKeys.has(key)
+                ? expansionState
+                : denseState;
+            if (cellVisualState) {
+                cellStateByKey.set(key, cellVisualState);
+                continue;
+            }
+            if (!boardView.topology.holeKeys.has(key)) {
+                throw new Error(`Cell-state projection omitted playable cell ${key}`);
+            }
+            const markerVisual = markerVisualMap.get(key) || null;
+            cellStateByKey.set(key, {
+                value: EMPTY,
+                blockade: markerVisual && markerVisual.blockade || {
+                    type: 'METEOR_HOLE',
+                    owner: EMPTY,
+                    remainingOwnerTurns: null,
+                    visualVariant: null,
+                    innerBoundaryMask: null
+                },
+                frozen: null,
+                seed: null,
+                poisonCell: null
+            });
+        }
+        Object.defineProperty(state, '_cellStateByKey', {
+            value: cellStateByKey,
+            enumerable: false,
+            configurable: true
+        });
         Object.defineProperty(state, '_renderProjection', {
             value: Object.freeze({
                 ...renderProjection,
@@ -725,42 +758,34 @@ function buildBoardRenderModel(
     if (!projection || projection.valid !== true) {
         throw new Error('Cannot build a board render model without a valid visual state');
     }
-    if (typeof stateCapabilities.buildBoardTopology !== 'function') {
-        throw new Error('Board render model requires shared BoardTopology');
-    }
     const legacyCellState = preparedCellState || buildCurrentCellState(capabilities, projection);
-    const topology = stateCapabilities.buildBoardTopology(projection.gameState, {
-        cardState: projection.cardState
-    });
-    const constants = stateCapabilities.constants || {};
-    const expansionStates = new Map<string, any>();
-    for (const cell of Array.isArray(legacyCellState._expansionCells) ? legacyCellState._expansionCells : []) {
-        if (cell && Number.isInteger(cell.row) && Number.isInteger(cell.col)) {
-            expansionStates.set(`${cell.row},${cell.col}`, cell);
-        }
+    const boardView = projection.boardView;
+    if (
+        !boardView
+        || !boardView.topology
+        || typeof boardView.get !== 'function'
+        || typeof boardView.boardDigest !== 'string'
+    ) {
+        throw new Error('Board render model requires the prepared BoardView');
     }
-    const markerMaps = legacyCellState._renderProjection && legacyCellState._renderProjection.markerMaps;
-    const emptyValue = constants.EMPTY;
+    const topology = boardView.topology;
+    const constants = stateCapabilities.constants || {};
+    const cellStateByKey = legacyCellState && legacyCellState._cellStateByKey;
+    if (!(cellStateByKey instanceof Map)) {
+        throw new Error('Board render model requires a complete keyed cell-state projection');
+    }
     const cells = topology.existingCoordinates.map((coord: any) => {
         const key = `${coord.row},${coord.col}`;
-        let legacy = topology.baseKeys.has(key)
-            && Array.isArray(legacyCellState[coord.row])
-            ? legacyCellState[coord.row][coord.col]
-            : expansionStates.get(key);
-        if (!legacy) {
-            const markerVisual = markerMaps && markerMaps.markerVisualMap instanceof Map
-                ? markerMaps.markerVisualMap.get(key)
-                : null;
-            legacy = {
-                value: emptyValue,
-                blockade: markerVisual && markerVisual.blockade || null,
-                frozen: markerVisual && markerVisual.frozen || null,
-                seed: markerVisual && markerVisual.seed || null,
-                poisonCell: markerVisual && markerVisual.poisonCell || null
-            };
-        }
         const hole = topology.holeKeys.has(key);
-        const stoneOwner = hole ? null : ownerName(legacy.value, constants.BLACK, constants.WHITE);
+        const legacy = cellStateByKey.get(key);
+        if (!legacy) {
+            throw new Error(`Board render model omitted projected cell ${key}`);
+        }
+        const ownerValue = hole ? null : boardView.get(coord.row, coord.col);
+        if (!hole && ownerValue == null) {
+            throw new Error(`BoardView omitted playable owner at ${key}`);
+        }
+        const stoneOwner = hole ? null : ownerName(ownerValue, constants.BLACK, constants.WHITE);
         const boundary = topology.boundaryEdgesByKey.get(key) || {
             top: 'none', right: 'none', bottom: 'none', left: 'none'
         };
@@ -782,7 +807,7 @@ function buildBoardRenderModel(
             boundaryEdges: cloneSemanticValue(boundary),
             stone: stoneOwner ? {
                 owner: stoneOwner,
-                value: Number(legacy.value),
+                value: Number(ownerValue),
                 specialType: legacy.special && legacy.special.type ? String(legacy.special.type) : null,
                 status
             } : null,
@@ -808,8 +833,11 @@ function buildBoardRenderModel(
         };
     });
     const model = BoardVisualModel.createBoardRenderModel({
+        boardDigest: boardView.boardDigest,
+        modelCommitId: 0,
         visualRevision: options && options.visualRevision,
         topology: {
+            baseShape: projection.baseShape === 'circle' ? 'circle' : 'rectangle',
             baseRows: topology.baseRows,
             baseCols: topology.baseCols,
             minRow: topology.renderBounds.minRow,
@@ -942,32 +970,6 @@ function isModelBaseCoordinate(model: any, cell: any): boolean {
     );
 }
 
-function inferDomCompatibilityBaseShape(model: any): 'rectangle' | 'circle' {
-    const rows = model.topology.baseRows;
-    const cols = model.topology.baseCols;
-    const baseKeys = new Set(model.topology.baseKeys || []);
-    if (baseKeys.size === rows * cols) return 'rectangle';
-    const centerRow = (rows - 1) / 2;
-    const centerCol = (cols - 1) / 2;
-    const radius = Math.min(rows, cols) / 2;
-    const circleKeys = new Set<string>();
-    for (let row = 0; row < rows; row += 1) {
-        for (let col = 0; col < cols; col += 1) {
-            const rowDistance = row - centerRow;
-            const colDistance = col - centerCol;
-            if ((rowDistance * rowDistance) + (colDistance * colDistance) <= radius * radius) {
-                circleKeys.add(`${row},${col}`);
-            }
-        }
-    }
-    if (circleKeys.size === baseKeys.size && Array.from(circleKeys).every((key) => baseKeys.has(key))) {
-        return 'circle';
-    }
-    // The compatibility renderer materializes the authoritative sparse model.
-    // Rectangle is only the legacy geometry fallback for an unknown sparse base.
-    return 'rectangle';
-}
-
 function createCompatibilityMarker(cell: any, marker: any): any {
     if (!marker || typeof marker !== 'object') return null;
     const data = marker.data && typeof marker.data === 'object' ? cloneSemanticValue(marker.data) : {};
@@ -1062,7 +1064,7 @@ function buildDomCompatibilityRenderState(model: any): Readonly<{
     cellState._boardShape = { rows, cols };
     cellState._expansionCells = expansionCells;
     cellState._expansionCell = expansionCells.length > 0 ? expansionCells[0] : null;
-    const shape = inferDomCompatibilityBaseShape(model);
+    const shape = model.topology.baseShape === 'circle' ? 'circle' : 'rectangle';
     const boardExpansion = {
         active: expansionDescriptors.length > 0,
         cells: expansionDescriptors
@@ -1082,6 +1084,18 @@ function buildDomCompatibilityRenderState(model: any): Readonly<{
         pendingEffectByPlayer: { black: null, white: null },
         fateWillControllerByTurnOwner: {}
     };
+    if (!SharedBoardUtils || typeof SharedBoardUtils.createBoardView !== 'function') {
+        throw new Error('DOM compatibility rendering requires SharedBoardUtils.createBoardView');
+    }
+    const compatibilityView = SharedBoardUtils.createBoardView(gameState, {
+        cardState,
+        strict: true
+    });
+    if (compatibilityView.boardDigest !== model.boardDigest) {
+        throw new Error(
+            `DOM compatibility board roundtrip mismatch: expected ${model.boardDigest}, got ${compatibilityView.boardDigest}`
+        );
+    }
     const boardShrinkGodDirectionHintMap = new Map<string, string>();
     const boardShrinkWillDirectionHintMap = new Map<string, string>();
     const boardExpansionDirectionHintMap = new Map<string, string[]>();
@@ -1107,6 +1121,9 @@ function buildDomCompatibilityRenderState(model: any): Readonly<{
         valid: true,
         gameState,
         cardState,
+        boardView: compatibilityView,
+        boardDigest: compatibilityView.boardDigest,
+        baseShape: shape,
         boardShape: { rows, cols },
         player: gameState.currentPlayer,
         playerKey: gameState.currentPlayer === -1 ? 'white' : 'black',

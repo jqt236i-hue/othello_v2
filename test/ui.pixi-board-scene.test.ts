@@ -265,6 +265,7 @@ function makeTopology(options: {
   });
   const holes = new Set(options.holeKeys || []);
   return {
+    baseShape: 'rectangle' as const,
     baseRows: options.baseRows,
     baseCols: options.baseCols,
     minRow,
@@ -303,6 +304,7 @@ function makeFrame(options: {
     renderCol: Number(key.split(',')[1]) + topology.renderColOffset
   }));
   const model = BoardVisualModel.createBoardRenderModel({
+    boardDigest: 'board.v1.pixi-scene-fixture',
     visualRevision: options.modelRevision || 1,
     topology,
     cells: rawCells,

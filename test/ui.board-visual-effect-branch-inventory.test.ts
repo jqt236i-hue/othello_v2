@@ -470,7 +470,9 @@ function contractModel(cells: readonly any[]): any {
   const playableKeys = cells.filter((cell) => cell.kind === 'playable').map((cell) => cell.key);
   const holeKeys = cells.filter((cell) => cell.kind === 'hole').map((cell) => cell.key);
   return BoardModel.createBoardRenderModel({
+    boardDigest: 'board.v1.effect-contract-fixture',
     topology: {
+      baseShape: 'rectangle',
       baseRows: 1,
       baseCols: Math.max(1, cells.length),
       minRow: 0,
@@ -481,6 +483,7 @@ function contractModel(cells: readonly any[]): any {
       renderColOffset: 0,
       renderRows: 1,
       renderCols: Math.max(1, cells.length),
+      baseKeys: existingKeys,
       existingKeys,
       playableKeys,
       holeKeys

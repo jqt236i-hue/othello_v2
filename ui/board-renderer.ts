@@ -1701,8 +1701,17 @@ function _syncSettledBoardInputForBoardRenderer(frame: any) {
             const AccessibilityModule = _require('./board-accessibility-layer');
             BoardAccessibilityLayerForBoardRenderer = AccessibilityModule.createBoardAccessibilityLayer({
                 document: host.ownerDocument,
-                onActivate: (row: number, col: number, directionKey: string) => {
-                    getBoardInputController().activateDirection?.(row, col, directionKey);
+                onActivate: (row: number, col: number, directionKey: string, hint: any) => {
+                    getBoardInputController().activateDirection?.(
+                        row,
+                        col,
+                        directionKey,
+                        hint && hint.id,
+                        {
+                            modelCommitId: hint && hint.modelCommitId,
+                            boardDigest: hint && hint.boardDigest
+                        }
+                    );
                 },
                 onFocus: (cellKey: string) => {
                     getBoardInputController().focusDirectionHint?.(cellKey);

@@ -14,7 +14,10 @@ function resolveBoardInputController(capabilities: any): any {
     return controller;
 }
 
-function resolveDirectionKey(event: any): string | undefined {
+function resolveDirectionHint(event: any): Readonly<{
+    directionKey?: string;
+    hintId?: string;
+}> {
     const target = event && event.target;
     const directionHint = target && typeof target.closest === 'function'
         ? target.closest(BOARD_DIRECTION_HINT_SELECTOR)
@@ -22,10 +25,17 @@ function resolveDirectionKey(event: any): string | undefined {
     const directionKey = directionHint && directionHint.dataset
         ? String(directionHint.dataset.direction || '').trim()
         : '';
-    return directionKey || undefined;
+    const hintId = directionHint && directionHint.dataset
+        ? String(directionHint.dataset.hintId || '').trim()
+        : '';
+    return Object.freeze({
+        directionKey: directionKey || undefined,
+        hintId: hintId || undefined
+    });
 }
 
 function createPointerInput(type: string, event: any, row: number, col: number): any {
+    const directionHint = type === 'pointerup' ? resolveDirectionHint(event) : {};
     return {
         type,
         row,
@@ -35,7 +45,8 @@ function createPointerInput(type: string, event: any, row: number, col: number):
         button: event && event.button,
         clientX: event && event.clientX,
         clientY: event && event.clientY,
-        directionKey: type === 'pointerup' ? resolveDirectionKey(event) : undefined,
+        directionKey: directionHint.directionKey,
+        hintId: directionHint.hintId,
         preventDefault: event && typeof event.preventDefault === 'function'
             ? () => event.preventDefault()
             : undefined
@@ -70,7 +81,7 @@ function bindBoardCellInteraction(capabilities: any, cell: any, rawRow: any, raw
     });
     cell.addEventListener('keydown', (event: any) => {
         if (!event || (event.key !== 'Enter' && event.key !== ' ')) return;
-        const directionKey = resolveDirectionKey(event);
+        const { directionKey, hintId } = resolveDirectionHint(event);
         if (!directionKey) return;
         const controller = resolveBoardInputController(capabilities);
         if (typeof controller.handleKeyboard !== 'function') {
@@ -89,6 +100,7 @@ function bindBoardCellInteraction(capabilities: any, cell: any, rawRow: any, raw
             row,
             col,
             directionKey,
+            hintId,
             preventDefault: typeof event.preventDefault === 'function'
                 ? () => event.preventDefault()
                 : undefined

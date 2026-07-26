@@ -86,8 +86,8 @@ describe('DiffRenderer board expansion cell rendering', () => {
       owner: global.EMPTY,
       usedByPlayer: { black: true, white: true },
       cells: [
-        { side: 'left', row: 2, owner: global.EMPTY },
-        { side: 'right', row: 5, owner: global.EMPTY }
+        { side: 'left', row: 2, col: -1, owner: global.EMPTY },
+        { side: 'right', row: 5, col: 8, owner: global.EMPTY }
       ]
     };
 
@@ -222,8 +222,8 @@ describe('DiffRenderer board expansion cell rendering', () => {
       owner: global.EMPTY,
       usedByPlayer: { black: true, white: true },
       cells: [
-        { side: 'left', row: 2, owner: global.EMPTY },
-        { side: 'right', row: 5, owner: global.EMPTY }
+        { side: 'left', row: 2, col: -1, owner: global.EMPTY },
+        { side: 'right', row: 5, col: 8, owner: global.EMPTY }
       ]
     };
     diff.renderBoardDiff(boardEl);

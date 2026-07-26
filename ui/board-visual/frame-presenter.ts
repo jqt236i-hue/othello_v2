@@ -74,6 +74,7 @@ function modelFingerprint(model: BoardRenderModel): string {
     }))
     .sort((left, right) => left.key.localeCompare(right.key));
   return stableDescriptorString({
+    boardDigest: model.boardDigest,
     topology: {
       ...topology,
       baseKeys: sortedKeys(topology.baseKeys),
@@ -104,6 +105,7 @@ function resolveChannelRevision(channel: RevisionChannel, fingerprint: string): 
  * not a visual-content revision.
  */
 function createBoardVisualFrameRevisionComposer() {
+  let modelCommitSequence = 0;
   const model = { revision: 0, fingerprint: null } as RevisionChannel;
   const layout = { revision: 0, fingerprint: null } as RevisionChannel;
   const appearance = { revision: 0, fingerprint: null } as RevisionChannel;
@@ -130,7 +132,14 @@ function createBoardVisualFrameRevisionComposer() {
         theme,
         descriptorFingerprint(frame.theme as unknown as Record<string, unknown>, 'revision')
       );
-      const nextModel: BoardRenderModel = Object.freeze({ ...frame.model, visualRevision: modelRevision });
+      modelCommitSequence = modelCommitSequence >= Number.MAX_SAFE_INTEGER
+        ? 1
+        : modelCommitSequence + 1;
+      const nextModel: BoardRenderModel = Object.freeze({
+        ...frame.model,
+        modelCommitId: modelCommitSequence,
+        visualRevision: modelRevision
+      });
       const nextLayout: BoardViewportLayout = Object.freeze({ ...frame.layout, revision: layoutRevision });
       const nextAppearance: BoardAppearanceDescriptor = Object.freeze({
         ...frame.appearance,

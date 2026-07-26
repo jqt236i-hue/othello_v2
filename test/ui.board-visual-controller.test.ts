@@ -797,6 +797,7 @@ describe('BoardVisualController', () => {
       width: 48
     });
     expect(Object.isFrozen(clientRect)).toBe(true);
+    expect(debug.getCellClientRect(0, 0)).toBeNull();
     expect(debug.getDisplayObjectCounts()).toEqual({ sprites: 2, total: 3 });
     expect(debug.getTextureLeaseCounts()).toEqual({ leased: 1, total: 4 });
     expect(Object.isFrozen(debug.getDisplayObjectCounts())).toBe(true);

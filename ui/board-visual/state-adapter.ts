@@ -120,17 +120,8 @@ function _isActiveManifestAuraMarkerForDiff(marker: any, manifestMarkerKind: any
 }
 
 function _getBoardShapeForDiff(gameState: any) {
-    const board = (gameState && Array.isArray(gameState.board)) ? gameState.board : null;
-    let rows = Array.isArray(board) ? board.length : 8;
-    let cols = 0;
-    if (Array.isArray(board)) {
-        for (const row of board) {
-            if (Array.isArray(row)) cols = Math.max(cols, row.length);
-        }
-    }
-    if (!Number.isInteger(rows) || rows <= 0) rows = 8;
-    if (!Number.isInteger(cols) || cols <= 0) cols = 8;
-    return { rows, cols };
+    const config = _resolveBoardConfigForDiff(gameState);
+    return { rows: config.rows, cols: config.cols };
 }
 
 function _normalizeBoardShapeInputForDiff(shapeOrGameState: any) {
@@ -163,17 +154,7 @@ function _getStateBoardShapeForDiff(state: any) {
 }
 
 function _getBoardTopologyForDiff(gameState: any, cardStateOverride?: any) {
-    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
-    if (!sharedBoardUtils || typeof sharedBoardUtils.buildBoardTopology !== 'function') return null;
-    try {
-        return sharedBoardUtils.buildBoardTopology(gameState, {
-            cardState: typeof cardStateOverride === 'undefined'
-                ? _resolveCardStateForDiffRender()
-                : cardStateOverride
-        });
-    } catch (e: any) {
-        return null;
-    }
+    return _createBoardViewForDiff(gameState, cardStateOverride).topology;
 }
 
 var SharedBoardUtilsModule: any = null;
@@ -192,6 +173,32 @@ function _getSharedBoardUtilsForDiff() {
     if (SharedBoardUtilsModule) return SharedBoardUtilsModule;
     const globalScope = _getGlobalScopeForDiff();
     return globalScope.SharedBoardUtils || null;
+}
+
+function _requireSharedBoardUtilsForDiff() {
+    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
+    if (
+        !sharedBoardUtils
+        || typeof sharedBoardUtils.createBoardView !== 'function'
+        || typeof sharedBoardUtils.resolveBoardConfig !== 'function'
+    ) {
+        throw new Error('[BoardVisualStateAdapter] SharedBoardUtils board kernel unavailable');
+    }
+    return sharedBoardUtils;
+}
+
+function _resolveBoardConfigForDiff(value: any) {
+    return _requireSharedBoardUtilsForDiff().resolveBoardConfig(value);
+}
+
+function _createBoardViewForDiff(gameState: any, cardStateOverride?: any) {
+    const cardStateValue = typeof cardStateOverride === 'undefined'
+        ? _resolveCardStateForDiffRender()
+        : cardStateOverride;
+    return _requireSharedBoardUtilsForDiff().createBoardView(gameState, {
+        cardState: cardStateValue,
+        strict: true
+    });
 }
 
 function _getBoardHintProjectionForDiff() {
@@ -230,96 +237,29 @@ function _buildBoardHintProjectionForDiff(gameStateValue: any, cardStateValue: a
 }
 
 function _isMainBoardCellForDiff(row: any, col: any, shapeOrGameState?: any) {
-    const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
-    return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < shape.rows && col >= 0 && col < shape.cols;
+    const sharedBoardUtils = _requireSharedBoardUtilsForDiff();
+    return !!sharedBoardUtils.isMainBoardCell(row, col, shapeOrGameState);
 }
 
 function _resolveExpansionSideForDiff(side: any, row: any, col: any, shapeOrGameState: any) {
-    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
-    if (sharedBoardUtils && typeof sharedBoardUtils.resolveExpansionSide === 'function') {
-        const resolved = sharedBoardUtils.resolveExpansionSide(side, row, col, shapeOrGameState);
-        if (resolved) return resolved;
-    }
-    const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
-    if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-    if (col === -1) return 'left';
-    if (col === shape.cols) return 'right';
-    if (row === -1) return 'top';
-    if (row === shape.rows) return 'bottom';
-    return null;
+    return _requireSharedBoardUtilsForDiff().resolveExpansionSide(
+        side,
+        row,
+        col,
+        shapeOrGameState
+    );
 }
 
 function _isExpansionCoordinateForDiff(row: any, col: any, shapeOrGameState: any) {
-    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
-    if (sharedBoardUtils && typeof sharedBoardUtils.isExpansionCoordinate === 'function') {
-        return !!sharedBoardUtils.isExpansionCoordinate(row, col, shapeOrGameState);
-    }
-    const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    if (row < -1 || row > shape.rows || col < -1 || col > shape.cols) return false;
-    if (_isMainBoardCellForDiff(row, col, shape)) return false;
-    return true;
+    return !!_requireSharedBoardUtilsForDiff().isExpansionCoordinate(
+        row,
+        col,
+        shapeOrGameState
+    );
 }
 
 function _getExpansionDescriptorsForDiff(gameState: any): any[] {
-    const boardShape = _getBoardShapeForDiff(gameState);
-    const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-        ? gameState.boardExpansion
-        : null;
-    if (!expansion) return [];
-    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
-    if (sharedBoardUtils && typeof sharedBoardUtils.collectExpansionDescriptors === 'function') {
-        return sharedBoardUtils.collectExpansionDescriptors(expansion, gameState);
-    }
-
-    const out: any[] = [];
-    const pushDescriptor = (source: any, legacyRow?: any, legacyOwner?: any) => {
-        let side: any = null;
-        let row: any = null;
-        let col: any = null;
-        let owner = legacyOwner;
-
-        if (source && typeof source === 'object') {
-            side = source.side;
-            row = source.row;
-            col = source.col;
-            owner = source.owner;
-            if (!Number.isInteger(col) && side === 'left') col = -1;
-            if (!Number.isInteger(col) && side === 'right') col = boardShape.cols;
-            if (!Number.isInteger(row) && side === 'top') row = -1;
-            if (!Number.isInteger(row) && side === 'bottom') row = boardShape.rows;
-        } else {
-            side = source;
-            row = legacyRow;
-            if (side === 'left') col = -1;
-            if (side === 'right') col = boardShape.cols;
-            if (side === 'top') row = -1;
-            if (side === 'bottom') row = boardShape.rows;
-        }
-
-        if (!_isExpansionCoordinateForDiff(row, col, boardShape)) return;
-        if (out.some((desc) => desc && desc.row === row && desc.col === col)) return;
-        const constants = _getBoardValueConstantsForDiff();
-        out.push({
-            row,
-            col,
-            side: _resolveExpansionSideForDiff(side, row, col, boardShape),
-            owner: (owner === constants.BLACK || owner === constants.WHITE) ? owner : constants.EMPTY
-        });
-    };
-
-    if (Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            pushDescriptor(cell);
-        }
-    }
-
-    if (out.length === 0 && expansion.active === true) {
-        pushDescriptor(expansion);
-    }
-
-    return out;
+    return Array.from(_createBoardViewForDiff(gameState).expansionCells);
 }
 
 function _getExpansionStateListForDiff(state: any): any[] {
@@ -809,14 +749,14 @@ function _createCellStateProjectorContextForDiff(inputs?: any) {
                     base && base.cardState,
                     base && base.viewerContext
                 ),
-            buildBoardTopology: (gameStateValue: any, options?: any) => _getBoardTopologyForDiff(
+            resolveBoardConfig: _resolveBoardConfigForDiff,
+            createBoardView: (gameStateValue: any, options?: any) => _createBoardViewForDiff(
                 gameStateValue,
                 base ? base.cardState : options && options.cardState
             ),
             constants
         },
         hints: {
-            getExpansionDescriptors: _getExpansionDescriptorsForDiff,
             buildBoardHintProjection: _buildBoardHintProjectionForDiff,
             getActiveSuperAttractionPreview: _getActiveSuperAttractionPreviewForDiff,
             collectSuperAttractionPreviewKeys: _collectSuperAttractionPreviewKeys

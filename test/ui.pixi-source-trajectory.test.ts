@@ -154,6 +154,7 @@ function makeFrame(options: {
   const maxCol = options.maxCol ?? 7;
   const keys = rectangleKeys(minRow, maxRow, minCol, maxCol);
   const topology = {
+    baseShape: 'rectangle',
     baseRows: 8,
     baseCols: 8,
     minRow,
@@ -164,6 +165,7 @@ function makeFrame(options: {
     renderColOffset: -minCol,
     renderRows: maxRow - minRow + 1,
     renderCols: maxCol - minCol + 1,
+    baseKeys: keys,
     existingKeys: keys,
     playableKeys: keys,
     holeKeys: []
@@ -198,7 +200,12 @@ function makeFrame(options: {
       }
     };
   });
-  const model = BoardVisualModel.createBoardRenderModel({ visualRevision: options.revision || 1, topology, cells });
+  const model = BoardVisualModel.createBoardRenderModel({
+    boardDigest: 'board.v1.source-trajectory-fixture',
+    visualRevision: options.revision || 1,
+    topology,
+    cells
+  });
   const cellSize = 32;
   const viewportCells = options.viewportCells || 4;
   return {

@@ -263,4 +263,52 @@ describe('per-render board projection', () => {
     expect((global as any).boardEl.querySelectorAll('.cell')).toHaveLength(16);
     expect((global as any).boardEl.querySelector('.cell[data-row="4"][data-col="4"]')).toBeNull();
   });
+
+  test('keeps multi-ring, circle-void expansion, and expansion-hole topology identical through the model', () => {
+    (global as any).gameState = {
+      currentPlayer: 1,
+      board: Array.from({ length: 10 }, () => Array(10).fill(0)),
+      boardConfig: { rows: 10, cols: 10, shape: 'circle' },
+      boardExpansion: {
+        cells: [
+          { row: -2, col: 4, side: 'top', owner: -1 },
+          { row: 0, col: 0, side: 'top', owner: 1 },
+          { row: 11, col: 5, side: 'bottom', owner: 0 }
+        ]
+      }
+    };
+    (global as any).cardState = {
+      markers: [{
+        id: 'expansion-hole',
+        kind: 'specialStone',
+        row: 11,
+        col: 5,
+        owner: 'black',
+        data: { type: 'METEOR_HOLE' }
+      }],
+      pendingEffectByPlayer: { black: null, white: null },
+      fateWillControllerByTurnOwner: {}
+    };
+    const diff = require('../ui/board-dom-compat/renderer');
+    const inputs = diff.createBoardRenderInputs();
+    const projection = diff.createBoardRenderProjection(undefined, inputs);
+    const state = diff.buildCurrentCellState(projection, inputs);
+    const model = diff.buildBoardRenderModel(projection, state, {
+      inputs,
+      overlay: inputs.presentationOverlayState
+    });
+
+    expect(model.boardDigest).toBe(projection.boardView.boardDigest);
+    expect(model.topology.baseShape).toBe('circle');
+    expect(model.topology.existingKeys).toEqual(expect.arrayContaining([
+      '-2,4',
+      '0,0',
+      '11,5'
+    ]));
+    expect(model.cells.find((cell: any) => cell.key === '-2,4').stone.owner).toBe('white');
+    expect(model.cells.find((cell: any) => cell.key === '0,0').stone.owner).toBe('black');
+    expect(model.cells.find((cell: any) => cell.key === '11,5').kind).toBe('hole');
+    expect(() => require('../ui/board-visual/model-builder')
+      .buildDomCompatibilityRenderState(model)).not.toThrow();
+  });
 });

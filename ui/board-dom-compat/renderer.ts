@@ -176,17 +176,8 @@ function _getManifestAuraOwnerClassForDiff(owner: any) {
 }
 
 function _getBoardShapeForDiff(gameState: any) {
-    const board = (gameState && Array.isArray(gameState.board)) ? gameState.board : null;
-    let rows = Array.isArray(board) ? board.length : 8;
-    let cols = 0;
-    if (Array.isArray(board)) {
-        for (const row of board) {
-            if (Array.isArray(row)) cols = Math.max(cols, row.length);
-        }
-    }
-    if (!Number.isInteger(rows) || rows <= 0) rows = 8;
-    if (!Number.isInteger(cols) || cols <= 0) cols = 8;
-    return { rows, cols };
+    const config = _resolveBoardConfigForDiff(gameState);
+    return { rows: config.rows, cols: config.cols };
 }
 
 function _normalizeBoardShapeInputForDiff(shapeOrGameState: any) {
@@ -232,17 +223,7 @@ function _applyBoardCssVarsForDiff(boardEl: any, gameState: any) {
 }
 
 function _getBoardTopologyForDiff(gameState: any, cardStateOverride?: any) {
-    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
-    if (!sharedBoardUtils || typeof sharedBoardUtils.buildBoardTopology !== 'function') return null;
-    try {
-        return sharedBoardUtils.buildBoardTopology(gameState, {
-            cardState: typeof cardStateOverride === 'undefined'
-                ? _resolveCardStateForDiffRender()
-                : cardStateOverride
-        });
-    } catch (e: any) {
-        return null;
-    }
+    return _createBoardViewForDiff(gameState, cardStateOverride).topology;
 }
 
 function _getBoardRenderGeometryForDiff(gameState: any) {
@@ -313,6 +294,32 @@ function _getSharedBoardUtilsForDiff() {
     if (SharedBoardUtilsModule) return SharedBoardUtilsModule;
     const globalScope = _getGlobalScopeForDiff();
     return globalScope.SharedBoardUtils || null;
+}
+
+function _requireSharedBoardUtilsForDiff() {
+    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
+    if (
+        !sharedBoardUtils
+        || typeof sharedBoardUtils.createBoardView !== 'function'
+        || typeof sharedBoardUtils.resolveBoardConfig !== 'function'
+    ) {
+        throw new Error('[BoardDomCompat] SharedBoardUtils board kernel unavailable');
+    }
+    return sharedBoardUtils;
+}
+
+function _resolveBoardConfigForDiff(value: any) {
+    return _requireSharedBoardUtilsForDiff().resolveBoardConfig(value);
+}
+
+function _createBoardViewForDiff(gameState: any, cardStateOverride?: any) {
+    const cardStateValue = typeof cardStateOverride === 'undefined'
+        ? _resolveCardStateForDiffRender()
+        : cardStateOverride;
+    return _requireSharedBoardUtilsForDiff().createBoardView(gameState, {
+        cardState: cardStateValue,
+        strict: true
+    });
 }
 
 function _getBoardRendererHelperForDiff(name: any) {
@@ -491,63 +498,28 @@ function _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys: any, boa
 }
 
 function _isMainBoardCellForDiff(row: any, col: any, shapeOrGameState?: any) {
-    const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
-    return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < shape.rows && col >= 0 && col < shape.cols;
+    return !!_requireSharedBoardUtilsForDiff().isMainBoardCell(
+        row,
+        col,
+        shapeOrGameState
+    );
 }
 
 function _resolveExpansionSideForDiff(side: any, row: any, col: any, shapeOrGameState: any) {
-    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
-    if (sharedBoardUtils && typeof sharedBoardUtils.resolveExpansionSide === 'function') {
-        const resolved = sharedBoardUtils.resolveExpansionSide(side, row, col, shapeOrGameState);
-        if (resolved) return resolved;
-    }
-    const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
-    if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-    if (col === -1) return 'left';
-    if (col === shape.cols) return 'right';
-    if (row === -1) return 'top';
-    if (row === shape.rows) return 'bottom';
-    return null;
+    return _requireSharedBoardUtilsForDiff().resolveExpansionSide(
+        side,
+        row,
+        col,
+        shapeOrGameState
+    );
 }
 
 function _isExpansionCoordinateForDiff(row: any, col: any, shapeOrGameState: any) {
-    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
-    if (sharedBoardUtils && typeof sharedBoardUtils.isExpansionCoordinate === 'function') {
-        return !!sharedBoardUtils.isExpansionCoordinate(row, col, shapeOrGameState);
-    }
-    const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
-    if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-    if (row < -1 || row > shape.rows || col < -1 || col > shape.cols) return false;
-    if (_isMainBoardCellForDiff(row, col, shape)) return false;
-    return true;
-}
-
-function _applyExpansionCellPositionForDiff(cell: any, row: any, col: any, shapeOrGameState: any) {
-    if (!cell) return;
-    const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
-    const rowPercent = 100 / shape.rows;
-    const colPercent = 100 / shape.cols;
-
-    if (row === -1) {
-        cell.style.top = `${-rowPercent}%`;
-    } else if (row === shape.rows) {
-        cell.style.top = '100%';
-    } else {
-        cell.style.top = `${row * rowPercent}%`;
-    }
-
-    if (col === -1) {
-        cell.style.left = `${-colPercent}%`;
-        cell.style.right = '';
-    } else if (col === shape.cols) {
-        cell.style.left = '100%';
-        cell.style.right = '';
-    } else {
-        cell.style.left = `${col * colPercent}%`;
-        cell.style.right = '';
-    }
-
-    cell.style.bottom = '';
+    return !!_requireSharedBoardUtilsForDiff().isExpansionCoordinate(
+        row,
+        col,
+        shapeOrGameState
+    );
 }
 
 function _isExpansionCellForDiff(row: any, col: any, gameState: any) {
@@ -605,64 +577,7 @@ function _applyBoardContourEdgeClassesForDiff(cell: any, row: number, col: numbe
 }
 
 function _getExpansionDescriptorsForDiff(gameState: any): any[] {
-    const boardShape = _getBoardShapeForDiff(gameState);
-    const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
-        ? gameState.boardExpansion
-        : null;
-    if (!expansion) return [];
-    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
-    if (sharedBoardUtils && typeof sharedBoardUtils.collectExpansionDescriptors === 'function') {
-        return sharedBoardUtils.collectExpansionDescriptors(expansion, gameState);
-    }
-
-    const out: any[] = [];
-    const pushDescriptor = (source: any, legacyRow?: any, legacyOwner?: any) => {
-        let side: any = null;
-        let row: any = null;
-        let col: any = null;
-        let owner = legacyOwner;
-
-        if (source && typeof source === 'object') {
-            side = source.side;
-            row = source.row;
-            col = source.col;
-            owner = source.owner;
-            if (!Number.isInteger(col) && side === 'left') col = -1;
-            if (!Number.isInteger(col) && side === 'right') col = boardShape.cols;
-            if (!Number.isInteger(row) && side === 'top') row = -1;
-            if (!Number.isInteger(row) && side === 'bottom') row = boardShape.rows;
-        } else {
-            side = source;
-            row = legacyRow;
-            if (side === 'left') col = -1;
-            if (side === 'right') col = boardShape.cols;
-            if (side === 'top') row = -1;
-            if (side === 'bottom') row = boardShape.rows;
-        }
-
-        if (!_isExpansionCoordinateForDiff(row, col, boardShape)) return;
-        if (out.some((desc) => desc && desc.row === row && desc.col === col)) return;
-        const constants = _getBoardValueConstantsForDiff();
-        out.push({
-            row,
-            col,
-            side: _resolveExpansionSideForDiff(side, row, col, boardShape),
-            owner: (owner === constants.BLACK || owner === constants.WHITE) ? owner : constants.EMPTY
-        });
-    };
-
-    if (Array.isArray(expansion.cells)) {
-        for (const cell of expansion.cells) {
-            if (!cell || typeof cell !== 'object') continue;
-            pushDescriptor(cell);
-        }
-    }
-
-    if (out.length === 0 && expansion.active === true) {
-        pushDescriptor(expansion);
-    }
-
-    return out;
+    return Array.from(_createBoardViewForDiff(gameState).expansionCells);
 }
 
 function _getExpansionDescriptorForDiff(gameState: any) {
@@ -1377,7 +1292,7 @@ function _clearBoardExpansionDirectionHintForDiff(cell: any) {
     }
 }
 
-function _ensureBoardShrinkGodDirectionHintForDiff(cell: any, direction: any) {
+function _ensureBoardShrinkGodDirectionHintForDiff(cell: any, direction: any, hintId?: string) {
     if (!cell || !cell.classList) return;
     const arrowText = _getBoardDirectionHintArrowTextForDiff(direction);
     cell.classList.add(BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS, `board-shrink-god-direction-${direction}`);
@@ -1397,6 +1312,7 @@ function _ensureBoardShrinkGodDirectionHintForDiff(cell: any, direction: any) {
     hint.textContent = arrowText;
     if (hint.dataset) {
         hint.dataset.direction = direction;
+        hint.dataset.hintId = String(hintId || '');
     }
     hint.style.position = 'absolute';
     hint.style.top = '50%';
@@ -1422,7 +1338,7 @@ function _ensureBoardShrinkGodDirectionHintForDiff(cell: any, direction: any) {
     hint.style.zIndex = '48';
 }
 
-function _ensureBoardShrinkWillDirectionHintForDiff(cell: any, direction: any) {
+function _ensureBoardShrinkWillDirectionHintForDiff(cell: any, direction: any, hintId?: string) {
     if (!cell || !cell.classList) return;
     const arrowText = _getBoardDirectionHintArrowTextForDiff(direction);
     cell.classList.add(BOARD_SHRINK_WILL_DIRECTION_HINT_TARGET_CLASS, `board-shrink-will-direction-${direction}`);
@@ -1442,6 +1358,7 @@ function _ensureBoardShrinkWillDirectionHintForDiff(cell: any, direction: any) {
     hint.textContent = arrowText;
     if (hint.dataset) {
         hint.dataset.direction = direction;
+        hint.dataset.hintId = String(hintId || '');
     }
     hint.style.position = 'absolute';
     hint.style.top = '50%';
@@ -1467,7 +1384,11 @@ function _ensureBoardShrinkWillDirectionHintForDiff(cell: any, direction: any) {
     hint.style.zIndex = '48';
 }
 
-function _ensureBoardExpansionDirectionHintForDiff(cell: any, rawDirections: any) {
+function _ensureBoardExpansionDirectionHintForDiff(
+    cell: any,
+    rawDirections: any,
+    hintKind: 'board-expansion-god' | 'board-expansion-will'
+) {
     if (!cell || !cell.classList) return;
     const directions = (Array.isArray(rawDirections) ? rawDirections : [rawDirections])
         .map((value: any) => String(value || '').toLowerCase())
@@ -1497,7 +1418,10 @@ function _ensureBoardExpansionDirectionHintForDiff(cell: any, rawDirections: any
         hint.setAttribute('aria-label', `盤面を${_getBoardDirectionHintArrowTextForDiff(direction)}方向へ拡張`);
         cell.appendChild(hint);
         hint.textContent = _getBoardDirectionHintArrowTextForDiff(direction);
-        if (hint.dataset) hint.dataset.direction = direction;
+        if (hint.dataset) {
+            hint.dataset.direction = direction;
+            hint.dataset.hintId = `${hintKind}:${String(cell.dataset && cell.dataset.row)},${String(cell.dataset && cell.dataset.col)}:${direction}`;
+        }
         const position = positions[direction] || positions.right;
         hint.style.position = 'absolute';
         hint.style.top = position.top;
@@ -1554,6 +1478,11 @@ function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any, preparedRenderPr
     const expansionHintMap = projection.boardExpansionDirectionHintMap instanceof Map
         ? projection.boardExpansionDirectionHintMap
         : new Map();
+    const expansionHintKind = String(
+        preparedRenderProjection && preparedRenderProjection.pending && preparedRenderProjection.pending.type || ''
+    ).toUpperCase() === 'BOARD_EXPANSION_WILL'
+        ? 'board-expansion-will'
+        : 'board-expansion-god';
     const cells = _getRenderedCellsForDiff(boardEl);
     cells.forEach((cell: any) => {
         const row = Number(cell && cell.dataset ? cell.dataset.row : NaN);
@@ -1562,17 +1491,31 @@ function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any, preparedRenderPr
         if (!key || !hintMap.has(key)) {
             _clearBoardShrinkGodDirectionHintForDiff(cell);
         } else {
-            _ensureBoardShrinkGodDirectionHintForDiff(cell, hintMap.get(key));
+            const direction = hintMap.get(key);
+            _ensureBoardShrinkGodDirectionHintForDiff(
+                cell,
+                direction,
+                `board-shrink-god:${key}:${direction}`
+            );
         }
         if (!key || !willHintMap.has(key)) {
             _clearBoardShrinkWillDirectionHintForDiff(cell);
         } else {
-            _ensureBoardShrinkWillDirectionHintForDiff(cell, willHintMap.get(key));
+            const direction = willHintMap.get(key);
+            _ensureBoardShrinkWillDirectionHintForDiff(
+                cell,
+                direction,
+                `board-shrink-will:${key}:${direction}`
+            );
         }
         if (!key || !expansionHintMap.has(key)) {
             _clearBoardExpansionDirectionHintForDiff(cell);
         } else {
-            _ensureBoardExpansionDirectionHintForDiff(cell, expansionHintMap.get(key));
+            _ensureBoardExpansionDirectionHintForDiff(
+                cell,
+                expansionHintMap.get(key),
+                expansionHintKind
+            );
         }
     });
     } finally {
@@ -1970,18 +1913,25 @@ function _getBoardMaterializationSignatureForDiff(boardRenderModel?: any, viewpo
 }
 
 function initializeBoardDOM(boardEl: any, boardRenderModel?: any, viewportLayout?: any) {
+    if (!boardRenderModel || !boardRenderModel.topology || !Array.isArray(boardRenderModel.cells)) {
+        throw new Error('[BoardDomCompat] initializeBoardDOM requires a complete BoardRenderModel');
+    }
     const gameState = _resolveGameStateForDiffRender();
-    const renderGeometry = _applyBoardCssVarsForDiff(boardEl, gameState);
+    _applyBoardCssVarsForDiff(boardEl, gameState);
     const boardShape = _getBoardShapeForDiff(gameState);
-    const topology = _getBoardTopologyForDiff(gameState);
-    const expansions = _getExpansionDescriptorsForDiff(gameState);
+    const expansions: any[] = boardRenderModel.cells
+        .filter((cell: any) => cell && cell.expansionSide)
+        .map((cell: any) => ({
+            row: cell.row,
+            col: cell.col,
+            side: cell.expansionSide
+        }));
     const expansionLayer = _resolveBoardExpansionLayerForDiff(boardEl, true);
     boardEl.innerHTML = '';
     if (expansionLayer) expansionLayer.innerHTML = '';
     cellCache = [];
     cellCacheMap = new Map();
     let hasVoidCells = false;
-    const sharedBoardUtils = _getSharedBoardUtilsForDiff();
 
     boardEl.classList.toggle('board-square-regular', _isSquareRectangularBoardForDiff(gameState));
     boardEl.classList.toggle(
@@ -1990,41 +1940,25 @@ function initializeBoardDOM(boardEl: any, boardRenderModel?: any, viewportLayout
     );
 
     boardEl.classList.remove('board-expanded-left', 'board-expanded-right', 'board-expanded-top', 'board-expanded-bottom');
-    if (expansions.some((exp) => exp && exp.side === 'left')) boardEl.classList.add('board-expanded-left');
-    if (expansions.some((exp) => exp && exp.side === 'right')) boardEl.classList.add('board-expanded-right');
-    if (expansions.some((exp) => exp && exp.side === 'top')) boardEl.classList.add('board-expanded-top');
-    if (expansions.some((exp) => exp && exp.side === 'bottom')) boardEl.classList.add('board-expanded-bottom');
+    if (expansions.some((exp: any) => exp && exp.side === 'left')) boardEl.classList.add('board-expanded-left');
+    if (expansions.some((exp: any) => exp && exp.side === 'right')) boardEl.classList.add('board-expanded-right');
+    if (expansions.some((exp: any) => exp && exp.side === 'top')) boardEl.classList.add('board-expanded-top');
+    if (expansions.some((exp: any) => exp && exp.side === 'bottom')) boardEl.classList.add('board-expanded-bottom');
 
-    let materializedCells: any[] | null = null;
-    if (boardRenderModel) {
-        try {
-            const BoardVisualModel = _require('../board-visual/model');
-            materializedCells = Array.from(BoardVisualModel.materializeBoardViewport({
-                model: boardRenderModel,
-                visibleWindow: viewportLayout && viewportLayout.visibleWorldWindow
-                    ? viewportLayout.visibleWorldWindow
-                    : {
-                        minRow: boardRenderModel.topology.minRow,
-                        maxRow: boardRenderModel.topology.maxRow,
-                        minCol: boardRenderModel.topology.minCol,
-                        maxCol: boardRenderModel.topology.maxCol
-                    },
-                overscanCells: viewportLayout && viewportLayout.visibleWorldWindow ? 1 : 0,
-                effectGutterCells: viewportLayout && viewportLayout.visibleWorldWindow ? 2 : 0
-            }));
-        } catch (e: any) {
-            materializedCells = null;
-        }
-    }
-    const renderCells = materializedCells || (() => {
-        const values = [];
-        for (let row = renderGeometry.minRow; row <= renderGeometry.maxRow; row++) {
-            for (let col = renderGeometry.minCol; col <= renderGeometry.maxCol; col++) {
-                values.push({ row, col, kind: null, expansionSide: null });
-            }
-        }
-        return values;
-    })();
+    const BoardVisualModel = _require('../board-visual/model');
+    const renderCells: any[] = Array.from(BoardVisualModel.materializeBoardViewport({
+        model: boardRenderModel,
+        visibleWindow: viewportLayout && viewportLayout.visibleWorldWindow
+            ? viewportLayout.visibleWorldWindow
+            : {
+                minRow: boardRenderModel.topology.minRow,
+                maxRow: boardRenderModel.topology.maxRow,
+                minCol: boardRenderModel.topology.minCol,
+                maxCol: boardRenderModel.topology.maxCol
+            },
+        overscanCells: viewportLayout && viewportLayout.visibleWorldWindow ? 1 : 0,
+        effectGutterCells: viewportLayout && viewportLayout.visibleWorldWindow ? 2 : 0
+    })) as any[];
 
     for (const renderedCell of renderCells) {
             const r = renderedCell.row;
@@ -2035,13 +1969,7 @@ function initializeBoardDOM(boardEl: any, boardRenderModel?: any, viewportLayout
             cell.dataset.col = String(c);
             _applyBoardGridPositionForDiff(cell, r, c, gameState);
             const key = `${r},${c}`;
-            const exists = renderedCell.kind
-                ? renderedCell.kind !== 'void'
-                : topology && topology.existingKeys instanceof Set
-                ? topology.existingKeys.has(key)
-                : (!sharedBoardUtils || typeof sharedBoardUtils.isMainBoardCell !== 'function'
-                    ? _isMainBoardCellForDiff(r, c, boardShape)
-                    : sharedBoardUtils.isMainBoardCell(r, c, gameState)) || _isExpansionCellForDiff(r, c, gameState);
+            const exists = renderedCell.kind !== 'void';
             if (!exists) {
                 hasVoidCells = true;
                 cell.classList.add('cell-void');
@@ -2049,8 +1977,8 @@ function initializeBoardDOM(boardEl: any, boardRenderModel?: any, viewportLayout
                 boardEl.appendChild(cell);
                 continue;
             }
-            if (topology && topology.expansionKeys instanceof Set && topology.expansionKeys.has(key)) {
-                const expansion = expansions.find((desc) => desc && desc.row === r && desc.col === c);
+            if (renderedCell.expansionSide) {
+                const expansion = expansions.find((desc: any) => desc && desc.row === r && desc.col === c);
                 cell.classList.add('cell-expanded');
                 if (expansion && expansion.side) cell.classList.add(`cell-expanded-${expansion.side}`);
             }
@@ -2200,14 +2128,14 @@ function _createCellStateProjectorContextForDiff(inputs?: any) {
                     base && base.cardState,
                     base && base.viewerContext
                 ),
-            buildBoardTopology: (gameStateValue: any, options?: any) => _getBoardTopologyForDiff(
+            resolveBoardConfig: _resolveBoardConfigForDiff,
+            createBoardView: (gameStateValue: any, options?: any) => _createBoardViewForDiff(
                 gameStateValue,
                 base ? base.cardState : options && options.cardState
             ),
             constants
         },
         hints: {
-            getExpansionDescriptors: _getExpansionDescriptorsForDiff,
             buildBoardHintProjection: _buildBoardHintProjectionForDiff,
             getActiveSuperAttractionPreview: _getActiveSuperAttractionPreviewForDiff,
             collectSuperAttractionPreviewKeys: _collectSuperAttractionPreviewKeys
@@ -2264,7 +2192,6 @@ function _createCellDomPatcherContextForDiff() {
             isExpansionCoordinate: _isExpansionCoordinateForDiff,
             isExpansionCell: _isExpansionCellForDiff,
             resolveExpansionSide: _resolveExpansionSideForDiff,
-            applyExpansionCellPosition: _applyExpansionCellPositionForDiff,
             applyBoardGridPosition: _applyBoardGridPositionForDiff,
             applyBoardEdgeClasses: _applyBoardEdgeClassesForDiff,
             applyBoardContourEdgeClasses: _applyBoardContourEdgeClassesForDiff,
@@ -2527,6 +2454,18 @@ function renderBoardDiff(
             return 0;
         }
     }
+    if (!boardEl) return 0;
+    const resolvedCellState = preparedCellState || buildCurrentCellState(renderProjection);
+    const resolvedBoardRenderModel = preparedBoardRenderModel || buildBoardRenderModel(
+        renderProjection,
+        resolvedCellState,
+        {
+            overlay: createBoardPresentationOverlayState(
+                renderProjection,
+                resolvedCellState
+            )
+        }
+    );
     _syncSelectionModeForDiff(boardEl, renderProjection);
 
     // One-shot suppression set by AnimationEngine at the end of playback.
@@ -2547,7 +2486,7 @@ function renderBoardDiff(
     try {
         const gameState = _resolveGameStateForDiffRender();
         const nextSignature = _getBoardDomSignatureForDiff(gameState)
-            + _getBoardMaterializationSignatureForDiff(preparedBoardRenderModel, options && options.viewportLayout);
+            + _getBoardMaterializationSignatureForDiff(resolvedBoardRenderModel, options && options.viewportLayout);
         // 初回またはキャッシュが空の場合は全レンダリング
         if (!cellCacheMap.size || boardDomSignature !== nextSignature) {
             const nextExpansions = _getExpansionDescriptorsForDiff(gameState);
@@ -2556,8 +2495,8 @@ function renderBoardDiff(
                 nextExpansions,
                 !!cellCacheMap.size && boardDomSignature !== null
             );
-            initializeBoardDOM(boardEl, preparedBoardRenderModel, options && options.viewportLayout);
-            previousBoardState = preparedCellState || buildCurrentCellState(renderProjection);
+            initializeBoardDOM(boardEl, resolvedBoardRenderModel, options && options.viewportLayout);
+            previousBoardState = resolvedCellState;
             const initialBoardShape = _getStateBoardShapeForDiff(previousBoardState);
             // Initial full render
             for (let r = 0; r < initialBoardShape.rows; r++) {
@@ -2587,7 +2526,7 @@ function renderBoardDiff(
             return cellCacheMap.size;
         }
 
-        const currentState = preparedCellState || buildCurrentCellState(renderProjection);
+        const currentState = resolvedCellState;
         const currentBoardShape = _getStateBoardShapeForDiff(currentState);
         // updatedCount / updateCellDOMCount / updateCellDOMDurationMs are
         // declared at function scope above so the outer finally can emit them.

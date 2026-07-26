@@ -68,6 +68,8 @@ describe('board accessibility layer', () => {
     harness.layer.mount(harness.host, harness.canvas);
     harness.layer.sync({
       model: {
+        boardDigest: 'board.v1.accessibility',
+        modelCommitId: 42,
         cells: [makeCell([
           { id: 'expand:up', kind: 'board-expansion-will', directionKey: 'up' },
           { id: 'expand:diagonal', kind: 'board-expansion-god', directionKey: 'down-right' },
@@ -99,6 +101,8 @@ describe('board accessibility layer', () => {
     harness.layer.mount(harness.host, harness.canvas);
     harness.layer.sync({
       model: {
+        boardDigest: 'board.v1.accessibility',
+        modelCommitId: 42,
         cells: [makeCell([
           { id: 'expand:right', kind: 'board-expansion-will', directionKey: 'right' }
         ])]
@@ -133,7 +137,12 @@ describe('board accessibility layer', () => {
       2,
       3,
       'right',
-      expect.objectContaining({ cellKey: '2,3', directionKey: 'right' })
+      expect.objectContaining({
+        cellKey: '2,3',
+        directionKey: 'right',
+        boardDigest: 'board.v1.accessibility',
+        modelCommitId: 42
+      })
     );
   });
 

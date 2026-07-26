@@ -97,6 +97,7 @@ export interface MaterializedBoardCellVisualState extends Omit<BoardCellVisualSt
 }
 
 export interface BoardRenderTopologyModel {
+  baseShape: 'rectangle' | 'circle';
   baseRows: number;
   baseCols: number;
   minRow: number;
@@ -115,6 +116,10 @@ export interface BoardRenderTopologyModel {
 }
 
 export interface BoardRenderModel {
+  /** Canonical board-content identity produced by SharedBoardUtils.createBoardView. */
+  boardDigest: string;
+  /** Monotonic identity assigned whenever a complete visual frame is composed. */
+  modelCommitId: number;
   visualRevision: number;
   topology: BoardRenderTopologyModel;
   cells: readonly BoardCellVisualState[];
