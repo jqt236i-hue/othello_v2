@@ -18,6 +18,7 @@ import {
     type CpuCandidateScoringMove,
     type CpuCandidateScoringRequest
 } from './cpu-candidate-scoring';
+import { normalizeBoardPositionsStrict } from '../../shared/board/move-codec';
 
 type CpuPolicyMoveSelectionDeps = {
     isFiniteNumber?: (value: unknown) => boolean;
@@ -103,11 +104,14 @@ export function createCpuPolicyMoveSelection(deps?: CpuPolicyMoveSelectionDeps) 
     }
 
     function projectMoveForCandidateScoring(move: CpuPolicyMove): CpuCandidateScoringMove {
-        const flips = (Array.isArray(move && move.flips) ? move.flips : []) as Array<{ row: number; col: number }>;
+        const flips = normalizeBoardPositionsStrict(
+            Array.isArray(move && move.flips) ? move.flips : []
+        );
+        if (!flips) throw new Error('CPU candidate contains an invalid flip coordinate');
         return {
             row: Number(move && move.row),
             col: Number(move && move.col),
-            flips: flips.map((flip) => ({ row: Number(flip && flip.row), col: Number(flip && flip.col) }))
+            flips
         };
     }
 

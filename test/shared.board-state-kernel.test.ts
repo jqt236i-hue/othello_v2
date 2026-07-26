@@ -166,6 +166,162 @@ describe("shared board state kernel", () => {
     expect(result.errors.join("\n")).toMatch(/duplicate expansion coordinate/);
   });
 
+  test("does not let a lax cached view bypass strict hole validation", () => {
+    const state = createState(
+      Array.from({ length: 4 }, () => Array(4).fill(0)),
+      [{ side: "right", row: 1, col: 4, owner: -1 }],
+    );
+    const cardState = {
+      markers: [
+        {
+          kind: "specialStone",
+          row: 1,
+          col: 4,
+          data: { type: "METEOR_HOLE" },
+        },
+      ],
+    };
+
+    expect(
+      SharedBoardUtils.createBoardView(state, {
+        cardState,
+        strict: false,
+      }).isPlayable(1, 4),
+    ).toBe(false);
+    expect(() =>
+      SharedBoardUtils.createBoardView(state, {
+        cardState,
+        strict: true,
+      }),
+    ).toThrow(/hole expansion cell 1,4 must be empty/);
+  });
+
+  test("does not reuse a lax cached view after an owner becomes invalid", () => {
+    const state = createState(
+      Array.from({ length: 4 }, () => Array(4).fill(0)),
+    );
+    const cardState = { markers: [] };
+
+    SharedBoardUtils.createBoardView(state, {
+      cardState,
+      strict: false,
+    });
+    state.board[0][0] = 7;
+
+    expect(() =>
+      SharedBoardUtils.createBoardView(state, {
+        cardState,
+        strict: false,
+      }),
+    ).toThrow(/base cell 0,0 has invalid owner/);
+  });
+
+  test("does not reuse a lax cached view after expansion cells become malformed", () => {
+    const state: any = createState(
+      Array.from({ length: 4 }, () => Array(4).fill(0)),
+    );
+    const cardState = { markers: [] };
+
+    SharedBoardUtils.createBoardView(state, {
+      cardState,
+      strict: false,
+    });
+    state.boardExpansion.cells = [null];
+
+    expect(() =>
+      SharedBoardUtils.createBoardView(state, {
+        cardState,
+        strict: false,
+      }),
+    ).toThrow(/boardExpansion\.cells\[0\] must be an object/);
+  });
+
+  test("applies mixed base and expansion updates atomically and invalidates the cached view once", () => {
+    const state: any = createState(
+      Array.from({ length: 4 }, () => Array(4).fill(0)),
+      [
+        { side: "right", row: 1, col: 4, owner: -1 },
+        { side: "right", row: 1, col: 5, owner: 0 },
+      ],
+    );
+    const cardState = { markers: [] };
+    const before = SharedBoardUtils.createBoardView(state, {
+      cardState,
+      strict: false,
+    });
+
+    expect(
+      SharedBoardUtils.setStateCellValues(
+        state,
+        [
+          { row: 0, col: 0, value: -1 },
+          { row: 1, col: 4, value: 1 },
+          { row: 1, col: 5, value: 1 },
+        ],
+        cardState,
+      ),
+    ).toBe(true);
+
+    const after = SharedBoardUtils.createBoardView(state, {
+      cardState,
+      strict: false,
+    });
+    expect(after).not.toBe(before);
+    expect(after.get(0, 0)).toBe(-1);
+    expect(after.get(1, 4)).toBe(1);
+    expect(after.get(1, 5)).toBe(1);
+    expect(state.boardExpansion).toMatchObject({
+      active: true,
+      row: 1,
+      col: 5,
+      owner: 1,
+    });
+
+    const snapshot = JSON.stringify(state);
+    expect(
+      SharedBoardUtils.setStateCellValues(
+        state,
+        [
+          { row: 0, col: 0, value: 1 },
+          { row: 0, col: 0, value: -1 },
+        ],
+        cardState,
+      ),
+    ).toBe(false);
+    expect(JSON.stringify(state)).toBe(snapshot);
+  });
+
+  test("keeps dense and state batch validation identical for owners and duplicate coordinates", () => {
+    const dense = Array.from({ length: 2 }, () => Array(2).fill(0));
+    const before = JSON.stringify(dense);
+
+    expect(
+      SharedBoardUtils.setCellValues(dense, [
+        { row: 0, col: 0, value: 7 },
+      ]),
+    ).toBe(false);
+    expect(JSON.stringify(dense)).toBe(before);
+
+    expect(
+      SharedBoardUtils.setCellValues(dense, [
+        { row: 0, col: 0, value: 1 },
+        { row: 0, col: 0, value: -1 },
+      ]),
+    ).toBe(false);
+    expect(JSON.stringify(dense)).toBe(before);
+
+    expect(
+      SharedBoardUtils.setCellValues(dense, [
+        { row: 0, col: 0, value: 1 },
+        { row: 1, col: 1, value: -1 },
+      ]),
+    ).toBe(true);
+    expect(dense).toEqual([
+      [1, 0],
+      [0, -1],
+    ]);
+  });
+
   test("digest ignores descriptor order and survives JSON roundtrip", () => {
     const board = Array.from({ length: 4 }, () => Array(4).fill(0));
     const cells = [

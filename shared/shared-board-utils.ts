@@ -341,6 +341,7 @@
     const canonicalizeStateBoard = BoardStateKernel.canonicalizeStateBoard;
     const getStateCellValue = BoardStateKernel.getStateCellValue;
     const setStateCellValue = BoardStateKernel.setStateCellValue;
+    const setStateCellValues = BoardStateKernel.setStateCellValues;
     const addStateExpansionCells = BoardStateKernel.addStateExpansionCells;
     const countStateDiscs = BoardStateKernel.countStateDiscs;
     const createBoardMutationCheckpoint = BoardStateKernel.createBoardMutationCheckpoint;
@@ -387,10 +388,41 @@
     }
 
     function setCellValue(board: unknown, row: number, col: number, value: number): boolean {
+        if (value !== EMPTY && value !== BLACK && value !== WHITE) return false;
         if (isBoardContext(board)) {
             return setStateCellValue(board.gameState, row, col, value, board.cardState);
         }
         return denseSetCellValue(board, row, col, value);
+    }
+
+    function setCellValues(
+        board: unknown,
+        updates: Array<{ row: number; col: number; value: number }>
+    ): boolean {
+        if (!Array.isArray(updates)) return false;
+        if (isBoardContext(board)) {
+            return setStateCellValues(board.gameState, updates, board.cardState);
+        }
+        if (!Array.isArray(board)) return false;
+        const seen = new Set<string>();
+        for (const update of updates) {
+            if (
+                !update ||
+                !Number.isInteger(update.row) ||
+                !Number.isInteger(update.col) ||
+                (update.value !== EMPTY && update.value !== BLACK && update.value !== WHITE) ||
+                !denseHasPlayableCell(board, update.row, update.col)
+            ) {
+                return false;
+            }
+            const key = toBoardCellKey(update.row, update.col);
+            if (seen.has(key)) return false;
+            seen.add(key);
+        }
+        for (const update of updates) {
+            denseSetCellValue(board, update.row, update.col, update.value);
+        }
+        return true;
     }
 
     function cloneBoard(board: unknown): unknown {
@@ -510,8 +542,22 @@
         getCellValue,
         collectBoardCoordinates
     });
-    const getFlipsBasic = BoardLegalMoves.getFlipsBasic;
-    const getLegalMovesBasic = BoardLegalMoves.getLegalMovesBasic;
+    function getFlipsBasic(board: unknown, row: number, col: number, playerValue: number): CellCoord[] {
+        const view = getContextView(board);
+        return view
+            ? view.getFlips(row, col, playerValue).map((cell) => ({ row: cell.row, col: cell.col }))
+            : BoardLegalMoves.getFlipsBasic(board, row, col, playerValue);
+    }
+    function getLegalMovesBasic(board: unknown, playerValue: number) {
+        const view = getContextView(board);
+        return view
+            ? view.getLegalMoves(playerValue).map((move) => ({
+                row: move.row,
+                col: move.col,
+                flips: move.flips.map((cell) => ({ row: cell.row, col: cell.col }))
+            }))
+            : BoardLegalMoves.getLegalMovesBasic(board, playerValue);
+    }
 
     if (!BoardControlCountsModule) throw new Error('BoardControlCounts is required by SharedBoardUtils');
     const BoardControlCounts = BoardControlCountsModule.createControlCounts({
@@ -612,6 +658,7 @@
         canonicalizeStateBoard,
         getStateCellValue,
         setStateCellValue,
+        setStateCellValues,
         addStateExpansionCells,
         countStateDiscs,
         createBoardMutationCheckpoint,
@@ -631,6 +678,7 @@
         countDiscs,
         getCellValue,
         setCellValue,
+        setCellValues,
         countBoardEmpties,
         getCornerCells,
         getPerimeterCells,

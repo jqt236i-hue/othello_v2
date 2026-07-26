@@ -353,6 +353,42 @@ describe('selfplay runner', () => {
         expect(selected).toBe(candidateMoves[0]);
     });
 
+    test('placement scoring computes each candidate feature and plan score once', () => {
+        const board = createPlacementBoard();
+        const candidateMoves = [
+            { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
+            { row: 2, col: 5, flips: [{ row: 3, col: 4 }] }
+        ];
+        const featureSpy = jest.spyOn(CpuPolicyCore, 'evaluatePlacementCandidate').mockImplementation((move) => ({
+            row: move.row,
+            col: move.col,
+            playerValue: 1,
+            flipCount: Array.isArray(move.flips) ? move.flips.length : 0
+        }));
+        const planSpy = jest.spyOn(CpuPolicyCore, 'scoreMoveForCornerEdgePlan').mockImplementation((move) => move.col);
+        const random = jest.fn(() => 0.5);
+
+        const selected = selectPlacementMove(
+            candidateMoves,
+            { random },
+            {
+                gameState: { board },
+                cardState: {},
+                playerKey: 'black',
+                pendingType: null,
+                legalMovesCount: candidateMoves.length
+            },
+            {
+                enableTacticalLookahead: false
+            }
+        );
+
+        expect(selected).toBe(candidateMoves[1]);
+        expect(featureSpy).toHaveBeenCalledTimes(candidateMoves.length);
+        expect(planSpy).toHaveBeenCalledTimes(candidateMoves.length);
+        expect(random).toHaveBeenCalledTimes(candidateMoves.length);
+    });
+
     test('teacher lookahead keeps forced corner hard filter before scoring', () => {
         const board = createPlacementBoard();
         const legalMoves = [

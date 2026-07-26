@@ -213,6 +213,7 @@ const SHAPE_API_NAMES = new Set([
     'isXSquare',
     'resolveBoardBounds',
     'setCellValue',
+    'setCellValues',
     'summarizeEdgeRuns'
 ]);
 const STATE_KERNEL_CARD_STATE_ARGUMENTS = new Map<string, number>([
@@ -223,7 +224,8 @@ const STATE_KERNEL_CARD_STATE_ARGUMENTS = new Map<string, number>([
     ['createBoardMutationCheckpoint', 1],
     ['getStateCellValue', 3],
     ['restoreBoardMutationCheckpoint', 1],
-    ['setStateCellValue', 4]
+    ['setStateCellValue', 4],
+    ['setStateCellValues', 2]
 ]);
 const STATE_KERNEL_CARD_STATE_OPTIONS = new Set([
     'buildBoardTopology',

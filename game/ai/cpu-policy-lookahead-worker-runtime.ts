@@ -49,7 +49,7 @@ const DIRECTIONS = [
     [1, -1],  [1, 0],   [1, 1]
 ];
 
-function createWorkerBoardUtils() {
+export function createCpuWorkerBoardUtils() {
     const CONTEXT_KIND = 'cpu-worker-board-context-v1';
     const isContext = (value: any): boolean => !!value
         && typeof value === 'object'
@@ -133,27 +133,67 @@ function createWorkerBoardUtils() {
     };
     const getCellValue = (board: any, row: number, col: number): number | null => {
         if (!hasPlayableCell(board, row, col)) return null;
+        const shape = readShape(board);
+        const key = keyOf(row, col);
+        if (shape && Object.prototype.hasOwnProperty.call(shape.expansionOwnerByKey || {}, key)) {
+            return Number(shape.expansionOwnerByKey[key] || 0);
+        }
         const matrix = readMatrix(board);
         if (row >= 0 && row < matrix.length && Array.isArray(matrix[row]) && col >= 0 && col < matrix[row].length) {
             return Number(matrix[row][col] || 0);
         }
-        const shape = readShape(board);
-        return Number(shape?.expansionOwnerByKey?.[keyOf(row, col)] || 0);
+        return 0;
     };
     const setCellValue = (board: any, row: number, col: number, owner: number): boolean => {
+        if (owner !== 0 && owner !== 1 && owner !== -1) return false;
         if (!hasPlayableCell(board, row, col)) return false;
+        const shape = readShape(board);
+        const key = keyOf(row, col);
+        if (shape && Object.prototype.hasOwnProperty.call(shape.expansionOwnerByKey || {}, key)) {
+            shape.expansionOwnerByKey[key] = owner;
+            const cell = Array.isArray(shape.expansionCells)
+                ? shape.expansionCells.find((entry: any) => entry && entry.row === row && entry.col === col)
+                : null;
+            if (cell) cell.owner = owner;
+            return true;
+        }
         const matrix = readMatrix(board);
         if (row >= 0 && row < matrix.length && Array.isArray(matrix[row]) && col >= 0 && col < matrix[row].length) {
             matrix[row][col] = owner;
             return true;
         }
-        const shape = readShape(board);
+        if (!shape) return false;
         shape.expansionOwnerByKey = shape.expansionOwnerByKey || {};
-        shape.expansionOwnerByKey[keyOf(row, col)] = owner;
+        shape.expansionOwnerByKey[key] = owner;
         const cell = Array.isArray(shape.expansionCells)
             ? shape.expansionCells.find((entry: any) => entry && entry.row === row && entry.col === col)
             : null;
         if (cell) cell.owner = owner;
+        return true;
+    };
+    const setCellValues = (
+        board: any,
+        updates: Array<{ row: number; col: number; value: number }>
+    ): boolean => {
+        if (!Array.isArray(updates)) return false;
+        const seen = new Set<string>();
+        for (const update of updates) {
+            if (
+                !update
+                || !Number.isInteger(update.row)
+                || !Number.isInteger(update.col)
+                || (update.value !== 0 && update.value !== 1 && update.value !== -1)
+                || !hasPlayableCell(board, update.row, update.col)
+            ) {
+                return false;
+            }
+            const key = keyOf(update.row, update.col);
+            if (seen.has(key)) return false;
+            seen.add(key);
+        }
+        for (const update of updates) {
+            if (!setCellValue(board, update.row, update.col, update.value)) return false;
+        }
         return true;
     };
     const cloneBoard = (board: any): any => {
@@ -218,6 +258,7 @@ function createWorkerBoardUtils() {
         encodeBoard: canonicalEncoding.encodeBoard,
         getCellValue,
         setCellValue,
+        setCellValues,
         hasPlayableCell,
         getFlipsBasic: legalMoves.getFlipsBasic,
         getLegalMovesBasic: legalMoves.getLegalMovesBasic,
@@ -235,7 +276,7 @@ function createWorkerBoardUtils() {
 }
 
 function createLookaheadRuntime() {
-    const SharedBoardUtils: any = createWorkerBoardUtils();
+    const SharedBoardUtils: any = createCpuWorkerBoardUtils();
     const primitives = CpuPolicyBoardPrimitivesModule.createCpuPolicyBoardPrimitives({
         SharedBoardUtils,
         isFiniteNumber

@@ -1,4 +1,5 @@
 import { createCpuPolicyMovePlanScoring } from '../game/ai/cpu-policy-move-plan-scoring';
+import { createBoardMoveIdentity } from '../shared/board/move-codec';
 
 describe('cpu-policy move plan scoring module', () => {
   function placementFeature(overrides: Record<string, unknown> = {}) {
@@ -133,6 +134,82 @@ describe('cpu-policy move plan scoring module', () => {
     } as any);
 
     expect(safeEdge).toBeGreaterThan(gapEdge + 3000);
+  });
+
+  test('scoreMoveForCornerEdgePlan reuses matching precomputed placement features', () => {
+    const board = Array.from({ length: 8 }, () => Array(8).fill(0)) as any;
+    const move = { row: 0, col: 2, flips: [] } as any;
+    const features = placementFeature({ row: 0, col: 2, playerValue: 1 });
+    const evaluatePlacementCandidate = jest.fn(() => features as any);
+    const helpers = createCpuPolicyMovePlanScoring({
+      inBoard: () => true,
+      scoreMoveHeuristic: () => 100,
+      isCorner: () => false,
+      isEdge: () => true,
+      applyMoveToBoard: (currentBoard: any) => currentBoard,
+      getLegalMovesBasic: () => [],
+      countCornerMovesFor: () => 0,
+      countBoardDiscsForPlayer: () => ({ empties: 28 }),
+      summarizeEdgeRunsFor: () => ({}),
+      countAnchoredEdgeDiscsFromCorners: () => 0,
+      evaluatePlacementCandidate,
+    } as any);
+    const baseContext = {
+      board,
+      playerValue: 1,
+      level: 6,
+      boardBonusByCell: null,
+      boardBonusConsumedByCell: null,
+    };
+
+    const evaluatedScore = helpers.scoreMoveForCornerEdgePlan(move, baseContext as any);
+    expect(evaluatePlacementCandidate).toHaveBeenCalledTimes(1);
+    evaluatePlacementCandidate.mockClear();
+
+    const cachedScore = helpers.scoreMoveForCornerEdgePlan(move, {
+      ...baseContext,
+      precomputedPlacementFeatures: features,
+      precomputedPlacementFeaturesBoard: board,
+      precomputedPlacementFeaturesBoardBonusByCell: null,
+      precomputedPlacementFeaturesBoardBonusConsumedByCell: null,
+      precomputedPlacementFeaturesMoveIdentity: createBoardMoveIdentity(move),
+    } as any);
+    expect(cachedScore).toBe(evaluatedScore);
+    expect(evaluatePlacementCandidate).not.toHaveBeenCalled();
+
+    helpers.scoreMoveForCornerEdgePlan(
+      { row: 0, col: 3, flips: [] } as any,
+      {
+        ...baseContext,
+        precomputedPlacementFeatures: features,
+        precomputedPlacementFeaturesBoard: board,
+        precomputedPlacementFeaturesBoardBonusByCell: null,
+        precomputedPlacementFeaturesBoardBonusConsumedByCell: null,
+        precomputedPlacementFeaturesMoveIdentity: createBoardMoveIdentity(move),
+      } as any,
+    );
+    expect(evaluatePlacementCandidate).toHaveBeenCalledTimes(1);
+
+    evaluatePlacementCandidate.mockClear();
+    helpers.scoreMoveForCornerEdgePlan(
+      { row: 0, col: 2, flips: [{ row: 1, col: 2 }] } as any,
+      {
+        ...baseContext,
+        precomputedPlacementFeatures: {
+          ...features,
+          flipCount: 1,
+        },
+        precomputedPlacementFeaturesBoard: board,
+        precomputedPlacementFeaturesBoardBonusByCell: null,
+        precomputedPlacementFeaturesBoardBonusConsumedByCell: null,
+        precomputedPlacementFeaturesMoveIdentity: createBoardMoveIdentity({
+          row: 0,
+          col: 2,
+          flips: [{ row: 1, col: 1 }],
+        }),
+      } as any,
+    );
+    expect(evaluatePlacementCandidate).toHaveBeenCalledTimes(1);
   });
 
   test('scoreMoveForCornerEdgePlan heavily penalizes explainable corner donation when alternatives exist', () => {

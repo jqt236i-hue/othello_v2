@@ -1,9 +1,15 @@
+import { normalizeBoardPositionsStrict } from '../../shared/board/move-codec';
+
 type PendingTargetDeps = {
     resolveSharedBoardUtilsModule?: () => any;
     getCurrentCpuBoard?: () => any;
     getBoardCellValueSafe?: (board: any, row: any, col: any) => any;
     cloneBoardForCpu?: (board: any) => any;
     setBoardCellValue?: (board: any, row: any, col: any, value: any) => any;
+    setBoardCellValues?: (
+        board: any,
+        updates: Array<{ row: number; col: number; value: number }>
+    ) => boolean;
     pendingTargetSelector?: any;
     scorePendingTargetByType?: (playerKey: any, pendingType: any, target: any, pending: any) => any;
     cpuDecisionPendingOnnx?: any;
@@ -137,11 +143,24 @@ export function simulatePendingPlacementBoard(board: any, playerValue: any, targ
             return true;
         });
     const next = cloneBoard(board);
-    if (!setCell(next, target.row, target.col, playerValue)) return next;
-    const flips = Array.isArray(target.flips) ? target.flips : [];
+    const flips = normalizeBoardPositionsStrict(
+        Array.isArray(target.flips) ? target.flips : []
+    );
+    if (!flips) return null;
+    const updates = [
+        { row: target.row, col: target.col, value: playerValue },
+        ...flips.map((flip) => ({
+            row: flip.row,
+            col: flip.col,
+            value: playerValue
+        }))
+    ];
+    if (typeof activeDeps.setBoardCellValues === 'function') {
+        return activeDeps.setBoardCellValues(next, updates) ? next : null;
+    }
+    if (!setCell(next, target.row, target.col, playerValue)) return null;
     for (const one of flips) {
-        if (!one || !Number.isInteger(one.row) || !Number.isInteger(one.col)) continue;
-        setCell(next, one.row, one.col, playerValue);
+        if (!setCell(next, one.row, one.col, playerValue)) return null;
     }
     return next;
 }

@@ -21,6 +21,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 import type { CpuTurnPerformanceScope } from './cpu-turn-performance';
+import { normalizeBoardPositions } from '../shared/board/move-codec';
 
 /**
  * @file cpu-decision.ts
@@ -619,6 +620,18 @@ function setBoardCellValue(board: any, row: any, col: any, value: any): any {
     if (!Array.isArray(board) || !Array.isArray(board[row]) || col < 0 || col >= board[row].length) return false;
     board[row][col] = value;
     return true;
+}
+
+function setBoardCellValues(
+    board: any,
+    updates: Array<{ row: number; col: number; value: number }>
+): boolean {
+    const boardUtils = resolveSharedBoardUtilsModule();
+    return !!(
+        boardUtils
+        && typeof boardUtils.setCellValues === 'function'
+        && boardUtils.setCellValues(board, updates)
+    );
 }
 
 function getBoardBonusValueAt(row: any, col: any): any {
@@ -2410,16 +2423,12 @@ function applyMoveByFlipsForCpu(board: any, move: any, playerValue: any): any {
     const row = Number(move.row);
     const col = Number(move.col);
     if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
-    const next = cloneBoardForCpu(board);
-    if (!setBoardCellValue(next, row, col, playerValue)) return null;
-    const flips = Array.isArray(move.flips) ? move.flips : [];
-    for (const one of flips) {
-        const fr = Number(one && one.row);
-        const fc = Number(one && one.col);
-        if (!Number.isInteger(fr) || !Number.isInteger(fc)) continue;
-        setBoardCellValue(next, fr, fc, playerValue);
+    if (!CpuPolicyCore || typeof CpuPolicyCore.applyMoveToBoard !== 'function') return null;
+    try {
+        return CpuPolicyCore.applyMoveToBoard(board, move, playerValue);
+    } catch (e) {
+        return null;
     }
-    return next;
 }
 
 function hasCornerMoveOnBoardForPlayer(board: any, playerValue: any): any {
@@ -2934,7 +2943,7 @@ function getMarkerProfileAt(playerKey: any, row: any, col: any): any {
 }
 
 function getMoveOpponentSpecialFlipProfile(playerKey: any, move: any): any {
-    const flips = Array.isArray(move && move.flips) ? move.flips : [];
+    const flips = normalizeBoardPositions(move && move.flips);
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     if (flips.length <= 0 || markers.length <= 0) {
         return { count: 0, score: 0 };
@@ -2943,10 +2952,7 @@ function getMoveOpponentSpecialFlipProfile(playerKey: any, move: any): any {
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
     const flippedCells = new Set();
     for (const one of flips) {
-        const row = Number(one && one.row);
-        const col = Number(one && one.col);
-        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-        flippedCells.add(`${row},${col}`);
+        flippedCells.add(`${one.row},${one.col}`);
     }
     if (flippedCells.size <= 0) {
         return { count: 0, score: 0 };
@@ -3042,7 +3048,8 @@ function getForcedCornerLaneAntiPatternPenalty(pendingType: any, row: any, col: 
 function simulatePendingPlacementBoard(board: any, playerValue: any, target: any): any {
     return CpuPolicyPendingTargetsRequired.simulatePendingPlacementBoard(board, playerValue, target, {
         cloneBoardForCpu,
-        setBoardCellValue
+        setBoardCellValue,
+        setBoardCellValues
     });
 }
 

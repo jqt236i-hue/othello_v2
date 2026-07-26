@@ -83,4 +83,21 @@ describe('cpu-policy-core public contract types', () => {
     expect(metaSnapshots[0] && typeof metaSnapshots[0].depth).toBe('number');
     expect(typeof heuristicScore).toBe('number');
   });
+
+  test('applies canonical tuple flips without mutating the source board', () => {
+    const board: CpuPolicyBoard = [
+      [1, -1, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ];
+
+    const next = core.applyMoveToBoard(
+      board,
+      { row: 0, col: 2, flips: [[0, 1]] },
+      1,
+    );
+
+    expect(next[0]).toEqual([1, 1, 1]);
+    expect(board[0]).toEqual([1, -1, 0]);
+  });
 });

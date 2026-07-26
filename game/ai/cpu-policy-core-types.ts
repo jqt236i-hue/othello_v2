@@ -13,10 +13,12 @@ export interface CpuPolicyPosition {
     col: number;
 }
 
+export type CpuPolicyFlip = CpuPolicyPosition | readonly [number, number];
+
 export interface CpuPolicyMove extends CpuPolicyPosition {
     row: number;
     col: number;
-    flips?: CpuPolicyPosition[];
+    flips?: CpuPolicyFlip[];
     [key: string]: unknown;
 }
 
@@ -182,6 +184,11 @@ export interface CpuPolicyCoreApi {
         selectMoveWithAi?: CpuPolicyAiMoveSelector,
         options?: CpuPolicyMoveOptions
     ): CpuPolicyMove | null;
+    applyMoveToBoard(
+        board: CpuPolicyBoard | null | undefined,
+        move: CpuPolicyMove | null | undefined,
+        playerValue: number
+    ): CpuPolicyBoard;
     computeLegalMoveMetrics(legalMoves: CpuPolicyMove[], getBoardBonus?: CpuPolicyBoardBonusResolver): CpuPolicyLegalMoveMetrics;
     createExpectedCandidateScoringRequest(
         candidateMoves: CpuPolicyMove[],

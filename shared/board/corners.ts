@@ -111,10 +111,11 @@ export function createBoardCorners(deps: CornerDependencies) {
     );
   }
   function getCornerCells(board: unknown): CellCoord[] {
+    const cornerKeys = buildCornerKeySet(board);
     return deps
       .collectBoardCoordinates(board)
       .filter((cell) =>
-        buildCornerKeySet(board).has(deps.toBoardCellKey(cell.row, cell.col)),
+        cornerKeys.has(deps.toBoardCellKey(cell.row, cell.col)),
       );
   }
   function getPerimeterCells(board: unknown): CellCoord[] {

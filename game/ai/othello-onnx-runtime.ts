@@ -1,3 +1,5 @@
+import { normalizeBoardPositionsStrict } from '../../shared/board/move-codec';
+
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -241,16 +243,16 @@ function applyMoveForRerank(board: any, move: any, playerKey: any) {
   const row = Number(move && move.row);
   const col = Number(move && move.col);
   if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
-  const flips = Array.isArray(move && move.flips) && move.flips.length > 0
-    ? move.flips
+  const flips = Array.isArray(move && move.flips)
+    ? normalizeBoardPositionsStrict(move.flips)
     : getFlips(board, row, col, playerKey);
-  if (!Array.isArray(flips) || flips.length <= 0) return null;
+  if (!flips || flips.length <= 0) return null;
   const next = board.map((one: any) => Array.isArray(one) ? one.slice() : []);
   const own = playerKey === 'black' ? 1 : -1;
   next[row][col] = own;
   for (const flip of flips) {
-    const rr = Number(flip && flip.row);
-    const cc = Number(flip && flip.col);
+    const rr = Number(flip.row);
+    const cc = Number(flip.col);
     if (Number.isInteger(rr) && Number.isInteger(cc) && insideBoard(rr, cc)) next[rr][cc] = own;
   }
   return next;

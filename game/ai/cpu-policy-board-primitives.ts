@@ -1,4 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import {
+    normalizeBoardPositions,
+    normalizeBoardPositionsStrict
+} from '../../shared/board/move-codec';
 import type { CpuPolicyBoard, CpuPolicyMove, CpuPolicyPosition } from './cpu-policy-core-types';
 import {
     createCpuCandidateScoringBoardShape,
@@ -170,20 +174,39 @@ export function createCpuPolicyBoardPrimitives(config?: CpuPolicyBoardPrimitives
     function applyMoveToBoard(board: CpuPolicyBoard | null | undefined, move: CpuPolicyMove | null | undefined, playerValue: number): CpuPolicyBoard {
         const out = cloneBoard(board);
         if (!move || !inBoard(out, move.row, move.col)) return out;
-        if (sharedBoardUtils && typeof sharedBoardUtils.setCellValue === 'function') {
-            sharedBoardUtils.setCellValue(out, move.row, move.col, playerValue);
-        } else {
-            out[move.row][move.col] = playerValue;
+        const providedFlips = Array.isArray(move.flips)
+            ? normalizeBoardPositionsStrict(move.flips)
+            : null;
+        if (Array.isArray(move.flips) && !providedFlips) {
+            throw new Error('CPU move contains an invalid flip coordinate');
         }
-        const flips: CpuPolicyPosition[] = Array.isArray(move.flips) && move.flips.length > 0
-            ? move.flips
-            : (getFlipsBasic(out, move.row, move.col, playerValue) || []);
+        const flips: CpuPolicyPosition[] = Array.isArray(move.flips)
+            ? providedFlips!
+            : normalizeBoardPositions(getFlipsBasic(out, move.row, move.col, playerValue) || []);
+        const updates = [{ row: move.row, col: move.col, value: playerValue }];
+        const updateKeys = new Set([`${move.row},${move.col}`]);
         for (const one of flips) {
-            if (!one || !inBoard(out, one.row, one.col)) continue;
+            if (!inBoard(out, one.row, one.col)) {
+                throw new Error('CPU move contains a non-playable flip coordinate');
+            }
+            const key = `${one.row},${one.col}`;
+            if (updateKeys.has(key)) {
+                throw new Error('CPU move contains a duplicate flip coordinate');
+            }
+            updateKeys.add(key);
+            updates.push({ row: one.row, col: one.col, value: playerValue });
+        }
+        if (sharedBoardUtils && typeof sharedBoardUtils.setCellValues === 'function') {
+            if (!sharedBoardUtils.setCellValues(out, updates)) {
+                throw new Error('CPU board kernel rejected an atomic move update');
+            }
+            return out;
+        }
+        for (const update of updates) {
             if (sharedBoardUtils && typeof sharedBoardUtils.setCellValue === 'function') {
-                sharedBoardUtils.setCellValue(out, one.row, one.col, playerValue);
+                sharedBoardUtils.setCellValue(out, update.row, update.col, update.value);
             } else {
-                out[one.row][one.col] = playerValue;
+                out[update.row][update.col] = update.value;
             }
         }
         return out;

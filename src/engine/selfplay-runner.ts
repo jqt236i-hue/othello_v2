@@ -1,4 +1,8 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
+import {
+    createBoardMoveIdentity,
+    normalizeBoardPositionsStrict
+} from '../../shared/board/move-codec';
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
@@ -139,6 +143,16 @@ function getCornerProximity(row: any, col: any, boardOverride: any = null) {
     throw new Error('SharedBoardUtils.getCornerProximity is required by selfplay');
 }
 
+function getMoveCoordinateKey(move: any) {
+    const row = Number(move && move.row);
+    const col = Number(move && move.col);
+    return `${row},${col}`;
+}
+
+function getMovePlanCacheKey(move: any) {
+    return createBoardMoveIdentity(move) || `coord:${getMoveCoordinateKey(move)}`;
+}
+
 function scoreMove(move: any, rng: any, context: any) {
     const row = Number.isFinite(move && move.row) ? move.row : 0;
     const col = Number.isFinite(move && move.col) ? move.col : 0;
@@ -146,6 +160,9 @@ function scoreMove(move: any, rng: any, context: any) {
     const scoreContext = context || {};
     const planState = scoreContext.planState || null;
     const movePlanContext = scoreContext.movePlanContext || null;
+    const movePlanScoreFn = typeof scoreContext.movePlanScoreFn === 'function'
+        ? scoreContext.movePlanScoreFn
+        : null;
     const board = (
         SharedBoardUtils &&
         typeof SharedBoardUtils.isBoardContext === 'function' &&
@@ -157,13 +174,15 @@ function scoreMove(move: any, rng: any, context: any) {
         CpuPolicyCore &&
         typeof CpuPolicyCore.scoreMoveForCornerEdgePlan === 'function' &&
         scoreContext.gameState &&
-        movePlanContext
+        (movePlanScoreFn || movePlanContext)
     );
 
     let score = flips * 100;
     if (shouldUseCornerPlan) {
         try {
-            score = CpuPolicyCore.scoreMoveForCornerEdgePlan(move, movePlanContext);
+            score = movePlanScoreFn
+                ? movePlanScoreFn(move)
+                : CpuPolicyCore.scoreMoveForCornerEdgePlan(move, movePlanContext);
         } catch (e) {
             score = flips * 100;
         }
@@ -384,16 +403,11 @@ const {
 function applyMoveForEvaluation(gameState: any, move: any, playerValue: any, cardState: any) {
     const nextState = Core.copyGameState(gameState);
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return nextState;
-    const flips = [];
-    if (Array.isArray(move.flips)) {
-        for (const f of move.flips) {
-            if (Array.isArray(f) && f.length >= 2 && Number.isFinite(f[0]) && Number.isFinite(f[1])) {
-                flips.push([f[0], f[1]]);
-            } else if (f && Number.isFinite(f.row) && Number.isFinite(f.col)) {
-                flips.push([f.row, f.col]);
-            }
-        }
-    }
+    const normalizedFlips = normalizeBoardPositionsStrict(
+        Array.isArray(move.flips) ? move.flips : []
+    );
+    if (!normalizedFlips) throw new Error('Selfplay evaluation move contains an invalid flip coordinate');
+    const flips = normalizedFlips.map((flip) => [flip.row, flip.col]);
     // Use Core.applyMove so expansion cells are handled consistently with production rules.
     nextState.currentPlayer = playerValue;
     return Core.applyMove(nextState, { row: move.row, col: move.col, flips }, cardState);
@@ -410,6 +424,7 @@ const {
     SharedBoardUtils,
     getLegalMovesBasic,
     setBoardCellValue,
+    setBoardCellValues: SharedBoardUtils.setCellValues,
     evaluatePositionValue,
     countCorners
 });
@@ -488,7 +503,13 @@ function scoreTacticalMove(move: any, context: any, options: any) {
     return baseScore + (searchValue * 0.35);
 }
 
-function choosePlacementMoveByBrowserParity(candidateMoves: any, context: any, options: any, movePlanContext: any) {
+function choosePlacementMoveByBrowserParity(
+    candidateMoves: any,
+    context: any,
+    options: any,
+    movePlanContext: any,
+    placementFeaturesByMoveKey: Map<string, any> | null = null
+) {
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0) {
         return {
             move: null,
@@ -500,18 +521,43 @@ function choosePlacementMoveByBrowserParity(candidateMoves: any, context: any, o
     }
 
     const learnedMove = selectPlacementMoveFromPolicyModel(options, context, candidateMoves);
-    const learnedScoreFn = (move: any) => getPolicyScore(options, Object.assign({}, context || {}, {
-        legalMovesCount: candidateMoves.length
-    }), move);
+    const learnedScoreCache = new Map<string, any>();
+    const learnedScoreFn = (move: any) => {
+        const key = getMoveCoordinateKey(move);
+        if (learnedScoreCache.has(key)) return learnedScoreCache.get(key);
+        const score = getPolicyScore(options, Object.assign({}, context || {}, {
+            legalMovesCount: candidateMoves.length
+        }), move);
+        learnedScoreCache.set(key, score);
+        return score;
+    };
+    const movePlanScoreCache = new Map<string, number>();
     const movePlanScoreFn = (
         movePlanContext &&
         CpuPolicyCore &&
         typeof CpuPolicyCore.scoreMoveForCornerEdgePlan === 'function'
     )
         ? (move: any) => {
+            const key = getMovePlanCacheKey(move);
+            if (movePlanScoreCache.has(key)) return movePlanScoreCache.get(key)!;
             try {
-                return Number(CpuPolicyCore.scoreMoveForCornerEdgePlan(move, movePlanContext) || 0);
+                const placementFeatures = placementFeaturesByMoveKey
+                    ? placementFeaturesByMoveKey.get(key)
+                    : null;
+                const scoringContext = placementFeatures
+                    ? Object.assign({}, movePlanContext, {
+                        precomputedPlacementFeatures: placementFeatures,
+                        precomputedPlacementFeaturesBoard: movePlanContext.board,
+                        precomputedPlacementFeaturesBoardBonusByCell: movePlanContext.boardBonusByCell,
+                        precomputedPlacementFeaturesBoardBonusConsumedByCell: movePlanContext.boardBonusConsumedByCell,
+                        precomputedPlacementFeaturesMoveIdentity: createBoardMoveIdentity(move)
+                    })
+                    : movePlanContext;
+                const score = Number(CpuPolicyCore.scoreMoveForCornerEdgePlan(move, scoringContext) || 0);
+                movePlanScoreCache.set(key, score);
+                return score;
             } catch (e) {
+                movePlanScoreCache.set(key, 0);
                 return 0;
             }
         }
@@ -904,25 +950,40 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
         planState,
         movePlanContext
     });
+    const placementFeaturesByMoveKey = new Map<string, any>();
+    for (const move of candidateMoves) {
+        const placementFeatures = evaluatePlacementFeaturesForSelfplay(
+            move,
+            context,
+            movePlanContext
+        );
+        placementFeaturesByMoveKey.set(
+            getMovePlanCacheKey(move),
+            placementFeatures
+        );
+    }
     const paritySelection = choosePlacementMoveByBrowserParity(candidateMoves, Object.assign({}, context || {}, {
         legalMovesCount: candidateMoves.length
     }), Object.assign({}, options || {}, {
         enableTacticalLookahead
-    }), movePlanContext);
+    }), movePlanContext, placementFeaturesByMoveKey);
     const parityCombinedScoreFn = paritySelection && typeof paritySelection.combinedScoreFn === 'function'
         ? paritySelection.combinedScoreFn
+        : null;
+    scoreContext.movePlanScoreFn = paritySelection && typeof paritySelection.movePlanScoreFn === 'function'
+        ? paritySelection.movePlanScoreFn
         : null;
     const parityMove = paritySelection && paritySelection.move ? paritySelection.move : null;
     const scoredMoves = [];
     let bestCombinedScore = -Infinity;
     for (const move of candidateMoves) {
         const heuristic = scoreMove(move, rng, scoreContext);
-        const policy = getPolicyScore(options, Object.assign({}, context || {}, {
-            legalMovesCount: candidateMoves.length
-        }), move);
+        const policy = paritySelection && typeof paritySelection.learnedScoreFn === 'function'
+            ? paritySelection.learnedScoreFn(move)
+            : null;
         const policyScore = policy !== null ? policy : 0;
         const combined = parityCombinedScoreFn ? Number(parityCombinedScoreFn(move) || 0) : 0;
-        const placementFeatures = evaluatePlacementFeaturesForSelfplay(move, context, movePlanContext);
+        const placementFeatures = placementFeaturesByMoveKey.get(getMovePlanCacheKey(move)) || null;
         scoredMoves.push({
             move,
             heuristicScore: heuristic,

@@ -140,6 +140,13 @@ describe('CPU card-quiescence portable contract', () => {
     const request = createRequest();
     expect(() => createCpuCardQuiescenceRequest({
       ...request,
+      board: request.board.map((row, rowIndex) => (
+        rowIndex === 0 ? [2, ...row.slice(1)] : row.slice()
+      ))
+    })).toThrow(CpuCardQuiescenceProtocolError);
+
+    expect(() => createCpuCardQuiescenceRequest({
+      ...request,
       boardShape: {
         ...request.boardShape,
         expansionCells: [{ side: 'left', row: 0, col: -1, owner: 2 }],

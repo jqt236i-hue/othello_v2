@@ -1,9 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { normalizeBoardPositionsStrict } from '../../shared/board/move-codec';
 
 type SelfplaySearchPrimitivesConfig = {
     SharedBoardUtils?: any;
     getLegalMovesBasic?: (board: any, playerValue: any) => any[];
     setBoardCellValue?: (board: any, row: any, col: any, value: any) => any;
+    setBoardCellValues?: (
+        board: any,
+        updates: Array<{ row: number; col: number; value: number }>
+    ) => any;
     evaluatePositionValue?: (row: any, col: any, board: any) => number;
     countCorners?: (board: any, playerValue: any) => number;
 };
@@ -25,6 +30,11 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
             if (!sharedBoardUtils || typeof sharedBoardUtils.setCellValue !== 'function') return false;
             return sharedBoardUtils.setCellValue(board, row, col, value);
         });
+    const setBoardCellValues = typeof cfg.setBoardCellValues === 'function'
+        ? cfg.setBoardCellValues
+        : (sharedBoardUtils && typeof sharedBoardUtils.setCellValues === 'function'
+            ? sharedBoardUtils.setCellValues
+            : null);
     const evaluatePositionValue = typeof cfg.evaluatePositionValue === 'function'
         ? cfg.evaluatePositionValue
         : (() => 0);
@@ -62,15 +72,32 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
         }
         const next = sharedBoardUtils.cloneBoard(board);
         if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return next;
-        if (!setBoardCellValue(next, move.row, move.col, playerValue)) return next;
-        const flips = Array.isArray(move.flips) ? move.flips : [];
+        const updates = [{ row: move.row, col: move.col, value: playerValue }];
+        const updateKeys = new Set([`${move.row},${move.col}`]);
+        const flips = normalizeBoardPositionsStrict(
+            Array.isArray(move.flips) ? move.flips : []
+        );
+        if (!flips) throw new Error('Selfplay move contains an invalid flip coordinate');
         for (const flip of flips) {
-            if (Array.isArray(flip) && flip.length >= 2 && Number.isFinite(flip[0]) && Number.isFinite(flip[1])) {
-                setBoardCellValue(next, flip[0], flip[1], playerValue);
-                continue;
+            const key = `${flip.row},${flip.col}`;
+            if (updateKeys.has(key)) {
+                throw new Error('Selfplay move contains a duplicate flip coordinate');
             }
-            if (flip && Number.isFinite(flip.row) && Number.isFinite(flip.col)) {
-                setBoardCellValue(next, flip.row, flip.col, playerValue);
+            updateKeys.add(key);
+            updates.push({ row: flip.row, col: flip.col, value: playerValue });
+        }
+        if (setBoardCellValues) {
+            if (!setBoardCellValues(next, updates)) {
+                throw new Error('Selfplay board kernel rejected an atomic move update');
+            }
+            return next;
+        }
+        if (!setBoardCellValue(next, move.row, move.col, playerValue)) {
+            throw new Error('Selfplay board setter rejected the placement coordinate');
+        }
+        for (const update of updates.slice(1)) {
+            if (!setBoardCellValue(next, update.row, update.col, playerValue)) {
+                throw new Error('Selfplay board setter rejected a flip coordinate');
             }
         }
         return next;

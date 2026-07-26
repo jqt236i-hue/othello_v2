@@ -21,6 +21,10 @@ export interface BoardMove extends CellCoord {
   flips: CellCoord[];
 }
 
+export interface BoardCellUpdate extends CellCoord {
+  value: number;
+}
+
 export interface FlipConstraints {
   blockedKeys?: ReadonlySet<string> | readonly string[];
   protectedKeys?: ReadonlySet<string> | readonly string[];
@@ -93,6 +97,7 @@ export interface StateKernelDependencies {
 
 interface ViewCacheEntry {
   cardState: object | null;
+  strict: boolean;
   signature: string;
   view: BoardView;
 }
@@ -387,31 +392,47 @@ export function createStateKernel(deps: StateKernelDependencies) {
   function buildSourceSignature(
     gameState: Record<string, unknown>,
     cardState: unknown,
-  ): string {
+  ): { cacheable: boolean; signature: string } {
     const config = deps.resolveBoardConfig(gameState);
     const board = Array.isArray(gameState.board) ? gameState.board : [];
     const boardValues = board.map((row) =>
-      Array.isArray(row) ? row.map((value) => deps.normalizeOwner(value)) : null,
+      Array.isArray(row)
+        ? row.map((value) => ({
+            valid: isOwner(value, deps.empty, deps.black, deps.white),
+            owner: isOwner(value, deps.empty, deps.black, deps.white)
+              ? value
+              : null,
+          }))
+        : null,
     );
-    const expansion = parseExpansionCells(gameState, false, [], []);
+    const signatureErrors: string[] = [];
+    const expansion = parseExpansionCells(
+      gameState,
+      false,
+      signatureErrors,
+      [],
+    );
     const holes = Array.from(
       collectBoundedMeteorHoleKeys(cardState, false, [], []),
     ).sort();
-    return JSON.stringify({
-      config: {
-        rows: config.rows,
-        cols: config.cols,
-        shape: typeof config.shape === "string" ? config.shape : null,
-      },
-      board: boardValues,
-      expansion: expansion.map((cell) => [
-        cell.row,
-        cell.col,
-        cell.side,
-        cell.owner,
-      ]),
-      holes,
-    });
+    return {
+      cacheable: signatureErrors.length === 0,
+      signature: JSON.stringify({
+        config: {
+          rows: config.rows,
+          cols: config.cols,
+          shape: typeof config.shape === "string" ? config.shape : null,
+        },
+        board: boardValues,
+        expansion: expansion.map((cell) => [
+          cell.row,
+          cell.col,
+          cell.side,
+          cell.owner,
+        ]),
+        holes,
+      }),
+    };
   }
 
   function buildDigest(
@@ -458,19 +479,23 @@ export function createStateKernel(deps: StateKernelDependencies) {
       throw new Error("BoardView requires a gameState object");
     }
     const gameState = gameStateValue;
-    const signature = buildSourceSignature(gameState, options.cardState);
+    const strict = options.strict !== false;
+    const sourceSignature = buildSourceSignature(gameState, options.cardState);
     const cardStateKey = isRecord(options.cardState) ? options.cardState : null;
     const cached = viewCache.get(gameState);
     if (
+      !strict &&
+      sourceSignature.cacheable &&
       cached &&
       cached.cardState === cardStateKey &&
-      cached.signature === signature
+      cached.strict === false &&
+      cached.signature === sourceSignature.signature
     ) {
       return cached.view;
     }
 
     const inspection = inspectBoardState(gameState, options.cardState, {
-      strict: options.strict,
+      strict,
     });
     if (!inspection.ok || !inspection.topology) {
       throw new Error(`Invalid board state: ${inspection.errors.join("; ")}`);
@@ -617,7 +642,14 @@ export function createStateKernel(deps: StateKernelDependencies) {
       getFlips,
       getLegalMoves,
     });
-    viewCache.set(gameState, { cardState: cardStateKey, signature, view });
+    if (!strict && sourceSignature.cacheable) {
+      viewCache.set(gameState, {
+        cardState: cardStateKey,
+        strict,
+        signature: sourceSignature.signature,
+        view,
+      });
+    }
     return view;
   }
 
@@ -735,6 +767,100 @@ export function createStateKernel(deps: StateKernelDependencies) {
     return true;
   }
 
+  function setStateCellValues(
+    gameStateValue: unknown,
+    updatesValue: unknown,
+    cardState: unknown,
+  ): boolean {
+    if (!isRecord(gameStateValue) || !Array.isArray(updatesValue)) {
+      return false;
+    }
+    const gameState = gameStateValue;
+    const view = createBoardView(gameState, { cardState, strict: false });
+    const updates: BoardCellUpdate[] = [];
+    const seen = new Set<string>();
+    let hasExpansionUpdate = false;
+    for (const raw of updatesValue) {
+      if (
+        !isRecord(raw) ||
+        !Number.isInteger(raw.row) ||
+        !Number.isInteger(raw.col) ||
+        !isOwner(raw.value, deps.empty, deps.black, deps.white)
+      ) {
+        return false;
+      }
+      const row = Number(raw.row);
+      const col = Number(raw.col);
+      const key = deps.toBoardCellKey(row, col);
+      if (seen.has(key) || !view.topology.playableKeys.has(key)) return false;
+      seen.add(key);
+      hasExpansionUpdate ||= view.topology.expansionKeys.has(key);
+      updates.push({
+        row,
+        col,
+        value: deps.normalizeOwner(raw.value),
+      });
+    }
+    if (updates.length === 0) return true;
+
+    let expansionCells: Record<string, unknown>[] = [];
+    let expansionByKey = new Map<string, Record<string, unknown>>();
+    if (hasExpansionUpdate) {
+      const normalized = canonicalizeStateBoard(gameState, cardState, {
+        strict: false,
+      });
+      if (
+        !normalized.ok ||
+        !isRecord(gameState.boardExpansion) ||
+        !Array.isArray(gameState.boardExpansion.cells)
+      ) {
+        return false;
+      }
+      expansionCells = gameState.boardExpansion.cells as Record<string, unknown>[];
+      expansionByKey = new Map(
+        expansionCells.map((cell) => [
+          deps.toBoardCellKey(Number(cell.row), Number(cell.col)),
+          cell,
+        ]),
+      );
+    }
+
+    const baseTargets: Array<{ row: unknown[]; col: number; value: number }> = [];
+    const expansionTargets: Array<{ cell: Record<string, unknown>; value: number }> = [];
+    for (const update of updates) {
+      const key = deps.toBoardCellKey(update.row, update.col);
+      if (view.topology.expansionKeys.has(key)) {
+        const cell = expansionByKey.get(key);
+        if (!cell) return false;
+        expansionTargets.push({ cell, value: update.value });
+        continue;
+      }
+      const row = Array.isArray(gameState.board)
+        ? gameState.board[update.row]
+        : null;
+      if (!Array.isArray(row) || update.col < 0 || update.col >= row.length) {
+        return false;
+      }
+      baseTargets.push({ row, col: update.col, value: update.value });
+    }
+
+    for (const target of baseTargets) target.row[target.col] = target.value;
+    for (const target of expansionTargets) target.cell.owner = target.value;
+    if (expansionTargets.length > 0) {
+      syncLegacyExpansionFields(
+        gameState,
+        expansionCells.map((cell) => ({
+          row: Number(cell.row),
+          col: Number(cell.col),
+          side: String(cell.side || "top"),
+          owner: deps.normalizeOwner(cell.owner),
+        })),
+      );
+    }
+    viewCache.delete(gameState);
+    return true;
+  }
+
   function addStateExpansionCells(
     gameStateValue: unknown,
     additions: unknown[],
@@ -847,6 +973,7 @@ export function createStateKernel(deps: StateKernelDependencies) {
     canonicalizeStateBoard,
     getStateCellValue,
     setStateCellValue,
+    setStateCellValues,
     addStateExpansionCells,
     countStateDiscs,
     createBoardMutationCheckpoint,

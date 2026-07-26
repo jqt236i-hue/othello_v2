@@ -1,8 +1,12 @@
 const { createSelfplaySearchPrimitives } = require('../src/engine/selfplay-search-primitives.js');
+const SharedBoardUtils = require('../shared/shared-board-utils.js');
 
 describe('selfplay search primitives module', () => {
     test('counting and applyMoveToBoard preserve board semantics', () => {
+        const setBoardCellValues = jest.fn(SharedBoardUtils.setCellValues);
         const primitives = createSelfplaySearchPrimitives({
+            SharedBoardUtils,
+            setBoardCellValues,
             evaluatePositionValue: () => 0,
             countCorners: () => 0
         });
@@ -14,7 +18,7 @@ describe('selfplay search primitives module', () => {
         const next = primitives.applyMoveToBoard(board, {
             row: 0,
             col: 0,
-            flips: [{ row: 0, col: 1 }]
+            flips: [[0, 1]]
         }, 1);
 
         expect(primitives.countEmpties(board)).toBe(5);
@@ -25,6 +29,30 @@ describe('selfplay search primitives module', () => {
             [1, 1, 0],
             [1, -1, 0],
             [0, 0, 1]
+        ]);
+        expect(setBoardCellValues).toHaveBeenCalledTimes(1);
+    });
+
+    test('applyMoveToBoard fails fast when its atomic update is rejected', () => {
+        const primitives = createSelfplaySearchPrimitives({
+            SharedBoardUtils,
+            setBoardCellValues: jest.fn(() => false),
+            evaluatePositionValue: () => 0,
+            countCorners: () => 0
+        });
+        const board = [
+            [0, 0],
+            [0, 0]
+        ];
+
+        expect(() => primitives.applyMoveToBoard(board, {
+            row: 0,
+            col: 0,
+            flips: []
+        }, 1)).toThrow(/rejected an atomic move update/);
+        expect(board).toEqual([
+            [0, 0],
+            [0, 0]
         ]);
     });
 

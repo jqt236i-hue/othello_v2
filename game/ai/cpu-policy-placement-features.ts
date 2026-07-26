@@ -6,6 +6,7 @@ import type {
     CpuPolicyPlacementSeat,
     CpuPolicyPosition
 } from './cpu-policy-core-types';
+import { normalizeBoardPositions } from '../../shared/board/move-codec';
 
 interface CpuPolicyEdgeRunSummary extends Record<string, unknown> {
     chainStrength?: number;
@@ -139,7 +140,7 @@ function fallbackApplyMoveToBoard(board: CpuPolicyBoard | null | undefined, move
     const out = Array.isArray(board) ? board.map((row) => (Array.isArray(row) ? row.slice() : [])) : [];
     if (!move || !fallbackInBoard(out, move.row, move.col)) return out;
     out[move.row][move.col] = playerValue;
-    const flips = Array.isArray(move.flips) ? move.flips : [];
+    const flips = normalizeBoardPositions(move.flips);
     for (const one of flips) {
         if (one && fallbackInBoard(out, one.row, one.col)) out[one.row][one.col] = playerValue;
     }

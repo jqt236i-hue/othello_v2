@@ -45,9 +45,13 @@ describe('cpu policy pending targets', () => {
     const next = simulatePendingPlacementBoard(board, -1, {
       row: 2,
       col: 3,
-      flips: [{ row: 3, col: 3 }]
+      flips: [[3, 3]]
     }, {
       cloneBoardForCpu: (source: number[][]) => source.map((row) => row.slice()),
+      setBoardCellValues: (source: number[][], updates: any[]) => {
+        for (const update of updates) source[update.row][update.col] = update.value;
+        return true;
+      },
       setBoardCellValue: (source: number[][], row: number, col: number, value: number) => {
         source[row][col] = value;
         return true;
@@ -58,6 +62,21 @@ describe('cpu policy pending targets', () => {
     expect(next[2][3]).toBe(-1);
     expect(next[3][3]).toBe(-1);
     expect(board[3][3]).toBe(1);
+  });
+
+  test('rejects pending placement atomically when a batch update fails', () => {
+    const board = makeBoard();
+    const next = simulatePendingPlacementBoard(board, -1, {
+      row: 2,
+      col: 3,
+      flips: [[3, 3]]
+    }, {
+      cloneBoardForCpu: (source: number[][]) => source.map((row) => row.slice()),
+      setBoardCellValues: () => false
+    });
+
+    expect(next).toBeNull();
+    expect(board.flat().every((cell) => cell === 0)).toBe(true);
   });
 
   test('chooses highest-scored pending target with row/col tie-break', () => {

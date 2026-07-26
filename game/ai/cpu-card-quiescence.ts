@@ -217,13 +217,9 @@ function readBoard(value: unknown): number[][] {
         if (!Array.isArray(row) || row.length <= 0 || row.length > MAX_BOARD_COLUMNS) {
             fail(`board[${rowIndex}] must be a non-empty bounded row`);
         }
-        return row.map((cell, colIndex) => {
-            const number = Number(cell);
-            if (!Number.isFinite(number) || Math.abs(number) > 1_000_000) {
-                fail(`board[${rowIndex}][${colIndex}] must be finite`);
-            }
-            return Object.is(number, -0) ? 0 : number;
-        });
+        return row.map((cell, colIndex) => (
+            readOwner(cell, `board[${rowIndex}][${colIndex}]`)
+        ));
     });
 }
 

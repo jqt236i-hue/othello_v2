@@ -357,6 +357,18 @@ function setCellValue(stateOrContext: any, row: number, col: number, value: numb
     return BoardUtils.setStateCellValue(source.gameState, row, col, value, source.cardState);
 }
 
+function setCellValues(
+    stateOrContext: any,
+    updates: Array<{ row: number; col: number; value: number }>,
+    cardState?: unknown
+): boolean {
+    if (!BoardUtils || typeof BoardUtils.setStateCellValues !== 'function') {
+        throw new Error('SharedBoardUtils.setStateCellValues is required by GameCore');
+    }
+    const source = resolveCoreBoardSource(stateOrContext, cardState);
+    return BoardUtils.setStateCellValues(source.gameState, updates, source.cardState);
+}
+
 interface FlipContext {
     protectedStones?: { row: number; col: number }[];
     permaProtectedStones?: { row: number; col: number }[];
@@ -428,9 +440,12 @@ function applyMove(stateOrContext: any, move: Move, cardState?: unknown): any {
     const source = resolveCoreBoardSource(stateOrContext, cardState);
     const state = source.gameState;
     const newState = copyGameState(state);
-    setCellValue(newState, move.row, move.col, state.currentPlayer, source.cardState);
+    const updates = [{ row: move.row, col: move.col, value: state.currentPlayer }];
     for (const [r, c] of move.flips) {
-        setCellValue(newState, r, c, state.currentPlayer, source.cardState);
+        updates.push({ row: r, col: c, value: state.currentPlayer });
+    }
+    if (!setCellValues(newState, updates, source.cardState)) {
+        throw new Error('GameCore failed to apply a move through the board kernel');
     }
     newState.currentPlayer = -state.currentPlayer;
     newState.consecutivePasses = 0;

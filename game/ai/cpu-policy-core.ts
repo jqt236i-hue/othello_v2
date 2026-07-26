@@ -1496,6 +1496,7 @@ const cpuPolicyCoreApi: CpuPolicyCoreApi = createCpuPolicyCoreApi({
     chooseSellCardTargetByRetention: chooseLowestRetentionCard,
     chooseMoveByLookahead,
     chooseMove,
+    applyMoveToBoard,
     computeLegalMoveMetrics,
     createExpectedCandidateScoringRequest,
     getMovePlanProfileForCardType,

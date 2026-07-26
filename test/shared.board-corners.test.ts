@@ -3,6 +3,28 @@ import { createBoardCorners } from "../shared/board/corners";
 const SharedBoardUtils = require("../shared/shared-board-utils");
 
 describe("shared board corners", () => {
+  test("builds the corner key set once per corner collection", () => {
+    const coordinates = Array.from({ length: 64 }, (_, index) => ({
+      row: Math.floor(index / 8),
+      col: index % 8,
+    }));
+    const collectBoardCoordinates = jest.fn(() => coordinates);
+    const leaf = createBoardCorners({
+      toBoardCellKey: (row, col) => `${row},${col}`,
+      collectBoardCoordinates,
+      hasPlayableCell: () => true,
+      resolveBoardBounds: () => ({
+        minRow: 0,
+        maxRow: 7,
+        minCol: 0,
+        maxCol: 7,
+      }),
+    });
+
+    expect(leaf.getCornerCells({})).toHaveLength(4);
+    expect(collectBoardCoordinates).toHaveBeenCalledTimes(2);
+  });
+
   test("keeps rectangular corners and meteor-hole effective boundaries fixture-equivalent", () => {
     const leaf = createBoardCorners({
       toBoardCellKey: SharedBoardUtils.toBoardCellKey,

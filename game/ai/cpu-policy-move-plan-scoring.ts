@@ -5,6 +5,7 @@ import type {
     CpuPolicyPlacementFeatures,
     CpuPolicyPosition
 } from './cpu-policy-core-types';
+import { createBoardMoveIdentity } from '../../shared/board/move-codec';
 
 type CpuPolicyMovePlanProfile = Record<string, string | number>;
 
@@ -64,6 +65,31 @@ function fallbackEdgeRunSummary(): CpuPolicyEdgeRunSummary {
 
 function fallbackRiskCounts(): { x: number; c: number } {
     return { x: 0, c: 0 };
+}
+
+function resolvePrecomputedPlacementFeatures(
+    move: CpuPolicyMove,
+    context: Record<string, unknown>,
+    board: CpuPolicyBoard | null,
+    playerValue: number
+): CpuPolicyPlacementFeatures | null {
+    const features = context.precomputedPlacementFeatures;
+    if (!features || typeof features !== 'object' || !board) return null;
+    if (context.precomputedPlacementFeaturesBoard !== board) return null;
+    if (context.precomputedPlacementFeaturesBoardBonusByCell !== context.boardBonusByCell) return null;
+    if (context.precomputedPlacementFeaturesBoardBonusConsumedByCell !== context.boardBonusConsumedByCell) return null;
+    if (context.precomputedPlacementFeaturesMoveIdentity !== createBoardMoveIdentity(move)) return null;
+    const candidate = features as CpuPolicyPlacementFeatures;
+    const flipCount = Array.isArray(move.flips) ? move.flips.length : 0;
+    if (
+        Number(candidate.row) !== Number(move && move.row) ||
+        Number(candidate.col) !== Number(move && move.col) ||
+        Number(candidate.playerValue) !== playerValue ||
+        Number(candidate.flipCount) !== flipCount
+    ) {
+        return null;
+    }
+    return candidate;
 }
 
 function resolveMovePlanProfile(
@@ -214,7 +240,12 @@ export function createCpuPolicyMovePlanScoring(deps?: CpuPolicyMovePlanScoringDe
         const oppMoves = getLegalMovesBasic(after, -playerValue);
         const ownMovesAfter = getLegalMovesBasic(after, playerValue);
         const ownCornerRepliesAfter = countCornerMovesFor(after, playerValue);
-        const placementFeatures = evaluatePlacementCandidate(move, Object.assign({}, ctx, {
+        const placementFeatures = resolvePrecomputedPlacementFeatures(
+            move,
+            ctx,
+            board,
+            playerValue
+        ) || evaluatePlacementCandidate(move, Object.assign({}, ctx, {
             board,
             playerValue,
             level

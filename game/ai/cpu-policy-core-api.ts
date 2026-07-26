@@ -8,6 +8,7 @@ const REQUIRED_CPU_POLICY_FUNCTIONS: Array<keyof CpuPolicyCoreApi> = [
     'chooseSellCardTargetByRetention',
     'chooseMoveByLookahead',
     'chooseMove',
+    'applyMoveToBoard',
     'computeLegalMoveMetrics',
     'createExpectedCandidateScoringRequest',
     'getMovePlanProfileForCardType',
