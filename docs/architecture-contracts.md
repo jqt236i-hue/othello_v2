@@ -181,6 +181,13 @@ Resolved training profiles must expose enough structure that launchers and downs
 
 Compatibility fallbacks may temporarily exist while migrating older scripts, but newly added launcher/runtime logic should consume the structured resolved payload first.
 
+Selfplay analysis settings are also part of this stable contract:
+
+- `tacticalSearchNodeBudget` is one deterministic node ceiling normalized consistently across top-level, per-player, direct, and batch execution; invalid or coercive values must not silently change search width
+- explicit `enableTacticalLookahead: false`, `tacticalWeight: 0`, and a zero node budget remain disabled through every option layer
+- teacher committee score/vote/consensus data must affect the selected maximum-`finalScore` candidate when enabled, not be recorded as diagnostics while a different candidate is played
+- Python trainer resume requires a checkpoint payload with `formatVersion === 1`, `model_state`, and the same declared `boardInputContract`
+
 For gate/promotion bundle handling, the contract is:
 
 - iteration candidate artifacts come from the current iteration outputs
@@ -222,6 +229,9 @@ It owns the board array, current player, turn number, and other pure progression
 - A named shape such as `circle` is an initializer for base coordinates only. After initialization, card rules and presentation must derive behavior from the current topology and must not branch on the original shape name.
 - `shared/board/` owns the pure board kernel. It builds one immutable board view from base coordinates, expansion descriptors, and hole markers. The view owns `BoardTopology`, coordinate/owner lookup, counts, flips, legal moves, canonical ordering, validation, and a versioned content digest. It distinguishes existing, playable, hole, void, base, and expansion coordinates and derives current/render/candidate bounds plus boundary edges.
 - Topology-sensitive APIs require the complete `{ gameState, cardState }` source. A board-array-only API is explicitly dense-only and must reject shape-aware use; it must not recover expansion or hole context from an out-of-band registration.
+- `SharedBoardUtils.createBoardContext(gameState, cardState)` is the explicit carrier for that complete source. CPU, selfplay, and quiescence search project it once into the branded `BoardSearchContext`; its public board, topology, coordinates, and expansion descriptors are immutable snapshots, while owner mutation is private to the board-search module. Search clones may share the immutable topology identity, but never mutable owner state, and every owner change must pass one validated all-or-nothing update API.
+- A matrix/shape DTO used to reconstruct `BoardSearchContext` is untrusted input; the branded context itself contains module-private state and is not a transport object. Rehydration is fail-closed: it accepts only bounded, non-sparse rectangular matrices; exact owner values; bounded canonical coordinate keys; disjoint playable/hole sets; exact expansion descriptor-to-owner parity; and bounds derived exactly from the accepted coordinates. It must not consume caller-supplied derived topology objects, permissive numeric coercions, custom array iterators, or unbounded iterable/object materialization.
+- Models declaring `standard_dense_8x8.v1` accept only an exact zero-origin 8×8 dense board whose 64 owners are valid and whose canonical board envelope equals that board. Current trainers produce and resume only that contract. Expansion, holes, circle voids, out-of-range/non-integer candidates, and direction-aware expansion pending targets remain on the topology-aware table/heuristic path. Runtime `boardInputContract` metadata overrides legacy padded/action-space hints. Contract-less legacy padded artifacts retain only their bounded compatibility lane; unsupported input still fails closed rather than being clipped or partially encoded.
 - Flip/legal-move callers pass pure blocked/protected/permanent-protected coordinate constraints into the kernel. Interpreting card markers as those constraints remains a headless game-layer responsibility.
 - Board owner/shape mutations use state-level kernel operations. Expansion addition and hole removal/restoration validate the complete change before committing base owner, expansion owner, stone identity, related markers, and hole markers. A partial mutation must not be reported as success.
 - Canonical cell identity is `(row, col)`. Expansion `side` and legacy single-cell fields are non-authority projections. When `boardExpansion.cells` exists, including an empty array, it is authoritative; unversioned legacy fields are read only when the property itself is absent.

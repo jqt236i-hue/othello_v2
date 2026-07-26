@@ -1,6 +1,6 @@
 # 拡張マスを含む単一盤面カーネルへの統合設計
 
-- Status: approved for implementation
+- Status: completed and verified
 - Date: 2026-07-26
 - Scope: 盤面拡張・拡張マスを扱う game / CPU / selfplay / Worker / local server / UI / network snapshot
 - Player-visible source of truth: `01-rulebook.md`、`正本/カード仕様正本.md`
@@ -21,7 +21,7 @@
 
 これは盤面データを二重化する `BoardStateV2` 追加ではない。既存 state を一回で完全置換すると、ゲーム、保存、Worker、学習データ、browser bootstrap を同時に二重書きする期間が生まれ、新しい不整合源になる。既存の一つの transport 表現へ単一カーネルを被せ、consumer を順次同じ API へ移す方が、仕様を変えず根因を除去できる。
 
-## 2. 現状の根本原因
+## 2. 実装前の根本原因
 
 ### 2.1 論理盤面と型が一致していない
 
@@ -161,6 +161,12 @@ cache entry は完全な source tuple と、盤面形状へ影響する値から
 
 `BOARD_SHAPE_META_KEY` と `__sharedBoardShapeMeta` は production API から削除する。
 
+### 4.5 探索用 compact state と入力境界
+
+CPU、selfplay、quiescence Worker は canonical `BoardContext` を探索ノードごとに再解釈せず、入口で一度だけ branded `BoardSearchContext` へ投影する。公開される board、topology、座標、拡張 descriptor は immutable snapshot とし、探索中の owner は module-private `WeakMap` に保持する。clone は immutable topology を共有できるが owner state は分離し、更新は全件検証後に一括 commit する。
+
+Worker DTO や構造化 clone 後の値は信用しない。復元時は、非空・非疎・有界な長方形 matrix、正確な owner 値、canonical coordinate key、playable/hole の非重複、拡張 descriptor と owner map の完全一致、座標から導出した厳密な bounds を検証する。配列の custom iterator、無制限 iterable、caller supplied topology、数値 coercion で制限を迂回できない。全穴の終局盤面は有効だが、存在座標自体が空の topology は拒否する。
+
 ## 5. runtime ごとの統合
 
 ### 5.1 headless game / cards
@@ -177,6 +183,10 @@ cache entry は完全な source tuple と、盤面形状へ影響する値から
 - 標準 dense board の高速化が必要な場合も、カーネルが `standardDense === true` と証明した内部最適化としてだけ使用する。consumer が `OthelloCore` を先に選ばない。
 - quiescence request は `boardShape` を明示的に serialize する。Worker は request から view を再構築し、隠し property を復元しない。
 - root CPU、selfplay、専用 Worker は同じ fixture に対し、合法手・評価対象座標・石数が一致する parity test を持つ。
+- selfplay の tactical search は `tacticalSearchNodeBudget` で direct/batch/per-player の全経路を同じ有界 budget にし、明示 `false` と `tacticalWeight: 0` を保持する。teacher committee を有効にした場合は、記録だけでなく最大 `finalScore` 候補を実際の選択へ反映する。
+- 現行 trainer が生成・再開する ONNX 盤面入力は `standard_dense_8x8.v1` に固定する。宣言済みモデルは zero-origin の完全な8×8盤面、正しい owner、0..7 の整数候補だけを受理し、拡張、穴、circle void、padded first ring は全体を非対応として table / heuristic の canonical 経路へ fail-closed する。runtime `boardInputContract` は旧 `paddedBoardSize` や action-space metadata より優先する。contract を持たない既存 padded artifact のみ、有界な後方互換 lane を維持する。
+- pending-target ONNX は coordinate-only head で一意に表現できる種類だけを対象にする。`directionKey` を識別子に含む盤面拡張系 pending は学習・live override の両方から除外し、direction-aware heuristic に委譲する。selfplay record は `directionKey`、`side`、`additions` を失わない。
+- Python trainer の resume checkpoint は payload、`formatVersion === 1`、`model_state`、同一 `boardInputContract` を必須にする。異なる盤面契約の重みを黙って継続学習しない。
 
 ### 5.3 Worker / local server / network
 
@@ -232,7 +242,7 @@ cache entry は完全な source tuple と、盤面形状へ影響する値から
 
 `BoardView` は一度の座標走査で topology、owner map、counts、digest を構築し、同一 view の反転・合法手で再利用する。WeakMap cache は同じ完全source signatureの view 再構築を省く。
 
-標準 8x8 の legal moves は最大64座標×8方向であり、正しさ優先の sparse 実装でも十分小さい。性能 harness で既存予算を確認し、必要ならカーネル内部だけに dense fast path を追加する。
+標準 8x8 の legal moves は最大64座標×8方向である。探索では compact state を一度投影し、immutable topology を clone 間で共有して、canonical source の再正規化をノードごとに繰り返さない。selfplay adoption focused suite は最終実装で約104秒となり、統合直後の約1,480秒から約14倍短縮しつつ plan-score 選択意味論を維持した。性能最適化はこの内部表現に閉じ、consumer 側へ dense shortcut を戻さない。
 
 ### 7.4 並行性
 
@@ -253,6 +263,8 @@ view は immutable snapshot とし、mutation helper 実行後に古い view を
 7. focused、property、parity、network、browser、全体検証を通し、生成物と mirror を正規生成する。
 
 各段階で旧 state 形式は変わらないため、二重書きの中間状態を作らない。
+
+最終 cutover では `shared/board/shape-metadata.ts` と `attachBoardShape` facade を削除し、`SharedBoardUtils.createBoardContext(gameState, cardState)` を shape-aware API の明示的な carrier とした。raw board array API は dense 専用であり、拡張・穴・円形の文脈を外部登録から復元しない。新規の迂回は `checkall` 配下の board-kernel boundary guard が拒否する。
 
 ## 9. 回帰防止テスト
 
@@ -320,3 +332,9 @@ seed 固定の生成器で長方形・円形、負座標、複数周、疎な拡
 - `_meta.boardContractVersion` と既存 `stateVersion` を分離
 - classic/Worker preload順、円形envelope内void、legacy空cells、side非authorityを明文化
 - 必須commandと重大fixtureを完了条件へ固定
+
+## 13. 実装結果
+
+2026-07-26 に全 consumer の cutover、静的 boundary guard、snapshot/Worker/runtime parity、UI stale-input protection、compact search state、標準8×8 ONNX契約まで完了した。player-visible rule、カード説明、演出順、network authority、Single Visual Writer は変更していない。
+
+最終状態では hidden board metadata と topology-aware fallback の並行実装を削除し、不正な盤面 DTO、部分更新、範囲外 model input、direction を失う pending target、契約違い checkpoint をすべて fail-closed にした。検証コマンドと結果は `board-kernel-hardening-plan.md` の完了記録を正本とする。

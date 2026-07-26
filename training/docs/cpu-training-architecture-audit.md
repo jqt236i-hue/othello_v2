@@ -3,6 +3,7 @@
 **Date**: 2025-07-17  
 **Scope**: Read-only. Live CPU (Lv.6) ↔ selfplay data generation ↔ Python training ↔ ONNX inference alignment.  
 **Status**: Observation only. No code changes.
+**Contract revision**: 2026-07-26 — board input and pending-target corrections recorded below.
 
 ---
 
@@ -43,14 +44,16 @@ This is **not** a float vector — it is a human-readable snapshot. The Python t
 
 ### 2.2 What Python training consumes
 
-`feature_vector()` in train_policy_onnx.py reads the **same named fields** from each NDJSON record and constructs a Float32 vector:
-- Board: 100 floats (10×10 padded, perspective-encoded: +1 own, −1 opponent, 0 empty)
+`feature_vector()` in train_policy_onnx.py reads the **same named fields** from each accepted NDJSON record and constructs a Float32 vector:
+- Board: the exact zero-origin standard 8×8 board, perspective-encoded as +1 own / −1 opponent / 0 empty into the legacy 100-float tensor layout
 - 16 scalar features (legalMoves/60, discDiff/64, charges/CHARGE_MAX, deckCount/60, pendingFlag, corners/4, edges/24, binary flags)
 - Card features: 2 × N_card_types (hand counts / MAX_HAND_SIZE, usability mask)
 
+The logical input gate is `standard_dense_8x8.v1`: `boardEnvelope` is authoritative, `board` must be the same 8×8 matrix, origins must be zero, and every cell must be exactly `B`, `W`, or `.`. The 100-float tensor/output index shape is retained only for model compatibility; it does not authorize padded or expanded training records.
+
 ### 2.3 What live CPU inference produces
 
-`buildInputVector()` in policy-onnx-runtime.js:812 constructs the **same float vector layout** from a context object built by `buildOnnxContext()`.
+`buildInputVector()` in policy-onnx-runtime.js constructs the **same float vector layout** from a context object built by `buildOnnxContext()`. Before encoding, live inference validates the complete raw dense board or `BoardContext`, all 64 owners, and every candidate/pending target against the same `standard_dense_8x8.v1` contract.
 
 ### 2.4 Alignment verdict
 
@@ -102,7 +105,11 @@ This is standard **behavioural cloning / bootstrapping**: the model learns to im
 
 ### 3.3 Expanded board handling
 
-Both paths delegate to `SharedBoardUtils.attachBoardShape()` for non-8×8 boards (expansion cards). The padded 10×10 encoding in Python handles this via `boardEnvelope` + `boardMinRow`/`boardMinCol`. The JS side uses `resolveBoardFeatureDim()` which reads `modelMeta` to choose 64 (legacy) or 100 (padded). **No divergence found.**
+> **2026-07-26 correction:** The original audit statement below no longer describes the runtime contract. Live CPU and selfplay now carry the complete board through an explicit `BoardContext`; `attachBoardShape()` has been removed.
+
+Models declaring `standard_dense_8x8.v1` are standard-board-only. Current Python trainers produce and resume only that contract: an exact zero-origin dense 8×8 board with no expansion cells, holes, circle voids, padding, or invalid owners. Any non-standard topology rejects the entire model context and falls back to the topology-aware table / heuristic path; cells are never silently clipped. Runtime `boardInputContract` metadata is authoritative over legacy padded-size/action-space hints. Contract-less legacy padded artifacts retain a bounded compatibility lane, but current trainers neither produce nor resume that contract.
+
+Trainer resume is equally strict: a checkpoint must be a payload with `formatVersion === 1`, `model_state`, and the same `boardInputContract`. A legacy or differently contracted checkpoint cannot be resumed silently.
 
 ---
 
@@ -114,13 +121,15 @@ Both paths delegate to `SharedBoardUtils.attachBoardShape()` for non-8×8 boards
 
 `PendingTargetSelector` contains 24+ card-type-specific heuristic selectors that choose target cells, hand indices, or offer cards. Failure falls back to `cancel_card` with cost refund.
 
-Records are written via `buildPendingSelectionRecord()` (line 542): captures `kind` (board_cell / hand_index / offer_card), `pendingType`, `row`/`col`.
+Records are written via `buildPendingSelectionRecord()`: they capture `kind` (board_cell / hand_index / offer_card), `pendingType`, and board-cell `row`/`col`; when present, `directionKey`, `side`, and `additions` are preserved as well.
 
 ### 4.2 Live CPU path
 
 `processCpuTurn()` in cpu-turn-handler.js: checks `pendingEffectByPlayer[playerKey]` and dispatches to 25+ card-specific `cpuSelectXXX` functions.
 
 If ONNX target model is available, `choosePendingTarget()` in policy-onnx-runtime.js can override heuristic selection.
+
+Coordinate-only target logits cannot identify expansion sockets that share `(row, col)` and differ by `directionKey`. The live CPU therefore bypasses ONNX for direction-aware expansion pending types, and the target trainer excludes those records. Their `directionKey`, `side`, and `additions` remain in selfplay metadata for the canonical heuristic path.
 
 ### 4.3 Alignment assessment
 
@@ -129,6 +138,7 @@ If ONNX target model is available, `choosePendingTarget()` in policy-onnx-runtim
 | Pending types covered | ✅ Both paths handle 25+ card types |
 | Selection logic | ⚠️ Selfplay uses heuristic selectors; live CPU can use ONNX target model |
 | Target record schema | ✅ `pendingSelection.kind`, `row`, `col` match Python's `board_cell_index_for_record()` |
+| Direction-aware expansion targets | ✅ Retained in records and intentionally routed to heuristic selection |
 | Cancel/refund handling | ✅ Both paths refund on failure |
 
 **Gap:** The ONNX target model is trained on heuristic selector decisions. When deployed, it may diverge from the teacher. This is expected bootstrapping behaviour, but means the target model's quality is bounded by the heuristic selector's quality in the current iteration's training data.
@@ -185,7 +195,7 @@ Training applies outcome-based weighting:
 
 ### 6.3 Teacher solution schema
 
-`export-teacher-solutions.js` wraps selfplay runner with `teacherCommitteeSize` and `tacticalVerificationDepth` for higher-quality labels. Solutions use same `buildActorViewSnapshot()` → NDJSON format. No schema divergence from regular selfplay records.
+`export-teacher-solutions.js` converts existing hardcase NDJSON into teacher-solution records. Committee and tactical evaluation occur upstream in selfplay: `teacherCommitteeWeight`, consensus bonus, and the deterministic `tacticalSearchNodeBudget` contribute to `finalScore`, and score/vote/budget metrics are retained in the record. When committee scoring is enabled, the maximum-`finalScore` candidate is the action actually selected. Solutions use the same `buildActorViewSnapshot()`-based NDJSON schema, so there is no alternate board representation.
 
 ### 6.4 Board canonicalization
 
@@ -282,7 +292,7 @@ Correlate the 14/45 quality dimensions with actual win rate improvements across 
 
 ### 9.6 Pending target model coverage (Low priority)
 
-Measure per-card-type record counts in training data. Ensure rare pending types (low-frequency cards) have sufficient representation. Consider upsampling or targeted selfplay with forced card draws for underrepresented types.
+Measure per-card-type record counts in training data. Ensure rare coordinate-only pending types (low-frequency cards) have sufficient representation. Direction-aware expansion pending types are intentionally outside the coordinate-only target model and should be evaluated on the heuristic lane instead. Consider upsampling or targeted selfplay with forced card draws for underrepresented supported types.
 
 ---
 

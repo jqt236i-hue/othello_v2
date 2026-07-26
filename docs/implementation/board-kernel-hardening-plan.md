@@ -1,9 +1,9 @@
 # 拡張マスを含む単一盤面カーネルへの統合 実装計画
 
-- Status: in progress
+- Status: completed and verified
 - Date: 2026-07-26
 - Design: `docs/implementation/board-kernel-hardening-design.md`
-- Deployment: 対象外。Phase 1〜8完了前の状態は非deployable
+- Deployment: 対象外。実装・検証は完了し、本タスクではdeployしていない。
 
 ## Phase 0 — 正本・baseline・変更境界を固定
 
@@ -24,7 +24,7 @@ Outcome: 完全sourceから一つのimmutable `BoardView` を構築し、拡張�
 Components:
 
 - `shared/board/state-kernel.ts`（新規）
-- `shared/board/shape-metadata.ts`
+- `shared/board/shape-metadata.ts`（移行中のみ。最終cutoverで削除）
 - `shared/board/cell-access.ts`
 - `shared/board/topology.ts`
 - `shared/board/legal-moves.ts`
@@ -111,6 +111,13 @@ Tasks:
 - [x] quiescence DTOからhidden metadata復元を削除する。
 - [x] Worker runtimeがpure kernelを直接組み立て、rootと同じcontractを使う。
 - [x] selfplayのowner読取、角/辺、簡易評価から固定8x8を除去する。
+- [x] canonical `BoardContext` を入口で一度だけcompactな `BoardSearchContext` へ投影し、immutable topology共有とowner分離cloneを実装する。
+- [x] matrix/shape DTOを有界・非疎・owner厳格・descriptor parity・derived bounds一致で復元し、caller topologyやcustom iteratorを信用しない。
+- [x] selfplay tactical searchを `tacticalSearchNodeBudget` で全option経路にわたり決定的に制限し、明示無効化とplan-score意味論を維持する。
+- [x] teacher committeeの最大 `finalScore` 候補を診断記録だけでなく実際の選択へ反映する。
+- [x] 現行trainerと宣言済みlive modelを `standard_dense_8x8.v1` に固定し、非標準topologyは全体をcanonical table / heuristicへfail-closedする。contract-less legacy padded artifactだけは有界な互換laneを維持する。
+- [x] direction-awareな盤面拡張pendingをcoordinate-only ONNXから除外し、`directionKey` / `side` / `additions` をrecordへ保持する。
+- [x] trainer resumeでcheckpoint payload、整数の `formatVersion === 1`、`model_state`、同一board contractを必須にする。
 - [x] root/CPU/selfplay/Worker parity fixtureを追加する。
 
 Verification:
@@ -184,7 +191,7 @@ Tasks:
 - [x] state adapterとDOM rendererの1周fallbackを削除する。
 - [x] DOM compatibilityは完成modelを唯一の入力とし、逆変換を残す場合もkernelでroundtrip検証して局所geometryを持たせない。
 - [x] Pixi/DOMのSingle Visual Writer、event順、settlementを維持する。
-- [ ] 全consumer parity後の単一cutoverでboard-only shape登録/互換adapterを削除し、board-only APIをdense専用へ固定する。
+- [x] 全consumer parity後の単一cutoverでboard-only shape登録/互換adapterを削除し、board-only APIをdense専用へ固定する。
 
 Verification:
 
@@ -208,11 +215,11 @@ Components:
 
 Tasks:
 
-- [ ] TypeScript ASTでproduction sourceを検査する。
-- [ ] hidden metadata、consumer dense-first legal move、authority dense count、UI descriptor再構築、固定外周fallbackを禁止する。
-- [ ] dense初期化/encoding/tensor化だけをpurpose付きallowlistへ置く。
-- [ ] allowlist件数上限とnegative fixture testを追加する。
-- [ ] `checkall`へ組み込む。
+- [x] TypeScript ASTでproduction sourceを検査する。
+- [x] hidden metadata、consumer dense-first legal move、authority dense count、UI descriptor再構築、固定外周fallbackを禁止する。
+- [x] dense初期化/encoding/tensor化だけをpurpose付きallowlistへ置く。
+- [x] allowlist件数上限とnegative fixture testを追加する。
+- [x] `checkall`へ組み込む。
 
 Verification:
 
@@ -228,14 +235,16 @@ Outcome: root source、classic/Vite browser、Worker mirrorが同じkernelとcon
 
 Tasks:
 
-- [ ] focused test後に `npm run build:browser` を実行する。
-- [ ] `npm run match:ui-control-smoke:classic` を実行する。
-- [ ] `npm run build:vite` を実行する。
-- [ ] `npm run match:cross-platform-smoke:vite` を実行する。
-- [ ] `npm run match:pixijs-board-playback-check` を実行する。
-- [ ] `npm run match:pixi-runtime-fallback-check` を実行する。
-- [ ] `npm run worker:prepare` でmirrorを生成する。
-- [ ] `npm run check:worker-mirror` と `npm run worker:bundle:smoke` を実行する。
+- [x] font生成は対象外であることを確認する（表示文言・font source corpus・font生成物の変更なし）。
+- [x] focused test後に `npm run build:browser` を実行する。
+- [x] `node dist/scripts/check-browser-build-up-to-date.js` で実行可能なfreshness checkを通す。
+- [x] `npm run match:ui-control-smoke:classic` を実行する。
+- [x] `npm run build:vite` を実行する。
+- [x] `npm run match:cross-platform-smoke:vite` を実行する。
+- [x] `npm run match:pixijs-board-playback-check` を実行する。
+- [x] `npm run match:pixi-runtime-fallback-check` を実行する。
+- [x] `npm run worker:prepare` でmirrorを生成する。
+- [x] `npm run check:worker-mirror` と `npm run worker:bundle:smoke` を実行する。
 
 Done when: classic/Vite/Pixi/DOM fallback/Workerのboot、表示、入力、playbackが成功し、root/mirror差分が正規生成物だけである。
 
@@ -243,14 +252,14 @@ Done when: classic/Vite/Pixi/DOM fallback/Workerのboot、表示、入力、play
 
 Tasks:
 
-- [ ] `docs/architecture-contracts.md` 6.1.1と最終実装の整合を再確認する。
-- [ ] `npm run typecheck` を実行する。
-- [ ] `npm run check:window`、`npm run checkall` を実行する。
-- [ ] `npm run test:network:parity` を再実行する。
-- [ ] `npm run test:jest` を実行する。
-- [ ] `git diff --check`、task-owned diff、生成/mirror差分を監査する。
-- [ ] 計画・設計のStatusと検証結果を更新する。
-- [ ] 検証済みのcoherent unitごとにtask-owned fileだけをcommitする。
+- [x] `docs/architecture-contracts.md` 6.1.1と最終実装の整合を再確認する。
+- [x] `npm run typecheck` を実行する。
+- [x] `npm run check:window`、`npm run checkall` を実行する。
+- [x] `npm run test:network:parity` を再実行する。
+- [x] `npm run test:jest` を実行する。
+- [x] `git diff --check`、task-owned diff、生成/mirror差分を監査する。
+- [x] 計画・設計のStatusと検証結果を更新する。
+- [x] 検証済みのcoherent unitごとにtask-owned fileだけをcommitする。
 
 Done when: 設計の完了条件がすべて満たされ、既知の未移行topology pathや未解決テスト失敗がなく、作業ツリーの状態を説明できる。
 
@@ -263,3 +272,20 @@ Done when: 設計の完了条件がすべて満たされ、既知の未移行top
 - authority/client、Worker/local、root/CPU/selfplay、Pixi/DOMをそれぞれparity pairとして検証する。
 - 生成物はroot sourceのfocused/full検証後に正規scriptだけで更新する。
 - 長時間のtrainingは実行せず、今回のcorrectness変更に必要な軽量selfplay testだけを使う。
+
+## 完了時の検証記録
+
+- focused最終回帰: 6 suites / 102 tests pass
+- board-kernel boundary guard: 1 suite / 31 tests pass、`npm run check:board-kernel-boundary` pass
+- network parity: 35 suites / 562 tests pass
+- 全 Jest: 998 suites / 7,229 tests pass、1,029.279秒
+- selfplay重点性能: policy adoption 21 tests pass（全Jest内94.065秒）、benchmark policy 221.504秒
+- TypeScript: `npm run typecheck`（root + training）pass
+- 静的検査: `npm run checkall` pass（window/dependency/boundary/selector/freshness/asset/mirror/JS inventoryを含む）
+- browser生成: `npm run build:browser` pass（1,052 modules）、freshness check pass、`npm run build:vite` pass（既知のchunk-size warningのみ）
+- browser実機: classic UI control smoke pass、Chromium/Firefox/WebKit × desktop/mobile × Pixi/DOMの12 probes pass
+- 盤面表示: Pixi playback 12 reports / 208 scenarios pass、Pixi runtime fallbackのclassic/Vite/unsafe-eval/software各経路 pass
+- Worker: `npm run worker:prepare` pass（925 files）、mirror check pass、bundle smoke pass
+- Python trainer: 対象7ファイルのcompile pass
+- font生成: 表示文言・font source corpus・font生成物を変更していないため対象外
+- deploy: 対象外。本タスクでは実施していない

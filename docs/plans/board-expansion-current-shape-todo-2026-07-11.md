@@ -2,14 +2,21 @@
 
 **作成日**: 2026-07-11
 **対象**: `盤面拡張`, `盤面拡張神`, playable shape, 穴マス由来の疑似辺・疑似角
-**状態**: 完了（2026-07-11）
+**状態**: 完了・後継化（2026-07-26）
 **実装単位**: Phase 1（現在のベース盤面＋外周1マス範囲内での汎用化）
 
 ---
 
+> **後継文書:** この本文は2026-07-11時点のPhase 1実装記録である。現在の契約は
+> `docs/implementation/board-kernel-hardening-design.md`、
+> `docs/implementation/board-kernel-hardening-plan.md`、
+> `docs/architecture-contracts.md` §6.1.1を参照すること。
+> 本文中の `attachBoardShape`、`shape-metadata.ts`、外周1マス制限は現行実装ではなく、
+> 現在は明示的な `BoardContext` / `BoardView` と段階的な多重拡張を使用する。
+
 ## 0. この文書の位置づけ
 
-- この文書は、固定されたベース盤面の左右端・4角に依存している `盤面拡張` / `盤面拡張神` を、現在の playable shape から候補生成する仕組みへ移行するための実行可能な TODO である。
+- この文書は完了済み Phase 1 の歴史記録であり、現行実装手順ではない。現在の `BoardContext` / `BoardView` / `BoardSearchContext` 契約と実装手順は、冒頭の後継文書に従う。
 - プレイヤー向け仕様の一次情報は `01-rulebook.md`、カード挙動の正本は `正本/カード仕様正本.md`、内部境界は `docs/architecture-contracts.md` である。
 - この文書自体はゲーム仕様の正本ではない。実装開始時は最初に一次仕様と正本を更新し、それからコードを変更する。
 - headless / browser / local network server / Worker で同じ候補・同じ追加座標を得ることを完了条件とする。
