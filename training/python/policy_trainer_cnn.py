@@ -123,6 +123,7 @@ class DatasetBundle:
     loser_records: int
     draw_records: int
     tactical_miss_records: int
+    board_input_filter: dict[str, Any]
 
 
 @dataclass
@@ -196,19 +197,6 @@ def parse_args(profile: PolicyTrainerCompatibilityProfile = V2_COMPATIBILITY_PRO
             help="Board history length T. Use 1 to disable history input (default: 1).",
         )
     return p.parse_args()
-
-
-def parse_board(board: str) -> list[list[str]]:
-    if not board:
-        return []
-    return [list(r) for r in board.split("/")]
-
-
-def safe_int(value: object, default: int = 0) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return int(default)
 
 
 def safe_float(value: object, default: float = 0.0) -> float:
@@ -306,15 +294,9 @@ def build_board_tensor(rec: dict) -> list[list[list[float]]]:
     Channel 3 = edge mask (1.0 at non-corner edge cells)
     Channel 4 = empty mask (1.0 at empty cells)
     """
-    board_envelope = rec.get("boardEnvelope")
-    if isinstance(board_envelope, str) and board_envelope.strip():
-        rows = parse_board(board_envelope.strip())
-        board_min_row = safe_int(rec.get("boardMinRow"), 0)
-        board_min_col = safe_int(rec.get("boardMinCol"), 0)
-    else:
-        rows = parse_board(str(rec.get("board", "")))
-        board_min_row = 0
-        board_min_col = 0
+    rows = trainer_common.require_standard_dense_board_record(rec)
+    board_min_row = 0
+    board_min_col = 0
 
     player = normalized_player(rec.get("player"))
     own_char = "B" if player == "black" else "W"
@@ -378,7 +360,13 @@ def build_board_tensor_with_history(rec: dict, history_length: int = 8) -> list[
         if not isinstance(board_str, str):
             continue
         # Create a mock record with just the board field
-        mock_rec = {"board": board_str, "player": rec.get("player", "white")}
+        mock_rec = {
+            "board": board_str,
+            "boardEnvelope": board_str,
+            "boardMinRow": 0,
+            "boardMinCol": 0,
+            "player": rec.get("player", "white"),
+        }
         tensor = build_board_tensor(mock_rec)
         history_tensors.append(tensor)
 
@@ -671,6 +659,7 @@ def load_dataset(
     loser_records = 0
     draw_records = 0
     tactical_miss_records = 0
+    board_input_diagnostics = trainer_common.BoardInputFilterDiagnostics()
 
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
@@ -679,6 +668,8 @@ def load_dataset(
                 continue
             records_read += 1
             rec = json.loads(line)
+            if not board_input_diagnostics.inspect(rec).accepted:
+                continue
             place_t = place_target_index(rec)
             card_t = card_target_index(rec)
             if place_t is None and card_t is None:
@@ -729,7 +720,10 @@ def load_dataset(
                 pass
 
     if train_records <= 0:
-        raise ValueError("no training records were found in input data")
+        trainer_common.raise_no_training_records(
+            "no training records were found in input data",
+            board_input_diagnostics,
+        )
 
     x_board_tensor = torch.tensor(x_boards, dtype=torch.float32)
     x_aux_tensor = torch.tensor(x_auxs, dtype=torch.float32)
@@ -762,6 +756,7 @@ def load_dataset(
         loser_records=loser_records,
         draw_records=draw_records,
         tactical_miss_records=tactical_miss_records,
+        board_input_filter=board_input_diagnostics.to_meta(),
     )
 
 
@@ -900,6 +895,7 @@ def train_model(
 
     resumed_from = trainer_common.apply_resume_checkpoint(
         "train_policy_onnx_v2", model, opt, resume_checkpoint, resume_optimizer, device,
+        expected_board_input_contract=trainer_common.BOARD_INPUT_CONTRACT_SCHEMA,
     )
 
     train_idx, val_idx, split_summary = trainer_common.resolve_train_val_split(
@@ -1446,6 +1442,7 @@ def write_meta(
         "actionSpace": "place_padded10+card_choice",
         "cardActionIds": CARD_ACTION_IDS,
         "cardDecisionKinds": ["keep", "use", "destroy", "sell"],
+        **trainer_common.build_board_input_contract_meta(),
         **trainer_common.build_deck_count_feature_meta(),
         "featureSpec": feature_spec,
         "training": training,
@@ -1458,6 +1455,7 @@ def write_meta(
             "loserRecords": data.loser_records,
             "drawRecords": data.draw_records,
             "tacticalMissRecords": data.tactical_miss_records,
+            "boardInputFilter": data.board_input_filter,
             "trainAccuracy": train_summary.overall_acc,
             "trainPlaceAccuracy": train_summary.place_acc,
             "trainCardAccuracy": train_summary.card_acc,
@@ -1570,6 +1568,7 @@ def main(profile: PolicyTrainerCompatibilityProfile = V2_COMPATIBILITY_PROFILE) 
                 "placeOutputDim": PLACE_OUTPUT_DIM,
                 "cardOutputDim": CARD_ACTION_DIM,
                 "cardActionIds": CARD_ACTION_IDS,
+                **trainer_common.build_board_input_contract_meta(),
                 **trainer_common.build_deck_count_feature_meta(),
             },
             ckpt_training,
@@ -1582,6 +1581,7 @@ def main(profile: PolicyTrainerCompatibilityProfile = V2_COMPATIBILITY_PROFILE) 
                 "loserRecords": int(data.loser_records),
                 "drawRecords": int(data.draw_records),
                 "tacticalMissRecords": int(data.tactical_miss_records),
+                "boardInputFilter": data.board_input_filter,
                 "trainAccuracy": float(train_summary.overall_acc),
                 "trainPlaceAccuracy": float(train_summary.place_acc),
                 "trainCardAccuracy": float(train_summary.card_acc) if train_summary.card_acc is not None else None,
@@ -1595,12 +1595,19 @@ def main(profile: PolicyTrainerCompatibilityProfile = V2_COMPATIBILITY_PROFILE) 
 
     if args.policy_table_out:
         policy_table._TRAINING_CONTEXT["shape_immediate"] = float(args.shape_immediate)
-        table_model = policy_table.train(policy_table.iter_ndjson(args.input), int(args.min_visits))
+        table_model = policy_table.train(
+            trainer_common.iter_standard_dense_board_records(policy_table.iter_ndjson(args.input)),
+            int(args.min_visits),
+        )
         os.makedirs(os.path.dirname(args.policy_table_out) or ".", exist_ok=True)
         with open(args.policy_table_out, "w", encoding="utf-8") as f:
             json.dump(table_model, f, ensure_ascii=False, indent=2)
 
-    print(f"[{profile.completion_label}] done. ONNX={args.onnx_out} meta={meta_out}")
+    print(
+        f"[{profile.completion_label}] done. "
+        f"board_rejected_records={data.board_input_filter['rejectedRecords']} "
+        f"ONNX={args.onnx_out} meta={meta_out}"
+    )
     return 0
 
 

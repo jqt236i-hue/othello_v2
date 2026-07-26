@@ -33,6 +33,7 @@ class ValueDatasetBundle:
     loser_records: int
     draw_records: int
     tactical_miss_records: int
+    board_input_filter: dict[str, Any]
 
 
 @dataclass
@@ -139,6 +140,7 @@ def load_value_dataset(args: argparse.Namespace) -> ValueDatasetBundle:
     loser_records = 0
     draw_records = 0
     tactical_miss_records = 0
+    board_input_diagnostics = trainer_common.BoardInputFilterDiagnostics()
 
     validate_value_target_blend_args(args)
 
@@ -149,6 +151,8 @@ def load_value_dataset(args: argparse.Namespace) -> ValueDatasetBundle:
                 continue
             records_read += 1
             rec = json.loads(line)
+            if not board_input_diagnostics.inspect(rec).accepted:
+                continue
             target = value_target(
                 rec,
                 corner_weight=float(args.value_target_corner_weight),
@@ -193,7 +197,10 @@ def load_value_dataset(args: argparse.Namespace) -> ValueDatasetBundle:
                 pass
 
     if train_records <= 0:
-        raise ValueError("no value training records were found in input data")
+        trainer_common.raise_no_training_records(
+            "no value training records were found in input data",
+            board_input_diagnostics,
+        )
 
     return ValueDatasetBundle(
         x=torch.tensor(xs, dtype=torch.float32),
@@ -206,6 +213,7 @@ def load_value_dataset(args: argparse.Namespace) -> ValueDatasetBundle:
         loser_records=loser_records,
         draw_records=draw_records,
         tactical_miss_records=tactical_miss_records,
+        board_input_filter=board_input_diagnostics.to_meta(),
     )
 
 
@@ -269,6 +277,7 @@ def train_model(
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     resumed_from = trainer_common.apply_resume_checkpoint(
         "train_value_onnx", model, optimizer, resume_checkpoint, resume_optimizer, device,
+        expected_board_input_contract=trainer_common.BOARD_INPUT_CONTRACT_SCHEMA,
     )
 
     train_indices, val_indices, split_summary = trainer_common.resolve_train_val_split(
@@ -447,6 +456,7 @@ def write_meta(
         "boardEnvelopeField": "boardEnvelope",
         "boardMinRowField": "boardMinRow",
         "boardMinColField": "boardMinCol",
+        **trainer_common.build_board_input_contract_meta(),
         "actionSpace": "position_value",
         "cardActionIds": base.CARD_ACTION_IDS,
         "valueRange": [-1, 1],
@@ -460,6 +470,7 @@ def write_meta(
             "loserRecords": data.loser_records,
             "drawRecords": data.draw_records,
             "tacticalMissRecords": data.tactical_miss_records,
+            "boardInputFilter": data.board_input_filter,
             "trainRmse": train_summary.rmse,
             "trainMae": train_summary.mae,
             "trainSignAccuracy": train_summary.sign_acc,
@@ -501,6 +512,7 @@ def maybe_write_checkpoint(
             "paddedBoardMaxCoord": base.PADDED_BOARD_MAX,
             "paddedBoardSize": base.PADDED_BOARD_SIZE,
             "cardActionIds": base.CARD_ACTION_IDS,
+            **trainer_common.build_board_input_contract_meta(),
             **trainer_common.build_deck_count_feature_meta(),
         },
         ckpt_training,
@@ -511,6 +523,7 @@ def maybe_write_checkpoint(
             "loserRecords": int(data.loser_records),
             "drawRecords": int(data.draw_records),
             "tacticalMissRecords": int(data.tactical_miss_records),
+            "boardInputFilter": data.board_input_filter,
             "trainRmse": float(train_summary.rmse),
             "trainMae": float(train_summary.mae),
             "trainSignAccuracy": float(train_summary.sign_acc),
@@ -572,6 +585,7 @@ def main() -> int:
         f"loser_records={data.loser_records} "
         f"draw_records={data.draw_records} "
         f"tactical_miss_records={data.tactical_miss_records} "
+        f"board_rejected_records={data.board_input_filter['rejectedRecords']} "
         f"train_rmse={train_summary.rmse:.4f} "
         f"train_mae={train_summary.mae:.4f} "
         f"train_sign_acc={train_summary.sign_acc:.3f} "

@@ -550,6 +550,145 @@ describe('policy-onnx-runtime', () => {
     expect(session.run.mock.calls[0][0].obs.data.length).toBe(116);
   });
 
+  test('standard board contract overrides legacy padded metadata on every inference entry', async () => {
+    const boardInputContract = { schema: 'standard_dense_8x8.v1' };
+    const placementScores = new Float32Array(100);
+    placementScores[SharedBoardUtils.toPaddedBoardIndex(0, 0)] = 2.5;
+    const placementSession = {
+      run: jest.fn(async () => ({ logits: { data: placementScores } }))
+    };
+    runtime.__setLoadedForTest(placementSession, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      outputName: 'logits',
+      inputDim: 116,
+      baseInputDim: 116,
+      outputDim: 100,
+      paddedBoardSize: 10,
+      actionSpace: 'place_padded10',
+      boardInputContract
+    });
+
+    const targetScores = new Float32Array(100);
+    targetScores[SharedBoardUtils.toPaddedBoardIndex(0, 0)] = 3.5;
+    const targetSession = {
+      run: jest.fn(async () => ({ target_logits: { data: targetScores } }))
+    };
+    runtime.__setTargetModelForTest(targetSession, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      targetOutputName: 'target_logits',
+      inputDim: 117,
+      baseInputDim: 116,
+      outputDim: 100,
+      paddedBoardSize: 10,
+      actionSpace: 'pending_target_padded10',
+      pendingTypes: ['DESTROY_ONE_STONE'],
+      boardInputContract
+    });
+
+    const valueSession = {
+      run: jest.fn(async () => ({ value: { data: new Float32Array([0.75]) } }))
+    };
+    runtime.__setValueModelForTest(valueSession, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      valueOutputName: 'value',
+      inputDim: 116,
+      baseInputDim: 116,
+      paddedBoardSize: 10,
+      actionSpace: 'position_value',
+      boardInputContract
+    });
+
+    const expandedBoard = createRightExpansionBoard([{ row: 0, owner: 0 }]);
+    const candidate = { row: 0, col: 0, flips: [] };
+    const expandedContext = {
+      playerKey: 'white',
+      level: 6,
+      board: expandedBoard,
+      legalMovesCount: 1,
+      pendingType: 'DESTROY_ONE_STONE',
+      candidateMoves: [candidate]
+    };
+
+    await expect(runtime.runInference(expandedContext)).resolves.toBeNull();
+    await expect(runtime.chooseMove([candidate], expandedContext)).resolves.toBeNull();
+    await expect(runtime.choosePendingTarget([candidate], expandedContext)).resolves.toBeNull();
+    await expect(runtime.evaluatePosition(expandedContext)).resolves.toBeNull();
+    expect(placementSession.run).not.toHaveBeenCalled();
+    expect(targetSession.run).not.toHaveBeenCalled();
+    expect(valueSession.run).not.toHaveBeenCalled();
+
+    const standardBoard = Array.from({ length: 8 }, () => Array(8).fill(0));
+    const standardContext = { ...expandedContext, board: standardBoard };
+    await expect(runtime.chooseMove([candidate], standardContext)).resolves.toBe(candidate);
+    await expect(runtime.choosePendingTarget([candidate], standardContext)).resolves.toBe(candidate);
+    await expect(runtime.evaluatePosition(standardContext)).resolves.toBeCloseTo(0.75, 6);
+    expect(placementSession.run).toHaveBeenCalledTimes(1);
+    expect(targetSession.run).toHaveBeenCalledTimes(1);
+    expect(valueSession.run).toHaveBeenCalledTimes(1);
+
+    for (const invalidOwner of [null, Number.NaN, 2, '0']) {
+      const malformedBoard = standardBoard.map((row) => row.slice());
+      malformedBoard[0][0] = invalidOwner as any;
+      const malformedContext = { ...standardContext, board: malformedBoard };
+      await expect(runtime.runInference(malformedContext)).resolves.toBeNull();
+      await expect(runtime.chooseMove([candidate], malformedContext)).resolves.toBeNull();
+      await expect(runtime.choosePendingTarget([candidate], malformedContext)).resolves.toBeNull();
+      await expect(runtime.evaluatePosition(malformedContext)).resolves.toBeNull();
+    }
+
+    const ringTarget = { row: -1, col: 0, flips: [] };
+    await expect(runtime.runInference({
+      ...standardContext,
+      candidateMoves: [ringTarget]
+    })).resolves.toBeNull();
+    await expect(runtime.runInference({
+      ...standardContext,
+      pendingTarget: ringTarget
+    })).resolves.toBeNull();
+    await expect(runtime.chooseMove([ringTarget], standardContext)).resolves.toBeNull();
+    await expect(runtime.choosePendingTarget([ringTarget], standardContext)).resolves.toBeNull();
+    expect(placementSession.run).toHaveBeenCalledTimes(1);
+    expect(targetSession.run).toHaveBeenCalledTimes(1);
+    expect(valueSession.run).toHaveBeenCalledTimes(1);
+  });
+
+  test('coordinate target runtime rejects ambiguous direction-aware sockets', async () => {
+    const session = {
+      run: jest.fn(async () => ({
+        target_logits: { data: new Float32Array(100) }
+      }))
+    };
+    runtime.__setTargetModelForTest(session, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      targetOutputName: 'target_logits',
+      inputDim: 118,
+      baseInputDim: 116,
+      outputDim: 100,
+      paddedBoardSize: 10,
+      actionSpace: 'pending_target_padded10',
+      pendingTypes: ['BOARD_EXPANSION_WILL']
+    });
+    const targets = [
+      { row: 0, col: 0, directionKey: 'up' },
+      { row: 0, col: 0, directionKey: 'left' }
+    ];
+
+    const selected = await runtime.choosePendingTarget(targets, {
+      playerKey: 'white',
+      level: 6,
+      pendingType: 'BOARD_EXPANSION_WILL',
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      legalMovesCount: targets.length
+    });
+
+    expect(selected).toBeNull();
+    expect(session.run).not.toHaveBeenCalled();
+  });
+
   test('getStatus exposes latency summaries after ONNX calls', async () => {
     const scores = new Float32Array(64);
     scores[0] = 1.25;

@@ -158,6 +158,30 @@ describe('cpu decision pending onnx module', () => {
     await expect(pendingOnnx.choosePendingTargetWithPolicyAsync('white', 'TRAP_WILL', [fallback], null)).resolves.toBe(fallback);
   });
 
+  test.each(['BOARD_EXPANSION_WILL', 'BOARD_EXPANSION_GOD'])(
+    '%s stays on the direction-aware heuristic lane',
+    async (pendingType) => {
+      const targets = [
+        { row: 0, col: 0, directionKey: 'up' },
+        { row: 0, col: 0, directionKey: 'left' }
+      ];
+      const runtime = {
+        choosePendingTarget: jest.fn(async () => targets[0]),
+        evaluatePosition: jest.fn(async () => 1)
+      };
+      const pendingOnnx = createPendingOnnx({
+        choosePendingTargetWithPolicy: () => targets[1],
+        resolvePolicyOnnxRuntime: () => runtime
+      });
+
+      await expect(
+        pendingOnnx.choosePendingTargetWithPolicyAsync('white', pendingType, targets, null)
+      ).resolves.toBe(targets[1]);
+      expect(runtime.choosePendingTarget).not.toHaveBeenCalled();
+      expect(runtime.evaluatePosition).not.toHaveBeenCalled();
+    }
+  );
+
   test('passes the budget AbortSignal into pending and value inference contexts', async () => {
     const signals = [];
     const runtime = {

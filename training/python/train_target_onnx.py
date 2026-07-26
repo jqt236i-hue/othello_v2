@@ -37,8 +37,8 @@ TARGET_PENDING_TYPES = [
     "CLONE_WILL",
     "TELEPORT_WILL",
     "CELL_TELEPORT_WILL",
-    "BOARD_EXPANSION_WILL",
-    "BOARD_EXPANSION_GOD",
+    # Expansion sockets are identified by (row, col, directionKey), while this
+    # head is coordinate-only. Keep them on the direction-aware heuristic lane.
     "BLOCKADE_WILL",
     "METEOR_WILL",
 ]
@@ -61,6 +61,7 @@ class TargetDatasetBundle:
     loser_records: int
     draw_records: int
     tactical_miss_records: int
+    board_input_filter: dict[str, Any]
 
 
 @dataclass
@@ -145,6 +146,7 @@ def load_target_dataset(args: argparse.Namespace) -> TargetDatasetBundle:
     loser_records = 0
     draw_records = 0
     tactical_miss_records = 0
+    board_input_diagnostics = trainer_common.BoardInputFilterDiagnostics()
 
     with open(args.input, "r", encoding="utf-8") as handle:
         for line in handle:
@@ -153,6 +155,8 @@ def load_target_dataset(args: argparse.Namespace) -> TargetDatasetBundle:
                 continue
             records_read += 1
             rec = json.loads(line)
+            if not board_input_diagnostics.inspect(rec).accepted:
+                continue
             target_t = target_index(rec)
             if target_t is None:
                 continue
@@ -191,7 +195,10 @@ def load_target_dataset(args: argparse.Namespace) -> TargetDatasetBundle:
                 pass
 
     if target_records <= 0:
-        raise ValueError("no coordinate-based pending target records were found in input data")
+        trainer_common.raise_no_training_records(
+            "no coordinate-based pending target records were found in input data",
+            board_input_diagnostics,
+        )
 
     return TargetDatasetBundle(
         x=torch.tensor(xs, dtype=torch.float32),
@@ -205,6 +212,7 @@ def load_target_dataset(args: argparse.Namespace) -> TargetDatasetBundle:
         loser_records=loser_records,
         draw_records=draw_records,
         tactical_miss_records=tactical_miss_records,
+        board_input_filter=board_input_diagnostics.to_meta(),
     )
 
 
@@ -268,6 +276,7 @@ def train_model(
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     resumed_from = trainer_common.apply_resume_checkpoint(
         "train_target_onnx", model, optimizer, resume_checkpoint, resume_optimizer, device,
+        expected_board_input_contract=trainer_common.BOARD_INPUT_CONTRACT_SCHEMA,
     )
 
     train_indices, val_indices, split_summary = trainer_common.resolve_train_val_split(
@@ -446,6 +455,7 @@ def write_meta(
         "boardEnvelopeField": "boardEnvelope",
         "boardMinRowField": "boardMinRow",
         "boardMinColField": "boardMinCol",
+        **trainer_common.build_board_input_contract_meta(),
         "actionSpace": "pending_target_padded10",
         "pendingTypes": TARGET_PENDING_TYPES,
         "cardActionIds": base.CARD_ACTION_IDS,
@@ -460,6 +470,7 @@ def write_meta(
             "loserRecords": data.loser_records,
             "drawRecords": data.draw_records,
             "tacticalMissRecords": data.tactical_miss_records,
+            "boardInputFilter": data.board_input_filter,
             "trainTargetAccuracy": train_summary.target_acc,
             "trainTargetSamples": train_summary.target_samples,
         },
@@ -495,6 +506,7 @@ def maybe_write_checkpoint(
             "paddedBoardSize": base.PADDED_BOARD_SIZE,
             "pendingTypes": TARGET_PENDING_TYPES,
             "cardActionIds": base.CARD_ACTION_IDS,
+            **trainer_common.build_board_input_contract_meta(),
             **trainer_common.build_deck_count_feature_meta(),
         },
         ckpt_training,
@@ -506,6 +518,7 @@ def maybe_write_checkpoint(
             "loserRecords": int(data.loser_records),
             "drawRecords": int(data.draw_records),
             "tacticalMissRecords": int(data.tactical_miss_records),
+            "boardInputFilter": data.board_input_filter,
             "trainTargetAccuracy": float(train_summary.target_acc),
             "trainTargetSamples": int(train_summary.target_samples),
         },
@@ -566,6 +579,7 @@ def main() -> int:
         f"loser_records={data.loser_records} "
         f"draw_records={data.draw_records} "
         f"tactical_miss_records={data.tactical_miss_records} "
+        f"board_rejected_records={data.board_input_filter['rejectedRecords']} "
         f"train_target_acc={train_summary.target_acc:.3f} "
         f"onnx={args.onnx_out}"
     )

@@ -88,6 +88,7 @@ class DatasetBundle:
     loser_records: int
     draw_records: int
     tactical_miss_records: int
+    board_input_filter: dict[str, Any]
 
 
 @dataclass
@@ -150,33 +151,8 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def parse_board(board: str) -> list[list[str]]:
-    if not board:
-        return []
-    return [list(r) for r in board.split("/")]
-
-
-def safe_int(value: object, default: int = 0) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return int(default)
-
-
-def has_shape_aware_board(rec: dict) -> bool:
-    board_envelope = rec.get("boardEnvelope")
-    return isinstance(board_envelope, str) and bool(board_envelope.strip())
-
-
 def resolve_board_matrix(rec: dict) -> tuple[list[list[str]], int, int]:
-    board_envelope = rec.get("boardEnvelope")
-    if isinstance(board_envelope, str) and board_envelope.strip():
-        return (
-            parse_board(board_envelope.strip()),
-            safe_int(rec.get("boardMinRow"), 0),
-            safe_int(rec.get("boardMinCol"), 0),
-        )
-    return parse_board(str(rec.get("board", ""))), 0, 0
+    return trainer_common.require_standard_dense_board_record(rec), 0, 0
 
 
 def padded_board_index(row: int, col: int) -> int | None:
@@ -190,9 +166,7 @@ def padded_board_index(row: int, col: int) -> int | None:
 def board_cell_index_for_record(rec: dict, row: object, col: object) -> int | None:
     if not isinstance(row, int) or not isinstance(col, int):
         return None
-    if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
-        return padded_board_index(row, col)
-    if not has_shape_aware_board(rec):
+    if row < 0 or row >= BOARD_SIZE or col < 0 or col >= BOARD_SIZE:
         return None
     return padded_board_index(row, col)
 
@@ -571,6 +545,7 @@ def load_dataset(
     loser_records = 0
     draw_records = 0
     tactical_miss_records = 0
+    board_input_diagnostics = trainer_common.BoardInputFilterDiagnostics()
 
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
@@ -579,6 +554,8 @@ def load_dataset(
                 continue
             records_read += 1
             rec = json.loads(line)
+            if not board_input_diagnostics.inspect(rec).accepted:
+                continue
             place_t = place_target_index(rec)
             card_t = card_target_index(rec) if include_card_labels else None
             if include_card_labels:
@@ -626,7 +603,10 @@ def load_dataset(
                 pass
 
     if train_records <= 0:
-        raise ValueError("no training records were found in input data")
+        trainer_common.raise_no_training_records(
+            "no training records were found in input data",
+            board_input_diagnostics,
+        )
 
     x = torch.tensor(xs, dtype=torch.float32)
     y_place_tensor = torch.tensor(y_place, dtype=torch.long)
@@ -646,6 +626,7 @@ def load_dataset(
         loser_records=loser_records,
         draw_records=draw_records,
         tactical_miss_records=tactical_miss_records,
+        board_input_filter=board_input_diagnostics.to_meta(),
     )
 
 
@@ -811,6 +792,7 @@ def train_model(
     loss_place_fn = nn.CrossEntropyLoss(ignore_index=IGNORE_INDEX)
     resumed_from = trainer_common.apply_resume_checkpoint(
         "train_policy_onnx", model, opt, resume_checkpoint, resume_optimizer, device,
+        expected_board_input_contract=trainer_common.BOARD_INPUT_CONTRACT_SCHEMA,
     )
 
     train_idx, val_idx, split_summary = trainer_common.resolve_train_val_split(
@@ -1185,6 +1167,7 @@ def write_meta(
         "boardEnvelopeField": "boardEnvelope",
         "boardMinRowField": "boardMinRow",
         "boardMinColField": "boardMinCol",
+        **trainer_common.build_board_input_contract_meta(),
         "actionSpace": "place_padded10" if card_output_dim <= 0 else "place_padded10+card_choice",
         "cardActionIds": CARD_ACTION_IDS if card_output_dim > 0 else [],
         "cardDecisionKinds": ["keep", "use", "destroy", "sell"] if card_output_dim > 0 else [],
@@ -1200,6 +1183,7 @@ def write_meta(
             "loserRecords": data.loser_records,
             "drawRecords": data.draw_records,
             "tacticalMissRecords": data.tactical_miss_records,
+            "boardInputFilter": data.board_input_filter,
             "trainAccuracy": train_summary.overall_acc,
             "trainPlaceAccuracy": train_summary.place_acc,
             "trainCardAccuracy": train_summary.card_acc,
@@ -1246,6 +1230,7 @@ def maybe_write_checkpoint(
             "paddedBoardMaxCoord": PADDED_BOARD_MAX,
             "paddedBoardSize": PADDED_BOARD_SIZE,
             "cardActionIds": CARD_ACTION_IDS if card_output_dim > 0 else [],
+            **trainer_common.build_board_input_contract_meta(),
             **trainer_common.build_deck_count_feature_meta(),
         },
         ckpt_training,
@@ -1258,6 +1243,7 @@ def maybe_write_checkpoint(
             "loserRecords": int(data.loser_records),
             "drawRecords": int(data.draw_records),
             "tacticalMissRecords": int(data.tactical_miss_records),
+            "boardInputFilter": data.board_input_filter,
             "trainAccuracy": float(train_summary.overall_acc),
             "trainPlaceAccuracy": float(train_summary.place_acc),
             "trainCardAccuracy": (
@@ -1293,7 +1279,10 @@ def maybe_write_policy_table(args: argparse.Namespace) -> None:
         raise ValueError("--shape-immediate must be in [0,1]")
 
     policy_table._TRAINING_CONTEXT["shape_immediate"] = float(args.shape_immediate)
-    model = policy_table.train(policy_table.iter_ndjson(args.input), int(args.min_visits))
+    model = policy_table.train(
+        trainer_common.iter_standard_dense_board_records(policy_table.iter_ndjson(args.input)),
+        int(args.min_visits),
+    )
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         json.dump(model, f, ensure_ascii=False, indent=2)
@@ -1392,6 +1381,7 @@ def main() -> int:
         f"loser_records={data.loser_records} "
         f"draw_records={data.draw_records} "
         f"tactical_miss_records={data.tactical_miss_records} "
+        f"board_rejected_records={data.board_input_filter['rejectedRecords']} "
         f"train_acc={train_summary.overall_acc:.3f} "
         f"train_place_acc={train_summary.place_acc:.3f}"
         f"{card_acc_text} "

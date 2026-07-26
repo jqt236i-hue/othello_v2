@@ -241,6 +241,7 @@ def load_infosets_and_samples(input_path: str, max_samples: int, seed: int, shap
     train_records = 0
     place_records = 0
     card_records = 0
+    board_input_diagnostics = trainer_common.BoardInputFilterDiagnostics()
 
     with open(input_path, "r", encoding="utf-8") as f:
         for raw in f:
@@ -249,7 +250,7 @@ def load_infosets_and_samples(input_path: str, max_samples: int, seed: int, shap
                 continue
             records_read += 1
             rec = json.loads(line)
-            if not isinstance(rec, dict):
+            if not board_input_diagnostics.inspect(rec).accepted:
                 continue
             if not is_supported_action(rec):
                 continue
@@ -300,9 +301,13 @@ def load_infosets_and_samples(input_path: str, max_samples: int, seed: int, shap
         "placeRecords": place_records,
         "cardRecords": card_records,
         "sampledRecords": len(samples),
+        "boardInputFilter": board_input_diagnostics.to_meta(),
     }
     if train_records <= 0:
-        raise ValueError("no training records were found in input data")
+        trainer_common.raise_no_training_records(
+            "no training records were found in input data",
+            board_input_diagnostics,
+        )
     return infosets, samples, stats
 
 def build_distill_dataset(samples: list[DistillSample], final_policy: dict[str, dict[str, float]]) -> DistillDataset:
@@ -551,6 +556,11 @@ def train_distillation(
 
     resume_path, ckpt, state = trainer_common.read_resume_checkpoint(resume_checkpoint, device)
     if resume_path and state is not None:
+        trainer_common.require_resume_board_input_contract(
+            ckpt,
+            resume_path,
+            trainer_common.BOARD_INPUT_CONTRACT_SCHEMA,
+        )
         try:
             model.load_state_dict(state)
         except RuntimeError as exc:
@@ -1045,6 +1055,7 @@ def write_meta(
         "boardSize": onnx_base.BOARD_SIZE,
         "actionSpace": "place_8x8+use_card",
         "cardActionIds": onnx_base.CARD_ACTION_IDS,
+        **trainer_common.build_board_input_contract_meta(),
         **trainer_common.build_deck_count_feature_meta(),
         "featureSpec": feature_spec,
         "algorithm": "deepcfr_cfrplus_distill.v1",
@@ -1055,6 +1066,7 @@ def write_meta(
             "sampledRecords": int(stats["sampledRecords"]),
             "placeRecords": int(stats["placeRecords"]),
             "cardRecords": int(stats["cardRecords"]),
+            "boardInputFilter": stats["boardInputFilter"],
             "trainAccuracy": float(summary.overall_acc),
             "trainPlaceAccuracy": float(summary.place_acc),
             "trainCardAccuracy": float(summary.card_acc) if summary.card_acc is not None else None,
@@ -1112,6 +1124,7 @@ def maybe_write_checkpoint(
             "placeOutputDim": onnx_base.PLACE_OUTPUT_DIM,
             "cardOutputDim": onnx_base.CARD_ACTION_DIM,
             "cardActionIds": onnx_base.CARD_ACTION_IDS,
+            **trainer_common.build_board_input_contract_meta(),
             **trainer_common.build_deck_count_feature_meta(),
         },
         training,
@@ -1121,6 +1134,7 @@ def maybe_write_checkpoint(
             "sampledRecords": int(stats["sampledRecords"]),
             "placeRecords": int(stats["placeRecords"]),
             "cardRecords": int(stats["cardRecords"]),
+            "boardInputFilter": stats["boardInputFilter"],
             "trainAccuracy": float(summary.overall_acc),
             "trainPlaceAccuracy": float(summary.place_acc),
             "trainCardAccuracy": float(summary.card_acc) if summary.card_acc is not None else None,
@@ -1301,6 +1315,7 @@ def main() -> int:
         f"sampled_records={stats['sampledRecords']} "
         f"place_records={stats['placeRecords']} "
         f"card_records={stats['cardRecords']} "
+        f"board_rejected_records={stats['boardInputFilter']['rejectedRecords']} "
         f"infosets={len(infosets)} "
         f"states={len(policy_table_model.get('states', {}))} "
         f"train_acc={train_summary.overall_acc:.3f} "

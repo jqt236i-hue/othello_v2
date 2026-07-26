@@ -131,7 +131,19 @@ export function createSelfplayRecordMetadata(config?: SelfplayRecordMetadataConf
 
     function cloneTargetCell(target: any) {
         if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
-        return { row: target.row, col: target.col };
+        const cell: any = { row: target.row, col: target.col };
+        if (typeof target.directionKey === 'string' && target.directionKey.trim()) {
+            cell.directionKey = target.directionKey.trim();
+        }
+        if (typeof target.side === 'string' && target.side.trim()) {
+            cell.side = target.side.trim();
+        }
+        if (Array.isArray(target.additions)) {
+            cell.additions = target.additions
+                .filter((one: any) => one && Number.isInteger(one.row) && Number.isInteger(one.col))
+                .map((one: any) => ({ row: one.row, col: one.col }));
+        }
+        return cell;
     }
 
     function buildPendingSelectionRecord(action: any, pendingType: any, board: any = null) {
@@ -147,6 +159,9 @@ export function createSelfplayRecordMetadata(config?: SelfplayRecordMetadataConf
                 row: cell.row,
                 col: cell.col
             };
+            if (cell.directionKey) selection.directionKey = cell.directionKey;
+            if (cell.side) selection.side = cell.side;
+            if (Array.isArray(cell.additions)) selection.additions = cell.additions;
             if (board) selection.seat = classifySelectionSeat(cell.row, cell.col, board);
             return selection;
         }
@@ -178,7 +193,7 @@ export function createSelfplayRecordMetadata(config?: SelfplayRecordMetadataConf
         if (!selection || typeof selection !== 'object') return null;
 
         if (selection.kind === 'board_cell') {
-            return {
+            const trace: any = {
                 kind: 'board_cell',
                 pendingType: selection.pendingType || null,
                 sourceKey: selection.sourceKey || null,
@@ -188,6 +203,18 @@ export function createSelfplayRecordMetadata(config?: SelfplayRecordMetadataConf
                     ? selection.seat
                     : classifySelectionSeat(selection.row, selection.col)
             };
+            if (typeof selection.directionKey === 'string' && selection.directionKey) {
+                trace.directionKey = selection.directionKey;
+            }
+            if (typeof selection.side === 'string' && selection.side) {
+                trace.side = selection.side;
+            }
+            if (Array.isArray(selection.additions)) {
+                trace.additions = selection.additions
+                    .filter((one: any) => one && Number.isInteger(one.row) && Number.isInteger(one.col))
+                    .map((one: any) => ({ row: one.row, col: one.col }));
+            }
+            return trace;
         }
         if (selection.kind === 'hand_index') {
             return {

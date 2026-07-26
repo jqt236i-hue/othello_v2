@@ -34,6 +34,7 @@ class CardDatasetBundle:
     loser_records: int
     draw_records: int
     tactical_miss_records: int
+    board_input_filter: dict[str, Any]
 
 
 @dataclass
@@ -110,6 +111,7 @@ def load_card_dataset(args: argparse.Namespace) -> CardDatasetBundle:
         tactical_miss_threshold=float(args.tactical_miss_threshold),
         hand_pressure_sample_boost=float(args.hand_pressure_sample_boost),
         pending_target_sample_boost=float(args.pending_target_sample_boost),
+        include_card_labels=True,
     )
     mask = source.y_card != base.IGNORE_INDEX
     train_records = int(mask.sum().item())
@@ -131,6 +133,7 @@ def load_card_dataset(args: argparse.Namespace) -> CardDatasetBundle:
         loser_records=source.loser_records,
         draw_records=source.draw_records,
         tactical_miss_records=source.tactical_miss_records,
+        board_input_filter=source.board_input_filter,
     )
 
 
@@ -202,6 +205,7 @@ def train_model(
     opt = torch.optim.Adam(model.parameters(), lr=lr)
     resumed_from = trainer_common.apply_resume_checkpoint(
         "train_card_onnx", model, opt, resume_checkpoint, resume_optimizer, device,
+        expected_board_input_contract=trainer_common.BOARD_INPUT_CONTRACT_SCHEMA,
     )
 
     train_idx, val_idx, split_summary = trainer_common.resolve_train_val_split(
@@ -432,6 +436,7 @@ def write_meta(
         "boardEnvelopeField": "boardEnvelope",
         "boardMinRowField": "boardMinRow",
         "boardMinColField": "boardMinCol",
+        **trainer_common.build_board_input_contract_meta(),
         "actionSpace": "card_choice",
         "cardActionIds": base.CARD_ACTION_IDS,
         "cardDecisionKinds": ["keep", "use", "destroy", "sell"],
@@ -446,6 +451,7 @@ def write_meta(
             "loserRecords": data.loser_records,
             "drawRecords": data.draw_records,
             "tacticalMissRecords": data.tactical_miss_records,
+            "boardInputFilter": data.board_input_filter,
             "trainCardAccuracy": train_summary.card_acc,
             "trainCardSamples": train_summary.card_samples,
         },
@@ -483,6 +489,7 @@ def maybe_write_checkpoint(
             "paddedBoardMaxCoord": base.PADDED_BOARD_MAX,
             "paddedBoardSize": base.PADDED_BOARD_SIZE,
             "cardActionIds": base.CARD_ACTION_IDS,
+            **trainer_common.build_board_input_contract_meta(),
             **trainer_common.build_deck_count_feature_meta(),
         },
         ckpt_training,
@@ -494,6 +501,7 @@ def maybe_write_checkpoint(
             "loserRecords": int(data.loser_records),
             "drawRecords": int(data.draw_records),
             "tacticalMissRecords": int(data.tactical_miss_records),
+            "boardInputFilter": data.board_input_filter,
             "trainCardAccuracy": float(train_summary.card_acc),
             "trainCardSamples": int(train_summary.card_samples),
         },
@@ -556,6 +564,7 @@ def main() -> int:
         f"loser_records={data.loser_records} "
         f"draw_records={data.draw_records} "
         f"tactical_miss_records={data.tactical_miss_records} "
+        f"board_rejected_records={data.board_input_filter['rejectedRecords']} "
         f"train_card_acc={train_summary.card_acc:.3f} "
         f"onnx={args.onnx_out}"
     )

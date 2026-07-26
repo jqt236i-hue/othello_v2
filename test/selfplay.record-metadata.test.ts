@@ -31,6 +31,42 @@ describe('selfplay record metadata module', () => {
         });
     });
 
+    test('expansion target records preserve direction identity and additions', () => {
+        const pendingSelection = metadata.buildPendingSelectionRecord({
+            type: 'place',
+            expansionTarget: {
+                row: 0,
+                col: 0,
+                directionKey: 'up-left',
+                side: 'top',
+                additions: [
+                    { row: -1, col: -1 },
+                    { row: -1, col: 0 }
+                ]
+            }
+        }, 'BOARD_EXPANSION_GOD');
+        const trace = metadata.buildPendingSelectionTrace({ pendingSelection });
+
+        expect(pendingSelection).toEqual(expect.objectContaining({
+            row: 0,
+            col: 0,
+            directionKey: 'up-left',
+            side: 'top',
+            additions: [
+                { row: -1, col: -1 },
+                { row: -1, col: 0 }
+            ]
+        }));
+        expect(trace).toEqual(expect.objectContaining({
+            directionKey: 'up-left',
+            side: 'top',
+            additions: [
+                { row: -1, col: -1 },
+                { row: -1, col: 0 }
+            ]
+        }));
+    });
+
     test('buildSelectionTrace preserves card candidate summaries and selected placement seat', () => {
         const cardTrace = metadata.buildSelectionTrace({
             actionType: 'use_card',

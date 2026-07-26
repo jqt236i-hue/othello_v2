@@ -7,6 +7,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 
 const POLICY_ONNX_MODEL_SCHEMA_VERSION = 'policy_onnx.v1';
+const STANDARD_DENSE_BOARD_INPUT_CONTRACT_SCHEMA = 'standard_dense_8x8.v1';
 const DEFAULT_MODEL_URL = 'data/models/policy-net.onnx';
 const DEFAULT_META_URL = 'data/models/policy-net.onnx.meta.json';
 const DEFAULT_TARGET_MODEL_URL = 'data/models/policy-target.onnx';
@@ -547,6 +548,16 @@ function supportsPaddedBoardFeatures(modelMeta: any) {
         (Number.isFinite(metaBase) && (metaBase as number) >= (PADDED_BOARD_FEATURE_DIM + AUX_FEATURE_DIM));
 }
 
+function resolveBoardInputContractSchema(modelMeta: any): string | null {
+    if (!modelMeta || !Object.prototype.hasOwnProperty.call(modelMeta, 'boardInputContract')) {
+        return null;
+    }
+    const contract = modelMeta.boardInputContract;
+    return contract && typeof contract.schema === 'string'
+        ? contract.schema.trim()
+        : '';
+}
+
 function resolveActionGrid(modelMeta: any, outputDimHint: any) {
     if (isPaddedActionSpace(modelMeta, outputDimHint)) {
         return {
@@ -592,10 +603,31 @@ function indexFromMove(move: any, modelMeta: any, outputDimHint: any) {
 }
 
 function isStandardOnnxBoard(board: any) {
-    if (SharedBoardUtils && typeof SharedBoardUtils.isStandardBoard8x8 === 'function') {
-        return SharedBoardUtils.isStandardBoard8x8(board);
+    if (
+        !SharedBoardUtils ||
+        typeof SharedBoardUtils.isStandardBoard8x8 !== 'function' ||
+        !SharedBoardUtils.isStandardBoard8x8(board)
+    ) {
+        return false;
     }
-    return false;
+    const denseBoard = Array.isArray(board)
+        ? board
+        : (
+            SharedBoardUtils &&
+            typeof SharedBoardUtils.isBoardContext === 'function' &&
+            SharedBoardUtils.isBoardContext(board) &&
+            board.gameState &&
+            Array.isArray(board.gameState.board)
+        )
+            ? board.gameState.board
+            : null;
+    return Array.isArray(denseBoard) &&
+        denseBoard.length === 8 &&
+        denseBoard.every((row: any) => (
+            Array.isArray(row) &&
+            row.length === 8 &&
+            row.every((owner: any) => owner === -1 || owner === 0 || owner === 1)
+        ));
 }
 
 function isOnnxBoardSource(board: any) {
@@ -653,16 +685,62 @@ function hasOnlySupportedMoveIndexes(moves: any, modelMeta: any, outputDimHint: 
     return true;
 }
 
+function isStandardBoardCoordinate(value: any): boolean {
+    return !!value &&
+        Number.isInteger(value.row) &&
+        Number.isInteger(value.col) &&
+        value.row >= 0 &&
+        value.row < 8 &&
+        value.col >= 0 &&
+        value.col < 8;
+}
+
+function hasOnlyStandardBoardCoordinates(moves: any): boolean {
+    return !Array.isArray(moves) || moves.every(isStandardBoardCoordinate);
+}
+
 function isSupportedOnnxContext(context: any, candidateMoves: any, modelMeta: any, outputDimHint: any) {
     const board = isOnnxBoardSource(context && context.board) ? context.board : null;
-    if (supportsPaddedBoardFeatures(modelMeta)) {
+    const declaredBoardContract = resolveBoardInputContractSchema(modelMeta);
+    if (declaredBoardContract !== null) {
+        if (declaredBoardContract !== STANDARD_DENSE_BOARD_INPUT_CONTRACT_SCHEMA) return false;
+        if (!isStandardOnnxBoard(board)) return false;
+        if (!hasOnlyStandardBoardCoordinates(candidateMoves)) return false;
+    } else if (supportsPaddedBoardFeatures(modelMeta)) {
         if (!isWithinPaddedFeatureEnvelope(board)) return false;
     } else if (!isStandardOnnxBoard(board)) {
         return false;
     }
     if (!hasOnlySupportedMoveIndexes(candidateMoves, modelMeta, outputDimHint)) return false;
     const pendingTarget = context && context.pendingTarget;
+    if (
+        declaredBoardContract === STANDARD_DENSE_BOARD_INPUT_CONTRACT_SCHEMA &&
+        pendingTarget &&
+        !isStandardBoardCoordinate(pendingTarget)
+    ) {
+        return false;
+    }
     if (pendingTarget && indexFromMove(pendingTarget, modelMeta, outputDimHint) < 0) return false;
+    return true;
+}
+
+function supportsPendingTargetType(modelMeta: any, pendingType: any): boolean {
+    const supported = modelMeta && Array.isArray(modelMeta.pendingTypes)
+        ? modelMeta.pendingTypes.filter((one: any) => typeof one === 'string' && one.trim())
+        : [];
+    if (supported.length <= 0) return true;
+    return typeof pendingType === 'string' && supported.includes(pendingType.trim());
+}
+
+function hasUniqueTargetCoordinates(candidateTargets: any): boolean {
+    if (!Array.isArray(candidateTargets)) return false;
+    const seen = new Set<string>();
+    for (const target of candidateTargets) {
+        if (!target || !Number.isFinite(target.row) || !Number.isFinite(target.col)) return false;
+        const key = `${Number(target.row)},${Number(target.col)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+    }
     return true;
 }
 
@@ -691,6 +769,10 @@ async function runInferenceForSession(session: any, inputName: any, context: any
 }
 
 async function runInference(context: any) {
+    const candidateMoves = context && Array.isArray(context.candidateMoves)
+        ? context.candidateMoves
+        : null;
+    if (!isSupportedOnnxContext(context, candidateMoves, _meta, _meta && _meta.outputDim)) return null;
     return runInferenceForSession(_session, _inputName, context, _meta, _cardActionIds);
 }
 
@@ -742,6 +824,8 @@ async function choosePendingTarget(candidateTargets: any, context: any) {
     if (!_config.enabled) return null;
     if (!hasTargetModel()) return null;
     if (!Array.isArray(candidateTargets) || candidateTargets.length === 0) return null;
+    if (!hasUniqueTargetCoordinates(candidateTargets)) return null;
+    if (!supportsPendingTargetType(_targetMeta, context && context.pendingType)) return null;
     if (!isSupportedOnnxContext(context, candidateTargets, _targetMeta, _targetMeta && _targetMeta.outputDim)) return null;
 
     const level = Number.isFinite(context && context.level) ? context.level : 1;

@@ -28,6 +28,10 @@ type CpuDecisionPendingOnnxConfig = {
 
 export function createCpuDecisionPendingOnnx(config: CpuDecisionPendingOnnxConfig): any {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuDecisionPendingOnnxConfig;
+    const directionAwarePendingTypes = new Set([
+        'BOARD_EXPANSION_WILL',
+        'BOARD_EXPANSION_GOD'
+    ]);
 
     function buildPendingTargetOnnxContext(playerKey: any, level: any, pendingType: any, targets: any): any {
         const handCardIds = cfg.getHandCardIdsForPlayer(playerKey);
@@ -137,6 +141,9 @@ export function createCpuDecisionPendingOnnx(config: CpuDecisionPendingOnnxConfi
     async function choosePendingTargetWithPolicyAsync(playerKey: any, pendingType: any, targets: any, pending: any): Promise<any> {
         const fallback = cfg.choosePendingTargetWithPolicy(playerKey, pendingType, targets, pending);
         if (!Array.isArray(targets) || targets.length <= 0) return null;
+        if (directionAwarePendingTypes.has(String(pendingType || ''))) {
+            return fallback || targets[0];
+        }
 
         const level = cfg.getCpuSmartnessLevel(playerKey);
         const runtime = cfg.resolvePolicyOnnxRuntime();

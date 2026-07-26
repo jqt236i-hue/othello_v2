@@ -15,8 +15,9 @@ import copy
 import json
 import os
 import random
-from dataclasses import dataclass
-from typing import Any
+from collections import Counter
+from dataclasses import dataclass, field
+from typing import Any, Iterable, Iterator
 
 import torch
 from torch import nn
@@ -63,6 +64,13 @@ VAL_SPLIT_GROUP_KEY_FIELDS = (
     "seed",
     "gameIndex",
 )
+BOARD_INPUT_CONTRACT_SCHEMA = "standard_dense_8x8.v1"
+BOARD_INPUT_FIELD = "boardEnvelope"
+BOARD_INPUT_MIRROR_FIELD = "board"
+BOARD_INPUT_MIN_ROW_FIELD = "boardMinRow"
+BOARD_INPUT_MIN_COL_FIELD = "boardMinCol"
+BOARD_INPUT_SIZE = 8
+BOARD_INPUT_ALLOWED_CELLS = frozenset(("B", "W", "."))
 
 
 _STATE_DICT_COMPATIBILITY_MARKERS = (
@@ -70,6 +78,136 @@ _STATE_DICT_COMPATIBILITY_MARKERS = (
     "Missing key(s) in state_dict",
     "Unexpected key(s) in state_dict",
 )
+
+
+@dataclass(frozen=True)
+class BoardInputValidation:
+    accepted: bool
+    reason: str | None
+    rows: tuple[str, ...] | None
+
+
+@dataclass
+class BoardInputFilterDiagnostics:
+    records_checked: int = 0
+    accepted_records: int = 0
+    rejected_records: int = 0
+    rejection_reasons: Counter[str] = field(default_factory=Counter)
+
+    def inspect(self, record: object) -> BoardInputValidation:
+        result = validate_standard_dense_board_record(record)
+        self.records_checked += 1
+        if result.accepted:
+            self.accepted_records += 1
+        else:
+            self.rejected_records += 1
+            self.rejection_reasons[result.reason or "unknown"] += 1
+        return result
+
+    def to_meta(self) -> dict[str, Any]:
+        return {
+            "contract": BOARD_INPUT_CONTRACT_SCHEMA,
+            "recordsChecked": int(self.records_checked),
+            "acceptedRecords": int(self.accepted_records),
+            "rejectedRecords": int(self.rejected_records),
+            "rejectionReasons": {
+                reason: int(count)
+                for reason, count in sorted(self.rejection_reasons.items())
+            },
+        }
+
+
+def _is_zero_board_origin(value: object) -> bool:
+    return type(value) is int and value == 0
+
+
+def validate_standard_dense_board_record(record: object) -> BoardInputValidation:
+    if not isinstance(record, dict):
+        return BoardInputValidation(False, "record_not_object", None)
+
+    board_envelope = record.get(BOARD_INPUT_FIELD)
+    if not isinstance(board_envelope, str) or not board_envelope:
+        return BoardInputValidation(False, "missing_board_envelope", None)
+    board_mirror = record.get(BOARD_INPUT_MIRROR_FIELD)
+    if not isinstance(board_mirror, str) or not board_mirror:
+        return BoardInputValidation(False, "missing_board_mirror", None)
+    if board_mirror != board_envelope:
+        return BoardInputValidation(False, "board_mirror_mismatch", None)
+
+    if (
+        not _is_zero_board_origin(record.get(BOARD_INPUT_MIN_ROW_FIELD))
+        or not _is_zero_board_origin(record.get(BOARD_INPUT_MIN_COL_FIELD))
+    ):
+        return BoardInputValidation(False, "nonzero_or_invalid_origin", None)
+
+    rows = tuple(board_envelope.split("/"))
+    if len(rows) != BOARD_INPUT_SIZE:
+        return BoardInputValidation(False, "row_count_not_8", None)
+    if any(len(row) != BOARD_INPUT_SIZE for row in rows):
+        return BoardInputValidation(False, "column_count_not_8", None)
+
+    cells = {cell for row in rows for cell in row}
+    if "#" in cells:
+        return BoardInputValidation(False, "non_playable_cell", None)
+    if not cells.issubset(BOARD_INPUT_ALLOWED_CELLS):
+        return BoardInputValidation(False, "unknown_cell_character", None)
+    return BoardInputValidation(True, None, rows)
+
+
+def require_standard_dense_board_record(record: object) -> list[list[str]]:
+    result = validate_standard_dense_board_record(record)
+    if not result.accepted or result.rows is None:
+        raise ValueError(
+            "record violates board input contract "
+            f"{BOARD_INPUT_CONTRACT_SCHEMA}: {result.reason or 'unknown'}"
+        )
+    return [list(row) for row in result.rows]
+
+
+def iter_standard_dense_board_records(
+    records: Iterable[dict[str, Any]],
+    diagnostics: BoardInputFilterDiagnostics | None = None,
+) -> Iterator[dict[str, Any]]:
+    tracker = diagnostics or BoardInputFilterDiagnostics()
+    for record in records:
+        if tracker.inspect(record).accepted:
+            yield record
+
+
+def raise_no_training_records(
+    base_message: str,
+    diagnostics: BoardInputFilterDiagnostics,
+) -> None:
+    if diagnostics.records_checked > 0 and diagnostics.accepted_records <= 0:
+        reasons = json.dumps(
+            diagnostics.to_meta()["rejectionReasons"],
+            ensure_ascii=True,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        raise ValueError(
+            f"{base_message}: all {diagnostics.records_checked} input records were "
+            f"rejected by board input contract {BOARD_INPUT_CONTRACT_SCHEMA}; "
+            f"reasons={reasons}"
+        )
+    raise ValueError(base_message)
+
+
+def build_board_input_contract_meta() -> dict[str, Any]:
+    return {
+        "boardInputContract": {
+            "schema": BOARD_INPUT_CONTRACT_SCHEMA,
+            "authoritativeField": BOARD_INPUT_FIELD,
+            "requiredMirrorField": BOARD_INPUT_MIRROR_FIELD,
+            "minRowField": BOARD_INPUT_MIN_ROW_FIELD,
+            "minColField": BOARD_INPUT_MIN_COL_FIELD,
+            "requiredOrigin": {"row": 0, "col": 0},
+            "rows": BOARD_INPUT_SIZE,
+            "cols": BOARD_INPUT_SIZE,
+            "allowedCells": sorted(BOARD_INPUT_ALLOWED_CELLS),
+            "legacyBoardFallback": False,
+        },
+    }
 
 
 def build_deck_count_feature_meta() -> dict[str, Any]:
@@ -192,6 +330,40 @@ def read_resume_checkpoint(
     if not isinstance(state, dict):
         raise ValueError(f"invalid checkpoint format: {resume_path}")
     return resume_path, checkpoint, state
+
+
+def require_resume_board_input_contract(
+    checkpoint: Any,
+    resume_path: str,
+    expected_schema: str = BOARD_INPUT_CONTRACT_SCHEMA,
+) -> None:
+    if not isinstance(checkpoint, dict) or not isinstance(checkpoint.get("model_state"), dict):
+        raise ValueError(
+            "resume checkpoint must be a versioned trainer payload with model_state: "
+            f"{resume_path}"
+        )
+    format_version = checkpoint.get("formatVersion")
+    if isinstance(format_version, bool) or format_version != 1:
+        actual_version = (
+            str(format_version)
+            if format_version is not None
+            else "missing"
+        )
+        raise ValueError(
+            "resume checkpoint formatVersion must be 1: "
+            f"{resume_path}: actual={actual_version}"
+        )
+    model_config = checkpoint.get("modelConfig") if isinstance(checkpoint, dict) else None
+    contract = model_config.get("boardInputContract") if isinstance(model_config, dict) else None
+    actual_schema = contract.get("schema") if isinstance(contract, dict) else None
+    if actual_schema == expected_schema:
+        return
+    actual_label = str(actual_schema) if actual_schema else "missing"
+    raise ValueError(
+        "resume checkpoint board input contract mismatch: "
+        f"{resume_path}: expected={expected_schema} actual={actual_label}; "
+        "start a fresh training run instead of relabeling legacy weights"
+    )
 
 
 def is_state_dict_compatibility_error(exc: BaseException) -> bool:
@@ -476,6 +648,8 @@ def apply_resume_checkpoint(
     resume_path: str,
     resume_optimizer: bool,
     device: str,
+    *,
+    expected_board_input_contract: str | None = None,
 ) -> str | None:
     """Load model (and optionally optimizer) state from *resume_path*.
 
@@ -492,6 +666,12 @@ def apply_resume_checkpoint(
     path, checkpoint, state = read_resume_checkpoint(resume_path, device)
     if not path or state is None:
         return None
+    if expected_board_input_contract:
+        require_resume_board_input_contract(
+            checkpoint,
+            path,
+            expected_board_input_contract,
+        )
 
     try:
         model.load_state_dict(state)

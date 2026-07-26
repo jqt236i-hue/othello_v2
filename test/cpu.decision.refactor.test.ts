@@ -3707,7 +3707,7 @@ describe('cpu decision refactor helpers', () => {
     expect(action.destroyTarget).toEqual({ row: 0, col: 8 });
   });
 
-  test('cpuSelectBoardExpansionWillWithPolicy targets only enemy occupied corner', async () => {
+  test('cpuSelectBoardExpansionWillWithPolicy keeps direction-aware targets off coordinate ONNX', async () => {
     global.cpuSmartness.white = 6;
     global.gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(0)),
@@ -3741,7 +3741,7 @@ describe('cpu decision refactor helpers', () => {
 
     await cpuDecision.cpuSelectBoardExpansionWillWithPolicy('white');
 
-    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).toHaveBeenCalled();
+    expect(global.CpuPolicyOnnxRuntime.choosePendingTarget).not.toHaveBeenCalled();
     const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
     expect(action.expansionTarget).toEqual({ row: 0, col: 0, directionKey: 'left' });
   });
