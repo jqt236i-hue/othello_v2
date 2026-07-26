@@ -333,9 +333,38 @@ export interface MatchAuthorityPublishResponsePayload extends MatchAuthorityRoom
     publishMeta?: MatchAuthorityPublishMeta;
 }
 
+export interface MatchAuthorityBoardExpansionCell extends MatchAuthorityJsonObject {
+    row: number;
+    col: number;
+    side?: string;
+    owner: -1 | 0 | 1;
+}
+
+export interface MatchAuthorityBoardExpansionState extends MatchAuthorityJsonObject {
+    cells: MatchAuthorityBoardExpansionCell[];
+}
+
+export interface MatchAuthorityGameState extends MatchAuthorityJsonObject {
+    board: unknown[][];
+    boardConfig?: MatchAuthorityJsonObject;
+    boardExpansion?: MatchAuthorityBoardExpansionState;
+}
+
+export interface MatchAuthoritySnapshotMeta extends MatchAuthorityJsonObject {
+    authority?: string;
+    version?: number | null;
+    boardContractVersion?: number | null;
+    projectedForSeat?: MatchAuthoritySeatKey | null;
+    viewerRole?: MatchAuthorityViewerRole | null;
+    turnStartReconciled?: boolean;
+    projectedSnapshotHash?: string | null;
+    authoritativeStateHash?: string | null;
+}
+
 export interface MatchAuthorityPublicSnapshot extends MatchAuthorityJsonObject {
-    gameState?: unknown;
-    cardState?: unknown;
+    gameState?: MatchAuthorityGameState;
+    cardState?: MatchAuthorityJsonObject;
+    _meta?: MatchAuthoritySnapshotMeta;
     stateVersion?: number | null;
     updatedAt?: number | null;
     projectedForSeat?: MatchAuthoritySeatKey | null;
@@ -349,6 +378,15 @@ export interface MatchAuthorityProjectionMetadata {
     projectedForSeat?: MatchAuthoritySeatKey | null;
     viewerRole?: MatchAuthorityViewerRole | null;
     turnStartReconciled?: boolean;
+}
+
+export interface MatchAuthorityBoardContractInspection {
+    ok: boolean;
+    version: number | null;
+    legacy: boolean;
+    migrated: boolean;
+    errors: string[];
+    warnings: string[];
 }
 
 export interface MatchAuthoritySeatLeaveOptions {
@@ -398,6 +436,7 @@ export interface MatchAuthorityBufferedSseReplayEvent {
 }
 
 export interface MatchAuthorityPublicApi {
+    BOARD_CONTRACT_VERSION: number;
     CHAT_MAX_LENGTH: number;
     CHAT_HISTORY_LIMIT: number;
     NETWORK_TURN_LIMIT_SECONDS: number;
@@ -434,6 +473,20 @@ export interface MatchAuthorityPublicApi {
     getPlaybackAssemblyWarnings(diagnostics: unknown): string[];
     toDebugPlaybackDiagnostics(diagnostics: unknown, networkDebugEnabled: unknown): unknown | null;
     reportPlaybackAssemblyDiagnostics(context: unknown, diagnostics: unknown, options?: unknown): void;
+    readSnapshotBoardContractVersion(snapshotValue: unknown): number | null;
+    inspectSnapshotBoardContract(
+        snapshotValue: unknown,
+        options?: { allowLegacy?: boolean; requireFullSnapshot?: boolean }
+    ): MatchAuthorityBoardContractInspection;
+    normalizeSnapshotBoardContract(
+        snapshotValue: unknown,
+        options?: { allowLegacy?: boolean; requireFullSnapshot?: boolean }
+    ): MatchAuthorityBoardContractInspection;
+    stampSnapshotBoardContract(snapshotValue: unknown): boolean;
+    countSnapshotBoardDiscs(
+        snapshotValue: unknown,
+        boardUtilsOverride?: Record<string, unknown> | null
+    ): { black: number; white: number } | null;
     projectSnapshotForViewer(snapshotValue: unknown, viewerSeatKey: unknown, metadata?: MatchAuthorityProjectionMetadata): MatchAuthorityPublicSnapshot;
     buildPublicSnapshotForViewer(roomValue: MatchAuthorityRoomState | null | undefined, viewerValue: unknown): MatchAuthorityPublicSnapshot;
     buildPublicSnapshot(roomValue: MatchAuthorityRoomState | null | undefined, viewerSeatKey: unknown): MatchAuthorityPublicSnapshot;

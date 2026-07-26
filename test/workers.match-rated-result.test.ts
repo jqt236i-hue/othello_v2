@@ -38,7 +38,7 @@ function runDirectFinalizeScenario() {
     "    matchType: 'rated',",
     "    ratedMatch: { enabled: true, pool: 'card_ranked_v1', systemVersion: 1, matchId: 'rated_direct_1', ratingStatus: 'pending' },",
     `    seatPlayerIds: { black: '${BLACK_ID}', white: '${WHITE_ID}' },`,
-    "    snapshot: { gameState: { board: Array.from({ length: 8 }, (_, row) => Array.from({ length: 8 }, (_, col) => (row * 8 + col < 33 ? 'BLACK' : 'WHITE'))) } }",
+    "    snapshot: { gameState: { board: Array.from({ length: 8 }, (_, row) => Array.from({ length: 8 }, (_, col) => (row * 8 + col < 33 ? 1 : -1))), boardExpansion: { cells: [] } }, cardState: { markers: [] } }",
     "  };",
     "  await room.saveRoom();",
     "  const first = await room.finalizeRatedMatchIfNeeded('BLACK_WIN', 'normal_end');",
@@ -66,6 +66,36 @@ function runCasualFinalizeScenario() {
     "  const finalizeResult = await room.finalizeRatedMatchIfNeeded('BLACK_WIN', 'normal_end');",
     `  const blackResponse = await ratingPool.fetch(new Request('https://rating/api/rating/me?playerId=${BLACK_ID}'));`,
     `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({ finalizeResult, black: await blackResponse.json() }));`,
+    "})().catch((error) => { console.error(error && error.stack ? error.stack : String(error)); process.exit(1); });"
+  ].join('\n');
+  return runRatedResultScenario(runner);
+}
+
+function runExpansionRatedResultScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const storage = new Map();",
+    "  const state = { storage: { get: async (key) => storage.get(key), put: async (key, value) => storage.set(key, value), delete: async (key) => storage.delete(key), setAlarm: async () => {}, deleteAlarm: async () => {} } };",
+    "  const room = new MatchRoomDurableObject(state, {});",
+    "  room.isSnapshotGameOver = async () => true;",
+    "  room.room = {",
+    "    roomId: 'RATED_EXPANSION',",
+    "    matchType: 'rated',",
+    "    ratedMatch: { enabled: true, matchId: 'rated_expansion_1', ratingStatus: 'pending' },",
+    "    snapshot: {",
+    "      gameState: {",
+    "        board: [[1,1,1,1],[1,1,1,1],[1,-1,-1,-1],[-1,-1,-1,-1]],",
+    "        boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },",
+    "        boardExpansion: { cells: [{ row: -1, col: 0, side: 'top', owner: -1 }, { row: -1, col: 1, side: 'top', owner: -1 }, { row: -1, col: 2, side: 'top', owner: -1 }] }",
+    "      },",
+    "      cardState: { markers: [] },",
+    "      _meta: { boardContractVersion: 2 }",
+    "    }",
+    "  };",
+    "  const result = await room.resolveRatedNormalResult();",
+    `  process.stdout.write('${RESULT_MARKER}' + JSON.stringify({ result }));`,
     "})().catch((error) => { console.error(error && error.stack ? error.stack : String(error)); process.exit(1); });"
   ].join('\n');
   return runRatedResultScenario(runner);
@@ -130,6 +160,10 @@ describe('rated match result finalization', () => {
     expect(result.white.rating.ratedGames).toBe(1);
     expect(result.black.displayRating).toBe(1662);
     expect(result.white.displayRating).toBe(1338);
+  });
+
+  test('expanded discs are included when resolving the rated winner', () => {
+    expect(runExpansionRatedResultScenario().result).toBe('WHITE_WIN');
   });
 
   test('casual network game over does not update rating', () => {

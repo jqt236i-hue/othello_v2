@@ -34,6 +34,10 @@ type MatchWorkerTimeoutControllerConfig = {
     toPublicNetworkDebugEnabled: (room: MatchWorkerRoomState | null | undefined) => boolean;
     toDebugPlaybackDiagnostics: (diagnostics: unknown, networkDebugEnabled: unknown) => unknown | null;
     computeAuthoritativeStateHash: (snapshotValue: unknown) => string | null;
+    normalizeSnapshotBoardContract: (
+        snapshotValue: unknown,
+        options?: { allowLegacy?: boolean; requireFullSnapshot?: boolean }
+    ) => { ok?: boolean; errors?: string[] };
     appendAuthorityLog: (roomValue: unknown, entryValue: unknown, limitValue: unknown) => unknown[];
     ensureInitialPresentationSnapshots: (room: MatchWorkerRoomState) => void;
     buildPublishViewerArtifacts: (
@@ -126,7 +130,7 @@ export function createMatchWorkerTimeoutController(config: MatchWorkerTimeoutCon
         } else {
             const core = await cfg.loadCoreLogicModule();
             nextSnapshot = cfg.deepClone(snapshot) as MatchWorkerPublicSnapshot;
-            nextSnapshot.gameState = core.applyPass(nextSnapshot.gameState);
+            nextSnapshot.gameState = core.applyPass(nextSnapshot.gameState) as MatchWorkerPublicSnapshot['gameState'];
         }
         cfg.stripTransientPresentationState(nextSnapshot);
         if (nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object') {
@@ -174,6 +178,14 @@ export function createMatchWorkerTimeoutController(config: MatchWorkerTimeoutCon
 
         nextSnapshot.stateVersion = room.stateVersion;
         nextSnapshot.updatedAt = nowMs;
+        const boardContractInspection = cfg.normalizeSnapshotBoardContract(nextSnapshot, {
+            allowLegacy: true,
+            requireFullSnapshot: true
+        });
+        if (!boardContractInspection || boardContractInspection.ok !== true) {
+            room.stateVersion = previousStateVersion;
+            throw new Error(`timeout_invalid_board_contract: ${(boardContractInspection && boardContractInspection.errors || []).join('; ')}`);
+        }
         room.snapshot = nextSnapshot;
         room.updatedAt = nowMs;
         const publishViewerArtifacts = cfg.buildPublishViewerArtifacts(room, {});

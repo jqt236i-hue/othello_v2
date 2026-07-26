@@ -1,5 +1,6 @@
 import type {
     MatchAuthorityBufferedSseEventRecordInput,
+    MatchAuthorityGameState,
     MatchAuthorityPublishMeta,
     MatchAuthorityPublicSeats,
     MatchAuthoritySeatHandSkins,
@@ -252,7 +253,7 @@ export interface MatchWorkerTurnPipelineSafeResult extends MatchWorkerTurnPipeli
 }
 
 export interface MatchWorkerPublicSnapshot extends Record<string, unknown> {
-    gameState?: unknown;
+    gameState?: MatchAuthorityGameState;
     cardState?: Record<string, unknown>;
 }
 

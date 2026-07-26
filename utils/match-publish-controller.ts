@@ -329,6 +329,34 @@ export function createMatchPublishController(config?: any): any {
       })));
     }
 
+    if (typeof cfg.MatchAuthority.normalizeSnapshotBoardContract === 'function') {
+      const boardContractInspection = cfg.MatchAuthority.normalizeSnapshotBoardContract(nextSnapshot, {
+        allowLegacy: true,
+        requireFullSnapshot: true
+      });
+      if (!boardContractInspection || boardContractInspection.ok !== true) {
+        cfg.MatchAuthority.appendAuthorityLog(room, {
+          kind: 'publish_rejected',
+          operationId,
+          actionType,
+          baseVersion,
+          committedVersion: room.stateVersion,
+          stateHashBefore,
+          rejectedReason: 'INVALID_BOARD_CONTRACT',
+          boardContractErrors: boardContractInspection && boardContractInspection.errors
+        }, undefined);
+        return cfg.jsonResponse(500, cfg.buildPublishPayload(room, seatKey, cfg.MatchAuthority.buildPublishResponseOptions({
+          ok: false,
+          rejectedReason: 'INVALID_BOARD_CONTRACT',
+          publishKind: 'rejected',
+          operationId,
+          actionType,
+          receivedBaseVersion: baseVersion,
+          authoritativeStateVersion: room.stateVersion
+        })));
+      }
+    }
+
     if (typeof cfg.ensureInitialPresentationSnapshots === 'function') {
       cfg.ensureInitialPresentationSnapshots(room);
     }

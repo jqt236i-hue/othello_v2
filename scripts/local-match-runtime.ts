@@ -170,6 +170,22 @@ function createRuntime(options: any) {
         room.stateVersion += 1;
         commandResult.snapshot.stateVersion = room.stateVersion;
         commandResult.snapshot.updatedAt = Date.now();
+        const boardContractInspection = MatchAuthority.normalizeSnapshotBoardContract(commandResult.snapshot, {
+            allowLegacy: true,
+            requireFullSnapshot: true
+        });
+        if (!boardContractInspection || boardContractInspection.ok !== true) {
+            room.stateVersion -= 1;
+            return buildPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
+                ok: false,
+                rejectedReason: 'INVALID_BOARD_CONTRACT',
+                publishKind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion
+            }));
+        }
         room.snapshot = commandResult.snapshot;
         room.updatedAt = commandResult.snapshot.updatedAt;
         room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(room.snapshot);

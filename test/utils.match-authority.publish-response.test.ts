@@ -237,6 +237,7 @@ describe('match authority publish response payload', () => {
     expect(snapshot._meta).toEqual({
       authority: 'server',
       version: 7,
+      boardContractVersion: 2,
       projectedForSeat: 'white',
       turnStartReconciled: true,
       projectedSnapshotHash: expect.stringMatching(/^fnv1a32:/)

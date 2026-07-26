@@ -34,6 +34,7 @@ const DeckCodecModule = require('../shared/deck-codec');
 const DeckSpecHelpers = require('../shared/deck-spec');
 const PlayerIdentityContract = require('../shared/player-identity-contract');
 const RatedMatchmaking = require('../shared/rated-matchmaking');
+const SharedBoardUtils = require('../shared/shared-board-utils');
 const { createMatchWorkerRatingHelpers } = require('../workers/match-worker-rating');
 
 function readArgValue(name: any) {
@@ -1532,6 +1533,13 @@ function makeRoom(options: any) {
     const seed = nowMs;
     const initialSnapshotOptions: any = buildInitialDeckSnapshotOptions(opts);
     const snapshot = makeInitialSnapshot(seed, initialSnapshotOptions);
+    const boardContractInspection = MatchAuthority.normalizeSnapshotBoardContract(snapshot, {
+        allowLegacy: true,
+        requireFullSnapshot: true
+    });
+    if (!boardContractInspection || boardContractInspection.ok !== true) {
+        throw new Error(`initial_snapshot_invalid_board_contract: ${(boardContractInspection && boardContractInspection.errors || []).join('; ')}`);
+    }
     const initialDeckCardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(initialSnapshotOptions.initialDeckCardIdsByPlayer);
     const room = {
         roomId,
@@ -1663,6 +1671,14 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
     room.stateVersion = previousStateVersion + 1;
     nextSnapshot.stateVersion = room.stateVersion;
     nextSnapshot.updatedAt = nowMs;
+    const boardContractInspection = MatchAuthority.normalizeSnapshotBoardContract(nextSnapshot, {
+        allowLegacy: true,
+        requireFullSnapshot: true
+    });
+    if (!boardContractInspection || boardContractInspection.ok !== true) {
+        room.stateVersion = previousStateVersion;
+        throw new Error(`timeout_invalid_board_contract: ${(boardContractInspection && boardContractInspection.errors || []).join('; ')}`);
+    }
     room.snapshot = nextSnapshot;
     room.updatedAt = nowMs;
     const publishViewerArtifacts = MatchAuthority.buildPublishViewerArtifacts(room, {});
@@ -1931,15 +1947,6 @@ function applyRatedSeat(room: any, seatKey: any, entry: any, deckSelection: any)
     }
 }
 
-function normalizeRatedBoardOwner(value: any) {
-    if (value === 1 || value === '1') return 'black';
-    if (value === -1 || value === '-1') return 'white';
-    const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'black' || normalized === 'b') return 'black';
-    if (normalized === 'white' || normalized === 'w') return 'white';
-    return null;
-}
-
 function resolveRatedResultFromRoom(room: any) {
     if (!room || !room.snapshot || !room.snapshot.gameState) return null;
     try {
@@ -1949,20 +1956,10 @@ function resolveRatedResultFromRoom(room: any) {
     } catch (e) {
         return null;
     }
-    const board = Array.isArray(room.snapshot.gameState.board) ? room.snapshot.gameState.board : [];
-    if (!board.length) return null;
-    let black = 0;
-    let white = 0;
-    for (const row of board) {
-        if (!Array.isArray(row)) continue;
-        for (const cell of row) {
-            const owner = normalizeRatedBoardOwner(cell);
-            if (owner === 'black') black += 1;
-            else if (owner === 'white') white += 1;
-        }
-    }
-    if (black === white) return 'DRAW';
-    return black > white ? 'BLACK_WIN' : 'WHITE_WIN';
+    const counts = MatchAuthority.countSnapshotBoardDiscs(room.snapshot, SharedBoardUtils);
+    if (!counts) return null;
+    if (counts.black === counts.white) return 'DRAW';
+    return counts.black > counts.white ? 'BLACK_WIN' : 'WHITE_WIN';
 }
 
 function finalizeLocalRatedMatchIfNeeded(room: any, result: any, reason: any) {
@@ -2064,6 +2061,13 @@ function createRatedRoomForPair(blackEntry: any, whiteEntry: any) {
     applyRatedSeat(room, 'white', whiteEntry, whiteDeckSelection);
 
     const nextSnapshot = makeInitialSnapshot(room.seed, buildInitialDeckSnapshotOptions(room));
+    const boardContractInspection = MatchAuthority.normalizeSnapshotBoardContract(nextSnapshot, {
+        allowLegacy: true,
+        requireFullSnapshot: true
+    });
+    if (!boardContractInspection || boardContractInspection.ok !== true) {
+        throw new Error(`rated_initial_snapshot_invalid_board_contract: ${(boardContractInspection && boardContractInspection.errors || []).join('; ')}`);
+    }
     room.stateVersion = 1;
     nextSnapshot.stateVersion = room.stateVersion;
     nextSnapshot.updatedAt = Date.now();

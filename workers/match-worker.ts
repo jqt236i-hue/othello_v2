@@ -1841,32 +1841,17 @@ function withPublicRatedMatchMetadata<T extends Record<string, unknown>>(payload
     return payload;
 }
 
-function normalizeRatedBoardOwner(value: unknown): 'black' | 'white' | null {
-    if (value === 1 || value === '1') return 'black';
-    if (value === -1 || value === '-1') return 'white';
-    const normalized = String(value || '').trim().toLowerCase();
-    if (normalized === 'black' || normalized === 'b') return 'black';
-    if (normalized === 'white' || normalized === 'w') return 'white';
-    return null;
-}
-
 function resolveRatedResultFromSnapshot(snapshotValue: unknown): 'BLACK_WIN' | 'WHITE_WIN' | 'DRAW' | null {
-    const snapshot = asRecord(snapshotValue);
-    const gameState = asRecord(snapshot.gameState || snapshot);
-    const board = Array.isArray(gameState.board) ? gameState.board : [];
-    if (!board.length) return null;
-    let black = 0;
-    let white = 0;
-    for (const row of board) {
-        if (!Array.isArray(row)) continue;
-        for (const cell of row) {
-            const owner = normalizeRatedBoardOwner(cell);
-            if (owner === 'black') black += 1;
-            if (owner === 'white') white += 1;
-        }
-    }
-    if (black > white) return 'BLACK_WIN';
-    if (white > black) return 'WHITE_WIN';
+    const boardUtils = readRuntimeGlobalValue('SharedBoardUtils');
+    const counts = MatchAuthority.countSnapshotBoardDiscs(
+        snapshotValue,
+        boardUtils && typeof boardUtils === 'object'
+            ? boardUtils as Record<string, unknown>
+            : null
+    );
+    if (!counts) return null;
+    if (counts.black > counts.white) return 'BLACK_WIN';
+    if (counts.white > counts.black) return 'WHITE_WIN';
     return 'DRAW';
 }
 
@@ -2159,6 +2144,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 toPublicNetworkDebugEnabled,
                 toDebugPlaybackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics,
                 computeAuthoritativeStateHash: MatchAuthority.computeAuthoritativeStateHash,
+                normalizeSnapshotBoardContract: MatchAuthority.normalizeSnapshotBoardContract,
                 appendAuthorityLog: MatchAuthority.appendAuthorityLog,
                 ensureInitialPresentationSnapshots,
                 buildPublishViewerArtifacts: (room: MatchWorkerRoomState, options?: Record<string, unknown>) => (
@@ -2378,6 +2364,17 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     async loadRoom(): Promise<void> {
         if (this.roomLoaded) return;
         this.room = await this.state.storage.get(ROOM_STORAGE_KEY) as MatchWorkerRoomState | null || null;
+        let boardContractMigrated = false;
+        if (this.room && this.room.snapshot && typeof this.room.snapshot === 'object') {
+            const boardContractInspection = MatchAuthority.normalizeSnapshotBoardContract(this.room.snapshot, {
+                allowLegacy: true,
+                requireFullSnapshot: true
+            });
+            if (!boardContractInspection || boardContractInspection.ok !== true) {
+                throw new Error(`stored_snapshot_invalid_board_contract: ${(boardContractInspection && boardContractInspection.errors || []).join('; ')}`);
+            }
+            boardContractMigrated = boardContractInspection.migrated === true;
+        }
         if (this.room && !Number.isFinite(Number(this.room.createdAt))) {
             this.room.createdAt = Number.isFinite(Number(this.room.updatedAt)) ? Number(this.room.updatedAt) : Date.now();
         }
@@ -2387,16 +2384,28 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (this.room && !Array.isArray(this.room.authorityLog)) {
             this.room.authorityLog = [];
         }
-        if (this.room && typeof this.room.authoritativeStateHash === 'undefined') {
+        if (this.room && (boardContractMigrated || typeof this.room.authoritativeStateHash === 'undefined')) {
             this.room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(this.room.snapshot);
         }
         this.sseEventBuffer = this.room && Array.isArray(this.room.sseEventBuffer)
             ? this.room.sseEventBuffer.slice()
             : [];
         this.roomLoaded = true;
+        if (boardContractMigrated) {
+            await this.saveRoom();
+        }
     }
 
     async saveRoom(): Promise<void> {
+        if (this.room && this.room.snapshot && typeof this.room.snapshot === 'object') {
+            const boardContractInspection = MatchAuthority.normalizeSnapshotBoardContract(this.room.snapshot, {
+                allowLegacy: true,
+                requireFullSnapshot: true
+            });
+            if (!boardContractInspection || boardContractInspection.ok !== true) {
+                throw new Error(`snapshot_invalid_board_contract: ${(boardContractInspection && boardContractInspection.errors || []).join('; ')}`);
+            }
+        }
         await this.state.storage.put(ROOM_STORAGE_KEY, deepClone(this.room));
     }
 
@@ -3147,6 +3156,15 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const opts = asRecord(initOptions);
         const seed = Number.isFinite(Number(opts.seed)) ? Number(opts.seed) : Date.now();
         const snapshot = (opts.snapshot && typeof opts.snapshot === 'object') ? deepClone(opts.snapshot) as MatchWorkerPublicSnapshot : null;
+        if (snapshot) {
+            const boardContractInspection = MatchAuthority.normalizeSnapshotBoardContract(snapshot, {
+                allowLegacy: true,
+                requireFullSnapshot: true
+            });
+            if (!boardContractInspection || boardContractInspection.ok !== true) {
+                throw new Error(`initial_snapshot_invalid_board_contract: ${(boardContractInspection && boardContractInspection.errors || []).join('; ')}`);
+            }
+        }
         const initialDeckCardIdsByPlayer = (opts.initialDeckCardIdsByPlayer && typeof opts.initialDeckCardIdsByPlayer === 'object')
             ? cloneInitialDeckCardIdsByPlayer(opts.initialDeckCardIdsByPlayer)
             : null;

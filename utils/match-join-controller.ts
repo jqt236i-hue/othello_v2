@@ -85,6 +85,21 @@ export function createMatchJoinController(config?: any): any {
         const nextSnapshot = cfg.awaitMakeInitialSnapshot === true
           ? await initialSnapshotResult
           : initialSnapshotResult;
+        if (
+          cfg.MatchAuthority
+          && typeof cfg.MatchAuthority.normalizeSnapshotBoardContract === 'function'
+        ) {
+          const boardContractInspection = cfg.MatchAuthority.normalizeSnapshotBoardContract(nextSnapshot, {
+            allowLegacy: true,
+            requireFullSnapshot: true
+          });
+          if (!boardContractInspection || boardContractInspection.ok !== true) {
+            return cfg.jsonResponse(500, {
+              ok: false,
+              reason: cfg.initialSnapshotFailureReason || 'INVALID_BOARD_CONTRACT'
+            });
+          }
+        }
         room.stateVersion = 1;
         nextSnapshot.stateVersion = room.stateVersion;
         nextSnapshot.updatedAt = Date.now();

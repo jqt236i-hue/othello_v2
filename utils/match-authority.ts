@@ -65,6 +65,7 @@ import { createMatchAuthorityProjectionApi } from './match-authority/projection'
 import { createMatchAuthorityPublishApi } from './match-authority/publish';
 import { createMatchAuthorityOperationsApi } from './match-authority/operations';
 import { createMatchAuthorityPendingSelectionApi } from './match-authority/pending-selection';
+import { createMatchAuthorityBoardContractApi } from './match-authority/board-contract';
 
 import deepClone from './deepClone';
 
@@ -74,7 +75,22 @@ interface MatchAuthorityCryptoLike {
 
 interface MatchAuthoritySharedBoardUtils {
     [key: string]: unknown;
+    BOARD_CONTRACT_VERSION?: unknown;
     resolveBoardConfig?: (value?: unknown, fallbackBoard?: unknown) => unknown;
+    inspectBoardState?: (
+        gameState: unknown,
+        cardState: unknown,
+        options?: { strict?: boolean }
+    ) => { ok?: unknown; errors?: unknown; warnings?: unknown };
+    canonicalizeStateBoard?: (
+        gameState: unknown,
+        cardState: unknown,
+        options?: { strict?: boolean }
+    ) => { ok?: unknown; errors?: unknown; warnings?: unknown };
+    countStateDiscs?: (
+        gameState: unknown,
+        cardState: unknown
+    ) => { black: number; white: number };
 }
 
 interface MatchAuthorityGachaHandCatalogShared {
@@ -199,6 +215,9 @@ const matchAuthorityRoomLifecycle = createMatchAuthorityRoomLifecycleApi({
     normalizeSeatPlayerIds
 });
 const trapVisibility = createTrapVisibilityApi(parseSeatKeyOptional);
+const matchAuthorityBoardContract = createMatchAuthorityBoardContractApi({
+    sharedBoardUtils: SharedBoardUtils
+});
 const matchAuthorityOperations = createMatchAuthorityOperationsApi({
     playerKeys: PLAYER_KEYS as readonly MatchAuthoritySeatKey[],
     acceptedOperationHistoryLimit: ACCEPTED_OPERATION_HISTORY_LIMIT,
@@ -244,6 +263,8 @@ const matchAuthorityProjection = createMatchAuthorityProjectionApi({
     computeStableHash: StateHash && typeof StateHash.computeStableHash === 'function'
         ? (snapshot: unknown) => StateHash.computeStableHash!(snapshot)
         : null,
+    boardContractVersion: matchAuthorityBoardContract.BOARD_CONTRACT_VERSION,
+    canonicalizeSnapshotBoardForHash: matchAuthorityBoardContract.canonicalizeSnapshotBoardForHash,
     makeHiddenHandToken,
     isHiddenHandTokenLike,
     parseHiddenHandToken,
@@ -1031,6 +1052,35 @@ function computeProjectedSnapshotHash(snapshotValue: unknown): string | null {
     return matchAuthorityProjection.computeProjectedSnapshotHash(snapshotValue);
 }
 
+function readSnapshotBoardContractVersion(snapshotValue: unknown): number | null {
+    return matchAuthorityBoardContract.readSnapshotBoardContractVersion(snapshotValue);
+}
+
+function inspectSnapshotBoardContract(
+    snapshotValue: unknown,
+    options?: { allowLegacy?: boolean; requireFullSnapshot?: boolean }
+) {
+    return matchAuthorityBoardContract.inspectSnapshotBoardContract(snapshotValue, options);
+}
+
+function normalizeSnapshotBoardContract(
+    snapshotValue: unknown,
+    options?: { allowLegacy?: boolean; requireFullSnapshot?: boolean }
+) {
+    return matchAuthorityBoardContract.normalizeSnapshotBoardContract(snapshotValue, options);
+}
+
+function stampSnapshotBoardContract(snapshotValue: unknown): boolean {
+    return matchAuthorityBoardContract.stampSnapshotBoardContract(snapshotValue);
+}
+
+function countSnapshotBoardDiscs(
+    snapshotValue: unknown,
+    boardUtilsOverride?: MatchAuthoritySharedBoardUtils | null
+): { black: number; white: number } | null {
+    return matchAuthorityBoardContract.countSnapshotBoardDiscs(snapshotValue, boardUtilsOverride);
+}
+
 function validatePendingSelectionPublish(
     snapshotValue: unknown,
     playerKey: unknown,
@@ -1210,6 +1260,12 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     buildPublishResponsePayload,
     applySeatLeaveToRoom,
     shouldDisposeRoom,
+    BOARD_CONTRACT_VERSION: matchAuthorityBoardContract.BOARD_CONTRACT_VERSION,
+    readSnapshotBoardContractVersion,
+    inspectSnapshotBoardContract,
+    normalizeSnapshotBoardContract,
+    stampSnapshotBoardContract,
+    countSnapshotBoardDiscs,
     computeAuthoritativeStateHash,
     computeProjectedSnapshotHash,
     stripTransientPresentationState,

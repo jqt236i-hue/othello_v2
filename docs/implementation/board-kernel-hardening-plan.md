@@ -140,13 +140,13 @@ Components:
 
 Tasks:
 
-- [ ] `_meta.boardContractVersion = 2` を完全snapshotへ付与する。
-- [ ] strict v2 inspectorとunversioned legacy readerをauthority/client両方へ適用する。
-- [ ] storage復元、public/seat/spectator projection、journal、reconnectでversionを保持する。
-- [ ] expansion descriptorをhash前だけcanonical順へ整列する。
-- [ ]既存の意味順序付き配列は変更しない。
-- [ ] Worker/local rated resultをshape-aware countへ統一する。
-- [ ] `gameState: unknown` の公開型を最小のversioned board contractへ狭める。
+- [x] `_meta.boardContractVersion = 2` を完全snapshotへ付与する。
+- [x] strict v2 inspectorとunversioned legacy readerをauthority/client両方へ適用する。
+- [x] storage復元、public/seat/spectator projection、journal、reconnectでversionを保持する。
+- [x] expansion descriptorをhash前だけcanonical順へ整列する。
+- [x] 既存の意味順序付き配列は変更しない。
+- [x] Worker/local rated resultをshape-aware countへ統一する。
+- [x] `gameState: unknown` の公開型を最小のversioned board contractへ狭める。
 
 Verification:
 

@@ -1,6 +1,7 @@
 const MatchAuthority = require('../utils/match-authority');
 
 const EXPECTED_PUBLIC_API_KEYS = [
+  'BOARD_CONTRACT_VERSION',
   'CHAT_HISTORY_LIMIT',
   'CHAT_MAX_LENGTH',
   'MAX_SPECTATORS',
@@ -47,6 +48,7 @@ const EXPECTED_PUBLIC_API_KEYS = [
   'collectPipelineEffectLogMessages',
   'computeAuthoritativeStateHash',
   'computeProjectedSnapshotHash',
+  'countSnapshotBoardDiscs',
   'createBufferedSseEventRecord',
   'createTurnStartSeed',
   'ensureAcceptedOperationHistoryBySeat',
@@ -64,6 +66,7 @@ const EXPECTED_PUBLIC_API_KEYS = [
   'getPresentationFramesAfter',
   'getSeatLabelJa',
   'hasRequiredOperationId',
+  'inspectSnapshotBoardContract',
   'isFateWillControllerForCurrentTurn',
   'isNetworkDebugFillHandAction',
   'isNetworkDebugFillHandPayload',
@@ -90,6 +93,7 @@ const EXPECTED_PUBLIC_API_KEYS = [
   'normalizeRoomBoardConfig',
   'normalizeSeatHandSkinId',
   'normalizeSeatHandSkins',
+  'normalizeSnapshotBoardContract',
   'normalizeSpectatorId',
   'normalizeSpectatorName',
   'parseHiddenHandToken',
@@ -97,6 +101,7 @@ const EXPECTED_PUBLIC_API_KEYS = [
   'parseSeatKeyOptional',
   'projectSnapshotForViewer',
   'randomFromChars',
+  'readSnapshotBoardContractVersion',
   'rememberAcceptedOperationBySeat',
   'removeSpectatorFromRoom',
   'reportPlaybackAssemblyDiagnostics',
@@ -112,6 +117,7 @@ const EXPECTED_PUBLIC_API_KEYS = [
   'sanitizePendingSelectionActionForAuthority',
   'shouldDisposeRoom',
   'shouldUseAckOnlyPublishResponse',
+  'stampSnapshotBoardContract',
   'stripTransientChargeDeltaState',
   'stripTransientPresentationState',
   'toDebugPlaybackDiagnostics',

@@ -6,6 +6,23 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+function resolveSharedBoardUtils(): any {
+  try {
+    const loaded = _require('../../shared/shared-board-utils');
+    if (loaded && typeof loaded === 'object') return loaded;
+  } catch (e) { /* use browser global */ }
+  if (typeof globalThis !== 'undefined') {
+    const loaded = (globalThis as any).SharedBoardUtils;
+    if (loaded && typeof loaded === 'object') return loaded;
+  }
+  return null;
+}
+
+const SharedBoardUtils = resolveSharedBoardUtils();
+const BOARD_CONTRACT_VERSION = Number.isInteger(Number(SharedBoardUtils && SharedBoardUtils.BOARD_CONTRACT_VERSION))
+  ? Number(SharedBoardUtils.BOARD_CONTRACT_VERSION)
+  : 2;
+
 function cloneData(value: any, cloneFn?: any): any {
   if (typeof cloneFn === 'function') {
     return cloneFn(value);
@@ -53,6 +70,7 @@ function hasHiddenOwnHand(snapshot: any, ownerKey: string | null): boolean {
 interface SnapshotMeta {
   authority: string;
   version: number | null;
+  boardContractVersion: number | null;
   projectedForSeat: string | null;
   viewerRole: string | null;
   turnStartReconciled: boolean;
@@ -65,11 +83,19 @@ function getSnapshotMeta(snapshot: any): SnapshotMeta | null {
   }
   const meta = snapshot._meta;
   const rawVersion = meta.version;
+  const rawBoardContractVersion = meta.boardContractVersion;
   return {
     authority: String(meta.authority || '').trim().toLowerCase(),
     version: (rawVersion === null || typeof rawVersion === 'undefined' || (typeof rawVersion === 'string' && rawVersion.trim() === ''))
       ? null
       : (Number.isFinite(Number(rawVersion)) ? Number(rawVersion) : null),
+    boardContractVersion: (
+      rawBoardContractVersion === null
+      || typeof rawBoardContractVersion === 'undefined'
+      || (typeof rawBoardContractVersion === 'string' && rawBoardContractVersion.trim() === '')
+    )
+      ? null
+      : (Number.isInteger(Number(rawBoardContractVersion)) ? Number(rawBoardContractVersion) : null),
     projectedForSeat: normalizeSeatKey(meta.projectedForSeat),
     viewerRole: normalizeViewerRole(meta.viewerRole),
     turnStartReconciled: meta.turnStartReconciled !== false,
@@ -77,6 +103,62 @@ function getSnapshotMeta(snapshot: any): SnapshotMeta | null {
       ? meta.projectedSnapshotHash.trim()
       : null
   };
+}
+
+function inspectBoardContract(snapshot: any, options?: any): any {
+  const opts = (options && typeof options === 'object') ? options : {};
+  const rawMeta = snapshot && snapshot._meta && typeof snapshot._meta === 'object'
+    ? snapshot._meta
+    : null;
+  const hasVersion = !!(
+    rawMeta
+    && Object.prototype.hasOwnProperty.call(rawMeta, 'boardContractVersion')
+  );
+  const meta = getSnapshotMeta(snapshot);
+  const version = meta ? meta.boardContractVersion : null;
+  if (!hasVersion) {
+    return opts.allowLegacyBoardContract === false
+      ? { ok: false, version: null, reason: 'missing_board_contract_version' }
+      : { ok: true, version: null, legacy: true };
+  }
+  if (version !== BOARD_CONTRACT_VERSION) {
+    return { ok: false, version, reason: 'unsupported_board_contract_version' };
+  }
+  if (
+    !snapshot
+    || typeof snapshot !== 'object'
+    || !snapshot.gameState
+    || typeof snapshot.gameState !== 'object'
+    || !snapshot.cardState
+    || typeof snapshot.cardState !== 'object'
+  ) {
+    return { ok: false, version, reason: 'incomplete_board_snapshot' };
+  }
+  if (!SharedBoardUtils || typeof SharedBoardUtils.inspectBoardState !== 'function') {
+    return { ok: false, version, reason: 'board_inspector_unavailable' };
+  }
+  try {
+    const inspection = SharedBoardUtils.inspectBoardState(
+      snapshot.gameState,
+      snapshot.cardState,
+      { strict: true }
+    );
+    return inspection && inspection.ok === true
+      ? { ok: true, version, legacy: false }
+      : {
+        ok: false,
+        version,
+        reason: 'invalid_board_state',
+        errors: inspection && Array.isArray(inspection.errors) ? inspection.errors.slice() : []
+      };
+  } catch (error) {
+    return {
+      ok: false,
+      version,
+      reason: 'invalid_board_state',
+      errors: [error instanceof Error ? error.message : String(error)]
+    };
+  }
 }
 
 function getSnapshotVersion(snapshot: any): number | null {
@@ -140,6 +222,22 @@ function inspectAuthoritativeSnapshot(snapshot: any, options?: any): any {
       telemetryDetails: {
         localSeatKey,
         projectedForSeat: meta.projectedForSeat || null
+      },
+      meta,
+      version: getSnapshotVersion(snapshot)
+    };
+  }
+
+  const boardContractInspection = inspectBoardContract(snapshot, opts);
+  if (!boardContractInspection.ok) {
+    return {
+      ok: false,
+      rejectionType: 'invalid_board_contract',
+      telemetryType: 'snapshot_board_contract_rejected',
+      telemetryDetails: {
+        boardContractVersion: boardContractInspection.version,
+        reason: boardContractInspection.reason,
+        errors: boardContractInspection.errors || []
       },
       meta,
       version: getSnapshotVersion(snapshot)
@@ -322,6 +420,15 @@ function sanitizeIncomingSnapshot(snapshot: any, options?: any): any {
   if (!snapshot.cardState || typeof snapshot.cardState !== 'object') {
     return { ok: false, reason: 'invalid_card_state' };
   }
+  const boardContractInspection = inspectBoardContract(snapshot, options);
+  if (!boardContractInspection.ok) {
+    return {
+      ok: false,
+      reason: 'invalid_board_contract',
+      boardContractReason: boardContractInspection.reason,
+      boardContractErrors: boardContractInspection.errors || []
+    };
+  }
 
   const nextSnapshot = cloneData(snapshot, options && options.cloneData);
   const gameState = nextSnapshot.gameState;
@@ -352,9 +459,11 @@ function sanitizeIncomingSnapshot(snapshot: any, options?: any): any {
 }
 
 const SnapshotCanonical = {
+  BOARD_CONTRACT_VERSION,
   normalizeSeatKey,
   getSnapshotMeta,
   getSnapshotVersion,
+  inspectBoardContract,
   inspectAuthoritativeSnapshot,
   normalizeChargeDeltaEvent,
   normalizeChargeDeltaEventList,

@@ -43,6 +43,7 @@ describe('NetworkSnapshotCanonicalModule', () => {
       expect(meta).toEqual({
         authority: 'server',
         version: 10,
+        boardContractVersion: null,
         projectedForSeat: 'black',
         viewerRole: null,
         turnStartReconciled: true,
@@ -155,6 +156,67 @@ describe('NetworkSnapshotCanonicalModule', () => {
 
       expect(result.ok).toBe(false);
       expect(result.rejectionType).toBe('own_hand_hidden');
+    });
+
+    test('v2盤面契約を厳格検証する', () => {
+      const valid = {
+        _meta: {
+          authority: 'server',
+          version: 10,
+          boardContractVersion: 2
+        },
+        gameState: {
+          board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+          boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+          boardExpansion: {
+            cells: [{ row: -1, col: 0, side: 'top', owner: -1 }]
+          }
+        },
+        cardState: { markers: [] }
+      };
+      const invalid = JSON.parse(JSON.stringify(valid));
+      invalid.gameState.boardExpansion.cells.push({
+        row: -1,
+        col: 0,
+        side: 'top',
+        owner: 0
+      });
+
+      expect(canonical.inspectAuthoritativeSnapshot(valid, {
+        currentAppliedVersion: 5
+      }).ok).toBe(true);
+      expect(canonical.inspectAuthoritativeSnapshot(invalid, {
+        currentAppliedVersion: 5
+      })).toEqual(expect.objectContaining({
+        ok: false,
+        rejectionType: 'invalid_board_contract',
+        telemetryType: 'snapshot_board_contract_rejected'
+      }));
+    });
+
+    test('未知の盤面契約versionを拒否し、無version legacyは移行期間中のみ受理する', () => {
+      const snapshot = {
+        _meta: {
+          authority: 'server',
+          version: 10,
+          boardContractVersion: 999
+        },
+        gameState: { board: [[0]] },
+        cardState: {}
+      };
+      const legacy = JSON.parse(JSON.stringify(snapshot));
+      delete legacy._meta.boardContractVersion;
+
+      expect(canonical.inspectAuthoritativeSnapshot(snapshot, {
+        currentAppliedVersion: 5
+      }).rejectionType).toBe('invalid_board_contract');
+      expect(canonical.inspectAuthoritativeSnapshot(legacy, {
+        currentAppliedVersion: 5
+      }).ok).toBe(true);
+      expect(canonical.inspectAuthoritativeSnapshot(legacy, {
+        currentAppliedVersion: 5,
+        allowLegacyBoardContract: false
+      }).rejectionType).toBe('invalid_board_contract');
     });
 
     test('観戦者snapshotではseat projection不一致とhidden handを拒否しない', () => {

@@ -21,6 +21,8 @@ interface MatchAuthorityProjectionDeps {
     sanitizeOwnerOnlyTrapState: (cardState: unknown, viewerSeatKey: unknown) => unknown;
     stripTransientPresentationState: (nextSnapshot: unknown) => unknown;
     computeStableHash: ((value: unknown) => string) | null;
+    boardContractVersion: number;
+    canonicalizeSnapshotBoardForHash: (snapshotValue: unknown) => unknown;
     makeHiddenHandToken: (ownerKey: unknown, handIndex: unknown) => string;
     isHiddenHandTokenLike: (value: unknown) => boolean;
     parseHiddenHandToken: (value: unknown) => { ownerKey: MatchAuthoritySeatKey; handIndex: number } | null;
@@ -138,11 +140,29 @@ export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjection
             shot.updatedAt = Number(meta.updatedAt);
         }
 
+        const viewer = deps.parseSeatKeyOptional(viewerSeatKey);
+        const spectatorView = String(meta.viewerRole || '').trim() === 'spectator';
+        const projectedForSeat = deps.parseSeatKeyOptional(
+            Object.prototype.hasOwnProperty.call(meta, 'projectedForSeat')
+                ? meta.projectedForSeat
+                : viewer
+        );
+        shot._meta = {
+            authority: 'server',
+            version: Number.isFinite(Number(meta.stateVersion))
+                ? Number(meta.stateVersion)
+                : (Number.isFinite(Number(shot.stateVersion)) ? Number(shot.stateVersion) : null),
+            boardContractVersion: deps.boardContractVersion,
+            projectedForSeat,
+            turnStartReconciled: meta.turnStartReconciled !== false
+        };
+        if (meta.viewerRole === 'spectator') {
+            asRecord(shot._meta).viewerRole = 'spectator';
+        }
+
         const cardState = (shot.cardState && typeof shot.cardState === 'object') ? asRecord(shot.cardState) : null;
         if (!cardState) return shot;
 
-        const viewer = deps.parseSeatKeyOptional(viewerSeatKey);
-        const spectatorView = String(meta.viewerRole || '').trim() === 'spectator';
         deps.sanitizeOwnerOnlyTrapState(cardState, viewer);
         const hands = (cardState.hands && typeof cardState.hands === 'object') ? asRecord(cardState.hands) : {};
         const sourceHands: Record<PlayerKey, unknown[]> = { black: [], white: [] };
@@ -270,23 +290,6 @@ export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjection
         delete cardState.cardCostOverridesByCopyId;
         delete cardState.cardCostModifiersByCopyId;
 
-        const projectedForSeat = deps.parseSeatKeyOptional(
-            Object.prototype.hasOwnProperty.call(meta, 'projectedForSeat')
-                ? meta.projectedForSeat
-                : viewer
-        );
-        shot._meta = {
-            authority: 'server',
-            version: Number.isFinite(Number(meta.stateVersion))
-                ? Number(meta.stateVersion)
-                : (Number.isFinite(Number(shot.stateVersion)) ? Number(shot.stateVersion) : null),
-            projectedForSeat,
-            turnStartReconciled: meta.turnStartReconciled !== false
-        };
-        if (meta.viewerRole === 'spectator') {
-            asRecord(shot._meta).viewerRole = 'spectator';
-        }
-
         return shot;
     }
 
@@ -314,7 +317,7 @@ export function createMatchAuthorityProjectionApi(deps: MatchAuthorityProjection
             delete meta.projectedSnapshotHash;
             delete meta.authoritativeStateHash;
         }
-        return shot;
+        return deps.canonicalizeSnapshotBoardForHash(shot);
     }
 
     function computeAuthoritativeStateHash(snapshotValue: unknown): string | null {
