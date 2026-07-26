@@ -201,6 +201,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/logic/board_ops": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/board_ops.js"),
   "game/logic/card-resolution/board-executor": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/card-resolution/board-executor.js"),
   "game/logic/card-resolution/board-expansion-apply": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/card-resolution/board-expansion-apply.js"),
+  "game/logic/card-resolution/board-view-access": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/card-resolution/board-view-access.js"),
   "game/logic/card-resolution/chaos-summon": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/card-resolution/chaos-summon.js"),
   "game/logic/card-resolution/hand-effects": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/card-resolution/hand-effects.js"),
   "game/logic/card-resolution/observer-will": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/card-resolution/observer-will.js"),
@@ -388,7 +389,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "shared/board/padded-coordinates": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/padded-coordinates.js"),
   "shared/board/risk-cells": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/risk-cells.js"),
   "shared/board/shape-iteration": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/shape-iteration.js"),
-  "shared/board/shape-metadata": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/shape-metadata.js"),
+  "shared/board/state-kernel": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/state-kernel.js"),
   "shared/board/topology": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/topology.js"),
   "shared/charge-utils": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/charge-utils.js"),
   "shared/commentary-context-helpers": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/commentary-context-helpers.js"),
@@ -661,6 +662,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "utils/match-authority": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority.js"),
   "utils/match-authority-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority-contract.js"),
   "utils/match-authority-types": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority-types.js"),
+  "utils/match-authority/board-contract": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/board-contract.js"),
   "utils/match-authority/hand-projection": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/hand-projection.js"),
   "utils/match-authority/identity": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/identity.js"),
   "utils/match-authority/journal": () => require("../../dist/browser-vite-bridge-src/startup/modules/utils/match-authority/journal.js"),
@@ -887,6 +889,7 @@ installBootModuleMetadata({
     "game/logic/board_ops",
     "game/logic/card-resolution/board-executor",
     "game/logic/card-resolution/board-expansion-apply",
+    "game/logic/card-resolution/board-view-access",
     "game/logic/card-resolution/chaos-summon",
     "game/logic/card-resolution/hand-effects",
     "game/logic/card-resolution/observer-will",
@@ -1074,7 +1077,7 @@ installBootModuleMetadata({
     "shared/board/padded-coordinates",
     "shared/board/risk-cells",
     "shared/board/shape-iteration",
-    "shared/board/shape-metadata",
+    "shared/board/state-kernel",
     "shared/board/topology",
     "shared/charge-utils",
     "shared/commentary-context-helpers",
@@ -1357,6 +1360,7 @@ installBootModuleMetadata({
     "utils/match-authority",
     "utils/match-authority-contract",
     "utils/match-authority-types",
+    "utils/match-authority/board-contract",
     "utils/match-authority/hand-projection",
     "utils/match-authority/identity",
     "utils/match-authority/journal",
@@ -1464,4 +1468,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 681;
+export const startupModuleCount = 683;

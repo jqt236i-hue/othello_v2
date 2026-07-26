@@ -136,8 +136,8 @@
     "file": "assets/ViewableBuffer-CObpe3su.js",
     "name": "ViewableBuffer"
   },
-  "_bridge-yxTF6rdh.js": {
-    "file": "assets/bridge-yxTF6rdh.js",
+  "_bridge-rsKcOLcQ.js": {
+    "file": "assets/bridge-rsKcOLcQ.js",
     "name": "bridge"
   },
   "_canvasUtils-C8xQnZmC.js": {
@@ -185,12 +185,12 @@
     "src": "assets/images/stone-skin/default/black.png"
   },
   "browser-vite/cpu-worker/diagnostics.ts": {
-    "file": "assets/cpu-worker-diagnostics-LE4rfDFU.js",
+    "file": "assets/cpu-worker-diagnostics-DDbcCSDN.js",
     "name": "cpu-worker-diagnostics",
     "src": "browser-vite/cpu-worker/diagnostics.ts",
     "isEntry": true,
     "imports": [
-      "_bridge-yxTF6rdh.js"
+      "_bridge-rsKcOLcQ.js"
     ]
   },
   "browser-vite/generated-assets/optional-commentary.mjs": {
@@ -198,7 +198,7 @@
     "src": "browser-vite/generated-assets/optional-commentary.mjs"
   },
   "browser-vite/generated-assets/optional-compatibility.mjs": {
-    "file": "assets/optional-compatibility-98pqv1oe.mjs",
+    "file": "assets/optional-compatibility-B8VqTdIz.mjs",
     "src": "browser-vite/generated-assets/optional-compatibility.mjs"
   },
   "browser-vite/generated-assets/optional-cosmetic.mjs": {
@@ -210,7 +210,7 @@
     "src": "browser-vite/generated-assets/optional-cpu.mjs"
   },
   "browser-vite/generated-assets/optional-diagnostics.mjs": {
-    "file": "assets/optional-diagnostics-D3gTKUSE.mjs",
+    "file": "assets/optional-diagnostics-DQiaJ-SF.mjs",
     "src": "browser-vite/generated-assets/optional-diagnostics.mjs"
   },
   "browser-vite/generated-assets/optional-gacha.mjs": {
@@ -222,11 +222,11 @@
     "src": "browser-vite/generated-assets/optional-leaderboard.mjs"
   },
   "browser-vite/generated-assets/optional-onnx.mjs": {
-    "file": "assets/optional-onnx-DuYtzOpL.mjs",
+    "file": "assets/optional-onnx-CDjBGS7K.mjs",
     "src": "browser-vite/generated-assets/optional-onnx.mjs"
   },
   "entry-browser.js": {
-    "file": "assets/entry-browser-D_5OfV99.js",
+    "file": "assets/entry-browser-BUw9ooku.js",
     "name": "entry-browser",
     "src": "entry-browser.js",
     "isDynamicEntry": true,
@@ -235,14 +235,14 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-CX1G4CRm.js",
+    "file": "assets/index.vite-GCYI10xV.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-aKtaBQYM.js",
       "_preload-helper-HclGiUj8.js",
-      "_bridge-yxTF6rdh.js"
+      "_bridge-rsKcOLcQ.js"
     ],
     "dynamicImports": [
       "ui/layout-stage.js",
@@ -256,9 +256,9 @@
       "assets/optional-leaderboard-D0gWgnx-.mjs",
       "assets/optional-commentary-w5vg3vdT.mjs",
       "assets/optional-cpu-BntQgZI-.mjs",
-      "assets/optional-onnx-DuYtzOpL.mjs",
-      "assets/optional-compatibility-98pqv1oe.mjs",
-      "assets/optional-diagnostics-D3gTKUSE.mjs",
+      "assets/optional-onnx-CDjBGS7K.mjs",
+      "assets/optional-compatibility-B8VqTdIz.mjs",
+      "assets/optional-diagnostics-DQiaJ-SF.mjs",
       "assets/black-C5I6QShq.png",
       "assets/hero-DbqiEqdj.png",
       "assets/勇者の手-C6v2toAd.png"
