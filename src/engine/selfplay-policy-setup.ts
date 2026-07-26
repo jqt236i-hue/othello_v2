@@ -105,6 +105,7 @@ export function createSelfplayPolicySetup(config?: SelfplayPolicySetupConfig) {
             gameRetryCount: Number.isFinite(opts.gameRetryCount) ? Math.max(0, Math.floor(opts.gameRetryCount)) : 4,
             allowCardUsage: opts.allowCardUsage !== false,
             cardUsageRate: Number.isFinite(opts.cardUsageRate) ? Math.max(0, Math.min(1, opts.cardUsageRate)) : 0.2,
+            enableTacticalLookahead: opts.enableTacticalLookahead !== false,
             policyMixRate,
             cardUsageRateJitter,
             tacticalWeightMin,
@@ -143,7 +144,7 @@ export function createSelfplayPolicySetup(config?: SelfplayPolicySetupConfig) {
         const base = {
             allowCardUsage: options.allowCardUsage,
             cardUsageRate: options.cardUsageRate,
-            enableTacticalLookahead: true,
+            enableTacticalLookahead: options.enableTacticalLookahead !== false,
             disableLookaheadTimeBudget: false,
             lookaheadMaxTimeMs: Number.NaN,
             lookaheadEndgameMaxTimeMs: Number.NaN,

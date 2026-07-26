@@ -152,6 +152,31 @@ describe('selfplay policy setup module', () => {
         });
     });
 
+    test('top-level tactical lookahead disable survives normalization and becomes the policy default', () => {
+        const helpers = createSelfplayPolicySetup({
+            SELFPLAY_SCHEMA_VERSION: 'selfplay.v2',
+            SeededPRNG: {
+                createPRNG: jest.fn(() => createSequencePrng([0]))
+            }
+        });
+
+        const normalized = helpers.normalizeOptions({
+            enableTacticalLookahead: false
+        });
+        const policies = helpers.buildPerGamePolicySet(normalized, 1, 0);
+
+        expect(normalized.enableTacticalLookahead).toBe(false);
+        expect(helpers.getPolicyForPlayer(normalized, 'black').enableTacticalLookahead).toBe(false);
+        expect(policies.black).toMatchObject({
+            enableTacticalLookahead: false,
+            tacticalWeight: 0
+        });
+        expect(policies.white).toMatchObject({
+            enableTacticalLookahead: false,
+            tacticalWeight: 0
+        });
+    });
+
     test('buildPerGamePolicySet keeps model path and jitters usage with deterministic rng', () => {
         const helpers = createSelfplayPolicySetup({
             SELFPLAY_SCHEMA_VERSION: 'selfplay.v2',
