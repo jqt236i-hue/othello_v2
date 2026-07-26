@@ -3,7 +3,10 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-const { assertWorkerGraphHasNoPixi } = require('../scripts/check-worker-runtime-preload');
+const {
+  assertStaticDependencyChain,
+  assertWorkerGraphHasNoPixi
+} = require('../scripts/check-worker-runtime-preload');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -36,6 +39,39 @@ describe('worker runtime preload checks', () => {
       );
       expect(() => assertWorkerGraphHasNoPixi(rootDir))
         .toThrow(/Worker runtime imports PixiJS.*match-worker-runtime-preload\.ts.*pixi\.js/s);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  test('rejects a dynamic-only board contract dependency that bundlers cannot traverse', () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-board-contract-graph-'));
+    const chain = [
+      'utils/match-authority.ts',
+      'shared/shared-board-utils.ts',
+      'shared/board/state-kernel.ts'
+    ];
+    try {
+      fs.mkdirSync(path.join(rootDir, 'utils'), { recursive: true });
+      fs.mkdirSync(path.join(rootDir, 'shared', 'board'), { recursive: true });
+      fs.writeFileSync(
+        path.join(rootDir, 'utils', 'match-authority.ts'),
+        "const modulePath = '../shared/shared-board-utils';\nrequire(modulePath);\n",
+        'utf8'
+      );
+      fs.writeFileSync(
+        path.join(rootDir, 'shared', 'shared-board-utils.ts'),
+        "require('./board/state-kernel');\n",
+        'utf8'
+      );
+      fs.writeFileSync(
+        path.join(rootDir, 'shared', 'board', 'state-kernel.ts'),
+        'export {};\n',
+        'utf8'
+      );
+
+      expect(() => assertStaticDependencyChain(rootDir, chain))
+        .toThrow(/required static dependency missing.*match-authority\.ts.*shared-board-utils\.ts/s);
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

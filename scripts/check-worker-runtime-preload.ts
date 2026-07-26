@@ -16,6 +16,11 @@ const WORKER_GRAPH_ENTRY_PATHS = Object.freeze([
     'workers/match-worker.ts',
     'workers/match-worker-runtime-preload.ts'
 ]);
+const REQUIRED_BOARD_CONTRACT_STATIC_CHAIN = Object.freeze([
+    'utils/match-authority.ts',
+    'shared/shared-board-utils.ts',
+    'shared/board/state-kernel.ts'
+]);
 
 function collectStaticModuleSpecifiers(source: string): string[] {
     const specifiers: string[] = [];
@@ -84,6 +89,28 @@ function assertWorkerGraphHasNoPixi(
     return Array.from(visited).sort();
 }
 
+function assertStaticDependencyChain(
+    rootDir: string,
+    chain: readonly string[]
+): void {
+    for (let index = 0; index < chain.length - 1; index += 1) {
+        const importer = chain[index].replace(/\\/g, '/');
+        const expectedDependency = chain[index + 1].replace(/\\/g, '/');
+        const absoluteImporter = path.join(rootDir, importer);
+        if (!fs.existsSync(absoluteImporter)) {
+            throw new Error(`[worker-runtime-preload] static dependency source missing: ${importer}`);
+        }
+        const resolvedDependencies = collectStaticModuleSpecifiers(
+            fs.readFileSync(absoluteImporter, 'utf8')
+        ).map((specifier) => resolveSourceImport(rootDir, importer, specifier));
+        if (!resolvedDependencies.includes(expectedDependency)) {
+            throw new Error(
+                `[worker-runtime-preload] required static dependency missing: ${importer} -> ${expectedDependency}`
+            );
+        }
+    }
+}
+
 function readRepoFile(relativePath: string): string {
     return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
 }
@@ -102,6 +129,7 @@ export function checkWorkerRuntimePreload(): void {
     const workerSource = readRepoFile(WORKER_PATH);
     const failures: string[] = [];
     const workerGraph = assertWorkerGraphHasNoPixi(ROOT);
+    assertStaticDependencyChain(ROOT, REQUIRED_BOARD_CONTRACT_STATIC_CHAIN);
     const globalKeys = new Set<string>();
     const importPaths = new Set<string>();
 
@@ -149,7 +177,12 @@ export function checkWorkerRuntimePreload(): void {
     console.log(`[worker-runtime-preload] single source verified registrations=${runtimePreload.length} pixiExcludedGraphFiles=${workerGraph.length}`);
 }
 
-export { assertWorkerGraphHasNoPixi, collectStaticModuleSpecifiers, resolveSourceImport };
+export {
+    assertStaticDependencyChain,
+    assertWorkerGraphHasNoPixi,
+    collectStaticModuleSpecifiers,
+    resolveSourceImport
+};
 
 if (require.main === module) {
     try {

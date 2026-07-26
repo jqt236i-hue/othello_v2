@@ -136,18 +136,27 @@ function loadOptionalCommonJsModule<T extends object>(modulePath: string): T | n
     }
 }
 
-function resolveStaticSharedBoardUtils(moduleValue: unknown): MatchAuthoritySharedBoardUtils | null {
-    if (!moduleValue || typeof moduleValue !== 'object') return null;
-    const direct = moduleValue as MatchAuthoritySharedBoardUtils;
-    if (typeof direct.inspectBoardState === 'function') return direct;
-    const nestedDefault = (direct as Record<string, unknown>).default;
-    return nestedDefault && typeof nestedDefault === 'object'
-        ? nestedDefault as MatchAuthoritySharedBoardUtils
+function requireStaticSharedBoardUtils(moduleValue: unknown): MatchAuthoritySharedBoardUtils {
+    const direct = moduleValue && typeof moduleValue === 'object'
+        ? moduleValue as MatchAuthoritySharedBoardUtils
         : null;
+    const nestedDefault = direct && (direct as Record<string, unknown>).default;
+    const resolved = direct && typeof direct.inspectBoardState === 'function'
+        ? direct
+        : nestedDefault && typeof nestedDefault === 'object'
+            ? nestedDefault as MatchAuthoritySharedBoardUtils
+            : null;
+    const requiredApis = ['inspectBoardState', 'canonicalizeStateBoard', 'countStateDiscs'] as const;
+    const missingApis = requiredApis.filter((apiName) => (
+        !resolved || typeof resolved[apiName] !== 'function'
+    ));
+    if (!resolved || missingApis.length > 0) {
+        throw new Error(`MatchAuthority requires SharedBoardUtils APIs: ${missingApis.join(', ')}`);
+    }
+    return resolved;
 }
 
-const SharedBoardUtils = resolveStaticSharedBoardUtils(SharedBoardUtilsStaticModule)
-    || loadOptionalCommonJsModule<MatchAuthoritySharedBoardUtils>('../shared/shared-board-utils');
+const SharedBoardUtils = requireStaticSharedBoardUtils(SharedBoardUtilsStaticModule);
 const GachaHandCatalogShared = loadOptionalCommonJsModule<MatchAuthorityGachaHandCatalogShared>('../shared/gacha-hand-catalog-shared.js');
 const StateHash = loadOptionalCommonJsModule<MatchAuthorityStateHash>('../shared/state-hash.js');
 const PlaybackDigest = loadOptionalCommonJsModule<MatchAuthorityPlaybackDigest>('../shared/playback-digest');
