@@ -28,7 +28,8 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled(?::not\(\.layout-profile-phone-portrait\))?\s+\.player-area-top[\s\S]*top:\s*calc\(22px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#effect-live-panel[\s\S]*min-height:\s*calc\(156px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(pointer:\s*coarse\)\s*and\s*\(min-width:\s*56\.3125em\)\s*and\s*\(max-width:\s*87\.5em\)\s*and\s*\(max-height:\s*56\.25em\)[\s\S]*#log[\s\S]*right:\s*max/);
-    expect(css).toMatch(/@media\s*\(orientation:\s*portrait\)\s*and\s*\(pointer:\s*coarse\)[\s\S]*:is\([\s\S]*#quick-controls-bar,[\s\S]*#stone-info-panel,[\s\S]*#manifest-effect-panel,[\s\S]*#hero-character-panel[\s\S]*\)[\s\S]*display:\s*none/);
+    expect(css).toMatch(/@media\s*\(orientation:\s*portrait\)\s*and\s*\(pointer:\s*coarse\)[\s\S]*:is\([\s\S]*#quick-controls-bar,[\s\S]*#manifest-effect-panel,[\s\S]*#hero-character-panel[\s\S]*\)[\s\S]*display:\s*none/);
+    expect(css).toMatch(/@media\s*\(orientation:\s*portrait\)\s*and\s*\(pointer:\s*coarse\)[\s\S]*#stone-info-panel[\s\S]*position:\s*relative[\s\S]*display:\s*block[\s\S]*flex:\s*0 0 auto/);
     expect(css).toMatch(/@media\s*\(orientation:\s*portrait\)\s*and\s*\(pointer:\s*coarse\)[\s\S]*#effect-live-panel[\s\S]*width:\s*min\(calc\(250px\s*\*\s*var\(--layout-stage-scale\)\),\s*30vw\)/);
     expect(css).toMatch(/safe-area-inset-right/);
     expect(css).toMatch(/safe-area-inset-left/);
@@ -69,7 +70,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#game-container[\s\S]*gap:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+\.player-area-top,[\s\S]*\.player-area-bottom[\s\S]*gap:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+\.player-area-bottom[\s\S]*row-gap:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*column-gap:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel[\s\S]*display:\s*none/);
+    expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel[\s\S]*position:\s*relative[\s\S]*display:\s*block[\s\S]*flex:\s*0 0 auto[\s\S]*transform:\s*none/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#hand-white[\s\S]*min-height:\s*calc\(68px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#hand-white\s+\.card-item[\s\S]*width:\s*calc\(61px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*height:\s*calc\(83px\s*\*\s*var\(--layout-stage-scale\)\)/);
     expect(css).toMatch(/html\.layout-profile-phone-portrait\s+#hand-black[\s\S]*min-height:\s*calc\(108px\s*\*\s*var\(--layout-stage-scale\)\)/);

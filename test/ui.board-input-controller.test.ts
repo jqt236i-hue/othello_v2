@@ -83,19 +83,15 @@ describe('board input controller', () => {
 
   test('starts disabled and exposes an explicit bootstrap activation gate', () => {
     const handleCellClick = jest.fn();
-    const showIdleStoneInfoPanel = jest.fn();
     const controller = BoardInputControllerModule.createBoardInputController({
-      handleCellClick,
-      showIdleStoneInfoPanel
+      handleCellClick
     });
 
     controller.handlePointer({ type: 'pointerdown', row: 0, col: 0, pointerType: 'mouse', button: 0 });
     controller.handlePointer({ type: 'pointerup', row: 0, col: 0, pointerType: 'mouse' });
     expect(handleCellClick).not.toHaveBeenCalled();
-    expect(showIdleStoneInfoPanel).not.toHaveBeenCalled();
 
     expect(controller.activate()).toBe(true);
-    expect(showIdleStoneInfoPanel).toHaveBeenCalledTimes(1);
     controller.handlePointer({ type: 'pointerdown', row: 0, col: 0, pointerType: 'mouse', button: 0 });
     controller.handlePointer({ type: 'pointerup', row: 0, col: 0, pointerType: 'mouse' });
     expect(handleCellClick).toHaveBeenCalledWith(0, 0, undefined);
@@ -105,8 +101,7 @@ describe('board input controller', () => {
   });
 
   test('mouse short press reaches the existing handleCellClick path with its direction', () => {
-    const ensureOutsideCloseHandler = jest.fn();
-    const { controller, actions, info } = createController({ ensureOutsideCloseHandler });
+    const { controller, actions, info } = createController();
 
     expect(controller.handlePointer({
       type: 'pointerdown', row: 2, col: 3, pointerId: 7, pointerType: 'mouse', button: 0, clientX: 10, clientY: 20
@@ -117,10 +112,9 @@ describe('board input controller', () => {
 
     expect(actions).toEqual([{ row: 2, col: 3, directionKey: 'up-left' }]);
     expect(info).toEqual([]);
-    expect(ensureOutsideCloseHandler).toHaveBeenCalledTimes(1);
   });
 
-  test('touch short press shows stone information before placement', () => {
+  test('touch short press performs only the board action', () => {
     const order: string[] = [];
     const controller = BoardInputControllerModule.createBoardInputController({
       showSpecialStoneInfoAt: () => order.push('info'),
@@ -133,12 +127,11 @@ describe('board input controller', () => {
     });
     controller.handlePointer({ type: 'pointerup', row: 1, col: 1, pointerId: 3, pointerType: 'touch' });
 
-    expect(order).toEqual(['info', 'click']);
+    expect(order).toEqual(['click']);
   });
 
-  test('420ms long press opens information and suppresses placement', () => {
+  test('holding a board press does not open information or suppress placement', () => {
     jest.useFakeTimers();
-    const preventDefault = jest.fn();
     const { controller, actions, info } = createController();
 
     controller.handlePointer({
@@ -147,13 +140,12 @@ describe('board input controller', () => {
     jest.advanceTimersByTime(419);
     expect(info).toEqual([]);
     jest.advanceTimersByTime(1);
-    expect(info).toEqual([{ row: 5, col: 6 }]);
+    expect(info).toEqual([]);
 
     controller.handlePointer({
-      type: 'pointerup', row: 5, col: 6, pointerId: 4, pointerType: 'pen', preventDefault
+      type: 'pointerup', row: 5, col: 6, pointerId: 4, pointerType: 'pen'
     });
-    expect(actions).toEqual([]);
-    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(actions).toEqual([{ row: 5, col: 6 }]);
   });
 
   test.each([
@@ -186,8 +178,7 @@ describe('board input controller', () => {
     expect(actions).toEqual([{ row: 1, col: 2 }]);
   });
 
-  test('a lock acquired during the long-press window clears the pending press', () => {
-    jest.useFakeTimers();
+  test('a lock acquired before pointerup blocks the pending press', () => {
     let locked = false;
     const { controller, actions, info } = createController({ isInputLocked: () => locked });
     controller.handlePointer({
@@ -195,8 +186,6 @@ describe('board input controller', () => {
     });
 
     locked = true;
-    jest.advanceTimersByTime(420);
-    locked = false;
     controller.handlePointer({
       type: 'pointerup', row: 1, col: 2, pointerId: 8, pointerType: 'touch', clientX: 10, clientY: 10
     });
@@ -216,7 +205,7 @@ describe('board input controller', () => {
     expect(actions).toEqual([]);
   });
 
-  test('hover is informational for mouse and pen but not touch', () => {
+  test('hover only updates board preview for mouse and pen', () => {
     const { controller, hover, info } = createController();
 
     controller.handlePointer({ type: 'pointerenter', row: 3, col: 4, pointerType: 'mouse' });
@@ -225,10 +214,10 @@ describe('board input controller', () => {
     controller.handlePointer({ type: 'pointerenter', row: 4, col: 4, pointerType: 'touch' });
 
     expect(hover).toEqual(['set:3,4', 'set:3,5', 'clear']);
-    expect(info).toEqual([{ row: 3, col: 4, preserveOnEmpty: true }]);
+    expect(info).toEqual([]);
   });
 
-  test('locked input cancels pointer state while spectator keeps information read-only', () => {
+  test('locked and spectator input never dispatch board actions or stone details', () => {
     let locked = true;
     let spectator = false;
     const { controller, actions, info, blocked, cursors } = createController({
@@ -250,7 +239,7 @@ describe('board input controller', () => {
     controller.handlePointer({ type: 'pointerup', row: 1, col: 1, pointerId: 2, pointerType: 'touch' });
     expect(controller.moveKeyboardCursor('right')).toBe(false);
 
-    expect(info).toEqual([{ row: 1, col: 1 }]);
+    expect(info).toEqual([]);
     expect(actions).toEqual([]);
     expect(blocked).toEqual(['locked:keyboard', 'spectator:pointer', 'spectator:keyboard']);
   });

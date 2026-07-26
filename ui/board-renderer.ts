@@ -1629,13 +1629,7 @@ function getBoardInputController() {
         throw new Error('Board input controller capability is unavailable');
     }
     const StateAdapterModule = _require('./board-visual/state-adapter');
-    const StoneInfoModule = _require('./presentation/stone-info-controller');
-    const presentation = StoneInfoModule
-        && typeof StoneInfoModule.getStoneInfoPresentationCapabilities === 'function'
-        ? StoneInfoModule.getStoneInfoPresentationCapabilities()
-        : {};
     const input = InputModule.createBoardInputController({
-        ...presentation,
         setHoveredCell: (row: number, col: number) => StateAdapterModule.setBoardVisualHoverCell(row, col),
         clearHoveredCell: () => StateAdapterModule.clearBoardVisualHoverPreview(),
         handleCellClick: (row: number, col: number, directionKey?: string) => {
@@ -1683,6 +1677,12 @@ function deactivateBoardInputController() {
 
 function _syncSettledBoardInputForBoardRenderer(frame: any) {
     if (!frame || !frame.model) return;
+    try {
+        const StoneInfoModule = _require('./presentation/stone-info-controller');
+        StoneInfoModule?.renderCurrentStoneInfoPanel?.(frame);
+    } catch (error) {
+        _recordBoardInputErrorForBoardRenderer('stone-info:frame-sync-error', error);
+    }
     if (BoardInputControllerForBoardRenderer) {
         try {
             BoardInputControllerForBoardRenderer.syncModel?.(frame.model);

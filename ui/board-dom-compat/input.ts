@@ -57,7 +57,6 @@ function bindBoardCellInteraction(capabilities: any, cell: any, rawRow: any, raw
     if (!cell) return;
     const row = Number(rawRow);
     const col = Number(rawCol);
-    capabilities?.showIdleStoneInfoPanel?.();
 
     const forwardPointer = (type: string, event: any) => {
         const controller = resolveBoardInputController(capabilities);

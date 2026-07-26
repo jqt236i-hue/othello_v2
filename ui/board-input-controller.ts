@@ -60,19 +60,8 @@ interface BoardInputControllerOptions {
   isCellInteractive?: (row: number, col: number) => boolean;
   getCellClientRect?: (row: number, col: number) => BoardClientRect | null;
   onBlocked?: (reason: BoardInputBlockReason, source: BoardInputSource) => void;
-  showIdleStoneInfoPanel?: () => void;
-  ensureOutsideCloseHandler?: () => void;
   setHoveredCell?: (row: number, col: number) => void;
   clearHoveredCell?: () => void;
-  showSpecialStoneInfoAt?: (
-    row: number,
-    col: number,
-    options?: Readonly<{ preserveOnEmpty: boolean }>
-  ) => void;
-  longPressMs?: number;
-  longPressMoveCancelPx?: number;
-  setTimeout?: (callback: () => void, delayMs: number) => unknown;
-  clearTimeout?: (handle: unknown) => void;
 }
 
 type ActivePress = {
@@ -86,12 +75,9 @@ type ActivePress = {
   hintId?: string;
   modelCommitId?: number;
   boardDigest?: string;
-  timer: unknown;
-  longPressed: boolean;
 };
 
-const DEFAULT_LONG_PRESS_MS = 420;
-const DEFAULT_LONG_PRESS_MOVE_CANCEL_PX = 8;
+const DEFAULT_PRESS_MOVE_CANCEL_PX = 8;
 
 function toCellKey(row: number, col: number): string {
   return `${row},${col}`;
@@ -176,14 +162,7 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     throw new Error('BoardInputController requires handleCellClick');
   }
 
-  const schedule = options.setTimeout || ((callback: () => void, delayMs: number) => setTimeout(callback, delayMs));
-  const cancelScheduled = options.clearTimeout || ((handle: unknown) => clearTimeout(handle as ReturnType<typeof setTimeout>));
-  const longPressMs = Number.isFinite(Number(options.longPressMs))
-    ? Math.max(0, Number(options.longPressMs))
-    : DEFAULT_LONG_PRESS_MS;
-  const moveCancelPx = Number.isFinite(Number(options.longPressMoveCancelPx))
-    ? Math.max(0, Number(options.longPressMoveCancelPx))
-    : DEFAULT_LONG_PRESS_MOVE_CANCEL_PX;
+  const moveCancelPx = DEFAULT_PRESS_MOVE_CANCEL_PX;
   let activePress: ActivePress | null = null;
   let hoveredCellKey: string | null = null;
   let keyboardCursorKey: string | null = null;
@@ -258,9 +237,7 @@ function createBoardInputController(options: BoardInputControllerOptions) {
   };
 
   const clearPress = (): void => {
-    const press = activePress;
     activePress = null;
-    if (press && press.timer != null) cancelScheduled(press.timer);
   };
 
   const clearHover = (): void => {
@@ -514,7 +491,6 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     if (event.type === 'pointerdown') {
       clearPress();
       if (Number(event.button ?? 0) !== 0 || isLocked() || !isInteractive(row, col)) return false;
-      options.ensureOutsideCloseHandler?.();
       const press: ActivePress = {
         pointerId,
         row,
@@ -524,29 +500,16 @@ function createBoardInputController(options: BoardInputControllerOptions) {
         startY: normalizeCoordinate(event.clientY),
         directionKey: normalizeDirectionKey(event.directionKey),
         hintId: normalizeHintId(event.hintId),
-        ...currentModelIdentity(),
-        timer: null,
-        longPressed: false
+        ...currentModelIdentity()
       };
       activePress = press;
-      press.timer = schedule(() => {
-        if (activePress !== press) return;
-        if (isLocked()) {
-          clearPress();
-          return;
-        }
-        press.longPressed = true;
-        options.showSpecialStoneInfoAt?.(press.row, press.col);
-      }, longPressMs);
       return true;
     }
 
     if (event.type === 'pointerenter') {
       if (!isHoverPointer || isLocked() || !isInteractive(row, col)) return false;
-      options.ensureOutsideCloseHandler?.();
       hoveredCellKey = toCellKey(row, col);
       options.setHoveredCell?.(row, col);
-      options.showSpecialStoneInfoAt?.(row, col, Object.freeze({ preserveOnEmpty: true }));
       return true;
     }
 
@@ -571,16 +534,10 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     if (event.type === 'pointerup') {
       const press = activePress;
       if (!press || press.pointerId !== pointerId) return false;
-      const wasLongPressed = press.longPressed;
       const directionKey = normalizeDirectionKey(event.directionKey) || press.directionKey;
       const hintId = normalizeHintId(event.hintId) || press.hintId;
       clearPress();
-      if (wasLongPressed) {
-        event.preventDefault?.();
-        return true;
-      }
       if (isLocked()) return false;
-      if (press.pointerType === 'touch') options.showSpecialStoneInfoAt?.(press.row, press.col);
       return dispatchCellAction(
         press.row,
         press.col,
@@ -643,7 +600,6 @@ function createBoardInputController(options: BoardInputControllerOptions) {
     activate(): boolean {
       if (destroyed || enabled) return false;
       enabled = true;
-      options.showIdleStoneInfoPanel?.();
       return true;
     },
     deactivate(): boolean {
@@ -690,7 +646,6 @@ function createBoardInputController(options: BoardInputControllerOptions) {
         hoveredCellKey,
         keyboardCursorKey,
         directionFocusCellKey,
-        longPressed: activePress?.longPressed === true,
         enabled,
         locked: isLocked(),
         spectator: isSpectator()
@@ -723,7 +678,5 @@ function createBoardInputController(options: BoardInputControllerOptions) {
 }
 
 export = {
-  createBoardInputController,
-  DEFAULT_LONG_PRESS_MS,
-  DEFAULT_LONG_PRESS_MOVE_CANCEL_PX
+  createBoardInputController
 };

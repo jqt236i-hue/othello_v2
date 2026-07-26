@@ -1,27 +1,44 @@
 import { JSDOM } from 'jsdom';
 
-describe('DiffRenderer stone info panel DOM shell', () => {
+describe('current board stone catalog presentation', () => {
   function setupDom(body = '<div id="board"></div>') {
     jest.resetModules();
-    const dom = new JSDOM(`<!doctype html><html><body>${body}</body></html>`);
-    global.window = dom.window;
+    const dom = new JSDOM(`<!doctype html><html><body>${body}</body></html>`, {
+      url: 'http://localhost/'
+    });
+    global.window = dom.window as any;
     global.document = dom.window.document;
     global.Event = dom.window.Event;
     global.BLACK = 1;
     global.WHITE = -1;
     global.EMPTY = 0;
-    global.handleCellClick = jest.fn();
     global.cardState = { markers: [] };
-    global.gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 1 };
-    const inputController = {
-      handlePointer: jest.fn(),
-      handleKeyboard: jest.fn(),
-      getState: jest.fn(() => ({ activePointerId: null }))
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: 1
     };
-    require('../ui/board-renderer/stone-helpers.ts').setBoardRendererStoneHelpers({
-      getBoardInputController: () => inputController
-    });
-    return require('../ui/board-dom-compat/renderer');
+    return require('../ui/presentation/stone-info-controller.ts');
+  }
+
+  function frame(cells: any[]) {
+    return {
+      model: { cells },
+      appearance: {
+        blackStoneImageUrl: 'http://localhost/assets/black.png',
+        whiteStoneImageUrl: 'http://localhost/assets/white.png'
+      }
+    };
+  }
+
+  function stone(row: number, col: number, owner: 'black' | 'white', specialType: string | null = null) {
+    return {
+      row,
+      col,
+      stone: { owner, value: owner === 'black' ? 1 : -1, specialType, status: {} },
+      markers: specialType
+        ? [{ kind: 'special', owner, value: specialType, data: { type: specialType } }]
+        : []
+    };
   }
 
   afterEach(() => {
@@ -31,44 +48,79 @@ describe('DiffRenderer stone info panel DOM shell', () => {
     delete global.BLACK;
     delete global.WHITE;
     delete global.EMPTY;
-    delete global.handleCellClick;
     delete global.cardState;
     delete global.gameState;
-    delete (global as any).BoardRendererStoneHelpers;
   });
 
-  test('creates stone info panel below manifest panel when the left stack exists', () => {
+  test('creates the stone catalog below the manifest panel when the left stack exists', () => {
     const mod = setupDom('<div id="board"></div><div id="left-info-stack"><div id="effect-live-panel"></div><div id="manifest-effect-panel"></div></div>');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
 
-    mod.attachBoardCellInteraction(cell, 1, 1);
+    expect(mod.renderCurrentStoneInfoPanel(frame([]))).toBe(true);
 
     const stackChildren = Array.from(document.getElementById('left-info-stack').children).map((el) => el.id);
     expect(stackChildren).toEqual(['effect-live-panel', 'manifest-effect-panel', 'stone-info-panel']);
+    expect(document.getElementById('stone-info-list-title').textContent).toBe('盤上の石');
+    expect(document.getElementById('stone-info-list-instruction').textContent).toBe('石を選ぶと情報を表示');
+    expect(document.querySelector('.stone-info-list-empty').textContent).toBe('盤上に石はありません');
   });
 
-  test('reuses an existing stone info panel', () => {
-    const mod = setupDom('<div id="board"></div><div id="stone-info-panel" class="stone-info-panel"><div id="stone-info-name"></div><div id="stone-info-desc"></div><div id="stone-info-meta"></div></div>');
+  test('reuses an existing panel and groups normal stones by owner with counts', () => {
+    const mod = setupDom('<div id="stone-info-panel" class="stone-info-panel"><div id="stone-info-name"></div><div id="stone-info-desc"></div><div id="stone-info-meta"></div></div>');
     const existing = document.getElementById('stone-info-panel');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
 
-    mod.attachBoardCellInteraction(cell, 1, 1);
+    mod.renderCurrentStoneInfoPanel(frame([
+      stone(3, 3, 'black'),
+      stone(4, 4, 'black'),
+      stone(3, 4, 'white'),
+      stone(4, 3, 'white')
+    ]));
 
     expect(document.getElementById('stone-info-panel')).toBe(existing);
+    const items = Array.from(document.querySelectorAll('.stone-info-list-item')) as HTMLButtonElement[];
+    expect(items).toHaveLength(2);
+    expect(items.map((item) => item.getAttribute('data-stone-catalog-key'))).toEqual([
+      'normal:black',
+      'normal:white'
+    ]);
+    expect(items.map((item) => item.getAttribute('aria-label'))).toEqual([
+      '黒石の情報を表示（盤上に2個）',
+      '白石の情報を表示（盤上に2個）'
+    ]);
+    expect(items.map((item) => item.querySelector('img').getAttribute('src'))).toEqual([
+      'http://localhost/assets/black.png',
+      'http://localhost/assets/white.png'
+    ]);
   });
 
-  test('hover-capable and hover-none media query branches do not throw', () => {
+  test('shows a special stone with its board artwork and opens detail only from the catalog', () => {
     const mod = setupDom();
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 1, 1);
-    window.matchMedia = jest.fn((query) => ({ matches: query.includes('hover: none') }));
+    global.gameState.board[2][2] = 1;
+    global.cardState.markers = [{
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'GOLD' }
+    }];
 
-    expect(() => {
-      cell.dispatchEvent(new Event('pointerenter', { bubbles: true }));
-      cell.dispatchEvent(new Event('pointerup', { bubbles: true }));
-    }).not.toThrow();
+    mod.renderCurrentStoneInfoPanel(frame([
+      stone(2, 2, 'black', 'GOLD')
+    ]));
+
+    const button = document.querySelector('.stone-info-list-item') as HTMLButtonElement;
+    expect(button.getAttribute('aria-label')).toBe('金石の情報を表示（盤上に1個）');
+    expect(button.querySelector('img').getAttribute('src')).toContain('/assets/images/special-stones/gold_stone.png');
+    expect(document.getElementById('stone-info-detail-panel')).toBeNull();
+
+    button.click();
+
+    expect(document.getElementById('stone-info-detail-panel').classList.contains('is-open')).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('金石');
+    expect(document.getElementById('stone-info-desc').textContent).toContain('獲得布石を4倍');
+
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+    expect(document.getElementById('stone-info-detail-panel').classList.contains('is-open')).toBe(false);
+    expect(document.getElementById('stone-info-detail-backdrop').classList.contains('is-open')).toBe(false);
   });
 });

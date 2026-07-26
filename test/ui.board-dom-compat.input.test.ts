@@ -18,6 +18,7 @@ describe('diff renderer interaction binder', () => {
     expect(binderSource).not.toContain('setTimeout');
     expect(binderSource).not.toContain('pressActive');
     expect(binderSource).not.toContain('longPressed');
+    expect(binderSource).not.toContain('showIdleStoneInfoPanel');
   });
 
   test('resolves the shared controller lazily and normalizes pointer lifecycle events', () => {
@@ -29,17 +30,15 @@ describe('diff renderer interaction binder', () => {
       getState: jest.fn(() => ({ activePointerId: 9 }))
     };
     const getInputController = jest.fn(() => controller);
-    const showIdleStoneInfoPanel = jest.fn();
     const cell = {
       addEventListener: (type: string, listener: (event: any) => void) => {
         listeners[type] = listener;
       }
     };
 
-    bindBoardCellInteraction({ getInputController, showIdleStoneInfoPanel }, cell, 2, 3);
+    bindBoardCellInteraction({ getInputController }, cell, 2, 3);
 
     expect(getInputController).not.toHaveBeenCalled();
-    expect(showIdleStoneInfoPanel).toHaveBeenCalledTimes(1);
 
     listeners.pointerenter({ pointerId: 7, pointerType: 'pen', clientX: 10, clientY: 20 });
     listeners.pointerdown({ pointerId: 7, pointerType: 'pen', button: 0, clientX: 11, clientY: 21 });
@@ -80,8 +79,7 @@ describe('diff renderer interaction binder', () => {
       }
     };
     bindBoardCellInteraction({
-      getInputController: () => controller,
-      showIdleStoneInfoPanel: jest.fn()
+      getInputController: () => controller
     }, cell, 0, 0);
 
     listeners.pointerdown({ pointerId: 1, pointerType: 'mouse', button: 0, clientX: 0, clientY: 0 });

@@ -511,6 +511,129 @@
     display: none;
 }
 
+.stone-info-list {
+    display: flex;
+    align-items: flex-start;
+    gap: calc(7px * var(--layout-stage-scale));
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: calc(2px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
+    scrollbar-width: thin;
+    scrollbar-color: rgba(143, 213, 161, 0.56) rgba(5, 12, 8, 0.58);
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+}
+
+.stone-info-list-item {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 calc(58px * var(--layout-stage-scale));
+    width: calc(58px * var(--layout-stage-scale));
+    min-height: calc(73px * var(--layout-stage-scale));
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: calc(4px * var(--layout-stage-scale));
+    padding: calc(5px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(143, 213, 161, 0.38);
+    border-radius: calc(4px * var(--layout-stage-scale));
+    background:
+        linear-gradient(180deg, rgba(236, 255, 226, 0.07), transparent 48%),
+        linear-gradient(180deg, rgba(28, 48, 31, 0.82), rgba(7, 15, 9, 0.88));
+    color: var(--left-hud-text-value);
+    box-shadow:
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.08),
+        0 calc(2px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.32);
+    cursor: pointer;
+    font: inherit;
+    user-select: none;
+}
+
+.stone-info-list-item:hover,
+.stone-info-list-item:focus-visible {
+    border-color: rgba(213, 187, 120, 0.78);
+    background:
+        linear-gradient(180deg, rgba(213, 187, 120, 0.14), transparent 50%),
+        linear-gradient(180deg, rgba(41, 57, 35, 0.9), rgba(9, 17, 10, 0.92));
+    transform: translateY(calc(-1px * var(--layout-stage-scale)));
+}
+
+.stone-info-list-item:focus-visible {
+    outline: calc(1px * var(--layout-stage-scale)) solid rgba(242, 255, 245, 0.9);
+    outline-offset: calc(1px * var(--layout-stage-scale));
+}
+
+.stone-info-list-visual {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: calc(43px * var(--layout-stage-scale));
+    height: calc(43px * var(--layout-stage-scale));
+}
+
+.stone-info-list-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 calc(2px * var(--layout-stage-scale)) calc(3px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.58));
+    pointer-events: none;
+}
+
+.stone-info-list-count {
+    position: absolute;
+    right: calc(-5px * var(--layout-stage-scale));
+    bottom: calc(-2px * var(--layout-stage-scale));
+    min-width: calc(19px * var(--layout-stage-scale));
+    padding: calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(226, 245, 213, 0.62);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: rgba(8, 18, 10, 0.94);
+    color: #f2ffe8;
+    font-size: calc(9px * var(--layout-stage-scale));
+    font-weight: 900;
+    line-height: 1.25;
+    text-align: center;
+    box-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.56);
+}
+
+.stone-info-list-sprout {
+    position: absolute;
+    top: calc(-5px * var(--layout-stage-scale));
+    left: 50%;
+    color: #9bf0a3;
+    font-size: calc(18px * var(--layout-stage-scale));
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 0 calc(5px * var(--layout-stage-scale)) rgba(70, 255, 111, 0.72);
+    transform: translateX(-50%) rotate(35deg);
+}
+
+.stone-info-list-label {
+    display: -webkit-box;
+    width: 100%;
+    overflow: hidden;
+    color: var(--left-hud-text-value);
+    font-size: calc(9px * var(--layout-stage-scale));
+    font-weight: 800;
+    line-height: 1.15;
+    text-align: center;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.stone-info-list-empty {
+    width: 100%;
+    padding: calc(8px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    color: var(--left-hud-text-muted);
+    font-size: calc(12px * var(--layout-stage-scale));
+    font-weight: 700;
+    text-align: center;
+}
+
 .stone-info-effect-tag {
     display: inline-flex;
     align-items: center;
@@ -557,6 +680,113 @@
     outline-offset: calc(1px * var(--layout-stage-scale));
 }
 
+#stone-info-detail-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 12020;
+    background: rgba(0, 0, 0, 0.56);
+    backdrop-filter: blur(calc(2px * var(--layout-stage-scale)));
+    -webkit-backdrop-filter: blur(calc(2px * var(--layout-stage-scale)));
+}
+
+#stone-info-detail-backdrop.is-open {
+    display: block;
+}
+
+#stone-info-detail-panel {
+    --left-hud-accent: #9fdcba;
+    --left-hud-accent-warm: #d5bb78;
+    --left-hud-text-title: #f2fff5;
+    --left-hud-text-body: rgba(226, 243, 226, 0.94);
+    --left-hud-text-value: #e7f8df;
+    --left-hud-text-muted: rgba(202, 224, 197, 0.72);
+    display: none;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    z-index: 12021;
+    width: min(calc(440px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
+    max-height: min(calc(520px * var(--layout-stage-scale)), calc(100dvh - calc(24px * var(--layout-stage-scale))));
+    padding: calc(16px * var(--layout-stage-scale));
+    overflow-y: auto;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(143, 213, 161, 0.66);
+    border-radius: calc(6px * var(--layout-stage-scale));
+    background:
+        radial-gradient(120% 90% at 12% 0%, rgba(102, 151, 102, 0.24), transparent 42%),
+        repeating-linear-gradient(0deg, rgba(236, 255, 226, 0.024) 0 1px, transparent 1px 5px),
+        linear-gradient(180deg, rgba(15, 24, 17, 0.985), rgba(5, 10, 8, 0.99));
+    color: var(--left-hud-text-body, rgba(226, 243, 226, 0.94));
+    box-shadow:
+        0 calc(20px * var(--layout-stage-scale)) calc(58px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.72),
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(222, 255, 223, 0.08);
+    transform: translate(-50%, -50%);
+}
+
+#stone-info-detail-panel.is-open {
+    display: block;
+}
+
+#stone-info-detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: calc(10px * var(--layout-stage-scale));
+}
+
+#stone-info-detail-header .stone-info-name {
+    margin-bottom: calc(10px * var(--layout-stage-scale));
+}
+
+#stone-info-detail-close-btn {
+    display: grid;
+    flex: 0 0 calc(30px * var(--layout-stage-scale));
+    width: calc(30px * var(--layout-stage-scale));
+    height: calc(30px * var(--layout-stage-scale));
+    place-items: center;
+    padding: 0;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(226, 245, 213, 0.48);
+    border-radius: calc(4px * var(--layout-stage-scale));
+    background: rgba(255, 255, 255, 0.08);
+    color: #efffe9;
+    cursor: pointer;
+    font-size: calc(18px * var(--layout-stage-scale));
+    line-height: 1;
+}
+
+#stone-info-detail-close-btn:hover,
+#stone-info-detail-close-btn:focus-visible {
+    border-color: rgba(213, 187, 120, 0.78);
+    background: rgba(213, 187, 120, 0.14);
+}
+
+#stone-info-detail-content {
+    display: grid;
+    grid-template-columns: calc(92px * var(--layout-stage-scale)) minmax(0, 1fr);
+    gap: calc(14px * var(--layout-stage-scale));
+    align-items: start;
+}
+
+#stone-info-detail-image {
+    display: block;
+    width: calc(92px * var(--layout-stage-scale));
+    height: calc(92px * var(--layout-stage-scale));
+    object-fit: contain;
+    filter: drop-shadow(0 calc(5px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.68));
+}
+
+#stone-info-detail-image[hidden] {
+    display: none;
+}
+
+#stone-info-detail-copy {
+    min-width: 0;
+}
+
+#stone-info-detail-panel .stone-info-desc {
+    margin-bottom: calc(10px * var(--layout-stage-scale));
+}
+
 #stone-info-tag-panel {
     display: none;
     position: fixed;
@@ -570,7 +800,7 @@
     border: var(--layout-size-border-medium) solid rgba(255, 255, 255, 0.34);
     border-radius: calc(10px * var(--layout-stage-scale));
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.62);
-    z-index: 10040;
+    z-index: 12030;
 }
 
 #stone-info-tag-panel.is-open {

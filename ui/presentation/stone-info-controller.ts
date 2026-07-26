@@ -82,6 +82,12 @@ if (typeof require === 'function') {
     try { StoneInfoPanelModule = require('./stone-info-panel'); } catch (e: any) { /* ignore */ }
 }
 
+var AppearanceResolverModule: any = null;
+
+if (typeof require === 'function') {
+    try { AppearanceResolverModule = require('../pixi/appearance-resolver'); } catch (e: any) { /* ignore */ }
+}
+
 var TextTermHighlighterModule: any = null;
 
 if (typeof require === 'function') {
@@ -177,6 +183,8 @@ let _stoneInfoTagAutoDismissBound = false;
 
 let _stoneInfoPanelRefs: any = null;
 
+let _stoneInfoListRefs: any = null;
+
 function _isBoardHiddenTrap(marker: any) {
     if (!marker || !marker.data || marker.data.type !== 'TRAP') return false;
     // Hidden traps stay visually normal for both seats until reveal timing events.
@@ -236,8 +244,17 @@ function _ensureStoneInfoPanel() {
     const panel = StoneInfoPanelModule && typeof StoneInfoPanelModule.ensureStoneInfoPanel === 'function'
         ? StoneInfoPanelModule.ensureStoneInfoPanel(document)
         : null;
-    _stoneInfoPanelRefs = null;
+    _stoneInfoListRefs = null;
     return panel;
+}
+
+function _ensureStoneInfoDetailPanel() {
+    if (typeof document === 'undefined') return null;
+    const detail = StoneInfoPanelModule && typeof StoneInfoPanelModule.ensureStoneInfoDetailPanel === 'function'
+        ? StoneInfoPanelModule.ensureStoneInfoDetailPanel(document)
+        : null;
+    if (!_stoneInfoPanelRefs || _stoneInfoPanelRefs.root !== detail) _stoneInfoPanelRefs = null;
+    return detail;
 }
 
 function _bindStoneInfoMetaBadgeEvents(metaEl: any) {
@@ -261,31 +278,50 @@ function _bindStoneInfoMetaBadgeEvents(metaEl: any) {
 }
 
 function _getStoneInfoPanelRefs() {
-    const panel = _ensureStoneInfoPanel();
-    if (!panel) return null;
+    const root = _ensureStoneInfoDetailPanel();
+    if (!root) return null;
     if (
         _stoneInfoPanelRefs &&
-        _stoneInfoPanelRefs.panel === panel &&
+        _stoneInfoPanelRefs.root === root &&
         _stoneInfoPanelRefs.name &&
         _stoneInfoPanelRefs.desc &&
         _stoneInfoPanelRefs.meta &&
-        _stoneInfoPanelRefs.panel.isConnected
+        _stoneInfoPanelRefs.image &&
+        _stoneInfoPanelRefs.root.isConnected
     ) {
         return _stoneInfoPanelRefs;
     }
-    const name = panel.querySelector('#stone-info-name');
-    const desc = panel.querySelector('#stone-info-desc');
-    const meta = panel.querySelector('#stone-info-meta');
-    if (!name || !desc || !meta) return null;
+    const name = root.querySelector('#stone-info-name');
+    const desc = root.querySelector('#stone-info-desc');
+    const meta = root.querySelector('#stone-info-meta');
+    const image = root.querySelector('#stone-info-detail-image');
+    const backdrop = document.getElementById('stone-info-detail-backdrop');
+    if (!name || !desc || !meta || !image || !backdrop) return null;
     _bindStoneInfoMetaBadgeEvents(meta);
-    _stoneInfoPanelRefs = { panel, name, desc, meta };
+    _stoneInfoPanelRefs = { root, name, desc, meta, image, backdrop };
     return _stoneInfoPanelRefs;
 }
 
-const STONE_INFO_IDLE_STATE = {
-    name: '石情報',
-    desc: '石をタップまたはホバーして表示'
-};
+function _getStoneInfoListRefs() {
+    const panel = _ensureStoneInfoPanel();
+    if (!panel) return null;
+    if (
+        _stoneInfoListRefs &&
+        _stoneInfoListRefs.panel === panel &&
+        _stoneInfoListRefs.title &&
+        _stoneInfoListRefs.instruction &&
+        _stoneInfoListRefs.list &&
+        _stoneInfoListRefs.panel.isConnected
+    ) {
+        return _stoneInfoListRefs;
+    }
+    const title = panel.querySelector('#stone-info-list-title');
+    const instruction = panel.querySelector('#stone-info-list-instruction');
+    const list = panel.querySelector('#stone-info-list');
+    if (!title || !instruction || !list) return null;
+    _stoneInfoListRefs = { panel, title, instruction, list };
+    return _stoneInfoListRefs;
+}
 
 function _renderDiffTermText(targetEl: any, text: any): void {
     if (!targetEl) return;
@@ -299,34 +335,20 @@ function _renderDiffTermText(targetEl: any, text: any): void {
     targetEl.textContent = String(text || '');
 }
 
-function _showIdleStoneInfoPanel() {
+function _hideStoneInfoDetailPanel() {
+    _closeStoneInfoTagPanel();
     const refs = _getStoneInfoPanelRefs();
     if (!refs) return;
-    refs.name.textContent = STONE_INFO_IDLE_STATE.name;
-    _renderDiffTermText(refs.desc, STONE_INFO_IDLE_STATE.desc);
-    _renderStoneInfoMetaBadges(refs.meta, []);
-    refs.panel.classList.add('visible');
-    refs.panel.setAttribute('aria-hidden', 'false');
-    refs.panel.setAttribute('data-stone-info-state', 'idle');
-    refs.panel.style.removeProperty('left');
-    refs.panel.style.removeProperty('top');
+    refs.root.classList.remove('is-open');
+    refs.root.setAttribute('aria-hidden', 'true');
+    refs.backdrop.classList.remove('is-open');
+    refs.backdrop.setAttribute('aria-hidden', 'true');
 }
 
-function _hideStoneInfoPanel() {
-    _closeStoneInfoTagPanel();
-    const panel = _ensureStoneInfoPanel();
-    if (!panel) return;
-    if (panel.getAttribute('data-stone-info-state') === 'content' && panel.classList.contains('visible')) {
-        panel.setAttribute('aria-hidden', 'false');
-        return;
-    }
-    _showIdleStoneInfoPanel();
-}
-
-function _isStoneInfoPanelVisible() {
+function _isStoneInfoDetailPanelVisible() {
     if (typeof document === 'undefined') return false;
-    const panel = document.getElementById('stone-info-panel');
-    return !!(panel && panel.classList.contains('visible'));
+    const panel = document.getElementById('stone-info-detail-panel');
+    return !!(panel && panel.classList.contains('is-open'));
 }
 
 function _ensureStoneInfoTagPanel() {
@@ -625,12 +647,179 @@ function _getBreedingSproutStoneInfo(row: any, col: any) {
     return BREEDING_SPROUT_STONE_INFO[ownerKey] || null;
 }
 
+function _getCatalogSpecialType(cell: any) {
+    const directType = _normalizeSpecialStoneInfoType(cell && cell.stone && cell.stone.specialType);
+    if (directType) return directType;
+    const markers = cell && Array.isArray(cell.markers) ? cell.markers : [];
+    const primary = markers.find((marker: any) => (
+        marker
+        && marker.kind === 'special'
+        && marker.data
+        && marker.data.type
+        && !_isOverlayOnlyMarkerEntryForDiff({ marker, kind: _getMarkerKinds().SPECIAL_STONE })
+    ));
+    if (primary) return _normalizeSpecialStoneInfoType(primary.data.type);
+    const bomb = markers.find((marker: any) => marker && marker.kind === 'bomb');
+    if (bomb) return _normalizeSpecialStoneInfoType(
+        bomb.data && bomb.data.type ? bomb.data.type : 'TIME_BOMB'
+    );
+    const frozen = markers.find((marker: any) => marker && marker.kind === 'frozen');
+    if (frozen) return 'FREEZE';
+    return null;
+}
+
+function _hasCatalogMarker(cell: any, kind: string) {
+    const markers = cell && Array.isArray(cell.markers) ? cell.markers : [];
+    return markers.some((marker: any) => marker && marker.kind === kind);
+}
+
+function _resolveCatalogStoneImageUrl(frame: any, specialType: any, ownerKey: string) {
+    const appearance = frame && frame.appearance ? frame.appearance : {};
+    const fallback = ownerKey === 'white'
+        ? String(appearance.whiteStoneImageUrl || '')
+        : String(appearance.blackStoneImageUrl || '');
+    if (!specialType || specialType === 'BREEDING_SPROUT') return fallback;
+    if (
+        AppearanceResolverModule
+        && typeof AppearanceResolverModule.resolveSpecialStoneAppearanceResource === 'function'
+    ) {
+        try {
+            const root = typeof window !== 'undefined' ? window : null;
+            const resource = AppearanceResolverModule.resolveSpecialStoneAppearanceResource(
+                root,
+                specialType,
+                ownerKey,
+                typeof document !== 'undefined' ? document.baseURI : undefined
+            );
+            if (resource && resource.url) return String(resource.url);
+        } catch (e: any) { /* the normal stone image remains a visible fallback */ }
+    }
+    return fallback;
+}
+
+function _getCatalogStoneName(specialType: any, ownerKey: string) {
+    if (specialType === 'BREEDING_SPROUT') {
+        return ownerKey === 'white'
+            ? BREEDING_SPROUT_STONE_INFO.white.name
+            : BREEDING_SPROUT_STONE_INFO.black.name;
+    }
+    if (specialType) {
+        const info = _getSpecialStoneInfoForDiff(specialType);
+        return info && info.name ? String(info.name) : String(specialType);
+    }
+    return ownerKey === 'white' ? NORMAL_STONE_INFO.white.name : NORMAL_STONE_INFO.black.name;
+}
+
+function renderCurrentStoneInfoPanel(frame: any) {
+    const refs = _getStoneInfoListRefs();
+    if (!refs) return false;
+    refs.title.textContent = '盤上の石';
+    refs.instruction.textContent = '石を選ぶと情報を表示';
+    refs.panel.classList.add('visible');
+    refs.panel.setAttribute('aria-hidden', 'false');
+
+    const cells = frame && frame.model && Array.isArray(frame.model.cells)
+        ? frame.model.cells
+        : [];
+    const groups = new Map<string, any>();
+    for (const cell of cells) {
+        if (!cell || !cell.stone) continue;
+        const ownerKey = cell.stone.owner === 'white' ? 'white' : 'black';
+        let specialType = _getCatalogSpecialType(cell);
+        if (!specialType && _hasCatalogMarker(cell, 'breeding-sprout')) {
+            specialType = 'BREEDING_SPROUT';
+        }
+        const key = specialType
+            ? `special:${specialType}:${ownerKey}`
+            : `normal:${ownerKey}`;
+        const existing = groups.get(key);
+        if (existing) {
+            existing.count += 1;
+            continue;
+        }
+        groups.set(key, {
+            key,
+            row: Number(cell.row),
+            col: Number(cell.col),
+            ownerKey,
+            specialType,
+            name: _getCatalogStoneName(specialType, ownerKey),
+            imageUrl: _resolveCatalogStoneImageUrl(frame, specialType, ownerKey),
+            count: 1
+        });
+    }
+
+    const entries = Array.from(groups.values());
+    const signature = JSON.stringify(entries.map((entry: any) => [
+        entry.key,
+        entry.row,
+        entry.col,
+        entry.count,
+        entry.imageUrl
+    ]));
+    if (refs.list.getAttribute('data-stone-list-signature') === signature) return true;
+    refs.list.setAttribute('data-stone-list-signature', signature);
+    refs.list.textContent = '';
+
+    if (!entries.length) {
+        const empty = document.createElement('div');
+        empty.className = 'stone-info-list-empty';
+        empty.textContent = '盤上に石はありません';
+        refs.list.appendChild(empty);
+        return true;
+    }
+
+    for (const entry of entries) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'stone-info-list-item';
+        button.setAttribute('aria-label', `${entry.name}の情報を表示（盤上に${entry.count}個）`);
+        button.setAttribute('data-stone-catalog-key', entry.key);
+        if (entry.specialType === 'BREEDING_SPROUT') {
+            button.classList.add('stone-info-list-item--sprout');
+        }
+
+        const visual = document.createElement('span');
+        visual.className = 'stone-info-list-visual';
+        const image = document.createElement('img');
+        image.className = 'stone-info-list-image';
+        image.alt = '';
+        image.setAttribute('aria-hidden', 'true');
+        if (entry.imageUrl) image.src = entry.imageUrl;
+        visual.appendChild(image);
+        if (entry.specialType === 'BREEDING_SPROUT') {
+            const sprout = document.createElement('span');
+            sprout.className = 'stone-info-list-sprout';
+            sprout.textContent = '♧';
+            sprout.setAttribute('aria-hidden', 'true');
+            visual.appendChild(sprout);
+        }
+        if (entry.count > 1) {
+            const count = document.createElement('span');
+            count.className = 'stone-info-list-count';
+            count.textContent = `×${entry.count}`;
+            count.setAttribute('aria-hidden', 'true');
+            visual.appendChild(count);
+        }
+
+        const label = document.createElement('span');
+        label.className = 'stone-info-list-label';
+        label.textContent = entry.name;
+        button.appendChild(visual);
+        button.appendChild(label);
+        button.addEventListener('click', () => {
+            showSpecialStoneInfoAt(entry.row, entry.col, { imageUrl: entry.imageUrl });
+        });
+        refs.list.appendChild(button);
+    }
+    _ensureDetailDismissHandlers();
+    return true;
+}
+
 function showSpecialStoneInfoAt(row: any, col: any, options?: any) {
     _closeStoneInfoTagPanel();
-    const preserveOnEmpty = !!(options && options.preserveOnEmpty);
     const keepOrHideEmpty = () => {
-        if (preserveOnEmpty && _isStoneInfoPanelVisible()) return false;
-        _hideStoneInfoPanel();
+        if (_isStoneInfoDetailPanelVisible()) _hideStoneInfoDetailPanel();
         return false;
     };
     const entries = _getMarkerEntriesAt(row, col);
@@ -675,37 +864,47 @@ function showSpecialStoneInfoAt(row: any, col: any, options?: any) {
     refs.name.textContent = info.name;
     _renderDiffTermText(refs.desc, info.desc);
     _renderStoneInfoMetaBadges(refs.meta, badges);
-
-    refs.panel.classList.add('visible');
-    refs.panel.setAttribute('aria-hidden', 'false');
-    refs.panel.setAttribute('data-stone-info-state', 'content');
-    refs.panel.style.removeProperty('left');
-    refs.panel.style.removeProperty('top');
+    const imageUrl = String(options && options.imageUrl || '').trim();
+    if (imageUrl) {
+        refs.image.src = imageUrl;
+        refs.image.hidden = false;
+    } else {
+        refs.image.removeAttribute('src');
+        refs.image.hidden = true;
+    }
+    refs.root.classList.add('is-open');
+    refs.root.setAttribute('aria-hidden', 'false');
+    refs.backdrop.classList.add('is-open');
+    refs.backdrop.setAttribute('aria-hidden', 'false');
+    _ensureDetailDismissHandlers();
+    try { refs.root.focus({ preventScroll: true }); } catch (e: any) { refs.root.focus(); }
 
     return true;
 }
 
 let _outsideCloseHandlerBound = false;
 
-function _ensureOutsideCloseHandler() {
+function _ensureDetailDismissHandlers() {
     if (_outsideCloseHandlerBound || typeof document === 'undefined') return;
     _outsideCloseHandlerBound = true;
-    if (StoneInfoPanelModule && typeof StoneInfoPanelModule.attachStoneInfoPanelDismissHandlers === 'function') {
-        StoneInfoPanelModule.attachStoneInfoPanelDismissHandlers(document, {
-            bindTagAutoDismiss: _bindStoneInfoTagAutoDismiss,
-            hideStoneInfoPanel: _hideStoneInfoPanel
+    if (StoneInfoPanelModule && typeof StoneInfoPanelModule.attachStoneInfoDetailDismissHandlers === 'function') {
+        StoneInfoPanelModule.attachStoneInfoDetailDismissHandlers(document, {
+            hideStoneInfoDetailPanel: _hideStoneInfoDetailPanel
         });
-        return;
     }
     _bindStoneInfoTagAutoDismiss();
 }
 
 function getStoneInfoPresentationCapabilities() {
   return Object.freeze({
-    showIdleStoneInfoPanel: _showIdleStoneInfoPanel,
-    ensureOutsideCloseHandler: _ensureOutsideCloseHandler,
+    renderCurrentStoneInfoPanel,
+    hideStoneInfoDetailPanel: _hideStoneInfoDetailPanel,
     showSpecialStoneInfoAt
   });
 }
 
-export = { getStoneInfoPresentationCapabilities, showSpecialStoneInfoAt };
+export = {
+    getStoneInfoPresentationCapabilities,
+    renderCurrentStoneInfoPanel,
+    showSpecialStoneInfoAt
+};

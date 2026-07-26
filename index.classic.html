@@ -55,13 +55,13 @@
         data-card-reversi-feature-style-href="styles-layout-result.css?v=108428451735509"
         data-card-reversi-feature-style-before="styles-layout-characters.css">
     <link rel="stylesheet" href="styles-layout-characters.css?v=2666866856487">
-    <link rel="stylesheet" href="styles-board.css?v=224207329302880">
+    <link rel="stylesheet" href="styles-board.css?v=225950463045530">
     <link rel="stylesheet" href="styles-cards.css?v=173114256725840">
     <meta data-card-reversi-feature-style-slot="rules-help-cards"
         data-card-reversi-feature-style-href="styles-feature-rules-help-cards.css?v=98671376079036"
         data-card-reversi-feature-style-after="styles-cards.css">
     <link rel="stylesheet" href="styles-animations.css?v=205530675374674">
-    <link rel="stylesheet" href="styles-responsive.css?v=238340100221471">
+    <link rel="stylesheet" href="styles-responsive.css?v=144660467908602">
     <meta data-card-reversi-feature-style-slot="network-responsive"
         data-card-reversi-feature-style-href="styles-feature-network-responsive.css?v=95998699245255"
         data-card-reversi-feature-style-after="styles-responsive.css">
@@ -93,33 +93,6 @@
     </div>
 
     <div id="round-display-panel" aria-live="polite" aria-atomic="true"></div>
-
-    <div id="left-info-stack">
-        <div id="effect-live-panel" class="battle-status-panel" data-battle-status-panel="1" role="status" aria-label="戦況" aria-live="polite" aria-atomic="false">
-            <div class="battle-status-topline">
-                <div class="battle-status-round">ROUND 1</div>
-                <div class="battle-status-network-timer" hidden></div>
-            </div>
-            <div class="battle-status-score" aria-label="石数">
-                <span class="battle-status-count battle-status-count--black" aria-label="黒石 2"><span class="battle-status-stone battle-status-stone--black" aria-hidden="true"></span><span class="battle-status-count-value">2</span></span>
-                <span class="battle-status-score-separator">/</span>
-                <span class="battle-status-count battle-status-count--white" aria-label="白石 2"><span class="battle-status-stone battle-status-stone--white" aria-hidden="true"></span><span class="battle-status-count-value">2</span></span>
-            </div>
-            <div class="battle-status-turn">あなたのターン</div>
-            <div class="battle-status-latest">直近 -</div>
-        </div>
-
-        <div id="manifest-effect-panel" aria-live="polite" aria-atomic="true" aria-hidden="true">
-            <div id="manifest-effect-title"></div>
-            <div id="manifest-effect-lines"></div>
-        </div>
-
-        <div id="stone-info-panel" class="stone-info-panel" aria-live="polite" aria-atomic="true" aria-hidden="true">
-            <div id="stone-info-name" class="stone-info-name"></div>
-            <div id="stone-info-desc" class="stone-info-desc"></div>
-            <div id="stone-info-meta" class="stone-info-meta"></div>
-        </div>
-    </div>
 
     <div id="rules-help-backdrop" aria-hidden="true"></div>
     <div id="rules-help-panel" aria-hidden="true" role="dialog" aria-modal="false" aria-label="help" tabindex="-1"></div>
@@ -302,6 +275,33 @@
                 <div id="consecutive-pass-status" class="pass-streak-status" hidden aria-hidden="true" aria-live="polite" aria-atomic="true">
                     <span class="pass-streak-label">連続パス</span><span class="pass-streak-current" data-pass-streak-current="true">0</span><span class="pass-streak-separator">/</span><span class="pass-streak-max">2</span><span class="pass-streak-note">(パスカウント2で終局)</span>
                 </div>
+            </div>
+        </div>
+
+        <div id="left-info-stack">
+            <div id="effect-live-panel" class="battle-status-panel" data-battle-status-panel="1" role="status" aria-label="戦況" aria-live="polite" aria-atomic="false">
+                <div class="battle-status-topline">
+                    <div class="battle-status-round">ROUND 1</div>
+                    <div class="battle-status-network-timer" hidden></div>
+                </div>
+                <div class="battle-status-score" aria-label="石数">
+                    <span class="battle-status-count battle-status-count--black" aria-label="黒石 2"><span class="battle-status-stone battle-status-stone--black" aria-hidden="true"></span><span class="battle-status-count-value">2</span></span>
+                    <span class="battle-status-score-separator">/</span>
+                    <span class="battle-status-count battle-status-count--white" aria-label="白石 2"><span class="battle-status-stone battle-status-stone--white" aria-hidden="true"></span><span class="battle-status-count-value">2</span></span>
+                </div>
+                <div class="battle-status-turn">あなたのターン</div>
+                <div class="battle-status-latest">直近 -</div>
+            </div>
+
+            <div id="manifest-effect-panel" aria-live="polite" aria-atomic="true" aria-hidden="true">
+                <div id="manifest-effect-title"></div>
+                <div id="manifest-effect-lines"></div>
+            </div>
+
+            <div id="stone-info-panel" class="stone-info-panel" aria-live="polite" aria-atomic="true" aria-hidden="true">
+                <div id="stone-info-list-title" class="stone-info-name">盤上の石</div>
+                <div id="stone-info-list-instruction" class="stone-info-desc">石を選ぶと情報を表示</div>
+                <div id="stone-info-list" class="stone-info-list" role="group" aria-label="盤上の石"></div>
             </div>
         </div>
 
@@ -571,7 +571,7 @@
     <script src="public/vendor/pixi-8.18.1.min.js"></script>
     <script src="public/vendor/pixi-unsafe-eval-8.18.1.min.js"></script>
     <script src="public/runtime.js?v=10249323031789"></script>
-    <script src="public/module-registry.js?v=131925122575363"></script>
+    <script src="public/module-registry.js?v=210443731778731"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="entry-browser.js?v=232738935525016"></script>
 </body>

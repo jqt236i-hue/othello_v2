@@ -257,8 +257,50 @@ html.layout-profile-phone-portrait #log {
     display: none;
 }
 
+html.layout-profile-phone-portrait #left-info-stack {
+    display: contents;
+}
+
 html.layout-profile-phone-portrait #stone-info-panel {
-    display: none;
+    position: relative;
+    left: auto;
+    right: auto;
+    top: auto;
+    bottom: auto;
+    display: block;
+    flex: 0 0 auto;
+    align-self: center;
+    width: var(--layout-phone-portrait-main-column-width);
+    max-width: 96vw;
+    max-height: none;
+    margin: calc(2px * var(--layout-stage-scale)) 0;
+    padding: calc(7px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+    overflow: hidden;
+    transform: none;
+    z-index: 40;
+}
+
+html.layout-profile-phone-portrait #stone-info-panel .stone-info-name {
+    margin-bottom: calc(2px * var(--layout-stage-scale));
+    font-size: calc(13px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #stone-info-panel .stone-info-desc {
+    margin-bottom: calc(4px * var(--layout-stage-scale));
+    font-size: calc(10px * var(--layout-stage-scale));
+    line-height: 1.25;
+}
+
+html.layout-profile-phone-portrait #stone-info-panel .stone-info-list-item {
+    flex-basis: calc(50px * var(--layout-stage-scale));
+    width: calc(50px * var(--layout-stage-scale));
+    min-height: calc(63px * var(--layout-stage-scale));
+    padding: calc(3px * var(--layout-stage-scale));
+}
+
+html.layout-profile-phone-portrait #stone-info-panel .stone-info-list-visual {
+    width: calc(36px * var(--layout-stage-scale));
+    height: calc(36px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #side-panel {
@@ -527,7 +569,6 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) :is(
         #log,
         #quick-controls-bar,
-        #stone-info-panel,
         #manifest-effect-panel,
         #hero-character-panel
     ) {
@@ -543,6 +584,27 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
         padding: calc(8px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
         overflow: hidden;
         transform: none;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack {
+        display: contents;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #stone-info-panel {
+        position: relative;
+        left: auto;
+        right: auto;
+        top: auto;
+        bottom: auto;
+        display: block;
+        flex: 0 0 auto;
+        align-self: center;
+        width: min(calc(430px * var(--layout-stage-scale)), 88vw);
+        max-height: none;
+        margin: calc(4px * var(--layout-stage-scale)) 0;
+        overflow: hidden;
+        transform: none;
+        z-index: 40;
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons {

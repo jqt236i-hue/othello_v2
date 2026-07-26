@@ -1,6 +1,6 @@
 import { JSDOM } from 'jsdom';
 
-describe('board cell long press info', () => {
+describe('board cell information separation', () => {
   let sharedInputController: any = null;
 
   function getSharedInputController() {
@@ -75,35 +75,7 @@ describe('board cell long press info', () => {
     expect(global.handleCellClick).toHaveBeenCalledWith(2, 3);
   });
 
-  test('stone info panel starts visible with idle guidance before any interaction', () => {
-    const mod = require('../ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 2, 3);
-
-    const panel = document.getElementById('stone-info-panel');
-    expect(panel).not.toBeNull();
-    expect(panel.classList.contains('visible')).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('石情報');
-    expect(document.getElementById('stone-info-desc').textContent).toBe('石をタップまたはホバーして表示');
-    expect(document.getElementById('stone-info-meta').textContent).toBe('');
-  });
-
-  test('browser runtime dist module starts visible with idle guidance before any interaction', () => {
-    const mod = require('../dist/ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 2, 3);
-
-    const panel = document.getElementById('stone-info-panel');
-    expect(panel).not.toBeNull();
-    expect(panel.classList.contains('visible')).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('石情報');
-    expect(document.getElementById('stone-info-desc').textContent).toBe('石をタップまたはホバーして表示');
-    expect(document.getElementById('stone-info-meta').textContent).toBe('');
-  });
-
-  test('mouse hover shows stone info without clicking', () => {
+  test('mouse hover never creates stone detail UI', () => {
     global.gameState.board[4][2] = global.BLACK;
 
     const mod = require('../ui/board-dom-compat/renderer');
@@ -112,32 +84,13 @@ describe('board cell long press info', () => {
     mod.attachBoardCellInteraction(cell, 4, 2);
 
     dispatchPointer(cell, 'pointerenter', { pointerType: 'mouse', clientX: 88, clientY: 92 });
-
-    const panel = document.getElementById('stone-info-panel');
-    expect(panel).not.toBeNull();
-    expect(panel.classList.contains('visible')).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
-    expect(global.handleCellClick).toHaveBeenCalledTimes(0);
-  });
-
-  test('mouse leave keeps hover stone info visible', () => {
-    global.gameState.board[4][2] = global.BLACK;
-
-    const mod = require('../ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 4, 2);
-
-    dispatchPointer(cell, 'pointerenter', { pointerType: 'mouse', clientX: 88, clientY: 92 });
-    const panel = document.getElementById('stone-info-panel');
-    expect(panel.classList.contains('visible')).toBe(true);
-
     dispatchPointer(cell, 'pointerleave', { pointerType: 'mouse', clientX: 120, clientY: 132 });
-    expect(panel.classList.contains('visible')).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
+
+    expect(document.getElementById('stone-info-detail-panel')).toBeNull();
+    expect(global.handleCellClick).not.toHaveBeenCalled();
   });
 
-  test('touch tap shows stone info and keeps normal click behavior', () => {
+  test('touch tap performs the board action without opening stone detail', () => {
     global.gameState.board[4][2] = global.BLACK;
 
     const mod = require('../ui/board-dom-compat/renderer');
@@ -146,63 +99,14 @@ describe('board cell long press info', () => {
     mod.attachBoardCellInteraction(cell, 4, 2);
 
     dispatchPointer(cell, 'pointerdown', { pointerType: 'touch', button: 0, clientX: 88, clientY: 92 });
-    jest.advanceTimersByTime(120);
     dispatchPointer(cell, 'pointerup', { pointerType: 'touch', button: 0, clientX: 88, clientY: 92 });
 
-    const panel = document.getElementById('stone-info-panel');
-    expect(panel).not.toBeNull();
-    expect(panel.classList.contains('visible')).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
+    expect(document.getElementById('stone-info-detail-panel')).toBeNull();
     expect(global.handleCellClick).toHaveBeenCalledTimes(1);
     expect(global.handleCellClick).toHaveBeenCalledWith(4, 2);
   });
 
-  test('hover on empty cell keeps idle stone info guidance visible', () => {
-    const mod = require('../ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 0, 0);
-
-    dispatchPointer(cell, 'pointerenter', { pointerType: 'mouse', clientX: 20, clientY: 20 });
-
-    const panel = document.getElementById('stone-info-panel');
-    expect(panel).not.toBeNull();
-    expect(panel.classList.contains('visible')).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('石情報');
-    expect(document.getElementById('stone-info-desc').textContent).toBe('石をタップまたはホバーして表示');
-  });
-
-  test('hover on empty cell after visible stone preserves previous stone info', () => {
-    global.gameState.board[4][2] = global.BLACK;
-
-    const mod = require('../ui/board-dom-compat/renderer');
-    const board = document.getElementById('board');
-    const stoneCell = document.createElement('div');
-    const emptyCell = document.createElement('div');
-    board.appendChild(stoneCell);
-    board.appendChild(emptyCell);
-    mod.attachBoardCellInteraction(stoneCell, 4, 2);
-    mod.attachBoardCellInteraction(emptyCell, 0, 0);
-
-    dispatchPointer(stoneCell, 'pointerenter', { pointerType: 'mouse', clientX: 88, clientY: 92 });
-    const panel = document.getElementById('stone-info-panel');
-    expect(panel.classList.contains('visible')).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
-
-    dispatchPointer(emptyCell, 'pointerenter', { pointerType: 'mouse', clientX: 20, clientY: 20 });
-    expect(panel.classList.contains('visible')).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
-  });
-
-  test('long press shows info and does not execute click action', () => {
-    global.cardState.markers.push({
-      kind: 'specialStone',
-      row: 1,
-      col: 1,
-      owner: 'black',
-      data: { type: 'BREEDING', remainingOwnerTurns: 2 }
-    });
-
+  test('holding a board press never opens detail and clicks normally on release', () => {
     const mod = require('../ui/board-dom-compat/renderer');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
@@ -211,45 +115,11 @@ describe('board cell long press info', () => {
     dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 80, clientY: 90 });
     jest.advanceTimersByTime(430);
 
-    const panel = document.getElementById('stone-info-panel');
-    expect(panel).not.toBeNull();
-    expect(panel.classList.contains('visible')).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('繁殖石');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('反転保護');
-    expect(document.getElementById('stone-info-meta').textContent).not.toContain('交換保護');
+    expect(document.getElementById('stone-info-detail-panel')).toBeNull();
 
     dispatchPointer(cell, 'pointerup', { button: 0, clientX: 80, clientY: 90 });
-    expect(global.handleCellClick).toHaveBeenCalledTimes(0);
-
-    jest.advanceTimersByTime(10000);
-    expect(panel.classList.contains('visible')).toBe(true);
-
-    dispatchPointer(document.body, 'pointerdown', { button: 0, clientX: 5, clientY: 5 });
-    expect(panel.classList.contains('visible')).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('繁殖石');
-  });
-
-  test('long press on normal stone shows info and does not execute click action', () => {
-    global.gameState.board[4][2] = global.BLACK;
-
-    const mod = require('../ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 4, 2);
-
-    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 88, clientY: 92 });
-    jest.advanceTimersByTime(430);
-
-    const panel = document.getElementById('stone-info-panel');
-    expect(panel).not.toBeNull();
-    expect(panel.classList.contains('visible')).toBe(true);
-    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
-    expect(document.getElementById('stone-info-desc').textContent).toContain('通常の石');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('通常石');
-
-    dispatchPointer(cell, 'pointerup', { button: 0, clientX: 88, clientY: 92 });
-    expect(global.handleCellClick).toHaveBeenCalledTimes(0);
+    expect(global.handleCellClick).toHaveBeenCalledTimes(1);
+    expect(global.handleCellClick).toHaveBeenCalledWith(1, 1);
   });
 
   test('stone info reads custom-board and expansion owners from the canonical BoardView', () => {
@@ -291,7 +161,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('特殊石');
   });
 
-  test('long press on breeding-generated stone shows breeding-generated info', () => {
+  test('detail popup shows breeding-generated stone information', () => {
     global.gameState.board[4][2] = global.BLACK;
     global.cardState.breedingSproutByOwner = {
       black: [{ row: 4, col: 2 }],
@@ -332,7 +202,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
   });
 
-  test('long press resolves network-style string coordinates for marker lookup', () => {
+  test('detail resolution accepts network-style string coordinates for marker lookup', () => {
     global.cardState.markers.push({
       kind: 'specialStone',
       row: '2',
@@ -342,20 +212,12 @@ describe('board cell long press info', () => {
     });
 
     const mod = require('../ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 2, 4);
+    expect(mod.showSpecialStoneInfoAt(2, 4)).toBe(true);
 
-    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 80, clientY: 90 });
-    jest.advanceTimersByTime(430);
-
-    const panel = document.getElementById('stone-info-panel');
-    expect(panel).not.toBeNull();
-    expect(panel.classList.contains('visible')).toBe(true);
     expect(document.getElementById('stone-info-name').textContent).toBe('究極多動神');
   });
 
-  test('long press accepts ULTIMATE_HYPERACTIVE_GOD alias and shows updated description', () => {
+  test('detail resolution accepts ULTIMATE_HYPERACTIVE_GOD alias and shows updated description', () => {
     global.cardState.markers.push({
       kind: 'specialStone',
       row: 3,
@@ -365,12 +227,7 @@ describe('board cell long press info', () => {
     });
 
     const mod = require('../ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 3, 5);
-
-    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 120, clientY: 100 });
-    jest.advanceTimersByTime(430);
+    expect(mod.showSpecialStoneInfoAt(3, 5)).toBe(true);
 
     expect(document.getElementById('stone-info-name').textContent).toBe('究極多動神');
     expect(document.getElementById('stone-info-desc').textContent).toContain('ターン開始時に大きく移動し、移動後に反転する。');
@@ -381,7 +238,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り2回');
   });
 
-  test('long press shows 幽体 tag without mislabeling it as flip protection', () => {
+  test('detail shows 幽体 tag without mislabeling it as flip protection', () => {
     global.cardState.markers = [{
       kind: 'specialStone',
       row: 2,
@@ -402,7 +259,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
   });
 
-  test('long press renders effect tags as buttons and toggles tag detail panel', () => {
+  test('detail renders effect tags as buttons and toggles tag detail panel', () => {
     global.cardState.markers.push({
       kind: 'specialStone',
       row: 1,
@@ -412,12 +269,7 @@ describe('board cell long press info', () => {
     });
 
     const mod = require('../ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 1, 4);
-
-    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 94, clientY: 90 });
-    jest.advanceTimersByTime(430);
+    expect(mod.showSpecialStoneInfoAt(1, 4)).toBe(true);
 
     const tagButtons = Array.from(document.querySelectorAll('#stone-info-meta .stone-info-effect-tag-button'));
     expect(tagButtons.length).toBeGreaterThan(0);
@@ -444,7 +296,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-tag-body').textContent).toContain('ターン数');
   });
 
-  test('long press adds 多動状態/反転回避 tags for hyperactive-family stones', () => {
+  test('detail popup adds 多動状態/反転回避 tags for hyperactive-family stones', () => {
     const mod = require('../ui/board-dom-compat/renderer');
     const cases = [
       { type: 'HYPERACTIVE', name: '多動石' },
@@ -586,7 +438,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('特殊石');
   });
 
-  test('long press on GLUTTONOUS shows registered info with flip protection and special-stone badge', () => {
+  test('detail on GLUTTONOUS shows registered info with flip protection and special-stone badge', () => {
     global.cardState.markers.push({
       kind: 'specialStone',
       row: 1,
@@ -596,12 +448,7 @@ describe('board cell long press info', () => {
     });
 
     const mod = require('../ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 1, 6);
-
-    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 100, clientY: 90 });
-    jest.advanceTimersByTime(430);
+    expect(mod.showSpecialStoneInfoAt(1, 6)).toBe(true);
 
     expect(document.getElementById('stone-info-name').textContent).toBe('悪食石');
     expect(document.getElementById('stone-info-desc').textContent).toContain('ターン開始時に移動し、隣接する敵石を捕食する。');
@@ -611,7 +458,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('交換保護');
   });
 
-  test('long press on LIGHTNING shows registered lightning info', () => {
+  test('detail on LIGHTNING shows registered lightning info', () => {
     global.cardState.markers.push({
       kind: 'specialStone',
       row: 5,
@@ -621,12 +468,7 @@ describe('board cell long press info', () => {
     });
 
     const mod = require('../ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 5, 1);
-
-    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 100, clientY: 80 });
-    jest.advanceTimersByTime(430);
+    expect(mod.showSpecialStoneInfoAt(5, 1)).toBe(true);
 
     expect(document.getElementById('stone-info-name').textContent).toBe('落雷石');
     expect(document.getElementById('stone-info-desc').textContent).toContain('敵石をランダムに1つ破壊する。');
@@ -634,7 +476,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).toContain('残り6T');
   });
 
-  test('long press on METEOR_HOLE shows registered meteor hole info', () => {
+  test('detail on METEOR_HOLE shows registered meteor hole info', () => {
     global.cardState.markers.push({
       kind: 'specialStone',
       row: 6,
@@ -644,12 +486,7 @@ describe('board cell long press info', () => {
     });
 
     const mod = require('../ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 6, 6);
-
-    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 110, clientY: 95 });
-    jest.advanceTimersByTime(430);
+    expect(mod.showSpecialStoneInfoAt(6, 6)).toBe(true);
 
     expect(document.getElementById('stone-info-name').textContent).toBe('流星穴');
     expect(document.getElementById('stone-info-desc').textContent).toContain('永続穴');
@@ -657,7 +494,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
   });
 
-  test('long press on FREEZE shows registered freeze-cell info', () => {
+  test('detail on FREEZE shows registered freeze-cell info', () => {
     global.cardState.markers.push({
       kind: 'specialStone',
       row: 2,
@@ -667,12 +504,7 @@ describe('board cell long press info', () => {
     });
 
     const mod = require('../ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 2, 6);
-
-    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 118, clientY: 84 });
-    jest.advanceTimersByTime(430);
+    expect(mod.showSpecialStoneInfoAt(2, 6)).toBe(true);
 
     expect(document.getElementById('stone-info-name').textContent).toBe('凍結マス');
     expect(document.getElementById('stone-info-desc').textContent).toContain('5ターン');
@@ -681,7 +513,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
   });
 
-  test('long press on OBSERVER_WILL shows inviolable and remaining turns', () => {
+  test('detail on OBSERVER_WILL shows inviolable and remaining turns', () => {
     global.cardState.markers.push({
       kind: 'manifestStone',
       row: 4,
@@ -691,12 +523,7 @@ describe('board cell long press info', () => {
     });
 
     const mod = require('../ui/board-dom-compat/renderer');
-    const cell = document.createElement('div');
-    document.getElementById('board').appendChild(cell);
-    mod.attachBoardCellInteraction(cell, 4, 5);
-
-    dispatchPointer(cell, 'pointerdown', { button: 0, clientX: 92, clientY: 112 });
-    jest.advanceTimersByTime(430);
+    expect(mod.showSpecialStoneInfoAt(4, 5)).toBe(true);
 
     expect(document.getElementById('stone-info-name').textContent).toBe('盤理の観測者');
     expect(document.getElementById('stone-info-desc').textContent).toContain('5ターン不可侵');
