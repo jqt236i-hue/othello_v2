@@ -29,7 +29,7 @@ import { createCanonicalBoardEncoding } from '../../shared/board/canonical-encod
 import { createBoardCorners } from '../../shared/board/corners';
 import { createControlCounts } from '../../shared/board/control-counts';
 import { createEdgeRuns } from '../../shared/board/edge-runs';
-import { createOthelloPrimitives } from '../../shared/board/othello-primitives';
+import { createLegalMoves } from '../../shared/board/legal-moves';
 import { createRiskCells } from '../../shared/board/risk-cells';
 import type { CpuPolicyBoard, CpuPolicyPosition } from './cpu-policy-core-types';
 
@@ -43,22 +43,36 @@ function isFiniteNumber(value: unknown): boolean {
     return Number.isFinite(Number(value));
 }
 
-const BOARD_SHAPE_META_KEY = '__sharedBoardShapeMeta';
-const othelloPrimitives = createOthelloPrimitives({
-    empty: 0,
-    directions: [
-        [-1, -1], [-1, 0], [-1, 1],
-        [0, -1],            [0, 1],
-        [1, -1],  [1, 0],   [1, 1]
-    ]
-});
+const DIRECTIONS = [
+    [-1, -1], [-1, 0], [-1, 1],
+    [0, -1],            [0, 1],
+    [1, -1],  [1, 0],   [1, 1]
+];
 
 function createWorkerBoardUtils() {
-    const readShape = (board: any): any => Array.isArray(board) && (board as any)[BOARD_SHAPE_META_KEY]
-        ? (board as any)[BOARD_SHAPE_META_KEY]
+    const shapeByBoard = new WeakMap<object, any>();
+    const readShape = (board: any): any => Array.isArray(board)
+        ? (shapeByBoard.get(board) || null)
         : null;
     const keyOf = (row: number, col: number) => `${row},${col}`;
     const normalizeOwner = (value: unknown): number => value === 1 || value === -1 ? value : 0;
+    const registerBoardShape = (board: any, shape: any): any => {
+        if (!Array.isArray(board)) return board;
+        if (!shape || typeof shape !== 'object') {
+            shapeByBoard.delete(board);
+            return board;
+        }
+        shapeByBoard.set(board, {
+            ...shape,
+            playableKeys: new Set(Array.isArray(shape.playableKeys) ? shape.playableKeys : []),
+            meteorHoleKeys: new Set(Array.isArray(shape.meteorHoleKeys) ? shape.meteorHoleKeys : []),
+            expansionCells: Array.isArray(shape.expansionCells)
+                ? shape.expansionCells.map((cell: any) => ({ ...cell }))
+                : [],
+            expansionOwnerByKey: { ...(shape.expansionOwnerByKey || {}) }
+        });
+        return board;
+    };
     const readCoordinates = (board: any): Array<{ row: number; col: number }> => {
         const shape = readShape(board);
         if (shape && shape.playableKeys instanceof Set) {
@@ -134,19 +148,11 @@ function createWorkerBoardUtils() {
         if (!Array.isArray(board)) return [];
         const clone = board.map((row: any) => Array.isArray(row) ? row.slice() : []);
         const shape = readShape(board);
-        if (shape) {
-            Object.defineProperty(clone, BOARD_SHAPE_META_KEY, {
-                configurable: true,
-                writable: true,
-                value: {
-                    ...shape,
-                    playableKeys: new Set(shape.playableKeys instanceof Set ? shape.playableKeys : []),
-                    meteorHoleKeys: new Set(shape.meteorHoleKeys instanceof Set ? shape.meteorHoleKeys : []),
-                    expansionCells: Array.isArray(shape.expansionCells) ? shape.expansionCells.map((cell: any) => ({ ...cell })) : [],
-                    expansionOwnerByKey: { ...(shape.expansionOwnerByKey || {}) }
-                }
-            });
-        }
+        if (shape) registerBoardShape(clone, {
+            ...shape,
+            playableKeys: Array.from(shape.playableKeys instanceof Set ? shape.playableKeys : []),
+            meteorHoleKeys: Array.from(shape.meteorHoleKeys instanceof Set ? shape.meteorHoleKeys : [])
+        });
         return clone;
     };
     const cornerUtils = createBoardCorners({
@@ -187,15 +193,23 @@ function createWorkerBoardUtils() {
         collectBoardCoordinates: readCoordinates,
         getCellValue
     });
+    const legalMoves = createLegalMoves({
+        empty: 0,
+        directions: DIRECTIONS,
+        hasPlayableCell,
+        getCellValue,
+        collectBoardCoordinates: readCoordinates
+    });
     return {
+        registerBoardShape,
         cloneBoard,
         collectBoardCoordinates: readCoordinates,
         encodeBoard: canonicalEncoding.encodeBoard,
         getCellValue,
         setCellValue,
         hasPlayableCell,
-        getFlipsBasic: othelloPrimitives.getFlipsBasic,
-        getLegalMovesBasic: othelloPrimitives.getLegalMovesBasic,
+        getFlipsBasic: legalMoves.getFlipsBasic,
+        getLegalMovesBasic: legalMoves.getLegalMovesBasic,
         getCornerCells: cornerUtils.getCornerCells,
         getCornerProximity: riskUtils.getCornerProximity,
         isCorner: cornerUtils.isCornerCell,
@@ -454,7 +468,7 @@ function createLookaheadRuntime() {
         consumeBonusCell: lookaheadBonus.consumeBonusCell,
         applyMoveToBoard
     });
-    return createCpuPolicyLookaheadController({
+    const controller = createCpuPolicyLookaheadController({
         isFiniteNumber,
         prepareLookaheadPrelude: prelude.prepareLookaheadPrelude,
         notifyLookaheadSearchMeta: prelude.notifyLookaheadSearchMeta,
@@ -463,6 +477,18 @@ function createLookaheadRuntime() {
         runLookaheadRootSearch: rootSearch.runLookaheadRootSearch,
         applyLookaheadHardGuards: guards.applyLookaheadHardGuards
     });
+    return {
+        chooseMoveByLookahead(candidateMoves: any[], options?: Record<string, any> | null): any {
+            const normalizedOptions = options && typeof options === 'object' ? options : {};
+            if (Array.isArray(normalizedOptions.board)) {
+                SharedBoardUtils.registerBoardShape(
+                    normalizedOptions.board,
+                    normalizedOptions.boardShape || null
+                );
+            }
+            return controller.chooseMoveByLookahead(candidateMoves, normalizedOptions);
+        }
+    };
 }
 
 const workerLookaheadRuntime = createLookaheadRuntime();

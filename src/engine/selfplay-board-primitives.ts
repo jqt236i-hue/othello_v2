@@ -56,6 +56,7 @@ export function createSelfplayBoardPrimitives(config?: SelfplayBoardPrimitivesCo
     function getSelfplayBoard(gameState: any, cardState: any = null) {
         if (!gameState || !Array.isArray(gameState.board)) return [];
         return getShapeAwareBoard(gameState.board, {
+            boardConfig: gameState.boardConfig,
             boardExpansion: gameState.boardExpansion,
             cardState
         });
@@ -242,23 +243,23 @@ export function createSelfplayBoardPrimitives(config?: SelfplayBoardPrimitivesCo
     }
 
     function getFlipsBasic(board: any, row: any, col: any, playerValue: any) {
-        if (othelloCore && typeof othelloCore.getFlipsBasic === 'function') {
-            return othelloCore.getFlipsBasic(board, row, col, playerValue);
-        }
         if (sharedBoardUtils && typeof sharedBoardUtils.getFlipsBasic === 'function') {
             return sharedBoardUtils.getFlipsBasic(board, row, col, playerValue);
         }
-        return [];
+        if (othelloCore && typeof othelloCore.getFlipsBasic === 'function') {
+            return othelloCore.getFlipsBasic(board, row, col, playerValue);
+        }
+        throw new Error('SharedBoardUtils.getFlipsBasic is required by selfplay board primitives');
     }
 
     function getLegalMovesBasic(board: any, playerValue: any) {
-        if (othelloCore && typeof othelloCore.getLegalMovesBasic === 'function') {
-            return othelloCore.getLegalMovesBasic(board, playerValue);
-        }
         if (sharedBoardUtils && typeof sharedBoardUtils.getLegalMovesBasic === 'function') {
             return sharedBoardUtils.getLegalMovesBasic(board, playerValue);
         }
-        return [];
+        if (othelloCore && typeof othelloCore.getLegalMovesBasic === 'function') {
+            return othelloCore.getLegalMovesBasic(board, playerValue);
+        }
+        throw new Error('SharedBoardUtils.getLegalMovesBasic is required by selfplay board primitives');
     }
 
     return {

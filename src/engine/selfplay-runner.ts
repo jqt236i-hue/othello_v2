@@ -1233,6 +1233,7 @@ const {
     getSelfplayBoard,
     getCornerProximity,
     getBoardCellValue,
+    isCorner,
     isEdge
 });
 

@@ -115,17 +115,24 @@ export function createCpuPolicyBoardFeatures(config?: CpuPolicyBoardFeaturesConf
         }
         let x = 0;
         let c = 0;
-        for (let r = 0; r < board.length; r++) {
-            const row = Array.isArray(board[r]) ? board[r] : [];
-            for (let col = 0; col < row.length; col++) {
-                if (row[col] !== playerValue) continue;
-                const xSquare = isXSquare(r, col, board);
-                const cSquare = !xSquare && isCSquare(r, col, board);
-                if (!xSquare && !cSquare) continue;
-                if (hasOwnedAdjacentCorner(board, r, col, playerValue)) continue;
-                if (xSquare) x += 1;
-                else c += 1;
-            }
+        const coordinates = sharedBoardUtils && typeof sharedBoardUtils.collectBoardCoordinates === 'function'
+            ? sharedBoardUtils.collectBoardCoordinates(board)
+            : board.flatMap((row, rowIndex) => (
+                Array.isArray(row) ? row.map((_value, col) => ({ row: rowIndex, col })) : []
+            ));
+        for (const cell of coordinates) {
+            const row = Number(cell && cell.row);
+            const col = Number(cell && cell.col);
+            const owner = sharedBoardUtils && typeof sharedBoardUtils.getCellValue === 'function'
+                ? sharedBoardUtils.getCellValue(board, row, col)
+                : (Array.isArray(board[row]) ? board[row][col] : null);
+            if (owner !== playerValue) continue;
+            const xSquare = isXSquare(row, col, board);
+            const cSquare = !xSquare && isCSquare(row, col, board);
+            if (!xSquare && !cSquare) continue;
+            if (hasOwnedAdjacentCorner(board, row, col, playerValue)) continue;
+            if (xSquare) x += 1;
+            else c += 1;
         }
         return { x, c };
     }

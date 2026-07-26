@@ -567,6 +567,11 @@ function getCpuPolicyDecisionContext() {
         isFiniteNumber,
         countBoardDiscsForPlayer,
         countBoardEdgeDiscsForPlayer,
+        countPlayableCells: (board: any) => (
+            SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function'
+                ? SharedBoardUtils.collectBoardCoordinates(board).length
+                : 0
+        ),
         estimateOwnOppDiscs
     });
     return CpuPolicyDecisionContextCache;

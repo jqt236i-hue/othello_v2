@@ -5,6 +5,7 @@ type CpuPolicyDecisionContextDeps = {
     isFiniteNumber?: (value: unknown) => boolean;
     countBoardDiscsForPlayer?: (board: unknown, playerValue: number) => { own: number; opp: number; empties: number };
     countBoardEdgeDiscsForPlayer?: (board: unknown, playerValue: number) => { ownEdges: number; oppEdges: number };
+    countPlayableCells?: (board: unknown) => number;
     estimateOwnOppDiscs?: (discDiff: number, empties: number | null, totalCells: number) => { own: number; opp: number };
 };
 
@@ -33,6 +34,9 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
     const countBoardEdgeDiscsForPlayer = typeof deps?.countBoardEdgeDiscsForPlayer === 'function'
         ? deps.countBoardEdgeDiscsForPlayer
         : (() => ({ ownEdges: 0, oppEdges: 0 }));
+    const countPlayableCells = typeof deps?.countPlayableCells === 'function'
+        ? deps.countPlayableCells
+        : null;
     const estimateOwnOppDiscs = typeof deps?.estimateOwnOppDiscs === 'function'
         ? deps.estimateOwnOppDiscs
         : ((discDiff: number, empties: number | null, totalCells: number) => {
@@ -91,6 +95,10 @@ export function createCpuPolicyDecisionContext(deps?: CpuPolicyDecisionContextDe
             for (let r = 0; r < ctx.board.length; r++) {
                 const row = Array.isArray(ctx.board[r]) ? ctx.board[r] : [];
                 cells += row.length;
+            }
+            if (countPlayableCells) {
+                const topologyCells = Number(countPlayableCells(ctx.board));
+                if (Number.isFinite(topologyCells) && topologyCells > 0) cells = topologyCells;
             }
             if (cells > 0) totalCells = cells;
             const boardStat = countBoardDiscsForPlayer(ctx.board, playerValue);

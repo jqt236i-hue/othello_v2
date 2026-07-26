@@ -18,6 +18,7 @@ type CpuDecisionMoveSelectionConfig = {
     getAISystem: () => any;
     getCardState: () => any;
     getBoardBonusValueAt: (row: any, col: any) => any;
+    getBoardShapeForCpuBoard?: (board: any) => any;
     getCpuPolicyCore: () => any;
     getCpuRng: () => any;
     getCurrentCpuBoard: () => any;
@@ -227,6 +228,9 @@ export function createCpuDecisionMoveSelection(config: CpuDecisionMoveSelectionC
             level: prepared.placementLevel,
             playerValue: cfg.resolvePlayerValue(playerKey),
             board,
+            boardShape: typeof cfg.getBoardShapeForCpuBoard === 'function'
+                ? cfg.getBoardShapeForCpuBoard(board)
+                : null,
             legalMoves: prepared.prioritizedCandidateMoves,
             search: {
                 depth: lv6Lookahead.depth,

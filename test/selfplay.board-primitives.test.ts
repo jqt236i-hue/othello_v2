@@ -79,4 +79,28 @@ describe('selfplay board primitives module', () => {
             stage: 'selectTarget'
         });
     });
+
+    test('uses expansion cells for selfplay flips and legal moves before dense fallback', () => {
+        const gameState = {
+            board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+            boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+            boardExpansion: {
+                cells: [
+                    { side: 'right', row: 1, col: 4, owner: Core.WHITE },
+                    { side: 'right', row: 1, col: 5, owner: Core.EMPTY }
+                ]
+            }
+        };
+        gameState.board[1][3] = Core.BLACK;
+        const board = primitives.getSelfplayBoard(gameState, { markers: [] });
+
+        expect(primitives.getFlipsBasic(board, 1, 5, Core.BLACK)).toEqual([
+            { row: 1, col: 4 }
+        ]);
+        expect(primitives.getLegalMovesBasic(board, Core.BLACK)).toContainEqual({
+            row: 1,
+            col: 5,
+            flips: [{ row: 1, col: 4 }]
+        });
+    });
 });

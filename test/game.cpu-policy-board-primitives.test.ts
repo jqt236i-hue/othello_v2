@@ -55,17 +55,27 @@ describe('cpu-policy board primitives module', () => {
     ]);
   });
 
-  test('getFlipsBasic and getLegalMovesBasic prefer injected runtimes', () => {
-    const OthelloCore = {
+  test('getFlipsBasic and getLegalMovesBasic prefer the shape-aware shared runtime', () => {
+    const SharedBoardUtils = {
       getFlipsBasic: jest.fn(() => [{ row: 1, col: 1 }]),
       getLegalMovesBasic: jest.fn(() => [{ row: 2, col: 3, flips: [] }])
     } as any;
-    const primitives = createCpuPolicyBoardPrimitives({ OthelloCore });
+    const OthelloCore = {
+      getFlipsBasic: jest.fn(() => {
+        throw new Error('dense fallback must not win');
+      }),
+      getLegalMovesBasic: jest.fn(() => {
+        throw new Error('dense fallback must not win');
+      })
+    } as any;
+    const primitives = createCpuPolicyBoardPrimitives({ SharedBoardUtils, OthelloCore });
     const board = Array.from({ length: 8 }, () => Array(8).fill(0));
 
     expect(primitives.getFlipsBasic(board as any, 2, 3, 1)).toEqual([{ row: 1, col: 1 }]);
     expect(primitives.getLegalMovesBasic(board as any, 1)).toEqual([{ row: 2, col: 3, flips: [] }]);
-    expect(OthelloCore.getFlipsBasic).toHaveBeenCalledWith(board, 2, 3, 1);
-    expect(OthelloCore.getLegalMovesBasic).toHaveBeenCalledWith(board, 1);
+    expect(SharedBoardUtils.getFlipsBasic).toHaveBeenCalledWith(board, 2, 3, 1);
+    expect(SharedBoardUtils.getLegalMovesBasic).toHaveBeenCalledWith(board, 1);
+    expect(OthelloCore.getFlipsBasic).not.toHaveBeenCalled();
+    expect(OthelloCore.getLegalMovesBasic).not.toHaveBeenCalled();
   });
 });

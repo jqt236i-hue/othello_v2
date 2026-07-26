@@ -54,11 +54,15 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
         if (!Array.isArray(board)) return 0;
         let own = 0;
         let opp = 0;
-        if (sharedBoardUtils && typeof sharedBoardUtils.collectBoardCoordinates === 'function') {
+        if (
+            sharedBoardUtils
+            && typeof sharedBoardUtils.collectBoardCoordinates === 'function'
+            && typeof sharedBoardUtils.getCellValue === 'function'
+        ) {
             for (const cell of sharedBoardUtils.collectBoardCoordinates(board)) {
                 const row = cell && cell.row;
                 const col = cell && cell.col;
-                const v = Array.isArray(board) && Array.isArray(board[row]) ? board[row][col] : null;
+                const v = sharedBoardUtils.getCellValue(board, row, col);
                 if (v === playerValue) own += 1;
                 else if (v === -playerValue) opp += 1;
             }
@@ -113,6 +117,20 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
     function evaluatePositionValueSummary(board: any, playerValue: any) {
         if (!Array.isArray(board)) return 0;
         let score = 0;
+        if (
+            sharedBoardUtils
+            && typeof sharedBoardUtils.collectBoardCoordinates === 'function'
+            && typeof sharedBoardUtils.getCellValue === 'function'
+        ) {
+            for (const cell of sharedBoardUtils.collectBoardCoordinates(board)) {
+                const row = cell && cell.row;
+                const col = cell && cell.col;
+                const value = sharedBoardUtils.getCellValue(board, row, col);
+                if (value === playerValue) score += evaluatePositionValue(row, col, board);
+                else if (value === -playerValue) score -= evaluatePositionValue(row, col, board);
+            }
+            return score;
+        }
         for (let row = 0; row < board.length; row++) {
             const oneRow = Array.isArray(board[row]) ? board[row] : [];
             for (let col = 0; col < oneRow.length; col++) {

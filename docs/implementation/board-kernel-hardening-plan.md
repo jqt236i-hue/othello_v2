@@ -106,12 +106,12 @@ Components:
 
 Tasks:
 
-- [ ] consumer側のdense `OthelloCore` 優先を削除する。
-- [ ] CPU clone/searchへ完全sourceまたは明示serialized shapeを渡す。
-- [ ] quiescence DTOからhidden metadata復元を削除する。
-- [ ] Worker runtimeがpure kernelを直接組み立て、rootと同じcontractを使う。
-- [ ] selfplayのowner読取、角/辺、簡易評価から固定8x8を除去する。
-- [ ] root/CPU/selfplay/Worker parity fixtureを追加する。
+- [x] consumer側のdense `OthelloCore` 優先を削除する。
+- [x] CPU clone/searchへ完全sourceまたは明示serialized shapeを渡す。
+- [x] quiescence DTOからhidden metadata復元を削除する。
+- [x] Worker runtimeがpure kernelを直接組み立て、rootと同じcontractを使う。
+- [x] selfplayのowner読取、角/辺、簡易評価から固定8x8を除去する。
+- [x] root/CPU/selfplay/Worker parity fixtureを追加する。
 
 Verification:
 

@@ -19,7 +19,6 @@ const MAX_SHAPE_KEYS = 8192;
 const MAX_BONUS_ENTRIES = 8192;
 const MAX_COORDINATE_ABS = 4096;
 const MAX_SEARCH_LIMIT = 10_000_000;
-const BOARD_SHAPE_META_KEY = '__sharedBoardShapeMeta';
 
 export type CpuCardQuiescenceStateVersion = string | number | null;
 
@@ -104,6 +103,7 @@ export interface CreateCpuCardQuiescenceRequestInput {
     level: unknown;
     playerValue: unknown;
     board: unknown;
+    boardShape?: unknown;
     legalMoves: unknown;
     search: unknown;
     boardBonusByCell?: unknown;
@@ -282,33 +282,6 @@ function readOwnerMap(value: unknown, label: string): Record<string, number> {
     return out;
 }
 
-function readBoardShapeFromBoard(board: unknown): CpuCardQuiescenceBoardShape | null {
-    if (!Array.isArray(board)) return null;
-    const shape = (board as any)[BOARD_SHAPE_META_KEY];
-    if (!isRecord(shape)) return null;
-    const expansionCells = Array.isArray(shape.expansionCells) ? shape.expansionCells : [];
-    if (expansionCells.length > MAX_SHAPE_KEYS) fail('board shape has too many expansion cells');
-    return {
-        minRow: readCoordinate(shape.minRow, 'boardShape.minRow'),
-        maxRow: readCoordinate(shape.maxRow, 'boardShape.maxRow'),
-        minCol: readCoordinate(shape.minCol, 'boardShape.minCol'),
-        maxCol: readCoordinate(shape.maxCol, 'boardShape.maxCol'),
-        playableKeys: readCoordinateKeys(Array.from(shape.playableKeys instanceof Set ? shape.playableKeys : []), 'boardShape.playableKeys'),
-        meteorHoleKeys: readCoordinateKeys(Array.from(shape.meteorHoleKeys instanceof Set ? shape.meteorHoleKeys : []), 'boardShape.meteorHoleKeys'),
-        expansionCells: expansionCells.map((cell: unknown, index: number) => {
-            if (!isRecord(cell)) fail(`boardShape.expansionCells[${index}] must be an object`);
-            return {
-                side: readBoundedString(String(cell.side || ''), `boardShape.expansionCells[${index}].side`, 32),
-                row: readCoordinate(cell.row, `boardShape.expansionCells[${index}].row`),
-                col: readCoordinate(cell.col, `boardShape.expansionCells[${index}].col`),
-                owner: readOwner(cell.owner, `boardShape.expansionCells[${index}].owner`)
-            };
-        }),
-        expansionOwnerByKey: readOwnerMap(shape.expansionOwnerByKey || {}, 'boardShape.expansionOwnerByKey'),
-        standard8x8: shape.standard8x8 === true
-    };
-}
-
 function readBoardShape(value: unknown): CpuCardQuiescenceBoardShape | null {
     if (value === null || typeof value === 'undefined') return null;
     if (!isRecord(value)) fail('boardShape must be an object or null');
@@ -333,6 +306,16 @@ function readBoardShape(value: unknown): CpuCardQuiescenceBoardShape | null {
         expansionOwnerByKey: readOwnerMap(value.expansionOwnerByKey || {}, 'boardShape.expansionOwnerByKey'),
         standard8x8: value.standard8x8 === true
     };
+}
+
+export function serializeCpuCardQuiescenceBoardShape(value: unknown): CpuCardQuiescenceBoardShape | null {
+    if (value === null || typeof value === 'undefined') return null;
+    if (!isRecord(value)) fail('board shape source must be an object or null');
+    return readBoardShape({
+        ...value,
+        playableKeys: Array.from(value.playableKeys instanceof Set ? value.playableKeys : (Array.isArray(value.playableKeys) ? value.playableKeys : [])),
+        meteorHoleKeys: Array.from(value.meteorHoleKeys instanceof Set ? value.meteorHoleKeys : (Array.isArray(value.meteorHoleKeys) ? value.meteorHoleKeys : []))
+    });
 }
 
 function readSearchLimit(value: unknown, label: string, minimum = 0): number {
@@ -378,14 +361,12 @@ function requestDigestInput(request: Omit<CpuCardQuiescenceRequest, 'inputDigest
     return hashString(JSON.stringify(request));
 }
 
-function normalizeRequestInput(value: Record<string, any>, includeBoardShapeFromBoard: boolean): Omit<CpuCardQuiescenceRequest, 'inputDigest'> {
+function normalizeRequestInput(value: Record<string, any>): Omit<CpuCardQuiescenceRequest, 'inputDigest'> {
     const decisionEpoch = readSafeNonNegativeInteger(value.decisionEpoch, 'decisionEpoch') as number;
     const turnNumber = readSafeNonNegativeInteger(value.turnNumber, 'turnNumber', true);
     const level = readSearchLimit(value.level, 'level', 1);
     const playerValue = readPlayerValue(value.playerValue);
-    const boardShape = includeBoardShapeFromBoard
-        ? readBoardShapeFromBoard(value.board)
-        : readBoardShape(value.boardShape);
+    const boardShape = readBoardShape(value.boardShape);
     return {
         protocolVersion: CPU_CARD_QUIESCENCE_PROTOCOL_VERSION,
         requestId: readBoundedString(value.requestId, 'requestId', MAX_REQUEST_ID_LENGTH),
@@ -409,7 +390,7 @@ function normalizeRequestInput(value: Record<string, any>, includeBoardShapeFrom
 
 export function createCpuCardQuiescenceRequest(input: CreateCpuCardQuiescenceRequestInput): CpuCardQuiescenceRequest {
     if (!isRecord(input)) fail('card-quiescence request input must be an object');
-    const normalized = normalizeRequestInput(input, true);
+    const normalized = normalizeRequestInput(input);
     return Object.freeze({
         ...normalized,
         inputDigest: requestDigestInput(normalized)
@@ -420,7 +401,7 @@ export function parseCpuCardQuiescenceRequest(value: unknown): CpuCardQuiescence
     if (!isRecord(value) || value.protocolVersion !== CPU_CARD_QUIESCENCE_PROTOCOL_VERSION) {
         fail('unsupported card-quiescence request');
     }
-    const normalized = normalizeRequestInput(value, false);
+    const normalized = normalizeRequestInput(value);
     const inputDigest = readBoundedString(value.inputDigest, 'inputDigest', 32);
     if (requestDigestInput(normalized) !== inputDigest) fail('card-quiescence request digest mismatch');
     return Object.freeze({ ...normalized, inputDigest });
@@ -482,33 +463,13 @@ export function verifyCpuCardQuiescenceResponse(
     return response.bestMove === null || request.legalMoves.some((move) => sameMove(move, response.bestMove!));
 }
 
-function restoreBoardShape(board: number[][], shape: CpuCardQuiescenceBoardShape | null): number[][] {
-    if (!shape) return board;
-    Object.defineProperty(board, BOARD_SHAPE_META_KEY, {
-        configurable: true,
-        writable: true,
-        value: {
-            ...shape,
-            playableKeys: new Set(shape.playableKeys),
-            meteorHoleKeys: new Set(shape.meteorHoleKeys),
-            expansionCells: shape.expansionCells.map((cell) => ({ ...cell })),
-            expansionOwnerByKey: { ...shape.expansionOwnerByKey },
-            coordinateCache: null,
-            cornerKeyCache: null,
-            xKeyCache: null,
-            cKeyCache: null
-        }
-    });
-    return board;
-}
-
 export function executeCpuCardQuiescenceRequest(
     requestInput: unknown,
     chooseMoveByLookahead: CpuCardQuiescenceLookahead
 ): CpuCardQuiescenceResponse {
     const request = parseCpuCardQuiescenceRequest(requestInput);
     if (typeof chooseMoveByLookahead !== 'function') fail('card-quiescence lookahead is unavailable');
-    const board = restoreBoardShape(request.board.map((row) => row.slice()), request.boardShape);
+    const board = request.board.map((row) => row.slice());
     const legalMoves = request.legalMoves.map((move) => ({
         row: move.row,
         col: move.col,
@@ -523,6 +484,7 @@ export function executeCpuCardQuiescenceRequest(
         : undefined;
     const bestMove = chooseMoveByLookahead(legalMoves, {
         board,
+        boardShape: request.boardShape,
         playerValue: request.playerValue,
         level: request.level,
         ...request.search,

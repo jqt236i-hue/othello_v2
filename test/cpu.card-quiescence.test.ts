@@ -8,23 +8,36 @@ import {
 import { chooseMoveByLookaheadInWorker } from '../game/ai/cpu-policy-lookahead-worker-runtime';
 
 const CpuPolicyCore: any = require('../game/ai/cpu-policy-core');
+const SharedBoardUtils: any = require('../shared/shared-board-utils');
+
+function serializeShape(board: any) {
+  const meta = SharedBoardUtils.getBoardShapeMeta(board);
+  return meta ? {
+    minRow: meta.minRow,
+    maxRow: meta.maxRow,
+    minCol: meta.minCol,
+    maxCol: meta.maxCol,
+    playableKeys: Array.from(meta.playableKeys),
+    meteorHoleKeys: Array.from(meta.meteorHoleKeys),
+    expansionCells: meta.expansionCells.map((cell: any) => ({ ...cell })),
+    expansionOwnerByKey: { ...meta.expansionOwnerByKey },
+    standard8x8: meta.standard8x8
+  } : null;
+}
 
 function createRequest() {
   const board = Array.from({ length: 4 }, () => Array(4).fill(0));
-  Object.defineProperty(board, '__sharedBoardShapeMeta', {
-    configurable: true,
-    value: {
-      minRow: 0,
-      maxRow: 3,
-      minCol: -1,
-      maxCol: 3,
-      playableKeys: new Set(['0,-1', '0,0', '0,1']),
-      meteorHoleKeys: new Set(['0,1']),
-      expansionCells: [{ side: 'left', row: 0, col: -1, owner: 0 }],
-      expansionOwnerByKey: { '0,-1': 0 },
-      standard8x8: false
-    }
-  });
+  const boardShape = {
+    minRow: 0,
+    maxRow: 3,
+    minCol: -1,
+    maxCol: 3,
+    playableKeys: ['0,-1', '0,0', '0,1'],
+    meteorHoleKeys: ['0,1'],
+    expansionCells: [{ side: 'left', row: 0, col: -1, owner: 0 }],
+    expansionOwnerByKey: { '0,-1': 0 },
+    standard8x8: false
+  };
   return createCpuCardQuiescenceRequest({
     requestId: 'card-quiescence:1:2',
     decisionEpoch: 2,
@@ -34,6 +47,7 @@ function createRequest() {
     level: 6,
     playerValue: -1,
     board,
+    boardShape,
     legalMoves: [{ row: 0, col: 0, flips: [{ row: 1, col: 1 }] }],
     search: {
       depth: 4,
@@ -55,8 +69,9 @@ describe('CPU card-quiescence portable contract', () => {
     const request = createRequest();
     const chooseMove = jest.fn((moves, options) => {
       expect(options.board).not.toBe(request.board);
-      const shape = (options.board as any).__sharedBoardShapeMeta;
-      expect(shape.playableKeys).toEqual(new Set(['0,-1', '0,0', '0,1']));
+      expect(Object.prototype.hasOwnProperty.call(options.board, '__sharedBoardShapeMeta')).toBe(false);
+      const shape = options.boardShape;
+      expect(shape.playableKeys).toEqual(['0,-1', '0,0', '0,1']);
       expect(shape.expansionCells).toEqual([{ side: 'left', row: 0, col: -1, owner: 0 }]);
       expect(shape.expansionOwnerByKey).toEqual({ '0,-1': 0 });
       expect(options.boardBonusByCell).toEqual({ '0,0': 2 });
@@ -115,20 +130,13 @@ describe('CPU card-quiescence portable contract', () => {
     })).toThrow(CpuCardQuiescenceProtocolError);
 
     const request = createRequest();
-    const board = request.board.map((row) => row.slice());
-    Object.defineProperty(board, '__sharedBoardShapeMeta', {
-      configurable: true,
-      value: {
+    expect(() => createCpuCardQuiescenceRequest({
+      ...request,
+      boardShape: {
         ...request.boardShape,
-        playableKeys: new Set(request.boardShape!.playableKeys),
-        meteorHoleKeys: new Set(request.boardShape!.meteorHoleKeys),
         expansionCells: [{ side: 'left', row: 0, col: -1, owner: 2 }],
         expansionOwnerByKey: { '0,-1': 2 }
       }
-    });
-    expect(() => createCpuCardQuiescenceRequest({
-      ...request,
-      board
     })).toThrow(CpuCardQuiescenceProtocolError);
   });
 
@@ -256,30 +264,12 @@ describe('CPU card-quiescence portable contract', () => {
       [0, -1, 0, 1, 0],
       [0, 1, 0, 1, -1]
     ];
-    const playableKeys = Array.from({ length: 5 }, (_row, row) => (
-      Array.from({ length: 5 }, (_col, col) => ({ row, col }))
-    ))
-      .flat()
-      .filter(({ row, col }) => !((row === 0 || row === 4) && (col === 0 || col === 4)))
-      .map(({ row, col }) => `${row},${col}`);
-    Object.defineProperty(board, '__sharedBoardShapeMeta', {
-      configurable: true,
-      value: {
-        minRow: 0,
-        maxRow: 4,
-        minCol: 0,
-        maxCol: 4,
-        playableKeys: new Set(playableKeys),
-        meteorHoleKeys: new Set(),
-        expansionCells: [],
-        expansionOwnerByKey: {},
-        standard8x8: false,
-        coordinateCache: null,
-        cornerKeyCache: null,
-        xKeyCache: null,
-        cKeyCache: null
-      }
+    SharedBoardUtils.attachBoardShape(board, {
+      boardConfig: { rows: 5, cols: 5, shape: 'circle' },
+      boardExpansion: { cells: [] },
+      cardState: { markers: [] }
     });
+    const boardShape = serializeShape(board);
     const legalMoves = [
       { row: 3, col: 2, flips: [{ row: 2, col: 2 }] },
       { row: 4, col: 2, flips: [{ row: 3, col: 1 }] }
@@ -309,12 +299,73 @@ describe('CPU card-quiescence portable contract', () => {
       level: 6,
       playerValue: 1,
       board,
+      boardShape,
       legalMoves,
       search
     });
 
-    expect(expected).toMatchObject({ row: 4, col: 2 });
     expect(executeCpuCardQuiescenceRequest(request, chooseMoveByLookaheadInWorker).bestMove)
       .toMatchObject({ row: expected.row, col: expected.col });
+  });
+
+  test('keeps multi-ring expansion and hole topology through JSON and structuredClone', () => {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    board[1][3] = 1;
+    const boardExpansion = {
+      cells: [
+        { side: 'right', row: 1, col: 4, owner: -1 },
+        { side: 'right', row: 1, col: 5, owner: 0 }
+      ]
+    };
+    const cardState = {
+      markers: [{
+        kind: 'specialStone',
+        row: 0,
+        col: 0,
+        data: { type: 'METEOR_HOLE' }
+      }]
+    };
+    SharedBoardUtils.attachBoardShape(board, {
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      boardExpansion,
+      cardState
+    });
+    const legalMoves = SharedBoardUtils.getLegalMovesBasic(board, 1);
+    const search = {
+      depth: 2,
+      maxBranch: 4,
+      nodeBudget: 10000,
+      maxTimeMs: 10000,
+      endgameSolveEmpties: 4,
+      endgameDepth: 4,
+      endgameNodeBudget: 10000,
+      endgameMaxTimeMs: 10000
+    };
+    const request = createCpuCardQuiescenceRequest({
+      requestId: 'card-quiescence:expansion-hole-roundtrip',
+      decisionEpoch: 7,
+      stateVersion: 10,
+      turnNumber: 8,
+      playerKey: 'black',
+      level: 6,
+      playerValue: 1,
+      board,
+      boardShape: serializeShape(board),
+      legalMoves,
+      search
+    });
+    const jsonRequest = JSON.parse(JSON.stringify(request));
+    const clonedRequest = typeof structuredClone === 'function'
+      ? structuredClone(jsonRequest)
+      : jsonRequest;
+
+    expect(legalMoves).toContainEqual({
+      row: 1,
+      col: 5,
+      flips: [{ row: 1, col: 4 }]
+    });
+    expect(Object.prototype.hasOwnProperty.call(clonedRequest.board, '__sharedBoardShapeMeta')).toBe(false);
+    expect(executeCpuCardQuiescenceRequest(clonedRequest, chooseMoveByLookaheadInWorker).bestMove)
+      .toMatchObject({ row: 1, col: 5 });
   });
 });

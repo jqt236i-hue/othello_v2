@@ -3,6 +3,7 @@ type CpuDecisionCardRiskConfig = {
     getCardLogic: () => any;
     getCardState: () => any;
     buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any) => any;
+    getBoardShapeForCpuBoard?: (board: any) => any;
     getCurrentCpuBoard: () => any;
     isPlayableBoard: (board: any) => any;
     buildLv6LookaheadOptions: (level: any, board: any, legalMovesCount: any, playerKey: any) => any;
@@ -117,6 +118,9 @@ export function createCpuDecisionCardRisk(config: CpuDecisionCardRiskConfig): an
             level,
             playerValue: inputs.playerValue,
             board: inputs.board,
+            boardShape: typeof cfg.getBoardShapeForCpuBoard === 'function'
+                ? cfg.getBoardShapeForCpuBoard(inputs.board)
+                : null,
             legalMoves,
             search: inputs.search,
             boardBonusByCell: inputs.boardBonusByCell,

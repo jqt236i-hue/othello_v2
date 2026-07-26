@@ -509,6 +509,7 @@ function getShapeAwareBoard(board: any, gameStateOverride: any, cardStateOverrid
     }
     try {
         boardUtils.attachBoardShape(board, {
+            boardConfig: gameStateOverride && gameStateOverride.boardConfig,
             boardExpansion: gameStateOverride && gameStateOverride.boardExpansion,
             cardState: cardStateOverride || null
         });
@@ -522,6 +523,33 @@ function getCurrentCpuBoard(): any {
     return (gs && Array.isArray(gs.board))
         ? getShapeAwareBoard(gs.board, gs, cs)
         : null;
+}
+
+function getBoardShapeForCpuBoard(boardRef: any): any {
+    const boardUtils = resolveSharedBoardUtilsModule();
+    if (!Array.isArray(boardRef) || !boardUtils || typeof boardUtils.getBoardShapeMeta !== 'function') {
+        return null;
+    }
+    const meta = boardUtils.getBoardShapeMeta(boardRef);
+    if (!meta) return null;
+    return {
+        minRow: meta.minRow,
+        maxRow: meta.maxRow,
+        minCol: meta.minCol,
+        maxCol: meta.maxCol,
+        playableKeys: Array.from(meta.playableKeys instanceof Set ? meta.playableKeys : []),
+        meteorHoleKeys: Array.from(meta.meteorHoleKeys instanceof Set ? meta.meteorHoleKeys : []),
+        expansionCells: Array.isArray(meta.expansionCells)
+            ? meta.expansionCells.map((cell: any) => ({
+                side: cell.side,
+                row: cell.row,
+                col: cell.col,
+                owner: cell.owner
+            }))
+            : [],
+        expansionOwnerByKey: Object.assign({}, meta.expansionOwnerByKey || null),
+        standard8x8: meta.standard8x8 === true
+    };
 }
 
 /**
@@ -2098,6 +2126,7 @@ const CpuDecisionCardRisk = (CpuDecisionCardRiskModule && typeof CpuDecisionCard
         getCardLogic: () => ((typeof CardLogic !== 'undefined') ? CardLogic : null),
         getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
         buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any) => buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds),
+        getBoardShapeForCpuBoard,
         getCurrentCpuBoard: () => getCurrentCpuBoard(),
         isPlayableBoard,
         buildLv6LookaheadOptions,
@@ -2647,6 +2676,7 @@ const CpuDecisionMoveSelection = (CpuDecisionMoveSelectionModule && typeof CpuDe
         getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
         getCpuPolicyCore: () => CpuPolicyCore,
         getCpuRng: () => cpuRng,
+        getBoardShapeForCpuBoard,
         getCurrentCpuBoard,
         getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
         isAISystemAvailable,

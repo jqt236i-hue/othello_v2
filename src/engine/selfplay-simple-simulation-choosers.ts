@@ -17,6 +17,7 @@ type SelfplaySimpleSimulationChoosersConfig = {
     getSelfplayBoard?: (gameState: any, cardState?: any) => any;
     getCornerProximity?: (row: any, col: any, boardOverride?: any) => any;
     getBoardCellValue?: (board: any, row: any, col: any) => any;
+    isCorner?: (row: any, col: any, board?: any) => boolean;
     isEdge?: (row: any, col: any, board?: any) => boolean;
 };
 
@@ -41,6 +42,9 @@ export function createSelfplaySimpleSimulationChoosers(config?: SelfplaySimpleSi
     const getBoardCellValue = typeof cfg.getBoardCellValue === 'function'
         ? cfg.getBoardCellValue
         : (() => null);
+    const isCorner = typeof cfg.isCorner === 'function'
+        ? cfg.isCorner
+        : (() => false);
     const isEdge = typeof cfg.isEdge === 'function'
         ? cfg.isEdge
         : (() => false);
@@ -89,9 +93,10 @@ export function createSelfplaySimpleSimulationChoosers(config?: SelfplaySimpleSi
                 }
                 return cardLogic.applyBoardExpansionWill(simCardState, simGameState, onePlayerKey, row, col, target && target.directionKey);
             },
-            (target: any) => {
-                if (target.row === 0 || target.row === 7) return 9000;
-                if (target.row === 1 || target.row === 6) return 2200;
+            (target: any, sourceGameState: any) => {
+                const board = getSelfplayBoard(sourceGameState, cardState);
+                if (isCorner(target.row, target.col, board)) return 9000;
+                if (isEdge(target.row, target.col, board)) return 2200;
                 return 600;
             }
         );

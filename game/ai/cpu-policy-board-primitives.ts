@@ -151,23 +151,23 @@ export function createCpuPolicyBoardPrimitives(config?: CpuPolicyBoardPrimitives
     }
 
     function getFlipsBasic(board: CpuPolicyBoard | null | undefined, row: number, col: number, playerValue: number): CpuPolicyMove['flips'] {
-        if (othelloCore && typeof othelloCore.getFlipsBasic === 'function') {
-            return othelloCore.getFlipsBasic(board, row, col, playerValue);
-        }
         if (sharedBoardUtils && typeof sharedBoardUtils.getFlipsBasic === 'function') {
             return sharedBoardUtils.getFlipsBasic(board, row, col, playerValue);
         }
-        return [];
+        if (othelloCore && typeof othelloCore.getFlipsBasic === 'function') {
+            return othelloCore.getFlipsBasic(board, row, col, playerValue);
+        }
+        throw new Error('SharedBoardUtils.getFlipsBasic is required by CPU board primitives');
     }
 
     function getLegalMovesBasic(board: CpuPolicyBoard | null | undefined, playerValue: number): CpuPolicyMove[] {
-        if (othelloCore && typeof othelloCore.getLegalMovesBasic === 'function') {
-            return othelloCore.getLegalMovesBasic(board, playerValue);
-        }
         if (sharedBoardUtils && typeof sharedBoardUtils.getLegalMovesBasic === 'function') {
             return sharedBoardUtils.getLegalMovesBasic(board, playerValue);
         }
-        return [];
+        if (othelloCore && typeof othelloCore.getLegalMovesBasic === 'function') {
+            return othelloCore.getLegalMovesBasic(board, playerValue);
+        }
+        throw new Error('SharedBoardUtils.getLegalMovesBasic is required by CPU board primitives');
     }
 
     function applyMoveToBoard(board: CpuPolicyBoard | null | undefined, move: CpuPolicyMove | null | undefined, playerValue: number): CpuPolicyBoard {
