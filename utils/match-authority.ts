@@ -6,6 +6,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { PlayerKey } from '../src/types';
 import * as NetworkContract from '../shared/network-contract';
+import * as SharedBoardUtilsStaticModule from '../shared/shared-board-utils';
 import type {
     MatchAuthorityAcceptedOperationEntry,
     MatchAuthorityAcceptedOperationHistoryBySeat,
@@ -135,7 +136,18 @@ function loadOptionalCommonJsModule<T extends object>(modulePath: string): T | n
     }
 }
 
-const SharedBoardUtils = loadOptionalCommonJsModule<MatchAuthoritySharedBoardUtils>('../shared/shared-board-utils');
+function resolveStaticSharedBoardUtils(moduleValue: unknown): MatchAuthoritySharedBoardUtils | null {
+    if (!moduleValue || typeof moduleValue !== 'object') return null;
+    const direct = moduleValue as MatchAuthoritySharedBoardUtils;
+    if (typeof direct.inspectBoardState === 'function') return direct;
+    const nestedDefault = (direct as Record<string, unknown>).default;
+    return nestedDefault && typeof nestedDefault === 'object'
+        ? nestedDefault as MatchAuthoritySharedBoardUtils
+        : null;
+}
+
+const SharedBoardUtils = resolveStaticSharedBoardUtils(SharedBoardUtilsStaticModule)
+    || loadOptionalCommonJsModule<MatchAuthoritySharedBoardUtils>('../shared/shared-board-utils');
 const GachaHandCatalogShared = loadOptionalCommonJsModule<MatchAuthorityGachaHandCatalogShared>('../shared/gacha-hand-catalog-shared.js');
 const StateHash = loadOptionalCommonJsModule<MatchAuthorityStateHash>('../shared/state-hash.js');
 const PlaybackDigest = loadOptionalCommonJsModule<MatchAuthorityPlaybackDigest>('../shared/playback-digest');
