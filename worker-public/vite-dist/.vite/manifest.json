@@ -1,124 +1,4 @@
 {
-  "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/environment-browser/browserAll.mjs": {
-    "file": "assets/browserAll-D2z7_yPU.js",
-    "name": "browserAll",
-    "src": "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_Geometry-CZCQfHLF.js",
-      "_Container--DC3sRrW.js",
-      "_FederatedEventTarget-C-UmVFe2.js",
-      "_FilterSystem-lINCcHw8.js",
-      "_init-Dov3IVMy.js"
-    ]
-  },
-  "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs": {
-    "file": "assets/webworkerAll-DL-vOdK_.js",
-    "name": "webworkerAll",
-    "src": "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_FilterSystem-lINCcHw8.js",
-      "_init-Dov3IVMy.js"
-    ]
-  },
-  "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/index.mjs": {
-    "file": "assets/lib-C6wNKBqx.js",
-    "name": "lib",
-    "src": "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/index.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_rolldown-runtime-aKtaBQYM.js",
-      "_preload-helper-HclGiUj8.js",
-      "_Geometry-CZCQfHLF.js",
-      "_Container--DC3sRrW.js",
-      "_Filter-CxXus6PE.js",
-      "_FederatedEventTarget-C-UmVFe2.js",
-      "_FilterSystem-lINCcHw8.js",
-      "_Shader-Dff_yvjw.js",
-      "_Cache-B8IRbCgz.js",
-      "_ImageSource-D2JHCQ3v.js",
-      "_canvasUtils-C8xQnZmC.js",
-      "_CanvasPool-CPoFfVNI.js",
-      "_GraphicsContext-H5W9uhhZ.js",
-      "_AbstractRenderer-GQgU6Z_I.js",
-      "_RenderTargetSystem-BOQSKBfs.js",
-      "_getTextureBatchBindGroup-DoAcu5ce.js",
-      "_ViewableBuffer-CObpe3su.js",
-      "_GCManagedHash-Igj10gjP.js",
-      "_GpuStencilModesToPixi-D7_3d2fF.js",
-      "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
-      "_ParticleBuffer-B-PCZxN0.js",
-      "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
-    ],
-    "dynamicImports": [
-      "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
-      "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
-      "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/index.mjs",
-      "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
-      "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
-    ]
-  },
-  "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs": {
-    "file": "assets/CanvasRenderer-y3G8kg5_.js",
-    "name": "CanvasRenderer",
-    "src": "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_Geometry-CZCQfHLF.js",
-      "_Container--DC3sRrW.js",
-      "_Filter-CxXus6PE.js",
-      "_Shader-Dff_yvjw.js",
-      "_canvasUtils-C8xQnZmC.js",
-      "_GraphicsContext-H5W9uhhZ.js",
-      "_AbstractRenderer-GQgU6Z_I.js",
-      "_RenderTargetSystem-BOQSKBfs.js",
-      "_GCManagedHash-Igj10gjP.js"
-    ]
-  },
-  "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs": {
-    "file": "assets/WebGLRenderer-BR3rkl_X.js",
-    "name": "WebGLRenderer",
-    "src": "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/index.mjs"
-    ]
-  },
-  "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs": {
-    "file": "assets/WebGPURenderer-DlC4Q43s.js",
-    "name": "WebGPURenderer",
-    "src": "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/index.mjs"
-    ]
-  },
-  "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs": {
-    "file": "assets/BitmapFont-3_bdR0G-.js",
-    "name": "BitmapFont",
-    "src": "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_Geometry-CZCQfHLF.js",
-      "_Shader-Dff_yvjw.js",
-      "_Cache-B8IRbCgz.js",
-      "_ImageSource-D2JHCQ3v.js",
-      "_CanvasPool-CPoFfVNI.js",
-      "_GraphicsContext-H5W9uhhZ.js"
-    ]
-  },
-  "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/unsafe-eval/init.mjs": {
-    "file": "assets/init-BtrWJfXd.js",
-    "name": "init",
-    "src": "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/unsafe-eval/init.mjs",
-    "isDynamicEntry": true,
-    "imports": [
-      "_Geometry-CZCQfHLF.js",
-      "_AbstractRenderer-GQgU6Z_I.js",
-      "_ParticleBuffer-B-PCZxN0.js"
-    ]
-  },
   "_AbstractRenderer-GQgU6Z_I.js": {
     "file": "assets/AbstractRenderer-GQgU6Z_I.js",
     "name": "AbstractRenderer",
@@ -318,7 +198,7 @@
     "src": "browser-vite/generated-assets/optional-commentary.mjs"
   },
   "browser-vite/generated-assets/optional-compatibility.mjs": {
-    "file": "assets/optional-compatibility-BjWn6W61.mjs",
+    "file": "assets/optional-compatibility-CSbJUiHc.mjs",
     "src": "browser-vite/generated-assets/optional-compatibility.mjs"
   },
   "browser-vite/generated-assets/optional-cosmetic.mjs": {
@@ -355,7 +235,7 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-DtOMwKVc.js",
+    "file": "assets/index.vite-BiZctjf6.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
@@ -367,8 +247,8 @@
     "dynamicImports": [
       "ui/layout-stage.js",
       "entry-browser.js",
-      "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/unsafe-eval/init.mjs",
-      "../../../../Desktop/othello_v2/node_modules/pixi.js/lib/index.mjs"
+      "node_modules/pixi.js/lib/unsafe-eval/init.mjs",
+      "node_modules/pixi.js/lib/index.mjs"
     ],
     "assets": [
       "assets/optional-gacha-B00JGPIr.mjs",
@@ -377,11 +257,131 @@
       "assets/optional-commentary-w5vg3vdT.mjs",
       "assets/optional-cpu-BntQgZI-.mjs",
       "assets/optional-onnx-CDjBGS7K.mjs",
-      "assets/optional-compatibility-BjWn6W61.mjs",
+      "assets/optional-compatibility-CSbJUiHc.mjs",
       "assets/optional-diagnostics-DQiaJ-SF.mjs",
       "assets/black-C5I6QShq.png",
       "assets/hero-DbqiEqdj.png",
       "assets/勇者の手-C6v2toAd.png"
+    ]
+  },
+  "node_modules/pixi.js/lib/environment-browser/browserAll.mjs": {
+    "file": "assets/browserAll-D2z7_yPU.js",
+    "name": "browserAll",
+    "src": "node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_FederatedEventTarget-C-UmVFe2.js",
+      "_FilterSystem-lINCcHw8.js",
+      "_init-Dov3IVMy.js"
+    ]
+  },
+  "node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs": {
+    "file": "assets/webworkerAll-DL-vOdK_.js",
+    "name": "webworkerAll",
+    "src": "node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_FilterSystem-lINCcHw8.js",
+      "_init-Dov3IVMy.js"
+    ]
+  },
+  "node_modules/pixi.js/lib/index.mjs": {
+    "file": "assets/lib-C6wNKBqx.js",
+    "name": "lib",
+    "src": "node_modules/pixi.js/lib/index.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_rolldown-runtime-aKtaBQYM.js",
+      "_preload-helper-HclGiUj8.js",
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_Filter-CxXus6PE.js",
+      "_FederatedEventTarget-C-UmVFe2.js",
+      "_FilterSystem-lINCcHw8.js",
+      "_Shader-Dff_yvjw.js",
+      "_Cache-B8IRbCgz.js",
+      "_ImageSource-D2JHCQ3v.js",
+      "_canvasUtils-C8xQnZmC.js",
+      "_CanvasPool-CPoFfVNI.js",
+      "_GraphicsContext-H5W9uhhZ.js",
+      "_AbstractRenderer-GQgU6Z_I.js",
+      "_RenderTargetSystem-BOQSKBfs.js",
+      "_getTextureBatchBindGroup-DoAcu5ce.js",
+      "_ViewableBuffer-CObpe3su.js",
+      "_GCManagedHash-Igj10gjP.js",
+      "_GpuStencilModesToPixi-D7_3d2fF.js",
+      "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+      "_ParticleBuffer-B-PCZxN0.js",
+      "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
+    ],
+    "dynamicImports": [
+      "node_modules/pixi.js/lib/environment-browser/browserAll.mjs",
+      "node_modules/pixi.js/lib/environment-webworker/webworkerAll.mjs",
+      "node_modules/pixi.js/lib/index.mjs",
+      "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+      "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs"
+    ]
+  },
+  "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs": {
+    "file": "assets/CanvasRenderer-y3G8kg5_.js",
+    "name": "CanvasRenderer",
+    "src": "node_modules/pixi.js/lib/rendering/renderers/canvas/CanvasRenderer.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Geometry-CZCQfHLF.js",
+      "_Container--DC3sRrW.js",
+      "_Filter-CxXus6PE.js",
+      "_Shader-Dff_yvjw.js",
+      "_canvasUtils-C8xQnZmC.js",
+      "_GraphicsContext-H5W9uhhZ.js",
+      "_AbstractRenderer-GQgU6Z_I.js",
+      "_RenderTargetSystem-BOQSKBfs.js",
+      "_GCManagedHash-Igj10gjP.js"
+    ]
+  },
+  "node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs": {
+    "file": "assets/WebGLRenderer-BR3rkl_X.js",
+    "name": "WebGLRenderer",
+    "src": "node_modules/pixi.js/lib/rendering/renderers/gl/WebGLRenderer.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/pixi.js/lib/index.mjs"
+    ]
+  },
+  "node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs": {
+    "file": "assets/WebGPURenderer-DlC4Q43s.js",
+    "name": "WebGPURenderer",
+    "src": "node_modules/pixi.js/lib/rendering/renderers/gpu/WebGPURenderer.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "node_modules/pixi.js/lib/index.mjs"
+    ]
+  },
+  "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs": {
+    "file": "assets/BitmapFont-3_bdR0G-.js",
+    "name": "BitmapFont",
+    "src": "node_modules/pixi.js/lib/scene/text-bitmap/BitmapFont.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Geometry-CZCQfHLF.js",
+      "_Shader-Dff_yvjw.js",
+      "_Cache-B8IRbCgz.js",
+      "_ImageSource-D2JHCQ3v.js",
+      "_CanvasPool-CPoFfVNI.js",
+      "_GraphicsContext-H5W9uhhZ.js"
+    ]
+  },
+  "node_modules/pixi.js/lib/unsafe-eval/init.mjs": {
+    "file": "assets/init-BtrWJfXd.js",
+    "name": "init",
+    "src": "node_modules/pixi.js/lib/unsafe-eval/init.mjs",
+    "isDynamicEntry": true,
+    "imports": [
+      "_Geometry-CZCQfHLF.js",
+      "_AbstractRenderer-GQgU6Z_I.js",
+      "_ParticleBuffer-B-PCZxN0.js"
     ]
   },
   "ui/layout-stage.js": {

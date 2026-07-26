@@ -795,8 +795,8 @@
       "workers/match-worker.ts"
     ],
     "sourceCount": 782,
-    "codepointCount": 1218,
-    "codepointsSha256": "01d4b2fead321404d6b61b1555e0c0645c9ebb057cc7ba41e8662601390cdc4b",
+    "codepointCount": 1219,
+    "codepointsSha256": "15b0619f63ccba7736bcabe3e4fd3f77ed46e77b39c03f04e2a8b023a2f92216",
     "sourcesSha256": "8825dc6d4ff8946d11f22365c7258f84dedc56d62a95e0a38b77072a75144a7f",
     "unicodeRanges": [
       "U+20-7E",
@@ -826,6 +826,7 @@
       "U+2655",
       "U+265B",
       "U+2665",
+      "U+2667",
       "U+2694",
       "U+2699",
       "U+26A0",
@@ -6597,10 +6598,10 @@
       },
       "subset": {
         "output": "assets/fonts/shippori-mincho-400-subset.woff2",
-        "bytes": 212424,
-        "sha256": "b74e36f21221fa4c854cd8086d578f30125f178993bfd1f3bd070308b66d0055",
-        "codepointCount": 1179,
-        "codepointsSha256": "698ac42531742cd7c7137b8b9d3d98907625250bdada37a9182cfc49f5c82caf",
+        "bytes": 212792,
+        "sha256": "c4676c117bf762f862b8c389ac4a9209d32df8f15e9b1635a687044ef34fc995",
+        "codepointCount": 1180,
+        "codepointsSha256": "e076bf37ea8874a35d17abb939df3b3d6f4f5474c25b0b1185fb1dcaae7c374a",
         "unicodeRanges": [
           "U+20-7E",
           "U+B1",
@@ -6618,6 +6619,7 @@
           "U+25BD",
           "U+25C6-25C7",
           "U+2665",
+          "U+2667",
           "U+3000-3002",
           "U+3007",
           "U+300A-3011",
@@ -7462,9 +7464,9 @@
           "U+FF1A-FF1B",
           "U+FF1F"
         ],
-        "corpusSupportedCodepoints": 1178,
+        "corpusSupportedCodepoints": 1179,
         "corpusMissingCodepoints": 0,
-        "advanceWidthsSha256": "55d9f31ee0db30141e3badf62e16d2181aa0bc955fc42641f1747d5663ace642",
+        "advanceWidthsSha256": "92f51ab38c62e0dbf5aa4bb6ea26f2f0d6ec7dd0faf56409199accb6288c56d4",
         "metrics": {
           "unitsPerEm": 1000,
           "hheaAscender": 1160,
@@ -7477,7 +7479,7 @@
           "winDescent": 288
         }
       },
-      "savedBytesVsFull": 2850732
+      "savedBytesVsFull": 2850364
     },
     {
       "name": "shippori-mincho-700",
@@ -11989,10 +11991,10 @@
       },
       "subset": {
         "output": "assets/fonts/shippori-mincho-700-subset.woff2",
-        "bytes": 220608,
-        "sha256": "abb5f16eed183c1102fbe2d1a7415ff80029c1adf9456cbfa6e3312c65856301",
-        "codepointCount": 1179,
-        "codepointsSha256": "698ac42531742cd7c7137b8b9d3d98907625250bdada37a9182cfc49f5c82caf",
+        "bytes": 221192,
+        "sha256": "75b99dadde41a1b3c40470f9a6be23e340a84a2314b5d2f7e8aa84c8091b7e2c",
+        "codepointCount": 1180,
+        "codepointsSha256": "e076bf37ea8874a35d17abb939df3b3d6f4f5474c25b0b1185fb1dcaae7c374a",
         "unicodeRanges": [
           "U+20-7E",
           "U+B1",
@@ -12010,6 +12012,7 @@
           "U+25BD",
           "U+25C6-25C7",
           "U+2665",
+          "U+2667",
           "U+3000-3002",
           "U+3007",
           "U+300A-3011",
@@ -12854,9 +12857,9 @@
           "U+FF1A-FF1B",
           "U+FF1F"
         ],
-        "corpusSupportedCodepoints": 1178,
+        "corpusSupportedCodepoints": 1179,
         "corpusMissingCodepoints": 0,
-        "advanceWidthsSha256": "7b6c05eedd3155843e16ed002cc9f8ecf2d9f8028f7ad8f589fe765af29a7727",
+        "advanceWidthsSha256": "1ef62a60dd337ad9998cd17517d3d4cad8d4d81f23a9593647de6c0baec25d2f",
         "metrics": {
           "unitsPerEm": 1000,
           "hheaAscender": 1160,
@@ -12869,7 +12872,7 @@
           "winDescent": 288
         }
       },
-      "savedBytesVsFull": 3003972
+      "savedBytesVsFull": 3003388
     },
     {
       "name": "shippori-mincho-800",
@@ -17381,10 +17384,10 @@
       },
       "subset": {
         "output": "assets/fonts/shippori-mincho-800-subset.woff2",
-        "bytes": 220552,
-        "sha256": "6f009cb765c90694197335a84cb40c4349277cee4be3cbd9c6585b5699c0bb9d",
-        "codepointCount": 1179,
-        "codepointsSha256": "698ac42531742cd7c7137b8b9d3d98907625250bdada37a9182cfc49f5c82caf",
+        "bytes": 220804,
+        "sha256": "940967328c7b7fe56943969f871de1d108abb8722f544bae4c2c4623baf6b7da",
+        "codepointCount": 1180,
+        "codepointsSha256": "e076bf37ea8874a35d17abb939df3b3d6f4f5474c25b0b1185fb1dcaae7c374a",
         "unicodeRanges": [
           "U+20-7E",
           "U+B1",
@@ -17402,6 +17405,7 @@
           "U+25BD",
           "U+25C6-25C7",
           "U+2665",
+          "U+2667",
           "U+3000-3002",
           "U+3007",
           "U+300A-3011",
@@ -18246,9 +18250,9 @@
           "U+FF1A-FF1B",
           "U+FF1F"
         ],
-        "corpusSupportedCodepoints": 1178,
+        "corpusSupportedCodepoints": 1179,
         "corpusMissingCodepoints": 0,
-        "advanceWidthsSha256": "f2242fa7e103a0dc36e2dd9e0f8c07b29ec32e32c6f4a02b990cb36b54c40f55",
+        "advanceWidthsSha256": "abc65c48cac212582cfdeb68447caa8e3fe1624fad448cbeba78b0b117848158",
         "metrics": {
           "unitsPerEm": 1000,
           "hheaAscender": 1160,
@@ -18261,7 +18265,7 @@
           "winDescent": 288
         }
       },
-      "savedBytesVsFull": 3003336
+      "savedBytesVsFull": 3003084
     },
     {
       "name": "kaisei-tokumin-400",
@@ -22617,10 +22621,10 @@
       },
       "subset": {
         "output": "assets/fonts/kaisei-tokumin-400-subset.woff2",
-        "bytes": 269008,
-        "sha256": "89c37f8cc92ea2c5c9f2d58459bd7d7dd8b825a1f971e804ef10da10c83af53f",
-        "codepointCount": 1179,
-        "codepointsSha256": "698ac42531742cd7c7137b8b9d3d98907625250bdada37a9182cfc49f5c82caf",
+        "bytes": 269288,
+        "sha256": "686f86f5550c1f295eac7b1333b89944c08567a42f6ee71dae2e9a88ac307bdc",
+        "codepointCount": 1180,
+        "codepointsSha256": "e076bf37ea8874a35d17abb939df3b3d6f4f5474c25b0b1185fb1dcaae7c374a",
         "unicodeRanges": [
           "U+20-7E",
           "U+B1",
@@ -22638,6 +22642,7 @@
           "U+25BD",
           "U+25C6-25C7",
           "U+2665",
+          "U+2667",
           "U+3000-3002",
           "U+3007",
           "U+300A-3011",
@@ -23482,9 +23487,9 @@
           "U+FF1A-FF1B",
           "U+FF1F"
         ],
-        "corpusSupportedCodepoints": 1178,
+        "corpusSupportedCodepoints": 1179,
         "corpusMissingCodepoints": 0,
-        "advanceWidthsSha256": "fd34fa36cf3fb65ba4db4efe397100225e0ac879bc420149cc6eacf6fceee484",
+        "advanceWidthsSha256": "8bff9681b7d30476142e1d0546217c5a5370cf1a4a88a0c01f244c42f2aee3f7",
         "metrics": {
           "unitsPerEm": 1000,
           "hheaAscender": 1160,
@@ -23497,7 +23502,7 @@
           "winDescent": 288
         }
       },
-      "savedBytesVsFull": 1708996
+      "savedBytesVsFull": 1708716
     },
     {
       "name": "kaisei-tokumin-700",
@@ -27853,10 +27858,10 @@
       },
       "subset": {
         "output": "assets/fonts/kaisei-tokumin-700-subset.woff2",
-        "bytes": 259116,
-        "sha256": "e213340cc4be8e2a8c891f87a3ce2724e67b19d7a9f7fc738e760beee7436e26",
-        "codepointCount": 1179,
-        "codepointsSha256": "698ac42531742cd7c7137b8b9d3d98907625250bdada37a9182cfc49f5c82caf",
+        "bytes": 259332,
+        "sha256": "76717ef16c46332db30e0a43cec22d330f88b5632ef31986e236630979020848",
+        "codepointCount": 1180,
+        "codepointsSha256": "e076bf37ea8874a35d17abb939df3b3d6f4f5474c25b0b1185fb1dcaae7c374a",
         "unicodeRanges": [
           "U+20-7E",
           "U+B1",
@@ -27874,6 +27879,7 @@
           "U+25BD",
           "U+25C6-25C7",
           "U+2665",
+          "U+2667",
           "U+3000-3002",
           "U+3007",
           "U+300A-3011",
@@ -28718,9 +28724,9 @@
           "U+FF1A-FF1B",
           "U+FF1F"
         ],
-        "corpusSupportedCodepoints": 1178,
+        "corpusSupportedCodepoints": 1179,
         "corpusMissingCodepoints": 0,
-        "advanceWidthsSha256": "e23c496c547bd6fb9f24a17b87df11e3de906d89db2d567c4f7edd083245040c",
+        "advanceWidthsSha256": "752dafb30b521fe9adadd541e1041004d079aa5ab3b4d15bb89e51ff0f408348",
         "metrics": {
           "unitsPerEm": 1000,
           "hheaAscender": 1160,
@@ -28733,7 +28739,7 @@
           "winDescent": 288
         }
       },
-      "savedBytesVsFull": 1624108
+      "savedBytesVsFull": 1623892
     },
     {
       "name": "kaisei-tokumin-800",
@@ -33089,10 +33095,10 @@
       },
       "subset": {
         "output": "assets/fonts/kaisei-tokumin-800-subset.woff2",
-        "bytes": 269844,
-        "sha256": "df2f00646a9f22c206bc383acaaa200fa4de246cd507c962f31eb9000337a116",
-        "codepointCount": 1179,
-        "codepointsSha256": "698ac42531742cd7c7137b8b9d3d98907625250bdada37a9182cfc49f5c82caf",
+        "bytes": 270076,
+        "sha256": "5df76ee667b557d3a704e61257aa5f0ff612077cbb224132c340d7013ac753c3",
+        "codepointCount": 1180,
+        "codepointsSha256": "e076bf37ea8874a35d17abb939df3b3d6f4f5474c25b0b1185fb1dcaae7c374a",
         "unicodeRanges": [
           "U+20-7E",
           "U+B1",
@@ -33110,6 +33116,7 @@
           "U+25BD",
           "U+25C6-25C7",
           "U+2665",
+          "U+2667",
           "U+3000-3002",
           "U+3007",
           "U+300A-3011",
@@ -33954,9 +33961,9 @@
           "U+FF1A-FF1B",
           "U+FF1F"
         ],
-        "corpusSupportedCodepoints": 1178,
+        "corpusSupportedCodepoints": 1179,
         "corpusMissingCodepoints": 0,
-        "advanceWidthsSha256": "8dd0fa694dfebcf63938efcedb2a510fc5bbe10a476c5fbb3261d8c191dcec68",
+        "advanceWidthsSha256": "32e65a922edda5c9d8501ca7264c2b0bb982229e78e035030c622be803c0c30a",
         "metrics": {
           "unitsPerEm": 1000,
           "hheaAscender": 1160,
@@ -33969,7 +33976,7 @@
           "winDescent": 288
         }
       },
-      "savedBytesVsFull": 1736792
+      "savedBytesVsFull": 1736560
     },
     {
       "name": "zen-antique-soft-400",
@@ -38305,10 +38312,10 @@
       },
       "subset": {
         "output": "assets/fonts/zen-antique-soft-400-subset.woff2",
-        "bytes": 343060,
-        "sha256": "f4d940954bcf4bc41cb2a0658697c953bb7176110fb17aef00ed4f016de239ab",
-        "codepointCount": 1179,
-        "codepointsSha256": "698ac42531742cd7c7137b8b9d3d98907625250bdada37a9182cfc49f5c82caf",
+        "bytes": 343296,
+        "sha256": "bdfb75b62eb990946389bc6d1e0b6d5b7f277016ff7fb1132f6f0ba84aaf084f",
+        "codepointCount": 1180,
+        "codepointsSha256": "e076bf37ea8874a35d17abb939df3b3d6f4f5474c25b0b1185fb1dcaae7c374a",
         "unicodeRanges": [
           "U+20-7E",
           "U+B1",
@@ -38326,6 +38333,7 @@
           "U+25BD",
           "U+25C6-25C7",
           "U+2665",
+          "U+2667",
           "U+3000-3002",
           "U+3007",
           "U+300A-3011",
@@ -39170,9 +39178,9 @@
           "U+FF1A-FF1B",
           "U+FF1F"
         ],
-        "corpusSupportedCodepoints": 1178,
+        "corpusSupportedCodepoints": 1179,
         "corpusMissingCodepoints": 0,
-        "advanceWidthsSha256": "2bf1424b970899d758b3c3abe292036180c899299542f4fb32a4fc1c44e70e93",
+        "advanceWidthsSha256": "6a53a6f2998723e284314f7f8a2b9cb4e5d09b5159112799bf9f9de6c58f8768",
         "metrics": {
           "unitsPerEm": 1000,
           "hheaAscender": 1160,
@@ -39185,7 +39193,7 @@
           "winDescent": 288
         }
       },
-      "savedBytesVsFull": 2206508
+      "savedBytesVsFull": 2206272
     },
     {
       "name": "yusei-magic-400",
@@ -48786,10 +48794,10 @@
       },
       "subset": {
         "output": "assets/fonts/rocknroll-one-400-subset.woff2",
-        "bytes": 147964,
-        "sha256": "b4e944a38f6600c070c0971df5b55dda59116206773ad7409a52dec8bdcfc7cc",
-        "codepointCount": 1179,
-        "codepointsSha256": "698ac42531742cd7c7137b8b9d3d98907625250bdada37a9182cfc49f5c82caf",
+        "bytes": 148236,
+        "sha256": "025f81ba110ca322fce352c6d6c2993c371d2d5e0f3805759518790937d410a5",
+        "codepointCount": 1180,
+        "codepointsSha256": "e076bf37ea8874a35d17abb939df3b3d6f4f5474c25b0b1185fb1dcaae7c374a",
         "unicodeRanges": [
           "U+20-7E",
           "U+B1",
@@ -48807,6 +48815,7 @@
           "U+25BD",
           "U+25C6-25C7",
           "U+2665",
+          "U+2667",
           "U+3000-3002",
           "U+3007",
           "U+300A-3011",
@@ -49651,9 +49660,9 @@
           "U+FF1A-FF1B",
           "U+FF1F"
         ],
-        "corpusSupportedCodepoints": 1178,
+        "corpusSupportedCodepoints": 1179,
         "corpusMissingCodepoints": 0,
-        "advanceWidthsSha256": "4dec265bff8457aa3c9f27f8bf31b03419dec1548c3858e50cead4853144c44d",
+        "advanceWidthsSha256": "c2eddd4253832f6d60a6fc002f18b72f053057a4ce03a66a02f76025419f98be",
         "metrics": {
           "unitsPerEm": 1000,
           "hheaAscender": 1160,
@@ -49666,13 +49675,13 @@
           "winDescent": 288
         }
       },
-      "savedBytesVsFull": 948256
+      "savedBytesVsFull": 947984
     }
   ],
   "totals": {
     "sourceBytes": 50051752,
     "fullBytes": 20045160,
-    "subsetBytes": 2111424,
-    "savedBytesVsFull": 17933736
+    "subsetBytes": 2113864,
+    "savedBytesVsFull": 17931296
   }
 }
