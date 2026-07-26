@@ -191,6 +191,10 @@ describe('board renderer recovery boundary', () => {
       expect(controller.submitFrame).not.toHaveBeenCalled();
       expect(buildModel).not.toHaveBeenCalled();
 
+      await renderer.getBoardVisualControllerReadyForPresentationDrain();
+      expect(controller.settleLocalWriter).not.toHaveBeenCalled();
+      expect(controller.getMode()).toBe('playback');
+
       let readyResolved = false;
       const readyPromise = renderer.getBoardVisualControllerReady().then(() => {
         readyResolved = true;

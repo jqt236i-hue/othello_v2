@@ -5,6 +5,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+const RuntimeStateAccessModule = _require('./runtime-state-access');
+
 // PR1: debug-only perf benchmark helper (window.__DEV_PERF__ === true or ?perf=1).
 // OFF path is zero-cost: every helper early-returns after the internal flag check.
 let PerfBenchmarks: any = null;
@@ -172,29 +174,23 @@ function _isStrictNetworkVisualRenderActiveForBoardRenderer() {
 }
 
 function _resolveGlobalGameStateForBoardRenderer() {
-    try {
-        if (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object') return gameState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && (window as any).gameState && typeof (window as any).gameState === 'object') return (window as any).gameState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).gameState && typeof (globalThis as any).gameState === 'object') return (globalThis as any).gameState;
-    } catch (e: any) { /* ignore */ }
-    return null;
+    return RuntimeStateAccessModule.resolveCurrentRuntimeObject('gameState', () => {
+        try {
+            return (typeof gameState !== 'undefined') ? gameState : null;
+        } catch (e: any) {
+            return null;
+        }
+    });
 }
 
 function _resolveGlobalCardStateForBoardRenderer() {
-    try {
-        if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && (window as any).cardState && typeof (window as any).cardState === 'object') return (window as any).cardState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object') return (globalThis as any).cardState;
-    } catch (e: any) { /* ignore */ }
-    return null;
+    return RuntimeStateAccessModule.resolveCurrentRuntimeObject('cardState', () => {
+        try {
+            return (typeof cardState !== 'undefined') ? cardState : null;
+        } catch (e: any) {
+            return null;
+        }
+    });
 }
 
 function _resolveBoardRenderStateForBoardRenderer() {
@@ -997,13 +993,7 @@ function _isVisualPlaybackActiveForBoardRenderer() {
 }
 
 function _getCardStateForBoardRendererPlayback() {
-    try {
-        if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') return window.cardState;
-    } catch (e: any) { /* ignore */ }
-    return null;
+    return _resolveGlobalCardStateForBoardRenderer();
 }
 
 function _hasPendingPlaybackEventsForBoardRenderer() {
@@ -2027,6 +2017,27 @@ async function getBoardVisualControllerReady() {
     }
 }
 
+async function getBoardVisualControllerReadyForPresentationDrain() {
+    const controller = getBoardVisualController();
+    if (!controller) return Promise.reject(new Error('Board visual controller is unavailable'));
+    if (typeof controller.waitUntilReady === 'function') await controller.waitUntilReady();
+    else await (controller.ready || Promise.resolve());
+    // A render triggered by PLAYBACK_EVENTS may already own a synthetic local
+    // writer. The presentation drain must reclaim that writer without first
+    // applying the final canonical frame that it was created to defer.
+    if (!AutoBoardWriterTokenForBoardRenderer && AutoBoardWriterClaimForBoardRenderer) {
+        await AutoBoardWriterClaimForBoardRenderer;
+    }
+    if (
+        !AutoBoardWriterTokenForBoardRenderer
+        && !AutoBoardWriterClaimForBoardRenderer
+        && typeof controller.waitForIdle === 'function'
+        && (typeof controller.getMode !== 'function' || controller.getMode() === 'idle')
+    ) {
+        await controller.waitForIdle();
+    }
+}
+
 function claimBoardVisualWriter(frameToken: string, mode: 'local' | 'network' = 'local') {
     const controller = getBoardVisualController();
     if (!controller) throw new Error('Board visual controller is unavailable');
@@ -2922,6 +2933,7 @@ const BoardRenderer = {
             renderBoardFull,
             getBoardVisualController,
             getBoardVisualControllerReady,
+            getBoardVisualControllerReadyForPresentationDrain,
             getBoardInputController,
             activateBoardInputController,
             deactivateBoardInputController,

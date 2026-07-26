@@ -1527,11 +1527,16 @@ async function flushBoardPresentationEvents(): Promise<void> {
       }
     }
     const renderer = _require('./board-renderer');
-    if (renderer && typeof renderer.getBoardVisualControllerReady === 'function') {
+    if (renderer) {
       // Keep the queue intact and unclaimed until the exclusive backend mount
-      // plus any idle frame resources have settled. This is the boot boundary:
-      // initGameSystems may emit boardUpdated before Pixi is ready.
-      await renderer.getBoardVisualControllerReady();
+      // is ready. Preserve a synthetic pending-playback writer so the drain
+      // can reclaim it without applying the final canonical frame first.
+      const awaitPresentationDrainReady = typeof renderer.getBoardVisualControllerReadyForPresentationDrain === 'function'
+        ? renderer.getBoardVisualControllerReadyForPresentationDrain
+        : renderer.getBoardVisualControllerReady;
+      if (typeof awaitPresentationDrainReady === 'function') {
+        await awaitPresentationDrainReady();
+      }
     }
     const events = flushPendingPresentationEvents();
     drainClaim = claimPresentationDrainForEvents(events);

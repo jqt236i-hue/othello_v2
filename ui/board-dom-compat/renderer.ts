@@ -5,6 +5,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+const RuntimeStateAccessModule = _require('../runtime-state-access');
+
 declare const gameState: any;
 declare const cardState: any;
 declare const SoundEngine: any;
@@ -990,13 +992,13 @@ let suppressFallbackFlipThisRender = false;
 let pendingMoveSourceKeysThisRender: any = null;
 let pendingFlipTargetKeysThisRender: any = null;
 function _getCardStateForDiffPlayback() {
-    try {
-        if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') return window.cardState;
-    } catch (e: any) { /* ignore */ }
-    return null;
+    return RuntimeStateAccessModule.resolveCurrentRuntimeObject('cardState', () => {
+        try {
+            return (typeof cardState !== 'undefined') ? cardState : null;
+        } catch (e: any) {
+            return null;
+        }
+    });
 }
 
 function _hasPendingPlaybackEvents() {
@@ -1241,40 +1243,18 @@ function _resolveNetworkVisualRenderSnapshotForDiff() {
 }
 
 function _resolveLocalVisualRenderPairForDiff() {
-    let lexicalGameState: any = null;
-    let lexicalCardState: any = null;
-    try { lexicalGameState = gameState; } catch (e: any) { /* undeclared in isolated runtimes */ }
-    try { lexicalCardState = cardState; } catch (e: any) { /* undeclared in isolated runtimes */ }
-    if (lexicalGameState && typeof lexicalGameState === 'object') {
-        return {
-            gameState: lexicalGameState,
-            cardState: lexicalCardState && typeof lexicalCardState === 'object' ? lexicalCardState : {}
-        };
-    }
-
-    try {
-        const windowGameState = typeof window !== 'undefined' ? window.gameState : null;
-        const windowCardState = typeof window !== 'undefined' ? window.cardState : null;
-        if (windowGameState && typeof windowGameState === 'object') {
-            return {
-                gameState: windowGameState,
-                cardState: windowCardState && typeof windowCardState === 'object' ? windowCardState : {}
-            };
-        }
-    } catch (e: any) { /* ignore unavailable browser globals */ }
-
-    try {
-        const root = typeof globalThis !== 'undefined' ? globalThis as any : null;
-        const rootGameState = root ? root.gameState : null;
-        const rootCardState = root ? root.cardState : null;
-        if (rootGameState && typeof rootGameState === 'object') {
-            return {
-                gameState: rootGameState,
-                cardState: rootCardState && typeof rootCardState === 'object' ? rootCardState : {}
-            };
-        }
-    } catch (e: any) { /* ignore unavailable runtime globals */ }
-    return { gameState: null, cardState: {} };
+    const currentGameState = RuntimeStateAccessModule.resolveCurrentRuntimeObject('gameState', () => {
+        try { return (typeof gameState !== 'undefined') ? gameState : null; }
+        catch (e: any) { return null; }
+    });
+    const currentCardState = RuntimeStateAccessModule.resolveCurrentRuntimeObject('cardState', () => {
+        try { return (typeof cardState !== 'undefined') ? cardState : null; }
+        catch (e: any) { return null; }
+    });
+    return {
+        gameState: currentGameState,
+        cardState: currentCardState || {}
+    };
 }
 
 function _resolveVisualRenderPairForDiff() {
@@ -1298,32 +1278,14 @@ function _resolveGameStateForDiffRender() {
     if (activePreparedVisualStateForDiff) return activePreparedVisualStateForDiff.gameState;
     const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
     if (visualSnapshot && visualSnapshot.gameState) return visualSnapshot.gameState;
-    try {
-        if (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object') return gameState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && window.gameState && typeof window.gameState === 'object') return window.gameState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).gameState && typeof (globalThis as any).gameState === 'object') return (globalThis as any).gameState;
-    } catch (e: any) { /* ignore */ }
-    return null;
+    return _resolveLocalVisualRenderPairForDiff().gameState;
 }
 
 function _resolveCardStateForDiffRender() {
     if (activePreparedVisualStateForDiff) return activePreparedVisualStateForDiff.cardState;
     const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
     if (visualSnapshot && visualSnapshot.cardState) return visualSnapshot.cardState;
-    try {
-        if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') return window.cardState;
-    } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object') return (globalThis as any).cardState;
-    } catch (e: any) { /* ignore */ }
-    return {};
+    return _resolveLocalVisualRenderPairForDiff().cardState;
 }
 
 const BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS = 'board-shrink-god-direction-hint';

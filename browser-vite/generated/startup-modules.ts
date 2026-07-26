@@ -642,6 +642,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "ui/presentation/world-state-presenter": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/presentation/world-state-presenter.js"),
   "ui/render-scheduler": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/render-scheduler.js"),
   "ui/result-overlay": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/result-overlay.js"),
+  "ui/runtime-state-access": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/runtime-state-access.js"),
   "ui/sound-engine-access": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/sound-engine-access.js"),
   "ui/status-display": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/status-display.js"),
   "ui/stone-skin/catalog": () => require("../../dist/browser-vite-bridge-src/startup/modules/ui/stone-skin/catalog.js"),
@@ -1337,6 +1338,7 @@ installBootModuleMetadata({
     "ui/presentation/world-state-presenter",
     "ui/render-scheduler",
     "ui/result-overlay",
+    "ui/runtime-state-access",
     "ui/sound-engine-access",
     "ui/status-display",
     "ui/stone-skin/catalog",
@@ -1462,4 +1464,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 680;
+export const startupModuleCount = 681;

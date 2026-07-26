@@ -383,6 +383,10 @@ For board updates that contain `PLAYBACK_EVENTS`, draining the presentation queu
 
 Playback active, claimed, or pending means only the playback/presentation writer may mutate board visuals. Network snapshot application, presentation timeline catch-up, and canonical state reconciliation may update model state immediately, but they must queue backend frame application until playback is idle. Flags or options such as `allowBoardUpdateDuringPlayback`, `ignorePlayback`, or similarly named urgent-refresh paths must not grant board visual write permission during playback; at most they may carry source/reason metadata or flush non-board UI.
 
+Pending-playback gating must read the current runtime `cardState` published at the browser root. An ESM-local or otherwise captured legacy binding may be used only as a compatibility fallback when no current runtime object exists; it must not override a newer root object containing the presentation queue.
+
+The readiness wait used immediately before draining that queue must preserve any synthetic local writer created by pending-playback gating. The drain claims and reclaims that writer without applying a final canonical frame first; ordinary readiness callers may settle it only when no presentation drain will adopt it.
+
 #### 7.3.2 Snapshot / playback / busy ownership
 
 Network playback must keep these ownership boundaries explicit:
