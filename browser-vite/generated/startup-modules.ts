@@ -384,6 +384,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "shared/board/expansion-sockets": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/expansion-sockets.js"),
   "shared/board/initial-layout": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/initial-layout.js"),
   "shared/board/legal-moves": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/legal-moves.js"),
+  "shared/board/move-codec": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/move-codec.js"),
   "shared/board/notation": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/notation.js"),
   "shared/board/othello-primitives": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/othello-primitives.js"),
   "shared/board/padded-coordinates": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/padded-coordinates.js"),
@@ -1072,6 +1073,7 @@ installBootModuleMetadata({
     "shared/board/expansion-sockets",
     "shared/board/initial-layout",
     "shared/board/legal-moves",
+    "shared/board/move-codec",
     "shared/board/notation",
     "shared/board/othello-primitives",
     "shared/board/padded-coordinates",
@@ -1468,4 +1470,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 683;
+export const startupModuleCount = 684;
