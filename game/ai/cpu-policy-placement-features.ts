@@ -133,7 +133,9 @@ function fallbackInBoard(board: CpuPolicyBoard | null | undefined, row: number, 
 }
 
 function fallbackGetBoardCellValueSafe(board: CpuPolicyBoard | null | undefined, row: number, col: number): unknown {
-    return fallbackInBoard(board, row, col) ? board![row][col] : null;
+    if (!Array.isArray(board) || !fallbackInBoard(board, row, col)) return null;
+    const denseRow = board[row];
+    return Array.isArray(denseRow) ? denseRow[col] : null;
 }
 
 function fallbackApplyMoveToBoard(board: CpuPolicyBoard | null | undefined, move: CpuPolicyMove | null | undefined, playerValue: number): CpuPolicyBoard {

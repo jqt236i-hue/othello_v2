@@ -1,13 +1,14 @@
-import type { CpuPolicyBoard } from './cpu-policy-core-types';
+import type { CpuPolicyBoard, CpuPolicyMove } from './cpu-policy-core-types';
 
 type CpuPolicyLookaheadEvaluationDeps = {
     SharedBoardUtils?: any;
     inBoard?: (board: CpuPolicyBoard | null | undefined, row: number, col: number) => boolean;
+    isCorner?: (row: number, col: number, boardOrRows?: CpuPolicyBoard | number | null, colsMaybe?: number | null) => boolean;
     isEdge?: (row: number, col: number, boardOrRows?: CpuPolicyBoard | number | null, colsMaybe?: number | null) => boolean;
     countBoardDiscsForPlayer?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => { own: number; opp: number; empties: number };
     countCornersFor?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => number;
     countEdgesFor?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => number;
-    getLegalMovesBasic?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => Array<unknown>;
+    getLegalMovesBasic?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => CpuPolicyMove[];
     resolveForcedPassFeature?: (ownMoves: number, oppMoves: number, empties: number) => { signal: number; score: number };
     countCornerMovesFor?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => number;
     countXsAndCsFor?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => { x: number; c: number };
@@ -27,9 +28,20 @@ function fallbackInBoard(board: CpuPolicyBoard | null | undefined, row: number, 
     );
 }
 
+function fallbackGetBoardCellValue(
+    board: CpuPolicyBoard | null | undefined,
+    row: number,
+    col: number
+): unknown {
+    if (!Array.isArray(board)) return null;
+    const denseRow = board[row];
+    return Array.isArray(denseRow) ? denseRow[col] : null;
+}
+
 export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEvaluationDeps) {
     const SharedBoardUtils = deps?.SharedBoardUtils || null;
     const inBoard = typeof deps?.inBoard === 'function' ? deps.inBoard : fallbackInBoard;
+    const isCorner = typeof deps?.isCorner === 'function' ? deps.isCorner : null;
     const isEdge = typeof deps?.isEdge === 'function' ? deps.isEdge : (() => false);
     const countBoardDiscsForPlayer = typeof deps?.countBoardDiscsForPlayer === 'function'
         ? deps.countBoardDiscsForPlayer
@@ -67,7 +79,7 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
                 if (!cell) continue;
                 const value = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
                     ? SharedBoardUtils.getCellValue(board, cell.row, cell.col)
-                    : (Array.isArray(board[cell.row]) ? board[cell.row][cell.col] : null);
+                    : fallbackGetBoardCellValue(board, cell.row, cell.col);
                 if (value !== playerValue) continue;
                 let frontier = false;
                 for (const d of dirs) {
@@ -76,7 +88,7 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
                     if (!inBoard(board, nr, nc)) continue;
                     const neighborValue = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
                         ? SharedBoardUtils.getCellValue(board, nr, nc)
-                        : board[nr][nc];
+                        : fallbackGetBoardCellValue(board, nr, nc);
                     if (neighborValue === 0) {
                         frontier = true;
                         break;
@@ -130,7 +142,7 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
         const pushIfOwn = (r: number, c: number) => {
             const value = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
                 ? SharedBoardUtils.getCellValue(board, r, c)
-                : (Array.isArray(board[r]) ? board[r][c] : null);
+                : fallbackGetBoardCellValue(board, r, c);
             if (inBoard(board, r, c) && value === playerValue) anchored.add(`${r},${c}`);
         };
         const walkLine = (startR: number, startC: number, dr: number, dc: number) => {
@@ -139,7 +151,7 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
             while (inBoard(board, r, c)) {
                 const value = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
                     ? SharedBoardUtils.getCellValue(board, r, c)
-                    : board[r][c];
+                    : fallbackGetBoardCellValue(board, r, c);
                 if (value !== playerValue) break;
                 anchored.add(`${r},${c}`);
                 r += dr;
@@ -152,7 +164,7 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
             pushIfOwn(corner.row, corner.col);
             const cornerValue = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
                 ? SharedBoardUtils.getCellValue(board, corner.row, corner.col)
-                : board[corner.row][corner.col];
+                : fallbackGetBoardCellValue(board, corner.row, corner.col);
             if (cornerValue !== playerValue) continue;
             for (const dir of directions) {
                 const nr = corner.row + dir[0];
@@ -178,12 +190,18 @@ export function createCpuPolicyLookaheadEvaluation(deps?: CpuPolicyLookaheadEval
         const oppEdges = countEdgesFor(board, -playerValue);
         const edgeDiff = ownEdges - oppEdges;
 
-        const ownMoves = getLegalMovesBasic(board, playerValue).length;
-        const oppMoves = getLegalMovesBasic(board, -playerValue).length;
+        const ownLegal = getLegalMovesBasic(board, playerValue);
+        const oppLegal = getLegalMovesBasic(board, -playerValue);
+        const ownMoves = ownLegal.length;
+        const oppMoves = oppLegal.length;
         const mobilityDiff = ownMoves - oppMoves;
         const passPressure = resolveForcedPassFeature(ownMoves, oppMoves, empties);
-        const ownCornerMoves = countCornerMovesFor(board, playerValue);
-        const oppCornerMoves = countCornerMovesFor(board, -playerValue);
+        const ownCornerMoves = isCorner
+            ? ownLegal.filter((move) => move && isCorner(move.row, move.col, board)).length
+            : countCornerMovesFor(board, playerValue);
+        const oppCornerMoves = isCorner
+            ? oppLegal.filter((move) => move && isCorner(move.row, move.col, board)).length
+            : countCornerMovesFor(board, -playerValue);
         const cornerMobilityDiff = ownCornerMoves - oppCornerMoves;
         const ownFrontier = countFrontierDiscsFor(board, playerValue);
         const oppFrontier = countFrontierDiscsFor(board, -playerValue);

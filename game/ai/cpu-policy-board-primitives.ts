@@ -135,7 +135,10 @@ export function createCpuPolicyBoardPrimitives(config?: CpuPolicyBoardPrimitives
 
     function cloneBoard(board: CpuPolicyBoard | null | undefined): CpuPolicyBoard {
         if (sharedBoardUtils && typeof sharedBoardUtils.cloneBoard === 'function') {
-            return sharedBoardUtils.cloneBoard(board);
+            const prepared = typeof sharedBoardUtils.prepareBoardForSearch === 'function'
+                ? sharedBoardUtils.prepareBoardForSearch(board)
+                : board;
+            return sharedBoardUtils.cloneBoard(prepared);
         }
         if (!Array.isArray(board)) return [];
         return board.map((row) => Array.isArray(row) ? row.slice() : []);
@@ -206,7 +209,14 @@ export function createCpuPolicyBoardPrimitives(config?: CpuPolicyBoardPrimitives
             if (sharedBoardUtils && typeof sharedBoardUtils.setCellValue === 'function') {
                 sharedBoardUtils.setCellValue(out, update.row, update.col, update.value);
             } else {
-                out[update.row][update.col] = update.value;
+                if (!Array.isArray(out)) {
+                    throw new Error('SharedBoardUtils.setCellValue is required for compact CPU boards');
+                }
+                const denseRow = out[update.row];
+                if (!Array.isArray(denseRow)) {
+                    throw new Error('CPU move targets a missing dense board row');
+                }
+                denseRow[update.col] = update.value;
             }
         }
         return out;
@@ -220,6 +230,11 @@ export function createCpuPolicyBoardPrimitives(config?: CpuPolicyBoardPrimitives
         isCSquare,
         scoreMoveHeuristic,
         createCandidateScoringBoardShape,
+        prepareBoardForSearch: (board: CpuPolicyBoard | null | undefined) => (
+            sharedBoardUtils && typeof sharedBoardUtils.prepareBoardForSearch === 'function'
+                ? sharedBoardUtils.prepareBoardForSearch(board)
+                : board
+        ),
         cloneBoard,
         inBoard,
         getFlipsBasic,

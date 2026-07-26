@@ -45,6 +45,7 @@ describe('selfplay policy setup module', () => {
             tacticalDepthMid: 2.2,
             tacticalDepthEnd: 3.7,
             tacticalBeamWidth: 0,
+            tacticalSearchNodeBudget: 1000000,
             teacherCommitteeWeightMin: -5,
             teacherCommitteeWeightMax: -2,
             teacherCommitteeConsensusBonusMin: -8,
@@ -82,6 +83,7 @@ describe('selfplay policy setup module', () => {
             tacticalDepthMid: 2,
             tacticalDepthEnd: 3,
             tacticalBeamWidth: 1,
+            tacticalSearchNodeBudget: 100000,
             teacherCommitteeWeightMin: 0,
             teacherCommitteeWeightMax: 0,
             teacherCommitteeConsensusBonusMin: 0,
@@ -108,6 +110,7 @@ describe('selfplay policy setup module', () => {
             tacticalDepthMid: 3,
             tacticalDepthEnd: 4,
             tacticalBeamWidth: 5,
+            tacticalSearchNodeBudget: 321,
             playerPolicies: {
                 black: {
                     allowCardUsage: false,
@@ -125,6 +128,7 @@ describe('selfplay policy setup module', () => {
                     tacticalDepthMid: 7.2,
                     tacticalDepthEnd: 8.4,
                     tacticalBeamWidth: 3.9,
+                    tacticalSearchNodeBudget: 123.9,
                     teacherCommitteeWeight: 10,
                     teacherCommitteeConsensusBonus: 11
                 }
@@ -147,6 +151,7 @@ describe('selfplay policy setup module', () => {
             tacticalDepthMid: 7,
             tacticalDepthEnd: 8,
             tacticalBeamWidth: 3,
+            tacticalSearchNodeBudget: 123,
             teacherCommitteeWeight: 10,
             teacherCommitteeConsensusBonus: 11
         });
@@ -194,6 +199,7 @@ describe('selfplay policy setup module', () => {
             policyScoreWeightMax: 9,
             heuristicWeightMin: 7,
             heuristicWeightMax: 8,
+            tacticalSearchNodeBudget: 77,
             teacherCommitteeWeightMin: 20,
             teacherCommitteeWeightMax: 40,
             teacherCommitteeConsensusBonusMin: 100,
@@ -216,6 +222,7 @@ describe('selfplay policy setup module', () => {
             tacticalWeight: 2,
             policyScoreWeight: 5,
             heuristicWeight: 7,
+            tacticalSearchNodeBudget: 77,
             teacherCommitteeWeight: 20,
             teacherCommitteeConsensusBonus: 100
         });

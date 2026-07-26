@@ -8,6 +8,7 @@ import type {
     CpuPolicyCardScore,
     CpuPolicyCoreApi,
     CpuPolicyMove,
+    CpuPolicyMoveOptions,
     CpuPolicyPosition
 } from './cpu-policy-core-types';
 import { createCpuPolicyCoreApi } from './cpu-policy-core-api';
@@ -380,6 +381,7 @@ function getCpuPolicyLookaheadEvaluation() {
     CpuPolicyLookaheadEvaluationCache = CpuPolicyLookaheadEvaluationModule.createCpuPolicyLookaheadEvaluation({
         SharedBoardUtils,
         inBoard,
+        isCorner,
         isEdge,
         countBoardDiscsForPlayer,
         countCornersFor,
@@ -413,6 +415,7 @@ function getCpuPolicySearchOrder() {
         scoreMoveHeuristic,
         getMoveChargeGain,
         normalizePriorScore,
+        isCorner,
         inBoard,
         applyMoveToBoard,
         getLegalMovesBasic,
@@ -956,11 +959,11 @@ const {
     collectUltimateHyperactiveLandingProfile
 } = requireCpuPolicyPlacementProfiles();
 const {
-    evaluatePlacementCandidate
+    evaluatePlacementCandidate: evaluatePlacementCandidateRaw
 } = requireCpuPolicyPlacementFeatures();
 const {
     evaluateImmediateCornerDonation,
-    scoreMoveForCornerEdgePlan
+    scoreMoveForCornerEdgePlan: scoreMoveForCornerEdgePlanRaw
 } = requireCpuPolicyMovePlanScoring();
 const {
     computeLegalMoveMetrics,
@@ -1006,7 +1009,7 @@ const {
     createNegamax
 } = requireCpuPolicyLookaheadNegamax();
 const {
-    chooseMoveByLookahead
+    chooseMoveByLookahead: chooseMoveByLookaheadRaw
 } = requireCpuPolicyLookaheadController();
 const {
     scoreCardUseDecision
@@ -1395,6 +1398,60 @@ function getLegalMovesBasic(board: CpuPolicyBoard | null | undefined, playerValu
 
 function applyMoveToBoard(board: CpuPolicyBoard | null | undefined, move: CpuPolicyMove | null | undefined, playerValue: number): CpuPolicyBoard {
     return requireCpuPolicyBoardPrimitives().applyMoveToBoard(board, move, playerValue);
+}
+
+function prepareCpuSearchBoard(board: unknown): unknown {
+    if (
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.prepareBoardForSearch === 'function'
+    ) {
+        return SharedBoardUtils.prepareBoardForSearch(board);
+    }
+    return board;
+}
+
+function prepareCpuSearchContext<T>(context: T): T {
+    if (!context || typeof context !== 'object' || Array.isArray(context)) {
+        return context;
+    }
+    const record = context as Record<string, unknown>;
+    if (!Object.prototype.hasOwnProperty.call(record, 'board')) return context;
+    const board = prepareCpuSearchBoard(record.board);
+    if (board === record.board) return context;
+    return {
+        ...record,
+        board
+    } as T;
+}
+
+function evaluatePlacementCandidate(
+    move: CpuPolicyMove,
+    context?: CpuPolicyMoveOptions
+) {
+    return evaluatePlacementCandidateRaw(
+        move,
+        prepareCpuSearchContext(context)
+    );
+}
+
+function scoreMoveForCornerEdgePlan(
+    move: CpuPolicyMove,
+    context?: CpuPolicyCardContext
+): number {
+    return scoreMoveForCornerEdgePlanRaw(
+        move,
+        prepareCpuSearchContext(context)
+    );
+}
+
+function chooseMoveByLookahead(
+    candidateMoves: CpuPolicyMove[],
+    options?: CpuPolicyMoveOptions
+): CpuPolicyMove | null {
+    return chooseMoveByLookaheadRaw(
+        candidateMoves,
+        prepareCpuSearchContext(options)
+    );
 }
 
 function adjacentCornerFor(row: number, col: number, boardOrRows?: CpuPolicyBoardShape, colsMaybe?: number | null): CpuPolicyPosition | null {

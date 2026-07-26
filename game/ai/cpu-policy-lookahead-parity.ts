@@ -28,6 +28,16 @@ function fallbackInBoard(board: CpuPolicyBoard | null | undefined, row: number, 
     );
 }
 
+function fallbackGetBoardCellValue(
+    board: CpuPolicyBoard | null | undefined,
+    row: number,
+    col: number
+): unknown {
+    if (!Array.isArray(board)) return null;
+    const denseRow = board[row];
+    return Array.isArray(denseRow) ? denseRow[col] : null;
+}
+
 export function createCpuPolicyLookaheadParity(deps?: CpuPolicyLookaheadParityDeps) {
     const SharedBoardUtils = deps?.SharedBoardUtils || null;
     const inBoard = typeof deps?.inBoard === 'function' ? deps.inBoard : fallbackInBoard;
@@ -70,7 +80,7 @@ export function createCpuPolicyLookaheadParity(deps?: CpuPolicyLookaheadParityDe
             const c = Number(cell && cell.col);
             const value = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
                 ? SharedBoardUtils.getCellValue(board, r, c)
-                : (Array.isArray(board[r]) ? board[r][c] : null);
+                : fallbackGetBoardCellValue(board, r, c);
             if (value !== 0) continue;
             const rootKey = `${r},${c}`;
             if (visited.has(rootKey)) continue;
@@ -89,7 +99,7 @@ export function createCpuPolicyLookaheadParity(deps?: CpuPolicyLookaheadParityDe
                     const nc = cc + d[1];
                     const nextValue = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
                         ? SharedBoardUtils.getCellValue(board, nr, nc)
-                        : (inBoard(board, nr, nc) ? board[nr][nc] : null);
+                        : (inBoard(board, nr, nc) ? fallbackGetBoardCellValue(board, nr, nc) : null);
                     if (!inBoard(board, nr, nc) || nextValue !== 0) continue;
                     const nextKey = `${nr},${nc}`;
                     if (visited.has(nextKey)) continue;

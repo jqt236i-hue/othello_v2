@@ -18,6 +18,7 @@ type CpuPolicySearchOrderDeps = {
     scoreMoveHeuristic?: (move: CpuPolicyMove, level?: number, boardOrRows?: CpuPolicyBoard | number | null, colsMaybe?: number | null) => number;
     getMoveChargeGain?: (move: CpuPolicyMove | null | undefined, boardBonusByCell: Record<string, number> | null | undefined, consumedMap: Record<string, boolean | number> | null | undefined) => number;
     normalizePriorScore?: (score: unknown) => number;
+    isCorner?: (row: number, col: number, boardOrRows?: CpuPolicyBoard | number | null, colsMaybe?: number | null) => boolean;
     inBoard?: (board: CpuPolicyBoard | null | undefined, row: number, col: number) => boolean;
     applyMoveToBoard?: (board: CpuPolicyBoard | null | undefined, move: CpuPolicyMove | null | undefined, playerValue: number) => CpuPolicyBoard;
     getLegalMovesBasic?: (board: CpuPolicyBoard | null | undefined, playerValue: number) => CpuPolicyMove[];
@@ -46,6 +47,7 @@ export function createCpuPolicySearchOrder(deps?: CpuPolicySearchOrderDeps) {
     const scoreMoveHeuristic = typeof deps?.scoreMoveHeuristic === 'function' ? deps.scoreMoveHeuristic : (() => 0);
     const getMoveChargeGain = typeof deps?.getMoveChargeGain === 'function' ? deps.getMoveChargeGain : (() => 0);
     const normalizePriorScore = typeof deps?.normalizePriorScore === 'function' ? deps.normalizePriorScore : ((score: unknown) => Number(score) || 0);
+    const isCorner = typeof deps?.isCorner === 'function' ? deps.isCorner : null;
     const inBoard = typeof deps?.inBoard === 'function' ? deps.inBoard : (() => false);
     const applyMoveToBoard = typeof deps?.applyMoveToBoard === 'function' ? deps.applyMoveToBoard : ((board: any) => board);
     const getLegalMovesBasic = typeof deps?.getLegalMovesBasic === 'function' ? deps.getLegalMovesBasic : (() => []);
@@ -65,7 +67,12 @@ export function createCpuPolicySearchOrder(deps?: CpuPolicySearchOrderDeps) {
             : Object.create(null);
         const priorFn = typeof p.rootPriorScoreFn === 'function' ? p.rootPriorScoreFn : null;
         const priorWeight = Number.isFinite(p.priorWeight) ? Number(p.priorWeight) : 120;
-        const branchLimit = isFiniteNumber(p.branchLimit) ? Math.max(2, Math.floor(Number(p.branchLimit))) : null;
+        const branchLimit = (
+            typeof p.branchLimit === 'number' &&
+            Number.isFinite(p.branchLimit)
+        )
+            ? Math.max(2, Math.floor(p.branchLimit))
+            : null;
         const geom = resolveBoardGeometry(board);
         const tieMaxR = geom.maxR >= 0 ? geom.maxR : 7;
         const tieMaxC = geom.maxC >= 0 ? geom.maxC : 7;
@@ -91,7 +98,9 @@ export function createCpuPolicySearchOrder(deps?: CpuPolicySearchOrderDeps) {
                 try {
                     const after = applyMoveToBoard(board, move, playerValue);
                     const oppMovesAfter = getLegalMovesBasic(after, -playerValue);
-                    const oppCornerMovesAfter = countCornerMovesFor(after, -playerValue);
+                    const oppCornerMovesAfter = isCorner
+                        ? oppMovesAfter.filter((reply) => reply && isCorner(reply.row, reply.col, after)).length
+                        : countCornerMovesFor(after, -playerValue);
                     const ownCornerMovesAfter = countCornerMovesFor(after, playerValue);
                     const ownFrontierAfter = countFrontierDiscsFor(after, playerValue);
                     const oppFrontierAfter = countFrontierDiscsFor(after, -playerValue);

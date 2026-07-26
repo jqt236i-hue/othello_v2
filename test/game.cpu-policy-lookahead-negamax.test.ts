@@ -1,4 +1,5 @@
 import { createCpuPolicyLookaheadNegamax } from '../game/ai/cpu-policy-lookahead-negamax';
+import { createCpuPolicySearchOrder } from '../game/ai/cpu-policy-search-order';
 
 describe('cpu-policy lookahead negamax module', () => {
   test('returns evaluation and marks time hit when deadline has passed', () => {
@@ -114,5 +115,50 @@ describe('cpu-policy lookahead negamax module', () => {
     });
 
     expect(negamax([] as any, 1, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, false, Object.create(null))).toBe(-30);
+  });
+
+  test('uses full plan scoring before applying the internal branch limit', () => {
+    const moves = [
+      { id: 'a', row: 0, col: 0, flips: [] },
+      { id: 'b', row: 1, col: 0, flips: [] },
+      { id: 'c', row: 2, col: 0, flips: [] }
+    ] as any[];
+    const searchOrder = createCpuPolicySearchOrder({
+      resolveBoardGeometry: () => ({ maxR: 7, maxC: 7 }),
+      scoreMoveForCornerEdgePlan: (move: any) => (
+        move.id === 'c' ? 1000 : 0
+      ),
+      scoreMoveHeuristic: () => 0,
+      getMoveChargeGain: () => 0,
+      inBoard: () => false
+    });
+    const helpers = createCpuPolicyLookaheadNegamax({
+      evaluateBoardForLookahead: (board: any) => (
+        board?.tag === 'c' ? -100 : 0
+      ),
+      buildBoardSearchKey: () => '',
+      getLegalMovesBasic: () => moves,
+      buildSearchMoveOrder: searchOrder.buildSearchMoveOrder,
+      applyMoveToBoard: (_board: any, move: any) => ({ tag: move.id })
+    });
+    let visited = 0;
+    const { negamax } = helpers.createNegamax({
+      endgameMode: false,
+      deadlineMs: null,
+      readNowMs: () => 0,
+      nodeBudget: 20,
+      readVisited: () => visited,
+      incrementVisited: () => { visited += 1; },
+      markBudgetHit: () => undefined,
+      markTimeHit: () => undefined,
+      transposition: new Map(),
+      transpositionLimit: 100,
+      level: 6,
+      boardBonusByCell: null,
+      branchLimit: 2,
+      shouldStop: () => false
+    });
+
+    expect(negamax({ tag: 'root' } as any, 1, 1, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, false, Object.create(null))).toBe(100);
   });
 });

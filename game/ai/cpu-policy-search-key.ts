@@ -21,6 +21,9 @@ export function createCpuPolicySearchKey(deps?: CpuPolicySearchKeyDeps) {
         if (SharedBoardUtils && typeof SharedBoardUtils.encodeBoard === 'function') {
             out += SharedBoardUtils.encodeBoard(board);
         } else {
+            if (!Array.isArray(board)) {
+                throw new Error('SharedBoardUtils.encodeBoard is required for compact CPU boards');
+            }
             for (let r = 0; r < board.length; r++) {
                 const row = Array.isArray(board[r]) ? board[r] : [];
                 for (let c = 0; c < row.length; c++) {

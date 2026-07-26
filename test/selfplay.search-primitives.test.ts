@@ -79,6 +79,12 @@ describe('selfplay search primitives module', () => {
         }, 8, { cornerEmergency: true })).toBe(11);
         expect(primitives.resolveTacticalBeamWidth({ tacticalBeamWidth: 30 }, 9)).toBe(16);
         expect(primitives.resolveTacticalMetricsCandidateLimit({}, 5)).toBe(3);
+        expect(primitives.resolveTacticalSearchNodeBudget({}, 40)).toBe(300);
+        expect(primitives.resolveTacticalSearchNodeBudget({}, 20)).toBe(600);
+        expect(primitives.resolveTacticalSearchNodeBudget({}, 8)).toBe(900);
+        expect(primitives.resolveTacticalSearchNodeBudget({
+            tacticalSearchNodeBudget: 123.9
+        }, 40)).toBe(123);
         expect(primitives.computePositiveOpportunityMissMetrics(100, 60)).toEqual({
             miss: 40,
             ratio: 0.4
@@ -115,5 +121,38 @@ describe('selfplay search primitives module', () => {
         const searched = primitives.minimaxBoardSearch(board, 1, 1, 3, -Infinity, Infinity, 0, 4);
 
         expect(searched).toBe(terminal);
+    });
+
+    test('minimaxBoardSearch stops deterministically at its teacher-search node budget', () => {
+        const primitives = createSelfplaySearchPrimitives({
+            SharedBoardUtils,
+            getLegalMovesBasic: (board, player) =>
+                SharedBoardUtils.getLegalMovesBasic(board, player),
+            setBoardCellValues: SharedBoardUtils.setCellValues,
+            evaluatePositionValue: () => 0,
+            countCorners: () => 0
+        });
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[3][3] = 1;
+        board[3][4] = -1;
+        board[4][3] = -1;
+        board[4][4] = 1;
+        const budget = { maxNodes: 3, visitedNodes: 0, exhausted: false };
+
+        const result = primitives.minimaxBoardSearch(
+            board,
+            1,
+            1,
+            6,
+            -Infinity,
+            Infinity,
+            0,
+            8,
+            budget
+        );
+
+        expect(Number.isFinite(result)).toBe(true);
+        expect(budget.visitedNodes).toBe(3);
+        expect(budget.exhausted).toBe(true);
     });
 });

@@ -18,6 +18,9 @@ describe('shared board context facade', () => {
       'toPaddedBoardIndex',
       'fromPaddedBoardIndex',
       'collectMeteorHoleKeys',
+      'isBoardSearchContext',
+      'createBoardSearchContext',
+      'prepareBoardForSearch',
       'getContextView',
       'resolveBoardBounds',
       'isStandardBoard8x8',
@@ -25,12 +28,15 @@ describe('shared board context facade', () => {
       'collectBoardCoordinates',
       'getCellValue',
       'setCellValue',
+      'setCellValues',
       'cloneBoard',
       'countBoardEmpties',
       'forEachBoardShapeCell',
       'countDiscsByPlayer',
       'countDiscs',
       'buildBoardTopology',
+      'getFlipsBasic',
+      'getLegalMovesBasic',
       'toCellChar',
       'transformCoord',
       'encodeBoard',
@@ -40,6 +46,6 @@ describe('shared board context facade', () => {
       'formatPosTextJa',
       'posToNotation'
     ]);
-    expect(source).not.toMatch(/function (attachBoardShape|getBoardShapeMeta|buildShapeMeta|getFlipsBasic|summarizeEdgeRuns|buildRiskCellSets)\(/);
+    expect(source).not.toMatch(/function (attachBoardShape|getBoardShapeMeta|buildShapeMeta|summarizeEdgeRuns|buildRiskCellSets)\(/);
   });
 });

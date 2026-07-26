@@ -29,13 +29,24 @@ export interface RiskCellDependencies {
     boardOrRows: unknown,
     maybeCols?: unknown,
   ) => boolean;
+  getShapeCacheKey?: (board: unknown) => object | null;
 }
 
 export function createRiskCells(deps: RiskCellDependencies) {
+  const riskCellCache = new WeakMap<
+    object,
+    { xKeys: ReadonlySet<string>; cKeys: ReadonlySet<string> }
+  >();
+
   function buildRiskCellSets(board: unknown): {
-    xKeys: Set<string>;
-    cKeys: Set<string>;
+    xKeys: ReadonlySet<string>;
+    cKeys: ReadonlySet<string>;
   } {
+    const cacheKey = deps.getShapeCacheKey?.(board) || null;
+    if (cacheKey) {
+      const cached = riskCellCache.get(cacheKey);
+      if (cached) return cached;
+    }
     const coords = deps.collectBoardCoordinates(board);
     const coordKeys = new Set(
       coords.map((cell) => deps.toBoardCellKey(cell.row, cell.col)),
@@ -69,7 +80,9 @@ export function createRiskCells(deps: RiskCellDependencies) {
         if (coordKeys.has(c2Key)) cKeys.add(c2Key);
       }
     }
-    return { xKeys, cKeys };
+    const computed = { xKeys, cKeys };
+    if (cacheKey) riskCellCache.set(cacheKey, computed);
+    return computed;
   }
   function isCorner(
     row: number,

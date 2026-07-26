@@ -37,6 +37,11 @@ export function createSelfplayPolicySetup(config?: SelfplayPolicySetupConfig) {
         return Math.max(0, Number(value));
     }
 
+    function normalizeTacticalSearchNodeBudget(value: any, fallback: any) {
+        if (!Number.isFinite(value)) return fallback;
+        return Math.max(0, Math.min(100_000, Math.floor(Number(value))));
+    }
+
     function normalizeOptions(options: any) {
         const opts = options || {};
         const initialDeckCardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(opts.initialDeckCardIdsByPlayer);
@@ -118,6 +123,10 @@ export function createSelfplayPolicySetup(config?: SelfplayPolicySetupConfig) {
             tacticalDepthMid,
             tacticalDepthEnd,
             tacticalBeamWidth,
+            tacticalSearchNodeBudget: normalizeTacticalSearchNodeBudget(
+                opts.tacticalSearchNodeBudget,
+                Number.NaN
+            ),
             teacherCommitteeWeightMin,
             teacherCommitteeWeightMax,
             teacherCommitteeConsensusBonusMin,
@@ -156,6 +165,10 @@ export function createSelfplayPolicySetup(config?: SelfplayPolicySetupConfig) {
             tacticalDepthMid: Number.isFinite(options.tacticalDepthMid) ? Math.max(0, Math.floor(options.tacticalDepthMid)) : 3,
             tacticalDepthEnd: Number.isFinite(options.tacticalDepthEnd) ? Math.max(0, Math.floor(options.tacticalDepthEnd)) : 4,
             tacticalBeamWidth: Number.isFinite(options.tacticalBeamWidth) ? Math.max(1, Math.floor(options.tacticalBeamWidth)) : 0,
+            tacticalSearchNodeBudget: normalizeTacticalSearchNodeBudget(
+                options.tacticalSearchNodeBudget,
+                Number.NaN
+            ),
             teacherCommitteeWeight: Number.NaN,
             teacherCommitteeConsensusBonus: Number.NaN
         };
@@ -203,6 +216,10 @@ export function createSelfplayPolicySetup(config?: SelfplayPolicySetupConfig) {
             tacticalBeamWidth: Number.isFinite(override.tacticalBeamWidth)
                 ? Math.max(1, Math.floor(override.tacticalBeamWidth))
                 : base.tacticalBeamWidth,
+            tacticalSearchNodeBudget: normalizeTacticalSearchNodeBudget(
+                override.tacticalSearchNodeBudget,
+                base.tacticalSearchNodeBudget
+            ),
             teacherCommitteeWeight: Number.isFinite(override.teacherCommitteeWeight)
                 ? Math.max(0, Number(override.teacherCommitteeWeight))
                 : base.teacherCommitteeWeight,
@@ -301,6 +318,10 @@ export function createSelfplayPolicySetup(config?: SelfplayPolicySetupConfig) {
                 tacticalDepthMid: Number.isFinite(base.tacticalDepthMid) ? Math.max(0, Math.floor(base.tacticalDepthMid)) : 3,
                 tacticalDepthEnd: Number.isFinite(base.tacticalDepthEnd) ? Math.max(0, Math.floor(base.tacticalDepthEnd)) : 4,
                 tacticalBeamWidth: Number.isFinite(base.tacticalBeamWidth) ? Math.max(1, Math.floor(base.tacticalBeamWidth)) : 0,
+                tacticalSearchNodeBudget: normalizeTacticalSearchNodeBudget(
+                    base.tacticalSearchNodeBudget,
+                    Number.NaN
+                ),
                 teacherCommitteeWeight,
                 teacherCommitteeConsensusBonus
             };
@@ -316,6 +337,7 @@ export function createSelfplayPolicySetup(config?: SelfplayPolicySetupConfig) {
         clamp01,
         normalizeLookaheadTimeBudget,
         normalizeLookaheadVirtualTimePerNodeMs,
+        normalizeTacticalSearchNodeBudget,
         normalizeOptions,
         getPolicyForPlayer,
         buildPerGamePolicySet

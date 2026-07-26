@@ -6,6 +6,7 @@ describe('cpu-policy lookahead guards module', () => {
   test('always upgrades to a corner when one exists', () => {
     const inner = { id: 'inner', row: 2, col: 2 } as any;
     const corner = { id: 'corner', row: 0, col: 0 } as any;
+    const orderSpy = jest.fn(() => [inner, corner]);
     const guards = createCpuPolicyLookaheadGuards({
       isCorner: (row: number, col: number) => row === 0 && col === 0,
       isEdge: () => false,
@@ -13,7 +14,7 @@ describe('cpu-policy lookahead guards module', () => {
       evaluateImmediateCornerDonation: () => ({ oppCornerMoves: 0, donatesCornerNow: false }),
       evaluateMoveStabilityProfile: () => ({ anchoredEdgeDelta: 0, stabilityProxy: 0 }),
       countAnchoredEdgeDiscsFromCorners: () => 0,
-      buildSearchMoveOrder: () => [inner, corner]
+      buildSearchMoveOrder: orderSpy
     });
 
     expect(guards.applyLookaheadHardGuards({
@@ -25,8 +26,10 @@ describe('cpu-policy lookahead guards module', () => {
       boardBonusByCell: null,
       baseConsumedMap: null,
       priorFn: null,
-      priorWeight: 120
+      priorWeight: 120,
+      rankedAllMoves: [inner, corner]
     })?.id).toBe('corner');
+    expect(orderSpy).not.toHaveBeenCalled();
   });
 
   test('replaces an immediate corner donation with a safe alternative', () => {

@@ -216,7 +216,8 @@ describe('selfplay/runtime v2 parity', () => {
     expect(move).toBeTruthy();
     const next = search.applyMoveToBoard(board, move, 1);
 
-    expect(SharedBoardUtils.isBoardContext(next)).toBe(true);
+    expect(SharedBoardUtils.isBoardSearchContext(next)).toBe(true);
+    expect(SharedBoardUtils.isBoardContext(next)).toBe(false);
     expect(SharedBoardUtils.getCellValue(next, 1, 4)).toBe(1);
     expect(SharedBoardUtils.getCellValue(next, 1, 5)).toBe(1);
     expect(SharedBoardUtils.getCellValue(board, 1, 4)).toBe(-1);

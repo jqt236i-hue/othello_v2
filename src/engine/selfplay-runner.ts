@@ -1,8 +1,5 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
-import {
-    createBoardMoveIdentity,
-    normalizeBoardPositionsStrict
-} from '../../shared/board/move-codec';
+import { createBoardMoveIdentity } from '../../shared/board/move-codec';
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
@@ -163,11 +160,17 @@ function scoreMove(move: any, rng: any, context: any) {
     const movePlanScoreFn = typeof scoreContext.movePlanScoreFn === 'function'
         ? scoreContext.movePlanScoreFn
         : null;
-    const board = (
-        SharedBoardUtils &&
-        typeof SharedBoardUtils.isBoardContext === 'function' &&
-        SharedBoardUtils.isBoardContext(scoreContext.board)
-    )
+    const hasExplicitBoard = SharedBoardUtils && (
+        (
+            typeof SharedBoardUtils.isBoardContext === 'function' &&
+            SharedBoardUtils.isBoardContext(scoreContext.board)
+        ) ||
+        (
+            typeof SharedBoardUtils.isBoardSearchContext === 'function' &&
+            SharedBoardUtils.isBoardSearchContext(scoreContext.board)
+        )
+    );
+    const board = hasExplicitBoard
         ? scoreContext.board
         : getSelfplayBoard(scoreContext.gameState, scoreContext.cardState);
     const shouldUseCornerPlan = (
@@ -400,24 +403,15 @@ const {
     clonePrng
 });
 
-function applyMoveForEvaluation(gameState: any, move: any, playerValue: any, cardState: any) {
-    const nextState = Core.copyGameState(gameState);
-    if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return nextState;
-    const normalizedFlips = normalizeBoardPositionsStrict(
-        Array.isArray(move.flips) ? move.flips : []
-    );
-    if (!normalizedFlips) throw new Error('Selfplay evaluation move contains an invalid flip coordinate');
-    const flips = normalizedFlips.map((flip) => [flip.row, flip.col]);
-    // Use Core.applyMove so expansion cells are handled consistently with production rules.
-    nextState.currentPlayer = playerValue;
-    return Core.applyMove(nextState, { row: move.row, col: move.col, flips }, cardState);
-}
 const {
     countEmpties,
     countDiscDiffOnBoard,
+    prepareBoardForSearch,
+    applyMoveToBoard: applySearchMoveToBoard,
     resolveTacticalSearchDepth,
     resolveTacticalBeamWidth,
     resolveTacticalMetricsCandidateLimit,
+    resolveTacticalSearchNodeBudget,
     computePositiveOpportunityMissMetrics,
     minimaxBoardSearch
 } = SelfplaySearchPrimitives.createSelfplaySearchPrimitives({
@@ -454,11 +448,13 @@ function scoreTacticalMove(move: any, context: any, options: any) {
     if (!context || !context.gameState || !context.cardState) return 0;
     const playerKey = context.playerKey === 'black' ? 'black' : 'white';
     const playerValue = toPlayerValue(playerKey);
-    const nextState = applyMoveForEvaluation(context.gameState, move, playerValue, context.cardState);
-    const nextBoard = getSelfplayBoard(nextState, context.cardState);
+    const sourceBoard = prepareBoardForSearch(
+        context.board || getSelfplayBoard(context.gameState, context.cardState)
+    );
+    const nextBoard = applySearchMoveToBoard(sourceBoard, move, playerValue);
     const empties = countEmpties(nextBoard);
     const discWeight = empties <= 12 ? 18 : (empties <= 24 ? 8 : 2);
-    const discDiff = countDiscsByValue(nextState, playerValue, context.cardState);
+    const discDiff = countDiscDiffOnBoard(nextBoard, playerValue);
     const cornerDiff = countCorners(nextBoard, playerValue);
     const opponentMoves = getLegalMovesBasic(nextBoard, -playerValue);
     let opponentThreat = 0;
@@ -490,6 +486,13 @@ function scoreTacticalMove(move: any, context: any, options: any) {
     if (searchDepth <= 0) return baseScore;
 
     const beamWidth = resolveTacticalBeamWidth(options, empties);
+    const maxNodes = resolveTacticalSearchNodeBudget(options, empties);
+    if (maxNodes <= 0) return baseScore;
+    const searchBudget = {
+        maxNodes,
+        visitedNodes: 0,
+        exhausted: false
+    };
     const searchValue = minimaxBoardSearch(
         nextBoard,
         -playerValue,
@@ -498,9 +501,21 @@ function scoreTacticalMove(move: any, context: any, options: any) {
         -Infinity,
         Infinity,
         0,
-        beamWidth
+        beamWidth,
+        searchBudget
     );
     return baseScore + (searchValue * 0.35);
+}
+
+function resolveTacticalWeight(options: any): number {
+    return Number.isFinite(options && options.tacticalWeight)
+        ? Math.max(0, Number(options.tacticalWeight))
+        : 1;
+}
+
+function isTacticalLookaheadEnabled(options: any): boolean {
+    return !(options && options.enableTacticalLookahead === false) &&
+        resolveTacticalWeight(options) > 0;
 }
 
 function choosePlacementMoveByBrowserParity(
@@ -568,9 +583,7 @@ function choosePlacementMoveByBrowserParity(
     const heuristicWeight = Number.isFinite(options && options.heuristicWeight)
         ? Math.max(0, Number(options.heuristicWeight))
         : 1.0;
-    const tacticalWeight = Number.isFinite(options && options.tacticalWeight)
-        ? Math.max(0, Number(options.tacticalWeight))
-        : 1.0;
+    const tacticalWeight = resolveTacticalWeight(options);
     const combinedScoreFn = (move: any) => {
         let score = 0;
         if (movePlanScoreFn) score += movePlanScoreFn(move) * heuristicWeight;
@@ -586,9 +599,7 @@ function choosePlacementMoveByBrowserParity(
     };
 
     let selectedMove = null;
-    const tacticalLookaheadEnabled =
-        !(options && options.enableTacticalLookahead === false) &&
-        tacticalWeight > 0;
+    const tacticalLookaheadEnabled = isTacticalLookaheadEnabled(options);
     if (
         tacticalLookaheadEnabled &&
         CpuPolicyCore &&
@@ -596,7 +607,15 @@ function choosePlacementMoveByBrowserParity(
         context &&
         context.gameState
     ) {
-        const runtimeBoard = getSelfplayBoard(context.gameState, context.cardState);
+        const runtimeBoard = (
+            movePlanContext &&
+            movePlanContext.board &&
+            typeof movePlanContext.board === 'object'
+        )
+            ? movePlanContext.board
+            : prepareBoardForSearch(
+                context.board || getSelfplayBoard(context.gameState, context.cardState)
+            );
         const teacherLookaheadOverride = {
             tacticalDepthOpening: options && options.tacticalDepthOpening,
             tacticalDepthMid: options && options.tacticalDepthMid,
@@ -722,7 +741,13 @@ function evaluatePlacementFeaturesForSelfplay(move: any, context: any, movePlanC
     if (!move || !Number.isInteger(move.row) || !Number.isInteger(move.col)) return null;
     const gameState = context && context.gameState;
     const cardState = context && context.cardState;
-    const board = getSelfplayBoard(gameState, cardState);
+    const board = (
+        movePlanContext &&
+        movePlanContext.board &&
+        typeof movePlanContext.board === 'object'
+    )
+        ? movePlanContext.board
+        : prepareBoardForSearch(getSelfplayBoard(gameState, cardState));
     const playerValue = toPlayerValue(context && context.playerKey);
     return CpuPolicyCore.evaluatePlacementCandidate(move, Object.assign({}, movePlanContext || {}, {
         board,
@@ -911,10 +936,13 @@ function applyTeacherCommitteeToCardCandidates(candidates: any, options: any) {
 }
 
 function scorePlacementCandidates(legalMoves: any, rng: any, context: any, options: any) {
+    const searchBoard = prepareBoardForSearch(
+        getSelfplayBoard(context && context.gameState, context && context.cardState)
+    );
     const forcedPlacement = resolveForcedPlacementCandidates(
         legalMoves,
         options,
-        getSelfplayBoard(context && context.gameState, context && context.cardState)
+        searchBoard
     );
     const defaultCandidateMoves = Array.isArray(legalMoves)
         ? legalMoves.filter((move: any) => move && Number.isInteger(move.row) && Number.isInteger(move.col))
@@ -925,7 +953,13 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
     if (candidateMoves.length <= 0) {
         return { move: null, metrics: null };
     }
-    const enableTacticalLookahead = !(options && options.enableTacticalLookahead === false);
+    const enableTacticalLookahead = isTacticalLookaheadEnabled(options);
+    const teacherTacticalSearchNodeBudget = enableTacticalLookahead
+        ? resolveTacticalSearchNodeBudget(
+            options,
+            Math.max(0, countEmpties(searchBoard) - 1)
+        )
+        : 0;
     let usableCardIds: any[] = [];
     try {
         usableCardIds = getDirectUsableCardIds(context && context.cardState, context && context.gameState, context && context.playerKey);
@@ -939,14 +973,20 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
         legalMoves,
         usableCardIds
     );
-    const movePlanContext = buildMovePlanContext(
+    const rawMovePlanContext = buildMovePlanContext(
         context && context.gameState,
         context && context.cardState,
         context && context.playerKey,
         legalMoves,
         usableCardIds
     );
-    const scoreContext = Object.assign({}, context || {}, {
+    const movePlanContext = rawMovePlanContext
+        ? Object.assign({}, rawMovePlanContext, { board: searchBoard })
+        : null;
+    const searchContext = Object.assign({}, context || {}, {
+        board: searchBoard
+    });
+    const scoreContext = Object.assign({}, searchContext, {
         planState,
         movePlanContext
     });
@@ -954,7 +994,7 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
     for (const move of candidateMoves) {
         const placementFeatures = evaluatePlacementFeaturesForSelfplay(
             move,
-            context,
+            searchContext,
             movePlanContext
         );
         placementFeaturesByMoveKey.set(
@@ -962,7 +1002,7 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
             placementFeatures
         );
     }
-    const paritySelection = choosePlacementMoveByBrowserParity(candidateMoves, Object.assign({}, context || {}, {
+    const paritySelection = choosePlacementMoveByBrowserParity(candidateMoves, Object.assign({}, searchContext, {
         legalMovesCount: candidateMoves.length
     }), Object.assign({}, options || {}, {
         enableTacticalLookahead
@@ -1147,6 +1187,7 @@ function scorePlacementCandidates(legalMoves: any, rng: any, context: any, optio
             selectedFinalScore: Number(selected.finalScore) || 0,
             selectedCommitteeScore: Number(selected.committeeScore) || 0,
             selectedCommitteeVotes: Number(selected.committeeVotes) || 0,
+            teacherTacticalSearchNodeBudget,
             selectedPlacementFeatures,
             selectedCornerTaken: selectedPlacementFeatures ? selectedPlacementFeatures.cornerTaken : 0,
             selectedCornerDonation: selectedPlacementFeatures ? selectedPlacementFeatures.cornerDonation : 0,
@@ -1851,6 +1892,9 @@ function runSingleGame(gameIndex: any, seed: any, options: any) {
                 : null,
             tacticalScoreMissRatio: placementMetrics && Number.isFinite(placementMetrics.tacticalScoreMissRatio)
                 ? Number(placementMetrics.tacticalScoreMissRatio)
+                : null,
+            teacherTacticalSearchNodeBudget: placementMetrics && Number.isFinite(placementMetrics.teacherTacticalSearchNodeBudget)
+                ? Number(placementMetrics.teacherTacticalSearchNodeBudget)
                 : null,
             pendingSelection
         };

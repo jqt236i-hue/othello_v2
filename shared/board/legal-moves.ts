@@ -21,15 +21,26 @@ export function createLegalMoves(deps: LegalMoveDependencies) {
     if (deps.getCellValue(board, row, col) !== deps.empty) return [];
     const out: CellCoord[] = [];
     for (const dir of deps.directions) {
-      const temp: CellCoord[] = [];
       let currentRow = row + dir[0];
       let currentCol = col + dir[1];
+      let opponentCount = 0;
       while (deps.hasPlayableCell(board, currentRow, currentCol) && deps.getCellValue(board, currentRow, currentCol) === -playerValue) {
-        temp.push({ row: currentRow, col: currentCol });
+        opponentCount += 1;
         currentRow += dir[0];
         currentCol += dir[1];
       }
-      if (temp.length > 0 && deps.hasPlayableCell(board, currentRow, currentCol) && deps.getCellValue(board, currentRow, currentCol) === playerValue) out.push.apply(out, temp);
+      if (
+        opponentCount > 0 &&
+        deps.hasPlayableCell(board, currentRow, currentCol) &&
+        deps.getCellValue(board, currentRow, currentCol) === playerValue
+      ) {
+        for (let step = 1; step <= opponentCount; step += 1) {
+          out.push({
+            row: row + dir[0] * step,
+            col: col + dir[1] * step,
+          });
+        }
+      }
     }
     return out;
   }

@@ -29,6 +29,15 @@ describe('cpu-policy search order module', () => {
       priorWeight: 10,
       branchLimit: 2
     } as any).map((move: any) => move.id)).toEqual(['c', 'b']);
+
+    expect(helpers.buildSearchMoveOrder(moves, {
+      level: 5,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      playerValue: 1,
+      rootPriorScoreFn: (move: any) => ({ a: 1, b: 0, c: 0 } as any)[move.id] || 0,
+      priorWeight: 10,
+      branchLimit: null
+    } as any).map((move: any) => move.id)).toEqual(['c', 'b', 'a']);
   });
 
   test('falls back to heuristic score when plan scoring throws', () => {

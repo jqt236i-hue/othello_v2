@@ -54,9 +54,9 @@ describe('board runtime parity', () => {
     const matrix = Array.from({ length: 4 }, () => Array(4).fill(Core.EMPTY));
     const context = workerBoardUtils.createBoardContext(matrix, {
       minRow: 0,
-      maxRow: 3,
+      maxRow: 1,
       minCol: 0,
-      maxCol: 3,
+      maxCol: 1,
       playableKeys: ['0,0', '0,1', '1,0', '1,1'],
       meteorHoleKeys: [],
       expansionCells: [{ side: 'top', row: 0, col: 0, owner: Core.WHITE }],
@@ -98,7 +98,8 @@ describe('board runtime parity', () => {
     expect(workerBoardUtils.getCellValue(context, 0, 0)).toBe(Core.BLACK);
     expect(context.shape.expansionCells[0].owner).toBe(Core.BLACK);
     expect(matrix[0][0]).toBe(Core.EMPTY);
-    expect(matrix[0][1]).toBe(Core.BLACK);
+    expect(matrix[0][1]).toBe(Core.EMPTY);
+    expect(context.board[0][1]).toBe(Core.BLACK);
   });
 
   test('root and worker preserve a circle-envelope expansion through DTO legal search and apply', () => {
@@ -252,5 +253,49 @@ describe('board runtime parity', () => {
     );
 
     expect(workerResponse.bestMove).toEqual(rootMoves[0]);
+  });
+
+  test('root and worker both exclude an expansion cell replaced by a meteor hole', () => {
+    const gameState = Core.createGameState({ rows: 4, cols: 4, shape: 'rectangle' });
+    gameState.board = Array.from({ length: 4 }, () => Array(4).fill(Core.EMPTY));
+    gameState.boardExpansion = {
+      cells: [
+        { side: 'right', row: 1, col: 4, owner: Core.EMPTY },
+        { side: 'right', row: 1, col: 5, owner: Core.WHITE }
+      ],
+      usedByPlayer: { black: true, white: false }
+    };
+    const cardState = {
+      markers: [{
+        id: 'expansion-hole',
+        markerId: 'expansion-hole',
+        kind: 'specialStone',
+        row: 1,
+        col: 4,
+        owner: 'black',
+        data: { type: 'METEOR_HOLE' }
+      }]
+    };
+    const rootContext = SharedBoardUtils.createBoardContext(gameState, cardState);
+    const boardShape = serializeShape(rootContext);
+
+    expect(boardShape.meteorHoleKeys).toContain('1,4');
+    expect(boardShape.playableKeys).not.toContain('1,4');
+    expect(boardShape.expansionCells).toContainEqual(
+      expect.objectContaining({ row: 1, col: 4 })
+    );
+
+    const workerBoardUtils = createCpuWorkerBoardUtils();
+    const workerContext = workerBoardUtils.createBoardContext(
+      JSON.parse(JSON.stringify(gameState.board)),
+      JSON.parse(JSON.stringify(boardShape))
+    );
+
+    expect(workerBoardUtils.getCellValue(workerContext, 1, 4)).toBeNull();
+    expect(workerBoardUtils.collectBoardCoordinates(workerContext))
+      .not.toContainEqual({ row: 1, col: 4 });
+    expect(workerContext.shape.expansionCells)
+      .not.toContainEqual(expect.objectContaining({ row: 1, col: 4 }));
+    expect(workerBoardUtils.getCellValue(workerContext, 1, 5)).toBe(Core.WHITE);
   });
 });

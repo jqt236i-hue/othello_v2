@@ -25,6 +25,7 @@ type CpuPolicyLookaheadGuardInput = {
     baseConsumedMap: Record<string, boolean | number> | null | undefined;
     priorFn: ((move: CpuPolicyMove) => number) | null;
     priorWeight: number;
+    rankedAllMoves?: CpuPolicyMove[];
 };
 
 export function createCpuPolicyLookaheadGuards(deps?: CpuPolicyLookaheadGuardsDeps) {
@@ -54,16 +55,18 @@ export function createCpuPolicyLookaheadGuards(deps?: CpuPolicyLookaheadGuardsDe
         if (!Number.isFinite(input.level) || input.level < 6) return bestMove;
         const board = input.board && typeof input.board === 'object' ? input.board : [];
         const playerValue = Number(input.playerValue) >= 0 ? 1 : -1;
-        const rankedAllMoves = buildSearchMoveOrder(input.candidateMoves, {
-            level: input.level,
-            board,
-            playerValue,
-            boardBonusByCell: input.boardBonusByCell,
-            boardBonusConsumedByCell: input.baseConsumedMap,
-            rootPriorScoreFn: input.priorFn,
-            priorWeight: input.priorWeight,
-            branchLimit: null
-        });
+        const rankedAllMoves = Array.isArray(input.rankedAllMoves)
+            ? input.rankedAllMoves
+            : buildSearchMoveOrder(input.candidateMoves, {
+                level: input.level,
+                board,
+                playerValue,
+                boardBonusByCell: input.boardBonusByCell,
+                boardBonusConsumedByCell: input.baseConsumedMap,
+                rootPriorScoreFn: input.priorFn,
+                priorWeight: input.priorWeight,
+                branchLimit: null
+            });
         let nextBestMove = bestMove;
         const ownAnchoredEdgesBefore = countAnchoredEdgeDiscsFromCorners(board, playerValue);
 

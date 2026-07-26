@@ -97,6 +97,7 @@ type CpuPolicyLookaheadControllerDeps = {
         baseConsumedMap: CpuPolicyBonusConsumedMap | null | undefined;
         priorFn: ((move: CpuPolicyMove) => number) | null;
         priorWeight: number;
+        rankedAllMoves?: CpuPolicyMove[];
     }) => CpuPolicyMove | null;
 };
 
@@ -219,7 +220,7 @@ export function createCpuPolicyLookaheadController(deps?: CpuPolicyLookaheadCont
             shouldStop: () => budgetHit || timeHit
         });
 
-        const orderedRootBase = buildSearchMoveOrder(candidateMoves, {
+        const rankedAllMoves = buildSearchMoveOrder(candidateMoves, {
             level,
             board,
             playerValue,
@@ -227,8 +228,11 @@ export function createCpuPolicyLookaheadController(deps?: CpuPolicyLookaheadCont
             boardBonusConsumedByCell: prelude.baseConsumedMap,
             rootPriorScoreFn: prelude.priorFn,
             priorWeight: prelude.priorWeight,
-            branchLimit: prelude.branchLimit
+            branchLimit: null
         });
+        const orderedRootBase = Number.isFinite(prelude.branchLimit)
+            ? rankedAllMoves.slice(0, Math.max(2, Math.floor(Number(prelude.branchLimit))))
+            : rankedAllMoves;
 
         const rootSearch = runLookaheadRootSearch({
             orderedRootBase,
@@ -260,7 +264,8 @@ export function createCpuPolicyLookaheadController(deps?: CpuPolicyLookaheadCont
                 boardBonusByCell: prelude.boardBonusByCell,
                 baseConsumedMap: prelude.baseConsumedMap,
                 priorFn: prelude.priorFn,
-                priorWeight: prelude.priorWeight
+                priorWeight: prelude.priorWeight,
+                rankedAllMoves
             }) || bestMove;
         }
 

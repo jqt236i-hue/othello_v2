@@ -6,7 +6,12 @@ import type {
 
 export type CpuPolicyCardId = string;
 export type CpuPolicyBoardCell = 1 | -1 | 0 | number | null | undefined;
-export type CpuPolicyBoard = CpuPolicyBoardCell[][];
+export interface CpuPolicySearchBoard {
+    readonly kind: 'board-search-context-v1';
+    readonly board: ReadonlyArray<ReadonlyArray<number>>;
+    readonly shape: Readonly<Record<string, unknown>>;
+}
+export type CpuPolicyBoard = CpuPolicyBoardCell[][] | CpuPolicySearchBoard;
 
 export interface CpuPolicyPosition {
     row: number;

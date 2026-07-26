@@ -16,10 +16,13 @@ export interface CornerDependencies {
     boardOrRows: unknown,
     maybeCols?: unknown,
   ) => BoardBounds | null;
+  getShapeCacheKey?: (board: unknown) => object | null;
 }
 
 export function createBoardCorners(deps: CornerDependencies) {
-  function buildCornerKeySet(board: unknown): Set<string> {
+  const cornerKeyCache = new WeakMap<object, ReadonlySet<string>>();
+
+  function computeCornerKeySet(board: unknown): Set<string> {
     const coords = deps.collectBoardCoordinates(board);
     const coordKeys = new Set(
       coords.map((cell) => deps.toBoardCellKey(cell.row, cell.col)),
@@ -47,6 +50,20 @@ export function createBoardCorners(deps: CornerDependencies) {
     }
     return corners;
   }
+
+  function readCornerKeySet(board: unknown): ReadonlySet<string> {
+    const cacheKey = deps.getShapeCacheKey?.(board) || null;
+    if (!cacheKey) return computeCornerKeySet(board);
+    const cached = cornerKeyCache.get(cacheKey);
+    if (cached) return cached;
+    const computed = computeCornerKeySet(board);
+    cornerKeyCache.set(cacheKey, computed);
+    return computed;
+  }
+
+  function buildCornerKeySet(board: unknown): Set<string> {
+    return new Set(readCornerKeySet(board));
+  }
   function isCornerCell(
     row: number,
     col: number,
@@ -64,7 +81,7 @@ export function createBoardCorners(deps: CornerDependencies) {
           (col === bounds.minCol || col === bounds.maxCol)
         );
       }
-      return buildCornerKeySet(boardOrRows).has(
+      return readCornerKeySet(boardOrRows).has(
         deps.toBoardCellKey(row, col),
       );
     }
@@ -111,7 +128,7 @@ export function createBoardCorners(deps: CornerDependencies) {
     );
   }
   function getCornerCells(board: unknown): CellCoord[] {
-    const cornerKeys = buildCornerKeySet(board);
+    const cornerKeys = readCornerKeySet(board);
     return deps
       .collectBoardCoordinates(board)
       .filter((cell) =>

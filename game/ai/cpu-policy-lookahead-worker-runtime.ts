@@ -31,6 +31,7 @@ import { createControlCounts } from '../../shared/board/control-counts';
 import { createEdgeRuns } from '../../shared/board/edge-runs';
 import { createLegalMoves } from '../../shared/board/legal-moves';
 import { createRiskCells } from '../../shared/board/risk-cells';
+import { createBoardSearchStateTools } from '../../shared/board/search-state';
 import type { CpuPolicyBoard, CpuPolicyPosition } from './cpu-policy-core-types';
 
 type CpuPolicyBoardShape = CpuPolicyBoard | number | null | undefined;
@@ -50,47 +51,23 @@ const DIRECTIONS = [
 ];
 
 export function createCpuWorkerBoardUtils() {
-    const CONTEXT_KIND = 'cpu-worker-board-context-v1';
-    const isContext = (value: any): boolean => !!value
-        && typeof value === 'object'
-        && !Array.isArray(value)
-        && value.kind === CONTEXT_KIND
-        && Array.isArray(value.board)
-        && value.shape
-        && typeof value.shape === 'object';
+    const keyOf = (row: number, col: number) => `${row},${col}`;
+    const searchState = createBoardSearchStateTools({
+        empty: 0,
+        black: 1,
+        white: -1,
+        directions: DIRECTIONS,
+        toBoardCellKey: keyOf
+    });
+    const isContext = searchState.isBoardSearchContext;
     const readShape = (board: any): any => isContext(board) ? board.shape : null;
     const readMatrix = (board: any): any[] => isContext(board)
-        ? board.board
+        ? board.board as any[]
         : (Array.isArray(board) ? board : []);
-    const keyOf = (row: number, col: number) => `${row},${col}`;
     const normalizeOwner = (value: unknown): number => value === 1 || value === -1 ? value : 0;
-    const createBoardContext = (board: any, shape: any): any => {
-        if (!Array.isArray(board) || !shape || typeof shape !== 'object') {
-            throw new Error('CPU worker requires explicit board and boardShape');
-        }
-        return {
-            kind: CONTEXT_KIND,
-            board,
-            shape: {
-            ...shape,
-            playableKeys: new Set(Array.isArray(shape.playableKeys) ? shape.playableKeys : []),
-            meteorHoleKeys: new Set(Array.isArray(shape.meteorHoleKeys) ? shape.meteorHoleKeys : []),
-            expansionCells: Array.isArray(shape.expansionCells)
-                ? shape.expansionCells.map((cell: any) => ({ ...cell }))
-                : [],
-            expansionOwnerByKey: { ...(shape.expansionOwnerByKey || {}) }
-            }
-        };
-    };
+    const createBoardContext = searchState.createBoardContext;
     const readCoordinates = (board: any): Array<{ row: number; col: number }> => {
-        const shape = readShape(board);
-        if (shape && shape.playableKeys instanceof Set) {
-            return Array.from(shape.playableKeys)
-                .map((key: any) => String(key).split(',').map(Number))
-                .filter(([row, col]) => Number.isInteger(row) && Number.isInteger(col))
-                .map(([row, col]) => ({ row, col }))
-                .sort((a, b) => a.row - b.row || a.col - b.col);
-        }
+        if (isContext(board)) return searchState.collectBoardCoordinates(board);
         const coordinates: Array<{ row: number; col: number }> = [];
         const matrix = readMatrix(board);
         matrix.forEach((row: any, rowIndex: number) => {
@@ -125,56 +102,29 @@ export function createCpuWorkerBoardUtils() {
         });
     };
     const hasPlayableCell = (board: any, row: number, col: number): boolean => {
-        if (!Number.isInteger(row) || !Number.isInteger(col) || (!Array.isArray(board) && !isContext(board))) return false;
-        const shape = readShape(board);
-        if (shape && shape.playableKeys instanceof Set) return shape.playableKeys.has(keyOf(row, col));
+        if (isContext(board)) return searchState.hasPlayableCell(board, row, col);
+        if (!Number.isInteger(row) || !Number.isInteger(col) || !Array.isArray(board)) return false;
         const matrix = readMatrix(board);
         return row >= 0 && row < matrix.length && Array.isArray(matrix[row]) && col >= 0 && col < matrix[row].length;
     };
     const getCellValue = (board: any, row: number, col: number): number | null => {
+        if (isContext(board)) return searchState.getCellValue(board, row, col);
         if (!hasPlayableCell(board, row, col)) return null;
-        const shape = readShape(board);
-        const key = keyOf(row, col);
-        if (shape && Object.prototype.hasOwnProperty.call(shape.expansionOwnerByKey || {}, key)) {
-            return Number(shape.expansionOwnerByKey[key] || 0);
-        }
         const matrix = readMatrix(board);
-        if (row >= 0 && row < matrix.length && Array.isArray(matrix[row]) && col >= 0 && col < matrix[row].length) {
-            return Number(matrix[row][col] || 0);
-        }
-        return 0;
+        return Number(matrix[row][col] || 0);
     };
     const setCellValue = (board: any, row: number, col: number, owner: number): boolean => {
-        if (owner !== 0 && owner !== 1 && owner !== -1) return false;
-        if (!hasPlayableCell(board, row, col)) return false;
-        const shape = readShape(board);
-        const key = keyOf(row, col);
-        if (shape && Object.prototype.hasOwnProperty.call(shape.expansionOwnerByKey || {}, key)) {
-            shape.expansionOwnerByKey[key] = owner;
-            const cell = Array.isArray(shape.expansionCells)
-                ? shape.expansionCells.find((entry: any) => entry && entry.row === row && entry.col === col)
-                : null;
-            if (cell) cell.owner = owner;
-            return true;
-        }
+        if (isContext(board)) return searchState.setCellValue(board, row, col, owner);
+        if ((owner !== 0 && owner !== 1 && owner !== -1) || !hasPlayableCell(board, row, col)) return false;
         const matrix = readMatrix(board);
-        if (row >= 0 && row < matrix.length && Array.isArray(matrix[row]) && col >= 0 && col < matrix[row].length) {
-            matrix[row][col] = owner;
-            return true;
-        }
-        if (!shape) return false;
-        shape.expansionOwnerByKey = shape.expansionOwnerByKey || {};
-        shape.expansionOwnerByKey[key] = owner;
-        const cell = Array.isArray(shape.expansionCells)
-            ? shape.expansionCells.find((entry: any) => entry && entry.row === row && entry.col === col)
-            : null;
-        if (cell) cell.owner = owner;
+        matrix[row][col] = owner;
         return true;
     };
     const setCellValues = (
         board: any,
         updates: Array<{ row: number; col: number; value: number }>
     ): boolean => {
+        if (isContext(board)) return searchState.setCellValues(board, updates);
         if (!Array.isArray(updates)) return false;
         const seen = new Set<string>();
         for (const update of updates) {
@@ -197,22 +147,19 @@ export function createCpuWorkerBoardUtils() {
         return true;
     };
     const cloneBoard = (board: any): any => {
+        if (isContext(board)) return searchState.cloneBoardContext(board);
         const matrix = readMatrix(board);
         if (!matrix.length) return [];
-        const clone = matrix.map((row: any) => Array.isArray(row) ? row.slice() : []);
-        const shape = readShape(board);
-        if (shape) return createBoardContext(clone, {
-            ...shape,
-            playableKeys: Array.from(shape.playableKeys instanceof Set ? shape.playableKeys : []),
-            meteorHoleKeys: Array.from(shape.meteorHoleKeys instanceof Set ? shape.meteorHoleKeys : [])
-        });
-        return clone;
+        return matrix.map((row: any) => Array.isArray(row) ? row.slice() : []);
     };
     const cornerUtils = createBoardCorners({
         toBoardCellKey: keyOf,
         collectBoardCoordinates: readCoordinates,
         hasPlayableCell,
-        resolveBoardBounds: resolveBounds
+        resolveBoardBounds: resolveBounds,
+        getShapeCacheKey: (board: any) => isContext(board)
+            ? board.shape.playableKeys
+            : null
     });
     const riskUtils = createRiskCells({
         toBoardCellKey: keyOf,
@@ -221,7 +168,10 @@ export function createCpuWorkerBoardUtils() {
         resolveBoardBounds: resolveBounds,
         getCornerCells: cornerUtils.getCornerCells,
         isCornerCell: cornerUtils.isCornerCell,
-        isEdgeCell: cornerUtils.isEdgeCell
+        isEdgeCell: cornerUtils.isEdgeCell,
+        getShapeCacheKey: (board: any) => isContext(board)
+            ? board.shape.playableKeys
+            : null
     });
     const edgeRuns = createEdgeRuns({
         toBoardCellKey: keyOf,
@@ -392,6 +342,7 @@ function createLookaheadRuntime() {
     const lookaheadEvaluation = createCpuPolicyLookaheadEvaluation({
         SharedBoardUtils,
         inBoard,
+        isCorner,
         isEdge,
         countBoardDiscsForPlayer,
         countCornersFor,
@@ -466,6 +417,7 @@ function createLookaheadRuntime() {
         scoreMoveHeuristic,
         getMoveChargeGain: lookaheadBonus.getMoveChargeGain,
         normalizePriorScore,
+        isCorner,
         inBoard,
         applyMoveToBoard,
         getLegalMovesBasic,

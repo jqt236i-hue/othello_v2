@@ -24,6 +24,16 @@ function fallbackInBoard(board: CpuPolicyBoard | null | undefined, row: number, 
     );
 }
 
+function fallbackGetBoardCellValue(
+    board: CpuPolicyBoard | null | undefined,
+    row: number,
+    col: number
+): unknown {
+    if (!Array.isArray(board)) return null;
+    const denseRow = board[row];
+    return Array.isArray(denseRow) ? denseRow[col] : null;
+}
+
 export function createCpuPolicyBoardFeatures(config?: CpuPolicyBoardFeaturesConfig) {
     const cfg = (config && typeof config === 'object') ? config : {} as CpuPolicyBoardFeaturesConfig;
     const sharedBoardUtils = cfg.SharedBoardUtils || null;
@@ -126,7 +136,7 @@ export function createCpuPolicyBoardFeatures(config?: CpuPolicyBoardFeaturesConf
             const col = Number(cell && cell.col);
             const owner = sharedBoardUtils && typeof sharedBoardUtils.getCellValue === 'function'
                 ? sharedBoardUtils.getCellValue(board, row, col)
-                : (Array.isArray(board[row]) ? board[row][col] : null);
+                : fallbackGetBoardCellValue(board, row, col);
             if (owner !== playerValue) continue;
             const xSquare = isXSquare(row, col, board);
             const cSquare = !xSquare && isCSquare(row, col, board);

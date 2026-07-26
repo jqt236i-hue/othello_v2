@@ -4,6 +4,7 @@ describe('cpu-policy lookahead controller module', () => {
   const board = Array.from({ length: 8 }, () => Array(8).fill(0)) as any;
   const moveA = { id: 'a', row: 4, col: 4 } as any;
   const moveB = { id: 'b', row: 1, col: 1 } as any;
+  const moveC = { id: 'c', row: 2, col: 3 } as any;
 
   test('returns null without candidate moves or board', () => {
     const helpers = createCpuPolicyLookaheadController();
@@ -14,13 +15,16 @@ describe('cpu-policy lookahead controller module', () => {
 
   test('falls back to ordered root move and emits search metadata', () => {
     const metaSink: any[] = [];
+    const rootInputs: any[] = [];
+    const guardInputs: any[] = [];
+    const orderSpy = jest.fn(() => [moveB, moveA, moveC]);
     const helpers = createCpuPolicyLookaheadController({
       isFiniteNumber: (value: unknown) => Number.isFinite(Number(value)),
       prepareLookaheadPrelude: () => ({
         empties: 12,
         endgameMode: false,
         depth: 8,
-        branchLimit: 6,
+        branchLimit: 2,
         nodeBudget: 9000,
         timeBudgetMs: 500,
         readNowMs: () => 0,
@@ -38,16 +42,22 @@ describe('cpu-policy lookahead controller module', () => {
       }),
       notifyLookaheadSearchMeta: (_opts, meta) => { metaSink.push(meta); },
       createNegamax: () => ({ negamax: () => 0 }),
-      buildSearchMoveOrder: () => [moveB, moveA],
-      runLookaheadRootSearch: (input) => ({
-        bestMove: null,
-        bestScore: Number.NEGATIVE_INFINITY,
-        rootMoves: input.orderedRootBase
-      }),
-      applyLookaheadHardGuards: (input) => input.bestMove
+      buildSearchMoveOrder: orderSpy,
+      runLookaheadRootSearch: (input) => {
+        rootInputs.push(input);
+        return {
+          bestMove: null,
+          bestScore: Number.NEGATIVE_INFINITY,
+          rootMoves: input.orderedRootBase
+        };
+      },
+      applyLookaheadHardGuards: (input) => {
+        guardInputs.push(input);
+        return input.bestMove;
+      }
     });
 
-    const out = helpers.chooseMoveByLookahead([moveA, moveB], {
+    const out = helpers.chooseMoveByLookahead([moveA, moveB, moveC], {
       board,
       playerValue: 1,
       level: 6
@@ -58,7 +68,7 @@ describe('cpu-policy lookahead controller module', () => {
       endgameMode: false,
       empties: 12,
       depth: 8,
-      branchLimit: 6,
+      branchLimit: 2,
       nodeBudget: 9000,
       timeBudgetMs: 500,
       ownMoves: 7,
@@ -70,6 +80,10 @@ describe('cpu-policy lookahead controller module', () => {
       paritySignal: -1,
       forcedPassSignal: 1
     }]);
+    expect(orderSpy).toHaveBeenCalledTimes(1);
+    expect(orderSpy.mock.calls[0][1]).toEqual(expect.objectContaining({ branchLimit: null }));
+    expect(rootInputs[0].orderedRootBase).toEqual([moveB, moveA]);
+    expect(guardInputs[0].rankedAllMoves).toEqual([moveB, moveA, moveC]);
   });
 
   test('skips hard guards below level 6', () => {

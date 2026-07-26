@@ -42,6 +42,16 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
         ? cfg.countCorners
         : (() => 0);
 
+    function prepareBoardForSearch(board: any) {
+        if (
+            sharedBoardUtils &&
+            typeof sharedBoardUtils.prepareBoardForSearch === 'function'
+        ) {
+            return sharedBoardUtils.prepareBoardForSearch(board);
+        }
+        return board;
+    }
+
     function countEmpties(board: any) {
         if (sharedBoardUtils && typeof sharedBoardUtils.countBoardEmpties === 'function') {
             return sharedBoardUtils.countBoardEmpties(board);
@@ -70,7 +80,7 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
         if (!sharedBoardUtils || typeof sharedBoardUtils.cloneBoard !== 'function') {
             throw new Error('SharedBoardUtils.cloneBoard is required by selfplay search');
         }
-        const next = sharedBoardUtils.cloneBoard(board);
+        const next = sharedBoardUtils.cloneBoard(prepareBoardForSearch(board));
         if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return next;
         const updates = [{ row: move.row, col: move.col, value: playerValue }];
         const updateKeys = new Set([`${move.row},${move.col}`]);
@@ -104,11 +114,12 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
     }
 
     function evaluateBoardForSearch(board: any, playerValue: any) {
-        const empties = countEmpties(board);
-        const cornerDiff = countCorners(board, playerValue);
-        const positionalDiff = evaluatePositionValueSummary(board, playerValue);
-        const mobilityDiff = getLegalMovesBasic(board, playerValue).length - getLegalMovesBasic(board, -playerValue).length;
-        const discDiff = countDiscDiffOnBoard(board, playerValue);
+        const preparedBoard = prepareBoardForSearch(board);
+        const empties = countEmpties(preparedBoard);
+        const cornerDiff = countCorners(preparedBoard, playerValue);
+        const positionalDiff = evaluatePositionValueSummary(preparedBoard, playerValue);
+        const mobilityDiff = getLegalMovesBasic(preparedBoard, playerValue).length - getLegalMovesBasic(preparedBoard, -playerValue).length;
+        const discDiff = countDiscDiffOnBoard(preparedBoard, playerValue);
         const discWeight = empties <= 10 ? 20 : (empties <= 24 ? 10 : 3);
         return (
             (cornerDiff * 420) +
@@ -195,6 +206,24 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
         return Math.min(total, 3);
     }
 
+    function resolveTacticalSearchNodeBudget(options: any, empties: any) {
+        if (Number.isFinite(options && options.tacticalSearchNodeBudget)) {
+            return Math.max(
+                0,
+                Math.min(
+                    100_000,
+                    Math.floor(Number(options.tacticalSearchNodeBudget)),
+                ),
+            );
+        }
+        const remaining = Number.isFinite(empties)
+            ? Math.max(0, Math.floor(Number(empties)))
+            : 64;
+        if (remaining <= 12) return 900;
+        if (remaining <= 28) return 600;
+        return 300;
+    }
+
     function computePositiveOpportunityMissMetrics(bestScore: any, selectedScore: any) {
         const best = Number.isFinite(bestScore) ? Number(bestScore) : 0;
         const selected = Number.isFinite(selectedScore) ? Number(selectedScore) : 0;
@@ -211,23 +240,58 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
         };
     }
 
-    function minimaxBoardSearch(board: any, currentPlayer: any, rootPlayer: any, depth: any, alpha: any, beta: any, passCount: any, beamWidth: any) {
-        if (!board || typeof board !== 'object' || depth <= 0 || passCount >= 2) {
-            return evaluateBoardForSearch(board, rootPlayer);
+    function minimaxBoardSearch(
+        board: any,
+        currentPlayer: any,
+        rootPlayer: any,
+        depth: any,
+        alpha: any,
+        beta: any,
+        passCount: any,
+        beamWidth: any,
+        searchBudget?: {
+            maxNodes: number;
+            visitedNodes: number;
+            exhausted?: boolean;
+        },
+    ) {
+        const preparedBoard = prepareBoardForSearch(board);
+        if (
+            searchBudget &&
+            Number.isFinite(searchBudget.maxNodes) &&
+            searchBudget.visitedNodes >= searchBudget.maxNodes
+        ) {
+            searchBudget.exhausted = true;
+            return evaluateBoardForSearch(preparedBoard, rootPlayer);
+        }
+        if (searchBudget) searchBudget.visitedNodes += 1;
+        if (!preparedBoard || typeof preparedBoard !== 'object' || depth <= 0 || passCount >= 2) {
+            return evaluateBoardForSearch(preparedBoard, rootPlayer);
         }
 
-        const legalMoves = getLegalMovesBasic(board, currentPlayer);
+        const legalMoves = getLegalMovesBasic(preparedBoard, currentPlayer);
         if (!legalMoves.length) {
-            return minimaxBoardSearch(board, -currentPlayer, rootPlayer, depth - 1, alpha, beta, passCount + 1, beamWidth);
+            return minimaxBoardSearch(
+                preparedBoard,
+                -currentPlayer,
+                rootPlayer,
+                depth - 1,
+                alpha,
+                beta,
+                passCount + 1,
+                beamWidth,
+                searchBudget,
+            );
         }
 
         const maximizing = currentPlayer === rootPlayer;
-        const orderedMoves = sortMovesForSearch(legalMoves, beamWidth, board);
+        const orderedMoves = sortMovesForSearch(legalMoves, beamWidth, preparedBoard);
         if (maximizing) {
             let best = -Infinity;
             for (const move of orderedMoves) {
-                const nextBoard = applyMoveToBoard(board, move, currentPlayer);
-                const score = minimaxBoardSearch(nextBoard, -currentPlayer, rootPlayer, depth - 1, alpha, beta, 0, beamWidth);
+                if (searchBudget && searchBudget.exhausted) break;
+                const nextBoard = applyMoveToBoard(preparedBoard, move, currentPlayer);
+                const score = minimaxBoardSearch(nextBoard, -currentPlayer, rootPlayer, depth - 1, alpha, beta, 0, beamWidth, searchBudget);
                 if (score > best) best = score;
                 if (score > alpha) alpha = score;
                 if (beta <= alpha) break;
@@ -237,8 +301,9 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
 
         let best = Infinity;
         for (const move of orderedMoves) {
-            const nextBoard = applyMoveToBoard(board, move, currentPlayer);
-            const score = minimaxBoardSearch(nextBoard, -currentPlayer, rootPlayer, depth - 1, alpha, beta, 0, beamWidth);
+            if (searchBudget && searchBudget.exhausted) break;
+            const nextBoard = applyMoveToBoard(preparedBoard, move, currentPlayer);
+            const score = minimaxBoardSearch(nextBoard, -currentPlayer, rootPlayer, depth - 1, alpha, beta, 0, beamWidth, searchBudget);
             if (score < best) best = score;
             if (score < beta) beta = score;
             if (beta <= alpha) break;
@@ -250,6 +315,7 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
         countEmpties,
         isStandardBoard,
         countDiscDiffOnBoard,
+        prepareBoardForSearch,
         applyMoveToBoard,
         evaluateBoardForSearch,
         scoreMoveForSearchOrder,
@@ -257,6 +323,7 @@ export function createSelfplaySearchPrimitives(config?: SelfplaySearchPrimitives
         resolveTacticalSearchDepth,
         resolveTacticalBeamWidth,
         resolveTacticalMetricsCandidateLimit,
+        resolveTacticalSearchNodeBudget,
         computePositiveOpportunityMissMetrics,
         minimaxBoardSearch
     };

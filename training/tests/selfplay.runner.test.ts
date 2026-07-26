@@ -96,6 +96,54 @@ describe('selfplay runner', () => {
         expect(a.records).toEqual(b.records);
     });
 
+    test('propagates bounded tactical teacher search budgets through direct and batch runners', () => {
+        const directOptions = {
+            maxPlies: 2,
+            allowCardUsage: false,
+            enableTacticalLookahead: true,
+            tacticalSearchNodeBudget: 7,
+            playerPolicies: {
+                black: {
+                    allowCardUsage: false,
+                    tacticalSearchNodeBudget: 0
+                },
+                white: {
+                    allowCardUsage: false
+                }
+            }
+        };
+        const direct = runSingleGame(0, 31, directOptions);
+        const repeated = runSingleGame(0, 31, directOptions);
+
+        expect(direct.records[0]).toEqual(expect.objectContaining({
+            player: 'black',
+            teacherTacticalSearchNodeBudget: 0
+        }));
+        expect(direct.records[1]).toEqual(expect.objectContaining({
+            player: 'white',
+            teacherTacticalSearchNodeBudget: 7
+        }));
+        expect(repeated.records.map((record) => ({
+            row: record.row,
+            col: record.col,
+            candidates: record.topPlacementCandidates
+        }))).toEqual(direct.records.map((record) => ({
+            row: record.row,
+            col: record.col,
+            candidates: record.topPlacementCandidates
+        })));
+
+        const batch = runSelfPlayGames({
+            games: 1,
+            baseSeed: 31,
+            maxPlies: 1,
+            allowCardUsage: false,
+            enableTacticalLookahead: true,
+            tacticalSearchNodeBudget: 11
+        });
+        expect(batch.records[0].teacherTacticalSearchNodeBudget).toBe(11);
+    });
+
     test('supports fixed white-only initial deck while black stays default', () => {
         const result = runSingleGame(0, 123, {
             maxPlies: 2,
@@ -337,8 +385,8 @@ describe('selfplay runner', () => {
         expect(buildSpy).toHaveBeenCalledWith(
             6,
             expect.objectContaining({
-                kind: 'board-context-v1',
-                gameState: expect.objectContaining({ board })
+                kind: 'board-search-context-v1',
+                board
             }),
             candidateMoves.length,
             'black',
@@ -642,6 +690,42 @@ describe('selfplay runner', () => {
 
         expect(result.action).toEqual(expect.objectContaining({ type: 'place', row: 0, col: 8 }));
     });
+
+    test('tacticalWeight zero disables primary and diagnostic lookahead', () => {
+        const gameState = Core.createGameState();
+        gameState.board = createPlacementBoard();
+        const cardState = {
+            pendingEffectByPlayer: { black: null, white: null },
+            markers: [],
+            charge: { black: 0, white: 0 },
+            hands: { black: [], white: [] },
+            hasUsedCardThisTurnByPlayer: { black: false, white: false },
+            boardBonusByCell: {},
+            boardBonusConsumedByCell: {}
+        };
+        const lookaheadSpy = jest.spyOn(CpuPolicyCore, 'chooseMoveByLookahead');
+
+        const result = decideAction(
+            gameState,
+            cardState,
+            'black',
+            { random: () => 0.5 },
+            {
+                allowCardUsage: false,
+                enableTacticalLookahead: true,
+                tacticalWeight: 0
+            }
+        );
+
+        expect(result.action.type).toBe('place');
+        expect(lookaheadSpy).not.toHaveBeenCalled();
+        expect(result.placementMetrics).toEqual(expect.objectContaining({
+            selectedTacticalScore: 0,
+            bestTacticalScore: 0
+        }));
+        expect(result.placementMetrics.topCandidates.every((one) => one.tacticalScore === 0)).toBe(true);
+    });
+
     test('records pending target selections with structured labels', () => {
         const initGame = CardLogic.initGame;
         jest.spyOn(CardLogic, 'initGame').mockImplementation((...args) => {
@@ -792,6 +876,16 @@ describe('selfplay runner', () => {
         expect(withoutCommittee.records[0].selectedCommitteeScore).toBe(0);
         expect(withCommittee.records[0].topPlacementCandidates.some((one) => Number(one.committeeScore) > 0)).toBe(true);
         expect(withCommittee.records[0].topPlacementCandidates.some((one) => Number(one.committeeVotes) > 0)).toBe(true);
+        const selected = withCommittee.records[0].topPlacementCandidates.find((one) => (
+            one.row === withCommittee.records[0].row &&
+            one.col === withCommittee.records[0].col
+        ));
+        expect(selected).toBeTruthy();
+        expect(selected.finalScore).toBe(Math.max(
+            ...withCommittee.records[0].topPlacementCandidates.map((one) => one.finalScore)
+        ));
+        expect(withCommittee.records[0].selectedCommitteeScore).toBe(selected.committeeScore);
+        expect(withCommittee.records[0].selectedCommitteeVotes).toBe(selected.committeeVotes);
     });
 
     test('decideAction lets teacher committee change use-card selection and preserves trace', () => {
