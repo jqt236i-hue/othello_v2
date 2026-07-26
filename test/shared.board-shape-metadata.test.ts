@@ -61,6 +61,34 @@ describe("shared board explicit context", () => {
     });
   });
 
+  test("clones structured-clone state without retaining cross-realm board references", () => {
+    const gameState = structuredClone(createGameState());
+    const cardState = structuredClone({ markers: [] });
+    const context = SharedBoardUtils.createBoardContext(gameState, cardState);
+    const clone = SharedBoardUtils.cloneBoardContext(context);
+
+    SharedBoardUtils.setCellValue(clone, 0, 0, 1);
+
+    expect(clone.gameState).not.toBe(gameState);
+    expect(clone.gameState.board).not.toBe(gameState.board);
+    expect(clone.gameState.board[0]).not.toBe(gameState.board[0]);
+    expect(SharedBoardUtils.getCellValue(context, 0, 0)).toBe(0);
+    expect(SharedBoardUtils.getCellValue(clone, 0, 0)).toBe(1);
+  });
+
+  test("does not reinterpret non-plain runtime objects while cloning state", () => {
+    class RuntimeHandle {}
+    const runtimeHandle = new RuntimeHandle();
+    const gameState: any = createGameState();
+    gameState.runtime = { runtimeHandle };
+    const context = SharedBoardUtils.createBoardContext(gameState, null);
+    const clone = SharedBoardUtils.cloneBoardContext(context);
+
+    expect(clone.gameState).not.toBe(gameState);
+    expect(clone.gameState.runtime).not.toBe(gameState.runtime);
+    expect(clone.gameState.runtime.runtimeHandle).toBe(runtimeHandle);
+  });
+
   test("rebuilds a view after explicit expansion and hole sources mutate", () => {
     const gameState = createGameState(4, 4, {
       boardExpansion: {

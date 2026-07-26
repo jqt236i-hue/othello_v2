@@ -2762,6 +2762,7 @@ function renderBoardFull() {
 
 function updateOccupancyUI() {
     const renderState = _resolveBoardRenderStateForBoardRenderer();
+    if (!renderState.gameState || typeof renderState.gameState !== 'object') return;
     if (
         !BoardRendererBoardUtilsModule ||
         typeof BoardRendererBoardUtilsModule.countStateDiscs !== 'function'

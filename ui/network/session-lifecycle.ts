@@ -704,6 +704,11 @@ function createNetworkSessionLifecycleController(config: any): any {
     const localProjectedSnapshotHashBefore = typeof cfg.getKnownProjectedSnapshotHash === 'function'
       ? cfg.getKnownProjectedSnapshotHash()
       : null;
+    const cursor = res.data && res.data.presentationCursor && typeof res.data.presentationCursor === 'object'
+      ? res.data.presentationCursor
+      : null;
+    const cursorVisualSeq = toIntegerOrNull(cursor && cursor.visualSeq);
+    const cursorStateVersion = toIntegerOrNull(cursor && cursor.stateVersion);
     if (typeof cfg.applyPayloadSessionState === 'function') {
       cfg.applyPayloadSessionState(res.data);
     }
@@ -715,6 +720,7 @@ function createNetworkSessionLifecycleController(config: any): any {
     let appliedSnapshot = false;
     let stateSyncPresentationFrameCount = 0;
     let stateSyncRecoveredVisualContinuity = false;
+    let shouldCatchUpPresentationJournal = false;
     if (res.data.snapshot) {
       const exactVisualRebase = opts.syncVisualCursorForSnapshotNoPlayback === true;
       const skipSnapshot = !exactVisualRebase && typeof cfg.shouldSkipForceSyncSnapshot === 'function'
@@ -727,6 +733,13 @@ function createNetworkSessionLifecycleController(config: any): any {
           && Array.isArray(res.data.presentationFrames)
           && res.data.presentationFrames.length > 0;
         stateSyncPresentationFrameCount = hasPresentationFrames ? res.data.presentationFrames.length : 0;
+        shouldCatchUpPresentationJournal = (
+          !exactVisualRebase
+          && opts.suppressPresentationJournalCatchup !== true
+          && cursorVisualSeq !== null
+          && cursorVisualSeq > visualSeqBeforeStateSync + stateSyncPresentationFrameCount
+          && typeof cfg.enqueuePresentationFramesFromPayload === 'function'
+        );
         const playbackEvents = exactVisualRebase || hasPresentationFrames
           ? []
           : (typeof cfg.resolveStateSyncRecoveredPlaybackEvents === 'function'
@@ -745,7 +758,7 @@ function createNetworkSessionLifecycleController(config: any): any {
               playbackEvents: playbackEvents,
               presentationFrames: hasPresentationFrames ? res.data.presentationFrames : [],
               presentationFrameSource: intakeSource,
-              suppressContinuityRecovery: exactVisualRebase
+              suppressContinuityRecovery: exactVisualRebase || shouldCatchUpPresentationJournal
             }
           });
           const intakeResult = cfg.submitNetworkSnapshotEnvelope(envelope);
@@ -763,7 +776,7 @@ function createNetworkSessionLifecycleController(config: any): any {
                 playbackEvents: playbackEvents,
                 presentationFrames: hasPresentationFrames ? res.data.presentationFrames : [],
                 presentationFrameSource: intakeSource,
-                suppressContinuityRecovery: exactVisualRebase
+                suppressContinuityRecovery: exactVisualRebase || shouldCatchUpPresentationJournal
               }
             })
             : false;
@@ -814,19 +827,12 @@ function createNetworkSessionLifecycleController(config: any): any {
       }
     }
 
-    const cursor = res.data && res.data.presentationCursor && typeof res.data.presentationCursor === 'object'
-      ? res.data.presentationCursor
-      : null;
-    const cursorVisualSeq = toIntegerOrNull(cursor && cursor.visualSeq);
-    const cursorStateVersion = toIntegerOrNull(cursor && cursor.stateVersion);
     if (
       appliedSnapshot &&
       opts.syncVisualCursorForSnapshotNoPlayback !== true &&
       opts.suppressPresentationJournalCatchup !== true &&
       stateSyncRecoveredVisualContinuity !== true &&
-      cursorVisualSeq !== null &&
-      cursorVisualSeq > visualSeqBeforeStateSync + stateSyncPresentationFrameCount &&
-      typeof cfg.enqueuePresentationFramesFromPayload === 'function'
+      shouldCatchUpPresentationJournal
     ) {
       const journalResult = await fetchAndApplyPresentationJournal(
         visualSeqBeforeStateSync,

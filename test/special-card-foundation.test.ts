@@ -226,7 +226,14 @@ describe('special card foundation marker metadata and locks', () => {
       presentationEvents: []
     };
     const gameState = {
-      board: [[1, 0]],
+      board: [
+        [1, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ],
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      boardExpansion: { cells: [] },
       turnNumber: 1
     };
 

@@ -78,6 +78,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
   let dom;
   let eventSources;
   let stateFetchCount;
+  let presentationJournalFetchCount;
   let publishBodies;
 
   beforeEach(() => {
@@ -140,6 +141,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
     global.EventSource = MockEventSource;
 
     stateFetchCount = 0;
+    presentationJournalFetchCount = 0;
     global.fetch = jest.fn(async (url, init = {}) => {
       const parsedUrl = new URL(String(url));
       const path = parsedUrl.pathname;
@@ -165,6 +167,19 @@ describe('NetworkMatchClient reconnect and resync', () => {
           stateVersion: 2,
           presentationCursor: { visualSeq: 1, stateVersion: 2 },
           snapshot: createSnapshot(2)
+        });
+      }
+
+      if (path === '/api/match/presentation-journal') {
+        presentationJournalFetchCount += 1;
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          baseVisualSeq: 0,
+          baseVisualVersion: 1,
+          baseSnapshot: createSnapshot(1),
+          presentationCursor: { visualSeq: 1, stateVersion: 2 },
+          presentationFrames: [createPresentationFrame([], 'op-state-sync-2')]
         });
       }
 
@@ -644,6 +659,20 @@ describe('NetworkMatchClient reconnect and resync', () => {
 
     const syncResult = await client.syncLatestState();
     expect(syncResult).toEqual({ ok: true, appliedSnapshot: true });
+    expect(presentationJournalFetchCount).toBe(1);
+    expect(global.PresentationHandler.handlePresentationEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'PLAYBACK_EVENTS',
+        events: [],
+        meta: expect.objectContaining({
+          visualSeq: 1,
+          stateVersionFrom: 1,
+          stateVersionTo: 2,
+          strictNetworkPlayback: true
+        })
+      })
+    );
+    global.PresentationHandler.handlePresentationEvent.mockClear();
 
     const stream = eventSources[0];
     const snapshotHandler = stream.listeners.snapshot;

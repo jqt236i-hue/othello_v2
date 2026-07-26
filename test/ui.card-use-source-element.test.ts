@@ -628,8 +628,7 @@ describe('card use source element selection', () => {
     expect(global.window.isCardAnimating).toBe(true);
 
     resolvePublish({ ok: true });
-    await Promise.resolve();
-    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(global.cardState.selectedCardId).toBeNull();
     expect(global.cardState.selectedCardOwnerKey).toBeNull();
@@ -669,8 +668,7 @@ describe('card use source element selection', () => {
       cardId: 'dup_card'
     };
     resolvePublish({ ok: true });
-    await Promise.resolve();
-    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(global.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
       type: 'METEOR_WILL',
@@ -711,8 +709,7 @@ describe('card use source element selection', () => {
       cardId: 'dup_card'
     };
     resolvePublish({ ok: true });
-    await Promise.resolve();
-    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(global.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
       type: 'FREE_PLACEMENT',

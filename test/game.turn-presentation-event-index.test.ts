@@ -108,6 +108,6 @@ describe('turn presentation event index', () => {
     expect(counters.presentationEventIndexBuilds).toBe(1);
     expect(counters.presentationEventIndexVisits).toBe(presentationEvents.length);
     expect(StateHash.computeStableHash(playback)).toBe(StateHash.computeStableHash(controlPlayback));
-    expect(turn.comparison.playbackDigest).toBe('fnv1a32:b0651467');
+    expect(turn.comparison.playbackDigest).toBe('fnv1a32:a92eff98');
   });
 });

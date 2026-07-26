@@ -15,11 +15,15 @@ function createSnapshot(stateVersion) {
       authority: 'server',
       version: stateVersion,
       viewerRole: 'spectator',
+      boardContractVersion: 2,
       turnStartReconciled: true
     },
     gameState: {
       currentPlayer: 1,
-      turnNumber: 1
+      turnNumber: 1,
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      boardExpansion: { cells: [] }
     },
     cardState: {
       selectedCardId: null,
@@ -93,6 +97,7 @@ describe('NetworkMatchClient spectator session', () => {
           spectatorToken: 'spectator-token',
           spectatorName: body.spectatorName,
           stateVersion: 3,
+          presentationCursor: { visualSeq: 0, stateVersion: 3 },
           snapshot: createSnapshot(3)
         });
       }
@@ -104,6 +109,8 @@ describe('NetworkMatchClient spectator session', () => {
           viewerRole: parsedUrl.searchParams.get('viewerRole') || 'seat',
           spectatorId: parsedUrl.searchParams.get('spectatorId') || '',
           spectatorName: '観戦',
+          stateVersion: 4,
+          presentationCursor: { visualSeq: 0, stateVersion: 4 },
           snapshot: createSnapshot(4)
         });
       }

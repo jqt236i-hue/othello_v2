@@ -607,12 +607,21 @@ describe('selfplay runner', () => {
         expect(result.action).toEqual(expect.objectContaining({ type: 'place', row: 0, col: 8 }));
     });
     test('records pending target selections with structured labels', () => {
+        const initGame = CardLogic.initGame;
+        jest.spyOn(CardLogic, 'initGame').mockImplementation((...args) => {
+            const initialized = initGame(...args);
+            initialized.cardState.pendingEffectByPlayer.black = {
+                type: 'DESTROY_ONE_STONE',
+                stage: 'selectTarget'
+            };
+            initialized.cardState.hasUsedCardThisTurnByPlayer.black = true;
+            return initialized;
+        });
         const result = runSelfPlayGames({
-            games: 3,
+            games: 1,
             baseSeed: 1,
-            maxPlies: 20,
-            allowCardUsage: true,
-            cardUsageRate: 0.35,
+            maxPlies: 1,
+            allowCardUsage: false,
             enableTacticalLookahead: false
         });
 

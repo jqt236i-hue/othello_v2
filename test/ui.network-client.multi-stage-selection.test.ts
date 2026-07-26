@@ -449,6 +449,7 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
           ok: true,
           roomId: 'MUL',
           stateVersion: 61,
+          presentationCursor: { visualSeq: 1, stateVersion: 61 },
           snapshot: authoritativeSnapshotFactory(),
           playbackEvents: []
         });
@@ -699,6 +700,7 @@ describe('BOARD_SHRINK_WILL authoritative three-stage network contract', () => {
           ok: true,
           roomId: 'SHR',
           stateVersion: 81,
+          presentationCursor: { visualSeq: 1, stateVersion: 81 },
           snapshot: authoritativeSnapshotFactory(),
           playbackEvents: []
         });

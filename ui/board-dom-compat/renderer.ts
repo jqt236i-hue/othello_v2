@@ -1919,6 +1919,9 @@ function _getBoardMaterializationSignatureForDiff(boardRenderModel?: any, viewpo
         .map((cell: any) => `${String(cell.key || `${cell.row},${cell.col}`)}=${String(cell.expansionSide)}`)
         .sort()
         .join('|');
+    // Hole/playable changes patch an existing cell; they do not change which
+    // DOM cells are materialized. Keeping them out also preserves transient
+    // highlight ownership stored on the cell across causal-replay restores.
     const topologySignature = [
         ':topology',
         String(topology.baseShape || ''),
@@ -1927,8 +1930,6 @@ function _getBoardMaterializationSignatureForDiff(boardRenderModel?: any, viewpo
         `${Number(topology.renderRowOffset)},${Number(topology.renderColOffset)},${Number(topology.renderRows)},${Number(topology.renderCols)}`,
         `base=${sortedKeyToken(topology.baseKeys)}`,
         `existing=${sortedKeyToken(topology.existingKeys)}`,
-        `playable=${sortedKeyToken(topology.playableKeys)}`,
-        `holes=${sortedKeyToken(topology.holeKeys)}`,
         `expansionSides=${expansionSideToken}`
     ].join(':');
     if (!viewportLayout || !viewportLayout.visibleWorldWindow) return topologySignature;

@@ -37,7 +37,18 @@ function createHarness(options: HarnessOptions = {}) {
     snapshot: {
       stateVersion: 4,
       updatedAt: 1000,
-      gameState: { currentPlayer: 1, turnNumber: 8 },
+      gameState: {
+        currentPlayer: 1,
+        turnNumber: 8,
+        board: [
+          [0, 0, 0, 0],
+          [0, 1, -1, 0],
+          [0, -1, 1, 0],
+          [0, 0, 0, 0]
+        ],
+        boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+        boardExpansion: { cells: [] }
+      },
       cardState: {
         hands: { black: ['b1'], white: ['w1'] },
         pendingEffectByPlayer: { black: null, white: null },
@@ -119,7 +130,18 @@ function createHarness(options: HarnessOptions = {}) {
       ok: true,
       snapshot: {
         stateVersion: 4,
-        gameState: { currentPlayer: -1, turnNumber: 9 },
+        gameState: {
+          currentPlayer: -1,
+          turnNumber: 9,
+          board: [
+            [0, 0, 0, 0],
+            [0, 1, -1, 0],
+            [0, -1, 1, 0],
+            [0, 0, 0, 0]
+          ],
+          boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+          boardExpansion: { cells: [] }
+        },
         cardState: {
           hands: { black: ['b1'], white: ['w1'] },
           pendingEffectByPlayer: { black: null, white: null },

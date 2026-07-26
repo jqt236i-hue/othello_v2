@@ -21,7 +21,11 @@ describe('manifest effect panel', () => {
       getCardContext: () => ({ protectedStones: [], permaProtectedStones: [], bombs: [] }),
       getSelectableTargets: () => []
     };
-    (global as any).gameState = { board: [[0]], currentPlayer: 1 };
+    (global as any).gameState = {
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      currentPlayer: 1
+    };
     (global as any).cardState = { markers: [], hands: { black: [], white: [] } };
     diffRenderer = require('../ui/board-dom-compat/renderer.ts');
     diffRenderer.resetRenderStats();

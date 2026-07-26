@@ -1,6 +1,7 @@
 import * as path from 'path';
 
 const cpuDecision = require(path.resolve(__dirname, '..', 'game', 'cpu-decision.js'));
+const SharedBoardUtils = require('../shared/shared-board-utils');
 
 describe('cpu-decision ONNX context', () => {
   beforeEach(() => {
@@ -53,7 +54,6 @@ describe('cpu-decision ONNX context', () => {
     expect(context).toMatchObject({
       playerKey: 'black',
       level: 6,
-      board: global.gameState.board,
       pendingType: 'DESTROY_ONE_STONE',
       legalMovesCount: 4,
       ownCharge: 7,
@@ -76,6 +76,10 @@ describe('cpu-decision ONNX context', () => {
       maxLegalMoveBonus: 4,
       highBonusMoveAvailable: true
     });
+    expect(SharedBoardUtils.isBoardContext(context.board)).toBe(true);
+    expect(context.board.gameState).toBe(global.gameState);
+    expect(context.board.cardState).toBe(global.cardState);
+    expect(SharedBoardUtils.getCellValue(context.board, 0, 3)).toBe(-1);
     expect(context.candidateMoves).toEqual([
       { row: 0, col: 0, flips: [{ row: 1, col: 1 }] },
       { row: 0, col: 1, flips: [] }

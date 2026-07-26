@@ -224,6 +224,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({
           ok: true,
           roomId: 'MOV',
           stateVersion: 21,
+          presentationCursor: { visualSeq: 1, stateVersion: 21 },
           snapshot: body.snapshot
             ? {
               ...body.snapshot,

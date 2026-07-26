@@ -426,7 +426,17 @@ describe('board renderer backend selection and initial compatibility fallback', 
       reason: 'cell_teleport_post_playback_sync'
     });
     const frame = renderer.buildBoardVisualFrame(controller, {
-      gameState: { currentPlayer: 1, board: [[1]] },
+      gameState: {
+        currentPlayer: 1,
+        board: [
+          [1, 0, 0, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0]
+        ],
+        boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+        boardExpansion: { cells: [] }
+      },
       cardState: {
         markers: [],
         hands: { black: [], white: [] },

@@ -9,6 +9,7 @@ describe('match worker card module preload', () => {
     );
     const cardCatalogIndex = source.indexOf("installRuntimeModule('CardCatalog'");
     const sharedConstantsIndex = source.indexOf("installRuntimeModule('SharedConstants'");
+    const sharedBoardUtilsIndex = source.indexOf("installRuntimeModule('SharedBoardUtils'");
     const boardOpsIndex = source.indexOf("installRuntimeModule('BoardOps'");
     const destroyOneStoneIndex = source.indexOf("installRuntimeModule('DestroyOneStoneEffects'");
     const swapWithEnemyIndex = source.indexOf("installRuntimeModule('SwapWithEnemyEffects'");
@@ -24,6 +25,7 @@ describe('match worker card module preload', () => {
 
     expect(cardCatalogIndex).toBeGreaterThanOrEqual(0);
     expect(sharedConstantsIndex).toBeGreaterThanOrEqual(0);
+    expect(sharedBoardUtilsIndex).toBeGreaterThanOrEqual(0);
     expect(cardCatalogIndex).toBeLessThan(sharedConstantsIndex);
     expect(boardOpsIndex).toBeGreaterThanOrEqual(0);
     expect(destroyOneStoneIndex).toBeGreaterThanOrEqual(0);
@@ -37,8 +39,10 @@ describe('match worker card module preload', () => {
     expect(targetResolverIndex).toBeGreaterThanOrEqual(0);
     expect(hyperactiveBoardShapeIndex).toBeGreaterThanOrEqual(0);
     expect(hyperactiveIndex).toBeGreaterThanOrEqual(0);
+    expect(sharedBoardUtilsIndex).toBeLessThan(hyperactiveBoardShapeIndex);
     expect(hyperactiveBoardShapeIndex).toBeLessThan(hyperactiveIndex);
     expect(source).toContain("require('../cards/catalog.js')");
+    expect(source).toContain("require('../shared/shared-board-utils.js')");
     expect(source).toContain("require('../game/logic/card-resolution/status-cells.js')");
     expect(source).toContain("require('../game/logic/card-resolution/observer-will.js')");
     expect(source).toContain("require('../game/logic/card-resolution/chaos-summon.js')");

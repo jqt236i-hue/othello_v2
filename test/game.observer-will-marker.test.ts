@@ -5,6 +5,16 @@ function createCardState() {
   return CardLogic.createCardState({ shuffle: (arr) => arr, random: () => 0.5 }, { plainReversi: true });
 }
 
+function createObserverWillGameState() {
+  const board = Array.from({ length: 4 }, () => Array(4).fill(SharedConstants.EMPTY));
+  board[2][3] = SharedConstants.BLACK;
+  return {
+    board,
+    boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+    boardExpansion: { cells: [] }
+  };
+}
+
 describe('OBSERVER_WILL marker', () => {
   test('next own placement reservation creates a 5T inviolable observer manifest marker', () => {
     const cardState = createCardState();
@@ -54,8 +64,9 @@ describe('OBSERVER_WILL marker', () => {
       repaymentAmount: 5,
       remainingOwnerTurns: 9
     });
+    const gameState = createObserverWillGameState();
 
-    const res = CardLogic.processObserverWillMarkerAtTurnStart(cardState, {}, 'black', 2, 3, { shuffle: (arr) => arr, random: () => 0.5 });
+    const res = CardLogic.processObserverWillMarkerAtTurnStart(cardState, gameState, 'black', 2, 3, { shuffle: (arr) => arr, random: () => 0.5 });
 
     expect(res.expired).toHaveLength(1);
     expect(res.repayment).toEqual(expect.objectContaining({
@@ -70,6 +81,7 @@ describe('OBSERVER_WILL marker', () => {
       repaymentAmount: 5,
       remainingOwnerTurns: 8
     }));
+    expect(gameState.board[2][3]).toBe(SharedConstants.BLACK);
     for (const copyId of observedWhiteCopyIds) {
       expect(CardLogic.isCardCopyIdRevealedToViewer(cardState, 'black', copyId)).toBe(true);
     }
@@ -114,12 +126,14 @@ describe('OBSERVER_WILL marker', () => {
       repaymentAmount: 5,
       remainingOwnerTurns: 9
     });
+    const gameState = createObserverWillGameState();
 
-    const res = CardLogic.processObserverWillMarkerAtTurnStart(cardState, {}, 'black', 2, 3, { shuffle: (arr) => arr, random: () => 0.5 });
+    const res = CardLogic.processObserverWillMarkerAtTurnStart(cardState, gameState, 'black', 2, 3, { shuffle: (arr) => arr, random: () => 0.5 });
 
     expect(res.expired).toHaveLength(1);
     expect(res.repayment).toEqual(expect.objectContaining({ repaid: 5 }));
     expect(cardState.markers.some((entry) => entry && entry.id === marker.id)).toBe(false);
+    expect(gameState.board[2][3]).toBe(SharedConstants.BLACK);
   });
 
   test('living will cannot be applied to observer manifestation stone', () => {

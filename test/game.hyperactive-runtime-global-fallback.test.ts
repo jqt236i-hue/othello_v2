@@ -3,6 +3,8 @@ import * as path from 'path';
 import * as ts from 'typescript';
 import * as vm from 'vm';
 
+const SharedBoardUtils = require('../shared/shared-board-utils');
+
 function transpileCommonJs(sourcePath: string): string {
   const source = fs.readFileSync(sourcePath, 'utf8');
   return ts.transpileModule(source, {
@@ -35,6 +37,7 @@ function loadHyperactiveWithWorkerLikeGlobals(): any {
   sandbox.globalThis = sandbox;
   sandbox.self = sandbox;
   sandbox.SharedConstants = { BLACK: 1, WHITE: -1, EMPTY: 0 };
+  sandbox.SharedBoardUtils = SharedBoardUtils;
 
   vm.createContext(sandbox);
   runCommonJsModuleInSandbox(boardShapePath, sandbox);
@@ -42,7 +45,7 @@ function loadHyperactiveWithWorkerLikeGlobals(): any {
 }
 
 describe('CardHyperactive worker runtime globals', () => {
-  test('uses preloaded global constants when require is unavailable', () => {
+  test('uses preloaded canonical board APIs and constants when require is unavailable', () => {
     const CardHyperactive = loadHyperactiveWithWorkerLikeGlobals();
     const gameState: any = {
       board: Array.from({ length: 8 }, () => Array(8).fill(0))

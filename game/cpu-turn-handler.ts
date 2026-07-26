@@ -475,25 +475,33 @@ function resolvePendingSelectionDispatchKeyForCpu(pendingType: any) {
     return coordinator.resolvePendingSelectionDispatchKey(pendingType);
 }
 
-function readCpuPendingSelection(playerKey: PlayerKey) {
+function readCpuPendingSelection(
+    playerKey: PlayerKey,
+    cardStateRef: any = resolveCurrentCpuCardState()
+) {
+    if (!cardStateRef || typeof cardStateRef !== 'object') return null;
     const coordinator = resolvePendingCoordinatorForCpu();
     if (coordinator && typeof coordinator.readPendingEffect === 'function') {
-        return coordinator.readPendingEffect(cardState, playerKey);
+        return coordinator.readPendingEffect(cardStateRef, playerKey);
     }
-    if (cardState && cardState.pendingEffectByPlayer) {
-        return cardState.pendingEffectByPlayer[playerKey] || null;
+    if (cardStateRef.pendingEffectByPlayer) {
+        return cardStateRef.pendingEffectByPlayer[playerKey] || null;
     }
     return null;
 }
 
-function clearCpuPendingSelection(playerKey: PlayerKey): boolean {
+function clearCpuPendingSelection(
+    playerKey: PlayerKey,
+    cardStateRef: any = resolveCurrentCpuCardState()
+): boolean {
+    if (!cardStateRef || typeof cardStateRef !== 'object') return false;
     const coordinator = resolvePendingCoordinatorForCpu();
     if (coordinator && typeof coordinator.clearPendingEffect === 'function') {
-        const result = coordinator.clearPendingEffect(cardState, playerKey);
+        const result = coordinator.clearPendingEffect(cardStateRef, playerKey);
         return !!(result && result.ok);
     }
-    if (cardState && cardState.pendingEffectByPlayer) {
-        cardState.pendingEffectByPlayer[playerKey] = null;
+    if (cardStateRef.pendingEffectByPlayer) {
+        cardStateRef.pendingEffectByPlayer[playerKey] = null;
         return true;
     }
     return false;
@@ -870,7 +878,7 @@ function resolveCurrentCpuGameStateForBoard() {
     }
 }
 
-function resolveCurrentCpuCardStateForBoard() {
+function resolveCurrentCpuCardState() {
     const runtimeCardState = resolveRuntimeValue('cardState');
     if (runtimeCardState && typeof runtimeCardState === 'object') return runtimeCardState;
     try {
@@ -916,7 +924,7 @@ function countDiscsFromCpuBoardContext(boardContext: any) {
 
 function countOwnedEffectiveCornersSafe(state: any, playerKey: any) {
     const boardUtils = resolveSharedBoardUtilsForCpuTurn();
-    const boardContext = createCpuTurnBoardContext(state, resolveCurrentCpuCardStateForBoard());
+    const boardContext = createCpuTurnBoardContext(state, resolveCurrentCpuCardState());
     if (
         !boardContext ||
         !boardUtils ||
@@ -987,7 +995,7 @@ function emitCpuCommentary(eventType: any, playerKey: any, extra: any, analysisO
         }
     } catch (e) { /* fall back to the existing commentary context path */ }
     const gameStateRef = resolveCurrentCpuGameStateForBoard();
-    const cardStateRef = resolveCurrentCpuCardStateForBoard();
+    const cardStateRef = resolveCurrentCpuCardState();
     const boardContext = createCpuTurnBoardContext(gameStateRef, cardStateRef);
     if (
         !preparedMetrics &&
@@ -1346,7 +1354,7 @@ function createCpuTurnAnalysisForRun(args: any): any {
         flipBlockers,
         cardUsability: cardPreparation.cardUsability
     });
-    const pendingAtSeed = readCpuPendingSelection(playerKey);
+    const pendingAtSeed = readCpuPendingSelection(playerKey, cardStateRef);
     const runtimeGenerateMoves = resolveRuntimeFunction('generateMovesForPlayer');
     const runtimeGetLegalMoves = resolveRuntimeFunction('getLegalMoves');
     const canUseCanonicalSharedMoveScan = !!(
@@ -2011,14 +2019,15 @@ function handleCpuTurnError(
             playerKey
         });
     }
-    const stuckPending = readCpuPendingSelection(playerKey);
+    const cardStateRef = resolveCurrentCpuCardState();
+    const stuckPending = readCpuPendingSelection(playerKey, cardStateRef);
     if (stuckPending) {
         debugCpuTrace('[AI] clearing stuck pending after CPU error', {
             playerKey,
             pendingType: stuckPending.type || 'unknown',
             error: message
         });
-        clearCpuPendingSelection(playerKey);
+        clearCpuPendingSelection(playerKey, cardStateRef);
     }
     setCpuProcessing(false);
     emitCpuTurnLogAdded(`${selfName}の思考中にエラーが発生しました`);

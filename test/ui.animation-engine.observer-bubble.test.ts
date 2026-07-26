@@ -1,8 +1,10 @@
 import { JSDOM } from 'jsdom';
+import path from 'path';
 import { installPreparedDomBoardDependencies } from './helpers/feature-stylesheet-test-helpers';
 
 const ORIGINAL_NOANIM = process.env.NOANIM;
 const ORIGINAL_DISABLE_ANIMATIONS = process.env.DISABLE_ANIMATIONS;
+const BOARD_RENDERER_PATH = path.resolve(__dirname, '..', 'ui', 'board-renderer.ts');
 
 function restoreAnimationEnv(): void {
   if (typeof ORIGINAL_NOANIM === 'undefined') delete process.env.NOANIM;
@@ -46,6 +48,12 @@ describe('animation-engine observer bubble', () => {
       toJSON() { return {}; }
     });
     board.appendChild(cell);
+    jest.doMock(BOARD_RENDERER_PATH, () => ({
+      getBoardVisualControllerReady: jest.fn(async () => undefined),
+      getBoardCellClientRect: jest.fn((row, col) => (
+        row === 2 && col === 3 ? cell.getBoundingClientRect() : null
+      ))
+    }));
   });
 
   afterEach(() => {
@@ -54,6 +62,7 @@ describe('animation-engine observer bubble', () => {
     delete global.requestAnimationFrame;
     delete global.window;
     delete global.document;
+    jest.dontMock(BOARD_RENDERER_PATH);
     restoreAnimationEnv();
   });
 

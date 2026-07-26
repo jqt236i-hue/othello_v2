@@ -3,6 +3,16 @@ import { pathToFileURL } from 'url';
 import { spawnSync } from 'child_process';
 
 const workerModulePath = pathToFileURL(path.resolve(__dirname, '../workers/match-worker.mjs')).href;
+const Core = require(path.resolve(__dirname, '..', 'game', 'logic', 'core.js'));
+const MatchAuthority = require(path.resolve(__dirname, '..', 'utils', 'match-authority.js'));
+const canonicalInitialSnapshotSource = JSON.stringify({
+  _meta: { boardContractVersion: MatchAuthority.BOARD_CONTRACT_VERSION },
+  gameState: Core.createGameState({ rows: 4, cols: 4 }),
+  cardState: {
+    hands: { black: [], white: [] },
+    markers: []
+  }
+});
 
 function runScenario(runnerSource: string): any {
   const result = spawnSync(process.execPath, ['-e', runnerSource, workerModulePath], {
@@ -33,10 +43,7 @@ describe('match worker spectator API', () => {
       "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
       "    roomId: 'SPC',",
       "    playerName: '黒',",
-      "    snapshot: {",
-      "      gameState: { board: [[0]], currentPlayer: 1 },",
-      "      cardState: { hands: { black: [], white: [] } }",
-      "    }",
+      `    snapshot: ${canonicalInitialSnapshotSource}`,
       "  });",
       "  const spectatorPayloads = [];",
       "  for (let index = 0; index < 4; index += 1) {",
@@ -94,10 +101,7 @@ describe('match worker spectator API', () => {
       "  await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
       "    roomId: 'SPP',",
       "    playerName: '黒',",
-      "    snapshot: {",
-      "      gameState: { board: [[0]], currentPlayer: 1 },",
-      "      cardState: { hands: { black: [], white: [] } }",
-      "    }",
+      `    snapshot: ${canonicalInitialSnapshotSource}`,
       "  });",
       "  const spectatePayload = await (await durableObject.handleSpectate({ roomId: 'SPP', spectatorName: '観戦' })).json();",
       "  const publishResponse = await durableObject.handlePublish({",

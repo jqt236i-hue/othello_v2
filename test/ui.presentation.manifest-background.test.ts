@@ -48,7 +48,13 @@ describe('diff renderer manifestation world background sync', () => {
   });
 
   function renderOnce(board = [[0]]) {
-    (global as any).gameState = { board, currentPlayer: 1 };
+    const denseBoard = Array.from({ length: 4 }, () => Array(4).fill(0));
+    denseBoard[0][0] = board[0][0];
+    (global as any).gameState = {
+      board: denseBoard,
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      currentPlayer: 1
+    };
     diffRenderer.renderBoardDiff(document.getElementById('board'));
     diffRenderer.presentCommittedWorldState((global as any).cardState);
   }

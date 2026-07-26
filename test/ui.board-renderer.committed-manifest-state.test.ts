@@ -1,5 +1,16 @@
 import { JSDOM } from 'jsdom';
 
+function createGameState(currentPlayer: number, topLeftOwner: number) {
+  const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+  board[0][0] = topLeftOwner;
+  return {
+    currentPlayer,
+    board,
+    boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+    boardExpansion: { cells: [] }
+  };
+}
+
 describe('board renderer committed manifestation state', () => {
   let dom: JSDOM;
   let controller: any;
@@ -30,7 +41,7 @@ describe('board renderer committed manifestation state', () => {
       }),
       getSelectableTargets: () => []
     };
-    (global as any).gameState = { currentPlayer: 1, board: [[1]] };
+    (global as any).gameState = createGameState(1, 1);
     (global as any).cardState = {
       markers: [],
       hands: { black: [], white: [] },
@@ -79,7 +90,7 @@ describe('board renderer committed manifestation state', () => {
     const store = Store.createNetworkVisualStateStore();
     store.setBaseVisualSnapshot({
       stateVersion: 1,
-      gameState: { currentPlayer: 1, board: [[1]] },
+      gameState: createGameState(1, 1),
       cardState: {
         markers: [],
         hands: { black: [], white: [] },
@@ -118,7 +129,7 @@ describe('board renderer committed manifestation state', () => {
       stateVersionTo: 2,
       snapshotAfter: {
         stateVersion: 2,
-        gameState: { currentPlayer: -1, board: [[-1]] },
+        gameState: createGameState(-1, -1),
         cardState: committedCardState
       }
     }, { source: 'test' });

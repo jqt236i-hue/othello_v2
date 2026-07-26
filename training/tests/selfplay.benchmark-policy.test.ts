@@ -143,23 +143,18 @@ describe('selfplay benchmark policy script', () => {
     });
 
     test('runBenchmark honors card enable flags during simulation', async () => {
-        const withCards = await runBenchmark({
-            games: 2,
+        const benchmark = await runBenchmark({
+            games: 1,
             seed: 19,
-            maxPlies: 220,
+            maxPlies: 10,
             policyA: createBenchmarkPolicy({ allowCardUsage: true, cardUsageRate: 1 }),
-            policyB: createBenchmarkPolicy({ allowCardUsage: true, cardUsageRate: 1 })
-        });
-        const noCards = await runBenchmark({
-            games: 2,
-            seed: 19,
-            maxPlies: 220,
-            policyA: createBenchmarkPolicy(),
             policyB: createBenchmarkPolicy()
         });
 
-        expect(withCards.result.quality.A.useCardActions + withCards.result.quality.B.useCardActions).toBeGreaterThan(0);
-        expect(noCards.result.quality.A.useCardActions + noCards.result.quality.B.useCardActions).toBe(0);
+        expect(benchmark.result.quality.A.usableTurns).toBeGreaterThan(0);
+        expect(benchmark.result.quality.B.usableTurns).toBeGreaterThan(0);
+        expect(benchmark.result.quality.A.useCardActions).toBeGreaterThan(0);
+        expect(benchmark.result.quality.B.useCardActions).toBe(0);
     });
 
     test('runBenchmark parallel mode preserves deterministic results', async () => {

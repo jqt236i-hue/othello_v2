@@ -45,6 +45,7 @@
     if (!PaddedBoardCoordinatesModule) throw new Error('PaddedBoardCoordinates is required by SharedBoardUtils');
     const PaddedBoardCoordinates = PaddedBoardCoordinatesModule;
     const BOARD_CONTEXT_KIND = 'board-context-v1';
+    const NATIVE_OBJECT_CONSTRUCTOR_SOURCE = Function.prototype.toString.call(Object);
     const EMPTY: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { EMPTY?: unknown }).EMPTY))
         ? Number((SharedConstants as { EMPTY?: unknown }).EMPTY)
         : 0;
@@ -128,6 +129,14 @@
         });
     }
 
+    const isPlainObjectPrototype = (prototype: object | null): boolean => {
+        if (prototype === null || prototype === Object.prototype) return true;
+        const constructorDescriptor = Object.getOwnPropertyDescriptor(prototype, 'constructor');
+        const constructor = constructorDescriptor && constructorDescriptor.value;
+        return typeof constructor === 'function'
+            && Function.prototype.toString.call(constructor) === NATIVE_OBJECT_CONSTRUCTOR_SOURCE;
+    };
+
     function clonePlainValue(value: unknown, seen = new Map<object, unknown>()): unknown {
         if (!value || typeof value !== 'object') return value;
         const source = value as object;
@@ -139,7 +148,7 @@
             return out;
         }
         const prototype = Object.getPrototypeOf(value);
-        if (prototype !== Object.prototype && prototype !== null) return value;
+        if (!isPlainObjectPrototype(prototype)) return value;
         const out: Record<string, unknown> = {};
         seen.set(source, out);
         for (const key of Object.keys(value as Record<string, unknown>)) {

@@ -1,6 +1,7 @@
 import * as path from 'path';
 
 const cpuHandler = require(path.resolve(__dirname, '..', 'game', 'cpu-turn-handler.js'));
+const Core = require(path.resolve(__dirname, '..', 'game', 'logic', 'core.js'));
 
 function waitTick() {
   return new Promise((resolve) => setImmediate(resolve));
@@ -20,6 +21,7 @@ function resolveGlobalRuntimeValue(name: string) {
 describe('cpu turn handler network guard', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    cpuHandler.resetCpuTurnHandlerState();
 
     cpuHandler.setTimers({
       waitMs: () => Promise.resolve()
@@ -39,9 +41,11 @@ describe('cpu turn handler network guard', () => {
       pendingEffectByPlayer: { white: null, black: null },
       hands: { white: ['card_a'], black: [] }
     };
-    global.gameState = { currentPlayer: 'white', turnNumber: 12 };
     global.BLACK = 1;
     global.WHITE = -1;
+    global.gameState = Core.createGameState({ rows: 4, cols: 4 });
+    global.gameState.currentPlayer = global.WHITE;
+    global.gameState.turnNumber = 12;
     global.isCardAnimating = false;
     global.isProcessing = false;
     global.isGameOver = jest.fn(() => false);
@@ -68,6 +72,7 @@ describe('cpu turn handler network guard', () => {
   });
 
   afterEach(() => {
+    cpuHandler.resetCpuTurnHandlerState();
     cpuHandler.setTimers(null);
     cpuHandler.setCpuUIImpl({});
     delete global.MATCH_MODE;
@@ -136,5 +141,33 @@ describe('cpu turn handler network guard', () => {
     expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
     expect(global.executeMove).not.toHaveBeenCalled();
     expect(global.cardState.hasUsedCardThisTurnByPlayer.white).toBe(false);
+  });
+
+  test('error recovery tolerates a missing runtime card state', async () => {
+    delete global.MATCH_MODE;
+    cpuHandler.setCpuUIImpl({
+      readMatchMode: () => 'cpu',
+      readHumanVsHumanMode: () => false
+    });
+    cpuHandler.setTimers({
+      waitMs: () => new Promise(() => {})
+    });
+    global.cpuMaybeUseCardWithPolicy.mockImplementation(() => {
+      delete global.cardState;
+      throw new Error('forced cpu card failure');
+    });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      await expect(cpuHandler.runCpuTurn('white')).resolves.toBeUndefined();
+
+      expect(global.isProcessing).toBe(false);
+      expect(consoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Error in runCpuTurn'),
+        expect.objectContaining({ message: 'forced cpu card failure' })
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

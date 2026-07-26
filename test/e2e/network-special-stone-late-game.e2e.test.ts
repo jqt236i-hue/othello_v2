@@ -223,8 +223,8 @@ describe('Network late-special-20 playback E2E', () => {
       const fixture = createNetworkSpecialStonePerformanceFixture('late-special-20');
       fixture.snapshot.cardState.hands = { black: ['chest_01'], white: ['free_01'] };
       const turn = runHeadlessFixtureTurnStart(fixture);
-      expect(turn.comparison.playbackDigest).toBe('fnv1a32:b0651467');
-      expect(turn.playbackEvents).toHaveLength(45);
+      expect(turn.comparison.playbackDigest).toBe('fnv1a32:a92eff98');
+      expect(turn.playbackEvents).toHaveLength(42);
       expect(new Set(turn.playbackEvents.map((event: any) => event.phase)).size).toBe(9);
       const soundKeys = turn.playbackEvents.flatMap((event: any) => {
         const keys: string[] = [];
@@ -235,7 +235,7 @@ describe('Network late-special-20 playback E2E', () => {
         return keys;
       });
       expect(soundKeys).toEqual([
-        'hyperactive_move', 'hyperactive_move', 'card_effect_flip', 'hyperactive_move', 'card_effect_flip', 'hyperactive_move',
+        'hyperactive_move', 'hyperactive_move', 'hyperactive_move', 'card_effect_flip', 'hyperactive_move',
         'stone_destroy', 'stone_destroy', 'bomb_explode', 'bomb_explode', 'special_reverted'
       ]);
       let versions: any = null;

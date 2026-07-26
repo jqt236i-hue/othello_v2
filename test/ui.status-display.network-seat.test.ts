@@ -207,7 +207,12 @@ describe('status-display network seat labels', () => {
       currentPlayer: 1,
       turnNumber: 3,
       roundNumber: 1,
-      board: [[1, -1]]
+      board: [
+        [1, -1, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ]
     };
     window.BLACK = 1;
     window.WHITE = -1;

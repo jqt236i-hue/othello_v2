@@ -124,12 +124,12 @@ describe('match worker rematch publish', () => {
     expect(occupied).toBe(4);
   });
 
-  test('ゲーム終了後でも reset 以外の手番外 publish は拒否する', () => {
+  test('ゲーム終了後は reset 以外の publish を終局済みとして優先拒否する', () => {
     const result = runOutOfTurnPublishScenario('use_card');
 
     expect(result.status).toBe(409);
     expect(result.payload && result.payload.ok).toBe(false);
-    expect(result.payload.rejectedReason).toBe('OUT_OF_TURN');
+    expect(result.payload.rejectedReason).toBe('GAME_ALREADY_OVER');
   });
 
   test('終局前でも reset_game publish は手番外から許可する', () => {

@@ -81,6 +81,7 @@ describe('match worker timeout controller', () => {
       actorSeatKey: options.actorSeatKey,
       actionType: options.actionType
     }));
+    const normalizeSnapshotBoardContract = jest.fn(() => ({ ok: true, errors: [] }));
 
     const controller = createMatchWorkerTimeoutController({
       getRoom: () => room,
@@ -101,6 +102,7 @@ describe('match worker timeout controller', () => {
       toPublicNetworkDebugEnabled: () => false,
       toDebugPlaybackDiagnostics: (diagnostics) => diagnostics,
       computeAuthoritativeStateHash: (snapshot) => `hash_${(snapshot as any).stateVersion}`,
+      normalizeSnapshotBoardContract,
       appendAuthorityLog: () => [],
       ensureInitialPresentationSnapshots,
       buildPublishViewerArtifacts,
@@ -118,6 +120,10 @@ describe('match worker timeout controller', () => {
     }));
     expect(loadCoreLogicModule).not.toHaveBeenCalled();
     expect(reconcileTurnStartAndCollectPlayback).not.toHaveBeenCalled();
+    expect(normalizeSnapshotBoardContract).toHaveBeenCalledWith(
+      expect.objectContaining({ stateVersion: 5 }),
+      { allowLegacy: true, requireFullSnapshot: true }
+    );
     expect(ensureInitialPresentationSnapshots).toHaveBeenCalledWith(room);
     expect(appendPresentationFrameForAcceptedPublish).toHaveBeenCalledWith(room, expect.objectContaining({
       previousStateVersion: 4,
@@ -200,6 +206,7 @@ describe('match worker timeout controller', () => {
       toPublicNetworkDebugEnabled: () => false,
       toDebugPlaybackDiagnostics: (diagnostics) => diagnostics,
       computeAuthoritativeStateHash: (snapshot) => `hash_${(snapshot as any).stateVersion}`,
+      normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
       appendAuthorityLog: (_room, entry) => {
         authorityLogEntries.push(entry);
         return authorityLogEntries;
@@ -303,6 +310,7 @@ describe('match worker timeout controller', () => {
       toPublicNetworkDebugEnabled: () => false,
       toDebugPlaybackDiagnostics: (diagnostics) => diagnostics,
       computeAuthoritativeStateHash: () => 'unused',
+      normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
       appendAuthorityLog: () => [],
       ensureInitialPresentationSnapshots: jest.fn(),
       buildPublishViewerArtifacts: jest.fn(() => ({
@@ -370,6 +378,7 @@ describe('match worker timeout controller', () => {
       toPublicNetworkDebugEnabled: () => false,
       toDebugPlaybackDiagnostics: (diagnostics) => diagnostics,
       computeAuthoritativeStateHash: () => 'unused',
+      normalizeSnapshotBoardContract: () => ({ ok: true, errors: [] }),
       appendAuthorityLog: () => [],
       ensureInitialPresentationSnapshots: jest.fn(),
       buildPublishViewerArtifacts: jest.fn(() => ({

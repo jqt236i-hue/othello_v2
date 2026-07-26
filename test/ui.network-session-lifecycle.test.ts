@@ -760,7 +760,8 @@ describe('NetworkSessionLifecycleController', () => {
           source: 'state_sync',
           applyOptions: expect.objectContaining({
             presentationFrames: [expect.objectContaining({ visualSeq: 3 })],
-            presentationFrameSource: 'state_sync'
+            presentationFrameSource: 'state_sync',
+            suppressContinuityRecovery: true
           })
         })
       );
@@ -839,7 +840,10 @@ describe('NetworkSessionLifecycleController', () => {
         snapshot: expect.objectContaining({ stateVersion: 4 }),
         presentationFrames: [
           expect.objectContaining({ visualSeq: 3 })
-        ]
+        ],
+        applyOptions: expect.objectContaining({
+          suppressContinuityRecovery: true
+        })
       }));
       expect(mockConfig.submitNetworkSnapshotEnvelope).toHaveBeenCalledWith(expect.objectContaining({
         source: 'presentation_journal',
