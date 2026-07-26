@@ -389,6 +389,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "shared/board/othello-primitives": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/othello-primitives.js"),
   "shared/board/padded-coordinates": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/padded-coordinates.js"),
   "shared/board/risk-cells": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/risk-cells.js"),
+  "shared/board/search-state": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/search-state.js"),
   "shared/board/shape-iteration": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/shape-iteration.js"),
   "shared/board/state-kernel": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/state-kernel.js"),
   "shared/board/topology": () => require("../../dist/browser-vite-bridge-src/startup/modules/shared/board/topology.js"),
@@ -1078,6 +1079,7 @@ installBootModuleMetadata({
     "shared/board/othello-primitives",
     "shared/board/padded-coordinates",
     "shared/board/risk-cells",
+    "shared/board/search-state",
     "shared/board/shape-iteration",
     "shared/board/state-kernel",
     "shared/board/topology",
@@ -1470,4 +1472,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 684;
+export const startupModuleCount = 685;
