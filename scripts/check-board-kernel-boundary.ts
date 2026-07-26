@@ -141,6 +141,22 @@ const ALLOWLIST: readonly BoundaryAllowlistEntry[] = Object.freeze([
         purpose: 'The Othello ONNX tensor adapter intentionally accepts only its explicit dense 8x8 model input.'
     }),
     Object.freeze({
+        file: 'game/ai/policy-onnx-runtime.ts',
+        rule: 'fixed-board-geometry' as const,
+        scope: 'isStandardBoardCoordinate',
+        detail: 'value.row < 8',
+        maxMatches: 1,
+        purpose: 'The policy ONNX runtime rejects coordinates outside its declared standard_dense_8x8.v1 input contract.'
+    }),
+    Object.freeze({
+        file: 'game/ai/policy-onnx-runtime.ts',
+        rule: 'fixed-board-geometry' as const,
+        scope: 'isStandardBoardCoordinate',
+        detail: 'value.col < 8',
+        maxMatches: 1,
+        purpose: 'The policy ONNX runtime rejects coordinates outside its declared standard_dense_8x8.v1 input contract.'
+    }),
+    Object.freeze({
         file: 'ui/board-visual/model-builder.ts',
         rule: 'ui-expansion-reconstruction' as const,
         scope: 'buildDomCompatibilityRenderState',

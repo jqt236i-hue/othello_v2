@@ -227,6 +227,39 @@ describe("board kernel boundary checker", () => {
     );
   });
 
+  test("allows only the exact standard policy-model coordinate gate", () => {
+    const raw = scanBoardKernelSource(
+      "game/ai/policy-onnx-runtime.ts",
+      [
+        "function isStandardBoardCoordinate(value: any) {",
+        "  return value.row < 8 && value.col < 8;",
+        "}",
+      ].join("\n"),
+    );
+    const filtered = applyBoardKernelBoundaryAllowlist(raw);
+    expect(filtered.remaining).toEqual([]);
+    expect(filtered.usage).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          file: "game/ai/policy-onnx-runtime.ts",
+          rule: "fixed-board-geometry",
+          scope: "isStandardBoardCoordinate",
+          detail: "value.row < 8",
+          actualMatches: 1,
+          maxMatches: 1,
+        }),
+        expect.objectContaining({
+          file: "game/ai/policy-onnx-runtime.ts",
+          rule: "fixed-board-geometry",
+          scope: "isStandardBoardCoordinate",
+          detail: "value.col < 8",
+          actualMatches: 1,
+          maxMatches: 1,
+        }),
+      ]),
+    );
+  });
+
   test("does not let a different AST scope substitute for an allowlisted violation", () => {
     const raw = scanBoardKernelSource(
       "game/ai/othello-onnx-runtime.ts",
