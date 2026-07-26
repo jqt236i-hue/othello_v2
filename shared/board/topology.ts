@@ -156,10 +156,13 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
       : (Array.isArray(boardOrState) ? boardOrState : []);
     const configSource = state || opts.boardConfig || board;
     const config = deps.resolveBoardConfig(configSource);
+    const hasExplicitExpansionSource = state
+      ? Object.prototype.hasOwnProperty.call(state, "boardExpansion")
+      : Object.prototype.hasOwnProperty.call(opts, "boardExpansion");
     const expansionSource = state ? state.boardExpansion : opts.boardExpansion;
     const meta = deps.getBoardShapeMeta(board);
     const expansions = deps.collectExpansionDescriptors(expansionSource, configSource);
-    if (!expansions.length && meta && Array.isArray(meta.expansionCells)) {
+    if (!hasExplicitExpansionSource && !expansions.length && meta && Array.isArray(meta.expansionCells)) {
       for (const cell of meta.expansionCells) {
         if (cell && Number.isInteger(cell.row) && Number.isInteger(cell.col)) expansions.push(cell);
       }
@@ -182,14 +185,19 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
       expansionSideByKey.set(key, typeof cell.side === "string" ? cell.side : null);
     }
 
+    const explicitCardState = Object.prototype.hasOwnProperty.call(opts, "cardState")
+      ? opts.cardState
+      : (state && Object.prototype.hasOwnProperty.call(state, "cardState")
+        ? state.cardState
+        : undefined);
+    const hasExplicitCardState = explicitCardState !== undefined;
     const holeKeys = new Set<string>(
-      meta && meta.meteorHoleKeys instanceof Set
+      !hasExplicitCardState && meta && meta.meteorHoleKeys instanceof Set
         ? Array.from(meta.meteorHoleKeys)
         : [],
     );
     if (typeof deps.collectMeteorHoleKeys === "function") {
-      const explicitCardState = opts.cardState || (state && state.cardState);
-      if (explicitCardState) {
+      if (hasExplicitCardState) {
         for (const key of deps.collectMeteorHoleKeys(explicitCardState)) holeKeys.add(key);
       }
     }

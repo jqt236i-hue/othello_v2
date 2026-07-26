@@ -35,16 +35,16 @@ Components:
 
 Tasks:
 
-- [ ] shape-aware APIは完全な `{ gameState, cardState }` sourceを必須にし、strict/legacy inspector、canonical descriptor、digest、`BoardView` を実装する。
-- [ ] protected/permanent-protected/blocked constraint付きの反転・合法手を実装する。
-- [ ] state-aware get/set/count/add helperを実装する。
-- [ ] identityを`(row,col)`、sideを非authorityとし、`cells` propertyが存在する空配列を正本として扱う。
-- [ ] 円形envelope内voidではdescriptor ownerを優先する。
-- [ ] 新kernelのcacheを完全source signature付きmodule-private WeakMapで実装し、board/config/expansion/hole各変更の無効化をテストする。
-- [ ] 移行中だけ既存`attachBoardShape` facadeを非authority互換adapterとして維持し、hidden array propertyはWeakMapへ退避する。
-- [ ] `SharedBoardUtils` へstate-aware APIを追加するが、全consumer cutover完了まではboard-only APIをdense限定へ切り替えない。
-- [ ] dense primitiveの長方形境界を修正する。
-- [ ] classic loaderでpure依存が `SharedBoardUtils` より先に解決する。
+- [x] shape-aware APIは完全な `{ gameState, cardState }` sourceを必須にし、strict/legacy inspector、canonical descriptor、digest、`BoardView` を実装する。
+- [x] protected/permanent-protected/blocked constraint付きの反転・合法手を実装する。
+- [x] state-aware get/set/count/add helperを実装する。
+- [x] identityを`(row,col)`、sideを非authorityとし、`cells` propertyが存在する空配列を正本として扱う。
+- [x] 円形envelope内voidではdescriptor ownerを優先する。
+- [x] 新kernelのcacheを完全source signature付きmodule-private WeakMapで実装し、board/config/expansion/hole各変更の無効化をテストする。
+- [x] 移行中だけ既存`attachBoardShape` facadeを非authority互換adapterとして維持し、hidden array propertyはWeakMapへ退避する。
+- [x] `SharedBoardUtils` へstate-aware APIを追加するが、全consumer cutover完了まではboard-only APIをdense限定へ切り替えない。
+- [x] dense primitiveの長方形境界を修正する。
+- [x] classic loaderでpure依存が `SharedBoardUtils` より先に解決する。
 
 Verification:
 

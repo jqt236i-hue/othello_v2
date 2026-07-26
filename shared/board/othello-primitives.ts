@@ -37,7 +37,8 @@ export function createOthelloPrimitives(deps: OthelloPrimitivesDependencies) {
         currentRow >= 0
         && currentCol >= 0
         && currentRow < board.length
-        && currentCol < board.length
+        && Array.isArray(board[currentRow])
+        && currentCol < board[currentRow].length
         && board[currentRow][currentCol] === -playerValue
       ) {
         temp.push({ row: currentRow, col: currentCol });
@@ -49,7 +50,8 @@ export function createOthelloPrimitives(deps: OthelloPrimitivesDependencies) {
         && currentRow >= 0
         && currentCol >= 0
         && currentRow < board.length
-        && currentCol < board.length
+        && Array.isArray(board[currentRow])
+        && currentCol < board[currentRow].length
         && board[currentRow][currentCol] === playerValue
       ) out.push(...temp);
     }

@@ -6,7 +6,6 @@ describe('shared board legal moves', () => {
   const createFallbackLeaf = () => createLegalMoves({
     empty: 0,
     directions: [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]],
-    othelloCore: null,
     hasPlayableCell: SharedBoardUtils.hasPlayableCell,
     getCellValue: SharedBoardUtils.getCellValue,
     collectBoardCoordinates: SharedBoardUtils.collectBoardCoordinates

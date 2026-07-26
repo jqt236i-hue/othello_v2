@@ -30,6 +30,12 @@ export interface CellAccessDependencies {
     maybeCols?: unknown,
   ) => { rows: number; cols: number };
   getBoardShapeMeta: (board: unknown) => BoardShapeMeta | null;
+  setAttachedExpansionOwner?: (
+    board: unknown,
+    row: number,
+    col: number,
+    value: unknown,
+  ) => boolean;
 }
 
 export function createCellAccess(deps: CellAccessDependencies) {
@@ -181,6 +187,12 @@ export function createCellAccess(deps: CellAccessDependencies) {
       return false;
     const owner = deps.normalizeOwner(value);
     const key = deps.toBoardCellKey(row, col);
+    if (
+      typeof deps.setAttachedExpansionOwner === "function" &&
+      deps.setAttachedExpansionOwner(board, row, col, owner)
+    ) {
+      return true;
+    }
     meta.expansionOwnerByKey[key] = owner;
     for (const cell of meta.expansionCells)
       if (cell.row === row && cell.col === col) {

@@ -3,7 +3,7 @@ import { createBoardShapeMetadata } from "../shared/board/shape-metadata";
 const SharedBoardUtils = require("../shared/shared-board-utils");
 
 describe("shared board shape metadata", () => {
-  test("attaches non-enumerable shape data and clones mutable shape state independently", () => {
+  test("keeps shape data outside the board object and clones it independently", () => {
     const leaf = createBoardShapeMetadata({
       metaKey: SharedBoardUtils.BOARD_SHAPE_META_KEY,
       defaultRows: 8,
@@ -38,18 +38,58 @@ describe("shared board shape metadata", () => {
     expect(Object.keys(board)).not.toContain(
       SharedBoardUtils.BOARD_SHAPE_META_KEY,
     );
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        board,
+        SharedBoardUtils.BOARD_SHAPE_META_KEY,
+      ),
+    ).toBe(false);
     expect(meta.playableKeys.has("0,0")).toBe(false);
     expect(meta.expansionOwnerByKey["1,4"]).toBe(-1);
     expect(clonedMeta).not.toBe(meta);
     expect(clonedMeta.playableKeys).not.toBe(meta.playableKeys);
     clonedMeta.expansionOwnerByKey["1,4"] = 1;
     expect(meta.expansionOwnerByKey["1,4"]).toBe(-1);
-    expect(SharedBoardUtils.getBoardShapeMeta(board)).toMatchObject({
+    expect(leaf.getBoardShapeMeta(board)).toMatchObject({
       minRow: 0,
       maxRow: 3,
       minCol: 0,
       maxCol: 4,
     });
+  });
+
+  test("rebuilds cached shape after expansion and hole sources mutate", () => {
+    const board = Array.from({ length: 4 }, () => Array(4).fill(0));
+    const boardExpansion = {
+      cells: [{ side: "right", row: 1, col: 4, owner: 0 }],
+    };
+    const cardState: any = { markers: [] };
+    SharedBoardUtils.attachBoardShape(board, {
+      boardConfig: { rows: 4, cols: 4, shape: "rectangle" },
+      boardExpansion,
+      cardState,
+    });
+
+    expect(SharedBoardUtils.getBoardShapeMeta(board).playableKeys.has("1,4")).toBe(
+      true,
+    );
+    boardExpansion.cells.push({
+      side: "right",
+      row: 1,
+      col: 5,
+      owner: -1,
+    });
+    cardState.markers.push({
+      kind: "specialStone",
+      row: 1,
+      col: 4,
+      data: { type: "METEOR_HOLE" },
+    });
+
+    const refreshed = SharedBoardUtils.getBoardShapeMeta(board);
+    expect(refreshed.playableKeys.has("1,4")).toBe(false);
+    expect(refreshed.playableKeys.has("1,5")).toBe(true);
+    expect(refreshed.expansionOwnerByKey["1,5"]).toBe(-1);
   });
 
   test("excludes base-shape void without treating it as a meteor hole", () => {

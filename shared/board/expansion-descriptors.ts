@@ -123,8 +123,13 @@ export function createExpansionDescriptors(
         return;
       out.push(normalized);
     };
-    if (Array.isArray(obj.cells)) for (const cell of obj.cells) push(cell);
-    if (out.length === 0 && obj.active === true) push(boardExpansion);
+    if (Object.prototype.hasOwnProperty.call(obj, "cells")) {
+      if (Array.isArray(obj.cells)) {
+        for (const cell of obj.cells) push(cell);
+      }
+      return out;
+    }
+    if (obj.active === true) push(boardExpansion);
     return out;
   }
 

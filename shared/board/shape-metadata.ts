@@ -2,12 +2,14 @@ export interface CellCoord {
   row: number;
   col: number;
 }
+
 export interface ExpansionDescriptor {
   side: string;
   row: number;
   col: number;
   owner: number;
 }
+
 export interface BoardShapeMeta {
   minRow: number;
   maxRow: number;
@@ -23,8 +25,10 @@ export interface BoardShapeMeta {
   xKeyCache: Set<string> | null;
   cKeyCache: Set<string> | null;
 }
+
 export interface BoardShapeMetadataDependencies {
-  metaKey: string;
+  /** Kept temporarily for source compatibility; metadata is never stored here. */
+  metaKey?: string;
   defaultRows: number;
   defaultCols: number;
   toBoardCellKey: (row: number, col: number) => string;
@@ -37,7 +41,21 @@ export interface BoardShapeMetadataDependencies {
   ) => ExpansionDescriptor[];
 }
 
+interface ShapeCacheEntry {
+  meta: BoardShapeMeta;
+  options: Record<string, unknown> | null;
+  signature: string;
+}
+
+function asOptions(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 export function createBoardShapeMetadata(deps: BoardShapeMetadataDependencies) {
+  const shapeCache = new WeakMap<object, ShapeCacheEntry>();
+
   function collectMeteorHoleKeys(cardState: unknown): Set<string> {
     const out = new Set<string>();
     const obj = cardState as { markers?: unknown[] } | null;
@@ -54,12 +72,14 @@ export function createBoardShapeMetadata(deps: BoardShapeMetadataDependencies) {
         item.kind !== "specialStone" ||
         !item.data ||
         String(item.data.type || "").toUpperCase() !== "METEOR_HOLE"
-      )
+      ) {
         continue;
+      }
       const row = Number(item.row);
       const col = Number(item.col);
-      if (Number.isInteger(row) && Number.isInteger(col))
+      if (Number.isInteger(row) && Number.isInteger(col)) {
         out.add(deps.toBoardCellKey(row, col));
+      }
     }
     return out;
   }
@@ -98,29 +118,41 @@ export function createBoardShapeMetadata(deps: BoardShapeMetadataDependencies) {
     };
   }
 
-  function setBoardShapeMeta(board: unknown, meta: unknown): unknown[][] {
-    if (!Array.isArray(board)) return board as unknown[][];
-    Object.defineProperty(board, deps.metaKey, {
-      value: meta,
-      writable: true,
-      configurable: true,
+  function buildShapeSignature(board: unknown, options?: unknown): string {
+    if (!Array.isArray(board)) return "invalid";
+    const opts = asOptions(options);
+    const boardConfig = deps.resolveBoardConfig(opts.boardConfig || board);
+    const config = boardConfig as Record<string, unknown>;
+    const expansionCells = deps.collectExpansionDescriptors(
+      opts.boardExpansion,
+      boardConfig,
+    )
+      .map((cell) => ({
+        row: cell.row,
+        col: cell.col,
+        owner: deps.normalizeOwner(cell.owner),
+      }))
+      .sort((left, right) => left.row - right.row || left.col - right.col);
+    const holes = Array.from(collectMeteorHoleKeys(opts.cardState)).sort();
+    const rowLengths = (board as unknown[][]).map((row) =>
+      Array.isArray(row) ? row.length : -1,
+    );
+    return JSON.stringify({
+      rows: boardConfig.rows,
+      cols: boardConfig.cols,
+      shape: typeof config.shape === "string" ? config.shape : null,
+      rowLengths,
+      expansionCells,
+      holes,
     });
-    return board as unknown[][];
   }
-  function getBoardShapeMeta(board: unknown): BoardShapeMeta | null {
-    if (!Array.isArray(board)) return null;
-    const meta = (board as unknown as Record<string, unknown>)[deps.metaKey];
-    return meta && typeof meta === "object" ? (meta as BoardShapeMeta) : null;
-  }
+
   function buildShapeMeta(
     board: unknown,
     options?: unknown,
   ): BoardShapeMeta | null {
     if (!Array.isArray(board)) return null;
-    const opts =
-      options && typeof options === "object"
-        ? (options as Record<string, unknown>)
-        : {};
+    const opts = asOptions(options);
     const boardConfig = deps.resolveBoardConfig(opts.boardConfig || board);
     const expansionCells = deps.collectExpansionDescriptors(
       opts.boardExpansion,
@@ -128,10 +160,10 @@ export function createBoardShapeMetadata(deps: BoardShapeMetadataDependencies) {
     );
     const meteorHoleKeys = collectMeteorHoleKeys(opts.cardState);
     const playableKeys = new Set<string>();
-    let minRow = Infinity,
-      maxRow = -Infinity,
-      minCol = Infinity,
-      maxCol = -Infinity;
+    let minRow = Infinity;
+    let maxRow = -Infinity;
+    let minCol = Infinity;
+    let maxCol = -Infinity;
     const addCoord = (row: number, col: number) => {
       const key = deps.toBoardCellKey(row, col);
       if (meteorHoleKeys.has(key)) return;
@@ -141,11 +173,11 @@ export function createBoardShapeMetadata(deps: BoardShapeMetadataDependencies) {
       minCol = Math.min(minCol, col);
       maxCol = Math.max(maxCol, col);
     };
-    for (let row = 0; row < (board as unknown[][]).length; row++) {
+    for (let row = 0; row < (board as unknown[][]).length; row += 1) {
       const line = Array.isArray((board as unknown[][])[row])
         ? (board as unknown[][])[row]
         : [];
-      for (let col = 0; col < line.length; col++) {
+      for (let col = 0; col < line.length; col += 1) {
         if (deps.isMainBoardCell(row, col, boardConfig)) addCoord(row, col);
       }
     }
@@ -162,9 +194,10 @@ export function createBoardShapeMetadata(deps: BoardShapeMetadataDependencies) {
       maxCol = -1;
     }
     const expansionOwnerByKey: Record<string, number> = Object.create(null);
-    for (const cell of expansionCells)
+    for (const cell of expansionCells) {
       expansionOwnerByKey[deps.toBoardCellKey(cell.row, cell.col)] =
         deps.normalizeOwner(cell.owner);
+    }
     const standard8x8 =
       (boardConfig as { standard8x8?: boolean }).standard8x8 === true &&
       expansionCells.length === 0 &&
@@ -185,17 +218,58 @@ export function createBoardShapeMetadata(deps: BoardShapeMetadataDependencies) {
       cKeyCache: null,
     };
   }
+
+  function cacheShape(
+    board: unknown,
+    meta: BoardShapeMeta,
+    options: Record<string, unknown> | null,
+  ): unknown[][] {
+    if (!Array.isArray(board)) return board as unknown[][];
+    shapeCache.set(board, {
+      meta,
+      options,
+      signature: buildShapeSignature(board, options),
+    });
+    return board as unknown[][];
+  }
+
+  function getBoardShapeMeta(board: unknown): BoardShapeMeta | null {
+    if (!Array.isArray(board)) return null;
+    const entry = shapeCache.get(board);
+    if (!entry) return null;
+    const currentSignature = buildShapeSignature(board, entry.options);
+    if (currentSignature !== entry.signature) {
+      const rebuilt = buildShapeMeta(board, entry.options);
+      if (!rebuilt) {
+        shapeCache.delete(board);
+        return null;
+      }
+      cacheShape(board, rebuilt, entry.options);
+      return rebuilt;
+    }
+    return entry.meta;
+  }
+
   function attachBoardShape(board: unknown, options?: unknown): unknown[][] {
     if (!Array.isArray(board)) return board as unknown[][];
-    if (!options && getBoardShapeMeta(board)) return board as unknown[][];
-    return setBoardShapeMeta(board, buildShapeMeta(board, options || null));
+    if (options === undefined && getBoardShapeMeta(board)) {
+      return board as unknown[][];
+    }
+    const normalizedOptions = options === undefined ? null : asOptions(options);
+    const meta = buildShapeMeta(board, normalizedOptions);
+    return meta
+      ? cacheShape(board, meta, normalizedOptions)
+      : (board as unknown[][]);
   }
+
   function copyBoardShape(fromBoard: unknown, toBoard: unknown): unknown[][] {
     if (!Array.isArray(toBoard)) return toBoard as unknown[][];
     const meta = getBoardShapeMeta(fromBoard);
-    if (!meta) return toBoard as unknown[][];
-    return setBoardShapeMeta(toBoard, cloneMeta(meta));
+    const cloned = cloneMeta(meta);
+    if (!cloned) return toBoard as unknown[][];
+    return cacheShape(toBoard, cloned, null);
   }
+
   function cloneBoard(board: unknown): unknown[][] {
     if (!Array.isArray(board)) return [];
     return copyBoardShape(
@@ -205,6 +279,51 @@ export function createBoardShapeMetadata(deps: BoardShapeMetadataDependencies) {
       ),
     );
   }
+
+  function setAttachedExpansionOwner(
+    board: unknown,
+    row: number,
+    col: number,
+    value: unknown,
+  ): boolean {
+    if (!Array.isArray(board)) return false;
+    const entry = shapeCache.get(board);
+    const meta = getBoardShapeMeta(board);
+    if (!entry || !meta) return false;
+    const key = deps.toBoardCellKey(row, col);
+    if (!Object.prototype.hasOwnProperty.call(meta.expansionOwnerByKey, key)) {
+      return false;
+    }
+    const owner = deps.normalizeOwner(value);
+    meta.expansionOwnerByKey[key] = owner;
+    for (const cell of meta.expansionCells) {
+      if (cell.row === row && cell.col === col) {
+        cell.owner = owner;
+        break;
+      }
+    }
+    const expansion = entry.options?.boardExpansion as
+      | Record<string, unknown>
+      | undefined;
+    if (expansion && Array.isArray(expansion.cells)) {
+      for (const rawCell of expansion.cells) {
+        const cell = rawCell as Record<string, unknown> | null;
+        if (cell && Number(cell.row) === row && Number(cell.col) === col) {
+          cell.owner = owner;
+          break;
+        }
+      }
+      if (
+        Number(expansion.row) === row &&
+        Number((expansion as { col?: unknown }).col) === col
+      ) {
+        expansion.owner = owner;
+      }
+    }
+    entry.signature = buildShapeSignature(board, entry.options);
+    return true;
+  }
+
   return {
     collectMeteorHoleKeys,
     getBoardShapeMeta,
@@ -212,5 +331,6 @@ export function createBoardShapeMetadata(deps: BoardShapeMetadataDependencies) {
     attachBoardShape,
     copyBoardShape,
     cloneBoard,
+    setAttachedExpansionOwner,
   };
 }

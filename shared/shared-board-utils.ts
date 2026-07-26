@@ -2,20 +2,19 @@
  * Shared board utilities – geometry, bounds, cell queries, and canonicalisation.
  *
  * @fileoverview Pure helpers used by game logic, UI rendering, AI evaluation,
- *   and network serialisation.  All functions are side-effect free except
- *   `setBoardShapeMeta` / `attachBoardShape` which mutate the board array
- *   with a hidden metadata property.
+ *   and network serialisation. Shape attachment is a temporary compatibility
+ *   facade backed by module-private caches; board arrays are never decorated.
  */
 
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/shape-metadata'), require('./board/cell-access'), require('./board/corners'), require('./board/edge-runs'), require('./board/risk-cells'), require('./board/shape-iteration'), require('./board/legal-moves'), require('./board/control-counts'), require('./board/topology'), require('./board/expansion-sockets'));
+        module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./board/padded-coordinates'), require('./board/canonical-encoding'), require('./board/notation'), require('./board/dimensions'), require('./board/configuration'), require('./board/initial-layout'), require('./board/expansion-descriptors'), require('./board/shape-metadata'), require('./board/cell-access'), require('./board/corners'), require('./board/edge-runs'), require('./board/risk-cells'), require('./board/shape-iteration'), require('./board/legal-moves'), require('./board/control-counts'), require('./board/topology'), require('./board/expansion-sockets'), require('./board/state-kernel'));
     } else if (root && root.SharedConstants) {
-        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null, root.BoardTopology || null, root.BoardExpansionSockets || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null, root.BoardTopology || null, root.BoardExpansionSockets || null, root.BoardStateKernel || null);
     } else {
-        root.SharedBoardUtils = factory(root.SharedConstants, null, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null, root.BoardTopology || null, root.BoardExpansionSockets || null);
+        root.SharedBoardUtils = factory(root.SharedConstants, null, root.PaddedBoardCoordinates || null, root.CanonicalBoardEncoding || null, root.BoardNotation || null, root.BoardDimensions || null, root.BoardConfiguration || null, root.InitialBoardLayout || null, root.BoardExpansionDescriptors || null, root.BoardShapeMetadata || null, root.BoardCellAccess || null, root.BoardCorners || null, root.BoardEdgeRuns || null, root.BoardRiskCells || null, root.BoardShapeIteration || null, root.BoardLegalMoves || null, root.BoardControlCounts || null, root.BoardTopology || null, root.BoardExpansionSockets || null, root.BoardStateKernel || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardShapeMetadataModule: typeof import('./board/shape-metadata') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardEdgeRunsModule: typeof import('./board/edge-runs') | null, BoardRiskCellsModule: typeof import('./board/risk-cells') | null, BoardShapeIterationModule: typeof import('./board/shape-iteration') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null, BoardTopologyModule: typeof import('./board/topology') | null, BoardExpansionSocketsModule: typeof import('./board/expansion-sockets') | null) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, PaddedBoardCoordinatesModule: typeof import('./board/padded-coordinates') | null, CanonicalBoardEncodingModule: typeof import('./board/canonical-encoding') | null, BoardNotationModule: typeof import('./board/notation') | null, BoardDimensionsModule: typeof import('./board/dimensions') | null, BoardConfigurationModule: typeof import('./board/configuration') | null, InitialBoardLayoutModule: typeof import('./board/initial-layout') | null, BoardExpansionDescriptorsModule: typeof import('./board/expansion-descriptors') | null, BoardShapeMetadataModule: typeof import('./board/shape-metadata') | null, BoardCellAccessModule: typeof import('./board/cell-access') | null, BoardCornersModule: typeof import('./board/corners') | null, BoardEdgeRunsModule: typeof import('./board/edge-runs') | null, BoardRiskCellsModule: typeof import('./board/risk-cells') | null, BoardShapeIterationModule: typeof import('./board/shape-iteration') | null, BoardLegalMovesModule: typeof import('./board/legal-moves') | null, BoardControlCountsModule: typeof import('./board/control-counts') | null, BoardTopologyModule: typeof import('./board/topology') | null, BoardExpansionSocketsModule: typeof import('./board/expansion-sockets') | null, BoardStateKernelModule: typeof import('./board/state-kernel') | null) {
     'use strict';
 
     interface CellCoord {
@@ -37,7 +36,6 @@
     }
 
     const BoardUtils = BoardUtilsModule || null;
-    const OthelloCore = OthelloCoreModule || null;
     if (!PaddedBoardCoordinatesModule) throw new Error('PaddedBoardCoordinates is required by SharedBoardUtils');
     const PaddedBoardCoordinates = PaddedBoardCoordinatesModule;
     const BOARD_SHAPE_META_KEY = '__sharedBoardShapeMeta';
@@ -211,6 +209,7 @@
     const attachBoardShape = BoardShapeMetadata.attachBoardShape;
     const copyBoardShape = BoardShapeMetadata.copyBoardShape;
     const cloneBoard = BoardShapeMetadata.cloneBoard;
+    const setAttachedExpansionOwner = BoardShapeMetadata.setAttachedExpansionOwner;
 
     if (!BoardShapeIterationModule) throw new Error('BoardShapeIteration is required by SharedBoardUtils');
     const BoardShapeIteration = BoardShapeIterationModule.createShapeIteration({
@@ -235,7 +234,8 @@
         toBoardCellKey,
         normalizeOwner,
         resolveBoardConfig,
-        getBoardShapeMeta
+        getBoardShapeMeta,
+        setAttachedExpansionOwner
     });
     const resolveBoardBounds = BoardCellAccess.resolveBoardBounds;
     const isStandardBoard8x8 = BoardCellAccess.isStandardBoard8x8;
@@ -255,6 +255,31 @@
         collectMeteorHoleKeys
     });
     const buildBoardTopology = BoardTopology.buildBoardTopology;
+
+    if (!BoardStateKernelModule) throw new Error('BoardStateKernel is required by SharedBoardUtils');
+    const BoardStateKernel = BoardStateKernelModule.createStateKernel({
+        empty: EMPTY,
+        black: BLACK,
+        white: WHITE,
+        directions: DIRECTIONS,
+        maxAbsCoordinate: 256,
+        toBoardCellKey,
+        normalizeOwner,
+        resolveBoardConfig,
+        isMainBoardCell,
+        resolveExpansionSide,
+        collectExpansionDescriptors,
+        collectMeteorHoleKeys,
+        buildBoardTopology
+    });
+    const inspectBoardState = BoardStateKernel.inspectBoardState;
+    const createBoardView = BoardStateKernel.createBoardView;
+    const createDenseBoardView = BoardStateKernel.createDenseBoardView;
+    const canonicalizeStateBoard = BoardStateKernel.canonicalizeStateBoard;
+    const getStateCellValue = BoardStateKernel.getStateCellValue;
+    const setStateCellValue = BoardStateKernel.setStateCellValue;
+    const addStateExpansionCells = BoardStateKernel.addStateExpansionCells;
+    const countStateDiscs = BoardStateKernel.countStateDiscs;
 
     if (!BoardExpansionSocketsModule) throw new Error('BoardExpansionSockets is required by SharedBoardUtils');
     const BoardExpansionSockets = BoardExpansionSocketsModule.createExpansionSockets({
@@ -322,7 +347,6 @@
     const BoardLegalMoves = BoardLegalMovesModule.createLegalMoves({
         empty: EMPTY,
         directions: DIRECTIONS,
-        othelloCore: OthelloCore,
         hasPlayableCell,
         getCellValue,
         collectBoardCoordinates
@@ -375,6 +399,8 @@
 
     return {
         BOARD_SHAPE_META_KEY,
+        BOARD_CONTRACT_VERSION: BoardStateKernelModule.BOARD_CONTRACT_VERSION,
+        BOARD_DIGEST_VERSION: BoardStateKernelModule.BOARD_DIGEST_VERSION,
         DEFAULT_BOARD_ROWS,
         DEFAULT_BOARD_COLS,
         MIN_BOARD_ROWS,
@@ -421,6 +447,14 @@
         resolveExpansionSide,
         collectExpansionDescriptors,
         buildBoardTopology,
+        inspectBoardState,
+        createBoardView,
+        createDenseBoardView,
+        canonicalizeStateBoard,
+        getStateCellValue,
+        setStateCellValue,
+        addStateExpansionCells,
+        countStateDiscs,
         getExteriorVoidKeys,
         getBoardExpansionEdgeSockets,
         getBoardExpansionCornerSockets,

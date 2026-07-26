@@ -10,7 +10,6 @@ export interface LegalMove extends CellCoord {
 export interface LegalMoveDependencies {
   empty: number;
   directions: number[][];
-  othelloCore: { getFlipsBasic?: (board: unknown, row: number, col: number, playerValue: number) => CellCoord[]; getLegalMovesBasic?: (board: unknown, playerValue: number) => LegalMove[] } | null;
   hasPlayableCell: (board: unknown, row: number, col: number) => boolean;
   getCellValue: (board: unknown, row: number, col: number) => number | null;
   collectBoardCoordinates: (board: unknown) => CellCoord[];
@@ -18,7 +17,6 @@ export interface LegalMoveDependencies {
 
 export function createLegalMoves(deps: LegalMoveDependencies) {
   function getFlipsBasic(board: unknown, row: number, col: number, playerValue: number): CellCoord[] {
-    if (deps.othelloCore && typeof deps.othelloCore.getFlipsBasic === 'function') return deps.othelloCore.getFlipsBasic(board, row, col, playerValue);
     if (!deps.hasPlayableCell(board, row, col)) return [];
     if (deps.getCellValue(board, row, col) !== deps.empty) return [];
     const out: CellCoord[] = [];
@@ -37,7 +35,6 @@ export function createLegalMoves(deps: LegalMoveDependencies) {
   }
 
   function getLegalMovesBasic(board: unknown, playerValue: number): LegalMove[] {
-    if (deps.othelloCore && typeof deps.othelloCore.getLegalMovesBasic === 'function') return deps.othelloCore.getLegalMovesBasic(board, playerValue);
     if (!Array.isArray(board)) return [];
     const moves: LegalMove[] = [];
     for (const cell of deps.collectBoardCoordinates(board)) {
