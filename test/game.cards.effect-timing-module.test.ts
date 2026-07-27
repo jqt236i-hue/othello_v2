@@ -486,6 +486,7 @@ describe('CardEffectTiming module', () => {
 
   test('applyPlacementEffects places ZOMBIE marker with a five-turn infection countdown', () => {
     const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
+    const CardZombieWillModule = require('../game/logic/cards/zombie_will');
     const addMarker = jest.fn((cardState, kind, row, col, owner, data) => {
       if (!Array.isArray(cardState.markers)) cardState.markers = [];
       cardState.markers.push({ kind, row, col, owner, data });
@@ -513,7 +514,7 @@ describe('CardEffectTiming module', () => {
         workDebugLog: jest.fn(),
         workDebugError: jest.fn()
       },
-      modules: {}
+      modules: { CardZombieWillModule }
     });
 
     expect(effects).toMatchObject({ zombiePlaced: true });

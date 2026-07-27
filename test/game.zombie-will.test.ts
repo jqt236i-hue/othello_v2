@@ -45,6 +45,38 @@ describe('ZOMBIE special stone registry', () => {
   });
 });
 
+describe('ZOMBIE placement', () => {
+  test('uses the canonical five-turn countdown through the card timing context', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(Shared.EMPTY)),
+      currentPlayer: Shared.BLACK,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+    gameState.board[3][3] = Shared.BLACK;
+    cardState.pendingEffectByPlayer.black = {
+      type: 'ZOMBIE_WILL',
+      stage: null,
+      cardId: 'zombie_will_01'
+    };
+
+    const effects = CardLogic.applyPlacementEffects(cardState, gameState, 'black', 3, 3, 0);
+    const marker = cardState.markers.find((entry) => (
+      entry &&
+      entry.kind === 'specialStone' &&
+      entry.row === 3 &&
+      entry.col === 3 &&
+      entry.owner === 'black' &&
+      entry.data &&
+      entry.data.type === 'ZOMBIE'
+    ));
+
+    expect(effects).toMatchObject({ zombiePlaced: true });
+    expect(marker && marker.data).toMatchObject(ZombieWill.createZombieMarkerData('black'));
+  });
+});
+
 describe('ZOMBIE status display and revival', () => {
   test('shows turns until infection as the countdown timer', () => {
     const snapshot = StoneStatusSnapshot.createSpecialStoneStatusSnapshot({

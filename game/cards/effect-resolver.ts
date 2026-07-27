@@ -285,6 +285,7 @@ function getCardEffectTimingContext(deps: any) {
     clearStoneIdAtForCard,
     CardWorkModule,
     CardLivingWillModule,
+    CardZombieWillModule,
     CardSpawnAndFlipModule,
     CardBoardExecutorResolutionModule,
     BoardOpsModule,
@@ -376,6 +377,7 @@ function getCardEffectTimingContext(deps: any) {
     modules: {
       CardWorkModule,
       CardLivingWillModule,
+      CardZombieWillModule,
       CardSpawnAndFlipModule,
       CardBoardExecutorResolutionModule,
       ProtectedNextStoneModule: {

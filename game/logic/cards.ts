@@ -995,6 +995,7 @@ const {
                 CardSelectorsModule,
                 CardWorkModule,
                 CardLivingWillModule,
+                CardZombieWillModule,
                 CardSpawnAndFlipModule,
                 CardBoardExecutorResolutionModule,
                 BoardOpsModule,

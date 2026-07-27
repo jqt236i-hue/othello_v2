@@ -36,17 +36,6 @@ function getRuntimeGlobalValue(key: string): any {
 const EvasionStatus = safeRequire('../../../shared/evasion-status') || getRuntimeGlobalValue('EvasionStatus');
 const SpecialStoneMarkerFactory = safeRequire('../card-resolution/special-stone-marker-factory');
 const SpecialStoneRegistry = safeRequire('../../../shared/special-stone-registry') || getRuntimeGlobalValue('SpecialStoneRegistry');
-let CardZombieWillModuleCache: any = null;
-
-function getCardZombieWillModule(): any {
-    if (CardZombieWillModuleCache) return CardZombieWillModuleCache;
-    const moduleRef = safeRequire('../cards/zombie_will') || getRuntimeGlobalValue('CardZombieWill');
-    if (!moduleRef || typeof moduleRef.createZombieMarkerData !== 'function') {
-        throw new Error('[effect-timing] CardZombieWill.createZombieMarkerData is required');
-    }
-    CardZombieWillModuleCache = moduleRef;
-    return CardZombieWillModuleCache;
-}
 
 interface Context {
     constants?: any;
@@ -234,6 +223,14 @@ function getLivingWillModule(context: Context): any {
 function getSpawnAndFlipModule(context: Context): any {
     const modules = getModules(context);
     return modules.CardSpawnAndFlipModule || modules.SpawnAndFlipModule || null;
+}
+
+function requireZombieWillModule(context: Context): any {
+    const moduleRef = getModules(context).CardZombieWillModule;
+    if (!moduleRef || typeof moduleRef.createZombieMarkerData !== 'function') {
+        throw new Error('[effect-timing] CardZombieWill.createZombieMarkerData is required');
+    }
+    return moduleRef;
 }
 
 function getLivingWillRestoreDeps(context: Context, constants: Constants): any {
@@ -1150,7 +1147,7 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
             row,
             col,
             playerKey,
-            getCardZombieWillModule().createZombieMarkerData(playerKey)
+            requireZombieWillModule(context).createZombieMarkerData(playerKey)
         );
         effects.zombiePlaced = true;
     }

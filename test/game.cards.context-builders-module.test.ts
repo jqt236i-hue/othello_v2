@@ -51,6 +51,7 @@ describe('CardContextBuilders module', () => {
         CardSelectorsModule: { selectors: true },
         CardWorkModule: { work: true },
         CardLivingWillModule: { living: true },
+        CardZombieWillModule: { zombie: true },
         BoardOpsModule: { boardOps: true },
         StoneStatusSnapshot: { snapshot: true }
       },
@@ -132,6 +133,9 @@ describe('CardContextBuilders module', () => {
 
     expect(builders.getCardHandManagerContext()).toBe(handContext);
     expect(builders.getCardEffectTimingContext()).toBe(timingContext);
+    expect(timingResolver).toHaveBeenCalledWith(expect.objectContaining({
+      CardZombieWillModule: deps.modules.CardZombieWillModule
+    }));
     expect(builders.getCardStateFactoryContext()).toMatchObject({
       defaultPrng: deps.defaultPrng,
       constants: {

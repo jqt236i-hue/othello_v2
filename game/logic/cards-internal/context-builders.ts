@@ -129,6 +129,7 @@ export function createCardContextBuilders(deps: CardContextBuilderDeps) {
                 clearStoneIdAtForCard: helpers.clearStoneIdAtForCard,
                 CardWorkModule: modules.CardWorkModule,
                 CardLivingWillModule: modules.CardLivingWillModule,
+                CardZombieWillModule: modules.CardZombieWillModule,
                 CardSpawnAndFlipModule: modules.CardSpawnAndFlipModule,
                 CardBoardExecutorResolutionModule: modules.CardBoardExecutorResolutionModule,
                 BoardOpsModule: modules.BoardOpsModule,
