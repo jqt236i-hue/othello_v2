@@ -36,6 +36,17 @@ function getRuntimeGlobalValue(key: string): any {
 const EvasionStatus = safeRequire('../../../shared/evasion-status') || getRuntimeGlobalValue('EvasionStatus');
 const SpecialStoneMarkerFactory = safeRequire('../card-resolution/special-stone-marker-factory');
 const SpecialStoneRegistry = safeRequire('../../../shared/special-stone-registry') || getRuntimeGlobalValue('SpecialStoneRegistry');
+let CardZombieWillModuleCache: any = null;
+
+function getCardZombieWillModule(): any {
+    if (CardZombieWillModuleCache) return CardZombieWillModuleCache;
+    const moduleRef = safeRequire('../cards/zombie_will') || getRuntimeGlobalValue('CardZombieWill');
+    if (!moduleRef || typeof moduleRef.createZombieMarkerData !== 'function') {
+        throw new Error('[effect-timing] CardZombieWill.createZombieMarkerData is required');
+    }
+    CardZombieWillModuleCache = moduleRef;
+    return CardZombieWillModuleCache;
+}
 
 interface Context {
     constants?: any;
@@ -1133,12 +1144,14 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
     }
 
     if (pending && pending.type === 'ZOMBIE_WILL' && typeof helpers.addMarker === 'function') {
-        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
-            type: 'ZOMBIE',
-            ownerColor: playerKey === 'black' ? constants.BLACK : constants.WHITE,
-            turnsUntilInfection: 3,
-            regenRemaining: 1
-        });
+        helpers.addMarker(
+            cardState,
+            specialStoneKind,
+            row,
+            col,
+            playerKey,
+            getCardZombieWillModule().createZombieMarkerData(playerKey)
+        );
         effects.zombiePlaced = true;
     }
 

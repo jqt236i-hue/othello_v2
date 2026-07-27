@@ -281,7 +281,7 @@
         }),
         ZOMBIE: Object.freeze({
             name: '屍石',
-            desc: '3回ごとの所有者ターン開始時に隣接敵通常石を屍石へ感染させ、失われた時に1回だけ復活する。',
+            desc: '5回ごとの所有者ターン開始時に隣接敵通常石を屍石へ感染させ、失われた時に1回だけ復活する。',
             timerClass: 'countdown-timer'
         }),
         LIVING_WILL: Object.freeze({

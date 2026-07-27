@@ -7,17 +7,17 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: 'ゾンビの意志',
   type: 'ZOMBIE_WILL',
   cost: 19,
-  desc_ja: '次に置く石を屍石化、3ターンに1回隣接1マスにある敵通常石をランダムで1個噛んで自色の屍石に変える。',
+  desc_ja: '次に置く石を屍石化、5ターンに1回隣接1マスにある敵通常石をランダムで1個噛んで自色の屍石に変える。',
   display_type_ja: '守護'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: 'ゾンビの意志',
-  desc: '次に置く石を屍石化、3ターンに1回隣接1マスにある敵通常石をランダムで1個噛んで自色の屍石に変える。'
+  desc: '次に置く石を屍石化、5ターンに1回隣接1マスにある敵通常石をランダムで1個噛んで自色の屍石に変える。'
 });
 
-const EXPECTED_QUICK_TEXT = '次に置く石を屍石化、3ターンに1回隣接1マスにある敵通常石をランダムで1個噛んで自色の屍石に変える。';
+const EXPECTED_QUICK_TEXT = '次に置く石を屍石化、5ターンに1回隣接1マスにある敵通常石をランダムで1個噛んで自色の屍石に変える。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;
@@ -74,6 +74,7 @@ describe('ZOMBIE_WILL catalog/help surfaces', () => {
 
     expect(CardInteractionEffects.quickCardEffectByType.ZOMBIE_WILL).toBe(EXPECTED_QUICK_TEXT);
     expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).toContain('屍石');
+    expect(CardInteractionEffects.detailCardEffectByType.ZOMBIE_WILL).toContain('感染カウントを5へ戻して');
     expect(CardInteractionEffects.getQuickCardEffect(cardDef)).toBe(EXPECTED_QUICK_TEXT);
     const tagLabels = CardInteractionEffects.resolveCardEffectTags(cardDef).map((tag) => tag.label);
     expect(tagLabels).toEqual(['特殊石', '復活1回']);
@@ -92,6 +93,7 @@ describe('ZOMBIE_WILL catalog/help surfaces', () => {
     }));
     expect(rulebook).toContain('### 10.20.5 ZOMBIE_WILL（ゾンビの意志）');
     expect(rulebook).toContain('次に置く石を屍石化する');
-    expect(rulebook).toContain('所有者ターン開始を3回');
+    expect(rulebook).toContain('所有者ターン開始を5回');
+    expect(rulebook).toContain('感染カウントを5へ戻して');
   });
 });

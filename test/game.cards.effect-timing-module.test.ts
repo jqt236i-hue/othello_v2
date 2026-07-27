@@ -1,4 +1,5 @@
 const SharedBoardUtils = require('../shared/shared-board-utils');
+const SharedConstants = require('../shared-constants.js');
 
 function getBoardCellForCard(cardState, gameState, row, col) {
   const context = SharedBoardUtils.createBoardContext(gameState, cardState);
@@ -479,6 +480,56 @@ describe('CardEffectTiming module', () => {
         col: 5,
         owner: 'black',
         data: { type: 'SACRIFICE', remainingOwnerTurns: 5 }
+      })
+    ]);
+  });
+
+  test('applyPlacementEffects places ZOMBIE marker with a five-turn infection countdown', () => {
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
+    const addMarker = jest.fn((cardState, kind, row, col, owner, data) => {
+      if (!Array.isArray(cardState.markers)) cardState.markers = [];
+      cardState.markers.push({ kind, row, col, owner, data });
+    });
+    const cardState = {
+      markers: [],
+      pendingEffectByPlayer: { black: { type: 'ZOMBIE_WILL' }, white: null },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 },
+      workNextPlacementArmedByPlayer: { black: false, white: false }
+    };
+    const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)) };
+
+    const effects = CardEffectTiming.applyPlacementEffects(cardState, gameState, 'black', 2, 5, 0, {
+      constants: {
+        BLACK: 1,
+        WHITE: -1,
+        EMPTY: 0,
+        FLIP_CHARGE_MULTIPLIER_EFFECTS: {},
+        DOUBLE_PLACE_EXTRA: 1,
+        MARKER_KINDS: { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' }
+      },
+      helpers: {
+        addChargeWithTotal: jest.fn(),
+        addMarker,
+        workDebugLog: jest.fn(),
+        workDebugError: jest.fn()
+      },
+      modules: {}
+    });
+
+    expect(effects).toMatchObject({ zombiePlaced: true });
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(cardState.markers).toEqual([
+      expect.objectContaining({
+        kind: 'specialStone',
+        row: 2,
+        col: 5,
+        owner: 'black',
+        data: {
+          type: 'ZOMBIE',
+          ownerColor: SharedConstants.BLACK,
+          turnsUntilInfection: 5,
+          regenRemaining: 1
+        }
       })
     ]);
   });
