@@ -921,6 +921,63 @@ describe('Pixi static board scene', () => {
     expect(scene.layers.surface.children).toHaveLength(1);
   });
 
+  test('clips persistent board layers to the physical viewport without clipping playback or effect gutter', () => {
+    const fixture = createFakeRuntime();
+    const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });
+    const topology = makeTopology({ baseRows: 16, baseCols: 16 });
+    const frame = makeFrame({
+      topology,
+      visibleWindow: { minRow: 4, maxRow: 11, minCol: 4, maxCol: 11 }
+    });
+
+    scene.applyFrame(frame, {
+      canvasViewport: { sceneOffsetX: 64, sceneOffsetY: 64 }
+    });
+
+    const maskRoot = scene.layers.interaction.children.find((child: any) => (
+      child.label === 'pixi-board-viewport-masks'
+    ));
+    expect(maskRoot).toBeDefined();
+    expect(maskRoot.eventMode).toBe('none');
+    expect(maskRoot.children.map((child: any) => child.label)).toEqual(
+      BoardScene.PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES.map(
+        (name) => `pixi-board-viewport-mask:${name}`
+      )
+    );
+    for (const name of BoardScene.PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES) {
+      const mask = scene.layers[name].mask as FakeGraphics;
+      expect(mask.parent).toBe(maskRoot);
+      expect(mask.commands).toEqual([
+        { op: 'rect', args: [64, 64, 256, 256] },
+        { op: 'fill', style: { color: '#ffffff', alpha: 1 } }
+      ]);
+    }
+    expect(scene.layers.playback.mask).toBeUndefined();
+    expect(scene.layers.effect.mask).toBeUndefined();
+    expect(scene.getDiagnostics()).toMatchObject({
+      viewportClippedLayerNames: ['surface', 'cell', 'marker', 'stone', 'hint'],
+      viewportClipRect: { x: 64, y: 64, width: 256, height: 256 },
+      effectGutterCells: 2
+    });
+
+    scene.reset();
+    expect(scene.getDiagnostics().viewportClipRect).toBeNull();
+    for (const name of BoardScene.PIXI_BOARD_VIEWPORT_CLIPPED_LAYER_NAMES) {
+      expect((scene.layers[name].mask as FakeGraphics).commands).toEqual([]);
+    }
+
+    scene.applyFrame(frame, {
+      canvasViewport: { sceneOffsetX: 48, sceneOffsetY: 40 }
+    });
+    expect(scene.getDiagnostics().viewportClipRect).toEqual({
+      x: 48,
+      y: 40,
+      width: 256,
+      height: 256
+    });
+    scene.destroy();
+  });
+
   test('ignores transaction generation when stable surface and stone resource identities are unchanged', () => {
     const fixture = createFakeRuntime();
     const scene = BoardScene.createPixiBoardScene({ runtime: fixture.runtime });

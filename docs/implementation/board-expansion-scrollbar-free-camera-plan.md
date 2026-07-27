@@ -2,6 +2,7 @@
 
 - Status: complete
 - Date: 2026-07-23
+- Updated: 2026-07-27
 - Design: `docs/implementation/board-expansion-scrollbar-free-camera-design.md`
 
 ## Phase 0 — 仕様と契約の明文化
@@ -84,3 +85,72 @@ Done when: completion conditionsを満たすcoherent commitが作成され、wor
 - 実ブラウザ: 拡張前後ともboard center `(640, 313)`、viewport `328 × 328`。拡張後logical surface `410 × 410`、logical scroll `(41, 41)`、overflow両軸 `hidden`
 - 初回のCSS contract testは否定正規表現が後続ルールまで走査して失敗し、対象CSS blockだけを検査するよう修正後にpass
 - 初回の実カードE2Eは生成済みVite配信物が旧 `overflow: auto` のままで失敗し、`npm run build:vite` で正規生成した後にpass
+
+## 2026-07-27 Repair plan — 通常盤面レイヤーのviewport clip
+
+### Phase 5 — 設計補強とscene mask
+
+- [x] ユーザー画像、物理viewport、canvas effect gutter、materialization window、static bakeを照合し、通常レイヤーのclip不足を根本原因として確定する。
+- [x] designへ通常レイヤーと演出レイヤーのclip境界、代替案、resource lifecycleを追記してSelf-reviewする。
+- [x] `ui/pixi/board-scene.ts` で `surface` / `cell` / `marker` / `stone` / `hint` に個別viewport maskを設定する。
+- [x] frame apply、reset、destroy、diagnosticsを既存scene lifecycleへ統合する。
+
+Verification: focused scene unit testとtypecheck。
+
+Done when: 通常pixelだけが物理viewport内へ制限され、`playback` / `effect` はbounded gutterを維持する。
+
+### Phase 6 — 回帰テストと実ブラウザ検証
+
+- [x] scene unit testでmask対象、矩形、非対象レイヤー、reset/reapplyを固定する。
+- [x] 盤面拡張神E2Eでlogical materializationとviewport mask diagnosticsを同時に確認する。
+- [x] focused Pixi scene/camera/backend/E2Eと実ブラウザのスクリーンショット確認を完了する。
+
+Verification: focused Jest/E2E、`npm run match:pixijs-board-playback-check`、Pixi browser/fallback smoke。
+
+Done when: 拡張セルは論理的に存在・再利用されるが、通常セルpixelは盤面枠外へ露出しない。
+
+### Phase 7 — 生成物、AI code review、commit
+
+- [x] `npm run typecheck`、`npm run check:window`、`npm run build:browser`、必要なmirror生成を完了する。
+- [x] task-owned diffをAI code reviewし、actionable findingを修正して関連checkを再実行する。
+- [x] design/planを最終実装とverification resultsへ同期する。
+- [x] `git diff --check` と最終statusを確認し、task-owned fileだけをcommitする。
+
+Done when: 追補の全完了条件を満たす検証済みcommitが作成される。
+
+### Repair completion checklist
+
+- [x] 通常5レイヤーが物理viewportでclipされる。
+- [x] playback/effect gutterとSingle Visual Writerが維持される。
+- [x] 盤面拡張のlogical scroll、中心、セル寸法、入力が維持される。
+- [x] focused unit/E2E、typecheck、browser build、実機確認が成功する。
+- [x] 生成物とroot sourceが同期する。
+- [x] actionableなレビュー指摘と未解決事項が残らない。
+- [x] commit完了。
+
+### Repair plan Self-review
+
+- canonical scene sourceを先に変更し、tests、browser build、mirrorの順で進める。
+- unitはPixi maskの構造と矩形、E2Eは実カード経路のcamera/materialization/diagnostics、スクリーンショットは最終pixel結果を分担して検証する。
+- canvas DOM clipやgame/card/network stateへ範囲を広げず、欠陥があるPixi presentation ownership内に変更を限定する。
+- reset/reapply/destroyを実装項目に含め、修正でmask DisplayObjectや古い矩形が残る回帰を防ぐ。
+
+### Repair verification results
+
+- `npx jest test/ui.pixi-board-scene.test.ts --runInBand`: 1 suite、34 tests pass
+- focused Jest（Pixi camera/backend、盤面拡張game logic）: 4 suites、70 tests pass
+- `npm run typecheck`: pass
+- 実カードE2E（盤面拡張神6マス追加、912×793）: pass。logical拡張セルを保持したままviewport mask diagnostics、中心、セル寸法、scroll補正、入力を確認
+- `npm run check:window`: pass
+- `npm run check:board-test-selectors`: default/Pixi violations 0
+- `npm run build:browser`: pass
+- `npm run build:vite`: pass
+- `node dist/scripts/pixijs-board-browser-check.js`: classic/Vite × DPR 1/2、各19 fixtures pass
+- `node dist/scripts/pixijs-board-playback-browser-check.js`: 12 reports、208 scenarios pass
+- `node dist/scripts/pixijs-runtime-fallback-browser-check.js`: classic/Viteのfallback 4経路 pass
+- `node dist/scripts/browser-cross-platform-smoke.js`: Chromium/Firefox/WebKit × desktop/touch × Pixi/DOM、12 probes pass
+- `npm run worker:prepare`: pass（925 files mirror verified）
+- `npm run check:worker-mirror`: pass
+- 実ブラウザ画像: 1280×900と912×793の両方で、通常セルが盤面枠外のHUD/手札へ露出しないことを確認
+- AI code review: mask所有、型、reset/destroy、Single Visual Writer、effect gutter、生成物を再確認し、actionable findingなし
+- 実カードE2Eの初回実行は生成済みVite bundleが旧sceneのままでdiagnostics assertionに失敗した。`npm run build:vite` で正規生成後、1280×900と912×793の両方で再実行してpass

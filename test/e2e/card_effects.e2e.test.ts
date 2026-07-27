@@ -776,7 +776,7 @@ describe('Card effects E2E', () => {
   }, 60000);
 
   test('盤面拡張神の6マス同時追加後も通常8x8の画像フレームを保持する', async () => {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    const page = await browser.newPage({ viewport: { width: 912, height: 793 } });
     await openPixiDebugLane(page, serverPort, true);
     await closeSidePanelIfPresent(page);
     await page.waitForFunction(() => !!(
@@ -979,9 +979,24 @@ describe('Card effects E2E', () => {
     expect(result.layout.anchorRect.height).toBeCloseTo(beforeLayout.anchorRect.height, 4);
     expect(result.backendDiagnostics).toEqual(expect.objectContaining({
       domCellCount: 0,
+      scene: expect.objectContaining({
+        viewportClippedLayerNames: ['surface', 'cell', 'marker', 'stone', 'hint'],
+        viewportClipRect: expect.objectContaining({
+          x: expect.any(Number),
+          y: expect.any(Number),
+          width: expect.any(Number),
+          height: expect.any(Number)
+        })
+      }),
       playback: expect.objectContaining({ inFlightEffectCount: 0 }),
       timeline: expect.objectContaining({ state: 'idle' })
     }));
+    expect(result.backendDiagnostics.scene.viewportClipRect.x).toBeGreaterThan(0);
+    expect(result.backendDiagnostics.scene.viewportClipRect.y).toBeGreaterThan(0);
+    expect(result.backendDiagnostics.scene.viewportClipRect.width)
+      .toBeCloseTo(result.layout.viewport.clientWidth, 0);
+    expect(result.backendDiagnostics.scene.viewportClipRect.height)
+      .toBeCloseTo(result.layout.viewport.clientHeight, 0);
 
     const screenshot = await page.screenshot();
     expect(screenshot.byteLength).toBeGreaterThan(1000);

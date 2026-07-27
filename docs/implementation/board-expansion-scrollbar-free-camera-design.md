@@ -2,6 +2,7 @@
 
 - Status: implemented and verified
 - Date: 2026-07-23
+- Updated: 2026-07-27
 - Scope: Pixi通常盤面での「盤面拡張」「盤面拡張神」確定後の表示領域
 - Source of truth: `01-rulebook.md`、`正本/演出正本.md`、`docs/architecture-contracts.md`、root `AGENTS.md`
 
@@ -94,3 +95,48 @@ CSSとmount時inline styleを同じ `overflow: hidden` 契約へ揃え、片方�
 - CSSとinline styleの二重定義を同じ値へ揃え、load orderやstylesheet failureで契約が反転しない。
 - 既存のscroll compensation testを残すため、`overflow: clip` のようにprogrammatic scrollを無効化する案を避けた。
 - player-visibleな無スクロール契約を一次仕様と演出正本へ先に反映し、Pixi移行文書だけを根拠にしない。
+
+## 10. 2026-07-27 追補 — 通常盤面レイヤーの枠外露出
+
+### 10.1 追加で確認した問題と根本原因
+
+拡張回数が増えた状態では、論理盤面のセルが物理8x8 viewportの外側にあるHUD、手札、カード検索表示へ露出する。cameraとcanvas backing storeの寸法は固定されたままであり、ページlayoutやlogical surfaceの再拡大が原因ではない。
+
+Pixi canvasは、盤面端を起点にする爆発、軌跡、トポロジー演出を描けるよう、物理viewportの四辺へbounded effect gutterを持ち、DOM上でもその範囲を表示する。一方、静的盤面、セル、marker、石、hintの通常レイヤーには物理viewport maskがなかった。materializationのoverscanとeffect gutterへ保持した論理セルが、そのまま演出余白へ描画されたことが直接原因である。
+
+### 10.2 選択した設計
+
+`ui/pixi/board-scene.ts` が、通常盤面を所有する次の各レイヤーへ、物理viewportと同一矩形の永続Pixi maskを設定する。
+
+- `surface`
+- `cell`
+- `marker`
+- `stone`
+- `hint`
+
+mask矩形は各frameの `canvasViewport.sceneOffsetX/Y` を左上とし、`camera.viewportWidth/Height` を寸法に使う。これにより上/左gutterを含むcanvas座標系でも、通常盤面pixelだけを物理viewportへ限定できる。
+
+mask DisplayObjectは既存の `interaction` layer配下の専用containerで所有する。rootの固定layer順を変えず、別canvas、別writer、別tickerを追加しない。maskは入力を受けず、reset時に形状を消去し、scene destroyで既存resource lifecycleと一緒に破棄する。
+
+`playback` と `effect` はmask対象にしない。盤面端を起点にするboard-local演出は従来どおりbounded effect gutterまで描画でき、演出のclip契約を維持する。
+
+### 10.3 不採用案
+
+- canvas layerまたは `#board` 全体を `overflow: hidden` にする案は、正規のboard-local演出まで物理viewportで切るため不採用。
+- overscanやeffect gutterのmaterializationを削る案は、端をまたぐ演出、移動中ghost、camera再配置時の再利用を壊すため不採用。
+- 論理盤面全体に合わせてframe/canvasを拡大する案は、HUD衝突とbacking store増大を再導入するため不採用。
+
+### 10.4 検証と完了条件
+
+1. scene unit testで通常5レイヤーだけが、scene offsetを含む物理viewport矩形へmaskされることを固定する。
+2. 同じtestで `playback` / `effect` がmaskされず、固定root layer順とeffect gutterが維持されることを確認する。
+3. 盤面拡張神E2Eで、拡張セルの論理materializationを維持したまま、backend diagnosticsのmask契約を確認する。
+4. focused Pixi tests、typecheck、browser build、Pixi browser/playback/fallback checkを通す。
+5. 実ブラウザの拡張状態をスクリーンショットで確認し、通常セルが盤面枠外へ露出しない。
+
+### 10.5 追補Self-review
+
+- player-visible仕様は既に「物理viewportを維持し、論理盤面だけを拡張する」と定義済みであり、今回は仕様変更ではなく実装の契約違反修正である。`01-rulebook.md` と `正本/` の再変更は不要。
+- canvas全体を切らず通常レイヤーだけを切るため、Single Visual Writerとbounded effect gutterの両方を維持する。
+- mask矩形をcell数や論理盤面範囲から再計算せずcameraの物理viewportから得るため、拡張回数に依存しない。
+- maskをレイヤーごとに分離し、1つのmask DisplayObjectを複数対象で共有するPixi実装依存を避ける。
