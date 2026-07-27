@@ -577,7 +577,10 @@ describe('Pixi static retained views', () => {
       && child.position.y === targetPosition.y
     )) as FakeGraphics;
     expect(surface.commands).toEqual(expect.arrayContaining([
-      expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#0e7e6f' }) })
+      expect.objectContaining({
+        op: 'fill',
+        style: expect.objectContaining({ color: '#0e7e6f', alpha: 0.38 })
+      })
     ]));
     expect(scene.layers.stone.children).toHaveLength(1);
     expect(scene.root.children.indexOf(scene.layers.cell)).toBeLessThan(

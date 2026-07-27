@@ -28,6 +28,12 @@ describe('legal hint styles', () => {
     expect(css).toMatch(/\.cell\.legal,\s*\.cell\.legal-free\s*\{[\s\S]*?linear-gradient\(180deg,\s*rgba\(120,\s*232,\s*214,\s*0\.07\),\s*rgba\(0,\s*0,\s*0,\s*0\.04\)\)[\s\S]*?linear-gradient\(135deg,\s*rgba\(13,\s*108,\s*96,\s*0\.72\),\s*rgba\(7,\s*76,\s*68,\s*0\.68\)\)[\s\S]*?box-shadow:\s*[\s\S]*?inset 0 0 calc\(13px \* var\(--layout-stage-scale\)\) rgba\(116,\s*255,\s*228,\s*0\.06\)[\s\S]*?inset 0 0 0 calc\(1px \* var\(--layout-stage-scale\)\) rgba\(160,\s*255,\s*226,\s*0\.05\)[\s\S]*?inset 0 calc\(1px \* var\(--layout-stage-scale\)\) 0 rgba\(224,\s*255,\s*249,\s*0\.05\)[\s\S]*?\}/);
   });
 
+  test('styles-board.css keeps friendly target cells visibly translucent', () => {
+    const css = readDomCompatBoardCssSurface();
+
+    expect(css).toMatch(/\.cell\.selectable-friendly\s*\{[\s\S]*?linear-gradient\(135deg,\s*rgba\(14,\s*126,\s*111,\s*0\.38\),\s*rgba\(7,\s*90,\s*79,\s*0\.32\)\)[\s\S]*?\}/);
+  });
+
   test('styles-board.css makes positive effect target highlights override legal hint backgrounds', () => {
     const css = readDomCompatBoardCssSurface();
 

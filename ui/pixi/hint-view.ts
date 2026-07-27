@@ -339,7 +339,7 @@ export function createPixiHintView(runtime: PixiStaticViewRuntime): PixiHintView
       drawInsetOutline(0.045, '#c68aff', 0.76, 0.032, 0.025);
     }
     if (selectionKinds.has('friendly')) {
-      drawSurface('#0e7e6f', 0.84);
+      drawSurface('#0e7e6f', 0.38);
     }
     const hasKnownSelection = interaction.tabooLegal
       || selectionKinds.has('positive-target')
