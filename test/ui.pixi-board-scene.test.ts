@@ -444,6 +444,16 @@ describe('Pixi static retained views', () => {
       markerLabels: ['12', '3'],
       theoryNumberStyle: true
     });
+    const poisonSurface = cellView.surfaceRoot.children.find((child: any) => (
+      child.label === 'pixi-cell-poison-surface'
+    ));
+    expect(poisonSurface).toMatchObject({ visible: true });
+    expect(poisonSurface.commands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#6b2b91' }) })
+    ]));
+    expect(cellView.markerRoot.children.find((child: any) => (
+      child.label === 'pixi-marker-poison-cell-corner'
+    ))).toBeDefined();
     expect(stoneView.getDiagnostics()).toMatchObject({
       owner: 'black',
       specialType: 'ZOMBIE',
@@ -853,8 +863,8 @@ describe('Pixi static retained views', () => {
       markers: [{ kind: 'poisoned', owner: 'black', value: null, data: { countdown: 5 } }]
     })));
     expect(stoneView.getDiagnostics().statusLabels).toEqual([{ kind: 'poison', value: '5' }]);
-    expect(statusText('poison').position.x).toBeCloseTo(4.48);
-    expect(statusText('poison').position.y).toBeCloseTo(5.68);
+    expect(statusText('poison').position.x).toBeCloseTo(16);
+    expect(statusText('poison').position.y).toBeCloseTo(16);
     expect(fillColors()).toContain('#6b2b91');
   });
 });

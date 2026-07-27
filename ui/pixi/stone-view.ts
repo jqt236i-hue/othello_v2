@@ -246,7 +246,7 @@ function statusLabelPosition(kind: string, cellSize: number): Readonly<{ x: numb
     bomb: [0.5, 0.86],
     guard: [0.5, 0.1],
     freeze: [0.23, 0.23],
-    poison: [0.14, 0.14],
+    poison: [0.5, 0.5],
     countdown: [0.5, 0.86]
   });
   const ratio = ratios[kind] || [0.5, 0.5];
@@ -752,17 +752,12 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
         };
       }
       setPixiAnchor(text, 0.5);
-      setPixiPosition(
-        text,
-        labelPosition.x,
-        labelPosition.y + (
-          statusLabel.kind === 'bomb'
-          || statusLabel.kind === 'countdown'
-          || statusLabel.kind === 'poison'
-            ? fixedUiScale * 1.2
-            : 0
-        )
-      );
+      const statusTextOffsetY = statusLabel.kind === 'poison'
+        ? 0
+        : statusLabel.kind === 'bomb' || statusLabel.kind === 'countdown'
+          ? fixedUiScale * 1.2
+          : 0;
+      setPixiPosition(text, labelPosition.x, labelPosition.y + statusTextOffsetY);
       addPixiChild(statusLabelsRoot, text);
     }
     return true;
