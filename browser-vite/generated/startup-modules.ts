@@ -258,6 +258,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "game/logic/cards/defs": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/defs.js"),
   "game/logic/cards/destroy_dragon": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/destroy_dragon.js"),
   "game/logic/cards/expansion": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/expansion.js"),
+  "game/logic/cards/fire-will": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/fire-will.js"),
   "game/logic/cards/flips": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/flips.js"),
   "game/logic/cards/hyperactive": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/hyperactive.js"),
   "game/logic/cards/hyperactive-board-shape": () => require("../../dist/browser-vite-bridge-src/startup/modules/game/logic/cards/hyperactive-board-shape.js"),
@@ -367,6 +368,7 @@ const startupAccessors: Record<string, () => unknown> = {
   "is-env-capable": () => require("../../dist/browser-vite-bridge-src/startup/modules/is-env-capable.js"),
   "legacy/game/logic/cards/breeding": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/game/logic/cards/breeding.js"),
   "legacy/game/logic/cards/destroy_dragon": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/game/logic/cards/destroy_dragon.js"),
+  "legacy/game/logic/cards/fire-will": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/game/logic/cards/fire-will.js"),
   "legacy/game/logic/cards/lightning": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/game/logic/cards/lightning.js"),
   "legacy/game/logic/cards/sniper": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/game/logic/cards/sniper.js"),
   "legacy/utils/owner-helpers": () => require("../../dist/browser-vite-bridge-src/startup/modules/legacy/utils/owner-helpers.js"),
@@ -948,6 +950,7 @@ installBootModuleMetadata({
     "game/logic/cards/defs",
     "game/logic/cards/destroy_dragon",
     "game/logic/cards/expansion",
+    "game/logic/cards/fire-will",
     "game/logic/cards/flips",
     "game/logic/cards/hyperactive",
     "game/logic/cards/hyperactive-board-shape",
@@ -1057,6 +1060,7 @@ installBootModuleMetadata({
     "is-env-capable",
     "legacy/game/logic/cards/breeding",
     "legacy/game/logic/cards/destroy_dragon",
+    "legacy/game/logic/cards/fire-will",
     "legacy/game/logic/cards/lightning",
     "legacy/game/logic/cards/sniper",
     "legacy/utils/owner-helpers",
@@ -1472,4 +1476,4 @@ installBootModuleMetadata({
   }
 });
 
-export const startupModuleCount = 685;
+export const startupModuleCount = 687;

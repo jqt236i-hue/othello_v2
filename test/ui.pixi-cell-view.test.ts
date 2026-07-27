@@ -126,7 +126,16 @@ function createContext(revisionSignature = 'cell-view:1'): any {
       surfaceColor: '#18715f',
       gridLineWidth: 1,
       outerBoundaryColor: '#d5b26c',
-      markerColor: '#f0cf73'
+      markerColor: '#f0cf73',
+      timer: {
+        fontFamily: 'sans-serif',
+        fontWeight: '700',
+        fontSizeRatio: 0.42,
+        lineHeight: 1,
+        color: '#ffffff',
+        doubleDigitScale: 0.86,
+        shadows: []
+      }
     },
     surfaceRevisionSignature: revisionSignature,
     stoneRevisionSignature: 'stone-view:1',
@@ -157,6 +166,50 @@ function readSegments(graphics: FakeGraphics): Array<{ from: number[]; to: numbe
   }
   return segments;
 }
+
+describe('Pixi temporary cell rendering', () => {
+  test('repaints an existing normal cell as a red scorched cell', () => {
+    const view = CellView.createPixiCellView(createRuntime());
+    const normalCell = createCell('surface:normal', {
+      kind: 'board-bonus',
+      owner: null,
+      value: null,
+      data: {}
+    });
+    normalCell.kind = 'playable';
+    normalCell.markers = [];
+
+    expect(view.update(normalCell, createContext())).toBe(true);
+    expect(childWithLabel(view.surfaceRoot, 'pixi-cell-scorched-surface')).toMatchObject({
+      visible: false,
+      commands: []
+    });
+
+    const scorchedCell = createCell('surface:scorched:10', {
+      kind: 'scorched-cell',
+      owner: 'black',
+      value: null,
+      data: { remainingTurns: 10 }
+    });
+    scorchedCell.kind = 'playable';
+
+    expect(view.update(scorchedCell, createContext())).toBe(true);
+    expect(view.getDiagnostics()).toMatchObject({
+      updateCount: 2,
+      renderedMarkerKinds: ['scorched-cell'],
+      markerLabels: ['10']
+    });
+
+    const scorchedSurface = childWithLabel(view.surfaceRoot, 'pixi-cell-scorched-surface');
+    expect(scorchedSurface.visible).toBe(true);
+    expect(scorchedSurface.commands).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        op: 'fill',
+        style: expect.objectContaining({ color: '#a71d0b', alpha: 0.76 })
+      })
+    ]));
+  });
+});
 
 describe('Pixi cell BOARD_FRAME rendering', () => {
   test('draws frame material and only masked inner edges without an internal seam or generic X', () => {

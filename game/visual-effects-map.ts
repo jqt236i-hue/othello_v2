@@ -185,6 +185,15 @@ const GAME_STONE_VISUAL_EFFECTS: Record<string, any> = {
         },
         dataAttributes: {}
     },
+    fireWillStone: {
+        cssClass: 'fire-will-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/special-stones/fire-will-black.png',
+            '-1': 'assets/images/special-stones/fire-will-white.png'
+        },
+        dataAttributes: {}
+    },
     meteorGodStone: {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
@@ -393,6 +402,7 @@ const PENDING_TYPE_TO_EFFECT_KEY: Record<string, string> = {
     'STONE_SALVATION_GOD': 'stoneSalvationGod',
     'SNIPER_WILL': 'sniperStone',
     'LIGHTNING_WILL': 'lightningStone',
+    'FIRE_WILL': 'fireWillStone',
     'METEOR_GOD': 'meteorGodStone',
     'GHOST_WILL': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
@@ -548,6 +558,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY: Record<string, string> = {
     'STONE_SALVATION_GOD': 'stoneSalvationGod',
     'SNIPER': 'sniperStone',
     'LIGHTNING': 'lightningStone',
+    'FIRE': 'fireWillStone',
     'METEOR_GOD': 'meteorGodStone',
     'GHOST': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',

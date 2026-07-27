@@ -276,6 +276,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
     const seedMap = new Map();
     const poisonCellMap = new Map();
     const poisonedMap = new Map();
+    const scorchedCellMap = new Map();
+    const scorchedMap = new Map();
     const sproutMap = new Map();
     const markerVisualMap = new Map<string, any>();
     const setMarkerVisual = (row: any, col: any, field: string, value: any) => {
@@ -365,6 +367,18 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                 const visual = { row: m.row, col: m.col, remainingTurns: m.data.remainingTurns };
                 poisonedMap.set(`${m.row},${m.col}`, visual);
                 setMarkerVisual(m.row, m.col, 'poisoned', visual);
+                continue;
+            }
+            if (m.data.type === 'SCORCHED_CELL') {
+                const visual = { row: m.row, col: m.col, remainingTurns: m.data.remainingTurns };
+                scorchedCellMap.set(`${m.row},${m.col}`, visual);
+                setMarkerVisual(m.row, m.col, 'scorchedCell', visual);
+                continue;
+            }
+            if (m.data.type === 'SCORCHED') {
+                const visual = { row: m.row, col: m.col, remainingTurns: m.data.remainingTurns };
+                scorchedMap.set(`${m.row},${m.col}`, visual);
+                setMarkerVisual(m.row, m.col, 'scorched', visual);
                 continue;
             }
             if (m.data.type === 'GUARD') {
@@ -479,6 +493,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
             const seed = markerVisual ? markerVisual.seed || null : null;
             const poisonCell = markerVisual ? markerVisual.poisonCell || null : null;
             const poisoned = val !== EMPTY && markerVisual ? markerVisual.poisoned || null : null;
+            const scorchedCell = markerVisual ? markerVisual.scorchedCell || null : null;
+            const scorched = val !== EMPTY && markerVisual ? markerVisual.scorched || null : null;
             const isLegal = showLegalHints && val === EMPTY && legalSet.has(key);
             const isTabooLegal = showLegalHints && val === EMPTY && tabooLegalSet.has(key);
             const isLegalFree = showLegalHints && val === EMPTY && freePlacementActive;
@@ -553,6 +569,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                 } : null,
                 poisonCell: poisonCell ? { remainingTurns: poisonCell.remainingTurns } : null,
                 poisoned: poisoned ? { remainingTurns: poisoned.remainingTurns } : null,
+                scorchedCell: scorchedCell ? { remainingTurns: scorchedCell.remainingTurns } : null,
+                scorched: scorched ? { remainingTurns: scorched.remainingTurns } : null,
                 destroyEvadeRemaining: destroyEvadeDisplay
             };
         }
@@ -584,6 +602,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
         const seed = markerVisual ? markerVisual.seed || null : null;
         const poisonCell = markerVisual ? markerVisual.poisonCell || null : null;
         const poisoned = expVal !== EMPTY && markerVisual ? markerVisual.poisoned || null : null;
+        const scorchedCell = markerVisual ? markerVisual.scorchedCell || null : null;
+        const scorched = expVal !== EMPTY && markerVisual ? markerVisual.scorched || null : null;
         const special = expVal !== EMPTY && markerVisual ? markerVisual.special || null : null;
         const guard = expVal !== EMPTY && markerVisual ? markerVisual.guard || null : null;
         const livingWill = expVal !== EMPTY && markerVisual ? markerVisual.livingWill || null : null;
@@ -620,6 +640,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
             } : null,
             poisonCell: poisonCell ? { remainingTurns: poisonCell.remainingTurns } : null,
             poisoned: poisoned ? { remainingTurns: poisoned.remainingTurns } : null,
+            scorchedCell: scorchedCell ? { remainingTurns: scorchedCell.remainingTurns } : null,
+            scorched: scorched ? { remainingTurns: scorched.remainingTurns } : null,
             special: special ? {
                 type: special.type,
                 owner: getOwnerValueForDiff(special.owner, BLACK, WHITE),
@@ -677,7 +699,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                 },
                 frozen: null,
                 seed: null,
-                poisonCell: null
+                poisonCell: null,
+                scorchedCell: null
             });
         }
         Object.defineProperty(state, '_cellStateByKey', {
@@ -699,6 +722,8 @@ function buildCurrentCellState(capabilities: any, preparedRenderProjection?: any
                     seedMap,
                     poisonCellMap,
                     poisonedMap,
+                    scorchedCellMap,
+                    scorchedMap,
                     sproutMap,
                     markerVisualMap
                 })
@@ -745,6 +770,8 @@ function markerListFromLegacyState(cellState: any, black: any, white: any): any[
     push('seed', cellState.seed);
     push('poison-cell', cellState.poisonCell);
     push('poisoned', cellState.poisoned);
+    push('scorched-cell', cellState.scorchedCell);
+    push('scorched', cellState.scorched);
     push('breeding-sprout', cellState.breedingSprout);
     push('board-bonus', cellState.boardBonus);
     push('theory-number-cell', cellState.theoryNumberCell);
@@ -839,7 +866,8 @@ function buildBoardRenderModel(
             destroyEvadeRemaining: legacy.destroyEvadeRemaining ?? null,
             frozen: legacy.frozen || null,
             seed: legacy.seed || null,
-            poisoned: legacy.poisoned || null
+            poisoned: legacy.poisoned || null,
+            scorched: legacy.scorched || null
         });
         return {
             key,
@@ -947,6 +975,8 @@ function createEmptyDomCompatibilityCellState(): any {
         seed: null,
         poisonCell: null,
         poisoned: null,
+        scorchedCell: null,
+        scorched: null,
         destroyEvadeRemaining: null
     };
 }
@@ -965,6 +995,8 @@ function createDomCompatibilityCellState(cell: any): any {
     const seed = getSemanticMarkerData(cell, 'seed');
     const poisonCell = getSemanticMarkerData(cell, 'poison-cell');
     const poisoned = cell && cell.stone ? getSemanticMarkerData(cell, 'poisoned') : null;
+    const scorchedCell = getSemanticMarkerData(cell, 'scorched-cell');
+    const scorched = cell && cell.stone ? getSemanticMarkerData(cell, 'scorched') : null;
     const stoneStatus = cell && cell.stone && cell.stone.status && typeof cell.stone.status === 'object'
         ? cell.stone.status
         : {};
@@ -999,6 +1031,8 @@ function createDomCompatibilityCellState(cell: any): any {
         seed,
         poisonCell,
         poisoned,
+        scorchedCell,
+        scorched,
         destroyEvadeRemaining: stoneStatus.destroyEvadeRemaining ?? null
     };
 }
@@ -1035,6 +1069,8 @@ function createCompatibilityMarker(cell: any, marker: any): any {
     if (marker.kind === 'seed') return { ...base, kind: 'specialStone', data: { ...data, type: 'SEED' } };
     if (marker.kind === 'poison-cell') return { ...base, kind: 'specialStone', data: { ...data, type: 'POISON_CELL' } };
     if (marker.kind === 'poisoned') return { ...base, kind: 'specialStone', data: { ...data, type: 'POISONED' } };
+    if (marker.kind === 'scorched-cell') return { ...base, kind: 'specialStone', data: { ...data, type: 'SCORCHED_CELL' } };
+    if (marker.kind === 'scorched') return { ...base, kind: 'specialStone', data: { ...data, type: 'SCORCHED' } };
     return null;
 }
 

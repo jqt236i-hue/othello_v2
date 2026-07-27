@@ -64,6 +64,7 @@ interface Constants {
     SNIPER_WILL_TURNS: any;
     DESTROY_DRAGON_TURNS: any;
     LIGHTNING_WILL_TURNS: any;
+    FIRE_WILL_TURNS: any;
     METEOR_GOD_TURNS: any;
     GHOST_WILL_TURNS: any;
     SACRIFICE_WILL_TURNS: any;
@@ -160,6 +161,7 @@ function getConstants(context: Context): Constants {
         SNIPER_WILL_TURNS: constants.SNIPER_WILL_TURNS,
         DESTROY_DRAGON_TURNS: constants.DESTROY_DRAGON_TURNS,
         LIGHTNING_WILL_TURNS: constants.LIGHTNING_WILL_TURNS,
+        FIRE_WILL_TURNS: constants.FIRE_WILL_TURNS,
         METEOR_GOD_TURNS: constants.METEOR_GOD_TURNS,
         GHOST_WILL_TURNS: constants.GHOST_WILL_TURNS,
         SACRIFICE_WILL_TURNS: constants.SACRIFICE_WILL_TURNS,
@@ -259,6 +261,7 @@ function getLivingWillRestoreDeps(context: Context, constants: Constants): any {
             willHunterKingTurns: constants && constants.WILL_HUNTER_KING_TURNS,
             destroyDragonTurns: constants && constants.DESTROY_DRAGON_TURNS,
             lightningTurns: constants && constants.LIGHTNING_WILL_TURNS,
+            fireTurns: constants && constants.FIRE_WILL_TURNS,
             meteorGodTurns: constants && constants.METEOR_GOD_TURNS,
             extremeHyperactiveFlipEvadeLimit: getFlipEvadeDefault('EXTREME_HYPERACTIVE', constants && constants.EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT),
             extremeHyperactiveDestroyEvadeLimit: getDestroyEvadeDefault('EXTREME_HYPERACTIVE', constants && constants.EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT),
@@ -1196,6 +1199,14 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
             remainingOwnerTurns: constants.LIGHTNING_WILL_TURNS
         });
         effects.lightningPlaced = true;
+    }
+
+    if (pending && pending.type === 'FIRE_WILL' && typeof helpers.addMarker === 'function') {
+        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+            type: 'FIRE',
+            remainingOwnerTurns: constants.FIRE_WILL_TURNS
+        });
+        effects.firePlaced = true;
     }
 
     if (pending && pending.type === 'METEOR_GOD' && typeof helpers.addMarker === 'function') {

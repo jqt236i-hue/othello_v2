@@ -148,6 +148,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             isGuardianGod,
             isRegenWill,
             isLightningWill,
+            isFireWill,
             isHyperactiveWill,
             isInstantHyperactiveWill,
             isTabooReverseWill,
@@ -833,7 +834,7 @@ export function createCpuPolicyCardUseDecision(deps: CpuPolicyCardUseDecisionDep
             if (endgamePhase && !hasCornerMoveNow && !hasEdgeMoveNow) score -= 42;
         }
 
-        if (isLightningWill) {
+        if (isLightningWill || isFireWill) {
             score -= 26;
             if (hasCornerMoveNow) score += 120;
             else if (hasEdgeMoveNow) score += 36;

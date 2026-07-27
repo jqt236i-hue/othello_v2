@@ -16,14 +16,14 @@ describe('card art map generator', () => {
     const generated = generator.generateCardArtMap({ root: repoRoot, write: false });
     const generatedSource = fs.readFileSync(generatedMapPath, 'utf8');
     const generatedModule = require(generatedMapPath);
-    const map = generatedModule.CARD_FACE_ART_FILENAME_BY_ID || generatedModule.default || generatedModule;
+    const pathMap = generatedModule.CARD_FACE_ART_PATH_BY_ID;
     const catalog = require(path.join(repoRoot, 'cards', 'catalog.json'));
 
     expect(generated.source).toBe(generatedSource);
     for (const card of catalog.cards) {
-      const filename = map[card.id];
-      expect(filename).toBeTruthy();
-      expect(fs.existsSync(path.join(repoRoot, 'assets', 'images', 'card', filename))).toBe(true);
+      const logicalPath = pathMap[card.id];
+      expect(logicalPath).toBeTruthy();
+      expect(fs.existsSync(path.join(repoRoot, ...logicalPath.split('/')))).toBe(true);
     }
   });
 });

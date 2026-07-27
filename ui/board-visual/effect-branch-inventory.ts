@@ -472,8 +472,8 @@ export const PHASE7_EFFECT_BRANCH_INVENTORY = Object.freeze([
     id: 'status-tick-poison-cell',
     eventTypes: ['status_applied'],
     rawTypes: ['STATUS_TICK'],
-    specialTypes: ['POISONED', 'POISON_CELL'],
-    unitFixture: 'test/ui.animation-engine.guard-timer.test.ts#poison tick only updates timer label'
+    specialTypes: ['POISONED', 'POISON_CELL', 'SCORCHED', 'SCORCHED_CELL'],
+    unitFixture: 'test/ui.animation-engine.guard-timer.test.ts#hazard tick only updates timer label'
   }),
   statusBranch({
     id: 'status-tick-special-stone-timer',
@@ -571,7 +571,7 @@ export const PHASE7_EFFECT_BRANCH_INVENTORY = Object.freeze([
     category: 'special-stone',
     sourceKind: 'frame-state',
     source: 'ui/board-visual/model-builder.ts#buildBoardRenderModel',
-    specialTypes: ['POISONED', 'POISON_CELL', 'OBSERVER'],
+    specialTypes: ['POISONED', 'POISON_CELL', 'SCORCHED', 'SCORCHED_CELL', 'OBSERVER'],
     effectBlockPolicy: 'frame-revision-only',
     effectFamilies: ['status'],
     route: 'board-local',

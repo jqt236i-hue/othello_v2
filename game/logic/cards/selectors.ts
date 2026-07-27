@@ -1201,6 +1201,18 @@ function getPoisonTargets(cardState: CardState, gameState: GameState): TargetCel
     return res;
 }
 
+// Scorch may overwrite any temporary special cell. Permanent holes are excluded.
+function getScorchTargets(cardState: CardState, gameState: GameState): TargetCell[] {
+    const gs = gameState as any;
+    if (!gs || !gs.board) return [];
+    const res: TargetCell[] = [];
+    forEachBoardShapeCell(cardState, gameState, (r, c) => {
+        if (isMeteorHoleCell(cardState, r, c)) return;
+        res.push({ row: r, col: c });
+    });
+    return res;
+}
+
 // Return causal replay targets: existing meteor holes only.
 function getCausalReplayTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const gs = gameState as any;
@@ -1340,6 +1352,7 @@ export = {
     getBoardExpansionGodTargets,
     getBlockadeTargets,
     getPoisonTargets,
+    getScorchTargets,
     getMeteorTargets,
     getCausalReplayTargets,
     getBoardShrinkTargets,

@@ -7,6 +7,7 @@ type CardBoardShapeAccessConfig = {
     getEffectiveCornerCellsForCard: (cardState: any, gameState: any) => Array<{ row: number; col: number }>;
     toBoardCellKey: (row: number, col: number) => string;
     getBlockingMarkers: (cardState: any) => any[];
+    isBoardMarker?: (marker: any) => boolean;
     resolveDeterministicRandomIndex: (length: any, randomLike: any, fallbackLike: any, label: any) => any;
 };
 
@@ -30,6 +31,10 @@ export function createCardBoardShapeAccess(config: CardBoardShapeAccessConfig): 
     const emptyValue = cfg.emptyValue;
     const blackValue = cfg.blackValue;
     const whiteValue = cfg.whiteValue;
+    const isBoardMarker = typeof cfg.isBoardMarker === 'function'
+        ? cfg.isBoardMarker
+        : (marker: any) => ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL']
+            .includes(String(marker && marker.data && marker.data.type || '').toUpperCase());
 
     function createView(cardState: any, gameState: any): any {
         // Constructing the context here intentionally validates both authoritative
@@ -140,16 +145,7 @@ export function createCardBoardShapeAccess(config: CardBoardShapeAccessConfig): 
         for (const marker of cardState.markers) {
             if (!marker || marker === anchorEntry) continue;
             if (marker.row !== fromRow || marker.col !== fromCol) continue;
-            if (marker.kind === 'specialStone') {
-                const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-                if (
-                    markerTypeUpper === 'BLOCKADE' ||
-                    markerTypeUpper === 'METEOR_HOLE' ||
-                    markerTypeUpper === 'FREEZE' ||
-                    markerTypeUpper === 'SEED' ||
-                    markerTypeUpper === 'POISON_CELL'
-                ) continue;
-            }
+            if (isBoardMarker(marker)) continue;
             marker.row = toRow;
             marker.col = toCol;
         }

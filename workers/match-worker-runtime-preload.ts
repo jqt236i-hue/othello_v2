@@ -141,6 +141,7 @@ installRuntimeModule('CardHyperactiveBoardShape', () => require('../game/logic/c
 installRuntimeModule('CardHyperactive', () => require('../game/logic/cards/hyperactive.js'));
 installRuntimeModule('CardSniper', () => require('../game/logic/cards/sniper.js'));
 installRuntimeModule('CardLightning', () => require('../game/logic/cards/lightning.js'));
+installRuntimeModule('CardFireWill', () => require('../game/logic/cards/fire-will.js'));
 installRuntimeModule('CardWillHunterKing', () => require('../game/logic/cards/will_hunter_king.js'));
 installRuntimeModule('CardDestroyDragon', () => require('../game/logic/cards/destroy_dragon.js'));
 installRuntimeModule('CardSelectors', () => require('../game/logic/cards/selectors.js'));

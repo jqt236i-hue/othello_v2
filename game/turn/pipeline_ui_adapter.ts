@@ -119,6 +119,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const SPECIAL_DURATION_EXPIRE_CAUSES = new Set([
         'SNIPER_WILL',
         'LIGHTNING_WILL',
+        'FIRE_WILL',
         'METEOR_GOD',
         'DESTROY_DRAGON',
         'DESTROY_DRAGON_WILL',
@@ -139,6 +140,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'GHOST',
         'HYPERACTIVE',
         'LIGHTNING',
+        'FIRE',
         'METEOR_GOD',
         'PROLIFERATION',
         'ROBOT_VACUUM',

@@ -49,6 +49,8 @@
 [data-board-renderer="dom"] .special-timer,
 [data-board-renderer="dom"] .poison-cell-turn,
 [data-board-renderer="dom"] .poison-lethal-timer,
+[data-board-renderer="dom"] .scorched-cell-turn,
+[data-board-renderer="dom"] .scorch-lethal-timer,
 [data-board-renderer="dom"] .stone-flip-protection-badge,
 [data-board-renderer="dom"] .stone-regen-badge {
     scale: var(--board-cell-scale, 1);
@@ -866,6 +868,76 @@ body.time-stop-active #board[data-board-renderer="dom"] .cell.time-stop-legal-em
     clip-path: polygon(50% 0, 100% 100%, 0 100%);
     z-index: 74;
     pointer-events: none;
+}
+
+[data-board-renderer="dom"] .cell.scorched-cell {
+    isolation: isolate;
+    background:
+        radial-gradient(circle at 36% 30%, rgba(255, 213, 111, 0.48), transparent 30%),
+        repeating-radial-gradient(circle at 72% 70%, rgba(148, 21, 8, 0.48) 0 6%, transparent 7% 17%),
+        linear-gradient(145deg, rgba(112, 16, 8, 0.84), rgba(224, 58, 19, 0.76));
+    box-shadow: inset 0 0 calc(13px * var(--layout-stage-scale)) rgba(255, 103, 32, 0.58);
+}
+
+[data-board-renderer="dom"] .scorched-cell-mark {
+    position: absolute;
+    inset: 4%;
+    pointer-events: none;
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 115, 48, 0.68);
+    border-radius: 18%;
+    z-index: 18;
+}
+
+[data-board-renderer="dom"] .scorched-cell-turn {
+    position: absolute;
+    top: calc(2px * var(--layout-stage-scale));
+    left: calc(2px * var(--layout-stage-scale));
+    width: calc(26px * var(--layout-stage-scale));
+    height: calc(18px * var(--layout-stage-scale));
+    box-sizing: border-box;
+    padding: calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) 0;
+    border-radius: 0 0 calc(5px * var(--layout-stage-scale)) 0;
+    color: #fff;
+    background: rgba(125, 20, 7, 0.9);
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+    text-shadow: 0 1px 2px #3a0500;
+    z-index: 70;
+}
+
+[data-board-renderer="dom"] .disc.disc-scorched .disc__face {
+    filter: sepia(0.2) saturate(1.26) hue-rotate(326deg);
+    box-shadow: inset 0 0 calc(10px * var(--layout-stage-scale)) rgba(255, 76, 20, 0.74);
+}
+
+[data-board-renderer="dom"] .scorch-lethal-timer {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: calc(25px * var(--layout-stage-scale));
+    height: calc(25px * var(--layout-stage-scale));
+    box-sizing: border-box;
+    padding-top: calc(6px * var(--layout-stage-scale));
+    color: #fff;
+    font-size: calc(10px * var(--layout-stage-scale));
+    font-weight: 900;
+    line-height: 1;
+    text-align: center;
+    text-shadow: 0 1px 2px #3a0500;
+    background: radial-gradient(circle at 50% 58%, #f15a20 0 43%, #9f210d 46% 70%, transparent 72%);
+    clip-path: polygon(50% 0, 62% 24%, 83% 13%, 80% 38%, 100% 50%, 79% 62%, 87% 88%, 61% 77%, 50% 100%, 39% 77%, 13% 88%, 21% 62%, 0 50%, 20% 38%, 17% 13%, 38% 24%);
+    z-index: 75;
+    pointer-events: none;
+}
+
+[data-board-renderer="dom"] .disc.disc-hazard-counter-pair .poison-lethal-timer {
+    left: 39%;
+}
+
+[data-board-renderer="dom"] .disc.disc-hazard-counter-pair .scorch-lethal-timer {
+    left: 62%;
 }
 
 [data-board-renderer="dom"] .cell.effect-target-highlight-placement {

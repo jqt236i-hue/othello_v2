@@ -72,6 +72,7 @@ let EvasionDestinationModule: any = null;
 let HyperactiveCoreUtils: any = null;
 let HyperactiveBoardShape: any = null;
 let CardMarkersModule: any = null;
+let SpecialStoneRegistry: any = null;
 let BLACK: any;
 let WHITE: any;
 let EMPTY: any;
@@ -86,6 +87,7 @@ function refreshHyperactiveRuntimeModules(): void {
     HyperactiveCoreUtils = resolveHyperactiveModuleOrGlobal('./hyperactive-core-utils', 'CardHyperactiveCoreUtils');
     HyperactiveBoardShape = resolveHyperactiveModuleOrGlobal('./hyperactive-board-shape', 'CardHyperactiveBoardShape');
     CardMarkersModule = resolveHyperactiveModuleOrGlobal('./markers', 'CardMarkers');
+    SpecialStoneRegistry = resolveHyperactiveModuleOrGlobal('../../../shared/special-stone-registry', 'SpecialStoneRegistry');
     const constants = SharedConstants || {};
     BLACK = constants.BLACK;
     WHITE = constants.WHITE;
@@ -652,10 +654,13 @@ function moveCoexistingSpecialMarkers(cardState: CardState, anchorEntry: any, fr
     for (const marker of (cardState as any).markers) {
         if (!marker || marker === anchorEntry) continue;
         if (marker.row !== fromRow || marker.col !== fromCol) continue;
-        if (marker.kind === 'specialStone') {
-            const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-            if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE' || markerTypeUpper === 'FREEZE' || markerTypeUpper === 'SEED' || markerTypeUpper === 'POISON_CELL') continue;
-        }
+        const boardMarker = SpecialStoneRegistry && typeof SpecialStoneRegistry.isBoardMarker === 'function'
+            ? SpecialStoneRegistry.isBoardMarker(marker)
+            : (CardMarkersModule && typeof CardMarkersModule.getMarkerRuleClass === 'function'
+                ? CardMarkersModule.getMarkerRuleClass(marker) === 'board_marker'
+                : ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL']
+                    .includes(String(marker && marker.data && marker.data.type || '').toUpperCase()));
+        if (boardMarker) continue;
         marker.row = toRow;
         marker.col = toCol;
     }

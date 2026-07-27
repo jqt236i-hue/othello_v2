@@ -140,4 +140,17 @@ describe('diff-renderer special marker renderer', () => {
     expect(timer.textContent).toBe('5');
     expect(timer.attributes['aria-hidden']).toBe('true');
   });
+
+  test('creates dedicated scorched cell and lethal countdown markers', () => {
+    const renderer = createRenderer();
+
+    const cell = renderer.createScorchedCellMark(10);
+    const timer = renderer.createScorchLethalTimer(3);
+
+    expect(cell.className).toBe('scorched-cell-mark');
+    expect(cell.querySelector('.scorched-cell-turn')?.textContent).toBe('10');
+    expect(timer.className).toBe('scorch-lethal-timer');
+    expect(timer.classList.contains('countdown-timer')).toBe(false);
+    expect(timer.textContent).toBe('3');
+  });
 });

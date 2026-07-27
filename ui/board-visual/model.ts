@@ -22,6 +22,7 @@ const SURFACE_MARKER_KINDS = new Set([
   'blockade',
   'seed',
   'poison-cell',
+  'scorched-cell',
   'theory-number-cell'
 ]);
 
@@ -33,6 +34,7 @@ const STONE_MARKER_KINDS = new Set([
   'bomb',
   'frozen',
   'poisoned',
+  'scorched',
   'breeding-sprout'
 ]);
 

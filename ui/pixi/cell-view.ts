@@ -514,7 +514,7 @@ export function drawPixiBoardFrameHoleInnerEdges(
   }
 }
 
-const CELL_MARKER_KINDS = new Set(['board-bonus', 'blockade', 'seed', 'poison-cell']);
+const CELL_MARKER_KINDS = new Set(['board-bonus', 'blockade', 'seed', 'poison-cell', 'scorched-cell']);
 
 export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView {
   const surfaceRoot = createPixiContainer(runtime, 'pixi-cell-surface');
@@ -523,6 +523,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
   const surface = createPixiGraphics(runtime, 'pixi-cell-surface-fill');
   const surfaceTexture = createPixiSprite(runtime, 'pixi-cell-surface-texture');
   const poisonSurface = createPixiGraphics(runtime, 'pixi-cell-poison-surface');
+  const scorchedSurface = createPixiGraphics(runtime, 'pixi-cell-scorched-surface');
   const boardFrameHoleSurface = createPixiGraphics(runtime, 'pixi-cell-board-frame-hole-surface');
   const boardFrameHoleInnerEdges = createPixiGraphics(runtime, 'pixi-cell-board-frame-hole-inner-edges');
   const grid = createPixiGraphics(runtime, 'pixi-cell-grid-lines');
@@ -531,6 +532,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     surface,
     surfaceTexture,
     poisonSurface,
+    scorchedSurface,
     boardFrameHoleSurface,
     boardFrameHoleInnerEdges
   );
@@ -579,6 +581,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     markerRoot.visible = cell.kind !== 'void';
     clearPixiGraphics(surface);
     clearPixiGraphics(poisonSurface);
+    clearPixiGraphics(scorchedSurface);
     clearPixiGraphics(boardFrameHoleSurface);
     clearPixiGraphics(boardFrameHoleInnerEdges);
     clearPixiGraphics(grid);
@@ -640,6 +643,22 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
         cellSize * 0.84,
         cellSize * 0.84,
         { color: '#b74bcc', alpha: 0.16 }
+      );
+    }
+    const scorchedCellMarker = cell.markers.find((marker) => marker.kind === 'scorched-cell') || null;
+    scorchedSurface.visible = !!scorchedCellMarker;
+    if (scorchedCellMarker) {
+      drawPixiRect(scorchedSurface, 0, 0, cellSize, cellSize, {
+        color: '#a71d0b',
+        alpha: 0.76
+      });
+      drawPixiRect(
+        scorchedSurface,
+        cellSize * 0.08,
+        cellSize * 0.08,
+        cellSize * 0.84,
+        cellSize * 0.84,
+        { color: '#ff7a22', alpha: 0.2 }
       );
     }
     if (boardFrameHole) {
@@ -772,6 +791,29 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
         }
         continue;
       }
+      if (marker.kind === 'scorched-cell') {
+        const cornerWidth = cellSize * (label.length >= 2 ? 0.42 : 0.34);
+        const cornerHeight = cellSize * 0.34;
+        const corner = createPixiGraphics(runtime, 'pixi-marker-scorched-cell-corner');
+        drawPixiRect(corner, 0, 0, cornerWidth, cornerHeight, {
+          color: '#8f1b08', alpha: 0.97
+        });
+        addPixiChild(markerRoot, corner);
+        if (label) {
+          const text = createPixiText(
+            runtime,
+            'pixi-marker-label:scorched-cell',
+            label,
+            toPixiTextStyle(context.theme.timer, cellSize * 0.68, label)
+          );
+          if (text) {
+            setPixiAnchor(text, 0.5);
+            setPixiPosition(text, cornerWidth / 2, cornerHeight / 2);
+            addPixiChild(markerRoot, text);
+          }
+        }
+        continue;
+      }
       const radius = Math.max(2, cellSize * 0.075);
       const centerX = cellSize * (0.16 + (badgeIndex % 4) * 0.22);
       const centerY = cellSize * 0.16;
@@ -824,12 +866,14 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
     markerRoot.visible = false;
     clearPixiGraphics(surface);
     clearPixiGraphics(poisonSurface);
+    clearPixiGraphics(scorchedSurface);
     clearPixiGraphics(boardFrameHoleSurface);
     clearPixiGraphics(boardFrameHoleInnerEdges);
     clearPixiGraphics(grid);
     boardFrameHoleSurface.visible = false;
     boardFrameHoleInnerEdges.visible = false;
     poisonSurface.visible = false;
+    scorchedSurface.visible = false;
     grid.visible = true;
     if (surfaceTexture) surfaceTexture.visible = false;
     removeAndDestroyPixiChildren(markerRoot);

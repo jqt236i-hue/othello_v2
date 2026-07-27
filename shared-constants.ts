@@ -88,6 +88,7 @@ function normalizeCatalogCard(c: any) {
         cost: c.cost,
         desc: c.desc || c.desc_ja || '',
         display_type_ja: c.display_type_ja,
+        card_face_art_path: c.card_face_art_path,
         enabled: c.enabled
     };
 }

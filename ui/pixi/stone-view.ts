@@ -101,6 +101,7 @@ const STONE_MARKER_KINDS = new Set([
   'bomb',
   'frozen',
   'poisoned',
+  'scorched',
   'breeding-sprout'
 ]);
 
@@ -124,7 +125,8 @@ function markerSpecialType(markers: readonly BoardMarkerVisual[]): string | null
     guard: 'GUARD',
     bomb: 'TIME_BOMB',
     frozen: 'FREEZE',
-    poisoned: 'POISONED'
+    poisoned: 'POISONED',
+    scorched: 'SCORCHED'
   });
   for (const marker of markers) {
     if (NON_SPECIAL_STONE_MARKER_KINDS.has(marker.kind)) continue;
@@ -166,7 +168,8 @@ function collectStoneStatusLabels(
     TIME_BOMB: 'bomb',
     BOMB: 'bomb',
     FREEZE: 'frozen',
-    POISONED: 'poisoned'
+    POISONED: 'poisoned',
+    SCORCHED: 'scorched'
   });
   const dedicatedMarkerKind = timerMarkerKindByType[normalizedSpecialType];
   const timerOwnedByDedicatedMarker = !!dedicatedMarkerKind
@@ -184,12 +187,13 @@ function collectStoneStatusLabels(
   addPositive('flip-evade', finiteStatusLabel(status, ['flipEvadeRemaining']));
   addPositive('destroy-evade', finiteStatusLabel(status, ['destroyEvadeRemaining']));
 
-  const markerOrder = ['bomb', 'guard', 'frozen', 'poisoned'] as const;
+  const markerOrder = ['bomb', 'guard', 'frozen', 'poisoned', 'scorched'] as const;
   const markerKind = Object.freeze({
     bomb: 'bomb',
     guard: 'guard',
     frozen: 'freeze',
-    poisoned: 'poison'
+    poisoned: 'poison',
+    scorched: 'scorch'
   });
   for (const expectedKind of markerOrder) {
     const marker = markers.find((candidate) => candidate.kind === expectedKind);
@@ -209,6 +213,7 @@ function collectStoneStatusLabels(
     || entry.kind === 'guard'
     || entry.kind === 'freeze'
     || entry.kind === 'poison'
+    || entry.kind === 'scorch'
   ))) {
     add('countdown', finiteStatusLabel(status, ['countdown', 'timer', 'count']));
   }
@@ -237,7 +242,11 @@ function createStoneStatusSnapshot(
   }, { mode: 'raw' });
 }
 
-function statusLabelPosition(kind: string, cellSize: number): Readonly<{ x: number; y: number }> {
+function statusLabelPosition(
+  kind: string,
+  cellSize: number,
+  hasHazardPair = false
+): Readonly<{ x: number; y: number }> {
   const ratios: Readonly<Record<string, readonly [number, number]>> = Object.freeze({
     special: [0.5, 0.82],
     regen: [0.14, 0.5],
@@ -246,7 +255,8 @@ function statusLabelPosition(kind: string, cellSize: number): Readonly<{ x: numb
     bomb: [0.5, 0.86],
     guard: [0.5, 0.1],
     freeze: [0.23, 0.23],
-    poison: [0.5, 0.5],
+    poison: [hasHazardPair ? 0.39 : 0.5, 0.5],
+    scorch: [hasHazardPair ? 0.62 : 0.5, 0.5],
     countdown: [0.5, 0.86]
   });
   const ratio = ratios[kind] || [0.5, 0.5];
@@ -598,8 +608,11 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
       || entry.kind === 'flip-evade'
       || entry.kind === 'destroy-evade'
       || entry.kind === 'poison'
+      || entry.kind === 'scorch'
     ))?.value || '';
     removeAndDestroyPixiChildren(statusLabelsRoot);
+    const hasHazardPair = statusLabels.some((entry) => entry.kind === 'poison')
+      && statusLabels.some((entry) => entry.kind === 'scorch');
     for (const statusLabel of statusLabels) {
       const labelPosition = statusLabel.kind === 'special'
         ? Object.freeze({ x: center, y: discOrigin + discSize - (8 * stageScale) })
@@ -607,7 +620,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
           ? Object.freeze({ x: center, y: discOrigin + discSize - (5 * stageScale) })
           : statusLabel.kind === 'guard'
             ? Object.freeze({ x: center, y: discOrigin + (4 * stageScale) })
-            : statusLabelPosition(statusLabel.kind, cellSize);
+            : statusLabelPosition(statusLabel.kind, cellSize, hasHazardPair);
       const isDoubleDigit = statusLabel.value.length >= 2;
       if (statusLabel.kind === 'special') {
         const width = (isDoubleDigit ? 24 : 18) * fixedUiScale;
@@ -718,6 +731,25 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
         }, {
           color: '#e2c8ff', alpha: 0.74, width: Math.max(1, stageScale) * cellScale
         });
+      } else if (statusLabel.kind === 'scorch') {
+        const width = (isDoubleDigit ? 23 : 19) * fixedUiScale;
+        const height = 19 * fixedUiScale;
+        drawPixiPolygon(specialRing, Object.freeze([
+          Object.freeze({ x: labelPosition.x, y: labelPosition.y - height / 2 }),
+          Object.freeze({ x: labelPosition.x + width * 0.22, y: labelPosition.y - height * 0.16 }),
+          Object.freeze({ x: labelPosition.x + width / 2, y: labelPosition.y - height * 0.28 }),
+          Object.freeze({ x: labelPosition.x + width * 0.36, y: labelPosition.y + height * 0.08 }),
+          Object.freeze({ x: labelPosition.x + width * 0.48, y: labelPosition.y + height * 0.43 }),
+          Object.freeze({ x: labelPosition.x, y: labelPosition.y + height * 0.34 }),
+          Object.freeze({ x: labelPosition.x - width * 0.48, y: labelPosition.y + height * 0.43 }),
+          Object.freeze({ x: labelPosition.x - width * 0.36, y: labelPosition.y + height * 0.08 }),
+          Object.freeze({ x: labelPosition.x - width / 2, y: labelPosition.y - height * 0.28 }),
+          Object.freeze({ x: labelPosition.x - width * 0.22, y: labelPosition.y - height * 0.16 })
+        ]), {
+          color: '#bd2d0d', alpha: 0.94
+        }, {
+          color: '#ffc07d', alpha: 0.8, width: Math.max(1, stageScale) * cellScale
+        });
       }
       const text = createPixiText(
         runtime,
@@ -735,6 +767,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
         || statusLabel.kind === 'flip-evade'
         || statusLabel.kind === 'destroy-evade'
         || statusLabel.kind === 'poison'
+        || statusLabel.kind === 'scorch'
       ) {
         text.style = {
           ...text.style,
@@ -752,7 +785,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
         };
       }
       setPixiAnchor(text, 0.5);
-      const statusTextOffsetY = statusLabel.kind === 'poison'
+      const statusTextOffsetY = statusLabel.kind === 'poison' || statusLabel.kind === 'scorch'
         ? 0
         : statusLabel.kind === 'bomb' || statusLabel.kind === 'countdown'
           ? fixedUiScale * 1.2

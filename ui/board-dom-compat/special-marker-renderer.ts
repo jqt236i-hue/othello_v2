@@ -138,6 +138,22 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     return timer;
   }
 
+  function createScorchedCellMark(remainingTurns: any) {
+    const mark = doc.createElement('div');
+    mark.className = 'scorched-cell-mark';
+    mark.appendChild(createTimedMarkerLabel('scorched-cell-turn countdown-timer', remainingTurns));
+    return mark;
+  }
+
+  function createScorchLethalTimer(remainingTurns: any) {
+    const timer = doc.createElement('div');
+    timer.className = 'scorch-lethal-timer';
+    const value = Number(remainingTurns);
+    timer.textContent = Number.isFinite(value) ? String(Math.max(0, Math.trunc(value))) : '';
+    timer.setAttribute('aria-hidden', 'true');
+    return timer;
+  }
+
   return {
     createHoleMark,
     createBlockadeMark,
@@ -150,7 +166,9 @@ export function createSpecialMarkerRenderer(deps: SpecialMarkerRenderDeps) {
     createFlipProtectionBadge,
     createFreezeMark,
     createPoisonCellMark,
-    createPoisonLethalTimer
+    createPoisonLethalTimer,
+    createScorchedCellMark,
+    createScorchLethalTimer
   };
 }
 

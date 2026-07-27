@@ -157,6 +157,17 @@ describe('visual-effects map shared between game/ui', () => {
     expect(lightningMap.imagePathByOwner['-1']).toContain('rakurai-white.png');
   });
 
+  test('FIRE_WILL と FIRE が火石画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.FIRE_WILL).toBe('fireWillStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.FIRE).toBe('fireWillStone');
+    expect(shared.STONE_VISUAL_EFFECTS.fireWillStone.imagePathByOwner['1']).toContain('fire-will-black.png');
+    expect(shared.STONE_VISUAL_EFFECTS.fireWillStone.imagePathByOwner['-1']).toContain('fire-will-white.png');
+  });
+
   test('METEOR_GOD が因果抹消神石画像へ解決される', async () => {
     require('../ui/visual-effects-map');
     require('../game/visual-effects-map');

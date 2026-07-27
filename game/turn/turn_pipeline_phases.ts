@@ -1211,8 +1211,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     deferGuardDurationEndUntilAfterTurnStartMarkers: true
                 });
             }
-            if (CardLogic && typeof CardLogic.syncPoisonContacts === 'function') {
-                CardLogic.syncPoisonContacts(cardState, gameState, Number(gameState && gameState.turnNumber || 0));
+            if (CardLogic && typeof CardLogic.syncHazardContacts === 'function') {
+                CardLogic.syncHazardContacts(cardState, gameState, Number(gameState && gameState.turnNumber || 0));
             }
             if (typeof CardLogic.consumeGeneratedSpawnFlipResults === 'function') {
                 applyGeneratedSpawnFlipResultsTurnStart(
@@ -1759,8 +1759,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             throw new Error('Unknown action.type');
         }
         } finally {
-            if (CardLogic && typeof CardLogic.syncPoisonContacts === 'function') {
-                CardLogic.syncPoisonContacts(cardState, gameState, actionTurnNumber);
+            if (CardLogic && typeof CardLogic.syncHazardContacts === 'function') {
+                CardLogic.syncHazardContacts(cardState, gameState, actionTurnNumber);
             }
             finalizeActionPhasePresentation(ctx, phaseSnapshot);
         }

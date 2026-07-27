@@ -103,6 +103,7 @@ const EXTRA_BROWSER_MODULES: Array<{ source: string; key: string; aliases?: stri
     { source: 'game/logic/cards/breeding.js', key: 'legacy/game/logic/cards/breeding' },
     { source: 'game/logic/cards/sniper.js', key: 'legacy/game/logic/cards/sniper' },
     { source: 'game/logic/cards/lightning.js', key: 'legacy/game/logic/cards/lightning' },
+    { source: 'game/logic/cards/fire-will.js', key: 'legacy/game/logic/cards/fire-will' },
     { source: 'game/logic/cards/destroy_dragon.js', key: 'legacy/game/logic/cards/destroy_dragon' },
     {
         source: 'shared/observation-gacha-catalog.generated.js',

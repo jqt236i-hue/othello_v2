@@ -29,6 +29,7 @@ if (
         'DESTROY_DRAGON',
         'SNIPER',
         'LIGHTNING',
+        'FIRE',
         'METEOR_GOD',
         'DRAGON',
         'HYPERACTIVE',

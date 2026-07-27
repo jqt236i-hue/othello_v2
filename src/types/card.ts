@@ -12,6 +12,7 @@ export interface CardDef {
   cost: number;
   desc: string;
   display_type_ja?: string;
+  card_face_art_path?: string;
   enabled?: boolean;
 }
 
@@ -99,6 +100,7 @@ export type CardType =
   | 'BOARD_SHRINK_GOD'
   | 'BLOCKADE_WILL'
   | 'POISON_WILL'
+  | 'FIRE_WILL'
   | 'METEOR_WILL'
   | 'CAUSAL_REPLAY_WILL'
   | 'METEOR_GOD'

@@ -73,8 +73,13 @@ async function handleStatusChangeEvent(ev: any, deps: AnimationStatusEventDeps) 
                     ''
                 ).toLowerCase();
                 const removedSpecialUpper = String(ev && ev.meta && ev.meta.special ? ev.meta.special : '').toUpperCase();
-                const poisonSpecialUpper = removedSpecialUpper || String(ev && ev.meta && ev.meta.special || '').toUpperCase();
-                const isPoisonStatus = poisonSpecialUpper === 'POISONED' || poisonSpecialUpper === 'POISON_CELL';
+                const hazardSpecialUpper = removedSpecialUpper || String(ev && ev.meta && ev.meta.special || '').toUpperCase();
+                const isHazardStatus = [
+                    'POISONED',
+                    'POISON_CELL',
+                    'SCORCHED',
+                    'SCORCHED_CELL'
+                ].includes(hazardSpecialUpper);
                 const isFreezeDurationEnd =
                     ev &&
                     ev.type === deps.eventTypes.STATUS_REMOVED &&
@@ -83,8 +88,14 @@ async function handleStatusChangeEvent(ev: any, deps: AnimationStatusEventDeps) 
                     !after.special;
 
                 if (isStatusTick) {
-                    if (isPoisonStatus) {
-                        const selector = poisonSpecialUpper === 'POISONED' ? '.poison-lethal-timer' : '.poison-cell-turn';
+                    if (isHazardStatus) {
+                        const selectorBySpecial: Readonly<Record<string, string>> = Object.freeze({
+                            POISONED: '.poison-lethal-timer',
+                            POISON_CELL: '.poison-cell-turn',
+                            SCORCHED: '.scorch-lethal-timer',
+                            SCORCHED_CELL: '.scorched-cell-turn'
+                        });
+                        const selector = selectorBySpecial[hazardSpecialUpper];
                         const timer = cell.querySelector(selector);
                         if (timer && ev.meta && Number.isFinite(Number(ev.meta.timer))) timer.textContent = String(Math.max(0, Math.trunc(Number(ev.meta.timer))));
                         return;
@@ -100,7 +111,7 @@ async function handleStatusChangeEvent(ev: any, deps: AnimationStatusEventDeps) 
                     return;
                 }
 
-                if (isPoisonStatus) return;
+                if (isHazardStatus) return;
 
                 if (isCausalReplayCellRestoration(ev)) {
                     clearRestoredHoleCellPresentation(cell);

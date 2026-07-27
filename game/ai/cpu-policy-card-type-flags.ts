@@ -84,6 +84,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isRegenWill = cardType === 'REGEN_WILL';
         const isReverseWill = cardType === 'REVERSE_WILL';
         const isLightningWill = cardType === 'LIGHTNING_WILL';
+        const isFireWill = cardType === 'FIRE_WILL';
         const isHyperactiveWill = cardType === 'HYPERACTIVE_WILL';
         const isInstantHyperactiveWill = cardType === 'INSTANT_HYPERACTIVE_WILL';
         const isTabooReverseWill = cardType === 'TABOO_REVERSE_WILL';
@@ -107,6 +108,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isGhostWill ||
             isPermaProtectNextStone ||
             isLightningWill ||
+            isFireWill ||
             isMeteorGod ||
             isHyperactiveWill ||
             isInstantHyperactiveWill ||
@@ -184,6 +186,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isRegenWill,
             isReverseWill,
             isLightningWill,
+            isFireWill,
             isHyperactiveWill,
             isInstantHyperactiveWill,
             isTabooReverseWill,

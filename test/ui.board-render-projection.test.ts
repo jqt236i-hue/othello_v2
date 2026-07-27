@@ -25,12 +25,15 @@ describe('per-render board projection', () => {
       board: Array.from({ length: 8 }, () => Array(8).fill(0))
     };
     (global as any).gameState.board[5][5] = -1;
+    (global as any).gameState.board[6][6] = -1;
     (global as any).cardState = {
       markers: [
         { id: 'protected', kind: 'specialStone', row: 3, col: 3, owner: 'black', data: { type: 'PROTECTED', remainingOwnerTurns: 2 } },
         { id: 'bomb', kind: 'specialStone', row: 4, col: 4, owner: 'white', data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } },
         { id: 'poison-cell', kind: 'specialStone', row: 5, col: 5, owner: 'black', data: { type: 'POISON_CELL', remainingTurns: 9 } },
-        { id: 'poisoned', kind: 'specialStone', row: 5, col: 5, owner: 'white', data: { type: 'POISONED', remainingTurns: 4 } }
+        { id: 'poisoned', kind: 'specialStone', row: 5, col: 5, owner: 'white', data: { type: 'POISONED', remainingTurns: 4 } },
+        { id: 'scorched-cell', kind: 'specialStone', row: 6, col: 6, owner: 'black', data: { type: 'SCORCHED_CELL', remainingTurns: 10 } },
+        { id: 'scorched', kind: 'specialStone', row: 6, col: 6, owner: 'white', data: { type: 'SCORCHED', remainingTurns: 3 } }
       ],
       pendingEffectByPlayer: { black: null, white: null },
       fateWillControllerByTurnOwner: {}
@@ -61,6 +64,8 @@ describe('per-render board projection', () => {
     expect(projectedState._renderProjection.markerMaps.bombMap.get('4,4')).toEqual(expect.objectContaining({ remainingTurns: 2 }));
     expect(projectedState[5][5].poisonCell).toEqual({ remainingTurns: 9 });
     expect(projectedState[5][5].poisoned).toEqual({ remainingTurns: 4 });
+    expect(projectedState[6][6].scorchedCell).toEqual({ remainingTurns: 10 });
+    expect(projectedState[6][6].scorched).toEqual({ remainingTurns: 3 });
     expect(projectedState[5][5].special).toBeNull();
     expect((global as any).gameState._renderProjection).toBeUndefined();
     expect((global as any).cardState._renderProjection).toBeUndefined();

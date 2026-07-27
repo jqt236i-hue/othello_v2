@@ -164,12 +164,25 @@ describe('BoardRenderModel sparse projection', () => {
     expect(surfaceChanged.stoneSignature).toBe(base.stoneSignature);
     expect(surfaceChanged.interactionSignature).toBe(base.interactionSignature);
 
+    const scorchedCell: any = createCell('0,0');
+    scorchedCell.markers = [{
+      kind: 'scorched-cell',
+      owner: 'black',
+      value: null,
+      data: { remainingTurns: 10 }
+    }];
+    const scorchedChanged = project(scorchedCell);
+    expect(scorchedChanged.surfaceSignature).not.toBe(base.surfaceSignature);
+    expect(scorchedChanged.stoneSignature).toBe(base.stoneSignature);
+    expect(scorchedChanged.interactionSignature).toBe(base.interactionSignature);
+
     expect(new Set([
       base.visualSignature,
       interactionChanged.visualSignature,
       stoneChanged.visualSignature,
-      surfaceChanged.visualSignature
-    ])).toHaveProperty('size', 4);
+      surfaceChanged.visualSignature,
+      scorchedChanged.visualSignature
+    ])).toHaveProperty('size', 5);
   });
 
   test('far expansion does not create a dense void model or unbounded narrow materialization', () => {

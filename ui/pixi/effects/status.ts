@@ -115,8 +115,11 @@ function resolveStatusSpecial(event: PresentationPlaybackEvent, target: any): st
   return upper(meta.special || target?.after?.special);
 }
 
-function isPoisonStatus(special: string): boolean {
-  return special === 'POISONED' || special === 'POISON_CELL';
+function isHazardStatus(special: string): boolean {
+  return special === 'POISONED'
+    || special === 'POISON_CELL'
+    || special === 'SCORCHED'
+    || special === 'SCORCHED_CELL';
 }
 
 function resolveStatusAfterVisual(
@@ -126,12 +129,12 @@ function resolveStatusAfterVisual(
   special: string
 ): PixiPlaybackStoneVisual | null {
   if (special === 'METEOR_HOLE') return null;
-  // The DOM executor updates poison timers only on STATUS_TICK. Apply/remove
+  // The DOM executor updates hazard timers only on STATUS_TICK. Apply/remove
   // events leave the live disc alone; DESTROY/final frame owns any removal.
-  if (isPoisonStatus(special) && upper(event?.rawType) !== 'STATUS_TICK') {
+  if (isHazardStatus(special) && upper(event?.rawType) !== 'STATUS_TICK') {
     return current;
   }
-  if (special === 'BLOCKADE' || special === 'POISON_CELL') {
+  if (special === 'BLOCKADE' || special === 'POISON_CELL' || special === 'SCORCHED_CELL') {
     return current;
   }
   if (special === 'FREEZE') {
@@ -163,7 +166,7 @@ function resolveStatusMode(
   if (isRemoved && special === 'FREEZE' && reason === 'duration_end' && !target?.after?.special) {
     return 'freeze-fade';
   }
-  if (isPoisonStatus(special) || isCausalReplayCellRestoration(event)) return 'immediate';
+  if (isHazardStatus(special) || isCausalReplayCellRestoration(event)) return 'immediate';
   if (upper(target?.after?.special) === 'METEOR_HOLE') {
     return isBoardShrinkHole(event, target) ? 'hole-push' : 'immediate';
   }

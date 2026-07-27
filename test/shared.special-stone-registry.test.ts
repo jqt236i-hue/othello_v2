@@ -16,6 +16,7 @@ describe('special stone registry rule classification', () => {
     'PROLIFERATION',
     'SNIPER',
     'LIGHTNING',
+    'FIRE',
     'DESTROY_DRAGON',
     'DRAGON',
     'ULTIMATE_DESTROY_GOD',
@@ -92,7 +93,7 @@ describe('special stone registry rule classification', () => {
       expect(SpecialStoneRegistry.isInviolableStoneEffect(type)).toBe(true);
     }
 
-    for (const type of ['LIVING_WILL', 'GUARD']) {
+    for (const type of ['LIVING_WILL', 'GUARD', 'SCORCHED']) {
       expect(SpecialStoneRegistry.classifySpecialStoneRuleClass(type)).toBe('stone_status');
       expect(SpecialStoneRegistry.countsAsSpecialStone(type)).toBe(false);
       expect(SpecialStoneRegistry.isTargetableSpecialStone(type)).toBe(false);
@@ -142,6 +143,7 @@ describe('special stone registry rule classification', () => {
       ['stone_salvation_god_01', 'STONE_SALVATION_GOD', 'STONE_SALVATION_GOD'],
       ['destroy_dragon_01', 'DESTROY_DRAGON_WILL', 'DESTROY_DRAGON'],
       ['lightning_01', 'LIGHTNING_WILL', 'LIGHTNING'],
+      ['fire_will_01', 'FIRE_WILL', 'FIRE'],
       ['udg_01', 'ULTIMATE_DESTROY_GOD', 'ULTIMATE_DESTROY_GOD'],
       ['ultimate_hyperactive_01', 'ULTIMATE_HYPERACTIVE_GOD', 'ULTIMATE_HYPERACTIVE'],
       ['meteor_god_01', 'METEOR_GOD', 'METEOR_GOD'],
@@ -201,7 +203,7 @@ describe('special stone registry rule classification', () => {
     for (const type of ['REGEN', 'ZOMBIE', 'LIVING_WILL', 'TRAP']) {
       expect(SpecialStoneRegistry.getOwnershipChangePolicy(type)).toBe('resolve_after_change');
     }
-    for (const type of ['POISONED', 'BLOCKADE', 'FREEZE', 'THEORY_INCARNATION', 'GOLD']) {
+    for (const type of ['POISONED', 'SCORCHED', 'BLOCKADE', 'FREEZE', 'SCORCHED_CELL', 'THEORY_INCARNATION', 'GOLD']) {
       expect(SpecialStoneRegistry.getOwnershipChangePolicy(type)).toBe('preserve');
     }
     expect(SpecialStoneRegistry.getOwnershipChangePolicy('FUTURE_UNKNOWN_SPECIAL_STONE')).toBe('revert');

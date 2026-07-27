@@ -8,6 +8,7 @@ interface GenerateCardArtMapOptions {
 
 interface GenerateCardArtMapResult {
     map: Record<string, string>;
+    pathMap: Record<string, string>;
     source: string;
     outPath: string;
     wroteFile: boolean;
@@ -32,35 +33,66 @@ function collectCardArtByName(cardArtDir: string): Map<string, string> {
     return result;
 }
 
-function buildCardArtMap(projectRoot: string): Record<string, string> {
+function normalizeLogicalAssetPath(value: unknown): string {
+    return String(value || '').trim().replace(/\\/gu, '/');
+}
+
+function buildCardArtMaps(projectRoot: string): { filenameMap: Record<string, string>; pathMap: Record<string, string> } {
     const catalogPath = path.join(projectRoot, 'cards', 'catalog.json');
     const cardArtDir = path.join(projectRoot, 'assets', 'images', 'card');
     const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
     const cards = Array.isArray(catalog.cards) ? catalog.cards : [];
     const artByName = collectCardArtByName(cardArtDir);
-    const map: Record<string, string> = {};
+    const filenameMap: Record<string, string> = {};
+    const pathMap: Record<string, string> = {};
     for (const card of cards) {
         const id = normalizeCardName(card && card.id);
         const name = normalizeCardName((card && card.name_ja) || (card && card.name));
         if (!id || !name) continue;
+        const explicitPath = normalizeLogicalAssetPath(card && card.card_face_art_path);
+        if (explicitPath) {
+            if (path.isAbsolute(explicitPath) || explicitPath.startsWith('../') || explicitPath.includes('/../')) {
+                throw new Error(`Invalid card_face_art_path for ${id}: ${explicitPath}`);
+            }
+            if (!fs.existsSync(path.join(projectRoot, ...explicitPath.split('/')))) {
+                throw new Error(`Missing explicit card art for ${id} (${name}): ${explicitPath}`);
+            }
+            pathMap[id] = explicitPath;
+            continue;
+        }
         const filename = artByName.get(name);
         if (!filename) {
             throw new Error(`Missing card art for ${id} (${name})`);
         }
-        map[id] = filename;
+        filenameMap[id] = filename;
+        pathMap[id] = `assets/images/card/${filename}`;
     }
-    return map;
+    return { filenameMap, pathMap };
 }
 
-function renderCardArtMapSource(map: Record<string, string>): string {
-    const body = Object.entries(map)
+function buildCardArtMap(projectRoot: string): Record<string, string> {
+    return buildCardArtMaps(projectRoot).filenameMap;
+}
+
+function renderRecordBody(map: Record<string, string>): string {
+    return Object.entries(map)
         .map(([id, filename]) => `    ${JSON.stringify(id)}: ${JSON.stringify(filename)}`)
         .join(',\n');
+}
+
+function renderCardArtMapSource(map: Record<string, string>, pathMap?: Record<string, string>): string {
+    const resolvedPathMap = pathMap || Object.fromEntries(
+        Object.entries(map).map(([id, filename]) => [id, `assets/images/card/${filename}`])
+    );
     return [
-        '// Auto-generated from cards/catalog.json and assets/images/card - do not edit directly.',
+        '// Auto-generated from cards/catalog.json and declared card art assets - do not edit directly.',
         '// Use: node scripts/generate-card-art-map.js to regenerate.',
         'export const CARD_FACE_ART_FILENAME_BY_ID: Record<string, string> = Object.freeze({',
-        body,
+        renderRecordBody(map),
+        '});',
+        '',
+        'export const CARD_FACE_ART_PATH_BY_ID: Record<string, string> = Object.freeze({',
+        renderRecordBody(resolvedPathMap),
         '});',
         '',
         'export default CARD_FACE_ART_FILENAME_BY_ID;',
@@ -79,12 +111,12 @@ function writeGeneratedFile(outPath: string, source: string): boolean {
 
 function generateCardArtMap(options: GenerateCardArtMapOptions = {}): GenerateCardArtMapResult {
     const projectRoot = options.root || process.cwd();
-    const map = buildCardArtMap(projectRoot);
-    const source = renderCardArtMapSource(map);
+    const { filenameMap: map, pathMap } = buildCardArtMaps(projectRoot);
+    const source = renderCardArtMapSource(map, pathMap);
     const outPath = path.join(projectRoot, 'cards', 'card-art-map.generated.ts');
     const shouldWrite = options.write !== false;
     const wroteFile = shouldWrite ? writeGeneratedFile(outPath, source) : false;
-    return { map, source, outPath, wroteFile };
+    return { map, pathMap, source, outPath, wroteFile };
 }
 
 if (require.main === module) {
@@ -97,4 +129,4 @@ if (require.main === module) {
     }
 }
 
-export = { generateCardArtMap, buildCardArtMap, renderCardArtMapSource } as any;
+export = { generateCardArtMap, buildCardArtMap, buildCardArtMaps, renderCardArtMapSource } as any;

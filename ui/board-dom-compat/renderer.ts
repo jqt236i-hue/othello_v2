@@ -717,7 +717,9 @@ function _cloneCellStateWithTimedLabelsNormalizedForDiff(source: any) {
         frozen: source.frozen ? { ...source.frozen } : source.frozen,
         seed: source.seed ? { ...source.seed } : source.seed,
         poisonCell: source.poisonCell ? { ...source.poisonCell } : source.poisonCell,
-        poisoned: source.poisoned ? { ...source.poisoned } : source.poisoned
+        poisoned: source.poisoned ? { ...source.poisoned } : source.poisoned,
+        scorchedCell: source.scorchedCell ? { ...source.scorchedCell } : source.scorchedCell,
+        scorched: source.scorched ? { ...source.scorched } : source.scorched
     };
     if (cloned.special) {
         cloned.special.remainingOwnerTurns = 0;
@@ -737,6 +739,8 @@ function _cloneCellStateWithTimedLabelsNormalizedForDiff(source: any) {
     if (cloned.seed) cloned.seed.remainingOwnerTurns = 0;
     if (cloned.poisonCell) cloned.poisonCell.remainingTurns = 0;
     if (cloned.poisoned) cloned.poisoned.remainingTurns = 0;
+    if (cloned.scorchedCell) cloned.scorchedCell.remainingTurns = 0;
+    if (cloned.scorched) cloned.scorched.remainingTurns = 0;
     return cloned;
 }
 function _onlyTimedLabelsChangedForDiff(prevState: any, state: any) {
@@ -791,6 +795,12 @@ function _tryPatchTimedMarkerLabelsForDiff(cell: any, prevState: any, state: any
     }
     if (prevState.poisoned && state.poisoned && prevState.poisoned.remainingTurns !== state.poisoned.remainingTurns) {
         if (!patch(cell.querySelector('.poison-lethal-timer'), prevState.poisoned.remainingTurns, state.poisoned.remainingTurns)) return false;
+    }
+    if (prevState.scorchedCell && state.scorchedCell && prevState.scorchedCell.remainingTurns !== state.scorchedCell.remainingTurns) {
+        if (!patch(cell.querySelector('.scorched-cell-turn'), prevState.scorchedCell.remainingTurns, state.scorchedCell.remainingTurns)) return false;
+    }
+    if (prevState.scorched && state.scorched && prevState.scorched.remainingTurns !== state.scorched.remainingTurns) {
+        if (!patch(cell.querySelector('.scorch-lethal-timer'), prevState.scorched.remainingTurns, state.scorched.remainingTurns)) return false;
     }
     return patched;
 }
@@ -1720,6 +1730,8 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
                 frozen: null,
                 poisonCell: null,
                 poisoned: null,
+                scorchedCell: null,
+                scorched: null,
                 destroyEvadeRemaining: null
             };
         }

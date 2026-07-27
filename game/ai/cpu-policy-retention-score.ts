@@ -57,6 +57,7 @@ type CpuPolicyRetentionFlags = {
     isGuardianGod: boolean;
     isRegenWill: boolean;
     isLightningWill: boolean;
+    isFireWill: boolean;
     isHyperactiveWill: boolean;
     isInstantHyperactiveWill: boolean;
     isTabooReverseWill: boolean;
@@ -144,6 +145,7 @@ export function createCpuPolicyRetentionScore() {
             isGuardianGod,
             isRegenWill,
             isLightningWill,
+            isFireWill,
             isHyperactiveWill,
             isInstantHyperactiveWill,
             isTabooReverseWill,
@@ -251,7 +253,7 @@ export function createCpuPolicyRetentionScore() {
             if (ctx.empties <= 12 && !hasCornerMoveNow) score -= 50;
         }
 
-        if (isLightningWill) {
+        if (isLightningWill || isFireWill) {
             if (hasCornerMoveNow) score += 120;
             else if (hasEdgeMoveNow) score += 50;
             else score -= 100;

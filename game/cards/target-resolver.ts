@@ -1064,6 +1064,13 @@ const Flips = CardFlips || {};
         return [];
     }
 
+    function getScorchTargets(cardState: any, gameState: any, playerKey: any) {
+        if (typeof Selectors.getScorchTargets === 'function') {
+            return Selectors.getScorchTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
     function getEqualityTargets(cardState: any, gameState: any, playerKey: any) {
         void cardState;
         void gameState;
@@ -1222,6 +1229,7 @@ export = {
     getFreezeTargets,
     getBlockadeTargets,
     getPoisonTargets,
+    getScorchTargets,
     getCellTeleportTargets,
     getSniperTargets,
     getTimeBombTargets,

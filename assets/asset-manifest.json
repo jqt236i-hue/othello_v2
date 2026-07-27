@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-25",
-  "generatedAt": "2026-07-25T17:42:49.654Z",
+  "version": "2026-07-27",
+  "generatedAt": "2026-07-27T11:24:04.888Z",
   "files": [
     {
       "path": "assets/images/special-stones/board_executor-black.png",
@@ -53,6 +53,14 @@
     {
       "path": "assets/images/special-stones/EXTREME_HYPERACTIVE_WILL-white.png",
       "sha256": "00626e560d11f295ea08174517e206261f753c5bc6e43400ddb4459b93ba5cf5"
+    },
+    {
+      "path": "assets/images/special-stones/fire-will-black.png",
+      "sha256": "5051ed562e9cca5a8b9b4d937a8e994522aff312c949f40712d9b8086fa67db4"
+    },
+    {
+      "path": "assets/images/special-stones/fire-will-white.png",
+      "sha256": "848e6f51e94dd89bea11c81dddb913102f61733f01b0c6708757bb4316d9f1bf"
     },
     {
       "path": "assets/images/special-stones/GHOST_WILL-black.png",
@@ -465,6 +473,10 @@
     {
       "path": "assets/images/other/観測石.png",
       "sha256": "cf564bb6231e40d629051fe1659d02d5b669448a8fd99355ec954b27eb486699"
+    },
+    {
+      "path": "assets/images/special-cards/backgrounds/fire_will_background.png",
+      "sha256": "c32d6e00fec14db8af150f59fa4b7a565f78fd767ed8db8bb202a6024bfdedff"
     },
     {
       "path": "assets/images/special-cards/backgrounds/zombie_will_background.png",

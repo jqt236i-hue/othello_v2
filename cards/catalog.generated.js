@@ -683,6 +683,15 @@ window.CardCatalog = {
       "display_type_ja": "殲滅"
     },
     {
+      "id": "fire_will_01",
+      "name_ja": "火の意志",
+      "type": "FIRE_WILL",
+      "cost": 21,
+      "desc_ja": "次に置く石を6ターン持続・反転保護の火石にする。配置時と自ターン開始時にランダムなマスを10ターン持続の灼熱マスにし、同じ石が3ターン居座ると破壊する。",
+      "display_type_ja": "殲滅",
+      "card_face_art_path": "assets/images/special-cards/backgrounds/fire_will_background.png"
+    },
+    {
       "id": "meteor_01",
       "name_ja": "因果抹消",
       "type": "METEOR_WILL",

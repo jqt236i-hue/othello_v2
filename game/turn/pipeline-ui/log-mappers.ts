@@ -44,6 +44,7 @@ function _specialLabelJa(rawSpecial: any, deps: PipelineUILogMapperDeps) {
     if (s === 'ULTIMATE_DESTROY_GOD') return '究極破壊神';
     if (s === 'SNIPER') return '狙撃石';
     if (s === 'LIGHTNING') return '落雷石';
+    if (s === 'FIRE') return '火石';
     if (s === 'METEOR_GOD') return '因果抹消神石';
     if (s === 'HYPERACTIVE') return '多動石';
     if (s === 'EXTREME_HYPERACTIVE') return '極悪多動魔';
@@ -272,6 +273,14 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
             case 'lightning_expired_immediate':
                 push(`落雷石: 親石${_detailCount(ev)}個が通常石に戻る`);
                 break;
+            case 'fire_scorched_start':
+            case 'fire_scorched_immediate':
+                push(`火石: 灼熱マスを${_detailCount(ev)}個生成`);
+                break;
+            case 'fire_expired_start':
+            case 'fire_expired_immediate':
+                push(`火石: 親石${_detailCount(ev)}個が通常石に戻る`);
+                break;
             case 'meteor_god_destroyed_start':
             case 'meteor_god_destroyed_immediate':
                 push(`因果抹消神石: ${_detailCount(ev)}個を穴化`);
@@ -408,6 +417,7 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                     if (e.freePlacementUsed && !e.sniperPlaced) push('自由の意志:自由な空きマスに配置');
                     if (e.sniperPlaced) push('狙撃の意志: 狙撃石を設置');
                     if (e.lightningPlaced) push('雷の意志: 落雷石を設置');
+                    if (e.firePlaced) push('火の意志: 火石を設置');
                     if (e.meteorGodPlaced) push('因果抹消神石を設置');
                     if (e.willHunterKingPlaced) push('意志狩りの王を設置');
                     if (e.silverStoneUsed) push('銀石: 獲得布石3倍');

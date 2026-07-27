@@ -202,10 +202,10 @@ function getMarkerRuleClass(marker: any): string | null {
     const type = String(marker && marker.data && marker.data.type || '').toUpperCase();
     if (isBombCategoryMarker(marker) || type === 'TIME_BOMB') return 'bomb';
     if (type === 'TRAP') return 'trap';
-    if (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE' || type === 'SEED' || type === 'POISON_CELL') return 'board_marker';
+    if (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE' || type === 'SEED' || type === 'POISON_CELL' || type === 'SCORCHED_CELL') return 'board_marker';
     if (type === 'HYPERACTIVE' && !!(marker && marker.data && marker.data.instantPlacementOnly)) return 'placement_effect';
     if (type === 'CROSS_BOMB' || type === 'X_BOMB' || type === 'GOLD' || type === 'SILVER' || type === 'RAINBOW') return 'placement_effect';
-    if (type === 'GUARD' || type === 'LIVING_WILL' || type === 'POISONED') return 'stone_status';
+    if (type === 'GUARD' || type === 'LIVING_WILL' || type === 'POISONED' || type === 'SCORCHED') return 'stone_status';
     if (!type) return null;
     return 'true_special_stone';
 }
@@ -672,6 +672,8 @@ function isNormalVisualSpecialMarker(marker: any): boolean {
         type === 'SEED' ||
         type === 'POISON_CELL' ||
         type === 'POISONED' ||
+        type === 'SCORCHED_CELL' ||
+        type === 'SCORCHED' ||
         type === 'LIVING_WILL' ||
         type === 'TRAP'
     );

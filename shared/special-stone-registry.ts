@@ -232,6 +232,12 @@
             flipProtected: true,
             timerClass: 'dragon-timer'
         }),
+        FIRE: Object.freeze({
+            name: '火石',
+            desc: 'ランダムなマスを灼熱マスにする。',
+            flipProtected: true,
+            timerClass: 'dragon-timer'
+        }),
         METEOR_GOD: Object.freeze({
             name: '因果抹消神石',
             desc: '敵石をランダムに1つ選び、そのマスを穴化する。',
@@ -369,6 +375,15 @@
             desc: '付与後5ターンで通常の破壊を受ける。完全保護で解除される。',
             overlayOnlyVisual: true
         }),
+        SCORCHED_CELL: Object.freeze({
+            name: '灼熱マス',
+            desc: '10ターン持続し、このマスに同じ石が3ターン居続けると通常の破壊を試みる。'
+        }),
+        SCORCHED: Object.freeze({
+            name: '灼熱状態',
+            desc: '同じ灼熱マスに居続けると3ターンで通常の破壊を受ける。',
+            overlayOnlyVisual: true
+        }),
         THEORY_INCARNATION: Object.freeze({
             name: '理論の化身',
             desc: '3ターン不可侵の顕現石。所有者のカード使用を封じる。'
@@ -436,6 +451,7 @@
         STONE_SALVATION_GOD: Object.freeze({ cardId: 'stone_salvation_god_01', cardNameJa: '救済神', cardType: 'STONE_SALVATION_GOD', markerType: 'STONE_SALVATION_GOD' }),
         DESTROY_DRAGON_WILL: Object.freeze({ cardId: 'destroy_dragon_01', cardNameJa: '破壊龍', cardType: 'DESTROY_DRAGON_WILL', markerType: 'DESTROY_DRAGON' }),
         LIGHTNING_WILL: Object.freeze({ cardId: 'lightning_01', cardNameJa: '雷の意志', cardType: 'LIGHTNING_WILL', markerType: 'LIGHTNING' }),
+        FIRE_WILL: Object.freeze({ cardId: 'fire_will_01', cardNameJa: '火の意志', cardType: 'FIRE_WILL', markerType: 'FIRE' }),
         ULTIMATE_DESTROY_GOD: Object.freeze({ cardId: 'udg_01', cardNameJa: '究極破壊神', cardType: 'ULTIMATE_DESTROY_GOD', markerType: 'ULTIMATE_DESTROY_GOD' }),
         ULTIMATE_HYPERACTIVE_GOD: Object.freeze({ cardId: 'ultimate_hyperactive_01', cardNameJa: '究極多動神', cardType: 'ULTIMATE_HYPERACTIVE_GOD', markerType: 'ULTIMATE_HYPERACTIVE' }),
         METEOR_GOD: Object.freeze({ cardId: 'meteor_god_01', cardNameJa: '因果抹消神', cardType: 'METEOR_GOD', markerType: 'METEOR_GOD' })
@@ -444,7 +460,8 @@
     const STONE_STATUS_TYPES: ReadonlySet<string> = new Set([
         'GUARD',
         'LIVING_WILL',
-        'POISONED'
+        'POISONED',
+        'SCORCHED'
     ]);
 
     const BOARD_MARKER_TYPES: ReadonlySet<string> = new Set([
@@ -452,7 +469,8 @@
         'METEOR_HOLE',
         'FREEZE',
         'SEED',
-        'POISON_CELL'
+        'POISON_CELL',
+        'SCORCHED_CELL'
     ]);
 
     const PLACEMENT_EFFECT_TYPES: ReadonlySet<string> = new Set([
@@ -553,6 +571,17 @@
             ownershipChangePolicy: 'resolve_after_change'
         });
         out.POISONED = makeStoneEffectRule('POISONED', {
+            category: 'stone_status',
+            countsAsSpecialStone: false,
+            temptTargetable: false,
+            captureTargetable: false,
+            lossWillRevertible: false,
+            theorySpawnCandidate: false,
+            normalVisual: true,
+            willHunterPriority: false,
+            durationAffectable: false
+        });
+        out.SCORCHED = makeStoneEffectRule('SCORCHED', {
             category: 'stone_status',
             countsAsSpecialStone: false,
             temptTargetable: false,
@@ -869,6 +898,11 @@
         return classifyMarkerRuleClass(marker) === 'board_marker';
     }
 
+    function isBoardMarkerType(rawType: unknown): boolean {
+        const rule = getStoneEffectRule(rawType);
+        return !!rule && rule.category === 'board_marker';
+    }
+
     function isPlacementEffectMarker(marker: any): boolean {
         return classifyMarkerRuleClass(marker) === 'placement_effect';
     }
@@ -921,6 +955,7 @@
         isBombMarker,
         isTrapMarker,
         isBoardMarker,
+        isBoardMarkerType,
         isPlacementEffectMarker,
         isDurationAffectableMarker
     };

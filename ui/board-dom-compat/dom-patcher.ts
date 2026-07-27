@@ -232,6 +232,15 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
         cell.appendChild(poisonCellMark);
     }
 
+    if (state.scorchedCell) {
+        cell.classList.add('scorched-cell');
+        const scorchedCellMark = markerRenderer
+            ? markerRenderer.createScorchedCellMark(state.scorchedCell.remainingTurns)
+            : document.createElement('div');
+        if (!markerRenderer) scorchedCellMark.className = 'scorched-cell-mark';
+        cell.appendChild(scorchedCellMark);
+    }
+
     if (state.blockade) {
         cell.classList.add('blocked-cell');
         const blockedType = String(state.blockade.type || '').toUpperCase();
@@ -495,6 +504,23 @@ function updateCellDOM(capabilities: any, cell: any, state: any, row: any, col: 
                 poisonBadge.setAttribute('aria-hidden', 'true');
             }
             discHud.appendChild(poisonBadge);
+        }
+
+        if (state.scorched && Number.isFinite(Number(state.scorched.remainingTurns))) {
+            disc.classList.add('disc-scorched');
+            const scorchBadge = markerRenderer
+                ? markerRenderer.createScorchLethalTimer(state.scorched.remainingTurns)
+                : document.createElement('div');
+            if (!markerRenderer) {
+                scorchBadge.className = 'scorch-lethal-timer';
+                scorchBadge.textContent = String(Math.max(0, Math.trunc(Number(state.scorched.remainingTurns))));
+                scorchBadge.setAttribute('aria-hidden', 'true');
+            }
+            discHud.appendChild(scorchBadge);
+        }
+
+        if (state.poisoned && state.scorched) {
+            disc.classList.add('disc-hazard-counter-pair');
         }
 
         if (state.breedingSprout) {

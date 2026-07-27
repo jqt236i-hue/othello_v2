@@ -198,8 +198,11 @@ function moveCoexistingMarkers(cardState: any, fromRow: number, fromCol: number,
     for (const marker of cardState.markers) {
         if (!marker || marker.row !== fromRow || marker.col !== fromCol)
             continue;
-        const typeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-        if (typeUpper === 'BLOCKADE' || typeUpper === 'METEOR_HOLE' || typeUpper === 'FREEZE' || typeUpper === 'SEED' || typeUpper === 'POISON_CELL')
+        const boardMarker = SpecialStoneRegistry && typeof SpecialStoneRegistry.isBoardMarker === 'function'
+            ? SpecialStoneRegistry.isBoardMarker(marker)
+            : ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL']
+                .includes(String(marker && marker.data && marker.data.type || '').toUpperCase());
+        if (boardMarker)
             continue;
         marker.row = toRow;
         marker.col = toCol;

@@ -17,6 +17,7 @@ describe('special stone marker factory', () => {
       'SNIPER_WILL',
       'DESTROY_DRAGON_WILL',
       'LIGHTNING_WILL',
+      'FIRE_WILL',
       'METEOR_GOD',
       'TIME_STOP_GOD',
       'TIME_STOP_DEITY',

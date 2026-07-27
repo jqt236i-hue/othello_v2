@@ -57,6 +57,7 @@ interface TeleportDeps {
     getTeleportDestinations?(cardState: CardState, gameState: GameState): Array<{row: number; col: number}>;
     moveAt?(cardState: CardState, gameState: GameState, fromRow: number, fromCol: number, toRow: number, toCol: number, source: string, tag: string): any;
     getMarkers?(cardState: CardState): any[];
+    isBoardMarker?(marker: any): boolean;
     clearStoneIdAtForCard?(cardState: CardState, gameState: GameState, row: number, col: number): void;
     removeMarkersAt?(cardState: CardState, row: number, col: number): void;
     addMarker?(cardState: CardState, kind: string, row: number, col: number, playerKey: string, data: any): boolean;
@@ -107,8 +108,11 @@ function moveMarkers(cardState: CardState, fromRow: number, fromCol: number, toR
     for (const marker of markers) {
         if (!marker) continue;
         if (marker.row !== fromRow || marker.col !== fromCol) continue;
-        const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-        if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE' || markerTypeUpper === 'FREEZE' || markerTypeUpper === 'SEED' || markerTypeUpper === 'POISON_CELL') continue;
+        const boardMarker = deps && typeof deps.isBoardMarker === 'function'
+            ? deps.isBoardMarker(marker)
+            : ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL']
+                .includes(String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase());
+        if (boardMarker) continue;
         marker.row = toRow;
         marker.col = toCol;
     }

@@ -136,6 +136,13 @@ function _resolveCardFaceArtFilenameById(cardId: any) {
     }
     return String(map[String(cardId || '').trim()] || '').trim();
 }
+function _resolveCardFaceArtPathById(cardId: any) {
+    const map = CardArtMapModule && CardArtMapModule.CARD_FACE_ART_PATH_BY_ID;
+    if (!map || typeof map !== 'object') {
+        return '';
+    }
+    return String(map[String(cardId || '').trim()] || '').trim();
+}
 function _isSpecialCardFace(cardId: any) {
     return !!(
         SpecialCardRegistryModule &&
@@ -229,6 +236,12 @@ function _resolveCardBackgroundArt(cardDef: any, fallbackCardId: any) {
     const resolvedCardId = String(resolvedCardDef && resolvedCardDef.id ? resolvedCardDef.id : (fallbackCardId || '')).trim();
     if (!resolvedCardId) {
         return null;
+    }
+    const stableArtPath = _resolveCardFaceArtPathById(resolvedCardId);
+    if (stableArtPath) {
+        return {
+            imagePath: stableArtPath
+        };
     }
     const stableArtFilename = _resolveCardFaceArtFilenameById(resolvedCardId);
     if (stableArtFilename) {

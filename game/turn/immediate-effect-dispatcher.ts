@@ -158,6 +158,20 @@ function resolveImmediateEffects(context: ImmediateEffectContext): void {
         return;
     }
 
+    if (typeKey === 'FIRE' && typeof ctx.CardLogic.processFireWillEffectsAtTurnStartAnchor === 'function') {
+        const fireNow = ctx.CardLogic.processFireWillEffectsAtTurnStartAnchor(
+            ctx.cardState,
+            ctx.gameState,
+            ctx.playerKey,
+            row,
+            col,
+            buildImmediateOptions(randomSource)
+        );
+        pushDetailsEvent(ctx.events, 'fire_scorched_immediate', fireNow && fireNow.scorched);
+        pushDetailsEvent(ctx.events, 'fire_expired_immediate', fireNow && fireNow.expired);
+        return;
+    }
+
     if (typeKey === 'METEOR_GOD' && typeof ctx.CardLogic.processMeteorGodEffectsAtTurnStartAnchor === 'function') {
         const meteorGodNow = ctx.CardLogic.processMeteorGodEffectsAtTurnStartAnchor(
             ctx.cardState,

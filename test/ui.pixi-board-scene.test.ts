@@ -478,6 +478,33 @@ describe('Pixi static retained views', () => {
     expect(overlap).toEqual([]);
   });
 
+  test('renders a red scorched surface with its turn count in the top-left corner', () => {
+    const fixture = createFakeRuntime();
+    const cellView = CellView.createPixiCellView(fixture.runtime);
+    const cell = materializedCell(makeCell('2,2', {
+      markers: [
+        { kind: 'scorched-cell', owner: null, value: null, data: { remainingTurns: 10 } }
+      ]
+    }));
+
+    cellView.update(cell, viewContext());
+
+    expect(cellView.getDiagnostics()).toMatchObject({
+      renderedMarkerKinds: ['scorched-cell'],
+      markerLabels: ['10']
+    });
+    const surface = cellView.surfaceRoot.children.find((child: any) => (
+      child.label === 'pixi-cell-scorched-surface'
+    ));
+    expect(surface).toMatchObject({ visible: true });
+    expect(surface.commands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#a71d0b' }) })
+    ]));
+    expect(cellView.markerRoot.children.find((child: any) => (
+      child.label === 'pixi-marker-scorched-cell-corner'
+    ))).toBeDefined();
+  });
+
   test('renders legal/target/preview/keyboard/direction DTOs without deriving authority', () => {
     const fixture = createFakeRuntime();
     const hintView = HintView.createPixiHintView(fixture.runtime);
@@ -750,6 +777,7 @@ describe('Pixi static retained views', () => {
         { kind: 'bomb', owner: 'black', value: null, data: { remainingOwnerTurns: 8 } },
         { kind: 'guard', owner: 'black', value: null, data: { remainingTurns: 7 } },
         { kind: 'poisoned', owner: 'black', value: null, data: { countdown: 6 } },
+        { kind: 'scorched', owner: 'black', value: null, data: { countdown: 3 } },
         { kind: 'breeding-sprout', owner: 'black', value: true, data: { count: 5 } }
       ]
     }));
@@ -763,7 +791,8 @@ describe('Pixi static retained views', () => {
       { kind: 'destroy-evade', value: '9' },
       { kind: 'bomb', value: '8' },
       { kind: 'guard', value: '7' },
-      { kind: 'poison', value: '6' }
+      { kind: 'poison', value: '6' },
+      { kind: 'scorch', value: '3' }
     ]);
     expect(stoneView.root.children.find((child: any) => (
       child.label === 'pixi-stone-status-labels'
@@ -774,7 +803,8 @@ describe('Pixi static retained views', () => {
       'pixi-stone-status:destroy-evade',
       'pixi-stone-status:bomb',
       'pixi-stone-status:guard',
-      'pixi-stone-status:poison'
+      'pixi-stone-status:poison',
+      'pixi-stone-status:scorch'
     ]);
   });
 
@@ -874,6 +904,21 @@ describe('Pixi static retained views', () => {
       child.label === 'pixi-stone-special-badge'
     ));
     expect(poisonSpecialBadge).toMatchObject({ visible: false });
+
+    update(materializedCell(makeCell('2,4', {
+      stone: { owner: 'black', value: 1, specialType: null, status: {} },
+      markers: [
+        { kind: 'poisoned', owner: 'black', value: null, data: { countdown: 4 } },
+        { kind: 'scorched', owner: 'black', value: null, data: { countdown: 3 } }
+      ]
+    })));
+    expect(stoneView.getDiagnostics().statusLabels).toEqual([
+      { kind: 'poison', value: '4' },
+      { kind: 'scorch', value: '3' }
+    ]);
+    expect(statusText('poison').position.x).toBeCloseTo(12.48);
+    expect(statusText('scorch').position.x).toBeCloseTo(19.84);
+    expect(fillColors()).toEqual(expect.arrayContaining(['#6b2b91', '#bd2d0d']));
   });
 });
 

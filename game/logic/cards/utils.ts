@@ -239,10 +239,10 @@ function getMarkerRuleClass(marker: any): string | null {
     if ((marker && marker.data && marker.data.category === 'bomb') || type === 'TIME_BOMB') return 'bomb';
     if (type === 'TRAP') return 'trap';
     if (isManifestStoneMarker(marker)) return 'manifest_stone';
-    if (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE' || type === 'SEED' || type === 'POISON_CELL') return 'board_marker';
+    if (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE' || type === 'SEED' || type === 'POISON_CELL' || type === 'SCORCHED_CELL') return 'board_marker';
     if (type === 'HYPERACTIVE' && !!(marker && marker.data && marker.data.instantPlacementOnly)) return 'placement_effect';
     if (type === 'CROSS_BOMB' || type === 'X_BOMB' || type === 'GOLD' || type === 'SILVER' || type === 'RAINBOW') return 'placement_effect';
-    if (type === 'GUARD' || type === 'LIVING_WILL') return 'stone_status';
+    if (type === 'GUARD' || type === 'LIVING_WILL' || type === 'POISONED' || type === 'SCORCHED') return 'stone_status';
     if (!type) return null;
     return 'true_special_stone';
 }

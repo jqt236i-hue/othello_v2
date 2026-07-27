@@ -222,6 +222,7 @@ const {
     const SNIPER_WILL_TURNS = 6;
     const DESTROY_DRAGON_TURNS = 3;
     const LIGHTNING_WILL_TURNS = 6;
+    const FIRE_WILL_TURNS = 6;
     const METEOR_GOD_TURNS = 6;
     const GHOST_WILL_TURNS = 8;
     const SACRIFICE_WILL_TURNS = 5;
@@ -233,6 +234,8 @@ const {
     const SEED_WILL_TURNS = 5;
     const POISON_CELL_TURNS = 10;
     const POISON_STONE_TURNS = 5;
+    const SCORCHED_CELL_TURNS = 10;
+    const SCORCHED_STONE_TURNS = 3;
     const TRAP_WILL_STEAL_MAX = 10;
     const GUARD_WILL_TURNS = 3;
     const GUARDIAN_GOD_TURNS = 10;
@@ -606,6 +609,7 @@ const {
     /** @type {any} */
     const CardSniperModule = resolveRequiredCardModule('./cards/sniper', 'CardSniper');
     const CardLightningModule = resolveRequiredCardModule('./cards/lightning', 'CardLightning');
+    const CardFireWillModule = resolveRequiredCardModule('./cards/fire-will', 'CardFireWill');
     /** @type {any} */
     const CardWillHunterKingModule = resolveRequiredCardModule('./cards/will_hunter_king', 'CardWillHunterKing');
     /** @type {any} */
@@ -972,6 +976,7 @@ const {
                 SNIPER_WILL_TURNS,
                 DESTROY_DRAGON_TURNS,
                 LIGHTNING_WILL_TURNS,
+                FIRE_WILL_TURNS,
                 METEOR_GOD_TURNS,
                 GHOST_WILL_TURNS,
                 SACRIFICE_WILL_TURNS,
@@ -1539,6 +1544,7 @@ const {
             getEffectiveCornerCellsForCard,
             toBoardCellKey: toCanonicalBoardCellKey,
             getBlockingMarkers,
+            isBoardMarker: (marker: any) => getMarkerRuleClass(marker) === 'board_marker',
             resolveDeterministicRandomIndex
         })
         : null;
@@ -1928,6 +1934,7 @@ const {
                 SNIPER_WILL_TURNS,
                 DESTROY_DRAGON_TURNS,
                 LIGHTNING_WILL_TURNS,
+                FIRE_WILL_TURNS,
                 METEOR_GOD_TURNS,
                 WILL_HUNTER_KING_TURNS,
                 ROBOT_VACUUM_TURNS
@@ -2754,6 +2761,10 @@ const {
         return CardTargetAccessModule.getPoisonTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
 
+    function getScorchTargets(cardState: any, gameState: any, playerKey: any) {
+        return CardTargetAccessModule.getScorchTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
+    }
+
     function getMeteorTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getMeteorTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
@@ -2861,7 +2872,7 @@ const {
             GUARD_WILL_TURNS,
             GUARDIAN_GOD_TURNS
         });
-        if (result && result.applied) syncPoisonContacts(cardState, gameState, gameState && gameState.turnNumber);
+        if (result && result.applied) syncHazardContacts(cardState, gameState, gameState && gameState.turnNumber);
         return result;
     }
 
@@ -3025,24 +3036,22 @@ const {
     }
 
     function applyBlockadeWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        return CardStatusCellsModule.applyBlockadeWill(cardState, gameState, playerKey, row, col, {
-            readCardPendingEffect,
+        return CardStatusCellsModule.applyBlockadeWill(cardState, gameState, playerKey, row, col, Object.assign(
+            getHazardCellDeps(cardState),
+            {
             getBlockadeTargets,
-            removeMarkersAt,
-            addMarker,
-            emitPresentationEvent,
-            clearCardPendingEffect,
-            MARKER_KINDS,
             BLOCKADE_TURNS
-        });
+            }
+        ));
     }
 
-    function getPoisonDeps(cardState: any) {
+    function getHazardCellDeps(cardState: any) {
         return {
             readCardPendingEffect,
             getPoisonTargets,
             getMarkers,
             addMarker,
+            removeMarkersAt,
             removeMarkerById,
             emitPresentationEvent,
             clearCardPendingEffect,
@@ -3053,24 +3062,46 @@ const {
                     ? BoardOpsModule.destroyAt(cs, gs, r, c, cause, reason, meta)
                     : null
             ),
+            runEffectBlock: BoardOpsModule && typeof BoardOpsModule.runEffectBlock === 'function'
+                ? BoardOpsModule.runEffectBlock
+                : null,
             BLACK,
             WHITE,
             EMPTY,
+            MARKER_KINDS,
             POISON_CELL_TURNS,
-            POISON_STONE_TURNS
+            POISON_STONE_TURNS,
+            SCORCHED_CELL_TURNS,
+            SCORCHED_STONE_TURNS
         };
     }
 
     function applyPoisonWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        return CardStatusCellsModule.applyPoisonWill(cardState, gameState, playerKey, row, col, getPoisonDeps(cardState));
+        return CardStatusCellsModule.applyPoisonWill(cardState, gameState, playerKey, row, col, getHazardCellDeps(cardState));
     }
 
     function syncPoisonContacts(cardState: any, gameState: any, appliedTurnNumber?: any) {
-        return CardStatusCellsModule.syncPoisonContacts(cardState, gameState, Number(appliedTurnNumber ?? gameState?.turnNumber ?? 0), getPoisonDeps(cardState));
+        return CardStatusCellsModule.syncPoisonContacts(cardState, gameState, Number(appliedTurnNumber ?? gameState?.turnNumber ?? 0), getHazardCellDeps(cardState));
+    }
+
+    function syncScorchContacts(cardState: any, gameState: any, appliedTurnNumber?: any) {
+        return CardStatusCellsModule.syncScorchContacts(cardState, gameState, Number(appliedTurnNumber ?? gameState?.turnNumber ?? 0), getHazardCellDeps(cardState));
+    }
+
+    function syncHazardContacts(cardState: any, gameState: any, appliedTurnNumber?: any) {
+        return CardStatusCellsModule.syncHazardContacts(cardState, gameState, Number(appliedTurnNumber ?? gameState?.turnNumber ?? 0), getHazardCellDeps(cardState));
+    }
+
+    function applyScorchedCell(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
+        return CardStatusCellsModule.applyScorchedCell(cardState, gameState, playerKey, row, col, getHazardCellDeps(cardState));
     }
 
     function processPoisonTurnEnd(cardState: any, gameState: any, completedTurnNumber?: any) {
-        return CardStatusCellsModule.processPoisonTurnEnd(cardState, gameState, Number(completedTurnNumber ?? gameState?.turnNumber ?? 0), getPoisonDeps(cardState));
+        return CardStatusCellsModule.processPoisonTurnEnd(cardState, gameState, Number(completedTurnNumber ?? gameState?.turnNumber ?? 0), getHazardCellDeps(cardState));
+    }
+
+    function processStatusCellTurnEnd(cardState: any, gameState: any, completedTurnNumber?: any) {
+        return CardStatusCellsModule.processStatusCellTurnEnd(cardState, gameState, Number(completedTurnNumber ?? gameState?.turnNumber ?? 0), getHazardCellDeps(cardState));
     }
 
     function applyMeteorWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
@@ -3114,29 +3145,23 @@ const {
     }
 
     function applyFreezeWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        return CardStatusCellsModule.applyFreezeWill(cardState, gameState, playerKey, row, col, {
-            readCardPendingEffect,
+        return CardStatusCellsModule.applyFreezeWill(cardState, gameState, playerKey, row, col, Object.assign(
+            getHazardCellDeps(cardState),
+            {
             getFreezeTargets,
-            removeMarkersAt,
-            addMarker,
-            emitPresentationEvent,
-            clearCardPendingEffect,
-            MARKER_KINDS,
             FREEZE_TURNS
-        });
+            }
+        ));
     }
 
     function applySeedWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        return CardStatusCellsModule.applySeedWill(cardState, gameState, playerKey, row, col, {
-            readCardPendingEffect,
+        return CardStatusCellsModule.applySeedWill(cardState, gameState, playerKey, row, col, Object.assign(
+            getHazardCellDeps(cardState),
+            {
             getSeedTargets,
-            removeMarkersAt,
-            addMarker,
-            emitPresentationEvent,
-            clearCardPendingEffect,
-            MARKER_KINDS,
             SEED_WILL_TURNS
-        });
+            }
+        ));
     }
 
     function getLossWillRemovableCount(cardState: any) {
@@ -3152,16 +3177,13 @@ const {
     }
 
     function applyMassFreezeWill(cardState: any, gameState: any, playerKey: any) {
-        return CardStatusCellsModule.applyMassFreezeWill(cardState, gameState, playerKey, {
-            readCardPendingEffect,
-            clearCardPendingEffect,
+        return CardStatusCellsModule.applyMassFreezeWill(cardState, gameState, playerKey, Object.assign(
+            getHazardCellDeps(cardState),
+            {
             collectMassFreezeWillTargets,
-            removeMarkersAt,
-            addMarker,
-            emitPresentationEvent,
-            MARKER_KINDS,
             FREEZE_TURNS
-        });
+            }
+        ));
     }
 
     function applyLossWill(cardState: any, gameState: any, playerKey: any) {
@@ -3241,7 +3263,8 @@ const {
             moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
                 ? BoardOpsModule.moveAt
                 : null,
-            getMarkers
+            getMarkers,
+            isBoardMarker: (marker: any) => getMarkerRuleClass(marker) === 'board_marker'
         });
     }
 
@@ -3266,7 +3289,8 @@ const {
             runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
                 ? BoardOpsModule.runCellRemovalBlock
                 : null,
-            getMarkers
+            getMarkers,
+            isBoardMarker: (marker: any) => getMarkerRuleClass(marker) === 'board_marker'
         });
     }
 
@@ -3279,7 +3303,8 @@ const {
             moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
                 ? BoardOpsModule.moveAt
                 : null,
-            getMarkers
+            getMarkers,
+            isBoardMarker: (marker: any) => getMarkerRuleClass(marker) === 'board_marker'
         });
     }
 
@@ -4306,6 +4331,51 @@ const {
         return processLightningWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, prngOrOpts);
     }
 
+    function getFireWillEffectDeps(cardState: any, prngOrOpts: any, label: string) {
+        const deps = normalizeAnchorEffectOptions(prngOrOpts, [
+            'decrementRemainingOwnerTurns',
+            'BoardOps',
+            'getScorchTargets',
+            'applyScorchedCell'
+        ], {
+            BoardOps: BoardOpsModule,
+            random: defaultPrng,
+            getScorchTargets,
+            applyScorchedCell: (cs: any, gs: any, owner: any, row: any, col: any) => (
+                applyScorchedCell(cs, gs, owner, row, col)
+            )
+        }, label);
+        deps.getScorchTargets = deps.getScorchTargets || getScorchTargets;
+        deps.applyScorchedCell = deps.applyScorchedCell || (
+            (cs: any, gs: any, owner: any, row: any, col: any) => applyScorchedCell(cs, gs, owner, row, col)
+        );
+        return deps;
+    }
+
+    function processFireWillEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
+        return CardFireWillModule.processFireWillEffects(
+            cardState,
+            gameState,
+            playerKey,
+            getFireWillEffectDeps(cardState, prng || defaultPrng, 'CardLogic.processFireWillEffects')
+        );
+    }
+
+    function processFireWillEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
+        return CardFireWillModule.processFireWillEffectsAtAnchor(
+            cardState,
+            gameState,
+            playerKey,
+            row,
+            col,
+            getFireWillEffectDeps(cardState, prngOrOpts, 'CardLogic.processFireWillEffectsAtAnchor')
+        );
+    }
+
+    function processFireWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
+        return processFireWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, prngOrOpts);
+    }
+
     function processMeteorGodEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
         return CardMeteorGodModule.processMeteorGodEffects(cardState, gameState, playerKey, {
             BoardOps: BoardOpsModule,
@@ -4784,12 +4854,15 @@ const cardsApi: any = {
         SNIPER_WILL_TURNS,
         DESTROY_DRAGON_TURNS,
         LIGHTNING_WILL_TURNS,
+        FIRE_WILL_TURNS,
         METEOR_GOD_TURNS,
         GHOST_WILL_TURNS,
         SACRIFICE_WILL_TURNS,
         SEED_WILL_TURNS,
         POISON_CELL_TURNS,
         POISON_STONE_TURNS,
+        SCORCHED_CELL_TURNS,
+        SCORCHED_STONE_TURNS,
         WILL_HUNTER_KING_TURNS,
         NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS,
         THROW_CHAIN_CONFIG_BY_TYPE,
@@ -4862,6 +4935,7 @@ const cardsApi: any = {
         processSniperWillEffects,
         processDestroyDragonEffects,
         processLightningWillEffects,
+        processFireWillEffects,
         processMeteorGodEffects,
 
         // Game flow
@@ -4907,8 +4981,12 @@ const cardsApi: any = {
         applyBoardShrinkGod,
         applyBlockadeWill,
         applyPoisonWill,
+        applyScorchedCell,
         syncPoisonContacts,
+        syncScorchContacts,
+        syncHazardContacts,
         processPoisonTurnEnd,
+        processStatusCellTurnEnd,
         applyMeteorWill,
         applyFreezeWill,
         applySeedWill,
@@ -4963,6 +5041,8 @@ const cardsApi: any = {
         processSniperWillEffectsAtTurnStartAnchor,
         processLightningWillEffectsAtTurnStartAnchor,
         processLightningWillEffectsAtAnchor,
+        processFireWillEffectsAtTurnStartAnchor,
+        processFireWillEffectsAtAnchor,
         processMeteorGodEffectsAtTurnStartAnchor,
         processMeteorGodEffectsAtAnchor,
         processWillHunterKingEffectsAtTurnStartAnchor,
@@ -5010,6 +5090,7 @@ const cardsApi: any = {
         getBoardShrinkGodTargets,
         getBlockadeTargets,
         getPoisonTargets,
+        getScorchTargets,
         getMeteorTargets,
         getCausalReplayTargets,
         getFreezeTargets,

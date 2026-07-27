@@ -298,6 +298,15 @@ function processTurnStartSpecialStone(options: ProcessTurnStartSpecialStoneOptio
         return processingState;
     }
 
+    if (typeKey === 'FIRE' && owner === opts.playerKey) {
+        const res = opts.CardLogic.processFireWillEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
+        pushTurnStartResultDetails(opts.events, res, [
+            { field: 'scorched', type: 'fire_scorched_start' },
+            { field: 'expired', type: 'fire_expired_start' }
+        ]);
+        return processingState;
+    }
+
     if (typeKey === 'METEOR_GOD' && owner === opts.playerKey) {
         const res = opts.CardLogic.processMeteorGodEffectsAtTurnStartAnchor(opts.cardState, opts.gameState, opts.playerKey, row, col, p);
         pushTurnStartResultDetails(opts.events, res, [

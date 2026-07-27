@@ -45,6 +45,7 @@ const BoardUtils = resolveUdgModuleOrGlobal('../../../shared/shared-board-utils'
 const BoardOpsModule = resolveUdgModuleOrGlobal('../board_ops', 'BoardOps');
 const RandomSourceModule = resolveUdgModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
 const CardMarkersModule = resolveUdgModuleOrGlobal('./markers', 'CardMarkers');
+const SpecialStoneRegistry = resolveUdgModuleOrGlobal('../../../shared/special-stone-registry', 'SpecialStoneRegistry');
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 const P_BLACK = (BLACK === undefined || BLACK === null) ? 1 : BLACK;
@@ -178,10 +179,13 @@ function moveCoexistingMarkers(cardState: CardState, anchorEntry: any, fromRow: 
     for (const marker of (cardState as any).markers) {
         if (!marker || marker === anchorEntry) continue;
         if (marker.row !== fromRow || marker.col !== fromCol) continue;
-        if (marker.kind === 'specialStone') {
-            const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-            if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE' || markerTypeUpper === 'FREEZE' || markerTypeUpper === 'SEED' || markerTypeUpper === 'POISON_CELL') continue;
-        }
+        const boardMarker = SpecialStoneRegistry && typeof SpecialStoneRegistry.isBoardMarker === 'function'
+            ? SpecialStoneRegistry.isBoardMarker(marker)
+            : (CardMarkersModule && typeof CardMarkersModule.getMarkerRuleClass === 'function'
+                ? CardMarkersModule.getMarkerRuleClass(marker) === 'board_marker'
+                : ['BLOCKADE', 'METEOR_HOLE', 'FREEZE', 'SEED', 'POISON_CELL', 'SCORCHED_CELL']
+                    .includes(String(marker && marker.data && marker.data.type || '').toUpperCase()));
+        if (boardMarker) continue;
         marker.row = toRow;
         marker.col = toCol;
     }
