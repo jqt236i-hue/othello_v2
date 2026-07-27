@@ -632,10 +632,6 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
       drawPixiRect(poisonSurface, 0, 0, cellSize, cellSize, {
         color: '#6b2b91',
         alpha: 0.68
-      }, {
-        color: '#d27be2',
-        alpha: 0.78,
-        width: Math.max(1, cellSize * 0.035)
       });
       drawPixiRect(
         poisonSurface,
@@ -762,8 +758,6 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
           Object.freeze({ x: 0, y: cornerSize })
         ]), {
           color: '#4b105f', alpha: 0.96
-        }, {
-          color: '#e2a2ef', alpha: 0.86, width: Math.max(1, cellSize * 0.02)
         });
         addPixiChild(markerRoot, corner);
         if (label) {

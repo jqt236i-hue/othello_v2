@@ -451,9 +451,11 @@ describe('Pixi static retained views', () => {
     expect(poisonSurface.commands).toEqual(expect.arrayContaining([
       expect.objectContaining({ op: 'fill', style: expect.objectContaining({ color: '#6b2b91' }) })
     ]));
-    expect(cellView.markerRoot.children.find((child: any) => (
+    const poisonCorner = cellView.markerRoot.children.find((child: any) => (
       child.label === 'pixi-marker-poison-cell-corner'
-    ))).toBeDefined();
+    ));
+    expect(poisonCorner).toBeDefined();
+    expect(poisonCorner.commands.some((command: any) => command.op === 'stroke')).toBe(false);
     expect(stoneView.getDiagnostics()).toMatchObject({
       owner: 'black',
       specialType: 'ZOMBIE',

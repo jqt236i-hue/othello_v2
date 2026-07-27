@@ -820,7 +820,7 @@ body.time-stop-active #board[data-board-renderer="dom"] .cell.time-stop-legal-em
     position: absolute;
     inset: 4%;
     pointer-events: none;
-    border: calc(1px * var(--layout-stage-scale)) solid rgba(239, 154, 255, 0.48);
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(148, 59, 173, 0.58);
     border-radius: 18%;
     z-index: 18;
 }
