@@ -513,17 +513,37 @@
 
 .stone-info-list {
     display: flex;
+    flex-wrap: nowrap;
     align-items: flex-start;
     gap: calc(7px * var(--layout-stage-scale));
+    min-width: 0;
     width: 100%;
     max-width: 100%;
+    box-sizing: border-box;
     overflow-x: auto;
     overflow-y: hidden;
     padding: calc(2px * var(--layout-stage-scale)) calc(1px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
     scrollbar-width: thin;
     scrollbar-color: rgba(143, 213, 161, 0.56) rgba(5, 12, 8, 0.58);
+    scrollbar-gutter: stable;
     overscroll-behavior-x: contain;
     touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+}
+
+.stone-info-list::-webkit-scrollbar {
+    height: calc(6px * var(--layout-stage-scale));
+}
+
+.stone-info-list::-webkit-scrollbar-track {
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: rgba(5, 12, 8, 0.58);
+}
+
+.stone-info-list::-webkit-scrollbar-thumb {
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(5, 12, 8, 0.58);
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: rgba(143, 213, 161, 0.66);
 }
 
 .stone-info-list-item {

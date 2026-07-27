@@ -84,6 +84,13 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/#cpu-character-img[\s\S]*clamp\(/);
   });
 
+  test('stone info list stays on one horizontally scrollable row', () => {
+    const boardCss = readRepoTextFile('styles-board.css');
+
+    expect(boardCss).toMatch(/\.stone-info-list\s*\{[\s\S]*flex-wrap:\s*nowrap[\s\S]*min-width:\s*0[\s\S]*overflow-x:\s*auto[\s\S]*overflow-y:\s*hidden[\s\S]*-webkit-overflow-scrolling:\s*touch/);
+    expect(boardCss).toMatch(/\.stone-info-list-item\s*\{[\s\S]*flex:\s*0 0 calc\(58px\s*\*\s*var\(--layout-stage-scale\)\)/);
+  });
+
   test('index.html accepts aspect simulation query and sets root class', () => {
     const htmlPath = path.join(__dirname, '..', 'index.html');
     const html = fs.readFileSync(htmlPath, 'utf8');
