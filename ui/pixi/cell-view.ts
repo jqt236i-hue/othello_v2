@@ -750,13 +750,10 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
         continue;
       }
       if (marker.kind === 'poison-cell') {
-        const cornerSize = cellSize * (label.length >= 2 ? 0.42 : 0.34);
+        const cornerWidth = cellSize * (label.length >= 2 ? 0.42 : 0.34);
+        const cornerHeight = cellSize * 0.34;
         const corner = createPixiGraphics(runtime, 'pixi-marker-poison-cell-corner');
-        drawPixiPolygon(corner, Object.freeze([
-          Object.freeze({ x: 0, y: 0 }),
-          Object.freeze({ x: cornerSize, y: 0 }),
-          Object.freeze({ x: 0, y: cornerSize })
-        ]), {
+        drawPixiRect(corner, 0, 0, cornerWidth, cornerHeight, {
           color: '#4b105f', alpha: 0.96
         });
         addPixiChild(markerRoot, corner);
@@ -769,7 +766,7 @@ export function createPixiCellView(runtime: PixiStaticViewRuntime): PixiCellView
           );
           if (text) {
             setPixiAnchor(text, 0.5);
-            setPixiPosition(text, cornerSize * 0.42, cornerSize * 0.42);
+            setPixiPosition(text, cornerWidth / 2, cornerHeight / 2);
             addPixiChild(markerRoot, text);
           }
         }

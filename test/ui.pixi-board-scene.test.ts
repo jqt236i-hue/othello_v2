@@ -455,6 +455,8 @@ describe('Pixi static retained views', () => {
       child.label === 'pixi-marker-poison-cell-corner'
     ));
     expect(poisonCorner).toBeDefined();
+    expect(poisonCorner.commands.some((command: any) => command.op === 'rect')).toBe(true);
+    expect(poisonCorner.commands.some((command: any) => command.op === 'moveTo')).toBe(false);
     expect(poisonCorner.commands.some((command: any) => command.op === 'stroke')).toBe(false);
     expect(stoneView.getDiagnostics()).toMatchObject({
       owner: 'black',
