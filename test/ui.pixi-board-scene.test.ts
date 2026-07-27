@@ -870,6 +870,10 @@ describe('Pixi static retained views', () => {
     expect(statusText('poison').position.x).toBeCloseTo(16);
     expect(statusText('poison').position.y).toBeCloseTo(16);
     expect(fillColors()).toContain('#6b2b91');
+    const poisonSpecialBadge = stoneView.root.children.find((child: FakeDisplayObject) => (
+      child.label === 'pixi-stone-special-badge'
+    ));
+    expect(poisonSpecialBadge).toMatchObject({ visible: false });
   });
 });
 

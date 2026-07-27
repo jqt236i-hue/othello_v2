@@ -527,7 +527,7 @@ export function createPixiStoneView(runtime: PixiStaticViewRuntime): PixiStoneVi
         drawPixiCircle(specialRing, center, center, radius * 1.02, null, {
           color: '#f4ffff', alpha: owner === 'white' ? 0.88 : 0.34, width: Math.max(1, cellSize * 0.028)
         });
-      } else if (!dedicatedTexture) {
+      } else if (!dedicatedTexture && normalizedType !== 'POISONED') {
         drawPixiCircle(specialRing, center, center, radius * 1.03, null, {
           color: context.theme.hintColor,
           alpha: 0.86,
