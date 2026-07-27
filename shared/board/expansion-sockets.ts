@@ -31,10 +31,10 @@ export interface BoardExpansionSocket {
 export interface ExpansionSocketDependencies {
   toBoardCellKey: (row: number, col: number) => string;
   buildBoardTopology: (boardOrState: unknown, options?: unknown) => {
-    playableKeys: Set<string>;
-    existingKeys: Set<string>;
-    holeKeys: Set<string>;
-    playableCoordinates: CellCoord[];
+    playableKeys: ReadonlySet<string>;
+    existingKeys: ReadonlySet<string>;
+    holeKeys: ReadonlySet<string>;
+    playableCoordinates: readonly Readonly<CellCoord>[];
     candidateBounds: Bounds;
   };
 }
@@ -110,9 +110,9 @@ export function createExpansionSockets(deps: ExpansionSocketDependencies) {
   function isAvailableAddition(
     row: number,
     col: number,
-    existingKeys: Set<string>,
-    meteorHoleKeys: Set<string>,
-    exteriorKeys: Set<string>,
+    existingKeys: ReadonlySet<string>,
+    meteorHoleKeys: ReadonlySet<string>,
+    exteriorKeys: ReadonlySet<string>,
   ): boolean {
     const key = deps.toBoardCellKey(row, col);
     return (

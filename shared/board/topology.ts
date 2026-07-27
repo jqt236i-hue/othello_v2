@@ -30,27 +30,27 @@ export interface BoardCellBoundaryEdges {
 }
 
 export interface BoardTopology {
-  baseRows: number;
-  baseCols: number;
-  baseKeys: Set<string>;
-  expansionKeys: Set<string>;
-  existingKeys: Set<string>;
-  playableKeys: Set<string>;
-  holeKeys: Set<string>;
-  baseCoordinates: CellCoord[];
-  expansionCoordinates: CellCoord[];
-  existingCoordinates: CellCoord[];
-  playableCoordinates: CellCoord[];
-  holeCoordinates: CellCoord[];
-  expansionSideByKey: Map<string, string | null>;
-  renderRowOffset: number;
-  renderColOffset: number;
-  renderRows: number;
-  renderCols: number;
-  boundaryEdgesByKey: Map<string, BoardCellBoundaryEdges>;
-  contentBounds: Bounds;
-  renderBounds: Bounds;
-  candidateBounds: Bounds;
+  readonly baseRows: number;
+  readonly baseCols: number;
+  readonly baseKeys: ReadonlySet<string>;
+  readonly expansionKeys: ReadonlySet<string>;
+  readonly existingKeys: ReadonlySet<string>;
+  readonly playableKeys: ReadonlySet<string>;
+  readonly holeKeys: ReadonlySet<string>;
+  readonly baseCoordinates: readonly Readonly<CellCoord>[];
+  readonly expansionCoordinates: readonly Readonly<CellCoord>[];
+  readonly existingCoordinates: readonly Readonly<CellCoord>[];
+  readonly playableCoordinates: readonly Readonly<CellCoord>[];
+  readonly holeCoordinates: readonly Readonly<CellCoord>[];
+  readonly expansionSideByKey: ReadonlyMap<string, string | null>;
+  readonly renderRowOffset: number;
+  readonly renderColOffset: number;
+  readonly renderRows: number;
+  readonly renderCols: number;
+  readonly boundaryEdgesByKey: ReadonlyMap<string, Readonly<BoardCellBoundaryEdges>>;
+  readonly contentBounds: Readonly<Bounds>;
+  readonly renderBounds: Readonly<Bounds>;
+  readonly candidateBounds: Readonly<Bounds>;
 }
 
 export interface BoardTopologyDependencies {
@@ -71,6 +71,92 @@ export interface BoardTopologyDependencies {
 
 function sortCoordinates(coords: CellCoord[]): CellCoord[] {
   return coords.sort((a, b) => a.row - b.row || a.col - b.col);
+}
+
+export function createReadonlySetView<T>(
+  source: ReadonlySet<T>,
+): ReadonlySet<T> {
+  const view: {
+    readonly size: number;
+    has(value: T): boolean;
+    entries(): SetIterator<[T, T]>;
+    keys(): SetIterator<T>;
+    values(): SetIterator<T>;
+    forEach(
+      callbackfn: (value: T, value2: T, set: ReadonlySet<T>) => void,
+      thisArg?: unknown,
+    ): void;
+    [Symbol.iterator](): SetIterator<T>;
+  } = {
+    get size() {
+      return source.size;
+    },
+    has(value: T) {
+      return source.has(value);
+    },
+    entries() {
+      return source.entries();
+    },
+    keys() {
+      return source.keys();
+    },
+    values() {
+      return source.values();
+    },
+    forEach(callbackfn, thisArg) {
+      source.forEach((value) => callbackfn.call(thisArg, value, value, view));
+    },
+    [Symbol.iterator]() {
+      return source[Symbol.iterator]();
+    },
+  };
+  return Object.freeze(view);
+}
+
+export function createReadonlyMapView<K, V>(
+  source: ReadonlyMap<K, V>,
+): ReadonlyMap<K, V> {
+  const view: {
+    readonly size: number;
+    get(key: K): V | undefined;
+    has(key: K): boolean;
+    entries(): MapIterator<[K, V]>;
+    keys(): MapIterator<K>;
+    values(): MapIterator<V>;
+    forEach(
+      callbackfn: (value: V, key: K, map: ReadonlyMap<K, V>) => void,
+      thisArg?: unknown,
+    ): void;
+    [Symbol.iterator](): MapIterator<[K, V]>;
+  } = {
+    get size() {
+      return source.size;
+    },
+    get(key: K) {
+      return source.get(key);
+    },
+    has(key: K) {
+      return source.has(key);
+    },
+    entries() {
+      return source.entries();
+    },
+    keys() {
+      return source.keys();
+    },
+    values() {
+      return source.values();
+    },
+    forEach(callbackfn, thisArg) {
+      source.forEach((value, key) =>
+        callbackfn.call(thisArg, value, key, view)
+      );
+    },
+    [Symbol.iterator]() {
+      return source[Symbol.iterator]();
+    },
+  };
+  return Object.freeze(view);
 }
 
 function coordinatesFromKeys(keys: Set<string>): CellCoord[] {
@@ -140,7 +226,7 @@ function buildBoundaryEdgesByKey(
         edges[edge] = "hole";
       }
     }
-    result.set(key, edges);
+    result.set(key, Object.freeze(edges));
   }
   return result;
 }
@@ -210,16 +296,19 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
     const playableKeys = new Set<string>();
     for (const key of existingKeys) if (!holeKeys.has(key)) playableKeys.add(key);
 
-    const baseCoordinates = coordinatesFromKeys(baseKeys);
-    const expansionCoordinates = coordinatesFromKeys(expansionKeys);
-    const existingCoordinates = coordinatesFromKeys(existingKeys);
-    const playableCoordinates = coordinatesFromKeys(playableKeys);
-    const holeCoordinates = coordinatesFromKeys(holeKeys);
-    const contentBounds = boundsFromCoordinates(
+    const freezeCoordinates = (keys: Set<string>) => Object.freeze(
+      coordinatesFromKeys(keys).map((cell) => Object.freeze({ ...cell })),
+    );
+    const baseCoordinates = freezeCoordinates(baseKeys);
+    const expansionCoordinates = freezeCoordinates(expansionKeys);
+    const existingCoordinates = freezeCoordinates(existingKeys);
+    const playableCoordinates = freezeCoordinates(playableKeys);
+    const holeCoordinates = freezeCoordinates(holeKeys);
+    const contentBounds = Object.freeze(boundsFromCoordinates(
       [...existingCoordinates, ...holeCoordinates],
       config.baseBounds,
-    );
-    const renderBounds = unionBounds(config.baseBounds, contentBounds);
+    ));
+    const renderBounds = Object.freeze(unionBounds(config.baseBounds, contentBounds));
     const renderRowOffset = renderBounds.minRow < 0 ? -renderBounds.minRow : 0;
     const renderColOffset = renderBounds.minCol < 0 ? -renderBounds.minCol : 0;
     const renderRows = renderBounds.maxRow - renderBounds.minRow + 1;
@@ -229,36 +318,36 @@ export function createBoardTopology(deps: BoardTopologyDependencies) {
       holeKeys,
       deps.toBoardCellKey,
     );
-    const candidateBounds = {
+    const candidateBounds = Object.freeze({
       minRow: contentBounds.minRow - 1,
       maxRow: contentBounds.maxRow + 1,
       minCol: contentBounds.minCol - 1,
       maxCol: contentBounds.maxCol + 1,
-    };
+    });
 
-    return {
+    return Object.freeze({
       baseRows: config.rows,
       baseCols: config.cols,
-      baseKeys,
-      expansionKeys,
-      existingKeys,
-      playableKeys,
-      holeKeys,
+      baseKeys: createReadonlySetView(baseKeys),
+      expansionKeys: createReadonlySetView(expansionKeys),
+      existingKeys: createReadonlySetView(existingKeys),
+      playableKeys: createReadonlySetView(playableKeys),
+      holeKeys: createReadonlySetView(holeKeys),
       baseCoordinates,
       expansionCoordinates,
       existingCoordinates,
       playableCoordinates,
       holeCoordinates,
-      expansionSideByKey,
+      expansionSideByKey: createReadonlyMapView(expansionSideByKey),
       renderRowOffset,
       renderColOffset,
       renderRows,
       renderCols,
-      boundaryEdgesByKey,
+      boundaryEdgesByKey: createReadonlyMapView(boundaryEdgesByKey),
       contentBounds,
       renderBounds,
       candidateBounds,
-    };
+    });
   }
 
   return { buildBoardTopology };

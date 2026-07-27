@@ -90,12 +90,11 @@ function getSnapshotMeta(snapshot: any): SnapshotMeta | null {
       ? null
       : (Number.isFinite(Number(rawVersion)) ? Number(rawVersion) : null),
     boardContractVersion: (
-      rawBoardContractVersion === null
-      || typeof rawBoardContractVersion === 'undefined'
-      || (typeof rawBoardContractVersion === 'string' && rawBoardContractVersion.trim() === '')
+      typeof rawBoardContractVersion === 'number'
+      && Number.isInteger(rawBoardContractVersion)
     )
-      ? null
-      : (Number.isInteger(Number(rawBoardContractVersion)) ? Number(rawBoardContractVersion) : null),
+      ? rawBoardContractVersion
+      : null,
     projectedForSeat: normalizeSeatKey(meta.projectedForSeat),
     viewerRole: normalizeViewerRole(meta.viewerRole),
     turnStartReconciled: meta.turnStartReconciled !== false,
@@ -117,11 +116,11 @@ function inspectBoardContract(snapshot: any, options?: any): any {
   const meta = getSnapshotMeta(snapshot);
   const version = meta ? meta.boardContractVersion : null;
   if (!hasVersion) {
-    return opts.allowLegacyBoardContract === false
-      ? { ok: false, version: null, reason: 'missing_board_contract_version' }
-      : { ok: true, version: null, legacy: true };
+    if (opts.allowLegacyBoardContract === false) {
+      return { ok: false, version: null, reason: 'missing_board_contract_version' };
+    }
   }
-  if (version !== BOARD_CONTRACT_VERSION) {
+  if (hasVersion && version !== BOARD_CONTRACT_VERSION) {
     return { ok: false, version, reason: 'unsupported_board_contract_version' };
   }
   if (
@@ -141,10 +140,10 @@ function inspectBoardContract(snapshot: any, options?: any): any {
     const inspection = SharedBoardUtils.inspectBoardState(
       snapshot.gameState,
       snapshot.cardState,
-      { strict: true }
+      { strict: hasVersion }
     );
     return inspection && inspection.ok === true
-      ? { ok: true, version, legacy: false }
+      ? { ok: true, version, legacy: !hasVersion }
       : {
         ok: false,
         version,

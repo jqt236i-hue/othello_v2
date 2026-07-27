@@ -9,14 +9,31 @@ function withServerMeta(snapshot, metaVersion) {
     : Number.isFinite(Number(rawVersion))
     ? Number(rawVersion)
     : null;
-  return Object.assign({
+  const source = snapshot || {};
+  const sourceGameState = source.gameState || {};
+  const boardConfig = sourceGameState.boardConfig || {
+    rows: 8,
+    cols: 8,
+    shape: 'rectangle',
+    standard8x8: true
+  };
+  return {
+    ...source,
     _meta: {
       authority: 'server',
       version,
+      boardContractVersion: 2,
       projectedForSeat: null,
-      turnStartReconciled: true
+      turnStartReconciled: true,
+      ...(source._meta || {})
+    },
+    gameState: {
+      board: sourceGameState.board || createBoard(boardConfig.rows, boardConfig.cols),
+      boardConfig,
+      boardExpansion: { active: false, cells: [] },
+      ...sourceGameState
     }
-  }, snapshot || {});
+  };
 }
 
 function createBoard(rows = 8, cols = 8) {

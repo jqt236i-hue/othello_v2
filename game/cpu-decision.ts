@@ -562,6 +562,7 @@ function getBoardShapeForCpuBoard(boardRef: any): any {
         maxRow: topology.contentBounds.maxRow,
         minCol: topology.contentBounds.minCol,
         maxCol: topology.contentBounds.maxCol,
+        baseKeys: Array.from(topology.baseKeys),
         playableKeys: Array.from(topology.playableKeys),
         meteorHoleKeys: Array.from(topology.holeKeys),
         expansionCells: view.expansionCells.map((cell: any) => ({ ...cell })),

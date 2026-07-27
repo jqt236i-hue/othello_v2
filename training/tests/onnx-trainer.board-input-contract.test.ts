@@ -155,6 +155,49 @@ function runCardLoaderProbe() {
   });
 }
 
+function runCoordinateContractProbe() {
+  const script = [
+    'import json, pathlib, sys, types',
+    'repo_root = pathlib.Path(sys.argv[1])',
+    'torch_stub = types.ModuleType("torch")',
+    'torch_nn_stub = types.ModuleType("torch.nn")',
+    'torch_functional_stub = types.ModuleType("torch.nn.functional")',
+    'torch_nn_stub.Module = object',
+    'torch_nn_stub.functional = torch_functional_stub',
+    'torch_stub.nn = torch_nn_stub',
+    'torch_stub.Tensor = object',
+    'torch_stub.optim = types.SimpleNamespace(Optimizer=object)',
+    'sys.modules["torch"] = torch_stub',
+    'sys.modules["torch.nn"] = torch_nn_stub',
+    'sys.modules["torch.nn.functional"] = torch_functional_stub',
+    'sys.path.insert(0, str(repo_root / "training" / "python"))',
+    'import onnx_trainer_common as common',
+    'import train_policy_onnx as flat',
+    'import train_target_onnx as target',
+    'bool_place = {"actionType": "place", "row": True, "col": False}',
+    'int_place = {"actionType": "place", "row": 0, "col": 1}',
+    'bool_target = {',
+    '    "pendingType": "FREE_PLACEMENT",',
+    '    "pendingSelection": {"kind": "board_cell", "row": True, "col": False},',
+    '}',
+    'int_target = {',
+    '    "pendingType": "FREE_PLACEMENT",',
+    '    "pendingSelection": {"kind": "board_cell", "row": 0, "col": 1},',
+    '}',
+    'print(json.dumps({',
+    '    "strict": [common.is_strict_int(False), common.is_strict_int(True), common.is_strict_int(0), common.is_strict_int(1)],',
+    '    "place": [flat.place_target_index(bool_place), flat.place_target_index(int_place)],',
+    '    "boardCell": [flat.board_cell_index_for_record({}, True, False), flat.board_cell_index_for_record({}, 0, 1)],',
+    '    "target": [target.target_index(bool_target), target.target_index(int_target)],',
+    '}))'
+  ].join('\n');
+
+  return spawnSync(PYTHON, ['-c', script, REPO_ROOT], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8'
+  });
+}
+
 describe('ONNX trainer standard board input contract', () => {
   test('accepts only authoritative zero-origin dense 8x8 boardEnvelope records', () => {
     const valid = {
@@ -260,6 +303,30 @@ describe('ONNX trainer standard board input contract', () => {
     expect(cnn).toContain('rows = trainer_common.require_standard_dense_board_record(rec)');
     expect(flat).toContain('if row < 0 or row >= BOARD_SIZE or col < 0 or col >= BOARD_SIZE:');
     expect(flat).not.toContain('has_shape_aware_board');
+  });
+
+  test('coordinate helpers reject booleans while accepting integer zero and one', () => {
+    const result = runCoordinateContractProbe();
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout.trim())).toEqual({
+      strict: [false, false, true, true],
+      place: [null, 12],
+      boardCell: [null, 12],
+      target: [null, 12]
+    });
+
+    const cnn = readPython('policy_trainer_cnn.py');
+    const placeStart = cnn.indexOf('def place_target_index(rec: dict) -> int | None:');
+    const placeEnd = cnn.indexOf('\ndef card_target_index(', placeStart);
+    const placeTargetIndex = cnn.slice(placeStart, placeEnd);
+    expect(placeStart).toBeGreaterThanOrEqual(0);
+    expect(placeEnd).toBeGreaterThan(placeStart);
+    expect(placeTargetIndex).toContain(
+      'if not trainer_common.is_strict_int(row) or not trainer_common.is_strict_int(col):'
+    );
+    expect(placeTargetIndex).not.toContain('isinstance(row, int)');
+    expect(placeTargetIndex).not.toContain('isinstance(col, int)');
   });
 
   test('card specialist explicitly asks the shared loader for card labels', () => {

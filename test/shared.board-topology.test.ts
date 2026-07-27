@@ -83,6 +83,88 @@ describe('shared BoardTopology', () => {
     expect(topology.boundaryEdgesByKey.size).toBe(topology.existingKeys.size);
   });
 
+  test('keeps every cached topology surface deeply immutable to callers', () => {
+    const state = createCircleState(
+      [{ row: -1, col: 3, side: 'top', owner: 0 }],
+      [{
+        kind: 'specialStone',
+        row: 0,
+        col: 3,
+        data: { type: 'METEOR_HOLE' }
+      }]
+    );
+    const topology: any = SharedBoardUtils.buildBoardTopology(state.context);
+    const originalBaseCoordinate = { ...topology.baseCoordinates[0] };
+    const originalRenderBounds = { ...topology.renderBounds };
+    const originalEdge = {
+      ...topology.boundaryEdgesByKey.get('-1,3')
+    };
+
+    expect(Object.isFrozen(topology)).toBe(true);
+    for (const keys of [
+      topology.baseKeys,
+      topology.expansionKeys,
+      topology.existingKeys,
+      topology.playableKeys,
+      topology.holeKeys
+    ]) {
+      expect(Object.isFrozen(keys)).toBe(true);
+      expect(typeof keys.add).toBe('undefined');
+      expect(typeof keys.delete).toBe('undefined');
+      expect(typeof keys.clear).toBe('undefined');
+    }
+    for (const entries of [
+      topology.expansionSideByKey,
+      topology.boundaryEdgesByKey
+    ]) {
+      expect(Object.isFrozen(entries)).toBe(true);
+      expect(typeof entries.set).toBe('undefined');
+      expect(typeof entries.delete).toBe('undefined');
+      expect(typeof entries.clear).toBe('undefined');
+    }
+    for (const coordinates of [
+      topology.baseCoordinates,
+      topology.expansionCoordinates,
+      topology.existingCoordinates,
+      topology.playableCoordinates,
+      topology.holeCoordinates
+    ]) {
+      expect(Object.isFrozen(coordinates)).toBe(true);
+      for (const coordinate of coordinates) {
+        expect(Object.isFrozen(coordinate)).toBe(true);
+      }
+    }
+    for (const bounds of [
+      topology.contentBounds,
+      topology.renderBounds,
+      topology.candidateBounds
+    ]) {
+      expect(Object.isFrozen(bounds)).toBe(true);
+    }
+    for (const edges of topology.boundaryEdgesByKey.values()) {
+      expect(Object.isFrozen(edges)).toBe(true);
+    }
+
+    expect(() => {
+      topology.baseCoordinates[0].row = 999;
+    }).toThrow();
+    expect(() => {
+      topology.renderBounds.minRow = -999;
+    }).toThrow();
+    expect(() => {
+      topology.boundaryEdgesByKey.get('-1,3').top = 'none';
+    }).toThrow();
+
+    const cached = SharedBoardUtils.buildBoardTopology(state.context);
+    expect(cached).toBe(topology);
+    expect(cached.baseCoordinates[0]).toEqual(originalBaseCoordinate);
+    expect(cached.renderBounds).toEqual(originalRenderBounds);
+    expect(cached.boundaryEdgesByKey.get('-1,3')).toEqual(originalEdge);
+    expect(cached.baseKeys.has('0,3')).toBe(true);
+    expect(cached.expansionKeys.has('-1,3')).toBe(true);
+    expect(cached.holeKeys.has('0,3')).toBe(true);
+  });
+
   test('keeps explicit holes as sparse topology tombstones', () => {
     const state = createCircleState([], [{
         kind: 'specialStone',

@@ -225,4 +225,39 @@ describe('pending-target-selector', () => {
       freezeTarget: { row: 2, col: 5 }
     });
   });
+
+  test.each([
+    'BOARD_EXPANSION_WILL',
+    'BOARD_EXPANSION_GOD'
+  ])('buildPendingSelectionAction preserves direction-aware metadata for %s', (pendingType) => {
+    const selectedTarget = {
+      row: 0,
+      col: 0,
+      directionKey: 'up',
+      side: 'top',
+      additions: [{ row: -1, col: 0 }]
+    };
+    const action = PendingTargetSelector.buildPendingSelectionAction({
+      pendingType,
+      gameState: {},
+      cardState: {},
+      playerKey: 'black',
+      selectors: {
+        chooseBoardExpansionTarget: () => selectedTarget
+      }
+    });
+
+    selectedTarget.additions[0].row = 99;
+
+    expect(action).toEqual({
+      type: 'place',
+      expansionTarget: {
+        row: 0,
+        col: 0,
+        directionKey: 'up',
+        side: 'top',
+        additions: [{ row: -1, col: 0 }]
+      }
+    });
+  });
 });

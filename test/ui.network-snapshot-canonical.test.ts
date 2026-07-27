@@ -1,3 +1,19 @@
+function createCompleteLegacySnapshot(overrides: Record<string, any> = {}) {
+  return {
+    ...overrides,
+    gameState: {
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      boardExpansion: { cells: [] },
+      ...(overrides.gameState || {})
+    },
+    cardState: {
+      markers: [],
+      ...(overrides.cardState || {})
+    }
+  };
+}
+
 describe('NetworkSnapshotCanonicalModule', () => {
   let canonical;
 
@@ -84,12 +100,12 @@ describe('NetworkSnapshotCanonicalModule', () => {
 
   describe('inspectAuthoritativeSnapshot', () => {
     test('有効なサーバースナップショットを承認する', () => {
-      const snapshot = {
+      const snapshot = createCompleteLegacySnapshot({
         _meta: {
           authority: 'server',
           version: 10
         }
-      };
+      });
 
       const result = canonical.inspectAuthoritativeSnapshot(snapshot, {
         currentAppliedVersion: 5
@@ -190,19 +206,27 @@ describe('NetworkSnapshotCanonicalModule', () => {
       })).toEqual(expect.objectContaining({
         ok: false,
         rejectionType: 'invalid_board_contract',
-        telemetryType: 'snapshot_board_contract_rejected'
+        telemetryType: 'snapshot_board_contract_rejected',
+        telemetryDetails: expect.objectContaining({
+          boardContractVersion: 2,
+          reason: 'invalid_board_state'
+        })
       }));
     });
 
     test('未知の盤面契約versionを拒否し、無version legacyは移行期間中のみ受理する', () => {
-      const snapshot = {
+      const snapshot: any = {
         _meta: {
           authority: 'server',
           version: 10,
           boardContractVersion: 999
         },
-        gameState: { board: [[0]] },
-        cardState: {}
+        gameState: {
+          board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+          boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+          boardExpansion: { cells: [] }
+        },
+        cardState: { markers: [] }
       };
       const legacy = JSON.parse(JSON.stringify(snapshot));
       delete legacy._meta.boardContractVersion;
@@ -219,8 +243,77 @@ describe('NetworkSnapshotCanonicalModule', () => {
       }).rejectionType).toBe('invalid_board_contract');
     });
 
-    test('観戦者snapshotではseat projection不一致とhidden handを拒否しない', () => {
+    test.each([
+      ['numeric string', '2'],
+      ['single-item array', [2]],
+      ['boolean', true],
+      ['null', null]
+    ])('明示された非number盤面契約versionをlegacy扱いせず拒否する: %s', (_name, value) => {
       const snapshot = {
+        _meta: {
+          authority: 'server',
+          version: 10,
+          boardContractVersion: value
+        },
+        gameState: {
+          board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+          boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+          boardExpansion: { cells: [] }
+        },
+        cardState: { markers: [] }
+      };
+
+      expect(canonical.inspectAuthoritativeSnapshot(snapshot, {
+        currentAppliedVersion: 5,
+        allowLegacyBoardContract: true
+      })).toEqual(expect.objectContaining({
+        ok: false,
+        rejectionType: 'invalid_board_contract',
+        telemetryType: 'snapshot_board_contract_rejected',
+        telemetryDetails: expect.objectContaining({
+          boardContractVersion: null,
+          reason: 'unsupported_board_contract_version'
+        })
+      }));
+    });
+
+    test('version欠落のlegacyでも盤面を検証し、malformed boardのみ拒否する', () => {
+      const validLegacy = {
+        _meta: {
+          authority: 'server',
+          version: 10
+        },
+        gameState: {
+          board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+          boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+          boardExpansion: { cells: [] }
+        },
+        cardState: { markers: [] }
+      };
+      const malformedLegacy = JSON.parse(JSON.stringify(validLegacy));
+      malformedLegacy.gameState.board[3] = [0, 0, 0];
+
+      expect(canonical.inspectAuthoritativeSnapshot(validLegacy, {
+        currentAppliedVersion: 5
+      })).toEqual(expect.objectContaining({
+        ok: true,
+        version: 10
+      }));
+      expect(canonical.inspectAuthoritativeSnapshot(malformedLegacy, {
+        currentAppliedVersion: 5
+      })).toEqual(expect.objectContaining({
+        ok: false,
+        rejectionType: 'invalid_board_contract',
+        telemetryType: 'snapshot_board_contract_rejected',
+        telemetryDetails: expect.objectContaining({
+          boardContractVersion: null,
+          reason: 'invalid_board_state'
+        })
+      }));
+    });
+
+    test('観戦者snapshotではseat projection不一致とhidden handを拒否しない', () => {
+      const snapshot = createCompleteLegacySnapshot({
         _meta: {
           authority: 'server',
           version: 10,
@@ -233,7 +326,7 @@ describe('NetworkSnapshotCanonicalModule', () => {
             white: ['__hidden_hand__:white:0']
           }
         }
-      };
+      });
 
       const result = canonical.inspectAuthoritativeSnapshot(snapshot, {
         localSeatKey: 'black'
@@ -245,9 +338,9 @@ describe('NetworkSnapshotCanonicalModule', () => {
     });
 
     test('バージョンチェックをスキップ', () => {
-      const snapshot = {
+      const snapshot = createCompleteLegacySnapshot({
         _meta: { authority: 'server', version: 5 }
-      };
+      });
 
       const result = canonical.inspectAuthoritativeSnapshot(snapshot, {
         currentAppliedVersion: 10,
@@ -258,9 +351,9 @@ describe('NetworkSnapshotCanonicalModule', () => {
     });
 
     test('バージョンがnullでforceがfalseの場合は拒否', () => {
-      const snapshot = {
+      const snapshot = createCompleteLegacySnapshot({
         _meta: { authority: 'server', version: null }
-      };
+      });
 
       const result = canonical.inspectAuthoritativeSnapshot(snapshot, {
         force: false
@@ -271,9 +364,9 @@ describe('NetworkSnapshotCanonicalModule', () => {
     });
 
     test('古いスナップショットを拒否', () => {
-      const snapshot = {
+      const snapshot = createCompleteLegacySnapshot({
         _meta: { authority: 'server', version: 5 }
-      };
+      });
 
       const result = canonical.inspectAuthoritativeSnapshot(snapshot, {
         currentAppliedVersion: 10,
@@ -285,9 +378,9 @@ describe('NetworkSnapshotCanonicalModule', () => {
     });
 
     test('force=trueで古いスナップショットも承認', () => {
-      const snapshot = {
+      const snapshot = createCompleteLegacySnapshot({
         _meta: { authority: 'server', version: 5 }
-      };
+      });
 
       const result = canonical.inspectAuthoritativeSnapshot(snapshot, {
         currentAppliedVersion: 10,
@@ -468,15 +561,14 @@ describe('NetworkSnapshotCanonicalModule', () => {
 
   describe('sanitizeIncomingSnapshot', () => {
     test('スナップショットをサニタイズする', () => {
-      const snapshot = {
-        gameState: { board: [[]] },
+      const snapshot = createCompleteLegacySnapshot({
         cardState: {
           presentationEvents: [{ type: 'test' }],
           _presentationEventsPersist: [{ type: 'test2' }],
           _currentActionMeta: {},
           charge: { black: 10, white: 10 }
         }
-      };
+      });
 
       const result = canonical.sanitizeIncomingSnapshot(snapshot, {});
 
@@ -499,12 +591,12 @@ describe('NetworkSnapshotCanonicalModule', () => {
     });
 
     test('__resultShownを削除する', () => {
-      const snapshot = {
-        gameState: { board: [[]], __resultShown: true },
+      const snapshot = createCompleteLegacySnapshot({
+        gameState: { __resultShown: true },
         cardState: {
           charge: { black: 10, white: 10 }
         }
-      };
+      });
 
       const result = canonical.sanitizeIncomingSnapshot(snapshot, {});
 
@@ -514,12 +606,11 @@ describe('NetworkSnapshotCanonicalModule', () => {
     });
 
     test('トランジェント状態がない場合はnull', () => {
-      const snapshot = {
-        gameState: { board: [[]] },
+      const snapshot = createCompleteLegacySnapshot({
         cardState: {
           charge: { black: 10, white: 10 }
         }
-      };
+      });
 
       const result = canonical.sanitizeIncomingSnapshot(snapshot, {});
 

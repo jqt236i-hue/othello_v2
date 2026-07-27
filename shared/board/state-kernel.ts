@@ -1,4 +1,7 @@
 import {
+  copyBoundedOwnArray,
+  DEFAULT_BOARD_MAX_MATRIX_DIMENSION,
+  DEFAULT_BOARD_MAX_SHAPE_ENTRIES,
   isBoardCoordinateWithinLimit,
   resolveBoardMaxAbsCoordinate,
 } from "./expansion-descriptors";
@@ -118,8 +121,24 @@ function isOwner(value: unknown, empty: number, black: number, white: number): b
 function toKeySet(
   value: ReadonlySet<string> | readonly string[] | undefined,
 ): ReadonlySet<string> {
-  if (value instanceof Set) return value;
-  return new Set(Array.isArray(value) ? value : []);
+  if (Array.isArray(value)) {
+    const keys = copyBoundedOwnArray<string>(
+      value,
+      DEFAULT_BOARD_MAX_SHAPE_ENTRIES,
+    );
+    if (!keys) {
+      throw new Error("Flip constraint keys must be a bounded dense array");
+    }
+    return new Set(keys);
+  }
+  if (
+    value &&
+    typeof value === "object" &&
+    typeof (value as ReadonlySet<string>).has === "function"
+  ) {
+    return value as ReadonlySet<string>;
+  }
+  return new Set();
 }
 
 function fnv1a32(value: string): string {
@@ -176,6 +195,128 @@ export function createStateKernel(deps: StateKernelDependencies) {
     deps.maxAbsCoordinate,
   );
 
+  function preflightBoardSources(
+    gameState: Record<string, unknown>,
+    cardState: unknown,
+    strict: boolean,
+  ): string[] {
+    const errors: string[] = [];
+    const board = gameState.board;
+    if (
+      !Array.isArray(board) ||
+      board.length <= 0 ||
+      board.length > DEFAULT_BOARD_MAX_MATRIX_DIMENSION
+    ) {
+      return ["gameState.board must be a non-empty bounded matrix"];
+    }
+    let width: number | null = null;
+    for (let rowIndex = 0; rowIndex < board.length; rowIndex += 1) {
+      if (!Object.prototype.hasOwnProperty.call(board, rowIndex)) {
+        errors.push(`gameState.board[${rowIndex}] is missing`);
+        continue;
+      }
+      const row = board[rowIndex];
+      if (
+        !Array.isArray(row) ||
+        row.length <= 0 ||
+        row.length > DEFAULT_BOARD_MAX_MATRIX_DIMENSION
+      ) {
+        errors.push(
+          `gameState.board[${rowIndex}] must be a non-empty bounded array`,
+        );
+        continue;
+      }
+      if (width === null) width = row.length;
+      else if (row.length !== width) {
+        errors.push("gameState.board must be rectangular");
+      }
+      for (let colIndex = 0; colIndex < row.length; colIndex += 1) {
+        if (!Object.prototype.hasOwnProperty.call(row, colIndex)) {
+          errors.push(`gameState.board cell ${rowIndex},${colIndex} is missing`);
+          continue;
+        }
+        if (!isOwner(row[colIndex], deps.empty, deps.black, deps.white)) {
+          errors.push(
+            `gameState.board cell ${rowIndex},${colIndex} has invalid owner`,
+          );
+        }
+      }
+    }
+    if (width !== null) {
+      const config = deps.resolveBoardConfig(gameState);
+      if (config.rows !== board.length || config.cols !== width) {
+        errors.push(
+          "gameState.board dimensions must exactly match boardConfig",
+        );
+      }
+    }
+    const hasExpansion = Object.prototype.hasOwnProperty.call(
+      gameState,
+      "boardExpansion",
+    );
+    if (
+      strict &&
+      hasExpansion &&
+      gameState.boardExpansion != null &&
+      !isRecord(gameState.boardExpansion)
+    ) {
+      errors.push("gameState.boardExpansion must be an object");
+    }
+    const expansion = isRecord(gameState.boardExpansion)
+      ? gameState.boardExpansion
+      : null;
+    if (
+      expansion &&
+      Object.prototype.hasOwnProperty.call(expansion, "cells") &&
+      Array.isArray(expansion.cells) &&
+      !copyBoundedOwnArray(
+        expansion.cells,
+        DEFAULT_BOARD_MAX_SHAPE_ENTRIES,
+      )
+    ) {
+      errors.push("boardExpansion.cells must be a bounded dense array");
+    }
+    const hasMarkers = isRecord(cardState) &&
+      Object.prototype.hasOwnProperty.call(cardState, "markers");
+    if (strict && hasMarkers && !Array.isArray(cardState.markers)) {
+      errors.push("cardState.markers must be an array");
+    }
+    const markers = isRecord(cardState) && Array.isArray(cardState.markers)
+      ? cardState.markers
+      : null;
+    if (
+      markers &&
+      !copyBoundedOwnArray(markers, DEFAULT_BOARD_MAX_SHAPE_ENTRIES)
+    ) {
+      errors.push("cardState.markers must be a bounded dense array");
+    }
+    if (strict && markers) {
+      const boundedMarkers = copyBoundedOwnArray(
+        markers,
+        DEFAULT_BOARD_MAX_SHAPE_ENTRIES,
+      );
+      if (boundedMarkers) {
+        for (let index = 0; index < boundedMarkers.length; index += 1) {
+          const marker = boundedMarkers[index];
+          if (
+            !isRecord(marker) ||
+            marker.kind !== "specialStone" ||
+            !isRecord(marker.data) ||
+            String(marker.data.type || "").toUpperCase() !== "METEOR_HOLE"
+          ) {
+            continue;
+          }
+          if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) {
+            errors.push(
+              `cardState.markers[${index}] METEOR_HOLE needs exact integer row/col`,
+            );
+          }
+        }
+      }
+    }
+    return errors;
+  }
+
   function collectBoundedMeteorHoleKeys(
     cardState: unknown,
     strict: boolean,
@@ -183,7 +324,24 @@ export function createStateKernel(deps: StateKernelDependencies) {
     warnings: string[],
   ): Set<string> {
     const out = new Set<string>();
-    for (const key of deps.collectMeteorHoleKeys(cardState)) {
+    let sourceKeys: Set<string>;
+    try {
+      sourceKeys = deps.collectMeteorHoleKeys(cardState);
+    } catch (error) {
+      const message = `METEOR_HOLE collection failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`;
+      if (strict) errors.push(message);
+      else warnings.push(message);
+      return out;
+    }
+    if (sourceKeys.size > DEFAULT_BOARD_MAX_SHAPE_ENTRIES) {
+      const message = "METEOR_HOLE entries exceed the bounded shape size";
+      if (strict) errors.push(message);
+      else warnings.push(message);
+      return out;
+    }
+    for (const key of sourceKeys) {
       const parts = key.split(",");
       const row = parts.length === 2 ? Number(parts[0]) : NaN;
       const col = parts.length === 2 ? Number(parts[1]) : NaN;
@@ -234,16 +392,28 @@ export function createStateKernel(deps: StateKernelDependencies) {
       return [];
     }
 
+    const rawCells = copyBoundedOwnArray(
+      boardExpansion.cells,
+      DEFAULT_BOARD_MAX_SHAPE_ENTRIES,
+    );
+    if (!rawCells) {
+      errors.push("boardExpansion.cells must be a bounded dense array");
+      return [];
+    }
     const out: ExpansionDescriptor[] = [];
     const seen = new Set<string>();
-    for (let index = 0; index < (boardExpansion.cells as unknown[]).length; index += 1) {
-      const raw = (boardExpansion.cells as unknown[])[index];
+    for (let index = 0; index < rawCells.length; index += 1) {
+      const raw = rawCells[index];
       if (!isRecord(raw)) {
         errors.push(`boardExpansion.cells[${index}] must be an object`);
         continue;
       }
-      let row = Number(raw.row);
-      let col = Number(raw.col);
+      let row = strict && !Number.isInteger(raw.row)
+        ? NaN
+        : Number(raw.row);
+      let col = strict && !Number.isInteger(raw.col)
+        ? NaN
+        : Number(raw.col);
       if (!Number.isInteger(row) || !Number.isInteger(col)) {
         const legacyCell = !strict
           ? deps.collectExpansionDescriptors({ cells: [raw] }, gameState)[0]
@@ -315,19 +485,15 @@ export function createStateKernel(deps: StateKernelDependencies) {
       };
     }
     const gameState = gameStateValue;
-    if (!Array.isArray(gameState.board)) {
+    errors.push(...preflightBoardSources(gameState, cardState, strict));
+    if (errors.length > 0) {
       return {
         ok: false,
-        errors: ["gameState.board must be an array"],
+        errors,
         warnings,
         expansionCells: [],
         topology: null,
       };
-    }
-    for (let row = 0; row < gameState.board.length; row += 1) {
-      if (!Array.isArray(gameState.board[row])) {
-        errors.push(`gameState.board[${row}] must be an array`);
-      }
     }
     collectBoundedMeteorHoleKeys(
       cardState,
@@ -395,16 +561,21 @@ export function createStateKernel(deps: StateKernelDependencies) {
   ): { cacheable: boolean; signature: string } {
     const config = deps.resolveBoardConfig(gameState);
     const board = Array.isArray(gameState.board) ? gameState.board : [];
-    const boardValues = board.map((row) =>
-      Array.isArray(row)
-        ? row.map((value) => ({
-            valid: isOwner(value, deps.empty, deps.black, deps.white),
-            owner: isOwner(value, deps.empty, deps.black, deps.white)
-              ? value
-              : null,
-          }))
-        : null,
-    );
+    const boardValues: Array<Array<{ valid: boolean; owner: unknown }> | null> = [];
+    for (let rowIndex = 0; rowIndex < board.length; rowIndex += 1) {
+      const row = board[rowIndex];
+      if (!Array.isArray(row)) {
+        boardValues.push(null);
+        continue;
+      }
+      const rowValues: Array<{ valid: boolean; owner: unknown }> = [];
+      for (let colIndex = 0; colIndex < row.length; colIndex += 1) {
+        const value = row[colIndex];
+        const valid = isOwner(value, deps.empty, deps.black, deps.white);
+        rowValues.push({ valid, owner: valid ? value : null });
+      }
+      boardValues.push(rowValues);
+    }
     const signatureErrors: string[] = [];
     const expansion = parseExpansionCells(
       gameState,
@@ -480,6 +651,14 @@ export function createStateKernel(deps: StateKernelDependencies) {
     }
     const gameState = gameStateValue;
     const strict = options.strict !== false;
+    const preflightErrors = preflightBoardSources(
+      gameState,
+      options.cardState,
+      strict,
+    );
+    if (preflightErrors.length > 0) {
+      throw new Error(`Invalid board state: ${preflightErrors.join("; ")}`);
+    }
     const sourceSignature = buildSourceSignature(gameState, options.cardState);
     const cardStateKey = isRecord(options.cardState) ? options.cardState : null;
     const cached = viewCache.get(gameState);
@@ -772,7 +951,11 @@ export function createStateKernel(deps: StateKernelDependencies) {
     updatesValue: unknown,
     cardState: unknown,
   ): boolean {
-    if (!isRecord(gameStateValue) || !Array.isArray(updatesValue)) {
+    const rawUpdates = copyBoundedOwnArray(
+      updatesValue,
+      DEFAULT_BOARD_MAX_SHAPE_ENTRIES,
+    );
+    if (!isRecord(gameStateValue) || !rawUpdates) {
       return false;
     }
     const gameState = gameStateValue;
@@ -780,7 +963,8 @@ export function createStateKernel(deps: StateKernelDependencies) {
     const updates: BoardCellUpdate[] = [];
     const seen = new Set<string>();
     let hasExpansionUpdate = false;
-    for (const raw of updatesValue) {
+    if (rawUpdates.length > view.topology.playableKeys.size) return false;
+    for (const raw of rawUpdates) {
       if (
         !isRecord(raw) ||
         !Number.isInteger(raw.row) ||
@@ -866,7 +1050,11 @@ export function createStateKernel(deps: StateKernelDependencies) {
     additions: unknown[],
     cardState: unknown,
   ): { added: boolean; reason?: string; cells?: ExpansionDescriptor[] } {
-    if (!isRecord(gameStateValue) || !Array.isArray(additions)) {
+    const rawAdditions = copyBoundedOwnArray(
+      additions,
+      DEFAULT_BOARD_MAX_SHAPE_ENTRIES,
+    );
+    if (!isRecord(gameStateValue) || !rawAdditions) {
       return { added: false, reason: "invalid_args" };
     }
     const gameState = gameStateValue;
@@ -874,37 +1062,48 @@ export function createStateKernel(deps: StateKernelDependencies) {
     if (!inspection.ok || !inspection.topology) {
       return { added: false, reason: "invalid_state" };
     }
-    const candidateExpansion = {
-      cells: additions,
-    };
-    const normalized = deps.collectExpansionDescriptors(
-      candidateExpansion,
-      gameState,
-    );
-    if (normalized.length !== additions.length) {
-      return { added: false, reason: "invalid_addition" };
+    if (
+      inspection.expansionCells.length + rawAdditions.length >
+      DEFAULT_BOARD_MAX_SHAPE_ENTRIES
+    ) {
+      return { added: false, reason: "shape_limit_exceeded" };
     }
     const existing = inspection.topology.existingKeys;
     const additionKeys = new Set<string>();
     const canonicalAdditions: ExpansionDescriptor[] = [];
-    for (const cell of normalized) {
+    for (const raw of rawAdditions) {
+      if (
+        !isRecord(raw) ||
+        !Number.isInteger(raw.row) ||
+        !Number.isInteger(raw.col) ||
+        !isBoardCoordinateWithinLimit(
+          Number(raw.row),
+          Number(raw.col),
+          maxAbsCoordinate,
+        ) ||
+        !isOwner(raw.owner, deps.empty, deps.black, deps.white) ||
+        deps.isMainBoardCell(Number(raw.row), Number(raw.col), gameState)
+      ) {
+        return { added: false, reason: "invalid_addition" };
+      }
+      const cell: ExpansionDescriptor = {
+        row: Number(raw.row),
+        col: Number(raw.col),
+        side:
+          deps.resolveExpansionSide(
+            raw.side,
+            Number(raw.row),
+            Number(raw.col),
+            gameState,
+          ) || "top",
+        owner: Number(raw.owner),
+      };
       const key = deps.toBoardCellKey(cell.row, cell.col);
       if (existing.has(key) || additionKeys.has(key)) {
         return { added: false, reason: "coordinate_conflict" };
       }
       additionKeys.add(key);
-      canonicalAdditions.push({
-        row: cell.row,
-        col: cell.col,
-        side:
-          deps.resolveExpansionSide(
-            cell.side,
-            cell.row,
-            cell.col,
-            gameState,
-          ) || "top",
-        owner: deps.normalizeOwner(cell.owner),
-      });
+      canonicalAdditions.push(cell);
     }
     const cells = sortCells([
       ...inspection.expansionCells.map((cell) => ({ ...cell })),

@@ -84,6 +84,7 @@ describe('Dedicated CPU Worker runtime', () => {
         maxRow: 3,
         minCol: 0,
         maxCol: 3,
+        baseKeys: Array.from({ length: 16 }, (_value, index) => `${Math.floor(index / 4)},${index % 4}`),
         playableKeys: Array.from({ length: 16 }, (_value, index) => `${Math.floor(index / 4)},${index % 4}`),
         meteorHoleKeys: [],
         expansionCells: [],

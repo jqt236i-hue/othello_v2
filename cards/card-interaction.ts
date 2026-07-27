@@ -547,6 +547,11 @@ const _pendingSelectionFlowModule = _resolveCardInteractionModule({
     globalKey: 'PendingSelectionFlow'
 });
 
+const _pendingCoordinatorModule = _resolveCardInteractionModule({
+    requirePath: '../game/turn/pending-coordinator',
+    globalKey: 'PendingCoordinator'
+});
+
 const _cardInteractionPendingNetworkModule = _resolveCardInteractionModule({
     requirePath: './card-interaction-pending-network'
 });
@@ -2028,15 +2033,18 @@ function _ensureBoardPendingSelectionAfterCardUse(runResult: any, ownerKey: any,
         stateRef.pendingEffectByPlayer = { black: null, white: null };
     }
     const currentPending = stateRef.pendingEffectByPlayer[normalizedOwnerKey];
-    if (currentPending && currentPending.stage === 'selectTarget') return false;
+    if (currentPending && currentPending.stage === 'selectTarget') {
+        const currentType = String(currentPending.type || '').trim().toUpperCase();
+        if (currentType !== pendingType || currentPending.pendingEffectId) return false;
+    }
 
     const nextCardState = _getRunResultNextCardState(runResult);
     const nextPending = (nextCardState && nextCardState.pendingEffectByPlayer)
         ? nextCardState.pendingEffectByPlayer[normalizedOwnerKey]
         : null;
-    let pendingToApply = nextPending && nextPending.stage === 'selectTarget'
-        ? nextPending
-        : null;
+    let pendingToApply = currentPending && currentPending.stage === 'selectTarget'
+        ? currentPending
+        : (nextPending && nextPending.stage === 'selectTarget' ? nextPending : null);
 
     if (!pendingToApply && typeof pendingStateManager.createPendingEffectState === 'function') {
         pendingToApply = pendingStateManager.createPendingEffectState({
@@ -2047,12 +2055,49 @@ function _ensureBoardPendingSelectionAfterCardUse(runResult: any, ownerKey: any,
     }
     if (!pendingToApply || pendingToApply.stage !== 'selectTarget') return false;
 
-    stateRef.pendingEffectByPlayer[normalizedOwnerKey] = { ...pendingToApply };
-    if (nextCardState && typeof nextCardState === 'object') {
-        if (!nextCardState.pendingEffectByPlayer || typeof nextCardState.pendingEffectByPlayer !== 'object') {
-            nextCardState.pendingEffectByPlayer = { black: null, white: null };
+    if (
+        !_pendingCoordinatorModule
+        || typeof _pendingCoordinatorModule.writePendingEffect !== 'function'
+    ) {
+        return false;
+    }
+    const allocationState = nextCardState && typeof nextCardState === 'object'
+        ? nextCardState
+        : stateRef;
+    const allocationWrite = _pendingCoordinatorModule.writePendingEffect(
+        allocationState,
+        normalizedOwnerKey,
+        { ...pendingToApply },
+        { clearSelectionAction: allocationState === stateRef }
+    );
+    if (
+        !allocationWrite
+        || allocationWrite.ok !== true
+        || !allocationWrite.pendingEffect
+    ) {
+        return false;
+    }
+    const canonicalPending = { ...allocationWrite.pendingEffect };
+    if (allocationState !== stateRef) {
+        if (Number.isSafeInteger(allocationState.pendingEffectSeq)) {
+            stateRef.pendingEffectSeq = allocationState.pendingEffectSeq;
         }
-        nextCardState.pendingEffectByPlayer[normalizedOwnerKey] = { ...pendingToApply };
+        const stateWrite = _pendingCoordinatorModule.writePendingEffect(
+            stateRef,
+            normalizedOwnerKey,
+            { ...canonicalPending },
+            { clearSelectionAction: true }
+        );
+        if (!stateWrite || stateWrite.ok !== true) {
+            if (typeof _pendingCoordinatorModule.clearPendingEffect === 'function') {
+                _pendingCoordinatorModule.clearPendingEffect(
+                    allocationState,
+                    normalizedOwnerKey,
+                    { clearSelectionAction: false }
+                );
+            }
+            return false;
+        }
     }
     return true;
 }

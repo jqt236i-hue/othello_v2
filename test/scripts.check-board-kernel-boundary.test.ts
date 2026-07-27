@@ -1,7 +1,9 @@
 import {
   applyBoardKernelBoundaryAllowlist,
+  collectBoardKernelSourceFiles,
   scanBoardKernelSource,
 } from "../scripts/check-board-kernel-boundary";
+import * as path from "path";
 
 describe("board kernel boundary checker", () => {
   test.each([
@@ -38,6 +40,11 @@ describe("board kernel boundary checker", () => {
     [
       "shared/board-hint-projection.ts",
       "const owner = gameState.board[target.row][target.col];",
+      "consumer-dense-board-cell-access",
+    ],
+    [
+      "shared/board-hint-projection.ts",
+      "const owner = gameState['board'][target.row][target.col];",
       "consumer-dense-board-cell-access",
     ],
     [
@@ -184,6 +191,84 @@ describe("board kernel boundary checker", () => {
           violation.line === 9,
       ),
     ).toEqual([]);
+  });
+
+  test.each([
+    "scripts/local-match-runtime.ts",
+    "workers/match-worker-publish-controller.ts",
+    "utils/match-publish-controller.ts",
+  ])("rejects aliased dense aggregation in authority source %s", (file) => {
+    const violations = scanBoardKernelSource(
+      file,
+      [
+        "const cells = gameState.board;",
+        "const aliasedCells = cells;",
+        "const black = aliasedCells.flat().filter((value) => value === 1).length;",
+      ].join("\n"),
+    );
+    expect(violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rule: "authority-dense-board-aggregation",
+        }),
+      ]),
+    );
+  });
+
+  test.each([
+    "const values = canonicalState.board.flat();",
+    "const values = snapshot.board.flat();",
+    "const values = canonicalSnapshot['board'].flat();",
+    "const values = roomState.board.flat();",
+  ])("rejects direct dense aggregation through canonical authority aliases", (source) => {
+    const violations = scanBoardKernelSource(
+      "utils/match-publish-controller.ts",
+      source,
+    );
+    expect(violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rule: "authority-dense-board-aggregation",
+        }),
+      ]),
+    );
+  });
+
+  test("tracks state object aliases before dense board aliases", () => {
+    const violations = scanBoardKernelSource(
+      "utils/match-publish-controller.ts",
+      [
+        "const current = gameState;",
+        "const forwarded = current;",
+        "const rows = forwarded.board;",
+        "const values = rows.flat();",
+      ].join("\n"),
+    );
+    expect(violations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rule: "authority-dense-board-aggregation",
+        }),
+      ]),
+    );
+  });
+
+  test("does not classify unrelated object board data as canonical state", () => {
+    const violations = scanBoardKernelSource(
+      "utils/match-publish-controller.ts",
+      [
+        "const catalogValues = catalog.board.flat();",
+        "const value = catalog.board[row][col];",
+      ].join("\n"),
+    );
+    expect(violations).toEqual([]);
+  });
+
+  test("includes the local match runtime in repository scanning", () => {
+    const root = path.resolve(__dirname, "..");
+    expect(collectBoardKernelSourceFiles(root)).toContain(
+      path.join(root, "scripts", "local-match-runtime.ts"),
+    );
   });
 
   test("rejects Array.isArray gates that discard a BoardContext", () => {

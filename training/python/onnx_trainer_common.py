@@ -21,6 +21,7 @@ from typing import Any, Iterable, Iterator
 
 import torch
 from torch import nn
+from trainer_value_contracts import is_strict_int
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +119,7 @@ class BoardInputFilterDiagnostics:
 
 
 def _is_zero_board_origin(value: object) -> bool:
-    return type(value) is int and value == 0
+    return is_strict_int(value) and value == 0
 
 
 def validate_standard_dense_board_record(record: object) -> BoardInputValidation:

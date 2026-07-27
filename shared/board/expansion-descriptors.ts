@@ -32,6 +32,34 @@ export interface ExpansionDescriptorDependencies {
 }
 
 export const DEFAULT_BOARD_MAX_ABS_COORDINATE = 256;
+export const DEFAULT_BOARD_MAX_MATRIX_DIMENSION = 64;
+export const DEFAULT_BOARD_MAX_SHAPE_ENTRIES = 8192;
+
+export function copyBoundedOwnArray<T = unknown>(
+  value: unknown,
+  maxLength: number = DEFAULT_BOARD_MAX_SHAPE_ENTRIES,
+): T[] | null {
+  if (!Array.isArray(value)) return null;
+  const length = value.length;
+  if (
+    !Number.isSafeInteger(maxLength) ||
+    maxLength < 0 ||
+    !Number.isSafeInteger(length) ||
+    length < 0 ||
+    length > maxLength
+  ) {
+    return null;
+  }
+  const out: T[] = [];
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, index);
+    if (!descriptor || !Object.prototype.hasOwnProperty.call(descriptor, "value")) {
+      return null;
+    }
+    out.push(descriptor.value as T);
+  }
+  return out;
+}
 
 export function resolveBoardMaxAbsCoordinate(value: unknown): number {
   return Number.isFinite(Number(value))
@@ -129,23 +157,27 @@ export function createExpansionDescriptors(
   ): ExpansionDescriptor[] {
     if (!boardExpansion || typeof boardExpansion !== "object") return [];
     const out: ExpansionDescriptor[] = [];
+    const seen = new Set<string>();
     const canonicalize = (): ExpansionDescriptor[] =>
       out.sort((left, right) => left.row - right.row || left.col - right.col);
     const obj = boardExpansion as Record<string, unknown>;
     const push = (raw: unknown): void => {
       const normalized = normalizeExpansionCell(raw, boardOrConfig);
-      if (
-        !normalized ||
-        out.some(
-          (one) => one.row === normalized.row && one.col === normalized.col,
-        )
-      )
-        return;
+      if (!normalized) return;
+      const key = `${normalized.row},${normalized.col}`;
+      if (seen.has(key)) return;
+      seen.add(key);
       out.push(normalized);
     };
     if (Object.prototype.hasOwnProperty.call(obj, "cells")) {
       if (Array.isArray(obj.cells)) {
-        for (const cell of obj.cells) push(cell);
+        const cells = copyBoundedOwnArray(obj.cells);
+        if (!cells) {
+          throw new Error(
+            "boardExpansion.cells must be a bounded dense array",
+          );
+        }
+        for (const cell of cells) push(cell);
       }
       return canonicalize();
     }

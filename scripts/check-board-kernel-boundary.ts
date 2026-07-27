@@ -45,7 +45,8 @@ const SOURCE_ROOTS = [
 ] as const;
 const ROOT_SOURCE_FILES = [
     'entry-browser.js',
-    'scripts/local-match-server.ts'
+    'scripts/local-match-server.ts',
+    'scripts/local-match-runtime.ts'
 ] as const;
 const SKIP_SEGMENTS = new Set([
     '.git',
@@ -390,8 +391,11 @@ function isTopologySensitiveConsumer(filePath: string): boolean {
 
 function isAuthorityFile(filePath: string): boolean {
     return filePath === 'workers/match-worker.ts'
+        || filePath === 'workers/match-worker-publish-controller.ts'
         || filePath === 'scripts/local-match-server.ts'
+        || filePath === 'scripts/local-match-runtime.ts'
         || filePath === 'utils/match-authority.ts'
+        || filePath === 'utils/match-publish-controller.ts'
         || filePath.startsWith('utils/match-authority/');
 }
 
@@ -423,10 +427,6 @@ function isExpansionDescriptorConsumer(filePath: string): boolean {
         || filePath.startsWith('ui/presentation/');
 }
 
-function expressionContainsBoardProperty(expression: ts.Expression, sourceFile: ts.SourceFile): boolean {
-    return /(?:^|[?.])board(?:$|[?.[])/.test(expression.getText(sourceFile).replace(/\s+/g, ''));
-}
-
 function expressionContainsBoardExpansion(expression: ts.Expression, sourceFile: ts.SourceFile): boolean {
     const text = expression.getText(sourceFile).replace(/\s+/g, '');
     return /(?:^|[?.])boardExpansion(?:$|[?.[])/.test(text)
@@ -437,6 +437,7 @@ type BoardKernelAliasIndex = {
     facadeNames: Set<string>;
     apiNames: Map<string, string>;
     denseBoardNames: Set<string>;
+    stateObjectNames: Set<string>;
 };
 
 function isCanonicalBoardModulePath(value: string): boolean {
@@ -446,13 +447,21 @@ function isCanonicalBoardModulePath(value: string): boolean {
 }
 
 function isStateLikeIdentifier(name: string): boolean {
-    return /^(?:gs|gameState|state)(?:Ref|Value|Override|Snapshot)?$/i.test(name)
-        || /gameState/i.test(name);
+    return /^(?:gs|state|gameState|roomState|matchState|canonicalState|snapshot|canonicalSnapshot)(?:Ref|Value|Override|Snapshot)?$/i
+        .test(name)
+        || /^(?:game|room|match|canonical)\w*State(?:Ref|Value|Override|Snapshot)?$/i
+            .test(name);
 }
 
-function isStateLikeExpression(expression: ts.Expression): boolean {
+function isStateLikeExpression(
+    expression: ts.Expression,
+    stateObjectNames?: ReadonlySet<string>
+): boolean {
     const value = unwrapExpression(expression);
-    if (ts.isIdentifier(value)) return isStateLikeIdentifier(value.text);
+    if (ts.isIdentifier(value)) {
+        return isStateLikeIdentifier(value.text)
+            || !!(stateObjectNames && stateObjectNames.has(value.text));
+    }
     if (ts.isPropertyAccessExpression(value) || ts.isPropertyAccessChain(value)) {
         return value.name.text === 'gameState';
     }
@@ -463,27 +472,34 @@ function isStateLikeExpression(expression: ts.Expression): boolean {
     return false;
 }
 
-function isRawStateBoardProperty(expression: ts.Expression): boolean {
+function isRawStateBoardProperty(
+    expression: ts.Expression,
+    stateObjectNames?: ReadonlySet<string>
+): boolean {
     const value = unwrapExpression(expression);
     if (ts.isPropertyAccessExpression(value) || ts.isPropertyAccessChain(value)) {
-        return value.name.text === 'board' && isStateLikeExpression(value.expression);
+        return value.name.text === 'board'
+            && isStateLikeExpression(value.expression, stateObjectNames);
     }
     if (ts.isElementAccessExpression(value) || ts.isElementAccessChain(value)) {
         const key = value.argumentExpression;
         return !!key
             && ts.isStringLiteralLike(key)
             && key.text === 'board'
-            && isStateLikeExpression(value.expression);
+            && isStateLikeExpression(value.expression, stateObjectNames);
     }
     return false;
 }
 
-function containsDirectRawStateBoardValue(expression: ts.Expression): boolean {
+function containsDirectRawStateBoardValue(
+    expression: ts.Expression,
+    aliases?: BoardKernelAliasIndex
+): boolean {
     const value = unwrapExpression(expression);
-    if (isRawStateBoardProperty(value)) return true;
+    if (isRawStateBoardProperty(value, aliases && aliases.stateObjectNames)) return true;
     if (ts.isConditionalExpression(value)) {
-        return containsDirectRawStateBoardValue(value.whenTrue)
-            || containsDirectRawStateBoardValue(value.whenFalse);
+        return containsDirectRawStateBoardValue(value.whenTrue, aliases)
+            || containsDirectRawStateBoardValue(value.whenFalse, aliases);
     }
     if (
         ts.isBinaryExpression(value)
@@ -493,8 +509,61 @@ function containsDirectRawStateBoardValue(expression: ts.Expression): boolean {
             || value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
         )
     ) {
-        return containsDirectRawStateBoardValue(value.left)
-            || containsDirectRawStateBoardValue(value.right);
+        return containsDirectRawStateBoardValue(value.left, aliases)
+            || containsDirectRawStateBoardValue(value.right, aliases);
+    }
+    return false;
+}
+
+function containsStateObjectValue(
+    expression: ts.Expression,
+    aliases: BoardKernelAliasIndex
+): boolean {
+    const value = unwrapExpression(expression);
+    if (isStateLikeExpression(value, aliases.stateObjectNames)) return true;
+    if (ts.isConditionalExpression(value)) {
+        return containsStateObjectValue(value.whenTrue, aliases)
+            || containsStateObjectValue(value.whenFalse, aliases);
+    }
+    if (
+        ts.isBinaryExpression(value)
+        && (
+            value.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+            || value.operatorToken.kind === ts.SyntaxKind.BarBarToken
+            || value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+        )
+    ) {
+        return containsStateObjectValue(value.left, aliases)
+            || containsStateObjectValue(value.right, aliases);
+    }
+    return false;
+}
+
+function containsDenseBoardValue(
+    expression: ts.Expression,
+    aliases: BoardKernelAliasIndex
+): boolean {
+    const value = unwrapExpression(expression);
+    if (isRawStateBoardProperty(value, aliases.stateObjectNames)) return true;
+    if (ts.isIdentifier(value)) return aliases.denseBoardNames.has(value.text);
+    if (ts.isConditionalExpression(value)) {
+        return containsDenseBoardValue(value.whenTrue, aliases)
+            || containsDenseBoardValue(value.whenFalse, aliases);
+    }
+    if (
+        ts.isBinaryExpression(value)
+        && (
+            value.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+            || value.operatorToken.kind === ts.SyntaxKind.BarBarToken
+            || value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+        )
+    ) {
+        return containsDenseBoardValue(value.left, aliases)
+            || containsDenseBoardValue(value.right, aliases);
+    }
+    if (ts.isCallExpression(value)) {
+        const receiver = readCallReceiver(value.expression);
+        return !!receiver && containsDenseBoardValue(receiver, aliases);
     }
     return false;
 }
@@ -556,12 +625,16 @@ function collectBoardKernelAliases(sourceFile: ts.SourceFile): BoardKernelAliasI
     const aliases: BoardKernelAliasIndex = {
         facadeNames: new Set(CANONICAL_FACADE_NAMES),
         apiNames: new Map<string, string>(),
-        denseBoardNames: new Set<string>()
+        denseBoardNames: new Set<string>(),
+        stateObjectNames: new Set<string>()
     };
     const canonicalApis = allCanonicalApiNames();
 
     const collectOnce = (): boolean => {
-        const before = aliases.facadeNames.size + aliases.apiNames.size + aliases.denseBoardNames.size;
+        const before = aliases.facadeNames.size
+            + aliases.apiNames.size
+            + aliases.denseBoardNames.size
+            + aliases.stateObjectNames.size;
         const visit = (node: ts.Node): void => {
             if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier)) {
                 if (isCanonicalBoardModulePath(node.moduleSpecifier.text) && node.importClause) {
@@ -614,8 +687,11 @@ function collectBoardKernelAliases(sourceFile: ts.SourceFile): BoardKernelAliasI
                     } else if (ts.isIdentifier(initializer) && aliases.apiNames.has(initializer.text)) {
                         aliases.apiNames.set(localName, aliases.apiNames.get(initializer.text)!);
                     }
-                    if (containsDirectRawStateBoardValue(node.initializer)) {
+                    if (containsDenseBoardValue(node.initializer, aliases)) {
                         aliases.denseBoardNames.add(localName);
+                    }
+                    if (containsStateObjectValue(node.initializer, aliases)) {
+                        aliases.stateObjectNames.add(localName);
                     }
                 } else if (ts.isObjectBindingPattern(node.name)) {
                     if (isCanonicalFacadeExpression(node.initializer, aliases)) {
@@ -627,12 +703,18 @@ function collectBoardKernelAliases(sourceFile: ts.SourceFile): BoardKernelAliasI
                             }
                         }
                     }
-                    if (isStateLikeExpression(node.initializer)) {
+                    if (isStateLikeExpression(node.initializer, aliases.stateObjectNames)) {
                         for (const element of node.name.elements) {
                             if (bindingPropertyName(element) === 'board') {
                                 const localName = bindingLocalName(element);
                                 if (localName) aliases.denseBoardNames.add(localName);
                             }
+                        }
+                    }
+                    for (const element of node.name.elements) {
+                        if (bindingPropertyName(element) === 'gameState') {
+                            const localName = bindingLocalName(element);
+                            if (localName) aliases.stateObjectNames.add(localName);
                         }
                     }
                 }
@@ -643,8 +725,11 @@ function collectBoardKernelAliases(sourceFile: ts.SourceFile): BoardKernelAliasI
                 && ts.isIdentifier(unwrapExpression(node.left))
             ) {
                 const localName = (unwrapExpression(node.left) as ts.Identifier).text;
-                if (containsDirectRawStateBoardValue(node.right)) {
+                if (containsDenseBoardValue(node.right, aliases)) {
                     aliases.denseBoardNames.add(localName);
+                }
+                if (containsStateObjectValue(node.right, aliases)) {
+                    aliases.stateObjectNames.add(localName);
                 }
                 if (isCanonicalFacadeExpression(node.right, aliases)) {
                     aliases.facadeNames.add(localName);
@@ -653,12 +738,15 @@ function collectBoardKernelAliases(sourceFile: ts.SourceFile): BoardKernelAliasI
             ts.forEachChild(node, visit);
         };
         visit(sourceFile);
-        const after = aliases.facadeNames.size + aliases.apiNames.size + aliases.denseBoardNames.size;
+        const after = aliases.facadeNames.size
+            + aliases.apiNames.size
+            + aliases.denseBoardNames.size
+            + aliases.stateObjectNames.size;
         return after > before;
     };
 
-    for (let pass = 0; pass < 4 && collectOnce(); pass += 1) {
-        // A small fixed-point resolves chained aliases without type-checker I/O.
+    while (collectOnce()) {
+        // Alias sets grow monotonically, so traversal terminates at a fixed point.
     }
     return aliases;
 }
@@ -671,22 +759,16 @@ function isDirectStateBoardCellAccess(
     const rowAccess = unwrapExpression(node.expression);
     if (!ts.isElementAccessExpression(rowAccess) && !ts.isElementAccessChain(rowAccess)) return false;
     const boardAccess = unwrapExpression(rowAccess.expression);
-    if (
-        (ts.isPropertyAccessExpression(boardAccess) || ts.isPropertyAccessChain(boardAccess))
-        && boardAccess.name.text === 'board'
-    ) {
-        return true;
-    }
+    if (isRawStateBoardProperty(boardAccess, aliases.stateObjectNames)) return true;
     return ts.isIdentifier(boardAccess) && aliases.denseBoardNames.has(boardAccess.text);
 }
 
 function isRawStateExpression(
     expression: ts.Expression,
-    sourceFile: ts.SourceFile,
     aliases: BoardKernelAliasIndex
 ): boolean {
     const value = unwrapExpression(expression);
-    if (isStateLikeExpression(value)) return true;
+    if (isStateLikeExpression(value, aliases.stateObjectNames)) return true;
     if (ts.isIdentifier(value)) return aliases.denseBoardNames.has(value.text);
     if (
         (ts.isPropertyAccessExpression(value) || ts.isPropertyAccessChain(value))
@@ -695,8 +777,7 @@ function isRawStateExpression(
     ) {
         return false;
     }
-    if (expressionContainsBoardProperty(value, sourceFile)) return true;
-    return false;
+    return containsDenseBoardValue(value, aliases);
 }
 
 function resolveCanonicalApiCall(
@@ -934,7 +1015,7 @@ export function scanBoardKernelSource(
                 && propertyName
                 && new Set(['filter', 'flat', 'flatMap', 'forEach', 'reduce']).has(propertyName)
                 && receiver
-                && expressionContainsBoardProperty(receiver, sourceFile)
+                && containsDenseBoardValue(receiver, aliases)
             ) {
                 pushViolation(
                     violations,
@@ -950,7 +1031,7 @@ export function scanBoardKernelSource(
                 && canonicalCall
                 && SHAPE_API_NAMES.has(canonicalCall.apiName)
                 && node.arguments.length > 0
-                && isRawStateExpression(node.arguments[0], sourceFile, aliases)
+                && isRawStateExpression(node.arguments[0], aliases)
             ) {
                 pushViolation(
                     violations,
@@ -965,7 +1046,7 @@ export function scanBoardKernelSource(
                 isTopologySensitiveConsumer(filePath)
                 && canonicalCall
                 && node.arguments.length > 0
-                && isRawStateExpression(node.arguments[0], sourceFile, aliases)
+                && isRawStateExpression(node.arguments[0], aliases)
             ) {
                 const argumentIndex = STATE_KERNEL_CARD_STATE_ARGUMENTS.get(canonicalCall.apiName);
                 if (argumentIndex !== undefined) {
@@ -1016,7 +1097,7 @@ export function scanBoardKernelSource(
         if (
             isAuthorityFile(filePath)
             && ts.isForOfStatement(node)
-            && expressionContainsBoardProperty(node.expression, sourceFile)
+            && containsDenseBoardValue(node.expression, aliases)
         ) {
             pushViolation(
                 violations,
@@ -1074,7 +1155,7 @@ export function scanBoardKernelSource(
             && ts.isVariableDeclaration(node)
             && ts.isIdentifier(node.name)
             && node.initializer
-            && containsDirectRawStateBoardValue(node.initializer)
+            && containsDirectRawStateBoardValue(node.initializer, aliases)
         ) {
             pushViolation(
                 violations,

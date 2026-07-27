@@ -136,8 +136,8 @@
     "file": "assets/ViewableBuffer-CObpe3su.js",
     "name": "ViewableBuffer"
   },
-  "_bridge-D1hw_8wB.js": {
-    "file": "assets/bridge-D1hw_8wB.js",
+  "_bridge-BEQQbJ2j.js": {
+    "file": "assets/bridge-BEQQbJ2j.js",
     "name": "bridge"
   },
   "_canvasUtils-C8xQnZmC.js": {
@@ -185,12 +185,12 @@
     "src": "assets/images/stone-skin/default/black.png"
   },
   "browser-vite/cpu-worker/diagnostics.ts": {
-    "file": "assets/cpu-worker-diagnostics-gQeed6Fi.js",
+    "file": "assets/cpu-worker-diagnostics-DMYFIGu2.js",
     "name": "cpu-worker-diagnostics",
     "src": "browser-vite/cpu-worker/diagnostics.ts",
     "isEntry": true,
     "imports": [
-      "_bridge-D1hw_8wB.js"
+      "_bridge-BEQQbJ2j.js"
     ]
   },
   "browser-vite/generated-assets/optional-commentary.mjs": {
@@ -198,7 +198,7 @@
     "src": "browser-vite/generated-assets/optional-commentary.mjs"
   },
   "browser-vite/generated-assets/optional-compatibility.mjs": {
-    "file": "assets/optional-compatibility-CSbJUiHc.mjs",
+    "file": "assets/optional-compatibility-DQK6C44k.mjs",
     "src": "browser-vite/generated-assets/optional-compatibility.mjs"
   },
   "browser-vite/generated-assets/optional-cosmetic.mjs": {
@@ -235,14 +235,14 @@
     ]
   },
   "index.vite.html": {
-    "file": "assets/index.vite-DWBUy-YA.js",
+    "file": "assets/index.vite-DxjqUIOD.js",
     "name": "index.vite",
     "src": "index.vite.html",
     "isEntry": true,
     "imports": [
       "_rolldown-runtime-aKtaBQYM.js",
       "_preload-helper-HclGiUj8.js",
-      "_bridge-D1hw_8wB.js"
+      "_bridge-BEQQbJ2j.js"
     ],
     "dynamicImports": [
       "ui/layout-stage.js",
@@ -257,7 +257,7 @@
       "assets/optional-commentary-w5vg3vdT.mjs",
       "assets/optional-cpu-BntQgZI-.mjs",
       "assets/optional-onnx-UiDuVAOA.mjs",
-      "assets/optional-compatibility-CSbJUiHc.mjs",
+      "assets/optional-compatibility-DQK6C44k.mjs",
       "assets/optional-diagnostics-DQiaJ-SF.mjs",
       "assets/black-C5I6QShq.png",
       "assets/hero-DbqiEqdj.png",

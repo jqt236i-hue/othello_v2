@@ -2,19 +2,24 @@ jest.mock('../ui/board-renderer.ts', () => ({
   getBoardVisualControllerReady: jest.fn(async () => undefined)
 }));
 
+const Shared = require('../shared-constants');
+const SharedBoardUtils = require('../shared/shared-board-utils');
+const { createGameState } = require('./helpers/game-state-mock');
+
 function createSnapshot(stateVersion: number, label: string) {
   return {
     stateVersion,
     _meta: {
       authority: 'server',
       version: stateVersion,
+      boardContractVersion: SharedBoardUtils.BOARD_CONTRACT_VERSION,
       projectedForSeat: 'black',
       turnStartReconciled: true
     },
-    gameState: {
+    gameState: createGameState(Shared, {
       currentPlayer: stateVersion % 2 === 0 ? -1 : 1,
-      board: [[label]]
-    },
+      snapshotLabel: label
+    }),
     cardState: {
       hands: { black: [], white: [] },
       presentationEvents: [],
@@ -114,11 +119,11 @@ describe('network client visual catch-up', () => {
     });
     expect(visualStateStore.getCanonicalSnapshot()).toMatchObject({
       stateVersion: 2,
-      gameState: { board: [['new']] }
+      gameState: { snapshotLabel: 'new' }
     });
     expect(visualStateStore.getRenderSnapshot()).toMatchObject({
       stateVersion: 1,
-      gameState: { board: [['old']] }
+      gameState: { snapshotLabel: 'old' }
     });
     expect((global as any).cardState.presentationEvents).toEqual([]);
 
@@ -126,7 +131,7 @@ describe('network client visual catch-up', () => {
 
     expect(visualStateStore.getRenderSnapshot()).toMatchObject({
       stateVersion: 2,
-      gameState: { board: [['new']] }
+      gameState: { snapshotLabel: 'new' }
     });
   });
 

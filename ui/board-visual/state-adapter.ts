@@ -33,7 +33,11 @@ const DiffRendererProjector = _require('./model-builder');
 
 let superAttractionHoverPreview: any = null;
 
-let activePreparedVisualStateForDiff: { gameState: any; cardState: any } | null = null;
+let activePreparedVisualStateForDiff: {
+  gameState: any;
+  cardState: any;
+  stateVersion?: number;
+} | null = null;
 
 let DiffRendererManifestStoneRegistryModule: any = null;
 
@@ -362,6 +366,35 @@ function _resolveNetworkVisualRenderSnapshotForDiff() {
     return null;
 }
 
+function _resolveNetworkVisualInputEpochForDiff(snapshot: any, viewerContext: any) {
+    if (!viewerContext || viewerContext.isNetworkMode !== true) {
+        return Object.freeze({ stateVersion: null, visualSeq: null });
+    }
+    const store = _resolveNetworkVisualStateStoreForDiff();
+    let diagnostics: any = null;
+    try {
+        diagnostics = store && typeof store.getDiagnostics === 'function'
+            ? store.getDiagnostics()
+            : null;
+    } catch (e: any) { diagnostics = null; }
+    const snapshotVersion = snapshot && typeof snapshot.stateVersion === 'number'
+        && Number.isInteger(snapshot.stateVersion)
+        ? snapshot.stateVersion
+        : null;
+    const visualVersion = diagnostics && typeof diagnostics.visualVersion === 'number'
+        && Number.isInteger(diagnostics.visualVersion)
+        ? diagnostics.visualVersion
+        : null;
+    const visualSeq = diagnostics && typeof diagnostics.visualSeq === 'number'
+        && Number.isInteger(diagnostics.visualSeq)
+        ? diagnostics.visualSeq
+        : null;
+    return Object.freeze({
+        stateVersion: snapshotVersion ?? visualVersion,
+        visualSeq
+    });
+}
+
 function _resolveLocalVisualRenderPairForDiff() {
     const currentGameState = RuntimeStateAccessModule.resolveCurrentRuntimeObject('gameState', () => {
         try { return (typeof gameState !== 'undefined') ? gameState : null; }
@@ -381,14 +414,16 @@ function _resolveVisualRenderPairForDiff() {
     if (activePreparedVisualStateForDiff) {
         return {
             gameState: activePreparedVisualStateForDiff.gameState,
-            cardState: activePreparedVisualStateForDiff.cardState
+            cardState: activePreparedVisualStateForDiff.cardState,
+            stateVersion: activePreparedVisualStateForDiff.stateVersion
         };
     }
     const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
     if (visualSnapshot) {
         return {
             gameState: visualSnapshot.gameState,
-            cardState: visualSnapshot.cardState
+            cardState: visualSnapshot.cardState,
+            stateVersion: visualSnapshot.stateVersion
         };
     }
     return _resolveLocalVisualRenderPairForDiff();
@@ -637,6 +672,10 @@ function createBoardRenderInputs(presentationOverlayState?: unknown, baseVisualS
         baseVisualState: Object.freeze({
             gameState: visualPair.gameState,
             cardState: visualPair.cardState,
+            inputEpoch: _resolveNetworkVisualInputEpochForDiff(
+                visualPair,
+                viewerContext
+            ),
             viewerContext: Object.freeze({ ...viewerContext }),
             canControlCurrentTurn: _canLocalPlayerControlCurrentTurnForDiff(
                 visualPair.gameState,
@@ -730,6 +769,7 @@ function _createCellStateProjectorContextForDiff(inputs?: any) {
         state: {
             resolveGameState: base ? () => base.gameState : _resolveGameStateForDiffRender,
             resolveCardState: base ? () => base.cardState : _resolveCardStateForDiffRender,
+            resolveInputEpoch: base ? () => base.inputEpoch : () => null,
             getBoardShape: _getBoardShapeForDiff,
             buildEmptyCellState: _buildEmptyCellStateForDiffRender,
             cardLogic: (typeof CardLogic !== 'undefined' ? CardLogic : undefined),
@@ -827,7 +867,15 @@ function _isReversiModeForDiffRenderer() {
     return false;
 }
 
-function setBoardVisualPreparedState(value: { gameState: any; cardState: any } | null): { gameState: any; cardState: any } | null {
+function setBoardVisualPreparedState(value: {
+  gameState: any;
+  cardState: any;
+  stateVersion?: number;
+} | null): {
+  gameState: any;
+  cardState: any;
+  stateVersion?: number;
+} | null {
   const previous = activePreparedVisualStateForDiff;
   activePreparedVisualStateForDiff = value;
   return previous;

@@ -27,6 +27,75 @@ function createBoardSnapshot(cells: Array<Record<string, unknown>> = []) {
 }
 
 describe('match authority board contract', () => {
+  test.each([
+    ['numeric string', '2'],
+    ['single-item array', [2]],
+    ['boolean', true],
+    ['null', null]
+  ])('rejects an explicitly present non-numeric board contract version: %s', (_name, value) => {
+    const snapshot: any = createBoardSnapshot([]);
+    snapshot._meta = { boardContractVersion: value };
+
+    expect(MatchAuthority.inspectSnapshotBoardContract(snapshot, {
+      allowLegacy: true,
+      requireFullSnapshot: true
+    })).toEqual(expect.objectContaining({
+      ok: false,
+      version: null,
+      legacy: false,
+      errors: expect.arrayContaining([expect.stringContaining('unsupported board contract version')])
+    }));
+  });
+
+  test('an explicit invalid version on a partial snapshot is not treated as legacy', () => {
+    const partial = {
+      _meta: { boardContractVersion: '2' },
+      gameState: { board: [[0]] }
+    };
+
+    expect(MatchAuthority.inspectSnapshotBoardContract(partial, {
+      allowLegacy: true,
+      requireFullSnapshot: false
+    })).toEqual(expect.objectContaining({
+      ok: false,
+      version: null,
+      legacy: false,
+      errors: expect.arrayContaining([expect.stringContaining('requires gameState and cardState')])
+    }));
+  });
+
+  test('only a missing version is legacy, and malformed legacy boards are still rejected', () => {
+    const validLegacy: any = createBoardSnapshot([]);
+    const malformedLegacy: any = createBoardSnapshot([]);
+    malformedLegacy.gameState.board = [
+      [0, 0],
+      [0]
+    ];
+    malformedLegacy.gameState.boardConfig = {
+      rows: 2,
+      cols: 2,
+      shape: 'rectangle'
+    };
+
+    expect(MatchAuthority.inspectSnapshotBoardContract(validLegacy, {
+      allowLegacy: true,
+      requireFullSnapshot: true
+    })).toEqual(expect.objectContaining({
+      ok: true,
+      version: null,
+      legacy: true
+    }));
+    expect(MatchAuthority.inspectSnapshotBoardContract(malformedLegacy, {
+      allowLegacy: true,
+      requireFullSnapshot: true
+    })).toEqual(expect.objectContaining({
+      ok: false,
+      version: null,
+      legacy: true,
+      errors: expect.arrayContaining([expect.stringMatching(/rectangular|row/i)])
+    }));
+  });
+
   test('legacy snapshot is canonicalized once and stamped as v2', () => {
     const snapshot: any = createBoardSnapshot([]);
     snapshot.gameState.boardExpansion = {

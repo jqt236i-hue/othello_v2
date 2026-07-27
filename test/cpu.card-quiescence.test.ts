@@ -3,6 +3,7 @@ import {
   createCpuCardQuiescenceRequest,
   executeCpuCardQuiescenceRequest,
   parseCpuCardQuiescenceRequest,
+  serializeCpuCardQuiescenceBoardShape,
   verifyCpuCardQuiescenceResponse
 } from '../game/ai/cpu-card-quiescence';
 import { chooseMoveByLookaheadInWorker } from '../game/ai/cpu-policy-lookahead-worker-runtime';
@@ -25,6 +26,7 @@ function serializeShape(context: any) {
     maxRow: topology.contentBounds.maxRow,
     minCol: topology.contentBounds.minCol,
     maxCol: topology.contentBounds.maxCol,
+    baseKeys: Array.from(topology.baseKeys),
     playableKeys: Array.from(topology.playableKeys),
     meteorHoleKeys: Array.from(topology.holeKeys),
     expansionCells: view.expansionCells.map((cell: any) => ({ ...cell })),
@@ -40,6 +42,7 @@ function createRequest() {
     maxRow: 3,
     minCol: -1,
     maxCol: 3,
+    baseKeys: ['0,0', '0,1'],
     playableKeys: ['0,-1', '0,0', '0,1'],
     meteorHoleKeys: ['0,1'],
     expansionCells: [{ side: 'left', row: 0, col: -1, owner: 0 }],
@@ -73,12 +76,95 @@ function createRequest() {
 }
 
 describe('CPU card-quiescence portable contract', () => {
+  test('serializes immutable topology set views without dropping coordinates', () => {
+    const gameState = {
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      boardConfig: { rows: 4, cols: 4, shape: 'rectangle' },
+      boardExpansion: { active: false, cells: [] }
+    };
+    const view = SharedBoardUtils.createBoardView(gameState, {
+      cardState: { markers: [] },
+      strict: true
+    });
+    const topology = view.topology;
+
+    expect(serializeCpuCardQuiescenceBoardShape({
+      minRow: topology.contentBounds.minRow,
+      maxRow: topology.contentBounds.maxRow,
+      minCol: topology.contentBounds.minCol,
+      maxCol: topology.contentBounds.maxCol,
+      baseKeys: topology.baseKeys,
+      playableKeys: topology.playableKeys,
+      meteorHoleKeys: topology.holeKeys,
+      expansionCells: [],
+      expansionOwnerByKey: {},
+      standard8x8: false
+    })).toEqual(expect.objectContaining({
+      playableKeys: Array.from(
+        { length: 16 },
+        (_unused, index) => `${Math.floor(index / 4)},${index % 4}`
+      ),
+      meteorHoleKeys: []
+    }));
+  });
+
+  test('bounds spoofed coordinate-key iterators and rejects accessor-backed arrays', () => {
+    let nextCalls = 0;
+    const infiniteSetLike = {
+      size: 8192,
+      has: () => false,
+      values: () => ({
+        next: () => {
+          nextCalls += 1;
+          return { done: false, value: '0,0' };
+        }
+      })
+    };
+    const baseShape = {
+      minRow: 0,
+      maxRow: 3,
+      minCol: 0,
+      maxCol: 3,
+      baseKeys: ['0,0'],
+      playableKeys: infiniteSetLike,
+      meteorHoleKeys: [],
+      expansionCells: [],
+      expansionOwnerByKey: {},
+      standard8x8: false
+    };
+    expect(() => serializeCpuCardQuiescenceBoardShape(baseShape))
+      .toThrow(/exceeds its bounded size/);
+    expect(nextCalls).toBe(8193);
+
+    let getterCalls = 0;
+    const accessorKeys: any[] = [];
+    Object.defineProperty(accessorKeys, 0, {
+      configurable: true,
+      enumerable: true,
+      get() {
+        getterCalls += 1;
+        return '0,0';
+      }
+    });
+    accessorKeys.length = 1;
+    expect(() => serializeCpuCardQuiescenceBoardShape({
+      ...baseShape,
+      playableKeys: accessorKeys
+    })).toThrow(/bounded dense array/);
+    expect(getterCalls).toBe(0);
+    expect(() => serializeCpuCardQuiescenceBoardShape({
+      ...baseShape,
+      baseKeys: undefined
+    })).toThrow(/boardShape\.baseKeys must be an array or readonly set/);
+  });
+
   test('projects an explicit shape DTO and executes the pure lookahead on a detached board', () => {
     const request = createRequest();
     const chooseMove = jest.fn((moves, options) => {
       expect(options.board).not.toBe(request.board);
       expect(Array.isArray(options.board)).toBe(true);
       const shape = options.boardShape;
+      expect(shape.baseKeys).toEqual(['0,0', '0,1']);
       expect(shape.playableKeys).toEqual(['0,-1', '0,0', '0,1']);
       expect(shape.expansionCells).toEqual([{ side: 'left', row: 0, col: -1, owner: 0 }]);
       expect(shape.expansionOwnerByKey).toEqual({ '0,-1': 0 });

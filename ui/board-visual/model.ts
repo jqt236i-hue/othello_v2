@@ -240,6 +240,7 @@ function signatureForHintInput(cell: UnsignedBoardCellVisualState): string {
 
 export function createBoardRenderModel(options: {
   boardDigest: string;
+  inputEpoch?: string;
   modelCommitId?: number;
   visualRevision?: number;
   topology: BoardRenderTopologyModel;
@@ -299,6 +300,7 @@ export function createBoardRenderModel(options: {
   }
   return deepFreeze({
     boardDigest,
+    inputEpoch: String(options.inputEpoch || ''),
     modelCommitId: Math.max(0, Math.trunc(Number(options.modelCommitId) || 0)),
     visualRevision: Math.max(0, Math.trunc(Number(options.visualRevision) || 0)),
     topology,

@@ -6,7 +6,7 @@
  * needed to run the existing pure lookahead policy in a Dedicated Worker.
  */
 
-export const CPU_CARD_QUIESCENCE_PROTOCOL_VERSION = 1 as const;
+export const CPU_CARD_QUIESCENCE_PROTOCOL_VERSION = 2 as const;
 
 const MAX_REQUEST_ID_LENGTH = 160;
 const MAX_PLAYER_KEY_LENGTH = 16;
@@ -38,6 +38,7 @@ export interface CpuCardQuiescenceBoardShape {
     maxRow: number;
     minCol: number;
     maxCol: number;
+    baseKeys: string[];
     playableKeys: string[];
     meteorHoleKeys: string[];
     expansionCells: Array<{ side: string; row: number; col: number; owner: number }>;
@@ -288,6 +289,7 @@ function readBoardShape(value: unknown): CpuCardQuiescenceBoardShape | null {
         maxRow: readCoordinate(value.maxRow, 'boardShape.maxRow'),
         minCol: readCoordinate(value.minCol, 'boardShape.minCol'),
         maxCol: readCoordinate(value.maxCol, 'boardShape.maxCol'),
+        baseKeys: readCoordinateKeys(value.baseKeys, 'boardShape.baseKeys'),
         playableKeys: readCoordinateKeys(value.playableKeys, 'boardShape.playableKeys'),
         meteorHoleKeys: readCoordinateKeys(value.meteorHoleKeys, 'boardShape.meteorHoleKeys'),
         expansionCells: expansionCells.map((cell, index) => {
@@ -304,13 +306,67 @@ function readBoardShape(value: unknown): CpuCardQuiescenceBoardShape | null {
     };
 }
 
+function collectReadonlyCoordinateKeys(value: unknown, label: string): unknown[] {
+    if (Array.isArray(value)) {
+        const length = value.length;
+        if (!Number.isSafeInteger(length) || length < 0 || length > MAX_SHAPE_KEYS) {
+            fail(`${label} must be a bounded dense array`);
+        }
+        const out: unknown[] = [];
+        for (let index = 0; index < length; index += 1) {
+            const descriptor = Object.getOwnPropertyDescriptor(value, index);
+            if (!descriptor || !Object.prototype.hasOwnProperty.call(descriptor, 'value')) {
+                fail(`${label} must be a bounded dense array`);
+            }
+            out.push(descriptor.value);
+        }
+        return out;
+    }
+    if (
+        value
+        && typeof value === 'object'
+        && typeof (value as { values?: unknown }).values === 'function'
+        && typeof (value as { has?: unknown }).has === 'function'
+    ) {
+        const size = (value as { size?: unknown }).size;
+        if (!Number.isSafeInteger(size) || Number(size) < 0 || Number(size) > MAX_SHAPE_KEYS) {
+            fail(`${label} set must have a bounded size`);
+        }
+        const iterator = (
+            (value as { values: () => Iterator<unknown> }).values()
+        );
+        if (!iterator || typeof iterator.next !== 'function') {
+            fail(`${label} set must expose a valid values iterator`);
+        }
+        const out: unknown[] = [];
+        for (let index = 0; index <= Number(size); index += 1) {
+            const step = iterator.next();
+            if (!step || typeof step !== 'object') {
+                fail(`${label} iterator returned an invalid step`);
+            }
+            if (step.done) {
+                if (out.length !== Number(size)) {
+                    fail(`${label} iterator size does not match`);
+                }
+                return out;
+            }
+            if (index === Number(size)) {
+                fail(`${label} iterator exceeds its bounded size`);
+            }
+            out.push(step.value);
+        }
+    }
+    return fail(`${label} must be an array or readonly set`);
+}
+
 export function serializeCpuCardQuiescenceBoardShape(value: unknown): CpuCardQuiescenceBoardShape | null {
     if (value === null || typeof value === 'undefined') return null;
     if (!isRecord(value)) fail('board shape source must be an object or null');
     return readBoardShape({
         ...value,
-        playableKeys: Array.from(value.playableKeys instanceof Set ? value.playableKeys : (Array.isArray(value.playableKeys) ? value.playableKeys : [])),
-        meteorHoleKeys: Array.from(value.meteorHoleKeys instanceof Set ? value.meteorHoleKeys : (Array.isArray(value.meteorHoleKeys) ? value.meteorHoleKeys : []))
+        baseKeys: collectReadonlyCoordinateKeys(value.baseKeys, 'boardShape.baseKeys'),
+        playableKeys: collectReadonlyCoordinateKeys(value.playableKeys, 'boardShape.playableKeys'),
+        meteorHoleKeys: collectReadonlyCoordinateKeys(value.meteorHoleKeys, 'boardShape.meteorHoleKeys')
     });
 }
 

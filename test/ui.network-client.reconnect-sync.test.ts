@@ -17,11 +17,18 @@ function createBoard(rows = 8, cols = 8) {
 }
 
 function createSnapshot(stateVersion, gameStateOverrides = {}) {
+  const boardConfig = gameStateOverrides.boardConfig || {
+    rows: 8,
+    cols: 8,
+    shape: 'rectangle',
+    standard8x8: true
+  };
   return {
     stateVersion,
     _meta: {
       authority: 'server',
       version: stateVersion,
+      boardContractVersion: 2,
       projectedForSeat: null,
       turnStartReconciled: true,
       projectedSnapshotHash: `hash_${stateVersion}`
@@ -30,6 +37,9 @@ function createSnapshot(stateVersion, gameStateOverrides = {}) {
       currentPlayer: -1,
       turnNumber: 1,
       consecutivePasses: 0,
+      board: gameStateOverrides.board || createBoard(boardConfig.rows, boardConfig.cols),
+      boardConfig,
+      boardExpansion: { active: false, cells: [] },
       ...gameStateOverrides
     },
     cardState: {

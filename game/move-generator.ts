@@ -155,10 +155,6 @@ function createMoveGenerationView(state: any, cardStateValue: any = null) {
     });
 }
 
-function getExpansionCellsForMoveGeneration(state: any, cardStateValue: any = null) {
-    return createMoveGenerationView(state, cardStateValue).expansionCells.map((cell: any) => ({ ...cell }));
-}
-
 function setCellValueForMoveGeneration(
     state: any,
     row: number,

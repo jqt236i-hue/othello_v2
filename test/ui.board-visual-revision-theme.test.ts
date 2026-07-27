@@ -175,6 +175,106 @@ describe('board visual independent revision contract', () => {
       secondA.model.modelCommitId
     ]).toEqual([1, 2, 3]);
   });
+
+  test('input epoch changes invalidate input identity even when board and hints are unchanged', () => {
+    const composer = FramePresenter.createBoardVisualFrameRevisionComposer();
+    const inputEpoch = (
+      stateVersion: number,
+      visualSeq: number,
+      pendingEffectId: string
+    ) => JSON.stringify({
+      stateVersion,
+      visualSeq,
+      pending: { pendingEffectId }
+    });
+
+    const firstA = composer.compose(makeRawFrame({
+      model: {
+        inputEpoch: inputEpoch(10, 20, 'pending:A'),
+        cells: [{
+          key: '0,0',
+          visualSignature: 'visual:normal',
+          hintInputSignature: 'input:stable'
+        }]
+      }
+    }));
+    const hoverOnly = composer.compose(makeRawFrame({
+      frameToken: 'idle:hover',
+      model: {
+        inputEpoch: inputEpoch(10, 20, 'pending:A'),
+        cells: [{
+          key: '0,0',
+          visualSignature: 'visual:hovered',
+          hintInputSignature: 'input:stable'
+        }]
+      }
+    }));
+    const stateVersionChanged = composer.compose(makeRawFrame({
+      frameToken: 'idle:state-version',
+      model: {
+        inputEpoch: inputEpoch(11, 20, 'pending:A'),
+        cells: [{
+          key: '0,0',
+          visualSignature: 'visual:hovered',
+          hintInputSignature: 'input:stable'
+        }]
+      }
+    }));
+    const visualSeqChanged = composer.compose(makeRawFrame({
+      frameToken: 'idle:visual-seq',
+      model: {
+        inputEpoch: inputEpoch(11, 21, 'pending:A'),
+        cells: [{
+          key: '0,0',
+          visualSignature: 'visual:hovered',
+          hintInputSignature: 'input:stable'
+        }]
+      }
+    }));
+    const pendingChanged = composer.compose(makeRawFrame({
+      frameToken: 'idle:pending',
+      model: {
+        inputEpoch: inputEpoch(11, 21, 'pending:B'),
+        cells: [{
+          key: '0,0',
+          visualSignature: 'visual:hovered',
+          hintInputSignature: 'input:stable'
+        }]
+      }
+    }));
+    const secondA = composer.compose(makeRawFrame({
+      frameToken: 'idle:again',
+      model: {
+        inputEpoch: inputEpoch(10, 20, 'pending:A'),
+        cells: [{
+          key: '0,0',
+          visualSignature: 'visual:normal',
+          hintInputSignature: 'input:stable'
+        }]
+      }
+    }));
+
+    expect(firstA.model.modelCommitId).toBe(1);
+    expect(hoverOnly.model.modelCommitId).toBe(1);
+    expect(stateVersionChanged.model.modelCommitId).toBe(2);
+    expect(visualSeqChanged.model.modelCommitId).toBe(3);
+    expect(pendingChanged.model.modelCommitId).toBe(4);
+    expect(secondA.model.modelCommitId).toBe(5);
+
+    const themeOnly = composer.compose(makeRawFrame({
+      frameToken: 'idle:theme',
+      model: {
+        inputEpoch: inputEpoch(10, 20, 'pending:A'),
+        cells: [{
+          key: '0,0',
+          visualSignature: 'visual:normal',
+          hintInputSignature: 'input:stable'
+        }]
+      },
+      theme: Theme.createBoardVisualThemeDescriptor({ surfaceColor: '#123456' })
+    }));
+    expect(themeOnly.model.modelCommitId).toBe(5);
+  });
 });
 
 describe('board visual semantic theme descriptor', () => {

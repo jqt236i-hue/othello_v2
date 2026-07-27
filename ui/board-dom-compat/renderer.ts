@@ -87,7 +87,11 @@ let boardDomElement: any = null;
 let lastBoardExpansionRevealSoundKey: any = null;
 let suppressBoardExpansionRevealSoundThisRender = false;
 let superAttractionHoverPreview: any = null;
-let activePreparedVisualStateForDiff: { gameState: any; cardState: any } | null = null;
+let activePreparedVisualStateForDiff: {
+  gameState: any;
+  cardState: any;
+  stateVersion?: number;
+} | null = null;
 let DiffRendererManifestStoneRegistryModule: any = null;
 let BoardHintProjectionModule: any = null;
 const FALLBACK_MANIFEST_STONE_TYPES_FOR_DIFF = Object.freeze([
@@ -524,7 +528,7 @@ function _isExpansionCoordinateForDiff(row: any, col: any, shapeOrGameState: any
 
 function _isExpansionCellForDiff(row: any, col: any, gameState: any) {
     const topology = _getBoardTopologyForDiff(gameState);
-    if (topology && topology.expansionKeys instanceof Set) {
+    if (topology && topology.expansionKeys && typeof topology.expansionKeys.has === 'function') {
         return topology.expansionKeys.has(`${row},${col}`);
     }
     return _getExpansionDescriptorsForDiff(gameState).some((cell) => cell && cell.row === row && cell.col === col);
@@ -555,7 +559,9 @@ function _isSquareRectangularBoardForDiff(gameState: any) {
     const topology = _getBoardTopologyForDiff(gameState);
     if (!topology) return false;
     return topology.baseRows === topology.baseCols
-        && topology.baseKeys instanceof Set
+        && topology.baseKeys
+        && typeof topology.baseKeys.has === 'function'
+        && Number.isFinite(Number(topology.baseKeys.size))
         && topology.baseKeys.size === topology.baseRows * topology.baseCols;
 }
 
@@ -588,7 +594,9 @@ function _getExpansionDescriptorForDiff(gameState: any) {
 function _getBoardDomSignatureForDiff(gameState: any) {
     const boardShape = _getBoardShapeForDiff(gameState);
     const topology = _getBoardTopologyForDiff(gameState);
-    const baseShape = topology && topology.baseKeys instanceof Set
+    const baseShape = topology && topology.baseKeys
+        && typeof topology.baseKeys.has === 'function'
+        && Number.isFinite(Number(topology.baseKeys.size))
         && topology.baseKeys.size === topology.baseRows * topology.baseCols
         ? 'dense'
         : 'sparse';
@@ -1157,6 +1165,35 @@ function _resolveNetworkVisualRenderSnapshotForDiff() {
     return null;
 }
 
+function _resolveNetworkVisualInputEpochForDiff(snapshot: any, viewerContext: any) {
+    if (!viewerContext || viewerContext.isNetworkMode !== true) {
+        return Object.freeze({ stateVersion: null, visualSeq: null });
+    }
+    const store = _resolveNetworkVisualStateStoreForDiff();
+    let diagnostics: any = null;
+    try {
+        diagnostics = store && typeof store.getDiagnostics === 'function'
+            ? store.getDiagnostics()
+            : null;
+    } catch (e: any) { diagnostics = null; }
+    const snapshotVersion = snapshot && typeof snapshot.stateVersion === 'number'
+        && Number.isInteger(snapshot.stateVersion)
+        ? snapshot.stateVersion
+        : null;
+    const visualVersion = diagnostics && typeof diagnostics.visualVersion === 'number'
+        && Number.isInteger(diagnostics.visualVersion)
+        ? diagnostics.visualVersion
+        : null;
+    const visualSeq = diagnostics && typeof diagnostics.visualSeq === 'number'
+        && Number.isInteger(diagnostics.visualSeq)
+        ? diagnostics.visualSeq
+        : null;
+    return Object.freeze({
+        stateVersion: snapshotVersion ?? visualVersion,
+        visualSeq
+    });
+}
+
 function _resolveLocalVisualRenderPairForDiff() {
     const currentGameState = RuntimeStateAccessModule.resolveCurrentRuntimeObject('gameState', () => {
         try { return (typeof gameState !== 'undefined') ? gameState : null; }
@@ -1176,14 +1213,16 @@ function _resolveVisualRenderPairForDiff() {
     if (activePreparedVisualStateForDiff) {
         return {
             gameState: activePreparedVisualStateForDiff.gameState,
-            cardState: activePreparedVisualStateForDiff.cardState
+            cardState: activePreparedVisualStateForDiff.cardState,
+            stateVersion: activePreparedVisualStateForDiff.stateVersion
         };
     }
     const visualSnapshot = _resolveNetworkVisualRenderSnapshotForDiff();
     if (visualSnapshot) {
         return {
             gameState: visualSnapshot.gameState,
-            cardState: visualSnapshot.cardState
+            cardState: visualSnapshot.cardState,
+            stateVersion: visualSnapshot.stateVersion
         };
     }
     return _resolveLocalVisualRenderPairForDiff();
@@ -2052,6 +2091,10 @@ function createBoardRenderInputs(presentationOverlayState?: unknown, baseVisualS
         baseVisualState: Object.freeze({
             gameState: visualPair.gameState,
             cardState: visualPair.cardState,
+            inputEpoch: _resolveNetworkVisualInputEpochForDiff(
+                visualPair,
+                viewerContext
+            ),
             viewerContext: Object.freeze({ ...viewerContext }),
             canControlCurrentTurn: _canLocalPlayerControlCurrentTurnForDiff(
                 visualPair.gameState,
@@ -2145,6 +2188,7 @@ function _createCellStateProjectorContextForDiff(inputs?: any) {
         state: {
             resolveGameState: base ? () => base.gameState : _resolveGameStateForDiffRender,
             resolveCardState: base ? () => base.cardState : _resolveCardStateForDiffRender,
+            resolveInputEpoch: base ? () => base.inputEpoch : () => null,
             getBoardShape: _getBoardShapeForDiff,
             buildEmptyCellState: _buildEmptyCellStateForDiffRender,
             cardLogic: (typeof CardLogic !== 'undefined' ? CardLogic : undefined),
@@ -2454,7 +2498,11 @@ function renderBoardDiff(
     const renderProjection = preparedRenderProjection || createBoardRenderProjection();
     const previousPreparedVisualState = activePreparedVisualStateForDiff;
     activePreparedVisualStateForDiff = renderProjection && renderProjection.valid === true
-        ? { gameState: renderProjection.gameState, cardState: renderProjection.cardState }
+        ? {
+            gameState: renderProjection.gameState,
+            cardState: renderProjection.cardState,
+            stateVersion: renderProjection.inputEpochSource?.stateVersion
+        }
         : null;
     try {
     if (boardEl && boardDomElement && boardDomElement !== boardEl) {

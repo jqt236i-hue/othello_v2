@@ -495,7 +495,7 @@ def place_target_index(rec: dict) -> int | None:
         return None
     row = rec.get("row")
     col = rec.get("col")
-    if not isinstance(row, int) or not isinstance(col, int):
+    if not trainer_common.is_strict_int(row) or not trainer_common.is_strict_int(col):
         return None
     if row < 0 or row >= BOARD_SIZE or col < 0 or col >= BOARD_SIZE:
         return None

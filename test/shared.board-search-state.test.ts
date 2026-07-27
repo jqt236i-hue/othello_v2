@@ -2,6 +2,10 @@ const SharedBoardUtils: any = require("../shared/shared-board-utils");
 const {
   createCpuWorkerBoardUtils,
 } = require("../game/ai/cpu-policy-lookahead-worker-runtime");
+const {
+  DEFAULT_BOARD_MAX_MATRIX_DIMENSION,
+  DEFAULT_BOARD_MAX_SHAPE_ENTRIES,
+} = require("../shared/board/expansion-descriptors");
 
 function createExpandedState() {
   const board = Array.from({ length: 4 }, () => Array(4).fill(0));
@@ -120,6 +124,151 @@ describe("shared compact board search state", () => {
     expect(SharedBoardUtils.encodeBoard(clone)).toBe(beforeRejectedUpdate);
   });
 
+  test("applies only own indexed search updates without invoking caller iterators", () => {
+    const search: any = SharedBoardUtils.prepareBoardForSearch(
+      SharedBoardUtils.createBoardContext(
+        createExpandedState(),
+        createCardState(),
+      ),
+    );
+    let iteratorCalls = 0;
+    const updates: any[] = [{ row: 0, col: 1, value: -1 }];
+    Object.defineProperty(updates, Symbol.iterator, {
+      value: function* spoofedIterator() {
+        iteratorCalls += 1;
+        yield { row: 0, col: 2, value: 1 };
+      },
+    });
+
+    expect(SharedBoardUtils.setCellValues(search, updates)).toBe(true);
+    expect(SharedBoardUtils.getCellValue(search, 0, 1)).toBe(-1);
+    expect(SharedBoardUtils.getCellValue(search, 0, 2)).toBe(0);
+    expect(iteratorCalls).toBe(0);
+
+    const emptyUpdates: any[] = [];
+    Object.defineProperty(emptyUpdates, Symbol.iterator, {
+      value: function* spoofedEmptyIterator() {
+        iteratorCalls += 1;
+        yield { row: 0, col: 2, value: 1 };
+      },
+    });
+    const beforeEmptyUpdate = SharedBoardUtils.encodeBoard(search);
+    expect(SharedBoardUtils.setCellValues(search, emptyUpdates)).toBe(true);
+    expect(SharedBoardUtils.encodeBoard(search)).toBe(beforeEmptyUpdate);
+    expect(iteratorCalls).toBe(0);
+  });
+
+  test("rejects sparse and oversized search updates without partial mutation", () => {
+    const search: any = SharedBoardUtils.prepareBoardForSearch(
+      SharedBoardUtils.createBoardContext(
+        createExpandedState(),
+        createCardState(),
+      ),
+    );
+    const before = SharedBoardUtils.encodeBoard(search);
+    const sparseUpdates: any[] = new Array(1);
+    const oversizedUpdates = new Array(
+      DEFAULT_BOARD_MAX_SHAPE_ENTRIES + 1,
+    );
+
+    expect(SharedBoardUtils.setCellValues(search, sparseUpdates)).toBe(false);
+    expect(
+      SharedBoardUtils.setCellValues(search, oversizedUpdates),
+    ).toBe(false);
+    expect(SharedBoardUtils.encodeBoard(search)).toBe(before);
+  });
+
+  test("preserves meteor-hole expansion descriptors through projection and clone", () => {
+    const gameState = {
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      boardConfig: { rows: 4, cols: 4, shape: "rectangle" },
+      boardExpansion: {
+        cells: [{ side: "right", row: 0, col: 4, owner: 0 }],
+        usedByPlayer: { black: true, white: false },
+      },
+    };
+    const cardState = {
+      markers: [
+        {
+          kind: "specialStone",
+          row: 0,
+          col: 4,
+          data: { type: "METEOR_HOLE" },
+        },
+      ],
+    };
+    const search: any = SharedBoardUtils.prepareBoardForSearch(
+      SharedBoardUtils.createBoardContext(gameState, cardState),
+    );
+    const clone: any = SharedBoardUtils.cloneBoard(search);
+    const expected = {
+      side: "right",
+      row: 0,
+      col: 4,
+      owner: 0,
+    };
+
+    for (const context of [search, clone]) {
+      expect(context.shape.expansionCells).toContainEqual(expected);
+      expect(context.shape.expansionOwnerByKey["0,4"]).toBe(0);
+      expect(context.shape.topology.expansionKeys.has("0,4")).toBe(true);
+      expect(context.shape.topology.holeKeys.has("0,4")).toBe(true);
+      expect(SharedBoardUtils.getCellValue(context, 0, 4)).toBeNull();
+    }
+  });
+
+  test("does not misclassify an exterior meteor-hole tombstone as a base cell", () => {
+    const gameState = {
+      board: Array.from({ length: 4 }, () => Array(4).fill(0)),
+      boardConfig: { rows: 4, cols: 4, shape: "rectangle" },
+      boardExpansion: { cells: [] },
+    };
+    const cardState = {
+      markers: [{
+        kind: "specialStone",
+        row: -1,
+        col: 2,
+        data: { type: "METEOR_HOLE" },
+      }],
+    };
+    const canonical = SharedBoardUtils.createBoardContext(gameState, cardState);
+    const liveTopology = SharedBoardUtils.buildBoardTopology(canonical);
+    const search = SharedBoardUtils.prepareBoardForSearch(canonical);
+    const searchTopology = SharedBoardUtils.buildBoardTopology(search);
+
+    expect(liveTopology.baseKeys.has("-1,2")).toBe(false);
+    expect(liveTopology.holeKeys.has("-1,2")).toBe(true);
+    expect(searchTopology.baseKeys.has("-1,2")).toBe(false);
+    expect(searchTopology.holeKeys.has("-1,2")).toBe(true);
+    expect(searchTopology.existingKeys.has("-1,2")).toBe(true);
+  });
+
+  test("preserves a circle-envelope void meteor hole as non-base topology", () => {
+    const gameState = {
+      board: Array.from({ length: 10 }, () => Array(10).fill(0)),
+      boardConfig: { rows: 10, cols: 10, shape: "circle" },
+      boardExpansion: { cells: [] },
+    };
+    const cardState = {
+      markers: [{
+        kind: "specialStone",
+        row: 0,
+        col: 0,
+        data: { type: "METEOR_HOLE" },
+      }],
+    };
+    const canonical = SharedBoardUtils.createBoardContext(gameState, cardState);
+    const liveTopology = SharedBoardUtils.buildBoardTopology(canonical);
+    const search = SharedBoardUtils.prepareBoardForSearch(canonical);
+    const searchTopology = SharedBoardUtils.buildBoardTopology(search);
+
+    expect(liveTopology.baseKeys.has("0,0")).toBe(false);
+    expect(liveTopology.holeKeys.has("0,0")).toBe(true);
+    expect(searchTopology.baseKeys.has("0,0")).toBe(false);
+    expect(searchTopology.holeKeys.has("0,0")).toBe(true);
+    expect(searchTopology.existingKeys.has("0,0")).toBe(true);
+  });
+
   test("preserves a circle-envelope expansion owner over its dense void", () => {
     const board = Array.from({ length: 10 }, () => Array(10).fill(0));
     board[0][0] = 1;
@@ -208,6 +357,7 @@ describe("shared compact board search state", () => {
       maxCol: 2,
       baseRows: 2,
       baseCols: 2,
+      baseKeys: ["0,0", "0,1", "1,0", "1,1"],
       playableKeys: ["0,0", "0,1", "1,0", "1,1", "0,2"],
       meteorHoleKeys: [],
       expansionCells: [{ side: "right", row: 0, col: 2, owner: 0 }],
@@ -245,6 +395,18 @@ describe("shared compact board search state", () => {
         expansionOwnerByKey: { "0,2": -1 },
       })
     ).toThrow(/inconsistent/);
+    expect(() =>
+      worker.createBoardContext(matrix, {
+        ...baseShape,
+        baseKeys: [...baseShape.baseKeys, "0,2"],
+      })
+    ).toThrow(/base and expansion keys overlap/);
+    expect(() =>
+      worker.createBoardContext(matrix, {
+        ...baseShape,
+        baseKeys: ["0,0", "0,1", "1,0"],
+      })
+    ).toThrow(/has no base or expansion authority/);
   });
 
   test("rejects inexact bounds and missing or overlapping shape authority", () => {
@@ -257,6 +419,7 @@ describe("shared compact board search state", () => {
       maxCol: 1,
       baseRows: 2,
       baseCols: 2,
+      baseKeys: ["0,0", "0,1", "1,0", "1,1"],
       playableKeys: ["0,0", "0,1", "1,0", "1,1"],
       meteorHoleKeys: [],
       expansionCells: [],
@@ -288,6 +451,12 @@ describe("shared compact board search state", () => {
         playableKeys: undefined,
       })
     ).toThrow(/playable key must be an array or iterable set/);
+    expect(() =>
+      worker.createBoardContext(matrix, {
+        ...baseShape,
+        baseKeys: undefined,
+      })
+    ).toThrow(/base key must be an array or iterable set/);
     expect(() =>
       worker.createBoardContext(matrix, {
         ...baseShape,
@@ -331,6 +500,67 @@ describe("shared compact board search state", () => {
     ).toThrow(/expansion cell 0 is missing/);
   });
 
+  test("rejects matrix/base dimension mismatches and oversized search sources", () => {
+    const worker = createCpuWorkerBoardUtils();
+    const mismatchedMatrix = Array.from(
+      { length: 4 },
+      () => Array(5).fill(0),
+    );
+    const playableKeys = Array.from({ length: 4 }, (_, row) =>
+      Array.from({ length: 5 }, (_, col) => `${row},${col}`),
+    ).flat();
+    const mismatchedShape = {
+      minRow: 0,
+      maxRow: 3,
+      minCol: 0,
+      maxCol: 4,
+      baseRows: 4,
+      baseCols: 4,
+      baseKeys: playableKeys,
+      playableKeys,
+      meteorHoleKeys: [],
+      expansionCells: [],
+      expansionOwnerByKey: {},
+      standard8x8: false,
+    };
+
+    expect(() =>
+      worker.createBoardContext(mismatchedMatrix, mismatchedShape)
+    ).toThrow(/base dimensions must match the dense matrix/);
+
+    const oversizedMatrix = Array.from(
+      { length: DEFAULT_BOARD_MAX_MATRIX_DIMENSION + 1 },
+      () => [0],
+    );
+    expect(() =>
+      worker.createBoardContext(oversizedMatrix, {
+        ...mismatchedShape,
+        baseRows: oversizedMatrix.length,
+        baseCols: 1,
+      })
+    ).toThrow(/non-empty bounded matrix/);
+
+    const oversizedExpansionCells = new Array(
+      DEFAULT_BOARD_MAX_SHAPE_ENTRIES + 1,
+    );
+    expect(() =>
+      worker.createBoardContext([[0]], {
+        minRow: 0,
+        maxRow: 0,
+        minCol: 0,
+        maxCol: 0,
+        baseRows: 1,
+        baseCols: 1,
+        baseKeys: ["0,0"],
+        playableKeys: ["0,0"],
+        meteorHoleKeys: [],
+        expansionCells: oversizedExpansionCells,
+        expansionOwnerByKey: {},
+        standard8x8: false,
+      })
+    ).toThrow(/expansionCells exceeds the bounded shape size/);
+  });
+
   test("preserves an all-hole terminal topology without inventing playable cells", () => {
     const worker = createCpuWorkerBoardUtils();
     const context = worker.createBoardContext(
@@ -342,6 +572,7 @@ describe("shared compact board search state", () => {
         maxCol: 1,
         baseRows: 2,
         baseCols: 2,
+        baseKeys: ["0,0", "0,1", "1,0", "1,1"],
         playableKeys: [],
         meteorHoleKeys: ["0,0", "0,1", "1,0", "1,1"],
         expansionCells: [],
@@ -383,6 +614,7 @@ describe("shared compact board search state", () => {
       maxCol: 1,
       baseRows: 2,
       baseCols: 2,
+      baseKeys: ["0,0", "0,1", "1,0", "1,1"],
       playableKeys: ["0,0"],
       meteorHoleKeys: [],
       expansionCells: [],
@@ -443,6 +675,7 @@ describe("shared compact board search state", () => {
       maxCol: 2,
       baseRows: 3,
       baseCols: 3,
+      baseKeys: readonlyKeys(playableKeys),
       playableKeys: readonlyKeys(playableKeys),
       meteorHoleKeys: readonlyKeys([]),
       expansionCells: [],

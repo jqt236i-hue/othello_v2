@@ -67,6 +67,7 @@ function createBoardRenderProjection(capabilities: any, operationCounters?: any)
         cardLogic: CardLogic,
         getPlayerKey,
         resolveViewerContext,
+        resolveInputEpoch,
         normalizeViewerContext,
         canLocalPlayerControlCurrentTurn,
         constants: { BLACK, WHITE } = {}
@@ -109,6 +110,9 @@ function createBoardRenderProjection(capabilities: any, operationCounters?: any)
     const player = gameState.currentPlayer;
     const playerKey = getPlayerKey(player);
     const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[playerKey] : null;
+    const inputEpochSource = typeof resolveInputEpoch === 'function'
+        ? resolveInputEpoch()
+        : null;
     const viewerContext = resolveViewerContext();
     const canControlCurrentTurn = canLocalPlayerControlCurrentTurn();
     const isFateWillControlledTurn = !!(
@@ -144,6 +148,7 @@ function createBoardRenderProjection(capabilities: any, operationCounters?: any)
         player,
         playerKey,
         pending,
+        inputEpochSource,
         viewerContext,
         boardViewerContext: typeof normalizeViewerContext === 'function'
             ? normalizeViewerContext(viewerContext)
@@ -746,6 +751,47 @@ function markerListFromLegacyState(cellState: any, black: any, white: any): any[
     return markers;
 }
 
+function buildBoardInputEpoch(renderProjection: any): string {
+    const pending = renderProjection && renderProjection.pending;
+    const source = renderProjection && renderProjection.inputEpochSource;
+    const targetIdentity = (value: any) => {
+        if (!value || !Number.isInteger(value.row) || !Number.isInteger(value.col)) return null;
+        return cloneSemanticValue({
+            row: value.row,
+            col: value.col,
+            directionKey: typeof value.directionKey === 'string' ? value.directionKey : null
+        });
+    };
+    return JSON.stringify({
+        stateVersion: Number.isInteger(source && source.stateVersion)
+            ? source.stateVersion
+            : null,
+        visualSeq: Number.isInteger(source && source.visualSeq)
+            ? source.visualSeq
+            : null,
+        pending: pending && typeof pending === 'object'
+            ? {
+                pendingEffectId: typeof pending.pendingEffectId === 'string'
+                    ? pending.pendingEffectId
+                    : null,
+                type: typeof pending.type === 'string' ? pending.type : null,
+                stage: typeof pending.stage === 'string' ? pending.stage : null,
+                cardId: typeof pending.cardId === 'string' ? pending.cardId : null,
+                selectedCount: Number.isInteger(pending.selectedCount)
+                    ? pending.selectedCount
+                    : null,
+                maxSelections: Number.isInteger(pending.maxSelections)
+                    ? pending.maxSelections
+                    : null,
+                firstTarget: targetIdentity(pending.firstTarget),
+                selectedTargets: Array.isArray(pending.selectedTargets)
+                    ? pending.selectedTargets.map(targetIdentity)
+                    : null
+            }
+            : null
+    });
+}
+
 function buildBoardRenderModel(
     capabilities: any,
     preparedRenderProjection?: any,
@@ -833,6 +879,7 @@ function buildBoardRenderModel(
     });
     const model = BoardVisualModel.createBoardRenderModel({
         boardDigest: boardView.boardDigest,
+        inputEpoch: buildBoardInputEpoch(projection),
         modelCommitId: 0,
         visualRevision: options && options.visualRevision,
         topology: {

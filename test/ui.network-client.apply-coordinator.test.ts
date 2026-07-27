@@ -12,6 +12,10 @@ function jsonResponse(status, data) {
   };
 }
 
+function createBoard(rows = 8, cols = 8) {
+  return Array.from({ length: rows }, () => Array(cols).fill(0));
+}
+
 function createSnapshot(stateVersion, options = {}) {
   const topLevelStateVersion = Number.isFinite(Number(options.topLevelStateVersion))
     ? Number(options.topLevelStateVersion)
@@ -24,6 +28,7 @@ function createSnapshot(stateVersion, options = {}) {
     _meta: {
       authority: 'server',
       version: metaVersion,
+      boardContractVersion: 2,
       projectedForSeat: Object.prototype.hasOwnProperty.call(options, 'projectedForSeat')
         ? options.projectedForSeat
         : null,
@@ -31,7 +36,15 @@ function createSnapshot(stateVersion, options = {}) {
     },
     gameState: {
       currentPlayer: 1,
-      turnNumber: 1
+      turnNumber: 1,
+      board: createBoard(),
+      boardConfig: {
+        rows: 8,
+        cols: 8,
+        shape: 'rectangle',
+        standard8x8: true
+      },
+      boardExpansion: { active: false, cells: [] }
     },
     cardState: {
       selectedCardId: null,

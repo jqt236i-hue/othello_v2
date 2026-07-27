@@ -118,6 +118,8 @@ export interface BoardRenderTopologyModel {
 export interface BoardRenderModel {
   /** Canonical board-content identity produced by SharedBoardUtils.createBoardView. */
   boardDigest: string;
+  /** Opaque canonical input identity (pending effect and network visual epoch). */
+  inputEpoch: string;
   /** Monotonic identity of the current canonical board-input contract. */
   modelCommitId: number;
   visualRevision: number;

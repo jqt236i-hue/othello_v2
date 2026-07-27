@@ -1,7 +1,13 @@
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 import PendingSelectionRegistry = require('../logic/cards-internal/pending-selection-registry');
 
-type BoardCellTarget = { row: number; col: number };
+type BoardCellTarget = {
+    row: number;
+    col: number;
+    directionKey?: string;
+    side?: string;
+    additions?: Array<{ row: number; col: number }>;
+};
 type PendingTargetSelectorContext = {
     gameState?: GameState;
     cardState?: CardState;
@@ -34,6 +40,30 @@ function createCancelCardAction(): { type: 'cancel_card'; cancelOptions: { refun
 function isBoardCellTarget(target: unknown): target is BoardCellTarget {
     const maybe = target as BoardCellTarget | null;
     return !!maybe && Number.isInteger(maybe.row) && Number.isInteger(maybe.col);
+}
+
+function cloneBoardCellTarget(target: BoardCellTarget): BoardCellTarget {
+    const clone: BoardCellTarget = { row: target.row, col: target.col };
+    if (typeof target.directionKey === 'string' && target.directionKey) {
+        clone.directionKey = target.directionKey;
+    }
+    if (typeof target.side === 'string' && target.side) {
+        clone.side = target.side;
+    }
+    if (
+        Array.isArray(target.additions) &&
+        target.additions.every((cell) => (
+            !!cell &&
+            Number.isInteger(cell.row) &&
+            Number.isInteger(cell.col)
+        ))
+    ) {
+        clone.additions = target.additions.map((cell) => ({
+            row: cell.row,
+            col: cell.col
+        }));
+    }
+    return clone;
 }
 
 function compareBoardCellTargets(left: unknown, right: unknown): number {
@@ -97,7 +127,7 @@ function buildBoardCellAction(context: PendingTargetSelectorContext, selectorNam
     if (!target) return createCancelCardAction();
     return {
         type: 'place',
-        [actionKey]: { row: target.row, col: target.col }
+        [actionKey]: cloneBoardCellTarget(target)
     };
 }
 

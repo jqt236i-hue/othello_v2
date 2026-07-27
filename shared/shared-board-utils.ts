@@ -250,6 +250,10 @@
     if (!BoardExpansionDescriptorsModule) throw new Error('BoardExpansionDescriptors is required by SharedBoardUtils');
     const MAX_ABS_BOARD_COORDINATE =
         BoardExpansionDescriptorsModule.DEFAULT_BOARD_MAX_ABS_COORDINATE;
+    const MAX_BOARD_SHAPE_ENTRIES =
+        BoardExpansionDescriptorsModule.DEFAULT_BOARD_MAX_SHAPE_ENTRIES;
+    const copyBoundedOwnArray =
+        BoardExpansionDescriptorsModule.copyBoundedOwnArray;
     const BoardExpansionDescriptors = BoardExpansionDescriptorsModule.createExpansionDescriptors({
         resolveOuterBounds,
         resolveBaseBounds: resolveBaseBoardBounds,
@@ -263,9 +267,16 @@
 
     function collectMeteorHoleKeys(cardState: unknown): Set<string> {
         const out = new Set<string>();
-        const markers = isRecord(cardState) && Array.isArray(cardState.markers)
+        const markerSource = isRecord(cardState) && Array.isArray(cardState.markers)
             ? cardState.markers
             : [];
+        const markers = copyBoundedOwnArray(
+            markerSource,
+            MAX_BOARD_SHAPE_ENTRIES
+        );
+        if (!markers) {
+            throw new Error('cardState.markers must be a bounded dense array');
+        }
         for (const marker of markers) {
             if (!isRecord(marker) || marker.kind !== 'specialStone' || !isRecord(marker.data)) continue;
             if (String(marker.data.type || '').toUpperCase() !== 'METEOR_HOLE') continue;
@@ -382,6 +393,7 @@
             maxCol: topology.contentBounds.maxCol,
             baseRows: topology.baseRows,
             baseCols: topology.baseCols,
+            baseKeys: topology.baseKeys,
             playableKeys: topology.playableKeys,
             meteorHoleKeys: topology.holeKeys,
             expansionCells,
@@ -473,16 +485,26 @@
         board: unknown,
         updates: Array<{ row: number; col: number; value: number }>
     ): boolean {
-        if (!Array.isArray(updates)) return false;
+        const rawUpdates = copyBoundedOwnArray<{
+            row: number;
+            col: number;
+            value: number;
+        }>(
+            updates,
+            MAX_BOARD_SHAPE_ENTRIES
+        );
+        if (!rawUpdates) return false;
         if (isBoardSearchContext(board)) {
-            return BoardSearchState.setCellValues(board, updates);
+            return BoardSearchState.setCellValues(board, rawUpdates);
         }
         if (isBoardContext(board)) {
-            return setStateCellValues(board.gameState, updates, board.cardState);
+            return setStateCellValues(board.gameState, rawUpdates, board.cardState);
         }
         if (!Array.isArray(board)) return false;
+        if (rawUpdates.length > denseCollectBoardCoordinates(board).length) return false;
         const seen = new Set<string>();
-        for (const update of updates) {
+        const normalizedUpdates: Array<{ row: number; col: number; value: number }> = [];
+        for (const update of rawUpdates) {
             if (
                 !update ||
                 !Number.isInteger(update.row) ||
@@ -495,8 +517,13 @@
             const key = toBoardCellKey(update.row, update.col);
             if (seen.has(key)) return false;
             seen.add(key);
+            normalizedUpdates.push({
+                row: update.row,
+                col: update.col,
+                value: update.value
+            });
         }
-        for (const update of updates) {
+        for (const update of normalizedUpdates) {
             denseSetCellValue(board, update.row, update.col, update.value);
         }
         return true;

@@ -26,7 +26,7 @@ function getOnlyState(states) {
   return items[0];
 }
 
-function runTrainer(records) {
+function runTrainer(records, extraArgs = []) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-policy-table-train-'));
   const inputPath = path.join(tempDir, 'selfplay.ndjson');
   const outputPath = path.join(tempDir, 'policy-table.json');
@@ -38,7 +38,8 @@ function runTrainer(records) {
       '--input', inputPath,
       '--model-out', outputPath,
       '--min-visits', '1',
-      '--shape-immediate', '0'
+      '--shape-immediate', '0',
+      ...extraArgs
     ], {
       cwd: REPO_ROOT,
       encoding: 'utf8'
@@ -59,6 +60,89 @@ function runTrainer(records) {
 }
 
 describe('train_policy_table bestAction selection', () => {
+  test.each([
+    ['placement-only', []],
+    ['include-card-actions', ['--include-card-actions']]
+  ])('rejects malformed placement coordinates in %s training', (_name, extraArgs) => {
+    const missingCoordinate: any = makePlaceRecord(1, 1, 1.0);
+    delete missingCoordinate.row;
+    const malformed = [
+      makePlaceRecord(true, false, 1.0),
+      makePlaceRecord('1', '2', 1.0),
+      makePlaceRecord(1.5, 2, 1.0),
+      missingCoordinate,
+      makePlaceRecord(-1, 0, 1.0),
+      makePlaceRecord(8, 0, 1.0),
+      {
+        ...makePlaceRecord(1, 1, 1.0),
+        board: ''
+      },
+      {
+        ...makePlaceRecord(1, 1, 1.0),
+        board: Array.from({ length: 4 }, () => '........').join('/')
+      },
+      {
+        ...makePlaceRecord(1, 1, 1.0),
+        board: [
+          ...Array.from({ length: 7 }, () => '........'),
+          '.......'
+        ].join('/')
+      },
+      {
+        ...makePlaceRecord(1, 1, 1.0),
+        board: ['........']
+      }
+    ].map((record) => ({
+      ...record,
+      placementPolicyEligible: 1
+    }));
+    const model = runTrainer([
+      makePlaceRecord(0, 0, 0.5),
+      makePlaceRecord(7, 7, 0.25),
+      ...malformed
+    ], extraArgs);
+
+    expect(model.stats).toMatchObject({
+      recordsRead: 12,
+      recordsSkipped: 10,
+      includeCardActions: extraArgs.length > 0
+    });
+    const state = getOnlyState(model.states);
+    expect(Object.keys(state.actions).sort()).toEqual([
+      'place:0:0',
+      'place:7:7'
+    ]);
+    expect(Object.keys(state.actions)).not.toContain('place:unknown');
+    const abstractState = getOnlyState(model.abstractStates);
+    expect(abstractState.actions).toEqual({
+      'place_cat:corner': {
+        visits: 2,
+        avgOutcome: 0.375
+      }
+    });
+    expect(Object.keys(abstractState.actions)).not.toContain('place_cat:unknown');
+  });
+
+  test('keeps valid coordinates at the bounds of a non-8 square research board', () => {
+    const board = Array.from({ length: 4 }, () => '....').join('/');
+    const model = runTrainer([
+      { ...makePlaceRecord(0, 0, 0.5), board },
+      { ...makePlaceRecord(3, 3, 0.25), board }
+    ]);
+
+    const state = getOnlyState(model.states);
+    expect(Object.keys(state.actions).sort()).toEqual([
+      'place:0:0',
+      'place:3:3'
+    ]);
+    expect(getOnlyState(model.abstractStates).actions).toEqual({
+      'place_cat:corner': {
+        visits: 2,
+        avgOutcome: 0.375
+      }
+    });
+  });
+
   test('keeps bestAction populated when every action average is negative', () => {
     const model = runTrainer([
       makePlaceRecord(0, 0, -1.0),

@@ -1,9 +1,18 @@
 import { createLegalMoves } from "./legal-moves";
-import { DEFAULT_BOARD_MAX_ABS_COORDINATE } from "./expansion-descriptors";
+import {
+  copyBoundedOwnArray,
+  DEFAULT_BOARD_MAX_ABS_COORDINATE,
+  DEFAULT_BOARD_MAX_MATRIX_DIMENSION,
+  DEFAULT_BOARD_MAX_SHAPE_ENTRIES,
+} from "./expansion-descriptors";
+import {
+  createReadonlyMapView,
+  createReadonlySetView,
+} from "./topology";
 
 export const BOARD_SEARCH_CONTEXT_KIND = "board-search-context-v1";
-const MAX_SEARCH_MATRIX_DIMENSION = 64;
-const MAX_SEARCH_SHAPE_KEYS = 8192;
+const MAX_SEARCH_MATRIX_DIMENSION = DEFAULT_BOARD_MAX_MATRIX_DIMENSION;
+const MAX_SEARCH_SHAPE_KEYS = DEFAULT_BOARD_MAX_SHAPE_ENTRIES;
 const MAX_SEARCH_ENVELOPE_SPAN =
   (DEFAULT_BOARD_MAX_ABS_COORDINATE * 2) + 1;
 
@@ -28,6 +37,7 @@ export interface BoardSearchShapeInput {
   maxCol?: number;
   baseRows?: number;
   baseCols?: number;
+  baseKeys: ReadonlySet<string> | readonly string[];
   playableKeys?: ReadonlySet<string> | readonly string[];
   meteorHoleKeys?: ReadonlySet<string> | readonly string[];
   expansionCells?: readonly BoardSearchExpansionCell[];
@@ -43,6 +53,7 @@ export interface BoardSearchShape {
   readonly maxCol: number;
   readonly baseRows: number;
   readonly baseCols: number;
+  readonly baseKeys: ReadonlySet<string>;
   readonly playableKeys: ReadonlySet<string>;
   readonly meteorHoleKeys: ReadonlySet<string>;
   readonly coordinates: readonly BoardSearchCell[];
@@ -90,6 +101,8 @@ interface BoardSearchStaticShape {
   maxCol: number;
   baseRows: number;
   baseCols: number;
+  baseKeys: ReadonlySet<string>;
+  baseKeyView?: ReadonlySet<string>;
   playableKeys: Set<string>;
   meteorHoleKeys: Set<string>;
   playableKeyView?: ReadonlySet<string>;
@@ -191,90 +204,6 @@ function toCanonicalKeySet(
   throw new Error(`${label} must be an array or iterable set`);
 }
 
-function createReadonlySetView(source: Set<string>): ReadonlySet<string> {
-  const view: {
-    readonly size: number;
-    has(value: string): boolean;
-    entries(): SetIterator<[string, string]>;
-    keys(): SetIterator<string>;
-    values(): SetIterator<string>;
-    forEach(
-      callbackfn: (value: string, value2: string, set: ReadonlySet<string>) => void,
-      thisArg?: unknown,
-    ): void;
-    [Symbol.iterator](): SetIterator<string>;
-  } = {
-    get size() {
-      return source.size;
-    },
-    has(value: string) {
-      return source.has(value);
-    },
-    entries() {
-      return source.entries();
-    },
-    keys() {
-      return source.keys();
-    },
-    values() {
-      return source.values();
-    },
-    forEach(callbackfn, thisArg) {
-      source.forEach((value) => callbackfn.call(thisArg, value, value, view));
-    },
-    [Symbol.iterator]() {
-      return source[Symbol.iterator]();
-    },
-  };
-  return Object.freeze(view);
-}
-
-function createReadonlyMapView<K, V>(
-  source: ReadonlyMap<K, V>,
-): ReadonlyMap<K, V> {
-  const view: {
-    readonly size: number;
-    get(key: K): V | undefined;
-    has(key: K): boolean;
-    entries(): MapIterator<[K, V]>;
-    keys(): MapIterator<K>;
-    values(): MapIterator<V>;
-    forEach(
-      callbackfn: (value: V, key: K, map: ReadonlyMap<K, V>) => void,
-      thisArg?: unknown,
-    ): void;
-    [Symbol.iterator](): MapIterator<[K, V]>;
-  } = {
-    get size() {
-      return source.size;
-    },
-    get(key: K) {
-      return source.get(key);
-    },
-    has(key: K) {
-      return source.has(key);
-    },
-    entries() {
-      return source.entries();
-    },
-    keys() {
-      return source.keys();
-    },
-    values() {
-      return source.values();
-    },
-    forEach(callbackfn, thisArg) {
-      source.forEach((value, key) =>
-        callbackfn.call(thisArg, value, key, view)
-      );
-    },
-    [Symbol.iterator]() {
-      return source[Symbol.iterator]();
-    },
-  };
-  return Object.freeze(view);
-}
-
 function createPublicMatrixSnapshot(
   matrix: number[][],
 ): ReadonlyArray<ReadonlyArray<number>> {
@@ -341,6 +270,8 @@ export function createBoardSearchStateTools(
   function buildImmutableTopologySnapshot(input: {
     baseRows: number;
     baseCols: number;
+    baseKeys: ReadonlySet<string>;
+    baseKeyView: ReadonlySet<string>;
     playableKeys: Set<string>;
     meteorHoleKeys: Set<string>;
     playableKeyView: ReadonlySet<string>;
@@ -356,15 +287,12 @@ export function createBoardSearchStateTools(
       ...input.playableKeys,
       ...input.meteorHoleKeys,
     ]);
-    const baseKeys = new Set(
-      Array.from(existingKeys).filter((key) => !expansionKeys.has(key)),
-    );
     const freezeCoordinates = (keys: ReadonlySet<string>) =>
       Object.freeze(
         sortedCoordinatesFromKeys(keys, deps.toBoardCellKey)
           .map((cell) => Object.freeze({ ...cell })),
       );
-    const baseCoordinates = freezeCoordinates(baseKeys);
+    const baseCoordinates = freezeCoordinates(input.baseKeys);
     const expansionCoordinates = freezeCoordinates(expansionKeys);
     const existingCoordinates = freezeCoordinates(existingKeys);
     const playableCoordinates = freezeCoordinates(input.playableKeys);
@@ -440,7 +368,7 @@ export function createBoardSearchStateTools(
     return Object.freeze({
       baseRows: input.baseRows,
       baseCols: input.baseCols,
-      baseKeys: createReadonlySetView(baseKeys),
+      baseKeys: input.baseKeyView,
       expansionKeys: createReadonlySetView(expansionKeys),
       existingKeys: createReadonlySetView(existingKeys),
       playableKeys: input.playableKeyView,
@@ -497,6 +425,8 @@ export function createBoardSearchStateTools(
       maxCol: staticShape.maxCol,
       baseRows: staticShape.baseRows,
       baseCols: staticShape.baseCols,
+      baseKeys: staticShape.baseKeyView ||
+        createReadonlySetView(staticShape.baseKeys),
       playableKeys: staticShape.playableKeyView ||
         createReadonlySetView(staticShape.playableKeys),
       meteorHoleKeys: staticShape.meteorHoleKeyView ||
@@ -630,6 +560,11 @@ export function createBoardSearchStateTools(
       "search meteor-hole key",
       deps.toBoardCellKey,
     );
+    const baseKeys = toCanonicalKeySet(
+      shapeValue.baseKeys,
+      "search base key",
+      deps.toBoardCellKey,
+    );
     for (const key of meteorHoleKeys) {
       if (playableKeys.has(key)) {
         throw new Error(
@@ -736,11 +671,11 @@ export function createBoardSearchStateTools(
       }
     }
 
-    const expansionCells: BoardSearchExpansionCell[] = [];
+    const playableExpansionCells: BoardSearchExpansionCell[] = [];
     for (const cell of rawExpansionCells) {
       const key = deps.toBoardCellKey(cell.row, cell.col);
       if (playableKeys.has(key)) {
-        expansionCells.push(cell);
+        playableExpansionCells.push(cell);
         continue;
       }
       if (!meteorHoleKeys.has(key)) {
@@ -748,7 +683,9 @@ export function createBoardSearchStateTools(
       }
     }
     const expansionKeys = new Set(
-      expansionCells.map((cell) => deps.toBoardCellKey(cell.row, cell.col)),
+      playableExpansionCells.map((cell) =>
+        deps.toBoardCellKey(cell.row, cell.col)
+      ),
     );
     for (const cell of coordinates) {
       const key = deps.toBoardCellKey(cell.row, cell.col);
@@ -798,6 +735,34 @@ export function createBoardSearchStateTools(
       ...playableKeys,
       ...meteorHoleKeys,
     ]);
+    for (const key of baseKeys) {
+      const { row, col } = parseCanonicalKey(
+        key,
+        "search base key",
+        deps.toBoardCellKey,
+      );
+      if (rawExpansionCellByKey.has(key)) {
+        throw new Error(`Search base and expansion keys overlap at ${key}`);
+      }
+      if (
+        row < 0 ||
+        row >= baseRows ||
+        col < 0 ||
+        col >= baseCols
+      ) {
+        throw new Error(`Search base key ${key} is outside the dense matrix`);
+      }
+      if (!existingKeys.has(key)) {
+        throw new Error(`Search base key ${key} is not an existing cell`);
+      }
+    }
+    for (const key of playableKeys) {
+      if (!rawExpansionCellByKey.has(key) && !baseKeys.has(key)) {
+        throw new Error(
+          `Search playable key ${key} has no base or expansion authority`,
+        );
+      }
+    }
     const existingCoordinates = sortedCoordinatesFromKeys(
       existingKeys,
       deps.toBoardCellKey,
@@ -870,8 +835,9 @@ export function createBoardSearchStateTools(
     const standard8x8 =
       baseRows === 8 &&
       baseCols === 8 &&
-      expansionCells.length === 0 &&
+      rawExpansionCells.length === 0 &&
       meteorHoleKeys.size === 0 &&
+      baseKeys.size === 64 &&
       playableKeys.size === 64 &&
       minRow === 0 &&
       maxRow === 7 &&
@@ -891,9 +857,12 @@ export function createBoardSearchStateTools(
     }
     const playableKeyView = createReadonlySetView(playableKeys);
     const meteorHoleKeyView = createReadonlySetView(meteorHoleKeys);
+    const baseKeyView = createReadonlySetView(baseKeys);
     const topology = buildImmutableTopologySnapshot({
       baseRows,
       baseCols,
+      baseKeys,
+      baseKeyView,
       playableKeys,
       meteorHoleKeys,
       playableKeyView,
@@ -909,6 +878,8 @@ export function createBoardSearchStateTools(
         maxCol,
         baseRows,
         baseCols,
+        baseKeys,
+        baseKeyView,
         playableKeys,
         meteorHoleKeys,
         playableKeyView,
@@ -917,7 +888,7 @@ export function createBoardSearchStateTools(
         standard8x8,
         topology,
       },
-      expansionCells,
+      rawExpansionCells,
     );
   }
 
@@ -933,6 +904,8 @@ export function createBoardSearchStateTools(
         maxCol: state.shape.maxCol,
         baseRows: state.shape.baseRows,
         baseCols: state.shape.baseCols,
+        baseKeys: state.shape.baseKeys,
+        baseKeyView: state.shape.baseKeys,
         playableKeys: state.playableKeys,
         meteorHoleKeys: state.meteorHoleKeys,
         playableKeyView: state.playableKeyView,
@@ -985,11 +958,13 @@ export function createBoardSearchStateTools(
   }
 
   function setCellValues(value: unknown, updatesValue: unknown): boolean {
-    if (!Array.isArray(updatesValue)) return false;
+    const rawUpdates = copyBoundedOwnArray(updatesValue);
+    if (!rawUpdates) return false;
     const state = requireState(value);
+    if (rawUpdates.length > state.playableKeys.size) return false;
     const updates: BoardSearchCellUpdate[] = [];
     const seen = new Set<string>();
-    for (const raw of updatesValue) {
+    for (const raw of rawUpdates) {
       if (
         !isRecord(raw) ||
         !Number.isInteger(raw.row) ||

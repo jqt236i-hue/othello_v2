@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as ts from 'typescript';
 
 const ROOT = fs.existsSync(path.join(process.cwd(), 'wrangler.toml'))
     ? process.cwd()
@@ -22,15 +23,77 @@ const REQUIRED_BOARD_CONTRACT_STATIC_CHAIN = Object.freeze([
     'shared/board/state-kernel.ts'
 ]);
 
-function collectStaticModuleSpecifiers(source: string): string[] {
+function collectModuleSpecifiers(source: string, includeDynamicImports: boolean): string[] {
     const specifiers: string[] = [];
-    for (const pattern of [
-        /\bimport\s+(?:type\s+)?(?:[^'";]+?\s+from\s+)?['"]([^'"]+)['"]/g,
-        /\brequire\(\s*['"]([^'"]+)['"]\s*\)/g
-    ]) {
-        for (const match of source.matchAll(pattern)) specifiers.push(match[1]);
-    }
+    const sourceFile = ts.createSourceFile(
+        'worker-runtime-source.ts',
+        source,
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TS
+    );
+    const collectLiteral = (value: ts.Expression | undefined): void => {
+        if (value && ts.isStringLiteralLike(value)) specifiers.push(value.text);
+    };
+    const isTypeOnlyImport = (node: ts.ImportDeclaration): boolean => {
+        const clause = node.importClause;
+        if (!clause) return false;
+        if (clause.isTypeOnly) return true;
+        if (clause.name || !clause.namedBindings || !ts.isNamedImports(clause.namedBindings)) {
+            return false;
+        }
+        return clause.namedBindings.elements.length > 0
+            && clause.namedBindings.elements.every((element) => element.isTypeOnly);
+    };
+    const isTypeOnlyExport = (node: ts.ExportDeclaration): boolean => {
+        if (node.isTypeOnly) return true;
+        return !!node.exportClause
+            && ts.isNamedExports(node.exportClause)
+            && node.exportClause.elements.length > 0
+            && node.exportClause.elements.every((element) => element.isTypeOnly);
+    };
+    const visit = (node: ts.Node): void => {
+        if (ts.isImportDeclaration(node) && !isTypeOnlyImport(node)) {
+            collectLiteral(node.moduleSpecifier);
+        } else if (ts.isExportDeclaration(node) && !isTypeOnlyExport(node)) {
+            collectLiteral(node.moduleSpecifier);
+        } else if (
+            ts.isImportEqualsDeclaration(node)
+            && !node.isTypeOnly
+            && ts.isExternalModuleReference(node.moduleReference)
+        ) {
+            collectLiteral(node.moduleReference.expression);
+        } else if (
+            ts.isCallExpression(node)
+            && ts.isIdentifier(node.expression)
+            && node.expression.text === 'require'
+            && node.arguments.length === 1
+        ) {
+            collectLiteral(node.arguments[0]);
+        } else if (
+            includeDynamicImports
+            && ts.isCallExpression(node)
+            && node.expression.kind === ts.SyntaxKind.ImportKeyword
+            && node.arguments.length >= 1
+        ) {
+            collectLiteral(node.arguments[0]);
+        }
+        ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
     return Array.from(new Set(specifiers));
+}
+
+function collectGraphModuleSpecifiers(source: string): string[] {
+    return collectModuleSpecifiers(source, true);
+}
+
+function collectEagerModuleSpecifiers(source: string): string[] {
+    return collectModuleSpecifiers(source, false);
+}
+
+function collectStaticModuleSpecifiers(source: string): string[] {
+    return collectGraphModuleSpecifiers(source);
 }
 
 function resolveSourceImport(rootDir: string, importerRelativePath: string, specifier: string): string | null {
@@ -71,7 +134,7 @@ function assertWorkerGraphHasNoPixi(
             continue;
         }
         const source = fs.readFileSync(absolutePath, 'utf8');
-        for (const specifier of collectStaticModuleSpecifiers(source)) {
+        for (const specifier of collectGraphModuleSpecifiers(source)) {
             if (specifier === 'pixi.js' || specifier.startsWith('pixi.js/')) {
                 failures.push(`Worker runtime imports PixiJS: ${relativePath} -> ${specifier}`);
             }
@@ -100,7 +163,7 @@ function assertStaticDependencyChain(
         if (!fs.existsSync(absoluteImporter)) {
             throw new Error(`[worker-runtime-preload] static dependency source missing: ${importer}`);
         }
-        const resolvedDependencies = collectStaticModuleSpecifiers(
+        const resolvedDependencies = collectEagerModuleSpecifiers(
             fs.readFileSync(absoluteImporter, 'utf8')
         ).map((specifier) => resolveSourceImport(rootDir, importer, specifier));
         if (!resolvedDependencies.includes(expectedDependency)) {
@@ -180,6 +243,8 @@ export function checkWorkerRuntimePreload(): void {
 export {
     assertStaticDependencyChain,
     assertWorkerGraphHasNoPixi,
+    collectEagerModuleSpecifiers,
+    collectGraphModuleSpecifiers,
     collectStaticModuleSpecifiers,
     resolveSourceImport
 };

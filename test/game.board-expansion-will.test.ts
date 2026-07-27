@@ -427,6 +427,105 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(result).toEqual({ applied: false, reason: 'already_expanded' });
   });
 
+  test('盤面拡張の適用は実際に使用する依存だけで完結する', () => {
+    const BoardExpansionApply = require('../game/logic/card-resolution/board-expansion-apply.ts');
+    const willPending = {
+      type: 'BOARD_EXPANSION_WILL',
+      stage: 'selectTarget'
+    };
+    const willExpansion = {
+      cells: [],
+      usedByPlayer: { black: false, white: false }
+    };
+    const willClear = jest.fn();
+    const willResult = BoardExpansionApply.applyBoardExpansionWill(
+      { pendingEffectByPlayer: { black: willPending } },
+      { boardExpansion: willExpansion },
+      'black',
+      0,
+      0,
+      'up',
+      {
+        readCardPendingEffect: () => willPending,
+        getBoardExpansionTargets: () => [{
+          row: 0,
+          col: 0,
+          directionKey: 'up',
+          side: 'top',
+          additions: [{ row: -1, col: 0 }]
+        }],
+        ensureMutableBoardExpansionForCard: () => willExpansion,
+        resolveExpansionSideForCard: () => 'top',
+        addStateExpansionCells: () => ({ added: true }),
+        clearCardPendingEffect: willClear
+      }
+    );
+
+    expect(willResult).toEqual({
+      applied: true,
+      side: 'top',
+      row: -1,
+      col: 0,
+      directionKey: 'up'
+    });
+    expect(willExpansion.usedByPlayer.black).toBe(true);
+    expect(willClear).toHaveBeenCalledWith(expect.any(Object), 'black');
+
+    const godPending = {
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      selectedTargets: [{ row: 0, col: 0, directionKey: 'up-left' }]
+    };
+    const godExpansion = {
+      cells: [],
+      usedByPlayer: { black: false, white: false }
+    };
+    const socket = {
+      row: 0,
+      col: 0,
+      directionKey: 'up-left',
+      additions: [
+        { row: -1, col: 0 },
+        { row: -1, col: -1 },
+        { row: 0, col: -1 }
+      ]
+    };
+    const godClear = jest.fn();
+    const godResult = BoardExpansionApply.applyBoardExpansionGod(
+      { pendingEffectByPlayer: { black: godPending } },
+      { boardExpansion: godExpansion },
+      'black',
+      0,
+      0,
+      'up-left',
+      {
+        readCardPendingEffect: () => godPending,
+        getBoardExpansionGodTargets: () => [socket],
+        getBoardExpansionGodRequiredSelectionCount: () => 1,
+        getBoardExpansionGodPendingSelectionsForCard: () => godPending.selectedTargets,
+        ensureMutableBoardExpansionForCard: () => godExpansion,
+        getExpansionDescriptorsForCard: () => [],
+        getBoardExpansionGodSocketTargets: () => [socket],
+        resolveExpansionSideForCard: () => 'mixed',
+        addStateExpansionCells: () => ({ added: true }),
+        clearCardPendingEffect: godClear
+      }
+    );
+
+    expect(godResult).toEqual(expect.objectContaining({
+      applied: true,
+      completed: true,
+      sources: [{ row: 0, col: 0, directionKey: 'up-left' }],
+      added: [
+        { row: -1, col: 0 },
+        { row: -1, col: -1 },
+        { row: 0, col: -1 }
+      ]
+    }));
+    expect(godExpansion.usedByPlayer.black).toBe(true);
+    expect(godClear).toHaveBeenCalledWith(expect.any(Object), 'black');
+  });
+
   test('BOARD_EXPANSION_GODは1回目の選択後に陳腐化したsocketを確定時に拒否する', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();

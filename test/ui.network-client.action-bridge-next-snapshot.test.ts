@@ -14,12 +14,21 @@ function createSnapshot(stateVersion) {
     _meta: {
       authority: 'server',
       version: stateVersion,
+      boardContractVersion: 2,
       projectedForSeat: null,
       turnStartReconciled: true
     },
     gameState: {
       currentPlayer: 1,
-      turnNumber: 1
+      turnNumber: 1,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      boardConfig: {
+        rows: 8,
+        cols: 8,
+        shape: 'rectangle',
+        standard8x8: true
+      },
+      boardExpansion: { active: false, cells: [] }
     },
     cardState: {
       selectedCardId: null,

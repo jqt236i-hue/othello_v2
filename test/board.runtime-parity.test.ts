@@ -40,6 +40,7 @@ function serializeShape(context: any) {
     maxRow: topology.contentBounds.maxRow,
     minCol: topology.contentBounds.minCol,
     maxCol: topology.contentBounds.maxCol,
+    baseKeys: Array.from(topology.baseKeys),
     playableKeys: Array.from(topology.playableKeys),
     meteorHoleKeys: Array.from(topology.holeKeys),
     expansionCells: view.expansionCells.map((cell: any) => ({ ...cell })),
@@ -57,6 +58,7 @@ describe('board runtime parity', () => {
       maxRow: 1,
       minCol: 0,
       maxCol: 1,
+      baseKeys: ['0,1', '1,0', '1,1'],
       playableKeys: ['0,0', '0,1', '1,0', '1,1'],
       meteorHoleKeys: [],
       expansionCells: [{ side: 'top', row: 0, col: 0, owner: Core.WHITE }],
@@ -71,6 +73,7 @@ describe('board runtime parity', () => {
       board: matrix,
       shape: {
         ...context.shape,
+        baseKeys: Array.from(context.shape.baseKeys),
         playableKeys: Array.from(context.shape.playableKeys),
         meteorHoleKeys: Array.from(context.shape.meteorHoleKeys),
       },
@@ -86,6 +89,7 @@ describe('board runtime parity', () => {
       board: matrix,
       shape: {
         ...context.shape,
+        baseKeys: Array.from(context.shape.baseKeys),
         playableKeys: Array.from(context.shape.playableKeys),
         meteorHoleKeys: Array.from(context.shape.meteorHoleKeys),
       },
@@ -295,7 +299,7 @@ describe('board runtime parity', () => {
     expect(workerBoardUtils.collectBoardCoordinates(workerContext))
       .not.toContainEqual({ row: 1, col: 4 });
     expect(workerContext.shape.expansionCells)
-      .not.toContainEqual(expect.objectContaining({ row: 1, col: 4 }));
+      .toContainEqual(expect.objectContaining({ row: 1, col: 4 }));
     expect(workerBoardUtils.getCellValue(workerContext, 1, 5)).toBe(Core.WHITE);
   });
 });

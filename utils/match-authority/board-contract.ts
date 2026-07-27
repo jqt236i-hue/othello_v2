@@ -60,8 +60,8 @@ function readContractVersion(snapshotValue: unknown): number | null {
     const snapshot = asRecord(snapshotValue);
     const meta = asRecord(snapshot._meta);
     if (!Object.prototype.hasOwnProperty.call(meta, 'boardContractVersion')) return null;
-    const version = Number(meta.boardContractVersion);
-    return Number.isInteger(version) ? version : null;
+    const version = meta.boardContractVersion;
+    return typeof version === 'number' && Number.isInteger(version) ? version : null;
 }
 
 function sortExpansionDescriptorsForHash(snapshotValue: unknown): unknown {
@@ -106,7 +106,7 @@ export function createMatchAuthorityBoardContractApi(deps: MatchAuthorityBoardCo
         const legacy = !hasVersion;
 
         if (!hasFullSnapshot) {
-            if (opts.requireFullSnapshot === true || version !== null) {
+            if (opts.requireFullSnapshot === true || hasVersion) {
                 return {
                     ok: false,
                     version,

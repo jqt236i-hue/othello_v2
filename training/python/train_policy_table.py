@@ -11,6 +11,8 @@ import os
 from dataclasses import dataclass
 from typing import Dict, Iterable, Tuple
 
+from trainer_value_contracts import is_strict_int
+
 
 MODEL_SCHEMA_VERSION = "policy_table.v2"
 NORMALIZATION = "dihedral8_minlex"
@@ -126,12 +128,12 @@ def build_state_key(rec: dict) -> tuple[str, int]:
 def build_action_key(rec: dict, transform_id: int = 0) -> str:
     action_type = rec.get("actionType") or "unknown"
     if action_type == "place":
-        row = rec.get("row")
-        col = rec.get("col")
-        board = decode_board(rec.get("board", ""))
-        size = len(board) if board else 8
-        if isinstance(row, int) and isinstance(col, int):
-            row, col = transform_coord(row, col, size, transform_id)
+        coordinates = resolve_valid_placement_coordinates(rec)
+        if coordinates is None:
+            return "place:unknown"
+        row, col = coordinates
+        board_size = len(decode_board(rec["board"]))
+        row, col = transform_coord(row, col, board_size, transform_id)
         return f"place:{row}:{col}"
     if action_type == "use_card":
         card_id = rec.get("useCardId") or "unknown"
@@ -217,12 +219,12 @@ def _to_flag(raw: object) -> bool:
 def _placement_positional_immediate(rec: dict) -> float:
     if rec.get("actionType") != "place":
         return 0.0
-    row = rec.get("row")
-    col = rec.get("col")
-    if not isinstance(row, int) or not isinstance(col, int):
+    coordinates = resolve_valid_placement_coordinates(rec)
+    if coordinates is None:
         return 0.0
+    row, col = coordinates
 
-    pos_kind = _cell_type(int(row), int(col))
+    pos_kind = _cell_type(row, col, len(decode_board(rec["board"])))
     corner_hold = _to_flag(rec.get("cornerHoldMode"))
     corner_emergency = _to_flag(rec.get("cornerEmergency"))
     has_corner_move = _to_flag(rec.get("hasCornerMoveNow"))
@@ -296,11 +298,12 @@ def _card_corner_immediate(rec: dict, disc_immediate: float) -> float:
 def build_abstract_action_key(rec: dict) -> str:
     action_type = rec.get("actionType") or "unknown"
     if action_type == "place":
-        row = rec.get("row")
-        col = rec.get("col")
-        if isinstance(row, int) and isinstance(col, int):
-            return f"place_cat:{_cell_type(row, col)}"
-        return "place_cat:unknown"
+        coordinates = resolve_valid_placement_coordinates(rec)
+        return (
+            f"place_cat:{_cell_type(*coordinates, len(decode_board(rec['board'])))}"
+            if coordinates is not None
+            else "place_cat:unknown"
+        )
     if action_type == "use_card":
         card_id = rec.get("useCardId") or "unknown"
         return f"use_card:{card_id}"
@@ -322,12 +325,37 @@ def iter_ndjson(path: str) -> Iterable[dict]:
             yield rec
 
 
+def resolve_valid_placement_coordinates(rec: dict) -> tuple[int, int] | None:
+    if rec.get("actionType") != "place":
+        return None
+    row = rec.get("row")
+    col = rec.get("col")
+    if not is_strict_int(row) or not is_strict_int(col):
+        return None
+    board_raw = rec.get("board")
+    if not isinstance(board_raw, str):
+        return None
+    board = decode_board(board_raw)
+    board_size = len(board)
+    if (
+        board_size <= 0
+        or any(len(board_row) != board_size for board_row in board)
+        or row < 0
+        or row >= board_size
+        or col < 0
+        or col >= board_size
+    ):
+        return None
+    return row, col
+
+
 def is_placement_policy_record(rec: dict) -> bool:
+    if resolve_valid_placement_coordinates(rec) is None:
+        return False
     if rec.get("placementPolicyEligible") is not None:
         return bool(rec.get("placementPolicyEligible"))
     return (
-        rec.get("actionType") == "place"
-        and not rec.get("pendingSelection")
+        not rec.get("pendingSelection")
         and not rec.get("pendingType")
     )
 
@@ -409,6 +437,12 @@ def train(records: Iterable[dict], min_visits: int, include_card_actions: bool =
 
     for rec in records:
         lines += 1
+        if (
+            rec.get("actionType") == "place"
+            and resolve_valid_placement_coordinates(rec) is None
+        ):
+            skipped += 1
+            continue
         if not include_card_actions and not is_placement_policy_record(rec):
             skipped += 1
             continue

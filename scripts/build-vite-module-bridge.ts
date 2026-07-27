@@ -14,6 +14,8 @@ type OptionalGroup = typeof OPTIONAL_GROUPS[number];
 const VITE_ONLY_LAZY_GROUPS = ['compatibility', 'diagnostics'] as const;
 type ViteOnlyLazyGroup = typeof VITE_ONLY_LAZY_GROUPS[number];
 type PayloadGroup = OptionalGroup | ViteOnlyLazyGroup;
+const TRANSIENT_FILE_ERROR_CODES = new Set(['UNKNOWN', 'EBUSY', 'EPERM', 'EACCES']);
+const FILE_RETRY_DELAYS_MS = [25, 50, 100, 200, 400, 800] as const;
 
 const VITE_ONLY_LAZY_PREFIXES: Record<ViteOnlyLazyGroup, readonly string[]> = Object.freeze({
   compatibility: Object.freeze(['ui/board-dom-compat/']),
@@ -60,15 +62,57 @@ function moduleFilePath(contextRoot: string, moduleKey: string): string {
   return path.join(contextRoot, 'modules', `${normalizeKey(moduleKey)}.js`);
 }
 
+function isTransientFileAccessError(error: unknown): boolean {
+  const value = error as NodeJS.ErrnoException | null;
+  const message = error instanceof Error ? error.message : String(error || '');
+  return !!value && (
+    TRANSIENT_FILE_ERROR_CODES.has(String(value.code || ''))
+    || /\b(?:os error 1224|user[- ]mapped section)\b/i.test(message)
+    || message.includes('ユーザー マップ セクション')
+  );
+}
+
+function withFileAccessRetry<T>(operation: () => T): T {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= FILE_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      return operation();
+    } catch (error) {
+      lastError = error;
+      if (
+        !isTransientFileAccessError(error)
+        || attempt >= FILE_RETRY_DELAYS_MS.length
+      ) {
+        throw error;
+      }
+      Atomics.wait(
+        new Int32Array(new SharedArrayBuffer(4)),
+        0,
+        0,
+        FILE_RETRY_DELAYS_MS[attempt],
+      );
+    }
+  }
+  throw lastError;
+}
+
 function writeText(filePath: string, content: string): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, String(content || '').replace(/\r\n?/g, '\n'), 'utf8');
+  withFileAccessRetry(() =>
+    fs.writeFileSync(
+      filePath,
+      String(content || '').replace(/\r\n?/g, '\n'),
+      'utf8',
+    )
+  );
 }
 
 function checkOrWrite(filePath: string, content: string, checkOnly: boolean): boolean {
   const normalized = String(content || '').replace(/\r\n?/g, '\n');
   const current = fs.existsSync(filePath)
-    ? fs.readFileSync(filePath, 'utf8').replace(/\r\n?/g, '\n')
+    ? withFileAccessRetry(() =>
+      fs.readFileSync(filePath, 'utf8').replace(/\r\n?/g, '\n')
+    )
     : '';
   if (current === normalized) return false;
   if (checkOnly) throw new Error(`[vite-module-bridge] generated file is stale: ${path.relative(ROOT, filePath)}`);
@@ -161,7 +205,14 @@ function renderOptionalEntry(
 }
 
 function bundleOptionalGroup(group: PayloadGroup, entryPath: string, targetPath: string, checkOnly: boolean): boolean {
-  const generatedPath = checkOnly ? path.join(STAGE_ROOT, 'check-assets', path.basename(targetPath)) : targetPath;
+  // Rolldown cannot retry a Windows user-mapped-section failure itself. Bundle
+  // under the disposable stage root, then perform the small final write through
+  // our bounded retry path so a running Vite reader cannot make codegen flaky.
+  const generatedPath = path.join(
+    STAGE_ROOT,
+    checkOnly ? 'check-assets' : 'bundle-assets',
+    path.basename(targetPath),
+  );
   fs.mkdirSync(path.dirname(generatedPath), { recursive: true });
   const cliPath = path.join(ROOT, 'node_modules', 'rolldown', 'bin', 'cli.mjs');
   const result = childProcess.spawnSync(process.execPath, [
@@ -182,12 +233,13 @@ function bundleOptionalGroup(group: PayloadGroup, entryPath: string, targetPath:
   if (result.status !== 0) {
     throw new Error(`[vite-module-bridge] ${group} bundle failed: ${result.stderr || result.stdout || result.status}`);
   }
-  const bundled = fs.readFileSync(generatedPath, 'utf8').replace(/\r\n?/g, '\n');
+  const bundled = withFileAccessRetry(() =>
+    fs.readFileSync(generatedPath, 'utf8').replace(/\r\n?/g, '\n')
+  );
   if (/\bimport\s*(?:\(|[^;]*\bfrom\b)/.test(bundled)) {
     throw new Error(`[vite-module-bridge] ${group} output is not self-contained`);
   }
-  if (!checkOnly) return true;
-  return checkOrWrite(targetPath, bundled, true);
+  return checkOrWrite(targetPath, bundled, checkOnly);
 }
 
 function renderPayloadUrlsSource(): string {

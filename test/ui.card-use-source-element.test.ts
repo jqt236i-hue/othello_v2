@@ -950,8 +950,12 @@ describe('card use source element selection', () => {
     expect(global.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
       type: cardType,
       cardId,
-      stage: 'selectTarget'
+      stage: 'selectTarget',
+      pendingEffectId: expect.stringMatching(/^pending_1_\d+$/)
     }));
+    expect(nextCardState.pendingEffectByPlayer.black.pendingEffectId)
+      .toBe(global.cardState.pendingEffectByPlayer.black.pendingEffectId);
+    expect(nextCardState.pendingEffectSeq).toBe(global.cardState.pendingEffectSeq);
   });
 
   test.each([
@@ -985,8 +989,52 @@ describe('card use source element selection', () => {
     expect(global.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
       type: cardType,
       cardId,
-      stage: 'selectTarget'
+      stage: 'selectTarget',
+      pendingEffectId: expect.stringMatching(/^pending_1_\d+$/)
     }));
+  });
+
+  test('local board pending regeneration assigns a fresh identity across A to B', () => {
+    window.DEBUG_UNLIMITED_USAGE = true;
+    let activeCard = { id: 'seed_01', type: 'SEED_WILL' };
+    global.CardLogic = {
+      getCardDef: (id) => ({
+        id,
+        type: activeCard.type,
+        name: activeCard.type,
+        desc: 'd',
+        cost: 1
+      })
+    };
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      nextCardState: {
+        ...global.cardState,
+        pendingEffectByPlayer: { black: null, white: null }
+      },
+      nextGameState: global.gameState,
+      playbackEvents: []
+    }));
+    require('../cards/card-interaction.js');
+
+    const useActiveCard = () => {
+      global.cardState.selectedCardId = activeCard.id;
+      global.cardState.selectedCardOwnerKey = 'black';
+      global.cardState.hands.black = [activeCard.id];
+      global.cardState.hasUsedCardThisTurnByPlayer.black = false;
+      global.cardState.pendingEffectByPlayer.black = null;
+      window.useSelectedCard();
+      return global.cardState.pendingEffectByPlayer.black.pendingEffectId;
+    };
+
+    const firstId = useActiveCard();
+    activeCard = { id: 'cell_teleport_01', type: 'CELL_TELEPORT_WILL' };
+    const secondId = useActiveCard();
+
+    expect(firstId).toMatch(/^pending_1_\d+$/);
+    expect(secondId).toMatch(/^pending_1_\d+$/);
+    expect(secondId).not.toBe(firstId);
+    expect(global.cardState.pendingEffectSeq).toBe(2);
   });
 
   test('useSelectedCard hides deferred generated throw-chain card until later placement playback reveals it', () => {

@@ -138,10 +138,12 @@ describe('TIME_STOP_DEITY（時間停神）', () => {
     const prng = createPrng(0);
     const cardState = CardLogic.createCardState(prng);
     const gameState = createEmptyGameState();
-    for (let col = 0; col < Shared.TIME_STOP_DEITY_SELF_DESTROY_COUNT; col += 1) {
-      gameState.board[0][col] = Core.BLACK;
-      CardLogic.addMarker(cardState, 'specialStone', 0, col, 'black', { type: 'PROTECTED', remainingOwnerTurns: 2 });
-      CardLogic.addMarker(cardState, 'specialStone', 0, col, 'black', { type: 'AFTERIMAGE_WILL', destroyEvadeRemaining: 1 });
+    for (let index = 0; index < Shared.TIME_STOP_DEITY_SELF_DESTROY_COUNT; index += 1) {
+      const row = Math.floor(index / 8);
+      const col = index % 8;
+      gameState.board[row][col] = Core.BLACK;
+      CardLogic.addMarker(cardState, 'specialStone', row, col, 'black', { type: 'PROTECTED', remainingOwnerTurns: 2 });
+      CardLogic.addMarker(cardState, 'specialStone', row, col, 'black', { type: 'AFTERIMAGE_WILL', destroyEvadeRemaining: 1 });
     }
 
     expect(CardLogic.getTimeStopDeityDestroyableCount(cardState, gameState, 'black')).toBe(0);

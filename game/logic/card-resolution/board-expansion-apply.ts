@@ -38,10 +38,7 @@ function applyBoardExpansionWill(cardState: CardState, gameState: GameState, pla
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const getBoardExpansionTargets = deps && deps.getBoardExpansionTargets;
     const ensureMutableBoardExpansionForCard = deps && deps.ensureMutableBoardExpansionForCard;
-    const getExpansionDescriptorsForCard = deps && deps.getExpansionDescriptorsForCard;
     const resolveExpansionSideForCard = deps && deps.resolveExpansionSideForCard;
-    const normalizeExpansionOwnerForCard = deps && deps.normalizeExpansionOwnerForCard;
-    const syncLegacyExpansionFieldsForCard = deps && deps.syncLegacyExpansionFieldsForCard;
     const addStateExpansionCells = deps && deps.addStateExpansionCells;
     const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
 
@@ -49,10 +46,7 @@ function applyBoardExpansionWill(cardState: CardState, gameState: GameState, pla
         typeof readCardPendingEffect !== 'function' ||
         typeof getBoardExpansionTargets !== 'function' ||
         typeof ensureMutableBoardExpansionForCard !== 'function' ||
-        typeof getExpansionDescriptorsForCard !== 'function' ||
         typeof resolveExpansionSideForCard !== 'function' ||
-        typeof normalizeExpansionOwnerForCard !== 'function' ||
-        typeof syncLegacyExpansionFieldsForCard !== 'function' ||
         typeof addStateExpansionCells !== 'function' ||
         typeof clearCardPendingEffect !== 'function'
     ) {
@@ -100,8 +94,6 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
     const getExpansionDescriptorsForCard = deps && deps.getExpansionDescriptorsForCard;
     const getBoardExpansionGodSocketTargets = deps && deps.getBoardExpansionGodSocketTargets;
     const resolveExpansionSideForCard = deps && deps.resolveExpansionSideForCard;
-    const normalizeExpansionOwnerForCard = deps && deps.normalizeExpansionOwnerForCard;
-    const syncLegacyExpansionFieldsForCard = deps && deps.syncLegacyExpansionFieldsForCard;
     const addStateExpansionCells = deps && deps.addStateExpansionCells;
     const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
 
@@ -114,8 +106,6 @@ function applyBoardExpansionGod(cardState: CardState, gameState: GameState, play
         typeof getExpansionDescriptorsForCard !== 'function' ||
         typeof getBoardExpansionGodSocketTargets !== 'function' ||
         typeof resolveExpansionSideForCard !== 'function' ||
-        typeof normalizeExpansionOwnerForCard !== 'function' ||
-        typeof syncLegacyExpansionFieldsForCard !== 'function' ||
         typeof addStateExpansionCells !== 'function' ||
         typeof clearCardPendingEffect !== 'function'
     ) {

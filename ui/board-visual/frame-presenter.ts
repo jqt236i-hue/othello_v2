@@ -75,6 +75,7 @@ function modelFingerprint(model: BoardRenderModel): string {
     .sort((left, right) => left.key.localeCompare(right.key));
   return stableDescriptorString({
     boardDigest: model.boardDigest,
+    inputEpoch: model.inputEpoch,
     topology: {
       ...topology,
       baseKeys: sortedKeys(topology.baseKeys),
@@ -105,6 +106,7 @@ function modelInteractionFingerprint(model: BoardRenderModel): string {
     .sort((left, right) => left.key.localeCompare(right.key));
   return stableDescriptorString({
     boardDigest: model.boardDigest,
+    inputEpoch: model.inputEpoch,
     topology: {
       baseShape: topology.baseShape,
       baseRows: topology.baseRows,

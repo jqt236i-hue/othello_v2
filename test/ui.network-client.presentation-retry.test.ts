@@ -2,16 +2,21 @@ import { JSDOM } from 'jsdom';
 
 jest.setTimeout(30000);
 
+const Shared = require('../shared-constants');
+const SharedBoardUtils = require('../shared/shared-board-utils');
+const { createGameState } = require('./helpers/game-state-mock');
+
 function snapshot(version: number) {
   return {
     stateVersion: version,
     _meta: {
       authority: 'server',
       version,
+      boardContractVersion: SharedBoardUtils.BOARD_CONTRACT_VERSION,
       projectedForSeat: 'black',
       turnStartReconciled: true
     },
-    gameState: { currentPlayer: 1, board: [[0]] },
+    gameState: createGameState(Shared, { currentPlayer: 1 }),
     cardState: {
       hands: { black: [], white: [] },
       presentationEvents: [],

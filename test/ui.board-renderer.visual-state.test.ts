@@ -186,6 +186,71 @@ describe('board renderer network visual state', () => {
     expect(inputs.baseVisualState.gameState.pairId).toBe(inputs.baseVisualState.cardState.pairId);
   });
 
+  test('network visual state version, sequence, and pending identity reach the input epoch', () => {
+    Object.assign((global as any).window, {
+      MATCH_MODE: 'network',
+      NetworkMatchClient: {
+        isActive: () => true,
+        isSpectator: () => false,
+        getSeatKey: () => 'black'
+      }
+    });
+    const diff = require('../ui/board-visual/state-adapter');
+    const makeSnapshot = (stateVersion: number, pendingEffectId: string) => ({
+      stateVersion,
+      gameState: createTestGameState(1, 1),
+      cardState: {
+        markers: [],
+        pendingEffectByPlayer: {
+          black: {
+            type: 'TEST_PENDING',
+            stage: 'selectTarget',
+            cardId: 'test-card',
+            pendingEffectId
+          },
+          white: null
+        }
+      }
+    });
+    const buildModel = (stateVersion: number, visualSeq: number, pendingEffectId: string) => {
+      (global as any).NetworkVisualStateStore.getRenderSnapshot
+        .mockReturnValue(makeSnapshot(stateVersion, pendingEffectId));
+      (global as any).NetworkVisualStateStore.getDiagnostics.mockReturnValue({
+        canonicalVersion: stateVersion,
+        visualVersion: stateVersion,
+        visualSeq,
+        lagging: false,
+        hasVisualSnapshot: true
+      });
+      const inputs = diff.createBoardRenderInputs();
+      const projection = diff.createBoardRenderProjection(undefined, inputs);
+      const cellState = diff.buildCurrentCellState(projection, inputs);
+      const model = diff.buildBoardRenderModel(projection, cellState, {
+        inputs,
+        overlay: inputs.presentationOverlayState
+      });
+      return { inputs, model, epoch: JSON.parse(model.inputEpoch) };
+    };
+
+    const first = buildModel(10, 20, 'pending:A');
+    const stateVersionChanged = buildModel(11, 20, 'pending:A');
+    const visualSeqChanged = buildModel(11, 21, 'pending:A');
+    const pendingChanged = buildModel(11, 21, 'pending:B');
+
+    expect(first.inputs.baseVisualState.inputEpoch).toEqual({
+      stateVersion: 10,
+      visualSeq: 20
+    });
+    expect(first.epoch).toEqual(expect.objectContaining({
+      stateVersion: 10,
+      visualSeq: 20,
+      pending: expect.objectContaining({ pendingEffectId: 'pending:A' })
+    }));
+    expect(stateVersionChanged.model.inputEpoch).not.toBe(first.model.inputEpoch);
+    expect(visualSeqChanged.model.inputEpoch).not.toBe(stateVersionChanged.model.inputEpoch);
+    expect(pendingChanged.model.inputEpoch).not.toBe(visualSeqChanged.model.inputEpoch);
+  });
+
   test('createBoardRenderInputs reads the local game/card pair once each', () => {
     const diff = require('../ui/board-visual/state-adapter');
     delete (global as any).NetworkVisualStateStore;
