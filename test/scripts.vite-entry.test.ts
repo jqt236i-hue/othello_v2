@@ -24,7 +24,7 @@ describe('Vite comparison entry generator', () => {
   });
 
   test('preserves the classic document shell while replacing only the final scripts', () => {
-    const rendered = renderViteEntry(`<!doctype html><html lang="ja"><head><link rel="stylesheet" href="styles.css"><meta data-card-reversi-feature-style-slot="board-dom-compat" data-card-reversi-feature-style-href="styles-board-dom-compat.css?v=4"></head><body><main id="board"></main>${classicTail}</body></html>`);
+    const rendered = renderViteEntry(`<!doctype html><html lang="ja"><head><link rel="stylesheet" href="styles.css"><meta data-card-reversi-feature-style-slot="board-dom-compat" data-card-reversi-feature-style-href="styles-board-dom-compat.css?v=4"></head><body><main id="board"></main><a id="reversiDestinyOpenLink" href="https://reversi-destiny.pages.dev/" target="_blank" rel="noopener noreferrer external" referrerpolicy="no-referrer">2Dアクション</a>${classicTail}</body></html>`);
     expect(rendered.scriptSources.map((value: string) => value.split('?')[0])).toEqual(CLASSIC_SCRIPT_ORDER);
     expect(rendered.content).toContain('<main id="board"></main>');
     expect(rendered.content).toContain('data-browser-lane="vite"');
@@ -44,6 +44,11 @@ describe('Vite comparison entry generator', () => {
     expect(rendered.content).not.toContain('public/vendor/pixi-8.18.1.min.js');
     expect(rendered.content).not.toContain('public/vendor/pixi-unsafe-eval-8.18.1.min.js');
     expect(rendered.content).not.toContain('card-reversi-classic-runtime');
+    expect(rendered.content).toContain('id="reversiDestinyOpenLink"');
+    expect(rendered.content).toContain('href="https://reversi-destiny.pages.dev/"');
+    expect(rendered.content).toContain('target="_blank"');
+    expect(rendered.content).toContain('rel="noopener noreferrer external"');
+    expect(rendered.content).toContain('referrerpolicy="no-referrer"');
   });
 
   test('writes a deterministic index.vite.html and detects no second change', () => {

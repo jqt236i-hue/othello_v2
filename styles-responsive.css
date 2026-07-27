@@ -1741,11 +1741,11 @@ html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack >
         top: auto;
         bottom: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, calc(64px * var(--layout-stage-scale))));
-        grid-auto-rows: calc(44px * var(--layout-stage-scale));
+        grid-template-columns: repeat(6, minmax(0, calc(64px * var(--layout-stage-scale))));
+        grid-auto-rows: max(24px, calc(44px * var(--layout-stage-scale)));
         align-items: stretch;
-        width: min(calc(350px * var(--layout-stage-scale)), 26vw);
-        max-height: calc(104px * var(--layout-stage-scale));
+        width: min(calc(410px * var(--layout-stage-scale)), 36vw);
+        max-height: max(60px, calc(104px * var(--layout-stage-scale)));
         padding: calc(5px * var(--layout-stage-scale));
         gap: calc(5px * var(--layout-stage-scale));
         overflow-x: hidden;
@@ -1774,7 +1774,7 @@ html.layout-stage-enabled:not(.layout-profile-phone-portrait) #left-info-stack >
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #leftActionButtons .left-action-btn {
         min-width: 0;
-        min-height: calc(44px * var(--layout-stage-scale));
+        min-height: max(24px, calc(44px * var(--layout-stage-scale)));
         padding: calc(4px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
         grid-template-rows: calc(16px * var(--layout-stage-scale)) auto;
         gap: calc(3px * var(--layout-stage-scale));

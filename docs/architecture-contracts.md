@@ -146,6 +146,14 @@ Gacha, cosmetic, leaderboard, commentary, CPU, and ONNX payloads are optional Vi
 
 Production delivery follows one cache/MIME/security contract: HTML revalidates; content-hashed Vite JS/Worker assets and versioned CSS are immutable; JavaScript, module, Worker, WASM, WOFF2, and WebP responses use their correct MIME types; and the default entry must start under the repository's production CSP including the Dedicated Worker and ONNX WASM path. Because hashed chunks can be replaced between deployments, Vite preload failure handling remains mandatory even when deployment normally publishes HTML and assets atomically.
 
+### 5.1.2 Companion app launch boundary
+
+The `2Dアクション` companion game is an independently built and published static application. Card Reversi owns only a native top-level navigation link to its stable HTTPS URL. The companion application must not enter the Card browser module graph, optional Vite groups, dependency injection, canonical game state, network authority, or Worker runtime preload.
+
+The link is intentionally inert until explicit player activation. Card startup must not issue companion-origin `preload`, `prefetch`, `preconnect`, module/script/style requests, or application-level `fetch`. The companion's Phaser runtime, assets, audio, storage, WebGL context, and build identity remain owned by its deployment and must not be copied into `worker-public/`.
+
+Navigation opens a separate top-level tab with `noopener` and `noreferrer`. It does not publish a game command, mutate mode state, pause the current match, or create a cross-window messaging channel. Any future in-page embed, shared state, pause coordination, or multiple-companion catalog requires a separate architecture change rather than widening this boundary implicitly.
+
 ### 5.2 Worker runtime preload contract
 
 `workers/match-worker-runtime-preload.ts` is the single source of truth for statically bundled modules that must be exposed as runtime globals before Cloudflare Worker authority code loads game logic.

@@ -27,6 +27,7 @@ describe('left action rail layout contract', () => {
     expect(layoutCss).toMatch(/#modeCpuBtn[\s\S]*--left-action-tone:\s*rgba\(106,\s*255,\s*172,\s*0\.24\)/);
     expect(layoutCss).toMatch(/#modeNetworkBtn[\s\S]*--left-action-tone:\s*rgba\(93,\s*171,\s*255,\s*0\.24\)/);
     expect(layoutCss).toMatch(/#ratedMatchOpenBtn[\s\S]*--left-action-tone:\s*rgba\(242,\s*201,\s*95,\s*0\.26\)/);
+    expect(layoutCss).toMatch(/#reversiDestinyOpenLink[\s\S]*--left-action-tone:\s*rgba\(255,\s*137,\s*90,\s*0\.23\)/);
     expect(layoutCss).toMatch(/#gachaOpenBtn[\s\S]*--left-action-tone:\s*rgba\(255,\s*130,\s*92,\s*0\.20\)/);
     expect(layoutCss).toMatch(/#handSkinBtn[\s\S]*--left-action-tone:\s*rgba\(210,\s*130,\s*255,\s*0\.2\)/);
   });
@@ -82,7 +83,7 @@ describe('left action rail layout contract', () => {
   test('left action rail exposes mode and utility buttons in index markup', () => {
     const html = readRepoTextFile('index.html');
 
-    expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="modeCpuBtn"[\s\S]*id="modeNetworkBtn"[\s\S]*id="ratedMatchOpenBtn"/);
+    expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="modeCpuBtn"[\s\S]*id="modeNetworkBtn"[\s\S]*id="ratedMatchOpenBtn"[\s\S]*id="reversiDestinyOpenLink"[\s\S]*id="leaderboardOpenBtn"/);
     expect(html).not.toMatch(/id="modeReversiBtn"\s+class="btn-small left-action-btn"/);
     expect(html).toMatch(/id="control-panel"[\s\S]*id="modeReversiBtn"[\s\S]*>リバーシ</);
     expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="leaderboardOpenBtn"[\s\S]*>ランキング<[\s\S]*id="deckBuilderOpenBtn"[\s\S]*>デッキ<[\s\S]*id="gachaOpenBtn"[\s\S]*>ガチャ<[\s\S]*id="handSkinBtn"[\s\S]*>スキン<[\s\S]*id="sidePanelToggleBtn"[\s\S]*>設定<[\s\S]*id="rulesHelpBtn"[\s\S]*>ヘルプ</);
@@ -90,8 +91,11 @@ describe('left action rail layout contract', () => {
     expect(html).toMatch(/id="leftActionButtons"[\s\S]*id="leftRailVisibilityBtn"[\s\S]*>非表示</);
     expect(html).toMatch(/class="left-action-icon left-action-icon-gacha"/);
     expect(html).toMatch(/class="left-action-icon left-action-icon-rated"/);
+    expect(html).toMatch(/class="left-action-icon left-action-icon-reversi-destiny"/);
     expect(html).toMatch(/class="left-action-icon left-action-icon-deck"/);
     expect(html).toMatch(/class="left-action-icon left-action-icon-ranking"/);
+    expect(html).toMatch(/id="reversiDestinyOpenLink"[\s\S]*href="https:\/\/reversi-destiny\.pages\.dev\/"[\s\S]*target="_blank"[\s\S]*rel="noopener noreferrer external"[\s\S]*referrerpolicy="no-referrer"[\s\S]*aria-label="2Dアクションを別タブで開く"/);
+    expect(html.match(/https:\/\/reversi-destiny\.pages\.dev\//g)).toHaveLength(1);
   });
 
   test('settings panel keeps a narrower vertical layout with an internal reversi shortcut', () => {
@@ -125,5 +129,7 @@ describe('left action rail layout contract', () => {
     expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#left-info-stack[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*calc\(150px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#leftActionButtons[\s\S]*bottom:/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#leftActionButtons[\s\S]*flex-direction:\s*row/);
+    expect(responsiveCss).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(pointer:\s*coarse\)[\s\S]*#leftActionButtons[\s\S]*grid-template-columns:\s*repeat\(6,/);
+    expect(responsiveCss).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(pointer:\s*coarse\)[\s\S]*#leftActionButtons[\s\S]*grid-auto-rows:\s*max\(24px,\s*calc\(44px\s*\*\s*var\(--layout-stage-scale\)\)\)/);
   });
 });

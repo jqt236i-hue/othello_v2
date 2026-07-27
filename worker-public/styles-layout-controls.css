@@ -2471,6 +2471,11 @@ body.time-stop-active {
     text-shadow: 0 calc(1px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.5);
 }
 
+#leftActionButtons a.left-action-btn {
+    box-sizing: border-box;
+    text-decoration: none;
+}
+
 #leftActionButtons .left-action-label {
     display: block;
     max-width: 100%;
@@ -2511,6 +2516,10 @@ body.time-stop-active {
 
 #leftActionButtons .left-action-icon-rated {
     --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.5l2.6 5.3 5.9.8-4.2 4.2 1 5.8L12 15.8l-5.3 2.8 1-5.8-4.2-4.2 5.9-.8Z' fill='black'/%3E%3Cpath d='M12 7.2l1.1 2.2 2.4.4-1.7 1.7.4 2.4-2.2-1.1-2.2 1.1.4-2.4-1.7-1.7 2.4-.4Z' fill='white'/%3E%3C/svg%3E");
+}
+
+#leftActionButtons .left-action-icon-reversi-destiny {
+    --left-action-icon-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 5h7v2H7v10h10v-5h2v7H5Z' fill='black'/%3E%3Cpath d='M13 4h7v7h-2V7.4l-6.3 6.3-1.4-1.4L16.6 6H13Z' fill='black'/%3E%3C/svg%3E");
 }
 
 #leftActionButtons .left-action-icon-gacha {
@@ -2726,6 +2735,15 @@ body.time-stop-active {
     --left-action-border: rgba(242, 201, 95, 0.40);
     --left-action-icon-top: #fff9df;
     --left-action-icon-bottom: #f2c95f;
+}
+
+#leftActionButtons #reversiDestinyOpenLink {
+    --left-action-tone: rgba(255, 137, 90, 0.23);
+    --left-action-tone-strong: rgba(255, 154, 105, 0.62);
+    --left-action-tone-soft: rgba(255, 137, 90, 0.15);
+    --left-action-border: rgba(255, 154, 105, 0.4);
+    --left-action-icon-top: #fff4df;
+    --left-action-icon-bottom: #ff9a69;
 }
 
 #leftActionButtons #gachaOpenBtn {
